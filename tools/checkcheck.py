@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 
+from xppclient import versioned
+
 # Safety bound for a broken child process, never a correctness timing assertion.
 CHECK_TIMEOUT = 60
 
@@ -54,7 +56,7 @@ def main():
         def run(text, extension='.ode'):
             nonlocal count
             model = file.with_suffix(extension)
-            model.write_text(text, encoding='utf-8')
+            model.write_text(versioned(text) if extension == '.odex' else text, encoding='utf-8')
             before = {p.name: p.read_bytes() for p in root.iterdir() if p.is_file()}
             result = subprocess.run([binary, '--check', str(model)], cwd=root,
                                     capture_output=True, text=True, timeout=CHECK_TIMEOUT)
@@ -131,18 +133,26 @@ def main():
             assert 'method: ' + selected in file.with_suffix('.odex').read_text(encoding='utf-8')
             file.with_suffix('.odex').unlink()
             count += 1
+        def model_line(line, extension):
+            # an .odex (and a file it imports) starts with its `version` line, so a line of its own is one further
+            return line + 1 if extension == '.odex' else line
+
+        def write_included(path, text, extension):
+            path.write_text(versioned(text) if extension == '.odex' else text, encoding='utf-8')
+
         # Includes (.odex: imports) retain the diagnostic's own file, line and source in both languages.
-        bad = root / 'bad.inc'
-        bad.write_text('aux z=unknown\n', encoding='utf-8')
-        for extension, include in [('.ode', '#include bad.inc'), ('.odex', 'import "bad.inc"')]:
+        nested = root / 'nested'
+        nested.mkdir()
+        for extension in ['.ode', '.odex']:
+            bad = root / ('bad' + extension + '.inc')
+            write_included(bad, 'aux z=unknown\n', extension)
+            include = '#include ' + bad.name if extension == '.ode' else 'import ' + json.dumps(bad.name)
             code, diagnostics = run("x'=0\n" + include + ('\ndone\n' if extension == '.ode' else '\n'), extension)
             assert code == 2, diagnostics
             error = diagnostics[-1]
-            assert Path(error['file']) == bad and error['line'] == 1 and error['source'] == 'aux z=unknown', error
-        nested = root / 'nested'
-        nested.mkdir()
-        (nested / 'good.inc').write_text('aux z=0\n#done\n', encoding='utf-8')
-        for extension, include in [('.ode', '#include nested/good.inc'), ('.odex', 'import "nested/good.inc"')]:
+            assert Path(error['file']) == bad and error['line'] == model_line(1, extension) and error['source'] == 'aux z=unknown', error
+            write_included(nested / ('good' + extension + '.inc'), 'aux z=0\n#done\n', extension)
+            include = '#include nested/good.ode.inc' if extension == '.ode' else 'import "nested/good.odex.inc"'
             code, diagnostics = run("x'=0\n" + include + ('\ndone\n' if extension == '.ode' else '\n'), extension)
             assert code == 0 and diagnostics == [], diagnostics
         # A received file cannot read its neighbour, absolute includes or imports, or a linked subtree.
@@ -154,14 +164,15 @@ def main():
             nonlocal count
             model = received / ('main' + extension)
             include = '#include ' + name if extension == '.ode' else 'import ' + json.dumps(name)
-            model.write_text("x'=0\n" + include + '\ndone\n', encoding='utf-8')
+            text = "x'=0\n" + include + '\ndone\n'
+            model.write_text(versioned(text) if extension == '.odex' else text, encoding='utf-8')
             result = subprocess.run([binary, '--check', str(model)], cwd=received,
                                     capture_output=True, text=True, timeout=CHECK_TIMEOUT)
             report = json.loads(result.stdout)
             assert result.returncode == 2 and report['diagnostics'][-1]['id'] == 'load-error', report
             assert 'private_secret' not in result.stdout, report
             assert Path(report['diagnostics'][-1]['file']) == model, report
-            assert report['diagnostics'][-1]['line'] == 2, report
+            assert report['diagnostics'][-1]['line'] == model_line(2, extension), report
             count += 1
         for extension in ['.ode', '.odex']:
             for name in ['../private.inc', str(private), '..\\private.inc', '.. /private.inc', 'linked/../private.inc']:
@@ -187,11 +198,11 @@ def main():
                 first = f'table f % {points} 0 1 t' if extension == '.ode' else f'table f t, n={points}, lo=0, hi=1'
                 code, diagnostics = run("x'=0\n" + first + '\n' + ('done\n' if extension == '.ode' else ''), extension)
                 assert code == 2 and 'budget' in diagnostics[-1]['message'], diagnostics
-                assert diagnostics[-1]['line'] == 2, diagnostics
+                assert diagnostics[-1]['line'] == model_line(2, extension), diagnostics
             tables = 'table f % 600000 0 1 t\ntable g % 600000 0 1 t\ndone\n' if extension == '.ode' else 'table f t, n=600000, lo=0, hi=1\ntable g t, n=600000, lo=0, hi=1\n'
             code, diagnostics = run("x'=0\n" + tables, extension)
             assert code == 2 and 'budget' in diagnostics[-1]['message'], diagnostics
-            assert diagnostics[-1]['line'] == 3, diagnostics
+            assert diagnostics[-1]['line'] == model_line(3, extension), diagnostics
         values = root / 'values.dat'
         for header in ['1000000000', '999999999999999999999999']:
             values.write_text(header + '\n0\n1\n', encoding='utf-8')
@@ -203,7 +214,7 @@ def main():
         for extension, text in [('.ode', "x'=unknown\ndone\n"), ('.odex', "x'=unknown\n")]:
             code, diagnostics = run(text, extension)
             assert code == 2 and diagnostics[-1]['id'] == 'load-error', diagnostics
-            assert diagnostics[-1]['line'] == 1 and diagnostics[-1]['source'] == "x'=unknown", diagnostics
+            assert diagnostics[-1]['line'] == model_line(1, extension) and diagnostics[-1]['source'] == "x'=unknown", diagnostics
         # The checked option reader now rejects these before conversion (W125).
         for line in ['@ total=2*3', '@ total=(4)', 'aux z=2*-3',
                      '@ meth=symplectic', '@ meth=stiffjunk',
