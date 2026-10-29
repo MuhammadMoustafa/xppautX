@@ -1,0 +1,111 @@
+{
+  "model": "tools/models/hen.odex",
+  "reason": "W537 (#602): the plain Henon map of AUTO-07p's hen demo (Govaerts et al. 2007, section 5.1 with r = 0), without the rotation of tests/auto/henon_rot_pd.json: the flip curve from alpha = 0.0675, beta = -0.7: AUTO-07p labels PTR (flip-torus) and R2 (3) going up, LPD (the fold-flip vertex, 0, -1) and PTR going down.",
+  "parameters": {
+    "alpha": 0.0,
+    "beta": -0.7
+  },
+  "initial_conditions": {
+    "x": 0.0,
+    "y": 0.0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "alpha",
+      "auto": {
+        "step_size": 0.02,
+        "min_step_size": 0.0005,
+        "max_step_size": 0.1,
+        "max_steps": 60,
+        "output_every": 100,
+        "parameter_min": -4,
+        "parameter_max": 4,
+        "mesh_intervals": 10,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-06,
+        "state_tolerance": 1e-06,
+        "special_point_tolerance": 0.0001,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "period_doubling",
+        "index": 1
+      },
+      "parameters": [
+        "alpha",
+        "beta"
+      ],
+      "auto": {
+        "step_size": 0.02,
+        "min_step_size": 0.0005,
+        "max_step_size": 0.1,
+        "max_steps": 66,
+        "output_every": 100,
+        "parameter_min": -4,
+        "parameter_max": 4,
+        "mesh_intervals": 10,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-06,
+        "state_tolerance": 1e-06,
+        "special_point_tolerance": 0.0001,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "period_doubling",
+        "index": 1
+      },
+      "parameters": [
+        "alpha",
+        "beta"
+      ],
+      "auto": {
+        "step_size": -0.02,
+        "min_step_size": 0.0005,
+        "max_step_size": 0.1,
+        "max_steps": 70,
+        "output_every": 100,
+        "parameter_min": -4,
+        "parameter_max": 4,
+        "mesh_intervals": 10,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-06,
+        "state_tolerance": 1e-06,
+        "special_point_tolerance": 0.0001,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "up",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "cause": "XPPAUT 8.0 continues the map flip through its period-two HB path, auto_2p_hopf, with ISP=0 and ILP=0 (auto_nox.c:2634-2643); it does not label these codimension-two points. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "down",
+      "side": "ours",
+      "type": "fold_flip",
+      "index": 1,
+      "cause": "XPPAUT 8.0 continues the map flip through its period-two HB path, auto_2p_hopf, with ISP=0 and ILP=0 (auto_nox.c:2634-2643); it does not label these codimension-two points. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    }
+  ]
+}

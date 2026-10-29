@@ -1,3 +1,4 @@
+# Source: published (Kuznetsov, Muratori, Rinaldi 1992, with the parameters of MatCont Tutorial V; both cited below).
 # W403 (#465): the periodically forced predator-prey model of Kuznetsov, Muratori and Rinaldi, "Bifurcations and chaos in a
 # periodic predator-prey model", Int. J. Bifurcation and Chaos 2 (1992) 117-128, in the autonomous form of its extension
 # by a rotation (u,v) that Yu.A. Kuznetsov, W. Govaerts et al. use as the example of MatCont's Tutorial V (the periodic

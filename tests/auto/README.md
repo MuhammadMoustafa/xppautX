@@ -115,3 +115,90 @@ AUTO-07p; XPPAUT 8.0's reference is skipped with its reason (docs/auto-reference
 W423 (#485) extends both Mu26 descriptions' cycles down to the rheobase fold (`to_snic`, the source's
 `run_bifurcation_*_extend.auto`) and adds the folds of cycles in the h conductances (`lpc_soma`, `lpc_dend`), skipped
 for their cost with AUTO-07p's reference (docs/auto-references.md, "W423").
+
+## Where each model comes from (W537, #602)
+
+The comparison with XPPAUT and AUTO-07p (W354) rests on real models only (AGENTS.md): a model is a published one (its paper,
+equations and parameter values cited in its file), a named demo of AUTO-07p or XPPAUT, or it is made up, and a made-up one is
+kept only until a published model reaches the same point types. The source is also the first comment of each model file. Of the 55
+models the descriptions run, 7 are published, 39 are named demos (XPPAUT 8.0's `tstauto/` and `ode/` examples, of which `pp2` and
+`hen` are AUTO-07p demos with their papers) and 9 are made up. The point types are the ones the baselines hold
+(`.diagram.csv`, column `itp`, the `_from_` start of a two-parameter point dropped); `end`, `user_point`,
+`output` and `no_convergence` are left out.
+
+| Model | Source | Descriptions | Point types reached |
+|---|---|---|---|
+| `examples/ode/cuplamdif.odex` | demo: XPPAUT 8.0's ode/cuplamdif.ode | `ode_cuplamdif` | none |
+| `examples/ode/del_log.odex` | demo: XPPAUT 8.0's ode/del_log.ode | `ode_del_log` | none |
+| `examples/ode/gausvolt.odex` | demo: XPPAUT 8.0's ode/gausvolt.ode | `ode_gausvolt` | none |
+| `examples/ode/lecar.odex` | demo: XPPAUT 8.0's ode/lecar.ode | `ode_lecar` | cycle_fold, hopf |
+| `examples/ode/ma23.odex` | published: Ma et al. 2023, Table 1 | `ode_ma23` | fold, hopf |
+| `examples/ode/motoneuron6c.odex` | published: Moustafa et al. 2023, ModelDB 267710 | `ode_motoneuron6c` | fold, hopf |
+| `examples/ode/mu26.odex` | published as code: the maintainer's two-compartment PVN neuron (github.com/MuhammadMoustafa/pvn-hcn-marmoset-model) | `ode_mu26_blocked`, `ode_mu26_control` | cusp, cycle_fold, fold, hopf, snic |
+| `examples/ode/osc.odex` | demo: XPPAUT 8.0's ode/osc.ode | `ode_osc` | none |
+| `examples/ode/tstdel.odex` | demo: XPPAUT 8.0's ode/tstdel.ode | `ode_tstdel` | none |
+| `examples/ode/tstdelsp.odex` | demo: XPPAUT 8.0's ode/tstdelsp.ode | `ode_tstdelsp` | none |
+| `examples/ode/tstheti.odex` | demo: XPPAUT 8.0's ode/tstheti.ode | `ode_tstheti` | none |
+| `examples/ode/tstvol3.odex` | demo: XPPAUT 8.0's ode/tstvol3.ode | `ode_tstvol3` | none |
+| `examples/tstauto/ab.odex` | demo: XPPAUT 8.0's tstauto/ab.ode | `tstauto_ab`, `tstauto_ab_fold`, `tstauto_ab_hopf` | bogdanov_takens, cusp, fold, hopf |
+| `examples/tstauto/bigaut.odex` | demo: XPPAUT 8.0's tstauto/bigaut.ode | `tstauto_bigaut` | none |
+| `examples/tstauto/bistable.odex` | demo: XPPAUT 8.0's tstauto/bistable.ode | `tstauto_bistable` | none |
+| `examples/tstauto/bob.odex` | demo: XPPAUT 8.0's tstauto/bob.ode | `tstauto_bob` | none |
+| `examples/tstauto/brper.odex` | demo: XPPAUT 8.0's tstauto/brper.ode | `tstauto_brper` | cycle_branch_point, hopf |
+| `examples/tstauto/dumb.odex` | demo: XPPAUT 8.0's tstauto/dumb.ode | `tstauto_dumb` | none |
+| `examples/tstauto/dumbvp.odex` | demo: XPPAUT 8.0's tstauto/dumbvp.ode | `tstauto_dumbvp` | none |
+| `examples/tstauto/eiz-hom.odex` | demo: XPPAUT 8.0's tstauto/eiz-hom.ode | `tstauto_eiz-hom` | none |
+| `examples/tstauto/exp.odex` | demo: XPPAUT 8.0's tstauto/exp.ode | `tstauto_exp` | none |
+| `examples/tstauto/frcp.odex` | demo: XPPAUT 8.0's tstauto/frcp.ode | `tstauto_frcp` | hopf |
+| `examples/tstauto/lamom.odex` | demo: XPPAUT 8.0's tstauto/lamom.ode | `tstauto_lamom` | hopf |
+| `examples/tstauto/lamom2.odex` | demo: XPPAUT 8.0's tstauto/lamom2.ode | `tstauto_lamom2` | cycle_fold, hopf |
+| `examples/tstauto/lecar.odex` | demo: XPPAUT 8.0's tstauto/lecar.ode | `tstauto_lecar` | cycle_fold, hopf |
+| `examples/tstauto/lo.odex` | demo: XPPAUT 8.0's tstauto/lo.ode | `tstauto_lo` | hopf |
+| `examples/tstauto/pen.odex` | demo: XPPAUT 8.0's tstauto/pen.ode | `tstauto_pen` | fold |
+| `examples/tstauto/pf.odex` | demo: XPPAUT 8.0's tstauto/pf.ode | `tstauto_pf` | branch_point |
+| `examples/tstauto/phs2.odex` | demo: XPPAUT 8.0's tstauto/phs2.ode | `tstauto_phs2` | none |
+| `examples/tstauto/phsmod.odex` | demo: XPPAUT 8.0's tstauto/phsmod.ode | `tstauto_phsmod` | none |
+| `examples/tstauto/phssimp.odex` | demo: XPPAUT 8.0's tstauto/phssimp.ode | `tstauto_phssimp` | none |
+| `examples/tstauto/pp2.odex` | demo: XPPAUT's tstauto/pp2 = AUTO-07p's pp2 demo (Doedel, J. Math. Biol. 20, 1984) | `pp2_heteroclinic`, `tstauto_pp2` | branch_point, cycle_fold, heteroclinic, hopf |
+| `examples/tstauto/san.odex` | demo: XPPAUT 8.0's tstauto/san.ode | `tstauto_san` | branch_point |
+| `examples/tstauto/she.odex` | demo: XPPAUT 8.0's tstauto/she.ode | `tstauto_she` | none |
+| `examples/tstauto/simplefold.odex` | demo: XPPAUT 8.0's tstauto/simplefold.ode | `tstauto_simplefold` | fold |
+| `examples/tstauto/torx.odex` | demo: XPPAUT 8.0's tstauto/torx.ode | `tstauto_torx`, `tstauto_torx_homcont` | branch_point, cycle_fold, hopf |
+| `examples/tstauto/tstheti_homcont.odex` | demo: derived from XPPAUT 8.0's ode/tstheti.ode | `tstauto_tstheti_homcont` | none |
+| `examples/tstauto/tsthom.odex` | demo: XPPAUT 8.0's tstauto/tsthom.ode | `tstauto_tsthom` | none |
+| `examples/tstauto/tsthom2.odex` | demo: XPPAUT 8.0's tstauto/tsthom2.ode | `tstauto_tsthom2` | none |
+| `examples/tstauto/tsthom3.ode` | demo: XPPAUT 8.0's tstauto/tsthom3.ode | `tstauto_tsthom3` | none |
+| `examples/tstauto/wcbiwave.odex` | demo: XPPAUT 8.0's tstauto/wcbiwave.ode | `tstauto_wcbiwave` | none |
+| `tools/models/bautin_near_hopf.odex` | made up: the Bautin normal form with chosen parameters | `bautin_near_hopf` | cycle_fold, hopf |
+| `tools/models/bykov.odex` | published: the Bykov-Yablonskii-Kim CO-oxidation model, equations and values of Kuznetsov's MatCont Tutorial IV | `bykov_hopf` | bogdanov_takens, cusp, fold, generalized_hopf, hopf |
+| `tools/models/explicit_homoclinic.odex` | made up: a 3D system with a closed-form homoclinic orbit | `explicit_homoclinic` | none |
+| `tools/models/forced_predator_prey.odex` | published: Kuznetsov, Muratori and Rinaldi 1992, values of MatCont Tutorial V | `forced_pp_ns`, `forced_pp_pd` | cycle_branch_point, hopf, neimark_sacker, period_doubling, resonance_1_2 |
+| `tools/models/global_heteroclinic.odex` | made up: a planar oscillator with two saddles | `global_heteroclinic` | cycle_branch_point, cycle_fold, heteroclinic, hopf |
+| `tools/models/global_homoclinic.odex` | made up: a damped double-well Duffing oscillator | `global_homoclinic` | cycle_fold, homoclinic, hopf |
+| `tools/models/global_snic.odex` | made up: a polar normal form | `global_snic` | hopf, snic |
+| `tools/models/hen.odex` | demo: AUTO-07p's hen demo (the Henon map; Govaerts et al. 2007, section 5.1) | `hen_lp`, `hen_pd`, `hen_tr` | fold, fold_flip, neimark_sacker, period_doubling, resonance_1_1, resonance_1_2, resonance_1_3, resonance_1_4 |
+| `tools/models/henon_rot.odex` | made up: AUTO-07p's hen demo's Henon map with an added rotation | `henon_rot_lp`, `henon_rot_pd`, `henon_rot_th`, `henon_rot_tr` | branch_point, flip_neimark_sacker, fold, fold_flip, fold_neimark_sacker, neimark_sacker, period_doubling, resonance_1_1, resonance_1_2, resonance_1_3, resonance_1_4 |
+| `tools/models/hill_cycles.odex` | made up: a Hopf normal form with a Hill equation | `hill_cycles_pd`, `hill_cycles_torus` | cycle_branch_point, hopf, neimark_sacker, period_doubling, resonance_1_2, resonance_1_3, resonance_1_4 |
+| `tools/models/izh_rest.odex` | published: Izhikevich 2004 (IEEE TNN 15:1063), Fig. 1 panels G, H, K, L | `izh_class1_integrator`, `izh_class2`, `izh_resonator` | fold, hopf |
+| `tools/models/lorenz_homoclinic.odex` | published: Lorenz 1963, sigma = 10, beta = 8/3 (AUTO-07p's lrz demo); r = 13.926 (Sparrow 1982) | `lorenz_homoclinic`, `lrz_cycles` | homoclinic, hopf |
+| `tools/models/res_cycles.odex` | made up: a Hopf normal form beside a Bogdanov-Takens system | `res_cycles` | cycle_branch_point, hopf, neimark_sacker, resonance_1_1, resonance_1_2, resonance_1_3, resonance_1_4 |
+| `tools/models/zero_hopf.odex` | made up: a fold normal form beside a Hopf normal form | `zero_hopf` | fold, zero_hopf |
+
+### The point types and the models that check them (W537)
+
+`S` marks a published model, `D` a named demo, `M` a made-up one; the first of each list is the one that stands for the type.
+docs/auto-references.md, "W537", gives each type's AUTO-07p and XPPAUT outcome.
+
+| Point type | Models |
+|---|---|
+| `generalized_hopf` (GH) | `bykov` S (two Bautin points of MatCont Tutorial IV) |
+| `homoclinic` | `lorenz_homoclinic` S (`lrz_cycles`), `global_homoclinic` M |
+| `heteroclinic` | `pp2` D (`pp2_heteroclinic`), `global_heteroclinic` M |
+| `snic` | `mu26` S (as code), `global_snic` M |
+| `bogdanov_takens`, `cusp` | `bykov` S, `ab` D (cusp also `mu26`) |
+| `resonance_1_1` (R1), `resonance_1_3` (R3), `resonance_1_4` (R4), `fold_flip` | `hen` D, `henon_rot`, `res_cycles`, `hill_cycles` M |
+| `resonance_1_2` (R2), `period_doubling`, `neimark_sacker` | `forced_predator_prey` S, `hen` D, `henon_rot`, `hill_cycles`, `res_cycles` M |
+| `zero_hopf` (ZH) | `zero_hopf` M only |
+| `fold_neimark_sacker` (LPNS), `flip_neimark_sacker` (PDNS) | `henon_rot` M only |
+| `double_neimark_sacker` (NSNS) | none: `henon_rot_tr`'s torus-torus point is in its skipped `down` run |
+| `hopf`, `fold`, `branch_point`, `cycle_fold`, `cycle_branch_point` | published, demo and made-up models alike (the table above) |

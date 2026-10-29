@@ -1,3 +1,4 @@
+# Source: made up for this check (W537 audit); a published SNIC end is the maintainer's examples/ode/mu26.odex (tests/auto/ode_mu26_*.json).
 # A planar system whose cycle from a Hopf point ends on a saddle-node on an invariant circle (W518, #582).
 # In polar coordinates r' = r (mu - r^2), phi' = 1 - r x, with x = r cos(phi): the origin has a Hopf point at
 # mu = 0 and the circle r = sqrt(mu) is a stable cycle, on which phi' = 1 - mu cos(phi). Its period is

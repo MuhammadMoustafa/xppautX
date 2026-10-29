@@ -1,4 +1,5 @@
 # san.odex: converted from san.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo tstauto/san.ode (AUTO-07p has a demo of the same name, reference/auto-07p/demos/san) (W537 audit).
 
 par par0 = 0, par7 = 0, par1 = 1, par2 = -2, par3 = 0, par4 = 1, par5 = 0, par6 = 0
 f0 = par0*u0+par1*u1-par0*u0*u0+(par7-par3*u2)*u0*(2-u0*3)

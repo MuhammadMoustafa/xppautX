@@ -1,0 +1,94 @@
+{
+  "model": "tools/models/hen.odex",
+  "reason": "W537 (#602): the plain Henon map of AUTO-07p's hen demo (Govaerts et al. 2007, section 5.1 with r = 0), without the rotation of tests/auto/henon_rot_lp.json: the fold curve from alpha = -0.5625, beta = -2.5: AUTO-07p labels LTR (fold-torus), LPD (fold-flip at the vertex) and R1 (-1, 1) going up, and LTR going down.",
+  "parameters": {
+    "alpha": 0.0,
+    "beta": -2.5
+  },
+  "initial_conditions": {
+    "x": 1.5,
+    "y": 1.5
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "alpha",
+      "auto": {
+        "step_size": -0.02,
+        "min_step_size": 0.0005,
+        "max_step_size": 0.1,
+        "max_steps": 60,
+        "output_every": 100,
+        "parameter_min": -4,
+        "parameter_max": 4,
+        "mesh_intervals": 10,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-06,
+        "state_tolerance": 1e-06,
+        "special_point_tolerance": 0.0001,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "fold",
+        "index": 1
+      },
+      "parameters": [
+        "alpha",
+        "beta"
+      ],
+      "auto": {
+        "step_size": 0.02,
+        "min_step_size": 0.0005,
+        "max_step_size": 0.1,
+        "max_steps": 60,
+        "output_every": 100,
+        "parameter_min": -4,
+        "parameter_max": 4,
+        "mesh_intervals": 10,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-06,
+        "state_tolerance": 1e-06,
+        "special_point_tolerance": 0.0001,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "fold",
+        "index": 1
+      },
+      "parameters": [
+        "alpha",
+        "beta"
+      ],
+      "auto": {
+        "step_size": -0.02,
+        "min_step_size": 0.0005,
+        "max_step_size": 0.1,
+        "max_steps": 30,
+        "output_every": 100,
+        "parameter_min": -4,
+        "parameter_max": 4,
+        "mesh_intervals": 10,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-06,
+        "state_tolerance": 1e-06,
+        "special_point_tolerance": 0.0001,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "xppaut_skip": "XPPAUT 8.0 auto_2p_limit forces IPS=1 for a map LP instead of IPS=-1 (auto_nox.c:2498-2533); W428 (#490), docs/xppaut-findings.md finding 66."
+}

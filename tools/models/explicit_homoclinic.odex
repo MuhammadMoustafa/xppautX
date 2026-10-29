@@ -1,3 +1,4 @@
+# Source: made up for this check (W537 audit): a three-dimensional system built here to have a closed-form homoclinic orbit; no paper.
 # W403 (#465): a three-dimensional system with an explicit homoclinic orbit. At k = 0 the orbit to the origin is
 #   x(t) = (3/2)*sech(sqrt(q)*t/2)^2, y(t) = x'(t), z(t) = x(t)^2
 # for every q > 0 (x'' = q*(x - x^2) is the planar Hamiltonian system; z = x^2 solves z' = 2*x*y and is the only

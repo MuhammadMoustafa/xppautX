@@ -113,6 +113,13 @@ formula with the multilinear forms differenced in quadruple precision, from the 
 test function agrees to 1.5e-4 relative, with the difference or the exact Jacobian. With EPSL = EPSU = EPSS 1e-4 AUTO-07p labels the
 five GH again on T2's own description; with 1e-7 and 1e-9 it labels none.
 
+The same at a published model's two Bautin points (W537, [#602](https://github.com/MuhammadMoustafa/xppautX/issues/602)): the Bykov-Yablonskii-Kim CO-oxidation model
+with the equations and values of Kuznetsov's MatCont Tutorial IV (`tests/auto/bykov_hopf.json`), whose Hopf curve in (Q2, K) has two Bautin points,
+l1 = 0 at (0.891319, 0.232487) and (0.924255, 0.305879) in the tutorial. xppautX labels them at (0.891324, 0.232490) and (0.924256, 0.305880). AUTO-07p
+0.9.4 at EPSL = EPSU = EPSS 1e-4 labels five GH, the two real ones off by 0.002 and 0.007 in Q2 (0.893416 and 0.917241) and three more
+(0.78621, 0.81482 and 0.94617), and on the fold curve three CP, the nearest 0.002 from the tutorial's cusp (1.006408, 0.355991) (1.00845). With
+EPSL = EPSU = EPSS 1e-9 on the same description it labels exactly the two GH, at (0.891319, 0.232487) and (0.924256, 0.305880), and no CP.
+
 A cusp can also go unlabelled (W423, [#485](https://github.com/MuhammadMoustafa/xppautX/issues/485)); the noise below fits the residual term, though no experiment on AUTO-07p isolated it.
 On Mu26's rheobase-fold curve in (current, g_h soma) (`tests/auto/ode_mu26_blocked.json`, `lp_soma` with DSMAX 1)
 the cusp function changes sign between points 28 (-3.4e-8) and 29 (8.1e-8), and the location evaluates 8.9e-10,

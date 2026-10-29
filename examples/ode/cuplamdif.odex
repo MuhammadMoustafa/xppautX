@@ -1,4 +1,5 @@
 # cuplamdif.odex: converted from cuplamdif.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo ode/cuplamdif.ode (W537 audit).
 
 # cuplamdif.ode
 # the functions F(u,v), G(u1,v1)

@@ -1,0 +1,68 @@
+{
+  "model": "examples/tstauto/pp2.odex",
+  "reason": "W537 (#602): AUTO-07p's pp2 demo (Doedel, J. Math. Biol. 20, 1984: the predator-prey model with harvesting; examples/tstauto/pp2.odex is the same model with p1 = par0 the quota, p2 = par1 = 3, p3 = par2 = 5, p4 = par3 = 3), at the demo's NTST 90: the cycles of its Hopf point, which end on the heteroclinic cycle between the saddles (0.1276, 0) and (0.6518, 0) on the u1 axis, as AUTO-07p's manual says. The run stops where xppautX names the end.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "par0",
+      "auto": {
+        "step_size": 0.05,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": -0.1,
+        "parameter_max": 2,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "par0",
+      "auto": {
+        "step_size": 0.025,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.025,
+        "max_steps": 800,
+        "output_every": 100,
+        "parameter_min": -0.1,
+        "parameter_max": 2,
+        "mesh_intervals": 90,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "u0": 0.3333333333333333,
+    "u1": 2
+  },
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "cycles",
+      "side": "reference",
+      "type": "branch_point",
+      "index": 1,
+      "cause": "W537 (#602): XPPAUT 8.0 labels BP at periods 76.5 and 99.0 of the cycles (norm 0.4272 and 0.4256), near the end where they meet the heteroclinic cycle (xppautX ends them at period 106.2, norm 0.4251; AUTO-07p's first label is the LP at period 138.6, past it). With the same constants, NTST 90 included, AUTO-07p labels no BP along these cycles and neither does xppautX. Not traced further: the cycles' multipliers there are of very different sizes, and XPPAUT's branch-point test is the only one of the three to change sign. The branch itself agrees: all three programs end it at quota 0.7080728 to 7 digits."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "cycles",
+      "side": "reference",
+      "type": "branch_point",
+      "index": 2,
+      "cause": "W537 (#602): XPPAUT 8.0 labels BP at periods 76.5 and 99.0 of the cycles (norm 0.4272 and 0.4256), near the end where they meet the heteroclinic cycle (xppautX ends them at period 106.2, norm 0.4251; AUTO-07p's first label is the LP at period 138.6, past it). With the same constants, NTST 90 included, AUTO-07p labels no BP along these cycles and neither does xppautX. Not traced further: the cycles' multipliers there are of very different sizes, and XPPAUT's branch-point test is the only one of the three to change sign. The branch itself agrees: all three programs end it at quota 0.7080728 to 7 digits."
+    }
+  ]
+}

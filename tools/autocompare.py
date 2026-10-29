@@ -928,8 +928,23 @@ def table_row(name, d, rows, references, measures, diffs):
     return '| %s | %s | %s |' % (name, runs, ' | '.join(cells))
 
 
+def stop_at_global_end(rows, r):
+    """The reference run up to where ours ends. A run of ours that ends on a global end (SNIC, HOC, HEC: W518)
+    stops there; the reference has no such end and runs on to its step limit through ever slower cycles, whose
+    special points are the mesh's (docs/auto-references.md). Its points and curve after the sample nearest our
+    last point are left out of the comparison. A reference run with no curve is compared whole."""
+    if code_of(rows[-1]['itp']) not in GLOBAL_ENDS or 'curve' not in r:
+        return r
+    curve = np.array(r['curve'])
+    last = np.array([float(rows[-1]['continued_parameter']), float(rows[-1].get('continued_parameter2', 0)), float(rows[-1]['norm'])])
+    spans = np.where(np.ptp(curve, axis=0) > 0, np.ptp(curve, axis=0), 1)
+    nearest = int(np.argmin((((curve - last) / spans) ** 2).sum(axis=1)))
+    return {**r, 'points': [p for p in r['points'] if p['point'] <= nearest + 1], 'curve': r['curve'][:nearest + 1]}
+
+
 def compare_reference_run(name, suffix, dr, r, rows, known):
     """One reference run against one of our runs: its special points, then its curve."""
+    r = stop_at_global_end(rows[dr['name']], r)
     who = '%s %s/%s' % (name, REFERENCES[suffix], r['name'])
     a, m = compare_run(rows[dr['name']], dr['auto'], dr['kind'], r['points'], who, known,
                        # An equilibrium restarted from an EP reuses that point;

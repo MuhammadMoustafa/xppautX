@@ -1,0 +1,13 @@
+# Source: AUTO-07p's hen demo (reference/auto-07p/demos/hen/hen.f90; AUTO-07p manual, doc/auto.tex "hen"): the Henon map
+# (x, y) -> (y, alpha - beta*x - y^2), the planar map C. Mira studies in "Chaotic Dynamics" (World Scientific, 1987),
+# which Govaerts, Khoshsiar Ghaziani, Kuznetsov and Meijer, "Numerical methods for two-parameter local bifurcation
+# analysis of maps", SIAM J. Sci. Comput. 29(6) (2007) 2644-2667, section 5.1 (r = 0), analyse with MatCont: its fold
+# at alpha = -(1+beta)^2/4, flip at alpha = 3(1+beta)^2/4, torus at beta = 1, the 1:2 resonance at (alpha, beta) = (3, 1)
+# and the fold-flip point at (alpha, beta) = (0, -1) (W537 #602; the paper and its formulas read there).
+x' = y
+y' = alpha-beta*x-y*y
+par alpha = 1.5, beta = 0
+init x = 0.8228756555322953, y = 0.8228756555322953
+options {
+  integration: { method: discrete, total_time: 100 },
+}

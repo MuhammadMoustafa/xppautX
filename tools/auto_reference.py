@@ -427,6 +427,11 @@ BLOCK = re.compile(r'^\s*(\d+)\s+(\d+)\s+(Eigenvalue|Multiplier)\s*(\d+):?\s+(\S
 SUMMARY = re.compile(r'^\s*(-?\d+)\s+(-?\d+)\s+[A-Z]{2}\s+(\d+)\s+-?\d\.\d+E[-+]\d+')
 
 
+def fortran_number(text):
+    """A number as AUTO-07p's Fortran prints it: with a three-digit exponent the E is dropped (1.79769+308)."""
+    return float(re.sub(r'(\d)([-+]\d{3})$', r'\1E\2', text))
+
+
 def stability(text):
     """d.<name>: {(branch, label): (kind, [[re, im], ...])}, the last block printed for a special point
     (the location of a special point prints the point again after each of its iterations). Keyed by
@@ -442,7 +447,7 @@ def stability(text):
             if block is None or block[0] != key or number <= last:
                 block = (key, m.group(3), [])
             last = number
-            block[2].append([float(m.group(5)), float(m.group(6))])
+            block[2].append([fortran_number(m.group(5)), fortran_number(m.group(6))])
             continue
         m = SUMMARY.match(line)
         if m:

@@ -1,0 +1,20 @@
+# The Bykov-Yablonskii-Kim model of CO oxidation on platinum (W537, #602): the three-variable kinetic scheme with a
+# buffer step proposed by V. I. Bykov, G. S. Yablonskii and V. F. Kim, "On the simple model of kinetic self-oscillations
+# in catalytic reaction of CO oxidation", Doklady AN SSSR (Chemistry) 242 (3), 1978, 637-639 (the reference as
+# en.wikipedia.org/wiki/Grigoriy_Yablonsky gives it). The equations and every parameter value are those of Yu. A.
+# Kuznetsov's MatCont Tutorial IV, "Two-parameter bifurcation analysis of equilibria and limit cycles with MatCont",
+# section 1 (https://dercole.faculty.polimi.it/tds/matcont/6/2params.pdf; the same text is Lab session 4 of the
+# Utrecht course, https://webspace.science.uu.nl/~kouzn101/NBA/LAB4.pdf), with the rates k1, k2, k3, k4, k-1, k-2 named
+# Q1..Q6 and K = k-4/k4:
+#   z = 1 - x - y - s,  x' = 2 Q1 z^2 - 2 Q5 x^2 - Q3 x y,  y' = Q2 z - Q6 y - Q3 x y,  s' = Q4 z - K Q4 s.
+# Start of the tutorial (a stable equilibrium): x = 0.001137, y = 0.891483, s = 0.062345, Q1 = 2.5, Q2 = 2.204678,
+# Q3 = 10, Q4 = 0.0675, Q5 = 1, Q6 = 0.1, K = 0.4. The tutorial's published values for (Q2, K): Bogdanov-Takens
+# points at (1.417628, 0.971397) and (1.161199, 0.722339), a cusp at (1.006408, 0.355991) and two Bautin points
+# (generalised Hopf) on the Hopf curve at (0.891319, 0.232487) and (0.924255, 0.305879).
+# tests/auto/bykov_*.json run them.
+z = 1-x-y-s
+x' = 2*Q1*z^2-2*Q5*x^2-Q3*x*y
+y' = Q2*z-Q6*y-Q3*x*y
+s' = Q4*z-K*Q4*s
+par Q1 = 2.5, Q2 = 2.204678, Q3 = 10, Q4 = 0.0675, Q5 = 1, Q6 = 0.1, K = 0.4
+init x = 0.001137, y = 0.891483, s = 0.062345

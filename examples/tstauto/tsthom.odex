@@ -1,4 +1,5 @@
 # tsthom.odex: converted from tsthom.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo tstauto/tsthom.ode (W537 audit).
 
 x' = y
 y' = x*(1-x)-a*y+b*x*y

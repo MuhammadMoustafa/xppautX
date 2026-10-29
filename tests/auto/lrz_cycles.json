@@ -1,0 +1,74 @@
+{
+  "model": "tools/models/lorenz_homoclinic.odex",
+  "reason": "W537 (#602): AUTO-07p's lrz demo, the Lorenz equations at sigma = 10, beta = 8/3 (Lorenz 1963): the stationary branches from r = 0, then the cycles of the Hopf point on the branch that bifurcates at r = 1 (r = 24.74), which end in a near-homoclinic orbit to the origin; the run stops there.",
+  "parameters": {
+    "r": 30.0,
+    "s": 10.0,
+    "b": 2.6666666666666665
+  },
+  "initial_conditions": {
+    "x": 8.793937305515279,
+    "y": 8.793937305515279,
+    "z": 29.0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "r",
+      "auto": {
+        "step_size": -0.1,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.5,
+        "max_steps": 100,
+        "output_every": 100,
+        "parameter_min": 20,
+        "parameter_max": 31,
+        "mesh_intervals": 35,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles_hb1",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "r",
+      "auto": {
+        "step_size": -0.5,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.5,
+        "max_steps": 300,
+        "output_every": 2,
+        "parameter_min": 0,
+        "parameter_max": 40,
+        "mesh_intervals": 35,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "cycles_hb1",
+      "side": "reference",
+      "type": "branch_point",
+      "index": 1,
+      "cause": "W537 (#602): AUTO-07p labels a BP at the third point of the cycles, 0.01 below their Hopf point, where the cycle's second multiplier (1.0004) has only just left the trivial multiplier 1. The label follows the first steps, not the branch: with DS -0.1 instead of -0.5 it is at r = 24.7364, 0.0004 below the Hopf point (period 0.65284). The cycles of a Hopf point have no branch point there. xppautX labels none (docs/auto-references.md, W537)."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "cycles_hb1",
+      "side": "reference",
+      "type": "branch_point",
+      "index": 1,
+      "cause": "W537 (#602): XPPAUT 8.0 labels the same BP as AUTO-07p at the third point of the cycles (r = 24.72618, period 0.65320); see the AUTO-07p entry: the label follows the first steps, not the branch (it moves to r = 24.7364 with DS -0.1)."
+    }
+  ]
+}

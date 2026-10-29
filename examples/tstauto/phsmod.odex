@@ -1,4 +1,5 @@
 # phsmod.odex: converted from phsmod.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo tstauto/phsmod.ode (W537 audit).
 
 fun p(u) = exp(-beta*(1-cos(u)))
 par k = 0.2, d = 0

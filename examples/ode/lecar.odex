@@ -1,4 +1,5 @@
 # lecar.odex: converted from lecar.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo ode/lecar.ode (W537 audit).
 
 # The Morris-Lecar model as in our chapter in Koch & Segev
 #  A simple membrane oscillator.

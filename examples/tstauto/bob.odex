@@ -1,4 +1,5 @@
 # bob.odex: converted from bob.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo tstauto/bob.ode (W537 audit).
 # names written as their declarations spell them (.odex names have case); the .ode's lines 1, 2
 
 X' = -X+F(a+b*X-c*Y)

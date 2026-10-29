@@ -1,4 +1,5 @@
 # dumbvp.odex: converted from dumbvp.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo tstauto/dumbvp.ode (W537 audit).
 
 x' = y
 y' = x

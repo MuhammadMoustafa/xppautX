@@ -1,4 +1,5 @@
 # bigaut.odex: converted from bigaut.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo tstauto/bigaut.ode (W537 audit).
 
 x[j]' = -x[j]+p for j in 1..350
 par p = 0

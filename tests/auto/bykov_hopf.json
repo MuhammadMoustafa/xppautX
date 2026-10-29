@@ -1,0 +1,245 @@
+{
+  "model": "tools/models/bykov.odex",
+  "reason": "W537 (#602): the Bykov-Yablonskii-Kim model of CO oxidation on platinum with the equations and parameter values of MatCont Tutorial IV (Kuznetsov): the equilibrium from Q2 = 2.2 downwards (two Hopf and two fold points), the Hopf curve in Q2 and K from its first Hopf point (two Bautin points and the two Bogdanov-Takens points of the tutorial) and the fold curve of its second fold point (the tutorial's cusp and Bogdanov-Takens points).",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "Q2",
+      "auto": {
+        "step_size": -0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.025,
+        "max_steps": 400,
+        "output_every": 20,
+        "parameter_min": 0.5,
+        "parameter_max": 2.5,
+        "mesh_intervals": 20,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "hopf_down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameters": [
+        "Q2",
+        "K"
+      ],
+      "auto": {
+        "step_size": -0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 300,
+        "output_every": 25,
+        "parameter_min": 0.1,
+        "parameter_max": 1.42,
+        "mesh_intervals": 20,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "hopf_up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameters": [
+        "Q2",
+        "K"
+      ],
+      "auto": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 60,
+        "output_every": 25,
+        "parameter_min": 0.9,
+        "parameter_max": 1.1625,
+        "mesh_intervals": 20,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "fold_down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "fold",
+        "index": 2
+      },
+      "parameters": [
+        "Q2",
+        "K"
+      ],
+      "auto": {
+        "step_size": -0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 200,
+        "output_every": 25,
+        "parameter_min": 0.1,
+        "parameter_max": 1.6,
+        "mesh_intervals": 20,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "fold_up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "fold",
+        "index": 2
+      },
+      "parameters": [
+        "Q2",
+        "K"
+      ],
+      "auto": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 200,
+        "output_every": 25,
+        "parameter_min": 0.1,
+        "parameter_max": 1.6,
+        "mesh_intervals": 20,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "hopf_down",
+      "side": "reference",
+      "type": "generalized_hopf",
+      "index": 2,
+      "cause": "AUTO-07p at the description's tolerances (EPSL, EPSU, EPSS 1e-4) labels five GH on the Hopf curve and puts the two real ones off the published places: MatCont Tutorial IV (Kuznetsov) gives l1 = 0 at (Q2,K) = (0.891319, 0.232487) and (0.924255, 0.305879), which ours finds to 5e-6. Its GH stencil adds the Newton residual of the equilibrium divided by h^2 (FNGHEQ DERIV2a omits the subtraction of 2*F(u), equilibrium.f90:835-844). The same run with EPSL = EPSU = EPSS 1e-9 labels exactly the two published points, (0.891319, 0.232487) and (0.924256, 0.305880). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_down",
+      "side": "reference",
+      "type": "generalized_hopf",
+      "index": 3,
+      "cause": "AUTO-07p at the description's tolerances (EPSL, EPSU, EPSS 1e-4) labels five GH on the Hopf curve and puts the two real ones off the published places: MatCont Tutorial IV (Kuznetsov) gives l1 = 0 at (Q2,K) = (0.891319, 0.232487) and (0.924255, 0.305879), which ours finds to 5e-6. Its GH stencil adds the Newton residual of the equilibrium divided by h^2 (FNGHEQ DERIV2a omits the subtraction of 2*F(u), equilibrium.f90:835-844). The same run with EPSL = EPSU = EPSS 1e-9 labels exactly the two published points, (0.891319, 0.232487) and (0.924256, 0.305880). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_down",
+      "side": "reference",
+      "type": "generalized_hopf",
+      "index": 5,
+      "cause": "AUTO-07p at the description's tolerances (EPSL, EPSU, EPSS 1e-4) labels five GH on the Hopf curve and puts the two real ones off the published places: MatCont Tutorial IV (Kuznetsov) gives l1 = 0 at (Q2,K) = (0.891319, 0.232487) and (0.924255, 0.305879), which ours finds to 5e-6. Its GH stencil adds the Newton residual of the equilibrium divided by h^2 (FNGHEQ DERIV2a omits the subtraction of 2*F(u), equilibrium.f90:835-844). The same run with EPSL = EPSU = EPSS 1e-9 labels exactly the two published points, (0.891319, 0.232487) and (0.924256, 0.305880). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "fold_down",
+      "side": "reference",
+      "type": "cusp",
+      "index": 2,
+      "cause": "AUTO-07p at the description's tolerances labels three CP on the fold curve, none at the cusp (Q2,K) = (1.006408, 0.355991) of MatCont Tutorial IV (Kuznetsov), which ours finds to 3e-7; its first CP is 0.002 away. Its cusp stencil adds the Newton residual divided by h^2 (FNCPAE, toolboxae.f90:838-845). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "fold_down",
+      "side": "reference",
+      "type": "cusp",
+      "index": 3,
+      "cause": "AUTO-07p at the description's tolerances labels three CP on the fold curve, none at the cusp (Q2,K) = (1.006408, 0.355991) of MatCont Tutorial IV (Kuznetsov), which ours finds to 3e-7; its first CP is 0.002 away. Its cusp stencil adds the Newton residual divided by h^2 (FNCPAE, toolboxae.f90:838-845). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_down",
+      "side": "ours",
+      "type": "generalized_hopf",
+      "index": 1,
+      "quantity": "par",
+      "cause": "AUTO-07p at the description's tolerances (EPSL, EPSU, EPSS 1e-4) labels five GH on the Hopf curve and puts the two real ones off the published places: MatCont Tutorial IV (Kuznetsov) gives l1 = 0 at (Q2,K) = (0.891319, 0.232487) and (0.924255, 0.305879), which ours finds to 5e-6. Its GH stencil adds the Newton residual of the equilibrium divided by h^2 (FNGHEQ DERIV2a omits the subtraction of 2*F(u), equilibrium.f90:835-844). The same run with EPSL = EPSU = EPSS 1e-9 labels exactly the two published points, (0.891319, 0.232487) and (0.924256, 0.305880). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_down",
+      "side": "ours",
+      "type": "generalized_hopf",
+      "index": 1,
+      "quantity": "par2",
+      "cause": "AUTO-07p at the description's tolerances (EPSL, EPSU, EPSS 1e-4) labels five GH on the Hopf curve and puts the two real ones off the published places: MatCont Tutorial IV (Kuznetsov) gives l1 = 0 at (Q2,K) = (0.891319, 0.232487) and (0.924255, 0.305879), which ours finds to 5e-6. Its GH stencil adds the Newton residual of the equilibrium divided by h^2 (FNGHEQ DERIV2a omits the subtraction of 2*F(u), equilibrium.f90:835-844). The same run with EPSL = EPSU = EPSS 1e-9 labels exactly the two published points, (0.891319, 0.232487) and (0.924256, 0.305880). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_down",
+      "side": "ours",
+      "type": "generalized_hopf",
+      "index": 1,
+      "quantity": "norm",
+      "cause": "AUTO-07p at the description's tolerances (EPSL, EPSU, EPSS 1e-4) labels five GH on the Hopf curve and puts the two real ones off the published places: MatCont Tutorial IV (Kuznetsov) gives l1 = 0 at (Q2,K) = (0.891319, 0.232487) and (0.924255, 0.305879), which ours finds to 5e-6. Its GH stencil adds the Newton residual of the equilibrium divided by h^2 (FNGHEQ DERIV2a omits the subtraction of 2*F(u), equilibrium.f90:835-844). The same run with EPSL = EPSU = EPSS 1e-9 labels exactly the two published points, (0.891319, 0.232487) and (0.924256, 0.305880). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_down",
+      "side": "ours",
+      "type": "generalized_hopf",
+      "index": 2,
+      "quantity": "par",
+      "cause": "AUTO-07p at the description's tolerances (EPSL, EPSU, EPSS 1e-4) labels five GH on the Hopf curve and puts the two real ones off the published places: MatCont Tutorial IV (Kuznetsov) gives l1 = 0 at (Q2,K) = (0.891319, 0.232487) and (0.924255, 0.305879), which ours finds to 5e-6. Its GH stencil adds the Newton residual of the equilibrium divided by h^2 (FNGHEQ DERIV2a omits the subtraction of 2*F(u), equilibrium.f90:835-844). The same run with EPSL = EPSU = EPSS 1e-9 labels exactly the two published points, (0.891319, 0.232487) and (0.924256, 0.305880). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_down",
+      "side": "ours",
+      "type": "generalized_hopf",
+      "index": 2,
+      "quantity": "par2",
+      "cause": "AUTO-07p at the description's tolerances (EPSL, EPSU, EPSS 1e-4) labels five GH on the Hopf curve and puts the two real ones off the published places: MatCont Tutorial IV (Kuznetsov) gives l1 = 0 at (Q2,K) = (0.891319, 0.232487) and (0.924255, 0.305879), which ours finds to 5e-6. Its GH stencil adds the Newton residual of the equilibrium divided by h^2 (FNGHEQ DERIV2a omits the subtraction of 2*F(u), equilibrium.f90:835-844). The same run with EPSL = EPSU = EPSS 1e-9 labels exactly the two published points, (0.891319, 0.232487) and (0.924256, 0.305880). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "hopf_down",
+      "side": "ours",
+      "type": "generalized_hopf",
+      "index": 2,
+      "quantity": "norm",
+      "cause": "AUTO-07p at the description's tolerances (EPSL, EPSU, EPSS 1e-4) labels five GH on the Hopf curve and puts the two real ones off the published places: MatCont Tutorial IV (Kuznetsov) gives l1 = 0 at (Q2,K) = (0.891319, 0.232487) and (0.924255, 0.305879), which ours finds to 5e-6. Its GH stencil adds the Newton residual of the equilibrium divided by h^2 (FNGHEQ DERIV2a omits the subtraction of 2*F(u), equilibrium.f90:835-844). The same run with EPSL = EPSU = EPSS 1e-9 labels exactly the two published points, (0.891319, 0.232487) and (0.924256, 0.305880). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "fold_down",
+      "side": "ours",
+      "type": "cusp",
+      "index": 1,
+      "quantity": "par",
+      "cause": "AUTO-07p at the description's tolerances labels three CP on the fold curve, none at the cusp (Q2,K) = (1.006408, 0.355991) of MatCont Tutorial IV (Kuznetsov), which ours finds to 3e-7; its first CP is 0.002 away. Its cusp stencil adds the Newton residual divided by h^2 (FNCPAE, toolboxae.f90:838-845). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "fold_down",
+      "side": "ours",
+      "type": "cusp",
+      "index": 1,
+      "quantity": "par2",
+      "cause": "AUTO-07p at the description's tolerances labels three CP on the fold curve, none at the cusp (Q2,K) = (1.006408, 0.355991) of MatCont Tutorial IV (Kuznetsov), which ours finds to 3e-7; its first CP is 0.002 away. Its cusp stencil adds the Newton residual divided by h^2 (FNCPAE, toolboxae.f90:838-845). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "fold_down",
+      "side": "ours",
+      "type": "cusp",
+      "index": 1,
+      "quantity": "norm",
+      "cause": "AUTO-07p at the description's tolerances labels three CP on the fold curve, none at the cusp (Q2,K) = (1.006408, 0.355991) of MatCont Tutorial IV (Kuznetsov), which ours finds to 3e-7; its first CP is 0.002 away. Its cusp stencil adds the Newton residual divided by h^2 (FNCPAE, toolboxae.f90:838-845). See docs/auto07p-findings.md, finding 2 and docs/auto-references.md, W537."
+    }
+  ],
+  "xppaut_skip": "W537 (#602): XPPAUT 8.0 starts the Hopf and fold curves of this model with steps about ten times shorter than the requested DS (0.0009 against 0.0105 along the Hopf curve from the first point), so its 300-step Hopf run, and a 900-step one, cover only the part up to (Q2,K) = (1.37, 0.86) of the curve that ours and AUTO-07p follow to the Bogdanov-Takens point at (1.4176, 0.9714), and its two-parameter runs detect no codimension-two point (auto_2p_hopf and auto_2p_limit set ISP=0 and ILP=0, docs/xppaut-findings.md finding 71): nothing is left to compare. Its equilibrium run agrees with ours and with the tutorial (Hopf points at Q2 1.051549 and 1.040974, folds at 1.042049 and 1.0522)."
+}

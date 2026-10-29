@@ -1,4 +1,5 @@
 # pen.odex: converted from pen.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo tstauto/pen.ode (AUTO-07p has a demo of the same name, reference/auto-07p/demos/pen) (W537 audit).
 
 par gamma = 0.175, eps = 0.1, ri = 0.4
 options {

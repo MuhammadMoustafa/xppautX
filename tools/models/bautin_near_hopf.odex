@@ -1,3 +1,4 @@
+# Source: made up for this check (W537 audit): the textbook normal form of a generalised Hopf (Bautin) point with parameters chosen here; no paper.
 # The normal form of a generalised Hopf (Bautin) point, near it (W458, #521):
 #   r' = r (b1 + b2 r^2 - r^4) in polar coordinates, here in Cartesian ones.
 # With b2 > 0 the Hopf point at b1 = 0 is subcritical and its cycles, of amplitude r with

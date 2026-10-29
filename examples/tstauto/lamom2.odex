@@ -1,4 +1,5 @@
 # lamom2.odex: converted from lamom2.ode by xppautX --convert (docs/odex.md)
+# Source: XPPAUT 8.0's demo tstauto/lamom2.ode (W537 audit).
 
 ss = x^2+y^2
 par a = -2, b = 1, q = 1

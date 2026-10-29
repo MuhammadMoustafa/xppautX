@@ -1759,3 +1759,56 @@ the cycles of radius sqrt(mu) from the Hopf point at mu = 0 have period 2 pi / s
 (1, 0) grow into the origin's saddle at mu = 0.3287) and `global_heteroclinic` (x'' = -x + x^3 + mu x' - x'^3:
 the cycles around the origin meet the saddles (+-1, 0) at mu = 0.3314). `tools/servercheck.py`'s `stops`
 section runs each and checks the stop's reason, its words and the stored type.
+
+## W537: every point type from a published model, with an AUTO-07p reference ([#602](https://github.com/MuhammadMoustafa/xppautX/issues/602))
+
+Before the W354 comparison with XPPAUT and AUTO-07p, each point type xppautX names (`core/auto_codes.h`, `auto_point_names`)
+is to be checked by a published model or a named demo, never one made up for the case (AGENTS.md). The audit of the 55 models the
+descriptions run (tests/auto/README.md, "Where each model comes from") found 7 published, 39 named demos and 9 made up, and four gaps.
+Each model's source is also the first comment of its file.
+
+| Type | Now checked by | AUTO-07p | XPPAUT 8.0 |
+|---|---|---|---|
+| `generalized_hopf` (GH) | `bykov_hopf`: the Bykov-Yablonskii-Kim model of CO oxidation on platinum, with the equations and values of Kuznetsov's MatCont Tutorial IV (https://dercole.faculty.polimi.it/tds/matcont/6/2params.pdf); the original is V. I. Bykov, G. S. Yablonskii, V. F. Kim, Doklady AN SSSR (Chemistry) 242(3), 1978, 637-639, as en.wikipedia.org/wiki/Grigoriy_Yablonsky gives it | labels the two published Bautin points 0.002 and 0.007 off in Q2, and three more; with EPS 1e-9 exactly the two (below) | skipped: its steps along the curves are ten times shorter and it detects no codimension-two point (finding 71) |
+| `bogdanov_takens`, `cusp` | `bykov_hopf` (the tutorial's two BT and one CP), `tstauto_ab_fold` | BT agree; CP: three labels, none at the cusp (below) | as `ab`'s |
+| `homoclinic` | `lrz_cycles`: the Lorenz equations (Lorenz 1963, J. Atmos. Sci. 20(2) 130-141) at sigma = 10, beta = 8/3, AUTO-07p's `lrz` demo: the cycles of the Hopf point at r = 24.7369 end at r = 13.9265574; `lorenz_homoclinic` (HomCont) puts the orbit at r = 13.92655741 and the literature at 13.926 | the cycles to period 5e4, trimmed where xppautX ends them | same |
+| `heteroclinic` | `pp2_heteroclinic`: AUTO-07p's `pp2` demo (Doedel, J. Math. Biol. 20 (1984) 1-14), at the demo's NTST 90: the cycles of its Hopf point end on the heteroclinic cycle between the saddles (0.1276, 0) and (0.6518, 0) at quota 0.7080728, as the demo's text says | the cycles agree to quota 0.7080728 (its first label, an LP at period 138.6, is past the end) | two BP at periods 76 and 99 that neither other program labels |
+| `resonance_1_1`, `_3`, `_4`, `fold_flip` | `hen_lp`, `hen_tr`, `hen_pd`: the Henon map of AUTO-07p's `hen` demo (Govaerts et al. 2007, section 5.1, r = 0) | all agree | no resonance or fold-flip label (finding 71); `hen_tr`'s XPPAUT comparison is skipped for its V-shaped norm at the 1:4 resonance |
+| `snic` | `ode_mu26_control`, `ode_mu26_blocked` (the maintainer's model, published as code only), `global_snic` (made up) | no label of its own: compared through the diagram around the end (W518) | as W518 |
+| `double_neimark_sacker` (NSNS), `fold_neimark_sacker`, `flip_neimark_sacker`, `zero_hopf` | only `henon_rot` (the Henon map beside an invented rotation) and `zero_hopf` (made up): no published model found | | |
+
+NSNS is the one type no description's baseline holds: it needs a map of dimension four with two independent Neimark-Sacker pairs,
+and `henon_rot_tr`'s torus-torus point (TTR) lies in its skipped `down` run (W405). A search for a published map found MatCont's
+manual (a normal form, not a model), Habib, Rega and Stepan 2012 (a normal-form analysis) and the Leslie-Gower juvenile/adult
+competition map of Govaerts et al. 2007, section 5.2 (Table 5.1), whose published thresholds (c_yj0 = 0.474477674,
+c_jy0 = 0.4571312026) do not follow from the printed equations and values (they give 0.7627 and 0.2451: the product agrees, the ratio does
+not), so it cannot stand as a model until the two are reconciled. No model was invented.
+
+**The tutorial's Bykov numbers and ours.** Tutorial IV's Hopf and fold points of the equilibrium curve from Q2 = 2.204678 (K = 0.4) are reproduced
+to the printed digits (Hopf at Q2 1.051557 and 1.040991, folds at 1.042049 and 1.0522); its BT at (1.417628, 0.971397) and (1.161199, 0.722339),
+its cusp (1.006408, 0.355991) and its two GH at (0.891319, 0.232487) and (0.924255, 0.305879) are found by xppautX at (1.417632, 0.971408),
+(1.161201, 0.722349), (1.006408, 0.355991) and (0.891324, 0.232490), (0.924256, 0.305880). AUTO-07p's BT agree (to 1e-5); its GH and CP do not
+(docs/auto07p-findings.md, finding 2): at the description's tolerances 1e-4 it labels five GH, two of them near the published ones (0.893416, 0.233823 and
+0.917241, 0.300840) and three not (0.78621, 0.81482, 0.94617), and three CP, the first 0.002 from the cusp (1.00845); with EPSL = EPSU = EPSS 1e-9 it labels
+exactly the two published GH and no CP. The description holds those differences exactly (`generalized_hopf` 2, 3, 5 and `cusp` 2, 3 of the reference, and
+`par`, `par2`, `norm` of ours' two GH and its cusp), so they fail if the reference or xppautX moves.
+
+**The global ends against AUTO-07p.** AUTO-07p and XPPAUT end a branch of cycles near a homoclinic or heteroclinic orbit at their step limit,
+through ever slower cycles whose labels (LP, BP, MX at periods of 5e3 to 5e4 for the Lorenz cycles) belong to the mesh. xppautX stops at the first cycle that is slow enough
+(W518). Since a reference run goes on past that end, `tools/autocompare.py` (`stop_at_global_end`) compares the reference's special points and curve only up to the sample
+nearest ours' last point when ours ends on SNIC, HOC or HEC, and says nothing of what follows; a reference with no curve is compared whole. The `lrz_cycles`
+cycles' last sample (r = 13.926557423, norm 5.4166) lies 4e-4 from AUTO-07p's sample at r = 13.926557443, norm 5.4162; HomCont's orbit at r = 13.92655741 is
+1.3e-8 from the end.
+
+`lrz_cycles`' one traced difference: both AUTO-07p and XPPAUT label a BP at the third point of the cycles of the Hopf point (r = 24.7262, period 0.6532),
+where the second multiplier of the new cycle (1.0004) has only just left the trivial one; at DS -0.1 instead of -0.5 the label is at r = 24.7364, so it
+follows the first steps and not the branch. xppautX labels none. `pp2_heteroclinic`'s: XPPAUT labels two BP before the end that AUTO-07p and xppautX do not
+(not traced further).
+
+**A reference tool fix.** AUTO-07p prints a multiplier of 1.8e308 (an infinite one, near a homoclinic orbit) as `1.79769+308`, without the `E`;
+`tools/auto_reference.py` (`fortran_number`) now reads it, where it stopped with a `ValueError`.
+
+**Made-up models a published one could replace.** `global_homoclinic` by `lrz_cycles`, `global_heteroclinic` by `pp2_heteroclinic`, `explicit_homoclinic` (HomCont, closed form) by `lorenz_homoclinic`,
+`henon_rot`'s R1-R4 and fold-flip by the `hen_*` descriptions (its torus-torus, fold-torus and flip-torus points have no published model), `bautin_near_hopf` (a fold of cycles by a Hopf point) by `ode_lecar` or `tstauto_lamom2`
+(cycle folds of published or demo models; its Bautin normal form itself checks GH's `l1 = 2*b`, which `bykov_hopf` now also reaches), `global_snic` by `ode_mu26_*`. Nothing was removed: the maintainer decides. Neither `zero_hopf`,
+`res_cycles` nor `hill_cycles` has a published replacement (the 1:1, 1:3 and 1:4 resonances of cycles and the zero-Hopf point).
