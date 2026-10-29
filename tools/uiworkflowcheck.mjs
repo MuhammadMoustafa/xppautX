@@ -21,7 +21,8 @@ try {
   const state = code => cdp.eval(`(() => { const s = __xpp.state(); const w = s.plots.windows.find(w => w.win === s.plots.active); return ${code}; })()`);
   const ready = () => until('window.__xpp?.state().hello && !__xpp.state().busy', 'idle model');
   const key = async k => { await cdp.eval(`document.querySelector('.plot-host').focus(); document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key:${JSON.stringify(k)}, bubbles:true})); true`); };
-  const close = async () => { await cdp.eval("document.querySelector('.dialog-close').click(); true"); await ready(); };
+  const closeForm = async () => { await cdp.eval("document.querySelector('.registry-form .dialog-actions button[type=button]').click(); true");
+    await until('!__xpp.state().commandForm', 'Cancel closes the registry form'); };
   const run = async () => {
     /* the window's first series (of rows the core already holds) arrives after hello (session.ts asks for `data`
        then): counted before it, the wait below would be met by it rather than by the run */
@@ -41,7 +42,8 @@ try {
   await cdp.eval("document.querySelector('.plot-host').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true})); true");
   await until('!document.querySelector(".workspace-tools").open', 'outside dismisses dropdown');
   await cdp.eval("document.querySelector('[data-plot-axis=x]').click(); true");
-  await until('__xpp.state().ask?.kind === "form"', 'axis opens variables and limits editor'); await close();
+  await until('__xpp.state().commandForm?.id === "plot.set_2d"', 'axis opens the registry form for its variables and limits');
+  await closeForm();
   console.log('PASS shortcuts, menu/dropdown dismissal and axis editor');
   await run(); await run();
   assert.equal(await state('w.history.runs.length'), 1, 'Freeze retains prior run');
@@ -96,8 +98,10 @@ try {
   await until('__xpp.state().plots.windows.length === 2 && !__xpp.state().busy', 'additional plot');
   const active = await state('s.plots.active');
   await cdp.eval("document.querySelector('.plot-view:not([hidden]) [data-plot-axis=y]').click(); true");
-  await until('__xpp.state().ask?.kind === "form"', 'additional plot axis editor');
-  assert.equal(await state('s.plots.active'), active, 'axis editor targets the additional plot'); await close();
+  await until('__xpp.state().commandForm?.id === "plot.set_2d"', 'additional plot axis editor');
+  assert.equal(await state('s.plots.active'), active, 'axis editor targets the additional plot');
+  assert.equal(await state('s.commandForm.values.window'), active, 'the axis form names the additional plot');
+  await closeForm();
   console.log('PASS additional-window axis editor');
   await stopServer(server);
   server = await startServer(bin, root, [path.resolve('examples/ode/lorenz.odex')]);
