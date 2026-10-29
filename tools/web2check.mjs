@@ -3716,6 +3716,7 @@ async function valuesLive() {
        text typed (a runner slow enough to run the keystroke and the Enter apart is the same case) */
     el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); })()`);
   const refused = await until(`s.values.errors['par:iapp']`, 'the core refuses %bogus_symbol_zzz', 60000);
+  await rendered();  // the box takes the focus back in an effect of the render the refusal starts
   box = await fieldState('par', 'iapp');
   check('WF-001: a formula the core refuses keeps its draft, marked, with the core\'s message, and takes the focus back',
     refused && box.value === '%bogus_symbol_zzz' && box.invalid === 'true' && !!box.message && box.focused
