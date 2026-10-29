@@ -32,6 +32,24 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   them one at a time with the count remaining. (skill: settle-design)
   The outcome goes to a GitHub Discussion. (skill: design-discussions)
 - Work handed to Codex: skill delegate.
+- A tiny edit (a few lines, a flag, a constant, a docs line, a driver tweak) is the
+  coordinator's own: done and committed directly, gated by what it touches, with no
+  card, issue or agent (maintainer, 2026-10-21). Cards are for real work.
+- Well-defined work goes to cheaper models (Haiku, Sonnet, Luna) by the ladder; after
+  a comparison run, a Haiku agent writes its report with plots, showing which program
+  did best (maintainer, 2026-10-20).
+- Models that check or compare xppautX (tests/auto/, the comparison) are real
+  published models, the paper, equations and parameter values cited, or a named
+  AUTO-07p or XPPAUT demo; never one invented to reach a case. A brief that needs a
+  model says "stop and report if no published one is found" (maintainer, 2026-10-29; W537, #602).
+- The comparison (W354): XPPAUT's and AUTO-07p's sources are never edited; a problem
+  there is recorded (docs/xppaut-findings.md, docs/auto07p-findings.md). An xppautX
+  bug or improvement it finds is fixed on its own card, reviewed and merged, then the
+  comparison binary is rebuilt (tools/comparison-setup.sh --build) and every xppautX
+  run repeated; a program whose code, options and inputs did not change is not rerun
+  (W452). No heavy job of any kind runs while a timed series runs. Every issue and
+  fix found goes into the final report's "Issues found and fixes made" (make_report.py's
+  SERIES_CARDS) (maintainer, 2026-10-20/21).
 - Before any merge, push or report to the maintainer: the background-task
   register holds no finished work.
 
