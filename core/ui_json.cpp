@@ -641,7 +641,7 @@ struct CommandInfo {
     void (*run)(xpp::Session &s, const char *line);
 };
 
-constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D = XPP_KIND_DATA, X = XPP_KIND_COMPUTE;
+constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D = XPP_KIND_DATA;
 
 const CommandInfo commands[] = {
     {"answer", nullptr, C, NOT_STEP,

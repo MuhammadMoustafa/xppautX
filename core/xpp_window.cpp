@@ -402,11 +402,7 @@ void add_menus(webview_t w)
     if (icon) SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(icon));
 
     HMENU bar = CreateMenu(), file = CreatePopupMenu(), help = CreatePopupMenu();
-    const auto file_item = [&](UINT id, std::string_view command, char mnemonic) {
-        std::string label = native_label(command, '&', mnemonic);
-        AppendMenuW(file, MF_STRING, id, wide(label).c_str());
-    };
-    file_item(ID_QUIT, "quit", 'Q');
+    AppendMenuW(file, MF_STRING, ID_QUIT, L"&Quit");
     AppendMenuW(help, MF_STRING, ID_ABOUT, L"&About xppautX");
     AppendMenuW(bar, MF_POPUP, reinterpret_cast<UINT_PTR>(file), L"&File");
     AppendMenuW(bar, MF_POPUP, reinterpret_cast<UINT_PTR>(help), L"&Help");
@@ -816,9 +812,7 @@ void add_menus(webview_t w)
     set_window_icon(GTK_WINDOW(win));
     GtkWidget *bar = gtk_menu_bar_new(), *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     GtkWidget *file = top_menu(bar, "_File"), *help = top_menu(bar, "_Help");
-    gtk_menu_shell_append(GTK_MENU_SHELL(file), gtk_separator_menu_item_new());
-    menu_item(file, native_label("quit", '_', 'Q').c_str(), ID_QUIT);
-    gtk_menu_shell_append(GTK_MENU_SHELL(help), gtk_separator_menu_item_new());
+    menu_item(file, "_Quit", ID_QUIT);
     menu_item(help, "_About xppautX", ID_ABOUT);
     g_object_ref(view);
     gtk_container_remove(GTK_CONTAINER(win), view);

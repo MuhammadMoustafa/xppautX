@@ -883,13 +883,6 @@ void set_from_init_data(xpp::Session &s)
     set_fix_rhs_from(s, s.numerics.start_time, [&](size_t i) { return s.last_ic[i]; });
 }
 
-namespace {
-
-/* PPM frames of more megabytes than this ask before they are written (XPPAUT's own limit) */
-constexpr unsigned int DISK_WARN_MB = 10;
-
-} // namespace
-
 void eval_ani_color(xpp::Session &s, int j)
 {
     AniCom &a = s.animation.commands[j];
