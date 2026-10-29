@@ -325,6 +325,22 @@ std::unexpected<Error> take_step_error(Session &s);
    unchecked, or the error it failed with */
 Result<> shoot(Session &s, double *x, double *xg, double *evec, int sgn);
 Result<> shoot_easy(Session &s, double *x);
+/* An invariant set's branch starts at the saddle, at this time, whether it is
+   drawn or exported (so the two are the same branch), and is stored whole from
+   it whatever store_from says (W533). */
+inline constexpr double BRANCH_START_TIME = 0.0;
+/* BranchStoreFrom sets store_from to BRANCH_START_TIME for the branch's run and
+   puts the run's value back when it ends, on error too (W533). */
+class BranchStoreFrom {
+public:
+  explicit BranchStoreFrom(Session &s);
+  ~BranchStoreFrom();
+  BranchStoreFrom(const BranchStoreFrom &) = delete;
+  BranchStoreFrom &operator=(const BranchStoreFrom &) = delete;
+private:
+  Session &s_;
+  double before_;
+};
 /* Monte Carlo's search for equilibria from random guesses (with their
    manifolds when ishoot), or the first manifold that failed */
 Result<> do_monte_carlo_search(Session &s, int append, int stuffbrowse,int ishoot);

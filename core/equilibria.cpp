@@ -335,6 +335,8 @@ Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm)
 {
   if(s.manifolds.count<1)return {};
   const double olddt=s.numerics.delta_t;
+  /* every branch starts at the saddle's time, as the drawn ones do; the session's clock is put back after */
+  const double begun=s.data_store.current_time;
   const auto result=[&]() -> Result<> {
     std::vector<double> x(s.model().neq);
     s.numerics.storflag=true;
@@ -343,6 +345,8 @@ Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm)
       if(s.manifolds.type[k]==0)continue;
       const bool unstable=s.manifolds.type[k]>0;
       s.numerics.delta_t=unstable?fabs(olddt):-fabs(olddt);
+      s.data_store.current_time=BRANCH_START_TIME;
+      const BranchStoreFrom branch(s);
       if(const auto run=integrate_from(s,x.data());!run)return std::unexpected(run.error());
       if(job::cancelled())return {};
       const std::string name=files::output_name(file,".dat",xpp::format("eigen{}-{}",k,unstable?"unstable":"stable"));
@@ -356,6 +360,7 @@ Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm)
     return {};
   }();
   s.numerics.delta_t=olddt;
+  s.data_store.current_time=begun;
   return result;
 }
 xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled saddle point stuff to integrate */

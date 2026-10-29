@@ -176,7 +176,7 @@ the current search bounds. Optional settings keep the session's current values.
 `nullcline.export` writes the current pair as segment rows (`nullcline`, `x1`, `y1`, `x2`, `y2`),
 in the requested data format, or the filename extension's format. It creates no frozen side files.
 With `equilibrium.export` and `shoot: true`, stored manifolds are also written as
-`<file-stem>-eigenN-stable.dat` or `<file-stem>-eigenN-unstable.dat`, without filename prompts.
+`<file-stem>-eigenN-stable.dat` or `<file-stem>-eigenN-unstable.dat`, without filename prompts. Each branch starts at the export's own clock and is written whole, whatever `store_from` says; the session's time is left as it was (W533).
 The three analysis exports accept `confirm: true` to replace an existing output; otherwise the
 common overwrite question applies. They return a placed error if the output could not be written.
 

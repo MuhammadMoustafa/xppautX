@@ -1244,6 +1244,39 @@ def check_registry():
         shutil.rmtree(folder, ignore_errors=True)
 
 
+def check_manifold_export_clock():
+    """W533: each branch of a saddle's export starts at the saddle and is written whole, whatever store_from says, and the session's time is left as it was."""
+    for model, store_from in (('saddle_manifolds.odex', 0), ('saddle_manifolds_transient.odex', .5)):
+        s = Server(args.server, 'tools/models/' + model)
+        try:
+            s.collect(lambda e: e.get('ev') == 'idle')
+            s.send(cmd='run.initial')  # the session's clock is now off zero: every branch must still start at the saddle
+            s.collect(lambda e: e.get('ev') == 'idle')
+            s.send(cmd='state')
+            evs, _ = s.collect(lambda e: e.get('ev') == 'idle')
+            t_before = [e for e in evs if e.get('ev') == 'state'][-1]['time']
+            check('W533: the session clock is off zero before the export (store_from %g)' % store_from, t_before != 0,
+                  str(t_before))
+            s.send(cmd='equilibrium.export', file='seed.dat', shoot=True, confirm=True)
+            evs, _ = s.collect(lambda e: e.get('ev') == 'done')
+            done = next((e for e in evs if e.get('ev') == 'done'), {})
+            files = sorted(os.path.basename(f) for f in glob.glob(os.path.join(s.run, 'seed-eigen*.dat')))
+            check('W533: a saddle export with store_from %g writes every branch, named by its type' % store_from,
+                  done.get('status') == 'ok' and files == ['seed-eigen0-unstable.dat', 'seed-eigen1-unstable.dat',
+                                                          'seed-eigen2-stable.dat', 'seed-eigen3-stable.dat'], str(done)[:300] + str(files))
+            rows = {f: [list(map(float, line.split())) for line in open(os.path.join(s.run, f)) if line.strip()] for f in files}
+            whole = all(len(table) == 21 and table[0][0] == 0 and abs(table[-1][0]) == 1 for table in rows.values())
+            check('W533: each exported branch starts at the saddle (t = 0) and holds its whole run (store_from %g)' % store_from, whole,
+                  str({f: (len(t), t[0][0], t[-1][0]) for f, t in rows.items()})[:500])
+            s.send(cmd='state')
+            evs, _ = s.collect(lambda e: e.get('ev') == 'idle')
+            t_after = [e for e in evs if e.get('ev') == 'state'][-1]['time']
+            check('W533: the export leaves the session time as it found it (store_from %g)' % store_from, t_after == t_before,
+                  '%s -> %s' % (t_before, t_after))
+        finally:
+            s.close()
+
+
 def check_equilibrium_exports():
     """W522: explicit side filenames and one error value, including a refused derived destination."""
     s = Server(args.server, 'tools/models/equilibrium_registry.odex')
@@ -1273,6 +1306,7 @@ def check_equilibrium_exports():
               and not any(e.get('ev') == 'message' and e.get('error') for e in events), str(events)[-800:])
     finally:
         s.close()
+    check_manifold_export_clock()
 
 
 INDEPENDENT_SECTIONS = {'registry': check_registry, 'equilibrium': check_equilibrium_exports, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_global_ends(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}

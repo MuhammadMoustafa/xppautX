@@ -2258,10 +2258,21 @@ static void log_branch_end(xpp::Session &s)
   s.integrator.stop_note.clear();
 }
 
+xpp::BranchStoreFrom::BranchStoreFrom(xpp::Session &s) : s_(s), before_(s.numerics.store_from)
+{
+  s_.numerics.store_from=xpp::BRANCH_START_TIME;
+}
+
+xpp::BranchStoreFrom::~BranchStoreFrom()
+{
+  s_.numerics.store_from=before_;
+}
+
 xpp::Result<> shoot_easy(xpp::Session &s, double *x)
 {
-  double t=0.0;
+  double t=xpp::BRANCH_START_TIME;
   int i;
+  const xpp::BranchStoreFrom branch(s);
   s.integrator.suppress_bounds=1;
   const xpp::Result<int> r=integrate(s,&t,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&i);
   s.integrator.suppress_bounds=0;
@@ -2272,7 +2283,8 @@ xpp::Result<> shoot_easy(xpp::Session &s, double *x)
 xpp::Result<> shoot(xpp::Session &s, double *x, double *xg, double *evec, int sgn)
 {
  int i;
- double t=0.0;
+ double t=xpp::BRANCH_START_TIME;
+ const xpp::BranchStoreFrom branch(s);
  s.integrator.suppress_bounds=1;
  for(i=0;i<s.model().node;i++)
  x[i]=xg[i]+sgn*evec[i]*s.numerics.delta_t*.1;

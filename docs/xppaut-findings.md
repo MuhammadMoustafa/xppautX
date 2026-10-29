@@ -127,6 +127,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [94](#94-permanent-animation-shapes-change-colour-every-frame) | Animation | permanent coordinates are cached, but colour formulas run each frame | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
 | [95](#95-auto-evaluates-the-equations-at-t--0-without-a-word) | AUTO | AUTO calls the right-hand side with t fixed at 0, so an equation that uses t is continued with t = 0 and no word says so | [W516 / #580](https://github.com/MuhammadMoustafa/xppautX/issues/580) |
 | [96](#96-markers-on-the-data-read-rows-past-the-stored-data) | Plots | Add markers' Number, Row1 and Skip are never checked against the stored rows, so its markers read past the data | [W524](https://github.com/MuhammadMoustafa/xppautX/issues/588) |
+| [97](#97-a-saddles-manifold-export-starts-each-branch-where-the-last-one-ended) | Equilibria | a saddle's batch manifold export runs every branch from the time the previous one ended, and with a transient drops each branch's start near the saddle | [W533](https://github.com/MuhammadMoustafa/xppautX/issues/598) |
 
 ## 1. Model options
 
@@ -2066,3 +2067,19 @@ row it would reach and the rows there are; `tools/servercheck.py` checks it.
 xppautX checks the last row, and that the markers fit the list, before it
 adds any (the markers are all or nothing), for the form and the command
 alike. Card [W524](https://github.com/MuhammadMoustafa/xppautX/issues/588).
+
+## 97. A saddle's manifold export starts each branch where the last one ended
+
+XPPAUT's batch export writes each shot manifold to `UM<k>.dat` or `SM<k>.dat`
+by calling `usual_integrate_stuff` for it
+([gear.c:383](../reference/xppaut-8.0/gear.c#L383),
+[gear.c:393](../reference/xppaut-8.0/gear.c#L393)). That function starts from the
+global `MyTime` ([integrate.c:1486](../reference/xppaut-8.0/integrate.c#L1486)),
+which no branch resets, so each branch starts at the time the previous one ended.
+With a transient (`TRANS` > 0) it also stores only once `|t| >= TRANS`
+([integrate.c:1487](../reference/xppaut-8.0/integrate.c#L1487)), so a branch's
+start near the saddle, where `|t| < TRANS`, is dropped. Evidence is the source,
+not a run (XPPAUT's window needs an X server here): XPPAUT master keeps
+`usual_integrate_stuff` with the same test ([master](../reference/xppaut-master/integrate.c#L1460))
+but has no batch export. xppautX's export starts every branch at the clock it
+began at and stores it whole, whatever `store_from` says (W533, [#598](https://github.com/MuhammadMoustafa/xppautX/issues/598)).

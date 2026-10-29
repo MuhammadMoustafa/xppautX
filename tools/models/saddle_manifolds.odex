@@ -1,0 +1,8 @@
+# W533: a saddle at the origin, x unstable and y stable; both manifolds are exported, each from its own start.
+x' = x
+y' = -y
+init x = 0, y = 0
+options {
+  integration: { total_time: 1, dt: .05 },
+  plot: { xp: x, yp: y, xlo: -1, xhi: 1, ylo: -1, yhi: 1 }
+}
