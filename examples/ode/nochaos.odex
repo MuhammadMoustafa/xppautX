@@ -1,4 +1,5 @@
 # nochaos.odex: converted from nochaos.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # this map is fractal but not chaotic
 x1' = 3*tanh(x1)*cos(x2)

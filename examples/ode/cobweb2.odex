@@ -1,4 +1,5 @@
 # cobweb2.odex: converted from cobweb2.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # way to fool XPP into cobwebbing
 # first I define a function that every other step evaluates

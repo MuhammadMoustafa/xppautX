@@ -136,11 +136,11 @@ constexpr std::array EXPORT_RESULTS = {ResultField{"file", "file"}, ResultField{
 constexpr std::array SOURCE_RESULTS = {ResultField{"source", "text"}, ResultField{"equations", "list[text]"}};
 constexpr std::array QUIT_RESULTS = {ResultField{"quitting", "boolean"}};
 constexpr std::array STATE_RESULTS = {ResultField{"state", "the state event's members"}};
-constexpr std::array LOAD_EVENTS = {"hello", "state", "done"};
-constexpr std::array SAVE_EVENTS = {"saved", "state", "done"};
-constexpr std::array STATE_EVENTS = {"state", "done"};
-constexpr std::array SOURCE_EVENTS = {"source", "equations", "done"};
-constexpr std::array DONE_EVENTS = {"done"};
+constexpr std::array LOAD_EVENTS = {xpp::events::HELLO, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array SAVE_EVENTS = {xpp::events::SESSION_SAVED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array SOURCE_EVENTS = {xpp::events::SESSION_SOURCE, xpp::events::SESSION_EQUATIONS, xpp::events::DONE};
+constexpr std::array DONE_EVENTS = {xpp::events::DONE};
 
 constexpr std::array KEY_0 = {"Ctrl+O"};
 constexpr std::array KEY_1 = {"Ctrl+S"};

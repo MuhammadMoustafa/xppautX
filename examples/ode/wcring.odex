@@ -1,4 +1,5 @@
 # wcring.odex: converted from wcring.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # chain of 20 neurons
 par a = 0.25, beta = 0.31415926

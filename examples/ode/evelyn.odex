@@ -1,4 +1,5 @@
 # evelyn.odex: converted from evelyn.ode by xppautX --convert (docs/odex.md)
+version 4
 
 v' = -gl*(v-el)-(gk*n+gks*sks)*(v-ek)-gna*minf(v)*(v-ena)
 na' = -mu*gna*minf(v)*(v-ena)-(na-namin)/ode_divisor(tauna)

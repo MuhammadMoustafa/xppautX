@@ -1,4 +1,5 @@
 # pendx.odex: converted from pendx.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # damped pendulum pend.ode
 x' = xp

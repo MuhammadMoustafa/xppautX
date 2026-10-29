@@ -13,8 +13,8 @@ constexpr std::array SET_ARGUMENTS = {
 constexpr std::array GET_RESULTS = {ResultField{"bindings", "map[text, list[text]]"}, ResultField{"pinned", "list[text]"}};
 constexpr std::array SET_RESULTS = {ResultField{"saved", "boolean"}};
 constexpr std::array RESET_RESULTS = {ResultField{"reset", "boolean"}};
-constexpr std::array GET_EVENTS = {"keymap", "done"};
-constexpr std::array SET_EVENTS = {"keymap", "state", "done"};
+constexpr std::array GET_EVENTS = {xpp::events::KEYMAP_CHANGED, xpp::events::DONE};
+constexpr std::array SET_EVENTS = {xpp::events::KEYMAP_CHANGED, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"keymap.get", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Help/Keymap/Get",

@@ -7,6 +7,7 @@
    exp(-p_k t), checked at three variables, and the table's width and
    length are checked (data, never a time). */
 #include "load_args.h"
+#include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
 #include "model.h"
@@ -57,7 +58,7 @@ int main(void)
     const std::string model_path = temp.file("large.odex");
     {
         xpp::Writer w(model_path);
-        w.print("{}", source());
+        w.print("{}", versioned(source()));
         CHECK(w.commit().has_value());
     }
     char arg0[] = "test_large_model";

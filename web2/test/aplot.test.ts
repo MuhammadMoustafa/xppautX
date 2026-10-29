@@ -6,7 +6,7 @@ import type {AplotEvent} from '../src/protocol/types';
 import {aplotColumnName, initialAplot, reduceAplot, timeAt, valueAt} from '../src/store/aplot';
 
 const ev = (over: Partial<AplotEvent> = {}): AplotEvent => ({
-  ev: 'aplot', title: 'u0..3', nx: 4, ny: 3,
+  ev: 'array_plot.shown', title: 'u0..3', nx: 4, ny: 3,
   values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
   colormap: 'viridis', ramp: Array.from({length: 256}, (_, i) => '#' + i.toString(16).padStart(2, '0').repeat(3)),
   zmin: 0, zmax: 11, tlo: 0, thi: 20,

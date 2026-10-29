@@ -24,7 +24,7 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 # valgrind runs 50-100 times slower: only the safety limits of tools/xppclient.py grow (never a criterion)
 os.environ.setdefault('XPP_CHECK_SLOW', '400')
-from xppclient import Server, is_idle  # noqa: E402
+from xppclient import Server, is_done  # noqa: E402
 
 
 class Profile:
@@ -37,10 +37,10 @@ class Profile:
         (under --tool gdb only the phase's points are kept)"""
         pid = s.proc.pid
         for flag in () if self.tool != 'callgrind' else ('-d', '-z') if zero else ('-d',):
-            # callgrind acts when the process next runs, so wake it with a command that ends in idle
+            # callgrind acts when the process next runs, so wake it with a command that ends in done
             p = subprocess.Popen(['callgrind_control', flag, str(pid)], stdout=subprocess.PIPE, text=True)
             s.send(cmd='events.subscribe', events=['diagram'])
-            s.collect(is_idle)
+            s.collect(is_done)
             p.communicate(timeout=600)
             if flag == '-d':
                 files = sorted(glob.glob(f'{os.environ["CALLGRIND_OUT"]}/cg.{pid}.out*'), key=os.path.getmtime)

@@ -1,4 +1,5 @@
 # kohox.odex: converted from kohox.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # kohox.ode
 par ntot = 100, k = 1

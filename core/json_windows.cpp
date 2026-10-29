@@ -40,7 +40,7 @@ namespace xpp::json {
 /* ---- plot windows ------------------------------------------------------------ */
 
 /* the main plot window, for hello */
-void send_main_window(const xpp::Session &s,const char *title) { send_window("create", s.plot_windows.graph[0].name, main_plot_width, main_plot_height, title); }
+void send_main_window(const xpp::Session &s,const char *title) { send_window(xpp::events::WINDOW_CREATED, s.plot_windows.graph[0].name, main_plot_width, main_plot_height, title); }
 
 void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h)
 {
@@ -102,10 +102,11 @@ void j_reset_graphics(xpp::Session &s)
     do_axes(s);
 }
 
-void send_window(const char *what, std::string_view name, int w, int h, std::string_view title, std::string_view kind)
+void send_window(std::string_view event, std::string_view name, int w, int h, std::string_view title, std::string_view kind)
 {
     std::string b;
-    buf_format(b,"{{\"ev\":\"window\",\"op\":\"{}\",\"win\":",what);
+    b=xpp::events::open(event);
+    BUF_LIT(b,",\"win\":");
     buf_str(b,name);
     BUF_LIT(b,",\"kind\":");
     buf_str(b,kind);
@@ -115,13 +116,13 @@ void send_window(const char *what, std::string_view name, int w, int h, std::str
     send_buf(b);
 }
 
-std::string windows_event_line(const xpp::Session &s) { return "{\"ev\":\"windows\",\"windows\":" + xpp::windows_json(s) + '}'; }
+std::string windows_event_line(const xpp::Session &s) { return xpp::events::open(xpp::events::WINDOW_LIST) + ",\"windows\":" + xpp::windows_json(s) + '}'; }
 
-void j_window_selected(xpp::Session &, std::string_view name, std::string_view kind) { send_window("select", name, 0, 0, "", kind); }
+void j_window_selected(xpp::Session &, std::string_view name, std::string_view kind) { send_window(xpp::events::WINDOW_SELECTED, name, 0, 0, "", kind); }
 
 void j_window_renamed(xpp::Session &, std::string_view old_name, std::string_view new_name)
 {
-    std::string event="{\"ev\":\"window.renamed\",\"window\":";
+    std::string event=xpp::events::open(xpp::events::WINDOW_RENAMED)+",\"window\":";
     json_append_string(event,old_name);
     event+=",\"new_name\":";
     json_append_string(event,new_name);
@@ -131,26 +132,26 @@ void j_window_renamed(xpp::Session &, std::string_view old_name, std::string_vie
 
 void j_auto_closed(xpp::Session &s, std::string_view name)
 {
-    send_window("destroy",name,0,0,"","diagram");
+    send_window(xpp::events::WINDOW_DESTROYED,name,0,0,"","diagram");
     diag_forget();
     auto_data_forget(s);
 }
 
-void j_tool_window_closed(xpp::Session &, std::string_view name, std::string_view kind) { send_window("destroy", name, 0, 0, "", kind); }
+void j_tool_window_closed(xpp::Session &, std::string_view name, std::string_view kind) { send_window(xpp::events::WINDOW_DESTROYED, name, 0, 0, "", kind); }
 
 void j_create_plot_window(xpp::Session &s)
 {
     const int i = s.plot_windows.active;
-    send_window("create", xpp::window_name(s,s.plot_windows.graph[i].w), s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt, "");
-    send_window("select", xpp::window_name(s,s.plot_windows.draw_win), s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt);
+    send_window(xpp::events::WINDOW_CREATED, xpp::window_name(s,s.plot_windows.graph[i].w), s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt, "");
+    send_window(xpp::events::WINDOW_SELECTED, xpp::window_name(s,s.plot_windows.draw_win), s.plot_windows.graph[i].x11Wid, s.plot_windows.graph[i].x11Hgt);
 }
 
 /* The core removes the window; this callback only tells the page. */
 void j_destroy_plot_window(xpp::Session &s)
 {
-    send_window("destroy",xpp::window_name(s,s.plot_windows.draw_win),0,0);
+    send_window(xpp::events::WINDOW_DESTROYED,xpp::window_name(s,s.plot_windows.draw_win),0,0);
     const GRAPH &main=s.plot_windows.graph[0];
-    send_window("select",xpp::window_name(s,main.w),main.x11Wid,main.x11Hgt);
+    send_window(xpp::events::WINDOW_SELECTED,xpp::window_name(s,main.w),main.x11Wid,main.x11Hgt);
 }
 
 void j_cput_text(xpp::Session &s)
@@ -176,7 +177,7 @@ void j_scroll_window(xpp::Session &s)
     int i, j, t, state = 0;
     float x, y, x0 = 0, y0 = 0, dx = 0, dy = 0;
     float xlo = s.plot_windows.current->xlo, ylo = s.plot_windows.current->ylo, xhi = s.plot_windows.current->xhi, yhi = s.plot_windows.current->yhi;
-    send_simple("message", "box", "Drag the plot to scroll it; any key ends");
+    send_simple(xpp::events::SESSION_MESSAGE, "box", "Drag the plot to scroll it; any key ends");
     while ((t = ask_drag(s, s.plot_windows.draw_win, &i, &j)) != 0) {
         if (t == 1 && state == 0) {
             scale_to_real(s,i, j, &x0, &y0);
@@ -242,7 +243,7 @@ namespace {
 void send_film(const xpp::Session &s, const char *what)
 {
     std::string b;
-    buf_format(b,"{{\"ev\":\"film\",\"op\":\"{}\",\"count\":{},\"win\":",what,s.kinescope.frames);
+    buf_format(b,"{},\"op\":\"{}\",\"count\":{},\"win\":",xpp::events::open(xpp::events::KINESCOPE_FILM),what,s.kinescope.frames);
     buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
     buf_format(b,",\"cycles\":{},\"delay\":{}}}",s.kinescope.cycles,s.kinescope.frame_ms);
     send_buf(b);
@@ -356,7 +357,8 @@ void send_aplot(xpp::Session &s, const char *tag)
     aplot_dirty = 0;
     if (!ap->alive) return;
     const std::string sroot = get_root(ap->name, &num);
-    BUF_LIT(b, "{\"ev\":\"aplot\",\"title\":\"");
+    b += xpp::events::open(xpp::events::ARRAY_PLOT_SHOWN);
+    BUF_LIT(b, ",\"title\":\"");
     buf_format(b, "{:.60}{:d}..{:d}\"", sroot, num, num + ap->nacross - 1);
     nx = ap->ncskip > 0 ? ap->nacross / ap->ncskip : 0;
     ny = ap->ndown;
@@ -418,7 +420,7 @@ void j_aplot_make(xpp::Session &s, std::string_view name)
     s.tools_hidden.array_plot = false;
     ap.plotw = ap.width - 30 - 10 * text_metrics.small_width;
     ap.ploth = ap.height - 55;
-    send_window("create", xpp::window_name(s,WIN_APLOT), ap.plotw, ap.ploth, name,"array_plot");
+    send_window(xpp::events::WINDOW_CREATED, xpp::window_name(s,WIN_APLOT), ap.plotw, ap.ploth, name,"array_plot");
 }
 
 void j_aplot_redraw(xpp::Session &s) { send_aplot(s, NULL); }

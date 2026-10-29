@@ -148,7 +148,7 @@ export interface UserKeymap {
 
 /** the answer to a `keymap` command (get, set or reset) */
 export interface KeymapEvent {
-  ev: 'keymap';
+  ev: 'keymap.changed';
   op: 'get' | 'set' | 'reset';
   keymap: KeymapInfo;
 }
@@ -161,10 +161,12 @@ export interface View {
   /** the active window's 3D angles, degrees (sent only when `three`) */
   theta?: number;
   phi?: number;
+  /** what the window plots, as text ("W vs V"): the title bar shows it */
+  title?: string;
 }
 
 export interface StateEvent {
-  ev: 'state';
+  ev: 'session.state';
   sliders: {name: string; lo: number; hi: number; step: number}[];
   pars: [string, number][];
   ics: [string, number][];
@@ -210,7 +212,7 @@ export interface PlayerStep {
 
 /** a recording opened in the player (W59b) */
 export interface PlayerEvent {
-  ev: 'player';
+  ev: 'recording.player';
   file: string;
   model: string;
   intact: boolean;
@@ -219,7 +221,7 @@ export interface PlayerEvent {
 
 /** what the player sends next, `ms` before it sends it (W59b) */
 export interface PressEvent {
-  ev: 'press';
+  ev: 'recording.press';
   step: number;
   what: 'answer' | 'cmd';
   index: number;
@@ -259,7 +261,7 @@ export interface SeriesColumn {
 
 /** the whole series of one plot window */
 export interface SeriesEvent {
-  ev: 'series';
+  ev: 'plot.series';
   op?: undefined;
   enc?: 'f32';
   win: string;
@@ -280,7 +282,7 @@ export interface SeriesEvent {
 /** rows an integration stored since what the client holds: it keeps rows
     0..from-1, then these (the columns of the last full series, in its order) */
 export interface SeriesAppendEvent {
-  ev: 'series';
+  ev: 'plot.series';
   op: 'append';
   enc?: 'f32';
   win: string;
@@ -294,7 +296,7 @@ export interface SeriesAppendEvent {
     all `rows` rows of its series already (the appends delivered them), and
     the data's version is `version` (docs/protocol.md "Live runs") */
 export interface SeriesEndEvent {
-  ev: 'series';
+  ev: 'plot.series';
   op: 'end';
   win: string;
   rows: number;
@@ -337,7 +339,7 @@ export interface PlotWindowInfo {
 /** a plot window's earlier runs changed (docs/protocol.md "The plot as data"): forget them
     all (`clear`) or the `drop` oldest, then add these; `erased`: Erase hid the current run */
 export interface RunsEvent {
-  ev: 'runs';
+  ev: 'plot.runs';
   win: string;
   enc?: 'f32';
   erased: number;
@@ -357,7 +359,7 @@ export interface RunsEvent {
 /** AUTO's diagram display (docs/protocol.md "Display state"): the branches before `earlier`
     are those computed before Clear, `show`n or not, the active view and each view's zoom (W50) */
 export interface AutoViewEvent {
-  ev: 'autoview';
+  ev: 'auto.view';
   earlier: number;
   show?: number;
   active?: string;
@@ -367,7 +369,7 @@ export interface AutoViewEvent {
 
 /** every plot window and the active one */
 export interface PlotsEvent {
-  ev: 'plots';
+  ev: 'plot.shown';
   active: string;
   simultaneous_plot?: boolean;
   windows: PlotWindowInfo[];
@@ -376,7 +378,7 @@ export interface PlotsEvent {
 /** a plot window's nullclines (docs/protocol.md "The plot as data"): segments
     [x1,y1,x2,y2,...] in plot coordinates, empty when the window shows none */
 export interface NullclinesEvent {
-  ev: 'nullclines';
+  ev: 'nullcline.curves';
   win: string;
   enc?: 'f32';
   /** the variables whose derivative is 0 along the x- and y-nullcline */
@@ -393,7 +395,7 @@ export interface NullclinesEvent {
 
 /** a plot window's direction field and Flow trajectories */
 export interface DfieldEvent {
-  ev: 'dfield';
+  ev: 'dirfield.field';
   win: string;
   enc?: 'f32';
   /** 1: arrows of one length (Scaled Dir.Fld); 0: lengths follow the speed (Direct field) */
@@ -417,7 +419,7 @@ export interface DfieldEvent {
     arrows and markers, Graphic stuff/Freeze's frozen curves, in plot
     coordinates; each list empty when the window shows none */
 export interface MarksEvent {
-  ev: 'marks';
+  ev: 'plot.marks';
   win: string;
   enc?: 'f32';
   /** the symbol XPP draws for the stability: stable circle, unstable box, saddle triangle */
@@ -502,7 +504,7 @@ export interface ErrorAction {
 
 /** an error (`error` with its place, ErrorFields), or a status line, an alert, ... */
 export interface MessageEvent extends Partial<ErrorFields> {
-  ev: 'message';
+  ev: 'session.message';
   bottom?: string;
   help?: {chapter: string; anchor: string};
   box?: string;
@@ -516,7 +518,7 @@ export interface MessageEvent extends Partial<ErrorFields> {
     for a `browser` `from` request and again, with the same range, after any
     command that changed the data while the client showed the browser. */
 export interface BrowserEvent {
-  ev: 'browser';
+  ev: 'browser.updated';
   /** rows stored (my_browser.maxrow); 0 before any integration */
   rows: number;
   /** column names, T first, in storage order */
@@ -539,14 +541,14 @@ export interface BrowserEvent {
     core's own "* " marker prepended for an action comment (X11's own
     convention); the `{...}` block itself is not sent, only what follows it. */
 export interface SourceEvent {
-  ev: 'source';
+  ev: 'session.source';
   lines: string[];
   comments: [string, number][];
 }
 
 /** Text,etc/Eqns: one `dX/dT=...` line per equation (docs/protocol.md `equations`). */
 export interface EquationsEvent {
-  ev: 'equations';
+  ev: 'session.equations';
   lines: string[];
 }
 
@@ -556,7 +558,7 @@ export interface EquationsEvent {
     positive/negative real part, purely imaginary); `eigenvalues` the
     Jacobian's eigenvalues as [re, im] pairs, absent for a delay equation. */
 export interface EquilibriumEvent {
-  ev: 'equilibrium';
+  ev: 'equilibrium.found';
   type: string;
   cplus: number;
   cminus: number;
@@ -574,7 +576,7 @@ export interface EquilibriumEvent {
     colormap.h's ramp_color); `enc` "f32" (the client's last `data` `enc`)
     sends it as base64 like a series column. */
 export interface AplotEvent {
-  ev: 'aplot';
+  ev: 'array_plot.shown';
   title: string;
   nx: number;
   ny: number;
@@ -595,8 +597,7 @@ export interface AplotEvent {
 /** the animation window's state (docs/protocol.md `ani`), for its slider and
     toggles: sent with every frame drawn and after every `ani` command */
 export interface AniStateEvent {
-  ev: 'ani';
-  op?: undefined;
+  ev: 'animation.state';
   /** the row the next step starts from (the core's vcr.pos) */
   pos: number;
   rows: number;
@@ -627,8 +628,7 @@ export type AniPrimWire =
 
 /** one frame of the animation, for a client that asked (`data` with `ani`) */
 export interface AniFrameEvent {
-  ev: 'ani';
-  op: 'frame';
+  ev: 'animation.frame';
   /** the stored row the frame shows, of `rows` */
   pos: number;
   rows: number;
@@ -650,7 +650,7 @@ export interface AniFrameEvent {
     count and playback timing; the client keeps the frames themselves
     (store/kinescope.ts) and does the drawing and the export. */
 export interface FilmEvent {
-  ev: 'film';
+  ev: 'kinescope.film';
   op: 'capture' | 'reset' | 'play' | 'autoplay';
   count: number;
   win: string;
@@ -662,7 +662,7 @@ export interface FilmEvent {
     load"), sent instead of hello: what is wrong (one or more lines) and
     where (ErrorFields) */
 export interface LoadErrorEvent extends ErrorFields {
-  ev: 'error';
+  ev: 'session.error';
 }
 
 export type XppEvent =
@@ -692,34 +692,42 @@ export type XppEvent =
   | PressEvent
   | KeymapEvent
   /** A user save completed (false for a declined or failed save). */
-  | {ev: 'saved'; saved: boolean; file: string}
-  | {ev: 'idle'}
+  | {ev: 'session.saved'; saved: boolean; file: string}
   | {ev: 'done'; id?: string; status: 'ok' | 'error' | 'stopped'; result?: Record<string,unknown>; error?: string; file?: string; line?: number; col?: number; source?: string; field?: string}
   | {ev: 'window.renamed'; window: string; new_name: string}
   /** every open window and whether it is shown (window.list's result; sent again when it changed) */
-  | {ev: 'windows'; windows: WindowListEntry[]}
+  | {ev: 'window.list'; windows: WindowListEntry[]}
   /** Erase blanked plot window `win`; Redraw drew its current data again */
-  | {ev: 'erase' | 'redraw'; win: string}
-  | {ev: 'progress'; n: number; of: number}
+  | {ev: 'plot.cleared' | 'plot.redrawn'; win: string}
+  | {ev: 'job.progress'; n: number; of: number}
   /** Full solver doubles for all states, independently of plot columns. */
-  | {ev: 'liveState'; time: number; now: number[]; rates: (number | null)[]}
-  /** the running command began computing: until its idle only view and control actions start */
-  | {ev: 'computing'}
-  | {ev: 'title'; text: string}
-  | {ev: 'window'; kind: 'graph' | 'diagram' | 'animation' | 'array_plot' | 'browser'; op: 'create' | 'select' | 'destroy'; win: string; w: number; h: number; title?: string}
-  | {ev: 'log'; text: string}
+  | {ev: 'job.live_state'; time: number; now: number[]; rates: (number | null)[]}
+  /** the running command began computing: until its done only view and control actions start */
+  | {ev: 'job.computing'}
+  | WindowEvent
+  | {ev: 'session.log'; text: string}
   | {ev: 'exit'; code: number}
-  | {ev: 'bye'}
+  | {ev: 'session.bye'}
   /** the command's computation was cancelled: where it got to */
-  | {ev: 'stopped'; at: {what: string; [k: string]: unknown}}
-  /* every other event (diagram: store/diagram.ts reads it by its op) */
-  | {ev: 'diagram' | 'ping'; [k: string]: unknown}
+  | {ev: 'job.stopped'; at: {what: string; [k: string]: unknown}}
+  /* every other event (auto.diagram: store/diagram.ts reads it by its op) */
+  | {ev: 'auto.diagram' | 'session.ping'; [k: string]: unknown}
   /* AUTO's info strip and stability circle (store/diagram.ts AutoInfoEvent) */
-  | {ev: 'autoinfo'; [k: string]: unknown}
+  | {ev: 'auto.info'; [k: string]: unknown}
   /* AUTO's settings (store/autoSettings.ts AutoSettings) */
-  | {ev: 'autosettings'; [k: string]: unknown}
+  | {ev: 'auto.settings'; [k: string]: unknown}
   /** the main numerics (docs/protocol.md "The numerics as data") */
-  | {ev: 'numerics'; fields: NumericsField[]};
+  | {ev: 'run.numerics'; fields: NumericsField[]};
+
+/** a window made, selected or destroyed (docs/protocol.md): the event's name says which */
+export interface WindowEvent {
+  ev: 'window.created' | 'window.selected' | 'window.destroyed';
+  kind: 'graph' | 'diagram' | 'animation' | 'array_plot' | 'browser';
+  win: string;
+  w: number;
+  h: number;
+  title?: string;
+}
 
 /** one field of the `numerics` event: `key` names it in `set` kind `num`;
     `value` the choice's name when `choices` (their names: the method's,

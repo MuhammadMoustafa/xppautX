@@ -1,4 +1,5 @@
 # kuramot100w.odex: converted from kuramot100w.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # kuramoto with sums
 fun h(phi) = sin(phi+a)-sin(a)+b*sin(2*phi)

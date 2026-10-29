@@ -1,4 +1,5 @@
 # itoy.odex: converted from itoy.ode by xppautX --convert (docs/odex.md)
+version 4
 
 const q1 = 0, q2 = 2.19324542, q3 = 4.38649084
 # The 24 points

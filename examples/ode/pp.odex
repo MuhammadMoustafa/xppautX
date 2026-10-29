@@ -1,4 +1,5 @@
 # pp.odex: converted from pp.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # cts predator prey model
 # Test problem from the AUTO manual pp.ode

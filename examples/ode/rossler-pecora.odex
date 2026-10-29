@@ -1,4 +1,5 @@
 # rossler-pecora.odex: converted from rossler-pecora.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # rossler attractor
 init x = 1, y = 1, z = 0.2

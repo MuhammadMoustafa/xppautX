@@ -1,4 +1,5 @@
 # fieldnoy.odex: converted from fieldnoy.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # The Field-Noyes Equations.  A very hard problem for most numerical
 # integrators.  A stiff method is absolutely necessary

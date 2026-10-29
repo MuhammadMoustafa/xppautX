@@ -9,29 +9,18 @@ namespace xpp {
 
 namespace {
 
-/* every letter a kind (menus.h XPP_KIND_*) */
-constexpr bool kinds_valid(const char *k)
+/* the item count of a menu that has one key per item; any other menu does not compile (a throw is no constant
+   expression) */
+consteval int menu_count(size_t items, size_t keys)
 {
-    for (; *k; k++)
-        if (*k != XPP_KIND_CONTROL && *k != XPP_KIND_VIEW && *k != XPP_KIND_SETTING && *k != XPP_KIND_DATA
-            && *k != XPP_KIND_COMPUTE)
-            return false;
-    return true;
-}
-
-/* the item count of a menu that has one key and one kind per item; any
-   other menu does not compile (a throw is no constant expression) */
-consteval int menu_count(size_t items, size_t keys, size_t kinds, const char *k)
-{
-    if (items + 1 != keys || kinds != keys || !kinds_valid(k)) throw "a menu needs one key and one kind per item";
+    if (items + 1 != keys) throw "a menu needs one key per item";
     return static_cast<int>(items);
 }
 
 } // namespace
 
-/* a menu's initializer, one key and one kind per item checked when it compiles */
-#define XPP_MENU(name, title, items, keys, kinds)                                                            \
-    {name, title, menu_count(sizeof(items) / sizeof(items[0]), sizeof(keys), sizeof(kinds), kinds), items, keys, kinds}
+/* a menu's initializer, one key per item checked when it compiles */
+#define XPP_MENU(name, title, items, keys) {name, title, menu_count(sizeof(items) / sizeof(items[0]), sizeof(keys)), items, keys}
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */
 
@@ -47,9 +36,9 @@ static const char *const meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
 /* Save data (browse_data.cpp data_write): what it writes; the format
    comes next, from the data formats' registry (data_formats.h) */
 static const char *const save_what_items[]={"The data table","What the plot shows"};
-const XppMenu menu_save_what = XPP_MENU("save_what", "Save data", save_what_items, "tp", "dd");
+const XppMenu menu_save_what = XPP_MENU("save_what", "Save data", save_what_items, "tp");
 /* sets METHOD directly */
-const XppMenu menu_method = XPP_MENU("method", "Method", meth_items, "demragvbqsc582y", "sssssssssssssss");
+const XppMenu menu_method = XPP_MENU("method", "Method", meth_items, "demragvbqsc582y");
 
 int menu_index(const XppMenu *m, int ch)
 {
@@ -76,6 +65,6 @@ static const char *const auto_special_items[]={
   auto_point_kind_label(AutoPointKind::Hopf).data(), auto_point_kind_label(AutoPointKind::Fold).data(),
   auto_point_kind_label(AutoPointKind::MaxSteps).data(), auto_point_kind_label(AutoPointKind::PeriodDoubling).data(),
   auto_point_kind_label(AutoPointKind::NeimarkSacker).data(), auto_point_kind_label(AutoPointKind::UserZero).data()};
-const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu", "vvvvvvvv");
+const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu");
 
 } // namespace xpp

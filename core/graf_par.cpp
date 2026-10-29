@@ -643,7 +643,6 @@ void window_zoom_com(xpp::Session &s, int c)
 void zoom_in(xpp::Session &s, double x1, double y1, double x2, double y2)
 {
   update_view(s,x1,x2,y1,y2);
-  draw_help();
 }
 
 void zoom_out_by(xpp::Session &s, double cx, double cy, double factor)
@@ -651,7 +650,6 @@ void zoom_out_by(xpp::Session &s, double cx, double cy, double factor)
   const double dx=std::abs(s.plot_windows.current->xhi-s.plot_windows.current->xlo)*factor;
   const double dy=std::abs(s.plot_windows.current->yhi-s.plot_windows.current->ylo)*factor;
   update_view(s,cx-dx/2,cx+dx/2,cy-dy/2,cy+dy/2);
-  draw_help();
 }
 
 void zoom_out(xpp::Session &s, double x1, double y1, double x2, double y2)
@@ -662,7 +660,6 @@ void zoom_out(xpp::Session &s, double x1, double y1, double x2, double y2)
   const double bx=dx*dx/(x2-x1),mux=(x1-xlo)/dx;
   const double by=dy*dy/(y2-y1),muy=(y1-ylo)/dy;
   update_view(s,xlo-bx*mux,xlo-bx*mux+bx,ylo-by*muy,ylo-by*muy+by);
-  draw_help();
 }
 
 void graph_all(xpp::Session &s, int *list, int n, int type)

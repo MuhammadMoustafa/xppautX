@@ -1,4 +1,5 @@
 # dumb.odex: converted from dumb.ode by xppautX --convert (docs/odex.md)
+version 4
 # Source: XPPAUT 8.0's demo tstauto/dumb.ode (W537 audit).
 
 x[j]' = -x[j]+p for j in 1..195

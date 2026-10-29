@@ -1,3 +1,4 @@
+version 4
 # W498: no equilibrium for any of the guesses.
 x' = x^2+1
 init x = 0

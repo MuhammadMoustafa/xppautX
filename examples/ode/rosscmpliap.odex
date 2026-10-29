@@ -1,4 +1,5 @@
 # rosscmpliap.odex: converted from rosscmpliap.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # This code computes the Pecora-Carroll exponents for a complex eigenvalue
 # You could use a different chaotic system if you wanted

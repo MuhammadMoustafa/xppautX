@@ -1,4 +1,5 @@
 # shortnames.odex: converted from shortnames.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # FitzHugh-Nagumo: longnames.ode with short names. The two must compute
 # the same numbers (tools/autocheck.py, section names).

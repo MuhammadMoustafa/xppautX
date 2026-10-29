@@ -10,6 +10,7 @@
    rows. A handler never reads the JSON line: it asks Arguments. */
 #include "colormap.h"
 #include "command_category.h"
+#include "event_registry.h"
 #include "json_number.h"
 #include "xpp_error.h"
 #include "xpp_io.h"
@@ -42,6 +43,8 @@ inline constexpr const char *FILE_PICKER_KEY = "file_picker";
 inline constexpr const char *PICKER_FILE = "selected_file";
 /* the one command whose server text form takes its argument by position (`help NAME`) */
 inline constexpr std::string_view HELP_COMMAND = "help";
+/* what `help` is asked for to describe the events instead of the commands */
+inline constexpr std::string_view EVENTS_TOPIC = "events";
 
 /* integer and real are finite numbers; text, expression, name, file, path
    and color are JSON strings (max_length bytes at most); window and

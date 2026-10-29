@@ -1,4 +1,5 @@
 # kepler.odex: converted from kepler.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # Kepler model kepler.ode
 init x1 = 1e-04, x2 = 1e-04, z = 0

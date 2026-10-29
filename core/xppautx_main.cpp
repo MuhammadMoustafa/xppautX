@@ -63,6 +63,7 @@
 #include "xpp_win32.h"
 #include "odex.h"
 #include "xpp_session.h"
+#include "xpp_prefs.h"
 #include "xpp_recent.h"
 #include <functional>
 #include <stdio.h>
@@ -229,7 +230,8 @@ static void run_session(void)
     if (!silent) {
         const xpp::Model &m = (**loaded).model();
         const auto noted = xpp::recent::note(opened.empty() ? xpp::files::absolute(m.this_file, m.load_dir) : opened);
-        if (!noted) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
+        /* a preferences file that cannot be read was said once already, with what it costs (auto_threads_load) */
+        if (!noted && xpp::prefs::load_prefs()) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
     }
     /* the session the load made, the program's until the redraw (a protocol
        command chooses its own, ui_json.cpp handle_line) */

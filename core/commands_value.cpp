@@ -163,7 +163,7 @@ constexpr std::array SLIDER_RESULTS = {ResultField{SLOT_KEY, "integer"}, ResultF
 constexpr std::array REMOVE_SLIDER_RESULTS = {ResultField{SLOT_KEY, "integer"}, ResultField{"removed", "boolean"}};
 constexpr std::array FILE_RESULTS = {ResultField{FILE_KEY, "file"}, ResultField{KIND_KEY, "choice"}};
 
-constexpr std::array STATE_EVENTS = {"state", "done"};
+constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array UNDO_KEYS = {"Ctrl+Z"};
 constexpr std::array REDO_KEYS = {"Ctrl+Shift+Z"};

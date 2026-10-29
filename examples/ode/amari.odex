@@ -1,4 +1,5 @@
 # amari.odex: converted from amari.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # amari bump
 fun mh(x) = exp(-abs(x))-c*b*exp(-b*abs(x))

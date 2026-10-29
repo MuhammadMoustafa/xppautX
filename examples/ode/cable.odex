@@ -1,4 +1,5 @@
 # cable.odex: converted from cable.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # Linear Cable Model cable.ode
 # define the 4 parameters, a,b,v0,lambda^2

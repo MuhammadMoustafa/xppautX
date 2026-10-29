@@ -18,6 +18,7 @@
 #include "model_options.h"
 #include "lunch-new.h"
 #include "setx_file.h"
+#include "model_text.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_files.h"
@@ -51,7 +52,7 @@ bool write_file(const char *path, const std::string &text)
     const std::string_view file(path);
     if (file.ends_with(".ode")) xpp::files::remove(std::string(file) + "x");
     xpp::Writer w(path);
-    return w && w.write(text) && w.commit();
+    return w && w.write(file.ends_with(".odex") ? versioned(text) : text) && w.commit();
 }
 
 /* the terminal's answers to the next questions: stdin is this text */
@@ -376,7 +377,7 @@ int main(void)
         char *argv[] = {arg0, file, nullptr};
         const xpp::Loaded l = load_args(2, argv, 1);
         CHECK(!l.has_value());
-        if (!l) CHECK(l.error().place.line == 2);
+        if (!l) CHECK(l.error().place.line == 3);
     }
 
     /* each name finds its row */
@@ -573,7 +574,7 @@ int main(void)
             const xpp::Loaded refused = load_args(2, argv, 1);
             CHECK(!refused);
             if (!refused) {
-                CHECK(refused.error().place.file == path && refused.error().place.line == 2);
+                CHECK(refused.error().place.file == path && refused.error().place.line == (native ? 3 : 2));
                 CHECK(refused.error().what.find(value) != std::string::npos);
             }
             CHECK(&xpp::client_session() == s);
@@ -602,9 +603,9 @@ int main(void)
         CHECK(&xpp::client_session() == s);
         if (!l) {
             CHECK(l.error().place.file == bad_odex);
-            CHECK(l.error().place.line == 3);
+            CHECK(l.error().place.line == 4);
             CHECK(l.error().what.find("double quotes") != std::string::npos);
-            if (l.error().place.line != 3) printf("  odex: %s\n", l.error().text().c_str());
+            if (l.error().place.line != 4) printf("  odex: %s\n", l.error().text().c_str());
         }
     }
     /* Continuation rules are shared with the form and session reader; a bad
@@ -617,7 +618,7 @@ int main(void)
         const xpp::Loaded loaded = load_args(2, argv, 1);
         CHECK(!loaded);
         CHECK(&xpp::client_session() == s);
-        if (!loaded) CHECK(loaded.error().place.file == bad_odex && loaded.error().place.line == 2);
+        if (!loaded) CHECK(loaded.error().place.file == bad_odex && loaded.error().place.line == 3);
     }
     for (const std::string color : {"foreground", "red"}) {
         CHECK(write_file(bad_odex, "x' = -x\noptions { plot: { xnc: " + color + " } }\n"));
@@ -625,7 +626,7 @@ int main(void)
         char *argv[] = {arg0, file, nullptr};
         const xpp::Loaded loaded = load_args(2, argv, 1);
         CHECK(!loaded);
-        if (!loaded) CHECK(loaded.error().place.line == 2);
+        if (!loaded) CHECK(loaded.error().place.line == 3);
     }
     /* XPPAUT's numeric findext type is an import spelling, never native text. */
     for (const std::string type : {"-1", "0", "1", "sideways"}) {
@@ -634,7 +635,7 @@ int main(void)
         char *argv[]={arg0,file,nullptr};
         const auto loaded=load_args(2,argv,1);
         CHECK(!loaded);
-        if(!loaded) CHECK(loaded.error().place.line==2);
+        if(!loaded) CHECK(loaded.error().place.line==3);
     }
     /* XPPAUT's names for the renamed options are a .ode's: a .odex refuses them
        at their line */
@@ -647,7 +648,7 @@ int main(void)
         CHECK(!l.has_value());
         if (l) continue;
         CHECK(l.error().place.file == bad_odex);
-        CHECK(l.error().place.line == 3);
+        CHECK(l.error().place.line == 4);
         CHECK(l.error().what.find(old_name) != std::string::npos);
     }
     CHECK(xpp::client_session().model().this_file == xpp::odex::odex_name(plain_ode));
@@ -763,9 +764,9 @@ int main(void)
             CHECK(!l.has_value());
             if (l) continue;
             CHECK(l.error().place.file == file_name);
-            CHECK(l.error().place.line == (odex ? 2 : 6));
+            CHECK(l.error().place.line == (odex ? 3 : 6));
             CHECK(l.error().what.find(c.value) != std::string::npos);
-            if (l.error().place.line != (odex ? 2 : 6)) printf("  output %s: %s\n", c.value, l.error().text().c_str());
+            if (l.error().place.line != (odex ? 3 : 6)) printf("  output %s: %s\n", c.value, l.error().text().c_str());
         }
     }
 
@@ -787,7 +788,7 @@ int main(void)
         xpp::Loaded l = load_output(outside);
         CHECK(!l.has_value());
         if (!l) {
-            CHECK(l.error().place.file == bad_odex && l.error().place.line == 2);
+            CHECK(l.error().place.file == bad_odex && l.error().place.line == 3);
             CHECK(l.error().what.find("refused") != std::string::npos);
         }
         CHECK(answer_with("r\n"));

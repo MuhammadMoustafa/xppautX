@@ -5,6 +5,7 @@
    the event is built from that record when the front end asks for an
    update and sent only when its text differs from the last one sent. */
 #include <new>
+#include "event_registry.h"
 #include "xpp_mem.h"
 #include <cmath>
 #include <cstdio>
@@ -129,7 +130,7 @@ void add_stop(std::string &o, const AutoStop &stop)
 std::string auto_data_event_line(const Session &s, const int &point)
 {
     const AutoDataShown &sh = s.auto_state.shown;
-    std::string o = "{\"ev\":\"autoinfo\",\"info\":";
+    std::string o = xpp::events::open(xpp::events::AUTO_INFO) + ",\"info\":";
     if (sh.has_info) add_info(o, sh, point);
     else o += "null";
     o += ",\"stab\":";

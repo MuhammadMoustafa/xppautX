@@ -1,3 +1,4 @@
+version: 4
 model: "wcstim.odex"
 options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
 nullcline { x1: -0.1, y1: -0.1, x2: 1.1, y2: 1.1, variable: "u", source: frozen, frame: 10*stim(t), color: "#ff0000" }

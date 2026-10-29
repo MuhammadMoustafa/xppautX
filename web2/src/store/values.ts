@@ -7,8 +7,7 @@
    it for when that ends (the run in progress keeps the values it started
    with). This slice is only what the page adds: the edits sent whose
    `set` has not ended yet (`inflight`: each field shows its latest one
-   as its value until the core's own state takes over after that set's
-   idle -- no "pending" state, the value shown is the value), which of
+   as its value until the core's own state takes over after that set's done -- no "pending" state, the value shown is the value), which of
    them a `message` `error` belongs to (the one whose command runs, so it
    is shown on that field, not as a modal, A11/A14), the model's defaults
    and the sliders under the plot (store/sliders.ts).
@@ -34,8 +33,8 @@ export interface ValueSet {
   text: string;
 }
 
-/** an edit sent as its own `set`, until that command's idle: `ahead` is
-    how many other commands' idles come first (0: its own command is the
+/** an edit sent as its own `set`, until that command's done: `ahead` is
+    how many other commands' dones come first (0: its own command is the
     one running or the next) */
 export interface InFlight {
   set: ValueSet;
@@ -71,10 +70,10 @@ function omit(o: Record<string, string>, key: string): Record<string, string> {
 }
 
 export type ValuesAction =
-  /** a field's edit, sent as its own `set`, `ahead` idles before its own */
+  /** a field's edit, sent as its own `set`, `ahead` dones before its own */
   | {type: 'sent'; set: ValueSet; ahead: number}
-  /** a command ended: the set whose command it was is done, the others one idle closer */
-  | {type: 'idle'}
+  /** a command ended: the set whose command it was is done, the others one done closer */
+  | {type: 'ended'}
   /** a `message` `error`: its `field` (the core says which value of a `set` it refused), else the
       running set's, when a set runs */
   | {type: 'error'; text: string; field?: string}
@@ -96,7 +95,7 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
     case 'sent':
       return {...state, errors: omit(state.errors, setKey(action.set)),
         inflight: [...state.inflight, {set: action.set, ahead: action.ahead}]};
-    case 'idle':
+    case 'ended':
       return state.inflight.length
         ? {...state, inflight: state.inflight.filter(f => f.ahead > 0).map(f => ({...f, ahead: f.ahead - 1}))} : state;
     case 'error': {

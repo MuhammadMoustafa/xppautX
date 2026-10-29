@@ -1,4 +1,5 @@
 # minode.odex: converted from minode.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # minode.ode: lo, the least |x[j]|. It once came from a compiled C function
 # (getmin.c, through export); compiled functions are gone (W55), and

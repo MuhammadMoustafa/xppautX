@@ -170,9 +170,9 @@ constexpr std::array PAGE_RESULTS = {ResultField{"first_row", "integer"}, Result
                                      ResultField{"rows", "list[list[real]]"}};
 constexpr std::array TRANSPOSE_RESULTS = {ResultField{"transposed_rows", "integer"}, ResultField{"transposed_cols", "integer"}};
 
-constexpr std::array STATE_EVENTS = {"state", "done"};
-constexpr std::array BROWSER_EVENTS = {"browser", "state", "done"};
-constexpr std::array PAGE_EVENTS = {"browser", "done"};
+constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array BROWSER_EVENTS = {xpp::events::BROWSER_UPDATED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array PAGE_EVENTS = {xpp::events::BROWSER_UPDATED, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"browser.find", FIND_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Data/Find",

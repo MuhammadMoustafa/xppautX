@@ -1,4 +1,5 @@
 # mlvolt.odex: converted from mlvolt.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # cube volt.ode
 # two equlations with passive media and then two active regions

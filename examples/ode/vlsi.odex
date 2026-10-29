@@ -1,4 +1,5 @@
 # vlsi.odex: converted from vlsi.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # a model for a vlsi - poster at NIPS
 # shows bistability of a limit cycle and fixed point

@@ -89,13 +89,13 @@ export interface AppState {
   hello: HelloEvent | null;
   core: StateEvent | null;
   busy: boolean;
-  /** the running command computes (the core's `computing` event, until its idle): only view
+  /** the running command computes (the core's `computing` event, until its done): only view
       and control actions start then (protocol/kinds.ts, W95); busy alone disables nothing */
   computing: boolean;
   /** what the busy command runs, for the status line: the menu item last
       answered ("Go"), "AUTO" for the AUTO view's Run; null when unknown (W68) */
   running: string | null;
-  /** Abort was pressed; the run ends at its idle */
+  /** Abort was pressed; the run ends at its done */
   stopping: boolean;
   ask: AskEvent | null;
   /** a mouse, rubber or drag ask as a plot mode (plot/pick.ts), while it lasts */
@@ -290,27 +290,27 @@ function addToast(state: AppState, kind: Toast['kind'], text: string, action?: T
   return {...state, toasts, nextToast: state.nextToast + 1};
 }
 
-/* commands with no idle of their own (run.abort) or none at all (the plain
+/* commands with no done of their own (run.abort) or none at all (the plain
    quit; one that asks or saves is a command of its own); `browser.page`
    is answered at once too (docs/protocol.md: "answered at once, even
    during a computation"), so the table's
    paging (store/table.ts planRequest) never leaves the status bar stuck
    showing Working */
-const NO_IDLE = new Set(['run.abort', 'browser.page']);
+const NO_DONE = new Set(['run.abort', 'browser.page']);
 /** the commands the core answers at once at any moment, a done each, even in the middle of a computation: the
     player's controls and the state; the page's busy never waits on them (their done is counted, state.controlDone) */
 const CONTROL_DONE = new Set(['recording.play', 'recording.pause', 'recording.step', 'recording.set_speed', 'session.get_state']);
-/** whether a command ends without an idle of its own (a control line) */
-export function noIdle(cmd: Command): boolean {
+/** whether a command ends without a done of its own (a control line) */
+export function noDone(cmd: Command): boolean {
   if (cmd.cmd === 'session.quit') return cmd.save === false;
-  return NO_IDLE.has(cmd.cmd) || CONTROL_DONE.has(cmd.cmd);
+  return NO_DONE.has(cmd.cmd) || CONTROL_DONE.has(cmd.cmd);
 }
 
 /** The id of the page's own leave question (W110): File > Quit's, worded
     by hello's `quit`, asked by the page when the desktop window's close
     box or Quit comes while a command runs (session.ts quitAsked), the run
     going on; never sent to the core, answered in session.ts. An ask like
-    the core's, so it is modal as they are; the core's idle leaves it open,
+    the core's, so it is modal as they are; the core's done leaves it open,
     a question of the core's replaces it. */
 export const LEAVE_ASK = -1;
 
@@ -368,35 +368,51 @@ function defaultsOf(hello: HelloEvent, st: StateEvent): ValuesAction {
 }
 
 
+/** what a window event says happened to its window */
+const WINDOW_OPS = {'window.created': 'create', 'window.selected': 'select', 'window.destroyed': 'destroy'} as const;
+
+/** the command ended (its done): nothing is running, asked or half-picked any more */
+function settled(state: AppState): AppState {
+  return {
+    ...state, busy: false, computing: false, running: null, stopping: false, pick: null, box: '',
+    ask: state.ask?.id === LEAVE_ASK ? state.ask : null,
+    progress: null,
+    ani: reduceAni(state.ani, {type: 'playing', playing: false}),
+    diagram: diagramSettled(state.diagram),
+    values: reduceValues(state.values, {type: 'ended'}),
+    autoSettings: reduceAutoSettings(state.autoSettings, {type: 'ended'}),
+  };
+}
+
 function onEvent(state: AppState, ev: XppEvent): AppState {
   switch (ev.ev) {
     case 'hello': {
       /* a (re)connection: defaults and slider definitions come with state */
       const values = reduceValues({...state.values, defaults: null}, {type: 'settled'});
-      /* a set sent before gets no idle now */
+      /* a set sent before gets no done now */
       setPointTypes(ev.point_types);
       return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, windows: [],
         autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'}),
         keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};
     }
-    case 'keymap': {
+    case 'keymap.changed': {
       const keymap = reduceKeymap(state.keymap, {type: 'info', info: ev.keymap});
       return keymap === state.keymap ? state : {...state, keymap};
     }
-    case 'liveState':
+    case 'job.live_state':
       return state.core ? {...state, core: {...state.core, now: ev.now, time: ev.time, rates: ev.rates}} : state;
-    case 'state': {
+    case 'session.state': {
       const moved = ev.view && coreViewMoved(state.core?.view, ev.view);
       /* `auto` is there exactly while AUTO is open */
       const diagram = reduceDiagram(state.diagram, {type: 'core', open: !!(ev as {auto?: unknown}).auto});
       return {
-        ...state, core: ev, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram,
+        ...state, core: ev, title: ev.view?.title ?? state.title, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram,
         player: reducePlayer(state.player, {type: 'core', player: ev.player}),
         values: reduceValues(state.values.defaults || !state.hello ? state.values : reduceValues(state.values, defaultsOf(state.hello, ev)),
           {type: 'stateSliders', defs: ev.sliders}),
       };
     }
-    case 'series': {
+    case 'plot.series': {
       const shown = ev.win === state.plots.active;
       if (ev.op === 'append') {
         const plots = onAppend(state.plots, ev);
@@ -414,7 +430,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         hover: shown ? null : state.hover,
       };
     }
-    case 'windows': {
+    case 'window.list': {
       /* the shown flags drive each window's panel: the AUTO view is shown when any of its views is, the
          animation and the array plot panels follow their windows */
       const flag = (kind: WindowListEntry['kind']) => {
@@ -435,21 +451,22 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const diagram={...state.diagram,views:state.diagram.views.map(v=>v.name===ev.window?{...v,name:ev.new_name}:v)};
       return withPlots({...state,diagram},plots);
     }
-    case 'plots':
+    case 'plot.shown':
       return withPlots(state, onPlots(state.plots, ev));
-    case 'runs':
+    case 'plot.runs':
       return withPlots(state, onWindowRuns(state.plots, ev));
-    case 'nullclines':
+    case 'nullcline.curves':
       return withPlots(state, onNullclines(state.plots, ev));
-    case 'dfield':
+    case 'dirfield.field':
       return withPlots(state, onDfield(state.plots, ev));
-    case 'marks':
+    case 'plot.marks':
       return withPlots(state, onMarks(state.plots, ev));
-    case 'window': {
+    case 'window.created': case 'window.selected': case 'window.destroyed': {
+      const op = WINDOW_OPS[ev.ev];
       /* the windows' numbers: hello.window_names (no window comes before hello) */
       const ids = state.hello?.window_names;
       if (!ids) return state;
-      if (ev.op === 'select') {
+      if (op === 'select') {
         const front = {...state, diagram: reduceDiagram(state.diagram, {type:'show',shown:ev.kind === 'diagram'}),
           ani: reduceAni(state.ani,{type:'open',open:ev.kind === 'animation'}),
           aplot: reduceAplot(state.aplot,{type:'panel',open:ev.kind === 'array_plot'}),
@@ -462,13 +479,13 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         return front;
       }
       if (ev.kind === 'diagram')
-        return {...state, diagram: reduceDiagram(state.diagram, {type: 'window', op: ev.op})};
+        return {...state, diagram: reduceDiagram(state.diagram, {type: 'window', op: op})};
       if (ev.kind === 'animation')
-        return {...state, ani: reduceAni(state.ani, {type: 'window', exists: ev.op === 'create'})};
+        return {...state, ani: reduceAni(state.ani, {type: 'window', exists: op === 'create'})};
       /* create selects the new window too; destroy waits for `plots` */
       if (ev.kind === 'array_plot') {
-        if (ev.op === 'destroy') return {...state, aplot: reduceAplot(state.aplot, {type: 'window', open: false})};
-        if (ev.op === 'create') {
+        if (op === 'destroy') return {...state, aplot: reduceAplot(state.aplot, {type: 'window', open: false})};
+        if (op === 'create') {
           /* shown at once, like the classic page (web/xpp-client.js onArrayPlot) */
           const aplot = reduceAplot(reduceAplot(state.aplot, {type: 'window', open: true}), {type: 'panel', open: true});
           return {...state, aplot};
@@ -495,25 +512,17 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       /* a control's own done settles nothing */
       if (state.controlDone > 0) {
         const counted = {...state, controlDone: state.controlDone - 1};
-        return ev.status==='error'?reduce(counted,{type:'event',ev:{...ev,ev:'message'}}):counted;
+        return ev.status==='error'?reduce(counted,{type:'event',ev:{...ev,ev:'session.message'}}):counted;
       }
-      /* the error first, as a message then an idle came: the edit it belongs to (values.ts) is still the one running */
-      const failed=ev.status==='error'?reduce(state,{type:'event',ev:{...ev,ev:'message'}}):state;
-      return reduce(failed,{type:'event',ev:{ev:'idle'}});
+      /* the error first, as a message then the end of the command came: the edit it belongs to (values.ts) is still the one running */
+      const failed=ev.status==='error'?reduce(state,{type:'event',ev:{...ev,ev:'session.message'}}):state;
+      return settled(failed);
     }
-    case 'idle':
-      return {
-        ...state, busy: false, computing: false, running: null, stopping: false, pick: null, box: '',
-        ask: state.ask?.id === LEAVE_ASK ? state.ask : null,
-        progress: null,
-        ani: reduceAni(state.ani, {type: 'playing', playing: false}),
-        diagram: diagramSettled(state.diagram),
-        values: reduceValues(state.values, {type: 'idle'}),
-        autoSettings: reduceAutoSettings(state.autoSettings, {type: 'idle'}),
-      };
-    case 'ani':
-      return {...state, ani: reduceAni(state.ani, ev.op === 'frame' ? {type: 'frame', ev} : {type: 'state', ev})};
-    case 'film': {
+    case 'animation.frame':
+      return {...state, ani: reduceAni(state.ani, {type: 'frame', ev})};
+    case 'animation.state':
+      return {...state, ani: reduceAni(state.ani, {type: 'state', ev})};
+    case 'kinescope.film': {
       if (ev.op === 'capture') {
         const w = windowOf(state.plots, ev.win);
         return w ? {...state, kinescope: reduceKinescope(state.kinescope, {type: 'capture', frame: snapshotWindow(w)})}
@@ -523,23 +532,21 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       /* play/autoplay: the timing is noted here; session.ts's timer steps `shown` (impure, not this reducer) */
       return {...state, kinescope: reduceKinescope(state.kinescope, {type: 'playing', playing: true, cycles: ev.cycles, delay: ev.delay})};
     }
-    case 'stopped':
+    case 'job.stopped':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'runStopped'})};
-    case 'autoview':
+    case 'auto.view':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'autoview', ev})};
-    case 'autoinfo':
+    case 'auto.info':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoInfoEvent})};
-    case 'autosettings':
+    case 'auto.settings':
       return {...state, autoSettings: reduceAutoSettings(state.autoSettings, {type: 'event', ev: ev as unknown as AutoSettings})};
-    case 'numerics':
+    case 'run.numerics':
       return {...state, numerics: ev.fields};
-    case 'progress':
+    case 'job.progress':
       return {...state, progress: ev.of > 0 ? {n: ev.n, of: ev.of} : null};
-    case 'computing':
+    case 'job.computing':
       return {...state, computing: true};
-    case 'title':
-      return {...state, title: ev.text};
-    case 'message':
+    case 'session.message':
       if (ev.error !== undefined) {
         /* a file the command could not read (the core names it, with no line): the notification offers to add it */
         const unread = unreadFile(ev);
@@ -560,32 +567,32 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom, bottomHelp: ev.help ?? null};
       if (ev.box !== undefined) return {...state, box: ev.box};
       return state;
-    case 'aplot':
+    case 'array_plot.shown':
       return {...state, aplot: reduceAplot(state.aplot, {type: 'event', ev})};
-    case 'browser':
+    case 'browser.updated':
       return {...state, table: reduceTable(state.table, {type: 'event', ev})};
-    case 'equations':
+    case 'session.equations':
       return {...state, text: reduceText(state.text, {type: 'equations', ev})};
-    case 'source':
+    case 'session.source':
       return {...state, text: reduceText(state.text, {type: 'source', ev})};
-    case 'equilibrium':
+    case 'equilibrium.found':
       return {...state, text: reduceText(state.text, {type: 'equilibrium', ev})};
-    case 'diagram':
+    case 'auto.diagram':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'event', ev: ev as unknown as DiagramEvent})};
-    case 'player':
+    case 'recording.player':
       return {...state, player: reducePlayer(state.player, {type: 'player', ev})};
-    case 'press':
+    case 'recording.press':
       return {...state, player: reducePlayer(state.player, {type: 'press', ev})};
-    case 'log': {
+    case 'session.log': {
       const next = addLogText(state, ev.text);
       /* a warning (the core logs nothing else at its default level): the status bar flashes, no dialog */
       return lastEntry(next.log)?.kind === 'log' && /\S/.test(ev.text) ? {...next, flash: next.flash + 1} : next;
     }
-    case 'error':
+    case 'session.error':
       return {...state, loadError: ev};
     case 'exit':
       return {...state, exited: ev.code, busy: false, computing: false, running: null, stopping: false};
-    case 'bye':
+    case 'session.bye':
       return addLog(state, {kind: 'info', text: 'XPP has exited.'});
     default:
       return state;
@@ -611,7 +618,7 @@ export function reduce(state: AppState, action: Action): AppState {
       if (action.cmd.cmd === 'animation.play')
         state = {...state, ani: reduceAni(state.ani, {type: 'playing', playing: true})};
       if (CONTROL_DONE.has(action.cmd.cmd)) return {...state, controlDone: state.controlDone + 1};
-      if (noIdle(action.cmd)) return state;
+      if (noDone(action.cmd)) return state;
       return {...state, busy: true, running: state.busy ? state.running : runningName(action.cmd, null)};
     }
     case 'aborting':

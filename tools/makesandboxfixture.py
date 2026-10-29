@@ -14,7 +14,7 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
-from xppclient import Server, is_idle, read_recx, replay_recording, file_bytes
+from xppclient import Server, is_done, read_recx, replay_recording, file_bytes
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--server', required=True)
@@ -33,27 +33,27 @@ output.mkdir(parents=True, exist_ok=True)
 
 def command(server, **fields):
     server.send(**fields)
-    events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
-    if idle is None or any(e.get('error') or e.get('ev') == 'ask' for e in events):
+    events, done = server.collect(is_done, timeout=RUN_TIMEOUT)
+    if done is None or any(e.get('error') or e.get('ev') == 'ask' for e in events):
         raise AssertionError((fields, events[-6:]))
     return events
 
 def state(events):
-    return next(e for e in reversed(events) if e.get('ev') == 'state')
+    return next(e for e in reversed(events) if e.get('ev') == 'session.state')
 
 with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
     server = Server(binary, model, run=folder)
     try:
-        initial, idle = server.collect(is_idle)
-        assert idle is not None and len(state(initial)['ics']) == 8
+        initial, done = server.collect(is_done)
+        assert done is not None and len(state(initial)['ics']) == 8
         command(server, cmd='recording.start')
         command(server, cmd='recording.add_note', note='Short 200 ms run; original model equations and initial conditions unchanged.')
         command(server, cmd='run.configure', total_time=RUN_MS)
         command(server, cmd='recording.add_note', note='Resting cell: all eight states update, although only voltage is plotted.')
         server.send(cmd='run.initial')
-        events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
-        assert idle is not None and not any(e.get('error') for e in events)
-        live = [e for e in events if e.get('ev') == 'liveState']
+        events, done = server.collect(is_done, timeout=RUN_TIMEOUT)
+        assert done is not None and not any(e.get('error') for e in events)
+        live = [e for e in events if e.get('ev') == 'job.live_state']
         assert live and all(len(e['now']) == 8 for e in live)
         command(server, cmd='recording.add_note', note='Continue for another 200 ms: time advances to 400 ms and states keep updating.')
         events = command(server, cmd='run.continue', until=CONTINUE_TO_MS)
@@ -70,8 +70,8 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
             'x_min': -20, 'x_max': 200, 'y_min': -90, 'y_max': -35})
         command(server, cmd='recording.add_note', note='Run steady-state continuation; AUTO marks stability changes and labelled special points.')
         server.send(cmd='auto.run', kind='equilibrium')
-        events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
-        assert idle is not None and not any(e.get('error') for e in events), events[-5:]
+        events, done = server.collect(is_done, timeout=RUN_TIMEOUT)
+        assert done is not None and not any(e.get('error') for e in events), events[-5:]
         final = state(events)
         command(server, cmd='recording.stop', file='PY_S1Bf-live.recx')
         command(server, cmd='session.save_as', file='PY_S1Bf-live.snapx', data=True)
@@ -101,14 +101,14 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
     # addition to silent and fast-forward playback above.
     paced = Server(binary, str(rec))
     try:
-        events, ended = paced.collect(lambda e: e.get('error') or (e.get('ev') == 'state' and
+        events, ended = paced.collect(lambda e: e.get('error') or (e.get('ev') == 'session.state' and
             (e.get('player') or {}).get('step') == len(steps) and e['player']['running'] == -1), timeout=RUN_TIMEOUT)
         assert ended is not None and not any(e.get('error') for e in events), events[-5:]
-        assert any(e.get('ev') == 'state' and (e.get('player') or {}).get('playing') for e in events)
+        assert any(e.get('ev') == 'session.state' and (e.get('player') or {}).get('playing') for e in events)
         played = state(events)
         for key in ('pars', 'ics', 'now', 'time', 'rows'):
             assert played[key] == final[key], key
-        paced.collect(is_idle)
+        paced.collect(is_done)
         command(paced, cmd='session.save_as', file='paced.snapx', data=True)
         with zipfile.ZipFile(io.BytesIO(file_bytes(paced, 'paced.snapx'))) as archive:
             for name, body in auto_saved.items():
@@ -117,8 +117,8 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         paced.close()
     restored = Server(binary, str(snap))
     try:
-        loaded, idle = restored.collect(is_idle)
-        assert idle is not None and not any(e.get('error') for e in loaded), loaded[-5:]
+        loaded, done = restored.collect(is_done)
+        assert done is not None and not any(e.get('error') for e in loaded), loaded[-5:]
         saved = state(loaded)
         for key in ('pars', 'ics', 'now', 'time', 'rows'):
             assert saved[key] == final[key], (key, saved.get(key), final[key])

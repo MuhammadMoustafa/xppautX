@@ -394,7 +394,7 @@ constexpr std::array SCROLL_RESULTS = {ResultField{"new_center", "list of 2 real
 constexpr std::array DISPLAY_RESULTS = {ResultField{"x_range", "list of 2 real, or []"}, ResultField{"y_range", "list of 2 real, or []"}};
 constexpr std::array REDRAWN_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"redrawn", "boolean"}};
 constexpr std::array CLEARED_RESULTS = {ResultField{WINDOW_KEY, "window"}, ResultField{"cleared", "boolean"}};
-constexpr std::array PLOT_EVENTS = {"plots", "state", "done"};
+constexpr std::array PLOT_EVENTS = {xpp::events::PLOT_SHOWN, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array REDRAW_CHOICES = {"auto", "manual"};
 constexpr std::array MODE_ARGUMENTS = {Argument{WINDOW_KEY, Type::window, false},
                                        Argument{"mode", Type::choice, true, MAX_TEXT_BYTES, REDRAW_CHOICES}};
@@ -407,9 +407,9 @@ constexpr std::array LIST_RESULTS = {ResultField{"windows", "list of {name, kind
 constexpr std::array CLOSE_ALL_RESULTS = {ResultField{"closed_count", "integer"}};
 constexpr std::array MODE_RESULTS = {ResultField{"redraw_mode", "choice"}};
 constexpr std::array SIMULTANEOUS_RESULTS = {ResultField{"simultaneous_plot", "boolean"}};
-constexpr std::array WINDOW_EVENTS = {"window", "state", "done"};
-constexpr std::array RENAME_EVENTS = {"window.renamed", "window", "state", "done"};
-constexpr std::array STATE_EVENTS = {"state", "done"};
+constexpr std::array WINDOW_EVENTS = {xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array RENAME_EVENTS = {xpp::events::WINDOW_RENAMED, xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 /* XPPAUT's imported button sequences MC, MK, MD, MB, MA, MM, MS, by button number */
 constexpr std::array BUTTON_COMMANDS = {"window.create", "window.destroy_all", "window.destroy", "window.send_to_bottom",

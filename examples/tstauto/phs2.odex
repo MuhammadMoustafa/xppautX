@@ -1,4 +1,5 @@
 # phs2.odex: converted from phs2.ode by xppautX --convert (docs/odex.md)
+version 4
 # Source: XPPAUT 8.0's demo tstauto/phs2.ode (W537 audit).
 
 x' = a+b*sin(y-x)

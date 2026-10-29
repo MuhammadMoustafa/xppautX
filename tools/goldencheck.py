@@ -37,7 +37,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import SLOW, Server, is_idle, is_ask  # noqa: E402
+from xppclient import SLOW, Server, is_done, is_ask  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--bin', default=None)
@@ -113,10 +113,10 @@ def run_and_go(s):
     """run.initial: run to completion, check the row count 601 (as
     tools/servercheck.py's own run of lecar does)"""
     global failures
-    s.collect(is_idle)  # startup hello/state/idle
+    s.collect(is_done)  # startup hello/state/done
     s.send(cmd='run.initial')
-    evs, _ = s.collect(is_idle, timeout=30 * SLOW)
-    st = next((e for e in reversed(evs) if e.get('ev') == 'state'), None)
+    evs, _ = s.collect(is_done, timeout=30 * SLOW)
+    st = next((e for e in reversed(evs) if e.get('ev') == 'session.state'), None)
     if not (st and st.get('rows')):
         failures += 1
         print('FAIL run: no rows stored (%s)' % (st and st.get('rows')))
@@ -132,34 +132,34 @@ def run_lecar(home):
         # parameters form (kept at its own defaults), then the file to
         # write it to
         s.send(cmd='plot.export_pdf', file='lecar.pdf')
-        s.collect(is_idle)
+        s.collect(is_done)
         check_file('lecar.pdf', read(s.run, 'lecar.pdf'))
 
         # .../SVG: the same submenu's 'v' (the same parameters form), then
         # the file to write
         s.send(cmd='plot.export_svg', file='lecar.svg')
-        s.collect(is_idle)
+        s.collect(is_done)
         check_file('lecar.svg', read(s.run, 'lecar.svg'))
 
         # the IC box's arry button (V, W, lecar's own two variables), then
         # Print arrayplot with a fixed name in place of its own default
         s.send(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
-        s.collect(is_idle)
+        s.collect(is_done)
 
         s.send(cmd='array_plot.export_pdf', file='lecar_array.pdf')
-        s.collect(is_idle)
+        s.collect(is_done)
         check_file('lecar_array.pdf', read(s.run, 'lecar_array.pdf'))
         s.send(cmd='window.destroy', window='array_plot_1')
-        s.collect(is_idle)
+        s.collect(is_done)
 
         # Kinescope: capture window 1 twice, then Save writes a GIF per
         # frame from whatever picture the client answers "pixels" with
         for _ in range(2):
             s.send(cmd='kinescope.capture')
-            s.collect(lambda e: e.get('ev') == 'film')
-            s.collect(is_idle)
+            s.collect(lambda e: e.get('ev') == 'kinescope.film')
+            s.collect(is_done)
         s.send(cmd='kinescope.export_frames', file='kin.gif')
-        s.answer_asks(is_idle, {'pixels': pixels})
+        s.answer_asks(is_done, {'pixels': pixels})
         for name in ('kin.gif', 'kin-frame1.gif'):
             check_file(name, read(s.run, name))
     finally:
@@ -175,22 +175,22 @@ def run_vanderpol(home):
         # view so the axes (and so the PDF tick labels) do not
         # depend on any auto-scaling of this run's own trajectory
         s.send(cmd='plot.set_variables', how='phase_plane', names=['x', 'xp'])
-        s.collect(is_idle)
+        s.collect(is_done)
         # (Window/Window: the keys w w, then the four numbers)
         s.send(cmd='window.set_bounds', x_min=-3, x_max=3, y_min=-3, y_max=3)
-        s.collect(is_idle)
+        s.collect(is_done)
 
         # Nullcline/New, then Dir.field-Flow/(D)irect Field, so the
         # export carries a nullcline and a direction field, not curves
         # alone
         s.send(cmd='nullcline.compute')
-        s.collect(is_idle)
+        s.collect(is_done)
         # Direct Field then asks a "Grid:" string, its own default (16)
         s.send(cmd='dirfield.compute', grid=16, scaled=False)
-        s.collect(is_idle)
+        s.collect(is_done)
 
         s.send(cmd='plot.export_pdf', file='vanderpol.pdf')
-        s.collect(is_idle)
+        s.collect(is_done)
         check_file('vanderpol.pdf', read(s.run, 'vanderpol.pdf'))
     finally:
         s.close()
@@ -203,27 +203,27 @@ def run_pictures(home):
     try:
         run_and_go(s)
         s.send(cmd='nullcline.compute')
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='annotation.add_text', window='graph_1', x=0.1, y=0.9, text='\\1a\\0 label', text_size=3, color='#1c7ed6cc')
-        s.collect(is_idle)
+        s.collect(is_done)
         # Graphic stuff/Freeze/Freeze, its form: colour, how it is drawn, dash, width, marker and its size, key and name
         s.send(cmd='plot.freeze_curve', color='#7048e8b0', draw='both', dash='dotted', width=2, marker='cross', marker_size=3, key='first run', name='frz1')
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='run.initial')
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='plot.export_pdf', file='pictures.pdf')
-        s.collect(is_idle)
+        s.collect(is_done)
         check_file('pictures.pdf', read(s.run, 'pictures.pdf'))
         s.send(cmd='plot.export_svg', file='pictures.svg')
-        s.collect(is_idle)
+        s.collect(is_done)
         check_file('pictures.svg', read(s.run, 'pictures.svg'))
         s.send(cmd='plot.set_variables', how='array_plot', names=['v', 'w'])
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='array_plot.export_pdf', file='pictures_array.pdf', top_label='top', side_label='side', bottom_label='bottom')
-        s.collect(is_idle)
+        s.collect(is_done)
         check_file('pictures_array.pdf', read(s.run, 'pictures_array.pdf'))
         s.send(cmd='window.destroy', window='array_plot_1')
-        s.collect(is_idle)
+        s.collect(is_done)
     finally:
         s.close()
 

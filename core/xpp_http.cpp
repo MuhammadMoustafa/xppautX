@@ -19,6 +19,7 @@
 #define _DARWIN_C_SOURCE 1
 #endif
 #include "xpp_http.h"
+#include "event_registry.h"
 #include "xpp_about.h"
 #include "xpp_assets.h"
 #include "xpp_inbox.h"
@@ -96,7 +97,7 @@ constexpr size_t CHUNK = 65536; /* bound each socket send and file transfer step
 
 /* a window's create event, replayed to a page that (re)connects */
 struct WindowLine {
-    int win = 0;
+    std::string win; /* the window's name */
     std::string line; /* empty: a free slot */
 };
 
@@ -126,7 +127,8 @@ struct Server {
     int nclients = 0;
     int nconnections = 0, nuploads = 0;
     std::string sticky_hello, sticky_state, sticky_ask, exit_event;
-    std::string sticky_computing; /* the running command computes: until its idle */
+    std::string sticky_computing; /* the running command computes: until its own done */
+    std::string sticky_job;       /* the number of the job the two above belong to (their `job` field) */
     std::string load_error; /* the error event of a model that did not load */
     std::array<WindowLine, MAX_WINDOWS> windows;
     std::string log_text; /* the last LOG_KEEP bytes printed */
@@ -334,20 +336,20 @@ std::optional<std::string_view> field(std::string_view line, std::string_view ke
     return line.substr(p, e - p);
 }
 
-/* the window table's side of a `window` event (the lock is held) */
-void track_window(std::string_view line, std::string_view op, std::string_view win)
+/* the window table's side of a window.created or window.destroyed event (the lock is held) */
+void track_window(std::string_view line, bool created, std::string_view win)
 {
-    int w = std::atoi(std::string(win).c_str()), slot = -1;
+    int slot = -1;
     for (int i = 0; i < MAX_WINDOWS; i++)
-        if (!srv.windows[i].line.empty() && srv.windows[i].win == w) slot = i;
-    if (op == "create") {
+        if (!srv.windows[i].line.empty() && srv.windows[i].win == win) slot = i;
+    if (created) {
         for (int i = 0; slot < 0 && i < MAX_WINDOWS; i++)
             if (srv.windows[i].line.empty()) slot = i;
         if (slot >= 0) {
-            srv.windows[slot].win = w;
+            srv.windows[slot].win = win;
             srv.windows[slot].line = line;
         }
-    } else if (op == "destroy" && slot >= 0) {
+    } else if (slot >= 0) {
         srv.windows[slot].line.clear();
     }
 }
@@ -356,19 +358,23 @@ void emit_event(std::string_view line)
 {
     pthread_mutex_lock(&lock);
     if (std::optional<std::string_view> ev = field(line.substr(0, 40), "ev")) {
-        if (*ev == "hello") srv.sticky_hello = line;
-        else if (*ev == "state") srv.sticky_state = line;
-        else if (*ev == "ask") srv.sticky_ask = line;
-        else if (*ev == "computing") srv.sticky_computing = line;
-        else if (*ev == "idle") {
-            srv.sticky_ask.clear();
-            srv.sticky_computing.clear();
+        if (*ev == xpp::events::HELLO) srv.sticky_hello = line;
+        else if (*ev == xpp::events::SESSION_STATE) srv.sticky_state = line;
+        else if (*ev == xpp::events::ASK || *ev == xpp::events::JOB_COMPUTING) {
+            (*ev == xpp::events::ASK ? srv.sticky_ask : srv.sticky_computing) = line;
+            if (const std::optional<std::string_view> job = field(line, "job")) srv.sticky_job = *job;
+        } else if (*ev == xpp::events::DONE) {
+            /* only the done that ends the job those belong to: a control command's done, answered while it runs, has no job */
+            if (const std::optional<std::string_view> job = field(line, "job"); job && *job == srv.sticky_job) {
+                srv.sticky_ask.clear();
+                srv.sticky_computing.clear();
+                srv.sticky_job.clear();
+            }
         }
-        else if (*ev == "bye") saw_bye = true;
-        else if (*ev == "error") srv.load_error = line;
-        else if (*ev == "window") {
-            std::optional<std::string_view> op = field(line, "op"), win = field(line, "win");
-            if (op && win) track_window(line, *op, *win);
+        else if (*ev == xpp::events::SESSION_BYE) saw_bye = true;
+        else if (*ev == xpp::events::SESSION_ERROR) srv.load_error = line;
+        else if (*ev == xpp::events::WINDOW_CREATED || *ev == xpp::events::WINDOW_DESTROYED) {
+            if (std::optional<std::string_view> win = field(line, "win")) track_window(line, *ev == xpp::events::WINDOW_CREATED, *win);
         }
     }
     for (int i = 0; i < srv.nclients; i++)
@@ -398,10 +404,10 @@ bool push_command(std::string_view s, std::string &reply)
 
 /* ---- what xppaut prints ----------------------------------------------------------- */
 
-/* {"ev":"log","text":"..."} for printed text */
+/* the session.log event for printed text */
 std::string log_event(std::string_view text)
 {
-    std::string line = "{\"ev\":\"log\",\"text\":";
+    std::string line = xpp::events::open(xpp::events::SESSION_LOG) + ",\"text\":";
     xpp::json_append_string(line, text);
     line += '}';
     return line;
@@ -1106,7 +1112,7 @@ void at_exit()
     usleep(EXIT_LOG_GRACE_MS * 1000);
 #endif
     try {
-        std::string line = xpp::format("{{\"ev\":\"exit\",\"code\":{}}}", saw_bye ? 0 : 1);
+        std::string line = xpp::format("{},\"code\":{}}}", xpp::events::open(xpp::events::EXIT), saw_bye ? 0 : 1);
         pthread_mutex_lock(&lock);
         srv.exit_event = line;
         pthread_mutex_unlock(&lock);

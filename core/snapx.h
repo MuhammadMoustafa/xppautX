@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "model_files.h"
+#include "format_version.h"
 #include "xpp_error.h"
 #include "xpp_zip.h"
 
@@ -24,7 +25,6 @@ namespace xpp::setx { class Block; }
 namespace xpp::snapx {
 
 inline constexpr std::string_view extension = ".snapx";
-inline constexpr int format_version = 4; /* Reject incompatible session manifests (4: W308 question 9, the one format number; W484's option names, true and false for a yes or no). */
 
 /* Account for expanded objects, not their compressed text. No multiplication
    overflows and a refused claim leaves the running byte estimate unchanged. */
@@ -51,9 +51,8 @@ inline constexpr const char *random_member = "random.txt";    /* "seed N" (the n
    the model names it (model_files.h), the model's own first */
 inline constexpr std::string_view model_folder = "model/";
 
-/* session.setx: a `session` group of version, model, anifile and data (setx.h) */
+/* session.setx: a `session` group of version (format_version.h), model, anifile and data (setx.h) */
 struct Manifest {
-    int version = format_version;
     std::string model_name; /* the model's own file, as it names it: the member model/<model_name> */
     std::string anifile;    /* --anifile's animation the model was loaded with, one of its files ("": none) */
     bool data = false;      /* data.npz holds the data table (a session file's alone) */

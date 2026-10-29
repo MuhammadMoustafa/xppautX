@@ -32,6 +32,8 @@ Result<> run_button(Session &s,const std::string &line,const Place &place);
 Result<> check_shape(const char *line,const Place &place);
 /* One terminal event, using the common error renderer. Invalid ids are
    never echoed as nested data. */
-std::string done(const char *line, const Result<std::string> &result, bool stopped);
+/* job: the number of the job this done ends (xpp::job::number()), 0 for a command that is no job's own, such as a control
+   command answered while a job runs */
+std::string done(const char *line, const Result<std::string> &result, bool stopped, unsigned long job = 0);
 
 } // namespace xpp::command

@@ -1,3 +1,4 @@
+version 4
 # W498: one crossing at x=1, or an unreachable section changed by the check.
 x' = 1
 init x = 0

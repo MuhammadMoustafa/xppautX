@@ -1,4 +1,5 @@
 # she.odex: converted from she.ode by xppautX --convert (docs/odex.md)
+version 4
 # Source: XPPAUT 8.0's demo tstauto/she.ode (AUTO-07p has a demo of the same name, reference/auto-07p/demos/she) (W537 audit).
 # names written as their declarations spell them (.odex names have case); the .ode's lines 13, 14, 15, 16, 17
 

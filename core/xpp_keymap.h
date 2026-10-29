@@ -77,9 +77,6 @@ std::string serialize(const Keymap &map);
    map binds it, else the table's defaults */
 std::vector<std::string> effective_keys(const Keymap &map, std::string_view id);
 
-/* the command on `key` under `map`, "" when none (the check that no two commands share a key makes it one) */
-std::string command_on_key(const Keymap &map, std::string_view key);
-
 /* the settings file's path, "" when the system names no config folder */
 std::string path();
 /* the file's keymap: all defaults when the file does not exist; the error

@@ -18,7 +18,7 @@ const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never}
 const f32 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString('base64');
 
 const MARKS: MarksEvent = {
-  ev: 'marks', win: 'graph_1',
+  ev: 'plot.marks', win: 'graph_1',
   equilibria: [{x: -0.14, y: 0.03, type: 'saddle', symbol: 'triangle'}, {x: 0.3, y: 0.2, type: 'stable', symbol: 'circle'}],
   text: [{id: 4, x: 0.1, y: 0.5, text: '\\1a\\0-point', source: '\\1a\\0-point', size: 3, font: 0, style: 'bold', color: '#c8c800'}],
   arrows: [{id: 5, kind: 'pointer', x1: 0, y1: 0, x2: 1, y2: 0, size: 0.2, color: '#c8c800'}],
@@ -80,7 +80,7 @@ test('the store keeps each window its marks; an empty event clears them', () => 
   s = ev(s, {...MARKS, win: 'graph_2', equilibria: []});
   assert.equal(windowOf(s.plots, 'graph_1')?.marks?.equilibria.length, 2);
   assert.equal(windowOf(s.plots, 'graph_2')?.marks?.equilibria.length, 0);
-  s = ev(s, {ev: 'marks', win: 'graph_1', equilibria: [], text: [], arrows: [], markers: [], frozen: []});
+  s = ev(s, {ev: 'plot.marks', win: 'graph_1', equilibria: [], text: [], arrows: [], markers: [], frozen: []});
   assert.equal(markCount(windowOf(s.plots, 'graph_1')?.marks ?? null), 0);
 });
 

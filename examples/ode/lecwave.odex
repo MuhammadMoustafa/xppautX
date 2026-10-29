@@ -1,4 +1,5 @@
 # lecwave.odex: converted from lecwave.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # The Morris-Lecar model as in our chapter in Koch & Segev
 #  A simple membrane oscillator.

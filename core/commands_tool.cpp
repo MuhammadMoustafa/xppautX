@@ -41,8 +41,8 @@ constexpr std::array CALCULATOR_ARGUMENTS = {Argument{"expression", Type::expres
 constexpr std::array INDEX_ARGUMENTS = {INDEX};
 constexpr std::array CALCULATOR_RESULTS = {ResultField{"expression", "expression"}, ResultField{"value", "real"}};
 constexpr std::array RAN_RESULTS = {ResultField{"ran", "boolean"}};
-constexpr std::array CALCULATOR_EVENTS = {"done"};
-constexpr std::array RAN_EVENTS = {"state", "done"};
+constexpr std::array CALCULATOR_EVENTS = {xpp::events::DONE};
+constexpr std::array RAN_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 Result<std::string> page_tool(Session &, const Command &, const Arguments &, const Place &) { return "{}"; }
 constexpr std::array PALETTE_KEYS = {"Ctrl+Shift+P"};

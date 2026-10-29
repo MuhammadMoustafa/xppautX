@@ -1,4 +1,5 @@
 # pend-cart1-kick.odex: converted from pend-cart1-kick.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # pendulum on a cart
 # uses DAE solver to solve for x'', th1''

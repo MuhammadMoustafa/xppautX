@@ -1,4 +1,5 @@
 # cvode_stop.odex: converted from cvode_stop.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # CVODE stopped by a step error after a successful CVode call: a delay
 # longer than the maximal one (tools/autocheck.py's memory section, W117)

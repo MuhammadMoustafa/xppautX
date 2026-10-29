@@ -1,4 +1,5 @@
 # motoneuron6c.odex: converted from motoneuron6c.ode by xppautX --convert (docs/odex.md)
+version 4
 # names written as their declarations spell them (.odex names have case); the .ode's lines 115, 368, 384, 389
 # @ total_time is set more than once in the .ode: XPP keeps the last value, 200
 # @ xhi is set more than once in the .ode: XPP keeps the last value, 200

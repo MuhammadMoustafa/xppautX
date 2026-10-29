@@ -37,18 +37,18 @@ test('W95: controls, views and settings run during a computation; questions allo
   assert.ok(!may({cmd:'run.initial'},false,true));
 });
 
-test('W95: computing from the core\'s event to the command\'s idle; a command the page sends marks nothing', () => {
+test('W95: computing from the core\'s event to the command\'s done; a command the page sends marks nothing', () => {
   const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
   let s = ev(initialState, HELLO);
   s = reduce(s, {type: 'sent', cmd: {cmd: 'display', win: 'graph_1', x: null}});
   assert.equal(s.busy, true);
   assert.equal(s.computing, false);
-  s = ev(ev(s, {ev: 'idle'}), {ev: 'computing'});
+  s = ev(ev(s, {ev: 'done', status: 'ok'}), {ev: 'job.computing'});
   assert.equal(s.computing, true);
-  assert.equal(ev(s, {ev: 'idle'}).computing, false);
-  s = reduce(reduce(s, {type: 'connection', open: true}), {type: 'event', ev: {ev: 'computing'}});
+  assert.equal(ev(s, {ev: 'done', status: 'ok'}).computing, false);
+  s = reduce(reduce(s, {type: 'connection', open: true}), {type: 'event', ev: {ev: 'job.computing'}});
   assert.equal(reduce(s, {type: 'connection', open: false}).computing, false);
   /* the AUTO view's Run is named by its key from hello */
-  s = reduce(ev(s, {ev: 'idle'}), {type: 'sent', cmd: {cmd:'auto.run'}});
+  s = reduce(ev(s, {ev: 'done', status: 'ok'}), {type: 'sent', cmd: {cmd:'auto.run'}});
   assert.equal(s.running, 'AUTO');
 });

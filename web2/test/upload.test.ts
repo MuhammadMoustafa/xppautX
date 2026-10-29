@@ -32,7 +32,7 @@ async function session(folder: Map<string, string>) {
   const s = new Session(transport, files);
   s.start();
   onEvent(HELLO as XppEvent);
-  onEvent({ev: 'idle'} as XppEvent);
+  onEvent({ev: 'done', status: 'ok'} as XppEvent);
   sent.length = 0;
   return {s, sent, puts};
 }

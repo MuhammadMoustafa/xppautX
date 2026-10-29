@@ -4,7 +4,7 @@ import argparse
 import math
 import tempfile
 from pathlib import Path
-from xppclient import Checker, Server, is_idle
+from xppclient import Checker, Server, is_done
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--server', default='./xppautX')
@@ -19,9 +19,9 @@ def close(got, want, tol):
 
 
 def integrate(server):
-    """run.initial: the events up to idle."""
+    """run.initial: the events up to done."""
     server.send(cmd='run.initial')
-    return server.collect(is_idle)
+    return server.collect(is_done)
 
 
 with tempfile.TemporaryDirectory(prefix='xpp-live-') as folder:
@@ -29,15 +29,15 @@ with tempfile.TemporaryDirectory(prefix='xpp-live-') as folder:
     model.write_text("x'=1\ny'=2\nz'=3\ninit x=1.123456789012345,y=2,z=3\n@ total=1,dt=0.125,meth=euler,trans=.5\ndone\n", encoding='utf-8')
     server = Server(args.server, str(model), env={'XPP_NO_THROTTLE': '1'})
     try:
-        server.collect(is_idle)
-        events, idle = integrate(server)
-        check('all-state run completes without error', idle is not None and not any(e.get('error') for e in events), events[-3:])
-        live = [e for e in events if e.get('ev') == 'liveState']
+        server.collect(is_done)
+        events, done = integrate(server)
+        check('all-state run completes without error', done is not None and not any(e.get('error') for e in events), events[-3:])
+        live = [e for e in events if e.get('ev') == 'job.live_state']
         check('one liveState per output step', len(live) == 8, len(live))
         check('all 3 solver doubles at every output step, including the transient',
               all(e['time'] == i / 8 and close(e['now'], [1.123456789012345 + e['time'], 2 + 2 * e['time'], 3 + 3 * e['time']], ABS_TOL)
                   for i, e in enumerate(live, 1)), live[:2])
-        states = [e for e in events if e.get('ev') == 'state']
+        states = [e for e in events if e.get('ev') == 'session.state']
         final = states[-1] if states else {}
         check('final state equals the last liveState', bool(live) and bool(final) and close(final['now'], live[-1]['now'], ABS_TOL), final.get('now'))
         check('final rates are the model derivatives', bool(final) and close(final['rates'], [1, 2, 3], RATE_TOL), final.get('rates'))
@@ -55,12 +55,12 @@ for name, text, expected in [
         model.write_text(text + '\ndone\n', encoding='utf-8')
         server = Server(args.server, str(model))
         try:
-            startup, idle = server.collect(is_idle)
-            initial = [e for e in startup if e.get('ev') == 'state'][-1]
+            startup, done = server.collect(is_done)
+            initial = [e for e in startup if e.get('ev') == 'session.state'][-1]
             check(name + ': no rates before a run', initial['rates'] == [None, None, None], initial['rates'])
-            events, idle = integrate(server)
-            check(name + ': run completes without error', idle is not None and not any(e.get('error') for e in events), events[-5:])
-            states = [e for e in events if e.get('ev') == 'state']
+            events, done = integrate(server)
+            check(name + ': run completes without error', done is not None and not any(e.get('error') for e in events), events[-5:])
+            states = [e for e in events if e.get('ev') == 'session.state']
             check(name + ': rates over the recent window', bool(states) and states[-1]['rates'] == expected, states[-1]['rates'] if states else None)
         finally:
             server.close()

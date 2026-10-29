@@ -35,6 +35,7 @@
 #include "colormap.h"
 #include "line_style.h"
 #include "text_style.h"
+#include "format_version.h"
 #include "xpp_error.h"
 #include "xpp_io.h" /* ReadFailed */
 
@@ -154,6 +155,10 @@ public:
     /* every member was read: the first that was not is an error ("`k` is
        not a setting of this group") */
     void done() const;
+
+    /* the group's `version` key (format_version.h), read: absent, or another number than this program's, is an error
+       naming both versions; `kind` is what the file holds ("settings files") */
+    void require_version(std::string_view kind);
 
 private:
     const Member *find(std::string_view key) const;

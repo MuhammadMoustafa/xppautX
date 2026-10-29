@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {Session} from '../src/session';
-import {reduce, initialState, noIdle} from '../src/store/state';
+import {reduce, initialState, noDone} from '../src/store/state';
 import type {Command} from '../src/protocol/types';
 import {REGISTRY_HELLO, HELLO} from './hello';
 
@@ -50,11 +50,11 @@ test('the keymap is replaced in its parts, and leaving is session.quit with its 
   assert.deepEqual(sent, [{cmd: 'keymap.set', bindings: {calculator: ['Ctrl+B']}, pinned: ['reload']}, {cmd: 'keymap.reset'}]);
 });
 
-test('a control answered at once settles nothing: its done is counted, the run\'s own done is the idle', () => {
+test('a control answered at once settles nothing: its done is counted, the run\'s own done is the done', () => {
   let s = reduce(initialState, {type: 'sent', cmd: {cmd: 'run.initial'}});
   assert.equal(s.busy, true);
   s = reduce(s, {type: 'sent', cmd: {cmd: 'recording.pause'}});
-  assert.equal(noIdle({cmd: 'recording.pause'}), true);
+  assert.equal(noDone({cmd: 'recording.pause'}), true);
   s = reduce(s, {type: 'event', ev: {ev: 'done', status: 'ok', result: {paused: true}}});
   assert.equal(s.busy, true, 'the pause is answered while the run goes on');
   s = reduce(s, {type: 'event', ev: {ev: 'done', status: 'ok', result: {}}});

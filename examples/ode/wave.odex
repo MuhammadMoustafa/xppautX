@@ -1,4 +1,5 @@
 # wave.odex: converted from wave.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # pulse wave
 par a = 0.1, d = 0.2, eps = 0.05, gamma = 0, i = 0

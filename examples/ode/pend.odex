@@ -1,4 +1,5 @@
 # pend.odex: converted from pend.ode by xppautX --convert (docs/odex.md)
+version 4
 # renamed: k.e. is k_e__ here (.odex reserves k.e.)
 # renamed: p.e. is p_e__ here (.odex reserves p.e.)
 # renamed: t.e is t_e_ here (.odex reserves t.e)

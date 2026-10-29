@@ -15,7 +15,7 @@ constexpr std::string_view SENT_KEYMAP = "the keymap sent";
 
 void send_keymap(std::string_view op)
 {
-    std::string event = "{\"ev\":\"keymap\",\"op\":";
+    std::string event = xpp::events::open(xpp::events::KEYMAP_CHANGED) + ",\"op\":";
     json_append_string(event, op);
     event += ",\"keymap\":" + hello_keymap() + "}";
     data_emit(event);

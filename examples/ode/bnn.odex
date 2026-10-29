@@ -1,4 +1,5 @@
 # bnn.odex: converted from bnn.ode by xppautX --convert (docs/odex.md)
+version 4
 
 fun f(x) = 1/(1+exp(-x))
 u' = k*(-u+f(beta*(w-th)))/ode_divisor(c)

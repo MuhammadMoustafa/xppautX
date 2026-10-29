@@ -9,6 +9,7 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_prefs.h"
+#include "format_version.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -18,6 +19,10 @@
 namespace {
 
 constexpr const char *FILE_LABEL = "p.setx";
+
+/* a preferences file's text with the format version as its first line, which every position is one line below */
+std::string versioned_prefs(const std::string &text) { return "version: " + std::to_string(xpp::format_version) + ",\n" + text; }
+xpp::Result<xpp::prefs::Preferences> parse(const std::string &text) { return xpp::prefs::parse_prefs(versioned_prefs(text), FILE_LABEL); }
 
 std::string quoted(const std::string &path) { return "\"" + path + "\""; }
 
@@ -45,16 +50,22 @@ void check_bad_files()
     for (std::size_t i = 0; i <= xpp::prefs::MAX_RECENT_MODELS; i++) many += quoted(abs_path("m" + std::to_string(i) + ".odex")) + ",";
     bad.push_back({"more entries than are kept", many + "],\n", 1, "at most"});
     for (const Bad &t : bad) {
-        const auto r = xpp::prefs::parse_prefs(t.text, FILE_LABEL);
+        const auto r = parse(t.text);
         CHECK(!r);
         if (r) continue;
-        if (r.error().place.file != FILE_LABEL || r.error().place.line != t.line || r.error().what.find(t.value) == std::string::npos) {
+        if (r.error().place.file != FILE_LABEL || r.error().place.line != t.line + 1 || r.error().what.find(t.value) == std::string::npos) {
             printf("bad file %s: %s\n", t.what, r.error().text().c_str());
             CHECK(false);
         }
     }
+    /* the version: none, or another, is refused naming both versions */
+    for (const auto &[text, wanted] : {std::pair<std::string, std::string>{"recent_models: [],\n", "this program reads preferences files of version 4"},
+                                       {"version: 3,\n", "version 3: this program reads preferences files of version 4"}}) {
+        const auto refused = xpp::prefs::parse_prefs(text, FILE_LABEL);
+        CHECK(!refused && refused.error().what.find(wanted) != std::string::npos);
+    }
     /* a syntax error is the reader's, with the file */
-    const auto syntax = xpp::prefs::parse_prefs("recent_models: [\n", FILE_LABEL);
+    const auto syntax = parse("recent_models: [\n");
     CHECK(!syntax && syntax.error().place.file == FILE_LABEL);
     /* a file past the byte limit is refused before it is read */
     const auto huge = xpp::prefs::parse_prefs(std::string(xpp::prefs::MAX_FILE_BYTES + 1, 'x'), FILE_LABEL);
@@ -78,17 +89,17 @@ void check_outside_paths()
              {"a key of an entry that is not one", "outside_paths: [{ model: " + quoted(abs_path("a.odex")) + ", path: " + quoted(abs_path("x")) + ",\n surprise: 1 }],\n", 2, "surprise"},
              {"an entry that is not a group", "outside_paths: [3],\n", 1, "group"},
          }) {
-        const auto r = xpp::prefs::parse_prefs(t.text, FILE_LABEL);
+        const auto r = parse(t.text);
         CHECK(!r);
         if (r) continue;
-        if (r.error().place.line != t.line || r.error().what.find(t.value) == std::string::npos) {
+        if (r.error().place.line != t.line + 1 || r.error().what.find(t.value) == std::string::npos) {
             printf("bad outside_paths %s: %s\n", t.what, r.error().text().c_str());
             CHECK(false);
         }
     }
     std::string many = "outside_paths: [";
     for (std::size_t i = 0; i <= xpp::prefs::MAX_OUTSIDE_APPROVALS; i++) many += entry("a.odex", "t" + std::to_string(i)) + ",\n";
-    const auto too_many = xpp::prefs::parse_prefs(many + "],\n", FILE_LABEL);
+    const auto too_many = parse(many + "],\n");
     CHECK(!too_many && too_many.error().what.find("at most") != std::string::npos);
 
     /* the round trip; the newest first, a repeat moves to the front, the oldest dropped when full */
@@ -113,8 +124,8 @@ void check_outside_paths()
 void check_good_files()
 {
     /* an empty file, or one with no recent models, is the defaults */
-    CHECK(xpp::prefs::parse_prefs("", FILE_LABEL).value().recent_models.empty());
-    CHECK(xpp::prefs::parse_prefs("recent_models: [],\n", FILE_LABEL).value().recent_models.empty());
+    CHECK(parse("").value().recent_models.empty());
+    CHECK(parse("recent_models: [],\n").value().recent_models.empty());
     /* the round trip, with a path that needs quoting and one with a backslash, the list at its limit */
     xpp::prefs::Preferences p;
     p.recent_models = {abs_path("a.odex"), abs_path("b c.odex"), abs_path("d\\e.odex")};
@@ -140,8 +151,8 @@ void check_auto_threads()
 {
     using xpp::prefs::AUTO_THREADS_AUTO;
     const unsigned most = xpp::cpu::logical_processors();
-    CHECK(xpp::prefs::parse_prefs("", FILE_LABEL).value().auto_threads == AUTO_THREADS_AUTO);
-    CHECK(xpp::prefs::parse_prefs("auto_threads: auto,\n", FILE_LABEL).value().auto_threads == AUTO_THREADS_AUTO);
+    CHECK(parse("").value().auto_threads == AUTO_THREADS_AUTO);
+    CHECK(parse("auto_threads: auto,\n").value().auto_threads == AUTO_THREADS_AUTO);
     /* every count the computer has round-trips; the list beside it is untouched */
     for (unsigned n = 1; n <= most; n++) {
         xpp::prefs::Preferences p;
@@ -165,10 +176,10 @@ void check_auto_threads()
         {"a list", "auto_threads: [2],\n", 1, "auto_threads"},
     };
     for (const Bad &t : bad) {
-        const auto r = xpp::prefs::parse_prefs(t.text, FILE_LABEL);
+        const auto r = parse(t.text);
         CHECK(!r);
         if (r) continue;
-        if ((r.error().place.file != FILE_LABEL || r.error().place.line != t.line || r.error().what.find(t.value) == std::string::npos)) {
+        if ((r.error().place.file != FILE_LABEL || r.error().place.line != t.line + 1 || r.error().what.find(t.value) == std::string::npos)) {
             printf("bad threads %s: %s\n", t.what, r.error().text().c_str());
             CHECK(false);
         }
@@ -201,10 +212,10 @@ void check_file()
 
     /* a bad file is the error with its file and line; update leaves it as it is, nothing applied */
     xpp::Writer w = xpp::Writer::binary(file);
-    const std::string badtext = "recent_models: [\"relative.odex\"],\n";
+    const std::string badtext = versioned_prefs("recent_models: [\"relative.odex\"],\n");
     CHECK(w && w.write(badtext) && w.commit().has_value());
     const auto r = xpp::prefs::load_prefs();
-    CHECK(!r && r.error().place.file == file && r.error().place.line == 1);
+    CHECK(!r && r.error().place.file == file && r.error().place.line == 2);
     bool called = false;
     CHECK(!xpp::prefs::update_prefs([&](xpp::prefs::Preferences &) { called = true; }));
     CHECK(!called);

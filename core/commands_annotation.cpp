@@ -180,7 +180,7 @@ constexpr std::array UPDATED_RESULTS = {ResultField{"id", "integer"}, ResultFiel
 constexpr std::array MOVED_RESULTS = {ResultField{"id", "integer"}, ResultField{"moved", "boolean"}};
 constexpr std::array DELETED_RESULTS = {ResultField{"id", "integer"}, ResultField{"deleted", "boolean"}};
 constexpr std::array CLEARED_RESULTS = {ResultField{"cleared", "boolean"}};
-constexpr std::array MARKS_EVENTS = {"marks", "state", "done"};
+constexpr std::array MARKS_EVENTS = {xpp::events::PLOT_MARKS, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"annotation.list", NO_WINDOW, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations", "List the texts, arrows, pointers and markers of a graph.",

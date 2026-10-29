@@ -33,9 +33,9 @@ namespace {
 void send_ani_slider(const xpp::Session &s)
 {
     std::string b;
-    buf_format(b, "{{\"ev\":\"ani\",\"pos\":{:d},\"rows\":{:d},\"fly\":{:d},\"grab\":{:d},\"skip\":{:d},\"speed\":{:d},"
+    buf_format(b, "{},\"pos\":{:d},\"rows\":{:d},\"fly\":{:d},\"grab\":{:d},\"skip\":{:d},\"speed\":{:d},"
                "\"loaded\":{:d},\"open\":{:d}}}",
-               s.animation.vcr.pos, s.browser.view.maxrow, s.animation.options.on_the_fly, s.animation.grab_flag, s.animation.vcr.inc, s.animation.speed, s.animation.ncom > 0,
+               xpp::events::open(xpp::events::ANIMATION_STATE), s.animation.vcr.pos, s.browser.view.maxrow, s.animation.options.on_the_fly, s.animation.grab_flag, s.animation.vcr.inc, s.animation.speed, s.animation.ncom > 0,
                s.animation.vcr.iexist);
     send_buf(b);
 }
@@ -149,7 +149,7 @@ void j_new_vcr(xpp::Session &s)
     s.animation.vcr.hgt = 350;
     s.animation.vcr.iexist = 1;
     s.tools_hidden.animation = false;
-    send_window("create",xpp::window_name(s,WIN_ANI), s.animation.vcr.wid, s.animation.vcr.hgt, "Animation","animation");
+    send_window(xpp::events::WINDOW_CREATED,xpp::window_name(s,WIN_ANI), s.animation.vcr.wid, s.animation.vcr.hgt, "Animation","animation");
     ani_view_created(s);
 }
 void j_ani_show(void)

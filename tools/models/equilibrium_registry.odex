@@ -1,3 +1,4 @@
+version 4
 # W522: one real stable direction and a centre pair; two manifold files, no filename prompts.
 x' = -x
 y' = -z

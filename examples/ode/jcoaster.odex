@@ -1,4 +1,5 @@
 # jcoaster.odex: converted from jcoaster.ode by xppautX --convert (docs/odex.md)
+version 4
 
 #Coaster demo showing how to use derivative and value matching to
 #join two coaster tracks together. Note, we're use cubic splines

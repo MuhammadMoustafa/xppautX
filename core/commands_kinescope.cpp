@@ -75,8 +75,8 @@ constexpr std::array PLAY_RESULTS = {ResultField{"frames_played", "integer"}};
 constexpr std::array AUTOPLAY_RESULTS = {ResultField{"cycles_completed", "integer"}};
 constexpr std::array FRAMES_RESULTS = {ResultField{"file", "file"}, ResultField{"frames_saved", "integer"}};
 constexpr std::array GIF_RESULTS = {ResultField{"file", "file"}, ResultField{"bytes_written", "integer"}};
-constexpr std::array FILM_EVENTS = {"film", "state", "done"};
-constexpr std::array DONE_EVENTS = {"state", "done"};
+constexpr std::array FILM_EVENTS = {xpp::events::KINESCOPE_FILM, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DONE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"kinescope.capture", {}, XPP_KIND_VIEW, CommandCategory::Plot, "File/Kinescope/Capture",

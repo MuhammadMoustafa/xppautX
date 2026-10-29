@@ -1,4 +1,5 @@
 # fhn3d.odex: converted from fhn3d.ode by xppautX --convert (docs/odex.md)
+version 4
 # names written as their declarations spell them (.odex names have case); the .ode's lines 2
 
 # Forced Fitzhugh-Nagumo fhn.ode

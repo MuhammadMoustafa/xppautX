@@ -1,4 +1,5 @@
 # atcoaster.odex: converted from atcoaster.ode by xppautX --convert (docs/odex.md)
+version 4
 # renamed: t is t_ here (.odex reserves t)
 # names written as their declarations spell them (.odex names have case); the .ode's lines 9, 10
 

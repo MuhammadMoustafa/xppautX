@@ -89,43 +89,36 @@ Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
 static void ask_configured_numerics(xpp::Session &s, char ch)
 {
    switch(ch){
-		case 't': flash(0);
+		case 't':
 			 numerics_settings_ask(s,"total_time");
-			flash(0);
 			break;
-		case 's': flash(1);
+		case 's':
 			 numerics_settings_ask(s,"start_time");
-			flash(1);
 			break;
-		case 'r': flash(2);
+		case 'r':
 			 numerics_settings_ask(s,"store_from");
-			flash(2);
 			break;
-		case 'd': flash(3);
+		case 'd':
 			 numerics_settings_ask(s,"dt");
-			flash(3);
 			break;
 		case 'v':
 		         numerics_settings_ask(s,"bvp_max_iterates");
 		         numerics_settings_ask(s,"bvp_tolerance");
 		         numerics_settings_ask(s,"bvp_epsilon");
 		         break;
-		case 'o': flash(6);
+		case 'o':
 			 numerics_settings_ask(s,"store_every");
-			flash(6);
 			break;
-		case 'b': flash(7);
+		case 'b':
 			 numerics_settings_ask(s,"state_limit");
-			flash(7);
 			break;
-		case 'm': flash(8);
+		case 'm':
 		       {
 			 /* the method picked, refused as `set num` refuses it */
 			 const xpp::Place place=command_place();
 			 std::string why;
 			 if(numerics_settings_set(s,"method",xpp::solver_info(chosen_method(s)).key,why,&place)!=0){
 			   show_error(Error{"numerics",why,place});
-			   flash(8);
 			   break;
 			 }
 			const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
@@ -163,9 +156,8 @@ static void ask_configured_numerics(xpp::Session &s, char ch)
 			 xpp::ok_or_show(set_numerics_extras(s,extras));
 		       }
 		       }
-			flash(8);
 			break;
-		case 'e': flash(9);
+		case 'e':
 			 /* delay */
                         if(s.model().ndelays==0)break;
 			numerics_settings_ask(s,"delay");
@@ -182,7 +174,7 @@ static void ask_configured_numerics(xpp::Session &s, char ch)
                           xpp::ok_or_show(set_numerics_extras(s,extras));
                         }
 
-			flash(9);
+			
 			break;
 	}
 }

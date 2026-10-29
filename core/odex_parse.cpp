@@ -5,6 +5,7 @@
    white space. Every problem is an Error at a line and column; nothing is
    dropped, cut or skipped. */
 #include "odex.h"
+#include "format_version.h"
 #include "expr.h"
 #include "snapx.h"
 #include "xpp_files.h"
@@ -262,9 +263,27 @@ public:
     toks_ = Lexer(src, file, out.files[file]).run();
   }
 
+  /* a model file: its `version N` first, then its statements. Every file read, an import included, says the one
+     format version (format_version.h): another, or none, is refused with both numbers */
   void model()
   {
+    version();
     while (!at_end()) statement();
+  }
+
+  void version()
+  {
+    const Token &t = peek();
+    if (t.kind != Token::Kind::Name || t.text != xpp::version_word || t.primed || peek(1).kind != Token::Kind::Number)
+      fail(t.pos, xpp::format("a model file starts with `{} {}`, found {}: this program reads model files of version {}", xpp::version_word,
+                              xpp::format_version, describe(t), xpp::format_version));
+    take();
+    const Token &found = take();
+    if (found.text.find_first_not_of("0123456789") != std::string::npos || found.text.size() > 9)
+      fail(found.pos, xpp::format("the version is a whole number, found {}", found.text));
+    if (const int number = std::atoi(found.text.c_str()); number != xpp::format_version)
+      fail(found.pos, xpp::wrong_version(number, "model files"));
+    end_of_list("the version");
   }
 
   /* a settings file (setx.h): the entries of an unbraced group to the end
@@ -307,8 +326,8 @@ public:
       s.fields.col = name.pos.col;
       s.permanent = permanent;
       std::map<std::string, int> keys;
-      if (name.text == "model") {
-        expect_punct(":", "after model");
+      if (name.text == "model" || name.text == xpp::version_word) {
+        expect_punct(":", xpp::format("after {}", name.text));
         setting_entry(s.fields, keys, 0, name);
       } else if (name.text == "options") {
         entries("animation options", [&](const Token &key) { setting_entry(s.fields, keys, 0, key); });

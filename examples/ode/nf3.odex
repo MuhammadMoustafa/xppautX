@@ -1,4 +1,5 @@
 # nf3.odex: converted from nf3.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # simple normal form for triple zero eigenvalue
 # equivalent to the Rossler attractor

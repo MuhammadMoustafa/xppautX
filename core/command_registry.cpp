@@ -5,6 +5,7 @@
    command_validate.cpp and the server text form in command_text.cpp. */
 #include "command_registry.h"
 #include "command_def.h"
+#include "event_registry.h"
 #include "json_error.h"
 #include "json_number.h"
 #include "json_reader.h"
@@ -22,11 +23,11 @@ namespace {
 Result<std::string> describe(Session &, const Command &command, const Arguments &args, const Place &place);
 
 constexpr std::array HELP_ARGUMENTS = {Argument{"name", Type::text, false}};
-constexpr std::array HELP_RESULTS = {ResultField{"commands", "list[command]"}};
-constexpr std::array HELP_EVENTS = {"state", "done"};
+constexpr std::array HELP_RESULTS = {ResultField{"commands", "list[command]"}, ResultField{"events", "list[event]"}};
+constexpr std::array HELP_EVENTS = {events::SESSION_STATE, events::DONE};
 constexpr std::array HELP_ROWS = {
     Command{HELP_COMMAND.data(), HELP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Help/Command reference",
-            "Describe registered commands, or the command named by name.", HELP_RESULTS, HELP_EVENTS, false, describe}};
+            "Describe registered commands, or the command named by name; `help events` describes every event and its fields.", HELP_RESULTS, HELP_EVENTS, false, describe}};
 std::span<const Command> help_commands() { return HELP_ROWS; }
 
 /* every resource's table, in the order help lists them */
@@ -183,9 +184,37 @@ void append_command(std::string &out, const Command &command)
 
 namespace {
 
+/* every declared event, as `help events` answers: its name, its fields in order, what it means and the stream a client subscribes to for it */
+std::string describe_events()
+{
+    std::string result = "{\"events\":[";
+    bool first = true;
+    for (const events::Event &declared : events::all()) {
+        if (!first) result += ',';
+        first = false;
+        result += "{\"name\":";
+        json_append_string(result, declared.name);
+        result += ",\"fields\":[";
+        std::string_view rest = declared.fields;
+        for (bool first_field = true; !rest.empty(); first_field = false) {
+            const std::size_t end = std::min(rest.find(", "), rest.size());
+            if (!first_field) result += ',';
+            json_append_string(result, rest.substr(0, end));
+            rest.remove_prefix(std::min(end + 2, rest.size()));
+        }
+        result += "],\"description\":";
+        json_append_string(result, declared.description);
+        result += ",\"stream\":";
+        json_append_string(result, declared.stream);
+        result += '}';
+    }
+    return result + "]}";
+}
+
 Result<std::string> describe(Session &, const Command &command, const Arguments &args, const Place &place)
 {
     const std::optional<std::string> selected = args.optional<std::string>(command.arguments.front().name);
+    if (selected && *selected == EVENTS_TOPIC) return describe_events();
     const Command *target = selected ? find(*selected) : nullptr;
     if (selected && !target) return fail(command.name, xpp::format("Unknown registry command \"{}\"", *selected), place);
     std::string result = "{";
@@ -318,9 +347,10 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
     return result;
 }
 
-std::string done(const char *line, const Result<std::string> &result, bool stopped)
+std::string done(const char *line, const Result<std::string> &result, bool stopped, unsigned long job)
 {
-    std::string out = "{\"ev\":\"done\"";
+    std::string out = events::open(events::DONE);
+    if (job) out += xpp::format(",\"job\":{}", job);
     const char *wrong_at = nullptr;
     if (!json::js_problem(line, wrong_at)) {
         if (const char *id = json::js_find(line, ID_KEY); id && valid_id(id)) {

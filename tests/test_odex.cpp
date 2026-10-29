@@ -2,6 +2,7 @@
    precedence and grouping of docs/odex.md's table, every statement, and
    an error at the right line and column for each kind of mistake. */
 #include "load_args.h"
+#include "model_text.h"
 #include "xpptest.h"
 #include "odex.h"
 #include "derived.h"
@@ -62,8 +63,8 @@ std::string tree(const Expr &e)
 /* text alone, as the formula of "x' =" on the line before it */
 Expr expression(const char *text)
 {
-  Parsed p = xpp::odex::parse(xpp::client_session().model(), std::string("x' =\n") + text, "e.odex");
-  if (p.statements.size() != 1) throw xpp::odex::error_at("e.odex", xpp::odex::Pos{0, 2, 1}, "not one expression");
+  Parsed p = xpp::odex::parse(xpp::client_session().model(), versioned(std::string("x' =\n") + text), "e.odex");
+  if (p.statements.size() != 1) throw xpp::odex::error_at("e.odex", xpp::odex::Pos{0, 3, 1}, "not one expression");
   return p.statements[0].expr;
 }
 
@@ -72,7 +73,7 @@ std::string parsed(const char *text)
   try {
     return tree(expression(text));
   } catch (const Error &e) {
-    return "error " + std::to_string(e.place.line - 1) + ":" + std::to_string(e.place.col) + " " + e.what;
+    return "error " + std::to_string(e.place.line - 2) + ":" + std::to_string(e.place.col) + " " + e.what;
   }
 }
 
@@ -80,9 +81,9 @@ std::string parsed(const char *text)
 std::string model_error(const char *text)
 {
   try {
-    xpp::odex::parse(xpp::client_session().model(), text, "m.odex");
+    xpp::odex::parse(xpp::client_session().model(), versioned(text), "m.odex");
   } catch (const Error &e) {
-    return std::to_string(e.place.line) + ":" + std::to_string(e.place.col) + " " + e.what;
+    return std::to_string(e.place.line - 1) + ":" + std::to_string(e.place.col) + " " + e.what;
   }
   return "";
 }
@@ -91,7 +92,7 @@ std::string model_error(const char *text)
 void put(const char *path, const char *text)
 {
   xpp::Writer w(path);
-  CHECK(w && w.write(text) && w.commit());
+  CHECK(w && w.write(xpp::files::has_extension(path, ".odex") ? versioned(text) : std::string(text)) && w.commit());
 }
 
 bool starts(const std::string &s, const char *prefix)
@@ -112,7 +113,7 @@ std::string lowered(const char *text)
 {
   using xpp::odex::engine_text;
   try {
-    const Parsed p = xpp::odex::ready(xpp::client_session().model(), xpp::odex::parse(xpp::client_session().model(), text, "m.odex"));
+    const Parsed p = xpp::odex::ready(xpp::client_session().model(), xpp::odex::parse(xpp::client_session().model(), versioned(text), "m.odex"));
     std::string out;
     auto add = [&out](const std::string &line) { out += (out.empty() ? "" : "|") + line; };
     for (const Statement &s : p.statements) {
@@ -182,7 +183,7 @@ std::string lowered(const char *text)
     }
     return out;
   } catch (const Error &e) {
-    return "error " + std::to_string(e.place.line) + ":" + std::to_string(e.place.col) + " " + e.what;
+    return "error " + std::to_string(e.place.line - 1) + ":" + std::to_string(e.place.col) + " " + e.what;
   }
 }
 
@@ -194,7 +195,7 @@ int load_text(const char *text, const char *ext = "odex")
   if (std::string(ext) == "ode") xpp::files::remove(xpp::odex::odex_name(path));
   FILE *fp = fopen(path.c_str(), "w");
   if (!fp) return 0;
-  fputs(text, fp);
+  fputs(std::string(ext) == "odex" ? versioned(text).c_str() : text, fp);
   fclose(fp);
   char arg0[] = "test_odex";
   char *argv[] = {arg0, path.data(), nullptr};
@@ -292,7 +293,7 @@ int main(void)
   CHECK(starts(parsed("3<2<1"), "error 1:4 comparisons do not chain"));
   CHECK(starts(parsed("2+ +3"), "error 1:4 there is no unary `+`"));
   CHECK(starts(parsed("if 1>0 then 10"), "error 1:15 expected `else`"));
-  CHECK(starts(parsed("(1+2"), "error 1:5 expected `)` to close the `(` at 2:1"));
+  CHECK(starts(parsed("(1+2"), "error 1:5 expected `)` to close the `(` at 3:1"));
   CHECK(starts(parsed("a &&b"), "error 1:3 a statement cannot start with `&`"));
   CHECK(starts(parsed("1 then"), "error 1:3 `then` is a reserved word"));
   CHECK(starts(parsed("and"), "error 1:1 expected a value, found the reserved word `and`"));
@@ -347,7 +348,7 @@ int main(void)
     Parsed p;
     std::string err;
     try {
-      p = xpp::odex::parse(xpp::client_session().model(), text, "m.odex");
+      p = xpp::odex::parse(xpp::client_session().model(), versioned(text), "m.odex");
     } catch (const Error &e) {
       err = e.text();
     }
@@ -355,7 +356,7 @@ int main(void)
     const std::vector<Statement> &s = p.statements;
     CHECK(s.size() == 22);
     if (s.size() == 22) {
-      CHECK(s[0].kind == Statement::Kind::Par && s[0].bindings.size() == 2 && s[0].pos.line == 4);
+      CHECK(s[0].kind == Statement::Kind::Par && s[0].bindings.size() == 2 && s[0].pos.line == 5);
       CHECK_STR(tree(s[0].bindings[1].value).c_str(), "(* 2 a)");
       CHECK(s[1].kind == Statement::Kind::Init);
       CHECK(s[2].kind == Statement::Kind::Ode && s[2].name == "x");
@@ -393,7 +394,7 @@ int main(void)
   CHECK(starts(model_error("x' = 1\n\"open\n"), "2:1 this string is never closed"));
   CHECK(starts(model_error("fun g(v) { if v > 0 { return 1 } }\n"), "1:34 fun g can end here without a return"));
   CHECK(starts(model_error("fun g(v) { return 1\nx' = 1\n"), "2:1 nothing can follow a return"));
-  CHECK(starts(model_error("fun g(v) { return 1\n"), "2:1 missing `}` for the block opened at 1:10"));
+  CHECK(starts(model_error("fun g(v) { return 1\n"), "2:1 missing `}` for the block opened at 2:10"));
   CHECK(starts(model_error("fun g(v) { let v = 1 return v }\n"), "1:16 v is already a name here"));
   CHECK(starts(model_error("options { integration: { total_time: 2*3 } }\n"), "1:38 the option total_time's value `2*3` is not a number"));
   CHECK(starts(model_error("options { integration: { total_time: (4) } }\n"), "1:38 the option total_time's value `(4)` is not a number"));
@@ -419,6 +420,29 @@ int main(void)
   CHECK(starts(model_error("import \"no/such/file.odex\"\n"), "1:8 cannot read the imported file no/such/file.odex"));
   CHECK(starts(model_error("include \"f.odex\"\n"), "1:9 expected `'`, `=` or `(t) =` after `include`")); /* no include any more */
 
+  /* the format version (format_version.h): a model file, an imported one too, starts with `version 4`; none, another, or
+     something else in its place is refused, naming both versions */
+  {
+    const auto raw = [](const char *text) {
+      try {
+        xpp::odex::parse(xpp::client_session().model(), text, "v.odex");
+      } catch (const Error &e) {
+        return e.what;
+      }
+      return std::string();
+    };
+    CHECK(raw("version 4\nx' = 1\n").empty() && raw("# a comment first\nversion 4\nx' = 1\n").empty());
+    CHECK(raw("x' = 1\n").find("starts with `version 4`, found `x'`: this program reads model files of version 4") != std::string::npos);
+    CHECK(raw("").find("starts with `version 4`, found the end of the file") != std::string::npos);
+    CHECK_STR(raw("version 3\nx' = 1\n").c_str(), "version 3: this program reads model files of version 4");
+    CHECK_STR(raw("version 5\nx' = 1\n").c_str(), "version 5: this program reads model files of version 4");
+    CHECK(raw("version 4.5\nx' = 1\n").find("the version is a whole number") != std::string::npos);
+    CHECK(raw("version 4 x' = 1\n").find("expected `,`") != std::string::npos);
+    xpp::Writer w("build/test_import_unversioned.odex");
+    CHECK(w && w.write("par k = 1\n") && w.commit());
+    CHECK(raw("version 4\nimport \"build/test_import_unversioned.odex\"\n").find("starts with `version 4`") != std::string::npos);
+  }
+
   /* imports (W282): everything, parts; a clash, a cycle, a missing name */
   {
     put("build/test_import_cell.odex",
@@ -432,12 +456,12 @@ int main(void)
     CHECK_STR(lowered("from \"build/test_import_cell.odex\" import drive\n").c_str(),
               "par k=2|v'=(-k)*v+drive|f(u)=k*u|drive=f(v)");
     CHECK_STR(lowered("from \"build/test_import_cell.odex\" import f\nx' = f(1)\n").c_str(), "par k=2|f(u)=k*u|x'=f(1)");
-    CHECK(starts(lowered("par k = 1\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared at 1:5"));
+    CHECK(starts(lowered("par k = 1\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared at 2:5"));
     CHECK(starts(lowered("import \"build/test_import_cell.odex\"\nimport \"build/test_import_cell.odex\"\n"), "error 2:1 `k` is already declared"));
     /* W318: a set's name is its own, an imported file's sets included */
     put("build/test_import_sets.odex", "par k = 1\nx' = -x\nset \"s\" { k: 2 }\n");
     CHECK(starts(lowered("set \"s\" { k: 3 }\nimport \"build/test_import_sets.odex\"\n"),
-                 "error 2:1 the set `s` is defined twice: at m.odex:1:1 and at build/test_import_sets.odex:3:1"));
+                 "error 2:1 the set `s` is defined twice: at m.odex:2:1 and at build/test_import_sets.odex:4:1"));
     remove("build/test_import_sets.odex");
     CHECK(starts(model_error("from \"build/test_import_cell.odex\" import nosuch\n"), "1:1 build/test_import_cell.odex declares no `nosuch`"));
     CHECK(starts(model_error("import \"build/test_import_a.odex\"\n"), "1:8 test_import_a.odex imports itself"));
@@ -514,7 +538,7 @@ int main(void)
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { plot: { colormap: hot } } }\n"), "error 2:30 a set does not hold `colormap`"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { integration: { nosuch: 1 } } }\n"), "error 2:37 `nosuch` is not an option"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { plot: { dt: 1 } } }\n"), "error 2:30 `dt` is in the group integration, not plot"));
-  CHECK(starts(lowered("x' = 1\nset \"s\" { x: 1 }\nset \"s\" { x: 2 }\n"), "error 3:1 the set `s` is defined twice: at m.odex:2:1 and at m.odex:3:1"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { x: 1 }\nset \"s\" { x: 2 }\n"), "error 3:1 the set `s` is defined twice: at m.odex:3:1 and at m.odex:4:1"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { x: a }\n"), "error 2:14 a set's value for `x` is a number, not `a`"));
   CHECK_STR(lowered("x' = 1\noptions { integration: { total_time: 20, method: stiff } }\n").c_str(), "x'=1|@ total_time=20,method=stiff");
   CHECK_STR(lowered("markov m 2 {0} {a} {1} {0}\npar a=1\n").c_str(), "markov m 2|{0} {a} |{1} {0} |par a=1");
@@ -540,9 +564,9 @@ int main(void)
   /* what the checks refuse, at its line and column */
   CHECK(starts(lowered("x' = y\n"), "error 1:6 the name `y` is not declared"));
   CHECK(starts(lowered("par V = 1\nx' = v\n"), "error 2:6 the name `v` is not declared (names have case: did you mean `V`?)"));
-  CHECK(starts(lowered("par V = 1\npar v = 2\nx' = 1\n"), "error 2:5 `v` and `V` (1:5) differ only by case"));
+  CHECK(starts(lowered("par V = 1\npar v = 2\nx' = 1\n"), "error 2:5 `v` and `V` (2:5) differ only by case"));
   CHECK(starts(lowered("par Sin = 1\nx' = 1\n"), "error 1:5 `Sin` would be read as the built-in `sin`"));
-  CHECK(starts(lowered("par a = 1\npar a = 2\nx' = 1\n"), "error 2:5 `a` is already declared at 1:5"));
+  CHECK(starts(lowered("par a = 1\npar a = 2\nx' = 1\n"), "error 2:5 `a` is already declared at 2:5"));
   CHECK(starts(lowered("x' = z\naux z = x\n"), "error 1:6 `z` is an aux quantity"));
   CHECK(starts(lowered("x' = max(x)\n"), "error 1:6 max takes 2 arguments, not 1"));
   CHECK(starts(lowered("fun f(a) = a\nx' = f(x, 1)\n"), "error 2:6 f takes 1 argument, not 2"));
@@ -568,7 +592,7 @@ int main(void)
   /* arrays (docs/odex.md "Arrays", W80): a trailing range on a
      statement, its index named, both ends included, by a positive step */
   {
-    Parsed p = xpp::odex::parse(xpp::client_session().model(), "x[j]' = -x[j] + x[j-1]  for j in 1..n\naux s[j] = x[j]^2  for j in 1..n by 2\n",
+    Parsed p = xpp::odex::parse(xpp::client_session().model(), versioned("x[j]' = -x[j] + x[j-1]  for j in 1..n\naux s[j] = x[j]^2  for j in 1..n by 2\n"),
                                 "m.odex");
     CHECK(p.statements.size() == 2);
     if (p.statements.size() == 2) {
@@ -576,7 +600,7 @@ int main(void)
       CHECK(a.kind == Statement::Kind::Ode && a.name == "x" && a.name_index && tree(*a.name_index) == "j");
       CHECK_STR(tree(a.expr).c_str(), "(+ (- ([] x j)) ([] x (- j 1)))");
       CHECK(a.range.index == "j" && tree(a.range.lo) == "1" && tree(a.range.hi) == "n" && tree(a.range.step) == "1");
-      CHECK(a.range.index_pos.line == 1 && a.range.index_pos.col == 29);
+      CHECK(a.range.index_pos.line == 2 && a.range.index_pos.col == 29);
       CHECK(b.kind == Statement::Kind::Aux && b.bindings.size() == 1 && b.bindings[0].index);
       CHECK(tree(b.range.step) == "2");
     }
@@ -616,14 +640,14 @@ int main(void)
   }
   CHECK(starts(lowered("x[j]' = y[j] for j in 1..2\n"), "error 1:9 the name `y1` is not declared (where j = 1)"));
   CHECK(starts(lowered("x[j]' = x[j-1] for j in 0..1\n"), "error 1:11 the index of x `j-1` is -1: an element's index is 0 or more (where j = 0)"));
-  CHECK(starts(lowered("par j = 1\nx[j]' = 1 for j in 1..2\n"), "error 2:15 the index `j` is a parameter, declared at 1:5"));
+  CHECK(starts(lowered("par j = 1\nx[j]' = 1 for j in 1..2\n"), "error 2:15 the index `j` is a parameter, declared at 2:5"));
   CHECK(starts(lowered("par n = 3\nx[j]' = 1 for j in 1..n\n"), "error 2:23 the range's last index can't use `n`"));
   CHECK(starts(lowered("x[j]' = 1 for j in 1..2.5\n"), "error 1:23 the range's last index `2.5` is 2.5, not a whole number"));
   CHECK(starts(lowered("x[j]' = 1 for j in 3..1\n"), "error 1:20 the range 3..1 is empty"));
   CHECK(starts(lowered("x[j]' = 1 for j in 1..3 by 0\n"), "error 1:28 the range's step is a whole number above 0, not 0"));
   CHECK(starts(lowered("x[j]' = 1 for j in 1..3 by -1\n"), "error 1:28 the range's step is a whole number above 0, not -1"));
   CHECK(starts(lowered("x' = 1\noptions { integration: { total_time: 10 } } for j in 1..2\n"), "error 2:45 this statement takes no range"));
-  CHECK(starts(lowered("x[j]' = 1 for j in 1..2\nx[2]' = 1\n"), "error 2:1 `x2` is already a member of the array x[1..2], declared at 1:1"));
+  CHECK(starts(lowered("x[j]' = 1 for j in 1..2\nx[2]' = 1\n"), "error 2:1 `x2` is already a member of the array x[1..2], declared at 2:1"));
 
   /* const: fixed at load, from numbers and the consts before it */
   CHECK_STR(lowered("const n = 2, m = n*3+1\nx' = m\n").c_str(), "const n=2|const m=7|x'=m");
@@ -880,19 +904,19 @@ int main(void)
     auto model=std::make_unique<xpp::Model>();
     xpp::Model &m=*model;
     m.this_file="indexed.odex";
-    const std::string text="par gain = 1\r\nv' = gain\r\naux v = v\n";
+    const std::string text=versioned("par gain = 1\r\nv' = gain\r\naux v = v\n");
     m.files.push_back({m.this_file,text});
     Parsed p=xpp::odex::parse(m,text,m.this_file);
     m.statements=std::move(p.statements);
     m.statement_files=std::move(p.files);
     xpp::index_model_places(m);
     const xpp::Place equation=xpp::model_place(m,"V");
-    CHECK(equation.file==m.this_file && equation.line==2);
+    CHECK(equation.file==m.this_file && equation.line==3);
     CHECK(equation.source=="v' = gain");
     const xpp::Place parameter=xpp::model_place(m,"GAIN");
-    CHECK(parameter.line==1 && parameter.source=="par gain = 1");
-    CHECK(xpp::model_source_line(m,m.this_file,3)=="aux v = v");
-    CHECK(xpp::model_source_line(m,m.this_file,4).empty());
+    CHECK(parameter.line==2 && parameter.source=="par gain = 1");
+    CHECK(xpp::model_source_line(m,m.this_file,4)=="aux v = v");
+    CHECK(xpp::model_source_line(m,m.this_file,5).empty());
   }
 
   /* W291: model names share one index while function arguments remain
@@ -910,7 +934,7 @@ int main(void)
     CHECK(xpp::get_var_index(s,"arg")==-1);
     CHECK(m.name("arg")==nullptr);
     CHECK(m.name("f") && m.name("f")->kind==xpp::Model::NameKind::Function);
-    CHECK(xpp::model_place(m,"q").line==4);
+    CHECK(xpp::model_place(m,"q").line==5);
     const size_t count=m.names.size();
     double value=0;
     CHECK(xpp::get_val(s,"gain",&value));
@@ -926,7 +950,7 @@ int main(void)
   {
     CHECK(load_text("x'=0\ny'=0\ninit x=2\n", "odex"));
     const auto missing = xpp::missing_initial_values(xpp::client_session().model());
-    CHECK(missing.size() == 1 && missing[0]->name == "y" && missing[0]->pos.line == 2);
+    CHECK(missing.size() == 1 && missing[0]->name == "y" && missing[0]->pos.line == 3);
     CHECK(xpp::client_session().last_ic[1] == 0);
     put("build/test_odex_model.ode", "x'=0\ny'=0\ninit x=2\ndone\n");
     const auto converted = xpp::odex::convert_text("build/test_odex_model.ode");
@@ -1005,7 +1029,7 @@ int main(void)
     std::string arg0 = "test_odex", path = "build/test_odex_model.odex";
     char *argv[] = {arg0.data(), path.data(), nullptr};
     const auto loaded = load_args(2, argv, 1);
-    CHECK(!loaded && loaded.error().place.line == 4 && loaded.error().what == "In k, W has 2 values; 3 are needed");
+    CHECK(!loaded && loaded.error().place.line == 5 && loaded.error().what == "In k, W has 2 values; 3 are needed");
   }
 
   /* W497: a table re-read (the Numerics' load table) must keep every network's values in range: a
@@ -1020,7 +1044,7 @@ int main(void)
     xpp::Session &s = xpp::client_session();
     const int index = s.model().networks[0].weight_table;
     const auto shorter = xpp::load_table(s, "build/w_short.tab", index, 0);
-    CHECK(!shorter && shorter.error().place.line == 4 && shorter.error().what == "In network k, table W has 2 values; 3 are needed");
+    CHECK(!shorter && shorter.error().place.line == 5 && shorter.error().what == "In network k, table W has 2 values; 3 are needed");
     CHECK(xpp::get_lookup_len(s, index) == 3 && s.tables[index].y[2] == 3.0);
   }
 

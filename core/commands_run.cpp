@@ -320,10 +320,10 @@ constexpr std::array DAE_RESULTS = {ResultField{"guesses", "map[name, real]"}};
 constexpr std::array ABORT_RESULTS = {ResultField{"stopped_at", "real"}};
 constexpr std::array CONFIGURE_RESULTS = {ResultField{"settings", "map[name, value]"}};
 
-constexpr std::array RUN_EVENTS = {"computing", "progress", "series", "stopped", "state", "done"};
-constexpr std::array CONTROL_EVENTS = {"stopped", "done"};
-constexpr std::array STATE_EVENTS = {"numerics", "state", "done"};
-constexpr std::array GUESS_EVENTS = {"state", "done"};
+constexpr std::array RUN_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JOB_PROGRESS, xpp::events::PLOT_SERIES, xpp::events::JOB_STOPPED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array CONTROL_EVENTS = {xpp::events::JOB_STOPPED, xpp::events::DONE};
+constexpr std::array STATE_EVENTS = {xpp::events::RUN_NUMERICS, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array GUESS_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array KEY_0 = {"Ctrl+R"};
 constexpr std::array KEY_1 = {"Escape"};

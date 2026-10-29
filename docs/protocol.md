@@ -1,15 +1,17 @@
 # xppautX protocol
 
 A key typed on the page is resolved there, through the keymap, and sent as the registry command it
-completes. A client that has no keymap of its own sends `{"cmd":"key","key":"Ctrl+R","context":""}`
-(see "Keys") and the core resolves it the same way. There is no menu and no one-letter shortcut layer in
-the core: every operation is a registry command, and `hello.commands` is the one list of them.
+completes; a client that has no keymap of its own sends the command (`hello.keymap` has the keys). There is no
+`key` command, no menu and no one-letter shortcut layer in the core: every operation is a registry command, and
+`hello.commands` is the one list of them. Every command ends with exactly one `done`, and every event has a
+dotted name, `resource.event` ("Events (server to client)"). The format version of the protocol and of every
+file of ours is one number, 4 (format_version.h; "Our files: all or nothing").
 
 `xppautX --check model.ode` (or `.odex`) is a separate one-shot command,
 not a server event stream: it prints the one JSON report documented in
 [Checking a .ode](odex.md#checking-a-ode) (W75, #123). In normal model
 opening, conversion findings use the existing log route (stderr, relayed
-to the page's `log` event), with their place, severity and id in the text. No event fields
+to the page's `session.log` event), with their place, severity and id in the text. No event fields
 are added.
 
 `xppautX --server file.ode [xppaut options]` loads the model the way `xppaut`
@@ -21,12 +23,10 @@ core's own log output. The implementation is `core/ui_json.cpp` and the
 served by `xppautX` itself) a full one. This is protocol 4 (W118: what core
 and page both know comes in `hello` and the events, below; the page checks
 the number and shows a mismatch as an error, since core and page ship
-together); see "Removed in protocol 2" at the end for what protocol 1 had
-besides.
+together).
 
 The core is single-threaded. A command runs to completion, then the server
-sends `state` and `idle` for commands still on the legacy table. Registry
-commands retain `state` and finish with exactly one `done` instead. While a command runs the server can stop and
+sends `session.state` and its one `done`. While a command runs the server can stop and
 **ask** the client something (a choice, a prompt, a mouse click); it waits for
 the matching `answer`, answers `session.get_state`, `browser.page`, `session.quit` with `save` false and the player's controls at
 once, and keeps any other command for after the one that asked. See
@@ -78,14 +78,14 @@ Registry commands emit their declared data in exactly one terminal event:
 `{"ev":"done","id":"create phase plane","status":"ok","result":{"window":"phase plane"}}`.
 An error has `status: "error"` and the shared `error`, `file`, `line`, `col`,
 `source`, `field` fields, without a second message event. A stopped request
-has `status: "stopped"`. Invalid or unreadable ids are not echoed. `state`
-is retained for page compatibility; there is no registry `idle`. Commands
-awaiting their resource card retain `state` plus `idle`.
+has `status: "stopped"`. Invalid or unreadable ids are not echoed. A line that
+names no registry command (the protocol's own `set`, `file` and `answer`, or no command at all) ends with a `done`
+too: `status` `ok` with `{}`, or `error` with the line's place.
 
 `window.hide` and `window.show` keep a window and everything in it (a
 graph's curves, zoom, texts, arrows, markers; a diagram view's axes and
 zoom); `window.list` gives every open window as `{name, kind, shown}`, and
-the same list is the `windows` event. They hold for every kind: graphs and
+the same list is the `window.list` event. They hold for every kind: graphs and
 AUTO views, and the data browser, animation and array plot, whose names are
 fixed, `browser`, `animation` and `array_plot_1`, and reserved (no graph or
 view takes them, and `window.rename` and `window.select` refuse them).
@@ -166,7 +166,7 @@ The following section is generated from `hello.commands` by
 The ordinary servercheck verifies it without writing.
 
 Equilibria, nullclines and direction fields use the registry below (W522, #586). Their old key/menu
-routes and `equilibrium`/`dfield` write forms are unknown. `equilibrium.guess` takes the two plotted
+routes and `equilibrium`/`dirfield.field` write forms are unknown. `equilibrium.guess` takes the two plotted
 variable names and their data coordinates, with an optional named graph. Search bounds are a map
 of variable names to exactly two finite real numbers, lower then upper; missing variables keep
 the current search bounds. Optional settings keep the session's current values.
@@ -180,261 +180,261 @@ common overwrite question applies. They return a placed error if the output coul
 <!-- registry:start -->
 | Command | Arguments | Kind / category | Menu | Result | Events | Description |
 |---|---|---|---|---|---|---|
-| `help` | `name`: optional text (max 1024 bytes) | `v` / tools | Help/Command reference | `commands`: `list[command]` | `state`, `done` | Describe registered commands, or the command named by name. |
-| `window.create` | `name`: optional new_name (max 1024 bytes) | `v` / plot | Windows/New graph | `window`: `window` | `window`, `state`, `done` | Create a graph copied from the active graph. |
-| `window.rename` | `window`: required window (max 1024 bytes), `name`: required new_name (max 1024 bytes) | `v` / plot | Windows/Window/Rename | `window`: `window`, `new_name`: `text` | `window.renamed`, `window`, `state`, `done` | Rename an open graph or diagram view. |
-| `window.select` | `window`: required window (max 1024 bytes) | `v` / plot | Windows/Window/Select | `window`: `window` | `window`, `state`, `done` | Bring an open window to front and select it. |
-| `window.hide` | `window`: optional window (max 1024 bytes) | `v` / plot | Windows/Window/Hide | `window`: `window`, `shown`: `boolean` | `state`, `done` | Hide a window: it keeps everything it holds and comes back with window.show. |
-| `window.show` | `window`: optional window (max 1024 bytes) | `v` / plot | Windows/Window/Show | `window`: `window`, `shown`: `boolean` | `state`, `done` | Show a hidden window exactly as it was. |
-| `window.destroy` | `window`: optional window (max 1024 bytes), `confirm`: optional boolean | `v` / plot | Windows/Make window/Destroy | `window`: `window`, `closed`: `boolean` | `window`, `state`, `done` | Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data browser stay; destroying an AUTO view keeps the diagram. |
-| `window.list` | none | `v` / plot | Windows/Window/List | `windows`: `list of {name, kind, shown}` | `state`, `done` | List every window with its name, kind and whether it is shown. |
-| `window.destroy_all` | none | `v` / plot | Windows/Make window/Kill all | `closed_count`: `integer` | `window`, `state`, `done` | Close every extra graph. |
-| `window.set_bounds` | `window`: optional window (max 1024 bytes), `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real | `v` / plot | Plot/Window/Window | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plots`, `state`, `done` | Set the view's bounds; a bound left out keeps the view's. |
-| `window.zoom` | `window`: optional window (max 1024 bytes), `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real; all or none of `x_min`, `x_max`, `y_min`, `y_max` | `v` / plot | Plot/Window/Zoom In | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plots`, `state`, `done` | Zoom in: the view becomes the box. |
-| `window.zoom_out` | `window`: optional window (max 1024 bytes), `factor`: optional real [at least 1], `center_x`: optional real, `center_y`: optional real, `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real; exactly one of `factor`, `x_min`; all or none of `x_min`, `x_max`, `y_min`, `y_max`; all or none of `center_x`, `center_y` | `v` / plot | Plot/Window/Zoom Out | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plots`, `state`, `done` | Zoom out: the view grows by factor about a center (the view's own), or fills the box. |
-| `window.fit` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Window/Fit | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plots`, `state`, `done` | Fit the view to the data. |
-| `window.reset_default` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Window/Default | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plots`, `state`, `done` | Give the view its default bounds. |
-| `window.scroll` | `window`: optional window (max 1024 bytes), `dx`: required real, `dy`: required real | `v` / plot | Plot/Window/Scroll | `new_center`: `list of 2 real` | `plots`, `state`, `done` | Move the view by dx and dy, in plot coordinates. |
-| `window.set_display` | `window`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier_runs`: optional boolean, `keep_replaced_run`: optional boolean | `v` / plot | Plot/Window/Set display | `x_range`: `list of 2 real, or []`, `y_range`: `list of 2 real, or []` | `plots`, `state`, `done` | Set what the page shows of a graph: the x and y ranges ([] for the window's own), the earlier runs, keeping a replaced run. |
-| `window.redraw` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Redraw plot | `window`: `window`, `redrawn`: `boolean` | `plots`, `state`, `done` | Draw a graph again from the stored data (and its nullclines, texts and frozen curves), or send an AUTO view's diagram again. |
-| `window.clear` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Clear plot | `window`: `window`, `cleared`: `boolean` | `plots`, `state`, `done` | Clear a graph: its picture and earlier runs go until the next run. |
-| `window.send_to_bottom` | `window`: optional window (max 1024 bytes) | `v` / plot | Windows/Make window/Bottom | `window`: `window` | `state`, `done` | Send a graph to the bottom. |
-| `window.set_redraw_mode` | `window`: optional window (max 1024 bytes), `mode`: required choice (auto, manual) | `v` / plot | Plot/Make window/Auto or Manual | `redraw_mode`: `choice` | `state`, `done` | Choose automatic or manual graph redrawing. |
-| `window.set_simultaneous_plot` | `enabled`: required boolean | `v` / plot | Plot/Make window/SimPlot | `simultaneous_plot`: `boolean` | `state`, `done` | Draw on every open graph when enabled. |
-| `annotation.list` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Annotations | `window`: `window`, `text`: `list of texts`, `arrows`: `list of arrows and pointers`, `markers`: `list of markers` | `marks`, `state`, `done` | List the texts, arrows, pointers and markers of a graph. |
-| `annotation.add_text` | `window`: optional window (max 1024 bytes), `text`: required text (max 1000 bytes), `x`: required real, `y`: required real, `text_size`: optional integer [at least 0, at most 4], `style`: optional choice (normal, bold, italic, bold_italic), `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Text | `id`: `integer` | `marks`, `state`, `done` | Add a text at a point of a graph. |
-| `annotation.add_arrow` | `window`: optional window (max 1024 bytes), `tip_x`: required real, `tip_y`: required real, `tail_x`: required real, `tail_y`: required real, `size`: optional real [at least 0], `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Arrow | `id`: `integer` | `marks`, `state`, `done` | Add an arrow head at the tip of a line. |
-| `annotation.add_pointer` | `window`: optional window (max 1024 bytes), `tip_x`: required real, `tip_y`: required real, `tail_x`: required real, `tail_y`: required real, `size`: optional real [at least 0], `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Pointer | `id`: `integer` | `marks`, `state`, `done` | Add a pointer: a head and a shaft. |
-| `annotation.add_marker` | `window`: optional window (max 1024 bytes), `shape`: required choice (box, diamond, triangle, plus, cross, circle), `x`: required real, `y`: required real, `size`: optional real [at least 0], `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Marker | `id`: `integer` | `marks`, `state`, `done` | Add a marker at a point of a graph. |
-| `annotation.edit` | `annotation_id`: required integer [at least 0, at most 2147483646], `text`: optional text (max 1000 bytes), `shape`: optional choice (box, diamond, triangle, plus, cross, circle), `size`: optional real [at least 0], `text_size`: optional integer [at least 0, at most 4], `style`: optional choice (normal, bold, italic, bold_italic), `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Edit/Change | `id`: `integer`, `updated`: `boolean` | `marks`, `state`, `done` | Change a text (its text, size, style, colour) or an object (its size, colour, a marker's shape). |
-| `annotation.move` | `annotation_id`: required integer [at least 0, at most 2147483646], `new_x`: required real, `new_y`: required real | `v` / plot | Plot/Annotations/Edit/Move | `id`: `integer`, `moved`: `boolean` | `marks`, `state`, `done` | Move an annotation so that its position (an object's start, its end following) is the point. |
-| `annotation.delete` | `annotation_id`: required integer [at least 0, at most 2147483646] | `v` / plot | Plot/Annotations/Edit/Delete | `id`: `integer`, `deleted`: `boolean` | `marks`, `state`, `done` | Delete an annotation. |
-| `annotation.delete_all` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Annotations/Delete all | `cleared`: `boolean` | `marks`, `state`, `done` | Delete every annotation of a graph. |
-| `run.initial` | none | `x` / run | Run/Run from initial | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the initial values. |
-| `run.last` | `reset_integrals`: optional boolean | `x` / run | Run/Run from last state | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Make the last state the initial values and run from it. |
-| `run.old` | none | `x` / run | Run/Run from stored initial | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the initial values as they stand, without refreshing the DAE guesses first. |
-| `run.continue` | `until`: optional real, `extra`: optional real; at most one of `until`, `extra` | `x` / run | Run/Continue | `status`: `choice`, `end_time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Extend the trajectory to an end time, by a duration, or by the run's total time. |
-| `run.steady` | `decimals`: required integer [at least 0, at most 15], `hold`: required real, `maximum`: required real | `x` / run | Run/Steady | `status`: `choice`, `decimals`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the initial values until every state stops changing at the chosen decimals. |
-| `run.backward` | none | `x` / run | Run/Run backward | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the initial values backward in time. |
-| `run.shift` | `reset_integrals`: optional boolean | `x` / run | Run/Initialconds/Shift | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from the last state with the clock going on from where it stopped. |
-| `run.range` | `variable`: optional name (max 1024 bytes) [of either], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / run | Run/Initialconds/Range | `runs_completed`: `integer`, `total_steps`: `integer` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run once for each value of a parameter or variable between two values. |
-| `run.double_range` | `variable1`: optional name (max 1024 bytes) [of either], `start1`: optional real, `end1`: optional real, `variable2`: optional name (max 1024 bytes) [of either], `start2`: optional real, `end2`: optional real, `steps1`: optional integer [at least 1], `steps2`: optional integer [at least 1], `vary`: optional choice (together, independently), `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / run | Run/Initialconds/2par range | `grid_points`: `integer`, `total_steps`: `integer` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run once for each pair of values of two parameters or variables. |
-| `run.dae_guess` | `guesses`: optional map [of any, of expression, at most 256] | `s` / run | Run/Initialconds/DAE guess | `guesses`: `map[name, real]` | `state`, `done` | Set the initial guesses of the algebraic variables; none given keeps them. |
-| `run.abort` | none | `c` / run | Run/Stop | `stopped_at`: `real` | `stopped`, `done` | Stop the running command where it is; the stopped command ends with the status stopped. |
-| `run.configure` | `total_time`: optional real, `start_time`: optional real, `store_from`: optional real, `dt`: optional real, `method`: optional text (max 1024 bytes), `store_every`: optional integer [at least 1], `state_limit`: optional real, `stop_at_limit`: optional boolean, `delay`: optional real, `relative_tolerance`: optional real, `absolute_tolerance`: optional real, `min_step`: optional real, `max_step`: optional real, `eul_tol`: optional real, `eul_iter`: optional integer [at least 1], `vmaxpts`: optional integer [at least 1, at most 10000000], `autoeval`: optional boolean, `bandlo`: optional integer [at least 0, at most 100000], `bandup`: optional integer [at least 0, at most 100000], `delay_real_guess`: optional real, `delay_imaginary_guess`: optional real, `delay_grid`: optional integer [at least 1] | `s` / run | Run/Settings | `settings`: `map[name, value]` | `numerics`, `state`, `done` | Set the integration's numerics (run length, step, method, tolerances, bounds, delay); the settings are checked together. |
-| `run.shoot` | `manifold_index`: required integer [at least 1] | `x` / run | Run/Initialconds/sHoot | `status`: `choice`, `steps`: `integer`, `time`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from a manifold the equilibria's shooting found. |
-| `ic.set` | `values`: required map [of variable, of real, at most 256] | `s` / run | Run/Initial conditions/New | `applied`: `map[name, real]` | `state`, `done` | Set the initial values of some states; the others keep theirs. |
-| `ic.at` | `coordinates`: required map [of variable, of real, at most 256], `window`: optional window (max 1024 bytes) | `x` / run | Run/Initial conditions/Mouse | `applied`: `map[name, real]` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from a point of a graph: the two states it plots take the coordinates, the others their initial values. |
-| `ic.mouse_stream` | `x`: required list [of real, at most 256], `y`: required list [of real, at most 256], `window`: optional window (max 1024 bytes) | `x` / run | Run/Initial conditions/mIce | `trajectories_run`: `integer` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run from each point of a graph in turn, x and y the coordinates of the two states it plots; the runs add up on the graph. |
-| `ic.load` | `file`: required file (max 1024 bytes) | `s` / run | Run/Initial conditions/File | `file`: `file`, `applied`: `map[name, real]` | `state`, `done` | Read the initial values from a file of the model's folder, one number per differential equation. |
-| `ic.formula` | `variable`: required text (max 1024 bytes), `formula`: required text (max 1024 bytes) | `s` / run | Run/Initial conditions/formUla | `variable`: `text`, `formula`: `text` | `state`, `done` | Set a state's initial value to a formula, or an array range u[1..5] to a formula reading [j] as the element's number. |
-| `ic.from_data_row` | `row`: required integer [at least 0] | `s` / run | Run/Data/Get | `row`: `integer`, `values`: `map[name, real]` | `state`, `done` | Make a row of the stored data (the first is 0) the initial values. |
-| `ic.array` | `name`: required name (max 1024 bytes) [of variable], `size`: required integer [at least 1], `formula`: required expression (max 1024 bytes) | `s` / run | Run/Initial conditions/formUla | `name`: `name`, `size`: `integer` | `state`, `done` | Set size states from a state on to a formula of t, the element's offset from the first. |
-| `bvp.solve_range` | `parameter`: optional name (max 1024 bytes) [of parameter], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `cycle_color`: optional boolean, `side`: optional choice (start, end), `movie`: optional boolean | `x` / analysis | Run/Boundary values/Range | `solutions_found`: `integer` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Solve the boundary value problem for each value of a parameter between two values, storing a solution's start or end for each. |
-| `bvp.solve` | `show`: required boolean | `x` / analysis | Run/Boundary values/No show, Show | `converged`: `boolean` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Solve the boundary value problem from the initial values by shooting and make the solution the initial values; show draws every step. |
-| `bvp.solve_periodic` | `frequency_parameter`: required name (max 1024 bytes) [of parameter], `section_variable`: required name (max 1024 bytes) [of variable], `section`: required real, `show`: required boolean | `x` / analysis | Run/Boundary values/Periodic | `converged`: `boolean`, `period`: `real` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Solve for a periodic orbit whose period is the frequency parameter, held to a section of one variable. |
-| `bvp.configure` | `max_iterates`: optional integer [at least 1], `tolerance`: optional real, `epsilon`: optional real | `s` / analysis | Run/Numerics/bndVal | `settings`: `map[name, value]` | `numerics`, `state`, `done` | Set the shooting's iteration limit, tolerance and finite-difference step; the settings are checked together. |
-| `auto.open` | none | `v` / analysis | AUTO/Open AUTO | `open`: `boolean` | `window`, `diagram`, `state`, `done` | Open the AUTO window, the bifurcation package. |
-| `auto.run` | `kind`: required choice (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic), `switch`: optional boolean, `label`: optional integer [at least 1], `type`: optional text (max 1024 bytes), `index`: optional integer [at least 1], `decimals`: optional integer [at least 0], `hold`: optional real [at least 0], `maximum`: optional real [at least 0], `replace_diagram`: optional boolean, `unstable_dimension`: optional integer [at least 0], `stable_dimension`: optional integer [at least 0], `left_equilibrium`: optional list [of real, at most 256], `right_equilibrium`: optional list [of real, at most 256], `mesh_intervals`: optional integer, `max_steps`: optional integer, `output_every`: optional integer, `collocation_points`: optional integer, `step_size`: optional real, `min_step_size`: optional real, `max_step_size`: optional real, `parameter_min`: optional real, `parameter_max`: optional real, `norm_min`: optional real, `norm_max`: optional real, `parameter_tolerance`: optional real, `state_tolerance`: optional real, `special_point_tolerance`: optional real, `mesh_adapt_every`: optional integer, `max_branch_switches`: optional integer, `switch_one_direction`: optional boolean, `output_detail`: optional choice (none, little, normal, start_jacobian, extensive, debugging), `max_location_iterations`: optional integer, `max_newton_iterations`: optional integer, `full_newton_after`: optional integer, `step_adapt_every`: optional integer, `suppress_branch_points`: optional boolean; at most one of `label`, `type`, `decimals`; all or none of `type`, `index`; all or none of `decimals`, `hold`, `maximum` | `x` / analysis | AUTO/Run | `points_computed`: `integer`, `branches_tracked`: `integer` | `diagram`, `autoinfo`, `autosettings`, `state`, `done` | Run AUTO from the current state or a stored point: its kind (what is computed), switch for a branch switch, its start (a label, a point type and index, or the current state, optionally settled first), the settings of this run only (ds's sign is the direction) and the equilibria of a homoclinic start. The start point's type decides which kinds fit it: hello's auto_run table, and autoinfo's start. |
-| `auto.grab` | `label`: optional integer [at least 1], `type`: optional text (max 1024 bytes), `index`: optional integer [at least 1]; at most one of `label`, `type`; all or none of `type`, `index` | `d` / analysis | AUTO/Grab | `grabbed`: `boolean`, `label`: `integer`, `type`: `text`, `branch`: `integer`, `point`: `integer` | `autoinfo`, `diagram`, `state`, `done` | Grab a stored point by label or type and index; omit both to pick it on the diagram. |
-| `auto.configure_numerics` | `mesh_intervals`: optional integer, `max_steps`: optional integer, `output_every`: optional integer, `collocation_points`: optional integer, `step_size`: optional real, `min_step_size`: optional real, `max_step_size`: optional real, `parameter_min`: optional real, `parameter_max`: optional real, `norm_min`: optional real, `norm_max`: optional real, `parameter_tolerance`: optional real, `state_tolerance`: optional real, `special_point_tolerance`: optional real, `mesh_adapt_every`: optional integer, `max_branch_switches`: optional integer, `switch_one_direction`: optional boolean, `output_detail`: optional choice (none, little, normal, start_jacobian, extensive, debugging), `max_location_iterations`: optional integer, `max_newton_iterations`: optional integer, `full_newton_after`: optional integer, `step_adapt_every`: optional integer, `suppress_branch_points`: optional boolean, `special_points`: optional map [of boolean, at most 256] | `s` / analysis | AUTO/Numerics | `settings_updated`: `boolean` | `autosettings`, `state`, `done` | Set AUTO's Numerics by their names (mesh_intervals, step_size, ...) and the codimension-two points it detects (special_points), all or nothing. |
-| `auto.configure_plot` | `plot_type`: optional choice (maximum, norm, maximum_and_minimum, period, two_parameter, frequency, average), `variable`: optional name (max 1024 bytes) [of variable], `parameter1`: optional name (max 1024 bytes) [of parameter], `parameter2`: optional name (max 1024 bytes) [of parameter], `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real, `view`: optional window (max 1024 bytes), `fit`: optional boolean | `s` / analysis | AUTO/Axes | `plot_configured`: `boolean` | `autosettings`, `state`, `done` | Set what a view of the diagram plots: the plot type, the variable, the two parameters and the ranges, optionally fitted afterwards. |
-| `auto.configure_marks` | `parameters`: required list [of text, at most 256], `values`: required list [of real, at most 256] | `s` / analysis | AUTO/Usr period | `marks_count`: `integer` | `autosettings`, `state`, `done` | Set the Mark values: the parameters (or T, the period) and the values at which AUTO labels a point. |
-| `auto.set_threads` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean; exactly one of `threads`, `automatic` | `s` / analysis | AUTO/Numerics | `threads`: `integer`, `automatic`: `boolean` | `autosettings`, `state`, `done` | Set AUTO's thread count, a preference of the program: a count, or automatic. |
-| `auto.hide_earlier` | none | `v` / analysis | AUTO/Clear | `hidden_points`: `integer` | `diagram`, `autoview`, `state`, `done` | Hide the branches so far: new runs draw alone until set_display shows them again. |
-| `auto.redraw` | none | `v` / analysis | AUTO/Redraw | `redrawn`: `boolean` | `diagram`, `autoview`, `state`, `done` | Draw the diagram again. |
-| `auto.pick` | `x`: required real, `y`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/AUTO diagram/Click | `x`: `real`, `y`: `real` | `autoinfo`, `diagram`, `state`, `done` | A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot. |
-| `auto.set_display` | `view`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier`: optional boolean | `v` / analysis | AUTO/Auto/Set display | `x_range`: `list`, `y_range`: `list` | `diagram`, `autoview`, `state`, `done` | Set what the page shows of a view: its zoom (a [low, high] range, [] for the whole range of an axis) and whether the hidden branches are drawn. |
-| `auto.new_view` | none | `v` / analysis | Windows/New AUTO view | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `diagram`, `autoview`, `state`, `done` | Add a view of the diagram, with the axes of the active one; it becomes the active view. |
-| `auto.use_last_plot` | `parameters`: required choice (one, two), `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Last plot | `plot`: `choice` | `diagram`, `autoview`, `state`, `done` | Go back to the last one-parameter or two-parameter plot's axes. |
-| `auto.scroll` | `dx`: required real, `dy`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Scroll | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `diagram`, `autoview`, `state`, `done` | Move the view's visible ranges by dx and dy, in the plotted quantities. |
-| `auto.default_view` | `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Default | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `diagram`, `autoview`, `state`, `done` | Give the view the model's own diagram ranges. |
-| `auto.fit` | `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Fit | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `diagram`, `autoview`, `state`, `done` | Fit the view to the diagram. |
-| `auto.zoom` | `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Zoom in | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `diagram`, `autoview`, `state`, `done` | Zoom the view in to a box of its plotted quantities. |
-| `auto.zoom_out` | `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Zoom out | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `diagram`, `autoview`, `state`, `done` | Zoom the view out so that what it shows now fills a box of its plotted quantities. |
-| `auto.clear_grab` | none | `d` / analysis | AUTO/File/Clear grab | `cleared`: `boolean` | `autoinfo`, `diagram`, `state`, `done` | Forget the grabbed point: a following run starts from the current state. |
-| `auto.load_orbit_into_browser` | `label`: optional integer [at least 1] | `d` / analysis | AUTO/File/Import orbit | `orbit_loaded`: `boolean`, `rows`: `integer` | `state`, `done` | Load the stored orbit of a labelled point (the grabbed one without label) into the data browser. |
-| `auto.save_session` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/Save diagram | `file`: `file`, `saved`: `boolean` | `state`, `done` | Save the session, with its diagram and AUTO's settings (.snapx). |
-| `auto.open_session` | `file`: required file (max 1024 bytes) | `d` / analysis | File/AUTO/Open diagram | `file`: `file`, `loaded`: `boolean` | `diagram`, `autoinfo`, `autosettings`, `state`, `done` | Open a saved session (.snapx), with its AUTO diagram. |
-| `auto.export_pdf` | `file`: optional file (max 1024 bytes), `window`: optional window (max 1024 bytes) | `d` / analysis | File/AUTO/PDF | `file`: `file` | `state`, `done` | Write a view of the diagram as a PDF picture. |
-| `auto.export_svg` | `file`: optional file (max 1024 bytes), `window`: optional window (max 1024 bytes) | `d` / analysis | File/AUTO/SVG | `file`: `file` | `state`, `done` | Write a view of the diagram as an SVG picture. |
-| `auto.reset_all` | none | `d` / analysis | AUTO/File/Reset diagram | `reset`: `boolean` | `diagram`, `autoview`, `state`, `done` | Destroy the diagram and AUTO's files. |
-| `auto.export_points` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/Write pts | `file`: `file`, `points_written`: `integer` | `state`, `done` | Write the diagram's points as the view plots them. |
-| `auto.export_all_info` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/All info | `file`: `file`, `written`: `integer` | `state`, `done` | Write every point with its parameters, extremes and eigenvalues. |
-| `auto.export_initial_data` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/init Data | `file`: `file`, `written`: `integer` | `state`, `done` | Write every point's main parameter and solution as initial data. |
-| `auto.set_auto_redraw` | `enabled`: required boolean | `v` / analysis | AUTO/File/Toggle redraw | `auto_redraw`: `boolean` | `state`, `done` | Redraw the diagram automatically when enabled. |
-| `auto.range_branch` | `branch`: required integer [at least 1], `first_point`: required integer [at least 1], `last_point`: required integer [at least 1] | `x` / analysis | AUTO/File/auto raNge | `runs_completed`: `integer` | `state`, `done` | Run the sweep over a stretch of a branch (its points first_point to last_point), once for each. |
-| `auto.select_2parameter_point` | `x`: optional real, `y`: optional real; all or none of `x`, `y` | `d` / analysis | AUTO/File/sElect 2par pt | `selected`: `boolean` | `state`, `done` | Set the two parameters to the point picked on a two-parameter plot, or to x and y. |
-| `auto.draw_labeled_orbits` | `mode`: required choice (off, draw, clear_and_draw) | `d` / analysis | AUTO/File/draw laBled | `orbits_drawn`: `choice` | `state`, `done` | Draw the orbits of the labelled points when grabbed: off, draw (no erase) or clear_and_draw. |
-| `auto.load_branch_into_browser` | `branch`: required integer [at least 1], `first_point`: required integer [at least 1], `last_point`: required integer [at least 1] | `d` / analysis | AUTO/File/lOad branch | `rows_loaded`: `integer` | `state`, `done` | Load a stretch of a branch (its points first_point to last_point) into the data browser. |
-| `auto.export_csv` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/eXport CSV | `file`: `file`, `points_written`: `integer` | `state`, `done` | Write the diagram and its eigenvalues as two CSV files. |
-| `auto.import_diagram` | `file`: required file (max 1024 bytes) | `d` / analysis | AUTO/File/Import diagram | `file`: `file`, `points_imported`: `integer` | `diagram`, `autoinfo`, `autosettings`, `state`, `done` | Import an XPPAUT diagram (.auto) into the open model. |
-| `plot.add_curve` | `window`: optional window (max 1024 bytes), `x`: required name (max 1024 bytes) [of column], `y`: required name (max 1024 bytes) [of column], `z`: optional name (max 1024 bytes) [of column], `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Curves/Add curve | `curve_index`: `integer` | `plots`, `series`, `state`, `done` | Add a curve to a graph: the data columns it plots (x, y and, in 3D, z) and its colour and line style; what is left out is the first curve's. |
-| `plot.delete_curve` | `window`: optional window (max 1024 bytes), `curve_index`: optional integer [at least 0] | `v` / plot | Plot/Curves/Delete last | `remaining_curves`: `integer` | `plots`, `state`, `done` | Delete a curve of a graph (the last one when curve_index is left out); the first curve is the graph's own and stays. |
-| `plot.delete_all_curves` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Curves/Remove all | `cleared`: `boolean` | `plots`, `state`, `done` | Delete every curve of a graph but the first. |
-| `plot.edit_curve` | `window`: optional window (max 1024 bytes), `curve_index`: required integer [at least 0], `x`: optional name (max 1024 bytes) [of column], `y`: optional name (max 1024 bytes) [of column], `z`: optional name (max 1024 bytes) [of column], `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Curves/Edit curve | `curve_index`: `integer`, `updated`: `boolean` | `plots`, `state`, `done` | Change a curve of a graph: its data columns, colour and line style; what is left out stays. |
-| `plot.freeze_curve` | `window`: optional window (max 1024 bytes), `name`: optional text (max 9 bytes), `key`: optional text (max 19 bytes), `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Freeze/Freeze | `slot`: `integer`, `name`: `text` | `plots`, `series`, `state`, `done` | Freeze the graph's first curve as it is now into a frozen curve of its own, with a legend key, a name, a colour and a line style. |
-| `plot.delete_frozen` | `window`: optional window (max 1024 bytes), `slot`: required integer [at least 0] | `v` / plot | Plot/Freeze/Delete | `slot`: `integer`, `deleted`: `boolean` | `plots`, `state`, `done` | Delete one of the graph's frozen curves, by its slot (freeze_curve and the marks event give it). |
-| `plot.edit_frozen` | `window`: optional window (max 1024 bytes), `slot`: required integer [at least 0], `name`: optional text (max 9 bytes), `key`: optional text (max 19 bytes), `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Freeze/Edit | `slot`: `integer`, `updated`: `boolean` | `plots`, `state`, `done` | Change one of the graph's frozen curves: its legend key, name, colour and line style; what is left out stays. |
-| `plot.delete_all_frozen` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Freeze/Remove all | `cleared`: `boolean` | `plots`, `state`, `done` | Delete every frozen curve of a graph. |
-| `plot.set_frozen_legend` | `window`: optional window (max 1024 bytes), `visible`: required boolean, `x`: optional real, `y`: optional real; all or none of `x`, `y` | `v` / plot | Plot/Freeze/Key | `legend_visible`: `boolean` | `plots`, `state`, `done` | Show or hide the frozen curves' legend; x and y, the plot coordinates of its first line, move it. |
-| `plot.import_bifurcation` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes) | `d` / plot | Plot/Freeze/Bif.Diag | `file`: `file`, `curves_imported`: `integer` | `plots`, `series`, `state`, `done` | Show an AUTO Write pts file of the model's folder (six columns, checked whole first) in the graph as curves by kind. |
-| `plot.clear_bifurcation` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Freeze/Clr. BD | `cleared`: `boolean` | `plots`, `state`, `done` | Remove the imported bifurcation diagram from the graph. |
-| `plot.set_auto_freeze` | `enabled`: required boolean | `s` / plot | Plot/Freeze/On freeze | `auto_freeze`: `boolean` | `state`, `done` | Freeze the first curve of a graph after every run. |
-| `plot.export_pdf` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes), `color`: optional boolean, `axes_font_size`: optional real [at least 1, at most 100] | `d` / plot | File/Curves/PDF | `file`: `file`, `bytes_written`: `integer` | `state`, `done` | Write the graph as a PDF picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay. |
-| `plot.export_svg` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes), `color`: optional boolean, `axes_font_size`: optional real [at least 1, at most 100] | `d` / plot | File/Curves/SVG | `file`: `file`, `bytes_written`: `integer` | `state`, `done` | Write the graph as an SVG picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay. |
-| `plot.export_data` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes), `format`: optional text (max 1024 bytes) | `d` / plot | File/Curves/export data | `file`: `file`, `rows_written`: `integer` | `state`, `done` | Write what the graph shows (its curves and frozen curves, as the columns curve, x, y and z in 3D) into a file of the model's folder, in the data format named by format (dat, csv, csv.gz, npz) or by the file's extension. |
-| `plot.set_axes_origin` | `window`: optional window (max 1024 bytes), `x_origin`: optional real, `y_origin`: optional real, `z_origin`: optional real, `x_origin_shown`: optional boolean, `y_origin_shown`: optional boolean, `z_origin_shown`: optional boolean, `axes_font_size`: optional real [at least 1, at most 100] | `v` / plot | Plot/Curves/axes opts | `origin_updated`: `boolean` | `plots`, `state`, `done` | Set where the graph's axes cross, whether each axis is drawn there, and the font size of the axes' text; what is left out stays. |
-| `plot.set_colormap` | `colormap`: required choice (jet, periodic, hot, cool, blue_red, gray, cubehelix, viridis, plasma, inferno, magma, cividis, coolwarm, rdbu, seismic, twilight, hsv, turbo, greys, blues, reds, greens, oranges, purples) | `s` / plot | Plot/Curves/Colormap | `colormap`: `choice` | `plots`, `state`, `done` | Set the session's colour scale, which the array plot, the direction field and the pictures use. |
-| `plot.set_2d` | `window`: optional window (max 1024 bytes), `x`: optional name (max 1024 bytes) [of column], `y`: optional name (max 1024 bytes) [of column], `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real, `x_label`: optional text (max 1024 bytes), `y_label`: optional text (max 1024 bytes) | `v` / plot | Plot/Axes/2D | `axes`: `choice`, `x`: `name`, `y`: `name` | `plots`, `state`, `done` | Make the graph a 2D plot of two data columns with these limits and labels; what is left out stays. |
-| `plot.set_3d` | `window`: optional window (max 1024 bytes), `x`: optional name (max 1024 bytes) [of column], `y`: optional name (max 1024 bytes) [of column], `z`: optional name (max 1024 bytes) [of column], `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real, `z_min`: optional real, `z_max`: optional real, `x_label`: optional text (max 1024 bytes), `y_label`: optional text (max 1024 bytes), `z_label`: optional text (max 1024 bytes), `window_x_min`: optional real, `window_x_max`: optional real, `window_y_min`: optional real, `window_y_max`: optional real | `v` / plot | Plot/Axes/3D | `axes`: `choice`, `x`: `name`, `y`: `name`, `z`: `name` | `plots`, `state`, `done` | Make the graph a 3D plot of three data columns with these limits, labels and window on the screen; what is left out stays. |
-| `plot.set_3d_view` | `window`: optional window (max 1024 bytes), `perspective`: optional boolean, `z_plane`: optional real, `z_view`: optional real, `theta`: optional real, `phi`: optional real, `movie`: optional boolean, `vary`: optional choice (theta, phi), `start_angle`: optional real, `increment`: optional real, `increments`: optional integer [at least 1] | `v` / plot | Plot/3D view | `view_updated`: `boolean` | `plots`, `state`, `done` | Set a 3D graph's perspective, planes and angles; movie true films the rotation as the angle named by vary goes from start_angle in increments steps of increment. |
-| `plot.set_shifted_axes` | `window`: optional window (max 1024 bytes), `x_shift`: optional integer [at least 0], `y_shift`: optional integer [at least 0], `z_shift`: optional integer [at least 0] | `s` / analysis | Plot/Numerics/rUelle plot | `x_shift`: `integer`, `y_shift`: `integer`, `z_shift`: `integer` | `plots`, `state`, `done` | Plot each axis of the graph that many rows behind (a Ruelle-Takens plot of delayed values); what is left out stays. |
-| `plot.variable_vs_time` | `window`: optional window (max 1024 bytes), `variable`: required name (max 1024 bytes) [of column] | `v` / plot | Plot/Variable vs time | `x`: `name`, `y`: `name` | `plots`, `state`, `done` | Plot a data column against time in the graph, its view fitted to the data. |
-| `plot.add_data_markers` | `window`: optional window (max 1024 bytes), `shape`: optional choice (box, diamond, triangle, plus, cross, circle), `color`: optional color (max 1024 bytes), `size`: optional real [at least 0], `count`: optional integer [at least 1], `first_row`: optional integer [at least 0], `stride`: optional integer [at least 1] | `v` / plot | Plot/Text,etc/marker(S) | `count`: `integer` | `marks`, `state`, `done` | Put count markers on the graph's first curve, every stride-th row from first_row; what is left out is the last Add markers' setting. |
-| `plot.set_variables` | `window`: optional window (max 1024 bytes), `how`: required choice (time_series, phase_plane, array_plot), `names`: required list [of variable, of name, at most 256] | `v` / plot | Plot/Set variables | `how`: `choice`, `names`: `list of name` | `plots`, `state`, `done` | Plot states of the model: time_series (each against time), phase_plane (two or three, the first on the x axis) or array_plot (from the first of two to the later). |
-| `equilibrium.find` | none | `x` / analysis | Analysis/Equilibria/Go | `converged`: `boolean`, `equilibrium`: `map[name, real]`, `eigenvalues`: `list[map[string, real]]`, `stability`: `choice` | `equilibrium`, `marks`, `series`, `state`, `done` | Find an equilibrium from the current initial conditions. |
-| `equilibrium.guess` | `coordinates`: required map [of variable, of real, at most 256], `window`: optional window (max 1024 bytes) | `x` / analysis | Analysis/Equilibria/Mouse | `converged`: `boolean`, `equilibrium`: `map[name, real]`, `eigenvalues`: `list[map[string, real]]`, `stability`: `choice` | `equilibrium`, `marks`, `series`, `state`, `done` | Find an equilibrium from a guess in plot coordinates. |
-| `equilibrium.range` | `parameter`: required name (max 16384 bytes) [of parameter], `start`: required real, `end`: required real, `steps`: required integer [at least 1, at most 2147483646], `shoot`: optional boolean, `stability_column`: optional integer [at least 0, at most the session's columns], `movie`: optional boolean, `monte_carlo`: optional boolean | `x` / analysis | Analysis/Equilibria/Range | `points_found`: `integer` | `equilibrium`, `marks`, `series`, `state`, `done` | Find equilibria over a parameter range. |
-| `equilibrium.search` | `append`: optional boolean, `guesses`: required integer [at least 1, at most 2147483647], `tolerance`: required real [at least 5e-324], `shoot`: optional boolean, `bounds`: required map [of variable, of list[real, 2], at most 256] | `x` / analysis | Analysis/Equilibria/Monte Carlo | `found`: `integer`, `equilibria`: `list[map[name, real]]` | `equilibrium`, `marks`, `series`, `state`, `done` | Search for equilibria within variable bounds. |
-| `equilibrium.import_as_ic` | none | `s` / analysis | Analysis/Equilibrium/Import | `applied`: `map[name, real]` | `equilibrium`, `marks`, `series`, `state`, `done` | Import the last equilibrium as initial conditions. |
+| `help` | `name`: optional text (max 1024 bytes) | `v` / tools | Help/Command reference | `commands`: `list[command]`, `events`: `list[event]` | `session.state`, `done` | Describe registered commands, or the command named by name; `help events` describes every event and its fields. |
+| `window.create` | `name`: optional new_name (max 1024 bytes) | `v` / plot | Windows/New graph | `window`: `window` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Create a graph copied from the active graph. |
+| `window.rename` | `window`: required window (max 1024 bytes), `name`: required new_name (max 1024 bytes) | `v` / plot | Windows/Window/Rename | `window`: `window`, `new_name`: `text` | `window.renamed`, `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Rename an open graph or diagram view. |
+| `window.select` | `window`: required window (max 1024 bytes) | `v` / plot | Windows/Window/Select | `window`: `window` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Bring an open window to front and select it. |
+| `window.hide` | `window`: optional window (max 1024 bytes) | `v` / plot | Windows/Window/Hide | `window`: `window`, `shown`: `boolean` | `session.state`, `done` | Hide a window: it keeps everything it holds and comes back with window.show. |
+| `window.show` | `window`: optional window (max 1024 bytes) | `v` / plot | Windows/Window/Show | `window`: `window`, `shown`: `boolean` | `session.state`, `done` | Show a hidden window exactly as it was. |
+| `window.destroy` | `window`: optional window (max 1024 bytes), `confirm`: optional boolean | `v` / plot | Windows/Make window/Destroy | `window`: `window`, `closed`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data browser stay; destroying an AUTO view keeps the diagram. |
+| `window.list` | none | `v` / plot | Windows/Window/List | `windows`: `list of {name, kind, shown}` | `session.state`, `done` | List every window with its name, kind and whether it is shown. |
+| `window.destroy_all` | none | `v` / plot | Windows/Make window/Kill all | `closed_count`: `integer` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Close every extra graph. |
+| `window.set_bounds` | `window`: optional window (max 1024 bytes), `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real | `v` / plot | Plot/Window/Window | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plot.shown`, `session.state`, `done` | Set the view's bounds; a bound left out keeps the view's. |
+| `window.zoom` | `window`: optional window (max 1024 bytes), `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real; all or none of `x_min`, `x_max`, `y_min`, `y_max` | `v` / plot | Plot/Window/Zoom In | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plot.shown`, `session.state`, `done` | Zoom in: the view becomes the box. |
+| `window.zoom_out` | `window`: optional window (max 1024 bytes), `factor`: optional real [at least 1], `center_x`: optional real, `center_y`: optional real, `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real; exactly one of `factor`, `x_min`; all or none of `x_min`, `x_max`, `y_min`, `y_max`; all or none of `center_x`, `center_y` | `v` / plot | Plot/Window/Zoom Out | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plot.shown`, `session.state`, `done` | Zoom out: the view grows by factor about a center (the view's own), or fills the box. |
+| `window.fit` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Window/Fit | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plot.shown`, `session.state`, `done` | Fit the view to the data. |
+| `window.reset_default` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Window/Default | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plot.shown`, `session.state`, `done` | Give the view its default bounds. |
+| `window.scroll` | `window`: optional window (max 1024 bytes), `dx`: required real, `dy`: required real | `v` / plot | Plot/Window/Scroll | `new_center`: `list of 2 real` | `plot.shown`, `session.state`, `done` | Move the view by dx and dy, in plot coordinates. |
+| `window.set_display` | `window`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier_runs`: optional boolean, `keep_replaced_run`: optional boolean | `v` / plot | Plot/Window/Set display | `x_range`: `list of 2 real, or []`, `y_range`: `list of 2 real, or []` | `plot.shown`, `session.state`, `done` | Set what the page shows of a graph: the x and y ranges ([] for the window's own), the earlier runs, keeping a replaced run. |
+| `window.redraw` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Redraw plot | `window`: `window`, `redrawn`: `boolean` | `plot.shown`, `session.state`, `done` | Draw a graph again from the stored data (and its nullclines, texts and frozen curves), or send an AUTO view's diagram again. |
+| `window.clear` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Clear plot | `window`: `window`, `cleared`: `boolean` | `plot.shown`, `session.state`, `done` | Clear a graph: its picture and earlier runs go until the next run. |
+| `window.send_to_bottom` | `window`: optional window (max 1024 bytes) | `v` / plot | Windows/Make window/Bottom | `window`: `window` | `session.state`, `done` | Send a graph to the bottom. |
+| `window.set_redraw_mode` | `window`: optional window (max 1024 bytes), `mode`: required choice (auto, manual) | `v` / plot | Plot/Make window/Auto or Manual | `redraw_mode`: `choice` | `session.state`, `done` | Choose automatic or manual graph redrawing. |
+| `window.set_simultaneous_plot` | `enabled`: required boolean | `v` / plot | Plot/Make window/SimPlot | `simultaneous_plot`: `boolean` | `session.state`, `done` | Draw on every open graph when enabled. |
+| `annotation.list` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Annotations | `window`: `window`, `text`: `list of texts`, `arrows`: `list of arrows and pointers`, `markers`: `list of markers` | `plot.marks`, `session.state`, `done` | List the texts, arrows, pointers and markers of a graph. |
+| `annotation.add_text` | `window`: optional window (max 1024 bytes), `text`: required text (max 1000 bytes), `x`: required real, `y`: required real, `text_size`: optional integer [at least 0, at most 4], `style`: optional choice (normal, bold, italic, bold_italic), `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Text | `id`: `integer` | `plot.marks`, `session.state`, `done` | Add a text at a point of a graph. |
+| `annotation.add_arrow` | `window`: optional window (max 1024 bytes), `tip_x`: required real, `tip_y`: required real, `tail_x`: required real, `tail_y`: required real, `size`: optional real [at least 0], `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Arrow | `id`: `integer` | `plot.marks`, `session.state`, `done` | Add an arrow head at the tip of a line. |
+| `annotation.add_pointer` | `window`: optional window (max 1024 bytes), `tip_x`: required real, `tip_y`: required real, `tail_x`: required real, `tail_y`: required real, `size`: optional real [at least 0], `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Pointer | `id`: `integer` | `plot.marks`, `session.state`, `done` | Add a pointer: a head and a shaft. |
+| `annotation.add_marker` | `window`: optional window (max 1024 bytes), `shape`: required choice (box, diamond, triangle, plus, cross, circle), `x`: required real, `y`: required real, `size`: optional real [at least 0], `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Marker | `id`: `integer` | `plot.marks`, `session.state`, `done` | Add a marker at a point of a graph. |
+| `annotation.edit` | `annotation_id`: required integer [at least 0, at most 2147483646], `text`: optional text (max 1000 bytes), `shape`: optional choice (box, diamond, triangle, plus, cross, circle), `size`: optional real [at least 0], `text_size`: optional integer [at least 0, at most 4], `style`: optional choice (normal, bold, italic, bold_italic), `color`: optional color (max 1024 bytes) | `v` / plot | Plot/Annotations/Edit/Change | `id`: `integer`, `updated`: `boolean` | `plot.marks`, `session.state`, `done` | Change a text (its text, size, style, colour) or an object (its size, colour, a marker's shape). |
+| `annotation.move` | `annotation_id`: required integer [at least 0, at most 2147483646], `new_x`: required real, `new_y`: required real | `v` / plot | Plot/Annotations/Edit/Move | `id`: `integer`, `moved`: `boolean` | `plot.marks`, `session.state`, `done` | Move an annotation so that its position (an object's start, its end following) is the point. |
+| `annotation.delete` | `annotation_id`: required integer [at least 0, at most 2147483646] | `v` / plot | Plot/Annotations/Edit/Delete | `id`: `integer`, `deleted`: `boolean` | `plot.marks`, `session.state`, `done` | Delete an annotation. |
+| `annotation.delete_all` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Annotations/Delete all | `cleared`: `boolean` | `plot.marks`, `session.state`, `done` | Delete every annotation of a graph. |
+| `run.initial` | none | `x` / run | Run/Run from initial | `status`: `choice`, `steps`: `integer`, `time`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run from the initial values. |
+| `run.last` | `reset_integrals`: optional boolean | `x` / run | Run/Run from last state | `status`: `choice`, `steps`: `integer`, `time`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Make the last state the initial values and run from it. |
+| `run.old` | none | `x` / run | Run/Run from stored initial | `status`: `choice`, `steps`: `integer`, `time`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run from the initial values as they stand, without refreshing the DAE guesses first. |
+| `run.continue` | `until`: optional real, `extra`: optional real; at most one of `until`, `extra` | `x` / run | Run/Continue | `status`: `choice`, `end_time`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Extend the trajectory to an end time, by a duration, or by the run's total time. |
+| `run.steady` | `decimals`: required integer [at least 0, at most 15], `hold`: required real, `maximum`: required real | `x` / run | Run/Steady | `status`: `choice`, `decimals`: `integer`, `time`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run from the initial values until every state stops changing at the chosen decimals. |
+| `run.backward` | none | `x` / run | Run/Run backward | `status`: `choice`, `steps`: `integer`, `time`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run from the initial values backward in time. |
+| `run.shift` | `reset_integrals`: optional boolean | `x` / run | Run/Initialconds/Shift | `status`: `choice`, `steps`: `integer`, `time`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run from the last state with the clock going on from where it stopped. |
+| `run.range` | `variable`: optional name (max 1024 bytes) [of either], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / run | Run/Initialconds/Range | `runs_completed`: `integer`, `total_steps`: `integer` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run once for each value of a parameter or variable between two values. |
+| `run.double_range` | `variable1`: optional name (max 1024 bytes) [of either], `start1`: optional real, `end1`: optional real, `variable2`: optional name (max 1024 bytes) [of either], `start2`: optional real, `end2`: optional real, `steps1`: optional integer [at least 1], `steps2`: optional integer [at least 1], `vary`: optional choice (together, independently), `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / run | Run/Initialconds/2par range | `grid_points`: `integer`, `total_steps`: `integer` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run once for each pair of values of two parameters or variables. |
+| `run.dae_guess` | `guesses`: optional map [of any, of expression, at most 256] | `s` / run | Run/Initialconds/DAE guess | `guesses`: `map[name, real]` | `session.state`, `done` | Set the initial guesses of the algebraic variables; none given keeps them. |
+| `run.abort` | none | `c` / run | Run/Stop | `stopped_at`: `real` | `job.stopped`, `done` | Stop the running command where it is; the stopped command ends with the status stopped. |
+| `run.configure` | `total_time`: optional real, `start_time`: optional real, `store_from`: optional real, `dt`: optional real, `method`: optional text (max 1024 bytes), `store_every`: optional integer [at least 1], `state_limit`: optional real, `stop_at_limit`: optional boolean, `delay`: optional real, `relative_tolerance`: optional real, `absolute_tolerance`: optional real, `min_step`: optional real, `max_step`: optional real, `eul_tol`: optional real, `eul_iter`: optional integer [at least 1], `vmaxpts`: optional integer [at least 1, at most 10000000], `autoeval`: optional boolean, `bandlo`: optional integer [at least 0, at most 100000], `bandup`: optional integer [at least 0, at most 100000], `delay_real_guess`: optional real, `delay_imaginary_guess`: optional real, `delay_grid`: optional integer [at least 1] | `s` / run | Run/Settings | `settings`: `map[name, value]` | `run.numerics`, `session.state`, `done` | Set the integration's numerics (run length, step, method, tolerances, bounds, delay); the settings are checked together. |
+| `run.shoot` | `manifold_index`: required integer [at least 1] | `x` / run | Run/Initialconds/sHoot | `status`: `choice`, `steps`: `integer`, `time`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run from a manifold the equilibria's shooting found. |
+| `ic.set` | `values`: required map [of variable, of real, at most 256] | `s` / run | Run/Initial conditions/New | `applied`: `map[name, real]` | `session.state`, `done` | Set the initial values of some states; the others keep theirs. |
+| `ic.at` | `coordinates`: required map [of variable, of real, at most 256], `window`: optional window (max 1024 bytes) | `x` / run | Run/Initial conditions/Mouse | `applied`: `map[name, real]` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run from a point of a graph: the two states it plots take the coordinates, the others their initial values. |
+| `ic.mouse_stream` | `x`: required list [of real, at most 256], `y`: required list [of real, at most 256], `window`: optional window (max 1024 bytes) | `x` / run | Run/Initial conditions/mIce | `trajectories_run`: `integer` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run from each point of a graph in turn, x and y the coordinates of the two states it plots; the runs add up on the graph. |
+| `ic.load` | `file`: required file (max 1024 bytes) | `s` / run | Run/Initial conditions/File | `file`: `file`, `applied`: `map[name, real]` | `session.state`, `done` | Read the initial values from a file of the model's folder, one number per differential equation. |
+| `ic.formula` | `variable`: required text (max 1024 bytes), `formula`: required text (max 1024 bytes) | `s` / run | Run/Initial conditions/formUla | `variable`: `text`, `formula`: `text` | `session.state`, `done` | Set a state's initial value to a formula, or an array range u[1..5] to a formula reading [j] as the element's number. |
+| `ic.from_data_row` | `row`: required integer [at least 0] | `s` / run | Run/Data/Get | `row`: `integer`, `values`: `map[name, real]` | `session.state`, `done` | Make a row of the stored data (the first is 0) the initial values. |
+| `ic.array` | `name`: required name (max 1024 bytes) [of variable], `size`: required integer [at least 1], `formula`: required expression (max 1024 bytes) | `s` / run | Run/Initial conditions/formUla | `name`: `name`, `size`: `integer` | `session.state`, `done` | Set size states from a state on to a formula of t, the element's offset from the first. |
+| `bvp.solve_range` | `parameter`: optional name (max 1024 bytes) [of parameter], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `cycle_color`: optional boolean, `side`: optional choice (start, end), `movie`: optional boolean | `x` / analysis | Run/Boundary values/Range | `solutions_found`: `integer` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Solve the boundary value problem for each value of a parameter between two values, storing a solution's start or end for each. |
+| `bvp.solve` | `show`: required boolean | `x` / analysis | Run/Boundary values/No show, Show | `converged`: `boolean` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Solve the boundary value problem from the initial values by shooting and make the solution the initial values; show draws every step. |
+| `bvp.solve_periodic` | `frequency_parameter`: required name (max 1024 bytes) [of parameter], `section_variable`: required name (max 1024 bytes) [of variable], `section`: required real, `show`: required boolean | `x` / analysis | Run/Boundary values/Periodic | `converged`: `boolean`, `period`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Solve for a periodic orbit whose period is the frequency parameter, held to a section of one variable. |
+| `bvp.configure` | `max_iterates`: optional integer [at least 1], `tolerance`: optional real, `epsilon`: optional real | `s` / analysis | Run/Numerics/bndVal | `settings`: `map[name, value]` | `run.numerics`, `session.state`, `done` | Set the shooting's iteration limit, tolerance and finite-difference step; the settings are checked together. |
+| `auto.open` | none | `v` / analysis | AUTO/Open AUTO | `open`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `auto.diagram`, `session.state`, `done` | Open the AUTO window, the bifurcation package. |
+| `auto.run` | `kind`: required choice (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic), `switch`: optional boolean, `label`: optional integer [at least 1], `type`: optional text (max 1024 bytes), `index`: optional integer [at least 1], `decimals`: optional integer [at least 0], `hold`: optional real [at least 0], `maximum`: optional real [at least 0], `replace_diagram`: optional boolean, `unstable_dimension`: optional integer [at least 0], `stable_dimension`: optional integer [at least 0], `left_equilibrium`: optional list [of real, at most 256], `right_equilibrium`: optional list [of real, at most 256], `mesh_intervals`: optional integer, `max_steps`: optional integer, `output_every`: optional integer, `collocation_points`: optional integer, `step_size`: optional real, `min_step_size`: optional real, `max_step_size`: optional real, `parameter_min`: optional real, `parameter_max`: optional real, `norm_min`: optional real, `norm_max`: optional real, `parameter_tolerance`: optional real, `state_tolerance`: optional real, `special_point_tolerance`: optional real, `mesh_adapt_every`: optional integer, `max_branch_switches`: optional integer, `switch_one_direction`: optional boolean, `output_detail`: optional choice (none, little, normal, start_jacobian, extensive, debugging), `max_location_iterations`: optional integer, `max_newton_iterations`: optional integer, `full_newton_after`: optional integer, `step_adapt_every`: optional integer, `suppress_branch_points`: optional boolean; at most one of `label`, `type`, `decimals`; all or none of `type`, `index`; all or none of `decimals`, `hold`, `maximum` | `x` / analysis | AUTO/Run | `points_computed`: `integer`, `branches_tracked`: `integer` | `auto.diagram`, `auto.info`, `auto.settings`, `session.state`, `done` | Run AUTO from the current state or a stored point: its kind (what is computed), switch for a branch switch, its start (a label, a point type and index, or the current state, optionally settled first), the settings of this run only (ds's sign is the direction) and the equilibria of a homoclinic start. The start point's type decides which kinds fit it: hello's auto_run table, and autoinfo's start. |
+| `auto.grab` | `label`: optional integer [at least 1], `type`: optional text (max 1024 bytes), `index`: optional integer [at least 1]; at most one of `label`, `type`; all or none of `type`, `index` | `d` / analysis | AUTO/Grab | `grabbed`: `boolean`, `label`: `integer`, `type`: `text`, `branch`: `integer`, `point`: `integer` | `auto.info`, `auto.diagram`, `session.state`, `done` | Grab a stored point by label or type and index; omit both to pick it on the diagram. |
+| `auto.configure_numerics` | `mesh_intervals`: optional integer, `max_steps`: optional integer, `output_every`: optional integer, `collocation_points`: optional integer, `step_size`: optional real, `min_step_size`: optional real, `max_step_size`: optional real, `parameter_min`: optional real, `parameter_max`: optional real, `norm_min`: optional real, `norm_max`: optional real, `parameter_tolerance`: optional real, `state_tolerance`: optional real, `special_point_tolerance`: optional real, `mesh_adapt_every`: optional integer, `max_branch_switches`: optional integer, `switch_one_direction`: optional boolean, `output_detail`: optional choice (none, little, normal, start_jacobian, extensive, debugging), `max_location_iterations`: optional integer, `max_newton_iterations`: optional integer, `full_newton_after`: optional integer, `step_adapt_every`: optional integer, `suppress_branch_points`: optional boolean, `special_points`: optional map [of boolean, at most 256] | `s` / analysis | AUTO/Numerics | `settings_updated`: `boolean` | `auto.settings`, `session.state`, `done` | Set AUTO's Numerics by their names (mesh_intervals, step_size, ...) and the codimension-two points it detects (special_points), all or nothing. |
+| `auto.configure_plot` | `plot_type`: optional choice (maximum, norm, maximum_and_minimum, period, two_parameter, frequency, average), `variable`: optional name (max 1024 bytes) [of variable], `parameter1`: optional name (max 1024 bytes) [of parameter], `parameter2`: optional name (max 1024 bytes) [of parameter], `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real, `view`: optional window (max 1024 bytes), `fit`: optional boolean | `s` / analysis | AUTO/Axes | `plot_configured`: `boolean` | `auto.settings`, `session.state`, `done` | Set what a view of the diagram plots: the plot type, the variable, the two parameters and the ranges, optionally fitted afterwards. |
+| `auto.configure_marks` | `parameters`: required list [of text, at most 256], `values`: required list [of real, at most 256] | `s` / analysis | AUTO/Usr period | `marks_count`: `integer` | `auto.settings`, `session.state`, `done` | Set the Mark values: the parameters (or T, the period) and the values at which AUTO labels a point. |
+| `auto.set_threads` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean; exactly one of `threads`, `automatic` | `s` / analysis | AUTO/Numerics | `threads`: `integer`, `automatic`: `boolean` | `auto.settings`, `session.state`, `done` | Set AUTO's thread count, a preference of the program: a count, or automatic. |
+| `auto.hide_earlier` | none | `v` / analysis | AUTO/Clear | `hidden_points`: `integer` | `auto.diagram`, `auto.view`, `session.state`, `done` | Hide the branches so far: new runs draw alone until set_display shows them again. |
+| `auto.redraw` | none | `v` / analysis | AUTO/Redraw | `redrawn`: `boolean` | `auto.diagram`, `auto.view`, `session.state`, `done` | Draw the diagram again. |
+| `auto.pick` | `x`: required real, `y`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/AUTO diagram/Click | `x`: `real`, `y`: `real` | `auto.info`, `auto.diagram`, `session.state`, `done` | A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot. |
+| `auto.set_display` | `view`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier`: optional boolean | `v` / analysis | AUTO/Auto/Set display | `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Set what the page shows of a view: its zoom (a [low, high] range, [] for the whole range of an axis) and whether the hidden branches are drawn. |
+| `auto.new_view` | none | `v` / analysis | Windows/New AUTO view | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Add a view of the diagram, with the axes of the active one; it becomes the active view. |
+| `auto.use_last_plot` | `parameters`: required choice (one, two), `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Last plot | `plot`: `choice` | `auto.diagram`, `auto.view`, `session.state`, `done` | Go back to the last one-parameter or two-parameter plot's axes. |
+| `auto.scroll` | `dx`: required real, `dy`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Scroll | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Move the view's visible ranges by dx and dy, in the plotted quantities. |
+| `auto.default_view` | `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Default | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Give the view the model's own diagram ranges. |
+| `auto.fit` | `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Fit | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Fit the view to the diagram. |
+| `auto.zoom` | `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Zoom in | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Zoom the view in to a box of its plotted quantities. |
+| `auto.zoom_out` | `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Zoom out | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Zoom the view out so that what it shows now fills a box of its plotted quantities. |
+| `auto.clear_grab` | none | `d` / analysis | AUTO/File/Clear grab | `cleared`: `boolean` | `auto.info`, `auto.diagram`, `session.state`, `done` | Forget the grabbed point: a following run starts from the current state. |
+| `auto.load_orbit_into_browser` | `label`: optional integer [at least 1] | `d` / analysis | AUTO/File/Import orbit | `orbit_loaded`: `boolean`, `rows`: `integer` | `session.state`, `done` | Load the stored orbit of a labelled point (the grabbed one without label) into the data browser. |
+| `auto.save_session` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/Save diagram | `file`: `file`, `saved`: `boolean` | `session.state`, `done` | Save the session, with its diagram and AUTO's settings (.snapx). |
+| `auto.open_session` | `file`: required file (max 1024 bytes) | `d` / analysis | File/AUTO/Open diagram | `file`: `file`, `loaded`: `boolean` | `auto.diagram`, `auto.info`, `auto.settings`, `session.state`, `done` | Open a saved session (.snapx), with its AUTO diagram. |
+| `auto.export_pdf` | `file`: optional file (max 1024 bytes), `window`: optional window (max 1024 bytes) | `d` / analysis | File/AUTO/PDF | `file`: `file` | `session.state`, `done` | Write a view of the diagram as a PDF picture. |
+| `auto.export_svg` | `file`: optional file (max 1024 bytes), `window`: optional window (max 1024 bytes) | `d` / analysis | File/AUTO/SVG | `file`: `file` | `session.state`, `done` | Write a view of the diagram as an SVG picture. |
+| `auto.reset_all` | none | `d` / analysis | AUTO/File/Reset diagram | `reset`: `boolean` | `auto.diagram`, `auto.view`, `session.state`, `done` | Destroy the diagram and AUTO's files. |
+| `auto.export_points` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/Write pts | `file`: `file`, `points_written`: `integer` | `session.state`, `done` | Write the diagram's points as the view plots them. |
+| `auto.export_all_info` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/All info | `file`: `file`, `written`: `integer` | `session.state`, `done` | Write every point with its parameters, extremes and eigenvalues. |
+| `auto.export_initial_data` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/init Data | `file`: `file`, `written`: `integer` | `session.state`, `done` | Write every point's main parameter and solution as initial data. |
+| `auto.set_auto_redraw` | `enabled`: required boolean | `v` / analysis | AUTO/File/Toggle redraw | `auto_redraw`: `boolean` | `session.state`, `done` | Redraw the diagram automatically when enabled. |
+| `auto.range_branch` | `branch`: required integer [at least 1], `first_point`: required integer [at least 1], `last_point`: required integer [at least 1] | `x` / analysis | AUTO/File/auto raNge | `runs_completed`: `integer` | `session.state`, `done` | Run the sweep over a stretch of a branch (its points first_point to last_point), once for each. |
+| `auto.select_2parameter_point` | `x`: optional real, `y`: optional real; all or none of `x`, `y` | `d` / analysis | AUTO/File/sElect 2par pt | `selected`: `boolean` | `session.state`, `done` | Set the two parameters to the point picked on a two-parameter plot, or to x and y. |
+| `auto.draw_labeled_orbits` | `mode`: required choice (off, draw, clear_and_draw) | `d` / analysis | AUTO/File/draw laBled | `orbits_drawn`: `choice` | `session.state`, `done` | Draw the orbits of the labelled points when grabbed: off, draw (no erase) or clear_and_draw. |
+| `auto.load_branch_into_browser` | `branch`: required integer [at least 1], `first_point`: required integer [at least 1], `last_point`: required integer [at least 1] | `d` / analysis | AUTO/File/lOad branch | `rows_loaded`: `integer` | `session.state`, `done` | Load a stretch of a branch (its points first_point to last_point) into the data browser. |
+| `auto.export_csv` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/eXport CSV | `file`: `file`, `points_written`: `integer` | `session.state`, `done` | Write the diagram and its eigenvalues as two CSV files. |
+| `auto.import_diagram` | `file`: required file (max 1024 bytes) | `d` / analysis | AUTO/File/Import diagram | `file`: `file`, `points_imported`: `integer` | `auto.diagram`, `auto.info`, `auto.settings`, `session.state`, `done` | Import an XPPAUT diagram (.auto) into the open model. |
+| `plot.add_curve` | `window`: optional window (max 1024 bytes), `x`: required name (max 1024 bytes) [of column], `y`: required name (max 1024 bytes) [of column], `z`: optional name (max 1024 bytes) [of column], `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Curves/Add curve | `curve_index`: `integer` | `plot.shown`, `plot.series`, `session.state`, `done` | Add a curve to a graph: the data columns it plots (x, y and, in 3D, z) and its colour and line style; what is left out is the first curve's. |
+| `plot.delete_curve` | `window`: optional window (max 1024 bytes), `curve_index`: optional integer [at least 0] | `v` / plot | Plot/Curves/Delete last | `remaining_curves`: `integer` | `plot.shown`, `session.state`, `done` | Delete a curve of a graph (the last one when curve_index is left out); the first curve is the graph's own and stays. |
+| `plot.delete_all_curves` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Curves/Remove all | `cleared`: `boolean` | `plot.shown`, `session.state`, `done` | Delete every curve of a graph but the first. |
+| `plot.edit_curve` | `window`: optional window (max 1024 bytes), `curve_index`: required integer [at least 0], `x`: optional name (max 1024 bytes) [of column], `y`: optional name (max 1024 bytes) [of column], `z`: optional name (max 1024 bytes) [of column], `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Curves/Edit curve | `curve_index`: `integer`, `updated`: `boolean` | `plot.shown`, `session.state`, `done` | Change a curve of a graph: its data columns, colour and line style; what is left out stays. |
+| `plot.freeze_curve` | `window`: optional window (max 1024 bytes), `name`: optional text (max 9 bytes), `key`: optional text (max 19 bytes), `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Freeze/Freeze | `slot`: `integer`, `name`: `text` | `plot.shown`, `plot.series`, `session.state`, `done` | Freeze the graph's first curve as it is now into a frozen curve of its own, with a legend key, a name, a colour and a line style. |
+| `plot.delete_frozen` | `window`: optional window (max 1024 bytes), `slot`: required integer [at least 0] | `v` / plot | Plot/Freeze/Delete | `slot`: `integer`, `deleted`: `boolean` | `plot.shown`, `session.state`, `done` | Delete one of the graph's frozen curves, by its slot (freeze_curve and the marks event give it). |
+| `plot.edit_frozen` | `window`: optional window (max 1024 bytes), `slot`: required integer [at least 0], `name`: optional text (max 9 bytes), `key`: optional text (max 19 bytes), `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Freeze/Edit | `slot`: `integer`, `updated`: `boolean` | `plot.shown`, `session.state`, `done` | Change one of the graph's frozen curves: its legend key, name, colour and line style; what is left out stays. |
+| `plot.delete_all_frozen` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Freeze/Remove all | `cleared`: `boolean` | `plot.shown`, `session.state`, `done` | Delete every frozen curve of a graph. |
+| `plot.set_frozen_legend` | `window`: optional window (max 1024 bytes), `visible`: required boolean, `x`: optional real, `y`: optional real; all or none of `x`, `y` | `v` / plot | Plot/Freeze/Key | `legend_visible`: `boolean` | `plot.shown`, `session.state`, `done` | Show or hide the frozen curves' legend; x and y, the plot coordinates of its first line, move it. |
+| `plot.import_bifurcation` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes) | `d` / plot | Plot/Freeze/Bif.Diag | `file`: `file`, `curves_imported`: `integer` | `plot.shown`, `plot.series`, `session.state`, `done` | Show an AUTO Write pts file of the model's folder (six columns, checked whole first) in the graph as curves by kind. |
+| `plot.clear_bifurcation` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Freeze/Clr. BD | `cleared`: `boolean` | `plot.shown`, `session.state`, `done` | Remove the imported bifurcation diagram from the graph. |
+| `plot.set_auto_freeze` | `enabled`: required boolean | `s` / plot | Plot/Freeze/On freeze | `auto_freeze`: `boolean` | `session.state`, `done` | Freeze the first curve of a graph after every run. |
+| `plot.export_pdf` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes), `color`: optional boolean, `axes_font_size`: optional real [at least 1, at most 100] | `d` / plot | File/Curves/PDF | `file`: `file`, `bytes_written`: `integer` | `session.state`, `done` | Write the graph as a PDF picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay. |
+| `plot.export_svg` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes), `color`: optional boolean, `axes_font_size`: optional real [at least 1, at most 100] | `d` / plot | File/Curves/SVG | `file`: `file`, `bytes_written`: `integer` | `session.state`, `done` | Write the graph as an SVG picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay. |
+| `plot.export_data` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes), `format`: optional text (max 1024 bytes) | `d` / plot | File/Curves/export data | `file`: `file`, `rows_written`: `integer` | `session.state`, `done` | Write what the graph shows (its curves and frozen curves, as the columns curve, x, y and z in 3D) into a file of the model's folder, in the data format named by format (dat, csv, csv.gz, npz) or by the file's extension. |
+| `plot.set_axes_origin` | `window`: optional window (max 1024 bytes), `x_origin`: optional real, `y_origin`: optional real, `z_origin`: optional real, `x_origin_shown`: optional boolean, `y_origin_shown`: optional boolean, `z_origin_shown`: optional boolean, `axes_font_size`: optional real [at least 1, at most 100] | `v` / plot | Plot/Curves/axes opts | `origin_updated`: `boolean` | `plot.shown`, `session.state`, `done` | Set where the graph's axes cross, whether each axis is drawn there, and the font size of the axes' text; what is left out stays. |
+| `plot.set_colormap` | `colormap`: required choice (jet, periodic, hot, cool, blue_red, gray, cubehelix, viridis, plasma, inferno, magma, cividis, coolwarm, rdbu, seismic, twilight, hsv, turbo, greys, blues, reds, greens, oranges, purples) | `s` / plot | Plot/Curves/Colormap | `colormap`: `choice` | `plot.shown`, `session.state`, `done` | Set the session's colour scale, which the array plot, the direction field and the pictures use. |
+| `plot.set_2d` | `window`: optional window (max 1024 bytes), `x`: optional name (max 1024 bytes) [of column], `y`: optional name (max 1024 bytes) [of column], `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real, `x_label`: optional text (max 1024 bytes), `y_label`: optional text (max 1024 bytes) | `v` / plot | Plot/Axes/2D | `axes`: `choice`, `x`: `name`, `y`: `name` | `plot.shown`, `session.state`, `done` | Make the graph a 2D plot of two data columns with these limits and labels; what is left out stays. |
+| `plot.set_3d` | `window`: optional window (max 1024 bytes), `x`: optional name (max 1024 bytes) [of column], `y`: optional name (max 1024 bytes) [of column], `z`: optional name (max 1024 bytes) [of column], `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real, `z_min`: optional real, `z_max`: optional real, `x_label`: optional text (max 1024 bytes), `y_label`: optional text (max 1024 bytes), `z_label`: optional text (max 1024 bytes), `window_x_min`: optional real, `window_x_max`: optional real, `window_y_min`: optional real, `window_y_max`: optional real | `v` / plot | Plot/Axes/3D | `axes`: `choice`, `x`: `name`, `y`: `name`, `z`: `name` | `plot.shown`, `session.state`, `done` | Make the graph a 3D plot of three data columns with these limits, labels and window on the screen; what is left out stays. |
+| `plot.set_3d_view` | `window`: optional window (max 1024 bytes), `perspective`: optional boolean, `z_plane`: optional real, `z_view`: optional real, `theta`: optional real, `phi`: optional real, `movie`: optional boolean, `vary`: optional choice (theta, phi), `start_angle`: optional real, `increment`: optional real, `increments`: optional integer [at least 1] | `v` / plot | Plot/3D view | `view_updated`: `boolean` | `plot.shown`, `session.state`, `done` | Set a 3D graph's perspective, planes and angles; movie true films the rotation as the angle named by vary goes from start_angle in increments steps of increment. |
+| `plot.set_shifted_axes` | `window`: optional window (max 1024 bytes), `x_shift`: optional integer [at least 0], `y_shift`: optional integer [at least 0], `z_shift`: optional integer [at least 0] | `s` / analysis | Plot/Numerics/rUelle plot | `x_shift`: `integer`, `y_shift`: `integer`, `z_shift`: `integer` | `plot.shown`, `session.state`, `done` | Plot each axis of the graph that many rows behind (a Ruelle-Takens plot of delayed values); what is left out stays. |
+| `plot.variable_vs_time` | `window`: optional window (max 1024 bytes), `variable`: required name (max 1024 bytes) [of column] | `v` / plot | Plot/Variable vs time | `x`: `name`, `y`: `name` | `plot.shown`, `session.state`, `done` | Plot a data column against time in the graph, its view fitted to the data. |
+| `plot.add_data_markers` | `window`: optional window (max 1024 bytes), `shape`: optional choice (box, diamond, triangle, plus, cross, circle), `color`: optional color (max 1024 bytes), `size`: optional real [at least 0], `count`: optional integer [at least 1], `first_row`: optional integer [at least 0], `stride`: optional integer [at least 1] | `v` / plot | Plot/Text,etc/marker(S) | `count`: `integer` | `plot.marks`, `session.state`, `done` | Put count markers on the graph's first curve, every stride-th row from first_row; what is left out is the last Add markers' setting. |
+| `plot.set_variables` | `window`: optional window (max 1024 bytes), `how`: required choice (time_series, phase_plane, array_plot), `names`: required list [of variable, of name, at most 256] | `v` / plot | Plot/Set variables | `how`: `choice`, `names`: `list of name` | `plot.shown`, `session.state`, `done` | Plot states of the model: time_series (each against time), phase_plane (two or three, the first on the x axis) or array_plot (from the first of two to the later). |
+| `equilibrium.find` | none | `x` / analysis | Analysis/Equilibria/Go | `converged`: `boolean`, `equilibrium`: `map[name, real]`, `eigenvalues`: `list[map[string, real]]`, `stability`: `choice` | `equilibrium.found`, `plot.marks`, `plot.series`, `session.state`, `done` | Find an equilibrium from the current initial conditions. |
+| `equilibrium.guess` | `coordinates`: required map [of variable, of real, at most 256], `window`: optional window (max 1024 bytes) | `x` / analysis | Analysis/Equilibria/Mouse | `converged`: `boolean`, `equilibrium`: `map[name, real]`, `eigenvalues`: `list[map[string, real]]`, `stability`: `choice` | `equilibrium.found`, `plot.marks`, `plot.series`, `session.state`, `done` | Find an equilibrium from a guess in plot coordinates. |
+| `equilibrium.range` | `parameter`: required name (max 16384 bytes) [of parameter], `start`: required real, `end`: required real, `steps`: required integer [at least 1, at most 2147483646], `shoot`: optional boolean, `stability_column`: optional integer [at least 0, at most the session's columns], `movie`: optional boolean, `monte_carlo`: optional boolean | `x` / analysis | Analysis/Equilibria/Range | `points_found`: `integer` | `equilibrium.found`, `plot.marks`, `plot.series`, `session.state`, `done` | Find equilibria over a parameter range. |
+| `equilibrium.search` | `append`: optional boolean, `guesses`: required integer [at least 1, at most 2147483647], `tolerance`: required real [at least 5e-324], `shoot`: optional boolean, `bounds`: required map [of variable, of list[real, 2], at most 256] | `x` / analysis | Analysis/Equilibria/Monte Carlo | `found`: `integer`, `equilibria`: `list[map[name, real]]` | `equilibrium.found`, `plot.marks`, `plot.series`, `session.state`, `done` | Search for equilibria within variable bounds. |
+| `equilibrium.import_as_ic` | none | `s` / analysis | Analysis/Equilibrium/Import | `applied`: `map[name, real]` | `equilibrium.found`, `plot.marks`, `plot.series`, `session.state`, `done` | Import the last equilibrium as initial conditions. |
 | `equilibrium.export` | `file`: required file (max 1024 bytes), `shoot`: optional boolean, `confirm`: optional boolean | `d` / analysis | Analysis/export | `file`: `file`, `written`: `boolean` | `done` | Write the equilibrium and its eigenvalues. |
-| `equilibrium.configure` | `max_iterates`: optional integer [at least 1, at most 2147483647], `newton_tolerance`: optional real, `jacobian_epsilon`: optional real, `search_limit`: optional real, `print_eigenvalues`: optional boolean, `draw_invariant_sets`: optional boolean, `draw_strong_sets`: optional boolean | `s` / analysis | Analysis/Equilibria/Settings | `settings`: `map[string, real]`, `print_eigenvalues`: `boolean`, `draw_invariant_sets`: `boolean`, `draw_strong_sets`: `boolean` | `equilibrium`, `marks`, `series`, `state`, `done` | Configure the equilibrium search: Newton's method and what a found point prints and draws. |
-| `nullcline.compute` | none | `x` / analysis | Analysis/Nullclines/New | `curves_computed`: `integer` | `nullclines`, `state`, `done` | Compute the phase plane's nullclines. |
-| `nullcline.redraw` | none | `v` / analysis | Analysis/Nullclines/Restore | `drawn`: `boolean` | `nullclines`, `state`, `done` | Draw stored nullclines again. |
-| `nullcline.auto_mode` | `enabled`: required boolean | `v` / analysis | Analysis/Nullclines/Auto or Manual | `auto_redraw`: `boolean` | `nullclines`, `state`, `done` | Set automatic nullcline redrawing. |
-| `nullcline.freeze` | none | `v` / analysis | Analysis/Nullclines/Freeze/Freeze | `frozen_curves_count`: `integer` | `nullclines`, `state`, `done` | Freeze the current nullclines. |
-| `nullcline.clear_frozen` | none | `v` / analysis | Analysis/Nullclines/Freeze/Delete all | `cleared`: `boolean` | `nullclines`, `state`, `done` | Clear frozen nullclines. |
-| `nullcline.range_freeze` | `parameter`: required name (max 16384 bytes) [of parameter], `start`: required real, `end`: required real, `steps`: required integer [at least 1, at most 9999] | `x` / analysis | Analysis/Nullclines/Freeze/Range | `steps_frozen`: `integer` | `nullclines`, `state`, `done` | Freeze nullclines over a parameter range. |
+| `equilibrium.configure` | `max_iterates`: optional integer [at least 1, at most 2147483647], `newton_tolerance`: optional real, `jacobian_epsilon`: optional real, `search_limit`: optional real, `print_eigenvalues`: optional boolean, `draw_invariant_sets`: optional boolean, `draw_strong_sets`: optional boolean | `s` / analysis | Analysis/Equilibria/Settings | `settings`: `map[string, real]`, `print_eigenvalues`: `boolean`, `draw_invariant_sets`: `boolean`, `draw_strong_sets`: `boolean` | `equilibrium.found`, `plot.marks`, `plot.series`, `session.state`, `done` | Configure the equilibrium search: Newton's method and what a found point prints and draws. |
+| `nullcline.compute` | none | `x` / analysis | Analysis/Nullclines/New | `curves_computed`: `integer` | `nullcline.curves`, `session.state`, `done` | Compute the phase plane's nullclines. |
+| `nullcline.redraw` | none | `v` / analysis | Analysis/Nullclines/Restore | `drawn`: `boolean` | `nullcline.curves`, `session.state`, `done` | Draw stored nullclines again. |
+| `nullcline.auto_mode` | `enabled`: required boolean | `v` / analysis | Analysis/Nullclines/Auto or Manual | `auto_redraw`: `boolean` | `nullcline.curves`, `session.state`, `done` | Set automatic nullcline redrawing. |
+| `nullcline.freeze` | none | `v` / analysis | Analysis/Nullclines/Freeze/Freeze | `frozen_curves_count`: `integer` | `nullcline.curves`, `session.state`, `done` | Freeze the current nullclines. |
+| `nullcline.clear_frozen` | none | `v` / analysis | Analysis/Nullclines/Freeze/Delete all | `cleared`: `boolean` | `nullcline.curves`, `session.state`, `done` | Clear frozen nullclines. |
+| `nullcline.range_freeze` | `parameter`: required name (max 16384 bytes) [of parameter], `start`: required real, `end`: required real, `steps`: required integer [at least 1, at most 9999] | `x` / analysis | Analysis/Nullclines/Freeze/Range | `steps_frozen`: `integer` | `nullcline.curves`, `session.state`, `done` | Freeze nullclines over a parameter range. |
 | `nullcline.animate` | `delay_ms`: optional integer [at least 0, at most 2147483647] | `v` / analysis | Analysis/Nullclines/Freeze/Animate | `animated`: `boolean` | `done` | Replay frozen nullclines. |
 | `nullcline.export` | `file`: required file (max 1024 bytes), `format`: optional choice (dat, csv, csv.gz, npz), `confirm`: optional boolean | `d` / analysis | Analysis/Nullclines/Save | `file`: `file`, `points_written`: `integer` | `done` | Write the current nullcline segments. |
-| `nullcline.set_mesh` | `mesh`: required integer [at least 1, at most 4096] | `s` / analysis | Analysis/Numerics/Nullcline mesh | `nullcline_mesh`: `integer` | `nullclines`, `state`, `done` | Set the nullcline mesh. |
-| `dirfield.compute` | `grid`: required integer [at least 2, at most 4096], `scaled`: optional boolean | `x` / analysis | Analysis/Two-D Fun/Direct or Scaled Field | `grid`: `integer`, `vectors_drawn`: `integer` | `dfield`, `flow`, `nullclines`, `state`, `done` | Compute the phase plane's direction field. |
-| `dirfield.flow` | `grid`: required integer [at least 2, at most 4096] | `x` / analysis | Analysis/Two-D Fun/Flow | `grid`: `integer`, `trajectories_run`: `integer` | `dfield`, `flow`, `nullclines`, `state`, `done` | Integrate trajectories on the phase plane grid. |
-| `dirfield.clear` | none | `v` / analysis | Analysis/Two-D Fun/No dir. fld. | `cleared`: `boolean` | `dfield`, `flow`, `nullclines`, `state`, `done` | Clear the direction field. |
-| `dirfield.colorize` | `grid`: required integer [at least 2, at most 4096] | `x` / analysis | Analysis/Two-D Fun/Colorize | `grid`: `integer`, `cells_colored`: `integer` | `dfield`, `flow`, `nullclines`, `state`, `done` | Color the phase plane grid. |
+| `nullcline.set_mesh` | `mesh`: required integer [at least 1, at most 4096] | `s` / analysis | Analysis/Numerics/Nullcline mesh | `nullcline_mesh`: `integer` | `nullcline.curves`, `session.state`, `done` | Set the nullcline mesh. |
+| `dirfield.compute` | `grid`: required integer [at least 2, at most 4096], `scaled`: optional boolean | `x` / analysis | Analysis/Two-D Fun/Direct or Scaled Field | `grid`: `integer`, `vectors_drawn`: `integer` | `dirfield.field`, `nullcline.curves`, `session.state`, `done` | Compute the phase plane's direction field. |
+| `dirfield.flow` | `grid`: required integer [at least 2, at most 4096] | `x` / analysis | Analysis/Two-D Fun/Flow | `grid`: `integer`, `trajectories_run`: `integer` | `dirfield.field`, `nullcline.curves`, `session.state`, `done` | Integrate trajectories on the phase plane grid. |
+| `dirfield.clear` | none | `v` / analysis | Analysis/Two-D Fun/No dir. fld. | `cleared`: `boolean` | `dirfield.field`, `nullcline.curves`, `session.state`, `done` | Clear the direction field. |
+| `dirfield.colorize` | `grid`: required integer [at least 2, at most 4096] | `x` / analysis | Analysis/Two-D Fun/Colorize | `grid`: `integer`, `cells_colored`: `integer` | `dirfield.field`, `nullcline.curves`, `session.state`, `done` | Color the phase plane grid. |
 | `dirfield.export` | `file`: required file (max 1024 bytes), `confirm`: optional boolean | `d` / analysis | Analysis/export | `file`: `file`, `written`: `boolean` | `done` | Write direction field arrows. |
-| `analysis.seed_random` | `seed`: required integer [at least 0, at most 2147483647] | `d` / analysis | Analysis/Numerics/Stochastic/New seed | `seed`: `integer` | `state`, `done` | Seed the random numbers of the next run. |
-| `analysis.stochastic_integrate` | `trials`: optional integer [at least 2, at most 2147483647] | `x` / analysis | Analysis/Numerics/Stochastic/Compute | `trials_completed`: `integer` | `computing`, `progress`, `series`, `stopped`, `state`, `done` | Run the model as many times as trials (the Range settings' steps plus one), keeping the mean and variance of the runs. |
-| `analysis.load_stochastic_run` | none | `d` / analysis | Analysis/Numerics/Stochastic/Data | `loaded`: `boolean` | `browser`, `state`, `done` | Show the data of the last run in the data browser again. |
-| `analysis.load_stochastic_mean` | none | `d` / analysis | Analysis/Numerics/Stochastic/Mean | `loaded`: `boolean` | `browser`, `state`, `done` | Show the mean of the stochastic runs in the data browser. |
-| `analysis.load_stochastic_variance` | none | `d` / analysis | Analysis/Numerics/Stochastic/Variance | `loaded`: `boolean` | `browser`, `state`, `done` | Show the variance of the stochastic runs in the data browser. |
-| `analysis.histogram` | `column`: optional name (max 1024 bytes) [of column], `bins`: optional integer [at least 2, at most 4096], `low`: optional real, `high`: optional real, `condition`: optional text (max 1024 bytes) | `x` / analysis | Analysis/Numerics/Stochastic/Histogram | `bins`: `integer`, `total_samples`: `integer` | `browser`, `plots`, `series`, `state`, `done` | Make the histogram of a column of the stored data, counting the rows where the condition holds. |
-| `analysis.reload_histogram` | none | `d` / analysis | Analysis/Numerics/Stochastic/Old hist | `reloaded`: `boolean` | `browser`, `plots`, `series`, `state`, `done` | Show the last histogram in the data browser again. |
-| `analysis.histogram_2d` | `column1`: optional name (max 1024 bytes) [of column], `column2`: optional name (max 1024 bytes) [of column], `bins1`: optional integer [at least 2, at most 4096], `bins2`: optional integer [at least 2, at most 4096], `low1`: optional real, `high1`: optional real, `low2`: optional real, `high2`: optional real | `x` / analysis | Analysis/Numerics/Stochastic/2D-hist | `bins_x`: `integer`, `bins_y`: `integer` | `browser`, `plots`, `series`, `state`, `done` | Make the two-dimensional histogram of two columns of the stored data. |
-| `analysis.fourier_series` | `column`: optional name (max 1024 bytes) [of column] | `x` / analysis | Analysis/Numerics/Stochastic/Fourier | `harmonics`: `integer` | `browser`, `state`, `done` | Make the Fourier series of a column of the stored data. |
-| `analysis.power_spectrum` | `column`: optional name (max 1024 bytes) [of column] | `x` / analysis | Analysis/Numerics/Stochastic/Power | `frequencies`: `integer` | `browser`, `plots`, `series`, `state`, `done` | Make the power spectrum of a column of the stored data: each harmonic's amplitude and phase. |
-| `analysis.fit_curve` | `variables`: required list [of variable, of name, at most 256], `parameters`: required list [of either, of name, at most 256], `tolerance`: optional real [at least 2.2250738585072014e-308], `points`: optional integer [at least 2, at most 2147483647], `columns`: optional integer [at least 2, at most 2147483647], `data_columns`: optional list [at least 2, at most 2147483647, of integer, at most 256], `epsilon`: optional real [at least 2.2250738585072014e-308], `max_iterations`: optional integer [at least 1, at most 2147483647], `file`: optional file (max 1024 bytes) | `x` / analysis | Analysis/Numerics/Stochastic/fIt data | `converged`: `boolean`, `parameters`: `map[name, real]` | `state`, `done` | Fit parameters and initial values so that variables of the model follow columns of a data file of the model's folder (Levenberg-Marquardt). |
+| `analysis.seed_random` | `seed`: required integer [at least 0, at most 2147483647] | `d` / analysis | Analysis/Numerics/Stochastic/New seed | `seed`: `integer` | `session.state`, `done` | Seed the random numbers of the next run. |
+| `analysis.stochastic_integrate` | `trials`: optional integer [at least 2, at most 2147483647] | `x` / analysis | Analysis/Numerics/Stochastic/Compute | `trials_completed`: `integer` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run the model as many times as trials (the Range settings' steps plus one), keeping the mean and variance of the runs. |
+| `analysis.load_stochastic_run` | none | `d` / analysis | Analysis/Numerics/Stochastic/Data | `loaded`: `boolean` | `browser.updated`, `session.state`, `done` | Show the data of the last run in the data browser again. |
+| `analysis.load_stochastic_mean` | none | `d` / analysis | Analysis/Numerics/Stochastic/Mean | `loaded`: `boolean` | `browser.updated`, `session.state`, `done` | Show the mean of the stochastic runs in the data browser. |
+| `analysis.load_stochastic_variance` | none | `d` / analysis | Analysis/Numerics/Stochastic/Variance | `loaded`: `boolean` | `browser.updated`, `session.state`, `done` | Show the variance of the stochastic runs in the data browser. |
+| `analysis.histogram` | `column`: optional name (max 1024 bytes) [of column], `bins`: optional integer [at least 2, at most 4096], `low`: optional real, `high`: optional real, `condition`: optional text (max 1024 bytes) | `x` / analysis | Analysis/Numerics/Stochastic/Histogram | `bins`: `integer`, `total_samples`: `integer` | `browser.updated`, `plot.shown`, `plot.series`, `session.state`, `done` | Make the histogram of a column of the stored data, counting the rows where the condition holds. |
+| `analysis.reload_histogram` | none | `d` / analysis | Analysis/Numerics/Stochastic/Old hist | `reloaded`: `boolean` | `browser.updated`, `plot.shown`, `plot.series`, `session.state`, `done` | Show the last histogram in the data browser again. |
+| `analysis.histogram_2d` | `column1`: optional name (max 1024 bytes) [of column], `column2`: optional name (max 1024 bytes) [of column], `bins1`: optional integer [at least 2, at most 4096], `bins2`: optional integer [at least 2, at most 4096], `low1`: optional real, `high1`: optional real, `low2`: optional real, `high2`: optional real | `x` / analysis | Analysis/Numerics/Stochastic/2D-hist | `bins_x`: `integer`, `bins_y`: `integer` | `browser.updated`, `plot.shown`, `plot.series`, `session.state`, `done` | Make the two-dimensional histogram of two columns of the stored data. |
+| `analysis.fourier_series` | `column`: optional name (max 1024 bytes) [of column] | `x` / analysis | Analysis/Numerics/Stochastic/Fourier | `harmonics`: `integer` | `browser.updated`, `session.state`, `done` | Make the Fourier series of a column of the stored data. |
+| `analysis.power_spectrum` | `column`: optional name (max 1024 bytes) [of column] | `x` / analysis | Analysis/Numerics/Stochastic/Power | `frequencies`: `integer` | `browser.updated`, `plot.shown`, `plot.series`, `session.state`, `done` | Make the power spectrum of a column of the stored data: each harmonic's amplitude and phase. |
+| `analysis.fit_curve` | `variables`: required list [of variable, of name, at most 256], `parameters`: required list [of either, of name, at most 256], `tolerance`: optional real [at least 2.2250738585072014e-308], `points`: optional integer [at least 2, at most 2147483647], `columns`: optional integer [at least 2, at most 2147483647], `data_columns`: optional list [at least 2, at most 2147483647, of integer, at most 256], `epsilon`: optional real [at least 2.2250738585072014e-308], `max_iterations`: optional integer [at least 1, at most 2147483647], `file`: optional file (max 1024 bytes) | `x` / analysis | Analysis/Numerics/Stochastic/fIt data | `converged`: `boolean`, `parameters`: `map[name, real]` | `session.state`, `done` | Fit parameters and initial values so that variables of the model follow columns of a data file of the model's folder (Levenberg-Marquardt). |
 | `analysis.statistics` | `column`: optional name (max 1024 bytes) [of column] | `x` / analysis | Analysis/Numerics/Stochastic/Stat | `mean`: `real`, `variance`: `real`, `std_dev`: `real` | `done` | The mean, variance and standard deviation of a column of the stored data. |
-| `analysis.lyapunov_exponent` | `range_over_parameters`: optional boolean, `variable`: optional name (max 1024 bytes) [of either], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / analysis | Analysis/Numerics/Stochastic/Liapunov | `max_lyapunov_exponent`: `real`, `runs_completed`: `integer` | `browser`, `plots`, `series`, `state`, `done` | The maximal Liapunov exponent of the stored orbit, or with range_over_parameters one for each run of a sweep of the Range settings. |
-| `analysis.autocorrelation` | `column`: optional name (max 1024 bytes) [of column], `bins`: optional integer [at least 2, at most 4096], `low`: optional real, `high`: optional real | `x` / analysis | Analysis/Numerics/Stochastic/stAutocor | `lags_computed`: `integer` | `browser`, `plots`, `series`, `state`, `done` | Make the histogram of the differences of a column of the stored data with itself. |
-| `analysis.cross_correlation` | `column1`: optional name (max 1024 bytes) [of column], `column2`: optional name (max 1024 bytes) [of column], `lags`: optional integer [at least 2, at most 4096], `method`: optional choice (direct, fft) | `x` / analysis | Analysis/Numerics/Stochastic/Xcorrel etc | `lags_computed`: `integer` | `browser`, `plots`, `series`, `state`, `done` | Make the correlation of two columns of the stored data at a number of lags either side of 0, directly or by the FFT. |
-| `analysis.spectral_density` | `type`: optional choice (psd_x, psd_xy, coherence_xy), `column`: optional name (max 1024 bytes) [of column], `column2`: optional name (max 1024 bytes) [of column], `window_length`: optional integer [at least 2, at most 2147483647], `window`: optional choice (square, parzen, hamming, bartlett, hann) | `x` / analysis | Analysis/Numerics/Stochastic/spEc.dns | `points`: `integer` | `browser`, `plots`, `series`, `state`, `done` | Make the power spectral density of a column, the cross spectrum of two or their coherence, averaged over windows of the stored data. |
-| `analysis.poincare_map` | `type`: required choice (none, section, max_min, period), `variable`: optional name (max 1024 bytes) [of column], `section`: optional real, `direction`: optional choice (negative, both, positive), `stop_on_section`: optional boolean | `s` / analysis | Analysis/Numerics/Poincare map | `poincare_configured`: `boolean` | `state`, `done` | Set the Poincare map the runs store: none, the crossings of a section, the maxima and minima of a variable, or its period. |
-| `analysis.phase_space_torus` | `mode`: required choice (all, none, choose), `variables`: optional list [of variable, of name, at most 256], `period`: optional real [at least 2.2250738585072014e-308] | `d` / plot | Analysis/Phase space/All, None, Choose | `torus_variables`: `list[name]` | `state`, `done` | Fold all, none or chosen variables of the phase space into a torus of the given period. |
-| `analysis.color_coding` | `mode`: required choice (none, velocity, variable), `variable`: optional name (max 1024 bytes) [of column], `low`: optional real, `high`: optional real, `window`: optional window (max 1024 bytes); all or none of `low`, `high` | `v` / plot | Analysis/Numerics/Color by value | `color_coding`: `choice` | `plots`, `state`, `done` | Color a graph's orbit by its velocity or by a column, between given limits or those of the stored data. |
+| `analysis.lyapunov_exponent` | `range_over_parameters`: optional boolean, `variable`: optional name (max 1024 bytes) [of either], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / analysis | Analysis/Numerics/Stochastic/Liapunov | `max_lyapunov_exponent`: `real`, `runs_completed`: `integer` | `browser.updated`, `plot.shown`, `plot.series`, `session.state`, `done` | The maximal Liapunov exponent of the stored orbit, or with range_over_parameters one for each run of a sweep of the Range settings. |
+| `analysis.autocorrelation` | `column`: optional name (max 1024 bytes) [of column], `bins`: optional integer [at least 2, at most 4096], `low`: optional real, `high`: optional real | `x` / analysis | Analysis/Numerics/Stochastic/stAutocor | `lags_computed`: `integer` | `browser.updated`, `plot.shown`, `plot.series`, `session.state`, `done` | Make the histogram of the differences of a column of the stored data with itself. |
+| `analysis.cross_correlation` | `column1`: optional name (max 1024 bytes) [of column], `column2`: optional name (max 1024 bytes) [of column], `lags`: optional integer [at least 2, at most 4096], `method`: optional choice (direct, fft) | `x` / analysis | Analysis/Numerics/Stochastic/Xcorrel etc | `lags_computed`: `integer` | `browser.updated`, `plot.shown`, `plot.series`, `session.state`, `done` | Make the correlation of two columns of the stored data at a number of lags either side of 0, directly or by the FFT. |
+| `analysis.spectral_density` | `type`: optional choice (psd_x, psd_xy, coherence_xy), `column`: optional name (max 1024 bytes) [of column], `column2`: optional name (max 1024 bytes) [of column], `window_length`: optional integer [at least 2, at most 2147483647], `window`: optional choice (square, parzen, hamming, bartlett, hann) | `x` / analysis | Analysis/Numerics/Stochastic/spEc.dns | `points`: `integer` | `browser.updated`, `plot.shown`, `plot.series`, `session.state`, `done` | Make the power spectral density of a column, the cross spectrum of two or their coherence, averaged over windows of the stored data. |
+| `analysis.poincare_map` | `type`: required choice (none, section, max_min, period), `variable`: optional name (max 1024 bytes) [of column], `section`: optional real, `direction`: optional choice (negative, both, positive), `stop_on_section`: optional boolean | `s` / analysis | Analysis/Numerics/Poincare map | `poincare_configured`: `boolean` | `session.state`, `done` | Set the Poincare map the runs store: none, the crossings of a section, the maxima and minima of a variable, or its period. |
+| `analysis.phase_space_torus` | `mode`: required choice (all, none, choose), `variables`: optional list [of variable, of name, at most 256], `period`: optional real [at least 2.2250738585072014e-308] | `d` / plot | Analysis/Phase space/All, None, Choose | `torus_variables`: `list[name]` | `session.state`, `done` | Fold all, none or chosen variables of the phase space into a torus of the given period. |
+| `analysis.color_coding` | `mode`: required choice (none, velocity, variable), `variable`: optional name (max 1024 bytes) [of column], `low`: optional real, `high`: optional real, `window`: optional window (max 1024 bytes); all or none of `low`, `high` | `v` / plot | Analysis/Numerics/Color by value | `color_coding`: `choice` | `plot.shown`, `session.state`, `done` | Color a graph's orbit by its velocity or by a column, between given limits or those of the stored data. |
 | `analysis.adjoint_compute` | none | `x` / analysis | Analysis/Numerics/Adjoint/New adj | `computed`: `boolean` | `done` | Compute the adjoint of the stored periodic orbit. |
 | `analysis.adjoint_interaction` | `couplings`: optional map [of variable, of expression, at most 256] | `x` / analysis | Analysis/Numerics/Adjoint/Make H | `computed`: `boolean` | `done` | Make the interaction (H) function of the adjoint for the coupling of each differential equation; one left out keeps its coupling. |
-| `analysis.adjoint_load` | none | `d` / analysis | Analysis/Numerics/Adjoint/Adjoint | `loaded`: `boolean` | `browser`, `state`, `done` | Show the adjoint in the data browser. |
-| `analysis.adjoint_load_orbit` | none | `d` / analysis | Analysis/Numerics/Adjoint/Orbit | `loaded`: `boolean` | `browser`, `state`, `done` | Show the orbit in the data browser. |
-| `analysis.adjoint_load_interaction` | none | `d` / analysis | Analysis/Numerics/Adjoint/Hfun | `loaded`: `boolean` | `browser`, `state`, `done` | Show the interaction (H) function in the data browser. |
-| `analysis.adjoint_configure` | `max_iterates`: optional integer [at least 1, at most 2147483647], `tolerance`: optional real [at least 2.2250738585072014e-308] | `d` / analysis | Analysis/Numerics/Adjoint/Parameters | `updated`: `boolean` | `state`, `done` | Set the adjoint's maximum iterations and error tolerance. |
-| `analysis.adjoint_range` | `enabled`: optional boolean | `x` / analysis | Analysis/Numerics/Adjoint/Range | `adjoint_range`: `boolean` | `state`, `done` | Have the next range run also compute the orbit, adjoint and H function at each step; the range itself is run.range. |
-| `table.edit` | `name`: required name (max 1024 bytes) [of any], `formula`: optional expression (max 1024 bytes), `x_min`: optional real, `x_max`: optional real, `points`: optional integer [at least 2, at most 1000000], `auto_evaluate`: optional boolean, `file`: optional file (max 1024 bytes) | `d` / panels | Analysis/Numerics/Tables/Edit | `table`: `name`, `points_evaluated`: `integer` | `state`, `done` | Change a table of a formula (its formula, points, range, and whether it is evaluated again when a parameter changes) or read a table of a file again from its file or another; what is left out stays. |
-| `table.view_in_browser` | `name`: required name (max 1024 bytes) [of any] | `v` / panels | Analysis/Numerics/Tables/View | `table`: `name`, `shown_in_browser`: `boolean` | `browser`, `state`, `done` | Show a table's points in the data browser. |
-| `browser.find` | `column`: required name (max 1024 bytes) [of column], `value`: required real | `v` / tools | Data/Find | `row_found`: `integer` | `browser`, `state`, `done` | Select the row, from the selected one on, whose value in a column is nearest a number. |
-| `browser.replace_column` | `column`: required name (max 1024 bytes) [of column], `formula`: required text (max 1024 bytes) | `d` / tools | Data/Replace | `column`: `name`, `replaced`: `boolean` | `browser`, `state`, `done` | Replace a column of the data by a formula of the columns, '&column' (its running integral), '@column' (its derivative), 'a:b' (from a to b) or 'a;b' (from a in steps of b). |
-| `browser.undo_replace` | none | `d` / tools | Data/Unreplace | `undone`: `boolean` | `browser`, `state`, `done` | Put back the column the last replace overwrote. |
-| `browser.tabulate_column` | `variable`: required name (max 1024 bytes) [of column], `x_low`: required real, `x_high`: required real, `file`: required file (max 1024 bytes) | `d` / tools | Data/Table | `file`: `file`, `rows_written`: `integer` | `state`, `done` | Write the rows kept between First and Last of a column as a lookup table over x_low to x_high into a file of the model's folder. |
-| `browser.set_slice_start` | `row`: required integer [at least 0, at most 2147483647] | `d` / tools | Data/First | `first_row`: `integer` | `browser`, `state`, `done` | Keep the data from a row on (the first is 0) for saving and tabulating, and select that row. |
-| `browser.set_slice_end` | `row`: required integer [at least 0, at most 2147483647] | `d` / tools | Data/Last | `last_row`: `integer` | `browser`, `state`, `done` | Keep the data up to and including a row for saving and tabulating, and select that row. |
-| `browser.restore_full_slice` | none | `d` / tools | Data/Restore | `first_row`: `integer`, `last_row`: `integer` | `browser`, `state`, `done` | Keep all the data again, from the first row to the last, and replot it in the selected graph. |
-| `browser.add_column` | `name`: required text (max 1024 bytes), `formula`: required expression (max 1024 bytes) | `d` / tools | Data/Add column | `column`: `name`, `added`: `boolean` | `browser`, `state`, `done` | Add a column computed from a formula of the others, now and after every run, as though it were another auxiliary quantity. |
-| `browser.delete_column` | `name`: required name (max 1024 bytes) [of column] | `d` / tools | Data/Delete column | `deleted`: `boolean` | `browser`, `state`, `done` | Delete a column made by add_column (time and the model's columns stay; a plotted one is refused). |
-| `browser.load` | `file`: optional file (max 1024 bytes), `format`: optional choice (dat, csv, csv.gz, npz) | `d` / files | File/Load data | `file`: `file`, `rows_loaded`: `integer` | `browser`, `state`, `done` | Read a data file of the model's folder into the table (its columns fill T and the columns after it in order); with no file, ask for one (the result's file is empty when that question was cancelled). |
-| `browser.export` | `file`: optional file (max 1024 bytes), `format`: optional choice (dat, csv, csv.gz, npz), `target`: optional choice (table, output, plot_curves) | `d` / files | File/Export data | `file`: `file`, `rows_written`: `integer` | `state`, `done` | Save the data table (the rows kept between First and Last), the model's output columns or what the plot shows as a data file in the model's folder; left out, format follows the file's extension and file and target are asked for (the result's file is empty when a question was cancelled). |
-| `browser.page` | `from_row`: required integer [at least 0, at most 2147483647], `count`: required integer [at least 0, at most 2000], `first_column`: optional integer [at least 1, at most 2147483647], `columns`: optional integer [at least 1, at most 500] | `v` / tools | Data/Browser/Page | `first_row`: `integer`, `total_rows`: `integer`, `rows`: `list[list[real]]` | `browser`, `done` | Choose the block of the table the client shows: rows from_row on (at most the limit hello gives), count rows (0 stops the block's events), the columns after T from first_column; answered at once, even during a computation. |
-| `browser.transpose` | `first_column`: optional name (max 1024 bytes) [of column], `columns`: optional integer [at least 1, at most 2147483647], `column_skip`: optional integer [at least 1, at most 2147483647], `first_row`: optional integer [at least 0, at most 2147483647], `rows`: optional integer [at least 1, at most 2147483647], `row_skip`: optional integer [at least 1, at most 2147483647] | `d` / tools | Data/Transpose data | `transposed_rows`: `integer`, `transposed_cols`: `integer` | `browser`, `state`, `done` | Show the stored data transposed in the table: columns columns from first_column in steps of column_skip, and rows rows from first_row in steps of row_skip, each column a row; left out, the last values. |
-| `set.apply` | `name`: required text (max 1024 bytes), `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes) | `s` / files | File/Apply set | `applied`: `text`, `scope`: `text` | `state`, `done` | Apply one of the model's named sets over the current values: all of it, or only its parameters, initial values or one group of settings; the plot settings go to the graph window names. |
-| `set.save_new` | `name`: required text (max 1024 bytes), `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `state`: optional choice (initial, last) | `d` / files | File/Save values | `name`: `text`, `saved`: `boolean` | `state`, `done` | Write the current values (all of them, or one scope) into the model file as a new set called name; state says whether the initial values or the last state reached are saved. |
-| `set.save_into` | `name`: required text (max 1024 bytes), `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `state`: optional choice (initial, last) | `d` / files | File/Save values | `name`: `text`, `updated`: `boolean` | `state`, `done` | Replace the scope's part of one of the model file's own sets by the current values; the set's other parts stay. |
-| `set.save_defaults` | `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `state`: optional choice (initial, last) | `d` / files | File/Save as defaults | `saved_as_defaults`: `boolean` | `state`, `done` | Write the current values (all of them, or one scope) as the model's own: its par and init lines and options groups. |
-| `set.export` | `file`: required file (max 1024 bytes), `name`: required text (max 1024 bytes), `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `state`: optional choice (initial, last) | `d` / files | File/Export values | `file`: `file`, `name`: `text`, `exported`: `boolean` | `state`, `done` | Write the current values (all of them, or one scope) as the set called name of another .odex file, a new one or an existing one that asks before a set of that name is replaced. |
-| `set.rename` | `from`: required text (max 1024 bytes), `to`: required text (max 1024 bytes) | `d` / files | File/Rename set | `from`: `text`, `to`: `text`, `renamed`: `boolean` | `state`, `done` | Rename one of the model file's own sets. |
-| `set.delete` | `name`: required text (max 1024 bytes) | `d` / files | File/Delete set | `name`: `text`, `deleted`: `boolean` | `state`, `done` | Delete one of the model file's own sets from the file. |
-| `set.restore_defaults` | `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `field`: optional text (max 1024 bytes) | `s` / files | File/Restore defaults | `restored`: `boolean` | `state`, `done` | Put the model's own values back: everything, or one scope (the parameters, the initial values, one group of settings), or with field only that parameter, state or setting. |
-| `value.set_parameters` | `values`: required map [of parameter, of real, at most 256] | `s` / run | Data/Parameters | `updated`: `map[name, real]` | `state`, `done` | Set the values of some parameters; the others keep theirs. Runs nothing. |
-| `value.set_by_formula` | `name`: required name (max 1024 bytes) [of parameter], `formula`: required expression (max 1024 bytes) | `s` / run | Data/Parameter formula | `name`: `name`, `value`: `real` | `state`, `done` | Set a parameter to what a formula works out to now (once: the parameter keeps the number, not the formula). |
-| `value.undo` | none | `s` / run | Data/Undo value edit | `undone`: `boolean` | `state`, `done` | Take back the last edit of the parameters, initial conditions or numerics (not runs, plots or files). |
-| `value.redo` | none | `s` / run | Data/Redo value edit | `redone`: `boolean` | `state`, `done` | Put back the value edit that was undone. |
-| `value.slide` | `name`: required name (max 1024 bytes) [of either], `value`: required real | `s` / run | Data/Values/Slide | `name`: `name`, `value`: `real` | `state`, `done` | Set a parameter or a state's initial value to a number, as a slider does; moves of one slider in a row are one undo step. |
-| `value.configure_slider` | `slot`: required integer [at least 0], `name`: required name (max 1024 bytes) [of either], `low`: required real, `high`: required real, `step`: optional real [at least 0] | `s` / run | Data/Values/Configure slider | `slot`: `integer`, `configured`: `boolean` | `state`, `done` | Define a slider: its slot (an existing one, or the next), the parameter or state it moves, its range, and its step (0: the page picks one; left out: the slot's own). |
-| `value.remove_slider` | `slot`: required integer [at least 0] | `s` / run | Data/Values/Remove slider | `slot`: `integer`, `removed`: `boolean` | `state`, `done` | Empty a slider's slot. |
-| `value.save_file` | `kind`: required choice (parameters, initial_conditions), `file`: optional file (max 1024 bytes) | `d` / files | File/Values/Save file | `file`: `file`, `kind`: `choice` | `state`, `done` | Write the parameters (.par) or the initial conditions (.ic) as XPP's own file into the model's folder; with no file, ask for one (the result's file is empty when that question was cancelled). |
-| `value.load_file` | `kind`: required choice (parameters, initial_conditions), `file`: optional file (max 1024 bytes) | `s` / files | File/Values/Load file | `file`: `file`, `kind`: `choice` | `state`, `done` | Read the parameters (.par) or the initial conditions (.ic) from XPP's own file of the model's folder, all or nothing; with no file, ask for one (the result's file is empty when that question was cancelled). |
-| `kinescope.capture` | none | `v` / plot | File/Kinescope/Capture | `frame_count`: `integer` | `film`, `state`, `done` | Capture the plot window as the next frame of the kinescope. |
-| `kinescope.reset` | none | `v` / plot | File/Kinescope/Reset | `cleared`: `boolean` | `film`, `state`, `done` | Throw away every captured frame. |
-| `kinescope.play` | none | `v` / plot | File/Kinescope/Playback | `frames_played`: `integer` | `film`, `state`, `done` | Show the captured frames once. |
-| `kinescope.autoplay` | `cycles`: optional integer [at least 1, at most 2147483647], `frame_ms`: optional integer [at least 0, at most 2147483647] | `v` / plot | File/Kinescope/Autoplay | `cycles_completed`: `integer` | `film`, `state`, `done` | Show the captured frames cycles times, frame_ms apart; what is left out is the last autoplay's setting. |
-| `kinescope.export_frames` | `file`: required file (max 1024 bytes) | `d` / plot | File/Kinescope/Save | `file`: `file`, `frames_saved`: `integer` | `state`, `done` | Write every captured frame as a GIF file of the model's folder: file for the first, then its numbered names. |
-| `kinescope.export_gif` | `file`: required file (max 1024 bytes) | `d` / plot | File/Kinescope/Make AniGif | `file`: `file`, `bytes_written`: `integer` | `state`, `done` | Write the captured frames as one animated GIF file of the model's folder. |
-| `animation.open` | none | `v` / plot | Windows/Viewaxes/Toon | `open`: `boolean` | `window`, `ani`, `state`, `done` | Open the animation window. |
-| `animation.load` | `file`: required file (max 1024 bytes) | `v` / plot | Windows/Animation/File | `file`: `file`, `loaded`: `boolean` | `ani`, `state`, `done` | Load an animation file (.anix or .ani) of the model's folder; its first frame shows when there is data. |
-| `animation.play` | none | `v` / plot | Windows/Animation/Go | `playing`: `boolean` | `ani`, `state`, `done` | Play the stored rows as frames from the one shown to the last. |
-| `animation.reset` | none | `v` / plot | Windows/Animation/Reset | `frame`: `integer` | `ani`, `state`, `done` | Back to the first frame. |
-| `animation.set_frame_skip` | `skip`: required integer [at least 1, at most 100000000] | `v` / plot | Windows/Animation/Skip | `skip`: `integer` | `ani`, `state`, `done` | Show every skip-th stored row when playing. |
-| `animation.export_frames` | `ppm`: optional boolean, `animated_gif`: optional boolean, `file`: required file (max 1024 bytes) | `d` / plot | File/Animation/Mpeg | `frames_saved`: `integer` | `ani`, `state`, `done` | Play the animation writing every frame, as numbered PPM files from file (ppm) or as one animated GIF file (animated_gif), one of the two, into the model's folder. |
-| `animation.set_live_draw` | `enabled`: required boolean | `v` / plot | Windows/Animation/On the fly | `live_draw`: `boolean` | `ani`, `state`, `done` | Draw the animation while an integration runs. |
-| `animation.grab_point` | `x`: optional real, `y`: optional real, `to_x`: optional real, `to_y`: optional real; all or none of `x`, `y`; all or none of `to_x`, `to_y` | `x` / plot | Windows/Animation/Grab | `grabbed`: `boolean` | `ani`, `series`, `state`, `done` | Pick a grab point in the animation's coordinates and optionally move it; omit coordinates to begin pointer selection. |
-| `animation.set_speed` | `ms`: required integer [at least 0, at most 1000] | `v` / plot | Windows/Animation/Set speed | `speed_ms`: `integer` | `ani`, `state`, `done` | Set the delay between two frames of Go in ms; it reaches a Go that is running. |
-| `animation.step` | `rows`: required integer [at least -2147483647, at most 2147483647] | `v` / plot | Windows/Animation/Step | `row`: `integer` | `ani`, `state`, `done` | Move the frame shown by rows stored rows (negative: back). |
-| `animation.seek` | `row`: required integer [at least 0, at most 2147483647] | `v` / plot | Windows/Animation/Seek | `row`: `integer` | `ani`, `state`, `done` | Show the frame of stored row row (row 0 is the first). |
-| `animation.pause` | none | `v` / plot | Windows/Animation/Pause | `speed_ms`: `integer` | `ani`, `state`, `done` | Stop a Go that is running at the frame it is on; with none running it changes nothing. |
-| `animation.faster` | none | `v` / plot | Windows/Animation/Faster | `speed_ms`: `integer` | `ani`, `state`, `done` | Shorten the delay between two frames of Go by a step; it reaches a Go that is running. |
-| `animation.slower` | none | `v` / plot | Windows/Animation/Slower | `speed_ms`: `integer` | `ani`, `state`, `done` | Lengthen the delay between two frames of Go by a step; it reaches a Go that is running. |
-| `array_plot.open` | none | `v` / plot | Windows/Viewaxes/Array | `open`: `boolean` | `window`, `aplot`, `state`, `done` | Open the array plot window. |
-| `array_plot.redraw` | none | `v` / plot | Windows/Array plot/Redraw | `redrawn`: `boolean` | `aplot`, `state`, `done` | Draw the array plot again from the stored data. |
-| `array_plot.configure` | `first_column`: optional name (max 1024 bytes) [of column], `columns`: optional integer [at least 1, at most 1000000], `first_row`: optional integer [at least 0, at most 2147483647], `rows`: optional integer [at least 1, at most 1000000], `row_skip`: optional integer [at least 1, at most 2147483647], `z_min`: optional real, `z_max`: optional real, `auto_redraw`: optional boolean, `column_skip`: optional integer [at least 1, at most 2147483647] | `v` / plot | Windows/Array plot/Edit | `configured`: `boolean` | `aplot`, `state`, `done` | Set the columns and rows the array plot shows and the ends of its colour scale (z_min below z_max); what is left out stays. |
-| `array_plot.fit` | none | `v` / plot | Windows/Array plot/Fit | `fitted_min`: `real`, `fitted_max`: `real` | `aplot`, `state`, `done` | Set the colour scale's ends to the smallest and largest value shown. |
-| `array_plot.range` | `still`: optional boolean, `tag`: optional boolean, `file`: required file (max 1024 bytes), `variable`: optional name (max 1024 bytes) [of either], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / plot | Windows/Array plot/Range | `steps_completed`: `integer` | `aplot`, `series`, `state`, `done` | Run once for each value of a parameter or variable as run.range does, saving the array plot as GIF files of the model's folder: one movie, or with still one picture per run; tag writes the swept value on each. |
-| `array_plot.export_pdf` | `file`: required file (max 1024 bytes), `top_label`: optional text (max 1024 bytes), `side_label`: optional text (max 1024 bytes), `bottom_label`: optional text (max 1024 bytes) | `d` / plot | File/Array plot/Print PDF | `file`: `file` | `state`, `done` | Write the array plot as a PDF picture into a file of the model's folder; the labels left out are the last ones. |
-| `array_plot.export_gif` | `file`: required file (max 1024 bytes) | `d` / plot | File/Array plot/GIF | `file`: `file`, `bytes_written`: `integer` | `state`, `done` | Write the array plot as a GIF picture into a file of the model's folder. |
-| `array_plot.scroll` | `first_row`: required integer [at least 0, at most 2147483647] | `v` / plot | Windows/Array plot/Scroll | `first_row`: `integer` | `aplot`, `state`, `done` | Show the array plot from the stored row first_row on (row 0 is the first). |
-| `session.open_model` | `file`: optional path (max 1024 bytes), `example`: optional text (max 1024 bytes), `recent`: optional integer [at least 0]; at most one of `file`, `example`, `recent` | `d` / files | File/Open model | `model`: `text`, `variables`: `list[name]`, `parameters`: `list[name]` | `hello`, `state`, `done` | Open a model: a model file by its path (--server's own input only), a bundled example by its name, or one of the recent models by its place in hello.start.recent. Asks first whether to save this session. |
-| `session.reload_model` | none | `d` / files | File/Reload model | `reloaded`: `boolean` | `hello`, `state`, `done` | Load the model's file again; the parameters, initial data, numerics and AUTO settings keep their values by name. |
-| `session.open` | `file`: required file (max 1024 bytes) | `d` / files | File/Open session | `file`: `file`, `loaded`: `boolean` | `hello`, `state`, `done` | Open a session file (.snapx): its model, then everything as it was saved. |
-| `session.save` | `data`: optional boolean | `d` / files | File/Save session | `file`: `file`, `saved`: `boolean` | `saved`, `state`, `done` | Save the session to the file it was last saved to or opened from; data false leaves the data table out. |
-| `session.save_as` | `file`: required file (max 1024 bytes), `data`: optional boolean, `confirm`: optional boolean | `d` / files | File/Save session as | `file`: `file`, `saved`: `boolean` | `saved`, `state`, `done` | Save the session to a file of the model's folder (.snapx added); confirm true replaces an existing file without asking. |
+| `analysis.adjoint_load` | none | `d` / analysis | Analysis/Numerics/Adjoint/Adjoint | `loaded`: `boolean` | `browser.updated`, `session.state`, `done` | Show the adjoint in the data browser. |
+| `analysis.adjoint_load_orbit` | none | `d` / analysis | Analysis/Numerics/Adjoint/Orbit | `loaded`: `boolean` | `browser.updated`, `session.state`, `done` | Show the orbit in the data browser. |
+| `analysis.adjoint_load_interaction` | none | `d` / analysis | Analysis/Numerics/Adjoint/Hfun | `loaded`: `boolean` | `browser.updated`, `session.state`, `done` | Show the interaction (H) function in the data browser. |
+| `analysis.adjoint_configure` | `max_iterates`: optional integer [at least 1, at most 2147483647], `tolerance`: optional real [at least 2.2250738585072014e-308] | `d` / analysis | Analysis/Numerics/Adjoint/Parameters | `updated`: `boolean` | `session.state`, `done` | Set the adjoint's maximum iterations and error tolerance. |
+| `analysis.adjoint_range` | `enabled`: optional boolean | `x` / analysis | Analysis/Numerics/Adjoint/Range | `adjoint_range`: `boolean` | `session.state`, `done` | Have the next range run also compute the orbit, adjoint and H function at each step; the range itself is run.range. |
+| `table.edit` | `name`: required name (max 1024 bytes) [of any], `formula`: optional expression (max 1024 bytes), `x_min`: optional real, `x_max`: optional real, `points`: optional integer [at least 2, at most 1000000], `auto_evaluate`: optional boolean, `file`: optional file (max 1024 bytes) | `d` / panels | Analysis/Numerics/Tables/Edit | `table`: `name`, `points_evaluated`: `integer` | `session.state`, `done` | Change a table of a formula (its formula, points, range, and whether it is evaluated again when a parameter changes) or read a table of a file again from its file or another; what is left out stays. |
+| `table.view_in_browser` | `name`: required name (max 1024 bytes) [of any] | `v` / panels | Analysis/Numerics/Tables/View | `table`: `name`, `shown_in_browser`: `boolean` | `browser.updated`, `session.state`, `done` | Show a table's points in the data browser. |
+| `browser.find` | `column`: required name (max 1024 bytes) [of column], `value`: required real | `v` / tools | Data/Find | `row_found`: `integer` | `browser.updated`, `session.state`, `done` | Select the row, from the selected one on, whose value in a column is nearest a number. |
+| `browser.replace_column` | `column`: required name (max 1024 bytes) [of column], `formula`: required text (max 1024 bytes) | `d` / tools | Data/Replace | `column`: `name`, `replaced`: `boolean` | `browser.updated`, `session.state`, `done` | Replace a column of the data by a formula of the columns, '&column' (its running integral), '@column' (its derivative), 'a:b' (from a to b) or 'a;b' (from a in steps of b). |
+| `browser.undo_replace` | none | `d` / tools | Data/Unreplace | `undone`: `boolean` | `browser.updated`, `session.state`, `done` | Put back the column the last replace overwrote. |
+| `browser.tabulate_column` | `variable`: required name (max 1024 bytes) [of column], `x_low`: required real, `x_high`: required real, `file`: required file (max 1024 bytes) | `d` / tools | Data/Table | `file`: `file`, `rows_written`: `integer` | `session.state`, `done` | Write the rows kept between First and Last of a column as a lookup table over x_low to x_high into a file of the model's folder. |
+| `browser.set_slice_start` | `row`: required integer [at least 0, at most 2147483647] | `d` / tools | Data/First | `first_row`: `integer` | `browser.updated`, `session.state`, `done` | Keep the data from a row on (the first is 0) for saving and tabulating, and select that row. |
+| `browser.set_slice_end` | `row`: required integer [at least 0, at most 2147483647] | `d` / tools | Data/Last | `last_row`: `integer` | `browser.updated`, `session.state`, `done` | Keep the data up to and including a row for saving and tabulating, and select that row. |
+| `browser.restore_full_slice` | none | `d` / tools | Data/Restore | `first_row`: `integer`, `last_row`: `integer` | `browser.updated`, `session.state`, `done` | Keep all the data again, from the first row to the last, and replot it in the selected graph. |
+| `browser.add_column` | `name`: required text (max 1024 bytes), `formula`: required expression (max 1024 bytes) | `d` / tools | Data/Add column | `column`: `name`, `added`: `boolean` | `browser.updated`, `session.state`, `done` | Add a column computed from a formula of the others, now and after every run, as though it were another auxiliary quantity. |
+| `browser.delete_column` | `name`: required name (max 1024 bytes) [of column] | `d` / tools | Data/Delete column | `deleted`: `boolean` | `browser.updated`, `session.state`, `done` | Delete a column made by add_column (time and the model's columns stay; a plotted one is refused). |
+| `browser.load` | `file`: optional file (max 1024 bytes), `format`: optional choice (dat, csv, csv.gz, npz) | `d` / files | File/Load data | `file`: `file`, `rows_loaded`: `integer` | `browser.updated`, `session.state`, `done` | Read a data file of the model's folder into the table (its columns fill T and the columns after it in order); with no file, ask for one (the result's file is empty when that question was cancelled). |
+| `browser.export` | `file`: optional file (max 1024 bytes), `format`: optional choice (dat, csv, csv.gz, npz), `target`: optional choice (table, output, plot_curves) | `d` / files | File/Export data | `file`: `file`, `rows_written`: `integer` | `session.state`, `done` | Save the data table (the rows kept between First and Last), the model's output columns or what the plot shows as a data file in the model's folder; left out, format follows the file's extension and file and target are asked for (the result's file is empty when a question was cancelled). |
+| `browser.page` | `from_row`: required integer [at least 0, at most 2147483647], `count`: required integer [at least 0, at most 2000], `first_column`: optional integer [at least 1, at most 2147483647], `columns`: optional integer [at least 1, at most 500] | `v` / tools | Data/Browser/Page | `first_row`: `integer`, `total_rows`: `integer`, `rows`: `list[list[real]]` | `browser.updated`, `done` | Choose the block of the table the client shows: rows from_row on (at most the limit hello gives), count rows (0 stops the block's events), the columns after T from first_column; answered at once, even during a computation. |
+| `browser.transpose` | `first_column`: optional name (max 1024 bytes) [of column], `columns`: optional integer [at least 1, at most 2147483647], `column_skip`: optional integer [at least 1, at most 2147483647], `first_row`: optional integer [at least 0, at most 2147483647], `rows`: optional integer [at least 1, at most 2147483647], `row_skip`: optional integer [at least 1, at most 2147483647] | `d` / tools | Data/Transpose data | `transposed_rows`: `integer`, `transposed_cols`: `integer` | `browser.updated`, `session.state`, `done` | Show the stored data transposed in the table: columns columns from first_column in steps of column_skip, and rows rows from first_row in steps of row_skip, each column a row; left out, the last values. |
+| `set.apply` | `name`: required text (max 1024 bytes), `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes) | `s` / files | File/Apply set | `applied`: `text`, `scope`: `text` | `session.state`, `done` | Apply one of the model's named sets over the current values: all of it, or only its parameters, initial values or one group of settings; the plot settings go to the graph window names. |
+| `set.save_new` | `name`: required text (max 1024 bytes), `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `state`: optional choice (initial, last) | `d` / files | File/Save values | `name`: `text`, `saved`: `boolean` | `session.state`, `done` | Write the current values (all of them, or one scope) into the model file as a new set called name; state says whether the initial values or the last state reached are saved. |
+| `set.save_into` | `name`: required text (max 1024 bytes), `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `state`: optional choice (initial, last) | `d` / files | File/Save values | `name`: `text`, `updated`: `boolean` | `session.state`, `done` | Replace the scope's part of one of the model file's own sets by the current values; the set's other parts stay. |
+| `set.save_defaults` | `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `state`: optional choice (initial, last) | `d` / files | File/Save as defaults | `saved_as_defaults`: `boolean` | `session.state`, `done` | Write the current values (all of them, or one scope) as the model's own: its par and init lines and options groups. |
+| `set.export` | `file`: required file (max 1024 bytes), `name`: required text (max 1024 bytes), `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `state`: optional choice (initial, last) | `d` / files | File/Export values | `file`: `file`, `name`: `text`, `exported`: `boolean` | `session.state`, `done` | Write the current values (all of them, or one scope) as the set called name of another .odex file, a new one or an existing one that asks before a set of that name is replaced. |
+| `set.rename` | `from`: required text (max 1024 bytes), `to`: required text (max 1024 bytes) | `d` / files | File/Rename set | `from`: `text`, `to`: `text`, `renamed`: `boolean` | `session.state`, `done` | Rename one of the model file's own sets. |
+| `set.delete` | `name`: required text (max 1024 bytes) | `d` / files | File/Delete set | `name`: `text`, `deleted`: `boolean` | `session.state`, `done` | Delete one of the model file's own sets from the file. |
+| `set.restore_defaults` | `scope`: required choice (all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis), `window`: optional window (max 1024 bytes), `field`: optional text (max 1024 bytes) | `s` / files | File/Restore defaults | `restored`: `boolean` | `session.state`, `done` | Put the model's own values back: everything, or one scope (the parameters, the initial values, one group of settings), or with field only that parameter, state or setting. |
+| `value.set_parameters` | `values`: required map [of parameter, of real, at most 256] | `s` / run | Data/Parameters | `updated`: `map[name, real]` | `session.state`, `done` | Set the values of some parameters; the others keep theirs. Runs nothing. |
+| `value.set_by_formula` | `name`: required name (max 1024 bytes) [of parameter], `formula`: required expression (max 1024 bytes) | `s` / run | Data/Parameter formula | `name`: `name`, `value`: `real` | `session.state`, `done` | Set a parameter to what a formula works out to now (once: the parameter keeps the number, not the formula). |
+| `value.undo` | none | `s` / run | Data/Undo value edit | `undone`: `boolean` | `session.state`, `done` | Take back the last edit of the parameters, initial conditions or numerics (not runs, plots or files). |
+| `value.redo` | none | `s` / run | Data/Redo value edit | `redone`: `boolean` | `session.state`, `done` | Put back the value edit that was undone. |
+| `value.slide` | `name`: required name (max 1024 bytes) [of either], `value`: required real | `s` / run | Data/Values/Slide | `name`: `name`, `value`: `real` | `session.state`, `done` | Set a parameter or a state's initial value to a number, as a slider does; moves of one slider in a row are one undo step. |
+| `value.configure_slider` | `slot`: required integer [at least 0], `name`: required name (max 1024 bytes) [of either], `low`: required real, `high`: required real, `step`: optional real [at least 0] | `s` / run | Data/Values/Configure slider | `slot`: `integer`, `configured`: `boolean` | `session.state`, `done` | Define a slider: its slot (an existing one, or the next), the parameter or state it moves, its range, and its step (0: the page picks one; left out: the slot's own). |
+| `value.remove_slider` | `slot`: required integer [at least 0] | `s` / run | Data/Values/Remove slider | `slot`: `integer`, `removed`: `boolean` | `session.state`, `done` | Empty a slider's slot. |
+| `value.save_file` | `kind`: required choice (parameters, initial_conditions), `file`: optional file (max 1024 bytes) | `d` / files | File/Values/Save file | `file`: `file`, `kind`: `choice` | `session.state`, `done` | Write the parameters (.par) or the initial conditions (.ic) as XPP's own file into the model's folder; with no file, ask for one (the result's file is empty when that question was cancelled). |
+| `value.load_file` | `kind`: required choice (parameters, initial_conditions), `file`: optional file (max 1024 bytes) | `s` / files | File/Values/Load file | `file`: `file`, `kind`: `choice` | `session.state`, `done` | Read the parameters (.par) or the initial conditions (.ic) from XPP's own file of the model's folder, all or nothing; with no file, ask for one (the result's file is empty when that question was cancelled). |
+| `kinescope.capture` | none | `v` / plot | File/Kinescope/Capture | `frame_count`: `integer` | `kinescope.film`, `session.state`, `done` | Capture the plot window as the next frame of the kinescope. |
+| `kinescope.reset` | none | `v` / plot | File/Kinescope/Reset | `cleared`: `boolean` | `kinescope.film`, `session.state`, `done` | Throw away every captured frame. |
+| `kinescope.play` | none | `v` / plot | File/Kinescope/Playback | `frames_played`: `integer` | `kinescope.film`, `session.state`, `done` | Show the captured frames once. |
+| `kinescope.autoplay` | `cycles`: optional integer [at least 1, at most 2147483647], `frame_ms`: optional integer [at least 0, at most 2147483647] | `v` / plot | File/Kinescope/Autoplay | `cycles_completed`: `integer` | `kinescope.film`, `session.state`, `done` | Show the captured frames cycles times, frame_ms apart; what is left out is the last autoplay's setting. |
+| `kinescope.export_frames` | `file`: required file (max 1024 bytes) | `d` / plot | File/Kinescope/Save | `file`: `file`, `frames_saved`: `integer` | `session.state`, `done` | Write every captured frame as a GIF file of the model's folder: file for the first, then its numbered names. |
+| `kinescope.export_gif` | `file`: required file (max 1024 bytes) | `d` / plot | File/Kinescope/Make AniGif | `file`: `file`, `bytes_written`: `integer` | `session.state`, `done` | Write the captured frames as one animated GIF file of the model's folder. |
+| `animation.open` | none | `v` / plot | Windows/Viewaxes/Toon | `open`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `animation.state`, `session.state`, `done` | Open the animation window. |
+| `animation.load` | `file`: required file (max 1024 bytes) | `v` / plot | Windows/Animation/File | `file`: `file`, `loaded`: `boolean` | `animation.state`, `session.state`, `done` | Load an animation file (.anix or .ani) of the model's folder; its first frame shows when there is data. |
+| `animation.play` | none | `v` / plot | Windows/Animation/Go | `playing`: `boolean` | `animation.state`, `session.state`, `done` | Play the stored rows as frames from the one shown to the last. |
+| `animation.reset` | none | `v` / plot | Windows/Animation/Reset | `frame`: `integer` | `animation.state`, `session.state`, `done` | Back to the first frame. |
+| `animation.set_frame_skip` | `skip`: required integer [at least 1, at most 100000000] | `v` / plot | Windows/Animation/Skip | `skip`: `integer` | `animation.state`, `session.state`, `done` | Show every skip-th stored row when playing. |
+| `animation.export_frames` | `ppm`: optional boolean, `animated_gif`: optional boolean, `file`: required file (max 1024 bytes) | `d` / plot | File/Animation/Mpeg | `frames_saved`: `integer` | `animation.state`, `session.state`, `done` | Play the animation writing every frame, as numbered PPM files from file (ppm) or as one animated GIF file (animated_gif), one of the two, into the model's folder. |
+| `animation.set_live_draw` | `enabled`: required boolean | `v` / plot | Windows/Animation/On the fly | `live_draw`: `boolean` | `animation.state`, `session.state`, `done` | Draw the animation while an integration runs. |
+| `animation.grab_point` | `x`: optional real, `y`: optional real, `to_x`: optional real, `to_y`: optional real; all or none of `x`, `y`; all or none of `to_x`, `to_y` | `x` / plot | Windows/Animation/Grab | `grabbed`: `boolean` | `animation.state`, `plot.series`, `session.state`, `done` | Pick a grab point in the animation's coordinates and optionally move it; omit coordinates to begin pointer selection. |
+| `animation.set_speed` | `ms`: required integer [at least 0, at most 1000] | `v` / plot | Windows/Animation/Set speed | `speed_ms`: `integer` | `animation.state`, `session.state`, `done` | Set the delay between two frames of Go in ms; it reaches a Go that is running. |
+| `animation.step` | `rows`: required integer [at least -2147483647, at most 2147483647] | `v` / plot | Windows/Animation/Step | `row`: `integer` | `animation.state`, `session.state`, `done` | Move the frame shown by rows stored rows (negative: back). |
+| `animation.seek` | `row`: required integer [at least 0, at most 2147483647] | `v` / plot | Windows/Animation/Seek | `row`: `integer` | `animation.state`, `session.state`, `done` | Show the frame of stored row row (row 0 is the first). |
+| `animation.pause` | none | `v` / plot | Windows/Animation/Pause | `speed_ms`: `integer` | `animation.state`, `session.state`, `done` | Stop a Go that is running at the frame it is on; with none running it changes nothing. |
+| `animation.faster` | none | `v` / plot | Windows/Animation/Faster | `speed_ms`: `integer` | `animation.state`, `session.state`, `done` | Shorten the delay between two frames of Go by a step; it reaches a Go that is running. |
+| `animation.slower` | none | `v` / plot | Windows/Animation/Slower | `speed_ms`: `integer` | `animation.state`, `session.state`, `done` | Lengthen the delay between two frames of Go by a step; it reaches a Go that is running. |
+| `array_plot.open` | none | `v` / plot | Windows/Viewaxes/Array | `open`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `array_plot.shown`, `session.state`, `done` | Open the array plot window. |
+| `array_plot.redraw` | none | `v` / plot | Windows/Array plot/Redraw | `redrawn`: `boolean` | `array_plot.shown`, `session.state`, `done` | Draw the array plot again from the stored data. |
+| `array_plot.configure` | `first_column`: optional name (max 1024 bytes) [of column], `columns`: optional integer [at least 1, at most 1000000], `first_row`: optional integer [at least 0, at most 2147483647], `rows`: optional integer [at least 1, at most 1000000], `row_skip`: optional integer [at least 1, at most 2147483647], `z_min`: optional real, `z_max`: optional real, `auto_redraw`: optional boolean, `column_skip`: optional integer [at least 1, at most 2147483647] | `v` / plot | Windows/Array plot/Edit | `configured`: `boolean` | `array_plot.shown`, `session.state`, `done` | Set the columns and rows the array plot shows and the ends of its colour scale (z_min below z_max); what is left out stays. |
+| `array_plot.fit` | none | `v` / plot | Windows/Array plot/Fit | `fitted_min`: `real`, `fitted_max`: `real` | `array_plot.shown`, `session.state`, `done` | Set the colour scale's ends to the smallest and largest value shown. |
+| `array_plot.range` | `still`: optional boolean, `tag`: optional boolean, `file`: required file (max 1024 bytes), `variable`: optional name (max 1024 bytes) [of either], `start`: optional real, `end`: optional real, `steps`: optional integer [at least 1], `reset_storage`: optional boolean, `use_old_ic`: optional boolean, `cycle_color`: optional boolean, `movie`: optional boolean, `write_each_run_to_file`: optional boolean | `x` / plot | Windows/Array plot/Range | `steps_completed`: `integer` | `array_plot.shown`, `plot.series`, `session.state`, `done` | Run once for each value of a parameter or variable as run.range does, saving the array plot as GIF files of the model's folder: one movie, or with still one picture per run; tag writes the swept value on each. |
+| `array_plot.export_pdf` | `file`: required file (max 1024 bytes), `top_label`: optional text (max 1024 bytes), `side_label`: optional text (max 1024 bytes), `bottom_label`: optional text (max 1024 bytes) | `d` / plot | File/Array plot/Print PDF | `file`: `file` | `session.state`, `done` | Write the array plot as a PDF picture into a file of the model's folder; the labels left out are the last ones. |
+| `array_plot.export_gif` | `file`: required file (max 1024 bytes) | `d` / plot | File/Array plot/GIF | `file`: `file`, `bytes_written`: `integer` | `session.state`, `done` | Write the array plot as a GIF picture into a file of the model's folder. |
+| `array_plot.scroll` | `first_row`: required integer [at least 0, at most 2147483647] | `v` / plot | Windows/Array plot/Scroll | `first_row`: `integer` | `array_plot.shown`, `session.state`, `done` | Show the array plot from the stored row first_row on (row 0 is the first). |
+| `session.open_model` | `file`: optional path (max 1024 bytes), `example`: optional text (max 1024 bytes), `recent`: optional integer [at least 0]; at most one of `file`, `example`, `recent` | `d` / files | File/Open model | `model`: `text`, `variables`: `list[name]`, `parameters`: `list[name]` | `hello`, `session.state`, `done` | Open a model: a model file by its path (--server's own input only), a bundled example by its name, or one of the recent models by its place in hello.start.recent. Asks first whether to save this session. |
+| `session.reload_model` | none | `d` / files | File/Reload model | `reloaded`: `boolean` | `hello`, `session.state`, `done` | Load the model's file again; the parameters, initial data, numerics and AUTO settings keep their values by name. |
+| `session.open` | `file`: required file (max 1024 bytes) | `d` / files | File/Open session | `file`: `file`, `loaded`: `boolean` | `hello`, `session.state`, `done` | Open a session file (.snapx): its model, then everything as it was saved. |
+| `session.save` | `data`: optional boolean | `d` / files | File/Save session | `file`: `file`, `saved`: `boolean` | `session.saved`, `session.state`, `done` | Save the session to the file it was last saved to or opened from; data false leaves the data table out. |
+| `session.save_as` | `file`: required file (max 1024 bytes), `data`: optional boolean, `confirm`: optional boolean | `d` / files | File/Save session as | `file`: `file`, `saved`: `boolean` | `session.saved`, `session.state`, `done` | Save the session to a file of the model's folder (.snapx added); confirm true replaces an existing file without asking. |
 | `session.save_copy` | `file`: required file (max 1024 bytes), `data`: optional boolean, `confirm`: optional boolean | `d` / files | File/Save a copy of the session | `file`: `file`, `copied`: `boolean` | `done` | Save a copy of the session, leaving the file it is saved to as it was. |
-| `session.import_settings` | `file`: required file (max 1024 bytes) | `s` / files | File/Import settings | `file`: `file`, `applied`: `boolean` | `state`, `done` | Apply a settings file (.setx, or XPPAUT's .set, converted beside it). |
+| `session.import_settings` | `file`: required file (max 1024 bytes) | `s` / files | File/Import settings | `file`: `file`, `applied`: `boolean` | `session.state`, `done` | Apply a settings file (.setx, or XPPAUT's .set, converted beside it). |
 | `session.export_info` | `file`: required file (max 1024 bytes), `confirm`: optional boolean | `d` / files | File/Export simulation information | `file`: `file`, `written`: `boolean` | `done` | Write the equations, numerics, initial conditions and parameters to a file. |
-| `session.get_source` | none | `v` / files | File/Model source | `source`: `text`, `equations`: `list[text]` | `source`, `equations`, `done` | The model's source, its active comments and its equations. |
+| `session.get_source` | none | `v` / files | File/Model source | `source`: `text`, `equations`: `list[text]` | `session.source`, `session.equations`, `done` | The model's source, its active comments and its equations. |
 | `session.quit` | `save`: optional boolean | `c` / files | File/Quit | `quitting`: `boolean` | `done` | Quit: save true saves the session (and a recording in progress) first, false quits at once, and left out asks. |
-| `session.get_state` | none | `v` / files | File/Session/Get state | `state`: `the state event's members` | `state`, `done` | The session's state: sliders, parameters, initial conditions, the view, the saved session and the recording. |
-| `recording.start` | none | `d` / panels | File/Record steps | `recording`: `boolean` | `state`, `done` | Start recording the session's steps, from the session as it is now. |
-| `recording.stop` | `file`: optional file (max 1024 bytes), `confirm`: optional boolean | `d` / panels | File/Record steps | `file`: `file`, `steps_recorded`: `integer` | `state`, `done` | Stop recording and save the recording (.recx added); left out, the file is asked for; confirm true replaces an existing file without asking. |
+| `session.get_state` | none | `v` / files | File/Session/Get state | `state`: `the state event's members` | `session.state`, `done` | The session's state: sliders, parameters, initial conditions, the view, the saved session and the recording. |
+| `recording.start` | none | `d` / panels | File/Record steps | `recording`: `boolean` | `session.state`, `done` | Start recording the session's steps, from the session as it is now. |
+| `recording.stop` | `file`: optional file (max 1024 bytes), `confirm`: optional boolean | `d` / panels | File/Record steps | `file`: `file`, `steps_recorded`: `integer` | `session.state`, `done` | Stop recording and save the recording (.recx added); left out, the file is asked for; confirm true replaces an existing file without asking. |
 | `recording.add_note` | `note`: required text (max 4096 bytes) | `c` / panels | File/Recording/Add note | `note_added`: `boolean` | `done` | Put a note on the next recorded step. |
-| `recording.open` | `file`: required path (max 1024 bytes), `play`: required boolean | `d` / panels | File/Play recording | `file`: `file`, `total_steps`: `integer` | `player`, `state`, `done` | Open a recording (.recx; its path, which only --server's own input may give) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once. |
+| `recording.open` | `file`: required path (max 1024 bytes), `play`: required boolean | `d` / panels | File/Play recording | `file`: `file`, `total_steps`: `integer` | `recording.player`, `session.state`, `done` | Open a recording (.recx; its path, which only --server's own input may give) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once. |
 | `recording.play` | none | `c` / panels | File/Recording/Play | `playing`: `boolean` | `done` | Play the open recording from where it is. |
 | `recording.pause` | none | `c` / panels | File/Recording/Pause | `paused`: `boolean` | `done` | Pause the playing recording. |
 | `recording.step` | none | `c` / panels | File/Recording/Step | `step_index`: `integer` | `done` | Play the next step of the open recording. |
 | `recording.set_speed` | `speed`: required real [at least 0.25, at most 8] | `c` / panels | File/Recording/Set speed | `speed`: `real` | `done` | Set the speed the recording's paces are divided by (hello.player_speed gives the bounds). |
-| `recording.seek` | `step`: required integer [at least 0], `play`: optional boolean | `d` / panels | File/Recording/Seek | `step`: `integer` | `player`, `state`, `done` | Jump to a step: the steps before it run at once, then the recording plays when play is true (left out: when the step is not the first). |
-| `recording.close` | none | `d` / panels | File/Recording/Close | `closed`: `boolean` | `state`, `done` | Leave the player; the model stays. |
-| `recording.set_step_note` | `step`: required integer [at least 0], `note`: required text (max 4096 bytes), `confirm`: optional boolean | `d` / panels | File/Recording/Set step note | `step`: `integer` | `player`, `state`, `done` | Write a note into a step of the open recording's file; confirm true replaces the file without asking. |
-| `keymap.get` | none | `c` / panels | Help/Keymap/Get | `bindings`: `map[text, list[text]]`, `pinned`: `list[text]` | `keymap`, `done` | The user's keymap: the keys of the commands they changed, and the pinned commands. |
-| `keymap.set` | `bindings`: optional map [of list[text], at most 256], `pinned`: optional list [of text, at most 256] | `c` / panels | Help/Keymap/Set | `saved`: `boolean` | `keymap`, `state`, `done` | Replace the bindings or the pinned commands given (what is left out stays); the keymap is checked whole, then written. |
-| `keymap.reset` | none | `c` / panels | Help/Keymap/Reset | `reset`: `boolean` | `keymap`, `state`, `done` | Remove the user's keymap: every command has its default keys. |
-| `events.subscribe` | `events`: required list (series, plots, nullclines, dfield, marks, ani, autoinfo, autosettings, numerics, windows, player) [of choice, at most 256], `encoding`: optional choice (json, f32), `diagram`: optional boolean | `v` / panels | Help/Events/Subscribe | `subscribed`: `list[text]` | `state`, `done` | Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays as base64 float32 (what is left out stays as it was); diagram says whether AUTO's diagram points are sent. |
-| `events.unsubscribe` | `events`: required list (series, plots, nullclines, dfield, marks, ani, autoinfo, autosettings, numerics, windows, player) [of choice, at most 256] | `v` / panels | Help/Events/Unsubscribe | `unsubscribed`: `list[text]` | `state`, `done` | Stop sending the data events named. |
+| `recording.seek` | `step`: required integer [at least 0], `play`: optional boolean | `d` / panels | File/Recording/Seek | `step`: `integer` | `recording.player`, `session.state`, `done` | Jump to a step: the steps before it run at once, then the recording plays when play is true (left out: when the step is not the first). |
+| `recording.close` | none | `d` / panels | File/Recording/Close | `closed`: `boolean` | `session.state`, `done` | Leave the player; the model stays. |
+| `recording.set_step_note` | `step`: required integer [at least 0], `note`: required text (max 4096 bytes), `confirm`: optional boolean | `d` / panels | File/Recording/Set step note | `step`: `integer` | `recording.player`, `session.state`, `done` | Write a note into a step of the open recording's file; confirm true replaces the file without asking. |
+| `keymap.get` | none | `c` / panels | Help/Keymap/Get | `bindings`: `map[text, list[text]]`, `pinned`: `list[text]` | `keymap.changed`, `done` | The user's keymap: the keys of the commands they changed, and the pinned commands. |
+| `keymap.set` | `bindings`: optional map [of list[text], at most 256], `pinned`: optional list [of text, at most 256] | `c` / panels | Help/Keymap/Set | `saved`: `boolean` | `keymap.changed`, `session.state`, `done` | Replace the bindings or the pinned commands given (what is left out stays); the keymap is checked whole, then written. |
+| `keymap.reset` | none | `c` / panels | Help/Keymap/Reset | `reset`: `boolean` | `keymap.changed`, `session.state`, `done` | Remove the user's keymap: every command has its default keys. |
+| `events.subscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, dirfield.field, plot.marks, animation.frame, auto.info, auto.settings, run.numerics, window.list, recording.player) [of choice, at most 256], `encoding`: optional choice (json, f32), `diagram`: optional boolean | `v` / panels | Help/Events/Subscribe | `subscribed`: `list[text]` | `session.state`, `done` | Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays as base64 float32 (what is left out stays as it was); diagram says whether AUTO's diagram points are sent. |
+| `events.unsubscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, dirfield.field, plot.marks, animation.frame, auto.info, auto.settings, run.numerics, window.list, recording.player) [of choice, at most 256] | `v` / panels | Help/Events/Unsubscribe | `unsubscribed`: `list[text]` | `session.state`, `done` | Stop sending the data events named. |
 | `tool.values` | none | `v` / tools | Data/Values |  | `done` | Show the parameters and initial conditions. |
 | `tool.browser` | none | `v` / tools | Data/Browser |  | `done` | Open the stored data browser. |
 | `tool.command_palette` | none | `v` / tools | Help/Command palette |  | `done` | Search every registered command by name, menu path and description. |
 | `tool.keyboard_shortcuts` | none | `v` / tools | Help/Keyboard shortcuts |  | `done` | Edit command keys and pins. |
 | `tool.manual` | none | `v` / tools | Help/Manual |  | `done` | Read the manual. |
 | `tool.calculator` | `expression`: required expression (max 1024 bytes) | `v` / tools | Analysis/Calculator | `expression`: `expression`, `value`: `real` | `done` | Work out a formula of the model's names and functions. |
-| `tool.run_source_action` | `index`: required integer [at least 0] | `d` / panels | Help/Tool/Run source action | `ran`: `boolean` | `state`, `done` | Run the action of an active comment of the model's source (a `{par=value,...}` block): comment `index` of session.get_source's list. |
-| `tool.run_user_button` | `index`: required integer [at least 0] | `x` / panels | Help/Tool/Run user button | `ran`: `boolean` | `state`, `done` | Press a button of the model (an `@ button=name:keys` line), counted from 0 in the order the model gives them. |
+| `tool.run_source_action` | `index`: required integer [at least 0] | `d` / panels | Help/Tool/Run source action | `ran`: `boolean` | `session.state`, `done` | Run the action of an active comment of the model's source (a `{par=value,...}` block): comment `index` of session.get_source's list. |
+| `tool.run_user_button` | `index`: required integer [at least 0] | `x` / panels | Help/Tool/Run user button | `ran`: `boolean` | `session.state`, `done` | Press a button of the model (an `@ button=name:keys` line), counted from 0 in the order the model gives them. |
 <!-- registry:end -->
 
 ## Startup
@@ -445,7 +445,7 @@ common overwrite question applies. They return a placed error if the output coul
    core keeps to (`limits`) and the initial window names (`window_names`): see
    "Shared limits and ids"; the user's keymap (`keymap`: "Keymap").
 2. `window` `create` for the named main graph.
-3. `state`, then `done` (the answer to `session.get_state`, which the program runs first).
+3. `session.state`, then `done` (the answer to `session.get_state`, which the program runs first).
 
 A client that draws sends `events.subscribe` next (see "The plot as data").
 
@@ -453,7 +453,7 @@ A client that draws sends `events.subscribe` next (see "The plot as data").
 
 A program started with no file (the Start menu, the Dock, a launcher; a
 folder instead of a file too) has a session with **no model**. `hello` then
-carries `start`, and has no `window` or `state` after it (`idle` instead);
+carries `start`, and has no `window` or `session.state` after it (`done` instead);
 a `hello` of a loaded model has no `start`, so a client shows the start
 screen exactly while `hello.start` is there. The core queues the same
 File > Open model key that the page's button sends, so the Open model dialog
@@ -509,12 +509,12 @@ formula that does not compile, a name given twice, a value an `@` option
 refuses: a colour that is none, an unknown variable, a word where a
 number goes, ... at the option's line, W119), the server sends one
 `error` event instead of `hello` and exits with status 1 (W63c). The log
-(stderr, the page's `log` event) says it once, at its place
+(stderr, the page's `session.log` event) says it once, at its place
 (`file:line:col: what`, "Errors" below), after the warnings the load
 logged about the lines before it, each at its own line; the event is
 the same as values ("Errors"):
 
-    {"ev":"error","error":"Premature end of expression\n-X+A*\n    ^\nERROR compiling X'","file":"bad.ode","line":3,"col":0,"source":"x'=-x+a*"}
+    {"ev":"session.error","error":"Premature end of expression\n-X+A*\n    ^\nERROR compiling X'","file":"bad.ode","line":3,"col":0,"source":"x'=-x+a*"}
 
 - `file`: the file the problem is in, as the server was given it, or the
   file the model includes (`#include`) when the problem is there.
@@ -541,18 +541,18 @@ failed and where, the place being the file, its line and column from 1
 way as text for the console, the log and `--silent` (`Error::text()`:
 `file:line:col: what`, leaving out what is not known, `line N: what`
 with no file), and sent as one shape: the `error` event (a model that
-does not load, above), a `message` with `error`, and a failed `file`
+does not load, above), a `session.message` with `error`, and a failed `file`
 event (`ok: 0`) carry the same five
 fields, always all of them, and `field`:
 
-    {"ev":"message","error":"it is for 3 parameters, the model has 12","file":"bad.par","line":1,"col":0,"source":"3   Number params","field":""}
+    {"ev":"session.message","error":"it is for 3 parameters, the model has 12","file":"bad.par","line":1,"col":0,"source":"3   Number params","field":""}
 
 A command line is checked before it runs (W493): text that is not valid JSON
-is a `message` error `the command line is not valid JSON (at character N)`
+is a `session.message` error `the command line is not valid JSON (at character N)`
 (`is nested too deeply` and `has text after its value` the other two), and a
 command's argument that is not the kind the command reads (a string or an
 object where a number goes, a fraction where a whole number goes) is a
-`message` error naming the command and the argument, `auto: argument "label"
+`session.message` error naming the command and the argument, `auto: argument "label"
 must be a number, not "x"`; the command does not run. `true`, `false` and
 `null` are accepted for a flag (1 and 0).
 
@@ -589,7 +589,7 @@ must be a number, not "x"`; the command does not run. `true`, `false` and
   AUTO run one stopped (`AUTO stopped: ...`, at the equation's line, with
   the continuation parameter's value) ends as a Stop ends it: the last
   converged point is stored as an end point (EP) with its label, and
-  `autoinfo`'s `stop.why` is `jacobian`. Its action has the same label and
+  `auto.info`'s `stop.why` is `jacobian`. Its action has the same label and
   the commands `{"cmd":"set","kind":"num","name":"jacobian","text":"difference"}`,
   `{"cmd":"auto.run","kind":K,"label":N}`, K the run's kind, N the end point's label (no
   action when the run stored no point to restart from).
@@ -632,6 +632,15 @@ number, a boundary condition longer than its room) and a line after the
 last the file holds all refuse the file; a file of ours is never read in
 part. A file that cannot be read at all is the error with line 0 (above).
 
+**One format version** (W529, Discussion #415 decision 9): the protocol (`hello.protocol`) and every file of ours
+carry one number, 4 (core/format_version.h), and each reader takes exactly that version. A model (`.odex`, an imported
+file too) starts with the statement `version 4`; an animation (`.anix`) with `version: 4`; a settings file (`.setx`),
+`preferences.setx` and a session's `session.setx` have the key `version: 4`; `keymap.json` the member `"version": 4`;
+a recording (`.recx`) has it in its header. A file with no version, or with another one, is refused as any bad file is,
+at its first line, naming both versions (`version 3: this program reads model files of version 4`): there is no
+upgrader and no older reading. The repository's own files were migrated once by tools/migrate_w529_version.py; the
+number goes back to 1 when the formats settle.
+
 User text is quoted in every such file and a choice never is (W490): a
 name, a label, a title, a key, a path or a formula the user wrote (a
 window's or a curve's name, a recording's model, a set's name in a `.odex`:
@@ -645,7 +654,7 @@ JSON strings need no such rule: a string is always a string.
 
 `hello.commands` is the one list of commands: every registry row of the "Typed command registry" above
 (`arguments` is present even when empty) and the few protocol lines that are not registry commands
-(`answer`, `file`, `set`, `key`). The page's menu bar, command palette, argument forms, quick-access toolbar,
+(`answer`, `file`, `set`). The page's menu bar, command palette, argument forms, quick-access toolbar,
 keymap editor and keyboard help are all made from these rows; nothing on the page lists a command by hand.
 A registry row has:
 
@@ -695,6 +704,7 @@ browser page both read and write it through the `keymap.*` commands, so they
 never disagree.
 
     {
+      "version": 4,
       "pinned": ["session.reload_model", "tool.calculator"],
       "bindings": {
         "session.reload_model": ["Ctrl+B", "F9"],
@@ -732,7 +742,7 @@ falls back silently.
 (`hello.keymap.reserved`, core/xpp_keymap.h). No command is bound to one and
 the page never calls `preventDefault` on them.
 
-`hello.keymap` and the `keymap` event's `keymap` are one object, the load's
+`hello.keymap` and the `keymap.changed` event's `keymap` are one object, the load's
 result as the page keeps it:
 
 | field | meaning |
@@ -746,9 +756,9 @@ result as the page keeps it:
 | `commands` | [{`id`, `keys`, `source`}...] for every command but the shortcut-layer rows: the effective keys, and whether they are the table's (`default`) or the user's (`user`) |
 
 When the file is bad, the page gets that error in `keymap` (in `hello`, and in
-the `keymap` event `keymap.get` sends) and `commands` are the table's defaults with `source`
+the `keymap.changed` event `keymap.get` sends) and `commands` are the table's defaults with `source`
 `default`: the defaults are what the page shows while the error is up, marked
-by `ok: false`, never presented as the user's; no `message` event is sent for a
+by `ok: false`, never presented as the user's; no `session.message` event is sent for a
 load (the page shows the error once, from `keymap`). `set` replaces a bad file
 whole; `keymap.reset` removes it.
 
@@ -773,7 +783,7 @@ argument form supplies typed values. Imported XPPAUT user buttons call their
 leaf operations through `tool.run_user_button`. A run's `done` says
 `completed` or `ended_early` (an event's `arret`, a section that stops it,
 `/`) with the rows stored and the time reached; an error ends it as an
-error with its place, and a stop (`run.abort`, Escape) as `stopped`.
+error with its place, and a stop (`run.abort`, Escape) as `job.stopped`.
 
 - `run.initial`, `run.last`, `run.old`, `run.shift`, `run.backward`: a
   trajectory from the initial values, the last state (which overwrites the
@@ -789,7 +799,7 @@ error with its place, and a stop (`run.abort`, Escape) as `stopped`.
   to the output grid (Dt times N; N times 1 for a map; a value within 1e-6 of
   a grid interval of a grid point counts as on it) and is at least one
   interval after the current time; the end reached is `end_time` and the
-  `time` of the `state` that follows. `hello.continue.grid_tolerance` carries
+  `time` of the `session.state` that follows. `hello.continue.grid_tolerance` carries
   that 1e-6.
 - `run.steady` (`decimals` 0 to 15, `hold`, `maximum`, all required)
   starts a new trajectory from Initial. Hold is at least one positive Dt,
@@ -880,7 +890,7 @@ error with its place, and a stop (`run.abort`, Escape) as `stopped`.
   longer takes `postprocess`.
 - `run.abort` stops the running command where it is; the reader thread acts on
   it the moment it arrives, so it has no `done` of its own (the stopped
-  command ends with `stopped` and `done` status `stopped`); outside a command
+  command ends with `job.stopped` and `done` status `stopped`); outside a command
   it does nothing. A recorded interruption belongs to a recording step's
   `run.abort`, whose position the player arms before the computation.
 
@@ -901,10 +911,9 @@ steps are not comparison intervals.
 
 | cmd | fields | meaning |
 |---|---|---|
-| `key` | `key` | A key typed as the keymap names it (`"Ctrl+R"`, `"Escape"`: "Keymap"): the core resolves it through the user's keymap and runs the registry command bound to it (recorded as that command). A key is one key press; a key no command has is an error. The page does the same locally and sends the command. |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (a client or the recording player can answer without tracking prompt ids). |
 | `set` | `kind` (`bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a boundary condition, a delay or a numerics value no registry command takes yet (no redraw or run: W69). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `text` is what the X11 box takes: an expression for `bc` and `delay`; BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `nullcline_mesh`, ...; "The numerics as data"; the run's and the shooting's are `run.configure`'s and `bvp.configure`'s). A numerics value refused is a `message` `error` naming the field (`Numerics: ...`); so is what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind delay, bc or num, not "parm"`), a `par` or `ic` (`set no longer takes parameters: send value.set_parameters`), an `index` outside the list, no `value` that is a number and no `text`. Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]: all or nothing (W131), every value checked first, the one `message` `error` naming the value that is refused and its `field`. |
-| `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
+| `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `session.state` and `done`. Names are base names only (see "Files" below). |
 
 ### Session, recording, keymap, events and tools (W528)
 
@@ -914,11 +923,8 @@ the player; the user's keymap; the heavy data events a client subscribes to;
 and the calculator, a source comment's action and a model button are
 registry commands (the generated table above lists their arguments, results
 and events: `session.*`, `recording.*`, `keymap.*`, `events.*`, `tool.*`);
-the old forms (`open`, `reload`, `session`, `record`, `play`, `keymap`,
-`data`, `equations`, `state`, `quit`, `action`, `userbut`) are gone and are
-refused as unknown commands. The File menu's keys ask for what they need as
-before and call the same core functions, so a key, a menu item and the
-command do one thing. What the rows leave to say:
+the old forms are gone and refused as unknown commands. A key, a menu item and
+the command do one thing. What the rows leave to say:
 
 - `session.open_model` takes a path (`--server`'s own input only; the page
   and a recording never give one), an example's name or a recent model's
@@ -930,7 +936,7 @@ command do one thing. What the rows leave to say:
   names the model now loaded, its variables and its parameters; a model
   that does not load is the `done` error naming the file and line, and the
   session before is kept. On success all windows but the main one are
-  destroyed, and a new `hello`, `state` and first-start events follow; the
+  destroyed, and a new `hello`, `session.state` and first-start events follow; the
   client subscribes with `events.subscribe` again. `session.reload_model`
   loads the file again with the same questions and keeps the parameters,
   initial data and numerics by name.
@@ -950,10 +956,10 @@ command do one thing. What the rows leave to say:
   a cancel keeps the session); `save` true is that question answered Save
   session by a client that asked it itself (the page, while a command runs):
   it stops the computation, saves the session and a recording in progress,
-  then says `bye` and exits. A quit that saves or asks is a command of its
-  own and ends with `state` and `done` only when it is cancelled.
-- `session.get_state` answers the `state` members as its result (and sends
-  the `state` event); `session.get_source` sends `source` and `equations`
+  then says `session.bye` and exits. A quit that saves or asks is a command of its
+  own and ends with `session.state` and `done` only when it is cancelled.
+- `session.get_state` answers the `session.state` members as its result (and sends
+  the `session.state` event); `session.get_source` sends `session.source` and `equations`
   and answers with the source text and the equation lines. Both, and the
   player's controls (`recording.play`, `recording.pause`, `recording.step`,
   `recording.set_speed`), are answered at once, even during a computation,
@@ -968,16 +974,16 @@ command do one thing. What the rows leave to say:
 - `keymap.get` reads the user's `keymap.json`, `keymap.set` replaces the
   bindings or the pinned commands given (what is left out
   stays; the keymap is checked whole, then written) and `keymap.reset`
-  removes the file; each sends the `keymap` event ("Keymap") before its
+  removes the file; each sends the `keymap.changed` event ("Keymap") before its
   `done`. The user's settings, not the model's: control commands, taken any
   time, never a recording's step.
 - `events.subscribe` adds the named events to those the client already gets
   (`encoding` `f32` sends their arrays as base64 float32; `diagram` says
   whether AUTO's diagram points are sent; left out, each stays as it was) and
   sends each at once, at the end of the command; `events.unsubscribe` stops
-  the named ones. The names are `hello.features`: `series`, `plots`,
-  `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`,
-  `numerics`, `windows` and `player` (see their sections below).
+  the named ones. The names are `hello.features`: `plot.series`, `plot.shown`,
+  `nullcline.curves`, `dirfield.field`, `plot.marks`, `animation.frame`, `auto.info`, `auto.settings`,
+  `run.numerics`, `window.list` and `recording.player` (see their sections below).
 - `tool.run_source_action` runs the action of comment `index` of
   `source.comments`; `tool.run_user_button` presses button `index` of the
   model (`hello.userbuttons`).
@@ -1004,7 +1010,7 @@ Every action has a kind (W95), defined once in the core and sent in
   `kind` is `""` (a key's is its menu item's). `step` says whether the
   command is a step of the user's: what a recording records ("Recordings")
   and what web2 runs again when the file it could not read has been added
-  (`message` `file`); the client's own requests (`session.get_state`, `events.*`,
+  (`session.message` `file`); the client's own requests (`session.get_state`, `events.*`,
   `session.get_source`, `file`, the browser's paging), answers and
   aborts, and the recording's and player's own commands are not. It is
   core/ui_json.cpp's command table, the one handle_line dispatches from:
@@ -1026,17 +1032,19 @@ What a client must keep to, from the core that keeps to it (W118):
 - `hello.colormaps`: the colour scales the core has, by name (the order of core/colormap.h `colormap_names`); `plot.set_colormap` changes the session's.
 - `hello.window_names`: names for the main graph, initial AUTO view,
   animation, array-plot and data browser surfaces (`main`, `auto`, `ani`,
-  `aplot`, `browser`): the last three are fixed (`animation`, `array_plot_1`,
+  `array_plot.shown`, `browser`): the last three are fixed (`animation`, `array_plot_1`,
   `browser`) and no graph or view may take them.
   `plots.windows` and diagram `views.names` list the actual open windows.
   Names are strings in events, asks and commands; there are no numeric
   window handles on the wire.
 
 
-The core says when the running command begins computing: `computing`
-(once per command, before its first `progress`; its `idle` ends it). A
+The running command is a *job*, numbered by the core (the sequence number of its input line, so a command sent without an `id` has one too). `job.computing`, an `ask` and the `done` that ends the job carry that number as `job`; a control command's `done`, answered while the job runs (`session.get_state`, `run.abort`'s answer, the player's controls), has no `job`. The HTTP host keeps the last `job.computing` and `ask` for a page that connects meanwhile and drops them only at the `done` of that same `job`.
+
+The core says when the running command begins computing: `job.computing`
+(once per command, before its first `job.progress`; its `done` ends it). A
 client disables data and computation actions from then until that
-`idle`, and nothing merely because a command it sent itself is running.
+`done`, and nothing merely because a command it sent itself is running.
 Settings stay enabled throughout: an edit is sent at once, and the core
 applies it when it can (below).
 
@@ -1062,22 +1070,11 @@ A graph's curves, frozen curves, axes and exports are the `plot.*` commands of t
 
 The model's named sets, the values (parameters, sliders, .par and .ic files) and the data browser's table are the `set.*`, `value.*` and `browser.*` commands of the table above (W526, #590); each is one command in every front end. Each ask what it needs, then calls the same core functions.
 
-- **`set.*`**: `set.apply` applies a set of the model as a patch over the current values, limited to `scope`: `all`, `parameters`, `initial` (the states) or one of the groups a set holds (`integration`, `poincare`, `equilibria`, `continuation`, `plot`, `sweep`, `analysis`; docs/odex.md); `window` is the graph the plot settings go to (the active one when left out) and only a scope of `all` or `plot` takes one; a parameter-only apply leaves the initial values alone; all or nothing, one undo step. `set.save_new` appends `set "NAME" { ... }` to the model file with the current values of `scope`; `set.save_into` replaces that scope's part of one of the file's own sets (an imported set is read-only); `state` says whether the initial values saved are the initial ones (`initial`, what is left out means) or the last state reached (`last`). `set.save_defaults` writes the values as the model's own (its `par` and `init` lines, an `options` group), `set.export` as a set of another `.odex` file (a set of that name there asks before it is replaced), `set.rename` and `set.delete` change the file's own sets. Every save builds the new text, checks it parses, checks the file has not changed on disk since the load, replaces it atomically, and only then updates the live model; a refusal changes neither. `set.restore_defaults` puts the model's own values back for `scope` (or one `field` of it, not with `all`).
+- **`set.*`**: `set.apply` applies a set of the model as a patch over the current values, limited to `scope`: `all`, `parameters`, `initial` (the states) or one of the groups a set holds (`integration`, `poincare`, `equilibria`, `continuation`, `plot`, `sweep`, `analysis`; docs/odex.md); `window` is the graph the plot settings go to (the active one when left out) and only a scope of `all` or `plot` takes one; a parameter-only apply leaves the initial values alone; all or nothing, one undo step. `set.save_new` appends `set "NAME" { ... }` to the model file with the current values of `scope`; `set.save_into` replaces that scope's part of one of the file's own sets (an imported set is read-only); `session.state` says whether the initial values saved are the initial ones (`initial`, what is left out means) or the last state reached (`last`). `set.save_defaults` writes the values as the model's own (its `par` and `init` lines, an `options` group), `set.export` as a set of another `.odex` file (a set of that name there asks before it is replaced), `set.rename` and `set.delete` change the file's own sets. Every save builds the new text, checks it parses, checks the file has not changed on disk since the load, replaces it atomically, and only then updates the live model; a refusal changes neither. `set.restore_defaults` puts the model's own values back for `scope` (or one `field` of it, not with `all`).
 - **`value.*`**: `value.set_parameters` sets some parameters (a map of numbers, all or nothing, one undo step) and `value.set_by_formula` one parameter to what a formula works out to now; `value.undo` and `value.redo` are the Ctrl+Z and Ctrl+Y of value edits (an error when there is nothing to undo or redo); `value.slide` sets a parameter or a state's initial value, a drag's steps being one undo step. `value.configure_slider` defines a slider slot (an existing one or the next; `step` 0 lets the page pick one, left out keeps the slot's), `value.remove_slider` empties one. `value.save_file` and `value.load_file` write and read XPP's own `.par` (`kind` `parameters`) or `.ic` (`initial_conditions`) file in the model's folder; with no `file` the core asks for one (the desktop window's own dialog), and a question answered with Cancel ends the command with an empty `file`. A load is all or nothing, one undo step.
 - **`browser.*`**: `browser.page` chooses the block of the table the client shows (`from_row` to `count` rows, 0 stopping the block's `browser` events; the columns after `T` from `first_column`, `columns` of them) and is answered at once, even during a computation, with the rows in its `done` and the `browser` event; a `from_row` past the data is the last row. `browser.find` selects the row nearest a value, from the selected row on. `browser.set_slice_start` and `browser.set_slice_end` choose the rows First..Last that `browser.tabulate_column` and `browser.export` keep (the last inclusive; a first row not before the last, or a last row before the first, is refused); `browser.restore_full_slice` keeps all the data and replots it. `browser.add_column` adds a column computed from a formula of the others and recomputed after every run, `browser.delete_column` removes one (not one a graph plots), `browser.replace_column` replaces a column by a formula, `'&column'` (its running integral), `'@column'` (its derivative), `'a:b'` (from a to b) or `'a;b'` (from a in steps of b), and `browser.undo_replace` puts it back. `browser.transpose` shows the stored data on its side (`columns` columns from `first_column` in steps of `column_skip`, `rows` rows from `first_row` in steps of `row_skip`; every one it reads must be in the data, at most one fewer rows than the model has columns; what is left out keeps the last values). `browser.export` and `browser.load` write and read a data file ("Saving data" below; `target` `table`, `output` or `plot_curves`, `format` by name or by the file's extension, a missing file, target or format asked for as there). `browser.postprocess` runs the model's `@ postprocess` and shows its result. Getting a row as the initial conditions is `ic.from_data_row`.
 
 A file the commands write is a base name in the model's folder; replacing one that is there asks (a `choice` ask), and a No is the error `... replacing it was declined: nothing was written`. A registry command carries no `replace` decision.
-
-## Keys
-
-`{"cmd":"key","key":"Ctrl+R"}` resolves the current keymap. Keys use
-the keymap grammar (capital letters, canonical modifiers); a key is one key
-press, never a sequence. The bound command runs as the command it is. `menu`,
-`item`, `win`, `button` and `context` arguments are refused. The page resolves
-the same effective bindings locally, opening the common form when arguments
-are needed. Loaded custom bindings reject two commands on one key, naming
-both commands and the key. The old window/menu key layers, the letter
-sequences and the XPPAUT key preset are removed (W536).
 
 ## Saving data
 
@@ -1128,7 +1125,7 @@ error, with no fallback or truncation. Typed write answers are base names;
 only the native dialog's authorized path answer can select another folder.
 Live command errors identify the one-line virtual source `command:1` and
 carry the command JSON in `source`; a recording uses its real step location.
-Every committed `saved` event is delivered by the browser page, including
+Every committed `session.saved` event is delivered by the browser page, including
 all files from a command that saves several outputs.
 
 Every user save uses the same owner (W129, #181), including sessions,
@@ -1162,15 +1159,15 @@ rule. `--silent`'s built-in commands and clients with `replace:1` keep their
 explicit authorization; clients needing disk-independent runs should carry
 that decision rather than assume a conditional question will occur.
 
-Each attempted save sends `{"ev":"saved","saved":true|false,"file":"<destination>"}`
-before the command's `idle`. `true` means the complete temporary file was
+Each attempted save sends `{"ev":"session.saved","saved":true|false,"file":"<destination>"}`
+before the command's `done`. `true` means the complete temporary file was
 committed to that destination. A decline, unsuccessful open, write, commit
 or cancelled capture sends `false`. An empty save sends `false` with `file:""`
 and its one error. A cancelled name ask starts no attempt. Failure errors
 are shown once at the command's place, naming the destination in their text.
 The page delivers only the matching successful destination (including a
 suffix the core appended from the file dialog), at that command's
-idle; an idle alone, No, or a failed commit never delivers an older file.
+`done`; a `done` alone, No, or a failed commit never delivers an older file.
 
 Array plot Range movies commit only after the sweep completes. A stopped
 sweep, failed integration or cancelled pixel capture aborts the Writer and
@@ -1211,27 +1208,27 @@ in the input.
   only a running computation, and waits its turn as an ordinary command:
   it asks, and exits only when the user says so.
 - While a *computation* runs (an integration, a range of them, Sing pts, a
-  boundary value problem, an AUTO run: what Escape stops; the `computing`
+  boundary value problem, an AUTO run: what Escape stops; the `job.computing`
   event says it began), the server judges each line the moment it arrives
   by its kind ("Action kinds"; one list, core/ui_json.cpp `during_run`):
   - acted on at once, at the computation's next check: `run.abort`, `session.quit` with `save` false,
-    the stop key (`key` `Escape`; `/`, which ends a range or a shooting
+    the stop command (`run.abort`, Escape's key; `/`, which ends a range or a shooting
     for good), and what only reads or steers a view: `session.get_state`, `browser.page`, `animation.pause`, `animation.set_speed`, `animation.faster` and
     `animation.slower`;
   - taken at once, at the computation's next check, and kept for after
     it: a setting (W106: `set`, `value.set_parameters`, `value.slide`, `set.apply`, `set.restore_defaults`,
     `value.load_file`, `auto.configure_*`; "Action kinds"). The computation
     runs on with the values it started with (the right-hand side, the
-    integrator and AUTO read nothing the setting changed); `state` sent
+    integrator and AUTO read nothing the setting changed); `session.state` sent
     meanwhile still shows those. When the running command ends (its
-    `idle`), each setting taken runs as a command of its own, in the
+    `done`), each setting taken runs as a command of its own, in the
     order sent and before any other line: it applies then (an invalid
-    one gets its `message` `error` then, as a refused command's), with
-    its own `state` and `idle`. So every setting has one `idle`, sent
+    one gets its `session.message` `error` then, as a refused command's), with
+    its own `session.state` and `done`. So every setting has one `done`, sent
     during a computation or not, and the next computation uses it; a
     session saved after the run holds it;
-  - kept for their turn, run after the computation's `idle` with their
-    own `state` and `idle`: an `answer` (the computation's own
+  - kept for their turn, run after the computation's `done` with their
+    own `session.state` and `done`: an `answer` (the computation's own
     questions), every other command of the view kind (`events.subscribe`, a
     `display`, a `click`, a menu key that only shows, such as Window/zoom
     or a window's Axes: its menu opens then), and a key of the setting
@@ -1239,15 +1236,15 @@ in the input.
   - refused: a command of the data or computation kind (a key that
     computes or saves, a file written, AUTO's Grab), with one
     log line when it arrives (`refused during a computation: key s`); it
-    never runs, and after the computation it gets a `message` `error`
-    ("Not while a computation runs: key was refused"), `state` and `idle`
-    of its own, so a client's count of commands and idles stays right. (Until
+    never runs, and after the computation it gets a `session.message` `error`
+    ("Not while a computation runs: <command> was refused"), `session.state` and `done`
+    of its own, so a client's count of commands and `done`s stays right. (Until
     W95 every such line, views included, was dropped with no reply.) A
     client that enables its actions by kind, as web2 does, sends none: it
-    disables data and computation actions from `computing` to the
-    command's `idle`, sends its settings at once, and sends Escape as
+    disables data and computation actions from `job.computing` to the
+    command's `done`, sends its settings at once, and sends Escape as
     `run.abort`; the recording player starts its next step after the current
-    command's `idle`.
+    command's `done`.
 
   Once the computation is stopping (a `run.abort` or Escape cancelled it), a
   line that arrives is for after it: it is taken as below, so a command
@@ -1258,34 +1255,34 @@ in the input.
   `animation.set_speed`, `animation.faster`, `animation.slower`) are *control* lines
   (the animation's Go acts on them between frames: Escape or Pause stops
   it, a `set` changes a parameter under it, and still has its own
-  `state` and `idle` after the job). A control line the job does not get
+  `session.state` and `done` after the job). A control line the job does not get
   to runs after it as an ordinary command. A `set` a job takes after its
   computation began (a Flow's next trajectory, a range's next run) waits
   for the job's end, as during the computation.
 - Every other command sent during a job, outside a computation, is queued
-  and runs, in order, after the job's `idle` (with its own `state` and
-  `idle`). A command a prompt reads that does not answer it (sent before
+  and runs, in order, after the job's `done` (with its own `session.state` and
+  `done`). A command a prompt reads that does not answer it (sent before
   the client saw the question: a click right behind the command that
   asks) is kept the same way, for after the command that asked (W95; it
   used to be dropped). A setting a prompt reads applies at once when the
   command has not computed yet (a value edited while the Initialconds menu
   is open counts for the run its Go starts), else after the command, and
-  has its own `state` and `idle` after the command either way. Not in a
+  has its own `session.state` and `done` after the command either way. Not in a
   recording, where each ask takes the step's next recorded answer; an
   unexpected ask stops the player.
-- `run.abort` never has an `idle` of its own, so a client can send it at any
-  time without upsetting its count of commands and idles.
+- `run.abort` never has a `done` of its own, so a client can send it at any
+  time without upsetting its count of commands and `done`s.
 - The queue of waiting lines is bounded (W389, #451). The normal lines
   waiting for the core, those in the input queue and those the command
   loop keeps for after the command that runs, are at most 1024 and 64 MB
   together (core/xpp_inbox.h `MAX_PENDING_LINES`, `MAX_PENDING_BYTES`: far
-  more than a client that waits for each `idle` ever has waiting). A normal
+  more than a client that waits for each `done` ever has waiting). A normal
   line that arrives at the full queue is refused, never queued and never
   waited for: the reader goes on, so nothing behind it is held up. The
-  client gets one `message` `error` whose text begins `Busy:` and names the
+  client gets one `session.message` `error` whose text begins `Busy:` and names the
   command (`cmd`, and its `id` when it has one), with the line, cut to 200
   bytes, as `source` (the line itself is the place; the refused command has
-  no `idle` of its own and ran nothing). The client sends the line again
+  no `done` of its own and ran nothing). The client sends the line again
   later, or a message queue in front of the server redelivers it. Control
   lines (`run.abort`, `session.quit` with `save` false, the stop keys and the rest this list calls acted
   on at once) are never refused, so a `run.abort` sent after a flood is read and stops the run. Over
@@ -1298,11 +1295,11 @@ in the input.
   The longest input line is the byte bound, 64 MB (a `--server` line over it
   is discarded and answered by one `input` error); an HTTP body is capped at 1 MB.
 - A command whose job was cancelled (by `run.abort`, Escape, `session.quit`) sends
-  `stopped` before its `state` and `idle`: where the computation got to,
+  `job.stopped` before its `session.state` and `done`: where the computation got to,
   which is what the recording player uses to replay the interruption (below).
   A `session.quit` with `save` false read by the computation's own check ends the command at once: it sends
-  `stopped` too, then `bye` and the exit (it never reaches `state` and `idle`), the same
-  `stopped` as when the computation sees the cancel first and the quit runs after the command.
+  `job.stopped` too, then `session.bye` and the exit (it never reaches `session.state` and `done`), the same
+  `job.stopped` as when the computation sees the cancel first and the quit runs after the command.
 
 ## Playing a recording without an interface
 
@@ -1338,7 +1335,7 @@ outputs. See [Question answering](#question-answering) for the answering policy.
 Interactive Play still writes only
 in its private scratch folder; use `--server` and the `file` command to
 inspect those files before closing. Protocol clients wait for
-`ask` and `idle`; recordings are the only playable file format.
+`ask` and `done`; recordings are the only playable file format.
 
 `examples/recordings/lecar_auto.recx` records the former AUTO example's
 steps: select Le Car's `hopf` named set, find its fixed point, import
@@ -1410,7 +1407,7 @@ fingerprint: 5f0c...(64 hex digits)
   76 digits a line, then `@end` (W59b). A recording holds no data: a
   replay computes it again.
 - `@steps`: one JSON object a line, one per step. A step is everything
-  from leaving idle to the next `idle`: the command, the answers to what
+  from the command's start to its `done`: the command, the answers to what
   it asked, and where it stopped when a `run.abort` or Escape cancelled it.
   `step` is a label for a person: the command's menu path (`File → Save session`) or its name and values.
   `cmd`: the command, whole (`value.set_parameters`, `run.initial`, ...),
@@ -1424,7 +1421,7 @@ fingerprint: 5f0c...(64 hex digits)
   a `pixels` ask (the client's, not the user's) has none.
   `view`: the step only changes what is shown (its kind, "Action kinds",
   refined by the menu item it picked), so a player may run it quickly.
-  `abort`: the `stopped` event's `at`, recorded in the step
+  `abort`: the `job.stopped` event's `at`, recorded in the step
   ("Playing a recording without an interface"). `during`: the keys the running job read itself, each
   `{"key":K,"at":AT}` with where the job was when it took it: `/` ending a
   range or a shooting, Escape stopping the animation's Go (an Escape
@@ -1464,7 +1461,7 @@ to save this model's session first, then loads the session the recording
 began from, its `@snapshot` (W59d): its model, from the files saved there,
 then everything as it was when Record was pressed, as Open model of a
 `.snapx` restores it (the data table excepted: the steps compute it). The
-`player` event lists the steps, and `state.player` says where the player
+`recording.player` event lists the steps, and `state.player` says where the player
 is. A recording that does not read (not one, a header line missing,
 twice or not one of `program:`, `model:`, `recorded:`, no `@snapshot`, a
 section with no `@end`, no `@steps`, a step that is not a JSON object
@@ -1472,7 +1469,7 @@ with a `cmd`, or that holds `keys`, `win` or `button`, no `fingerprint:` line or
 `error` message at its line (`file` the `.recx`, `line`, `source`: W125)
 and nothing changes: every step is read before anything is played or
 loaded. One whose
-fingerprint does not match plays all the same: `player`'s `intact` is
+fingerprint does not match plays all the same: `recording.player`'s `intact` is
 false, and the page says it was changed after it was made.
 
 Faithful: each step runs exactly as recorded, nothing fixed, skipped or
@@ -1487,7 +1484,7 @@ prompt or input; it does not delay arming a recorded interruption. A
 arms its `abort`, or its first `during` key
 ("Playing a recording without an interface"): the job stops, or is handed the key, exactly where the
 recorded one did. A step that asks a question it holds no answer for, ends
-with answers left over, or never reaches its interruption gets a `message`
+with answers left over, or never reaches its interruption gets a `session.message`
 `error` (`Step N of the recording ...; the player stopped`) and the player
 pauses; an open question is then the user's to answer.
 
@@ -1505,16 +1502,16 @@ recorded Open model of a file the recording does not hold, or a folder
 this machine lacks, stops there. `recording.seek` loads the snapshot again.
 
 Pace: only computation takes time. Before each input the player sends
-`press` (what it is about to send, `ms` before it sends it): a step's
+`recording.press` (what it is about to send, `ms` before it sends it): a step's
 first input 700 ms plus the note's reading time (35 ms a character, at
 most 3 s), a menu's key 600, a dialog's answer 900 plus 40 a character
 of it (at most 2500), a message 1200; a view step's a third. Each of
 these is then scaled by 1.5 (`PACE_SLOWDOWN`: 1x was a little too fast, maintainer 2026-10-01), so
 the first input of a step at 1x is 1050 ms plus 1.5 times the reading time. After a
-step's `idle` it waits 800 ms (a view step 250) before the next, never
+step's `done` it waits 800 ms (a view step 250) before the next, never
 merging or skipping one. The result is divided by `speed`. `pause` stops the
 clock (the wait keeps what is left), `step` runs one step, `from` N runs
-the steps before N with no wait (their `press` events 0 ms), then pauses
+the steps before N with no wait (their `recording.press` events 0 ms), then pauses
 (or plays on).
 The player acts from the command loop's and a question's wait for input,
 so the core stays on its one thread and keeps reading the client's lines
@@ -1528,7 +1525,7 @@ extension: `model.ODEX` is an .odex file; `.odex` and `dir/.odex` are not.
 Input strings are decoded whole: command and operation names, model names,
 values, file paths and wildcard patterns have no per-field character caps.
 An HTTP command body over 1 MB is refused with HTTP 413; a `--server` input
-line over 64 MB (the queue's byte bound, W389) is discarded through its newline and produces one `message`
+line over 64 MB (the queue's byte bound, W389) is discarded through its newline and produces one `session.message`
 `error` naming the input limit. Neither executes a truncated command. A
 workspace basename over 255 bytes is refused as `not a plain file name in the model's folder`, never shortened.
 An unreadable workspace listing is a failed `file` event (HTTP `/files`: 500),
@@ -1580,47 +1577,105 @@ sent as `null`, since JSON has neither (the rule is core/json_number.h's).
 A `null` in a number field therefore means "not a finite number", never "a
 large value".
 
-| ev | fields | meaning |
-|---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `windows`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
-| `windows` | `windows`: [{`name`, `kind` (`graph`, `diagram`, `browser`, `animation`, `array_plot`), `shown`}] | Every open window of the session, in `window.list`'s order, and whether `window.hide` hid it; sent when `events.subscribe` asks for `windows`, and again whenever it changes (a window made, destroyed, renamed, hidden or shown). A hidden window keeps everything it holds. |
-| `window` | `op` (`create`, `select`, `destroy`), `kind` (`graph`, `diagram`, `animation`, `array_plot`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, identified by name. `kind` distinguishes auxiliary panels from user-named graphs; `hello.window_names` gives their initial names. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
-| `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
-| `autoinfo` | `info`, `stab`, `stop`, `notes`, `start_refined` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`events.subscribe`); see "The AUTO diagram as data". |
-| `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`events.subscribe`); see "AUTO's settings as data". |
-| `numerics` | `fields` [{`key`, `label`, `value`, `integer`, `unused`, `choices`, `unavailable`}...] | The main numerics as data, for a client that asked (`events.subscribe`); see "The numerics as data". |
-| `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns`; or `op` `end`, `win`, `rows`, `version` | A plot window's curves as numbers, one event per window, for a client that asked (`events.subscribe`), and during an integration the active window's rows as they are stored; see "The plot as data". |
-| `runs` | `win`, `enc`, `erased`, `clear`, `drop`, `add` | A plot window's earlier runs changed, for a client that asked for `series`; see "Display state". |
-| `autoview` | `earlier`, `show`, `active`, `views` | AUTO's hidden branches, the active view and each view's zoom, for a client that asked for `autoinfo`; see "Display state". |
-| `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw` (the `runs` event carries the same as data). Only Erase sends it: a zoom also redraws the window, and keeps what a data client shows. See "The plot as data". |
-| `redraw` | `win` | The Redraw command drew window `win` again, for a client that asked for `series`: it shows the window's current series again (no series follows: the data did not change), and no earlier runs. |
-| `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`, `zoom`, `runs`}...] | Every plot window and the active one, for a client that asked (`events.subscribe`); see "The plot as data". |
-| `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`events.subscribe`); see "The plot as data". |
-| `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`events.subscribe`); see "The plot as data". |
-| `state` | `sliders` [{`name`,`lo`,`hi`,`step`}...] in slot order (empty names retain vacant slots), `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `rates` [number or null...] (one per `ics` entry: the largest absolute dv/dt over the last `hello.state_inspection.tail_intervals` stored intervals, null when it cannot be told: "Recording startup and all-state inspection"), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `win`, `seed` (after a run that used one), `session` {`file`}, `changed`, `can_undo`, `can_redo`, `recording` {`steps`, `note`} (while recording), `player` {`step`, `running`, `playing`, `speed`, `fast`, `intact`} (while a recording is open in the player) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `--silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `changed` (W209, always sent) is whether the values differ from those the session was last saved, opened or loaded with: a parameter, an initial condition, the numerics' time span, method, tolerances and bounds, or the run's data (the rows stored and where the run ended); a view, window or AUTO diagram alone is not a change; a save (`session` `save`, Save session, Quit's save, the import of a set file) and the end of a load or of opening a session file make it `false` (the page shows the unsaved dot in its title); `can_undo` and `can_redo` say whether the table's `undo` and `redo` have a value edit to take back or put back ("Undo and redo of value edits" below); `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches). |
-| `idle` | | The command finished. |
-| `liveState` | `time`, `now` [value...], `rates` [number\|null...] | The solver's doubles for every ODE/Markov state at the latest output step of a running integration, paced at the input interval, with no subscription ("Live integration state (W200)"); `rates` as `state.rates` ("Recording startup and all-state inspection"). The final `state` follows. |
-| `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. The recording player replays the interruption from it (see "Playing a recording without an interface"). |
-| `player` | `file`, `model`, `intact`, `steps` [{`note`, `step`, ...}] | A recording opened in the player ("Playing a recording"), sent when its model has loaded and again after a `recording.set_step_note`: the `.recx` (absolute path), its model's file, whether its fingerprint matches (`false`: it was changed after it was made; it plays all the same), and its steps, each its line's object ("Recordings": `step`, `cmd`, `answers`, `view`, `abort`, `during`, `files`) with its `note` ("" for none). |
-| `press` | `step`, `what`, `index`, `ms` | What the player sends next, before it sends it: `what` `answer` (`answers[index]`, a dialog's or a choice's answer) or `cmd` (the step's `cmd`); it goes `ms` milliseconds later (the pace at the speed set), so the page shows it first; 0 while running to a `from` step. A step's first `press` tells the page the step runs: the questions it asks until its `state` with `player.running` -1 are the player's to answer, never the page's (a `pixels` ask excepted). |
-| `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
-| `message` | one of `error`, `bottom`, `box`, `auto`, `calc`; with `error`, `file`, `line`, `col`, `source` | Status text. Results (a fit outcome, mean, Liapunov exponent, saved BVP point, or AUTO toggle) use `bottom` (W133). `box` with empty text removes a hint box. An `error` carries its place ("Errors" above, W140): `file` with `line` 0 is a file the command could not read (W118), which web2 offers to add and run the command again. |
-| `progress` | `n`, `of` | Computation progress, at most 10 a second. |
-| `saved` | `saved` boolean, `file` | The save owner's result for this exact destination; only `true` authorizes delivery after the command's `idle` (W129). |
-| `computing` | | The running command began computing (once per command, before its first `progress`); until its `idle` the server refuses data and computation commands ("Action kinds", "Commands during a command"). A page that connects meanwhile gets it again. |
-| `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation. |
-| `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
-| `equations` | `lines` | One `dX/dT=...` line per equation. |
-| `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.anix` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`events.subscribe`); see "The animation as data". |
-| `aplot` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `first_row`, `tag` | The array plot (the array plot surface; W492, #556 made it data only): `ny` rows of `nx` cells, row by row, `values` their numbers (as a series column; `null`/NaN off the stored rows and columns), `colormap` the session's colour scale by name and `ramp` its 256 colours from the low end to the high one: a cell is the ramp's colour at floor(256 * fraction), fraction being (value - `zmin`) / (`zmax` - `zmin`) clamped to 0..1 (core/colormap.h `ramp_color`); with `zmax` not above `zmin` no cell is coloured. `tlo` and `thi` are the times of its first and last row, `first_row` the stored row its first row of cells shows (`array_plot.scroll`'s argument). `tag` the range-saving frame's text. Print writes the same cells and colours as a PDF. |
-| `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
-| `ping` | | Beep. |
-| `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser.page` request (as its `done`'s `rows` too) and after any command that changed the data while the client shows the browser. |
-| `bye` | | The program is exiting normally: sent by every quit (a `session.quit` with `save` false, during a computation or not, and the question's outcomes) before an error-free exit, so browser mode's `exit` event says `code` 0. Every quit path exits 1 after a reported error and sends no `bye` (W133). A crash or an error exit sends none (`exit` `code` 1). |
-| `error` | `error`, `file`, `line`, `col`, `source` | The model did not load: sent instead of `hello`, then the program exits (see "A model that does not load"). |
-| `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error`, `file`, `line`, `col`, `source`, `field` when `ok` is 0 (the common error shape above) | The answer to a `file` command (see "Files" below). |
-| `keymap` | `op` (`get`, `set`, `reset`), `keymap` (the object of "Keymap") | The answer to a `keymap.get`, `keymap.set` or `keymap.reset` command. |
-| `ask` | `id`, `kind`, ... | See below. |
+Every event has one name, `resource.event`, its owner resource's (W529). `hello`, `done`, `ask` and `exit`
+are the protocol's own and stay bare: `hello` opens a session, `done` ends every command, `ask` is a question and
+`exit` is the process ending. The table is generated from the core's declarations (`help events` answers the same
+list), so it holds every event, its fields in the order it sends them (an `op` field names the form of an event that
+has several) and whether a client asks for it with `events.subscribe`. What each event carries is described in the
+sections below.
+
+<!-- events:start -->
+| Event | Fields | Sent with | Meaning |
+|---|---|---|---|
+| `hello` | `protocol`, `features`, `title`, `file`, `output_names`, `commands`, `lists`, `userbuttons`, `keymap`, `about`, `quit`, `window_names` | always | The first event, and again after Open model or Reload loaded a model in its place. |
+| `done` | `job`, `id`, `status`, `result`, `error`, `file`, `line`, `col`, `source`, `field` | always | A command's end: every command sends one, with its result when status is ok. |
+| `ask` | `job`, `id`, `kind` | always | A question the running command asks; answer it with its `answer`. |
+| `exit` | `code` | always | The process ended (said by the host in browser mode). |
+| `session.state` | `sliders`, `pars`, `ics`, `now`, `rates`, `bcs`, `delays`, `view`, `auto`, `rows`, `win`, `seed`, `session`, `changed`, `can_undo`, `can_redo`, `recording`, `player` | always | The session's current values, sent after every command. |
+| `session.saved` | `saved`, `file` | always | The save owner's result for this exact destination; only true authorizes delivery. |
+| `session.source` | `lines`, `comments` | always | The model's source lines. |
+| `session.equations` | `lines` | always | One dX/dT=... line per equation. |
+| `session.message` | `bottom`, `help`, `box`, `auto`, `calc`, `error`, `file`, `line`, `col`, `source` | always | Status text: one of bottom, box, auto or calc, or an error with its place. |
+| `session.error` | `error`, `file`, `line`, `col`, `source` | always | The model did not load: sent instead of hello, then the program exits. |
+| `session.log` | `text` | always | What the program printed on stderr, in chunks cut anywhere (said by the host in browser mode). |
+| `session.ping` | none | always | Beep. |
+| `session.bye` | none | always | The program is exiting normally, sent before an error-free exit. |
+| `job.computing` | `job` | always | The running command began computing: until its done the server refuses data and computation commands. |
+| `job.progress` | `n`, `of` | always | A computation's progress, at most 10 a second. |
+| `job.stopped` | `at` | always | The command's computation was cancelled; at says where it stopped. |
+| `job.live_state` | `time`, `now`, `rates` | always | The solver's doubles for every state at the latest output step of a running integration. |
+| `plot.series` | `op`, `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`, `from`, `version` | `plot.series` | A plot window's curves as numbers; with op append only the rows stored since, with op end the run's end (from and version). |
+| `plot.runs` | `win`, `enc`, `erased`, `clear`, `drop`, `keep`, `add` | `plot.series` | A plot window's earlier runs changed. |
+| `plot.shown` | `active`, `simultaneous_plot`, `windows` | `plot.shown` | Every plot window and the active one. |
+| `plot.cleared` | `win` | `plot.series` | The Erase command blanked plot window win. |
+| `plot.redrawn` | `win` | `plot.series` | The Redraw command drew plot window win again. |
+| `plot.marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | `plot.marks` | A plot window's equilibria, text, arrows, markers and frozen curves. |
+| `nullcline.curves` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` | `nullcline.curves` | A plot window's nullclines as segments. |
+| `dirfield.field` | `win`, `enc`, `scaled`, `color`, `n`, `du`, `dv`, `grid`, `speed`, `flows` | `dirfield.field` | A plot window's direction field and its flow's trajectories. |
+| `equilibrium.found` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | always | The result of an equilibrium search. |
+| `window.created` | `kind`, `win`, `w`, `h`, `title` | always | A window was made. |
+| `window.selected` | `kind`, `win`, `w`, `h`, `title` | always | A window became the active one. |
+| `window.destroyed` | `kind`, `win`, `w`, `h`, `title` | always | A window was destroyed. |
+| `window.renamed` | `window`, `new_name` | always | A window was renamed. |
+| `window.list` | `windows` | `window.list` | Every open window and whether it is shown, sent again when it changed. |
+| `auto.diagram` | `op`, `view` | always | The AUTO diagram as data, each view of it; the rest of its fields depend on op (axes, reset, add, views). |
+| `auto.info` | `info`, `stab`, `stop`, `notes`, `start_refined` | `auto.info` | AUTO's info strip and stability circle, and why the last branch ended. |
+| `auto.settings` | `numerics`, `pars`, `axes`, `marks` | `auto.settings` | AUTO's settings as data. |
+| `auto.view` | `earlier`, `show`, `active`, `views` | always | AUTO's hidden branches, the active view and each view's zoom. |
+| `array_plot.shown` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `first_row`, `tag` | always | The array plot's cells and colours. |
+| `animation.state` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open` | always | The animation's state for its slider and toggles. |
+| `animation.frame` | `pos`, `rows`, `t`, `speed`, `skip`, `dim`, `w`, `h`, `prims` | `animation.frame` | A frame of the animation as data. |
+| `kinescope.film` | `op`, `count`, `win`, `cycles`, `delay` | always | The kinescope: capture, reset, play or autoplay. |
+| `browser.updated` | `rows`, `cols`, `row0`, `start`, `end`, `from`, `col`, `data` | always | Rows of the data browser. |
+| `run.numerics` | `fields` | `run.numerics` | The main numerics as data. |
+| `recording.player` | `file`, `model`, `intact`, `steps` | `recording.player` | A recording opened in the player, and its steps. |
+| `recording.press` | `step`, `what`, `index`, `ms` | always | What the player sends next, before it sends it. |
+| `keymap.changed` | `op`, `keymap` | always | The keymap, after keymap.get, keymap.set or keymap.reset. |
+| `file.result` | `op`, `name`, `ok`, `size`, `sha256`, `data`, `files`, `error`, `file`, `line`, `col`, `source`, `field` | always | The answer to a file command. |
+<!-- events:end -->
+
+### What the events carry
+
+The fields and meaning of the events no later section describes (the table above has every event and its fields).
+
+**`hello`**: First event, and again after `session.open_model` or `session.reload_model` loaded a model in its place; `features` are the events `events.subscribe` takes. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `session.state`'s `pars` and `ics` in their order (what `default` restores).
+
+**`session.state`**: Current values; `view` maps pixels of the active window to plot coordinates (and has its `title`: what the window plots as text, `W vs V`, which the title bar shows) (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `--silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `changed` (W209, always sent) is whether the values differ from those the session was last saved, opened or loaded with: a parameter, an initial condition, the numerics' time span, method, tolerances and bounds, or the run's data (the rows stored and where the run ended); a view, window or AUTO diagram alone is not a change; a save (`session` `save`, Save session, Quit's save, the import of a set file) and the end of a load or of opening a session file make it `false` (the page shows the unsaved dot in its title); `can_undo` and `can_redo` say whether the table's `undo` and `redo` have a value edit to take back or put back ("Undo and redo of value edits" below); `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches).
+
+**`job.live_state`**: The solver's doubles for every ODE/Markov state at the latest output step of a running integration, paced at the input interval, with no subscription ("Live integration state (W200)"); `rates` as `state.rates` ("Recording startup and all-state inspection"). The final `state` follows.
+
+**`job.stopped`**: The command's computation was cancelled; sent before its `session.state` and `done`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. The recording player replays the interruption from it (see "Playing a recording without an interface").
+
+**`recording.player`**: A recording opened in the player ("Playing a recording"), sent when its model has loaded and again after a `recording.set_step_note`: the `.recx` (absolute path), its model's file, whether its fingerprint matches (`false`: it was changed after it was made; it plays all the same), and its steps, each its line's object ("Recordings": `step`, `cmd`, `answers`, `view`, `abort`, `during`, `files`) with its `note` ("" for none).
+
+**`recording.press`**: What the player sends next, before it sends it: `what` `answer` (`answers[index]`, a dialog's or a choice's answer) or `cmd` (the step's `cmd`); it goes `ms` milliseconds later (the pace at the speed set), so the page shows it first; 0 while running to a `from` step. A step's first `press` tells the page the step runs: the questions it asks until its `state` with `player.running` -1 are the player's to answer, never the page's (a `pixels` ask excepted).
+
+**`session.message`**: Status text. Results (a fit outcome, mean, Liapunov exponent, saved BVP point, or AUTO toggle) use `bottom` (W133). `box` with empty text removes a hint box. An `error` carries its place ("Errors" above, W140): `file` with `line` 0 is a file the command could not read (W118), which web2 offers to add and run the command again.
+
+**`job.progress`**: Computation progress, at most 10 a second.
+
+**`session.saved`**: The save owner's result for this exact destination; only `true` authorizes delivery after the command's `done` (W129).
+
+**`equilibrium.found`**: Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation.
+
+**`session.source`**: File/Prt src.
+
+**`session.equations`**: One `dX/dT=...` line per equation.
+
+**`animation.state`**: Animation state for its slider and toggles, sent with every frame drawn and after every animation command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.anix` file is loaded, `open` 1 while the animation window exists. `animation.frame` is a frame as data, for a client that asked (`events.subscribe`); see "The animation as data".
+
+**`array_plot.shown`**: The array plot (the array plot surface; W492, #556 made it data only): `ny` rows of `nx` cells, row by row, `values` their numbers (as a series column; `null`/NaN off the stored rows and columns), `colormap` the session's colour scale by name and `ramp` its 256 colours from the low end to the high one: a cell is the ramp's colour at floor(256 * fraction), fraction being (value - `zmin`) / (`zmax` - `zmin`) clamped to 0..1 (core/colormap.h `ramp_color`); with `zmax` not above `zmin` no cell is coloured. `tlo` and `thi` are the times of its first and last row, `first_row` the stored row its first row of cells shows (`array_plot.scroll`'s argument). `tag` the range-saving frame's text. Print writes the same cells and colours as a PDF.
+
+**`kinescope.film`**: Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart.
+
+**`browser.updated`**: Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser.page` request (as its `done`'s `rows` too) and after any command that changed the data while the client shows the browser.
+
+**`session.error`**: The model did not load: sent instead of `hello`, then the program exits (see "A model that does not load").
+
+**`file.result`**: The answer to a `file` command (see "Files" below).
+
+**`keymap.changed`**: The answer to a `keymap.get`, `keymap.set` or `keymap.reset` command.
+
 
 In browser mode (`xppautX model.ode`) events stream from `/events?t=TOKEN`.
 Commands are POSTed to `/cmd?t=TOKEN`, one per request (a body of several
@@ -1648,9 +1703,9 @@ When the page goes away (web2's `pagehide`, browser mode only: the desktop
 window closes through its own path) it POSTs `/leave?t=TOKEN` with
 `navigator.sendBeacon` (204; 403 without the token). xppautX then waits about
 2 seconds for an event stream to connect again, which a reload does within
-that, and ends the program as the watchdog would (no `bye`, no page left to
+that, and ends the program as the watchdog would (no `session.bye`, no page left to
 tell) if none has and no other stream still answers. This includes a program
-that has stopped on an error (no `bye`, `exit` `code` 1) and only serves its
+that has stopped on an error (no `session.bye`, `exit` `code` 1) and only serves its
 log: it keeps serving while a page is open and ends the same way once the
 last page has left (W112), though not if no page ever connected. A page that vanishes
 without a word (a crashed browser) is found by the heartbeat, an SSE comment
@@ -1658,7 +1713,7 @@ every 2 seconds, and ends the program after 10 seconds without a page. Before
 closing, the browser-mode page also asks the browser's own "Leave site?"
 (`beforeunload`): closing the tab loses the session.
 
-Two more events come from the host, not the server: `log` {`text`} carries what the
+Two more events come from the host, not the server: `session.log` {`text`} carries what the
 server printed on stderr (xppaut reports model errors, such as a formula that does
 not parse, only there; also when the Windows exe was started with no stderr
 at all, as from Explorer: the host gives the stream one, T27), in chunks cut
@@ -1693,12 +1748,12 @@ point of the diagram, in the same order, so a point's index is the same
 in every view (the grab, `info.point`, Clear's `earlier`): a point a view
 does not plot (a one-parameter point in a two-parameter view, a
 two-parameter point in another) comes with `d` 0 and `x`, `y` `null`. One
-view is the active one (`autoview`'s `active`): the Axes menu (the AutoPlot
+view is the active one (`auto.view`'s `active`): the Axes menu (the AutoPlot
 form, zoom, Fit, Scroll, last 1 and 2 par, Default), the exports, the info
 strip and a Run go by its axes (its parameters are the ones a run
 continues in), and a grab's point by its data.
 
-- `{"ev":"diagram","op":"views","n":N,"names":["diagram_1",...]}` lists
+- `{"ev":"auto.diagram","op":"views","n":N,"names":["diagram_1",...]}` lists
   the open views in display order. The client preserves each named view's
   data and drops names absent from the list. Names stay unchanged when a
   preceding view closes.
@@ -1711,15 +1766,15 @@ continues in), and a grab's point by its data.
   the screen and bring it back with its axes and zoom. These are views (kind `v`),
   queued while AUTO computes, while each view receives the run's points.
 
-- `{"ev":"diagram","op":"axes","view":"diagram_1", xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
+- `{"ev":"auto.diagram","op":"axes","view":"diagram_1", xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
   the diagram was drawn again at these axes (`plot` is the view's
   projection, by name: `maximum`, `norm`, `maximum_and_minimum`, `period`,
   `two_parameter`, `frequency` or `average`; W491); the points are unchanged. Pixel `x0 + wid*(x-xmin)/(xmax-xmin)`,
   `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of the selected AUTO view is (x, y) in the
   core's pixels (what a pixel answer to a `grab` or `rubber` ask means).
-- `{"ev":"diagram","op":"reset","view":"diagram_1","keep":k, ...the axes fields}`: drop every
+- `{"ev":"auto.diagram","op":"reset","view":"diagram_1","keep":k, ...the axes fields}`: drop every
   point of that named view after the first `k` (all of them for 0), then the axes as above.
-- `{"ev":"diagram","op":"add","view":"diagram_1","from":n,"runs":[...]}`: points `n`, `n+1`, ... of view v
+- `{"ev":"auto.diagram","op":"add","view":"diagram_1","from":n,"runs":[...]}`: points `n`, `n+1`, ... of view v
   (`n` is the number of points the client holds) in runs of points that
   share their branch, kind and style and whose numbers count up by one:
 
@@ -1753,7 +1808,7 @@ differ (another Axes quantity, new points) does it send `reset` with how
 many still agree and `add` for the rest. The points of a redraw go out
 when the redraw is over, not while it runs. A new AUTO window starts empty.
 
-**`autoinfo`**: what the AUTO window's info strip and stability circle
+**`auto.info`**: what the AUTO window's info strip and stability circle
 show, as data, for a client that asked with
 `{"cmd":"events.subscribe","events":["autoinfo"]}`. It is sent at the end of that
 command, and then whenever what it says changed: before every ask (so
@@ -1767,7 +1822,7 @@ keeps it, from what auto_nox.cpp shows there; `stop` comes from
 core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
 
 ```
-{"ev":"autoinfo",
+{"ev":"auto.info",
   "info":{"point":18,"br":1,"pt":19,"type":2,"sym":"HB","lab":2,
          "par":[{"name":"iapp","value":0.2624638},{"name":"phi","value":0.2}],
          "norm":0.2891081,"var":"V","u":-0.1989438,"per":14.44537,"x":0.2624638,"y":-0.1989438,"y2":-0.1989438},
@@ -1826,7 +1881,7 @@ lines (`bogdanov_takens true` or `bogdanov_takens false`, etc.); validation prec
 
 What the AUTO window's Numerics, Axes (the AutoPlot form and
 the plot type) and Mark values forms edit, as data, for a client with
-forms of its own (web2, docs/ui-v2.md T22). **`autosettings`** is sent to a
+forms of its own (web2, docs/ui-v2.md T22). **`auto.settings`** is sent to a
 client that asked with `{"cmd":"events.subscribe","events":["autosettings"]}` at the
 end of that command, and then whenever the settings changed: at the end of
 a command and before every ask. The settings exist from the model's load,
@@ -1837,7 +1892,7 @@ read on import only. `suppress_branch_points` and `switch_one_direction` are che
 `false` in commands and saved settings (W499), `output_detail` one of the level names.
 
 ```
-{"ev":"autosettings",
+{"ev":"auto.settings",
  "numerics":{"mesh_intervals":15,"max_steps":2000,"output_every":500,"collocation_points":4,"step_size":0.02,
              "min_step_size":1e-05,"max_step_size":0.02,"parameter_min":-0.2,"parameter_max":0.5,"norm_min":0,
              "norm_max":1000,"parameter_tolerance":0.0001,"state_tolerance":0.0001,"special_point_tolerance":0.0001,
@@ -1921,7 +1976,7 @@ AUTO's settings are saved in the session's `auto/settings.txt`
 The forms and `set` change the same fields and show what the other wrote.
 
 `set` is a setting (W106): sent while AUTO (or anything) computes, the
-core takes it at once and applies it after that job's `idle`, as a command
+core takes it at once and applies it after that job's `done`, as a command
 of its own (a continuation already running keeps the settings it started
 with; the next run uses the new ones). `tools/servercheck.py` checks that the
 event is what the forms show, that a form's OK and a `set` show in it,
@@ -1931,13 +1986,13 @@ run at 12 points.
 ### The numerics as data
 
 The main numerics, the Numerics menu's values (W106), as data for a client
-with fields of its own (web2's values panel). **`numerics`** is sent to a
+with fields of its own (web2's values panel). **`run.numerics`** is sent to a
 client that asked with `{"cmd":"events.subscribe","events":["numerics"]}` at the end of
 that command, and then at the end of any command that changed them.
 core/numerics_settings.cpp keeps it.
 
 ```
-{"ev":"numerics","fields":[
+{"ev":"run.numerics","fields":[
   {"key":"total_time","label":"Total time","value":30},
   {"key":"dt","label":"Dt","value":0.05},
   {"key":"store_every","label":"Store every N steps","value":1,"integer":true},
@@ -1976,7 +2031,7 @@ so a model's `exact` is offered until it was chosen once: the reason appears aft
 
 **`{"cmd":"set","kind":"num","name":KEY,"value":V}`** (or `"text"`) sets one
 field. The core checks the value first and changes nothing on a bad one,
-with a `message` `error` naming the field (`Numerics: Store every N steps must be a
+with a `session.message` `error` naming the field (`Numerics: Store every N steps must be a
 whole number of at least 1`): a number; `dt` not 0; the tolerances,
 `state_limit`, `search_limit`, `newton_tolerance`, `jacobian_step` above 0; `stop_at_limit` `true` or `false`; `delay` at least 0; the whole-number
 fields at least 1; `jacobian` exactly a name of `choices`, one the
@@ -2028,10 +2083,10 @@ a client that asked with
 the names alone works too), at the end of that command and then at the end
 of every command after which what it says has changed. Nothing else sends
 them, so a command that only redraws sends none. They come before the
-command's `state` and `idle`, in that order: `plots`, the `series`, the
-`nullclines`, the `dfield`, the `marks`.
+command's `session.state` and `done`, in that order: `plot.shown`, the `plot.series`, the
+`nullcline.curves`, the `dirfield.field`, the `plot.marks`.
 
-**`series`**: one event per plot window (any open plot `win`), each at the end of
+**`plot.series`**: one event per plot window (any open plot `win`), each at the end of
 a command after which what that window shows has changed: the stored data
 (an integration, Continue, a browser Load or Replace, ...; this changes
 every window), the window's curves (Xi vs t, Viewaxes, Graphic
@@ -2042,7 +2097,7 @@ keeps the event whose `win` is the active one (`plots.active` or
 `state.win`).
 
 ```
-{"ev":"series","win":"graph_1","rows":601,"three":0,"xlabel":"","ylabel":"","zlabel":"",
+{"ev":"plot.series","win":"graph_1","rows":601,"three":0,"xlabel":"","ylabel":"","zlabel":"",
  "curves":[{"x":1,"y":2,"z":1,"color":"foreground","draw":"line","dash":"solid","width":1,"marker":"circle","marker_size":3}],"shift":[0,0,0],
  "columns":[{"col":0,"name":"T","data":[0,0.0500000007,...]},
             {"col":1,"name":"V","data":[-0.143999994,...]},
@@ -2051,7 +2106,7 @@ keeps the event whose `win` is the active one (`plots.active` or
 
 | field | meaning |
 |---|---|
-| `win` | an open plot window ID, as in `window` and `plots` |
+| `win` | an open plot window ID, as in `window` and `plot.shown` |
 | `rows` | stored rows: every column has this many values (0 before an integration) |
 | `three` | 1 when the window is a 3D plot (then `z` matters) |
 | `xlabel`, `ylabel`, `zlabel` | the window's axis labels (Viewaxes), the only place they are sent; a change of a label alone sends the series again; empty means "the plotted column's name" |
@@ -2068,20 +2123,20 @@ integration, a browser Load, ...): a series with the version of the one
 before shows the same data again (other curves or style of it), another
 version other data. The core keeps the series a new run replaces as an
 earlier run, drawn lighter under the current one, until Erase or Redraw,
-and sends it as a `runs` event ("Display state" below); an `append` from
+and sends it as a `plot.runs` event ("Display state" below); an `append` from
 row 0 starts such a run.
 
 At the start of each integration (its first stored row) the server sends
-`state` too, so the initial conditions the run starts from (Initialconds/Last
+`session.state` too, so the initial conditions the run starts from (Initialconds/Last
 sets them to where the last run ended) show while it runs; `state.now` is
 where the last run ended, or stopped.
 
-**`plots`**: the plot windows as a list, sent when anything in it changed
+**`plot.shown`**: the plot windows as a list, sent when anything in it changed
 (a window made or destroyed, the active one, a window's axes, curves
 or 3D view); its text is compared with the last one sent.
 
 ```
-{"ev":"plots","active":"graph_2","windows":[
+{"ev":"plot.shown","active":"graph_2","windows":[
  {"win":"graph_1","title":"graph_1","three":0,"xlo":-0.6,"xhi":1.2,"ylo":-0.25,"yhi":1.2,
   "box":{"xmin":-0.6,"xmax":1.2,"ymin":-0.25,"ymax":1.2,"zmin":-12,"zmax":12},
   "theta":45,"phi":45,"persp":0,"zplane":-1000,"zview":1000,
@@ -2092,19 +2147,19 @@ or 3D view); its text is compared with the last one sent.
 | field | meaning |
 |---|---|
 | `active` | the active window: the one keys, Viewaxes, Xi vs t, ... act on (`window.select` selects another) |
-| `windows` | every plot window, by `win`; a window missing from the list was destroyed |
+| `window.list` | every plot window, by `win`; a window missing from the list was destroyed |
 | `title` | the window's name, exactly as written by its user |
 | `three` | 1 for a 3D plot |
 | `xlo`, `xhi`, `ylo`, `yhi` | the window's axes (Viewaxes, Window/Zoom); in 3D the projected view's |
 | `box` | the 3D box (3d-params, Viewaxes in 3D): the data ranges of x, y and z |
 | `theta`, `phi` | the 3D view's angles in degrees (3d-params, `3`) |
 | `persp`, `zplane`, `zview` | perspective on (1) or off, and its planes |
-| `curves`, `shift` | as in `series` |
+| `curves`, `shift` | as in `plot.series` |
 
 Numbers are the doubles themselves, in the shortest of 15 or 17 digits that
 reads back exactly; `null` for a value that is not finite. `window.create`, `window.destroy` and `window.destroy_all` change the list; `window.select` with a window's name makes it active.
 
-**`nullclines`** and **`dfield`**: what a phase plane shows besides its
+**`nullcline.curves`** and **`dirfield.field`**: what a phase plane shows besides its
 curves, one event per plot window, each saying what XPP's window
 shows: Nullcline/New, Dir.field/flow and the redraws that draw them again
 fill them; anything that blanks the window empties them unless it draws them
@@ -2117,7 +2172,7 @@ nothing), and for every window once after `events.subscribe`. The active window'
 comes first.
 
 ```
-{"ev":"nullclines","win":"graph_1","xname":"V","yname":"W","xcolor":"#f06400","ycolor":"#00e100",
+{"ev":"nullcline.curves","win":"graph_1","xname":"V","yname":"W","xcolor":"#f06400","ycolor":"#00e100",
  "x":[-0.596100688,0.475000024,-0.600000024,0.503065467,...],"y":[...],
  "frozen":[{"x":[...],"y":[...]}]}
 ```
@@ -2130,7 +2185,7 @@ comes first.
 | `frozen` | the frozen nullclines (Nullcline/Freeze) the window shows, the same colours, each set's `x` and `y` as above |
 
 ```
-{"ev":"dfield","win":"graph_1","scaled":1,"color":"foreground","n":17,"du":0.1125,"dv":0.090625,
+{"ev":"dirfield.field","win":"graph_1","scaled":1,"color":"foreground","n":17,"du":0.1125,"dv":0.090625,
  "grid":[-0.600000024,-0.25,0.305723518,0.952120364,...],"speed":[0.0421,...],
  "flows":[{"color":"foreground","x":[-0.600000024,-0.59258616,...,null,...],"y":[...]}]}
 ```
@@ -2148,10 +2203,10 @@ comes first.
 Values in these arrays are float32 (9 digits in JSON). Dir.field/flow's
 Colorize (coloured cells) sends no arrows yet.
 
-**`marks`**: what a plot window shows on top of its curves, one event per
+**`plot.marks`**: what a plot window shows on top of its curves, one event per
 window, saying what XPP's window shows there: the equilibria Sing
 pts marked (its symbols), Text,etc's text, arrows, pointers and markers,
-and Graphic stuff/Freeze's frozen curves. As with `nullclines`, drawing
+and Graphic stuff/Freeze's frozen curves. As with `nullcline.curves`, drawing
 fills it and anything that blanks the window empties it unless it draws
 the marks again: a redraw (Redraw, Window/Zoom, Viewaxes, ...) draws the
 text, objects and frozen curves again but not the equilibria, which
@@ -2163,7 +2218,7 @@ of a command when the window's marks differ from the last ones sent, and
 for every window once after `events.subscribe`; the active window's first.
 
 ```
-{"ev":"marks","win":"graph_1",
+{"ev":"plot.marks","win":"graph_1",
  "equilibria":[{"x":-0.1425351775676935,"y":0.034048992272573395,"type":"saddle","symbol":"triangle"}],
  "text":[{"x":-0.298305094,"y":0.498503745,"text":"\\1a\\0-point 6","size":3,"font":0}],
  "arrows":[{"kind":"pointer","x1":0.1,"y1":0.2,"x2":0.6,"y2":0.8,"size":0.2,"color":"#c8c800"}],
@@ -2177,14 +2232,14 @@ for every window once after `events.subscribe`; the active window's first.
 | `text` | Text,etc's labels: `id` the label's id, which the `annotation.*` commands name it by (`annotation_id`) (it stays its own while the label lasts; a deleted label's is never used again), `x`, `y` where the text starts (its baseline, plot coordinates), `text` as drawn (`\{expr}` already replaced by its value), `source` as written (what the edit dialog starts from), `size` 0-4, `font` (1: all in the symbol font; 0 otherwise), `style` (`normal`, `bold`, `italic` or `bold_italic`, as `hello.text_styles`) and `color` (a colour; the page draws style and colour, the PDF and SVG output the size and the colour, not the style). XPP's markup stays in the text: a backslash and `1` switches to the symbol font, where the Latin letters show Greek ones (`\1a` is α, Adobe Symbol encoding), `0` back to roman, `s` and `S` a subscript and a superscript one size smaller (they add up), `n` back to the baseline and size; any other character after a backslash is dropped. Bytes that are not UTF-8 are Latin-1 |
 | `arrows` | Text,etc's arrows and pointers: `id` (as the text's), `kind` `arrow` (only a head) or `pointer` (a head and a shaft), the head's tip at `x1`, `y1`, pointing from `x2`, `y2`; `size` the head's length as a fraction of that distance (half as wide as long); `color` a colour |
 | `markers` | Text,etc's markers (Marker, marKers): `id` (as the text's), `x`, `y`, `shape` (`box`, `diamond`, `triangle`, `plus`, `cross`, `circle`), `size` (1 is about 1% of the window), `color` a colour |
-| `frozen` | the frozen curves of the window (2D ones): `slot` (the number `plot.freeze_curve` gave it, which `plot.edit_frozen` and `plot.delete_frozen` take), `key` (its legend text) and `name` (Freeze's Edit form), `color` its colour and its style (`draw`, `dash`, `width`, `marker`, `marker_size`, as a curve's), `x`, `y` the values of the curve's x and y columns when it was frozen (float32, as `series`: equal to that `series`' columns then) |
+| `frozen` | the frozen curves of the window (2D ones): `slot` (the number `plot.freeze_curve` gave it, which `plot.edit_frozen` and `plot.delete_frozen` take), `key` (its legend text) and `name` (Freeze's Edit form), `color` its colour and its style (`draw`, `dash`, `width`, `marker`, `marker_size`, as a curve's), `x`, `y` the values of the curve's x and y columns when it was frozen (float32, as `plot.series`: equal to that `plot.series`' columns then) |
 
 Label and object positions are the stored float32 values, 9 digits.
 
 **Binary values.** After `{"cmd":"events.subscribe","events":["series"],"encoding":"f32"}`
-every `series` event (full or append) has `"enc":"f32"` and each column's
-`data` is a string (and so is every value array of `nullclines`,
-`dfield` and the frozen curves of `marks`, which then carry `"enc":"f32"` too): the base64 (RFC 4648, with padding) of the values as
+every `plot.series` event (full or append) has `"enc":"f32"` and each column's
+`data` is a string (and so is every value array of `nullcline.curves`,
+`dirfield.field` and the frozen curves of `plot.marks`, which then carry `"enc":"f32"` too): the base64 (RFC 4648, with padding) of the values as
 IEEE float32, 4 bytes each, least significant byte first, whatever the
 host's byte order. NaN and infinities travel as they are. That is 5.3
 characters a value instead of about 12, and nothing to parse: a million
@@ -2199,7 +2254,7 @@ range, ...), the rows it stores go out as they come for
 the active window, at most about once a display frame (60 times a second):
 
 ```
-{"ev":"series","op":"append","win":"graph_1","from":1200,"rows":2400,
+{"ev":"plot.series","op":"append","win":"graph_1","from":1200,"rows":2400,
  "columns":[{"col":0,"data":[...]},{"col":1,"data":[...]},{"col":2,"data":[...]}]}
 ```
 
@@ -2207,29 +2262,29 @@ the active window, at most about once a display frame (60 times a second):
 |---|---|
 | `from` | the row the first value of each column is: the client keeps its rows `0..from-1` and drops any others it holds |
 | `rows` | the rows the client holds after this event: `from` plus the number of values |
-| `columns` | `col` and `data` for the columns of the window's last full `series`, in its order (no names) |
+| `columns` | `col` and `data` for the columns of the window's last full `plot.series`, in its order (no names) |
 
 A new integration starts again from row 0, so its first append has `from`
 0; Continue's first has `from` equal to the rows already there. The
 appends of one command are contiguous: each `from` is the previous
 `rows`. When the window's curves change during a command (so the columns
-would not be the last full series'), the server sends a full `series` of
+would not be the last full series'), the server sends a full `plot.series` of
 the rows stored so far instead and appends after it. A command that
-appended ends, before its `state` and `idle`, with the rows stored since
+appended ends, before its `session.state` and `done`, with the rows stored since
 the last append (one more append) and then
 
 ```
-{"ev":"series","op":"end","win":"graph_1","rows":20001,"version":7}
+{"ev":"plot.series","op":"end","win":"graph_1","rows":20001,"version":7}
 ```
 
 instead of the whole series again (a million rows are tens of MB): the
 client's series is then whole, `rows` rows (what the appends delivered),
-and `version` is its data's version, as a full `series` would carry. No
+and `version` is its data's version, as a full `plot.series` would carry. No
 append follows it. When the window's curves changed after its appends,
-the command ends with the full `series` instead. A command without
-appends ends with the full `series` of a window whose data changed. The
-other windows get only their full `series`, after the active one's. A
-client that did not ask for `series` gets none of these.
+the command ends with the full `plot.series` instead. A command without
+appends ends with the full `plot.series` of a window whose data changed. The
+other windows get only their full `plot.series`, after the active one's. A
+client that did not ask for `plot.series` gets none of these.
 
 The appends come from the integrator itself (`rows_stored()` in
 core/xpp_ui.h, called for every stored row; `plot_data_rows_stored` in
@@ -2279,7 +2334,7 @@ is a zip of ordinary files, in this order:
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
 | `model.setx` | the session's settings (docs/odex.md ".setx"): the numerics (the Jacobian included) under the option table's keys, the run's position, the initial and ending values, the parameters, the delays, the boundary conditions, Transpose, the coupling, the array plot, the torus and the ranges; every key in it (a session loads nothing it does not hold), without the graphics, which `windows.setx` holds for every window |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views (a line `view "NAME" shown|hidden PLOT ...` per view: whether `window.hide` hid it); full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
-| `windows.setx` | a `windows` list, every open plot slot as a group in index order (its quoted `name` and its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`, and `hidden`, whether `window.hide` hid it), `active` (the quoted window name), `browser_hidden` (whether the data browser is hidden), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
+| `windows.setx` | a `window.list` list, every open plot slot as a group in index order (its quoted `name` and its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`, and `hidden`, whether `window.hide` hid it), `active` (the quoted window name), `browser_hidden` (whether the data browser is hidden), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
 | `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list of used slots in slot order (zero-based slot, boolean used, window, type, color, the style keys of a curve, points, key, name), per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
@@ -2315,12 +2370,12 @@ Opening one (`session.open_model`, `session.open`, the command line) loads the m
 saved in it, from those saved files alone: an edit to the `.ode` since,
 or its absence, makes no difference, and a file the model reads that is
 not saved in it is a file that is not there. Then it restores the
-members: `state`, `plots`, `marks` (but Sing pts' equilibrium symbols),
-`autoview` and the diagram in each of its views are as they were at the
+members: `session.state`, `plot.shown`, `plot.marks` (but Sing pts' equilibrium symbols),
+`auto.view` and the diagram in each of its views are as they were at the
 save, the diagram exactly (every digit). The earlier runs a window keeps until Erase are
 not saved. A file without its model (`model/<name>` missing, as in every
 session file saved before W103), or without its manifest, is refused (a
-`message` `error` says what is missing) and nothing changes. So is one
+`session.message` `error` says what is missing) and nothing changes. So is one
 whose manifest has a key it does not write, or a key twice (`s1.snapx/session.setx:5:3:
 not a session file (.snapx) of this version: `later` is not a setting of the file`), and a session of the
 older layout (W285: `session.txt` and XPPAUT's set lines, no `session.setx`): the ordinary error, with no logic to explain
@@ -2400,7 +2455,7 @@ so a session file can save them. The page keeps a copy it changes at once
 events set it back, and it leaves a window's own alone while its change is
 on its way.
 
-**`runs`** (with `series`): a window's earlier runs. A full series with
+**`plot.runs`** (with `plot.series`): a window's earlier runs. A full series with
 other curves (Xi vs t, Viewaxes, ...) forgets them; a full series of other
 data (its `version`) keeps the current run as an earlier one, unless the
 current one grew by appends in this command (the `end` closes that run)
@@ -2414,7 +2469,7 @@ the earlier runs of all windows together: a window keeping a run drops its
 own oldest ones first, never its newest.
 
 ```
-{"ev":"runs","win":"graph_1","erased":0,"clear":0,"drop":0,"keep":0,"enc":"f32","add":[
+{"ev":"plot.runs","win":"graph_1","erased":0,"clear":0,"drop":0,"keep":0,"enc":"f32","add":[
  {"rows":601,"three":0,"curves":[...],"shift":[0,0,0],
   "columns":[{"col":0,"name":"T","data":[...]},{"col":2,"name":"W","data":[...]}]}]}
 ```
@@ -2426,12 +2481,12 @@ own oldest ones first, never its newest.
 | `clear` | 1: forget every earlier run held first |
 | `drop` | forget this many of the oldest ones first |
 | `keep` | 1: then the window's series, as the client holds it, becomes the newest earlier run (a new run replaces it) |
-| `add` | runs to append after that, newest last: `rows`, `three`, `curves`, `shift` and `columns` (`col`, `name`, `data`) as in `series`, of the columns the run's curves use |
+| `add` | runs to append after that, newest last: `rows`, `three`, `curves`, `shift` and `columns` (`col`, `name`, `data`) as in `plot.series`, of the columns the run's curves use |
 
 Sent when it changes (not at all for a window with none), and whole (`clear`
-1 with all the runs) after `events.subscribe` asks for `series` again.
+1 with all the runs) after `events.subscribe` asks for `plot.series` again.
 
-**`plots`** carries each window's `zoom` (`{"x":[low,high]|null,"y":...}`,
+**`plot.shown`** carries each window's `zoom` (`{"x":[low,high]|null,"y":...}`,
 the part of its axes shown; `null` the window's own) and `runs` (1: the
 earlier runs are drawn) and `freeze` (1, the default: a trajectory a new run
 replaces is kept as an earlier run until Erase; 0: it is dropped, and only the
@@ -2440,7 +2495,7 @@ Window/Zoom, Fit, Xi vs t) drop the zoom. `window.set_display` sets them:
 `{"cmd":"display","window":"graph_1","x":[0,10],"y":null,"runs":false,"freeze":true}` (a missing key
 is left as it is).
 
-**`autoview`** (with `autoinfo`): `{"ev":"autoview","earlier":n,"show":0,
+**`auto.view`** (with `auto.info`): `{"ev":"auto.view","earlier":n,"show":0,
 "active":"diagram_1","views":[{"name":"diagram_1","zoom":{"x":null,"y":null}},...]}`, sent at the end of
 a command when it changed, and at once after `events.subscribe`. `earlier`: the
 diagram's points before this index are the branches computed before Clear
@@ -2489,7 +2544,7 @@ policy above, never a recorded save decision.
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2`; or `xd`, `yd`, `xd2`, `yd2` |
 | `grab` | `win` | `key`; or `x`, `y` (or `xd`, `yd`) for a click on the diagram; or `point`, a point of the `diagram` data by its index (with `key`, that key after it) |
 | `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` (or `xd`, `yd`) for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
-| `pixels` | `win`, or `film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture, which web2 renders from the data it holds (the window's chart, or a kinescope frame's snapshot). |
+| `pixels` | `win`, or `kinescope.film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture, which web2 renders from the data it holds (the window's chart, or a kinescope frame's snapshot). |
 
 Range Integrate, Double Range Integrate and Range Equilibria are typed forms
 (W487, [#551](https://github.com/MuhammadMoustafa/xppautX/issues/551)): their
@@ -2506,7 +2561,7 @@ with Reset storage on. The existing `form` ask and `values` answer carry them.
 A range run that fails (a solver's error) ends the sweep with that error,
 prefixed `Range stopped at <parameter> = <value> (run n of N): `. A run that
 ends early without failing (a state at `state_limit`, an event's `arret`, a
-section that stops the run) is reported once at the end as a `message` with a
+section that stops the run) is reported once at the end as a `session.message` with a
 `bottom` line, `n of N runs ended early; the first at <parameter> = <value>: <why>`,
 and one WARN log line per such run.
 
@@ -2525,7 +2580,7 @@ reading an ask without `kinds` (an older core) treats every field as
 text. For the kinds above the kinds are a client's guide, not a check: the
 core reads what it is answered as it always did. A typed form (W485, #549;
 core `ask_form`) is different: every field is checked by its kind, all of
-them, before any is used, and a bad value is a `message` `error` naming the
+them, before any is used, and a bad value is a `session.message` `error` naming the
 field (`Poincare map: Direction: "up" is not one of negative, both,
 positive`), nothing applied. Its extra kinds: `boolean` (the answer is the
 text `true` or `false`; a checkbox), `choice` (one of the names in the
@@ -2565,7 +2620,7 @@ or `ok` 0): arrow keys, `Tab` (the next labelled point), `Home`, `End`,
 `PageUp` and `PageDown` as in the X11 program, a click (the nearest
 point), or `{"point":i}`, point `i` of the `diagram` data as the client
 holds it (the order of `add`), which moves the cursor to exactly that point.
-Each answer that moves it brings the new point's `autoinfo` (to a client
+Each answer that moves it brings the new point's `auto.info` (to a client
 that asked for it) and asks again. `{"point":i,"key":"Return"}` moves and
 takes in one answer. An index the data do not have (out of range) is
 ignored, and so is the key that came with it: the grab asks again. So is a
@@ -2596,7 +2651,7 @@ integration, for `periodic`, `bvp` and the connections), settled first by the `s
 `decimals`, `hold` and `maximum` are given. The start point's type is never an argument: it comes from the point,
 through one table, hello's `auto_run` (`kinds`, the `current` kinds, and `rows` of `point`, `family` and the `kinds`
 and `switch` kinds they allow; the first row of the point's effective type and family, `other` for any other type,
-the `neutral_saddle` curve's own), and `autoinfo`'s `start` is the grabbed point's row (`label`, `type`, `family`,
+the `neutral_saddle` curve's own), and `auto.info`'s `start` is the grabbed point's row (`label`, `type`, `family`,
 `kinds`, `switch`; `null` when none is grabbed), so a page offers only the kinds that fit. A kind that does not fit is
 an error naming both (`two_parameter needs a point of type hopf, ...; label 12 is a regular point of a steady
 branch`). A new start from the current state with an `equilibrium` run needs `replace_diagram` when the diagram has
@@ -2667,8 +2722,8 @@ Nothing lands in the folder while a computation runs (W134): a file a run
 reads (a table, a `.par` it loads next) is never replaced under it,
 whichever way the copy came. The `file` command's `put` is a data command,
 refused during a computation like any other ("Commands during a
-command": `message` `error` "Not while a computation runs: file was
-refused" after it, then `state` and `idle`, and nothing written). `PUT
+command": `session.message` `error` "Not while a computation runs: file was
+refused" after it, then `session.state` and `done`, and nothing written). `PUT
 /files/NAME` cannot wait in the queue as a line does, so during a
 computation (a stopping one too) it is refused with 409 and the same
 words, before a byte of its body is read; the core logs the refusal as a
@@ -2747,7 +2802,7 @@ clamped: where the `.anix` puts something outside its box the value lies
 outside [0,1]. XPP's own window put a primitive at `u*w`, `h - v*h`.
 
 ```
-{"ev":"ani","op":"frame","pos":0,"rows":601,"t":0,"speed":5,"skip":1,
+{"ev":"animation.frame","pos":0,"rows":601,"t":0,"speed":5,"skip":1,
  "dim":[-0.6,-0.1,0.4,0.6],"w":280,"h":350,
  "prims":[["text",0.05,0.928571,"lecar  ","blue",3,0],["line",0,0.142857,1,0.142857,"foreground",1,"solid"],
           ["circle",0.456,0.185714,0.03,0.0428571,"purple",0,0,"solid"],["dot",0.456,0.185714,2,"red"],...]}
@@ -2783,35 +2838,10 @@ A frame goes out when the core draws it: after `step`, `seek`, `reset`, a
 during an integration, and Go's. Frames that come faster than 25 a second
 (Go, Fly) are thinned: the latest one goes when 40 ms have passed since the
 last one sent, and the last frame drawn always goes, at the latest at the
-end of the command, before its `state` and `done`. After `events.subscribe` with `ani`
+end of the command, before its `session.state` and `done`. After `events.subscribe` with `animation.frame`
 the last frame drawn (if any) goes at the end of that command. The comets'
 trails are the core's, so a thinned frame loses nothing. A new `.anix` file
 forgets the frame of the old one.
-
-## Not yet implemented
-
-docs/front-end-gaps.md lists what the X11 front end did that this
-protocol does not.
-
-## Removed in protocol 2
-
-Protocol 1 also drove the classic page (`web/`, removed with it, docs/ui-v2.md
-T18), which replayed the core's pixel drawing:
-
-- the `draw` event (`win`, `ops`: `clear`, `color`, `lw`, `dash`, `line`,
-  `poly`, `point`, `bead`, `rect`/`frect`, `circle`/`fcircle`,
-  `ellipse`/`fellipse`, `cursor`, `text`, `rtext`, `stext`, `font`) for
-  every window, the AUTO stability circle (102) and info strip (103)
-  included, and `/events?...&draw=0` to leave them out;
-- the `palette` event (the 256 colours the ops referred to);
-- the `size` command (a canvas size in pixels for open plot windows, 101 and
-  104): the core keeps its default window sizes;
-- `hello`'s `char` (the font cell the ops laid text out on).
-
-Everything the page shows comes from the data events: `series`, `plots`,
-`nullclines`, `dfield`, `marks`, `diagram`, `autoinfo`, `autosettings`, `ani` `frame`,
-`aplot`, `erase`, `redraw`. The `pixels` ask stays: web2 answers it from
-those.
 
 ### Opening foreign models (W154, #206)
 
@@ -2869,7 +2899,7 @@ The native About box (Win32 task dialog, GTK dialog) hands its link clicks to th
 
 ### Live integration state (W200)
 
-`{"ev":"liveState","time":0.125,"now":[1.25,2.5],"rates":[1,2]}` reports solver doubles
+`{"ev":"job.live_state","time":0.125,"now":[1.25,2.5],"rates":[1,2]}` reports solver doubles
 for every ODE/Markov state in `state.ics` order, after an accepted output step
 and before transient/Poincare storage filtering. It does not change initial
 conditions or the resume state. The JSON front end paces updates at its existing
@@ -2877,7 +2907,7 @@ conditions or the resume state. The JSON front end paces updates at its existing
 plotted columns. This is display pacing, not a solver step or accuracy setting.
 `rates` is `state.rates` computed from the rows stored so far (next section), so it
 can lag `now` by the rows the run has not stored yet (a transient is not stored).
-The final `state` still supplies the exact end/stop values. No trajectory
+The final `session.state` still supplies the exact end/stop values. No trajectory
 subscription is needed. `XPP_NO_THROTTLE` exposes every accepted output step for
 condition-based protocol checks. An output step follows configured `store_every`;
 adaptive solver internal substeps are not display steps.
@@ -2886,7 +2916,7 @@ adaptive solver internal substeps are not display steps.
 
 `play open` starts a newly opened recording automatically. Set `autoplay:false`
 to open it paused for inspection. `play from` with `step:0, play:false` remains
-a paused restart. The `player` feature in `hello.features`, requested by `events.subscribe`,
+a paused restart. The `recording.player` feature in `hello.features`, requested by `events.subscribe`,
 resends the current recording's complete step list; a page connecting after the
 file opened receives its metadata along with the current `state.player`.
 
@@ -2909,7 +2939,7 @@ Writes into a missing folder ask **Create the folder <folder>?**. A model path o
 
 ### Reduced ODE Hopf curves (W363, #425)
 
-The `diagram` and `autoinfo` curve field `f2` is 3 for an ODE Hopf curve
+The `diagram` and `auto.info` curve field `f2` is 3 for an ODE Hopf curve
 with nonnegative squared frequency and 13 for its neutral-saddle extension
 with negative squared frequency. These points retain their Hopf start type
 in `itp` for restarting the same formulation; this does not label the
@@ -2965,7 +2995,7 @@ arguments validate before the dialog; Cancel returns `{"cancelled":true}`.
 still requires the native binding's single-use grant; an HTTP reply cannot
 supply it. Direct file arguments retain their basename/path restrictions.
 
-There is no `menu` ask. Remaining core questions with a keyed list use `choice`
+The core has no `menu` ask. Its questions with a keyed list use `choice`
 and `choices`; navigation happens on the page. A command form submits one
 registry command with typed arguments, omitting optional fields left unset.
 File arguments remain base names in the model folder. A `path` is still refused

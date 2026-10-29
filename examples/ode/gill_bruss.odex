@@ -1,4 +1,5 @@
 # gill_bruss.odex: converted from gill_bruss.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # gillesp_bruss.ode
 # gillespie algorithm for brusselator

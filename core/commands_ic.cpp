@@ -171,8 +171,8 @@ constexpr std::array FORMULA_RESULTS = {ResultField{"variable", "text"}, ResultF
 constexpr std::array ARRAY_RESULTS = {ResultField{"name", "name"}, ResultField{"size", "integer"}};
 constexpr std::array ROW_RESULTS = {ResultField{"row", "integer"}, ResultField{"values", "map[name, real]"}};
 
-constexpr std::array STATE_EVENTS = {"state", "done"};
-constexpr std::array RUN_EVENTS = {"computing", "progress", "series", "stopped", "state", "done"};
+constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array RUN_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JOB_PROGRESS, xpp::events::PLOT_SERIES, xpp::events::JOB_STOPPED, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"ic.set", SET_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Initial conditions/New",

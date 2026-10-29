@@ -1,4 +1,5 @@
 # live.odex: converted from live.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # The Morris-Lecar model (examples/ode/lecar.ode) integrated with a small
 # step, so that 20 001 stored rows take about two seconds (a fast CI runner

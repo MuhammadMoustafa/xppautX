@@ -1,4 +1,5 @@
 # fhn.odex: converted from fhn.ode by xppautX --convert (docs/odex.md)
+version 4
 # renamed: t is t_ here (.odex reserves t)
 
 # Forced Fitzhugh-Nagumo fhn.ode

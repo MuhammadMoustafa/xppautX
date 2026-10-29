@@ -1,4 +1,5 @@
 # transient.odex: converted from transient.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # a problem with cool transients
 x' = -x-5*y-z*y

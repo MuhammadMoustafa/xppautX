@@ -1,4 +1,5 @@
 # stochast_fourier_test.odex: converted from stochast_fourier_test.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # Minimal model for the stochastics menu's Fourier-family known-answer
 # tests (W31a: tests/test_stochast_fourier.cpp). The ODE itself never

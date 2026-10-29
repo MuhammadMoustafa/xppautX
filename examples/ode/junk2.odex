@@ -1,4 +1,5 @@
 # junk2.odex: converted from junk2.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # junk2.ode
 table w 0.4*ran(1), n=255, lo=0, hi=255

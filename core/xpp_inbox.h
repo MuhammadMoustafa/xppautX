@@ -27,7 +27,7 @@ namespace xpp::inbox {
    command loop (set_kept) together, and their bytes (W389): a client that
    floods the input while the core computes is refused with busy at the
    bound, never queued without end. The count (1024) is far more than a
-   client that waits for each command's idle sends at once; the bytes
+   client that waits for each command's done sends at once; the bytes
    (64 MB) hold the largest ordinary line, a pixel answer of a 4K picture
    (about 33 MB as base64), and are also the longest line any input takes. */
 constexpr size_t MAX_PENDING_LINES = 1024;

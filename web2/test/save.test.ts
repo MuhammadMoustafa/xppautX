@@ -19,7 +19,7 @@ function saving(name = 'old.snapx') {
   const s = new Session(transport, files);
   s.start();
   emit(HELLO);
-  emit({ev: 'idle'});
+  emit({ev: 'done', status: 'ok'});
   const ask: AskEvent = {ev: 'ask', kind: 'file', id: 1, mode: 'write', wild: '*.snapx'};
   s.store.dispatch({type: 'event', ev: ask});
   s.saveFile(ask, name, null);
@@ -29,8 +29,8 @@ function saving(name = 'old.snapx') {
 test('W129: a declined save, failure or missing save result never fetches the old file', () => {
   for (const result of [undefined, false]) {
     const {emit, reads} = saving();
-    if (result !== undefined) emit({ev: 'saved', saved: result, file: 'old.snapx'});
-    emit({ev: 'idle'});
+    if (result !== undefined) emit({ev: 'session.saved', saved: result, file: 'old.snapx'});
+    emit({ev: 'done', status: 'ok'});
     assert.deepEqual(reads, []);
   }
 });
@@ -63,18 +63,18 @@ test('W129: native save answers authorize the picked path; open answers do not',
 
 test('W177: every committed output is captured before the next prompt', () => {
   const {emit, reads} = saving();
-  emit({ev: 'saved', saved: true, file: 'other.snapx'});
+  emit({ev: 'session.saved', saved: true, file: 'other.snapx'});
   assert.deepEqual(reads, ['other.snapx']);
-  emit({ev: 'saved', saved: true, file: 'old.snapx'});
+  emit({ev: 'session.saved', saved: true, file: 'old.snapx'});
   assert.deepEqual(reads, ['other.snapx', 'old.snapx']);
-  emit({ev: 'idle'});
+  emit({ev: 'done', status: 'ok'});
   assert.deepEqual(reads, ['other.snapx', 'old.snapx']);
 });
 
 test('W129: a committed destination with the dialog suffix delivers the core filename', () => {
   const {emit, reads} = saving('session');
-  emit({ev: 'saved', saved: true, file: 'session.snapx'});
-  emit({ev: 'idle'});
+  emit({ev: 'session.saved', saved: true, file: 'session.snapx'});
+  emit({ev: 'done', status: 'ok'});
   assert.deepEqual(reads, ['session.snapx']);
 });
 
@@ -125,7 +125,7 @@ test('W177: same-name exports snapshot distinct bytes before answering the next 
   })};
   const first: AskEvent = {ev: 'ask', kind: 'file', mode: 'write', id: 3};
   s.saveFile(first, 'data.dat', handle);
-  emit({ev: 'saved', saved: true, file: 'data.dat'});
+  emit({ev: 'session.saved', saved: true, file: 'data.dat'});
   const second = {...first, id: 4};
   s.saveFile(second, 'data.dat', handle);
   assert.equal(sent.at(-1)?.id, 3, 'the next answer waits for the orbit read');
@@ -133,9 +133,9 @@ test('W177: same-name exports snapshot distinct bytes before answering the next 
   await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
   assert.equal(sent.at(-1)?.id, 4);
   bytes = 'adjoint';
-  emit({ev: 'saved', saved: true, file: 'data.dat'});
+  emit({ev: 'session.saved', saved: true, file: 'data.dat'});
   finish();
-  emit({ev: 'idle'});
+  emit({ev: 'done', status: 'ok'});
   await delivered;
   assert.deepEqual(captured, ['orbit', 'adjoint']);
 });
@@ -149,17 +149,17 @@ test('W303: a denied native save retries only after idle, in the writable model 
   }});
   try {
     const {s, sent, emit} = saving();
-    emit({ev: 'idle'});
+    emit({ev: 'done', status: 'ok'});
     s.writeDataFile('table', 'csv');
     const ask: AskEvent = {ev: 'ask', kind: 'file', id: 7, mode: 'write', file: '/protected/data.csv',
       dir: '/protected', save_dir: '/model', wild: '*.csv'};
     s.store.dispatch({type: 'event', ev: ask});
     await s.nativeFile(ask);
     const before = sent.length;
-    emit({ev: 'saved', saved: false, file: '/protected/data.csv'});
-    emit({ev: 'message', error: 'cannot open data.csv: Permission denied: the folder /protected needs administrator rights; choose another place'});
+    emit({ev: 'session.saved', saved: false, file: '/protected/data.csv'});
+    emit({ev: 'session.message', error: 'cannot open data.csv: Permission denied: the folder /protected needs administrator rights; choose another place'});
     assert.equal(sent.length, before);
-    emit({ev: 'idle'});
+    emit({ev: 'done', status: 'ok'});
     assert.deepEqual(sent.at(-1), {cmd: 'browser.export', target: 'table', format: 'csv'});
     const retry = {...ask, id: 8};
     s.store.dispatch({type: 'event', ev: retry});

@@ -1,4 +1,5 @@
 # mu26.odex: converted from mu26.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # mu26.ode: the two-compartment PVN parvocellular neuron of Mu26 (soma Sm, dendrite Hx),
 # 28 states, current-clamped through SmIapp (pA).

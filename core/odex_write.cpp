@@ -1,6 +1,8 @@
 /* .odex text written, and a model file's text edited (odex_write.h). */
 #include "odex_write.h"
 
+#include "format_version.h"
+
 #include "expr.h"
 #include "model.h"
 #include "model_options.h"
@@ -301,7 +303,7 @@ Result<std::vector<std::pair<std::string, Pos>>> local_sets(Model &m, std::strin
 
 std::string export_header(std::string_view file, std::string_view time)
 {
-  return xpp::format("# Saved from {} at {}\n", file, time);
+  return xpp::format("# Saved from {} at {}\n{} {}\n", file, time, xpp::version_word, xpp::format_version);
 }
 
 Result<Edited> add_set(Model &m, std::string_view text, const std::string &file, std::string_view name, const Values &values, bool partial)

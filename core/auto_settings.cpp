@@ -1,3 +1,4 @@
+#include "event_registry.h"
 #include "auto_unknowns.h"
 /* AUTO's settings as data: the "autosettings" event and the `auto` `set`
    command's checks and writes (auto_settings.h, docs/protocol.md "AUTO's
@@ -235,7 +236,7 @@ AutoSettingsSet settings_now(const xpp::Session &s)
 std::string event_text(const xpp::Session &s)
 {
     const AutoSettingsSet set = settings_now(s);
-    std::string o = "{\"ev\":\"autosettings\",\"numerics\":{";
+    std::string o = xpp::events::open(xpp::events::AUTO_SETTINGS) + ",\"numerics\":{";
     for (int i = 0; i < AUTO_NUM_N; i++) {
         o += xpp::format("{}\"{}\":", i ? "," : "", num_fields[i].key);
         if (num_fields[i].shape == AutoFieldShape::boolean) o += set.num[i] != 0 ? "true" : "false";

@@ -1,4 +1,5 @@
 # julia.odex: converted from julia.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # julia set for z -> z^2+c
 par cx = 0, cy = 0

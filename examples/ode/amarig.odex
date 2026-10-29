@@ -1,4 +1,5 @@
 # amarig.odex: converted from amarig.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # amari bump with gaussian
 fun mh(x) = exp(-x^2)-c*b*exp(-(b*x)^2)

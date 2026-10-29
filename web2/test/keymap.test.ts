@@ -24,19 +24,19 @@ test('a keymap event replaces it, and the differences go back as a set sends the
     ...HELLO.keymap, pinned: ['session.reload_model'],
     commands: HELLO.keymap.commands.map(c => c.id === 'session.reload_model' ? {...c, keys: ['Ctrl+B'], source: 'user'} : c.id === 'session.save' ? {...c, keys: [], source: 'user'} : c),
   };
-  const state = reduce(READY, {type: 'event', ev: {ev: 'keymap', op: 'set', keymap: info}});
+  const state = reduce(READY, {type: 'event', ev: {ev: 'keymap.changed', op: 'set', keymap: info}});
   assert.equal(state.keymap.info, info);
   assert.deepEqual(effectiveKeys(state.keymap.info, row('session.reload_model')), ['Ctrl+B']);
   assert.deepEqual(effectiveKeys(state.keymap.info, row('session.save')), []);
   assert.deepEqual(userKeymap(info), {pinned: ['session.reload_model'], bindings: {'session.reload_model': ['Ctrl+B'], 'session.save': []}});
   /* the same keymap again changes nothing; a new hello (File > Open model) takes the file's again */
-  assert.equal(reduce(state, {type: 'event', ev: {ev: 'keymap', op: 'get', keymap: info}}), state);
+  assert.equal(reduce(state, {type: 'event', ev: {ev: 'keymap.changed', op: 'get', keymap: info}}), state);
   assert.equal(reduce(state, {type: 'event', ev: HELLO}).keymap.info, HELLO.keymap);
 });
 
 test('a bad file arrives as an error with its place, the commands the table\'s', () => {
   const bad: KeymapInfo = {...HELLO.keymap, ok: false, error: '"Ctrl+W" is reserved', file: '/c/keymap.json', line: 3, col: 5, source: '  "x": ["Ctrl+W"]'};
-  const state = reduce(READY, {type: 'event', ev: {ev: 'keymap', op: 'get', keymap: bad}});
+  const state = reduce(READY, {type: 'event', ev: {ev: 'keymap.changed', op: 'get', keymap: bad}});
   assert.equal(state.keymap.info?.ok, false);
   assert.equal(state.keymap.info?.line, 3);
   assert.deepEqual(userKeymap(bad), {pinned: [], bindings: {}});

@@ -1,4 +1,5 @@
 # greg.odex: converted from greg.ode by xppautX --convert (docs/odex.md)
+version 4
 
 #paramters to be varied to see the effect of fitcurve
 par k = 1

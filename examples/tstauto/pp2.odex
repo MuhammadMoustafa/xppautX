@@ -1,4 +1,5 @@
 # pp2.odex: converted from pp2.ode by xppautX --convert (docs/odex.md)
+version 4
 # Source: XPPAUT 8.0's demo tstauto/pp2.ode (AUTO-07p has a demo of the same name, reference/auto-07p/demos/pp2) (W537 audit).
 
 e = exp(-par2*u0)

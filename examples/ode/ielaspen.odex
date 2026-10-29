@@ -1,4 +1,5 @@
 # ielaspen.odex: converted from ielaspen.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # the pendulum on a spring
 # the dimensionless parameter is

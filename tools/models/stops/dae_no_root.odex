@@ -1,3 +1,4 @@
+version 4
 # dae_no_root.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md):
 # the algebraic equation has no real root, so Newton's method does not converge
 

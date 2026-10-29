@@ -10,7 +10,7 @@ import {initialTable, planRequest, reduceTable, rowAt} from '../src/store/table'
 import {HELLO} from './hello';
 
 const page = (over: Partial<BrowserEvent> = {}): BrowserEvent => ({
-  ev: 'browser', rows: 601, cols: ['T', 'V', 'W'], row0: 0, start: 0, end: 601, from: 0, col: 1,
+  ev: 'browser.updated', rows: 601, cols: ['T', 'V', 'W'], row0: 0, start: 0, end: 601, from: 0, col: 1,
   data: [[0, -0.144, 0.03], [0.05, -0.1438, 0.0301]],
   ...over,
 });

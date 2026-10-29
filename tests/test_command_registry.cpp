@@ -8,6 +8,7 @@
 #include "command_registry.h"
 #include "xpp_batch.h"
 #include "session.h"
+#include <algorithm>
 #include <array>
 #include <stdexcept>
 #include <string>
@@ -290,9 +291,9 @@ int main()
             const std::string line="{\"cmd\":\"events.subscribe\","+members+"}";
             return validate(nullptr,subscribe,line.c_str(),PLACE,false);
         };
-        CHECK(events("\"events\":[\"series\",\"plots\"],\"encoding\":\"f32\",\"diagram\":false"));
+        CHECK(events("\"events\":[\"plot.series\",\"plot.shown\"],\"encoding\":\"f32\",\"diagram\":false"));
         CHECK(events("\"events\":[]"));
-        CHECK(!events("\"events\":[\"series\",\"nothing\"]") && !events("\"encoding\":\"f32\"") && !events("\"events\":[],\"encoding\":\"f64\""));
+        CHECK(!events("\"events\":[\"plot.series\",\"nothing\"]") && !events("\"encoding\":\"f32\"") && !events("\"events\":[],\"encoding\":\"f64\""));
         const Command &note=*find("recording.add_note");
         const auto noted=[&](const std::string &text){
             const std::string line="{\"cmd\":\"recording.add_note\",\"note\":"+text+"}";
@@ -321,6 +322,20 @@ int main()
         CHECK(!run(s, "{\"cmd\":\"tool.run_user_button\",\"index\":0}", PLACE, false));
         CHECK(!run(s, "{\"cmd\":\"tool.run_source_action\",\"index\":0}", PLACE, false));
         CHECK(!run(s, "{\"cmd\":\"tool.run_source_action\",\"index\":-1}", PLACE, false));
+    }
+    /* every event a row lists is declared once, with its fields, and what a client may subscribe to is declared as such (W529) */
+    {
+        const auto declared_as = [](std::string_view name) {
+            const auto events = xpp::events::all();
+            return std::ranges::find(events, name, &xpp::events::Event::name) != events.end();
+        };
+        for (const Command *row : rows())
+            for (const char *name : row->events) CHECK(declared_as(name));
+        for (std::string_view name : xpp::events::STREAMS) CHECK(declared_as(name));
+        for (const xpp::events::Event &declared : xpp::events::all()) {
+            CHECK(declared.name == "done" || declared.name == "hello" || declared.name == "ask" || declared.name == "exit" || declared.name.find('.') != std::string_view::npos);
+            CHECK(declared.stream.empty() || declared_as(declared.stream));
+        }
     }
     /* the registry joins the resources' tables */
     CHECK(find("help") && find("window.destroy") && !find("window.nope"));

@@ -1,4 +1,5 @@
 # kuramot100m.odex: converted from kuramot100m.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # kuramoto with fmmult
 fun h(x, y) = sin(x-y+a)-sin(a)+b*sin(2*(x-y))

@@ -1,4 +1,5 @@
 # fhn_noise.odex: converted from fhn_noise.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # Forced Fitzhugh-Nagumo fhn.ode
 wiener n

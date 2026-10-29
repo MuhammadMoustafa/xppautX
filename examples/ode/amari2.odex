@@ -1,4 +1,5 @@
 # amari2.odex: converted from amari2.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # amari bump
 fun f(upre, upost) = heav(upre)

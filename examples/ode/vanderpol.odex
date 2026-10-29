@@ -1,4 +1,5 @@
 # vanderpol.odex: converted from vanderpol.ode by xppautX --convert (docs/odex.md)
+version 4
 
 x' = xp
 xp' = -x+xp*(1-x^2)

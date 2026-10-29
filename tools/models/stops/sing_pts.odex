@@ -1,3 +1,4 @@
+version 4
 # sing_pts.odex: a stop case of servercheck's stops section (docs/studies/w480-stops.md)
 
 x' = x^2+1

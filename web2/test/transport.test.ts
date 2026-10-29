@@ -134,7 +134,7 @@ test('W116: a command the server refuses (403, 413, 400) is said with its status
 });
 
 test('W389: a busy server (503 with the error event) is said with the error naming the command', async () => {
-  const busy = {ev: 'message', error: 'Busy: display (id 3) was refused, the server already holds 1024 waiting commands; send it again later'};
+  const busy = {ev: 'session.message', error: 'Busy: display (id 3) was refused, the server already holds 1024 waiting commands; send it again later'};
   const f = fakeFetch(() => Promise.resolve(new Response(JSON.stringify(busy), {status: 503})));
   const es = fakeEventSource();
   try {

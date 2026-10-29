@@ -3,7 +3,7 @@
 
 Descriptions use W306's run vocabulary, not recorded keys. Only execute_run
 translates it to today's menus. Each model runs serially at 1 and auto threads.
-No elapsed-time assertion: completion is idle; TIMEOUT is only a hang guard.
+No elapsed-time assertion: completion is done; TIMEOUT is only a hang guard.
 """
 import argparse
 import cmath
@@ -20,7 +20,7 @@ import zipfile
 
 import numpy as np
 
-from xppclient import Checker, SLOW, Server, is_ask, is_idle, open_auto, placed, run_any
+from xppclient import Checker, SLOW, Server, is_ask, is_done, open_auto, placed, run_any
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / 'tests/auto'
@@ -55,7 +55,7 @@ class Diagram:
 
     def apply(self, events):
         for e in events:
-            if e.get('ev') != 'diagram' or e.get('view') != 'diagram_1':
+            if e.get('ev') != 'auto.diagram' or e.get('view') != 'diagram_1':
                 continue
             if e['op'] == 'reset':
                 del self.points[e['keep']:]
@@ -207,7 +207,7 @@ def read_description(path):
 def completed(s, command=None):
     if command:
         s.send(**command)
-    events, end = s.collect(lambda e: is_idle(e) or is_ask(e), timeout=TIMEOUT)
+    events, end = s.collect(lambda e: is_done(e) or is_ask(e), timeout=TIMEOUT)
     ensure_completed(events, end)
     return events
 
@@ -245,9 +245,9 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
         if 'settle' in start:
             completed(s, dict(cmd='run.configure', total_time=start['settle'], **({'dt': start['step']} if 'step' in start else {})))
             s.send(cmd='run.initial')
-            events, end = s.collect(is_idle, timeout=TIMEOUT)
+            events, end = s.collect(is_done, timeout=TIMEOUT)
             ensure_completed(events, end)
-            state = next(e for e in reversed(events) if e.get('ev') == 'state')
+            state = next(e for e in reversed(events) if e.get('ev') == 'session.state')
             set_values(s, [dict(kind='ic', name=p[0], value=float(v)) for p, v in zip(state['ics'], state['now'])])
         if r['kind'] == 'equilibrium':
             run['replace_diagram'] = False
@@ -273,7 +273,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
         if r['kind'] == 'heteroclinic':
             run['right_equilibrium'] = c['right']
     s.send(**run)
-    events, end = s.collect(lambda e: is_idle(e) or is_ask(e), timeout=TIMEOUT)
+    events, end = s.collect(lambda e: is_done(e) or is_ask(e), timeout=TIMEOUT)
     if end is None:
         raise RuntimeError('auto.run did not complete (safety timeout)')
     result = [e for e in events if e.get('ev') != 'ask']
@@ -284,14 +284,14 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
         if not errors[0].get('file') or not errors[0].get('line'):
             raise RuntimeError('expected error has no source location')
         result.remove(errors[0])
-    ensure_completed(result, events[-1] if events and is_idle(events[-1]) else None)
+    ensure_completed(result, events[-1] if events and is_done(events[-1]) else None)
     diagram.apply(events)
-    stops = [e['stop'] for e in events if e.get('ev') == 'autoinfo' and e.get('stop')]
+    stops = [e['stop'] for e in events if e.get('ev') == 'auto.info' and e.get('stop')]
     if not stops and 'expected_error' not in r:
         # An identical repeated branch can leave the info strip unchanged;
         # its change-only event then needs an explicit current-value request.
-        current = completed(s, dict(cmd='events.subscribe', events=['autoinfo', 'autosettings'], diagram=diagram_data))
-        stops = [e['stop'] for e in current if e.get('ev') == 'autoinfo' and e.get('stop')]
+        current = completed(s, dict(cmd='events.subscribe', events=['auto.info', 'auto.settings'], diagram=diagram_data))
+        stops = [e['stop'] for e in current if e.get('ev') == 'auto.info' and e.get('stop')]
     if 'expected_error' not in r and (not stops or stops[-1]['why'].startswith('noconv')):
         raise RuntimeError('AUTO failed to converge: ' + str(stops[-1:] or events[-3:]))
     if diagram_data:
@@ -381,8 +381,8 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
         completed(s, dict(cmd='auto.set_threads', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
         # Subscription returns the current settings even when a repeated
         # threads=1 assignment changed nothing and emitted no change event.
-        events = completed(s, dict(cmd='events.subscribe', events=['autoinfo', 'autosettings'], diagram=diagram_data))
-        setting = next(e for e in reversed(events) if e.get('ev') == 'autosettings')
+        events = completed(s, dict(cmd='events.subscribe', events=['auto.info', 'auto.settings'], diagram=diagram_data))
+        setting = next(e for e in reversed(events) if e.get('ev') == 'auto.settings')
         if setting['threads'] != threads:
             raise RuntimeError('thread setting was not applied')
         values = [dict(kind=kind, name=k, value=v) for group, kind in
@@ -399,7 +399,7 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
                 events = execute_run(s, r, diagram, ranges, diagram_data=diagram_data)
                 # AUTO refines an inexact steady-state start by Newton (autoinfo's start_refined, W495): that start is
                 # not the one AUTO-07p starts from, so the reference comparison leaves its first point out
-                infos = [e for e in events if e.get('ev') == 'autoinfo' and 'start_refined' in e]
+                infos = [e for e in events if e.get('ev') == 'auto.info' and 'start_refined' in e]
                 r['start_refined'] = bool(infos and infos[-1]['start_refined'])
                 if observer:
                     observer.finished(s, r, events, ranges)

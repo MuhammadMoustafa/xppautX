@@ -5,7 +5,7 @@ import json
 import math
 from pathlib import Path
 import tempfile
-from xppclient import Checker, Server, is_idle, whole_series, make_recording, replay_recording
+from xppclient import Checker, Server, is_done, whole_series, make_recording, replay_recording
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--server', default='./xppautX')
@@ -14,9 +14,9 @@ check = Checker(detail_sep=': ')
 
 def command(server, **fields):
     server.send(**fields)
-    events, idle = server.collect(is_idle, timeout=60)
-    check('command completes: ' + fields['cmd'], idle is not None, events[-3:])
-    state = next((e for e in reversed(events) if e.get('ev') == 'state'), None)
+    events, ended = server.collect(is_done, timeout=60)
+    check('command completes: ' + fields['cmd'], ended is not None, events[-3:])
+    state = next((e for e in reversed(events) if e.get('ev') == 'session.state'), None)
     return events, state
 
 def scenario(folder, name, model, action):
@@ -24,10 +24,10 @@ def scenario(folder, name, model, action):
     ode.write_text(model + '\ndone\n', encoding='utf-8')
     server = Server(args.server, str(ode))
     try:
-        events, idle = server.collect(is_idle)
-        check(name + ': model loads', idle is not None and not any(e.get('error') for e in events), events[-3:])
-        server.send(cmd='events.subscribe', events=['series', 'numerics'])
-        server.collect(is_idle)
+        events, ended = server.collect(is_done)
+        check(name + ': model loads', ended is not None and not any(e.get('error') for e in events), events[-3:])
+        server.send(cmd='events.subscribe', events=['plot.series', 'run.numerics'])
+        server.collect(is_done)
         action(server)
     finally:
         server.close()
@@ -41,10 +41,10 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
               state and state['steady']['status'] == 'settled' and 20 < state['time'] < 50, state)
         check('decay: both states approach their analytic equilibria',
               state and abs(state['now'][0]) < 1e-8 and abs(state['now'][1] - 2) < 1e-8, state)
-        server.send(cmd='events.subscribe', events=['series', 'numerics'])
-        settings, _ = server.collect(is_idle)
+        server.send(cmd='events.subscribe', events=['plot.series', 'run.numerics'])
+        settings, _ = server.collect(is_done)
         check('decay: original duration and stride restored',
-              any(e.get('ev') == 'numerics' and {f['key']: f['value'] for f in e['fields']}.get('total_time') == 30
+              any(e.get('ev') == 'run.numerics' and {f['key']: f['value'] for f in e['fields']}.get('total_time') == 30
                   and {f['key']: f['value'] for f in e['fields']}.get('store_every') == 7 for e in settings), settings[-4:])
         for invalid in [dict(decimals=9.5, hold=1, maximum=10), dict(decimals=True, hold=1, maximum=10),
                         dict(decimals=9, hold=0, maximum=10), dict(decimals=9, hold=2, maximum=1),
@@ -57,10 +57,10 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
         # signed NaN tokens, which must never reach an integer precision cast.
         server.proc.stdin.write('{"cmd":"run.steady","decimals":-NaN,"hold":1,"maximum":10}\n')
         server.proc.stdin.flush()
-        got, idle = server.collect(is_idle)
-        after = next((e for e in reversed(got) if e.get('ev') == 'state'), None)
+        got, ended = server.collect(is_done)
+        after = next((e for e in reversed(got) if e.get('ev') == 'session.state'), None)
         check('invalid signed NaN precision is rejected before integer conversion',
-              idle is not None and any(e.get('error') for e in got) and after and after['now'] == state['now'] and after['time'] == old_time, got[-3:])
+              ended is not None and any(e.get('error') for e in got) and after and after['now'] == state['now'] and after['time'] == old_time, got[-3:])
         # Continue honours Store every 7 (W213): it ends on a 7-Dt output group, here 0.35, rounded up
         group = .35
         got, after = command(server, cmd='run.continue', extra=1)
@@ -148,7 +148,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
     recorded = make_recording(args.server, str(model), steps, str(recording_folder))
     replay = replay_recording(args.server, str(model), recorded, str(recording_folder))
     check('recording: steady and direct continuation replay silently', replay.returncode == 0, replay.stderr)
-    replay_states = [e for line in replay.stdout.splitlines() if (e := json.loads(line)).get('ev') == 'state' and e.get('now')]
+    replay_states = [e for line in replay.stdout.splitlines() if (e := json.loads(line)).get('ev') == 'session.state' and e.get('now')]
     check('recording: replay appends after the settled trajectory',
           bool(replay_states) and 24 < replay_states[-1]['time'] < 50 and 'steady' not in replay_states[-1], replay_states[-1:] if replay_states else '')
 
@@ -157,7 +157,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
     cancel_steps = [steps[0], dict(cmd='run.abort', at=dict(what='integrate', rows=100, t=0))]
     cancelled = make_recording(args.server, str(model), cancel_steps, str(cancel_folder))
     replay = replay_recording(args.server, str(model), cancelled, str(cancel_folder))
-    cancel_states = [e for line in replay.stdout.splitlines() if (e := json.loads(line)).get('ev') == 'state' and e.get('steady')]
+    cancel_states = [e for line in replay.stdout.splitlines() if (e := json.loads(line)).get('ev') == 'session.state' and e.get('steady')]
     check('cancellation: replayed Stop keeps the partial trajectory and reports stopped',
           replay.returncode == 0 and bool(cancel_states) and cancel_states[-1]['steady']['status'] == 'stopped' and cancel_states[-1]['rows'] == 100,
           (replay.stderr, cancel_states[-1:]))

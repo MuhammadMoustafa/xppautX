@@ -1,15 +1,15 @@
 """A small client for xppautX --server, shared by the protocol checks.
 
     s = Server('./xppautX', 'examples/ode/lecar.odex')
-    s.collect(is_idle)
+    s.collect(is_done)
     s.send(cmd='run.initial')
-    evs, end = s.collect(is_idle)
+    evs, end = s.collect(is_done)
 
 Each Server runs in its own scratch directory (the model is copied there),
 reads events on a thread and hands them out with collect().
 """
 import glob
-import atexit, base64, copy, hashlib, json, os, queue, shutil, struct, subprocess, tempfile, threading, time
+import atexit, base64, copy, hashlib, json, os, queue, re, shutil, struct, subprocess, tempfile, threading, time
 
 # No check touches the user's own per-user settings (keymap.json, W211;
 # preferences.setx, W232): every xppautX a check script that imports this starts
@@ -96,12 +96,29 @@ def _reject_non_finite(text):
     raise ValueError('non-finite JSON constant: %s' % text)
 
 
-def is_idle(e):
-    return e.get('ev') in ('idle','done')
+# the one format number of the protocol and every file of ours (core/format_version.h)
+FORMAT_VERSION = 4
+
+
+def versioned(text):
+    """a model's text as its reader takes it: `version N` first (every position the core reports is then one line
+    further); text that has its own, a converted model, is left as it is"""
+    if re.match(r'(?:[ \t]*(?:#[^\n]*)?\r?\n)*[ \t]*version[ \t]+\d', text):
+        return text
+    return 'version %d\n' % FORMAT_VERSION + text
+
+
+def versioned_anix(text):
+    """an animation's: its version is a statement of its own, `version: N`"""
+    return text if re.match(r'[ \t]*version[ \t]*:', text) else 'version: %d\n' % FORMAT_VERSION + text
+
+
+def is_done(e):
+    return e.get('ev') == 'done'
 
 
 # every heavy data event a client subscribes to (hello's `features`)
-ALL_EVENTS = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo', 'autosettings', 'numerics', 'windows', 'player']
+ALL_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'dirfield.field', 'plot.marks', 'animation.frame', 'auto.info', 'auto.settings', 'run.numerics', 'window.list', 'recording.player']
 
 
 def save_permission(cmd):
@@ -140,7 +157,7 @@ def placed(e):
 
 
 def is_state(e):
-    return e.get('ev') == 'state'
+    return e.get('ev') == 'session.state'
 
 
 def drain_stderr(proc, sink=None):
@@ -196,7 +213,7 @@ class SeriesMirror:
         self.held = {}
 
     def feed(self, ev):
-        if ev.get('ev') != 'series':
+        if ev.get('ev') != 'plot.series':
             return
         op, win = ev.get('op'), ev.get('win')
         if op is None:
@@ -221,7 +238,7 @@ def whole_series(evs, win=None):
     event, and each live run's end as the series the client then holds
     (SeriesMirror), all with their data as floats (decoded_series); only
     window win's when given"""
-    return [e['held'] if 'held' in e else decoded_series(e) for e in evs if e.get('ev') == 'series' and e.get('op') in (None, 'end')
+    return [e['held'] if 'held' in e else decoded_series(e) for e in evs if e.get('ev') == 'plot.series' and e.get('op') in (None, 'end')
             and (win is None or e.get('win') == win)]
 
 
@@ -350,41 +367,41 @@ class Server:
 def open_auto(s):
     """File/AUTO, waiting for its window and the command's completion."""
     s.send(cmd='auto.open')
-    events, end = s.collect(is_idle)
-    if end is None or not any(e.get('ev') == 'window' and e.get('win') == 'diagram_1' for e in events):
+    events, end = s.collect(is_done)
+    if end is None or not any(e.get('ev') == 'window.created' and e.get('win') == 'diagram_1' for e in events):
         raise RuntimeError('File/AUTO did not open its window: ' + str(events))
     return events
 
 
 def run_any(s, key, timeout=120 * SLOW):
     """Run the registry's named AUTO kind from the point the last grab took (its label, until the next grab),
-    answering only a real continuation question; the events to idle."""
+    answering only a real continuation question; the events to done."""
     kind = {'s':'equilibrium','p':'periodic','e':'periodic','t':'two_parameter','b':'bvp'}[key]
     if key == 'p' and s.grabbed_type == 'fold': kind = 'two_parameter'  # the run a fold point's menu offered
     if key == 'e':  # extend the branch of the label: the kind of the branch it is on, as autoinfo's start says the point allows
-        s.send(cmd='events.subscribe', events=['autoinfo'])
-        shown, _ = s.collect(is_idle)
-        start = next((e['start'] for e in reversed(shown) if e.get('ev') == 'autoinfo' and e.get('start')), None)
+        s.send(cmd='events.subscribe', events=['auto.info'])
+        shown, _ = s.collect(is_done)
+        start = next((e['start'] for e in reversed(shown) if e.get('ev') == 'auto.info' and e.get('start')), None)
         kinds = start['kinds'] if start else []
         kind = 'equilibrium' if 'equilibrium' in kinds else kinds[0] if kinds else kind
     label = s.grabbed_label
     s.send(cmd='auto.run', kind=kind, **({'label': label} if label else {}))
-    events,_ = s.answer_asks(is_idle, {'choice':lambda e:{'key':'y'}}, timeout=timeout)
+    events,_ = s.answer_asks(is_done, {'choice':lambda e:{'key':'y'}}, timeout=timeout)
     return events
 
 
 def run_commands(binary, ode, lines, run, flags=()):
-    """Drive the protocol, waiting for its ask/idle conditions before each line.
+    """Drive the protocol, waiting for its ask/done conditions before each line.
     outcome is error accounting for the commands; --server itself exits 0.
     This replaces file scripts in protocol checks, including pixels asks."""
     s = Server(binary, ode, run=run, extra_args=flags)
-    events, _ = s.collect(is_idle)
+    events, _ = s.collect(is_done)
     try:
         for command in lines:
             s.send(**command)
-            got, end = s.collect(lambda e: is_ask(e) or is_idle(e) or e.get('ev') == 'bye', timeout=60 * SLOW)
+            got, end = s.collect(lambda e: is_ask(e) or is_done(e) or e.get('ev') == 'session.bye', timeout=60 * SLOW)
             events += got
-            if end is None or end.get('ev') == 'bye':
+            if end is None or end.get('ev') == 'session.bye':
                 break
     finally:
         s.close()
@@ -438,8 +455,8 @@ def file_bytes(s, name):
     """the model folder's file name, through the file command (the player's
     folder is its own)"""
     s.send(cmd='file', op='get', name=name)
-    _, ev = s.collect(lambda e: e.get('ev') == 'file')
-    s.collect(is_idle)
+    _, ev = s.collect(lambda e: e.get('ev') == 'file.result')
+    s.collect(is_done)
     return base64.b64decode(ev['data']) if ev and ev.get('ok') else None
 
 
@@ -501,11 +518,11 @@ def make_recording(binary, ode, lines, run):
     """The core records the starting snapshot; checks write steps to its spec."""
     s = Server(binary, ode, run=run)
     try:
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='recording.start')
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='recording.stop', file='template.recx')
-        s.collect(is_idle)
+        s.collect(is_done)
     finally:
         s.close()
     with open(os.path.join(run, 'template.recx'), encoding='utf-8') as f:
@@ -536,10 +553,10 @@ def replay_recording(binary, ode, path, run, pixel_answers=()):
     s = Server(binary, ode, run=run)
     events = []
     try:
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='recording.open', play=False, file=os.path.abspath(path))
-        evs, _ = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
-        pl = next((e for e in evs if e.get('ev') == 'player'), None)
+        evs, _ = s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}})
+        pl = next((e for e in evs if e.get('ev') == 'recording.player'), None)
         if pl:
             n = len(pl['steps'])
             s.send(cmd='recording.seek', step=n, play=True)
@@ -557,7 +574,7 @@ def replay_recording(binary, ode, path, run, pixel_answers=()):
                 if end and 'the player stopped' in end.get('error', ''):
                     if asked:
                         s.send(cmd='answer', ok=0)
-                    events += s.collect(is_idle)[0]
+                    events += s.collect(is_done)[0]
                     break
                 if end and is_ask(end) and end.get('kind') == 'pixels':
                     s.send(**next(pending))
@@ -567,10 +584,10 @@ def replay_recording(binary, ode, path, run, pixel_answers=()):
                     continue  # the player answers its own user prompts
                 break
             if end and is_state(end):
-                events += s.collect(is_idle)[0]
+                events += s.collect(is_done)[0]
             s.send(cmd='file', op='list')
-            got, listing = s.collect(lambda e: e.get('ev') == 'file')
-            s.collect(is_idle)
+            got, listing = s.collect(lambda e: e.get('ev') == 'file.result')
+            s.collect(is_done)
             for f in (listing or {}).get('files', []):
                 if f.get('folder'):
                     continue

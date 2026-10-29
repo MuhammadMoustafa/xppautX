@@ -74,8 +74,8 @@ constexpr std::array PERIODIC_RESULTS = {ResultField{"converged", "boolean"}, Re
 constexpr std::array RANGE_RESULTS = {ResultField{"solutions_found", "integer"}};
 constexpr std::array CONFIGURE_RESULTS = {ResultField{"settings", "map[name, value]"}};
 
-constexpr std::array SOLVE_EVENTS = {"computing", "progress", "series", "stopped", "state", "done"};
-constexpr std::array CONFIGURE_EVENTS = {"numerics", "state", "done"};
+constexpr std::array SOLVE_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JOB_PROGRESS, xpp::events::PLOT_SERIES, xpp::events::JOB_STOPPED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array CONFIGURE_EVENTS = {xpp::events::RUN_NUMERICS, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"bvp.solve_range", RANGE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run/Boundary values/Range",

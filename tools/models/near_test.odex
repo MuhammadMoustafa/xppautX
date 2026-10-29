@@ -1,3 +1,4 @@
+version 4
 # near(a, b[, tol=]) (docs/odex.md question 7, W78): a known-answer
 # model for tests/test_odex.cpp's numeric check, read back from
 # output.dat rather than through the translation's .ode text directly.

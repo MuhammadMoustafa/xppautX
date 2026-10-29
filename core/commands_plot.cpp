@@ -424,10 +424,10 @@ constexpr std::array SHIFT_RESULTS = {ResultField{"x_shift", "integer"}, ResultF
 constexpr std::array VARIABLE_RESULTS = {ResultField{"x", "name"}, ResultField{"y", "name"}};
 constexpr std::array MARKERS_RESULTS = {ResultField{"count", "integer"}};
 constexpr std::array VARIABLES_RESULTS = {ResultField{"how", "choice"}, ResultField{"names", "list of name"}};
-constexpr std::array PLOT_EVENTS = {"plots", "state", "done"};
-constexpr std::array SERIES_EVENTS = {"plots", "series", "state", "done"};
-constexpr std::array MARKS_EVENTS = {"marks", "state", "done"};
-constexpr std::array STATE_EVENTS = {"state", "done"};
+constexpr std::array PLOT_EVENTS = {xpp::events::PLOT_SHOWN, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array SERIES_EVENTS = {xpp::events::PLOT_SHOWN, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array MARKS_EVENTS = {xpp::events::PLOT_MARKS, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"plot.add_curve", NEW_CURVE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Curves/Add curve",

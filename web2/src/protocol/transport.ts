@@ -26,7 +26,7 @@ function pageId(): string {
 function busyError(body: string): string | null {
   try {
     const ev = JSON.parse(body) as {ev?: unknown; error?: unknown};
-    return ev.ev === 'message' && typeof ev.error === 'string' ? ev.error : null;
+    return ev.ev === 'session.message' && typeof ev.error === 'string' ? ev.error : null;
   } catch {
     return null;
   }

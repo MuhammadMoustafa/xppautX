@@ -166,10 +166,10 @@ constexpr std::array RANGE_RESULTS = {ResultField{"steps_completed", "integer"}}
 constexpr std::array PDF_RESULTS = {ResultField{"file", "file"}};
 constexpr std::array GIF_RESULTS = {ResultField{"file", "file"}, ResultField{"bytes_written", "integer"}};
 constexpr std::array SCROLL_RESULTS = {ResultField{"first_row", "integer"}};
-constexpr std::array WINDOW_EVENTS = {"window", "aplot", "state", "done"};
-constexpr std::array APLOT_EVENTS = {"aplot", "state", "done"};
-constexpr std::array RANGE_EVENTS = {"aplot", "series", "state", "done"};
-constexpr std::array DONE_EVENTS = {"state", "done"};
+constexpr std::array WINDOW_EVENTS = {xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::ARRAY_PLOT_SHOWN, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array APLOT_EVENTS = {xpp::events::ARRAY_PLOT_SHOWN, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array RANGE_EVENTS = {xpp::events::ARRAY_PLOT_SHOWN, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DONE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"array_plot.open", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Viewaxes/Array",

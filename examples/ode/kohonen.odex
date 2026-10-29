@@ -1,4 +1,5 @@
 # kohonen.odex: converted from kohonen.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # this implements the kohonen algorithm
 # using the findext code in xpp

@@ -1,3 +1,4 @@
+version 4
 # Source: published: E. M. Izhikevich, "Which model to use for cortical spiking neurons?", IEEE Trans. Neural Networks 15(5) (2004) 1063-1070, doi:10.1109/TNN.2004.832719 (Fig. 1 panels G, H, K, L, the examples/ode/izh_2004* models; checked at Crossref, W537).
 # The smooth part of Izhikevich's simple model, the rest state of its panels (W416, #478):
 #   v' = 0.04 v^2 + k1 v + k0 - u + Ib,  u' = a (b v - u).

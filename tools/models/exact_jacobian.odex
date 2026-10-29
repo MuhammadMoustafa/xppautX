@@ -1,3 +1,4 @@
+version 4
 # W260 (#317): a Hopf normal form with a derived parameter, a user
 # function and a fixed variable, whose exact Jacobian AUTO uses
 par mu = -0.1, w = 1

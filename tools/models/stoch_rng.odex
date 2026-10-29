@@ -1,4 +1,5 @@
 # stoch_rng.odex: converted from stoch_rng.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # W31b: exercises stocHast's model-level RNG features -- ran(), normal()
 # and wiener -- for tests/test_stochast_rng.cpp. x never moves, so every

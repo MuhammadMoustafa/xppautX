@@ -1,3 +1,4 @@
+version 4
 # Source: made up for this check (W537 audit): a fold normal form beside a Hopf normal form; no paper.
 # W364: fold x=0,a=0 intersects the imaginary y,z pair at b=0.
 # At that intersection the spectrum is 0,+i,-i: a zero-Hopf point.

@@ -48,7 +48,7 @@ import argparse, base64, copy, csv, io, json, math, os, re, shutil, subprocess, 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import autocompare
 from autocompare import BASE, completed, compute, diagram_rows, execute_run, read_description, session_diagram
-from xppclient import Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission, open_auto, run_any
+from xppclient import versioned, versioned_anix, Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_done, is_ask, is_state, placed, whole_series, save_permission, open_auto, run_any
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', '--bin', dest='server', default='./xppautX')
@@ -99,7 +99,7 @@ def grab_hopf(s):
     more, ask = s.collect(is_ask)
     evs += more
     s.send(cmd='answer', id=ask['id'], key='Return')
-    more, _ = s.collect(is_idle)
+    more, _ = s.collect(is_done)
     return evs + more
 
 
@@ -111,7 +111,7 @@ class Diagram:
 
     def apply(self, evs):
         for e in evs:
-            if e.get('ev') != 'diagram' or e.get('view') != self.view:
+            if e.get('ev') != 'auto.diagram' or e.get('view') != self.view:
                 continue
             if e['op'] in ('axes', 'reset'):
                 if e['op'] == 'reset':
@@ -130,16 +130,16 @@ class Diagram:
 
 def infos(evs):
     """the autoinfo events (docs/protocol.md "The AUTO diagram as data")"""
-    return [e for e in evs if e.get('ev') == 'autoinfo']
+    return [e for e in evs if e.get('ev') == 'auto.info']
 
 
 def is_point(e):
     """a diagram event with new points: AUTO computed some"""
-    return e.get('ev') == 'diagram' and e.get('op') == 'add'
+    return e.get('ev') == 'auto.diagram' and e.get('op') == 'add'
 
 
 def diagram_ops(evs):
-    return [e['op'] for e in evs if e.get('ev') == 'diagram']
+    return [e['op'] for e in evs if e.get('ev') == 'auto.diagram']
 
 
 def same_axes(axes, st, keys=('xmin', 'xmax', 'ymin', 'ymax', 'x0', 'y0', 'wid', 'hgt')):
@@ -151,12 +151,12 @@ def same_axes(axes, st, keys=('xmin', 'xmax', 'ymin', 'ymax', 'x0', 'y0', 'wid',
 
 def section_diagram():
     s = Server(args.server, LECAR, verbose=args.v)
-    s.collect(is_idle)
-    s.send(cmd='events.subscribe', events=['autoinfo'])
-    s.collect(is_idle)
+    s.collect(is_done)
+    s.send(cmd='events.subscribe', events=['auto.info'])
+    s.collect(is_done)
     open_auto(s)
     s.send(cmd='auto.redraw')
-    evs, _ = s.collect(is_idle)
+    evs, _ = s.collect(is_done)
     dg = Diagram().apply(evs)
     evs = run_menu(s, 's')
 
@@ -166,7 +166,7 @@ def section_diagram():
     adds = [e for e in evs if is_point(e)]
     runs = [r for e in adds for r in e['runs']]
     print('INFO steady run: %d points, %d add events, %d runs, data %d B' % (
-        len(dg.pts), len(adds), len(runs), sum(len(json.dumps(e)) for e in evs if e.get('ev') == 'diagram')))
+        len(dg.pts), len(adds), len(runs), sum(len(json.dumps(e)) for e in evs if e.get('ev') == 'auto.diagram')))
     br = [p for p in dg.pts if abs(p['br']) == 1]
     check('the diagram data of a steady run: one branch, its points in order, finite',
           len(dg.pts) > 20 and len(br) == len(dg.pts)
@@ -184,7 +184,7 @@ def section_diagram():
           bool(got) and got[-1]['stab'] is not None and got[-1]['info'] is None, str(got[-1:]))
 
     s.send(cmd='auto.redraw')
-    evs, _ = s.collect(is_idle)
+    evs, _ = s.collect(is_done)
     print('INFO reDraw: %d events %s' % (len(evs), sorted({e.get('ev') for e in evs})))
     check('a reDraw arrives in a few events', len(evs) <= 10, '%d events' % len(evs))
     check('a reDraw of the same diagram sends its axes, not its points again', diagram_ops(evs) == ['axes'],
@@ -205,7 +205,7 @@ def section_diagram():
     # page keeps the cursor itself, so taking a point should be as cheap as
     # any other grab step, not a full repaint.
     s.send(cmd='answer', id=ask['id'], key='Return')
-    take_evs, _ = s.collect(is_idle)
+    take_evs, _ = s.collect(is_done)
     check('taking a grab point (Enter) does not clear the diagram',
           'reset' not in diagram_ops(take_evs) and 'add' not in diagram_ops(take_evs), str(diagram_ops(take_evs)))
     check('taking a grab point (Enter) ends in a few events', len(take_evs) < 10, '%d events' % len(take_evs))
@@ -216,7 +216,7 @@ def section_diagram():
     s.send(cmd='answer', id=ask['id'], key='ArrowRight')
     esc_evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='Escape')
-    more, end = s.collect(is_idle)
+    more, end = s.collect(is_done)
     check('Esc from a grab ends it, the diagram untouched',
           end is not None and not diagram_ops(more) and not any(is_ask(e) for e in more), str(more)[:200])
 
@@ -226,13 +226,13 @@ def section_diagram():
     # axes go out); a Fit after that only sends the new axes
     n = len(dg.pts)
     s.send(cmd='auto.configure_plot', plot_type='maximum_and_minimum')
-    evs,_ = s.collect(is_idle)
+    evs,_ = s.collect(is_done)
     dg.apply(evs)
     check('Axes/hI-lo draws the diagram again at once: every point, the new plot type',
           'axes' in diagram_ops(evs) and len(dg.pts) == n and dg.axes['plot'] == 'maximum_and_minimum',
           '%s, %d points of %d' % (diagram_ops(evs), len(dg.pts), n))
     s.send(cmd='auto.fit')
-    evs,_ = s.collect(is_idle)
+    evs,_ = s.collect(is_done)
     dg.apply(evs)
     st = [e for e in evs if is_state(e)][-1]['auto']
     check('Axes/Fit sends the fitted axes only', diagram_ops(evs) == ['axes'] and same_axes(dg.axes, st),
@@ -264,9 +264,9 @@ def section_grab():
     # diagram click takes the nearest point: docs/protocol.md "Grab by
     # point"), then its periodic branch
     s = Server(args.server, LECAR, verbose=args.v)
-    s.collect(is_idle)
-    s.send(cmd='events.subscribe', events=['autoinfo'])
-    s.collect(is_idle)
+    s.collect(is_done)
+    s.send(cmd='events.subscribe', events=['auto.info'])
+    s.collect(is_done)
     dg, (hb, label) = hopf_of(s)
     check('the steady branch has a Hopf point to grab', hb is not None, '')
     if hb is None:
@@ -282,11 +282,11 @@ def section_grab():
 
     # scripted path: the same setup, grabbed by label with no ask
     s2 = Server(args.server, LECAR, verbose=args.v)
-    s2.collect(is_idle)
+    s2.collect(is_done)
     dg2, (hb2, label2) = hopf_of(s2)
     check('the second server\'s run finds the same label', label2 == label, '%s vs %s' % (label2, label))
     s2.send(cmd='auto.grab', label=label)
-    evs, _ = s2.collect(is_idle)
+    evs, _ = s2.collect(is_done)
     check('grab by label asks nothing', not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
     n = len(dg2.pts)
     dg2.apply(run_any(s2, 'p'))
@@ -296,8 +296,8 @@ def section_grab():
 
     # an unknown label is refused; nothing changes (no diagram event, no ask)
     s2.send(cmd='auto.grab', label=999999)
-    evs, _ = s2.collect(is_idle)
-    errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
+    evs, _ = s2.collect(is_done)
+    errs = [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
     check('an unknown label is refused (a message error)', bool(errs), str(errs))
     check('an unknown label changes nothing (no diagram event, no ask)',
           not diagram_ops(evs) and not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
@@ -305,10 +305,10 @@ def section_grab():
 
     # by type and index: "the 1st HB" is the same point as the label grabbed
     s3 = Server(args.server, LECAR, verbose=args.v)
-    s3.collect(is_idle)
+    s3.collect(is_done)
     dg3, _ = hopf_of(s3)
     s3.send(cmd='auto.grab', type='hopf', index=1)
-    evs, _ = s3.collect(is_idle)
+    evs, _ = s3.collect(is_done)
     check('grab by type and index asks nothing', not any(is_ask(e) for e in evs), str([e.get('ev') for e in evs]))
     n = len(dg3.pts)
     dg3.apply(run_any(s3, 'p'))
@@ -318,8 +318,8 @@ def section_grab():
 
     # an out-of-range index is refused too
     s3.send(cmd='auto.grab', type='hopf', index=99)
-    evs, _ = s3.collect(is_idle)
-    errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
+    evs, _ = s3.collect(is_done)
+    errs = [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
     check('an out-of-range type/index is refused too', bool(errs), str(errs))
     s3.close()
 
@@ -354,23 +354,23 @@ def section_input():
           'no exit in %g s: %s' % (10 * SLOW, ', '.join(hung)))
 
     s = Server(args.server, LECAR, verbose=False)
-    s.collect(is_idle)
+    s.collect(is_done)
     n = 1000
     s.proc.stdin.write(''.join(json.dumps({'cmd': 'value.set_parameters', 'values': {'iapp': i / 10000.0}}) + '\n'
                                for i in range(n)))
     s.proc.stdin.flush()
-    idles = 0
-    while idles < n:
-        evs, e = s.collect(is_idle, timeout=20 * SLOW)
+    dones = 0
+    while dones < n:
+        evs, e = s.collect(is_done, timeout=20 * SLOW)
         if e is None:
             break
-        idles += 1
+        dones += 1
     s.send(cmd='session.get_state')
-    evs, st = s.collect(lambda e: e.get('ev') == 'state')
-    s.collect(is_idle)
+    evs, st = s.collect(lambda e: e.get('ev') == 'session.state')
+    s.collect(is_done)
     iapp = st and dict(st['pars']).get('iapp')
-    check('%d pipelined commands each end in idle, in order' % n, idles == n and iapp == (n - 1) / 10000.0,
-          'idles %d, iapp %s' % (idles, iapp))
+    check('%d pipelined commands each end in done, in order' % n, dones == n and iapp == (n - 1) / 10000.0,
+          'dones %d, iapp %s' % (dones, iapp))
 
     if sys.platform != 'win32':
         seen = {}
@@ -402,16 +402,16 @@ def input_blocked(pid, seen):
 def periodic_run(s):
     """from the Hopf point of heavy.odex, start a periodic run; returns once
     two points have been computed (diagram data), with the time between them"""
-    s.collect(is_idle)
-    s.send(cmd='events.subscribe', events=['autoinfo'])
-    s.collect(is_idle)
+    s.collect(is_done)
+    s.send(cmd='events.subscribe', events=['auto.info'])
+    s.collect(is_done)
     open_auto(s)
     run_menu(s, 's')
     grab_hopf(s)
     run_periodic(s)
     stamps = []
     while len(stamps) < 2:
-        evs, e = s.collect(lambda e: is_point(e) or is_idle(e) or is_ask(e), timeout=60 * SLOW)
+        evs, e = s.collect(lambda e: is_point(e) or is_done(e) or is_ask(e), timeout=60 * SLOW)
         if e is None or not is_point(e):
             return None
         stamps.append(e['_t'])
@@ -435,20 +435,20 @@ def section_abort():
     # after it, each a command of its own then; the data subscription (a
     # view) runs after them
     s.send(cmd='auto.configure_numerics', **{'max_steps': 1500})
-    s.send(cmd='events.subscribe', events=['autoinfo', 'autosettings'])
+    s.send(cmd='events.subscribe', events=['auto.info', 'auto.settings'])
     # periodic_run already observed two diagram points: the run is computing.
     # Abort now, without guessing the duration of a Newton step.
     t = s.send(cmd='run.abort')
-    evs, e = s.collect(is_idle, timeout=120 * SLOW)
+    evs, e = s.collect(is_done, timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
-    check('Abort stops a periodic run (reaches idle)', e is not None,
-          'abort->idle %.2f s (a point takes %.2f s)' % (took, gap))
-    perf('abort stops a periodic run -> idle', '%.2f s (a point takes %.2f s)' % (took, gap))
-    set_evs, _ = s.collect(is_idle, timeout=10 * SLOW)
-    data_evs, _ = s.collect(is_idle, timeout=10 * SLOW)
-    errs = [x.get('error') for x in evs + set_evs if x.get('ev') == 'message' and 'error' in x]
-    st = [x for x in data_evs if x.get('ev') == 'autosettings']
-    check('W106: AUTO settings sent during its run: no error, applied after it with their own idle',
+    check('Abort stops a periodic run (reaches done)', e is not None,
+          'abort->done %.2f s (a point takes %.2f s)' % (took, gap))
+    perf('abort stops a periodic run -> done', '%.2f s (a point takes %.2f s)' % (took, gap))
+    set_evs, _ = s.collect(is_done, timeout=10 * SLOW)
+    data_evs, _ = s.collect(is_done, timeout=10 * SLOW)
+    errs = [x.get('error') for x in evs + set_evs if x.get('ev') == 'session.message' and 'error' in x]
+    st = [x for x in data_evs if x.get('ev') == 'auto.settings']
+    check('W106: AUTO settings sent during its run: no error, applied after it with their own done',
           not errs and st and st[-1]['numerics']['max_steps'] == 1500, '%s %s' % (errs, st and st[-1]['numerics']))
 
     # the run ends on an end point (EP, not MX: no convergence), which is
@@ -462,20 +462,20 @@ def section_abort():
     print('INFO last point after abort: %s' % json.dumps(last)[:200])
     check('an aborted run ends on an EP point', last.get('sym') == 'end', str(last)[:200])
     s.send(cmd='answer', id=ask['id'], key='Return')
-    taken, _ = s.collect(is_idle)
+    taken, _ = s.collect(is_done)
     check('the server is still alive after an abort', s.alive())
 
     # a second run continues the branch from that point
     run_periodic(s)
     n = 0
     while n < 2:
-        evs, e = s.collect(lambda e: is_point(e) or is_idle(e) or is_ask(e), timeout=60 * SLOW)
+        evs, e = s.collect(lambda e: is_point(e) or is_done(e) or is_ask(e), timeout=60 * SLOW)
         if e is None or not is_point(e):
             break
         n += 1
     check('a run from the end point of the aborted run computes new points', n == 2, '%d points' % n)
     s.send(cmd='run.abort')
-    s.collect(is_idle, timeout=120 * SLOW)
+    s.collect(is_done, timeout=120 * SLOW)
     check('the server is still alive after the second run', s.alive())
 
     # Close during a run: the AUTO window goes within a second
@@ -483,12 +483,12 @@ def section_abort():
     s.collect(is_point, timeout=60 * SLOW)
     t = s.send(cmd='run.abort')
     s.send(cmd='window.destroy', window='diagram_1')
-    evs, e = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1' and e.get('op') == 'destroy',
+    evs, e = s.collect(lambda e: e.get('ev') == 'window.destroyed' and e.get('win') == 'diagram_1',
                        timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort then Close during a run closes the AUTO window', e is not None, '%.2f s' % took)
     perf('abort+close -> destroy', '%.2f s' % took)
-    s.collect(is_idle)
+    s.collect(is_done)
 
     # Quit during a run: the process ends on its own, not killed
     open_auto(s)
@@ -514,7 +514,7 @@ def save_diagram(s, name, written=None):
     wrote, written (name when not given), by name ({} if not written)"""
     import zipfile
     s.send(cmd='auto.save_session', file=name)
-    s.answer_asks(is_idle, {'choice':lambda e:{'key':'y'}})
+    s.answer_asks(is_done, {'choice':lambda e:{'key':'y'}})
     path = os.path.join(s.run, written or name)
     if not os.path.exists(path) or not zipfile.is_zipfile(path):
         return {}
@@ -533,19 +533,19 @@ def load_diagram(s, path):
     """File/Load diagram of path (answering a reset's question yes, a model
     switch's "save first?" don't): the events"""
     s.send(cmd='auto.open_session', file=in_model_folder(s, path))
-    return s.answer_asks(is_idle, {'choice':lambda e:{'key':'d' if e.get('keys') == 'sd' else 'y'}})[0]
+    return s.answer_asks(is_done, {'choice':lambda e:{'key':'d' if e.get('keys') == 'sd' else 'y'}})[0]
 
 
 def import_diagram(s, path):
     """Import a foreign XPPAUT diagram through its explicit menu item."""
     s.send(cmd='auto.import_diagram', file=in_model_folder(s, path))
-    return s.answer_asks(is_idle, {'choice':lambda e:{'key':'d' if e.get('keys') == 'sd' else 'y'}})[0]
+    return s.answer_asks(is_done, {'choice':lambda e:{'key':'d' if e.get('keys') == 'sd' else 'y'}})[0]
 
 
 def open_file(s, path):
     """{"cmd": "session.open_model"} of path, a model switch's "save first?" answered don't: the events"""
     s.send(cmd='session.open_model', file=path)
-    evs, e = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
+    evs, e = s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}})
     return evs
 
 
@@ -558,10 +558,10 @@ def lecar_diagram(s, events=None):
     """steady state, grab the first label, a periodic branch, File/Save
     diagram; returns the .snapx's diagram.csv (None if not written); with
     a list as events, the autoinfo and diagram events are appended to it"""
-    s.collect(is_idle)
+    s.collect(is_done)
     if events is not None:
-        s.send(cmd='events.subscribe', events=['autoinfo'])
-        s.collect(is_idle)
+        s.send(cmd='events.subscribe', events=['auto.info'])
+        s.collect(is_done)
     open_auto(s)
     evs = run_menu(s, 's')
     evs += grab_hopf(s)
@@ -679,15 +679,15 @@ def section_threads():
         diagrams = {}
         for want in (1, 2):
             s = Server(args.server, LECAR, env={'XPP_CONFIG_DIR': os.path.join(config, str(want))}, verbose=args.v)
-            s.collect(is_idle)
-            s.send(cmd='events.subscribe', events=['autosettings'])
-            evs, _ = s.collect(is_idle)
-            most = [e for e in evs if e.get('ev') == 'autosettings'][-1]['threads_max']
+            s.collect(is_done)
+            s.send(cmd='events.subscribe', events=['auto.settings'])
+            evs, _ = s.collect(is_done)
+            most = [e for e in evs if e.get('ev') == 'auto.settings'][-1]['threads_max']
             count = min(want, most)
             s.send(cmd='auto.set_threads', threads=count)
-            evs, _ = s.collect(is_idle)
-            errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
-            shown = [e for e in evs if e.get('ev') == 'autosettings'][-1]['threads']
+            evs, _ = s.collect(is_done)
+            errors = [e.get('error') for e in evs if e.get('ev') == 'session.message' and e.get('error')]
+            shown = [e for e in evs if e.get('ev') == 'auto.settings'][-1]['threads']
             check('threads: %d thread(s) set and shown' % count, not errors and shown == count, '%s %s' % (errors, shown))
             diagrams[want] = lecar_diagram(s)
             s.close()
@@ -703,16 +703,16 @@ def lecar_csv(s):
     """steady state, grab the first label, a periodic branch, File/eXport
     CSV; returns (diagram csv text, eigenvalues csv text, the diagram's
     data as the page gets it), the texts None if not written"""
-    s.collect(is_idle)
-    s.send(cmd='events.subscribe', events=['autoinfo'])
-    s.collect(is_idle)
+    s.collect(is_done)
+    s.send(cmd='events.subscribe', events=['auto.info'])
+    s.collect(is_done)
     open_auto(s)
     evs = run_menu(s, 's')
     grab_hopf(s)
     evs += run_menu(s, 'p', timeout=120 * SLOW)
     dg = Diagram().apply(evs)
     s.send(cmd='auto.export_csv', file='lecar.csv')
-    s.collect(is_idle)
+    s.collect(is_done)
     dpath = os.path.join(s.run, 'lecar.csv')
     epath = os.path.join(s.run, 'lecar_eig.csv')
     if not os.path.exists(dpath) or not os.path.exists(epath):
@@ -776,7 +776,7 @@ def section_csv():
 
 def step(s, **c):
     s.send(**c)
-    return s.collect(lambda e: is_idle(e) or is_ask(e), timeout=30 * SLOW)
+    return s.collect(lambda e: is_done(e) or is_ask(e), timeout=30 * SLOW)
 
 
 def hopf_steady(s):
@@ -796,12 +796,12 @@ def grab_point(s, i, take=False):
     evs, ask = s.collect(is_ask)  # the grab starts on the first point: its autoinfo is here
     if take:
         s.send(cmd='answer', id=ask['id'], point=i, key='Return')
-        more, _ = s.collect(is_idle)
+        more, _ = s.collect(is_done)
     else:
         s.send(cmd='answer', id=ask['id'], point=i)
         more, ask = s.collect(is_ask)
         s.send(cmd='answer', id=ask['id'], key='Escape')
-        s.collect(is_idle)
+        s.collect(is_done)
     got = [e for e in infos(evs + more) if e.get('info')]
     return got[-1] if got else None
 
@@ -817,9 +817,9 @@ def zeros(c):
 def section_stability():
     home = tempfile.mkdtemp(prefix='xpphome')
     s = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
-    s.collect(is_idle)
-    s.send(cmd='events.subscribe', events=['autoinfo'])
-    s.collect(is_idle)
+    s.collect(is_done)
+    s.send(cmd='events.subscribe', events=['auto.info'])
+    s.collect(is_done)
     dg = Diagram().apply(hopf_steady(s))
     syms = {}
 
@@ -909,9 +909,9 @@ def section_sessions():
     a.send(cmd='answer', id=ask['id'], key='Tab')
     evs, ask = a.collect(is_ask)
     a.send(cmd='answer', id=ask['id'], key='Return')
-    a.collect(is_idle)
+    a.collect(is_done)
     evs = run_menu(a, 'e', timeout=120 * SLOW)
-    msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'message')
+    msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'session.message')
     check('a session still extends from its own orbit', 'nan' not in msgs.lower() and a.alive(), msgs[:200])
     runs = [a.run, b.run]
     # each session has an AUTO scratch directory of its own, gone at exit
@@ -933,9 +933,9 @@ def open_session(s, name):
     s.send(cmd='session.open', file=name)
     evs = []
     while True:
-        got, e = s.collect(lambda e: is_ask(e) or is_idle(e), timeout=20 * SLOW)
+        got, e = s.collect(lambda e: is_ask(e) or is_done(e), timeout=20 * SLOW)
         evs += got
-        if e is None or is_idle(e):
+        if e is None or is_done(e):
             return evs
         s.send(cmd='answer', id=e['id'], key='d')
 
@@ -944,15 +944,15 @@ def section_session():
     import zipfile
     home1 = tempfile.mkdtemp(prefix='xpphome')
     s = Server(args.server, LECAR, env={'HOME': home1}, verbose=args.v)
-    s.collect(is_idle)
+    s.collect(is_done)
     open_auto(s)
     run_menu(s, 's')
     grab_hopf(s)
     run_menu(s, 'p', timeout=120 * SLOW)
 
     s.send(cmd='session.save_as', file='s1')
-    evs, e = s.collect(is_idle, timeout=20 * SLOW)
-    st = [x for x in evs if x.get('ev') == 'state']
+    evs, e = s.collect(is_done, timeout=20 * SLOW)
+    st = [x for x in evs if x.get('ev') == 'session.state']
     saved = st[-1] if st else None
     sess = saved.get('session') if saved else None
     check('session save reports the session file', sess == {'file': 's1.snapx'}, str(sess))
@@ -965,18 +965,18 @@ def section_session():
     # a NEW server, in a new directory, with only the session file copied in
     home2 = tempfile.mkdtemp(prefix='xpphome')
     s2 = Server(args.server, LECAR, env={'HOME': home2}, verbose=args.v)
-    s2.collect(is_idle)
+    s2.collect(is_done)
     if os.path.exists(snap_path): shutil.copy(snap_path, s2.run)
     # and a server of another model, with no lecar.odex in its folder
     home3 = tempfile.mkdtemp(prefix='xpphome')
     s3 = Server(args.server, HEAVY, env={'HOME': home3}, verbose=args.v)
-    s3.collect(is_idle)
+    s3.collect(is_done)
     if os.path.exists(snap_path): shutil.copy(snap_path, s3.run)
     s.close()
     shutil.rmtree(home1, ignore_errors=True)
 
     evs = open_session(s2, 's1')
-    st = [x for x in evs if x.get('ev') == 'state']
+    st = [x for x in evs if x.get('ev') == 'session.state']
     loaded = st[-1] if st else None
     sess2 = loaded.get('session') if loaded else None
     check('session load reports the file opened', bool(sess2) and sess2.get('file', '').endswith('s1.snapx'), str(sess2))
@@ -984,7 +984,7 @@ def section_session():
     check("session load restores the first session's parameters",
           bool(pars1) and pars1 == pars2, 'saved %s loaded %s' % (pars1, pars2))
     check('session load opens the AUTO window',
-          any(x.get('ev') == 'window' and x.get('win') == 'diagram_1' for x in evs))
+          any(x.get('ev') == 'window.created' and x.get('win') == 'diagram_1' for x in evs))
     check('session load sends the diagram', any(is_point(e) for e in evs))
 
     # grab the first label and Run extending the branch, as section_sessions
@@ -994,9 +994,9 @@ def section_session():
     s2.send(cmd='answer', id=ask['id'], key='Tab')
     evs, ask = s2.collect(is_ask)
     s2.send(cmd='answer', id=ask['id'], key='Return')
-    s2.collect(is_idle)
+    s2.collect(is_done)
     evs = run_menu(s2, 'e', timeout=60 * SLOW)
-    msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'message')
+    msgs = ' '.join(str(e.get('text', '')) for e in evs if e.get('ev') == 'session.message')
     check('extending the loaded branch computes new points',
           any(is_point(e) for e in evs) and s2.alive(), str(evs)[:200])
     check('extending the loaded branch draws no NaN message', 'nan' not in msgs.lower(), msgs[:200])
@@ -1038,26 +1038,26 @@ def section_session():
         f.write(chr(10).join(['5', '0', '4', '0', '1', '4', '9', '16', '']))
     tab_ode = os.path.join(folder, 'tab.odex')
     with open(tab_ode, 'w') as f:
-        f.write(chr(10).join(['table w "' + table + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0', 'options { integration: { total_time: 4 } }', '']))
+        f.write(versioned(chr(10).join(['table w "' + table + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0', 'options { integration: { total_time: 4 } }', ''])))
     # run in the model's own folder: a table outside it would be a question (W175, W286)
     s4 = Server(args.server, tab_ode, verbose=args.v, run=folder)
-    s4.collect(is_idle)
+    s4.collect(is_done)
     s4.send(cmd='session.save_as', file='tab')
-    s4.collect(is_idle, timeout=20 * SLOW)
+    s4.collect(is_done, timeout=20 * SLOW)
     tab_snap = os.path.join(s4.run, 'tab.snapx')
     names = zf.ZipFile(tab_snap).namelist() if os.path.exists(tab_snap) else []
     check('session save of a model with a file table carries the table',
           'model/tab.odex' in names and 'model/' + table in names, str(names))
     s5 = Server(args.server, LECAR, verbose=args.v)
-    s5.collect(is_idle)
+    s5.collect(is_done)
     if names: shutil.copy(tab_snap, s5.run)
     s4.close()
     shutil.rmtree(folder, ignore_errors=True)
     evs = open_session(s5, 'tab')
     s5.send(cmd='run.initial')
-    s5.collect(is_idle, timeout=30 * SLOW)
+    s5.collect(is_done, timeout=30 * SLOW)
     s5.send(cmd='browser.export', target='table', format='csv', file='tab.csv')
-    s5.collect(is_idle)
+    s5.collect(is_done)
     csv_path = os.path.join(s5.run, 'tab.csv')
     rows = [l.strip() for l in open(csv_path) if l.strip() and not l.startswith('#')] if os.path.exists(csv_path) else []
     x_end = float(rows[-1].split(',')[1]) if len(rows) > 1 else None
@@ -1070,7 +1070,7 @@ def section_session():
 # ---- sessiondiagram: AUTO's diagram in the session, name.snapx (W92, docs/protocol.md "AUTO files") ----
 
 def messages(evs):
-    return ' '.join(str(e) for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error')))
+    return ' '.join(str(e) for e in evs if e.get('ev') == 'session.message' or (e.get('ev') == 'done' and e.get('error')))
 
 
 def section_sessiondiagram():
@@ -1081,7 +1081,7 @@ def section_sessiondiagram():
         home = tempfile.mkdtemp(prefix='xpphome')
         homes.append(home)
         s = Server(args.server, ode, env={'HOME': home}, verbose=args.v)
-        s.collect(is_idle)
+        s.collect(is_done)
         open_auto(s)
         return s
 
@@ -1092,11 +1092,11 @@ def section_sessiondiagram():
     dg1 = Diagram().apply(evs).pts
     # W50: a second view of the diagram, the period, the first active again: an .snapx keeps its views
     s.send(cmd='auto.new_view')
-    evs += s.collect(is_idle)[0]
+    evs += s.collect(is_done)[0]
     s.send(cmd='auto.configure_plot', **{'view': 'diagram_2', 'plot_type': 'period', 'fit': True})
-    evs += s.collect(is_idle)[0]
+    evs += s.collect(is_done)[0]
     s.send(cmd='window.select', window='diagram_1')
-    evs += s.collect(is_idle)[0]
+    evs += s.collect(is_done)[0]
     view1 = Diagram('diagram_2').apply(evs)
     # an old name asked for: the .snapx beside it
     got = save_diagram(s, 'd1', 'd1.snapx')
@@ -1129,7 +1129,7 @@ def section_sessiondiagram():
           'Integrate first' in messages(evs) and s.alive(), messages(evs)[:200])
     # some data: the same model open keeps it, only the diagram loads
     s.send(cmd='run.initial')
-    evs, _ = s.collect(is_idle, timeout=30 * SLOW)
+    evs, _ = s.collect(is_done, timeout=30 * SLOW)
     rows_before = last_state(evs)['rows'] if last_state(evs) else None
     evs = load_diagram(s, d1)
     dg2 = Diagram().apply(evs).pts
@@ -1148,7 +1148,7 @@ def section_sessiondiagram():
     # from the orbit in the restored solutions.s
     last = max((p['lab'] for p in dg2 if p['lab']), default=0)
     s.send(cmd='auto.grab', label=last)
-    evs, _ = s.collect(is_idle)
+    evs, _ = s.collect(is_done)
     check("sessiondiagram: the loaded diagram's last label is grabbed", last > 0 and 'error' not in messages(evs),
           'label %d; %s' % (last, messages(evs)[:200]))
     evs = run_any(s, 'e')
@@ -1194,7 +1194,7 @@ def section_sessiondiagram():
         with open(os.path.join(s.run, path), 'w') as output:
             output.write(text)
         events = import_diagram(s, path)
-        errors = [event for event in events if event.get('ev') in ('message', 'done') and 'error' in event]
+        errors = [event for event in events if event.get('ev') in ('session.message', 'done') and 'error' in event]
         after = save_diagram(s, 'after-' + name + '.snapx')
         check('W327: %s import is refused whole with file and line' % name,
               len(errors) == 1 and errors[0].get('file', '').endswith(path) and errors[0].get('line') == line
@@ -1225,9 +1225,9 @@ def section_sessiondiagram():
         if reference is None:
             continue
         s.send(cmd='auto.configure_numerics', **{'max_steps': 4, 'output_every': 1})
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='auto.grab', label=int(reference['lab']))
-        grabbed, _ = s.collect(is_idle)
+        grabbed, _ = s.collect(is_done)
         evs = run_any(s, 'e')
         saved = save_diagram(s, 'ref-restart.snapx')
         resumed = diagram_rows(saved.get('auto/diagram.csv', '').encode())
@@ -1244,7 +1244,7 @@ def section_sessiondiagram():
 
     # A previously omitted parameter changes branch data even when every plotted coordinate agrees.
     s.send(cmd='value.set_parameters', values={'om': 2})
-    s.collect(is_idle)
+    s.collect(is_done)
     refreshed=import_diagram(s,'old.auto')
     parameters=[r['parameters'] for event in refreshed if is_point(event) for r in event['runs'] if 'parameters' in r]
     check('W339: diagram replay refreshes changed branch constants with identical coordinates',
@@ -1314,7 +1314,7 @@ def section_sessiondiagram():
             for n, b in damaged.items():
                 out.writestr(n, b)
         evs = open_file(s, name)
-        errors = ' '.join(placed(e) for e in evs if e.get('ev') in ('message', 'done'))
+        errors = ' '.join(placed(e) for e in evs if e.get('ev') in ('session.message', 'done'))
         expected_place, separator, expected_detail = expect.partition(': ')
         check('sessiondiagram: %s is refused before its model is kept (%s), the model open stays' % (name, expect),
               (expected_place + separator) in errors and expected_detail in errors and hello_title(evs) is None and s.alive(), errors[:300])
@@ -1326,14 +1326,14 @@ def section_sessiondiagram():
     damaged['auto/settings.txt'] = ('\n'.join(lines) + '\n').encode()
     with zipfile.ZipFile(os.path.join(s.run, 'lastsettings.snapx'), 'w') as out:
         for n, b in damaged.items(): out.writestr(n, b)
-    s.send(cmd='events.subscribe', events=['autosettings'])
-    before = s.collect(is_idle)[0]
-    before_settings = next(e for e in before if e.get('ev') == 'autosettings')
+    s.send(cmd='events.subscribe', events=['auto.settings'])
+    before = s.collect(is_done)[0]
+    before_settings = next(e for e in before if e.get('ev') == 'auto.settings')
     evs = open_file(s, 'lastsettings.snapx')
-    errs = [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
-    s.send(cmd='events.subscribe', events=['autosettings'])
-    after = s.collect(is_idle)[0]
-    after_settings = next(e for e in after if e.get('ev') == 'autosettings')
+    errs = [e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
+    s.send(cmd='events.subscribe', events=['auto.settings'])
+    after = s.collect(is_done)[0]
+    after_settings = next(e for e in after if e.get('ev') == 'auto.settings')
     check('W155: bad last AUTO settings line refuses the entire session, keeping the previous settings',
           errs and errs[0].get('line') == len(lines) and errs[0].get('source') == lines[-1]
           and hello_title(evs) is None
@@ -1376,11 +1376,11 @@ def section_sessiondiagram():
 def set_total(s, total):
     """run.configure's total time"""
     s.send(cmd='run.configure', total_time=total)
-    s.collect(is_idle)
+    s.collect(is_done)
 
 
 def rows(evs):
-    st = [e for e in evs if e.get('ev') == 'state']
+    st = [e for e in evs if e.get('ev') == 'session.state']
     return st[-1]['rows'] if st else None
 
 
@@ -1390,7 +1390,7 @@ def arm_run(s):
     """set mu: the run that follows needs only its command, so a caller that must race the engine (an Abort
        sent right behind the command) races that one command"""
     s.send(cmd='value.set_parameters', values={'mu': -1})
-    s.collect(is_idle)
+    s.collect(is_done)
 
 
 def run_now(s):
@@ -1401,7 +1401,7 @@ def run_now(s):
 
 def section_control():
     s = Server(args.server, HEAVY, verbose=args.v)
-    s.collect(is_idle)
+    s.collect(is_done)
     set_total(s, 400)  # 40001 rows, some 10 s
 
     # an Abort sent right behind the run's command, before the engine has taken it
@@ -1410,21 +1410,21 @@ def section_control():
                        + json.dumps({'cmd': 'run.abort'}) + '\n')
     s.proc.stdin.flush()
     t = time.monotonic()
-    evs, e = s.collect(is_idle, timeout=60 * SLOW)
+    evs, e = s.collect(is_done, timeout=60 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     n = rows(evs)
     check('an Abort sent with the command still stops it', e is not None and n is not None and n < 40001,
           'rows %s' % n)
-    perf('abort right after the command -> idle', '%.2f s, %s rows' % (took, n))
+    perf('abort right after the command -> done', '%.2f s, %s rows' % (took, n))
     s.send(cmd='session.get_state')
-    evs, e = s.collect(is_idle, timeout=10 * SLOW)
-    check('an Abort has no done of its own', len([x for x in evs if is_idle(x)]) == 1 and
-          any(x.get('ev') == 'state' for x in evs), str([x.get('ev') for x in evs]))
+    evs, e = s.collect(is_done, timeout=10 * SLOW)
+    check('an Abort has no done of its own', len([x for x in evs if is_done(x)]) == 1 and
+          any(x.get('ev') == 'session.state' for x in evs), str([x.get('ev') for x in evs]))
 
     # a command sent after an Abort is not cancelled by it
     set_total(s, 20)
     run_now(s)
-    evs, e = s.collect(is_idle, timeout=60 * SLOW)
+    evs, e = s.collect(is_done, timeout=60 * SLOW)
     check('a command sent after an Abort runs in full', rows(evs) == 2001, 'rows %s' % rows(evs))
 
     # a view command sent during a computation is kept and runs after it,
@@ -1432,21 +1432,21 @@ def section_control():
     set_total(s, 400)
     open_auto(s)
     run_now(s)
-    s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
+    s.collect(lambda e: e.get('ev') == 'job.progress', timeout=30 * SLOW)
     s.send(cmd='window.destroy', window='diagram_1')
     t = s.send(cmd='run.abort')
-    evs, e = s.collect(is_idle, timeout=60 * SLOW)
+    evs, e = s.collect(is_done, timeout=60 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort stops an integration', e is not None and (rows(evs) or 0) < 40001, 'rows %s' % rows(evs))
-    perf('abort during an integration -> idle', '%.2f s' % took)
+    perf('abort during an integration -> done', '%.2f s' % took)
     s.send(cmd='session.get_state')
-    more, _ = s.collect(is_idle, timeout=10 * SLOW)
-    closed = [x for x in evs + more if x.get('ev') == 'window' and x.get('win') == 'diagram_1' and x.get('op') == 'destroy']
+    more, _ = s.collect(is_done, timeout=10 * SLOW)
+    closed = [x for x in evs + more if x.get('ev') == 'window.destroyed' and x.get('win') == 'diagram_1']
     check('W95: a view command sent during a computation runs after it (Close)', bool(closed))
 
     # Quit during an integration
     run_now(s)
-    s.collect(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
+    s.collect(lambda e: e.get('ev') == 'job.progress', timeout=30 * SLOW)
     t = s.send(cmd='session.quit', save=False)
     try:
         s.proc.wait(timeout=30 * SLOW)
@@ -1497,7 +1497,7 @@ def silent_output(ode):
 
 
 def last_state(evs):
-    st = [e for e in evs if e.get('ev') == 'state']
+    st = [e for e in evs if e.get('ev') == 'session.state']
     return st[-1] if st else None
 
 
@@ -1506,15 +1506,15 @@ def names_diagram(ode):
     state over the first parameter; returns the Diagram and the symbols of
     its labelled points"""
     s = Server(args.server, ode, verbose=args.v)
-    s.collect(is_idle)
+    s.collect(is_done)
     for command in ('run.initial', 'run.last'):
         s.send(cmd=command)
-        s.collect(is_idle, timeout=30 * SLOW)
+        s.collect(is_done, timeout=30 * SLOW)
     s.send(cmd='auto.open')
-    evs, _ = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
-    more, _ = s.collect(is_idle)
+    evs, _ = s.collect(lambda e: e.get('ev') == 'window.created' and e.get('win') == 'diagram_1')
+    more, _ = s.collect(is_done)
     evs += more + run_menu(s, 's', timeout=60 * SLOW)
-    syms = [sym for e in evs if e.get('ev') == 'diagram' and e['op'] == 'add'
+    syms = [sym for e in evs if e.get('ev') == 'auto.diagram' and e['op'] == 'add'
             for r in e['runs'] for i, lab, sym in r.get('lab', [])]
     s.close()
     return Diagram().apply(evs), syms
@@ -1528,10 +1528,10 @@ def section_names():
 
     home = tempfile.mkdtemp(prefix='xpphome')
     s = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
-    evs, _ = s.collect(is_idle)
+    evs, _ = s.collect(is_done)
     hello = next((e for e in evs if e.get('ev') == 'hello'), None)
     st = last_state(evs)
-    msgs = [e for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error'))]
+    msgs = [e for e in evs if e.get('ev') == 'session.message' or (e.get('ev') == 'done' and e.get('error'))]
     check('names: the model loads with no message', st is not None and not msgs, str(msgs)[:200])
     pars = dict(st['pars']) if st else {}
     check("names: state carries the parameters' full 200-character names", LONG_B in pars and LONG_PAR in pars,
@@ -1542,9 +1542,9 @@ def section_names():
           LONG_AUX in hello['lists'][0], str(hello and hello['lists'][0])[:300])
 
     s.send(cmd='value.set_parameters', values={LONG_B: 0.9})
-    s.collect(is_idle)
+    s.collect(is_done)
     s.send(cmd='ic.set', values={'slow_recovery_variable_w': -0.25})
-    evs, _ = s.collect(is_idle)
+    evs, _ = s.collect(is_done)
     st = last_state(evs)
     check('names: set a parameter by its 200-character name', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
           str(st and st['pars'])[:300])
@@ -1552,68 +1552,68 @@ def section_names():
           st is not None and dict(st['ics']).get('SLOW_RECOVERY_VARIABLE_W') == -0.25, str(st and st['ics'])[:300])
     # a formula naming a long name twice (over 400 characters) is read whole
     s.send(cmd='value.set_by_formula', name=LONG_PAR.upper(), formula=LONG_B + '-' + LONG_B.upper() + '+0.125')
-    evs, _ = s.collect(is_idle)
+    evs, _ = s.collect(is_done)
     st = last_state(evs)
-    errs = [e for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error'))]
+    errs = [e for e in evs if e.get('ev') == 'session.message' or (e.get('ev') == 'done' and e.get('error'))]
     check('names: a formula of 400 characters sets a parameter', not errs and st is not None
           and dict(st['pars']).get(LONG_PAR) == 0.125, '%s %s' % (errs, st and dict(st['pars']).get(LONG_PAR)))
     s.send(cmd='value.set_parameters', values={LONG_PAR: 0})
-    s.collect(is_idle)
+    s.collect(is_done)
     # a name longer than any matches nothing, not the name it starts with
     s.send(cmd='value.set_parameters', values={LONG_B + 'x' * 40: 5})
-    evs, _ = s.collect(is_idle)
+    evs, _ = s.collect(is_done)
     st = last_state(evs)
     check('names: a longer name sets nothing', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
           str(st and st['pars'])[:300])
 
     # AUTO's settings take and show the names whole (its forms too)
     def autosettings(evs):
-        au = [e for e in evs if e.get('ev') == 'autosettings']
+        au = [e for e in evs if e.get('ev') == 'auto.settings']
         return au[-1] if au else None
 
     up = lambda names: [n.upper() for n in names]
-    s.send(cmd='events.subscribe', events=['autosettings'])
-    evs, _ = s.collect(is_idle)
+    s.send(cmd='events.subscribe', events=['auto.settings'])
+    evs, _ = s.collect(is_done)
     au = autosettings(evs)
     check("names: AUTO's parameters are the long names", au is not None
           and 'pars' not in au and au['axes']['par1'].upper()==LONG_PAR.upper(), str(au)[:300])
     s.send(cmd='auto.configure_plot', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_B})
-    evs, _ = s.collect(is_idle)
+    evs, _ = s.collect(is_done)
     au = autosettings(evs)
-    errs = [e for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error'))]
+    errs = [e for e in evs if e.get('ev') == 'session.message' or (e.get('ev') == 'done' and e.get('error'))]
     check('names: auto set takes 200-character names for the parameters and the axes', not errs and au is not None
           and au['axes']['par1'].upper() == LONG_B.upper() and au['axes']['var'].upper() == LONG_V,
           '%s %s' % (errs, str(au)[:300]))
     s.send(cmd='auto.configure_plot', **{'parameter2':LONG_PAR})
-    evs,_=s.collect(is_idle)
+    evs,_=s.collect(is_done)
     au=autosettings(evs)
     check('W339: both axes accept complete long model parameter names', au is not None
           and au['axes']['par1'].upper()==LONG_B.upper() and au['axes']['par2'].upper()==LONG_PAR.upper())
     s.send(cmd='auto.configure_plot', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_PAR})
-    s.collect(is_idle)
+    s.collect(is_done)
 
     s.send(cmd='run.initial')
-    s.collect(is_idle, timeout=30 * SLOW)
+    s.collect(is_done, timeout=30 * SLOW)
     s.send(cmd='browser.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 3})
-    evs, br = s.collect(lambda e: e.get('ev') == 'browser')
-    s.collect(is_idle)
+    evs, br = s.collect(lambda e: e.get('ev') == 'browser.updated')
+    s.collect(is_done)
     cols = ['T', LONG_V, 'SLOW_RECOVERY_VARIABLE_W', LONG_AUX]
     check('names: the data browser heads its columns with the long names', br is not None and br['cols'] == cols,
           str(br and br['cols'])[:300])
     # a column added under a 200-character name, from a formula over 200
     added = long_name('added_column_of_the_product')
     s.send(cmd='browser.add_column', name=added, formula=LONG_V.lower() + '*slow_recovery_variable_w')
-    evs,_ = s.collect(is_idle)
-    errs = [e for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error'))]
+    evs,_ = s.collect(is_done)
+    errs = [e for e in evs if e.get('ev') == 'session.message' or (e.get('ev') == 'done' and e.get('error'))]
     s.send(cmd='browser.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 4})
-    evs, br = s.collect(lambda e: e.get('ev') == 'browser')
-    s.collect(is_idle)
+    evs, br = s.collect(lambda e: e.get('ev') == 'browser.updated')
+    s.collect(is_done)
     row = br['data'][0] if br and br.get('data') else []
     check('names: Add column takes a 200-character name and a long formula', not errs and br is not None
           and br['cols'] == cols + [added.upper()] and len(row) == 5 and abs(row[4] - row[1] * row[2]) < 1e-5,
           '%s %s' % (errs, str(br)[:300]))
     s.send(cmd='browser.export', target='table', format='csv', file='ln.csv')
-    s.collect(is_idle)
+    s.collect(is_done)
     csv_path = os.path.join(s.run, 'ln.csv')
     lines = [l.strip() for l in open(csv_path)] if os.path.exists(csv_path) else []
     lines = [l for l in lines if l and not l.startswith('#')]
@@ -1623,12 +1623,12 @@ def section_names():
     # the settings of a session keep the values under the long names
     import zipfile
     s.send(cmd='session.save_as', file='ln')
-    s.collect(is_idle, timeout=20 * SLOW)
+    s.collect(is_done, timeout=20 * SLOW)
     snap_path = os.path.join(s.run, 'ln.snapx')
     text = zipfile.ZipFile(snap_path).read('model.setx').decode() if os.path.exists(snap_path) else ''
     check('names: the settings name the long parameter whole', LONG_B in text)
     s2 = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
-    s2.collect(is_idle)
+    s2.collect(is_done)
     if os.path.exists(snap_path):
         shutil.copy(snap_path, s2.run)
     s.close()
@@ -1702,10 +1702,10 @@ def check_session_names():
 def section_recording():
     check_session_names()
     code, out, run = run_recording(RECORDING)
-    idles = out.count('"ev":"idle"') + out.count('"ev":"done"')
+    dones = out.count('"ev":"done"') + out.count('"ev":"done"')
     check('xppautX lecar_auto.recx --silent plays to the end with no interface', code == 0,
           'exit %d, %s' % (code, run_recording.stderr[-300:]))
-    check('the player reaches idle after each recorded command', idles >= 8, '%d idles' % idles)
+    check('the player reaches done after each recorded command', dones >= 8, '%d dones' % dones)
     check('it saves the AUTO diagram (File/Save diagram, key s)', os.path.exists(os.path.join(run, 'lecar.snapx')))
     shutil.rmtree(run, ignore_errors=True)
 
@@ -1716,7 +1716,7 @@ def section_recording():
             {'cmd': 'recording.start'}, {'cmd': 'run.initial'},
             {'cmd': 'recording.stop', 'file': 'start.recx'}], run)
         r = replay_recording(args.server, LECAR, os.path.join(run, 'start.recx'), run)
-        states = [json.loads(l) for l in r.stdout.splitlines() if '"ev":"state"' in l]
+        states = [json.loads(l) for l in r.stdout.splitlines() if '"ev":"session.state"' in l]
         check('W144: silent playback loads the nondefault starting snapshot',
               r.returncode == 0 and states and dict(states[-1]['pars'])['iapp'] == 0.9, r.stderr)
 
@@ -1802,11 +1802,11 @@ def section_recording():
 
 
 def stopped_events(out):
-    return [json.loads(l)['at'] for l in out.splitlines() if l.startswith('{"ev":"stopped"')]
+    return [json.loads(l)['at'] for l in out.splitlines() if l.startswith('{"ev":"job.stopped"')]
 
 
 def last_rows(out):
-    st = [json.loads(l) for l in out.splitlines() if l.startswith('{"ev":"state"')]
+    st = [json.loads(l) for l in out.splitlines() if l.startswith('{"ev":"session.state"')]
     return st[-1]['rows'] if st else None
 
 
@@ -1868,8 +1868,8 @@ def section_replay():
           and 'run.recx:%d:' % run_recording.places[0][0] in run_recording.stderr
           and run_recording.stderr.count('never got to its recorded interruption') == 1,
           'exit %d, %s' % (code, run_recording.stderr[-300:]))
-    check('replay: and plays nothing after it', out.count('"ev":"computing"') == 1,
-          '%d computations' % out.count('"ev":"computing"'))
+    check('replay: and plays nothing after it', out.count('"ev":"job.computing"') == 1,
+          '%d computations' % out.count('"ev":"job.computing"'))
     shutil.rmtree(run, ignore_errors=True)
     code, out, run = run_recording(lines=[{'cmd':'run.abort'}, {'cmd':'run.initial'},
         {'cmd':'run.abort','at':{'what':'other'}}, {'cmd':'run.abort'}])
@@ -1902,7 +1902,7 @@ def section_scratch():
 
     try:
         s = Server(args.server, LECAR, verbose=args.v)
-        s.collect(is_idle)
+        s.collect(is_done)
         check('a dead pid\'s leftover scratch folder is gone after a start', not os.path.isdir(dead_dir))
         check('a live pid\'s scratch folder is left alone', os.path.isdir(live_dir))
         s.close()
@@ -1919,11 +1919,11 @@ NUMERICS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points']
 def set_numerics(s, **values):
     """Configure the registry's numerics and return its result events."""
     s.send(cmd='auto.configure_numerics', **values)
-    return s.collect(is_idle)[0]
+    return s.collect(is_done)[0]
 
 
 def errors_of(evs):
-    return [e['error'] for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
+    return [e['error'] for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
 
 
 def section_subscriptions():
@@ -1932,22 +1932,22 @@ def section_subscriptions():
     autosettings and no point of the diagram before; after it a grab answered
     with a point and Return in one answer takes that point (grab_key_after)."""
     s = Server(args.server, LECAR, verbose=args.v)
-    s.collect(is_idle)
-    s.send(cmd='events.subscribe', events=['autoinfo', 'autosettings'])
-    s.collect(is_idle)
+    s.collect(is_done)
+    s.send(cmd='events.subscribe', events=['auto.info', 'auto.settings'])
+    s.collect(is_done)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
     check('subscriptions: the steady branch gives points', len(dg.pts) > 10, '%d points' % len(dg.pts))
     s.send(cmd='session.reload_model')
-    evs, end = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
+    evs, end = s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}})
     check('subscriptions: a reload keeps the subscriptions: fresh autosettings without asking again',
-          end is not None and any(e.get('ev') == 'autosettings' for e in evs), str([e.get('ev') for e in evs])[:300])
+          end is not None and any(e.get('ev') == 'auto.settings' for e in evs), str([e.get('ev') for e in evs])[:300])
     check('subscriptions: ... and sends no point of the diagram before',
-          not any(e.get('ev') == 'diagram' and e.get('op') == 'add' for e in evs),
-          str([e for e in evs if e.get('ev') == 'diagram'])[:300])
+          not any(e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for e in evs),
+          str([e for e in evs if e.get('ev') == 'auto.diagram'])[:300])
     # the reload keeps the values by name: iapp is where the first run ended, at AUTO's upper limit
     s.send(cmd='value.set_parameters', values={'iapp': 0.05})
-    s.collect(is_idle)
+    s.collect(is_done)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
     check('subscriptions: after the reload a steady branch computes again', len(dg.pts) > 10, '%d points' % len(dg.pts))
@@ -1961,14 +1961,14 @@ def section_errors():
     """Invalid settings stop at their input; the existing settings and
     periodic branches survive. Internal error paths have unit tests."""
     s = Server(args.server, LECAR, verbose=args.v)
-    s.collect(is_idle)
+    s.collect(is_done)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
 
     def periodic():
         """grab the first HB, a periodic run; its events and new points"""
         s.send(cmd='auto.grab', type='hopf', index=1)
-        s.collect(is_idle)
+        s.collect(is_done)
         n = len(dg.pts)
         evs = run_any(s, 'p')
         dg.apply(evs)
@@ -1983,9 +1983,9 @@ def section_errors():
         check('errors: %s %d: the form refuses the value before a run' % (word, bad),
               len(errs) == 1 and word in errs[0] and '%s=%d' % (field, bad) in errs[0], str(errs))
         check('errors: %s %d: the session is still up' % (word, bad), s.proc.poll() is None)
-        s.send(cmd='events.subscribe', events=['autosettings'])
-        evs, idle = s.collect(is_idle)
-        check('errors: %s %d: a command after it answers' % (word, bad), idle is not None)
+        s.send(cmd='events.subscribe', events=['auto.settings'])
+        evs, done = s.collect(is_done)
+        check('errors: %s %d: a command after it answers' % (word, bad), done is not None)
         set_numerics(s, **{field: normal})
         evs, again = periodic()
         check('errors: %s back to %d: the next run computes the same points as before' % (word, normal),
@@ -1998,7 +1998,7 @@ def section_errors():
     denied = False
     scratch = None
     try:
-        s.collect(is_idle)
+        s.collect(is_done)
         hopf_steady(s)
         folders = s.auto_dirs()
         assert len(folders) == 1, folders
@@ -2014,7 +2014,7 @@ def section_errors():
             # Root bypasses mode permissions; a directory refuses fort.3 writes too.
             os.mkdir(os.path.join(scratch, 'fort.3'))
         evs = run_any(s, 's')
-        errors = [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
+        errors = [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
         check('W328: a failed fort write reports its file once, with the original Place',
               len(errors) == 1 and 'fort.3' in errors[0]['error']
               and errors[0].get('file') == 'command' and errors[0].get('line') == 1
@@ -2043,7 +2043,7 @@ def section_errors():
     code, out, run = run_recording(steps=body)
     try:
         errors = [json.loads(line) for line in out.splitlines() if line.startswith('{')
-                  and json.loads(line).get('ev') in ('message', 'done') and json.loads(line).get('error')]
+                  and json.loads(line).get('ev') in ('session.message', 'done') and json.loads(line).get('error')]
         place = run_recording.places[insert]
         check('W328: a refused AUTO value names its recorded form step once in server and silent',
               code == 1 and len(errors) == 1 and 'Collocation points' in errors[0]['error']
@@ -2063,7 +2063,7 @@ def section_errors():
         with open(nopar, 'w') as f:
             f.write("x'=-x\ndone\n")
         s = Server(args.server, nopar, verbose=args.v)
-        s.collect(is_idle)
+        s.collect(is_done)
         step(s, cmd='auto.open')
         errs = errors_of(run_any(s, 's'))
         check('errors: a model without parameters: AUTO refuses to run, naming why, and the server lives',
@@ -2081,9 +2081,9 @@ CVODE_POINCARE = os.path.join(here, 'models', 'cvode_poincare.odex')
 
 
 def integrate(s):
-    """run.initial: the events to idle"""
+    """run.initial: the events to done"""
     s.send(cmd='run.initial')
-    evs, _ = s.collect(is_idle, timeout=60 * SLOW)
+    evs, _ = s.collect(is_done, timeout=60 * SLOW)
     return evs
 
 
@@ -2093,14 +2093,14 @@ def numerics_menu(s, key, item, replies=None):
         ('a','a'):'analysis.adjoint_load',('a','h'):'analysis.adjoint_load_interaction',
         ('h','o'):'analysis.reload_histogram',('h','d'):'analysis.load_stochastic_run'}[(key,item)]
     s.send(cmd=operation, **({'couplings':{'x':'0','y':'0'}} if operation == 'analysis.adjoint_interaction' else {}))
-    return s.collect(is_idle)[0]
+    return s.collect(is_done)[0]
 
 
 def browser_block(s, rows):
     """the data browser's first rows, every column"""
     s.send(cmd='browser.page', **{'from_row': 0, 'count': rows, 'first_column': 1, 'columns': 500})
-    evs, br = s.collect(lambda e: e.get('ev') == 'browser')
-    s.collect(is_idle)
+    evs, br = s.collect(lambda e: e.get('ev') == 'browser.updated')
+    s.collect(is_done)
     return br
 
 
@@ -2129,22 +2129,22 @@ def section_memory():
     leaves no memory behind for the next run to drop (asancheck's
     LeakSanitizer sees that; here, the runs go on)."""
     s = Server(args.server, BORROWED, verbose=args.v)
-    s.collect(is_idle)
+    s.collect(is_done)
     integrate(s)  # one period, 601 rows
     evs = numerics_menu(s, 'a', 'n')  # Averaging/New adjoint
     check('memory: the adjoint of the limit cycle is computed', not errors_of(evs), str(errors_of(evs)))
     evs = numerics_menu(s, 'a', 'm', {'string': lambda e: {'ok': 1, 'value': '0'}})  # Make H
     check('memory: its H function is computed', not errors_of(evs), str(errors_of(evs)))
     s.send(cmd='analysis.histogram')  # the model's histogram
-    s.collect(is_idle)
+    s.collect(is_done)
     # another orbit, from elsewhere, long enough to grow the store
     # (storage_rows 1000) twice
     s.send(cmd='ic.set', values={'x': 0.5})
-    s.collect(is_idle)
+    s.collect(is_done)
     s.send(cmd='run.configure', total_time=30)
-    s.collect(is_idle)
+    s.collect(is_done)
     evs = integrate(s)
-    st = [e for e in evs if e.get('ev') == 'state']
+    st = [e for e in evs if e.get('ev') == 'session.state']
     check('memory: the longer run stores more rows than storage_rows', st and st[-1].get('rows', 0) > 2000,
           str(st and st[-1].get('rows')))
     # the stored columns each shows, from: the adjoint's node+1 = 3, the H
@@ -2155,7 +2155,7 @@ def section_memory():
     lent_columns_match(s, 'the histogram', 'h', 'o', 2)
     # a load: a new session, with no adjoint or H function to show
     s.send(cmd='session.reload_model')
-    s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
+    s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}})
     for what, item in (('adjoint', 'a'), ('H function', 'h')):
         numerics_menu(s, 'a', item)
         br = browser_block(s, 10)
@@ -2167,7 +2167,7 @@ def section_memory():
     for model, why in ((CVODE_STOP, 'a delay longer than the maximal one'),
                        (CVODE_POINCARE, "the Poincare map's Cannot zero RHS")):
         s = Server(args.server, model, verbose=args.v)
-        s.collect(is_idle)
+        s.collect(is_done)
         first = errors_of(integrate(s))
         second = errors_of(integrate(s))
         check('memory: CVODE stopped by %s: each run says so, the session goes on' % why,
@@ -2183,7 +2183,7 @@ def series_of(evs, win='graph_1'):
     return full[-1] if full else None
 
 
-PAGE_EVENTS = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo', 'autosettings']  # web2's subscription
+PAGE_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'dirfield.field', 'plot.marks', 'animation.frame', 'auto.info', 'auto.settings']  # web2's subscription
 
 
 def section_sessiondata():
@@ -2191,14 +2191,14 @@ def section_sessiondata():
         tag = 'sessiondata (%s)' % ('AUTO diagram' if with_auto else 'no AUTO')
         home1 = tempfile.mkdtemp(prefix='xpphome')
         s = Server(args.server, LECAR, env={'HOME': home1}, verbose=args.v)
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='events.subscribe', events=PAGE_EVENTS, encoding='f32')
-        evs, _ = s.collect(is_idle)
+        evs, _ = s.collect(is_done)
         # W against V, as a phase plane
         s.send(cmd='plot.set_2d', x='V', y='W')
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='run.initial')
-        evs, _ = s.collect(is_idle, timeout=30 * SLOW)
+        evs, _ = s.collect(is_done, timeout=30 * SLOW)
         saved = series_of(evs)
         if with_auto:
             open_auto(s)
@@ -2207,11 +2207,11 @@ def section_sessiondata():
             run_menu(s, 'p', timeout=120 * SLOW)
         rows = saved['rows'] if saved else -1
         s.send(cmd='session.save_as', file='d1')
-        s.collect(is_idle, timeout=20 * SLOW)
+        s.collect(is_done, timeout=20 * SLOW)
         snap = os.path.join(s.run, 'd1.snapx')
         home2 = tempfile.mkdtemp(prefix='xpphome')
         s2 = Server(args.server, LECAR, env={'HOME': home2}, verbose=args.v)
-        s2.collect(is_idle)
+        s2.collect(is_done)
         if os.path.exists(snap): shutil.copy(snap, s2.run)
         # the same server opens its own session again (the desktop window's File/Open)
         evs = open_session(s, 'd1')
@@ -2219,14 +2219,14 @@ def section_sessiondata():
         check('%s: reopening the session in the same server keeps its rows in the plot' % tag,
               same is not None and same['rows'] == rows, 'saved %s, after open %s' % (rows, same and same['rows']))
         s.send(cmd='events.subscribe', events=PAGE_EVENTS, encoding='f32')
-        evs, _ = s.collect(is_idle)
+        evs, _ = s.collect(is_done)
         same = series_of(evs)
         check('%s: and after the page asks again' % tag, same is not None and same['rows'] == rows, str(same and same['rows']))
         s.close()
         shutil.rmtree(home1, ignore_errors=True)
         # the page's subscription is sent again after a model switch's new hello
         s2.send(cmd='events.subscribe', events=PAGE_EVENTS, encoding='f32')
-        s2.collect(is_idle)
+        s2.collect(is_done)
         evs = open_session(s2, 'd1')
         got = series_of(evs)
         check('%s: the saved rows are in the main plot after Open session' % tag,
@@ -2235,7 +2235,7 @@ def section_sessiondata():
             check('%s: the plotted values are the saved ones' % tag,
                   [c.get('data') for c in saved['columns']] == [c.get('data') for c in got['columns']] if 'columns' in saved else True)
         s2.send(cmd='events.subscribe', events=PAGE_EVENTS, encoding='f32')
-        evs, _ = s2.collect(is_idle)
+        evs, _ = s2.collect(is_done)
         again = series_of(evs)
         check('%s: asking for the series again sends the saved rows' % tag,
               again is not None and again['rows'] == rows, str(again and again['rows']))
@@ -2248,17 +2248,17 @@ def play_recording(s, path):
     then play it at 8x to the end of its last step: the player event and
     the events"""
     s.send(cmd='recording.open', play=False, file=path)
-    evs, _ = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}}, timeout=60 * SLOW)
-    pl = next((e for e in evs if e.get('ev') == 'player'), None)
+    evs, _ = s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}}, timeout=60 * SLOW)
+    pl = next((e for e in evs if e.get('ev') == 'recording.player'), None)
     if pl is None:
         return None, evs
     n = len(pl['steps'])
     s.send(cmd='recording.set_speed', speed=8)
-    s.collect(is_idle)
+    s.collect(is_done)
     s.send(cmd='recording.play')
     more, _ = s.collect(lambda e: is_state(e) and (e.get('player') or {}).get('step') == n
                         and e['player']['running'] == -1, timeout=300 * SLOW)
-    return pl, evs + more + s.collect(is_idle)[0]
+    return pl, evs + more + s.collect(is_done)[0]
 
 
 
@@ -2268,32 +2268,32 @@ def section_play():
     diagram; (b) a range ended with / (a key the running job reads itself,
     recorded with where it was): the same rows"""
     s = Server(args.server, LECAR, verbose=args.v)
-    s.collect(is_idle)
+    s.collect(is_done)
     s.send(cmd='recording.start')
-    s.collect(is_idle)
+    s.collect(is_done)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
     s.send(cmd='recording.stop', file='auto')
-    s.collect(is_idle)
+    s.collect(is_done)
     orig = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in dg.pts]
     pl, evs = play_recording(s, os.path.join(s.run, 'auto.recx'))
     again = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in Diagram().apply(evs).pts]
-    errors = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
+    errors = [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
     check('play: the AUTO steady run replayed gives the same diagram', pl and len(orig) > 5 and again == orig and not errors,
           '%s steps, %d vs %d points, %s' % (pl and len(pl['steps']), len(orig), len(again), errors))
     s.close()
 
     s = Server(args.server, HEAVY, verbose=args.v)
-    s.collect(is_idle)
+    s.collect(is_done)
     s.send(cmd='recording.start')
-    s.collect(is_idle)
+    s.collect(is_done)
     s.send(cmd='run.range')
-    _, e = s.collect(lambda e: e.get('ev') == 'computing', timeout=30 * SLOW)
-    s.collect(lambda e: e.get('ev') == 'progress' and e.get('n', 0) >= 200, timeout=60 * SLOW)
+    _, e = s.collect(lambda e: e.get('ev') == 'job.computing', timeout=30 * SLOW)
+    s.collect(lambda e: e.get('ev') == 'job.progress' and e.get('n', 0) >= 200, timeout=60 * SLOW)
     s.send(cmd='run.abort')
-    s.collect(is_idle, timeout=120 * SLOW)
+    s.collect(is_done, timeout=120 * SLOW)
     s.send(cmd='recording.stop', file='range')
-    s.collect(is_idle)
+    s.collect(is_done)
     text = open(os.path.join(s.run, 'range.recx'), encoding='utf-8').read() if os.path.exists(os.path.join(s.run, 'range.recx')) else ''
     check('play: a / during a range is recorded in its step, with where the job was',
           '"abort":{"what":"integrate","rows":' in text, text[text.find('@steps'):][:400])
@@ -2302,7 +2302,7 @@ def section_play():
     # or run all 20 of heavy.odex's runs
     t0 = time.monotonic()
     pl, evs = play_recording(s, os.path.join(s.run, 'range.recx'))
-    errors = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
+    errors = [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
     check('play: the replayed / ends the range at the recorded row', pl and not errors
           and (last_state(evs) or {}).get('player', {}).get('step') == 1, '%s, %.1f s' % (errors, time.monotonic() - t0))
     s.close()
@@ -2311,21 +2311,21 @@ def section_play():
     # the session as it was (its snapshot: the values, the diagram): the
     # Hopf point it grabs is there, and its periodic branch comes out the same
     s = Server(args.server, LECAR, verbose=args.v)
-    s.collect(is_idle)
+    s.collect(is_done)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
     steady = len(dg.pts)
     s.send(cmd='recording.start')
-    s.collect(is_idle)
+    s.collect(is_done)
     grab_hopf(s)
     new = dg.apply(run_any(s, 'p', timeout=300 * SLOW)).pts[steady:]
     s.send(cmd='recording.stop', file='later')
-    s.collect(is_idle)
+    s.collect(is_done)
     branches = {p['br'] for p in new}
     orig = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in new]
     pl, evs = play_recording(s, os.path.join(s.run, 'later.recx'))
     again = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in Diagram().apply(evs).pts if p['br'] in branches]
-    errors = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
+    errors = [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
     check('play: a recording begun after the steady run starts from its diagram: the periodic branch replayed is the same',
           pl and len(pl['steps']) == 2 and len(orig) > 5 and again == orig and not errors,
           '%s steps, %d vs %d points, %s' % (pl and len(pl['steps']), len(orig), len(again), errors))
@@ -2337,14 +2337,14 @@ def section_limits():
     """W298: 401 variables, 40 model/AUTO parameters; continue the fortieth."""
     s = Server(args.server, os.path.join(here, 'models', 'auto_limits.odex'), verbose=args.v)
     try:
-        startup, _ = s.collect(is_idle)
+        startup, _ = s.collect(is_done)
         check('limits: 401 variables and 40 parameters load',
               len((last_state(startup) or {}).get('ics', [])) == 401
               and len((last_state(startup) or {}).get('pars', [])) == 40)
         open_auto(s)
         completed(s, dict(cmd='auto.configure_numerics', max_steps=4, output_every=1, suppress_branch_points=True))
         s.send(cmd='auto.configure_plot', parameter1='P39', variable='X400')
-        evs, _ = s.collect(is_idle)
+        evs, _ = s.collect(is_done)
         check('limits: the fortieth model parameter is available without selection', not errors_of(evs), str(errors_of(evs)))
         dg = Diagram().apply(run_any(s, 's'))
         check('limits: AUTO computes four points beyond 400 variables', len(dg.pts) == 4, str(len(dg.pts)))
@@ -2359,7 +2359,7 @@ def section_limits():
         check('limits: reopening the snapshot restores the expanded diagram',
               not errors_of(reopened) and len(Diagram().apply(reopened).pts) == 4, str(errors_of(reopened)))
         s.send(cmd='auto.grab', label=int(rows[-1]['lab']) if rows else -1)
-        evs, _ = s.collect(is_idle)
+        evs, _ = s.collect(is_done)
         state = last_state(evs) or {}
         check('limits: grabbing restores the fortieth parameter and final state', rows and not errors_of(evs)
               and abs({k.upper(): v for k, v in state.get('pars', [])}.get('P39', -1)-float(rows[-1]['par40'])) < 1e-8
@@ -2423,7 +2423,7 @@ def section_hopf_reduced():
     with tempfile.TemporaryDirectory() as folder:
         model = os.path.join(folder, 'bt.odex')
         with open(model, 'w') as f:
-            f.write("x'=y\ny'=a+b*y+x*x\npar a=-0.25,b=-0.1\ninit x=-0.5,y=0\n")
+            f.write(versioned("x'=y\ny'=a+b*y+x*x\npar a=-0.25,b=-0.1\ninit x=-0.5,y=0\n"))
         constants = dict(step_size=.02, min_step_size=1e-6, max_step_size=.05, max_steps=40, output_every=5,
                          parameter_min=-.2, parameter_max=.2, mesh_intervals=15, max_branch_switches=0, parameter_tolerance=1e-9, state_tolerance=1e-9, special_point_tolerance=1e-8)
         d = dict(model=model, runs=[
@@ -2457,15 +2457,15 @@ def section_codim():
         completed(s)
         diagram = autocompare.Diagram().apply(open_auto(s))
         ranges = {}
-        settings = completed(s, dict(cmd='events.subscribe', events=['autoinfo','autosettings']))
-        flags = next(e['special_points'] for e in settings if e.get('ev') == 'autosettings')
+        settings = completed(s, dict(cmd='events.subscribe', events=['auto.info', 'auto.settings']))
+        flags = next(e['special_points'] for e in settings if e.get('ev') == 'auto.settings')
         check('codim: BT CP ZH GH enabled by default', flags == dict(bogdanov_takens=True, cusp=True, zero_hopf=True, generalized_hopf=True, resonance_1_1=True, resonance_1_2=True, resonance_1_3=True, resonance_1_4=True, fold_flip=True, fold_neimark_sacker=True, flip_neimark_sacker=True, double_neimark_sacker=True))
         for mode, changes in (('default', {}), ('ZH disabled', {'zero_hopf': False}),
                               ('all disabled', dict.fromkeys(flags, False)), ('restored', dict.fromkeys(flags, True))):
             s.close()
             s = Server(args.server, d['model'])
             completed(s)
-            completed(s, dict(cmd='events.subscribe', events=['autoinfo','autosettings']))
+            completed(s, dict(cmd='events.subscribe', events=['auto.info', 'auto.settings']))
             diagram = autocompare.Diagram().apply(open_auto(s))
             ranges = {}
             execute_run(s, d['runs'][0], diagram, ranges)
@@ -2479,10 +2479,10 @@ def section_codim():
                   and (not zh or abs(float(zh[0]['continued_parameter'])) < 1e-4))
         for bad in ({'zero_hopf': 0}, {'zero_hopf': 'false'}, {'unknown': False}):
             s.send(cmd='auto.configure_numerics', special_points=bad, max_steps=7)
-            events, _ = s.collect(is_idle)
+            events, _ = s.collect(is_done)
             check('codim: invalid named boolean refuses transaction ' + str(bad), len(errors_of(events)) == 1)
-            after = completed(s, dict(cmd='events.subscribe', events=['autosettings']))
-            current = next(e for e in after if e.get('ev') == 'autosettings')
+            after = completed(s, dict(cmd='events.subscribe', events=['auto.settings']))
+            current = next(e for e in after if e.get('ev') == 'auto.settings')
             check('codim: refusal applies nothing', current['numerics']['max_steps'] == 50 and current['special_points'] == flags)
     finally:
         s.close()
@@ -2501,7 +2501,7 @@ def section_codim():
     with tempfile.TemporaryDirectory() as folder:
         model = os.path.join(folder, 'bautin.odex')
         with open(model, 'w') as f:
-            f.write("x'=-y+a*x+b*x*(x*x+y*y)\ny'=x+a*y+b*y*(x*x+y*y)\npar a=-0.1,b=-0.1\ninit x=0,y=0\n")
+            f.write(versioned("x'=-y+a*x+b*x*(x*x+y*y)\ny'=x+a*y+b*y*(x*x+y*y)\npar a=-0.1,b=-0.1\ninit x=0,y=0\n"))
         constants = dict(step_size=.02, min_step_size=1e-6, max_step_size=.05, max_steps=30, output_every=10,
                          parameter_min=-.2, parameter_max=.2, mesh_intervals=15, max_branch_switches=0, parameter_tolerance=1e-9, state_tolerance=1e-9, special_point_tolerance=1e-8)
         normal = dict(model=model, runs=[
@@ -2529,7 +2529,7 @@ def section_codim():
     s = Server(args.server, cycles['model'])
     try:
         completed(s)
-        completed(s, dict(cmd='events.subscribe', events=['autoinfo', 'autosettings']))
+        completed(s, dict(cmd='events.subscribe', events=['auto.info', 'auto.settings']))
         diagram = autocompare.Diagram().apply(open_auto(s)); intervals = {}
         for run in cycles['runs'][:2]: execute_run(s, run, diagram, intervals)
         completed(s, dict(cmd='auto.configure_numerics', special_points={'resonance_1_4': False}))
@@ -2588,7 +2588,7 @@ def section_codim():
         try:
             completed(s)
             completed(s, dict(cmd='value.set_parameters',values=dict(maps['parameters'])))
-            completed(s, dict(cmd='events.subscribe', events=['autoinfo','autosettings']))
+            completed(s, dict(cmd='events.subscribe', events=['auto.info', 'auto.settings']))
             diagram=autocompare.Diagram().apply(open_auto(s)); intervals={}
             execute_run(s,maps['runs'][0],diagram,intervals)
             completed(s,dict(cmd='auto.configure_numerics', special_points={'double_neimark_sacker':False,'resonance_1_4':False}))
@@ -2601,8 +2601,8 @@ def section_codim():
             before=session_diagram(s)
             check('map codim: session load accepts current layout', not errors_of(open_session(s,path)))
             check('map codim: session restores typed diagram', session_diagram(s)==before)
-            events=completed(s,dict(cmd='events.subscribe', events=['autosettings']))
-            flags=next(e['special_points'] for e in events if e.get('ev')=='autosettings')
+            events=completed(s,dict(cmd='events.subscribe', events=['auto.settings']))
+            flags=next(e['special_points'] for e in events if e.get('ev')== 'auto.settings')
             check('map codim: session restores named switches', not flags['double_neimark_sacker'] and not flags['resonance_1_4'] and flags['fold_flip'])
         finally:
             s.close()

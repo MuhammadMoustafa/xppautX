@@ -1,4 +1,5 @@
 # tyson.odex: converted from tyson.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # tyson.ode
 init u = 0.0075, v = 0.48, m = 1

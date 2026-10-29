@@ -1,7 +1,7 @@
 /* Recording (W59a, docs/protocol.md "Recordings"): File/recorD, or the
    record command, records every step of the session into name.recx
-   (recx.h). A step is everything from leaving idle to the next idle, the
-   protocol's completion (state then idle, or a registry done): the
+   (recx.h). A step is everything from the command's start to its done, the
+   protocol's completion (session.state then done): the
    command handle_line runs, the answers to what it asks (a choice's
    key, a dialog's values), and where it stopped when an Abort or Escape
    cancelled it. The model's files and every text file the session reads
@@ -258,7 +258,7 @@ bool j_save_recording(xpp::Session &s)
 
 void record_begin(const char *line)
 {
-    if (!recorder.rec || !line_is_step(line) || is_cmd(line, "key")) return;
+    if (!recorder.rec || !line_is_step(line)) return;
     StepTaken t;
     t.open = true;
     t.note = std::move(recorder.note);

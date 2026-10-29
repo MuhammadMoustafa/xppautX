@@ -1,4 +1,5 @@
 # elaspen.odex: converted from elaspen.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # the pendulum on a spring
 # the dimensionless parameter is

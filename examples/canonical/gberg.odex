@@ -1,4 +1,5 @@
 # gberg.odex: converted from gberg.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # gberg.ode
 # A <<real>> boundary value problem whose solution represents a

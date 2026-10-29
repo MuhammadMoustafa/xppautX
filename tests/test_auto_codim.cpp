@@ -1,5 +1,6 @@
 // W364 (#426): independent normal forms fix the signs and zeros of the tests.
 #include "load_args.h"
+#include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
 #include "auto_c.h"
@@ -19,7 +20,7 @@ int main()
     xpp::TempDir temp;
     std::string path=temp.path()+"/bautin.odex";
     auto writer=xpp::Writer::binary(path);
-    CHECK(writer.write("x'=-y+a*x+b*x*(x*x+y*y)\ny'=x+a*y+b*y*(x*x+y*y)\npar a=0,b=1\ninit x=0,y=0\n") && writer.commit());
+    CHECK(writer.write(versioned("x'=-y+a*x+b*x*(x*x+y*y)\ny'=x+a*y+b*y*(x*x+y*y)\npar a=0,b=1\ninit x=0,y=0\n")) && writer.commit());
     char name[]="test_auto_codim";
     char *argv[]={name,path.data(),nullptr};
     CHECK(load_args(2,argv,1).has_value());

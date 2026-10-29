@@ -1,4 +1,5 @@
 # ratchet.odex: converted from ratchet.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # a simple thermal ratchet
 wiener w

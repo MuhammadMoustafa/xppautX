@@ -1,4 +1,5 @@
 # dde.odex: converted from dde.ode by xppautX --convert (docs/odex.md)
+version 4
 
 fun f(x) = tanh(x)
 x' = -x+f(a*x-b*delay(x, tau)-c)

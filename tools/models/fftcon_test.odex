@@ -1,4 +1,5 @@
 # fftcon_test.odex: converted from fftcon_test.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # Known-answer test model for the network "fftcon" special function
 # (W31a: tests/test_stochast_fourier.cpp; W38: fixed the table layout),

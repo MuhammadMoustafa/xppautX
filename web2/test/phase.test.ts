@@ -15,12 +15,12 @@ const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never}
 const f32 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString('base64');
 
 const NC: NullclinesEvent = {
-  ev: 'nullclines', win: 'graph_1', xname: 'V', yname: 'W', xcolor: '#f06400', ycolor: '#00e100',
+  ev: 'nullcline.curves', win: 'graph_1', xname: 'V', yname: 'W', xcolor: '#f06400', ycolor: '#00e100',
   x: [0, 0, 1, 1, 1, 1, 2, 0], y: [0, 1, 1, 0], frozen: [{x: [0, 0, 0, 1], y: []}],
 };
 
 const DF: DfieldEvent = {
-  ev: 'dfield', win: 'graph_1', scaled: 1, color: 'foreground', n: 2, du: 1, dv: 1,
+  ev: 'dirfield.field', win: 'graph_1', scaled: 1, color: 'foreground', n: 2, du: 1, dv: 1,
   grid: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, -1, 0], speed: [2, 1, 0, 4],
   flows: [{color: '#ffa500', x: [0, 1, null, 2, 3, 4], y: [0, 1, null, 2, 3, 4]}],
 };

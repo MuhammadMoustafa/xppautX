@@ -138,7 +138,7 @@ constexpr std::array RENAME_RESULTS = {ResultField{"from", "text"}, ResultField{
 constexpr std::array DELETE_RESULTS = {ResultField{NAME_KEY, "text"}, ResultField{"deleted", "boolean"}};
 constexpr std::array RESTORE_RESULTS = {ResultField{"restored", "boolean"}};
 
-constexpr std::array STATE_EVENTS = {"state", "done"};
+constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"set.apply", APPLY_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "File/Apply set",

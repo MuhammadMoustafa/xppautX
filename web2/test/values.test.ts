@@ -1,4 +1,4 @@
-/* The values slice: edits sent (settings, W106) until their set's idle,
+/* The values slice: edits sent (settings, W106) until their set's done,
    error attribution, no undo (GitHub #110, #155; store/values.ts), without a
    browser (npm test). */
 import assert from 'node:assert/strict';
@@ -14,17 +14,17 @@ test('fieldKey folds case for names, not for indices', () => {
   assert.notEqual(fieldKey('par', 'v'), fieldKey('ic', 'v'), 'kind is part of the identity');
 });
 
-test('an edit sent shows as the field\'s value until its own idle, and clears its stale error', () => {
+test('an edit sent shows as the field\'s value until its own done, and clears its stale error', () => {
   const e = edit({kind: 'par', name: 'Iapp', text: '0.2'});
   let s = reduceValues({...initialValues, errors: {'par:iapp': 'old'}}, {type: 'sent', set: e, ahead: 1});
   assert.deepEqual(s.inflight, [{set: e, ahead: 1}]);
   assert.deepEqual(s.errors, {});
   assert.equal(sentText(s.inflight, 'par:iapp'), '0.2');
-  /* the running computation's idle: the set's own command is next */
-  s = reduceValues(s, {type: 'idle'});
+  /* the running computation's done: the set's own command is next */
+  s = reduceValues(s, {type: 'ended'});
   assert.equal(sentText(s.inflight, 'par:iapp'), '0.2', 'still shown: the core applies it now');
-  s = reduceValues(s, {type: 'idle'});
-  assert.equal(sentText(s.inflight, 'par:iapp'), null, 'its own idle: the core\'s state has it');
+  s = reduceValues(s, {type: 'ended'});
+  assert.equal(sentText(s.inflight, 'par:iapp'), null, 'its own done: the core\'s state has it');
 });
 
 test('the latest edit sent of a field is what it shows', () => {
@@ -41,11 +41,11 @@ test('a message:error lands on the field whose set is the command running, no ot
   s = reduceValues(s, {type: 'sent', set: edit({kind: 'num', name: 'dt', text: '0'}), ahead: 2});
   const unrelated = reduceValues(s, {type: 'error', text: 'the computation\'s own error'});
   assert.deepEqual(unrelated.errors, {}, 'during the computation: no set runs');
-  s = reduceValues(s, {type: 'idle'});
+  s = reduceValues(s, {type: 'ended'});
   s = reduceValues(s, {type: 'error', text: 'Bad formula'});
-  s = reduceValues(s, {type: 'idle'});
+  s = reduceValues(s, {type: 'ended'});
   s = reduceValues(s, {type: 'error', text: 'Numerics: Dt must be a number other than 0'});
-  s = reduceValues(s, {type: 'idle'});
+  s = reduceValues(s, {type: 'ended'});
   assert.deepEqual(s.errors, {'par:iapp': 'Bad formula', 'num:dt': 'Numerics: Dt must be a number other than 0'});
   assert.deepEqual(s.inflight, []);
   assert.equal(reduceValues(s, {type: 'error', text: 'later'}), s, 'nothing runs: attributed nowhere');

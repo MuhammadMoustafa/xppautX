@@ -1,3 +1,4 @@
+version 4
 # W498: resetting x repeats its crossing more than flag_count+2 times in a step.
 x' = 1
 init x = 0

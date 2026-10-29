@@ -18,7 +18,7 @@ class AutoCompare(unittest.TestCase):
         return dict(br=1, pt=pt, x=[0.0] * n, y=[0.0] * n, lab=list(lab))
 
     def add(self, start, runs):
-        return dict(ev='diagram', op='add', view='diagram_1', **{'from': start}, runs=runs)
+        return dict(ev='auto.diagram', op='add', view='diagram_1', **{'from': start}, runs=runs)
 
     def test_batching_does_not_change_the_points(self):
         whole = Diagram().apply([self.add(0, [self.point_run(1, 3, [[1, 4, 'hopf']])])])
@@ -46,7 +46,7 @@ class AutoCompare(unittest.TestCase):
 
     def test_reset_keeps_the_points_before(self):
         dg = Diagram().apply([self.add(0, [self.point_run(1, 2, [[1, 4, 'hopf']])])])
-        dg.apply([dict(ev='diagram', op='reset', view='diagram_1', keep=1), self.add(1, [self.point_run(2, 1)])])
+        dg.apply([dict(ev='auto.diagram', op='reset', view='diagram_1', keep=1), self.add(1, [self.point_run(2, 1)])])
         self.assertEqual(dg.points, [dict(lab=0, sym=''), dict(lab=0, sym='')])
         with self.assertRaisesRegex(ValueError, 'noncontiguous'):
             Diagram().apply([self.add(1, [self.point_run(1, 1)])])
@@ -148,7 +148,7 @@ class References(unittest.TestCase):
             def send(self, **command):
                 self.sent.append(command)
             def collect(self, done, timeout):
-                return [dict(ev='idle')], dict(ev='idle')
+                return [dict(ev='done')], dict(ev='done')
         values = [dict(kind='par', name='q', value=1.0)]
         current, grabbed = dict(start=dict(state='current')), dict(start=dict(run='steady', type='EP', index=1))
         for r, ranges, sent in ((current, {}, []), (grabbed, {'steady': (0, 3)}, []),
@@ -434,11 +434,11 @@ class Curves(unittest.TestCase):
 
     def test_a_start_is_grabbed_from_the_points_its_run_left(self):
         dg = Diagram()
-        dg.apply([dict(ev='diagram', op='add', view='diagram_1', **{'from': 0},
+        dg.apply([dict(ev='auto.diagram', op='add', view='diagram_1', **{'from': 0},
                        runs=[dict(br=1, pt=1, x=[0.0] * 3, y=[0.0] * 3, lab=[[1, 4, 'hopf']])])])
         dg.runs['steady'] = [dict(p) for p in dg.points]
         # a curve on other axes redraws the diagram and labels only what it plots
-        dg.apply([dict(ev='diagram', op='add', view='diagram_1', **{'from': 0},
+        dg.apply([dict(ev='auto.diagram', op='add', view='diagram_1', **{'from': 0},
                        runs=[dict(br=1, pt=1, x=[0.0] * 3, y=[0.0] * 3, lab=[])])])
         self.assertEqual([p['sym'] for p in dg.points], ['', '', ''])
         self.assertEqual([p['sym'] for p in dg.runs['steady']], ['', 'HB', ''])

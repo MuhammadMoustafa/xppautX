@@ -1,4 +1,5 @@
 # huygens.odex: converted from huygens.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # Huygens pendulums
 # x is position of the cart, p1,p2 are angles of the pendulum

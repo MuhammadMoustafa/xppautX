@@ -93,8 +93,8 @@ constexpr std::array STEPS={ResultField{"steps_frozen","integer"}};
 constexpr std::array ANIMATED={ResultField{"animated","boolean"}};
 constexpr std::array EXPORTED={ResultField{"file","file"},ResultField{"points_written","integer"}};
 constexpr std::array MESH_RESULT={ResultField{"nullcline_mesh","integer"}};
-constexpr std::array EVENTS={"nullclines","state","done"};
-constexpr std::array DONE={"done"};
+constexpr std::array EVENTS={xpp::events::NULLCLINE_CURVES, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DONE={xpp::events::DONE};
 constexpr std::array ROWS={
     Command{"nullcline.compute",{},XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Nullclines/New","Compute the phase plane's nullclines.",COMPUTED,EVENTS,true,compute},
     Command{"nullcline.redraw",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Restore","Draw stored nullclines again.",DRAWN,EVENTS,true,redraw},

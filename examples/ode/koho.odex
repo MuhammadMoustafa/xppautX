@@ -1,4 +1,5 @@
 # koho.odex: converted from koho.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # koho.ode: the Kohonen algorithm. The winning unit, the weight closest to
 # the stimulus, once came from a compiled C function (getmax.c, through

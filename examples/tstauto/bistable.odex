@@ -1,4 +1,5 @@
 # bistable.odex: converted from bistable.ode by xppautX --convert (docs/odex.md)
+version 4
 # Source: XPPAUT 8.0's demo tstauto/bistable.ode (W537 audit).
 
 # -c v' = f(v) + v''

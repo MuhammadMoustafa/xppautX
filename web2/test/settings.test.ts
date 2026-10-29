@@ -1,6 +1,6 @@
 /* Settings during a computation (W106, GitHub #155): the values panel's and
    the AUTO forms' edits go to the core at once, busy or not, and the field
-   shows what was sent until that set's own idle -- nothing is held, no
+   shows what was sent until that set's own done -- nothing is held, no
    "pending" (npm test, through session.ts with a transport that records). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
@@ -27,10 +27,10 @@ function session(): {s: Session; sent: Command[]; ev: (e: object) => void} {
 test('W106: a parameter or numerics edit during a computation is sent at once and shown as the value', () => {
   const {s, sent, ev} = session();
   ev(HELLO);
-  ev({ev: 'state', sliders: [], pars: [['iapp', 0.05]], ics: [], bcs: []});
-  ev({ev: 'idle'});
+  ev({ev: 'session.state', sliders: [], pars: [['iapp', 0.05]], ics: [], bcs: []});
+  ev({ev: 'done', status: 'ok'});
   s.send({cmd: 'run.initial'});
-  ev({ev: 'computing'});
+  ev({ev: 'job.computing'});
   sent.length = 0;
   s.setValue('par', 'iapp', '0.3');
   s.setNumeric('total_time', '50');
@@ -39,29 +39,29 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
   const st = () => s.store.getState();
   assert.equal(sentText(st().values.inflight, 'par:iapp'), '0.3', 'the field shows what was sent');
   /* the core's state during the run still has the value the run started with: the field keeps what was sent */
-  ev({ev: 'state', sliders: [], pars: [['iapp', 0.05]], ics: [], bcs: []});
+  ev({ev: 'session.state', sliders: [], pars: [['iapp', 0.05]], ics: [], bcs: []});
   assert.equal(sentText(st().values.inflight, 'par:iapp'), '0.3');
-  ev({ev: 'idle'}); /* the run ends */
+  ev({ev: 'done', status: 'ok'}); /* the run ends */
   assert.equal(sentText(st().values.inflight, 'par:iapp'), '0.3');
-  ev({ev: 'state', sliders: [], pars: [['iapp', 0.3]], ics: [], bcs: []});
-  ev({ev: 'idle'}); /* the set's own */
+  ev({ev: 'session.state', sliders: [], pars: [['iapp', 0.3]], ics: [], bcs: []});
+  ev({ev: 'done', status: 'ok'}); /* the set's own */
   assert.equal(sentText(st().values.inflight, 'par:iapp'), null, 'the core\'s value takes over');
-  ev({ev: 'idle'}); /* the numerics set's */
+  ev({ev: 'done', status: 'ok'}); /* the numerics set's */
   assert.deepEqual(st().values.inflight, []);
   assert.equal(st().busy, false);
 });
 
-test('W106: an AUTO settings edit during a run is sent at once, shown until its own idle', () => {
+test('W106: an AUTO settings edit during a run is sent at once, shown until its own done', () => {
   const {s, sent, ev} = session();
   ev(HELLO);
-  ev({ev: 'autosettings', numerics: {max_steps: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
-  ev({ev: 'idle'});
+  ev({ev: 'auto.settings', numerics: {max_steps: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
+  ev({ev: 'done', status: 'ok'});
   s.send({cmd: 'run.initial'});
-  ev({ev: 'computing'});
+  ev({ev: 'job.computing'});
   sent.length = 0;
   s.autoSettings({numerics: {max_steps: 25}});
   assert.deepEqual(sent, [{cmd: 'auto.configure_numerics', max_steps: 25}]);
   assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.max_steps, 25);
-  ev({ev: 'idle'});
+  ev({ev: 'done', status: 'ok'});
   assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.max_steps, 25);
 });

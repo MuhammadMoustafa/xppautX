@@ -1,4 +1,5 @@
 # 6x6.odex: converted from 6x6.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # 6x6 array
 fun h(u) = sin(u)+a*(cos(u)-b)+c*sin(2*u)

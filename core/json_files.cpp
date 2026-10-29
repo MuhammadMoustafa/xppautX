@@ -1,4 +1,5 @@
 /* File results rendered for the protocol and HTTP /files, in one place. */
+#include "event_registry.h"
 #include "json_files.h"
 #include "json_error.h"
 #include "xpp_io.h"
@@ -22,7 +23,7 @@ std::string files_json(const xpp::files::CommandResult &result)
 
 std::string file_event(std::string_view op, const xpp::files::CommandResult &result)
 {
-    std::string s = "{\"ev\":\"file\",\"op\":";
+    std::string s = xpp::events::open(xpp::events::FILE_RESULT) + ",\"op\":";
     xpp::json_append_string(s, op);
     if (!result.name.empty()) {
         s += ",\"name\":";

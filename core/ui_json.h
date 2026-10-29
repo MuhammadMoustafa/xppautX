@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include "format_version.h"
 #include "xpp_error.h"
 #include "model_files.h"
 #include "comline.h"
@@ -10,8 +11,7 @@ namespace xpp {
 struct Session; /* session.h */
 
 /* line-delimited JSON front end (ui_json.cpp, docs/protocol.md) */
-/* the protocol's version, in hello (and the desktop window's About) */
-#define JSON_UI_PROTOCOL 4
+/* the protocol's version (format_version.h, the one number of the protocol and every file), in hello and the desktop window's About */
 #define JSON_UI_STR_(x) #x
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
 void json_ui_install(bool silent = false); /* protocol, or no interface */

@@ -1,4 +1,5 @@
 # tsthomi.odex: converted from tsthomi.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # test of homoclinic stuff
 fun f(x, y) = y

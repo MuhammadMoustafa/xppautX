@@ -1,4 +1,5 @@
 # wta.odex: converted from wta.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # a model used by the author to study complex dynamics in winner
 # take all neural networks change tau to 1.1 and then .25

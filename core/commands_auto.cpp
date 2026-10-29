@@ -710,13 +710,13 @@ constexpr std::array RESULT_BRANCH_ROWS = {ResultField{"rows_loaded", "integer"}
 constexpr std::array RESULT_SELECTED = {ResultField{"selected", "boolean"}};
 constexpr std::array RESULT_ORBITS_DRAWN = {ResultField{"orbits_drawn", "choice"}};
 
-constexpr std::array EVENTS_OPEN = {"window", "diagram", "state", "done"};
-constexpr std::array EVENTS_RUN = {"diagram", "autoinfo", "autosettings", "state", "done"};
-constexpr std::array EVENTS_GRAB = {"autoinfo", "diagram", "state", "done"};
-constexpr std::array EVENTS_SETTINGS = {"autosettings", "state", "done"};
-constexpr std::array EVENTS_DIAGRAM = {"diagram", "autoview", "state", "done"};
-constexpr std::array EVENTS_INFO = {"autoinfo", "diagram", "state", "done"};
-constexpr std::array EVENTS_BROWSER = {"state", "done"};
+constexpr std::array EVENTS_OPEN = {xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::AUTO_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array EVENTS_RUN = {xpp::events::AUTO_DIAGRAM, xpp::events::AUTO_INFO, xpp::events::AUTO_SETTINGS, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array EVENTS_GRAB = {xpp::events::AUTO_INFO, xpp::events::AUTO_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array EVENTS_SETTINGS = {xpp::events::AUTO_SETTINGS, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array EVENTS_DIAGRAM = {xpp::events::AUTO_DIAGRAM, xpp::events::AUTO_VIEW, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array EVENTS_INFO = {xpp::events::AUTO_INFO, xpp::events::AUTO_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array EVENTS_BROWSER = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"auto.open", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Open AUTO",

@@ -367,12 +367,12 @@ constexpr std::array COMPUTED_RESULTS = {ResultField{"computed", "boolean"}};
 constexpr std::array UPDATED_RESULTS = {ResultField{"updated", "boolean"}};
 constexpr std::array ADJOINT_RANGE_RESULTS = {ResultField{"adjoint_range", "boolean"}};
 
-constexpr std::array STATE_EVENTS = {"state", "done"};
-constexpr std::array RUN_EVENTS = {"computing", "progress", "series", "stopped", "state", "done"};
-constexpr std::array BROWSER_EVENTS = {"browser", "state", "done"};
-constexpr std::array SHOWN_EVENTS = {"browser", "plots", "series", "state", "done"};
-constexpr std::array PLOT_EVENTS = {"plots", "state", "done"};
-constexpr std::array DONE_EVENTS = {"done"};
+constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array RUN_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JOB_PROGRESS, xpp::events::PLOT_SERIES, xpp::events::JOB_STOPPED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array BROWSER_EVENTS = {xpp::events::BROWSER_UPDATED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array SHOWN_EVENTS = {xpp::events::BROWSER_UPDATED, xpp::events::PLOT_SHOWN, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array PLOT_EVENTS = {xpp::events::PLOT_SHOWN, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DONE_EVENTS = {xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"analysis.seed_random", SEED_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Analysis/Numerics/Stochastic/New seed",

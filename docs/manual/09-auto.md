@@ -54,7 +54,7 @@ back). It has:
 - a **stability circle** (`ui/AutoInfo.tsx`) below it, and a **status
   strip** (`ui/AutoStatus.tsx`) along the window's bottom edge, in place of
   the small square and info windows of the X11 AUTO window, from the
-  `autoinfo` event, in order of importance: branch, point, type, label,
+  `auto.info` event, in order of importance: branch, point, type, label,
   then what the diagram's axes show (the x axis's quantity, then the y
   axis's: the main parameter then the plotted variable, Norm or the
   period, or both parameters of a two-parameter diagram), then Norm, the
@@ -490,7 +490,7 @@ records it where AUTO decides it (autlib1.c's stplae and stplbv, and the
 "No convergence" notes of its fort.9) and says it in plain words: in the
 AUTO view's status strip once the run ends ("Stopped: ..."), as a line in
 Output for every branch that ends ("Branch 1 stopped at point 49: ..."),
-next to the end point's label when you hover it, and as `autoinfo`'s
+next to the end point's label when you hover it, and as `auto.info`'s
 `stop` for a client (docs/protocol.md). The reasons:
 
 | Stopped: | Why | What to change to go further |
@@ -518,7 +518,7 @@ has no continuation for (it names the problem, ISW and the start's type),
 a restart label that is not in the restart data, or restart data that end
 before what they should hold (the label, the file and the part).
 
-What a run loses on the way is a warning in Output (and `autoinfo`'s
+What a run loses on the way is a warning in Output (and `auto.info`'s
 `notes` for a client), the branch going on: a special point AUTO gave up
 locating ("Br 1 Pt 12: a fold (LP) between points 12 and 13 was not
 located (not in max_location_iterations = 8 iterations); it is missing from the diagram":

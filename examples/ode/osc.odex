@@ -1,4 +1,5 @@
 # osc.odex: converted from osc.ode by xppautX --convert (docs/odex.md)
+version 4
 # Source: XPPAUT 8.0's demo ode/osc.ode (W537 audit).
 
 par beta = 1.463, gam = 3.358, Input = 1.352, eps = 0.1, sigma = 0

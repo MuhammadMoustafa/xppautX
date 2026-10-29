@@ -1,4 +1,5 @@
 # clustor.odex: converted from clustor.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # clustering of weights in 1-d model
 # orientation - 6 populations

@@ -63,12 +63,12 @@ test('an error about a file the command could not read gets "Add file…"', () =
   let s = reduce(READY, {type: 'sent', cmd: {cmd:'session.import_settings',file:'x.set'}});
   s = reduce(s, {type: 'event', ev: fileAsk('read')});
   s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 7, file: 'gone.set'}});
-  s = reduce(s, {type: 'event', ev: {ev: 'message', error: 'Cannot open file'}});
+  s = reduce(s, {type: 'event', ev: {ev: 'session.message', error: 'Cannot open file'}});
   assert.equal(s.toasts[s.toasts.length - 1].action, undefined, 'the core names no file: no offer');
-  s = reduce(s, {type: 'event', ev: {ev: 'message', error: 'Cannot open file', file: 'gone.set'}});
+  s = reduce(s, {type: 'event', ev: {ev: 'session.message', error: 'Cannot open file', file: 'gone.set'}});
   const t = s.toasts[s.toasts.length - 1];
   assert.equal(t.action?.name, 'gone.set');
-  s = reduce(s, {type: 'event', ev: {ev: 'message', error: 'Cannot open file', file: '/home/u/models/gone.set', line: 0, col: 0, source: ''}});
+  s = reduce(s, {type: 'event', ev: {ev: 'session.message', error: 'Cannot open file', file: '/home/u/models/gone.set', line: 0, col: 0, source: ''}});
   assert.equal(s.toasts[s.toasts.length - 1].action?.name, 'gone.set', 'a path offers its file under its own name');
   assert.deepEqual(t.action?.run?.answers.map(a => a.fields.file), ['gone.set']);
   assert.ok(s.files.runFailed);

@@ -301,7 +301,7 @@ takes any text, as before.
 There is no per-view Abort button (upstream's Escape-to-abort still
 works from the keyboard). The status bar's **Stop** is the one control
 for whatever is running, in any view; it exists only while something
-runs and turns into a disabled "Stopping…" until the run's next idle
+runs and turns into a disabled "Stopping…" until the run's next `done`
 point. A view's own close (×) means "done with it": it stops a running
 job first, then closes; **Stop** itself keeps the view and whatever
 partial result it has (an interrupted AUTO branch ending on its last

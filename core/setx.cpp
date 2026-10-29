@@ -92,6 +92,15 @@ bool Block::whole(std::string_view key, int &v)
     return true;
 }
 
+void Block::require_version(std::string_view kind)
+{
+    if (!has(version_word))
+        fail(xpp::format("it has no `{}`: this program reads {} of version {}", version_word, kind, format_version));
+    int found = 0;
+    whole(version_word, found);
+    if (found != format_version) fail(*member(version_word), wrong_version(found, kind));
+}
+
 bool Block::flag(std::string_view key, bool &v)
 {
     const Member *m = take(key);

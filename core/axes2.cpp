@@ -34,15 +34,6 @@ void Frame_3d(xpp::Session &s);
 void draw_ytics(xpp::Session &s, const char *s1, double start, double incr, double end);
 void draw_xtics(xpp::Session &s, const char *s2, double start, double incr, double end);
 
-/* "y vs x", or "z vs y vs x" in 3D */
-std::string make_title(const xpp::Session &s)
-{
-  const auto *g=s.plot_windows.current;
-  if(g->grtype>=5)
-    return xpp::format("{} vs {} vs {}",xpp::ind_to_sym(s,g->zv[0]),xpp::ind_to_sym(s,g->yv[0]),xpp::ind_to_sym(s,g->xv[0]));
-  return xpp::format("{} vs {}",xpp::ind_to_sym(s,g->yv[0]),xpp::ind_to_sym(s,g->xv[0]));
-}
-
 double dbl_raise(double x, int y)
 {
 int i;
@@ -86,9 +77,13 @@ void find_max_min_tic(double *tmin, double *tmax, double tic)
  
 } // namespace
 
-void re_title(xpp::Session &s)
+/* "y vs x", or "z vs y vs x" in 3D */
+std::string plot_title(const xpp::Session &s)
 {
-  title_text(make_title(s));
+  const auto *g=s.plot_windows.current;
+  if(g->grtype>=5)
+    return xpp::format("{} vs {} vs {}",xpp::ind_to_sym(s,g->zv[0]),xpp::ind_to_sym(s,g->yv[0]),xpp::ind_to_sym(s,g->xv[0]));
+  return xpp::format("{} vs {}",xpp::ind_to_sym(s,g->yv[0]),xpp::ind_to_sym(s,g->xv[0]));
 }
 
 void do_axes(xpp::Session &s)
@@ -96,8 +91,6 @@ void do_axes(xpp::Session &s)
     const std::string s1(xpp::ind_to_sym(s,s.plot_windows.current->xv[0]));
     const std::string s2(xpp::ind_to_sym(s,s.plot_windows.current->yv[0]));
     set_pen(s,foreground_color,LineStyle{});
-    if(program.interactive){  re_title(s);
-    }
 
     switch(s.plot_windows.current->grtype)
     {

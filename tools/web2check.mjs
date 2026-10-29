@@ -104,6 +104,8 @@ for (let i = 2; i < process.argv.length; i++) {
   else opt[a.replace(/^--/, '')] = process.argv[++i];
 }
 const bin = path.resolve(top, opt.bin);
+/* a model's text as its reader takes it: the format version first (core/format_version.h; every position the core reports is then a line further) */
+const versioned = text => `version 4\n${text}`;
 const ODE = path.join(top, 'examples/ode/lecar.odex');
 const LIVE = path.join(top, 'tools/models/live.odex');
 /* a live command's error as the page shows it (errorText), its place first: a protocol line
@@ -666,8 +668,8 @@ async function sliderModelSwitch(dir) {
         && s.core.sliders.filter(d => d.name).length === 1`), JSON.stringify(await S('s.values.sliders')));
   }
   const native = 'w317-sliders.odex';
-  fs.writeFileSync(path.join(dir, native), "par a=1\nx'=0\ninit x=0\noptions { interface: { sliders: [" +
-    [2, 3, 4, 5, 6].map(high => `{ name: a, low: 0, high: ${high} }`).join(', ') + " ] } }\n");
+  fs.writeFileSync(path.join(dir, native), versioned("par a=1\nx'=0\ninit x=0\noptions { interface: { sliders: [" +
+    [2, 3, 4, 5, 6].map(high => `{ name: a, low: 0, high: ${high} }`).join(', ') + " ] } }\n"));
   await openFile(native);
   await until("s.ask?.kind === 'choice'", 'save before native Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
@@ -982,7 +984,7 @@ async function keyboardOnly() {
    shows and hides each, and Erase clears them */
 async function phasePlane() {
   check('T7: the page connects and asks for nullclines and dfield', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'events.subscribe' && c.events.includes('nullclines') && c.events.includes('dfield'))`));
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'events.subscribe' && c.events.includes('nullcline.curves') && c.events.includes('dirfield.field'))`));
   const layer = key => cdp.eval(`(__xpp.plot().layers.find(l => l.key === '${key}') || null)`);
   const legend = label => cdp.eval(`(() => { const b = [...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')]
     .find(b => b.textContent.trim() === ${JSON.stringify(label)}); if (b) b.click(); return b ? b.getAttribute('aria-pressed') : null; })()`);
@@ -2558,10 +2560,10 @@ async function busyKeys() {
   const runPars = await S('JSON.stringify(s.core.pars)');
   await focusPlot();
   await cdp.eval(`document.querySelector('[data-run=stop]').click()`);
-  const stopped = await until(`__xpp.actions().slice(${n0}).some(e => e === 'event:idle' || e === 'event:done') && !s.busy`, 'the run stopped', 30000);
+  const stopped = await until(`__xpp.actions().slice(${n0}).some(e => e === 'event:done') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
   const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'value.set_parameters' && c !== 'nullcline.set_mesh')`);
-  const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:stopped')`);
+  const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:job.stopped')`);
   check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the run kept its values (the state '
     + 'during it had the parameters it started with)',
     stopped && cancelled && out.length === 0 && JSON.parse(runPars).find(p => p[0] === 'iapp')[1] === 0.05,
@@ -3571,7 +3573,7 @@ async function valuesJacobian(dir) {
     && JSON.stringify((await S(`__xpp.sentFrom(${sent})`)).filter(c => c.cmd === 'set'))
       === JSON.stringify([{cmd: 'set', kind: 'num', name: 'jacobian', text: 'exact'}]),
     JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
-  fs.writeFileSync(path.join(dir, 'w260noise.odex'), "par a = 1\nx' = -a*x + ran(1)\n");
+  fs.writeFileSync(path.join(dir, 'w260noise.odex'), versioned("par a = 1\nx' = -a*x + ran(1)\n"));
   await openFile('w260noise.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
@@ -3584,9 +3586,9 @@ async function valuesJacobian(dir) {
   await until(`!s.busy && !!s.numerics.find(f => f.key === 'jacobian')?.unavailable`, 'the refusal');
   check('W260: choosing exact there is refused, then shows exact disabled, and why, at its line',
     JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', true]])
-    && await cdp.eval(`${hint}?.textContent`) === 'No Exact Jacobian: w260noise.odex:2:1: uses random numbers',
+    && await cdp.eval(`${hint}?.textContent`) === 'No Exact Jacobian: w260noise.odex:3:1: uses random numbers',
     JSON.stringify([await options(), await cdp.eval(`${hint}?.textContent`)]));
-  fs.writeFileSync(path.join(dir, 'w379wiener.odex'), "wiener w\nx' = w\n");
+  fs.writeFileSync(path.join(dir, 'w379wiener.odex'), versioned("wiener w\nx' = w\n"));
   await openFile('w379wiener.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
@@ -4287,8 +4289,8 @@ async function animation() {
   await desktopMetrics();
   check('ani: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
   check('ani: the server offers the ani data event and the page asks for it',
-    await S(`s.hello.features.includes('ani')`)
-    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'events.subscribe' && c.events.includes('ani')));
+    await S(`s.hello.features.includes('animation.frame')`)
+    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'events.subscribe' && c.events.includes('animation.frame')));
   check('ani: integrate first (601 rows)', await integrate(601, 30000));
 
   /* the title bar's Animation button: Viewaxes/Toon opens the core's window, the panel shows */
@@ -4570,7 +4572,7 @@ async function startScreenCheck() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-start-'));
   const gone = path.join(dir, 'gone.odex');
   fs.mkdirSync(path.join(dir, 'xpp-config'));
-  fs.writeFileSync(path.join(dir, 'xpp-config', 'preferences.setx'), `recent_models: [${[ODE, gone].map(p => JSON.stringify(p)).join(', ')}],\n`);
+  fs.writeFileSync(path.join(dir, 'xpp-config', 'preferences.setx'), `version: 4,\nrecent_models: [${[ODE, gone].map(p => JSON.stringify(p)).join(', ')}],\n`);
   const server = await startServer(bin, dir, []);
   try {
     await cdp.eval('window.__left = true').catch(() => {});
@@ -4657,7 +4659,7 @@ async function startScreenExamplesCheck() {
    and continue" on its error; the button sends the core's commands and the
    run ends where it was going, with differences. */
 async function jacobianOfferCheck(dir) {
-  fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), "x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian: exact } }\n");
+  fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), versioned("x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian: exact } }\n"));
   await openFile('w260sqrt.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
@@ -4679,7 +4681,7 @@ async function jacobianOfferCheck(dir) {
 
   /* W275: the same in an AUTO run. The branch x = 0 of x' = (a-1)x + (sqrt(x*x) below a = 0.5) has an
      infinite slope there: the run stops on an end point, and the button restarts from its label */
-  fs.writeFileSync(path.join(dir, 'w275root.odex'), "par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { integration: { jacobian: exact, total_time: 1 } }\n");
+  fs.writeFileSync(path.join(dir, 'w275root.odex'), versioned("par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { integration: { jacobian: exact, total_time: 1 } }\n"));
   await openFile('w275root.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
@@ -5340,7 +5342,7 @@ async function main() {
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (typed_values.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
-    if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:2:1: uses random numbers')]);
+    if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:3:1: uses random numbers')]);
     if (run('values')) await session(ODE, equilibriumSettings);
     if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('Argument "values.gca" must be a finite number')]);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
@@ -5351,8 +5353,8 @@ async function main() {
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
     if (run('errordialog')) await session(ODE, jacobianOfferCheck,
-      ["w260sqrt.odex:1:1: the exact Jacobian's dX'/dX is inf at t=0 (X=0), where X' is 1: switch the Numerics' Jacobian to difference",
-       "w275root.odex:2:1: AUTO stopped: the exact Jacobian's dX'/dX is nan at t=0 (X=0), where X' is 0: switch the Numerics' Jacobian to difference (AUTO at a=0.4999998999999997)"]);
+      ["w260sqrt.odex:2:1: the exact Jacobian's dX'/dX is inf at t=0 (X=0), where X' is 1: switch the Numerics' Jacobian to difference",
+       "w275root.odex:3:1: AUTO stopped: the exact Jacobian's dX'/dX is nan at t=0 (X=0), where X' is 0: switch the Numerics' Jacobian to difference (AUTO at a=0.4999998999999997)"]);
     if (run('startscreen')) { await startScreenCheck(); await startScreenExamplesCheck(); }
     if (run('loaderror')) {
       await loadErrorCheck();

@@ -1,7 +1,7 @@
 /* What an action is, and so whether it may start now (W95, docs/protocol.md
    "Action kinds"). The core defines every command's kind once, in the registry
    (core/command_def.h), and sends it in `hello.commands`. Only a running computation (the
-   core's `computing` event, until the command's idle) or an open question
+   core's `computing` event, until the command's done) or an open question
    disables anything; the page's own catch-up commands never do. */
 import type {Command, HelloEvent, StateEvent} from './types';
 

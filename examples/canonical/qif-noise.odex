@@ -1,4 +1,5 @@
 # qif-noise.odex: converted from qif-noise.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # qif-noise.ode
 # noisy qif that keeps track of spike times and ISI

@@ -1,5 +1,6 @@
 /* keymap.json: see xpp_keymap.h. */
 #include "xpp_keymap.h"
+#include "format_version.h"
 
 #include "command_def.h"
 #include "json_error.h"
@@ -97,10 +98,13 @@ public:
         const char *cursor = top, *value = nullptr;
         while (json::js_member(cursor, key, value)) {
             if (!seen.insert(key).second) fail(value, xpp::format("{} is given twice", quoted(key)));
-            if (key == "bindings") read_bindings(value, map);
+            if (key == version_word) read_version(value);
+            else if (key == "bindings") read_bindings(value, map);
             else if (key == "pinned") read_pinned(value, map);
-            else fail(value, xpp::format("unknown setting {} (the settings are bindings and pinned)", quoted(key)));
+            else fail(value, xpp::format("unknown setting {} (the settings are version, bindings and pinned)", quoted(key)));
         }
+        if (!seen.contains(std::string(version_word)))
+            fail(top, xpp::format("it has no \"{}\": this program reads keymaps of version {}", version_word, format_version));
         check_clashes(map);
         return map;
     }
@@ -140,6 +144,14 @@ private:
         const command::Command *row = command::find(id);
         if (!row) fail(at, xpp::format("unknown command {}", quoted(id)));
         return *row;
+    }
+
+    void read_version(const char *v) const
+    {
+        const std::string_view raw = json::js_raw(v);
+        int found = 0;
+        if (!xpp::parse_int(raw, found)) fail(v, xpp::format("the version is a whole number, not {}", shown(v)));
+        if (found != format_version) fail(v, wrong_version(found, "keymaps"));
     }
 
     void read_bindings(const char *v, Keymap &map)
@@ -235,7 +247,7 @@ void append_strings(std::string &out, const std::vector<std::string> &strings, s
 
 std::string serialize(const Keymap &map)
 {
-    std::string out = "{\n  \"pinned\": [";
+    std::string out = xpp::format("{{\n  \"{}\": {},\n  \"pinned\": [", version_word, format_version);
     append_strings(out, map.pinned, ", ");
     out += "],\n  \"bindings\": {";
     bool first = true;
@@ -258,14 +270,6 @@ std::vector<std::string> effective_keys(const Keymap &map, std::string_view id)
     if (const command::Command *row = command::find(id))
         for (const char *key : row->default_keys) keys.emplace_back(key);
     return keys;
-}
-
-std::string command_on_key(const Keymap &map, std::string_view key)
-{
-    for (const command::Command *row : command::rows())
-        for (const std::string &bound : effective_keys(map, row->name))
-            if (bound == key) return row->name;
-    return {};
 }
 
 std::string path() { return files::config_path(FILE_NAME); }

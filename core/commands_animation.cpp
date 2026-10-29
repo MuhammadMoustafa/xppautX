@@ -155,9 +155,9 @@ constexpr std::array LIVE_RESULTS = {ResultField{"live_draw", "boolean"}};
 constexpr std::array GRAB_RESULTS = {ResultField{"grabbed", "boolean"}};
 constexpr std::array ROW_RESULTS = {ResultField{"row", "integer"}};
 constexpr std::array SPEED_RESULTS = {ResultField{"speed_ms", "integer"}};
-constexpr std::array WINDOW_EVENTS = {"window", "ani", "state", "done"};
-constexpr std::array ANI_EVENTS = {"ani", "state", "done"};
-constexpr std::array GRAB_EVENTS = {"ani", "series", "state", "done"};
+constexpr std::array WINDOW_EVENTS = {xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::ANIMATION_STATE, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array ANI_EVENTS = {xpp::events::ANIMATION_STATE, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array GRAB_EVENTS = {xpp::events::ANIMATION_STATE, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"animation.open", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Viewaxes/Toon",

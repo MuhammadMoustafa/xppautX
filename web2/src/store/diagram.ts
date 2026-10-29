@@ -66,11 +66,11 @@ export interface DiagramRun {
 }
 
 export type DiagramEvent =
-  | ({ev: 'diagram'; op: 'axes'; view: string} & DiagramAxes)
-  | ({ev: 'diagram'; op: 'reset'; view: string; keep: number} & DiagramAxes)
-  | {ev: 'diagram'; op: 'add'; view: string; from: number; runs: DiagramRun[]}
+  | ({ev: 'auto.diagram'; op: 'axes'; view: string} & DiagramAxes)
+  | ({ev: 'auto.diagram'; op: 'reset'; view: string; keep: number} & DiagramAxes)
+  | {ev: 'auto.diagram'; op: 'add'; view: string; from: number; runs: DiagramRun[]}
   /** the diagram has `n` views now (W50) */
-  | {ev: 'diagram'; op: 'views'; n: number; names: string[]};
+  | {ev: 'auto.diagram'; op: 'views'; n: number; names: string[]};
 
 /** the points, one column per field, point i across them (NaN for null).
     A run's `add`s put their points after the last ones in place, as
@@ -173,7 +173,7 @@ export interface AutoRunStart {
 }
 
 export interface AutoInfoEvent {
-  ev: 'autoinfo';
+  ev: 'auto.info';
   start?: AutoRunStart | null;
   info: AutoInfo | null;
   stab: AutoStab | null;

@@ -1,4 +1,5 @@
 # fancylorenz.odex: converted from fancylorenz.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # the lorenz equations
 # with some fancy graphics options

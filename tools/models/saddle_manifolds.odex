@@ -1,3 +1,4 @@
+version 4
 # W533: a saddle at the origin, x unstable and y stable; both manifolds are exported, each from its own start.
 x' = x
 y' = -y

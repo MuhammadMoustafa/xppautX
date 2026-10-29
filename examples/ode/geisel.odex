@@ -1,4 +1,5 @@
 # geisel.odex: converted from geisel.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # an example due to Geisel with 1/f spectral properties
 par a = 1.5, b = 0.5

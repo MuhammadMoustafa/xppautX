@@ -1,5 +1,6 @@
 // W436 (#498): independent derivatives of a polynomial fold system.
 #include "load_args.h"
+#include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
 #include "auto_c.h"
@@ -17,7 +18,7 @@ int main()
     xpp::TempDir temp;
     std::string path = temp.path() + "/fold.odex";
     auto writer = xpp::Writer::binary(path);
-    CHECK(writer.write("x'=x*x*x+a*y\ny'=y*y+b*x\npar a=2,b=3\ninit x=1,y=2\n") && writer.commit());
+    CHECK(writer.write(versioned("x'=x*x*x+a*y\ny'=y*y+b*x\npar a=2,b=3\ninit x=1,y=2\n")) && writer.commit());
     char name[] = "test_auto_fold";
     char *argv[] = {name, path.data(), nullptr};
     CHECK(load_args(2, argv, 1).has_value());
@@ -99,7 +100,7 @@ int main()
     // but every parameter change (including the sign of zero) invalidates them.
     path = temp.path() + "/derived.odex";
     auto derived_writer = xpp::Writer::binary(path);
-    CHECK(derived_writer.write("d=a*b\nx'=d*x\npar a=2,b=3\ninit x=1\n") && derived_writer.commit());
+    CHECK(derived_writer.write(versioned("d=a*b\nx'=d*x\npar a=2,b=3\ninit x=1\n")) && derived_writer.commit());
     argv[1] = path.data();
     CHECK(load_args(2, argv, 1).has_value());
     auto &derived = xpp::client_session();

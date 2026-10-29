@@ -1,4 +1,5 @@
 # nthet.odex: converted from nthet.ode by xppautX --convert (docs/odex.md)
+version 4
 
 c[j] = cos(x[j]) for j in 0..99
 # stot=sum(0,99)of(shift(s0,i'))/100

@@ -1,4 +1,5 @@
 # lamomeg.odex: converted from lamomeg.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # the normal form of a Hopf bifurcation lamomeg.ode
 # Boundary conditions are periodic and there is

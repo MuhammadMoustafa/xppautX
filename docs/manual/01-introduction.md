@@ -341,8 +341,7 @@ the menu/dialog-to-section map.
 In a `--server` session, type `help` to list commands on the typed registry,
 or `help help` for one command's arguments and result. The JSON equivalents
 are `{"cmd":"help"}` and `{"cmd":"help","name":"help"}`.
-A registry request finishes with a `done` event; existing commands still
-finish with `idle`. The registry includes named plot-window management; use `help window.rename`
+Every command finishes with one `done` event. The registry includes named plot-window management; use `help window.rename`
 for the rename command. See the [protocol reference](../protocol.md#typed-command-registry-w353-stage-1).
 
 The File menu's operations are registry commands too, so a script can do

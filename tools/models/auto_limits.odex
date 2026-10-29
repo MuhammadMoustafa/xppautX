@@ -1,4 +1,5 @@
 # auto_limits.odex: converted from auto_limits.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # W298: generated 401 independent equilibria and 40 parameters; x400=p39.
 par p0 = 0

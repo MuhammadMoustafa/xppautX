@@ -36,6 +36,7 @@
 #include "grobs.h"
 #include "diagram.h"
 #include "data_event.h"
+#include "event_registry.h"
 #include "event_streams.h"
 #include "auto_data.h"
 #include "auto_settings.h"
@@ -141,7 +142,7 @@ struct ProtocolSession {
     std::vector<ClientDiagramView> client_diagram{1}; /* the lists the client holds, one per view */
     bool diagram_subscribed = true; /* diagrams are sent until a client explicitly opts out */
     /* the heavy data events the client subscribed to (event_streams.h's names, in its order) and whether their arrays go as float32 */
-    std::array<bool, xpp::event_streams::NAMES.size()> subscribed{};
+    std::array<bool, xpp::events::STREAMS.size()> subscribed{};
     bool subscribed_f32 = false;
     /* the line json_ui_push_open pushed, until handle_line takes it: its path came from the operating system's own dialog */
     std::mutex own_open_lock;
@@ -175,10 +176,10 @@ int control_line(xpp::Session &s, const char *line);   /* a control line taken b
    a job runs, by a checkpoint or a question's wait. Once the job has begun
    computing it is kept for after the job, as a command of its own
    (defer_line): it applies then, with its error if it is not valid, state
-   and idle, before any other command; the computation runs on with the
+   and done, before any other command; the computation runs on with the
    values it started with. A `set` taken before any computation (a
    question still open, the animation's Go) applies at once, and still ends
-   with its own state and idle after the job, so a client counts one idle
+   with its own state and done after the job, so a client counts one done
    per setting whenever it sends one. */
 void take_setting(xpp::Session &s, const char *line);
 xpp::inbox::Verdict during_run(const char *line);     /* what a running computation takes (ui_json.cpp) */
@@ -310,7 +311,7 @@ bool out_wanted();
 void out_flush(void);
 void flush_pending(void);
 void send_buf(std::string &b);
-void send_simple(const char *ev, const char *key = nullptr, std::string_view text = {});
+void send_simple(std::string_view ev, const char *key = nullptr, std::string_view text = {});
 void json_flush(void);
 /* a data module's event line (plot_data, phase_data, marks_data, ani_data);
    the (line, n) form is the emit of auto_data, auto_settings and
@@ -372,7 +373,7 @@ int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y);
 /* an error as an event: `ev` ("message", or "error" for a model that does
    not load) with its what and its place, the fields every error event
    carries (docs/protocol.md "Errors") */
-void send_error(const char *ev, const xpp::Error &e);
+void send_error(std::string_view ev, const xpp::Error &e);
 /* the XppUi err_msg: e as a `message` event */
 void j_err_msg(const xpp::Error &e);
 /* the XppUi command_place: the recording's step that plays */
@@ -384,7 +385,6 @@ void j_ping(void);
 void j_bottom_msg(int line, std::string_view msg, std::string_view chapter, std::string_view anchor);
 void j_message_box(std::string_view msg);
 void j_kill_message_box(void);
-void j_title_text(std::string_view s);
 int j_dialog(std::string_view title, std::string_view name, std::string &value, std::string_view ok,
              std::string_view cancel, int kind);
 int j_new_string(std::string_view name, std::string &value, int kind);
@@ -435,7 +435,7 @@ void state_forget(void); /* what the model before showed (its last equilibrium) 
 /* ---- json_windows.cpp ---- */
 
 void send_main_window(const xpp::Session &s,const char *title);
-void send_window(const char *what, std::string_view name, int w, int h, std::string_view title = {}, std::string_view kind = "graph");
+void send_window(std::string_view event, std::string_view name, int w, int h, std::string_view title = {}, std::string_view kind = "graph");
 void j_window_selected(xpp::Session &s, std::string_view name, std::string_view kind);
 void j_window_renamed(xpp::Session &s, std::string_view old_name, std::string_view new_name);
 void j_auto_closed(xpp::Session &s, std::string_view name);

@@ -1,6 +1,6 @@
 /* AUTO's settings as data (docs/ui-v2.md T22, store/autoSettings.ts): the
    event into the store, edits sent at once (settings, W106) and shown
-   until their set's idle, what the forms show, the core's rules (the event's) checked in the
+   until their set's done, what the forms show, the core's rules (the event's) checked in the
    page with the core's messages. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
@@ -56,17 +56,17 @@ const settings: AutoSettings = {
 };
 
 test('codim-2 detection booleans stay named while queued', () => {
-  const core = ev(READY, {ev: 'autosettings', ...settings});
+  const core = ev(READY, {ev: 'auto.settings', ...settings});
   const sent = act(core, {type: 'sent', patch: {special_points: {generalized_hopf: false}}, ahead: 0});
   assert.equal(shownSettings(sent.autoSettings)!.special_points.generalized_hopf, false);
   assert.equal(shownSettings(sent.autoSettings)!.special_points.bogdanov_takens, true);
   assert.ok(pendingFields(sent.autoSettings).has('special_points.generalized_hopf'));
 });
 
-test('the event is the store; an edit sent during a run shows until its own idle', () => {
-  let s = ev(READY, {ev: 'autosettings', ...settings});
-  assert.deepEqual(s.autoSettings.core, {ev: 'autosettings', ...settings});
-  /* sent during a computation: one idle (the run's) ahead of each set's own */
+test('the event is the store; an edit sent during a run shows until its own done', () => {
+  let s = ev(READY, {ev: 'auto.settings', ...settings});
+  assert.deepEqual(s.autoSettings.core, {ev: 'auto.settings', ...settings});
+  /* sent during a computation: one done (the run's) ahead of each set's own */
   s = act(s, {type: 'sent', patch: {numerics: {max_steps: 20}}, ahead: 1});
   s = act(s, {type: 'sent', patch: {numerics: {output_every: 5}, axes: {plot: 'norm', fit: true}}, ahead: 2});
   s = act(s, {type: 'sent', patch: {numerics: {max_steps: 25}}, ahead: 3});
@@ -75,31 +75,31 @@ test('the event is the store; an edit sent during a run shows until its own idle
   assert.ok(!('fit' in shown.axes));
   assert.deepEqual([...pendingFields(s.autoSettings)].sort(), ['axes.plot', 'numerics.max_steps', 'numerics.output_every']);
   assert.deepEqual(autoSettingsCommands({numerics: {max_steps: 25}}).map(c => c.command), [{cmd: 'auto.configure_numerics', max_steps: 25}]);
-  /* the run's idle, then each set's own: the event has the core's values */
-  s = ev(s, {ev: 'idle'});
+  /* the run's done, then each set's own: the event has the core's values */
+  s = ev(s, {ev: 'done', status: 'ok'});
   assert.equal(shownSettings(s.autoSettings)!.numerics.max_steps, 25, 'still shown after the run ends');
-  s = ev(s, {ev: 'autosettings', ...settings, numerics: {...settings.numerics, max_steps: 20}});
-  s = ev(s, {ev: 'idle'});
-  s = ev(s, {ev: 'autosettings', ...settings, numerics: {...settings.numerics, max_steps: 20, output_every: 5}});
-  s = ev(s, {ev: 'idle'});
-  s = ev(s, {ev: 'autosettings', ...settings, numerics: {...settings.numerics, max_steps: 25, output_every: 5}});
-  s = ev(s, {ev: 'idle'});
+  s = ev(s, {ev: 'auto.settings', ...settings, numerics: {...settings.numerics, max_steps: 20}});
+  s = ev(s, {ev: 'done', status: 'ok'});
+  s = ev(s, {ev: 'auto.settings', ...settings, numerics: {...settings.numerics, max_steps: 20, output_every: 5}});
+  s = ev(s, {ev: 'done', status: 'ok'});
+  s = ev(s, {ev: 'auto.settings', ...settings, numerics: {...settings.numerics, max_steps: 25, output_every: 5}});
+  s = ev(s, {ev: 'done', status: 'ok'});
   assert.deepEqual(s.autoSettings.inflight, []);
   assert.equal(pendingFields(s.autoSettings).size, 0);
   assert.equal(shownSettings(s.autoSettings)!.numerics.max_steps, 25);
 });
 
 test("a refused set: the core's error is the forms', until the next edit", () => {
-  let s = ev(READY, {ev: 'autosettings', ...settings});
+  let s = ev(READY, {ev: 'auto.settings', ...settings});
   s = act(s, {type: 'sent', patch: {numerics: {collocation_points: 9}}, ahead: 0});
-  s = ev(s, {ev: 'message', error: 'AUTO settings: Collocation points must be a whole number from 2 to 7'});
-  s = ev(s, {ev: 'idle'});
+  s = ev(s, {ev: 'session.message', error: 'AUTO settings: Collocation points must be a whole number from 2 to 7'});
+  s = ev(s, {ev: 'done', status: 'ok'});
   assert.match(s.autoSettings.error!, /Collocation points/);
   assert.equal(shownSettings(s.autoSettings)!.numerics.collocation_points, 4);
   s = act(s, {type: 'sent', patch: {numerics: {collocation_points: 5}}, ahead: 1});
   assert.equal(s.autoSettings.error, null);
   /* an error with no set of the forms' running is not theirs */
-  s = ev(s, {ev: 'message', error: 'AUTO settings: nope'});
+  s = ev(s, {ev: 'session.message', error: 'AUTO settings: nope'});
   assert.equal(s.autoSettings.error, null);
 });
 

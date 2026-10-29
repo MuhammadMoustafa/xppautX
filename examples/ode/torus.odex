@@ -1,4 +1,5 @@
 # torus.odex: converted from torus.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # A differential equation on the Torus.  Use the "phAse spc" option to
 #  integrate it.

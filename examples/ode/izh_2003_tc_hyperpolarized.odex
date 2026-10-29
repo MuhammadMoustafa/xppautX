@@ -1,4 +1,5 @@
 # izh_2003_tc_hyperpolarized.odex: converted from izh_2003_tc_hyperpolarized.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # Izhikevich's simple model of a spiking neuron: thalamo-cortical (TC), hyperpolarized start.
 # Izhikevich E.M. (2003) Simple model of spiking neurons. IEEE Trans. Neural Networks 14(6):1569-1572, Fig. 2, TC, right trace, starts at v=-87.

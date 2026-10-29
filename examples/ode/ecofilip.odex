@@ -1,4 +1,5 @@
 # ecofilip.odex: converted from ecofilip.ode by xppautX --convert (docs/odex.md)
+version 4
 
 par p = 0.3, e = 1
 par a = 1, c = 1, d1 = 1, d2 = 1, q = 1, b = 3

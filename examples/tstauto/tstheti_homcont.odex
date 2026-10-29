@@ -1,3 +1,4 @@
+version 4
 # Source: derived from XPPAUT 8.0's demo ode/tstheti.ode (W345), a planar Nagumo front; the HomCont setup is ours (W537 audit).
 # W345 (#406): tstheti's planar system for AUTO/HomCont, IPS=9.
 # AUTO supplies interval scaling, equilibrium equations, projections and phase.

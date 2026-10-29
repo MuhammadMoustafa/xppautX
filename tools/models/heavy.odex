@@ -1,4 +1,5 @@
 # heavy.odex: converted from heavy.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # A deliberately slow model for the abort tests (tools/autocheck.py):
 # a Hopf normal form driving six stiff slaves, with a right-hand side made

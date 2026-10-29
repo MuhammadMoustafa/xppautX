@@ -1,5 +1,6 @@
 /* One protocol rendering of Error's fields, including its place. */
 #include "json_error.h"
+#include "event_registry.h"
 #include "xpp_io.h"
 
 namespace xpp::json {
@@ -21,9 +22,9 @@ void append_error(std::string &out, const xpp::Error &error)
     out += "]}";
 }
 
-std::string error_event(const char *ev, const xpp::Error &error)
+std::string error_event(std::string_view ev, const xpp::Error &error)
 {
-    std::string event = xpp::format("{{\"ev\":\"{}\"", ev);
+    std::string event = xpp::events::open(ev);
     append_error(event, error);
     event += '}';
     return event;

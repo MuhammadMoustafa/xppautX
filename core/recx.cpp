@@ -87,7 +87,7 @@ Result<std::string> text(const Recording &r)
     };
     setx::Out header;
     header.begin(header_group);
-    header.whole("version", format_version);
+    header.whole(version_word, format_version);
     header.text("program", r.program);
     header.text("model", r.model);
     header.text("recorded", r.recorded);
@@ -143,10 +143,7 @@ Result<Read> read(std::string_view text, std::string file)
         }
         Result<int> parsed = setx::read_block("recording", l.file(), header, true, [&r](setx::Block &file) {
             setx::Block g = *file.group(header_group);
-            int version = 0;
-            g.whole("version", version);
-            if (version != format_version)
-                g.fail(*g.member("version"), xpp::format("version {}: this program reads recordings of version {}", version, format_version));
+            g.require_version("recordings");
             g.text("program", r.program);
             g.text("model", r.model);
             if (!odex::is_odex(r.model)) g.fail(*g.member("model"), "a recording stores an .odex model only; .ode is refused");

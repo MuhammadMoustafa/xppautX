@@ -1,4 +1,5 @@
 # lecsimp2.odex: converted from lecsimp2.ode by xppautX --convert (docs/odex.md)
+version 4
 
 par iapp = 0, phi = 0.333
 par va = -0.01, vb = 0.15, vc = 0.1, vd = 0.145, gca = 1

@@ -60,7 +60,7 @@ export function Plots({dark}: {dark: boolean}) {
   const tabOff = !may({cmd:'window.select',window:active});
   const windowOff = !may({cmd:'window.create'}); /* Makewindow */
   const tabs = useRef<HTMLDivElement>(null);
-  /* the tab a key picked: a pick while the core is busy is held for its idle
+  /* the tab a key picked: a pick while the core is busy is held for its done
      (session.selectWindow); the tab the key picked gets the focus once it is
      the active one, so the next key is the tabs' again, not an XPP hotkey (W93) */
   const keyPicked = useRef<string | null>(null);

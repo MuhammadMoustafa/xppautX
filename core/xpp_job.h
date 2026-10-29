@@ -27,6 +27,9 @@ namespace xpp::job {
    job then gets a number after every cancel so far. */
 void begin(unsigned long seq);
 void end();
+/* the number of the job running, or of the last one when none runs (core thread): what job.computing, an ask and the
+   done that ends the job carry, so a client tells the job's own end from a control command's done mid-run */
+unsigned long number();
 
 /* true while a job runs. Any thread; the protocol's classifier asks it. */
 bool running();

@@ -1,4 +1,5 @@
 # dae_ex2.odex: converted from dae_ex2.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # dae_ex2.ode
 x' = xp

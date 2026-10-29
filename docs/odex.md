@@ -118,6 +118,13 @@ JSON/no-write contract; `verify.sh` runs it too.
 
 ## Statements
 
+**The version comes first** (W529, Discussion #415 decision 9): a model file, and every file it imports, starts
+(after any comments) with `version 4`, the one format number of the protocol and of every file of ours
+(core/format_version.h). A file with no `version` statement, or with another number, is refused at its first line
+naming both versions (`version 3: this program reads model files of version 4`); there is no upgrader. `--convert`
+writes the statement after its header comment; a file written beside a model (File/Export values) starts with it.
+`version` is no reserved word: it is the statement only where the file starts.
+
 `.odex` keeps the same statements as `.ode`, spelled with `.odex`'s own
 grammar:
 
@@ -333,7 +340,8 @@ allow large models while bounding compact hostile input's expansion.
 
 ## Settings files (.setx)
 
-A settings file, `name.setx` (W284, [#344](https://github.com/MuhammadMoustafa/xppautX/issues/344);
+A settings file, `name.setx` (its first entry is `version: 4,`: W529; the session's own members, whose
+`session.setx` has the version, do not repeat it; W284, [#344](https://github.com/MuhammadMoustafa/xppautX/issues/344);
 design in [Discussion #341](https://github.com/MuhammadMoustafa/xppautX/discussions/341)),
 holds what XPPAUT's `.set` held (the parameters, the initial values, the
 numerics, the delays, the boundary conditions, the active window's graphics),
@@ -481,7 +489,7 @@ by STEP`:
 ## Grammar (EBNF)
 
 ```ebnf
-model        = { statement } ;
+model        = "version" , integer , { statement } ;
 statement    = ( ode_decl | par_decl | const_decl | init_decl | aux_decl
              | fixed_decl | fun_decl | option_decl | set_decl | table_decl
              | markov_decl | wiener_decl | event_decl | boundary_decl
@@ -932,7 +940,7 @@ Native AUTO session diagrams likewise write calculation and curve names
 `options { animation: "pend.anix" }` names a companion in the model's own
 folder. This companion key belongs directly in `options`, outside the settings groups.
 The value is a quoted `.anix` base name, never a path or link. An animation
-can name its model with `model: "pend.odex"`. Opening either loads the pair (the
+starts with `version: 4` and can name its model with `model: "pend.odex"`. Opening either loads the pair (the
 model's own animation into a hidden window, shown on request);
 a missing or bad linked animation is refused whole, its error shown with its place, and the model loads without it. A session bundles its open
 animation as a model companion member. Shapes reuse this grammar's tokens,

@@ -14,6 +14,7 @@
 #include <string>
 #include <string_view>
 
+#include "event_registry.h"
 #include "numerics_settings.h"
 #include "xpp_util.h"
 #include "data_event.h"
@@ -108,7 +109,7 @@ void append_value(std::string &o, const xpp::Session &s, const OptionRow &f)
 
 std::string event_text(const xpp::Session &s)
 {
-    std::string o = "{\"ev\":\"numerics\",\"fields\":[";
+    std::string o = xpp::events::open(xpp::events::RUN_NUMERICS) + ",\"fields\":[";
     bool first = true;
     for (const OptionRow &f : fields()) {
         if (f.use == OptionUse::delays && !used(s, f)) continue; /* no delays: no field */

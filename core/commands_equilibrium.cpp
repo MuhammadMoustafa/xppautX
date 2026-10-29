@@ -175,8 +175,8 @@ constexpr std::array SEARCHED={ResultField{"found","integer"},ResultField{"equil
 constexpr std::array APPLIED={ResultField{"applied","map[name, real]"}};
 constexpr std::array EXPORTED={ResultField{"file","file"},ResultField{"written","boolean"}};
 constexpr std::array SETTINGS={ResultField{"settings","map[string, real]"},ResultField{"print_eigenvalues","boolean"},ResultField{"draw_invariant_sets","boolean"},ResultField{"draw_strong_sets","boolean"}};
-constexpr std::array EVENTS={"equilibrium","marks","series","state","done"};
-constexpr std::array DONE={"done"};
+constexpr std::array EVENTS={xpp::events::EQUILIBRIUM_FOUND, xpp::events::PLOT_MARKS, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DONE={xpp::events::DONE};
 constexpr std::array ROWS={
     Command{"equilibrium.find",{},XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Go","Find an equilibrium from the current initial conditions.",FOUND,EVENTS,true,find_point},
     Command{"equilibrium.guess",GUESS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Mouse","Find an equilibrium from a guess in plot coordinates.",FOUND,EVENTS,true,guess},

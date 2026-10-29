@@ -30,11 +30,11 @@ const periodic: DiagramRun[] = [
   {br: 2, pt: 1, ty: 4, stable: false, periodic: true, d: 3, c: '#0000ff', lw: 1, jac: 'difference', new: 1, x: [0.26, 0.25, 0.24], y: [-0.2, -0.1, 0], y2: [-0.2, -0.3, -0.4],
     lab: [[2, 3, 'fold']]},
 ];
-const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 'diagram_1', op: 'add', from, runs});
+const add = (from: number, runs: DiagramRun[]) => ({ev: 'auto.diagram', view: 'diagram_1', op: 'add', from, runs});
 
 function opened(): AppState {
-  const s = ev(READY, {ev: 'window', kind: 'diagram', op: 'create', win: 'diagram_1', w: 687, h: 352});
-  return ev(s, {ev: 'diagram', view: 'diagram_1', op: 'axes', ...axes});
+  const s = ev(READY, {ev: 'window.created', kind: 'diagram', win: 'diagram_1', w: 687, h: 352});
+  return ev(s, {ev: 'auto.diagram', view: 'diagram_1', op: 'axes', ...axes});
 }
 
 test('a run: its clock, what it computed, its last label, how it ended', () => {
@@ -55,7 +55,7 @@ test('a run: its clock, what it computed, its last label, how it ended', () => {
   /* the next run counts only its own points; a `stopped` event makes it "Stopped" */
   s = act(s, {type: 'run', op: 'start', at: 5000});
   s = ev(s, add(5, periodic));
-  s = ev(s, {ev: 'stopped', at: {what: 'auto', branch: 2, point: 3}});
+  s = ev(s, {ev: 'job.stopped', at: {what: 'auto', branch: 2, point: 3}});
   s = act(s, {type: 'run', op: 'end', at: 6000});
   st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 9999, flags);
   assert.deepEqual([st.phase, st.text, st.points, st.branch, st.label], ['stopped', 'Stopped: periodic orbits', 3, 2,
@@ -67,7 +67,7 @@ test('T23: an ended run says why its last branch ended, from autoinfo stop', () 
   let s = act(opened(), {type: 'run', op: 'start', at: 1000});
   s = ev(s, add(0, steady));
   const stop = {why: 'parmax', text: 'parameter iapp reached Par Max (0.3)', br: 1, pt: 5, value: 0.31, limit: 0.3};
-  s = ev(s, {ev: 'autoinfo', info: null, stab: null, stop});
+  s = ev(s, {ev: 'auto.info', info: null, stab: null, stop});
   assert.deepEqual(s.diagram.stop, stop);
   const flags = {asking: false, stopping: false};
   /* while it runs, the reason of a branch before is not the run's end */
@@ -88,12 +88,12 @@ test('T23: an ended run says why its last branch ended, from autoinfo stop', () 
   /* the line the core writes in Output is AUTO's */
   assert.equal(classifyLogText('Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'), 'auto');
   /* ... also when the core's stderr cuts it in two: the line joins, whole */
-  let t = ev(READY, {ev: 'log', text: 'Branch 1 stopped at point 5: pa'});
-  t = ev(t, {ev: 'log', text: 'rameter iapp reached Par Max (0.3)\nnvar=2\n'});
+  let t = ev(READY, {ev: 'session.log', text: 'Branch 1 stopped at point 5: pa'});
+  t = ev(t, {ev: 'session.log', text: 'rameter iapp reached Par Max (0.3)\nnvar=2\n'});
   assert.deepEqual(logEntries(t.log).map(l => [l.kind, l.text]), [['auto', 'Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'],
     ['log', 'nvar=2\n']]);
-  t = ev(READY, {ev: 'log', text: 'Branch 1 st'});
-  t = ev(t, {ev: 'log', text: 'opped at point 5: by the user (Stop)\n'});
+  t = ev(READY, {ev: 'session.log', text: 'Branch 1 st'});
+  t = ev(t, {ev: 'session.log', text: 'opped at point 5: by the user (Stop)\n'});
   assert.deepEqual(logEntries(t.log).map(l => l.kind), ['auto']);
 });
 
@@ -140,10 +140,10 @@ test('Clear hides the branches so far; new ones draw alone; the key shows them a
   assert.ok(all.curves.some(c => c.branch === 1));
   /* a redraw in other quantities keeps them hidden (the core's Clear count survives the blank between
      the clear and the redraw); a diagram emptied (Reset diagram) has none left: the core says so */
-  s = ev(s, {ev: 'diagram', view: 'diagram_1', op: 'reset', keep: 0, ...axes});
-  s = ev(s, {ev: 'idle'});
+  s = ev(s, {ev: 'auto.diagram', view: 'diagram_1', op: 'reset', keep: 0, ...axes});
+  s = ev(s, {ev: 'done', status: 'ok'});
   assert.equal(s.diagram.earlier, 5);
-  s = ev(s, {ev: 'autoview', earlier: 0, show: 0, zoom: {x: null, y: null}});
+  s = ev(s, {ev: 'auto.view', earlier: 0, show: 0, zoom: {x: null, y: null}});
   assert.equal(s.diagram.earlier, 0);
 });
 

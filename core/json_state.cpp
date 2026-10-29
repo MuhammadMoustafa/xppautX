@@ -7,6 +7,7 @@
 #include "session.h"
 #include "ui_json_internal.h"
 #include "command_def.h"
+#include "event_registry.h"
 #include "event_streams.h"
 #include "load_eqn.h"
 #include "model_save.h"
@@ -32,6 +33,7 @@
 #include "numerics_settings.h"
 #include "lunch-new.h"
 #include "histogram.h"
+#include "axes2.h"
 #include "menus.h"
 #include <cmath>
 #include <strings.h>
@@ -167,6 +169,8 @@ std::string build_state(xpp::Session &s)
     /* a 3D window's angles (view3d); only then are they set at all */
     if (s.plot_windows.current->ThreeDFlag && isfinite(s.plot_windows.current->Theta) && isfinite(s.plot_windows.current->Phi))
         buf_format(b, ",\"theta\":{:g},\"phi\":{:g}", s.plot_windows.current->Theta, s.plot_windows.current->Phi);
+    BUF_LIT(b, ",\"title\":");
+    buf_str(b, xpp::plot_title(s));
     BUF_LIT(b, "}");
     if (s.auto_state.bifur.exist)
         buf_format(b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
@@ -196,7 +200,7 @@ void send_state(xpp::Session &s)
     evaluate_derived(s);
     if (!out_wanted()) return;
     std::string b = build_state(s);
-    b.insert(1, "\"ev\":\"state\",");
+    b.insert(1, "\"ev\":\"" + std::string(xpp::events::SESSION_STATE) + "\",");
     send_buf(b);
 }
 
@@ -230,8 +234,8 @@ void send_browser(xpp::Session &s)
     session.browser_dirty = 0;
     xpp::fit_browser_block(s);
     const xpp::BrowserBlock &block = s.browser.block;
-    buf_format(b, "{{\"ev\":\"browser\",\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
-               s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
+    buf_format(b, "{},\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
+               xpp::events::open(xpp::events::BROWSER_UPDATED), s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
     for (int j = 1; j < maxcol; j++) {
         BUF_LIT(b, ",");
         buf_str(b, browse_column_name(s,j));
@@ -264,7 +268,7 @@ namespace {
 
 std::size_t stream_index(std::string_view name)
 {
-    return static_cast<std::size_t>(std::ranges::find(xpp::event_streams::NAMES, name) - xpp::event_streams::NAMES.begin());
+    return static_cast<std::size_t>(std::ranges::find(xpp::events::STREAMS, name) - xpp::events::STREAMS.begin());
 }
 
 /* the subscriptions the session holds, given to the data modules */
@@ -272,16 +276,16 @@ void apply_subscriptions(xpp::Session &s)
 {
     const auto on = [](std::string_view name) { return session.subscribed[stream_index(name)]; };
     const bool f32 = session.subscribed_f32;
-    plot_data_subscribe(on("series"), on("plots"), f32);
-    phase_data_subscribe(on("nullclines"), on("dfield"), f32);
-    marks_data_subscribe(on("marks"), f32);
-    ani_data_subscribe(s, on("ani"));
-    auto_data_subscribe(on("autoinfo"));
-    auto_view_subscribe(on("autoinfo"));
-    auto_settings_subscribe(s, on("autosettings"));
-    numerics_settings_subscribe(s, on("numerics"));
-    session.windows.subscribe(on("windows"), s);
-    if (on("player")) player_data();
+    plot_data_subscribe(on(xpp::events::PLOT_SERIES), on(xpp::events::PLOT_SHOWN), f32);
+    phase_data_subscribe(on(xpp::events::NULLCLINE_CURVES), on(xpp::events::DIRFIELD_FIELD), f32);
+    marks_data_subscribe(on(xpp::events::PLOT_MARKS), f32);
+    ani_data_subscribe(s, on(xpp::events::ANIMATION_FRAME));
+    auto_data_subscribe(on(xpp::events::AUTO_INFO));
+    auto_view_subscribe(on(xpp::events::AUTO_INFO));
+    auto_settings_subscribe(s, on(xpp::events::AUTO_SETTINGS));
+    numerics_settings_subscribe(s, on(xpp::events::RUN_NUMERICS));
+    session.windows.subscribe(on(xpp::events::WINDOW_LIST), s);
+    if (on(xpp::events::RECORDING_PLAYER)) player_data();
 }
 
 xpp::Result<std::string> names_result(std::string_view key, const std::vector<std::string> &names)
@@ -309,8 +313,8 @@ xpp::Result<std::string> events_subscribe(xpp::Session &s, const xpp::command::A
         if (diagram) auto_redraw_for_client(s);
     }
     std::vector<std::string> now;
-    for (std::size_t i = 0; i < xpp::event_streams::NAMES.size(); ++i)
-        if (session.subscribed[i]) now.emplace_back(xpp::event_streams::NAMES[i]);
+    for (std::size_t i = 0; i < xpp::events::STREAMS.size(); ++i)
+        if (session.subscribed[i]) now.emplace_back(xpp::events::STREAMS[i]);
     return names_result("subscribed", now);
 }
 
@@ -349,7 +353,8 @@ xpp::Result<std::string> session_get_source(xpp::Session &s)
     make_txtview(s);
     const std::vector<std::string> equations = equation_lines(s);
     std::string b;
-    BUF_LIT(b, "{\"ev\":\"equations\",\"lines\":");
+    b += xpp::events::open(xpp::events::SESSION_EQUATIONS);
+    BUF_LIT(b, ",\"lines\":");
     buf_str_array(b, equations);
     BUF_LIT(b, "}");
     send_buf(b);
@@ -505,7 +510,8 @@ void j_live_state(xpp::Session &s, const double *values, double time)
 {
     if (!xpp::every(session.live_state_last, xpp::INPUT_POLL_SECONDS)) return;
     std::string b;
-    BUF_LIT(b, "{\"ev\":\"liveState\",\"time\":");
+    b += xpp::events::open(xpp::events::JOB_LIVE_STATE);
+    BUF_LIT(b, ",\"time\":");
     buf_num(b, time, 17);
     BUF_LIT(b, ",\"now\":[");
     for (int i = 0; i < s.model().node + s.model().nmarkov; ++i) {
@@ -546,9 +552,9 @@ void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, doub
     int i;
     redraw_ics();
 
-    buf_format(b, "{{\"ev\":\"equilibrium\",\"type\":\"{}\",\"cplus\":{:d},\"cminus\":{:d},"
+    buf_format(b, "{},\"type\":\"{}\",\"cplus\":{:d},\"cminus\":{:d},"
                "\"im\":{:d},\"rplus\":{:d},\"rminus\":{:d},\"values\":[",
-               eq_stability(cp, rp, im), cp, cm, im, rp, rm);
+               xpp::events::open(xpp::events::EQUILIBRIUM_FOUND), eq_stability(cp, rp, im), cp, cm, im, rp, rm);
     for (i = 0; i < n; i++) {
         if (i) BUF_LIT(b, ",");
         BUF_LIT(b, "[");
@@ -578,7 +584,8 @@ void j_make_txtview(xpp::Session &s)
 {
     std::string b;
     const xpp::Model &m = s.model();
-    BUF_LIT(b, "{\"ev\":\"source\",\"lines\":");
+    b += xpp::events::open(xpp::events::SESSION_SOURCE);
+    BUF_LIT(b, ",\"lines\":");
     buf_str_array(b, m.source);
     /* comments; one with an action runs it when picked (tool.run_source_action) */
     BUF_LIT(b, ",\"comments\":[");

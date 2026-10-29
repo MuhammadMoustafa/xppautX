@@ -1,4 +1,5 @@
 # simplecube.odex: converted from simplecube.ode by xppautX --convert (docs/odex.md)
+version 4
 
 v' = -a*v+K*(v^2-v^3-w)
 w' = b*(v-c-d*w)

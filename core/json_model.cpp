@@ -94,7 +94,7 @@ xpp::Result<xpp::Session *> switch_model(xpp::Session &before, const xpp::ModelR
     /* before is gone: the new model's session from here on */
     xpp::Session &s = **loaded;
     s.file_dialogs.home = req.home.empty() ? xpp::files::working_dir() : req.home;
-    for (const auto &[name,kind] : shown) send_window("destroy", name, 0, 0,"",kind);
+    for (const auto &[name,kind] : shown) send_window(xpp::events::WINDOW_DESTROYED, name, 0, 0,"",kind);
     /* what the data modules and this front end recorded of the model before */
     for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++) {
         phase_data_cleared(s, i);

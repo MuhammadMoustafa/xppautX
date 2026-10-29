@@ -98,6 +98,8 @@ void begin(unsigned long seq)
     job_running.store(true, std::memory_order_release);
 }
 
+unsigned long number() { return job_seq; }
+
 void end()
 {
     if (depth == 0 || --depth > 0) return;

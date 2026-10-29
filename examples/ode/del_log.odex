@@ -1,4 +1,5 @@
 # del_log.odex: converted from del_log.ode by xppautX --convert (docs/odex.md)
+version 4
 # Source: XPPAUT 8.0's demo ode/del_log.ode (W537 audit).
 
 # illustrates a period 7 continuation for the delayed logistic map

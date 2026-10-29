@@ -1,3 +1,4 @@
+version: 4
 model: "lamprey.odex"
 options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
 line { x1: 0, y1: 0.5, x2: 0.04*cos(an1), y2: 0.5+0.04*sin(an1), color: "foreground", width: 3 }

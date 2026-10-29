@@ -1,4 +1,5 @@
 # vtst.odex: converted from vtst.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # this solves a continuous functional iteration problem
 # in the Volterra solver, change MaxPoints to 10 to get fast performance

@@ -1,5 +1,6 @@
 /* W507: a refused animation replaces no part of the working one, including
    its filename, grabs and already displayed frame. */
+#include "model_text.h"
 #include "xpptest.h"
 #include "load_args.h"
 #include "session.h"
@@ -93,18 +94,25 @@ int main()
         "nullcline { variable: \"v\", x1: 0, y1: 0, x2: 1, y2: 1 }\n"
         "grab { x: v, y: w, start: { iapp: 1 }, end: { iapp: 2 }, run: false }\n"
         "line { x1: j, y1: 0, x2: j+1, y2: 1 } for j in 1..5 by 2\n";
-    auto parsed = xpp::read_animation(s, native, "test.anix");
+    auto parsed = xpp::read_animation(s, versioned_anix(native), "test.anix");
     if (!parsed) xpp::log(XPP_LOG_WARN, "{}\n", parsed.error().text());
     CHECK(parsed.has_value());
     if (parsed) CHECK(parsed->ncom == 12 && parsed->grabs.size() == 1 && parsed->speed == 2);
     auto invalid = [&](const std::string &text, int line) {
-        auto result = xpp::read_animation(s, text, "bad.anix");
+        auto result = xpp::read_animation(s, versioned_anix(text), "bad.anix");
         CHECK(!result.has_value());
         if (!result) {
             CHECK(result.error().where == "animation" && result.error().place.file == "bad.anix");
-            CHECK(result.error().place.line == line && !result.error().place.source.empty());
+            CHECK(result.error().place.line == line + 1 && !result.error().place.source.empty());
         }
     };
+    /* the version comes first, and is this program's: another or none is refused, naming both */
+    for (const auto &[text, wanted] : {std::pair<std::string, std::string>{"model: \"lecar.odex\"\n", "starts with `version: 4`"},
+                                       {"version: 3\nmodel: \"lecar.odex\"\n", "version 3: this program reads animations of version 4"},
+                                       {"version: 4\nversion: 4\n", "version is written once"}}) {
+        const auto result = xpp::read_animation(s, text, "version.anix");
+        CHECK(!result && result.error().what.find(wanted) != std::string::npos);
+    }
     invalid("line { x1: 0, y1: 0, x2: 1, y2: 1, bogus: 2 }", 1);
     invalid("line { x1: 0, y1: 0, x2: 1 }", 1);
     invalid("line { x1: 0, y1: 0, x2: 1, y2: 1, width: \"thick\" }", 1);
@@ -145,7 +153,7 @@ int main()
     auto roundtrip = converted ? xpp::read_animation(s, *converted, "test.anix") : xpp::Result<xpp::AnimationState>{std::unexpected(converted.error())};
     CHECK(imported.has_value() && roundtrip.has_value());
     xpp::ani_data_init([](std::string_view) {});
-    auto permanent = xpp::read_animation(s, "permanent { line { x1: 0, y1: 0, x2: 1, y2: 1, color: t } }", "permanent.anix");
+    auto permanent = xpp::read_animation(s, versioned_anix("permanent { line { x1: 0, y1: 0, x2: 1, y2: 1, color: t } }"), "permanent.anix");
     CHECK(permanent.has_value());
     if (permanent) {
         s.animation = std::move(*permanent);

@@ -1,4 +1,5 @@
 # wcbiwave.odex: converted from wcbiwave.ode by xppautX --convert (docs/odex.md)
+version 4
 # Source: XPPAUT 8.0's demo tstauto/wcbiwave.ode (W537 audit).
 
 u' = k*(-u+f(a*w-b))/ode_divisor(c)

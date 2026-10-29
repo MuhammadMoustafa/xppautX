@@ -1,4 +1,5 @@
 # tstdll.odex: converted from tstdll.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # tstdll.ode: the van der Pol oscillator. It once came from a compiled C
 # function (example.c's vdp, through export and dll_lib); compiled

@@ -1,4 +1,5 @@
 # cgl.odex: converted from cgl.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # coupled Ginsberg-Landau equation
 # cgl.ode

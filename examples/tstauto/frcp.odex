@@ -1,4 +1,5 @@
 # frcp.odex: converted from frcp.ode by xppautX --convert (docs/odex.md)
+version 4
 # Source: XPPAUT 8.0's demo tstauto/frcp.ode (W537 audit).
 
 ss = x*x+y*y

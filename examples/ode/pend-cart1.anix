@@ -1,3 +1,4 @@
+version: 4
 model: "pend-cart1.odex"
 options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
 rectangle { x1: 0.25+x, y1: 0.05, x2: x+0.5, y2: 0.15, fill: "#0000ff", width: 0 }

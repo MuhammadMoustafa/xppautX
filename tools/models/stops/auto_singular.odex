@@ -1,3 +1,4 @@
+version 4
 # W498: a very small periodic orbit gives a nearly singular phase condition.
 par a = 0
 x' = a*x-y

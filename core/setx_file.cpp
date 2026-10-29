@@ -600,6 +600,7 @@ Result<std::string> setx_text(const Session &s, const Settings &f)
 {
     setx::Out out;
     out.comment("xppautX settings (docs/odex.md, \".setx\")");
+    if (f.graphics) out.whole(version_word, format_version); /* the file's own (the session's members have the manifest's) */
     Put io(out, &s);
     describe(io, f, names_of(s));
     return out.result("settings");
@@ -609,6 +610,7 @@ Result<Settings> read_settings(Session &s, std::string file, std::string_view te
 {
     const bool session = use == SettingsUse::session;
     return setx::read_block(session ? "session" : "settings file", std::move(file), text, session, [&](setx::Block &block) {
+        if (!session) block.require_version("settings files");
         Settings f = capture_settings(s, use);
         Take io(block, &s);
         describe(io, f, names_of(s));

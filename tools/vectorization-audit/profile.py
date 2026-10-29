@@ -17,12 +17,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
 os.environ.setdefault('XPP_CHECK_SLOW', '400')  # valgrind is 50 times slower: only the client's safety limits grow
-from xppclient import Server, is_idle  # noqa: E402
+from xppclient import Server, is_done  # noqa: E402
 EX = ROOT / 'examples/ode'
 TOOLS = ROOT / 'tools/models'
 LECAR = 'lecar.odex'
 # a model whose right-hand side costs almost nothing, so a post-processing step is the run
-HARMONIC = ('harmonic.odex', 'x\' = y\ny\' = -x\ninit x = 1\naux e = x*x+y*y\n')
+HARMONIC = ('harmonic.odex', 'version 4\nx\' = y\ny\' = -x\ninit x = 1\naux e = x*x+y*y\n')
 
 # name -> (model file, the integration: block, extra options block members, command-line arguments)
 RUNS = {
@@ -121,14 +121,14 @@ def run_server(binary, out, name):
     os.environ.update(XPP_PROFILED=str(binary), CALLGRIND_OUT=cg_dir)
     s = Server(ROOT / 'tools/auto-profile/callgrind_wrap.sh', EX / LECAR)
     try:
-        s.collect(is_idle)
+        s.collect(is_done)
         s.send(cmd='events.subscribe', events=['series', 'plots', 'nullclines', 'dfield', 'marks'])
-        s.collect(is_idle)
+        s.collect(is_done)
         for field, value in (('total', 100), ('dt', 0.005)):  # Numerics: 20000 rows
             s.send(cmd='set', kind='num', name=field, value=value)
-            s.collect(is_idle)
+            s.collect(is_done)
         s.send(cmd='run.initial')
-        s.collect(is_idle)
+        s.collect(is_done)
     finally:
         s.close()
     cg = sorted(Path(cg_dir).glob('cg.*.out*'), key=os.path.getmtime)[-1]

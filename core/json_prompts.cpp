@@ -110,7 +110,7 @@ int ask_wait(std::string &b, int id)
         if (session.generated) silent_fail("does not answer the open question", line, script_ask.c_str());
         /* a setting (W106): at once before the command computes, else
            after it (take_setting) */
-        if (!session.generated && !is_cmd(line, "key") && line_kind(line) == XPP_KIND_SETTING) {
+        if (!session.generated && line_kind(line) == XPP_KIND_SETTING) {
             take_setting(s, line);
             continue;
         }
@@ -127,11 +127,11 @@ int ask_begin(std::string &b, const char *kind)
     ask_id++;
     ask_user = strcmp(kind, "pixels") != 0;
     ask_kind = kind;
-    buf_format(b, "{{\"ev\":\"ask\",\"id\":{:d},\"kind\":\"{}\"", ask_id, kind);
+    buf_format(b, "{},\"job\":{},\"id\":{:d},\"kind\":\"{}\"", xpp::events::open(xpp::events::ASK), xpp::job::number(), ask_id, kind);
     return ask_id;
 }
 
-void send_error(const char *ev, const xpp::Error &e)
+void send_error(std::string_view ev, const xpp::Error &e)
 {
     if (session.silent) {
         xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
@@ -142,7 +142,7 @@ void send_error(const char *ev, const xpp::Error &e)
     data_emit(error_event(ev, e));
 }
 
-void j_err_msg(const xpp::Error &e) { send_error("message", e); }
+void j_err_msg(const xpp::Error &e) { send_error(xpp::events::SESSION_MESSAGE, e); }
 
 xpp::Place j_command_place(void)
 {
@@ -155,12 +155,13 @@ void j_command_error(std::string_view command, std::string what)
     j_err_msg(xpp::Error{std::string(command), std::move(what), j_command_place()});
 }
 
-void j_ping(void) { send_simple("ping"); }
+void j_ping(void) { send_simple(xpp::events::SESSION_PING); }
 
 void j_bottom_msg(int, std::string_view msg, std::string_view chapter, std::string_view anchor)
 {
     std::string b;
-    BUF_LIT(b, "{\"ev\":\"message\",\"bottom\":");
+    b += xpp::events::open(xpp::events::SESSION_MESSAGE);
+    BUF_LIT(b, ",\"bottom\":");
     buf_str(b, msg);
     if (!chapter.empty()) {
         BUF_LIT(b, ",\"help\":{\"chapter\":");
@@ -173,9 +174,8 @@ void j_bottom_msg(int, std::string_view msg, std::string_view chapter, std::stri
     send_buf(b);
 }
 
-void j_message_box(std::string_view msg) { send_simple("message", "box", msg); }
-void j_kill_message_box(void) { send_simple("message", "box", ""); }
-void j_title_text(std::string_view s) { send_simple("title", "text", s); }
+void j_message_box(std::string_view msg) { send_simple(xpp::events::SESSION_MESSAGE, "box", msg); }
+void j_kill_message_box(void) { send_simple(xpp::events::SESSION_MESSAGE, "box", ""); }
 
 namespace {
 
@@ -559,7 +559,7 @@ void j_q_calc(xpp::Session &s)
     while (new_string_of(result, expr, XPP_FIELD_EXPRESSION)) {
         if (do_calc(s, expr, &z) != -1) {
             result = xpp::format("{:.200} = {:.16g}   Formula:", expr, z);
-            send_simple("message", "calc", result.c_str());
+            send_simple(xpp::events::SESSION_MESSAGE, "calc", result.c_str());
         }
     }
 }
@@ -601,7 +601,7 @@ void j_progress(int nit, int icount, int)
     static double last;
     std::string b;
     if (!xpp::every(last, xpp::PROGRESS_SECONDS)) return;
-    buf_format(b, "{{\"ev\":\"progress\",\"n\":{:d},\"of\":{:d}}}", icount, nit);
+    buf_format(b, "{},\"n\":{:d},\"of\":{:d}}}", xpp::events::open(xpp::events::JOB_PROGRESS), icount, nit);
     send_buf(b);
 }
 

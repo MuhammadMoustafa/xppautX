@@ -177,7 +177,7 @@ namespace {
 void diag_num(std::string &b, double v) { buf_num(b, v, 7); }
 
 /* an event's start: its op and view */
-void diag_head(std::string &b,const char *op,const xpp::Session &s,int v){buf_format(b,"{{\"ev\":\"diagram\",\"op\":\"{}\",\"view\":",op);buf_str(b,s.auto_state.views[v].name);}
+void diag_head(std::string &b,const char *op,const xpp::Session &s,int v){buf_format(b,"{},\"op\":\"{}\",\"view\":",xpp::events::open(xpp::events::AUTO_DIAGRAM),op);buf_str(b,s.auto_state.views[v].name);}
 
 void diag_axes(std::string &b, const ClientDiagramView &d)
 {
@@ -339,7 +339,7 @@ void diag_flush(const xpp::Session &s, int final)
     if (names != session.client_view_names && s.auto_state.bifur.exist) {
         /* the lists of views no longer there go on both sides; a new one
            starts empty on both */
-        std::string e=xpp::format("{{\"ev\":\"diagram\",\"op\":\"views\",\"n\":{},\"names\":[",n);
+        std::string e=xpp::format("{},\"op\":\"views\",\"n\":{},\"names\":[",xpp::events::open(xpp::events::AUTO_DIAGRAM),n);
         for(std::size_t k=0;k<names.size();++k){if(k)e+=',';xpp::json_append_string(e,names[k]);}e+="]}";
         session.client_view_names=names;
         out_line(e.data(), e.size());
@@ -398,7 +398,7 @@ std::string auto_view_event_line(const xpp::Session &s)
     const xpp::AutoView &v = s.auto_view;
     int earlier = v.earlier > diagram_count(s.diagram) ? diagram_count(s.diagram) : v.earlier;
     bool show_earlier = earlier == 0 ? false : v.show_earlier;
-    std::string o = "{\"ev\":\"autoview\",\"earlier\":" + std::to_string(earlier) + ",\"show\":" +
+    std::string o = xpp::events::open(xpp::events::AUTO_VIEW) + ",\"earlier\":" + std::to_string(earlier) + ",\"show\":" +
                     (show_earlier ? "1" : "0") + ",\"active\":";
     xpp::json_append_string(o,s.auto_state.views[s.auto_state.active_view].name);o+=",\"views\":[";
     bool first = true;
@@ -484,7 +484,7 @@ void j_auto_make_window(xpp::Session &s, std::string_view wname, std::string_vie
     s.auto_state.bifur.hinttxt = "hint";
     diag_forget();      /* a new window has no data */
     auto_data_forget(s); /* nor an info strip or a stability circle */
-    send_window("create",xpp::window_name(s,WIN_AUTO), s.auto_state.bifur.wid + 12 * text_metrics.small_width, s.auto_state.bifur.hgt + 4 * text_metrics.small_height, wname,"diagram");
+    send_window(xpp::events::WINDOW_CREATED,xpp::window_name(s,WIN_AUTO), s.auto_state.bifur.wid + 12 * text_metrics.small_width, s.auto_state.bifur.hgt + 4 * text_metrics.small_height, wname,"diagram");
     draw_bif_axes(s);
 }
 
@@ -533,6 +533,6 @@ int j_auto_grab_event(xpp::Session &s, int *x, int *y)
     answer_point(s, WIN_AUTO, 0, x, y);
     return XPP_AUTO_CLICK;
 }
-void j_auto_show_hint(xpp::Session &s) { send_simple("message", "auto", s.auto_state.bifur.hinttxt.c_str()); }
+void j_auto_show_hint(xpp::Session &s) { send_simple(xpp::events::SESSION_MESSAGE, "auto", s.auto_state.bifur.hinttxt.c_str()); }
 
 } // namespace xpp::json

@@ -1,4 +1,5 @@
 # ev1.odex: converted from ev1.ode by xppautX --convert (docs/odex.md)
+version 4
 
 v' = -gl*(v-el)-(gk*n+gks)*(v-ek)-gna*minf(v)*(v-ena)
 #na'=-mu*gna*minf(v)*(v-ena)-(na-namin)/tauna

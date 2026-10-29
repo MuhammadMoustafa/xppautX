@@ -16,7 +16,7 @@
 
    Only computation takes time: before each input the core sends a press
    event (the key, the answer, the command: what the page lights) and
-   waits its display pace, and after the step's idle the step's pace, a
+   waits its display pace, and after the step's done the step's pace, a
    view step's shorter, each divided by the speed. Play from a step runs
    the steps before it with no pace (their presses 0 ms). The timer is the
    command loop's and a question's wait (player_wait_ms, player_fire):
@@ -302,7 +302,7 @@ void schedule(Next what, Clock::duration after)
 void send_press(const char *what, size_t index, Clock::duration ms)
 {
     std::string b;
-    buf_format(b, "{{\"ev\":\"press\",\"step\":{:d},\"what\":\"{}\",\"index\":{:d},\"ms\":{:d}}}", player.running, what,
+    buf_format(b, "{},\"step\":{:d},\"what\":\"{}\",\"index\":{:d},\"ms\":{:d}}}", xpp::events::open(xpp::events::RECORDING_PRESS), player.running, what,
                index, std::chrono::duration_cast<std::chrono::milliseconds>(ms).count());
     send_buf(b);
 }
@@ -505,7 +505,8 @@ void load(xpp::Session &s, int from, bool play)
 void send_player()
 {
     std::string b;
-    BUF_LIT(b, "{\"ev\":\"player\",\"file\":");
+    b += xpp::events::open(xpp::events::RECORDING_PLAYER);
+    BUF_LIT(b, ",\"file\":");
     buf_str(b, player.path);
     BUF_LIT(b, ",\"model\":");
     buf_str(b, player.rec.model);

@@ -11,7 +11,7 @@ const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never}
 const wins = (s: AppState) => s.plots.windows.map(w => w.win);
 
 const series = (win: string, x: number, y: number): SeriesEvent => ({
-  ev: 'series', win, rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
+  ev: 'plot.series', win, rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
   curves: [{x, y, z: 0, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [{col: 0, name: 'T', data: [0, 1]}, {col: 1, name: 'V', data: [2, 3]}, {col: 2, name: 'W', data: [4, 5]}]
     .filter(c => c.col === 0 || c.col === x || c.col === y),
@@ -23,7 +23,7 @@ const info = (win: string, title: string): PlotWindowInfo => ({
   zview: 1000, curves: [{x: 1, y: 2, z: 1, color: 'foreground', ...LINE}], shift: [0, 0, 0],
 });
 
-const plots = (active: string, ...w: PlotWindowInfo[]) => ({ev: 'plots', active, windows: w});
+const plots = (active: string, ...w: PlotWindowInfo[]) => ({ev: 'plot.shown', active, windows: w});
 const zoom = {x: {min: 0, max: 1}, y: {min: 0, max: 2}};
 
 function twoWindows(): AppState {
@@ -70,7 +70,7 @@ test('a new series for another window leaves the shown zoom and readout alone', 
 
 test('appends go to their own window', () => {
   let s = twoWindows();
-  s = ev(s, {ev: 'series', op: 'append', win: 'graph_1', from: 2, rows: 3, columns: [
+  s = ev(s, {ev: 'plot.series', op: 'append', win: 'graph_1', from: 2, rows: 3, columns: [
     {col: 0, data: [2]}, {col: 1, data: [6]}, {col: 2, data: [7]}]});
   assert.equal(windowOf(s.plots, 'graph_1')?.series?.rows, 3);
   assert.equal(windowOf(s.plots, 'graph_2')?.series?.rows, 2);
@@ -79,9 +79,9 @@ test('appends go to their own window', () => {
 
 test('the core selecting a window, or destroying one, moves the tabs', () => {
   let s = twoWindows();
-  s = ev(s, {ev: 'window', kind: 'graph', op: 'select', win: 'graph_1', w: 0, h: 0});
+  s = ev(s, {ev: 'window.selected', kind: 'graph', win: 'graph_1', w: 0, h: 0});
   assert.equal(s.plots.active, 'graph_1');
-  assert.equal(ev(s, {ev: 'window', kind: 'diagram', op: 'select', win: 'diagram_1', w: 0, h: 0}).plots.active, 'graph_1', 'not a plot window');
+  assert.equal(ev(s, {ev: 'window.selected', kind: 'diagram', win: 'diagram_1', w: 0, h: 0}).plots.active, 'graph_1', 'not a plot window');
   s = reduce(s, {type: 'selectWindow', win: 'graph_2'});
   s = reduce(s, {type: 'hover', hover: {curve: 0, row: 0, x: 0, y: 0, t: 0}});
   s = ev(s, plots('graph_1', info('graph_1', 'W vs V')));
@@ -100,7 +100,7 @@ test('a series before any plots event makes its window (a server without plots)'
 test('a plot mode (T4) is its window\'s, and shows that window\'s tab', () => {
   let s = reduce(twoWindows(), {type: 'selectWindow', win: 'graph_1'});
   const view = {win: 'graph_2', left: 50, right: 550, top: 20, bottom: 420, xlo: 0, xhi: 1, ylo: 0, yhi: 1, three: 0};
-  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 2, menu: 0, win: 'graph_2'});
+  s = ev(s, {ev: 'session.state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 2, menu: 0, win: 'graph_2'});
   s = ev(s, {ev: 'ask', id: 5, kind: 'rubber', win: 'graph_2'});
   assert.equal(s.pick?.win, 'graph_2');
   assert.equal(s.plots.active, 'graph_2');
@@ -113,8 +113,8 @@ test('the core moving a window\'s axes resets that window\'s zoom only, no histo
   s = reduce(s, {type: 'viewport', viewport: zoom, win: 'graph_1'});
   s = reduce(s, {type: 'viewport', viewport: zoom, win: 'graph_2'});
   const view = {win: 'graph_2', left: 0, right: 1, top: 0, bottom: 1, xlo: 0, xhi: 1, ylo: 0, yhi: 1, three: 0};
-  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 2, menu: 0, win: 'graph_2'});
-  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view: {...view, xhi: 2}, rows: 2, menu: 0, win: 'graph_2'});
+  s = ev(s, {ev: 'session.state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 2, menu: 0, win: 'graph_2'});
+  s = ev(s, {ev: 'session.state', sliders: [], pars: [], ics: [], bcs: [], view: {...view, xhi: 2}, rows: 2, menu: 0, win: 'graph_2'});
   assert.deepEqual(windowOf(s.plots, 'graph_2')?.viewport, {x: null, y: null});
   assert.deepEqual(windowOf(s.plots, 'graph_1')?.viewport, zoom);
 });
@@ -126,7 +126,7 @@ test('W376: many windows and curves keep their data, selection and styles', () =
   const data = series('graph_30', 0, 1);
   data.curves = Array.from({length: 13}, (_, i) => ({x: 0, y: 1, z: 0, color: xppColor(i % 11), ...LINE, draw: i % 2 ? 'points' : 'line'}));
   s = ev(s, data);
-  s = ev(s, {ev: 'window', kind: 'graph', op: 'select', win: 'graph_30'});
+  s = ev(s, {ev: 'window.selected', kind: 'graph', win: 'graph_30'});
   assert.equal(s.plots.windows.length, 30);
   assert.equal(s.plots.active, 'graph_30');
   assert.equal(activeWindow(s.plots)?.series?.curves.length, 13);
@@ -149,9 +149,9 @@ test('renaming preserves a named graph\'s series, history and zoom', () => {
 
 test('window kind keeps auxiliary panels separate from user graph names', () => {
   let s = ev(READY, plots('animation',info('animation','animation')));
-  s = ev(s, {ev:'window',kind:'graph',op:'create',win:'animation'});
+  s = ev(s, {ev: 'window.created',kind:'graph',win:'animation'});
   assert.equal(s.ani.open,false);
-  s = ev(s, {ev:'window',kind:'animation',op:'create',win:'animation'});
+  s = ev(s, {ev: 'window.created',kind:'animation',win:'animation'});
   assert.equal(s.ani.open,true);
   assert.equal(s.plots.active,'animation');
 });

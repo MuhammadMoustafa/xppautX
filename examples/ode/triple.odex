@@ -1,4 +1,5 @@
 # triple.odex: converted from triple.ode by xppautX --convert (docs/odex.md)
+version 4
 
 x' = y
 y' = z

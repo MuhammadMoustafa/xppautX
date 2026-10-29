@@ -1,4 +1,5 @@
 # lorknead.odex: converted from lorknead.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # kneading sequences for the Lorenz equation
 init x = -7.5, y = -3.6, z = 30

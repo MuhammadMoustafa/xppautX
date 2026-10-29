@@ -1,4 +1,5 @@
 # iaf.odex: converted from iaf.ode by xppautX --convert (docs/odex.md)
+version 4
 
 v' = -v+i
 par i = 1.2

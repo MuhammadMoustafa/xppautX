@@ -1,4 +1,5 @@
 # auto_stop.odex: converted from auto_stop.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # AUTO's stop reasons (tools/servercheck.py, docs/ui-v2.md T23): its
 # steady states are the line x = a while x < 1, with norm |x| = a; past

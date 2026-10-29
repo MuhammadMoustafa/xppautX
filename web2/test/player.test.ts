@@ -13,7 +13,7 @@ import {reduce} from '../src/store/state';
 import {READY} from './hello';
 
 const PLAYER: PlayerEvent = {
-  ev: 'player', file: '/tmp/lecar.recx', model: 'lecar.ode', intact: true,
+  ev: 'recording.player', file: '/tmp/lecar.recx', model: 'lecar.ode', intact: true,
   steps: [
     {note: 'The cell fires once.', step: 'Run → Initial', cmd: {cmd: 'run.initial'}},
     {note: '', step: 'Set iapp = 0.08', cmd: {cmd: 'value.set_parameters', values: {iapp: 0.08}}},
@@ -26,7 +26,7 @@ const PLAYER: PlayerEvent = {
 };
 
 const press = (step: number, what: PressEvent['what'], index: number, ms = 600): PressEvent =>
-  ({ev: 'press', step, what, index, ms});
+  ({ev: 'recording.press', step, what, index, ms});
 
 const at = (p: PlayerState, ev: PressEvent) => reducePlayer(p, {type: 'press', ev});
 
@@ -96,7 +96,7 @@ test('the app state: player and press events, state.player, the banner dismissed
   assert.equal(s.player.dismissed, false);
   s = reduce(s, {type: 'event', ev: press(0, 'cmd', 0)});
   assert.equal(s.player.running, 0);
-  const st = {ev: 'state', sliders: [], pars: [], ics: [], rows: 0, menu: 0, win: 'graph_1',
+  const st = {ev: 'session.state', sliders: [], pars: [], ics: [], rows: 0, menu: 0, win: 'graph_1',
     player: {step: 1, running: -1, playing: true, speed: 2, fast: false, intact: false}} as unknown as StateEvent;
   s = reduce(s, {type: 'event', ev: st});
   assert.equal(s.player.running, -1);

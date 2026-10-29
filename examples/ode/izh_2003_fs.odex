@@ -1,4 +1,5 @@
 # izh_2003_fs.odex: converted from izh_2003_fs.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # Izhikevich's simple model of a spiking neuron: fast spiking (FS).
 # Izhikevich E.M. (2003) Simple model of spiking neurons. IEEE Trans. Neural Networks 14(6):1569-1572, Fig. 2, FS.

@@ -1,4 +1,5 @@
 # junk.odex: converted from junk.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # junk.ode
 table w 1/11, n=11, lo=-5, hi=5

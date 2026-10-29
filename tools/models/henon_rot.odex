@@ -1,3 +1,4 @@
+version 4
 # Source: the Henon map is AUTO-07p's hen demo (reference/auto-07p/demos/hen); the rotation (u, v) beside it is made up for this check (W537 audit).
 # W402 (#464): the Henon map of AUTO-07p's hen demo, (x,y) -> (y, alpha - beta*x - y^2), with a
 # rotation (u,v) -> rho*R(th)(u,v) beside it whose radius rho = 1 + e*(beta - 2*alpha + 1.2) passes

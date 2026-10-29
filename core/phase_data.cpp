@@ -10,6 +10,7 @@
    fingerprint differs gets its event: drawing the same thing again sends
    nothing, and a command that draws nothing costs nothing. */
 #include <new>
+#include "event_registry.h"
 #include "xpp_mem.h"
 #include <cmath>
 #include <cstdint>
@@ -197,11 +198,10 @@ void add_values(std::string &o, const std::vector<float> &v)
     xpp_series_append(o, v.data(), static_cast<int>(v.size()), client.values_f32);
 }
 
-void begin_event(std::string &o, const char *ev, const GRAPH &g)
+void begin_event(std::string &o, std::string_view ev, const GRAPH &g)
 {
-    o = "{\"ev\":\"";
-    o += ev;
-    o += "\",\"win\":";
+    o = xpp::events::open(ev);
+    o += ",\"win\":";
     xpp::json_append_string(o,g.name);
     if (client.values_f32) o += ",\"enc\":\"f32\"";
 }
@@ -209,7 +209,7 @@ void begin_event(std::string &o, const char *ev, const GRAPH &g)
 void send_nullclines(const xpp::Session &s, int pop, const PhaseShown::Nullclines &nc)
 {
     std::string o;
-    begin_event(o, "nullclines", s.plot_windows.graph[pop]);
+    begin_event(o, xpp::events::NULLCLINE_CURVES, s.plot_windows.graph[pop]);
     o += ",\"xname\":";
     add_name(o, s.model(), nc.ix);
     o += ",\"yname\":";
@@ -237,7 +237,7 @@ void send_nullclines(const xpp::Session &s, int pop, const PhaseShown::Nullcline
 void send_dfield(const GRAPH &g, const PhaseShown::Field &f)
 {
     std::string o;
-    begin_event(o, "dfield", g);
+    begin_event(o, xpp::events::DIRFIELD_FIELD, g);
     o += ",\"scaled\":";
     add_int(o, f.scaled);
     o += ",\"color\":";

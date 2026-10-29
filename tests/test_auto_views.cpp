@@ -6,6 +6,7 @@
    moves, copies and a restore; the work arrays of a library copy
    independently. */
 #include "load_args.h"
+#include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
 #include "auto_c.h"
@@ -309,7 +310,7 @@ int main()
     std::string model = temp.path() + "/grab.odex";
     xpp::Writer writer(model);
     CHECK(static_cast<bool>(writer));
-    writer.print("x'=0\nmarkov z 2\n{{0}} {{1}}\n{{1}} {{0}}\ninit x=1,z=1\n");
+    writer.print("{}", versioned("x'=0\nmarkov z 2\n{0} {1}\n{1} {0}\ninit x=1,z=1\n"));
     CHECK(writer.commit());
     char *markov_argv[] = {name, model.data(), nullptr};
     const auto loaded = load_args(2, markov_argv, 1);

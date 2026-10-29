@@ -4,6 +4,7 @@
    exit, and a good load after it still works. A load that fails says why
    and where (xpp::load_model's xpp::Error, W63c). */
 #include "load_args.h"
+#include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
 #include "model.h"
@@ -60,7 +61,7 @@ int main(void)
     const char odex[] = "build/test_load_bad.odex";
     {
         xpp::Writer w(odex);
-        CHECK(w && w.write("par a = 1\nx' = -x +\n") && w.commit());
+        CHECK(w && w.write(versioned("par a = 1\nx' = -x +\n")) && w.commit());
     }
     char odex_arg[] = "build/test_load_bad.odex";
     char *argv_odex[] = {arg0, odex_arg, NULL};
@@ -68,7 +69,7 @@ int main(void)
     CHECK(!d.has_value());
     if (!d) {
         CHECK_STR(d.error().place.file.c_str(), odex);
-        CHECK(d.error().place.line == 2 || d.error().place.line == 3);
+        CHECK(d.error().place.line == 3 || d.error().place.line == 4);
         CHECK(d.error().place.col > 0);
         CHECK(!d.error().what.empty());
     }
@@ -110,7 +111,7 @@ int main(void)
     {
         /* a model of ours without one: viridis, and its ramp is the session's */
         xpp::Writer w("build/test_load_viridis.odex");
-        CHECK(w && w.write("x' = -x\n") && w.commit());
+        CHECK(w && w.write(versioned("x' = -x\n")) && w.commit());
     }
     char viridis_arg[] = "build/test_load_viridis.odex";
     char *argv_viridis[] = {arg0, viridis_arg, NULL};
@@ -204,11 +205,11 @@ int main(void)
         CHECK_STR(d.error().what.c_str(), "Duplicate name vm (names match without case: Vm is declared at line 1)");
         CHECK(d.error().place.line == 2);
     }
-    d = clash("build/test_load_clash.odex", "x[j]' = -x[j] for j in 1..3\npar x2 = 5\n");
+    d = clash("build/test_load_clash.odex", versioned("x[j]' = -x[j] for j in 1..3\npar x2 = 5\n").c_str());
     CHECK(!d.has_value());
     if (!d) {
-        CHECK_STR(d.error().what.c_str(), "`x2` is already a member of the array x[1..3], declared at 1:1");
-        CHECK(d.error().place.line == 2);
+        CHECK_STR(d.error().what.c_str(), "`x2` is already a member of the array x[1..3], declared at 2:1");
+        CHECK(d.error().place.line == 3);
         CHECK(d.error().place.col == 5);
     }
 

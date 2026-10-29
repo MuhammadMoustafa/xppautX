@@ -1,4 +1,5 @@
 # gb_wnet.odex: converted from gb_wnet.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # gb_wnet.ode
 # gillespie algorithm for brusselator

@@ -1,4 +1,5 @@
 # izh_2004l_integrator.odex: converted from izh_2004l_integrator.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # Izhikevich's simple model of a spiking neuron: integrator.
 # Izhikevich E.M. (2004) Which model to use for cortical spiking neurons? IEEE Trans. Neural Networks 15(5):1063-1070, Fig. 1, panel L.

@@ -1,4 +1,5 @@
 # angela.odex: converted from angela.ode by xppautX --convert (docs/odex.md)
+version 4
 # renamed: t is t_ here (.odex reserves t)
 
 fun k(t_) = 5*exp(-2*t_)-4*exp(-t_)

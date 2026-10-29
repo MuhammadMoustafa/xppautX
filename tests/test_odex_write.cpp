@@ -60,6 +60,7 @@ Values group(std::string name, std::initializer_list<std::pair<std::string, std:
 }
 
 const std::string model =
+    "version 4\n"
     "# model\n"
     "x' = -a*x + b   # decay\n"
     "y' = -y\n"
@@ -111,10 +112,10 @@ int main()
         CHECK(out.starts_with(model));
         CHECK(out.substr(model.size()) == "\nset \"three\" { a: 7, b: 2.5 }\n");
         /* no newline at the end of the file, and a CRLF file */
-        const std::string bare = result(add_set(*m, "x' = -x\nset \"s\" { }", file, "other", parameters({{"a", "1"}}), true));
-        CHECK(bare == "x' = -x\nset \"s\" { }\n\nset \"other\" { a: 1 }\n");
-        const std::string crlf = result(add_set(*m, "x' = -x\r\npar a = 1\r\n", file, "other", parameters({{"a", "2"}, {"b", "3"}}), true));
-        CHECK(crlf.starts_with("x' = -x\r\npar a = 1\r\n"));
+        const std::string bare = result(add_set(*m, "version 4\nx' = -x\nset \"s\" { }", file, "other", parameters({{"a", "1"}}), true));
+        CHECK(bare == "version 4\nx' = -x\nset \"s\" { }\n\nset \"other\" { a: 1 }\n");
+        const std::string crlf = result(add_set(*m, "version 4\r\nx' = -x\r\npar a = 1\r\n", file, "other", parameters({{"a", "2"}, {"b", "3"}}), true));
+        CHECK(crlf.starts_with("version 4\r\nx' = -x\r\npar a = 1\r\n"));
         CHECK(crlf.find("\r\n\r\nset \"other\" { a: 2, b: 3 }\r\n") != std::string::npos);
         /* the name is checked like any model name, and is not already a set */
         std::string error;
@@ -158,7 +159,7 @@ int main()
         CHECK(result(rename_set(*m, model, file, "one", "a b"), &error).empty() && !error.empty());
         const xpp::Result<Edited> deleted = delete_set(*m, model, file, "one");
         CHECK(deleted && deleted->text == model.substr(0, model.find("set \"one\"")) + model.substr(model.find("set \"two\"")));
-        CHECK(deleted && deleted->lines.map(13) == 12);
+        CHECK(deleted && deleted->lines.map(14) == 13);
         const std::string last = result(delete_set(*m, model, file, "two"));
         CHECK(last == model.substr(0, model.find("set \"two\"")));
         CHECK(result(delete_set(*m, model, file, "nosuch"), &error).empty());
@@ -174,25 +175,25 @@ int main()
         CHECK(ic.find("init x = 0.5, y = 3\n") != std::string::npos);
         CHECK(result(set_defaults(*m, model, file, states({{"y", "6"}}))) == model);
         /* a parameter written as a formula stays as written while its value is the same */
-        const std::string quotient = "x' = -a*x\npar a = 1/30\n";
+        const std::string quotient = "version 4\nx' = -a*x\npar a = 1/30\n";
         CHECK(result(set_defaults(*m, quotient, file, parameters({{"a", "0.03333333333333333"}}))) == quotient);
-        CHECK(result(set_defaults(*m, quotient, file, parameters({{"a", "0.5"}}))) == "x' = -a*x\npar a = 0.5\n");
+        CHECK(result(set_defaults(*m, quotient, file, parameters({{"a", "0.5"}}))) == "version 4\nx' = -a*x\npar a = 0.5\n");
         /* the same value written differently is not rewritten */
         CHECK(result(set_defaults(*m, model, file, parameters({{"a", "1.0"}}))) == model);
         /* a state with no init line gets one */
-        const std::string fresh = result(set_defaults(*m, "x' = -x\ny' = -y\npar a = 1\ninit x = 1\n", file, states({{"y", "2"}})));
-        CHECK(fresh == "x' = -x\ny' = -y\npar a = 1\ninit x = 1\ninit y = 2\n");
+        const std::string fresh = result(set_defaults(*m, "version 4\nx' = -x\ny' = -y\npar a = 1\ninit x = 1\n", file, states({{"y", "2"}})));
+        CHECK(fresh == "version 4\nx' = -x\ny' = -y\npar a = 1\ninit x = 1\ninit y = 2\n");
         /* a group of the options block replaced, the others as written */
         const std::string opt = result(set_defaults(*m, model, file, group("integration", {{"dt", "0.05"}})));
         CHECK(opt.find("options {\n  integration: { dt: 0.05 },\n}\n") != std::string::npos);
         const std::string more = result(set_defaults(*m, model, file, group("plot", {{"xlo", "1"}})));
         CHECK(more.find("options {\n  integration: { dt: 0.02, total_time: 9 },\n  plot: { xlo: 1 },\n}\n") != std::string::npos);
         /* a file with no options block gets one at its end */
-        const std::string block = result(set_defaults(*m, "x' = -x\npar a = 1\n", file, group("integration", {{"dt", "0.5"}})));
-        CHECK(block == "x' = -x\npar a = 1\n\noptions {\n  integration: { dt: 0.5 },\n}\n");
+        const std::string block = result(set_defaults(*m, "version 4\nx' = -x\npar a = 1\n", file, group("integration", {{"dt", "0.5"}})));
+        CHECK(block == "version 4\nx' = -x\npar a = 1\n\noptions {\n  integration: { dt: 0.5 },\n}\n");
         /* a default that no line of this file declares cannot be written here */
         std::string error;
-        CHECK(result(set_defaults(*m, "x' = -x\npar a[1..2] = 1\n", file, parameters({{"a", "3"}})), &error).empty());
+        CHECK(result(set_defaults(*m, "version 4\nx' = -x\npar a[1..2] = 1\n", file, parameters({{"a", "3"}})), &error).empty());
         CHECK(result(set_defaults(*m, model, file, parameters({{"c", "3"}})), &error).empty() && error.find("declared at") != std::string::npos);
     }
 
@@ -200,12 +201,12 @@ int main()
     {
         auto m = scratch();
         CHECK(check_text(*m, model, file));
-        CHECK(!check_text(*m, "x' = -x\nset \"s\" { nosuch: 1 }\n", file));
-        CHECK(check_text(*m, "set \"s\" { a: 1 }\n", file, true));
+        CHECK(!check_text(*m, "version 4\nx' = -x\nset \"s\" { nosuch: 1 }\n", file));
+        CHECK(check_text(*m, "version 4\nset \"s\" { a: 1 }\n", file, true));
         const auto bad = check_text(*m, "x' = \n", file);
         CHECK(!bad && bad.error().place.file == file && bad.error().place.line >= 1);
     }
 
-    CHECK(export_header("m.odex", "2026-10-14T10:00:00Z") == "# Saved from m.odex at 2026-10-14T10:00:00Z\n");
+    CHECK(export_header("m.odex", "2026-10-14T10:00:00Z") == "# Saved from m.odex at 2026-10-14T10:00:00Z\nversion 4\n");
     TEST_REPORT("odex_write");
 }

@@ -16,7 +16,7 @@ const near = (a: number, b: number, eps = 1e-9) => assert.ok(Math.abs(a - b) <= 
 
 /* frame 0 of tools/gui_test.ani on lecar, as the core sends it */
 const frameEv = (over: Partial<AniFrameEvent> = {}): AniFrameEvent => ({
-  ev: 'ani', op: 'frame', pos: 0, rows: 601, t: 0, speed: 5, skip: 1, dim: [-0.6, -0.1, 0.4, 0.6], w: 280, h: 350,
+  ev: 'animation.frame', pos: 0, rows: 601, t: 0, speed: 5, skip: 1, dim: [-0.6, -0.1, 0.4, 0.6], w: 280, h: 350,
   prims: [
     ['text', 0.05, 0.928571, 'lecar  ', '#0000ff', 3, 0],
     ['line', 0.456, 0.142857, 0.456, 0.185714, '#ff0000', 3, 'solid'],
@@ -115,7 +115,7 @@ test('text drops the .ani\'s trailing blanks; the symbol font is Greek', () => {
 test('the slice: window 104 opens the panel, state and frames update it', () => {
   let s = reduceAni(initialAni, {type: 'window', exists: true});
   assert.ok(s.exists && s.open);
-  const st: AniStateEvent = {ev: 'ani', pos: 3, rows: 601, fly: 0, grab: 1, skip: 1, speed: 20, loaded: 1, open: 1};
+  const st: AniStateEvent = {ev: 'animation.state', pos: 3, rows: 601, fly: 0, grab: 1, skip: 1, speed: 20, loaded: 1, open: 1};
   s = reduceAni(s, {type: 'state', ev: st});
   assert.deepEqual([s.pos, s.rows, s.speed, s.grab, s.loaded], [3, 601, 20, true, true]);
   s = reduceAni(s, {type: 'frame', ev: frameEv({pos: 7})});
@@ -133,18 +133,18 @@ test('a step goes from the frame shown, within the stored rows', () => {
   assert.equal(stepTarget({...s, frame: null, pos: 5}, -10), 0);
 });
 
-test('app state: ani events and window 104 reach the slice; Go plays until its idle', () => {
-  let s = reduce(reduce(READY, {type: 'event', ev: HELLO}), {type: 'event', ev: {ev: 'window', kind: 'animation', op: 'create', win: 'animation', w: 280, h: 350}});
+test('app state: ani events and window 104 reach the slice; Go plays until its done', () => {
+  let s = reduce(reduce(READY, {type: 'event', ev: HELLO}), {type: 'event', ev: {ev: 'window.created', kind: 'animation', win: 'animation', w: 280, h: 350}});
   assert.ok(s.ani.exists && s.ani.open);
   assert.equal(s.plots, initialState.plots, 'not a plot window');
   s = reduce(s, {type: 'event', ev: frameEv({pos: 12})});
   assert.equal(s.ani.frame!.pos, 12);
   s = reduce(s, {type: 'sent', cmd: {cmd: 'animation.play'}});
   assert.ok(s.ani.playing && s.busy);
-  s = reduce(s, {type: 'event', ev: {ev: 'ani', pos: 13, rows: 601, fly: 0, grab: 0, skip: 1, speed: 5}});
+  s = reduce(s, {type: 'event', ev: {ev: 'animation.state', pos: 13, rows: 601, fly: 0, grab: 0, skip: 1, speed: 5}});
   assert.equal(s.ani.pos, 13);
-  s = reduce(s, {type: 'event', ev: {ev: 'idle'}});
+  s = reduce(s, {type: 'event', ev: {ev: 'done', status: 'ok'}});
   assert.ok(!s.ani.playing && !s.busy);
-  s = reduce(s, {type: 'event', ev: {ev: 'window', kind: 'animation', op: 'destroy', win: 'animation', w: 0, h: 0}});
+  s = reduce(s, {type: 'event', ev: {ev: 'window.destroyed', kind: 'animation', win: 'animation', w: 0, h: 0}});
   assert.ok(!s.ani.exists);
 });

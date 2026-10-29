@@ -281,6 +281,8 @@ class Odex:
             else:
                 self.assigns.append((m.group(1), tokens(m.group(3))))
             return
+        if re.match(r'version\s+\d+$', line):
+            return  # the format version every .odex starts with (core/format_version.h)
         if re.match(r'(done|markov|number|global|dnet)\b', line):
             return
         raise Refused('model line not understood: ' + line)

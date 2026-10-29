@@ -1,3 +1,4 @@
+version: 4
 model: "itoy.odex"
 options { speed: 50, bounds: { x: [-1.25, 3.25], y: [-1.25, 1.25] } }
 line { x1: 0, y1: 0, x2: x1n[j], y2: y1n[j], color: "foreground", width: 3 } for j in 1..3

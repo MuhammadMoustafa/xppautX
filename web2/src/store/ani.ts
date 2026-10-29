@@ -28,7 +28,7 @@ export interface AniState {
   exists: boolean;
   /** an .anix file is loaded */
   loaded: boolean;
-  /** Go is running (sent until its idle) */
+  /** Go is running (sent until its done) */
   playing: boolean;
   /** where the core's next step starts, of `rows` */
   pos: number;

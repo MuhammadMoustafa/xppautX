@@ -14,7 +14,7 @@ import {READY, LINE} from './hello';
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 
 const series = (win: string, v0: number): SeriesEvent => ({
-  ev: 'series', win, rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
+  ev: 'plot.series', win, rows: 2, three: 0, xlabel: '', ylabel: '', zlabel: '',
   curves: [{x: 0, y: 1, z: 0, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [{col: 0, name: 'T', data: [0, 1]}, {col: 1, name: 'V', data: [v0, v0 + 1]}],
 });
@@ -25,9 +25,9 @@ const info = (win: string): PlotWindowInfo => ({
   zview: 1000, curves: [{x: 0, y: 1, z: 0, color: 'foreground', ...LINE}], shift: [0, 0, 0],
 });
 
-const plots = (...w: PlotWindowInfo[]) => ({ev: 'plots', active: w[0]?.win ?? 1, windows: w});
+const plots = (...w: PlotWindowInfo[]) => ({ev: 'plot.shown', active: w[0]?.win ?? 1, windows: w});
 const film = (op: 'capture' | 'reset' | 'play' | 'autoplay', over: object = {}) =>
-  ({ev: 'film', op, count: 0, win: 'graph_1', cycles: 1, delay: 50, ...over});
+  ({ev: 'kinescope.film', op, count: 0, win: 'graph_1', cycles: 1, delay: 50, ...over});
 
 function oneCapturedFrame(v0: number): AppState {
   let s = ev(READY, plots(info('graph_1')));

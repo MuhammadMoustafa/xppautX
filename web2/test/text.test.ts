@@ -30,14 +30,14 @@ test('attachComments never reads past the comments it was given', () => {
 });
 
 test('the equations event replaces the stored lines', () => {
-  const ev: EquationsEvent = {ev: 'equations', lines: ["V'=I-W", "W'=phi*(Winf-W)"]};
+  const ev: EquationsEvent = {ev: 'session.equations', lines: ["V'=I-W", "W'=phi*(Winf-W)"]};
   const s = reduceText(initialText, {type: 'equations', ev});
   assert.deepEqual(s.equations, ["V'=I-W", "W'=phi*(Winf-W)"]);
 });
 
 test('the source event decodes lines and comments together', () => {
   const ev: SourceEvent = {
-    ev: 'source',
+    ev: 'session.source',
     lines: ['v\'=-v', '" * set iapp=0.1'],
     comments: [['* set iapp=0.1', 1]],
   };
@@ -49,7 +49,7 @@ test('the source event decodes lines and comments together', () => {
 
 test('the equilibrium event replaces the last result', () => {
   const ev: EquilibriumEvent = {
-    ev: 'equilibrium', type: 'STABLE', cplus: 0, cminus: 2, rplus: 0, rminus: 0, im: 0,
+    ev: 'equilibrium.found', type: 'STABLE', cplus: 0, cminus: 2, rplus: 0, rminus: 0, im: 0,
     values: [['v', -0.144], ['w', 0.03]],
   };
   const s = reduceText(initialText, {type: 'equilibrium', ev});

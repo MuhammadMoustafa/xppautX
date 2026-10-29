@@ -7,12 +7,12 @@ import {plotKey} from '../src/plot/plotKeys';
 import {zoomAbout} from '../src/plot/viewmath';
 import type {SeriesEvent} from '../src/protocol/types';
 import {activeWindow} from '../src/store/plots';
-import {busyText, classifyLogText, initialState, LEAVE_ASK, noIdle, reduce, type AppState} from '../src/store/state';
+import {busyText, classifyLogText, initialState, LEAVE_ASK, noDone, reduce, type AppState} from '../src/store/state';
 import {HELLO, READY, LINE} from './hello';
 import {logEntries} from '../src/store/log';
 
 const phase: SeriesEvent = {
-  ev: 'series', win: 'graph_1', rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
+  ev: 'plot.series', win: 'graph_1', rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
   curves: [{x: 1, y: 2, z: 1, color: 'foreground', ...LINE}], shift: [0, 0, 0],
   columns: [
     {col: 0, name: 'T', data: [0, 0.05, 0.1]},
@@ -41,7 +41,7 @@ test('the zoom survives new data for the same curves, not other curves', () => {
   assert.equal(shown(s).viewport.x, null);
 });
 
-test('busy from a command to its idle; an answer closes the ask', () => {
+test('busy from a command to its done; an answer closes the ask', () => {
   let s = reduce(READY, {type: 'sent', cmd: {cmd: 'key', key: 'i'}});
   assert.equal(s.busy, true);
   s = ev(s, {ev: 'ask', id: 3, kind: 'choice'});
@@ -49,9 +49,9 @@ test('busy from a command to its idle; an answer closes the ask', () => {
   s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 3, key: 'g'}});
   assert.equal(s.ask, null);
   assert.equal(s.busy, true);
-  s = ev(s, {ev: 'idle'});
+  s = ev(s, {ev: 'done', status: 'ok'});
   assert.equal(s.busy, false);
-  assert.equal(reduce(s, {type: 'sent', cmd: {cmd: 'run.abort'}}), s, 'abort has no idle');
+  assert.equal(reduce(s, {type: 'sent', cmd: {cmd: 'run.abort'}}), s, 'abort has no done');
 });
 
 test('a phase plane is an xy plot, a time plot an aligned one', () => {
@@ -89,15 +89,15 @@ test('a zoom just replaces the viewport, no history (GitHub #110)', () => {
   assert.deepEqual(shown(s).viewport, b);
 });
 
-test('errors and alerts become notifications; Abort shows Stopping until idle', () => {
-  let s = ev(READY, {ev: 'message', error: 'bad formula'});
+test('errors and alerts become notifications; Abort shows Stopping until done', () => {
+  let s = ev(READY, {ev: 'session.message', error: 'bad formula'});
   assert.deepEqual(s.toasts.map(t => [t.kind, t.text]), [['error', 'bad formula']]);
   s = reduce(s, {type: 'dismiss', id: s.toasts[0].id});
   assert.equal(s.toasts.length, 0);
   s = reduce(s, {type: 'sent', cmd: {cmd: 'key', key: 'i'}});
   s = reduce(s, {type: 'aborting'});
   assert.equal(s.stopping, true);
-  assert.equal(ev(s, {ev: 'idle'}).stopping, false);
+  assert.equal(ev(s, {ev: 'done', status: 'ok'}).stopping, false);
 });
 
 test('W68: the status line names what runs (the menu item answered) and that Escape stops it', () => {
@@ -109,7 +109,7 @@ test('W68: the status line names what runs (the menu item answered) and that Esc
   assert.equal(s.running, 'Go');
   assert.equal(busyText(s.running, s.ask !== null), 'Running Go… Esc stops');
   assert.equal(busyText(null, false), 'Working… Esc stops');
-  assert.equal(ev(s, {ev: 'idle'}).running, null);
+  assert.equal(ev(s, {ev: 'done', status: 'ok'}).running, null);
 });
 
 test('the plot keys pan, zoom, reset and step through points', () => {
@@ -130,31 +130,31 @@ test('the plot keys pan, zoom, reset and step through points', () => {
 test('a set that the core rejects lands on its value field, not only the toast (T3)', () => {
   let s = reduce(READY, {type: 'values', action: {type: 'sent', set: {kind: 'par', name: 'iapp', text: '%x'}, ahead: 1}});
   /* a computation's error, before the set's own command: not the field's */
-  s = ev(s, {ev: 'message', error: 'integration failed'});
+  s = ev(s, {ev: 'session.message', error: 'integration failed'});
   assert.deepEqual(s.values.errors, {});
-  s = ev(s, {ev: 'idle'});
-  s = ev(s, {ev: 'message', error: 'bad formula'});
+  s = ev(s, {ev: 'done', status: 'ok'});
+  s = ev(s, {ev: 'session.message', error: 'bad formula'});
   assert.equal(s.values.errors['par:iapp'], 'bad formula');
   /* the field shows it and takes the focus back (WF-001): no error dialog for it, only for the
      computation's error (W104 review); both are in Messages */
   assert.deepEqual(s.toasts.map(t => t.text), ['integration failed']);
   assert.deepEqual(logEntries(s.log).filter(l => l.kind === 'error').map(l => l.text), ['integration failed', 'bad formula']);
-  /* its own idle ends it */
-  s = ev(s, {ev: 'idle'});
+  /* its own done ends it */
+  s = ev(s, {ev: 'done', status: 'ok'});
   assert.deepEqual(s.values.inflight, []);
 });
 
 test('a refusal that names its field lands there, not on the first value of the set (W131)', () => {
   let s = reduce(READY, {type: 'values', action: {type: 'sent', set: {kind: 'par', name: 'a', text: '1'}, ahead: 0}});
   s = reduce(s, {type: 'values', action: {type: 'sent', set: {kind: 'par', name: 'B', text: '%bad('}, ahead: 0}});
-  s = ev(s, {ev: 'message', error: 'set par B: Illegal formula ..', field: 'par:b'});
+  s = ev(s, {ev: 'session.message', error: 'set par B: Illegal formula ..', field: 'par:b'});
   assert.deepEqual(Object.keys(s.values.errors), ['par:b']);
   assert.equal(s.values.errors['par:b'], 'set par B: Illegal formula ..');
 });
 
 test('the numerics event is the store (W106); a new hello forgets it', () => {
   const fields = [{key: 'total_time', label: 'Total time', value: 20}, {key: 'method', label: 'Method', value: 'd', choices: ['a', 'b', 'c', 'd']}];
-  let s = ev(READY, {ev: 'numerics', fields});
+  let s = ev(READY, {ev: 'run.numerics', fields});
   assert.deepEqual(s.numerics, fields);
   s = ev(s, HELLO);
   assert.equal(s.numerics, null);
@@ -169,12 +169,12 @@ test('the values panel is a sheet the store tracks for narrow screens', () => {
 });
 
 test('a text/source/equilibrium event lands in the text slice (T16)', () => {
-  let s = ev(READY, {ev: 'equations', lines: ["V'=I-W"]});
+  let s = ev(READY, {ev: 'session.equations', lines: ["V'=I-W"]});
   assert.deepEqual(s.text.equations, ["V'=I-W"]);
-  s = ev(s, {ev: 'source', lines: ['v\'=-v', '" * set iapp=0.1'], comments: [['* set iapp=0.1', 1]]});
+  s = ev(s, {ev: 'session.source', lines: ['v\'=-v', '" * set iapp=0.1'], comments: [['* set iapp=0.1', 1]]});
   assert.equal(s.text.source!.lines[1].comment?.hasAction, true);
   s = ev(s, {
-    ev: 'equilibrium', type: 'STABLE', cplus: 0, cminus: 2, rplus: 0, rminus: 0, im: 0,
+    ev: 'equilibrium.found', type: 'STABLE', cplus: 0, cminus: 2, rplus: 0, rminus: 0, im: 0,
     values: [['v', -0.144]],
   });
   assert.equal(s.text.equilibrium!.type, 'STABLE');
@@ -197,9 +197,9 @@ test('classifyLogText tells AUTO\'s console table apart from the rest of the log
 });
 
 test('a log event is classified when it is added (Messages: AUTO output distinguishable)', () => {
-  const s = ev(READY, {ev: 'log', text: '  BR    PT  TY LAB \n'});
+  const s = ev(READY, {ev: 'session.log', text: '  BR    PT  TY LAB \n'});
   assert.equal(logEntries(s.log)[0].kind, 'auto');
-  const s2 = ev(READY, {ev: 'log', text: 'nvar=2 naux=4\n'});
+  const s2 = ev(READY, {ev: 'session.log', text: 'nvar=2 naux=4\n'});
   assert.equal(logEntries(s2.log)[0].kind, 'log');
 });
 
@@ -208,8 +208,8 @@ test('T27: the rows NPr prints (no type) are AUTO\'s, and a chunk of several lin
   assert.equal(classifyLogText('   2  2250      47  3.129853E-01  1.000000E+00  2.500000E+01\n'), 'auto');
   const chunk = 'nvar=2 naux=4\n   1     5       2  1.077149E-01  3.745827E-01\n   1    10       3  1.682993E-01  3.212211E-01\n'
     + '   1    19  hopf' + ' '.repeat(17) + '   4  2.624638E-01  2.891081E-01\n   1    2';
-  let s = ev(READY, {ev: 'log', text: chunk});
-  s = ev(s, {ev: 'log', text: '0       5  2.725202E-01  2.911251E-01\nAll formulas are valid!!\n'});
+  let s = ev(READY, {ev: 'session.log', text: chunk});
+  s = ev(s, {ev: 'session.log', text: '0       5  2.725202E-01  2.911251E-01\nAll formulas are valid!!\n'});
   assert.deepEqual(logEntries(s.log).map(l => [l.kind, l.text.trim().slice(0, 12)]), [['log', 'nvar=2 naux='], ['auto', '1     5     '],
     ['auto', '1    10     '], ['auto', '1    19  hop'], ['auto', '1    20     '], ['log', 'All formulas']]);
 });
@@ -220,7 +220,7 @@ test('zoomAbout keeps the point under the pointer', () => {
 });
 
 test('a model that does not load: the error event is kept, with the exit after it (W63c)', () => {
-  const e = {ev: 'error', error: "ERROR compiling X'", file: 'bad.ode', line: 3, col: 0, source: "x'=-x+a*"};
+  const e = {ev: 'session.error', error: "ERROR compiling X'", file: 'bad.ode', line: 3, col: 0, source: "x'=-x+a*"};
   let s = ev(initialState, e);
   assert.deepEqual(s.loadError, e);
   assert.equal(s.hello, null);
@@ -230,7 +230,7 @@ test('a model that does not load: the error event is kept, with the exit after i
 });
 
 test('an error the core places: Messages and the status read file:line: what, the dialog keeps the place (W140)', () => {
-  const placed = {ev: 'message', error: '@ total=abc: not a number', file: 'opts.inc', line: 1, col: 0, source: '@ total=abc'};
+  const placed = {ev: 'session.message', error: '@ total=abc: not a number', file: 'opts.inc', line: 1, col: 0, source: '@ total=abc'};
   let s = ev(READY, placed);
   const t = s.toasts[s.toasts.length - 1];
   assert.equal(t.text, '@ total=abc: not a number');
@@ -238,53 +238,53 @@ test('an error the core places: Messages and the status read file:line: what, th
   assert.equal(t.action, undefined, 'a file read at a line is not one to add');
   assert.equal(s.bottom, 'opts.inc:1: @ total=abc: not a number');
   assert.equal(logEntries(s.log).filter(l => l.kind === 'error').pop()?.text, 'opts.inc:1: @ total=abc: not a number');
-  s = ev(s, {ev: 'message', error: 'no place', file: '', line: 0, col: 0, source: ''});
+  s = ev(s, {ev: 'session.message', error: 'no place', file: '', line: 0, col: 0, source: ''});
   assert.equal(s.toasts[s.toasts.length - 1].place, undefined, 'no file and no line: no place');
   assert.equal(s.bottom, 'no place');
 });
 
 test('errors wait in one error dialog until OK; a warning flashes the status, no dialog (W104)', () => {
-  let s = ev(READY, {ev: 'message', error: 'Empty diagram -- nothing to save'});
+  let s = ev(READY, {ev: 'session.message', error: 'Empty diagram -- nothing to save'});
   const errors = (x: AppState) => x.toasts.filter(t => t.kind === 'error').map(t => t.text);
   assert.deepEqual(errors(s), ['Empty diagram -- nothing to save']);
-  s = ev(s, {ev: 'message', error: 'bad formula'});
+  s = ev(s, {ev: 'session.message', error: 'bad formula'});
   assert.deepEqual(errors(s), ['Empty diagram -- nothing to save', 'bad formula'], 'two errors, one dialog');
   assert.deepEqual(logEntries(s.log).filter(l => l.kind === 'error').length, 2, 'both stay in Messages');
   s = reduce(s, {type: 'dismissErrors'});
   assert.deepEqual(errors(s), []);
   assert.equal(logEntries(s.log).filter(l => l.kind === 'error').length, 2, 'OK leaves Messages alone');
-  const w = ev(s, {ev: 'log', text: 'Warning: something odd\n'});
+  const w = ev(s, {ev: 'session.log', text: 'Warning: something odd\n'});
   assert.equal(w.flash, s.flash + 1);
   assert.deepEqual(errors(w), []);
-  assert.equal(ev(s, {ev: 'message', bottom: 'Working'}).flash, s.flash, 'progress does not flash');
-  assert.equal(ev(s, {ev: 'log', text: '  1    1  end' + ' '.repeat(18) + '   1   0.5E+00   0.1E+00   0.2E+00\n'}).flash, s.flash, 'AUTO output does not flash');
+  assert.equal(ev(s, {ev: 'session.message', bottom: 'Working'}).flash, s.flash, 'progress does not flash');
+  assert.equal(ev(s, {ev: 'session.log', text: '  1    1  end' + ' '.repeat(18) + '   1   0.5E+00   0.1E+00   0.2E+00\n'}).flash, s.flash, 'AUTO output does not flash');
 });
 
-test("the page's leave question (W110): worded by hello, kept over the run's idle, replaced by a core question", () => {
+test("the page's leave question (W110): worded by hello, kept over the run's done, replaced by a core question", () => {
   const quit = {question: 'Quit xppautX? Save this session first?',
     recording: 'Quit xppautX? Save this session, and the recording in progress, first?',
     choices: ['Save session', "Don't save"], keys: 'sd'};
   assert.equal(reduce(initialState, {type: 'leave', open: true}).ask, null, 'no hello, no question');
   let s = ev(READY, {...HELLO, quit});
-  s = reduce(ev(s, {ev: 'computing'}), {type: 'leave', open: true});
+  s = reduce(ev(s, {ev: 'job.computing'}), {type: 'leave', open: true});
   assert.deepEqual(s.ask && [s.ask.id, s.ask.kind, s.ask.question, s.ask.choices, s.ask.keys],
     [LEAVE_ASK, 'choice', quit.question, quit.choices, 'sd']);
   assert.equal(s.computing, true, 'the run goes on');
-  s = ev(s, {ev: 'idle'});
+  s = ev(s, {ev: 'done', status: 'ok'});
   assert.equal(s.ask?.id, LEAVE_ASK, 'the run ending leaves it open');
   assert.equal(reduce(s, {type: 'leave', open: false}).ask, null);
   assert.equal(ev(s, {ev: 'ask', id: 7, kind: 'file'}).ask?.id, 7, "a question of the core's replaces it");
-  const rec = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], recording: {steps: 1, note: ''}});
+  const rec = ev(s, {ev: 'session.state', sliders: [], pars: [], ics: [], recording: {steps: 1, note: ''}});
   assert.equal(reduce(rec, {type: 'leave', open: true}).ask?.question, quit.recording, 'naming the recording in progress');
-  assert.equal(noIdle({cmd: 'session.quit', save: false}), true, 'the plain quit has no idle');
-  assert.equal(noIdle({cmd: 'session.quit', save: true}), false, 'the quit that saves is a command of its own');
-  assert.equal(noIdle({cmd: 'session.quit'}), false, 'the quit that asks too');
+  assert.equal(noDone({cmd: 'session.quit', save: false}), true, 'the plain quit has no done');
+  assert.equal(noDone({cmd: 'session.quit', save: true}), false, 'the quit that saves is a command of its own');
+  assert.equal(noDone({cmd: 'session.quit'}), false, 'the quit that asks too');
 });
 
 test('live solver states update all values without changing initial conditions or plot data', () => {
-  const before = ev(ev(READY, {ev: 'state', sliders: [], pars: [], ics: [['x', 0], ['y', 0]]}), phase);
+  const before = ev(ev(READY, {ev: 'session.state', sliders: [], pars: [], ics: [['x', 0], ['y', 0]]}), phase);
   const now = [1.123456789012345, 9.876543210987654];
-  const after = ev(before, {ev: 'liveState', time: 0.125, now, rates: [1, 2]});
+  const after = ev(before, {ev: 'job.live_state', time: 0.125, now, rates: [1, 2]});
   assert.deepEqual(after.core!.now, now);
   assert.equal(after.core!.time, 0.125);
   assert.deepEqual(after.core!.rates, [1, 2]);

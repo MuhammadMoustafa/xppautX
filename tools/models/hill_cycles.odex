@@ -1,3 +1,4 @@
+version 4
 # Source: made up for this check (W537 audit): a Hopf normal form with a damped Hill equation on its cycle; no paper.
 # W402 (#464): a Hopf normal form with a damped Hill equation riding on its cycle.
 # The cycle (x,y) = sqrt(mu)*(cos t, sin t) has period 2*pi, with w = v = 0. Its two other Floquet

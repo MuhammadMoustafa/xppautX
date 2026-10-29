@@ -1,5 +1,6 @@
 /* W326 (#387): an exhausted location must not become a continuation step. */
 #include "load_args.h"
+#include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
 #include "auto_c.h"
@@ -216,10 +217,7 @@ int main()
     // must be recomputed, so the next continuation step finds it again.
     const std::string events_file = temp.path() + "/two_events.odex";
     xpp::Writer events_model(events_file);
-    events_model.print(R"(par p=0
-init u=0
-u'=p-u
-)");
+    events_model.print("{}", versioned("par p=0\ninit u=0\nu'=p-u\n"));
     CHECK(events_model.commit().has_value());
     std::string event_path = events_file;
     std::array<char *, 3> event_argv{name, event_path.data(), nullptr};

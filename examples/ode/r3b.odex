@@ -1,4 +1,5 @@
 # r3b.odex: converted from r3b.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # planar restricted 3 body problem
 # the parameter set "period" is an approximate periodic solution

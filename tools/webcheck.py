@@ -246,32 +246,31 @@ def collect(until, timeout=15):
             return got, e
 
 
-evs, _ = collect(lambda e: e['ev'] in ('idle','done'))
+evs, _ = collect(lambda e: e['ev'] == 'done')
 kinds = [e['ev'] for e in evs]
-check('a new page gets hello, window and state', all(k in kinds for k in ('hello', 'window', 'state')),
+check('a new page gets hello, window and state', all(k in kinds for k in ('hello', 'window.created', 'session.state')),
       str(kinds[:8]))
 check('and no drawing ops or palette (protocol 2)', not any(k in ('draw', 'palette') for k in kinds), str(kinds[:8]))
 check('hello says protocol 4', any(e['ev'] == 'hello' and e.get('protocol') == 4 for e in evs))
-check('what xppaut printed reaches the page', any(e['ev'] == 'log' for e in evs))
-# The log pipe can deliver after idle: wait for the matching event.
-log_seen = any(e['ev'] == 'log' and log_marker in e.get('text', '') for e in evs)
+check('what xppaut printed reaches the page', any(e['ev'] == 'session.log' for e in evs))
+# The log pipe can deliver after done: wait for the matching event.
+log_seen = any(e['ev'] == 'session.log' and log_marker in e.get('text', '') for e in evs)
 if not log_seen:
-    _, log_event = collect(lambda e: e['ev'] == 'log' and log_marker in e.get('text', ''))
+    _, log_event = collect(lambda e: e['ev'] == 'session.log' and log_marker in e.get('text', ''))
     log_seen = log_event is not None
 check('UTF-8 text reaches the page log stream as written', log_seen)
 # W353: HTTP uses the same registry validator and terminal event as stdin.
 for name, valid in [('help', True), ('unknown', False)]:
     check('registry HTTP request is accepted', post({'cmd': 'help', 'name': name, 'id': 'http registry'}) == 204)
     evs, done = collect(lambda e: e['ev'] == 'done')
-    post({'cmd': 'answer'})  # a legacy idle fences any extra terminal event
-    tail, _ = collect(lambda e: e['ev'] == 'idle')
-    all_events = evs + tail
-    check('registry HTTP has one correlated done, no duplicate error or idle',
+    post({'cmd': 'answer', 'id': 'fence'})  # a protocol command of its own, ending in its own done, fences any extra terminal event
+    tail, _ = collect(lambda e: e['ev'] == 'done' and e.get('id') == 'fence')
+    all_events = evs + [e for e in tail if e.get('id') != 'fence']
+    check('registry HTTP has one correlated done, no duplicate error',
           done is not None and done.get('id') == 'http registry' and
           done.get('status') == ('ok' if valid else 'error') and
           sum(e['ev'] == 'done' for e in all_events) == 1 and
-          sum(e['ev'] == 'idle' for e in all_events) == 1 and
-          not any(e['ev'] in ('error', 'message') for e in all_events), str(done)[:400])
+          not any(e['ev'] in ('session.error', 'session.message') for e in all_events), str(done)[:400])
     check('registry HTTP returns declared data or the original command place',
           bool(done) and (bool(done.get('result', {}).get('commands')) if valid else
                           done.get('file') == 'command' and done.get('line') == 1 and 'unknown' in done.get('source', '')))
@@ -283,17 +282,17 @@ for command, expected in [
     ({'cmd':'window.destroy','window':'Phase "plane"'}, {'window':'Phase "plane"','closed':True}),
 ]:
     check('named window HTTP request accepted', post(dict(command,id='named HTTP')) == 204)
-    got, done = collect(lambda e:e['ev']=='done')
+    got, done = collect(lambda e:e['ev']== 'done')
     check('named window HTTP command returns its correlated result',
           done is not None and done.get('status')=='ok' and done.get('id')=='named HTTP'
-          and done.get('result')==expected and not any(e['ev']=='idle' for e in got), str(done))
+          and done.get('result')==expected and sum(e['ev']== 'done' for e in got) == 1, str(done))
 post({'cmd':'window.select','window':'HTTP phase plane','id':'missing HTTP'})
-_, done = collect(lambda e:e['ev']=='done')
+_, done = collect(lambda e:e['ev']== 'done')
 check('an unknown HTTP window is one placed error', done is not None and done.get('status')=='error'
       and done.get('file')=='command' and done.get('line')==1 and done.get('id')=='missing HTTP',str(done))
 post({'cmd': 'run.initial', 'id': 'http run'})
 evs, _ = collect(lambda e: e['ev'] == 'done', 30)
-st = [e for e in evs if e['ev'] == 'state']
+st = [e for e in evs if e['ev'] == 'session.state']
 done = evs[-1] if evs else None
 check('integrating from the page', st and st[-1]['rows'] == 601 and done and done.get('status') == 'ok' and done.get('id') == 'http run', str(st[-1:])[:120])
 check('the stream carries no drawing ops', not any(e['ev'] == 'draw' for e in evs))
@@ -302,7 +301,7 @@ _, ask = collect(lambda e: e['ev'] == 'ask')
 check('Open model asks through the registry', ask is not None and ask['kind'] == 'file', str(ask))
 if ask:
     post({'cmd': 'answer', 'id': ask['id'], 'ok': 0})
-    collect(lambda e: e['ev'] in ('idle','done'))
+    collect(lambda e: e['ev'] == 'done')
 
 # ---- the model's folder over HTTP (docs/protocol.md "Files", docs/ui-v2.md T5)
 
@@ -434,7 +433,7 @@ check('an idle connection (a preconnect) and a stalled upload hold up no command
       ask is not None and upload_waiting, 'ask %s, upload still waiting %s' % (ask is not None, upload_waiting))
 if ask:
     post({'cmd': 'answer', 'id': ask['id'], 'ok': 0})
-    collect(lambda e: e['ev'] in ('idle','done'))
+    collect(lambda e: e['ev'] == 'done')
 idle.close()
 stall.close()
 
@@ -450,16 +449,16 @@ collect(lambda e: False, 0.5)  # what is still coming from the commands above
 sts = [post_numbered({'cmd': 'window.redraw'}, 'w124page', n) for n in (1, 1, 2, 1)]
 sts.append(post_numbered({'cmd': 'window.redraw'}, 'w124other', 1))  # another page counts on its own
 evs, _ = collect(lambda e: False, 3)
-idles = sum(1 for e in evs if e['ev'] in ('idle','done'))
+dones = sum(1 for e in evs if e['ev'] == 'done')
 check('W124: a numbered command sent again is answered (204) but taken once; another page counts on its own',
-      sts == [204] * 5 and idles == 3, '%s, %d idle' % (sts, idles))
+      sts == [204] * 5 and dones == 3, '%s, %d done' % (sts, dones))
 bad = [post_numbered({'cmd': 'window.redraw'}, p, n) for p, n in (('w124page', 'x'), ('w124page', '0'), ('bad%20id', 3), ('', 3))]
 c = http.client.HTTPConnection('127.0.0.1', port, timeout=10)
 c.request('POST', '/cmd?t=%s&p=w124page' % token, body=json.dumps({'cmd': 'window.redraw'}))
 bad.append(c.getresponse().status)
 evs, _ = collect(lambda e: False, 1)
 check('W124: a bad or half command number is refused (400) and nothing runs',
-      bad == [400] * 5 and not any(e['ev'] in ('idle','done') for e in evs), '%s %s' % (bad, [e['ev'] for e in evs][:6]))
+      bad == [400] * 5 and not any(e['ev'] == 'done' for e in evs), '%s %s' % (bad, [e['ev'] for e in evs][:6]))
 
 post({'cmd': 'session.quit'})
 _, ask = collect(lambda e: e['ev'] == 'ask')
@@ -611,20 +610,20 @@ if sess:
     c.request('GET', '/events?t=' + tk)
     c.sk = c.sock
     c.resp = c.getresponse()
-    read_events(c, lambda e: e['ev'] in ('idle','done'))
+    read_events(c, lambda e: e['ev'] == 'done')
     post_cmd(pt, tk, {'cmd': 'run.initial'})
-    _, comp = read_events(c, lambda e: e['ev'] == 'computing', 30)
+    _, comp = read_events(c, lambda e: e['ev'] == 'job.computing', 30)
     check('W112: the run starts (computing)', comp is not None)
     t0 = time.time()
     post_cmd(pt, tk, {'cmd': 'session.quit', 'save': False})
     evs, ex = read_events(c, lambda e: e['ev'] == 'exit', 30)
     names = [e['ev'] for e in evs]
     # the run was still going when the quit came: the quit stopped it
-    stopped = next((e for e in evs if e['ev'] == 'stopped'), None)
+    stopped = next((e for e in evs if e['ev'] == 'job.stopped'), None)
     check('W112: the quit stops the run (stopped, integrate)',
           stopped is not None and stopped['at']['what'] == 'integrate', str(names))
     check('W112: a plain quit during a run says bye, then exit code 0',
-          ex is not None and ex['code'] == 0 and 'bye' in names, str(names[-4:]) + str(ex))
+          ex is not None and ex['code'] == 0 and 'session.bye' in names, str(names[-4:]) + str(ex))
     try:
         p.wait(timeout=15)
         print('perf: quit-exit %.2f s' % (time.time() - t0))
@@ -633,6 +632,52 @@ if sess:
         p.kill()
         check('W112: ... and the process ends with code 0', False, 'still running after 15 s')
     c.close()
+
+# ---- W529: what a reconnecting page is told of the running command (job.computing, a pending ask) is cleared by
+# the done that ends that command's job, never by a control command's done answered meanwhile
+def open_stream(pt, tk):
+    c = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)
+    c.request('GET', '/events?t=' + tk)
+    c.sk = c.sock
+    c.resp = c.getresponse()
+    return c
+
+
+sess = leave_session('longrun.odex')
+check('W529: a process starts for the reconnect check', sess is not None)
+if sess:
+    p, pt, tk, c = sess
+    close_stream(c)
+    c = open_stream(pt, tk)
+    read_events(c, lambda e: e['ev'] == 'done')
+    post_cmd(pt, tk, {'cmd': 'run.initial'})
+    _, comp = read_events(c, lambda e: e['ev'] == 'job.computing', 30)
+    post_cmd(pt, tk, {'cmd': 'session.get_state', 'id': 'control'})
+    _, control = read_events(c, lambda e: e['ev'] == 'done' and e.get('id') == 'control', 30)
+    check('W529: a control command answers while the run goes on, and its done has no job',
+          comp is not None and 'job' in comp and control is not None and 'job' not in control, str((comp, control)))
+    c2 = open_stream(pt, tk)
+    _, again = read_events(c2, lambda e: e['ev'] == 'job.computing', 30)
+    check('W529: a page that reconnects after the control command\'s done is told the run computes',
+          again is not None and again.get('job') == comp.get('job'), str(again))
+    post_cmd(pt, tk, {'cmd': 'run.abort'})
+    _, ended = read_events(c, lambda e: e['ev'] == 'done' and e.get('job') == comp.get('job'), 30)
+    check('W529: the run ends with a done that carries its job', ended is not None and ended.get('status') == 'stopped', str(ended))
+    post_cmd(pt, tk, {'cmd': 'session.open_model'})
+    _, ask = read_events(c, lambda e: e['ev'] == 'ask', 30)
+    post_cmd(pt, tk, {'cmd': 'session.get_state', 'id': 'control2'})
+    read_events(c, lambda e: e['ev'] == 'done' and e.get('id') == 'control2', 30)
+    c3 = open_stream(pt, tk)
+    _, asked = read_events(c3, lambda e: e['ev'] == 'ask', 30)
+    check('W529: a pending ask is told to a page that reconnects after a control command\'s done',
+          ask is not None and asked is not None and asked.get('id') == ask.get('id') and asked.get('job') == ask.get('job'), str((ask, asked)))
+    post_cmd(pt, tk, {'cmd': 'session.quit', 'save': False})
+    for stream in (c, c2, c3):
+        stream.close()
+    try:
+        p.wait(timeout=15)
+    except subprocess.TimeoutExpired:
+        p.kill()
 
 # ---- W134: one route into the model's folder. An upload (PUT /files/NAME) during a run is refused
 # like the protocol's `file` put (a data command): nothing lands under a computation, whichever way
@@ -662,20 +707,20 @@ if sess:
     c.request('GET', '/events?t=' + tk)
     c.sk = c.sock
     c.resp = c.getresponse()
-    read_events(c, lambda e: e['ev'] in ('idle','done'))
+    read_events(c, lambda e: e['ev'] == 'done')
     post_cmd(pt, tk, {'cmd': 'run.initial'})
-    _, comp = read_events(c, lambda e: e['ev'] == 'computing', 30)
+    _, comp = read_events(c, lambda e: e['ev'] == 'job.computing', 30)
     st, body = put_at(pt, tk, 'guard.par', b'new')
     check('W134: PUT /files/NAME during a run is refused (409, "Not while a computation runs")',
           comp is not None and st == 409 and 'Not while a computation runs' in body, '%s %s %s' % (comp, st, body))
     post_cmd(pt, tk, {'cmd': 'file', 'op': 'put', 'name': 'guard.par', 'data': 'bmV3'})  # "new"
     post_cmd(pt, tk, {'cmd': 'run.abort'})
-    evs, _ = read_events(c, lambda e: e['ev'] in ('idle','done'), 30)  # the run's idle, stopped
-    evs, _ = read_events(c, lambda e: e['ev'] in ('idle','done'), 30)  # the refused file put's
-    refused = [e.get('error', '') for e in evs if e['ev'] == 'message']
+    evs, _ = read_events(c, lambda e: e['ev'] == 'done', 30)  # the run's done, stopped
+    evs, _ = read_events(c, lambda e: e['ev'] == 'done', 30)  # the refused file put's
+    refused = [e.get('error', '') for e in evs if e['ev'] == 'done' and e.get('error')]
     check('W134: ... like the file command sent during it (an error after the run, no file event)',
           len(refused) == 1 and 'Not while a computation runs' in refused[0]
-          and not any(e['ev'] == 'file' for e in evs), str([e['ev'] for e in evs]) + str(refused))
+          and not any(e['ev'] == 'file.result' for e in evs), str([e['ev'] for e in evs]) + str(refused))
     check('W134: ... and neither wrote the file', guard() == b'old', str(guard()))
     st, body = put_at(pt, tk, 'guard.par', b'new')
     check('W134: after the run the same upload lands', st == 200 and guard() == b'new', '%s %s' % (st, body))
@@ -695,7 +740,7 @@ if sess:
     c.resp = c.getresponse()
     evs, ex = read_events(c, lambda e: e['ev'] == 'exit', 30)
     check('W112: it reports exit code 1, with no bye', ex is not None and ex['code'] == 1
-          and not any(e['ev'] == 'bye' for e in evs), str([e['ev'] for e in evs]))
+          and not any(e['ev'] == 'session.bye' for e in evs), str([e['ev'] for e in evs]))
     time.sleep(ALONE_LOWER_BOUND_SECONDS)  # lower bound: core ALONE_SECONDS (10 s), stopped page keeps its stream open
     check('W112: it keeps serving while the page is open', p.poll() is None and answers(pt, tk))
     c.resp.close()  # the response holds the socket open otherwise
@@ -739,8 +784,8 @@ if os.name == 'nt':
         threading.Thread(target=lambda: [None for _ in out], daemon=True).start()
         events = queue.Queue()
         threading.Thread(target=stream, args=(events,), daemon=True).start()
-        evs, _ = collect(lambda e: e['ev'] in ('idle','done'))
-        check('T27: ... and what xppaut printed still reaches the page', any(e['ev'] == 'log' for e in evs),
+        evs, _ = collect(lambda e: e['ev'] == 'done')
+        check('T27: ... and what xppaut printed still reaches the page', any(e['ev'] == 'session.log' for e in evs),
               str([e['ev'] for e in evs][:8]))
         post({'cmd': 'session.quit'}, token)
         _, ask = collect(lambda e: e['ev'] == 'ask')
@@ -757,7 +802,7 @@ if os.name == 'nt':
 # PATH here, so the browser cannot open). Each process is stopped by its own handle.
 trun = tempfile.mkdtemp(prefix='xppterm')
 xppclient.copy_model(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples', 'ode', 'lecar.odex'), trun)
-idle_event = lambda e: e['ev'] in ('idle','done')
+done_event = lambda e: e['ev'] == 'done'
 
 
 def page_process(extra, env=None):
@@ -823,12 +868,12 @@ if mm is None:
 else:
     pt, tk = int(mm.group(1)), mm.group(2)
     q = page_events(pt, tk)
-    until_event(q, idle_event)
+    until_event(q, done_event)
     send_cmd(pt, tk, {'cmd':'auto.open'})
-    until_event(q, idle_event)
+    until_event(q, done_event)
     send_cmd(pt, tk, {'cmd':'auto.run','kind':'equilibrium'})
-    evs, _ = until_event(q, idle_event, 300)
-    page_log = ''.join(e.get('text', '') for e in evs if e['ev'] == 'log')
+    evs, _ = until_event(q, done_event, 300)
+    page_log = ''.join(e.get('text', '') for e in evs if e['ev'] == 'session.log')
     check('W501: the page log has AUTO\'s table', 'BR    PT' in page_log and 'stopped at point' in page_log, page_log[:200])
     stop_page(p, reader)
     lines = [line for line in term if not line.startswith('XPP: ')]

@@ -1,4 +1,5 @@
 # logbif.odex: converted from logbif.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # this is an example showing the logistic bifurcation diagram
 fun f(x, a) = a*x*(1-x)

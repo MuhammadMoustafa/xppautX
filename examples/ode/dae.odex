@@ -1,4 +1,5 @@
 # dae.odex: converted from dae.ode by xppautX --convert (docs/odex.md)
+version 4
 
 x' = y
 0 = x+y+y^3+y^5

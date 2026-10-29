@@ -23,7 +23,7 @@ import {
   answerName, keepBothName, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
-import {initialState, LEAVE_ASK, noIdle, reduce, type Action, type AppState} from './store/state';
+import {initialState, LEAVE_ASK, noDone, reduce, type Action, type AppState} from './store/state';
 import {closeDesktopWindow} from './desktop';
 import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
@@ -82,21 +82,21 @@ export class Session {
   readonly store: Store<AppState, Action>;
   private otherProtocol = false;
   /** commands whose completion has not arrived yet */
-  private idlesOwed = 0;
+  private donesOwed = 0;
   /** a planned dialogue (T21: the axis dialog, AUTO settings save and load):
       the asks its commands open are answered by these steps in order, until
-      the commands' idles */
+      the commands' dones */
 
-  /** the point a grab took, until its command's idle (a periodic one's orbit is then imported) */
+  /** the point a grab took, until its command's done (a periodic one's orbit is then imported) */
   private grabbed: number | null = null;
   /** pointer events of a drag made while the core was not asking (docs/protocol.md
       `drag`: it asks again after each one), and whether the drag has ended */
   private dragQueue: Record<string, unknown>[] = [];
   private dragEnded = false;
   /** a file ask for writing answered: the file to hand to the browser once the command is done */
-  /* a file the core writes, offered at its command's idle: `ahead` counts the
-     idles of the commands sent before it, which come first (W95's click right
-     behind a redraw delivered it at the redraw's idle, before it was written) */
+  /* a file the core writes, offered at its command's done: `ahead` counts the
+     dones of the commands sent before it, which come first (W95's click right
+     behind a redraw delivered it at the redraw's done, before it was written) */
   private savedOutputs: {name: string; handle: SaveHandle | null; data: Promise<Blob | null>}[] = [];
   private savingReads = new Set<Promise<Blob | null>>();
   private nativeSave: string | null = null;
@@ -108,29 +108,29 @@ export class Session {
   /** the answer to the replace confirm, when it is open */
   private replaceChoice: ((c: ReplaceChoice) => void) | null = null;
   /** a command run again after "Add file…": the answers its prompts get, and
-      the idles to wait for (the menu keys before it, then its own) */
+      the dones to wait for (the menu keys before it, then its own) */
   private replayAnswers: RunAnswer[] = [];
   /** rotate3d's throttle: the last time the 3d-params turn went out for a window,
       and its pending trailing send, by window */
   private rotate3dLast = new Map<string, number>();
   private rotate3dTimer = new Map<string, ReturnType<typeof setTimeout>>();
-  /** the last angle a window was turned to while the core was busy, sent at its idle */
+  /** the last angle a window was turned to while the core was busy, sent at its done */
   private rotate3dHeld = new Map<string, {theta: number; phi: number}>();
   /** what the page displays is the core's (W65, docs/protocol.md "Display state"): the zoom
       shown, the earlier runs' toggle, AUTO's shown branches. The page keeps a copy it changes
       at once (a drag cannot wait for a round trip) and tells the core; the core's events
       set it back, except for a window whose change is held or on its way: `displayHeld` is the
       latest change of each (window 0: the AUTO diagram) not yet sent, `displayGuard` the
-      windows whose zoom and toggles the core's events leave alone, until the idle of the
-      command that carried the change (`displayIdles` counts down to it). */
+      windows whose zoom and toggles the core's events leave alone, until the done of the
+      command that carried the change (`displayDones` counts down to it). */
   private displayHeld = new Map<string, DisplayPatch>();
   private displayGuard = new Set<string>();
-  private displayIdles = 0;
-  /** the tab last picked while the core was busy, shown and sent at its idle */
+  private displayDones = 0;
+  /** the tab last picked while the core was busy, shown and sent at its done */
   private windowHeld: string | null = null;
-  private replayIdles = 0;
+  private replayDones = 0;
   /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
-  private afterIdle: Command[] | null = null;
+  private afterDone: Command[] | null = null;
   /** `redraw` was sent for the AUTO diagram's data, not yet answered */
   private diagramAsked = false;
   /** the array plot's scroll made while the core was busy (plot/aplotScroll.ts) */
@@ -148,7 +148,7 @@ export class Session {
     /* a command the server refused or that never reached it is an error
        as the core's own are (Messages, the error dialog): never lost (W116) */
     this.transport.open(ev => this.receive(ev), open => this.store.dispatch({type: 'connection', open}),
-      error => this.store.dispatch({type: 'event', ev: {ev: 'message', error}}));
+      error => this.store.dispatch({type: 'event', ev: {ev: 'session.message', error}}));
   }
 
   private receive(ev: XppEvent): void {
@@ -157,7 +157,7 @@ export class Session {
     if (ev.ev === 'hello') this.otherProtocol = ev.protocol !== PROTOCOL;
     if (this.otherProtocol) {
       if (ev.ev === 'hello')
-        this.store.dispatch({type: 'event', ev: {ev: 'message', error: `This page speaks protocol ${PROTOCOL} and the program ${ev.protocol}: `
+        this.store.dispatch({type: 'event', ev: {ev: 'session.message', error: `This page speaks protocol ${PROTOCOL} and the program ${ev.protocol}: `
           + 'open the page the program itself serves (reload it after an update).'}});
       return;
     }
@@ -169,15 +169,15 @@ export class Session {
     if (ev.ev === 'hello') {
       this.displayHeld.clear();
       this.displayGuard.clear();
-      this.displayIdles = 0;
-      this.idlesOwed = 0;
+      this.displayDones = 0;
+      this.donesOwed = 0;
       /* the plots as data (docs/protocol.md): every data event the server
          speaks (hello.features), asked for on every (re)connection, which
          also makes the server send the windows, their series, nullclines,
          direction fields and marks; values as base64 float32, which a long
          run needs */
       this.send({cmd: 'events.subscribe', events: ev.features, encoding: 'f32'});
-    } else if (ev.ev === 'film') {
+    } else if (ev.ev === 'kinescope.film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {
       if (this.store.getState().player.running >= 0 && ev.kind !== 'pixels') {
@@ -195,11 +195,11 @@ export class Session {
       } else if (this.replayAnswers.length) this.continueReplay(ev);
       else if (ev.kind === 'file' && nativeFileDialog()) void this.nativeFile(ev);
 
-    } else if (ev.ev === 'message' && ev.error?.includes('Permission denied:') && this.nativeRun) {
+    } else if (ev.ev === 'session.message' && ev.error?.includes('Permission denied:') && this.nativeRun) {
       this.retrySave = this.nativeRun;
       this.retrySaveDir = this.nativeSaveDir;
       this.nativeRun = null;
-    } else if (ev.ev === 'saved') {
+    } else if (ev.ev === 'session.saved') {
       const save = this.pendingSave;
       let handle: SaveHandle | null = null;
       if (save && save.ahead === 0 && (ev.file === save.name
@@ -218,12 +218,12 @@ export class Session {
         this.savedOutputs.push({name: ev.file, handle, data});
       }
       this.nativeSave = null;
-    } else if ((ev.ev === 'idle' || ev.ev === 'done')) {
-      if (this.idlesOwed > 0) this.idlesOwed--;
+    } else if (ev.ev === 'done') {
+      if (this.donesOwed > 0) this.donesOwed--;
       this.afterAuto();
       this.dragQueue = [];
       this.dragEnded = false;
-      if (this.replayIdles > 0 && --this.replayIdles === 0) this.replayAnswers = [];
+      if (this.replayDones > 0 && --this.replayDones === 0) this.replayAnswers = [];
       const save = this.pendingSave;
       if (save && save.ahead > 0) save.ahead--;
       else {
@@ -231,18 +231,18 @@ export class Session {
         this.nativeSave = null;
         for (const output of this.savedOutputs.splice(0)) void this.deliver(output.name, output.handle, output.data);
       }
-      const next = this.afterIdle;
-      this.afterIdle = null;
+      const next = this.afterDone;
+      this.afterDone = null;
       if (next) for (const command of next) this.send(command);
       this.flushRotate3d();
-      if (this.displayIdles > 0 && --this.displayIdles === 0) this.displayGuard = new Set(this.displayHeld.keys());
+      if (this.displayDones > 0 && --this.displayDones === 0) this.displayGuard = new Set(this.displayHeld.keys());
       this.flushDisplay();
       this.flushWindow();
       const retry = this.retrySave;
       this.retrySave = null;
       if (retry) {
         this.replayAnswers = retry.answers.slice();
-        this.replayIdles = 1;
+        this.replayDones = 1;
         this.send(retry.cmd);
         return;
       }
@@ -255,14 +255,14 @@ export class Session {
   /* the AUTO diagram is data the page must hold whole: a page that connected
      after AUTO opened has none, and an `add` it could not place leaves it out
      of step; `redraw` makes the core send all of it again (docs/protocol.md);
-     at the idle, the page's own catch-up like the held changes below */
+     at the done, the page's own catch-up like the held changes below */
   private checkDiagram(ev: XppEvent): void {
     const {diagram: d, busy} = this.store.getState();
     if (!d.open || (d.views.every(v => v.axes) && !d.outOfStep)) {
       this.diagramAsked = false;
       return;
     }
-    if (this.diagramAsked || busy || (ev.ev !== 'state' && ev.ev !== 'idle')) return;
+    if (this.diagramAsked || busy || (ev.ev !== 'session.state' && ev.ev !== 'done')) return;
     this.diagramAsked = true;
     this.send({cmd: 'window.redraw', window: autoWindow(this.store.getState())});
   }
@@ -281,7 +281,7 @@ export class Session {
       control action always, a view action also while a computation runs, a
       data or computation action only when none runs; while a question is
       open only its answer. The page's being busy with a command of its own
-      (a held zoom sent at an idle) disables nothing: the core runs what
+      (a held zoom sent at a done) disables nothing: the core runs what
       comes after it in turn. */
   may(cmd: Command): boolean {
     const {hello, core, computing, ask, player} = this.store.getState();
@@ -359,8 +359,8 @@ export class Session {
     if (!this.may(cmd)) return false;
     if (cmd.cmd === 'auto.run') this.store.dispatch({type:'diagram',action:{type:'run',op:'start',at:Date.now()}});
     const patch = commandSettings(cmd);
-    if (patch) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead: this.idlesOwed}});
-    if (cmd.cmd !== 'answer' && !noIdle(cmd)) this.idlesOwed++;
+    if (patch) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead: this.donesOwed}});
+    if (cmd.cmd !== 'answer' && !noDone(cmd)) this.donesOwed++;
     this.store.dispatch({type: 'sent', cmd});
     this.transport.send(cmd);
     return true;
@@ -474,7 +474,7 @@ export class Session {
     if (ask) return;
     /* a run draws into the core's active one (W68), and the command before
        (the last tab's own click, say) may not have ended yet: the tab
-       picked last is held for the idle, never dropped */
+       picked last is held for the done, never dropped */
     if (busy) {
       this.windowHeld = win;
       return;
@@ -507,9 +507,9 @@ export class Session {
   /** the core's events without what a change of the user's on its way would undo */
   private unguarded(ev: XppEvent): XppEvent {
     if (!this.displayGuard.size) return ev;
-    if (ev.ev === 'plots')
+    if (ev.ev === 'plot.shown')
       return {...ev, windows: ev.windows.map(w => (this.displayGuard.has(w.win) ? {...w, zoom: undefined, runs: undefined} : w))};
-    if (ev.ev === 'autoview') {
+    if (ev.ev === 'auto.view') {
       const views = ev.views?.map(v => (this.displayGuard.has(v.name) ? {...v,zoom:undefined} : v));
       const guarded = [...this.displayGuard].some(k => this.store.getState().diagram.views.some(v=>v.name===k));
       return {...ev, views, show: guarded ? undefined : ev.show};
@@ -523,7 +523,7 @@ export class Session {
     this.flushDisplay();
   }
 
-  /** the oldest held change goes out when the core is not busy, else at its idle */
+  /** the oldest held change goes out when the core is not busy, else at its done */
   private flushDisplay(): void {
     if (this.store.getState().busy) return;
     const first = this.displayHeld.entries().next();
@@ -535,7 +535,7 @@ export class Session {
       : {cmd: 'window.set_display', window: win, ...(x === undefined ? {} : {x_range: x ?? []}), ...(y === undefined ? {} : {y_range: y ?? []}),
          ...(runs === undefined ? {} : {show_earlier_runs: runs})});
     this.displayGuard.add(win);
-    this.displayIdles = this.idlesOwed;
+    this.displayDones = this.donesOwed;
   }
 
   /** window `win`'s zoom changed (a wheel, a drag, a typed range, Reset view) */
@@ -637,7 +637,7 @@ export class Session {
     const send = () => {
       this.rotate3dLast.set(win, performance.now());
       this.rotate3dTimer.delete(win);
-      /* busy: held, the latest angle goes at the idle */
+      /* busy: held, the latest angle goes at the done */
       if (this.store.getState().busy) this.rotate3dHeld.set(win, {theta, phi});
       else this.turn3d(win, theta, phi);
     };
@@ -645,10 +645,10 @@ export class Session {
     else this.rotate3dTimer.set(win, setTimeout(send, 150));
   }
 
-  /* at an idle: the latest angle each window was turned to while the core was busy (rotate3d) */
+  /* at a done: the latest angle each window was turned to while the core was busy (rotate3d) */
   private flushRotate3d(): void {
     if (this.store.getState().busy) return;
-    /* one plan at a time: the next window's angle goes at the next idle */
+    /* one plan at a time: the next window's angle goes at the next done */
     const first = this.rotate3dHeld.entries().next();
     if (first.done) return;
     this.rotate3dHeld.delete(first.value[0]);
@@ -660,7 +660,7 @@ export class Session {
     this.send({cmd: 'plot.set_3d_view', window: win, theta, phi});
   }
 
-  /** stops the running command; it still ends with its idle */
+  /** stops the running command; it still ends with its done */
   abort(): void {
     this.store.dispatch({type: 'aborting'});
     this.transport.send({cmd: 'run.abort'});
@@ -683,7 +683,7 @@ export class Session {
     this.send(cmd);
   }
 
-  /* after every idle: the run's clock stops, a plan ends, a grabbed periodic orbit is imported */
+  /* after every done: the run's clock stops, a plan ends, a grabbed periodic orbit is imported */
   private afterAuto(): void {
     if (this.store.getState().diagram.run?.active)
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'end', at: Date.now()}});
@@ -715,7 +715,7 @@ export class Session {
   }
 
   /** the AUTO view's close: done with it (A10). A running job is stopped
-      first and the window closes at its idle, instead of the close waiting
+      first and the window closes at its done, instead of the close waiting
       behind the run. */
   closeAuto(): void {
     const {busy, stopping, diagram} = this.store.getState();
@@ -724,7 +724,7 @@ export class Session {
       for (const command of commands) this.send(command);
       return;
     }
-    this.afterIdle = commands;
+    this.afterDone = commands;
     if (!stopping) this.abort();
   }
 
@@ -768,11 +768,11 @@ export class Session {
      when that ends, never to the run in progress. The field shows it meanwhile (store/values.ts
      inflight): the value shown is the value. No undo (GitHub #110): Reset is the way back. ---- */
 
-  /** edits, in one `set`: shown on their fields until its idle, which also
+  /** edits, in one `set`: shown on their fields until its done, which also
       ends the attribution of an error to them (A11) */
   private edit(...sets: ValueSet[]): void {
     for (const {command, sets: sent} of valueCommands(this.store.getState().hello, sets)) {
-      const ahead = this.idlesOwed;
+      const ahead = this.donesOwed;
       if (!this.send(command)) continue;
       for (const set of sent) this.store.dispatch({type: 'values', action: {type: 'sent', set, ahead}});
     }
@@ -829,7 +829,7 @@ export class Session {
 
   /** Save of a section: the core writes its own .par/.ic (docs/protocol.md
       "values"; core/lunch-new.cpp io_parameter_file/io_ic_file), then, at
-      the command's idle, the page offers it as a download -- the same
+      the command's done, the page offers it as a download -- the same
       `pendingSave`/`deliver` path `writeDataFile` uses (W66: the page
       itself builds no file). */
   saveValues(kind: 'par' | 'ic'): void {
@@ -837,7 +837,7 @@ export class Session {
     if (!name) return;
     if (nativeFileDialog()) this.send({cmd: 'value.save_file', kind: VALUE_FILE[kind]});
     else {
-      this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
+      this.pendingSave = {name, handle: null, ahead: this.donesOwed};
       this.send({cmd: 'value.save_file', kind: VALUE_FILE[kind], file: name});
     }
   }
@@ -986,7 +986,7 @@ export class Session {
   /** Save data (docs/protocol.md "Saving data"): the core itself writes
       `what` (`table` or `plot`) as `format` into `name` in the model's
       folder (browse_data.cpp data_write, skipping the format/name asks
-      since both are given), then, at the command's idle, the page offers
+      since both are given), then, at the command's done, the page offers
       it as a download -- the same `pendingSave`/`deliver` path a `file`
       ask's Write uses (W66: the page itself builds no file). */
   writeDataFile(what: 'table' | 'plot', format: string, name?: string): void {
@@ -995,7 +995,7 @@ export class Session {
     const target = what === 'plot' ? 'plot_curves' : 'table';
     if (nativeFileDialog()) this.send({cmd: 'browser.export', target, format});
     else {
-      this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
+      this.pendingSave = {name, handle: null, ahead: this.donesOwed};
       this.send({cmd: 'browser.export', target, format, file: name});
     }
   }
@@ -1029,7 +1029,7 @@ export class Session {
     if (!this.store.getState().ani.playing) this.send({cmd: 'animation.play'});
   }
 
-  /** Pause: reaches the running Go at once (a control line: no idle of its own) */
+  /** Pause: reaches the running Go at once (a control line: no done of its own) */
   aniPause(): void {
     if (this.store.getState().ani.playing) this.send({cmd: 'animation.pause'});
   }
@@ -1152,7 +1152,7 @@ export class Session {
   /** Make Anigif (Kinescope's own menu item, k then m): the core writes
       the chosen GIF (json_windows.cpp j_movie_make_anigif), asking
       `pixels` with `film` for every captured frame (answerPixels above);
-      the page only offers the result as a download, at the idle that
+      the page only offers the result as a download, at the done that
       follows (W66: the page built the GIF itself before this task). */
   downloadKinescopeGif(): void {
     if (!this.mayMain('kinescope.capture') || !this.store.getState().kinescope.frames.length) return;
@@ -1334,10 +1334,10 @@ export class Session {
   }
 
   /** a `file` ask for writing answered with `name`: the core writes it into
-      the model's folder, then, at the command's idle, the page copies it to
+      the model's folder, then, at the command's done, the page copies it to
       `handle` (showSaveFilePicker's) or offers it as a download */
   saveFile(ask: AskEvent, name: string, handle: SaveHandle | null): void {
-    /* the ask belongs to the command running now: its idle is the next one */
+    /* the ask belongs to the command running now: its done is the next one */
     const suffix = ask.wild?.match(/^\*(\.[^*? /\\]+)$/)?.[1];
     this.pendingSave = {name, handle, ahead: 0, suffix};
     this.answer(ask, {file: name});
@@ -1378,7 +1378,7 @@ export class Session {
       return;
     }
     this.replayAnswers = run.answers.slice();
-    this.replayIdles = 1;
+    this.replayDones = 1;
     this.send(run.cmd);
   }
 

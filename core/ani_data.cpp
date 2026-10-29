@@ -8,6 +8,7 @@
 #include <chrono>
 #include <string>
 
+#include "event_registry.h"
 #include "ani_data.h"
 #include "session.h"
 #include "json_number.h"
@@ -184,7 +185,7 @@ void ani_data_end(xpp::Session &s, const AniDataFrame *f)
     std::string &prims = s.ani_shown.prims;
     std::string &o = s.ani_shown.frame;
     o.clear();
-    o += "{\"ev\":\"ani\",\"op\":\"frame\",\"pos\":";
+    o += xpp::events::open(xpp::events::ANIMATION_FRAME) + ",\"pos\":";
     add_int(o, f->pos);
     o += ",\"rows\":";
     add_int(o, f->rows);

@@ -1,3 +1,4 @@
+version: 4
 model: "pendx.odex"
 options { speed: 10, bounds: { x: [0, 1], y: [0, 1] } }
 line { x1: 0.5, y1: 0.5, x2: 0.5+0.4*sin(x), y2: 0.5-0.4*cos(x), color: "foreground", width: 3 }

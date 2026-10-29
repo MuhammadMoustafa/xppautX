@@ -34,7 +34,7 @@ Result<std::string> manifest_text(const Manifest &m)
 {
     setx::Out out;
     out.begin(manifest_group);
-    out.whole("version", m.version);
+    out.whole(version_word, format_version);
     out.text("model", m.model_name);
     if (!m.anifile.empty()) out.text("animation", m.anifile);
     out.flag("data", m.data);
@@ -47,9 +47,7 @@ xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text)
     return setx::read_block("session", std::move(file), text, true, [](setx::Block &file_block) {
         Manifest m;
         setx::Block g = *file_block.group(manifest_group);
-        g.whole("version", m.version);
-        if (m.version != format_version)
-            g.fail(*g.member("version"), xpp::format("version {}: this program reads session files of version {}", m.version, format_version));
+        g.require_version("session files");
         g.text("model", m.model_name);
         if (!odex::is_odex(m.model_name)) g.fail(*g.member("model"), "a session stores an .odex model only; .ode is refused");
         if (g.has("animation")) {

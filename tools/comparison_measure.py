@@ -89,7 +89,7 @@ class RunClock:
 
     def observed_collect(self, until, timeout=10):
         events, end = self.collect(until, timeout)
-        if self.pending and end and end.get('ev') in ('idle', 'done'):
+        if self.pending and end and end.get('ev') == 'done':
             self.rows.append(elapsed(self.server.proc.pid, self.start))
             self.pending = False
         return events, end

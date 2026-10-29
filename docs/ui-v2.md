@@ -144,7 +144,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
   parts at most ~60 times a second (a display frame, W82; `progress` and
   `diagram add` stay at ~10), and
   the final state at the end.
-- **Every command still ends with `state` then `idle`.** Data events come
+- **Every command ends with `session.state` then `done`.** Data events come
   before them.
 
 ### The events, in the order to build them
@@ -502,14 +502,14 @@ Target: WCAG 2.2 AA. Rules:
 - **A10 Long runs**: the status bar shows Working… with a progress bar and
   the one Stop control (`abort`, also Escape) for whatever runs, in any
   view; it exists only while something runs and turns into a disabled
-  "Stopping…" until the run's `idle`. Views have no Abort buttons of their
+  "Stopping…" until the run's `done`. Views have no Abort buttons of their
   own (decision 2026-09-23): a view's close (×) means "done with it", and
   stops a running job first, while Stop keeps the view and its partial
   result (an AUTO branch ending on its EP, to grab and continue). While
   a computation runs only control, view and setting actions start (W68,
   W95, W106, GitHub #116, #144, #155): each action's kind comes from the core in `hello`
   (protocol/kinds.ts; docs/protocol.md "Action kinds"), and the core's
-  `computing` event, until the command's idle, says a computation runs;
+  `job.computing` event, until the command's `done`, says a computation runs;
   data and computation buttons and menu items are disabled then, their
   keys do nothing and are not kept, and session.ts `may()` discards
   anything else at the source. The page's own catch-up commands (a held

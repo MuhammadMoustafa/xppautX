@@ -101,7 +101,7 @@ int main()
     if(delay)TEST_REPORT("input bounds");
     if(!delay){
         CHECK(delay.error().where=="delay");
-        CHECK(delay.error().place.file==bad_file && delay.error().place.line==4);
+        CHECK(delay.error().place.file==bad_file && delay.error().place.line==5);
         CHECK(delay.error().what.find("delay=")!=std::string::npos);
         CHECK(delay.error().what.find("dt=")!=std::string::npos);
     }

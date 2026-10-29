@@ -51,8 +51,8 @@ constexpr std::array TRAJECTORIES={ResultField{"grid","integer"},ResultField{"tr
 constexpr std::array CELLS={ResultField{"grid","integer"},ResultField{"cells_colored","integer"}};
 constexpr std::array CLEARED={ResultField{"cleared","boolean"}};
 constexpr std::array EXPORTED={ResultField{"file","file"},ResultField{"written","boolean"}};
-constexpr std::array EVENTS={"dfield","flow","nullclines","state","done"};
-constexpr std::array DONE={"done"};
+constexpr std::array EVENTS={xpp::events::DIRFIELD_FIELD, xpp::events::NULLCLINE_CURVES, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DONE={xpp::events::DONE};
 constexpr std::array ROWS={
     Command{"dirfield.compute",COMPUTE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Two-D Fun/Direct or Scaled Field","Compute the phase plane's direction field.",VECTORS,EVENTS,true,compute},
     Command{"dirfield.flow",GRID_ARGS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Two-D Fun/Flow","Integrate trajectories on the phase plane grid.",TRAJECTORIES,EVENTS,true,flow},

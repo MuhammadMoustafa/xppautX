@@ -1,4 +1,5 @@
 # nnet.odex: converted from nnet.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # The Wilson-Cowan neural net equations
 # The phaseplane is fun to create

@@ -68,8 +68,8 @@ Nothing. Fixes from hands-on use are tracked in docs/ui-v2.md (T19).
 - While a run is going, other clicks show "Busy — press Abort to stop"
   instead of doing nothing. ABORT itself shows "Stopping…" (in the AUTO
   status footer for an AUTO run, the main hint otherwise) and is disabled
-  until the run's `idle`. The AUTO window's × and Close, clicked while busy,
-  send Abort and close once the run's `idle` arrives, instead of being
+  until the run's `done`. The AUTO window's × and Close, clicked while busy,
+  send Abort and close once the run's `done` arrives, instead of being
   dropped.
 - Values panel Load (W66 review, #114) reads a .par/.ic file through the
   core (`values` `read`, core/lunch-new.cpp io_parameter_file/io_ic_file),

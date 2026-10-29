@@ -1597,6 +1597,7 @@ private:
   {
     std::string out = xpp::format("# {}: converted from {} by xppautX --convert (docs/odex.md)\n",
                                   base_name(odex_name(m_.this_file)), base_name(m_.this_file));
+    out += xpp::format("{} {}\n", xpp::version_word, xpp::format_version);
     for (const auto &[from, to] : renames_) {
       place_ = model_place(m_, xpp::upper_case(from));
       const bool keyword = code_of(place_.source).starts_with(from + "=") || code_of(place_.source).starts_with(from + " =");

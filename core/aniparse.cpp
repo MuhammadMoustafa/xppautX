@@ -25,6 +25,7 @@
 #include "getvar.h"
 #include "ode_read.h"
 #include "aniparse.h"
+#include "format_version.h"
 #include "ani_data.h"
 #include "xpp_log.h"
 #include "expr.h"
@@ -1260,14 +1261,23 @@ Result<AnimationState> read_animation(Session &s, std::string_view text, const s
         animation.speed = on_the_fly_speed;
         animation.vcr.file = file;
         animation.vcr.ok = 1;
-        bool model_seen = false, options_seen = false;
+        bool model_seen = false, options_seen = false, version_seen = false;
         std::size_t memory = 0;
         for (const auto &written : odex::parse_animation(text, file)) {
             const auto &st = written.expressions;
-            if (st.name == "model" || st.name == "options") {
+            if (!version_seen && st.name != version_word)
+                doc.fail(st.pos.line, st.pos.col, xpp::format("an animation starts with `{}: {}`, found `{}`: this program reads animations of version {}",
+                                                              version_word, format_version, st.name, format_version));
+            if (st.name == version_word || st.name == "model" || st.name == "options") {
                 setx::Block block(doc, written.fields, false, st.name);
-                if (written.permanent) block.fail("model and options belong outside permanent");
-                if (st.name == "model") {
+                if (written.permanent) block.fail("version, model and options belong outside permanent");
+                if (st.name == version_word) {
+                    if (version_seen) block.fail("version is written once");
+                    version_seen = true;
+                    int found = 0;
+                    block.whole(version_word, found);
+                    if (found != format_version) block.fail(*block.member(version_word), wrong_version(found, "animations"));
+                } else if (st.name == "model") {
                     if (model_seen) block.fail("model is written once");
                     model_seen = true;
                     const std::string model = animation_model_name(block);
@@ -1345,7 +1355,8 @@ Result<std::string> convert_animation(Session &s, std::string_view text, const s
     if (!imported) return std::unexpected(imported.error());
     try {
         const auto &animation = *imported;
-        std::string out = "model: " + odex::quote_string(files::split_path(s.model().this_file).second) + "\n";
+        std::string out = xpp::format("{}: {}\n", version_word, format_version);
+        out += "model: " + odex::quote_string(files::split_path(s.model().this_file).second) + "\n";
         out += xpp::format("options {{ speed: {}, bounds: {{ x: [{}, {}], y: [{}, {}] }} }}\n",
                            animation.speed, odex::print_number(animation.xlo), odex::print_number(animation.xhi),
                            odex::print_number(animation.ylo), odex::print_number(animation.yhi));

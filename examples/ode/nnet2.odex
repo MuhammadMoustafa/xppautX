@@ -1,4 +1,5 @@
 # nnet2.odex: converted from nnet2.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # neural network
 table wgt 1/25, n=25, lo=-12, hi=12

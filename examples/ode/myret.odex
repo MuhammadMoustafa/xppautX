@@ -1,4 +1,5 @@
 # myret.odex: converted from myret.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # problem from hairer et al
 y0' = -y0*delay(y1, 1)+delay(y1, 10)

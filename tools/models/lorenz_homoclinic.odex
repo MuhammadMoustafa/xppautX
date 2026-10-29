@@ -1,3 +1,4 @@
+version 4
 # Source: published: E. N. Lorenz, "Deterministic nonperiodic flow", J. Atmos. Sci. 20(2) (1963) 130-141, doi:10.1175/1520-0469(1963)020<0130:DNF>2.0.CO;2 (checked at Crossref, W537), with AUTO-07p's lrz demo (reference/auto-07p/demos/lrz) of sigma = 10, beta = 8/3; the homoclinic value below is Sparrow's and Kaplan-Yorke's.
 # W403 (#465): the Lorenz equations at sigma = 10, b = 8/3, whose homoclinic orbit to the origin appears at r = 13.926
 # (Sparrow, "The Lorenz Equations: Bifurcations, Chaos, and Strange Attractors", Springer 1982, Appendix C; also

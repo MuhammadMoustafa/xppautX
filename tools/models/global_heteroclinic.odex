@@ -1,3 +1,4 @@
+version 4
 # Source: made up for this check (W537 audit); the published heteroclinic cycle is examples/tstauto/pp2.odex (AUTO-07p's pp2 demo; tests/auto/pp2_heteroclinic.json).
 # A planar system whose cycle from a Hopf point ends on a heteroclinic cycle between two saddles (W518, #582).
 # x'' = -x + x^3 + mu x' - (x')^3: the pendulum-like oscillator with a centre at the origin and saddles at

@@ -1,4 +1,5 @@
 # voltex3.odex: converted from voltex3.ode by xppautX --convert (docs/odex.md)
+version 4
 
 #  voltex2.ode - uses convolution to speed up soln
 u(t) = sin(t)-volterra(cos(t), of=u)

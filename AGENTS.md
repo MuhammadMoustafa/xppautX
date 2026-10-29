@@ -719,7 +719,7 @@ neither is a sandbox, so the brief still states every rule:
 
 Beyond the "Tests check data" and sleep rows of Code quality:
 - A test never reads a clock to decide pass or fail (no `Date.now()` deadline, no elapsed-time assertion):
-  it waits for the event (an `idle` event, a socket reply, a signal, a count
+  it waits for the event (a command's `done`, a socket reply, a signal, a count
   reached). A timeout is only a safety limit that fails a hang; it never
   decides a result and never serves as a synchronisation (maintainer, 2026-10-07).
 - Wait for a command's own completion signal, never for "not busy"; stop a
@@ -786,12 +786,13 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `core/menus.cpp` hold pure code moved out of those files.
 - Core structs that hold a window store an `XppWinId` (unsigned long); see
   `core/xpp_types.h`.
-- `core/commands.cpp` is the command layer (phase 3): `commander` (keys),
-  `run_the_commands` (`M_*` ids), and every pop-up menu. Menus are
-  `XppMenu` data in `core/menus.cpp`; front ends show them via
-  `xpp::ui.menu_choose` and switch the main menu via `xpp::ui.show_menu`.
-  Command logic is all core (phase 3 step 2); `XppUi` only holds
-  interaction primitives, window management and a few whole dialogs.
+- `core/commands.cpp` holds `run_the_commands` (the `M_*` ids a model's
+  `@ userbut` names, run through the registry's functions); the commands
+  themselves are the registry's rows (core/commands_*.cpp, W529: no key, menu
+  or letter table is left). A question's list of choices is `XppMenu` data in
+  `core/menus.cpp`, shown as a `choice` ask by `xpp::ui.menu_choose`. Command
+  logic is all core; `XppUi` only holds interaction primitives, window
+  management and a few whole dialogs.
 - `core/xpp_batch.cpp` holds `xpp::load_model()`, the start every mode
   shares, and `xpp::batch_start()`, the set-up with no interface (--silent,
   a unit test); what --silent runs is `core/json_silent.cpp`'s built-in
@@ -811,7 +812,9 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   anonymous namespaces). When adding an `XppUi` field, give
   it a `j_` implementation too, and extend `tools/servercheck.py` for new
   protocol behaviour; `tools/verify.sh` runs it. Every command ends with
-  `state` then `idle`; a client waits for `idle`.
+  `session.state` then `done`; a client waits for `done`. An event has a dotted
+  `resource.event` name, declared in core/event_registry.cpp with its fields
+  (`help events`); `hello`, `done`, `ask` and `exit` stay bare.
 - `xppautX` (`make xppautx`) is one program: `core/xppautx_main.cpp` picks
   the desktop window (the default), browser mode (`--browser`/`--web`, or
   `--no-open`), `--server` (the protocol on stdin/stdout) or `--silent`
@@ -975,18 +978,18 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   and `--version` text, the `XPP:` address lines).
 - The X11 front end was removed (issue #20, task W8); new UI work goes
   into the JSON front end (ui_json.cpp, json_*.cpp) and `web2/` (the
-  data-level front end: the core sends numbers, e.g. the `series` and
-  `plots` events
-  after `{"cmd":"events.subscribe","events":["series","plots"]}`, built in
-  `core/plot_data.cpp`, and the page draws them; `nullclines` and `dfield`
+  data-level front end: the core sends numbers, e.g. the `plot.series` and
+  `plot.shown` events
+  after `{"cmd":"events.subscribe","events":["plot.series","plot.shown"]}`, built in
+  `core/plot_data.cpp`, and the page draws them; `nullcline.curves` and `dirfield.field`
   come from `core/phase_data.cpp`, which records per window what
   nullcline.c and the integrator (Flow) draw and forgets it when json_windows.cpp
-  blanks the window; `marks` likewise from `core/marks_data.cpp`: Sing pts'
+  blanks the window; `plot.marks` likewise from `core/marks_data.cpp`: Sing pts'
   equilibrium symbols (graphics.c eq_symb), Text,etc's labels and objects
-  (grobs.cpp draw_label) and frozen curves (graf_par.c) by their slot; the animation's frames, `ani` `frame`, come from
+  (grobs.cpp draw_label) and frozen curves (graf_par.c) by their slot; the animation's frames, `animation.frame`, come from
   `core/ani_data.cpp`, to which aniparse.cpp gives every primitive in the
   `.ani`'s unit coordinates;
-  `autoinfo`, AUTO's info strip and stability circle,
+  `auto.info`, AUTO's info strip and stability circle,
   from `core/auto_data.cpp`, which auto_nox.cpp tells what it draws there
   (the circle always a stored diagram point's values, running or grabbed;
   those come from `core/auto_stability.cpp` (W15), the one source of a
@@ -994,7 +997,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   what they computed and autevd.cpp addbif stores what it says belongs to
   the point, zeros meaning "not computed", a run's first point included
   unless the run restarts from a label of the same kind);
-  the AUTO diagram's points, `diagram`, from json_auto.cpp's `j_auto_diagram`).
+  the AUTO diagram's points, `auto.diagram`, from json_auto.cpp's `j_auto_diagram`).
   Protocol 2 (T18) has no pixel drawing: the classic page's `draw` ops,
   `palette` and `size` went with it. The `XppUi` pixel primitives
   (`draw_*`, `set_color`, `auto_line` ..., `ani_line` ...) stay as seams
@@ -1007,8 +1010,6 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   docs/protocol.md. web2 serves the manual as `web2/dist/manual.json`, built from
   docs/manual/*.md (W12b), so an edit there also needs `npm run build` in
   web2 and the new dist committed (`npm run check`, in CI, fails otherwise).
-- Pop-up menu arrays in menus.cpp (`main_menu` etc.) start with the title:
-  item i is `main_menu[i+1]` with key `main_menu_keys[i]`.
 
 ## Memory
 

@@ -1,4 +1,5 @@
 # invpend.odex: converted from invpend.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # the inverted pendulum driven periodically
 # start at 0 and give it a push

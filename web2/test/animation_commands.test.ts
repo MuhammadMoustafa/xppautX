@@ -22,9 +22,9 @@ test('the kinescope buttons and the array plot scroll send registry commands', (
   session.kinescopeCapture();
   session.kinescopePlay();
   session.kinescopeReset();
-  session.store.dispatch({type: 'event', ev: {ev: 'aplot', title: 'V0..1', nx: 2, ny: 5, first_row: 10, values: [], colormap: 'jet', ramp: [], zmin: 0, zmax: 1, tlo: 0, thi: 1}});
+  session.store.dispatch({type: 'event', ev: {ev: 'array_plot.shown', title: 'V0..1', nx: 2, ny: 5, first_row: 10, values: [], colormap: 'jet', ramp: [], zmin: 0, zmax: 1, tlo: 0, thi: 1}});
   for (const dy of [3, -4, 20]) {
-    session.store.dispatch({type: 'event', ev: {ev: 'idle'}});
+    session.store.dispatch({type: 'event', ev: {ev: 'done', status: 'ok'}});
     session.aplotScroll(dy);
   }
   assert.deepEqual(sent, [{cmd: 'kinescope.capture'}, {cmd: 'kinescope.play'}, {cmd: 'kinescope.reset'},

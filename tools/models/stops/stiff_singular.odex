@@ -1,3 +1,4 @@
+version 4
 # W496: I/(gamma*h)-J = 2-2 = 0 on the first Stiff step.
 x' = 2*x
 init x = 1

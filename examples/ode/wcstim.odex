@@ -1,4 +1,5 @@
 # wcstim.odex: converted from wcstim.ode by xppautX --convert (docs/odex.md)
+version 4
 # renamed: t is t_ here (.odex reserves t)
 
 init u = 0.0426, v = 0.0834

@@ -1,4 +1,5 @@
 # ma23.odex: converted from ma23.ode by xppautX --convert (docs/odex.md)
+version 4
 
 # ma23.ode: the fast-spiking parvalbumin interneuron (PVIN) of Ma et al. 2023, one
 # compartment, five states: voltage SmV, Na inactivation SmNah, Kv1 and Kv3 gates

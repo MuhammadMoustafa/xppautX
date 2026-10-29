@@ -62,6 +62,7 @@
 #include "xpp_examples.h"
 #include "xpp_recent.h"
 #include "recx.h"
+#include "event_registry.h"
 #include "event_streams.h"
 
 /* the core's own globals and functions that have no header of their own */
@@ -78,13 +79,14 @@ static int exit_code(void) { return session.silent ? xpp::log_exit_code() : 0; }
 
 namespace {
 
-/* {"ev":"stopped","at":AT}: where the running job was when it was
+/* the job.stopped event: {"ev":"job.stopped","at":AT}: where the running job was when it was
    cancelled (docs/protocol.md "stopped"). A script replays the
    interruption from AT. */
 void send_stopped(void)
 {
     std::string b;
-    BUF_LIT(b, "{\"ev\":\"stopped\",\"at\":");
+    b += xpp::events::open(xpp::events::JOB_STOPPED);
+    BUF_LIT(b, ",\"at\":");
     buf_stopped_at(b);
     BUF_LIT(b, "}");
     send_buf(b);
@@ -104,7 +106,7 @@ void quit_session(void)
    at_exit) knows the exit was meant; a silent error stays exit 1 without it */
 void quit_command(void)
 {
-    if (exit_code() == 0) send_simple("bye");
+    if (exit_code() == 0) send_simple(xpp::events::SESSION_BYE);
     quit_session();
 }
 
@@ -121,15 +123,7 @@ void silent_fail(const char *what, const char *line, const char *ask)
 
 /* the command that stops the running computation: the reader thread acts on it the moment it arrives, in JSON or in server text */
 constexpr std::string_view ABORT_COMMAND = "run.abort";
-bool is_abort(const char *line)
-{
-    if (xpp::command::name(line) == ABORT_COMMAND) return true;
-    if (!is_cmd(line, "key")) return false;
-    std::string key;
-    if (!get_string(line, "key", key)) return false;
-    const auto map = xpp::keymap::load_keymap();
-    return map && xpp::keymap::command_on_key(*map, key) == ABORT_COMMAND;
-}
+bool is_abort(const char *line) { return xpp::command::name(line) == ABORT_COMMAND; }
 
 /* the parameters' edit: acted on at once under a job that computes nothing (a prompt open, the animation playing),
    as a `set` was, so a slider moves a parameter under the animation */
@@ -235,12 +229,12 @@ int handle_async(xpp::Session &s, const char *line)
      questions), every other command of the view kind (W95: data, a zoom,
      a window picked, a menu that only shows) and of the setting kind
      (W106: set, values, auto set, a Numerics item's key, whose dialog
-     opens then): it runs after the computation's idle, in arrival order
+     opens then): it runs after the computation's done, in arrival order
      with the rest, so the run in progress never sees a setting and each
-     line's idle comes in the order the client sent it;
+     line's done comes in the order the client sent it;
    - refused (Verdict::refuse), with one log line: a command of the data
      or computation kind (a key that computes or saves, a file written):
-     never run, it gets an error message, state and idle when the core
+     never run, it gets an error message, state and done when the core
      takes it, after the computation. A client that enables its actions by
      kind, as the page does (W95), never sends one. */
 xpp::inbox::Verdict during_run(const char *line)
@@ -300,7 +294,7 @@ namespace {
    an ordinary command. Sent while no job runs they are normal.
 
    Everything else is normal: a command sent while a job runs, outside a
-   computation, waits for it and runs after the job's idle. */
+   computation, waits for it and runs after the job's done. */
 /* The inbox's busy hook (xpp_inbox.h), on the pushing thread: the error
    event for a normal line the full queue refused, naming the command (its
    `cmd`, and its `id` when it has one) and carrying it, cut short, as the
@@ -320,7 +314,7 @@ void busy(const char *line, std::string *reply)
                                    xpp::inbox::MAX_PENDING_LINES);
     xpp::Place place;
     place.source.assign(line, std::min(std::strlen(line), SOURCE_SHOWN));
-    std::string event = error_event("message", xpp::Error{"command", std::move(what), std::move(place)});
+    std::string event = error_event(xpp::events::SESSION_MESSAGE, xpp::Error{"command", std::move(what), std::move(place)});
     if (reply) *reply = std::move(event);
     else {
         out_line(event.data(), event.size());
@@ -345,7 +339,7 @@ xpp::inbox::Verdict classify(const char *line, unsigned long seq)
     }
     if (xpp::job::computing() && !xpp::job::stopping()) return during_run(line);
     if (!xpp::job::running()) return xpp::inbox::Verdict::normal;
-    if ((c == "key" && !js_find(line, "win")) || c == "set" || is_async_command(line) || is_page(line) || is_parameter_edit(line))
+    if (c == "set" || is_async_command(line) || is_page(line) || is_parameter_edit(line))
         return xpp::inbox::Verdict::control;
     if (is_steering(line)) return xpp::inbox::Verdict::control;
     return xpp::inbox::Verdict::normal;
@@ -482,11 +476,15 @@ void j_exit_program(void)
 }
 
 void j_void(void) {}
-void j_int(int) {}
 
 /* the running command's first computation began (xpp_job.h): the client
-   disables what it may not do until the command's idle */
-void send_computing(void) { send_simple("computing"); }
+   disables what it may not do until the command's done */
+void send_computing(void)
+{
+    std::string b = xpp::events::open(xpp::events::JOB_COMPUTING);
+    buf_format(b, ",\"job\":{}}}", xpp::job::number());
+    send_buf(b);
+}
 
 /* the JSON front end's table: assignments, so C++17 needs no designated
    initializers; fields not set stay null, as in the C initializer */
@@ -510,7 +508,7 @@ XppUi make_json_ui(void)
     u.write_folders = []() { return &client().write_folders; };
     u.save_result = [](std::string_view file, bool saved) {
         std::string b;
-        buf_format(b, "{{\"ev\":\"saved\",\"saved\":{},\"file\":", saved ? "true" : "false");
+        buf_format(b, "{},\"saved\":{},\"file\":", xpp::events::open(xpp::events::SESSION_SAVED), saved ? "true" : "false");
         buf_str(b, std::string(file).c_str());
         BUF_LIT(b, "}");
         send_buf(b);
@@ -519,7 +517,6 @@ XppUi make_json_ui(void)
     u.bottom_msg = j_bottom_msg;
     u.message_box = j_message_box;
     u.kill_message_box = j_kill_message_box;
-    u.title_text = j_title_text;
     u.question_policy = j_question_policy;
     u.new_string = j_new_string;
     u.choose = j_choose;
@@ -529,8 +526,6 @@ XppUi make_json_ui(void)
     u.grid_box = j_grid_box;
     u.file_selector = j_file_selector;
     u.get_mouse_xy = j_get_mouse_xy;
-    u.menu_flash = j_int;
-    u.redraw_menu = j_void;
     u.check_abort = j_check_abort;
     u.progress_begin = j_progress_begin;
     u.progress = j_progress;
@@ -602,28 +597,6 @@ XppUi make_json_ui(void)
 
 const XppUi json_ui = make_json_ui();
 
-/* A key names the registry command bound to it in the same checked keymap the page receives. */
-void key_command(xpp::Session &s, const char *line)
-{
-    std::string key;
-    if (!get_string(line, "key", key) || js_find(line, "menu") || js_find(line, "item") || js_find(line, "win") || js_find(line, "button") || js_find(line, "context")) {
-        j_command_error("key", "A key command needs key, and nothing else");
-        return;
-    }
-    const auto map = xpp::keymap::load_keymap();
-    if (!map) { xpp::show_error(map.error()); return; }
-    if (const std::string problem = xpp::keymap::key_problem(key); !problem.empty()) {
-        j_command_error("key", problem); return;
-    }
-    const std::string name = xpp::keymap::command_on_key(*map, key);
-    if (name.empty()) { j_command_error("key", xpp::format("No command is bound to the key \"{}\"", key)); return; }
-    std::string command = "{\"cmd\":";
-    json_append_string(command, name);
-    command += '}';
-    record_begin(command.c_str());
-    xpp::ok_or_show(xpp::command::run_button(s, command, xpp::command_place()));
-}
-
 /* the model's folder for a client that cannot reach it (xpp_files.h) */
 void file_command(xpp::Session &, const char *line)
 {
@@ -671,7 +644,6 @@ struct CommandInfo {
 constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D = XPP_KIND_DATA, X = XPP_KIND_COMPUTE;
 
 const CommandInfo commands[] = {
-    {"key", nullptr, 0, STEP, key_command},
     {"answer", nullptr, C, NOT_STEP,
      [](xpp::Session &, const char *line) {
          /* Reaching the main dispatch means no ask was pending. */
@@ -777,6 +749,42 @@ bool runs_without_model(const char *line)
     return false;
 }
 
+/* a line that names no registry command: the protocol's own `set`, `file` and `answer`, or a line that is no command at
+   all. Whatever it could not do is its result's error, which its `done` carries as a registry command's does. */
+xpp::Result<std::string> run_protocol_command(xpp::Session &s, const char *line, bool applied, bool refused)
+{
+    const xpp::Place place = j_command_place();
+    const xpp::Result<> permission = reset_save_decision();
+    std::string input_error;
+    const char *wrong_at = nullptr;
+    const char *wrong = js_problem(line, wrong_at);
+    std::string cmd;
+    get_string(line, "cmd", cmd);
+    const std::string what = cmd.empty() ? std::string("command") : cmd;
+    try {
+        const ArgumentCheck check;
+        if (wrong) return xpp::fail("command", xpp::format("the command line {} (at character {})", wrong, wrong_at - line + 1), place);
+        if (get_string(line, "input_error", input_error)) return xpp::fail("input", input_error, place);
+        if (!permission) return std::unexpected(permission.error());
+        if (applied) return std::string("{}");
+        if (refused) return xpp::fail("command", xpp::format("{}: {} was refused", xpp::job::REFUSED_WHILE_COMPUTING, cmd), place);
+        if (!s.model().loaded() && !runs_without_model(line)) return xpp::fail("command", "No model is open: open one first (Open model)", place);
+        if (handle_async(s, line)) return std::string("{}");
+        const CommandInfo *e = command_of(line);
+        if (!e) return xpp::fail("command", xpp::format("Unknown command {}", cmd), place);
+        record_begin(line);
+        e->run(s, line);
+        /* an evaluation's failure no caller took (W387: user functions
+           nested too deep in the flow, a plot, a formula) is shown once,
+           and the next command starts clean */
+        if (s.integrator.step_error) xpp::show_error(xpp::take_step_error(s).error());
+        return std::string("{}");
+    } catch (const BadArgument &bad) {
+        return xpp::fail(what, xpp::format("{}: {} must be {}, not {}", what,
+                                           bad.key.empty() ? std::string("an element") : xpp::format("argument \"{}\"", bad.key), bad.expected, bad.given), place);
+    }
+}
+
 /* one command, run as a job (xpp_job.h) numbered by its line's sequence
    number: an abort cancels it from the reader thread. A line refused
    during a computation (during_run) only says so, and ends as any does;
@@ -818,44 +826,11 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
             else xpp::log_note_error();
         }
     } else {
-    const xpp::Result<> permission = reset_save_decision();
-    std::string input_error;
-    const char *wrong_at = nullptr;
-    const char *wrong = js_problem(line, wrong_at);
-    try {
-        const ArgumentCheck check;
-        if (wrong) {
-            j_command_error("command", xpp::format("the command line {} (at character {})", wrong, wrong_at - line + 1));
-        } else if (get_string(line, "input_error", input_error)) {
-            j_command_error("input", input_error);
-        } else if (!permission) {
-            xpp::show_error(permission.error());
-        } else if (applied) {
-        } else if (refused) {
-            std::string c;
-            get_string(line, "cmd", c);
-            j_command_error("command", xpp::format("{}: {} was refused", xpp::job::REFUSED_WHILE_COMPUTING, c));
-        } else if (!s->model().loaded() && !runs_without_model(line)) {
-            j_command_error("command", "No model is open: open one first (Open model)");
-        } else if (handle_async(*s, line)) {
-        } else if (const CommandInfo *e = command_of(line)) {
-            record_begin(line);
-            e->run(*s, line);
-            /* an evaluation's failure no caller took (W387: user functions
-               nested too deep in the flow, a plot, a formula) is shown once,
-               and the next command starts clean */
-            if (s->integrator.step_error) xpp::show_error(xpp::take_step_error(*s).error());
-        } else {
-            std::string c;
-            if (get_string(line, "cmd", c)) j_command_error("command", xpp::format("Unknown command {}", c));
+        result = run_protocol_command(*s, line, applied, refused);
+        if (!result) {
+            if (session.silent) xpp::log(XPP_LOG_ERROR, "{}\n", result.error().text());
+            else xpp::log_note_error();
         }
-    } catch (const BadArgument &bad) {
-        std::string cmd;
-        get_string(line, "cmd", cmd);
-        j_command_error(cmd.empty() ? "command" : cmd,
-                        xpp::format("{}: {} must be {}, not {}", cmd.empty() ? "command" : cmd,
-                                    bad.key.empty() ? std::string("an element") : xpp::format("argument \"{}\"", bad.key), bad.expected, bad.given));
-    }
     }
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */
@@ -869,21 +844,21 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         /* a model that does not load is the command's error (a registry command's done carries it), shown once; the registry command that
            opened one answers for it */
         if (!switched) {
-            if (registered && result) result = std::unexpected(switched.error());
+            if (result) result = std::unexpected(switched.error());
             else xpp::show_error(switched.error());
-            if (registered && !result) {
+            if (!result) {
                 if (session.silent) xpp::log(XPP_LOG_ERROR, "{}\n", result.error().text());
                 else xpp::log_note_error();
             }
-        } else if (registered && result && xpp::command::name(request->c_str()) == OPEN_MODEL_COMMAND) result = xpp::command::opened_model_result(*s);
+        } else if (result && xpp::command::name(request->c_str()) == OPEN_MODEL_COMMAND) result = xpp::command::opened_model_result(*s);
     }
     const bool stopped=xpp::job::cancelled();
     if (!s->model().loaded()) {
         /* still the start screen (a cancelled Open model): nothing of a model to send */
         json_flush();
         xpp::job::end();
-        if(registered){std::string event=xpp::command::done(request?request->c_str():"{}",result,stopped);send_buf(event);}
-        else send_simple("idle");
+        std::string event=xpp::command::done(request?request->c_str():"{}",result,stopped,xpp::job::number());
+        send_buf(event);
         return *s;
     }
     aplot_update(*s);
@@ -908,8 +883,8 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     /* the command is finished; the client may send the next one */
     xpp::job::end();
     send_state(*s);
-    if(registered){std::string event=xpp::command::done(request?request->c_str():"{}",result,stopped);send_buf(event);}
-    else send_simple("idle");
+    std::string event=xpp::command::done(request?request->c_str():"{}",result,stopped,xpp::job::number());
+    send_buf(event);
     /* Make the next command of a silent model's internal list. */
     if (session.generated) xpp::inbox::generated_advance();
     return *s;
@@ -956,7 +931,7 @@ void json_ui_loop(void)
             next.taken.reset();
         }
         /* an abort did its work when it arrived (classify()): it is no
-           command of its own, and gets no state or idle; in a script,
+           command of its own, and gets no state or done; in a script,
            where nothing ran for it to stop, the next line follows */
         if (!is_abort(next.line.c_str()))
             handle_line(next.line.c_str(), next.seq, next.refused, next.applied, next.taken ? &*next.taken : nullptr);
@@ -1046,7 +1021,6 @@ void json_ui_start_screen()
 {
     program.interactive = 1;
     send_hello(client());
-    send_simple("idle");
     json_flush();
     /* the one Open model: the same key the page's button and File > Open model send, which asks for the file */
     xpp::inbox::push_own("{\"cmd\":\"session.open_model\"}");
@@ -1055,7 +1029,7 @@ void json_ui_start_screen()
 void json_ui_load_error(const xpp::Error &e)
 {
     /* a script whose model does not load fails, as an error message does */
-    xpp::json::send_error("error", e);
+    xpp::json::send_error(xpp::events::SESSION_ERROR, e);
 }
 
 } // namespace xpp
@@ -1076,9 +1050,10 @@ void send_hello(xpp::Session &s)
             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
             : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     const char *title = title_text.c_str();
-    BUF_LIT(b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":");
+    b += xpp::events::open(xpp::events::HELLO);
+    BUF_LIT(b, ",\"protocol\":" JSON_UI_STR(XPP_FORMAT_VERSION) ",\"features\":");
     {
-        std::vector<std::string> features(xpp::event_streams::NAMES.begin(), xpp::event_streams::NAMES.end());
+        std::vector<std::string> features(xpp::events::STREAMS.begin(), xpp::events::STREAMS.end());
         buf_str_array(b, features);
     }
     BUF_LIT(b, ",\"title\":");

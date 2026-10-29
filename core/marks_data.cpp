@@ -10,6 +10,7 @@
    for this window; a window whose content differs from what the client
    got last gets its event. */
 #include <new>
+#include "event_registry.h"
 #include "xpp_mem.h"
 #include <cmath>
 #include <cstdlib>
@@ -201,7 +202,7 @@ void append_annotations(std::string &o, const std::vector<Label> &labels, const 
 
 void send_marks(const xpp::Session &s, int pop, const Content &c)
 {
-    std::string o = "{\"ev\":\"marks\",\"win\":";
+    std::string o = xpp::events::open(xpp::events::PLOT_MARKS) + ",\"win\":";
     xpp::json_append_string(o,xpp::window_name(s,s.plot_windows.graph[pop].w));
     if (client.values_f32) o += ",\"enc\":\"f32\"";
     o += ",\"equilibria\":[";

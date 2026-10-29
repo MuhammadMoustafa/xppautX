@@ -5,6 +5,7 @@
    carries them all; that saved model loads from the file alone, the
    files on the disk gone, and a file without its model is refused. */
 #include "load_args.h"
+#include "model_text.h"
 #include "xpptest.h"
 #include "snapx.h"
 #include "model.h"
@@ -33,10 +34,14 @@
 
 namespace {
 
+/* a model or animation file's text takes the format version first; a zip or other bytes written under a model's name are as given */
 bool write_file(const std::string &path, std::string_view text)
 {
+    const bool plain = !text.starts_with("PK") && text.find('\0') == std::string_view::npos;
+    const std::string body = !plain ? std::string(text) : xpp::files::has_extension(path, ".odex") ? versioned(text)
+                           : xpp::files::has_extension(path, ".anix") ? versioned_anix(text) : std::string(text);
     xpp::Writer w = xpp::Writer::binary(path.c_str());
-    return w && w.write(text) && w.commit();
+    return w && w.write(body) && w.commit();
 }
 
 bool load(const std::string &file, const xpp::SavedModel *saved = nullptr)
@@ -152,7 +157,7 @@ void check_saved_animation(const xpp::TempDir &tmp)
     CHECK(load("animated.odex", &saved->model));
     CHECK(xpp::client_session().animation.ncom == 1);
     for (auto &file : saved->model.files)
-        if (file.name == "motion.anix") file.bytes = "line { x1: missing, y1: 0, x2: 1, y2: 1 }\n";
+        if (file.name == "motion.anix") file.bytes = versioned_anix("line { x1: missing, y1: 0, x2: 1, y2: 1 }\n");
     /* an animation that no longer fits the model is refused whole: the model loads without it */
     CHECK(load("animated.odex", &saved->model));
     CHECK(xpp::client_session().animation.ncom == 0);
@@ -170,7 +175,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(write_file("inc.odex", "par a=99\n"));
     xpp::UniqueFile stream = xpp::open_model_file(xpp::client_session().model(), "inc.odex");
     std::string streamed;
-    CHECK(xpp::read_bytes(stream.get(), streamed) && streamed == "par a=2\n");
+    CHECK(xpp::read_bytes(stream.get(), streamed) && streamed == versioned("par a=2\n"));
     CHECK(write_file("inc.odex", "par a=2\n"));
     const std::vector<xpp::ModelFile> files = xpp::client_session().model().files;
     CHECK(files.size() >= 3 && files[0].name == "main.odex" && files[1].name == "inc.odex" && files[2].name == "w.tab");

@@ -52,7 +52,7 @@ std::vector<AboutLine> make_lines()
     lines.push_back({{{"Based on XPPAUT 8.0 by G. Bard Ermentrout (University of Pittsburgh).", ""}}});
     lines.push_back({{{"GPL v2, as XPPAUT; no warranty (see LICENSE).", ""}}});
     lines.push_back({});
-    lines.push_back({{{"Commit " XPPAUTX_COMMIT " \u00b7 Compiler " XPPAUTX_COMPILER " \u00b7 Protocol " JSON_UI_STR(JSON_UI_PROTOCOL), ""}}});
+    lines.push_back({{{"Commit " XPPAUTX_COMMIT " \u00b7 Compiler " XPPAUTX_COMPILER " \u00b7 Protocol " JSON_UI_STR(XPP_FORMAT_VERSION), ""}}});
     return lines;
 }
 

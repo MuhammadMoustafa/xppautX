@@ -31,9 +31,9 @@ constexpr std::array STEP_RESULTS = {ResultField{"step_index", "integer"}};
 constexpr std::array SPEED_RESULTS = {ResultField{"speed", "real"}};
 constexpr std::array SEEK_RESULTS = {ResultField{"step", "integer"}};
 constexpr std::array CLOSE_RESULTS = {ResultField{"closed", "boolean"}};
-constexpr std::array STATE_EVENTS = {"state", "done"};
-constexpr std::array PLAYER_EVENTS = {"player", "state", "done"};
-constexpr std::array DONE_EVENTS = {"done"};
+constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array PLAYER_EVENTS = {xpp::events::RECORDING_PLAYER, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DONE_EVENTS = {xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"recording.start", {}, XPP_KIND_DATA, CommandCategory::Panels, "File/Record steps",

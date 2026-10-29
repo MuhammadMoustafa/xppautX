@@ -1,3 +1,4 @@
+version: 4
 model: "atcoaster.odex"
 options { speed: 10, bounds: { x: [-3.25, 3.25], y: [-3.25, 3.25] } }
 permanent {

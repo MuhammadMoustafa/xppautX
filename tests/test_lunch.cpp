@@ -145,11 +145,11 @@ int main(void)
     /* Saved dimensions and numerics are refused with their member's place. */
     for (const char *group : {"array_plot", "transpose"}) {
         for (const char *key : {"columns", "rows"}) {
-            const std::string text = xpp::format("{}: {{\n  {}: {},\n}}\n", group, key, xpp::settings_dimension_limit + 1);
+            const std::string text = xpp::format("version: {},\n{}: {{\n  {}: {},\n}}\n", xpp::format_version, group, key, xpp::settings_dimension_limit + 1);
             const auto r = xpp::read_settings(s, "sent.setx", text, xpp::SettingsUse::file);
             CHECK(!r);
             if (!r) {
-                CHECK(r.error().place.file == "sent.setx" && r.error().place.line == 2);
+                CHECK(r.error().place.file == "sent.setx" && r.error().place.line == 3);
                 CHECK(r.error().what.find("4097") != std::string::npos);
             }
         }
@@ -181,7 +181,7 @@ int main(void)
     /* a file that names little sets only that */
     s.numerics.total_time = 7;
     xpp::set_val(s, "gca", 3);
-    CHECK(setx_error(s, own, "parameters: { iapp: 0.5 },\n").empty());
+    CHECK(setx_error(s, own, "version: 4,\nparameters: { iapp: 0.5 },\n").empty());
     xpp::get_val(s, "iapp", &x);
     CHECK(x == 0.5 && s.numerics.total_time == 7);
     xpp::get_val(s, "gca", &x);
@@ -216,7 +216,7 @@ int main(void)
     }
     CHECK(setx_error(s, own, first + "numerics: {},\n").find("`numerics` is given twice") != std::string::npos);
     CHECK(setx_error(s, own, first + "nosuch: {},\n").find("`nosuch` is not a setting") != std::string::npos);
-    CHECK(setx_error(s, own, "total_time: 5,\n").find("`total_time` is not a setting") != std::string::npos); /* outside its group */
+    CHECK(setx_error(s, own, "version: 4,\ntotal_time: 5,\n").find("`total_time` is not a setting") != std::string::npos); /* outside its group */
     CHECK(setx_error(s, own, "numerics: { total_time: 5 \n").find("expected") != std::string::npos);
     CHECK(snapshot(s) == before);
 

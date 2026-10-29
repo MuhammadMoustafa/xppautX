@@ -56,11 +56,11 @@ export function installTestHook(session: Session): void {
   session.store.dispatch = (a: Action) => {
     actions.push(a.type === 'event' ? `event:${a.ev.ev}` : a.type);
     if (actions.length > KEEP) actions.shift();
-    if (a.type === 'event' && a.ev.ev === 'diagram') {
+    if (a.type === 'event' && a.ev.ev === 'auto.diagram') {
       if (a.ev.op === 'reset' && !a.ev.keep && a.ev.view === session.store.getState().diagram.views[0]?.name) diagramEvents = [];
       diagramEvents.push(a.ev);
-    } else if (a.type === 'event' && a.ev.ev === 'window' && a.ev.kind === 'diagram' && a.ev.op === 'destroy') diagramEvents = [];
-    if (a.type === 'event' && a.ev.ev === 'press') {
+    } else if (a.type === 'event' && a.ev.ev === 'window.destroyed' && a.ev.kind === 'diagram') diagramEvents = [];
+    if (a.type === 'event' && a.ev.ev === 'recording.press') {
       presses.push({step: a.ev.step, what: a.ev.what, index: a.ev.index});
       if (presses.length > KEEP) presses.shift();
     }

@@ -166,6 +166,7 @@ Result<Preferences> parse_prefs(std::string_view text, std::string file)
     if (text.size() > MAX_FILE_BYTES)
         return fail_reading(std::string(WHERE), xpp::format("the file is longer than {} bytes", MAX_FILE_BYTES), std::move(file));
     return setx::read_block(std::string(WHERE), std::move(file), text, false, [](setx::Block &block) {
+        block.require_version("preferences files");
         Preferences p;
         Take take(block);
         describe(take, p);
@@ -176,6 +177,7 @@ Result<Preferences> parse_prefs(std::string_view text, std::string file)
 Result<std::string> serialize_prefs(const Preferences &p)
 {
     Put put;
+    put.out.whole(version_word, format_version);
     describe(put, p);
     if (put.bad_) return fail(std::string(WHERE), "cannot be saved: " + *put.bad_, Place{prefs_path()});
     return put.out.result(std::string(WHERE));

@@ -384,7 +384,7 @@ def check_rhs(binary, eqs, start, folder):
     subprocess.run(['gfortran', '-ffp-contract=off', 'probe.f90', '-o', 'probe'], cwd=folder, check=True, capture_output=True)
     p = subprocess.run([str((folder / 'probe').resolve())], cwd=folder, check=True, capture_output=True, text=True)
     foreign = [float(v) for v in p.stdout.split()]
-    (folder / 'probe.odex').write_text("par probe_value = 0\nz' = 0\n")
+    (folder / 'probe.odex').write_text("version 4\npar probe_value = 0\nz' = 0\n")
     assignments = dict(eqs.ordered_assigns())
     values = {**eqs.values, **dict(zip(eqs.o.states, start)), 't': 0.0}
 
@@ -408,10 +408,10 @@ def check_rhs(binary, eqs, start, folder):
         for name in eqs.o.states:
             expression = ' '.join(eqs.conditionals(expand(eqs.o.odes[name]), xppaut=True))
             events = completed(s, dict(cmd='value.set_by_formula', name='probe_value', formula=expression))
-            state = next(e for e in reversed(events) if e.get('ev') == 'state')
+            state = next(e for e in reversed(events) if e.get('ev') == 'session.state')
             ours.append(dict(state['pars'])['probe_value'])
             events = completed(s, dict(cmd='value.set_by_formula', name='probe_value', formula=' '.join(magnitude_bound(expression.split()))))
-            state = next(e for e in reversed(events) if e.get('ev') == 'state')
+            state = next(e for e in reversed(events) if e.get('ev') == 'session.state')
             scales.append(dict(state['pars'])['probe_value'])
     finally:
         s.close()

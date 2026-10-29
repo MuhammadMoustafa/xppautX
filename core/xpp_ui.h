@@ -130,7 +130,6 @@ void ping(void);
 void bottom_msg(int line, std::string_view msg, std::string_view chapter = {}, std::string_view anchor = {});
 void MessageBox(std::string_view m);
 void KillMessageBox(void);
-void title_text(std::string_view s);
 int new_int(std::string_view name, int *value);
 int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key);
 /* A question with several answers, one key each (keys[i] answers
@@ -148,7 +147,6 @@ enum class QuestionPolicy { User, Terminal, Suggested, None };
 /* Front ends supply their context; this owner applies the answering policy.
    Scripted answers belong to the command; independent output guards never use them. */
 QuestionPolicy answer_policy(bool terminal, bool scripted);
-void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
 /* A choice among names (named sets, tables, frozen curves): the
    first PICK_LETTERS lettered a to z ("a: name"), the rest picked from the
@@ -164,7 +162,6 @@ void refreshdisplay(Session &s);
 int byeauto_(int *iflag);
 void init_txtview(void);
 void bye_bye(void);
-void draw_help(void);
 
 /* The front end's character cell in pixels, for laying out the AUTO and
    array plot windows and text in plots: a big and a small monospace font.
@@ -198,7 +195,6 @@ typedef struct XppUi {
     void (*bottom_msg)(int line, std::string_view msg, std::string_view chapter, std::string_view anchor);
     void (*message_box)(std::string_view msg);
     void (*kill_message_box)(void);
-    void (*title_text)(std::string_view s);
 
     /* prompts */
     QuestionPolicy (*question_policy)(bool independent);
@@ -220,10 +216,6 @@ typedef struct XppUi {
                     const char *const *names, std::span<std::string> values, const int *kinds);
     int (*file_selector)(std::string_view title, std::string &file, std::string_view wild);
     int (*get_mouse_xy)(Session &s, int *x, int *y);
-
-    /* menus. menu_choose pops up a menu, def is the highlighted item. */
-    void (*menu_flash)(int num);
-    void (*redraw_menu)(void);
 
     /* long-running loops poll these */
     int (*check_abort)(void);

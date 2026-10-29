@@ -195,7 +195,6 @@ XppUi ui = {
     .bottom_msg = hl_bottom_msg,
     .message_box = hl_str,
     .kill_message_box = hl_void,
-    .title_text = hl_str,
     .question_policy = hl_question_policy,
     .new_string = hl_new_string,
     .choose = hl_choose,
@@ -205,8 +204,6 @@ XppUi ui = {
     .grid_box = hl_grid_box,
     .file_selector = hl_file_selector,
     .get_mouse_xy = hl_get_mouse_xy,
-    .menu_flash = hl_int,
-    .redraw_menu = hl_void,
     .check_abort = hl_check_abort,
     .progress_begin = hl_no,
     .progress = hl_progress,
@@ -323,7 +320,6 @@ void ping(void) { ui.ping(); }
 void bottom_msg(int line, std::string_view msg, std::string_view chapter, std::string_view anchor) { ui.bottom_msg(line, msg, chapter, anchor); }
 void MessageBox(std::string_view m) { ui.message_box(m); }
 void KillMessageBox(void) { ui.kill_message_box(); }
-void title_text(std::string_view s) { ui.title_text(s); }
 static int question_string(std::string_view name, std::string &value, int kind)
 {
     switch (ui.question_policy(false)) {
@@ -449,7 +445,6 @@ int file_selector(std::string_view title, std::string &file, std::string_view wi
     return question_string(title, file, XPP_FIELD_FILE);
 }
 int GetMouseXY(Session &s, int *x, int *y) { return ui.get_mouse_xy(s, x, y); }
-void flash(int num) { ui.menu_flash(num); }
 int menu_choose(const struct XppMenu *m, int def)
 {
   std::vector<std::string> choices;
@@ -476,7 +471,7 @@ int pick_from_list(std::string_view id, std::string_view title, std::span<const 
   for (const std::string &l : labels) items.push_back(l.c_str());
   const std::string name(id), head(title);
   /* no hints: a list's items have none */
-  const XppMenu m = {name.c_str(), head.c_str(), static_cast<int>(items.size()), items.data(), keys.c_str(), nullptr};
+  const XppMenu m = {name.c_str(), head.c_str(), static_cast<int>(items.size()), items.data(), keys.c_str()};
   return menu_index(&m, menu_choose(&m, 0));
 }
 /* the running job's checkpoint (xpp_job.h): Escape as soon as the job is
@@ -535,7 +530,6 @@ void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y
     ui.show_eq_box(s, cp, cm, rp, rm, im, y, ev, n);
 }
 void bye_bye(void) { ui.exit_program(); }
-void draw_help(void) { ui.redraw_menu(); }
 int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 {
     return ui.rubber_band(s, i1, j1, i2, j2, flag);

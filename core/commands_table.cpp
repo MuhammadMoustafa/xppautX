@@ -46,8 +46,8 @@ constexpr std::array EDIT_ARGUMENTS = {
 
 constexpr std::array EDIT_RESULTS = {ResultField{"table", "name"}, ResultField{"points_evaluated", "integer"}};
 constexpr std::array VIEW_RESULTS = {ResultField{"table", "name"}, ResultField{"shown_in_browser", "boolean"}};
-constexpr std::array EDIT_EVENTS = {"state", "done"};
-constexpr std::array VIEW_EVENTS = {"browser", "state", "done"};
+constexpr std::array EDIT_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array VIEW_EVENTS = {xpp::events::BROWSER_UPDATED, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"table.edit", EDIT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Analysis/Numerics/Tables/Edit",

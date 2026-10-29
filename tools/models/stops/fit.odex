@@ -1,3 +1,4 @@
+version 4
 # W498: a nonlinear fit; b deliberately has no effect, giving a zero fit column.
 par a = 0.1, b = 0.1
 x' = a*x

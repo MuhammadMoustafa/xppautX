@@ -137,10 +137,9 @@ void send_buf(std::string &b)
     b.clear();
 }
 
-void send_simple(const char *ev, const char *key, std::string_view text)
+void send_simple(std::string_view ev, const char *key, std::string_view text)
 {
-    std::string b;
-    buf_format(b, "{{\"ev\":\"{}\"", ev);
+    std::string b = xpp::events::open(ev);
     if (key) {
         buf_format(b, ",\"{}\":", key);
         buf_str(b, text);

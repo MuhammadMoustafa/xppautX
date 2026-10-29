@@ -4,7 +4,7 @@
    forms at any time. They are settings (W106): an edit goes out at once
    as an `auto` `set`, during a run too, when the core keeps it for the
    run's end (the run in progress keeps what it started with). Each one
-   sent is `inflight` until that set's own idle, when the event has
+   sent is `inflight` until that set's own done, when the event has
    brought the core's values (or a `message` `error` said why not).
    What each value takes, and the messages a refusal says, are the core's
    (the event's `rules`, `pairs` and `step`); the settings file is the
@@ -190,7 +190,7 @@ export interface AutoSettingsPatch {
   threads?: 'auto' | number;
 }
 
-/** a set sent, until its own idle: `ahead` other commands' idles come first */
+/** a set sent, until its own done: `ahead` other commands' dones come first */
 export interface AutoSettingsInFlight {
   patch: AutoSettingsPatch;
   ahead: number;
@@ -209,10 +209,10 @@ export const initialAutoSettings: AutoSettingsState = {core: null, inflight: [],
 
 export type AutoSettingsAction =
   | {type: 'event'; ev: AutoSettings}
-  /** `patch` went out as one set, `ahead` idles before its own */
+  /** `patch` went out as one set, `ahead` dones before its own */
   | {type: 'sent'; patch: AutoSettingsPatch; ahead: number}
   /** a command ended: the set whose command it was has been applied or refused */
-  | {type: 'idle'}
+  | {type: 'ended'}
   /** a new connection: nothing sent is waited for any more */
   | {type: 'reset'}
   | {type: 'error'; text: string};
@@ -223,7 +223,7 @@ export function reduceAutoSettings(s: AutoSettingsState, a: AutoSettingsAction):
       return {...s, core: a.ev};
     case 'sent':
       return {...s, inflight: [...s.inflight, {patch: a.patch, ahead: a.ahead}], error: null};
-    case 'idle':
+    case 'ended':
       return s.inflight.length
         ? {...s, inflight: s.inflight.filter(f => f.ahead > 0).map(f => ({...f, ahead: f.ahead - 1}))} : s;
     case 'reset':
