@@ -409,14 +409,16 @@ class Curves(unittest.TestCase):
 
     def test_a_curve_reference_is_read_strictly(self):
         d = json.loads((BASE / 'tstauto_ab_fold.json').read_text())
-        sample = [[0.1, 14.0, 1.5], [0.2, 13.0, 1.6]]
+        # an .auto07p sample is [parameter, second parameter, norm, period] (W539); the period is read apart
+        sample = [[0.1, 14.0, 1.5, 0.0], [0.2, 13.0, 1.6, 0.0]]
+        curve = [s[:3] for s in sample]
         good = dict(format=1, source='x', model=d['model'], runs=[
             dict(name='steady', parameter='p0', points=[]),
             dict(name='fold', parameters=['p0', 'p1'], points=[], curve=sample)])
         with tempfile.TemporaryDirectory(prefix='xppautocompare-test-') as tmp:
             path = Path(tmp) / 'ab.auto07p'
             for edit in (lambda r: r['runs'][1].pop('curve'), lambda r: r['runs'][1].update(parameters=['p0', 'p2']),
-                         lambda r: r['runs'][1].update(curve=[[0.1, 14.0]] * 2), lambda r: r['runs'][1].update(curve=sample[:1]),
+                         lambda r: r['runs'][1].update(curve=[s[:3] for s in sample]), lambda r: r['runs'][1].update(curve=sample[:1]),
                          lambda r: r['runs'][0].update(curve=sample[:1]), lambda r: r['runs'][1]['points'].append(dict(type='XX')),
                          lambda r: r['runs'][1].update(parameter='p0')):
                 bad = copy.deepcopy(good)
@@ -425,12 +427,12 @@ class Curves(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     read_reference(path, d)
             path.write_text(json.dumps(good), encoding='utf-8')
-            self.assertEqual(read_reference(path, d)['runs'][1]['curve'], sample)
+            self.assertEqual(read_reference(path, d)['runs'][1]['curve'], curve)
             # a one-parameter run may carry its branch samples too (W439's whole-branch gate)
             branch = copy.deepcopy(good)
             branch['runs'][0]['curve'] = sample
             path.write_text(json.dumps(branch), encoding='utf-8')
-            self.assertEqual(read_reference(path, d)['runs'][0]['curve'], sample)
+            self.assertEqual(read_reference(path, d)['runs'][0]['curve'], curve)
 
     def test_a_start_is_grabbed_from_the_points_its_run_left(self):
         dg = Diagram()
