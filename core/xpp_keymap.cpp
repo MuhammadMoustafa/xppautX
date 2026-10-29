@@ -192,7 +192,7 @@ private:
         struct Owner { std::string id, key; const char *at; };
         std::vector<Owner> owners;
         for (const command::Command *row : command::rows()) {
-            const auto keys = effective_keys(map, row->name);
+            const auto keys = effective_keys(map, *row);
             if (keys.size() > MAX_KEYS_PER_COMMAND) fail(text_.c_str(), xpp::format("{} has more than {} keys", quoted(row->name), MAX_KEYS_PER_COMMAND));
             for (const std::string &key : keys) {
                 const auto placed = std::find_if(placed_.rbegin(), placed_.rend(), [&](const Placed &p) { return p.id == row->name && p.key == key; });
@@ -263,12 +263,11 @@ std::string serialize(const Keymap &map)
     return out;
 }
 
-std::vector<std::string> effective_keys(const Keymap &map, std::string_view id)
+std::vector<std::string> effective_keys(const Keymap &map, const command::Command &row)
 {
-    if (const auto it = map.bindings.find(std::string(id)); it != map.bindings.end()) return it->second;
+    if (const auto it = map.bindings.find(std::string(row.name)); it != map.bindings.end()) return it->second;
     std::vector<std::string> keys;
-    if (const command::Command *row = command::find(id))
-        for (const char *key : row->default_keys) keys.emplace_back(key);
+    for (const char *key : row.default_keys) keys.emplace_back(key);
     return keys;
 }
 
@@ -317,7 +316,7 @@ std::string effective_json(const Result<Keymap> &loaded)
         out += "{\"id\":";
         json_append_string(out, row.name);
         out += ",\"keys\":[";
-        append_strings(out, effective_keys(map, row.name), ",");
+        append_strings(out, effective_keys(map, row), ",");
         out += map.bindings.contains(std::string(row.name)) ? "],\"source\":\"user\"}" : "],\"source\":\"default\"}";
     }
     return out + "]}";

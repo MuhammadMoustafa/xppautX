@@ -168,11 +168,14 @@ struct ParserState {
      built-ins hold the first BUILTIN_ARGS, a symbol past them is appended
      to the table when first needed */
   int arg_symbol(int i);
-  /* the arguments the table has symbols for: no function reads more, and
-     the compiler's stack holds that many */
-  int arg_count() const;
+  /* the arguments the table has had symbols for: no function reads more, and
+     the compiler's stack holds that many (kept, not counted from the table:
+     every compiled expression asks, and a rolled-back table only makes it an
+     upper bound) */
+  int arg_count() const { return arg_count_; }
   void symbol_name_changed(int index);
   void forget_symbols_from(int index) const;
+  int arg_count_ = BUILTIN_ARGS;
 
   /* The constants (parameters), the variables and the symbols grow as
      the model adds them (add_con, add_var, set_symbol), so a model has no

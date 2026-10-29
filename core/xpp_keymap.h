@@ -23,6 +23,10 @@
 
 #include "xpp_error.h"
 
+namespace xpp::command {
+struct Command;
+}
+
 namespace xpp::keymap {
 
 inline constexpr std::string_view FILE_NAME = "keymap.json";
@@ -73,9 +77,9 @@ Result<Keymap> parse_keymap(std::string_view text, std::string file);
 /* the file's text for `map`: parse_keymap(serialize(map)) is map */
 std::string serialize(const Keymap &map);
 
-/* the effective keys of command `id` (a row of the table): the user's when
+/* the effective keys of command `row`: the user's when
    map binds it, else the table's defaults */
-std::vector<std::string> effective_keys(const Keymap &map, std::string_view id);
+std::vector<std::string> effective_keys(const Keymap &map, const command::Command &row);
 
 /* the settings file's path, "" when the system names no config folder */
 std::string path();

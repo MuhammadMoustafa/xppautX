@@ -272,6 +272,7 @@ int ParserState::symbol_prefix(const char *source, int &length) const
 int ParserState::arg_symbol(int i)
 {
   if (i < BUILTIN_ARGS) return FIRST_ARG + i;
+  arg_count_ = std::max(arg_count_, i + 1);
   const int com = COM(USTACKTYPE, i);
   for (int k = STDSYM; k < nsym; k++)
     if (symbols[k].com == com) return k;
@@ -284,14 +285,6 @@ int ParserState::arg_symbol(int i)
   s.arg = 0;
   s.com = com;
   return nsym++;
-}
-
-int ParserState::arg_count() const
-{
-  int n = BUILTIN_ARGS;
-  for (int k = 0; k < nsym; k++)
-    if (symbols[k].com / MAXTYPE == USTACKTYPE) n = std::max(n, symbols[k].com % MAXTYPE + 1);
-  return n;
 }
 
 ParserState::ParserState()

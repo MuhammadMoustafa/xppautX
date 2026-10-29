@@ -440,10 +440,11 @@ struct Generator {
     /* Whether the C text may read variable k: by its name v[k], or through
        a call given the Session S (the only S in the text): a user
        function's that reads k or what is not its arguments or variables
-       (array_pure_function), or a helper's other than a table's. */
-    bool may_read(std::string_view text, int k) const
+       (array_pure_function), or a helper's other than a table's. name_k is
+       "v[k]", made once by the caller, which asks for every call made. */
+    bool may_read(std::string_view text, int k, std::string_view name_k) const
     {
-        if (text.find(xpp::format("v[{}]", k)) != std::string_view::npos) return true;
+        if (text.find(name_k) != std::string_view::npos) return true;
         for (size_t at = text.find('S'); at != std::string_view::npos; at = text.find('S', at + 1)) {
             const size_t open = text.rfind('(', at);
             size_t start = open;
@@ -474,7 +475,8 @@ struct Generator {
             if (!result) return std::unexpected(result.error());
             const int variable = first + static_cast<int>(i);
             out.push_back(xpp::format("v[{}]={};", variable, result->text));
-            std::erase_if(calls_made, [&](const auto &made) { return may_read(made.first, variable); });
+            const std::string name_k = xpp::format("v[{}]", variable);
+            std::erase_if(calls_made, [&](const auto &made) { return may_read(made.first, variable, name_k); });
         }
         if (!equations.empty()) out.push_back("if(!o)return;");
         for (size_t i = 0; i < equations.size(); ++i) {
