@@ -1,0 +1,22 @@
+# AUTO-07p, W269 (#326): ModelDB 267710's workflow (its README): equilibria in ampPar
+# from the steady state at ampPar = 0, then the periodic branch from the rightmost Hopf
+# point with Ds negative; wall and CPU time of each run (OMP_NUM_THREADS sets the threads;
+# the CPU time is the AUTO executable's, a child of this script). Constants: c.6c.eq/.po,
+# the model's opt.inc and XPPAUT 8.0's defaults for the rest.
+import resource, time
+
+def cpu():
+    r = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return r.ru_utime + r.ru_stime
+
+print('RUN steady')
+c0, t0 = cpu(), time.perf_counter()
+eq = run(e='6c', c='6c.eq')
+print('TIMING steady %.6f %.6f' % (time.perf_counter() - t0, cpu() - c0))
+hb = max(eq('HB'), key=lambda s: s['PAR(1)'])
+print('GRAB HB label %d PAR(1) %.7g' % (hb['LAB'], hb['PAR(1)']))
+print('RUN periodic')
+c0, t0 = cpu(), time.perf_counter()
+po = run(hb, c='6c.po')
+print('TIMING periodic %.6f %.6f' % (time.perf_counter() - t0, cpu() - c0))
+save(eq + po, '6c')

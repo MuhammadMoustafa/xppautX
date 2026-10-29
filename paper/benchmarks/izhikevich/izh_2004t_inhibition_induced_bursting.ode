@@ -1,0 +1,23 @@
+# Izhikevich's simple model of a spiking neuron: inhibition-induced bursting.
+# Izhikevich E.M. (2004) Which model to use for cortical spiking neurons? IEEE Trans. Neural Networks 15(5):1063-1070, Fig. 1, panel T.
+# This panel is the paper's own discrete update (figure1.m, step tau=0.5), a map, because the model's
+# differential equations, integrated accurately, do not show the panel's behaviour: a < 0 makes u grow without bound (u runs away).
+#   v1 = v + tau (0.04 v^2 + 5 v + 140 - u + I),  u1 = u + tau a (b v1 - u);
+#   if v1 > 30 then v = c, u = u1 + d else v = v1, u = u1 (no event: the reset is in the map).
+# Input: a current Ih=80 lowered by Id=5 from step K1=100 to K2=500 (times 50 to 250).
+# n counts the spikes and ts is the time of the last one, both set where the reset is (bounds is raised: ts is a time,
+# which the default bound of 100 would stop).
+par a=-0.026, b=-1, c=-45, d=-2
+par Ih=80, Id=5, K1=100, K2=500
+init v=-63.8, u=63.8, n=0, ts=0
+I = Ih-Id*(t>=K1)*(t<=K2)
+tau = 0.5
+vn = v+tau*(0.04*v^2+5*v+140-u+I)
+un = u+tau*a*(b*vn-u)
+v(t+1) = if(vn>30)then(c)else(vn)
+u(t+1) = if(vn>30)then(un+d)else(un)
+n(t+1) = n+(vn>30)
+ts(t+1) = if(vn>30)then((t+1)*tau)else(ts)
+aux I = I
+@ meth=discrete, total=700, bounds=1000000
+done

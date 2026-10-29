@@ -1,0 +1,66 @@
+# PY_S1Bf_bench.odex: converted from PY_S1Bf_bench.ode by xppautX --convert (docs/odex.md)
+version 4
+
+# W246 (#302) benchmark copy of PY_S1Bf.ode: Iapp = 20000 pA, the depolarised equilibrium
+# (Newton-converged by xppautX Sing pts) as the initial condition, and AUTO numerics as options,
+# so XPPAUT 8.0, xppautX and AUTO-07p (auto07p/) run with the same constants.
+# S1Bf PY cell from thalamocortical_network_ou_currents(7).py
+# Time: ms; voltage: mV; current: pA; conductance: uS; capacitance: pF.
+# Isolated intrinsic cell: synaptic conductances and Iext are zero.
+# Continue the parameter Iapp in AUTO. Positive Iapp is inward/depolarizing.
+# Whole-cell parameters (34 C defaults)
+par Iapp = 20000
+par C = 200, gNa = 11.2, gKdr = 1.2, gL = 0.00549494
+par gM = 0.015, gA = 0, gNaP = 0
+par EL = -67.73070881, ENa = 50, EK = -100, VT = -56.16
+par phiF = 0.6020561713201731, phiM = 0.8465535452071854, tauM = 608
+# Brian2 exprel(x) = (exp(x)-1)/x, regularized at x=0.
+fun erel(x) = if abs(x)<1e-05 then 1+x/2+x*x/6+x*x*x/24 else (exp(x)-1)/ode_divisor(x)
+# Fast Traub/Pospischil Na/K kinetics
+vv = v-VT
+am = 1.28/ode_divisor(erel((13-vv)/4))
+bm = 1.4/ode_divisor(erel((vv-40)/5))
+ah = 0.128*exp((17-vv)/18)
+bh = 4/(1+exp((40-vv)/5))
+an = 0.16/ode_divisor(erel((15-vv)/5))
+bn = 0.5*exp((10-vv)/40)
+minf = am/ode_divisor(am+bm)
+hinf = ah/ode_divisor(ah+bh)
+ninf = an/ode_divisor(an+bn)
+# Cortical slow/legacy gates (gA and gNaP are zero by default)
+pinf = 1/(1+exp(-(v+35)/10))
+taup = tauM/ode_divisor(3.3*exp((v+35)/20)+exp(-(v+35)/20))/ode_divisor(phiM)
+ainf = 1/(1+exp(-(v+50)/20))
+binf = 1/(1+exp((v+80)/6))
+pninf = 1/(1+exp(-(v+55)/6.2))
+# Outward-positive intrinsic currents, converted from uS*mV (nA) to pA
+INa = 1000*gNa*m^3*h*(v-ENa)
+IKdr = 1000*gKdr*n^4*(v-EK)
+IL = 1000*gL*(v-EL)
+IM = 1000*gM*pM*(v-EK)
+IA = 1000*gA*aA^3*bA*(v-EK)
+INaP = 1000*gNaP*pNa*(v-ENa)
+v' = (Iapp-INa-IKdr-IL-IM-IA-INaP)/ode_divisor(C)
+m' = phiF*(am+bm)*(minf-m)
+h' = phiF*(ah+bh)*(hinf-h)
+n' = phiF*(an+bn)*(ninf-n)
+pM' = (pinf-pM)/ode_divisor(taup)
+aA' = (ainf-aA)/2
+bA' = (binf-bA)/20
+pNa' = (pninf-pNa)/5
+init v = -18.68007298508246, m = 0.814980486244479, h = 0.02651387739045536, n = 0.7430659014712411
+init pM = 0.8364424360688298, aA = 0.8272121071765125, bA = 3.643341281469538e-05, pNa = 0.9971513368719562
+aux Iionic = INa+IKdr+IL+IM+IA+INaP
+aux Mgate = pM
+options {
+  integration: { total_time: 2000, dt: 0.01, method: stiff, relative_tolerance: 1e-8, state_limit: 100000, stop_at_limit: true },
+  continuation: {
+    mesh_intervals: 100, max_steps: 5000, output_every: 5000, step_size: -1, min_step_size: 0.0001,
+    max_step_size: 50, parameter_min: 200, parameter_max: 20001, norm_min: -200, norm_max: 200,
+    parameter_tolerance: 0.0001, state_tolerance: 0.0001, special_point_tolerance: 0.0001,
+  },
+  diagram: { autovar: v, autoxmin: 0, autoxmax: 20000, autoymin: -80, autoymax: 60 },
+  plot: { xlo: 0, xhi: 2000, ylo: -110, yhi: 60 },
+}
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -3,7 +3,8 @@
 The comparison studies (W354 stage 2, W378) run on the Ubuntu machine, not on the
 development laptop: the studies need the machine to themselves for hours, and the laptop
 overheats. This page is for whoever sets that machine up. The studies' drivers and plan are
-in `paper/` (git-ignored; how it gets there is the maintainer's choice).
+tracked in `paper/benchmarks/` (W543, #608). Results, generated models, upstream sources and
+the paper draft remain local (`paper/benchmarks/.gitignore` is the list of what is tracked).
 
 ## Steps
 
@@ -49,10 +50,10 @@ in `paper/` (git-ignored; how it gets there is the maintainer's choice).
 The root of the checkout holds `pyproject.toml` and `uv.lock` (not a package: only the
 dependencies numpy, matplotlib, mpmath and scipy; the repository's own checks use the standard library
 and do not need it). uv finds it from any folder inside the checkout, `paper/` included. Run a
-driver with `uv run python PATH ARGS...` (for example `uv run python
-tools/auto-profile/eig_accuracy.py DIR`, or `uv run python tools/python-integration/integrate.py
+driver with `uv run --locked python PATH ARGS...` (for example `uv run --locked python
+tools/auto-profile/eig_accuracy.py DIR`, or `uv run --locked python tools/python-integration/integrate.py
 model.odex --outfile output.dat`), not with the system `python3`, so the versions are the
-locked ones. A driver that needs only the standard library runs either way. To change a version,
+locked ones. To change a version,
 edit `pyproject.toml`, run `uv lock`, and commit both files; a series states the versions its
 machine record lists.
 
@@ -60,7 +61,7 @@ The Python integration comparison (W427, [#489](https://github.com/MuhammadMoust
 Python is a timed program of it, with xppautX's own methods written in Python with numpy
 (`tools/python-integration/`; no SciPy in them), and SciPy's DOP853 at rtol 1e-12 is the separate,
 untimed accuracy reference. The scripts time nothing; the timing series is W354 stage 2's.
-- `uv run python tools/python-integration/integrate.py MODEL.odex [--method KEY] [--setfile FILE] [--outfile FILE]`
+- `uv run --locked python tools/python-integration/integrate.py MODEL.odex [--method KEY] [--setfile FILE] [--outfile FILE]`
   runs the model and writes the columns xppautX's `output.dat` has, at the same stored times. The
   method is the model's own unless `--method` names another of `euler`, `runge_kutta`, `discrete`,
   `backward_euler`, `qualrk`, `dopri8` (the keys a `.odex` writes). Each method does the operations of its
@@ -68,10 +69,10 @@ untimed accuracy reference. The scripts time nothing; the timing series is W354 
   `flags.cpp` and the dense events of `integrate.cpp`); the settings are the model's options over
   xppautX's own defaults, which are read from `core/` and not written again, and `--setfile` takes an
   XPPAUT set file as xppautX does (numerics, initial values, parameters).
-- `uv run python tools/python-integration/scipy_integrate.py MODEL.odex [--method KEY] [--setfile FILE] [--outfile FILE]`
+- `uv run --locked python tools/python-integration/scipy_integrate.py MODEL.odex [--method KEY] [--setfile FILE] [--outfile FILE]`
   runs SciPy's DOP853 on the model (to each event, the event's assignments made, and on) and writes
   the same columns at the stored times of the run of `--method`. A map has no solution to integrate.
-- `uv run python tools/python-integration/check.py --bin ./xppautX [--only NAME,...] [--method KEY,...|all] [--model FILE] [--screen DIR]`
+- `uv run --locked python tools/python-integration/check.py --bin ./xppautX [--only NAME,...] [--method KEY,...|all] [--model FILE] [--screen DIR]`
   runs xppautX and the Python run on the comparison's models (the five-model screen, from
   `paper/benchmarks/five-model-screen/models` or `--screen`, Izhikevich's 28 sets, `ma23`, `mu26`) and
   **fails** unless both have the same rows and time column and every value is within a step of the
@@ -87,10 +88,26 @@ untimed accuracy reference. The scripts time nothing; the timing series is W354 
 `--hashes` prints the tree hashes of `reference/` to update the pins when a pinned source
 changes on purpose.
 
+Before a series, build and run the untimed smoke check from the checkout root:
+
+```sh
+make -j6 xppautx
+uv run --locked python tools/comparisoncheck.py --server ./xppautX
+```
+
+It runs the drivers' smallest scratch cases with no warm-ups, timed repetitions or
+readiness sampling. It checks command completion, errors and data events through
+`tools/xppclient.py`, and uses the installed XPPAUT/AUTO-07p builds under
+`~/xppautx-comparison/build` for short foreign cases (`--comparison-build` changes it).
+Missing dependencies and workflows requiring full Hopf/periodic searches are reported
+as skips. The large-stiff generator is checked against this checkout's binary; its
+separate SUNDIALS worker still needs the build below. Smoke results are protocol
+verification, not numerical acceptance or performance evidence.
+
 ## W354 stage 2: one foreground sequence (W439, #501)
 
-Copy the entire current `paper/` beside this clean checkout on Ubuntu, including
-W269's saved results and `benchmarks/large-stiff/`. Use the final merged tip;
+The drivers and `benchmarks/large-stiff/` kit come with the clone. Copy W269's saved
+results separately if historical readouts/digest comparisons are needed; they are not tracked. Use the final merged tip;
 W269's tip is never rebuilt or timed. The commands below are for the maintainer
 on that machine. W439 installs nothing and runs no timing series on the laptop.
 Run `--check` first if dependencies are missing; it prints the additional apt/uv
@@ -121,7 +138,7 @@ cmake -S "$HOME/w378-deps/cvode-7.9.0" -B "$HOME/w378-deps/sundials-build" \
   -DSUNDIALS_ENABLE_EXAMPLES_INSTALL=OFF
 cmake --build "$HOME/w378-deps/sundials-build" -j4
 cmake --install "$HOME/w378-deps/sundials-build"
-uv run python paper/benchmarks/large-stiff/build.py \
+uv run --locked python paper/benchmarks/large-stiff/build.py \
   --sundials "$HOME/w378-deps/sundials-install" --out build/w378
 
 # Set performance governor as root, fix turbo on or off, then leave the machine idle.
@@ -131,7 +148,7 @@ XX="$HOME/xppautx-comparison/build/xppautX-$TIP/xppautX"
 XPP="$HOME/xppautx-comparison/build/xppaut-8.0/xppaut"
 export AUTO_DIR="$HOME/xppautx-comparison/build/auto-07p"
 OUT="paper/benchmarks/results/w354-ubuntu-$(date -u +%Y%m%d)"
-uv run python paper/benchmarks/comparison/run.py \
+uv run --locked python paper/benchmarks/comparison/run.py \
   --out "$OUT" --xppautx "$XX" --xppaut "$XPP" --auto-dir "$AUTO_DIR" \
   --worker build/w378/worker
 ```

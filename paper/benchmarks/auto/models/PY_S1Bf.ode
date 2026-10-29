@@ -1,0 +1,64 @@
+# S1Bf PY cell from thalamocortical_network_ou_currents(7).py
+# Time: ms; voltage: mV; current: pA; conductance: uS; capacitance: pF.
+# Isolated intrinsic cell: synaptic conductances and Iext are zero.
+# Continue the parameter Iapp in AUTO. Positive Iapp is inward/depolarizing.
+
+# Whole-cell parameters (34 C defaults)
+par Iapp=0
+par C=200,gNa=11.2,gKdr=1.2,gL=0.00549494
+par gM=0.015,gA=0,gNaP=0
+par EL=-67.73070881,ENa=50,EK=-100,VT=-56.16
+par phiF=0.6020561713201731,phiM=0.8465535452071854,tauM=608
+
+# Brian2 exprel(x) = (exp(x)-1)/x, regularized at x=0.
+erel(x)=if(abs(x)<1e-5)then(1+x/2+x*x/6+x*x*x/24)else((exp(x)-1)/x)
+
+# Fast Traub/Pospischil Na/K kinetics
+vv=v-VT
+am=1.28/erel((13-vv)/4)
+bm=1.4/erel((vv-40)/5)
+ah=0.128*exp((17-vv)/18)
+bh=4/(1+exp((40-vv)/5))
+an=0.16/erel((15-vv)/5)
+bn=0.5*exp((10-vv)/40)
+minf=am/(am+bm)
+hinf=ah/(ah+bh)
+ninf=an/(an+bn)
+
+# Cortical slow/legacy gates (gA and gNaP are zero by default)
+pinf=1/(1+exp(-(v+35)/10))
+taup=tauM/(3.3*exp((v+35)/20)+exp(-(v+35)/20))/phiM
+ainf=1/(1+exp(-(v+50)/20))
+binf=1/(1+exp((v+80)/6))
+pninf=1/(1+exp(-(v+55)/6.2))
+
+# Outward-positive intrinsic currents, converted from uS*mV (nA) to pA
+INa=1000*gNa*m^3*h*(v-ENa)
+IKdr=1000*gKdr*n^4*(v-EK)
+IL=1000*gL*(v-EL)
+IM=1000*gM*pM*(v-EK)
+IA=1000*gA*aA^3*bA*(v-EK)
+INaP=1000*gNaP*pNa*(v-ENa)
+
+v'=(Iapp-INa-IKdr-IL-IM-IA-INaP)/C
+m'=phiF*(am+bm)*(minf-m)
+h'=phiF*(ah+bh)*(hinf-h)
+n'=phiF*(an+bn)*(ninf-n)
+pM'=(pinf-pM)/taup
+aA'=(ainf-aA)/2
+bA'=(binf-bA)/20
+pNa'=(pninf-pNa)/5
+
+init v=-70.1,m=0.000678762608353,h=0.999884357359536
+init n=0.003119125309146,pM=0.029029035836341
+init aA=0.267959498158368,bA=0.161108949576585
+init pNa=0.080506587163682
+
+aux Iionic=INa+IKdr+IL+IM+IA+INaP
+aux Mgate=pM
+
+@ total=2000,dt=0.01,meth=stiff,tol=1e-8,bound=100000
+@ xlo=0,xhi=2000,ylo=-110,yhi=60
+@ ds=0.1,dsmin=0.0001,dsmax=2,nmax=10000
+@ parmin=-500,parmax=500,normmin=-120,normmax=60,autovar=v
+done

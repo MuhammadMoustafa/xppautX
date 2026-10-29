@@ -1,0 +1,49 @@
+diff --git a/core/simplenet.cpp b/core/simplenet.cpp
+index a70db3ca..a1241cbd 100755
+--- a/core/simplenet.cpp
++++ b/core/simplenet.cpp
+@@ -795,16 +795,35 @@ void evaluate_network(xpp::Session &s, int ind)
+      break;
+    case CONVE:
+      y=&variables[root];
+-     for(i=0;i<n;i++){
+-       sum=0.0;
+-       for(j=-ncon;j<=ncon;j++){
+-	 k=abs(i+j);
+-	 if(k<twon){
+-	   if(k>=n)k=abs(twon-2-k);
+-	   sum+=(w[j+ncon]*y[k]);
+-	 }
++     {
++       /* interior units (every i+j inside [0,n)) four at a time, each unit's sum still added in j order */
++       const int lo=std::min(ncon,n),hi=std::max(lo,n-ncon);
++       i=lo;
++       for(;i+4<=hi;i+=4){
++         double a0=0.0,a1=0.0,a2=0.0,a3=0.0;
++         for(j=-ncon;j<=ncon;j++){
++           const double wj=w[j+ncon];
++           a0+=wj*y[i+j];a1+=wj*y[i+j+1];a2+=wj*y[i+j+2];a3+=wj*y[i+j+3];
++         }
++         values[i]=a0;values[i+1]=a1;values[i+2]=a2;values[i+3]=a3;
++       }
++       for(;i<hi;i++){
++         sum=0.0;
++         for(j=-ncon;j<=ncon;j++)sum+=w[j+ncon]*y[i+j];
++         values[i]=sum;
++       }
++       for(i=0;i<n;i++){
++         if(i==lo&&hi>lo){i=hi-1;continue;}
++         sum=0.0;
++         for(j=-ncon;j<=ncon;j++){
++	   k=abs(i+j);
++	   if(k<twon){
++	     if(k>=n)k=abs(twon-2-k);
++	     sum+=(w[j+ncon]*y[k]);
++	   }
++         }
++         values[i]=sum;
+        }
+-       values[i]=sum;
+      }
+      break;
+      case CONV0:

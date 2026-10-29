@@ -1,0 +1,25 @@
+{
+ "card": "W269 #326",
+ "legacy_commit": "c021b511eee95a43576227656c6530e9af78ca27",
+ "modern_commit": "0643234f4c62f6c9f34432cdab00425576361fa0",
+ "terman_commit": "aca88a9dbf94316b811f03d435c33ea008167ec8",
+ "build_commands": {
+  "legacy": [
+   "make",
+   "-j4",
+   "CC=gcc -std=gnu99 -D_XOPEN_SOURCE=600 -w -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types -Wno-error=implicit-int -Wno-error=return-mismatch",
+   "CFLAGS=-g -O2 -ffp-contract=off -fcommon -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL -DMYSTR1=8.0 -DMYSTR2=1",
+   "LDFLAGS=-fcommon"
+  ],
+  "modern": [
+   "make",
+   "-j4",
+   "xppautx",
+   "WINDOW=0",
+   "OPT=-g -O2",
+   "XPPAUTX_COMMIT=0643234f",
+   "XPPAUTX_VERSION=paper-w269"
+  ]
+ },
+ "note": "W238 legacy build unchanged; xppautX at the W269 worktree HEAD (TinyCC compiles each model at load; --no-compile interprets). uname, compiler and CPU are recorded with each result folder."
+}

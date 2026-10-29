@@ -1,0 +1,35 @@
+{
+  "modern_commit": "88e09741a225b74fde74093694ea7af239a913fe",
+  "legacy_commit": "c021b511eee95a43576227656c6530e9af78ca27",
+  "uname": "Linux m7md 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 GNU/Linux",
+  "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+  "cpu": "Architecture:                         x86_64\nCPU op-mode(s):                       32-bit, 64-bit\nAddress sizes:                        48 bits physical, 48 bits virtual\nByte Order:                           Little Endian\nCPU(s):                               32\nOn-line CPU(s) list:                  0-31\nVendor ID:                            AuthenticAMD\nModel name:                           AMD Ryzen 9 8945HX with Radeon Graphics\nCPU family:                           25\nModel:                                97\nThread(s) per core:                   2\nCore(s) per socket:                   16\nSocket(s):                            1\nStepping:                             2\nBogoMIPS:                             4990.47\nFlags:                                fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext perfctr_core ssbd ibrs ibpb stibp vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx512_bf16 clzero xsaveerptr arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload avx512vbmi umip avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm\nVirtualization:                       AMD-V\nHypervisor vendor:                    Microsoft\nVirtualization type:                  full\nL1d cache:                            512 KiB (16 instances)\nL1i cache:                            512 KiB (16 instances)\nL2 cache:                             16 MiB (16 instances)\nL3 cache:                             32 MiB (1 instance)\nNUMA node(s):                         1\nNUMA node0 CPU(s):                    0-31\nVulnerability Gather data sampling:   Not affected\nVulnerability Itlb multihit:          Not affected\nVulnerability L1tf:                   Not affected\nVulnerability Mds:                    Not affected\nVulnerability Meltdown:               Not affected\nVulnerability Mmio stale data:        Not affected\nVulnerability Reg file data sampling: Not affected\nVulnerability Retbleed:               Not affected\nVulnerability Spec rstack overflow:   Vulnerable: Safe RET, no microcode\nVulnerability Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:             Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:             Mitigation; Retpolines; IBPB conditional; IBRS_FW; STIBP always-on; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                  Not affected\nVulnerability Tsx async abort:        Not affected",
+  "scratch": "/tmp/xpp-paper-screen-20261009",
+  "terman_commit": "aca88a9dbf94316b811f03d435c33ea008167ec8",
+  "source_sha256": {
+    "amari.ode": "f296295311801e19da1c81185ce63a8379561357c23e6225ae68f6c9d690684f",
+    "clustor.ode": "a2de5beaba3a4dda0fa93f10e0d034b0992528cb4d6eb49de1dbf80802b32d31",
+    "episodic.ode": "d2b76e73e6b2e4cc65bbb075bd3fdd332170c1656a309b9599d533a3f54eadd9",
+    "episodic.ode.set": "3c58c7e9ef59f3fae244919370d1bff93661add49d53b028e48389631f822332",
+    "kuramot100.ode": "f20cd582a8cf7350d108d5ed1a451dfd9d5aae54f101a5d65f002f99533e87ef",
+    "lecdiff200.ode": "216543c7c14b77d56af0b9b255b83297a7b84ddf33e09ecfb2c3e6fdc008f5db"
+  },
+  "build_commands": {
+    "legacy": [
+      "make",
+      "-j4",
+      "CC=gcc -std=gnu99 -D_XOPEN_SOURCE=600 -w -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types -Wno-error=implicit-int -Wno-error=return-mismatch",
+      "CFLAGS=-g -O2 -ffp-contract=off -fcommon -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES -DHAVEDLL -DMYSTR1=8.0 -DMYSTR2=1",
+      "LDFLAGS=-fcommon"
+    ],
+    "modern": [
+      "make",
+      "-j4",
+      "xppautx",
+      "WINDOW=0",
+      "OPT=-g -O2",
+      "XPPAUTX_COMMIT=88e09741a225",
+      "XPPAUTX_VERSION=paper-screen"
+    ]
+  }
+}

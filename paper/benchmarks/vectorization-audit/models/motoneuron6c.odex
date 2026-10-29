@@ -1,0 +1,680 @@
+# motoneuron6c.odex: converted from motoneuron6c.ode by xppautX --convert (docs/odex.md)
+version 4
+# names written as their declarations spell them (.odex names have case); the .ode's lines 115, 368, 384, 389
+# @ total_time is set more than once in the .ode: XPP keeps the last value, 200
+# @ xhi is set more than once in the .ode: XPP keeps the last value, 200
+# @ total_time is set more than once in the .ode: XPP keeps the last value, 600
+
+# motoneuron6c.ode: the 6-compartment spinal motoneuron of Moustafa et al. 2023,
+# "Bifurcation analysis of spinal motoneuron firing behaviour" (soma, axon hillock and
+# four dendrites; 25 states), current-clamped through ampPar (stimulus 50 * ampPar nA * 1e-6).
+#
+# Source: ModelDB 267710 at archive commit 2dd9ba299e56c3f2962f883afaada5a899c4e3f6,
+# "XPPAUT Model/6cModel Xppaut": rest.ode (main.ode with @ total=600, the README's step 2,
+# integration to the steady state) with its 19 include files inlined in the source's order,
+# each marked by a "# ---- file ----" line.
+# Staging edits (nothing else changed):
+#   @ OUTPUT=output.dat   (opt.inc wrote ../simulations/xpp.dat, outside the model's folder)
+#   @ total=600           (rest.ode's)
+#   par CaDen_Max         (glob.inc's fixed CaDen_Max=0.000168, the dendritic L-type Ca / PIC
+#                          density scaling both distal dendrites' Ca and Ca-activated K, is a
+#                          parameter, the second one of the Hopf locus in tests/auto/)
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+vs' = (I/ode_divisor(sArea)+Is)/ode_divisor(CM)
+vah' = Iah/ode_divisor(CM)
+vd0' = Id0/ode_divisor(CM)
+vd1' = Id1/ode_divisor(CM)
+vd2' = Id2/ode_divisor(CM)
+vd3' = Id3/ode_divisor(CM)
+# ---- glob.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+#### global constants ####
+par ampPar = 0
+TEMP = 36
+CM = 0.001
+Ra = 70
+vtraub = -10
+vtraub2 = -70
+tadj = 3^((TEMP-36)/10)
+tadj20 = 3^((TEMP-36)/10)
+tadj23 = 3^((TEMP-36)/10)
+FARADAY = 96484.56
+R = 8.31441
+par CaDen_Max = 0.000168
+# ---- func.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+### functions ###
+fun Area(l, diam) = pi*l*diam
+fun CArea(diam) = 0.25*pi*diam^2
+fun dAtx(d0, df, x) = d0+x*(df-d0)
+fun F_Area(r1, r2, h) = pi*(r1+r2)*((r1-r2)^2+h^2)^0.5
+fun expmod(x) = if x<(-100) then 0 else exp(x)
+fun vtrap(x, y) = if abs(x/ode_divisor(y))<1e-06 then y*(1-x/ode_divisor(y)/2) else x/ode_divisor(expmod(x/ode_divisor(y))-1)
+fun vtrap1(x, a, b, c) = if abs((x+b)/ode_divisor(c))<1e-06 then a*c else a*(x+b)/ode_divisor(1-exp(-(x+b)/ode_divisor(c)))
+fun vtrap2(x, a, b, c) = if abs((x+b)/ode_divisor(c))<1e-06 then -a*c else a*(-(x+b))/ode_divisor(1-exp((x+b)/ode_divisor(c)))
+fun tauFunc(tail, w, df, wth) = 0.001+0.999/(1+exp((tail*w*df-wth)/0.006))
+fun d_Flag(x) = 1/ode_divisor(1+expmod(5000*(x+0.01)))
+# ---- soma.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+####### soma ########
+sLen = 48.8*10^(-4)
+sDiam = 48.8*10^(-4)
+sArea = Area(sLen, sDiam)
+sCArea = CArea(sDiam)
+sGPas = 1/225
+sEPas = -70
+######################
+##### Ion Channels ###
+# ---- soma_NafSmb1.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+##### NafSmb1
+NaS_gb = 0.06
+NaS_amA = 22
+NaS_bmA = 46
+NaS_th = 40
+NaS_tht = 47
+NaS_kap = 7
+NaS_e = 50
+NaS_g = NaS_gb*Nas_m^3*Nas_h
+v2 = vs-vtraub
+v22 = vs-vtraub2
+Nas_a = 0.4*vtrap(NaS_amA-v22, 5)
+Nas_b = 0.4*vtrap(v22-NaS_bmA, 5)
+Nas_mt = 1/ode_divisor(Nas_a+Nas_b)/ode_divisor(tadj)
+Nas_mf = Nas_a/ode_divisor(Nas_a+Nas_b)
+Nas_ht = NaS_th*tadj/ode_divisor(expmod((v2+50)/15)+expmod(-(v2+50)/16))
+Nas_hf = 1/ode_divisor(1+expmod((v2+NaS_tht)/ode_divisor(NaS_kap)))
+#######################
+######################
+##### Currents #######
+IsNas = NaS_g*(vs-NaS_e)
+######################
+######################
+##### equations ######
+Nas_m' = (Nas_mf-Nas_m)/ode_divisor(Nas_mt)
+Nas_h' = (Nas_hf-Nas_h)/ode_divisor(Nas_ht)
+######################
+######################
+#### init values #####
+init Nas_m = 0.00590903, Nas_h = 0.864964
+######################
+# ---- soma_KdrSmb1.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+### KdrSmb1
+Kdr_gb = 0.80048
+Kdr_tn = 5
+Kdr_tht = 20
+Kdr_kap = -15
+Kdr_e = -80
+Kdr_g = Kdr_gb*Kdr_n^4
+Kdr_nt = Kdr_tn*tadj/ode_divisor(expmod((v2+40)/40)+expmod(-(v2+40)/50))
+Kdr_nf = 1/ode_divisor(1+expmod((v2+Kdr_tht)/ode_divisor(Kdr_kap)))
+########################
+######################
+##### Currents #######
+IsKdr = Kdr_g*(vs-Kdr_e)
+######################
+######################
+##### equations ######
+Kdr_n' = (Kdr_nf-Kdr_n)/ode_divisor(Kdr_nt)
+######################
+######################
+#### init values #####
+init Kdr_n = 0.0649692
+######################
+# ---- soma_CaSmb1.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+## CaSmb1
+#### N Type ###
+Ca_gnb = 0.01
+Ca_tmn = 15
+Ca_thtmn = 14
+Ca_thn = 50
+Ca_ththn = 32
+#### L Type ###
+Ca_glb = 0
+mlexp = 1
+Ca_tml = 400
+Ca_thtml = 45.8
+kml = -3.7
+### Ca activated K
+Ca_gkb = 0.0221
+Ca_nexp = 1
+Ca_kd = 5e-04
+cao = 2
+f = 0.01
+alpha = 1
+kca = 8
+Ca_ek = -80
+Ca_v2 = vs-vtraub
+Ca_e = 130
+Ca_gn = Ca_gnb*Ca_mn^2*Ca_hn
+Ca_gl = Ca_glb*Ca_ml^mlexp
+Ca_gk = Ca_gkb*(CaI^Ca_nexp/ode_divisor(CaI^Ca_nexp+Ca_kd))
+Ca_mnt = Ca_tmn*tadj
+Ca_mnf = 1/(1+exp((Ca_v2+Ca_thtmn)/(-5)))
+Ca_hnt = Ca_thn*tadj
+Ca_hnf = 1/(1+exp((Ca_v2+Ca_ththn)/5))
+Ca_mlt = Ca_tml*tadj
+Ca_mlf = 1/(1+exp((Ca_v2+Ca_thtml)/ode_divisor(kml)))
+######################
+######################
+##### Currents #######
+IsCaN = Ca_gn*(vs-Ca_e)
+IsCaL = Ca_gl*(vs-Ca_e)
+IsCaK = Ca_gk*(vs-Ca_ek)
+IsCa = IsCaN+IsCaL+IsCaK
+######################
+######################
+##### equations ######
+Ca_mn' = (Ca_mnf-Ca_mn)/ode_divisor(Ca_mnt)
+Ca_hn' = (Ca_hnf-Ca_hn)/ode_divisor(Ca_hnt)
+Ca_ml' = (Ca_mlf-Ca_ml)/ode_divisor(Ca_mlt)
+CaI' = f*(-(alpha*(IsCaN+IsCaL))-kca*CaI)
+######################
+######################
+#### init values #####
+init Ca_mn = 0.000101029, Ca_hn = 0.996316, Ca_ml = 0.0210859, CaI = 1e-04
+######################
+######################
+######################
+##### Currents #######
+IsL = sGPas*(vs-sEPas)
+IsIon = IsL+IsNas+IsKdr+IsCa
+IsComp = 1/ode_divisor(sArea)*(G_S_Ah*(vah-vs)+G_S_d0*(vd0-vs))
+Is = IsComp-IsIon
+######################
+######################
+##### equations ######
+# dvs/dt=(I/sArea+Is)/CM    Written in the main File
+######################
+######################
+#### init values #####
+init vs = -70
+######################
+# ---- ah.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+#### Axon Hillock ####
+ahLen = 20*10^(-4)
+ahDiam = 12.94999838*10^(-4)
+ahArea = Area(ahLen, ahDiam)
+ahCArea = CArea(ahDiam)
+ahGPas = 1/225
+ahEPas = -70
+######################
+########## Axon Hilloc Channels ########
+########################################
+# ---- ah_NafIsb1.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+######## NafIsb1 ######
+NaI_gb = 1.3392
+NaI_e = 50
+NaI_amA = 18
+NaI_bmA = 38
+NaI_th = 40
+NaI_tht = 47
+NaI_kap = 7
+NaI_g = NaI_gb*NaI_m^3*NaI_h
+Ah_v2 = vah-vtraub
+Ah_v22 = vah-vtraub2
+NaI_a = 0.4*vtrap(NaI_amA-Ah_v22, 5)
+NaI_b = 0.4*vtrap(Ah_v22-NaI_bmA, 5)
+NaI_mt = 1/ode_divisor(NaI_a+NaI_b)/ode_divisor(tadj20)
+NaI_mf = NaI_a/ode_divisor(NaI_a+NaI_b)
+NaI_ht = NaI_th*tadj20/ode_divisor(exp((Ah_v2+50)/15)+exp(-(Ah_v2+50)/16))
+NaI_hf = 1/(1+exp((Ah_v2+NaI_tht)/ode_divisor(NaI_kap)))
+########################################
+######################
+##### Currents #######
+IahNaI = NaI_g*(vah-NaI_e)
+######################
+#### state equations ####
+NaI_m' = (NaI_mf-NaI_m)/ode_divisor(NaI_mt)
+NaI_h' = (NaI_hf-NaI_h)/ode_divisor(NaI_ht)
+######################
+######################
+#### init values #####
+init NaI_m = 0.0131252, NaI_h = 0.864964
+######################
+# ---- ah_NapIsb1.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+######## NapIsb1 ######
+NaP_gb = 3.2971e-05
+NaP_e = 50
+vtraub1 = 10
+NaP_ampA = 0.01
+NaP_ampB = 30.4
+NaP_ampC = 5
+NaP_bmpA = 0.00025
+NaP_bmpB = 34.7
+NaP_bmpC = 5
+NaP_g = NaP_gb*Nap_mp^3
+tadj1 = 2.2^((TEMP-20)/10)
+NaP_v1 = vah-vtraub1
+NaP_a = vtrap1(NaP_v1, NaP_ampA, NaP_ampB, NaP_ampC)
+NaP_b = vtrap2(NaP_v1, NaP_bmpA, NaP_bmpB, NaP_bmpC)
+NaP_mpt = 1/ode_divisor(NaP_a+NaP_b)/ode_divisor(tadj1)
+NaP_mpf = NaP_a/ode_divisor(NaP_a+NaP_b)
+#########################
+######################
+##### Currents #######
+IahNaP = NaP_g*(vah-NaP_e)
+######################
+#### state equations ####
+Nap_mp' = (NaP_mpf-Nap_mp)/ode_divisor(NaP_mpt)
+######################
+######################
+#### init values #####
+init Nap_mp = 0.00214921
+######################
+# ---- ah_KdrIsb1.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+##### KdrIsb1 ###########
+KI_gb = 0.16552
+KI_e = -80
+KI_tht = 20
+KI_kap = -15
+KI_tn = 5
+KI_g = KI_gb*KI_n^4
+## subtract vtraub which is equal -10 not vtraub2
+KI_v2 = vah-vtraub
+KI_nt = KI_tn*tadj20/ode_divisor(exp((KI_v2+40)/40)+exp(-(KI_v2+40)/50))
+KI_nf = 1/(1+exp((KI_v2+KI_tht)/ode_divisor(KI_kap)))
+########################################
+######################
+##### Currents #######
+IahKI = KI_g*(vah-KI_e)
+######################
+#### state equations ####
+KI_n' = (KI_nf-KI_n)/ode_divisor(KI_nt)
+######################
+#### init values #####
+init KI_n = 0.0649692
+######################
+########################################
+##### Currents #######
+IahL = ahGPas*(vah-ahEPas)
+IahIon = IahL+IahKI+IahNaP+IahNaI
+IahComp = 1/ode_divisor(ahArea)*(G_S_Ah*(vs-vah))
+Iah = IahComp-IahIon
+######################
+######################
+#### state equations ####
+# dvah/dt=(Iah)/CM
+######################
+######################
+#### init values #####
+init vah = -70
+######################
+# ---- dend0.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+##### Dendrite 0 #####
+d0Len = 1450.97*10^(-4)
+d0Diam = 42.2188*10^(-4)
+d0Area = Area(d0Len, d0Diam)
+d0CArea = CArea(d0Diam)
+d0GPas = 1/11000
+d0EPas = -70
+######################
+######################
+##### Ion Channels ###
+######################
+######################
+##### Currents #######
+Id0L = d0GPas*(vd0-d0EPas)
+Id0Ion = Id0L
+Id0Comp = 1/ode_divisor(d0Area)*(G_S_d0*(vs-vd0)+G_d0_d1*(vd1-vd0))
+Id0 = Id0Comp-Id0Ion
+######################
+######################
+#### init values #####
+init vd0 = -70
+######################
+# ---- dend1.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+##### Dendrite 1 #####
+d1Len = 1450.97*10^(-4)
+d1Diam = 42.2188*10^(-4)
+d1Area = Area(d1Len, d1Diam)
+d1CArea = CArea(d1Diam)
+d1GPas = 1/11000
+d1EPas = -70
+######################
+##### Ion Channels ###
+######################
+######################
+##### Current ####
+Id1L = d1GPas*(vd1-d1EPas)
+Id1Ion = Id1L
+Id1Comp = 1/ode_divisor(d1Area)*(G_d0_d1*(vd0-vd1)+G_d1_d2*(vd2-vd1))
+Id1 = Id1Comp-Id1Ion
+######################
+######################
+#### init values #####
+init vd1 = -70
+######################
+# ---- dend2.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+##### Dendrite 2 #####
+## length = 1366.26402
+d2Len = 754.842*1.81*10^(-4)
+d2Diam = 36.4297*10^(-4)
+d2Area = Area(d2Len, d2Diam)
+d2CArea = CArea(d2Diam)
+d2GPas = 1/11000
+d2EPas = -70
+### Ion Channels ####
+#####################################
+# ---- dend2_CaDen.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+###### CaD2en ######
+# CaD2en ###
+## L Type Channels ###
+CaD2_gb = CaDen_Max
+CaD2_e = 60
+CaD2_thtm = -43
+CaD2_kapm = -6
+CaD2_Ot = 10
+CaD2_Ot2 = 50
+CaD2_Wt_d = 1200
+CaD2_tilon = 1
+CaD2_AranG = 0.5
+CaD2_WG = 1
+CaD2_Wth = 0.27
+## Ca activate K Channels ###
+CaD2_gkb = CaDen_Max*0.41
+CaD2_nexp = 10
+CaD2_kd = 5e-04
+CaD2_St = 40
+## Calcium Dynamics ###
+CaD2_caio = 1e-04
+CaD2_f = 0.01
+CaD2_alpha = 1
+CaD2_kca = 8
+CaD2_ek = -80
+##############
+CaD2_Of = 1/ode_divisor(1+expmod((vd2-CaD2_thtm)/ode_divisor(CaD2_kapm)))
+CaD2_Wf = 1/ode_divisor(1+expmod(-(vd2+57)/0.8))
+CaD2_Wt = 50+1150/ode_divisor(CaD2_WG)/ode_divisor(1+expmod((vd2+32)/7))
+CaD2_Sf = 1/ode_divisor((CaD2_kd/ode_divisor(CaD2_cai-1e-05))^CaD2_nexp+1)
+CaD2_df = d_Flag(CaD2_Of-CaD2_O)
+tRandG2 = 0
+CaD2_tauC = CaD2_Wt_d*(1-0.76*tRandG2)-CaD2_Wt
+CaD2_Wt2 = CaD2_tauC*CaD2_df
+#######################
+######################
+##### Currents #######
+CaD2_g = CaD2_gb*(CaD2_O*(CaD2_AranG*0.3+1))
+CaD2_gkca = CaD2_S
+CaD2_gk = CaD2_gkb*CaD2_gkca
+Id2CaD2Ca = CaD2_g*(vd2-CaD2_e)
+Id2CaD2K = CaD2_gk*(vd2-CaD2_ek)
+Id2CaD2 = Id2CaD2Ca+Id2CaD2K
+######################
+######################
+##### equations ######
+CaD2_O' = (CaD2_Of-CaD2_O)*tauFunc(CaD2_tilon, CaD2_W, CaD2_df, CaD2_Wth)/ode_divisor(CaD2_Ot+CaD2_Ot2*CaD2_df)
+CaD2_W' = (CaD2_Wf*(1-CaD2_df)-CaD2_W)/ode_divisor(CaD2_Wt+CaD2_Wt2)
+CaD2_S' = (CaD2_Sf-CaD2_S)/ode_divisor(CaD2_St)
+CaD2_cai' = CaD2_f*(-(CaD2_alpha*Id2CaD2Ca)-CaD2_kca*CaD2_cai)
+######################
+######################
+#### init values #####
+init CaD2_O = 0.0109869, CaD2_W = 8.76425e-08, CaD2_cai = 1e-04, CaD2_S = 0
+######################
+######################
+######################
+##### Currents #######
+Id2L = d2GPas*(vd2-d2EPas)
+Id2Ion = Id2L+Id2CaD2
+Id2Comp = 1/ode_divisor(d2Area)*(G_d1_d2*(vd1-vd2)+G_d2_d3*(vd3-vd2))
+Id2 = Id2Comp-Id2Ion
+######################
+### state equations ####
+######################
+######################
+#### init values #####
+init vd2 = -70
+######################
+# ---- dend3.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+##### Dendrite 3 #####
+## length = 1878.6171
+d3Len = 1037.91*1.81*10^(-4)
+d3Diam = 10.1901*10^(-4)
+d3Area = Area(d3Len, d3Diam)
+d3CArea = CArea(d3Diam)
+d3GPas = 1/11000
+d3EPas = -70
+##### Ion Channels ####
+######################
+# ---- dend3_CaDen.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+####### CaD3en ######
+## CaD3en ###
+### L Type Channels ###
+CaD3_gb = CaDen_Max*0.25
+CaD3_e = 60
+CaD3_thtm = -43
+CaD3_kapm = -6
+CaD3_Ot = 10
+CaD3_Ot2 = 50
+CaD3_Wt_d = 1200
+CaD3_tilon = 1
+CaD3_AranG = 0.5
+CaD3_WG = 1
+CaD3_Wth = 0.27
+## Ca activate K Channels ###
+CaD3_gkb = CaDen_Max*0.41*0.25
+CaD3_nexp = 10
+CaD3_kd = 5e-04
+CaD3_St = 40
+## Calcium Dynamics ###
+CaD3_caio = 1e-04
+CaD3_f = 0.01
+CaD3_alpha = 1
+CaD3_kca = 8
+CaD3_ek = -80
+##############
+CaD3_Of = 1/ode_divisor(1+expmod((vd3-CaD3_thtm)/ode_divisor(CaD3_kapm)))
+CaD3_Wf = 1/ode_divisor(1+expmod(-(vd3+57)/0.8))
+CaD3_Wt = 50+1150/ode_divisor(CaD3_WG)/ode_divisor(1+expmod((vd3+32)/7))
+CaD3_Sf = 1/ode_divisor((CaD3_kd/ode_divisor(CaD3_cai-1e-05))^CaD3_nexp+1)
+CaD3_df = d_Flag(CaD3_Of-CaD3_O)
+tRandG3 = 0
+CaD3_tauC = CaD3_Wt_d*(1-0.76*tRandG3)-CaD3_Wt
+CaD3_Wt2 = CaD3_tauC*CaD3_df
+######################
+######################
+##### Currents #######
+CaD3_g = CaD3_gb*(CaD3_O*(CaD3_AranG*0.3+1))
+CaD3_gkca = CaD3_S
+CaD3_gk = CaD3_gkb*CaD3_gkca
+Id3CaD3Ca = CaD3_g*(vd3-CaD3_e)
+Id3CaD3K = CaD3_gk*(vd3-CaD3_ek)
+Id3CaD3 = Id3CaD3Ca+Id3CaD3K
+######################
+######################
+##### state equations ####
+CaD3_O' = (CaD3_Of-CaD3_O)*tauFunc(CaD3_tilon, CaD3_W, CaD3_df, CaD3_Wth)/ode_divisor(CaD3_Ot+CaD3_Ot2*CaD3_df)
+CaD3_W' = (CaD3_Wf*(1-CaD3_df)-CaD3_W)/ode_divisor(CaD3_Wt+CaD3_Wt2)
+CaD3_S' = (CaD3_Sf-CaD3_S)/ode_divisor(CaD3_St)
+CaD3_cai' = CaD3_f*(-(CaD3_alpha*Id3CaD3Ca)-CaD3_kca*CaD3_cai)
+######################
+######################
+#### init values #####
+init CaD3_O = 0.0109869, CaD3_W = 8.76425e-08, CaD3_cai = 1e-04, CaD3_S = 0
+######################
+######################
+######################
+##### Currents #######
+Id3L = d3GPas*(vd3-d3EPas)
+Id3Ion = Id3L+Id3CaD3
+Id3Comp = 1/ode_divisor(d3Area)*(G_d2_d3*(vd2-vd3))
+Id3 = Id3Comp-Id3Ion
+######################
+######################
+##### state equations ####
+######################
+######################
+#### init values #####
+init vd3 = -70
+######################
+# ---- conn.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+#### Connect Compartments ###
+R_S_Ah = Ra*(0.5*sLen/ode_divisor(sCArea)+0.5*ahLen/ode_divisor(ahCArea))
+G_S_Ah = 1/ode_divisor(R_S_Ah)
+R_S_d0 = Ra*(0.5*d0Len/ode_divisor(d0CArea))
+G_S_d0 = 1/ode_divisor(R_S_d0)
+R_d0_d1 = Ra*(0.5*d0Len/ode_divisor(d0CArea)+0.5*d1Len/ode_divisor(d1CArea))
+G_d0_d1 = 1/ode_divisor(R_d0_d1)
+R_d1_d2 = Ra*(0.5*d1Len/ode_divisor(d1CArea)+0.5*d2Len/ode_divisor(d2CArea))
+G_d1_d2 = 1/ode_divisor(R_d1_d2)
+R_d2_d3 = Ra*(0.5*d2Len/ode_divisor(d2CArea)+0.5*d3Len/ode_divisor(d3CArea))
+G_d2_d3 = 1/ode_divisor(R_d2_d3)
+# ---- opt.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+# increaseing parmax, NTST, can solve MX problem
+# increasing NORMMAX, NMAX can solve EP
+# ---- stim.inc ----
+## ********************************************************** ##
+# Author:       Muhammad Moustafa
+# Email:        muhammadmoustafa@eng1.cu.edu.eg
+# Affiliation:  Systems and Biomedical Engineering Department
+#               Faculty of Engineering
+#               Cairo University
+## ********************************************************** ##
+# bifurcation max value
+# Note: setting maxAmp below 50 causes max out in bifurcation, 2000 is good, NTST=100
+## stimulus current in nA, 10^-6 is the conversion factor to nA
+maxAmp = 50
+I = ampPar*maxAmp*10^(-6)
+# W269 (#326): the README's step 2, integrate 600 ms to the steady state (stim.inc sets 200)
+options {
+  integration: { dt: 0.025, method: backward_euler, total_time: 600 },
+  continuation: {
+    parameter_max: 1, parameter_min: -10, output_every: 100000, max_steps: 10000000,
+    mesh_intervals: 100, max_step_size: 0.1,
+  },
+  diagram: { autoxmin: -0.1, autoxmax: 1.1, autoymin: -90, autoymax: 20 },
+  plot: { xlo: 0, xhi: 200, ylo: -90, yhi: 50 },
+  interface: { but: "fit:wf", but: "int:ig", but: "intl:il", but: "auto:fa" },
+  output: { output: "output.dat" },
+}
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -32,8 +32,9 @@ __pycache__/
 /examples.*.md5
 qa/
 
-# the journal paper draft, kept local (not part of the program)
-/paper/
+# The paper draft stays local; comparison drivers and inputs are reviewed with the code (W543).
+/paper/*
+!/paper/benchmarks/
 
 # logo and icon drafts, kept local until one is picked
 /assets/drafts/

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "episodic",
+    "states": 120,
+    "total": 1999,
+    "dt": 0.4,
+    "method": "qualrk",
+    "setfile": "episodic.ode.set"
+  },
+  {
+    "name": "lecdiff200",
+    "states": 400,
+    "total": 20,
+    "dt": 0.05,
+    "method": "Runge-Kutta"
+  },
+  {
+    "name": "kuramot100",
+    "states": 100,
+    "total": 100,
+    "dt": 0.05,
+    "method": "Runge-Kutta"
+  },
+  {
+    "name": "amari",
+    "states": 200,
+    "total": 100,
+    "dt": 0.05,
+    "method": "euler"
+  },
+  {
+    "name": "clustor",
+    "states": 366,
+    "total": 500,
+    "dt": 1,
+    "method": "qualrk"
+  }
+]

@@ -1,0 +1,398 @@
+[
+  {
+    "name": "kuramoto10",
+    "family": "kuramoto",
+    "size": 10,
+    "states": 10,
+    "steps": {
+      "step": 1,
+      "T": 25000,
+      "2T": 50000
+    },
+    "calibration": {
+      "probe_steps": 25600,
+      "probe_seconds": 1.5357830799985095,
+      "fixed_seconds": 0.007796794001478702
+    }
+  },
+  {
+    "name": "kuramoto25",
+    "family": "kuramoto",
+    "size": 25,
+    "states": 25,
+    "steps": {
+      "step": 1,
+      "T": 4400,
+      "2T": 8800
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 0.5429413649981143,
+      "fixed_seconds": 0.007666295001399703
+    }
+  },
+  {
+    "name": "kuramoto50",
+    "family": "kuramoto",
+    "size": 50,
+    "states": 50,
+    "steps": {
+      "step": 1,
+      "T": 1200,
+      "2T": 2400
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 0.5412881770025706,
+      "fixed_seconds": 0.009510928997769952
+    }
+  },
+  {
+    "name": "kuramoto100",
+    "family": "kuramoto",
+    "size": 100,
+    "states": 100,
+    "steps": {
+      "step": 1,
+      "T": 200,
+      "2T": 400
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 2.3635695639968617,
+      "fixed_seconds": 0.014237848998163827
+    }
+  },
+  {
+    "name": "kuramoto200",
+    "family": "kuramoto",
+    "size": 200,
+    "states": 200,
+    "steps": {
+      "step": 1,
+      "T": 67,
+      "2T": 134
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 9.00302243400074,
+      "fixed_seconds": 0.037359378999099135
+    }
+  },
+  {
+    "name": "kuramoto400",
+    "family": "kuramoto",
+    "size": 400,
+    "states": 400,
+    "steps": {
+      "step": 1,
+      "T": 17,
+      "2T": 34
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 35.265252397010045,
+      "fixed_seconds": 0.10345621699525509
+    }
+  },
+  {
+    "name": "lecdiff25",
+    "family": "lecdiff",
+    "size": 25,
+    "states": 50,
+    "steps": {
+      "step": 1,
+      "T": 28200,
+      "2T": 56400
+    },
+    "calibration": {
+      "probe_steps": 25600,
+      "probe_seconds": 1.3594105350057362,
+      "fixed_seconds": 0.007600138997077011
+    }
+  },
+  {
+    "name": "lecdiff50",
+    "family": "lecdiff",
+    "size": 50,
+    "states": 100,
+    "steps": {
+      "step": 1,
+      "T": 14000,
+      "2T": 28000
+    },
+    "calibration": {
+      "probe_steps": 6400,
+      "probe_seconds": 0.6815908069984289,
+      "fixed_seconds": 0.009378877002745867
+    }
+  },
+  {
+    "name": "lecdiff100",
+    "family": "lecdiff",
+    "size": 100,
+    "states": 200,
+    "steps": {
+      "step": 1,
+      "T": 6200,
+      "2T": 12400
+    },
+    "calibration": {
+      "probe_steps": 6400,
+      "probe_seconds": 1.5246219920081785,
+      "fixed_seconds": 0.013250375995994546
+    }
+  },
+  {
+    "name": "lecdiff200",
+    "family": "lecdiff",
+    "size": 200,
+    "states": 400,
+    "steps": {
+      "step": 1,
+      "T": 3200,
+      "2T": 6400
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 0.7602909220076981,
+      "fixed_seconds": 0.023232776999066118
+    }
+  },
+  {
+    "name": "lecdiff400",
+    "family": "lecdiff",
+    "size": 400,
+    "states": 800,
+    "steps": {
+      "step": 1,
+      "T": 1600,
+      "2T": 3200
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 1.5043539320031414,
+      "fixed_seconds": 0.0405956350004999
+    }
+  },
+  {
+    "name": "lecdiff800",
+    "family": "lecdiff",
+    "size": 800,
+    "states": 1600,
+    "steps": {
+      "step": 1,
+      "T": 800,
+      "2T": 1600
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 0.7517157409965876,
+      "fixed_seconds": 0.1075652639992768
+    }
+  },
+  {
+    "name": "lecdiff1600",
+    "family": "lecdiff",
+    "size": 1600,
+    "states": 3200,
+    "steps": {
+      "step": 1,
+      "T": 400,
+      "2T": 800
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 1.7689272459974745,
+      "fixed_seconds": 0.28755808300047647
+    }
+  },
+  {
+    "name": "lecdiff2400",
+    "family": "lecdiff",
+    "size": 2400,
+    "states": 4800,
+    "steps": {
+      "step": 1,
+      "T": 200,
+      "2T": 400
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 2.5510733260016423,
+      "fixed_seconds": 0.6793083929951536
+    }
+  },
+  {
+    "name": "amari100",
+    "family": "amari",
+    "size": 100,
+    "states": 100,
+    "steps": {
+      "step": 1,
+      "T": 53400,
+      "2T": 106800
+    },
+    "calibration": {
+      "probe_steps": 25600,
+      "probe_seconds": 0.718879094994918,
+      "fixed_seconds": 0.010596867999993265
+    }
+  },
+  {
+    "name": "amari200",
+    "family": "amari",
+    "size": 200,
+    "states": 200,
+    "steps": {
+      "step": 1,
+      "T": 26200,
+      "2T": 52400
+    },
+    "calibration": {
+      "probe_steps": 25600,
+      "probe_seconds": 1.460607633998734,
+      "fixed_seconds": 0.0191465120005887
+    }
+  },
+  {
+    "name": "amari400",
+    "family": "amari",
+    "size": 400,
+    "states": 400,
+    "steps": {
+      "step": 1,
+      "T": 13800,
+      "2T": 27600
+    },
+    "calibration": {
+      "probe_steps": 6400,
+      "probe_seconds": 0.6931811260001268,
+      "fixed_seconds": 0.029553435000707395
+    }
+  },
+  {
+    "name": "amari800",
+    "family": "amari",
+    "size": 800,
+    "states": 800,
+    "steps": {
+      "step": 1,
+      "T": 6800,
+      "2T": 13600
+    },
+    "calibration": {
+      "probe_steps": 6400,
+      "probe_seconds": 1.3924534669931745,
+      "fixed_seconds": 0.07022771500487579
+    }
+  },
+  {
+    "name": "amari1600",
+    "family": "amari",
+    "size": 1600,
+    "states": 1600,
+    "steps": {
+      "step": 1,
+      "T": 2800,
+      "2T": 5600
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 0.8818133269960526,
+      "fixed_seconds": 0.1766852060027304
+    }
+  },
+  {
+    "name": "amari2400",
+    "family": "amari",
+    "size": 2400,
+    "states": 2400,
+    "steps": {
+      "step": 1,
+      "T": 2000,
+      "2T": 4000
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 1.2396691030007787,
+      "fixed_seconds": 0.4013786709983833
+    }
+  },
+  {
+    "name": "lecdiff3200",
+    "family": "lecdiff",
+    "size": 3200,
+    "states": 6400,
+    "steps": {
+      "step": 1,
+      "T": 183,
+      "2T": 366
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 3.2844471569999314,
+      "fixed_seconds": 0.31029281399992215,
+      "probe_engine": "interp"
+    },
+    "legacy": false,
+    "legacy_refusal": "Parameters:\n|dif|=5.000000 \nParameters:\n|iapp|=0.000000 |phi|=0.333000 \nParameters:\n|va|=-0.010000 |vb|=0.150000 |vc|=0.100000 |vd|=0.145000 |gca|=1.000000 \nParameters:\n|vk|=-0.700000 |vl|=-0.500000 |gk|=2.000000 |gl|=0.500000 |om|=1.000000 \n Added user fun MINF \n Added user fun NINF \n Added user fun LAMN \n Added user fun ICA \n Added user fun F \n Added user fun G \nV0 = V1   \nV3201 = V3200   \n*** buffer overflow detected ***: terminated\n"
+  },
+  {
+    "name": "lecdiff6400",
+    "family": "lecdiff",
+    "size": 6400,
+    "states": 12800,
+    "steps": {
+      "step": 1,
+      "T": 87,
+      "2T": 174
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 6.886875565000082,
+      "fixed_seconds": 0.6391289139999117,
+      "probe_engine": "interp"
+    },
+    "legacy": false,
+    "legacy_refusal": "Parameters:\n|dif|=5.000000 \nParameters:\n|iapp|=0.000000 |phi|=0.333000 \nParameters:\n|va|=-0.010000 |vb|=0.150000 |vc|=0.100000 |vd|=0.145000 |gca|=1.000000 \nParameters:\n|vk|=-0.700000 |vl|=-0.500000 |gk|=2.000000 |gl|=0.500000 |om|=1.000000 \n Added user fun MINF \n Added user fun NINF \n Added user fun LAMN \n Added user fun ICA \n Added user fun F \n Added user fun G \nV0 = V1   \nV6401 = V6400   \n*** buffer overflow detected ***: terminated\n"
+  },
+  {
+    "name": "amari3200",
+    "family": "amari",
+    "size": 3200,
+    "states": 3200,
+    "steps": {
+      "step": 1,
+      "T": 1000,
+      "2T": 2000
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 0.5633534910000435,
+      "fixed_seconds": 0.19633226399992054,
+      "probe_engine": "interp"
+    },
+    "legacy": false,
+    "legacy_refusal": "= HEAV(U3180)   \nFU3181 = HEAV(U3181)   \nFU3182 = HEAV(U3182)   \nFU3183 = HEAV(U3183)   \nFU3184 = HEAV(U3184)   \nFU3185 = HEAV(U3185)   \nFU3186 = HEAV(U3186)   \nFU3187 = HEAV(U3187)   \nFU3188 = HEAV(U3188)   \nFU3189 = HEAV(U3189)   \nFU3190 = HEAV(U3190)   \nFU3191 = HEAV(U3191)   \nFU3192 = HEAV(U3192)   \nFU3193 = HEAV(U3193)   \nFU3194 = HEAV(U3194)   \nFU3195 = HEAV(U3195)   \nFU3196 = HEAV(U3196)   \nFU3197 = HEAV(U3197)   \nFU3198 = HEAV(U3198)   \nFU3199 = HEAV(U3199)   \n netrhs = |CONV(EVEN,3200,50,W,FU0)| \n Adding net z 0 \nParameters:\n|h|=0.150000 \ntoo many variables !!\n Duplicate name FU1798 \n"
+  },
+  {
+    "name": "amari6400",
+    "family": "amari",
+    "size": 6400,
+    "states": 6400,
+    "steps": {
+      "step": 1,
+      "T": 600,
+      "2T": 1200
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 1.079754998000226,
+      "fixed_seconds": 0.4124408739999126,
+      "probe_engine": "interp"
+    },
+    "legacy": false,
+    "legacy_refusal": "  \nFU4976 = HEAV(U4976)   \nFU4977 = HEAV(U4977)   \nFU4978 = HEAV(U4978)   \nFU4979 = HEAV(U4979)   \nFU4980 = HEAV(U4980)   \nFU4981 = HEAV(U4981)   \nFU4982 = HEAV(U4982)   \nFU4983 = HEAV(U4983)   \nFU4984 = HEAV(U4984)   \nFU4985 = HEAV(U4985)   \nFU4986 = HEAV(U4986)   \nFU4987 = HEAV(U4987)   \nFU4988 = HEAV(U4988)   \nFU4989 = HEAV(U4989)   \nFU4990 = HEAV(U4990)   \nFU4991 = HEAV(U4991)   \nFU4992 = HEAV(U4992)   \nFU4993 = HEAV(U4993)   \nFU4994 = HEAV(U4994)   \nFU4995 = HEAV(U4995)   \nFU4996 = HEAV(U4996)   \nFU4997 = HEAV(U4997)   \nFU4998 = HEAV(U4998)   \n*** buffer overflow detected ***: terminated\n"
+  }
+]

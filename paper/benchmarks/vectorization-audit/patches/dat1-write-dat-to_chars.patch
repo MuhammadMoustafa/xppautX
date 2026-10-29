@@ -1,0 +1,26 @@
+diff --git a/core/data_formats.cpp b/core/data_formats.cpp
+index b428971e..eae64706 100644
+--- a/core/data_formats.cpp
++++ b/core/data_formats.cpp
+@@ -15,6 +15,7 @@
+ #include <array>
+ #include <bit>
+ #include <cctype>
++#include <charconv>
+ #include <cmath>
+ #include <cstdint>
+ #include <cstdlib>
+@@ -45,7 +46,12 @@ bool write_dat(const DataTable &t, Writer &w)
+     std::string text;
+     const std::size_t n = t.rows();
+     for (std::size_t i = 0; i < n; i++) {
+-        for (const std::vector<double> &c : t.columns) format_append(text, "{:.8g} ", c[i]);
++        for (const std::vector<double> &c : t.columns) {
++            std::array<char, 40> buf;
++            const auto r = std::to_chars(buf.data(), buf.data() + 39, c[i], std::chars_format::general, 8);
++            buf[static_cast<std::size_t>(r.ptr - buf.data())] = ' ';
++            text.append(buf.data(), static_cast<std::size_t>(r.ptr - buf.data()) + 1);
++        }
+         text += '\n';
+         if (text.size() >= chunk) {
+             if (!w.write(text)) return false;

@@ -1,0 +1,19 @@
+# Izhikevich's simple model of a spiking neuron: integrator.
+# Izhikevich E.M. (2004) Which model to use for cortical spiking neurons? IEEE Trans. Neural Networks 15(5):1063-1070, Fig. 1, panel L.
+#   v' = 0.04 v^2 + 4.1 v + 108 - u + I,  u' = a (b v - u);
+#   when v reaches 30 mV, v is set to c and u to u + d (the global event).
+# Input: four pulses I0=9 of width w=2: a pair 5 apart (T1, T2) and a pair 10 apart (T3, T4) (the v equation has 4.1 v + 108).
+# n counts the spikes and ts is the time of the last one, both set where the reset is (bounds is raised: ts is a time,
+# which the default bound of 100 would stop).
+par a=0.02, b=-0.1, c=-55, d=6
+par I0=9, w=2, T1=9.0909090909, T2=14.0909090909, T3=70, T4=80
+init v=-60, u=6, n=0, ts=0
+I = I0*(heav(t-T1)-heav(t-T1-w))+I0*(heav(t-T2)-heav(t-T2-w))+I0*(heav(t-T3)-heav(t-T3-w))+I0*(heav(t-T4)-heav(t-T4-w))
+v' = 0.04*v^2+4.1*v+108-u+I
+u' = a*(b*v-u)
+n' = 0
+ts' = 0
+global 1 v-30 {v=c; u=u+d; n=n+1; ts=t}
+aux I = I
+@ total=100, dt=0.025, nout=10, bounds=1000000
+done

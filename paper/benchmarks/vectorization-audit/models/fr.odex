@@ -1,0 +1,47 @@
+# fr.odex: converted from fr.ode by xppautX --convert (docs/odex.md)
+version 4
+
+# fabry-perot cavity
+init tau = 1, x = 1.08
+# needed to fool XPP into using the Volterra solver
+junk = volterra(0, of=x)
+# ode for the delay
+tau' = v/ode_divisor(c+delay(v, tau))
+x0 = -xs+a*sin(th)^2/ode_divisor(1-cos(th)^2-2*cos(th)*cos(xs))
+x' = v
+v' = -v/ode_divisor(q)-x-x0+a*(fr*fr+fi*fi)*sin(th)^2
+fr(t) = 1+cos(th)*(cos(delay(x, tau))*delay(fr, tau)-sin(delay(x, tau))*delay(fi, tau))
+fi(t) = 1+cos(th)*(sin(delay(x, tau))*delay(fr, tau)+cos(delay(x, tau))*delay(fi, tau))
+par q = 0.11, xs = 1.07, a = 11.459, th = 1, r = 1.2221, c = 120, eps = 0.1
+options {
+  integration: { dt: .025, total_time: 200, store_from: 50, delay: 4, vmaxpts: 1 },
+}
+
+# what followed the .ode's done:
+# 
+# #
+# Functional-differential equations for a pendular Fabry-Perot cavity:
+# 
+#                 x''+x'/Q+x+x0 = A sin^2 th |f|^2,
+# 
+#                 f(t) = 1 + cos th exp(i x(t-tau)) f(t-tau),
+# 
+#                 tau = (r+(x(t)+x(t-tau)-2 xs)/c).
+# 
+#  f(t) is complex, the parameters are Q, A, th, xs, r, c and we define:
+# 
+#                 x0 + xs = A sin^2 th/(1-cos^2 th-2 cos th cos xs).
+# 
+#  Initial conditions:
+# 
+#                 x = const.
+# 
+#  We differentiate tau with respect to t to get an ODE for tau
+#  to avoid the ugly implicit definition
+# 
+# I use a Volterra declaration to trick XPP into treating fr,fi
+# as integral equations
+# 
+# 
+
+fun ode_divisor(value) = if value then value else 2.23e-15

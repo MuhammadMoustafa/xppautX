@@ -1,0 +1,18 @@
+# AUTO-07p: equilibria downward from Iapp = 20000 pA to the HB, then the periodic
+# branch from it toward 0; wall and CPU time of each run (OMP_NUM_THREADS sets the
+# threads; the CPU time is the AUTO executable's, a child of this script).
+import resource, time
+
+def cpu():
+    r = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return r.ru_utime + r.ru_stime
+
+print('RUN steady')
+c0, t0 = cpu(), time.perf_counter()
+eq = run(e='py_s1bf', c='py_s1bf.eq')
+print('TIMING steady %.6f %.6f' % (time.perf_counter() - t0, cpu() - c0))
+print('RUN periodic')
+c0, t0 = cpu(), time.perf_counter()
+po = run(eq('HB1'), c='py_s1bf.po')
+print('TIMING periodic %.6f %.6f' % (time.perf_counter() - t0, cpu() - c0))
+save(eq + po, 'py_s1bf')

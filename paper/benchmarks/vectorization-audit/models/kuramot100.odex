@@ -1,0 +1,120 @@
+# kuramot100.odex: converted from kuramot100.ode by xppautX --convert (docs/odex.md)
+version 4
+# @ total_time is set more than once in the .ode: XPP keeps the last value, 100
+# @ bound is set more than once in the .ode: XPP keeps the last value, 100000
+
+# kuramoto with sums
+fun h(phi) = sin(phi+a)-sin(a)+b*sin(2*phi)
+par a = 0.5, b = 0.2
+# linear gradient
+par amp = 1, k = 1
+table w amp*t/100, n=100, lo=0, hi=99
+x[j]' = w(j)+k*sum(h(shift(x0, i')-x[j]), from=0, to=99)/100 for j in 0..99
+# Paper timing screen: explicit settings; source preserved in ../sources
+options {
+  integration: {
+    total_time: 20, state_limit: 100000, stop_at_limit: true, dt: 0.05, method: runge_kutta, start_time: 0, store_from: 0,
+    store_every: 1, storage_rows: 20000, relative_tolerance: .001, absolute_tolerance: .001, min_step: 1e-12,
+    max_step: 1,
+  },
+}
+init x0 = 0
+init x1 = 0
+init x2 = 0
+init x3 = 0
+init x4 = 0
+init x5 = 0
+init x6 = 0
+init x7 = 0
+init x8 = 0
+init x9 = 0
+init x10 = 0
+init x11 = 0
+init x12 = 0
+init x13 = 0
+init x14 = 0
+init x15 = 0
+init x16 = 0
+init x17 = 0
+init x18 = 0
+init x19 = 0
+init x20 = 0
+init x21 = 0
+init x22 = 0
+init x23 = 0
+init x24 = 0
+init x25 = 0
+init x26 = 0
+init x27 = 0
+init x28 = 0
+init x29 = 0
+init x30 = 0
+init x31 = 0
+init x32 = 0
+init x33 = 0
+init x34 = 0
+init x35 = 0
+init x36 = 0
+init x37 = 0
+init x38 = 0
+init x39 = 0
+init x40 = 0
+init x41 = 0
+init x42 = 0
+init x43 = 0
+init x44 = 0
+init x45 = 0
+init x46 = 0
+init x47 = 0
+init x48 = 0
+init x49 = 0
+init x50 = 0
+init x51 = 0
+init x52 = 0
+init x53 = 0
+init x54 = 0
+init x55 = 0
+init x56 = 0
+init x57 = 0
+init x58 = 0
+init x59 = 0
+init x60 = 0
+init x61 = 0
+init x62 = 0
+init x63 = 0
+init x64 = 0
+init x65 = 0
+init x66 = 0
+init x67 = 0
+init x68 = 0
+init x69 = 0
+init x70 = 0
+init x71 = 0
+init x72 = 0
+init x73 = 0
+init x74 = 0
+init x75 = 0
+init x76 = 0
+init x77 = 0
+init x78 = 0
+init x79 = 0
+init x80 = 0
+init x81 = 0
+init x82 = 0
+init x83 = 0
+init x84 = 0
+init x85 = 0
+init x86 = 0
+init x87 = 0
+init x88 = 0
+init x89 = 0
+init x90 = 0
+init x91 = 0
+init x92 = 0
+init x93 = 0
+init x94 = 0
+init x95 = 0
+init x96 = 0
+init x97 = 0
+init x98 = 0
+init x99 = 0

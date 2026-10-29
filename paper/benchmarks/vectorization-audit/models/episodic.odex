@@ -1,0 +1,254 @@
+# episodic.odex: converted from episodic.ode by xppautX --convert (docs/odex.md)
+version 4
+# @ total_time is set more than once in the .ode: XPP keeps the last value, 1999
+# @ dt is set more than once in the .ode: XPP keeps the last value, 0.4
+# @ method is set more than once in the .ode: XPP keeps the last value, qualrk
+# @ bound is set more than once in the .ode: XPP keeps the last value, 5000
+
+# RANDOM, SPARSELY CONNECTED NETWORK 4/10/02
+# Produces "episodic" rhythm with somewhat irregular
+# firing within each episode.
+# Used to generate Figure 3 in J. Neuro. paper.
+# There are 10 STN and GPe cells.
+# Each STN cell receives input from two GPe cells chosen at random.
+# Each GPe cell receives input from one STN cell.
+# There is all to all coupling among the GPe cells.
+########  STN Parameters  #######
+par vl = -60, vna = 55, vk = -80, thetam = 30, sigmam = 15
+par gl = 2.25, gna = 37.5, gk = 45, tn = 1, th = 0.05
+par gahp = 9, gca = 0.5, vca = 140, k1 = 15, eps = 5e-05
+par kca = 22.5, thetas = 39, sigmas = 8, xp = 1, i = 0
+par thetah = -39, sigmah = 3.1, thetan = -32, sigman = -8
+par taun0 = 1, taun1 = 100, thn = 80, sigmant = 26
+par tauh0 = 1, tauh1 = 500, thh = 57, sigmaht = 3, phi = 0.75
+par thetaa = -63, sigmaa = -7.8, gt = 0.5, phir = 0.5
+par thetar = -67, sigmar = 2, taur0 = 7.1, taur1 = 17.5, thr = -68, sigmart = 2.2
+##############################
+#these parameters are not needed
+par eps1 = 0.01
+par root1 = -60, root2 = -40, root3 = -10, root4 = -35, add = 0.6
+par scale = 10000, gd = 1
+###############################
+par alpha = 5, beta = 1, ab = -30
+par gGtoS = 2.5, vGtoS = -100
+par thetab = 0.25, sigmab = -0.07
+#######  GPe Parameters  #######
+par gnag = 120, gkg = 30, gahpg = 30, gtg = 0.5, gcag = 0.15, glg = 0.1
+par vnag = 55, vkg = -80, vcag = 120, vlg = -55
+par thag = -57, sigag = 2, thsg = -35, sigsg = 2
+par thrg = -70, sigrg = -2, taurg = 30
+par thmg = -37, sigmg = 10
+par thng = -50, signg = 14
+par taun0g = 0.05, taun1g = 0.27, thngt = -40, sng = -12
+par thhg = -58, sighg = -12
+par tauh0g = 0.05, tauh1g = 0.27, thhgt = -40, shg = -12
+par k1g = 30, kcag = 20, epsg = 1e-04
+par phig = 1, phing = 0.05, phihg = 0.05
+par iapp = -1.2, gGtoG = 0, vGtoG = -100
+par gStoG = 0.016, vStoG = 0, alphag = 2, betag = 0.08, abg = -20
+#######  STN Functions  #######
+fun sinf(v) = 1/(1+exp(-(v+thetas)/ode_divisor(sigmas)))
+fun minf(v) = 1/(1+exp(-(v+thetam)/ode_divisor(sigmam)))
+fun hinf(v) = 1/(1+exp((v-thetah)/ode_divisor(sigmah)))
+fun ninf(v) = 1/(1+exp((v-thetan)/ode_divisor(sigman)))
+fun taun(v) = taun0+taun1/(1+exp((v+thn)/ode_divisor(sigmant)))
+fun tauh(v) = tauh0+tauh1/(1+exp((v+thh)/ode_divisor(sigmaht)))
+fun rinf(v) = 1/(1+exp((v-thetar)/ode_divisor(sigmar)))
+fun taur(v) = taur0+taur1/(1+exp((v+thr)/ode_divisor(sigmart)))
+fun ainf(v) = 1/(1+exp((v-thetaa)/ode_divisor(sigmaa)))
+fun binf(r) = 1/(1+exp((r-thetab)/ode_divisor(sigmab)))-1/(1+exp(-thetab/ode_divisor(sigmab)))
+####### GPe Functions  #######
+fun ainfg(v) = 1/(1+exp(-(v-thag)/ode_divisor(sigag)))
+fun sinfg(v) = 1/(1+exp(-(v-thsg)/ode_divisor(sigsg)))
+fun rinfg(v) = 1/(1+exp(-(v-thrg)/ode_divisor(sigrg)))
+fun minfg(v) = 1/(1+exp(-(v-thmg)/ode_divisor(sigmg)))
+fun ninfg(v) = 1/(1+exp(-(v-thng)/ode_divisor(signg)))
+fun taung(v) = taun0g+taun1g/(1+exp(-(v-thngt)/ode_divisor(sng)))
+fun hinfg(v) = 1/(1+exp(-(v-thhg)/ode_divisor(sighg)))
+fun tauhg(v) = tauh0g+tauh1g/(1+exp(-(v-thhgt)/ode_divisor(shg)))
+####### STN Currents  #######
+fun il(v) = gl*(v-vl)
+fun ina(v, h) = gna*minf(v)^3*h*(v-vna)
+fun ik(v, n) = gk*n^4*(v-vk)
+fun iahp(v, ca) = gahp*(v-vk)*ca/ode_divisor(ca+k1)
+fun ica(v) = gca*sinf(v)^2*(v-vca)
+fun it(v, r) = gt*ainf(v)^3*binf(r)^2*(v-vca)
+#############################
+#The choice of T-current is a bit unusual.
+#Here we use binf(r) instead of just r.
+#This gives a more acurrate rebound.
+#############################
+isyn1 = gGtoS*(sg10+sg2)*(v1-vGtoS)
+isyn2 = gGtoS*(sg7+sg9)*(v2-vGtoS)
+isyn3 = gGtoS*(sg4+sg6)*(v3-vGtoS)
+isyn4 = gGtoS*(sg5+sg3)*(v4-vGtoS)
+isyn5 = gGtoS*(sg1+sg8)*(v5-vGtoS)
+isyn6 = gGtoS*(sg2+sg9)*(v6-vGtoS)
+isyn7 = gGtoS*(sg5+sg6)*(v7-vGtoS)
+isyn8 = gGtoS*(sg1+sg7)*(v8-vGtoS)
+isyn9 = gGtoS*(sg4+sg10)*(v9-vGtoS)
+isyn10 = gGtoS*(sg3+sg8)*(v10-vGtoS)
+#######  GPe Currents  #######
+fun itg(vg, rg) = gtg*ainfg(vg)^3*rg*(vg-vcag)
+fun inag(vg, hg) = gnag*minfg(vg)^3*hg*(vg-vnag)
+fun ikg(vg, ng) = gkg*ng^4*(vg-vkg)
+fun iahpg(vg, cag) = gahpg*(vg-vkg)*cag/ode_divisor(cag+k1g)
+fun icag(vg) = gcag*sinfg(vg)^2*(vg-vcag)
+fun ilg(vg) = glg*(vg-vlg)
+isyng1 = gStoG*s1*(vg1-vStoG)
+isyng2 = gStoG*s2*(vg2-vStoG)
+isyng3 = gStoG*s3*(vg3-vStoG)
+isyng4 = gStoG*s4*(vg4-vStoG)
+isyng5 = gStoG*s5*(vg5-vStoG)
+isyng6 = gStoG*s6*(vg6-vStoG)
+isyng7 = gStoG*s7*(vg7-vStoG)
+isyng8 = gStoG*s8*(vg8-vStoG)
+isyng9 = gStoG*s9*(vg9-vStoG)
+isyng10 = gStoG*s10*(vg10-vStoG)
+stot = sg1+sg2+sg3+sg4+sg5+sg6+sg7+sg8+sg9+sg10
+fun isyngg(vg, sg) = gGtoG*stot*(vg-vGtoG)
+#######  STN Equations  #######
+v[j]' = -(il(v[j])+ina(v[j], h[j])+ik(v[j], n[j])+iahp(v[j], ca[j])+ica(v[j])+it(v[j], r[j]))-isyn[j] for j in 1..10
+h[j]' = phi*(hinf(v[j])-h[j])/ode_divisor(tauh(v[j])) for j in 1..10
+n[j]' = phi*(ninf(v[j])-n[j])/ode_divisor(taun(v[j])) for j in 1..10
+r[j]' = phir*(rinf(v[j])-r[j])/ode_divisor(taur(v[j])) for j in 1..10
+ca[j]' = phi*eps*(-ica(v[j])-it(v[j], r[j])-kca*ca[j]) for j in 1..10
+s[j]' = alpha*(1-s[j])*sinf(v[j]+ab)-beta*s[j] for j in 1..10
+#######  GPe Equations  #######
+vg[j]' = -(itg(vg[j], rg[j])+inag(vg[j], hg[j])+ikg(vg[j], ng[j])+iahpg(vg[j], cag[j])+icag(vg[j])+ilg(vg[j]))+iapp-isyngg(vg[j], stot)-isyng[j] for j in 1..10
+ng[j]' = phing*(ninfg(vg[j])-ng[j])/ode_divisor(taung(vg[j])) for j in 1..10
+hg[j]' = phihg*(hinfg(vg[j])-hg[j])/ode_divisor(tauhg(vg[j])) for j in 1..10
+rg[j]' = phig*(rinfg(vg[j])-rg[j])/ode_divisor(taurg) for j in 1..10
+cag[j]' = epsg*(-icag(vg[j])-itg(vg[j], rg[j])-kcag*cag[j]) for j in 1..10
+sg[j]' = alphag*(1-sg[j])*sinfg(vg[j]+abg)-betag*sg[j] for j in 1..10
+# Paper timing screen: explicit settings; source preserved in ../sources
+options {
+  integration: {
+    dt: 0.4, total_time: 1999, method: qualrk, state_limit: 5000, stop_at_limit: true, start_time: 0, store_from: 0,
+    store_every: 1, storage_rows: 20000, relative_tolerance: .001, absolute_tolerance: .001, min_step: 1e-12,
+    max_step: 1,
+  },
+  plot: { xp: t, yp: v5, xlo: 0, xhi: 1000, ylo: -80, yhi: 20. },
+}
+init v1 = 0
+init v2 = 0
+init v3 = 0
+init v4 = 0
+init v5 = 0
+init v6 = 0
+init v7 = 0
+init v8 = 0
+init v9 = 0
+init v10 = 0
+init h1 = 0
+init h2 = 0
+init h3 = 0
+init h4 = 0
+init h5 = 0
+init h6 = 0
+init h7 = 0
+init h8 = 0
+init h9 = 0
+init h10 = 0
+init n1 = 0
+init n2 = 0
+init n3 = 0
+init n4 = 0
+init n5 = 0
+init n6 = 0
+init n7 = 0
+init n8 = 0
+init n9 = 0
+init n10 = 0
+init r1 = 0
+init r2 = 0
+init r3 = 0
+init r4 = 0
+init r5 = 0
+init r6 = 0
+init r7 = 0
+init r8 = 0
+init r9 = 0
+init r10 = 0
+init ca1 = 0
+init ca2 = 0
+init ca3 = 0
+init ca4 = 0
+init ca5 = 0
+init ca6 = 0
+init ca7 = 0
+init ca8 = 0
+init ca9 = 0
+init ca10 = 0
+init s1 = 0
+init s2 = 0
+init s3 = 0
+init s4 = 0
+init s5 = 0
+init s6 = 0
+init s7 = 0
+init s8 = 0
+init s9 = 0
+init s10 = 0
+init vg1 = 0
+init vg2 = 0
+init vg3 = 0
+init vg4 = 0
+init vg5 = 0
+init vg6 = 0
+init vg7 = 0
+init vg8 = 0
+init vg9 = 0
+init vg10 = 0
+init ng1 = 0
+init ng2 = 0
+init ng3 = 0
+init ng4 = 0
+init ng5 = 0
+init ng6 = 0
+init ng7 = 0
+init ng8 = 0
+init ng9 = 0
+init ng10 = 0
+init hg1 = 0
+init hg2 = 0
+init hg3 = 0
+init hg4 = 0
+init hg5 = 0
+init hg6 = 0
+init hg7 = 0
+init hg8 = 0
+init hg9 = 0
+init hg10 = 0
+init rg1 = 0
+init rg2 = 0
+init rg3 = 0
+init rg4 = 0
+init rg5 = 0
+init rg6 = 0
+init rg7 = 0
+init rg8 = 0
+init rg9 = 0
+init rg10 = 0
+init cag1 = 0
+init cag2 = 0
+init cag3 = 0
+init cag4 = 0
+init cag5 = 0
+init cag6 = 0
+init cag7 = 0
+init cag8 = 0
+init cag9 = 0
+init cag10 = 0
+init sg1 = 0
+init sg2 = 0
+init sg3 = 0
+init sg4 = 0
+init sg5 = 0
+init sg6 = 0
+init sg7 = 0
+init sg8 = 0
+init sg9 = 0
+init sg10 = 0
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -1,0 +1,21 @@
+diff --git a/core/flags.cpp b/core/flags.cpp
+index 40d352cb..41c72555 100755
+--- a/core/flags.cpp
++++ b/core/flags.cpp
+@@ -359,13 +359,13 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
+     *istart=0;
+ 
+   }
++  for(j=0;j<neq;j++)
++    setvar(s,j+1,ynew[j]);
++  setvar(s,0,*tnew);
+   for(i=0;i<s.model().flag_count();i++){
+     sign=flags[i].sign;
+     s.integrator.flags[i].f0=s.integrator.flags[i].f1;
+     f0=s.integrator.flags[i].f0;
+-    for(j=0;j<neq;j++)
+-      setvar(s,j+1,ynew[j]);
+-    setvar(s,0,*tnew);
+     f1=xpp::evaluate(s,flags[i].comcond);
+     s.integrator.flags[i].f1=f1;
+     tol=fabs(f1-f0);

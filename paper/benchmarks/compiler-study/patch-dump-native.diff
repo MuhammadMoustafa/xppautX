@@ -1,0 +1,40 @@
+diff --git a/core/expr_native.cpp b/core/expr_native.cpp
+index e2f4c05f..8d0567c3 100644
+--- a/core/expr_native.cpp
++++ b/core/expr_native.cpp
+@@ -12,6 +12,8 @@
+ #include "xpp_tcc.h"
+ #include "xpp_io.h"
+ #include <array>
++#include <cstdio>
++#include <cstdlib>
+ #include <bit>
+ #include <cctype>
+ #include <cstdint>
+@@ -588,6 +590,26 @@ struct Generator {
+             addresses.push_back(helper_address(static_cast<Helper>(i)));
+         }
+         for (size_t i=0;i<names.size();++i) symbols.push_back({names[i].c_str(),addresses[i]});
++        if (const char *dir=std::getenv("XPP_DUMP_NATIVE")) { /* W472 study patch, not committed */
++            static int dumps=0;
++            const std::string base=xpp::format("{}/model{}",dir,dumps++);
++            if (FILE *f=std::fopen((base+".c").c_str(),"w")) { std::fputs((declarations+source).c_str(),f); std::fclose(f); }
++            if (FILE *f=std::fopen((base+".manifest").c_str(),"w")) {
++                const Model &m=this->s.model();
++                std::fprintf(f,"node %d\nfix %d\nnconst %zu\nnvar %zu\nc",m.node,m.fix_var,this->s.parser.constants.size(),this->s.parser.variables.size());
++                for (double x:this->s.parser.constants) std::fprintf(f," %a",x);
++                std::fprintf(f,"\nN");
++                for (double x:numbers) std::fprintf(f," %a",x);
++                std::fprintf(f,"\nf1");
++                for (int i:unary) std::fprintf(f," %d",i);
++                std::fprintf(f,"\nf2");
++                for (int i:binary) std::fprintf(f," %d",i);
++                std::fprintf(f,"\nhelpers");
++                for (size_t i=0;i<used.size();++i) if (used[i]) std::fprintf(f," %s",std::string(helper_text[i].name).c_str());
++                std::fprintf(f,"\n");
++                std::fclose(f);
++            }
++        }
+         auto compiled=tcc::Program::compile(declarations+source,symbols,place);
+         if (!compiled) return std::unexpected(compiled.error());
+         auto table=(*compiled)->function("N");

@@ -1,0 +1,325 @@
+# mu26.odex: converted from mu26.ode by xppautX --convert (docs/odex.md)
+version 4
+
+# mu26.ode: the two-compartment PVN parvocellular neuron of Mu26 (soma Sm, dendrite Hx),
+# 28 states, current-clamped through SmIapp (pA).
+#
+# Source: the maintainer's Mu26_auto07p_export/main_control.ode (the XPP export of the
+# model published as a Python program at
+# https://github.com/MuhammadMoustafa/pvn-hcn-marmoset-model, parameters.json).
+# Conditions (one model, the conductances of the h current are parameters):
+#   control  SmHxgMax = 0.05196355494318059, HxHxgMax = 0.6435532020105316 (as below)
+#   blocked  SmHxgMax = 0, HxHxgMax = 0 (g_h blocked in both compartments)
+# tests/auto/ode_mu26_control.json and ode_mu26_blocked.json continue the applied
+# current SmIapp (and, for blocked, the two conductances) from the parameters and
+# initial conditions of the description, not from the values below.
+# Differences from the source: SmHxgMax and HxHxgMax are parameters (they were formulas),
+# in the order of the AUTO-07p equation files (par(1) SmIapp, par(2), par(3)), and NMAX is
+# 1000 (the export asks for 10000000, which W432 made loadable; 1000 keeps the descriptions' runs as they were).
+# The run below (backward Euler, as the source, with dt=0.05, every 10th step stored) is the model at 5 pA, in the spiking range.
+# Parameters
+par SmIapp = 5, SmHxgMax = 0.05196355494318059, HxHxgMax = 0.6435532020105316
+# Initial conditions
+init SmV = -71.145
+init SmNam = 0.006947
+init SmNah = 0.720124
+init SmSkcaI = 0.000337
+init SmSkn = 0.171504
+init SmNpm = 0.006163
+init SmMxm = 0.018506
+init SmKvn = 0.148615
+init SmKam = 0.000836
+init SmKah = 0.387253
+init SmHxh = 0.002609
+init SmCam = 0.038092
+init SmCah = 0.238715
+init SmC1m = 0.000198
+init HxV = -71.249
+init HxCam = 0.000194
+init HxCtm = 0.037337
+init HxCth = 0.241245
+init HxHxh = 0.002658
+init HxKam = 0.000824
+init HxKah = 0.390196
+init HxKvn = 0.14774
+init HxMxm = 0.018318
+init HxNam = 0.006858
+init HxNah = 0.722216
+init HxNpm = 0.006006
+init HxSkcaI = 0.000101
+init HxSkn = 0.001666
+# Algebraic equations
+Smcpctncr = 6.0003
+Smdmtrxxf = 0
+Smlength = 0
+SmxlRsst8 = 100
+SmLegMax = 0.3138
+SmNagMax = 198.1495
+SmNamVHlv = -31.446
+SmNamSlpn = 8
+SmNamTMx9 = 2.177
+SmNamTMnn = 0.0439
+SmNahVHlq = -61.6947
+SmNahSlpi = -10
+SmNahTMx4 = 4.1813
+SmNahTMni = 4.1813
+SmSkgMax = 0.0232
+SmSklphCd = 5e-06
+SmSktauCa = 60
+SmSkcRsts = 1e-04
+SmSkkCa = 5e-04
+SmSkhillP = 4
+SmSktauSk = 80
+SmNpgMax = 3.7
+SmNpmVHlv = -50.8136
+SmNpmSlpn = 4
+SmNpmTMx9 = 4.8
+SmNpmTMnn = 1
+SmMxgMax = 0.0143
+SmMxmVHlv = -31.4356
+SmMxmSlpn = 10
+SmMxmTMx9 = 145
+SmMxmTMnn = 15
+SmKvgMax = 167.0195
+SmKvnVHlw = -44.9629
+SmKvnSlpo = 15
+SmKvnTMxa = 20.455
+SmKvnTMno = 0.1141
+SmKagMax = 36.9624
+SmKamVHlv = -18
+SmKamSlpn = 7.5
+SmKamTMx9 = 10
+SmKamTMnn = 1.2
+SmKahVHlq = -75
+SmKahSlpi = -8.4
+SmKahTMx4 = 43
+SmKahTMni = 4.7
+SmHxhVHlq = -104.8498
+SmHxhSlpi = -5.6684
+SmHxhTMx4 = 533.155
+SmHxhTMni = 112.5483
+SmCagMax = 11.3512
+SmCamVHlv = -55.0009
+SmCamSlpn = 5
+SmCamTMx9 = 10
+SmCamTMnn = 4
+SmCahVHlq = -79.8435
+SmCahSlpi = -7.5
+SmCahTMx4 = 33
+SmCahTMni = 22
+SmC1gMax = 1.1158
+SmC1mVHlv = -28.5
+SmC1mSlpn = 5
+SmC1mlph8 = 0.19
+SmC1mlph4 = 19.88
+SmC1mlphu = -10
+SmC1mBtSg = 0.046
+SmC1mBtVz = 0
+SmC1mBtSb = 20.73
+SmStstrto = 800
+SmStdrtnh = 1000
+SmStmplti = 100
+SmStrpttk = 1
+SmStntrvk = 0
+SmSestrto = 500
+SmSedrtnh = 300
+SmSemplti = -20
+SmSerpttk = 1
+SmSentrvk = 0
+SmSpstrto = 0
+SmSpdrtnh = 2000
+SmSpmplti = -7.1234
+SmSprpttk = 1
+SmSpntrvk = 0
+HxIapp = 0
+Hxcpctncr = 23.4689
+Hxdmtrxxf = 0
+Hxlength = 0
+HxxlRsst8 = 100
+HxCagMax = 0.3958
+HxCamVHlv = -28.5
+HxCamSlpn = 5
+HxCamlph8 = 0.19
+HxCamlph4 = 19.88
+HxCamlphu = -10
+HxCamBtSg = 0.046
+HxCamBtVz = 0
+HxCamBtSb = 20.73
+HxCtgMax = 0.0518
+HxCtmVHlv = -55.0009
+HxCtmSlpn = 5
+HxCtmTMx9 = 10
+HxCtmTMnn = 4
+HxCthVHlq = -79.8435
+HxCthSlpi = -7.5
+HxCthTMx4 = 33
+HxCthTMni = 22
+HxHxhVHlq = -104.8498
+HxHxhSlpi = -5.6684
+HxHxhTMx4 = 533.155
+HxHxhTMni = 112.5483
+HxKagMax = 0.0459
+HxKamVHlv = -18
+HxKamSlpn = 7.5
+HxKamTMx9 = 10
+HxKamTMnn = 1.2
+HxKahVHlq = -75
+HxKahSlpi = -8.4
+HxKahTMx4 = 43
+HxKahTMni = 4.7
+HxKvgMax = 7.7548
+HxKvnVHlw = -44.9629
+HxKvnSlpo = 15
+HxKvnTMxa = 20.455
+HxKvnTMno = 0.1141
+HxLegMax = 0.3529
+HxMxgMax = 0.0039
+HxMxmVHlv = -31.4356
+HxMxmSlpn = 10
+HxMxmTMx9 = 145
+HxMxmTMnn = 15
+HxNagMax = 77.0696
+HxNamVHlv = -31.446
+HxNamSlpn = 8
+HxNamTMx9 = 2.177
+HxNamTMnn = 0.0439
+HxNahVHlq = -61.6947
+HxNahSlpi = -10
+HxNahTMx4 = 4.1813
+HxNahTMni = 4.1813
+HxNpgMax = 0.9089
+HxNpmVHlv = -50.8136
+HxNpmSlpn = 4
+HxNpmTMx9 = 4.8
+HxNpmTMnn = 1
+HxSkgMax = 0.8265
+HxSklphCd = 5e-06
+HxSktauCa = 60
+HxSkcRsts = 1e-04
+HxSkkCa = 5e-04
+HxSkhillP = 4
+HxSktauSk = 80
+gSmHx = 7.1735
+ISmLe = SmLegMax*(SmV-(-74.9596))
+ISmNa = SmNagMax*SmNam^3*SmNah*(SmV-50)
+mInfSmNa = 0.5+0.5*tanh((SmV-SmNamVHlv)/ode_divisor(2*SmNamSlpn))
+tmSmNa = (SmNamTMx9-SmNamTMnn)*(1-tanh((SmV-SmNamVHlv)/ode_divisor(2*SmNamSlpn))^2)+SmNamTMnn
+hInfSmNa = 0.5+0.5*tanh((SmV-SmNahVHlq)/ode_divisor(2*SmNahSlpi))
+thSmNa = (SmNahTMx4-SmNahTMni)*(1-tanh((SmV-SmNahVHlq)/ode_divisor(2*SmNahSlpi))^2)+SmNahTMni
+ISmSk = SmSkgMax*SmSkn*(SmV-(-90))
+nRtoSmSk = (SmSkcaI/ode_divisor(SmSkkCa))^SmSkhillP
+nInfSmSk = nRtoSmSk/ode_divisor(1+nRtoSmSk)
+ISmNp = SmNpgMax*SmNpm*(SmV-50)
+mInfSmNp = 0.5+0.5*tanh((SmV-SmNpmVHlv)/ode_divisor(2*SmNpmSlpn))
+tmSmNp = (SmNpmTMx9-SmNpmTMnn)*(1-tanh((SmV-SmNpmVHlv)/ode_divisor(2*SmNpmSlpn))^2)+SmNpmTMnn
+ISmMx = SmMxgMax*SmMxm*(SmV-(-90))
+mInfSmMx = 0.5+0.5*tanh((SmV-SmMxmVHlv)/ode_divisor(2*SmMxmSlpn))
+tmSmMx = (SmMxmTMx9-SmMxmTMnn)*(1-tanh((SmV-SmMxmVHlv)/ode_divisor(2*SmMxmSlpn))^2)+SmMxmTMnn
+ISmKv = SmKvgMax*SmKvn^4*(SmV-(-90))
+nInfSmKv = 0.5+0.5*tanh((SmV-SmKvnVHlw)/ode_divisor(2*SmKvnSlpo))
+tnSmKv = (SmKvnTMxa-SmKvnTMno)*(1-tanh((SmV-SmKvnVHlw)/ode_divisor(2*SmKvnSlpo))^2)+SmKvnTMno
+ISmKa = SmKagMax*SmKam^3*SmKah*(SmV-(-90))
+mInfSmKa = 0.5+0.5*tanh((SmV-SmKamVHlv)/ode_divisor(2*SmKamSlpn))
+tmSmKa = (SmKamTMx9-SmKamTMnn)*(1-tanh((SmV-SmKamVHlv)/ode_divisor(2*SmKamSlpn))^2)+SmKamTMnn
+hInfSmKa = 0.5+0.5*tanh((SmV-SmKahVHlq)/ode_divisor(2*SmKahSlpi))
+thSmKa = (SmKahTMx4-SmKahTMni)*(1-tanh((SmV-SmKahVHlq)/ode_divisor(2*SmKahSlpi))^2)+SmKahTMni
+ISmHx = SmHxgMax*SmHxh*(SmV-(-30.001))
+hInfSmHx = 0.5+0.5*tanh((SmV-SmHxhVHlq)/ode_divisor(2*SmHxhSlpi))
+thSmHx = (SmHxhTMx4-SmHxhTMni)*(1-tanh((SmV-SmHxhVHlq)/ode_divisor(2*SmHxhSlpi))^2)+SmHxhTMni
+ISmCa = SmCagMax*SmCam^2*SmCah*(SmV-130)
+mInfSmCa = 0.5+0.5*tanh((SmV-SmCamVHlv)/ode_divisor(2*SmCamSlpn))
+tmSmCa = (SmCamTMx9-SmCamTMnn)*(1-tanh((SmV-SmCamVHlv)/ode_divisor(2*SmCamSlpn))^2)+SmCamTMnn
+hInfSmCa = 0.5+0.5*tanh((SmV-SmCahVHlq)/ode_divisor(2*SmCahSlpi))
+thSmCa = (SmCahTMx4-SmCahTMni)*(1-tanh((SmV-SmCahVHlq)/ode_divisor(2*SmCahSlpi))^2)+SmCahTMni
+ISmC1 = SmC1gMax*SmC1m^2*(SmV-130)
+mInfSmC1 = 0.5+0.5*tanh((SmV-SmC1mVHlv)/ode_divisor(2*SmC1mSlpn))
+amSmC1 = SmC1mlph8*(SmV-SmC1mlph4)/ode_divisor(1-exp((SmV-SmC1mlph4)/ode_divisor(SmC1mlphu)))
+bmSmC1 = SmC1mBtSg*exp(-(SmV-SmC1mBtVz)/ode_divisor(SmC1mBtSb))
+tmSmC1 = max(1/ode_divisor(amSmC1+bmSmC1), 0.01)
+tDurSmSt = (SmStrpttk-1)*(SmStdrtnh+SmStntrvk)+SmStdrtnh
+# ISmSt = heav(t - SmStstrto) * heav(SmStstrto + tDurSmSt - t) * (heav(mod(t - SmStstrto, SmStdrtnh + SmStntrvk)) - heav(mod(t - SmStstrto, SmStdrtnh + SmStntrvk) - SmStdrtnh)) * SmStmplti
+tDurSmSe = (SmSerpttk-1)*(SmSedrtnh+SmSentrvk)+SmSedrtnh
+# ISmSe = heav(t - SmSestrto) * heav(SmSestrto + tDurSmSe - t) * (heav(mod(t - SmSestrto, SmSedrtnh + SmSentrvk)) - heav(mod(t - SmSestrto, SmSedrtnh + SmSentrvk) - SmSedrtnh)) * SmSemplti
+tDurSmSp = (SmSprpttk-1)*(SmSpdrtnh+SmSpntrvk)+SmSpdrtnh
+# ISmSp = heav(t - SmSpstrto) * heav(SmSpstrto + tDurSmSp - t) * (heav(mod(t - SmSpstrto, SmSpdrtnh + SmSpntrvk)) - heav(mod(t - SmSpstrto, SmSpdrtnh + SmSpntrvk) - SmSpdrtnh)) * SmSpmplti
+IHxCa = HxCagMax*HxCam^2*(HxV-130)
+mInfHxCa = 0.5+0.5*tanh((HxV-HxCamVHlv)/ode_divisor(2*HxCamSlpn))
+amHxCa = HxCamlph8*(HxV-HxCamlph4)/ode_divisor(1-exp((HxV-HxCamlph4)/ode_divisor(HxCamlphu)))
+bmHxCa = HxCamBtSg*exp(-(HxV-HxCamBtVz)/ode_divisor(HxCamBtSb))
+tmHxCa = max(1/ode_divisor(amHxCa+bmHxCa), 0.01)
+IHxCt = HxCtgMax*HxCtm^2*HxCth*(HxV-130)
+mInfHxCt = 0.5+0.5*tanh((HxV-HxCtmVHlv)/ode_divisor(2*HxCtmSlpn))
+tmHxCt = (HxCtmTMx9-HxCtmTMnn)*(1-tanh((HxV-HxCtmVHlv)/ode_divisor(2*HxCtmSlpn))^2)+HxCtmTMnn
+hInfHxCt = 0.5+0.5*tanh((HxV-HxCthVHlq)/ode_divisor(2*HxCthSlpi))
+thHxCt = (HxCthTMx4-HxCthTMni)*(1-tanh((HxV-HxCthVHlq)/ode_divisor(2*HxCthSlpi))^2)+HxCthTMni
+IHxHx = HxHxgMax*HxHxh*(HxV-(-30.001))
+hInfHxHx = 0.5+0.5*tanh((HxV-HxHxhVHlq)/ode_divisor(2*HxHxhSlpi))
+thHxHx = (HxHxhTMx4-HxHxhTMni)*(1-tanh((HxV-HxHxhVHlq)/ode_divisor(2*HxHxhSlpi))^2)+HxHxhTMni
+IHxKa = HxKagMax*HxKam^3*HxKah*(HxV-(-90))
+mInfHxKa = 0.5+0.5*tanh((HxV-HxKamVHlv)/ode_divisor(2*HxKamSlpn))
+tmHxKa = (HxKamTMx9-HxKamTMnn)*(1-tanh((HxV-HxKamVHlv)/ode_divisor(2*HxKamSlpn))^2)+HxKamTMnn
+hInfHxKa = 0.5+0.5*tanh((HxV-HxKahVHlq)/ode_divisor(2*HxKahSlpi))
+thHxKa = (HxKahTMx4-HxKahTMni)*(1-tanh((HxV-HxKahVHlq)/ode_divisor(2*HxKahSlpi))^2)+HxKahTMni
+IHxKv = HxKvgMax*HxKvn^4*(HxV-(-90))
+nInfHxKv = 0.5+0.5*tanh((HxV-HxKvnVHlw)/ode_divisor(2*HxKvnSlpo))
+tnHxKv = (HxKvnTMxa-HxKvnTMno)*(1-tanh((HxV-HxKvnVHlw)/ode_divisor(2*HxKvnSlpo))^2)+HxKvnTMno
+IHxLe = HxLegMax*(HxV-(-74.9825))
+IHxMx = HxMxgMax*HxMxm*(HxV-(-90))
+mInfHxMx = 0.5+0.5*tanh((HxV-HxMxmVHlv)/ode_divisor(2*HxMxmSlpn))
+tmHxMx = (HxMxmTMx9-HxMxmTMnn)*(1-tanh((HxV-HxMxmVHlv)/ode_divisor(2*HxMxmSlpn))^2)+HxMxmTMnn
+IHxNa = HxNagMax*HxNam^3*HxNah*(HxV-50)
+mInfHxNa = 0.5+0.5*tanh((HxV-HxNamVHlv)/ode_divisor(2*HxNamSlpn))
+tmHxNa = (HxNamTMx9-HxNamTMnn)*(1-tanh((HxV-HxNamVHlv)/ode_divisor(2*HxNamSlpn))^2)+HxNamTMnn
+hInfHxNa = 0.5+0.5*tanh((HxV-HxNahVHlq)/ode_divisor(2*HxNahSlpi))
+thHxNa = (HxNahTMx4-HxNahTMni)*(1-tanh((HxV-HxNahVHlq)/ode_divisor(2*HxNahSlpi))^2)+HxNahTMni
+IHxNp = HxNpgMax*HxNpm*(HxV-50)
+mInfHxNp = 0.5+0.5*tanh((HxV-HxNpmVHlv)/ode_divisor(2*HxNpmSlpn))
+tmHxNp = (HxNpmTMx9-HxNpmTMnn)*(1-tanh((HxV-HxNpmVHlv)/ode_divisor(2*HxNpmSlpn))^2)+HxNpmTMnn
+IHxSk = HxSkgMax*HxSkn*(HxV-(-90))
+nRtoHxSk = (HxSkcaI/ode_divisor(HxSkkCa))^HxSkhillP
+nInfHxSk = nRtoHxSk/ode_divisor(1+nRtoHxSk)
+IcnSmHx = gSmHx*(SmV-HxV)
+IcnHxSm = gSmHx*(HxV-SmV)
+# Differential equations
+SmNam' = (mInfSmNa-SmNam)/ode_divisor(tmSmNa)
+SmNah' = (hInfSmNa-SmNah)/ode_divisor(thSmNa)
+SmSkn' = (nInfSmSk-SmSkn)/ode_divisor(SmSktauSk)
+SmSkcaI' = -SmSklphCd*(ISmCa+ISmC1)-(SmSkcaI-SmSkcRsts)/ode_divisor(SmSktauCa)
+SmNpm' = (mInfSmNp-SmNpm)/ode_divisor(tmSmNp)
+SmMxm' = (mInfSmMx-SmMxm)/ode_divisor(tmSmMx)
+SmKvn' = (nInfSmKv-SmKvn)/ode_divisor(tnSmKv)
+SmKam' = (mInfSmKa-SmKam)/ode_divisor(tmSmKa)
+SmKah' = (hInfSmKa-SmKah)/ode_divisor(thSmKa)
+SmHxh' = (hInfSmHx-SmHxh)/ode_divisor(thSmHx)
+SmCam' = (mInfSmCa-SmCam)/ode_divisor(tmSmCa)
+SmCah' = (hInfSmCa-SmCah)/ode_divisor(thSmCa)
+SmC1m' = (mInfSmC1-SmC1m)/ode_divisor(tmSmC1)
+# ISmSt + ISmSe + ISmSp
+SmV' = (-ISmLe-ISmNa-ISmSk-ISmNp-ISmMx-ISmKv-ISmKa-ISmHx-ISmCa-ISmC1+SmIapp+IcnHxSm)/ode_divisor(Smcpctncr)
+HxCam' = (mInfHxCa-HxCam)/ode_divisor(tmHxCa)
+HxCtm' = (mInfHxCt-HxCtm)/ode_divisor(tmHxCt)
+HxCth' = (hInfHxCt-HxCth)/ode_divisor(thHxCt)
+HxHxh' = (hInfHxHx-HxHxh)/ode_divisor(thHxHx)
+HxKam' = (mInfHxKa-HxKam)/ode_divisor(tmHxKa)
+HxKah' = (hInfHxKa-HxKah)/ode_divisor(thHxKa)
+HxKvn' = (nInfHxKv-HxKvn)/ode_divisor(tnHxKv)
+HxMxm' = (mInfHxMx-HxMxm)/ode_divisor(tmHxMx)
+HxNam' = (mInfHxNa-HxNam)/ode_divisor(tmHxNa)
+HxNah' = (hInfHxNa-HxNah)/ode_divisor(thHxNa)
+HxNpm' = (mInfHxNp-HxNpm)/ode_divisor(tmHxNp)
+HxSkn' = (nInfHxSk-HxSkn)/ode_divisor(HxSktauSk)
+HxSkcaI' = -HxSklphCd*(IHxCa+IHxCt)-(HxSkcaI-HxSkcRsts)/ode_divisor(HxSktauCa)
+HxV' = (-IHxCa-IHxCt-IHxHx-IHxKa-IHxKv-IHxLe-IHxMx-IHxNa-IHxNp-IHxSk+HxIapp+IcnSmHx)/ode_divisor(Hxcpctncr)
+# XPP simulation options
+options {
+  integration: { dt: 0.05, store_every: 10, method: adams, total_time: 2000 },
+  continuation: {
+    parameter_max: 300, parameter_min: -80, output_every: 100000, max_steps: 1000,
+    mesh_intervals: 100, max_step_size: 0.1,
+  },
+  diagram: { autovar: SmV, autoxmin: -80, autoxmax: 310, autoymin: -90, autoymax: 20 },
+  plot: { xlo: 0, xhi: 400.0, ylo: -90, yhi: 50, yp: SmV },
+  interface: { but: "fit:wf", but: "int:ig", but: "intl:il", but: "auto:fa" },
+}
+
+fun ode_divisor(value) = if value then value else 2.23e-15

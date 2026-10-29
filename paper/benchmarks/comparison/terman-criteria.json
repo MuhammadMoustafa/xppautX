@@ -1,0 +1,15 @@
+{
+  "declared": "2026-10-18, W439, before new convergence runs",
+  "threshold_mv": -20.0,
+  "population_window_ms": 20.0,
+  "population_spikes_per_window": 2,
+  "episode_gap_ms": 100.0,
+  "counts_equal": true,
+  "episode_duration_relative": 0.01,
+  "rate_relative": 0.01,
+  "spike_shift_ms": 0.2,
+  "consecutive_refinements": 2,
+  "sensitivity_initial_perturbations": [1e-9, 1e-12],
+  "reference": "SciPy DOP853, rtol=atol=1e-12",
+  "claim": "Numerical convergence of the archive's behaviour only; neither Figure 3 nor the intent of the 31 repaired SET labels is established."
+}

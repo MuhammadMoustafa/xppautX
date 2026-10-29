@@ -1,0 +1,322 @@
+[
+  {
+    "name": "kuramoto10",
+    "family": "kuramoto",
+    "size": 10,
+    "states": 10,
+    "steps": {
+      "step": 1,
+      "T": 25000,
+      "2T": 50000
+    },
+    "calibration": {
+      "probe_steps": 25600,
+      "probe_seconds": 1.5357830799985095,
+      "fixed_seconds": 0.007796794001478702
+    }
+  },
+  {
+    "name": "kuramoto25",
+    "family": "kuramoto",
+    "size": 25,
+    "states": 25,
+    "steps": {
+      "step": 1,
+      "T": 4400,
+      "2T": 8800
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 0.5429413649981143,
+      "fixed_seconds": 0.007666295001399703
+    }
+  },
+  {
+    "name": "kuramoto50",
+    "family": "kuramoto",
+    "size": 50,
+    "states": 50,
+    "steps": {
+      "step": 1,
+      "T": 1200,
+      "2T": 2400
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 0.5412881770025706,
+      "fixed_seconds": 0.009510928997769952
+    }
+  },
+  {
+    "name": "kuramoto100",
+    "family": "kuramoto",
+    "size": 100,
+    "states": 100,
+    "steps": {
+      "step": 1,
+      "T": 200,
+      "2T": 400
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 2.3635695639968617,
+      "fixed_seconds": 0.014237848998163827
+    }
+  },
+  {
+    "name": "kuramoto200",
+    "family": "kuramoto",
+    "size": 200,
+    "states": 200,
+    "steps": {
+      "step": 1,
+      "T": 67,
+      "2T": 134
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 9.00302243400074,
+      "fixed_seconds": 0.037359378999099135
+    }
+  },
+  {
+    "name": "kuramoto400",
+    "family": "kuramoto",
+    "size": 400,
+    "states": 400,
+    "steps": {
+      "step": 1,
+      "T": 17,
+      "2T": 34
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 35.265252397010045,
+      "fixed_seconds": 0.10345621699525509
+    }
+  },
+  {
+    "name": "lecdiff25",
+    "family": "lecdiff",
+    "size": 25,
+    "states": 50,
+    "steps": {
+      "step": 1,
+      "T": 28200,
+      "2T": 56400
+    },
+    "calibration": {
+      "probe_steps": 25600,
+      "probe_seconds": 1.3594105350057362,
+      "fixed_seconds": 0.007600138997077011
+    }
+  },
+  {
+    "name": "lecdiff50",
+    "family": "lecdiff",
+    "size": 50,
+    "states": 100,
+    "steps": {
+      "step": 1,
+      "T": 14000,
+      "2T": 28000
+    },
+    "calibration": {
+      "probe_steps": 6400,
+      "probe_seconds": 0.6815908069984289,
+      "fixed_seconds": 0.009378877002745867
+    }
+  },
+  {
+    "name": "lecdiff100",
+    "family": "lecdiff",
+    "size": 100,
+    "states": 200,
+    "steps": {
+      "step": 1,
+      "T": 6200,
+      "2T": 12400
+    },
+    "calibration": {
+      "probe_steps": 6400,
+      "probe_seconds": 1.5246219920081785,
+      "fixed_seconds": 0.013250375995994546
+    }
+  },
+  {
+    "name": "lecdiff200",
+    "family": "lecdiff",
+    "size": 200,
+    "states": 400,
+    "steps": {
+      "step": 1,
+      "T": 3200,
+      "2T": 6400
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 0.7602909220076981,
+      "fixed_seconds": 0.023232776999066118
+    }
+  },
+  {
+    "name": "lecdiff400",
+    "family": "lecdiff",
+    "size": 400,
+    "states": 800,
+    "steps": {
+      "step": 1,
+      "T": 1600,
+      "2T": 3200
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 1.5043539320031414,
+      "fixed_seconds": 0.0405956350004999
+    }
+  },
+  {
+    "name": "lecdiff800",
+    "family": "lecdiff",
+    "size": 800,
+    "states": 1600,
+    "steps": {
+      "step": 1,
+      "T": 800,
+      "2T": 1600
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 0.7517157409965876,
+      "fixed_seconds": 0.1075652639992768
+    }
+  },
+  {
+    "name": "lecdiff1600",
+    "family": "lecdiff",
+    "size": 1600,
+    "states": 3200,
+    "steps": {
+      "step": 1,
+      "T": 400,
+      "2T": 800
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 1.7689272459974745,
+      "fixed_seconds": 0.28755808300047647
+    }
+  },
+  {
+    "name": "lecdiff2400",
+    "family": "lecdiff",
+    "size": 2400,
+    "states": 4800,
+    "steps": {
+      "step": 1,
+      "T": 200,
+      "2T": 400
+    },
+    "calibration": {
+      "probe_steps": 400,
+      "probe_seconds": 2.5510733260016423,
+      "fixed_seconds": 0.6793083929951536
+    }
+  },
+  {
+    "name": "amari100",
+    "family": "amari",
+    "size": 100,
+    "states": 100,
+    "steps": {
+      "step": 1,
+      "T": 53400,
+      "2T": 106800
+    },
+    "calibration": {
+      "probe_steps": 25600,
+      "probe_seconds": 0.718879094994918,
+      "fixed_seconds": 0.010596867999993265
+    }
+  },
+  {
+    "name": "amari200",
+    "family": "amari",
+    "size": 200,
+    "states": 200,
+    "steps": {
+      "step": 1,
+      "T": 26200,
+      "2T": 52400
+    },
+    "calibration": {
+      "probe_steps": 25600,
+      "probe_seconds": 1.460607633998734,
+      "fixed_seconds": 0.0191465120005887
+    }
+  },
+  {
+    "name": "amari400",
+    "family": "amari",
+    "size": 400,
+    "states": 400,
+    "steps": {
+      "step": 1,
+      "T": 13800,
+      "2T": 27600
+    },
+    "calibration": {
+      "probe_steps": 6400,
+      "probe_seconds": 0.6931811260001268,
+      "fixed_seconds": 0.029553435000707395
+    }
+  },
+  {
+    "name": "amari800",
+    "family": "amari",
+    "size": 800,
+    "states": 800,
+    "steps": {
+      "step": 1,
+      "T": 6800,
+      "2T": 13600
+    },
+    "calibration": {
+      "probe_steps": 6400,
+      "probe_seconds": 1.3924534669931745,
+      "fixed_seconds": 0.07022771500487579
+    }
+  },
+  {
+    "name": "amari1600",
+    "family": "amari",
+    "size": 1600,
+    "states": 1600,
+    "steps": {
+      "step": 1,
+      "T": 2800,
+      "2T": 5600
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 0.8818133269960526,
+      "fixed_seconds": 0.1766852060027304
+    }
+  },
+  {
+    "name": "amari2400",
+    "family": "amari",
+    "size": 2400,
+    "states": 2400,
+    "steps": {
+      "step": 1,
+      "T": 2000,
+      "2T": 4000
+    },
+    "calibration": {
+      "probe_steps": 1600,
+      "probe_seconds": 1.2396691030007787,
+      "fixed_seconds": 0.4013786709983833
+    }
+  }
+]
