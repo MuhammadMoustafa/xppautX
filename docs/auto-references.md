@@ -1912,3 +1912,25 @@ removing it alone is not enough. Not applied: the baselines stay as they were. A
 zero checked by the test's value at the located point against its bracket, or a bracket for the next step that keeps the
 discarded endpoint and the located point's true value, 0, apart).
 
+## W542: a fold whose location fails ([#607](https://github.com/MuhammadMoustafa/xppautX/issues/607))
+
+When a location ends at ITMX (or its corrector or test fails), lcspae/lcspbv restore the step end and the run goes on without
+the point; the run already says so once (`Br 3 Pt 91: a fold (LP) between points 91 and 92 was not located (not in
+max_location_iterations = 8 iterations); it is missing from the diagram`, in the AUTO log and `auto_stop_note`), which is the
+"every stop says why" part of the card.
+
+**Tried: retake the step from its start with half the step** (down to DSMIN; both loops, the test values and the point code
+restored, the first approximation extrapolated as a retried solve does). On `pp2_heteroclinic_coarse` (DS 0.025) the retake
+locates a fold at point 95 (parameter 0.7080717016, norm 0.41986, period 80.6), the parameter AUTO-07p's fold has (0.7080717,
+at its period 62.9, norm 0.42775: the folds of this mesh-noise region are many, W540). But the run then wanders in the noise
+(folds at 97 and 100, then no convergence at point 103) instead of ending on the heteroclinic cycle at point 96.
+
+The full `tools/autocompare.py` (71 models) showed the retake is not harmless: 16 failures in five models. `ode_lecar` and
+`tstauto_lecar` lose the cycle fold AUTO-07p has (0.248414) and label two branch points (0.24870 at point 22, 0.24843 at
+point 29) that are noise of the branch-point test near the fold: the locations that were dropped before were such noise
+brackets, and a shorter bracket locates them. `henon_rot_th` changes the order of R2 and BP, `pp2_heteroclinic` labels an LP
+AUTO-07p does not, `global_heteroclinic` changes at point 45. None of these can be shown to be a zero of a smooth test, so
+the code is not changed and no baseline moves. A retake needs the same first step as W541: telling a crossing of a smooth test
+from noise or a jump (a located point whose test value is not small against its bracket; the test's own continuity), before
+a failed location is given another try.
+
