@@ -1,0 +1,12 @@
+# A planar system whose cycle from a Hopf point ends on a saddle-node on an invariant circle (W518, #582).
+# In polar coordinates r' = r (mu - r^2), phi' = 1 - r x, with x = r cos(phi): the origin has a Hopf point at
+# mu = 0 and the circle r = sqrt(mu) is a stable cycle, on which phi' = 1 - mu cos(phi). Its period is
+# 2 pi / sqrt(1 - mu^2), so it grows without bound as mu reaches 1, where the circle gains two equilibria
+# (cos(phi) = 1/mu), a node and a saddle, at phi = 0: a SNIC. Made for this check; no source.
+# tests/auto/global_snic.json runs it.
+par mu = -0.5
+init x = 0.1, y = 0
+r2 = x^2+y^2
+w = 1-sqrt(r2)*x
+x' = (mu-r2)*x-y*w
+y' = (mu-r2)*y+x*w

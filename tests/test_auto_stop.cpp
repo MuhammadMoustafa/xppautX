@@ -108,5 +108,20 @@ int main()
     xpp::auto_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTO_STOP_NONE);
 
+    /* W518: a cycle branch's period growing without bound ends the branch by the end its equilibria name, before any limit */
+    at = inside();
+    at.global = 1;
+    at.par = 3; /* past parameter_max: the global end is still the reason, and the user's Stop is first */
+    stop.global.kind = xpp::AutoPointKind::Snic;
+    CHECK(xpp::auto_stop_why(stop, &at) == xpp::AUTO_STOP_SNIC);
+    stop.global.kind = xpp::AutoPointKind::Homoclinic;
+    CHECK(xpp::auto_stop_why(stop, &at) == xpp::AUTO_STOP_HOMOCLINIC);
+    stop.global.kind = xpp::AutoPointKind::Heteroclinic;
+    CHECK(xpp::auto_stop_why(stop, &at) == xpp::AUTO_STOP_HETEROCLINIC);
+    stop.global.kind = xpp::AutoPointKind::End; /* no end fits */
+    CHECK(xpp::auto_stop_why(stop, &at) == xpp::AUTO_STOP_PERIOD);
+    at.user = 1;
+    CHECK(xpp::auto_stop_why(stop, &at) == xpp::AUTO_STOP_USER);
+
     TEST_REPORT("auto_stop");
 }

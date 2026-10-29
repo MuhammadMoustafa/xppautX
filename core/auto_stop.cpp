@@ -19,6 +19,7 @@ namespace {
 const char *const keys[AUTO_STOP_N] = {
     "", "parameter_min", "parameter_max", "norm_min", "norm_max", "max_steps", "user", "mark",
     "noconv", "noconv-fixed", "noconv-min", "noconv-switch-fixed", "noconv-switch-min", "jacobian",
+    "period_unbounded", "snic", "homoclinic", "heteroclinic",
 };
 
 /* the continuation parameter as the text names it */
@@ -92,8 +93,25 @@ std::string describe(const xpp::Session &s, const AutoStop &st, int why, const A
         return "no convergence";
     case AUTO_STOP_JACOBIAN:
         return "the exact Jacobian is not finite (see the error)";
+    case AUTO_STOP_PERIOD:
+    case AUTO_STOP_SNIC:
+    case AUTO_STOP_HOMOCLINIC:
+    case AUTO_STOP_HETEROCLINIC:
+        value = st.global.period;
+        return par_name(s, at.ipar) + " = " + num(at.par) + ": " + auto_global_text(s, st.global);
     default:
         return "";
+    }
+}
+
+/* the reason a cycle branch's period growing without bound gives, by the end named */
+int global_why(AutoPointKind kind)
+{
+    switch (kind) {
+    case AutoPointKind::Snic: return AUTO_STOP_SNIC;
+    case AutoPointKind::Homoclinic: return AUTO_STOP_HOMOCLINIC;
+    case AutoPointKind::Heteroclinic: return AUTO_STOP_HETEROCLINIC;
+    default: return AUTO_STOP_PERIOD;
     }
 }
 
@@ -109,6 +127,7 @@ void auto_stop_noconv(AutoStop &st, const AutoNoConvergence &noconv)
 int auto_stop_why(const AutoStop &st, const AutoStopAt *at)
 {
     if (at->user) return AUTO_STOP_USER;
+    if (at->global) return global_why(st.global.kind);
     if (at->noconv) return st.noconv.why;
     if (at->mark) return AUTO_STOP_MARK;
     if (at->par < at->rl0) return AUTO_STOP_PAR_MIN;
@@ -126,6 +145,8 @@ void auto_stop_clear(AutoStop &st)
     st.noconv = {};
     st.notes.clear();
     st.start_refined = false;
+    st.period_watch = {};
+    st.global = {};
 }
 
 void auto_stop_note(Session &s, std::string text)

@@ -180,6 +180,9 @@ enum class AutoPointKind : int {
     FoldNeimarkSacker = 19,   /* LPNS: fold and Neimark-Sacker of a map */
     FlipNeimarkSacker = 20,   /* PDNS: flip and Neimark-Sacker of a map */
     DoubleNeimarkSacker = 21, /* NSNS: two Neimark-Sacker pairs of a map */
+    Snic = 22,            /* SNIC: a periodic branch ends on a saddle-node on an invariant circle (W518) */
+    Homoclinic = 23,      /* HOC: a periodic branch ends on a homoclinic orbit to a saddle (W518) */
+    Heteroclinic = 24,    /* HEC: a periodic branch ends on a heteroclinic cycle between saddles (W518) */
     MaxSteps = -9         /* MX: no convergence, or the step limit */
 };
 
@@ -219,6 +222,10 @@ constexpr int auto_point_encode(AutoPointCode c)
     if (c.kind == AutoPointKind::FoldNeimarkSacker) return c.start == AutoPointKind::Fold ? 23 : 83;
     if (c.kind == AutoPointKind::FlipNeimarkSacker) return c.start == AutoPointKind::PeriodDoubling ? 77 : 87;
     if (c.kind == AutoPointKind::DoubleNeimarkSacker) return 88;
+    // W518: the ends of a periodic branch no AUTO code names, ITP outside the composite range 0..99
+    if (c.kind == AutoPointKind::Snic) return 100;
+    if (c.kind == AutoPointKind::Homoclinic) return 101;
+    if (c.kind == AutoPointKind::Heteroclinic) return 102;
     const int kind = static_cast<int>(c.kind), start = static_cast<int>(c.start);
     return kind < 0 ? kind - 10 * start : 10 * start + kind;
 }
@@ -237,6 +244,9 @@ constexpr std::optional<AutoPointCode> auto_point_decode(long itp, bool allow_pe
     case 77: return AutoPointCode{AutoPointKind::FlipNeimarkSacker, AutoPointKind::PeriodDoubling};
     case 87: return AutoPointCode{AutoPointKind::FlipNeimarkSacker, AutoPointKind::NeimarkSacker};
     case 88: return AutoPointCode{AutoPointKind::DoubleNeimarkSacker, AutoPointKind::NeimarkSacker};
+    case 100: return AutoPointCode{AutoPointKind::Snic, AutoPointKind::Regular};
+    case 101: return AutoPointCode{AutoPointKind::Homoclinic, AutoPointKind::Regular};
+    case 102: return AutoPointCode{AutoPointKind::Heteroclinic, AutoPointKind::Regular};
     case -21: return AutoPointCode{AutoPointKind::BogdanovTakens, AutoPointKind::Fold};
     case -22: return AutoPointCode{AutoPointKind::Cusp, AutoPointKind::Fold};
     case -23: return AutoPointCode{AutoPointKind::ZeroHopf, AutoPointKind::Fold};
@@ -305,6 +315,9 @@ inline constexpr auto auto_point_names = std::to_array<AutoPointName>({
     {AutoPointKind::FoldNeimarkSacker, "fold_neimark_sacker", "Fold–Neimark–Sacker", "LPNS"},
     {AutoPointKind::FlipNeimarkSacker, "flip_neimark_sacker", "Flip–Neimark–Sacker", "PDNS"},
     {AutoPointKind::DoubleNeimarkSacker, "double_neimark_sacker", "Double Neimark–Sacker", "NSNS"},
+    {AutoPointKind::Snic, "snic", "SNIC (saddle-node on invariant circle)", "SNIC"},
+    {AutoPointKind::Homoclinic, "homoclinic", "Homoclinic", "HOC"},
+    {AutoPointKind::Heteroclinic, "heteroclinic", "Heteroclinic", "HEC"},
     {AutoPointKind::MaxSteps, "no_convergence", "No convergence", "MX"},
 });
 

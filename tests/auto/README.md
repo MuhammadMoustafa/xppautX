@@ -11,6 +11,10 @@ Izhikevich's simple model (the reset takes no part in a rest state's
 bifurcation), with the parameters of the `examples/ode/izh_2004*` panel they
 name: the fold of class 1 and the integrator, the Hopf point of class 2 and
 the resonator.
+W518 (#582): `global_snic`, `global_homoclinic` and `global_heteroclinic` run the three models
+of `tools/models/` named so, whose cycles from a Hopf point end on a SNIC, a homoclinic orbit and a
+heteroclinic cycle: the run stops there with the new point type (`snic`, `homoclinic`, `heteroclinic`),
+which neither reference has, so they carry `auto07p_skip` and `xppaut_skip`.
 
 `model` is relative to the repository. `reason` explains the continuation;
 optional `parameters` and `initial_conditions` set the starting state.

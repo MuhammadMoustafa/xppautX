@@ -51,10 +51,13 @@ enum class SingStatus { found, no_root, no_eigenvalues };
 
 /* Newton from x for the root, then the eigenvalues of the Jacobian there;
    the counts only when found (q.run says why there is no root, *ierr that
-   there is none; x is put back when there is no root). Leaves work as the Jacobian transposed for the eigenvalue
+   there is none; x is put back when there is no root). With ghost, a start
+   that has no root goes on with its own Jacobian (W518: the ghost of a fold
+   has its near-zero eigenvalue), q.run still saying there was no root.
+   Leaves work as the Jacobian transposed for the eigenvalue
    solver and oldwork as the Jacobian itself, work then back to oldwork
    transposed (as get_evec wants it). */
-xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double *x, double eps, double err, double big, int maxit, int n, int *ierr)
+xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double *x, double eps, double err, double big, int maxit, int n, int *ierr, bool ghost=false)
 {
  int i,j;
  double temp;
@@ -68,14 +71,13 @@ xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double
  q.b=q.eval+2*n;
  q.bp=q.b+n;
  double *ework=q.bp+n;
- s.manifolds.ic_flag=0;
- s.manifolds.count=0;
  if(auto r=rooter(s,x,err,eps,big,q.work,q.run,maxit,n);!r)return std::unexpected(r.error());
  *ierr=q.run.end==NewtonEnd::converged?0:1;
  if(*ierr!=0)
  {
   std::copy(q.old_x.begin(),q.old_x.end(),x);
-  return SingStatus::no_root;
+  if(!ghost)return SingStatus::no_root;
+  getjac(s,x,q.oldwork,eps,q.work,n); /* oldwork is free until the copy below: getjac's scratch */
  }
  std::copy(q.work,q.work+n*n,q.oldwork);
 /* Transpose for Eigen        */
@@ -191,6 +193,8 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
  double oldt=s.numerics.delta_t;
  char ch;
  Equilibrium q;
+ s.manifolds.ic_flag=0;
+ s.manifolds.count=0;
  auto found=find_equilibrium(s,q,x,eps,err,big,maxit,n,ierr);
  if(!found)return std::unexpected(found.error());
  if(*found==SingStatus::no_root)
@@ -386,11 +390,34 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
   return failure.result();
 }
 
+xpp::Result<EquilibriumNear> equilibrium_near(xpp::Session &s, std::span<const double> start)
+{
+ const int n=static_cast<int>(start.size());
+ const auto &eq=s.numerics.equilibria;
+ Equilibrium q;
+ EquilibriumNear root;
+ root.x.assign(start.begin(),start.end());
+ int ierr=0;
+ auto found=find_equilibrium(s,q,root.x.data(),eq.jacobian_step,eq.newton_tolerance,eq.search_limit,eq.max_iterations,n,&ierr,true);
+ if(!found)return std::unexpected(found.error());
+ if(*found==SingStatus::no_eigenvalues)return xpp::fail("equilibrium","Could not compute eigenvalues",command_place());
+ root.found=q.run.end==NewtonEnd::converged;
+ root.re.resize(static_cast<std::size_t>(n));
+ root.im.resize(static_cast<std::size_t>(n));
+ for(int i=0;i<n;i++){
+  root.re[static_cast<std::size_t>(i)]=q.eval[2*i];
+  root.im[static_cast<std::size_t>(i)]=q.eval[2*i+1];
+ }
+ return root;
+}
+
 /* fixed point with no requests and store manifolds */ 
 xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr)
 {
  xpp::FirstError failure; /* report a failed manifold through the calling command */
  Equilibrium q;
+ s.manifolds.ic_flag=0;
+ s.manifolds.count=0;
  auto found=find_equilibrium(s,q,x,eps,err,big,maxit,n,ierr);
  if(!found)return std::unexpected(found.error());
  if(*found!=SingStatus::found)return {};

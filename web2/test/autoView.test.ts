@@ -105,6 +105,12 @@ test('T23: the key lists the label types the diagram has, spelled out', () => {
   assert.ok(['end', 'no_convergence', 'fold', 'hopf', 'branch_point', 'period_doubling', 'neimark_sacker', 'user_point'].every(k => symbolHelp(k).length > 20));
 });
 
+test('W518: the ends of a periodic branch named by the core are labelled, marked and explained', () => {
+  assert.deepEqual(['snic', 'homoclinic', 'heteroclinic'].map(pointLabel), ['SNIC (saddle-node on invariant circle)', 'Homoclinic', 'Heteroclinic']);
+  assert.ok(['snic', 'homoclinic', 'heteroclinic'].every(k => symbolHelp(k).includes('period of the cycles grows without bound')));
+  assert.deepEqual(['snic', 'homoclinic', 'heteroclinic'].map(labelShape), ['bar', 'bar', 'bar']);
+});
+
 test('T29: one shape per label type, not a cross for every one; unknown codes and plain points fall back', () => {
   assert.deepEqual(['hopf', 'fold', 'branch_point', 'period_doubling', 'neimark_sacker', 'user_point', 'no_convergence', 'end'].map(labelShape),
     ['circle', 'triangle', 'diamond', 'square', 'star', 'invTriangle', 'cross', 'bar']);

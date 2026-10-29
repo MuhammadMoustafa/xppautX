@@ -434,6 +434,48 @@ Period doubling bifurcation: a Floquet multiplier crosses -1.
 Torus bifurcation from a periodic orbit: a pair of Floquet multipliers
 crosses the unit circle.
 
+### SNIC, Homoclinic, Heteroclinic (SNIC, HOC, HEC)
+
+The end of a branch of periodic orbits whose period grows without bound.
+AUTO labels such an end MX or EP, wherever the step limit or a convergence
+failure happens to come; xppautX finds it and names it. It watches each
+point of a branch of cycles (a branch from a Hopf point, or one extended
+from a cycle's end): when the period has grown over the last 5 points and
+is at least twice the shortest period of the branch, and the orbit lingers
+(some point of it is a millionth of the orbit's fastest speed, |f(x)|, from
+standing still), it looks for the equilibria the orbit lingers near. Each
+slow stretch of the orbit gives one: Newton's method from its slowest point
+with Sing pts' settings (`newton_tolerance`, `jacobian_step`,
+`search_limit`, `max_iterations`), and the eigenvalues of the Jacobian
+there. Then the end is
+
+- a **SNIC** (saddle-node on invariant circle, mark SNIC) when the one
+  equilibrium has a zero eigenvalue (within a thousandth of the spectral
+  radius): the orbit passes the fold of the equilibria, or its ghost where
+  Newton's method no longer finds one, and the period grows as the inverse
+  square root of the distance to it;
+- **Homoclinic** (HOC) when it is one saddle (unstable and stable
+  eigenvalues, none zero), the orbit returning to it: the period grows as
+  the logarithm of the distance;
+- **Heteroclinic** (HEC) when the orbit passes two or more different
+  saddles in turn.
+
+Anything else (a node, a lingering orbit with no equilibrium near, a saddle
+beside a fold) is still the end of a branch whose period grows without
+bound, and says so, with no new type. The branch stops there, the point is
+stored and labelled with its type like any special point (its solution
+saved, so a run can start from it), and the stop says why with the period,
+the parameter value and the equilibria approached ("Branch 2 stopped at
+point 36: parameter mu = 0.328738: period growing without bound: T = 32.0422,
+7.21202 times the shortest period of the branch (4.44288), has grown over the
+last 5 points; the orbit lingers near a saddle (1 unstable and 1 stable
+eigenvalues) at "X" = ..., "Y" = 0: point type homoclinic (HOC)"). A cycle
+that spends long on a slow stretch but never comes within a millionth of
+standing still (a model with a slow calcium variable, say) goes on.
+The end is as near as the first point whose orbit is that slow: ask a
+smaller `max_step_size` for a closer one, or follow the global bifurcation
+itself with a homoclinic or heteroclinic run from it.
+
 ### User point (UZ)
 
 A point where a parameter, or the period T, reaches one of the Mark values
@@ -459,6 +501,7 @@ next to the end point's label when you hover it, and as `autoinfo`'s
 | by the user (Stop) | Stop (or the view's Close) during the run | Run again from the end point |
 | the exact Jacobian is not finite (see the error) | with Numerics' Jacobian set to exact, a derivative was not finite where the right-hand side is (sqrt or log at 0, 1/x at 0); the run stopped as a Stop does, on an end point | the error offers "Switch to differences and continue": it sets the Jacobian to difference and runs again from that end point with the same settings |
 | parameter *p* reached a Mark value set to stop | a user point marked as an end (AUTO's UZR endpoint) | the Mark values |
+| parameter *p* = *value*: period growing without bound ... point type snic / homoclinic / heteroclinic | a branch of cycles whose period grew over 5 points to twice its shortest while the orbit lingers near equilibria (SNIC, HOC, HEC, above); without a type: the equilibria are no fold and no saddle | a homoclinic or heteroclinic run from the end point, or nothing: this is the end of the cycles |
 | no convergence even at the smallest step (min_step_size *value*) | the solver failed and halving the step reached `min_step_size` (DSMIN): a sharp turn, a jump, or a singular point (MX) | a smaller `min_step_size` or `max_step_size`, a larger `mesh_intervals`, looser tolerances |
 | no convergence with a fixed step size (step_adapt_every 0) | the solver failed and `step_adapt_every` (IADS) is 0, so the step is not reduced (MX) | `step_adapt_every` 1 |
 | no convergence switching branches, ... | the same while starting a bifurcating branch at a branch point | as above |
@@ -466,7 +509,9 @@ next to the end point's label when you hover it, and as `autoinfo`'s
 A no convergence's words also name the Newton settings that gave up
 (`max_newton_iterations`, `parameter_tolerance`, `state_tolerance`) and, when the last linear system was singular, its
 smallest pivot. Recording the reason changes nothing AUTO computes: the
-points, labels and saved diagrams are the same as before.
+points, labels and saved diagrams are the same as before, except where a
+branch of cycles ends on a SNIC, a homoclinic or a heteroclinic orbit (above):
+there it stops, where AUTO goes on to MX or the step limit.
 
 A run that cannot start says so as an error, and AUTO stops: a start AUTO
 has no continuation for (it names the problem, ISW and the start's type),

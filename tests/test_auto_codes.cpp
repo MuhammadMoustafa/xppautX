@@ -119,7 +119,7 @@ int main()
         CHECK(point && xpp::auto_point_encode(*point)==value);
         CHECK(xpp::auto_point_from_text(xpp::auto_point_text(*point)) == point);
     }
-    for (int value : {23,28,77,78,83,87,88,-25,-26,-27,-28}) {
+    for (int value : {23,28,77,78,83,87,88,100,101,102,-25,-26,-27,-28}) {
         const auto point=xpp::auto_point_decode(value);
         CHECK(point && xpp::auto_point_encode(*point)==value);
     }
@@ -133,10 +133,17 @@ int main()
     CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(-76)->kind) == "resonance_1_2");
     CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(-87)->kind) == "resonance_1_3");
     CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(-88)->kind) == "resonance_1_4");
+    /* W518: the ends of a periodic branch only xppautX names, outside the composite range 0..99 */
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(100)->kind) == "snic");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(101)->kind) == "homoclinic");
+    CHECK(xpp::auto_point_kind_name(xpp::auto_point_decode(102)->kind) == "heteroclinic");
+    CHECK(xpp::auto_point_kind_label(xpp::AutoPointKind::Snic) == "SNIC (saddle-node on invariant circle)");
+    CHECK(xpp::auto_point_kind_mark(xpp::AutoPointKind::Homoclinic) == "HOC" && xpp::auto_point_kind_mark(xpp::AutoPointKind::Heteroclinic) == "HEC");
+    CHECK(xpp::auto_point_text(*xpp::auto_point_decode(101)) == "homoclinic");
 
     /* an unknown code is refused: out of range, a negative kind AUTO has no
        such point for, a negative composite of a plain kind */
-    for (long bad : {100L, -100L, 1000L, -5L, -3L, -2L, -11L, -10L, -20L, -99L - 1, -65L})
+    for (long bad : {103L, -100L, 1000L, -5L, -3L, -2L, -11L, -10L, -20L, -99L - 1, -65L})
         CHECK(!xpp::auto_point_decode(bad));
     CHECK_STR(xpp::auto_point_unknown(55 + 100).c_str(), "155 is not an AUTO point type");
 
@@ -199,7 +206,7 @@ int main()
         xpp::TokenReader good = xpp::TokenReader::of_text("1 1 -34 1 1 1 5 3 5 0 0 2");
         CHECK(xpp::read_auto_solution_header(good, h, 10) && h.itp.kind == xpp::AutoPointKind::UserZero
               && h.itp.start == xpp::AutoPointKind::Hopf);
-        for (const char *text : {"1 1 -5 1 1 1 5 3 5 0 0 2", "1 1 100 1 1 1 5 3 5 0 0 2", "1 1 -1 1 1 1 5 3 5 0 0 2"}) {
+        for (const char *text : {"1 1 -5 1 1 1 5 3 5 0 0 2", "1 1 103 1 1 1 5 3 5 0 0 2", "1 1 -1 1 1 1 5 3 5 0 0 2"}) {
             xpp::TokenReader bad = xpp::TokenReader::of_text(text);
             CHECK(!xpp::read_auto_solution_header(bad, h, 10));
         }

@@ -1720,3 +1720,42 @@ a norm cannot be negative, and the wide upper default avoids truncating an
 ordinary growing branch at XPPAUT's former default of 1000. These are
 xppautX defaults; AUTO-07p's A0/A1 remain explicitly configurable bounds.
 No baseline is rewritten for a start that fails validation.
+
+## W518: the global ends of a periodic branch ([#582](https://github.com/MuhammadMoustafa/xppautX/issues/582))
+
+AUTO-07p 0.9.4 and XPPAUT 8.0 detect no global bifurcation. A branch of cycles whose period grows
+without bound, towards a saddle-node on an invariant circle (SNIC), a homoclinic orbit or a heteroclinic
+cycle, shows only as a period growing until the step limit or no convergence (EP or MX), with no
+word on why. xppautX stops the branch where the period has grown over 5 points to twice the branch's
+shortest and the orbit lingers (some mesh point's speed |f| at most 1e-6 of the orbit's fastest),
+finds the equilibria the slow stretches of the orbit lie near (Newton's method with the
+Sing pts settings, the eigenvalues at the root, or at the slowest point itself when there is none) and stores the
+end as `snic` (one equilibrium with a zero eigenvalue, within 1e-3 of the spectral radius), `homoclinic`
+(one saddle) or `heteroclinic` (two or more saddles), or as an end of branch that says "period growing
+without bound" when none fits (core/auto_global.h gives each number its reason). This is a deliberate
+difference: where the references run on, xppautX stops at the first point whose orbit is that slow.
+
+Against the references nothing else moves. `tools/autocompare.py` leaves the three new types out of the
+comparison of special points, as it does EP (`GLOBAL_ENDS`), so a stop that AUTO-07p labels EP or MX is
+not a missing or extra special point; every AUTO-07p and XPPAUT quantity still passes (the two `ode_mu26`
+descriptions' marks at 5, 1, 0.1 and 0.07 pA come before the end). Of the 61 baselines, two changed
+on purpose, only in their last rows:
+
+| Description | Run | Before | Now |
+|---|---|---|---|
+| `ode_mu26_control` | `to_snic` | 170 points, ending EP at the step limit with period 31307 | 153 points, ending `snic` (label 21) at SmIapp = 0.00633838, period 4055.09: the fold of the equilibria is at 0.0058127 |
+| `ode_mu26_blocked` | `to_snic` | 170 points, ending EP at the step limit with period 35081 | 155 points, ending `snic` (label 20) at SmIapp = 0.0667654, period 4974.13 |
+
+The rows before each end, and every later run of `ode_mu26_blocked`, are byte for byte the old ones. Mu26's
+slow variables (calcium, gating) hold its cycles at a thousandth to a hundred-thousandth of their fastest speed
+for most of the period, with no equilibrium near, from the first points; a threshold of 1e-3 stopped them at
+SmIapp = 22.95, period 71, naming a slow mode's eigenvalue (a hundredth of the spectral radius) a fold's:
+that is why the threshold is a millionth and the zero eigenvalue a thousandth of the radius.
+
+Three new small descriptions, with no reference file (`auto07p_skip`, `xppaut_skip`: no reference
+end to compare), hold the three ends, from tools/models: `global_snic` (r' = r (mu - r^2), phi' = 1 - r x:
+the cycles of radius sqrt(mu) from the Hopf point at mu = 0 have period 2 pi / sqrt(1 - mu^2), a SNIC at mu = 1),
+`global_homoclinic` (the double-well Duffing oscillator x'' = x - x^3 + mu x' - x'^3: the cycles around the centre
+(1, 0) grow into the origin's saddle at mu = 0.3287) and `global_heteroclinic` (x'' = -x + x^3 + mu x' - x'^3:
+the cycles around the origin meet the saddles (+-1, 0) at mu = 0.3314). `tools/servercheck.py`'s `stops`
+section runs each and checks the stop's reason, its words and the stored type.

@@ -375,6 +375,39 @@ def check_auto_stops():
     check('stops AUTO special point: the default max_location_iterations locates them, no note', notes == [], str(notes))
 
 
+def check_auto_global_ends():
+    """W518 (#582): a cycle branch whose period grows without bound while its orbit lingers at equilibria ends on a
+    SNIC, a homoclinic orbit or a heteroclinic cycle: the run stops there, the stop says which with the period, the
+    parameter and the equilibria approached, and the end point is stored and marked with the new type."""
+    cases = [
+        ('global_snic', 'snic', 'SNIC', ['parameter mu = 0.99999', 'period growing without bound: T = ', 'times the shortest period of the branch (6.28319)',
+                                         'the ghost of an equilibrium', 'zero eigenvalue, on a fold of the equilibria', 'point type snic (SNIC)']),
+        ('global_homoclinic', 'homoclinic', 'HOC', ['parameter mu = 0.3287', 'period growing without bound: T = ', 'times the shortest period of the branch (4.44288)',
+                                                    'lingers near a saddle (1 unstable and 1 stable eigenvalues) at "X" = ', 'point type homoclinic (HOC)']),
+        ('global_heteroclinic', 'heteroclinic', 'HEC', ['parameter mu = 0.3314', 'period growing without bound: T = ',
+                                                        'lingers near a saddle (1 unstable and 1 stable eigenvalues) at "X" = 1, "Y" = 0; then a saddle (1 unstable and 1 stable eigenvalues) at "X" = -1',
+                                                        'point type heteroclinic (HEC)'])]
+    for name, key, mark, words in cases:
+        d = autocompare.read_description(autocompare.BASE / (name + '.json'))
+        s = Server(args.server, autocompare.ROOT / d['model'])
+        try:
+            autocompare.completed(s)
+            diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
+            events = []
+            for r in d['runs']:
+                autocompare.restore_start(s, r, [], {})
+                events = autocompare.execute_run(s, r, diagram, {})
+            stops = [e['stop'] for e in events if e.get('ev') == 'autoinfo' and e.get('stop')]
+            stop = stops[-1] if stops else {}
+            check('stops AUTO %s: the period growing without bound ends the cycles, says why with the period, the parameter and the equilibria' % key,
+                  stop.get('why') == key and all(w in stop.get('text', '') for w in words), str(stop))
+            ends = [lab for e in events if e.get('ev') == 'diagram' and e.get('op') == 'add' for r in e['runs'] for lab in r.get('lab', [])]
+            check('stops AUTO %s: the end point is stored with its type, which the page marks %s (hello\'s point types)' % (key, mark),
+                  bool(ends) and ends[-1][2] == key and diagram.points[-1]['sym'] == mark, str(ends[-1:]))
+        finally:
+            s.close()
+
+
 def check_auto_starts():
     """W495: reject bad starts before a first diagram point is produced. A start at or past a
     bound is refused only when Ds leads away from the interval (autocheck's extend of a branch
@@ -1242,7 +1275,7 @@ def check_equilibrium_exports():
         s.close()
 
 
-INDEPENDENT_SECTIONS = {'registry': check_registry, 'equilibrium': check_equilibrium_exports, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
+INDEPENDENT_SECTIONS = {'registry': check_registry, 'equilibrium': check_equilibrium_exports, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_global_ends(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -10411,6 +10444,7 @@ check_recursive_user_functions()
 check_run_registry()
 check_stops()
 check_auto_stops()
+check_auto_global_ends()
 check_auto_starts()
 check_auto_two_parameter_starts()
 check_auto_periodic_start_kind()

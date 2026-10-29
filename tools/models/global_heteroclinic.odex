@@ -1,0 +1,12 @@
+# A planar system whose cycle from a Hopf point ends on a heteroclinic cycle between two saddles (W518, #582).
+# x'' = -x + x^3 + mu x' - (x')^3: the pendulum-like oscillator with a centre at the origin and saddles at
+# (+-1, 0) joined by the two heteroclinic orbits y = +-(1 - x^2) / sqrt(2) of H = y^2/2 + x^2/2 - x^4/4 = 1/4
+# (mu = 0), which together with the damping x'(mu - x'^2) is odd under (x, y) -> (-x, -y). The origin has a Hopf
+# point at mu = 0, and its cycles grow with mu until they meet the two saddles, where the energy balance
+# mu int y^2 dt = int y^4 dt along a heteroclinic orbit holds (to first order mu = 12/35 = 0.343; the run finds
+# 0.3314), the same value for the two orbits by the symmetry: a heteroclinic cycle. Made for this check; no source.
+# tests/auto/global_heteroclinic.json runs it.
+par mu = -0.3
+init x = 0, y = 0.01
+x' = y
+y' = -x+x^3+mu*y-y^3

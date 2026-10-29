@@ -36,6 +36,17 @@ Error newton_error(const Session &s, const NewtonRun &run, std::span<const doubl
    iteration); the error says why there is none */
 Result<> get_evec(Session &s, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval);
 
+/* The equilibrium near a start (W518: where a long orbit lingers): Newton's method from it with the
+   session's equilibria settings, and the eigenvalues (re, im: one per variable) of the Jacobian at the
+   root; when Newton finds no root, found is false and they are the Jacobian's at the start itself
+   (an equilibrium that has just vanished, a fold's ghost, still has its near-zero eigenvalue). It marks
+   nothing on the graph and integrates no manifold; an error is the model's own (a failed evaluation) */
+struct EquilibriumNear {
+  bool found = false;
+  std::vector<double> x, re, im;
+};
+Result<EquilibriumNear> equilibrium_near(Session &s, std::span<const double> start);
+
 Result<> do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
 void getjac(Session &s, double *x, double *y, double eps, double *dermat, int n);

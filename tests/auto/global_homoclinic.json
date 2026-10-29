@@ -1,0 +1,55 @@
+{
+  "model": "tools/models/global_homoclinic.odex",
+  "reason": "W518 (#582): the cycles of tools/models/global_homoclinic.odex around the centre (1, 0) from their Hopf point (mu = 0) grow until they meet the saddle at the origin, a homoclinic orbit; the run stops there, names it homoclinic and says why.",
+  "parameters": {
+    "mu": -0.3
+  },
+  "initial_conditions": {
+    "x": 1.0,
+    "y": 0.0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "mu",
+      "auto": {
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 200,
+        "output_every": 100,
+        "parameter_min": -1,
+        "parameter_max": 0.2,
+        "mesh_intervals": 20,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "mu",
+      "auto": {
+        "step_size": 0.01,
+        "min_step_size": 1e-09,
+        "max_step_size": 0.05,
+        "max_steps": 300,
+        "output_every": 100,
+        "parameter_min": -1,
+        "parameter_max": 1.5,
+        "mesh_intervals": 30,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "auto07p_skip": "W518 (#582): the run ends on a homoclinic orbit, a point type only xppautX names; AUTO-07p ends this branch at MX or the step limit with no word on why (docs/auto-references.md W518), so there is no reference end to compare.",
+  "xppaut_skip": "W518 (#582): the run ends on a homoclinic orbit, a point type only xppautX names; XPPAUT 8.0 ends this branch at MX or the step limit with no word on why (docs/auto-references.md W518), so there is no reference end to compare."
+}

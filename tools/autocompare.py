@@ -429,7 +429,11 @@ CODE_OF_NAME = {
     'cycle_fold': 'LP', 'hopf': 'HB', 'period_doubling': 'PD', 'neimark_sacker': 'TR', 'end': 'EP', 'user_point': 'UZ',
     'no_convergence': 'MX', 'bogdanov_takens': 'BT', 'cusp': 'CP', 'zero_hopf': 'ZH', 'generalized_hopf': 'GH',
     'resonance_1_1': 'R1', 'resonance_1_2': 'R2', 'resonance_1_3': 'R3', 'resonance_1_4': 'R4', 'fold_flip': 'LPD',
-    'fold_neimark_sacker': 'LTR', 'flip_neimark_sacker': 'PTR', 'double_neimark_sacker': 'TTR'}
+    'fold_neimark_sacker': 'LTR', 'flip_neimark_sacker': 'PTR', 'double_neimark_sacker': 'TTR',
+    'snic': 'SNIC', 'homoclinic': 'HOC', 'heteroclinic': 'HEC'}
+# the ends of a periodic branch that only xppautX names (W518): AUTO-07p and XPPAUT end that branch at MX or the
+# step limit, a branch end like EP, which a comparison of special points leaves out (docs/auto-references.md)
+GLOBAL_ENDS = ('SNIC', 'HOC', 'HEC')
 
 
 def code_of(name):
@@ -630,7 +634,7 @@ def labelled(rows, kind):
     points = []
     for i, r in enumerate(rows):
         symbol = code_of(r['itp'])
-        if symbol and symbol != 'EP':
+        if symbol and symbol != 'EP' and symbol not in GLOBAL_ENDS:
             points.append((symbol, i))
         elif i == 0 and symbol == 'EP' and kind in ('equilibrium', 'bvp', *HOMCONT):
             points.append(('EP', i))

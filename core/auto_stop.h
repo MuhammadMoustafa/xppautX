@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include "auto_global.h"
+
 namespace xpp {
 
 struct Session; /* session.h */
@@ -40,6 +42,10 @@ enum AutoStopWhy {
     AUTO_STOP_NOCONV_SWITCH_FIXED, /* ... switching branches, fixed step */
     AUTO_STOP_NOCONV_SWITCH_MIN,   /* ... switching branches, smallest step */
     AUTO_STOP_JACOBIAN,    /* the exact Jacobian was not finite (W275): a cancel the run made itself */
+    AUTO_STOP_PERIOD,      /* a cycle branch's period grows without bound, the end not named (W518) */
+    AUTO_STOP_SNIC,        /* ... at a saddle-node on an invariant circle */
+    AUTO_STOP_HOMOCLINIC,  /* ... at a homoclinic orbit to a saddle */
+    AUTO_STOP_HETEROCLINIC,/* ... at a heteroclinic cycle between saddles */
     AUTO_STOP_N
 };
 
@@ -69,6 +75,9 @@ struct AutoStop {
     std::vector<std::string> notes;
     /* the run's start was refined by Newton before it ran (autevd.cpp), so it is not the start as given */
     bool start_refined = false;
+    /* the cycle branch's periods so far, and the end its period growing without bound was (W518) */
+    AutoPeriodWatch period_watch;
+    AutoGlobalEnd global;
 };
 
 /* a "No convergence" NOTE; the branch end that follows says "no
@@ -85,6 +94,7 @@ struct AutoStopAt {
     int noconv; /* the solver gave up (istop 1, no cancel): AUTO labels it MX */
     int mark;   /* istop -1: a Mark value set to stop */
     int user;   /* stopped by the user (byeauto's iflag, a cancel) */
+    int global; /* a cycle branch's period grows without bound: AutoStop::global says where (W518) */
 };
 
 /* why a branch ending at `at` ended; the first of: the user, no

@@ -116,6 +116,9 @@ export const POINT_TYPES: PointType[] = [
   {name: 'fold_neimark_sacker', label: 'Fold\u2013Neimark\u2013Sacker', mark: 'LPNS'},
   {name: 'flip_neimark_sacker', label: 'Flip\u2013Neimark\u2013Sacker', mark: 'PDNS'},
   {name: 'double_neimark_sacker', label: 'Double Neimark\u2013Sacker', mark: 'NSNS'},
+  {name: 'snic', label: 'SNIC (saddle-node on invariant circle)', mark: 'SNIC'},
+  {name: 'homoclinic', label: 'Homoclinic', mark: 'HOC'},
+  {name: 'heteroclinic', label: 'Heteroclinic', mark: 'HEC'},
   {name: 'no_convergence', label: 'No convergence', mark: 'MX'},
 ];
 

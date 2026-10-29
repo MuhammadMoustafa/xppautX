@@ -5919,6 +5919,26 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
   }
 
+  /* xppautX (W518): a cycle branch whose period grows without bound while
+     its orbit lingers at an equilibrium ends at a SNIC, a homoclinic orbit
+     or a heteroclinic cycle (auto_global.h); a special point the last step
+     located keeps its label and the next point decides */
+  if (context.ips == xpp::AutoProblem::Periodic && f2c::abs(context.isw) != 2) {
+    xpp::AutoStop &stop = iap->lib->session->auto_state.stop;
+    const bool growing = xpp::auto_period_watch_add(stop.period_watch, par[xpp::auto_unknown::period], ntot == 1);
+    if (growing && iap->istop == 0 && !xpp::job::cancelled() &&
+        (context.itp.kind == xpp::AutoPointKind::Regular || context.itp.kind == xpp::AutoPointKind::Output)) {
+      if (auto end = xpp::auto_global_end(*iap, par, icp, ups, *ndxloc, par[xpp::auto_unknown::period], stop.period_watch.shortest)) {
+        stop.global = std::move(*end);
+        istop = 1;
+        iap->istop = istop;
+        context.itp = xpp::AutoPointCode{stop.global.kind, xpp::AutoPointKind::Regular};
+        iap->itp = context.itp;
+        stop_at.user = 0, stop_at.global = 1;
+      }
+    }
+  }
+
   /* All special points receive label: */
 
   labw = 0;

@@ -1,0 +1,59 @@
+{
+  "model": "tools/models/global_snic.odex",
+  "reason": "W518 (#582): the cycles of tools/models/global_snic.odex from their Hopf point (mu = 0) end on a SNIC at mu = 1, where the circle r = sqrt(mu) gains a node and a saddle and its period 2 pi / sqrt(1 - mu^2) grows without bound; the run stops there, names it a SNIC and says why.",
+  "parameters": {
+    "mu": -0.5
+  },
+  "initial_conditions": {
+    "x": 0.1,
+    "y": 0.0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "mu",
+      "auto": {
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 200,
+        "output_every": 100,
+        "parameter_min": -1,
+        "parameter_max": 0.2,
+        "mesh_intervals": 20,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "mu",
+      "auto": {
+        "step_size": 0.02,
+        "min_step_size": 1e-07,
+        "max_step_size": 0.02,
+        "max_steps": 300,
+        "output_every": 100,
+        "parameter_min": -1,
+        "parameter_max": 1.5,
+        "mesh_intervals": 50,
+        "max_branch_switches": 0,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05
+      }
+    }
+  ],
+  "auto07p_skip": "W518 (#582): the run ends on a SNIC, a point type only xppautX names; AUTO-07p ends this branch at MX or the step limit with no word on why (docs/auto-references.md W518), so there is no reference end to compare.",
+  "xppaut_skip": "W518 (#582): the run ends on a SNIC, a point type only xppautX names; XPPAUT 8.0 ends this branch at MX or the step limit with no word on why (docs/auto-references.md W518), so there is no reference end to compare."
+}
