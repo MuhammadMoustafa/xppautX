@@ -34,7 +34,7 @@ Contents: [Platforms and install](#platforms-and-install) -
 ## Platforms and install
 
 | What | XPPAUT 8.0 | xppautX | Card |
-| Equilibrium search's questions | Sing pts' (G)o asks Print eigenvalues?, Draw Invariant Sets? and Draw Strong Sets? every time it runs | the three are settings, off by default and kept in the session file (`equilibrium.configure`: `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets`); `equilibrium.find` takes no arguments and asks nothing | W535 ([#600](https://github.com/MuhammadMoustafa/xppautX/issues/600)) |
+| Equilibrium search's questions | Sing pts' (G)o asks Print eigenvalues?, Draw Invariant Sets? and Draw Strong Sets? every time it runs | the three are settings, off by default, kept in the session file and settable in the .odex (`equilibrium.configure`: `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets`); `equilibrium.find` takes no arguments and asks nothing | W535 ([#600](https://github.com/MuhammadMoustafa/xppautX/issues/600)) |
 | Analysis commands | Equilibria, nullclines and direction fields use menu picks, mouse clicks and prompts | typed `equilibrium.*`, `nullcline.*` and `dirfield.*` commands share the numerical routines in every front end; plot-coordinate guesses, named windows, boolean choices and explicit results; old protocol forms removed, the S, N, D and Numerics keys ask then run the same commands | W522 ([#586](https://github.com/MuhammadMoustafa/xppautX/issues/586)) |
 |---|---|---|---|
 | Display | needs an X server: opens the display at start ([main.c:1432](../reference/xppaut-8.0/main.c#L1432)) | no X server; the page in a window of its own, or in a browser | W8, W13a |
