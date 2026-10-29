@@ -40,7 +40,8 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   did best (maintainer, 2026-10-20).
 - Models that check or compare xppautX (tests/auto/, the comparison) are real
   published models, the paper, equations and parameter values cited, or a named
-  AUTO-07p or XPPAUT demo; never one invented to reach a case. A brief that needs a
+  AUTO-07p or XPPAUT demo (a model published as code counts); never one invented to reach a case. The made-up models
+  already in tests/auto/ stay beside the published ones: the redundancy checks accuracy. A brief that needs a
   model says "stop and report if no published one is found" (maintainer, 2026-10-29; W537, #602).
 - The comparison (W354): XPPAUT's and AUTO-07p's sources are never edited; a problem
   there is recorded (docs/xppaut-findings.md, docs/auto07p-findings.md). An xppautX
