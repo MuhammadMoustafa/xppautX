@@ -233,9 +233,10 @@ commits (hash and subject); a card only partly done stays open, with a
 comment on what landed.
 
 Headless smoke test by hand (writes output.dat in cwd, expect 601 rows and
-md5 c281851de59ffd03b2a46428619a0c8f for lecar.ode):
+md5 c281851de59ffd03b2a46428619a0c8f for lecar.odex; lecar.ode gives the same
+rows, but its .odex beside it is hand-edited, so opening it asks to replace it):
 
-    tools/wslrun.sh sh -c 'make -j4 xppautx && ./xppautX examples/ode/lecar.ode --silent && md5sum output.dat'
+    tools/wslrun.sh sh -c 'make -j4 xppautx && ./xppautX examples/ode/lecar.odex --silent && md5sum output.dat'
 
 Run it (opens its desktop window; `--browser` for the browser front end):
 

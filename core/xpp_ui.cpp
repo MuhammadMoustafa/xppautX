@@ -105,12 +105,14 @@ static void hl_s_str_str(Session &, std::string_view, std::string_view) {}
 static int hl_new_string(std::string_view, std::string &, int) { return 0; }
 static int hl_no(void) { return 0; }
 static int hl_choose(std::string_view, std::string_view question, std::span<const std::string> choices,
-                     std::string_view keys, char)
+                     std::string_view keys, char yes_key)
 {
     std::string prompt(question);
     for (std::size_t i = 0; i < choices.size() && i < keys.size(); i++)
         prompt += xpp::format("{} {} ({})", i ? "," : " --", choices[i], keys[i]);
-    const std::optional<std::string> answer = ask_terminal(prompt, choices.empty() ? std::string() : choices.back());
+    /* the suggestion shown is the one --yes takes */
+    const std::size_t suggested = keys.find(yes_key);
+    const std::optional<std::string> answer = ask_terminal(prompt, suggested < choices.size() ? choices[suggested] : std::string());
     if (!answer) return 0;
     for (std::size_t i = 0; i < choices.size() && i < keys.size(); i++)
         if (equal_ignoring_case(*answer, choices[i]) || (answer->size() == 1 && equal_ignoring_case(*answer, std::string(1, keys[i]))))

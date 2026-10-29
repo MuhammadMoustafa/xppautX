@@ -83,7 +83,7 @@ int main(void)
         for (int i = 0; i < N; i++)
             xpp::client_session().data_store.col[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / N) +
                                                 B * std::sin(2 * PI * m * i / N));
-        xpp::just_fourier(xpp::client_session(),1);
+        CHECK(xpp::just_fourier(xpp::client_session(),1).has_value());
         CHECK(xpp::client_session().histogram.four_here == 1);
         /* just_fourier(1) converts my_four[1]/[2] from (cos,sin) coefficients
            to (magnitude,phase) in place (four_back() inside new_four() points
@@ -140,7 +140,7 @@ int main(void)
         xpp::client_session().histogram.spec_col = 1;
         xpp::client_session().histogram.spec_wid = win;
         xpp::client_session().histogram.spec_win = 0; /* square */
-        xpp::just_sd(xpp::client_session(),0);
+        CHECK(xpp::just_sd(xpp::client_session(),0).has_value());
         CHECK(xpp::client_session().histogram.hist_here == 1);
         CHECK(xpp::client_session().histogram.hist_len == win / 2);
         CHECK(relerr(xpp::client_session().histogram.hist()[1][m], A) < 1e-3);

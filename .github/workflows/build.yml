@@ -300,7 +300,7 @@ jobs:
       - name: Smoke test (headless)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
-          cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.ode" --silent
+          cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.odex" --silent
           test "$(wc -l < output.dat)" -eq 601
           echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"
       - name: Server protocol and web front end
@@ -320,12 +320,12 @@ jobs:
           make app
           log="$RUNNER_TEMP/app.log"
           : > "$log"
-          open -n -a "$PWD/xppautX.app" --stderr "$log" "$PWD/examples/ode/lecar.ode" --args --verbose
+          open -n -a "$PWD/xppautX.app" --stderr "$log" "$PWD/examples/ode/lecar.odex" --args --verbose
           i=0
           while [ $i -lt 60 ] && ! grep -q 'Used [0-9]* constants' "$log"; do sleep 1; i=$((i + 1)); done
           pkill -f 'xppautX.app/Contents/MacOS/xppautX' || true
           tail -n 20 "$log"
-          grep -q 'macOS asked to open .*/examples/ode/lecar.ode' "$log" && grep -q 'Used [0-9]* constants' "$log"
+          grep -q 'macOS asked to open .*/examples/ode/lecar.odex' "$log" && grep -q 'Used [0-9]* constants' "$log"
       - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: uv run --locked python tools/autocheck.py
@@ -427,7 +427,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           top=$PWD
-          cd "$(mktemp -d)" && "$top/xppautX.exe" "$top/examples/ode/lecar.ode" --silent
+          cd "$(mktemp -d)" && "$top/xppautX.exe" "$top/examples/ode/lecar.odex" --silent
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
       - name: Server protocol and web front end
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -548,7 +548,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           top=$PWD
-          cd "$(mktemp -d)" && "$top/build/clang/xppautX.exe" "$top/examples/ode/lecar.ode" --silent
+          cd "$(mktemp -d)" && "$top/build/clang/xppautX.exe" "$top/examples/ode/lecar.odex" --silent
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
