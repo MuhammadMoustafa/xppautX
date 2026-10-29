@@ -40,10 +40,12 @@ struct XppSlider {
 
 /* The equilibria's settings (the nUmerics menu's Sing pt ctrl, the options'
    `equilibria` group): Newton's tolerance and iterations, the Jacobian's
-   step and the limit past which a search gives up */
+   step and the limit past which a search gives up, and what a search shows
+   beside the equilibrium it finds (off: the search asks nothing) */
 struct EquilibriaSettings {
   double newton_tolerance = 0, jacobian_step = 0, search_limit = 0;
   int max_iterations = 0;
+  bool print_eigenvalues = false, draw_invariant_sets = false, draw_strong_sets = false;
 };
 
 /* The numerics settings in use (the nUmerics menu, the model's @ options,

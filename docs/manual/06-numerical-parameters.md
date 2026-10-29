@@ -60,7 +60,7 @@ will prompt you for the grid size for computing nullclines.
 
 ### s(I)ng pt ctrl
 
-This prompts you for errors and epsilons for eigenvalues and equilibria calculations (`newton_tolerance`, `jacobian_step`) as well as the maximum iterates (`max_iterations`) and the search limit (`search_limit`). If you have global flags, then you will be asked for `smin` as well.
+This prompts you for errors and epsilons for eigenvalues and equilibria calculations (`newton_tolerance`, `jacobian_step`) as well as the maximum iterates (`max_iterations`) and the search limit (`search_limit`). If you have global flags, then you will be asked for `smin` as well. The search's three display settings, `print_eigenvalues`, `draw_invariant_sets` and `draw_strong_sets`, are listed with these and are off by default; the search asks nothing.
 
 ### n(O)ut
 

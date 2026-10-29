@@ -16,7 +16,7 @@ for path in Path('examples/recordings').glob('*.recx'):
             step = json.loads(row)
             command = None
             if step.get('keys') == ['s', 'g', 'n'] and 'win' not in step:
-                command = {'cmd': 'equilibrium.find', 'print_eigenvalues': False}
+                command = {'cmd': 'equilibrium.find'}
             elif step.get('win') == 'equilibrium' and step.get('keys') == ['i']:
                 command = {'cmd': 'equilibrium.import_as_ic'}
             if command:

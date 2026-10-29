@@ -1145,7 +1145,7 @@ def check_registry():
                   and not any(e.get('ev')=='done' for e in events), str(obsolete))
         # W522: every analysis row returns its declared data, validates before mutation, and has no old route.
         request({'cmd': 'plot.set_variables', 'how': 'phase_plane', 'names': ['V', 'W']})
-        result, _ = request({'cmd': 'equilibrium.find', 'print_eigenvalues': False})
+        result, _ = request({'cmd': 'equilibrium.find'})
         check('W522: equilibrium.find returns values, eigenvalues and named stability',
               result.get('converged') is True and len(result.get('equilibrium', {})) == 2
               and len(result.get('eigenvalues', [])) == 2 and result.get('stability') in ('stable', 'unstable', 'saddle'), str(result))
@@ -1175,7 +1175,8 @@ def check_registry():
             result, _ = request(command)
             check('W522: ' + command['cmd'] + ' declares and returns ' + field, field in result, str(result))
             request({**command, 'unknown_argument': True}, False)
-        request({'cmd': 'equilibrium.find', 'print_eigenvalues': 'yes'}, False)
+        request({'cmd': 'equilibrium.find', 'print_eigenvalues': False}, False)
+        request({'cmd': 'equilibrium.configure', 'print_eigenvalues': 'yes'}, False)
         request({'cmd': 'equilibrium.search', 'guesses': 1, 'tolerance': 0.001, 'bounds': {'V': [0, 1, 2]}}, False)
         request({'cmd': 'equilibrium.search', 'guesses': 1, 'tolerance': 0.001, 'bounds': {'V': [1, 0]}}, False)
         request({'cmd': 'equilibrium.configure', 'max_iterates': 20, 'newton_tolerance': -1}, False)
@@ -1950,7 +1951,63 @@ def check_kinescope_animation_array_plot():
         stop_server(proc, run_dir, snd)
 
 
-INDEPENDENT_SECTIONS = {'registry': check_registry, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
+def check_equilibrium_settings():
+    """W535: the equilibrium search asks no questions. Print eigenvalues, draw invariant sets and draw
+    strong sets are numerics settings: equilibrium.configure sets them and the numerics event shows
+    them, a bad value or an argument find no longer takes is refused and changes nothing, and find
+    prints the eigenvalues exactly when print eigenvalues is on (the log, which --verbose shows)."""
+    log = LogLines()
+    p, r, snd, col, _ = launch_server(log=log, extra_args=['--verbose'])
+    idle = lambda e: e.get('ev') in ('idle', 'done')
+    printed = lambda lines: sum('Eigenvalues:' in line for line in lines)
+
+    def call(**cmd):
+        snd(**cmd)
+        evs, _ = col(idle, timeout=60 * SLOW)
+        return next((e for e in reversed(evs) if e.get('ev') == 'done'), {}), evs
+
+    def setting(key):
+        snd(cmd='events.subscribe', events=['numerics'])
+        evs, _ = col(idle, timeout=60 * SLOW)
+        numerics = next(e for e in reversed(evs) if e.get('ev') == 'numerics')
+        return next((f['value'] for f in numerics['fields'] if f['key'] == key), None)
+
+    try:
+        col(idle)
+        done, _ = call(cmd='equilibrium.find')
+        check('W535: find with no arguments converges', done.get('status') == 'ok' and done.get('result', {}).get('converged') is True, str(done)[:300])
+        check('W535: print eigenvalues is off by default', setting('print_eigenvalues') is False, str(done)[:300])
+
+        done, _ = call(cmd='equilibrium.configure', print_eigenvalues=True)
+        check('W535: configure sets print eigenvalues', done.get('status') == 'ok' and setting('print_eigenvalues') is True, str(done)[:300])
+        call(cmd='equilibrium.find')
+        log.wait_for(lambda lines: printed(lines) >= 1)
+        check('W535: find prints the eigenvalues when print eigenvalues is on', printed(log) == 1, str(log)[-600:])
+
+        call(cmd='equilibrium.configure', print_eigenvalues=False)
+        call(cmd='equilibrium.find')
+        call(cmd='equilibrium.configure', print_eigenvalues=True)
+        call(cmd='equilibrium.find')
+        log.wait_for(lambda lines: printed(lines) >= 2)
+        check('W535: find prints nothing when print eigenvalues is off', printed(log) == 2, str(log)[-600:])
+
+        done, _ = call(cmd='equilibrium.find', print_eigenvalues=True)
+        check('W535: find refuses the old print_eigenvalues argument', done.get('status') == 'error', str(done)[:300])
+        done, _ = call(cmd='equilibrium.configure', print_eigenvalues='yes')
+        check('W535: configure refuses a word for a boolean and keeps the setting', done.get('status') == 'error' and setting('print_eigenvalues') is True, str(done)[:300])
+
+        done, _ = call(cmd='equilibrium.configure', draw_strong_sets=True, newton_tolerance=-1)
+        check('W535: configure is all or nothing for the boolean settings', done.get('status') == 'error' and setting('draw_strong_sets') is False, str(done)[:300])
+
+        done, _ = call(cmd='equilibrium.configure', print_eigenvalues=False, draw_invariant_sets=True, draw_strong_sets=True)
+        check('W535: configure sets all three settings at once',
+              done.get('status') == 'ok' and setting('print_eigenvalues') is False and setting('draw_invariant_sets') is True
+              and setting('draw_strong_sets') is True, str(done)[:300])
+    finally:
+        stop_server(p, r, snd)
+
+
+INDEPENDENT_SECTIONS = {'equilibria': check_equilibrium_settings, 'registry': check_registry, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -4765,7 +4822,7 @@ def lecar_to_auto(snd, col):
     """Apply hopf, find its equilibrium and start AUTO through registry commands."""
     result=[]
     for command in [dict(cmd='set.apply',name='hopf',scope='all'),
-                    dict(cmd='equilibrium.find',print_eigenvalues=False,draw_invariant_sets=False,draw_strong_sets=False),
+                    dict(cmd='equilibrium.find'),
                     dict(cmd='equilibrium.import_as_ic'),dict(cmd='auto.open'),dict(cmd='auto.run',kind='equilibrium')]:
         snd(**command)
         evs,_=col(is_idle,timeout=60*SLOW)
@@ -10561,6 +10618,7 @@ def check_recursive_user_functions():
 
 
 check_recursive_user_functions()
+check_equilibrium_settings()
 check_run_registry()
 check_stops()
 check_auto_stops()

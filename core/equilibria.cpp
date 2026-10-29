@@ -211,7 +211,7 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
 ch='n';
 if(!s.numerics.par_fol)
 {
- ch=s.print_eigenvalues?'y':'n';
+ ch=s.numerics.equilibria.print_eigenvalues?'y':'n';
  
 }
  pr=0;
@@ -233,7 +233,7 @@ if(!s.numerics.par_fol)
  ch='n';
  if(!s.numerics.par_fol)
  {
-  ch=s.draw_invariant_sets?'y':'n';
+  ch=s.numerics.equilibria.draw_invariant_sets?'y':'n';
    }
   if((ch=='y')||(s.numerics.par_fol&&s.numerics.shoot))
   {
@@ -282,7 +282,7 @@ if(!s.numerics.par_fol)
    ch='n';
    if(!s.numerics.par_fol)
      {
-       ch=s.draw_strong_sets?'y':'n';
+       ch=s.numerics.equilibria.draw_strong_sets?'y':'n';
      }
 
    if((ch=='y')||(s.numerics.par_fol&&s.numerics.shoot))

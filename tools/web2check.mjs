@@ -2269,15 +2269,30 @@ async function openAutoAtFixedPoint() {
   await menuRun('set.apply', {name: 'hopf', scope: 'all'});
   await requireUntil('!s.busy && !s.commandForm', 'hopf set');
   await menuRun('equilibrium.find');
-  for (let k = 0; k < 3; k++) {
-    await requireUntil('s.ask || !s.busy', 'equilibrium choice or completion');
-    if (!await S('!!s.ask')) break;
-    await answerAsk({key:'n'});
-  }
-  await requireUntil('!s.busy', 'fixed point');
+  await requireUntil('!s.busy && !s.ask', 'fixed point');
   await menuRun('equilibrium.import_as_ic');
   await requireUntil('!s.busy', 'imported fixed point');
   await openAutoPanel();
+}
+
+/* W535 (GitHub #600): the equilibrium search asks nothing. Its three settings are Numerics rows
+   of the Equilibrium settings form, off by default; the form sets them and Find runs with no
+   question. */
+async function equilibriumSettings() {
+  await until('s.hello && s.numerics && !s.busy', 'hello');
+  const value = key => S(`s.numerics.find(f => f.key === ${JSON.stringify(key)})?.value`);
+  const keys = ['print_eigenvalues', 'draw_invariant_sets', 'draw_strong_sets'];
+  const off = [];
+  for (const key of keys) off.push(await value(key));
+  check('W535: the three equilibrium settings are off by default', off.every(v => v === false), JSON.stringify(off));
+  await menuRun('equilibrium.configure', {print_eigenvalues: true, draw_strong_sets: true});
+  check('W535: the Equilibrium settings form sets the two it was given and keeps the third off',
+    await until(`s.numerics.find(f => f.key === 'print_eigenvalues').value === true && s.numerics.find(f => f.key === 'draw_strong_sets').value === true
+      && s.numerics.find(f => f.key === 'draw_invariant_sets').value === false && !s.busy && !s.commandForm`, 'settings form'),
+    JSON.stringify(await S('s.numerics.filter(f => f.key.endsWith("_sets") || f.key === "print_eigenvalues")')));
+  await menuRun('equilibrium.find');
+  check('W535: Find asks no question and finds the equilibrium',
+    await until(`s.text.equilibrium && !s.busy && !s.ask`, 'equilibrium', 20000), JSON.stringify(await S('[s.busy, s.ask]')));
 }
 
 /* W102 (GitHub #151, the desktop window): a session saved with an AUTO diagram (a steady run, a
@@ -5376,6 +5391,7 @@ async function main() {
        .." (typed_values.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
     if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:2:1: uses random numbers')]);
+    if (run('values')) await session(ODE, equilibriumSettings);
     if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('Argument "values.gca" must be a finite number')]);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));

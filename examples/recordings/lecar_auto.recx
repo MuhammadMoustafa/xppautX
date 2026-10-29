@@ -205,7 +205,7 @@ fun ode_divisor(value) = if value then value else 2.23e-15
 
 @steps
 {"step":"File → Apply set","cmd":{"cmd":"set.apply","name":"hopf","scope":"all"}}
-{"step":"Sing pts \u2192 Go","cmd":{"cmd":"equilibrium.find","print_eigenvalues":false}}
+{"step":"Sing pts \u2192 Go","cmd":{"cmd":"equilibrium.find"}}
 {"step":"Equilibrium \u2192 Import","cmd":{"cmd":"equilibrium.import_as_ic"}}
 {"step":"File → AUTO","cmd":{"cmd": "auto.open"},"view":true}
 {"step":"AUTO → Run → Equilibrium","cmd":{"cmd": "auto.run", "kind": "equilibrium", "replace_diagram": false}}

@@ -1203,7 +1203,7 @@ export class Session {
 
   /** Find the equilibrium from the current initial conditions. */
   findEquilibrium(): void {
-    this.send({cmd: 'equilibrium.find', print_eigenvalues: false});
+    this.send({cmd: 'equilibrium.find'});
   }
 
   /** the equilibrium window's Import: the last equilibrium becomes the

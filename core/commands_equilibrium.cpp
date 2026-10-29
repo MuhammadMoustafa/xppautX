@@ -77,9 +77,6 @@ Result<std::string> find_point(Session &s,const Command &c,const Arguments &a,co
     }
     const double oldtrans=s.numerics.store_from;
     if(const auto ready=prepare_equilibrium(s,c,p);!ready)return std::unexpected(ready.error());
-    if(const auto flag=a.optional<bool>("print_eigenvalues"))s.print_eigenvalues=*flag;
-    if(const auto flag=a.optional<bool>("draw_invariant_sets"))s.draw_invariant_sets=*flag;
-    if(const auto flag=a.optional<bool>("draw_strong_sets"))s.draw_strong_sets=*flag;
     int ierr=0;float stability=0;
     const auto &settings=s.numerics.equilibria;
     const auto found=s.delay.flag
@@ -137,14 +134,17 @@ Result<std::string> export_file(Session &s,const Command &,const Arguments &a,co
     if(const auto saved=write_equilibrium(s,file.c_str(),s.equilibrium_shoot,a.optional<bool>("confirm").value_or(false));!saved)return std::unexpected(saved.error());
     std::string result="{\"file\":";json_append_string(result,file);return result+",\"written\":true}";
 }
-constexpr std::array CONFIG_KEYS={"max_iterations","newton_tolerance","jacobian_step","search_limit"};
-constexpr std::array CONFIG_ARGS={"max_iterates","newton_tolerance","jacobian_epsilon","search_limit"};
+/* the first CONFIG_NUMBERS keys are numbers (the first a whole one), the rest booleans */
+constexpr std::size_t CONFIG_NUMBERS=4;
+constexpr std::array CONFIG_KEYS={"max_iterations","newton_tolerance","jacobian_step","search_limit","print_eigenvalues","draw_invariant_sets","draw_strong_sets"};
+constexpr std::array CONFIG_ARGS={"max_iterates","newton_tolerance","jacobian_epsilon","search_limit","print_eigenvalues","draw_invariant_sets","draw_strong_sets"};
 Result<std::string> configure(Session &s,const Command &c,const Arguments &a,const Place &p)
 {
     std::array<std::string,CONFIG_KEYS.size()> values;
     for(std::size_t i=0;i<values.size();++i){
         if(!a.has(CONFIG_ARGS[i]))continue;
-        values[i]=i==0?xpp::format("{}",a.get<long long>(CONFIG_ARGS[i])):xpp::number(a.get<double>(CONFIG_ARGS[i]));
+        if(i>=CONFIG_NUMBERS)values[i]=xpp::format("{}",a.get<bool>(CONFIG_ARGS[i]));
+        else values[i]=i==0?xpp::format("{}",a.get<long long>(CONFIG_ARGS[i])):xpp::number(a.get<double>(CONFIG_ARGS[i]));
         std::string why;
         if(numerics_settings_check(s,CONFIG_KEYS[i],values[i],why)<0)return fail(c.name,why,p);
     }
@@ -155,7 +155,6 @@ Result<std::string> configure(Session &s,const Command &c,const Arguments &a,con
     const auto &n=s.numerics.equilibria;
     return xpp::format("{{\"settings\":{{\"max_iterates\":{},\"newton_tolerance\":{},\"jacobian_epsilon\":{},\"search_limit\":{}}}}}",n.max_iterations,n.newton_tolerance,n.jacobian_step,n.search_limit);
 }
-constexpr std::array FIND={Argument{"print_eigenvalues",Type::boolean,false},Argument{"draw_invariant_sets",Type::boolean,false},Argument{"draw_strong_sets",Type::boolean,false}};
 constexpr std::array GUESS={Argument{"coordinates",Type::map,true,MAX_COMMAND_BYTES,{},{},{},NameSet::variable,Type::real},Argument{"window",Type::window,false}};
 constexpr std::array RANGE={Argument{"parameter",Type::model_name,true,MAX_COMMAND_BYTES,{},{},{},NameSet::parameter},Argument{"start",Type::real,true},Argument{"end",Type::real,true},
     Argument{"steps",Type::integer,true,MAX_TEXT_BYTES,{},constant(1),constant(std::numeric_limits<int>::max()-1)},Argument{"shoot",Type::boolean,false},
@@ -166,7 +165,8 @@ constexpr std::array SEARCH={Argument{"append",Type::boolean,false},Argument{"gu
     Argument{"bounds",Type::map,true,MAX_COMMAND_BYTES,{},{},{},NameSet::variable,Type::real_pair}};
 constexpr std::array FILE={Argument{"file",Type::file,true},Argument{"shoot",Type::boolean,false},Argument{"confirm",Type::boolean,false}};
 constexpr std::array CONFIG={Argument{"max_iterates",Type::integer,false,MAX_TEXT_BYTES,{},constant(1),constant(std::numeric_limits<int>::max())},
-    Argument{"newton_tolerance",Type::real,false},Argument{"jacobian_epsilon",Type::real,false},Argument{"search_limit",Type::real,false}};
+    Argument{"newton_tolerance",Type::real,false},Argument{"jacobian_epsilon",Type::real,false},Argument{"search_limit",Type::real,false},
+    Argument{"print_eigenvalues",Type::boolean,false},Argument{"draw_invariant_sets",Type::boolean,false},Argument{"draw_strong_sets",Type::boolean,false}};
 constexpr std::array FOUND={ResultField{"converged","boolean"},ResultField{"equilibrium","map[name, real]"},ResultField{"eigenvalues","list[map[string, real]]"},ResultField{"stability","choice"}};
 constexpr std::array POINTS={ResultField{"points_found","integer"}};
 constexpr std::array SEARCHED={ResultField{"found","integer"},ResultField{"equilibria","list[map[name, real]]"}};
@@ -176,7 +176,7 @@ constexpr std::array SETTINGS={ResultField{"settings","map[string, real]"}};
 constexpr std::array EVENTS={"equilibrium","marks","series","state","done"};
 constexpr std::array DONE={"done"};
 constexpr std::array ROWS={
-    Command{"equilibrium.find",FIND,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Go","SG","Find an equilibrium from the current initial conditions.",FOUND,EVENTS,true,find_point},
+    Command{"equilibrium.find",{},XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Go","SG","Find an equilibrium from the current initial conditions.",FOUND,EVENTS,true,find_point},
     Command{"equilibrium.guess",GUESS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Mouse","SM","Find an equilibrium from a guess in plot coordinates.",FOUND,EVENTS,true,guess},
     Command{"equilibrium.range",RANGE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Range","SR","Find equilibria over a parameter range.",POINTS,EVENTS,true,range},
     Command{"equilibrium.search",SEARCH,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Monte Carlo","SC","Search for equilibria within variable bounds.",SEARCHED,EVENTS,true,search},

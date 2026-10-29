@@ -180,7 +180,6 @@ struct Session {
      (json_state.cpp) */
   std::vector<double> last_equilibrium, last_equilibrium_eigenvalues;
   std::string last_equilibrium_stability;
-  bool print_eigenvalues=false, draw_invariant_sets=false, draw_strong_sets=false;
   bool equilibrium_append=false, equilibrium_shoot=false;
   /* the command line named a model file */
   int got_file=0;

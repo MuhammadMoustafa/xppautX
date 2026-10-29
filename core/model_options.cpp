@@ -268,6 +268,18 @@ constexpr OptionRow rows[] = {
    /* XPPAUT's bound: the search gives up where a variable passes it */
    .reset = [](Session &s) { s.numerics.equilibria.search_limit = 100; },
    .key = "search_limit", .label = "Equilibria: search limit", .rule = OptionRule::positive, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::choice,
+   .boolean = member([](auto &s) -> auto & { return s.numerics.equilibria.print_eigenvalues; }),
+   .reset = [](Session &s) { s.numerics.equilibria.print_eigenvalues = false; },
+   .key = "print_eigenvalues", .label = "Equilibria: print eigenvalues", .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::choice,
+   .boolean = member([](auto &s) -> auto & { return s.numerics.equilibria.draw_invariant_sets; }),
+   .reset = [](Session &s) { s.numerics.equilibria.draw_invariant_sets = false; },
+   .key = "draw_invariant_sets", .label = "Equilibria: draw invariant sets", .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::choice,
+   .boolean = member([](auto &s) -> auto & { return s.numerics.equilibria.draw_strong_sets; }),
+   .reset = [](Session &s) { s.numerics.equilibria.draw_strong_sets = false; },
+   .key = "draw_strong_sets", .label = "Equilibria: draw strong sets", .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   /* a .ode's bound (import only) is both the state limit and the search limit */
   {.name = "BOUND", .once = true,
    .expand = [](std::string_view value) -> ForeignOptions {

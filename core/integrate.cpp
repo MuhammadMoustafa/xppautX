@@ -946,10 +946,7 @@ void find_equilib_com(Session &s,int com)
 {
  std::string line;
  if(com==0){
-   const bool print=TwoChoice("YES","NO","Print eigenvalues?","yn")=='y';
-   const bool invariant=TwoChoice("YES","NO","Draw Invariant Sets?","yn")=='y';
-   const bool strong=TwoChoice("YES","NO","Draw Strong Sets?","yn")=='y';
-   line=xpp::format("{{\"cmd\":\"equilibrium.find\",\"print_eigenvalues\":{},\"draw_invariant_sets\":{},\"draw_strong_sets\":{}}}",print,invariant,strong);
+   line="{\"cmd\":\"equilibrium.find\"}";
  }else if(com==1){
    const int ix=s.plot_windows.current->xv[0]-1,iy=s.plot_windows.current->yv[0]-1;
    if(!phase_plane_states(s,*s.plot_windows.current)){
