@@ -2186,7 +2186,7 @@ STOP_ROWS = 400  # well inside total 40's 801 rows
 code, out, err = run_replay([
     {'cmd': 'run.configure', 'total_time': 40},
     {'cmd': 'run.initial'},
-    {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': STOP_ROWS, 't': 0}},
+    {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': STOP_ROWS, 't': 0}},
     {'cmd': 'run.initial'},
 ])
 check('xppautX .recx --silent plays the armed interruption', code == 0, 'exit %d, %s' % (code, err[-300:]))
@@ -6383,7 +6383,7 @@ def check_settings_during_run():
             {'cmd': 'run.configure', 'total_time': 1e7},
             {'cmd': 'run.configure', 'method': 'runge_kutta'},
             {'cmd': 'run.initial'},
-            {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
+            {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
             {'cmd': 'browser', 'from': rows - 1, 'count': 1}])
         ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser'), None)
         check('W106: the rows the run stored are those of a run with the old values (the settings did not '
@@ -6946,7 +6946,7 @@ def check_outcomes_once():
         with open(os.path.join(d, 'fit.dat'), 'w') as f:
             f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
         def run(lines, *flags):
-            if any((c.get('cmd') == 'abort' and 'at' in c) or c.get('key') == 'k' for c in lines):
+            if any((c.get('cmd') == 'run.abort' and 'at' in c) or c.get('key') == 'k' for c in lines):
                 path = make_recording(args.server, os.path.join(d, 'linear.odex'), lines, d)
                 with open(path, encoding='utf-8') as f:
                     run.places = [(i, l.rstrip()) for i, l in enumerate(f, 1) if l.startswith('{')]
@@ -6995,7 +6995,7 @@ def check_outcomes_once():
             {'cmd': 'answer', 'file': 'movie.gif'},
             {'cmd': 'answer', 'values': ['a', '2', '1', '3', 'false', 'true', 'false', 'false', 'false']},
             {'cmd': 'answer', **pixels(None)},
-            {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': STOP_MOVIE_ROWS, 't': 0}}]
+            {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': STOP_MOVIE_ROWS, 't': 0}}]
         movie_path = os.path.join(d, 'movie.gif')
         for old in [None, b'previous complete movie']:
             if old is not None:
@@ -8595,7 +8595,7 @@ def check_ani_grab_job():
             {'cmd': 'key', 'win': 'ani', 'key': 'a'},
             {'cmd': 'ani', 'op': 'mouse', 'what': 'down', 'u': 0.5, 'v': 0.5},
             {'cmd': 'ani', 'op': 'mouse', 'what': 'up', 'u': 0.5, 'v': 0.5},
-            {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': grab_rows, 't': 0}},
+            {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': grab_rows, 't': 0}},
             {'cmd': 'ani', 'op': 'pause'},
             {'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'view.ani'},
             {'cmd': 'key', 'win': 'ani', 'key': 'a'},
@@ -10196,7 +10196,7 @@ def check_stop_checks():
         {'cmd': 'run.configure', 'method': 'euler'},
         {'cmd': 'run.configure', 'total_time': 10000000},
         {'cmd': 'run.initial'},
-        {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': 2, 't': 0}},
+        {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': 2, 't': 0}},
     ])
     check('W388: --silent plays armed stop on fixed-step integration', code == 0, 'exit %d, %s' % (code, err[-300:]))
 
