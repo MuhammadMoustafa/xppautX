@@ -492,6 +492,8 @@ def read_reference(path, d):
     one too (kept for the card its reason names), and gives back the runs that are compared."""
     ref = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates)
     members(ref, ('format', 'source', 'model', 'runs'), ('format', 'source', 'model', 'runs'))
+    # one curve format per program (W538): an .auto07p sample is [par, par2, norm, period], an .xppaut one [par, par2, norm]
+    width = 4 if path.name.endswith('.auto07p') else 3
     runs = d['runs']
     if ref['format'] != REFERENCE_FORMAT or ref['model'] != d['model'] or not isinstance(ref['source'], str):
         raise ValueError('format, source or model does not match the description')
@@ -509,10 +511,13 @@ def read_reference(path, d):
             if not isinstance(r.get('curve'), list) or len(r['curve']) < 2:
                 raise ValueError('run %s: a curve of at least two samples' % r['name'])
             for sample in r['curve']:
-                if not isinstance(sample, list) or len(sample) != 3:
-                    raise ValueError('run %s: curve sample %s is not [parameter, second parameter, norm]' % (r['name'], sample))
+                if not isinstance(sample, list) or len(sample) != width:
+                    raise ValueError('run %s: curve sample %s is not a %d-value sample of this program' % (r['name'], sample, width))
                 for v in sample:
                     finite(v, 'curve sample')
+            if width == 4:  # the period is kept apart: the curve comparison reads [par, par2, norm]
+                r['curve_period'] = [s[3] for s in r['curve']]
+                r['curve'] = [s[:3] for s in r['curve']]
         for p in r['points']:
             members(p, POINT_FIELDS + (('par2',) if curve else ()), POINT_FIELDS + (('par2',) if curve else ()))
             if p['type'] not in SPECIAL_TYPES + CODIM_TWO or p['spectrum'] not in ('', 'eigenvalue', 'multiplier'):

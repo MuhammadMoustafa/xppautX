@@ -21,5 +21,15 @@
         "max_branch_switches": 0
       }
     }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "ours",
+      "type": "BP",
+      "index": 1,
+      "cause": "W539 (#604): the branch point at par0 = 1 is located by the step that also reaches Par Max 1 (the 50th, at 1.0000001), and AUTO-07p relabels a special point located on a branch's last step as its end (EP), so its reference has no branch point; xppautX keeps the label. AUTO-07p's reference of W357 had one only because its start, 1.8e-4 off the equilibrium, shifted its steps so that one fell inside the bound; the start of this description is now the equilibrium itself (W495). docs/auto07p-findings.md finding 9."
+    }
   ]
 }

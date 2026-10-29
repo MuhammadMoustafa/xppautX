@@ -44,6 +44,7 @@ so the index started empty.
 | [7](#7-the-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale) | Equilibria | the finite-difference Jacobian (JAC=0) steps every state by 1e-7 times the largest state, so a model with states of very different size has a Jacobian, and a Hopf point, that is off by an amount no tolerance changes | [W455 / #518](https://github.com/MuhammadMoustafa/xppautX/issues/518) |
 | [8](#8-the-first-comparison-of-cycles-from-a-hopf-point-reads-a-predictors-fold-test-and-a-misoriented-phase-condition) | Cycles from a Hopf point | between the second and third point the fold test comes from the eigen-cycle predictor's Jacobian and, with DS < 0, the branch-point test's determinant from a phase condition of the wrong orientation: spurious LP or BP labels next to the start, and a real fold there missed or misplaced | [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521) |
 | [9](#9-a-special-point-located-on-a-branchs-last-step-is-relabelled-as-its-end) | Branch ends | a branch point, fold or Hopf point located on the step that also passes Par Min/Max, Norm Min/Max or NMX is labelled EP, so the special point is lost | [W495](https://github.com/MuhammadMoustafa/xppautX/issues/559) |
+| [10](#10-a-cusp-located-from-noise-is-dropped-after-itmx-iterations) | Fold curves of equilibria | the cusp test is the Newton residual's noise (6e-11) at the point where its sign changes, so the secant location cannot shrink its step, is given up after ITMX iterations and the cusp is labelled nowhere; a start 7e-4 away in the norm finds it | [W539 / #604](https://github.com/MuhammadMoustafa/xppautX/issues/604) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -358,3 +359,20 @@ labelled BP at the same point.
 names the bound that was passed (core/autlib1.cpp, stplae and stplbv).
 
 **Card:** [W495 / #559](https://github.com/MuhammadMoustafa/xppautX/issues/559).
+
+## 10. A cusp located from noise is dropped after ITMX iterations
+
+LCSPAE locates a special point by the secant method on its test function and gives it up when the step has not shrunk
+below EPSS after ITMX iterations ([ae.f90:729](../reference/auto-07p/src/ae.f90#L729), the loop `DO ITLCSP=0,ITMX`, then the saved
+state is restored). The cusp test carries the Newton residual (finding 2): near a cusp of a fold curve it is a function
+of about 1e-10 of noise, while it grows by 6e-8 per step. Evidence: `tests/auto/ode_mu26_blocked.json`'s `lp_soma` run,
+the fold curve of Mu26's soma in SmIapp and SmHxgMax, AUTO-07p 0.9.4. The curve turns at SmIapp 1.0811, SmHxgMax -9.368;
+the cusp test is -5.5e-9 at point 34 and +5.9e-8 at point 35, and the nine iterations of the location print -4.6e-11,
++6.8e-11, -3.5e-11, -5.5e-11 and so on with a step of 3e-4 that does not shrink: no cusp is labelled and the curve goes on
+(`tests/auto/ode_mu26_blocked.auto07p`, written by W539). The same run from a start 7e-4 away in the norm (the reference
+written at W437, before W495 refined xppautX's steady-state start) located it, at point 35.
+
+**xppautX:** locates the cusp (finding 2: its test takes the Newton residual out), at SmIapp 1.0811; a traced difference
+of the description, not a tolerance.
+
+**Card:** [W539 / #604](https://github.com/MuhammadMoustafa/xppautX/issues/604).

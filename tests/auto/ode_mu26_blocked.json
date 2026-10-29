@@ -258,6 +258,23 @@
       "quantity": "spectrum"
     },
     {
+      "reference": ".auto07p",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 3,
+      "cause": "W539 (#604): the same neutral Floquet multiplier at the 0.1 pA UZ: AUTO-07p's reference, regenerated from xppautX's start as it is since W495, gives 1.00003 (1.00001 before), xppautX 1.00000005, the exact value 1; parameter, norm and period agree. The reference's own value moves 2e-5 with a start 7e-4 away in the norm, the finite-difference sensitivity of the long-period variational problem that the index 2 entry traces (docs/auto-references.md W437, W539). This quantity is traced, not declared equal.",
+      "quantity": "spectrum"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "lp_soma",
+      "side": "ours",
+      "type": "cusp",
+      "index": 1,
+      "cause": "W539 (#604): AUTO-07p's regenerated reference labels no cusp on the fold curve; the curve turns at SmIapp 1.0811, SmHxgMax -9.368 (its samples agree with ours to 1e-7 up to there), and its CP test changes sign between points 34 and 35 (-5.5e-9, +5.9e-8), but the ten iterations of its location print a test of +-6e-11, the Newton residual's noise, the step never shrinks and the location is dropped. Before W495 the start was 7e-4 off in the norm and the same location converged (CP at point 35). xppautX locates the cusp. docs/auto07p-findings.md finding 10."
+    },
+    {
       "reference": ".xppaut",
       "run": "to_snic",
       "side": "ours",

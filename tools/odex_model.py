@@ -221,7 +221,7 @@ class Odex:
                 block += ' ' + line
             elif not line or line.startswith('"') or line == 'legacy':
                 continue
-            elif re.match(r'(options|set\s+\w+)\s*\{', line):
+            elif re.match(r'(options|set\s+("[^"]*"|\w+))\s*\{', line):  # a set's name is quoted ("vvst") in .odex
                 depth = line.count('{') - line.count('}')
                 block = line
             else:

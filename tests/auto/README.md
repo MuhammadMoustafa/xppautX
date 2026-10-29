@@ -85,7 +85,7 @@ quantity now agrees so the exception must be removed.
 A `two_parameter` run (W362, #424) continues a labelled point of an earlier run (`start`: its run, type
 fold or hopf, index) in its two `parameters`. Its reference run holds `parameters`, the special points with
 `par2` (BT, CP, ZH and GH on equilibrium curves; R1-R4 on cycle curves,
-W364/W400; W404 adds map R1-R4 and LPD/LTR/PTR/TTR) and `curve`, every step of the other program as `[parameter, second parameter, norm]`; the curves
+W364/W400; W404 adds map R1-R4 and LPD/LTR/PTR/TTR) and `curve`, every step of the other program, `[parameter, second parameter, norm, period]` in an `.auto07p` file (AUTO-07p's PERIOD column; 0 for an equilibrium) and `[parameter, second parameter, norm]` in an `.xppaut` one (W539: one format per program); the curves
 are matched by where they lie, not by step (docs/auto-references.md "Two-parameter curves").
 
 ## References xppautX cannot run yet (W402, #464)

@@ -155,7 +155,8 @@ A model has more than one description now (`autocompare.py` still requires every
   LP/PD/TR curves of cycles and maps; W428 drives XPPAUT's available menu paths, which keep ISP 0.
 - **What the file holds** (`tstauto_ab_fold.auto07p`): per run the special points as before, now with
   `par2` and the codim-2 types (BT, CP, ZH, GH, R1-R4, LPD, LTR, PTR, TTR) for a two-parameter run, and its
-  `curve`: every step AUTO-07p took, `[parameter, second parameter, norm]` from its `b` file (NPR only decides
+  `curve`: every step AUTO-07p took, `[parameter, second parameter, norm, period]` from its `b` file (the PERIOD column, 0 for an
+  equilibrium; an `.xppaut` curve sample keeps `[parameter, second parameter, norm]`: one format per program, W539) (NPR only decides
   which are labelled).
 - **The comparison** (`compare_curve`): the programs' steps differ, so points are matched by where they lie. Every
   sample of the reference is put on our curve as a polyline in all three coordinates (with the parameters
@@ -1812,3 +1813,31 @@ follows the first steps and not the branch. xppautX labels none. `pp2_heteroclin
 `henon_rot`'s R1-R4 and fold-flip by the `hen_*` descriptions (its torus-torus, fold-torus and flip-torus points have no published model), `bautin_near_hopf` (a fold of cycles by a Hopf point) by `ode_lecar` or `tstauto_lamom2`
 (cycle folds of published or demo models; its Bautin normal form itself checks GH's `l1 = 2*b`, which `bykov_hopf` now also reaches), `global_snic` by `ode_mu26_*`. Nothing was removed: the maintainer decides. Neither `zero_hopf`,
 `res_cycles` nor `hill_cycles` has a published replacement (the 1:1, 1:3 and 1:4 resonances of cycles and the zero-Hopf point).
+
+## W539: every AUTO-07p reference regenerated with the period, each difference explained ([#604](https://github.com/MuhammadMoustafa/xppautX/issues/604))
+
+An `.auto07p` curve sample is now `[parameter, second parameter, norm, period]` (W538 needs the period of each sample to cut a
+reference where ours ends); `tools/autocompare.py` reads four values for `.auto07p` and three for `.xppaut` and keeps the period apart. All
+the 55 references were regenerated with `tools/auto_reference.py --program auto07p` (AUTO-07p 0.9.4) and every difference from the
+committed files traced to one of these causes (55 files; a description with `auto07p_skip` keeps none):
+
+| Cause | Files |
+|---|---|
+| the period only | 4: `bautin_near_hopf`, `bykov_hopf`, `lrz_cycles`, `pp2_heteroclinic` |
+| a curve added where the file had none (the tool records one for every run; most files were written before it did) | 48 (all but the 7 of this row and the next) |
+| multipliers added: the tool read the end of a special point's block only for a two-letter type, so a map's LPD, R2, R3 (and any point of a three-character or letter-digit type) had no spectrum; fixed in `tools/auto_reference.py` (`SUMMARY`) | 3: `hen_lp`, `hen_pd`, `hen_tr` |
+| the start moved: a run starts from the first row of the description's `.diagram.csv`, which W495 (2026-10-26, a steady-state start refined by Newton) changed in 9 descriptions after their reference was written: `izh_class2` (start norm 66.178735 to 66.181911), `tstauto_eiz-hom`, `tstauto_wcbiwave`, `tstauto_san`, `ode_mu26_blocked`, `ode_mu26_control`, `explicit_homoclinic`, `lorenz_homoclinic`, `tstauto_torx_homcont`; the first point, and every number that follows it, moves by the start's shift (1e-5 for `izh_class2`) and the output grid and its labels with it | 9 (among the 48) |
+| a fault of the tool: a HomCont description's equilibrium run started from its orbit's initial state (STPNT's integration at T = 0), not from our start; it now runs a second equation module, `eqs`, with the start | the 3 homoclinic ones above |
+| a fault of the tool: it wrote a reference for a description with `auto07p_skip` (`global_snic`, `global_homoclinic`, `global_heteroclinic`, `ode_tstheti`, `tstauto_tstheti_homcont`, `tstauto_tsthom2`): it refuses them now, as it does `skip` | 0 files |
+| a fault of the tool: `tools/odex_model.py` did not read a quoted set name (`set "vvst" {`), which refused `ode_lecar` and `tstauto_lecar` | 0 files (they ran) |
+
+Two differences were real AUTO-07p behaviour with the moved start, and are kept as traced differences of their descriptions:
+`tstauto_san`'s branch point at par0 = 1 is the end's (AUTO-07p's finding 9: the 50th step reaches Par Max 1 at 1.0000001, and AUTO-07p relabels it EP; its earlier
+reference had it only because its start was 1.8e-4 off the equilibrium); `ode_mu26_blocked`'s cusp on `lp_soma` is dropped after ITMX iterations of a
+test that is 6e-11 of noise (finding 10), and its neutral multiplier at the 0.1 pA mark is 1.00003 (1.00001 before; the exact 1) in the same finite-difference
+way as the 1 pA mark's.
+
+**Open (W538's).** `ode_mu26_blocked`'s `to_snic` curve fails `tools/autocompare.py` against its new reference with the cut by the nearest sample in (parameter, norm):
+our run ends on the SNIC at norm 100.0426, period 4974; the nearest sample is 157 (norm 100.0364, period 5012), which lies 0.0062 beyond our last point on a curve that
+falls 0.16 per sample, and the comparison finds it 0.00626 off ours (tolerance 0.00139). A cut that keeps the last sample whose period does not pass ours (156) agrees;
+one that keeps the first sample whose period reaches ours keeps 157 and fails the same.

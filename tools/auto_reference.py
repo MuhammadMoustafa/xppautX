@@ -6,6 +6,8 @@ This is the maintainer's manual tool (Linux or WSL). Only its output is committe
 tools/autocompare.py compares ours with those files on every push, without either
 program. A description whose problem a program cannot run the same way is refused with
 the reason (REFUSED), which the description keeps as auto07p_skip / xppaut_skip.
+A curve's samples have one format per program (W538): an .auto07p curve row is [parameter, second parameter,
+norm, period] (AUTO-07p's PERIOD column; 0 for an equilibrium), an .xppaut curve row is [parameter, second parameter, norm].
 
 --program auto07p needs AUTO-07p 0.9.4 (never vendored; AUTO_DIR, default ~/auto-07p-0.9.4) and
 gfortran. Each model's equations are translated from the .odex (the subset the descriptions
@@ -424,7 +426,7 @@ def check_rhs(binary, eqs, start, folder):
 BLOCK = re.compile(r'^\s*(\d+)\s+(\d+)\s+(Eigenvalue|Multiplier)\s*(\d+):?\s+(\S+)\s+(\S+)(\s|$)')
 # the row that ends a special point's output: BR, PT (negative when stable), TY, LAB; a location's
 # iteration rows (BR, PT, IT) have no TY
-SUMMARY = re.compile(r'^\s*(-?\d+)\s+(-?\d+)\s+[A-Z]{2}\s+(\d+)\s+-?\d\.\d+E[-+]\d+')
+SUMMARY = re.compile(r'^\s*(-?\d+)\s+(-?\d+)\s+[A-Z][A-Z0-9]{1,2}\s+(\d+)\s+-?\d\.\d+E[-+]\d+')
 
 
 def fortran_number(text):
@@ -458,14 +460,16 @@ def stability(text):
 
 
 def curve_points(text, first, second=None):
-    """[[PAR(first), PAR(second), L2-NORM]] of every step of a two-parameter run, from its bifurcation
-    diagram file (b.*: a header line naming the columns, then one line per step, whatever NPR is)."""
+    """[[PAR(first), PAR(second), L2-NORM, PERIOD]] of every step of a two-parameter run, from its bifurcation
+    diagram file (b.*: a header line naming the columns, then one line per step, whatever NPR is). PERIOD is the
+    PERIOD column; an equilibrium's file has none, and its samples then carry 0 (no period, no global end: W538)."""
     lines = text.splitlines()
     head = next(i for i, l in enumerate(lines) if 'L2-NORM' in l and 'PAR(' in l)
     # the header starts with a 0 where the lines have their branch number
     # a periodic solution's file names a column "MAX U(1)": one column, two words
     columns = {name: i + 1 for i, name in enumerate(re.sub(r'(MAX|MIN) ', r'\1', lines[head]).split()[1:])}
-    wanted = [columns['PAR(%d)' % first], columns['PAR(%d)' % second] if second is not None else None, columns['L2-NORM']]
+    wanted = [columns['PAR(%d)' % first], columns['PAR(%d)' % second] if second is not None else None, columns['L2-NORM'],
+              columns.get('PERIOD')]
     rows = []
     for line in lines[head + 1:]:
         fields = line.split()
@@ -479,8 +483,10 @@ def curve_points(text, first, second=None):
 def script(runs, eq, names, measure=False):
     """The .auto script: runs in order, every labelled solution printed as a JSON line."""
     lines = ['import json, os, subprocess', 'results = {}']
-    compile_lines = ["subprocess.run(['make', '-f', os.path.join(os.environ['AUTO_DIR'], 'cmds/cmds.make'), 'EQUATION_NAME=eq', 'CC=gcc -std=gnu17', 'eq.exe'], check=True)",
-                     "assert os.path.isfile('eq.exe'), 'AUTO make did not produce eq.exe'"]
+    compile_lines = []
+    for e in ('eq', 'eqs') if eq['plain'] else ('eq',):
+        compile_lines += ["subprocess.run(['make', '-f', os.path.join(os.environ['AUTO_DIR'], 'cmds/cmds.make'), 'EQUATION_NAME=%s', 'CC=gcc -std=gnu17', '%s.exe'], check=True)" % (e, e),
+                          "assert os.path.isfile('%s.exe'), 'AUTO make did not produce %s.exe'" % (e, e)]
     if measure:
         # Compile before the run() clocks. AUTO reuses the up-to-date object and
         # executable, so RUSAGE_CHILDREN below counts the executable, not gfortran.
@@ -494,7 +500,8 @@ def script(runs, eq, names, measure=False):
     for r, c in zip(runs, names):
         start = r['start']
         if start.get('state') == 'current':
-            src = "run(e='eq', c='%s')" % c
+            # a HomCont description's `eq` starts every run from its orbit; an equilibrium run starts from our start (`eqs`)
+            src = "run(e='%s', c='%s')" % ('eqs' if eq['plain'] and r['kind'] == 'equilibrium' else 'eq', c)
         else:
             at = "results[%r]('%s%d')" % (start['run'], start['type'], start['index'])
             if eq['discrete'] and start['type'] == 'HB':
@@ -534,6 +541,8 @@ def check_description(name, d, program):
     with its reason when the program cannot run it the same way."""
     if 'skip' in d:
         raise Refused('our description skips it: ' + d['skip'])
+    if program + '_skip' in d:  # a reason this program's reference is not kept (autocompare reads the same key)
+        raise Refused('our description skips this program: ' + d[program + '_skip'])
     odex = Odex(ROOT / d['model'])
     if odex.events or odex.networks:
         raise Refused('the model has events or networks, which the translation does not carry')
@@ -586,6 +595,8 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name, measurements
             hom = dict(interval=run['start']['settle'], step=run['start']['step'], ic=[known.get(x, 0.0) for x in odex.states],
                        equilibria=run['connection']['left'] + (run['connection']['right'] if run['kind'] == 'heteroclinic' else []))
         (work / 'eq.f90').write_text(eqs.source(start, bvp, hom), encoding='utf-8')
+        if hom:
+            (work / 'eqs.f90').write_text(eqs.source(start, bvp), encoding='utf-8')
         if exact_source:
             (work / 'eq.f90').unlink()
             shutil.copy2(exact_source, work / 'eq.c')
@@ -616,7 +627,7 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name, measurements
             (work / ('c.' + c)).write_text(text)
         env = {**os.environ, **(process_env or {}), 'AUTO_DIR': auto_dir, 'PYTHONWARNINGS': 'ignore'}
         env['PATH'] = '%s/cmds:%s/bin:%s' % (auto_dir, auto_dir, env['PATH'])
-        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete}, names, measurements is not None))
+        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete, 'plain': hom is not None}, names, measurements is not None))
         env['W439_START'] = str(time.perf_counter())
         p = run_foreground(['auto', 'run.auto'], cwd=work, env=env, timeout=RUN_LIMIT * len(d['runs']))
         (work / 'wrapper.log').write_text(p.stdout + p.stderr)
@@ -941,6 +952,8 @@ def reference(name, d, program, args, inputs=None, measurements=None, exact_sour
         points, stab, failed, curves = execute_auto07p(d, odex, eqs, start, bvp, args.auto_dir, args.keep, name, measurements, exact_source, process_env)
     else:
         points, stab, failed, curves = execute_xppaut(d, odex, eqs, start, args.xppaut, args.keep, name, measurements, process_env)
+        # one format per program: an .xppaut curve's samples are [par, par2, norm] (XPPAUT's file has no period to keep)
+        curves = {n: [sample[:3] for sample in c] for n, c in curves.items()}
     runs = []
     for r in d['runs']:
         kept = []
