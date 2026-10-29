@@ -6,7 +6,7 @@ This is the maintainer's manual tool (Linux or WSL). Only its output is committe
 tools/autocompare.py compares ours with those files on every push, without either
 program. A description whose problem a program cannot run the same way is refused with
 the reason (REFUSED), which the description keeps as auto07p_skip / xppaut_skip.
-A curve's samples have one format per program (W538): an .auto07p curve row is [parameter, second parameter,
+A curve's samples have one format per program (W539): an .auto07p curve row is [parameter, second parameter,
 norm, period] (AUTO-07p's PERIOD column; 0 for an equilibrium), an .xppaut curve row is [parameter, second parameter, norm].
 
 --program auto07p needs AUTO-07p 0.9.4 (never vendored; AUTO_DIR, default ~/auto-07p-0.9.4) and
@@ -462,7 +462,7 @@ def stability(text):
 def curve_points(text, first, second=None):
     """[[PAR(first), PAR(second), L2-NORM, PERIOD]] of every step of a two-parameter run, from its bifurcation
     diagram file (b.*: a header line naming the columns, then one line per step, whatever NPR is). PERIOD is the
-    PERIOD column; an equilibrium's file has none, and its samples then carry 0 (no period, no global end: W538)."""
+    PERIOD column; an equilibrium's file has none, and its samples then carry 0 (no period, no global end: W539)."""
     lines = text.splitlines()
     head = next(i for i, l in enumerate(lines) if 'L2-NORM' in l and 'PAR(' in l)
     # the header starts with a 0 where the lines have their branch number
@@ -484,7 +484,7 @@ def script(runs, eq, names, measure=False):
     """The .auto script: runs in order, every labelled solution printed as a JSON line."""
     lines = ['import json, os, subprocess', 'results = {}']
     compile_lines = []
-    for e in ('eq', 'eqs') if eq['plain'] else ('eq',):
+    for e in ('eq', 'eqs') if eq['homcont'] else ('eq',):
         compile_lines += ["subprocess.run(['make', '-f', os.path.join(os.environ['AUTO_DIR'], 'cmds/cmds.make'), 'EQUATION_NAME=%s', 'CC=gcc -std=gnu17', '%s.exe'], check=True)" % (e, e),
                           "assert os.path.isfile('%s.exe'), 'AUTO make did not produce %s.exe'" % (e, e)]
     if measure:
@@ -501,7 +501,7 @@ def script(runs, eq, names, measure=False):
         start = r['start']
         if start.get('state') == 'current':
             # a HomCont description's `eq` starts every run from its orbit; an equilibrium run starts from our start (`eqs`)
-            src = "run(e='%s', c='%s')" % ('eqs' if eq['plain'] and r['kind'] == 'equilibrium' else 'eq', c)
+            src = "run(e='%s', c='%s')" % ('eqs' if eq['homcont'] and r['kind'] == 'equilibrium' else 'eq', c)
         else:
             at = "results[%r]('%s%d')" % (start['run'], start['type'], start['index'])
             if eq['discrete'] and start['type'] == 'HB':
@@ -627,7 +627,7 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name, measurements
             (work / ('c.' + c)).write_text(text)
         env = {**os.environ, **(process_env or {}), 'AUTO_DIR': auto_dir, 'PYTHONWARNINGS': 'ignore'}
         env['PATH'] = '%s/cmds:%s/bin:%s' % (auto_dir, auto_dir, env['PATH'])
-        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete, 'plain': hom is not None}, names, measurements is not None))
+        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete, 'homcont': hom is not None}, names, measurements is not None))
         env['W439_START'] = str(time.perf_counter())
         p = run_foreground(['auto', 'run.auto'], cwd=work, env=env, timeout=RUN_LIMIT * len(d['runs']))
         (work / 'wrapper.log').write_text(p.stdout + p.stderr)

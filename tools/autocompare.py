@@ -492,7 +492,7 @@ def read_reference(path, d):
     one too (kept for the card its reason names), and gives back the runs that are compared."""
     ref = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates)
     members(ref, ('format', 'source', 'model', 'runs'), ('format', 'source', 'model', 'runs'))
-    # one curve format per program (W538): an .auto07p sample is [par, par2, norm, period], an .xppaut one [par, par2, norm]
+    # one curve format per program (W539): an .auto07p sample is [par, par2, norm, period], an .xppaut one [par, par2, norm]
     width = 4 if path.name.endswith('.auto07p') else 3
     runs = d['runs']
     if ref['format'] != REFERENCE_FORMAT or ref['model'] != d['model'] or not isinstance(ref['source'], str):
