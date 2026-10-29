@@ -1870,10 +1870,17 @@ monotone early on, so the last segment, not the first, is taken). Cut that way, 
 difference (`differences`): AUTO-07p labels a fold of the cycles at point 93 (period 62.9, norm 0.42775, parameter
 0.7080717), which xppautX does not label at this step size. The two runs share the constants (NTST 15, NCOL 4, DS 0.025,
 DSMIN 1e-5, DSMAX 0.025, NMX 800, NPR 100, ISP 2, IAD 3, IADS 1, EPSL/EPSU/EPSS 1e-4, MXBF 0) and agree to 1e-6 in norm
-through point 41. The traced cause: the fold is real, and the step size is what misses it. With DS 0.0125 (a probe description,
-not kept) xppautX labels two folds at parameter 0.7080724 (point 48, norm 0.42635, period 64.5) and 0.7080721 (point 50,
-norm 0.42337, period 81.0) and then the heteroclinic end at point 51: a pair of folds 3e-7 apart in parameter, inside one
-default step of the spiral, which the sign test on the stored points cannot see; AUTO-07p's step lands on one of them. So
-AUTO-07p's point 93 is not an artefact, and xppautX's default run misses a fold of the same branch at its step size. This
-is a step-resolution limit of the continuation, not a wrong result, and it is recorded here as a known difference; a card
-for step-size control near a fold pair would be the fix (not made in W538).
+through point 41.
+
+**The cause, traced by W540 ([#605](https://github.com/MuhammadMoustafa/xppautX/issues/605)).** W538 took the difference for a
+pair of folds inside one step; temporary traces of the fold test in cnrlbv and lcspbv showed otherwise. AUTO-07p's fold lies
+between our points 91 and 92, where our test stays positive (2.9e-4, 8.6e-5) and the parameter rises: no test on stored points
+sees it. At point 93 (93 is a multiple of IAD 3) the mesh is adapted, and the step 93 to 94 moves the parameter by -3.3e-6 and
+the test from 1.1e-4 to 1.6e-3; a retake from point 93 at any step from 3e-3 down to 1.2e-5 lands on the same point, the
+projection of the re-meshed profile. So at NTST 15 the mesh's own noise is larger than the folds' scale, and the difference
+is recorded as that, a property of the coarse mesh. A rule that retakes a step whose parameter moves against an unchanged test
+sign fired only on this noise (and on two steps of 1e-9 and 1e-10) and made the branch wander (261 points, 14 special points
+against 6), so none was kept. Two real faults were found on the way, each its own card: after a located zero the next step's
+test starts at 0 and cannot see a second zero (at DS 0.0125 a third fold between the two labelled ones is missed; W541,
+[#606](https://github.com/MuhammadMoustafa/xppautX/issues/606)), and at DS 0.025 the step 94 to 95 changes the test's sign but
+its location fails after ITMX iterations and the fold is dropped (W542, [#607](https://github.com/MuhammadMoustafa/xppautX/issues/607)).

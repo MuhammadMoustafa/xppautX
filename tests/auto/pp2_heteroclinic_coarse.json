@@ -55,7 +55,7 @@
       "side": "reference",
       "type": "cycle_fold",
       "index": 6,
-      "cause": "W538 (#603): AUTO-07p labels a fold of the cycles at point 93 (period 62.9, norm 0.42775, parameter 0.7080717), where xppautX at DS 0.025 labels none. The fold is real: with DS 0.0125 xppautX labels folds at parameter 0.7080724 and 0.7080721 (points 48 and 50), a pair 3e-7 apart inside one default step, which the sign test on stored points cannot see; AUTO-07p's step lands on one of them. A step-resolution limit of the continuation, not a wrong result; its fix would be a card on step-size control near a fold pair (docs/auto-references.md, W538)."
+      "cause": "W538 (#603), traced by W540 (#605): AUTO-07p labels a fold of the cycles at point 93 (period 62.9, norm 0.42775, parameter 0.7080717), between xppautX's points 91 and 92, where xppautX's fold test stays positive. At NTST 15 the mesh adaptation every third step (IAD 3) moves the parameter by about 3e-6 and the test by about 1.7e-3, against a test of about 1e-4 here: the coarse mesh's noise is larger than the folds' own scale, so the two programs need not agree on this fold. Two real faults found on the way are W541 (#606, a zero right after a located one is not seen) and W542 (#607, a fold whose location fails is dropped)."
     }
   ]
 }
