@@ -1315,7 +1315,7 @@ Result<AnimationState> read_animation(Session &s, std::string_view text, const s
     }
 }
 
-Result<> load_animation(Session &s, const std::string &file)
+Result<> load_animation(Session &s, std::string file)
 {
     return ani_new_file(s, file.c_str(), true);
 }
@@ -1536,7 +1536,7 @@ void ani_zero(xpp::Session &s)
     }
 }
 
-Result<> load_chosen_animation(Session &s, const std::string &file)
+Result<> load_chosen_animation(Session &s, std::string file)
 {
     if (const Result<> loaded = ani_new_file(s, file.c_str(), false); !loaded) return loaded;
     xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", s.animation.ncom);

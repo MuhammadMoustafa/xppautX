@@ -136,8 +136,9 @@ void ani_reset(Session &s);
 void ani_grab_mouse(Session &s, int flag, double x, double y);
 void ani_flip1(Session &s, int n);
 void ani_zero(Session &s);
-/* animation.load's work: the animation file `file` loaded, and its first frame shown when there is data to show */
-Result<> load_chosen_animation(Session &s, const std::string &file);
+/* animation.load's work: the animation file `file` loaded, and its first frame shown when there is data to show
+   (`file` by value, like load_animation's) */
+Result<> load_chosen_animation(Session &s, std::string file);
 /* Go's frames also written: as numbered PPM files from `file`, or as one animated GIF `file` */
 enum class AniExportKind { none, ppm, gif };
 struct AniExport {
@@ -152,7 +153,9 @@ Result<int> play_animation(Session &s, const AniExport &out);
 void ani_seek(Session &s, int row);
 /* Native parsing and legacy import both return a whole value before applying it. */
 Result<AnimationState> read_animation(Session &s, std::string_view text, const std::string &file);
-Result<> load_animation(Session &s, const std::string &file);
+/* the model's animation file `file` loaded; `file` by value, since a caller passes the animation's own
+   name, which the load replaces */
+Result<> load_animation(Session &s, std::string file);
 Result<std::string> animation_model(const std::string &file);
 Result<std::string> convert_animation(Session &s, std::string_view text, const std::string &file);
 int convert_animation_file(const std::string &file, const std::string &model = {});
