@@ -949,19 +949,14 @@ def stop_at_global_end(rows, r):
         period = np.array(r['curve_period'], dtype=float)
         last = float(rows[-1]['per'])
         crossing = [i for i in range(len(period) - 1) if period[i] <= last < period[i + 1]]
-        if not crossing:  # our period is past the reference's last sample or before its first: the samples as they are
-            cut, fraction = (len(period) - 1 if period[-1] <= last else 0), 0.0
-        else:
-            cut = crossing[-1]
+        # no crossing: our period is past the reference's last sample, or before its first
+        cut = crossing[-1] if crossing else (len(period) - 1 if period[-1] <= last else 0)
+        curve, periods = r['curve'][:cut + 1], r['curve_period'][:cut + 1]
+        if crossing and period[cut] < last:
             fraction = (last - period[cut]) / (period[cut + 1] - period[cut])
-        curve = np.array(r['curve'], dtype=float)
-        if fraction > 0:
-            point = curve[cut] + fraction * (curve[cut + 1] - curve[cut])
-            sample = [float(v) for v in point]
-            return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1],
-                    'curve': r['curve'][:cut + 1] + [sample], 'curve_period': r['curve_period'][:cut + 1] + [last]}
-        return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1], 'curve': r['curve'][:cut + 1],
-                'curve_period': r['curve_period'][:cut + 1]}
+            curve = curve + [[a + fraction * (b - a) for a, b in zip(r['curve'][cut], r['curve'][cut + 1])]]
+            periods = periods + [last]
+        return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1], 'curve': curve, 'curve_period': periods}
     curve = np.array(r['curve'])
     end = np.array([float(rows[-1]['continued_parameter']), float(rows[-1].get('continued_parameter2', 0)), float(rows[-1]['norm'])])
     spans = np.where(np.ptp(curve, axis=0) > 0, np.ptp(curve, axis=0), 1)
