@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
 os.environ.setdefault('XPP_CHECK_SLOW', '400')  # valgrind is 50 times slower: only the client's safety limits grow
-from xppclient import Server, is_ask, is_idle  # noqa: E402
+from xppclient import Server, is_idle  # noqa: E402
 EX = ROOT / 'examples/ode'
 TOOLS = ROOT / 'tools/models'
 LECAR = 'lecar.odex'
@@ -127,12 +127,8 @@ def run_server(binary, out, name):
         for field, value in (('total', 100), ('dt', 0.005)):  # Numerics: 20000 rows
             s.send(cmd='set', kind='num', name=field, value=value)
             s.collect(is_idle)
-        s.send(cmd='key', key='i')
-        while True:
-            evs, e = s.collect(lambda e: is_ask(e) or is_idle(e))
-            if e is None or is_idle(e):
-                break
-            s.send(cmd='answer', id=e['id'], key='g')
+        s.send(cmd='run.initial')
+        s.collect(is_idle)
     finally:
         s.close()
     cg = sorted(Path(cg_dir).glob('cg.*.out*'), key=os.path.getmtime)[-1]

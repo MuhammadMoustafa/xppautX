@@ -20,8 +20,8 @@ xpp::recx::Recording sample()
     r.snapshot = std::string("PK\x05\x06", 4); /* the session, a zip (W59d) */
     xpp::recx::add_file(r, {"lecar.odex", "x'=-x\r\n@end\n@@ twice\n@ total=10\ndone"});
     xpp::recx::add_file(r, {"lecar.odex", "x'=-x\r\n@end\n@@ twice\n@ total=10\ndone"}); /* the same: once */
-    r.steps.push_back({"First run.\n\nIt settles.", R"({"step":"Initialconds → Go","keys":["i","g"]})"});
-    r.steps.push_back({"", R"({"step":"Erase","keys":["e"]})"});
+    r.steps.push_back({"First run.\n\nIt settles.", R"({"step":"Run → Initial","cmd":{"cmd":"run.initial"}})"});
+    r.steps.push_back({"", R"({"step":"Erase","cmd":{"cmd":"window.redraw"}})"});
     return r;
 }
 
@@ -47,11 +47,11 @@ int main()
     xpp::recx::Recording r = sample();
     CHECK(r.files.size() == 1);
     const std::string hashed = "@snapshot\nUEsFBg==\n@end\n@file lecar.odex\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n"
-                               "{\"step\":\"Initialconds → Go\",\"keys\":[\"i\",\"g\"]}\n{\"step\":\"Erase\",\"keys\":[\"e\"]}\n";
+                               "{\"step\":\"Run → Initial\",\"cmd\":{\"cmd\":\"run.initial\"}}\n{\"step\":\"Erase\",\"cmd\":{\"cmd\":\"window.redraw\"}}\n";
     const std::string want = "recording: {\n  version: 4,\n  program: \"xppautX dev\",\n  model: \"lecar.odex\",\n  recorded: \"2026-09-30T10:14:02Z\",\n},\n\n"
                              "@snapshot\nUEsFBg==\n@end\n\n@file lecar.odex\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n\n@steps\n"
-                             "# First run.\n#\n# It settles.\n{\"step\":\"Initialconds → Go\",\"keys\":[\"i\",\"g\"]}\n"
-                             "{\"step\":\"Erase\",\"keys\":[\"e\"]}\n\nfingerprint: "
+                             "# First run.\n#\n# It settles.\n{\"step\":\"Run → Initial\",\"cmd\":{\"cmd\":\"run.initial\"}}\n"
+                             "{\"step\":\"Erase\",\"cmd\":{\"cmd\":\"window.redraw\"}}\n\nfingerprint: "
                              + sha(hashed) + "\n";
     CHECK_STR(text_of(r).c_str(), want.c_str());
 
@@ -59,7 +59,7 @@ int main()
     const std::string fp = text_of(r).substr(want.size() - 65);
     r.steps[1].note = "Clear the screen.";
     CHECK(text_of(r).ends_with(fp));
-    r.steps[1].line = R"({"step":"Erase","keys":["x"]})";
+    r.steps[1].line = R"({"step":"Erase","cmd":{"cmd":"window.erase"}})";
     CHECK(!text_of(r).ends_with(fp));
     r = sample();
     xpp::recx::add_file(r, {"lecar.odex", "x'=-2*x\n"}); /* read again, changed: a second section */
@@ -85,7 +85,7 @@ int main()
     edited.replace(edited.find("# It settles."), 13, "# It fires and settles.");
     back = xpp::recx::read(edited, "");
     CHECK(back && back->intact);
-    edited.replace(edited.find("[\"e\"]"), 5, "[\"x\"]");
+    edited.replace(edited.find("window.redraw"), 13, "window.erase");
     back = xpp::recx::read(edited, "");
     CHECK(back && !back->intact); /* a step changed: it still reads */
     back->rec.steps[0].note = "Saved again.";
@@ -110,7 +110,7 @@ int main()
     CHECK(error("recording: { version: 4, author: \"me\" },\n@steps\n").find("recording has no `program`") != std::string::npos);
     CHECK(error("recording: { version: 1, program: \"x\", model: \"a.odex\", recorded: \"now\" },\n@steps\n").find("version 1: this program reads recordings of version 4") != std::string::npos);
     /* the fingerprint ends it: missing, or a line after it */
-    const std::string steps = head + "@snapshot\nUEsFBg==\n@end\n@steps\n{\"keys\":[\"g\"]}\n";
+    const std::string steps = head + "@snapshot\nUEsFBg==\n@end\n@steps\n{\"cmd\":{\"cmd\":\"run.initial\"}}\n";
     CHECK(error(steps) == "line 13: the file ends here, before its fingerprint");
     CHECK(error(steps + "fingerprint: 00\nmore\n") == "line 14: \"more\" after the end of what the file holds");
     const xpp::Result<xpp::recx::Read> one = xpp::recx::read(steps + "fingerprint: 00\n", "");

@@ -25,7 +25,7 @@
                                other (a .snapx, a .snapx) as @binary)
      @steps
      # <the note shown above the next step, any number of # lines>
-     {"step":"Initialconds → Go","keys":["i","g"]}
+     {"step":"Run → Initial","cmd":{"cmd":"run.initial"}}
      ...
 
      fingerprint: <SHA-256 of the files and the steps, never the notes>

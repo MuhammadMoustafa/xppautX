@@ -124,8 +124,6 @@ struct ProtocolSession {
     /* the main-window menu shown (MAIN_MENU, FILE_MENU, NUM_MENU), for the
        reader thread's classify(): which menu a key is an item of */
     std::atomic<int> menu{0};
-    std::string pending_key_context;
-    std::string pending_keys; /* An unfinished raw key chord; never a running command. */
     /* the lines a command's prompt or computation took that were meant for
        after it, in arrival order; the command loop runs them first */
     std::deque<DeferredLine> deferred;

@@ -113,7 +113,7 @@ def save_permission(cmd):
                 'session.export_info', 'recording.stop', 'recording.set_step_note'):
         cmd.setdefault('confirm', True)
         return cmd
-    if kind == 'key' or op in {
+    if op in {
             'session': ('save',),
             'aplot': ('print', 'gif'),
             'ani': ('go',)}.get(kind, ()):
@@ -415,7 +415,7 @@ def silent_rows(binary, model, arguments=(), edit=None, timeout=None):
 
 
 def recording_steps(lines):
-    """Write the .recx step spec: command, its prompt keys/answers, its abort.
+    """Write the .recx step spec: command, its answers, its abort.
     Bare aborts between commands interrupt nothing and need no replay step."""
     steps = []
     for original in lines:
@@ -426,14 +426,9 @@ def recording_steps(lines):
             if steps and 'at' in c:
                 steps[-1]['abort'] = c['at']
         elif c['cmd'] == 'answer' and steps:
-            command = steps[-1]['cmd']
-            grab = command.get('win') == 'auto' and command.get('key') == 'g'
-            if 'key' in c and not grab:
-                steps[-1].setdefault('keys', []).append(c['key'])
-            else:
-                value = {k: v for k, v in c.items() if k not in ('cmd', 'id')}
-                steps[-1].setdefault('answers', []).append(None if c.get('ok') == 0 else
-                    c['value'] if 'value' in c else c['values'] if 'values' in c else value)
+            value = {k: v for k, v in c.items() if k not in ('cmd', 'id')}
+            steps[-1].setdefault('answers', []).append(None if c.get('ok') == 0 else
+                c['value'] if 'value' in c else c['values'] if 'values' in c else value)
         else:
             steps.append({'cmd': c})
     return steps

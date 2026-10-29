@@ -83,48 +83,20 @@ export interface Keycap {
   ahead: boolean;
 }
 
-/** a key's name as a keycap shows it */
-export function keyText(k: string): string {
-  return k.length === 1 ? k.toUpperCase() : k === 'Escape' ? 'Esc' : k;
-}
-
-/** what the keycap box shows while step `i` runs: its button, or its keys,
-    lit up to the one pressed now, and whether its answers are being given */
+/** what the keycap box shows while step `i` runs: its command, and whether its answers are being given */
 export function keycaps(p: PlayerState): {label: string; caps: Keycap[]; answering: boolean} | null {
   const st = p.running >= 0 ? p.steps[p.running] : undefined;
   if (!st || !p.press || p.press.step !== p.running) return null;
-  const {what, index} = p.press;
-  if (what === 'cmd') return {label: 'Command', caps: [{text: st.step, down: true, ahead: false}], answering: false};
-  if (st.button && what === 'key' && index === 0)
-    return {label: 'Button', caps: [{text: st.button, down: true, ahead: false}], answering: false};
-  const keys = st.keys ?? [];
-  const at = what === 'key' ? index : keys.length;
-  return {
-    label: 'Keys',
-    caps: keys.map((k, i) => ({text: keyText(k), down: i === at, ahead: i > at})),
-    answering: what === 'answer',
-  };
+  return {label: 'Command', caps: [{text: st.step, down: true, ahead: false}], answering: p.press.what === 'answer'};
 }
 
-/** the main menu's key the running step presses now (its first key, no window), or null */
-export function litMenuKey(p: PlayerState): string | null {
-  const st = p.running >= 0 ? p.steps[p.running] : undefined;
-  if (!st || !p.press || p.press.what !== 'key' || p.press.index !== 0 || st.win || st.button) return null;
-  return st.keys?.[0] ?? null;
-}
-
-/** the control the running step clicks now (docs: data-button), or null */
-export function litButton(p: PlayerState): string | null {
-  const st = p.running >= 0 ? p.steps[p.running] : undefined;
-  if (!st?.button || !p.press || p.press.what !== 'key' || p.press.index !== 0) return null;
-  return st.win ? `${st.win}:${st.button}` : st.button;
-}
-
-/** the key of an open menu the running step picks now (a menu's or a choice's answer), or null */
+/** the key of an open choice the running step picks now, or null */
 export function litAskKey(p: PlayerState): string | null {
   const st = p.running >= 0 ? p.steps[p.running] : undefined;
-  if (!st || !p.press || p.press.what !== 'key' || p.press.index < 1) return null;
-  return st.keys?.[p.press.index] ?? null;
+  if (!st || !p.press || p.press.what !== 'answer') return null;
+  const answer = st.answers?.[p.press.index];
+  const key = answer && typeof answer === 'object' && !Array.isArray(answer) ? (answer as {key?: unknown}).key : undefined;
+  return typeof key === 'string' ? key : null;
 }
 
 /** the answer the running step gives now, as the text a dialog's fields show, or null */

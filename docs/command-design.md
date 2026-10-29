@@ -18,10 +18,10 @@ undoes Values edits; users can rebind keys and choose quick-access commands.
    list of labels or keys exists anywhere (single source).
 2. **Keys are a layer over commands.** A key never defines a command, and a
    command never depends on which menu is open. Recordings store the id.
-3. **XPPAUT keys are an optional keymap**, named "XPPAUT sequences", off by
-   default: `F` then `S` is a chord in that keymap, not a mode of the menu.
-   No sticky "File shortcuts" state; chords show a pending-key hint and
-   cancel with Esc or on a timeout-free focus loss.
+3. **A key is one key.** The program is driven through commands, not letters
+   (W536): a binding is a single key or a modifier combination, never a letter
+   sequence or a chord, and there is no XPPAUT key preset; a user who wants an
+   XPPAUT key binds that command in the editor. No sticky "File shortcuts" state.
 4. **Reserved keys are not ours:** Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, the
    browser's and OS's. They cannot be bound (the editor says so) and the
    page never calls `preventDefault` on them.
@@ -44,8 +44,7 @@ undoes Values edits; users can rebind keys and choose quick-access commands.
 
 Taken: the command list with search and record-keys; click-row-press-keys
 with Esc/Backspace; the conflict names the other command and offers
-Replace or Cancel; default/user layers with per-binding Reset; chords for
-the XPPAUT preset. Not taken: `when` expressions (our context is only "has a
+Replace or Cancel; default/user layers with per-binding Reset. Not taken: chords and the XPPAUT preset (W536), `when` expressions (our context is only "has a
 model / has run data / dialog open", fixed per command `kind`); hand-edited
 JSON as the primary path.
 
@@ -86,10 +85,10 @@ their label (icon-only is not used: labels are the discoverability fix).
 `keymap.json` is the user's, in the per-user config folder, owned by one
 module in the core (`xpp_keymap`), served to the page in `hello`. It stores
 only the user's differences: `bindings` (command id → keys, `[]` = removed),
-`pinned` (ordered command ids), `preset` (`"default"` or `"xppaut"`).
+`pinned` (ordered command ids).
 
 - Loaded all or nothing (W125): unknown command id, malformed key string,
-  duplicate key within a context, a reserved key, an over-long or too-deep
+  two commands on one key, a key with a space, a reserved key, an over-long or too-deep
   value: the file, line and value are shown and nothing is applied.
 - Written through `xpp::Writer` (temp, then rename). Never executable, never
   read from a path the file names; the only path is the fixed config path.
@@ -114,7 +113,7 @@ Rows: command label, category, keys, source. Search matches label,
 description, id or pressed keys. Click a key cell, press the combination
 (Esc cancels, Backspace clears); on conflict: "Ctrl+B is Run from last
 state. Replace / Cancel". Context menu: Reset binding, Add second binding,
-Pin to toolbar. Buttons: Reset all, Preset: Default / XPPAUT sequences.
+Pin to toolbar. Buttons: Reset to defaults, Reset all.
 All of it reachable by keyboard and announced for screen readers.
 
 ## Cards (after W203-W205 merge; issues #257-#267)
@@ -122,7 +121,7 @@ All of it reachable by keyboard and announced for screen readers.
 | Card | Work |
 |---|---|
 | W207 | Command table in the core (id, category, label, description, kind, default keys); `hello` sends it; sidebar, search and native menus generated from it; recordings keep working by id |
-| W208 | Page keyboard layer: one dispatcher from key to command id, chords, reserved keys, pending-chord hint; remove the sticky shortcut modes; XPPAUT sequences as a preset |
+| W208 | Page keyboard layer: one dispatcher from key to command id, reserved keys; remove the sticky shortcut modes (its chords and XPPAUT preset went at W536) |
 | W209 | Ctrl+S / Save as: Session remembers its file; unsaved dot; Ctrl+Shift+S; native menus use the same ids |
 | W210 | Value undo/redo stack (bounded snapshots of parameters, initial conditions and numerics) replacing the checkpoint; Run from last state pushes the old values |
 | W211 | `keymap.json` owner module, all-or-nothing load, protocol command, security checks |

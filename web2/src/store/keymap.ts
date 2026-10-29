@@ -96,11 +96,11 @@ export function isChanged(info: KeymapInfo | null, id: string): boolean {
 }
 
 /** the user's differences as a `set` sends them: the commands whose source is `user`, the pinned ones
-    and the preset. A keymap the core marked as an error has no user part (its defaults are shown) */
+    A keymap the core marked as an error has no user part (its defaults are shown) */
 export function userKeymap(info: KeymapInfo): UserKeymap {
   const bindings: Record<string, string[]> = {};
   for (const c of info.commands) if (c.source === 'user') bindings[c.id] = c.keys;
-  return {preset: info.preset, pinned: info.pinned, bindings};
+  return {pinned: info.pinned, bindings};
 }
 
 /** the keymap with command `id`'s keys replaced (the other commands' bindings and the pins as they are) */
@@ -132,21 +132,9 @@ export function withPinned(info: KeymapInfo, pinned: string[]): UserKeymap {
   return {...userKeymap(info), pinned};
 }
 
-export function withPreset(info: KeymapInfo, preset: UserKeymap['preset']): UserKeymap {
-  return {...userKeymap(info), preset};
-}
-
-/** a key is the start of another, or the other of it (a chord's first part): the core's keys_clash */
-export function keysClash(a: string, b: string): boolean {
-  const pa = a.split(' '), pb = b.split(' ');
-  const n = Math.min(pa.length, pb.length);
-  return pa.slice(0, n).every((part, i) => part === pb[i]);
-}
-
-/** the command other than `id` that has a key clashing with `key`, if any */
+/** the command other than `id` that has `key`, if any */
 export function conflictOf(info: KeymapInfo, rows: readonly CommandRow[], id: string, key: string): CommandRow | undefined {
-  const context = rows.find(row => row.id === id)?.legacy_context ?? '';
-  return rows.find(row => row.id !== id && (info.preset !== 'xppaut' || (row.legacy_context ?? '') === context) && effectiveKeys(info, row).some(k => keysClash(k, key)));
+  return rows.find(row => row.id !== id && effectiveKeys(info, row).includes(key));
 }
 
 /** the keymap with `key` given to command `row` as its key number `index`, and taken from every other
@@ -155,9 +143,8 @@ export function replaceKey(info: KeymapInfo, rows: readonly CommandRow[], row: C
   const user = withKey(info, row, index, key);
   const bindings = {...user.bindings};
   for (const other of rows) {
-    if (info.preset === 'xppaut' && (other.legacy_context ?? '') !== (row.legacy_context ?? '')) continue;
     const keys = effectiveKeys(info, other);
-    if (other.id !== row.id && keys.some(k => keysClash(k, key))) bindings[other.id] = keys.filter(k => !keysClash(k, key));
+    if (other.id !== row.id && keys.includes(key)) bindings[other.id] = keys.filter(k => k !== key);
   }
   return {...user, bindings};
 }

@@ -134,8 +134,6 @@ export interface AppState {
   /** the steady-state settings the user typed (RunToolbar), over steadyDefaults: kept here so the command
       Run to steady state, from a key or the toolbar, runs with them */
   steadyEdit: Partial<SteadyInput>;
-  /** the keys of a chord typed so far ("F" of F, S), shown in the status bar; Esc or a focus change empties it */
-  pendingKeys: string[];
   /** the controls sent (CONTROL_DONE) whose done has not come: each is answered at once, even in the middle of a computation whose own done comes later */
   controlDone: number;
   /** parameters, ICs, BCs, delays, sliders (T3): pending edits and errors, see store/values.ts */
@@ -195,7 +193,6 @@ export type Action =
   | {type: 'steadyEdit'; edit: Partial<SteadyInput>}
   /** the keymap editor (W212) */
   | {type: 'keymapUi'; action: KeymapAction}
-  | {type: 'pendingKeys'; keys: string[]}
   /** the page's own line in the status bar (a key that cannot act now says why) */
   | {type: 'bottom'; text: string}
   | {type: 'theme'; theme: Theme}
@@ -245,7 +242,6 @@ export const initialState: AppState = {
   drawerOpen: false, commandForm: null, annotationsOpen: false, selectedAnnotation: null,
   continueInput: CONTINUE_INPUT_DEFAULT,
   steadyEdit: {},
-  pendingKeys: [],
   controlDone: 0,
   values: initialValues,
   valuesOpen: false,
@@ -385,7 +381,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     }
     case 'keymap': {
       const keymap = reduceKeymap(state.keymap, {type: 'info', info: ev.keymap});
-      return keymap === state.keymap ? state : {...state, keymap, pendingKeys:[]};
+      return keymap === state.keymap ? state : {...state, keymap};
     }
     case 'liveState':
       return state.core ? {...state, core: {...state.core, now: ev.now, time: ev.time, rates: ev.rates}} : state;
@@ -649,10 +645,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, steadyEdit: action.edit};
     case 'keymapUi': {
       const keymap = reduceKeymap(state.keymap, action.action);
-      return keymap === state.keymap ? state : {...state, keymap, pendingKeys: []};
+      return keymap === state.keymap ? state : {...state, keymap};
     }
-    case 'pendingKeys':
-      return action.keys.join(' ') === state.pendingKeys.join(' ') ? state : {...state, pendingKeys: action.keys};
     case 'continueInput':
       return action.input.mode === state.continueInput.mode && action.input.text === state.continueInput.text ? state : {...state, continueInput: action.input};
     case 'commandForm': return {...state, commandForm: action.form};

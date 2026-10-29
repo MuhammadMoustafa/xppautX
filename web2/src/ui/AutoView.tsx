@@ -632,8 +632,7 @@ export function AutoView({dark}: {dark: boolean}) {
 
   /* the focus goes back to the main plot when the panel is hidden or AUTO closes (T21):
      the keys typed next are the main window's (Show AUTO is a Tab away). A layout effect, in the commit
-     that removes the panel: a later one could move the focus after a key began a chord, which a focus
-     change cancels (ui/hotkeys.ts) */
+     that removes the panel */
   useLayoutEffect(() => {
     const inPanel = !!document.activeElement?.closest?.('.auto-panel') || document.activeElement === document.body;
     if (wasShown.current && (!shown || !open) && inPanel)

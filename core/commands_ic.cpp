@@ -175,24 +175,24 @@ constexpr std::array STATE_EVENTS = {"state", "done"};
 constexpr std::array RUN_EVENTS = {"computing", "progress", "series", "stopped", "state", "done"};
 
 constexpr std::array ROWS = {
-    Command{"ic.set", SET_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Initial conditions/New", "IN",
+    Command{"ic.set", SET_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Initial conditions/New",
             "Set the initial values of some states; the others keep theirs.", SET_RESULTS, STATE_EVENTS, true, ic_set},
-    Command{"ic.at", AT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run/Initial conditions/Mouse", "IM",
+    Command{"ic.at", AT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run/Initial conditions/Mouse",
             "Run from a point of a graph: the two states it plots take the coordinates, the others their initial values.", SET_RESULTS,
             RUN_EVENTS, true, ic_at},
-    Command{"ic.mouse_stream", STREAM_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run/Initial conditions/mIce", "II",
+    Command{"ic.mouse_stream", STREAM_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run/Initial conditions/mIce",
             "Run from each point of a graph in turn, x and y the coordinates of the two states it plots; the runs add up on the graph.",
             STREAM_RESULTS, RUN_EVENTS, true, ic_mouse_stream},
-    Command{"ic.load", LOAD_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Initial conditions/File", "IF",
+    Command{"ic.load", LOAD_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Initial conditions/File",
             "Read the initial values from a file of the model's folder, one number per differential equation.", LOAD_RESULTS, STATE_EVENTS,
             true, ic_load},
-    Command{"ic.formula", FORMULA_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Initial conditions/formUla", "IUF",
+    Command{"ic.formula", FORMULA_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Initial conditions/formUla",
             "Set a state's initial value to a formula, or an array range u[1..5] to a formula reading [j] as the element's number.",
             FORMULA_RESULTS, STATE_EVENTS, true, ic_formula},
-    Command{"ic.from_data_row", ROW_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Data/Get", "G",
+    Command{"ic.from_data_row", ROW_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Data/Get",
             "Make a row of the stored data (the first is 0) the initial values.", ROW_RESULTS, STATE_EVENTS, true, ic_from_data_row,
-            {}, {}, "browser"},
-    Command{"ic.array", ARRAY_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Initial conditions/formUla", "IUA",
+            {}, {}},
+    Command{"ic.array", ARRAY_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run/Initial conditions/formUla",
             "Set size states from a state on to a formula of t, the element's offset from the first.", ARRAY_RESULTS, STATE_EVENTS, true,
             ic_array}};
 

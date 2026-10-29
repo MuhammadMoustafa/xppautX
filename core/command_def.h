@@ -191,17 +191,15 @@ struct Command {
     char kind;
     CommandCategory category;
     const char *menu_path;
-    const char *legacy_keys;
     const char *description;
     std::span<const ResultField> results;
     std::span<const char *const> events;
     bool step;
     Handler execute;
     std::span<const Group> groups = {};
-    /* Logical shortcuts, Ctrl means Cmd on macOS. Empty for infrequent commands. */
+    /* One key each (a single key or a modifier combination), Ctrl means Cmd on macOS. Empty for most commands: the
+       user binds any command in the keymap editor. */
     std::span<const char *const> default_keys = {};
-    /* XPPAUT reused letters in each tool window; an empty context is the main workspace. */
-    const char *legacy_context = "";
     /* File dialogs are presentation of the row; write dialogs use the existing single-use native save grant. */
     const char *file_mode = "read";
     const char *file_wild = "*";

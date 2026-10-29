@@ -23,7 +23,6 @@ export function StatusBar() {
   const help = useStore(s => s.bottomHelp);
   const flash = useStore(s => s.flash);
   const rows = useStore(s => s.core?.rows ?? 0);
-  const pending = useStore(s => s.pendingKeys);
   const status = connectionText(connected, exited) ?? (stopping ? 'Stopping…' : busy ? busyText(running, asking) : 'Ready');
   const dot = exited !== null ? 'down' : !connected ? '' : busy ? 'busy' : 'up';
   return (
@@ -32,7 +31,6 @@ export function StatusBar() {
       {flash > 0 && <span key={flash} class="status-flash" aria-hidden="true" />}
       <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span role="status" data-testid="status">{status}</span>
-      {pending.length > 0 && <span class="key-pending" role="status" data-testid="pending-keys">{pending.join(' ')} … (Esc cancels)</span>}
       <span class="status-message">{bottom} {help && <HelpButton target={help} label=".odex models" />}</span>
       <span class="muted rows">{rows} rows</span>
       {/* W83: a fixed-width slot the bar always keeps (theme.css .status-run), so

@@ -58,24 +58,6 @@ bool is_part(std::string_view part)
     return is_base_key(part);
 }
 
-std::vector<std::string_view> parts_of(std::string_view key)
-{
-    std::vector<std::string_view> parts;
-    for (std::size_t from = 0;;) {
-        const std::size_t space = key.find(' ', from);
-        parts.push_back(key.substr(from, space == std::string_view::npos ? space : space - from));
-        if (space == std::string_view::npos) return parts;
-        from = space + 1;
-    }
-}
-
-/* a is b, or the start of b (a chord's first part), or b is the start of a */
-bool keys_clash(std::string_view a, std::string_view b)
-{
-    const std::vector<std::string_view> pa = parts_of(a), pb = parts_of(b);
-    return std::equal(pa.begin(), pa.begin() + static_cast<std::ptrdiff_t>(std::min(pa.size(), pb.size())), pb.begin());
-}
-
 /* ---- reading ------------------------------------------------------------- */
 
 constexpr std::size_t MAX_SHOWN = 40; /* a value in an error: the first line, cut here */
@@ -117,8 +99,7 @@ public:
             if (!seen.insert(key).second) fail(value, xpp::format("{} is given twice", quoted(key)));
             if (key == "bindings") read_bindings(value, map);
             else if (key == "pinned") read_pinned(value, map);
-            else if (key == "preset") read_preset(value, map);
-            else fail(value, xpp::format("unknown setting {} (the settings are bindings, pinned and preset)", quoted(key)));
+            else fail(value, xpp::format("unknown setting {} (the settings are bindings and pinned)", quoted(key)));
         }
         check_clashes(map);
         return map;
@@ -150,8 +131,7 @@ private:
         if (!json::js_string(v, key)) fail(v, xpp::format("a key is a string, not {}", shown(v)));
         if (const std::string problem = key_problem(key); !problem.empty())
             fail(v, xpp::format("{} is not a key: {}", quoted(key), problem));
-        for (std::string_view part : parts_of(key))
-            if (is_reserved_key(part)) fail(v, xpp::format("{} is reserved (the browser or system uses it)", quoted(part)));
+        if (is_reserved_key(key)) fail(v, xpp::format("{} is reserved (the browser or system uses it)", quoted(key)));
         return key;
     }
 
@@ -193,40 +173,23 @@ private:
         }
     }
 
-    void read_preset(const char *v, Keymap &map) const
-    {
-        std::string preset;
-        if (!json::js_string(v, preset) || (preset != PRESET_DEFAULT && preset != PRESET_XPPAUT))
-            fail(v, xpp::format("the preset is \"{}\" or \"{}\", not {}", PRESET_DEFAULT, PRESET_XPPAUT, shown(v)));
-        map.preset = std::move(preset);
-    }
-
-    /* the effective map has no two commands on one key (nor one key the start of another's chord):
-       the table's keys of the commands the file leaves alone, then the file's, in its order */
+    /* the effective map has no two commands on one key: the table's keys of the commands the file leaves alone,
+       then the file's, in its order */
     void check_clashes(const Keymap &map) const
     {
-        struct Owner { std::string id, key, context; const char *at; };
+        struct Owner { std::string id, key; const char *at; };
         std::vector<Owner> owners;
         for (const command::Command *row : command::rows()) {
-            const std::string context = map.preset == PRESET_XPPAUT ? row->legacy_context : "";
             const auto keys = effective_keys(map, row->name);
             if (keys.size() > MAX_KEYS_PER_COMMAND) fail(text_.c_str(), xpp::format("{} has more than {} keys", quoted(row->name), MAX_KEYS_PER_COMMAND));
             for (const std::string &key : keys) {
-                if (!map.bindings.contains(row->name)) {
-                    if (const std::string problem = key_problem(key); !problem.empty())
-                        fail(text_.c_str(), xpp::format("{} key {}: {}", quoted(row->name), quoted(key), problem));
-                    for (const std::string_view part : parts_of(key))
-                        if (is_reserved_key(part)) fail(text_.c_str(), xpp::format("{} key {} is reserved", quoted(row->name), quoted(key)));
-                }
                 const auto placed = std::find_if(placed_.rbegin(), placed_.rend(), [&](const Placed &p) { return p.id == row->name && p.key == key; });
                 const char *at = placed == placed_.rend() ? text_.c_str() : placed->at;
                 for (const Owner &owner : owners) {
-                    if (owner.context != context || !keys_clash(owner.key, key)) continue;
-                    fail(std::max(owner.at, at),
-                         xpp::format("{} key {} and {} key {} clash (one is the start of the other) in context {}",
-                                     quoted(owner.id), quoted(owner.key), quoted(row->name), quoted(key), quoted(context)));
+                    if (owner.key != key) continue;
+                    fail(std::max(owner.at, at), xpp::format("{} and {} are both on key {}", quoted(owner.id), quoted(row->name), quoted(key)));
                 }
-                owners.push_back({row->name, key, context, at});
+                owners.push_back({row->name, key, at});
             }
         }
     }
@@ -242,10 +205,8 @@ std::string key_problem(std::string_view key)
 {
     if (key.empty()) return "it is empty";
     if (key.size() > MAX_KEY_BYTES) return xpp::format("it is longer than {} bytes", MAX_KEY_BYTES);
-    const std::vector<std::string_view> parts = parts_of(key);
-    if (parts.size() > MAX_CHORD_PARTS) return xpp::format("a key has at most {} parts", MAX_CHORD_PARTS);
-    for (std::string_view part : parts)
-        if (!is_part(part)) return xpp::format("{} is not a key press: {}", quoted(part), KEY_GRAMMAR);
+    if (key.find(' ') != std::string_view::npos) return "a binding is one key press, never a sequence of keys";
+    if (!is_part(key)) return xpp::format("{} is not a key press: {}", quoted(key), KEY_GRAMMAR);
     return {};
 }
 
@@ -274,9 +235,7 @@ void append_strings(std::string &out, const std::vector<std::string> &strings, s
 
 std::string serialize(const Keymap &map)
 {
-    std::string out = "{\n  \"preset\": ";
-    json_append_string(out, map.preset);
-    out += ",\n  \"pinned\": [";
+    std::string out = "{\n  \"pinned\": [";
     append_strings(out, map.pinned, ", ");
     out += "],\n  \"bindings\": {";
     bool first = true;
@@ -296,39 +255,17 @@ std::vector<std::string> effective_keys(const Keymap &map, std::string_view id)
 {
     if (const auto it = map.bindings.find(std::string(id)); it != map.bindings.end()) return it->second;
     std::vector<std::string> keys;
-    if (const command::Command *row = command::find(id)) {
-        if (map.preset == PRESET_XPPAUT) {
-            const std::string_view legacy = row->legacy_keys;
-            for (std::size_t from = 0; from < legacy.size();) {
-                const std::size_t slash = legacy.find('/', from);
-                const std::string_view sequence = legacy.substr(from, slash == std::string_view::npos ? slash : slash - from);
-                std::string key;
-                if (sequence == "Esc") key = "Escape";
-                else for (const char letter : sequence) {
-                    if (!key.empty()) key += ' ';
-                    key += letter;
-                }
-                if (!key.empty()) keys.push_back(std::move(key));
-                if (slash == std::string_view::npos) break;
-                from = slash + 1;
-            }
-        } else for (const char *key : row->default_keys) keys.emplace_back(key);
-    }
+    if (const command::Command *row = command::find(id))
+        for (const char *key : row->default_keys) keys.emplace_back(key);
     return keys;
 }
 
-KeyMatch match_keys(const Keymap &map, std::string_view context, std::string_view sequence)
+std::string command_on_key(const Keymap &map, std::string_view key)
 {
-    KeyMatch match;
-    for (const command::Command *row : command::rows()) {
-        if (map.preset == PRESET_XPPAUT && context != row->legacy_context) continue;
-        for (const std::string &key : effective_keys(map, row->name)) {
-            if (key == sequence) match.command = row->name;
-            else if (key.starts_with(sequence) && key.size() > sequence.size() && key[sequence.size()] == ' ') match.prefix = true;
-        }
-    }
-    if (match.prefix) match.command.clear();
-    return match;
+    for (const command::Command *row : command::rows())
+        for (const std::string &bound : effective_keys(map, row->name))
+            if (bound == key) return row->name;
+    return {};
 }
 
 std::string path() { return files::config_path(FILE_NAME); }
@@ -359,8 +296,6 @@ std::string effective_json(const Result<Keymap> &loaded)
     if (!loaded) json::append_error(out, loaded.error());
     out += ",\"path\":";
     json_append_string(out, path());
-    out += ",\"preset\":";
-    json_append_string(out, map.preset);
     out += ",\"pinned\":[";
     append_strings(out, map.pinned, ",");
     out += "],\"reserved\":[";
@@ -368,8 +303,8 @@ std::string effective_json(const Result<Keymap> &loaded)
         if (i) out += ',';
         json_append_string(out, RESERVED_KEYS[i]);
     }
-    out += xpp::format("],\"limits\":{{\"keys\":{},\"parts\":{},\"key_bytes\":{}}},\"commands\":[", MAX_KEYS_PER_COMMAND,
-                       MAX_CHORD_PARTS, MAX_KEY_BYTES);
+    out += xpp::format("],\"limits\":{{\"keys\":{},\"key_bytes\":{}}},\"commands\":[", MAX_KEYS_PER_COMMAND,
+                       MAX_KEY_BYTES);
     bool first = true;
     for (const command::Command *entry : command::rows()) {
         const command::Command &row = *entry;

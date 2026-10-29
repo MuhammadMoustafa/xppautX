@@ -27,7 +27,7 @@ std::string hello_keymap() { return xpp::keymap::effective_json(xpp::keymap::loa
 
 namespace {
 
-/* the user's keymap as the keymap commands answer it: the keys of the commands they changed, the pinned ones, the preset */
+/* the user's keymap as the keymap commands answer it: the keys of the commands they changed, and the pinned ones */
 std::string keymap_result(const xpp::keymap::Keymap &map)
 {
     std::string bindings = "{";
@@ -46,7 +46,7 @@ std::string keymap_result(const xpp::keymap::Keymap &map)
         if (i) pinned += ',';
         json_append_string(pinned, map.pinned[i]);
     }
-    return xpp::command::ResultObject().raw("bindings", bindings + '}').raw("pinned", pinned + ']').text("preset", map.preset).done();
+    return xpp::command::ResultObject().raw("bindings", bindings + '}').raw("pinned", pinned + ']').done();
 }
 
 } // namespace
@@ -69,14 +69,12 @@ xpp::Result<std::string> keymap_set(const xpp::command::Arguments &args)
         for (auto &[command, keys] : args.map<std::vector<std::string>>("bindings")) map.bindings.emplace(command, std::move(keys));
     }
     if (args.has("pinned")) map.pinned = args.list<std::string>("pinned");
-    if (const std::optional<std::string> preset = args.optional<std::string>("preset")) map.preset = *preset;
     /* checked whole, then written: nothing of an unusable keymap is kept */
     xpp::Result<xpp::keymap::Keymap> checked = xpp::keymap::parse_keymap(xpp::keymap::serialize(map), std::string(SENT_KEYMAP));
     if (checked) {
         if (const xpp::Result<> saved = xpp::keymap::save(*checked); !saved) checked = std::unexpected(saved.error());
     }
     if (!checked) return std::unexpected(checked.error());
-    session.pending_keys.clear();
     send_keymap("set");
     return xpp::command::ResultObject().boolean("saved", true).done();
 }
@@ -84,7 +82,6 @@ xpp::Result<std::string> keymap_set(const xpp::command::Arguments &args)
 xpp::Result<std::string> keymap_reset()
 {
     if (const xpp::Result<> reset = xpp::keymap::reset(); !reset) return std::unexpected(reset.error());
-    session.pending_keys.clear();
     send_keymap("reset");
     return xpp::command::ResultObject().boolean("reset", true).done();
 }

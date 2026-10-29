@@ -1,12 +1,12 @@
 /* The player (W59b, docs/protocol.md "Playing a recording"): the store's
    slice from the player, press and state events, and what the page shows
-   from it (the caption, the keycaps, the lit menu item and button, a
+   from it (the caption, the command box, the lit choice, a
    dialog's answer, the progress segments), without a browser (npm test). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {PlayerEvent, PressEvent, StateEvent} from '../src/protocol/types';
 import {
-  answerFill, answerTexts, caption, initialPlayer, keycaps, litAskKey, litButton, litMenuKey, reducePlayer, segments,
+  answerFill, answerTexts, caption, initialPlayer, keycaps, litAskKey, reducePlayer, segments,
   type PlayerState,
 } from '../src/store/player';
 import {reduce} from '../src/store/state';
@@ -15,13 +15,13 @@ import {READY} from './hello';
 const PLAYER: PlayerEvent = {
   ev: 'player', file: '/tmp/lecar.recx', model: 'lecar.ode', intact: true,
   steps: [
-    {note: 'The cell fires once.', step: 'Initialconds → Go', keys: ['i', 'g']},
-    {note: '', step: 'Set iapp = 0.08', cmd: {cmd: 'set', kind: 'par', name: 'iapp', value: 0.08}},
-    {note: '', step: 'nUmerics → Total', keys: ['t'], answers: ['1e7']},
-    {note: '', step: 'Initialconds → Go', keys: ['i', 'g'], button: 'Integrate'},
-    {note: '', step: 'Zoom window 1', cmd: {cmd: 'display', win: 'graph_1'}, view: true},
-    {note: '', step: 'AUTO → Run', win: 'auto', keys: ['r', 's'], button: 'run'},
-    {note: '', step: 'File → Import XPPAUT set', keys: ['r'], answers: [{file: 'x.set'}, null, ['a', 'b']]},
+    {note: 'The cell fires once.', step: 'Run → Initial', cmd: {cmd: 'run.initial'}},
+    {note: '', step: 'Set iapp = 0.08', cmd: {cmd: 'value.set_parameters', values: {iapp: 0.08}}},
+    {note: '', step: 'Run → Configure', cmd: {cmd: 'run.configure'}, answers: ['1e7']},
+    {note: '', step: 'Run → Initial', cmd: {cmd: 'run.initial'}},
+    {note: '', step: 'Zoom window 1', cmd: {cmd: 'window.set_bounds'}, view: true},
+    {note: '', step: 'AUTO → Run', cmd: {cmd: 'auto.run'}, answers: [{key: 'y'}]},
+    {note: '', step: 'File → Import XPPAUT set', cmd: {cmd: 'value.load_file'}, answers: [{file: 'x.set'}, null, ['a', 'b']]},
   ],
 };
 
@@ -42,7 +42,7 @@ test('the player event opens the player; a state without player closes it', () =
 
 test('a press runs its step: the caption shows its note, else its label', () => {
   let p = reducePlayer(initialPlayer, {type: 'player', ev: PLAYER});
-  p = at(p, press(0, 'key', 0));
+  p = at(p, press(0, 'cmd', 0));
   assert.equal(p.running, 0);
   assert.deepEqual(caption(p), {text: 'The cell fires once.', note: true});
   p = at(p, press(1, 'cmd', 0));
@@ -57,27 +57,14 @@ test('a press runs its step: the caption shows its note, else its label', () => 
   assert.equal(caption(p).text, 'Press Play to watch the recording.');
 });
 
-test('keycaps light one by one; the main menu item for the first key; a menu answer in the open menu', () => {
-  let p = at(reducePlayer(initialPlayer, {type: 'player', ev: PLAYER}), press(0, 'key', 0));
-  assert.deepEqual(keycaps(p)?.caps.map(c => [c.text, c.down, c.ahead]), [['I', true, false], ['G', false, true]]);
-  assert.equal(litMenuKey(p), 'i');
+test('the box shows the step\'s command; a choice answer lights its key', () => {
+  let p = at(reducePlayer(initialPlayer, {type: 'player', ev: PLAYER}), press(0, 'cmd', 0));
+  assert.deepEqual(keycaps(p)?.caps.map(c => [c.text, c.down, c.ahead]), [['Run → Initial', true, false]]);
+  assert.equal(keycaps(p)?.answering, false);
   assert.equal(litAskKey(p), null);
-  p = at(p, press(0, 'key', 1));
-  assert.deepEqual(keycaps(p)?.caps.map(c => [c.text, c.down, c.ahead]), [['I', false, false], ['G', true, false]]);
-  assert.equal(litMenuKey(p), null);
-  assert.equal(litAskKey(p), 'g');
-});
-
-test('a button step lights its button (a window\'s by win:id), not the menu', () => {
-  let p = at(reducePlayer(initialPlayer, {type: 'player', ev: PLAYER}), press(3, 'key', 0));
-  assert.deepEqual(keycaps(p)?.caps.map(c => c.text), ['Integrate']);
-  assert.equal(litButton(p), 'Integrate');
-  assert.equal(litMenuKey(p), null);
-  p = at(p, press(5, 'key', 0));
-  assert.equal(litButton(p), 'auto:run');
-  p = at(p, press(5, 'key', 1));
-  assert.equal(litButton(p), null);
-  assert.equal(litAskKey(p), 's');
+  p = at(p, press(5, 'answer', 0));
+  assert.equal(keycaps(p)?.answering, true);
+  assert.equal(litAskKey(p), 'y');
 });
 
 test('a dialog\'s answers fill in: a value, a file, a cancel, a form\'s values', () => {
@@ -91,7 +78,7 @@ test('a dialog\'s answers fill in: a value, a file, a cancel, a form\'s values',
 });
 
 test('the progress: a segment per step, a view step half, done and now', () => {
-  const p = at(reducePlayer(initialPlayer, {type: 'player', ev: PLAYER}), press(2, 'key', 0));
+  const p = at(reducePlayer(initialPlayer, {type: 'player', ev: PLAYER}), press(2, 'cmd', 0));
   const segs = segments(p, 2);
   assert.equal(segs.length, 7);
   assert.deepEqual(segs.map(s => (s.now ? 'now' : s.done ? 'done' : s.view ? 'view' : '-')), ['done', 'done', 'now', '-', 'view', '-', '-']);
@@ -107,7 +94,7 @@ test('the app state: player and press events, state.player, the banner dismissed
   assert.equal(s.player.dismissed, true);
   s = reduce(s, {type: 'event', ev: {...PLAYER, file: '/tmp/other.recx', intact: false}});
   assert.equal(s.player.dismissed, false);
-  s = reduce(s, {type: 'event', ev: press(0, 'key', 0)});
+  s = reduce(s, {type: 'event', ev: press(0, 'cmd', 0)});
   assert.equal(s.player.running, 0);
   const st = {ev: 'state', sliders: [], pars: [], ics: [], rows: 0, menu: 0, win: 'graph_1',
     player: {step: 1, running: -1, playing: true, speed: 2, fast: false, intact: false}} as unknown as StateEvent;

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {findBrowser, navigatePage, runWithRerun, startBrowser, startServer, stopServer, waitFor, waitForExit, xppautSequences} from './cdp.mjs';
+import {findBrowser, navigatePage, runWithRerun, startBrowser, startServer, stopServer, waitFor, waitForExit} from './cdp.mjs';
 
 const bin = path.resolve(process.argv[2] || './xppautX.exe');
 /* the active plot window, as a page expression */
@@ -20,7 +20,6 @@ try {
   const until = async (code, label) => assert.ok(await waitFor(() => cdp.eval(`!!(${code})`)), label);
   const state = code => cdp.eval(`(() => { const s = __xpp.state(); const w = s.plots.windows.find(w => w.win === s.plots.active); return ${code}; })()`);
   const ready = () => until('window.__xpp?.state().hello && !__xpp.state().busy', 'idle model');
-  const key = async k => { await cdp.eval(`document.querySelector('.plot-host').focus(); document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key:${JSON.stringify(k)}, bubbles:true})); true`); };
   const closeForm = async () => { await cdp.eval("document.querySelector('.registry-form .dialog-actions button[type=button]').click(); true");
     await until('!__xpp.state().commandForm', 'Cancel closes the registry form'); };
   const run = async () => {
@@ -32,11 +31,7 @@ try {
     await until(`__xpp.state().seriesCount > ${n} && !__xpp.state().busy`, 'run finished');
   };
   await cdp.send('Emulation.setDeviceMetricsOverride', {width:1280,height:860,deviceScaleFactor:1,mobile:false});
-  await navigatePage(cdp, server.url); await ready(); await xppautSequences(cdp);
-  await key('F'); await until('__xpp.state().pendingKeys.join("") === "F"', 'uppercase F begins the File sequence (the XPPAUT preset)');
-  await key('Escape'); await until('__xpp.state().pendingKeys.length === 0', 'Escape cancels the sequence');
-  await key('I'); await until('__xpp.state().pendingKeys.join("") === "I"', 'uppercase I begins the Initial conditions sequence');
-  await key('Escape'); await until('__xpp.state().pendingKeys.length === 0', 'Escape cancels it');
+  await navigatePage(cdp, server.url); await ready();
   await cdp.eval("document.querySelector('.workspace-tools summary').click(); true");
   await until('document.querySelector(".workspace-tools").open', 'Tools dropdown open');
   await cdp.eval("document.querySelector('.plot-host').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true})); true");

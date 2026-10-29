@@ -78,16 +78,16 @@ constexpr std::array SOLVE_EVENTS = {"computing", "progress", "series", "stopped
 constexpr std::array CONFIGURE_EVENTS = {"numerics", "state", "done"};
 
 constexpr std::array ROWS = {
-    Command{"bvp.solve_range", RANGE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run/Boundary values/Range", "BR",
+    Command{"bvp.solve_range", RANGE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run/Boundary values/Range",
             "Solve the boundary value problem for each value of a parameter between two values, storing a solution's start or end for each.",
             RANGE_RESULTS, SOLVE_EVENTS, true, bvp_range_handler},
-    Command{"bvp.solve", SOLVE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run/Boundary values/No show, Show", "BN/BS",
+    Command{"bvp.solve", SOLVE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run/Boundary values/No show, Show",
             "Solve the boundary value problem from the initial values by shooting and make the solution the initial values; show draws every step.",
             SOLVE_RESULTS, SOLVE_EVENTS, true, bvp_solve_handler},
-    Command{"bvp.solve_periodic", PERIODIC_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run/Boundary values/Periodic", "BP",
+    Command{"bvp.solve_periodic", PERIODIC_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run/Boundary values/Periodic",
             "Solve for a periodic orbit whose period is the frequency parameter, held to a section of one variable.", PERIODIC_RESULTS,
             SOLVE_EVENTS, true, bvp_periodic_handler},
-    Command{"bvp.configure", CONFIGURE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Run/Numerics/bndVal", "UV",
+    Command{"bvp.configure", CONFIGURE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Run/Numerics/bndVal",
             "Set the shooting's iteration limit, tolerance and finite-difference step; the settings are checked together.",
             CONFIGURE_RESULTS, CONFIGURE_EVENTS, true, bvp_configure}};
 

@@ -25,7 +25,7 @@ constexpr std::array HELP_ARGUMENTS = {Argument{"name", Type::text, false}};
 constexpr std::array HELP_RESULTS = {ResultField{"commands", "list[command]"}};
 constexpr std::array HELP_EVENTS = {"state", "done"};
 constexpr std::array HELP_ROWS = {
-    Command{HELP_COMMAND.data(), HELP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Help/Command reference", "",
+    Command{HELP_COMMAND.data(), HELP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Help/Command reference",
             "Describe registered commands, or the command named by name.", HELP_RESULTS, HELP_EVENTS, false, describe}};
 std::span<const Command> help_commands() { return HELP_ROWS; }
 
@@ -135,10 +135,6 @@ void append_command(std::string &out, const Command &command)
         json_append_string(out, command.default_keys[i]);
     }
     out += "]";
-    out += ",\"legacy_context\":";
-    json_append_string(out, command.legacy_context);
-    out += ",\"legacy_keys\":";
-    json_append_string(out, command.legacy_keys);
     out += ",\"description\":";
     json_append_string(out, command.description);
     if (picker_argument(command) != nullptr) {

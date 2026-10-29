@@ -16,19 +16,19 @@ test('hello gives the keymap: the table\'s keys, nothing pinned, all default', (
   assert.equal(READY.keymap.info, HELLO.keymap);
   assert.deepEqual(effectiveKeys(READY.keymap.info, row('session.open_model')), ['Ctrl+O']);
   assert.deepEqual(effectiveKeys(READY.keymap.info, row('run.initial')), ['Ctrl+R']);
-  assert.deepEqual(userKeymap(HELLO.keymap), {preset: 'default', pinned: [], bindings: {}});
+  assert.deepEqual(userKeymap(HELLO.keymap), {pinned: [], bindings: {}});
 });
 
 test('a keymap event replaces it, and the differences go back as a set sends them', () => {
   const info: KeymapInfo = {
-    ...HELLO.keymap, preset: 'xppaut', pinned: ['session.reload_model'],
+    ...HELLO.keymap, pinned: ['session.reload_model'],
     commands: HELLO.keymap.commands.map(c => c.id === 'session.reload_model' ? {...c, keys: ['Ctrl+B'], source: 'user'} : c.id === 'session.save' ? {...c, keys: [], source: 'user'} : c),
   };
   const state = reduce(READY, {type: 'event', ev: {ev: 'keymap', op: 'set', keymap: info}});
   assert.equal(state.keymap.info, info);
   assert.deepEqual(effectiveKeys(state.keymap.info, row('session.reload_model')), ['Ctrl+B']);
   assert.deepEqual(effectiveKeys(state.keymap.info, row('session.save')), []);
-  assert.deepEqual(userKeymap(info), {preset: 'xppaut', pinned: ['session.reload_model'], bindings: {'session.reload_model': ['Ctrl+B'], 'session.save': []}});
+  assert.deepEqual(userKeymap(info), {pinned: ['session.reload_model'], bindings: {'session.reload_model': ['Ctrl+B'], 'session.save': []}});
   /* the same keymap again changes nothing; a new hello (File > Open model) takes the file's again */
   assert.equal(reduce(state, {type: 'event', ev: {ev: 'keymap', op: 'get', keymap: info}}), state);
   assert.equal(reduce(state, {type: 'event', ev: HELLO}).keymap.info, HELLO.keymap);
@@ -39,5 +39,5 @@ test('a bad file arrives as an error with its place, the commands the table\'s',
   const state = reduce(READY, {type: 'event', ev: {ev: 'keymap', op: 'get', keymap: bad}});
   assert.equal(state.keymap.info?.ok, false);
   assert.equal(state.keymap.info?.line, 3);
-  assert.deepEqual(userKeymap(bad), {preset: 'default', pinned: [], bindings: {}});
+  assert.deepEqual(userKeymap(bad), {pinned: [], bindings: {}});
 });

@@ -1,10 +1,8 @@
 import {registryRows} from './navigation';
 /* The page's keyboard layer (docs/command-design.md): one dispatcher from a key event to a command id.
-   A key is normalised to a name ("Ctrl+Shift+S"), looked up among the registry's default keys (and,
-   when the preset "XPPAUT sequences" is on, its legacy sequences: F then S is a chord over the same
-   dispatcher), and the command runs through Session.registryAction, the path a menu click takes.
-   A chord waits for its next key in the store's pendingKeys, shown in the status bar, until Esc or a
-   change of focus: never for a time. A key typed in a text field, a select, a dialog or a menu is the
+   A key is normalised to a name ("Ctrl+Shift+S"), looked up among the commands' effective keys (the
+   registry's defaults, or the user's), and the command runs through Session.registryAction, the path a
+   menu click takes. A binding is one key: there are no chords. A key typed in a text field, a select, a dialog or a menu is the
    element's own; a button keeps its Enter, Space and arrows. Tab is never taken: it moves the focus. */
 import {useEffect} from 'preact/hooks';
 import {noValueEdit} from '../protocol/kinds';
@@ -85,40 +83,15 @@ export function keyName(e: KeyboardEvent): string | null {
   return [e.ctrlKey || e.metaKey ? 'Ctrl' : '', e.altKey ? 'Alt' : '', shift ? 'Shift' : '', base].filter(Boolean).join('+');
 }
 
-/** a key sequence that runs a command: its default keys (each a chord, or several separated by spaces,
-    "Ctrl+K Ctrl+S"), and with the XPPAUT preset its legacy sequence */
-interface Binding {keys: string[]; row: CommandRow}
-
-/** every binding of the table under the keymap: each command's effective keys (the table's, or the user's),
-    and with the XPPAUT preset its legacy sequence */
-function bindingsOf(hello: HelloEvent | null, keymap: KeymapInfo | null, context: string): Binding[] {
-  return registryRows(hello).filter(row => {
-    if (keymap?.preset !== 'xppaut') return true;
-    return (row.legacy_context ?? '') === context;
-  }).sort((a, b) => Number(b.legacy_context === context) - Number(a.legacy_context === context)).flatMap(row => [
-    ...effectiveKeys(keymap, row).map(chord => ({keys: chord.split(' '), row})),
-]);
+/** the command whose effective keys (the table's, or the user's) include the key `name`, else null */
+export function commandOnKey(hello: HelloEvent | null, keymap: KeymapInfo | null, name: string): CommandRow | null {
+  return registryRows(hello).find(row => effectiveKeys(keymap, row).includes(name)) ?? null;
 }
 
-/** what the keys typed so far are among the bindings: the command they complete, else whether some binding
-    goes on with them (a chord not yet finished) */
-export function resolveKeys(hello: HelloEvent | null, keymap: KeymapInfo | null, keys: string[], context = ''): {row: CommandRow | null; more: boolean} {
-  const bindings = bindingsOf(hello, keymap, context);
-  const starts = (b: Binding) => keys.every((k, i) => b.keys[i] === k);
-  const done = bindings.find(b => b.keys.length === keys.length && starts(b));
-  const more = bindings.some(b => b.keys.length > keys.length && starts(b));
-  return {row: more ? null : done?.row ?? null, more};
-}
-
-/** how a command's keys are written where the page lists it: its effective keys, else, when that preset is
-    on, its XPPAUT sequence */
+/** how a command's keys are written where the page lists it: its effective keys */
 export function shortcutLabel(row: CommandRow, keymap: KeymapInfo | null): string {
-  const keys = effectiveKeys(keymap, row);
-  return keys.join(' / ');
+  return effectiveKeys(keymap, row).join(' / ');
 }
-
-/** a plain letter's name without Shift ("Shift+I" is I: the sequences are letters) */
-const plainName = (name: string): string => name.replace(/^Shift\+(?=[A-Z]$)/, '');
 
 /** Close the Tools menu; `focus` returns the focus to its summary (Escape, a click outside) and not
     after a choice, whose command has its own place for it. */
@@ -139,7 +112,7 @@ function closeTransient(session: Session): boolean {
   return true;
 }
 
-/** Run the command a key sequence completed, through the action a click on it takes; while a run forbids
+/** Run the command a key names, through the action a click on it takes; while a run forbids
     it (its kind, protocol/kinds.ts) the status bar says why. */
 function runCommand(session: Session, row: CommandRow): void {
   if (session.may({cmd: row.id})) session.registryAction(row.id);
@@ -147,23 +120,17 @@ function runCommand(session: Session, row: CommandRow): void {
 }
 
 /** One key typed on the page. The browser's default is prevented only for a key the page acts on: a
-    command's key, a chord begun or cancelled, or a key that completes none (the status bar says so). */
+    command's key. */
 export function handleKey(session: Session, e: KeyboardEvent): void {
   if (e.defaultPrevented) return;
   const target = e.target as Element | null;
   if (target?.closest?.(DIALOGS)) return;
   const name = keyName(e);
   if (!name) return;
-  const {hello, keymap, pendingKeys, busy, ask} = session.store.getState();
-  const dispatch = session.store.dispatch;
+  const {hello, keymap, busy, ask} = session.store.getState();
   /* the keys the system and the browser keep (the core's list: hello.keymap.reserved) are never taken */
   if (keymap.info?.reserved.includes(name)) return;
-  if (name === 'Escape' && busy) { e.preventDefault(); dispatch({type:'pendingKeys',keys:[]}); session.abort(); return; }
-  if (name === 'Escape' && pendingKeys.length) {
-    e.preventDefault();
-    dispatch({type: 'pendingKeys', keys: []});
-    return;
-  }
+  if (name === 'Escape' && busy) { e.preventDefault(); session.abort(); return; }
   if (name === 'Escape' && closeTransient(session)) {
     e.preventDefault();
     return;
@@ -183,30 +150,18 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
     return;
   }
   if (!ANYWHERE.test(name) && !isHotkeyTarget(target, e.key)) return;
-  const keys = [...pendingKeys, plainName(name)];
-  const context = target?.closest?.('#auto-panel') ? 'auto' : target?.closest?.('#ani-panel') ? 'animation' : target?.closest?.('#aplot-panel') ? 'array_plot' : target?.closest?.('#table-panel') ? 'browser' : '';
-  const {row, more} = resolveKeys(hello, keymap.info, keys, context);
+  const row = commandOnKey(hello, keymap.info, name);
+  if (!row) return;
   /* in a text field Undo and Redo are the field's own (its typing), not the Values' */
-  if (row && EDIT_COMMANDS.has(row.id) && target?.closest?.(TEXT_FIELD)) return;
-  if (!row && !more && !pendingKeys.length) return;
+  if (EDIT_COMMANDS.has(row.id) && target?.closest?.(TEXT_FIELD)) return;
   e.preventDefault();
-  dispatch({type: 'pendingKeys', keys: more ? keys : []});
-  if (row) runCommand(session, row);
-  else if (!more) dispatch({type: 'bottom', text: `${keys.join(' ')} is not a command`});
+  runCommand(session, row);
 }
 
 export function useHotkeys(session: Session): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => handleKey(session, e);
-    /* a chord waits for its next key only while the focus stays: its moving, or the window's losing it, cancels */
-    const cancel = () => session.store.dispatch({type: 'pendingKeys', keys: []});
     window.addEventListener('keydown', onKey);
-    window.addEventListener('blur', cancel);
-    document.addEventListener('focusin', cancel);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('blur', cancel);
-      document.removeEventListener('focusin', cancel);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, [session]);
 }

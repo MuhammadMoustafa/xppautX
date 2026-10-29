@@ -5,7 +5,7 @@ export function registryRows(hello: HelloEvent | null): CommandRow[] {
   return (hello?.commands ?? []).filter(row => row.arguments !== undefined).map(row => ({
     ...row, id: row.cmd, label: row.menu_path?.split('/').pop() || row.cmd,
     description: row.description ?? '', category: row.category ?? '', pinnable: true,
-    default_keys: row.default_keys ?? [], legacy_keys: row.legacy_keys === 'Esc' ? ['Escape'] : (row.legacy_keys ?? '').split('/').filter(Boolean).map(key => key.split('').join(' ')),
+    default_keys: row.default_keys ?? [],
   }));
 }
 export interface MenuNode {name: string; children: MenuNode[]; row?: CommandRow}

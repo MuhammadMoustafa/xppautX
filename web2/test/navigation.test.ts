@@ -4,7 +4,6 @@ import {registryRows, menuTree, paletteRows} from '../src/ui/navigation';
 import {argumentSpec, argumentNames, argumentProblem, commandValues, argumentControl, blankArgument} from '../src/ui/argumentFields';
 import {REGISTRY_HELLO} from './hello';
 import {initialState} from '../src/store/state';
-import {withPreset} from '../src/store/keymap';
 import type {RegistryArgument} from '../src/protocol/kinds';
 
 const rows = registryRows(REGISTRY_HELLO);
@@ -42,11 +41,6 @@ test('W517: form fields use registry types, choices, bounds and model/window nam
   assert.deepEqual(commandValues([map], {value:{p:'2'}}), {value:{p:2}});
   assert.ok(argumentProblem(list, ['wrong']));
   assert.deepEqual(commandValues([{...arg('text'), required:false}], {}), {});
-});
-test('W517: both preset buttons retain pins and identify the core preset', () => {
-  const info = {...REGISTRY_HELLO.keymap, pinned:['session.save']};
-  assert.equal(withPreset(info, 'xppaut').preset, 'xppaut');
-  assert.deepEqual(withPreset(info, 'default').pinned, ['session.save']);
 });
 
 test('W517: widget selection uses the actual registry wire types, including name and fixed lists', () => {

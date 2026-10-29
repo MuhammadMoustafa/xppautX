@@ -31,7 +31,6 @@ import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {FOCUSABLE} from './dialogFocus';
 import {FIXED_KEYS, shortcutLabel} from './hotkeys';
-import {withPreset} from '../store/keymap';
 
 /** F1's own exclusion (narrower than hotkeys.ts's TYPING: a dialog or menu
     being open must not block Help -- only a field that might have its own
@@ -77,8 +76,7 @@ function AboutBody({lines}: {lines: AboutLine[]}) {
 }
 
 /** The keyboard shortcuts, made from the registry rows (hello.commands) and the page's own few keys
-    (FIXED_KEYS), with the switch of the preset "XPPAUT sequences" (off: the table's default keys only;
-    on: each command's XPPAUT sequence as well, F then S). */
+    (FIXED_KEYS): one key each, as the user's keymap has them. */
 function KeyTable() {
   const session = useSession();
   const hello = useStore(s => s.hello);
@@ -87,11 +85,6 @@ function KeyTable() {
   return (
     <details class="help-keys">
       <summary>Keyboard shortcuts</summary>
-      <label class="help-keys-preset">
-        <input type="checkbox" checked={keymap?.preset === 'xppaut'} disabled={!keymap}
-          onChange={e => { if (keymap) session.setKeymap(withPreset(keymap, (e.target as HTMLInputElement).checked ? 'xppaut' : 'default')); }} />
-        XPPAUT sequences (a letter, or File F or Numerics U then a letter)
-      </label>
       <p><button type="button" onClick={() => session.store.dispatch({type: 'keymapUi', action: {type: 'open'}})}>Change shortcuts…</button></p>
       <table>
         <tbody>

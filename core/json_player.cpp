@@ -60,7 +60,6 @@ constexpr double VIEW_PACE_DIVISOR = 3; /* View-only presses need less display t
 constexpr double NOTE_MAX_MS = 3000; /* Cap the display pause for long notes. */
 constexpr double NOTE_CHARACTER_MS = 35; /* Reading time per note byte, as before. */
 constexpr double COMMAND_MS = 700; /* Light the step command before running it. */
-constexpr double KEY_MS = 600; /* Light a recorded menu key before answering. */
 constexpr double ANSWER_MAX_MS = 2500; /* Cap the display pause for long answers. */
 constexpr double ANSWER_BASE_MS = 900; /* Minimum pause for a recorded answer. */
 constexpr double ANSWER_CHARACTER_MS = 40; /* Additional display time per answer byte. */
@@ -76,8 +75,8 @@ struct PlayStep {
     std::string line; /* the step's JSON object, as the file has it */
     int at = 0;       /* its line in the file */
     std::string note;
-    std::string win, button, cmd; /* cmd: a command other than key, whole */
-    std::vector<std::string> keys, answers;
+    std::string cmd; /* the step's command, whole */
+    std::vector<std::string> answers;
     std::vector<size_t> files; /* the sections it read, in order */
     std::string abort;         /* the recorded interruption's `at` */
     std::vector<std::string> controls; /* checkpoint commands, in arrival order */
@@ -107,7 +106,7 @@ struct Player {
     int running = -1; /* the step running */
     bool in_command = false; /* handle_line runs the running step's command */
     bool off_script = false; /* it went where the recording does not: the user answers */
-    size_t keys_used = 0, answers_used = 0;
+    size_t answers_used = 0;
     size_t controls_used = 0;
     std::vector<bool> files_used; /* of the running step's */
     std::string pushed; /* the command line pushed, until handle_line takes it */
@@ -134,19 +133,6 @@ std::optional<SavedFile> snapshot_of(const std::string &path, const recx::Record
         path, xpp::format("The @snapshot of {}", xpp::files::split_path(path).second), rec.snapshot, SavedKind::snapshot);
     session.reading = std::move(before);
     return parsed;
-}
-
-/* the strings of the array at arr */
-std::vector<std::string> strings_of(const char *arr)
-{
-    std::vector<std::string> out;
-    const char *e;
-    for (int i = 0; arr && (e = js_elem(arr, i)) != nullptr; i++) {
-        std::string s;
-        js_string(e, s);
-        out.push_back(std::move(s));
-    }
-    return out;
 }
 
 /* Only bounded whole checkpoint coordinates can reach xpp_job's counters. */
@@ -176,24 +162,21 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
     out.line = st.line;
     out.at = st.at;
     out.note = st.note;
-    get_string(line, "win", out.win);
-    get_string(line, "button", out.button);
+    /* a step is a command: the key and button forms of a step are gone (W536) */
+    for (const char *name : {"keys", "win", "button"})
+        if (const char *member = js_find(line, name)) {
+            error = xpp::format("it holds `{}` {}: a step is a command and nothing else", name, js_raw(member));
+            return false;
+        }
     if (const char *c = js_find(line, "cmd")) out.cmd = std::string(js_raw(c));
-    out.keys = strings_of(js_find(line, "keys"));
-    for (const char *name : {"keys", "answers", "files", "during"}) {
+    for (const char *name : {"answers", "files", "during"}) {
         const char *array = js_find(line, name);
         if (array && *skip_ws(array) != '[') {
             error = xpp::format("{} is not an array", name);
             return false;
         }
     }
-    const char *keys = js_find(line, "keys"), *e;
-    for (int i = 0; keys && (e = js_elem(keys, i)) != nullptr; ++i) {
-        if (*skip_ws(e) != '"') {
-            error = "a key is not a string";
-            return false;
-        }
-    }
+    const char *e;
     const char *a = js_find(line, "answers");
     for (int i = 0; a && (e = js_elem(a, i)) != nullptr; i++) out.answers.emplace_back(js_raw(e));
     const char *f = js_find(line, "files");
@@ -237,11 +220,11 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
     }
     const char *v = js_find(line, "view");
     out.view = v && std::strncmp(v, "true", 4) == 0;
-    if (out.cmd.empty() && out.keys.empty()) {
-        error = "it has neither keys nor a cmd";
+    if (out.cmd.empty()) {
+        error = "it has no cmd";
         return false;
     }
-    if (!out.cmd.empty() && out.cmd[0] != '{') {
+    if (out.cmd[0] != '{') {
         error = "its cmd is not an object";
         return false;
     }
@@ -341,7 +324,6 @@ void diverged(const std::string &why)
 /* the running step's input `line` goes next, after its press */
 bool last_input(const PlayStep &st)
 {
-    if (player.keys_used != st.keys.size()) return false;
     for (size_t i=player.answers_used; i<st.answers.size(); ++i)
         if (!js_find(st.answers[i].c_str(), "save_replace")) return false;
     return true; /* save decisions are consumed by the owner, not another input */
@@ -377,30 +359,9 @@ void begin_step()
 {
     PlayStep &st = player.steps[static_cast<size_t>(player.next)];
     player.running = player.next;
-    player.keys_used = player.answers_used = 0;
+    player.answers_used = 0;
     player.files_used.assign(st.files.size(), false);
-    std::string line;
-    const char *what = "cmd";
-    if (!st.cmd.empty()) {
-        line = st.cmd;
-    } else {
-        std::string b;
-        BUF_LIT(b, "{\"cmd\":\"key\",\"key\":");
-        buf_str(b, st.keys[0]);
-        if (!st.win.empty()) {
-            BUF_LIT(b, ",\"win\":");
-            buf_str(b, st.win);
-        }
-        if (!st.button.empty()) {
-            BUF_LIT(b, ",\"button\":");
-            buf_str(b, st.button);
-        }
-        BUF_LIT(b, "}");
-        line = std::move(b);
-        player.keys_used = 1;
-        what = "key";
-    }
-    input_after(std::move(line), what, 0, COMMAND_MS + reading_ms(st));
+    input_after(std::string(st.cmd), "cmd", 0, COMMAND_MS + reading_ms(st));
 }
 
 /* the recorded interruption, or key read, armed for the step's job */
@@ -419,18 +380,9 @@ void push_input()
     xpp::inbox::push_own(player.input);
 }
 
-/* the recording's answer to an ask of kind: a menu's or a choice's key,
-   or the next answer, as the answer line a client sends */
-std::string answer_line(const std::string &kind, const std::string &value, bool key)
+/* the recording's answer to an ask of kind, as the answer line a client sends */
+std::string answer_line(const std::string &kind, const std::string &value)
 {
-    std::string b;
-    if (key) {
-        if (value == "Escape") return "{\"cmd\":\"answer\",\"ok\":0}";
-        BUF_LIT(b, "{\"cmd\":\"answer\",\"key\":");
-        buf_str(b, value);
-        BUF_LIT(b, "}");
-        return b;
-    }
     if (value == "null") return "{\"cmd\":\"answer\",\"ok\":0}";
     if (kind == "string") return "{\"cmd\":\"answer\",\"value\":" + value + "}";
     if (kind == "form") return "{\"cmd\":\"answer\",\"values\":" + value + "}";
@@ -852,20 +804,13 @@ void player_asked(const char *kind)
     try {
         const PlayStep &st = player.steps[static_cast<size_t>(player.running)];
         const std::string k = kind;
-        if (k == "choice") {
-            if (player.keys_used == st.keys.size()) return diverged(xpp::format("asks a {} it holds no key for", k));
-            const size_t i = player.keys_used++;
-            if (session.silent) xpp::report_automatic(xpp::format("the recording's {}", k), st.keys[i]);
-            input_after(answer_line(k, st.keys[i], true), "key", i, KEY_MS);
-        } else {
-            if (player.answers_used == st.answers.size()) return diverged(xpp::format("asks a {} it holds no answer for", k));
-            if (js_find(st.answers[player.answers_used].c_str(), "save_replace"))
-                return diverged(xpp::format("asks a {} before its recorded save decision", k));
-            const size_t i = player.answers_used++;
-            if (session.silent) xpp::report_automatic(xpp::format("the recording's {}", k), st.answers[i]);
-            input_after(answer_line(k, st.answers[i], false), "answer", i,
-                        std::min(ANSWER_MAX_MS, ANSWER_BASE_MS + ANSWER_CHARACTER_MS * static_cast<double>(st.answers[i].size())));
-        }
+        if (player.answers_used == st.answers.size()) return diverged(xpp::format("asks a {} it holds no answer for", k));
+        if (js_find(st.answers[player.answers_used].c_str(), "save_replace"))
+            return diverged(xpp::format("asks a {} before its recorded save decision", k));
+        const size_t i = player.answers_used++;
+        if (session.silent) xpp::report_automatic(xpp::format("the recording's {}", k), st.answers[i]);
+        input_after(answer_line(k, st.answers[i]), "answer", i,
+                    std::min(ANSWER_MAX_MS, ANSWER_BASE_MS + ANSWER_CHARACTER_MS * static_cast<double>(st.answers[i].size())));
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("playing a recording");
     }
@@ -890,7 +835,7 @@ void player_step_end(void)
         diverged("ended before its next answer was given"); /* the user answered for it */
     } else if (player.controls_used < st.controls.size()) {
         diverged("ended before its recorded checkpoint commands");
-    } else if (player.keys_used < st.keys.size() || player.answers_used < st.answers.size()) {
+    } else if (player.answers_used < st.answers.size()) {
         diverged("ended with recorded answers it never asked for");
     }
     player.off_script = false;

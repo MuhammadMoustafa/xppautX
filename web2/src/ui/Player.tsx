@@ -1,15 +1,15 @@
 /* The player (W59b, docs/mockups/record-play.html's player screen, docs/
    protocol.md "Playing a recording"): while the core plays a recording,
-   the step's note as a large caption above the plot, the keys it presses
-   as keycaps in a box at the top of the plot (lit one by one, as the
-   core's `press` events say, each before the core sends it), the controls
+   the step's note as a large caption above the plot, the command it runs
+   in a box at the top of the plot (lit as the core's `press` events say,
+   before the core sends it), the controls
    (Play/Pause, Step, Restart, the speed, one progress segment per step, a
    view step's half as wide), the step list with each note (click a step:
    edit its note and Save it into the .recx, or Play from here) and the
    banner of a recording changed after it was made. The core keeps the
    pace; the page only shows what it is told. */
-import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks';
-import {caption, keycaps, litButton, segments} from '../store/player';
+import {useLayoutEffect, useRef, useState} from 'preact/hooks';
+import {caption, keycaps, segments} from '../store/player';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {Plots} from './Plots';
 
@@ -48,20 +48,6 @@ function KeysBox() {
       {shown.answering && <span class="player-keys-label">then the answers</span>}
     </div>
   );
-}
-
-/* the control the step clicks, lit where it is on the page (data-button) */
-function ButtonLight() {
-  const id = useStore(s => litButton(s.player));
-  /* AUTO's buttons exist only while its view shows: look again when it opens */
-  const autoShown = useStore(s => s.diagram.open && s.diagram.shown);
-  useEffect(() => {
-    if (!id) return;
-    const el = document.querySelector<HTMLElement>(`[data-button="${CSS.escape(id)}"]`);
-    el?.classList.add('lit');
-    return () => el?.classList.remove('lit');
-  }, [id, autoShown]);
-  return null;
 }
 
 function Controls() {
@@ -174,7 +160,6 @@ function StepList() {
               <span class="player-step-label">
                 <span class="n">{i + 1}</span><b>{s.step}</b>
                 {s.view && <span class="tag">view</span>}
-                {s.button && <span class="tag">button</span>}
               </span>
             </button>
           </li>
@@ -244,7 +229,6 @@ export function PlayerStage({dark}: {dark: boolean}) {
         </div>
       </div>
       {covered ? <Dock /> : <StepList />}
-      <ButtonLight />
     </div>
   );
 }

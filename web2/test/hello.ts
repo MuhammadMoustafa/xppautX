@@ -98,7 +98,7 @@ export const HELLO: HelloEvent = {
   model_names: [], lists: [], userbuttons: [], defaults: {pars: [], ics: []},
   /* no keymap.json: every command with the table's keys (core/xpp_keymap.cpp effective_json) */
   keymap: {
-    ok: true, path: '', preset: 'default', pinned: [], reserved: RESERVED, limits: {keys: 8, parts: 2, key_bytes: 64},
+    ok: true, path: '', pinned: [], reserved: RESERVED, limits: {keys: 8, key_bytes: 64},
     commands: [],
   },
   commands: [
@@ -125,18 +125,18 @@ export const HELLO: HelloEvent = {
 
 /** the state after the server's hello: every event but hello comes after one */
 export const READY = reduce(initialState, {type: 'event', ev: HELLO});
-/** the hello with every registry row (kind, menu path, legacy keys, default keys), for the key and menu tests */
+/** the hello with every registry row (kind, menu path, default keys), for the key and menu tests */
 export const REGISTRY_HELLO: HelloEvent = {...HELLO, commands: []};
 for (const file of readdirSync('../core').filter(f => /^commands_.*\.cpp$/.test(f))) {
   const source = readFileSync(`../core/${file}`, 'utf8');
   for (const match of source.matchAll(/Command\{"([^"]+)",([\s\S]*?)\},?\n/g)) {
     const body = match[2];
-    const metadata = /XPP_KIND_(\w+),\s*CommandCategory::\w+,\s*"([^"]*)", "([^"]*)",/.exec(body);
+    const metadata = /XPP_KIND_(\w+),\s*CommandCategory::\w+,\s*"([^"]*)",/.exec(body);
     if (!metadata) continue;
     const keyName = /, (\w+)\s*$/.exec(body)?.[1];
     const keys = keyName ? new RegExp('constexpr std::array ' + keyName + ' = \\{([^}]*)\\}').exec(source)?.[1] : '';
     REGISTRY_HELLO.commands.push({cmd: match[1], arguments: [], kind: ({VIEW:'v', COMPUTE:'x', SETTING:'s', CONTROL:'c', DATA:'d'} as Record<string,string>)[metadata[1]], step: true,
-      menu_path: metadata[2], legacy_keys: metadata[3], legacy_context: /,\s*"(auto|animation|array_plot|browser)"(?:,\s*"(?:read|write)",\s*"[^"]*")?\s*$/.exec(body)?.[1] ?? '', default_keys: [...(keys ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]), description: match[1]});
+      menu_path: metadata[2], default_keys: [...(keys ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]), description: match[1]});
   }
 }
 REGISTRY_HELLO.keymap = {...HELLO.keymap, commands: REGISTRY_HELLO.commands.map(c => ({id: c.cmd, keys: c.default_keys ?? [], source: 'default'}))};

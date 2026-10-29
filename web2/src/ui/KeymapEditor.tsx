@@ -8,7 +8,7 @@ import {useLayoutEffect, useRef} from 'preact/hooks';
 import type {CommandRow} from '../protocol/kinds';
 import {
   editorRows, effectiveKeys, recordKey, replaceKey, sourceLabel, togglePinned, withKey, withoutBinding, withoutKey,
-  withPinned, withPreset, type KeymapAction,
+  withPinned, userKeymap, type KeymapAction,
 } from '../store/keymap';
 import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
 import {useSession, useStore} from './context';
@@ -96,10 +96,9 @@ function Editor() {
           onInput={e => ui({type: 'query', query: e.currentTarget.value})} /></label>
         <button type="button" data-keymap-search-keys title="Press a key combination to find the commands on it"
           onClick={() => { searchKeys.current = true; box.current?.querySelector<HTMLElement>('[data-keymap-search]')?.focus(); }}>Record keys</button>
-        <button type="button" data-keymap-default onClick={() => session.setKeymap({...withPreset(info, 'default'), bindings: {}})}>Reset to defaults</button>
-        <button type="button" data-keymap-xppaut onClick={() => session.setKeymap({...withPreset(info, 'xppaut'), bindings: {}})}>Use XPPAUT keys</button>
+        <button type="button" data-keymap-default onClick={() => session.setKeymap({...userKeymap(info), bindings: {}})}>Reset to defaults</button>
         {editor.confirmingReset
-          ? <span class="keymap-confirm" role="group" aria-label="Reset all keys and pins">Reset every key, pin and the preset?{' '}
+          ? <span class="keymap-confirm" role="group" aria-label="Reset all keys and pins">Reset every key and pin?{' '}
             <button type="button" class="danger" data-keymap-reset-confirm onClick={() => session.resetKeymap()}>Reset all</button>{' '}
             <button type="button" onClick={() => ui({type: 'confirmReset', on: false})}>Cancel</button></span>
           : <button type="button" data-keymap-reset-all onClick={() => ui({type: 'confirmReset', on: true})}>Reset all</button>}

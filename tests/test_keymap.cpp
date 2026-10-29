@@ -21,8 +21,7 @@ namespace {
 constexpr const char *FILE_LABEL = "k.json";
 
 /* the registry's rows are what the grammar and the file rules are checked against: every default key is a key,
-   none is reserved, no two commands share one, and each preset is free of clashes (no key the start of another's
-   within one context: the keymap's own check, which loading a file runs too) */
+   none is reserved, and no two commands share one (the keymap's own check, which loading a file runs too) */
 void check_table()
 {
     std::set<std::string> keys;
@@ -33,21 +32,18 @@ void check_table()
             CHECK(keys.insert(key).second); /* no two defaults on one key */
         }
     }
-    for (const char *preset : {"default", "xppaut"}) {
-        const std::string text = xpp::format("{{\"preset\":\"{}\"}}", preset);
-        const auto map = xpp::keymap::parse_keymap(text, FILE_LABEL);
-        if (!map) std::printf("preset %s: %s\n", preset, map.error().text().c_str());
-        CHECK(map.has_value());
-    }
+    const auto map = xpp::keymap::parse_keymap("{}", FILE_LABEL);
+    if (!map) std::printf("the defaults: %s\n", map.error().text().c_str());
+    CHECK(map.has_value());
 }
 
 void check_keys()
 {
-    for (const char *good : {"Ctrl+O", "Ctrl+Shift+S", "Alt+Enter", "F1", "F24", "Escape", "S", "F S", "Ctrl+K Ctrl+S", "Ctrl++",
+    for (const char *good : {"Ctrl+O", "Ctrl+Shift+S", "Alt+Enter", "F1", "F24", "Escape", "S", "Ctrl++",
                              "Ctrl+Alt+Shift+Meta+ArrowRight", "Space", "1", "/"})
         CHECK(xpp::keymap::key_problem(good).empty());
     for (const char *bad : {"", " ", "ctrl+o", "Shift+Ctrl+S", "Ctrl+Ctrl+S", "Ctrl+", "Ctrl", "o", "F0", "F25", "F01", "A B C D E",
-                            "A  B", " A", "A ", "Ctrl+Enter+X", "Esc", "ArrowLeft+A", "\xc3\xa9", "Ctrl+Shift", "Hyper+A", "a"})
+                            "A  B", " A", "A ", "F S", "Ctrl+K Ctrl+S", "Ctrl+Enter+X", "Esc", "ArrowLeft+A", "\xc3\xa9", "Ctrl+Shift", "Hyper+A", "a"})
         CHECK(!xpp::keymap::key_problem(bad).empty());
     CHECK(!xpp::keymap::key_problem(std::string(xpp::keymap::MAX_KEY_BYTES + 1, 'A')).empty());
     CHECK(xpp::keymap::is_reserved_key("Ctrl+W") && xpp::keymap::is_reserved_key("F12") && !xpp::keymap::is_reserved_key("Ctrl+S"));
@@ -67,16 +63,16 @@ void check_bad_files()
     const std::string many_keys = "{\"bindings\": {\"session.reload_model\": [\"A\",\"B\",\"C\",\"D\",\"E\",\"F\",\"G\",\"H\",\n\"I\"]}}";
     const Bad bad[] = {
         {"empty", "", 1, "not valid JSON"},
-        {"trailing comma", "{\"preset\": \"default\",}", 1, "not valid JSON"},
+        {"trailing comma", "{\"pinned\": [],}", 1, "not valid JSON"},
         {"text after", "{}\n{}", 2, "after its value"},
         {"top is an array", "[]", 1, "one JSON object"},
         {"too deep", deep.c_str(), 1, "nested too deeply"},
         {"too long", too_long.c_str(), 1, "longer than"},
         {"NUL", nul.c_str(), 1, "NUL"},
-        {"unknown setting", "{\n  \"preset\": \"default\",\n  \"colour\": 1\n}", 3, "colour"},
-        {"setting twice", "{\n\"preset\": \"default\",\n\"preset\": \"xppaut\"}", 3, "preset"},
-        {"unknown preset", "{\n\"preset\": \"emacs\"}", 2, "emacs"},
-        {"preset not a string", "{\"preset\": 3}", 1, "3"},
+        {"unknown setting", "{\n  \"pinned\": [],\n  \"colour\": 1\n}", 3, "colour"},
+        {"setting twice", "{\n\"pinned\": [],\n\"pinned\": []}", 3, "pinned"},
+        {"a preset", "{\n\"preset\": \"xppaut\"}", 2, "preset"},
+        {"the default preset", "{\"pinned\": [],\n\"preset\": \"default\"}", 2, "preset"},
         {"bindings not an object", "{\"bindings\": []}", 1, "[]"},
         {"unknown command", "{\n\"bindings\": {\n\"nosuch\": [\"A\"]}}", 3, "nosuch"},
         {"layer command", "{\"bindings\": {\"file\": [\"A\"]}}", 1, "file"},
@@ -86,14 +82,13 @@ void check_bad_files()
         {"malformed key", "{\"bindings\": {\"session.reload_model\": [\n\"ctrl+r\"]}}", 2, "ctrl+r"},
         {"modifier order", "{\"bindings\": {\"session.reload_model\": [\"Shift+Ctrl+R\"]}}", 1, "Shift+Ctrl+R"},
         {"empty key", "{\"bindings\": {\"session.reload_model\": [\"\"]}}", 1, "empty"},
-        {"too many parts", "{\"bindings\": {\"session.reload_model\": [\"A B C D E\"]}}", 1, "A B C D E"},
+        {"a sequence", "{\"bindings\": {\"session.reload_model\": [\n\"F S\"]}}", 2, "never a sequence"},
+        {"a chord", "{\"bindings\": {\"session.reload_model\": [\"Ctrl+K Ctrl+S\"]}}", 1, "Ctrl+K Ctrl+S"},
         {"too many keys", many_keys.c_str(), 2, "more than"},
         {"reserved", "{\"bindings\": {\"session.reload_model\": [\n\"Ctrl+W\"]}}", 2, "Ctrl+W"},
-        {"reserved in a chord", "{\"bindings\": {\"session.reload_model\": [\"Ctrl+K F12\"]}}", 1, "F12"},
         {"clash with a default", "{\"bindings\": {\n\"session.reload_model\": [\"Ctrl+O\"]}}", 2, "session.open_model"},
         {"clash of two", "{\"bindings\": {\"session.reload_model\": [\"Ctrl+B\"],\n\"tool.calculator\": [\"Ctrl+B\"]}}", 2, "session.reload_model"},
-        {"one key twice", "{\"bindings\": {\"session.reload_model\": [\"Ctrl+B\",\n\"Ctrl+B\"]}}", 2, "clash"},
-        {"chord start", "{\"bindings\": {\"session.reload_model\": [\"F\"],\n\"tool.calculator\": [\"F S\"]}}", 2, "F S"},
+        {"one key twice", "{\"bindings\": {\"session.reload_model\": [\"Ctrl+B\",\n\"Ctrl+B\"]}}", 2, "both on key"},
         {"pinned not an array", "{\"pinned\": {}}", 1, "{}"},
         {"pinned unknown", "{\"pinned\": [\n\"nosuch\"]}", 2, "nosuch"},
         {"pinned not pinnable", "{\"pinned\": [\"quit\"]}", 1, "quit"},
@@ -119,42 +114,30 @@ void check_bad_files()
 
 void check_good_files()
 {
-    const auto legacy = xpp::keymap::parse_keymap("{\"preset\":\"xppaut\"}", FILE_LABEL);
-    if (!legacy) std::printf("preset: %s\n", legacy.error().text().c_str());
-    CHECK(legacy.has_value());
-    if (legacy) {
-        CHECK(xpp::keymap::match_keys(*legacy, "auto", "A").prefix);
-        CHECK(xpp::keymap::match_keys(*legacy, "auto", "A").command.empty());
-        for (const char second : std::string("HNIPT"))
-            CHECK(xpp::keymap::match_keys(*legacy, "auto", std::string("A ") + second).command == "auto.configure_plot");
-        CHECK(xpp::keymap::match_keys(*legacy, "auto", "A V").command == "auto.new_view");
-        CHECK(xpp::keymap::match_keys(*legacy, "", "I G").command == "run.initial");
-    }
-    const auto separated = xpp::keymap::parse_keymap(R"({"preset":"xppaut","bindings":{"auto.run":["I G"]}})", FILE_LABEL);
-    CHECK(separated.has_value()); /* IG in AUTO and IG in the workspace are different contexts. */
-    const auto clash = xpp::keymap::parse_keymap(R"({"preset":"xppaut","bindings":{"auto.run":["A"]}})", FILE_LABEL);
+    CHECK(xpp::keymap::command_on_key({}, "Ctrl+R") == "run.initial");
+    CHECK(xpp::keymap::command_on_key({}, "Ctrl+Shift+Z") == "value.redo");
+    CHECK(xpp::keymap::command_on_key({}, "Z").empty());
+    const auto clash = xpp::keymap::parse_keymap(R"({"bindings":{"run.continue":["Ctrl+R"]}})", FILE_LABEL);
     CHECK(!clash);
     if (!clash)
-        for (const char *name : {"auto.run", "auto.configure_plot", "A", "A H"})
+        for (const char *name : {"run.continue", "run.initial", "Ctrl+R"})
             CHECK(clash.error().what.find(name) != std::string::npos);
-    CHECK(xpp::keymap::match_keys({}, "", "Ctrl+R").command == "run.initial");
 
     auto empty = xpp::keymap::parse_keymap("{}", FILE_LABEL);
-    CHECK(empty && empty->bindings.empty() && empty->pinned.empty() && empty->preset == "default");
+    CHECK(empty && empty->bindings.empty() && empty->pinned.empty());
     CHECK(xpp::keymap::parse_keymap("", FILE_LABEL).has_value() == false);
 
     const std::string text =
-        "{\r\n \"preset\": \"xppaut\",\r\n \"pinned\": [\"session.reload_model\", \"tool.calculator\"],\r\n"
-        " \"bindings\": {\"session.reload_model\": [\"Ctrl+B\"], \"session.save\": [], \"run.continue\": [\"Ctrl+K Ctrl+S\", \"Alt+I\"]}}\r\n";
+        "{\r\n \"pinned\": [\"session.reload_model\", \"tool.calculator\"],\r\n"
+        " \"bindings\": {\"session.reload_model\": [\"Ctrl+B\"], \"session.save\": [], \"run.continue\": [\"Ctrl+K\", \"Alt+I\"]}}\r\n";
     auto map = xpp::keymap::parse_keymap(text, FILE_LABEL);
     CHECK(map.has_value());
     if (!map) return;
-    CHECK(map->preset == "xppaut");
     CHECK(map->pinned == std::vector<std::string>({"session.reload_model", "tool.calculator"}));
     CHECK(xpp::keymap::effective_keys(*map, "session.reload_model") == std::vector<std::string>({"Ctrl+B"}));
     CHECK(xpp::keymap::effective_keys(*map, "session.save").empty());       /* removed */
-    CHECK(xpp::keymap::effective_keys(*map, "session.open_model") == std::vector<std::string>({"F M"})); /* the table's */
-    CHECK(xpp::keymap::effective_keys(*map, "tool.calculator") == std::vector<std::string>({"F C"}));
+    CHECK(xpp::keymap::effective_keys(*map, "session.open_model") == std::vector<std::string>({"Ctrl+O"})); /* the table's */
+    CHECK(xpp::keymap::effective_keys(*map, "tool.calculator").empty());
     /* a key a user took from a command that kept no other: free for another one */
     CHECK(xpp::keymap::parse_keymap("{\"bindings\": {\"session.open_model\": [], \"session.reload_model\": [\"Ctrl+O\"]}}", FILE_LABEL).has_value());
     /* a default key moved back to the command that has it */
@@ -163,7 +146,7 @@ void check_good_files()
     /* what is written reads back the same, and is the one text */
     const std::string again = xpp::keymap::serialize(*map);
     auto back = xpp::keymap::parse_keymap(again, FILE_LABEL);
-    CHECK(back && back->bindings == map->bindings && back->pinned == map->pinned && back->preset == map->preset);
+    CHECK(back && back->bindings == map->bindings && back->pinned == map->pinned);
     CHECK(back && xpp::keymap::serialize(*back) == again);
     CHECK(xpp::keymap::parse_keymap(xpp::keymap::serialize({}), FILE_LABEL).has_value());
 }

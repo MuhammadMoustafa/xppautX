@@ -168,25 +168,25 @@ constexpr std::array RANGE_EVENTS = {"aplot", "series", "state", "done"};
 constexpr std::array DONE_EVENTS = {"state", "done"};
 
 constexpr std::array ROWS = {
-    Command{"array_plot.open", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Viewaxes/Array", "VA",
+    Command{"array_plot.open", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Viewaxes/Array",
             "Open the array plot window.", OPEN_RESULTS, WINDOW_EVENTS, true, open},
-    Command{"array_plot.redraw", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Array plot/Redraw", "D",
-            "Draw the array plot again from the stored data.", REDRAW_RESULTS, APLOT_EVENTS, true, redraw, {}, {}, "array_plot"},
-    Command{"array_plot.configure", CONFIGURE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Array plot/Edit", "E",
+    Command{"array_plot.redraw", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Array plot/Redraw",
+            "Draw the array plot again from the stored data.", REDRAW_RESULTS, APLOT_EVENTS, true, redraw, {}, {}},
+    Command{"array_plot.configure", CONFIGURE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Array plot/Edit",
             "Set the columns and rows the array plot shows and the ends of its colour scale (z_min below z_max); what is left out stays.",
-            CONFIGURE_RESULTS, APLOT_EVENTS, true, configure, {}, {}, "array_plot"},
-    Command{"array_plot.fit", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Array plot/Fit", "F",
-            "Set the colour scale's ends to the smallest and largest value shown.", FIT_RESULTS, APLOT_EVENTS, true, fit, {}, {}, "array_plot"},
-    Command{"array_plot.range", RANGE_ALL_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Plot, "Windows/Array plot/Range", "R",
+            CONFIGURE_RESULTS, APLOT_EVENTS, true, configure, {}, {}},
+    Command{"array_plot.fit", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Array plot/Fit",
+            "Set the colour scale's ends to the smallest and largest value shown.", FIT_RESULTS, APLOT_EVENTS, true, fit, {}, {}},
+    Command{"array_plot.range", RANGE_ALL_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Plot, "Windows/Array plot/Range",
             "Run once for each value of a parameter or variable as run.range does, saving the array plot as GIF files of the model's folder: one movie, or with still one picture per run; tag writes the swept value on each.",
-            RANGE_RESULTS, RANGE_EVENTS, true, range, {}, {}, "array_plot"},
-    Command{"array_plot.export_pdf", PDF_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "File/Array plot/Print PDF", "P",
+            RANGE_RESULTS, RANGE_EVENTS, true, range, {}, {}},
+    Command{"array_plot.export_pdf", PDF_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "File/Array plot/Print PDF",
             "Write the array plot as a PDF picture into a file of the model's folder; the labels left out are the last ones.",
-            PDF_RESULTS, DONE_EVENTS, true, export_pdf, {}, {}, "array_plot", "write", "*"},
-    Command{"array_plot.export_gif", FILE_ARGUMENT, XPP_KIND_DATA, CommandCategory::Plot, "File/Array plot/GIF", "G",
-            "Write the array plot as a GIF picture into a file of the model's folder.", GIF_RESULTS, DONE_EVENTS, true, export_gif, {}, {}, "array_plot", "write", "*"},
-    Command{"array_plot.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Array plot/Scroll", "",
-            "Show the array plot from the stored row first_row on (row 0 is the first).", SCROLL_RESULTS, APLOT_EVENTS, true, scroll, {}, {}, "array_plot"}};
+            PDF_RESULTS, DONE_EVENTS, true, export_pdf, {}, {}, "write", "*"},
+    Command{"array_plot.export_gif", FILE_ARGUMENT, XPP_KIND_DATA, CommandCategory::Plot, "File/Array plot/GIF",
+            "Write the array plot as a GIF picture into a file of the model's folder.", GIF_RESULTS, DONE_EVENTS, true, export_gif, {}, {}, "write", "*"},
+    Command{"array_plot.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Array plot/Scroll",
+            "Show the array plot from the stored row first_row on (row 0 is the first).", SCROLL_RESULTS, APLOT_EVENTS, true, scroll, {}, {}}};
 
 } // namespace
 

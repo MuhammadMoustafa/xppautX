@@ -183,23 +183,23 @@ constexpr std::array CLEARED_RESULTS = {ResultField{"cleared", "boolean"}};
 constexpr std::array MARKS_EVENTS = {"marks", "state", "done"};
 
 constexpr std::array ROWS = {
-    Command{"annotation.list", NO_WINDOW, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations", "", "List the texts, arrows, pointers and markers of a graph.",
+    Command{"annotation.list", NO_WINDOW, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations", "List the texts, arrows, pointers and markers of a graph.",
             LIST_RESULTS, MARKS_EVENTS, false, list},
-    Command{"annotation.add_text", ADD_TEXT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Text", "TT", "Add a text at a point of a graph.",
+    Command{"annotation.add_text", ADD_TEXT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Text", "Add a text at a point of a graph.",
             ID_RESULT, MARKS_EVENTS, true, add_text},
-    Command{"annotation.add_arrow", HEAD_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Arrow", "TA", "Add an arrow head at the tip of a line.",
+    Command{"annotation.add_arrow", HEAD_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Arrow", "Add an arrow head at the tip of a line.",
             ID_RESULT, MARKS_EVENTS, true, add_arrow},
-    Command{"annotation.add_pointer", HEAD_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Pointer", "TP", "Add a pointer: a head and a shaft.",
+    Command{"annotation.add_pointer", HEAD_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Pointer", "Add a pointer: a head and a shaft.",
             ID_RESULT, MARKS_EVENTS, true, add_pointer},
-    Command{"annotation.add_marker", ADD_MARKER_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Marker", "TM", "Add a marker at a point of a graph.",
+    Command{"annotation.add_marker", ADD_MARKER_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Marker", "Add a marker at a point of a graph.",
             ID_RESULT, MARKS_EVENTS, true, add_marker_command},
-    Command{"annotation.edit", EDIT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Edit/Change", "TEC",
+    Command{"annotation.edit", EDIT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Edit/Change",
             "Change a text (its text, size, style, colour) or an object (its size, colour, a marker's shape).", UPDATED_RESULTS, MARKS_EVENTS, true, edit},
-    Command{"annotation.move", MOVE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Edit/Move", "TEM",
+    Command{"annotation.move", MOVE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Edit/Move",
             "Move an annotation so that its position (an object's start, its end following) is the point.", MOVED_RESULTS, MARKS_EVENTS, true, move},
-    Command{"annotation.delete", ID_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Edit/Delete", "TED", "Delete an annotation.",
+    Command{"annotation.delete", ID_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Edit/Delete", "Delete an annotation.",
             DELETED_RESULTS, MARKS_EVENTS, true, delete_one},
-    Command{"annotation.delete_all", NO_WINDOW, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Delete all", "TD",
+    Command{"annotation.delete_all", NO_WINDOW, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Annotations/Delete all",
             "Delete every annotation of a graph.", CLEARED_RESULTS, MARKS_EVENTS, true, delete_all_annotations}};
 
 } // namespace

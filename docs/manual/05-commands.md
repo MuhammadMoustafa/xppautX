@@ -26,31 +26,28 @@ Move earlier and Move later. Overflow stays in **More**.
 
 ## Keyboard shortcuts
 
-The logical defaults are Ctrl/Cmd+O for Open model, Ctrl/Cmd+S for Save
-session, Ctrl/Cmd+Shift+S for Save session as, Ctrl/Cmd+R for Run from initial,
-Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z for Undo and Redo value edits, Escape for Stop,
-F1 for Manual and Ctrl/Cmd+Shift+P for the command palette. Text fields retain
+The program is driven through commands, not letters. A key binds one command and
+is one key: a single key or a modifier combination, never a sequence of letters.
+Only a few commands have a key to begin with: Ctrl/Cmd+O for Open model,
+Ctrl/Cmd+S for Save session, Ctrl/Cmd+Shift+S for Save session as, Ctrl/Cmd+R for
+Run from initial, Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z for Undo and Redo value edits,
+Escape for Stop, F1 for Manual and Ctrl/Cmd+Shift+P for the command palette. Any
+other command can be bound to a key in the editor below. Text fields retain
 their own Undo. F6 and Shift+F6 cycle visible work panes. Reserved browser
 and system keys, including F5, Ctrl+W, Ctrl+Q, Alt+F4, F11 and F12, stay theirs.
 
 **Help > Keyboard shortcuts** lists all commands and their effective keys.
 Click a key to record a replacement; Escape cancels recording and Backspace
-clears it. Reserved keys are refused; a conflict offers Replace or Cancel.
-**Reset to defaults** selects the logical preset and clears custom bindings.
-**Use XPPAUT keys** selects each registry command's original letter sequence
-and clears custom bindings. Both retain pins. **Reset all** also removes pins
-and asks first. The file `keymap.json` keeps changes for desktop and browser.
-A malformed file is reported with its file and line, without partially applying it.
+clears it. Reserved keys are refused; a key another command has offers Replace
+or Cancel. **Reset to defaults** clears custom bindings and keeps pins. **Reset
+all** also removes pins and asks first. The file `keymap.json` keeps changes for
+desktop and browser. A malformed file, or one holding a sequence of keys, is
+reported with its file and line, without partially applying it.
 
-XPPAUT sequences run commands directly: for example, `I` then `G` runs from
-initial conditions. A prefix waits in the status bar until the next key;
-Escape or a focus change cancels it. A command that needs arguments opens
-the common form. No command is a prefix of another in the same context and preset; conflicting
-bindings are refused with both command names and keys. There is no Enter or
-timeout. In AUTO, `AH`, `AN`, `AI`, `AP` and `AT` open the same plot form: choose
-the plot kind in the form. Bare `A` only waits. Ambiguous original sequences
-are split into `IUF`/`IUA` (IC formula/array), `FON`/`FOI` (new/existing set),
-`PP`/`PF` (parameters/formula), and `FDS`/`FDT` (record start/stop).
+A key runs its command directly. A command that needs arguments opens the common
+form. Two commands cannot share a key: such a binding is refused with both
+command names and the key. XPPAUT's letter keys (`I` then `G`, `F` then `S`) are
+not kept; bind the command you want to a key in the editor instead.
 
 ## Windows and annotations
 
@@ -141,7 +138,7 @@ remain available. A script or `--silent` run exits 1 if any error occurred,
 including an output file it could not write; a successful fit exits 0
 (W133).
 
-All commands can be invoked by typing the hot key for that command (capitalized on the menu, with the XPPAUT sequences preset on) or clicking on the menu with the mouse. Usually most commands can be aborted by pressing the `Esc` key. Once one of these is chosen, the program begins to calculate and draw the trajectories. If you want to stop prematurely, press the `Esc` key and the integration will stop.
+In xppautX every command is invoked from the menu, the command palette or a key you bind to it (XPPAUT's letter keys are not kept). Usually most commands can be aborted by pressing the `Esc` key. Once one of these is chosen, the program begins to calculate and draw the trajectories. If you want to stop prematurely, press the `Esc` key and the integration will stop.
 
 **In web2**, the main menu and every one of these commands and hotkeys
 are unchanged; see [Using the interface](04-using-the-interface.md) for
@@ -509,8 +506,7 @@ This solves boundary value problems by numerical shooting. There are 4 choices.
 
 The S, N and D menus and the Numerics items sIng pt and Nullcline mesh ask as before, then run the typed commands.
 Through the protocol each command takes its values as arguments; optional arguments left out
-keep the session's current settings. The XPPAUT key preset reaches the same operations: SG
-finds an equilibrium, NN computes nullclines, DD and DS draw unscaled and scaled direction fields.
+keep the session's current settings.
 The Values panel's equilibrium and nullcline mesh settings use the same commands.
 
 `equilibrium.guess` accepts data coordinates for the named graph's two plotted variables;
@@ -526,9 +522,7 @@ The equilibrium result's Import button uses `equilibrium.import_as_ic`. With `eq
 
 The Kinescope menu, the Animation window's buttons and the Array plot window's buttons ask as before
 (a file, a form), then run typed commands; through the protocol each takes its values as arguments,
-and an argument left out keeps the current setting. The XPPAUT key preset reaches the same
-operations: KC, KR, KP, KA, KS and KM for the kinescope, VT and VA open the animation and the array
-plot. A command that cannot do its work says why: playing an empty kinescope, an animation with no
+and an argument left out keeps the current setting. A command that cannot do its work says why: playing an empty kinescope, an animation with no
 stored data, or a picture of an array plot that shows no columns yet.
 
 - `kinescope.capture`, `kinescope.reset`, `kinescope.play`, `kinescope.autoplay` (`cycles`, `frame_ms`),

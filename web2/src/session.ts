@@ -325,10 +325,10 @@ export class Session {
   /** Replace the user's keymap (docs/protocol.md "Keymap"): the answer is a `keymap` event, which is how the
       page learns the effective keys, so nothing is changed here */
   setKeymap(map: UserKeymap): void {
-    this.send({cmd: 'keymap.set', bindings: map.bindings, pinned: map.pinned, preset: map.preset});
+    this.send({cmd: 'keymap.set', bindings: map.bindings, pinned: map.pinned});
   }
 
-  /** Remove the user's keymap file: all keys, pins and the preset back to the defaults */
+  /** Remove the user's keymap file: all keys and pins back to the defaults */
   resetKeymap(): void {
     this.send({cmd: 'keymap.reset'});
   }

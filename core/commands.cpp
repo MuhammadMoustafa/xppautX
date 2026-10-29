@@ -261,13 +261,4 @@ static void do_file_com(xpp::Session &s, int com)
   }
 }
 
-/* ---- pop-up menus --------------------------------------------------- */
-
-/* the main menu's, reached from its keys (commander) */
-
-/* the ones the Numerics menu (numerics.cpp), the nullclines' (nullcline.cpp)
-   and the front end open, in the Session they pass */
-
-/* ---- the key handler ------------------------------------------------ */
-
 } // namespace xpp

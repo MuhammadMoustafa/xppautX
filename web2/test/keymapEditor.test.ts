@@ -6,7 +6,7 @@ import {test} from 'node:test';
 import type {KeymapInfo} from '../src/protocol/types';
 import {
   conflictOf, editorRows, effectiveKeys, initialKeymap, movePinned, pinnedRows, recordKey, reduceKeymap, replaceKey,
-  sourceLabel, togglePinned, userKeymap, visibleCount, withKey, withoutBinding, withoutKey, withPinned, withPreset,
+  sourceLabel, togglePinned, userKeymap, visibleCount, withKey, withoutBinding, withoutKey, withPinned,
 } from '../src/store/keymap';
 import {handleKey} from '../src/ui/hotkeys';
 import {initialState, reduce, type Action, type AppState} from '../src/store/state';
@@ -52,16 +52,14 @@ test('too many keys on one command is refused with the limit', () => {
   assert.match((result as {text: string}).text, /most keys it may \(8\)/);
 });
 
-test('a key that starts another command\'s chord clashes with it, as the core says', () => {
-  const chord = bound('session.open_model', ['Ctrl+K Ctrl+R']);
-  assert.equal(conflictOf(chord, rows, 'session.save', 'Ctrl+K')?.id, 'session.open_model');
-  assert.equal(conflictOf(chord, rows, 'session.save', 'Ctrl+K Ctrl+R')?.id, 'session.open_model');
-  assert.equal(conflictOf(chord, rows, 'session.save', 'Ctrl+K Ctrl+S'), undefined);
-  assert.equal(conflictOf(chord, rows, 'session.open_model', 'Ctrl+K'), undefined);
+test('a key another command has clashes, and only that exact key', () => {
+  assert.equal(conflictOf(info, rows, 'session.save', 'Ctrl+O')?.id, 'session.open_model');
+  assert.equal(conflictOf(info, rows, 'session.open_model', 'Ctrl+O'), undefined);
+  assert.equal(conflictOf(info, rows, 'session.save', 'Ctrl+K'), undefined);
 });
 
 test('an edit is the user\'s differences with that change: set, add, remove, reset, replace', () => {
-  assert.deepEqual(withKey(info, row('session.open_model'), 0, 'Ctrl+B'), {preset: 'default', pinned: [], bindings: {'session.open_model': ['Ctrl+B']}});
+  assert.deepEqual(withKey(info, row('session.open_model'), 0, 'Ctrl+B'), {pinned: [], bindings: {'session.open_model': ['Ctrl+B']}});
   /* a second binding keeps the first; a command with no keys gets one */
   assert.deepEqual(withKey(info, row('session.open_model'), 1, 'F9').bindings, {'session.open_model': ['Ctrl+O', 'F9']});
   assert.deepEqual(withKey(info, row('tool.keyboard_shortcuts'), 0, 'F9').bindings, {'tool.keyboard_shortcuts': ['F9']});
@@ -69,13 +67,12 @@ test('an edit is the user\'s differences with that change: set, add, remove, res
   assert.deepEqual(withoutKey(info, row('session.open_model'), 0).bindings, {'session.open_model': []});
   const changed = bound('session.open_model', ['Ctrl+B']);
   assert.deepEqual(withoutBinding(changed, 'session.open_model').bindings, {});
-  /* the other commands' bindings, the pins and the preset are carried */
-  const mixed: KeymapInfo = {...bound('tool.calculator', ['F9']), pinned: ['tool.calculator'], preset: 'xppaut'};
+  /* the other commands' bindings, the pins are carried */
+  const mixed: KeymapInfo = {...bound('tool.calculator', ['F9']), pinned: ['tool.calculator']};
   assert.deepEqual(withKey(mixed, row('session.open_model'), 0, 'Ctrl+B'),
-    {preset: 'xppaut', pinned: ['tool.calculator'], bindings: {'tool.calculator': ['F9'], 'session.open_model': ['Ctrl+B']}});
+    {pinned: ['tool.calculator'], bindings: {'tool.calculator': ['F9'], 'session.open_model': ['Ctrl+B']}});
   /* Replace gives the key to the command and takes it from the one that had it */
   assert.deepEqual(replaceKey(info, rows, row('session.open_model'), 0, 'Ctrl+S').bindings, {'session.open_model': ['Ctrl+S'], 'session.save': []});
-  assert.deepEqual(withPreset(info, 'xppaut').preset, 'xppaut');
   assert.deepEqual(withPinned(info, ['tool.calculator']).pinned, ['tool.calculator']);
 });
 

@@ -45,9 +45,9 @@ test('opening a model, a recent model, an example and the source use the session
 
 test('the keymap is replaced in its parts, and leaving is session.quit with its save', () => {
   const {session, sent} = connected();
-  session.setKeymap({preset: 'xppaut', pinned: ['reload'], bindings: {calculator: ['Ctrl+B']}});
+  session.setKeymap({pinned: ['reload'], bindings: {calculator: ['Ctrl+B']}});
   session.resetKeymap();
-  assert.deepEqual(sent, [{cmd: 'keymap.set', bindings: {calculator: ['Ctrl+B']}, pinned: ['reload'], preset: 'xppaut'}, {cmd: 'keymap.reset'}]);
+  assert.deepEqual(sent, [{cmd: 'keymap.set', bindings: {calculator: ['Ctrl+B']}, pinned: ['reload']}, {cmd: 'keymap.reset'}]);
 });
 
 test('a control answered at once settles nothing: its done is counted, the run\'s own done is the idle', () => {

@@ -2,8 +2,8 @@
    record command, records every step of the session into name.recx
    (recx.h). A step is everything from leaving idle to the next idle, the
    protocol's completion (state then idle, or a registry done): the
-   command handle_line runs, the answers to what it asks (a menu's key,
-   a dialog's values), and where it stopped when an Abort or Escape
+   command handle_line runs, the answers to what it asks (a choice's
+   key, a dialog's values), and where it stopped when an Abort or Escape
    cancelled it. The model's files and every text file the session reads
    while recording go in with them, and a note set with record note goes
    above the next step. Idle time is not recorded: nothing here keeps a
@@ -46,9 +46,8 @@ struct StepTaken {
     std::string label;                /* for a person: "Initialconds → Go" */
     std::string note;                 /* the note set before it began */
     std::string cmd;                  /* a command, including an explicit save decision */
-    size_t save_keys = 0;             /* keys present before this save's conditional choice */
-    std::vector<std::string> keys;    /* the key, then the keys that answered a menu or a choice */
-    std::vector<std::string> answers; /* every other answer: a value, a form's values, an object, null for a cancel */
+    size_t save_answers = 0;          /* answers present before this save's conditional choice */
+    std::vector<std::string> answers; /* every answer, in the order asked: a value, a form's values, an object ({"key":"y"} for a choice), null for a cancel */
     std::vector<size_t> files;        /* the file sections it read, in order */
     std::vector<std::string> during;  /* the keys the job read itself, each {"key":K,"at":AT} */
     bool view = false;                /* only changes what is shown */
@@ -109,9 +108,6 @@ std::string command_label(const char *line)
     return o.empty() ? label : label + " " + o;
 }
 
-/* the label of a key of the main window's menu `menu`, or of window win's layer */
-
-
 /* the step's line, one JSON object */
 std::string step_line(const StepTaken &t, const std::string &abort)
 {
@@ -124,12 +120,6 @@ std::string step_line(const StepTaken &t, const std::string &abort)
         for (size_t i = 0; i < v.size(); i++) j += (i ? "," : "") + v[i];
         j += "]";
     };
-    std::vector<std::string> keys;
-    for (const std::string &k : t.keys) {
-        keys.emplace_back();
-        xpp::json_append_string(keys.back(), k);
-    }
-    array("keys", keys);
     array("answers", t.answers);
     std::vector<std::string> files;
     for (size_t f : t.files) files.push_back(xpp::format("{}", f));
@@ -284,15 +274,15 @@ void record_save_permission()
 {
     StepTaken &t = recorder.step;
     if (!recorder.rec || !t.open) return;
-    t.save_keys = t.keys.size();
+    t.save_answers = t.answers.size();
 }
 
 void record_save_decision(int decision, bool asked)
 {
     StepTaken &t = recorder.step;
     if (!recorder.rec || !t.open) return;
-    if (asked && t.keys.size() > t.save_keys)
-        t.keys.pop_back(); /* this save's choice becomes a decision, not a conditional UI key */
+    if (asked && t.answers.size() > t.save_answers)
+        t.answers.pop_back(); /* this save's choice becomes a decision, not a conditional answer */
     t.answers.push_back(xpp::format("{{\"save_replace\":{}}}", decision));
 }
 
@@ -300,12 +290,6 @@ void record_answer(const char *kind, const char *answer, bool ok)
 {
     StepTaken &t = recorder.step;
     if (!recorder.rec || !t.open) return;
-    if (strcmp(kind, "choice") == 0) {
-        std::string k;
-        get_string(answer, "key", k);
-        t.keys.push_back(ok && !k.empty() ? k : "Escape");
-        return;
-    }
     if (!ok) t.answers.emplace_back("null");
     else if (strcmp(kind, "string") == 0) t.answers.emplace_back(js_find(answer, "value") ? js_raw(js_find(answer, "value")) : "\"\"");
     else if (strcmp(kind, "form") == 0) t.answers.emplace_back(js_find(answer, "values") ? js_raw(js_find(answer, "values")) : "[]");

@@ -124,13 +124,12 @@ export interface KeymapInfo {
   ok: boolean;
   /** the settings file's path ('' when the system names no config folder) */
   path: string;
-  preset: 'default' | 'xppaut';
   /** the quick-access toolbar's command ids, in order */
   pinned: string[];
   /** keys no command may take (the page and the system keep them) */
   reserved: string[];
-  /** the most keys of a command, parts of a key (a chord) and bytes of a key string */
-  limits: {keys: number; parts: number; key_bytes: number};
+  /** the most keys of a command and bytes of a key string */
+  limits: {keys: number; key_bytes: number};
   commands: KeymapCommand[];
   error?: string;
   file?: string;
@@ -142,7 +141,6 @@ export interface KeymapInfo {
 
 /** the user's differences, as keymap.json holds them and `set` replaces them */
 export interface UserKeymap {
-  preset: 'default' | 'xppaut';
   pinned: string[];
   /** command id -> its keys instead of the table's ([] = none) */
   bindings: Record<string, string[]>;
@@ -202,9 +200,6 @@ export interface StateEvent {
 export interface PlayerStep {
   note: string;
   step: string;
-  keys?: string[];
-  button?: string;
-  win?: string;
   cmd?: Record<string, unknown>;
   answers?: unknown[];
   view?: boolean;
@@ -226,7 +221,7 @@ export interface PlayerEvent {
 export interface PressEvent {
   ev: 'press';
   step: number;
-  what: 'key' | 'answer' | 'cmd';
+  what: 'answer' | 'cmd';
   index: number;
   ms: number;
 }

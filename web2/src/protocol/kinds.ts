@@ -36,8 +36,6 @@ export interface CommandKind {
   menu_path?: string;
   description?: string;
   category?: string;
-  legacy_keys?: string;
-  legacy_context?: string;
   default_keys?: string[];
   cmd: string;
   op?: string;
@@ -63,9 +61,6 @@ export interface CommandRow {
   pinnable: boolean;
   /** keys that run it from the page ("Ctrl+O": Ctrl, or Cmd on macOS) */
   default_keys: string[];
-  /** the XPPAUT sequence: the shortcut layer's key, then the item's ("F", "P") */
-  legacy_keys: string[];
-  legacy_context?: string;
 }
 
 /** the table's entry for `cmd` (the first with its op, else the one with none) */

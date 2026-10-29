@@ -49,8 +49,8 @@ constexpr std::array AT_MOST = {"flag", "mode"};
 constexpr std::array TOGETHER = {"first", "second"};
 constexpr std::array GROUPS = {Group{GroupRule::exactly_one, ONE_OF}, Group{GroupRule::at_most_one, AT_MOST},
                                Group{GroupRule::together, TOGETHER}};
-constexpr Command ROW{"test.all", ARGUMENTS, XPP_KIND_VIEW, xpp::CommandCategory::Tools, "", "", "All the types.", {}, {}, false, nothing, {}};
-constexpr Command GROUPED{"test.groups", ARGUMENTS, XPP_KIND_VIEW, xpp::CommandCategory::Tools, "", "", "Groups.", {}, {}, false, nothing, GROUPS};
+constexpr Command ROW{"test.all", ARGUMENTS, XPP_KIND_VIEW, xpp::CommandCategory::Tools, "", "All the types.", {}, {}, false, nothing, {}};
+constexpr Command GROUPED{"test.groups", ARGUMENTS, XPP_KIND_VIEW, xpp::CommandCategory::Tools, "", "Groups.", {}, {}, false, nothing, GROUPS};
 
 const xpp::Place PLACE{"command", 1, 0, "line"};
 
@@ -277,13 +277,13 @@ int main()
             const std::string line="{\"cmd\":\"keymap.set\""+(members.empty()?"":","+members)+"}";
             return validate(nullptr,keymap_set,line.c_str(),PLACE,false);
         };
-        const auto bindings=set("\"bindings\":{\"calculator\":[\"Ctrl+B\",\"F2\"],\"reload\":[]},\"pinned\":[\"calculator\"],\"preset\":\"xppaut\"");
+        const auto bindings=set("\"bindings\":{\"calculator\":[\"Ctrl+B\",\"F2\"],\"reload\":[]},\"pinned\":[\"calculator\"]");
         CHECK(bindings && bindings->map<std::vector<std::string>>("bindings").size()==2
               && bindings->map<std::vector<std::string>>("bindings")[0].second.size()==2
-              && bindings->list<std::string>("pinned").size()==1 && bindings->get<std::string>("preset")=="xppaut");
+              && bindings->list<std::string>("pinned").size()==1);
         CHECK(set("").has_value()); /* every part is optional: what is left out stays */
         for(const char *bad:{"\"bindings\":{\"calculator\":\"Ctrl+B\"}","\"bindings\":{\"calculator\":[1]}","\"bindings\":[\"x\"]",
-                             "\"bindings\":{\"c\":[\"a\",\"b\",\"c\",\"d\",\"e\",\"f\",\"g\",\"h\",\"i\"]}","\"preset\":\"vi\"","\"pinned\":[1]"})
+                             "\"bindings\":{\"c\":[\"a\",\"b\",\"c\",\"d\",\"e\",\"f\",\"g\",\"h\",\"i\"]}","\"preset\":\"xppaut\"","\"pinned\":[1]"})
             CHECK(!set(bad));
         const Command &subscribe=*find("events.subscribe");
         const auto events=[&](const std::string &members){

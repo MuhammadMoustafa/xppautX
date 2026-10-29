@@ -93,7 +93,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {findBrowser, installPerfObserver, waitFor, xppautSequences, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
+import {findBrowser, installPerfObserver, waitFor, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
 
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const opt = {bin: `xppautX${process.platform === 'win32' ? '.exe' : ''}`};
@@ -245,7 +245,6 @@ async function reloadPage() {
   await cdp.eval('window.__left = true').catch(() => {});
   await cdp.send('Page.reload');
   const loaded = await until('!window.__left && s.hello', 'the reloaded page', 30000 * SLOW);
-  await xppautSequences(cdp);
   return loaded;
 }
 
@@ -339,8 +338,8 @@ async function desktop(want) {
     emptyHost.x + 6, emptyHost.y + 6);
 
   const n0 = await S('s.seriesCount');
-  await key('i'); await key('g');
-  check('XPPAUT IG runs directly without a menu ask', await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy && !s.ask`, 'series'));
+  await key('r', 2);
+  check('Ctrl+R runs directly without a menu ask', await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy && !s.ask`, 'series'));
 
   const cols = await cdp.eval(`(() => { const s = __xpp.state(), m = (${ACTIVE}).series; const o = {};
     for (const [k, v] of m.columns) o[k] = Array.from(v); return {cols: o, names: Object.fromEntries(m.names)}; })()`);
@@ -963,9 +962,9 @@ async function keyboardOnly() {
   check('Escape clears the readout', await until('s.hover === null', 'Escape'));
   await key('0');
   check('0 resets the view', await until('w.viewport.x === null', '0'));
-  /* a prompt from the plot, cancelled with Escape: focus comes back */
-  await key('x');
-  check('X (an XPP hotkey) still works with the plot focused', await until("s.commandForm?.id === 'plot.variable_vs_time'", 'x'),
+  /* a form opened from the plot's command, cancelled with Escape: focus comes back */
+  await clickRegistry('plot.variable_vs_time');
+  check('the plot\'s variable form opens from its command', await until("s.commandForm?.id === 'plot.variable_vs_time'", 'form'),
     JSON.stringify(await S('s.ask')));
   check('its field has the focus', await until(`['INPUT','SELECT'].includes(document.activeElement.tagName) && document.activeElement.closest('[role=dialog]')`, 'field focus'));
   await key('Tab');
@@ -1784,7 +1783,7 @@ async function autoView(dir) {
     && (await lastAnswer())?.key === 'Return' && !(await cdp.eval(`!!document.querySelector('.pick-bar')`)),
     JSON.stringify(await lastAnswer()));
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('r');
+  await clickRegistry('auto.run');
   check('W517: the common AUTO form offers Periodic and retains the grabbed label', await until(`s.commandForm?.id === 'auto.run' && document.querySelector('[data-argument=kind] option[value=periodic]') && document.querySelector('[data-argument=label] input:not([type=checkbox])').value !== ''`, 'periodic start'));
   await formValues({kind:'periodic'}); await submitCommand();
   check('the periodic branch arrives', await until('!s.busy && dv.points.br.includes(2)', 'periodic', 120000));
@@ -2028,9 +2027,6 @@ async function autoView(dir) {
     && !(await cdp.eval(`!!document.querySelector('.auto-panel, .auto-show')`))
     && (await DS('d.points.x.length')) === 0, JSON.stringify(await DS('[d.open, d.shown]')));
   check('the focus goes back to the plot', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
-  await key('i');
-  check('W517: after AUTO Close, I starts a main-window registry chord', await S(`s.pendingKeys.join('') === 'I' && !s.ask`));
-  await key('Escape');
 }
 
 /* T21, T22, T23, T25: AUTO Numerics/Stop during a run (W42, GitHub #85).
@@ -2063,7 +2059,7 @@ async function autoView(dir) {
    result -- rows kept, the EP label, a second run working -- not how long
    it took: Stop latency is a perf: line, measured, never failed. */
 async function autoStopRace() {
-  await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
+  await until('!s.busy && !s.ask', 'the command before ended');
   await rendered();
   await menuRun('auto.open');
   check('AUTO Stop race: AUTO/Open AUTO opens the AUTO view',
@@ -2307,7 +2303,7 @@ async function reopenedSessionPlot(dir) {
   await menuRun('run.initial');
   check('W102: G integrates: 601 rows', await until(`w.series && w.series.rows === ${rows} && !s.busy`, 'series'));
   await openAutoAtFixedPoint();
-  await key('r');
+  await clickRegistry('auto.run');
   await okRunDialog('equilibrium');
   await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000 * SLOW);
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
@@ -2318,7 +2314,7 @@ async function reopenedSessionPlot(dir) {
   await key('Enter');
   await until('!s.busy && !s.diagram.grabbing', 'grabbed');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('r');
+  await clickRegistry('auto.run');
   await runPeriodicFromDialog();
   await until('!s.busy && !s.ask', 'periodic', 120000 * SLOW);
   const points = await DS('d.points.x.length');
@@ -2366,7 +2362,6 @@ async function lostF() {
   await desktopMetrics();
   check('lostF: the page connects', await until('s.hello && !s.busy', 'hello'));
   await openAutoAtFixedPoint();
-  check('lostF: File/Auto leaves no key pending', await until('s.pendingKeys.length === 0', 'menu after auto'), JSON.stringify(await S('s.pendingKeys')));
 
   /* sequence 2 first half: Back at once, F in the main window */
   const back = await center('.auto-back'); /* a real click, as the window gets: the focus is on the button that then goes */
@@ -2375,25 +2370,13 @@ async function lostF() {
   const menuShown = () => cdp.eval(`(() => { const r = document.querySelector('.app-menu').getBoundingClientRect(); return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.app-menu'); })()`);
   check('lostF: after Back the main menu is shown', await menuShown(),
     JSON.stringify(await cdp.eval(`[document.activeElement.tagName, document.activeElement.className]`)));
-  /* the focus returns to the plot after the button went: a key typed before that is typed on nothing, and the focus moving cancels a chord */
   await until(`document.activeElement.closest('.plot-host')`, 'the focus back on the plot');
-  await key('f');
-  check('lostF: after Back, F starts the File chord in the main window',
-    await until('s.pendingKeys.join("") === "F" && !s.busy', 'file menu after back') && await menuShown(),
-    JSON.stringify([await S('s.pendingKeys'), await cdp.eval(`document.activeElement.className`)]));
-  await key('Escape');
-  check('lostF: Escape cancels the chord', await until('!s.busy && s.pendingKeys.length === 0', 'main menu'));
-  await key('u');
-  check('lostF: after Back a typed key reaches the menu the page shows (U starts the Numerics chord)',
-    await until('s.pendingKeys.join("") === "U" && !s.busy', 'numerics after back'), JSON.stringify(await S('s.pendingKeys')));
-  await key('Escape');
-  await until('!s.busy && s.pendingKeys.length === 0', 'main menu 2');
 
-  /* sequence 1: steady state, grab the Hopf point, Periodic, then F in the AUTO view */
+  /* sequence 1: steady state, grab the Hopf point, Periodic */
   await cdp.eval(`document.querySelector('.auto-show').click()`);
   await until('s.diagram.shown', 'auto show');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
-  await key('r');
+  await clickRegistry('auto.run');
   await okRunDialog('equilibrium');
   await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000);
   /* Back during a grab: the grab ask stays open with the panel hidden, and every key is swallowed by it */
@@ -2405,14 +2388,8 @@ async function lostF() {
   await until('!s.diagram.shown', 'back during grab');
   check('lostF: Back during a grab cancels it: no ask stays open behind the main window',
     await until('!s.busy && !s.ask && !s.diagram.grabbing', 'grab cancelled'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
-  /* the hidden panel's render and effects (its focus back to the plot) are done: a focus moving after F
-     would cancel the chord (hotkeys.ts), and the store alone cannot say they ran */
+  /* the hidden panel's render and effects (its focus back to the plot) are done */
   await rendered();
-  await key('f');
-  check('lostF: ... and F starts the main File chord',
-    await until('s.pendingKeys.join("") === "F" && !s.busy && !s.ask', 'file menu after grab'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
-  await key('Escape');
-  await until('!s.busy', 'main menu 3');
   await cdp.eval(`document.querySelector('.auto-show').click()`);
   await until('s.diagram.shown', 'auto show 2');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus 2');
@@ -2424,28 +2401,25 @@ async function lostF() {
   await key('Enter');
   await until('!s.busy && !s.diagram.grabbing', 'grabbed');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('r');
+  await clickRegistry('auto.run');
   await runPeriodicFromDialog();
   await requireUntil('!s.busy', 'periodic run ended', 120000);
-  await key('f');
-  check('W517: AUTO F waits locally without a menu ask', await until(`s.pendingKeys.join('') === 'F' && !s.ask`, 'AUTO File prefix'));
-  await key('i');
-  check('W517: FI opens the same registry orbit form', await until(`s.commandForm?.id === 'auto.load_orbit_into_browser'`, 'orbit form'));
+  await clickRegistry('auto.load_orbit_into_browser');
+  check('W517: the orbit command opens its registry form', await until(`s.commandForm?.id === 'auto.load_orbit_into_browser'`, 'orbit form'));
   await key('Escape');
-  check('lostF: cancelling the form leaves no core question', await S('!s.commandForm && !s.ask && !s.pendingKeys.length'));
+  check('lostF: cancelling the form leaves no core question', await S('!s.commandForm && !s.ask'));
 
 }
 
-/* W100, sequence 1 on a run that is still going (heavy.odex, a run that cannot end on its own): F in the AUTO view
-   while the periodic run computes reaches AUTO's File menu (a view action: the run goes on, the
-   menu is answered at once), not the main window's, and nothing is left hidden in the core. */
+/* W100, sequence 1 on a run that is still going (heavy.odex, a run that cannot end on its own): Escape in the AUTO
+   view while the periodic run computes stops it, and nothing is left hidden in the core. */
 async function lostFRunning() {
-  await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
-  await rendered(); /* the new page's effects are done: a focus moving after F would cancel the chord */
+  await until('!s.busy && !s.ask', 'the command before ended');
+  await rendered(); /* the new page's effects are done */
   await menuRun('auto.open');
   const opened = await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
-  await key('r');
+  await clickRegistry('auto.run');
   await okRunDialog('equilibrium');
   await until('!s.busy && dv.points.x.length > 2', 'steady', 60000 * SLOW);
   /* a missing view is a failed check with the state, not a page error that hides which step lost it */
@@ -2464,17 +2438,14 @@ async function lostFRunning() {
   await key('Enter');
   await until('!s.busy && !s.diagram.grabbing', 'grabbed');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('r');
+  await clickRegistry('auto.run');
     const nPre = await DS('d.points.x.length');
   await runPeriodicFromDialog();
   check('lostF: the periodic run is going',
     await until(`s.busy && !s.ask && dv.points.x.length > ${nPre}`, 'periodic going', 60000 * SLOW));
-  const sent0 = await cdp.eval('__xpp.sentCount()');
-  await key('f');
-  check('W517: a prefix during AUTO sends no command or ask', await S(`s.pendingKeys.join('') === 'F' && !s.ask`) && (await cdp.eval(`__xpp.sentFrom(${sent0})`)).length === 0);
   await key('Escape');
-  check('W517: Escape stops a running job even with an unfinished prefix', await until('!s.busy && !s.ask && !s.pendingKeys.length', 'stopped', 20000 * SLOW),
-    JSON.stringify(await S('[s.busy, s.ask, s.pendingKeys, s.stopping, __xpp.sent().slice(-3)]')));
+  check('W536: Escape stops a running AUTO job', await until('!s.busy && !s.ask', 'stopped', 20000 * SLOW),
+    JSON.stringify(await S('[s.busy, s.ask, s.stopping, __xpp.sent().slice(-3)]')));
 
 }
 
@@ -2488,8 +2459,7 @@ async function busyAuto() {
   await menuRun('auto.open');
   check('busy: File/Auto opens the AUTO view', await until('s.diagram.open && dv.axes && !s.busy', 'auto open'));
   await focusPlot();
-  await key('i');
-  await key('g');
+  await key('r', 2);
   /* s.computing, not just s.busy: the controls are disabled by the core's
      `computing` event (W95), which comes a moment after the command starts;
      reading them on s.busy alone raced it (macos-ui, 2026-10-01) */
@@ -2559,9 +2529,7 @@ async function busyKeys() {
     JSON.stringify(viewSent) === JSON.stringify([{cmd:'window.create'}]) && await S('s.busy'), JSON.stringify(viewSent));
   const sent0 = await cdp.eval('__xpp.sentCount()');
   await focusPlot();
-  await key('i');
-  await key('s');
-  await key('c');
+  await key('r', 2);
   const typed = await cdp.eval(`__xpp.sentFrom(${sent0})`);
   const track = await cdp.eval(`(() => { const el = document.getElementById('slider-range-${sid}'); el.scrollIntoView({block:'nearest'}); const r = el.getBoundingClientRect();
     return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
@@ -2577,7 +2545,7 @@ async function busyKeys() {
   await editField('num', 'Nullcline mesh', '50');
   const edited = await cdp.eval(`__xpp.sent().slice(${sent0 + dragged.length})`);
   const stillBusy = await S('s.busy');
-  check('busy keys: computation keys typed during a run (I, S, C) send nothing',
+  check('busy keys: computation keys typed during a run (Ctrl+R) send nothing',
     typed.length === 0 && stillBusy, JSON.stringify({typed, stillBusy}));
   check('W106: during the run a slider, a parameter field and a Numerics field send their edits at once (sets), '
     + 'shown as the values, with no pending mark',
@@ -2616,9 +2584,8 @@ async function busyKeys() {
   await requireUntil('!s.busy', 'Total applied');
   const n1 = await S('s.seriesCount');
   await focusPlot();
-  await key('i');
-  await key('g');
-  check('busy keys: after the run I then G typed at once integrate, with the slider\'s edit applied',
+  await key('r', 2);
+  check('busy keys: after the run Ctrl+R typed at once integrates, with the slider\'s edit applied',
     await until(`s.seriesCount > ${n1} && w.series.rows === 401 && !s.busy`, 'I G after the run', 30000)
     && await S(`Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9 && s.values.inflight.length === 0`),
     JSON.stringify(await S('[s.busy, s.ask, w.series && w.series.rows, s.values.inflight]')));
@@ -2719,7 +2686,7 @@ async function recordCheck(dir) {
 
   /* W59d: File/Quit (F Q) asks one question, as the window's close box does:
      Save session (S), Don't save (D), Cancel; Escape keeps the session */
-  await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
+  await until('!s.busy && !s.ask', 'the command before ended');
   await rendered(); /* the new page's effects are done: a focus moving after F would cancel the chord */
   await menuRun('session.quit');
   check('quit: File/Quit asks "Quit xppautX? Save this session first?", Save session (S), Don\'t save (D), Cancel',
@@ -3039,9 +3006,8 @@ async function steadyCheck() {
   check('steady: normal Run uses the duration and clears the previous result', await until(`!s.busy && Math.abs(s.core.time - 3) < 1e-8 && !s.core.steady`, 'duration run'));
 }
 
-/* W208 (docs/command-design.md): the keyboard layer is one dispatcher from a key to a command. The default
-   keys come from the command table; the XPPAUT sequences are a preset, off in a new page: F then S is a chord
-   over the same dispatcher, shown while pending and cancelled by Esc or a change of focus; the keys the
+/* W208 (docs/command-design.md): the keyboard layer is one dispatcher from a key to a command. A binding is one key
+   (W536: no letter sequences, no chords, no XPPAUT preset); the default keys come from the command table; the keys the
    system and the browser keep are never prevented. A keydown listener registered after the page's own sees
    defaultPrevented as the page left it. */
 async function keymapCheck() {
@@ -3049,7 +3015,7 @@ async function keymapCheck() {
   await focusPlot();
   const mark = await cdp.eval('__xpp.sentCount()');
   await key('i'); await key('g');
-  check('W517: default keys leave plain XPPAUT letters alone', await S('s.pendingKeys.length === 0') && (await cdp.eval(`__xpp.sentFrom(${mark})`)).length === 0);
+  check('W536: plain letters run nothing: there are no letter sequences', (await cdp.eval(`__xpp.sentFrom(${mark})`)).length === 0);
   await key('r', 2);
   check('W517: Ctrl+R runs directly through the registry', await until(`s.core.rows === 601 && !s.busy`, 'logical run') && await cdp.eval(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'run.initial')`));
   await key('o',2);
@@ -3058,17 +3024,8 @@ async function keymapCheck() {
   await key('P',10);
   check('W517: Ctrl+Shift+P opens palette', await until('s.drawerOpen', 'palette key'));
   await key('Escape');
-  await xppautSequences(cdp);
-  await focusPlot();
-  await key('i');
-  check('W517: XPPAUT I waits as a registry chord', await S(`s.pendingKeys.join('') === 'I' && !s.ask`));
-  await key('Escape');
-  check('W517: Escape cancels the chord', await S('s.pendingKeys.length === 0'));
-  const before = await S('s.seriesCount');
-  await key('i'); await key('g');
-  check('W517: XPPAUT IG runs the same command directly', await until(`s.seriesCount > ${before} && !s.busy && !s.ask`, 'legacy run'));
   const reserved = await cdp.eval(`[['F5',{}],['w',{ctrlKey:true}],['F4',{altKey:true}],['F12',{}]].map(([key,mods]) => document.querySelector('.plot-host').dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...mods})))`);
-  check('W517: reserved keys are never prevented under either preset', reserved.every(Boolean));
+  check('W517: reserved keys are never prevented', reserved.every(Boolean));
 }
 
 
@@ -3080,12 +3037,11 @@ async function keymapEditorCheck() {
   await desktopMetrics();
   await clickRegistry('tool.keyboard_shortcuts');
   check('W517: editor lists the registry', await until(`s.keymap.editor.open && document.querySelectorAll('[data-keymap-row]').length === s.hello.commands.filter(c => c.arguments !== undefined).length`, 'editor'));
-  await cdp.eval(`document.querySelector('[data-keymap-xppaut]').click()`);
-  check('W517: Use XPPAUT keys selects original sequences', await until(`s.keymap.info.preset === 'xppaut' && s.keymap.info.commands.find(c => c.id === 'run.initial').keys.includes('I G')`, 'XPPAUT preset'));
+  check('W536: the editor has no XPPAUT key preset', !await exists('[data-keymap-xppaut]') && await S('!("preset" in s.keymap.info)'));
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
   check('W517: registry commands stay pinnable', await until(`s.keymap.info.pinned.includes('run.initial')`, 'pin'));
   await cdp.eval(`document.querySelector('[data-keymap-default]').click()`);
-  check('W517: Reset to defaults retains pins and restores logical keys', await until(`s.keymap.info.preset === 'default' && s.keymap.info.pinned.includes('run.initial') && s.keymap.info.commands.find(c => c.id === 'run.initial').keys.includes('Ctrl+R')`, 'defaults'));
+  check('W517: Reset to defaults retains pins and restores logical keys', await until(`s.keymap.info.pinned.includes('run.initial') && s.keymap.info.commands.find(c => c.id === 'run.initial').keys.includes('Ctrl+R')`, 'defaults'));
   await cdp.eval(`document.querySelector('[data-key-cell="session.reload_model"][data-index="0"]').click()`);
   await key('b',2);
   check('W517: recording a custom key saves the registry id', await until(`s.keymap.info.commands.find(c => c.id === 'session.reload_model').keys.includes('Ctrl+B')`, 'custom key'));
@@ -3103,8 +3059,6 @@ async function keymapEditorCheck() {
 
 async function keysCheck() {
   await desktopMetrics();
-  await cdp.eval(`__xpp.keyPreset('default')`);
-  await until(`s.keymap.info.preset === 'default'`, 'default keys');
   await focusPlot();
   await key('r',2);
   check('W517: logical run key does not open a menu ask', await until('s.core.rows === 601 && !s.busy && !s.ask', 'run'));
@@ -3534,11 +3488,8 @@ async function helpCheck() {
 
   /* W229: File/Help (key h) is gone with the core's `help` event: the title bar's Help button and F1 open it */
   await focusPlot();
-  await key('f');
-  await until('s.pendingKeys.join("") === "F" && !s.busy', 'file menu');
   await key('h');
-  check('help: File/Help is gone: the key h opens nothing and the chord ends',
-    await until('s.pendingKeys.length === 0 && !s.busy', 'chord ended') && (await S('s.help.open')) === false, JSON.stringify(await S('s.help')));
+  check('help: a plain h opens nothing', await until('!s.busy', 'idle') && (await S('s.help.open')) === false, JSON.stringify(await S('s.help')));
 }
 
 /* W170: heavy.odex's expensive RHS with widely spaced stored rows leaves
@@ -4978,7 +4929,6 @@ async function sessionAttempt(ode, fn, expected, attempts) {
     await cdp.eval('window.__left = true').catch(() => {});
     await cdp.send('Page.navigate', {url: server.url});
     await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
-    if (fn !== keymapCheck && fn !== keymapEditorCheck) await xppautSequences(cdp);
     await fn(dir);
     const errors = (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));

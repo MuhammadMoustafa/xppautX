@@ -125,11 +125,10 @@ bool is_abort(const char *line)
 {
     if (xpp::command::name(line) == ABORT_COMMAND) return true;
     if (!is_cmd(line, "key")) return false;
-    std::string key, context;
+    std::string key;
     if (!get_string(line, "key", key)) return false;
-    get_string(line, "context", context);
     const auto map = xpp::keymap::load_keymap();
-    return map && xpp::keymap::match_keys(*map, context, key).command == ABORT_COMMAND;
+    return map && xpp::keymap::command_on_key(*map, key) == ABORT_COMMAND;
 }
 
 /* the parameters' edit: acted on at once under a job that computes nothing (a prompt open, the animation playing),
@@ -603,31 +602,23 @@ XppUi make_json_ui(void)
 
 const XppUi json_ui = make_json_ui();
 
-/* Keys name a registry command through the same checked keymap the page receives. */
+/* A key names the registry command bound to it in the same checked keymap the page receives. */
 void key_command(xpp::Session &s, const char *line)
 {
-    std::string key, context;
-    if (!get_string(line, "key", key) || js_find(line, "menu") || js_find(line, "item") || js_find(line, "win") || js_find(line, "button")) {
-        j_command_error("key", "A key command needs key and optional context; menu layers are gone");
+    std::string key;
+    if (!get_string(line, "key", key) || js_find(line, "menu") || js_find(line, "item") || js_find(line, "win") || js_find(line, "button") || js_find(line, "context")) {
+        j_command_error("key", "A key command needs key, and nothing else");
         return;
     }
-    get_string(line, "context", context);
     const auto map = xpp::keymap::load_keymap();
     if (!map) { xpp::show_error(map.error()); return; }
     if (const std::string problem = xpp::keymap::key_problem(key); !problem.empty()) {
         j_command_error("key", problem); return;
     }
-    if (context != session.pending_key_context) session.pending_keys.clear();
-    session.pending_key_context = context;
-    if (key == "Escape" && !session.pending_keys.empty()) {session.pending_keys.clear(); return;}
-    if (!session.pending_keys.empty()) session.pending_keys += ' ';
-    session.pending_keys += key;
-    const auto match = xpp::keymap::match_keys(*map, context, session.pending_keys);
-    if (match.prefix) return;
-    session.pending_keys.clear();
-    if (match.command.empty()) { j_command_error("key", "The key has no command in this context and preset"); return; }
+    const std::string name = xpp::keymap::command_on_key(*map, key);
+    if (name.empty()) { j_command_error("key", xpp::format("No command is bound to the key \"{}\"", key)); return; }
     std::string command = "{\"cmd\":";
-    json_append_string(command, match.command);
+    json_append_string(command, name);
     command += '}';
     record_begin(command.c_str());
     xpp::ok_or_show(xpp::command::run_button(s, command, xpp::command_place()));

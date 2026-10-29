@@ -188,7 +188,6 @@ def stops_idle(e):
 
 STOPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'stops')
 STOPS_KNOWN = {}  # case id -> (card that fixes it, reason it is not started or None)
-STOPS_PLAIN_GO = [{'key': 'g'}]  # the Integrate or Equilibria menu's Go
 STOPS_RUN = {'cmd': 'run.initial'}
 STOPS_RANGE_A = {'cmd': 'run.range', 'variable': 'a', 'steps': 2, 'start': 1, 'end': 3}  # Range over a, 1 to 3 (the three runs a = 1, 2, 3)
 STOPS_CASES = [
@@ -262,8 +261,8 @@ STOPS_CASES = [
 ]
 
 
-def stops_run(path, key, replies, then=(), first=(), command=None):
-    """the messages and state of one run: the command (a registry command), or a key and the answers to
+def stops_run(path, command, replies, then=(), first=()):
+    """the messages and state of one run: the command (a registry command) and the answers to
     its asks in order, then idle; then each of the commands `then`, run to idle; the commands `first`
     before it"""
     s = Server(args.server, path)
@@ -272,7 +271,7 @@ def stops_run(path, key, replies, then=(), first=(), command=None):
         for setting in first:
             s.send(**setting)
             s.collect(stops_idle, timeout=60 * SLOW)
-        s.send(**command) if command else s.send(cmd='key', key=key)
+        s.send(**command)
         pending, got = list(replies), []
         while True:
             evs, e = s.collect(lambda e: is_ask(e) or stops_idle(e), timeout=60 * SLOW)
@@ -341,7 +340,7 @@ def check_stops():
             continue
         path = os.path.join(STOPS_DIR, case['model'] + '.odex')
         try:
-            parts = stops_parts(case, stops_run(path, case.get('key'), case.get('replies', []), case.get('then', ()), case.get('first', ()), case.get('command')), path)
+            parts = stops_parts(case, stops_run(path, case['command'], case.get('replies', []), case.get('then', ()), case.get('first', ())), path)
             if 'silent' in case:
                 parts += stops_silent(path, case['silent'])
         except Exception as exc:  # a crash or a wait that ran out is a failure of the case, never a pass
@@ -1188,14 +1187,17 @@ def check_registry():
                          dict(cmd='key', win='equilibrium', key='i'),
                          dict(cmd='set', kind='num', name='nullcline_mesh', value=20)]:
             snd(**obsolete); evs, _ = col(lambda e: e.get('ev') in ('idle', 'done'))
-            check('W522: old analysis form is unknown', any('Unknown' in e.get('error', '') or 'key has no command' in e.get('error', '') or 'not a key press' in e.get('error', '') or 'menu layers are gone' in e.get('error', '')
+            check('W522: old analysis form is unknown', any('Unknown' in e.get('error', '') or 'needs key, and nothing else' in e.get('error', '')
                   for e in evs), str(evs)[-500:])
-        # Prefixes wait in the checked keymap without opening a core menu ask.
-        for preset, key in [('default', 'Ctrl+R'), ('xppaut', 'I G')]:
-            request({'cmd':'keymap.set','bindings':{},'preset':preset})
-            snd(cmd='key', key=key); evs, _ = col(lambda e: e.get('ev') in ('idle','done'))
-            check('W517: '+preset+' key runs the registry command without a menu ask',
-                  not any(e.get('ev') == 'ask' for e in evs) and any(e.get('ev') == 'computing' for e in evs), str(evs)[-500:])
+        # A key runs the registry command bound to it, with no menu ask; XPPAUT's letters are no keys.
+        request({'cmd':'keymap.set','bindings':{}})
+        snd(cmd='key', key='Ctrl+R'); evs, _ = col(lambda e: e.get('ev') in ('idle','done'))
+        check('W536: the default key runs the registry command without a menu ask',
+              not any(e.get('ev') == 'ask' for e in evs) and any(e.get('ev') == 'computing' for e in evs), str(evs)[-500:])
+        for sequence in ('I G', 'I'):
+            snd(cmd='key', key=sequence); evs, _ = col(lambda e: e.get('ev') in ('idle','done'))
+            check('W536: %r is no key: XPPAUT letters are no bindings' % sequence,
+                  len([e for e in evs if e.get('error')]) == 1 and not any(e.get('ev') in ('ask', 'computing') for e in evs), str(evs)[-500:])
         request({'cmd':'keymap.reset'})
         # These are real recorded steps, whose JSON commands retain names.
         snd(cmd='recording.start'); col(lambda e: e.get('ev') in ('idle', 'done'))
@@ -1215,7 +1217,7 @@ def check_registry():
             check('registry: named window recording replays silently', replay.returncode == 0, replay.stderr[-1000:])
         finally:
             shutil.rmtree(replay_dir)
-        generated = ['| Command | Arguments | Kind / category | Menu / XPPAUT keys | Result | Events | Description |',
+        generated = ['| Command | Arguments | Kind / category | Menu | Result | Events | Description |',
                      '|---|---|---|---|---|---|---|']
         for command in registry:
             def describe_argument(a):
@@ -1235,9 +1237,9 @@ def check_registry():
             if command.get('groups'):
                 arguments += '; ' + '; '.join('%s %s' % (groups[g['rule']], ', '.join('`%s`' % n for n in g['arguments'])) for g in command['groups'])
             results = ', '.join('`%s`: `%s`' % (r['name'], r['type']) for r in command['result'])
-            generated.append('| `%s` | %s | `%s` / %s | %s / %s | %s | %s | %s |' %
+            generated.append('| `%s` | %s | `%s` / %s | %s | %s | %s | %s |' %
                              (command['cmd'], arguments, command['kind'], command['category'],
-                              command['menu_path'] or 'none', command['legacy_keys'] or 'none', results,
+                              command['menu_path'] or 'none', results,
                               ', '.join('`%s`' % e for e in command['events']), command['description']))
         generated = '\n'.join(generated) + '\n'
         path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs', 'protocol.md')
@@ -1367,22 +1369,23 @@ def check_session_commands():
         # the keymap
         done, evs = call(cmd='keymap.get')
         check('W528: keymap.get answers the user\'s own differences, and sends the keymap event',
-              done['result'] == {'bindings': {}, 'pinned': [], 'preset': 'default'} and any(e.get('ev') == 'keymap' and e['op'] == 'get' for e in evs), str(done))
-        done, evs = call(cmd='keymap.set', bindings={'session.reload_model': ['Ctrl+B']}, pinned=['tool.calculator'], preset='xppaut')
+              done['result'] == {'bindings': {}, 'pinned': []} and any(e.get('ev') == 'keymap' and e['op'] == 'get' for e in evs), str(done))
+        done, evs = call(cmd='keymap.set', bindings={'session.reload_model': ['Ctrl+B']}, pinned=['tool.calculator'])
         km = next((e['keymap'] for e in evs if e.get('ev') == 'keymap'), {})
         check('W528: keymap.set writes the parts given and sends the effective keymap',
-              done['result'] == {'saved': True} and km.get('preset') == 'xppaut' and km.get('pinned') == ['tool.calculator']
+              done['result'] == {'saved': True} and 'preset' not in km and km.get('pinned') == ['tool.calculator']
               and os.path.exists(os.path.join(config, 'keymap.json')), str(done) + str(km)[:200])
         done, _ = call(cmd='keymap.set', pinned=['session.reload_model'])
         done2, _ = call(cmd='keymap.get')
-        check('W528: keymap.set leaves out what it is not given: the bindings and the preset stay',
-              done2['result'] == {'bindings': {'session.reload_model': ['Ctrl+B']}, 'pinned': ['session.reload_model'], 'preset': 'xppaut'}, str(done2))
+        check('W528: keymap.set leaves out what it is not given: the bindings stay',
+              done2['result'] == {'bindings': {'session.reload_model': ['Ctrl+B']}, 'pinned': ['session.reload_model']}, str(done2))
         for bad, text in ((dict(bindings={'session.reload_model': 'Ctrl+B'}), 'bindings'), (dict(bindings={'nosuch': ['Ctrl+B']}), 'nosuch'),
                           (dict(bindings={'session.reload_model': ['ctrl+b']}), 'ctrl+b'), (dict(bindings={'session.reload_model': ['Ctrl+W']}), 'Ctrl+W'),
                           (dict(bindings={'session.reload_model': ['Ctrl+B'], 'tool.calculator': ['Ctrl+B']}), 'Ctrl+B'), (dict(pinned=['quit']), 'quit'),
-                          (dict(preset='vi'), 'Invalid choice'),
-                          (dict(preset='xppaut', bindings={'auto.run': ['A']}), 'auto.configure_plot'),
-                          (dict(bindings={'session.reload_model': ['Ctrl+K'], 'tool.calculator': ['Ctrl+K S']}), 'Ctrl+K S')):
+                          (dict(preset='default'), 'preset'),
+                          (dict(bindings={'session.reload_model': ['Ctrl+K S']}), 'never a sequence'),
+                          (dict(bindings={'session.reload_model': ['Ctrl+K Ctrl+S']}), 'Ctrl+K Ctrl+S'),
+                          (dict(bindings={'auto.run': ['Ctrl+R']}), 'run.initial')):
             done, _ = call(cmd='keymap.set', **bad)
             kept, _ = call(cmd='keymap.get')
             check('W528: keymap.set %s is refused, the keymap as it was' % json.dumps(bad),
@@ -2225,17 +2228,7 @@ def check_registry_menu(table):
           chords == {'run.initial': ['Ctrl+R'], 'run.abort': ['Escape'], 'value.undo': ['Ctrl+Z'], 'value.redo': ['Ctrl+Shift+Z'],
                      'session.open_model': ['Ctrl+O'], 'session.save': ['Ctrl+S'], 'session.save_as': ['Ctrl+Shift+S'],
                      'tool.command_palette': ['Ctrl+Shift+P'], 'tool.manual': ['F1']}, str(chords))
-    plot = next((r for r in table if r['cmd'] == 'auto.configure_plot'), {})
-    check('W517: AUTO\'s Axes are the plot kinds of XPPAUT\'s Axes menu (AH, AN, AI, AP, AT) and a bare A binds nothing',
-          plot.get('legacy_keys') == 'AH/AN/AI/AP/AT' and not any(r['legacy_keys'] == 'A' and r['legacy_context'] == 'auto' for r in table),
-          str(plot.get('legacy_keys')))
-    contexts = {}
-    for r in table:
-        for sequence in filter(lambda k: k not in ('', 'Esc'), r['legacy_keys'].split('/')):
-            contexts.setdefault(r['legacy_context'], []).append((sequence, r['cmd']))
-    clashes = [(a, b) for sequences in contexts.values() for a, ca in sequences for b, cb in sequences
-               if (a, ca) != (b, cb) and b.startswith(a)]
-    check('W517: within a key context no XPPAUT sequence is the start of another, or twice', not clashes, str(clashes[:5]))
+    check('W536: a command row carries no XPPAUT letters', not any('legacy_keys' in r or 'legacy_context' in r for r in table), str(table[:1]))
 
 
 check_registry_menu([c for c in hello.get('commands', []) if 'arguments' in c])
@@ -2526,12 +2519,6 @@ if acts:
     collect(is_idle)
     collect(is_idle)
 
-# W229: File/Help, Tutorial, Preferences and Clone model are gone: their keys (h, u, x, l) ask and open nothing
-for gone_key in 'huxl':
-    send(cmd='key', key='F '+gone_key.upper())
-    evs, _ = collect(is_idle)
-    check(f'W517: removed File sequence {gone_key} has one error and no menu ask',
-          len([e for e in evs if e.get('error')]) == 1 and not any(e.get('ev') == 'ask' for e in evs), str(evs)[-300:])
 send(cmd='session.export_info', file='info.txt')
 evs, _ = collect(is_idle)
 check('simulation information is written by the registry command', os.path.exists(os.path.join(run,'info.txt')), str(evs)[-300:])
@@ -2988,14 +2975,12 @@ def check_stable_navigation():
     server=Server(args.server,args.ode)
     try:
         server.collect(is_idle)
-        for preset,parts in [('default',['Ctrl+R']),('xppaut',['I','G'])]:
-            server.send(cmd='keymap.set',preset=preset,bindings={})
-            server.collect(is_idle)
-            for index,part in enumerate(parts):
-                server.send(cmd='key',key=part)
-                evs,_=server.collect(is_idle)
-                check(f'W517: {preset} {part} opens no menu ask',not any(e.get('ev')=='ask' for e in evs),str(evs)[-300:])
-                if index==len(parts)-1:check('W517: completed key starts integration',any(e.get('ev')=='computing' for e in evs),str(evs)[-300:])
+        server.send(cmd='keymap.set',bindings={})
+        server.collect(is_idle)
+        server.send(cmd='key',key='Ctrl+R')
+        evs,_=server.collect(is_idle)
+        check('W517: the default key opens no menu ask',not any(e.get('ev')=='ask' for e in evs),str(evs)[-300:])
+        check('W517: the key starts integration',any(e.get('ev')=='computing' for e in evs),str(evs)[-300:])
         server.send(cmd='keymap.reset');server.collect(is_idle)
         for command in [dict(cmd='key',menu='main',item='undo'),dict(cmd='key',win='auto',key='r')]:
             server.send(**command);evs,_=server.collect(is_idle)
@@ -8931,6 +8916,13 @@ def check_terminal_playback():
             check('W144: recorded path %r is refused at its step without writing anything' % name,
                   result.returncode == 1 and result.stderr.count(path + ':') == 1
                   and sorted(os.listdir(destination)) == before and open(saved, 'rb').read() == data, result.stderr)
+        for form in [{'keys': ['i', 'g']}, {'cmd': {'cmd': 'run.initial'}, 'keys': ['Ctrl+R']}, {'cmd': {'cmd': 'run.initial'}, 'win': 'auto'}]:
+            with open(path, 'w', encoding='utf-8', newline='\n') as f: f.write(recording_text(template, [form]))
+            result = play(automatic=True)
+            member = next(m for m in ('keys', 'win') if m in form)
+            check('W536: a recorded step with %s is refused with its file, line and value' % member,
+                  result.returncode == 1 and result.stderr.count(path + ':') >= 1 and '`%s`' % member in result.stderr
+                  and 'a step is a command' in result.stderr, result.stderr)
         foreign = os.path.join(source, 'reserved.ode')
         with open(foreign, 'w') as f: f.write("par and=1\nx'=and\ndone\n")
         converted = foreign[:-4] + '.odex'
@@ -8945,7 +8937,7 @@ def check_terminal_playback():
               and '(60 s)' in result.stderr, result.stderr)
         model = os.path.join(source, 'other.odex')
         with open(args.ode, 'rb') as f: embedded = f.read().replace(b'  animation: \"ml.anix\",\n', b'')
-        steps = [{'cmd':{'cmd': 'session.open_model', 'file': model}, 'keys':['d']},
+        steps = [{'cmd':{'cmd': 'session.open_model', 'file': model}, 'answers':[{'key':'d'}]},
                  {'cmd':{'cmd':'file', 'op':'put', 'name':'next.dat', 'data':base64.b64encode(data).decode()}}]
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(recording_text(template, steps, [('other.odex', embedded), ('.xpprc', b'')]))
@@ -9129,11 +9121,11 @@ def check_keymap():
         km = next(e for e in evs if e.get('ev') == 'hello')['keymap']
         cmds = by_id(km)
         check("W211: hello gives the default keymap when there is no file: ok, preset default, nothing pinned, the table's keys, all source default",
-              km['ok'] is True and km['preset'] == 'default' and km['pinned'] == [] and same(km['path'], path)
+              km['ok'] is True and 'preset' not in km and km['pinned'] == [] and same(km['path'], path)
               and cmds['session.open_model']['keys'] == ['Ctrl+O'] and cmds['run.initial']['keys'] == ['Ctrl+R']
               and all(c['source'] == 'default' for c in cmds.values()) and 'file' not in cmds, str(km)[:300])
         check('W211: hello gives the reserved keys and the limits the editor keeps to',
-              'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'parts': 4, 'key_bytes': 64},
+              'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'key_bytes': 64},
               str(km['limits']))
         # W232: the start made the folder for preferences.setx (the model it was started with); reading the keymap made no file
         check('W211: reading the keymap makes no keymap.json', not os.path.exists(path))
@@ -9143,26 +9135,27 @@ def check_keymap():
               [e.get('op') for e in keymap_events(evs)] == ['get'] and keymap_events(evs)[0]['keymap'] == km
               and not errors(evs), str(evs)[-300:])
 
-        good = {'preset': 'xppaut', 'pinned': ['session.reload_model', 'tool.calculator'],
-                'bindings': {'session.reload_model': ['Ctrl+B', 'Ctrl+K Ctrl+S'], 'session.save': [], 'run.continue': ['Alt+I']}}
+        good = {'pinned': ['session.reload_model', 'tool.calculator'],
+                'bindings': {'session.reload_model': ['Ctrl+B', 'Ctrl+K'], 'session.save': [], 'run.continue': ['Alt+I']}}
         snd(cmd='keymap.set', **good)
         evs, _ = col(is_idle)
         ev = keymap_events(evs)
         cmds = by_id(ev[0]['keymap']) if ev else {}
         check('W211: set checks the map, makes the folder, writes the file and answers the effective keymap',
               len(ev) == 1 and ev[0]['op'] == 'set' and ev[0]['keymap']['ok'] is True and not errors(evs)
-              and ev[0]['keymap']['preset'] == 'xppaut' and ev[0]['keymap']['pinned'] == ['session.reload_model', 'tool.calculator']
-              and cmds['session.reload_model'] == {'id': 'session.reload_model', 'keys': ['Ctrl+B', 'Ctrl+K Ctrl+S'], 'source': 'user'}
+              and 'preset' not in ev[0]['keymap'] and ev[0]['keymap']['pinned'] == ['session.reload_model', 'tool.calculator']
+              and cmds['session.reload_model'] == {'id': 'session.reload_model', 'keys': ['Ctrl+B', 'Ctrl+K'], 'source': 'user'}
               and cmds['session.save'] == {'id': 'session.save', 'keys': [], 'source': 'user'}
               and cmds['session.open_model']['source'] == 'default' and os.path.isfile(path), str(evs)[-300:])
         written = open(path, 'rb').read()
         check('W211: the file holds only the differences, one binding to a line, and no other file is left beside it',
-              b'"session.reload_model": ["Ctrl+B", "Ctrl+K Ctrl+S"]' in written and b'session.open_model' not in written
+              b'"session.reload_model": ["Ctrl+B", "Ctrl+K"]' in written and b'session.open_model' not in written
               and sorted(os.listdir(folder)) == ['keymap.json', 'preferences.setx'], repr(written[:200]))
 
         for what, bad, line, value in [
                 ('a reserved key', {'bindings': {'session.reload_model': ['Ctrl+W']}}, 1, 'Ctrl+W'),
-                ('a key two commands would share', {'bindings': {'tool.calculator': ['F M']}}, 1, 'F M'),
+                ('a key two commands would share', {'bindings': {'tool.calculator': ['Ctrl+O']}}, 1, 'session.open_model'),
+                ('a sequence of keys', {'bindings': {'tool.calculator': ['F S']}}, 1, 'F S'),
                 ('an unknown command', {'pinned': ['nosuch']}, 1, 'nosuch'),
                 ('a removed command pinned', {'pinned': ['retired_help']}, 1, 'retired_help'),
                 ('a removed command bound', {'bindings': {'tutorial': ['Ctrl+T']}}, 1, 'tutorial'),
@@ -9193,7 +9186,7 @@ def check_keymap():
         evs, _ = col(is_idle)
         km = next(e for e in evs if e.get('ev') == 'hello')['keymap']
         check('W211: another server reads the same file: window and browser never disagree',
-              km['ok'] is True and by_id(km)['session.reload_model']['keys'] == ['Ctrl+B', 'Ctrl+K Ctrl+S'] and km['pinned'] == ['session.reload_model', 'tool.calculator'], str(km)[:200])
+              km['ok'] is True and by_id(km)['session.reload_model']['keys'] == ['Ctrl+B', 'Ctrl+K'] and km['pinned'] == ['session.reload_model', 'tool.calculator'], str(km)[:200])
 
         # a bad file, written by hand: shown as an error at its line, the defaults marked, nothing applied
         with open(path, 'w', newline='\n') as f:
@@ -9204,8 +9197,19 @@ def check_keymap():
         km = ev[0]['keymap'] if ev else {}
         check('W211: a bad file is an error with its file, line and value; the keymap is the defaults, marked, nothing applied; no message event',
               len(ev) == 1 and km.get('ok') is False and same(km['file'], path) and km['line'] == 3 and 'Ctrl+Q' in km['error']
-              and 'Ctrl+Q' in km['source'] and km['pinned'] == [] and km['preset'] == 'default'
+              and 'Ctrl+Q' in km['source'] and km['pinned'] == [] and 'preset' not in km
               and by_id(km)['session.reload_model']['keys'] == [] and not errors(evs), str(evs)[-400:])
+        for what, text, line, value in [('a preset', '{\n  "preset": "xppaut"\n}\n', 2, 'preset'),
+                                        ('a chord', '{\n  "bindings": {\n    "tool.calculator": ["F S"]\n  }\n}\n', 3, 'F S')]:
+            with open(path, 'w', newline='\n') as f:
+                f.write(text)
+            snd(cmd='keymap.get')
+            evs, _ = col(is_idle)
+            ev = keymap_events(evs)
+            km = ev[0]['keymap'] if ev else {}
+            check('W536: a file with %s is refused with its file, line and value, nothing applied' % what,
+                  len(ev) == 1 and km.get('ok') is False and same(km['file'], path) and km['line'] == line and value in km['error']
+                  and by_id(km)['tool.calculator']['keys'] == [], str(evs)[-400:])
         snd(cmd='keymap.set', pinned=['tool.calculator'])
         evs, _ = col(is_idle)
         ev = keymap_events(evs)
@@ -10223,11 +10227,9 @@ def check_run_registry():
             done, evs = call(**old)
             err = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
             check('W521: set no longer takes %s' % old['kind'], 'no longer takes' in err.get('error', ''), str(evs)[-200:])
-        snd(cmd='keymap.reset', preset='xppaut'); col(is_idle)
-        snd(cmd='key', key='I'); prefix, _ = col(is_idle)
-        check('W517: I is a prefix with no ask or computation', not any(is_ask(e) or e.get('ev') == 'computing' for e in prefix))
-        snd(cmd='key', key='G'); evs,_ = col(is_idle)
-        check('W517: IG runs run.initial directly', any(e.get('ev') == 'state' and e.get('rows',0)>1 for e in evs) and not any(is_ask(e) for e in evs))
+        snd(cmd='keymap.reset'); col(is_idle)
+        snd(cmd='key', key='Ctrl+R'); evs,_ = col(is_idle)
+        check('W517: Ctrl+R runs run.initial directly', any(e.get('ev') == 'state' and e.get('rows',0)>1 for e in evs) and not any(is_ask(e) for e in evs))
     finally:
         stop_server(p, r, snd)
 
