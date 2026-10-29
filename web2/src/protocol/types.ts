@@ -445,7 +445,7 @@ export interface MarksEvent {
   /** from (x1, y1), where the head's tip is, towards (x2, y2); a pointer has a shaft, an arrow only the head */
   arrows: {id: number; kind: 'arrow' | 'pointer'; x1: number; y1: number; x2: number; y2: number; size: number; color: CoreColor}[];
   markers: {id: number; x: number; y: number; shape: 'box' | 'diamond' | 'triangle' | 'plus' | 'cross' | 'circle'; size: number; color: CoreColor}[];
-  frozen: (LineStyle & {key: string; name: string; color: CoreColor; x: SeriesData; y: SeriesData})[];
+  frozen: (LineStyle & {slot: number; key: string; name: string; color: CoreColor; x: SeriesData; y: SeriesData})[];
 }
 
 export interface AskEvent {

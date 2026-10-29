@@ -1,5 +1,6 @@
 #pragma once
 
+#include "xpp_error.h"
 #include "xpp_types.h"
 #include "struct.h"
 #include "text_style.h"
@@ -133,6 +134,9 @@ void destroy_labels_and_grobs(Session &s, XppWinId w);
 void draw_label(Session &s, XppWinId w);
 void add_marker(Session &s);
 void add_markers(Session &s);
+/* the markers of Add Markers on the active graph's data (the first curve's rows, `number` of them from row
+   `start`, `skip` apart), shape `type`, colour and size: how many were added */
+Result<int> add_data_markers(Session &s, const MarkInfo &markers);
 void add_pntarr(Session &s, int type);
 void edit_object_com(Session &s, int com);
 void do_gr_objs_com(Session &s, int com);

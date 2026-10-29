@@ -776,9 +776,8 @@ export class Session {
   /** window `win`'s 3D view turned to `theta`, `phi` (a drag or the arrow
       keys on the focused plot): the store updates at once, so the plot
       (projected in the client, plot/project3d.ts) redraws with no round
-      trip. The core's own state (a PostScript/SVG export, `state.view`,
-      any other client) is kept in step by the key `3` (3d-params) and its
-      form, answered here, throttled to at most 10 a second while the turn continues; a trailing send 150 ms
+      trip. The core's own state (a PDF/SVG export, `state.view`,
+      any other client) is kept in step by plot.set_3d_view, throttled to at most 10 a second while the turn continues; a trailing send 150 ms
       after the last change always lands, so the settled angle reaches the
       core even with no explicit end wired in (a key held down auto-
       repeats, with no keyup between steps). */
@@ -808,22 +807,9 @@ export class Session {
     this.turn3d(first.value[0], first.value[1].theta, first.value[1].phi);
   }
 
-  /** 3d-params (`3`) of window `win`: its form's Theta and Phi answered with the angles, the rest as offered */
+  /** window `win`'s 3D view set to `theta` and `phi` in the core (plot.set_3d_view) */
   private turn3d(win: string, theta: number, phi: number): void {
-    const cmds: Command[] = [];
-    if (this.store.getState().plots.active !== win) {
-      this.store.dispatch({type: 'selectWindow', win});
-      cmds.push({cmd: 'window.select', window:win});
-    }
-    cmds.push({cmd: 'key', key: '3'});
-    this.runPlan(cmds, [ask => {
-      const t = ask.names?.indexOf('Theta') ?? -1, p = ask.names?.indexOf('Phi') ?? -1;
-      if (ask.kind !== 'form' || t < 0 || p < 0 || !ask.values) return null;
-      const values = ask.values.slice();
-      values[t] = String(theta);
-      values[p] = String(phi);
-      return {values};
-    }]);
+    this.send({cmd: 'plot.set_3d_view', window: win, theta, phi});
   }
 
   /** stops the running command; it still ends with its idle */
@@ -1642,7 +1628,7 @@ export class Session {
 
   /** the session's colour scale, by name: the core's, so the pictures it writes use it too */
   setColormap(name: string): void {
-    this.send({cmd: 'colormap', name});
+    this.send({cmd: 'plot.set_colormap', colormap: name});
   }
 
   /** the cell under the pointer, or null off the grid */

@@ -284,14 +284,24 @@ void set_delay(xpp::Session &s)
   if(s.model().ndelays>0 && s.numerics.delay>0.0)chk_delay(s);
 }
 
+Result<> set_axis_shifts(xpp::Session &s, int x, int y, int z)
+{
+   if(x<0||y<0||z<0)return fail("rUelle plot",xpp::format("A shift is 0 or more, not {}",x<0?x:y<0?y:z),command_place());
+   GRAPH &g=*s.plot_windows.current;
+   g.xshft=x;
+   g.yshft=y;
+   g.zshft=z;
+   redraw_the_graph(s);
+   return {};
+}
+
 void ruelle(xpp::Session &s)
 {
-   new_int("x-axis shift ",&(s.plot_windows.current->xshft));
-   new_int("y-axis shift ",&(s.plot_windows.current->yshft));
-   new_int("z-axis shift",&(s.plot_windows.current->zshft));
-   if(s.plot_windows.current->xshft<0)s.plot_windows.current->xshft=0;
-   if(s.plot_windows.current->yshft<0)s.plot_windows.current->yshft=0;
-   if(s.plot_windows.current->zshft<0)s.plot_windows.current->zshft=0;
+   int x=s.plot_windows.current->xshft,y=s.plot_windows.current->yshft,z=s.plot_windows.current->zshft;
+   new_int("x-axis shift ",&x);
+   new_int("y-axis shift ",&y);
+   new_int("z-axis shift",&z);
+   xpp::ok_or_show(set_axis_shifts(s,x,y,z));
 }
 
 void compute_one_period(xpp::Session &s, double period,double *x,const char *name)

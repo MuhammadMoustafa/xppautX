@@ -56,7 +56,8 @@ std::string picture_filename(const Session &s, const ImageFormat &format);
    it), or why it cannot be written; the plot is then drawn through graphics.cpp's primitives and the
    picture ended: written and renamed into place */
 Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view filename, bool color);
-void end_picture(Session &s);
+/* the picture ended: written and renamed into place, or why not */
+Result<> end_picture(Session &s);
 
 Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height);
 

@@ -27,7 +27,7 @@
    equilibrium in the store, drawn, in the legend, toggled, cleared by
    Erase). 3D plots (T14, examples/ode/lorenz.odex: the store's own window,
    the projection drawn on a canvas, a drag and the arrow keys turning it
-   locally at once, throttled 3d-params turns (key 3), and state.view settling
+   locally at once, throttled plot.set_3d_view turns, and state.view settling
    to agree). Then live plotting (tools/models/live.odex: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.odex) that draws and zooms,
@@ -1266,7 +1266,7 @@ async function aplotView() {
   check('the colour map switch asks the core, and the next event carries the other ramp',
     await until("s.aplot.event.colormap === 'plasma' && s.aplot.event.ramp[0] === '#0d0887'", 'plasma')
     && await cdp.eval('__xpp.sentCount()') === sentBefore + 1
-    && await cdp.eval(`__xpp.sent().at(-1).cmd === 'colormap'`));
+    && await cdp.eval(`__xpp.sent().at(-1).cmd === 'plot.set_colormap'`));
 
   /* hover names a cell: its variable, row and value */
   const cellPt = await cdp.eval(`(() => { const r = document.querySelector('.aplot-canvas').getBoundingClientRect();
@@ -1670,8 +1670,8 @@ async function axesDialogChecks(three) {
   await axesAsk('x');
   await fillAndEnter(three ? {'X min': -1, 'Z min': 100, Theta: 50, 'X label': 'changed'} : {'Y min': 4, 'X min': 99, 'X label': 'changed'});
   const bad = await S('s.toasts.map(t => t.text)');
-  check(`W225: a min at or above its max is an error naming the field (${three ? 'Zmax' : 'Xmax'}), shown once`,
-    bad.length === 1 && bad[0].includes(three ? 'Zmax' : 'Xmax'), JSON.stringify(bad));
+  check(`W225: a min at or above its max is an error naming the argument (${three ? 'z_max' : 'x_max'}), shown once`,
+    bad.length === 1 && bad[0].includes(three ? 'z_max' : 'x_max'), JSON.stringify(bad));
   await dismissErrors();
   const unchanged = await axesValues('x');
   check('... and nothing was applied, the other fields of that answer included', sameValues(unchanged, good), JSON.stringify([good, unchanged]));
@@ -1696,8 +1696,8 @@ async function axesDialogChecks(three) {
 const rawArea3d = () => cdp.eval(`(() => { const r = document.querySelector('.plot-view:not([hidden]) .plot-host').getBoundingClientRect();
   return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
 const area3d = () => settled(rawArea3d);
-/* a turn is the key 3 (3d-params) and its form's answer (W60) */
-const sentView3d = mark => cdp.eval(`__xpp.sentFrom(${mark}).filter(c => c.cmd === 'key' && c.key === '3' && !c.win).length`);
+/* a turn is a plot.set_3d_view (W60, W524) */
+const sentView3d = mark => cdp.eval(`__xpp.sentFrom(${mark}).filter(c => c.cmd === 'plot.set_3d_view').length`);
 
 /* 3D plots (docs/ui-v2.md T14, GitHub issue #18): lorenz.odex sets axes=3d
    and phi=60 (theta stays the default 45); the check starts a run
@@ -1757,7 +1757,7 @@ async function threePlot() {
   check('... and the drawn projection changed too (still dragging, no round trip needed)',
     during && JSON.stringify(during.box) !== JSON.stringify(before.box), '');
   const sentDuring = await sentView3d(sentBefore);
-  check(`throttled: ${steps} pointer moves sent far fewer 3d-params turns (${sentDuring})`,
+  check(`throttled: ${steps} pointer moves sent far fewer 3D view turns (${sentDuring})`,
     sentDuring > 0 && sentDuring < steps, String(sentDuring));
   await mouse('mouseReleased', cx + 3 * steps, cy - 2 * steps, {button: 'left', buttons: 0, clickCount: 1});
 
@@ -6849,8 +6849,8 @@ async function main() {
     if (run('busy')) await session(LIVE, busyAuto);
     if (run('busy')) await session(LIVE, busyKeys);
     if (run('busy')) await session(LIVE, statusBarLayout);
-    if (run('view')) await session(ODE, viewCheck, ['command:1: Xmax: 7 is not above Xmin', 'command:1: X-axis: no variable named "nonesuch"']);
-    if (run('three')) await session(LORENZ_ODE, threePlot, ['command:1: Zmax: 65 is not above Zmin', 'command:1: X-axis: no variable named "nonesuch"']);
+    if (run('view')) await session(ODE, viewCheck, ['command:1: x_min (99) must be below x_max (7)', 'command:1: X-axis: no variable named "nonesuch"']);
+    if (run('three')) await session(LORENZ_ODE, threePlot, ['command:1: z_min (100) must be below z_max (65)', 'command:1: X-axis: no variable named "nonesuch"']);
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
     if (run('files')) await session(ODE, opt.webview2 ? nativeFiles : files, ['gone.set: cannot open gone.set: No such file or directory']);

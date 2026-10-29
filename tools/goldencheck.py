@@ -146,7 +146,7 @@ def run_lecar(home):
 
         # the IC box's arry button (V, W, lecar's own two variables), then
         # Print arrayplot with a fixed name in place of its own default
-        s.send(cmd='plotvars', how=2, names=['V', 'W'])
+        s.send(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
         s.collect(is_idle)
 
         def print_form(e):
@@ -182,7 +182,7 @@ def run_vanderpol(home):
         # the ICs box's pp (phase plane) button: x vs xp, then a fixed
         # view so the axes (and so the PDF tick labels) do not
         # depend on any auto-scaling of this run's own trajectory
-        s.send(cmd='plotvars', how=1, names=['x', 'xp'])
+        s.send(cmd='plot.set_variables', how='phase_plane', names=['x', 'xp'])
         s.collect(is_idle)
         # (Window/Window: the keys w w, then the four numbers)
         s.send(cmd='key', key='w')
@@ -227,7 +227,7 @@ def run_pictures(home):
         s.send(cmd='key', key='g')
         s.answer_asks(is_idle, {'menu': menu('v'), 'form': form_defaults, 'file': lambda e: {'ok': 1, 'file': 'pictures.svg'}})
         check_file('pictures.svg', read(s.run, 'pictures.svg'))
-        s.send(cmd='plotvars', how=2, names=['v', 'w'])
+        s.send(cmd='plot.set_variables', how='array_plot', names=['v', 'w'])
         s.collect(is_idle)
         s.send(cmd='key', win='aplot', key='p')
         s.answer_asks(is_idle, {'form': lambda e: {'ok': 1, 'values': ['top', 'side', 'bottom']},

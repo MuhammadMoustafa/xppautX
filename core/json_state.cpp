@@ -312,31 +312,6 @@ void browser_update(const xpp::Session &s)
     if (session.browser_dirty && session.br_count) send_browser(s);
 }
 
-/* the ICs box's xvst (0) and pp (1) buttons: {"cmd":"plotvars","how":0,"names":[...]} */
-void plotvars_command(xpp::Session &s, const char *line)
-{
-    const xpp::Model &m = s.model();
-    int i, n = m.node + m.nmarkov;
-    std::vector<int> isck(static_cast<std::size_t>(n));
-    const char *arr = js_find(line, "names");
-    std::string name;
-    for (i = 0; arr && js_elem(arr, i); i++) {
-        if (!js_string(js_elem(arr, i), name)) continue;
-        const int k=xpp::find_user_name(m,ICBOX,name);
-        if(k>=0 && k<n)isck[k]=1;
-    }
-    if (get_int(line, "how", 0) == 2) {
-        /* arry: the array of variables from the first to the second checked */
-        std::array<int, 2> list;
-        int k = 0;
-        for (i = 0; i < n && k < 2; i++)
-            if (isck[i]) list[k++] = i + 1;
-        if (k == 2) optimize_aplot(s, list.data());
-        return;
-    }
-    plot_checked_vars(s, get_int(line, "how", 0), isck.data(), n);
-}
-
 /* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani","autoinfo","autosettings","numerics","windows"],"enc":"f32"}:
    the data events the client wants from now on (an empty list stops them);
    each is sent at the end of this command, which is what a client that

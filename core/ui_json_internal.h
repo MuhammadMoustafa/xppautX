@@ -421,7 +421,6 @@ void browser_update(const xpp::Session &s); /* at a command's end */
 void j_browser_changed(int i);
 void j_rows_stored(xpp::Session &s, int nrows);
 void j_live_state(xpp::Session &s, const double *values, double time);
-void plotvars_command(xpp::Session &s, const char *line);
 void data_command(xpp::Session &s, const char *line);
 void send_equations(const xpp::Session &s);
 void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
@@ -476,7 +475,6 @@ void j_movie_make_anigif(xpp::Session &s);
 void aplot_changed(void); /* the data behind an array plot changed */
 void aplot_update(xpp::Session &s); /* at a command's end */
 void aplot_command(xpp::Session &s, const char *line);
-void colormap_command(xpp::Session &s, const char *line);
 void aplot_key(xpp::Session &s, int ch);
 void j_aplot_make(xpp::Session &s, std::string_view name);
 void j_aplot_redraw(xpp::Session &s);

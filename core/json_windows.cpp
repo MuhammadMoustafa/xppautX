@@ -482,24 +482,6 @@ void aplot_command(xpp::Session &s, const char *line)
     send_aplot(s, NULL);
 }
 
-/* {"cmd":"colormap","name":"plasma"}: the session's colour scale (the Colormap menu's change, by name); the
-   array plot shows it at once */
-void colormap_command(xpp::Session &s, const char *line)
-{
-    std::string name;
-    if (!get_string(line, "name", name)) {
-        j_command_error("colormap", "colormap takes a name");
-        return;
-    }
-    const int i = xpp::choice_index(xpp::colormap_names, name);
-    if (i < 0) {
-        j_command_error("colormap", xpp::format("`{}` is no colour scale", name));
-        return;
-    }
-    s.colormap = static_cast<xpp::Colormap>(i);
-    send_aplot(s, NULL);
-}
-
 /* a key of the array plot window (menu_aplot_window) */
 void aplot_key(xpp::Session &s, int ch)
 {

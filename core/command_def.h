@@ -49,8 +49,9 @@ enum class Type { text, integer, real, boolean, choice, expression, model_name, 
 /* what a name argument may name in the model, matched as the model does
    (any case): a parameter, a variable (one with an initial condition),
    either, or any name the model defines. `none` for a map whose keys are
-   plain text. */
-enum class NameSet { none, parameter, variable, either, any };
+   plain text. `column`: a column of the stored data (what a plot axis takes): T, a variable, an
+   auxiliary or a column the data browser added. */
+enum class NameSet { none, parameter, variable, either, any, column };
 
 /* One end of a number's range: nothing, a constant, or a quantity of the
    session (a run's end time, the AUTO threads' maximum) that a callback
@@ -210,6 +211,7 @@ std::span<const Command> run_commands();
 std::span<const Command> ic_commands();
 std::span<const Command> bvp_commands();
 std::span<const Command> auto_commands();
+std::span<const Command> plot_commands();
 /* A command whose arguments are numerics settings (run.configure, bvp.configure): every argument given is the
    setting `key_prefix` + its name, all checked together and set all or nothing; the result holds each one's
    value now. */

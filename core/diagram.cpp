@@ -244,7 +244,7 @@ xpp::Result<> export_diagram(xpp::Session &s, const std::optional<std::string> &
     else flag=1;
     add_ps_point(s,*d,type,flag);
   }
-  xpp::end_picture(s);
+  xpp::ok_or_show(xpp::end_picture(s));
   set_normal_scale(s);
   return {};
 }

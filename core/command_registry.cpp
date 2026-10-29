@@ -29,7 +29,7 @@ constexpr std::array HELP_ROWS = {
 std::span<const Command> help_commands() { return HELP_ROWS; }
 
 /* every resource's table, in the order help lists them */
-constexpr std::array TABLES = {help_commands, window_commands, annotation_commands, run_commands, ic_commands, bvp_commands, auto_commands};
+constexpr std::array TABLES = {help_commands, window_commands, annotation_commands, run_commands, ic_commands, bvp_commands, auto_commands, plot_commands};
 
 template <class Visit> void each_command(Visit visit)
 {
@@ -44,6 +44,7 @@ std::string_view names_words(NameSet names)
     case NameSet::variable: return "variable";
     case NameSet::either: return "either";
     case NameSet::any: return "any";
+    case NameSet::column: return "column";
     case NameSet::none: break;
     }
     return "";

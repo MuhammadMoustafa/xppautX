@@ -222,7 +222,9 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
     for (std::size_t k = 0; k < c.frozen.size(); k++) {
         const Frozen &f = c.frozen[k];
         const CURVE &z = s.frozen_curves.curve[f.slot];
-        o += k ? ",{\"key\":" : "{\"key\":";
+        o += k ? ",{\"slot\":" : "{\"slot\":";
+        o += std::to_string(f.slot);
+        o += ",\"key\":";
         xpp::json_append_string(o, f.key.c_str());
         o += ",\"name\":";
         xpp::json_append_string(o, f.name.c_str());

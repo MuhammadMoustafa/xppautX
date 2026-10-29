@@ -619,9 +619,7 @@ const CommandInfo commands[] = {
     {"state", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_state(s); }},
     {"data", nullptr, V, NOT_STEP, data_command},
     {"equations", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_equations(s); }},
-    {"plotvars", nullptr, V, STEP, plotvars_command},
     {"aplot", nullptr, V, STEP, aplot_command},
-    {"colormap", nullptr, S, STEP, colormap_command},
     {"ani", "mouse", X, STEP, ani_command}, /* release can integrate */
     {"ani", nullptr, V, STEP, ani_command},
     {"browser", "write", D, STEP, browser_command},

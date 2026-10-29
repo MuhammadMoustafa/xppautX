@@ -447,10 +447,7 @@ static void add_a_curve(xpp::Session &s)
     /* a scale by its name, from all of them */
     const std::vector<std::string> names(colormap_names.begin(), colormap_names.end());
     j = pick_from_list("colormap", "Colormap", names);
-    if (j >= 0) {
-      change_cmap_com(s, j);
-      redraw_dfield(s);
-    }
+    if (j >= 0) set_colormap(s, static_cast<Colormap>(j));
     return;
   }
   default:

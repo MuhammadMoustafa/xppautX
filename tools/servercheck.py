@@ -943,6 +943,150 @@ def check_registry():
         request({'cmd': 'annotation.add_marker', 'shape': 'circle', 'x': 1, 'y': 1})
         result, _ = request({'cmd': 'annotation.delete_all'})
         check('annotation.delete_all clears the graph', result == {'cleared': True}, str(result))
+        # W524: the plot's settings (curves, frozen curves, axes, exports) by name, in plot coordinates
+        snd(cmd='data', events=['plots', 'marks']); col(lambda e: e.get('ev') == 'idle')
+        request({'cmd': 'run.initial'})
+        main_plot = lambda evs: next((w for e in evs if e.get('ev') == 'plots' for w in e['windows'] if w['win'] == 'graph_1'), None)
+        result, evs = request({'cmd': 'plot.add_curve', 'x': 't', 'y': 'w', 'color': 'red', 'draw': 'both', 'dash': 'dashed', 'width': 2,
+                               'marker': 'star', 'marker_size': 4})
+        check('plot.add_curve reports the curve, and its columns and style reach the plot',
+              result == {'curve_index': 1} and main_plot(evs) and main_plot(evs)['curves'][1] ==
+              {'x': 0, 'y': 2, 'z': 1, 'color': '#ff0000', 'draw': 'both', 'dash': 'dashed', 'width': 2, 'marker': 'star', 'marker_size': 4}, str(result))
+        result, evs = request({'cmd': 'plot.edit_curve', 'curve_index': 1, 'y': 'v', 'dash': 'dotted'})
+        check('plot.edit_curve changes what is given and keeps the rest',
+              result == {'curve_index': 1, 'updated': True} and main_plot(evs)['curves'][1] ==
+              {'x': 0, 'y': 1, 'z': 1, 'color': '#ff0000', 'draw': 'both', 'dash': 'dotted', 'width': 2, 'marker': 'star', 'marker_size': 4}, str(result))
+        request({'cmd': 'plot.add_curve', 'x': 'v', 'y': 'w'})
+        result, evs = request({'cmd': 'plot.delete_curve', 'curve_index': 1})
+        check('plot.delete_curve of a curve in the middle moves the later one up',
+              result == {'remaining_curves': 2} and [c['x'] for c in main_plot(evs)['curves']] == [1, 1], str(result))
+        result, _ = request({'cmd': 'plot.delete_curve'})
+        check('plot.delete_curve without an index deletes the last curve', result == {'remaining_curves': 1}, str(result))
+        request({'cmd': 'plot.add_curve', 'x': 't', 'y': 'v'})
+        result, evs = request({'cmd': 'plot.delete_all_curves'})
+        check('plot.delete_all_curves keeps the first curve', result == {'cleared': True} and len(main_plot(evs)['curves']) == 1, str(result))
+        for refused in [{'cmd': 'plot.delete_curve', 'curve_index': 0}, {'cmd': 'plot.delete_curve', 'curve_index': 7},
+                        {'cmd': 'plot.add_curve', 'x': 't'}, {'cmd': 'plot.add_curve', 'x': 't', 'y': 'nothing'},
+                        {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'width': 0}, {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'draw': 'dots'},
+                        {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'color': 'nocolor'}, {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'window': 'browser'},
+                        {'cmd': 'plot.edit_curve'}, {'cmd': 'plot.edit_curve', 'curve_index': 5}, {'cmd': 'plot.edit_curve', 'curve_index': 0, 'marker_size': -1}]:
+            request(refused, False)
+        # frozen curves
+        result, evs = request({'cmd': 'plot.freeze_curve', 'name': 'first', 'key': 'first run', 'color': 'blue', 'dash': 'dotted'})
+        slot = result.get('slot', -1)
+        frozen = next((f for e in evs if e.get('ev') == 'marks' for f in e['frozen'] if f['slot'] == slot), None)
+        check('plot.freeze_curve gives the slot and name, the marks event the curve by its slot',
+              result == {'slot': slot, 'name': 'first'} and frozen and frozen['key'] == 'first run' and frozen['color'] == '#0000ff'
+              and frozen['dash'] == 'dotted', str(result))
+        result, evs = request({'cmd': 'plot.edit_frozen', 'slot': slot, 'name': 'second', 'width': 3})
+        check('plot.edit_frozen changes what is given', result == {'slot': slot, 'updated': True}, str(result))
+        result, evs = request({'cmd': 'plot.set_frozen_legend', 'visible': True, 'x': 0.5, 'y': 0.5})
+        check('plot.set_frozen_legend shows the legend at plot coordinates', result == {'legend_visible': True}, str(result))
+        result, _ = request({'cmd': 'plot.set_frozen_legend', 'visible': False})
+        check('plot.set_frozen_legend hides it', result == {'legend_visible': False}, str(result))
+        result, _ = request({'cmd': 'plot.delete_frozen', 'slot': slot})
+        check('plot.delete_frozen deletes the curve of that slot', result == {'slot': slot, 'deleted': True}, str(result))
+        request({'cmd': 'plot.freeze_curve'})
+        result, _ = request({'cmd': 'plot.delete_all_frozen'})
+        check('plot.delete_all_frozen clears the graph of frozen curves', result == {'cleared': True}, str(result))
+        result, _ = request({'cmd': 'plot.set_auto_freeze', 'enabled': True})
+        check('plot.set_auto_freeze reports the setting', result == {'auto_freeze': True}, str(result))
+        request({'cmd': 'plot.set_auto_freeze', 'enabled': False})
+        for refused in [{'cmd': 'plot.delete_frozen', 'slot': slot}, {'cmd': 'plot.delete_frozen'}, {'cmd': 'plot.edit_frozen', 'slot': slot},
+                        {'cmd': 'plot.freeze_curve', 'name': 'a name over nine'}, {'cmd': 'plot.freeze_curve', 'key': 'k' * 20},
+                        {'cmd': 'plot.freeze_curve', 'width': -1}, {'cmd': 'plot.set_frozen_legend'},
+                        {'cmd': 'plot.set_frozen_legend', 'visible': True, 'x': 1}, {'cmd': 'plot.set_auto_freeze'}]:
+            request(refused, False)
+        result, _ = request({'cmd': 'plot.clear_bifurcation'})
+        check('plot.clear_bifurcation reports', result == {'cleared': True}, str(result))
+        with open(os.path.join(folder, 'diagram.dat'), 'w') as f:
+            f.write('0 0 0 1 1 0\n1 1 1 1 1 0\n2 3 3 2 1 0\n3 4 4 2 1 0\n')
+        result, _ = request({'cmd': 'plot.import_bifurcation', 'file': 'diagram.dat'})
+        check('plot.import_bifurcation reports the curves made', result == {'file': 'diagram.dat', 'curves_imported': 2}, str(result))
+        with open(os.path.join(folder, 'bad.dat'), 'w') as f:
+            f.write('0 0 0\n')
+        for name, line in (('bad.dat', 1), ('missing.dat', 0)):  # a file's own error names that file and its line
+            snd(cmd='plot.import_bifurcation', file=name)
+            _, refused = col(lambda e: e.get('ev') == 'done')
+            col(lambda e: e.get('ev') == 'idle')
+            check('plot.import_bifurcation of %s is an error at its file and line' % name,
+                  refused and refused.get('status') == 'error' and refused.get('file') == name and refused.get('line') == line, str(refused))
+        request({'cmd': 'plot.import_bifurcation', 'file': '../diagram.dat'}, False)
+        # the axes
+        result, evs = request({'cmd': 'plot.set_2d', 'x': 't', 'y': 'v', 'x_min': 0, 'x_max': 10, 'y_label': 'volts'})
+        check('plot.set_2d sets the columns, limits and label', result == {'axes': '2d', 'x': 'T', 'y': 'V'} and main_plot(evs)['xlo'] == 0
+              and main_plot(evs)['xhi'] == 10 and main_plot(evs)['three'] == 0, str(result))
+        result, evs = request({'cmd': 'plot.set_3d', 'x': 'v', 'y': 'w', 'z': 't', 'z_min': 0, 'z_max': 5, 'window_x_min': -1, 'window_x_max': 1})
+        check('plot.set_3d makes the graph 3D', result == {'axes': '3d', 'x': 'V', 'y': 'W', 'z': 'T'} and main_plot(evs)['three'] == 1
+              and main_plot(evs)['box']['zmax'] == 5, str(result))
+        result, evs = request({'cmd': 'plot.set_3d_view', 'theta': 30, 'phi': 60, 'perspective': True, 'z_plane': -5, 'z_view': 8})
+        check('plot.set_3d_view sets the angles and the perspective', result == {'view_updated': True} and
+              (main_plot(evs)['theta'], main_plot(evs)['phi'], main_plot(evs)['persp'], main_plot(evs)['zplane'], main_plot(evs)['zview']) == (30, 60, 1, -5, 8), str(result))
+        result, _ = request({'cmd': 'plot.set_3d_view', 'movie': True, 'vary': 'phi', 'start_angle': 0, 'increment': 10, 'increments': 2})
+        check('plot.set_3d_view films a rotation', result == {'view_updated': True}, str(result))
+        for refused in [{'cmd': 'plot.set_3d_view', 'vary': 'phi'}, {'cmd': 'plot.set_3d_view', 'movie': True, 'vary': 'psi'},
+                        {'cmd': 'plot.set_3d_view', 'movie': True, 'increments': 0}, {'cmd': 'plot.set_3d', 'window_x_min': 3, 'window_x_max': 1},
+                        {'cmd': 'plot.set_3d', 'z_min': 9, 'z_max': 1}, {'cmd': 'plot.set_3d', 'x': 'nothing'}]:
+            request(refused, False)
+        result, _ = request({'cmd': 'plot.set_2d'})
+        check('plot.set_2d with nothing given makes the graph 2D of the first two columns', result['axes'] == '2d', str(result))
+        request({'cmd': 'plot.set_3d_view', 'theta': 1}, False)
+        for refused in [{'cmd': 'plot.set_2d', 'x_min': 5, 'x_max': 1}, {'cmd': 'plot.set_2d', 'z': 'v'}, {'cmd': 'plot.set_2d', 'x': 'nothing'}]:
+            request(refused, False)
+        result, _ = request({'cmd': 'plot.set_axes_origin', 'x_origin': 0.5, 'x_origin_shown': False, 'axes_font_size': 14})
+        check('plot.set_axes_origin reports', result == {'origin_updated': True}, str(result))
+        for refused in [{'cmd': 'plot.set_axes_origin', 'axes_font_size': 0.5}, {'cmd': 'plot.set_axes_origin', 'axes_font_size': 101},
+                        {'cmd': 'plot.set_axes_origin', 'x_origin_shown': 1}]:
+            request(refused, False)
+        result, _ = request({'cmd': 'plot.set_shifted_axes', 'x_shift': 2, 'z_shift': 1})
+        check('plot.set_shifted_axes reports every shift, a shift left out unchanged', result == {'x_shift': 2, 'y_shift': 0, 'z_shift': 1}, str(result))
+        result, _ = request({'cmd': 'plot.set_shifted_axes', 'x_shift': 0, 'z_shift': 0})
+        request({'cmd': 'plot.set_shifted_axes', 'x_shift': -1}, False)
+        result, evs = request({'cmd': 'plot.variable_vs_time', 'variable': 'w'})
+        check('plot.variable_vs_time plots the column against time', result == {'x': 't', 'y': 'w'} and main_plot(evs)['curves'][0]['x'] == 0
+              and main_plot(evs)['curves'][0]['y'] == 2, str(result))
+        request({'cmd': 'plot.variable_vs_time', 'variable': 'nothing'}, False)
+        result, evs = request({'cmd': 'plot.set_variables', 'how': 'phase_plane', 'names': ['v', 'w']})
+        check('plot.set_variables makes a phase portrait of the names in order', result == {'how': 'phase_plane', 'names': ['v', 'w']}
+              and [(c['x'], c['y']) for c in main_plot(evs)['curves']] == [(1, 2)], str(result))
+        result, evs = request({'cmd': 'plot.set_variables', 'how': 'time_series', 'names': ['w', 'v']})
+        check('plot.set_variables makes curves against time', [(c['x'], c['y']) for c in main_plot(evs)['curves']] == [(0, 2), (0, 1)], str(result))
+        for refused in [{'cmd': 'plot.set_variables', 'how': 'phase_plane', 'names': ['v']}, {'cmd': 'plot.set_variables', 'how': 'array_plot', 'names': ['w', 'v']},
+                        {'cmd': 'plot.set_variables', 'how': 'time_series', 'names': []}, {'cmd': 'plot.set_variables', 'how': 'time_series', 'names': ['t']},
+                        {'cmd': 'plot.set_variables', 'how': 'pp', 'names': ['v']}, {'cmd': 'plot.set_variables', 'how': 'time_series'}]:
+            request(refused, False)
+        result, evs = request({'cmd': 'plot.add_data_markers', 'shape': 'box', 'count': 3, 'first_row': 1, 'stride': 10, 'color': 'green', 'size': 2})
+        check('plot.add_data_markers reports how many were put', result == {'count': 3}, str(result))
+        result, _ = request({'cmd': 'plot.add_data_markers', 'count': 2})
+        check('plot.add_data_markers keeps the settings left out from the last time', result == {'count': 2}, str(result))
+        for refused in [{'cmd': 'plot.add_data_markers', 'count': 3, 'stride': 100000}, {'cmd': 'plot.add_data_markers', 'shape': 'star'},
+                        {'cmd': 'plot.add_data_markers', 'count': 0}, {'cmd': 'plot.add_data_markers', 'first_row': -1}]:
+            request(refused, False)
+        result, _ = request({'cmd': 'plot.set_colormap', 'colormap': 'viridis'})
+        check('plot.set_colormap reports the scale', result == {'colormap': 'viridis'}, str(result))
+        request({'cmd': 'plot.set_colormap', 'colormap': 'nothing'}, False)
+        request({'cmd': 'plot.set_colormap'}, False)
+        # the exports
+        result, _ = request({'cmd': 'plot.export_svg', 'file': 'plot.svg', 'color': False, 'axes_font_size': 10})
+        check('plot.export_svg writes the picture into the model folder', result['file'] == 'plot.svg' and result['bytes_written'] > 100 and
+              open(os.path.join(folder, 'plot.svg')).read().lstrip().startswith(('<?xml', '<svg')), str(result))
+        result, _ = request({'cmd': 'plot.export_pdf', 'file': 'plot.pdf'})
+        check('plot.export_pdf writes the picture into the model folder', result['file'] == 'plot.pdf' and result['bytes_written'] > 100 and
+              open(os.path.join(folder, 'plot.pdf'), 'rb').read(4) == b'%PDF', str(result))
+        result, _ = request({'cmd': 'plot.export_data', 'file': 'plot.csv'})
+        check('plot.export_data writes what the plot shows in the format of the extension', result['file'] == 'plot.csv' and result['rows_written'] > 0 and
+              'curve,x,y' in open(os.path.join(folder, 'plot.csv')).read().splitlines()[:2], str(result))
+        result, _ = request({'cmd': 'plot.export_data', 'file': 'plot.out', 'format': 'dat'})
+        check('plot.export_data takes the format by name', result['rows_written'] > 0, str(result))
+        for refused in [{'cmd': 'plot.export_svg'}, {'cmd': 'plot.export_svg', 'file': '../plot.svg'}, {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'axes_font_size': 0},
+                        {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'color': 'yes'}, {'cmd': 'plot.export_data', 'file': 'plotdata'},
+                        {'cmd': 'plot.export_data', 'file': 'plot.zip', 'format': 'zip'}]:
+            request(refused, False)
+        # the old forms are gone
+        for obsolete in [{'cmd': 'plotvars', 'how': 0, 'names': ['v']}, {'cmd': 'colormap', 'name': 'jet'}]:
+            snd(**obsolete)
+            evs, _ = col(lambda e: e.get('ev') == 'idle')
+            check('W524: the old %s command is unknown' % obsolete['cmd'], any('Unknown command' in e.get('error', '') for e in evs if e.get('ev') == 'message'), str(evs)[-300:])
         for obsolete in [
             {'cmd':'click','win':1},
             {'cmd':'key','menu':'main','item':'makewindow'},
@@ -1844,7 +1988,7 @@ if ask:
     send(cmd='answer', id=ask['id'], ok=1, values=vals)
     evs = collect(is_idle)[0]
     e = next((v for v in evs if v.get('ev') == 'message' and 'error' in v), {})
-    check('W225: Ymin above Ymax is an error naming Ymax', 'Ymax' in e.get('error', '') and 'Ymin' in e.get('error', ''), str(e))
+    check('W225: Ymin above Ymax is an error naming y_max and y_min', 'y_max' in e.get('error', '') and 'y_min' in e.get('error', ''), str(e))
     send(cmd='key', key='v')
     evs, ask = collect(lambda e: e.get('ev') == 'ask')
     send(cmd='answer', id=ask['id'], key='2')
@@ -1991,7 +2135,7 @@ send(cmd='window.destroy', window='animation')
 evs, _ = collect(is_idle)
 check('the animation window closes', any(e.get('ev') == 'window' and e.get('op') == 'destroy' for e in evs))
 
-send(cmd='plotvars', how=2, names=['V', 'W'])
+send(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
 evs, _ = collect(is_idle)
 ap = [e for e in evs if e.get('ev') == 'aplot']
 check('the IC arry button opens an array plot, its colour scale a ramp of 256 colours (W492)',
@@ -2003,7 +2147,7 @@ check('the IC arry button opens an array plot, its colour scale a ramp of 256 co
 # optimize_aplot (core/graf_par.cpp) always starts at row 0 with ColSkip 1 and
 # picks RowSkip so `ny` rows span the run (ndown = min(201, nrows), nskip =
 # nrows // ndown, both integer division as the core computes them); the
-# columns are V, W (plotvars picked them, in that order).
+# columns are V, W (set_variables picked them, in that order).
 send(cmd='state')
 evs, st = collect(is_state)
 collect(is_idle)
@@ -5272,7 +5416,7 @@ def check_output_names():
             cancel_name('lecar.' + ext)
         snd(cmd='key', win='browser', key='t')
         cancel_name('lecar-V.tab')
-        snd(cmd='plotvars', how=2, names=['V', 'W'])
+        snd(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
         col(is_idle)
         snd(cmd='key', win='aplot', key='p')
         cancel_name('lecar-array.pdf')
@@ -5357,7 +5501,7 @@ def check_output_names():
             col(is_idle)
         check('W177: declining a frozen save preserves its unrelated bytes',
               open(os.path.join(r, 'result.dat.1'), 'rb').read() == b'keep frozen')
-        snd(cmd='plotvars', how=2, names=['V', 'W'])
+        snd(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
         col(is_idle)
         snd(cmd='key', win='aplot', key='p')
         _, ask = col(is_ask)
@@ -6727,7 +6871,7 @@ def check_outcomes_once():
         # integration stops at row 15, after a real frame reached the temp file.
         range_movie = [
             {'cmd': 'run.initial'},
-            {'cmd': 'plotvars', 'how': 2, 'names': ['x', 'y']},
+            {'cmd': 'plot.set_variables', 'how': 'array_plot', 'names': ['x', 'y']},
             {'cmd': 'key', 'win': 'aplot', 'key': 'r', 'replace': 1},
             {'cmd': 'answer', 'values': ['0', '0']},
             {'cmd': 'answer', 'file': 'movie.gif'},
@@ -7180,7 +7324,7 @@ def check_plot_limits():
         try:
             s.collect(is_idle)
             command(cmd='data', events=['plots', 'series', 'marks'])
-            events = command(cmd='plotvars', how=0, names=['x%d' % i for i in range(13)])
+            events = command(cmd='plot.set_variables', how='time_series', names=['x%d' % i for i in range(13)])
             graph = next((e for e in reversed(events) if e.get('ev') == 'plots'), {})
             check('W376: xvst retains all thirteen selected states',
                   len(graph.get('windows', [{}])[0].get('curves', [])) == 13, str(graph)[:200])

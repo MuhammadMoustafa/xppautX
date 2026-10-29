@@ -67,17 +67,7 @@ void change_view_com(xpp::Session &s, int com)
    return;
  }
 
-  GRAPH &g=*s.plot_windows.current;
- const int oldtype=g.grtype,oldflag=g.ThreeDFlag;
- g.grtype=5*com;
- g.ThreeDFlag=com==1?1:0;
- if(!axes_dialog(s,CurrentCurve,com==1)){
-   g.grtype=oldtype;
-   g.ThreeDFlag=oldflag;
-   return;
- }
- check_flags(g);
- redraw_the_graph(s);
+  axes_dialog(s,CurrentCurve,com==1);
 }
 
 bool phase_plane(const GRAPH &g)
@@ -94,16 +84,6 @@ void check_flags(GRAPH &g)
 }
 
 namespace {
-
-/* the 3D view's parameters, in 3D params and in the axes dialog of a 3D plot */
-struct ViewParams {
-  int persp = 0;
-  double zplane = 0, zview = 0, theta = 0, phi = 0;
-  bool movie = false;
-  std::string yes, vary;
-  double start = 0, incr = 0;
-  int nclip = 0;
-};
 
 constexpr int VIEW_PARAM_COUNT = 10;
 const char *const view_param_names[VIEW_PARAM_COUNT] = {"Persp (1=On)", "ZPlane", "ZView", "Theta", "Phi", "Movie(Y/N)",
@@ -134,18 +114,27 @@ ViewParams read_view_params(xpp::TypedFields &f, std::span<const std::string> v)
   if (!p.movie) return p;
   p.yes = v[5];
   p.vary = v[6];
-  const char first = p.vary.empty() ? '\0' : static_cast<char>(std::tolower(static_cast<unsigned char>(p.vary[0])));
-  if (first != 't' && first != 'p') f.fail(view_param_names[6], "theta or phi");
   p.start = f.number(view_param_names[7], v[7]);
   p.incr = f.number(view_param_names[8], v[8]);
   p.nclip = f.integer(view_param_names[9], v[9]);
   return p;
 }
 
+} // namespace
+
+ViewParams view_params(const xpp::Session &s)
+{
+  const GRAPH &g = *s.plot_windows.current;
+  return {g.PerspFlag, g.ZPlane, g.ZView, g.Theta, g.Phi, false, s.movie_3d.yes, s.movie_3d.angle, s.movie_3d.start, s.movie_3d.incr,
+          s.movie_3d.nclip};
+}
+
 /* the one place the 3D view's parameters are applied: set, the movie if asked, the rotation made, redrawn */
-void apply_view_params(xpp::Session &s, const ViewParams &p)
+Result<> set_view_params(xpp::Session &s, const ViewParams &p)
 {
   GRAPH &g = *s.plot_windows.current;
+  if (p.movie && !xpp::equal_ignoring_case(p.vary, "theta") && !xpp::equal_ignoring_case(p.vary, "phi"))
+    return fail("3D params", xpp::format("\"{}\" is not a way to vary the angle: theta or phi", p.vary), command_place());
   g.PerspFlag = p.persp;
   g.ZPlane = p.zplane;
   g.ZView = p.zview;
@@ -161,7 +150,10 @@ void apply_view_params(xpp::Session &s, const ViewParams &p)
   }
   make_rot(s, g.Theta, g.Phi);
   redraw_the_graph(s);
+  return {};
 }
+
+namespace {
 
 /* The axes dialog: a column per axis, a row for each of the variable, limits and label */
 constexpr int AXIS_ROW_COUNT = 4;
@@ -172,15 +164,54 @@ const char *const view_window_names[4] = {"XLo", "XHi", "YLo", "YHi"};
 
 } // namespace
 
+AxesView axes_view(const xpp::Session &s, int ind)
+{
+  const GRAPH &g=*s.plot_windows.current;
+  return {{g.xv[ind],g.yv[ind],g.zv[ind]},{g.xmin,g.ymin,g.zmin},{g.xmax,g.ymax,g.zmax},{g.xlabel,g.ylabel,g.zlabel},{g.xlo,g.xhi,g.ylo,g.yhi}};
+}
+
+Result<> set_axes_view(xpp::Session &s, int ind, bool three, const AxesView &v)
+{
+  const int n=three?3:2;
+  const char *const lo_names[3]={"x_min","y_min","z_min"},*const hi_names[3]={"x_max","y_max","z_max"};
+  for(int i=0;i<n;i++)
+    if(const auto bad=order_problem(lo_names[i],v.lo[i],hi_names[i],v.hi[i],true))return fail("plot axes",*bad,command_place());
+  if(three)
+    for(const auto &[lo_name,lo,hi_name,hi]:{std::tuple{"window_x_min",v.window[0],"window_x_max",v.window[1]},std::tuple{"window_y_min",v.window[2],"window_y_max",v.window[3]}})
+      if(const auto bad=order_problem(lo_name,lo,hi_name,hi,true))return fail("plot axes",*bad,command_place());
+
+  GRAPH &g=*s.plot_windows.current;
+  int *const var[3]={&g.xv[ind],&g.yv[ind],&g.zv[ind]};
+  double *const lo[3]={&g.xmin,&g.ymin,&g.zmin};
+  double *const hi[3]={&g.xmax,&g.ymax,&g.zmax};
+  std::string *const label[3]={&g.xlabel,&g.ylabel,&g.zlabel};
+  for(int i=0;i<n;i++){
+    *var[i]=v.column[i];
+    *lo[i]=v.lo[i];
+    *hi[i]=v.hi[i];
+    *label[i]=v.label[i];
+  }
+  if(three){
+    double *const view_window[4]={&g.xlo,&g.xhi,&g.ylo,&g.yhi};
+    for(int i=0;i<4;i++)*view_window[i]=v.window[i];
+  } else {
+    g.xlo=g.xmin;
+    g.ylo=g.ymin;
+    g.xhi=g.xmax;
+    g.yhi=g.ymax;
+  }
+  g.grtype=three?5:0;
+  xpp::check_windows(s);
+  check_flags(g);
+  if(three)make_rot(s,g.Theta,g.Phi);
+  redraw_the_graph(s);
+  return {};
+}
+
 bool axes_dialog(xpp::Session &s, int ind, bool three)
 {
-  GRAPH &g = *s.plot_windows.current;
-  const int n = three ? 3 : 2;
-  int *const var[3] = {&g.xv[ind], &g.yv[ind], &g.zv[ind]};
-  double *const lo[3] = {&g.xmin, &g.ymin, &g.zmin};
-  double *const hi[3] = {&g.xmax, &g.ymax, &g.zmax};
-  std::string *const label[3] = {&g.xlabel, &g.ylabel, &g.zlabel};
-  double *const view_window[4] = {&g.xlo, &g.xhi, &g.ylo, &g.yhi};
+  const int n=three?3:2;
+  const AxesView now=axes_view(s,ind);
 
   /* the grid row by row (n fields of each of axis_rows), then the 3D view's own fields */
   std::vector<std::string> names, values;
@@ -190,12 +221,12 @@ bool axes_dialog(xpp::Session &s, int ind, bool three)
     values.push_back(std::move(value));
     kinds.push_back(kind);
   };
-  for (int i = 0; i < n; i++) add(xpp::format("*0{}-axis", axis_columns[i]), xpp::ind_to_sym(s, *var[i]), XPP_FIELD_NAME_IN(0));
-  for (int i = 0; i < n; i++) add(xpp::format("{}min", axis_columns[i]), xpp::format("{:g}", *lo[i]), XPP_FIELD_NUMBER);
-  for (int i = 0; i < n; i++) add(xpp::format("{}max", axis_columns[i]), xpp::format("{:g}", *hi[i]), XPP_FIELD_NUMBER);
-  for (int i = 0; i < n; i++) add(xpp::format("{}label", axis_columns[i]), *label[i], XPP_FIELD_TEXT);
+  for (int i = 0; i < n; i++) add(xpp::format("*0{}-axis", axis_columns[i]), xpp::ind_to_sym(s, now.column[i]), XPP_FIELD_NAME_IN(0));
+  for (int i = 0; i < n; i++) add(xpp::format("{}min", axis_columns[i]), xpp::format("{:g}", now.lo[i]), XPP_FIELD_NUMBER);
+  for (int i = 0; i < n; i++) add(xpp::format("{}max", axis_columns[i]), xpp::format("{:g}", now.hi[i]), XPP_FIELD_NUMBER);
+  for (int i = 0; i < n; i++) add(xpp::format("{}label", axis_columns[i]), now.label[i], XPP_FIELD_TEXT);
   if (three) {
-    for (int i = 0; i < 4; i++) add(view_window_names[i], xpp::format("{:g}", *view_window[i]), XPP_FIELD_NUMBER);
+    for (int i = 0; i < 4; i++) add(view_window_names[i], xpp::format("{:g}", now.window[i]), XPP_FIELD_NUMBER);
     const auto params = view_param_values(s);
     for (int i = 0; i < VIEW_PARAM_COUNT; i++) add(view_param_names[i], params[i], view_param_kinds[i]);
   }
@@ -207,89 +238,60 @@ bool axes_dialog(xpp::Session &s, int ind, bool three)
 
   /* everything read and checked before anything is set */
   xpp::TypedFields f(s);
-  int newvar[3] = {0, 0, 0};
-  double newlo[3] = {0, 0, 0}, newhi[3] = {0, 0, 0}, newwindow[4] = {0, 0, 0, 0};
+  AxesView view=now;
   for (int i = 0; i < n; i++) {
-    find_variable(s, values[i], &newvar[i]);
-    if (newvar[i] < 0) f.fail(xpp::format("{}-axis", axis_columns[i]), xpp::format("no variable named \"{}\"", values[i]));
-    newlo[i] = f.number(names[n + i], values[n + i]);
-    newhi[i] = f.number(names[2 * n + i], values[2 * n + i]);
-    if (!f.error() && newlo[i] >= newhi[i])
-      f.fail(names[2 * n + i], xpp::format("{:g} is not above {}", newhi[i], names[n + i]));
+    find_variable(s, values[i], &view.column[i]);
+    if (view.column[i] < 0) f.fail(xpp::format("{}-axis", axis_columns[i]), xpp::format("no variable named \"{}\"", values[i]));
+    view.lo[i] = f.number(names[n + i], values[n + i]);
+    view.hi[i] = f.number(names[2 * n + i], values[2 * n + i]);
+    view.label[i] = values[3 * n + i];
   }
   ViewParams params;
   if (three) {
-    for (int i = 0; i < 4; i++) newwindow[i] = f.number(view_window_names[i], values[4 * n + i]);
-    for (int i = 0; i < 4; i += 2)
-      if (!f.error() && newwindow[i] >= newwindow[i + 1])
-        f.fail(view_window_names[i + 1], xpp::format("{:g} is not above {}", newwindow[i + 1], view_window_names[i]));
+    for (int i = 0; i < 4; i++) view.window[i] = f.number(view_window_names[i], values[4 * n + i]);
     params = read_view_params(f, std::span(values).subspan(4 * n + 4));
   }
   if (f.error()) {
     xpp::command_error("Plot axes", *f.error());
     return false;
   }
-
-  for (int i = 0; i < n; i++) {
-    *var[i] = newvar[i];
-    *lo[i] = newlo[i];
-    *hi[i] = newhi[i];
-    *label[i] = values[3 * n + i];
-  }
-  if (three) {
-    for (int i = 0; i < 4; i++) *view_window[i] = newwindow[i];
-  } else {
-    g.xlo = g.xmin;
-    g.ylo = g.ymin;
-    g.xhi = g.xmax;
-    g.yhi = g.ymax;
-  }
-  xpp::check_windows(s);
-  if (three) apply_view_params(s, params);
-  return true;
+  if (!xpp::ok_or_show(set_axes_view(s, ind, three, view))) return false;
+  return !three || xpp::ok_or_show(set_view_params(s, params));
 }
+
+AxesOrigin axes_origin(const xpp::Session &s)
+{
+  const GRAPH &g=*s.plot_windows.current;
+  return {{g.xorg,g.yorg,g.zorg},{g.xorgflag!=0,g.yorgflag!=0,g.zorgflag!=0},s.plot_export.font_size};
+}
+
+Result<> set_axes_origin(xpp::Session &s, const AxesOrigin &a)
+{
+  if(!(a.font_size>=axes_font_size_min&&a.font_size<=axes_font_size_max))
+    return fail("axes options",xpp::format("Axes font size {:g} must be from {:g} to {:g}",a.font_size,axes_font_size_min,axes_font_size_max),command_place());
+  GRAPH &g=*s.plot_windows.current;
+  g.xorg=a.origin[0];
+  g.yorg=a.origin[1];
+  g.zorg=a.origin[2];
+  g.xorgflag=a.shown[0];
+  g.yorgflag=a.shown[1];
+  g.zorgflag=a.shown[2];
+  s.plot_export.font_size=a.font_size;
+  redraw_the_graph(s);
+  return {};
+}
+
 void axes_opts(xpp::Session &s)
 {
-  static const char *const n[]={"X-origin","Y-origin","Z-origin",
-		   "X-org(1=on)","Y-org(1=on)","Z-org(1=on)",
-		    "Axes font size"};
-  std::array<std::string, 7> values;
-  int status;
-  values[0] = xpp::format("{:g}", s.plot_windows.current->xorg);
-  values[1] = xpp::format("{:g}", s.plot_windows.current->yorg);
-  values[2] = xpp::format("{:g}", s.plot_windows.current->zorg);
-  values[3] = xpp::format("{:d}", s.plot_windows.current->xorgflag);
-  values[4] = xpp::format("{:d}", s.plot_windows.current->yorgflag);
-  values[5] = xpp::format("{:d}", s.plot_windows.current->zorgflag);
-  values[6] = xpp::number(s.plot_export.font_size);
-  static const int kinds[]={XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_NUMBER};
-  status=do_string_box_of(7,1,"Axes options",n,values,kinds);
- if(status!=0){
-   /* every field read before any is set */
-   xpp::TypedFields f(s);
-   double org[3];
-   int orgflag[3];
-   for(int i=0;i<3;i++){
-     org[i]=f.number(n[i],values[static_cast<size_t>(i)]);
-     orgflag[i]=f.integer(n[3+i],values[static_cast<size_t>(3+i)]);
-   }
-   const double font_size=f.number(n[6],values[6]);
-   if(f.error()){
-     xpp::command_error("Axes options",*f.error());
-     return;
-   }
-   GRAPH &g=*s.plot_windows.current;
-   g.xorg=org[0];
-   g.yorg=org[1];
-   g.zorg=org[2];
-   g.xorgflag=orgflag[0];
-   g.yorgflag=orgflag[1];
-   g.zorgflag=orgflag[2];
-   s.plot_export.font_size=font_size;
-   redraw_the_graph(s);
- }
-   
+  const AxesOrigin now=axes_origin(s);
+  std::array<xpp::FormField,7> fields={
+    xpp::FormField::real_number("X-origin",now.origin[0]),xpp::FormField::real_number("Y-origin",now.origin[1]),
+    xpp::FormField::real_number("Z-origin",now.origin[2]),
+    xpp::FormField::boolean("X origin shown",now.shown[0]),xpp::FormField::boolean("Y origin shown",now.shown[1]),
+    xpp::FormField::boolean("Z origin shown",now.shown[2]),
+    xpp::FormField::real_number("Axes font size",now.font_size,axes_font_size_min,axes_font_size_max)};
+  if(!xpp::ask_form(s,"Axes options",fields))return;
+  xpp::ok_or_show(set_axes_origin(s,{{fields[0].real,fields[1].real,fields[2].real},{fields[3].flag,fields[4].flag,fields[5].flag},fields[6].real}));
 }
 
 void pretty(double *x1, double *x2)  /* this was always pretty ugly */
@@ -499,38 +501,39 @@ void user_window(xpp::Session &s)
  redraw_the_graph(s);
 }
 
+Result<> variable_vs_time(xpp::Session &s, std::string_view name)
+{
+ int i;
+ find_variable(s,name,&i);
+ if(i<0)return fail("plot vs t",xpp::format("no variable named \"{}\"",name),command_place());
+ GRAPH &g=*s.plot_windows.current;
+ g.yv[0]=i;
+ g.grtype=0;
+ g.xv[0]=0;
+ if(s.data_store.rows>=2){
+   xpp::get_max(s,g.xv[0],&g.xmin,&g.xmax);
+   xpp::get_max(s,g.yv[0],&g.ymin,&g.ymax);
+ }
+ else {
+   g.xmin=s.numerics.start_time;
+   g.xmax=s.numerics.total_time;
+ }
+ g.xlo=g.xmin;
+ g.ylo=g.ymin;
+ g.xhi=g.xmax;
+ g.yhi=g.ymax;
+ xpp::check_windows(s);
+ check_flags(g);
+ set_normal_scale(s);
+ redraw_the_graph(s);
+ return {};
+}
+
 void xi_vs_t(xpp::Session &s) /*  a short cut   */
 {
- int i=s.plot_windows.current->yv[0];
-
- std::string value=xpp::ind_to_sym(s,i);
+ std::string value=xpp::ind_to_sym(s,s.plot_windows.current->yv[0]);
  new_string_of("Plot vs t: ",value,XPP_FIELD_NAME_IN(0));
- find_variable(s,value.c_str(),&i);
- 
- if(i>-1){
-   s.plot_windows.current->yv[0]=i;
-   s.plot_windows.current->grtype=0;
-   s.plot_windows.current->xv[0]=0;
-   if(s.data_store.rows>=2){
-      xpp::get_max(s,s.plot_windows.current->xv[0],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
-   pretty(&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
-    xpp::get_max(s,s.plot_windows.current->yv[0],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
-     pretty(&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax)); 
-   
-    }
-   else {
-     s.plot_windows.current->xmin=s.numerics.start_time;
-     s.plot_windows.current->xmax=s.numerics.total_time;
-        }
-    s.plot_windows.current->xlo=s.plot_windows.current->xmin;
-    s.plot_windows.current->ylo=s.plot_windows.current->ymin;
-    s.plot_windows.current->xhi=s.plot_windows.current->xmax;
-    s.plot_windows.current->yhi=s.plot_windows.current->ymax;
-    xpp::check_windows(s);
-    check_flags(*s.plot_windows.current);
-   set_normal_scale(s);
-    redraw_the_graph(s);
- }
+ xpp::ok_or_show(variable_vs_time(s,value));
 }
 
 void movie_rot(xpp::Session &s, double start, double increment, int nclip, int angle)
@@ -564,7 +567,7 @@ void get_3d_par_com(xpp::Session &s)
     xpp::command_error("3D params",*f.error());
     return;
   }
-  apply_view_params(s,p);
+  xpp::ok_or_show(set_view_params(s,p));
 }
 void update_view(xpp::Session &s, double xlo,double xhi, double ylo, double yhi)
 {
@@ -707,46 +710,102 @@ std::array<xpp::FormField,style_field_count> style_fields(const xpp::Color &colo
          xpp::FormField::real_number("Marker size",style.marker_size,0.0)};
 }
 
-/* the colour and style the fields (an answered ask_form's) say, or why not: a width of 0 is no line */
-bool read_style_fields(std::string_view title, std::span<const xpp::FormField> fields, xpp::Color &color, xpp::LineStyle &style)
+/* the colour and style the fields (an answered ask_form's) say */
+void read_style_fields(std::span<const xpp::FormField> fields, xpp::Color &color, xpp::LineStyle &style)
 {
- if(fields[3].real<=0){
-   command_error(title,"Width: must be above 0");
-   return false;
- }
  color=fields[0].color;
  style.draw=static_cast<xpp::LineDraw>(fields[1].whole);
  style.dash=static_cast<xpp::LineDash>(fields[2].whole);
  style.width=fields[3].real;
  style.marker=static_cast<xpp::LineMarker>(fields[4].whole);
  style.marker_size=fields[5].real;
- return true;
 }
 
 } // namespace
 
-int alter_curve(xpp::Session &s, std::string_view title, int in_it, int n)
+Result<> check_line_style(std::string_view command, const xpp::LineStyle &style)
+{
+ if(!(style.width>0))return fail(std::string(command),"Width: must be above 0",command_place());
+ if(!(style.marker_size>=0))return fail(std::string(command),"Marker size: must be 0 or more",command_place());
+ return {};
+}
+
+CurveSettings curve_settings(const xpp::Session &s, int curve)
+{
+ const GRAPH &g=*s.plot_windows.current;
+ const auto at=static_cast<std::size_t>(curve);
+ return {g.xv[at],g.yv[at],g.zv[at],g.color[at],g.style[at]};
+}
+
+Result<> set_curve(xpp::Session &s, int curve, const CurveSettings &settings)
 {
  GRAPH &g=*s.plot_windows.current;
+ if(curve<0||curve>=g.nvars)return fail("plots",xpp::format("no curve {}",curve),command_place());
+ if(const Result<> checked=check_line_style("plots",settings.style);!checked)return checked;
+ const auto at=static_cast<std::size_t>(curve);
+ g.xv[at]=settings.x;
+ g.yv[at]=settings.y;
+ g.zv[at]=settings.z;
+ g.color[at]=settings.color;
+ g.style[at]=settings.style;
+ check_flags(g);
+ redraw_the_graph(s);
+ return {};
+}
+
+Result<int> add_curve(xpp::Session &s, const CurveSettings &settings)
+{
+ if(const Result<> checked=check_line_style("plots",settings.style);!checked)return std::unexpected<Error>(checked.error());
+ GRAPH &g=*s.plot_windows.current;
+ const int count=g.nvars;
+ g.resize_curves(count+1);
+ if(const Result<> set=set_curve(s,count,settings);!set){
+   g.resize_curves(count);
+   return std::unexpected<Error>(set.error());
+ }
+ return count;
+}
+
+Result<> delete_curve(xpp::Session &s, int curve)
+{
+ GRAPH &g=*s.plot_windows.current;
+ if(curve<0||curve>=g.nvars)return fail("plots",xpp::format("no curve {}: the window has curves 0 to {}",curve,g.nvars-1),command_place());
+ if(curve==0)return fail("plots","The first curve is the window's own and stays",command_place());
+ g.erase_curve(curve);
+ check_flags(g);
+ redraw_the_graph(s);
+ return {};
+}
+
+void delete_all_curves(xpp::Session &s)
+{
+ s.plot_windows.current->resize_curves(1);
+ redraw_the_graph(s);
+}
+
+namespace {
+
+/* the curve the New and Edit curve forms ask for, starting from the settings offered: false when cancelled or refused (shown) */
+bool ask_curve(xpp::Session &s, std::string_view title, CurveSettings &curve)
+{
  std::vector<xpp::FormField> fields={
-   xpp::FormField{.name="*0X-axis",.kind=XPP_FIELD_NAME_IN(0),.value=xpp::ind_to_sym(s,g.xv[in_it])},
-   xpp::FormField{.name="*0Y-axis",.kind=XPP_FIELD_NAME_IN(0),.value=xpp::ind_to_sym(s,g.yv[in_it])},
-   xpp::FormField{.name="*0Z-axis",.kind=XPP_FIELD_NAME_IN(0),.value=xpp::ind_to_sym(s,g.zv[in_it])}};
- for(xpp::FormField &f:style_fields(g.color[in_it],g.style[in_it]))fields.push_back(std::move(f));
- if(!xpp::ask_form(s,title,fields))return 0;
- xpp::Color color;
- xpp::LineStyle style;
- if(!read_style_fields(title,std::span(fields).subspan(3),color,style))return 0;
- int i;
- find_variable(s,fields[0].value.c_str(),&i);
- if(i>-1)g.xv[n]=i;
- find_variable(s,fields[1].value.c_str(),&i);
- if(i>-1)g.yv[n]=i;
- find_variable(s,fields[2].value.c_str(),&i);
- if(i>-1)g.zv[n]=i;
- g.color[n]=color;
- g.style[n]=style;
- return 1;
+   xpp::FormField{.name="*0X-axis",.kind=XPP_FIELD_NAME_IN(0),.value=xpp::ind_to_sym(s,curve.x)},
+   xpp::FormField{.name="*0Y-axis",.kind=XPP_FIELD_NAME_IN(0),.value=xpp::ind_to_sym(s,curve.y)},
+   xpp::FormField{.name="*0Z-axis",.kind=XPP_FIELD_NAME_IN(0),.value=xpp::ind_to_sym(s,curve.z)}};
+ for(xpp::FormField &f:style_fields(curve.color,curve.style))fields.push_back(std::move(f));
+ if(!xpp::ask_form(s,title,fields))return false;
+ CurveSettings answer=curve;
+ for(std::size_t i=0;i<3;i++){
+   int *const column[3]={&answer.x,&answer.y,&answer.z};
+   find_variable(s,fields[i].value,column[i]);
+   if(*column[i]<0){
+     command_error(title,xpp::format("no variable named \"{}\"",fields[i].value));
+     return false;
+   }
+ }
+ read_style_fields(std::span(fields).subspan(3),answer.color,answer.style);
+ curve=answer;
+ return true;
 }
 
 void edit_curve(xpp::Session &s)
@@ -754,46 +813,65 @@ void edit_curve(xpp::Session &s)
  int crv=0;
  ping();
  new_int(xpp::format("Edit 0-{} :",s.plot_windows.current->nvars-1),&crv);
- if(crv>=0&&crv<s.plot_windows.current->nvars)
-   alter_curve(s,xpp::format("Edit curve {}",crv),crv,crv);
- else command_error("plots","no such curve");
+ if(crv<0||crv>=s.plot_windows.current->nvars){
+   command_error("plots","no such curve");
+   return;
+ }
+ CurveSettings curve=curve_settings(s,crv);
+ if(ask_curve(s,xpp::format("Edit curve {}",crv),curve))xpp::ok_or_show(set_curve(s,crv,curve));
 }
 
 void new_curve(xpp::Session &s)
 {
- const int count=s.plot_windows.current->nvars;
- s.plot_windows.current->resize_curves(count+1);
- if(!alter_curve(s,"New Curve",0,count))s.plot_windows.current->resize_curves(count);
-  
- }  
+ CurveSettings curve=curve_settings(s,0);
+ if(ask_curve(s,"New Curve",curve))xpp::ok_or_show(add_curve(s,curve));
+}
+
+} // namespace
 
 /* the main plot window's picture export (W53, issue #101; PDF and SVG, W479): one entry point through
-   image_format.h's registry: the picture's parameters, the file, the plot drawn into the picture */
+   image_format.h's registry: the plot drawn into the picture begun, written and renamed into place */
+Result<bool> write_plot_picture(xpp::Session &s, int fmt, std::string_view filename)
+{
+ const xpp::ImageFormat &f=xpp::image_formats[fmt];
+ if(const Result<> begun=xpp::begin_picture(s,f,filename,s.plot_export.color);!begun)return std::unexpected<Error>(begun.error());
+ if(!s.plot_file.writer)return false;
+ if(const Result<> done=vector_restore(s);!done)return std::unexpected<Error>(done.error());
+ redraw_the_graph(s); /* the window draws again where the picture was */
+ return true;
+}
+
+namespace {
+
+/* the picture's parameters, the file, then the plot written into it */
 void export_plot_picture(xpp::Session &s, int fmt)
 {
  const xpp::ImageFormat &f=xpp::image_formats[fmt];
  if(!xpp::ask_picture_params(s))return;
  std::string filename=xpp::picture_filename(s,f);
  if(!file_selector(f.plot_title,filename,xpp::format("*.{}",f.extension)))return;
- if(xpp::ok_or_show(xpp::begin_picture(s,f,filename,s.plot_export.color))&&s.plot_file.writer){
-   vector_restore(s);
-   ping();
- }
+ const Result<bool> written=write_plot_picture(s,fmt,filename);
+ if(xpp::ok_or_show(written)&&*written)ping();
 }
 
-void change_cmap_com(xpp::Session &s, int i)
+} // namespace
+
+void set_colormap(xpp::Session &s, Colormap colormap)
 {
-  s.colormap=static_cast<Colormap>(i);
+  s.colormap=colormap;
   xpp::ui.aplot_redraw(s); /* the array plot shows the new colours */
+  redraw_dfield(s);
 }
 
 void freeze_com(xpp::Session &s, int c)
 {
 
  switch(c){
- case 0: 
-   freeze_crv(s,0);
+ case 0: {
+   const Result<int> slot=freeze_curve(s,0);
+   if(xpp::ok_or_show(slot))edit_frz_crv(s,*slot);
    break;
+ }
  case 1: /* delete, or edit, the graph's frozen curve (asked which) */
  case 2: {
    int i=get_frz_index(s,s.plot_windows.draw_win);
@@ -809,7 +887,7 @@ void freeze_com(xpp::Session &s, int c)
    frz_bd(s);
    break;
  case 6:
-   s.frozen_curves.bif_diagram.curves.clear();
+   clear_bifurcation(s);
    break;
  case 7:
    s.frozen_curves.auto_freeze=1-s.frozen_curves.auto_freeze;
@@ -818,13 +896,14 @@ void freeze_com(xpp::Session &s, int c)
  }
 }
 
-void set_key(xpp::Session &s, int x, int y)
+void set_frozen_legend(xpp::Session &s, bool visible, std::optional<std::pair<double,double>> at)
 {
-  float xp,yp;
-  scale_to_real(s,x,y,&xp,&yp);
-  s.frozen_curves.key_x=xp;
-  s.frozen_curves.key_y=yp;
-  s.frozen_curves.key_flag=1;
+  if(at){
+    s.frozen_curves.key_x=at->first;
+    s.frozen_curves.key_y=at->second;
+  }
+  s.frozen_curves.key_flag=visible?1:0;
+  redraw_the_graph(s);
 }
 
 void draw_freeze_key(xpp::Session &s)
@@ -853,13 +932,14 @@ void key_frz_com(xpp::Session &s, int c)
   int x,y;
   switch(c){
   case 0:
-    s.frozen_curves.key_flag=0;
+    set_frozen_legend(s,false,std::nullopt);
     break;
   case 1:
     MessageBox("Position with mouse");
     if(GetMouseXY(s,&x,&y)){
-      set_key(s,x,y);
-      draw_freeze_key(s);
+      float xp,yp;
+      scale_to_real(s,x,y,&xp,&yp);
+      set_frozen_legend(s,true,std::pair<double,double>{xp,yp});
     }
     KillMessageBox();
   }
@@ -878,6 +958,14 @@ void delete_frz_crv(xpp::Session &s, int i)
   s.frozen_curves.curve[i].zv=nullptr;
 }
 
+Result<> delete_frozen(xpp::Session &s, XppWinId w, int slot)
+{
+  if(const Result<> held=frozen_slot_in_window(s,w,slot,"freeze");!held)return held;
+  delete_frz_crv(s,slot);
+  redraw_the_graph(s);
+  return {};
+}
+
 void kill_frz(xpp::Session &s)
 {
   int i;
@@ -885,21 +973,13 @@ void kill_frz(xpp::Session &s)
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==s.plot_windows.draw_win)
       delete_frz_crv(s,i);
   }
-}
-
-int freeze_crv(xpp::Session &s, int ind)
-{
- int i;
- i=create_crv(s,ind);
- if(i<0)return(-1);
- edit_frz_crv(s,i);
- return(1);
+  redraw_the_graph(s);
 }
 
 void auto_freeze_it(xpp::Session &s)
 {
   if(s.frozen_curves.auto_freeze==0)return;
-  create_crv(s,0);
+  xpp::ok_or_show(freeze_curve(s,0));
 }
 
 namespace {
@@ -936,16 +1016,10 @@ void fill_frozen_curve(xpp::Session &s, int i, std::vector<float> x, std::vector
 
 } // namespace
 
-int create_crv(xpp::Session &s, int ind)
+Result<int> freeze_curve(xpp::Session &s, int ind)
 {
-  if(ind<0 || ind>=s.plot_windows.current->nvars){
-    command_error("freeze","no such curve");
-    return -1;
-  }
-  if(s.browser.view.maxrow<=2){
-    command_error("freeze","No Curve to freeze");
-    return -1;
-  }
+  if(ind<0 || ind>=s.plot_windows.current->nvars)return fail("freeze","no such curve",command_place());
+  if(s.browser.view.maxrow<=2)return fail("freeze","No Curve to freeze",command_place());
   int i=0;
   while(i<static_cast<int>(s.frozen_curves.curve.size())&&s.frozen_curves.curve[i].use)++i;
   const GRAPH &g=*s.plot_windows.current;
@@ -956,6 +1030,40 @@ int create_crv(xpp::Session &s, int ind)
                     g.grtype>0?std::vector<float>(d[g.zv[ind]],d[g.zv[ind]]+n):std::vector<float>(),
                     g.grtype,s.plot_windows.draw_win);
   return i;
+}
+
+Result<> frozen_slot_in_window(const xpp::Session &s, XppWinId w, int slot, std::string_view command)
+{
+  const auto &curves=s.frozen_curves.curve;
+  if(slot<0||slot>=static_cast<int>(curves.size())||curves[static_cast<std::size_t>(slot)].use!=1||curves[static_cast<std::size_t>(slot)].w!=w)
+    return fail(std::string(command),xpp::format("The window has no frozen curve in slot {}",slot),command_place());
+  return {};
+}
+
+FrozenSettings frozen_settings(const xpp::Session &s, int slot)
+{
+  const CURVE &c=s.frozen_curves.curve[static_cast<std::size_t>(slot)];
+  return {c.color,c.style,c.key,c.name};
+}
+
+Result<> check_frozen_settings(const FrozenSettings &f)
+{
+  if(const Result<> checked=check_line_style("freeze",f.style);!checked)return checked;
+  if(f.key.size()>frozen_key_max)return fail("freeze",xpp::format("Key: at most {} bytes, not {}",frozen_key_max,f.key.size()),command_place());
+  if(f.name.size()>frozen_name_max)return fail("freeze",xpp::format("Name: at most {} bytes, not {}",frozen_name_max,f.name.size()),command_place());
+  return {};
+}
+
+Result<> set_frozen_curve(xpp::Session &s, int slot, const FrozenSettings &f)
+{
+  if(const Result<> checked=check_frozen_settings(f);!checked)return checked;
+  CURVE &c=s.frozen_curves.curve[static_cast<std::size_t>(slot)];
+  c.color=f.color;
+  c.style=f.style;
+  c.key=f.key;
+  c.name=f.name;
+  redraw_the_graph(s);
+  return {};
 }
 
 bool restore_frozen_curve(xpp::Session &s, int i, XppWinId w, int type, const xpp::Color &color, const xpp::LineStyle &style, std::string key, std::string name,
@@ -975,19 +1083,17 @@ bool restore_frozen_curve(xpp::Session &s, int i, XppWinId w, int type, const xp
 
 void edit_frz_crv(xpp::Session &s, int i)
 {
- CURVE &c=s.frozen_curves.curve[i];
+ FrozenSettings now=frozen_settings(s,i);
  std::vector<xpp::FormField> fields;
- for(xpp::FormField &f:style_fields(c.color,c.style))fields.push_back(std::move(f));
- fields.push_back(xpp::FormField{.name="Key",.value=c.key});
- fields.push_back(xpp::FormField{.name="Name",.value=c.name});
+ for(xpp::FormField &f:style_fields(now.color,now.style))fields.push_back(std::move(f));
+ fields.push_back(xpp::FormField{.name="Key",.value=now.key});
+ fields.push_back(xpp::FormField{.name="Name",.value=now.name});
  if(!xpp::ask_form(s,"Edit Freeze",fields))return;
- xpp::Color color;
- xpp::LineStyle style;
- if(!read_style_fields("Edit Freeze",std::span(fields).first(style_field_count),color,style))return;
- c.color=color;
- c.style=style;
- c.key=xpp::format("{:.19}",fields[style_field_count].value);
- c.name=xpp::format("{:.9}",fields[style_field_count+1].value);
+ FrozenSettings answer;
+ read_style_fields(std::span(fields).first(style_field_count),answer.color,answer.style);
+ answer.key=fields[style_field_count].value;
+ answer.name=fields[style_field_count+1].value;
+ xpp::ok_or_show(set_frozen_curve(s,i,answer));
 }
 
 void draw_freeze(xpp::Session &s, XppWinId w)
@@ -1071,12 +1177,12 @@ void add_bd_crv(xpp::Session &s, const float *x, const float *y, int len, int ty
 /* a diagram.dat (AUTO's Write pts): x ylo yhi type branch 2par per line;
    each run of points of one type and branch is a curve (two, ylo and yhi,
    for periodic orbits) */
-void read_bd(xpp::Session &s, const xpp::DataTable &table)
+int read_bd(xpp::Session &s, const xpp::DataTable &table)
 {
   int oldtype=0,type,oldbr=0,br,ncrv=0,len;
   std::vector<float> x(1),ylo(1),yhi(1);
   len=0;
-  if (table.rows() == 0) return;
+  if (table.rows() == 0) return 0;
   std::size_t row=0;
   auto next = [&](int at, int &point_type, int &branch) {
     if (row == table.rows()) return false;
@@ -1128,6 +1234,7 @@ void read_bd(xpp::Session &s, const xpp::DataTable &table)
   }
   xpp::log(XPP_LOG_INFO, " got {} bifurcation curves\n",ncrv);
   s.frozen_curves.bif_diagram.w=s.plot_windows.draw_win;
+  return ncrv;
 }
 
 void frz_bd(xpp::Session &s)
@@ -1135,28 +1242,37 @@ void frz_bd(xpp::Session &s)
   std::string filename="diagram.dat";
   ping();
   if(!file_selector("Import Diagram",filename,"*"))return;
-  xpp::Result<xpp::DataTable> read=xpp::read_data_table(filename.c_str());
-  if (!xpp::ok_or_show(read)) return;
-  const xpp::DataTable &table=*read;
-  // AUTO's Write pts has six columns: x, low, high, type, branch, two-parameter flag.
-  constexpr std::size_t diagram_columns=6;
-  if (table.columns.size()!=diagram_columns) {
-    err_reading(filename,"a diagram needs six columns",1);
-    return;
-  }
-  for (std::size_t row=0; row<table.rows(); ++row) {
-    for (std::size_t col=0; col<diagram_columns; ++col) {
-      const double value=table.columns[col][row];
-      if (!std::isfinite(value) || (col>=3 && (value!=std::trunc(value) || value<INT_MIN || value>INT_MAX))) {
-        err_reading(filename,xpp::format("invalid diagram value {}",value),table.line(row));
-        return;
-      }
-    }
-  }
-  read_bd(s,table);
+  xpp::ok_or_show(import_bifurcation(s,filename));
 }
 
 } // namespace
+
+Result<int> import_bifurcation(xpp::Session &s, std::string_view filename)
+{
+  xpp::Result<xpp::DataTable> read=xpp::read_data_table(std::string(filename).c_str());
+  if (!read) return std::unexpected<Error>(read.error());
+  const xpp::DataTable &table=*read;
+  // AUTO's Write pts has six columns: x, low, high, type, branch, two-parameter flag.
+  constexpr std::size_t diagram_columns=6;
+  const auto bad=[&](std::string what,int line){return std::unexpected<Error>(Error{"diagram import",std::move(what),Place{std::string(filename),line}});};
+  if (table.columns.size()!=diagram_columns) return bad("a diagram needs six columns",1);
+  for (std::size_t row=0; row<table.rows(); ++row) {
+    for (std::size_t col=0; col<diagram_columns; ++col) {
+      const double value=table.columns[col][row];
+      if (!std::isfinite(value) || (col>=3 && (value!=std::trunc(value) || value<INT_MIN || value>INT_MAX)))
+        return bad(xpp::format("invalid diagram value {}",value),table.line(row));
+    }
+  }
+  const int count=read_bd(s,table);
+  redraw_the_graph(s);
+  return count;
+}
+
+void clear_bifurcation(xpp::Session &s)
+{
+  s.frozen_curves.bif_diagram.curves.clear();
+  redraw_the_graph(s);
+}
 
 int get_frz_index(xpp::Session &s, XppWinId w)
 {
@@ -1223,9 +1339,9 @@ void add_a_curve_com(xpp::Session &s, int c)
  switch(c){
  case 0: new_curve(s);
    break;
- case 1:if(s.plot_windows.current->nvars>1)s.plot_windows.current->resize_curves(s.plot_windows.current->nvars-1);
+ case 1:xpp::ok_or_show(delete_curve(s,s.plot_windows.current->nvars-1));
    break;
- case 2:s.plot_windows.current->resize_curves(1);
+ case 2:delete_all_curves(s);
    break;
  case 3: edit_curve(s);
    break;

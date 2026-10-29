@@ -126,6 +126,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [93](#93-animation-circles-ignore-the-written-width) | Animation | the circle reader never consumes its documented width argument | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
 | [94](#94-permanent-animation-shapes-change-colour-every-frame) | Animation | permanent coordinates are cached, but colour formulas run each frame | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
 | [95](#95-auto-evaluates-the-equations-at-t--0-without-a-word) | AUTO | AUTO calls the right-hand side with t fixed at 0, so an equation that uses t is continued with t = 0 and no word says so | [W516 / #580](https://github.com/MuhammadMoustafa/xppautX/issues/580) |
+| [96](#96-markers-on-the-data-read-rows-past-the-stored-data) | Plots | Add markers' Number, Row1 and Skip are never checked against the stored rows, so its markers read past the data | [W524](https://github.com/MuhammadMoustafa/xppautX/issues/588) |
 
 ## 1. Model options
 
@@ -2048,3 +2049,20 @@ is therefore continued as if `t` were 0, with no message. Evidence: `x' = -x + s
 gives the branch of `x' = -x`. xppautX refuses the run and names each equation with
 its file and line, pointing to the oscillator form that makes `t` a state
 (`examples/tstauto/frcp.odex`; W516, [#580](https://github.com/MuhammadMoustafa/xppautX/issues/580)).
+
+## 96. Markers on the data read rows past the stored data
+
+Text,etc's marker(S) puts `Number` markers on the window's first curve, every
+`Skip`-th row from `Row1`, and calls `get_data_xyz` for each row
+([many_pops.c:569–588](../reference/xppaut-8.0/many_pops.c#L569),
+[master](../reference/xppaut-master/many_pops.c#L568)); it reads
+`data[column][row0 + row]` with no check against the rows stored
+([browse.c:1239–1247](../reference/xppaut-8.0/browse.c#L1239),
+[master](../reference/xppaut-master/browse.c#L1238)), so a `Number` or a
+`Skip` that reaches past the data reads memory beyond the column, and the
+markers are put where that memory says. Evidence: `plot.add_data_markers`
+with a stride of 100000 on a 601-row run is refused by xppautX naming the
+row it would reach and the rows there are; `tools/servercheck.py` checks it.
+xppautX checks the last row, and that the markers fit the list, before it
+adds any (the markers are all or nothing), for the form and the command
+alike. Card [W524](https://github.com/MuhammadMoustafa/xppautX/issues/588).

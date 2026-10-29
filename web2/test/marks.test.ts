@@ -23,8 +23,8 @@ const MARKS: MarksEvent = {
   text: [{id: 4, x: 0.1, y: 0.5, text: '\\1a\\0-point', source: '\\1a\\0-point', size: 3, font: 0, style: 'bold', color: '#c8c800'}],
   arrows: [{id: 5, kind: 'pointer', x1: 0, y1: 0, x2: 1, y2: 0, size: 0.2, color: '#c8c800'}],
   markers: [{id: 6, x: 0.5, y: 0.5, shape: 'diamond', size: 2, color: '#00e100'}],
-  frozen: [{key: 'first run', name: 'frz1', color: '#ffcd00', ...LINE, x: [0, 0.5, 1], y: [0, 1, null]},
-    {key: '', name: 'crvb', color: '#f06400b0', ...LINE, draw: 'points', marker: 'square', marker_size: 2, x: [], y: []}],
+  frozen: [{slot: 0, key: 'first run', name: 'frz1', color: '#ffcd00', ...LINE, x: [0, 0.5, 1], y: [0, 1, null]},
+    {slot: 1, key: '', name: 'crvb', color: '#f06400b0', ...LINE, draw: 'points', marker: 'square', marker_size: 2, x: [], y: []}],
 };
 
 /** a unit square of plot coordinates on a 100 x 100 canvas area at (10, 20) */

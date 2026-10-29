@@ -48,7 +48,7 @@ const ImageFormat image_formats[n_image_formats] = {
 int ask_picture_params(Session &s)
 {
   std::array<FormField, 2> fields = {FormField::boolean("Colour", s.plot_export.color),
-                                     FormField::real_number("Axes font size", s.plot_export.font_size, 1.0, 100.0)};
+                                     FormField::real_number("Axes font size", s.plot_export.font_size, axes_font_size_min, axes_font_size_max)};
   if (!ask_form(s, "Picture parameters", fields)) return 0;
   s.plot_export.color = fields[0].flag;
   s.plot_export.font_size = fields[1].real;
@@ -80,16 +80,18 @@ Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view f
   return {};
 }
 
-void end_picture(Session &s)
+Result<> end_picture(Session &s)
 {
   PlotFileState &f = s.plot_file;
+  Result<> result;
   if (f.writer) {
-    if (const Result<> written = f.format->write(f.picture, f.writer); !written) ok_or_show(written);
-    else ok_or_show(commit_save(f.writer));
+    result = f.format->write(f.picture, f.writer);
+    if (result) result = commit_save(f.writer);
   }
   f.format = nullptr;
   f.picture = Picture{};
   if (program.interactive) init_x11(s);
+  return result;
 }
 
 Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height)

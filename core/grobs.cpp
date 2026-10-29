@@ -322,30 +322,39 @@ void add_marker(xpp::Session &s)
     redraw_all(s);
 }
 
-/* markers at every skip-th row of the window's first curve */
-static void add_markers_at(xpp::Session &s, int number, int start, int skip, double size, int type, const Color &color)
+/* markers at every skip-th row of the window's first curve, from row `start`: the settings are the session's
+   from now on, as the Add Markers form leaves them; all or nothing, the rows checked against the stored data */
+Result<int> add_data_markers(xpp::Session &s, const MarkInfo &m)
 {
-    float xs, ys, x, y, z;
-    for (int i = 0; i < number; i++) {
-        get_data_xyz(s,&x, &y, &z, s.plot_windows.current->xv[0], s.plot_windows.current->yv[0], s.plot_windows.current->zv[0], start + i * skip);
-        if (s.plot_windows.current->ThreeDFlag == 0) {
+    if (m.number < 1 || m.skip < 1 || m.start < 0)
+        return fail("Add Markers", "Number and Skip are at least 1 and Row1 at least 0", command_place());
+    const BROWSER &data = s.browser.view;
+    const long long last_row = data.row0 + m.start + static_cast<long long>(m.number - 1) * m.skip;
+    if (last_row >= data.maxrow)
+        return fail("Add Markers", xpp::format("The markers reach row {}, past the data: it has {} rows", last_row - data.row0, data.maxrow - data.row0), command_place());
+    if (s.grobs.size() + static_cast<std::size_t>(m.number) > ANNOTATION_LIST_MAX)
+        return fail("Add Markers", xpp::format("a session has at most {} arrows, pointers and markers", ANNOTATION_LIST_MAX), command_place());
+    s.marker = m;
+    const GRAPH &g = *s.plot_windows.current;
+    for (int i = 0; i < m.number; i++) {
+        float xs, ys, x, y, z;
+        get_data_xyz(s, &x, &y, &z, g.xv[0], g.yv[0], g.zv[0], m.start + i * m.skip);
+        if (g.ThreeDFlag == 0) {
             xs = x;
             ys = y;
         } else {
-            threed_proj(s,x, y, z, &xs, &ys);
+            threed_proj(s, x, y, z, &xs, &ys);
         }
-        if (add_grob(s, s.plot_windows.draw_win, xs, ys, 0, 0, size, type, color) < 0) {
-            too_many_objects();
-            break;
-        }
+        add_grob(s, s.plot_windows.draw_win, xs, ys, 0, 0, m.size, m.type, m.color);
     }
     redraw_all(s);
+    return m.number;
 }
 
 void add_markers(xpp::Session &s)
 {
     if (get_markers_info(s) == 0) return;
-    add_markers_at(s,s.marker.number, s.marker.start, s.marker.skip, s.marker.size, s.marker.type, s.marker.color);
+    xpp::ok_or_show(add_data_markers(s, s.marker));
 }
 
 void add_pntarr(xpp::Session &s, int type)

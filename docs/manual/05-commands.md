@@ -253,7 +253,7 @@ copy of an X11 pixmap.
 
 ### (G)raphic stuff
 
-This induces a popup menu with several choices.
+This induces a popup menu with several choices. Each choice of this menu, Axes (**(V)iew axes**: 2D and 3D), **(3)D view**, **rU**elle plot, **(X)** variable vs time and **marker(S)** is also a command that takes its values as arguments (`plot.add_curve`, `plot.freeze_curve`, `plot.set_2d`, ...: docs/protocol.md "Plot settings"), so a script or the page sets a plot's curves, axes and exports without the forms; a value left out stays what the plot has, and a value outside its range (a width of 0, a font size outside 1 to 100, a rUelle shift below 0, markers past the stored rows, a frozen curve's key over 19 characters or name over 9) is refused with the reason instead of being cut or read past.
 - **(A)dd curve**: This lets you add another curve to the picture. A form will appear asking you for the variables on each axis and the curve's look: its **Colour** (any colour, with its alpha: `#rrggbb` or `#rrggbbaa`, a CSS colour name or `foreground`), **Draw** (`line`, `points` or `both`), **Dash** (`solid`, `dashed`, `dotted` or `dash_dot`), **Width**, **Marker** (`circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`) and **Marker size** (pixels). All subsequent integrations and restorations will include the new graph. Add as many curves as needed, within available memory (W376, #438).
 - **(D)elete last**: Will remove most recent curve from the added list.
 - **(R)emove all**: Deletes all curves but the first.

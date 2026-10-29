@@ -302,7 +302,7 @@ void dump_ps(xpp::Session &s, int i)
      return;
    }
    if(xpp::ok_or_show(xpp::begin_picture(s,*fmt,filename,s.plot_export.color)) && s.plot_file.writer)
-     vector_restore(s);
+     xpp::ok_or_show(vector_restore(s));
 }
 
 void   redo_stuff(xpp::Session &s)

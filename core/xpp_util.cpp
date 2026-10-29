@@ -29,9 +29,11 @@
 #include "form_ode.h"
 #include "delay_handle.h"
 #include "numerics.h"
+#include "arrayplot.h"
 #include <array>
 #include <algorithm>
 #include <string>
+#include <span>
 #include <string_view>
 #include <time.h>
 #include <chrono>
@@ -139,7 +141,7 @@ void user_fun_info(const xpp::Model &m, FILE *fp)
 }
 
 /* a PDF or SVG export: what the session holds for the window, drawn into the picture begun, which is then ended */
-void vector_restore(xpp::Session &s)
+xpp::Result<> vector_restore(xpp::Session &s)
 {
   redraw_dfield(s);
   if (s.plot_windows.current->Nullrestore) restore_nullclines(s);
@@ -147,7 +149,7 @@ void vector_restore(xpp::Session &s)
   do_axes(s);
   draw_label(s,s.plot_windows.draw_win);
   draw_freeze(s,s.plot_windows.draw_win);
-  xpp::end_picture(s);
+  return xpp::end_picture(s);
 }
 
 void new_parameter(xpp::Session &s)
@@ -224,28 +226,27 @@ void man_ic(xpp::Session &s)
   }
 }
 
-/* the ICs box "xvst" (how 0) and "pp" (how 1) buttons: plot the checked
-   variables (isck, n entries) and uncheck them */
-void plot_checked_vars(xpp::Session &s,int how,int *isck,int n)
+/* the data columns of variables `variables` (1 is the first variable) plotted: curves against time, a phase
+   portrait of two or three axes, or an array plot over the variables from the first to the last */
+Result<> plot_variables(xpp::Session &s,PlotHow how,std::span<const int> variables)
 {
-  int i;
-  std::vector<int> selected;
-  std::array<int, plot_axes> axes{};
-  for(i=0;i<n;i++)
-    if(isck[i]){
-      selected.push_back(i+1);
-      isck[i]=0;
-    }
-  if(how==0&&!selected.empty())
-    graph_all(s,selected.data(),static_cast<int>(selected.size()),0);
-  if(how==1&&selected.size()>1){
-    if(selected.size()>axes.size()){
-      command_error("pp","A phase portrait takes at most three axes");
-      return;
-    }
-    std::copy(selected.begin(),selected.end(),axes.begin());
-    graph_all(s,axes.data(),static_cast<int>(selected.size()),1);
+  std::vector<int> list(variables.begin(),variables.end());
+  switch(how){
+  case PlotHow::time_series:
+    if(list.empty())return fail("plot","Give at least one variable to plot against time",command_place());
+    graph_all(s,list.data(),static_cast<int>(list.size()),0);
+    break;
+  case PlotHow::phase_plane:
+    if(list.size()<2||list.size()>static_cast<std::size_t>(plot_axes))return fail("plot",xpp::format("A phase portrait takes two or three axes, not {}",list.size()),command_place());
+    graph_all(s,list.data(),static_cast<int>(list.size()),1);
+    break;
+  case PlotHow::array_plot:
+    if(list.size()!=2||list[0]>=list[1])return fail("plot","An array plot goes from one variable to a later one: give those two",command_place());
+    if(s.browser.view.maxrow<2)return fail("plot","An array plot needs stored data: run first",command_place());
+    optimize_aplot(s,list.data());
+    break;
   }
+  return {};
 }
 
 /* why slider cannot be one of m's: a name that is no parameter or

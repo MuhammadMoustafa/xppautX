@@ -7,6 +7,7 @@
    (max_items), and one level of nesting. */
 #include "command_def.h"
 #include "json_reader.h"
+#include "browse.h"
 #include "many_pops.h"
 #include "session.h"
 #include "typed_values.h"
@@ -45,16 +46,19 @@ std::string_view name_set_words(NameSet names)
     case NameSet::parameter: return "parameter";
     case NameSet::variable: return "variable";
     case NameSet::either: return "parameter or variable";
+    case NameSet::column: return "column";
     default: return "name";
     }
 }
 
-bool names_a(const Model &model, NameSet names, std::string_view text)
+bool names_a(const Session &s, NameSet names, std::string_view text)
 {
+    const Model &model = s.model();
     switch (names) {
     case NameSet::parameter: return find_user_name(model, PARAMBOX, text) >= 0;
     case NameSet::variable: return find_user_name(model, ICBOX, text) >= 0;
     case NameSet::either: return find_user_name(model, PARAMBOX, text) >= 0 || find_user_name(model, ICBOX, text) >= 0;
+    case NameSet::column: { int found = -1; find_variable(s, text, &found); return found >= 0; }
     default: return model.name(text) != nullptr;
     }
 }
@@ -124,7 +128,7 @@ Result<Scalar> read_text(const Check &c, const Argument &arg, Type type, const c
         break;
     }
     case Type::model_name:
-        if (c.session && !names_a(c.session->model(), arg.names, text))
+        if (c.session && !names_a(*c.session, arg.names, text))
             return bad(xpp::format("Argument \"{}\": no {} named \"{}\" in the model", label, name_set_words(arg.names), text));
         break;
     case Type::expression:
@@ -198,7 +202,7 @@ Result<std::vector<Entry>> read_map(const Check &c, const Argument &arg, const c
         const std::string label = xpp::format("{}.{}", arg.name, key);
         if (key.size() > arg.max_length)
             return refuse(c, xpp::format("A key of argument \"{}\" must be text of at most {} bytes", arg.name, arg.max_length));
-        if (arg.names != NameSet::none && c.session && !names_a(c.session->model(), arg.names, key))
+        if (arg.names != NameSet::none && c.session && !names_a(*c.session, arg.names, key))
             return refuse(c, xpp::format("Argument \"{}\": no {} named \"{}\" in the model", arg.name, name_set_words(arg.names), key));
         const std::string folded = arg.names != NameSet::none ? lower_case(key) : key;
         if (std::ranges::any_of(entries, [&](const Entry &e) { return (arg.names != NameSet::none ? lower_case(e.first) : e.first) == folded; }))

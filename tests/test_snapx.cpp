@@ -259,12 +259,11 @@ void check_plot_limits(const xpp::TempDir &tmp)
     CHECK(load("plotlimits.odex"));
     xpp::Session &s=xpp::client_session();
     xpp::batch_start(s);
-    std::array<int,curves> checked;
-    checked.fill(1);
-    xpp::plot_checked_vars(s,0,checked.data(),curves);
+    std::array<int,curves> variables;
+    for(int i=0;i<curves;i++)variables[static_cast<std::size_t>(i)]=i+1;
+    CHECK(xpp::plot_variables(s,xpp::PlotHow::time_series,variables));
     CHECK(s.plot_windows.current->nvars==curves && s.plot_windows.current->yv.back()==curves);
     CHECK(s.plot_windows.current->plot_points[0].size()==curves);
-    for(int i=0;i<curves;i++)CHECK(checked[i]==0);
     xpp::DataTable data;
     data.names={"T"};data.columns={{0,1,2}};
     for(int i=0;i<curves;i++){
@@ -272,7 +271,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
         data.columns.push_back({static_cast<double>(i),i+0.5,i+1.0});
     }
     CHECK(xpp::put_stored_data(s,data)==3);
-    for(int i=0;i<frozen;i++)CHECK(xpp::create_crv(s,curves-1)==i);
+    for(int i=0;i<frozen;i++){const auto slot=xpp::freeze_curve(s,curves-1);CHECK(slot&&*slot==i);}
     CHECK(s.frozen_curves.curve.size()==frozen && s.frozen_curves.curve.back().yv[2]==curves);
     for(int i=1;i<windows;i++){
         xpp::create_a_pop(s);

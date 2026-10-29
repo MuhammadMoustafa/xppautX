@@ -4,6 +4,7 @@
    redraw mode, SimPlot.
    Each handler gets its arguments validated and typed (command_def.h). */
 #include "command_def.h"
+#include "command_graph.h"
 #include "command_registry.h"
 #include "json_error.h"
 #include "many_pops.h"
@@ -44,25 +45,6 @@ Result<std::string> named_by_user(const Command &command, std::string_view name,
                                           window_kind_name(kind)), place);
 }
 
-/* the active graph while an operation on another one runs (the core's drawing code works on the active window) */
-class ActiveGraph {
-public:
-    ActiveGraph(Session &s, int index) : s_(s), previous_(s.plot_windows.active)
-    {
-        if (index != previous_) make_active(s_, index, 1);
-    }
-    ~ActiveGraph()
-    {
-        if (s_.plot_windows.active != previous_) make_active(s_, previous_, 1);
-    }
-    ActiveGraph(const ActiveGraph &) = delete;
-    ActiveGraph &operator=(const ActiveGraph &) = delete;
-
-private:
-    Session &s_;
-    int previous_;
-};
-
 std::string window_result(std::string_view name)
 {
     std::string result = "{\"window\":";
@@ -75,16 +57,6 @@ std::string bounds_result(const Session &s)
     const GRAPH &g = *s.plot_windows.current;
     return xpp::format("{{\"x_min\":{},\"x_max\":{},\"y_min\":{},\"y_max\":{}}}", xpp::number(g.xlo), xpp::number(g.xhi),
                        xpp::number(g.ylo), xpp::number(g.yhi));
-}
-
-/* the graph the command acts on: `window`, or the selected one */
-Result<int> graph_of_command(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    const std::string name = target_name(s, args);
-    const auto target = find_window(s, name);
-    if (!target) return std::unexpected<Error>(unknown_window(command, name, place).error());
-    if (target->kind != WindowKind::graph) return fail(command.name, xpp::format("\"{}\" is not a graph", name), place);
-    return target->index;
 }
 
 /* the bounds of the active graph's view after an operation on it */
@@ -489,6 +461,15 @@ constexpr std::array ROWS = {
             "Draw on every open graph when enabled.", SIMULTANEOUS_RESULTS, STATE_EVENTS, true, set_simultaneous_plot}};
 
 } // namespace
+
+Result<int> graph_of_command(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const std::string name = target_name(s, args);
+    const auto target = find_window(s, name);
+    if (!target) return std::unexpected<Error>(unknown_window(command, name, place).error());
+    if (target->kind != WindowKind::graph) return fail(command.name, xpp::format("\"{}\" is not a graph", name), place);
+    return target->index;
+}
 
 std::span<const Command> window_commands() { return ROWS; }
 

@@ -801,6 +801,23 @@ const xpp::DataFormat *choose_data_format()
  return nullptr;
 }
 
+/* the table t written to file `fil` in format f, the replace question asked as a save asks it: false when the
+   user declined to replace it */
+Result<bool> write_table(const xpp::Session &s, xpp::DataTable &t, const xpp::DataFormat &f, std::string_view fil, const Place &at)
+{
+ t.seed=s.numerics.last_seed;
+ Result<> opened;
+ xpp::Writer w=open_writer_asking(fil,f.binary,&opened,false,at);
+ if(!opened)return std::unexpected<Error>(opened.error());
+ if(!w)return false;
+ if(!f.write(t,w)){
+   abort_save(w);
+   return fail("save data",xpp::format("Cannot write {}",fil),command_place());
+ }
+ if(Result<> saved=commit_save(w);!saved)return std::unexpected<Error>(saved.error());
+ return true;
+}
+
 } // namespace
 
 void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::string_view format, std::string_view name)
@@ -830,15 +847,18 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
    fil=xpp::files::output_name(s.model().this_file,f->extension,plot?"curves":"");
    if(!file_selector("Save data",fil,xpp::format("*{}",f->extension)))return;
  }
- t.seed=s.numerics.last_seed;
- xpp::Writer w=open_writer_asking(fil,f->binary,nullptr,false,what=="output" ? s.output_place : Place{});
- if(!w)return;
- if(!f->write(t,w)){
-   abort_save(w);
-   command_error("save data", xpp::format("Cannot write {}",fil));
-   return;
- }
- ok_or_show(commit_save(w));
+ ok_or_show(write_table(s,t,*f,fil,what=="output" ? s.output_place : Place{}));
+}
+
+Result<std::size_t> write_plot_data(const xpp::Session &s, std::string_view format, std::string_view name)
+{
+ xpp::DataTable t=plot_curves_table(s);
+ if(t.rows()==0)return fail("save data","The plot shows no data to save",command_place());
+ const xpp::DataFormat *f=format.empty()?xpp::data_format_of_file(name):xpp::data_format_named(format);
+ if(!f)return fail("save data",format.empty()?xpp::format("Give a data format: {} has no extension of one",name):xpp::format("No data format {}",format),command_place());
+ const Result<bool> written=write_table(s,t,*f,name,{});
+ if(!written)return std::unexpected<Error>(written.error());
+ return *written?t.rows():0;
 }
 
 void  data_first(BROWSER *b)

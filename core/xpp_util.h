@@ -47,10 +47,12 @@ void set_par_or_var(Session &s, std::string_view name, int type, int index, doub
 void eq_import(Session &s, double *y, int n);
 /* the plot of s redrawn into the picture file begun (image_format.h's
    restore), which it then closes */
-void vector_restore(Session &s);
-/* the ICs box "xvst" (how 0) and "pp" (how 1) buttons: plot s's checked
-   variables (isck, n entries) and uncheck them */
-void plot_checked_vars(Session &s, int how, int *isck, int n);
+Result<> vector_restore(Session &s);
+/* What plot.set_variables plots: curves against time, a phase portrait, an array plot */
+enum class PlotHow { time_series, phase_plane, array_plot };
+/* the variables (numbered from 1) plotted in the active window as `how` says: curves against time (at least
+   one), a phase portrait (two or three axes), or an array plot from the first of two variables to the later one */
+Result<> plot_variables(Session &s, PlotHow how, std::span<const int> variables);
 /* a comment's action (the source's "# ... {action}"), run on s when it is
    picked */
 void do_txt_action(Session &s, std::string_view action);

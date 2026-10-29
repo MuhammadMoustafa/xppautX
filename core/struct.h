@@ -6,6 +6,7 @@
 #include "text_style.h"
 #include <string>
 #include <array>
+#include <cstddef>
 #include <vector>
 
 /* A phase portrait and stored points have three spatial axes. */
@@ -40,6 +41,14 @@ struct GRAPH {
                   style.resize(count, style.front()); color.resize(count, xpp::foreground_color);
                   for (auto &v : plot_points) v.resize(count);
                   nvars=count;
+                }
+                /* curve i gone, the later ones moving up */
+                void erase_curve(int i) {
+                  const auto at=static_cast<std::ptrdiff_t>(i);
+                  xv.erase(xv.begin()+at); yv.erase(yv.begin()+at); zv.erase(zv.begin()+at);
+                  style.erase(style.begin()+at); color.erase(color.begin()+at);
+                  for (auto &v : plot_points) v.erase(v.begin()+at);
+                  nvars--;
                 }
                 std::array<std::vector<float>, 2 * plot_axes> plot_points{
                   std::vector<float>(1),std::vector<float>(1),std::vector<float>(1),
