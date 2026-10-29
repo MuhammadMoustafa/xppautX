@@ -131,6 +131,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [98](#98-the-2d-histogram-writes-past-its-columns-when-its-bins-outgrow-the-storage) | Analysis | the 2D histogram clamps its columns to the storage but fills one value for every bin, so many bins write past them | [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589) |
 | [99](#99-a-spectrum-window-of-one-point-divides-by-zero) | Analysis | a spectral density window of 1 point makes a step of 0 and divides by it, and a window longer than the data is not checked before it is allocated | [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589) |
 | [100](#100-transpose-data-reads-a-row-past-the-stored-data) | Data browser | Transpose data clamps a row past the data to one row past it (the unused row of the storage), so its table holds garbage for rows that do not exist | [W526](https://github.com/MuhammadMoustafa/xppautX/issues/590) |
+| [101](#101-auto-misses-a-zero-immediately-after-a-located-zero) | Special-point location | a stored zero hides a second crossing in the next step | [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606) |
 
 ## 1. Model options
 
@@ -2138,3 +2139,21 @@ there are, as is one with more rows than the model has columns less one;
 both. xppautX checks every column and row before it makes the table, for the
 form and the command alike. Card
 [W526](https://github.com/MuhammadMoustafa/xppautX/issues/590).
+
+## 101. AUTO misses a zero immediately after a located zero
+
+XPPAUT 8.0 resets the stored test to zero after locating a special point
+([autlib1.c:1648](../reference/xppaut-8.0/autlib1.c#L1648),
+[autlib1.c:6476](../reference/xppaut-8.0/autlib1.c#L6476)); its next sign comparison rejects the product zero
+([autlib1.c:1622](../reference/xppaut-8.0/autlib1.c#L1622),
+[autlib1.c:6433](../reference/xppaut-8.0/autlib1.c#L6433)). Master has the same assignments
+([autlib1.c:1645](../reference/xppaut-master/autlib1.c#L1645),
+[autlib1.c:6473](../reference/xppaut-master/autlib1.c#L6473)). A second zero in the next continuation step is therefore missed.
+AUTO-07p shares the rule ([finding 11](auto07p-findings.md#11-a-zero-immediately-after-a-located-zero-is-invisible)).
+
+A temporary trace of the inherited rule in xppautX on the published pp2 demo at NTST 15, DS 0.0125 showed fold A at
+parameter 0.7080724009, a discarded endpoint test -4.0e-5 and the next endpoint test +3.7e-4: a real intervening crossing
+was skipped because its stored test was zero. These are xppautX measurements, not an XPPAUT numerical run.
+Keeping the original endpoint's test instead of zero finds that fold but also labels points that are not zeros, so xppautX
+keeps the inherited rule for now (docs/auto-references.md W541).
+[W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606).

@@ -45,6 +45,7 @@ so the index started empty.
 | [8](#8-the-first-comparison-of-cycles-from-a-hopf-point-reads-a-predictors-fold-test-and-a-misoriented-phase-condition) | Cycles from a Hopf point | between the second and third point the fold test comes from the eigen-cycle predictor's Jacobian and, with DS < 0, the branch-point test's determinant from a phase condition of the wrong orientation: spurious LP or BP labels next to the start, and a real fold there missed or misplaced | [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521) |
 | [9](#9-a-special-point-located-on-a-branchs-last-step-is-relabelled-as-its-end) | Branch ends | a branch point, fold or Hopf point located on the step that also passes Par Min/Max, Norm Min/Max or NMX is labelled EP, so the special point is lost | [W495](https://github.com/MuhammadMoustafa/xppautX/issues/559) |
 | [10](#10-a-cusp-located-from-noise-is-dropped-after-itmx-iterations) | Fold curves of equilibria | the cusp test is the Newton residual's noise (6e-11) at the point where its sign changes, so the secant location cannot shrink its step, is given up after ITMX iterations and the cusp is labelled nowhere; a start 7e-4 away in the norm finds it | [W539 / #604](https://github.com/MuhammadMoustafa/xppautX/issues/604) |
+| [11](#11-a-zero-immediately-after-a-located-zero-is-invisible) | Special-point location | a stored zero hides a second crossing in the next step | [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -376,3 +377,19 @@ written at W437, before W495 refined xppautX's steady-state start) located it, a
 of the description, not a tolerance.
 
 **Card:** [W539 / #604](https://github.com/MuhammadMoustafa/xppautX/issues/604).
+
+## 11. A zero immediately after a located zero is invisible
+
+AUTO-07p's two locators store `Q=0` when the location meets its tolerance:
+[ae.f90:759](../reference/auto-07p/src/ae.f90#L759) and
+[bvp.f90:1425](../reference/auto-07p/src/bvp.f90#L1425), also on their early returns
+([ae.f90:714](../reference/auto-07p/src/ae.f90#L714),
+[bvp.f90:1345](../reference/auto-07p/src/bvp.f90#L1345)). The next sign comparison rejects either sign against zero
+([ae.f90:695](../reference/auto-07p/src/ae.f90#L695),
+[bvp.f90:1325](../reference/auto-07p/src/bvp.f90#L1325)). Thus a second crossing in the very next step is invisible.
+
+The same inherited rule in xppautX missed the middle of three nearby cycle folds on the published pp2 demo at NTST 15,
+DS 0.0125: the discarded endpoint after fold A has test -4.0e-5, the next endpoint +3.7e-4, but the comparison starts at zero.
+These numerical traces are xppautX's (docs/auto-references.md W541), not a claim that AUTO-07p follows the identical mesh
+history. Keeping the discarded endpoint's test instead of zero finds that fold, but also labels points that are not zeros
+of a smooth test (docs/auto-references.md W541), so xppautX keeps AUTO-07p's rule for now. [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606).

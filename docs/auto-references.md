@@ -1884,3 +1884,31 @@ against 6), so none was kept. Two real faults were found on the way, each its ow
 test starts at 0 and cannot see a second zero (at DS 0.0125 a third fold between the two labelled ones is missed; W541,
 [#606](https://github.com/MuhammadMoustafa/xppautX/issues/606)), and at DS 0.025 the step 94 to 95 changes the test's sign but
 its location fails after ITMX iterations and the fold is dropped (W542, [#607](https://github.com/MuhammadMoustafa/xppautX/issues/607)).
+
+## W541: a zero right after a located zero ([#606](https://github.com/MuhammadMoustafa/xppautX/issues/606))
+
+Both locators (lcspae, lcspbv) store the test as 0 when a location converges, as AUTO-07p's LCSPAE/LCSPBV and XPPAUT's do
+(docs/auto07p-findings.md 11, docs/xppaut-findings.md 101). The next step's sign test then rejects either sign against 0, so a
+second crossing in that step is invisible. Confirmed by a temporary trace on `pp2_heteroclinic_coarse` with DS 0.0125 (a probe
+copy of the description, not kept): fold A at parameter 0.7080724009, the discarded end q -4.0e-5, the next end +3.7e-4.
+
+**Tried: store the discarded endpoint's test instead of 0** (`*q = saved_q` in both locators; the unit fixture's two paths
+check it). The probe then labels three folds (A, B and the missing C, 0.7080722 to 0.7080731), so the blindness is real. But
+the full `tools/autocompare.py` run changed three baselines, and none of the changes can be shown to be a zero:
+
+- `tstauto_frcp`: a second HB at b = 0.74345 (HB 0.7377 is the equilibrium's only Hopf point; the (v, w) pair's real part is
+  -0.99 there, from the Jacobian of the model). The test is the real part of the pair `auto_hopf_pair` picks: at 0.7434 the
+  chosen pair changes (-0.98 to +1.0, the x-y pair's real part), a discontinuity of the test, and the location "converges" on
+  it (q after location 1). The old stored 0 hid it by accident, in the one step where it happens; a dense run (DS 0.002) of
+  the same description also loses it.
+- `global_heteroclinic`: four cycle branch points at b = 0.3314461 to 0.3314462 next to the heteroclinic end, where the
+  branch-point test's values are 1e13 to 1e17 and change sign erratically (the bordered determinant of an almost singular
+  system); the baseline has none.
+- `pp2_heteroclinic_coarse` (DS 0.025): the run stops at point 94 ("no convergence even at the smallest step"), after
+  locations that converge with the test's noise (1e-5 to 1e-3, W540's mesh noise) as their value.
+
+A fix that finds C must therefore tell a crossing of a smooth test from a jump or noise; the stored zero hides both, so
+removing it alone is not enough. Not applied: the baselines stay as they were. A design that does is the follow-up (a located
+zero checked by the test's value at the located point against its bracket, or a bracket for the next step that keeps the
+discarded endpoint and the located point's true value, 0, apart).
+
