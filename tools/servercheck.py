@@ -1100,7 +1100,7 @@ def check_registry():
                   sum(e.get('ev')=='message' and 'error' in e for e in events)==1
                   and not any(e.get('ev')=='done' for e in events), str(obsolete))
         # W522: every analysis row returns its declared data, validates before mutation, and has no old route.
-        snd(cmd='plotvars', how=2, names=['V', 'W']); col(lambda e: e.get('ev') == 'idle')
+        request({'cmd': 'plot.set_variables', 'how': 'phase_plane', 'names': ['V', 'W']})
         result, _ = request({'cmd': 'equilibrium.find', 'print_eigenvalues': False})
         check('W522: equilibrium.find returns values, eigenvalues and named stability',
               result.get('converged') is True and len(result.get('equilibrium', {})) == 2
