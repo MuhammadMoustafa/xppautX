@@ -1843,7 +1843,7 @@ def section_replay():
     target = max(total_rows // 2, 1)
     code, out, run = run_recording(lines=[
         {'cmd':'run.initial'},
-        {'cmd':'abort','at':{'what':'integrate','rows':target,'t':0}},
+        {'cmd':'run.abort','at':{'what':'integrate','rows':target,'t':0}},
         {'cmd':'browser','op':'write','what':'table','format':'dat'}, {'cmd':'answer','file':'run.dat'},
         {'cmd':'run.initial'}])
     at = (stopped_events(out) or [None])[0]
@@ -1881,7 +1881,7 @@ def section_replay():
         shutil.rmtree(run, ignore_errors=True)
 
     code, out, run = run_recording(lines=[{'cmd':'run.initial'},
-        {'cmd':'abort','at':{'what':'integrate','rows':100000,'t':5000}},
+        {'cmd':'run.abort','at':{'what':'integrate','rows':100000,'t':5000}},
         {'cmd':'run.initial'}])
     check('replay: an interruption never reached exits 1, naming its step once', code == 1
           and 'run.recx:%d:' % run_recording.places[0][0] in run_recording.stderr
@@ -1890,8 +1890,8 @@ def section_replay():
     check('replay: and plays nothing after it', out.count('"ev":"computing"') == 1,
           '%d computations' % out.count('"ev":"computing"'))
     shutil.rmtree(run, ignore_errors=True)
-    code, out, run = run_recording(lines=[{'cmd':'abort'}, {'cmd':'run.initial'},
-        {'cmd':'abort','at':{'what':'other'}}, {'cmd':'abort'}])
+    code, out, run = run_recording(lines=[{'cmd':'run.abort'}, {'cmd':'run.initial'},
+        {'cmd':'run.abort','at':{'what':'other'}}, {'cmd':'run.abort'}])
     check('replay: interruptions that cannot be placed do not stall the player',
           code == 0 and last_rows(out) == 601 and not stopped_events(out),
           'exit %d, rows %s, %s' % (code, last_rows(out), run_recording.stderr[-300:]))
