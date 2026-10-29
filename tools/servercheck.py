@@ -236,7 +236,7 @@ STOPS_CASES = [
     dict(id='nullcline_delay', model='nullcline_delay', command=dict(cmd='nullcline.compute'), replies=[], at="x' = -delay",
          says=[r'tau ?= ?2\b', r'X ?= ?-?\d', r'Y ?= ?-?\d']),
     dict(id='postprocess_one_variable', model='fourier_one_variable', command=STOPS_RUN, at=None,
-         then=[{'cmd': 'browser', 'op': 'postprocess'}], says=[r'1 variable', r'at least 2']),
+         then=[{'cmd': 'analysis.fourier_series'}], says=[r'1 variable', r'at least 2']),
     dict(id='eq_range', model='eq_range', command=dict(cmd='equilibrium.range', parameter='a', steps=5, start=-1, end=1), replies=[], at=None, bottom=True,
          says=[r'\d of 6 values have no equilibrium', r'a ?= ?0\.2\d*: no equilibrium found']),
     dict(id='range_gear', model='blowup_gear', command=STOPS_RANGE_A, at=None,
@@ -6787,12 +6787,12 @@ def check_silent_commands():
             f.write("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { postprocess: 1, histcol: x, histlo: -1, histhi: 1, histbins: 20 } }\n")
         s, r = silent(post)
         dirs.append(s)
-        c, rc = script(post, go + [{'cmd': 'browser', 'op': 'postprocess'},
+        c, rc = script(post, go + [{'cmd': 'analysis.histogram'},
                                    {'cmd': 'browser', 'op': 'write', 'what': 'output', 'format': 'dat',
                                     'name': 'output.dat'}])
         dirs.append(c)
         hist = read(c, 'output.dat') or b''
-        check('browser postprocess: the model\'s @ postprocess (a 20-bin histogram), as --silent writes it',
+        check('analysis.histogram: the model\'s @ postprocess histogram (20 bins), as --silent writes it',
               len(hist.splitlines()) == 21 and hist == read(s, 'output.dat'), '%d lines' % len(hist.splitlines()))
     finally:
         for d in dirs:
@@ -10313,6 +10313,260 @@ def check_run_registry():
 
 
 check_run_registry()
+
+# W525: the analysis and table resources on the registry: each command's good call with its result, a refused
+# argument with its message, and the old forms refused as unknown
+def check_analysis_registry():
+    def helpers(snd, col):
+        def call(**cmd):
+            snd(**cmd)
+            evs, _ = col(is_idle, timeout=60 * SLOW)
+            done = next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
+            return done, evs
+
+        def ok(what, cmd, want):
+            done, evs = call(**cmd)
+            got = done.get('result', {})
+            check('W525: %s' % what, done.get('status') == 'ok' and all(got.get(k) == v for k, v in want.items() if v is not None)
+                  and all(k in got for k in want), str(done)[:300])
+            return got
+
+        def refused(what, cmd, words):
+            done, evs = call(**cmd)
+            check('W525: %s is refused (%s)' % (what, words), done.get('status') == 'error' and (words in done.get('error', '') or words in done.get('file', '')),
+                  str(done)[:300])
+
+        return call, ok, refused
+
+    def session(model=None):
+        p, r, snd, col, _ = launch_server(ode=model)
+        col(is_idle)
+        return (p, r, snd, col) + helpers(snd, col)
+
+    p, r, snd, col, call, ok, refused = session()
+
+    def browser_rows():
+        snd(cmd='browser', **{'from': 0, 'count': 12, 'col': 0, 'ncol': 2})
+        _, rows = col(lambda e: e.get('ev') == 'browser')
+        col(is_idle)
+        return (rows or {}).get('data')
+
+    def menu_item(menu_key, item, values):
+        """Numerics, the submenu menu_key and its item, each question answered from `values` by its first words; the events and
+        the bottom messages"""
+        snd(cmd='key', key='u')
+        col(is_idle)
+        snd(cmd='key', key=menu_key)
+        _, ask = col(lambda e: e.get('ev') == 'ask')
+        snd(cmd='answer', id=ask['id'], key=item)
+        got = []
+        while True:
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            got += evs
+            if not e or e.get('ev') != 'ask':
+                break
+            asked = next((v for k, v in values.items() if e.get('name', '').startswith(k)), '')
+            snd(cmd='answer', id=e['id'], ok=1, value=asked)
+        snd(cmd='key', key='Escape')
+        col(is_idle)
+        return got, [e['bottom'] for e in got if e.get('ev') == 'message' and 'bottom' in e]
+    try:
+        ok('analysis.seed_random seeds the next run', {'cmd': 'analysis.seed_random', 'seed': 42}, {'seed': 42})
+        refused('analysis.seed_random with a negative seed', {'cmd': 'analysis.seed_random', 'seed': -1}, 'seed')
+        refused('analysis.seed_random with no seed', {'cmd': 'analysis.seed_random'}, 'seed')
+        refused('analysis.load_stochastic_mean before any stochastic run', {'cmd': 'analysis.load_stochastic_mean'}, 'No stochastic runs')
+        refused('analysis.load_stochastic_variance before any stochastic run', {'cmd': 'analysis.load_stochastic_variance'}, 'No stochastic runs')
+        refused('analysis.histogram with no stored data', {'cmd': 'analysis.histogram', 'column': 'v', 'bins': 10, 'low': -1, 'high': 1}, 'nothing to analyse')
+        ok('run.initial stores the orbit the analyses read', {'cmd': 'run.initial'}, {'status': 'completed', 'steps': 601, 'time': None})
+        got = ok('analysis.statistics gives the mean, variance and standard deviation', {'cmd': 'analysis.statistics', 'column': 'v'},
+                 {'mean': None, 'variance': None, 'std_dev': None})
+        check('W525: the standard deviation is the variance\'s root', abs(got['std_dev'] ** 2 - got['variance']) < 1e-9 * max(1, got['variance']), str(got))
+        ok('analysis.histogram counts every row in its bins', {'cmd': 'analysis.histogram', 'column': 'v', 'bins': 10, 'low': -100, 'high': 100, 'condition': ''},
+           {'bins': 10, 'total_samples': 601})
+        ok('analysis.histogram with a condition counts the rows where it holds', {'cmd': 'analysis.histogram', 'condition': 't<1'}, {'bins': 10})
+        ok('analysis.reload_histogram shows it again', {'cmd': 'analysis.reload_histogram'}, {'reloaded': True})
+        ok('analysis.load_stochastic_run puts the run\'s data back', {'cmd': 'analysis.load_stochastic_run'}, {'loaded': True})
+        ok('run.initial again', {'cmd': 'run.initial'}, {'status': 'completed'})
+        refused('analysis.histogram with one bin', {'cmd': 'analysis.histogram', 'column': 'v', 'bins': 1}, 'bins')
+        refused('analysis.histogram with its low above its high', {'cmd': 'analysis.histogram', 'column': 'v', 'bins': 10, 'low': 1, 'high': -1}, 'Low')
+        refused('analysis.histogram of a column the model does not have', {'cmd': 'analysis.histogram', 'column': 'nosuch'}, 'nosuch')
+        refused('analysis.histogram with a condition that does not parse', {'cmd': 'analysis.histogram', 'bins': 10, 'low': -1, 'high': 1, 'condition': '2*('}, 'condition')
+        ok('analysis.histogram_2d counts the pairs', {'cmd': 'analysis.histogram_2d', 'column1': 'v', 'column2': 'w', 'bins1': 5, 'bins2': 4,
+                                                      'low1': -100, 'high1': 100, 'low2': -100, 'high2': 100}, {'bins_x': 5, 'bins_y': 4})
+        refused('analysis.histogram_2d with more bins than the data table has rows',
+                {'cmd': 'analysis.histogram_2d', 'column1': 'v', 'column2': 'w', 'bins1': 4096, 'bins2': 4096, 'low1': -1, 'high1': 1, 'low2': -1, 'high2': 1}, 'room for')
+        call(cmd='analysis.load_stochastic_run')
+        ok('analysis.fourier_series gives the harmonics', {'cmd': 'analysis.fourier_series', 'column': 'v'}, {'harmonics': 299})
+        call(cmd='analysis.load_stochastic_run')
+        ok('analysis.power_spectrum gives the frequencies', {'cmd': 'analysis.power_spectrum', 'column': 'v'}, {'frequencies': 299})
+        call(cmd='analysis.load_stochastic_run')
+        ok('analysis.autocorrelation gives its bins', {'cmd': 'analysis.autocorrelation', 'column': 'v', 'bins': 20, 'low': -5, 'high': 5}, {'lags_computed': 21})
+        call(cmd='analysis.load_stochastic_run')
+        ok('analysis.cross_correlation directly', {'cmd': 'analysis.cross_correlation', 'column1': 'v', 'column2': 'w', 'lags': 10, 'method': 'direct'},
+           {'lags_computed': None})
+        call(cmd='analysis.load_stochastic_run')
+        ok('analysis.cross_correlation by the FFT', {'cmd': 'analysis.cross_correlation', 'column1': 'v', 'column2': 'w', 'lags': 10, 'method': 'fft'},
+           {'lags_computed': None})
+        refused('analysis.cross_correlation with more lags than half the data allows', {'cmd': 'analysis.cross_correlation', 'lags': 4000}, 'lags')
+        refused('analysis.cross_correlation by a method that is not one', {'cmd': 'analysis.cross_correlation', 'method': 'slow'}, 'slow')
+        call(cmd='analysis.load_stochastic_run')
+        ok('analysis.spectral_density of one column', {'cmd': 'analysis.spectral_density', 'type': 'psd_x', 'column': 'v', 'window_length': 64, 'window': 'hann'},
+           {'points': 32})
+        call(cmd='analysis.load_stochastic_run')
+        ok('analysis.spectral_density of two (their coherence)', {'cmd': 'analysis.spectral_density', 'type': 'coherence_xy', 'column': 'v', 'column2': 'w',
+                                                                  'window_length': 64, 'window': 'square'}, {'points': 32})
+        refused('analysis.spectral_density with a window of one point', {'cmd': 'analysis.spectral_density', 'window_length': 1}, 'window_length')
+        refused('analysis.spectral_density with a window longer than the data', {'cmd': 'analysis.spectral_density', 'window_length': 100000}, 'No window of')
+        refused('analysis.spectral_density of a type that is not one', {'cmd': 'analysis.spectral_density', 'type': 'psd_z'}, 'psd_z')
+        refused('analysis.spectral_density with a window that is not one', {'cmd': 'analysis.spectral_density', 'window': 'hat'}, 'hat')
+        call(cmd='analysis.load_stochastic_run')
+        got = ok('analysis.lyapunov_exponent of the stored orbit', {'cmd': 'analysis.lyapunov_exponent'}, {'max_lyapunov_exponent': None, 'runs_completed': 1})
+        got = ok('analysis.lyapunov_exponent over a range gives the runs of the sweep',
+                 {'cmd': 'analysis.lyapunov_exponent', 'range_over_parameters': True, 'variable': 'iapp', 'start': 0, 'end': 0.1, 'steps': 2},
+                 {'max_lyapunov_exponent': None, 'runs_completed': 3})
+        refused('analysis.lyapunov_exponent with the sweep\'s settings and no range', {'cmd': 'analysis.lyapunov_exponent', 'steps': 3}, 'range_over_parameters')
+        refused('analysis.lyapunov_exponent over a range of a name the model does not have',
+                {'cmd': 'analysis.lyapunov_exponent', 'range_over_parameters': True, 'variable': 'nosuch'}, 'nosuch')
+        ok('analysis.poincare_map sets a section', {'cmd': 'analysis.poincare_map', 'type': 'section', 'variable': 'v', 'section': 0.1, 'direction': 'positive',
+                                                    'stop_on_section': False}, {'poincare_configured': True})
+        ok('analysis.poincare_map of the maxima and minima', {'cmd': 'analysis.poincare_map', 'type': 'max_min'}, {'poincare_configured': True})
+        ok('analysis.poincare_map none', {'cmd': 'analysis.poincare_map', 'type': 'none'}, {'poincare_configured': False})
+        refused('analysis.poincare_map of a type that is not one', {'cmd': 'analysis.poincare_map', 'type': 'max'}, 'max')
+        refused('analysis.poincare_map with no type', {'cmd': 'analysis.poincare_map'}, 'type')
+        refused('analysis.poincare_map with a direction that is not one', {'cmd': 'analysis.poincare_map', 'type': 'section', 'direction': 'up'}, 'up')
+        refused('analysis.poincare_map of a variable the model does not have', {'cmd': 'analysis.poincare_map', 'type': 'section', 'variable': 'nosuch'}, 'nosuch')
+        ok('analysis.phase_space_torus folds all variables', {'cmd': 'analysis.phase_space_torus', 'mode': 'all', 'period': 6.28}, {'torus_variables': None})
+        got = ok('analysis.phase_space_torus folds the chosen variables', {'cmd': 'analysis.phase_space_torus', 'mode': 'choose', 'variables': ['v']}, {'torus_variables': None})
+        check('W525: only the chosen variable is folded', len(got.get('torus_variables', [])) == 1, str(got))
+        ok('analysis.phase_space_torus none', {'cmd': 'analysis.phase_space_torus', 'mode': 'none'}, {'torus_variables': []})
+        refused('analysis.phase_space_torus with a period of 0', {'cmd': 'analysis.phase_space_torus', 'mode': 'all', 'period': 0}, 'period')
+        refused('analysis.phase_space_torus with a mode that is not one', {'cmd': 'analysis.phase_space_torus', 'mode': 'some'}, 'some')
+        refused('analysis.phase_space_torus choosing a name that is no variable', {'cmd': 'analysis.phase_space_torus', 'mode': 'choose', 'variables': ['iapp']}, 'iapp')
+        ok('analysis.color_coding by velocity, its range from the stored data', {'cmd': 'analysis.color_coding', 'mode': 'velocity'}, {'color_coding': 'velocity'})
+        ok('analysis.color_coding by a column between limits', {'cmd': 'analysis.color_coding', 'mode': 'variable', 'variable': 'w', 'low': 0, 'high': 1},
+           {'color_coding': 'variable'})
+        ok('analysis.color_coding by a column, its range from the stored data', {'cmd': 'analysis.color_coding', 'mode': 'variable', 'variable': 'w'},
+           {'color_coding': 'variable'})
+        ok('analysis.color_coding none', {'cmd': 'analysis.color_coding', 'mode': 'none'}, {'color_coding': 'none'})
+        refused('analysis.color_coding with one limit', {'cmd': 'analysis.color_coding', 'mode': 'velocity', 'low': 0}, 'low')
+        refused('analysis.color_coding with its limits in the wrong order', {'cmd': 'analysis.color_coding', 'mode': 'variable', 'low': 1, 'high': 0}, 'empty')
+        refused('analysis.color_coding by a negative low velocity', {'cmd': 'analysis.color_coding', 'mode': 'velocity', 'low': -1, 'high': 1}, 'below 0')
+        refused('analysis.color_coding by a mode that is not one', {'cmd': 'analysis.color_coding', 'mode': 'rainbow'}, 'rainbow')
+        refused('analysis.color_coding in a window that is not open', {'cmd': 'analysis.color_coding', 'mode': 'none', 'window': 'nowhere'}, 'nowhere')
+        with open(os.path.join(r, 'fit.dat'), 'w') as f:
+            for i in range(20):
+                f.write(f'{i * 0.5} {-0.5 + i * 0.05}\n')
+        got = ok('analysis.fit_curve says if it converged and the parameters it found',
+                 {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [2], 'columns': 2, 'points': 20, 'tolerance': 1e-9,
+                  'epsilon': 1e-4, 'max_iterations': 3, 'file': 'fit.dat'}, {'converged': None, 'parameters': None})
+        check('W525: the fit names its parameter', list(got.get('parameters', {})) == ['iapp'] and isinstance(got['converged'], bool), str(got))
+        refused('analysis.fit_curve of a file that is not there', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'file': 'nosuch.dat'}, 'nosuch.dat')
+        refused('analysis.fit_curve of a path', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'file': '../fit.dat'}, 'file')
+        refused('analysis.fit_curve with a variable the model does not have', {'cmd': 'analysis.fit_curve', 'variables': ['nosuch'], 'parameters': ['iapp']}, 'nosuch')
+        refused('analysis.fit_curve with no variables', {'cmd': 'analysis.fit_curve', 'parameters': ['iapp']}, 'variables')
+        refused('analysis.fit_curve with a data column below 2', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [1]}, 'data_columns')
+        refused('analysis.fit_curve with more columns than the file has', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [2],
+                                                                           'columns': 5, 'points': 20, 'file': 'fit.dat'}, 'needs')
+        refused('analysis.fit_curve with more points than the file has', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [2],
+                                                                          'columns': 2, 'points': 900000, 'file': 'fit.dat'}, 'needs')
+        refused('analysis.fit_curve with a tolerance of 0', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'tolerance': 0}, 'tolerance')
+        refused('analysis.adjoint_load before the adjoint is computed', {'cmd': 'analysis.adjoint_load'}, 'No adjoint')
+        # many runs: the mean and variance of the runs are kept for the data browser
+        call(cmd='analysis.load_stochastic_run')
+        call(cmd='run.range', variable='iapp', start=0, end=0.1, steps=2)
+        ok('analysis.stochastic_integrate runs the trials', {'cmd': 'analysis.stochastic_integrate', 'trials': 4}, {'trials_completed': 4})
+        ok('analysis.load_stochastic_mean shows the mean of the runs', {'cmd': 'analysis.load_stochastic_mean'}, {'loaded': True})
+        ok('analysis.load_stochastic_variance shows their variance', {'cmd': 'analysis.load_stochastic_variance'}, {'loaded': True})
+        refused('analysis.stochastic_integrate with one trial', {'cmd': 'analysis.stochastic_integrate', 'trials': 1}, 'trials')
+        # the menu's items and the commands are one behaviour: the same histogram and statistics by the keys
+        call(cmd='analysis.load_stochastic_run')
+        call(cmd='run.initial')
+        call(cmd='analysis.histogram', column='v', bins=10, low=-100, high=100, condition='')
+        by_command = browser_rows()
+        by_keys, bottom = menu_item('h', 'h', {'Number of bins': '10', 'Low': '-100', 'Hi': '100', 'Variable': 'v', 'Condition': ''})
+        check('W525: Numerics, Stochastic, Histogram makes what analysis.histogram makes', by_command and browser_rows() == by_command, str(by_command)[:200])
+        call(cmd='analysis.load_stochastic_run')
+        got = ok('analysis.statistics again', {'cmd': 'analysis.statistics', 'column': 'w'}, {'mean': None, 'std_dev': None})
+        by_keys, bottom = menu_item('h', 's', {'Variable': 'w'})
+        check('W525: Numerics, Stochastic, Stat shows the command\'s mean and standard deviation',
+              any(re.search(r'Mean=%s Std. Dev. = %s' % (re.escape('%g' % got['mean']), re.escape('%g' % got['std_dev'])), b) for b in bottom), str(bottom))
+        # the old forms are gone
+        for old, words in (({'cmd': 'browser', 'op': 'postprocess'}, 'Unknown browser op'), ({'cmd': 'browser', 'op': 'postprocess', 'kind': 'hist'}, 'Unknown browser op'),
+                           ({'cmd': 'set', 'kind': 'options', 'name': 'seed', 'value': 3}, 'set takes kind')):
+            snd(**old)
+            evs, _ = col(is_idle)
+            err = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+            check('W525: the old form %s is refused' % json.dumps(old), words in err.get('error', ''), str(evs)[-200:])
+    finally:
+        stop_server(p, r, snd)
+
+    # the adjoint of a limit cycle (borrowed.ode: a stable cycle of period 2*pi) and its H function
+    p, r, snd, col, call, ok, refused = session(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'borrowed.ode'))
+    try:
+        refused('analysis.adjoint_compute with no orbit', {'cmd': 'analysis.adjoint_compute'}, 'Compute a periodic orbit first')
+        refused('analysis.adjoint_interaction before the adjoint', {'cmd': 'analysis.adjoint_interaction'}, 'Must compute adjoint first')
+        refused('analysis.adjoint_load before the adjoint', {'cmd': 'analysis.adjoint_load'}, 'No adjoint')
+        refused('analysis.adjoint_load_interaction before the H function', {'cmd': 'analysis.adjoint_load_interaction'}, 'No H function')
+        ok('the orbit', {'cmd': 'run.initial'}, {'status': 'completed'})
+        ok('analysis.adjoint_configure sets the adjoint\'s iterations and tolerance', {'cmd': 'analysis.adjoint_configure', 'max_iterates': 50, 'tolerance': 1e-5},
+           {'updated': True})
+        refused('analysis.adjoint_configure with a tolerance of 0', {'cmd': 'analysis.adjoint_configure', 'tolerance': 0}, 'tolerance')
+        refused('analysis.adjoint_configure with no iterations', {'cmd': 'analysis.adjoint_configure', 'max_iterates': 0}, 'max_iterates')
+        ok('analysis.adjoint_compute', {'cmd': 'analysis.adjoint_compute'}, {'computed': True})
+        ok('analysis.adjoint_load shows it', {'cmd': 'analysis.adjoint_load'}, {'loaded': True})
+        ok('analysis.adjoint_interaction with the coupling of one equation', {'cmd': 'analysis.adjoint_interaction', 'couplings': {'x': 'x-y'}}, {'computed': True})
+        ok('analysis.adjoint_load_interaction shows the H function', {'cmd': 'analysis.adjoint_load_interaction'}, {'loaded': True})
+        ok('analysis.adjoint_load_orbit shows the orbit', {'cmd': 'analysis.adjoint_load_orbit'}, {'loaded': True})
+        refused('analysis.adjoint_interaction with a coupling that does not parse', {'cmd': 'analysis.adjoint_interaction', 'couplings': {'y': '2*('}}, 'couplings')
+        refused('analysis.adjoint_interaction for a name that is no differential equation', {'cmd': 'analysis.adjoint_interaction', 'couplings': {'r': '1'}}, 'r')
+        ok('analysis.adjoint_range is off at first', {'cmd': 'analysis.adjoint_range'}, {'adjoint_range': False})
+        ok('analysis.adjoint_range on', {'cmd': 'analysis.adjoint_range', 'enabled': True}, {'adjoint_range': True})
+        ok('analysis.adjoint_range off', {'cmd': 'analysis.adjoint_range', 'enabled': False}, {'adjoint_range': False})
+        refused('analysis.adjoint_range with a number for its boolean', {'cmd': 'analysis.adjoint_range', 'enabled': 1}, 'enabled')
+        got = ok('analysis.histogram of the model\'s own settings (@ histbins, histcol, histlo, histhi)', {'cmd': 'analysis.histogram'}, {'bins': 20, 'total_samples': None})
+        check('W525: that histogram counted the orbit', got.get('total_samples', 0) > 100, str(got))
+    finally:
+        stop_server(p, r, snd)
+
+    # the lookup tables: one of a formula, one of a file
+    folder = tempfile.mkdtemp(prefix='xpptables')
+    try:
+        with open(os.path.join(folder, 'ft.tab'), 'w') as f:
+            f.write('5\n0\n1\n0.5\n0.6\n0.7\n0.8\n0.9\n')
+        with open(os.path.join(folder, 'ft2.tab'), 'w') as f:
+            f.write('3\n0\n1\n1\n2\n3\n')
+        model = os.path.join(folder, 'tables.ode')
+        with open(model, 'w') as f:
+            f.write('table ft "ft.tab"\ntable fn % 5 0 4 3*t\nx\'=-x+ft(t)+fn(t)\ninit x=0\n@ total=2\ndone\n')
+        s = Server(args.server, model, run=folder)
+        snd, col = s.send, s.collect
+        call, ok, refused = helpers(snd, col)
+        try:
+            col(is_idle)
+            ok('table.edit changes a formula table\'s formula, points and range', {'cmd': 'table.edit', 'name': 'fn', 'formula': '2*t', 'x_min': 0, 'x_max': 8, 'points': 9,
+                                                                                   'auto_evaluate': False}, {'table': 'FN', 'points_evaluated': 9})
+            ok('table.edit leaves out what stays', {'cmd': 'table.edit', 'name': 'FN', 'points': 17}, {'table': 'FN', 'points_evaluated': 17})
+            ok('table.edit of a file table reads its file again', {'cmd': 'table.edit', 'name': 'ft'}, {'table': 'FT', 'points_evaluated': 5})
+            ok('table.edit of a file table reads another file', {'cmd': 'table.edit', 'name': 'ft', 'file': 'ft2.tab'}, {'table': 'FT', 'points_evaluated': 3})
+            got = ok('table.view_in_browser shows the points', {'cmd': 'table.view_in_browser', 'name': 'fn'}, {'table': 'FN', 'shown_in_browser': True})
+            refused('table.edit of a name that is no table', {'cmd': 'table.edit', 'name': 'x'}, 'no table named')
+            refused('table.edit of a name the model does not have', {'cmd': 'table.edit', 'name': 'nosuch'}, 'nosuch')
+            refused('table.edit of a formula table with a file', {'cmd': 'table.edit', 'name': 'fn', 'file': 'ft.tab'}, 'not a file')
+            refused('table.edit of a file table with a formula', {'cmd': 'table.edit', 'name': 'ft', 'formula': 't'}, 'read from a file')
+            refused('table.edit of a file table with a file that is not there', {'cmd': 'table.edit', 'name': 'ft', 'file': 'nosuch.tab'}, 'nosuch.tab')
+            refused('table.edit with a formula that does not parse', {'cmd': 'table.edit', 'name': 'fn', 'formula': '2*('}, 'formula')
+            refused('table.edit with one point', {'cmd': 'table.edit', 'name': 'fn', 'points': 1}, 'points')
+            refused('table.edit with its range the wrong way round', {'cmd': 'table.edit', 'name': 'fn', 'x_min': 5, 'x_max': 1}, 'low end')
+            refused('table.edit with a table of a million and one points', {'cmd': 'table.edit', 'name': 'fn', 'points': 1000001}, 'points')
+            refused('table.edit with no name', {'cmd': 'table.edit', 'points': 5}, 'name')
+            refused('table.view_in_browser of a name that is no table', {'cmd': 'table.view_in_browser', 'name': 'x'}, 'no table named')
+        finally:
+            s.close()
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+check_analysis_registry()
 
 
 # W521: the numerics with no key of the main table (the Volterra points, the CVODE band, the delay's guesses and grid)

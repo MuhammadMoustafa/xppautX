@@ -232,6 +232,8 @@ allows you to rewindow the current graph. Pressing this presents another menu wi
 
 ### ph(A)se space
 
+In xppautX this is also a command (W525): `analysis.phase_space_torus` (a `mode` of `all`, `none` or `choose`, the `variables` to choose and the `period`; a left-out one keeps the session's setting; see [the protocol](../protocol.md)).
+
 XPP allows for periodic domains so that you can solve equations on a torus or cylinder. You will be prompted to make (A)ll variables periodic, (N)o variables periodic or (C)hoose the ones you want. You will be asked for the period which is the same for all periodic variables (if they must be different, rescale them) Choose them by clicking the appropriate names from the list presented to you. An `X` will appear next to the selected ones. Clicking toggles the `X`. Type `Esc` when done or CANCEL or DONE. XPP mods your variables by this period and is smart enough when plotting to not join the two ends.
 
 ### (K)inescope

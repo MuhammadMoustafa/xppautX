@@ -267,8 +267,7 @@ void j_browser_changed(int)
 
 /* {"cmd":"browser","op":"load"|"write",...}: Save data's and Load's
    choices given, each asked for when not given (the keys l and w of
-   menu_browser_window ask them all); "postprocess": the model's
-   @ postprocess on the data (histogram.cpp) */
+   menu_browser_window ask them all) */
 void browser_command(xpp::Session &s, const char *line)
 {
     std::string o, what, format, name;
@@ -278,7 +277,6 @@ void browser_command(xpp::Session &s, const char *line)
     get_string(line, "name", name);
     if (o == "load") data_read(s, &s.browser.view, format, name);
     else if (o == "write") data_write(s, &s.browser.view, what, format, name);
-    else if (o == "postprocess") post_process_stuff(s);
     else j_command_error("browser", xpp::format("Unknown browser op {}", o));
     session.browser_dirty = 1;
 }

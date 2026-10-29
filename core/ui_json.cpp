@@ -616,7 +616,6 @@ const CommandInfo commands[] = {
     {"ani", nullptr, V, STEP, ani_command},
     {"browser", "write", D, STEP, browser_command},
     {"browser", "load", D, STEP, browser_command},
-    {"browser", "postprocess", X, STEP, browser_command},
     {"browser", nullptr, V, NOT_STEP, browser_command}, /* with from: the block shown */
     {"keymap", nullptr, C, NOT_STEP, keymap_command}, /* the user's settings, not the model's: any time */
     {"file", "put", D, NOT_STEP, file_command},

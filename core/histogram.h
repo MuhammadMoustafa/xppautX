@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <span>
 #include <string>
+#include <string_view>
 #include "storage.h"
 #include "xpp_error.h"
 
@@ -46,18 +48,47 @@ struct HistogramState {
   int post_process=0;
 };
 
-void column_mean(Session &s);
-void compute_correl(Session &s);
-void compute_fourier(Session &s);
-void compute_hist(Session &s);
-void compute_power(Session &s);
-void compute_sd(Session &s);
-void compute_stacor(Session &s);
-int new_2d_hist(Session &s);
+/* the spectra's words, by spec_type's number: the power spectral density of one column, the cross spectrum of two, their coherence */
+inline constexpr std::array<std::string_view, 3> spectrum_type_names{"psd_x", "psd_xy", "coherence_xy"};
 
-/* a histogram or correlation of the session s's stored data; the error of
-   a condition that did not compile (it was ignored, the rest is done), for
-   the command to show */
+/* The analyses of the stored data (histogram.cpp), each the one core function the registry's analysis.*
+   commands and the Stochastic menu's items call; the settings they work from are s.histogram's (the commands
+   set the ones they are given, the menu asks for them with the ask_* functions, which show their own refusals
+   and say false when cancelled). Each returns what it made, or why it could not. */
+
+/* what a histogram counted: its bins and the samples that fell in them */
+struct HistogramCounts {
+  int bins;
+  long long samples;
+};
+Result<HistogramCounts> compute_hist(Session &s);
+bool ask_histogram(Session &s);
+/* the two-dimensional histogram of info's two columns */
+Result<> new_2d_hist(Session &s);
+bool ask_histogram_2d(Session &s);
+/* the histogram of the differences of a column (autocorrelation): the bins computed */
+Result<int> compute_stacor(Session &s);
+bool ask_autocorrelation(Session &s);
+/* the correlation of info's two columns at info.nbins lags, directly or by FFT (info.fftc 0 or 1): the lags computed */
+Result<int> compute_correl(Session &s);
+bool ask_cross_correlation(Session &s);
+/* the spectral density of spec_col (and spec_col2) of spec_type, spec_wid points a window of type spec_win: the points computed */
+Result<int> compute_sd(Session &s);
+bool ask_spectral_density(Session &s);
+/* the Fourier modes of spec_col, and the power spectrum made from them: the harmonics or frequencies computed */
+Result<int> compute_fourier(Session &s);
+Result<int> compute_power(Session &s);
+/* the mean and variance of info.col */
+struct ColumnStatistics {
+  double mean, variance;
+};
+Result<ColumnStatistics> column_mean(Session &s);
+/* asks for a column of s's model (prompt), col its default; false (the refusal shown) when it names none */
+bool ask_column(const Session &s, int &col, const char *prompt);
+
+/* a histogram or correlation of the session s's stored data (which: 0 a histogram of the rows where the condition
+   holds, 1 of the differences, 2 and 3 the correlation of two columns, directly and by the FFT); a condition that
+   is not a formula is the error, and nothing is made */
 Result<> new_hist(Session &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition,
                   int which);
 /* the other results of s's stored data: a 2D histogram, the Fourier
@@ -67,12 +98,12 @@ int two_d_hist(Session &s, int col1, int col2, int ndat, int n1, int n2, double 
 int twod_hist(Session &s);
 void four_back(Session &s);
 void hist_back(Session &s);
+/* the last histogram shown in the browser again, or why there is none */
+Result<> reload_histogram(Session &s);
 void new_four(Session &s, int nmodes, int col);
-void just_fourier(Session &s, int flag);
-void just_sd(Session &s, int flag);
+Result<int> just_fourier(Session &s, int flag);
+Result<int> just_sd(Session &s, int flag);
 /* a batch run's post-processing (@ post_process=) of s's data */
 void post_process_stuff(Session &s);
-/* asks for a column of s's model (prompt); 0 when it names none */
-int get_col_info(const Session &s, int *col, const char *prompt);
 
 } // namespace xpp

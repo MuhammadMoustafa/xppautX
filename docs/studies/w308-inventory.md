@@ -305,6 +305,8 @@ Only what the user places, each with an id (proposed, awaiting the maintainer). 
 
 ### 2.11 Resource `analysis` (Stochastic, Fits, Spectra, Adjoints, and Poincare Maps)
 
+**Moved onto the registry (W525, #589): every row below is implemented under its proposed name; see docs/protocol.md's registry table. The "Today" columns describe the forms that were deleted (only `browser` `postprocess` was a protocol form of its own; the menus' keys stay and call the same functions).** Readings that differ from the row: every argument that has a setting in the session is optional and left out keeps it (the rows said required); `analysis.stochastic_integrate`'s `trials` is the number of runs (the Range settings' steps plus one, at least 2) and `analysis.fit_curve` reads a file of the model's folder (`file`, not the browser's data), its `data_columns` are the file's column numbers and `variables` and `parameters` required; `analysis.poincare_map`'s `type` is required and its kinds `none`, `section`, `max_min`, `period` (the model file still says `max` until W381's rename of the option); `analysis.phase_space_torus` also takes `period`; `analysis.color_coding` takes `window`; `analysis.lyapunov_exponent` takes the sweep's arguments with `range_over_parameters` and also says `runs_completed`; a load of the mean, variance, histogram, adjoint or H function that does not exist is an error, not `false`; `analysis.statistics`' `variance` is of the stored rows (no sample correction); `analysis.adjoint_interaction`'s `couplings` name differential equations.
+
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|
 | `U` -> `H` -> `N` | Stochastic -> New seed | `{"cmd":"set","kind":"options","name":"seed"}` | `new_int` "Seed:" ([core/markov.cpp:347](../../core/markov.cpp#L347)) | `analysis.seed_random` | `seed`: integer (>=0) | default | `{"seed":integer}` | `session.state`, `done` |
@@ -337,6 +339,8 @@ Only what the user places, each with an id (proposed, awaiting the maintainer). 
 ---
 
 ### 2.12 Resource `table` (Lookup Tables)
+
+**Moved onto the registry (W525, #589): every row below is implemented under its proposed name; see docs/protocol.md's registry table. The "Today" columns describe the Tables menu's forms, which stay for the keys.** Readings that differ from the row: `table.edit` takes the table by `name` and, since a table is either a formula or a file, the formula table's `formula`, `x_min`, `x_max`, `points` and `auto_evaluate` or the file table's `file` (left out: its current file), each optional and left out kept; `table.view_in_browser` refuses a table with more points than the data table has rows.
 
 | Today Key Path | Today Menu Item | Today Protocol | Today Forms & Asks | Proposed Dotted Name | Typed Named Arguments | Group / Mutex | Result Payload | Events Emitted |
 |---|---|---|---|---|---|---|---|---|

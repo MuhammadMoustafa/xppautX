@@ -17,7 +17,9 @@
 #include <string>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 #include <array>
+#include <limits>
 #include <vector>
 /*
   this has a bunch of numerical routines
@@ -165,25 +167,26 @@ void h_back(xpp::Session &s)
 */
 void make_adj_com(xpp::Session &s, int com)
 {
+/* the Adjoint items of an imported button sequence (kbs.h): the questions the registry's analysis.adjoint_* commands take as arguments are asked here, then the command's own function runs */
 static const char *const key="nmaohpr";
  switch(key[com]){
  case 'n': 
-   new_adjoint(s);
+   xpp::ok_or_show(new_adjoint(s));
    break;
  case 'm':
-   new_h_fun(s,0);
+   if(ask_couplings(s))xpp::ok_or_show(new_h_fun(s,true));
    break;
  case 'a':
-   adj_back(s);
+   xpp::ok_or_show(load_adjoint(s));
    break;
  case 'o':
    data_back(s);
    break;
  case 'h':
-   h_back(s);
+   xpp::ok_or_show(load_interaction(s));
    break;
  case 'p':
-   adjoint_parameters(s);
+   if(ask_adjoint_parameters(s))xpp::ok_or_show(set_adjoint_parameters(s,s.adjoint.maxit,s.adjoint.err));
    break;
  case 'r':
    s.integrator.adj_range=1;
@@ -192,25 +195,48 @@ static const char *const key="nmaohpr";
  }
 }
 
-void adjoint_parameters(xpp::Session &s)
+Result<> load_adjoint(xpp::Session &s)
+{
+ return show_derived(s,s.adjoint.adjoint_here,"adjoint","No adjoint computed yet: compute one first",adj_back);
+}
+
+Result<> load_interaction(xpp::Session &s)
+{
+ return show_derived(s,s.adjoint.h_here,"adjoint","No H function computed yet: compute one first",h_back);
+}
+
+Result<> set_adjoint_parameters(xpp::Session &s, int max_iterates, double tolerance)
+{
+  if(max_iterates<1)return fail("adjoint",xpp::format("Maximum iterates is 1 or more, not {}",max_iterates),command_place());
+  if(!(tolerance>0))return fail("adjoint",xpp::format("The adjoint error tolerance is above 0, not {}",xpp::number(tolerance)),command_place());
+  s.adjoint.maxit=max_iterates;
+  s.adjoint.err=tolerance;
+  return {};
+}
+
+bool ask_adjoint_parameters(xpp::Session &s)
 {
   new_int("Maximum iterates :",&s.adjoint.maxit);
   new_float(s,"Adjoint error tolerance :",&s.adjoint.err);
+  return true;
 }
 
-void new_h_fun(xpp::Session &s, int silent)
+bool ask_couplings(xpp::Session &s)
+{
+ for(int i=0;i<s.model().node;i++)
+   new_string_of(xpp::format("Coupling for {} eqn:",s.model().uvar_names[i]),s.adjoint.coup_string[i],XPP_FIELD_EXPRESSION);
+ return true;
+}
+
+Result<> new_h_fun(xpp::Session &s, bool compile)
 {
 
  int n=2;
  AdjointState &a=s.adjoint;
- if(!a.adjoint_here){
-   command_error("adjoint", "Must compute adjoint first!");
-   return;
- }
-  if(s.data_store.rows!=a.adjoint_rows){
-     command_error("adjoint", "incompatible data and adjoint");
-     return;
-   }
+ if(!a.adjoint_here)
+   return fail("adjoint","Must compute adjoint first!",command_place());
+  if(s.data_store.rows!=a.adjoint_rows)
+    return fail("adjoint","incompatible data and adjoint",command_place());
  if(a.h_here){
    a.h_function.release();
    a.h_here=false;
@@ -223,28 +249,28 @@ void new_h_fun(xpp::Session &s, int silent)
    a.h_rows=s.data_store.rows;
    data_back(s); 
    float **h=a.h_function.make(s.data_store,n,a.h_rows,s.model().neq);
-   if(make_h(s,s.data_store.col,a.adjoint.table(),h,a.h_rows,s.numerics.delta_t*s.numerics.store_every,s.model().node,silent )){
+   const Result<> made=make_h(s,s.data_store.col,a.adjoint.table(),h,a.h_rows,compile);
+   if(made){
      a.h_here=true;
      h_back(s);
    }
  ping();
-  
+ return made;
 }
 
 
-int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double dt, int node, int silent)
+Result<> make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, bool compile)
 {
-
- int i,j,rval=0;
+ const int node=s.model().node;
  float sum;
  double z;
  int n0=node+1+s.model().fix_var,k2,k;
- if(silent==0){
-   for(i=0;i<s.model().node ;i++){
-     std::string name=xpp::format("Coupling for {} eqn:",s.model().uvar_names[i]);
-     new_string_of(name,s.adjoint.coup_string[i],XPP_FIELD_EXPRESSION);
+ Result<> rval;
+ int j;
+ if(compile){
+   for(int i=0;i<node;i++){
      if(add_expr(s,s.adjoint.coup_string[i],s.adjoint.coup_fun[i],&j)){
-       command_error("adjoint", xpp::format("Illegal formula {}",s.adjoint.coup_string[i]));
+       rval=fail("adjoint",xpp::format("Illegal formula {}",s.adjoint.coup_string[i]),command_place());
        goto bye;
      }
    }
@@ -257,14 +283,14 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
      for(k=0;k<nt;k++){
          k2=k+j;
        if(k2>=nt)k2=k2-nt+1;
-       for(i=0;i<node;i++){
+       for(int i=0;i<node;i++){
 	 setvar(s,i+1,static_cast<double>(orb[i+1][k]));
          setvar(s,i+n0+1,static_cast<double>(orb[i+1][k2]));
        }
        z=0.0;
        update_based_on_current(s); 
 
-       for(i=0;i<node;i++){
+       for(int i=0;i<node;i++){
 	
 	 z=evaluate(s,s.adjoint.coup_fun[i].data());
 	
@@ -282,17 +308,18 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
        h[3][k]=.5*(h[1][k]+h[1][k2]);
      }
    }
-   rval=1;
       
  bye:
   s.parser.nsym=s.model().nsym_start;
   s.parser.ncon=s.model().ncon_start;
-  return(rval);
+  return rval;
 
 }
 
-void new_adjoint(xpp::Session &s)
+Result<> new_adjoint(xpp::Session &s)
 {
+ if(s.data_store.rows<2)
+   return fail("adjoint",xpp::format("Compute a periodic orbit first: the run stored {} row(s), the adjoint needs at least 2",s.data_store.rows),command_place());
  int n=s.model().node +1;
  AdjointState &a=s.adjoint;
  if(a.adjoint_here){
@@ -307,8 +334,8 @@ void new_adjoint(xpp::Session &s)
    a.adjoint_here=true;
  adj_back(s);
  }
- else xpp::show_error(done.error());
  ping();
+ return done;
 }
 /* this computes the periodic orbit and stores it in 
    the usual place  given initial data and period */
@@ -485,28 +512,49 @@ return {};
    to get an approximation
 */
 
-void do_liapunov(xpp::Session &s)
+Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range)
 {
-  int i;
-  double *x;
-  new_int("Range over parameters?(0/1)",&s.adjoint.liap_flag);
-  if(s.adjoint.liap_flag!=1){
+  if(!over_range){
     auto z=hrw_liapunov(s,s.numerics.equilibria.jacobian_step);
-    if(z)bottom_msg(0,xpp::format("Maximal exponent is {:g}",*z));
-    else xpp::show_error(z.error());
-    return;
+    if(!z)return std::unexpected(z.error());
+    return LyapunovResult{*z,1};
   }
-  x=&s.data_store.current[0];
-  do_range(s,x,0); 
+  /* the sweep keeps its exponents while the flag is up; they are in the data table after, and gone from here */
+  struct Sweep {
+    xpp::Session &s;
+    explicit Sweep(xpp::Session &session) : s(session){s.adjoint.liap_flag=1;}
+    ~Sweep(){
+      s.adjoint.liap_flag=0;
+      for(auto &c : s.adjoint.liap)c.clear();
+    }
+  } sweep(s);
+  s.integrator.range.rtype=RANGE_SINGLE;
+  if(auto items=resolve_range_items(s,false);!items)return std::unexpected(items.error());
+  RangeProgress done;
+  if(auto swept=run_range(s,0,&done);!swept)return std::unexpected(swept.error());
   /* done the range */
-  for(i=0;i<s.adjoint.liap_i;i++){
+  float largest=-std::numeric_limits<float>::infinity();
+  for(int i=0;i<s.adjoint.liap_i;i++){
     s.data_store.col[0][i]=s.adjoint.liap[0][i];
     s.data_store.col[1][i]=s.adjoint.liap[1][i];
+    largest=std::max(largest,s.adjoint.liap[1][i]);
   }
   s.data_store.rows=s.adjoint.liap_i;
   refresh_browser(s,s.data_store.rows);
-  s.adjoint.liap_flag=0;
-  for(auto &c : s.adjoint.liap)c.clear();
+  return LyapunovResult{s.adjoint.liap_i>0?static_cast<double>(largest):0.0,done.runs};
+}
+
+void do_liapunov(xpp::Session &s)
+{
+  int over_range=0;
+  new_int("Range over parameters?(0/1)",&over_range);
+  if(over_range==1&&set_up_range(s)==0)return;
+  const auto z=lyapunov_exponent(s,over_range==1);
+  if(!z){
+    xpp::show_error(z.error());
+    return;
+  }
+  if(over_range!=1)bottom_msg(0,xpp::format("Maximal exponent is {:g}",z->exponent));
 }
 
 void alloc_liap(xpp::Session &s, int n)

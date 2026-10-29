@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <initializer_list>
 
 #include <cstddef>
@@ -21,6 +22,8 @@ enum class PoincareMap { none, section, max, period };
 enum class SectionSign { negative = -1, both = 0, positive = 1 };
 /* the sign a number's own sign says (XPPAUT's +1, -1 and 0) */
 constexpr SectionSign section_sign(double x) { return x < 0 ? SectionSign::negative : x == 0 ? SectionSign::both : SectionSign::positive; }
+/* the crossings' words, by the sign's number plus 1 (negative, both, positive); the .odex's and the commands' */
+inline constexpr std::array<std::string_view, 3> section_sign_names{"negative", "both", "positive"};
 
 struct Session; /* session.h */
 struct OptionRow; /* model_options.h */

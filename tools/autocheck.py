@@ -2175,7 +2175,7 @@ def section_memory():
     check('memory: the adjoint of the limit cycle is computed', not errors_of(evs), str(errors_of(evs)))
     evs = numerics_menu(s, 'a', 'm', {'string': lambda e: {'ok': 1, 'value': '0'}})  # Make H
     check('memory: its H function is computed', not errors_of(evs), str(errors_of(evs)))
-    s.send(cmd='browser', op='postprocess')  # the model's histogram
+    s.send(cmd='analysis.histogram')  # the model's histogram
     s.collect(is_idle)
     # another orbit, from elsewhere, long enough to grow the store
     # (storage_rows 1000) twice

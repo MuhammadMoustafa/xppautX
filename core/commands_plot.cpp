@@ -27,14 +27,6 @@ namespace {
 
 constexpr const char *WINDOW_KEY = "window", *COLOR_KEY = "color";
 
-/* a list of names as the C strings a row's choices are, made from the one list each choice has (line_style.h,
-   grobs.h, colormap.h) so no name is written twice */
-template <std::size_t N> constexpr std::array<const char *, N> c_names(const std::array<std::string_view, N> &names)
-{
-    std::array<const char *, N> out{};
-    for (std::size_t i = 0; i < N; ++i) out[i] = names[i].data();
-    return out;
-}
 constexpr auto DRAW_CHOICES = c_names(line_draw_names);
 constexpr auto DASH_CHOICES = c_names(line_dash_names);
 constexpr auto MARKER_CHOICES = c_names(line_marker_names);
@@ -44,21 +36,6 @@ constexpr std::array VARY_CHOICES = {"theta", "phi"};
 constexpr std::array<std::string_view, 3> HOW_NAMES = {"time_series", "phase_plane", "array_plot"};
 constexpr auto HOW_CHOICES = c_names(HOW_NAMES);
 constexpr std::array HOW_PLOTTED = {PlotHow::time_series, PlotHow::phase_plane, PlotHow::array_plot};
-
-template <std::size_t A, std::size_t B> constexpr std::array<Argument, A + B> join(const std::array<Argument, A> &a, const std::array<Argument, B> &b)
-{
-    std::array<Argument, A + B> out{};
-    for (std::size_t i = 0; i < A; ++i) out[i] = a[i];
-    for (std::size_t i = 0; i < B; ++i) out[A + i] = b[i];
-    return out;
-}
-
-int column_of(const Session &s, std::string_view name)
-{
-    int column = -1;
-    find_variable(s, name, &column);
-    return column;
-}
 
 std::string column_name(const Session &s, int column) { return ind_to_sym(s, column); }
 
@@ -89,9 +66,9 @@ struct OnGraph {
 
 CurveSettings curve_of(const Session &s, const Arguments &args, CurveSettings curve)
 {
-    if (const auto x = args.optional<std::string>("x")) curve.x = column_of(s, *x);
-    if (const auto y = args.optional<std::string>("y")) curve.y = column_of(s, *y);
-    if (const auto z = args.optional<std::string>("z")) curve.z = column_of(s, *z);
+    if (const auto x = args.optional<std::string>("x")) curve.x = variable_column(s, *x);
+    if (const auto y = args.optional<std::string>("y")) curve.y = variable_column(s, *y);
+    if (const auto z = args.optional<std::string>("z")) curve.z = variable_column(s, *z);
     if (const auto color = args.optional<Color>(COLOR_KEY)) curve.color = *color;
     curve.style = style_of(args, curve.style);
     return curve;
@@ -268,7 +245,7 @@ AxesView axes_of(const Session &s, const Arguments &args, AxesView view, bool th
     constexpr std::array<const char *, 3> columns = {"x", "y", "z"}, lows = {"x_min", "y_min", "z_min"}, highs = {"x_max", "y_max", "z_max"},
                                           labels = {"x_label", "y_label", "z_label"};
     for (std::size_t i = 0; i < (three ? 3u : 2u); ++i) {
-        if (const auto name = args.optional<std::string>(columns[i])) view.column[i] = column_of(s, *name);
+        if (const auto name = args.optional<std::string>(columns[i])) view.column[i] = variable_column(s, *name);
         view.lo[i] = args.optional<double>(lows[i]).value_or(view.lo[i]);
         view.hi[i] = args.optional<double>(highs[i]).value_or(view.hi[i]);
         if (const auto label = args.optional<std::string>(labels[i])) view.label[i] = *label;

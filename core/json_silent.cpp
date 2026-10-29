@@ -19,10 +19,10 @@
      run                     run.initial, or run.range (the settings
                              the @ range options made) for @ range=1 or a
                              stochastic run
-     @ postprocess           browser postprocess
+     @ postprocess           the analysis it names (analysis.histogram, ...)
      then, unless each run of a range wrote its own file:
-     @ stoch=1/2             key u, key h, answer m or v (the Mean or
-                             Variance of the runs), key Escape
+     @ stoch=1/2             analysis.load_stochastic_mean or _variance (the Mean
+                             or Variance of the runs)
      output.dat              browser write, what output, replace
      --mkplot                 key g, answer p (pdf) or v (svg), the picture parameters
                              form answered with its values, the file
@@ -33,6 +33,7 @@
 #include "session.h"
 #include "comline.h"
 #include "graf_par.h"
+#include "histogram.h"
 #include "image_format.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
@@ -65,6 +66,7 @@ private:
     void answer_values(std::span<const std::string> values);
     void command(std::string_view cmd, std::string_view op, std::string_view name, std::string_view more = {});
     void apply_set(std::string_view name);
+    void post_process();
 };
 
 /* {"cmd":cmd,"field":value} */
@@ -97,6 +99,22 @@ void SilentScript::command(std::string_view cmd, std::string_view op, std::strin
     buf_add(b, more.data(), more.size());
     BUF_LIT(b, "}");
     lines.push_back(std::move(b));
+}
+
+/* the model's @ postprocess of the run's data: the analysis the option names, with the settings the model gave, and only the
+   time and its first column written after it (the postprocess kinds are the option's own numbers) */
+void SilentScript::post_process()
+{
+    constexpr int HISTOGRAM = 1, FOURIER = 2, POWER = 3, FIRST_SPECTRUM = 4, LAST_SPECTRUM = 6, HISTOGRAM_2D = 7;
+    const int kind = session.histogram.post_process;
+    if (!ran || kind == 0) return;
+    session.plot_list.assign({0, 1});
+    if (kind == HISTOGRAM) registry("analysis.histogram");
+    else if (kind == FOURIER) registry("analysis.fourier_series");
+    else if (kind == POWER) registry("analysis.power_spectrum");
+    else if (kind == HISTOGRAM_2D) registry("analysis.histogram_2d");
+    else if (kind >= FIRST_SPECTRUM && kind <= LAST_SPECTRUM)
+        lines.push_back(xpp::format("{{\"cmd\":\"analysis.spectral_density\",\"type\":\"{}\"}}", xpp::spectrum_type_names[static_cast<std::size_t>(kind - FIRST_SPECTRUM)]));
 }
 
 /* {"cmd":"applyset","set":name,"scope":"all"}: the whole set */
@@ -133,21 +151,15 @@ void SilentScript::add_run(int set)
         const bool range = session.integrator.range.write_files || session.stochastic.flag > 0;
         registry(range ? "run.range" : "run.initial");
     });
-    steps.push_back([this] {
-        if (ran && session.histogram.post_process != 0) command("browser", "postprocess", "");
-    });
+    steps.push_back([this] { post_process(); });
     steps.push_back([this] {
         if (!ran) return;
         const xpp::Session &s = session;
         /* a range that resets its storage wrote each run's file itself
            (integrate.cpp do_range, write_this_run) */
         if (!s.integrator.range.write_files || s.integrator.range.reset == 0) {
-            if (s.stochastic.flag == 1 || s.stochastic.flag == 2) {
-                key("u");
-                key("h");
-                answer("key", s.stochastic.flag == 1 ? "m" : "v");
-                key("Escape");
-            }
+            if (s.stochastic.flag == 1 || s.stochastic.flag == 2)
+                registry(s.stochastic.flag == 1 ? "analysis.load_stochastic_mean" : "analysis.load_stochastic_variance");
             if (!s.integrator.suppress_out)
                 command("browser", "write", session.batch_out_file, ",\"what\":\"output\",\"format\":\"dat\"");
             if (s.integrator.make_plot_flag) {

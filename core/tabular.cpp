@@ -114,55 +114,80 @@ void set_table_name(xpp::Session &s, std::string_view name, int index)
   s.tables[index].name=name;
 }
 
-void view_table(xpp::Session &s, int index)
+Result<int> view_table(xpp::Session &s, int index)
 {
-  int i;
-  int n=s.tables[index].n,len;
-  double *y=s.tables[index].y;
-  double xlo=s.tables[index].xlo,dx=s.tables[index].dx;
-  len=n;
-  if(len>=s.data_store.max_rows)len=s.data_store.max_rows-1;
-  for(i=0;i<len;i++){
-    s.data_store.col[0][i]=xlo+i*dx;
-    s.data_store.col[1][i]=y[i];
+  const TABULAR &table=s.tables[index];
+  if(table.flag==0)return fail("table",xpp::format("{} is not defined yet: it has no values to show",table.name),table_place(s,index));
+  /* the data table has room for max_rows less one rows */
+  if(table.n>=s.data_store.max_rows)
+    return fail("table",xpp::format("{} has {} points: the data table has room for {}",table.name,table.n,s.data_store.max_rows-1),table_place(s,index));
+  for(int i=0;i<table.n;i++){
+    s.data_store.col[0][i]=table.xlo+i*table.dx;
+    s.data_store.col[1][i]=table.y[i];
   }
-  refresh_browser(s,len);
+  refresh_browser(s,table.n);
+  return table.n;
+}
+
+Result<int> find_table(const xpp::Session &s, std::string_view name)
+{
+  for(int i=0;i<s.ntable;i++)
+    if(equal_ignoring_case(s.tables[i].name,name))return i;
+  return fail("table",xpp::format("The model has no table named \"{}\"",name),command_place());
+}
+
+Result<int> edit_table(xpp::Session &s, int index, const TableEdit &edit)
+{
+  TABULAR &table=s.tables[index];
+  if(table.flag==1){
+    if(edit.points||edit.x_min||edit.x_max||edit.formula||edit.auto_evaluate)
+      return fail("table",xpp::format("{} is a table read from a file: give its file, not a formula, points, range or auto-evaluate",table.name),table_place(s,index));
+    const std::string file=edit.file.value_or(table.filename);
+    if(auto loaded=load_table(s,file,index,0);!loaded)return std::unexpected(loaded.error());
+    table.filename=file;
+    return table.n;
+  }
+  if(table.flag!=2)return fail("table",xpp::format("{} is not defined yet: it has no formula or file to edit",table.name),table_place(s,index));
+  if(edit.file)
+    return fail("table",xpp::format("{} is a table of a formula: give its formula, points and range, not a file",table.name),table_place(s,index));
+  if(auto made=create_fun_table(s,edit.points.value_or(table.n),edit.x_min.value_or(table.xlo),edit.x_max.value_or(table.xhi),edit.formula.value_or(table.filename),index);!made)
+    return std::unexpected(made.error());
+  if(edit.auto_evaluate)table.autoeval=*edit.auto_evaluate?1:0;
+  return table.n;
 }
 
 void new_lookup_com(xpp::Session &s, int i)
 {
- int index,status;
- double xlo,xhi;
- int npts;
-
-  index=select_table(s);
+  /* the Tables items of an imported button sequence (kbs.h): the questions the registry's table.* commands take as arguments are asked here, then the command's own function runs */
+  const int index=select_table(s);
   if(index==-1)return;
   if(i==1){
-    view_table(s,index);
+    xpp::ok_or_show(view_table(s,index));
     return;
   }
-   if(s.tables[index].flag==1){
-     std::string file=s.tables[index].filename;
-     status=file_selector("Load table",file,"*.tab");
-     if(status==0)return;
-     if(xpp::ok_or_show(load_table(s,file,index,0)))s.tables[index].filename=file;
-
-   }
-   if(s.tables[index].flag==2){
-     npts=s.tables[index].n;
-
-     xlo=s.tables[index].xlo;
-       xhi=s.tables[index].xhi;
-       std::string newform=s.tables[index].filename;
-       new_int("Auto-evaluate? (1/0)",&s.tables[index].autoeval);
-       new_int("NPts: ",&npts);
-       new_float(s,"Xlo: ",&xlo);
-       new_float(s,"Xhi: ",&xhi);
-       new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
-       xpp::ok_or_show(create_fun_table(s,npts,xlo,xhi,newform,index));
-
-   }
-
+  TABULAR &table=s.tables[index];
+  TableEdit edit;
+  if(table.flag==1){
+    std::string file=table.filename;
+    if(file_selector("Load table",file,"*.tab")==0)return;
+    edit.file=file;
+  }
+  else if(table.flag==2){
+    int autoeval=table.autoeval,npts=table.n;
+    double xlo=table.xlo,xhi=table.xhi;
+    std::string formula=table.filename;
+    new_int("Auto-evaluate? (1/0)",&autoeval);
+    new_int("NPts: ",&npts);
+    new_float(s,"Xlo: ",&xlo);
+    new_float(s,"Xhi: ",&xhi);
+    new_string_of("Formula :",formula,XPP_FIELD_EXPRESSION);
+    edit.auto_evaluate=autoeval!=0;
+    edit.points=npts;
+    edit.x_min=xlo;
+    edit.x_max=xhi;
+    edit.formula=formula;
+  }
+  xpp::ok_or_show(edit_table(s,index,edit));
 }
 
 namespace {

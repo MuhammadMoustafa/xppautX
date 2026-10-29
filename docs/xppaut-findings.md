@@ -128,6 +128,8 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [95](#95-auto-evaluates-the-equations-at-t--0-without-a-word) | AUTO | AUTO calls the right-hand side with t fixed at 0, so an equation that uses t is continued with t = 0 and no word says so | [W516 / #580](https://github.com/MuhammadMoustafa/xppautX/issues/580) |
 | [96](#96-markers-on-the-data-read-rows-past-the-stored-data) | Plots | Add markers' Number, Row1 and Skip are never checked against the stored rows, so its markers read past the data | [W524](https://github.com/MuhammadMoustafa/xppautX/issues/588) |
 | [97](#97-a-saddles-manifold-export-starts-each-branch-where-the-last-one-ended) | Equilibria | a saddle's batch manifold export runs every branch from the time the previous one ended, and with a transient drops each branch's start near the saddle | [W533](https://github.com/MuhammadMoustafa/xppautX/issues/598) |
+| [98](#98-the-2d-histogram-writes-past-its-columns-when-its-bins-outgrow-the-storage) | Analysis | the 2D histogram clamps its columns to the storage but fills one value for every bin, so many bins write past them | [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589) |
+| [99](#99-a-spectrum-window-of-one-point-divides-by-zero) | Analysis | a spectral density window of 1 point makes a step of 0 and divides by it, and a window longer than the data is not checked before it is allocated | [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589) |
 
 ## 1. Model options
 
@@ -2083,3 +2085,36 @@ not a run (XPPAUT's window needs an X server here): XPPAUT master keeps
 `usual_integrate_stuff` with the same test ([master](../reference/xppaut-master/integrate.c#L1460))
 but has no batch export. xppautX's export starts every branch at the clock it
 began at and stores it whole, whatever `store_from` says (W533, [#598](https://github.com/MuhammadMoustafa/xppautX/issues/598)).
+## 98. The 2D histogram writes past its columns when its bins outgrow the storage
+
+Stochastic's 2D-hist makes `nbins * nbins2` bins and clamps that length to
+the storage (`MAXSTOR - 1`) before it allocates the histogram's three columns
+([histogram.c:210–213](../reference/xppaut-8.0/histogram.c#L210),
+[master](../reference/xppaut-master/histogram.c#L231)), but
+`two_d_hist` fills a value for every bin, `n1 * n2` of them, whatever the
+clamp made of the columns
+([histogram.c:96–107](../reference/xppaut-8.0/histogram.c#L96),
+[master](../reference/xppaut-master/histogram.c#L92)). Bins that do not fit
+therefore write past the end of `my_hist[2]`. Evidence: 4096 bins by 4096 bins
+on a 601-row run (the dialog takes any count) is 16777216 values into a column
+of `MAXSTOR - 1`. xppautX refuses the histogram naming the bins it would need and
+the room the data table has; `analysis.histogram_2d` and the Stochastic menu's
+2D-hist item alike (`tools/servercheck.py` checks it). Card
+[W525](https://github.com/MuhammadMoustafa/xppautX/issues/589).
+
+## 99. A spectrum window of one point divides by zero
+
+Spectral density moves its window by half its length, `shift = win / 2`, and
+counts the windows as `(nr - win + 1) / shift`
+([histogram.c:481–482](../reference/xppaut-8.0/histogram.c#L481), and the cross
+spectrum's [histogram.c:557–558](../reference/xppaut-8.0/histogram.c#L557);
+master [460–461](../reference/xppaut-master/histogram.c#L460) and
+[536–537](../reference/xppaut-master/histogram.c#L536)). A window of 1 point
+makes the shift 0 and the second line an integer division by zero, which
+stops the program with a floating-point exception; a window of 0 or less
+allocates `win` floats before anything checks it, and one of more than the
+data holds is only found after the histogram's columns were made. xppautX
+refuses a window under 2 points, or longer than the stored rows, naming the
+rows and the window, before it allocates anything; `analysis.spectral_density` and
+the Stochastic menu's spEc.dns item alike. Card
+[W525](https://github.com/MuhammadMoustafa/xppautX/issues/589).

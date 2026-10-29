@@ -47,6 +47,13 @@ void new_browse_dat(xpp::Session &s, float **new_dat, int dat_len)
   refresh_browser(s,dat_len);
 }
 
+Result<> show_derived(xpp::Session &s, bool exists, const std::string &command, const std::string &missing, void (*show)(xpp::Session &))
+{
+  if(!exists)return fail(command,missing,command_place());
+  show(s);
+  return {};
+}
+
 float *get_data_col(const xpp::Session &s, int c)
 {
   return s.browser.view.data[c];

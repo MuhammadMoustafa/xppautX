@@ -6,6 +6,7 @@
 #include <span>
 #include <string>
 #include <vector>
+#include "xpp_error.h"
 
 namespace xpp {
 
@@ -26,10 +27,15 @@ void compile_all_markov(Session &s);
 int compile_markov(Session &s, int index, int j, int k);
 void update_markov(Session &s, double *x, double t, double dt);
 double new_state(Session &s, double old, int index, double dt);
+/* the Stochastic menu's items (an imported button sequence's), asking for what the analysis.* commands take as arguments */
 void  do_stochast_com(Session &s, int i);
-void  mean_back(Session &s);
-void  variance_back(Session &s);
-void  compute_em(Session &s);
+/* the seed the next run starts from (the Session's random numbers seeded with it at once), or why it is not one */
+Result<> set_random_seed(Session &s, int seed);
+/* the mean or the variance of the stochastic runs in the browser, or why there are none */
+Result<> mean_back(Session &s);
+Result<> variance_back(Session &s);
+/* the Range settings' sweep as many independent runs whose mean and variance are kept: the runs completed */
+Result<int> stochastic_integrate(Session &s);
 void  free_stoch(Session &s);
 void  init_stoch(Session &s, int len);
 void  append_stoch(Session &s, int first, int length);

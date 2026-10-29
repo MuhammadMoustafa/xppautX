@@ -50,7 +50,6 @@ void alloc_liap(Session &s, int n);
 /* v scaled to unit length (unless it is 0), and its length mu */
 void norm_vec(std::span<double> v, double &mu);
 
-void adjoint_parameters(Session &s);
 void adj_back(Session &s);
 void h_back(Session &s);
 
@@ -59,10 +58,28 @@ int do_transpose(Session &s);
 int create_transpose(Session &s);
 void alloc_h_stuff(Session &s);
 void data_back(Session &s);
+/* the Adjoint menu's items (an imported button sequence's), asking for what the analysis.adjoint_* commands take as arguments */
 void make_adj_com(Session &s, int com);
-void new_h_fun(Session &s, int silent);
-int make_h(Session &s, float **orb, float **adj, float **h, int nt, double dt, int node,int silent);
-void new_adjoint(Session &s);
+/* the adjoint of the stored orbit; the H function for the couplings of s.adjoint.coup_string, compiled first when
+   `compile` (else the formulas of the last time are used again, as a range of adjoints does) */
+Result<> new_adjoint(Session &s);
+Result<> new_h_fun(Session &s, bool compile);
+Result<> make_h(Session &s, float **orb, float **adj, float **h, int nt, bool compile);
+/* the adjoint, the orbit and the H function in the data browser, or why there is none */
+Result<> load_adjoint(Session &s);
+Result<> load_interaction(Session &s);
+/* the adjoint's iterations and tolerance, or why they are not ones it takes */
+Result<> set_adjoint_parameters(Session &s, int max_iterates, double tolerance);
+bool ask_adjoint_parameters(Session &s);
+/* asks for the coupling of each differential equation (s.adjoint.coup_string) */
+bool ask_couplings(Session &s);
+/* the maximal Liapunov exponent of the stored orbit or, with `over_range`, of the run at each value of the Range
+   settings' sweep (kept in the data table, the exponent given the largest one): the exponent, and the runs */
+struct LyapunovResult {
+  double exponent;
+  int runs;
+};
+Result<LyapunovResult> lyapunov_exponent(Session &s, bool over_range);
 void do_liapunov(Session &s);
 void do_this_liaprun(Session &s, int i, double p);
 

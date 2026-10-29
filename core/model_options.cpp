@@ -159,8 +159,6 @@ const char *own_file(Session &s, const OptionValue &v, std::string &path)
 constexpr std::array<std::string_view, 2> boolean_names{"false", "true"};
 constexpr std::array<std::string_view, 2> axes_names{"2", "3"};
 constexpr std::array<std::string_view, 4> poincare_map_names{"none", "section", "max", "period"};
-/* the section's crossings by the sign of SectionSign: -1, 0, 1 */
-constexpr std::array<std::string_view, 3> section_sign_names{"negative", "both", "positive"};
 
 /* the word of words that value starts with, "" when none */
 template <class Words> std::string first_letter_word(const Words &words, std::string_view value)

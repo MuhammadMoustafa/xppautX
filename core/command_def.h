@@ -152,6 +152,24 @@ private:
     std::vector<std::pair<std::string, Value>> given_;
 };
 
+/* a list of names as the C strings a row's choices are, made from the one list each choice has elsewhere (line_style.h,
+   grobs.h, colormap.h, numerics_settings.h) so no name is written twice */
+template <std::size_t N> constexpr std::array<const char *, N> c_names(const std::array<std::string_view, N> &names)
+{
+    std::array<const char *, N> out{};
+    for (std::size_t i = 0; i < N; ++i) out[i] = names[i].data();
+    return out;
+}
+
+/* a row's arguments made of two lists (a command that takes another's, then its own) */
+template <std::size_t A, std::size_t B> constexpr std::array<Argument, A + B> join(const std::array<Argument, A> &a, const std::array<Argument, B> &b)
+{
+    std::array<Argument, A + B> out{};
+    for (std::size_t i = 0; i < A; ++i) out[i] = a[i];
+    for (std::size_t i = 0; i < B; ++i) out[A + i] = b[i];
+    return out;
+}
+
 struct Command;
 /* A handler runs after validation: the session, its row, the typed
    arguments and the command's place (for the errors it returns). */
@@ -213,6 +231,8 @@ std::span<const Command> ic_commands();
 std::span<const Command> bvp_commands();
 std::span<const Command> auto_commands();
 std::span<const Command> plot_commands();
+std::span<const Command> analysis_commands();
+std::span<const Command> table_commands();
 /* A command whose arguments are numerics settings (run.configure, bvp.configure): every argument given is the
    setting `key_prefix` + its name, all checked together and set all or nothing; the result holds each one's
    value now. */

@@ -292,7 +292,7 @@ void run_the_commands(xpp::Session &s, MenuCommand com)
     return;
   }
   if (com >= M_AA && com <= M_AC) {
-    do_torus_com(s,com - M_AA);
+    xpp::do_torus_com(s,com - M_AA);
     return;
   }
   if (com >= M_KC && com <= M_KM) {

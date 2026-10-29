@@ -5,6 +5,7 @@
    the core function the imported XPPAUT button sequences call too
    (integrate.h's run_from, run_range ...). */
 #include "command_def.h"
+#include "command_range.h"
 #include "command_registry.h"
 #include "dae_fun.h"
 #include "integrate.h"
@@ -19,6 +20,21 @@
 #include <array>
 
 namespace xpp::command {
+
+void set_range_settings(RangeVars &range, const Arguments &args)
+{
+    range.rtype = RANGE_SINGLE;
+    if (const auto item = args.optional<std::string>("variable")) range.item = *item;
+    if (const auto low = args.optional<double>("start")) range.plow = *low;
+    if (const auto high = args.optional<double>("end")) range.phigh = *high;
+    if (const auto steps = args.optional<long long>("steps")) range.steps = static_cast<int>(*steps);
+    if (const auto reset = args.optional<bool>("reset_storage")) range.reset = *reset;
+    if (const auto old = args.optional<bool>("use_old_ic")) range.oldic = *old;
+    if (const auto cycle = args.optional<bool>("cycle_color")) range.cycle = *cycle;
+    if (const auto movie = args.optional<bool>("movie")) range.movie = *movie;
+    if (const auto files = args.optional<bool>("write_each_run_to_file")) range.write_files = *files;
+}
+
 namespace {
 
 constexpr const char *STATUS_COMPLETED = "completed", *STATUS_ENDED_EARLY = "ended_early";
@@ -74,17 +90,7 @@ std::string sweep_result(const RangeProgress &done, const char *runs_name)
 
 Result<std::string> run_range_handler(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    RangeVars &range = s.integrator.range;
-    range.rtype = RANGE_SINGLE;
-    if (const auto item = args.optional<std::string>("variable")) range.item = *item;
-    if (const auto low = args.optional<double>("start")) range.plow = *low;
-    if (const auto high = args.optional<double>("end")) range.phigh = *high;
-    if (const auto steps = args.optional<long long>("steps")) range.steps = static_cast<int>(*steps);
-    if (const auto reset = args.optional<bool>("reset_storage")) range.reset = *reset;
-    if (const auto old = args.optional<bool>("use_old_ic")) range.oldic = *old;
-    if (const auto cycle = args.optional<bool>("cycle_color")) range.cycle = *cycle;
-    if (const auto movie = args.optional<bool>("movie")) range.movie = *movie;
-    if (const auto files = args.optional<bool>("write_each_run_to_file")) range.write_files = *files;
+    set_range_settings(s.integrator.range, args);
     if (const Result<> items = resolve_range_items(s, false); !items) return std::unexpected<Error>(items.error());
     RangeProgress done;
     const Result<int> swept = run_range(s, 0, &done);
@@ -259,16 +265,6 @@ constexpr std::array CONTINUE_EXCLUSIVE = {"until", "extra"};
 constexpr std::array CONTINUE_GROUPS = {Group{GroupRule::at_most_one, CONTINUE_EXCLUSIVE}};
 constexpr std::array STEADY_ARGUMENTS = {Argument{"decimals", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(MAX_STEADY_DECIMALS)},
                                          Argument{"hold", Type::real, true}, Argument{"maximum", Type::real, true}};
-constexpr std::array RANGE_ARGUMENTS = {
-    Argument{"variable", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::either},
-    Argument{"start", Type::real, false},
-    Argument{"end", Type::real, false},
-    Argument{"steps", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)},
-    Argument{"reset_storage", Type::boolean, false},
-    Argument{"use_old_ic", Type::boolean, false},
-    Argument{"cycle_color", Type::boolean, false},
-    Argument{"movie", Type::boolean, false},
-    Argument{"write_each_run_to_file", Type::boolean, false}};
 constexpr std::array DOUBLE_RANGE_ARGUMENTS = {
     Argument{"variable1", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::either},
     Argument{"start1", Type::real, false},
@@ -345,7 +341,7 @@ constexpr std::array ROWS = {
     Command{"run.shift", RESET_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Initialconds/Shift", "IS",
             "Run from the last state with the clock going on from where it stopped.", RUN_RESULTS, RUN_EVENTS, true,
             run_handler<RunFrom::shift>},
-    Command{"run.range", RANGE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Initialconds/Range", "IR",
+    Command{"run.range", RUN_RANGE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Initialconds/Range", "IR",
             "Run once for each value of a parameter or variable between two values.", RANGE_RESULTS, RUN_EVENTS, true, run_range_handler},
     Command{"run.double_range", DOUBLE_RANGE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Initialconds/2par range", "I2",
             "Run once for each pair of values of two parameters or variables.", DOUBLE_RANGE_RESULTS, RUN_EVENTS, true,

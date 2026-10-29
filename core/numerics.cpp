@@ -319,7 +319,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
       return;
     }
   }
-  new_adjoint(s);
+  if(!xpp::ok_or_show(new_adjoint(s))){restore();return;}
   {
     xpp::Writer w=xpp::ask_output_writer(s,"Save adjoint",".dat",xpp::format("adjoint-{}",name));
     if(w){
@@ -330,7 +330,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
     }
     else { data_back(s); restore(); return; }
   }
-  new_h_fun(s,1);
+  if(!xpp::ok_or_show(new_h_fun(s,false))){restore();return;}
   {
     xpp::Writer w=xpp::ask_output_writer(s,"Save hfun",".dat",xpp::format("hfun-{}",name));
     if(w){
@@ -347,41 +347,55 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   restore();
 
 }
+Result<> set_poincare_map(xpp::Session &s, PoincareMap map, std::optional<int> variable, std::optional<double> section, std::optional<SectionSign> direction, std::optional<bool> stop_on_section)
+{
+ if(map==PoincareMap::none){
+   s.numerics.poincare_map=PoincareMap::none;
+   return {};
+ }
+ if(variable&&*variable<0)return fail("numerics","No such section",command_place());
+ s.numerics.poincare_map=map;
+ if(variable)s.numerics.poincare_variable=*variable;
+ if(section)s.numerics.poincare_plane=*section;
+ if(direction)s.numerics.poincare_sign=*direction;
+ if(stop_on_section)s.numerics.poincare_stop=*stop_on_section;
+ return {};
+}
+
 void get_pmap_pars_com(xpp::Session &s, int l)
 {
+ /* the Poincare map items of an imported button sequence (kbs.h): the questions the registry's analysis.poincare_map takes as arguments are asked here, then the command's own function runs */
  static const char *const mkey="nsmp";
  char ch;
  int i1=s.numerics.poincare_variable;
 
  ch=mkey[l];
 
- s.numerics.poincare_map=PoincareMap::none;
- if(ch=='s')s.numerics.poincare_map=PoincareMap::section;
- if(ch=='m')s.numerics.poincare_map=PoincareMap::max;
- if(ch=='p')s.numerics.poincare_map=PoincareMap::period;
+ PoincareMap map=PoincareMap::none;
+ if(ch=='s')map=PoincareMap::section;
+ if(ch=='m')map=PoincareMap::max;
+ if(ch=='p')map=PoincareMap::period;
 
- if(s.numerics.poincare_map==PoincareMap::none)return;
+ if(map==PoincareMap::none){
+   xpp::ok_or_show(set_poincare_map(s,map,{},{},{},{}));
+   return;
+ }
 
- /* the crossing direction by the section sign's own words (model_options.cpp's section_sign_names) */
- static constexpr std::array<xpp::SectionSign,3> signs={xpp::SectionSign::negative,xpp::SectionSign::both,xpp::SectionSign::positive};
- const auto sign_at=std::find(signs.begin(),signs.end(),s.numerics.poincare_sign);
  std::array<xpp::FormField,4> fields={
    xpp::FormField{.name="*0Variable",.kind=XPP_FIELD_NAME_IN(0),.value=ind_to_sym(s,i1)},
    xpp::FormField::real_number("Section",s.numerics.poincare_plane),
-   xpp::FormField::choice("Direction",{"negative","both","positive"},static_cast<std::size_t>(sign_at-signs.begin())),
+   xpp::FormField::choice("Direction",std::vector<std::string>(section_sign_names.begin(),section_sign_names.end()),static_cast<std::size_t>(static_cast<int>(s.numerics.poincare_sign)+1)),
    xpp::FormField::boolean("Stop on section",s.numerics.poincare_stop)};
- if(xpp::ask_form(s,"Poincare map",fields)){
-              find_variable(s,fields[0].value.c_str(),&i1);
-	      if(i1<0) { s.numerics.poincare_map=PoincareMap::none;
-                         command_error("numerics", "No such section");
-			 return;
-		       }
-	      s.numerics.poincare_variable=i1;
-	      s.numerics.poincare_plane=fields[1].real;
-	      s.numerics.poincare_sign=signs[static_cast<std::size_t>(fields[2].whole)];
-	      s.numerics.poincare_stop=fields[3].flag;
-	    }
-
+ if(!xpp::ask_form(s,"Poincare map",fields)){
+   xpp::ok_or_show(set_poincare_map(s,map,{},{},{},{}));
+   return;
+ }
+ find_variable(s,fields[0].value.c_str(),&i1);
+ const Result<> set=set_poincare_map(s,map,i1,fields[1].real,static_cast<SectionSign>(fields[2].whole-1),fields[3].flag);
+ if(!set){
+   s.numerics.poincare_map=PoincareMap::none; /* no section is better than one of the variable before */
+   xpp::show_error(set.error());
+ }
 }
 
 int chosen_method(const xpp::Session &s)
@@ -425,79 +439,72 @@ void user_set_color_par(xpp::Session &s, int flag,const char *via,double lo,doub
 
 }
  
+Result<> set_color_coding(xpp::Session &s, ColorBy by, int variable, std::optional<std::pair<double,double>> limits)
+{
+  GRAPH &graph=*s.plot_windows.current;
+  if(by==ColorBy::none){
+    graph.ColorFlag=0; /* set color to black/white */
+    return {};
+  }
+  if(by==ColorBy::variable&&variable<0)return fail("numerics","No such quantity!",command_place());
+  const int flag=by==ColorBy::velocity?1:2;
+  if(limits){
+    const auto [low,high]=*limits;
+    if(!(high>low&&(flag==2||low>=0.0)))
+      return fail("numerics",xpp::format("The color range from {} to {} is empty or, for velocity, starts below 0",xpp::number(low),xpp::number(high)),command_place());
+    graph.ColorFlag=flag;
+    if(flag==2)graph.ColorValue=variable;
+    graph.min_scale=low;
+    graph.color_scale=high-low;
+    return {};
+  }
+  if(flag==1){
+    if(s.data_store.rows<2)
+      return fail("numerics","Coloring by velocity needs a trajectory to find its range from: run one, or give the lowest and highest velocity",command_place());
+    float maxder=0.0,minder=1.e20;
+    for(int i=1;i<s.browser.view.maxrow;i++){
+      float sum=0.0;
+      for(int j=0;j<s.model().node;j++)
+        sum+=static_cast<float>(fabs(static_cast<double>(s.browser.view.data[1+j][i]-s.browser.view.data[1+j][i-1])));
+      if(sum<minder)minder=sum;
+      if(sum>maxder)maxder=sum;
+    }
+    graph.ColorFlag=flag;
+    if(minder>=0.0&&maxder>minder){
+      graph.color_scale=(maxder-minder)/(fabs(s.numerics.delta_t*s.numerics.store_every));
+      graph.min_scale=minder/(fabs(s.numerics.delta_t*s.numerics.store_every));
+    }
+    return {};
+  }
+  double low,high;
+  get_max(s,variable,&low,&high);
+  graph.ColorFlag=flag;
+  graph.ColorValue=variable;
+  graph.min_scale=low;
+  graph.color_scale=high-low;
+  if(graph.color_scale==0.0)graph.color_scale=1.0;
+  return {};
+}
+
 void set_col_par_com(xpp::Session &s, int i)
-   {
-    int j,ivar;
-    double temp[2];
-    float maxder=0.0,minder=0.0,sum=0.0;
-    char ch;
-   s.plot_windows.current->ColorFlag=i;
-   if(s.plot_windows.current->ColorFlag==0){
-   /* set color to black/white */
-    return;
-    }
-    if(s.plot_windows.current->ColorFlag==2){
-      std::string name=ind_to_sym(s,s.plot_windows.current->ColorValue);
-      new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
-      find_variable(s,name.c_str(),&ivar);
-
-      if(ivar>=0)
-	s.plot_windows.current->ColorValue=ivar;
-      else{
-	
-	command_error("numerics", "No such quantity!");
-	s.plot_windows.current->ColorFlag=0;
-	return;
-      }
-    }
-
-   /*   This will be uncommented    ..... */
-    ch=TwoChoice("(O)ptimize","(C)hoose","Color","oc");
- 
-    if(ch=='c')
-    {
-     temp[0]=s.plot_windows.current->min_scale;
-     temp[1]=s.plot_windows.current->min_scale+s.plot_windows.current->color_scale;
-     new_float(s,"Min :",&temp[0]);
-     new_float(s,"Max :",&temp[1]);
-     if(temp[1]>temp[0]&&((s.plot_windows.current->ColorFlag==2)
-     ||(s.plot_windows.current->ColorFlag==1&&temp[0]>=0.0)))
-     {
-      s.plot_windows.current->min_scale=temp[0];
-      s.plot_windows.current->color_scale=(temp[1]-temp[0]);
-     }
-     else{
-       command_error("numerics", "Min>=Max or Min<0 error");
-     }
-     return;
-    }
-    if(s.plot_windows.current->ColorFlag==1)
-    {
-    if(s.data_store.rows<2)return;
-    maxder=0.0;
-    minder=1.e20;
-  for(i=1;i<s.browser.view.maxrow;i++)
-  {
-   sum=0.0;
-   for(j=0;j<s.model().node;j++)
-   sum+=static_cast<float>(fabs(static_cast<double>(s.browser.view.data[1+j][i]-s.browser.view.data[1+j][i-1])));
-   if(sum<minder)minder=sum;
-   if(sum>maxder)maxder=sum;
+{
+  /* the Color code items of an imported button sequence (kbs.h): the questions the registry's analysis.color_coding takes as arguments are asked here, then the command's own function runs */
+  const GRAPH &graph=*s.plot_windows.current;
+  const ColorBy by=static_cast<ColorBy>(i);
+  int variable=graph.ColorValue;
+  if(by==ColorBy::variable){
+    std::string name=ind_to_sym(s,variable);
+    new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
+    find_variable(s,name.c_str(),&variable);
   }
-  if(minder>=0.0&&maxder>minder)
-  {
-   s.plot_windows.current->color_scale=(maxder-minder)/(fabs(s.numerics.delta_t*s.numerics.store_every));
-   s.plot_windows.current->min_scale=minder/(fabs(s.numerics.delta_t*s.numerics.store_every));
+  std::optional<std::pair<double,double>> limits;
+  if(by!=ColorBy::none&&TwoChoice("(O)ptimize","(C)hoose","Color","oc")=='c'){
+    double low=graph.min_scale,high=graph.min_scale+graph.color_scale;
+    new_float(s,"Min :",&low);
+    new_float(s,"Max :",&high);
+    limits=std::pair{low,high};
   }
- }
- else
- {
-  get_max(s,s.plot_windows.current->ColorValue,&temp[0],&temp[1]);
-  s.plot_windows.current->min_scale=temp[0];
-  s.plot_windows.current->color_scale=(temp[1]-temp[0]);
-  if(s.plot_windows.current->color_scale==0.0)s.plot_windows.current->color_scale=1.0;
- }
-  
+  xpp::ok_or_show(set_color_coding(s,by,variable,limits));
 }
 
 void do_meth(xpp::Session &s)

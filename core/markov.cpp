@@ -336,96 +336,113 @@ void one_gill_step(xpp::Session &s, int meth,int nrxn,int *rxn,double *v,double 
 
 }
 
+Result<> set_random_seed(xpp::Session &s, int seed)
+{
+  if(seed<0)return fail("seed",xpp::format("The seed is a whole number of at least 0, not {}",seed),command_place());
+  s.numerics.rand_seed=seed;
+  s.random.seed(seed);
+  return {};
+}
+
 void do_stochast_com(xpp::Session &s, int i)
 {
   static const char *const key="ncdmvhofpislaxe2";
-  char ch=key[i];
-  
-  if(ch==27)return;
-  switch(ch){
-  case 'n': 
-    new_int("Seed:",&s.numerics.rand_seed);
-    s.random.seed(s.numerics.rand_seed);
-    break;
+  /* the Stochastic items of an imported button sequence (kbs.h): the questions the registry's analysis.* commands take as arguments are asked here, then the command's own function runs */
+  switch(key[i]){
+  case 'n': {
+    int seed=s.numerics.rand_seed;
+    new_int("Seed:",&seed);
+    xpp::ok_or_show(set_random_seed(s,seed));
+    break;}
   case 'd':
     data_back(s);
     break;
   case 'm':
-    mean_back(s);
+    xpp::ok_or_show(mean_back(s));
     break;
   case 'v':
-    variance_back(s);
+    xpp::ok_or_show(variance_back(s));
     break;
   case 'c':
-    compute_em(s);
-    s.stochastic.flag=0;
+    if(set_up_range(s)!=0)xpp::ok_or_show(stochastic_integrate(s));
     break;
   case 'h':
-    compute_hist(s);
+    if(ask_histogram(s))xpp::ok_or_show(compute_hist(s));
     break;
   case 'o':
-    hist_back(s);
+    xpp::ok_or_show(reload_histogram(s));
     break;
   case 'f':
-    compute_fourier(s); 
+    if(ask_column(s,s.histogram.spec_col,"Variable "))xpp::ok_or_show(compute_fourier(s));
     break;
   case 'p':
-    compute_power(s);
+    if(ask_column(s,s.histogram.spec_col,"Variable "))xpp::ok_or_show(compute_power(s));
     break;
   case 'i':
-    test_fit(s);
+    if(get_fit_params(s)!=0)xpp::ok_or_show(test_fit(s));
     redraw_params();
     redraw_ics();
     break;
   case 's':
-    column_mean(s);
+    if(ask_column(s,s.histogram.info.col,"Variable ")){
+      const Result<ColumnStatistics> found=column_mean(s);
+      if(found)bottom_msg(0,xpp::format("Mean={:g} Std. Dev. = {:g} ",found->mean,sqrt(found->variance)));
+      else xpp::show_error(found.error());
+    }
     break;
   case 'l':
     do_liapunov(s);
     break;
   case 'a':
-     compute_stacor(s);
-     break;
+    if(ask_autocorrelation(s))xpp::ok_or_show(compute_stacor(s));
+    break;
   case 'x':
-    compute_correl(s);
+    if(ask_cross_correlation(s))xpp::ok_or_show(compute_correl(s));
     break;
   case 'e':
-    compute_sd(s);
+    if(ask_spectral_density(s))xpp::ok_or_show(compute_sd(s));
     break;
   case '2':
-    new_2d_hist(s);
+    if(ask_histogram_2d(s))xpp::ok_or_show(new_2d_hist(s));
     break;
   }
-  
 }
 
 /* show the mean or the variance of the runs in the browser */
-static void stats_back(xpp::Session &s, float **stats)
+static Result<> stats_back(xpp::Session &s, float **stats)
 {
-  if(s.stochastic.here){
-    new_browse_dat(s,stats,s.stochastic.len);
-    s.data_store.rows=s.stochastic.len;
-  }
+  if(!s.stochastic.here)
+    return fail("stochastic","No stochastic runs yet: run Stochastic Compute first",command_place());
+  new_browse_dat(s,stats,s.stochastic.len);
+  s.data_store.rows=s.stochastic.len;
+  return {};
 }
 
-void mean_back(xpp::Session &s)
+Result<> mean_back(xpp::Session &s)
 {
-  stats_back(s,s.stochastic.mean.data());
+  return stats_back(s,s.stochastic.mean.data());
 }
 
-void variance_back(xpp::Session &s)
+Result<> variance_back(xpp::Session &s)
 {
-  stats_back(s,s.stochastic.variance.data());
+  return stats_back(s,s.stochastic.variance.data());
 }
 
-void compute_em(xpp::Session &s)
+Result<int> stochastic_integrate(xpp::Session &s)
 {
-  double *x;
-  x=&s.data_store.current[0];
   free_stoch(s);
   s.stochastic.flag=1;
-  do_range(s,x,0);
+  /* the flag is only for this sweep, whatever it ends in */
+  struct Unflag {
+    xpp::Session &s;
+    ~Unflag(){s.stochastic.flag=0;}
+  } unflag{s};
+  s.integrator.range.rtype=RANGE_SINGLE;
+  if(auto items=resolve_range_items(s,false);!items)return std::unexpected(items.error());
+  RangeProgress done;
+  if(auto swept=run_range(s,0,&done);!swept)return std::unexpected(swept.error());
   redraw_ics();
+  return done.runs;
 }
 
 void free_stoch(xpp::Session &s)

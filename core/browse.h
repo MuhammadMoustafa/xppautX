@@ -26,6 +26,9 @@ void data_last(BROWSER *b);
 void refresh_browser(Session &s, int length);
 void reset_browser(Session &s);
 void new_browse_dat(Session &s, float **new_dat, int dat_len);
+/* a derived data set (a histogram, the adjoint, the H function) in the browser again with `show` when it exists, else
+   `missing` as the error of `command` */
+Result<> show_derived(Session &s, bool exists, const std::string &command, const std::string &missing, void (*show)(Session &));
 float **get_browser_data(Session &s);
 
 void data_get_mybrowser(Session &s, int row);
@@ -96,6 +99,13 @@ int put_stored_data(Session &s, const DataTable &table);
    column added by data_add_col (by name, case ignored, below), -1 for
    none */
 void find_variable(const Session &s, std::string_view name, int *col);
+/* the same as a value: the column of that name, -1 for none */
+inline int variable_column(const Session &s, std::string_view name)
+{
+  int col = -1;
+  find_variable(s, name, &col);
+  return col;
+}
 
 /* column j's name as s's browser shows it: "T", a model variable's
    (Model::uvar_names), or (j>Model::neq) an added column's

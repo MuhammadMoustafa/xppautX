@@ -3,6 +3,7 @@
 
 #include "xpp_error.h"
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -50,7 +51,21 @@ Result<> eval_fun_table(Session &s, int index, int n, double xlo, double xhi, co
 /* the session s's tables: @ autoeval= for each, View, Numerics' tables
    menu (i: 0 view, 1 edit) and which table it picks, -1 for none */
 void set_auto_eval_flags(Session &s, int f);
-void view_table(Session &s, int index);
+/* table index's values in the data browser: the rows shown, or why they cannot be */
+Result<int> view_table(Session &s, int index);
+/* the model's table of that name, or why there is none */
+Result<int> find_table(const Session &s, std::string_view name);
+/* what a table's edit changes, a setting left out as the table has it: a function table's points, range and
+   formula, whether it is evaluated again when a parameter changes, or the file a file table is read from again */
+struct TableEdit {
+  std::optional<int> points;
+  std::optional<double> x_min, x_max;
+  std::optional<std::string> formula, file;
+  std::optional<bool> auto_evaluate;
+};
+/* table index edited: its points, now evaluated or read, or why it could not be */
+Result<int> edit_table(Session &s, int index, const TableEdit &edit);
+/* the Tables menu's items (an imported button sequence's), asking for what the table.* commands take */
 void new_lookup_com(Session &s, int i);
 int select_table(const Session &s);
 /* the session s's table index is called name; every table back to none
