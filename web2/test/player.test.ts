@@ -59,7 +59,7 @@ test('a press runs its step: the caption shows its note, else its label', () => 
 
 test('the box shows the step\'s command; a choice answer lights its key', () => {
   let p = at(reducePlayer(initialPlayer, {type: 'player', ev: PLAYER}), press(0, 'cmd', 0));
-  assert.deepEqual(keycaps(p)?.caps.map(c => [c.text, c.down, c.ahead]), [['Run → Initial', true, false]]);
+  assert.deepEqual(keycaps(p)?.caps.map(c => c.text), ['Run → Initial']);
   assert.equal(keycaps(p)?.answering, false);
   assert.equal(litAskKey(p), null);
   p = at(p, press(5, 'answer', 0));

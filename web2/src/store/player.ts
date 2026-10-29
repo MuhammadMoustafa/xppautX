@@ -75,19 +75,16 @@ export function caption(p: PlayerState): {text: string; note: boolean} {
 }
 
 /** one keycap of the box at the top of the plot */
+/** a step's command, shown lit while it runs */
 export interface Keycap {
   text: string;
-  /** pressed now (lit) */
-  down: boolean;
-  /** not reached yet (dimmed) */
-  ahead: boolean;
 }
 
 /** what the keycap box shows while step `i` runs: its command, and whether its answers are being given */
 export function keycaps(p: PlayerState): {label: string; caps: Keycap[]; answering: boolean} | null {
   const st = p.running >= 0 ? p.steps[p.running] : undefined;
   if (!st || !p.press || p.press.step !== p.running) return null;
-  return {label: 'Command', caps: [{text: st.step, down: true, ahead: false}], answering: p.press.what === 'answer'};
+  return {label: 'Command', caps: [{text: st.step}], answering: p.press.what === 'answer'};
 }
 
 /** the key of an open choice the running step picks now, or null */

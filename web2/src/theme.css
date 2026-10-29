@@ -610,7 +610,6 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 }
 .keycap.wide { font-size: 0.9rem; }
 .keycap.down { background: var(--lit); color: var(--lit-fg); border-color: var(--warn); border-bottom-width: 1px; transform: translateY(2px); }
-.keycap.ahead { opacity: 0.3; }
 .menu-item.lit, button.lit, .played-ok.lit { background: var(--lit) !important; color: var(--lit-fg); box-shadow: 0 0 0 2px var(--warn); animation: lit-pulse 0.6s ease-out; }
 .menu-item.lit kbd { background: var(--warn); color: var(--surface); border-color: var(--warn); }
 @keyframes lit-pulse { from { box-shadow: 0 0 0 0.5rem transparent; } to { box-shadow: 0 0 0 2px var(--warn); } }

@@ -41,7 +41,7 @@ function KeysBox() {
     <div class="player-keys" role="status" aria-label="What the step presses">
       <span class="player-keys-label">{shown.label}</span>
       {shown.caps.map((c, i) => (
-        <span key={i} class={'keycap' + (c.down ? ' down' : '') + (c.ahead ? ' ahead' : '') + (c.text.length > 2 ? ' wide' : '')}>
+        <span key={i} class={'keycap down' + (c.text.length > 2 ? ' wide' : '')}>
           {c.text}
         </span>
       ))}
