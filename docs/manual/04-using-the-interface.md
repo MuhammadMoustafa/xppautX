@@ -157,7 +157,7 @@ beside the plot (a sheet on a phone):
   values report the file and line and change nothing (W310, #369).
 - **Reset all** puts back the values from the ODE file, as the X11
   Parameter window's Default button did: it sends the core's
-  `restoredefaults` command (scope `parameters` or `initial`), which redoes
+  `set.restore_defaults` command (scope `parameters` or `initial`), which redoes
   the tables once, and the values change together. A field's own reset is
   the same command for that field. **Restore defaults…** in the Parameters
   section asks for everything or one section (parameters, initial values or

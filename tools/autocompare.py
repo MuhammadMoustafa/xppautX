@@ -220,12 +220,12 @@ def ensure_completed(events, end):
 
 
 def set_values(s, values):
-    """Parameters and initial conditions as their commands: `set` for the parameters, `ic.set` for the states"""
-    parameters = [v for v in values if v['kind'] == 'par']
-    # to 16 significant digits, as the baselines were made (`set` took a value's text that way)
+    """Parameters and initial conditions as their commands: `value.set_parameters` for the parameters, `ic.set` for the states"""
+    # to 16 significant digits, as the baselines were made (the old `set` took a value's text that way)
+    parameters = {v['name']: float('%.16g' % v['value']) for v in values if v['kind'] == 'par'}
     states = {v['name']: float('%.16g' % v['value']) for v in values if v['kind'] == 'ic'}
     if parameters:
-        completed(s, dict(cmd='set', values=parameters))
+        completed(s, dict(cmd='value.set_parameters', values=parameters))
     if states:
         completed(s, dict(cmd='ic.set', values=states))
 

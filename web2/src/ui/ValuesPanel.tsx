@@ -139,7 +139,7 @@ function FileTools({kind}: {kind: 'par' | 'ic'}) {
   const input = useRef<HTMLInputElement>(null);
   const what = kind === 'par' ? 'parameters' : 'initial conditions';
   /* a file written or read: data, not while a computation runs (W95) */
-  const saveOff = !useMay()({cmd: 'values', op: 'write'});
+  const saveOff = !useMay()({cmd: 'value.save_file'});
   return (
     <>
       <button class="small" onClick={() => session.saveValues(kind)} disabled={saveOff}

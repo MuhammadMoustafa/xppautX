@@ -8,6 +8,7 @@
    what could be redone. A Session's (session.h); a load starts a new one. */
 
 #include "model_switch.h"
+#include "xpp_error.h"
 #include <cstddef>
 #include <deque>
 #include <string>
@@ -35,5 +36,8 @@ void push_value_undo(Session &s, std::string_view drag = {});
    to the redo stack); false, with nothing changed, when there is none */
 bool undo_values(Session &s);
 bool redo_values(Session &s);
+/* the same as a command's value: the error says there is no edit to undo or redo */
+Result<> undo_value_edit(Session &s);
+Result<> redo_value_edit(Session &s);
 
 }

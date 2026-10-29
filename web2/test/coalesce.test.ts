@@ -8,13 +8,16 @@ const HELLO = {commands: [
   {cmd: 'run.configure', arguments: [{name: 'total_time', type: 'real'}, {name: 'method', type: 'text'}, {name: 'stop_at_limit', type: 'boolean'}]},
   {cmd: 'bvp.configure', arguments: [{name: 'max_iterates', type: 'integer'}]}]} as never;
 
-test('values go out as the commands that take them: parameters in one set, states in ic.set, numerics in their own', () => {
+test('values go out as the commands that take them: parameters in value.set_parameters, states in ic.set, numerics in their own', () => {
   assert.deepEqual(valueCommands(HELLO, []), []);
   assert.deepEqual(valueCommands(HELLO, [{kind: 'par', name: 'iapp', text: '0.1'}]).map(c => c.command),
-    [{cmd: 'set', kind: 'par', name: 'iapp', text: '0.1'}]);
-  assert.deepEqual(valueCommands(HELLO, [{kind: 'par', name: 'iapp', text: '0.1'}, {kind: 'bc', index: 1, text: 'w'}]).map(c => c.command), [{
-    cmd: 'set', values: [{kind: 'par', name: 'iapp', text: '0.1'}, {kind: 'bc', index: 1, text: 'w'}],
-  }]);
+    [{cmd: 'value.set_parameters', values: {iapp: 0.1}}]);
+  assert.deepEqual(valueCommands(HELLO, [{kind: 'par', name: 'iapp', text: ' 0.1 '}, {kind: 'par', name: 'gk', text: '%2*3'},
+    {kind: 'par', name: 'gl', text: 'abc'}, {kind: 'bc', index: 1, text: 'w'}]).map(c => c.command), [
+    {cmd: 'set', kind: 'bc', index: 1, text: 'w'},
+    {cmd: 'value.set_parameters', values: {iapp: 0.1, gl: 'abc'}},
+    {cmd: 'value.set_by_formula', name: 'gk', formula: '2*3'},
+  ]);
   assert.deepEqual(valueCommands(HELLO, [
     {kind: 'ic', name: 'v', text: '-0.2'}, {kind: 'ic', name: 'w', text: '%2*0.1'}, {kind: 'num', name: 'total_time', text: '30'},
     {kind: 'num', name: 'method', text: 'euler'}, {kind: 'num', name: 'stop_at_limit', text: 'true'}, {kind: 'num', name: 'bvp_max_iterates', text: '5'},

@@ -222,6 +222,19 @@ private:
     std::string text_ = "{";
 };
 
+/* The result of a command that only does something, or finds a whole number: its error, else its one member
+   (`{"undone":true}`, `{"first_row":10}`). */
+inline Result<std::string> performed(const Result<> &done, const char *name)
+{
+    if (!done) return std::unexpected<Error>(done.error());
+    return ResultObject().boolean(name, true).done();
+}
+inline Result<std::string> found(const Result<int> &value, const char *name)
+{
+    if (!value) return std::unexpected<Error>(value.error());
+    return ResultObject().integer(name, *value).done();
+}
+
 /* Every resource's table, joined in command_registry.cpp's TABLES: a card
    that moves a resource's commands adds its file's function there. */
 std::span<const Command> window_commands();
@@ -233,6 +246,9 @@ std::span<const Command> auto_commands();
 std::span<const Command> plot_commands();
 std::span<const Command> analysis_commands();
 std::span<const Command> table_commands();
+std::span<const Command> browser_commands();
+std::span<const Command> set_commands();
+std::span<const Command> value_commands();
 /* A command whose arguments are numerics settings (run.configure, bvp.configure): every argument given is the
    setting `key_prefix` + its name, all checked together and set all or nothing; the result holds each one's
    value now. */

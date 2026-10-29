@@ -16,7 +16,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.odex')
 ap.add_argument('-v', action='store_true')
-ap.add_argument('--only', default='', help='run only these sections, comma-separated (registry, stops); the rest needs the whole run')
+ap.add_argument('--only', default='', help='run only these sections, comma-separated (registry, data, stops); the rest needs the whole run')
 ap.add_argument('--update-registry-docs', action='store_true', help='regenerate the registry section of docs/protocol.md')
 args = ap.parse_args()
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
@@ -62,6 +62,11 @@ def check_logging():
             shutil.rmtree(bad_dir, ignore_errors=True)
     finally:
         shutil.rmtree(run_dir, ignore_errors=True)
+
+
+# the values files and the data a command names, as the registry names them
+VALUE_KIND = {'par': 'parameters', 'ic': 'initial_conditions'}
+WHAT_TARGET = {'table': 'table', 'plot': 'plot_curves', 'output': 'output'}
 
 
 def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=False, server=None):
@@ -432,7 +437,7 @@ def check_auto_starts():
             if values.get('ics'):
                 autocompare.completed(s, dict(cmd='ic.set', values=values['ics']))
             if values.get('pars'):
-                autocompare.completed(s, dict(cmd='set', values=[dict(kind='par', name=k, value=v) for k, v in values['pars'].items()]))
+                autocompare.completed(s, dict(cmd='value.set_parameters', values=dict(values['pars'])))
             autocompare.completed(s, dict(cmd='auto.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, **limits}))
             evs = autocompare.run_any(s, 's')
             errors = [e for e in evs if e.get('error')]
@@ -1310,6 +1315,226 @@ def check_equilibrium_exports():
 
 
 INDEPENDENT_SECTIONS = {'registry': check_registry, 'equilibrium': check_equilibrium_exports, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_global_ends(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
+def check_data_value_set():
+    """W526: the data browser, the values and the sets as registry commands: a good call with its result, a
+    refused argument with its message, and the old forms refused as unknown."""
+    folder = tempfile.mkdtemp(prefix='w526')
+    sets_model = os.path.join(folder, 'w526sets.odex')
+    with open(sets_model, 'w') as f:
+        f.write("x'=-a*x+b\ny'=-y+c\npar a=1,b=2,c=0.5\ninit x=0.5,y=2\n"
+                "options { integration: { dt: 0.02, total_time: 9 } }\n"
+                "set \"pa\" { a: 10, b: 20 }\n"
+                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n")
+    post_model = os.path.join(folder, 'w526post.odex')
+    with open(post_model, 'w') as f:
+        f.write("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { postprocess: 1, histcol: x, histlo: -1, histhi: 1, histbins: 20 } }\n")
+    servers = []
+    # this section also runs alone (--only), before the helpers below the registry's are defined
+    is_idle = lambda e: e.get('ev') in ('idle', 'done')
+    last_state = lambda evs: next((e for e in reversed(evs) if e.get('ev') == 'state'), None)
+
+    def stop_server(proc, folder, snd):
+        if proc.poll() is None:
+            snd(cmd='quit')
+            try: proc.wait(timeout=5 * SLOW)
+            except subprocess.TimeoutExpired: proc.kill(); proc.wait()
+        shutil.rmtree(folder, ignore_errors=True)
+
+    def start(ode=None):
+        s = launch_server(ode=ode)
+        servers.append(s)
+        s[3](is_idle)
+        return s
+
+    def requester(snd, col):
+        def request(**command):
+            snd(**command)
+            evs, done = col(is_idle, timeout=60 * SLOW)
+            return evs, (done if done and done.get('ev') == 'done' else {}), [e for e in evs if e.get('ev') == 'browser']
+        return request
+
+    def good(request, what, expect, **command):
+        evs, done, _ = request(**command)
+        result = done.get('result')
+        check('W526: %s' % what, done.get('status') == 'ok' and (expect(result) if callable(expect) else result == expect),
+              json.dumps(done)[:400])
+        return result
+
+    def refused(request, why, words, **command):
+        evs, done, _ = request(**command)
+        check('W526: %s is refused, saying %s' % (json.dumps(command)[:100], words),
+              done.get('status') == 'error' and words in done.get('error', '') and 'result' not in done, json.dumps(done)[:400])
+
+    try:
+        p, r, snd, col, _ = start()
+        request = requester(snd, col)
+        # the old forms are no commands
+        for old in ({'cmd': 'browser', 'from': 0, 'count': 1}, {'cmd': 'browser', 'op': 'write', 'what': 'table'},
+                    {'cmd': 'values', 'op': 'write', 'kind': 'par'}, {'cmd': 'applyset', 'set': 'pa', 'scope': 'all'},
+                    {'cmd': 'saveset', 'set': 's', 'mode': 'new', 'scope': 'all'}, {'cmd': 'savedefaults', 'scope': 'all'},
+                    {'cmd': 'exportset', 'set': 's', 'scope': 'all', 'file': 'x.odex'}, {'cmd': 'renameset', 'set': 'a', 'to': 'b'},
+                    {'cmd': 'deleteset', 'set': 'a'}, {'cmd': 'restoredefaults', 'scope': 'all'},
+                    {'cmd': 'slide', 'name': 'iapp', 'value': 1}, {'cmd': 'slider', 'slot': 0, 'name': 'iapp', 'lo': 0, 'hi': 1, 'step': 0.1}):
+            snd(**old)
+            evs, _ = col(is_idle)
+            check('W526: the old form %s is an unknown command' % json.dumps(old)[:60],
+                  any(e.get('ev') == 'message' and 'Unknown command' in e.get('error', '') for e in evs), str(evs)[:300])
+        refused_set = request(cmd='set', kind='par', name='iapp', value=1)
+        # ---- value ----
+        good(request, 'value.set_parameters sets some parameters and tells the values now',
+             {'updated': {'iapp': 0.1, 'gk': 2.0}}, cmd='value.set_parameters', values={'iapp': 0.1, 'gk': 2})
+        state = last_state(request(cmd='state')[0])
+        check('W526: ... and the state has them', dict(state['pars'])['iapp'] == 0.1 and dict(state['pars'])['gk'] == 2.0, str(state['pars'][:4]))
+        for words, command in (('no parameter named "nosuch"', dict(values={'nosuch': 1})), ('finite number', dict(values={'iapp': 'x'})),
+                               ('Missing argument "values"', dict()), ('Unknown argument "extra"', dict(values={'iapp': 1}, extra=1))):
+            refused(request, 'value.set_parameters', words, cmd='value.set_parameters', **command)
+        check('W526: set with a parameter says to send value.set_parameters',
+              refused_set[1].get('status') == 'error' or any('value.set_parameters' in e.get('error', '') for e in refused_set[0]), str(refused_set[0])[:300])
+        good(request, 'value.set_by_formula sets a parameter to what a formula works out to', {'name': 'iapp', 'value': 0.2},
+             cmd='value.set_by_formula', name='iapp', formula='0.1*2')
+        refused(request, 'value.set_by_formula', 'Argument "formula"', cmd='value.set_by_formula', name='iapp', formula='nosuch+')
+        good(request, 'value.undo takes the last edit back', {'undone': True}, cmd='value.undo')
+        check('W526: ... iapp is 0.1 again', dict(last_state(request(cmd='state')[0])['pars'])['iapp'] == 0.1)
+        good(request, 'value.redo puts it back', {'redone': True}, cmd='value.redo')
+        refused(request, 'value.redo with nothing to redo', 'No value edit to redo', cmd='value.redo')
+        good(request, 'value.slide sets a parameter', {'name': 'iapp', 'value': 0.07}, cmd='value.slide', name='iapp', value=0.07)
+        refused(request, 'value.slide', 'no parameter or variable named "nosuch"', cmd='value.slide', name='nosuch', value=1)
+        good(request, 'value.configure_slider defines slot 0', {'slot': 0, 'configured': True},
+             cmd='value.configure_slider', slot=0, name='iapp', low=-1, high=2, step=0.01)
+        sliders = last_state(request(cmd='state')[0])['sliders']
+        check('W526: ... and the state has the slider', sliders and sliders[0]['name'] == 'iapp' and sliders[0]['lo'] == -1
+              and sliders[0]['hi'] == 2 and sliders[0]['step'] == 0.01, str(sliders))
+        good(request, 'value.configure_slider keeps the slot\'s step when none is given', {'slot': 0, 'configured': True},
+             cmd='value.configure_slider', slot=0, name='iapp', low=0, high=1)
+        check('W526: ... the step stayed', last_state(request(cmd='state')[0])['sliders'][0]['step'] == 0.01)
+        refused(request, 'value.configure_slider', 'Slot 9', cmd='value.configure_slider', slot=9, name='iapp', low=0, high=1)
+        refused(request, 'value.configure_slider', 'finite low < high', cmd='value.configure_slider', slot=0, name='iapp', low=1, high=0)
+        good(request, 'value.remove_slider empties the slot', {'slot': 0, 'removed': True}, cmd='value.remove_slider', slot=0)
+        refused(request, 'value.remove_slider', 'Slot 5', cmd='value.remove_slider', slot=5)
+        good(request, 'value.save_file writes the parameters into the model folder',
+             {'file': 'w526.par', 'kind': 'parameters'}, cmd='value.save_file', kind='parameters', file='w526.par')
+        good(request, 'value.save_file writes the initial conditions', {'file': 'w526.ic', 'kind': 'initial_conditions'},
+             cmd='value.save_file', kind='initial_conditions', file='w526.ic')
+        request(cmd='value.set_parameters', values={'iapp': 0.5})
+        good(request, 'value.load_file reads the parameters back', {'file': 'w526.par', 'kind': 'parameters'},
+             cmd='value.load_file', kind='parameters', file='w526.par')
+        check('W526: ... iapp is what was saved', dict(last_state(request(cmd='state')[0])['pars'])['iapp'] == 0.07)
+        refused(request, 'value.load_file of a file that is not there', 'w526gone.par', cmd='value.load_file', kind='parameters', file='w526gone.par')
+        refused(request, 'value.save_file with a kind it does not know', 'Invalid choice "xyz"', cmd='value.save_file', kind='xyz', file='x.par')
+        refused(request, 'value.save_file with a path', 'not a plain file name', cmd='value.save_file', kind='parameters', file='../x.par')
+        # ---- browser ----
+        request(cmd='run.initial')
+        result = good(request, 'browser.page gives the block asked for',
+                      lambda v: v['first_row'] == 10 and v['total_rows'] == 601 and len(v['rows']) == 3 and len(v['rows'][0]) == 2,
+                      cmd='browser.page', from_row=10, count=3, first_column=2, columns=1)
+        evs, done, blocks = request(cmd='browser.page', from_row=10, count=3, first_column=2, columns=1)
+        check('W526: ... the browser event carries the same rows', blocks and blocks[-1]['data'] == result['rows'] and blocks[-1]['from'] == 10
+              and blocks[-1]['cols'][:3] == ['T', 'V', 'W'], str(blocks)[:300])
+        for words, command in (('at least 0', dict(from_row=-1, count=1)), ('at most 2000', dict(from_row=0, count=2001)),
+                               ('at most 500', dict(from_row=0, count=1, columns=501)), ('at least 1', dict(from_row=0, count=1, first_column=0)),
+                               ('Missing argument "count"', dict(from_row=0))):
+            refused(request, 'browser.page', words, cmd='browser.page', **command)
+        row100 = request(cmd='browser.page', from_row=100, count=1, first_column=1, columns=2)[1]['result']['rows'][0]
+        good(request, 'browser.find selects the row nearest a value', {'row_found': 100}, cmd='browser.find', column='v', value=row100[1])
+        refused(request, 'browser.find of a column the data has not', 'no column named "nosuch"', cmd='browser.find', column='nosuch', value=1)
+        refused(request, 'browser.find of a value that is no number', 'finite number', cmd='browser.find', column='v', value='x')
+        good(request, 'browser.set_slice_start keeps the data from a row on', {'first_row': 10}, cmd='browser.set_slice_start', row=10)
+        refused(request, 'browser.set_slice_end before the first row kept', 'must not come before the first row kept, 10', cmd='browser.set_slice_end', row=5)
+        good(request, 'browser.set_slice_end keeps the data up to a row', {'last_row': 50}, cmd='browser.set_slice_end', row=50)
+        evs, done, blocks = request(cmd='browser.page', from_row=0, count=1)
+        check('W526: ... the block says the rows kept', blocks and blocks[-1]['start'] == 10 and blocks[-1]['end'] == 51, str(blocks)[:200])
+        refused(request, 'browser.set_slice_start past the data', 'not in the data', cmd='browser.set_slice_start', row=601)
+        good(request, 'browser.tabulate_column writes the rows kept as a lookup table', {'file': 'w526.tab', 'rows_written': 41},
+             cmd='browser.tabulate_column', variable='v', x_low=0, x_high=1, file='w526.tab')
+        check('W526: ... its first line is the count', open(os.path.join(r, 'w526.tab')).readline().strip() == '41')
+        refused(request, 'browser.tabulate_column of a reversed range', 'low end below its high end', cmd='browser.tabulate_column', variable='v', x_low=1, x_high=0, file='x.tab')
+        refused(request, 'browser.tabulate_column of an unknown column', 'no column named "nosuch"', cmd='browser.tabulate_column', variable='nosuch', x_low=0, x_high=1, file='x.tab')
+        refused(request, 'browser.tabulate_column to a path', 'not a plain file name', cmd='browser.tabulate_column', variable='v', x_low=0, x_high=1, file='a/b.tab')
+        good(request, 'browser.restore_full_slice keeps all the data again', {'first_row': 0, 'last_row': 600}, cmd='browser.restore_full_slice')
+        evs, done, blocks = request(cmd='browser.page', from_row=0, count=1)
+        check('W526: ... the block says all the rows', blocks and blocks[-1]['start'] == 0 and blocks[-1]['end'] == 601, str(blocks)[:200])
+        good(request, 'browser.add_column adds a column computed from the others', {'column': 'VW', 'added': True},
+             cmd='browser.add_column', name='vw', formula='v*w')
+        evs, done, blocks = request(cmd='browser.page', from_row=0, count=2, first_column=1, columns=500)
+        check('W526: ... the block has it, computed', blocks and blocks[-1]['cols'][-1] == 'VW'
+              and abs(blocks[-1]['data'][1][-1] - blocks[-1]['data'][1][1] * blocks[-1]['data'][1][2]) < 1e-5, str(blocks)[:300])
+        refused(request, 'browser.add_column of a name the data has', 'already has a column named "VW"', cmd='browser.add_column', name='VW', formula='v')
+        refused(request, 'browser.add_column with a formula that does not compile', 'Argument "formula"', cmd='browser.add_column', name='zz', formula='v*')
+        good(request, 'browser.replace_column replaces a column by a sequence', {'column': 'vw', 'replaced': True},
+             cmd='browser.replace_column', column='vw', formula='1:601')
+        evs, done, blocks = request(cmd='browser.page', from_row=0, count=3, first_column=1, columns=500)
+        check('W526: ... its values are the sequence', blocks and [row[-1] for row in blocks[-1]['data']] == [1, 2, 3], str(blocks)[:300])
+        good(request, 'browser.undo_replace puts the column back', {'undone': True}, cmd='browser.undo_replace')
+        refused(request, 'browser.undo_replace with nothing replaced', 'No replacement to undo', cmd='browser.undo_replace')
+        refused(request, 'browser.replace_column with a bad formula', 'Illegal formula', cmd='browser.replace_column', column='vw', formula='v*')
+        refused(request, 'browser.replace_column of a variable that is not there', 'No such variable', cmd='browser.replace_column', column='vw', formula='@nosuch')
+        refused(request, 'browser.delete_column of a model column', 'Choose an added column', cmd='browser.delete_column', name='v')
+        good(request, 'browser.export writes the table in a format', {'file': 'w526.csv', 'rows_written': 601},
+             cmd='browser.export', target='table', format='csv', file='w526.csv')
+        refused(request, 'browser.export with a format it has not', 'Invalid choice "xls"', cmd='browser.export', target='table', format='xls', file='x.xls')
+        refused(request, 'browser.export with a target it has not', 'Invalid choice "all"', cmd='browser.export', target='all', format='csv', file='x.csv')
+        good(request, 'browser.export writes what the plot shows', {'file': 'w526c.csv', 'rows_written': 601},
+             cmd='browser.export', target='plot_curves', format='csv', file='w526c.csv')
+        good(request, 'browser.load reads a data file into the table', {'file': 'w526.csv', 'rows_loaded': 601}, cmd='browser.load', file='w526.csv')
+        refused(request, 'browser.load of a file that is not there', 'w526gone.csv', cmd='browser.load', file='w526gone.csv')
+        good(request, 'browser.delete_column deletes an added column', {'deleted': True}, cmd='browser.delete_column', name='vw')
+        refused(request, 'browser.delete_column with none left', 'no column named "vw"', cmd='browser.delete_column', name='vw')
+        good(request, 'browser.transpose shows the data transposed', {'transposed_rows': 2, 'transposed_cols': 1},
+             cmd='browser.transpose', first_column='v', columns=2, column_skip=1, first_row=0, rows=1, row_skip=1)
+        for words, command in (('reach column 7', dict(columns=7)), ('at most 5 columns', dict(rows=6)), ('reach row 601', dict(first_row=1, rows=2, row_skip=600)),
+                               ('at least 1', dict(columns=0)), ('no column named "nosuch"', dict(first_column='nosuch'))):
+            refused(request, 'browser.transpose', words, cmd='browser.transpose', **command)
+        # ---- the model's @ postprocess ----
+        pp, rp, sp, cp, _ = start(post_model)
+        post = requester(sp, cp)
+        post(cmd='run.initial')
+        post(cmd='analysis.histogram')
+        evs, _, blocks = post(cmd='browser.page', from_row=0, count=1)
+        check('W526: the data browser shows the histogram of the model\'s @ postprocess', blocks and blocks[-1]['rows'] == 21, str(blocks)[:200])
+        # ---- set ----
+        ps, rs, ss, cs, _ = start(sets_model)
+        sets = requester(ss, cs)
+        text = lambda: open(os.path.join(rs, 'w526sets.odex')).read()
+        good(sets, 'set.apply applies the parameters of a set', {'applied': 'pa', 'scope': 'parameters'}, cmd='set.apply', name='pa', scope='parameters')
+        check('W526: ... the state has them', dict(last_state(sets(cmd='state')[0])['pars'])['a'] == 10)
+        for words, command in (('the model has no set nosuch', dict(name='nosuch', scope='all')), ('Invalid choice "bogus"', dict(name='pa', scope='bogus')),
+                               ('Missing argument "scope"', dict(name='pa')), ('Unknown window "graph_9"', dict(name='pa', scope='all', window='graph_9')),
+                               ('a graph is a target of scope all or plot', dict(name='pa', scope='parameters', window='graph_1'))):
+            refused(sets, 'set.apply', words, cmd='set.apply', **command)
+        good(sets, 'set.save_new writes a new set into the file', {'name': 's1', 'saved': True}, cmd='set.save_new', name='s1', scope='parameters')
+        check('W526: ... the file has it', 'set "s1" {' in text())
+        refused(sets, 'set.save_new of a name that is a set', 'already a set', cmd='set.save_new', name='s1', scope='parameters')
+        refused(sets, 'set.save_new with a state it has not', 'Invalid choice "next"', cmd='set.save_new', name='s2', scope='parameters', state='next')
+        refused(sets, 'set.save_new of the last state before any run', 'no run has reached a state', cmd='set.save_new', name='s2', scope='initial', state='last')
+        good(sets, 'set.save_into replaces a part of a set', {'name': 'mix', 'updated': True}, cmd='set.save_into', name='mix', scope='initial')
+        refused(sets, 'set.save_into of a set the file has not', 'no set nosuch', cmd='set.save_into', name='nosuch', scope='parameters')
+        good(sets, 'set.save_defaults writes the values as the model\'s own', {'saved_as_defaults': True}, cmd='set.save_defaults', scope='parameters')
+        good(sets, 'set.export writes a set into another file', {'file': 'w526out.odex', 'name': 'e1', 'exported': True},
+             cmd='set.export', name='e1', scope='parameters', file='w526out.odex')
+        check('W526: ... the file has it', 'set "e1" {' in open(os.path.join(rs, 'w526out.odex')).read())
+        refused(sets, 'set.export into the model file', 'is the model file', cmd='set.export', name='x1', scope='parameters', file='w526sets.odex')
+        good(sets, 'set.rename renames a set of the file', {'from': 's1', 'to': 's3', 'renamed': True}, cmd='set.rename', **{'from': 's1'}, to='s3')
+        refused(sets, 'set.rename to a name that is a set', 'already a set', cmd='set.rename', **{'from': 's3'}, to='mix')
+        good(sets, 'set.delete deletes a set of the file', {'name': 's3', 'deleted': True}, cmd='set.delete', name='s3')
+        check('W526: ... the file no longer has it', 'set "s3"' not in text())
+        refused(sets, 'set.delete of a set the file has not', 'no set nosuch', cmd='set.delete', name='nosuch')
+        good(sets, 'set.restore_defaults puts the model\'s values back', {'restored': True}, cmd='set.restore_defaults', scope='all')
+        good(sets, 'set.restore_defaults of one parameter', {'restored': True}, cmd='set.restore_defaults', scope='parameters', field='a')
+        refused(sets, 'set.restore_defaults of one field of all', 'restoring all takes no field', cmd='set.restore_defaults', scope='all', field='a')
+        # the recording of these commands replays
+        sets(cmd='record', op='start')
+        sets(cmd='value.set_parameters', values={'a': 3})
+        sets(cmd='set.apply', name='pa', scope='parameters')
+        sets(cmd='record', op='stop', name='w526.recx')
+        replay = replay_recording(args.server, sets_model, os.path.join(rs, 'w526.recx'), rs)
+        check('W526: a recording of value.set_parameters and set.apply replays', replay.returncode == 0, replay.stderr[-300:])
+    finally:
+        for server in servers:
+            stop_server(server[0], server[1], server[2])
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+INDEPENDENT_SECTIONS = {'registry': check_registry, 'data': check_data_value_set, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -1321,6 +1546,7 @@ if args.only:
 
 check_registry()
 check_equilibrium_exports()
+check_data_value_set()
 check_diagram_subscription()
 
 proc, run, send, collect, events = launch_server()
@@ -1509,10 +1735,10 @@ def check_hello_kinds():
     missing = sorted(d for d in documented if not any(c == d for c, _ in kinds))
     check('W95: hello gives every documented command but key a kind', not missing and cmds
           and all(k in 'cvsdx' for k in kinds.values()), str(missing))
-    want = {('window.set_display', None): 'v', ('set', None): 's', ('values', None): 's', ('values', 'write'): 'd',
-            ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser', 'write'): 'd', ('browser', None): 'v', ('auto.configure_numerics', None): 's',
+    want = {('window.set_display', None): 'v', ('set', None): 's', ('value.set_parameters', None): 's', ('value.save_file', None): 'd',
+            ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser.export', None): 'd', ('browser.page', None): 'v', ('auto.configure_numerics', None): 's',
             ('auto.grab', None): 'd', ('auto.run', None): 'x', ('userbut', None): 'x'}
-    check('W95, W106: kinds as decided: display a view, set/values/auto.configure_numerics settings, Save data and auto.grab data, auto.run a computation, '
+    check('W95, W106: kinds as decided: display a view, set/value.set_parameters/auto.configure_numerics settings, Save data and auto.grab data, auto.run a computation, '
           'abort control, a user button a computation',
           all(kinds.get(k) == v for k, v in want.items()), str({k: kinds.get(k) for k in want}))
     num, main, file = menu_keys_of('num'), menu_keys_of('main'), menu_keys_of('file')
@@ -1600,8 +1826,8 @@ def check_hello_shared():
     check('W118: every command says whether it is a step: a key, set and a write are, state, data, an answer, '
           'the browser\'s paging and the recording\'s own are not',
           all(isinstance(v, bool) for v in steps.values()) and steps.get(('key', None)) is True
-          and steps.get(('set', None)) is True and steps.get(('browser', 'write')) is True
-          and not any(steps.get(k) for k in (('state', None), ('data', None), ('answer', None), ('browser', None),
+          and steps.get(('set', None)) is True and steps.get(('browser.export', None)) is True
+          and not any(steps.get(k) for k in (('state', None), ('data', None), ('answer', None), ('browser.page', None),
                                              ('record', None), ('play', None))), str(steps))
 
 
@@ -1690,18 +1916,18 @@ send(cmd='run.initial')
 evs, _ = collect(is_idle, timeout=30 * SLOW)
 check('an empty data list stops the series', not any(e.get('ev') == 'series' for e in evs))
 
-send(cmd='set', kind='par', name='iapp', value=0.1)
+send(cmd='value.set_parameters', values={'iapp': 0.1})
 send(cmd='state')
 evs, st = collect(is_state)
 collect(is_idle)
 check('set parameter', st is not None and dict(st['pars'])['iapp'] == 0.1, str(st and st['pars']))
 
 collect(is_idle)  # the idle of the state command above
-send(cmd='set', kind='par', name='iapp', text='%0.1*2')
+send(cmd='value.set_by_formula', name='iapp', formula='0.1*2')
 evs, _ = collect(is_idle)
 st = last_state(evs)
-check('set parameter by %formula', st is not None and abs(dict(st['pars'])['iapp'] - 0.2) < 1e-12, str(st and st['pars']))
-send(cmd='restoredefaults', scope='parameters')
+check('set parameter by a formula', st is not None and abs(dict(st['pars'])['iapp'] - 0.2) < 1e-12, str(st and st['pars']))
+send(cmd='set.restore_defaults', scope='parameters')
 evs, _ = collect(is_idle)
 st = last_state(evs)
 check('default parameters', st is not None and dict(st['pars'])['iapp'] == 0.05, str(st and st['pars']))
@@ -1710,15 +1936,15 @@ check('default parameters', st is not None and dict(st['pars'])['iapp'] == 0.05,
 # core (docs/protocol.md "values") -- omitting `name` asks for one, like
 # any other Save/Load; given, it skips the ask and writes into the
 # model's folder at once
-send(cmd='values', op='write', kind='par')
+send(cmd='value.save_file', kind='parameters')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('values write with no name asks for a file', ask is not None and ask['kind'] == 'file'
+check('value.save_file with no file asks for one', ask is not None and ask['kind'] == 'file'
       and ask.get('mode') == 'write', str(ask))
 if ask:
     send(cmd='answer', id=ask['id'], ok=0)
 collect(is_idle)
 
-send(cmd='values', op='write', kind='par', name='t_values.par')
+send(cmd='value.save_file', kind='parameters', file='t_values.par')
 collect(is_idle)
 with open(os.path.join(run, 't_values.par')) as f:
     par_text = f.read()
@@ -1727,7 +1953,7 @@ check('values write par: XPP\'s format, a count then "value  name" lines',
       first_line.endswith('   Number params') and first_line.split()[0].isdigit()
       and '0.05  iapp\n' in par_text, par_text[:80])
 
-send(cmd='values', op='write', kind='ic', name='t_values.ic')
+send(cmd='value.save_file', kind='initial_conditions', file='t_values.ic')
 collect(is_idle)
 with open(os.path.join(run, 't_values.ic')) as f:
     ic_lines = [l.strip() for l in f if l.strip()]
@@ -1735,7 +1961,7 @@ check('values write ic: the values alone, one per line, in the model order',
       ic_lines == ['-0.144', '0.03'], str(ic_lines))
 
 # change both, away from what was just written
-send(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'value': 0.09}])
+send(cmd='value.set_parameters', values={'iapp': 0.09})
 collect(is_idle)
 send(cmd='ic.set', values={'V': -0.4})
 evs, _ = collect(is_idle)
@@ -1745,25 +1971,25 @@ check('values round trip: the values changed before reading back',
       str(st and (st['pars'], st['ics'])))
 
 # read them back through the existing load path (io_parameter_file/io_ic_file, READEM)
-send(cmd='values', op='read', kind='par', name='t_values.par')
+send(cmd='value.load_file', kind='parameters', file='t_values.par')
 evs, _ = collect(is_idle)
 st = last_state(evs)
 check('values read par restores the written value exactly',
       st is not None and dict(st['pars'])['iapp'] == 0.05, str(st and st['pars']))
 
-send(cmd='values', op='read', kind='ic', name='t_values.ic')
+send(cmd='value.load_file', kind='initial_conditions', file='t_values.ic')
 evs, _ = collect(is_idle)
 st = last_state(evs)
 check('values read ic restores the written values exactly',
       st is not None and dict(st['ics'])['V'] == -0.144 and dict(st['ics'])['W'] == 0.03,
       str(st and st['ics']))
 
-send(cmd='values', op='write', kind='xyz', name='t_values.bad')
+send(cmd='value.save_file', kind='xyz', file='t_values.bad')
 evs, msg = collect(lambda e: e.get('ev') in ('message', 'done') and 'error' in e)
-check('values with a kind other than par/ic is refused', msg is not None, str(msg))
+check('value.save_file with a kind other than parameters/initial_conditions is refused', msg is not None, str(msg))
 collect(is_idle)
 
-send(cmd='browser', **{'from': 10, 'count': 3, 'col': 2, 'ncol': 1})
+send(cmd='browser.page', **{'from_row': 10, 'count': 3, 'first_column': 2, 'columns': 1})
 evs, br = collect(lambda e: e.get('ev') == 'browser')
 collect(is_idle)
 check('browser sends the rows asked for', br is not None and br['rows'] == 601 and br['from'] == 10
@@ -1773,7 +1999,7 @@ evs, _ = collect(is_idle)
 st = last_state(evs)
 check('ic.from_data_row sets the initial conditions from a row',
       st is not None and abs(dict(st['ics'])['W'] - br['data'][0][1]) < 1e-6, str(st and st['ics']))
-send(cmd='browser', **{'from': 0, 'count': 0})
+send(cmd='browser.page', **{'from_row': 0, 'count': 0})
 collect(is_idle)
 
 # W77: the data browser's Add column is the Session's, not the Model's
@@ -1784,7 +2010,7 @@ collect(is_idle)
 # dropped) after every run, and find_variable resolves it by name so it
 # can be plotted.
 def fetch_browser(nrows):
-    send(cmd='browser', **{'from': 0, 'count': nrows, 'col': 1, 'ncol': 500})
+    send(cmd='browser.page', **{'from_row': 0, 'count': nrows, 'first_column': 1, 'columns': 500})
     evs, br = collect(lambda e: e.get('ev') == 'browser')
     collect(is_idle)
     return br
@@ -1817,7 +2043,7 @@ orig_cols = br['cols'][:-1]
 check('the browser shows the added column, computed from the others, for every row',
       br['cols'][-1] == 'VW' and near([row[vwi] for row in br['data']],
                                        [row[vi] * row[wi] for row in br['data']]), str(br)[:200])
-send(cmd='browser', op='write', what='table', format='csv', name='added_col.csv')
+send(cmd='browser.export', target='table', format='csv', file='added_col.csv')
 collect(is_idle)
 with open(os.path.join(run, 'added_col.csv')) as f:
     csv_lines = [l.strip() for l in f if l.strip() and not l.startswith('#')]
@@ -1842,7 +2068,7 @@ if ser:
 
 # a re-run, with a changed parameter so V, W (and VW) differ, recomputes
 # the added column instead of dropping it
-send(cmd='set', kind='par', name='iapp', value=0.2)
+send(cmd='value.set_parameters', values={'iapp': 0.2})
 collect(is_idle)
 send(cmd='run.initial')
 evs, _ = collect(is_idle, timeout=30 * SLOW)
@@ -1860,7 +2086,7 @@ collect(is_idle)
 
 send(cmd='data', events=['series'])
 collect(is_idle)
-send(cmd='slide', name='iapp', value=0.07, rerun=1)
+send(cmd='value.slide', name='iapp', value=0.07)
 evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
 ser = whole_series(evs)
@@ -1889,8 +2115,8 @@ if acts:
     evs, _ = collect(is_idle)
     st = last_state(evs)
     check('a comment action sets its parameters', st is not None and dict(st['pars'])['gk'] == 0, str(st and st['pars']))
-    send(cmd='set', kind='par', name='gk', value=2)
-    send(cmd='set', kind='par', name='iapp', value=0.1)
+    send(cmd='value.set_parameters', values={'gk': 2})
+    send(cmd='value.set_parameters', values={'iapp': 0.1})
     collect(is_idle)
     collect(is_idle)
 
@@ -1942,7 +2168,7 @@ elsewhere = tempfile.mkdtemp(prefix='xppelsewhere')
 far = os.path.join(elsewhere, 'd' * (40 if os.name == 'nt' else 200))
 os.makedirs(far)
 far_set = os.path.join(far, 'w88 far.setx')
-send(cmd='set', kind='par', name='iapp', value=0.33)
+send(cmd='value.set_parameters', values={'iapp': 0.33})
 collect(is_idle)
 send(cmd='session', op='save', name='w88', data=False)
 collect(is_idle)
@@ -1950,7 +2176,7 @@ collect(is_idle)
 with zipfile.ZipFile(os.path.join(run, 'w88.snapx')) as z:
     with open(far_set, 'wb') as f:
         f.write(z.read('model.setx'))
-send(cmd='set', kind='par', name='iapp', value=0.77)
+send(cmd='value.set_parameters', values={'iapp': 0.77})
 collect(is_idle)
 send(cmd='key', key='f')
 send(cmd='key', key='r')
@@ -1992,9 +2218,9 @@ long_op = 'list' + 'x' * 40
 long_reply = file_cmd(op=long_op)
 check('W121b: file operation is returned whole, never cut', long_reply.get('op') == long_op and long_reply.get('ok') == 0, str(long_reply))
 long_name = 'missing' + 'n' * 400
-send(cmd='applyset', set=long_name, scope='all')
+send(cmd='set.apply', name=long_name, scope='all')
 long_events, _ = collect(is_idle)
-check('W121b: names over 300 bytes reach the handler whole', any(e.get('ev') == 'message' and long_name in e.get('error', '') for e in long_events), str(long_events)[:500])
+check('W121b: names over 300 bytes reach the handler whole', any(e.get('ev') in ('message', 'done') and long_name in e.get('error', '') for e in long_events), str(long_events)[:500])
 
 blob = bytes(range(256)) * 4 + b'\x00\r\n\x1a'
 before = sorted(os.listdir(run))
@@ -2285,7 +2511,7 @@ send(cmd='state')
 evs, st = collect(is_state)
 collect(is_idle)
 nrows = st['rows']
-send(cmd='browser', **{'from': 0, 'count': nrows, 'col': 1, 'ncol': 500})
+send(cmd='browser.page', **{'from_row': 0, 'count': nrows, 'first_column': 1, 'columns': 500})
 evs, br = collect(lambda e: e.get('ev') == 'browser')
 collect(is_idle)
 iv, iw = br['cols'].index('V'), br['cols'].index('W')
@@ -2880,7 +3106,7 @@ def check_param_set_cancel():
     p, r, snd, col, _ = launch_server()
     try:
         col(is_idle)
-        snd(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'value': 0.3}])
+        snd(cmd='value.set_parameters', values={'iapp': 0.3})
         col(is_idle)
         snd(cmd='key', key='f')
         col(is_idle)
@@ -2892,7 +3118,7 @@ def check_param_set_cancel():
         evs, _ = col(is_idle)
         check('Param set menu cancelled: no error message',
               not [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e], str(evs)[:200])
-        snd(cmd='values', op='write', kind='par', name='w101.par')
+        snd(cmd='value.save_file', kind='parameters', file='w101.par')
         evs, _ = col(is_idle)
         with open(os.path.join(r, 'w101.par')) as f:
             txt = f.read()
@@ -3016,17 +3242,16 @@ def check_values_protocol():
               str(st and st.get('now')))
         v0 = ser[-1]['version'] if ser else None
 
-        # W69: `set`/`slide`/`default` never run anything themselves any more
-        # (the `rerun` flag is gone, and ignored if a client still sends it):
-        # the values panel holds edits pending and sends them in one `set`
+        # W69: the value commands never run anything themselves:
+        # the values panel holds edits pending and sends them
         # right before the next command that computes.
-        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.1'}], rerun=1)
+        evs = after(cmd='value.set_parameters', values={'iapp': 0.1})
         evs += after(cmd='ic.set', values={'v': -0.2})
         st = last_state(evs)
-        check('set values[] and ic.set: both set, no run (rerun is ignored, W69)',
+        check('value.set_parameters and ic.set: both set, no run (W69)',
               st and abs(par(st, 'iapp') - 0.1) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12 and not full(evs),
               str(st and st['pars'][:3]))
-        check('a rerun-free set sends no erase event', not pics(evs), str(pics(evs)))
+        check('value.set_parameters sends no erase event', not pics(evs), str(pics(evs)))
         evs = after(cmd='run.initial')
         st, ser = last_state(evs), full(evs)
         v_col = ser[-1]['columns'][[c['col'] for c in ser[-1]['columns']].index(1)]['data'] if ser else []
@@ -3034,37 +3259,37 @@ def check_values_protocol():
               st and abs(par(st, 'iapp') - 0.1) < 1e-12 and len(ser) == 1
               and ser[0]['rows'] == 601 and v_col and abs(v_col[0] - f32(-0.2)) < 1e-9 and ser[0]['version'] != v0,
               str(st and st['pars'][:3]) + str([(s['rows'], s.get('version')) for s in ser]))
-        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '%nosuch+'}], rerun=1)
-        check('set values[] with a bad formula: an error, and no run',
+        evs = after(cmd='value.set_by_formula', name='iapp', formula='nosuch+')
+        check('value.set_by_formula with a bad formula: an error, and no run',
               any(e.get('ev') in ('message', 'done') and 'error' in e for e in evs) and not full(evs), str(evs)[:300])
         # W131: one number rule (all of the text), a set applies all or nothing,
         # its error names the field, and default is the core's own command
         errs = lambda evs: [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         st1 = last_state(after(cmd='state'))
-        evs = after(cmd='set', kind='par', name='iapp', text='abc')
+        evs = after(cmd='value.set_parameters', values={'iapp': 'abc'})
         st = last_state(evs)
-        check('set par with text that is not a number: refused naming the field, nothing changes',
-              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'par:iapp' and 'abc' in errs(evs)[0]['error']
+        check('value.set_parameters with text that is not a number: refused naming the argument, nothing changes',
+              len(errs(evs)) == 1 and 'values.iapp' in errs(evs)[0]['error']
               and st and par(st, 'iapp') == par(st1, 'iapp'), str(errs(evs)) + str(st and st['pars'][:3]))
-        evs = after(cmd='set', kind='par', name='iapp', text='1O0')
-        check('set par 1O0 (a letter O): refused, nothing changes', len(errs(evs)) == 1
+        evs = after(cmd='value.set_parameters', values={'iapp': '1O0'})
+        check('value.set_parameters 1O0 (a letter O): refused, nothing changes', len(errs(evs)) == 1
               and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
-        evs = after(cmd='slide', name='iapp', value='5x')
-        check('slide with a value that is not all a number: refused, nothing changes', len(errs(evs)) == 1
+        evs = after(cmd='value.slide', name='iapp', value='5x')
+        check('value.slide with a value that is not all a number: refused, nothing changes', len(errs(evs)) == 1
               and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
-        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.31'},
-                                       {'kind': 'par', 'name': 'gk', 'text': '%bad('},
-                                       {'kind': 'par', 'name': 'gca', 'text': '1.1'}])
+        evs = after(cmd='value.set_parameters', values={'iapp': 0.31, 'gk': '%bad(', 'gca': 1.1})
         st = last_state(evs)
-        check('a set of three with the second bad: one error naming par gk, nothing applied',
-              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'par:gk' and st
+        check('value.set_parameters of three with the second bad: one error naming values.gk, nothing applied',
+              len(errs(evs)) == 1 and 'values.gk' in errs(evs)[0]['error'] and st
               and par(st, 'iapp') == par(st1, 'iapp') and par(st, 'gca') == par(st1, 'gca') and par(st, 'gk') == par(st1, 'gk'),
               str(errs(evs)) + str(st and st['pars'][:3]))
-        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.31'},
+        evs = after(cmd='set', values=[{'kind': 'num', 'name': 'nullcline_mesh', 'text': '50'},
                                        {'kind': 'num', 'name': 'nullcline_mesh', 'text': '1O0'}])
         check('a set with a bad numerics value applies none of it, its error names num:nullcline_mesh',
-              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'num:nullcline_mesh'
-              and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
+              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'num:nullcline_mesh', str(errs(evs)))
+        evs = after(cmd='value.set_parameters', values={'nosuch': 1})
+        check('value.set_parameters of a name the model does not have: refused naming the parameter',
+              len(errs(evs)) == 1 and 'nosuch' in errs(evs)[0]['error'], str(errs(evs)))
         # W494: a range or an order broken by `set num` is refused with the setting, its value and the rule
         for name, text, words in (('min_step', '1e9', 'min_step (1e+09) must be at most max_step'),
                                   ('relative_tolerance', '0', 'must be a number above 0'),
@@ -3077,13 +3302,12 @@ def check_values_protocol():
         evs = after(cmd='run.configure', total_time='1O0')
         check('run.configure with a total time that is not a number is refused, naming the argument',
               len(errs(evs)) == 1 and 'total_time' in errs(evs)[0]['error'], str(errs(evs)))
-        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': ' 0.31 '},
-                                       {'kind': 'par', 'name': 'gca', 'text': '1.2'}])
+        evs = after(cmd='value.set_parameters', values={'iapp': 0.31, 'gca': 1.2})
         evs += after(cmd='ic.set', values={'v': -0.2})
         st = last_state(evs)
-        check('a good set of two (blanks around a number allowed) and ic.set apply, no error', not errs(evs) and st
+        check('a good value.set_parameters of two and ic.set apply, no error', not errs(evs) and st
               and abs(par(st, 'iapp') - 0.31) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12, str(errs(evs)) + str(st and st['pars'][:3]))
-        evs = after(cmd='restoredefaults', scope='parameters')
+        evs = after(cmd='set.restore_defaults', scope='parameters')
         st = last_state(evs)
         check('default par after edits: every parameter back to the model file value, no error',
               not errs(evs) and st and [v for _, v in st['pars']] == d['pars'], str(errs(evs)) + str(st and st['pars'][:3]))
@@ -3103,9 +3327,9 @@ def check_values_protocol():
         check('Initialconds/Last: a state at the start of the run already has the ICs from where the last one ended',
               first and sers and states[0] < sers[-1] and [v for _, v in first['ics']] == prev_now,
               str(first and first['ics']) + ' vs ' + str(prev_now))
-        evs = after(cmd='restoredefaults', scope='parameters', rerun=1)
+        evs = after(cmd='set.restore_defaults', scope='parameters')
         st = last_state(evs)
-        check('default with rerun: the model values, no run (rerun is ignored, W69)',
+        check('set.restore_defaults: the model values, no run (W69)',
               st and par(st, 'iapp') == d['pars'][[k.lower() for k, _ in st['pars']].index('iapp')] and not full(evs),
               str(st and st['pars'][:3]))
         evs = after(cmd='run.initial')
@@ -3113,7 +3337,7 @@ def check_values_protocol():
               last_state(evs) and par(last_state(evs), 'iapp') == d['pars'][[k.lower() for k, _ in st['pars']].index('iapp')]
               and len(full(evs)) == 1, str(last_state(evs) and last_state(evs)['pars'][:3]))
 
-        evs = after(cmd='slide', name='iapp', value=0.07)
+        evs = after(cmd='value.slide', name='iapp', value=0.07)
         check('a slide sets the parameter, no run (the rerun flag is gone, W69)',
               not pics(evs) and not full(evs) and abs(par(last_state(evs), 'iapp') - 0.07) < 1e-12, str(pics(evs)))
         evs = after(cmd='run.initial')
@@ -3152,7 +3376,7 @@ def check_ic_file_markov():
               and [n.lower() for n, _ in st0['ics']] == ['x1', 'x2', 'z'],
               str(st0 and st0['ics']))
 
-        sndm(cmd='values', op='write', kind='ic', name='kepler_markov.ic')
+        sndm(cmd='value.save_file', kind='initial_conditions', file='kepler_markov.ic')
         colm(is_idle)
         with open(os.path.join(rm, 'kepler_markov.ic')) as f:
             lines = [l.strip() for l in f if l.strip()]
@@ -3161,7 +3385,7 @@ def check_ic_file_markov():
 
         sndm(cmd='ic.set', values={'x1': 0.5})
         colm(is_idle)
-        sndm(cmd='values', op='read', kind='ic', name='kepler_markov.ic')
+        sndm(cmd='value.load_file', kind='initial_conditions', file='kepler_markov.ic')
         evs, _ = colm(is_idle)
         st = last_state(evs)
         check('values read ic on a markov model restores the 2 node values (z untouched)',
@@ -3184,13 +3408,13 @@ def check_error_places():
         cole(is_idle)
         with open(os.path.join(re_, 'w140bad.par'), 'w') as f:
             f.write('3   Number params\n1\n2\n3\n')
-        snde(cmd='values', op='read', kind='par', name='w140bad.par')
+        snde(cmd='value.load_file', kind='parameters', file='w140bad.par')
         evs, _ = cole(is_idle, timeout=30 * SLOW)
         m = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
         check('an error event: a values file at its line names the file, the line and the line as written (W140)',
               os.path.basename(m.get('file', '')) == 'w140bad.par' and m.get('line') == 1 and m.get('col') == 0
               and m.get('source') == '3   Number params' and 'parameters' in m.get('error', ''), str(m))
-        snde(cmd='values', op='read', kind='par', name='w140gone.par')
+        snde(cmd='value.load_file', kind='parameters', file='w140gone.par')
         evs, _ = cole(is_idle, timeout=30 * SLOW)
         m = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
         check('an error event: a file that cannot be read is named with line 0 (W140)',
@@ -3319,7 +3543,7 @@ def check_load_all_or_nothing():
 
     try:
         col(is_idle)
-        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1.5}])
+        answered((), cmd='value.set_parameters', values={'a': 1.5})
         answered((), cmd='ic.set', values={'x': 0.25})
         st0, set0 = state(), set_file()
         rows = set0.split('\n')
@@ -3335,8 +3559,8 @@ def check_load_all_or_nothing():
             f.write('9\nnan?\n')
         for what, cmd, answers, file, line, source in (
                 ('a settings file', None, 'bad.setx', 'bad.setx', high, '  high: 1e999,'),
-                ('a parameter file', dict(cmd='values', op='read', kind='par', name='bad.par'), (), 'bad.par', 3, 'oops  b'),
-                ('an initial-conditions file', dict(cmd='values', op='read', kind='ic', name='bad.ic'), (), 'bad.ic', 2, 'nan?')):
+                ('a parameter file', dict(cmd='value.load_file', kind='parameters', file='bad.par'), (), 'bad.par', 3, 'oops  b'),
+                ('an initial-conditions file', dict(cmd='value.load_file', kind='initial_conditions', file='bad.ic'), (), 'bad.ic', 2, 'nan?')):
             errs = errors(read_set(answers) if cmd is None else answered(answers, **cmd))
             e = errs[0] if len(errs) == 1 else {}
             check('W125: %s whose last value is bad is refused at that line (%s:%d)' % (what, file, line),
@@ -3348,12 +3572,11 @@ def check_load_all_or_nothing():
         # W310: foreign .par names determine the destination; rejection is atomic.
         with open(os.path.join(r, 'reordered.par'), 'w') as f:
             f.write('2   Number params\n4  b\n3  a\n\nFile:w125.odex\nWed Jun 30 21:49:08 1993\n')
-        evs = answered((), cmd='values', op='read', kind='par', name='reordered.par')
+        evs = answered((), cmd='value.load_file', kind='parameters', file='reordered.par')
         reordered = state()
         check('W310: reordered parameters load by name, with the XPPAUT trailer accepted',
               not errors(evs) and dict(reordered['pars']) == {'a': 3, 'b': 4}, str(reordered['pars']))
-        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1.5},
-                                       {'kind': 'par', 'name': 'b', 'value': 2}])
+        answered((), cmd='value.set_parameters', values={'a': 1.5, 'b': 2})
         for file, kind, text, line, name in (
                 ('renamed.par', 'par', '2   Number params\n9  a\n8  renamed\n', 3, 'renamed'),
                 ('duplicate.par', 'par', '2   Number params\n9  a\n8  a\n', 3, 'a'),
@@ -3364,7 +3587,7 @@ def check_load_all_or_nothing():
                 ('oversize.ic', 'ic', ' ' * (4 * 1024 * 1024 + 1), 0, None)):
             with open(os.path.join(r, file), 'w') as f:
                 f.write(text)
-            errs = errors(answered((), cmd='values', op='read', kind=kind, name=file))
+            errs = errors(answered((), cmd='value.load_file', kind={'par': 'parameters', 'ic': 'initial_conditions'}[kind], file=file))
             e = errs[0] if len(errs) == 1 else {}
             source = text.splitlines()[line - 1] if 0 < line <= len(text.splitlines()) else ''
             check('W310: %s refused with its file, line, source and name' % file,
@@ -3395,7 +3618,7 @@ def check_load_all_or_nothing():
         check('W284: a group the settings do not have is refused at its line',
               os.path.basename(e.get('file', '')) == 'extra.setx' and e.get('line') == len(set0.split('\n'))
               and 'nosuch_group' in e.get('error', ''), str(errs))
-        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 8}])
+        answered((), cmd='value.set_parameters', values={'a': 8})
         answered((), cmd='ic.set', values={'x': 7})
         with open(os.path.join(r, 'own.setx'), 'w') as f:
             f.write(set0)
@@ -3411,7 +3634,7 @@ def check_load_all_or_nothing():
         st = state()
         check('W284: a settings file that names only a parameter sets only it',
               not errs and dict(st['pars'])['a'] == 2.5 and st['ics'] == st0['ics'], str(errs))
-        errs = errors(answered((), cmd='applyset', set='good', scope='all'))
+        errs = errors(answered((), cmd='set.apply', name='good', scope='all'))
         st = state()
         check('W125: a good internal set still applies whole', not errs and st['pars'] != st0['pars'], str(errs))
     finally:
@@ -3422,7 +3645,7 @@ check_load_all_or_nothing()
 
 
 def check_apply_restore():
-    """W319: Apply set (`applyset`) and Restore defaults (`restoredefaults`): a patch limited to a
+    """W319: Apply set (`set.apply`) and Restore defaults (`set.restore_defaults`): a patch limited to a
     scope, a target graph, all or nothing, and a recording replays both"""
     folder = tempfile.mkdtemp(prefix='w319')
     model = os.path.join(folder, 'w319.odex')
@@ -3452,54 +3675,54 @@ def check_apply_restore():
         start = view()
         check('W319: the model gives its defaults (init y = 2)',
               start[0] == {'a': 1, 'b': 2, 'c': 0.5} and start[1] == {'x': 0.5, 'y': 2} and start[2] == 0.02 and start[3] == 9, str(start))
-        evs = run(cmd='applyset', set='pa', scope='parameters')
+        evs = run(cmd='set.apply', name='pa', scope='parameters')
         v = view()
         check('W319: a parameter-only apply changes the parameters and leaves the initial values (y = 2 stays 2)',
               not errs(evs) and v[0] == {'a': 10, 'b': 20, 'c': 0.5} and v[1] == start[1] and v[2:] == start[2:], str(v))
-        evs = run(cmd='applyset', set='mix', scope='initial')
+        evs = run(cmd='set.apply', name='mix', scope='initial')
         v = view()
         check('W319: scope initial applies only the states of the set',
               not errs(evs) and v[1] == {'x': 0.9, 'y': 2} and v[0]['a'] == 10 and v[2:] == start[2:], str(v))
-        evs = run(cmd='applyset', set='mix', scope='integration')
+        evs = run(cmd='set.apply', name='mix', scope='integration')
         v = view()
         check('W319: scope integration applies only the numerics of the set',
               not errs(evs) and v[2] == 0.1 and v[3] == 7 and v[0]['a'] == 10 and v[4] == start[4], str(v))
-        evs = run(cmd='applyset', set='mix', scope='plot')
+        evs = run(cmd='set.apply', name='mix', scope='plot')
         v = view()
         check('W319: scope plot applies only the plot settings, to the active graph',
               not errs(evs) and v[4] == {'graph_1': (-3, 3)} and v[0]['a'] == 10, str(v))
         # restore a field, a section, then everything
-        run(cmd='restoredefaults', scope='integration', field='dt')
+        run(cmd='set.restore_defaults', scope='integration', field='dt')
         v = view()
         check('W319: restoring a field gives the model\'s value (the options block over the built-in) and no other',
               v[2] == 0.02 and v[3] == 7, str(v))
-        run(cmd='restoredefaults', scope='parameters', field='a')
+        run(cmd='set.restore_defaults', scope='parameters', field='a')
         v = view()
         check('W319: restoring one parameter leaves the others', v[0] == {'a': 1, 'b': 20, 'c': 0.5}, str(v))
-        run(cmd='restoredefaults', scope='initial')
+        run(cmd='set.restore_defaults', scope='initial')
         v = view()
         check('W319: restoring the initial values gives the model\'s (init y = 2 as loaded)', v[1] == start[1], str(v))
-        run(cmd='restoredefaults', scope='integration')
+        run(cmd='set.restore_defaults', scope='integration')
         v = view()
         check('W319: restoring a section gives the model\'s numerics', v[2:4] == start[2:4], str(v))
-        run(cmd='applyset', set='mix', scope='all')
+        run(cmd='set.apply', name='mix', scope='all')
         v = view()
         check('W319: scope all applies parameters, states, numerics and plot',
               v[0]['a'] == 5 and v[1]['x'] == 0.9 and v[2] == 0.1 and v[4] == {'graph_1': (-3, 3)}, str(v))
-        evs = run(cmd='restoredefaults', scope='all')
+        evs = run(cmd='set.restore_defaults', scope='all')
         check('W319: restoring all gives every default back', not errs(evs) and view() == start, str(view()))
         # a failure changes nothing and says why
         before = view()
-        for bad, text in ((dict(cmd='applyset', set='nosuch', scope='all'), 'the model has no set nosuch'),
-                          (dict(cmd='applyset', set='mix', scope='bogus'), 'bogus is not a scope'),
-                          (dict(cmd='applyset', set='mix', scope='all', window='graph_5'), 'Unknown graph "graph_5"'),
-                          (dict(cmd='applyset', set='mix', scope='all', window=1e300), 'window must be text'),
-                          (dict(cmd='restoredefaults', scope='plot', window='graph_0'), 'Unknown graph "graph_0"'),
-                          (dict(cmd='applyset', set='mix', scope='parameters', window='graph_1'), 'a graph is a target of scope all or plot'),
-                          (dict(cmd='applyset', set='mix'), 'applyset needs a set and a scope'),
-                          (dict(cmd='restoredefaults', scope='all', field='a'), 'restoring all takes no field'),
-                          (dict(cmd='restoredefaults', scope='parameters', field='nosuch'), 'the model has no parameter nosuch'),
-                          (dict(cmd='restoredefaults', scope='integration', field='xlo'), 'xlo is not a setting of integration')):
+        for bad, text in ((dict(cmd='set.apply', name='nosuch', scope='all'), 'the model has no set nosuch'),
+                          (dict(cmd='set.apply', name='mix', scope='bogus'), 'Invalid choice "bogus" for scope'),
+                          (dict(cmd='set.apply', name='mix', scope='all', window='graph_5'), 'Unknown window "graph_5"'),
+                          (dict(cmd='set.apply', name='mix', scope='all', window=1e300), 'must be text'),
+                          (dict(cmd='set.restore_defaults', scope='plot', window='graph_0'), 'Unknown window "graph_0"'),
+                          (dict(cmd='set.apply', name='mix', scope='parameters', window='graph_1'), 'a graph is a target of scope all or plot'),
+                          (dict(cmd='set.apply', name='mix'), 'Missing argument "scope"'),
+                          (dict(cmd='set.restore_defaults', scope='all', field='a'), 'restoring all takes no field'),
+                          (dict(cmd='set.restore_defaults', scope='parameters', field='nosuch'), 'the model has no parameter nosuch'),
+                          (dict(cmd='set.restore_defaults', scope='integration', field='xlo'), 'xlo is not a setting of integration')):
             es = errs(run(**bad))
             check('W319: %s is refused (%s), nothing changed' % (json.dumps(bad), text),
                   len(es) == 1 and text in es[0] and view() == before, str(es))
@@ -3509,18 +3732,18 @@ def check_apply_restore():
         v = view()
         check('W319: Makewindow/Create made window 2 active', v[5] == 'graph_2' and sorted(v[4]) == ['graph_1', 'graph_2'], str(v))
         x2 = v[4]['graph_2']
-        evs = run(cmd='applyset', set='mix', scope='plot', window='graph_1')
+        evs = run(cmd='set.apply', name='mix', scope='plot', window='graph_1')
         v = view()
         check('W319: win names the target graph: window 1 changes, window 2 and the active graph stay',
               not errs(evs) and v[4]['graph_1'] == (-3, 3) and v[4]['graph_2'] == x2 and v[5] == 'graph_2', str(v))
-        evs = run(cmd='restoredefaults', scope='plot', window='graph_1')
+        evs = run(cmd='set.restore_defaults', scope='plot', window='graph_1')
         v = view()
         check('W319: restore names its target graph too', not errs(evs) and v[4]['graph_1'] == start[4]['graph_1'] and v[4]['graph_2'] == x2 and v[5] == 'graph_2', str(v))
         # a recording of both replays to the same end
         run(cmd='record', op='start')
-        run(cmd='applyset', set='pa', scope='parameters')
-        run(cmd='applyset', set='mix', scope='integration')
-        run(cmd='restoredefaults', scope='parameters', field='b')
+        run(cmd='set.apply', name='pa', scope='parameters')
+        run(cmd='set.apply', name='mix', scope='integration')
+        run(cmd='set.restore_defaults', scope='parameters', field='b')
         end = view()
         run(cmd='record', op='stop', name='w319.recx')
         replay = replay_recording(args.server, model, os.path.join(r, 'w319.recx'), r)
@@ -3537,8 +3760,8 @@ check_apply_restore()
 
 
 def check_save_values():
-    """W320: Save values into the model file (`saveset`, `savedefaults`, `exportset`, `renameset`,
-    `deleteset`): the file's text before and after (the rest byte for byte), the live model following,
+    """W320: Save values into the model file (`set.save_new`, `set.save_into`, `set.save_defaults`,
+    `set.export`, `set.rename`, `set.delete`): the file's text before and after (the rest byte for byte), the live model following,
     a refused write changing nothing, and a recording replaying the saves"""
     folder = tempfile.mkdtemp(prefix='w320')
     model = os.path.join(folder, 'w320.odex')
@@ -3580,20 +3803,20 @@ def check_save_values():
     try:
         s.collect(is_idle)
         before = text()
-        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 7}, {'kind': 'par', 'name': 'b', 'value': 2.5}])
+        run(cmd='value.set_parameters', values={'a': 7, 'b': 2.5})
         # a new set goes at the end of the file, the rest as it was
-        evs = run(cmd='saveset', set='s1', mode='new', scope='parameters')
+        evs = run(cmd='set.save_new', name='s1', scope='parameters')
         after = text()
         check('W320: a new set is appended; the rest of the file is byte for byte as it was',
               not errs(evs) and after.startswith(before) and after[len(before):].strip().startswith('set "s1" {')
               and 'a: 7' in after[len(before):] and 'b: 2.5' in after[len(before):] and 'x:' not in after[len(before):], repr(after[len(before):]) + str(errs(evs)))
-        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1}])
-        evs = run(cmd='applyset', set='s1', scope='parameters')
+        run(cmd='value.set_parameters', values={'a': 1})
+        evs = run(cmd='set.apply', name='s1', scope='parameters')
         check('W320: the live model knows the new set at once', not errs(evs) and view()[0]['a'] == 7, str(errs(evs)))
         # a part of a set replaced, its other parts as they were
         run(cmd='ic.set', values={'x': 0.1, 'y': 0.2})
         old = text()
-        evs = run(cmd='saveset', set='mix', mode='replace', scope='initial')
+        evs = run(cmd='set.save_into', name='mix', scope='initial')
         new = text()
         mix = [new[new.index('set "mix"'):]]
         check('W320: replacing the initial values of mix keeps its parameter and its options as written',
@@ -3601,75 +3824,74 @@ def check_save_values():
               and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: { xlo: -3, xhi: 3 }' in mix[0], str(mix) + str(errs(evs)))
         check('W320: the rest of the file is byte for byte as it was', new[:old.index('set "mix"')] == old[:old.index('set "mix"')], '')
         run(cmd='ic.set', values={'x': 3})
-        run(cmd='applyset', set='mix', scope='initial')
+        run(cmd='set.apply', name='mix', scope='initial')
         check('W320: the live model uses the replaced part', view()[1]['x'] == 0.1)
-        evs = run(cmd='saveset', set='mix', mode='replace', scope='plot')
+        evs = run(cmd='set.save_into', name='mix', scope='plot')
         mix = [text()[text().index('set "mix"'):]]
         check('W320: replacing the plot settings leaves the rest of the set', not errs(evs) and mix and 'xlo: -3' not in mix[0]
               and 'x: 0.1' in mix[0] and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: {' in mix[0], str(mix) + str(errs(evs)))
         # the defaults: par and init lines in place, an options group
-        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 4}])
+        run(cmd='value.set_parameters', values={'a': 4})
         run(cmd='run.configure', dt=0.05)
         old = text()
-        evs = run(cmd='savedefaults', scope='parameters')
+        evs = run(cmd='set.save_defaults', scope='parameters')
         new = text()
         check('W320: Save as defaults rewrites the changed values of the par line where they stand, nothing else',
               not errs(evs) and 'par a = 4, b = 2.5, c = 0.5' in new and new.replace('par a = 4, b = 2.5, c = 0.5', 'par a = 1, b = 2, c = 0.5') == old, new[:300] + str(errs(evs)))
-        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 9}])
-        run(cmd='restoredefaults', scope='parameters')
+        run(cmd='value.set_parameters', values={'a': 9})
+        run(cmd='set.restore_defaults', scope='parameters')
         check('W320: Restore defaults uses the new defaults at once', view()[0]['a'] == 4 and view()[0]['b'] == 2.5, str(view()))
-        evs = run(cmd='savedefaults', scope='integration')
+        evs = run(cmd='set.save_defaults', scope='integration')
         new = text()
         check('W320: an options group is replaced in the options block',
               not errs(evs) and 'dt: 0.05' in new and 'dt: 0.02' not in new and new.count('options {') == 1, new[new.index('options'):][:200] + str(errs(evs)))
         run(cmd='run.configure', dt=0.5)
-        run(cmd='restoredefaults', scope='integration')
+        run(cmd='set.restore_defaults', scope='integration')
         check('W320: Restore defaults gives the saved options', view()[2] == 0.05, str(view()))
-        evs = run(cmd='savedefaults', scope='initial')
+        evs = run(cmd='set.save_defaults', scope='initial')
         new = text()
         check('W320: the initial values saved as defaults replace the init line where it stands',
               not errs(evs) and 'init x = ' in new, new[new.index('init'):][:80] + str(errs(evs)))
         # export to another file, a new one then an existing one with a set of that name
-        evs = run(cmd='exportset', set='e1', scope='parameters', file='out.odex')
+        evs = run(cmd='set.export', name='e1', scope='parameters', file='out.odex')
         out = text('out.odex')
         check('W320: Export writes a new file with the Saved-from header and the set',
               not errs(evs) and out.startswith('# Saved from w320.odex at ') and 'set "e1" {' in out, out + str(errs(evs)))
-        evs = run(cmd='exportset', set='e1', scope='initial', file='out.odex')
+        evs = run(cmd='set.export', name='e1', scope='initial', file='out.odex')
         out2 = text('out.odex')
         check('W320: Export to an existing set asks and replaces its part of that kind',
               not errs(evs) and out2.count('set "e1"') == 1 and out2.startswith(out.split('set "e1"')[0]), out2 + str(errs(evs)))
-        evs = run(cmd='exportset', set='e2', scope='integration', file='out.odex')
+        evs = run(cmd='set.export', name='e2', scope='integration', file='out.odex')
         out3 = text('out.odex')
         check('W320: Export to an existing file appends a set of another name', not errs(evs) and 'set "e2" {' in out3 and out3.startswith(out2), out3 + str(errs(evs)))
         # rename and delete
-        evs = run(cmd='renameset', set='pa', to='pb')
+        evs = run(cmd='set.rename', **{'from': 'pa'}, to='pb')
         new = text()
         check('W320: Rename changes the name in the file and in the model',
               not errs(evs) and 'set "pb" { a: 10, b: 20 }' in new and 'set "pa"' not in new, str(errs(evs)))
-        evs = run(cmd='applyset', set='pb', scope='parameters')
+        evs = run(cmd='set.apply', name='pb', scope='parameters')
         check('W320: the renamed set applies, the old name is gone', not errs(evs) and view()[0]['a'] == 10
-              and errs(run(cmd='applyset', set='pa', scope='parameters')), '')
+              and errs(run(cmd='set.apply', name='pa', scope='parameters')), '')
         old = text()
-        evs = run(cmd='deleteset', set='pb')
+        evs = run(cmd='set.delete', name='pb')
         new = text()
         check('W320: Delete removes the set and its line only', not errs(evs) and new == old.replace('set "pb" { a: 10, b: 20 }\n', ''), new[-200:] + str(errs(evs)))
         # refusals change nothing
         old = text()
-        for bad, why in ((dict(cmd='saveset', set='s1', mode='new', scope='parameters'), 'already a set'),
-                         (dict(cmd='saveset', set='shared', mode='replace', scope='parameters'), 'read-only'),
-                         (dict(cmd='saveset', set='nosuch', mode='replace', scope='parameters'), 'no set nosuch'),
-                         (dict(cmd='saveset', set='bad name', mode='new', scope='parameters'), 'not a valid name'),
-                         (dict(cmd='saveset', set='s9', mode='new', scope='bogus'), 'bogus is not a scope'),
-                         (dict(cmd='saveset', set='s9', mode='new', scope='plot', window='graph_7'), 'Unknown graph'),
-                         (dict(cmd='saveset', set='s9', mode='zzz', scope='parameters'), 'needs a set, a mode'),
-                         (dict(cmd='saveset', set='s9', mode='new', scope='parameters', state='next'), 'state is initial or last'),
-                         (dict(cmd='saveset', set='s9', mode='new', scope='initial', state='last'), 'no run has reached a state'),
-                         (dict(cmd='renameset', set='shared', to='mine'), 'read-only'),
-                         (dict(cmd='renameset', set='s1', to='mix'), 'already a set'),
-                         (dict(cmd='deleteset', set='shared'), 'read-only'),
-                         (dict(cmd='deleteset', set='nosuch'), 'no set nosuch'),
-                         (dict(cmd='exportset', set='x1', scope='parameters', file='w320.odex'), 'is the model file'),
-                         (dict(cmd='exportset', set='x1', scope='parameters', file='notodex.txt'), 'not an .odex file')):
+        for bad, why in ((dict(cmd='set.save_new', name='s1', scope='parameters'), 'already a set'),
+                         (dict(cmd='set.save_into', name='shared', scope='parameters'), 'read-only'),
+                         (dict(cmd='set.save_into', name='nosuch', scope='parameters'), 'no set nosuch'),
+                         (dict(cmd='set.save_new', name='bad name', scope='parameters'), 'not a valid name'),
+                         (dict(cmd='set.save_new', name='s9', scope='bogus'), 'Invalid choice "bogus" for scope'),
+                         (dict(cmd='set.save_new', name='s9', scope='plot', window='graph_7'), 'Unknown window'),
+                         (dict(cmd='set.save_new', name='s9', scope='parameters', state='next'), 'Invalid choice "next" for state'),
+                         (dict(cmd='set.save_new', name='s9', scope='initial', state='last'), 'no run has reached a state'),
+                         (dict(cmd='set.rename', **{'from': 'shared'}, to='mine'), 'read-only'),
+                         (dict(cmd='set.rename', **{'from': 's1'}, to='mix'), 'already a set'),
+                         (dict(cmd='set.delete', name='shared'), 'read-only'),
+                         (dict(cmd='set.delete', name='nosuch'), 'no set nosuch'),
+                         (dict(cmd='set.export', name='x1', scope='parameters', file='w320.odex'), 'is the model file'),
+                         (dict(cmd='set.export', name='x1', scope='parameters', file='notodex.txt'), 'not an .odex file')):
             es = errs(run(**bad))
             check('W320: %s is refused (%s), the file is as it was' % (json.dumps(bad), why),
                   len(es) == 1 and why in es[0] and text() == old, str(es))
@@ -3677,7 +3899,7 @@ def check_save_values():
         with open(model, 'a', newline='') as f:
             f.write('# someone else\n')
         changed = text()
-        es = errs(run(cmd='saveset', set='s2', mode='new', scope='parameters'))
+        es = errs(run(cmd='set.save_new', name='s2', scope='parameters'))
         check('W320: a file changed on disk since the load is refused and left as it is',
               len(es) == 1 and 'changed on disk' in es[0] and text() == changed, str(es))
         with open(model, 'w', newline='') as f:
@@ -3714,15 +3936,15 @@ def check_save_values():
         check('W320: File > Rename set asks which set and the new name', not errs(evs) and 'set "s1b" {' in text() and 'set "s1" {' not in text(), str(errs(evs)))
         old = text()
         # a plot's settings saved and applied again
-        evs = run(cmd='applyset', set='mix', scope='plot')
+        evs = run(cmd='set.apply', name='mix', scope='plot')
         check('W320: the plot settings saved in a set apply again', not errs(evs), str(errs(evs)))
         # a recording of the saves replays on the model it recorded (a saved model's copy changes, not the disk)
         run(cmd='record', op='start')
-        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}])
-        run(cmd='saveset', set='rec1', mode='new', scope='parameters')
-        run(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1}])
-        run(cmd='renameset', set='rec1', to='rec2')
-        run(cmd='applyset', set='rec2', scope='parameters')
+        run(cmd='value.set_parameters', values={'a': 3})
+        run(cmd='set.save_new', name='rec1', scope='parameters')
+        run(cmd='value.set_parameters', values={'a': 1})
+        run(cmd='set.rename', **{'from': 'rec1'}, to='rec2')
+        run(cmd='set.apply', name='rec2', scope='parameters')
         end = view()
         run(cmd='record', op='stop', name='w320.recx')
         on_disk = text()
@@ -4502,7 +4724,7 @@ def check_fit_retained_runs():
             col(is_idle)
             snd(cmd='run.initial')
             col(is_idle)
-            snd(cmd='set', kind='par', name='a', value=0.1)
+            snd(cmd='value.set_parameters', values={'a': 0.1})
             col(is_idle)
             snd(cmd='run.initial')
             col(is_idle)
@@ -5245,9 +5467,9 @@ def check_data_formats():
     f32 = lambda v: struct.unpack('<f', struct.pack('<f', float(v)))[0]
     read = lambda d, n: open(os.path.join(d, n), 'rb').read() if os.path.exists(os.path.join(d, n)) else b''
 
-    def browser(**kw):
+    def browser(cmd, **kw):
         """a browser command, a File exists? Overwrite ask answered yes"""
-        snd(cmd='browser', **kw)
+        snd(cmd=cmd, **kw)
         got = []
         while True:
             evs, e = col(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=20 * SLOW)
@@ -5260,7 +5482,7 @@ def check_data_formats():
         col(is_idle)
         live_run(snd, col)
         for fmt, name in [('dat', 'd.dat'), ('csv', 'd.csv'), ('csv.gz', 'd.csv.gz'), ('npz', 'd.npz')]:
-            _, e = browser(op='write', what='table', format=fmt, name=name)
+            _, e = browser('browser.export', target='table', format=fmt, file=name)
             check('Save data writes the table as %s without asking' % fmt,
                   e is not None and is_idle(e) and os.path.exists(os.path.join(r, name)), str(e))
         silent = tempfile.mkdtemp(prefix='xppsilent')
@@ -5311,14 +5533,14 @@ def check_data_formats():
                   and list(z['V']) == [f32(x[1]) for x in vals], str(z.files))
 
         # what the plot shows: the curve V against W, one row per point
-        browser(op='write', what='plot', format='csv', name='p.csv')
+        browser('browser.export', target='plot_curves', format='csv', file='p.csv')
         pc = read(r, 'p.csv').decode().splitlines() or ['']
         if pc and pc[0].startswith('# seed '):
             pc = pc[1:]
         check('Save data writes what the plot shows: curve,x,y, a row per point',
               pc[0] == 'curve,x,y' and len(pc) == 602 and pc[1].split(',')[0] == '1'
               and [float(x) for x in pc[1].split(',')[1:]] == vals[0][1:3], str(pc[:2]))
-        browser(op='write', what='plot', format='npz', name='p.npz')
+        browser('browser.export', target='plot_curves', format='npz', file='p.npz')
         try:
             arrays = npz_arrays(os.path.join(r, 'p.npz'))
             arrays.pop('seed', None)
@@ -5328,7 +5550,7 @@ def check_data_formats():
         check('what the plot shows as NPZ: one (points, 2) array per curve', ok, detail)
 
         # the dialog: what, then the format from the registry, then the file
-        snd(cmd='browser', op='write')
+        snd(cmd='browser.export')
         asks = []
         replies = {'menu': lambda e: {'key': 'p' if e.get('name') == 'save_what' else 'g'},
                    'file': lambda e: {'file': 'asked.csv.gz'}}
@@ -5363,14 +5585,14 @@ def check_data_formats():
 
         # Load reads each format back into the table, picked by its extension
         for name in ['d.csv', 'd.csv.gz', 'd.npz', 'd.dat']:
-            snd(cmd='browser', op='first', row=300)
+            snd(cmd='browser.set_slice_start', row=300)
             col(is_idle)
-            browser(op='write', what='table', format='dat', name='cut.dat')  # rows 300.. only
-            browser(op='load', name='cut.dat')
-            evs, _ = browser(op='load', name=name)
-            snd(cmd='browser', op='first', row=0)
+            browser('browser.export', target='table', format='dat', file='cut.dat')  # rows 300.. only
+            browser('browser.load', file='cut.dat')
+            evs, _ = browser('browser.load', file=name)
+            snd(cmd='browser.set_slice_start', row=0)
             col(is_idle)
-            browser(op='write', what='table', format='dat', name='back.dat')
+            browser('browser.export', target='table', format='dat', file='back.dat')
             check('Load reads %s back into the table (rows and values)' % name,
                   read(r, 'back.dat').replace(b'\r', b'') == want and last_state(evs).get('rows') == 601,
                   str(last_state(evs).get('rows')))
@@ -5396,14 +5618,11 @@ def check_data_formats():
                           ('evil_seed.npz', 'seed.npy: its seed is not a whole number'),
                           ('bomb.csv.gz', 'expands to more than 536870912 bytes'),
                           ('evil_seed.csv', 'its seed is not a whole number')]:
-            _, ask = browser(op='load', name=name)
-            alerts = [ask] if ask is not None and ask.get('kind') == 'alert' else []
+            evs, _ = browser('browser.load', file=name)
+            refused = [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
             check('Load refuses %s with its name and why' % name,
-                  len(alerts) == 1 and name in alerts[0].get('message', '') and why in alerts[0].get('message', ''),
-                  str([a.get('message') for a in alerts]))
-            if alerts:
-                snd(cmd='answer', id=alerts[0]['id'], ok=0)
-                col(is_idle)
+                  len(refused) == 1 and name in refused[0]['error'] and why in refused[0]['error'],
+                  str([e['error'] for e in refused]))
     finally:
         stop_server(p, r, snd)
 
@@ -5419,34 +5638,34 @@ def check_save_owner():
     results = lambda evs: [e for e in evs if e.get('ev') == 'saved']
     try:
         col(is_idle)
-        snd(cmd='browser', op='write', what='table', format='csv', replace=0)
+        snd(cmd='browser.export', target='table', format='csv')
         evs, end = col(lambda e: is_idle(e) or is_ask(e))
         check('W129: nothing to save reports once before asking for a name',
               end is not None and is_idle(end) and len(errors(evs)) == 1
               and errors(evs)[0]['error'] == 'Nothing to save'
               and results(evs) == [{'ev': 'saved', 'saved': False, 'file': ''}], str(evs)[-400:])
         live_run(snd, col)
-        snd(cmd='values', op='write', kind='par', name='same.par', replace=0)
+        snd(cmd='value.save_file', kind='parameters', file='same.par')
         evs, end = col(lambda e: is_idle(e) or is_ask(e))
         check('W129: a new file saves without a question or a command decision',
               end is not None and is_idle(end)
               and results(evs) == [{'ev': 'saved', 'saved': True, 'file': 'same.par'}]
               and not errors(evs), str(evs)[-300:])
         before = open(os.path.join(r, 'same.par'), 'rb').read()
-        snd(cmd='set', kind='par', name='iapp', value=0.11)
+        snd(cmd='value.set_parameters', values={'iapp': 0.11})
         col(is_idle)
-        snd(cmd='values', op='write', kind='par', name='same.par', replace=0)
+        snd(cmd='value.save_file', kind='parameters', file='same.par')
         _, ask = col(is_ask)
         check('W129: an existing target without a decision asks once',
               ask is not None and ask.get('question') == 'same.par exists. Replace it?'
               and ask.get('keys') == 'yn', str(ask))
         snd(cmd='answer', id=ask['id'], key='n')
         evs, _ = col(is_idle)
-        check('W129: No preserves the file and emits saved false, no error',
+        check('W129: No preserves the file and emits saved false, the command saying it was declined',
               before == open(os.path.join(r, 'same.par'), 'rb').read()
               and results(evs) == [{'ev': 'saved', 'saved': False, 'file': 'same.par'}]
-              and not errors(evs), str(evs)[-300:])
-        snd(cmd='values', op='write', kind='par', name='same.par', replace=0)
+              and len(errors(evs)) == 1 and 'declined' in errors(evs)[0]['error'], str(evs)[-300:])
+        snd(cmd='value.save_file', kind='parameters', file='same.par')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='y')
         evs, end = col(lambda e: is_idle(e) or is_ask(e))
@@ -5454,41 +5673,25 @@ def check_save_owner():
               end is not None and is_idle(end) and not errors(evs)
               and results(evs) == [{'ev': 'saved', 'saved': True, 'file': 'same.par'}]
               and before != open(os.path.join(r, 'same.par'), 'rb').read(), str(evs)[-300:])
-        before = open(os.path.join(r, 'same.par'), 'rb').read()
-        snd(cmd='values', op='write', kind='par', name='same.par', replace=1)
+        snd(cmd='value.save_file', kind='parameters', file='same.par', replace=1)
         evs, end = col(lambda e: is_idle(e) or is_ask(e))
-        check('W129: replace 1 overwrites an existing target without a question',
-              end is not None and is_idle(end) and not errors(evs)
-              and results(evs) == [{'ev': 'saved', 'saved': True, 'file': 'same.par'}], str(end))
-        before = open(os.path.join(r, 'same.par'), 'rb').read()
-        snd(cmd='values', op='write', kind='par', name='same.par', replace=-1)
-        evs, end = col(lambda e: is_ask(e) or is_idle(e))
-        check('W129: a command can carry No without a question',
-              end is not None and is_idle(end) and not errors(evs)
-              and results(evs) == [{'ev': 'saved', 'saved': False, 'file': 'same.par'}]
-              and before == open(os.path.join(r, 'same.par'), 'rb').read(), str(end))
+        check('W526: a registry command carries no replace decision: it asks, or is refused naming the argument',
+              end is not None and is_idle(end) and any('Unknown argument "replace"' in e.get('error', '') for e in evs), str(evs)[-300:])
         os.mkdir(os.path.join(r, 'blocked.par'))
         marker = os.path.join(r, 'blocked.par', 'original')
         with open(marker, 'wb') as f: f.write(b'old bytes')
         # The temp can be created beside this directory, but rename cannot
         # replace it: a deterministic commit failure, including on Windows.
-        for name in ['blocked.par', 'absent/fail.par']:
-            snd(cmd='values', op='write', kind='par', name=name, replace=1)
+        for name in ['blocked.par']:
+            snd(cmd='value.save_file', kind='parameters', file=name)
             evs, end = col(lambda e: is_idle(e) or is_ask(e))
-            if name.startswith('absent/'):
-                check('W303: a missing save folder asks independently of replace 1',
-                      end and 'Create the folder' in end.get('question', ''), str(end))
-                if end and is_ask(end):
-                    snd(cmd='answer', id=end['id'], key='n')
-                    evs, _ = col(is_idle)
+            if end and is_ask(end):
+                snd(cmd='answer', id=end['id'], key='y')
+                evs, _ = col(is_idle)
             check('W129: failed %s reports one error and no successful save' % name,
                   len(errors(evs)) == 1
                   and results(evs) == [{'ev': 'saved', 'saved': False, 'file': name}]
                   and open(marker, 'rb').read() == b'old bytes', str(evs)[-400:])
-        snd(cmd='values', op='write', kind='par', name='absent/fail.par', replace=1)
-        evs, _ = col(is_idle)
-        check('W303: a declined folder is not asked again in the same session',
-              not any(is_ask(e) for e in evs) and len(errors(evs)) == 1 and not os.path.isdir(os.path.join(r, 'absent')), str(evs[-3:]))
         check('W129: failed saves leave no temporary files or duplicate Writer log',
               not glob.glob(os.path.join(r, '*.tmp-*'))
               and not any('writer' in line.lower() for line in log), str(log[-5:]))
@@ -5497,9 +5700,12 @@ def check_save_owner():
     d = tempfile.mkdtemp(prefix='w129script')
     try:
         copy_model(args.ode, d)
-        commands = [{'cmd': 'values', 'op': 'write', 'kind': 'par', 'name': 'repeat.par', 'replace': 1}]
-        runs = [run_commands(args.server, args.ode, commands, d) for _ in range(2)]
-        check('W129: the same script saves twice with its explicit answer, no disk-dependent ask',
+        commands = [{'cmd': 'value.save_file', 'kind': 'parameters', 'file': 'repeat.par'}]
+        folders = [d, tempfile.mkdtemp(prefix='w129script')]
+        copy_model(args.ode, folders[1])
+        runs = [run_commands(args.server, args.ode, commands, folder) for folder in folders]
+        shutil.rmtree(folders[1], ignore_errors=True)
+        check('W129: the same script saves twice, no disk-dependent ask',
               all(v.returncode == 0 and not any(e.get('ev') == 'ask' for e in
                   [json.loads(line) for line in v.stdout.splitlines() if line.strip()])
                   and '"saved":true' in v.stdout for v in runs), str([v.returncode for v in runs]))
@@ -5530,7 +5736,7 @@ def check_output_names():
             evs, _ = col(is_idle)
             return evs
         for kind in ('par', 'ic'):
-            snd(cmd='values', op='write', kind=kind)
+            snd(cmd='value.save_file', kind=VALUE_KIND[kind])
             cancel_name('lecar.' + kind)
         snd(cmd='session', op='save')
         cancel_name('lecar.snapx')
@@ -5556,7 +5762,7 @@ def check_output_names():
         col(is_idle)
         for what, ext, format in [('table', 'dat', 'dat'), ('table', 'csv', 'csv'),
                                   ('plot', 'csv', 'csv'), ('table', 'csv.gz', 'csv.gz'), ('table', 'npz', 'npz')]:
-            snd(cmd='browser', op='write', what=what, format=format)
+            snd(cmd='browser.export', target=WHAT_TARGET[what], format=format)
             cancel_name('lecar' + ('-curves' if what == 'plot' else '') + '.' + ext)
         snd(cmd='key', key='k')
         _, ask = col(is_ask)
@@ -5602,7 +5808,7 @@ def check_output_names():
         with open(victim, 'wb') as f: f.write(b'keep victim')
         try:
             for path in (victim, os.path.relpath(victim, r)):
-                snd(cmd='values', op='write', kind='par')
+                snd(cmd='value.save_file', kind='parameters')
                 _, ask = col(is_ask)
                 snd(cmd='answer', id=ask['id'], file=path, replace=1)
                 evs, _ = col(is_idle)
@@ -5631,14 +5837,14 @@ def check_output_names():
         col(is_idle)
         # A long valid name is retained, while traversal/device names report an error.
         long = 'save-' + 'a' * 80 + '.par'
-        snd(cmd='values', op='write', kind='par')
+        snd(cmd='value.save_file', kind='parameters')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], file=long)
         evs, _ = col(is_idle)
         check('W130: a filename over 24 characters is written whole',
               os.path.isfile(os.path.join(r, long)) and any(e.get('file') == long and e.get('saved') for e in evs), str(evs)[-300:])
         for bad in ('../escape.par', 'CON.par', '.hidden.par'):
-            snd(cmd='values', op='write', kind='par')
+            snd(cmd='value.save_file', kind='parameters')
             _, ask = col(is_ask)
             snd(cmd='answer', id=ask['id'], file=bad)
             evs, _ = col(is_idle)
@@ -5647,7 +5853,7 @@ def check_output_names():
                   and not any(e.get('saved') for e in evs), str(evs)[-300:])
         snd(cmd='record', op='start')
         col(is_idle)
-        snd(cmd='set', kind='par', name='iapp', value=.05)
+        snd(cmd='value.set_parameters', values={'iapp': .05})
         col(is_idle)
         snd(cmd='record', op='stop')
         cancel_name('lecar.recx')
@@ -5771,7 +5977,7 @@ try:
     col3(is_idle)
     check('a converted non-ASCII parameter has its suggested .odex name in state', st is not None
           and dict(st['pars']).get(alpha_name) == 0.05, str(st and st['pars']))
-    snd3(cmd='set', kind='par', name=alpha_name, value=0.2)
+    snd3(cmd='value.set_parameters', values={alpha_name: 0.2})
     snd3(cmd='state')
     evs, st = col3(is_state)
     col3(is_idle)
@@ -5805,7 +6011,7 @@ def check_refused_during_run():
         snd(cmd='equilibrium.find')  # a computation
         snd(cmd='run.continue')  # Continue: a computation
         snd(cmd='window.set_display', window='graph_1', x_range=[0, 50])  # a view: kept for after the run
-        snd(cmd='browser', **{'from': 0, 'count': 1})  # only reads: answered during the run
+        snd(cmd='browser.page', **{'from_row': 0, 'count': 1})  # only reads: answered during the run
         evs, rows = col(lambda e: e.get('ev') == 'browser')
         during = [e for e in evs if e.get('ev') in ('ask', 'idle', 'message')]
         snd(cmd='run.abort')
@@ -6310,20 +6516,19 @@ def check_settings_during_run():
         evs, _ = col(is_idle)
         errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
         check('W206: set num takes store_every', not errs, str(errs))
-        # W116: what set, slide and default cannot take is the protocol's
+        # W116: what the value commands and set cannot take is the protocol's
         # error, the value left as it was (never a 0, never the ICs reset)
         snd(cmd='state')
         v_before = dict(next((e for e in reversed(col(is_idle)[0]) if is_state(e)), {'ics': []})['ics']).get('V')
         for bad, expect in (
-                (dict(cmd='set', kind='par', name='iapp'), 'set par iapp: its value is not a number (or its text missing)'),
-                (dict(cmd='set', kind='par', name='iapp', value='0.2'),
-                 'set par iapp: its value is not a number (or its text missing)'),
-                (dict(cmd='set', kind='parm', name='iapp', value=0.2), 'set takes kind par, delay, bc or num, not "parm"'),
-                (dict(cmd='set', kind='par', name='nosuch', value=0.2), 'set: the model has no par nosuch'),
+                (dict(cmd='set', kind='par', name='iapp'), 'set no longer takes parameters: send value.set_parameters (a formula: value.set_by_formula)'),
+                (dict(cmd='value.set_parameters', values={'iapp': '0.2'}), 'Argument "values.iapp" must be a finite number'),
+                (dict(cmd='set', kind='parm', name='iapp', value=0.2), 'set takes kind delay, bc or num, not "parm"'),
+                (dict(cmd='value.set_parameters', values={'nosuch': 0.2}), 'Argument "values": no parameter named "nosuch" in the model'),
                 (dict(cmd='ic.set', values={'nosuch': 0.2}), 'Argument "values": no variable named "nosuch" in the model'),
-                (dict(cmd='slide', name='nosuch', value=0.2), 'slide: the model has no parameter or variable nosuch'),
-                (dict(cmd='slide', name='iapp'), 'slide iapp: its value is not a number'),
-                (dict(cmd='restoredefaults', scope='pars'), 'pars is not a scope (one of all, parameters, initial, integration, poincare, equilibria, continuation, plot, sweep, analysis)')):
+                (dict(cmd='value.slide', name='nosuch', value=0.2), 'Argument "name": no parameter or variable named "nosuch" in the model'),
+                (dict(cmd='value.slide', name='iapp'), 'Missing argument "value"'),
+                (dict(cmd='set.restore_defaults', scope='pars'), 'Invalid choice "pars" for scope')):
             snd(cmd='ic.set', values={'v': 0.25})
             evs, _ = col(is_idle)
             iapp0 = iapp(evs)
@@ -6351,11 +6556,11 @@ def check_settings_during_run():
               and len(errs) == 1 and '`3` is not a method' in errs[0] and num(refused) is None, str((m, taken, errs)))
         snd(cmd='run.initial')
         evs, prog = col(is_prog, timeout=30 * SLOW)
-        snd(cmd='set', kind='par', name='iapp', value=0.3)
+        snd(cmd='value.set_parameters', values={'iapp': 0.3})
         snd(cmd='run.configure', total_time=50)
         snd(cmd='run.configure', store_every=0)  # bad: its error comes after the run
         snd(cmd='state')
-        snd(cmd='browser', **{'from': 0, 'count': 1})  # control, behind the sets: they were taken
+        snd(cmd='browser.page', **{'from_row': 0, 'count': 1})  # control, behind the sets: they were taken
         evs, _ = col(lambda e: e.get('ev') == 'browser')
         during = [e for e in evs if e.get('ev') in ('idle', 'done', 'message')]
         check('W106: settings sent during a run get no idle or error while it runs; state still shows the '
@@ -6375,7 +6580,7 @@ def check_settings_during_run():
         check('W106: then each setting is a command of its own, in order: the bad one an error after the run',
               iapp(after[0]) == 0.3 and (num(after[1]) or {}).get('total_time') == 50
               and errs == [[], [], ['Argument "store_every" must be at least 1']], str(errs))
-        snd(cmd='browser', **{'from': rows - 1, 'count': 1})
+        snd(cmd='browser.page', **{'from_row': rows - 1, 'count': 1})
         evs, br = col(lambda e: e.get('ev') == 'browser')
         col(is_idle)
         live = br and br['data']
@@ -6384,22 +6589,22 @@ def check_settings_during_run():
             {'cmd': 'run.configure', 'method': 'runge_kutta'},
             {'cmd': 'run.initial'},
             {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
-            {'cmd': 'browser', 'from': rows - 1, 'count': 1}])
+            {'cmd': 'browser.page', 'from_row': rows - 1, 'count': 1}])
         ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser'), None)
         check('W106: the rows the run stored are those of a run with the old values (the settings did not '
               'reach it)', code == 0 and live and live == ref, '%s vs %s (%s)' % (live, ref, err[-200:]))
         snd(cmd='run.initial')
         evs, _ = col(is_idle, timeout=60 * SLOW)
         rows2 = next((e['rows'] for e in reversed(evs) if is_state(e)), 0)
-        snd(cmd='browser', **{'from': rows2 - 1, 'count': 1})
+        snd(cmd='browser.page', **{'from_row': rows2 - 1, 'count': 1})
         evs, br = col(lambda e: e.get('ev') == 'browser')
         col(is_idle)
         code, out, err = run_replay([
-            {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.3},
+            {'cmd': 'value.set_parameters', 'values': {'iapp': 0.3}},
             {'cmd': 'run.configure', 'total_time': 50},
             {'cmd': 'run.configure', 'method': 'runge_kutta'},
             {'cmd': 'run.initial'},
-            {'cmd': 'browser', 'from': 1000, 'count': 1}])
+            {'cmd': 'browser.page', 'from_row': 1000, 'count': 1}])
         ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser'), None)
         check('W106: the next run uses them (Total 50: 1001 rows, iapp 0.3: the rows of a run set so)',
               rows2 == 1001 and br and br['data'] == ref, '%d rows, %s vs %s' % (rows2, br and br['data'], ref))
@@ -6451,7 +6656,7 @@ def check_open_reload():
 
         def rows_of(name):
             """the stored data as written by the browser (csv), comments dropped"""
-            snd(cmd='browser', op='write', what='table', format='csv', name=name)
+            snd(cmd='browser.export', target='table', format='csv', file=name)
             col(is_idle)
             with open(os.path.join(r, name)) as f:
                 return [l.strip() for l in f if l.strip() and not l.startswith('#')]
@@ -6526,7 +6731,7 @@ def check_open_reload():
         check('the opened model integrates (its 101 rows and their heading)', len(other1) == 102, str(other1[:3]))
 
         # Reload after editing: a's value set in the session stays, the new b comes with its file value
-        snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}])
+        snd(cmd='value.set_parameters', values={'a': 3})
         col(is_idle)
         snd(cmd='ic.set', values={'X': 2})
         col(is_idle)
@@ -6559,7 +6764,7 @@ def check_open_reload():
         check('reload keeps the numerics: Total 10 gives 201 rows', len(rows_of('other_t10.csv')) == 202, '')
 
         # a model that cannot be loaded: the one before stays, integrating to the same data
-        snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1}])
+        snd(cmd='value.set_parameters', values={'a': 1})
         col(is_idle)
         snd(cmd='ic.set', values={'X': 0.5})
         col(is_idle)
@@ -6716,9 +6921,9 @@ def check_display_state():
 
 def check_silent_commands():
     """W56: --silent is a built-in script of the protocol's own commands.
-    Each command it uses where the interface had none (browser write of
-    the output columns with replace, browser postprocess, values query,
-    dfield write, equilibrium write) writes, through --server, the very
+    Each command it uses where the interface had none (browser.export of
+    the output columns with replace, write_values_query's
+    file, dfield write, equilibrium write) writes, through --server, the very
     file the --silent run writes; its .recx also plays silently with the
     same success/error result. --silent prints nothing on stdout."""
     def silent(ode, *flags):
@@ -6752,24 +6957,32 @@ def check_silent_commands():
     try:
         s, r = silent(args.ode, '--qsets', '--qpars', '--qics', '--outfile', 'q.txt')
         dirs.append(s)
-        q, rq = script(args.ode, [{'cmd': 'values', 'op': 'query', 'name': 'q.txt', 'sets': 1, 'pars': 1, 'ics': 1}])
-        dirs.append(q)
-        check('values query writes what --silent --qsets --qpars --qics writes', rq.returncode == 0 and
-              read(q, 'q.txt') is not None and read(q, 'q.txt') == read(s, 'q.txt'), rq.stderr[-300:])
+        query = read(s, 'q.txt') or b''
+        check('--silent --qsets --qpars --qics writes the internal sets, the parameters and the initial conditions, each under its heading',
+              r.returncode == 0 and b'#Internal sets query:' in query and b'#Parameters query:' in query
+              and b'#Initial conditions query:' in query, r.stderr[-300:] + repr(query[:80]))
 
         s, r = silent(args.ode, '--dfdraw', '4', '--equil', '0')
         dirs.append(s)
         check('--silent writes nothing on stdout', r.returncode == 0 and r.stdout == '', r.stdout[:300])
         stale = lambda d: open(os.path.join(d, 'output.dat'), 'w').write('stale\n')
         c, rc = script(args.ode, go + [
-            {'cmd': 'browser', 'op': 'write', 'what': 'output', 'format': 'dat', 'name': 'output.dat', 'replace': 1},
+            {'cmd': 'browser.export', 'target': 'output', 'format': 'dat', 'file': 'output.dat'},
             {'cmd': 'equilibrium.export', 'file': 'equil.dat'},
             {'cmd': 'dirfield.compute', 'grid': 16, 'scaled': False},
-            {'cmd': 'dirfield.export', 'file': 'dirfields.dat'}], before=stale)
+            {'cmd': 'dirfield.export', 'file': 'dirfields.dat'}])
         dirs.append(c)
         check('the script with --silent\'s commands runs through', rc.returncode == 0, rc.stderr[-300:])
-        check('browser write of the output, replace: --silent\'s output.dat, over the file there, unasked',
+        check('browser.export of the output columns: --silent\'s output.dat',
               read(c, 'output.dat') is not None and read(c, 'output.dat') == read(s, 'output.dat'))
+        # --silent replaces the file that is there, unasked
+        over, ro = silent(args.ode)
+        dirs.append(over)
+        stale(over)
+        ro = subprocess.run([os.path.abspath(args.server), os.path.basename(args.ode), '--silent'], cwd=over,
+                            capture_output=True, text=True, timeout=60 * SLOW)
+        check('--silent writes its output.dat over the file there, unasked',
+              ro.returncode == 0 and read(over, 'output.dat') == read(s, 'output.dat') and 'Replace it' not in ro.stderr, ro.stderr[-300:])
         check('equilibrium write: --silent --equil 0\'s equil.dat',
               read(c, 'equil.dat') is not None and read(c, 'equil.dat') == read(s, 'equil.dat'))
         df = read(c, 'dirfields.dat') or b''
@@ -6788,8 +7001,8 @@ def check_silent_commands():
         s, r = silent(post)
         dirs.append(s)
         c, rc = script(post, go + [{'cmd': 'analysis.histogram'},
-                                   {'cmd': 'browser', 'op': 'write', 'what': 'output', 'format': 'dat',
-                                    'name': 'output.dat'}])
+                                   {'cmd': 'browser.export', 'target': 'output', 'format': 'dat',
+                                    'file': 'output.dat'}])
         dirs.append(c)
         hist = read(c, 'output.dat') or b''
         check('analysis.histogram: the model\'s @ postprocess histogram (20 bins), as --silent writes it',
@@ -6972,10 +7185,10 @@ def check_outcomes_once():
         check('a converged script fit exits 0 and sends exactly one info outcome, no error dialog event',
               r.returncode == 0 and results.count('Success!') == 1 and not errors, str((r.returncode, results, errors, r.stderr[-300:])))
         saved_csv = [
-            {'cmd': 'set', 'kind': 'par', 'name': 'a', 'value': 2},
+            {'cmd': 'value.set_parameters', 'values': {'a': 2}},
             {'cmd': 'run.initial'},
-            {'cmd': 'browser', 'op': 'write', 'what': 'table', 'format': 'csv', 'name': 'saved.csv', 'replace': 1},
-            {'cmd': 'set', 'kind': 'par', 'name': 'a', 'value': 1}]
+            {'cmd': 'browser.export', 'target': 'table', 'format': 'csv', 'file': 'saved.csv'},
+            {'cmd': 'value.set_parameters', 'values': {'a': 1}}]
         r, evs = run(saved_csv + fit('saved.csv'))
         results = [e.get('bottom', '').strip() for e in evs if e.get('ev') == 'message']
         errors = [e for e in evs if e.get('error')]
@@ -7166,7 +7379,7 @@ def check_session_random():
         return p, r, snd, col, run
 
     def write(run, name):
-        run(cmd='browser', op='write', what='output', format='dat', name=name, replace=1)
+        run(cmd='browser.export', target='output', format='dat', file=name)
 
     def read(r, name):
         path = os.path.join(r, name)
@@ -7288,7 +7501,7 @@ def check_save_session():
         check('W209: it writes sv1.snapx and the Session remembers it, unchanged',
               os.path.exists(snapx('sv1.snapx')) and state(evs).get('session') == {'file': 'sv1.snapx'}
               and state(evs).get('changed') is False, str(state(evs)))
-        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.4}])
+        evs = run(cmd='value.set_parameters', values={'phi': 0.4})
         check('W209: a parameter edit sets changed', state(evs).get('changed') is True, str(state(evs).get('changed')))
         before = open(snapx('sv1.snapx'), 'rb').read()
         evs = run(cmd='key', menu='file', item='savesession', replace=0)
@@ -7314,7 +7527,7 @@ def check_save_session():
         check('W209: Save session as a new name writes it, remembers it and clears changed',
               os.path.exists(snapx('sv2.snapx')) and state(evs).get('session') == {'file': 'sv2.snapx'}
               and state(evs).get('changed') is False, str(state(evs)))
-        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.5}])
+        evs = run(cmd='value.set_parameters', values={'phi': 0.5})
         evs = run(cmd='key', menu='file', item='savesession', replace=0)
         check('W209: Save session now goes to sv2.snapx, asking nothing',
               not asks(evs) and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is False, str(asks(evs))[:200])
@@ -7326,7 +7539,7 @@ def check_save_session():
         check('W218: Save session after Reload asks nothing and writes sv2.snapx',
               not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and state(evs).get('changed') is False
               and state(evs).get('session') == {'file': 'sv2.snapx'}, str(asks(evs))[:200])
-        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.7}])
+        evs = run(cmd='value.set_parameters', values={'phi': 0.7})
         evs = run({'file': 'cp1'}, cmd='key', menu='file', item='savesessioncopy', replace=0)
         a = asks(evs)
         check('W218: Save a copy asks for a path (the file picker), writes it, and leaves the file and changed as they were',
@@ -7343,7 +7556,7 @@ def check_save_session():
         check('W218: Save session after a copy still writes sv2.snapx, not the copy',
               not asks(evs) and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is False
               and open(snapx('cp1.snapx'), 'rb').read() == copy_bytes, str(asks(evs))[:200])
-        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.6}])
+        evs = run(cmd='value.set_parameters', values={'phi': 0.6})
         evs = run({'key': 'd'}, cmd='session', op='load', name='sv1')
         check('W209: opening a session file clears changed and names it',
               state(evs).get('changed') is False and state(evs).get('session', {}).get('file', '').endswith('sv1.snapx'),
@@ -7355,7 +7568,7 @@ def check_save_session():
         errs = lambda evs: [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
         undo = lambda: run(cmd='key', menu='main', item='undo')
         redo = lambda: run(cmd='key', menu='main', item='redo')
-        edit = lambda v: run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': v}])
+        edit = lambda v: run(cmd='value.set_parameters', values={'phi': v})
         phi0 = pars(evs)['phi']
         check('W210: a loaded model has nothing to undo or redo',
               state(evs).get('can_undo') is False and state(evs).get('can_redo') is False, str(state(evs).get('can_undo')))
@@ -7377,13 +7590,13 @@ def check_save_session():
         check('W210: a new edit forgets what could be redone', state(evs).get('can_redo') is False and state(evs).get('can_undo') is True)
         evs = redo()
         check('W210: Redo with nothing to redo is an error', len(errs(evs)) == 1 and 'redo' in str(errs(evs)[0]) and pars(evs)['phi'] == 0.3)
-        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.4}])
+        evs = run(cmd='value.set_parameters', values={'phi': 0.4})
         evs = run(cmd='run.configure', total_time=123)
         evs = undo()
         check('W210: run.configure is an undo step of its own: the parameter edit before it stays', pars(evs)['phi'] == 0.4, str(pars(evs)['phi']))
         evs = undo()
         check('W210: ... and the parameter edit is the step after it', pars(evs)['phi'] == 0.3, str(pars(evs)['phi']))
-        evs = run(cmd='restoredefaults', scope='parameters')
+        evs = run(cmd='set.restore_defaults', scope='parameters')
         check('W210: Reset all (default) goes on the stack too', pars(evs)['phi'] != 0.3)
         evs = undo()
         check('W210: ... and Undo brings the edited values back', pars(evs)['phi'] == 0.3)
@@ -7407,7 +7620,7 @@ def check_save_session():
         evs = edit(0.11)
         before = pars(evs)['phi']
         for v in (0.12, 0.13, 0.14):
-            evs = run(cmd='slide', name='phi', value=v)
+            evs = run(cmd='value.slide', name='phi', value=v)
         check('W210: a slider drag moves the value', pars(evs)['phi'] == 0.14)
         evs = undo()
         check('W210: one Undo takes back the whole drag', pars(evs)['phi'] == before, str(pars(evs)['phi']))
@@ -7532,7 +7745,7 @@ def check_session_file():
         col(is_idle)
         answered(snd, col, (), **SUBSCRIBE)
         allev.extend(lecar_to_auto(snd, col))
-        answered(snd, col, (), cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.4}])
+        answered(snd, col, (), cmd='value.set_parameters', values={'phi': 0.4})
         answered(snd, col, (), cmd='ic.set', values={'V': -0.3})
         answered(snd, col, (), cmd='run.initial')
         answered(snd, col, (), cmd='window.set_display', window='graph_1', x_range=[0, 50], y_range=[-0.5, 0.3], show_earlier_runs=False)
@@ -7547,14 +7760,14 @@ def check_session_file():
         answered(snd, col, (), cmd='window.create')
         # W145: an added browser column is saved with the session and comes back computed
         key(snd, col, 'a', {'ok': 1, 'value': 'VW'}, {'ok': 1, 'value': 'v*w'}, win='browser')
-        browser1 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser', **{'from': 0, 'count': 2}))
+        browser1 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser.page', **{'from_row': 0, 'count': 2}))
                          if e.get('ev') == 'browser'), None)
         check('W145: the added column VW is in the browser before the save',
               browser1 is not None and browser1.get('cols', [])[-1:] == ['VW'], str(browser1)[:200])
         # W135: definitions and computed/frozen nullclines are Session members.
-        answered(snd, col, (), cmd='slider', slot=0, name='iapp', lo=-1, hi=2, step=0.01)
-        answered(snd, col, (), cmd='slider', slot=2, name='V', lo=-2, hi=2, step=0.02)
-        answered(snd, col, (), cmd='slider', slot=3, name='phi', lo=0, hi=1, step=0.001)
+        answered(snd, col, (), cmd='value.configure_slider', slot=0, name='iapp', low=-1, high=2, step=0.01)
+        answered(snd, col, (), cmd='value.configure_slider', slot=2, name='V', low=-2, high=2, step=0.02)
+        answered(snd, col, (), cmd='value.configure_slider', slot=3, name='phi', low=0, high=1, step=0.001)
         answered(snd, col, (), cmd='nullcline.compute')
         answered(snd, col, (), cmd='nullcline.freeze')
         answered(snd, col, (), cmd='session', op='save', name='s1')
@@ -7640,7 +7853,7 @@ def check_session_file():
         check('open session of the model open: asks once whether to save this session first',
               len(asks) == 1 and asks[0].get('kind') == 'choice' and asks[0].get('keys') == 'sd', str(asks[:2]))
         diagram2 = restored_as_saved('open session')
-        browser2 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser', **{'from': 0, 'count': 2}))
+        browser2 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser.page', **{'from_row': 0, 'count': 2}))
                          if e.get('ev') == 'browser'), None)
         check('W145: open session: the added column VW is back, computed as before the save',
               browser1 is not None and browser2 == browser1, '%s\n    %s' % (str(browser1)[:200], str(browser2)[:200]))
@@ -8033,8 +8246,8 @@ def check_save_recording():
             evs, end = col(lambda e: is_idle(e) or is_ask(e))
             check('W129: key save with explicit command/dialog decision asks no core question',
                   end is not None and is_idle(end), str(end))
-        fresh = run(cmd='values', op='write', kind='par', name='browser-new.par', replace=0)
-        snd(cmd='values', op='write', kind='par', name='browser-no.par', replace=0)
+        fresh = run(cmd='value.save_file', kind='parameters', file='browser-new.par')
+        snd(cmd='value.save_file', kind='parameters', file='browser-no.par')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='n')
         declined, _ = col(is_idle)
@@ -8061,7 +8274,11 @@ def check_save_recording():
         prepared = run(cmd='session', op='save', name='dialog-save.snapx', replace=1)
         check('W129: the replay folder already contains the native dialog destination',
               any(e.get('ev') == 'saved' and e.get('saved') and e.get('file') == 'dialog-save.snapx' for e in prepared), str(prepared)[-200:])
-        run(cmd='values', op='write', kind='par', name='browser-new.par', replace=1)
+        snd(cmd='value.save_file', kind='parameters', file='browser-new.par')
+        evs, end = col(lambda e: is_ask(e) or is_idle(e))
+        if end and is_ask(end):
+            snd(cmd='answer', id=end['id'], key='y')
+            col(is_idle)
         snd(cmd='play', op='start')
         evs, end = col(lambda e: e.get('ev') == 'state'
                         and (e.get('player') or {}).get('step') == 8
@@ -8323,7 +8540,7 @@ def check_recording():
         evs, _ = col(is_idle, timeout=30 * SLOW)
         stopped = [e['at'] for e in evs if e.get('ev') == 'stopped']
         run(cmd='window.set_display', window='graph_1', x_range=[0, 50])
-        st = last_state(run(cmd='set', kind='par', name='iapp', value=0.1))
+        st = last_state(run(cmd='value.set_parameters', values={'iapp': 0.1}))
         check('record: state counts the steps taken', st and st['recording']['steps'] == 6, str(st and st.get('recording')))
         evs = run(cmd='record', op='stop', name='mine')
         path = os.path.join(r, 'mine.recx')
@@ -8352,7 +8569,7 @@ def check_recording():
               and stopped[0]['what'] == 'integrate', str(s[3:4]) + str(stopped))
         check('record: a zoom is a view step with its command; a set a step of its own',
               s[4:6] == [{'step': 'Zoom window graph_1', 'cmd': {'cmd': 'window.set_display', 'window': 'graph_1', 'x_range': [0, 50]}, 'view': True},
-                         {'step': 'Set iapp = 0.1', 'cmd': {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.1}}]
+                         {'step': 'Set iapp = 0.1', 'cmd': {'cmd': 'value.set_parameters', 'values': {'iapp': 0.1}}}]
               and len(s) == 6, str(s[4:]))
         check('record: the fingerprint is the files\' and steps\' SHA-256', written == got and len(got) == 64, '%s %s' % (written, got))
         edited = text.replace('# First run.', '# The first run.')
@@ -8363,10 +8580,10 @@ def check_recording():
         check('record: editing a step changes it', edited != text and w2 != g2, '')
 
         # File/recorD starts and stops; the File menu opened to stop is no step
-        run(cmd='values', op='write', kind='par', name='saved.par')
+        run(cmd='value.save_file', kind='parameters', file='saved.par')
         run(cmd='key', key='f')
         run(cmd='key', key='d')
-        run(cmd='values', op='read', kind='par', name='saved.par')
+        run(cmd='value.load_file', kind='parameters', file='saved.par')
         run(cmd='window.clear')
         run(cmd='key', key='f')
         snd(cmd='key', key='d')
@@ -8378,7 +8595,7 @@ def check_recording():
         _, files, steps, written, got = read_recx(open(os.path.join(r, 'menu.recx'), encoding='utf-8').read()
                                                   if os.path.exists(os.path.join(r, 'menu.recx')) else '')
         check('File/recorD: the steps between (the file a step read named by its section), and not the File menu opened to stop',
-              [x for x, _ in steps] == [{'step': 'Values read', 'cmd': {'cmd': 'values', 'op': 'read', 'kind': 'par', 'name': 'saved.par'},
+              [x for x, _ in steps] == [{'step': 'Values → Load file', 'cmd': {'cmd': 'value.load_file', 'kind': 'parameters', 'file': 'saved.par'},
                                          'files': [2]},
                                         {'step': 'Clear plot', 'cmd': {'cmd': 'window.clear'}, 'view': True}] and written == got, str(steps))
         par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()
@@ -8410,7 +8627,7 @@ def check_player():
         return col(is_ask)[1]
 
     def write(name):
-        run(cmd='browser', op='write', what='output', format='dat', name=name, replace=1)
+        run(cmd='browser.export', target='output', format='dat', file=name)
 
     def open_player(name):
         """play open, answering the question about this model's session"""
@@ -8446,13 +8663,13 @@ def check_player():
         col(is_idle)
         # W59d: the recording begins partway through the session, after a
         # parameter changed and a run: the replay starts from that state
-        run(cmd='set', kind='par', name='phi', value=0.06)
+        run(cmd='value.set_parameters', values={'phi': 0.06})
         run(cmd='run.initial')
         run(cmd='record', op='start')
         run(cmd='record', op='note', text='The cell fires once and settles.')
         run(cmd='run.initial')
         write('run1.dat')
-        run(cmd='set', kind='par', name='iapp', value=0.08)
+        run(cmd='value.set_parameters', values={'iapp': 0.08})
         run(cmd='run.initial')
         write('run2.dat')
         run(cmd='run.configure', total_time=1e7)
@@ -8526,7 +8743,7 @@ def check_player():
               and steps2[3][1] == 'Now the drive current is raised.' and w2 == g2, str(steps2[3:4]))
 
         # a changed step: a warning (intact false) and it still plays
-        changed = text.replace('"value": 0.08', '"value": 0.09')
+        changed = text.replace('"iapp": 0.08', '"iapp": 0.09')
         open(os.path.join(r, 'changed.recx'), 'w', encoding='utf-8').write(changed)
         pl, evs = open_player(os.path.join(r, 'changed.recx'))
         check('play open: a changed step makes the file not intact', pl and pl.get('intact') is False and changed != text,
@@ -8980,7 +9197,7 @@ def check_terminal_playback():
               and 'saved.dat exists. Replace it? -> yes (answered automatically)' in result.stderr, result.stderr)
         with open(path, encoding='utf-8') as f: template = f.read()
         for name in ['../escaped.par', 'sub/escaped.par', os.path.join(destination, 'escaped.par'), 'bad..par']:
-            steps = [{'cmd':{'cmd':'values', 'op':'write', 'kind':'par', 'name':name, 'replace':1}},
+            steps = [{'cmd':{'cmd': 'value.save_file', 'kind': 'parameters', 'file':name}},
                      {'cmd':{'cmd':'file', 'op':'put', 'name':'after.dat', 'data':'YWZ0ZXI='}}]
             with open(path, 'w', encoding='utf-8', newline='\n') as f: f.write(recording_text(template, steps))
             if os.path.exists(after): os.remove(after)
@@ -9928,7 +10145,7 @@ def check_range_files():
                 check('W349: session load restores rangefiles: a range with no arguments writes its runs', len(paths) == 3, str(paths))
                 for path in paths:
                     os.remove(path)
-                s.send(cmd='savedefaults', scope='all')
+                s.send(cmd='set.save_defaults', scope='all')
                 s.answer_asks(is_idle, {'choice': lambda e: {'key': 'y'}})
                 saved = open(os.path.join(run, 'range.odex')).read()
                 check('W349: saving .odex writes the named range setting', 'rangefiles: true' in saved, saved)
@@ -10346,7 +10563,7 @@ def check_analysis_registry():
     p, r, snd, col, call, ok, refused = session()
 
     def browser_rows():
-        snd(cmd='browser', **{'from': 0, 'count': 12, 'col': 0, 'ncol': 2})
+        snd(cmd='browser.page', **{'from_row': 0, 'count': 12, 'first_column': 1, 'columns': 2})
         _, rows = col(lambda e: e.get('ev') == 'browser')
         col(is_idle)
         return (rows or {}).get('data')
@@ -10491,7 +10708,7 @@ def check_analysis_registry():
         check('W525: Numerics, Stochastic, Stat shows the command\'s mean and standard deviation',
               any(re.search(r'Mean=%s Std. Dev. = %s' % (re.escape('%g' % got['mean']), re.escape('%g' % got['std_dev'])), b) for b in bottom), str(bottom))
         # the old forms are gone
-        for old, words in (({'cmd': 'browser', 'op': 'postprocess'}, 'Unknown browser op'), ({'cmd': 'browser', 'op': 'postprocess', 'kind': 'hist'}, 'Unknown browser op'),
+        for old, words in (({'cmd': 'browser', 'op': 'postprocess'}, 'Unknown command browser'), ({'cmd': 'browser', 'op': 'postprocess', 'kind': 'hist'}, 'Unknown command browser'),
                            ({'cmd': 'set', 'kind': 'options', 'name': 'seed', 'value': 3}, 'set takes kind')):
             snd(**old)
             evs, _ = col(is_idle)

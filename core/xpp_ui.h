@@ -136,7 +136,6 @@ int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std:
    answer means (Cancel, Refuse). yes_key is the suggested answer. */
 int Choose(std::string_view title, std::string_view question, std::span<const std::string> choices,
            std::string_view keys, char yes_key);
-void respond_box(std::string_view button, std::string_view message);
 /* A yes/no question; independent guards never take a recorded answer. */
 bool confirm(std::string_view question, bool independent = false);
 /* Every answer taken without asking (-y / --yes, a recording's answer in
@@ -204,7 +203,6 @@ typedef struct XppUi {
     int (*new_string)(std::string_view name, std::string &value, int kind);
     int (*choose)(std::string_view title, std::string_view question, std::span<const std::string> choices,
                   std::string_view keys, char yes_key);
-    void (*respond_box)(std::string_view button, std::string_view message); /* alert with one button */
     /* toggle a set of flags (1/0) by name; flags are edited in place and
        restored on cancel. Returns 1 for done, 0 for cancel. */
     int (*checklist)(std::string_view title, const char *const *names, int *flags, int n);

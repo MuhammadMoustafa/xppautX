@@ -10,6 +10,7 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "typed_values.h"
+#include "value_undo.h"
 #include "many_pops.h"
 #include "xpp_log.h"
 #include "lunch-new.h"
@@ -552,30 +553,31 @@ Result<std::vector<double>> read_ic_file(const xpp::Model &m, std::string_view p
   return read_file_lines("initial conditions file",path,[&m](Lines &l){ return read_ics(m,l); },xpp::settings_bytes_limit);
 }
 
-void load_parameter_file_named(xpp::Session &s, std::string_view fn)
+Result<> load_parameter_file_named(xpp::Session &s, std::string_view fn)
 {
   const xpp::Model &m=s.model();
   const Result<std::vector<double>> z=read_parameter_file(m,fn);
-  if(!z){
-    show_error(z.error());
-    return;
-  }
+  if(!z)return std::unexpected(z.error());
   for(int i=0;i<m.nupar;i++)set_val(s,m.upar_names[i],(*z)[static_cast<std::size_t>(i)]);
   redraw_params();
   redo_stuff(s);
+  return {};
 }
 
-void write_parameter_file(xpp::Session &s, std::string_view fn)
+Result<bool> write_parameter_file(xpp::Session &s, std::string_view fn)
 {
   const xpp::Model &m=s.model();
-  xpp::Writer w=open_writer_asking(std::string(fn).c_str());
-  if(!w)return;
+  Result<> opened;
+  xpp::Writer w=open_writer_asking(std::string(fn).c_str(),false,&opened);
+  if(!opened)return std::unexpected<Error>(opened.error());
+  if(!w)return false;
   FILE *fp=w.file();
   write_whole(fp,m.nupar,"Number params");
   for(int i=0;i<m.nupar;i++)write_real(fp,parameter_value(s,i),m.upar_names[i]);
   time_t ttt=time(0);
   xpp::print(fp,"\n\nFile:{}\n{}",m.this_file,ctime(&ttt));
-  xpp::ok_or_show(xpp::commit_save(w));
+  if(Result<> saved=xpp::commit_save(w);!saved)return std::unexpected<Error>(saved.error());
+  return true;
 }
 
 /* the --icfile / Initialconds/File format: the values alone, one per
@@ -592,52 +594,46 @@ Result<> load_ic_file_named(xpp::Session &s, std::string_view fn)
   return {};
 }
 
-void write_ic_file(const xpp::Session &s, std::string_view fn)
+Result<bool> write_ic_file(const xpp::Session &s, std::string_view fn)
 {
-  xpp::Writer w=open_writer_asking(std::string(fn).c_str());
-  if(!w)return;
+  Result<> opened;
+  xpp::Writer w=open_writer_asking(std::string(fn).c_str(),false,&opened);
+  if(!opened)return std::unexpected<Error>(opened.error());
+  if(!w)return false;
   for(int i=0;i<s.model().node;i++)w.print("{:.16g}\n",s.last_ic[i]);
-  xpp::ok_or_show(xpp::commit_save(w));
+  if(Result<> saved=xpp::commit_save(w);!saved)return std::unexpected<Error>(saved.error());
+  return true;
 }
 
-namespace {
-
-/* the values panel's Save/Load of .par and .ic (docs/protocol.md
-   "values"), shared by the four functions below: name empty asks for
-   one like Save data does (title/wild picking the dialog and the
-   extension), given skips the ask; then io(s, name); a save with
-   nothing to write (available false) stops before the name is asked */
-template <class F>
-void named_value_file(xpp::Session &s, std::string name, const char *title, const char *ext, F io, bool available = true)
+Result<ValueFileSaved> save_value_file(xpp::Session &s, ValueFile kind, std::string file)
 {
-  if(!save_ready(available))return;
-  if(name.empty()){
-    name=xpp::files::output_name(s.model().this_file,ext);
-    if(!file_selector(title,name,xpp::format("*{}",ext)))return;
+  const bool parameters=kind==ValueFile::parameters;
+  if(parameters?s.model().nupar<=0:s.model().node<=0){
+    ui.save_result("",false);
+    return fail("save",xpp::format("Nothing to save: the model has no {}",parameters?"parameters":"initial conditions"),command_place());
   }
-  io(s,name);
+  if(file.empty()){
+    const char *ext=parameters?".par":".ic";
+    file=xpp::files::output_name(s.model().this_file,ext);
+    if(!file_selector(parameters?"Save Parameters":"Save Initial Conditions",file,xpp::format("*{}",ext)))return ValueFileSaved{};
+  }
+  const Result<bool> written=parameters?write_parameter_file(s,file):write_ic_file(s,file);
+  if(!written)return std::unexpected<Error>(written.error());
+  return ValueFileSaved{file,*written};
 }
 
-} // namespace
-
-void save_parameter_file(xpp::Session &s, std::string name)
+Result<std::string> load_value_file(xpp::Session &s, ValueFile kind, std::string file)
 {
-  named_value_file(s,std::move(name),"Save Parameters",".par",write_parameter_file,s.model().nupar>0);
-}
-
-void save_ic_file(xpp::Session &s, std::string name)
-{
-  named_value_file(s,std::move(name),"Save Initial Conditions",".ic",write_ic_file,s.model().node>0);
-}
-
-void load_parameter_file(xpp::Session &s, std::string name)
-{
-  named_value_file(s,std::move(name),"Load Parameters",".par",load_parameter_file_named);
-}
-
-void load_ic_file(xpp::Session &s, std::string name)
-{
-  named_value_file(s,std::move(name),"Load Initial Conditions",".ic",[](xpp::Session &session,std::string_view file){xpp::ok_or_show(load_ic_file_named(session,file));});
+  const bool parameters=kind==ValueFile::parameters;
+  if(file.empty()){
+    const char *ext=parameters?".par":".ic";
+    file=xpp::files::output_name(s.model().this_file,ext);
+    if(!file_selector(parameters?"Load Parameters":"Load Initial Conditions",file,xpp::format("*{}",ext)))return std::string{};
+  }
+  xpp::push_value_undo(s);
+  const Result<> loaded=parameters?load_parameter_file_named(s,file):load_ic_file_named(s,file);
+  if(!loaded)return std::unexpected<Error>(loaded.error());
+  return file;
 }
 
 void write_values_query(const xpp::Session &s, std::string_view name, bool sets, bool pars, bool ics)

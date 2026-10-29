@@ -156,9 +156,7 @@ export const HELLO: HelloEvent = {
     {cmd: 'display', kind: 'v', step: true},
     ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?XPP_KIND_(\w+)[\s\S]*?,\s*(true|false),\s*[\w:<>]+(?:,\s*\w+)?\}/g)]
       .map(m => ({cmd: m[1], kind: ({VIEW: 'v', COMPUTE: 'x', SETTING: 's', CONTROL: 'c', DATA: 'd'} as Record<string, string>)[m[2]], step: m[3] === 'true'})),
-    {cmd: 'browser', op: 'write', kind: 'd', step: true}, {cmd: 'browser', kind: 'v', step: false},
-    {cmd: 'set', kind: 's', step: true}, {cmd: 'slider', kind: 's', step: true},
-        {cmd: 'values', op: 'write', kind: 'd', step: true}, {cmd: 'values', kind: 's', step: true},
+    {cmd: 'set', kind: 's', step: true},
     {cmd: 'userbut', kind: 'x', step: true},
   ],
   upload_error: 'larger than 64 MB',

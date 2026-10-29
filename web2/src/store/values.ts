@@ -1,5 +1,5 @@
 /* Parameters, initial conditions, boundary conditions and delays
-   (docs/protocol.md `set`, `slide`, `default`; docs/ui-v2.md T3,
+   (docs/protocol.md `value.set_parameters`, `set`; docs/ui-v2.md T3,
    GitHub #155): the values themselves stay in AppState.core (the `state`
    event), sent by the core. They are settings (W106): an edit (a slider,
    a value field, Default/Reset, a numerics field) goes to the core at
@@ -166,19 +166,29 @@ function argumentValue(type: string | undefined, text: string): unknown {
   return text;
 }
 
-/** The commands that send these edits (docs/protocol.md): parameters, boundary conditions, delays and the
-    numerics no registry command takes go in one `set` (one value, or `values`); initial conditions in
-    `ic.set` (a number) or `ic.formula` (a %formula, one each); the run's and the shooting's numerics in
-    `run.configure` and `bvp.configure`. */
+/** a parameter's typed text as the registry's `real` takes it: the number it is, else the text itself, which
+    the core refuses naming the argument (a blank is no 0) */
+function parameterValue(text: string): number | string {
+  const trimmed = text.trim();
+  return trimmed !== '' && Number.isFinite(Number(trimmed)) ? Number(trimmed) : text;
+}
+
 /** the equilibrium.configure arguments the Numerics sIng pt settings are (a numerics key to its argument) */
 const EQUILIBRIUM_ARGUMENTS: Record<string, string> = {max_iterations: 'max_iterates', newton_tolerance: 'newton_tolerance', jacobian_step: 'jacobian_epsilon', search_limit: 'search_limit'};
 
+/** The commands that send these edits (docs/protocol.md): parameters in `value.set_parameters` (a number) or
+    `value.set_by_formula` (a %formula, one each); boundary conditions, delays and the numerics no registry
+    command takes go in one `set` (one value, or `values`); initial conditions in `ic.set` (a number) or
+    `ic.formula` (a %formula, one each); the run's and the shooting's numerics in `run.configure` and
+    `bvp.configure`; the nullcline mesh and the equilibria's settings in their own. */
 export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): ValueCommand[] {
   const run = argumentTypes(hello, 'run.configure'), bvp = argumentTypes(hello, 'bvp.configure');
   const BVP = 'bvp_';
-  const meshes: ValueSet[] = [], equilibria: ValueSet[] = [], plain: ValueSet[] = [], ics: ValueSet[] = [], formulas: ValueSet[] = [], runs: ValueSet[] = [], bvps: ValueSet[] = [];
+  const meshes: ValueSet[] = [], equilibria: ValueSet[] = [], plain: ValueSet[] = [], pars: ValueSet[] = [], par_formulas: ValueSet[] = [],
+    ics: ValueSet[] = [], formulas: ValueSet[] = [], runs: ValueSet[] = [], bvps: ValueSet[] = [];
   for (const s of sets) {
-    if (s.kind === 'ic') (s.text.trim().startsWith('%') ? formulas : ics).push(s);
+    if (s.kind === 'par') (s.text.trim().startsWith('%') ? par_formulas : pars).push(s);
+    else if (s.kind === 'ic') (s.text.trim().startsWith('%') ? formulas : ics).push(s);
     else if (s.kind === 'num' && s.name !== undefined && s.name in run) runs.push(s);
     else if (s.kind === 'num' && s.name?.startsWith(BVP) && s.name.slice(BVP.length) in bvp) bvps.push(s);
     else if (s.kind === 'num' && s.name === 'nullcline_mesh') meshes.push(s);
@@ -187,6 +197,9 @@ export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): Value
   }
   const result: ValueCommand[] = [];
   if (plain.length) result.push({command: plain.length === 1 ? {cmd: 'set', ...setMembers(plain[0])} : {cmd: 'set', values: plain.map(setMembers)}, sets: plain});
+  if (pars.length) result.push({command: {cmd: 'value.set_parameters', values: Object.fromEntries(pars.map(s => [s.name!, parameterValue(s.text)]))}, sets: pars});
+  for (const s of par_formulas)
+    result.push({command: {cmd: 'value.set_by_formula', name: s.name!, formula: s.text.trim().slice(1)}, sets: [s]});
   if (ics.length) result.push({command: {cmd: 'ic.set', values: Object.fromEntries(ics.map(s => [s.name!, Number(s.text)]))}, sets: ics});
   for (const s of formulas)
     result.push({command: {cmd: 'ic.formula', variable: s.name!, formula: s.text.trim().slice(1)}, sets: [s]});

@@ -277,17 +277,6 @@ int j_choose(std::string_view title, std::string_view q, std::span<const std::st
     return static_cast<unsigned char>(k[0]);
 }
 
-void j_respond_box(std::string_view button, std::string_view message)
-{
-    std::string b;
-    int id = ask_begin(b, "alert");
-    BUF_LIT(b, ",\"button\":");
-    buf_str(b, button);
-    BUF_LIT(b, ",\"message\":");
-    buf_str(b, message);
-    ask_wait(b, id);
-}
-
 int j_checklist(std::string_view title, const char *const *names, int *flags, int n)
 {
     std::string b;

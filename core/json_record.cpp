@@ -75,22 +75,35 @@ std::string command_label(const char *line)
     std::string c, o, name, v;
     get_string(line, "cmd", c);
     get_string(line, "op", o);
-    if (c == "set" || c == "slide") {
+    if (c == "set") {
         if (js_find(line, "values")) return "Set values";
         if (!get_string(line, "name", name)) name = xpp::format("{} {}", get_string(line, "kind", v) ? v : "", get_int(line, "index", 0));
         if (!get_string(line, "text", v)) v = std::string(js_raw(js_find(line, "value")));
-        return xpp::format("{} {} = {}", c == "set" ? "Set" : "Slide", name, v);
+        return xpp::format("Set {} = {}", name, v);
+    }
+    if (c == "value.slide") {
+        get_string(line, "name", name);
+        return xpp::format("Slide {} = {}", name, js_raw(js_find(line, "value")));
+    }
+    if (c == "value.set_parameters") {
+        const char *cursor = js_find(line, "values"), *item = nullptr;
+        std::string key;
+        if (cursor && js_member(cursor, key, item)) {
+            const std::string_view first = js_raw(item);
+            if (!js_member(cursor, name, item)) return xpp::format("Set {} = {}", key, first);
+        }
+        return "Set values";
     }
     if (c == "window.set_display") {get_string(line,"window",name);return xpp::format("Zoom window {}",name);}
     if (c == "window.clear") return "Clear plot";
     if (c == "window.redraw") return "Redraw plot";
-    if (c == "applyset") return xpp::format("Apply set {} ({})", get_string(line, "set", name) ? name : "", get_string(line, "scope", v) ? v : "");
-    if (c == "restoredefaults") return xpp::format("Restore defaults of {}{}", get_string(line, "scope", v) ? v : "", get_string(line, "field", name) ? " " + name : "");
-    if (c == "saveset") return xpp::format("Save {} values in set {}", get_string(line, "scope", v) ? v : "", get_string(line, "set", name) ? name : "");
-    if (c == "savedefaults") return xpp::format("Save {} values as defaults", get_string(line, "scope", v) ? v : "");
-    if (c == "exportset") return xpp::format("Export {} values as set {}", get_string(line, "scope", v) ? v : "", get_string(line, "set", name) ? name : "");
-    if (c == "renameset") return xpp::format("Rename set {} to {}", get_string(line, "set", name) ? name : "", get_string(line, "to", v) ? v : "");
-    if (c == "deleteset") return xpp::format("Delete set {}", get_string(line, "set", name) ? name : "");
+    if (c == "set.apply") return xpp::format("Apply set {} ({})", get_string(line, "name", name) ? name : "", get_string(line, "scope", v) ? v : "");
+    if (c == "set.restore_defaults") return xpp::format("Restore defaults of {}{}", get_string(line, "scope", v) ? v : "", get_string(line, "field", name) ? " " + name : "");
+    if (c == "set.save_new" || c == "set.save_into") return xpp::format("Save {} values in set {}", get_string(line, "scope", v) ? v : "", get_string(line, "name", name) ? name : "");
+    if (c == "set.save_defaults") return xpp::format("Save {} values as defaults", get_string(line, "scope", v) ? v : "");
+    if (c == "set.export") return xpp::format("Export {} values as set {}", get_string(line, "scope", v) ? v : "", get_string(line, "name", name) ? name : "");
+    if (c == "set.rename") return xpp::format("Rename set {} to {}", get_string(line, "from", name) ? name : "", get_string(line, "to", v) ? v : "");
+    if (c == "set.delete") return xpp::format("Delete set {}", get_string(line, "name", name) ? name : "");
     /* a registry command's label is its menu path ("Initialconds → Go") */
     if (const xpp::command::Command *registered = xpp::command::find(xpp::command::name(line)); registered && *registered->menu_path) {
         std::string label = registered->menu_path;
@@ -335,7 +348,7 @@ void record_save_decision(int decision, bool asked)
 void record_answer(const char *kind, const char *answer, bool ok)
 {
     StepTaken &t = recorder.step;
-    if (!recorder.rec || !t.open || strcmp(kind, "alert") == 0) return;
+    if (!recorder.rec || !t.open) return;
     if (strcmp(kind, "menu") == 0 || strcmp(kind, "choice") == 0) {
         std::string k;
         get_string(answer, "key", k);

@@ -493,8 +493,8 @@ void commander(xpp::Session &s, int ch)
     case 'b': find_bvp(s); break;
     case 'x': flash(16); run_the_commands(s, M_X); flash(16); break;
     case '3': run_the_commands(s, M_3); break;
-    case 'z': if (!xpp::undo_values(s)) command_error("undo", "No value edit to undo"); break;
-    case 'y': if (!xpp::redo_values(s)) command_error("redo", "No value edit to redo"); break;
+    case 'z': xpp::ok_or_show(xpp::undo_value_edit(s)); break;
+    case 'y': xpp::ok_or_show(xpp::redo_value_edit(s)); break;
     }
     break;
 

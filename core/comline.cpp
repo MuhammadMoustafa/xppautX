@@ -336,7 +336,7 @@ void load_command_line_values(xpp::Session &s)
   if_needed_load_set(s);
   if(cl.par_file){
     xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",*cl.par_file);
-    load_parameter_file_named(s,*cl.par_file);
+    xpp::ok_or_show(load_parameter_file_named(s,*cl.par_file));
   }
   if(cl.ic_file){
     xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",*cl.ic_file);

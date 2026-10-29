@@ -1,8 +1,8 @@
 /* The data table (docs/ui-v2.md T10, docs/protocol.md `browser`): the core
    keeps one browser window (rows and, since we always ask for every
    column, every variable and aux too) and answers a
-   {"cmd":"browser","from":,"count":,"col":1,"ncol":} request (ncol: hello.limits.browser_cols) with that
-   block at once, even during a prompt or another command (a control line,
+   {"cmd":"browser.page","from_row":,"count":,"first_column":1,"columns":} request (columns: hello.limits.browser_cols)
+   with that block at once, even during a prompt or another command (a control line,
    never busy: state.ts's `sent` case knows not to toggle busy for it). This
    slice keeps the last block the core sent (`page`, docs/protocol.md's
    `browser` event) and the client's own selected row, which the view's

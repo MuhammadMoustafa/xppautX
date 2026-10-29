@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include "form_ode.h"
+#include <array>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -44,23 +45,30 @@ Result<> import_settings(Session &s, std::string_view path, bool redraw);
 Result<std::vector<double>> read_parameter_file(const Model &m, std::string_view path);
 Result<std::vector<double>> read_ic_file(const Model &m, std::string_view path);
 /* the parameters or the initial conditions of s read whole from the file
-   fn and applied, or the error (shown, for the parameters') and nothing applied (--parfile,
-   --icfile, ic.load, the values panel's Load); written to it */
-void load_parameter_file_named(Session &s, std::string_view fn);
+   fn and applied, or the error and nothing applied (--parfile, --icfile,
+   ic.load, the values panel's Load); written to it: false when the user
+   declined to replace the file */
+Result<> load_parameter_file_named(Session &s, std::string_view fn);
 Result<> load_ic_file_named(Session &s, std::string_view fn);
-void write_parameter_file(Session &s, std::string_view fn);
-void write_ic_file(const Session &s, std::string_view fn);
-/* the values panel's Save/Load of s's .par and .ic (docs/protocol.md
-   "values"): name empty asks for one like Save data does, given skips
-   the ask */
-void save_parameter_file(Session &s, std::string name);
-void save_ic_file(Session &s, std::string name);
-void load_parameter_file(Session &s, std::string name);
-void load_ic_file(Session &s, std::string name);
+Result<bool> write_parameter_file(Session &s, std::string_view fn);
+Result<bool> write_ic_file(const Session &s, std::string_view fn);
+/* the two files of the values panel's Save and Load: the model's parameters (.par) or its initial conditions (.ic) */
+enum class ValueFile { parameters, initial_conditions };
+inline constexpr std::array<std::string_view, 2> value_file_names = {"parameters", "initial_conditions"};
+/* Save and Load of s's .par and .ic (docs/protocol.md "value.save_file"): file empty asks for one like Save data
+   does, given skips the ask. A Save gives the file asked or given ("" when the user cancelled the question) and
+   whether it was written (not when the user declined to replace it); a Load the file read ("" when the user
+   cancelled the question), as one undo step, all or nothing. */
+struct ValueFileSaved {
+  std::string file;
+  bool written = false;
+};
+Result<ValueFileSaved> save_value_file(Session &s, ValueFile kind, std::string file);
+Result<std::string> load_value_file(Session &s, ValueFile kind, std::string file);
 /* the model's internal sets (name, whether --silent runs it, what it
    sets), its parameters' values in the file and its initial conditions,
    those asked for, each under its # heading, into name (--silent's
-   --qsets/--qpars/--qics, the protocol's `values` `query`) */
+   --qsets/--qpars/--qics) */
 void write_values_query(const Session &s, std::string_view name, bool sets, bool pars, bool ics);
 
 /* File > Import settings (asks for the file), the session s's info file

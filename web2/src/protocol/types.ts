@@ -237,7 +237,7 @@ export interface PlayerEvent {
 export interface PressEvent {
   ev: 'press';
   step: number;
-  what: 'key' | 'answer' | 'cmd' | 'alert';
+  what: 'key' | 'answer' | 'cmd';
   index: number;
   ms: number;
 }
@@ -451,7 +451,7 @@ export interface MarksEvent {
 export interface AskEvent {
   ev: 'ask';
   id: number;
-  kind: 'menu' | 'choice' | 'string' | 'form' | 'checklist' | 'file' | 'alert' | 'mouse' | 'rubber' | 'grab'
+  kind: 'menu' | 'choice' | 'string' | 'form' | 'checklist' | 'file' | 'mouse' | 'rubber' | 'grab'
     | 'drag' | 'pixels' | 'text';
   title?: string;
   name?: string;
@@ -474,8 +474,6 @@ export interface AskEvent {
       cells, row by row, the rest follow as plain fields (the axes dialog) */
   columns?: string[];
   rows?: string[];
-  message?: string;
-  button?: string;
   /** a `file` ask: whether the command opens the file or saves one */
   mode?: 'read' | 'write';
   /** a `file` ask: the name offered (possibly a path), the pattern, and the

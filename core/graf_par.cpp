@@ -1299,7 +1299,7 @@ int get_frz_index(xpp::Session &s, XppWinId w)
    asked from the data formats' registry (data_formats.h) */
 void export_graf_data(xpp::Session &s)
 {
- data_write(s,&s.browser.view,"plot","","");
+ data_write(s,DataTarget::plot_curves,"","");
 }
 
 xpp::DataTable plot_curves_table(const xpp::Session &s)

@@ -19,8 +19,8 @@ test('W95: each action has the kind hello gives it', () => {
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', win: 'auto', key: 'r'}), 'computation');
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', win: 'auto', key: 'a'}), 'view');
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', win: 'auto', key: 'f'}), 'view'); /* AUTO's File: a menu holding a view */
-  assert.equal(kindOf(HELLO, 0, {cmd: 'browser', op: 'write', name: 'x'}), 'data');
-  assert.equal(kindOf(HELLO, 0, {cmd: 'browser', from: 0, count: 10}), 'view');
+  assert.equal(kindOf(HELLO, 0, {cmd: 'browser.export', file: 'x'}), 'data');
+  assert.equal(kindOf(HELLO, 0, {cmd: 'browser.page', from_row: 0, count: 10}), 'view');
   assert.equal(kindOf(HELLO, 0, {cmd: 'userbut', index: 0}), 'computation');
   assert.equal(kindOf(HELLO, 0, {cmd: 'nothing'}), null);
   assert.equal(kindOf(null, 0, {cmd: 'display'}), null);
@@ -34,12 +34,12 @@ test('startup prompts accept answers and cancellation before hello', () => {
 
 test('W95, W106: while a computation runs only control, view and setting actions start; an open question takes control and settings', () => {
   for (const cmd of [{cmd: 'run.abort'}, {cmd: 'answer', id: 1}, {cmd: 'display', window: 'graph_1'}, {cmd: 'window.select', window: 'graph_2'},
-    {cmd: 'key', key: 'w'}, {cmd: 'key', key: 'k'}, {cmd: 'key', key: 'g'}, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'browser', from: 0, count: 1},
+    {cmd: 'key', key: 'w'}, {cmd: 'key', key: 'k'}, {cmd: 'key', key: 'g'}, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'browser.page', from_row: 0, count: 1},
     {cmd: 'set', kind: 'par'}, {cmd: 'set', kind: 'num'}, {cmd: 'auto.configure_numerics'}, {cmd: 'key', key: 'p'},
-    {cmd: 'key', win: 'auto', key: 'n'}, {cmd: 'values', op: 'read'}])
+    {cmd: 'key', win: 'auto', key: 'n'}, {cmd: 'value.load_file'}])
     assert.ok(may(cmd, true), JSON.stringify(cmd));
-  for (const cmd of [{cmd: 'run.initial'}, {cmd: 'key', key: 's'}, {cmd: 'values', op: 'write'}, {cmd: 'auto.grab'},
-    {cmd: 'browser', op: 'write'}, {cmd: 'key', win: 'auto', key: 'r'}, {cmd: 'key', win: 'ani', key: 'a'}, {cmd: 'unknown'}])
+  for (const cmd of [{cmd: 'run.initial'}, {cmd: 'key', key: 's'}, {cmd: 'value.save_file'}, {cmd: 'auto.grab'},
+    {cmd: 'browser.export'}, {cmd: 'key', win: 'auto', key: 'r'}, {cmd: 'key', win: 'ani', key: 'a'}, {cmd: 'unknown'}])
     assert.ok(!may(cmd, true), JSON.stringify(cmd));
   /* the Numerics menu's items that ask a value are settings: their dialog opens when the run ends */
   assert.equal(kindOf(HELLO, 2, {cmd: 'key', key: 'n'}), 'setting');
@@ -48,7 +48,7 @@ test('W95, W106: while a computation runs only control, view and setting actions
   assert.ok(!may({cmd: 'key', key: 'h'}, true, false, 2), 'stocHast: data');
   assert.ok(may({cmd: 'set', kind: 'par'}, true, true), 'a setting goes while a question is open too');
   /* not computing (the page's own catch-up only, or idle): everything starts */
-  for (const cmd of [{cmd: 'run.initial'}, {cmd: 'values', op: 'write'}, {cmd: 'set', kind: 'par'}])
+  for (const cmd of [{cmd: 'run.initial'}, {cmd: 'value.save_file'}, {cmd: 'set', kind: 'par'}])
     assert.ok(may(cmd, false), JSON.stringify(cmd));
   assert.ok(may({cmd: 'answer', id: 1}, false, true));
   assert.ok(!may({cmd: 'display', win: 'graph_1'}, false, true));

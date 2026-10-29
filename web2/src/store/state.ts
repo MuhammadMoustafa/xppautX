@@ -288,16 +288,16 @@ function addToast(state: AppState, kind: Toast['kind'], text: string, action?: T
 }
 
 /* commands with no idle of their own (run.abort) or none at all (the plain
-   quit; one that asks or saves is a command of its own); a
-   `browser` request with `from` is answered at once too (docs/protocol.md:
-   "answered at once with browser, even during a prompt"), so the table's
+   quit; one that asks or saves is a command of its own); `browser.page`
+   is answered at once too (docs/protocol.md: "answered at once, even
+   during a computation"), so the table's
    paging (store/table.ts planRequest) never leaves the status bar stuck
    showing Working */
-const NO_IDLE = new Set(['run.abort', 'quit']);
+const NO_IDLE = new Set(['run.abort', 'browser.page', 'quit']);
 /** whether a command ends without an idle of its own (a control line) */
 export function noIdle(cmd: Command): boolean {
   if (cmd.cmd === 'quit') return !cmd.ask && !cmd.save;
-  return NO_IDLE.has(cmd.cmd) || (cmd.cmd === 'browser' && 'from' in cmd);
+  return NO_IDLE.has(cmd.cmd);
 }
 
 /** The id of the page's own leave question (W110): File > Quit's, worded
@@ -471,8 +471,9 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return mode ? withPlots(withAsk, select(state.plots, ev.win!)) : withAsk;
     }
     case 'done': {
-      const settled=reduce(state,{type:'event',ev:{ev:'idle'}});
-      return ev.status==='error'?reduce(settled,{type:'event',ev:{...ev,ev:'message'}}):settled;
+      /* the error first, as a message then an idle came: the edit it belongs to (values.ts) is still the one running */
+      const failed=ev.status==='error'?reduce(state,{type:'event',ev:{...ev,ev:'message'}}):state;
+      return reduce(failed,{type:'event',ev:{ev:'idle'}});
     }
     case 'idle':
       return {

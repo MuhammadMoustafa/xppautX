@@ -250,11 +250,11 @@ int main(void)
     const xpp::Result<std::vector<double>> pr = xpp::read_parameter_file(m, par);
     CHECK(!pr && pr.error().text() == xpp::format("{}:{}: \"x  {}\" is not a number ({})", par, m.nupar + 1,
                                                   m.upar_names[m.nupar - 1], m.upar_names[m.nupar - 1]));
-    xpp::load_parameter_file_named(s, par);
+    CHECK(!xpp::load_parameter_file_named(s, par));
     CHECK(snapshot(s) == kept);
     /* its trailer: as write_parameter_file writes it, then the end */
     remove(par); /* written afresh, no question asked */
-    xpp::write_parameter_file(s, par);
+    CHECK(xpp::write_parameter_file(s, par).value_or(false));
     CHECK(xpp::read_parameter_file(m, par).has_value());
     std::string written = bytes_of(par);
     std::erase(written, '\r'); /* a text file: CRLF on Windows */

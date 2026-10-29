@@ -405,10 +405,10 @@ def check_rhs(binary, eqs, start, folder):
         completed(s)
         for name in eqs.o.states:
             expression = ' '.join(eqs.conditionals(expand(eqs.o.odes[name]), xppaut=True))
-            events = completed(s, dict(cmd='set', kind='par', name='probe_value', text='%' + expression))
+            events = completed(s, dict(cmd='value.set_by_formula', name='probe_value', formula=expression))
             state = next(e for e in reversed(events) if e.get('ev') == 'state')
             ours.append(dict(state['pars'])['probe_value'])
-            events = completed(s, dict(cmd='set', kind='par', name='probe_value', text='%' + ' '.join(magnitude_bound(expression.split()))))
+            events = completed(s, dict(cmd='value.set_by_formula', name='probe_value', formula=' '.join(magnitude_bound(expression.split()))))
             state = next(e for e in reversed(events) if e.get('ev') == 'state')
             scales.append(dict(state['pars'])['probe_value'])
     finally:

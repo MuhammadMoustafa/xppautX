@@ -48,8 +48,10 @@ interface DisplayPatch {
 }
 
 /** the display key of view k of the AUTO diagram: 0, -1, -2 ... (the plot windows are 1 up) */
-/** the scope of the core's `restoredefaults` for a values section (docs/protocol.md) */
+/** the scope of the core's `set.restore_defaults` for a values section (docs/protocol.md) */
 const RESTORE_SCOPE = {par: 'parameters', ic: 'initial'} as const;
+/** the kind of file the core's `value.save_file` and `value.load_file` take for a values section */
+const VALUE_FILE = {par: 'parameters', ic: 'initial_conditions'} as const;
 
 
 
@@ -197,21 +199,16 @@ export class Session {
       if (this.store.getState().player.running >= 0 && ev.kind !== 'pixels') {
         /* a recording's step runs: the player answers its questions, the
            page only shows them (docs/protocol.md "Playing a recording") */
-        if (ev.kind === 'alert') this.store.dispatch({type: 'toast', kind: 'info', text: ev.message ?? ''});
         this.checkDiagram(ev);
         return;
       }
-      if (this.plan.length && ev.kind !== 'pixels' && ev.kind !== 'alert') {
+      if (this.plan.length && ev.kind !== 'pixels') {
         this.continuePlan(ev);
         this.checkDiagram(ev);
         return;
       }
       if (ev.kind === 'pixels') {
         this.answerPixels(ev);
-      } else if (ev.kind === 'alert') {
-        /* an alert only informs: a notification that does not stop the run */
-        this.store.dispatch({type: 'toast', kind: 'info', text: ev.message ?? ''});
-        this.answer(ev, {});
       } else if (ev.kind === 'drag' && (this.dragEnded || this.dragQueue.length)) {
         /* the events made meanwhile first, then the end */
         if (this.dragQueue.length) this.answer(ev, this.dragQueue.shift()!);
@@ -984,12 +981,12 @@ export class Session {
 
   /** Slider definitions belong to the Session; the next state confirms the edit. */
   setSlider(id: number, def: {name: string; lo: string; hi: string; step: string}): void {
-    this.send({cmd: 'slider', slot: id - 1, name: def.name,
-      lo: Number(def.lo), hi: Number(def.hi), step: Number(def.step)});
+    this.send({cmd: 'value.configure_slider', slot: id - 1, name: def.name,
+      low: Number(def.lo), high: Number(def.hi), step: Number(def.step)});
   }
 
   removeSlider(id: number): void {
-    this.setSlider(id, {name: '', lo: '0', hi: '1', step: '0'});
+    this.send({cmd: 'value.remove_slider', slot: id - 1});
   }
 
   /** a slider moved: sent like any other edit (W106) */
@@ -1002,17 +999,17 @@ export class Session {
     return this.store.getState().values.defaults?.[fieldKey(kind, name)] ?? null;
   }
 
-  /** one field back to the model file's value: the core's `restoredefaults` with the field
+  /** one field back to the model file's value: the core's `set.restore_defaults` with the field
       (GitHub #110: Undo value edit is the other way back) */
   resetValue(kind: 'par' | 'ic', name: string): void {
-    this.send({cmd: 'restoredefaults', scope: RESTORE_SCOPE[kind], field: name});
+    this.send({cmd: 'set.restore_defaults', scope: RESTORE_SCOPE[kind], field: name});
   }
 
-  /** Reset all: the core's `restoredefaults`, every parameter or IC of `kind` back to the model
+  /** Reset all: the core's `set.restore_defaults`, every parameter or IC of `kind` back to the model
       file's value (the core redoes the tables once) */
   defaultValues(kind: 'par' | 'ic'): void {
     this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
-    this.send({cmd: 'restoredefaults', scope: RESTORE_SCOPE[kind]});
+    this.send({cmd: 'set.restore_defaults', scope: RESTORE_SCOPE[kind]});
   }
 
   /** a numerics field (the values panel's Numerics, W106): `key` as the
@@ -1029,10 +1026,10 @@ export class Session {
   saveValues(kind: 'par' | 'ic'): void {
     const name = this.store.getState().hello?.output_names[kind];
     if (!name) return;
-    if (nativeFileDialog()) this.send({cmd: 'values', op: 'write', kind});
+    if (nativeFileDialog()) this.send({cmd: 'value.save_file', kind: VALUE_FILE[kind]});
     else {
       this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
-      this.send({cmd: 'values', op: 'write', kind, name});
+      this.send({cmd: 'value.save_file', kind: VALUE_FILE[kind], file: name});
     }
   }
 
@@ -1047,7 +1044,7 @@ export class Session {
       becomes a notification the same way any other command's does. */
   async loadValues(kind: 'par' | 'ic', file: File): Promise<void> {
     const uploads = await this.upload([{file, name: file.name}], null, true);
-    if (uploads) this.send({cmd: 'values', op: 'read', kind, name: uploads[0].name});
+    if (uploads) this.send({cmd: 'value.load_file', kind: VALUE_FILE[kind], file: uploads[0].name});
   }
 
   /* ---- recording (W59a, docs/protocol.md "Recordings") ---- */
@@ -1125,7 +1122,7 @@ export class Session {
   /** stops the core sending further blocks (docs/protocol.md: `count` 0 stops the updates) */
   closeTable(): void {
     this.store.dispatch({type: 'table', action: {type: 'open', open: false}});
-    this.send({cmd: 'browser', from: 0, count: 0});
+    this.send({cmd: 'browser.page', from_row: 0, count: 0});
   }
 
   /** the row the arrow keys, a click, Home/End move to */
@@ -1147,14 +1144,19 @@ export class Session {
     const key = JSON.stringify(req);
     if (key === pendingKey) return;
     this.store.dispatch({type: 'table', action: {type: 'requested', req}});
-    this.send({cmd: 'browser', ...req});
+    this.send({cmd: 'browser.page', from_row: req.from, count: req.count, first_column: req.col, columns: req.ncol});
   }
 
   /** one of the browser's buttons, on the selected row (docs/protocol.md
       `browser` op; Find, Replace, Table, Load and Write prompt through the
       ordinary `ask`, AskDialog already shows) */
   browserOp(op: BrowserOp): void {
-    this.send(this.layerKey('browser', op, {row: this.store.getState().table.selected}));
+    const row = this.store.getState().table.selected;
+    if (op === 'unreplace') this.send({cmd: 'browser.undo_replace'});
+    else if (op === 'first') this.send({cmd: 'browser.set_slice_start', row});
+    else if (op === 'last') this.send({cmd: 'browser.set_slice_end', row});
+    else if (op === 'restore') this.send({cmd: 'browser.restore_full_slice'});
+    else this.send(this.layerKey('browser', op, {row}));
   }
 
   /** Get: the selected row becomes the initial conditions (the next `state` has them) */
@@ -1171,10 +1173,11 @@ export class Session {
   writeDataFile(what: 'table' | 'plot', format: string, name?: string): void {
     name ??= this.store.getState().hello?.output_names[what === 'plot' ? 'curves' : 'csv'];
     if (!name) return;
-    if (nativeFileDialog()) this.send({cmd: 'browser', op: 'write', what, format});
+    const target = what === 'plot' ? 'plot_curves' : 'table';
+    if (nativeFileDialog()) this.send({cmd: 'browser.export', target, format});
     else {
       this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
-      this.send({cmd: 'browser', op: 'write', what, format, name});
+      this.send({cmd: 'browser.export', target, format, file: name});
     }
   }
 

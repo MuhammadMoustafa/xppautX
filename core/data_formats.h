@@ -74,6 +74,8 @@ struct DataFormat {
 /* The format functions never throw: a failed allocation ends the program
    through xpp::out_of_memory (xpp_mem.h). */
 
+/* the formats' ids in the registry's order (a choice of the protocol: data_formats.cpp checks it lists the registry) */
+inline constexpr std::array<const char *, 4> data_format_ids = {"dat", "csv", "csv.gz", "npz"};
 /* every format, in the Save data menu's order */
 std::span<const DataFormat> data_formats();
 /* the format of that id (case ignored), or nullptr */

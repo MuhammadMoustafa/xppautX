@@ -70,11 +70,6 @@ struct Session;      /* session.h */
 namespace xpp::json {
 
 
-/* the most rows and columns one `browser` block request gets (json_state.cpp
-   browser_rows): a page of the table, bounded so one event stays small;
-   hello.limits tells the page */
-constexpr int BROWSER_MAX_ROWS = 2000;
-constexpr int BROWSER_MAX_COLS = 500;
 /* A short, bounded recent-motion diagnostic, the page reads it as hello.state_inspection.tail_intervals. */
 constexpr int STATE_TAIL_INTERVALS = 10;
 
@@ -87,6 +82,8 @@ struct DeferredLine {
     unsigned long seq;
     bool refused; /* classify() refused it during a computation */
     bool applied; /* a set applied when it was taken: the command only ends */
+    /* a registry command applied when it was taken (value.set_parameters): the result its done reports */
+    std::optional<xpp::Result<std::string>> taken;
 };
 
 std::string auto_view_event_line(const xpp::Session &s);
@@ -127,12 +124,9 @@ struct ProtocolSession {
     /* the lines a command's prompt or computation took that were meant for
        after it, in arrival order; the command loop runs them first */
     std::deque<DeferredLine> deferred;
-    /* json_state.cpp's: the state and browser events are due, the block
-       of the browser the client asked for (its first row, rows, first
-       column and columns), and the rows a run had stored when it reported
-       last (a run that starts again reports fewer) */
+    /* json_state.cpp's: the state and browser events are due, and the rows a
+       run had stored when it reported last (a run that starts again reports fewer) */
     int state_dirty = 0, browser_dirty = 0;
-    int br_from = 0, br_count = 0, br_col = 1, br_ncol = 1;
     int rows_seen = INT_MAX;
     double live_state_last = 0; /* Display pacing only; solver steps are unchanged. */
     /* AUTO subscriptions, pacing and client view tracking */
@@ -182,7 +176,7 @@ xpp::inbox::Verdict during_run(const char *line);     /* what a running computat
 /* keep the line read last (read_line) for after the running command;
    refused: during_run() refused it (the command loop answers it so);
    applied: a set control_line() applied already (the loop only ends it) */
-void defer_line(const char *line, bool refused, bool applied = false);
+void defer_line(const char *line, bool refused, bool applied = false, std::optional<xpp::Result<std::string>> taken = std::nullopt);
 char line_kind(const char *line); /* a command's kind, menus.h XPP_KIND_* (ui_json.cpp) */
 bool line_is_step(const char *line); /* a step of the user's (ui_json.cpp's command table) */
 /* An internal silent command that does not fit the dialogue: stop at once. */
@@ -390,7 +384,6 @@ int j_text_dialog(xpp::LabelLook &look);
 int j_choose(std::string_view title, std::string_view q, std::span<const std::string> choices, std::string_view keys,
              char yes_key);
 
-void j_respond_box(std::string_view button, std::string_view message);
 int j_checklist(std::string_view title, const char *const *names, int *flags, int n);
 int j_string_box(int row, int col, std::string_view title, const char *const *names, std::span<std::string> values,
                  const int *kinds);
@@ -414,10 +407,8 @@ void send_state_if_dirty(void);
 void j_state_dirty(void);
 void j_state_dirty_i(int i);
 void j_state_dirty_is(int i, const char *s);
-void browser_rows(const xpp::Session &s, const char *line);
-void browser_command(xpp::Session &s, const char *line);
 void browser_key(xpp::Session &s, int ch, const char *line);
-void browser_update(const xpp::Session &s); /* at a command's end */
+void browser_update(xpp::Session &s); /* at a command's end */
 void j_browser_changed(int i);
 void j_rows_stored(xpp::Session &s, int nrows);
 void j_live_state(xpp::Session &s, const double *values, double time);
@@ -427,16 +418,6 @@ void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, doub
 void j_make_txtview(xpp::Session &s);
 void action_command(xpp::Session &s, const char *line);
 void apply_set(xpp::Session &s, const char *line);
-void applyset_command(xpp::Session &s, const char *line);
-void restoredefaults_command(xpp::Session &s, const char *line);
-void saveset_command(xpp::Session &s, const char *line);
-void savedefaults_command(xpp::Session &s, const char *line);
-void exportset_command(xpp::Session &s, const char *line);
-void renameset_command(xpp::Session &s, const char *line);
-void deleteset_command(xpp::Session &s, const char *line);
-void slide_command(xpp::Session &s, const char *line);
-void slider_command(xpp::Session &s, const char *line);
-void values_command(xpp::Session &s, const char *line);
 void state_forget(void); /* what the model before showed (its last equilibrium) goes */
 
 /* ---- json_windows.cpp ---- */
@@ -446,7 +427,6 @@ void send_window(const char *what, std::string_view name, int w, int h, std::str
 void j_window_renamed(xpp::Session &s, std::string_view old_name, std::string_view new_name);
 void j_auto_closed(xpp::Session &s, std::string_view name);
 void j_tool_window_closed(xpp::Session &s, std::string_view name, std::string_view kind);
-bool read_plot_window(const xpp::Session &s,const char *line,const char *command,int &index);
 /* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
 void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h);
 void j_blank_draw_window(xpp::Session &s);

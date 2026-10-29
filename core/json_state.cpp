@@ -203,59 +203,26 @@ void send_state_if_dirty(void)
 namespace {
 
 
-void buf_float(std::string &b, double z, int digits)
-{
-    if (z != z || z > 1e300 || z < -1e300) BUF_LIT(b, "null"); /* not JSON numbers */
-    else buf_format(b, "{:.{}g}", z, digits);
-}
-
-void send_browser(const xpp::Session &s)
+void send_browser(xpp::Session &s)
 {
     std::string b;
-    int i, j, last, maxcol = s.browser.view.maxcol;
+    const int maxcol = s.browser.view.maxcol;
     session.browser_dirty = 0;
-    if (session.br_from > s.browser.view.maxrow - 1) session.br_from = s.browser.view.maxrow > 0 ? s.browser.view.maxrow - 1 : 0;
-    if (session.br_from < 0) session.br_from = 0;
-    if (session.br_col > maxcol - 1) session.br_col = maxcol - 1;
-    if (session.br_col < 1) session.br_col = 1;
+    xpp::fit_browser_block(s);
+    const xpp::BrowserBlock &block = s.browser.block;
     buf_format(b, "{{\"ev\":\"browser\",\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
                s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
-    for (j = 1; j < maxcol; j++) {
+    for (int j = 1; j < maxcol; j++) {
         BUF_LIT(b, ",");
         buf_str(b, browse_column_name(s,j));
     }
-    buf_format(b, "],\"from\":{:d},\"col\":{:d},\"data\":[", session.br_from, session.br_col);
-    last = s.browser.view.dataflag ? session.br_from + session.br_count : session.br_from;
-    if (last > s.browser.view.maxrow) last = s.browser.view.maxrow;
-    for (i = session.br_from; i < last; i++) {
-        if (i > session.br_from) BUF_LIT(b, ",");
-        BUF_LIT(b, "[");
-        /* 9 significant digits read back as exactly the stored floats (as series) */
-        buf_float(b, s.browser.view.data[0][i], 9);
-        for (j = session.br_col; j < session.br_col + session.br_ncol && j < maxcol; j++) {
-            BUF_LIT(b, ",");
-            buf_float(b, s.browser.view.data[j][i], 9);
-        }
-        BUF_LIT(b, "]");
-    }
-    BUF_LIT(b, "]}");
+    buf_format(b, "],\"from\":{:d},\"col\":{:d},\"data\":", block.from, block.col);
+    b += xpp::browser_block_rows(s);
+    BUF_LIT(b, "}");
     send_buf(b);
 }
 
 } // namespace
-
-/* {"cmd":"browser","from":row,"count":n,"col":first column,"ncol":n}: the
-   block the client can see; answered at once, even during a prompt */
-void browser_rows(const xpp::Session &s, const char *line)
-{
-    session.br_from = get_int(line, "from", 0);
-    session.br_count = get_int(line, "count", 100);
-    session.br_col = get_int(line, "col", 1);
-    session.br_ncol = get_int(line, "ncol", 20);
-    if (session.br_count > BROWSER_MAX_ROWS) session.br_count = BROWSER_MAX_ROWS;
-    if (session.br_ncol > BROWSER_MAX_COLS) session.br_ncol = BROWSER_MAX_COLS;
-    send_browser(s);
-}
 
 void j_browser_changed(int)
 {
@@ -265,22 +232,6 @@ void j_browser_changed(int)
     aplot_changed();
 }
 
-/* {"cmd":"browser","op":"load"|"write",...}: Save data's and Load's
-   choices given, each asked for when not given (the keys l and w of
-   menu_browser_window ask them all) */
-void browser_command(xpp::Session &s, const char *line)
-{
-    std::string o, what, format, name;
-    get_string(line, "op", o);
-    get_string(line, "what", what);
-    get_string(line, "format", format);
-    get_string(line, "name", name);
-    if (o == "load") data_read(s, &s.browser.view, format, name);
-    else if (o == "write") data_write(s, &s.browser.view, what, format, name);
-    else j_command_error("browser", xpp::format("Unknown browser op {}", o));
-    session.browser_dirty = 1;
-}
-
 /* a key of the data browser window (menu_browser_window), on the selected
    row: {"cmd":"key","win":"browser","key":k,"row":r} */
 void browser_key(xpp::Session &s, int ch, const char *line)
@@ -288,26 +239,26 @@ void browser_key(xpp::Session &s, int ch, const char *line)
     int row = get_int(line, "row", -1);
     if (row >= 0 && row < s.browser.view.maxrow) s.browser.view.row0 = row;
     switch (menu_index(&menu_browser_window, ch)) {
-    case BK_FIND: data_find(s, &s.browser.view); break;
+    case BK_FIND: data_find(s); break;
     case BK_GET: ic_of_row(s, s.browser.view.row0); break;
-    case BK_REPLACE: data_replace(s, &s.browser.view); break;
+    case BK_REPLACE: data_replace(s); break;
     case BK_UNREPLACE: data_unreplace(s); break;
-    case BK_TABLE: data_table(s, &s.browser.view); break;
-    case BK_FIRST: data_first(&s.browser.view); break;
-    case BK_LAST: data_last(&s.browser.view); break;
-    case BK_RESTORE: data_restore(s,&s.browser.view); break;
-    case BK_ADDCOL: data_add_col(s, &s.browser.view); break;
-    case BK_DELCOL: data_del_col(s, &s.browser.view); break;
-    case BK_LOAD: data_read(s, &s.browser.view, "", ""); break;
-    case BK_WRITE: data_write(s, &s.browser.view, "", "", ""); break;
+    case BK_TABLE: data_table(s); break;
+    case BK_FIRST: xpp::ok_or_show(xpp::set_first_row(s, s.browser.view.row0)); break;
+    case BK_LAST: xpp::ok_or_show(xpp::set_last_row(s, s.browser.view.row0)); break;
+    case BK_RESTORE: xpp::ok_or_show(xpp::restore_whole_data(s)); break;
+    case BK_ADDCOL: data_add_col(s); break;
+    case BK_DELCOL: data_del_col(s); break;
+    case BK_LOAD: xpp::ok_or_show(xpp::load_data_file(s, "", "")); break;
+    case BK_WRITE: data_write(s, std::nullopt, "", ""); break;
     }
     session.browser_dirty = 1;
 }
 
 /* the block the client sees, when the data changed */
-void browser_update(const xpp::Session &s)
+void browser_update(xpp::Session &s)
 {
-    if (session.browser_dirty && session.br_count) send_browser(s);
+    if (session.browser_dirty && s.browser.block.count) send_browser(s);
 }
 
 /* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani","autoinfo","autosettings","numerics","windows"],"enc":"f32"}:
@@ -415,15 +366,14 @@ std::string field_key(const std::string &kind, const std::string &name, int inde
     return kind + ":" + n;
 }
 
-/* one value of a "set": {"kind":"par|bc|delay|num","name":...,"value":number
-   or "text":...}. Text is what the user would type in the value's box: a number
-   or %formula for parameters, an expression for BCs and delays; for
-   the numerics (num, W106) a number, or a method's name, the field named by
-   its key (numerics_settings.h; the run's and the boundary value problem's
-   are run.configure's and bvp.configure's). Checks it all and changes nothing: the
-   value, or the error (naming the field) of a kind or name the model does
-   not have, no value (a number) or text, a text that is not one number (or a
-   formula that does not compile) for a parameter, or a numerics value
+/* one value of a "set": {"kind":"bc|delay|num","name":...,"value":number
+   or "text":...}. Text is what the user would type in the value's box: an
+   expression for BCs and delays; for the numerics (num, W106) a number, or a
+   method's name, the field named by its key (numerics_settings.h; the run's
+   and the boundary value problem's are run.configure's and bvp.configure's;
+   the parameters' are value.set_parameters'). Checks it all and changes
+   nothing: the value, or the error (naming the field) of a kind or name the
+   model does not have, no value (a number) or text, or a numerics value
    refused (W131). */
 xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
 {
@@ -439,11 +389,11 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
     const bool by_index = at && js_number(at, &k) && k >= 0 && k == static_cast<int>(k);
     const std::string field = field_key(v.kind, v.name, by_index ? static_cast<int>(k) : -1);
     v.field = field;
-    if (v.kind == "par") v.type = 1;        /* PARAMBOX */
+    if (v.kind == "par") return refuse(field, "set no longer takes parameters: send value.set_parameters (a formula: value.set_by_formula)");
     else if (v.kind == "delay") v.type = 3; /* DELAYBOX */
     else if (v.kind == "bc") v.type = 4;    /* BCBOX */
     else if (v.kind == "ic") return refuse(field, "set no longer takes initial conditions: send ic.set (a formula: ic.formula)");
-    else if (v.kind != "num") return refuse("", xpp::format("set takes kind par, delay, bc or num, not \"{}\"", v.kind));
+    else if (v.kind != "num") return refuse("", xpp::format("set takes kind delay, bc or num, not \"{}\"", v.kind));
     else if (const std::string_view command = xpp::command::numerics_command(v.name); !command.empty())
         return refuse(field, xpp::format("set no longer takes the numerics setting {}: send {}", v.name, command));
     else v.type = 0;
@@ -459,7 +409,7 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
         if (xpp::numerics_settings_check(s, v.name, v.text, why) == 0) return v;
         return refuse(field, xpp::format("Numerics: {}", why));
     }
-    n = v.type == 1 ? m.nupar : m.node;
+    n = m.node;
     /* BC names are not unique ("0="): those come by index */
     if (at) {
         if (!by_index || !(k < n))
@@ -467,7 +417,7 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
         v.index = static_cast<int>(k);
     }
     if(v.index<0 && v.type!=4){
-        v.index=xpp::find_user_name(m,v.type==1?PARAMBOX:ICBOX,v.name);
+        v.index=xpp::find_user_name(m,ICBOX,v.name);
         if(v.index>=n)v.index=-1;
     }
     for (int i = 0; v.type == 4 && v.index < 0 && i < n; i++) {
@@ -476,10 +426,6 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
             v.index = i;
     }
     if (v.index < 0) return refuse(field, xpp::format("set: the model has no {} {}", v.kind, v.name));
-    if (v.type == 1) {
-        const xpp::Result<double> r = typed_number(s, v.text, field);
-        if (!r) return refuse(field, xpp::format("set {} {}: {}", v.kind, v.name, r.error().what));
-    }
     return v;
 }
 
@@ -522,212 +468,6 @@ void apply_set(xpp::Session &s, const char *line)
     }
     for (int type = 1; type <= 4; type++)
         if (loaded[type]) box_values_loaded(s, type);
-}
-
-/* the optional "win" of applyset and restoredefaults, a plot window as the
-   plots event numbers them (1 is the first): absent is the active graph; one
-   that is no whole number is the command's error */
-static bool read_graph(const xpp::Session &s, const char *line, const char *command, std::optional<int> &graph)
-{
-    const char *value = js_find(line, "window");
-    if(js_find(line,"win")){j_command_error(command,"Use window with a name");return false;}
-    if (!value) return true;
-    int index;
-    if(!read_plot_window(s,line,command,index))return false;
-    graph=index;
-    return true;
-}
-
-/* {"cmd":"applyset","set":name,"scope":...,"win":n}: xpp::apply_named_set
-   (docs/protocol.md "applyset"), the one path File/Apply set takes too */
-void applyset_command(xpp::Session &s, const char *line)
-{
-    std::string name, scope;
-    std::optional<int> graph;
-    if (!get_string(line, "set", name) || !get_string(line, "scope", scope)) {
-        j_command_error("applyset", "applyset needs a set and a scope");
-        return;
-    }
-    if (!read_graph(s,line, "applyset", graph)) return;
-    xpp::ok_or_show(xpp::apply_named_set(s, name, scope, graph));
-    session.state_dirty = 1;
-}
-
-/* {"cmd":"restoredefaults","scope":...,"field":name,"win":n}:
-   xpp::restore_defaults (docs/protocol.md "restoredefaults") */
-void restoredefaults_command(xpp::Session &s, const char *line)
-{
-    std::string scope, field;
-    std::optional<int> graph;
-    if (!get_string(line, "scope", scope)) {
-        j_command_error("restoredefaults", "restoredefaults needs a scope");
-        return;
-    }
-    get_string(line, "field", field);
-    if (!read_graph(s,line, "restoredefaults", graph)) return;
-    xpp::ok_or_show(xpp::restore_defaults(s, scope, field, graph));
-    session.state_dirty = 1;
-}
-
-/* the optional "state" of a save: the initial values saved ("initial", the
-   default) or the last state reached ("last") */
-static bool read_state(const char *line, const char *command, bool &last)
-{
-    std::string state;
-    if (!get_string(line, "state", state) || state == "initial") return true;
-    if (state == "last") {
-        last = true;
-        return true;
-    }
-    j_command_error(command, xpp::format("{}: state is initial or last", command));
-    return false;
-}
-
-/* {"cmd":"saveset","set":name,"mode":"new"|"replace","scope":...,"win":n,"state":...}:
-   xpp::save_new_set or save_into_set (docs/protocol.md "saveset") */
-void saveset_command(xpp::Session &s, const char *line)
-{
-    std::string name, mode, scope;
-    std::optional<int> graph;
-    bool last = false;
-    if (!get_string(line, "set", name) || !get_string(line, "scope", scope) || !get_string(line, "mode", mode) || (mode != "new" && mode != "replace")) {
-        j_command_error("saveset", "saveset needs a set, a mode (new or replace) and a scope");
-        return;
-    }
-    if (!read_graph(s,line, "saveset", graph) || !read_state(line, "saveset", last)) return;
-    xpp::ok_or_show(mode == "new" ? xpp::save_new_set(s, name, scope, graph, last) : xpp::save_into_set(s, name, scope, graph, last));
-    session.state_dirty = 1;
-}
-
-/* {"cmd":"savedefaults","scope":...,"win":n,"state":...}: xpp::save_defaults */
-void savedefaults_command(xpp::Session &s, const char *line)
-{
-    std::string scope;
-    std::optional<int> graph;
-    bool last = false;
-    if (!get_string(line, "scope", scope)) {
-        j_command_error("savedefaults", "savedefaults needs a scope");
-        return;
-    }
-    if (!read_graph(s,line, "savedefaults", graph) || !read_state(line, "savedefaults", last)) return;
-    xpp::ok_or_show(xpp::save_defaults(s, scope, graph, last));
-    session.state_dirty = 1;
-}
-
-/* {"cmd":"exportset","set":name,"scope":...,"file":name,"win":n,"state":...}: xpp::export_values */
-void exportset_command(xpp::Session &s, const char *line)
-{
-    std::string name, scope, file;
-    std::optional<int> graph;
-    bool last = false;
-    if (!get_string(line, "set", name) || !get_string(line, "scope", scope) || !get_string(line, "file", file)) {
-        j_command_error("exportset", "exportset needs a set, a scope and a file");
-        return;
-    }
-    if (!read_graph(s,line, "exportset", graph) || !read_state(line, "exportset", last)) return;
-    xpp::ok_or_show(xpp::export_values(s, name, scope, file, graph, last));
-}
-
-/* {"cmd":"renameset","set":name,"to":name}: xpp::rename_intern_set */
-void renameset_command(xpp::Session &s, const char *line)
-{
-    std::string from, to;
-    if (!get_string(line, "set", from) || !get_string(line, "to", to)) {
-        j_command_error("renameset", "renameset needs a set and the name to give it");
-        return;
-    }
-    xpp::ok_or_show(xpp::rename_intern_set(s, from, to));
-    session.state_dirty = 1;
-}
-
-/* {"cmd":"deleteset","set":name}: xpp::delete_intern_set */
-void deleteset_command(xpp::Session &s, const char *line)
-{
-    std::string name;
-    if (!get_string(line, "set", name)) {
-        j_command_error("deleteset", "deleteset needs a set");
-        return;
-    }
-    xpp::ok_or_show(xpp::delete_intern_set(s, name));
-    session.state_dirty = 1;
-}
-
-/* Set a Session slider definition; the state event acknowledges it. */
-void slider_command(xpp::Session &s, const char *line)
-{
-    double requested;
-    xpp::XppSlider slider;
-    if (!js_number(js_find(line, "slot"), &requested) || requested < 0 || requested > s.sliders.size() || requested != static_cast<std::size_t>(requested)) {
-        j_command_error("slider", "slider slot: an existing slot or the next slot required");
-        return;
-    }
-    const std::size_t slot = static_cast<std::size_t>(requested);
-    if (!get_string(line, "name", slider.var) || !js_number(js_find(line, "lo"), &slider.lo) ||
-        !js_number(js_find(line, "hi"), &slider.hi) || !js_number(js_find(line, "step"), &slider.step)) {
-        j_command_error("slider", "slider: name, numeric lo, hi and step required");
-        return;
-    }
-    if (const auto why = xpp::slider_wrong(s.model(), slider)) {
-        j_command_error("slider", *why);
-        return;
-    }
-    if (slot == s.sliders.size()) s.sliders.push_back(std::move(slider));
-    else s.sliders[slot] = std::move(slider);
-    session.state_dirty = 1;
-}
-
-/* a parameter slider moved: {"cmd":"slide","name":...,"value":v} (W69: sets
-   only, like `set`; the page sends it as part of the next `set` before the
-   next computation, never on its own any more, but the command still just
-   sets the value for a client that does) */
-void slide_command(xpp::Session &s, const char *line)
-{
-    std::string name;
-    int type, index;
-    double value;
-    get_string(line, "name", name);
-    if (!find_par_or_var(s.model(), name, &type, &index))
-        j_command_error("slide", xpp::format("slide: the model has no parameter or variable {}", name));
-    else if (!js_number(js_find(line, "value"), &value))
-        j_command_error("slide", xpp::format("slide {}: its value is not a number", name));
-    else {
-        xpp::push_value_undo(s, name);
-        set_par_or_var(s, name, type, index, value);
-        session.state_dirty = 1;
-    }
-}
-
-/* {"cmd":"values","op":"write"|"read","kind":"par"|"ic","name":...}: the
-   values panel's Save/Load of XPP's own .par/.ic file (docs/protocol.md
-   "values"), through lunch-new.cpp's save_parameter_file/save_ic_file/
-   load_parameter_file/load_ic_file, which write/read the model's folder
-   the way `browser`'s `write` (Save data) does; `name` given skips the
-   file ask, empty asks like Save data. */
-void values_command(xpp::Session &s, const char *line)
-{
-    std::string o, kind, name;
-    get_string(line, "op", o);
-    get_string(line, "kind", kind);
-    get_string(line, "name", name);
-    if (o == "query") {
-        if (name.empty()) j_command_error("values", "values query needs a name");
-        else write_values_query(s, name, get_int(line, "sets", 0), get_int(line, "pars", 0), get_int(line, "ics", 0));
-        return;
-    }
-    if (kind != "par" && kind != "ic") {
-        j_command_error("values", xpp::format("values writes or reads par or ic, not {}", kind));
-        return;
-    }
-    if (o == "write") {
-        if (kind == "par") save_parameter_file(s, name);
-        else save_ic_file(s, name);
-        session.state_dirty = 1;
-    } else if (o == "read") {
-        xpp::push_value_undo(s);
-        if (kind == "par") load_parameter_file(s, name);
-        else load_ic_file(s, name);
-        session.state_dirty = 1;
-    }
 }
 
 /* a stored row (integrate.c row_stored): the data events' appends, and at

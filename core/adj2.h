@@ -17,7 +17,7 @@ struct Session; /* session.h */
    H function and the transposed data, each its own columns with the
    stored ones lent beside them (storage.h's LentColumns), whether it
    exists and how many rows it has; shown in the browser in the stored
-   data's place (adj_back, h_back, create_transpose). A load's new Session
+   data's place (adj_back, h_back, transpose_data). A load's new Session
    starts with none, so nothing of the Session before is shown again. */
 struct AdjointState {
   LentColumns adjoint, h_function, transposed;
@@ -54,8 +54,13 @@ void adj_back(Session &s);
 void h_back(Session &s);
 
 void init_trans(Session &s);
-int do_transpose(Session &s);
-int create_transpose(Session &s);
+/* Transpose data (File/Transpose): the stored data's `columns` columns from `first_column` in steps of
+   `column_skip`, and `rows` rows from row `first_row` in steps of `row_skip` (the first is 0), shown in the browser
+   as rows of the table: each column becomes a row. Every one is in the data, else the error; the settings are kept
+   for the next one. */
+Result<> transpose_data(Session &s, std::string_view first_column, int columns, int column_skip, int first_row, int rows, int row_skip);
+/* the key's form: its answers read and checked, then transpose_data, its error shown */
+void do_transpose(Session &s);
 void alloc_h_stuff(Session &s);
 void data_back(Session &s);
 /* the Adjoint menu's items (an imported button sequence's), asking for what the analysis.adjoint_* commands take as arguments */

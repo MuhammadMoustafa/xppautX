@@ -56,7 +56,7 @@ test('the run record: the command, the menu it ran in, and its answers', () => {
   s = onSent(s, HELLO, {cmd: 'answer', id: 7, file: 'x.set'}, fileAsk('read'), 1);
   assert.deepEqual(s.run!.answers, [{kind: 'file', mode: 'read', fields: {file: 'x.set'}}]);
   assert.equal(onSent(s, HELLO, {cmd: 'state'}, null, 0), s, 'a query is no command of the user');
-  assert.equal(onSent(s, HELLO, {cmd: 'browser', from: 0, count: 10}, null, 0), s, 'nor a table block');
+  assert.equal(onSent(s, HELLO, {cmd: 'browser.page', from_row: 0, count: 10}, null, 0), s, 'nor a table block');
   assert.equal(onSent(s, null, {cmd: 'key', key: 'i'}, null, 0), s, 'nothing before hello');
 });
 

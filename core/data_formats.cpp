@@ -521,6 +521,15 @@ constexpr std::array<DataFormat, 4> registry{{
     {DATA_FORMAT_NPZ, "NumPy arrays (.npz)", ".npz", 'n', true, guarded_write<write_npz>, guarded_read<read_npz>},
 }};
 
+static_assert(registry.size() == data_format_ids.size(), "data_format_ids lists every format");
+constexpr bool ids_match()
+{
+    for (std::size_t i = 0; i < registry.size(); ++i)
+        if (std::string_view(registry[i].id) != data_format_ids[i]) return false;
+    return true;
+}
+static_assert(ids_match(), "data_format_ids are the registry's ids, in order");
+
 } // namespace
 
 std::string data_column_name(const DataTable &t, std::size_t i)

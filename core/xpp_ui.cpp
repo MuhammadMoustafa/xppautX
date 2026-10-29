@@ -172,7 +172,6 @@ static int hl_dialog(std::string_view, std::string_view, std::string &, std::str
     return 0;
 }
 static void hl_param_box_set(int, const char *) {}
-static void hl_respond_box(std::string_view, std::string_view message) { xpp::log(XPP_LOG_WARN, "{}\n", message); }
 static int hl_checklist(std::string_view, const char *const *, int *, int)
 {
     return 0;
@@ -201,7 +200,6 @@ XppUi ui = {
     .question_policy = hl_question_policy,
     .new_string = hl_new_string,
     .choose = hl_choose,
-    .respond_box = hl_respond_box,
     .checklist = hl_checklist,
     .string_box = hl_string_box,
     .typed_form = hl_typed_form,
@@ -379,7 +377,6 @@ bool confirm(std::string_view question, bool independent)
     }
     return false;
 }
-void respond_box(std::string_view button, std::string_view message) { ui.respond_box(button, message); }
 /* A form applies no fields when any question is declined. */
 template<class Dialog>
 static int question_fields(const char *const *names, std::span<std::string> values, const int *kinds, Dialog show)

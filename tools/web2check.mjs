@@ -109,7 +109,10 @@ const LIVE = path.join(top, 'tools/models/live.odex');
 /* a live command's error as the page shows it (errorText), its place first: a protocol line
    is the one-line source `command:1` (ui_json.cpp handle_line), and a refused `set` carries it (W347) */
 const commandError = what => `command:1: ${what}`;
-const BAD_IAPP = commandError('set par iapp: Illegal formula ..');
+const BAD_IAPP = commandError('Argument "formula": Illegal formula ..');
+/* the page's edits of a parameter: value.set_parameters {name: number}, or value.set_by_formula (a %formula) */
+const parEdit = c => c.cmd === 'value.set_parameters' || c.cmd === 'value.set_by_formula';
+const parEditValue = c => Object.values(c.values)[0];
 const MILLION = path.join(top, 'tools/models/million.odex');
 const APLOT_ODE = path.join(top, 'examples/ode/wcring.odex');
 const LORENZ_ODE = path.join(top, 'examples/ode/lorenz.odex');
@@ -445,9 +448,9 @@ async function values() {
   check('editing a parameter sends it at once, one set, and the core applies it (W106)',
     await until(`!s.busy && ${iappIs(0.2)} && !s.values.inflight.length`, 'iapp set'),
     JSON.stringify(await S(`[__xpp.sentFrom(${sent0}), s.values.inflight, s.core.pars]`)));
-  const set0 = (await S(`__xpp.sentFrom(${sent0})`)).filter(c => c.cmd === 'set');
-  check('the edit went out as exactly one set with its value',
-    set0.length === 1 && set0[0].text === '0.2' && set0[0].kind === 'par', JSON.stringify(set0));
+  const set0 = (await S(`__xpp.sentFrom(${sent0})`)).filter(parEdit);
+  check('the edit went out as exactly one value.set_parameters with its value',
+    set0.length === 1 && set0[0].cmd === 'value.set_parameters' && parEditValue(set0[0]) === 0.2, JSON.stringify(set0));
   check('no "pending" banner or dashed field: the value shown is the value',
     !(await cdp.eval(`!!document.querySelector('.values-queued, .value-field.queued')`))
     && (await cdp.eval(`document.getElementById(${JSON.stringify(field)}).value`)) === '0.2');
@@ -483,9 +486,9 @@ async function values() {
   check('typing into a field sends nothing while it types', whileTyping.length === 0, JSON.stringify(whileTyping));
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).blur()`);
   await until(`!s.busy && ${iappIs(0.35)}`, "the blur's set");
-  const typedSent = (await S(`__xpp.sentFrom(${preType})`)).filter(c => c.cmd === 'set');
-  check('blurring after typing sends exactly one set, with the last text',
-    typedSent.length === 1 && typedSent[0].text === '0.35', JSON.stringify(typedSent));
+  const typedSent = (await S(`__xpp.sentFrom(${preType})`)).filter(parEdit);
+  check('blurring after typing sends exactly one value.set_parameters, with the last text',
+    typedSent.length === 1 && parEditValue(typedSent[0]) === 0.35, JSON.stringify(typedSent));
 
   /* Go sends no set of its own: the core has the value already, and the run uses it */
   const preGo = await S('__xpp.sentCount()');
@@ -496,7 +499,7 @@ async function values() {
   await requireUntil(`s.seriesCount > ${n0go} && w.series.rows === 601`, 'Go integrated', 60000 * SLOW);
   const goSent = await S(`__xpp.sentFrom(${preGo})`);
   check('Go sends the run only: no set rides along with it (W106)',
-    !goSent.some(c => c.cmd === 'set') && (await S(iappIs(0.35))), JSON.stringify(goSent));
+    !goSent.some(parEdit) && (await S(iappIs(0.35))), JSON.stringify(goSent));
 
   /* there is no undo (GitHub #110): Reset puts a field's model-file value back, sent at once */
   check('there is no Undo button in the panel', !(await cdp.eval(`[...document.querySelectorAll('.values-header button')].some(b => b.textContent === 'Undo')`)));
@@ -504,7 +507,7 @@ async function values() {
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).closest('.value-field').querySelector('.value-reset').click()`);
   check('Reset sends the model file\'s value at once, and the core has it',
     await until(`!s.busy && ${iappIs(before)}`, 'reset applied')
-    && (await S(`__xpp.sentFrom(${preReset})`)).filter(c => c.cmd === 'restoredefaults' && c.scope === 'parameters' && c.field).length === 1,
+    && (await S(`__xpp.sentFrom(${preReset})`)).filter(c => c.cmd === 'set.restore_defaults' && c.scope === 'parameters' && c.field).length === 1,
     JSON.stringify(await S(`__xpp.sentFrom(${preReset})`)));
   /* clicking the plot (view-only, no compute) sends nothing */
   const plotCorner = await cdp.eval(`(() => { const r = document.querySelector('.plot-host').getBoundingClientRect();
@@ -564,9 +567,9 @@ async function values() {
   await until(`!s.busy && !s.values.inflight.length && __xpp.sentCount() > ${preSlide}`, 'slider sent');
   const slid = await S(`__xpp.sentFrom(${preSlide})`);
   check('a slider moved by the keyboard sends its values as sets, and runs nothing',
-    slid.length >= 1 && slid.every(c => c.cmd === 'set') && (await S('s.seriesCount')) === n0,
+    slid.length >= 1 && slid.every(parEdit) && (await S('s.seriesCount')) === n0,
     JSON.stringify([slid, await S('s.seriesCount')]));
-  const slidTo = Number(slid[slid.length - 1].text);
+  const slidTo = parEditValue(slid[slid.length - 1]);
   check('the core has the slider\'s last value', await S(iappIs(slidTo)), String(slidTo));
   /* the keys go to the plot: on the focused range track a letter is not a hotkey */
   await focusPlot();
@@ -724,8 +727,28 @@ async function dataTable(want, dir) {
     `(() => { const ics = s.core.ics.map(p => p[1]); return Math.abs(ics[0] - ${want[499][1]}) < 1e-6 && !s.busy; })()`,
     'Enter=Get'), JSON.stringify(await S('s.core.ics')));
 
-  /* CSV export: the core writes data.csv itself (browser op write, what:
-     table, format: csv; core/browse_data.cpp data_write), then the page
+  /* W526: First, Last and Restore are the registry's browser.set_slice_start, browser.set_slice_end and
+     browser.restore_full_slice on the selected row; the browser block tells the rows kept */
+  const sliceSent = await cdp.eval('__xpp.sentCount()');
+  const buttonOf = op => `document.querySelector('[data-button="browser:${op}"]').click()`;
+  await key('ArrowUp'); /* row 498 */
+  await cdp.eval(buttonOf('first'));
+  await until('!s.busy', 'First');
+  await key('ArrowDown');
+  await key('ArrowDown'); /* row 500 */
+  await cdp.eval(buttonOf('last'));
+  check('First and Last send browser.set_slice_start and browser.set_slice_end with the selected row, and the table says the rows kept',
+    await until('!s.busy && s.table.page && s.table.page.start === 498 && s.table.page.end === 501', 'slice')
+    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${sliceSent})`)).filter(c => c.cmd.startsWith('browser.set_slice')))
+      === JSON.stringify([{cmd: 'browser.set_slice_start', row: 498}, {cmd: 'browser.set_slice_end', row: 500}]),
+    JSON.stringify([await S('s.table.page && [s.table.page.start, s.table.page.end]'), await cdp.eval(`__xpp.sentFrom(${sliceSent})`)]));
+  await cdp.eval(buttonOf('restore'));
+  check('Restore sends browser.restore_full_slice and keeps every row again',
+    await until(`!s.busy && s.table.page.start === 0 && s.table.page.end === ${want.length}`, 'restore')
+    && (await cdp.eval(`__xpp.sentFrom(${sliceSent})`)).some(c => c.cmd === 'browser.restore_full_slice'), JSON.stringify(await S('[s.table.page.start, s.table.page.end]')));
+
+  /* CSV export: the core writes data.csv itself (browser.export, target: table,
+     format: csv; core/browse_data.cpp save_data_file), then the page
      offers it as a download (docs/roadmap.md W66) */
   const dataCsvName = await S('s.hello.output_names.csv');
   const dataCsvPath = path.join(dir, dataCsvName);
@@ -2432,9 +2455,9 @@ async function autoView(dir) {
 
   /* T26: a core error also sets the main status bar's `bottom` (StatusBar.tsx); with the main
      status bar hidden behind the AUTO view, its strip carries it instead. A bad %formula (not an
-     `auto` command, so it does not disturb the `sent()` checks below) fails in
-     json_state.cpp read_value: "set par iapp: Illegal formula .." */
-  await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
+     `auto` command, so it does not disturb the `sent()` checks below) is refused by
+     value.set_by_formula: Argument "formula": Illegal formula .. */
+  await cdp.eval(`__xpp.send({cmd: 'value.set_by_formula', name: 'iapp', formula: '('})`);
   await until(`s.bottom === ${JSON.stringify(BAD_IAPP)}`, 'bottom message');
   check("T26: the core's last message shows in the AUTO strip",
     (await cdp.eval(`document.querySelector('.auto-message')?.textContent`)) === BAD_IAPP);
@@ -3546,7 +3569,7 @@ async function busyKeys() {
   for (let k = 1; k <= 5; k++) await mouse('mouseMoved', track.x + track.w * (0.3 + k * 0.1), track.y, {button: 'left'});
   await mouse('mouseReleased', track.x + track.w * 0.8, track.y, {button: 'left', clickCount: 1});
   const dragged = await cdp.eval(`__xpp.sentFrom(${sent0})`);
-  const draggedTo = dragged.length ? Number(dragged[dragged.length - 1].text) : null;
+  const draggedTo = dragged.length ? parEditValue(dragged[dragged.length - 1]) : null;
   const shownDrag = await S(`s.values.inflight.some(f => f.set.name === 'iapp')
     && !document.querySelector('[data-slider="${sid}"]').classList.contains('queued') && !document.querySelector('.values-queued')`);
   /* W106: a parameter field and a Numerics field are settings too: editable during the run, sent at once */
@@ -3558,8 +3581,8 @@ async function busyKeys() {
     typed.length === 0 && stillBusy, JSON.stringify({typed, stillBusy}));
   check('W106: during the run a slider, a parameter field and a Numerics field send their edits at once (sets), '
     + 'shown as the values, with no pending mark',
-    dragged.length >= 1 && dragged.every(c => c.cmd === 'set' && c.name === 'iapp') && shownDrag
-    && JSON.stringify(edited) === JSON.stringify([{cmd: 'set', kind: 'par', name: 'phi', text: '0.4'},
+    dragged.length >= 1 && dragged.every(c => c.cmd === 'value.set_parameters' && 'iapp' in c.values) && shownDrag
+    && JSON.stringify(edited) === JSON.stringify([{cmd: 'value.set_parameters', values: {phi: 0.4}},
       {cmd: 'nullcline.set_mesh', mesh: 50}])
     && await cdp.eval(`${fieldOf('par', 'phi')}.querySelector('input').value === '0.4'
       && ${fieldOf('num', 'Nullcline mesh')}.querySelector('input').value === '50'`) && stillBusy,
@@ -3569,7 +3592,7 @@ async function busyKeys() {
   await cdp.eval(`document.querySelector('[data-run=stop]').click()`);
   const stopped = await until(`__xpp.actions().slice(${n0}).some(e => e === 'event:idle' || e === 'event:done') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
-  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'nullcline.set_mesh')`);
+  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'value.set_parameters' && c !== 'nullcline.set_mesh')`);
   const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:stopped')`);
   check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the run kept its values (the state '
     + 'during it had the parameters it started with)',
@@ -4007,7 +4030,7 @@ async function navigationCheck() {
   const seriesCount = await S('s.seriesCount');
   /* W210: Ctrl+Z takes back a value edit exactly, without integrating; Ctrl+Shift+Z puts it back */
   check('navigation: with nothing to redo the core says so', await S('s.core.can_redo === false'));
-  await cdp.eval(`__xpp.send({cmd:'set',kind:'par',name:'iapp',value:0.123456789012345})`);
+  await cdp.eval(`__xpp.send({cmd: 'value.set_parameters', values: {iapp: 0.123456789012345}})`);
   await until('s.core.pars.some(p => p[0] === "iapp" && p[1] === 0.123456789012345) && s.core.can_undo && !s.busy', 'changed value');
   await focusPlot();
   await key('z', 2);
@@ -4023,7 +4046,7 @@ async function navigationCheck() {
   check('W209: the unsaved dot is on while state.changed is', await S('s.core.changed') === true && await cdp.eval(`!!document.querySelector('.title-bar .unsaved')`));
   await cdp.eval(`__xpp.send({cmd: 'session', op: 'save', name: 'w209'})`);
   check('W209: a save clears changed and the dot', await until('!s.busy && s.core.changed === false && !document.querySelector(".title-bar .unsaved")', 'dot cleared'));
-  await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', value: 0.2})`);
+  await cdp.eval(`__xpp.send({cmd: 'value.set_parameters', values: {iapp: 0.2}})`);
   check('W209: an edit brings the dot back', await until('s.core.changed === true && !!document.querySelector(".title-bar .unsaved")', 'dot back'));
   await focusPlot();
   await key('s', 2);
@@ -4648,7 +4671,7 @@ async function runsCheck(dir) {
     [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').click(); })()`);
   const behind = await cdp.eval(`__xpp.sentFrom(${sentSave}).map(c => c.cmd + (c.op ? ' ' + c.op : ''))`);
   check('W95: a click right behind a command the page sent itself is not lost (Save behind a redraw goes out)',
-    JSON.stringify(behind) === JSON.stringify(['window.redraw', 'values write']), JSON.stringify(behind));
+    JSON.stringify(behind) === JSON.stringify(['window.redraw', 'value.save_file']), JSON.stringify(behind));
   await until("s.files.offered && s.files.offered.name.endsWith('.par') && !s.busy", 'par saved');
   const parName = await S('s.files.offered.name');
   const saved = fs.readFileSync(path.join(dir, parName), 'utf8').replace(/\r\n/g, '\n');
@@ -4707,9 +4730,9 @@ async function runsCheck(dir) {
   await mouse('mouseReleased', track.x + track.w * 0.9, track.y, {button: 'left', clickCount: 1});
   await until(`!s.busy && !s.values.inflight.length && __xpp.sentCount() > ${sent1}`, 'drag settles');
   const out = await cdp.eval(`__xpp.sentFrom(${sent1})`);
-  const draggedTo = Number(out.at(-1)?.text);
+  const draggedTo = parEditValue(out.at(-1));
   check('runs: a slider drag sends its values as sets, runs nothing, and the core has its final value',
-    out.every(c => c.cmd === 'set') && Math.abs(draggedTo - 0.9 * 2 * iapp) < 2 * iapp * 0.05
+    out.every(parEdit) && Math.abs(draggedTo - 0.9 * 2 * iapp) < 2 * iapp * 0.05
     && (await S('s.seriesCount')) === nSlide && (await S(`Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9`)),
     JSON.stringify({out, draggedTo}));
   await focusPlot();
@@ -4720,7 +4743,7 @@ async function runsCheck(dir) {
   await requireUntil(`s.seriesCount > ${nSlide} && w.series.rows === 601`, 'slider Go integrated', 60000 * SLOW);
   const final = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
   check('runs: Go runs with the slider\'s value, no set of its own',
-    Math.abs(final - draggedTo) < 1e-9 && !(await cdp.eval(`__xpp.sentFrom(${preGo}).some(c => c.cmd === 'set')`)),
+    Math.abs(final - draggedTo) < 1e-9 && !(await cdp.eval(`__xpp.sentFrom(${preGo}).some(c => c.cmd.startsWith('value.set_'))`)),
     JSON.stringify({final, draggedTo}));
 
   /* folding a section is remembered by the viewer */
@@ -4917,8 +4940,8 @@ async function valuesBusy() {
   const noMark = !(await cdp.eval(`${fieldOf('par', 'mu')}.classList.contains('queued') || !!document.querySelector('.values-queued')`));
   check('values: five edits while busy are sent at once (five sets), the field shows the last, no pending mark',
     busyEdits.every(Boolean) && wasBusy && sentDuring.length === 5
-    && sentDuring.every(c => c.cmd === 'set' && c.name === 'mu')
-    && sentDuring[4].text === '-0.95' && shownDuring === '-0.95' && noMark,
+    && sentDuring.every(c => c.cmd === 'value.set_parameters' && 'mu' in c.values)
+    && sentDuring[4].values.mu === -0.95 && shownDuring === '-0.95' && noMark,
     JSON.stringify({busyEdits, wasBusy, sentDuring, shownDuring, noMark}));
   await focusPlot();
   await key('Escape');
@@ -4938,11 +4961,11 @@ async function valuesBusy() {
   await mouse('mouseReleased', track.x + track.w * 0.8, track.y, {button: 'left', clickCount: 1});
   const busyThen = await S('s.busy && !!s.computing');
   const out = await S(`__xpp.sentFrom(${sent1})`);
-  const draggedTo = out.length ? Number(out[out.length - 1].text) : null;
+  const draggedTo = out.length ? parEditValue(out[out.length - 1]) : null;
   await focusPlot();
   await key('Escape');
   check('values: a slider dragged during a run sends its values as sets at once; the core has the last after the run',
-    busyDrag && busyThen && out.length >= 1 && out.every(c => c.cmd === 'set')
+    busyDrag && busyThen && out.length >= 1 && out.every(parEdit)
     && await until(`!s.busy && !s.values.inflight.length
       && Math.abs(s.core.pars.find(p => p[0] === 'mu')[1] - ${draggedTo}) < 1e-9`, 'heavy slider edits after Stop'),
     JSON.stringify({busyDrag, busyThen, out}));
@@ -5065,7 +5088,7 @@ async function valuesLive() {
     box.value === '0.05' && box.invalid === null
     && box.message === 'Pasted "abc" is not a number or formula ("a" at character 1)', JSON.stringify(box));
   const onlyEdit = () => cdp.eval(`(() => { const l = __xpp.sentFrom(${sent2});
-    return l.length === 1 && l[0].cmd === 'set' && l[0].text === '0.05'; })()`);
+    return l.length === 1 && l[0].cmd === 'value.set_parameters' && l[0].values.iapp === 0.05; })()`);
   check('T35d: a refused keystroke/paste sends nothing (the one set is the 0.05 committed between them)', await onlyEdit(),
     JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sent2})`)));
 
@@ -5116,8 +5139,8 @@ async function valuesLive() {
   check('WF-001: Escape drops the refused formula: the field is valid again and shows what the core has',
     dropped.invalid === null && close6(Number(dropped.value), 0.02) && !(await S(`s.values.errors['par:iapp']`)),
     JSON.stringify(dropped));
-  check('WF-001: only the one formula the core refused was sent, as one set',
-    (await cdp.eval(`__xpp.sentFrom(${sent3}).filter(c => c.cmd === 'set')`)).length === 1,
+  check('WF-001: only the one formula the core refused was sent, as one command',
+    (await cdp.eval(`__xpp.sentFrom(${sent3}).filter(c => c.cmd.startsWith('value.set_'))`)).length === 1,
     JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sent3})`)));
   await until('!s.busy', 'idle after the refusal', 60000);
 
@@ -5126,7 +5149,7 @@ async function valuesLive() {
   await editField('par', 'iapp', '%0.01*6');
   check('a %formula in a parameter box is sent as typed and the core evaluates it',
     await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.06) < 1e-12', 'iapp = %0.01*6', 60000)
-    && (await cdp.eval(`__xpp.sentFrom(${sent4})`)).some(c => c.cmd === 'set' && c.text === '%0.01*6'),
+    && (await cdp.eval(`__xpp.sentFrom(${sent4})`)).some(c => c.cmd === 'value.set_by_formula' && c.formula === '0.01*6'),
     JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sent4})`)));
 
   /* W131: a set of several values is all or nothing, and its error shows on the field it
@@ -5134,8 +5157,7 @@ async function valuesLive() {
   await until('!s.busy', 'idle before the mixed set', 60000);
   const parOf = n => S(`s.core.pars.find(p => p[0] === ${JSON.stringify(n)})[1]`);
   const iapp5 = await parOf('iapp'), gca5 = await parOf('gca');
-  await cdp.eval(`__xpp.send({cmd: 'set', values: [{kind: 'par', name: 'iapp', text: '0.21'},
-    {kind: 'par', name: 'gca', text: '%bogus_symbol_zzz'}, {kind: 'par', name: 'phi', text: '0.4'}]})`);
+  await cdp.eval(`__xpp.send({cmd: 'value.set_parameters', values: {iapp: 0.21, gca: '%bogus_symbol_zzz', phi: 0.4}})`);
   await until('!s.busy', 'idle after the mixed set', 60000);
   check('W131: a set with one bad value applies none of the three',
     close6(await parOf('iapp'), iapp5) && close6(await parOf('gca'), gca5) && close6(await parOf('phi'), 0.333),
@@ -5143,21 +5165,21 @@ async function valuesLive() {
   /* the page's own edit path: the error lands on its field */
   await editField('par', 'gca', '%bogus_symbol_zzz');
   const refusedGca = await until(`s.values.errors['par:gca']`, 'the core refuses a formula for gca', 60000);
-  check('W131: a refusal shows on its own field, the core naming it, and on no other',
-    !!refusedGca && /gca/.test(await S(`s.values.errors['par:gca']`)) && Object.keys(await S('s.values.errors')).join() === 'par:gca',
+  check('W131: a refusal shows on its own field (the edit that ran), and on no other',
+    !!refusedGca && /Illegal formula/.test(await S(`s.values.errors['par:gca']`)) && Object.keys(await S('s.values.errors')).join() === 'par:gca',
     JSON.stringify(await S('s.values.errors')));
   await key('Escape');
   await rendered();
 
-  /* Reset all sends the core's restoredefaults command, once, and no set */
+  /* Reset all sends the core's set.restore_defaults command, once, and no value command */
   await editField('par', 'iapp', '0.3');
   await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.3) < 1e-12`, 'iapp = 0.3', 60000);
   const preAll = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`[...document.querySelectorAll('[data-section="par"] button')].find(b => b.textContent.trim() === 'Reset all').click()`);
   await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.05) < 1e-12', 'Reset all applied', 60000);
   const allSent = await cdp.eval(`__xpp.sentFrom(${preAll})`);
-  check('W131: Reset all sends one restoredefaults command for the parameters and no set',
-    allSent.filter(c => c.cmd === 'restoredefaults' && c.scope === 'parameters' && !c.field).length === 1 && !allSent.some(c => c.cmd === 'set'),
+  check('W131: Reset all sends one set.restore_defaults command for the parameters and no value command',
+    allSent.filter(c => c.cmd === 'set.restore_defaults' && c.scope === 'parameters' && !c.field).length === 1 && !allSent.some(parEdit),
     JSON.stringify(allSent));
 }
 
@@ -5351,7 +5373,7 @@ async function pickFiles(selector, files) {
 const sha256 = data => crypto.createHash('sha256').update(data).digest('hex');
 const par = name => S(`(s.core.pars.find(p => p[0] === ${JSON.stringify(name)}) || [])[1]`);
 async function setPar(name, value) {
-  await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: ${JSON.stringify(name)}, text: '${value}'})`);
+  await cdp.eval(`__xpp.send({cmd: 'value.set_parameters', values: {${JSON.stringify(name)}: ${value}}})`);
   return until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === ${JSON.stringify(name)})[1] - ${value}) < 1e-12`, 'set');
 }
 
@@ -5541,7 +5563,7 @@ async function files(dir) {
 
     /* W134: Values > Load is an upload like the others: a same-name file with other content
        asks first, in a dialog of its own (no file ask is open), and Cancel copies and reads nothing */
-    await cdp.eval(`__xpp.send({cmd: 'values', op: 'write', kind: 'par', name: 'w134.par'})`);
+    await cdp.eval(`__xpp.send({cmd: 'value.save_file', kind: 'parameters', file: 'w134.par'})`);
     await until(`!s.busy`, 'w134.par written');
     const parThere = fs.readFileSync(path.join(dir, 'w134.par'));
     const parPicked = path.join(up, 'w134.par');
@@ -5556,7 +5578,7 @@ async function files(dir) {
     check('W134: ... Cancel leaves the folder\'s file untouched and reads nothing',
       await until('!s.files.confirm && !document.querySelector("[data-replace-dialog]")', 'load cancel')
       && fs.readFileSync(path.join(dir, 'w134.par')).equals(parThere)
-      && !(await cdp.eval(`__xpp.sentFrom(${sentLoad}).some(c => c.cmd === 'values')`)),
+      && !(await cdp.eval(`__xpp.sentFrom(${sentLoad}).some(c => c.cmd === 'value.load_file')`)),
       JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentLoad})`)));
     await pickFiles('#values-load-par', [parPicked]);
     await until('s.files.confirm', 'load confirm again');
@@ -6114,19 +6136,19 @@ async function jacobianOfferCheck(dir) {
 }
 
 async function errorDialogCheck(dir) {
-  const bad = () => cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
+  const bad = () => cdp.eval(`__xpp.send({cmd: 'value.set_by_formula', name: 'iapp', formula: '('})`);
   const dialog = () => cdp.eval(`(() => { const d = document.querySelector('.error-dialog');
     return d && {n: d.querySelectorAll('[data-error]').length, text: d.innerText, count: document.querySelectorAll('.error-dialog').length}; })()`);
   await bad();
   check("error dialog: a refused value opens the dialog with the core's text",
-    await until(`document.querySelector('.error-dialog [data-error]')`, 'dialog') && /set par iapp: Illegal formula ../.test((await dialog()).text),
+    await until(`document.querySelector('.error-dialog [data-error]')`, 'dialog') && /Illegal formula ../.test((await dialog()).text),
     JSON.stringify(await dialog()));
   check('error dialog: focus is on OK', await cdp.eval(`document.activeElement && document.activeElement.hasAttribute('data-error-ok')`));
   await bad();
   await until(`__xpp.log().filter(l => l.kind === 'error' && l.text === ${JSON.stringify(BAD_IAPP)}).length >= 2`, 'second error');
   const two = await dialog();
   check('error dialog: two errors before OK are one dialog listing both',
-    two.count === 1 && two.n >= 2 && (two.text.match(/set par iapp: Illegal formula ../g) || []).length >= 2, JSON.stringify(two));
+    two.count === 1 && two.n >= 2 && (two.text.match(/Argument "formula": Illegal formula ../g) || []).length >= 2, JSON.stringify(two));
   await key('Enter');
   check('error dialog: Enter closes it, nothing left',
     await until(`!document.querySelector('.error-dialog') && !s.toasts.some(t => t.kind === 'error')`, 'closed'));
@@ -6140,7 +6162,7 @@ async function errorDialogCheck(dir) {
 
   /* W140: an error the core places shows its file and line, and the line as written */
   fs.writeFileSync(path.join(dir, 'w140bad.par'), '3   Number params' + String.fromCharCode(10) + '1' + String.fromCharCode(10));
-  await cdp.eval(`__xpp.send({cmd: 'values', op: 'read', kind: 'par', name: 'w140bad.par'})`);
+  await cdp.eval(`__xpp.send({cmd: 'value.load_file', kind: 'parameters', file: 'w140bad.par'})`);
   await until(`document.querySelector('.error-dialog [data-error-place]')`, 'a placed error');
   const placed = await S(`s.toasts.filter(t => t.kind === 'error').pop()`);
   check('error dialog: a placed error keeps its file, line and line as written (W140)',
@@ -6559,7 +6581,7 @@ async function layoutCheck(dir) {
   }
   await desktopMetrics();
   await rendered();
-  await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
+  await cdp.eval(`__xpp.send({cmd: 'value.set_by_formula', name: 'iapp', formula: '('})`);
   await until(`s.bottom === ${JSON.stringify(BAD_IAPP)}`, 'bottom message');
   await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
   await until(`!s.toasts.length`, 'toasts dismissed');
@@ -6865,7 +6887,7 @@ async function main() {
        .." (typed_values.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
     if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:2:1: uses random numbers')]);
-    if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('set par gca: Illegal formula ..')]);
+    if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('Argument "values.gca" must be a finite number')]);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));
     if (run('help')) await session(ODE, helpCheck);

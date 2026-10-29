@@ -102,7 +102,7 @@ export function keycaps(p: PlayerState): {label: string; caps: Keycap[]; answeri
   return {
     label: 'Keys',
     caps: keys.map((k, i) => ({text: keyText(k), down: i === at, ahead: i > at})),
-    answering: what === 'answer' || what === 'alert',
+    answering: what === 'answer',
   };
 }
 

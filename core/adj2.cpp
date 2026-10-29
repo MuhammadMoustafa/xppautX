@@ -13,6 +13,7 @@
 #include "expr.h"
 #include "getvar.h"
 #include "xpp_ui.h"
+#include "typed_values.h"
 
 #include <string>
 #include <stdlib.h>
@@ -57,9 +58,67 @@ void init_trans(xpp::Session &s)
 }
 
 
-int do_transpose(xpp::Session &s)
+namespace {
+
+/* the transposed data from the settings in s.adjoint.transpose, shown in the browser: every value it reads lies in
+   the stored data (transpose_data checked) */
+void create_transpose(xpp::Session &s)
 {
- int i,status;
+  float **data=s.adjoint.transposed.make(s.data_store,s.adjoint.transpose.nrow+1,s.adjoint.transpose.ncol,s.model().neq);
+  for(int j=0;j<s.adjoint.transpose.ncol;j++)
+    data[0][j]=static_cast<float>(j+1);
+
+  for(int i=0;i<s.adjoint.transpose.ncol;i++){
+    const int incol=s.adjoint.transpose.col0-1+i*s.adjoint.transpose.colskip;
+    for(int j=0;j<s.adjoint.transpose.nrow;j++){
+      const int inrow=s.adjoint.transpose.row0+j*s.adjoint.transpose.rowskip;
+      data[j+1][i]=s.data_store.col[incol][inrow];
+    }
+  }
+  new_browse_dat(s,data,s.adjoint.transpose.ncol);
+  s.adjoint.transposed_here=true;
+}
+
+} // namespace
+
+Result<> transpose_data(xpp::Session &s, std::string_view first_column, int columns, int column_skip, int first_row, int rows, int row_skip)
+{
+  const int neq=s.model().neq,stored_rows=s.data_store.rows;
+  const Place here=command_place();
+  int first=-1;
+  if(stored_rows<1)return fail("transpose","There is no stored data to transpose: run first",here);
+  find_variable(s,first_column,&first);
+  if(first<0||first>neq)return fail("transpose",xpp::format("No such column: \"{}\"",first_column),here);
+  if(columns<1||column_skip<1||rows<1||row_skip<1||first_row<0)
+    return fail("transpose","Columns, rows and both skips must be at least 1, and the first row at least 0",here);
+  /* every value read lies in the data: the last column and the last row (long long: the product cannot overflow) */
+  const long long last_column=first+static_cast<long long>(columns-1)*column_skip;
+  const long long last_row=first_row+static_cast<long long>(rows-1)*row_skip;
+  if(last_column>neq)
+    return fail("transpose",xpp::format("{} columns from {} in steps of {} reach column {}: the data has columns 0 to {}",columns,first_column,column_skip,last_column,neq),here);
+  if(last_row>=stored_rows)
+    return fail("transpose",xpp::format("{} rows from row {} in steps of {} reach row {}: the data has rows 0 to {}",rows,first_row,row_skip,last_row,stored_rows-1),here);
+  if(rows>neq-1)
+    return fail("transpose",xpp::format("The transposed data has at most {} columns (one fewer than the model's), not {}",neq-1,rows),here);
+  AdjointState &a=s.adjoint;
+  if(a.transposed_here){
+    a.transposed.release();
+    a.transposed_here=false;
+    data_back(s);
+  }
+  a.transpose.firstcol=std::string(first_column);
+  a.transpose.col0=first+1;
+  a.transpose.ncol=columns;
+  a.transpose.colskip=column_skip;
+  a.transpose.row0=first_row;
+  a.transpose.nrow=rows;
+  a.transpose.rowskip=row_skip;
+  create_transpose(s);
+  return {};
+}
+
+void do_transpose(xpp::Session &s)
+{
  static const char *const n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
  std::array<std::string, 6> values;
  values[0] = s.adjoint.transpose.firstcol;
@@ -68,63 +127,19 @@ int do_transpose(xpp::Session &s)
  values[3] = xpp::format("{:d}", s.adjoint.transpose.row0);
  values[4] = xpp::format("{:d}", s.adjoint.transpose.nrow);
  values[5] = xpp::format("{:d}", s.adjoint.transpose.rowskip);
- AdjointState &a=s.adjoint;
- if(a.transposed_here){
-   a.transposed.release();
-   a.transposed_here=false;
-   data_back(s);
- }
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(6,1,"Transpose Data",n,values,kinds);
- if(status!=0){
-   find_variable(s,values[0].c_str(),&i);
-   if(i>-1)
-     s.adjoint.transpose.col0=i+1;
-   else
-     {
-       command_error("adjoint", "No such columns");
-       return 0;
-     }
-   s.adjoint.transpose.firstcol=values[0];
-   i=atoi(values[4].c_str());
-   if(i>=s.model().neq)i=s.model().neq-1;
-   s.adjoint.transpose.nrow=i;
-   s.adjoint.transpose.ncol=atoi(values[1].c_str());
-   s.adjoint.transpose.colskip=atoi(values[2].c_str());
-   s.adjoint.transpose.row0=atoi(values[3].c_str());
-   s.adjoint.transpose.rowskip=atoi(values[5].c_str());
-   return (create_transpose(s));
+ if(do_string_box_of(6,1,"Transpose Data",n,values,kinds)==0)return;
+ xpp::TypedFields f(s);
+ const int columns=f.integer(n[1],values[1]),column_skip=f.integer(n[2],values[2]),first_row=f.integer(n[3],values[3]),
+           rows=f.integer(n[4],values[4]),row_skip=f.integer(n[5],values[5]);
+ if(f.error()){
+   command_error("transpose",*f.error());
+   return;
  }
- return 0; 
-
+ ok_or_show(transpose_data(s,values[0],columns,column_skip,first_row,rows,row_skip));
 }
  
-int create_transpose(xpp::Session &s)
-{
-  int i,j;
-  int inrow,incol;
-  float **data=s.adjoint.transposed.make(s.data_store,s.adjoint.transpose.nrow+1,s.adjoint.transpose.ncol,s.model().neq);
-  for(j=0;j<s.adjoint.transpose.ncol;j++)
-    data[0][j]=j+1;
-
-  for(i=0;i<s.adjoint.transpose.ncol;i++){
-    incol=s.adjoint.transpose.col0-1+i*s.adjoint.transpose.colskip;
-    if(incol>s.model().neq)
-      incol=s.model().neq;
-    for(j=0;j<s.adjoint.transpose.nrow;j++){
-      inrow=s.adjoint.transpose.row0+j*s.adjoint.transpose.rowskip;
-      if(inrow>s.data_store.rows)
-	inrow=s.data_store.rows;
-      data[j+1][i]=s.data_store.col[incol][inrow];
-    }
-  }
-  
-  new_browse_dat(s,data,s.adjoint.transpose.ncol);
-   s.adjoint.transposed_here=true;
-   return 1;
-}
-
 void alloc_h_stuff(xpp::Session &s)
 {
  s.adjoint.coup_fun.assign(s.model().node,{});

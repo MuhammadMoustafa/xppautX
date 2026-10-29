@@ -130,6 +130,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [97](#97-a-saddles-manifold-export-starts-each-branch-where-the-last-one-ended) | Equilibria | a saddle's batch manifold export runs every branch from the time the previous one ended, and with a transient drops each branch's start near the saddle | [W533](https://github.com/MuhammadMoustafa/xppautX/issues/598) |
 | [98](#98-the-2d-histogram-writes-past-its-columns-when-its-bins-outgrow-the-storage) | Analysis | the 2D histogram clamps its columns to the storage but fills one value for every bin, so many bins write past them | [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589) |
 | [99](#99-a-spectrum-window-of-one-point-divides-by-zero) | Analysis | a spectral density window of 1 point makes a step of 0 and divides by it, and a window longer than the data is not checked before it is allocated | [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589) |
+| [100](#100-transpose-data-reads-a-row-past-the-stored-data) | Data browser | Transpose data clamps a row past the data to one row past it (the unused row of the storage), so its table holds garbage for rows that do not exist | [W526](https://github.com/MuhammadMoustafa/xppautX/issues/590) |
 
 ## 1. Model options
 
@@ -2118,3 +2119,22 @@ refuses a window under 2 points, or longer than the stored rows, naming the
 rows and the window, before it allocates anything; `analysis.spectral_density` and
 the Stochastic menu's spEc.dns item alike. Card
 [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589).
+
+## 100. Transpose data reads a row past the stored data
+
+Transpose data makes each output row from the column `Column 1 + i * ColSkip`
+and each output column from the row `Row 1 + j * RowSkip`; a row past the
+stored data is clamped to `storind`, the number of rows stored, which is one
+past the last row ([adj2.c:165–168](../reference/xppaut-8.0/adj2.c#L165),
+[master](../reference/xppaut-master/adj2.c#L165)), so the values it reads are
+those of the storage's unused row, whatever it holds, with no word said. The
+number of rows asked is cut to the model's `NEQ-1` the same way, silently
+([adj2.c:135](../reference/xppaut-8.0/adj2.c#L135),
+[master](../reference/xppaut-master/adj2.c#L135)). Evidence:
+`browser.transpose` with `first_row` 1, `rows` 2 and `row_skip` 600 on a run of
+601 rows is refused by xppautX naming the row it would reach and the rows
+there are, as is one with more rows than the model has columns less one;
+`tools/servercheck.py` (section `data`) and `tests/test_browser.cpp` check
+both. xppautX checks every column and row before it makes the table, for the
+form and the command alike. Card
+[W526](https://github.com/MuhammadMoustafa/xppautX/issues/590).

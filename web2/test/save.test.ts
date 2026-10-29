@@ -82,11 +82,11 @@ test('W129: a committed destination with the dialog suffix delivers the core fil
 test('W130: page saves use hello names, even when they differ from the model filename', () => {
   const {s, sent} = saving();
   s.saveValues('par');
-  assert.equal(sent.at(-1)?.name, HELLO.output_names.par);
+  assert.equal(sent.at(-1)?.file, HELLO.output_names.par);
   s.writeDataFile('table', 'csv');
-  assert.equal(sent.at(-1)?.name, HELLO.output_names.csv);
+  assert.equal(sent.at(-1)?.file, HELLO.output_names.csv);
   s.writeDataFile('plot', 'csv');
-  assert.equal(sent.at(-1)?.name, HELLO.output_names.curves);
+  assert.equal(sent.at(-1)?.file, HELLO.output_names.curves);
 });
 
 
@@ -96,12 +96,12 @@ test('W177: desktop Values and CSV buttons ask the core for a picker destination
   try {
     const {s, sent} = saving();
     s.saveValues('par');
-    assert.deepEqual(sent.at(-1), {cmd: 'values', op: 'write', kind: 'par'});
+    assert.deepEqual(sent.at(-1), {cmd: 'value.save_file', kind: 'parameters'});
     s.saveValues('ic');
-    assert.deepEqual(sent.at(-1), {cmd: 'values', op: 'write', kind: 'ic'});
-    for (const what of ['table', 'plot'] as const) {
+    assert.deepEqual(sent.at(-1), {cmd: 'value.save_file', kind: 'initial_conditions'});
+    for (const [what, target] of [['table', 'table'], ['plot', 'plot_curves']] as const) {
       s.writeDataFile(what, 'csv');
-      assert.deepEqual(sent.at(-1), {cmd: 'browser', op: 'write', what, format: 'csv'});
+      assert.deepEqual(sent.at(-1), {cmd: 'browser.export', target, format: 'csv'});
     }
   } finally {
     if (original) Object.defineProperty(globalThis, 'window', original);
@@ -160,7 +160,7 @@ test('W303: a denied native save retries only after idle, in the writable model 
     emit({ev: 'message', error: 'cannot open data.csv: Permission denied: the folder /protected needs administrator rights; choose another place'});
     assert.equal(sent.length, before);
     emit({ev: 'idle'});
-    assert.deepEqual(sent.at(-1), {cmd: 'browser', op: 'write', what: 'table', format: 'csv'});
+    assert.deepEqual(sent.at(-1), {cmd: 'browser.export', target: 'table', format: 'csv'});
     const retry = {...ask, id: 8};
     s.store.dispatch({type: 'event', ev: retry});
     await s.nativeFile(retry);

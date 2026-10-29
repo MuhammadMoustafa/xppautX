@@ -197,7 +197,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const may = useMay();
   const mayMain = useMayMain();
   const windowOff = !mayMain('window'); /* Window/zoom: a view (W95) */
-  const csvOff = !may({cmd: 'browser', op: 'write'});
+  const csvOff = !may({cmd: 'browser.export'});
   const pick = useStore(s => (s.pick?.win === win ? s.pick : null));
   const picking = pick && !pick.waiting ? pick : null;
   const host = useRef<HTMLDivElement>(null);

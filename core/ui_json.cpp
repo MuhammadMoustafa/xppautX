@@ -120,6 +120,31 @@ void silent_fail(const char *what, const char *line, const char *ask)
 constexpr std::string_view ABORT_COMMAND = "run.abort";
 bool is_abort(const char *line) { return xpp::command::name(line) == ABORT_COMMAND; }
 
+/* the parameters' edit: acted on at once under a job that computes nothing (a prompt open, the animation playing),
+   as a `set` was, so a slider moves a parameter under the animation */
+constexpr std::string_view PARAMETERS_COMMAND = "value.set_parameters";
+bool is_parameter_edit(const char *line) { return xpp::command::name(line) == PARAMETERS_COMMAND; }
+
+/* the table's paging, answered at once, even during a computation or a prompt: it only reads (and steers the view) */
+constexpr std::string_view PAGE_COMMAND = "browser.page";
+bool is_page(const char *line) { return xpp::command::name(line) == PAGE_COMMAND; }
+
+/* browser.page taken as a control line (a computation or a prompt is running), run now on the core's thread: the
+   block's event only, as run.abort has no done of its own while another command's is due; a refusal is said
+   by its done, the one thing the client must not miss */
+void answer_page(xpp::Session &s, const char *line)
+{
+    const xpp::Place place = j_command_place();
+    xpp::Result<std::string> request = std::string(line);
+    if (*skip_ws(line) != '{' && !session.silent && !xpp::http::active()) request = xpp::command::tokenize(line, place);
+    const xpp::Result<std::string> result = request ? xpp::command::run(s, request->c_str(), place, false) : std::unexpected<xpp::Error>(request.error());
+    browser_update(s);
+    if (result) return;
+    xpp::log_note_error();
+    std::string event = xpp::command::done(request ? request->c_str() : "{}", result, false);
+    send_buf(event);
+}
+
 bool quit_waits(const char *line)
 {
     return is_cmd(line, "quit") && (get_int(line, "ask", 0) != 0 || get_int(line, "save", 0) != 0);
@@ -139,8 +164,8 @@ int handle_async(xpp::Session &s, const char *line)
         send_state(s);
         return 1;
     }
-    if (is_cmd(line, "browser") && js_find(line, "from")) {
-        browser_rows(s, line);
+    if (is_page(line)) {
+        answer_page(s, line);
         return 1;
     }
     return play_async(line) ? 1 : 0;
@@ -173,8 +198,7 @@ xpp::inbox::Verdict during_run(const char *line)
 {
     std::string c, o; /* Whole words: a longer input must not impersonate a known command. */
     get_string(line, "cmd", c);
-    if (is_abort(line) || c == "quit" || c == "state") return xpp::inbox::Verdict::control;
-    if (c == "browser" && js_find(line, "from")) return xpp::inbox::Verdict::control;
+    if (is_abort(line) || is_page(line) || c == "quit" || c == "state") return xpp::inbox::Verdict::control;
     if (c == "play" && get_string(line, "op", o) && (o == "start" || o == "pause" || o == "step" || o == "speed"))
         return xpp::inbox::Verdict::control;
     if (c == "answer") return xpp::inbox::Verdict::normal;
@@ -201,10 +225,10 @@ void count_deferred()
     xpp::inbox::set_kept(session.deferred.size(), bytes);
 }
 
-void defer_line(const char *line, bool refused, bool applied)
+void defer_line(const char *line, bool refused, bool applied, std::optional<xpp::Result<std::string>> taken)
 {
     try {
-        session.deferred.push_back({line, read_line_seq(), refused, applied});
+        session.deferred.push_back({line, read_line_seq(), refused, applied, std::move(taken)});
     } catch (...) {
         xpp::out_of_memory("keeping a command");
     }
@@ -281,8 +305,8 @@ xpp::inbox::Verdict classify(const char *line, unsigned long seq)
     }
     if (xpp::job::computing() && !xpp::job::stopping()) return during_run(line);
     if (!xpp::job::running()) return xpp::inbox::Verdict::normal;
-    if ((c == "key" && !js_find(line, "win")) || c == "set" || c == "state") return xpp::inbox::Verdict::control;
-    if (c == "browser" && js_find(line, "from")) return xpp::inbox::Verdict::control;
+    if ((c == "key" && !js_find(line, "win")) || c == "set" || c == "state" || is_page(line) || is_parameter_edit(line))
+        return xpp::inbox::Verdict::control;
     if (c == "ani" && get_string(line, "op", o) && (o == "pause" || o == "fast" || o == "slow" || o == "speed"))
         return xpp::inbox::Verdict::control;
     return xpp::inbox::Verdict::normal;
@@ -292,12 +316,15 @@ xpp::inbox::Verdict classify(const char *line, unsigned long seq)
 
 void take_setting(xpp::Session &s, const char *line)
 {
-    const bool now = !xpp::job::computed() && is_cmd(line, "set");
+    const bool parameters = is_parameter_edit(line);
+    const bool now = !xpp::job::computed() && (is_cmd(line, "set") || parameters);
+    std::optional<xpp::Result<std::string>> taken;
     if (now) {
         record_setting(line);
-        apply_set(s, line);
+        if (parameters) taken = xpp::command::run(s, line, j_command_place(), false);
+        else apply_set(s, line);
     }
-    defer_line(line, false, now);
+    defer_line(line, false, now, std::move(taken));
 }
 
 /* a control line taken by a checkpoint: every kind classify() puts there
@@ -416,7 +443,6 @@ XppUi make_json_ui(void)
     u.question_policy = j_question_policy;
     u.new_string = j_new_string;
     u.choose = j_choose;
-    u.respond_box = j_respond_box;
     u.checklist = j_checklist;
     u.string_box = j_string_box;
     u.typed_form = j_typed_form;
@@ -614,26 +640,11 @@ const CommandInfo commands[] = {
     {"aplot", nullptr, V, STEP, aplot_command},
     {"ani", "mouse", X, STEP, ani_command}, /* release can integrate */
     {"ani", nullptr, V, STEP, ani_command},
-    {"browser", "write", D, STEP, browser_command},
-    {"browser", "load", D, STEP, browser_command},
-    {"browser", nullptr, V, NOT_STEP, browser_command}, /* with from: the block shown */
     {"keymap", nullptr, C, NOT_STEP, keymap_command}, /* the user's settings, not the model's: any time */
     {"file", "put", D, NOT_STEP, file_command},
     {"file", nullptr, V, NOT_STEP, file_command}, /* list, get */
     {"set", nullptr, S, STEP, apply_set},
-    {"applyset", nullptr, S, STEP, applyset_command},
-    {"restoredefaults", nullptr, S, STEP, restoredefaults_command},
-    {"saveset", nullptr, D, STEP, saveset_command},
-    {"savedefaults", nullptr, D, STEP, savedefaults_command},
-    {"exportset", nullptr, D, STEP, exportset_command},
-    {"renameset", nullptr, D, STEP, renameset_command},
-    {"deleteset", nullptr, D, STEP, deleteset_command},
-    {"slide", nullptr, S, STEP, slide_command},
-    {"slider", nullptr, S, STEP, slider_command},
     {"action", nullptr, D, STEP, action_command},
-    {"values", "write", D, STEP, values_command},
-    {"values", "query", D, STEP, values_command},
-    {"values", nullptr, S, STEP, values_command}, /* read: values set */
     {"session", nullptr, D, STEP, session_command},
     {"open", nullptr, D, STEP,
      [](xpp::Session &s, const char *line) {
@@ -848,7 +859,8 @@ bool runs_without_model(const char *line)
    a set applied already, under a job that computed nothing
    (control_line), only ends. The Session the command ended in: the one
    it ran in, or the model's it loaded in that one's place. */
-xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
+xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, bool applied = false,
+                          const xpp::Result<std::string> *taken = nullptr)
 {
     xpp::job::begin(seq);
     const bool played = player_begin(line);
@@ -865,7 +877,10 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     if (registered) {
         const xpp::Place place=j_command_place();
         if(text)request=xpp::command::tokenize(line,place);
-        if(request) {
+        if(request && applied && taken) {
+            /* done when it was taken (take_setting): it only ends here, with the result it had */
+            result=*taken;
+        } else if(request) {
             record_begin(request->c_str());
             const auto permission=reset_save_decision();
             /* --silent's own commands replace the output files they write, as its key lines' "replace":1 said */
@@ -1006,11 +1021,13 @@ void json_ui_loop(void)
             next.seq = read_line_seq();
             next.refused = read_line_refused();
             next.applied = false;
+            next.taken.reset();
         }
         /* an abort did its work when it arrived (classify()): it is no
            command of its own, and gets no state or idle; in a script,
            where nothing ran for it to stop, the next line follows */
-        if (!is_abort(next.line.c_str())) handle_line(next.line.c_str(), next.seq, next.refused, next.applied);
+        if (!is_abort(next.line.c_str()))
+            handle_line(next.line.c_str(), next.seq, next.refused, next.applied, next.taken ? &*next.taken : nullptr);
         else if (session.generated) xpp::inbox::generated_advance();
     }
 }
@@ -1059,7 +1076,6 @@ void install(bool silent)
     if (silent) {
         /* NULL keeps the headless entry (set_ui) */
         ui.err_msg = nullptr;
-        ui.respond_box = nullptr;
     }
     set_ui(&ui);
 }

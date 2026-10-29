@@ -363,7 +363,7 @@ def section_input():
     s = Server(args.server, LECAR, verbose=False)
     s.collect(is_idle)
     n = 1000
-    s.proc.stdin.write(''.join(json.dumps({'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': i / 10000.0}) + '\n'
+    s.proc.stdin.write(''.join(json.dumps({'cmd': 'value.set_parameters', 'values': {'iapp': i / 10000.0}}) + '\n'
                                for i in range(n)))
     s.proc.stdin.flush()
     idles = 0
@@ -1071,7 +1071,7 @@ def section_session():
     evs = open_session(s5, 'tab')
     s5.send(cmd='run.initial')
     s5.collect(is_idle, timeout=30 * SLOW)
-    s5.send(cmd='browser', op='write', what='table', format='csv', name='tab.csv')
+    s5.send(cmd='browser.export', target='table', format='csv', file='tab.csv')
     s5.collect(is_idle)
     csv_path = os.path.join(s5.run, 'tab.csv')
     rows = [l.strip() for l in open(csv_path) if l.strip() and not l.startswith('#')] if os.path.exists(csv_path) else []
@@ -1258,7 +1258,7 @@ def section_sessiondiagram():
     load_diagram(s, 'old.snapx')
 
     # A previously omitted parameter changes branch data even when every plotted coordinate agrees.
-    s.send(cmd='set',kind='par',name='om',value=2)
+    s.send(cmd='value.set_parameters', values={'om': 2})
     s.collect(is_idle)
     refreshed=import_diagram(s,'old.auto')
     parameters=[r['parameters'] for event in refreshed if is_point(event) for r in event['runs'] if 'parameters' in r]
@@ -1404,7 +1404,7 @@ def rows(evs):
 def arm_run(s):
     """set mu: the run that follows needs only its command, so a caller that must race the engine (an Abort
        sent right behind the command) races that one command"""
-    s.send(cmd='set', kind='par', name='mu', value=-1)
+    s.send(cmd='value.set_parameters', values={'mu': -1})
     s.collect(is_idle)
 
 
@@ -1557,7 +1557,7 @@ def section_names():
     check('names: hello lists the auxiliary by its full name', hello is not None and
           LONG_AUX in hello['lists'][0], str(hello and hello['lists'][0])[:300])
 
-    s.send(cmd='set', kind='par', name=LONG_B, value=0.9)
+    s.send(cmd='value.set_parameters', values={LONG_B: 0.9})
     s.collect(is_idle)
     s.send(cmd='ic.set', values={'slow_recovery_variable_w': -0.25})
     evs, _ = s.collect(is_idle)
@@ -1567,16 +1567,16 @@ def section_names():
     check('names: set an initial condition by its name, in any case',
           st is not None and dict(st['ics']).get('SLOW_RECOVERY_VARIABLE_W') == -0.25, str(st and st['ics'])[:300])
     # a formula naming a long name twice (over 400 characters) is read whole
-    s.send(cmd='set', kind='par', name=LONG_PAR.upper(), text='%' + LONG_B + '-' + LONG_B.upper() + '+0.125')
+    s.send(cmd='value.set_by_formula', name=LONG_PAR.upper(), formula=LONG_B + '-' + LONG_B.upper() + '+0.125')
     evs, _ = s.collect(is_idle)
     st = last_state(evs)
     errs = [e for e in evs if e.get('ev') == 'message']
     check('names: a formula of 400 characters sets a parameter', not errs and st is not None
           and dict(st['pars']).get(LONG_PAR) == 0.125, '%s %s' % (errs, st and dict(st['pars']).get(LONG_PAR)))
-    s.send(cmd='set', kind='par', name=LONG_PAR, value=0)
+    s.send(cmd='value.set_parameters', values={LONG_PAR: 0})
     s.collect(is_idle)
     # a name longer than any matches nothing, not the name it starts with
-    s.send(cmd='set', kind='par', name=LONG_B + 'x' * 40, value=5)
+    s.send(cmd='value.set_parameters', values={LONG_B + 'x' * 40: 5})
     evs, _ = s.collect(is_idle)
     st = last_state(evs)
     check('names: a longer name sets nothing', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
@@ -1610,7 +1610,7 @@ def section_names():
 
     s.send(cmd='run.initial')
     s.collect(is_idle, timeout=30 * SLOW)
-    s.send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 3})
+    s.send(cmd='browser.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 3})
     evs, br = s.collect(lambda e: e.get('ev') == 'browser')
     s.collect(is_idle)
     cols = ['T', LONG_V, 'SLOW_RECOVERY_VARIABLE_W', LONG_AUX]
@@ -1625,14 +1625,14 @@ def section_names():
     s.send(cmd='answer', id=ask['id'], ok=1, value=LONG_V.lower() + '*slow_recovery_variable_w')
     evs, _ = s.collect(is_idle)
     errs = [e for e in evs if e.get('ev') == 'message']
-    s.send(cmd='browser', **{'from': 0, 'count': 1, 'col': 1, 'ncol': 4})
+    s.send(cmd='browser.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 4})
     evs, br = s.collect(lambda e: e.get('ev') == 'browser')
     s.collect(is_idle)
     row = br['data'][0] if br and br.get('data') else []
     check('names: Add column takes a 200-character name and a long formula', not errs and br is not None
           and br['cols'] == cols + [added.upper()] and len(row) == 5 and abs(row[4] - row[1] * row[2]) < 1e-5,
           '%s %s' % (errs, str(br)[:300]))
-    s.send(cmd='browser', op='write', what='table', format='csv', name='ln.csv')
+    s.send(cmd='browser.export', target='table', format='csv', file='ln.csv')
     s.collect(is_idle)
     csv_path = os.path.join(s.run, 'ln.csv')
     lines = [l.strip() for l in open(csv_path)] if os.path.exists(csv_path) else []
@@ -1732,7 +1732,7 @@ def section_recording():
     # The snapshot precedes the steps: the model's defaults cannot replace it.
     with tempfile.TemporaryDirectory(prefix='xppsnapshot') as run:
         run_commands(args.server, LECAR, [
-            {'cmd':'set', 'kind':'par', 'name':'iapp', 'value':0.9},
+            {'cmd':'value.set_parameters', 'values':{'iapp':0.9}},
             {'cmd':'record', 'op':'start'}, {'cmd':'key', 'key':'i'}, {'cmd':'answer', 'key':'g'},
             {'cmd':'record', 'op':'stop', 'name':'start.recx'}], run)
         r = replay_recording(args.server, LECAR, os.path.join(run, 'start.recx'), run)
@@ -1753,7 +1753,7 @@ def section_recording():
                 f.write(recording_text(template, steps))
             return subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=run,
                 capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
-        outside = {'cmd':{'cmd':'values', 'op':'write', 'kind':'par', 'name':marker, 'replace':1}}
+        outside = {'cmd':{'cmd':'value.save_file', 'kind':'parameters', 'file':marker}}
         r = quiet([outside])
         check('W144: a recording cannot overwrite a path using a recorded path',
               r.returncode == 1 and r.stdout == '' and file_content(marker, 'rb') == b'keep', r.stderr)
@@ -1780,16 +1780,17 @@ def section_recording():
         check('W144: a file refusal is printed once at the recording step',
               r.returncode == 1 and r.stdout == '' and r.stderr.count('run.recx:') == 1
               and file_content(marker, 'rb') == b'keep', r.stderr)
-        r = quiet([outside, {'cmd':{'cmd':'run.initial'}, 'files':[0.5]}])
+        early = {'cmd':{'cmd':'value.save_file', 'kind':'parameters', 'file':'early.par'}}
+        r = quiet([early, {'cmd':{'cmd':'run.initial'}, 'files':[0.5]}])
         check('W144: an invalid final step is refused before any earlier step executes',
               r.returncode == 1 and r.stdout == '' and 'file section 0.5' in r.stderr
-              and r.stderr.count('run.recx:') == 1 and file_content(marker, 'rb') == b'keep', r.stderr)
+              and r.stderr.count('run.recx:') == 1 and not os.path.exists(os.path.join(run, 'early.par')), r.stderr)
         r = quiet([{'cmd':{'cmd':'run.initial'}, 'abort':{'what':'integrate','rows':1e100}}])
         check('W144: an out-of-range interruption is refused before playback',
               r.returncode == 1 and 'invalid recorded interruption' in r.stderr and r.stdout == '', r.stderr)
         r = quiet([])
         check('W144: an empty recording loads its snapshot and exits cleanly', r.returncode == 0 and r.stdout == '', r.stderr)
-        r = quiet([{'cmd':{'cmd':'quit'}}, {'cmd':{'cmd':'set','kind':'par','name':'iapp','value':0.8}}])
+        r = quiet([{'cmd':{'cmd':'quit'}}, {'cmd':{'cmd':'value.set_parameters','values':{'iapp':0.8}}}])
         leftover = quiet([{'cmd':{'cmd':'quit'}, 'answers':[{'save_replace':1}]}])
         check('W144: a recorded quit cannot report success while skipping later steps',
               r.returncode == 1 and r.stderr.count('Playback ended before') == 1 and r.stdout == ''
@@ -1806,8 +1807,8 @@ def section_recording():
             capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
         check('W144: the bounded recording reader refuses oversized input',
               r.returncode == 1 and 'file size limit' in r.stderr and r.stdout == '', r.stderr)
-    code, out, run = run_recording(lines=[{'cmd':'set', 'kind':'par', 'name':'iapp', 'text':'%not a valid formula('}])
-    check('a "set" with a bad formula exits 1', code == 1, 'exit %d' % code)
+    code, out, run = run_recording(lines=[{'cmd':'value.set_by_formula', 'name':'iapp', 'formula':'not a valid formula('}])
+    check('a value.set_by_formula with a bad formula exits 1', code == 1, 'exit %d' % code)
     shutil.rmtree(run, ignore_errors=True)
     code, out, run = run_recording(lines=[{'cmd':'answer', 'key':'s'}])
     check('an answer to nothing exits 1', code == 1, 'exit %d' % code)
@@ -1844,7 +1845,7 @@ def section_replay():
     code, out, run = run_recording(lines=[
         {'cmd':'run.initial'},
         {'cmd':'run.abort','at':{'what':'integrate','rows':target,'t':0}},
-        {'cmd':'browser','op':'write','what':'table','format':'dat'}, {'cmd':'answer','file':'run.dat'},
+        {'cmd':'browser.export','target':'table','format':'dat'}, {'cmd':'answer','file':'run.dat'},
         {'cmd':'run.initial'}])
     at = (stopped_events(out) or [None])[0]
     check('replay: an interrupted integration stops exactly at the armed row', code == 0 and at is not None
@@ -1970,7 +1971,7 @@ def section_subscriptions():
           not any(e.get('ev') == 'diagram' and e.get('op') == 'add' for e in evs),
           str([e for e in evs if e.get('ev') == 'diagram'])[:300])
     # the reload keeps the values by name: iapp is where the first run ended, at AUTO's upper limit
-    s.send(cmd='set', kind='par', name='iapp', value=0.05)
+    s.send(cmd='value.set_parameters', values={'iapp': 0.05})
     s.collect(is_idle)
     dg = Diagram().apply(hopf_steady(s))
     dg.apply(run_any(s, 's'))
@@ -2138,7 +2139,7 @@ def numerics_menu(s, key, item, replies=None):
 
 def browser_block(s, rows):
     """the data browser's first rows, every column"""
-    s.send(cmd='browser', **{'from': 0, 'count': rows, 'col': 1, 'ncol': 500})
+    s.send(cmd='browser.page', **{'from_row': 0, 'count': rows, 'first_column': 1, 'columns': 500})
     evs, br = s.collect(lambda e: e.get('ev') == 'browser')
     s.collect(is_idle)
     return br
@@ -2633,7 +2634,7 @@ def section_codim():
         s = Server(args.server, maps['model'])
         try:
             completed(s)
-            completed(s, dict(cmd='set',values=[dict(kind='par',name=k,value=v) for k,v in maps['parameters'].items()]))
+            completed(s, dict(cmd='value.set_parameters',values=dict(maps['parameters'])))
             completed(s, dict(cmd='data',events=['autoinfo','autosettings']))
             diagram=autocompare.Diagram().apply(open_auto(s)); intervals={}
             execute_run(s,maps['runs'][0],diagram,intervals)

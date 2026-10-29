@@ -13,9 +13,9 @@
    script does not expect stops it (exit 1, silent_fail).
 
    For one run (no internal sets, or each set in turn):
-     select the set          applyset, scope all (File/Apply set, the set
+     select the set          set.apply, scope all (File/Apply set, the set
                              by its name: no menu key limits their number)
-     --qsets/--qpars/--qics     values query (-dryrun: nothing is run)
+     --qsets/--qpars/--qics     write_values_query (-dryrun: nothing is run)
      run                     run.initial, or run.range (the settings
                              the @ range options made) for @ range=1 or a
                              stochastic run
@@ -23,7 +23,7 @@
      then, unless each run of a range wrote its own file:
      @ stoch=1/2             analysis.load_stochastic_mean or _variance (the Mean
                              or Variance of the runs)
-     output.dat              browser write, what output, replace
+     output.dat              the output columns' data file, replacing it (save_data_file)
      --mkplot                 key g, answer p (pdf) or v (svg), the picture parameters
                              form answered with its values, the file
    The core computes requested nullclines and direction fields after a run.
@@ -32,9 +32,11 @@
 #include "model.h"
 #include "session.h"
 #include "comline.h"
+#include "browse.h"
 #include "graf_par.h"
 #include "histogram.h"
 #include "image_format.h"
+#include "lunch-new.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
 #include "xpp_log.h"
@@ -64,9 +66,10 @@ private:
     void registry(std::string_view cmd) { lines.push_back(xpp::format("{{\"cmd\":\"{}\"}}", cmd)); }
     void answer(std::string_view field, std::string_view value) { line("answer", field, value); }
     void answer_values(std::span<const std::string> values);
-    void command(std::string_view cmd, std::string_view op, std::string_view name, std::string_view more = {});
     void apply_set(std::string_view name);
     void post_process();
+    /* the files --silent writes itself replace what is there, unasked, as its key lines' "replace":1 said */
+    void replace_files() { xpp::json::session.save_replace = SAVE_REPLACE; }
 };
 
 /* {"cmd":cmd,"field":value} */
@@ -89,18 +92,6 @@ void SilentScript::answer_values(std::span<const std::string> values)
     lines.push_back(std::move(b));
 }
 
-/* {"cmd":cmd,"op":op,"name":name<more>}: more, the fields after it */
-void SilentScript::command(std::string_view cmd, std::string_view op, std::string_view name, std::string_view more)
-{
-    std::string b;
-    buf_format(b, "{{\"cmd\":\"{}\",\"op\":\"{}\",\"name\":", cmd, op);
-    buf_str(b, name);
-    BUF_LIT(b, ",\"replace\":1");
-    buf_add(b, more.data(), more.size());
-    BUF_LIT(b, "}");
-    lines.push_back(std::move(b));
-}
-
 /* the model's @ postprocess of the run's data: the analysis the option names, with the settings the model gave, and only the
    time and its first column written after it (the postprocess kinds are the option's own numbers) */
 void SilentScript::post_process()
@@ -117,11 +108,11 @@ void SilentScript::post_process()
         lines.push_back(xpp::format("{{\"cmd\":\"analysis.spectral_density\",\"type\":\"{}\"}}", xpp::spectrum_type_names[static_cast<std::size_t>(kind - FIRST_SPECTRUM)]));
 }
 
-/* {"cmd":"applyset","set":name,"scope":"all"}: the whole set */
+/* {"cmd":"set.apply","name":name,"scope":"all"}: the whole set */
 void SilentScript::apply_set(std::string_view name)
 {
     std::string b;
-    BUF_LIT(b, "{\"cmd\":\"applyset\",\"set\":");
+    BUF_LIT(b, "{\"cmd\":\"set.apply\",\"name\":");
     buf_str(b, name);
     buf_format(b, ",\"scope\":\"{}\"}}", xpp::set_scope::all);
     lines.push_back(std::move(b));
@@ -143,8 +134,8 @@ void SilentScript::add_run(int set)
     steps.push_back([this] {
         const CommandLine &cl = session.model().command_line;
         if (!cl.dry_run()) return;
-        command("values", "query", session.batch_out_file,
-                xpp::format(",\"sets\":{},\"pars\":{},\"ics\":{}", int{cl.query_sets}, int{cl.query_pars}, int{cl.query_ics}));
+        replace_files();
+        xpp::write_values_query(session, session.batch_out_file, cl.query_sets, cl.query_pars, cl.query_ics);
     });
     steps.push_back([this] {
         if (!ran) return;
@@ -160,8 +151,10 @@ void SilentScript::add_run(int set)
         if (!s.integrator.range.write_files || s.integrator.range.reset == 0) {
             if (s.stochastic.flag == 1 || s.stochastic.flag == 2)
                 registry(s.stochastic.flag == 1 ? "analysis.load_stochastic_mean" : "analysis.load_stochastic_variance");
-            if (!s.integrator.suppress_out)
-                command("browser", "write", session.batch_out_file, ",\"what\":\"output\",\"format\":\"dat\"");
+            if (!s.integrator.suppress_out) {
+                replace_files();
+                xpp::ok_or_show(xpp::save_data_file(s, xpp::DataTarget::output, "dat", s.batch_out_file));
+            }
             if (s.integrator.make_plot_flag) {
                 const xpp::ImageFormat *format=xpp::find_image_format_by_extension(s.plot_export.format);
                 if (!format || !format->plot_key) {

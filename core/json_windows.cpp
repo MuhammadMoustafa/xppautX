@@ -167,21 +167,6 @@ void j_cput_text(xpp::Session &s)
     if (add_label(s, look, s.plot_windows.draw_win, xd, yd) < 0) j_command_error("text", xpp::format("a session has at most {} texts", xpp::ANNOTATION_LIST_MAX));
 }
 
-/* Parse a plot ID once for commands that name a window. Invalid IDs are
-   errors at the command (or recording step), never the main window fallback. */
-bool read_plot_window(const xpp::Session &s,const char *line,const char *command,int &index)
-{
-    if(js_find(line,"win")){j_command_error(command,"Use window with a name; win is not accepted");return false;}
-    std::string name=s.plot_windows.graph[s.plot_windows.active].name;
-    if(js_find(line,"window") && !get_string(line,"window",name)){
-        j_command_error(command,"window must be text");return false;
-    }
-    const auto target=xpp::find_window(s,name);
-    if(!target || target->kind!=xpp::WindowKind::graph){j_command_error(command,xpp::format("Unknown graph \"{}\"",name));return false;}
-    index=target->index;
-    return true;
-}
-
 /* Window/zoom Scroll: drag the plot (rubber.c x11_scroll_window) */
 void j_scroll_window(xpp::Session &s)
 {

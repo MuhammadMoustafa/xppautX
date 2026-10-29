@@ -4,7 +4,7 @@
    forms (a field that picks from `hello.lists` is a select, the others take
    what the ask's `kinds` say, through Field.tsx: OK waits until each
    does), checklists and
-   files (FileDialog.tsx); alerts are notifications (session.ts); mouse,
+   files (FileDialog.tsx); mouse,
    rubber and drag asks are plot modes (PlotView.tsx); other kinds say they
    are not offered yet and offer Cancel (A13, docs/ui-v2.md). */
 import type {ComponentChildren} from 'preact';
@@ -293,7 +293,7 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
 /** whether an ask is on screen as the modal dialog (not answered at once, not a plot mode, not the
     AUTO view's grab, not the desktop's own file dialog) */
 export function askIsModal(ask: AskEvent | null, pick: {ask: number} | null, autoOpen: boolean): boolean {
-  if (!ask || ask.kind === 'pixels' || ask.kind === 'alert') return false;
+  if (!ask || ask.kind === 'pixels') return false;
   if (pick && pick.ask === ask.id) return false;
   if (ask.kind === 'grab' && autoOpen) return false;
   return !(ask.kind === 'file' && nativeFileDialog());
@@ -377,7 +377,7 @@ export function AskDialog() {
   const auto = useStore(s => s.diagram.open);
   const played = useStore(s => s.player.running >= 0);
   /* the page's own leave question is the user's, even while a recording plays */
-  if (ask && played && ask.id !== LEAVE_ASK && ask.kind !== 'pixels' && ask.kind !== 'alert')
+  if (ask && played && ask.id !== LEAVE_ASK && ask.kind !== 'pixels')
     return <PlayedAsk key={ask.id} ask={ask} />;
   if (!ask || !askIsModal(ask, pick, auto)) return null;
   const body = ask.kind === 'menu' || ask.kind === 'choice' ? <MenuAsk ask={ask} />

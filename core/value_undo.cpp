@@ -1,6 +1,7 @@
 /* Undo and redo of the Values edits: see value_undo.h. */
 #include "value_undo.h"
 #include "session.h"
+#include "xpp_ui.h"
 #include <utility>
 
 namespace xpp {
@@ -32,6 +33,13 @@ void push_value_undo(Session &s, std::string_view drag)
   s.value_undo.redo.clear();
 }
 
+/* the step's outcome as a command's value: nothing to take or put back is its error */
+static Result<> step_result(bool stepped, const char *command, const char *nothing)
+{
+  if (!stepped) return fail(command, nothing, command_place());
+  return {};
+}
+
 bool undo_values(Session &s)
 {
   return step(s, s.value_undo.undo, s.value_undo.redo);
@@ -41,5 +49,9 @@ bool redo_values(Session &s)
 {
   return step(s, s.value_undo.redo, s.value_undo.undo);
 }
+
+Result<> undo_value_edit(Session &s) { return step_result(undo_values(s), "undo", "No value edit to undo"); }
+
+Result<> redo_value_edit(Session &s) { return step_result(redo_values(s), "redo", "No value edit to redo"); }
 
 }

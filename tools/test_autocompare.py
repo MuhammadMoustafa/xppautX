@@ -152,7 +152,7 @@ class References(unittest.TestCase):
         values = [dict(kind='par', name='q', value=1.0)]
         current, grabbed = dict(start=dict(state='current')), dict(start=dict(run='steady', type='EP', index=1))
         for r, ranges, sent in ((current, {}, []), (grabbed, {'steady': (0, 3)}, []),
-                                (current, {'steady': (0, 3)}, [dict(cmd='set', values=values)])):
+                                (current, {'steady': (0, 3)}, [dict(cmd='value.set_parameters', values={'q': 1.0})])):
             s = Server()
             restore_start(s, r, values, ranges)
             self.assertEqual(s.sent, sent)

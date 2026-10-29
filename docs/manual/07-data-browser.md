@@ -19,6 +19,8 @@ variable is kept in the time column. Home takes you to the top of the
 data and End to the last row. The remaining commands are described
 separately below; the keyboard shortcut to invoke each is in parentheses.
 
+**In xppautX these are also commands** (W526): `browser.find`, `browser.replace_column`, `browser.undo_replace`, `browser.tabulate_column`, `browser.set_slice_start` (First), `browser.set_slice_end` (Last), `browser.restore_full_slice`, `browser.add_column`, `browser.delete_column`, `browser.load`, `browser.export` (Write), `browser.transpose` (File, Transpose), `browser.postprocess` and `browser.page` (the block of the table the page shows). Getting a row as the initial conditions is `ic.from_data_row`. A command is given the column or the formula as arguments and ends with a `done` result; the buttons' forms call the same functions.
+
 ### (F)ind
 
 This pops up a window and asks for a variable and a value. It then looks through the data until it comes to the closest value to the specified that the variable takes. It only moves down the file so that you can find successive values by starting at the top.
@@ -39,11 +41,11 @@ This undoes the most recent replacement.
 
 ### Fir(s)t
 
-This marks the top row in the DB (nothing is shown)as the start or first row for saving or restoring.
+This marks the selected row as the first row kept for saving and tabulating (nothing is shown). A row that is not before the last row kept is refused.
 
 ### Last (e)
 
-This marks the top row as the last or end row for saving or restoring.
+This marks the selected row as the last row kept, itself included (nothing is shown). A row before the first row kept is refused.
 
 ### (T)able
 
@@ -51,7 +53,7 @@ This lets you save data in a tabulated format that can then be used by XPP as a 
 
 ### (R)estore
 
-replots the data marked by First and Last. The default is the entire data set
+keeps all the data again, from the first row to the last, and replots it in the selected graph.
 
 ### (W)rite: Save data
 

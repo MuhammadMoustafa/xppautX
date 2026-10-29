@@ -59,7 +59,6 @@ constexpr double VIEW_PACE_DIVISOR = 3; /* View-only presses need less display t
 constexpr double NOTE_MAX_MS = 3000; /* Cap the display pause for long notes. */
 constexpr double NOTE_CHARACTER_MS = 35; /* Reading time per note byte, as before. */
 constexpr double COMMAND_MS = 700; /* Light the step command before running it. */
-constexpr double ALERT_MS = 1200; /* Give the recorded alert time to be read. */
 constexpr double KEY_MS = 600; /* Light a recorded menu key before answering. */
 constexpr double ANSWER_MAX_MS = 2500; /* Cap the display pause for long answers. */
 constexpr double ANSWER_BASE_MS = 900; /* Minimum pause for a recorded answer. */
@@ -843,14 +842,7 @@ void player_asked(const char *kind)
     try {
         const PlayStep &st = player.steps[static_cast<size_t>(player.running)];
         const std::string k = kind;
-        if (k == "alert") {
-            /* the recording keeps no answer to a message: it was read */
-            player.input = "{\"cmd\":\"answer\"}";
-            player.input_last = false;
-            const Clock::duration d = pace(ALERT_MS);
-            send_press("alert", 0, d);
-            schedule(Next::input, d);
-        } else if (k == "menu" || k == "choice") {
+        if (k == "menu" || k == "choice") {
             if (player.keys_used == st.keys.size()) return diverged(xpp::format("asks a {} it holds no key for", k));
             const size_t i = player.keys_used++;
             if (session.silent) xpp::report_automatic(xpp::format("the recording's {}", k), st.keys[i]);

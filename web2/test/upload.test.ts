@@ -43,7 +43,7 @@ async function settle(ok: () => boolean): Promise<boolean> {
   return ok();
 }
 
-const reads = (sent: Command[]) => sent.filter(c => c.cmd === 'values' && c.op === 'read');
+const reads = (sent: Command[]) => sent.filter(c => c.cmd === 'value.load_file');
 
 test('W134: Values > Load over a different file of the same name asks; Cancel copies and reads nothing', async () => {
   const folder = new Map([['lecar.par', 'old']]);
@@ -83,14 +83,14 @@ test('W134: Keep both copies it as name-2.ext and reads that; Replace copies ove
   await done;
   assert.equal(folder.get('lecar.par'), 'old');
   assert.equal(folder.get('lecar-2.par'), 'new');
-  assert.deepEqual(reads(sent).map(c => c.name), ['lecar-2.par']);
+  assert.deepEqual(reads(sent).map(c => c.file), ['lecar-2.par']);
   done = s.loadValues('ic', new File(['newer'], 'lecar.par'));
   await settle(() => s.store.getState().files.confirm !== null);
   s.resolveReplace('replace');
   await done;
   assert.equal(folder.get('lecar.par'), 'newer');
   assert.deepEqual(puts, ['lecar-2.par', 'lecar.par']);
-  assert.deepEqual(reads(sent).map(c => c.name), ['lecar-2.par', 'lecar.par']);
+  assert.deepEqual(reads(sent).map(c => c.file), ['lecar-2.par', 'lecar.par']);
 });
 
 test('W134: the same content is not copied again, and nothing asks', async () => {
@@ -99,5 +99,5 @@ test('W134: the same content is not copied again, and nothing asks', async () =>
   await s.loadValues('par', new File(['same'], 'lecar.par'));
   assert.equal(s.store.getState().files.confirm, null);
   assert.deepEqual(puts, []);
-  assert.deepEqual(reads(sent).map(c => c.name), ['lecar.par']);
+  assert.deepEqual(reads(sent).map(c => c.file), ['lecar.par']);
 });

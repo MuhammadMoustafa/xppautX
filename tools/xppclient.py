@@ -108,7 +108,6 @@ def save_permission(cmd):
         cmd.setdefault('confirm', True)
         return cmd
     if kind in ('key', 'quit') or op in {
-            'browser': ('write',), 'values': ('write', 'query'),
             'session': ('save',),
             'record': ('stop',), 'play': ('note',), 'aplot': ('print', 'gif'),
             'ani': ('go',)}.get(kind, ()):
