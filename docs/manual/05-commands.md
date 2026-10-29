@@ -544,4 +544,31 @@ The Values panel's equilibrium and nullcline mesh settings use the same commands
 or NumPy data. It does not create separate frozen-pair files. Analysis exports ask before
 replacing an existing file; `confirm` true answers that question in advance.
 The equilibrium result's Import button uses `equilibrium.import_as_ic`. With `equilibrium.export`,
-`shoot` true also writes manifolds as `<file-stem>-eigenN-stable.dat` or `<file-stem>-eigenN-unstable.dat`. Each eigenvector gives two files, one per half of its manifold, both named by the manifold's type. Every branch starts at the equilibrium's clock as the export began it and is written whole, whatever `store_from` says; the session's time is left as it was.
+`shoot` true also writes manifolds as `<file-stem>-eigenN-stable.dat` or `<file-stem>-eigenN-unstable.dat`.
+
+### Kinescope, animation and array plot commands (W527)
+
+The Kinescope menu, the Animation window's buttons and the Array plot window's buttons ask as before
+(a file, a form), then run typed commands; through the protocol each takes its values as arguments,
+and an argument left out keeps the current setting. The XPPAUT key preset reaches the same
+operations: KC, KR, KP, KA, KS and KM for the kinescope, VT and VA open the animation and the array
+plot. A command that cannot do its work says why: playing an empty kinescope, an animation with no
+stored data, or a picture of an array plot that shows no columns yet.
+
+- `kinescope.capture`, `kinescope.reset`, `kinescope.play`, `kinescope.autoplay` (`cycles`, `frame_ms`),
+  `kinescope.export_frames` and `kinescope.export_gif` (`file`, a name in the model's folder).
+- `animation.open`, `animation.load` (`file`), `animation.play`, `animation.reset`,
+  `animation.set_frame_skip` (`skip`, at least 1), `animation.export_frames` (`ppm` or
+  `animated_gif`, exactly one, and `file`: it plays the animation writing every frame, so the Mpeg
+  button now writes at once rather than arming the next Go), `animation.set_live_draw`,
+  `animation.step` (`rows`), `animation.seek` (`row`) and the speed commands `animation.set_speed`
+  (`ms`), `animation.faster` and `animation.slower`. `animation.pause` and the speed commands reach a
+  Go that is playing. `animation.grab_point` presses at `x`, `y` (the animation's own coordinates),
+  moves to `to_x`, `to_y` when they are given, and releases: the grabbed point's assignments are made,
+  and its run happens if the animation file says so. The page sends it when the pointer is released.
+  Close the window with `window.hide` or `window.destroy`.
+- `array_plot.open`, `array_plot.redraw`, `array_plot.configure` (`first_column`, `columns`,
+  `first_row`, `rows`, `row_skip`, `z_min` below `z_max`, `auto_redraw`, `column_skip`),
+  `array_plot.fit`, `array_plot.scroll` (`first_row`: the page's drag, wheel and arrow keys),
+  `array_plot.export_pdf` (`file` and the three labels), `array_plot.export_gif` and
+  `array_plot.range` (`still`, `tag`, `file` and the arguments of `run.range`).

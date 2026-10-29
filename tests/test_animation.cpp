@@ -35,7 +35,7 @@ int main()
     xpp::files::remove(bad_native);
     put(good, "speed 27\ndimension -1;-2;3;4\npermanent\nline 0;0;1;1;$RED;2\n"
               "grab .5;.5;.1\n{iapp=1}\n{iapp=2;runnow=0}\ndone\n");
-    CHECK(xpp::get_ani_file(s, good) == 1);
+    CHECK(xpp::load_chosen_animation(s, good).has_value());
     CHECK(s.animation.ncom == 1 && s.animation.grabs.size() == 1);
     if (s.animation.commands.empty() || s.animation.grabs.empty()) TEST_REPORT("animation");
     const auto *commands = s.animation.commands.data();
@@ -46,12 +46,11 @@ int main()
     s.ani_shown.prims = "previous primitives";
     auto refused = [&](const std::string &text, int line, const std::string &source) {
         put(bad, text);
-        try {
-            xpp::get_ani_file(s, bad);
-            CHECK(false);
-        } catch (const xpp::Error &e) {
-            CHECK(e.where == "animation" && e.place.file == bad && e.place.line == line);
-            CHECK(e.place.source == source);
+        const xpp::Result<> loaded = xpp::load_chosen_animation(s, bad);
+        CHECK(!loaded);
+        if (!loaded) {
+            CHECK(loaded.error().where == "animation" && loaded.error().place.file == bad && loaded.error().place.line == line);
+            CHECK(loaded.error().place.source == source);
         }
         CHECK(s.animation.commands.data() == commands && s.animation.ncom == 1);
         CHECK(s.animation.grabs.data() == grabs && s.animation.grabs.size() == 1);
@@ -72,7 +71,7 @@ int main()
     refused("line [1;0;1;1\n", 1, "line [1;0;1;1");
     refused("line [2147483647..2147483647];0;[j+1];1\n", 1, "line [2147483647..2147483647];0;[j+1];1");
     put(bad, "speed 8\nline [1..3];0;1;1\ndone\n");
-    CHECK(xpp::get_ani_file(s, bad) == 1);
+    CHECK(xpp::load_chosen_animation(s, bad).has_value());
     CHECK(s.animation.vcr.file == bad_native && s.animation.ncom == 3 && s.animation.speed == 8);
     CHECK(s.animation.grabs.empty() && s.animation.vcr.pos == 0 && s.animation.grab_flag == 0);
     CHECK(s.ani_shown.frame.empty() && s.ani_shown.prims.empty());

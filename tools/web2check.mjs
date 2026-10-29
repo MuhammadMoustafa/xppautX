@@ -1306,8 +1306,8 @@ async function aplotView() {
   const grid = await cdp.eval(`(() => { const r = document.querySelector('.aplot-grid-wrap').getBoundingClientRect();
     return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
   await mouse('mouseWheel', grid.x, grid.y, {deltaX: 0, deltaY: 300});
-  check('wheeling the grid asks the core to scroll (aplot op scroll)',
-    await until('!s.busy', 'wheel scroll') && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'aplot' && c.op === 'scroll')`));
+  check('wheeling the grid asks the core to scroll (array_plot.scroll)',
+    await until('!s.busy', 'wheel scroll') && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'array_plot.scroll')`));
   const t1 = await S('[s.aplot.event.tlo, s.aplot.event.thi]');
   check('... and the shown rows changed (tlo/thi moved)', JSON.stringify(t1) !== JSON.stringify(t0), JSON.stringify({t0, t1}));
 
@@ -1317,12 +1317,12 @@ async function aplotView() {
   await key('PageUp');
   check('PageUp (the keyboard) scrolls it too, toward earlier rows',
     await until('!s.busy', 'key scroll') && await cdp.eval('__xpp.sentCount()') > sent1
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'aplot' && c.op === 'scroll')`));
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'array_plot.scroll')`));
 
   /* Redraw, then Back leaves the core's window alive */
   await cdp.eval(`[...document.querySelectorAll('.aplot-tools button')].find(b => b.textContent === 'Redraw').click()`);
   check('Redraw asks for a fresh picture', await until('!s.busy', 'redraw')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'key' && c.win === 'aplot' && c.key === 'd')`));
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'array_plot.redraw')`));
   await cdp.eval(`document.querySelector('.aplot-back').click()`);
   check('Back closes the panel; the core\'s array plot window stays alive',
     await until('!s.aplot.open && s.aplot.windowOpen', 'close panel'));
@@ -5742,7 +5742,7 @@ async function animation() {
   check('ani: drawn with every primitive, at the dimension box\'s aspect',
     d0.prims === f0.prims.length && Math.abs(d0.box.w / d0.box.h - aspect) < 1e-6 && d0.box.w > 100,
     JSON.stringify(d0));
-  check('ani: nothing plays by itself (A6): no Go was sent', !(await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'key' && c.win === 'ani' && c.key === 'g'));
+  check('ani: nothing plays by itself (A6): no Go was sent', !(await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'animation.play'));
 
   /* keyboard on the picture: arrows step, Shift ten, End and Home */
   await focusStage();
@@ -5772,7 +5772,7 @@ async function animation() {
   const n0 = await S('s.ani.frames');
   await key(' ');
   check('ani: Space plays (Go)', await until('s.ani.playing', 'playing')
-    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'key' && c.win === 'ani' && c.key === 'g'));
+    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'animation.play'));
   check('ani: the frames advance while it plays', await until(`s.ani.frames >= ${n0} + 3 && s.ani.frame.pos > 300`, 'advance'),
     JSON.stringify(await S('[s.ani.frames, s.ani.frame.pos]')));
   await focusStage();

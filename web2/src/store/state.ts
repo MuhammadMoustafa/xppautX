@@ -582,7 +582,7 @@ export function reduce(state: AppState, action: Action): AppState {
         const running = runningName(state.hello, action.cmd, state.ask) ?? state.running;
         return {...state, ask: null, running, pick: !p || cancelled ? null : p.mode === 'drag' ? p : {...p, waiting: true}};
       }
-      if (isWindowKey(state.hello, action.cmd, 'ani', 'go'))
+      if (action.cmd.cmd === 'animation.play' || isWindowKey(state.hello, action.cmd, 'ani', 'go'))
         state = {...state, ani: reduceAni(state.ani, {type: 'playing', playing: true})};
       if (noIdle(action.cmd)) return state;
       return {...state, busy: true, running: state.busy ? state.running : runningName(state.hello, action.cmd, null)};

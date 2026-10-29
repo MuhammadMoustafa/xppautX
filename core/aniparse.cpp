@@ -42,6 +42,8 @@
 #include "graf_par.h"
 #include <libgen.h>
 #include "colormap.h"
+#include "command_def.h"
+#include "command_registry.h"
 #include "comline.h"
 #include "xpp_batch.h"
 
@@ -141,14 +143,6 @@ double get_current_time(void)
 }
 
 /**************   DRAWING ROUTINES   *******************/
-
-void ani_ij_to_xy(xpp::Session &s, int ix, int iy, double *x, double *y)
-{
-    double dx = (s.animation.xhi - s.animation.xlo) / static_cast<double>(s.animation.vcr.wid);
-    double dy = (s.animation.yhi - s.animation.ylo) / static_cast<double>(s.animation.vcr.hgt);
-    *x = s.animation.xlo + static_cast<double>(ix) * dx;
-    *y = s.animation.ylo + static_cast<double>(s.animation.vcr.hgt - iy) * dy;
-}
 
 } // namespace
 
@@ -888,16 +882,22 @@ void set_from_init_data(xpp::Session &s)
     set_fix_rhs_from(s, s.numerics.start_time, [&](size_t i) { return s.last_ic[i]; });
 }
 
-void ani_disk_warn(xpp::Session &s)
+namespace {
+
+/* PPM frames of more megabytes than this ask before they are written (XPPAUT's own limit) */
+constexpr unsigned int DISK_WARN_MB = 10;
+
+/* whether to go on when the PPM frames of the whole animation would need more than DISK_WARN_MB: the user is asked */
+bool ani_disk_ok(xpp::Session &s)
 {
-    unsigned int total = (s.browser.view.maxrow * s.animation.vcr.wid * s.animation.vcr.hgt * 3) / (s.animation.mpeg.skip * s.animation.vcr.inc);
+    unsigned int total = (s.browser.view.maxrow * s.animation.vcr.wid * s.animation.vcr.hgt * 3) / s.animation.vcr.inc;
     total = total / (1024 * 1024);
-    if (total > 10) {
-        const std::string q = xpp::format(" {} Mb disk space needed! Continue?", total);
-        const char ans = static_cast<char>(TwoChoice("YES", "NO", q, "yn"));
-        if (ans != 'y') s.animation.mpeg.flag = 0;
-    }
+    if (total <= DISK_WARN_MB) return true;
+    const std::string q = xpp::format(" {} Mb disk space needed! Continue?", total);
+    return TwoChoice("YES", "NO", q, "yn") == 'y';
 }
+
+} // namespace
 
 void eval_ani_color(xpp::Session &s, int j)
 {
@@ -1473,14 +1473,15 @@ int convert_animation_file(const std::string &file, const std::string &model)
     return 0;
 }
 
-void update_ani_motion_stuff(xpp::Session &s, int x, int y)
+void update_ani_motion_stuff(xpp::Session &s, double x, double y)
 {
     double dt;
     s.animation.motion.t2 = s.animation.motion.t1;
     s.animation.motion.t1 = get_current_time();
     s.animation.motion.ox = s.animation.motion.x;
     s.animation.motion.oy = s.animation.motion.y;
-    ani_ij_to_xy(s,x, y, &s.animation.motion.x, &s.animation.motion.y);
+    s.animation.motion.x = x;
+    s.animation.motion.y = y;
     dt = s.animation.motion.t1 - s.animation.motion.t2;
     if (dt == 0.0) dt = 10000000000;
     s.animation.motion.vx = (s.animation.motion.x - s.animation.motion.ox) / dt;
@@ -1496,48 +1497,41 @@ void update_ani_motion_stuff(xpp::Session &s, int x, int y)
 
 /*************************** End motion & speed stuff   ****************/
 
+/* the Frame saving key: PPM or animated GIF, the file and the disk space asked, then Go writes the frames */
 void ani_create_mpeg(xpp::Session &s)
 {
     static const char *const n[] = {"PPM 0/1", "AniGif(0/1)"};
-    std::array<std::string, 2> values;
-    s.animation.mpeg.flag = 0;
-    values[0] = xpp::format("{:d}", s.animation.mpeg.flag);
-    values[1] = xpp::format("{:d}", s.animation.mpeg.aviflag);
+    std::array<std::string, 2> values = {"0", "1"};
     static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
-    const int status = do_string_box_of(2, 1, "Frame saving", n, values, kinds);
-    if (status != 0) {
-        xpp::TypedFields f(s);
-        const int flag = f.integer(n[0], values[0]), aviflag = f.integer(n[1], values[1]);
-        if (f.error()) {
-            command_error("Frame saving", *f.error());
-            return;
-        }
-        s.animation.mpeg.flag = flag > 0 ? 1 : flag;
-        s.animation.mpeg.aviflag = aviflag;
-        if(s.animation.mpeg.flag>0 && s.animation.mpeg.aviflag!=1){
-            std::string root=xpp::files::output_name(s.model().this_file,".ppm","animation");
-            if(!file_selector("Save animation frames",root,"*.ppm")){s.animation.mpeg.flag=0;return;}
-            s.animation.mpeg.root=root;
-        }
-        if (s.animation.mpeg.aviflag == 1) s.animation.mpeg.flag = 0;
-    } else
-        s.animation.mpeg.flag = 0;
-    if (s.animation.mpeg.flag == 1) ani_disk_warn(s);
+    if (do_string_box_of(2, 1, "Frame saving", n, values, kinds) == 0) return;
+    xpp::TypedFields f(s);
+    const bool ppm = f.integer(n[0], values[0]) > 0, gif = f.integer(n[1], values[1]) == 1;
+    if (f.error()) {
+        command_error("Frame saving", *f.error());
+        return;
+    }
+    if (ppm == gif) {
+        command_error("Frame saving", "Choose PPM frames or an animated GIF: exactly one of them");
+        return;
+    }
+    std::string file = xpp::files::output_name(s.model().this_file, gif ? ".gif" : ".ppm", "animation");
+    if (!file_selector(gif ? "Save animation GIF" : "Save animation frames", file, gif ? "*.gif" : "*.ppm")) return;
+    if (ppm && !ani_disk_ok(s)) return;
+    xpp::ok_or_show(play_animation(s, {gif ? AniExportKind::gif : AniExportKind::ppm, file}));
 }
 
+/* the Skip key: the increment asked, then animation.set_frame_skip */
 void ani_newskip(xpp::Session &s)
 {
     std::string bob = xpp::format("{}", s.animation.vcr.inc);
-    int status = get_dialog_of("Frame skip", "Increment:", bob, "Ok", "Cancel", XPP_FIELD_INTEGER);
-    if (status != 0) {
-        xpp::TypedFields f(s);
-        const int inc = f.integer("Increment", bob);
-        if (f.error()) {
-            command_error("Frame skip", *f.error());
-            return;
-        }
-        s.animation.vcr.inc = inc <= 0 ? 1 : inc;
+    if (get_dialog_of("Frame skip", "Increment:", bob, "Ok", "Cancel", XPP_FIELD_INTEGER) == 0) return;
+    xpp::TypedFields f(s);
+    const int inc = f.integer("Increment", bob);
+    if (f.error()) {
+        command_error("Frame skip", *f.error());
+        return;
     }
+    xpp::ok_or_show(command::run_button(s, command::ResultObject().text("cmd", "animation.set_frame_skip").integer("skip", inc).done(), command_place()));
 }
 
 void on_the_fly(xpp::Session &s, int task)
@@ -1554,9 +1548,8 @@ void ani_flip1(xpp::Session &s, int n)
     float **ss = s.browser.view.data;
     if (s.animation.vcr.pos == 0) set_ani_perm(s);
 
-    s.animation.vcr.pos = s.animation.vcr.pos + n;
-    if (s.animation.vcr.pos >= s.browser.view.maxrow) s.animation.vcr.pos = s.browser.view.maxrow - 1;
-    if (s.animation.vcr.pos < 0) s.animation.vcr.pos = 0;
+    const long long target = static_cast<long long>(s.animation.vcr.pos) + n;
+    s.animation.vcr.pos = static_cast<int>(std::clamp<long long>(target, 0, s.browser.view.maxrow - 1));
     const int row = s.animation.vcr.pos;
 
     const double t = static_cast<double>(ss[0][row]);
@@ -1586,13 +1579,42 @@ void ani_zero(xpp::Session &s)
     }
 }
 
-int get_ani_file(xpp::Session &s, const char *fname)
+Result<> load_chosen_animation(Session &s, const std::string &file)
 {
-    std::string file = fname ? fname : s.animation.vcr.file;
-    if (fname == nullptr && file_selector("Load animation", file, "*.anix *.ani") == 0) return 0;
-    if (!xpp::ok_or_show(ani_new_file(s, file.c_str(), false))) return 0;
+    if (const Result<> loaded = ani_new_file(s, file.c_str(), false); !loaded) return loaded;
     xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", s.animation.ncom);
-    return 1;
+    /* a new animation shows its first frame at once when there is data */
+    if (s.browser.view.maxrow >= 2) ani_reset(s);
+    return {};
+}
+
+/* the File key: the file asked, then animation.load's work */
+void get_ani_file(Session &s)
+{
+    std::string file = s.animation.vcr.file;
+    if (file_selector("Load animation", file, "*.anix *.ani") == 0) return;
+    ok_or_show(load_chosen_animation(s, file));
+}
+
+Result<> animation_ready(const Session &s, const std::string &where)
+{
+    if (s.animation.ncom == 0) return fail(where, "No animation is loaded: load one first (animation.load)", command_place());
+    if (s.browser.view.maxrow < 2) return fail(where, "There is no stored data to animate: integrate first", command_place());
+    return {};
+}
+
+Result<int> play_animation(Session &s, const AniExport &out)
+{
+    if (const Result<> ready = animation_ready(s, out.kind == AniExportKind::none ? "animation.play" : "animation.export_frames"); !ready)
+        return std::unexpected(ready.error());
+    return ui.ani_go(s, out);
+}
+
+void ani_seek(Session &s, int row)
+{
+    s.animation.vcr.pos = 0;
+    ani_flip1(s, 0);
+    ani_flip1(s, row);
 }
 
 void reset_comets(xpp::Session &s)
@@ -1683,9 +1705,6 @@ void set_ani_perm(xpp::Session &s)
 /* a new animation window of vcr.wid x vcr.hgt exists */
 void ani_view_created(xpp::Session &s)
 {
-    s.animation.mpeg.flag = 0;
-    s.animation.mpeg.root = xpp::files::output_name(s.model().this_file,".ppm","animation");
-    s.animation.mpeg.skip = 1;
     s.animation.vcr.pos = 0;
     if (s.animation.ncom) set_ani_perm(s);
 }
@@ -1719,12 +1738,13 @@ int run_now_grab(const xpp::Session &s)
     return (s.animation.grabs[s.animation.who_was_grabbed].end.runnow);
 }
 
-/* the mouse went down (flag 1) or up (0) at pixel ix,iy while grabbing */
-void ani_grab_mouse(xpp::Session &s, int flag, int ix, int iy)
+/* the mouse went down (flag 1) or up (0) at x,y of the animation's own coordinates while grabbing */
+void ani_grab_mouse(xpp::Session &s, int flag, double x, double y)
 {
     if (flag == 1) {
         s.animation.motion.t1 = get_current_time();
-        ani_ij_to_xy(s,ix, iy, &s.animation.motion.x, &s.animation.motion.y);
+        s.animation.motion.x = x;
+        s.animation.motion.y = y;
         s.animation.who_was_grabbed = search_for_grab(s, s.animation.motion.x, s.animation.motion.y);
         if (s.animation.who_was_grabbed < 0) xpp::log(XPP_LOG_INFO, "Nothing grabbed\n");
     }

@@ -1190,7 +1190,7 @@ export class Session {
       return;
     }
     this.store.dispatch({type: 'ani', action: {type: 'open', open: true}});
-    this.keys(this.mainKey('viewaxes'), 't');
+    this.send({cmd: 'animation.open'});
   }
 
   /** hides the panel and the core's window (window.hide); a playing animation stops */
@@ -1207,30 +1207,30 @@ export class Session {
 
   /** Go: plays from the core's position to the last frame; never started by the page itself (A6) */
   aniPlay(): void {
-    if (!this.store.getState().ani.playing) this.send(this.layerKey('ani', 'go'));
+    if (!this.store.getState().ani.playing) this.send({cmd: 'animation.play'});
   }
 
   /** Pause: reaches the running Go at once (a control line: no idle of its own) */
   aniPause(): void {
-    if (this.store.getState().ani.playing) this.send({cmd: 'ani', op: 'pause'});
+    if (this.store.getState().ani.playing) this.send({cmd: 'animation.pause'});
   }
 
   /** n frames from the frame shown (a playing animation pauses there first) */
   aniStep(n: number): void {
     const ani = this.store.getState().ani, target = stepTarget(ani, n);
     if (ani.playing) this.aniSeek(target);
-    else this.send({cmd: 'ani', op: 'step', n: target - ani.pos});
+    else this.send({cmd: 'animation.step', rows: target - ani.pos});
   }
 
   /** the frame of stored row `pos` */
   aniSeek(pos: number): void {
     this.aniPause();
-    this.send({cmd: 'ani', op: 'seek', pos: Math.max(0, Math.round(pos))});
+    this.send({cmd: 'animation.seek', row: Math.max(0, Math.round(pos))});
   }
 
   /** the delay between two frames of Go, ms (reaches a running Go at once) */
   aniSpeed(ms: number): void {
-    this.send({cmd: 'ani', op: 'speed', ms: Math.max(0, Math.round(ms))});
+    this.send({cmd: 'animation.set_speed', ms: Math.max(0, Math.round(ms))});
   }
 
   /** Grab: the frame's grab points wait for the pointer */
@@ -1238,9 +1238,12 @@ export class Session {
     this.send(this.layerKey('ani', 'grab'));
   }
 
-  /** the pointer over the picture while grabbing, in unit coordinates (u, v: y up) */
-  aniPointer(what: 'down' | 'move' | 'up', u: number, v: number): void {
-    this.send({cmd: 'ani', op: 'mouse', what, u, v});
+  /** a drag on the picture while grabbing, from the press to the release, both in the frame's unit coordinates
+      (u, v: y up) of its dimension box `dim` (xlo, ylo, xhi, yhi): the core wants the animation's own x, y */
+  aniGrabPoint(from: [number, number], to: [number, number], dim: [number, number, number, number]): void {
+    const at = ([u, v]: [number, number]): [number, number] => [dim[0] + u * (dim[2] - dim[0]), dim[1] + v * (dim[3] - dim[1])];
+    const [x, y] = at(from), [toX, toY] = at(to);
+    this.send({cmd: 'animation.grab_point', x, y, to_x: toX, to_y: toY});
   }
 
   /* ---- kinescope (docs/ui-v2.md T15, docs/protocol.md `film` and `pixels`) ----
@@ -1295,15 +1298,15 @@ export class Session {
   }
 
   kinescopeCapture(): void {
-    this.kinescopeMenu('c');
+    this.send({cmd: 'kinescope.capture'});
   }
 
   kinescopeReset(): void {
-    this.kinescopeMenu('r');
+    this.send({cmd: 'kinescope.reset'});
   }
 
   kinescopePlay(): void {
-    this.kinescopeMenu('p');
+    this.send({cmd: 'kinescope.play'});
   }
 
   /** Stop: a client-only action (the core's own command already ended) */
@@ -1591,7 +1594,8 @@ export class Session {
       return;
     }
     this.store.dispatch({type: 'aplot', action: {type: 'panel', open: true}});
-    this.keys(this.mainKey('viewaxes'), 'a');
+    this.send({cmd: 'array_plot.open'});
+    this.aplotOp('edit'); /* the first time, the Edit form too */
   }
 
   /** hides the panel and the core's window (window.hide) */
@@ -1603,7 +1607,7 @@ export class Session {
   /** the classic array plot window's own buttons: Redraw, Edit (a form,
       AskDialog), Fit, Range, Print, GIF (a file ask, FileDialog), Close */
   aplotOp(op: AplotOp): void {
-    this.send(this.layerKey('aplot', op));
+    this.send(op === 'redraw' ? {cmd: 'array_plot.redraw'} : op === 'fit' ? {cmd: 'array_plot.fit'} : this.layerKey('aplot', op));
   }
 
   /** the picture scrolled through time by dragging, wheeling or a keyboard
@@ -1612,7 +1616,8 @@ export class Session {
   aplotScroll(dy: number): void {
     const {send, pending} = accumulateScroll(this.pendingAplotDy, dy, this.store.getState().busy);
     this.pendingAplotDy = pending;
-    if (send) this.send({cmd: 'aplot', op: 'scroll', dy: send});
+    const first = this.store.getState().aplot.event?.first_row;
+    if (send && first !== undefined) this.send({cmd: 'array_plot.scroll', first_row: Math.max(0, first - send)});
   }
 
   /** a key the array plot's own hotkeys use (ui/AplotView.tsx); false when

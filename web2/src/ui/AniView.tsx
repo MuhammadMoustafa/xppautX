@@ -110,18 +110,19 @@ export function AniView() {
     f();
   };
 
-  /* Grab: the pointer on the picture, in unit coordinates */
-  const lastMove = useRef(0);
-  const pointer = (what: 'down' | 'move' | 'up', e: PointerEvent) => {
+  /* Grab: a drag on the picture, from its press to its release, in unit coordinates */
+  const pressed = useRef<[number, number] | null>(null);
+  const pointer = (what: 'down' | 'up', e: PointerEvent) => {
     if (!grab || !frame || !canvas.current) return;
     const r = canvas.current.getBoundingClientRect();
-    const [u, v] = fromCanvas(frameBox(r.width, r.height, frame.dim), e.clientX - r.left, e.clientY - r.top);
-    if (what === 'move') {
-      if (!(e.buttons & 1) || e.timeStamp - lastMove.current < 50) return;
-      lastMove.current = e.timeStamp;
+    const at = fromCanvas(frameBox(r.width, r.height, frame.dim), e.clientX - r.left, e.clientY - r.top);
+    if (what === 'down') {
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+      pressed.current = at;
+    } else if (pressed.current) {
+      session.aniGrabPoint(pressed.current, at, frame.dim);
+      pressed.current = null;
     }
-    if (what === 'down') (e.target as Element).setPointerCapture?.(e.pointerId);
-    session.aniPointer(what, u, v);
   };
 
   const speeds = DELAYS.includes(speed) ? DELAYS : [...DELAYS, speed].sort((a, b) => a - b);
@@ -145,7 +146,7 @@ export function AniView() {
       </div>
       <div class={'ani-stage' + (grab ? ' grabbing' : '')} ref={stage} tabIndex={0} role="application"
         aria-roledescription="animation" aria-label={`Animation. ${status}`} aria-describedby="ani-keys"
-        onKeyDown={onKeyDown} onPointerDown={e => pointer('down', e)} onPointerMove={e => pointer('move', e)}
+        onKeyDown={onKeyDown} onPointerDown={e => pointer('down', e)}
         onPointerUp={e => pointer('up', e)}>
         <canvas ref={canvas} class="ani-canvas" aria-hidden="true" />
       </div>

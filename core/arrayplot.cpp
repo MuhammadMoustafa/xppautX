@@ -11,6 +11,8 @@
 #include "xpp_job.h"
 #include "xpp_util.h"
 #include "typed_values.h"
+#include "command_def.h"
+#include "command_registry.h"
 
 #include <array>
 #include <cctype>
@@ -55,34 +57,39 @@
 #include "xpp_error.h"
 #include "integrate.h"
 
+void begin_array_range(xpp::Session &s, bool still, bool tag, std::string_view file)
+{
+  s.array_plot.range_stem=file;
+  s.array_plot.still=still;
+  s.array_plot.tag=tag;
+  s.array_plot.range=1;
+  s.array_plot.range_count=0;
+  s.array_plot.save_cancelled=false;
+}
+
+/* the Range key: Array range saving's form and file, then the range's own form, then the sweep */
 void set_up_aplot_range(xpp::Session &s)
-{ 
+{
   static const char *const n[]={"Still(1/0)","Tag(0/1)"};
   std::array<std::string, 2> values;
-  int status;
-  double *x;
  values[0] = xpp::format("{:d}", s.array_plot.still);
  values[1] = xpp::format("{:d}", s.array_plot.tag);
  static const int kinds[]={xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER};
- status=xpp::do_string_box_of(2,1,"Array range saving",n,values,kinds);
- if(status!=0){
-   std::string root=xpp::files::output_name(s.model().this_file,".gif","array");
-   if(!xpp::file_selector("Save array frames",root,"*.gif"))return;
-   xpp::TypedFields f(s);
-   const int still=f.integer(n[0],values[0]),tag=f.integer(n[1],values[1]);
-   if(f.error()){
-     xpp::command_error("Array range saving",*f.error());
-     return;
-   }
-   s.array_plot.range_stem=root;
-   s.array_plot.still=still;
-   s.array_plot.tag=tag;
- s.array_plot.range=1;
- s.array_plot.range_count=0;
- s.array_plot.save_cancelled=false;
- x=&s.data_store.current[0];
- xpp::do_range(s,x,0);
+ if(xpp::do_string_box_of(2,1,"Array range saving",n,values,kinds)==0)return;
+ std::string root=xpp::files::output_name(s.model().this_file,".gif","array");
+ if(!xpp::file_selector("Save array frames",root,"*.gif"))return;
+ xpp::TypedFields f(s);
+ const int still=f.integer(n[0],values[0]),tag=f.integer(n[1],values[1]);
+ if(f.error()){
+   xpp::command_error("Array range saving",*f.error());
+   return;
  }
+ s.integrator.range.rtype=xpp::RANGE_SINGLE;
+ if(xpp::set_up_range(s)==0)return;
+ begin_array_range(s,still!=0,tag!=0,root);
+ xpp::RangeProgress done;
+ xpp::ok_or_show(xpp::run_range(s,0,&done));
+ s.array_plot.range=0;
 }
 void fit_aplot(xpp::Session &s)
 {
@@ -177,33 +184,46 @@ AplotTimes aplot_times(const xpp::Session &s, const APLOT &ap)
   return {time_of(ap.nstart),time_of(ap.nstart+ap.nskip*(ap.ndown-1))};
 }
 
-void print_aplot(const xpp::Session &s, APLOT *ap)
+xpp::Result<> aplot_ready(const xpp::Session &s, const std::string &where, bool needs_data)
+{
+  const APLOT &ap=s.array_plot.plot;
+  if(!ap.alive)return xpp::fail(where,"No array plot is open: open one first (array_plot.open)",xpp::command_place());
+  if(ap.plotdef==0)return xpp::fail(where,"The array plot shows no columns yet: configure it first (array_plot.configure)",xpp::command_place());
+  if(needs_data&&(s.browser.view.maxrow<=2||ap.nacross<2||ap.ndown<2))
+    return xpp::fail(where,"The array plot has nothing to show: integrate first, and show at least 2 columns and 2 rows",xpp::command_place());
+  return {};
+}
+
+xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file)
+{
+  APLOT *ap=&s.array_plot.plot;
+  if(const auto ready=aplot_ready(s,"array_plot.export_pdf");!ready)return std::unexpected(ready.error());
+  const AplotTimes times=aplot_times(s,*ap);
+  ap->filename=file;
+  const xpp::ArrayPicture picture{
+    .filename=ap->filename.c_str(), .xtitle=ap->xtitle.c_str(),
+    .ytitle=ap->ytitle.c_str(), .bottom=ap->bottom.c_str(),
+    .nacross=ap->nacross, .ndown=ap->ndown, .col0=ap->index0, .row0=ap->nstart,
+    .nskip=ap->nskip, .ncskip=ap->ncskip, .maxrow=s.browser.view.maxrow,
+    .maxcol=s.browser.view.maxcol, .data=s.browser.view.data,
+    .zmin=ap->zmin, .zmax=ap->zmax, .tlo=times.first, .thi=times.last};
+  return xpp::array_print(s,picture);
+}
+
+/* the Print key: the labels and the file asked, then the picture written */
+void print_aplot(xpp::Session &s)
 {
   static const char *const n[]={"Top label","Side label","Bottom label"};
-  std::array<std::string, 3> values;
-  int nrows=s.browser.view.maxrow;
-  int row0=ap->nstart;
-  int col0=ap->index0;
-  if(!xpp::save_ready(nrows>2&&ap->plotdef!=0&&ap->nacross>=2&&ap->ndown>=2))return;
-  const AplotTimes times=aplot_times(s,*ap);
-  values[0] = ap->xtitle;
-  values[1] = ap->ytitle;
-  values[2] = ap->bottom;
-  if(xpp::do_string_box(3,1,"Print arrayplot",n,values)!=0){
-   ap->xtitle=values[0];
-   ap->ytitle=values[1];
-   ap->bottom=values[2];
-   if(ap->filename.empty())ap->filename=xpp::files::output_name(s.model().this_file,".pdf","array");
-   if(!xpp::file_selector("Save array plot",ap->filename,"*.pdf"))return;
-   const xpp::ArrayPicture picture{
-     .filename=ap->filename.c_str(), .xtitle=ap->xtitle.c_str(),
-     .ytitle=ap->ytitle.c_str(), .bottom=ap->bottom.c_str(),
-     .nacross=ap->nacross, .ndown=ap->ndown, .col0=col0, .row0=row0,
-     .nskip=ap->nskip, .ncskip=ap->ncskip, .maxrow=nrows,
-     .maxcol=s.browser.view.maxcol, .data=s.browser.view.data,
-     .zmin=ap->zmin, .zmax=ap->zmax, .tlo=times.first, .thi=times.last};
-   xpp::ok_or_show(xpp::array_print(s,picture));
-  }
+  APLOT *ap=&s.array_plot.plot;
+  if(!xpp::ok_or_show(aplot_ready(s,"array_plot.export_pdf")))return;
+  std::array<std::string, 3> values={ap->xtitle,ap->ytitle,ap->bottom};
+  if(xpp::do_string_box(3,1,"Print arrayplot",n,values)==0)return;
+  ap->xtitle=values[0];
+  ap->ytitle=values[1];
+  ap->bottom=values[2];
+  std::string file=ap->filename.empty()?xpp::files::output_name(s.model().this_file,".pdf","array"):ap->filename;
+  if(!xpp::file_selector("Save array plot",file,"*.pdf"))return;
+  xpp::ok_or_show(write_aplot_pdf(s,file));
 }
 
 /* splits an array plot's first column name at its trailing digits:
@@ -223,9 +243,9 @@ std::string get_root(std::string_view s, int *num)
 }
 
 
-int editaplot(xpp::Session &s, APLOT *ap)
+/* the Edit key: the form asked, then array_plot.configure given what it said */
+void editaplot(xpp::Session &s, APLOT *ap)
 {
- int i,status;
   const char *n[]={"*0Column 1","NCols","Row 1","NRows","RowSkip",
   "Zmin","Zmax","Autoplot(0/1)","ColSkip"};
  std::array<std::string, 9> values;
@@ -240,40 +260,20 @@ int editaplot(xpp::Session &s, APLOT *ap)
 values[8] = xpp::format("{:d}", ap->ncskip);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER,
                            xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_NUMBER,xpp::XPP_FIELD_NUMBER,xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER};
- status=xpp::do_string_box_of(9,1,"Edit arrayplot",n,values,kinds);
- if(status!=0){
-   /* every field read before any is set */
-   xpp::TypedFields f(s);
-   const int nacross=f.integer(n[1],values[1]),nstart=f.integer(n[2],values[2]),ndown=f.integer(n[3],values[3]);
-   const int nskip=f.integer(n[4],values[4]);
-   const double zmin=f.real(n[5],values[5]),zmax=f.real(n[6],values[6]);
-   const int auto_redraw=f.integer(n[7],values[7]),ncskip=f.integer(n[8],values[8]);
-   if(f.error()){
-     xpp::command_error("array plot",*f.error());
-     return 0;
-   }
-   find_variable(s,values[0].c_str(),&i);
-   if(i<0){
-     xpp::command_error("array plot", "No such columns");
-     ap->plotdef=0;
-     return 0;
-   }
-    ap->index0=i;
-    ap->name=values[0];
-    if(zmin<zmax){
-      ap->zmin=zmin;
-      ap->zmax=zmax;
-    }
-    ap->nacross=nacross;
-    ap->nstart=nstart;
-    ap->ndown=ndown;
-    ap->nskip=nskip;
-    s.array_plot.auto_redraw=auto_redraw;
-    ap->plotdef=1;
-    ap->ncskip=ncskip<1?1:ncskip;
-    xpp::ui.aplot_reset_axes(s);
+ if(xpp::do_string_box_of(9,1,"Edit arrayplot",n,values,kinds)==0)return;
+ /* every field read before any is set */
+ xpp::TypedFields f(s);
+ const int nacross=f.integer(n[1],values[1]),nstart=f.integer(n[2],values[2]),ndown=f.integer(n[3],values[3]);
+ const int nskip=f.integer(n[4],values[4]);
+ const double zmin=f.real(n[5],values[5]),zmax=f.real(n[6],values[6]);
+ const int auto_redraw=f.integer(n[7],values[7]),ncskip=f.integer(n[8],values[8]);
+ if(f.error()){
+   xpp::command_error("array plot",*f.error());
+   return;
  }
-   return 1;
+ xpp::ok_or_show(xpp::command::run_button(s,xpp::command::ResultObject().text("cmd","array_plot.configure").text("first_column",values[0])
+   .integer("columns",nacross).integer("first_row",nstart).integer("rows",ndown).integer("row_skip",nskip).real("z_min",zmin).real("z_max",zmax)
+   .boolean("auto_redraw",auto_redraw!=0).integer("column_skip",ncskip).done(),xpp::command_place()));
 }
 void close_aplot_files(xpp::Session &s, bool complete)
 {

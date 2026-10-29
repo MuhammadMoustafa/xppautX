@@ -172,18 +172,6 @@ Result<std::string> set_auto_freeze_command(Session &s, const Command &, const A
     return ResultObject().boolean("auto_freeze", enabled).done();
 }
 
-/* the bytes of the file just written */
-Result<unsigned long long> size_of(std::string_view file, const Command &command, const Place &place)
-{
-    FILE *opened = nullptr;
-    unsigned long long size = 0;
-    const int status = files::open(file, opened, size);
-    const UniqueFile closer(opened);
-    if (status != XPP_FILES_OK)
-        return fail(command.name, xpp::format("\"{}\" was written but cannot be read back: {}", file, files::status_text(status)), place);
-    return size;
-}
-
 Result<std::string> export_picture(Session &s, const Command &command, const Arguments &args, const Place &place, int format)
 {
     ON_GRAPH(graph);
@@ -193,7 +181,7 @@ Result<std::string> export_picture(Session &s, const Command &command, const Arg
     const Result<bool> written = write_plot_picture(s, format, file);
     if (!written) return std::unexpected<Error>(written.error());
     if (!*written) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
-    const Result<unsigned long long> size = size_of(file, command, place);
+    const Result<unsigned long long> size = file_size(file, command, place);
     if (!size) return std::unexpected<Error>(size.error());
     return ResultObject().text("file", file).integer("bytes_written", static_cast<long long>(*size)).done();
 }
@@ -513,5 +501,16 @@ constexpr std::array ROWS = {
 } // namespace
 
 std::span<const Command> plot_commands() { return ROWS; }
+
+Result<unsigned long long> file_size(std::string_view file, const Command &command, const Place &place)
+{
+    ::FILE *opened = nullptr;
+    unsigned long long size = 0;
+    const int status = files::open(file, opened, size);
+    const UniqueFile closer(opened);
+    if (status != XPP_FILES_OK)
+        return fail(command.name, xpp::format("\"{}\" was written but cannot be read back: {}", file, files::status_text(status)), place);
+    return size;
+}
 
 } // namespace xpp::command

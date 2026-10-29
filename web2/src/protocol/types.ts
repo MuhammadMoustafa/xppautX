@@ -595,6 +595,8 @@ export interface AplotEvent {
   title: string;
   nx: number;
   ny: number;
+  /** the stored row the first row of cells shows (array_plot.scroll's first_row) */
+  first_row?: number;
   values: SeriesData;
   enc?: 'f32';
   /** the session's colour scale: its name and its 256 colours from the low end to the high one */

@@ -261,6 +261,12 @@ std::string_view numerics_command(std::string_view key);
 std::span<const Command> equilibrium_commands();
 std::span<const Command> nullcline_commands();
 std::span<const Command> dirfield_commands();
+std::span<const Command> kinescope_commands();
+std::span<const Command> animation_commands();
+std::span<const Command> array_plot_commands();
+
+/* the bytes of the file a command just wrote (the one the user named, in the model's folder) */
+Result<unsigned long long> file_size(std::string_view file, const Command &command, const Place &place);
 
 /* Check the line's arguments against the row and give them typed, or the
    first fault (all or nothing: a handler runs only on success). session

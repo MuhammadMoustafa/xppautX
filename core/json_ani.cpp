@@ -8,6 +8,7 @@
 #include "xpp_job.h"
 #include "browse.h"
 #include "aniparse.h"
+#include "command_registry.h"
 #include "mykeydef.h"
 #include "image_format.h"
 #include "my_rhs.h"
@@ -44,27 +45,9 @@ void send_ani_slider(const xpp::Session &s)
 void j_ani_slider(xpp::Session &s) { send_ani_slider(s); }
 
 namespace {
-/* the step of ani fast and slow */
-constexpr int ani_speed_inc = 2;
-}
 
-/* ani fast, slow and speed: the delay between two frames of Go, ms; 0 when
-   op is none of them */
-int ani_speed_op(xpp::Session &s, const char *o, const char *line)
-{
-    if (strcmp(o, "fast") == 0) {
-        if ((s.animation.speed -= ani_speed_inc) < 0) s.animation.speed = 0;
-    } else if (strcmp(o, "slow") == 0) {
-        if ((s.animation.speed += ani_speed_inc) > 100) s.animation.speed = 100;
-    } else if (strcmp(o, "speed") == 0) {
-        double ms = get_num(line, "ms", s.animation.speed);
-        s.animation.speed = ms < 0 ? 0 : ms > 1000 ? 1000 : static_cast<int>(ms); /* the .ani `speed` command's range */
-    } else
-        return 0;
-    return 1;
-}
-
-namespace {
+/* a Go that writes its frames waits this many times as long between them: the client draws and answers each */
+constexpr int ani_export_pace = 6;
 
 /* between frames of Go: 1 when Pause, ABORT or Esc stops the playback */
 int ani_wait(xpp::Session &s, int ms)
@@ -88,51 +71,50 @@ int ani_wait(xpp::Session &s, int ms)
     }
 }
 
-/* the Go button (aniwin.c ani_flip without the X pixmap) */
-void ani_go(xpp::Session &s)
+/* the Go button (aniwin.c ani_flip without the X pixmap): the frames from the one shown to the last, also
+   written when `out` says so; how many were shown, or why they were not written */
+xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
 {
     std::vector<double> y(static_cast<std::size_t>(s.model().node + s.model().nmarkov));
     float **ss = s.browser.view.data;
     xpp::Writer gif; /* chosen GIF, when the animation is written as one */
-    int i, stop = 0, frame = 0, written = 0, w, h;
-    const bool available=s.animation.ncom!=0 && s.browser.view.maxrow>=2;
-    if ((s.animation.mpeg.aviflag==1 || s.animation.mpeg.flag>0) && !xpp::save_ready(available)) return;
-    if (!available) return;
+    xpp::Result<> outcome; /* ok until a frame cannot be written */
+    int i, stop = 0, frame = 0, w, h;
+    const bool writing = out.kind != xpp::AniExportKind::none;
     set_ani_perm(s);
-    if (s.animation.mpeg.aviflag == 1) {
-        gif = xpp::ask_output_writer(s,"Save animation GIF",".gif","animation",true);
-        if(!gif)return;
+    if (out.kind == xpp::AniExportKind::gif) {
+        xpp::Result<> opened;
+        gif = xpp::open_writer_asking(out.file, true, &opened);
+        if (!opened) return std::unexpected(opened.error());
+        if (!gif) return xpp::fail("animation", xpp::format("\"{}\" exists and replacing it was declined: nothing was written", out.file), xpp::command_place());
     }
     while (!stop) {
-        int row = s.animation.vcr.pos, ppm = s.animation.mpeg.flag > 0 && frame % (s.animation.mpeg.skip > 0 ? s.animation.mpeg.skip : 1) == 0;
+        int row = s.animation.vcr.pos;
         for (i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = ss[i + 1][row];
         set_fix_rhs(s,static_cast<double>(ss[0][row]), y.data());
         render_ani(s);
         ui.ani_show();
-        if (ppm || gif) {
+        if (writing) {
             std::vector<unsigned char> rgb = ask_pixels(WIN_ANI, -1, &w, &h);
             if (rgb.empty()) {
-                if(gif)xpp::abort_save(gif);
+                outcome = xpp::fail("animation", xpp::format("The client gave no picture of frame {}", frame + 1), xpp::command_place());
                 break;
             }
-            if (ppm) {
+            if (out.kind == xpp::AniExportKind::ppm) {
                 const xpp::ImageFormat &format=xpp::image_formats[xpp::IMAGE_FORMAT_PPM];
-                std::string file=xpp::files::frame_name(s.animation.mpeg.root,".ppm",written);
-                if(written>0 && !xpp::ok_or_show(reset_save_decision()))break;
-                ++written;
-                const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);
-                if (!xpp::ok_or_show(saved) || !*saved) {
-                    if(gif)xpp::abort_save(gif);
-                    break;
+                const std::string file=xpp::files::frame_name(out.file,".ppm",frame);
+                if (frame > 0) outcome = reset_save_decision();
+                if (outcome) {
+                    const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);
+                    if (!saved) outcome = std::unexpected(saved.error());
+                    else if (!*saved) outcome = xpp::fail("animation", xpp::format("\"{}\" exists and replacing it was declined: {} frames written", file, frame), xpp::command_place());
                 }
-            }
-            if (gif) {
-                xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(gif,rgb,w,h,frame);
-            }
-        }
-        frame++;
+                if (!outcome) break;
+                frame++; /* counted once written */
+            } else xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(gif,rgb,w,h,frame++);
+        } else frame++;
         xpp::job::report_frame(frame);
-        stop = ani_wait(s, s.animation.speed * (s.animation.mpeg.aviflag == 1 || s.animation.mpeg.flag > 0 ? 6 : 1));
+        stop = ani_wait(s, s.animation.speed * (writing ? ani_export_pace : 1));
         s.animation.vcr.pos += s.animation.vcr.inc;
         if (s.animation.vcr.pos >= s.browser.view.maxrow) {
             stop = 1;
@@ -140,69 +122,33 @@ void ani_go(xpp::Session &s)
             reset_comets(s);
         }
     }
-    s.animation.mpeg.flag = 0;
     if (gif) {
-        xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(gif);
-        xpp::ok_or_show(xpp::commit_save(gif));
+        if (!outcome) xpp::abort_save(gif);
+        else {
+            xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(gif);
+            outcome = xpp::commit_save(gif);
+        }
     }
     send_ani_slider(s);
+    if (!outcome) return std::unexpected(outcome.error());
+    return frame;
 }
 
 } // namespace
 
-/* {"cmd":"ani","op":...}: what the animation window's keys do not say, the
-   ones that carry a number or steer a running Go */
-void ani_command(xpp::Session &s, const char *line)
-{
-    std::string o, what;
-    int x = get_int(line, "x", 0), yy = get_int(line, "y", 0);
-    /* a point in the animation's unit coordinates (u, v: y up, as the ani
-       frame event's) instead of pixels: the nearest pixel of the window */
-    if (js_find(line, "u") && js_find(line, "v")) {
-        x = static_cast<int>(floor(get_num(line, "u", 0) * s.animation.vcr.wid + 0.5));
-        yy = static_cast<int>(floor((1 - get_num(line, "v", 0)) * s.animation.vcr.hgt + 0.5));
-    }
-    get_string(line, "op", o);
-    if (ani_speed_op(s, o.c_str(), line)) {
-        send_ani_slider(s);
-        return;
-    }
-    if (o == "pause") { /* already idle: nothing to stop */ }
-    else if (o == "step") ani_flip1(s,get_int(line, "n", 1));
-    else if (o == "seek") {
-        if (s.browser.view.maxrow >= 2) {
-            s.animation.vcr.pos = 0;
-            ani_flip1(s,0);
-            ani_flip1(s,get_int(line, "pos", 0));
-        }
-    } else if (o == "mouse") {
-        /* dragging a grab point: down, move..., up (which may integrate) */
-        get_string(line, "what", what);
-        if (s.animation.grab_flag) {
-            if (what == "down") ani_grab_mouse(s,1, x, yy);
-            else if (what == "move") update_ani_motion_stuff(s,x, yy);
-            else if (what == "up") ani_grab_mouse(s,0, x, yy);
-        }
-    } else {
-        j_command_error("ani", xpp::format("Unknown ani op {}", o));
-        return;
-    }
-    send_ani_slider(s);
-}
+xpp::Result<int> j_ani_go(xpp::Session &s, const xpp::AniExport &out) { return ani_go(s, out); }
 
-/* a key of the animation window (menu_ani_window) */
+/* a key of the animation window (menu_ani_window): each asks what its command takes, then does what it does */
 void ani_key(xpp::Session &s, int ch)
 {
+    const auto run = [&](const char *line) { xpp::ok_or_show(xpp::command::run_button(s, line, xpp::command_place())); };
     switch (menu_index(&menu_ani_window, ch)) {
-    case NK_FILE:
-        /* a new animation shows its first frame at once when there is data */
-        if (get_ani_file(s,NULL) && s.browser.view.maxrow >= 2) ani_reset(s);
-        break;
-    case NK_GO: ani_go(s); break;
-    case NK_RESET: ani_reset(s); break;
+    case NK_FILE: get_ani_file(s); break;
+    case NK_GO: run("{\"cmd\":\"animation.play\"}"); break;
+    case NK_RESET: run("{\"cmd\":\"animation.reset\"}"); break;
     case NK_SKIP: ani_newskip(s); break;
     case NK_MPEG: ani_create_mpeg(s); break;
-    case NK_FLY: s.animation.options.on_the_fly = 1 - s.animation.options.on_the_fly; break;
+    case NK_FLY: run(s.animation.options.on_the_fly ? "{\"cmd\":\"animation.set_live_draw\",\"enabled\":false}" : "{\"cmd\":\"animation.set_live_draw\",\"enabled\":true}"); break;
     case NK_GRAB: ani_grab_start(s); break;
     }
     send_ani_slider(s);

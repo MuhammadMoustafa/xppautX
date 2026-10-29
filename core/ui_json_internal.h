@@ -120,7 +120,6 @@ struct ProtocolSession {
     /* the main-window menu shown (MAIN_MENU, FILE_MENU, NUM_MENU), for the
        reader thread's classify(): which menu a key is an item of */
     std::atomic<int> menu{0};
-    std::atomic<bool> grab_computes{false}; /* reader-thread command kind snapshot */
     /* the lines a command's prompt or computation took that were meant for
        after it, in arrival order; the command loop runs them first */
     std::deque<DeferredLine> deferred;
@@ -177,6 +176,8 @@ xpp::inbox::Verdict during_run(const char *line);     /* what a running computat
    refused: during_run() refused it (the command loop answers it so);
    applied: a set control_line() applied already (the loop only ends it) */
 void defer_line(const char *line, bool refused, bool applied = false, std::optional<xpp::Result<std::string>> taken = std::nullopt);
+/* a registry command a running job takes at its next check: the animation's Pause, set_speed, faster and slower */
+bool is_steering(const char *line);
 char line_kind(const char *line); /* a command's kind, menus.h XPP_KIND_* (ui_json.cpp) */
 bool line_is_step(const char *line); /* a step of the user's (ui_json.cpp's command table) */
 /* An internal silent command that does not fit the dialogue: stop at once. */
@@ -448,16 +449,16 @@ xpp::Result<> j_film_clip(xpp::Session &s);
 void j_reset_film(xpp::Session &s);
 void j_movie_play_back(xpp::Session &s);
 void j_movie_auto_play(xpp::Session &s);
-void j_movie_save(xpp::Session &s, std::string_view basename, int fmat);
-void j_movie_make_anigif(xpp::Session &s);
+xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fmat);
+xpp::Result<> j_movie_make_anigif(xpp::Session &s, std::string_view file);
 
 void aplot_changed(void); /* the data behind an array plot changed */
 void aplot_update(xpp::Session &s); /* at a command's end */
-void aplot_command(xpp::Session &s, const char *line);
 void aplot_key(xpp::Session &s, int ch);
 void j_aplot_make(xpp::Session &s, std::string_view name);
 void j_aplot_redraw(xpp::Session &s);
 void j_aplot_draw_one(xpp::Session &s, std::string_view tag);
+xpp::Result<bool> j_aplot_gif(xpp::Session &s, std::string_view file);
 
 /* ---- json_auto.cpp ---- */
 
@@ -495,8 +496,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req);
 
 /* ---- json_ani.cpp ---- */
 
-int ani_speed_op(xpp::Session &s, const char *o, const char *line);
-void ani_command(xpp::Session &s, const char *line);
+xpp::Result<int> j_ani_go(xpp::Session &s, const xpp::AniExport &out);
 void ani_key(xpp::Session &s, int ch);
 void j_ani_slider(xpp::Session &s);
 void j_new_vcr(xpp::Session &s);

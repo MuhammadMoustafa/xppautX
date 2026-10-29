@@ -166,6 +166,15 @@ def check_diagram_subscription():
         s.close()
 
 
+def stop_server(p, r, snd):
+    snd(cmd='quit')
+    try:
+        p.wait(timeout=5 * SLOW)
+    except subprocess.TimeoutExpired:
+        p.kill()
+    shutil.rmtree(r, ignore_errors=True)
+
+
 # W480 "every stop says why" (docs/studies/w480-stops.md; card W486). One small model per stop in
 # tools/models/stops/, run through --server, and through --silent where the stop has an exit code.
 # A case names the parts its message must have (regular expressions, never the exact wording), the
@@ -1534,7 +1543,212 @@ def check_data_value_set():
         shutil.rmtree(folder, ignore_errors=True)
 
 
-INDEPENDENT_SECTIONS = {'registry': check_registry, 'data': check_data_value_set, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
+def check_kinescope_animation_array_plot():
+    """W527: the kinescope, the animation and the array plot on the registry: each command's good call with its result,
+    a refused argument with its message, the pictures asked of the client, a Go steered by commands sent while it plays,
+    and the old forms unknown."""
+    proc, run_dir, snd, col, _ = launch_server()
+    shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gui_test.ani'), run_dir)
+    with open(os.path.join(run_dir, 'nograb.ani'), 'w') as f:
+        f.write('dimension 0;0;1;1\nline 0;0;1;1\ndone\n')
+    aplots = lambda evs: [e for e in evs if e.get('ev') == 'aplot']
+    exists = lambda *names: all(os.path.exists(os.path.join(run_dir, n)) for n in names)
+    head = lambda name, n: open(os.path.join(run_dir, name), 'rb').read(n)
+
+    def req(command, ok=True):
+        """the command's done event and every event up to it, the client's pictures asked for answered"""
+        snd(**command)
+        got = []
+        while True:
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'done'), timeout=60 * SLOW)
+            got += evs
+            if e is None or e['ev'] == 'done':
+                break
+            snd(cmd='answer', id=e['id'], **(pixels(e) if e['kind'] == 'pixels' else {'ok': 0}))
+        done = got[-1] if got and got[-1].get('ev') == 'done' else {}
+        check('W527: %s %s' % (command['cmd'], 'is done' if ok else 'is refused: ' + str(done.get('error'))[:80]),
+              done.get('status') == ('ok' if ok else 'error') and (ok or 'result' not in done), str(got[-3:])[:400])
+        return done.get('result', {}), got, done.get('error', '')
+
+    is_idle = lambda e: e.get('ev') == 'idle'
+    pixels = lambda e: {'w': 2, 'h': 1, 'rgb': base64.b64encode(bytes([255, 0, 0, 0, 0, 255])).decode()}
+
+    try:
+        col(is_idle)
+        # the kinescope
+        result, evs, _ = req({'cmd': 'kinescope.capture'})
+        result2, evs2, _ = req({'cmd': 'kinescope.capture'})
+        films = [e for e in evs2 if e.get('ev') == 'film']
+        check('W527: kinescope.capture counts the frames and sends the film event', result == {'frame_count': 1} and result2 == {'frame_count': 2}
+              and films and films[-1].get('op') == 'capture' and films[-1].get('count') == 2, str((result, result2, films)))
+        result, evs, _ = req({'cmd': 'kinescope.play'})
+        check('W527: kinescope.play shows every frame', result == {'frames_played': 2}
+              and any(e.get('ev') == 'film' and e.get('op') == 'play' for e in evs), str(result))
+        result, evs, _ = req({'cmd': 'kinescope.autoplay', 'cycles': 2, 'frame_ms': 5})
+        check('W527: kinescope.autoplay takes the cycles and the delay', result == {'cycles_completed': 2}
+              and any(e.get('ev') == 'film' and e.get('op') == 'autoplay' and e.get('cycles') == 2 and e.get('delay') == 5 for e in evs), str(result))
+        result, evs, _ = req({'cmd': 'kinescope.autoplay'})
+        check('W527: kinescope.autoplay keeps the last settings', any(e.get('ev') == 'film' and e.get('cycles') == 2 and e.get('delay') == 5 for e in evs), str(evs)[-300:])
+        for refused in [{'cmd': 'kinescope.autoplay', 'cycles': 0}, {'cmd': 'kinescope.autoplay', 'frame_ms': -1}, {'cmd': 'kinescope.autoplay', 'cycles': 1.5},
+                        {'cmd': 'kinescope.export_frames'}, {'cmd': 'kinescope.export_frames', 'file': '../k.gif'}, {'cmd': 'kinescope.export_gif', 'file': 'a/b.gif'},
+                        {'cmd': 'kinescope.capture', 'file': 'x'}]:
+            req(refused, False)
+        result, evs, _ = req({'cmd': 'kinescope.export_frames', 'file': 'w527_kin.gif'})
+        check('W527: kinescope.export_frames asks the pictures and writes the GIFs, the second named from the first',
+              result == {'file': 'w527_kin.gif', 'frames_saved': 2} and exists('w527_kin.gif', 'w527_kin-frame1.gif')
+              and head('w527_kin.gif', 6) [:4] == b'GIF8', str(result))
+        result, evs, _ = req({'cmd': 'kinescope.export_gif', 'file': 'w527_movie.gif'})
+        check('W527: kinescope.export_gif writes one animated GIF', result.get('file') == 'w527_movie.gif' and exists('w527_movie.gif')
+              and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_movie.gif')) > 20, str(result))
+        result, evs, _ = req({'cmd': 'kinescope.reset'})
+        check('W527: kinescope.reset clears the frames', result == {'cleared': True}
+              and any(e.get('ev') == 'film' and e.get('op') == 'reset' and e.get('count') == 0 for e in evs), str(result))
+        for empty in ('kinescope.play', 'kinescope.autoplay'):
+            _, _, error = req({'cmd': empty}, False)
+            check('W527: %s says the kinescope holds no frames' % empty, 'holds no frames' in error, error)
+        _, _, error = req({'cmd': 'kinescope.export_gif', 'file': 'none.gif'}, False)
+        check('W527: kinescope.export_gif with no frames writes nothing', 'holds no frames' in error and not exists('none.gif'), error)
+
+        # the animation
+        snd(cmd='data', events=['ani'])
+        col(is_idle)
+        _, _, error = req({'cmd': 'animation.play'}, False)
+        check('W527: animation.play with no stored data says so', 'no stored data' in error, error)
+        req({'cmd': 'run.initial'})
+        result, evs, _ = req({'cmd': 'animation.open'})
+        check('W527: animation.open opens the window and says so', result == {'open': True}
+              and any(e.get('ev') == 'ani' and e.get('open') == 1 for e in evs), str((result, evs[-3:]))[:300])
+        result, evs, _ = req({'cmd': 'animation.load', 'file': 'gui_test.ani'})
+        frames = [e for e in evs if e.get('ev') == 'ani' and e.get('op') == 'frame']
+        _, evs_bad, _ = req({'cmd': 'animation.load', 'file': 'missing.ani'}, False)
+        check('W527: animation.load loads the file and its first frame shows; a missing file is an error naming it',
+              result == {'file': 'gui_test.ani', 'loaded': True} and frames and frames[-1]['pos'] == 0 and evs_bad[-1].get('file') == 'missing.ani', str((result, evs_bad[-1:])))
+        for refused in [{'cmd': 'animation.load'}, {'cmd': 'animation.load', 'file': '../gui_test.ani'}]:
+            req(refused, False)
+        result, _, _ = req({'cmd': 'animation.step', 'rows': 3})
+        check('W527: animation.step moves the frame shown', result == {'row': 3}, str(result))
+        result, _, _ = req({'cmd': 'animation.seek', 'row': 10})
+        check('W527: animation.seek goes to a stored row', result == {'row': 10}, str(result))
+        result, _, _ = req({'cmd': 'animation.step', 'rows': -4})
+        check('W527: animation.step goes back with a negative number', result == {'row': 6}, str(result))
+        result, _, _ = req({'cmd': 'animation.step', 'rows': 2147483647})
+        check('W527: animation.step past the last row stops on it', result == {'row': 600}, str(result))
+        req({'cmd': 'animation.seek', 'row': 6})
+        result, _, _ = req({'cmd': 'animation.set_speed', 'ms': 20})
+        check('W527: animation.set_speed sets the delay', result == {'speed_ms': 20}, str(result))
+        result, _, _ = req({'cmd': 'animation.faster'})
+        result_slower, _, _ = req({'cmd': 'animation.slower'})
+        check('W527: animation.faster and slower change the delay by a step', result == {'speed_ms': 18} and result_slower == {'speed_ms': 20}, str((result, result_slower)))
+        result, _, _ = req({'cmd': 'animation.pause'})
+        check('W527: animation.pause with no Go running changes nothing', result == {'speed_ms': 20}, str(result))
+        result, _, _ = req({'cmd': 'animation.set_frame_skip', 'skip': 100})
+        check('W527: animation.set_frame_skip sets the skip', result == {'skip': 100}, str(result))
+        result, _, _ = req({'cmd': 'animation.set_live_draw', 'enabled': True})
+        check('W527: animation.set_live_draw switches drawing while integrating', result == {'live_draw': True}, str(result))
+        req({'cmd': 'animation.set_live_draw', 'enabled': False})
+        for refused in [{'cmd': 'animation.step'}, {'cmd': 'animation.step', 'rows': 1.5}, {'cmd': 'animation.seek', 'row': -1}, {'cmd': 'animation.seek'},
+                        {'cmd': 'animation.set_speed', 'ms': 1001}, {'cmd': 'animation.set_speed', 'ms': -1}, {'cmd': 'animation.set_speed'},
+                        {'cmd': 'animation.set_frame_skip', 'skip': 0}, {'cmd': 'animation.set_frame_skip', 'skip': 100000001}, {'cmd': 'animation.set_live_draw', 'enabled': 'yes'},
+                        {'cmd': 'animation.set_live_draw'}, {'cmd': 'animation.pause', 'ms': 1}, {'cmd': 'animation.grab_point', 'x': 0}]:
+            req(refused, False)
+        result, _, _ = req({'cmd': 'animation.reset'})
+        check('W527: animation.reset goes back to the first frame', result == {'frame': 0}, str(result))
+        req({'cmd': 'animation.set_speed', 'ms': 0})
+        result, evs, _ = req({'cmd': 'animation.play'})
+        frames = [e for e in evs if e.get('ev') == 'ani' and e.get('op') == 'frame']
+        check('W527: animation.play plays to the last frame', result == {'playing': False} and frames, str(result))
+        result, evs, _ = req({'cmd': 'animation.export_frames', 'animated_gif': True, 'file': 'w527_an.gif'})
+        check('W527: animation.export_frames writes one animated GIF of the frames', result == {'frames_saved': 7} and exists('w527_an.gif')
+              and head('w527_an.gif', 6) [:4] == b'GIF8', str(result))
+        result, evs, _ = req({'cmd': 'animation.export_frames', 'ppm': True, 'file': 'w527_an.ppm'})
+        check('W527: animation.export_frames writes PPM files, the later ones named from the first', result == {'frames_saved': 7}
+              and exists('w527_an.ppm', 'w527_an-frame1.ppm', 'w527_an-frame6.ppm') and head('w527_an.ppm', 2) == b'P6', str(result))
+        for refused in [{'cmd': 'animation.export_frames', 'file': 'w527_x.ppm'}, {'cmd': 'animation.export_frames', 'ppm': True, 'animated_gif': True, 'file': 'w527_x.gif'},
+                        {'cmd': 'animation.export_frames', 'ppm': True}, {'cmd': 'animation.export_frames', 'ppm': True, 'file': '../x.ppm'}]:
+            req(refused, False)
+        check('W527: a refused export writes nothing', not exists('w527_x.ppm', 'w527_x.gif'), str(os.listdir(run_dir)))
+        _, _, error = req({'cmd': 'animation.grab_point', 'x': 0.5, 'y': 0.5, 'to_x': 0.5}, False)
+        check('W527: animation.grab_point takes to_x and to_y together', 'to_x' in error or 'to_y' in error, error)
+        req({'cmd': 'animation.load', 'file': 'nograb.ani'})
+        _, _, error = req({'cmd': 'animation.grab_point', 'x': 0.5, 'y': 0.5}, False)
+        check('W527: animation.grab_point on an animation with no grab points says so', 'no grab points' in error, error)
+        req({'cmd': 'animation.load', 'file': 'gui_test.ani'})
+        # a Go steered by the commands sent while it plays: its speed, then Pause stops it where it is
+        req({'cmd': 'animation.set_speed', 'ms': 30})
+        req({'cmd': 'animation.reset'})
+        snd(cmd='animation.play')
+        pre, _ = col(lambda e: e.get('ev') == 'ani' and e.get('op') == 'frame' and e.get('pos', 0) >= 3, timeout=60 * SLOW)
+        snd(cmd='animation.faster')
+        snd(cmd='animation.pause')
+        evs, first = col(lambda e: e.get('ev') == 'done', timeout=60 * SLOW)
+        evs2, second = col(lambda e: e.get('ev') == 'done', timeout=60 * SLOW)
+        evs3, third = col(lambda e: e.get('ev') == 'done', timeout=60 * SLOW)
+        stopped = [e['pos'] for e in pre + evs + evs2 + evs3 if e.get('ev') == 'ani'][-1:]
+        check('W527: Go ends on Pause, and each command sent meanwhile has its own done after it, in the order sent',
+              first and first.get('result') == {'playing': False} and second and second.get('result') == {'speed_ms': 28}
+              and third and third.get('result') == {'speed_ms': 28} and stopped and stopped[0] < 600, str((first, second, third, stopped)))
+
+        # the array plot
+        _, _, error = req({'cmd': 'array_plot.redraw'}, False)
+        check('W527: array_plot.redraw with no window says so', 'No array plot is open' in error, error)
+        for command in ('array_plot.configure', 'array_plot.fit', 'array_plot.scroll'):
+            _, _, error = req({'cmd': command, **({'first_row': 1} if command.endswith('scroll') else {})}, False)
+            check('W527: %s with no window says so' % command, 'No array plot is open' in error, error)
+        result, evs, _ = req({'cmd': 'array_plot.open'})
+        check('W527: array_plot.open opens the window', result == {'open': True}
+              and any(e.get('ev') == 'window' and e.get('op') == 'create' and e.get('win') == 'array_plot_1' for e in evs), str(result))
+        result, evs, _ = req({'cmd': 'array_plot.configure', 'first_column': 'V', 'columns': 2, 'rows': 20, 'row_skip': 5, 'z_min': -1, 'z_max': 1, 'auto_redraw': False})
+        ap = aplots(evs)
+        check('W527: array_plot.configure sets the columns, rows and scale and the plot shows them',
+              result == {'configured': True} and ap and (ap[-1]['nx'], ap[-1]['ny'], ap[-1]['zmin'], ap[-1]['zmax'], ap[-1]['first_row']) == (2, 20, -1, 1, 0), str(ap[-1:])[:300])
+        result, evs, _ = req({'cmd': 'array_plot.configure', 'rows': 10})
+        check('W527: array_plot.configure leaves what it does not name', aplots(evs) and (aplots(evs)[-1]['ny'], aplots(evs)[-1]['zmin']) == (10, -1), str(aplots(evs)[-1:])[:200])
+        for refused in [{'cmd': 'array_plot.configure', 'z_min': 2}, {'cmd': 'array_plot.configure', 'z_max': -5}, {'cmd': 'array_plot.configure', 'first_column': 'nothing'},
+                        {'cmd': 'array_plot.configure', 'columns': 0}, {'cmd': 'array_plot.configure', 'rows': 0}, {'cmd': 'array_plot.configure', 'row_skip': 0},
+                        {'cmd': 'array_plot.configure', 'column_skip': 0}, {'cmd': 'array_plot.configure', 'first_row': -1}, {'cmd': 'array_plot.configure', 'auto_redraw': 'yes'},
+                        {'cmd': 'array_plot.configure', 'columns': 2000000}, {'cmd': 'array_plot.configure', 'columns': 1001, 'rows': 1001},
+                        {'cmd': 'array_plot.configure', 'rows': 1000, 'row_skip': 2147483647}]:
+            req(refused, False)
+        result, evs, _ = req({'cmd': 'array_plot.redraw'})
+        check('W527: array_plot.redraw sends the plot again', result == {'redrawn': True} and aplots(evs), str(result))
+        result, evs, _ = req({'cmd': 'array_plot.fit'})
+        ap = aplots(evs)
+        check('W527: array_plot.fit sets the scale to the data shown', ap and abs(result['fitted_min'] - ap[-1]['zmin']) < 1e-5
+              and abs(result['fitted_max'] - ap[-1]['zmax']) < 1e-5 and result['fitted_min'] < result['fitted_max'], str((result, ap[-1:]))[:300])
+        result, evs, _ = req({'cmd': 'array_plot.scroll', 'first_row': 7})
+        check('W527: array_plot.scroll shows the plot from a stored row', result == {'first_row': 7} and aplots(evs) and aplots(evs)[-1]['first_row'] == 7, str(result))
+        for refused in [{'cmd': 'array_plot.scroll', 'first_row': -1}, {'cmd': 'array_plot.scroll'}, {'cmd': 'array_plot.scroll', 'first_row': 1.5},
+                        {'cmd': 'array_plot.scroll', 'first_row': 2147483647}]:
+            req(refused, False)
+        result, evs, _ = req({'cmd': 'array_plot.export_pdf', 'file': 'w527_ap.pdf', 'top_label': 'top', 'side_label': 'side', 'bottom_label': 'bottom'})
+        check('W527: array_plot.export_pdf writes the picture', result == {'file': 'w527_ap.pdf'} and head('w527_ap.pdf', 4) == b'%PDF', str(result))
+        result, evs, _ = req({'cmd': 'array_plot.export_gif', 'file': 'w527_ap.gif'})
+        check('W527: array_plot.export_gif asks the picture and writes it', result.get('file') == 'w527_ap.gif'
+              and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_ap.gif')) > 20 and head('w527_ap.gif', 6) [:4] == b'GIF8', str(result))
+        for refused in [{'cmd': 'array_plot.export_pdf'}, {'cmd': 'array_plot.export_pdf', 'file': '../a.pdf'}, {'cmd': 'array_plot.export_gif'},
+                        {'cmd': 'array_plot.export_gif', 'file': 'a/b.gif'}, {'cmd': 'array_plot.range', 'file': 'r.gif', 'steps': 0}, {'cmd': 'array_plot.range'},
+                        {'cmd': 'array_plot.range', 'file': 'r.gif', 'still': 'yes'}, {'cmd': 'array_plot.range', 'file': 'r.gif', 'variable': 'nothing'}]:
+            req(refused, False)
+        check('W527: a refused range leaves the next run alone', not exists('r.gif'), str(os.listdir(run_dir)))
+        result, evs, _ = req({'cmd': 'array_plot.range', 'still': True, 'tag': True, 'file': 'w527_ar.gif', 'variable': 'iapp', 'start': 0, 'end': 0.1, 'steps': 1})
+        check('W527: array_plot.range saves a GIF per run, tagged with the value, the later ones named from the first',
+              result == {'steps_completed': 2} and exists('w527_ar.gif', 'w527_ar-frame1.gif')
+              and any(e.get('tag') for e in aplots(evs)), str((result, os.listdir(run_dir))))
+        result, evs, _ = req({'cmd': 'array_plot.range', 'still': False, 'file': 'w527_arm.gif', 'steps': 1})
+        check('W527: array_plot.range with still false writes one movie', result == {'steps_completed': 2} and exists('w527_arm.gif')
+              and not exists('w527_arm-frame1.gif'), str((result, os.listdir(run_dir))))
+        # the old forms are gone
+        for obsolete in [{'cmd': 'ani', 'op': 'pause'}, {'cmd': 'ani', 'op': 'speed', 'ms': 5}, {'cmd': 'ani', 'op': 'step', 'n': 1}, {'cmd': 'ani', 'op': 'seek', 'pos': 1},
+                         {'cmd': 'ani', 'op': 'mouse', 'what': 'down', 'u': 0.5, 'v': 0.5}, {'cmd': 'aplot', 'op': 'scroll', 'dy': 1}]:
+            snd(**obsolete)
+            evs, _ = col(lambda e: e.get('ev') == 'idle')
+            check('W527: the old %s %s form is unknown' % (obsolete['cmd'], obsolete['op']),
+                  any('Unknown command' in e.get('error', '') for e in evs if e.get('ev') == 'message'), str(evs)[-300:])
+    finally:
+        stop_server(proc, run_dir, snd)
+
+
+INDEPENDENT_SECTIONS = {'registry': check_registry, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -1547,6 +1761,7 @@ if args.only:
 check_registry()
 check_equilibrium_exports()
 check_data_value_set()
+check_kinescope_animation_array_plot()
 check_diagram_subscription()
 
 proc, run, send, collect, events = launch_server()
@@ -2812,15 +3027,6 @@ def zoomed_view(answer_of):
 def pixel_to_data(v, i, j):
     return (v['xlo'] + (v['xhi'] - v['xlo']) * (i - v['left']) / (v['right'] - v['left']),
             v['ylo'] + (v['yhi'] - v['ylo']) * (j - v['bottom']) / (v['top'] - v['bottom']))
-
-
-def stop_server(p, r, snd):
-    snd(cmd='quit')
-    try:
-        p.wait(timeout=5 * SLOW)
-    except subprocess.TimeoutExpired:
-        p.kill()
-    shutil.rmtree(r, ignore_errors=True)
 
 
 def check_stable_navigation():
@@ -4555,14 +4761,17 @@ def check_ani_data():
         send6(cmd='key', key=key)
         return answered(list(answers))
 
-    ani_keys = {'file': 'f', 'go': 'g', 'reset': 'r', 'skip': 's', 'mpeg': 'm', 'fly': 'o', 'grab': 'a'}
+    ani_keys = {'file': 'f', 'grab': 'a'}
+    ani_commands = {'go': ('animation.play', {}), 'reset': ('animation.reset', {}), 'step': ('animation.step', {'n': 'rows'}),
+                    'seek': ('animation.seek', {'pos': 'row'}), 'speed': ('animation.set_speed', {})}
 
     def ani(op, *answers, **kw):
-        """the animation window's key (menu_ani_window) when it has one, else its ani op"""
+        """the animation window's key (menu_ani_window) for what asks (the file, the grab's arming), else its registry command"""
         if op in ani_keys:
             send6(cmd='key', win='ani', key=ani_keys[op])
         else:
-            send6(cmd='ani', op=op, **kw)
+            name, renamed = ani_commands[op]
+            send6(cmd=name, **{renamed.get(k, k): v for k, v in kw.items()})
         return answered(list(answers))
 
     named = {'foreground', '#ff0000', '#f06400', '#ffa500', '#ffcd00', '#c8c800', '#c8eb4b', '#00e100', '#00c8c8', '#0000ff', '#a020f0'}
@@ -4595,8 +4804,9 @@ def check_ani_data():
         check('ani data: no frame before one is drawn', not frames(evs))
         send6(cmd='run.initial')
         collect6(is_idle)
-        evs = command('v', {'key': 't'})
-        check('ani data: Viewaxes/Toon opens the animation window',
+        send6(cmd='animation.open')
+        evs = answered([])
+        check('ani data: animation.open opens the animation window',
               any(e.get('open') == 1 for e in states(evs)) or any(e.get('ev') == 'window' and e.get('win') == 'animation' and e.get('op') == 'create' for e in evs))
         evs = ani('file', {'file': 'gui_test.ani'})
         fr, st = frames(evs), states(evs)
@@ -4657,8 +4867,7 @@ def check_ani_data():
         # W177: one sequence choice, then derived PPM names, even across 601 rows.
         ani('reset')
         ani('speed', ms=1)
-        ani('mpeg', {'values': ['1', '0']}, {'file': 'sequence.ppm'}, {'key': 'y'})
-        send6(cmd='key', win='ani', key='g')
+        send6(cmd='animation.export_frames', ppm=True, file='sequence.ppm')
         saved, file_asks = [], 0
         while True:
             evs, ask = collect6(lambda e: is_ask(e) or is_idle(e), timeout=60 * SLOW)
@@ -4682,12 +4891,15 @@ def check_ani_data():
         cross = [p for p in (fr[-1] if fr else f0)['prims'] if p[0] == 'line' and p[5] == 'foreground'][-2:]
         if len(cross) == 2:
             cx, cy = (cross[1][1] + cross[1][3]) / 2, (cross[1][2] + cross[1][4]) / 2
-            ani('mouse', what='down', u=cx, v=cy)
-            evs = ani('mouse', what='up', u=cx, v=cy)
-            check('ani data: a press and release at the point in unit coordinates (u, v) grabs it',
-                  bool(states(evs)) and states(evs)[-1]['grab'] == 0, str(states(evs)))
+            xlo, ylo, xhi, yhi = f0['dim']
+            send6(cmd='animation.grab_point', x=xlo + cx * (xhi - xlo), y=ylo + cy * (yhi - ylo))
+            evs = answered([])
+            done = [e for e in evs if e.get('ev') == 'done']
+            check('ani data: animation.grab_point at the point in the animation\'s coordinates grabs it',
+                  bool(states(evs)) and states(evs)[-1]['grab'] == 0 and done and done[-1].get('result') == {'grabbed': True},
+                  str(states(evs)) + str(done))
         else:
-            check('ani data: a press and release at the point in unit coordinates (u, v) grabs it', False,
+            check('ani data: animation.grab_point at the point in the animation\'s coordinates grabs it', False,
                   'no grab cross drawn')
 
         send6(cmd='data', events=[])
@@ -8810,14 +9022,12 @@ def check_ani_grab_job():
             {'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'grab.ani'},
             {'cmd': 'record', 'op': 'start'},
             {'cmd': 'key', 'win': 'ani', 'key': 'a'},
-            {'cmd': 'ani', 'op': 'mouse', 'what': 'down', 'u': 0.5, 'v': 0.5},
-            {'cmd': 'ani', 'op': 'mouse', 'what': 'up', 'u': 0.5, 'v': 0.5},
+            {'cmd': 'animation.grab_point', 'x': 0.0, 'y': 0.0},
             {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': grab_rows, 't': 0}},
-            {'cmd': 'ani', 'op': 'pause'},
+            {'cmd': 'animation.pause'},
             {'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'view.ani'},
             {'cmd': 'key', 'win': 'ani', 'key': 'a'},
-            {'cmd': 'ani', 'op': 'mouse', 'what': 'down', 'u': 0.5, 'v': 0.5},
-            {'cmd': 'ani', 'op': 'mouse', 'what': 'up', 'u': 0.5, 'v': 0.5},
+            {'cmd': 'animation.grab_point', 'x': 0.0, 'y': 0.0},
             {'cmd': 'record', 'op': 'stop', 'name': 'grab'},
         ]
         path = make_recording(args.server, args.ode, lines, r)
@@ -8830,13 +9040,11 @@ def check_ani_grab_job():
         path = os.path.join(r, 'grab.recx')
         text = open(path, encoding='utf-8').read() if os.path.exists(path) else ''
         _, _, steps, _, _ = read_recx(text)
-        mouse = [x for x, _ in steps if x.get('cmd', {}).get('op') == 'mouse']
-        check('W136: grab down is a view; integrating release is a computing recording step',
-              len(mouse) == 4 and mouse[0].get('view') is True and not mouse[1].get('view')
-              and all(x.get('view') for x in mouse[2:])
-              and mouse[1].get('abort', {}).get('rows') == grab_rows, str(mouse))
+        grabs = [x for x, _ in steps if x.get('cmd', {}).get('cmd') == 'animation.grab_point']
+        check('W136: a grab that integrates is a computing recording step, stopped at its armed row',
+              len(grabs) == 2 and not any(x.get('view') for x in grabs) and grabs[0].get('abort', {}).get('rows') == grab_rows, str(grabs))
         check('W136: pause while idle is recorded as a view without an error',
-              any(x.get('cmd', {}).get('op') == 'pause' and x.get('view') for x, _ in steps)
+              any(x.get('cmd', {}).get('cmd') == 'animation.pause' and x.get('view') for x, _ in steps)
               and not any(e.get('error') for e in evs if e.get('ev') == 'message'), '')
 
 
@@ -8977,7 +9185,7 @@ def check_player_ani():
         snd(cmd='key', win='ani', key='f')
         ask = col(lambda e: e.get('ev') == 'ask')[1]
         run(cmd='answer', id=ask['id'], file='gui_test.ani')
-        run(cmd='ani', op='speed', ms=20)
+        run(cmd='animation.set_speed', ms=20)
         snd(cmd='key', win='ani', key='g')
         went, _ = col(lambda e: e.get('ev') == 'ani' and e.get('op') == 'frame' and e['pos'] >= 40, timeout=30 * SLOW)
         snd(cmd='key', key='Escape')
@@ -8986,10 +9194,12 @@ def check_player_ani():
         run(cmd='key', win='ani', key='r')
         snd(cmd='key', win='ani', key='g')
         went, _ = col(lambda e: e.get('ev') == 'ani' and e.get('op') == 'frame' and e['pos'] >= 40, timeout=30 * SLOW)
-        snd(cmd='ani', op='speed', ms=10)
-        snd(cmd='ani', op='pause')
+        snd(cmd='animation.set_speed', ms=10)
+        snd(cmd='animation.pause')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         last = frames(went + evs)[-1:]
+        for _ in range(2):  # each steering command's own done, after the Go's end
+            col(lambda e: e.get('ev') == 'done', timeout=30 * SLOW)
         run(cmd='record', op='stop', name='ani')
         text = open(os.path.join(r, 'ani.recx'), encoding='utf-8').read() if os.path.exists(os.path.join(r, 'ani.recx')) else ''
         _, files, steps, _, _ = read_recx(text)
@@ -8999,7 +9209,7 @@ def check_player_ani():
               '%s %s' % (last, [x for x, _ in steps][-2:]))
         controls = [d for x, _ in steps for d in x.get('during', []) if 'cmd' in d]
         check('W136: speed and pause during Go retain their commands and frames',
-              [d['cmd'].get('op') for d in controls] == ['speed', 'pause']
+              [d['cmd'].get('cmd') for d in controls] == ['animation.set_speed', 'animation.pause']
               and all(d['at'].get('what') == 'ani' for d in controls), str(controls))
         os.remove(os.path.join(r, 'gui_test.ani'))  # the replay reads the recording's copy
         snd(cmd='play', op='open', autoplay=False, file=os.path.join(r, 'ani.recx'))

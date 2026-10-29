@@ -1,5 +1,6 @@
 #pragma once
 
+#include "xpp_error.h"
 #include "xpp_io.h"
 #include <stdio.h>
 
@@ -39,8 +40,17 @@ void optimize_aplot(xpp::Session &s, int *plist);
 void set_up_aplot_range(xpp::Session &s);
 void fit_aplot(xpp::Session &s);
 void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin);
-int editaplot(xpp::Session &s, APLOT *ap);
-void print_aplot(const xpp::Session &s, APLOT *ap);
+/* the Edit and Print keys: their forms asked, then array_plot.configure's or write_aplot_pdf's work */
+void editaplot(xpp::Session &s, APLOT *ap);
+void print_aplot(xpp::Session &s);
+/* the array plot ready to be written: open, configured and (needs_data) with data to show, else why not (`where` names the command) */
+xpp::Result<> aplot_ready(const xpp::Session &s, const std::string &where, bool needs_data = true);
+/* the array plot as a PDF picture into `file` (its labels are the plot's xtitle, ytitle and bottom): false when
+   replacing an existing file was declined */
+xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file);
+/* the next range sweep saves the array plot at each run: as one GIF movie (still false) or a GIF per run,
+   `tag`ged with the swept value, from the file `file` names */
+void begin_array_range(xpp::Session &s, bool still, bool tag, std::string_view file);
 /* the time of the first and the last row the array plot shows (the page's range label, Print's ranges) */
 struct AplotTimes { double first, last; };
 AplotTimes aplot_times(const xpp::Session &s, const APLOT &ap);

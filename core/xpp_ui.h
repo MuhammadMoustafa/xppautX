@@ -12,6 +12,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+struct AniExport; /* aniparse.h */
 namespace files { struct WriteFolders; }
 
 /*
@@ -281,8 +282,9 @@ typedef struct XppUi {
     /* kinescope: the captured frames live in the front end */
     void (*movie_play_back)(Session &s);  /* step through frames with keys/mouse */
     void (*movie_auto_play)(Session &s);  /* the kinescope's cycles, frame_ms apart */
-    void (*movie_save)(Session &s, std::string_view basename, int fmat); /* image_format.h registry index */
-    void (*movie_make_anigif)(Session &s);
+    /* the frames as files `basename` names (image_format.h registry index): how many were saved, or why not */
+    Result<int> (*movie_save)(Session &s, std::string_view basename, int fmat);
+    Result<> (*movie_make_anigif)(Session &s, std::string_view file); /* the frames as one animated GIF */
 
     /* mouse interaction in the plot window. rubber_band returns 1 and the
        corners in pixels when the user drew a box (flag RUBBOX) or line
@@ -300,6 +302,7 @@ typedef struct XppUi {
     void (*aplot_redraw)(Session &s);
     void (*aplot_reset_axes)(Session &s);  /* its title and z range labels */
     void (*aplot_draw_one)(Session &s, std::string_view tag); /* redraw, tag and save a range frame */
+    Result<bool> (*aplot_gif)(Session &s, std::string_view file); /* the picture as a GIF file; false: replacing the file was declined */
 
     /* AUTO bifurcation window */
     void (*auto_make_window)(Session &s, std::string_view wname, std::string_view iname);
@@ -326,6 +329,7 @@ typedef struct XppUi {
     void (*new_vcr)(Session &s);
     void (*ani_show)(void);
     void (*ani_slider)(Session &s);    /* vcr.pos changed */
+    Result<int> (*ani_go)(Session &s, const AniExport &out); /* play the frames, writing them when asked: how many were shown */
 
     /* misc front-end hooks called while loading an ODE file */
     void (*init_txtview)(void);

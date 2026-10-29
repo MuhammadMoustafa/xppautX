@@ -212,10 +212,7 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
     for (int i = 0; d && (e = js_elem(d, i)) != nullptr; ++i) {
         if (js_find(e, "cmd")) {
             const char *cmd = js_find(e, "cmd");
-            std::string op;
-            if (!is_cmd(cmd, "ani") || !get_string(cmd, "op", op)
-                || (op != "pause" && op != "fast" && op != "slow" && op != "speed")
-                || !js_find(e, "at")) {
+            if (!is_steering(cmd) || !js_find(e, "at")) {
                 error = "it has an invalid checkpoint command";
                 return false;
             }

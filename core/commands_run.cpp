@@ -93,8 +93,7 @@ Result<std::string> run_range_handler(Session &s, const Command &, const Argumen
     set_range_settings(s.integrator.range, args);
     if (const Result<> items = resolve_range_items(s, false); !items) return std::unexpected<Error>(items.error());
     RangeProgress done;
-    const Result<int> swept = run_range(s, 0, &done);
-    if (!swept) return std::unexpected<Error>(swept.error());
+    if (const Result<int> swept = run_range(s, 0, &done); !swept) return std::unexpected<Error>(swept.error());
     return sweep_result(done, "runs_completed");
 }
 

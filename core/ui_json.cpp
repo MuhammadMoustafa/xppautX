@@ -145,6 +145,8 @@ void answer_page(xpp::Session &s, const char *line)
     send_buf(event);
 }
 
+constexpr std::string_view PAUSE_COMMAND = "animation.pause";
+
 bool quit_waits(const char *line)
 {
     return is_cmd(line, "quit") && (get_int(line, "ask", 0) != 0 || get_int(line, "save", 0) != 0);
@@ -206,8 +208,7 @@ xpp::inbox::Verdict during_run(const char *line)
         get_string(line, "key", o);
         int k = key_code(o.c_str());
         if (k == ESC || k == '/') return xpp::inbox::Verdict::control;
-    } else if (get_string(line, "op", o) && c == "ani"
-               && (o == "pause" || o == "fast" || o == "slow" || o == "speed")) {
+    } else if (is_steering(line)) {
         return xpp::inbox::Verdict::control;
     }
     const char kind = line_kind(line);
@@ -307,12 +308,19 @@ xpp::inbox::Verdict classify(const char *line, unsigned long seq)
     if (!xpp::job::running()) return xpp::inbox::Verdict::normal;
     if ((c == "key" && !js_find(line, "win")) || c == "set" || c == "state" || is_page(line) || is_parameter_edit(line))
         return xpp::inbox::Verdict::control;
-    if (c == "ani" && get_string(line, "op", o) && (o == "pause" || o == "fast" || o == "slow" || o == "speed"))
-        return xpp::inbox::Verdict::control;
+    if (is_steering(line)) return xpp::inbox::Verdict::control;
     return xpp::inbox::Verdict::normal;
 }
 
 } // namespace
+
+/* what steers a view while a job runs, acted on at its next check: the animation's Pause, speed, faster and
+   slower (a running Go reads them between frames) */
+bool is_steering(const char *line)
+{
+    constexpr std::array<std::string_view, 4> STEERING_COMMANDS = {PAUSE_COMMAND, "animation.set_speed", "animation.faster", "animation.slower"};
+    return std::ranges::find(STEERING_COMMANDS, xpp::command::name(line)) != STEERING_COMMANDS.end();
+}
 
 void take_setting(xpp::Session &s, const char *line)
 {
@@ -349,11 +357,17 @@ int control_line(xpp::Session &s, const char *line)
         take_setting(s, line);
         return KEY_NONE;
     }
-    if (is_cmd(line, "ani")) {
-        get_string(line, "op", k);
-        record_control(line);
-        if (k == "pause") return ANI_PAUSE;
-        ani_speed_op(s, k.c_str(), line);
+    if (is_steering(line)) {
+        /* done now; its own `done` comes with the running command's end, as a setting's */
+        const xpp::Place place = j_command_place();
+        const bool text = *skip_ws(line) != '{' && !session.silent && !xpp::http::active();
+        const xpp::Result<std::string> request = text ? xpp::command::tokenize(line, place) : xpp::Result<std::string>(line);
+        const xpp::Result<std::string> result = request ? xpp::command::run(s, request->c_str(), place, false) : std::unexpected(request.error());
+        if (request) record_control(request->c_str());
+        std::optional<xpp::Result<std::string>> taken;
+        if (result) taken = result;
+        defer_line(line, false, taken.has_value(), std::move(taken));
+        if (xpp::command::name(line) == PAUSE_COMMAND) return ANI_PAUSE;
     }
     return KEY_NONE;
 }
@@ -498,6 +512,7 @@ XppUi make_json_ui(void)
     u.aplot_redraw = j_aplot_redraw;
     u.aplot_reset_axes = j_aplot_redraw;
     u.aplot_draw_one = j_aplot_draw_one;
+    u.aplot_gif = j_aplot_gif;
     u.auto_make_window = j_auto_make_window;
     u.auto_refresh = j_auto_refresh;
     u.auto_check_abort = j_auto_check_abort;
@@ -510,6 +525,7 @@ XppUi make_json_ui(void)
     u.new_vcr = j_new_vcr;
     u.ani_show = j_ani_show;
     u.ani_slider = j_ani_slider;
+    u.ani_go = j_ani_go;
     u.init_txtview = j_void;
     u.show_eq_box = j_show_eq_box;
     u.make_txtview = j_make_txtview;
@@ -637,9 +653,6 @@ const CommandInfo commands[] = {
     {"state", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_state(s); }},
     {"data", nullptr, V, NOT_STEP, data_command},
     {"equations", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_equations(s); }},
-    {"aplot", nullptr, V, STEP, aplot_command},
-    {"ani", "mouse", X, STEP, ani_command}, /* release can integrate */
-    {"ani", nullptr, V, STEP, ani_command},
     {"keymap", nullptr, C, NOT_STEP, keymap_command}, /* the user's settings, not the model's: any time */
     {"file", "put", D, NOT_STEP, file_command},
     {"file", nullptr, V, NOT_STEP, file_command}, /* list, get */
@@ -807,12 +820,6 @@ char line_kind(const char *line)
     if (const char kind = xpp::command::kind(line)) return kind;
     const CommandInfo *e = command_of(line);
     if (!e) return 0;
-    if (e->run == ani_command && e->kind == XPP_KIND_COMPUTE) {
-        std::string what;
-        get_string(line, "what", what);
-        return what == "up" && session.grab_computes.load(std::memory_order_relaxed)
-            ? XPP_KIND_COMPUTE : XPP_KIND_VIEW;
-    }
     if (e->kind) return e->kind;
     std::string k, win, menu, item; /* a key: its menu item's kind */
     if (js_find(line, "menu") || js_find(line, "item")) {
@@ -959,7 +966,6 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     phase_data_update(*s);
     marks_data_update(*s);
     ani_data_update(*s);
-    session.grab_computes.store(s->animation.grab_flag && run_now_grab(*s), std::memory_order_relaxed);
     diag_flush(*s, 1);
     auto_data_update(*s, 1);
     auto_view_update(*s);

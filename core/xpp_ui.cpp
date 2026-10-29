@@ -176,7 +176,10 @@ static int hl_checklist(std::string_view, const char *const *, int *, int)
 {
     return 0;
 }
-static void hl_movie_save(Session &, std::string_view, int) {}
+static Result<int> hl_ani_go(Session &, const AniExport &) { return 0; }
+static Result<bool> hl_aplot_gif(Session &, std::string_view) { return false; }
+static Result<int> hl_movie_save(Session &, std::string_view, int) { return 0; }
+static Result<> hl_movie_make_anigif(Session &, std::string_view) { return {}; }
 static void hl_record_toggle(Session &) { xpp::log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
 static void hl_play_recording(Session &, std::string_view) { xpp::log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
 static bool hl_recording(void) { return false; }
@@ -248,13 +251,14 @@ XppUi ui = {
     .movie_play_back = hl_s,
     .movie_auto_play = hl_s,
     .movie_save = hl_movie_save,
-    .movie_make_anigif = hl_s,
+    .movie_make_anigif = hl_movie_make_anigif,
     .rubber_band = hl_auto_rubber,
     .scroll_window = hl_s,
     .aplot_make = hl_s_str,
     .aplot_redraw = hl_s,
     .aplot_reset_axes = hl_s,
     .aplot_draw_one = hl_s_str,
+    .aplot_gif = hl_aplot_gif,
     .auto_make_window = hl_auto_make_window,
     .auto_refresh = hl_s,
     .auto_check_abort = hl_auto_check_abort,
@@ -268,6 +272,7 @@ XppUi ui = {
     .new_vcr = hl_s,
     .ani_show = hl_void,
     .ani_slider = hl_s,
+    .ani_go = hl_ani_go,
     .init_txtview = hl_void,
     .show_eq_box = hl_show_eq_box,
     .make_txtview = hl_s,

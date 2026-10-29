@@ -78,28 +78,31 @@ void do_movie_com(xpp::Session &s, int c)
 {
   XppKinescope &k = s.kinescope;
   std::string base;
+  const auto run = [&](const std::string &line) { xpp::ok_or_show(xpp::command::run_button(s, line, xpp::command_place())); };
   switch (c) {
-  case 0:
-    if (const auto r = ui.film_clip(s); !r) show_error(r.error());
+  case 0: run("{\"cmd\":\"kinescope.capture\"}"); break;
+  case 1: run("{\"cmd\":\"kinescope.reset\"}"); break;
+  case 2: run("{\"cmd\":\"kinescope.play\"}"); break;
+  case 3: {
+    int cycles = k.cycles, frame_ms = k.frame_ms;
+    new_int("Number of cycles", &cycles);
+    new_int("Msec between frames", &frame_ms);
+    run(xpp::format("{{\"cmd\":\"kinescope.autoplay\",\"cycles\":{},\"frame_ms\":{}}}", cycles, frame_ms));
     break;
-  case 1: reset_film(s); break;
-  case 2: ui.movie_play_back(s); break;
-  case 3:
-    new_int("Number of cycles", &k.cycles);
-    new_int("Msec between frames", &k.frame_ms);
-    if (k.frame_ms < 0) k.frame_ms = 0;
-    if (k.cycles <= 0) return;
-    ui.movie_auto_play(s);
-    break;
+  }
   case 4:
     if(!save_ready(s.kinescope.frames>0))return;
     base = xpp::files::output_name(s.model().this_file, ".gif");
     if (!file_selector("Save kinescope frames", base, "*.gif")) return;
-    if (!base.empty())
-      ui.movie_save(s,base.c_str(), IMAGE_FORMAT_GIF);
+    if (!base.empty()) xpp::ok_or_show(ui.movie_save(s, base, IMAGE_FORMAT_GIF));
     break;
-  case 5: ui.movie_make_anigif(s); break;
-  case 6: break;
+  case 5: {
+    if(!save_ready(s.kinescope.frames>0))return;
+    base = xpp::files::output_name(s.model().this_file, ".gif");
+    if (!file_selector("Save kinescope GIF", base, "*.gif")) return;
+    xpp::ok_or_show(ui.movie_make_anigif(s, base));
+    break;
+  }
   }
 }
 

@@ -37,7 +37,7 @@ void add_text(Picture &p, double x, double y, TextAnchor anchor, double angle, c
 
 } // namespace
 
-Result<> array_print(const Session &s, const ArrayPicture &a)
+Result<bool> array_print(const Session &s, const ArrayPicture &a)
 {
     Picture p;
     p.font_size = label_size;
@@ -72,9 +72,11 @@ Result<> array_print(const Session &s, const ArrayPicture &a)
 
     Result<> opened;
     Writer out = open_writer_asking(a.filename, true, &opened);
-    if (!opened || !out) return opened;
-    if (const Result<> written = write_pdf(p, out); !written) return written;
-    return commit_save(out);
+    if (!opened) return std::unexpected(opened.error());
+    if (!out) return false;
+    if (const Result<> written = write_pdf(p, out); !written) return std::unexpected(written.error());
+    if (const Result<> committed = commit_save(out); !committed) return std::unexpected(committed.error());
+    return true;
 }
 
 } // namespace xpp
