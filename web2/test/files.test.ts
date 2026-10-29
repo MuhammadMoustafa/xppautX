@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  answerName, baseName, initialFiles, keepBothName, matchesWild, menuKeys, onSent, safeName, uploadPlan,
+  answerName, baseName, initialFiles, keepBothName, matchesWild, onSent, safeName, uploadPlan,
 } from '../src/store/files';
 import type {AskEvent} from '../src/protocol/types';
 import {nativeFileRequest, wildExtensions} from '../src/pickers';
@@ -49,26 +49,18 @@ test('an upload is copied, skipped or confirmed against the folder', () => {
 const fileAsk = (mode: 'read' | 'write'): AskEvent => ({ev: 'ask', id: 7, kind: 'file', title: 'Import XPPAUT set', mode});
 
 test('the run record: the command, the menu it ran in, and its answers', () => {
-  let s = onSent(initialFiles, HELLO, {cmd: 'key', key: 'f'}, null, 0);
-  assert.deepEqual(s.run, {menu: 0, cmd: {cmd: 'key', key: 'f'}, answers: []});
-  s = onSent(s, HELLO, {cmd: 'key', key: 'r'}, null, 0); /* the core has not said menu 1 yet */
-  assert.equal(s.run!.menu, 1, 'F switched to the File menu');
-  s = onSent(s, HELLO, {cmd: 'answer', id: 7, file: 'x.set'}, fileAsk('read'), 1);
+  let s = onSent(initialFiles, HELLO, {cmd:'session.import_settings',file:'x.set'}, null);
+  assert.deepEqual(s.run, {cmd: {cmd:'session.import_settings',file:'x.set'}, answers: []});
+  s = onSent(s, HELLO, {cmd:'session.import_settings',file:'x.set'}, null); /* the core has not said menu 1 yet */
+  s = onSent(s, HELLO, {cmd: 'answer', id: 7, file: 'x.set'}, fileAsk('read'));
   assert.deepEqual(s.run!.answers, [{kind: 'file', mode: 'read', fields: {file: 'x.set'}}]);
-  assert.equal(onSent(s, HELLO, {cmd: 'session.get_state'}, null, 0), s, 'a query is no command of the user');
-  assert.equal(onSent(s, HELLO, {cmd: 'browser.page', from_row: 0, count: 10}, null, 0), s, 'nor a table block');
-  assert.equal(onSent(s, null, {cmd: 'key', key: 'i'}, null, 0), s, 'nothing before hello');
-});
-
-test('menuKeys: F or U from the main menu, nothing when already there', () => {
-  assert.deepEqual(menuKeys(HELLO, 0, 1), ['f']);
-  assert.deepEqual(menuKeys(HELLO, 0, 2), ['u']);
-  assert.deepEqual(menuKeys(HELLO, 1, 1), []);
-  assert.equal(menuKeys(HELLO, 1, 0), null);
+  assert.equal(onSent(s, HELLO, {cmd: 'session.get_state'}, null), s, 'a query is no command of the user');
+  assert.equal(onSent(s, HELLO, {cmd: 'browser.page', from_row: 0, count: 10}, null), s, 'nor a table block');
+  assert.equal(onSent(s, null, {cmd: 'key', key: 'i'}, null), s, 'nothing before hello');
 });
 
 test('an error about a file the command could not read gets "Add file…"', () => {
-  let s = reduce(READY, {type: 'sent', cmd: {cmd: 'key', key: 'r'}});
+  let s = reduce(READY, {type: 'sent', cmd: {cmd:'session.import_settings',file:'x.set'}});
   s = reduce(s, {type: 'event', ev: fileAsk('read')});
   s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 7, file: 'gone.set'}});
   s = reduce(s, {type: 'event', ev: {ev: 'message', error: 'Cannot open file'}});

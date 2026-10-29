@@ -64,7 +64,6 @@ int main(void)
     CHECK(xpp::image_formats[xpp::IMAGE_FORMAT_PDF].write == xpp::write_pdf && xpp::image_formats[xpp::IMAGE_FORMAT_PDF].binary);
     CHECK(xpp::image_formats[xpp::IMAGE_FORMAT_SVG].write == xpp::write_svg && !xpp::image_formats[xpp::IMAGE_FORMAT_SVG].binary);
     CHECK(xpp::image_formats[xpp::IMAGE_FORMAT_GIF].write == nullptr && xpp::image_formats[xpp::IMAGE_FORMAT_PPM].write == nullptr);
-    CHECK(xpp::image_formats[xpp::IMAGE_FORMAT_PDF].plot_key != nullptr && xpp::image_formats[xpp::IMAGE_FORMAT_SVG].plot_key != nullptr);
 
     CHECK(std::strcmp(xpp::image_formats[xpp::IMAGE_FORMAT_PDF].extension, "pdf") == 0);
     CHECK(std::strcmp(xpp::image_formats[xpp::IMAGE_FORMAT_SVG].extension, "svg") == 0);

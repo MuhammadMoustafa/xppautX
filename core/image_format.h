@@ -28,7 +28,6 @@ struct ImageFormat {
     void (*pixels)(Writer &w, std::span<const unsigned char> rgb, int width, int height, int frame) = nullptr;
     void (*finish_movie)(Writer &w) = nullptr;
     const char *plot_title = nullptr; /* the file selector's title, a vector picture's */
-    const char *plot_key = nullptr;   /* the key of the Graphic stuff menu that writes it (--silent's answer) */
 };
 
 /* the vector picture formats' names, as @ plotfmt takes them */
@@ -48,7 +47,6 @@ constexpr int IMAGE_STILL_FRAME = -1; /* a still has no index in a movie */
 /* the picture parameters (in colour, the axes' font size) asked before the file selector, 0 if the user
    cancelled, and their values as --silent answers them */
 int ask_picture_params(Session &s);
-std::vector<std::string> picture_parameter_values(const Session &s);
 /* the default file name of the session's picture in the format */
 std::string picture_filename(const Session &s, const ImageFormat &format);
 

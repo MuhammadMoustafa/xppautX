@@ -887,16 +887,6 @@ namespace {
 /* PPM frames of more megabytes than this ask before they are written (XPPAUT's own limit) */
 constexpr unsigned int DISK_WARN_MB = 10;
 
-/* whether to go on when the PPM frames of the whole animation would need more than DISK_WARN_MB: the user is asked */
-bool ani_disk_ok(xpp::Session &s)
-{
-    unsigned int total = (s.browser.view.maxrow * s.animation.vcr.wid * s.animation.vcr.hgt * 3) / s.animation.vcr.inc;
-    total = total / (1024 * 1024);
-    if (total <= DISK_WARN_MB) return true;
-    const std::string q = xpp::format(" {} Mb disk space needed! Continue?", total);
-    return TwoChoice("YES", "NO", q, "yn") == 'y';
-}
-
 } // namespace
 
 void eval_ani_color(xpp::Session &s, int j)
@@ -1497,43 +1487,6 @@ void update_ani_motion_stuff(xpp::Session &s, double x, double y)
 
 /*************************** End motion & speed stuff   ****************/
 
-/* the Frame saving key: PPM or animated GIF, the file and the disk space asked, then Go writes the frames */
-void ani_create_mpeg(xpp::Session &s)
-{
-    static const char *const n[] = {"PPM 0/1", "AniGif(0/1)"};
-    std::array<std::string, 2> values = {"0", "1"};
-    static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
-    if (do_string_box_of(2, 1, "Frame saving", n, values, kinds) == 0) return;
-    xpp::TypedFields f(s);
-    const bool ppm = f.integer(n[0], values[0]) > 0, gif = f.integer(n[1], values[1]) == 1;
-    if (f.error()) {
-        command_error("Frame saving", *f.error());
-        return;
-    }
-    if (ppm == gif) {
-        command_error("Frame saving", "Choose PPM frames or an animated GIF: exactly one of them");
-        return;
-    }
-    std::string file = xpp::files::output_name(s.model().this_file, gif ? ".gif" : ".ppm", "animation");
-    if (!file_selector(gif ? "Save animation GIF" : "Save animation frames", file, gif ? "*.gif" : "*.ppm")) return;
-    if (ppm && !ani_disk_ok(s)) return;
-    xpp::ok_or_show(play_animation(s, {gif ? AniExportKind::gif : AniExportKind::ppm, file}));
-}
-
-/* the Skip key: the increment asked, then animation.set_frame_skip */
-void ani_newskip(xpp::Session &s)
-{
-    std::string bob = xpp::format("{}", s.animation.vcr.inc);
-    if (get_dialog_of("Frame skip", "Increment:", bob, "Ok", "Cancel", XPP_FIELD_INTEGER) == 0) return;
-    xpp::TypedFields f(s);
-    const int inc = f.integer("Increment", bob);
-    if (f.error()) {
-        command_error("Frame skip", *f.error());
-        return;
-    }
-    xpp::ok_or_show(command::run_button(s, command::ResultObject().text("cmd", "animation.set_frame_skip").integer("skip", inc).done(), command_place()));
-}
-
 void on_the_fly(xpp::Session &s, int task)
 {
     if (s.animation.vcr.iexist == 0 || s.animation.ncom == 0) return;
@@ -1586,14 +1539,6 @@ Result<> load_chosen_animation(Session &s, const std::string &file)
     /* a new animation shows its first frame at once when there is data */
     if (s.browser.view.maxrow >= 2) ani_reset(s);
     return {};
-}
-
-/* the File key: the file asked, then animation.load's work */
-void get_ani_file(Session &s)
-{
-    std::string file = s.animation.vcr.file;
-    if (file_selector("Load animation", file, "*.anix *.ani") == 0) return;
-    ok_or_show(load_chosen_animation(s, file));
 }
 
 Result<> animation_ready(const Session &s, const std::string &where)

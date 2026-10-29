@@ -8,7 +8,7 @@
    (its first command and the answers to its prompts), so a command whose
    file was missing can run again once the file is added. Pure: no DOM, no
    I/O. */
-import {isStep, menuKey, menuName, menuNumber} from '../protocol/kinds';
+import {isStep} from '../protocol/kinds';
 import type {AskEvent, Command, HelloEvent} from '../protocol/types';
 
 /** one file of GET /files */
@@ -61,8 +61,6 @@ export interface RunAnswer {
 
 /** the running (or last) command as the user gave it */
 export interface RunRecord {
-  /** the main menu (state.menu) when it was sent: File/Import settings is a key of the File menu */
-  menu: number;
   cmd: Command;
   answers: RunAnswer[];
 }
@@ -75,13 +73,11 @@ export interface FilesState {
   run: RunRecord | null;
   /** the command reported an error: what it wrote is not offered */
   runFailed: boolean;
-  /** the main menu the next command runs in, when a command just sent
-      switches it (File, nUmerics) before the core has said so */
-  nextMenu: number | null;
+
 }
 
 export const initialFiles: FilesState =
-  {listing: null, confirm: null, uploads: [], offered: null, run: null, runFailed: false, nextMenu: null};
+  {listing: null, confirm: null, uploads: [], offered: null, run: null, runFailed: false};
 
 export type FilesAction =
   | {type: 'listing'; files: FolderFile[]}
@@ -105,7 +101,7 @@ export function reduceFiles(state: FilesState, action: FilesAction): FilesState 
 /** a command was sent while `ask` was open and the main menu was `menu`: a step
     of the user's (hello.commands' step: not an answer, a query or a data
     subscription) starts a new run record */
-export function onSent(state: FilesState, hello: HelloEvent | null, cmd: Command, ask: AskEvent | null, menu: number): FilesState {
+export function onSent(state: FilesState, hello: HelloEvent | null, cmd: Command, ask: AskEvent | null): FilesState {
   if (cmd.cmd === 'answer') {
     if (!state.run || !ask) return state;
     const {cmd: _c, id: _i, ...fields} = cmd;
@@ -114,12 +110,7 @@ export function onSent(state: FilesState, hello: HelloEvent | null, cmd: Command
     return {...state, run: {...state.run, answers: [...state.run.answers, answer]}};
   }
   if (!hello || !isStep(hello, cmd)) return state;
-  const at = state.nextMenu ?? menu, key = cmd.cmd === 'key' && !cmd.win ? String(cmd.key) : '';
-  /* File and nUmerics in the main menu switch to those menus (core/commands.cpp commander) */
-  const main = menuName(hello, at) === 'main';
-  const nextMenu = main && key === menuKey(hello, 'main', 'file') ? menuNumber(hello, 'file')
-    : main && key === menuKey(hello, 'main', 'numerics') ? menuNumber(hello, 'num') : null;
-  return {...state, run: {menu: at, cmd, answers: []}, runFailed: false, nextMenu};
+  return {...state, run: {cmd, answers: []}, runFailed: false};
 }
 
 /* ---- names ---------------------------------------------------------------------- */
@@ -168,12 +159,3 @@ export function uploadPlan(name: string, sha256: string, listing: FolderFile[]):
   return !there ? 'copy' : there.sha256 === sha256 ? 'same' : 'confirm';
 }
 
-/** the keys that bring the main menu from `now` to `want` before a command
-    runs again (the File and nUmerics menus go back to the main one after a
-    command), or null when that cannot be done */
-export function menuKeys(hello: HelloEvent | null, now: number, want: number): string[] | null {
-  if (now === want) return [];
-  if (menuName(hello, now) !== 'main') return null;
-  const to = menuName(hello, want);
-  return to === 'file' ? [menuKey(hello, 'main', 'file')] : to === 'num' ? [menuKey(hello, 'main', 'numerics')] : null;
-}

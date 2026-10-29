@@ -21,13 +21,12 @@ import {FileAsk} from './FileDialog';
 import {nativeFileDialog} from '../pickers';
 import {HelpButton} from './HelpButton';
 import {TextForm} from './TextDialog';
-import {MENU_ONE_COLUMN, menuRows} from './menuLayout';
 import {useSession, useStore} from './context';
-import {FOCUSABLE, useDialogFocus} from './dialogFocus';
+import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
 import {useDark} from './theme';
 
 
-function MenuAsk({ask}: {ask: AskEvent}) {
+function ChoiceAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
   const keys = ask.keys ?? '';
   /* a layout effect, like the dialog's focus: a key typed the moment the menu is there finds it */
@@ -43,13 +42,12 @@ function MenuAsk({ask}: {ask: AskEvent}) {
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [ask]);
-  const items = ask.kind === 'menu' ? ask.items ?? [] : ask.choices ?? [];
+  const items = ask.choices ?? [];
   return (
     <>
-      {ask.kind === 'menu' && <p class="shortcut-instruction">Letter keys choose from this menu. <strong>Esc cancels</strong> before starting another command.</p>}
       {ask.question && <p>{ask.question}</p>}
-      <ul class={'menu-list' + (items.length > MENU_ONE_COLUMN ? ' menu-columns' : '')} role="menu"
-        aria-label={ask.title || ask.name || 'Choices'} style={{'--menu-rows': String(menuRows(items.length))}}>
+      <ul class="menu-list" role="menu"
+        aria-label={ask.title || ask.name || 'Choices'}>
         {items.map((item, i) => (
           <li key={i} role="none">
             <button role="menuitem" class="menu-item" title={ask.hints?.[i]}
@@ -249,8 +247,6 @@ function PendingAsk({ask}: {ask: AskEvent}) {
 function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
   const session = useSession();
   const table = useStore(s => s.table);
-  const core = useStore(s => s.core);
-  const hello = useStore(s => s.hello);
   const box = useRef<HTMLDivElement>(null);
   useDialogFocus(box, [ask.id]);
   const onKeyDown = (e: KeyboardEvent) => {
@@ -259,17 +255,7 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
       e.stopPropagation();
       session.cancel(ask);
     } else if (e.key === 'Tab') {
-      const all = [...box.current!.querySelectorAll<HTMLElement>(FOCUSABLE)];
-      if (!all.length) return;
-      const i = all.indexOf(document.activeElement as HTMLElement);
-      const next = e.shiftKey ? (i <= 0 ? all.length - 1 : i - 1) : (i === all.length - 1 ? 0 : i + 1);
-      e.preventDefault();
-      const to = all[next];
-      to.focus();
-      /* as a native Tab does: typing then replaces the field's text instead of adding to it */
-      if (to instanceof HTMLInputElement && /^(text|search|number|url|tel|email|password)?$/.test(to.getAttribute('type') ?? ''))
-        to.select();
-      else if (to instanceof HTMLTextAreaElement) to.select();
+      cycleDialogFocus(e, box.current);
     }
   };
   const title = ask.title || ask.name || 'XPP';
@@ -281,7 +267,7 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
         onKeyDown={onKeyDown}>
         <div class="dialog-title-row">
           <h2 id="ask-title">{title}</h2>
-          <HelpButton target={askHelp({table, core, hello}, ask.kind)} label={title} />
+          <HelpButton target={askHelp({table}, ask.kind)} label={title} />
           <button class="dialog-close" aria-label={`Close ${title}`} title="Close (Esc)" onClick={() => session.cancel(ask)}>×</button>
         </div>
         {children}
@@ -334,7 +320,7 @@ function PlayedAsk({ask}: {ask: AskEvent}) {
   const token = useStore(s => s.player.presses);
   const {typed, done} = useTyping(fill, press?.ms ?? 0, token);
   const title = ask.title || ask.name || 'XPP';
-  const items = ask.kind === 'menu' ? ask.items ?? [] : ask.kind === 'choice' ? ask.choices ?? [] : [];
+  const items = ask.kind === 'choice' ? ask.choices ?? [] : [];
   const keys = ask.keys ?? '';
   const names = ask.kind === 'string' ? [ask.name ?? ''] : ask.kind === 'form' ? ask.names ?? [] : ask.kind === 'file' ? ['File'] : [];
   const shownValues = ask.kind === 'string' ? [ask.value ?? ''] : ask.kind === 'form' ? ask.values ?? [] : [''];
@@ -380,7 +366,7 @@ export function AskDialog() {
   if (ask && played && ask.id !== LEAVE_ASK && ask.kind !== 'pixels')
     return <PlayedAsk key={ask.id} ask={ask} />;
   if (!ask || !askIsModal(ask, pick, auto)) return null;
-  const body = ask.kind === 'menu' || ask.kind === 'choice' ? <MenuAsk ask={ask} />
+  const body = ask.kind === 'choice' ? <ChoiceAsk ask={ask} />
     : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />
       : ask.kind === 'checklist' ? <ChecklistAsk ask={ask} />
         : ask.kind === 'file' ? <FileAsk ask={ask} />

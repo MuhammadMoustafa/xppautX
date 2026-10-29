@@ -12,7 +12,6 @@
 #include "browse.h"
 #include "command_def.h"
 #include "command_registry.h"
-#include "command_table.h"
 #include "menus.h"
 #include "model.h"
 #include "model_files.h"
@@ -46,24 +45,19 @@ struct StepTaken {
     bool open = false;
     std::string label;                /* for a person: "Initialconds → Go" */
     std::string note;                 /* the note set before it began */
-    std::string win;                  /* a window's own key layer ("auto") */
-    std::string button;               /* the page's control that sent the key */
     std::string cmd;                  /* a command, including an explicit save decision */
-    std::string key_cmd;              /* retained until a key actually saves */
     size_t save_keys = 0;             /* keys present before this save's conditional choice */
     std::vector<std::string> keys;    /* the key, then the keys that answered a menu or a choice */
     std::vector<std::string> answers; /* every other answer: a value, a form's values, an object, null for a cancel */
     std::vector<size_t> files;        /* the file sections it read, in order */
     std::vector<std::string> during;  /* the keys the job read itself, each {"key":K,"at":AT} */
     bool view = false;                /* only changes what is shown */
-    bool file_menu = false;           /* the key that opens the File menu */
 };
 
 struct Recorder {
     std::optional<recx::Recording> rec;
     std::string note; /* for the next step */
     StepTaken step;
-    bool file_menu_last = false; /* the last step only opened the File menu */
     bool reading = false;        /* file_read() is reading a file itself */
 };
 
@@ -116,33 +110,13 @@ std::string command_label(const char *line)
 }
 
 /* the label of a key of the main window's menu `menu`, or of window win's layer */
-std::string key_label(const std::string &k, int menu, const std::string &win)
-{
-    const int ch = key_code(k.c_str());
-    if (!win.empty()) {
-        const XppWindowLayer *l = window_layer(win);
-        const int i = l ? menu_index(l->menu, ch) : -1;
-        return i < 0 ? xpp::format("{} key {}", win, k) : xpp::format("{} → {}", l->menu->title, menu_label(l->menu->items[i]));
-    }
-    const CommandRow *row = find_command_by_key(menu, ch);
-    if (!row) return "Key " + k;
-    const CommandRow *in = layer_entry(menu);
-    return in ? std::string(in->label) + " → " + std::string(row->label) : std::string(row->label);
-}
+
 
 /* the step's line, one JSON object */
 std::string step_line(const StepTaken &t, const std::string &abort)
 {
     std::string j = "{\"step\":";
     xpp::json_append_string(j, t.label);
-    if (!t.win.empty()) {
-        j += ",\"win\":";
-        xpp::json_append_string(j, t.win);
-    }
-    if (!t.button.empty()) {
-        j += ",\"button\":";
-        xpp::json_append_string(j, t.button);
-    }
     if (!t.cmd.empty()) j += ",\"cmd\":" + t.cmd;
     auto array = [&j](const char *name, const std::vector<std::string> &v) {
         if (v.empty()) return;
@@ -222,15 +196,11 @@ struct Saved {
 /* name.recx (asked for when name is empty, as the other File saves are), and the recording ends; nothing when a
    question is cancelled or declined, which keeps it going. from_menu: File/recorD or File/Quit, whose opening
    of the File menu is no step. confirm: replace an existing file without asking. */
-xpp::Result<std::optional<Saved>> stop(const xpp::Session &s, const std::string &name, bool from_menu, bool confirm = false)
+xpp::Result<std::optional<Saved>> stop(const xpp::Session &s, const std::string &name, bool confirm = false)
 {
     if (!recorder.rec) return xpp::fail("recording", "Not recording", xpp::command_place());
     recorder.step.open = false; /* this command is no step */
     std::vector<recx::Step> &steps = recorder.rec->steps;
-    if (from_menu && recorder.file_menu_last && !steps.empty()) {
-        steps.pop_back();
-        recorder.file_menu_last = false;
-    }
     std::string file = name;
     if (file.empty()) {
         file = xpp::files::output_name(s.model().this_file,recx::extension);
@@ -256,9 +226,9 @@ xpp::Result<std::optional<Saved>> stop(const xpp::Session &s, const std::string 
 }
 
 /* stop for the menus and a quit: whether the recording was saved and ended, the error shown */
-bool stop_shown(const xpp::Session &s, bool from_menu)
+bool stop_shown(const xpp::Session &s)
 {
-    const xpp::Result<std::optional<Saved>> saved = stop(s, "", from_menu);
+    const xpp::Result<std::optional<Saved>> saved = stop(s, "");
     return xpp::ok_or_show(saved) && saved->has_value();
 }
 
@@ -272,7 +242,7 @@ xpp::Result<std::string> recording_start(xpp::Session &s)
 
 xpp::Result<std::string> recording_stop(const xpp::Session &s, const std::optional<std::string> &file, bool confirm)
 {
-    const xpp::Result<std::optional<Saved>> saved = stop(s, file.value_or(""), false, confirm);
+    const xpp::Result<std::optional<Saved>> saved = stop(s, file.value_or(""), confirm);
     if (!saved) return std::unexpected(saved.error());
     if (!*saved) return xpp::fail("recording.stop", "The recording was not saved: the question was cancelled or declined, and the recording goes on", xpp::command_place());
     std::string out = "{\"file\":";
@@ -287,52 +257,26 @@ xpp::Result<std::string> recording_add_note(const std::string &note)
     return std::string("{\"note_added\":true}");
 }
 
-void j_record_toggle(xpp::Session &s)
-{
-    if (recorder.rec) stop_shown(s, true);
-    else xpp::ok_or_show(start(s));
-}
-
 bool j_recording(void) { return recorder.rec.has_value(); }
 
 bool j_save_recording(xpp::Session &s)
 {
     /* File/Quit's step is open (the q of the File menu): it and the File
        menu opened for it are no steps; a quit from the window has none */
-    return stop_shown(s, recorder.step.open);
+    return stop_shown(s);
 }
 
 void record_begin(const char *line)
 {
-    if (!recorder.rec || !line_is_step(line)) return;
+    if (!recorder.rec || !line_is_step(line) || is_cmd(line, "key")) return;
     StepTaken t;
     t.open = true;
     t.note = std::move(recorder.note);
     recorder.note.clear();
     const char kind = line_kind(line);
     t.view = kind == XPP_KIND_VIEW;
-    if (is_cmd(line, "key") && js_find(line, "menu")) {
-        std::string menu, item;
-        get_string(line, "menu", menu);
-        get_string(line, "item", item);
-        get_string(line, "button", t.button);
-        const auto action = main_menu_action(menu, item);
-        t.label = action ? key_label(std::string(1, static_cast<char>(action->key)), action->which, "") : "Invalid menu action";
-        t.cmd = std::string(js_raw(line));
-    } else if (is_cmd(line, "key")) {
-        std::string k;
-        get_string(line, "key", k);
-        get_string(line, "win", t.win);
-        get_string(line, "button", t.button);
-        const int menu = session.menu.load(std::memory_order_relaxed);
-        t.label = key_label(k, menu, t.win);
-        t.file_menu = t.win.empty() && menu == MAIN_MENU && key_code(k.c_str()) == main_menu_key(MAIN_MENU, "file");
-        t.keys.push_back(std::move(k));
-        if (session.save_replace != SAVE_ASK) t.key_cmd = std::string(js_raw(line));
-    } else {
-        t.label = command_label(line);
-        t.cmd = std::string(js_raw(line));
-    }
+    t.label = command_label(line);
+    t.cmd = std::string(js_raw(line));
     recorder.step = std::move(t);
 }
 
@@ -340,10 +284,6 @@ void record_save_permission()
 {
     StepTaken &t = recorder.step;
     if (!recorder.rec || !t.open) return;
-    if (!t.key_cmd.empty() && t.cmd.empty()) {
-        t.cmd = std::move(t.key_cmd);
-        t.keys.erase(t.keys.begin()); /* the initiating key is now in cmd */
-    }
     t.save_keys = t.keys.size();
 }
 
@@ -360,7 +300,7 @@ void record_answer(const char *kind, const char *answer, bool ok)
 {
     StepTaken &t = recorder.step;
     if (!recorder.rec || !t.open) return;
-    if (strcmp(kind, "menu") == 0 || strcmp(kind, "choice") == 0) {
+    if (strcmp(kind, "choice") == 0) {
         std::string k;
         get_string(answer, "key", k);
         t.keys.push_back(ok && !k.empty() ? k : "Escape");
@@ -372,14 +312,7 @@ void record_answer(const char *kind, const char *answer, bool ok)
     else t.answers.push_back(js_object_without(answer, {"cmd", "id", "ok"}));
 }
 
-void record_menu_pick(const XppMenu *m, int ch)
-{
-    StepTaken &t = recorder.step;
-    const int i = menu_index(m, ch);
-    if (!recorder.rec || !t.open || i < 0) return;
-    t.label += " → " + menu_label(m->items[i]);
-    if (m->kinds) t.view = m->kinds[i] == XPP_KIND_VIEW;
-}
+
 
 namespace {
 
@@ -395,12 +328,7 @@ void record_during(std::string_view field, std::string_view value)
 
 } // namespace
 
-void record_key_read(const std::string &key)
-{
-    std::string value;
-    xpp::json_append_string(value, key);
-    record_during("key", value);
-}
+
 
 void record_control(const char *line) { record_during("cmd", js_raw(line)); }
 
@@ -431,7 +359,6 @@ void record_end(xpp::Session &s, bool cancelled)
         abort = std::move(b);
     }
     recorder.rec->steps.push_back({std::move(t.note), step_line(t, abort)});
-    recorder.file_menu_last = t.file_menu && t.keys.size() == 1 && t.answers.empty();
 }
 
 void buf_recording(std::string &b)

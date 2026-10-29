@@ -1,13 +1,13 @@
+import {registryRows} from './navigation';
 /* The page's keyboard layer (docs/command-design.md): one dispatcher from a key event to a command id.
-   A key is normalised to a name ("Ctrl+Shift+S"), looked up among the command table's default keys (and,
+   A key is normalised to a name ("Ctrl+Shift+S"), looked up among the registry's default keys (and,
    when the preset "XPPAUT sequences" is on, its legacy sequences: F then S is a chord over the same
-   dispatcher), and the command runs through Session.menuAction, the path a click on it takes. A key typed
-   while a menu is open or on its way answers it (session.typeKey: typing I then G quickly integrates).
+   dispatcher), and the command runs through Session.registryAction, the path a menu click takes.
    A chord waits for its next key in the store's pendingKeys, shown in the status bar, until Esc or a
    change of focus: never for a time. A key typed in a text field, a select, a dialog or a menu is the
    element's own; a button keeps its Enter, Space and arrows. Tab is never taken: it moves the focus. */
 import {useEffect} from 'preact/hooks';
-import {menuCommand, noValueEdit} from '../protocol/kinds';
+import {noValueEdit} from '../protocol/kinds';
 import type {CommandRow} from '../protocol/kinds';
 import type {HelloEvent} from '../protocol/types';
 import {effectiveKeys} from '../store/keymap';
@@ -17,25 +17,17 @@ import {BUSY_TITLE} from './context';
 
 /** the work areas F6 cycles, in reading order: the command search, the plot, then the panels. A pane
     that is hidden, or in a drawer that is closed, is skipped (focusPane) */
-const PANE_SELECTORS = ['#command-search', '.plot-host', '#values-panel', '#table-panel', '#text-panel'];
-/** the command drawer and the class it has while open: on a narrow screen it is off-canvas
-    (position fixed, slid out) until then */
-const DRAWER = '.menu-panel', DRAWER_OPEN = 'open';
-const COMMAND_SEARCH = '#command-search';
+const PANE_SELECTORS = [ '.plot-host', '#values-panel', '#table-panel', '#text-panel'];
 /** the workspace Tools menu (TitleBar.tsx) */
 export const TOOLS_MENU = '.workspace-tools';
 
-/** the command search, which is no command: the way back to every command (docs/command-design.md: fixed) */
-const SEARCH_KEY = 'Ctrl+K';
-/** the keys the page takes that are no table command, listed by the Help key table */
+/** Pane navigation is presentation, rather than a command binding. */
 export const FIXED_KEYS: readonly {key: string; does: string}[] = [
-  {key: SEARCH_KEY, does: 'Search commands'}, {key: 'F6 / Shift+F6', does: 'Next / previous pane'},
-  {key: 'Esc', does: 'Stop the running command, cancel a pending key or a prompt, close a menu'}, {key: 'F1', does: 'Help'}];
+  {key: 'F6 / Shift+F6', does: 'Next / previous pane'}];
 
 function inReach(pane: HTMLElement): boolean {
   if (pane.getClientRects().length === 0 || getComputedStyle(pane).visibility === 'hidden') return false;
-  const drawer = pane.closest<HTMLElement>(DRAWER);
-  return !drawer || drawer.classList.contains(DRAWER_OPEN) || getComputedStyle(drawer).position !== 'fixed';
+  return true;
 }
 
 /** Visible work areas cycle without walking every field or command. */
@@ -63,7 +55,7 @@ const ANYWHERE = /^(Ctrl|Alt)\+|^F\d+$/;
 /** where Ctrl+Z is the browser's text undo */
 const TEXT_FIELD = 'input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]), textarea, [contenteditable]';
 /** the commands whose keys are a text field's own while it has the focus */
-const EDIT_COMMANDS = new Set(['undo', 'redo']);
+const EDIT_COMMANDS = new Set(['value.undo', 'value.redo']);
 const MODIFIER_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Dead']);
 
 /** a key an open menu or prompt can take: a single sign, or a named key without a modifier */
@@ -88,7 +80,7 @@ export function keyName(e: KeyboardEvent): string | null {
   if (MODIFIER_KEYS.has(e.key)) return null;
   const physical = /^Key([A-Z])$/.exec(e.code ?? '')?.[1];
   const base = (e.ctrlKey || e.metaKey || e.altKey) && physical ? physical
-    : e.key.length === 1 ? (e.key === ' ' ? 'Space' : e.key.toUpperCase()) : e.key === 'Escape' ? 'Esc' : e.key;
+    : e.key.length === 1 ? (e.key === ' ' ? 'Space' : e.key.toUpperCase()) : e.key;
   const shift = e.shiftKey && (base.length > 1 || /[A-Z]/.test(base));
   return [e.ctrlKey || e.metaKey ? 'Ctrl' : '', e.altKey ? 'Alt' : '', shift ? 'Shift' : '', base].filter(Boolean).join('+');
 }
@@ -98,28 +90,31 @@ export function keyName(e: KeyboardEvent): string | null {
 interface Binding {keys: string[]; row: CommandRow}
 
 /** every binding of the table under the keymap: each command's effective keys (the table's, or the user's),
-    and with the XPPAUT preset its legacy sequence; the three switches of the legacy shortcut layers
-    (category layer) and the commands the page runs itself have none to type */
-function bindingsOf(hello: HelloEvent | null, keymap: KeymapInfo | null): Binding[] {
-  return (hello?.command_table ?? []).flatMap(row => [
+    and with the XPPAUT preset its legacy sequence */
+function bindingsOf(hello: HelloEvent | null, keymap: KeymapInfo | null, context: string): Binding[] {
+  return registryRows(hello).filter(row => {
+    if (keymap?.preset !== 'xppaut') return true;
+    return (row.legacy_context ?? '') === context;
+  }).sort((a, b) => Number(b.legacy_context === context) - Number(a.legacy_context === context)).flatMap(row => [
     ...effectiveKeys(keymap, row).map(chord => ({keys: chord.split(' '), row})),
-    ...keymap?.preset === 'xppaut' && row.category !== 'layer' && row.legacy_keys.length ? [{keys: row.legacy_keys, row}] : []]);
+]);
 }
 
 /** what the keys typed so far are among the bindings: the command they complete, else whether some binding
     goes on with them (a chord not yet finished) */
-export function resolveKeys(hello: HelloEvent | null, keymap: KeymapInfo | null, keys: string[]): {row: CommandRow | null; more: boolean} {
-  const bindings = bindingsOf(hello, keymap);
+export function resolveKeys(hello: HelloEvent | null, keymap: KeymapInfo | null, keys: string[], context = ''): {row: CommandRow | null; more: boolean} {
+  const bindings = bindingsOf(hello, keymap, context);
   const starts = (b: Binding) => keys.every((k, i) => b.keys[i] === k);
   const done = bindings.find(b => b.keys.length === keys.length && starts(b));
-  return {row: done?.row ?? null, more: !done && bindings.some(b => b.keys.length > keys.length && starts(b))};
+  const more = bindings.some(b => b.keys.length > keys.length && starts(b));
+  return {row: more ? null : done?.row ?? null, more};
 }
 
 /** how a command's keys are written where the page lists it: its effective keys, else, when that preset is
     on, its XPPAUT sequence */
 export function shortcutLabel(row: CommandRow, keymap: KeymapInfo | null): string {
   const keys = effectiveKeys(keymap, row);
-  return keys.length ? keys.join(' / ') : keymap?.preset === 'xppaut' ? row.legacy_keys.join(' ') : '';
+  return keys.join(' / ');
 }
 
 /** a plain letter's name without Shift ("Shift+I" is I: the sequences are letters) */
@@ -147,7 +142,7 @@ function closeTransient(session: Session): boolean {
 /** Run the command a key sequence completed, through the action a click on it takes; while a run forbids
     it (its kind, protocol/kinds.ts) the status bar says why. */
 function runCommand(session: Session, row: CommandRow): void {
-  if (session.may(menuCommand(row.menu, row.id))) session.menuAction(row.menu, row.id);
+  if (session.may({cmd: row.id})) session.registryAction(row.id);
   else session.store.dispatch({type: 'bottom', text: `${row.label}: ${noValueEdit(session.store.getState().core, row.id) ? `nothing to ${row.id}` : BUSY_TITLE}`});
 }
 
@@ -163,18 +158,13 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
   const dispatch = session.store.dispatch;
   /* the keys the system and the browser keep (the core's list: hello.keymap.reserved) are never taken */
   if (keymap.info?.reserved.includes(name)) return;
-  if (name === 'Esc' && pendingKeys.length) {
+  if (name === 'Escape' && busy) { e.preventDefault(); dispatch({type:'pendingKeys',keys:[]}); session.abort(); return; }
+  if (name === 'Escape' && pendingKeys.length) {
     e.preventDefault();
     dispatch({type: 'pendingKeys', keys: []});
     return;
   }
-  if (name === SEARCH_KEY) {
-    e.preventDefault();
-    dispatch({type: 'drawer', open: true});
-    document.querySelector<HTMLInputElement>(COMMAND_SEARCH)?.focus();
-    return;
-  }
-  if (name === 'Esc' && closeTransient(session)) {
+  if (name === 'Escape' && closeTransient(session)) {
     e.preventDefault();
     return;
   }
@@ -185,7 +175,7 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
   }
   /* an open menu or prompt, or one on its way, takes the key; Escape stops a running command */
   const typed = hotkey(e);
-  if (ask || session.awaitingMenu() || (name === 'Esc' && busy)) {
+  if (ask || (name === 'Escape' && busy)) {
     if (typed && isHotkeyTarget(target, typed)) {
       e.preventDefault();
       session.typeKey(typed);
@@ -194,7 +184,8 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
   }
   if (!ANYWHERE.test(name) && !isHotkeyTarget(target, e.key)) return;
   const keys = [...pendingKeys, plainName(name)];
-  const {row, more} = resolveKeys(hello, keymap.info, keys);
+  const context = target?.closest?.('#auto-panel') ? 'auto' : target?.closest?.('#ani-panel') ? 'animation' : target?.closest?.('#aplot-panel') ? 'array_plot' : target?.closest?.('#table-panel') ? 'browser' : '';
+  const {row, more} = resolveKeys(hello, keymap.info, keys, context);
   /* in a text field Undo and Redo are the field's own (its typing), not the Values' */
   if (row && EDIT_COMMANDS.has(row.id) && target?.closest?.(TEXT_FIELD)) return;
   if (!row && !more && !pendingKeys.length) return;

@@ -201,9 +201,6 @@ Result<> restore_defaults(Session &s, std::string_view scope, std::string_view f
    bad set stops it) */
 Result<> check_intern_sets(Session &s);
 void do_intern_set(Session &s, std::string_view name1, std::string_view value);
-/* Save values' name for a new set: the first of set1, set2, ... not yet a set
-   of the model */
-std::string intern_set_default_name(const Model &m);
 /* the current values of scope (as apply_named_set's) as a save writes them: every
    parameter, every state (the last state reached, stored, when last_state), and
    every setting of the groups a set holds that the scope covers, from graph (the

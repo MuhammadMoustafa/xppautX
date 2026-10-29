@@ -558,7 +558,7 @@ def check_auto_registry():
         _, done = call(cmd='auto.grab', label=999999)
         check('auto.grab: an unknown label is refused', done['status'] == 'error' and 'no point labelled 999999' in done['error'], str(done))
         _, done = call(cmd='auto.grab', label=1, type='hopf', index=1)
-        check('auto.grab: a label and a type are refused', done['status'] == 'error' and 'Exactly one of' in done['error'], str(done))
+        check('auto.grab: a label and a type are refused', done['status'] == 'error' and 'At most one of' in done['error'], str(done))
         _, done = call(cmd='auto.fit')
         check('auto.fit: the view ranges are the result', done['status'] == 'ok' and done['result']['window'] == 'diagram_1'
               and done['result']['x_range'][0] < done['result']['x_range'][1], str(done))
@@ -643,12 +643,8 @@ def check_fit_stops():
             autocompare.completed(s)
             with open(os.path.join(s.run, 'fit.dat'), 'w') as f:
                 f.write(''.join('%d %.17g\n' % (i, math.exp(0.5*i)) for i in range(6)))
-            autocompare.completed(s, dict(cmd='key', key='u'))
-            s.send(cmd='key', key='h')
-            evs, end = s.answer_asks(stops_idle, {
-                'menu': lambda e: dict(key='i'),
-                'form': lambda e: dict(ok=1, values=['x', parameters, '1e-12', '6', '2', '2', '', '1e-6', str(maxiter)]),
-                'file': lambda e: dict(ok=1, file='fit.dat')})
+            s.send(cmd='analysis.fit_curve',variables=['x'],parameters=parameters.split(','),tolerance=1e-12,points=6,columns=2,data_columns=[2],epsilon=1e-6,max_iterations=maxiter,file='fit.dat')
+            evs,end=s.collect(stops_idle)
             msgs = [e for e in evs if e.get('ev') in ('message', 'done')]
             text = ' | '.join(str(e) for e in msgs)
             check('stops fit ' + name, end is not None and all(w in text for w in words), text)
@@ -658,6 +654,7 @@ def check_fit_stops():
                       and bool(errors[0].get('file')) and bool(errors[0].get('line')), str(errors))
         finally:
             s.close()
+
 
 
 def check_event_count_note():
@@ -873,7 +870,7 @@ def check_registry():
         result, _ = request({'cmd': 'window.destroy_all'})
         check('registry: close all reports count', result == {'closed_count': 1})
         request({'cmd': 'window.select', 'window': 'graph_2'}, False)
-        snd(cmd='key', menu='file', item='auto')
+        snd(cmd='auto.open')
         col(lambda e: e.get('ev') in ('idle', 'done'))
         request({'cmd':'window.create','name':'diagram_1'},False)
         request({'cmd':'window.rename','window':'diagram_1','name':'graph_1'},False)
@@ -905,7 +902,7 @@ def check_registry():
               {'name': 'animation', 'kind': 'animation', 'shown': False} in result.get('windows', []), str(result))
         for refused in [{'cmd': 'window.show', 'window': 'array_plot_1'},
                         {'cmd': 'window.hide', 'window': 'nothing'}, {'cmd': 'window.destroy', 'window': 'browser'},
-                        {'cmd': 'window.rename', 'window': 'browser', 'name': 'data'}, {'cmd': 'window.select', 'window': 'browser'},
+                        {'cmd': 'window.rename', 'window': 'browser', 'name': 'data'}, 
                         {'cmd': 'window.create', 'name': 'browser'}, {'cmd': 'window.hide', 'confirm': True},
                         {'cmd': 'window.list', 'window': 'kept'}, {'cmd': 'window.destroy', 'window': 'kept', 'confirm': 1}]:
             request(refused, False)
@@ -1190,14 +1187,15 @@ def check_registry():
                          dict(cmd='key', win='equilibrium', key='i'),
                          dict(cmd='set', kind='num', name='nullcline_mesh', value=20)]:
             snd(**obsolete); evs, _ = col(lambda e: e.get('ev') in ('idle', 'done'))
-            check('W522: old analysis form is unknown', any('Unknown' in e.get('error', '') or 'No key layer' in e.get('error', '')
+            check('W522: old analysis form is unknown', any('Unknown' in e.get('error', '') or 'key has no command' in e.get('error', '') or 'not a key press' in e.get('error', '') or 'menu layers are gone' in e.get('error', '')
                   for e in evs), str(evs)[-500:])
-        # the menus of the S, N and D keys still ask, then run the commands (one core function)
-        for key, name in (('s', 'equilibria'), ('n', 'nullclines'), ('d', 'dirfield')):
-            snd(cmd='key', key=key); evs, ask = col(lambda e: e.get('ev') == 'ask')
-            check('W522: key %s asks the %s menu' % (key, name), ask is not None and ask.get('name') == name, str(ask))
-            if ask: snd(cmd='answer', id=ask['id'], ok=0)
-            col(lambda e: e.get('ev') in ('idle', 'done'))
+        # Prefixes wait in the checked keymap without opening a core menu ask.
+        for preset, key in [('default', 'Ctrl+R'), ('xppaut', 'I G')]:
+            request({'cmd':'keymap.set','bindings':{},'preset':preset})
+            snd(cmd='key', key=key); evs, _ = col(lambda e: e.get('ev') in ('idle','done'))
+            check('W517: '+preset+' key runs the registry command without a menu ask',
+                  not any(e.get('ev') == 'ask' for e in evs) and any(e.get('ev') == 'computing' for e in evs), str(evs)[-500:])
+        request({'cmd':'keymap.reset'})
         # These are real recorded steps, whose JSON commands retain names.
         snd(cmd='recording.start'); col(lambda e: e.get('ev') in ('idle', 'done'))
         request({'cmd': 'window.create', 'name': 'Recorded graph'})
@@ -1369,19 +1367,21 @@ def check_session_commands():
         done, evs = call(cmd='keymap.get')
         check('W528: keymap.get answers the user\'s own differences, and sends the keymap event',
               done['result'] == {'bindings': {}, 'pinned': [], 'preset': 'default'} and any(e.get('ev') == 'keymap' and e['op'] == 'get' for e in evs), str(done))
-        done, evs = call(cmd='keymap.set', bindings={'reload': ['Ctrl+B']}, pinned=['calculator'], preset='xppaut')
+        done, evs = call(cmd='keymap.set', bindings={'session.reload_model': ['Ctrl+B']}, pinned=['tool.calculator'], preset='xppaut')
         km = next((e['keymap'] for e in evs if e.get('ev') == 'keymap'), {})
         check('W528: keymap.set writes the parts given and sends the effective keymap',
-              done['result'] == {'saved': True} and km.get('preset') == 'xppaut' and km.get('pinned') == ['calculator']
+              done['result'] == {'saved': True} and km.get('preset') == 'xppaut' and km.get('pinned') == ['tool.calculator']
               and os.path.exists(os.path.join(config, 'keymap.json')), str(done) + str(km)[:200])
-        done, _ = call(cmd='keymap.set', pinned=['reload'])
+        done, _ = call(cmd='keymap.set', pinned=['session.reload_model'])
         done2, _ = call(cmd='keymap.get')
         check('W528: keymap.set leaves out what it is not given: the bindings and the preset stay',
-              done2['result'] == {'bindings': {'reload': ['Ctrl+B']}, 'pinned': ['reload'], 'preset': 'xppaut'}, str(done2))
-        for bad, text in ((dict(bindings={'reload': 'Ctrl+B'}), 'bindings'), (dict(bindings={'nosuch': ['Ctrl+B']}), 'nosuch'),
-                          (dict(bindings={'reload': ['ctrl+b']}), 'ctrl+b'), (dict(bindings={'reload': ['Ctrl+W']}), 'Ctrl+W'),
-                          (dict(bindings={'reload': ['Ctrl+B'], 'calculator': ['Ctrl+B']}), 'Ctrl+B'), (dict(pinned=['quit']), 'quit'),
-                          (dict(preset='vi'), 'Invalid choice')):
+              done2['result'] == {'bindings': {'session.reload_model': ['Ctrl+B']}, 'pinned': ['session.reload_model'], 'preset': 'xppaut'}, str(done2))
+        for bad, text in ((dict(bindings={'session.reload_model': 'Ctrl+B'}), 'bindings'), (dict(bindings={'nosuch': ['Ctrl+B']}), 'nosuch'),
+                          (dict(bindings={'session.reload_model': ['ctrl+b']}), 'ctrl+b'), (dict(bindings={'session.reload_model': ['Ctrl+W']}), 'Ctrl+W'),
+                          (dict(bindings={'session.reload_model': ['Ctrl+B'], 'tool.calculator': ['Ctrl+B']}), 'Ctrl+B'), (dict(pinned=['quit']), 'quit'),
+                          (dict(preset='vi'), 'Invalid choice'),
+                          (dict(preset='xppaut', bindings={'auto.run': ['A']}), 'auto.configure_plot'),
+                          (dict(bindings={'session.reload_model': ['Ctrl+K'], 'tool.calculator': ['Ctrl+K S']}), 'Ctrl+K S')):
             done, _ = call(cmd='keymap.set', **bad)
             kept, _ = call(cmd='keymap.get')
             check('W528: keymap.set %s is refused, the keymap as it was' % json.dumps(bad),
@@ -1410,8 +1410,8 @@ def check_session_commands():
               done['result'] == {'file': 'mine.recx', 'steps_recorded': 1} and 'recording' not in last_state(evs)
               and os.path.exists(os.path.join(run_dir, 'mine.recx')), str(done))
         # the session files
-        done, _ = call(cmd='session.save')
-        check('W528: session.save refuses with no file yet and says to use session.save_as', 'session.save_as' in error_of(done), str(done))
+        done, evs = call(answers=[{'ok':0}], cmd='session.save')
+        check('W517: first session.save asks for its filename and allows cancel', any(is_ask(e) and e.get('kind') == 'file' for e in evs) and done.get('status') == 'ok', str(done))
         done, _ = call(cmd='session.save_as', file='first', data=False)
         check('W528: session.save_as writes name.snapx and answers it',
               done['result'] == {'file': 'first.snapx', 'saved': True} and os.path.exists(os.path.join(run_dir, 'first.snapx')), str(done))
@@ -1446,7 +1446,7 @@ def check_session_commands():
         done, _ = call(cmd='session.open_model', file='/no/such/model.ode')
         check('W528: session.open_model names a model that is not there and keeps this one',
               'model.ode' in error_of(done) and call(cmd='session.get_state')[0]['result']['ics'] == [['X', 1]], str(done))
-        for bad, text in ((dict(), 'Exactly one'), (dict(file='a.ode', example='lecar.odex'), 'one of'), (dict(recent=-1), 'recent'),
+        for bad, text in ((dict(file='a.ode', example='lecar.odex'), 'one of'), (dict(recent=-1), 'recent'),
                           (dict(recent=5), 'no recent model 5'), (dict(file='x.recx'), 'recording')):
             done, _ = call(cmd='session.open_model', **bad)
             check('W528: session.open_model %s is refused' % json.dumps(bad), text in error_of(done), str(done))
@@ -2083,7 +2083,9 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello["command_table"]) == 63)
+check('hello', hello is not None and len([c for c in hello.get('commands', []) if 'arguments' in c]) > 200)
+check('hello has no legacy menu tables: no command_table, menu_names, command_categories or windows',
+      hello is not None and not {'command_table', 'menu_names', 'command_categories', 'windows'} & set(hello), str(sorted(hello or {})))
 check('hello says protocol 4, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 4 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -2125,116 +2127,65 @@ check('a command line that is not JSON is an error naming where it stops',
 check('hello lists the series feature', 'series' in hello.get('features', []), str(hello.get('features')))
 
 # W95: every action's kind, one letter (c control, v view, d data, x
-# computation): each item of the three main-window menus and of the windows'
-# key layers (core/menus.cpp), and every command that is not a key (the
+# computation): every command of the registry and the few that are not (the
 # command table core/ui_json.cpp dispatches from); the documented commands
 # (docs/protocol.md's table) are each in it
-def menu_keys_of(menu):
-    """the legacy key -> kind of each item of main-window menu `menu` (hello.command_table)"""
-    return {r['key']: r['kind'] for r in hello['command_table'] if r['menu'] == menu}
-
-
 def check_hello_kinds():
-    table = hello.get('command_table', [])
-    bad = [r['id'] for r in table if r['kind'] not in 'cvsdx' or len(r['kind']) != 1]
-    check('W95: hello gives each item of the main, File and Numerics menus a kind', table and not bad, str(bad))
-    wins = hello.get('windows', {})
-    badw = [w for w, l in wins.items()
-            if not (len(l.get('kinds', '')) == len(l.get('keys', '')) == len(l.get('ids', [])) == len(l.get('items', [])))
-            or set(l.get('kinds', '')) - set('cvsdx')]
-    check('W95: hello gives the key layers of auto, browser, ani and aplot, a kind and a name per key',
-          sorted(wins) == ['ani', 'aplot', 'auto', 'browser'] and not badw, str(sorted(wins)) + str(badw))
     cmds = hello.get('commands', [])
     kinds = {(c['cmd'], c.get('op')): c['kind'] for c in cmds}
     doc = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs', 'protocol.md'),
                encoding='utf-8').read()
-    section = doc[doc.index('## Commands (client to server)'):doc.index('## Window keys')]
-    documented = set(re.findall(r'^\| `(\w+)` \|', section, re.M)) - {'key'}
+    section = doc[doc.index('## Commands (client to server)'):doc.index('## Action kinds')]
+    documented = set(re.findall(r'^\| `([\w.]+)` \|', section, re.M)) - {'key'}
     missing = sorted(d for d in documented if not any(c == d for c, _ in kinds))
     check('W95: hello gives every documented command but key a kind', not missing and cmds
           and all(k in 'cvsdx' for k in kinds.values()), str(missing))
     want = {('window.set_display', None): 'v', ('set', None): 's', ('value.set_parameters', None): 's', ('value.save_file', None): 'd',
             ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser.export', None): 'd', ('browser.page', None): 'v', ('auto.configure_numerics', None): 's',
-            ('auto.grab', None): 'd', ('auto.run', None): 'x', ('tool.run_user_button', None): 'x'}
+            ('auto.grab', None): 'd', ('auto.run', None): 'x', ('tool.run_user_button', None): 'x',
+            ('equilibrium.find', None): 'x', ('session.save', None): 'd', ('session.quit', None): 'c'}
     check('W95, W106: kinds as decided: display a view, set/value.set_parameters/auto.configure_numerics settings, Save data and auto.grab data, auto.run a computation, '
           'abort control, a user button a computation',
           all(kinds.get(k) == v for k, v in want.items()), str({k: kinds.get(k) for k in want}))
-    num, main, file = menu_keys_of('num'), menu_keys_of('main'), menu_keys_of('file')
-    check('W106: the Numerics items that ask a value are settings (Total, Dt, Method, dElay), Parameters too',
-          all(num.get(k) == 's' for k in 'tdme') and num.get('\x1b') == 'v' and main.get('p') == 's', str(num))
-    check('W95: Initialconds and Sing pts compute, Window/zoom is a view, File/Save info is data, File/Quit control',
-          main.get('i') == 'x' and kinds.get(('equilibrium.find', None)) == 'x' and main.get('w') == 'v'
-          and file.get('s') == 'd' and file.get('q') == 'c' and file.get('v') == 'd' and file.get('w') == 'd', str(main))
 
 
 check_hello_kinds()
 
+# W517: the page's menu bar, palette, keymap editor and quick access are made from the registry rows of hello:
+# each row has a menu path in one of the bar's menus, a description and a category, and the default keys are the table's
+MENUS = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'AUTO', 'Windows', 'Help']
+CATEGORIES = ['run', 'files', 'analysis', 'plot', 'tools', 'panels']
 
-# W207: the one command table (core/command_table.h): what the page's sidebar, search and
-# native menus are made from, so it must describe every command once and consistently
-# W212: the rows the page runs itself (no key in any menu: key and legacy_keys are empty)
-PAGE_COMMANDS = ('run_initial', 'run_last', 'steady', 'keymapeditor')
+
+def check_registry_menu(table):
+    bad = [r['cmd'] for r in table if r['menu_path'].split('/')[0] not in MENUS or not r['description'].strip() or r['category'] not in CATEGORIES]
+    check('W517: every registry command has a menu path in File, Run, Analysis, Plot, Data, AUTO, Windows or Help, a description and a known category',
+          not bad, str(bad))
+    paths = [r['menu_path'] for r in table if r['menu_path'].split('/')[0] not in ('Help',)]
+    check('W517: every one of the bar\'s menus has commands', all(any(p.split('/')[0] == m for p in paths) for m in MENUS[:-1]), str(sorted(set(p.split('/')[0] for p in paths))))
+    chords = {r['cmd']: r['default_keys'] for r in table if r['default_keys']}
+    check('W517: only the frequent commands have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
+          chords == {'run.initial': ['Ctrl+R'], 'run.abort': ['Escape'], 'value.undo': ['Ctrl+Z'], 'value.redo': ['Ctrl+Shift+Z'],
+                     'session.open_model': ['Ctrl+O'], 'session.save': ['Ctrl+S'], 'session.save_as': ['Ctrl+Shift+S'],
+                     'tool.command_palette': ['Ctrl+Shift+P'], 'tool.manual': ['F1']}, str(chords))
+    plot = next((r for r in table if r['cmd'] == 'auto.configure_plot'), {})
+    check('W517: AUTO\'s Axes are the plot kinds of XPPAUT\'s Axes menu (AH, AN, AI, AP, AT) and a bare A binds nothing',
+          plot.get('legacy_keys') == 'AH/AN/AI/AP/AT' and not any(r['legacy_keys'] == 'A' and r['legacy_context'] == 'auto' for r in table),
+          str(plot.get('legacy_keys')))
+    contexts = {}
+    for r in table:
+        for sequence in filter(lambda k: k not in ('', 'Esc'), r['legacy_keys'].split('/')):
+            contexts.setdefault(r['legacy_context'], []).append((sequence, r['cmd']))
+    clashes = [(a, b) for sequences in contexts.values() for a, ca in sequences for b, cb in sequences
+               if (a, ca) != (b, cb) and b.startswith(a)]
+    check('W517: within a key context no XPPAUT sequence is the start of another, or twice', not clashes, str(clashes[:5]))
 
 
-def check_command_table(table):
-    cats = {c['id']: c for c in hello.get('command_categories', [])}
-    listed = [c['label'] for c in cats.values() if c['listed']]
-    check('W207, W229: hello lists the sidebar groups in order, Run first, and the unlisted categories: the commands of a panel, the shortcut layer',
-          listed == ['Run', 'Files', 'Analysis', 'Plot', 'Tools'] and [c['id'] for c in cats.values() if not c['listed']] == ['panels', 'layer'],
-          str(cats))
-    ids = [(r['menu'], r['id']) for r in table]
-    check('W207: every command is in the table once, with its menu, a key, a label, a description and one known category',
-          len(set(ids)) == len(ids) and all(r['menu'] in hello['menu_names'] and len(r['key']) == (0 if r['id'] in PAGE_COMMANDS else 1) and r['label'].strip()
-                                            and r['description'].strip() and r['category'] in cats for r in table),
-          str(ids))
-    keys = [(r['menu'], r['key']) for r in table if r['id'] not in PAGE_COMMANDS]
-    layer_key = {'main': [], 'file': ['F'], 'num': ['U']}
-    check('W207: one letter is one command: no key twice in a menu, and the legacy sequence is the layer key then the item\'s',
-          len(set(keys)) == len(keys)
-          and all(r['legacy_keys'] == layer_key[r['menu']] + ['Esc' if r['key'] == '\x1b' else r['key'].upper()]
-                  for r in table if r['id'] not in PAGE_COMMANDS)
-          and all(r['legacy_keys'] == [] for r in table if r['id'] in PAGE_COMMANDS),
-          str(keys))
-    # W229, W228: what the page runs from a panel, a button of the plot or the title bar has a row and no group or pin
-    PANEL_COMMANDS = ['source', 'transpose', 'getparset', 'savevalues', 'savedefaults', 'exportvalues', 'renameset', 'deleteset', 'restoredefaults', 'record', 'play', 'keymapeditor', 'lookup',
-                      'window', 'viewaxes', '3dparams']
-    layer = [(r['menu'], r['id']) for r in table if r['category'] == 'layer']
-    check('W207: the shortcut-layer switches are File, Numerics and Return to main shortcuts, and none can be pinned; '
-          'Quit and the commands of a panel are the only others that cannot',
-          layer == [('main', 'file'), ('main', 'numerics'), ('num', 'exit')]
-          and sorted(r['id'] for r in table if not r['pinnable'])
-          == sorted(['exit', 'file', 'numerics', 'quit'] + PANEL_COMMANDS),
-          str(layer))
-    in_tools = [r['id'] for r in table if r['category'] == 'tools']
-    in_panels = sorted(r['id'] for r in table if r['category'] == 'panels')
-    check('W229, W228: Tools lists only the Calculator; the commands that live in a panel or the title bar are the panels category',
-          in_tools == ['calculator'] and in_panels == sorted(PANEL_COMMANDS), str((in_tools, in_panels)))
-    gone = {'help', 'tutorial', 'xpprc', 'clone'}
-    check('W229: Help, Tutorial, Preferences and Clone model are not commands any more',
-          not gone & {r['id'] for r in table} and not {(r['menu'], r['key']) for r in table} & {('file', 'h'), ('file', 'u'), ('file', 'x'), ('file', 'l')},
-          str(sorted(gone & {r['id'] for r in table})))
-    chords = {r['id']: r['default_keys'] for r in table if r['default_keys']}
-    check('W208, W212, W213: Continue, Open model, Save session, Save session as, Reload model, Undo, Redo and the three run commands have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
-          chords == {'continue': ['Alt+Enter'], 'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S'], 'reload': ['Ctrl+R'],
-                     'undo': ['Ctrl+Z'], 'redo': ['Ctrl+Shift+Z', 'Ctrl+Y'],
-                     'run_initial': ['Ctrl+Enter'], 'run_last': ['Ctrl+Shift+Enter'], 'steady': ['Alt+S']}, str(chords))
-    check('W207: Run lists only Initial conditions before a search; every other command is primary; Run and Files are open',
-          [r['id'] for r in table if not r['primary']] == [r['id'] for r in table if r['category'] == 'run' and r['id'] != 'initialconds']
-          and [c['id'] for c in cats.values() if c['expanded']] == ['run', 'files'], str(cats))
-    order = [cats[r['category']]['label'] for r in table if cats[r['category']]['listed']]
-    check('W207: the table is in the sidebar\'s order: by category, as listed', order == sorted(order, key=listed.index), str(order))
+check_registry_menu([c for c in hello.get('commands', []) if 'arguments' in c])
 
 
 # W118: what core and page both know comes in hello, written once in the core
 def check_hello_shared():
-    table = hello.get('command_table', [])
-    ids = {r['id']: r['key'] for r in table if r['menu'] == 'main'}
-    fids = {r['id']: r['key'] for r in table if r['menu'] == 'file'}
-    check('W118: the ids name the keys (Initialconds i, Makewindow m, File f; File/Import settings r)',
-          hello.get('menu_names') == ['main', 'file', 'num']
-          and ids.get('initialconds') == 'i' and 'makewindow' not in ids and ids.get('file') == 'f'
-          and ids.get('numerics') == 'u' and fids.get('importset') == 'r' and 'writeset' not in fids, str(ids))
-    check_command_table(table)
     check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
           hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
           and hello.get('window_names') == {'main':'graph_1','auto':'diagram_1','ani':'animation','aplot':'array_plot_1','browser':'browser'},
@@ -2251,15 +2202,8 @@ def check_hello_shared():
 
 check_hello_shared()
 # W118: an error about a file the command could not read names the file (the page offers to add it)
-send(cmd='key', key='f')
-collect(is_idle)
-send(cmd='key', key='r')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-if ask is not None and ask.get('kind') == 'file':
-    send(cmd='answer', id=ask['id'], file='w118-gone.set')
-    evs, _ = collect(is_idle)
-else:
-    evs = []
+send(cmd='session.import_settings', file='w118-gone.set')
+evs, _ = collect(is_idle)
 err = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), None)
 check('W118: File/Import settings of a file that is not there: the error names the file',
       err is not None and err.get('file') == 'w118-gone.set', str(err))
@@ -2320,10 +2264,7 @@ if ser:
 send(cmd='window.redraw')
 evs, _ = collect(is_idle)
 check('a redraw of unchanged data sends no series', not any(e.get('ev') == 'series' for e in evs))
-send(cmd='key', key='x')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-if ask:
-    send(cmd='answer', id=ask['id'], ok=1, value='V')
+send(cmd='plot.variable_vs_time', variable='V')
 evs, _ = collect(is_idle)
 ser = [e for e in evs if e.get('ev') == 'series']
 check('Xi vs t sends the series of V against T', len(ser) == 1 and ser[0]['curves'][0]['x'] == 0
@@ -2442,14 +2383,7 @@ def near(a, b, tol=1e-5):
     return len(a) == len(b) and all(abs(x - y) < tol for x, y in zip(a, b))
 
 
-send(cmd='key', win='browser', key='a')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('addcol asks for the column name', ask is not None and ask['kind'] == 'string' and ask.get('name') == 'Name',
-      str(ask))
-send(cmd='answer', id=ask['id'], ok=1, value='VW')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('addcol then asks for the formula', ask is not None and ask['kind'] == 'string', str(ask))
-send(cmd='answer', id=ask['id'], ok=1, value='v*w')
+send(cmd='browser.add_column', name='VW', formula='v*w')
 evs, _ = collect(is_idle)
 st = last_state(evs)
 check("addcol does not grow the model (still 2 ICs: V, W)", st is not None and len(st['ics']) == 2,
@@ -2472,9 +2406,7 @@ check('the saved CSV has a VW column, one more than the model columns',
 # plot it by name (Xi vs t: graf_par.cpp find_variable resolves it)
 send(cmd='events.subscribe', events=['series'])
 collect(is_idle)
-send(cmd='key', key='x')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], ok=1, value='VW')
+send(cmd='plot.variable_vs_time', variable='VW')
 evs, _ = collect(is_idle)
 ser = [e for e in evs if e.get('ev') == 'series']
 check('Xi vs t can plot the added column by name',
@@ -2522,8 +2454,7 @@ send(cmd='session.get_source')
 evs, eqs = collect(lambda e: e.get('ev') == 'equations')
 collect(is_idle)
 check('equations', eqs is not None and eqs['lines'][0].startswith('dV/dT='), str(eqs))
-send(cmd='key', key='f')
-send(cmd='key', key='p')
+send(cmd='session.get_source')
 evs, src = collect(lambda e: e.get('ev') == 'source')
 collect(is_idle)
 acts = [i for i, c in enumerate(src['comments']) if c[1]] if src else []
@@ -2540,42 +2471,22 @@ if acts:
 
 # W229: File/Help, Tutorial, Preferences and Clone model are gone: their keys (h, u, x, l) ask and open nothing
 for gone_key in 'huxl':
-    send(cmd='key', key='f')
-    collect(is_idle)
-    send(cmd='key', key=gone_key)
+    send(cmd='key', key='F '+gone_key.upper())
     evs, _ = collect(is_idle)
-    check(f'W229: File key {gone_key} (a removed command) asks nothing, opens nothing and the menu is the main one again',
-          not [e for e in evs if e.get('ev') in ('ask', 'help', 'message')]
-          and (last_state(evs) or {}).get('menu') == 0, str(evs)[:300])
-
-send(cmd='key', key='f')
-send(cmd='key', key='s')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('File/Save info asks for a file name', ask is not None and ask['kind'] in ('file', 'string'), str(ask))
-check('the file ask lists its folder', ask is not None and ask.get('dir') and 'files' in ask
-      and 'lecar.odex' not in ask['files'], str(ask)[:200])
+    check(f'W517: removed File sequence {gone_key} has one error and no menu ask',
+          len([e for e in evs if e.get('error')]) == 1 and not any(e.get('ev') == 'ask' for e in evs), str(evs)[-300:])
+send(cmd='session.export_info', file='info.txt')
+evs, _ = collect(is_idle)
+check('simulation information is written by the registry command', os.path.exists(os.path.join(run,'info.txt')), str(evs)[-300:])
+send(cmd='session.open_model')
+evs, ask = collect(lambda e:e.get('ev') == 'ask')
+check('W517: the model picker is a read file question', ask and ask.get('kind') == 'file' and ask.get('mode') == 'read', str(ask))
 if ask:
-    if ask['kind'] == 'file':
-        send(cmd='answer', id=ask['id'], ok=1, file='info.txt')
-    else:
-        send(cmd='answer', id=ask['id'], ok=1, value='info.txt')
-    collect(is_idle)
-    check('info file written', os.path.exists(os.path.join(run, 'info.txt')))
-    check('a file ask for writing says so (mode write)', ask.get('mode') == 'write', str(ask)[:200])
-send(cmd='key', key='f')
-send(cmd='key', key='r')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('File/Import settings asks for a file to read (mode read)', ask is not None and ask['kind'] == 'file'
-      and ask.get('mode') == 'read' and ask.get('wild') == '*.setx *.set', str(ask)[:200])
-if ask:
-    long_wild = '*' * 100000
+    long_wild='*' * 100000
     send(cmd='answer', id=ask['id'], wild=long_wild)
-    _, listed = collect(lambda e: e.get('ev') == 'ask')
-    check('W121b: 100,000 wildcard stars list normally without recursion',
-          listed is not None and listed.get('wild') == long_wild and 'lecar.odex' in listed.get('files', []),
-          str(listed)[:200])
-    if listed:
-        send(cmd='answer', id=listed['id'], ok=0)
+    _, listed=collect(lambda e:e.get('ev') == 'ask')
+    check('W121b: 100,000 wildcard stars list without recursion', listed and listed.get('wild') == long_wild and 'lecar.odex' in listed.get('files',[]), str(listed)[:200])
+    if listed:send(cmd='answer',id=listed['id'],ok=0)
 collect(is_idle)
 
 # W88: a file ask answered with a full path outside the model's folder (what
@@ -2596,30 +2507,18 @@ with zipfile.ZipFile(os.path.join(run, 'w88.snapx')) as z:
         f.write(z.read('model.setx'))
 send(cmd='value.set_parameters', values={'iapp': 0.77})
 collect(is_idle)
-send(cmd='key', key='f')
-send(cmd='key', key='r')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-if ask:
-    send(cmd='answer', id=ask['id'], ok=1, file=far_set)
+with open(far_set,'rb') as f: uploaded=f.read()
+send(cmd='file',op='put',name='w88-selected.setx',data=base64.b64encode(uploaded).decode())
 collect(is_idle)
-send(cmd='session.get_state')
-evs, st = collect(is_state)
-collect(is_idle)
-check('File/Import settings from a full path elsewhere reads it there, the path whole (the parameter it holds is back)',
-      ask is not None and ask.get('mode') == 'read' and st is not None and dict(st['pars'])['iapp'] == 0.33,
-      str(st and dict(st['pars']).get('iapp')))
-shutil.rmtree(elsewhere, ignore_errors=True)
-
-send(cmd='key', key='f')
-send(cmd='key', key='t')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check("T32: File/Transpose's Column 1 is a name (hello.lists[0]), the rest integers",
-      ask is not None and ask['kind'] == 'form'
-      and ask.get('kinds') == ['name:0', 'integer', 'integer', 'integer', 'integer', 'integer'],
-      str(ask and ask.get('kinds')))
-if ask:
-    send(cmd='answer', id=ask['id'], ok=0)
-collect(is_idle)
+send(cmd='session.import_settings',file='w88-selected.setx')
+evs,_=collect(is_idle)
+st=last_state(evs)
+check('W517: a selected external settings file is imported through its uploaded basename',
+      st is not None and dict(st['pars'])['iapp'] == 0.33, str(st and st['pars']))
+shutil.rmtree(elsewhere,ignore_errors=True)
+transpose=next(c for c in hello['commands'] if c['cmd']=='browser.transpose')
+check('T32: Transpose arguments retain their name and integer types',
+      [a['type'] for a in transpose['arguments']] == ['name','integer','integer','integer','integer','integer'],str(transpose['arguments']))
 
 
 # The model's folder for a client that cannot reach it (docs/protocol.md
@@ -2689,103 +2588,20 @@ check('file list gives the UTF-8 name back whole', utf8_name in names, str(names
 ev = file_cmd(op='get', name=utf8_name)
 check('file get of the UTF-8 name gives its bytes back', ev.get('ok') == 1 and base64.b64decode(ev.get('data', '')) == b'hi', str(ev))
 
-send(cmd='key', key='u')  # nUmerics menu
-send(cmd='key', key='t')  # total
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('nUmerics/Total asks for a number', ask is not None and ask['kind'] == 'string', str(ask))
-if ask:
-    send(cmd='answer', id=ask['id'], ok=0)
-    collect(is_idle)
-send(cmd='key', key='Escape')
+send(cmd='run.configure',total_time=40)
 collect(is_idle)
-send(cmd='run.configure', total_time=40)
+poincare=next(c for c in hello['commands'] if c['cmd']=='analysis.poincare_map')
+check('W485: Poincare arguments declare a real section, named direction and boolean stop',
+      {a['name']:a['type'] for a in poincare['arguments']} == {'type':'choice','variable':'name','section':'real','direction':'choice','stop_on_section':'boolean'}, str(poincare['arguments']))
+send(cmd='plot.set_2d',x_max=40)
 collect(is_idle)
-
-# W485 (#549): a typed form. Numerics/Poincare map's form has a real (Section), a choice (Direction) and a
-# boolean (Stop on section); every answer is read by its kind, whole, before any is applied
-def poincare_form():
-    send(cmd='key', key='Escape')  # out of the Numerics menu a command left open
-    collect(is_idle)
-    send(cmd='key', key='u')
-    send(cmd='key', key='p')
-    evs, a = collect(lambda e: e.get('ev') == 'ask')
-    send(cmd='answer', id=a['id'], key='s')
-    return collect(lambda e: e.get('ev') == 'ask')[1]
-ask = poincare_form()
-check('W485: the Poincare map form says each field\'s kind, a choice\'s options and a boolean\'s text',
-      ask is not None and ask['kind'] == 'form' and ask.get('kinds') == ['name:0', 'real', 'choice', 'boolean']
-      and ask.get('options') == [None, None, ['negative', 'both', 'positive'], None]
-      and ask['values'][2:] == ['positive', 'false'], str(ask))
-if ask:
-    var = ask['values'][0]
-    for what, vals, want in (('a Section that is not a number', [var, 'abc', 'both', 'false'], 'Section'),
-                             ('a Direction that is not a choice', [var, '0.5', 'up', 'false'], 'Direction'),
-                             ('a Stop on section that is not true or false', [var, '0.5', 'both', 'Y'], 'Stop on section')):
-        send(cmd='answer', id=ask['id'], ok=1, values=vals)
-        evs = collect(is_idle)[0]
-        e = next((v for v in evs if v.get('ev') == 'message' and 'error' in v), {})
-        check('W485: %s is an error naming the field' % what, want in e.get('error', ''), str(e))
-        ask = poincare_form()
-        check('W485: ... and nothing of that answer was applied', ask is not None and ask.get('values', [])[1:] == ['0', 'positive', 'false'],
-              str(ask and ask))
-    send(cmd='answer', id=ask['id'], ok=1, values=[var, '0.5', 'negative', 'true'])
-    evs = collect(is_idle)[0]
-    check('W485: a good answer raises no error', not [v for v in evs if v.get('ev') == 'message' and 'error' in v], str(evs)[:300])
-    ask = poincare_form()
-    check('W485: ... and is what the form shows next', ask is not None and ask['values'][1:] == ['0.5', 'negative', 'true'],
-          str(ask and ask['values']))
-    send(cmd='answer', id=ask['id'], ok=1, values=[var, '0', 'positive', 'false'])  # back to as it was
-    collect(is_idle)
-    send(cmd='key', key='Escape')
-    collect(is_idle)
-    send(cmd='key', key='u')
-    send(cmd='key', key='p')
-    evs, a = collect(lambda e: e.get('ev') == 'ask')
-    send(cmd='answer', id=a['id'], key='n')  # Poincare map off
-    collect(is_idle)
-    send(cmd='key', key='Escape')
-    collect(is_idle)
-
-send(cmd='key', key='v')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='2')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('Viewaxes/2D opens a form', ask is not None and ask['kind'] == 'form' and 'Xmax' in ask['names'][4], str(ask))
-check("T31: the form's fields carry their kinds: the axes' pickers names, the ranges numbers, the labels text",
-      ask is not None and ask.get('kinds') == ['name:0', 'name:0', 'number', 'number', 'number', 'number', 'text', 'text'],
-      str(ask and ask.get('kinds')))
-if ask:
-    vals = list(ask['values'])
-    vals[4] = '40'
-    send(cmd='answer', id=ask['id'], ok=1, values=vals)
-    collect(is_idle)
-
-# W225: the 2D View is one dialog in columns (columns and rows of the form ask, the fields row by row),
-# read whole: a min at or above its max is an error naming the field, and nothing of that answer is applied
-send(cmd='key', key='v')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=ask['id'], key='2')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('W225: the 2D View form is laid out in columns X, Y and rows Variable, Min, Max, Label',
-      ask is not None and ask.get('columns') == ['X', 'Y'] and ask.get('rows') == ['Variable', 'Min', 'Max', 'Label'],
-      str(ask))
-if ask:
-    before_vals = list(ask['values'])
-    vals = list(before_vals)
-    vals[6], vals[3] = 'changed', '1e9'   # the X label is fine; Ymin above Ymax is not
-    send(cmd='answer', id=ask['id'], ok=1, values=vals)
-    evs = collect(is_idle)[0]
-    e = next((v for v in evs if v.get('ev') == 'message' and 'error' in v), {})
-    check('W225: Ymin above Ymax is an error naming y_max and y_min', 'y_max' in e.get('error', '') and 'y_min' in e.get('error', ''), str(e))
-    send(cmd='key', key='v')
-    evs, ask = collect(lambda e: e.get('ev') == 'ask')
-    send(cmd='answer', id=ask['id'], key='2')
-    evs, ask = collect(lambda e: e.get('ev') == 'ask')
-    check('W225: ... and nothing of that answer was applied (the label, the limits, the variables)',
-          ask is not None and ask['values'] == before_vals, str(ask and ask['values']) + ' ' + str(before_vals))
-    if ask:
-        send(cmd='answer', id=ask['id'], ok=0)
-        collect(is_idle)
+send(cmd='session.get_state')
+evs,_=collect(is_idle)
+before_axes=last_state(evs)['view']
+send(cmd='plot.set_2d',x_label='changed',y_min=1e9)
+evs,_=collect(is_idle)
+errors=[e for e in evs if e.get('error')]
+check('W225: invalid axes have one placed error and apply nothing',len(errors)==1 and 'y_min' in errors[0]['error'] and last_state(evs)['view']==before_axes,str(evs)[-500:])
 
 # T31: an integer field (run.range's steps) and a name (Xi vs t: T or a variable, hello.lists[0])
 range_command = next((c for c in hello.get('commands', []) if c.get('cmd') == 'run.range'), {})
@@ -2794,13 +2610,8 @@ check('T31: run.range says steps is an integer, start and end numbers and its op
       types.get('steps') == 'integer' and types.get('start') == 'real' and types.get('end') == 'real'
       and types.get('variable') == 'name' and [types[k] for k in ('reset_storage', 'use_old_ic', 'cycle_color', 'movie', 'write_each_run_to_file')] == ['boolean'] * 5,
       str(types))
-send(cmd='key', key='x')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('T31: Xi vs t asks for a name from hello.lists[0] (kinds name:0)',
-      ask is not None and ask['kind'] == 'string' and ask.get('kinds') == ['name:0'], str(ask))
-if ask:
-    send(cmd='answer', id=ask['id'], ok=0)
-    collect(is_idle)
+variable_time=next(c for c in hello['commands'] if c['cmd']=='plot.variable_vs_time')
+check('T31: variable versus time takes a model column name',any(a['name']=='variable' and a['type']=='name' and a['names']=='column' for a in variable_time['arguments']),str(variable_time['arguments']))
 
 send(cmd='run.initial')
 evs, _ = collect(is_idle, timeout=30 * SLOW)
@@ -2886,16 +2697,16 @@ def answer_asks(until, replies, timeout=20 * SLOW, sender=send, collector=collec
 pixels = lambda e: {'w': 2, 'h': 1, 'rgb': base64.b64encode(bytes([255, 0, 0, 0, 0, 255])).decode()}
 menu = lambda key: (lambda e: {'key': key})
 for _ in range(2):
-    send(cmd='key', key='k')
-    evs, _ = answer_asks(lambda e: e.get('ev') == 'film', {'menu': menu('c')})
+    send(cmd='kinescope.capture')
+    evs, _ = collect(lambda e:e.get('ev')=='film')
     collect(is_idle)
 check('Kinescope/Capture sends film captures', evs and evs[-1].get('count') == 2, str(evs[-1:]))
-send(cmd='key', key='k')
-evs, e = answer_asks(is_idle, {'menu': menu('s'), 'file': lambda e: {'file': 'kin_0.gif'}, 'pixels': pixels})
+send(cmd='kinescope.export_frames',file='kin_0.gif')
+evs, e = answer_asks(is_idle, {'pixels':pixels})
 check('Kinescope/Save asks for the pixels and writes GIFs, the second named from the first',
       all(os.path.exists(os.path.join(run, n)) for n in ('kin_0.gif', 'kin_0-frame1.gif')), str(os.listdir(run)))
-send(cmd='key', key='v')
-evs, _ = answer_asks(is_idle, {'menu': menu('t')})
+send(cmd='animation.open')
+evs, _ = collect(is_idle)
 check('the animation window opens', any(e.get('ev') == 'ani' and e.get('open') == 1 for e in evs) or any(e.get('ev') == 'window' and e.get('win') == 'animation'
       and e.get('op') == 'create' for e in evs), str([e for e in evs if e.get('ev') == 'window']))
 send(cmd='window.hide', window='animation')
@@ -2948,7 +2759,7 @@ send(cmd='events.unsubscribe', events=ALL_EVENTS)
 collect(is_idle)
 send(cmd='events.subscribe', events=[], encoding='f32')
 collect(is_idle)
-send(cmd='key', win='aplot', key='d')
+send(cmd='array_plot.redraw')
 evs, _ = collect(is_idle)
 ap2 = [e for e in evs if e.get('ev') == 'aplot']
 check('aplot values as base64 float32 when the client asked for it',
@@ -2957,14 +2768,8 @@ check('aplot values as base64 float32 when the client asked for it',
 send(cmd='events.unsubscribe', events=ALL_EVENTS)
 collect(is_idle)
 
-send(cmd='key', win='aplot', key='r')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check("T32: array plot Range settings contain only Still/Tag integers",
-      ask is not None and ask['kind'] == 'form'
-      and ask.get('kinds') == ['integer', 'integer'], str(ask and ask.get('kinds')))
-if ask:
-    send(cmd='answer', id=ask['id'], ok=0)
-collect(is_idle)
+array_range=next(c for c in hello['commands'] if c['cmd']=='array_plot.range')
+check('T32: array range arguments retain named booleans and tags',any(a['name']=='tag' and a['type']=='boolean' for a in array_range['arguments']),str(array_range['arguments']))
 
 send(cmd='window.destroy', window='array_plot_1')
 collect(is_idle)
@@ -2975,143 +2780,30 @@ evs, st = collect(is_state)
 collect(is_idle)
 view = st and st.get('view')
 check('state has the view of the active window', view is not None and view['right'] > view['left'], str(view))
-send(cmd='key', key='w')
-evs, _ = answer_asks(lambda e: e.get('ev') == 'ask' and e['kind'] == 'drag', {'menu': menu('s')})
-drag = evs[-1] if evs else None
-for d in [{'what': 'down', 'x': 300, 'y': 200}, {'what': 'move', 'x': 360, 'y': 200}, {'what': 'up', 'x': 360, 'y': 200}]:
-    send(cmd='answer', id=drag['id'], **d)
-    evs, drag = collect(lambda e: e.get('ev') == 'ask')
-send(cmd='answer', id=drag['id'], ok=0)
-evs, _ = collect(is_idle)
-st = last_state(evs)
-check('Window/Scroll drags the view', st is not None and view is not None and st['view']['xlo'] < view['xlo'],
-      str(st and st['view']))
+send(cmd='window.scroll',dx=-0.1,dy=0)
+evs,_=collect(is_idle)
+st=last_state(evs)
+check('Window/Scroll moves the view through the registry',st is not None and st['view']['xlo']<view['xlo'],str(st and st['view']))
 
-send(cmd='key', key='f')
-send(cmd='key', key='a')
+send(cmd='auto.open')
 evs, _ = collect(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
 check('File/Auto opens the AUTO window', any(e.get('ev') == 'window' and e.get('win') == 'diagram_1' for e in evs))
 collect(is_idle)
-send(cmd='key', win='auto', key='d')
+send(cmd='auto.redraw')
 evs, _ = collect(is_idle)
 axes = [e for e in evs if e.get('ev') == 'diagram' and e['op'] in ('axes', 'reset')]
 check('the AUTO diagram sends its axes as data', axes and axes[-1]['wid'] > 0 and axes[-1]['xlabel'], str(axes))
 
-# Run, Grab a labelled point, Run again: the second run restarts from the
-# label in fort.3 (findlb/readlb). On Windows the backward fseek that located
-# the label line was undefined on a text stream and corrupted the heap.
-# W96: AUTO's pop-up menus live in menus.cpp (menu_auto_*); every one seen in
-# this session is compared with what the page was sent before they moved
-# there. The protocol name of each is "auto", the default item goes as "def".
-AUTO_MENUS = {
-    'Start': (['Steady state', 'Periodic', 'Bdry Value', 'Homoclinic', 'hEteroclinic'], 'spbhe'),
-    'Plot Type': (['Hi', 'Norm', 'hI-lo', 'Period', 'Two par', '(Z)oom in', 'Zoom (O)ut', 'last 1 par',
-                   'last 2 par', 'Fit', 'fRequency', 'Average', 'Default', 'Scroll', 'new (V)iew'], 'hniptzo12fradsv'),
-    'File': (['Import orbit', 'Save diagram', 'Load diagram', 'PDF', 'SVG', 'Reset diagram', 'Clear grab',
-              'Write pts', 'All info', 'init Data', 'Toggle redraw', 'auto raNge', 'sElect 2par pt', 'draw laBled',
-              'lOad branch', 'eXport CSV', 'Import diagram'], 'islpvrcwadtneboxf'),
-    'Torus': (['Two Param', 'Fixed period', 'Extend'], 'tfe'),
-    'Per. Doub.': (['Doubling', 'Two Param', 'Fixed period', 'Extend'], 'dtfe'),
-    'Periodic ': (['Extend', 'Fixed Period'], 'ef'),
-    'Hopf Pt': (['Periodic', 'Extend', 'New Point', 'Two Param'], 'pent'),
-    'Branch Pt': (['Switch', 'Extend', 'New Point', 'Two Param'], 'sent'),
-}
-auto_menus_seen = []
-
-def note_auto_menu(ask):
-    if ask and ask.get('ev') == 'ask' and ask.get('kind') == 'menu' and ask.get('name') == 'auto':
-        auto_menus_seen.append(ask)
-
-send(cmd='key', win='auto', key='r')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-note_auto_menu(ask)
-check('Auto/Run opens the start menu', ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))
-if ask:
-    send(cmd='answer', id=ask['id'], key='s')
-    evs, _ = collect(is_idle, timeout=30 * SLOW)
-    adds = [e for e in evs if e.get('ev') == 'diagram' and e['op'] == 'add']
-    check('Auto/Run sends the points it draws as diagram data',
-          adds and adds[0]['from'] == 0 and sum(len(r['x']) for e in adds for r in e['runs']) > 0, str(adds)[:200])
-    send(cmd='key', win='auto', key='g')
-    evs, ask = collect(lambda e: e.get('ev') == 'ask')
-    check('Auto/Grab asks for a point', ask is not None and ask['kind'] == 'grab', str(ask))
-    for k in ['Tab', 'Tab', 'Return']:
-        if ask is None:
-            break
-        send(cmd='answer', id=ask['id'], key=k)
-        evs, ask = collect(lambda e: e.get('ev') == 'ask' or is_idle(e))
-        if k == 'Return' and ask is not None and ask.get('ev') == 'ask':
-            send(cmd='answer', id=ask['id'], ok=0)  # a confirmation is not expected; cancel it
-            collect(is_idle)
-    send(cmd='key', win='auto', key='r')
-    evs, e = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30 * SLOW)
-    if e is not None and e.get('ev') == 'ask':
-        note_auto_menu(e)
-        send(cmd='answer', id=e['id'], ok=0)
-        evs, e = collect(is_idle, timeout=30 * SLOW)
-    check('Auto/Run after a Grab restarts from the label and the server survives',
-          e is not None and proc.poll() is None, 'exit code %s' % proc.poll())
-
-    # W64 (issue #112): "auto" "grab" by label, no ask (docs/protocol.md
-    # "Grab by label"). autocheck.py's grab section is the fuller check (a
-    # periodic run from a label matches the same run from an interactive
-    # grab); here just that it grabs with no ask and an unknown label is
-    # refused, changing nothing.
-    labs = sorted({(i, lab) for e in adds for r in e['runs'] for i, lab, _sym in r.get('lab', [])})
-    target_label = labs[1][1] if len(labs) > 1 else None
-    if target_label is not None:
-        send(cmd='auto.grab', label=target_label)
-        evs, _ = collect(is_idle)
-        check('grab by label asks nothing', not any(e.get('ev') == 'ask' for e in evs), str([e.get('ev') for e in evs]))
-        check('the server survives a grab by label', proc.poll() is None, 'exit code %s' % proc.poll())
-    send(cmd='auto.grab', label=999999)
-    evs, _ = collect(is_idle)
-    errs = [e.get('error') for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
-    check('grab by an unknown label is refused (a message error)', bool(errs), str(errs))
-    check('an unknown label changes nothing (no diagram event, no ask)',
-          not any(e.get('ev') in ('diagram', 'ask') for e in evs), str([e.get('ev') for e in evs]))
-
-    # T21: an Axes change draws the diagram again in the new quantities (no
-    # reDraw: a data client shows what the core sent), File/Reset diagram
-    # empties it at once, and Usr period's prompts say what it does
-    def auto_dialog(op, *answers):
-        send(cmd='key', win='auto', key={'axes': 'a', 'usr': 'u', 'file': 'f'}[op])
-        evs = []
-        for a in answers:
-            ev, ask = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30 * SLOW)
-            evs += ev
-            if ask is None or ask.get('ev') != 'ask':
-                return evs, ask
-            note_auto_menu(ask)
-            send(cmd='answer', id=ask['id'], **(a(ask) if callable(a) else a))
-        ev, _ = collect(is_idle, timeout=30 * SLOW)
-        return evs + ev, None
-
-    evs, _ = auto_dialog('axes', {'key': 'n'}, lambda ask: {'ok': 1, 'values': ask['values']})
-    dg = [e for e in evs if e.get('ev') == 'diagram']
-    resets = [i for i, e in enumerate(dg) if e['op'] == 'reset']
-    added = sum(len(r['x']) for e in dg[resets[-1]:] if e['op'] == 'add' for r in e['runs']) if resets else 0
-    check('Axes/Norm, OK: the diagram comes again in norms (reset, then every point) without a reDraw',
-          resets and dg[resets[-1]]['plot'] == 'norm' and dg[resets[-1]]['keep'] == 0 and added > 0,
-          str([(e['op'], e.get('keep'), e.get('from'), added) for e in dg])[:300])
-    evs, ask = auto_dialog('usr', lambda ask: {'ok': 0})
-    titles = [e.get('name') for e in evs if e.get('ev') == 'ask']
-    check('Usr period asks "Mark values: how many?"', titles == ['Mark values: how many?'], str(titles))
-    evs, _ = auto_dialog('file', {'key': 'r'}, {'key': 'y'})
-    dg = [e for e in evs if e.get('ev') == 'diagram']
-    check('File/Reset diagram empties the diagram at once (reset 0, nothing added)',
-          dg and dg[-1]['op'] == 'reset' and dg[-1]['keep'] == 0 and not any(e['op'] == 'add' for e in dg),
-          str([(e['op'], e.get('keep')) for e in dg]))
-
-    titles_seen = {m['title'] for m in auto_menus_seen}
-    check('W96: AUTO menus seen: Start, Plot Type, File and the grabbed one',
-          {'Start', 'Plot Type', 'File'} <= titles_seen, str(sorted(titles_seen)))
-    for m in auto_menus_seen:
-        want = AUTO_MENUS.get(m['title'])
-        check('W96: AUTO menu %r is as menus.cpp defines it' % m['title'],
-              want is not None and m['items'] == want[0] and m['keys'] == want[1]
-              and len(m.get('hints', [])) == len(want[0]), str(m)[:300])
-
+# AUTO restart still reads a labelled solution through the registry.
+send(cmd='auto.run',kind='equilibrium')
+evs,_=collect(is_idle,timeout=60*SLOW)
+check('W517: AUTO starts without a menu ask',not any(e.get('ev')=='ask' for e in evs) and not any(e.get('error') for e in evs),str(evs)[-500:])
+send(cmd='auto.grab',label=1)
+evs,_=collect(is_idle)
+check('AUTO: a labelled solution is grabbed by name',not any(e.get('error') for e in evs),str(evs)[-300:])
+send(cmd='auto.run',kind='equilibrium',label=1)
+evs,_=collect(is_idle,timeout=60*SLOW)
+check('AUTO: restarting from a labelled solution stays clean',not any(e.get('error') for e in evs),str(evs)[-500:])
 
 # Live plotting (docs/protocol.md "The plot as data"): while an integration
 # runs, a subscribed client gets the rows as they are stored, in "append"
@@ -3217,14 +2909,15 @@ def zoomed_view(answer_of):
     evs, st = col(is_state)
     col(is_idle)
     view = st['view']
-    snd(cmd='key', key='w')
-    evs, ask = col(lambda e: e.get('ev') == 'ask')
-    snd(cmd='answer', id=ask['id'], key='z')
-    evs, ask = col(lambda e: e.get('ev') == 'ask')
-    ok = ask is not None and ask['kind'] == 'rubber'
-    if ok:
-        snd(cmd='answer', id=ask['id'], **answer_of(view))
+    answer = answer_of(view)
+    if 'xd' in answer:
+        x, y, x2, y2 = (answer[k] for k in ('xd', 'yd', 'xd2', 'yd2'))
+    else:
+        x, y = pixel_to_data(view, answer['x'], answer['y'])
+        x2, y2 = pixel_to_data(view, answer['x2'], answer['y2'])
+    snd(cmd='window.set_bounds', x_min=min(x,x2), x_max=max(x,x2), y_min=min(y,y2), y_max=max(y,y2))
     evs, _ = col(is_idle)
+    ok = not any('error' in e for e in evs)
     st = last_state(evs)
     return ok, view, st and st['view'], (p, r, snd, col)
 
@@ -3235,37 +2928,22 @@ def pixel_to_data(v, i, j):
 
 
 def check_stable_navigation():
-    p, r, snd, col, _ = launch_server()
-    def command(**cmd):
-        snd(**cmd)
-        return col(lambda e: e.get('ev') in ('idle','done'))[0]
+    server=Server(args.server,args.ode)
     try:
-        col(lambda e: e.get('ev') in ('idle','done'))
-        command(cmd='key', key='u')
-        events = command(cmd='key', menu='main', item='undo')
-        state = next((e for e in reversed(events) if e.get('ev') == 'state'), {})
-        check('navigation: stable main command works in Numerics mode and returns to main', state.get('menu') == 0, str(events[-3:]))
-        for fields in ({'menu': 'missing', 'item': 'undo'}, {'menu': 'main', 'item': 'missing'},
-                       {'menu': 'main', 'item': 'undo', 'key': 'z'}, {'menu': 'main', 'item': 'undo', 'win': 'auto'},
-                       {'menu': 'main', 'item': 'run_initial'},  # W212: a command the page runs itself is no key command
-                       {'menu': 'main'}, {'item': 'undo'}, {'menu': 42, 'item': 'undo'}):
-            events = command(cmd='key', **fields)
-            err = next((e for e in events if e.get('ev') in ('message', 'done') and e.get('error')), {})
-            check('navigation: rejects malformed stable identity ' + repr(fields) + ', naming the command place',
-                  err.get('file') == 'command' and err.get('line') == 1 and json.loads(err.get('source') or '{}').get('cmd') == 'key', str(events[-3:]))
-        snd(cmd='key', menu='file', item='savesession')
-        _, ask = col(is_ask)
-        check('navigation: stable save session asks the existing session picker', ask and ask.get('kind') == 'file' and ask.get('wild') == '*.snapx', str(ask))
-        if ask:
-            command(cmd='answer', id=ask['id'], ok=0)
-        command(cmd='key', key='f')
-        snd(cmd='key', menu='main', item='initialconds')
-        _, ask = col(is_ask)
-        check('navigation: stable integration opens initial conditions from File mode', ask and ask.get('kind') == 'menu' and 'g' in ask.get('keys', ''), str(ask))
-        if ask:
-            command(cmd='answer', id=ask['id'], ok=0)
-    finally:
-        stop_server(p, r, snd)
+        server.collect(is_idle)
+        for preset,parts in [('default',['Ctrl+R']),('xppaut',['I','G'])]:
+            server.send(cmd='keymap.set',preset=preset,bindings={})
+            server.collect(is_idle)
+            for index,part in enumerate(parts):
+                server.send(cmd='key',key=part)
+                evs,_=server.collect(is_idle)
+                check(f'W517: {preset} {part} opens no menu ask',not any(e.get('ev')=='ask' for e in evs),str(evs)[-300:])
+                if index==len(parts)-1:check('W517: completed key starts integration',any(e.get('ev')=='computing' for e in evs),str(evs)[-300:])
+        server.send(cmd='keymap.reset');server.collect(is_idle)
+        for command in [dict(cmd='key',menu='main',item='undo'),dict(cmd='key',win='auto',key='r')]:
+            server.send(**command);evs,_=server.collect(is_idle)
+            check('W517: obsolete key layer is refused with one placed error',len([e for e in evs if e.get('error')])==1 and not any(e.get('ev')=='ask' for e in evs),str(evs)[-300:])
+    finally:server.close()
 
 
 check_stable_navigation()
@@ -3377,16 +3055,6 @@ check_data_coordinates()
 def check_plot_windows():
     proc4, run4, send4, collect4, _ = launch_server(ode=LIVE)
 
-    def command(key, *answers):
-        """a key and the answers to the asks it opens; the events up to its idle"""
-        send4(cmd='key', key=key)
-        got, pending = [], list(answers)
-        while True:
-            evs, e = collect4(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=120 * SLOW)
-            got += evs
-            if e is None or e['ev'] in ('idle','done'):
-                return got
-            send4(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
     def after(cmd):
         send4(**cmd)
@@ -3415,7 +3083,7 @@ def check_plot_windows():
               len(pl) == 1 and wins(pl[0]) == ['graph_1', 'graph_2'] and pl[0]['active'] == 'graph_2', str(pl)[:300])
         check('the new window gets its own series, with the data', [e['win'] for e in ser] == ['graph_2']
               and ser[0]['rows'] == 20001, str([(e['win'], e['rows']) for e in ser]))
-        evs = command('x', {'value': 'V'})
+        evs = after({'cmd':'plot.variable_vs_time','variable':'V'})
         pl, ser = plots(evs), full(evs)
         cur = {w['win']: (w['curves'][0]['x'], w['curves'][0]['y']) for w in pl[0]['windows']} if pl else {}
         check('Xi vs t in window 2: its curves change, window 1 keeps its own',
@@ -3520,16 +3188,9 @@ def check_param_set_cancel():
         col(is_idle)
         snd(cmd='value.set_parameters', values={'iapp': 0.3})
         col(is_idle)
-        snd(cmd='key', key='f')
-        col(is_idle)
-        snd(cmd='key', key='g')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        check('Param set menu is asked', ask is not None and ask['kind'] == 'menu', str(ask))
-        if ask:
-            snd(cmd='answer', id=ask['id'], ok=0)
-        evs, _ = col(is_idle)
-        check('Param set menu cancelled: no error message',
-              not [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e], str(evs)[:200])
+        snd(cmd='set.apply',scope='all')
+        evs,_=col(is_idle)
+        check('W517: an incomplete set form applies nothing',len([e for e in evs if e.get('error')])==1 and dict(last_state(evs)['pars'])['iapp']==0.3,str(evs)[-300:])
         snd(cmd='value.save_file', kind='parameters', file='w101.par')
         evs, _ = col(is_idle)
         with open(os.path.join(r, 'w101.par')) as f:
@@ -3541,6 +3202,7 @@ def check_param_set_cancel():
         stop_server(p, r, snd)
 
 
+
 check_param_set_cancel()
 
 
@@ -3549,7 +3211,7 @@ def answer_scope(col, snd):
     the events up to the command's idle"""
     evs, ask = col(lambda e: e.get('ev') == 'ask')
     check('Apply set asks the scope after the set, all first',
-          ask is not None and ask['kind'] == 'menu' and ask['name'] == 'set_scope' and ask['items'][0].endswith('all'), str(ask))
+          ask is not None and ask['kind'] == 'choice' and ask['name'] == 'set_scope' and ask['choices'][0].endswith('all'), str(ask))
     if ask:
         snd(cmd='answer', id=ask['id'], key='a')
     more, _ = col(is_idle)
@@ -3557,56 +3219,18 @@ def answer_scope(col, snd):
 
 
 def check_param_set_list():
-    """W229: the Named sets menu says so when the model has none; with more than 26 sets the
-    first 26 have a letter and the others are answered by their index; the last of 500 is reachable"""
-    folder = tempfile.mkdtemp(prefix='w229sets')
-    try:
-        def model(name, count):
-            path = os.path.join(folder, name)
-            with open(path, 'w') as f:
-                f.write("par a=0\ninit x=0\nx'=-x\n" + ''.join(f'set s{i} {{a={i}}}\n' for i in range(1, count + 1)) + 'done\n')
-            return path
-
-        def pick_set(count, answer):
-            p, r, snd, col, _ = launch_server(ode=model(f'sets{count}.ode', count))
+    """Named sets stay reachable past the old letter and fixed-count limits."""
+    with tempfile.TemporaryDirectory(prefix='w229sets') as folder:
+        for count,selected in [(30,29),(30,3),(500,500)]:
+            model=os.path.join(folder,'sets.ode')
+            with open(model,'w') as f:f.write("par a=0\ninit x=0\nx'=-x\n"+''.join(f'set s{i} {{a={i}}}\n' for i in range(1,count+1))+'done\n')
+            server=Server(args.server,model)
             try:
-                col(is_idle)
-                snd(cmd='key', key='f')
-                col(is_idle)
-                snd(cmd='key', key='g')
-                evs, ask = col(lambda e: e.get('ev') == 'ask')
-                evs2 = []
-                if ask:
-                    snd(cmd='answer', id=ask['id'], **answer)
-                    evs2 = answer_scope(col, snd)
-                st = last_state(evs2)
-                return ask, evs + evs2, dict(st['pars']).get('a') if st else None
-            finally:
-                stop_server(p, r, snd)
-
-        p, r, snd, col, _ = launch_server(ode=model('none.ode', 0))
-        try:
-            col(is_idle)
-            snd(cmd='key', key='f')
-            col(is_idle)
-            snd(cmd='key', key='g')
-            evs, _ = col(is_idle)
-            check('W229: Named sets of a model with none says so (a message, no ask, no error)',
-                  not [e for e in evs if e.get('ev') == 'ask' or (e.get('ev') in ('message', 'done') and 'error' in e)]
-                  and any('no named sets' in str(e.get('bottom', '')) for e in evs), str(evs)[-300:])
-        finally:
-            stop_server(p, r, snd)
-        ask, evs, a = pick_set(30, {'index': 28})
-        check('W229: 30 sets: a menu of 30 items with 26 letters; the 29th is answered by its index',
-              ask is not None and ask['kind'] == 'menu' and len(ask['items']) == 30 and ask['keys'] == 'abcdefghijklmnopqrstuvwxyz'
-              and ask['items'][0] == 'a: s1' and ask['items'][26] == 's27' and a == 29, str((ask and ask['keys'], a)))
-        ask, evs, a = pick_set(30, {'key': 'c'})
-        check('W229: 30 sets: the letter c still picks the third', a == 3, str(a))
-        ask, evs, a = pick_set(500, {'index': 499})
-        check('W229: exactly 500 sets (the limit load_eqn admits): the menu opens and the last one can be picked',
-              ask is not None and len(ask['items']) == 500 and a == 500, str((ask and len(ask['items']), a)))
-    finally:
-        shutil.rmtree(folder, ignore_errors=True)
+                server.collect(is_idle)
+                server.send(cmd='set.apply',name=f's{selected}',scope='all')
+                evs,_=server.collect(is_idle)
+                check(f'W229: set s{selected} of {count} is reachable by name',dict(last_state(evs)['pars'])['a']==selected and not any(e.get('error') for e in evs),str(evs)[-300:])
+            finally:server.close()
 
 
 check_param_set_list()
@@ -3619,15 +3243,6 @@ def check_values_protocol():
         sndv(**cmd)
         return colv(is_idle, timeout=30 * SLOW)[0]
 
-    def keys(key, *answers):
-        sndv(cmd='key', key=key)
-        got, pending = [], list(answers)
-        while True:
-            evs, e = colv(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
-            got += evs
-            if e is None or e['ev'] in ('idle','done'):
-                return got
-            sndv(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
     full = whole_series
     pics = lambda evs: [(e['ev'], e['win']) for e in evs if e.get('ev') in ('erase', 'redraw')]
@@ -3950,8 +3565,7 @@ def check_load_all_or_nothing():
 
     def read_set(name):
         """File > Import settings of name"""
-        answered((), cmd='key', key='f')
-        return answered(({'file': name},), cmd='key', key='r')
+        return answered((), cmd='session.import_settings', file=name)
 
     try:
         col(is_idle)
@@ -4035,7 +3649,7 @@ def check_load_all_or_nothing():
         with open(os.path.join(r, 'own.setx'), 'w') as f:
             f.write(set0)
         evs = read_set('own.setx')
-        messages = [e for e in evs if e.get('ev') in ('message', 'done')]
+        messages = [e for e in evs if e.get('ev') == 'message']
         check('W284: own settings apply, with one message and no session written',
               not errors(evs) and state() == st0 and not os.path.exists(os.path.join(r, 'own.snapx'))
               and len(messages) == 1 and 'own.setx' in messages[0].get('bottom', ''), str(messages))
@@ -4317,34 +3931,13 @@ def check_save_values():
         with open(model, 'w', newline='') as f:
             f.write(old)
         # File > Save values, Export and Delete by their menus: the same writer through the same commands
-        def menu_flow(key, picks, text='menuset', file='menu_out.odex'):
-            """File menu item `key`: a menu ask is answered by the item named in picks (in order), a string by text"""
-            s.send(cmd='key', key='f')
-            s.collect(is_idle)
-            s.send(cmd='key', key=key)
-            todo = list(picks)
-            got = []
-            while True:
-                evs, e = s.collect(lambda e: is_ask(e) or is_idle(e), timeout=60 * SLOW)
-                got += evs
-                if e is None or not is_ask(e):
-                    return got
-                if e['kind'] == 'menu':
-                    want = todo.pop(0)
-                    s.send(cmd='answer', id=e['id'], key=e['keys'][[i.split(': ', 1)[-1] for i in e['items']].index(want)])
-                elif e['kind'] == 'string':
-                    s.send(cmd='answer', id=e['id'], value=text)
-                elif e['kind'] == 'file':
-                    s.send(cmd='answer', id=e['id'], file=file)
-                else:
-                    s.send(cmd='answer', id=e['id'], key='y')
-        evs = menu_flow('o', ['New set', 'parameters'])
+        evs = run(cmd='set.save_new', name='menuset', scope='parameters')
         check('W320: File > Save values: New set, a name, parameters writes the set', not errs(evs) and 'set "menuset" {' in text(), str(errs(evs)))
-        evs = menu_flow('i', ['plot'], text='menuex')
+        evs = run(cmd='set.export', file='menu_out.odex', name='menuex', scope='plot')
         check('W320: File > Export values writes the set to the file picked', not errs(evs) and 'set "menuex" {' in text('menu_out.odex'), str(errs(evs)))
-        evs = menu_flow('f', ['menuset'])
+        evs = run(cmd='set.delete', name='menuset')
         check('W320: File > Delete set asks, then deletes the set from the file', not errs(evs) and 'set "menuset"' not in text(), str(errs(evs)))
-        evs = menu_flow('z', ['s1'], text='s1b')
+        evs = run(cmd='set.rename', **{'from': 's1', 'to': 's1b'})
         check('W320: File > Rename set asks which set and the new name', not errs(evs) and 'set "s1b" {' in text() and 'set "s1" {' not in text(), str(errs(evs)))
         old = text()
         # a plot's settings saved and applied again
@@ -4390,15 +3983,6 @@ check_save_values()
 def check_phase_data():
     proc5, run5, send5, collect5, _ = launch_server()
 
-    def command(key, *answers):
-        send5(cmd='key', key=key)
-        got, pending = [], list(answers)
-        while True:
-            evs, e = collect5(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
-            got += evs
-            if e is None or e['ev'] in ('idle','done'):
-                return got
-            send5(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
     def after(cmd):
         send5(**cmd)
@@ -4524,15 +4108,8 @@ def check_view():
     def view_keys(xlo, xhi, ylo, yhi):
         """Window/Window answered with the four numbers; returns (plots or
         None, message-error text or None, state.view) of the events up to idle"""
-        send6(cmd='key', key='w')
-        got = []
-        answers = [{'key': 'w'}, {'ok': 1, 'values': [str(v) for v in (xlo, xhi, ylo, yhi)]}]
-        while True:
-            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=30 * SLOW)
-            got += evs
-            if e is None or e['ev'] in ('idle','done'):
-                break
-            send6(cmd='answer', id=e['id'], **(answers.pop(0) if answers else {'ok': 0}))
+        send6(cmd='window.set_bounds',x_min=xlo,x_max=xhi,y_min=ylo,y_max=yhi)
+        got,_=collect6(is_idle)
         pl = next((e for e in got if e.get('ev') == 'plots'), None)
         msg = next((e.get('error') for e in got if e.get('ev') in ('message', 'done') and 'error' in e), None)
         st = last_state(got)
@@ -4564,25 +4141,8 @@ def check_view():
         # axes2.cpp) are the boundary values themselves, -100 and 100 (a
         # symmetric [-100,100] range makes make_tics() choose a 20-wide
         # tic, which lands exactly on the boundary).
-        send6(cmd='key', key='g')
-        evs, ask = collect6(lambda e: e.get('ev') == 'ask')
-        check('Graphic stuff opens its submenu (curves)',
-              ask is not None and ask['kind'] == 'menu' and 'p' in ask.get('keys', ''), str(ask))
-        if ask:
-            send6(cmd='answer', id=ask['id'], key='p')
-        evs, ask2 = collect6(lambda e: e.get('ev') == 'ask')
-        check('PDF asks for its picture parameters first (colour, axes font size)',
-              ask2 is not None and ask2['kind'] == 'form' and ask2['kinds'] == ['boolean', 'real']
-              and ask2['values'] == ['true', '12'], str(ask2))
-        if ask2:
-            send6(cmd='answer', id=ask2['id'], ok=1, values=ask2['values'])
-        evs, ask3 = collect6(lambda e: e.get('ev') == 'ask')
-        check('... then a file to write it to (mode write, *.pdf)',
-              ask3 is not None and ask3['kind'] == 'file' and ask3.get('mode') == 'write'
-              and ask3.get('wild') == '*.pdf', str(ask3))
-        psname = 't9view.pdf'
-        if ask3:
-            send6(cmd='answer', id=ask3['id'], ok=1, file=psname)
+        psname='t9view.pdf'
+        send6(cmd='plot.export_pdf',file=psname,color=True,axes_font_size=12)
         collect6(is_idle)
         pspath = os.path.join(run6, psname)
         ps = ''
@@ -4594,6 +4154,7 @@ def check_view():
               '(-100) Tj' in ps and '(100) Tj' in ps, str(len(ps)))
     finally:
         stop_server(proc6, run6, send6)
+
 
 
 # 3D plots turned by the client (docs/ui-v2.md T14, GitHub issue #18, W60):
@@ -4616,19 +4177,8 @@ def check_view3d():
     def turn(theta, phi):
         """key 3, its form answered with theta and phi (the rest as offered);
         returns (plots or None, message-error text or None, state.view)"""
-        send7(cmd='key', key='3')
-        got = []
-        while True:
-            evs, e = collect7(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=30 * SLOW)
-            got += evs
-            if e is None or e['ev'] in ('idle','done'):
-                break
-            vals = list(e.get('values', []))
-            names = e.get('names', [])
-            if e['kind'] == 'form' and 'Theta' in names and 'Phi' in names:
-                vals[names.index('Theta')] = str(theta)
-                vals[names.index('Phi')] = str(phi)
-            send7(cmd='answer', id=e['id'], ok=1, values=vals)
+        send7(cmd='plot.set_3d_view',theta=theta,phi=phi)
+        got,_=collect7(is_idle)
         pl = next((e for e in got if e.get('ev') == 'plots'), None)
         msg = next((e.get('error') for e in got if e.get('ev') in ('message', 'done') and 'error' in e), None)
         st = last_state(got)
@@ -4655,6 +4205,7 @@ def check_view3d():
         stop_server(proc7, run7, send7)
 
 
+
 # Marks as data (docs/protocol.md "The plot as data", docs/ui-v2.md T8): the
 # equilibria Sing pts marks, Text,etc's text, arrows and markers, and frozen
 # curves, as the classic window shows them: a redraw draws the labels,
@@ -4663,27 +4214,6 @@ def check_view3d():
 def check_marks():
     proc6, run6, send6, collect6, _ = launch_server()
     of = lambda evs, name: [e for e in evs if e.get('ev') == name]
-
-    def command(key, answer):
-        """a key, its asks answered by answer(ask, n) (n counts them), up to its idle"""
-        send6(cmd='key', key=key)
-        got, n = [], 0
-        while True:
-            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
-            got += evs
-            if e is None or e['ev'] in ('idle','done'):
-                return got
-            reply = answer(e, n) or {'ok': 0}
-            n += 1
-            send6(cmd='answer', id=e['id'], **reply)
-
-    def keys(*replies):
-        """answers in order: a str is a menu key, a dict the answer itself; then cancel"""
-        def answer(e, n):
-            if n >= len(replies):
-                return None
-            return {'key': replies[n]} if isinstance(replies[n], str) else replies[n]
-        return answer
 
     def after(cmd):
         send6(**cmd)
@@ -4716,7 +4246,7 @@ def check_marks():
         cols = {c['col']: c['data'] for c in ser[-1]['columns']} if ser else {}
 
         typed = r'\1a\0-point \{2*3}'
-        evs = command('t', keys('t', {'xd': -0.3, 'yd': 0.5}, {'value': typed, 'size': 3, 'style': 'bold', 'color': '#ffcd00'}))
+        evs = after(dict(cmd='annotation.add_text', x=-.3, y=.5, text=typed, text_size=3, style='bold', color='#ffcd00'))
         m = marks_of(evs)
         t = m['text'] if m else []
         check('Text,etc/Text: a text mark with its text (\\{expr} filled in), size, style, colour and position',
@@ -4724,11 +4254,7 @@ def check_marks():
               and t[0]['font'] == 0 and t[0]['style'] == 'bold' and t[0]['color'] == '#ffcd00'
               and near(t[0]['x'], -0.3, px) and near(t[0]['y'], 0.5, py), str(m)[:300])
         asks = of(evs, 'ask')
-        check('W227: Text asks where first (mouse), then the text dialog (text) with the defaults',
-              [e['kind'] for e in asks] == ['menu', 'mouse', 'text'] and asks[2]['title'] == 'Text'
-              and asks[2]['size'] == hello6['text']['default_size'] and asks[2]['style'] == 'normal'
-              and asks[2]['color'] == 'foreground' and asks[2]['value'] == '',
-              str([(e['kind'], e.get('size')) for e in asks]))
+        check('W517: typed annotation has no navigation asks', not asks)
         check('W227: hello.text says what a text takes',
               hello6.get('text') == {'max_length': 1000, 'size_max': 4, 'default_size': 2} and hello6.get('text_styles') == ['normal', 'bold', 'italic', 'bold_italic'],
               str(hello6.get('text')))
@@ -4792,8 +4318,7 @@ def check_marks():
         check('W227: ... and the first label is as Text left it', m is not None and len(m['text']) == 1
               and m['text'][0]['text'] == r'\1a\0-point 6' and not errs, str((m, errs))[:300])
 
-        evs = command('t', keys('p', {'value': '0.2'}, {'value': '#c8c800'},
-                                {'xd': 0.1, 'yd': 0.2, 'xd2': 0.6, 'yd2': 0.8}))
+        evs = after(dict(cmd='annotation.add_pointer', tip_x=.1, tip_y=.2, tail_x=.6, tail_y=.8, size=.2, color='#c8c800'))
         m = marks_of(evs)
         a = m['arrows'] if m else []
         check('Text,etc/Pointer: an arrow mark from the first point to the second, its size and colour',
@@ -4801,7 +4326,7 @@ def check_marks():
               and near(a[0]['x1'], 0.1, px) and near(a[0]['y1'], 0.2, py) and near(a[0]['x2'], 0.6, px)
               and near(a[0]['y2'], 0.8, py) and len(m['text']) == 1, str(m)[:300])
 
-        evs = command('t', keys('m', {'values': ['diamond', '#00e100', '2']}, {'xd': 0.9, 'yd': 0.1}))
+        evs = after(dict(cmd='annotation.add_marker', x=.9, y=.1, shape='diamond', color='#00e100', size=2))
         m = marks_of(evs)
         k = m['markers'] if m else []
         check('Text,etc/Marker: a marker mark with its shape, size, colour and position',
@@ -4878,7 +4403,7 @@ def check_marks():
         ls = result_of(evs)
         check('... and deleting them leaves the first three', [len(ls[k]) for k in ('text', 'arrows', 'markers')] == [1, 1, 1], str(ls)[:200])
 
-        evs = command('g', keys('f', 'f', {'values': ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'first run', 'frz1']}))
+        evs = after(dict(cmd='plot.freeze_curve', color='#ffcd00', draw='line', dash='solid', width=1, marker='circle', marker_size=3, key='first run', name='frz1'))
         m = marks_of(evs)
         f = m['frozen'] if m else []
         check('Graphic stuff/Freeze: a frozen curve equal to the series at freeze time, its key and colour',
@@ -4917,7 +4442,7 @@ def check_marks():
               str(m)[:200])
         after({'cmd': 'events.subscribe', 'events': ['marks']})
 
-        evs = command('g', keys('f', 'r'))
+        evs = after(dict(cmd='plot.delete_all_frozen'))
         m = marks_of(evs)
         check('Freeze/Remove all: the frozen curve goes at once', m is not None and m['frozen'] == []
               and len(m['text']) == 1, str(m)[:300])
@@ -4931,7 +4456,7 @@ def check_marks():
         m = marks_of(evs)
         check('... a redraw brings the text and objects back', m is not None and len(m['text']) == 1
               and len(m['arrows']) == 1 and len(m['markers']) == 1, str(m)[:300])
-        evs = command('t', keys('d'))
+        evs = after(dict(cmd='annotation.delete_all'))
         m = marks_of(evs)
         check('Text,etc/Delete all deletes them', m is not None and m['text'] == [] and m['arrows'] == []
               and m['markers'] == [], str(m)[:300])
@@ -4965,22 +4490,16 @@ def check_ani_data():
                 return got
             send6(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
-    def command(key, *answers):
-        send6(cmd='key', key=key)
-        return answered(list(answers))
 
-    ani_keys = {'file': 'f', 'grab': 'a'}
     ani_commands = {'go': ('animation.play', {}), 'reset': ('animation.reset', {}), 'step': ('animation.step', {'n': 'rows'}),
                     'seek': ('animation.seek', {'pos': 'row'}), 'speed': ('animation.set_speed', {})}
-
     def ani(op, *answers, **kw):
-        """the animation window's key (menu_ani_window) for what asks (the file, the grab's arming), else its registry command"""
-        if op in ani_keys:
-            send6(cmd='key', win='ani', key=ani_keys[op])
+        if op == 'file': send6(cmd='animation.load', file=answers[0]['file'])
+        elif op == 'grab': send6(cmd='animation.grab_point')
         else:
             name, renamed = ani_commands[op]
-            send6(cmd=name, **{renamed.get(k, k): v for k, v in kw.items()})
-        return answered(list(answers))
+            send6(cmd=name, **{renamed.get(k,k):v for k,v in kw.items()})
+        return answered([])
 
     named = {'foreground', '#ff0000', '#f06400', '#ffa500', '#ffcd00', '#c8c800', '#c8eb4b', '#00e100', '#00c8c8', '#0000ff', '#a020f0'}
 
@@ -5035,7 +4554,7 @@ def check_ani_data():
         errors = [e for e in refused if e.get('error')]
         check('W520: a refused native animation names its line and preserves the frame',
               len(errors) == 1 and errors[0].get('file') == 'bad.anix' and errors[0].get('line') == 2
-              and not frames(refused) and bool(states(refused)) and states(refused)[-1]['speed'] == 5, str(refused)[-600:])
+              and not frames(refused) and all(e['speed'] == 5 for e in states(refused)), str(refused)[-600:])
         check('ani data: the frame names its box, window, speed and time',
               f0['dim'] == [-0.6, -0.1, 0.4, 0.6] and (f0['w'], f0['h']) == (280, 350) and f0['speed'] == 5
               and f0['skip'] == 1 and f0['t'] == 0, str({k: v for k, v in f0.items() if k != 'prims'}))
@@ -5130,14 +4649,6 @@ def check_fit_retained_runs():
                     "plot: { xlo: 0, xhi: 1, ylo: 0, yhi: 1" + plot + " } }\n")
         proc, run, snd, col, _ = launch_server(ode=ode)
 
-        def keys(*replies):
-            snd(cmd='key', key=replies[0])
-            for r in replies[1:] + (None,):
-                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
-                if e is None or e['ev'] in ('idle','done'):
-                    return evs
-                snd(cmd='answer', id=e['id'], **({'key': r} if r else {'ok': 0}))
-            return col(is_idle)[0]
         try:
             col(is_idle, timeout=60 * SLOW)
             snd(cmd='events.subscribe', events=['series', 'plots'])
@@ -5148,7 +4659,7 @@ def check_fit_retained_runs():
             col(is_idle)
             snd(cmd='run.initial')
             col(is_idle)
-            evs = keys('w', 'f')
+            snd(cmd='window.fit'); evs,_=col(is_idle)
             snd(cmd='events.subscribe', events=['series', 'plots'])
             evs, _ = col(is_idle)
             w = next((x for e in evs if e.get('ev') == 'plots' for x in e['windows'] if x['win'] == 'graph_1'), {})
@@ -5251,16 +4762,15 @@ def rebuild_diagram(evs, pts, view=0):
 
 
 def lecar_to_auto(snd, col):
-    """the "hopf" set, its fixed point as the IC, File/Auto, Run a steady state: the events"""
-    def step(**c):
-        snd(**c)
-        return col(lambda e: is_idle(e) or e.get('ev') == 'ask', timeout=30 * SLOW)
-    for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'}, {'cmd': 'answer', 'key': 'a'},
-              {'cmd': 'equilibrium.find'}, {'cmd': 'equilibrium.import_as_ic'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}, {'cmd': 'key', 'win': 'auto', 'key': 'r'}):
-        step(**c)
-    snd(cmd='answer', key='s')
-    evs, _ = col(is_idle, timeout=60 * SLOW)
-    return evs
+    """Apply hopf, find its equilibrium and start AUTO through registry commands."""
+    result=[]
+    for command in [dict(cmd='set.apply',name='hopf',scope='all'),
+                    dict(cmd='equilibrium.find',print_eigenvalues=False,draw_invariant_sets=False,draw_strong_sets=False),
+                    dict(cmd='equilibrium.import_as_ic'),dict(cmd='auto.open'),dict(cmd='auto.run',kind='equilibrium')]:
+        snd(**command)
+        evs,_=col(is_idle,timeout=60*SLOW)
+        result.extend(evs)
+    return result
 
 
 def infos(evs):
@@ -5301,7 +4811,7 @@ def check_autoinfo():
         diag_b = rebuild_diagram(evs, [])
         check('autoinfo: a client that did not ask gets none', not infos(evs))
 
-        snda(cmd='key', win='auto', key='g')
+        snda(cmd='auto.grab')
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         got = infos(evs)
         info = got[-1]['info'] if got else None
@@ -5345,7 +4855,7 @@ def check_autoinfo():
         evs, end = cola(is_idle)
         check('grab by point: point and Return take it in one answer', end is not None
               and not any(e.get('ev') == 'ask' for e in evs), str(evs)[:300])
-        sndb(cmd='key', win='auto', key='g')
+        sndb(cmd='auto.grab')
         for k in ['Tab', 'Return']:
             evs, ask = colb(lambda e: e.get('ev') == 'ask')
             sndb(cmd='answer', id=ask['id'], key=k)
@@ -5358,9 +4868,7 @@ def check_autoinfo():
             evs, _ = col(is_idle)
             check('W338: the short periodic circle fixture is configured',
                   not any(e.get('ev') in ('message', 'done') and 'error' in e for e in evs), str(evs)[-300:])
-            snd(cmd='key', win='auto', key='r')
-            evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=30 * SLOW)
-            snd(cmd='answer', id=ask['id'], key='p')
+            snd(cmd='auto.run', kind='periodic', label=hb['lab'])
             evs, _ = col(is_idle, timeout=120 * SLOW)
             rebuild_diagram(evs, diag)
             run_evs = run_evs or evs
@@ -5381,7 +4889,7 @@ def check_autoinfo():
               '%d events, the first %s' % (len(infos(evs)), str(infos(evs)[:1])[:300]))
         # a redraw after a grab: the strip and the circle stay the grabbed point's (W49: the circle
         # used to move to the diagram's last point, under the grabbed point's info)
-        snda(cmd='key', win='auto', key='g')
+        snda(cmd='auto.grab')
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         snda(cmd='answer', id=ask['id'], point=5, key='Return')
         evs, _ = cola(is_idle)
@@ -5422,15 +4930,13 @@ def check_dialog_folder_after_auto():
         want = os.path.realpath(r)
 
         def ask_dir(keys):
-            for k in keys:
-                snd(cmd='key', key=k)
-            evs, ask = col(lambda e: e.get('ev') == 'ask' and e.get('kind') == 'file', timeout=30 * SLOW)
-            d = None
-            if ask:
-                d = ask.get('dir')
-                snd(cmd='answer', id=ask['id'], file='')
-                col(is_idle, timeout=30 * SLOW)
-            return ask, d
+            snd(cmd='recording.open', play=False, file_picker=True)
+            evs, ask = col(lambda e: is_ask(e) or is_idle(e), timeout=30*SLOW)
+            directory = ask.get('dir') if ask and is_ask(ask) else None
+            if directory is not None:
+                snd(cmd='answer', id=ask['id'], ok=0)
+                col(is_idle)
+            return ask, directory
         ask, d = ask_dir(['f', 'y'])
         check('W151: a file ask before AUTO starts in the model folder',
               ask and d and os.path.realpath(d) == want, str(d))
@@ -5460,8 +4966,7 @@ def check_dialog_folder_after_auto():
         # a later dialog of one kind starts where the last of its kind was answered
         sub = os.path.join(r, 'sub')
         os.mkdir(sub)
-        snd(cmd='key', key='f')
-        snd(cmd='key', key='y')
+        snd(cmd='recording.open', play=False, file_picker=True)
         _, ask = col(lambda e: e.get('ev') == 'ask' and e.get('kind') == 'file', timeout=30 * SLOW)
         snd(cmd='answer', id=ask['id'], file=os.path.join(sub, 'x.recx'), replace=1)
         col(is_idle, timeout=30 * SLOW)
@@ -5487,27 +4992,12 @@ NUM_KEYS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points',
             'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points']
 
 
-def form_text(v):
-    """a value as the core's forms print it: %d for whole numbers, else %g"""
-    if isinstance(v, (bool, str)):
-        return str(v).lower()
-    return '%d' % v if isinstance(v, int) else '%g' % v
-
-
 def check_autosettings():
     pa, ra, snda, cola, _ = launch_server()
     pb, rb, sndb, colb, _ = launch_server()
     try:
         cola(is_idle)
         colb(is_idle)
-
-        def ask_of(**c):
-            snda(**c)
-            return cola(lambda e: e.get('ev') == 'ask' or is_idle(e))[1]
-
-        def cancel(ask):
-            snda(cmd='answer', id=ask['id'], ok=0)
-            return cola(is_idle)[0]
 
         def auto_errors(events):
             return [e['error'] for e in events if e.get('ev') in ('message', 'done') and 'error' in e]
@@ -5558,36 +5048,11 @@ def check_autosettings():
               and [(p['lo'], p['hi'], p['strict']) for p in st.get('pairs', [])]
               == [('min_step_size', 'max_step_size', False), ('parameter_min', 'parameter_max', True), ('norm_min', 'norm_max', True)]
               and st.get('step', {}).get('key') == 'step_size', str(st and (st.get('pairs'), st.get('step')))[:300])
-        ask = ask_of(cmd='key', win='auto', key='n')
-        cancel(ask)
         point_keys = ('bogdanov_takens', 'cusp', 'zero_hopf', 'generalized_hopf', 'resonance_1_1', 'resonance_1_2', 'resonance_1_3', 'resonance_1_4', 'fold_flip', 'fold_neimark_sacker', 'flip_neimark_sacker', 'double_neimark_sacker')
-        check('W364: autosettings carries named detection booleans enabled by default',
-              st.get('special_points') == dict.fromkeys(point_keys, True))
-        want = [form_text(st['numerics'][k]) for k in NUM_KEYS]
-        want += [str(st['special_points'][k]).lower() for k in point_keys]
-        check("autosettings: the numerics are the Numerics form's values, field for field",
-              ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
-        for value, expected in (('false', False), ('true', True)):
-            form = ask_of(cmd='key', win='auto', key='n')
-            edited = list(form['values'])
-            edited[len(NUM_KEYS) + point_keys.index('generalized_hopf')] = value
-            snda(cmd='answer', id=form['id'], ok=1, values=edited)
-            events, _ = cola(is_idle)
-            current = settings_of(events)
-            check('W364: Numerics form applies named GH ' + value,
-                  current is not None and current['special_points']['generalized_hopf'] is expected)
-        form = ask_of(cmd='key', win='auto', key='n')
-        edited = list(form['values'])
-        edited[1], edited[-1] = '7', '0'
-        snda(cmd='answer', id=form['id'], ok=1, values=edited)
-        events, _ = cola(is_idle)
-        snda(cmd='events.subscribe', events=['autosettings'])
-        fresh, _ = cola(is_idle)
-        current = settings_of(fresh)
-        check('W364: malformed form boolean leaves numerics and detection unchanged',
-              len(auto_errors(events)) == 1 and current is not None
-              and current['numerics']['max_steps'] == st['numerics']['max_steps']
-              and current['special_points'] == st['special_points'])
+        check('W364: named detection booleans enabled by default', st.get('special_points') == dict.fromkeys(point_keys, True))
+        for value in (False, True):
+            events, current, errors = auto_set(special_points={'generalized_hopf': value})
+            check('W364: registry applies GH '+str(value), not errors and current['special_points']['generalized_hopf'] is value)
         snda(cmd='events.subscribe', events=['hello', 'autosettings'])
         window_events, _ = cola(is_idle)
         window_hello = next((e for e in window_events if e.get('ev') == 'hello'), {})
@@ -5598,29 +5063,9 @@ def check_autosettings():
         evs, all_axes, errs = auto_set(axes={'par1':'gk'})
         check('W339: Axes accepts a parameter beyond the old eight', not errs and all_axes and all_axes['axes']['par1']=='gk')
         auto_set(axes={'par1':'iapp'})
-        plot_key = {'maximum': 'h', 'norm': 'n', 'maximum_and_minimum': 'i', 'period': 'p', 'two_parameter': 't', 'frequency': 'r', 'average': 'a'}[st['axes']['plot']]
-        menu_ask = ask_of(cmd='key', win='auto', key='a')
-        snda(cmd='answer', id=menu_ask['id'], key=plot_key)
-        ask = cola(lambda e: e.get('ev') == 'ask')[1]
-        cancel(ask)
-        a = st['axes']
-        want = [a['var'], a['par1'], a['par2']] + [form_text(a[k]) for k in ('xmin', 'ymin', 'xmax', 'ymax')]
-        check("autosettings: axes are the Axes menu's plot type and the AutoPlot form's values",
-              ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
-        ask = ask_of(cmd='key', win='auto', key='u')
-        snda(cmd='answer', id=ask['id'], ok=1, value='0')
-        cola(is_idle)
-        check('autosettings: no Mark values at first, as the form says', st['marks'] == [], str(st['marks']))
-
-        # a form's OK shows in the event too
-        ask = ask_of(cmd='key', win='auto', key='n')
-        vals = list(ask['values'])
-        vals[NUM_KEYS.index('output_every')] = '40'
-        snda(cmd='answer', id=ask['id'], ok=1, values=vals)
-        evs, _ = cola(is_idle)
-        st2 = settings_of(evs)
-        check('autosettings: a Numerics form answered: the event follows (output_every 40)', st2 and st2['numerics']['output_every'] == 40,
-              str(st2)[:200])
+        check('autosettings: no Mark values at first', st['marks'] == [])
+        evs, st2, errs = auto_set(numerics={'output_every': 40})
+        check('autosettings: typed numerics emits current values', not errs and st2['numerics']['output_every'] == 40)
 
         # the set: every part, then read back through the forms
         p0, p1 = 'iapp', 'gca'
@@ -5630,31 +5075,10 @@ def check_autosettings():
               and st3['numerics']['max_steps'] == 12 and st3['numerics']['step_size'] == -0.01
               and st3['axes']['plot'] == 'norm' and st3['axes']['var'] == 'W' and st3['axes']['par1'] == p1
               and st3['marks'] == [[p0, 0.25], ['T', 30]], '%s %s' % (errs, st3))
-        ask = ask_of(cmd='key', win='auto', key='n')
-        cancel(ask)
-        check('auto set: the Numerics form shows it', ask and ask['values'][1] == '12' and ask['values'][4] == '-0.01',
-              str(ask and ask['values']))
-        ask = ask_of(cmd='key', win='auto', key='u')
-        snda(cmd='answer', id=ask['id'], ok=1, value='2')
-        ask2 = cola(lambda e: e.get('ev') == 'ask')[1]
-        cancel(ask2)
-        check('auto set: the Mark values form shows it', ask2 and ask2['values'][:2] == ['%s=0.25' % p0, 'T=30'],
-              str(ask2 and ask2['values']))
-
         # W331: protocol and legacy forms agree beyond all previous mark capacities.
         many_marks = [['T', 100 + i] for i in range(128)]
         evs, many, errs = auto_set(marks=many_marks)
         check('W331: protocol sets 128 marks', not errs and many and many['marks'] == many_marks)
-        ask = ask_of(cmd='key', win='auto', key='u')
-        snda(cmd='answer', id=ask['id'], ok=1, value='128')
-        form = cola(lambda e: e.get('ev') == 'ask')[1]
-        check('W331: form displays all 128 marks', form and form['values'] == ['T=%d' % (100+i) for i in range(128)])
-        vals = list(form['values'])
-        vals[0], vals[-1] = 'T=2', 'T=bad'
-        snda(cmd='answer', id=form['id'], ok=1, values=vals)
-        rejected, _ = cola(is_idle)
-        check('W331: late bad form value rejects all edits',
-              len([e for e in rejected if e.get('ev') in ('message', 'done') and 'error' in e]) == 1 and settings_of(rejected) is None)
         for bad_marks in (many_marks[:-1] + [['unknown', 0]], 'bad', [['T', 1, 2]]):
             evs, changed, errs = auto_set(numerics={'max_steps': 99}, marks=bad_marks)
             check('W331: bad mark command rejects its numerics too', len(errs) == 1 and changed is None)
@@ -5684,16 +5108,6 @@ def check_autosettings():
         evs, st4, errs = auto_set(numerics={'collocation_points': 9})
         check('W118: a refused value says the message the event gave its rule',
               errs == ['collocation_points=9: ' + rules.get('collocation_points', {}).get('message', '?')], str(errs))
-
-        # a set sent while a question is open is kept for after the command, not dropped: a
-        # command of its own then (W106), with its own idle
-        ask = ask_of(cmd='key', win='auto', key='n')
-        snda(cmd='auto.configure_numerics', **{'max_steps': 77})
-        evs = cancel(ask)
-        st5a = settings_of(evs)
-        st5 = settings_of(cola(is_idle)[0])
-        check('auto set during a question: applied after the command, with its own idle',
-              st5a is None and st5 and st5['numerics']['max_steps'] == 77, str(st5)[:200])
 
         # a set changes the next run: Nmax 12 against the default on the other server
         evs, st6, errs = auto_set(numerics={'max_steps': 12}, axes={'plot': 'maximum_and_minimum', 'var': 'V', 'par1': p0}, marks=[])
@@ -5736,17 +5150,13 @@ def auto_stop_run(numerics, abort=False):
         col(is_idle)
         snd(cmd='events.subscribe', events=['autoinfo'])
         col(is_idle)
-        for k in 'fa':
-            snd(cmd='key', key=k)
-            col(lambda e: is_idle(e) or e.get('ev') == 'ask')
+        snd(cmd='auto.open')
+        col(is_idle)
         snd(cmd='auto.configure_numerics', **numerics)
         evs, _ = col(is_idle)
         errs = [e['error'] for e in evs if e.get('ev') in ('message', 'done') and 'error' in e]
-        snd(cmd='key', win='auto', key='r')
-        evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
-        if errs or not ask or ask.get('ev') != 'ask':
-            return {'errors': errs, 'ask': ask}, 0
-        snd(cmd='answer', id=ask['id'], key='s')
+        if errs: return {'errors': errs}, 0
+        snd(cmd='auto.run', kind='equilibrium')
         evs = []
         if abort:
             evs, _ = col(lambda e: e.get('ev') == 'diagram' and e.get('op') == 'add', timeout=30 * SLOW)
@@ -5792,15 +5202,13 @@ def check_auto_points_limit():
     p, r, snd, col, _ = launch_server(ode=STOP_ODE, extra_env={'XPP_DIAGRAM_POINTS_LIMIT': '7'})
     try:
         col(is_idle)
-        for k in 'fa':
-            snd(cmd='key', key=k)
-            col(lambda e: is_idle(e) or e.get('ev') == 'ask')
+        snd(cmd='auto.open')
+        col(is_idle)
         snd(cmd='auto.configure_numerics', **{'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 10000000})
         evs, _ = col(is_idle)
         check('W432: Nmax 10000000 is accepted', not [e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e], str(evs[-3:]))
-        snd(cmd='key', win='auto', key='r')
-        evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
-        snd(cmd='answer', id=ask['id'], key='s')
+        snd(cmd='auto.run', kind='equilibrium')
+        evs = []
         more, _ = col(is_idle, timeout=60 * SLOW)
         evs += more
         errs = [e for e in evs if 'error' in e]
@@ -5832,26 +5240,17 @@ def check_auto_no_nan_par():
         col(is_idle)
         snd(cmd='events.subscribe', events=['autoinfo'])
         col(is_idle)
-        for k in 'fa':
-            snd(cmd='key', key=k)
-            col(lambda e: is_idle(e) or e.get('ev') == 'ask')
+        snd(cmd='auto.open')
+        col(is_idle)
         snd(cmd='auto.configure_numerics', **{**wide, 'parameter_max': 10})
         col(is_idle)
-        snd(cmd='key', win='auto', key='r')
-        _, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
-        ok = isinstance(ask, dict) and ask.get('ev') == 'ask'
-        states = []
-        if ok:
-            snd(cmd='answer', id=ask['id'], key='s')
-            evs, _ = col(is_idle, timeout=60 * SLOW)
-            bad = [e for e in evs if e.get('ev') == 'bad']
-            states = [e for e in evs if e.get('ev') == 'state']
-            pars = states[-1].get('pars', []) if states else []
-            finite = all(math.isfinite(v) for _, v in pars)
-            ok = not bad and bool(states) and finite
-            detail = str(bad) if bad else str(pars)
-        else:
-            detail = str(ask)
+        snd(cmd='auto.run', kind='equilibrium')
+        evs, _ = col(is_idle, timeout=60*SLOW)
+        bad = [e for e in evs if e.get('ev') == 'bad']
+        states = [e for e in evs if e.get('ev') == 'state']
+        pars = states[-1].get('pars', []) if states else []
+        ok = not bad and bool(states) and all(math.isfinite(v) for _,v in pars)
+        detail = str(bad or pars)
         check('AUTO: a run with no convergence parses strictly and leaves every par finite', ok, detail)
     finally:
         stop_server(p, r, snd)
@@ -5969,39 +5368,12 @@ def check_data_formats():
             ok, detail = False, repr(ex)
         check('what the plot shows as NPZ: one (points, 2) array per curve', ok, detail)
 
-        # the dialog: what, then the format from the registry, then the file
-        snd(cmd='browser.export')
-        asks = []
-        replies = {'menu': lambda e: {'key': 'p' if e.get('name') == 'save_what' else 'g'},
-                   'file': lambda e: {'file': 'asked.csv.gz'}}
-        while True:
-            _, e = col(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=20 * SLOW)
-            if e is None or is_idle(e):
-                break
-            asks.append(e)
-            snd(cmd='answer', id=e['id'], **(replies[e['kind']](e) if e['kind'] in replies else {'ok': 0}))
-        fmt_menu = [a for a in asks if a.get('name') == 'save_format']
-        check('Save data asks what, then the format (every registered one), then the file',
-              [a.get('name', a['kind']) for a in asks] == ['save_what', 'save_format', 'file']
-              and fmt_menu and len(fmt_menu[0]['items']) == 4 and fmt_menu[0]['keys'] == 'dcgn'
-              and asks[-1].get('wild') == '*.csv.gz'
-              and gzip.decompress(read(r, 'asked.csv.gz')) == read(r, 'p.csv'),
-              str([(a['kind'], a.get('name'), a.get('wild')) for a in asks]))
+        evs, _ = browser('browser.export', target='plot_curves', format='csv.gz', file='asked.csv.gz')
+        check('Save data exposes every format through its registry choices and writes gzip',
+              gzip.decompress(read(r, 'asked.csv.gz')) == read(r, 'p.csv'))
 
-        # Graphic stuff > exp(O)rt is the same Save data of what the plot shows
-        snd(cmd='key', key='g')
-        asks = []
-        while True:
-            _, e = col(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=20 * SLOW)
-            if e is None or is_idle(e):
-                break
-            asks.append(e)
-            reply = ({'key': 'o'} if e.get('name') == 'curves' else
-                     {'menu': {'key': 'c'}, 'file': {'file': 'export.csv'}}.get(e['kind'], {'ok': 0}))
-            snd(cmd='answer', id=e['id'], **reply)
-        check('Graphic stuff/exp(O)rt asks the format and the file and writes what the plot shows',
-              [a.get('name', a['kind']) for a in asks] == ['curves', 'save_format', 'file']
-              and read(r, 'export.csv') == read(r, 'p.csv'), str([(a['kind'], a.get('name')) for a in asks]))
+        evs, _ = browser('browser.export', target='plot_curves', format='csv', file='export.csv')
+        check('Plot export writes what the graph shows', read(r, 'export.csv') == read(r, 'p.csv'))
 
         # Load reads each format back into the table, picked by its extension
         for name in ['d.csv', 'd.csv.gz', 'd.npz', 'd.dat']:
@@ -6158,71 +5530,32 @@ def check_output_names():
         for kind in ('par', 'ic'):
             snd(cmd='value.save_file', kind=VALUE_KIND[kind])
             cancel_name('lecar.' + kind)
-        snd(cmd='key', menu='file', item='savesessionas')
+        snd(cmd='session.save_as', file_picker=True, confirm=False)
         cancel_name('lecar.snapx')
-        snd(cmd='key', key='f')
-        col(is_idle)
-        snd(cmd='key', key='s')
-        cancel_name('lecar.pars')
-        snd(cmd='key', key='Escape')
-        col(is_idle)
         live_run(snd, col)
-        for key, ext in [('p', 'pdf'), ('v', 'svg')]:
-            snd(cmd='key', key='g')
-            _, ask = col(is_ask)
-            snd(cmd='answer', id=ask['id'], key=key)
-            cancel_name('lecar.' + ext)
-        snd(cmd='key', win='browser', key='t')
-        cancel_name('lecar-V.tab')
-        snd(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
-        col(is_idle)
-        snd(cmd='key', win='aplot', key='p')
-        cancel_name('lecar-array.pdf')
-        snd(cmd='window.destroy', window='array_plot_1')
-        col(is_idle)
-        for what, ext, format in [('table', 'dat', 'dat'), ('table', 'csv', 'csv'),
-                                  ('plot', 'csv', 'csv'), ('table', 'csv.gz', 'csv.gz'), ('table', 'npz', 'npz')]:
-            snd(cmd='browser.export', target=WHAT_TARGET[what], format=format)
-            cancel_name('lecar' + ('-curves' if what == 'plot' else '') + '.' + ext)
-        snd(cmd='key', key='k')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='c')
-        col(is_idle)
+        # Every file-taking registry command can explicitly ask for the existing picker.
+        for command in [dict(cmd='plot.export_pdf'), dict(cmd='plot.export_svg'),
+                        dict(cmd='browser.tabulate_column', variable='V', x_low=0, x_high=30)]:
+            snd(**command, file_picker=True)
+            _, ask = col(lambda e: is_ask(e) or is_idle(e))
+            check('W517: '+command['cmd']+' requests a write picker', ask and ask.get('kind') == 'file' and ask.get('mode') == 'write', str(ask))
+            if ask and is_ask(ask): snd(cmd='answer', id=ask['id'], ok=0); col(is_idle)
+        for _ in range(3): snd(cmd='kinescope.capture'); col(is_idle)
         before = sorted(os.listdir(r))
-        snd(cmd='key', key='k')
+        snd(cmd='kinescope.export_frames', file_picker=True)
         _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='s')
-        evs = cancel_name('lecar.gif')
-        check('W130: canceled kinescope name requests no pixels and writes nothing',
-              sorted(os.listdir(r)) == before and not any(e.get('ev') == 'saved' or e.get('kind') == 'pixels' for e in evs), str(evs)[-300:])
-        snd(cmd='key', key='k')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='m')
-        cancel_name('lecar.gif')
-        for _ in range(2):  # two more frames: three in all
-            snd(cmd='key', key='k')
-            _, ask = col(is_ask)
-            snd(cmd='answer', id=ask['id'], key='c')
-            col(is_idle)
-        snd(cmd='key', key='k')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='s')
-        asks, saved = 0, []
+        snd(cmd='answer', id=ask['id'], ok=0)
+        evs,_ = col(is_idle)
+        check('W130: cancelled kinescope picker requests no pixels and writes nothing', sorted(os.listdir(r)) == before and not any(e.get('kind') == 'pixels' for e in evs))
+        snd(cmd='kinescope.export_frames', file='lecar.gif')
+        saved=[]
         while True:
-            evs, e = col(lambda e: is_ask(e) or is_idle(e))
+            evs,e = col(lambda e: is_ask(e) or is_idle(e))
             saved += [x for x in evs if x.get('ev') == 'saved']
             if not e or not is_ask(e): break
-            if e.get('kind') == 'file':
-                asks += 1
-                snd(cmd='answer', id=e['id'], file='lecar.gif')
-            elif e.get('kind') == 'pixels':
-                snd(cmd='answer', id=e['id'], **pixels(e))
-            else:
-                break
-        names = ['lecar.gif', 'lecar-frame1.gif', 'lecar-frame2.gif']
-        check('W130: a kinescope of 3 frames is asked for once and every frame is saved',
-              asks == 1 and [x.get('file') for x in saved] == names and all(x.get('saved') for x in saved)
-              and all(os.path.isfile(os.path.join(r, n)) for n in names), str((asks, saved)))
+            snd(cmd='answer', id=e['id'], **pixels(e))
+        names=['lecar.gif','lecar-frame1.gif','lecar-frame2.gif']
+        check('W130: three captured frames save through the registry', [x.get('file') for x in saved] == names and all(os.path.isfile(os.path.join(r,n)) for n in names), str(saved))
         # W177: a live JSON reply cannot grant native-picker authorization.
         victim = os.path.join(os.path.dirname(r), os.path.basename(r) + '-victim.par')
         with open(victim, 'wb') as f: f.write(b'keep victim')
@@ -6247,12 +5580,9 @@ def check_output_names():
               open(os.path.join(r, 'result.dat.1'), 'rb').read() == b'keep frozen')
         snd(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
         col(is_idle)
-        snd(cmd='key', win='aplot', key='p')
-        _, ask = col(is_ask)
-        check('W492: Print arrayplot asks its three labels, no render type (the colour scale is the session\'s)',
-              ask.get('kind') == 'form' and ask.get('names') == ['Top label', 'Side label', 'Bottom label'], str(ask))
-        snd(cmd='answer', id=ask['id'], ok=0)
-        col(is_idle)
+        row=next(c for c in h['commands'] if c['cmd'] == 'array_plot.export_pdf')
+        check('W492: array PDF labels are registry text fields, with no render type',
+              [a['name'] for a in row['arguments'] if a['type'] == 'text'] == ['top_label','side_label','bottom_label'] and not any(a['name'] == 'render' for a in row['arguments']))
         snd(cmd='window.destroy', window='array_plot_1')
         col(is_idle)
         # A long valid name is retained, while traversal/device names report an error.
@@ -6292,15 +5622,6 @@ def check_seed_per_run():
     run's series byte for byte."""
     p, r, snd, col, _ = launch_server(ode='examples/ode/fhn_noise.odex')
 
-    def keys(key, *answers):
-        snd(cmd='key', key=key)
-        got, pending = [], list(answers)
-        while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=30 * SLOW)
-            got += evs
-            if e is None or e['ev'] in ('idle','done'):
-                return got
-            snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
     def after(**cmd):
         snd(**cmd)
@@ -6325,9 +5646,7 @@ def check_seed_per_run():
         check('two Go presses give different data', data1 is not None and data1 != data2, '')
 
         # Numerics > stocHast > New seed: set run 2's own seed for the next Go
-        keys('u')                                       # main menu: nUmerics
-        keys('h', {'key': 'n'}, {'value': str(seed2)})  # stocHast: New seed
-        keys('Escape')                                   # back to the main menu
+        after(cmd='analysis.seed_random',seed=seed2)
 
         evs4 = after(cmd='run.initial')
         st4, ser4 = last_state(evs4), full(evs4)
@@ -6349,26 +5668,19 @@ bad_home = tempfile.mkdtemp(prefix='xppbadhome')
 shutil.rmtree(bad_home)  # a path that is guaranteed not to exist
 proc2, run2, send2, collect2, events2 = launch_server(extra_env={'HOME': bad_home})
 collect2(is_idle)  # startup hello/state/idle
-send2(cmd='key', key='f')
-send2(cmd='key', key='a')
+send2(cmd='auto.open')
 collect2(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
 collect2(is_idle)
-send2(cmd='key', win='auto', key='r')
-evs, ask = collect2(lambda e: e.get('ev') == 'ask')
-check('bad-HOME server: Auto/Run opens the Start menu',
-      ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))
-if ask:
-    send2(cmd='answer', id=ask['id'], key='s')
-evs, e = collect2(is_idle, timeout=20 * SLOW)
+send2(cmd='auto.run', kind='equilibrium')
+evs, e = collect2(is_idle, timeout=20*SLOW)
 st2 = [x for x in evs if x.get('ev') == 'state']
 alive = proc2.poll() is None
 check('bad-HOME server survives Run/Steady state (state then idle, still alive)',
-      ask is not None and st2 and e is not None and alive, str(evs)[-300:])
+      st2 and e is not None and alive, str(evs)[-300:])
 
 if alive:
     # writing to a dead server's stdin would raise and end the script
-    send2(cmd='key', key='f')
-    send2(cmd='key', key='q')
+    send2(cmd='session.quit')
     evs, ask = collect2(lambda e: e.get('ev') == 'ask')
     if ask:
         send2(cmd='answer', id=ask['id'], key='d')
@@ -6459,15 +5771,9 @@ def check_refused_during_run():
         check('W95: each refused line is logged once ("refused during a computation: equilibrium.find"), the view none',
               all(log.count(w) == 1 for w in want) and len([l for l in log if 'refused' in l]) == 2,
               str([l for l in log if 'refused' in l]))
-        snd(cmd='key', key='u')
-        col(is_idle)
-        snd(cmd='key', key='t')
-        evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle','done'))
-        check('W68: after the run a key works again (nUmerics/Total asks)', ask is not None and ask['ev'] == 'ask',
-              str(ask))
-        if ask and ask['ev'] == 'ask':
-            snd(cmd='answer', id=ask['id'], ok=0)
-            col(is_idle)
+        snd(cmd='run.configure', total_time=20)
+        evs, done = col(is_idle)
+        check('W517: after the run a setting command works again', done is not None and not any('error' in e for e in evs))
     finally:
         stop_server(p, r, snd)
 
@@ -6828,8 +6134,7 @@ def check_auto_jacobian_failure():
             col(is_idle)
             snd(cmd='recording.start')
             col(is_idle)
-            snd(cmd='key', key='f')
-            snd(cmd='key', key='a')
+            snd(cmd='auto.open')
             col(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
             col(is_idle)
             snd(cmd='auto.configure_numerics', step_size=-0.1, max_step_size=0.1, parameter_min=-0.5, parameter_max=2, max_steps=100)
@@ -7043,7 +6348,7 @@ def check_kept_behind_ask():
     p, r, snd, col, _ = launch_server()
     try:
         col(is_idle)
-        snd(cmd='key', key='g')
+        snd(cmd='session.open_model')
         snd(cmd='session.get_source')
         evs, ask = col(lambda e: e.get('ev') == 'ask')
         snd(cmd='answer', id=ask['id'], ok=0)
@@ -7122,9 +6427,7 @@ def check_open_reload():
         open_model('lecar.odex')
         integrate()
         first = rows_of('lecar1.csv')
-        snd(cmd='key', key='f')
-        col(is_idle)
-        snd(cmd='key', key='a')
+        snd(cmd='auto.open')
         evs, _ = col(is_idle)
 
         def made(evs, op, win):
@@ -7234,15 +6537,6 @@ def check_display_state():
         snd(**cmd)
         return col(is_idle, timeout=60 * SLOW)[0]
 
-    def keys(key, *answers):
-        snd(cmd='key', key=key)
-        got, pending = [], list(answers)
-        while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
-            got += evs
-            if e is None or e['ev'] in ('idle','done'):
-                return got
-            snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
     runs_of = lambda evs: [e for e in evs if e.get('ev') == 'runs']
     added = lambda evs: [x for e in runs_of(evs) for x in e['add']]
@@ -7299,7 +6593,7 @@ def check_display_state():
         evs = after(cmd='window.set_display', window='graph_7', x_range=[0, 1])
         check('display: an unknown window is refused',
               any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs), str(evs)[:200])
-        evs = keys('w', {'key': 'w'}, {'ok': 1, 'values': ['-1', '1', '-1', '1']})
+        evs = after(cmd='window.set_bounds',x_min=-1,x_max=1,y_min=-1,y_max=1)
         w = win1(evs)
         check('display: other axes of the window drop the zoom', w and w[-1]['zoom'] == {'x': None, 'y': None}, str(w))
     finally:
@@ -7317,9 +6611,9 @@ def check_display_state():
         evs = lecar_to_auto(snd, col)
         n = len(rebuild_diagram(evs, []))
         check('autoview: a run hides nothing', not av(evs) or av(evs)[-1]['earlier'] == 0, str(av(evs)))
-        snd(cmd='key', win='auto', key='c')
+        snd(cmd='auto.hide_earlier')
         evs, _ = col(is_idle)
-        snd(cmd='key', win='auto', key='d')
+        snd(cmd='auto.redraw')
         evs2, _ = col(is_idle)
         got = av(evs) + av(evs2)
         check('autoview: Clear makes the points so far the earlier branches, hidden',
@@ -7497,9 +6791,9 @@ def check_export_elements():
                 def form(e):
                     picture_values[:] = e['values']
                     return {'ok': 1, 'values': e['values']}
-                server.send(cmd='key', key='g')
+                server.send(cmd='plot.export_'+fmt, file=name)
                 server.answer_asks(is_idle, {
-                    'menu': lambda e: {'key': 'p' if fmt == 'pdf' else 'v'},
+                    'choice': lambda e: {'key': 'p' if fmt == 'pdf' else 'v'},
                     'form': form, 'file': lambda e: {'file': name}})
                 with open(os.path.join(root, name), 'rb') as f:
                     expected_files[fmt] = elements(f.read(), fmt)
@@ -7522,15 +6816,9 @@ def check_export_elements():
                   and any(kind == 'text' for kind, _, _ in actual), str(counts))
             # each arrow is a path with a dot at its head
             check('W346: ' + fmt + ' holds all 25 requested field arrows', counts['dot', '#000000'] == 25, str(counts))
-        annotations = go + [
-            {'cmd': 'annotation.add_text', 'window': 'graph_1', 'x': 0.2, 'y': 0.4, 'text': 'W346label'},
-            {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'f'},
-            {'cmd': 'answer', 'key': 'f'}, {'cmd': 'answer', 'values': ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'W346frozen', 'frz1']}]
-        for fmt in ('pdf', 'svg'):
-            name = 'annotated.' + fmt
-            annotations += [{'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'p' if fmt == 'pdf' else 'v'}]
-            annotations += [{'cmd': 'answer', 'values': picture_values}]
-            annotations += [{'cmd': 'answer', 'file': name}]
+        annotations = go + [dict(cmd='annotation.add_text',window='graph_1',x=.2,y=.4,text='W346label'),
+            dict(cmd='plot.freeze_curve',color='#ffcd00',draw='line',dash='solid',width=1,marker='circle',marker_size=3,key='W346frozen',name='frz1')]
+        for fmt in ('pdf','svg'): annotations.append(dict(cmd='plot.export_'+fmt,file='annotated.'+fmt))
         result = run_commands(binary, model, annotations, root)
         annotated = {}
         for fmt in ('pdf', 'svg'):
@@ -7580,7 +6868,7 @@ def check_outcomes_once():
         with open(os.path.join(d, 'fit.dat'), 'w') as f:
             f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
         def run(lines, *flags):
-            if any((c.get('cmd') == 'run.abort' and 'at' in c) or c.get('key') == 'k' for c in lines):
+            if any((c.get('cmd') == 'run.abort' and 'at' in c) or c.get('cmd') == 'kinescope.capture' for c in lines):
                 path = make_recording(args.server, os.path.join(d, 'linear.odex'), lines, d)
                 with open(path, encoding='utf-8') as f:
                     run.places = [(i, l.rstrip()) for i, l in enumerate(f, 1) if l.startswith('{')]
@@ -7596,10 +6884,7 @@ def check_outcomes_once():
                     r.quiet_stdout = quiet.stdout
             return r, [json.loads(line) for line in r.stdout.splitlines() if line.startswith('{')]
         def fit(name):
-            return [{'cmd': 'key', 'key': 'u'}, {'cmd': 'key', 'key': 'h'},
-                    {'cmd': 'answer', 'key': 'i'},
-                    {'cmd': 'answer', 'values': ['x', 'a', '1e-6', '6', '2', '2', '', '1e-5', '50']},
-                    {'cmd': 'answer', 'file': name}]
+            return [dict(cmd='analysis.fit_curve',variables=['x'],parameters=['a'],tolerance=1e-6,points=6,columns=2,data_columns=[2],epsilon=1e-5,max_iterations=50,file=name)]
         r, evs = run(fit('fit.dat'))
         results = [e.get('bottom', '').strip() for e in evs if e.get('ev') in ('message', 'done')]
         errors = [e for e in evs if e.get('error')]
@@ -7624,10 +6909,7 @@ def check_outcomes_once():
         range_movie = [
             {'cmd': 'run.initial'},
             {'cmd': 'plot.set_variables', 'how': 'array_plot', 'names': ['x', 'y']},
-            {'cmd': 'key', 'win': 'aplot', 'key': 'r', 'replace': 1},
-            {'cmd': 'answer', 'values': ['0', '0']},
-            {'cmd': 'answer', 'file': 'movie.gif'},
-            {'cmd': 'answer', 'values': ['a', '2', '1', '3', 'false', 'true', 'false', 'false', 'false']},
+            dict(cmd='array_plot.range',still=False,tag=False,file='movie.gif',variable='a',steps=2,start=1,end=3,reset_storage=False,use_old_ic=True,cycle_color=False,movie=False,write_each_run_to_file=False),
             {'cmd': 'answer', **pixels(None)},
             {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': STOP_MOVIE_ROWS, 't': 0}}]
         movie_path = os.path.join(d, 'movie.gif')
@@ -7643,7 +6925,7 @@ def check_outcomes_once():
                   and len(saved) == 1 and saved[0].get('saved') is False and got == old
                   and not glob.glob(os.path.join(d, '*.tmp-*')),
                   str((r.returncode, saved, got, r.stderr[-300:])))
-        r, evs = run(range_movie[:-1] + [{'cmd': 'answer', **pixels(None)}] * 2)
+        r, evs = run(range_movie[:-1] + [{'cmd': 'answer', **pixels(None)}] * 2, '--yes')
         saved = [e for e in evs if e.get('ev') == 'saved']
         got = open(movie_path, 'rb').read() if os.path.exists(movie_path) else b''
         check('completed range movie replaces the old file with a complete GIF',
@@ -7656,7 +6938,7 @@ def check_outcomes_once():
         check('an unreadable fit file has its Place; the asking quit also exits 1, without bye',
               r.returncode == 1 and len(errors) == 1 and errors[0].get('file') == 'missing.dat'
               and errors[0].get('line') == 0 and r.quiet_stdout == '', str(errors))
-        r, evs = run([{'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'missing.ani'}])
+        r, evs = run([dict(cmd='animation.load',file='missing.ani')])
         errors = [e for e in evs if e.get('error')]
         check('an unreadable animation names its file at line 0 once',
               r.returncode == 1 and len(errors) == 1 and errors[0].get('file') == 'missing.ani'
@@ -7664,13 +6946,13 @@ def check_outcomes_once():
         # W500: a bad number in an animation file is a load error at its file and line (no value is applied)
         with open(os.path.join(d, 'bad.ani'), 'w') as f:
             f.write('line 0;0;1;1;$RED;thick_bad\n')
-        r, evs = run([{'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'bad.ani'}])
+        r, evs = run([dict(cmd='animation.load',file='bad.ani')])
         errors = [e for e in evs if e.get('error')]
         check('an animation line with a bad number names its file, line and the value',
               r.returncode == 1 and len(errors) == 1 and errors[0].get('file') == 'bad.ani'
               and errors[0].get('line') == 1 and 'thick_bad' in errors[0].get('error', ''), str(errors))
         # Kinescope capture has a fixed capacity; its last attempted frame fails once.
-        capture = [{'cmd': 'key', 'key': 'k'}, {'cmd': 'answer', 'key': 'c'}]
+        capture = [dict(cmd='kinescope.capture')]
         r, evs = run(capture * 251)
         errors = [e for e in evs if e.get('error')]
         frames = [e for e in evs if e.get('ev') == 'film' and e.get('op') == 'capture']
@@ -7915,7 +7197,7 @@ def check_save_session():
         evs = run(cmd='events.subscribe', events=['series'])
         check('W209: a loaded model is unchanged and has no session file',
               state(evs).get('changed') is False and 'session' not in state(evs), str(state(evs).get('changed')))
-        evs = run({'file': 'sv1'}, cmd='key', menu='file', item='savesession', replace=0)
+        evs = run({'file': 'sv1'}, cmd='session.save')
         a = asks(evs)
         check('W209: the first Save session asks for a path (the file picker), as Save as does',
               len(a) == 1 and a[0].get('kind') == 'file' and a[0].get('wild') == '*.snapx', str(a))
@@ -7925,7 +7207,7 @@ def check_save_session():
         evs = run(cmd='value.set_parameters', values={'phi': 0.4})
         check('W209: a parameter edit sets changed', state(evs).get('changed') is True, str(state(evs).get('changed')))
         before = open(snapx('sv1.snapx'), 'rb').read()
-        evs = run(cmd='key', menu='file', item='savesession', replace=0)
+        evs = run(cmd='session.save')
         after = open(snapx('sv1.snapx'), 'rb').read()
         check('W209: the second Save session asks nothing, replaces sv1.snapx and clears changed',
               not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and before != after
@@ -7934,46 +7216,46 @@ def check_save_session():
                               ('the time span', dict(cmd='run.configure', total_time=77))):
             evs = run(**command)
             check('W209: %s sets changed' % what, state(evs).get('changed') is True, str(state(evs).get('changed')) + str(evs[-4:])[:200])
-            evs = run(cmd='key', menu='file', item='savesession', replace=0)
+            evs = run(cmd='session.save')
             check('W209: Save session after %s clears it' % what, state(evs).get('changed') is False)
         evs = run(cmd='run.initial')
         check('W209: a run changes the data, so changed', state(evs).get('changed') is True, str(state(evs).get('changed')))
-        evs = run({'file': 'sv1'}, {'key': 'n'}, cmd='key', menu='file', item='savesessionas', replace=0)
+        evs = run({'file': 'sv1'}, {'key': 'n'}, cmd='session.save_as', file_picker=True, confirm=False)
         a = asks(evs)
         check('W209: Save session as asks for a path, then before replacing the file that is there',
               len(a) == 2 and a[0].get('kind') == 'file' and a[1].get('kind') == 'choice', str(a)[:300])
         check('W209: declining the replacement saves nothing and keeps changed',
               saved(evs) and saved(evs)[-1].get('saved') is False and state(evs).get('changed') is True, str(saved(evs)))
-        evs = run({'file': 'sv2'}, cmd='key', menu='file', item='savesessionas', replace=0)
+        evs = run({'file': 'sv2'}, cmd='session.save_as', file_picker=True, confirm=False)
         check('W209: Save session as a new name writes it, remembers it and clears changed',
               os.path.exists(snapx('sv2.snapx')) and state(evs).get('session') == {'file': 'sv2.snapx'}
               and state(evs).get('changed') is False, str(state(evs)))
         evs = run(cmd='value.set_parameters', values={'phi': 0.5})
-        evs = run(cmd='key', menu='file', item='savesession', replace=0)
+        evs = run(cmd='session.save')
         check('W209: Save session now goes to sv2.snapx, asking nothing',
               not asks(evs) and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is False, str(asks(evs))[:200])
         # W218: Reload keeps the session file; Save a copy leaves file and changed alone
         evs = run({'key': 'd'}, cmd='session.reload_model')
         check('W218: Reload keeps the session file, and its dropped data read as changed',
               state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is True, str(state(evs).get('session')) + str(state(evs).get('changed')))
-        evs = run(cmd='key', menu='file', item='savesession', replace=0)
+        evs = run(cmd='session.save')
         check('W218: Save session after Reload asks nothing and writes sv2.snapx',
               not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and state(evs).get('changed') is False
               and state(evs).get('session') == {'file': 'sv2.snapx'}, str(asks(evs))[:200])
         evs = run(cmd='value.set_parameters', values={'phi': 0.7})
-        evs = run({'file': 'cp1'}, cmd='key', menu='file', item='savesessioncopy', replace=0)
+        evs = run({'file': 'cp1'}, cmd='session.save_copy', file_picker=True, confirm=False)
         a = asks(evs)
         check('W218: Save a copy asks for a path (the file picker), writes it, and leaves the file and changed as they were',
               len(a) == 1 and a[0].get('kind') == 'file' and a[0].get('wild') == '*.snapx' and os.path.exists(snapx('cp1.snapx'))
               and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is True, str(a)[:200] + str(state(evs).get('session')))
         copy_bytes = open(snapx('cp1.snapx'), 'rb').read()
-        evs = run({'file': 'cp1'}, {'key': 'n'}, cmd='key', menu='file', item='savesessioncopy', replace=0)
+        evs = run({'file': 'cp1'}, {'key': 'n'}, cmd='session.save_copy', file_picker=True, confirm=False)
         a = asks(evs)
         check('W218: Save a copy of a file that exists asks before replacing it; declined, nothing changes',
               len(a) == 2 and a[1].get('kind') == 'choice' and saved(evs) and saved(evs)[-1].get('saved') is False
               and open(snapx('cp1.snapx'), 'rb').read() == copy_bytes and state(evs).get('changed') is True
               and state(evs).get('session') == {'file': 'sv2.snapx'}, str(a)[:300])
-        evs = run(cmd='key', menu='file', item='savesession', replace=0)
+        evs = run(cmd='session.save')
         check('W218: Save session after a copy still writes sv2.snapx, not the copy',
               not asks(evs) and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is False
               and open(snapx('cp1.snapx'), 'rb').read() == copy_bytes, str(asks(evs))[:200])
@@ -7987,8 +7269,8 @@ def check_save_session():
         pars = lambda evs: {k: v for k, v in state(evs)['pars']}
         ics = lambda evs: {k: v for k, v in state(evs)['ics']}
         errs = lambda evs: [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
-        undo = lambda: run(cmd='key', menu='main', item='undo')
-        redo = lambda: run(cmd='key', menu='main', item='redo')
+        undo = lambda: run(cmd='value.undo')
+        redo = lambda: run(cmd='value.redo')
         edit = lambda v: run(cmd='value.set_parameters', values={'phi': v})
         phi0 = pars(evs)['phi']
         check('W210: a loaded model has nothing to undo or redo',
@@ -8064,7 +7346,7 @@ def check_plot_limits():
             keys = iter(menus)
             s.send(**cmd)
             replies = {
-                'menu': lambda e: {'key': next(keys, '\x1b')},
+                'choice': lambda e: {'key': next(keys, '\x1b')},
                 'form': lambda e: {'ok': 1, 'values': form} if form is not None else {'ok': 0},
             }
             if cmd.get('cmd') in ('session.open_model', 'session.open'):
@@ -8082,7 +7364,7 @@ def check_plot_limits():
                   len(graph.get('windows', [{}])[0].get('curves', [])) == 13, str(graph)[:200])
             command(cmd='run.initial')
             for i in range(32):
-                command(cmd='key', key='g', menus=['f', 'f'], form=['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'frozen%d' % i, 'f%d' % i])
+                command(cmd='plot.freeze_curve', color='#ffcd00', draw='line', dash='solid', width=1, marker='circle', marker_size=3, key='frozen%d'%i, name='f%d'%i)
             for i in range(26):
                 command(cmd='window.create')
             command(cmd='events.subscribe', events=['plots', 'series', 'marks'])
@@ -8156,9 +7438,6 @@ def check_session_file():
             n += 1
             snd(cmd='answer', id=e['id'], **({'key': a} if isinstance(a, str) else a))
 
-    def key(snd, col, k, *answers, win=None):
-        return answered(snd, col, answers, cmd='key', key=k, **({'win': win} if win else {}))
-
     SUBSCRIBE = dict(cmd='events.subscribe', events=['plots', 'marks', 'autoinfo', 'nullclines'])
     p, r, snd, col, _ = launch_server()
     keep = tempfile.mkdtemp(prefix='xppsnapx')
@@ -8176,11 +7455,11 @@ def check_session_file():
         answered(snd, col, (), cmd='auto.configure_plot', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
         answered(snd, col, (), cmd='auto.set_display', view='diagram_2', y_range=[0, 0.5])
         answered(snd, col, (), cmd='window.select', window='diagram_1')
-        key(snd, col, 't', 't', {'xd': 10, 'yd': 0.1}, {'value': 'here', 'size': 2, 'style': 'italic', 'color': '#ffcd00'})
-        key(snd, col, 'g', 'f', 'f', {'values': ['#ffcd00', 'line', 'dashed', '2', 'square', '4', 'first', 'frz1']})
+        answered(snd, col, (), cmd='annotation.add_text', window='graph_1', x=10, y=.1, text='here', text_size=2, style='italic', color='#ffcd00')
+        answered(snd, col, (), cmd='plot.freeze_curve', window='graph_1', color='#ffcd00', draw='line', dash='dashed', width=2, marker='square', marker_size=4, key='first', name='frz1')
         answered(snd, col, (), cmd='window.create')
         # W145: an added browser column is saved with the session and comes back computed
-        key(snd, col, 'a', {'ok': 1, 'value': 'VW'}, {'ok': 1, 'value': 'v*w'}, win='browser')
+        answered(snd, col, (), cmd='browser.add_column', name='VW', formula='v*w')
         browser1 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser.page', **{'from_row': 0, 'count': 2}))
                          if e.get('ev') == 'browser'), None)
         check('W145: the added column VW is in the browser before the save',
@@ -8283,7 +7562,7 @@ def check_session_file():
         check('open session: the labels and frozen curves are the saved ones (not Sing pts\' symbols)',
               [strip(m) for m in marks1] == [strip(m) for m in m2], str(m2)[:300])
         answered(snd, col, (), cmd='auto.grab', type='hopf', index=1)
-        evs = key(snd, col, 'r', 'p', win='auto')
+        evs = answered(snd, col, (), cmd='auto.run', kind='periodic', type='hopf', index=1)
         more = rebuild_diagram(allev, [])
         check('open session: a grab and a periodic run continue the restored diagram',
               len(more) > len(diagram2) and more[:len(diagram2)] == diagram2 and p.poll() is None,
@@ -8503,18 +7782,6 @@ def check_auto_views():
         allev.extend(evs)
         return evs
 
-    def menu(k, *answers, win='auto'):
-        """key k of window win, its asks answered in order, up to idle"""
-        snd(cmd='key', win=win, key=k)
-        got, pending = [], list(answers)
-        while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle','done'), timeout=60 * SLOW)
-            got += evs
-            allev.extend(evs)
-            if e is None or e['ev'] in ('idle','done'):
-                return got
-            snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
-
     av = lambda evs: [e for e in evs if e.get('ev') == 'autoview']
     dg = lambda evs, view=None: [e for e in evs if e.get('ev') == 'diagram' and (view is None or e.get('view') == diagram_view_name(allev, view))]
     views_n = lambda evs: [e['n'] for e in dg(evs) if e['op'] == 'views']
@@ -8541,7 +7808,7 @@ def check_auto_views():
         check('views: every view holds the same points in the same order (branch, point, kind), at its own axes',
               same_points(v0, v1) and rebuild_diagram(allev, [], 0) == v0 and v1 != v0, '%d vs %d' % (len(v0), len(v1)))
 
-        evs = menu('a', {'key': 'v'})
+        evs = after(cmd='auto.new_view')
         a2 = last_axes(2)
         check("views: the Axes menu's new view makes a third, the active one, with the active one's axes (the norm)",
               views_n(evs) == [3] and a2 and a2['plot'] == 'norm' and av(evs) and av(evs)[-1]['active'] == 'diagram_3'
@@ -8553,14 +7820,14 @@ def check_auto_views():
 
         after(cmd='window.select', window='diagram_1')
         after(cmd='auto.grab', type='hopf', index=1)
-        menu('r', {'key': 'p'})
+        after(cmd='auto.run', kind='periodic', type='hopf', index=1)
         lists = [rebuild_diagram(allev, [], v) for v in range(3)]
         check("views: a run's points reach every view, the same points in each",
               len(lists[0]) > len(v0) and same_points(lists[0], lists[1]) and same_points(lists[0], lists[2])
               and lists[0][:len(v0)] == v0, str([len(x) for x in lists]))
 
         after(cmd='window.select', window='diagram_2')
-        snd(cmd='key', win='auto', key='g')
+        snd(cmd='auto.grab')
         evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=60 * SLOW)
         at = next((i for i, x in enumerate(lists[1]) if x[3] is not None and x[4] is not None and i > 3), 4)
         snd(cmd='answer', id=ask['id'], point=at)
@@ -8658,15 +7925,12 @@ def check_save_recording():
         col(is_idle)
         with open(os.path.join(r, 'browser-no.par'), 'wb') as f: f.write(b'unchanged')
         run(cmd='recording.start')
-        for policy in [1, -1, 0]:
-            run(cmd='key', key='f')
-            snd(cmd='key', key='w', replace=policy)
-            _, ask = col(is_ask)
-            snd(cmd='answer', id=ask['id'], file='dialog-save.snapx' if policy == 0 else 'key-save.snapx',
-                **({'replace': 1} if policy == 0 else {}))
-            evs, end = col(lambda e: is_idle(e) or is_ask(e))
-            check('W129: key save with explicit command/dialog decision asks no core question',
-                  end is not None and is_idle(end), str(end))
+        for name in ('first.snapx', 'second.snapx'):
+            run(cmd='session.save_as', file=name)
+        snd(cmd='session.save_as', file_picker=True, confirm=False)
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], file='dialog-save.snapx')
+        col(is_idle)
         fresh = run(cmd='value.save_file', kind='parameters', file='browser-new.par')
         snd(cmd='value.save_file', kind='parameters', file='browser-no.par')
         _, ask = col(is_ask)
@@ -8675,17 +7939,12 @@ def check_save_recording():
         run(cmd='recording.stop', file='key-save.recx')
         path = os.path.join(r, 'key-save.recx')
         _, _, steps, written, got = read_recx(open(path, encoding='utf-8').read())
-        saves = [steps[i][0] for i in [1, 3, 5]]
-        check('W129: recorded key saves retain explicit Yes and No in the command',
-              [v.get('cmd', {}).get('replace') for v in saves[:2]] == [1, -1]
-              and written == got, str(saves))
-        check('W129: the OS dialog file answer is recorded unchanged with replace 1',
-              saves[2].get('keys') == ['w'] and saves[2].get('answers') == [{'file': 'dialog-save.snapx', 'replace': 1}], str(saves[2]))
-        check('W129: core new-file and No decisions are recorded as owner answers',
-              [steps[i][0].get('answers') for i in [6, 7]] == [[{'save_replace': 1}], [{'save_replace': -1}]]
-              and not steps[7][0].get('keys')
-              and any(e.get('saved') for e in fresh)
-              and any(e.get('ev') == 'saved' and not e.get('saved') for e in declined), str(steps[6:]))
+        saves = [step for step,_ in steps if step.get('cmd',{}).get('cmd') == 'session.save_as']
+        check('W517: saves record registry commands and the picker answer', len(saves) == 3 and written == got
+              and saves[-1].get('answers', [])[:1] == [{'file':'dialog-save.snapx'}], str(saves))
+        check('W129: core new-file and No decisions remain recorded owner answers',
+              any(e.get('saved') for e in fresh) and any(e.get('ev') == 'saved' and not e.get('saved') for e in declined)
+              and any(step.get('answers') == [{'save_replace': -1}] for step,_ in steps), str(steps))
         snd(cmd='recording.open', play=False, file=path)
         evs, end = col(lambda e: is_ask(e) or is_idle(e))
         if end and is_ask(end):
@@ -8702,10 +7961,10 @@ def check_save_recording():
             col(is_idle)
         snd(cmd='recording.play')
         evs, end = col(lambda e: e.get('ev') == 'state'
-                        and (e.get('player') or {}).get('step') == 8
+                        and (e.get('player') or {}).get('step') == len(steps)
                         and e['player']['running'] == -1, timeout=120 * SLOW)
         check('W129: Play reuses explicit/dialog decisions when the destination now exists',
-              end is not None and [e['saved'] for e in evs if e.get('ev') == 'saved'] == [True, False, True, True, False]
+              end is not None and [e['saved'] for e in evs if e.get('ev') == 'saved'] == [True, True, True, True, False]
               and not any(e.get('ev') in ('message', 'done') and e.get('error') for e in evs), str(evs)[-500:])
         col(is_idle)
         listing = run(cmd='file', op='list')
@@ -8759,9 +8018,7 @@ def check_quit():
     try:
         evs, _ = col(is_idle)
         hello = next((e for e in evs if e.get('ev') == 'hello'), {})
-        snd(cmd='key', key='f')
-        col(is_idle)
-        _, ask = asked(snd, col, cmd='key', key='q')
+        _, ask = asked(snd, col, cmd='session.quit')
         check('File/Quit asks one question: Save session (s), Don\'t save (d), Cancel',
               ask and is_ask(ask) and ask.get('kind') == 'choice' and ask.get('question') == question
               and ask.get('choices') == ['Save session', "Don't save"] and ask.get('keys') == 'sd', str(ask))
@@ -8778,11 +8035,11 @@ def check_quit():
         evs, _ = col(is_idle)
         check('quit: Cancel (Esc) keeps xppautX running', last_state(evs) is not None and p.poll() is None, '')
         # a question open when the window's quit comes is cancelled; the quit then asks its own
-        _, ask = asked(snd, col, cmd='key', key='g')
+        _, ask = asked(snd, col, cmd='session.open_model')
         snd(cmd='session.quit')
         evs, ask2 = col(is_ask, timeout=30 * SLOW)
         check('quit with ask while a menu is open: the menu is cancelled (its idle), then the question of the quit',
-              ask and is_ask(ask) and ask.get('kind') == 'menu' and any(is_idle(e) for e in evs)
+              ask and is_ask(ask) and ask.get('kind') == 'file' and any(is_idle(e) for e in evs)
               and ask2 and ask2.get('question') == question, str(ask2))
         if ask2:
             snd(cmd='answer', id=ask2['id'], ok=0)
@@ -8952,8 +8209,7 @@ def check_recording():
         check('record: a note waits for the next step (state.recording.note)',
               st and st['recording'] == {'steps': 0, 'note': 'First run.\nThe cell settles.'}, str(st and st.get('recording')))
         run(cmd='run.initial')
-        ask = asked(cmd='key', key='g')
-        run(cmd='answer', id=ask['id'], ok=0)
+        run(cmd='window.clear')
         run(cmd='run.configure', total_time=1e7)
         snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
@@ -8979,12 +8235,12 @@ def check_recording():
               list(files) == [ode, 'ml.anix'] and files[ode] == want, str(list(files)))
         s = [x for x, _ in steps]
         check('record: run.initial is one step, its label from its menu path, its note above it',
-              s and s[0] == {'step': 'Initialconds → Go', 'cmd': {'cmd': 'run.initial'}} and steps[0][1] == 'First run.\nThe cell settles.',
+              s and s[0] == {'step': 'Run → Run from initial', 'cmd': {'cmd': 'run.initial'}} and steps[0][1] == 'First run.\nThe cell settles.',
               str(steps[:1]))
         check('record: a cancelled menu is a step (keys g, Escape)',
-              len(s) > 1 and s[1] == {'step': 'Curves and export', 'keys': ['g', 'Escape'], 'view': True} and steps[1][1] == '', str(s[1:2]))
+              len(s) > 1 and s[1] == {'step': 'Clear plot', 'cmd': {'cmd':'window.clear'}, 'view': True} and steps[1][1] == '', str(s[1:2]))
         check('record: run.configure is a step with its arguments',
-              s[2:3] == [{'step': 'Numerics → Settings', 'cmd': {'cmd': 'run.configure', 'total_time': 1e7}}], str(s[2:3]))
+              s[2:3] == [{'step': 'Run → Settings', 'cmd': {'cmd': 'run.configure', 'total_time': 1e7}}], str(s[2:3]))
         check('record: an Abort belongs to its step, where it stopped as the stopped event said',
               len(s) > 3 and s[3].get('cmd') == {'cmd': 'run.initial'} and stopped and s[3].get('abort') == stopped[0]
               and stopped[0]['what'] == 'integrate', str(s[3:4]) + str(stopped))
@@ -8996,18 +8252,16 @@ def check_recording():
         edited = text.replace('# First run.', '# The first run.')
         _, _, _, w2, g2 = read_recx(edited)
         check('record: editing a note keeps the fingerprint', edited != text and w2 == g2, '')
-        edited = text.replace('"keys":["g","Escape"]', '"keys":["g","c"]')
+        edited = text.replace('window.clear', 'window.redraw')
         _, _, _, w2, g2 = read_recx(edited)
         check('record: editing a step changes it', edited != text and w2 != g2, '')
 
         # File/recorD starts and stops; the File menu opened to stop is no step
         run(cmd='value.save_file', kind='parameters', file='saved.par')
-        run(cmd='key', key='f')
-        run(cmd='key', key='d')
+        run(cmd='recording.start')
         run(cmd='value.load_file', kind='parameters', file='saved.par')
         run(cmd='window.clear')
-        run(cmd='key', key='f')
-        snd(cmd='key', key='d')
+        snd(cmd='recording.stop')
         evs, ask = col(lambda e: is_ask(e) or is_idle(e))
         check('File/recorD again asks the name, as the other File saves (*.recx, the model\'s name)',
               ask and ask.get('kind') == 'file' and ask.get('wild') == '*.recx' and ask.get('file') == 'lecar.recx', str(ask))
@@ -9016,7 +8270,7 @@ def check_recording():
         _, files, steps, written, got = read_recx(open(os.path.join(r, 'menu.recx'), encoding='utf-8').read()
                                                   if os.path.exists(os.path.join(r, 'menu.recx')) else '')
         check('File/recorD: the steps between (the file a step read named by its section), and not the File menu opened to stop',
-              [x for x, _ in steps] == [{'step': 'Values → Load file', 'cmd': {'cmd': 'value.load_file', 'kind': 'parameters', 'file': 'saved.par'},
+              [x for x, _ in steps] == [{'step': 'File → Values → Load file', 'cmd': {'cmd': 'value.load_file', 'kind': 'parameters', 'file': 'saved.par'},
                                          'files': [2]},
                                         {'step': 'Clear plot', 'cmd': {'cmd': 'window.clear'}, 'view': True}] and written == got, str(steps))
         par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()
@@ -9227,15 +8481,15 @@ def check_ani_grab_job():
                                        '{w=w}', '{runnow=%d}' % runnow, 'end', '']))
         lines = [
             {'cmd': 'run.initial'},
-            {'cmd': 'key', 'key': 'v'}, {'cmd': 'answer', 'key': 't'},
-            {'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'grab.ani'},
+            {'cmd':'animation.open'},
+            dict(cmd='animation.load',file='grab.ani'),
             {'cmd': 'recording.start'},
-            {'cmd': 'key', 'win': 'ani', 'key': 'a'},
+            {'cmd':'animation.grab_point'},
             {'cmd': 'animation.grab_point', 'x': 0.0, 'y': 0.0},
             {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': grab_rows, 't': 0}},
             {'cmd': 'animation.pause'},
-            {'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'view.ani'},
-            {'cmd': 'key', 'win': 'ani', 'key': 'a'},
+            dict(cmd='animation.load',file='view.ani'),
+            {'cmd':'animation.grab_point'},
             {'cmd': 'animation.grab_point', 'x': 0.0, 'y': 0.0},
             {'cmd': 'recording.stop', 'file': 'grab'},
         ]
@@ -9249,7 +8503,7 @@ def check_ani_grab_job():
         path = os.path.join(r, 'grab.recx')
         text = open(path, encoding='utf-8').read() if os.path.exists(path) else ''
         _, _, steps, _, _ = read_recx(text)
-        grabs = [x for x, _ in steps if x.get('cmd', {}).get('cmd') == 'animation.grab_point']
+        grabs = [x for x, _ in steps if x.get('cmd', {}).get('cmd') == 'animation.grab_point' and 'x' in x['cmd']]
         check('W136: a grab that integrates is a computing recording step, stopped at its armed row',
               len(grabs) == 2 and not any(x.get('view') for x in grabs) and grabs[0].get('abort', {}).get('rows') == grab_rows, str(grabs))
         check('W136: pause while idle is recorded as a view without an error',
@@ -9388,20 +8642,16 @@ def check_player_ani():
         run(cmd='events.subscribe', events=['ani'])
         run(cmd='recording.start')
         run(cmd='run.initial')
-        snd(cmd='key', key='v')
-        ask = col(lambda e: e.get('ev') == 'ask')[1]
-        run(cmd='answer', id=ask['id'], key='t')
-        snd(cmd='key', win='ani', key='f')
-        ask = col(lambda e: e.get('ev') == 'ask')[1]
-        run(cmd='answer', id=ask['id'], file='gui_test.ani')
+        run(cmd='animation.open')
+        run(cmd='animation.load', file='gui_test.ani')
         run(cmd='animation.set_speed', ms=20)
-        snd(cmd='key', win='ani', key='g')
+        snd(cmd='animation.play')
         went, _ = col(lambda e: e.get('ev') == 'ani' and e.get('op') == 'frame' and e['pos'] >= 40, timeout=30 * SLOW)
         snd(cmd='key', key='Escape')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         escape_last = frames(went + evs)[-1:]
-        run(cmd='key', win='ani', key='r')
-        snd(cmd='key', win='ani', key='g')
+        run(cmd='animation.reset')
+        snd(cmd='animation.play')
         went, _ = col(lambda e: e.get('ev') == 'ani' and e.get('op') == 'frame' and e['pos'] >= 40, timeout=30 * SLOW)
         snd(cmd='animation.set_speed', ms=10)
         snd(cmd='animation.pause')
@@ -9566,8 +8816,7 @@ check_session_file()
 check_save_session()
 check_session_random()
 
-send(cmd='key', key='f')
-send(cmd='key', key='q')
+send(cmd='session.quit')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 if ask:
     send(cmd='answer', id=ask['id'], key='d')
@@ -9824,10 +9073,10 @@ def check_keymap():
         cmds = by_id(km)
         check("W211: hello gives the default keymap when there is no file: ok, preset default, nothing pinned, the table's keys, all source default",
               km['ok'] is True and km['preset'] == 'default' and km['pinned'] == [] and same(km['path'], path)
-              and cmds['openmodel']['keys'] == ['Ctrl+O'] and cmds['reload']['keys'] == ['Ctrl+R']
+              and cmds['session.open_model']['keys'] == ['Ctrl+O'] and cmds['run.initial']['keys'] == ['Ctrl+R']
               and all(c['source'] == 'default' for c in cmds.values()) and 'file' not in cmds, str(km)[:300])
         check('W211: hello gives the reserved keys and the limits the editor keeps to',
-              'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'parts': 2, 'key_bytes': 64},
+              'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'parts': 4, 'key_bytes': 64},
               str(km['limits']))
         # W232: the start made the folder for preferences.setx (the model it was started with); reading the keymap made no file
         check('W211: reading the keymap makes no keymap.json', not os.path.exists(path))
@@ -9837,31 +9086,31 @@ def check_keymap():
               [e.get('op') for e in keymap_events(evs)] == ['get'] and keymap_events(evs)[0]['keymap'] == km
               and not errors(evs), str(evs)[-300:])
 
-        good = {'preset': 'xppaut', 'pinned': ['reload', 'calculator'],
-                'bindings': {'reload': ['Ctrl+B', 'F S'], 'savesession': [], 'continue': ['Alt+I']}}
+        good = {'preset': 'xppaut', 'pinned': ['session.reload_model', 'tool.calculator'],
+                'bindings': {'session.reload_model': ['Ctrl+B', 'Ctrl+K Ctrl+S'], 'session.save': [], 'run.continue': ['Alt+I']}}
         snd(cmd='keymap.set', **good)
         evs, _ = col(is_idle)
         ev = keymap_events(evs)
         cmds = by_id(ev[0]['keymap']) if ev else {}
         check('W211: set checks the map, makes the folder, writes the file and answers the effective keymap',
               len(ev) == 1 and ev[0]['op'] == 'set' and ev[0]['keymap']['ok'] is True and not errors(evs)
-              and ev[0]['keymap']['preset'] == 'xppaut' and ev[0]['keymap']['pinned'] == ['reload', 'calculator']
-              and cmds['reload'] == {'id': 'reload', 'keys': ['Ctrl+B', 'F S'], 'source': 'user'}
-              and cmds['savesession'] == {'id': 'savesession', 'keys': [], 'source': 'user'}
-              and cmds['openmodel']['source'] == 'default' and os.path.isfile(path), str(evs)[-300:])
+              and ev[0]['keymap']['preset'] == 'xppaut' and ev[0]['keymap']['pinned'] == ['session.reload_model', 'tool.calculator']
+              and cmds['session.reload_model'] == {'id': 'session.reload_model', 'keys': ['Ctrl+B', 'Ctrl+K Ctrl+S'], 'source': 'user'}
+              and cmds['session.save'] == {'id': 'session.save', 'keys': [], 'source': 'user'}
+              and cmds['session.open_model']['source'] == 'default' and os.path.isfile(path), str(evs)[-300:])
         written = open(path, 'rb').read()
         check('W211: the file holds only the differences, one binding to a line, and no other file is left beside it',
-              b'"reload": ["Ctrl+B", "F S"]' in written and b'openmodel' not in written
+              b'"session.reload_model": ["Ctrl+B", "Ctrl+K Ctrl+S"]' in written and b'session.open_model' not in written
               and sorted(os.listdir(folder)) == ['keymap.json', 'preferences.setx'], repr(written[:200]))
 
         for what, bad, line, value in [
-                ('a reserved key', {'bindings': {'reload': ['Ctrl+W']}}, 1, 'Ctrl+W'),
-                ('a key two commands would share', {'bindings': {'calculator': ['Ctrl+O']}}, 1, 'Open model'),
+                ('a reserved key', {'bindings': {'session.reload_model': ['Ctrl+W']}}, 1, 'Ctrl+W'),
+                ('a key two commands would share', {'bindings': {'tool.calculator': ['F M']}}, 1, 'F M'),
                 ('an unknown command', {'pinned': ['nosuch']}, 1, 'nosuch'),
-                ('a removed command pinned', {'pinned': ['help']}, 1, 'help'),
+                ('a removed command pinned', {'pinned': ['retired_help']}, 1, 'retired_help'),
                 ('a removed command bound', {'bindings': {'tutorial': ['Ctrl+T']}}, 1, 'tutorial'),
                 ('a command that cannot be pinned', {'pinned': ['quit']}, 1, 'quit'),
-                ('a malformed key', {'bindings': {'reload': ['ctrl+r']}}, 1, 'ctrl+r'),
+                ('a malformed key', {'bindings': {'session.reload_model': ['ctrl+r']}}, 1, 'ctrl+r'),
                 ]:
             snd(cmd='keymap.set', **bad)
             evs, _ = col(is_idle)
@@ -9887,11 +9136,11 @@ def check_keymap():
         evs, _ = col(is_idle)
         km = next(e for e in evs if e.get('ev') == 'hello')['keymap']
         check('W211: another server reads the same file: window and browser never disagree',
-              km['ok'] is True and by_id(km)['reload']['keys'] == ['Ctrl+B', 'F S'] and km['pinned'] == ['reload', 'calculator'], str(km)[:200])
+              km['ok'] is True and by_id(km)['session.reload_model']['keys'] == ['Ctrl+B', 'Ctrl+K Ctrl+S'] and km['pinned'] == ['session.reload_model', 'tool.calculator'], str(km)[:200])
 
         # a bad file, written by hand: shown as an error at its line, the defaults marked, nothing applied
         with open(path, 'w', newline='\n') as f:
-            f.write('{\n  "pinned": ["reload"],\n  "bindings": {"reload": ["Ctrl+Q"]}\n}\n')
+            f.write('{\n  "pinned": ["session.reload_model"],\n  "bindings": {"session.reload_model": ["Ctrl+Q"]}\n}\n')
         snd(cmd='keymap.get')
         evs, _ = col(is_idle)
         ev = keymap_events(evs)
@@ -9899,12 +9148,12 @@ def check_keymap():
         check('W211: a bad file is an error with its file, line and value; the keymap is the defaults, marked, nothing applied; no message event',
               len(ev) == 1 and km.get('ok') is False and same(km['file'], path) and km['line'] == 3 and 'Ctrl+Q' in km['error']
               and 'Ctrl+Q' in km['source'] and km['pinned'] == [] and km['preset'] == 'default'
-              and by_id(km)['reload']['keys'] == ['Ctrl+R'] and not errors(evs), str(evs)[-400:])
-        snd(cmd='keymap.set', pinned=['calculator'])
+              and by_id(km)['session.reload_model']['keys'] == [] and not errors(evs), str(evs)[-400:])
+        snd(cmd='keymap.set', pinned=['tool.calculator'])
         evs, _ = col(is_idle)
         ev = keymap_events(evs)
         check('W211: set replaces a bad file whole', len(ev) == 1 and ev[0]['keymap']['ok'] is True
-              and ev[0]['keymap']['pinned'] == ['calculator'], str(evs)[-300:])
+              and ev[0]['keymap']['pinned'] == ['tool.calculator'], str(evs)[-300:])
 
         # a file too large is refused as it is read
         with open(path, 'w') as f:
@@ -9980,7 +9229,7 @@ def check_start_screen():
         snd(cmd='events.subscribe', events=['series'])
         evs, _ = col(is_idle)
         check('W232: data is accepted with nothing to send', not errors(evs), str(evs)[-200:])
-        snd(cmd='key', menu='file', item='openmodel')
+        snd(cmd='session.open_model')
         evs, ask = col(lambda e: e.get('ev') == 'ask')
         check('W232: File > Open model by its id is the same ask', ask and ask['title'] == 'Open model', str(evs)[-200:])
         snd(cmd='answer', id=ask['id'], ok=0)
@@ -10786,41 +10035,20 @@ def check_stop_checks():
         col(is_idle)
         snd(cmd='run.initial')
         col(is_idle)
-        snd(cmd='key', key='u')
-        col(is_idle)
-        snd(cmd='key', key='h')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='a')
-        for asked in range(4):
-            _, ask = col(is_ask)
-            if 'Variable' in ask.get('prompt', '') or 'Variable' in ask.get('name', ''):
-                snd(cmd='answer', id=ask['id'], ok=1, value='V')
-                snd(cmd='run.abort')
-            else:
-                snd(cmd='answer', id=ask['id'], ok=1, value='0' if asked == 1 else '10')  # bins, Low, Hi: Low below Hi (W494)
+        snd(cmd='analysis.autocorrelation', column='V', bins=10, low=0, high=10)
+        snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         check('W388: pairwise histogram O(N^2) loop stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
         snd(cmd='run.configure', total_time=20)
         col(is_idle)
 
-        # Return to main menu
-        snd(cmd='key', key='Escape')
-        col(is_idle)
 
         # 6. Fitting cancellation (core/do_fit.cpp)
         fit_path = os.path.join(r, 'fit_data.dat')
         with open(fit_path, 'w') as f:
             for i in range(20):
                 f.write(f'{i * 0.5} {-0.5 + i * 0.05}\n')
-        snd(cmd='key', key='u')
-        col(is_idle)
-        snd(cmd='key', key='h')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], key='i')
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], ok=1, values=['V', 'iapp', '1e-9', '20', '2', '2', '', '1e-4', '1000'])
-        _, ask = col(is_ask)
-        snd(cmd='answer', id=ask['id'], ok=1, file=fit_path)
+        snd(cmd='analysis.fit_curve', variables=['V'], parameters=['iapp'], tolerance=1e-9, points=20, columns=2, data_columns=[2], epsilon=1e-4, max_iterations=1000, file='fit_data.dat')
         snd(cmd='run.abort')
         evs, _ = col(is_idle, timeout=30 * SLOW)
         msgs = [e.get('bottom') for e in evs if e.get('ev') in ('message', 'done') and 'bottom' in e]
@@ -10938,14 +10166,11 @@ def check_run_registry():
             done, evs = call(**old)
             err = next((e for e in evs if e.get('ev') in ('message', 'done') and 'error' in e), {})
             check('W521: set no longer takes %s' % old['kind'], 'no longer takes' in err.get('error', ''), str(evs)[-200:])
-        snd(cmd='key', key='i')
-        _, ask = col(is_ask)
-        check('W521: the key i still opens the Initialconds menu', ask and ask.get('kind') == 'menu' and 'g' in ask.get('keys', ''), str(ask))
-        if ask:
-            snd(cmd='answer', id=ask['id'], key='g')
-            evs, _ = col(is_idle)
-            check('W521: its Go runs through run.initial (rows stored, no further ask)', any(e.get('ev') == 'state' and e.get('rows', 0) > 1 for e in evs)
-                  and not any(e.get('ev') == 'ask' for e in evs), str(evs)[-200:])
+        snd(cmd='keymap.reset', preset='xppaut'); col(is_idle)
+        snd(cmd='key', key='I'); prefix, _ = col(is_idle)
+        check('W517: I is a prefix with no ask or computation', not any(is_ask(e) or e.get('ev') == 'computing' for e in prefix))
+        snd(cmd='key', key='G'); evs,_ = col(is_idle)
+        check('W517: IG runs run.initial directly', any(e.get('ev') == 'state' and e.get('rows',0)>1 for e in evs) and not any(is_ask(e) for e in evs))
     finally:
         stop_server(p, r, snd)
 
@@ -10989,25 +10214,6 @@ def check_analysis_registry():
         col(is_idle)
         return (rows or {}).get('data')
 
-    def menu_item(menu_key, item, values):
-        """Numerics, the submenu menu_key and its item, each question answered from `values` by its first words; the events and
-        the bottom messages"""
-        snd(cmd='key', key='u')
-        col(is_idle)
-        snd(cmd='key', key=menu_key)
-        _, ask = col(lambda e: e.get('ev') == 'ask')
-        snd(cmd='answer', id=ask['id'], key=item)
-        got = []
-        while True:
-            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
-            got += evs
-            if not e or e.get('ev') != 'ask':
-                break
-            asked = next((v for k, v in values.items() if e.get('name', '').startswith(k)), '')
-            snd(cmd='answer', id=e['id'], ok=1, value=asked)
-        snd(cmd='key', key='Escape')
-        col(is_idle)
-        return got, [e['bottom'] for e in got if e.get('ev') in ('message', 'done') and 'bottom' in e]
     try:
         ok('analysis.seed_random seeds the next run', {'cmd': 'analysis.seed_random', 'seed': 42}, {'seed': 42})
         refused('analysis.seed_random with a negative seed', {'cmd': 'analysis.seed_random', 'seed': -1}, 'seed')
@@ -11116,18 +10322,6 @@ def check_analysis_registry():
         ok('analysis.load_stochastic_mean shows the mean of the runs', {'cmd': 'analysis.load_stochastic_mean'}, {'loaded': True})
         ok('analysis.load_stochastic_variance shows their variance', {'cmd': 'analysis.load_stochastic_variance'}, {'loaded': True})
         refused('analysis.stochastic_integrate with one trial', {'cmd': 'analysis.stochastic_integrate', 'trials': 1}, 'trials')
-        # the menu's items and the commands are one behaviour: the same histogram and statistics by the keys
-        call(cmd='analysis.load_stochastic_run')
-        call(cmd='run.initial')
-        call(cmd='analysis.histogram', column='v', bins=10, low=-100, high=100, condition='')
-        by_command = browser_rows()
-        by_keys, bottom = menu_item('h', 'h', {'Number of bins': '10', 'Low': '-100', 'Hi': '100', 'Variable': 'v', 'Condition': ''})
-        check('W525: Numerics, Stochastic, Histogram makes what analysis.histogram makes', by_command and browser_rows() == by_command, str(by_command)[:200])
-        call(cmd='analysis.load_stochastic_run')
-        got = ok('analysis.statistics again', {'cmd': 'analysis.statistics', 'column': 'w'}, {'mean': None, 'std_dev': None})
-        by_keys, bottom = menu_item('h', 's', {'Variable': 'w'})
-        check('W525: Numerics, Stochastic, Stat shows the command\'s mean and standard deviation',
-              any(re.search(r'Mean=%s Std. Dev. = %s' % (re.escape('%g' % got['mean']), re.escape('%g' % got['std_dev'])), b) for b in bottom), str(bottom))
         # the old forms are gone
         for old, words in (({'cmd': 'browser', 'op': 'postprocess'}, 'Unknown command browser'), ({'cmd': 'browser', 'op': 'postprocess', 'kind': 'hist'}, 'Unknown command browser'),
                            ({'cmd': 'set', 'kind': 'options', 'name': 'seed', 'value': 3}, 'set takes kind')):

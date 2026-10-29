@@ -58,10 +58,9 @@ checks rather than interactive use:
 
 ## The page layout
 
-The page has a title bar (the model's name, the connection state, a
-Classic-style link is not offered — web2 is the only page), the **main
-menu** as a panel (a column beside the plot from 48 rem wide, a drawer
-below that, opened from the title bar), the plot area with its tabs, and
+The page has a title bar (the model's name, the connection state, Search for
+the command palette), the **menu bar** below it (File, Run, Analysis, Plot, Data,
+AUTO, Windows and Help; "Commands", in the next chapter), the plot area with its tabs, and
 a **status bar** along the bottom that shows "Working…" with a progress
 bar and one **Stop** control whenever a command is running (in any view;
 there is no per-view Abort button — see "Long-running commands" below).
@@ -87,20 +86,10 @@ you wrote it (and, in an `.odex` model, a caret under the column), and
 what is wrong, such as a formula that stops making sense and where.
 Correct the line and start XPP again.
 
-**Making room for the plot.** From 48 rem wide the Commands panel (left) and
-the Values panel can each be hidden and shown again with their buttons in the
-title bar (the three-line button for Commands, the panel button for Values;
-the plot takes the room), and resized by dragging the edge between the panel
-and the plot, or from the keyboard: Tab to the edge (it is a separator named
-"Commands panel width" or "Values panel width"), then the arrow keys move it
-by a step, Home and End go to the smallest and largest size. Commands is
-resized sideways. Values is a column on the right from 80 rem wide and is
-resized sideways too (Left grows it); below that it is a row under the plot
-and its edge moves up and down (Up grows it). Each panel keeps within a
-minimum and a share of the window, so the plot always has room. The sizes and
-whether each panel is hidden are remembered by this browser or window for
-next time. On a phone-width screen the panels stay drawers, opened from the
-title bar's Menu and Values buttons.
+**Making room for the plot.** The menu bar stays above the workspace. Search
+opens the command palette. The Values panel can be hidden and resized at its
+edge, including with the keyboard. At narrower widths it appears below the
+plot or as a sheet. Its size and visibility are remembered by this browser.
 
 ## Tabs instead of windows
 

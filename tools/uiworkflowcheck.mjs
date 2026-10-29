@@ -34,9 +34,8 @@ try {
   await navigatePage(cdp, server.url); await ready(); await xppautSequences(cdp);
   await key('F'); await until('__xpp.state().pendingKeys.join("") === "F"', 'uppercase F begins the File sequence (the XPPAUT preset)');
   await key('Escape'); await until('__xpp.state().pendingKeys.length === 0', 'Escape cancels the sequence');
-  await key('I'); await until('__xpp.state().ask?.kind === "menu"', 'uppercase I opens initial conditions');
-  await cdp.eval("document.querySelector('.dialog-backdrop').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true})); true");
-  await until('!__xpp.state().ask && !__xpp.state().busy', 'outside dismisses menu');
+  await key('I'); await until('__xpp.state().pendingKeys.join("") === "I"', 'uppercase I begins the Initial conditions sequence');
+  await key('Escape'); await until('__xpp.state().pendingKeys.length === 0', 'Escape cancels it');
   await cdp.eval("document.querySelector('.workspace-tools summary').click(); true");
   await until('document.querySelector(".workspace-tools").open', 'Tools dropdown open');
   await cdp.eval("document.querySelector('.plot-host').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true})); true");
@@ -80,18 +79,13 @@ try {
   console.log('PASS Freeze, Fit, per-trace visibility and legend name/colour editing');
   await cdp.eval("document.querySelector('.table-toggle').click(); true");
   await until('__xpp.state().table.page?.rows > 0', 'data table');
-  const command = async id => {
-    await cdp.eval(`(() => { const l=__xpp.state().hello.windows.browser; __xpp.send({cmd:'key',win:'browser',key:l.keys[l.ids.indexOf(${JSON.stringify(id)})]}); })()`);
-    await until('__xpp.state().ask?.kind === "string"', `${id} asks for name`);
-  };
-  const answer = async text => { await cdp.eval(`__xpp.send({cmd:'answer',id:__xpp.state().ask.id,ok:1,value:${JSON.stringify(text)}}); true`); };
+  const send = async cmd => { await cdp.eval(`__xpp.send(${JSON.stringify(cmd)}); true`); await ready(); };
   for (const [name, formula] of [['EXTRAA', 'V*2'], ['EXTRAB', 'W*3']]) {
-    await command('addcol'); await answer(name);
-    await until('__xpp.state().ask?.name === "Formula:"', 'formula ask'); await answer(formula); await ready();
+    await send({cmd: 'browser.add_column', name, formula});
     await until(`__xpp.state().table.page.cols.includes(${JSON.stringify(name)})`, 'column added');
   }
   const before = await state('s.table.page.data.map(r => r.slice())');
-  await command('delcol'); await answer('EXTRAA'); await ready();
+  await send({cmd: 'browser.delete_column', name: 'EXTRAA'});
   await until('!__xpp.state().table.page.cols.includes("EXTRAA") && __xpp.state().table.page.cols.includes("EXTRAB")', 'middle added column deleted');
   const after = await state('s.table.page.data');
   assert.deepEqual(after.map(r => r.at(-1)), before.map(r => r.at(-1)), 'shifted column retains its values');

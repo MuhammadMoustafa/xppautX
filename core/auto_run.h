@@ -107,10 +107,8 @@ Result<> auto_run_start(Session &s, const AutoRunRequest &request);
 Result<> auto_time_check(const Session &s);
 
 /* the form XPPAUT's homoclinic starts asked: the equilibria's dimensions and values, none when cancelled */
-std::optional<HomoclinicStart> auto_ask_homoclinic(Session &s);
 
 /* the AUTO window's Run key: the questions of XPPAUT's Run menus, then auto_run_start */
-void auto_run(Session &s);
 
 /* the table as hello sends it ("auto_run": {...}) and the kinds that fit the grabbed point as `autoinfo` sends them
    ("start": {...} or null) */

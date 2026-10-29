@@ -9,7 +9,7 @@
    (command_text.cpp) and help/hello (command_registry.cpp) read the same
    rows. A handler never reads the JSON line: it asks Arguments. */
 #include "colormap.h"
-#include "command_table.h"
+#include "command_category.h"
 #include "json_number.h"
 #include "xpp_error.h"
 #include "xpp_io.h"
@@ -37,6 +37,9 @@ inline constexpr std::size_t MAX_ITEMS = 256;
 inline constexpr long long MAX_INTEGER = 9007199254740991LL;
 inline constexpr const char *COMMAND_KEY = "cmd";
 inline constexpr const char *ID_KEY = "id";
+/* Explicitly request the existing authorized file dialog before executing a file command. */
+inline constexpr const char *FILE_PICKER_KEY = "file_picker";
+inline constexpr const char *PICKER_FILE = "selected_file";
 /* the one command whose server text form takes its argument by position (`help NAME`) */
 inline constexpr std::string_view HELP_COMMAND = "help";
 
@@ -142,7 +145,12 @@ public:
         return entries;
     }
     /* the validator's: store what the row's type made of the argument */
-    void add(std::string name, Value value) { given_.emplace_back(std::move(name), std::move(value)); }
+    void add(std::string name, Value value)
+    {
+        for (auto &[given, old] : given_)
+            if (given == name) { old = std::move(value); return; }
+        given_.emplace_back(std::move(name), std::move(value));
+    }
 
 private:
     const Value *find(std::string_view name) const
@@ -190,7 +198,17 @@ struct Command {
     bool step;
     Handler execute;
     std::span<const Group> groups = {};
+    /* Logical shortcuts, Ctrl means Cmd on macOS. Empty for infrequent commands. */
+    std::span<const char *const> default_keys = {};
+    /* XPPAUT reused letters in each tool window; an empty context is the main workspace. */
+    const char *legacy_context = "";
+    /* File dialogs are presentation of the row; write dialogs use the existing single-use native save grant. */
+    const char *file_mode = "read";
+    const char *file_wild = "*";
 };
+
+/* The one file picked for a command; optional paths (Open model) have their own startup picker. */
+const Argument *picker_argument(const Command &command);
 
 /* A command's result object, built member by member in the order its row
    declares them: `ResultObject().integer("rows", 3).text("status", "ok").done()`. */
@@ -291,6 +309,8 @@ Result<Arguments> validate(Session *session, const Command &command, const char 
                            bool paths_allowed);
 /* The registry's row of that name, null when there is none. */
 const Command *find(std::string_view name);
+/* The registry rows in hello order, for the keymap as well as navigation. */
+std::vector<const Command *> rows();
 /* hello and help name a type this way. */
 const char *type_name(Type type);
 /* The row in the server text form: the `--name value` words after the command's name into the one JSON object the validator reads. */

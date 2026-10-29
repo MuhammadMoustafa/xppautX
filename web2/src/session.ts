@@ -1,3 +1,5 @@
+import {toolbarCommand} from './ui/navigation';
+import {registryRows} from './ui/navigation';
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
 import {nativeFileDialog, nativeFileRequest, offerDownload, writeTo, type SaveHandle} from './pickers';
@@ -12,13 +14,13 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import {commandRow, kindOf, mainKey, mayStart, menuCommand, noValueEdit, menuKey, windowCommand, type LayerWindow} from './protocol/kinds';
-import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type MenuName, type UserKeymap, type XppEvent} from './protocol/types';
+import {kindOf, mayStart, type LayerWindow} from './protocol/kinds';
+import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type UserKeymap, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import type {TextPosition, TextValues} from './store/marks';
 import {activeView, autoWindow} from './store/diagram';
 import {
-  answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
+  answerName, keepBothName, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
 import {initialState, LEAVE_ASK, noIdle, reduce, type Action, type AppState} from './store/state';
@@ -29,14 +31,14 @@ import {planRequest} from './store/table';
 import {continuePlan, steadyRun} from './store/steady';
 import type {TextTab} from './store/text';
 import {fieldKey, valueCommands, type ValueSet} from './store/values';
-import {autoSettingsCommands, type AutoSettingsPatch} from './store/autoSettings';
+import {autoSettingsCommands, commandSettings, type AutoSettingsPatch} from './store/autoSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
 export type BrowserOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
   | 'restore' | 'addcol' | 'delcol';
 
-/** the AUTO window's buttons (their names in hello.windows.auto.ids); Close is session.closeAuto */
-export type AutoOp = 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw' | 'file';
+/** the AUTO window's buttons (toolbarCommand names the registry command of each); Close is session.closeAuto */
+export type AutoOp = 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw';
 
 /** a change of what a window displays, as the `display` command carries it: the zoom of each axis
     ([low, high] or null), the earlier runs' toggle (`runs`), AUTO's earlier branches' toggle (`show`) */
@@ -69,9 +71,8 @@ const rangesOf = (v: Viewport): DisplayPatch => ({
 });
 
 /** one step of a planned dialogue: the answer to `ask`, or null when that ask is the user's */
-type PlanStep = (ask: AskEvent) => Record<string, unknown> | null;
 
-/** the array plot window's buttons (their names in hello.windows.aplot.ids) */
+/** the array plot window's buttons (toolbarCommand names the registry command of each) */
 export type AplotOp = 'redraw' | 'edit' | 'fit' | 'range' | 'print' | 'gif';
 
 /** the commands of the player's Play, Pause and Step buttons */
@@ -79,26 +80,13 @@ const PLAYER_CONTROLS = {start: 'recording.play', pause: 'recording.pause', step
 
 export class Session {
   readonly store: Store<AppState, Action>;
-  /** keys that answer the menus a key sequence opens ("i g": Initialconds, Go) */
-  private pendingKeys: string[] = [];
-  /** the server's hello named another protocol than this page's (PROTOCOL): nothing it sends is read */
   private otherProtocol = false;
-  /** keys typed while a key command waits for its first answer (T21): the
-      menu it opens takes the first, the others go out after its idle */
-  private typeahead: string[] = [];
-  private keyWaiting = false;
-  /* the idles owed for the commands sent (an answer continues its command, a control line has
-     none), and how many of them belong to commands sent before the waiting key: an earlier
-     command's idle must not end the wait (W20: I then G typed on a busy page went out as G) */
+  /** commands whose completion has not arrived yet */
   private idlesOwed = 0;
-  private keyIdlesAhead = 0;
   /** a planned dialogue (T21: the axis dialog, AUTO settings save and load):
       the asks its commands open are answered by these steps in order, until
       the commands' idles */
-  private plan: PlanStep[] = [];
-  private planIdles = 0;
-  private planCmds: Command[] = [];
-  private planDone: (() => void) | null = null;
+
   /** the point a grab took, until its command's idle (a periodic one's orbit is then imported) */
   private grabbed: number | null = null;
   /** pointer events of a drag made while the core was not asking (docs/protocol.md
@@ -140,10 +128,6 @@ export class Session {
   private displayIdles = 0;
   /** the tab last picked while the core was busy, shown and sent at its idle */
   private windowHeld: string | null = null;
-  /** key sequences clicked while a key waits for its menu (a second Integrate
-      right behind the first): each goes out after the idle before it, so the
-      menu the first opens is answered by its own keys (W95) */
-  private clickedKeys: {command: Command; then: string[]}[] = [];
   private replayIdles = 0;
   /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
   private afterIdle: Command[] | null = null;
@@ -186,9 +170,7 @@ export class Session {
       this.displayHeld.clear();
       this.displayGuard.clear();
       this.displayIdles = 0;
-      this.keyWaiting = false; /* a new connection: nothing is waiting any more */
-      this.idlesOwed = this.keyIdlesAhead = 0;
-      this.typeahead = [];
+      this.idlesOwed = 0;
       /* the plots as data (docs/protocol.md): every data event the server
          speaks (hello.features), asked for on every (re)connection, which
          also makes the server send the windows, their series, nullclines,
@@ -198,15 +180,9 @@ export class Session {
     } else if (ev.ev === 'film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {
-      this.keyWaiting = false;
       if (this.store.getState().player.running >= 0 && ev.kind !== 'pixels') {
         /* a recording's step runs: the player answers its questions, the
            page only shows them (docs/protocol.md "Playing a recording") */
-        this.checkDiagram(ev);
-        return;
-      }
-      if (this.plan.length && ev.kind !== 'pixels') {
-        this.continuePlan(ev);
         this.checkDiagram(ev);
         return;
       }
@@ -218,17 +194,11 @@ export class Session {
         else this.cancel(ev);
       } else if (this.replayAnswers.length) this.continueReplay(ev);
       else if (ev.kind === 'file' && nativeFileDialog()) void this.nativeFile(ev);
-      else this.continueKeys(ev);
+
     } else if (ev.ev === 'message' && ev.error?.includes('Permission denied:') && this.nativeRun) {
       this.retrySave = this.nativeRun;
       this.retrySaveDir = this.nativeSaveDir;
       this.nativeRun = null;
-    } else if (ev.ev === 'progress') {
-      /* a computation: the keys typed meanwhile are discarded, like any typed during it (W68) */
-      if (!this.keyIdlesAhead) {
-        this.keyWaiting = false;
-        this.typeahead = [];
-      }
     } else if (ev.ev === 'saved') {
       const save = this.pendingSave;
       let handle: SaveHandle | null = null;
@@ -250,11 +220,6 @@ export class Session {
       this.nativeSave = null;
     } else if ((ev.ev === 'idle' || ev.ev === 'done')) {
       if (this.idlesOwed > 0) this.idlesOwed--;
-      /* an earlier command's idle: the key still waits for its own */
-      const earlier = this.keyWaiting && this.keyIdlesAhead > 0;
-      if (earlier) this.keyIdlesAhead--;
-      else this.keyWaiting = false;
-      if (!earlier) this.pendingKeys = [];
       this.afterAuto();
       this.dragQueue = [];
       this.dragEnded = false;
@@ -276,22 +241,13 @@ export class Session {
       const retry = this.retrySave;
       this.retrySave = null;
       if (retry) {
-        const keys = menuKeys(this.store.getState().hello, this.store.getState().core?.menu ?? 0, retry.menu);
-        if (keys) {
-          this.replayAnswers = retry.answers.slice();
-          this.replayIdles = keys.length + 1;
-          for (const key of keys) this.key(key);
-          this.send(retry.cmd);
-          return;
-        }
+        this.replayAnswers = retry.answers.slice();
+        this.replayIdles = 1;
+        this.send(retry.cmd);
+        return;
       }
       this.nativeRun = null;
-      const typed = this.keyWaiting ? undefined : this.typeahead.shift();
-      if (typed !== undefined && !next && !this.planIdles) this.key(typed);
-      else if (!this.keyWaiting && this.clickedKeys.length) {
-        const {command, then} = this.clickedKeys.shift()!;
-        this.sendKeySequence(command, then);
-      }
+
     }
     this.checkDiagram(ev);
   }
@@ -321,19 +277,6 @@ export class Session {
     this.answer(ask, next.fields);
   }
 
-  private continueKeys(ask: AskEvent): void {
-    if (!this.pendingKeys.length && this.typeahead.length && (ask.kind === 'menu' || ask.kind === 'choice')) {
-      /* a key typed before the menu was up: it answers it when it is one of its keys, else it is dropped */
-      const k = this.typeahead.shift()!, i = (ask.keys ?? '').toLowerCase().indexOf(k.toLowerCase());
-      if (i >= 0) this.answer(ask, {key: ask.keys![i]});
-      else this.typeahead = [];
-      return;
-    }
-    if (!this.pendingKeys.length) return;
-    if (ask.kind === 'menu' || ask.kind === 'choice') this.answer(ask, {key: this.pendingKeys.shift()});
-    else this.pendingKeys = []; /* anything else is the user's to answer */
-  }
-
   /** whether `cmd` may go out now, by its kind (protocol/kinds.ts, W95): a
       control action always, a view action also while a computation runs, a
       data or computation action only when none runs; while a question is
@@ -342,49 +285,29 @@ export class Session {
       comes after it in turn. */
   may(cmd: Command): boolean {
     const {hello, core, computing, ask, player} = this.store.getState();
-    if (cmd.cmd === 'key' && typeof cmd.item === 'string' && noValueEdit(core, cmd.item)) return false;
-    const kind = kindOf(hello, core?.menu ?? 0, cmd);
+    if ((cmd.cmd === 'value.undo' && core?.can_undo === false) || (cmd.cmd === 'value.redo' && core?.can_redo === false)) return false;
+    const kind = kindOf(hello, cmd);
     /* a recording's step runs: only what steers the player or a view (W59b) */
     if (player.running >= 0) return kind === 'control' || kind === 'view';
     return mayStart(kind, computing, ask !== null);
   }
 
-  /** the key of main-menu item `id` (initialconds, window, ...) */
-  mainKey(id: string): string {
-    return menuKey(this.store.getState().hello, 'main', id);
-  }
-
-  /** A clicked command uses its stable identity; typing still uses legacy keys. */
-  menuAction(menu: MenuName, item: string, ...then: string[]): void {
-    const hello = this.store.getState().hello;
-    if (!hello) return;
-    const row = commandRow(hello, menu, item);
-    if (!row) {
-      /* the page and the core disagree on a command's name: shown, once, never skipped */
-      this.failed(`The command ${menu}/${item} is not in the core's menus.`);
-      return;
-    }
-    if (menu === 'main' && item === 'continue') {
-      this.continueRun();
-      return;
-    }
-    if (row.key === '') this.pageCommand(item);
-    else this.sendKeySequence({...menuCommand(menu, item), button: row.label}, then);
-  }
-
-  /** A command the page runs itself (a table row with no legacy key: core/command_table.h PAGE_KEY): the
-      run commands go out as the commands they are, the editor opens. The callers check that it may run now (hotkeys.ts, the disabled buttons). */
-  private pageCommand(id: string): void {
-    const {hello, core} = this.store.getState();
-    const row = commandRow(hello, 'main', id);
-    if (!row) return;
-    if (id === 'run_initial') this.send({cmd: 'run.initial'});
-    else if (id === 'run_last') {
-      if (core?.now) this.send({cmd: 'run.last'});
-      else this.store.dispatch({type: 'bottom', text: `${row.label}: run once to obtain a last state`});
-    } else if (id === 'steady') this.runSteady();
-    else if (id === 'keymapeditor') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
-    else this.failed(`The command ${id} has no action in the page.`);
+  /** Menu, palette, pins and keys all enter the same registry form. */
+  registryAction(id: string, values: Record<string, unknown> = {}): void {
+    const row = registryRows(this.store.getState().hello).find(row => row.id === id);
+    if (!row) { this.failed(`Unknown command ${id}`); return; }
+    if (id === 'tool.values') this.store.dispatch({type: 'valuesPanel', open: true});
+    else if (id === 'tool.browser') this.openTable();
+    else if (id === 'tool.command_palette') this.store.dispatch({type: 'drawer', open: true});
+    else if (id === 'tool.keyboard_shortcuts') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
+    else if (id === 'session.get_source') {this.openText();}
+    else if (id === 'tool.manual') this.store.dispatch({type: 'help', action: {type: 'open'}});
+    else if (id === 'annotation.list') {
+      this.store.dispatch({type: 'annotations', open: true});
+      this.send({cmd:'window.select', window:this.store.getState().plots.active});
+      this.send({cmd: id, window:this.store.getState().plots.active});
+    } else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values}});
+    else this.send({cmd: id});
   }
 
   /** Run to steady state with the settings the toolbar holds (the user's edits over the defaults) */
@@ -421,18 +344,11 @@ export class Session {
 
   /** whether main-menu item `id` may go out now (may) */
   mayMain(id: string): boolean {
-    return this.may(menuCommand('main', id));
+    return this.may({cmd: id});
   }
 
-  /** whether item `id` of window `win`'s key layer may go out now (may) */
   mayKey(win: LayerWindow, id: string): boolean {
-    return this.may(this.layerKey(win, id));
-  }
-
-  /** the command of item `id` of window `win`'s key layer, as hello names it */
-  private layerKey(win: LayerWindow, id: string, extra: Record<string, unknown> = {}): Command {
-    /* every layer key is sent by the window's button: `button` names it for a recording */
-    return windowCommand(this.store.getState().hello, win, id, {button: id, ...extra});
+    return this.may({cmd: toolbarCommand(win, id)});
   }
 
   /** the one place commands go out. What may not start now (may) is
@@ -441,81 +357,22 @@ export class Session {
       False when it did not go. */
   send(cmd: Command): boolean {
     if (!this.may(cmd)) return false;
+    if (cmd.cmd === 'auto.run') this.store.dispatch({type:'diagram',action:{type:'run',op:'start',at:Date.now()}});
+    const patch = commandSettings(cmd);
+    if (patch) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead: this.idlesOwed}});
     if (cmd.cmd !== 'answer' && !noIdle(cmd)) this.idlesOwed++;
     this.store.dispatch({type: 'sent', cmd});
     this.transport.send(cmd);
     return true;
   }
 
-  /** an XPP hotkey, as typed in the X11 main window (the values edited
-      went to the core when they were edited, W106) */
-  key(key: string, button?: string): void {
-    if (!this.may({cmd: 'key', key})) { /* W68 */
-      this.pendingKeys = [];
-      return;
-    }
-    this.keyWaiting = true;
-    this.keyIdlesAhead = this.idlesOwed;
-    /* `button`: the control clicked, for a recording's step (docs/protocol.md "Recordings") */
-    this.send(button ? {cmd: 'key', key, button} : {cmd: 'key', key});
-  }
-
-  /** whether a command's menu is still on its way: the keys typed now are its answers (ui/hotkeys.ts), not new commands */
-  awaitingMenu(): boolean {
-    return this.keyWaiting;
-  }
-
-  /** a key typed on the page while a menu is open or on its way (ui/hotkeys.ts): it answers the menu,
-      waits behind a key whose menu has not come yet (typing I then G
-      quickly integrates), or goes out. While the core is busy Escape stops
-      what runs; while it computes a key of the data or computation kind
-      does nothing: it is not kept to go out later (W68, W95) */
-  typeKey(k: string): void {
-    const {ask, busy, computing, stopping} = this.store.getState();
-    if (ask) {
-      const i = (ask.keys ?? '').toLowerCase().indexOf(k.toLowerCase());
-      if ((ask.kind === 'menu' || ask.kind === 'choice') && k.length === 1 && i >= 0) this.answer(ask, {key: ask.keys![i]});
-      return;
-    }
-    if (k === 'Escape' && busy) {
-      if (!stopping) this.abort();
-      return;
-    }
-    /* during a computation a key of its kind is not kept for later either (W68) */
-    if (computing && !this.may({cmd: 'key', key: k})) return;
-    if (this.keyWaiting && k !== 'Escape') {
-      this.typeahead.push(k);
-      return;
-    }
-    this.key(k);
-  }
-
-  /** a key, then keys for the menus it opens: keys('i', 'g') integrates.
-      Behind a key still waiting for its menu it goes out after that one's idle. */
-  keys(first: string, ...then: string[]): void {
-    this.sendKeys(undefined, first, then);
-  }
-
-  /** keys() from a button the page shows (Integrate): the core records which
-      control was used (docs/protocol.md "Recordings") */
-  buttonKeys(button: string, first: string, ...then: string[]): void {
-    this.sendKeys(button, first, then);
-  }
-
-  private sendKeys(button: string | undefined, first: string, then: string[]): void {
-    this.sendKeySequence(button ? {cmd: 'key', key: first, button} : {cmd: 'key', key: first}, then);
-  }
-
-  private sendKeySequence(command: Command, then: string[]): void {
-    if (!this.may(command)) return;
-    if (this.keyWaiting) {
-      this.clickedKeys.push({command, then});
-      return;
-    }
-    this.pendingKeys = then;
-    this.keyWaiting = true;
-    this.keyIdlesAhead = this.idlesOwed;
-    this.send(command);
+  /** A key answering a core question, or Escape stopping a run. */
+  typeKey(key: string): void {
+    const {ask, busy, stopping} = this.store.getState();
+    if (ask?.kind === 'choice') {
+      const i = (ask.keys ?? '').toLowerCase().indexOf(key.toLowerCase());
+      if (key.length === 1 && i >= 0) this.answer(ask, {key:ask.keys![i]});
+    } else if (key === 'Escape' && busy && !stopping) this.abort();
   }
 
   answer(ask: AskEvent, fields: Record<string, unknown>): void {
@@ -525,7 +382,7 @@ export class Session {
     }
     /* the Start menu of a Run answered: its clock starts now */
     const {run} = this.store.getState().diagram, {points} = activeView(this.store.getState().diagram);
-    if (run?.active && ask.kind === 'menu' && points.x.length === run.first)
+    if (run?.active && ask.kind === 'choice' && points.x.length === run.first)
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'clock', at: Date.now()}});
     const send = () => this.send({cmd: 'answer', id: ask.id, ...fields});
     if (this.savingReads.size) void Promise.all(this.savingReads).then(send);
@@ -739,25 +596,16 @@ export class Session {
       to "the core's axes" (store/plots.ts coreMoved, from the `state`
       reducer), with no visible jump since they are now the same range. */
   useThisView(win: string, ranges: Ranges): void {
-    if (!this.mayMain('window')) return; /* W68 */
-    const cmds: Command[] = [];
-    if (this.store.getState().plots.active !== win) {
-      this.store.dispatch({type: 'selectWindow', win});
-      cmds.push({cmd: 'window.select', window:win});
-    }
-    cmds.push(mainKey(this.store.getState().hello, 'window'));
+    if (!this.mayMain('window.set_bounds')) return; /* W68 */
     const {x, y} = ranges;
-    this.runPlan(cmds, [
-      ask => (ask.kind === 'menu' ? {key: 'w'} : null),
-      ask => (ask.kind === 'form' ? {values: [x.min, x.max, y.min, y.max].map(String)} : null),
-    ]);
+    this.send({cmd:'window.set_bounds', window:win, x_min:x.min, x_max:x.max, y_min:y.min, y_max:y.max});
   }
 
   /** Axis labels open the existing core editor directly for their plot. */
   editPlotAxes(win: string, three: boolean): void {
-    if (!this.mayMain('viewaxes')) return;
+    if (!this.mayMain('plot.set_2d')) return;
     this.selectWindow(win);
-    this.menuAction('main', 'viewaxes', three ? '3' : '2');
+    this.registryAction(three ? 'plot.set_3d' : 'plot.set_2d', {window:win});
   }
 
   /** Window/Fit: the key sequence the classic page uses ('w' opens the
@@ -825,60 +673,20 @@ export class Session {
       the branches so far become the earlier ones, hidden until shown
       again; the core's own clear and redraw (keys `c`, `d`) follow */
   autoOp(op: AutoOp): void {
-    if (!this.may(this.layerKey('auto', op))) return; /* W68 */
-    if (op === 'clear') {
-      /* the core's clear blanks the diagram (its points go from the page), then its redraw sends them
-         all again, and the branches so far are the earlier ones once more */
-      this.store.dispatch({type: 'diagram', action: {type: 'clear'}});
-      this.runPlan([{cmd: 'auto.hide_earlier'}, {cmd: 'auto.redraw'}], []);
-      return;
-    }
-    this.send(op === 'redraw' ? {cmd: 'auto.redraw'} : this.layerKey('auto', op));
+    this.registryAction(toolbarCommand('auto', op));
   }
 
   /** AUTO's Run (docs/protocol.md auto.run): the kind, and where it starts (a stored point's label, else the current state) */
   autoRun(args: {kind: string; label?: number; switch?: boolean; replace_diagram?: boolean}): void {
     const cmd: Command = {cmd: 'auto.run', ...args};
     if (!this.may(cmd)) return;
-    this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
     this.send(cmd);
-  }
-
-  /* a planned dialogue: `cmds` go out one after the other's idle (a command
-     sent while the one before waits in a prompt would be taken as its
-     answer), the asks they open are answered by `steps` in order; `done`
-     runs after the last command's idle when every step answered (a step
-     that returns null leaves that ask to the user, and ends the plan) */
-  private runPlan(cmds: Command[], steps: PlanStep[], done?: () => void): void {
-    this.plan = steps;
-    this.planCmds = cmds.slice(1);
-    this.planIdles = cmds.length;
-    this.planDone = done ?? null;
-    this.send(cmds[0]);
-  }
-
-  private continuePlan(ask: AskEvent): void {
-    const fields = this.plan.shift()!(ask);
-    if (fields) {
-      this.answer(ask, fields);
-      return;
-    }
-    this.plan = [];
-    this.planCmds = [];
-    this.planDone = null;
   }
 
   /* after every idle: the run's clock stops, a plan ends, a grabbed periodic orbit is imported */
   private afterAuto(): void {
     if (this.store.getState().diagram.run?.active)
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'end', at: Date.now()}});
-    if (this.planIdles > 0 && --this.planIdles === 0) {
-      const done = this.planDone;
-      this.plan = [];
-      this.planDone = null;
-      done?.();
-    } else if (this.planCmds.length) this.send(this.planCmds.shift()!);
-    else if (this.planIdles > 0 && !this.plan.length) this.planIdles = 0; /* a step left it to the user */
     const g = this.grabbed;
     this.grabbed = null;
     if (g !== null) this.importOrbit(g);
@@ -896,17 +704,14 @@ export class Session {
         + 'labelled point of the periodic branch (Tab steps through them) to plot its limit cycle.'});
       return;
     }
-    this.runPlan([this.layerKey('auto', 'file')], [ask => (ask.kind === 'menu' ? {key: 'i'} : null)]);
+    this.send({cmd: 'auto.load_orbit_into_browser'});
   }
 
   /** AUTO's settings edited in the page's forms (T22, store/autoSettings.ts):
       one `auto` `set` at once, busy or idle -- a setting (W106): during a
       run the core applies it when the run ends, to the next one */
   autoSettings(patch: AutoSettingsPatch): void {
-    for (const {command, patch: part} of autoSettingsCommands(patch)) {
-      const ahead = this.idlesOwed;
-      if (this.send(command)) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch: part, ahead}});
-    }
+    for (const {command} of autoSettingsCommands(patch)) this.send(command);
   }
 
   /** the AUTO view's close: done with it (A10). A running job is stopped
@@ -954,6 +759,7 @@ export class Session {
     const {ask, pick, diagram} = this.store.getState();
     if (!shown && diagram.shown && ask && (diagram.grabbing || (pick && pick.win === autoWindow(this.store.getState())))) this.cancelPick();
     for (const view of diagram.views) this.send({cmd: shown ? 'window.show' : 'window.hide', window: view.name});
+    if (shown && diagram.open) this.send({cmd:'window.select', window:autoWindow(this.store.getState())});
   }
 
   /* ---- values panel (docs/ui-v2.md T3, docs/protocol.md `set`/`slide`/`default`/`userbut`,
@@ -1060,7 +866,14 @@ export class Session {
   /** Open model, from the start screen or anywhere: the core asks for the file (a `file` ask), exactly as File > Open model does
       (core/model_switch.h) */
   openModel(): void {
-    this.send(menuCommand('file', 'openmodel'));
+    this.chooseFile('session.open_model');
+  }
+
+  /** a button of its own for a command whose argument is a file: the core asks for the file through the
+      picker, as the form's Choose file button does (CommandForm.tsx), without the form's extra step */
+  private chooseFile(id: string, values: Record<string, unknown> = {}): void {
+    const row = registryRows(this.store.getState().hello).find(row => row.id === id);
+    this.send(row?.file_mode ? {cmd: id, ...values, file_picker: true} : {cmd: id, ...values});
   }
 
   /** Open model of a recent model (hello.start.recent), by its place in the list: the core knows the path */
@@ -1088,7 +901,7 @@ export class Session {
 
   /** File/plaY recording, the title bar's Play a recording: the core asks for the .recx */
   playOpen(): void {
-    this.send(menuCommand('file', 'play'));
+    this.chooseFile('recording.open', {play: true});
   }
 
   /** Play, Pause, Step: at once, even while a step runs */
@@ -1160,11 +973,9 @@ export class Session {
       ordinary `ask`, AskDialog already shows) */
   browserOp(op: BrowserOp): void {
     const row = this.store.getState().table.selected;
-    if (op === 'unreplace') this.send({cmd: 'browser.undo_replace'});
-    else if (op === 'first') this.send({cmd: 'browser.set_slice_start', row});
-    else if (op === 'last') this.send({cmd: 'browser.set_slice_end', row});
-    else if (op === 'restore') this.send({cmd: 'browser.restore_full_slice'});
-    else this.send(this.layerKey('browser', op, {row}));
+    const command = toolbarCommand('browser', op);
+    if (['first', 'last'].includes(op)) this.send({cmd:command,row});
+    else this.registryAction(command);
   }
 
   /** Get: the selected row becomes the initial conditions (the next `state` has them) */
@@ -1210,7 +1021,7 @@ export class Session {
 
   /** File: an .anix file, through the file ask (the browser's open dialog) */
   aniLoad(): void {
-    this.send(this.layerKey('ani', 'file'));
+    this.chooseFile('animation.load');
   }
 
   /** Go: plays from the core's position to the last frame; never started by the page itself (A6) */
@@ -1243,7 +1054,7 @@ export class Session {
 
   /** Grab: the frame's grab points wait for the pointer */
   aniGrab(): void {
-    this.send(this.layerKey('ani', 'grab'));
+    this.send({cmd:'animation.grab_point'});
   }
 
   /** a drag on the picture while grabbing, from the press to the release, both in the frame's unit coordinates
@@ -1299,12 +1110,6 @@ export class Session {
     }
   }
 
-  /** the core's Kinescope menu (keys k then the item's own mnemonic); a no-op
-      while a computation runs, like the rest of the menu keys of its kind */
-  private kinescopeMenu(item: string): void {
-    this.keys(this.mainKey('kinescope'), item);
-  }
-
   kinescopeCapture(): void {
     this.send({cmd: 'kinescope.capture'});
   }
@@ -1350,8 +1155,8 @@ export class Session {
       the page only offers the result as a download, at the idle that
       follows (W66: the page built the GIF itself before this task). */
   downloadKinescopeGif(): void {
-    if (!this.mayMain('kinescope') || !this.store.getState().kinescope.frames.length) return;
-    this.kinescopeMenu('m');
+    if (!this.mayMain('kinescope.capture') || !this.store.getState().kinescope.frames.length) return;
+    this.chooseFile('kinescope.export_gif');
   }
 
   /* ---- text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`, ---- */
@@ -1425,6 +1230,11 @@ export class Session {
       refusal fails it like any other. Resolves what each file became, in
       order, or null when cancelled at the confirm or failed, which a
       notification reports. */
+  async uploadArgument(file: File): Promise<string | null> {
+    const uploaded = await this.upload([{file, name: file.name}], null, true);
+    return uploaded?.[0]?.name ?? null;
+  }
+
   private async upload(files: {file: File; name: string}[], ask: number | null, keepBoth: boolean): Promise<Upload[] | null> {
     if (!this.files || !files.length) return null;
     try {
@@ -1563,14 +1373,12 @@ export class Session {
     if (!action || !(await this.upload([{file, name: action.name}], null, false))) return;
     this.store.dispatch({type: 'dismiss', id: toastId});
     const {run} = action, state = this.store.getState();
-    const keys = run ? menuKeys(state.hello, state.core?.menu ?? 0, run.menu) : null;
-    if (!run || !keys || state.busy) {
+    if (!run || state.busy) {
       this.store.dispatch({type: 'toast', kind: 'info', text: `${action.name} is in the model's folder now. Run the command again.`});
       return;
     }
     this.replayAnswers = run.answers.slice();
-    this.replayIdles = keys.length + 1;
-    for (const k of keys) this.key(k);
+    this.replayIdles = 1;
     this.send(run.cmd);
   }
 
@@ -1602,7 +1410,7 @@ export class Session {
   /** the classic array plot window's own buttons: Redraw, Edit (a form,
       AskDialog), Fit, Range, Print, GIF (a file ask, FileDialog), Close */
   aplotOp(op: AplotOp): void {
-    this.send(op === 'redraw' ? {cmd: 'array_plot.redraw'} : op === 'fit' ? {cmd: 'array_plot.fit'} : this.layerKey('aplot', op));
+    this.registryAction(toolbarCommand('aplot', op));
   }
 
   /** the picture scrolled through time by dragging, wheeling or a keyboard

@@ -11,6 +11,7 @@
 #include "session.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
+#include "xpp_files.h"
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -24,7 +25,7 @@ constexpr std::array HELP_ARGUMENTS = {Argument{"name", Type::text, false}};
 constexpr std::array HELP_RESULTS = {ResultField{"commands", "list[command]"}};
 constexpr std::array HELP_EVENTS = {"state", "done"};
 constexpr std::array HELP_ROWS = {
-    Command{HELP_COMMAND.data(), HELP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "", "",
+    Command{HELP_COMMAND.data(), HELP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Help/Command reference", "",
             "Describe registered commands, or the command named by name.", HELP_RESULTS, HELP_EVENTS, false, describe}};
 std::span<const Command> help_commands() { return HELP_ROWS; }
 
@@ -102,6 +103,24 @@ void append_argument(std::string &out, const Argument &arg)
 
 } // namespace
 
+const Argument *picker_argument(const Command &command)
+{
+    const Argument *file = nullptr;
+    for (const Argument &arg : command.arguments)
+        if (arg.type == Type::file || (arg.type == Type::path && arg.required)) {
+            if (file) return nullptr;
+            file = &arg;
+        }
+    return file;
+}
+
+std::vector<const Command *> rows()
+{
+    std::vector<const Command *> result;
+    each_command([&](const Command &command) { result.push_back(&command); });
+    return result;
+}
+
 void append_command(std::string &out, const Command &command)
 {
     out += "{\"cmd\":";
@@ -110,10 +129,24 @@ void append_command(std::string &out, const Command &command)
     json_append_string(out, category_id(command.category));
     out += ",\"menu_path\":";
     json_append_string(out, command.menu_path);
+    out += ",\"default_keys\":[";
+    for (std::size_t i = 0; i < command.default_keys.size(); ++i) {
+        if (i) out += ',';
+        json_append_string(out, command.default_keys[i]);
+    }
+    out += "]";
+    out += ",\"legacy_context\":";
+    json_append_string(out, command.legacy_context);
     out += ",\"legacy_keys\":";
     json_append_string(out, command.legacy_keys);
     out += ",\"description\":";
     json_append_string(out, command.description);
+    if (picker_argument(command) != nullptr) {
+        out += ",\"file_mode\":";
+        json_append_string(out, command.file_mode);
+        out += ",\"file_wild\":";
+        json_append_string(out, command.file_wild);
+    }
     out += ",\"arguments\":[";
     for (std::size_t i = 0; i < command.arguments.size(); ++i) {
         if (i) out += ',';
@@ -270,8 +303,20 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
         return fail("command", xpp::format("Command exceeds {} bytes", MAX_COMMAND_BYTES), place);
     const Command *command = find(name(line));
     if (!command) return fail("command", "Unknown registry command", place);
-    const Result<Arguments> args = validate(&s, *command, line, place, paths_allowed);
+    Result<Arguments> args = validate(&s, *command, line, place, paths_allowed);
     if (!args) return std::unexpected<Error>(args.error());
+    if (args->has(FILE_PICKER_KEY)) {
+        const Argument *file_arg = picker_argument(*command);
+        std::string file = args->get<std::string>(file_arg->name);
+        if (file == PICKER_FILE) {
+            const std::string_view wild = command->file_wild;
+            file = wild.starts_with("*.") && wild.find(' ') == std::string_view::npos
+                ? files::output_name(s.model().this_file, wild.substr(1)) : std::string{};
+        }
+        const std::string title = xpp::format("{} {}", std::string_view(command->file_mode) == "write" ? "Save" : "Open", command->menu_path);
+        if (!file_selector(title, file, command->file_wild)) return std::string("{\"cancelled\":true}");
+        args->add(file_arg->name, Scalar{std::move(file)});
+    }
     Result<std::string> result = command->execute(s, *command, *args, place);
     if (!result) return std::unexpected<Error>(with_source_line(result.error()));
     return result;

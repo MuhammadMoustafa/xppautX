@@ -16,7 +16,6 @@ import {activeView, branchesBefore, earlierCount, type DiagramRun} from '../src/
 import {classifyLogText, reduce, type AppState} from '../src/store/state';
 import {READY} from './hello';
 import {isHotkeyTarget} from '../src/ui/hotkeys';
-import {menuRows} from '../src/ui/menuLayout';
 import {logEntries} from '../src/store/log';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
@@ -167,9 +166,6 @@ test('two names at one spot are written a line apart', () => {
   assert.equal(tops[2], 10);
 });
 
-test('a long menu is laid out in columns of at most 8, filled evenly', () => {
-  assert.deepEqual([menuRows(5), menuRows(8), menuRows(14), menuRows(15), menuRows(17)], [5, 8, 7, 8, 6]);
-});
 
 test('where a key goes: letters on a button are hotkeys, nothing typed in a field is', () => {
   const el = (matches: string[]) => ({closest: (sel: string) => (matches.some(m => sel.split(', ').includes(m)) ? {} : null)}) as

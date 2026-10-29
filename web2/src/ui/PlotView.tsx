@@ -1,3 +1,4 @@
+import {annotationRows} from '../store/marks';
 /* One plot window: its curves from its series event, drawn by
    plot/chart.ts. Zoom, pan and the point readout go through the store (the
    window's viewport, hover), so they are state a test can read, and work by
@@ -22,7 +23,6 @@ import {setChart} from '../plot/registry';
 import type {Ranges} from '../plot/viewmath';
 import type {PlotWindowInfo, View} from '../protocol/types';
 import type {Session} from '../session';
-import {TextDialog} from './TextDialog';
 import {TraceDialog} from './TraceDialog';
 import type {PlotSeries} from '../store/series';
 import {HOME, windowOf} from '../store/plots';
@@ -196,7 +196,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const busy = useStore(s => s.computing);
   const may = useMay();
   const mayMain = useMayMain();
-  const windowOff = !mayMain('window'); /* Window/zoom: a view (W95) */
+  const windowOff = !mayMain('window.set_bounds'); /* Window/zoom: a view (W95) */
   const csvOff = !may({cmd: 'browser.export'});
   const pick = useStore(s => (s.pick?.win === win ? s.pick : null));
   const picking = pick && !pick.waiting ? pick : null;
@@ -205,8 +205,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const [, setShown] = useState(0); /* the legend's toggles live in the chart */
   const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
   const [editing, setEditing] = useState<{key: string; label: string; color: string} | null>(null);
-  const [textEdit, setTextEdit] = useState<number | null>(null); /* the id of the text whose dialog is open */
-  const edited = textEdit === null ? undefined : marks?.text.find(t => t.id === textEdit);
+  const selectedAnnotation = useStore(s => s.selectedAnnotation);
   const [trace, setTrace] = useState<{run: number; curve: number; index: number} | null>(null);
   const runKeys = useRef(new WeakMap<PlotSeries, string>());
   const nextRun = useRef(0);
@@ -235,18 +234,53 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
     const c = new Chart(host.current!, {
       onViewport: v => session.setViewport(win, v),
       onTrace: hit => setTrace(hit),
-      onText: id => setTextEdit(id),
+      onText: id => {
+        const rows = annotationRows(windowOf(session.store.getState().plots, win)?.marks ?? null);
+        const row = rows.find(row => row.id === id);
+        if (row) session.registryAction('annotation.edit', row.values);
+      },
     });
     let detach = () => {};
     c.onArea = area => {
       detach();
-      detach = attachGestures(c, area, {
+      let drag: {id: number; startX: number; startY: number; x: number; y: number} | null = null;
+      const down = (e: PointerEvent) => {
+        if (e.button !== 0 || session.store.getState().pick) return;
+        const rect = area.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top;
+        const id = c.annotationAt(x, y), point = c.annotationPoint(x, y);
+        if (id === null || !point) return;
+        e.preventDefault(); e.stopImmediatePropagation(); area.setPointerCapture(e.pointerId);
+        drag = {id, startX: e.clientX, startY: e.clientY, x: point.x, y: point.y};
+        session.store.dispatch({type: 'annotations', open: true, selected: id});
+      };
+      const up = (e: PointerEvent) => {
+        if (!drag) return;
+        const old = drag; drag = null;
+        const rect = area.getBoundingClientRect(), point = c.annotationPoint(e.clientX - rect.left, e.clientY - rect.top);
+        if (point && (e.clientX !== old.startX || e.clientY !== old.startY)) {
+          const rows = annotationRows(windowOf(session.store.getState().plots, win)?.marks ?? null);
+          const row = rows.find(row => row.id === old.id);
+          if (row) session.send({cmd: 'annotation.move', annotation_id: row.id, new_x: row.x + point.x - old.x, new_y: row.y + point.y - old.y});
+        }
+        e.stopImmediatePropagation();
+      };
+      const cancel = () => {drag = null;};
+      area.addEventListener('pointerdown', down, true);
+      area.addEventListener('pointerup', up, true);
+      area.addEventListener('pointercancel', cancel);
+      const gestures = attachGestures(c, area, {
         hover: (curve, index, run) => {
           if (run === undefined || run < 0) setHover(session, modelRef.current, curve, index);
           else clearHover(session);
         },
         leave: () => { clearHover(session); setTrace(null); c.highlight(null); },
       }, pickSink(session, () => win, () => chart.current));
+      detach = () => {
+        gestures();
+        area.removeEventListener('pointerdown', down, true);
+        area.removeEventListener('pointerup', up, true);
+        area.removeEventListener('pointercancel', cancel);
+      };
     };
     chart.current = c;
     setChart(win, c);
@@ -275,6 +309,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   useEffect(() => {
     if (shown) chart.current!.setMarks(marks);
   }, [marks, shown]);
+  useEffect(() => {chart.current?.selectAnnotation(selectedAnnotation);}, [selectedAnnotation]);
 
   useEffect(() => {
     if (shown) chart.current!.setRuns(runs, runsShown);
@@ -311,6 +346,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
     if (!c || !m || !m.curves.length) return;
     const h = session.store.getState().hover, curve = h ? m.curves[h.curve] : null;
     const key = e.ctrlKey || e.metaKey || e.altKey ? '' : e.key;
+    if (key === 'Escape' && session.store.getState().busy) return; /* Escape stops the running command (hotkeys.ts), whatever the readout holds */
     const r = plotKey(key, {
       ranges: c.ranges(),
       hover: h && curve ? {curve: h.curve, index: h.row - curve.row0} : null,
@@ -331,7 +367,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const noCurves = !model || model.curves.every(c => c.xs.length === 0);
   const area = chart.current?.areaBox();
   const axisButton = (which: 'x' | 'y') => <button class={`auto-axis-name auto-axis-${which}`}
-    data-plot-axis={which} aria-haspopup="dialog" disabled={!mayMain('viewaxes')}
+    data-plot-axis={which} aria-haspopup="dialog" disabled={!mayMain('plot.set_2d')}
     aria-label={`Edit ${which === 'x' ? 'horizontal' : 'vertical'} axis variables and limits`}
     title="Change axis variables and limits" onClick={() => session.editPlotAxes(win, !!(info?.three ?? view?.three))}
     style={which === 'x' ? {left: `${area!.left + area!.width / 2}px`, bottom: '0px'}
@@ -445,10 +481,6 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
           </div>
         )}
       </div>
-      {edited && <TextDialog initial={{text: edited.source, size: edited.size, style: edited.style, color: edited.color}}
-        position={{x: edited.x, y: edited.y}} close={() => setTextEdit(null)}
-        apply={(v, at) => { session.changeText(edited.id, v, at); setTextEdit(null); }}
-        remove={() => { session.deleteText(edited.id); setTextEdit(null); }} />}
       {editing && <TraceDialog label={editing.label} color={editing.color} close={() => setEditing(null)}
         apply={(label, color) => { setAppearance(a => ({...a, [editing.key]: {...a[editing.key], label, color}})); setEditing(null); }} />}
       <footer class="readout" role="status" aria-live="polite">

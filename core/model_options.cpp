@@ -18,7 +18,6 @@
 #include "data_formats.h"
 #include "colormap.h"
 #include "expr_native.h"
-#include "command_table.h"
 #include "graphics.h"
 #include "jacobian.h"
 #include "model.h"
@@ -281,7 +280,7 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.numerics.store_every; }),
    /* every step stored */
    .reset = [](Session &s) { s.numerics.store_every = 1; },
-   .key = "store_every", .label = STORE_EVERY_LABEL, .rule = OptionRule::whole_positive, .saved = true},
+   .key = "store_every", .label = "Store every N steps", .rule = OptionRule::whole_positive, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "STATE_LIMIT", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.state_limit; }),
    /* XPPAUT's: past it a solution is taken to blow up */

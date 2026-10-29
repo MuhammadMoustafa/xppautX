@@ -6,28 +6,29 @@ import {test} from 'node:test';
 import type {KeymapInfo} from '../src/protocol/types';
 import {initialState, reduce} from '../src/store/state';
 import {effectiveKeys, userKeymap} from '../src/store/keymap';
-import {HELLO, READY} from './hello';
+import {REGISTRY_HELLO as HELLO, ROWS} from './hello';
 
-const row = (id: string) => HELLO.command_table.find(r => r.id === id)!;
+const row = (id: string) => ROWS.find(r => r.id === id)!;
+const READY = reduce(initialState, {type: 'event', ev: HELLO});
 
 test('hello gives the keymap: the table\'s keys, nothing pinned, all default', () => {
   assert.equal(initialState.keymap.info, null);
   assert.equal(READY.keymap.info, HELLO.keymap);
-  assert.deepEqual(effectiveKeys(READY.keymap.info, row('openmodel')), ['Ctrl+O']);
-  assert.deepEqual(effectiveKeys(READY.keymap.info, row('reload')), ['Ctrl+R']);
+  assert.deepEqual(effectiveKeys(READY.keymap.info, row('session.open_model')), ['Ctrl+O']);
+  assert.deepEqual(effectiveKeys(READY.keymap.info, row('run.initial')), ['Ctrl+R']);
   assert.deepEqual(userKeymap(HELLO.keymap), {preset: 'default', pinned: [], bindings: {}});
 });
 
 test('a keymap event replaces it, and the differences go back as a set sends them', () => {
   const info: KeymapInfo = {
-    ...HELLO.keymap, preset: 'xppaut', pinned: ['reload'],
-    commands: HELLO.keymap.commands.map(c => c.id === 'reload' ? {...c, keys: ['Ctrl+B'], source: 'user'} : c.id === 'savesession' ? {...c, keys: [], source: 'user'} : c),
+    ...HELLO.keymap, preset: 'xppaut', pinned: ['session.reload_model'],
+    commands: HELLO.keymap.commands.map(c => c.id === 'session.reload_model' ? {...c, keys: ['Ctrl+B'], source: 'user'} : c.id === 'session.save' ? {...c, keys: [], source: 'user'} : c),
   };
   const state = reduce(READY, {type: 'event', ev: {ev: 'keymap', op: 'set', keymap: info}});
   assert.equal(state.keymap.info, info);
-  assert.deepEqual(effectiveKeys(state.keymap.info, row('reload')), ['Ctrl+B']);
-  assert.deepEqual(effectiveKeys(state.keymap.info, row('savesession')), []);
-  assert.deepEqual(userKeymap(info), {preset: 'xppaut', pinned: ['reload'], bindings: {reload: ['Ctrl+B'], savesession: []}});
+  assert.deepEqual(effectiveKeys(state.keymap.info, row('session.reload_model')), ['Ctrl+B']);
+  assert.deepEqual(effectiveKeys(state.keymap.info, row('session.save')), []);
+  assert.deepEqual(userKeymap(info), {preset: 'xppaut', pinned: ['session.reload_model'], bindings: {'session.reload_model': ['Ctrl+B'], 'session.save': []}});
   /* the same keymap again changes nothing; a new hello (File > Open model) takes the file's again */
   assert.equal(reduce(state, {type: 'event', ev: {ev: 'keymap', op: 'get', keymap: info}}), state);
   assert.equal(reduce(state, {type: 'event', ev: HELLO}).keymap.info, HELLO.keymap);

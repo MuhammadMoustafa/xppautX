@@ -65,11 +65,6 @@
 #include "picture.h"
 #include "solver.h"
 
-#define PARAM_BOX 1
-
-#define RUBBOX 0
-
-
 
 #include "mykeydef.h"
 namespace xpp {
@@ -540,199 +535,14 @@ std::string auto_screen_col(const xpp::Session &s, const std::string &col)
   return screen_col(s, col.c_str());
 }
 
-void auto_per_par(xpp::Session &s)
-{
-  std::string count=xpp::number(s.auto_state.bifur.marks.size());
-  if(!new_string_of("Mark values: how many?",count,XPP_FIELD_INTEGER))return;
-  xpp::TypedFields fields(s);
-  const int n=fields.integer("Mark count",count);
-  if(n<0 || n>xpp::auto_file_marks_limit)fields.fail("Mark count",xpp::format("must be from 0 to {}",xpp::auto_file_marks_limit));
-  if(fields.error()) { command_error("auto",*fields.error()); return; }
-  xpp::AutoSettingsSet set;
-  set.nmarks=n;
-  set.mark_name.resize(n,"T");
-  set.mark_value.resize(n);
-  std::vector<std::string> labels(n),values(n);
-  std::vector<const char *> names(n);
-  for(int i=0;i<n;i++){
-    labels[i]=xpp::format("Uzr{}",i+1);
-    names[i]=labels[i].c_str();
-    const auto &marks=s.auto_state.bifur.marks;
-    values[i]=i<static_cast<int>(marks.size()) ?
-      xpp::format("{}={}",par_or_period_name(s,marks[i].parameter,marks[i].period),xpp::number(marks[i].value)) : xpp::format("T={}",xpp::number(xpp::auto_initial_mark_period+xpp::auto_mark_period_spacing*i));
-  }
-  if(n && !do_string_box(5,2,"Mark values (UZ): parameter=value or T=value",names.data(),values))return;
-  for(int i=0;i<n;i++){
-    const auto equal=values[i].find('=');
-    if(equal==std::string::npos){ fields.fail(labels[i],"expected parameter=value or T=value"); break; }
-    set.mark_name[i]=xpp::trim_blanks(std::string_view(values[i]).substr(0,equal));
-    // The historical form also accepts per for the period.
-    if(strcasecmp(set.mark_name[i].c_str(),"per")==0)set.mark_name[i]="T";
-    set.mark_value[i]=fields.number(labels[i],values[i].substr(equal+1));
-  }
-  std::string why;
-  if(fields.error())command_error("auto",*fields.error());
-  else if(xpp::auto_settings_apply(s,set,why)!=0)command_error("auto",why);
-}
+
 
 /* Numerics field i as a typed form field of its shape (the value as the settings hold it) */
-static xpp::FormField num_form_field(int i, double value)
-{
-  const std::string name=xpp::auto_settings_num_label(i);
-  switch(xpp::auto_num_shapes[static_cast<std::size_t>(i)]){
-  case xpp::AutoFieldShape::boolean: return xpp::FormField::boolean(name,value!=0);
-  case xpp::AutoFieldShape::choice: {
-    const auto names=xpp::auto_settings_num_choices(i);
-    return xpp::FormField::choice(name,std::vector<std::string>(names.begin(),names.end()),static_cast<std::size_t>(value));
-  }
-  case xpp::AutoFieldShape::whole: return xpp::FormField{.name=name,.kind=XPP_FIELD_INTEGER,.value=xpp::format("{:d}",static_cast<int>(value))};
-  case xpp::AutoFieldShape::real: break;
-  }
-  return xpp::FormField::real_number(name,value);
-}
 
-void auto_num_par(xpp::Session &s)
-{
-  /* Mesh and step size, ranges and tolerances, integer knobs, then named
-     special points; every value checked by its field's shape and then by
-     auto_settings_apply, all together or not at all. */
-  const xpp::AutoSettingsSet now=xpp::auto_settings_now(s);
-  std::vector<xpp::FormField> fields;
-  for(int i=0;i<xpp::AUTO_NUM_N;++i) fields.push_back(num_form_field(i,now.num[i]));
-  for(std::size_t i=0;i<xpp::auto_codim_kinds.size();++i)
-    fields.push_back(xpp::FormField::boolean(std::string(xpp::auto_codim_keys[i]),*now.special_points[i]));
-  if(!xpp::ask_form(s,"AUTO Numerics",fields)) return;
-  xpp::AutoSettingsSet points;
-  for(int i=0;i<xpp::AUTO_NUM_N;++i){
-    const xpp::FormField &f=fields[static_cast<std::size_t>(i)];
-    points.has_num[i]=1;
-    switch(xpp::auto_num_shapes[static_cast<std::size_t>(i)]){
-    case xpp::AutoFieldShape::boolean: points.num[i]=f.flag; break;
-    case xpp::AutoFieldShape::choice:
-    case xpp::AutoFieldShape::whole: points.num[i]=f.whole; break;
-    case xpp::AutoFieldShape::real: points.num[i]=f.real; break;
-    }
-  }
-  for(std::size_t i=0;i<xpp::auto_codim_kinds.size();++i)
-    points.special_points[i]=fields[static_cast<std::size_t>(xpp::AUTO_NUM_N)+i].flag;
-  std::string why;
-  if(xpp::auto_settings_apply(s,points,why)!=0) command_error("auto",why);
-}
 
-void auto_plot_par(xpp::Session &s)
-{
 
-  const char *const key=menu_auto_plot_type.keys;
-  char ch;
 
-  static const char *const n[]={"*1Y-axis","*2Main Parm", "*2Secnd Parm", "Xmin", "Ymin",
-		   "Xmax", "Ymax"};
-  std::array<std::string, 7> values;
-  int  status,i;
-  int ii1,ii2,ji1,ji2;
-  int i1=s.auto_state.axes().var+1;
-  /* the menu's items are XPPAUT's Axes menu, its projections at XPPAUT's numbers */
-  int shown=0;
-  for(i=0;i<menu_auto_plot_type.n;i++)
-    if(xpp::auto_projection_from_xppaut(i)==s.auto_state.axes().plot)shown=i;
-  ch=static_cast<char>(menu_choose(&menu_auto_plot_type,shown));
-  if(ch==ESC) 
-    return;
-  for(i=0;i<menu_auto_plot_type.n;i++)
-    if(ch==key[i])
-      if(const auto p=xpp::auto_projection_from_xppaut(i))s.auto_state.axes().plot=*p;
-  if(ch==key[5]){
-    if(auto_rubber(s,&ii1,&ji1,&ii2,&ji2,RUBBOX)!=0){
-      auto_zoom_in(s, ii1,ji1,ii2,ji2);
-      redraw_diagram(s);
-    }
-    return;
-  }
-  
-  if(ch==key[6]){
-    if(auto_rubber(s,&ii1,&ji1,&ii2,&ji2,RUBBOX)!=0){
-      auto_zoom_out(s, ii1,ji1,ii2,ji2);
-     
-      redraw_diagram(s);
-    }
-    return;
-  }
 
-  /* a new plot type or axes: the diagram drawn again in its quantities
-     (it used to wait for reDraw, which a client drawing from data lacks) */
-  if(ch==key[7]){
-    load_last_plot(s, LastPlot::OneParameter);
-    redraw_diagram(s);
-    return;
-  }
-
-  if(ch==key[8]){
-    load_last_plot(s, LastPlot::TwoParameter);
-    redraw_diagram(s);
-    return;
-  }
-
-  if(ch==key[9]){
-    auto_fit(s);
-    redraw_diagram(s);
-    return;
-  }
-  if(ch==key[12]){
-    auto_default(s);
-    redraw_diagram(s);
-    return;
-  }
-  if(ch==key[13]){
-    auto_scroll_window(s);
-    redraw_diagram(s);
-    return;
-  }
-  if(ch==key[14]){
-    auto_new_view(s);
-    return;
-  }
-  values[0] = xpp::ind_to_sym(s,i1);
-  values[1] = s.model().upar_names[s.auto_state.axes().icp1];
-  values[2] = s.model().upar_names[s.auto_state.axes().icp2];
-  values[3] = xpp::format("{:g}", s.auto_state.axes().xmin);
-  values[4] = xpp::format("{:g}", s.auto_state.axes().ymin);
-  values[5] = xpp::format("{:g}", s.auto_state.axes().xmax);
-  values[6] = xpp::format("{:g}", s.auto_state.axes().ymax);
-  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
-  status=do_string_box_of(7,1,"AutoPlot",n,values,kinds);
-  if(status!=0){
-    /*  get variable names  */
-    find_variable(s,values[0].c_str(),&i);
-    if(i>0)
-      s.auto_state.axes().var=i-1;
-    /*  Now check the parameters  */
-    i1=xpp::find_user_name(s.model(),PARAM_BOX,values[1].c_str());
-    if(i1>=0){
-      for(i=0;i<s.model().nupar;i++){
-	if(i1==i){
-	  s.auto_state.axes().icp1=i;
-
-	}
-      }
-    }
-     i1=xpp::find_user_name(s.model(),PARAM_BOX,values[2].c_str());
-    if(i1>=0){
-      for(i=0;i<s.model().nupar;i++){
-	if(i1==i){
-	  s.auto_state.axes().icp2=i;
-	}
-      }
-    }
-
-    s.auto_state.axes().xmin=atof(values[3].c_str());
-    s.auto_state.axes().ymin=atof(values[4].c_str());
-    s.auto_state.axes().xmax=atof(values[5].c_str());
-    s.auto_state.axes().ymax=atof(values[6].c_str());
-    keep_axes_as_last(s);
-    redraw_diagram(s);
-
-}
-}
 
 void auto_default(xpp::Session &s)
 {
@@ -757,35 +567,6 @@ void auto_fit(xpp::Session &s)
   s.auto_state.axes().ymax=yhi;
 }
   
-void auto_zoom_in(xpp::Session &s, int i1, int j1, int i2, int j2)
-{
-   double x1,y1,x2,y2;
-   int temp;
-   if(i1>i2){temp=i1;i1=i2;i2=temp;}
-   if(j2>j1){temp=j1;j1=j2;j2=temp;}
-   double dx = (s.auto_state.axes().xmax-s.auto_state.axes().xmin);
-   double dy = (s.auto_state.axes().ymax-s.auto_state.axes().ymin);
-   x1 = s.auto_state.axes().xmin+static_cast<double>((i1-s.auto_state.bifur.x0))*(dx)/static_cast<double>(s.auto_state.bifur.wid);
-   x2 = s.auto_state.axes().xmin+static_cast<double>((i2-s.auto_state.bifur.x0))*(dx)/static_cast<double>(s.auto_state.bifur.wid);
-   y1 = s.auto_state.axes().ymin+static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j1))*(dy)/static_cast<double>(s.auto_state.bifur.hgt);
-   y2 = s.auto_state.axes().ymin+static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j2))*(dy)/static_cast<double>(s.auto_state.bifur.hgt);
- 
-   if((i1==i2)||(j1==j2))
-   { 
-   	  if (dx < 0){dx=-dx;}
-	  if (dy < 0){dy=-dy;}
-	  dx = dx/2;
-	  dy = dy/2;
-	  /*Shrink by thirds and center (track) about the point clicked*/
-	  s.auto_state.axes().xmin=x1-dx/2;
-	  s.auto_state.axes().xmax=x1+dx/2;
-	  s.auto_state.axes().ymin=y1-dy/2;
-	  s.auto_state.axes().ymax=y1+dy/2;
-  }
-  else
-    auto_zoom_to(s,x1,x2,y1,y2);
-}
-
 void auto_hide_earlier(xpp::Session &s)
 {
   s.auto_view.earlier=auto_points_held(s);
@@ -819,36 +600,6 @@ static void auto_zoom_out_fractions(xpp::Session &s, double a1, double a2, doubl
   const double y1=(b1*ymax-b2*ymin)/(b1-b2);
   const double y2=(ymin-ymax+b1*ymax-b2*ymin)/(b1-b2);
   auto_zoom_to(s,x1,x2,y1,y2);
-}
-
-void auto_zoom_out(xpp::Session &s, int i1, int j1, int i2, int j2)
-{
-   double x1=0.0,y1=0.0;
-   int temp;
-   double dx = (s.auto_state.axes().xmax-s.auto_state.axes().xmin);
-   double dy = (s.auto_state.axes().ymax-s.auto_state.axes().ymin);
-
-   if(i1>i2){temp=i1;i1=i2;i2=temp;}
-   if(j2>j1){temp=j1;j1=j2;j2=temp;}
-   const double a1=static_cast<double>((i1-s.auto_state.bifur.x0))/static_cast<double>(s.auto_state.bifur.wid);
-   const double a2=static_cast<double>((i2-s.auto_state.bifur.x0))/static_cast<double>(s.auto_state.bifur.wid);
-   const double b1=static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j1))/static_cast<double>(s.auto_state.bifur.hgt);
-   const double b2=static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j2))/static_cast<double>(s.auto_state.bifur.hgt);
-
-   if((i1==i2)||(j1==j2))
-   { 
-   	  if (dx < 0){dx=-dx;}
-	  if (dy < 0){dy=-dy;}
-	  dx = dx*2;
-	  dy = dy*2;
-	  /*Shrink by thirds and center (track) about the point clicked*/
-	  s.auto_state.axes().xmin=x1-dx/2;
-	  s.auto_state.axes().xmax=x1+dx/2;
-	  s.auto_state.axes().ymin=y1-dy/2;
-	  s.auto_state.axes().ymax=y1+dy/2;
-  }
-  else
-    auto_zoom_out_fractions(s,a1,a2,b1,b2);
 }
 
 void auto_zoom_out_to(xpp::Session &s, double x1, double x2, double y1, double y2)
@@ -1326,15 +1077,6 @@ int yes_reset_auto(xpp::Session &s)
  forget_auto_diagram(s,true);
     return 1;
 }
-int reset_auto(xpp::Session &s)
-{
-  char ch;
-    if(diagram_count(s.diagram)<=1)return(0);
-    ch=static_cast<char>(TwoChoice("YES","NO","Destroy AUTO diagram & files","yn"));
-    if(ch!='y')return(0);
-   
-  return(yes_reset_auto(s));
-}
 
 void auto_grab(xpp::Session &s)
 {
@@ -1448,12 +1190,6 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
   return {};
 }
 
-void save_auto(xpp::Session &s)
-{
-  if(!xpp::save_ready(diagram_count(s.diagram)>=2))return;
-  xpp_session_save(s, nullptr, -1);
-}
-
 // Foreign PAR numbering is translated here; unselected prefix entries are not model values.
 static int imported_solver_index(const xpp::Session &s, std::span<const int> imported, int slot)
 {
@@ -1528,11 +1264,6 @@ static xpp::Result<std::string> convert_auto_solutions(const xpp::Session &s, st
     return out;
   });
   return converted;
-}
-
-void load_auto(xpp::Session &s)
-{
-  xpp_session_load(s, nullptr);
 }
 
 /* Foreign XPPAUT diagrams remain an explicit import, separate from Load. */
@@ -1812,93 +1543,7 @@ xpp::Result<> export_auto_csv(xpp::Session &s, const std::optional<std::string> 
   return {};
 }
 
-void auto_file(xpp::Session &s)
-{
 
-  char ch;
-  ch=static_cast<char>(menu_choose(&menu_auto_file,0));
-  if(ch=='i'){
-    xpp::ok_or_show(load_auto_orbit(s,std::nullopt));
-    return;
-  }
-  if(ch=='s'){
-    save_auto(s);
-    return;
-  }
-  if(ch=='l'){
-    load_auto(s);
-    redraw_diagram(s); /* the loaded diagram, at once */
-    return;
-  }
-  if(ch=='r'){
-    reset_auto(s);
-    redraw_diagram(s); /* now empty */
-  }
-  if(ch=='c'){
-    s.auto_state.grabpt.flag=0;
-  }
-  if(ch=='p'){
-    xpp::ok_or_show(export_auto_picture(s, xpp::IMAGE_FORMAT_PDF, std::nullopt));
-  }
-  if(ch=='v'){
-    xpp::ok_or_show(export_auto_picture(s, xpp::IMAGE_FORMAT_SVG, std::nullopt));
-  }
-  if(ch=='w'){
-    xpp::ok_or_show(write_pts(s,std::nullopt));
-  }
-  if(ch=='a'){
-    xpp::ok_or_show(write_info_out(s,std::nullopt));
-  }
-  if(ch=='d'){
-    xpp::ok_or_show(write_init_data_file(s,std::nullopt));
-  }
-  if(ch=='t'){
-    s.auto_state.redraw=!s.auto_state.redraw;
-    if(s.auto_state.redraw)bottom_msg(0,"Redraw is ON");
-    else bottom_msg(0,"Redraw is OFF");
-  }
-  if(ch=='o'){
-    if(s.auto_state.diagram_mark.state<2)
-      command_error("auto", "Mark a branch first using S and E");
-    else
-      load_browser_with_branch(s, s.auto_state.diagram_mark.start_branch,s.auto_state.diagram_mark.start_point,s.auto_state.diagram_mark.end_point);
-	}
-  if(ch=='x'){
-    xpp::ok_or_show(export_auto_csv(s,std::nullopt));
-  }
-  if(ch=='f')xpp::ok_or_show(import_auto(s,std::nullopt));
-  if(ch=='n'){
-    if(s.auto_state.diagram_mark.state<2) 
-      command_error("auto", "Mark a branch first using S and E");
-    else
-      do_auto_range(s);
-  }
-  if(ch=='e'){
-    if(s.auto_state.axes().plot!=AutoProjection::two_parameter){
-      command_error("auto", "Must be in 2 parameter plot");
-      return;
-    }
-    setautopoint(s);
-
-  }
-  if(ch=='b'){
-    switch(s.auto_state.load_all_labeled_orbits){
-    case LabeledOrbits::Off:
-      s.auto_state.load_all_labeled_orbits=LabeledOrbits::Draw;
-      bottom_msg(0,"Draw orbits - no erase");
-      return;
-    case LabeledOrbits::Draw:
-      s.auto_state.load_all_labeled_orbits=LabeledOrbits::ClearAndDraw;
-      bottom_msg(0,"Draw orbits - erase first");
-      return;
-    case LabeledOrbits::ClearAndDraw:
-      s.auto_state.load_all_labeled_orbits=LabeledOrbits::Off;
-      bottom_msg(0,"Draw orbits off");
-      return;
-    }
-  }
-
-}
 
 void auto_get_info(xpp::Session &s, int *n, std::string &pname)
 {
@@ -2189,16 +1834,6 @@ void clear_msg(xpp::Session &s)
 {
   s.auto_state.bifur.hinttxt.clear();
   ui.auto_show_hint(s);
-}
-
-void auto_update_view(xpp::Session &s, float xlo,float xhi, float ylo, float yhi)
-{
-              s.auto_state.axes().xmin=xlo;
-	      s.auto_state.axes().ymin=ylo;
-	      s.auto_state.axes().xmax=xhi;
-	      s.auto_state.axes().ymax=yhi;
-	      redraw_diagram(s);
-
 }
 
 void auto_point_xy(xpp::Session &s, double x,double y)

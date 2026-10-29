@@ -1,3 +1,4 @@
+import {registryRows} from './navigation';
 /* The keymap editor (docs/command-design.md "Keymap editor"): a dialog listing every command with its
    keys and where they come from. Click a key, press the new combination (Esc cancels, Backspace clears);
    a key another command has asks "Replace / Cancel"; the keys the system keeps (hello.keymap.reserved) are
@@ -9,7 +10,7 @@ import {
   editorRows, effectiveKeys, recordKey, replaceKey, sourceLabel, togglePinned, withKey, withoutBinding, withoutKey,
   withPinned, withPreset, type KeymapAction,
 } from '../store/keymap';
-import {useDialogFocus} from './dialogFocus';
+import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
 import {useSession, useStore} from './context';
 import {keyName} from './hotkeys';
 
@@ -26,7 +27,7 @@ function Editor() {
   const box = useRef<HTMLDivElement>(null);
   const searchKeys = useRef(false);
   const ui = (action: KeymapAction) => session.store.dispatch({type: 'keymapUi', action});
-  const rows = hello?.command_table ?? [];
+  const rows = registryRows(hello);
   useDialogFocus(box, []);
   /* a conflict is announced and its answer is a key away; after any change the focus stays in the dialog
      (the button that had it may be gone: Replace, a key removed), where the keys it records are heard */
@@ -44,6 +45,7 @@ function Editor() {
 
   /* a key pressed while a key (or the search) is being recorded is the recording's, not the page's */
   const onKeyDown = (e: KeyboardEvent) => {
+    if (!editor.recording && !searchKeys.current) cycleDialogFocus(e, box.current);
     const rec = editor.recording;
     const name = keyName(e);
     if (rec || searchKeys.current) {
@@ -57,7 +59,7 @@ function Editor() {
       e.stopPropagation();
       if (!rec) {
         searchKeys.current = false;
-        if (name !== 'Esc') ui({type: 'query', query: name});
+        if (name !== 'Escape') ui({type: 'query', query: name});
         return;
       }
       const result = recordKey(info, rows, rec, name);
@@ -94,9 +96,8 @@ function Editor() {
           onInput={e => ui({type: 'query', query: e.currentTarget.value})} /></label>
         <button type="button" data-keymap-search-keys title="Press a key combination to find the commands on it"
           onClick={() => { searchKeys.current = true; box.current?.querySelector<HTMLElement>('[data-keymap-search]')?.focus(); }}>Record keys</button>
-        <label>Preset <select data-keymap-preset value={info.preset}
-          onChange={e => session.setKeymap(withPreset(info, e.currentTarget.value as 'default' | 'xppaut'))}>
-          <option value="default">Default</option><option value="xppaut">XPPAUT sequences</option></select></label>
+        <button type="button" data-keymap-default onClick={() => session.setKeymap({...withPreset(info, 'default'), bindings: {}})}>Reset to defaults</button>
+        <button type="button" data-keymap-xppaut onClick={() => session.setKeymap({...withPreset(info, 'xppaut'), bindings: {}})}>Use XPPAUT keys</button>
         {editor.confirmingReset
           ? <span class="keymap-confirm" role="group" aria-label="Reset all keys and pins">Reset every key, pin and the preset?{' '}
             <button type="button" class="danger" data-keymap-reset-confirm onClick={() => session.resetKeymap()}>Reset all</button>{' '}

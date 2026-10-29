@@ -250,15 +250,6 @@ void replace_model_options(xpp::Model &m, const xpp::odex::Parsed &parsed)
     if(st.kind==xpp::odex::Statement::Kind::Options&&!st.options.empty())add_model_options(m,st.options,parsed.files);
 }
 
-std::string intern_set_default_name(const xpp::Model &m)
-{
-  for(std::size_t n=1;;n++){
-    std::string name=xpp::format("set{}",n);
-    const auto *entry=m.name(name);
-    if(!entry || entry->set<0)return name;
-  }
-}
-
 namespace {
 
 /* a variable's name as its equation spells it (the Model keeps them in upper case) */

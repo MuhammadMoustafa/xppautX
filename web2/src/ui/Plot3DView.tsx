@@ -158,7 +158,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         </div>
         <div class="plot-tools"><label title="Keep earlier trajectories on the next new run">
           <input type="checkbox" checked={info?.freeze !== 0} data-freeze-runs
-            onChange={e => session.send({cmd:'window.set_display',window:win,keep_replaced_run:e.currentTarget.checked})} /> Freeze</label>{['X', 'Y', 'Z'].map(axis => <button data-plot-axis={axis.toLowerCase()} disabled={!mayMain('viewaxes')}
+            onChange={e => session.send({cmd:'window.set_display',window:win,keep_replaced_run:e.currentTarget.checked})} /> Freeze</label>{['X', 'Y', 'Z'].map(axis => <button data-plot-axis={axis.toLowerCase()} disabled={!mayMain('plot.set_2d')}
           onClick={() => session.editPlotAxes(win, true)} title="Edit axis variables and limits">{axis} axis</button>)}</div>
       </header>
       <div
@@ -177,7 +177,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         onPointerCancel={endDrag}>
         <canvas ref={canvas} class="plot-canvas-3d" aria-hidden="true" />
         {!noCurves && (
-          <FitButton onClick={() => session.fitView()} disabled={!mayMain('window')} title="Fit the window's axes to the data (Window/Fit)" />
+          <FitButton onClick={() => session.fitView()} disabled={!mayMain('window.set_bounds')} title="Fit the window's axes to the data (Window/Fit)" />
         )}
         {hovered !== null && model && <span class="trace-tooltip" role="tooltip">{model.curves[hovered]?.label}</span>}
         {noCurves && (

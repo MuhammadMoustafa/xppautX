@@ -219,19 +219,11 @@ typedef struct XppUi {
     int (*grid_box)(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
                     const char *const *names, std::span<std::string> values, const int *kinds);
     int (*file_selector)(std::string_view title, std::string &file, std::string_view wild);
-    /* one-line text entry with named buttons; returns 0 on cancel */
-    int (*dialog)(std::string_view title, std::string_view name, std::string &value, std::string_view ok,
-                  std::string_view cancel, int kind);
     int (*get_mouse_xy)(Session &s, int *x, int *y);
 
-    /* menus. show_menu makes MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the
-       main-window menu; core sets help_menu and dispatches keys itself
-       (commander in commands.c). menu_choose pops up a menu, def is the
-       highlighted item. */
+    /* menus. menu_choose pops up a menu, def is the highlighted item. */
     void (*menu_flash)(int num);
-    void (*show_menu)(int which);
     void (*redraw_menu)(void);
-    int (*menu_choose)(const struct XppMenu *m, int def);
 
     /* long-running loops poll these */
     int (*check_abort)(void);
@@ -268,6 +260,7 @@ typedef struct XppUi {
     /* plot windows */
     void (*create_plot_window)(Session &s); /* present the already-created active graph */
     void (*destroy_plot_window)(Session &s); /* the active one; not the main window */
+    void (*window_selected)(Session &s, std::string_view name, std::string_view kind);
     void (*window_renamed)(Session &s, std::string_view old_name, std::string_view new_name);
     void (*auto_closed)(Session &s, std::string_view name);
     void (*tool_window_closed)(Session &s, std::string_view name, std::string_view kind); /* the animation or array plot window destroyed */
@@ -309,8 +302,6 @@ typedef struct XppUi {
     void (*auto_make_window)(Session &s, std::string_view wname, std::string_view iname);
     void (*auto_refresh)(Session &s);
     int (*auto_check_abort)(int *iflag);
-    int (*auto_rubber)(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
-    void (*auto_scroll_window)(Session &s);
     /* Grab: wait for a key (returns its code, mykeydef.h), a click on
        the diagram (returns XPP_AUTO_CLICK with the pixel in x,y) or a
        point of the diagram by its entry (XPP_AUTO_NODE, DIAGRAM.index in x) */
@@ -347,7 +338,6 @@ typedef struct XppUi {
     void (*q_calc)(Session &s);       /* File/Calculator: evaluate formulas */
     /* File/recorD: start recording the session's steps, or stop and save
        the recording (W59a, json_record.cpp) */
-    void (*record_toggle)(Session &s);
     /* File/plaY recording, or Open model of a .recx: the recording's model
        loaded from it, ready to play its steps (an empty path: ask for the file;
        W59b, json_player.cpp) */
@@ -389,8 +379,6 @@ void cput_text(Session &s);
 void reset_film(Session &s);
 void draw_one_array_plot(Session &s, std::string_view bob);
 void make_auto(Session &s, std::string_view wname, std::string_view iname);
-int auto_rubber(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
-void auto_scroll_window(Session &s);
 void auto_diagram(Session &s, int view, const XppDiagPoint *p);
 int auto_points_held(Session &s);
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
@@ -401,7 +389,6 @@ void new_vcr(Session &s);
 void redraw_the_graph(Session &s);
 void make_txtview(Session &s);
 void q_calc(Session &s);
-void record_toggle(Session &s);
 void play_recording(Session &s, std::string_view path);
 bool recording_in_progress(void);
 bool save_recording(Session &s);
@@ -416,8 +403,6 @@ int new_string(std::string_view name, std::string &value);
 int new_string_of(std::string_view name, std::string &value, int kind);
 /* a form of values.size() fields named names[i], each kinds[i]
    (XPP_FIELD_*; NULL all text), every value of any length; 0 on cancel */
-int do_string_box(int row, int col, std::string_view title, const char *const *names,
-                  std::span<std::string> values);
 int do_string_box_of(int row, int col, std::string_view title, const char *const *names,
                      std::span<std::string> values, const int *kinds);
 /* a form of typed fields (FormField): every answer is checked by its kind,
@@ -430,11 +415,6 @@ int do_grid_box_of(std::string_view title, std::span<const char *const> columns,
 /* a file name (base name or path, what the user picked) matching wild;
    0 on cancel or an empty name */
 int file_selector(std::string_view title, std::string &file, std::string_view wild);
-/* one-line entry of any length with named buttons; 0 on cancel */
-int get_dialog(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
-               std::string_view cancel);
-int get_dialog_of(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
-                  std::string_view cancel, int kind);
 
 /* the one way an error is shown (xpp_error.h): what a computation the
    command ran returned, or what the command found wrong itself, with its

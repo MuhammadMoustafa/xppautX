@@ -1,7 +1,5 @@
-/* The command layer: the main-window key handler (commander), the M_*
-   command switch (run_the_commands) and the pop-up menus that lead to it.
-   Every front end drives xppautX through this one code. Menus are data
-   (menus.cpp) and are shown with menu_choose(); see xpp_ui.h. */
+/* The M_* command switch (run_the_commands): what a model's user buttons (`@ userbut`) name by their
+   XPPAUT codes, run through the registry's functions; and the file and movie helpers it calls. */
 #include "xpp_files.h"
 #include "xpp_ui.h"
 #include "image_format.h"
@@ -47,32 +45,6 @@
 #include "model.h"
 
 namespace xpp {
-
-/* Pop up m and return the index of the chosen item, -1 if none. */
-static int menu_pick(const XppMenu *m, int def)
-{
-  return menu_index(m, menu_choose(m, def));
-}
-
-/* Pop up m and run the command of the chosen item in the session s. */
-static void menu_run(xpp::Session &s, const XppMenu *m, int def)
-{
-  int i = menu_pick(m, def);
-  if (i >= 0)
-    run_the_commands(s, static_cast<MenuCommand>(m->first_cmd + i));
-}
-
-/* ---- the three main-window menus ------------------------------------ */
-
-void show_main_menu(xpp::Session &s, int which)
-{
-  ui.show_menu(which);
-  s.help_menu = which;
-}
-
-/* ---- things the File menu runs without a pop-up ---------------------- */
-
-/* ---- commands the menus run through the command switch --------------- */
 
 void do_movie_com(xpp::Session &s, int c)
 {
@@ -148,116 +120,6 @@ static void get_intern_set(xpp::Session &s)
   xpp::ok_or_show(xpp::apply_named_set(s, names[static_cast<std::size_t>(pick)], scopes[static_cast<std::size_t>(scope)], graph));
 }
 
-/* File/Restore defaults (restoredefaults): all, or one section, back to the
-   model's values (xpp::restore_defaults) */
-static void restore_defaults_menu(xpp::Session &s)
-{
-  const std::vector<std::string> scopes = xpp::set_scopes();
-  const int scope = pick_from_list("restore_scope", "Restore defaults of", scopes);
-  if (scope < 0) return;
-  std::optional<int> graph;
-  if (!pick_target_graph(s, scopes[static_cast<std::size_t>(scope)], graph)) return;
-  xpp::ok_or_show(xpp::restore_defaults(s, scopes[static_cast<std::size_t>(scope)], "", graph));
-}
-
-/* what a save asks after the kind: the scope (all or one section), the graph for
-   the plot settings, and, when the initial values go in, whether they are the
-   initial values or the last state reached; false when any is cancelled */
-struct SaveChoice {
-  std::string scope;
-  std::optional<int> graph;
-  bool last_state = false;
-};
-
-static bool ask_save_choice(xpp::Session &s, std::string_view title, SaveChoice &choice)
-{
-  const std::vector<std::string> scopes = xpp::set_scopes();
-  const int scope = pick_from_list("save_scope", title, scopes);
-  if (scope < 0) return false;
-  choice.scope = scopes[static_cast<std::size_t>(scope)];
-  if (!pick_target_graph(s, choice.scope, choice.graph)) return false;
-  const bool states = choice.scope == xpp::set_scope::all || choice.scope == xpp::set_scope::initial;
-  if (states && s.data_store.rows > 0) {
-    const int answer = TwoChoice("Initial values", "Last state", "Save the initial values, or the last state reached?", "il");
-    if (answer == 0) return false;
-    choice.last_state = answer == 'l';
-  }
-  return true;
-}
-
-/* one of the model file's own sets, picked; empty when none or cancelled */
-static std::string pick_own_set(xpp::Session &s, std::string_view title)
-{
-  const std::vector<std::string> own = xpp::own_set_names(s);
-  if (own.empty()) {
-    bottom_msg(0, "This model file has no set of its own");
-    return "";
-  }
-  const int pick = pick_from_list("own_set", title, own);
-  return pick < 0 ? "" : own[static_cast<std::size_t>(pick)];
-}
-
-/* File/Save values (savevalues): the current values, a new set or the part of a set
-   of this model file, written by xpp::save_new_set / save_into_set */
-static void save_values_menu(xpp::Session &s)
-{
-  const std::vector<std::string> modes{"New set", "Replace in set"};
-  const int mode = pick_from_list("save_mode", "Save values", modes);
-  if (mode < 0) return;
-  std::string name;
-  if (mode == 0) {
-    name = xpp::intern_set_default_name(s.model());
-    if (!new_string("Name of the set", name)) return;
-  } else {
-    name = pick_own_set(s, "Replace in set");
-    if (name.empty()) return;
-  }
-  SaveChoice choice;
-  if (!ask_save_choice(s, mode == 0 ? "Save into the new set" : "Replace in the set", choice)) return;
-  if (mode == 1 && !confirm(xpp::format("Replace the {} values of set {} in {}? Its other parts stay as they are.", choice.scope == xpp::set_scope::all ? "all" : choice.scope, name, s.model().this_file))) return;
-  xpp::ok_or_show(mode == 0 ? xpp::save_new_set(s, name, choice.scope, choice.graph, choice.last_state)
-                            : xpp::save_into_set(s, name, choice.scope, choice.graph, choice.last_state));
-}
-
-/* File/Save as defaults (savedefaults): the current values as the model's par and init lines and options groups */
-static void save_defaults_menu(xpp::Session &s)
-{
-  SaveChoice choice;
-  if (!ask_save_choice(s, "Save as defaults", choice)) return;
-  xpp::ok_or_show(xpp::save_defaults(s, choice.scope, choice.graph, choice.last_state));
-}
-
-/* File/Export values (exportvalues): the current values as a set of another .odex file */
-static void export_values_menu(xpp::Session &s)
-{
-  SaveChoice choice;
-  if (!ask_save_choice(s, "Export", choice)) return;
-  std::string name = xpp::intern_set_default_name(s.model());
-  if (!new_string("Name of the set", name)) return;
-  std::string file = xpp::files::output_name(s.model().this_file, xpp::odex::extension, "values");
-  if (!file_selector("Export to", file, xpp::format("*{}", xpp::odex::extension))) return;
-  xpp::ok_or_show(xpp::export_values(s, name, choice.scope, file, choice.graph, choice.last_state));
-}
-
-/* File/Rename set (renameset) */
-static void rename_set_menu(xpp::Session &s)
-{
-  const std::string from = pick_own_set(s, "Rename set");
-  if (from.empty()) return;
-  std::string to = from;
-  if (!new_string("New name", to)) return;
-  xpp::ok_or_show(xpp::rename_intern_set(s, from, to));
-}
-
-/* File/Delete set (deleteset) */
-static void delete_set_menu(xpp::Session &s)
-{
-  const std::string name = pick_own_set(s, "Delete set");
-  if (name.empty()) return;
-  if (!confirm(xpp::format("Delete the set {} from {}?", name, s.model().this_file))) return;
-  xpp::ok_or_show(xpp::delete_intern_set(s, name));
-}
-
 /* ---- the command switch --------------------------------------------- */
 
 static void do_file_com(xpp::Session &s, int com);
@@ -282,7 +144,7 @@ void run_the_commands(xpp::Session &s, MenuCommand com)
     return;
   }
   if (com >= M_NN && com <= M_NS) {
-    if(com==M_NS-1){menu_run(s,&menu_freeze_cline,0);return;}
+    if(com==M_NS-1)return; /* A menu prefix has no operation. */
     xpp::ok_or_show(xpp::command::nullcline_button(s,com==M_NS?4:com-M_NN,xpp::command_place()));
     return;
   }
@@ -402,145 +264,10 @@ static void do_file_com(xpp::Session &s, int com)
 /* ---- pop-up menus --------------------------------------------------- */
 
 /* the main menu's, reached from its keys (commander) */
-static void ini_data_menu(xpp::Session &s) { menu_run(s, &menu_integrate, 3); }
-static void new_clines(xpp::Session &s) { menu_run(s, &menu_nullclines, 0); }
-static void direct_field(xpp::Session &s) { menu_run(s, &menu_dirfield, 0); }
-static void window_zoom(xpp::Session &s) { menu_run(s, &menu_window, 0); }
-static void do_torus(xpp::Session &s) { menu_run(s, &menu_torus, 1 - s.numerics.torus); }
-static void do_movie(xpp::Session &s) { menu_run(s, &menu_kinescope, 0); }
-static void find_equilibrium(xpp::Session &s) { menu_run(s, &menu_equilibria, 1); }
-static void change_view(xpp::Session &s) { menu_run(s, &menu_view, 0); }
-static void find_bvp(xpp::Session &s) { menu_run(s, &menu_bvp, 1); }
 
 /* the ones the Numerics menu (numerics.cpp), the nullclines' (nullcline.cpp)
    and the front end open, in the Session they pass */
 
-void do_stochast(xpp::Session &s) { menu_run(s, &menu_stochastic, 0); }
-void set_col_par(xpp::Session &s) { menu_run(s, &menu_color_code, 0); }
-void make_adj(xpp::Session &s) { menu_run(s, &menu_adjoint, 0); }
-
-void get_pmap_pars(xpp::Session &s)
-{
-  menu_run(s, &menu_poincare, static_cast<int>(s.numerics.poincare_map));
-}
-
-void new_lookup(xpp::Session &s)
-{
-  if (s.ntable == 0) return;
-  menu_run(s, &menu_lookup, 1);
-}
-
-
-static void do_gr_objs(xpp::Session &s)
-{
-  int i = menu_pick(&menu_text, 0);
-  if (i < 0) return;
-  if (menu_text.keys[i] == 'e') {
-    menu_run(s, &menu_text_edit, 0);
-    return;
-  }
-  run_the_commands(s, static_cast<MenuCommand>(M_TT + i));
-}
-
-static void add_a_curve(xpp::Session &s)
-{
-  int com = -1;
-  int i = menu_pick(&menu_curves, 0), j;
-
-  if (i < 0) return;
-  switch (menu_curves.keys[i]) {
-  case 'f':
-    j = menu_pick(s.frozen_curves.auto_freeze == 0 ? &menu_freeze : &menu_freeze_off, 0);
-    if (j < 0) break;
-    if (menu_freeze.keys[j] == 'k') {
-      j = menu_pick(&menu_freeze_key, 0);
-      if (j >= 0) com = M_GFKN + j;
-    } else {
-      com = M_GFF + j;
-    }
-    break;
-  case 'c': {
-    /* a scale by its name, from all of them */
-    const std::vector<std::string> names(colormap_names.begin(), colormap_names.end());
-    j = pick_from_list("colormap", "Colormap", names);
-    if (j >= 0) set_colormap(s, static_cast<Colormap>(j));
-    return;
-  }
-  default:
-    com = M_GA + i;
-  }
-  run_the_commands(s, static_cast<MenuCommand>(com));
-}
-
 /* ---- the key handler ------------------------------------------------ */
-
-void commander(xpp::Session &s, int ch)
-{
-  switch (s.help_menu) {
-  case MAIN_MENU:
-    switch (ch) {
-    case 'i': flash(0); ini_data_menu(s); flash(0); break;
-    case 'c': flash(1); xpp::ok_or_show(xpp::continue_total(s)); flash(1); break;
-    case 'n': flash(2); new_clines(s); flash(2); break;
-    case 'd': flash(3); direct_field(s); flash(3); break;
-    case 'w': flash(4); window_zoom(s); flash(4); break;
-    case 'a': flash(5); do_torus(s); flash(5); break;
-    case 'k': flash(6); do_movie(s); flash(6); break;
-    case 'g': flash(7); flash(7); add_a_curve(s); break;
-    case 'u': flash(8); flash(8); show_main_menu(s,NUM_MENU); break;
-    case 'f': flash(9); flash(9); show_main_menu(s,FILE_MENU); break;
-    case 'p': flash(10); run_the_commands(s, M_P); flash(10); break;
-    case 't': flash(13); do_gr_objs(s); flash(13); break;
-    case 's': flash(14); find_equilibrium(s); flash(14); break;
-    case 'v': flash(15); change_view(s); flash(15); break;
-    case 'b': find_bvp(s); break;
-    case 'x': flash(16); run_the_commands(s, M_X); flash(16); break;
-    case '3': run_the_commands(s, M_3); break;
-    case 'z': xpp::ok_or_show(xpp::undo_value_edit(s)); break;
-    case 'y': xpp::ok_or_show(xpp::redo_value_edit(s)); break;
-    }
-    break;
-
-  case NUM_MENU:
-    xpp::get_num_par(s,static_cast<char>(ch));
-    break;
-
-  case FILE_MENU:
-    switch (ch) {
-    case 't': xpp::do_transpose(s); break;
-    case 'g': get_intern_set(s); break;
-    case 'k': restore_defaults_menu(s); break;
-    case 'p': flash(0); make_txtview(s); flash(0); break;
-    case 's': flash(2); xpp::file_inf(s); flash(2); break;
-    case 'a':
-      flash(3);
-      do_auto_win(s);
-      flash(3);
-      break;
-    case 'c': flash(4); q_calc(s); flash(4); break;
-    case 'r': flash(5); xpp::import_settings_command(s); flash(5); break;
-    case 'q':
-      flash(7);
-      xpp_quit(s);
-      flash(7);
-      break;
-    case 'o': save_values_menu(s); break;
-    case 'j': save_defaults_menu(s); break;
-    case 'i': export_values_menu(s); break;
-    case 'z': rename_set_menu(s); break;
-    case 'f': delete_set_menu(s); break;
-    case 'm': xpp::ok_or_show(xpp_model_open(s, nullptr)); break;
-    case 'e': xpp::ok_or_show(xpp_model_reload(s)); break;
-    case 'v': xpp_session_save_here(s); break;
-    case 'w': xpp_session_save(s, nullptr, -1); break;
-    case 'b': xpp_session_save(s, nullptr, -1, true); break;
-    case 'n': xpp_session_load(s, nullptr); break;
-    case 'd': record_toggle(s); break;
-    case 'y': play_recording(s,""); break;
-    }
-    show_main_menu(s,MAIN_MENU);
-    break;
-  }
-}
 
 } // namespace xpp

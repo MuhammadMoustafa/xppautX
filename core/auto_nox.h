@@ -156,9 +156,6 @@ void set_auto(Session &s);
 /* the model parameter k's name, NULL when k is outside the model: the one lookup the forms,
    the settings event, the CSV export and the branch-end text share */
 const char *auto_par_name(const Session &s, int k);
-void auto_per_par(Session &s);
-void auto_num_par(Session &s);
-void auto_plot_par(Session &s);
 void auto_fit(Session &s);
 void auto_default(Session &s);
 /* the diagram's views (W50, AutoState::views). New view: one more, a copy
@@ -170,7 +167,6 @@ void auto_default(Session &s);
 void auto_new_view(Session &s);
 int auto_close_view(Session &s, int k);
 int auto_activate_view(Session &s, int k);
-void auto_zoom_in(Session &s, int i1, int j1, int i2, int j2);
 /* the active view shows this box of its quantities, x1 below x2 and y1 below y2, or the box a zoom out shrinks it into
    (auto_zoom_out_to), or is moved by dx, dy; the caller draws the diagram again (redraw_diagram) */
 /* Clear: the branches so far become the earlier ones, hidden until shown again */
@@ -178,7 +174,6 @@ void auto_hide_earlier(Session &s);
 void auto_zoom_to(Session &s, double x1, double x2, double y1, double y2);
 void auto_zoom_out_to(Session &s, double x1, double x2, double y1, double y2);
 void auto_scroll_by(Session &s, double dx, double dy);
-void auto_zoom_out(Session &s, int i1, int j1, int i2, int j2);
 /* where view ax plots a point: x, and y1 and y2 (the maximum and minimum,
    or y1 twice) */
 void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> ubar, double a);
@@ -206,7 +201,6 @@ void keep_last_plot(Session &s, LastPlot which);
 void keep_axes_as_last(Session &s);
 void init_auto_win(Session &s);
 int yes_reset_auto(Session &s);
-int reset_auto(Session &s);
 void auto_grab(Session &s);
 
 void find_best_homo_shift(Session &s, int n);
@@ -217,16 +211,12 @@ Result<> load_auto_orbit(Session &s, std::optional<int> label);
 /* the diagram as CSV files (csv_export.h), and a foreign XPPAUT diagram (.auto), to or from `file`, or asked for */
 Result<> export_auto_csv(Session &s, const std::optional<std::string> &file);
 Result<> import_auto(Session &s, const std::optional<std::string> &file);
-/* File/Save diagram and Load diagram save/open the session (.snapx). */
-void save_auto(Session &s);
-void load_auto(Session &s);
 // XPPAUT stores eight selected parameters before its numerical slots.
 inline constexpr int xppaut_parameter_prefix = 8;
 /* Foreign XPPAUT import: validate whole, then replace; errors belong to the caller. */
 Result<> import_auto_file(Session &s, FILE *fp, const std::string &file);
 int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp);
 void get_a_row(double *u, double *t, int n, FILE *fp);
-void auto_file(Session &s);
 int check_plot_type(const Session &s, AutoCalculation flag2, AutoAxis icp1, AutoAxis icp2);
 
 /* grabbing and marking points on the diagram (from auto_x11.c) */
@@ -239,7 +229,6 @@ int auto_grab_type_index(Session &s, AutoPointKind type, int index);
 /* asks which point type the grab-by-type menu picks, or none */
 std::optional<AutoPointKind> query_special(const char *title);
 void clear_msg(Session &s);
-void auto_update_view(Session &s, float xlo, float xhi, float ylo, float yhi);
 /* a click on the diagram at (x, y) in its axis quantities: shown, and kept
    as the point AUTO's File/sElect 2par pt uses in a two-parameter plot */
 void auto_point_xy(Session &s, double x, double y);

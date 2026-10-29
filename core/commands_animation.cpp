@@ -73,7 +73,9 @@ Result<std::string> grab_point(Session &s, const Command &command, const Argumen
 {
     if (s.animation.ncom == 0) return fail(command.name, "No animation is loaded: load one first (animation.load)", place);
     if (s.animation.grabs.empty()) return fail(command.name, "The animation has no grab points: its file gives none", place);
+    if (!args.has("x") && args.has("to_x")) return fail(command.name, "to_x and to_y need x and y", place);
     if (!s.animation.grab_flag) ani_grab_start(s);
+    if (!args.has("x")) {ui.ani_slider(s); return ResultObject().boolean("grabbed", false).done();}
     const double x = args.get<double>("x"), y = args.get<double>("y");
     ani_grab_mouse(s, 1, x, y);
     const double to_x = args.optional<double>("to_x").value_or(x), to_y = args.optional<double>("to_y").value_or(y);
@@ -136,9 +138,10 @@ constexpr long long MAX_FRAME_SKIP = 100000000;
 constexpr std::array SKIP_ARGUMENTS = {Argument{"skip", Type::integer, true, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_FRAME_SKIP)}};
 constexpr std::array EXPORT_ARGUMENTS = {Argument{"ppm", Type::boolean, false}, Argument{"animated_gif", Type::boolean, false}, Argument{"file", Type::file, true}};
 constexpr std::array LIVE_ARGUMENTS = {Argument{"enabled", Type::boolean, true}};
-constexpr std::array GRAB_ARGUMENTS = {Argument{"x", Type::real, true}, Argument{"y", Type::real, true}, Argument{"to_x", Type::real, false}, Argument{"to_y", Type::real, false}};
+constexpr std::array GRAB_ARGUMENTS = {Argument{"x", Type::real, false}, Argument{"y", Type::real, false}, Argument{"to_x", Type::real, false}, Argument{"to_y", Type::real, false}};
 constexpr std::array GRAB_TOGETHER = {"to_x", "to_y"};
-constexpr std::array GRAB_GROUPS = {Group{GroupRule::together, GRAB_TOGETHER}};
+constexpr std::array GRAB_ORIGIN = {"x", "y"};
+constexpr std::array GRAB_GROUPS = {Group{GroupRule::together, GRAB_ORIGIN}, Group{GroupRule::together, GRAB_TOGETHER}};
 constexpr std::array SPEED_ARGUMENTS = {Argument{"ms", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(MAX_ANI_SPEED)}};
 constexpr std::array STEP_ARGUMENTS = {Argument{"rows", Type::integer, true, MAX_TEXT_BYTES, {}, constant(-MAX_INT), constant(MAX_INT)}};
 constexpr std::array SEEK_ARGUMENTS = {Argument{"row", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(MAX_INT)}};
@@ -157,37 +160,37 @@ constexpr std::array ANI_EVENTS = {"ani", "state", "done"};
 constexpr std::array GRAB_EVENTS = {"ani", "series", "state", "done"};
 
 constexpr std::array ROWS = {
-    Command{"animation.open", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Viewaxes/Toon", "VT",
+    Command{"animation.open", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Viewaxes/Toon", "VT",
             "Open the animation window.", OPEN_RESULTS, WINDOW_EVENTS, true, open},
-    Command{"animation.load", FILE_ARGUMENT, XPP_KIND_VIEW, CommandCategory::Plot, "Animation/File", "F",
+    Command{"animation.load", FILE_ARGUMENT, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/File", "F",
             "Load an animation file (.anix or .ani) of the model's folder; its first frame shows when there is data.",
-            LOAD_RESULTS, ANI_EVENTS, true, load},
-    Command{"animation.play", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Animation/Go", "G",
-            "Play the stored rows as frames from the one shown to the last.", PLAY_RESULTS, ANI_EVENTS, true, play},
-    Command{"animation.reset", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Animation/Reset", "R",
-            "Back to the first frame.", RESET_RESULTS, ANI_EVENTS, true, reset},
-    Command{"animation.set_frame_skip", SKIP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Animation/Skip", "S",
-            "Show every skip-th stored row when playing.", SKIP_RESULTS, ANI_EVENTS, true, set_frame_skip},
-    Command{"animation.export_frames", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Animation/Mpeg", "M",
+            LOAD_RESULTS, ANI_EVENTS, true, load, {}, {}, "animation"},
+    Command{"animation.play", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/Go", "G",
+            "Play the stored rows as frames from the one shown to the last.", PLAY_RESULTS, ANI_EVENTS, true, play, {}, {}, "animation"},
+    Command{"animation.reset", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/Reset", "R",
+            "Back to the first frame.", RESET_RESULTS, ANI_EVENTS, true, reset, {}, {}, "animation"},
+    Command{"animation.set_frame_skip", SKIP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/Skip", "S",
+            "Show every skip-th stored row when playing.", SKIP_RESULTS, ANI_EVENTS, true, set_frame_skip, {}, {}, "animation"},
+    Command{"animation.export_frames", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "File/Animation/Mpeg", "M",
             "Play the animation writing every frame, as numbered PPM files from file (ppm) or as one animated GIF file (animated_gif), one of the two, into the model's folder.",
-            EXPORT_RESULTS, ANI_EVENTS, true, export_frames},
-    Command{"animation.set_live_draw", LIVE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Animation/On the fly", "O",
-            "Draw the animation while an integration runs.", LIVE_RESULTS, ANI_EVENTS, true, set_live_draw},
-    Command{"animation.grab_point", GRAB_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Plot, "Animation/Grab", "A",
-            "Press at (x, y) of the animation's own coordinates on a grab point, move it to (to_x, to_y) when given and release: the point's assignments are made, and its run if the file says so.",
-            GRAB_RESULTS, GRAB_EVENTS, true, grab_point, GRAB_GROUPS},
-    Command{"animation.set_speed", SPEED_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
-            "Set the delay between two frames of Go in ms; it reaches a Go that is running.", SPEED_RESULTS, ANI_EVENTS, true, set_speed},
-    Command{"animation.step", STEP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
-            "Move the frame shown by rows stored rows (negative: back).", ROW_RESULTS, ANI_EVENTS, true, step},
-    Command{"animation.seek", SEEK_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
-            "Show the frame of stored row row (row 0 is the first).", ROW_RESULTS, ANI_EVENTS, true, seek},
-    Command{"animation.pause", {}, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
-            "Stop a Go that is running at the frame it is on; with none running it changes nothing.", SPEED_RESULTS, ANI_EVENTS, true, pause},
-    Command{"animation.faster", {}, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
-            "Shorten the delay between two frames of Go by a step; it reaches a Go that is running.", SPEED_RESULTS, ANI_EVENTS, true, faster},
-    Command{"animation.slower", {}, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
-            "Lengthen the delay between two frames of Go by a step; it reaches a Go that is running.", SPEED_RESULTS, ANI_EVENTS, true, slower}};
+            EXPORT_RESULTS, ANI_EVENTS, true, export_frames, {}, {}, "animation", "write", "*"},
+    Command{"animation.set_live_draw", LIVE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/On the fly", "O",
+            "Draw the animation while an integration runs.", LIVE_RESULTS, ANI_EVENTS, true, set_live_draw, {}, {}, "animation"},
+    Command{"animation.grab_point", GRAB_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Plot, "Windows/Animation/Grab", "A",
+            "Pick a grab point in the animation's coordinates and optionally move it; omit coordinates to begin pointer selection.",
+            GRAB_RESULTS, GRAB_EVENTS, true, grab_point, GRAB_GROUPS, {}, "animation"},
+    Command{"animation.set_speed", SPEED_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/Set speed", "",
+            "Set the delay between two frames of Go in ms; it reaches a Go that is running.", SPEED_RESULTS, ANI_EVENTS, true, set_speed, {}, {}, "animation"},
+    Command{"animation.step", STEP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/Step", "",
+            "Move the frame shown by rows stored rows (negative: back).", ROW_RESULTS, ANI_EVENTS, true, step, {}, {}, "animation"},
+    Command{"animation.seek", SEEK_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/Seek", "",
+            "Show the frame of stored row row (row 0 is the first).", ROW_RESULTS, ANI_EVENTS, true, seek, {}, {}, "animation"},
+    Command{"animation.pause", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/Pause", "",
+            "Stop a Go that is running at the frame it is on; with none running it changes nothing.", SPEED_RESULTS, ANI_EVENTS, true, pause, {}, {}, "animation"},
+    Command{"animation.faster", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/Faster", "",
+            "Shorten the delay between two frames of Go by a step; it reaches a Go that is running.", SPEED_RESULTS, ANI_EVENTS, true, faster, {}, {}, "animation"},
+    Command{"animation.slower", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Animation/Slower", "",
+            "Lengthen the delay between two frames of Go by a step; it reaches a Go that is running.", SPEED_RESULTS, ANI_EVENTS, true, slower, {}, {}, "animation"}};
 
 } // namespace
 

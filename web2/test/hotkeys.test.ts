@@ -1,161 +1,70 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {handleKey, keyName, resolveKeys, shortcutLabel} from '../src/ui/hotkeys';
-import {BUSY_TITLE} from '../src/ui/context';
-import {initialState, reduce, type Action, type AppState} from '../src/store/state';
-import type {KeymapInfo} from '../src/protocol/types';
-import {mayStart, kindOf, noValueEdit} from '../src/protocol/kinds';
+import {handleKey, keyName, resolveKeys} from '../src/ui/hotkeys';
+import {REGISTRY_HELLO as HELLO} from './hello';
+import {registryRows} from '../src/ui/navigation';
+import {initialState, reduce, type Action} from '../src/store/state';
 import type {Session} from '../src/session';
-import {HELLO} from './hello';
 
-function keyEvent(key: string, mods: Partial<KeyboardEvent> = {}) {
-  const e = {key, code: '', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, defaultPrevented: false, target: null,
-    prevented: 0, preventDefault() { this.prevented++; }, ...mods};
-  return e as unknown as KeyboardEvent & {prevented: number};
-}
-
-/** a session with the parts handleKey uses: a store, may (as Session.may), menuAction, typeKey, awaitingMenu */
-function fakeSession(opts: {computing?: boolean; hello?: AppState['hello']; preset?: 'default' | 'xppaut'; keymap?: KeymapInfo; waiting?: boolean; ask?: boolean; core?: Partial<NonNullable<AppState['core']>>} = {}) {
-  let state: AppState = {...initialState, hello: opts.hello === undefined ? HELLO : opts.hello, computing: opts.computing ?? false, core: (opts.core ?? null) as AppState['core'],
-    keymap: {...initialState.keymap, info: opts.keymap ?? {...(opts.hello ?? HELLO).keymap, preset: opts.preset ?? 'default'}}, ask: opts.ask ? {id: 1, kind: 'menu', keys: 'gl', items: []} as never : null};
+const event = (key: string, mods: Partial<KeyboardEvent> = {}) => ({key, code:'', defaultPrevented:false, ctrlKey:false, altKey:false, shiftKey:false, metaKey:false, target:null,
+  prevented:false, preventDefault() {(this as {prevented:boolean}).prevented = true;}, ...mods}) as unknown as KeyboardEvent & {prevented: boolean};
+function session(preset = 'default', computing = false) {
+  const commands = registryRows(HELLO).map(row => ({id:row.id, keys:preset === 'xppaut' ? row.legacy_keys : row.default_keys, source:'default' as const}));
+  let state = {...initialState, hello: HELLO, computing, keymap:{...initialState.keymap, info:{...HELLO.keymap, preset:preset as 'default' | 'xppaut', commands}}};
   const calls: string[] = [];
-  const session = {
-    store: {getState: () => state, dispatch: (a: Action) => { state = reduce(state, a); }},
-    may: (cmd: Parameters<Session['may']>[0]) => !(cmd.cmd === 'key' && noValueEdit(state.core, String(cmd.item))) && mayStart(kindOf(state.hello, 0, cmd), state.computing, false),
-    menuAction: (menu: string, item: string) => { calls.push(`${menu}/${item}`); },
-    typeKey: (k: string) => { calls.push(`key ${k}`); },
-    awaitingMenu: () => opts.waiting ?? false,
-  } as unknown as Session;
-  return {session, calls, state: () => state};
+  const s = {store: {getState: () => state, dispatch: (a: Action) => {state = reduce(state,a) as typeof state;}},
+    registryAction: (id: string) => {calls.push(id);}, may: () => !computing, awaitingMenu: () => false} as unknown as Session;
+  return {s, calls, state: () => state};
 }
-
-/** type `keys` one after another, as handleKey sees them; the events, to read what was prevented */
-function type(s: ReturnType<typeof fakeSession>, ...events: ReturnType<typeof keyEvent>[]) {
-  for (const e of events) handleKey(s.session, e);
-  return events;
-}
-
-const XPPAUT: KeymapInfo = {...HELLO.keymap, preset: 'xppaut'};
-
-test('a key event is named as the table writes keys', () => {
-  assert.equal(keyName(keyEvent('s', {ctrlKey: true})), 'Ctrl+S');
-  assert.equal(keyName(keyEvent('S', {metaKey: true, shiftKey: true})), 'Ctrl+Shift+S');
-  assert.equal(keyName(keyEvent('ß', {altKey: true, code: 'KeyS'})), 'Alt+S');
-  assert.equal(keyName(keyEvent('Enter', {altKey: true})), 'Alt+Enter');
-  assert.equal(keyName(keyEvent('Escape')), 'Esc');
-  assert.equal(keyName(keyEvent('F6', {shiftKey: true})), 'Shift+F6');
-  assert.equal(keyName(keyEvent('i')), 'I');
-  assert.equal(keyName(keyEvent('+', {shiftKey: true})), '+');
-  assert.equal(keyName(keyEvent('Shift', {shiftKey: true})), null);
-  assert.equal(keyName(keyEvent('Control', {ctrlKey: true})), null);
+test('W517: logical keys run registry commands; modifier keys map Cmd to Ctrl', () => {
+  const {s,calls} = session();
+  for (const key of ['o','s','r']) handleKey(s,event(key,{ctrlKey:true}));
+  assert.deepEqual(calls,['session.open_model','session.save','run.initial']);
+  assert.equal(keyName(event('S',{metaKey:true,shiftKey:true})), 'Ctrl+Shift+S');
+  assert.equal(keyName(event('Escape')), 'Escape');
 });
-
-test('a default key runs its command, and only that command', () => {
-  const idle = fakeSession();
-  const [open, save, reload] = type(idle, keyEvent('o', {ctrlKey: true}), keyEvent('S', {metaKey: true}), keyEvent('r', {ctrlKey: true}));
-  assert.deepEqual(idle.calls, ['file/openmodel', 'file/savesession', 'file/reload']);
-  assert.deepEqual([open.prevented, save.prevented, reload.prevented], [1, 1, 1]);
-  /* a key no command has stays the browser's */
-  const [other] = type(idle, keyEvent('o', {ctrlKey: true, altKey: true}));
-  assert.equal(other.prevented, 0);
-  assert.equal(idle.calls.length, 3);
+test('W517: legacy IG resolves the same registry command; its prefix waits and Escape cancels', () => {
+  const on = session('xppaut');
+  handleKey(on.s,event('i'));
+  assert.deepEqual(on.state().pendingKeys,['I']);
+  handleKey(on.s,event('g'));
+  assert.deepEqual(on.calls,['run.initial']);
+  handleKey(on.s,event('i'));
+  handleKey(on.s,event('Escape'));
+  assert.deepEqual(on.state().pendingKeys,[]);
+  const off = session();
+  handleKey(off.s,event('i')); handleKey(off.s,event('g'));
+  assert.deepEqual(off.calls,[]);
 });
-
-test('the XPPAUT preset off: a letter alone, or F then S, does nothing', () => {
-  const off = fakeSession();
-  const events = type(off, keyEvent('p'), keyEvent('f'), keyEvent('s'));
-  assert.deepEqual(off.calls, []);
-  assert.deepEqual(events.map(e => e.prevented), [0, 0, 0]);
-  assert.deepEqual(off.state().pendingKeys, []);
-});
-
-test('the XPPAUT preset on: a letter, and F then S as a chord that Esc cancels', () => {
-  const on = fakeSession({preset: 'xppaut'});
-  const [i] = type(on, keyEvent('p'));
-  assert.deepEqual(on.calls, ['main/parameters']);
-  assert.equal(i.prevented, 1);
-  const [f] = type(on, keyEvent('F', {shiftKey: true}));
-  assert.equal(f.prevented, 1);
-  assert.deepEqual(on.state().pendingKeys, ['F']);
-  type(on, keyEvent('s'));
-  assert.deepEqual(on.calls, ['main/parameters', 'file/saveinfo']);
-  assert.deepEqual(on.state().pendingKeys, []);
-  /* Esc cancels a pending chord and runs nothing; the key after it is a first key again */
-  type(on, keyEvent('u'));
-  assert.deepEqual(on.state().pendingKeys, ['U']);
-  const [esc] = type(on, keyEvent('Escape'));
-  assert.equal(esc.prevented, 1);
-  assert.deepEqual(on.state().pendingKeys, []);
-  type(on, keyEvent('d'));
-  assert.deepEqual(on.calls, ['main/parameters', 'file/saveinfo', 'main/dirfield']);
-  /* a key that completes no chord is said, never skipped */
-  type(on, keyEvent('f'), keyEvent('x'));
-  assert.equal(on.state().bottom, 'F X is not a command');
-  assert.deepEqual(on.state().pendingKeys, []);
-  /* the layers' switches are no commands of the page */
-  assert.equal(resolveKeys(HELLO, XPPAUT, ['U', 'Esc']).row, null);
-  assert.equal(resolveKeys(HELLO, XPPAUT, ['U']).more, true);
-});
-
-test('a key typed while a menu is open or on its way answers it', () => {
-  const waiting = fakeSession({preset: 'xppaut', waiting: true});
-  type(waiting, keyEvent('g'));
-  assert.deepEqual(waiting.calls, ['key g']);
-  const asking = fakeSession({preset: 'xppaut', ask: true});
-  type(asking, keyEvent('l'));
-  assert.deepEqual(asking.calls, ['key l']);
-});
-
-test('the keys the core reserves (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5 ...) are never taken or prevented, whatever the table says', () => {
-  assert.ok(['Alt+F4', 'Ctrl+W', 'Ctrl+Q', 'F11', 'F12', 'F5'].every(k => HELLO.keymap.reserved.includes(k)));
-  /* even a table that bound one of them */
-  const bound = {...HELLO, command_table: HELLO.command_table.map(r => r.id === 'reload' ? {...r, default_keys: ['Ctrl+W']}
-    : r.id === 'help' ? {...r, default_keys: ['F12']} : r)};
-  for (const hello of [HELLO, bound]) {
-    const events = [keyEvent('F4', {altKey: true}), keyEvent('w', {ctrlKey: true}), keyEvent('W', {metaKey: true}), keyEvent('q', {ctrlKey: true}),
-      keyEvent('F11'), keyEvent('F12'), keyEvent('F5')];
-    const s = fakeSession({hello, preset: 'xppaut'});
-    type(s, ...events);
-    assert.deepEqual(events.map(e => e.prevented), events.map(() => 0));
-    assert.deepEqual(s.calls, []);
+test('W517: all reserved keys remain the browser/system keys', () => {
+  const on = session();
+  for (const e of [event('F5'),event('w',{ctrlKey:true}),event('F4',{altKey:true}),event('F12')]) {
+    handleKey(on.s,e); assert.equal(e.prevented,false);
   }
+  assert.deepEqual(on.calls,[]);
+});
+test('W517: palette is a customizable registry key, and no default uses a reserved key', () => {
+  assert.equal(resolveKeys(HELLO,HELLO.keymap,['Ctrl+Shift+P']).row?.id,'tool.command_palette');
+  const keys = registryRows(HELLO).flatMap(r => r.default_keys);
+  assert.equal(new Set(keys).size, keys.length);
+  assert.ok(keys.every(k => !HELLO.keymap.reserved.includes(k)));
 });
 
-test('a run forbids a data command: the key says why, in the status bar', () => {
-  const busy = fakeSession({computing: true});
-  const [save] = type(busy, keyEvent('s', {ctrlKey: true}));
-  assert.equal(save.prevented, 1);
-  assert.deepEqual(busy.calls, []);
-  assert.ok(busy.state().bottom.endsWith(BUSY_TITLE));
-  /* before hello the key is the browser's */
-  const early = fakeSession({hello: null});
-  const [open] = type(early, keyEvent('o', {ctrlKey: true}));
-  assert.equal(open.prevented, 0);
-  assert.deepEqual(early.calls, []);
+test('W517: XPPAUT window contexts shadow workspace letters through the same registry dispatcher', () => {
+  const on = session('xppaut');
+  const info = on.state().keymap.info;
+  assert.equal(resolveKeys(HELLO, info, ['R']).row?.id, 'window.redraw');
+  assert.equal(resolveKeys(HELLO, info, ['R'], 'auto').row?.id, 'auto.run');
+  assert.equal(resolveKeys(HELLO, info, ['F','A']).row?.id, 'auto.open');
+  assert.equal(resolveKeys(HELLO, info, ['F','A'], 'auto').row?.id, 'auto.export_all_info');
+  assert.equal(resolveKeys(HELLO, info, ['D'], 'array_plot').row?.id, 'array_plot.redraw');
 });
 
-test('the keys of a command are listed from the table', () => {
-  const row = (id: string) => HELLO.command_table.find(r => r.id === id)!;
-  assert.equal(shortcutLabel(row('savesession'), HELLO.keymap), 'Ctrl+S');
-  assert.equal(shortcutLabel(row('continue'), HELLO.keymap), 'Alt+Enter');
-  assert.equal(shortcutLabel(row('saveinfo'), HELLO.keymap), '');
-  assert.equal(shortcutLabel(row('saveinfo'), XPPAUT), 'F S');
-  assert.equal(shortcutLabel(row('parameters'), XPPAUT), 'P');
-  /* the user's keys replace the table's */
-  const moved = {...HELLO.keymap, commands: HELLO.keymap.commands.map(c => c.id === 'savesession' ? {...c, keys: ['Ctrl+B'], source: 'user' as const} : c)};
-  assert.equal(shortcutLabel(row('savesession'), moved), 'Ctrl+B');
-});
 
-test('Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y are Undo and Redo value edit; a text field keeps them, and the status bar says when there is nothing to do', () => {
-  const idle = fakeSession();
-  type(idle, keyEvent('z', {ctrlKey: true, code: 'KeyZ'}), keyEvent('Z', {ctrlKey: true, shiftKey: true, code: 'KeyZ'}), keyEvent('y', {ctrlKey: true, code: 'KeyY'}));
-  assert.deepEqual(idle.calls, ['main/undo', 'main/redo', 'main/redo']);
-  const field = {closest: (selector: string) => selector.startsWith('input:not') ? {} : null};
-  const typing = fakeSession();
-  const [z] = type(typing, keyEvent('z', {ctrlKey: true, code: 'KeyZ', target: field as never}));
-  assert.deepEqual([typing.calls, z.prevented], [[], 0]);
-  const none = fakeSession({core: {can_undo: false, can_redo: true}});
-  type(none, keyEvent('z', {ctrlKey: true, code: 'KeyZ'}), keyEvent('y', {ctrlKey: true, code: 'KeyY'}));
-  assert.deepEqual(none.calls, ['main/redo']);
-  assert.equal(none.state().bottom, 'Undo value edit: nothing to undo');
+test('W517: AUTO A waits without running, and every Axes plot-kind sequence opens the common command', () => {
+  const on = session('xppaut');
+  const info = on.state().keymap.info;
+  assert.deepEqual(resolveKeys(HELLO, info, ['A'], 'auto'), {row: null, more: true});
+  for (const second of ['H','N','I','P','T']) assert.equal(resolveKeys(HELLO, info, ['A',second], 'auto').row?.id, 'auto.configure_plot');
+  assert.equal(resolveKeys(HELLO, info, ['A','V'], 'auto').row?.id, 'auto.new_view');
 });

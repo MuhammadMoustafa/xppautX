@@ -191,8 +191,8 @@ export function TableView() {
           return <button key={op} data-button={`browser:${op}`} title={off ? BUSY_TITLE : hint} disabled={off}
             onClick={() => op === 'get' ? session.getRow() : session.browserOp(op)}>{label}</button>;
         })}
-        <CommandButton menu="file" item="transpose" label="Transpose" title="Turn the stored data on its side: the columns become rows" />
-        <CommandButton menu="num" item="lookup" label="Lookup tables" title="Create or change the model's lookup tables" />
+        <CommandButton command="browser.transpose" />
+        <CommandButton command="table.edit" />
       </div>
       <p class="table-info" role="status">
         {!rows ? 'No data yet: integrate first.'

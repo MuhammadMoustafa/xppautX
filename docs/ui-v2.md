@@ -190,7 +190,7 @@ already data and stay as they are.
 ### Commands
 
 XPP's single-letter hotkeys stay the command vocabulary: the core owns
-every command (`commands.c`), and the menus come from `hello.command_table`. The
+every command (the registry, `hello.commands`), and the menu bar comes from its rows. The
 new page adds direct manipulation that maps onto existing commands:
 
 | UI action | Protocol |
@@ -358,7 +358,7 @@ plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
             colors.ts, export.ts, registry.ts,
             diagramModel.ts (diagram -> curves, label marks, Hopf joins,
             nearest point, readout; pure), diagramChart.ts (uPlot adapter)
-ui/         App.tsx (shell), TitleBar, MenuPanel, Plots (the windows' tabs),
+ui/         App.tsx (shell), TitleBar, MenuBar (the menu bar from the registry rows), CommandPalette, CommandForm (the one argument form), Plots (the windows' tabs),
             PlotView (one window), ValuesPanel, TableView, AutoView (with auto.css), AniView (the
             animation), AskDialog, Toasts, StatusBar, Messages, hotkeys.ts,
             theme.ts, context.ts

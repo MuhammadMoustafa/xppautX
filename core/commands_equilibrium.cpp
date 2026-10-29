@@ -176,13 +176,13 @@ constexpr std::array SETTINGS={ResultField{"settings","map[string, real]"}};
 constexpr std::array EVENTS={"equilibrium","marks","series","state","done"};
 constexpr std::array DONE={"done"};
 constexpr std::array ROWS={
-    Command{"equilibrium.find",FIND,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Equilibria/Go","SG","Find an equilibrium from the current initial conditions.",FOUND,EVENTS,true,find_point},
-    Command{"equilibrium.guess",GUESS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Equilibria/Mouse","SM","Find an equilibrium from a guess in plot coordinates.",FOUND,EVENTS,true,guess},
-    Command{"equilibrium.range",RANGE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Equilibria/Range","SR","Find equilibria over a parameter range.",POINTS,EVENTS,true,range},
-    Command{"equilibrium.search",SEARCH,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Equilibria/Monte Carlo","SC","Search for equilibria within variable bounds.",SEARCHED,EVENTS,true,search},
-    Command{"equilibrium.import_as_ic",{},XPP_KIND_SETTING,CommandCategory::Analysis,"Equilibrium/Import","","Import the last equilibrium as initial conditions.",APPLIED,EVENTS,true,import_as_ic},
-    Command{"equilibrium.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"","","Write the equilibrium and its eigenvalues.",EXPORTED,DONE,true,export_file},
-    Command{"equilibrium.configure",CONFIG,XPP_KIND_SETTING,CommandCategory::Analysis,"Numerics/Equilibrium settings","UI","Configure Newton's method.",SETTINGS,EVENTS,true,configure}};
+    Command{"equilibrium.find",FIND,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Go","SG","Find an equilibrium from the current initial conditions.",FOUND,EVENTS,true,find_point},
+    Command{"equilibrium.guess",GUESS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Mouse","SM","Find an equilibrium from a guess in plot coordinates.",FOUND,EVENTS,true,guess},
+    Command{"equilibrium.range",RANGE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Range","SR","Find equilibria over a parameter range.",POINTS,EVENTS,true,range},
+    Command{"equilibrium.search",SEARCH,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Equilibria/Monte Carlo","SC","Search for equilibria within variable bounds.",SEARCHED,EVENTS,true,search},
+    Command{"equilibrium.import_as_ic",{},XPP_KIND_SETTING,CommandCategory::Analysis,"Analysis/Equilibrium/Import","","Import the last equilibrium as initial conditions.",APPLIED,EVENTS,true,import_as_ic},
+    Command{"equilibrium.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"Analysis/export","","Write the equilibrium and its eigenvalues.",EXPORTED,DONE,true,export_file,{}, {}, "", "write", "*.dat"},
+    Command{"equilibrium.configure",CONFIG,XPP_KIND_SETTING,CommandCategory::Analysis,"Analysis/Numerics/Equilibrium settings","UI","Configure Newton's method.",SETTINGS,EVENTS,true,configure}};
 }
 std::span<const Command> equilibrium_commands(){return ROWS;}
 }

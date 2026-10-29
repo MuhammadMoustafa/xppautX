@@ -692,105 +692,12 @@ Result<> auto_run_start(Session &s, const AutoRunRequest &request)
 
 namespace {
 
-struct MenuChoice {
-  char key;
-  AutoRunKind kind;
-  bool switch_branch;
-  bool from_point; /* else the current state (a "New Point") */
-};
-
-/* a Run menu's items (menus.cpp), by key */
-constexpr std::array<MenuChoice, 5> start_choices = {{{'s', AutoRunKind::equilibrium, false, false}, {'p', AutoRunKind::periodic, false, false},
-    {'b', AutoRunKind::bvp, false, false}, {'h', AutoRunKind::homoclinic, false, false}, {'e', AutoRunKind::heteroclinic, false, false}}};
-constexpr std::array<MenuChoice, 4> hopf_choices = {{{'p', AutoRunKind::periodic, false, true}, {'e', AutoRunKind::equilibrium, false, true},
-    {'n', AutoRunKind::equilibrium, false, false}, {'t', AutoRunKind::two_parameter, false, true}}};
-constexpr std::array<MenuChoice, 4> period_doubling_choices = {{{'d', AutoRunKind::periodic, true, true}, {'t', AutoRunKind::two_parameter, false, true},
-    {'f', AutoRunKind::fixed_period, false, true}, {'e', AutoRunKind::periodic, false, true}}};
-constexpr std::array<MenuChoice, 3> torus_choices = {{{'t', AutoRunKind::two_parameter, false, true}, {'f', AutoRunKind::fixed_period, false, true},
-    {'e', AutoRunKind::periodic, false, true}}};
-constexpr std::array<MenuChoice, 2> periodic_choices = {{{'e', AutoRunKind::periodic, false, true}, {'f', AutoRunKind::fixed_period, false, true}}};
-
-/* the question a start asks before it runs: a new start from the current state may destroy the diagram */
-bool ask_replace_diagram(Session &s)
-{
-  if (diagram_count(s.diagram) <= 1) return false;
-  return static_cast<char>(TwoChoice("YES", "NO", "Destroy AUTO diagram & files", "yn")) == 'y';
-}
-
-template <std::size_t N> std::optional<MenuChoice> ask_choice(const XppMenu &menu, const std::array<MenuChoice, N> &choices)
-{
-  const char key = static_cast<char>(menu_choose(&menu, 0));
-  if (key == 0 || key == 27) return std::nullopt;
-  const auto at = std::find_if(choices.begin(), choices.end(), [&](const MenuChoice &c) { return c.key == key; });
-  if (at == choices.end()) return std::nullopt;
-  return *at;
-}
-
 }  // namespace
 
 /* what XPPAUT's "Homoclinic info" form asked: the equilibria's dimensions and values */
-std::optional<HomoclinicStart> auto_ask_homoclinic(Session &s)
-{
-  const std::size_t n = static_cast<std::size_t>(s.model().node);
-  const AutoState &a = s.auto_state;
-  std::vector<FormField> fields;
-  fields.push_back(FormField{.name = "unstable_dimension", .kind = XPP_FIELD_INTEGER, .value = xpp::format("{:d}", a.run.nunstab)});
-  fields.push_back(FormField{.name = "stable_dimension", .kind = XPP_FIELD_INTEGER, .value = xpp::format("{:d}", a.run.nstab)});
-  for (std::size_t i = 0; i < n; ++i) fields.push_back(FormField::real_number(s.model().uvar_names[i] + "_left", a.homo_l[i]));
-  if (a.homo_flag == HomoclinicRun::Heteroclinic)
-    for (std::size_t i = 0; i < n; ++i) fields.push_back(FormField::real_number(s.model().uvar_names[i] + "_right", a.homo_r[i]));
-  if (!ask_form(s, "Homoclinic info", fields)) return std::nullopt;
-  HomoclinicStart start{fields[0].whole, fields[1].whole, std::vector<double>(n), a.homo_r};
-  for (std::size_t i = 0; i < n; ++i) start.left[i] = fields[2 + i].real;
-  if (a.homo_flag == HomoclinicRun::Heteroclinic)
-    for (std::size_t i = 0; i < n; ++i) start.right[i] = fields[2 + n + i].real;
-  return start;
-}
 
-void auto_run(Session &s)
-{
-  AutoState &a = s.auto_state;
-  AutoRunRequest request;
-  std::optional<MenuChoice> picked;
-  if (a.grabpt.flag == 0) {
-    /* the first call to AUTO: a method of maps has one start */
-    if (solver_info(s.numerics.method).traits.discrete) picked = start_choices[0];
-    else picked = ask_choice(menu_auto_start, start_choices);
-  } else if (a.grabpt.lab == 0) {
-    if (static_cast<char>(TwoChoice("YES", "NO", "Not Labeled Pt: New Start?", "y")) != 'y') return;
-    picked = start_choices[0];
-  } else {
-    const AutoRunRow &row = auto_run_row_for(a.grabpt);
-    const std::string_view point = row.point;
-    const bool discrete = solver_info(s.numerics.method).traits.discrete;
-    if (point == "hopf") picked = discrete ? std::optional<MenuChoice>(hopf_choices[3]) : ask_choice(menu_auto_hopf, hopf_choices);
-    else if (point == "period_doubling") picked = ask_choice(menu_auto_per_doub, period_doubling_choices);
-    else if (point == "neimark_sacker") picked = ask_choice(menu_auto_torus, torus_choices);
-    else if (point == "branch_point" || point == "cycle_branch_point") {
-      /* the Branch Pt menu's items by the branch the point is on: Switch and Extend keep its kind */
-      const AutoRunKind own = row.kinds & auto_run_bit(AutoRunKind::bvp) ? AutoRunKind::bvp
-          : row.kinds & auto_run_bit(AutoRunKind::periodic) ? AutoRunKind::periodic : AutoRunKind::equilibrium;
-      const std::array<MenuChoice, 4> choices = {{{'s', own, true, true}, {'e', own, false, true}, {'n', AutoRunKind::equilibrium, false, false},
-                                                 {'t', AutoRunKind::two_parameter, false, true}}};
-      picked = ask_choice(menu_auto_branch, choices);
-    } else if (point == "other" && row.family == AutoFamily::periodic) picked = ask_choice(menu_auto_periodic, periodic_choices);
-    else if (row.family == AutoFamily::homoclinic) /* a stored homoclinic or heteroclinic branch goes on as it was begun */
-      picked = MenuChoice{'x', a.homo_flag == HomoclinicRun::Heteroclinic ? AutoRunKind::heteroclinic : AutoRunKind::homoclinic, false, true};
-    else picked = MenuChoice{'x', static_cast<AutoRunKind>(std::countr_zero(row.kinds)), false, true}; /* one kind fits */
-  }
-  if (!picked) return;
-  request.kind = picked->kind;
-  request.switch_branch = picked->switch_branch;
-  request.from_point = picked->from_point;
-  if (!request.from_point && request.kind == AutoRunKind::equilibrium) request.replace_diagram = ask_replace_diagram(s);
-  if (!request.from_point && (request.kind == AutoRunKind::homoclinic || request.kind == AutoRunKind::heteroclinic)) {
-    a.homo_flag = request.kind == AutoRunKind::homoclinic ? HomoclinicRun::Homoclinic : HomoclinicRun::Heteroclinic;
-    const auto start = auto_ask_homoclinic(s);
-    if (!start) return;
-    request.homoclinic = *start;
-  }
-  ok_or_show(auto_run_start(s, request));
-}
+
+
 
 /* ---- the table as data ---- */
 

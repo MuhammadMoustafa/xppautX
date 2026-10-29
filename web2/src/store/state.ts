@@ -6,7 +6,6 @@ import {setPointTypes} from './pointTypes';
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, WindowListEntry, XppEvent} from '../protocol/types';
 import {errorPlace, errorText, unreadFile, type ErrorPlace} from '../protocol/errors';
-import {isWindowKey} from '../protocol/kinds';
 import {CONTINUE_INPUT_DEFAULT, type ContinueInput} from './steady';
 import {
   coreMoved, initialPlots, onAppend, onDfield, onEnd, onMarks, onNullclines, onPlots, onSeries, onWindowRuns,
@@ -127,6 +126,9 @@ export interface AppState {
   panels: Panels;
   /** the command menu, a drawer on narrow screens */
   drawerOpen: boolean;
+  commandForm: {id: string; values: Record<string, unknown>} | null;
+  annotationsOpen: boolean;
+  selectedAnnotation: number | null;
   /** the Continue field of the run toolbar, which the Continue command's key reads too (W213) */
   continueInput: ContinueInput;
   /** the steady-state settings the user typed (RunToolbar), over steadyDefaults: kept here so the command
@@ -186,6 +188,8 @@ export type Action =
   | {type: 'dismissErrors'}
   | {type: 'toast'; kind: Toast['kind']; text: string}
   | {type: 'dismiss'; id: number}
+  | {type: 'commandForm'; form: AppState['commandForm']}
+  | {type: 'annotations'; open: boolean; selected?: number | null}
   | {type: 'drawer'; open: boolean}
   | {type: 'continueInput'; input: ContinueInput}
   | {type: 'steadyEdit'; edit: Partial<SteadyInput>}
@@ -238,7 +242,7 @@ export const initialState: AppState = {
   nextToast: 1,
   theme: 'system',
   panels: defaultPanels,
-  drawerOpen: false,
+  drawerOpen: false, commandForm: null, annotationsOpen: false, selectedAnnotation: null,
   continueInput: CONTINUE_INPUT_DEFAULT,
   steadyEdit: {},
   pendingKeys: [],
@@ -337,22 +341,22 @@ const RUN_NAMES: Record<string, string> = {
 
 /* the name of what an answer or a command starts, for the status line
    (null: not known, or not a new run) */
-function runningName(hello: HelloEvent | null, cmd: Command, ask: AskEvent | null): string | null {
+function runningName(cmd: Command, ask: AskEvent | null): string | null {
   if (cmd.cmd in RUN_NAMES) return RUN_NAMES[cmd.cmd];
   if (cmd.cmd === 'run.steady') return 'to steady state';
   if (cmd.cmd === 'run.continue') return 'continuation';
-  if (isWindowKey(hello, cmd, 'auto', 'run')) return 'AUTO';
-  if (cmd.cmd !== 'answer' || !ask || (ask.kind !== 'menu' && ask.kind !== 'choice') || typeof cmd.key !== 'string')
+  if (cmd.cmd === 'auto.run') return 'AUTO';
+  if (cmd.cmd !== 'answer' || !ask || ask.kind !== 'choice' || typeof cmd.key !== 'string')
     return null;
   const i = (ask.keys ?? '').toLowerCase().indexOf(cmd.key.toLowerCase());
-  const items = ask.kind === 'menu' ? ask.items : ask.choices;
+  const items = ask.choices;
   return i >= 0 && items?.[i] ? items[i].replace(/[()]/g, '') : null;
 }
 
 /* another window shown: the readout was the old one's */
 function withPlots(state: AppState, plots: PlotsState): AppState {
   if (plots === state.plots) return state;
-  return {...state, plots, hover: plots.active === state.plots.active ? state.hover : null};
+  return {...state, plots, hover: plots.active === state.plots.active ? state.hover : null, selectedAnnotation: plots.active === state.plots.active ? state.selectedAnnotation : null};
 }
 
 /** the core's window moved (Viewaxes, Window/Zoom, Fit, a scroll): what it
@@ -375,13 +379,13 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const values = reduceValues({...state.values, defaults: null}, {type: 'settled'});
       /* a set sent before gets no idle now */
       setPointTypes(ev.point_types);
-      return {...state, hello: ev, title: ev.title, values, numerics: null,
+      return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, windows: [],
         autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'}),
         keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};
     }
     case 'keymap': {
       const keymap = reduceKeymap(state.keymap, {type: 'info', info: ev.keymap});
-      return keymap === state.keymap ? state : {...state, keymap};
+      return keymap === state.keymap ? state : {...state, keymap, pendingKeys:[]};
     }
     case 'liveState':
       return state.core ? {...state, core: {...state.core, now: ev.now, time: ev.time, rates: ev.rates}} : state;
@@ -417,10 +421,13 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'windows': {
       /* the shown flags drive each window's panel: the AUTO view is shown when any of its views is, the
          animation and the array plot panels follow their windows */
-      const flag = (kind: WindowListEntry['kind']) => ev.windows.find(w => w.kind === kind)?.shown;
+      const flag = (kind: WindowListEntry['kind']) => {
+        const next = ev.windows.find(w => w.kind === kind)?.shown;
+        return next === state.windows.find(w => w.kind === kind)?.shown ? undefined : next;
+      };
       const diagramViews = ev.windows.filter(w => w.kind === 'diagram');
       let diagram = state.diagram, ani = state.ani, aplot = state.aplot;
-      if (diagramViews.length) diagram = reduceDiagram(diagram, {type: 'show', shown: diagramViews.some(w => w.shown)});
+      if (diagramViews.length && (!state.windows.some(w => w.kind === 'diagram') || diagramViews.some(w => w.shown) !== state.windows.some(w => w.kind === 'diagram' && w.shown))) diagram = reduceDiagram(diagram, {type: 'show', shown: diagramViews.some(w => w.shown)});
       const animation = flag('animation'), arrayPlot = flag('array_plot');
       if (animation !== undefined) ani = reduceAni(ani, {type: 'open', open: animation});
       if (arrayPlot !== undefined) aplot = reduceAplot(aplot, {type: 'panel', open: arrayPlot});
@@ -446,9 +453,21 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       /* the windows' numbers: hello.window_names (no window comes before hello) */
       const ids = state.hello?.window_names;
       if (!ids) return state;
-      if (ev.kind === 'diagram' && ev.op !== 'select')
+      if (ev.op === 'select') {
+        const front = {...state, diagram: reduceDiagram(state.diagram, {type:'show',shown:ev.kind === 'diagram'}),
+          ani: reduceAni(state.ani,{type:'open',open:ev.kind === 'animation'}),
+          aplot: reduceAplot(state.aplot,{type:'panel',open:ev.kind === 'array_plot'}),
+          table: {...state.table,open:ev.kind === 'browser'}};
+        if (ev.kind === 'graph') return withPlots(front,select(front.plots,ev.win));
+        if (ev.kind === 'diagram') {
+          const view = front.diagram.views.findIndex(v => v.name === ev.win);
+          return view < 0 ? front : {...front,diagram:reduceDiagram(front.diagram,{type:'activate',view})};
+        }
+        return front;
+      }
+      if (ev.kind === 'diagram')
         return {...state, diagram: reduceDiagram(state.diagram, {type: 'window', op: ev.op})};
-      if (ev.kind === 'animation' && ev.op !== 'select')
+      if (ev.kind === 'animation')
         return {...state, ani: reduceAni(state.ani, {type: 'window', exists: ev.op === 'create'})};
       /* create selects the new window too; destroy waits for `plots` */
       if (ev.kind === 'array_plot') {
@@ -460,7 +479,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         }
         return state;
       }
-      return ev.op === 'select' && !!windowOf(state.plots, ev.win) ? withPlots(state, select(state.plots, ev.win)) : state;
+      return state;
     }
     case 'ask': {
       const ids = state.hello?.window_names;
@@ -585,19 +604,19 @@ export function reduce(state: AppState, action: Action): AppState {
       /* a new connection is told again when the core computes (its computing event is kept) */
       return action.open === state.connected ? state : {...state, connected: action.open, computing: false};
     case 'sent': {
-      const files = onSent(state.files, state.hello, action.cmd, state.ask, state.core?.menu ?? 0);
+      const files = onSent(state.files, state.hello, action.cmd, state.ask);
       if (files !== state.files) state = {...state, files};
       if (action.cmd.cmd === 'answer') {
         /* a point or a box is done once answered; a drag is asked again until it ends */
         const p = state.pick, cancelled = action.cmd.ok === 0;
-        const running = runningName(state.hello, action.cmd, state.ask) ?? state.running;
+        const running = runningName(action.cmd, state.ask) ?? state.running;
         return {...state, ask: null, running, pick: !p || cancelled ? null : p.mode === 'drag' ? p : {...p, waiting: true}};
       }
-      if (action.cmd.cmd === 'animation.play' || isWindowKey(state.hello, action.cmd, 'ani', 'go'))
+      if (action.cmd.cmd === 'animation.play')
         state = {...state, ani: reduceAni(state.ani, {type: 'playing', playing: true})};
       if (CONTROL_DONE.has(action.cmd.cmd)) return {...state, controlDone: state.controlDone + 1};
       if (noIdle(action.cmd)) return state;
-      return {...state, busy: true, running: state.busy ? state.running : runningName(state.hello, action.cmd, null)};
+      return {...state, busy: true, running: state.busy ? state.running : runningName(action.cmd, null)};
     }
     case 'aborting':
       return state.busy ? {...state, stopping: true} : state;
@@ -636,6 +655,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return action.keys.join(' ') === state.pendingKeys.join(' ') ? state : {...state, pendingKeys: action.keys};
     case 'continueInput':
       return action.input.mode === state.continueInput.mode && action.input.text === state.continueInput.text ? state : {...state, continueInput: action.input};
+    case 'commandForm': return {...state, commandForm: action.form};
+    case 'annotations': return {...state, annotationsOpen: action.open, selectedAnnotation: action.selected === undefined ? state.selectedAnnotation : action.selected};
     case 'drawer':
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};
     case 'theme':

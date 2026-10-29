@@ -18,6 +18,7 @@
 #include "ui_json.h"
 #include "json_files.h"
 #include "xpp_about.h"
+#include "xpp_keymap.h"
 #include "form_ode.h"
 #include "xpp_batch.h"
 #include "integrate.h"
@@ -32,7 +33,6 @@
 #include "xpp_job.h"
 #include "xpp_util.h"
 #include "many_pops.h"
-#include "command_table.h"
 #include "command_def.h"
 #include "command_registry.h"
 #include "menus.h"
@@ -121,7 +121,16 @@ void silent_fail(const char *what, const char *line, const char *ask)
 
 /* the command that stops the running computation: the reader thread acts on it the moment it arrives, in JSON or in server text */
 constexpr std::string_view ABORT_COMMAND = "run.abort";
-bool is_abort(const char *line) { return xpp::command::name(line) == ABORT_COMMAND; }
+bool is_abort(const char *line)
+{
+    if (xpp::command::name(line) == ABORT_COMMAND) return true;
+    if (!is_cmd(line, "key")) return false;
+    std::string key, context;
+    if (!get_string(line, "key", key)) return false;
+    get_string(line, "context", context);
+    const auto map = xpp::keymap::load_keymap();
+    return map && xpp::keymap::match_keys(*map, context, key).command == ABORT_COMMAND;
+}
 
 /* the parameters' edit: acted on at once under a job that computes nothing (a prompt open, the animation playing),
    as a `set` was, so a slider moves a parameter under the animation */
@@ -241,13 +250,7 @@ xpp::inbox::Verdict during_run(const char *line)
     get_string(line, "cmd", c);
     if (is_abort(line) || is_page(line) || quits_now(line) || is_async_command(line)) return xpp::inbox::Verdict::control;
     if (c == "answer") return xpp::inbox::Verdict::normal;
-    if (c == "key" && !js_find(line, "win")) {
-        get_string(line, "key", o);
-        int k = key_code(o.c_str());
-        if (k == ESC || k == '/') return xpp::inbox::Verdict::control;
-    } else if (is_steering(line)) {
-        return xpp::inbox::Verdict::control;
-    }
+    if (is_steering(line)) return xpp::inbox::Verdict::control;
     const char kind = line_kind(line);
     if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL || kind == XPP_KIND_SETTING) return xpp::inbox::Verdict::normal;
     xpp::log(XPP_LOG_WARN, "refused during a computation: {}{}{}\n", c.empty() ? "(no cmd)" : c.c_str(),
@@ -410,23 +413,13 @@ void run_now(xpp::Session &s, const char *line)
    ANI_PAUSE for the animation's Pause, 64 otherwise. A setting: take_setting(). */
 int control_line(xpp::Session &s, const char *line)
 {
-    std::string k;
     if (handle_async(s, line)) return KEY_NONE;
     if (is_async_command(line)) {
         run_now(s, line);
         return KEY_NONE;
     }
     if (is_abort(line)) return ESC;
-    if (is_cmd(line, "key")) {
-        get_string(line, "key", k);
-        const int code = key_code(k.c_str());
-        /* what the job does with it a recording keeps, to hand it the key
-           at the same point in a replay: / ends a range; Escape stops the
-           animation's Go (during a computation it cancels the job: the
-           step's abort) */
-        if (code == '/' || (code == ESC && xpp::job::progress().what == xpp::job::Reported::frame)) record_key_read(k);
-        return code;
-    }
+
     if (line_kind(line) == XPP_KIND_SETTING) {
         take_setting(s, line);
         return KEY_NONE;
@@ -536,12 +529,9 @@ XppUi make_json_ui(void)
     u.typed_form = j_typed_form;
     u.grid_box = j_grid_box;
     u.file_selector = j_file_selector;
-    u.dialog = j_dialog;
     u.get_mouse_xy = j_get_mouse_xy;
     u.menu_flash = j_int;
-    u.show_menu = j_show_menu;
     u.redraw_menu = j_void;
-    u.menu_choose = j_menu_choose;
     u.check_abort = j_check_abort;
     u.progress_begin = j_progress_begin;
     u.progress = j_progress;
@@ -566,6 +556,7 @@ XppUi make_json_ui(void)
     u.browser_redraw = j_browser_changed;
     u.create_plot_window = j_create_plot_window;
     u.destroy_plot_window = j_destroy_plot_window;
+    u.window_selected = j_window_selected;
     u.window_renamed = j_window_renamed;
     u.auto_closed = j_auto_closed;
     u.tool_window_closed = j_tool_window_closed;
@@ -590,8 +581,6 @@ XppUi make_json_ui(void)
     u.auto_make_window = j_auto_make_window;
     u.auto_refresh = j_auto_refresh;
     u.auto_check_abort = j_auto_check_abort;
-    u.auto_rubber = j_auto_rubber;
-    u.auto_scroll_window = j_auto_scroll_window;
     u.auto_grab_event = j_auto_grab_event;
     u.auto_show_hint = j_auto_show_hint;
     u.auto_diagram = j_auto_diagram;
@@ -604,7 +593,6 @@ XppUi make_json_ui(void)
     u.show_eq_box = j_show_eq_box;
     u.make_txtview = j_make_txtview;
     u.q_calc = j_q_calc;
-    u.record_toggle = j_record_toggle;
     u.play_recording = j_play_recording;
     u.recording = j_recording;
     u.save_recording = j_save_recording;
@@ -615,40 +603,34 @@ XppUi make_json_ui(void)
 
 const XppUi json_ui = make_json_ui();
 
-/* a key of a window's own layer (menus.h): {"cmd":"key","win":...,"key":k},
-   the AUTO, data browser, animation, array plot or equilibrium window; the
-   browser's takes the selected "row" too */
-void window_key(xpp::Session &s, const std::string &win, int ch, const char *line)
-{
-    if (win == "auto") auto_key(s, ch);
-    else if (win == "browser") browser_key(s, ch, line);
-    else if (win == "ani") ani_key(s, ch);
-    else if (win == "aplot") aplot_key(s, ch);
-    else j_command_error("key", xpp::format("No key layer for the window {}", win));
-}
-
+/* Keys name a registry command through the same checked keymap the page receives. */
 void key_command(xpp::Session &s, const char *line)
 {
-    std::string k, win, menu, item;
-    get_string(line, "key", k);
-    if (js_find(line, "menu") || js_find(line, "item")) {
-        get_string(line, "menu", menu);
-        get_string(line, "item", item);
-        const auto action = main_menu_action(menu, item);
-        if(!action){
-            j_command_error("key",xpp::format("Unknown command key menu {} item {}",menu,item));
-            return;
-        }
-        if (js_find(line, "win") || js_find(line, "key")) {
-            j_command_error("key", "A menu action needs a known menu and item, without key or win");
-            return;
-        }
-        show_main_menu(s, action->which);
-        commander(s, action->key);
-        show_main_menu(s, MAIN_MENU);
+    std::string key, context;
+    if (!get_string(line, "key", key) || js_find(line, "menu") || js_find(line, "item") || js_find(line, "win") || js_find(line, "button")) {
+        j_command_error("key", "A key command needs key and optional context; menu layers are gone");
+        return;
     }
-    else if (get_string(line, "win", win)) window_key(s, win, key_code(k.c_str()), line);
-    else commander(s, key_code(k.c_str()));
+    get_string(line, "context", context);
+    const auto map = xpp::keymap::load_keymap();
+    if (!map) { xpp::show_error(map.error()); return; }
+    if (const std::string problem = xpp::keymap::key_problem(key); !problem.empty()) {
+        j_command_error("key", problem); return;
+    }
+    if (context != session.pending_key_context) session.pending_keys.clear();
+    session.pending_key_context = context;
+    if (key == "Escape" && !session.pending_keys.empty()) {session.pending_keys.clear(); return;}
+    if (!session.pending_keys.empty()) session.pending_keys += ' ';
+    session.pending_keys += key;
+    const auto match = xpp::keymap::match_keys(*map, context, session.pending_keys);
+    if (match.prefix) return;
+    session.pending_keys.clear();
+    if (match.command.empty()) { j_command_error("key", "The key has no command in this context and preset"); return; }
+    std::string command = "{\"cmd\":";
+    json_append_string(command, match.command);
+    command += '}';
+    record_begin(command.c_str());
+    xpp::ok_or_show(xpp::command::run_button(s, command, xpp::command_place()));
 }
 
 /* the model's folder for a client that cannot reach it (xpp_files.h) */
@@ -763,78 +745,6 @@ void buf_commands(std::string &b)
     BUF_LIT(b, "]");
 }
 
-/* how the page names the Esc key of the Numerics layer's last item (the others are their letters) */
-constexpr std::string_view ESC_KEY_NAME = "Esc";
-
-/* a legacy key as shown: its capital, or Esc */
-std::string key_name(char key)
-{
-    return key == '\033' ? std::string(ESC_KEY_NAME) : std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(key))));
-}
-
-/* one row of hello's "command_table" (core/command_table.h); `legacy_keys` is the XPPAUT sequence: the
-   shortcut layer's key, then the item's */
-void buf_command_row(std::string &b, const CommandRow &row)
-{
-    BUF_LIT(b, "{\"menu\":");
-    buf_str(b, MENU_NAMES[static_cast<std::size_t>(row.menu)]);
-    BUF_LIT(b, ",\"id\":");
-    buf_str(b, row.id);
-    BUF_LIT(b, ",\"key\":");
-    buf_str(b, row.key == PAGE_KEY ? std::string_view() : std::string_view(&row.key, 1));
-    BUF_LIT(b, ",\"label\":");
-    buf_str(b, row.label);
-    BUF_LIT(b, ",\"description\":");
-    buf_str(b, row.description);
-    buf_format(b, ",\"kind\":\"{}\"", row.kind);
-    BUF_LIT(b, ",\"category\":");
-    buf_str(b, category_id(row.category));
-    buf_format(b, ",\"pinnable\":{},\"primary\":{},\"default_keys\":[", row.pinnable, row.primary);
-    bool first_key = true;
-    for (std::string_view key : row.default_keys) {
-        if (key.empty()) continue;
-        if (!first_key) BUF_LIT(b, ",");
-        first_key = false;
-        buf_str(b, key);
-    }
-    BUF_LIT(b, "],\"legacy_keys\":[");
-    if (row.key != PAGE_KEY) {
-        if (const CommandRow *layer = layer_entry(row.menu)) {
-            buf_str(b, key_name(layer->key));
-            BUF_LIT(b, ",");
-        }
-        buf_str(b, key_name(row.key));
-    }
-    BUF_LIT(b, "]}");
-}
-
-/* hello's "menu_names", "command_categories" and "command_table" (docs/protocol.md "The command table"):
-   the one list of commands in the sidebar's order, with the categories it groups them in */
-void buf_command_table(std::string &b)
-{
-    BUF_LIT(b, ",\"menu_names\":[");
-    for (std::size_t i = 0; i < MENU_NAMES.size(); ++i) {
-        if (i) BUF_LIT(b, ",");
-        buf_str(b, MENU_NAMES[i]);
-    }
-    BUF_LIT(b, "],\"command_categories\":[");
-    for (std::size_t i = 0; i < COMMAND_CATEGORIES.size(); ++i) {
-        const CategoryInfo &c = COMMAND_CATEGORIES[i];
-        if (i) BUF_LIT(b, ",");
-        BUF_LIT(b, "{\"id\":");
-        buf_str(b, c.id);
-        BUF_LIT(b, ",\"label\":");
-        buf_str(b, c.label);
-        buf_format(b, ",\"listed\":{},\"expanded\":{}}}", c.listed, c.expanded);
-    }
-    BUF_LIT(b, "],\"command_table\":[");
-    for (std::size_t i = 0; i < COMMANDS.size(); ++i) {
-        if (i) BUF_LIT(b, ",");
-        buf_command_row(b, COMMANDS[i]);
-    }
-    BUF_LIT(b, "]");
-}
-
 } // namespace
 
 bool line_is_step(const char *line)
@@ -849,19 +759,7 @@ char line_kind(const char *line)
     const CommandInfo *e = command_of(line);
     if (!e) return 0;
     if (e->kind) return e->kind;
-    std::string k, win, menu, item; /* a key: its menu item's kind */
-    if (js_find(line, "menu") || js_find(line, "item")) {
-        get_string(line, "menu", menu);
-        get_string(line, "item", item);
-        const auto action = main_menu_action(menu, item);
-        if (!action || js_find(line, "win") || js_find(line, "key")) return 0;
-        return main_menu_kind(action->which, action->key);
-    }
-    get_string(line, "key", k);
-    const int ch = key_code(k.c_str());
-    if (!get_string(line, "win", win)) return main_menu_kind(session.menu.load(std::memory_order_relaxed), ch);
-    const XppWindowLayer *l = window_layer(win);
-    return l ? menu_kind(l->menu, ch) : 0;
+    return XPP_KIND_COMPUTE; /* Raw keys are resolved when executed; the page sends registry commands. */
 }
 
 xpp::Result<> reset_save_decision()
@@ -885,10 +783,7 @@ bool runs_without_model(const char *line)
         || name.starts_with("events.") || is_abort(line))
         return true;
     if (is_cmd(line, "answer")) return true;
-    /* File > Open model by its stable id, as the page's menu and Ctrl+O send it */
-    std::string menu, item;
-    return is_cmd(line, "key") && get_string(line, "menu", menu) && get_string(line, "item", item) &&
-           menu == xpp::MENU_NAMES[FILE_MENU] && item == "openmodel";
+    return false;
 }
 
 /* one command, run as a job (xpp_job.h) numbered by its line's sequence
@@ -1163,7 +1058,7 @@ void json_ui_start_screen()
     send_simple("idle");
     json_flush();
     /* the one Open model: the same key the page's button and File > Open model send, which asks for the file */
-    xpp::inbox::push_own(xpp::format("{{\"cmd\":\"key\",\"menu\":\"{}\",\"item\":\"openmodel\"}}", xpp::MENU_NAMES[FILE_MENU]));
+    xpp::inbox::push_own("{\"cmd\":\"session.open_model\"}");
 }
 
 void json_ui_load_error(const xpp::Error &e)
@@ -1245,7 +1140,6 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b, "],\"keys\":");
     buf_str(b, xpp::LEAVE_KEYS);
     BUF_LIT(b, "}");
-    buf_command_table(b);
     BUF_LIT(b, ",\"keymap\":");
     const std::string keymap = hello_keymap();
     buf_add(b, keymap.data(), keymap.size());
@@ -1281,30 +1175,21 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b,",\"auto\":");buf_str(b,xpp::window_name(s,WIN_AUTO));
     BUF_LIT(b,",\"ani\":");buf_str(b,xpp::window_name(s,WIN_ANI));
     BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,",\"browser\":");buf_str(b,std::string(xpp::BROWSER_WINDOW));BUF_LIT(b,"}");
-    /* the windows' key layers (menus.h window_layers) and the other
-       commands' kinds: what the page enables while a computation runs */
-    BUF_LIT(b, ",\"windows\":{");
-    for (i = 0; i < XPP_WINDOW_LAYERS; i++) {
-        const XppWindowLayer &l = window_layers[i];
-        if (i) BUF_LIT(b, ",");
-        buf_str(b, l.win);
-        BUF_LIT(b, ":{\"items\":");
-        buf_str_array(b, l.menu->items, l.menu->n);
-        BUF_LIT(b, ",\"keys\":");
-        buf_str(b, l.menu->keys);
-        BUF_LIT(b, ",\"kinds\":");
-        buf_str(b, l.menu->kinds);
-        BUF_LIT(b, ",\"ids\":");
-        buf_str_array(b, l.ids, l.menu->n);
-        BUF_LIT(b, ",\"hints\":");
-        buf_str_array(b, l.menu->hints, l.menu->n);
-        BUF_LIT(b, "}");
-    }
-    BUF_LIT(b, "}");
     buf_commands(b);
     buf_point_types(b);
     BUF_LIT(b, ",\"auto_run\":");
     b += xpp::auto_run_table_json();
+    /* The names accepted by a registry model_name of NameSet::any. */
+    std::vector<std::string> model_names;
+    model_names.reserve(m.names.size());
+    for (const auto &[key, name] : m.names) model_names.push_back(name.written);
+    std::ranges::sort(model_names);
+    BUF_LIT(b, ",\"model_names\":[");
+    for (std::size_t index = 0; index < model_names.size(); ++index) {
+        if (index) BUF_LIT(b, ",");
+        buf_str(b, model_names[index]);
+    }
+    BUF_LIT(b, "]");
     /* the lists a form field *n picks from */
     BUF_LIT(b, ",\"lists\":[[\"T\"");
     for (i = 0; i < m.neq; i++) {

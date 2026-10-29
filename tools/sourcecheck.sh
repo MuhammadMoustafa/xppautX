@@ -32,8 +32,6 @@
 #   - no dead declaration: an unused macro, type or field, a declaration
 #     with no definition or repeated in a second header, #if 0, commented-
 #     out code, a header nothing includes (tools/deadcheck.py)
-#   - one letter, one command, every key in a menu: no key handled that no
-#     menu lists, no two keys for one command (tools/keycheck.py, W60)
 #   - each findings doc numbers its entries once, in order, index and
 #     headings agreeing (tools/findingscheck.py, W393)
 # Usage: tools/sourcecheck.sh [--warnings]
@@ -189,12 +187,6 @@ if ! uv run --locked python tools/deadcheck.py --check > build/deadcheck.out 2>&
   exit 1
 fi
 tail -1 build/deadcheck.out
-if ! uv run --locked python tools/keycheck.py > build/keycheck.out 2>&1; then
-  cat build/keycheck.out
-  echo "KEY CHECK FAILED"
-  exit 1
-fi
-tail -1 build/keycheck.out
 if [ "$1" = --warnings ]; then
   sh tools/warnings.sh || exit 1
 fi

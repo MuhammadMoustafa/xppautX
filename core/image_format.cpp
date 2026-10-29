@@ -39,8 +39,8 @@ void ppm_pixels(Writer &w, std::span<const unsigned char> rgb, int width, int he
 } // namespace
 
 const ImageFormat image_formats[n_image_formats] = {
-  {.name = "PDF", .extension = "pdf", .write = write_pdf, .binary = true, .plot_title = "Print pdf", .plot_key = "p"},
-  {.name = "SVG", .extension = "svg", .write = write_svg, .plot_title = "Print svg", .plot_key = "v"},
+  {.name = "PDF", .extension = "pdf", .write = write_pdf, .binary = true, .plot_title = "Print pdf"},
+  {.name = "SVG", .extension = "svg", .write = write_svg, .plot_title = "Print svg"},
   {.name = "GIF", .extension = "gif", .pixels = gif_pixels, .finish_movie = gif_finish},
   {.name = "PPM", .extension = "ppm", .pixels = ppm_pixels},
 };
@@ -55,10 +55,7 @@ int ask_picture_params(Session &s)
   return 1;
 }
 
-std::vector<std::string> picture_parameter_values(const Session &s)
-{
-  return {s.plot_export.color ? "true" : "false", number(s.plot_export.font_size)};
-}
+
 
 std::string picture_filename(const Session &s, const ImageFormat &picture_format)
 {

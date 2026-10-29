@@ -2,100 +2,75 @@
 
 ## Finding commands
 
-The sidebar groups commands into **Files**, **Run**, **Analysis**, **Plot**,
-and **Tools** (the Calculator). Search by name or purpose using **Search commands**
-(Ctrl/Cmd+K). Clicking a command runs it by name; there is no File or
-Numerics mode. A command whose place is a panel is not in the sidebar but
-where its work is: **Model source** in the Model panel (Source tab),
-**Transpose** and **Lookup tables** in the Data panel, **Apply set…**,
-**Restore defaults…**, **Save values…**, **Save as defaults…**, **Export values…**, **Rename set…** and **Delete set…** in the Values panel beside the parameters, **Keyboard
-shortcuts** in Help, and **Record** and **Play a recording…** in the title
-bar's Tools menu. Their keys still work.
+The menu bar has **File**, **Run**, **Analysis**, **Plot**, **Data**, **AUTO**,
+**Windows** and **Help**. File holds models, sessions, recordings, sets and
+exports; Run holds integration, initial conditions and boundary values;
+Analysis holds equilibria, nullclines, direction fields, spectra, fits,
+Poincaré maps and tables. Plot holds curves, axes, styles and annotations.
+Data opens the browser and values. Every command is listed from the core's
+command registry, with the same description and keys wherever it appears.
 
-The plot commands the plot itself offers are not in the sidebar either:
-**Zoom and view** is the plot's Fit, Reset view and Use this view,
-**Plot axes** and **3D view** are a click on an axis name (the axis dialog,
-with its 3D column). Their keys still work, and the page's buttons run
-them. **Captured frames** stays in the Plot group: the
-plot has buttons for New window, Close window, Capture, Play, Reset and
-Export GIF only, not for Kill all, Bottom, Auto, Manual, SimPlot, Autoplay
-or Save.
+A command without arguments runs immediately. Other commands open the same
+form: choices are selects, yes/no values are checkboxes, windows are picked
+by their exact names, model names come from the model, colours use the colour
+field, and lists and maps have editable rows. **Set** includes an optional
+argument; leaving it out keeps the command's documented current value.
+Available session values are filled in. File fields offer **Choose file and run…**, which opens the authorized desktop or browser picker and then runs the command; Cancel makes no change. Open
+model's **Choose file…** uses the desktop or browser's own file dialog.
+
+**Help > Command palette** (Ctrl/Cmd+Shift+P), or **Search** in the header,
+searches every word in command names, menu paths and descriptions. Pick a
+result to run it or open its form. **Pin** adds the command to the quick-access
+toolbar. Pins can be dragged into order; their context menu offers Unpin,
+Move earlier and Move later. Overflow stays in **More**.
 
 ## Keyboard shortcuts
 
-Every command's key comes from one table, shown in **Help > Keyboard
-shortcuts** and in the sidebar. The defaults are Ctrl/Cmd+O (Open model),
-Ctrl/Cmd+S (Save session), Ctrl/Cmd+Shift+S (Save session as), Ctrl/Cmd+R
-(Reload model), Ctrl+Enter (Run from initial), Ctrl+Shift+Enter (Run from
-last state) and Alt+S (Run to steady state). Ctrl/Cmd+K
-searches commands, F6 and Shift+F6 move between panes, F1 opens Help, and
-Esc stops a running command, cancels a pending key and closes a menu.
-The page never takes Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5 or the other
-keys the browser and the system keep (the core's list, shown in the editor
-when you try one): they stay theirs.
+The logical defaults are Ctrl/Cmd+O for Open model, Ctrl/Cmd+S for Save
+session, Ctrl/Cmd+Shift+S for Save session as, Ctrl/Cmd+R for Run from initial,
+Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z for Undo and Redo value edits, Escape for Stop,
+F1 for Manual and Ctrl/Cmd+Shift+P for the command palette. Text fields retain
+their own Undo. F6 and Shift+F6 cycle visible work panes. Reserved browser
+and system keys, including F5, Ctrl+W, Ctrl+Q, Alt+F4, F11 and F12, stay theirs.
 
-### The keyboard shortcuts editor
+**Help > Keyboard shortcuts** lists all commands and their effective keys.
+Click a key to record a replacement; Escape cancels recording and Backspace
+clears it. Reserved keys are refused; a conflict offers Replace or Cancel.
+**Reset to defaults** selects the logical preset and clears custom bindings.
+**Use XPPAUT keys** selects each registry command's original letter sequence
+and clears custom bindings. Both retain pins. **Reset all** also removes pins
+and asks first. The file `keymap.json` keeps changes for desktop and browser.
+A malformed file is reported with its file and line, without partially applying it.
 
-**Change shortcuts…** in Help > Keyboard shortcuts opens a dialog that lists every
-command with its category, its keys and where they come from: *default*
-(the table's), *changed* (yours, instead of the table's) or *user* (yours,
-for a command that has none by default). Type in the search box to find a
-command by its name, description, id or its keys; **Record keys** then a
-key combination finds the commands on it.
+XPPAUT sequences run commands directly: for example, `I` then `G` runs from
+initial conditions. A prefix waits in the status bar until the next key;
+Escape or a focus change cancels it. A command that needs arguments opens
+the common form. No command is a prefix of another in the same context and preset; conflicting
+bindings are refused with both command names and keys. There is no Enter or
+timeout. In AUTO, `AH`, `AN`, `AI`, `AP` and `AT` open the same plot form: choose
+the plot kind in the form. Bare `A` only waits. Ambiguous original sequences
+are split into `IUF`/`IUA` (IC formula/array), `FON`/`FOI` (new/existing set),
+`PP`/`PF` (parameters/formula), and `FDS`/`FDT` (record start/stop).
 
-- Click a key and press the new combination. **Esc** cancels, **Backspace**
-  removes the key. A key the system or the browser keeps is refused with
-  a message. A key that another command has asks *"Ctrl+B is Run from last
-  state. Replace / Cancel"*: Replace gives it to this command and takes
-  it from the other.
-- **+** adds a second key to a command; **Reset** puts a command back on
-  the table's keys; **Reset all** (it asks first) removes every change, pin
-  and the preset; **Preset** switches between *Default* and *XPPAUT
-  sequences*.
-- **Pin** puts a command on the toolbar (below).
+## Windows and annotations
 
-The dialog is fully reachable by keyboard (Tab, Enter, Esc) and announces
-what it does to a screen reader: the key being recorded, a refusal and a
-conflict. Your choices are the file `keymap.json` in the per-user config
-folder, the same for the window and the browser; a file that cannot be
-loaded is shown with its file, line and value and the default keys are used
-until you change a key (which replaces the file).
+**Windows** begins with **New graph** and **New AUTO view**. It also lists all
+windows, hidden ones included, under **Graphs**, **AUTO views** and **Others**.
+A tick means the window is shown. Each named window offers **Bring to front**,
+**Rename**, **Hide** or **Show**, and **Destroy**. Destroying a graph that holds
+annotations or frozen curves asks before discarding them. The main graph and
+browser cannot be destroyed. Window references always use their exact names.
 
-### Pinned commands
+**Plot > Annotations** opens the active graph's annotation list. Each row shows
+its kind, text, position and colour. Select a row to highlight it on the plot;
+click an annotation on the plot to select its row. **Edit** opens the common
+annotation form, **Delete** removes that annotation, and dragging one on the
+plot moves it in plot coordinates. Switching graphs changes the list.
 
-Under the fixed run buttons the toolbar shows the commands you pinned, in
-order, each with its name. Pin from the **Pin** button of a row in the
-command list or from the keyboard shortcuts editor. Drag a button to
-reorder; right-click it (or press Shift+F10 or the menu key) for *Unpin*,
-*Move earlier* and *Move later*. When they do not all fit, the rest are in
-a **More** menu; none is dropped.
-
-The XPPAUT one-letter keys are an optional preset, **XPPAUT sequences**
-(a switch in Help > Keyboard shortcuts, off by default). With it on, a
-main-menu letter runs its command (`I` for Initial conditions), and File
-or Numerics letters are two keys: `F` then `S`, `U` then `D`. After the
-first key of such a chord the status bar shows it (`F ... (Esc cancels)`)
-until the next key; Esc, or moving the focus, cancels it. A key that
-completes no chord is reported in the status bar. While a menu is open,
-its letters choose from it, whatever the preset.
-
-Use **Files → Open model**, **Open session**, **Save session** or **Save session as** to
-manage work. A `.snapx` session preserves the workspace; parameter and
-initial-condition files save only those values, and CSV exports save data.
-Desktop file actions use the operating system's dialogs. Browser mode uses
-the browser picker or a download. Ctrl/Cmd+O opens a model, Ctrl/Cmd+S saves the session to its file
-and Ctrl/Cmd+Shift+S saves it under a name you choose. The native desktop
-File menu shows the same commands and keys. A dot beside the model's name
-in the header says the values (parameters, initial conditions, the time span,
-method and tolerances, or the run's data) changed since the session was
-loaded or saved; a save or an open of a session file clears it.
-
-The header identifies the model and gives access to Data, Model
-(equations/source), and Help. Files holds session open/save. The title bar's
-Tools menu contains recording, playback, array plots and animation. F6 moves between Commands,
-Plot, Values and open Data/Model panels; Shift+F6 moves backwards. Within
-command results use the arrow keys, Home and End. These shortcuts leave
-modal dialogs in control of their focus.
+The desktop window's native menu has **Quit** and **About**. Model open/reload,
+Manual and Keyboard shortcuts are in the page menu. Session files preserve
+the workspace; parameter/initial-condition files and data exports remain
+available through File. A dot beside the model name marks unsaved changes.
 
 The run toolbar stays above the plots. **Run from initial** (`I, G`)
 starts a new trajectory from Initial values. **Run from last state** (`I, L`)

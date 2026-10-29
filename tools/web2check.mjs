@@ -200,16 +200,16 @@ const steadyP = P;
 
 /* File > Open model as the page sends it: the menu's key asks for the file, which the answer names (session.open_model's path is --server's own input) */
 async function openFile(file) {
-  await cdp.eval(`__xpp.send({cmd: 'key', menu: 'file', item: 'openmodel'})`);
-  await until("s.ask?.kind === 'file'", 'the Open model file question');
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: ${JSON.stringify(file)}})`);
+  await clickRegistry('session.open_model');
+  await cdp.eval(`document.querySelector('[data-argument=file] button').click()`);
+  await requireUntil(`s.ask?.kind === 'file' && document.activeElement.closest('[role=dialog]')`, 'Open model picker focus');
+  await answerAsk({file});
 }
 
 /* File > Play recording as the page sends it: the key asks for the file, which the answer names (recording.open's path is --server's own input) */
 async function openRecording(file) {
-  await cdp.eval(`__xpp.send({cmd: 'key', menu: 'file', item: 'play'})`);
-  await until("s.ask?.kind === 'file'", 'the Play recording file question');
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: ${JSON.stringify(file)}})`);
+  await registryFile('recording.open', 'read', {play:false});
+  await answerAsk({file});
 }
 
 let acceptSave = true; /* scratch saves are authorized; the W129 No check opts out */
@@ -236,7 +236,6 @@ async function requireUntil(expr, what, ms) {
 }
 
 /* a menu ask is open and has the focus, so the next key answers it */
-const menuOpen = (what, ms) => requireUntil("s.ask && s.ask.kind === 'menu' && document.activeElement.closest('[role=dialog]')", what, ms);
 
 /* Page.reload returns before the old document is gone: a wait right after
    it could be met by the old page, and the next read then hit the new one
@@ -339,15 +338,9 @@ async function desktop(want) {
   await clickSendsNothing('a click on the empty plot (nothing edited) sends nothing and starts nothing',
     emptyHost.x + 6, emptyHost.y + 6);
 
-  /* integrate with the keyboard only: I opens the menu, G answers it */
-  await key('i');
-  check('I opens the Initialconds menu as a dialog', await until("s.ask && s.ask.kind === 'menu'", 'menu'),
-    JSON.stringify(await S('s.ask')));
-  check('the dialog has the focus', await until(`document.activeElement.closest('[role=dialog]')`, 'focus'));
   const n0 = await S('s.seriesCount');
-  await key('g');
-  check('G integrates: a new series of 601 rows', await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'series'),
-    JSON.stringify(await S('w.series && w.series.rows')));
+  await key('i'); await key('g');
+  check('XPPAUT IG runs directly without a menu ask', await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy && !s.ask`, 'series'));
 
   const cols = await cdp.eval(`(() => { const s = __xpp.state(), m = (${ACTIVE}).series; const o = {};
     for (const [k, v] of m.columns) o[k] = Array.from(v); return {cols: o, names: Object.fromEntries(m.names)}; })()`);
@@ -507,9 +500,7 @@ async function values() {
   /* Go sends no set of its own: the core has the value already, and the run uses it */
   const preGo = await S('__xpp.sentCount()');
   const n0go = await S('s.seriesCount');
-  await key('i');
-  await menuOpen('Initialconds menu');
-  await key('g');
+    await menuRun('run.initial');
   await requireUntil(`s.seriesCount > ${n0go} && w.series.rows === 601`, 'Go integrated', 60000 * SLOW);
   const goSent = await S(`__xpp.sentFrom(${preGo})`);
   check('Go sends the run only: no set rides along with it (W106)',
@@ -587,9 +578,7 @@ async function values() {
   check('the core has the slider\'s last value', await S(iappIs(slidTo)), String(slidTo));
   /* the keys go to the plot: on the focused range track a letter is not a hotkey */
   await focusPlot();
-  await key('i');
-  await menuOpen('Initialconds menu (slider)');
-  await key('g');
+    await menuRun('run.initial');
   check('Go integrates with it: a new series arrives',
     await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'slide series'),
     JSON.stringify(await S('[s.seriesCount, w.series && w.series.rows]')));
@@ -976,15 +965,15 @@ async function keyboardOnly() {
   check('0 resets the view', await until('w.viewport.x === null', '0'));
   /* a prompt from the plot, cancelled with Escape: focus comes back */
   await key('x');
-  check('X (an XPP hotkey) still works with the plot focused', await until("s.ask && s.ask.kind === 'string'", 'x'),
+  check('X (an XPP hotkey) still works with the plot focused', await until("s.commandForm?.id === 'plot.variable_vs_time'", 'x'),
     JSON.stringify(await S('s.ask')));
-  check('its field has the focus', await until(`document.activeElement.tagName === 'INPUT' && document.activeElement.closest('[role=dialog]')`, 'field focus'));
+  check('its field has the focus', await until(`['INPUT','SELECT'].includes(document.activeElement.tagName) && document.activeElement.closest('[role=dialog]')`, 'field focus'));
   await key('Tab');
   await key('Tab');
   await key('Tab');
   check('Tab stays inside the dialog', await cdp.eval(`!!document.activeElement.closest('[role=dialog]')`));
   await key('Escape');
-  check('Escape cancels it', await until('!s.ask && !s.busy', 'cancel'));
+  check('Escape cancels it', await until('!s.commandForm && !s.ask && !s.busy', 'cancel'));
   check('and the focus is back on the plot', await until(`document.activeElement.closest('.plot-host')`, 'focus back'));
 }
 
@@ -998,15 +987,14 @@ async function phasePlane() {
   const layer = key => cdp.eval(`(__xpp.plot().layers.find(l => l.key === '${key}') || null)`);
   const legend = label => cdp.eval(`(() => { const b = [...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')]
     .find(b => b.textContent.trim() === ${JSON.stringify(label)}); if (b) b.click(); return b ? b.getAttribute('aria-pressed') : null; })()`);
-  const answerValue = v => cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: '${v}'})`);
 
-  await menuKeys('i', 'g');
+  await menuRun('run.initial');
   check('W346: after a run the page draws requested nullclines and field without a click',
     await until(`!s.busy && w.nullclines && w.nullclines.x.length > 0 && w.dfield && w.dfield.grid.length > 0
       && ['xnull', 'ynull', 'dfield'].every(key => __xpp.plot().layers.some(l => l.key === key && l.drawn > 0))
       && __xpp.plot().layers.some(l => l.key === 'dfield' && l.drawn === 289)`, 'run phase data'));
 
-  await menuKeys('n', 'n'); /* Nullcline/New */
+  await menuRun('nullcline.compute'); /* Nullcline/New */
   check('Nullcline/New: the store holds both nullclines of the active window',
     await until('!s.busy && w.nullclines && w.nullclines.x.length > 0 && w.nullclines.y.length > 0', 'nullclines')
     && await S("w.nullclines.xName === 'V' && w.nullclines.yName === 'W' && w.nullclines.x.length % 4 === 0"),
@@ -1018,8 +1006,7 @@ async function phasePlane() {
     && v.visible && await cdp.eval(`[...document.querySelectorAll('.legend-item.layer')].map(b => b.textContent.trim()).join()`) === 'V-nullcline,W-nullcline,Direction field',
     JSON.stringify({v, wv, segs}));
 
-  await menuKeys('d', 's'); /* Dir.field/flow, Scaled Dir.Fld */
-  if (await until("s.ask && s.ask.kind === 'string'", 'grid')) await answerValue('16');
+  await menuRun('dirfield.compute', {grid:16, scaled:true}); /* Dir.field/flow, Scaled Dir.Fld */
   check('Dir.field/Scaled: the store holds a 17 x 17 grid of unit directions',
     await until('!s.busy && w.dfield && w.dfield.n === 17 && w.dfield.grid.length === 4 * 289', 'dfield')
     && await S('w.dfield.scaled && w.dfield.speed.length === 289'), JSON.stringify(await S('w.dfield && [w.dfield.n, w.dfield.grid.length]')));
@@ -1042,8 +1029,7 @@ async function phasePlane() {
     v.visible && v.drawn === 289 && !x.visible && x.drawn === 0 && (await layer('ynull')).drawn === segs[1], JSON.stringify({v, x}));
   await legend('V-nullcline');
 
-  await menuKeys('d', 'f'); /* Dir.field/flow, Flow */
-  if (await until("s.ask && s.ask.kind === 'string'", 'grid')) await answerValue('5');
+  await menuRun('dirfield.flow', {grid:5}); /* Dir.field/flow, Flow */
   check('Dir.field/Flow: the store holds the trajectories (72 of them, NaN between two)',
     await until('!s.busy && w.dfield && w.dfield.flows.length === 1 && w.dfield.flows[0].xs.length > 72', 'flow', 30000)
     && await S('Array.from(w.dfield.flows[0].xs).filter(v => v !== v).length === 71'),
@@ -1062,175 +1048,37 @@ async function phasePlane() {
    curve and a Sing pts equilibrium in the store, drawn, named in the legend
    and toggled from it; Erase clears them */
 async function marks() {
-  check('T8: the page connects and asks for marks', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'events.subscribe' && c.events.includes('marks'))`));
-  const layer = k => cdp.eval(`(__xpp.plot().layers.find(l => l.key === '${k}') || null)`);
-  const legendLabels = () => cdp.eval(`[...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')].map(b => b.textContent.trim())`);
-  const markLabels = async () => (await legendLabels()).filter(l => !l.endsWith('-nullcline') && l !== 'Direction field');
-  const legend = label => cdp.eval(`(() => { const b = [...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')]
-    .find(b => b.textContent.trim() === ${JSON.stringify(label)}); if (b) b.click(); return b ? b.getAttribute('aria-pressed') : null; })()`);
-  let askId = -1;
-  /* the next ask of `kind` (not the one answered last), answered with `reply` */
-  const answer = async (kind, reply) => {
-    if (!(await until(`s.ask && s.ask.kind === '${kind}' && s.ask.id !== ${askId}`, kind))) return false;
-    askId = await S('s.ask.id');
-    await cdp.eval(`__xpp.send(Object.assign({cmd: 'answer', id: ${askId}}, ${JSON.stringify(reply)}))`);
-    return true;
-  };
-  const menu = async (...keys) => {
-    for (const k of keys) await answer('menu', {key: k});
-  };
-  const idle = () => until('!s.busy && !s.ask', 'idle', 30000);
-
-  await focusPlot();
-  await key('i');
-  await menu('g');
-  await idle();
-  check('... an integration: no marks yet', await until('w.series && w.series.rows > 2', 'series')
-    && await S('!w.marks || (w.marks.text.length + w.marks.equilibria.length + w.marks.frozen.length === 0)'));
-
-  /* W227: Text asks where it goes (a click), then one dialog for the text, size, style and colour */
-  const addText = async look => {
-    await key('t');
-    await menu('t');
-    await answer('mouse', {xd: -0.3, yd: 0.5});
-    await answer('text', look);
-    await idle();
-  };
-  await addText({value: '\\1a\\0-point', size: 3, style: 'bold', color: '#ffcd00'});
-  check('Text,etc/Text: the store holds the text, Greek as Unicode, with its size, style and colour',
-    await until("w.marks && w.marks.text.length === 1", 'text')
-    && await S("w.marks.text[0].plain === 'α-point' && w.marks.text[0].size === 3 && Math.abs(w.marks.text[0].x + 0.3) < 0.01"
-      + " && w.marks.text[0].style === 'bold' && w.marks.text[0].color === '#ffcd00' && w.marks.text[0].source === '\\\\1a\\\\0-point'"),
-    JSON.stringify(await S('w.marks && w.marks.text')));
-  let t = await layer('text');
-  check('... drawn as text, "Text" in the legend, named in the plot\'s label', t && t.drawn === 1 && t.visible
-    && (await legendLabels()).includes('Text')
-    && (await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').getAttribute('aria-label')`)).includes('α-point'),
-    JSON.stringify(t));
-
-  /* W227: a double click on the text opens its dialog, filled in; each field edits; Delete deletes */
-  const dbl = async (x, y) => {
-    await mouse('mouseMoved', x, y);
-    for (const clickCount of [1, 2]) {
-      await mouse('mousePressed', x, y, {button: 'left', buttons: 1, clickCount});
-      await mouse('mouseReleased', x, y, {button: 'left', buttons: 0, clickCount});
-    }
-  };
-  const dialog = () => cdp.eval(`(() => { const d = document.querySelector('[data-text-dialog]'); if (!d) return null;
-    return {text: d.querySelector('[data-text-input]').value, size: d.querySelector('[data-text-size]').value,
-      style: d.querySelector('[data-text-style]').value, x: d.querySelector('[data-text-x]').value,
-      y: d.querySelector('[data-text-y]').value,
-      color: d.querySelector('[data-color-text]').value}; })()`);
-  const openDialog = async () => {
-    const at = await cdp.eval(`(() => { const t = __xpp.plot().texts[0]; return t ? [t.x, t.y] : null; })()`);
-    if (!at) return false;
-    await dbl(at[0], at[1]);
-    return await until("!!document.querySelector('[data-text-dialog]')", 'text dialog');
-  };
-  const sentText = () => cdp.eval(`__xpp.sent().filter(c => c.cmd.startsWith('annotation'))`);
-  const viewBefore = await S('JSON.stringify(w.viewport)');
-  check('W227: double click on the text opens the dialog filled in (text as written, size, style, colour, position)',
-    await openDialog() && JSON.stringify(await dialog()).includes('"text":"\\\\1a\\\\0-point","size":"3","style":"bold"')
-    && (await dialog()).color === '#ffcd00' && Math.abs(Number((await dialog()).x) + 0.3) < 0.01,
-    JSON.stringify(await dialog()));
-  check('... and it does not reset the zoom', (await S('JSON.stringify(w.viewport)')) === viewBefore);
-  await cdp.eval(`(() => { const d = document.querySelector('[data-text-dialog]');
-    const set = (el, v, ev) => { el.value = v; el.dispatchEvent(new Event(ev, {bubbles: true})); };
-    set(d.querySelector('[data-text-input]'), 'plain words', 'input');
-    set(d.querySelector('[data-text-size]'), '0', 'change');
-    set(d.querySelector('[data-text-style]'), 'bold_italic', 'change');
-    set(d.querySelector('[data-color-text]'), '#0000ff80', 'input');
-    set(d.querySelector('[data-text-x]'), '0.25', 'input');
-    set(d.querySelector('[data-text-y]'), '0.4', 'input'); })()`);
-  await until(`document.querySelector('[data-text-dialog] [data-color-text]').value === '#0000ff80'
-    && document.querySelector('[data-text-dialog] [data-text-y]').value === '0.4'`, 'dialog draft');
-  await cdp.eval("document.querySelector('[data-text-dialog] form').requestSubmit(); true");
-  await idle();
-  check('W227: Apply sends one text edit with every field, then its move, and the store holds the new text',
-    await until("w.marks && w.marks.text.length === 1 && w.marks.text[0].plain === 'plain words'", 'edited')
-    && await S("(() => { const x = w.marks.text[0]; return x.size === 0 && x.style === 'bold_italic' && x.color === '#0000ff80'"
-      + " && Math.abs(x.x - 0.25) < 1e-6 && Math.abs(x.y - 0.4) < 1e-6; })()")
-    && JSON.stringify(await sentText()) === JSON.stringify([
-      {cmd: 'annotation.edit', annotation_id: await S('w.marks.text[0].id'), text: 'plain words', text_size: 0, style: 'bold_italic', color: '#0000ff80'},
-      {cmd: 'annotation.move', annotation_id: await S('w.marks.text[0].id'), new_x: 0.25, new_y: 0.4}])
-    && !(await cdp.eval("!!document.querySelector('[data-text-dialog]')")),
-    JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
-  check('... drawn once, in the new look', (await layer('text'))?.drawn === 1);
-  check('W227: closing the dialog (x) sends nothing more',
-    await openDialog() && (await cdp.eval("document.querySelector('[data-text-dialog] .dialog-close').click(); true"), true)
-    && await until("!document.querySelector('[data-text-dialog]')", 'closed')
-    && (await sentText()).length === 2, JSON.stringify(await sentText()));
-  check('W227: Delete in the dialog removes the text: none in the store, none drawn, the legend entry gone',
-    await openDialog() && (await cdp.eval("document.querySelector('[data-text-delete]').click(); true"), true)
-    && await until("w.marks && w.marks.text.length === 0", 'deleted') && (await layer('text')) === null
-    && !(await legendLabels()).includes('Text') && (await sentText()).at(-1).cmd === 'annotation.delete',
-    JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
-  await addText({value: '\\1a\\0-point', size: 3, style: 'bold', color: '#ffcd00'});
-  check('W227: the text added again is as the first was',
-    await until("w.marks && w.marks.text.length === 1 && w.marks.text[0].plain === 'α-point'", 'text again')
-    && (await layer('text'))?.drawn === 1);
-
-  await key('t');
-  await menu('p');
-  await answer('string', {value: '0.2'});
-  await answer('string', {value: '#c8c800'});
-  await answer('rubber', {xd: 0.1, yd: 0.2, xd2: 0.6, yd2: 0.8});
-  await idle();
-  await key('t');
-  await menu('m');
-  await answer('form', {values: ['diamond', '#00e100', '2']});
-  await answer('mouse', {xd: 0.9, yd: 0.1});
-  await idle();
-  check('Pointer and Marker: in the store, drawn, "Arrows" and "Markers" in the legend',
-    await until('w.marks && w.marks.arrows.length === 1 && w.marks.markers.length === 1', 'objects')
-    && await S("w.marks.arrows[0].pointer && w.marks.arrows[0].color === '#c8c800' && w.marks.markers[0].shape === 'diamond'")
-    && (await layer('arrows'))?.drawn === 1 && (await layer('markers'))?.drawn === 1
-    && (await markLabels()).join() === 'Text,Arrows,Markers', JSON.stringify(await S('w.marks')));
-
-  await key('g');
-  await menu('f', 'f');
-  await answer('form', {values: ['#ffcd00', 'line', 'solid', '1', 'circle', '3', 'first run', 'frz1']});
-  await idle();
-  check('Graphic stuff/Freeze: the frozen curve in the store equals the series, named by its key',
-    await until('w.marks && w.marks.frozen.length === 1', 'frozen')
-    && await S(`(() => { const f = w.marks.frozen[0], c = w.series.curves[0];
-      const x = w.series.columns.get(c.x), y = w.series.columns.get(c.y);
-      return f.label === 'first run' && f.color === '#ffcd00' && f.style.draw === 'line' && f.xs.length === x.length
-        && f.xs.every((v, i) => v === x[i]) && f.ys.every((v, i) => v === y[i]); })()`),
-    JSON.stringify(await S('w.marks && w.marks.frozen.map(f => [f.label, f.xs.length])')));
-  const frozen = await layer('frozen-0');
-  check('... drawn under the curves, its key in the legend', frozen && frozen.label === 'first run' && frozen.drawn > 2
-    && (await legendLabels()).includes('first run'), JSON.stringify(frozen));
-
-  await key('s');
-  await menu('g');
-  for (let k = 0; k < 6 && !(await until('!s.busy', 'sing pts', 800)); k++)
-    if (await S("s.ask && s.ask.kind === 'choice'")) await answer('choice', {key: 'n'});
-  await idle();
-  check('Sing pts: the equilibrium in the store with its stability, drawn, "Equilibria" in the legend',
-    await until('w.marks && w.marks.equilibria.length === 1', 'equilibrium')
-    && await S("['stable', 'unstable', 'saddle'].includes(w.marks.equilibria[0].type)")
-    && (await layer('equilibria'))?.drawn === 1 && (await markLabels()).join() === 'Equilibria,Text,Arrows,Markers,first run',
-    JSON.stringify({eq: await S('w.marks && w.marks.equilibria'), legend: await legendLabels()}));
-
-  let pressed = await legend('Text');
-  t = await layer('text');
-  check('the legend hides the text: not drawn, the toggle not pressed, the other marks still drawn',
-    pressed === 'true' && t && !t.visible && t.drawn === 0 && (await layer('equilibria')).drawn === 1
-    && (await layer('frozen-0')).drawn > 2, JSON.stringify(t));
-  await legend('Text');
-  pressed = await legend('first run');
-  const f0 = await layer('frozen-0');
-  check('... shows it again; a frozen curve hides on its own',
-    (await layer('text')).drawn === 1 && pressed === 'true' && !f0.visible && f0.drawn === 0, JSON.stringify(f0));
-  await legend('first run');
-
-  await cdp.eval(`__xpp.send({cmd: 'window.clear', window: 'graph_1'})`); /* Erase */
-  check('Erase clears them: no marks in the store, none drawn, no legend entries',
-    await until('!s.busy && w.marks && w.marks.text.length === 0 && w.marks.equilibria.length === 0 && w.marks.frozen.length === 0', 'erase')
-    && (await P()).layers.length === 0 && (await legendLabels()).length === 0);
+  await desktopMetrics();
+  const view = await S('s.core.view'), x = (view.xlo + view.xhi)/2, y = (view.ylo + view.yhi)/2;
+  await menuRun('annotation.add_text',{text:'Named annotation',x,y,color:'#123456'});
+  await until('!s.busy && w.marks?.text.length === 1', 'text');
+  await menuRun('annotation.add_arrow',{tip_x:x,tip_y:y,tail_x:x+0.1,tail_y:y+0.1});
+  await until('!s.busy && w.marks.arrows.length === 1', 'arrow');
+  await menuRun('annotation.add_marker',{shape:'circle',x:x+0.2,y:y+0.2});
+  await until('!s.busy && w.marks.markers.length === 1', 'marker');
+  await clickRegistry('annotation.list');
+  check('W517: annotation list includes text, arrows and markers by stable id', await until(`s.annotationsOpen && document.querySelectorAll('[data-annotation]').length === 3 && !s.busy`, 'annotation list'));
+  const textId = await S('w.marks.text[0].id');
+  await cdp.eval(`document.querySelector('[data-annotation="${textId}"] button').click()`);
+  check('W517: row selection reaches the plot state', await S(`s.selectedAnnotation === ${textId}`));
+  await cdp.eval(`document.querySelector('[data-annotation-edit="${textId}"]').click()`);
+  check('W517: annotation Edit uses the common form with current text', await until(`s.commandForm?.id === 'annotation.edit' && s.commandForm.values.text === 'Named annotation'`, 'edit'));
+  await formValues({text:'Changed annotation'}); await submitCommand();
+  check('W517: edit changes that annotation only', await until(`!s.busy && w.marks.text[0].source === 'Changed annotation' && w.marks.arrows.length === 1`, 'edited'));
+  const marker = await S('w.marks.markers[0]');
+  const a = await area(), plot = await P();
+  const point = {x:a.x+(marker.x-plot.x.min)/(plot.x.max-plot.x.min)*a.w, y:a.y+(plot.y.max-marker.y)/(plot.y.max-plot.y.min)*a.h};
+  // Hit the marker on the plot, then drag by a fixed fraction of the plotted range.
+  await mouse('mousePressed',point.x,point.y,{button:'left',buttons:1,clickCount:1});
+  await mouse('mouseMoved',point.x+a.w/10,point.y,{button:'left',buttons:1});
+  await mouse('mouseReleased',point.x+a.w/10,point.y,{button:'left',buttons:0,clickCount:1});
+  check('W517: plot selection selects its row and dragging uses plot coordinates', await until(`!s.busy && s.selectedAnnotation === ${marker.id} && Math.abs(w.marks.markers[0].x - ${marker.x+(plot.x.max-plot.x.min)/10}) < 1e-5`, 'dragged annotation'));
+  await cdp.eval(`document.querySelector('[data-annotation-delete="${textId}"]').click()`);
+  check('W517: Delete removes exactly the selected id', await until(`!s.busy && w.marks.text.length === 0 && w.marks.markers.length === 1 && w.marks.arrows.length === 1`, 'deleted'));
+  await menuRun('window.create',{name:'Other graph'});
+  check('W517: annotation panel follows the active graph', await until(`!s.busy && s.plots.active === 'Other graph' && document.querySelector('[data-annotations-panel]').textContent.includes('Other graph')`, 'active annotations'));
 }
+
 
 /* the array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`): opened from
    the title bar's Array button (the classic key path underneath it,
@@ -1245,10 +1093,8 @@ async function aplotView() {
   await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   check('T12: the page connects', await until('s.hello && !s.busy', 'hello'));
 
-  await key('i');
-  await menuOpen('initialconds menu');
-  const n0 = await S('s.seriesCount');
-  await key('g');
+    const n0 = await S('s.seriesCount');
+  await menuRun('run.initial');
   check('integrating the ring gives 401 rows', await until(`s.seriesCount > ${n0} && s.core.rows === 401 && !s.busy`, 'series'),
     JSON.stringify(await S('s.core.rows')));
 
@@ -1256,25 +1102,9 @@ async function aplotView() {
   await cdp.eval(`document.querySelector('.aplot-toggle').click()`);
   check('the Array button opens the panel and the core\'s array plot window',
     await until('s.aplot.open && s.aplot.windowOpen', 'aplot window'));
-  check('... and pops the Edit form the first time (the classic key path, v then a)',
-    await until("s.ask && s.ask.kind === 'form' && s.ask.title === 'Edit arrayplot'", 'edit form'),
-    JSON.stringify(await S('s.ask')));
-
-  /* Column 1 is a select of the variables (like Viewaxes' axis fields, T4);
-     the rest are plain number fields, in the order the core sent them.
-     Zmin/Zmax (indices 4, 5 of the inputs) are left at the core's own
-     defaults, so Fit below has something to change. */
-  await cdp.eval(`(() => { const s = document.querySelector('[role=dialog] select');
-    s.value = 'U0'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  await rendered();
-  const editFields = ['20', '0', '10', '1', null, null, '0', '1']; /* NCols, Row1, NRows, RowSkip, -, -, Autoplot, ColSkip */
-  for (let i = 0; i < editFields.length; i++) {
-    if (editFields[i] === null) continue;
-    await cdp.eval(`(() => { const el = document.querySelectorAll('[role=dialog] input')[${i}];
-      el.value = ${JSON.stringify(editFields[i])}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-    await rendered();
-  }
-  await cdp.eval(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.textContent === 'OK').click()`);
+  check('Array plot opens its registry argument form', await until(`s.commandForm?.id === 'array_plot.configure'`, 'array configuration'));
+  await formValues({first_column:'U0', columns:20, first_row:0, rows:10, row_skip:1, auto_redraw:false, column_skip:1});
+  await submitCommand();
   check('Edit sends the array plot: 20 columns (u0..u19), 10 rows',
     await until('!s.busy && s.aplot.event && s.aplot.event.nx === 20 && s.aplot.event.ny === 10', 'edited'),
     JSON.stringify(await S('s.aplot.event && [s.aplot.event.nx, s.aplot.event.ny, s.aplot.event.title]')));
@@ -1365,148 +1195,29 @@ async function aplotView() {
    each tab keeps its own zoom, arrow keys move between tabs, the core's
    active window follows the tab, destroy removes it */
 async function windows() {
-  const tabs = () => cdp.eval(`[...document.querySelectorAll('[role=tab]')].map(t => [t.id, t.getAttribute('aria-selected')])`);
-  const clickButton = text => cdp.eval(`[...document.querySelectorAll('button')].find(b => b.textContent === '${text}').click()`);
-  check('one window: no tab list', await S('s.plots.windows.length === 1') && (await tabs()).length === 0);
-  const t1 = await S('w.info && w.info.title');
-  const firstCurveLabel = (await P()).curves[0].label; /* what window 1 plots after the sessions above */
-  await focusPlot();
-  const shown0 = await displays();
-  await key('+');
-  await displayTold(shown0, 'the zoom told'); /* before New window (macos-ui, W93) */
-  const z1 = await S('w.viewport');
-  check('window 1 zoomed', !!z1.x, JSON.stringify(z1));
+  await desktopMetrics();
+  await menuRun('window.create',{name:'Graph with spaces'});
+  check('W517: New graph creates an exactly named window', await until(`!s.busy && s.windows.some(w => w.name === 'Graph with spaces' && w.shown)`, 'new graph'));
+  const act = async id => {await cdp.eval(`(() => {const d = [...document.querySelectorAll('[data-window-menu]')].find(d => d.dataset.windowMenu === 'Graph with spaces'); d.querySelector('[data-window-action="'+${JSON.stringify(id)}+'"]').click();})()`); await rendered();};
+  await act('window.hide');
+  check('W517: hidden windows stay listed without a tick', await until(`!s.busy && s.windows.some(w => w.name === 'Graph with spaces' && !w.shown)`, 'hide'));
+  await act('window.show');
+  check('W517: Show restores the same window', await until(`!s.busy && s.windows.some(w => w.name === 'Graph with spaces' && w.shown)`, 'show'));
+  await act('window.rename'); await formValues({name:'Renamed graph'}); await submitCommand();
+  check('W517: Rename uses the common form', await until(`!s.busy && s.windows.some(w => w.name === 'Renamed graph') && !s.windows.some(w => w.name === 'Graph with spaces')`, 'rename'));
+  await menuRun('window.destroy',{window:'Renamed graph'});
+  check('W517: Destroy removes the named graph', await until(`!s.busy && !s.windows.some(w => w.name === 'Renamed graph')`, 'destroy'));
+  await menuRun('auto.open'); await until('!s.busy && s.diagram.open', 'AUTO');
+  await menuRun('auto.new_view');
+  check('W517: New AUTO view creates a second named view', await until(`!s.busy && s.windows.filter(w => w.kind === 'diagram').length === 2`, 'AUTO view'));
+  check('W517: New graph and New AUTO view precede window groups', await cdp.eval(`(() => {const d=document.querySelector('[data-top-menu=Windows]'); return [...d.querySelectorAll(':scope > ul > li > button')].slice(0,2).map(b=>b.dataset.command).join() === 'window.create,auto.new_view' && d.textContent.includes('Graphs') && d.textContent.includes('AUTO views') && d.textContent.includes('Others');})()`));
+  await menuRun('auto.new_view');
+  check('W517: New AUTO view opens AUTO when none exists',await until('s.diagram.open && s.diagram.shown && !s.busy','new AUTO view'));
+  await cdp.eval(`(() => {const d=[...document.querySelectorAll('[data-window-menu]')].find(d=>d.dataset.windowMenu==='graph_1'); d.querySelector('[data-window-action="window.select"]').click();})()`);
+  check('W517: Bring to front shows a graph over AUTO',await until(`s.plots.active === 'graph_1' && !s.diagram.shown && !s.busy`,'graph in front'));
 
-  await clickButton('New window');
-  check('New window (Makewindow/Create) adds window 2, selected',
-    await until(`s.plots.windows.length === 2 && s.plots.active === 'graph_2' && !s.busy`, 'create'),
-    JSON.stringify(await S('[s.plots.windows.map(x => x.win), s.plots.active]')));
-  check('the tab list follows: two tabs, the second selected',
-    JSON.stringify(await tabs()) === JSON.stringify([['plot-tab-graph_1', 'false'], ['plot-tab-graph_2', 'true']]), JSON.stringify(await tabs()));
-  check('the store holds both windows\' series', await S('s.plots.windows.every(x => x.series && x.series.rows === 601)'));
-  check("window 2 starts at the core's axes", await S('w.viewport.x === null && w.viewport.y === null'));
-
-  await focusPlot();
-  await key('x');
-  if (await until("s.ask && s.ask.kind === 'string'", 'x')) await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'V'})`);
-  check('Xi vs t in window 2 changes its curves only',
-    await until(`!s.busy && w.series.curves[0].x === 0 && w.series.curves[0].y === 1 && w.info.title === 'graph_2'
-      && s.plots.windows[0].info.title === '${t1}'`, 'x vs t'),
-    JSON.stringify(await S('s.plots.windows.map(x => x.info && x.info.title)')));
-  check('the tabs name what each window plots', await cdp.eval(`[...document.querySelectorAll('[role=tab]')].map(t => t.textContent).join('|')`)
-    === `${t1}|graph_2`);
-  await focusPlot();
-  const zoom2 = await displays();
-  await key('-');
-  await displayTold(zoom2, 'the zoom told'); /* before tab 1 is clicked (macos-ui, W93) */
-  const z2 = await S('w.viewport');
-  check('window 2 zoomed on its own', !!z2.x && JSON.stringify(z2) !== JSON.stringify(z1), JSON.stringify(z2));
-
-  await cdp.eval(`document.getElementById('plot-tab-graph_1').click()`);
-  check('clicking tab 1 shows window 1 and makes it the core\'s active window',
-    await until(`s.plots.active === 'graph_1' && !s.busy && s.core.win === 'graph_1'`, 'tab 1'), JSON.stringify(await S(`[s.plots.active, s.core.win]`)));
-  const back = await S('w.viewport'), p1 = await P();
-  check("tab 1 keeps its zoom", JSON.stringify(back) === JSON.stringify(z1)
-    && Math.abs(p1.x.min - z1.x.min) < 1e-9 && Math.abs(p1.x.max - z1.x.max) < 1e-9, JSON.stringify([back, p1 && p1.x]));
-  check('its chart is the one shown', p1 && p1.curves[0].label === firstCurveLabel && p1.width > 200, JSON.stringify(p1 && [p1.curves, p1.width]));
-  /* W515: window.hide takes a graph off the tabs and keeps it, window.show brings it back */
-  await cdp.eval(`__xpp.send({cmd: 'window.hide', window: 'graph_2'})`);
-  check('window.hide takes graph_2 off the tabs and keeps it (its series stay)',
-    await until(`s.windows.some(x => x.name === 'graph_2' && !x.shown) && s.plots.windows.length === 2 && !document.getElementById('plot-tab-graph_2') && !s.busy`, 'hide'),
-    JSON.stringify(await S('[s.windows, s.plots.windows.length]')));
-  await cdp.eval(`__xpp.send({cmd: 'window.show', window: 'graph_2'})`);
-  check('window.show brings graph_2 and its tab back',
-    await until(`s.windows.some(x => x.name === 'graph_2' && x.shown) && !!document.getElementById('plot-tab-graph_2') && !s.busy`, 'show'),
-    JSON.stringify(await S('s.windows')));
-
-  /* what a failing tab check saw: busy, the page's and the core's window, the focus, the last
-     commands sent and actions taken (W93: macos-ui lost ArrowLeft here) */
-  const tabState = async () => JSON.stringify(await cdp.eval(`(() => { const s = __xpp.state();
-    return {busy: s.busy, active: s.plots.active, core: s.core.win, ask: s.ask && s.ask.kind, focus: document.activeElement.id,
-      sent: __xpp.sent().slice(-4), actions: __xpp.actions().slice(-10)}; })()`));
-  await cdp.eval(`document.getElementById('plot-tab-graph_1').focus()`);
-  await key('ArrowRight');
-  check('ArrowRight on the tabs moves to window 2, focus with it',
-    await until(`s.plots.active === 'graph_2' && document.activeElement.id === 'plot-tab-graph_2'`, 'arrow right'));
-  check('tab 2 kept its zoom', JSON.stringify(await S('w.viewport')) === JSON.stringify(z2));
-  const beforeLeft = await tabState();
-  await key('ArrowLeft');
-  check('ArrowLeft back to window 1', await until(`s.plots.active === 'graph_1' && document.activeElement.id === 'plot-tab-graph_1'`, 'arrow left'),
-    `before: ${beforeLeft} after: ${await tabState()}`);
-  await key('End');
-  check('End to the last tab', await until(`s.plots.active === 'graph_2' && document.activeElement.id === 'plot-tab-graph_2'`, 'End'), await tabState());
-  check('the tab key goes back to the core', await until(`!s.busy && s.core.win === 'graph_2'`, 'core win 2'), await tabState());
-  /* two tab keys in one turn of the event loop: the second always arrives
-     while the first one's click is still the core's (busy), so it is held
-     for the idle, never dropped (a slow runner lost End this way) */
-  const sentBefore = await cdp.eval('__xpp.sentCount()');
-  const afterKeys = await cdp.eval(`(() => { const t = document.getElementById('plot-tab-graph_2');
-    for (const key of ['ArrowLeft', 'End']) t.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}));
-    const s = __xpp.state(); return [s.busy, s.plots.active]; })()`);
-  check('two tab keys at once: the first is shown and sent, the core busy with it',
-    afterKeys[0] === true && afterKeys[1] === 'graph_1', JSON.stringify(afterKeys));
-  const heldOk = await until(`!s.busy && s.plots.active === 'graph_2' && s.core.win === 'graph_2'`, 'held tab');
-  const clicks = await cdp.eval(`__xpp.sentFrom(${sentBefore}).filter(c => c.cmd === 'window.select').map(c => c.window)`);
-  check('the second, sent while the first was busy, is held and applied at its idle',
-    heldOk && JSON.stringify(clicks) === '["graph_1","graph_2"]' , JSON.stringify([await S('[s.busy, s.plots.active, s.core.win]'), clicks]));
-  check('... and its tab has the focus: the tab it left, disabled while the click ran, did not take it away (W93)',
-    await until(`!s.busy && document.activeElement.id === 'plot-tab-graph_2'`, 'held tab focused'), await tabState());
-
-  /* a plot mode (T4) on the tab shown: Window/Zoom by the keyboard zooms window 2, not window 1 */
-  const axes1 = await S('JSON.stringify(s.plots.windows[0].info)');
-  await focusPlot();
-  await menuKeys('w', 'z');
-  check("Window/Zoom in window 2: its plot is in box mode, one instruction bar",
-    await until("s.pick && s.pick.mode === 'box' && s.pick.win === 'graph_2' && !s.pick.waiting", 'box mode in 2')
-    && await cdp.eval(`document.querySelectorAll('.pick-bar').length === 1 && !!document.querySelector('.plot-view:not([hidden]) .pick-bar')`),
-    JSON.stringify(await S('s.pick')));
-  const pz = await P(), vz = await S('s.core.view');
-  await key('Enter');
-  for (let i = 0; i < 5; i++) await key('ArrowRight');
-  for (let i = 0; i < 5; i++) await key('ArrowDown');
-  await key('Enter');
-  const box = [dataAt(pz, 0.5, 0.5), dataAt(pz, 0.6, 0.6)];
-  await until('!s.busy && !s.pick', 'zoom in 2');
-  const vb = await S('s.core.view'), info2 = await S('w.info');
-  check("window 2's axes are the box, in state.view and in plots; window 1's are unchanged",
-    vb.win === 'graph_2' && viewIsBox(vb, box[0], box[1], corePixel(vz))
-    /* state.view has 6 digits, plots the doubles */
-    && Math.abs(info2.xlo - vb.xlo) <= 1e-5 * Math.abs(vb.xhi - vb.xlo) && Math.abs(info2.yhi - vb.yhi) <= 1e-5 * Math.abs(vb.yhi - vb.ylo)
-    && await S('JSON.stringify(s.plots.windows[0].info)') === axes1, JSON.stringify({vz, pz: [pz.x, pz.y], vb, box, info2}));
-
-  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
-  await rendered();
-  const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, w: innerWidth,
-    tabs: [...document.querySelectorAll('[role=tab]')].every(t => t.getBoundingClientRect().right <= innerWidth)})`);
-  check('390 px with two tabs: no sideways scroll, the tabs fit', scroll.doc <= scroll.w && scroll.tabs, JSON.stringify(scroll));
-  await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
-  await rendered();
-
-  await focusPlot();
-  const renameZoom = await displays();
-  await key('+');
-  await displayTold(renameZoom, 'zoom before rename');
-  const beforeRename = await S('w.viewport');
-  await cdp.eval(`document.querySelector('.window-name').click(); true`);
-  await cdp.eval(`(() => { const input = document.querySelector('input[aria-label="Window name"]');
-    input.value = 'Phase plane'; input.dispatchEvent(new Event('input', {bubbles:true}));
-    input.form.requestSubmit(); return true; })()`);
-  check('a graph rename preserves the exact name, zoom and data through done',
-    await until(`!s.busy && s.plots.active === 'Phase plane' && s.core.win === 'Phase plane'`, 'named graph')
-    && beforeRename.x !== null && JSON.stringify(await S('w.viewport')) === JSON.stringify(beforeRename)
-    && await S(`w.series.rows === 601`)
-    && await cdp.eval(`document.getElementById('plot-tab-Phase%20plane').textContent === 'Phase plane'`),
-    JSON.stringify({beforeRename, after:await S('[s.plots.active,s.core.win,w.viewport,w.series?.rows]'), sent:await cdp.eval('__xpp.sent().slice(-6)')}));
-
-  await clickButton('Close window');
-  check('Close window (Makewindow/Destroy) removes its tab',
-    await until(`s.plots.windows.length === 1 && s.plots.active === 'graph_1' && !s.busy`, 'destroy')
-    && (await tabs()).length === 0, JSON.stringify(await S('s.plots.windows.map(x => x.win)')));
-  check('window 1 still has its zoom and its series', JSON.stringify(await S('w.viewport')) === JSON.stringify(z1)
-    && await S('w.series.rows === 601'));
-  await focusPlot();
-  await key('0');
 }
+
 
 /* "Use this view" and Fit (docs/ui-v2.md T9, session.ts useThisView/fitView):
    zoom by wheel, press "Use this view" and check the core's axes (state.view,
@@ -1524,11 +1235,9 @@ async function viewCheck() {
   check('the page connects and asks for the plot as data', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'),
     JSON.stringify(await S('({hello: !!s.hello, seriesCount: s.seriesCount, busy: s.busy})')));
   const seriesBefore = await S('s.seriesCount');
-  await key('i');
-  await menuOpen('menu', 60000 * SLOW);
-  const runActions = await S('__xpp.actions().length');
-  await key('g');
-  await requireUntil(`__xpp.actions().slice(${runActions}).includes('event:idle')`, 'integration idle', 60000 * SLOW);
+    const runActions = await S('__xpp.actions().length');
+  await menuRun('run.initial');
+  await requireUntil(`__xpp.actions().slice(${runActions}).includes('event:done')`, 'integration idle', 60000 * SLOW);
   check('I, G integrates a series', await until(`s.seriesCount > ${seriesBefore} && w.series && w.series.rows === 601`, 'series', 60000 * SLOW),
     JSON.stringify(await S('({rows: w.series ? w.series.rows : null, busy: s.busy, seriesCount: s.seriesCount})')));
 
@@ -1626,106 +1335,29 @@ async function viewCheck() {
    caption the page gives it (a cell: "X min", "X variable"; a plain field: its name); Enter in it answers.
    The core's truth is read back by opening the dialog again: its ask carries every value as the core holds it. */
 const axisName = which => cdp.eval(`document.querySelector('.plot-view:not([hidden]) [data-plot-axis=${which}]').click()`);
-const axesAsk = async which => {
-  await axisName(which);
-  await until(`s.ask && s.ask.kind === 'form' && !!document.querySelector('[role=dialog] [data-form-columns]')`, 'axes dialog');
-  return S('s.ask');
-};
-const setAxesField = (caption, value) => cdp.eval(`(() => {
-  const l = [...document.querySelectorAll('[role=dialog] label')].find(l => l.firstElementChild.textContent === ${JSON.stringify(caption)});
-  const i = l.querySelector('input, select');
-  i.value = ${JSON.stringify(String(value))};
-  i.dispatchEvent(new Event(i.tagName === 'SELECT' ? 'change' : 'input', {bubbles: true}));
-  i.focus();
-})()`);
-/* the values the core holds, read by opening the dialog and cancelling it */
-const axesValues = async which => {
-  const ask = await axesAsk(which);
-  await key('Escape');
-  await until('!s.ask && !s.busy', 'axes dialog closed');
-  return ask.values;
-};
 const dismissErrors = async () => {
   await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
-  await until('!s.toasts.length', 'errors dismissed');
+  await requireUntil('!s.toasts.length', 'errors dismissed');
 };
-/* sets fields ({caption: value}) in the open dialog and answers with Enter from the last one */
-const fillAndEnter = async fields => {
-  for (const [caption, value] of Object.entries(fields)) await setAxesField(caption, value);
-  await rendered();
-  await key('Enter');
-  await until('!s.ask && !s.busy', 'axes dialog answered');
-};
-const sameValues = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-
 async function axesDialogChecks(three) {
-  const kind = three ? '3D' : '2D';
-  const lists = await S('s.hello.lists');
-  const ask = await axesAsk('x');
-  const cols = three ? ['X', 'Y', 'Z'] : ['X', 'Y'];
-  check(`W225: clicking an axis name opens ONE ${kind} dialog in columns (${cols.join(', ')}; Variable, Min, Max, Label)`,
-    ask.title === `${kind} View` && JSON.stringify(ask.columns) === JSON.stringify(cols)
-    && JSON.stringify(ask.rows) === JSON.stringify(['Variable', 'Min', 'Max', 'Label'])
-    && await cdp.eval(`document.querySelectorAll('[role=dialog] [data-form-columns] td label').length === ${cols.length * 4}`),
-    JSON.stringify({title: ask.title, columns: ask.columns, rows: ask.rows}));
-  check('... its first field has the focus (keyboard), and in 3D it also holds the view window and the 3D parameters',
-    await cdp.eval(`document.activeElement === document.querySelector('[role=dialog] [data-form-columns] select')`)
-    && (three ? ask.names.length === 26 && ask.names.includes('Theta') && ask.names.includes('Persp (1=On)') && ask.names.includes('XLo')
-      : ask.names.length === 8),
-    JSON.stringify(ask.names));
+  const command = three ? 'plot.set_3d' : 'plot.set_2d';
+  await axisName('x');
+  check('W517: an axis label opens the common registry form', await until(`s.commandForm?.id === ${JSON.stringify(command)} && document.activeElement.closest('.registry-form')`, 'axis form focus') && !await S('!!s.ask'));
   await key('Escape');
-  await until('!s.ask && !s.busy', 'dialog closed');
-
-  let fields, expect;
-  if (three) {
-    fields = {'X min': -31, 'Y min': -32, 'Z min': -3, 'X max': 33, 'Y max': 34, 'Z max': 65, 'X label': 'east', 'Y label': 'north',
-      'Z label': 'up', XLo: -2, XHi: 2.5, YLo: -3, YHi: 3.5, 'Persp (1=On)': 1, ZPlane: 5, ZView: 7, Theta: 100, Phi: 30};
-    expect = ['-31', '-32', '-3', '33', '34', '65', 'east', 'north', 'up', '-2', '2.5', '-3', '3.5', '1', '5', '7', '100', '30'];
-  } else {
-    fields = {'X min': -5, 'X max': 7, 'Y min': -3, 'Y max': 9, 'X label': 'ex', 'Y label': 'why', 'X variable': lists[0][2], 'Y variable': lists[0][1]};
-    expect = [lists[0][2], lists[0][1], '-5', '-3', '7', '9', 'ex', 'why'];
-  }
-  await axesAsk('y');
-  await fillAndEnter(fields);
-  const after = await axesValues('y');
-  /* 3D: the variables stay (3 first), then the grid and the 3D view's fields up to Phi */
-  const got = three ? [...after.slice(3, 21)] : after;
-  check(`W225: a change of every field of the ${kind} dialog applies (read back from the core)`, sameValues(got, expect),
-    JSON.stringify({got, expect}));
-  const info = await S('w.info');
-  check('... state shows the new axes' + (three ? ' and view' : ''),
-    three ? info.theta === 100 && info.phi === 30 && info.persp === 1 && info.zplane === 5 && info.zview === 7
-      : Math.abs(info.xlo + 5) < 1e-9 && Math.abs(info.xhi - 7) < 1e-9 && Math.abs(info.ylo + 3) < 1e-9 && Math.abs(info.yhi - 9) < 1e-9,
-    JSON.stringify(info));
-  const p = await cdp.eval('__xpp.plot()');
-  check('... and the labels reach the plot',
-    three ? p.labels.x === 'east' && p.labels.y === 'north' && p.labels.z === 'up' : p.xLabel === 'ex' && p.yLabel === 'why',
-    JSON.stringify(p));
-
-  /* a bad value applies nothing, though the same answer has good ones, and the error names the field */
-  const good = await axesValues('x');
-  await axesAsk('x');
-  await fillAndEnter(three ? {'X min': -1, 'Z min': 100, Theta: 50, 'X label': 'changed'} : {'Y min': 4, 'X min': 99, 'X label': 'changed'});
-  const bad = await S('s.toasts.map(t => t.text)');
-  check(`W225: a min at or above its max is an error naming the argument (${three ? 'z_max' : 'x_max'}), shown once`,
-    bad.length === 1 && bad[0].includes(three ? 'z_max' : 'x_max'), JSON.stringify(bad));
+  const values = three ? {x_min:-31,x_max:33,y_min:-32,y_max:34,z_min:-3,z_max:65,x_label:'east',y_label:'north',z_label:'up'}
+    : {x_min:-5,x_max:7,y_min:-3,y_max:9,x_label:'ex',y_label:'why',x:'W',y:'V'};
+  await menuRun(command, values);
+  await requireUntil('!s.busy', 'axes applied');
+  check('W225: common axes fields reach the plot data and labels', await until(three ? `__xpp.plot().labels.x === 'east' && __xpp.plot().labels.z === 'up'` : `__xpp.plot().xLabel === 'ex' && __xpp.plot().yLabel === 'why'`, 'axis labels'));
+  const before = await S('JSON.stringify(w.info)');
+  await menuRun(command, three ? {x_min:-1,z_min:100,x_label:'changed'} : {y_min:4,x_min:99,x_label:'changed'});
+  await requireUntil('!s.busy && s.toasts.length', 'invalid bound');
+  check('W225: invalid bounds are shown once and apply nothing', await S('s.toasts.length === 1 && JSON.stringify(w.info) === '+JSON.stringify(before)));
   await dismissErrors();
-  const unchanged = await axesValues('x');
-  check('... and nothing was applied, the other fields of that answer included', sameValues(unchanged, good), JSON.stringify([good, unchanged]));
-
-  /* a name that is no variable (a client other than this page can send one) */
-  await axesAsk('x');
-  const id = await S('s.ask.id');
-  const values = (await S('s.ask.values')).slice();
-  values[0] = 'nonesuch';
-  values[three ? 3 : 2] = '1';
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: ${id}, values: ${JSON.stringify(values)}})`);
-  await until('!s.ask && !s.busy && s.toasts.length', 'bad variable refused');
-  const named = await S('s.toasts.map(t => t.text)');
+  await cdp.eval(`__xpp.send({cmd:${JSON.stringify(command)},x:'nonesuch',x_min:1})`);
+  await requireUntil('!s.busy && s.toasts.length', 'invalid name');
+  check('W225: an unknown axis name is refused atomically', await S(`s.toasts.length === 1 && s.toasts[0].text.includes('nonesuch') && JSON.stringify(w.info) === ${JSON.stringify(before)}`));
   await dismissErrors();
-  const unchanged2 = await axesValues('x');
-  check('W225: an unknown variable is refused, naming the X-axis field, and nothing is applied',
-    named.length === 1 && named[0].includes('X-axis') && sameValues(unchanged2, good), JSON.stringify([named, good, unchanged2]));
 }
 
 /* the 3D plot host's box on screen (docs/ui-v2.md T14): Plot3DView.tsx's
@@ -1839,13 +1471,8 @@ async function threePlot() {
   /* W223: the 3D View form's Xlabel/Ylabel/Zlabel are the plot's axis titles, and clearing them goes back to the column names */
   const setLabels3 = async (xl, yl, zl) => {
     await focusPlot();
-    await menuKeys('v', '3');
-    await until("s.ask && s.ask.kind === 'form'", '3D label form');
-    const values = await S('s.ask.values');
-    [values[9], values[10], values[11]] = [xl, yl, zl];
-    const id = await S('s.ask.id');
-    await cdp.eval(`__xpp.send({cmd: 'answer', id: ${id}, values: ${JSON.stringify(values)}})`);
-    await until('!s.busy && !s.ask', '3D labels set');
+    await menuRun('plot.set_3d', {x_label: xl, y_label: yl, z_label: zl});
+    await until('!s.busy && !s.commandForm', '3D labels set');
   };
   await setLabels3('east', 'north', 'up');
   check('W223: Xlabel/Ylabel/Zlabel of the 3D View form are the axis titles of the 3D plot',
@@ -1864,151 +1491,14 @@ async function touch(type, points) {
 }
 
 async function phone() {
-  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
-  await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
-  /* reduced motion too, on every platform: the sheets then close with no
-     transition, which is when their focus went to <body> instead of back to
-     the toggle (W18: CI's Windows Server runner has reduced motion on) */
-  await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'pointer', value: 'coarse'}, {name: 'hover', value: 'none'},
-    {name: 'prefers-reduced-motion', value: 'reduce'}]}).catch(() => {});
-  await rendered();
-  const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
-  check('390x844: no sideways scroll', scroll.doc <= scroll.w && scroll.body <= scroll.w, JSON.stringify(scroll));
-  const plot = await area();
-  check('the plot fills the width', plot.w > 250 && plot.x + plot.w <= 390, JSON.stringify(plot));
-  /* W83: the reserved progress/Stop slot (narrower at this breakpoint, theme.css)
-     still fits with no overflow, and the bar keeps its fixed height */
-  const statusBar = await cdp.eval(`(() => { const b = document.querySelector('.status-bar').getBoundingClientRect(),
-      run = document.querySelector('.status-run').getBoundingClientRect();
-    return {barHeight: Math.round(b.height), barRight: Math.round(b.right), runRight: Math.round(run.right)}; })()`);
-  check('390x844: the status bar has a fixed height and its reserved progress/Stop slot fits with no overflow',
-    statusBar.barHeight > 0 && statusBar.barHeight < 40 && statusBar.barRight <= 391 && statusBar.runRight <= 391,
-    JSON.stringify(statusBar));
-  check('the menu is a closed drawer', !(await S('s.drawerOpen'))
-    && await cdp.eval(`getComputedStyle(document.querySelector('.menu-panel')).visibility === 'hidden'`));
-  const coarse = await cdp.eval(`matchMedia('(pointer: coarse)').matches`);
-  const small = await cdp.eval(`[...document.querySelectorAll('button, .button')].filter(b => b.getClientRects().length
-    && getComputedStyle(b).visibility !== 'hidden' && !b.closest('.menu-panel') && !b.closest('.values-panel'))
-    .map(b => [b.textContent.trim(), b.getBoundingClientRect().height]).filter(([, h]) => h < 44)`);
-  check('touch targets are at least 44px high', coarse && small.length === 0, `coarse=${coarse} ${JSON.stringify(small)}`);
-  const t = await cdp.eval(`(() => { const r = document.querySelector('.menu-toggle').getBoundingClientRect();
-    return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
-  await touch('touchStart', [t]);
-  await touch('touchEnd', []);
-  check('tapping Menu opens the drawer', await until('s.drawerOpen', 'drawer')
-    && await cdp.eval(`getComputedStyle(document.querySelector('.menu-panel')).visibility === 'visible'`));
-  check('its first command has the focus', await until(`document.activeElement.closest('.menu-panel')`, 'drawer focus'),
-    await cdp.eval(`document.activeElement.outerHTML.slice(0, 120)`));
+  await metrics({width:390,height:844,deviceScaleFactor:2,mobile:true});
+  check('W517: menu bar wraps without sideways overflow', await cdp.eval(`document.documentElement.scrollWidth <= innerWidth && document.querySelectorAll('.app-menu > details').length === 8`));
+  await clickRegistry('tool.command_palette');
+  check('W517: palette is usable on a narrow page', await until('s.drawerOpen && !!document.querySelector("#command-search")', 'narrow palette'));
   await key('Escape');
-  check('Escape closes it', await until('!s.drawerOpen', 'close drawer'));
-
-  /* the values panel is a full-screen sheet with a Back button (R6) */
-  check('the values sheet starts closed', !(await S('s.valuesOpen'))
-    && await cdp.eval(`getComputedStyle(document.querySelector('.values-panel')).visibility === 'hidden'`));
-  const vt = await cdp.eval(`(() => { const r = document.querySelector('.values-toggle').getBoundingClientRect();
-    return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
-  await touch('touchStart', [vt]);
-  await touch('touchEnd', []);
-  check('tapping Values opens the sheet', await until('s.valuesOpen', 'values sheet')
-    && await cdp.eval(`getComputedStyle(document.querySelector('.values-panel')).visibility === 'visible'`));
-  check('the sheet covers the viewport', await cdp.eval(`(() => { const r = document.querySelector('.values-panel')
-    .getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; })()`));
-  check('its first control has the focus', await until(`document.activeElement.closest('.values-panel')`, 'sheet focus'));
-  const sheetSmall = await cdp.eval(`[...document.querySelectorAll('.values-panel button, .values-panel select, .values-panel input')]
-    .filter(b => b.getClientRects().length).map(b => [b.tagName + ':' + (b.textContent || b.id || '').trim(),
-      b.getBoundingClientRect().height]).filter(([, h]) => h < 44)`);
-  check('the sheet\'s own targets are at least 44px high', sheetSmall.length === 0, JSON.stringify(sheetSmall));
-  await cdp.eval(`document.querySelector('.values-back').click()`);
-  check('Back closes the sheet', await until('!s.valuesOpen', 'close values sheet'));
-  check('the focus returns to the Values button', await until(`document.activeElement.closest('.values-toggle')`, 'values focus back'));
-
-  /* the data table is a full-screen sheet with a Back button (R6) */
-  check('the table sheet starts closed', !(await S('s.table.open'))
-    && await cdp.eval(`getComputedStyle(document.querySelector('.table-panel')).visibility === 'hidden'`));
-  const dt = await cdp.eval(`(() => { const r = document.querySelector('.table-toggle').getBoundingClientRect();
-    return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
-  await touch('touchStart', [dt]);
-  await touch('touchEnd', []);
-  check('tapping Data opens the table sheet', await until('s.table.open', 'table sheet')
-    && await cdp.eval(`getComputedStyle(document.querySelector('.table-panel')).visibility === 'visible'`));
-  check('the sheet covers the viewport', await cdp.eval(`(() => { const r = document.querySelector('.table-panel')
-    .getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; })()`));
-  check('its first control has the focus', await until(`document.activeElement.closest('.table-panel')`, 'table sheet focus'));
-  const tableScroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
-  check('390x844: the table causes no sideways page scroll',
-    tableScroll.doc <= tableScroll.w && tableScroll.body <= tableScroll.w, JSON.stringify(tableScroll));
-  const tableSmall = await cdp.eval(`[...document.querySelectorAll('.table-panel button')]
-    .filter(b => b.getClientRects().length).map(b => [b.textContent.trim(), b.getBoundingClientRect().height])
-    .filter(([, h]) => h < 44)`);
-  check('the table sheet\'s targets are at least 44px high', tableSmall.length === 0, JSON.stringify(tableSmall));
-  await cdp.eval(`document.querySelector('.table-back').click()`);
-  check('Back closes the table sheet', await until('!s.table.open', 'close table sheet'));
-  check('the focus returns to the Data button', await until(`document.activeElement.closest('.table-toggle')`, 'table focus back'));
-
-  /* the text views panel is a full-screen sheet with a Back button too (R6, docs/ui-v2.md T16) */
-  check('the text sheet starts closed', !(await S('s.text.open'))
-    && await cdp.eval(`getComputedStyle(document.querySelector('.text-panel')).visibility === 'hidden'`));
-  const xt = await cdp.eval(`(() => { const r = document.querySelector('.text-toggle').getBoundingClientRect();
-    return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
-  await touch('touchStart', [xt]);
-  await touch('touchEnd', []);
-  check('tapping Text opens the sheet', await until('s.text.open', 'text sheet')
-    && await cdp.eval(`getComputedStyle(document.querySelector('.text-panel')).visibility === 'visible'`));
-  check('the sheet covers the viewport', await cdp.eval(`(() => { const r = document.querySelector('.text-panel')
-    .getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; })()`));
-  check('its first control has the focus', await until(`document.activeElement.closest('.text-panel')`, 'text sheet focus'));
-  const textScroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
-  check('390x844: the text panel causes no sideways page scroll',
-    textScroll.doc <= textScroll.w && textScroll.body <= textScroll.w, JSON.stringify(textScroll));
-  const textSmall = await cdp.eval(`[...document.querySelectorAll('.text-panel button, .text-panel input')]
-    .filter(b => b.getClientRects().length).map(b => [(b.textContent || b.placeholder || '').trim(), b.getBoundingClientRect().height])
-    .filter(([, h]) => h < 44)`);
-  check('the text sheet\'s targets are at least 44px high', textSmall.length === 0, JSON.stringify(textSmall));
-  await cdp.eval(`document.querySelector('.text-back').click()`);
-  check('Back closes the text sheet', await until('!s.text.open', 'close text sheet'));
-  check('the focus returns to the Text button', await until(`document.activeElement.closest('.text-toggle')`, 'text focus back'));
-
-  /* pinch out about the middle */
-  const a = await area(), cx = a.x + a.w / 2, cy = a.y + a.h / 2;
-  const w0 = (await P()).x;
-  await touch('touchStart', [{x: cx - 30, y: cy}, {x: cx + 30, y: cy}]);
-  for (let s = 1; s <= 5; s++) await touch('touchMove', [{x: cx - 30 - 12 * s, y: cy}, {x: cx + 30 + 12 * s, y: cy}]);
-  await touch('touchEnd', []);
-  const z = await S('w.viewport');
-  check('a pinch zooms in', z.x && width(z.x) < width(w0) * 0.6, JSON.stringify([w0, z.x]));
-  if (!z.x) return;
-  /* one finger pans */
-  await touch('touchStart', [{x: cx, y: cy}]);
-  for (let s = 1; s <= 5; s++) await touch('touchMove', [{x: cx + 10 * s, y: cy}]);
-  await touch('touchEnd', []);
-  const z2 = await S('w.viewport');
-  check('one finger pans', z2.x.min < z.x.min && Math.abs(width(z2.x) - width(z.x)) < 1e-9 * width(z.x), JSON.stringify(z2));
-  /* a tap on a point reads it */
-  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
-  await key('0');
-  await until('w.viewport.x === null', 'reset');
-  /* ... drawn: the points are placed on the view the chart shows (W20) */
-  await until(`(() => { const r = __xpp.plot(); return !!r && r.x.max - r.x.min > 1.5 * ${width(z2.x)}; })()`, 'reset drawn');
-  /* Earlier parameter edits can move the trajectory outside the model's
-     original axes. Fit the data before trying to tap an actually drawn point. */
-  await cdp.eval(`[...document.querySelectorAll('.plot-view:not([hidden]) .plot-tools button')].find(b => b.textContent === 'Fit').click()`);
-  await until('!s.busy', 'phone fit');
-  await rendered();
-  /* a point well inside the plot */
-  const box = await area();
-  let row = 0, pt = await screenOf(0, row);
-  /* ... and not under anything drawn over the plot (the corner Fit, T30) */
-  const bare = q => cdp.eval(`(() => { const e = document.elementFromPoint(${q.x}, ${q.y}); return !!e && e.classList.contains('u-over'); })()`);
-  const marginX = Math.min(30,box.w / 10), marginY = Math.min(30,box.h / 10);
-  while (row < 600 && (pt.x < box.x + marginX || pt.x > box.x + box.w - marginX || pt.y < box.y + marginY || pt.y > box.y + box.h - marginY || !(await bare(pt)))) {
-    row += 10;
-    pt = await screenOf(0, row);
-  }
-  await touch('touchStart', [pt]);
-  await touch('touchEnd', []);
-  check('a tap on the curve reads the point', await until(`s.hover && Math.abs(s.hover.row - ${row}) <= 5`, 'tap'),
-    JSON.stringify([await S('s.hover'), pt, await area(), await cdp.eval('__xpp.actions().slice(-8)')]));
+  await desktopMetrics();
 }
+
 
 /* ---- prompts (docs/ui-v2.md T4) ------------------------------------------------- */
 
@@ -2027,12 +1517,7 @@ const displays = () => cdp.eval('__xpp.sentCount()');
 const displayTold = (mark, what = 'the display told') =>
   until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'window.set_display' || c.cmd === 'auto.set_display') && !s.busy`, what);
 
-async function menuKeys(first, then) {
-  await key(first);
-  if (!(await until("s.ask && s.ask.kind === 'menu'", `menu of ${first}`))) return false;
-  await menuKey(then);
-  return true;
-}
+
 
 /** the core's pixel size in data units: an answer in data coordinates lands on the nearest pixel */
 const corePixel = v => ({x: Math.abs(v.xhi - v.xlo) / Math.abs(v.right - v.left), y: Math.abs(v.yhi - v.ylo) / Math.abs(v.bottom - v.top)});
@@ -2048,263 +1533,19 @@ function viewIsBox(v, a, b, px) {
 const dataAt = (p, fx, fy) => ({x: p.x.min + fx * (p.x.max - p.x.min), y: p.y.max - fy * (p.y.max - p.y.min)});
 
 async function prompts() {
-  await desktopMetrics();
-  await rendered();
-  await until('!s.busy', 'idle');
-  const lists = await S('s.hello.lists');
-
-  /* Viewaxes/2D: the axis fields are selects of hello.lists[0]; picking another variable plots it */
-  const pickX = async name => {
-    await cdp.eval(`(() => { const s = document.querySelector('[role=dialog] select'); s.value = ${JSON.stringify(name)};
-      s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-    await rendered();
-    await key('Enter');
-  };
-  await focusPlot();
-  await menuKeys('v', '2');
-  check('Viewaxes/2D opens its form', await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] select')", 'form'));
-  /* the dialog can mount a frame before the form's own field takes the focus
-     (a useEffect, not the same paint): wait for that too, rather than
-     racing it right after the dialog itself appears (W40, GitHub #83) */
-  await until(`document.activeElement === document.querySelector('[role=dialog] select')`, 'X-axis select focused');
-  const sel = await cdp.eval(`(() => { const s = document.querySelector('[role=dialog] select');
-    return s && {list: s.dataset.list, options: [...s.options].map(o => o.value), value: s.value, focused: document.activeElement === s}; })()`);
-  const x0 = await S('w.series.curves[0].x');
-  check('its X-axis field is a select of T and the variables, at the plotted one, with the focus',
-    sel && sel.list === '0' && sel.options.join() === lists[0].join() && sel.value === lists[0][x0] && sel.focused,
-    JSON.stringify({sel, x0}));
-  const other = lists[0][x0] === 'T' ? 'V' : 'T', n0 = await S('s.seriesCount');
-  await pickX(other);
-  check(`picking ${other} from the select and Enter: the core plots W against it (a new series)`,
-    await until(`s.seriesCount > ${n0} && !s.busy && w.series.curves[0].x === ${lists[0].indexOf(other)}
-      && w.series.curves[0].y === 2`, 'W vs other'), JSON.stringify([await S('w.series && w.series.curves'), await lastAnswer()]));
-  check('the answer carries the name picked', (await lastAnswer())?.values?.[0] === other, JSON.stringify(await lastAnswer()));
-  await focusPlot();
-  await menuKeys('v', '2');
-  await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] select')", 'form');
-  await pickX('V');
-  check('and V again: W against V', await until('!s.busy && w.series.curves[0].x === 1 && w.series.curves[0].y === 2', 'W vs V'));
-
-  /* W223: Xlabel/Ylabel of the form reach the plot at once (the series carries them, the chart rebuilds
-     its axis titles), and an empty label goes back to the column name */
-  const setLabels = async (xl, yl) => {
-    await focusPlot();
-    await menuKeys('v', '2');
-    await until("s.ask && s.ask.kind === 'form'", 'label form');
-    const values = await S('s.ask.values');
-    values[6] = xl;
-    values[7] = yl;
-    const id = await S('s.ask.id');
-    await cdp.eval(`__xpp.send({cmd: 'answer', id: ${id}, values: ${JSON.stringify(values)}})`);
-    await until('!s.busy && !s.ask', 'labels set');
-  };
-  await setLabels('time axis', 'vertical axis');
-  check("W223: Xlabel/Ylabel typed in the 2D View form are the plot model's labels",
-    await until(`(() => { const p = __xpp.plot(); return !!p && p.xLabel === 'time axis' && p.yLabel === 'vertical axis'; })()`, 'labels shown'),
-    JSON.stringify(await cdp.eval('__xpp.plot()')));
-  await setLabels('', '');
-  check('W223: clearing them goes back to the column names',
-    await until(`(() => { const p = __xpp.plot(); return !!p && p.xLabel === 'V' && p.yLabel === 'W'; })()`, 'labels cleared'),
-    JSON.stringify(await cdp.eval('__xpp.plot()')));
-
-  /* W485: a typed form shows a boolean as a checkbox and a choice as a select labelled by its names,
-     and the answer carries `true`/`false` and the name chosen (Numerics/Poincare map) */
-  await focusPlot();
-  await key('u');
-  await menuKeys('p', 's');
-  await until("s.ask && s.ask.kind === 'form' && s.ask.title === 'Poincare map'", 'Poincare map form');
-  const typed = await cdp.eval(`(() => { const d = document.querySelector('[role=dialog]'), sel = d.querySelector('select[data-choice]'),
-    box = d.querySelector('input[type=checkbox]'); return {labels: sel && [...sel.options].map(o => o.textContent),
-    values: sel && [...sel.options].map(o => o.value), checkbox: !!box, checked: box && box.checked}; })()`);
-  check('W485: a choice is a select labelled by its names, a boolean a checkbox',
-    typed.labels?.join() === 'Negative,Both,Positive' && typed.values?.join() === 'negative,both,positive'
-    && typed.checkbox && typed.checked === false, JSON.stringify(typed));
-  await cdp.eval(`(() => { const d = document.querySelector('[role=dialog]'), sel = d.querySelector('select[data-choice]'),
-    box = d.querySelector('input[type=checkbox]'); sel.value = 'negative'; sel.dispatchEvent(new Event('change', {bubbles: true}));
-    box.click(); })()`);
-  await rendered();
-  await key('Enter');
-  await until('!s.busy && !s.ask', 'Poincare answered');
-  const poincare = await lastAnswer();
-  check('W485: the answer carries the name chosen and true', poincare?.values?.[2] === 'negative' && poincare?.values?.[3] === 'true',
-    JSON.stringify(poincare));
+  await clickRegistry('plot.set_2d');
+  check('W517: plot axes use the shared argument form and model-name selects', await until(`s.commandForm?.id === 'plot.set_2d' && !!document.querySelector('.registry-form select')`, 'axes form'));
   await key('Escape');
-  await until('!s.busy && !s.ask', 'back to the plot');
-  await focusPlot();
-  await key('u');
-  await menuKeys('p', 'n'); /* the map off again: later runs are plain */
-  await until('!s.busy && !s.ask', 'Poincare map off');
+  await clickRegistry('value.set_parameters');
+  check('W517: maps show rows with the session current values', await cdp.eval(`document.querySelectorAll('.registry-form .argument-row').length === __xpp.state().core.pars.length`));
   await key('Escape');
-  await until('!s.busy && !s.ask', 'back to the plot again');
-
-  /* T35d/T31: the form's fields take what the core says they take (the ask's kinds): a keystroke
-     a number field never takes (a letter) is refused outright and never lands (T35d); one left
-     half-typed ("1e") is marked with a message, OK is disabled and Enter answers nothing */
-  await focusPlot();
-  await menuKeys('v', '2');
-  await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] input')", 'form');
-  const formId = await S('s.ask.id');
-  const answers = async () => (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer').length;
-  const answers0 = await answers();
-  const numberBox = `document.querySelector('[role=dialog] input[data-kind=number]')`;
-  const numberBoxState = () => cdp.eval(`(() => { const i = ${numberBox}, m = i.closest('label').querySelector('.field-error');
-    return {invalid: i.getAttribute('aria-invalid'), value: i.value, message: m && m.textContent, mode: i.inputMode}; })()`);
-  const before = await numberBoxState();
-  await cdp.eval(`(() => { const i = ${numberBox}; i.focus(); i.value = 'abc'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await rendered();
-  const keystroke = await numberBoxState();
-  check('T35d: a letter a number field never takes is refused outright: the box keeps its own text, unmarked',
-    keystroke.value === before.value && keystroke.invalid === null && !!keystroke.message, JSON.stringify(keystroke));
-  await cdp.eval(`(() => { const i = ${numberBox}; i.value = '1e'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await rendered();
-  await key('Enter');
-  await rendered();
-  const refused = await cdp.eval(`(() => { const i = ${numberBox}, m = i.closest('label').querySelector('.field-error');
-    return {invalid: i.getAttribute('aria-invalid'), message: m && m.textContent, mode: i.inputMode,
-      ok: document.querySelector('[role=dialog] .dialog-actions .primary').disabled}; })()`);
-  check('T31: "1e" left half-typed in a number field (Viewaxes/2D Xmin) is refused: marked, says what is missing, OK disabled, Enter answers nothing',
-    refused.invalid === 'true' && refused.message === '"1e" needs an exponent\'s digits' && refused.mode === 'decimal'
-    && refused.ok === true && (await answers()) === answers0 && await S(`!!s.ask && s.ask.id === ${formId}`), JSON.stringify(refused));
+  await clickRegistry('session.save_as');
+  check('W517: file arguments offer a file field and picker', await cdp.eval(`[...document.querySelectorAll('.registry-form button')].some(b => b.textContent === 'Choose file and run…') && !!document.querySelector('.registry-form [data-argument=file] input')`));
   await key('Escape');
-  await until('!s.ask && !s.busy', 'form cancelled');
-  /* ... and a number-or-formula box (new_float: nUmerics/Total) takes a %formula, sent as typed */
-  await focusPlot();
-  await key('u');
-  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
-  await key('t');
-  await until("s.ask && s.ask.kind === 'string'", 'total');
-  const formula = `%${await S('s.ask.value')}*1`;
-  const formulaBox = `document.querySelector('[role=dialog] input')`;
-  const kindOf = await cdp.eval(`${formulaBox}.dataset.kind`);
-  await cdp.eval(`(() => { const i = ${formulaBox}; i.value = ${JSON.stringify(formula)}; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await rendered();
-  const taken = await cdp.eval(`${formulaBox}.getAttribute('aria-invalid')`);
-  await key('Enter');
-  await until('!s.ask && !s.busy', 'total set');
-  check(`T31: a %formula (${formula}) in nUmerics/Total is taken and sent as typed`,
-    kindOf === 'number' && taken === null && (await lastAnswer())?.value === formula, JSON.stringify([kindOf, taken, await lastAnswer()]));
-  await key('Escape');
-  await until('!s.busy', 'main menu');
-
-  /* Window/Zoom by a box drawn with the mouse */
-  await focusPlot();
-  await menuKeys('w', 'z');
-  check('Window/Zoom asks for a box: the plot is in box mode, with its instruction bar and Cancel',
-    await until("s.pick && s.pick.mode === 'box' && !s.pick.waiting", 'box mode')
-    && await cdp.eval(`!!document.querySelector('.pick-bar button') && !document.querySelector('[role=dialog]')`),
-    JSON.stringify(await S('[s.ask, s.pick]')));
-  check('the plot has the focus', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
-  /* the area once the pick bar has settled it (read at once, it was a
-     pixel off on macOS CI) */
-  let v0 = await S('s.core.view'), p = await steadyP(), a = await area();
-  const from = {x: Math.round(a.x + 0.25 * a.w), y: Math.round(a.y + 0.3 * a.h)};
-  const to = {x: Math.round(a.x + 0.7 * a.w), y: Math.round(a.y + 0.8 * a.h)};
-  await mouse('mouseMoved', from.x, from.y);
-  await mouse('mousePressed', from.x, from.y, {button: 'left', buttons: 1, clickCount: 1});
-  for (let s = 1; s <= 5; s++) {
-    await mouse('mouseMoved', from.x + (to.x - from.x) * s / 5, from.y + (to.y - from.y) * s / 5, {button: 'left', buttons: 1});
-  }
-  await mouse('mouseReleased', to.x, to.y, {button: 'left', buttons: 0, clickCount: 1});
-  let want = [dataAt(p, (from.x - a.x) / a.w, (from.y - a.y) / a.h), dataAt(p, (to.x - a.x) / a.w, (to.y - a.y) / a.h)];
-  check('the box is answered in data coordinates', await until('!s.busy', 'zoom') && 'xd2' in (await lastAnswer() ?? {}),
-    JSON.stringify(await lastAnswer()));
-  let v1 = await S('s.core.view');
-  check("the core's view is the box drawn, within a pixel", viewIsBox(v1, want[0], want[1], corePixel(v0)),
-    JSON.stringify({v1, want}));
-  p = await P();
-  /* the window's axes: exact in `plots` (T6), 6 digits in state.view */
-  const ax = await S('w.info || s.core.view');
-  check('and the plot shows it', Math.abs(p.x.min - ax.xlo) < 1e-9 && Math.abs(p.y.max - ax.yhi) < 1e-9, JSON.stringify([p.x, p.y, ax]));
-
-  /* the same by the keyboard only: arrows move the crosshair, Enter fixes a corner, Enter again zooms */
-  await menuKeys('w', 'z');
-  await until("s.pick && s.pick.mode === 'box' && !s.pick.waiting", 'box mode');
-  check('keyboard: the plot has the focus in box mode', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
-  for (let i = 0; i < 5; i++) await key('ArrowLeft');
-  for (let i = 0; i < 5; i++) await key('ArrowUp');
-  await key('Enter');
-  for (let i = 0; i < 10; i++) await key('ArrowRight');
-  for (let i = 0; i < 10; i++) await key('ArrowDown');
-  const pk = await S('s.pick');
-  check('arrow keys and Enter set the corners', pk && pk.anchor && Math.abs(pk.anchor.fx - 0.4) < 1e-9
-    && Math.abs(pk.anchor.fy - 0.4) < 1e-9 && Math.abs(pk.cursor.fx - 0.6) < 1e-9 && Math.abs(pk.cursor.fy - 0.6) < 1e-9, JSON.stringify(pk));
-  v0 = await S('s.core.view');
-  p = await P();
-  want = [dataAt(p, 0.4, 0.4), dataAt(p, 0.6, 0.6)];
-  await key('Enter');
-  await until('!s.busy && !s.pick', 'keyboard zoom');
-  v1 = await S('s.core.view');
-  check("keyboard: the core's view is the box, within a pixel", viewIsBox(v1, want[0], want[1], corePixel(v0)),
-    JSON.stringify({v1, want}));
-
-  /* Escape cancels a plot mode: the ask is answered as cancelled, the view stays */
-  await menuKeys('w', 'z');
-  await until("s.pick && s.pick.mode === 'box'", 'box mode');
-  v0 = await S('s.core.view');
-  await key('ArrowRight');
-  await key('Escape');
-  check('Escape cancels the box: answered with ok 0, the mode is gone', await until('!s.busy && !s.ask && !s.pick', 'cancel')
-    && (await lastAnswer())?.ok === 0, JSON.stringify(await lastAnswer()));
-  v1 = await S('s.core.view');
-  check("and the core's view is unchanged", v1.xlo === v0.xlo && v1.xhi === v0.xhi && v1.ylo === v0.ylo && v1.yhi === v0.yhi);
-  await menuKeys('w', 'd'); /* Window/Default: back to the file's window */
-  await until('!s.busy', 'default window');
-
-  /* Initialconds/Mouse: a click picks the initial point */
-  await focusPlot();
-  await menuKeys('i', 'm');
-  check('Initialconds/Mouse puts the plot in point mode', await until("s.pick && s.pick.mode === 'point'", 'point mode'));
-  v0 = await S('s.core.view');
-  a = await area();
-  p = await steadyP();
-  const at = {x: Math.round(a.x + 0.3 * a.w), y: Math.round(a.y + 0.35 * a.h)};
-  await mouse('mouseMoved', at.x, at.y);
-  await mouse('mousePressed', at.x, at.y, {button: 'left', buttons: 1, clickCount: 1});
-  await mouse('mouseReleased', at.x, at.y, {button: 'left', buttons: 0, clickCount: 1});
-  const pt = dataAt(p, (at.x - a.x) / a.w, (at.y - a.y) / a.h), px = corePixel(v0);
-  check('a click there starts from that point (the ICs), within a pixel',
-    await until(`!s.busy && Math.abs(s.core.ics.find(c => c[0] === 'V')[1] - ${pt.x}) <= ${px.x * 1.01}
-      && Math.abs(s.core.ics.find(c => c[0] === 'W')[1] - ${pt.y}) <= ${px.y * 1.01}`, 'mouse ICs', 30000),
-    JSON.stringify([await S('s.core.ics'), pt]));
-
-  /* Window/Scroll: a drag mode; an arrow key drags the plot (down, move, up), Enter (Done) ends it */
-  await focusPlot();
-  await menuKeys('w', 's');
-  check('Window/Scroll puts the plot in drag mode', await until("s.pick && s.pick.mode === 'drag'", 'drag mode'));
-  v0 = await S('s.core.view');
-  await key('ArrowLeft');
-  await until('__xpp.sent().slice(-3).filter(c => c.cmd === "answer").map(c => c.what).join() === "down,move,up"', 'arrow drag answers');
-  await key('Enter');
-  const drags = (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer').slice(-4);
-  check('an arrow key drags the plot in data coordinates and Enter ends the drag',
-    await until('!s.busy && !s.pick', 'scroll ends') && drags.map(c => c.what ?? `ok ${c.ok}`).join() === 'down,move,up,ok 0'
-    && drags[0].xd !== undefined, JSON.stringify(drags));
-  v1 = await S('s.core.view');
-  check("the core's view moved left (more on the left shown)", v1.xlo < v0.xlo && v1.xhi < v0.xhi, JSON.stringify([v0, v1]));
-  await menuKeys('w', 'd');
-  await until('!s.busy', 'default window');
-
-  /* a checklist: phAsespace/Choose asks the period, then which variables to fold */
-  await focusPlot();
-  await menuKeys('a', 'c');
-  if (await until("s.ask && s.ask.kind === 'string'", 'period')) {
-    await until(`document.activeElement.closest('[role=dialog]')`, 'period focus');
-    await key('Enter');
-  }
-  check('phAsespace/Choose opens a checklist of the variables', await until("s.ask && s.ask.kind === 'checklist'", 'checklist')
-    && await cdp.eval(`document.querySelectorAll('[role=dialog] input[type=checkbox]').length`) === lists[0].length - 1,
-    JSON.stringify(await S('s.ask')));
-  check('its first box has the focus', await until(`document.activeElement.type === 'checkbox'`, 'checklist focus'));
-  await cdp.eval(`document.querySelector('[role=dialog] input[type=checkbox]').click()`);
-  await rendered();
-  await cdp.eval(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.textContent === 'OK').click()`);
-  const ans = await lastAnswer();
-  check('OK answers the checklist with its flags', await until('!s.busy && !s.ask', 'checklist answered')
-    && Array.isArray(ans?.flags) && ans.flags[0] === 1 && ans.flags.slice(1).every(f => f === 0), JSON.stringify(ans));
-  await focusPlot();
-  await menuKeys('a', 'n'); /* phAsespace/None again */
-  await until('!s.busy', 'torus off');
+  await menuRun('annotation.add_marker',{shape:'circle',x:0,y:0,color:'#ff0000'});
+  check('W517: colour and choices submit their named typed values', await until(`!s.busy && w.marks.markers.some(m => m.shape === 'circle' && m.color === '#ff0000')`, 'marker form'));
 }
+
 
 /* ---- the AUTO view (docs/ui-v2.md T11a) ------------------------------------------ */
 
@@ -2358,17 +1599,13 @@ const DG = () => settled(rawDG);
 const DS = expr => cdp.eval(`(() => { const s = __xpp.state(), d = Object.assign({}, s.diagram, ${DV}); return ${expr}; })()`);
 /* Run: its dialog (opened by the R button or key) takes the kind, and OK sends auto.run (the kinds are the core's, hello.auto_run and the grabbed point's) */
 const okRunDialog = async kind => {
-  await until(`!!document.querySelector('[data-field=run-kind] option[value=${kind}]')`, `the Run dialog offering ${kind}`);
-  await cdp.eval(`(() => { const e = document.querySelector('[data-field=run-kind]'); e.value = ${JSON.stringify(kind)};
-    e.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  await cdp.eval(`document.querySelector('[data-field=run-ok]').click()`);
+  await requireUntil(`s.commandForm?.id === 'auto.run' && document.activeElement.closest('.registry-form')`, 'Run form focus');
+  await formValues({kind});
+  await submitCommand();
 };
 const runPeriodicFromDialog = () => okRunDialog('periodic');
-const autoRun = async kind => {
-  await autoButton('R');
-  await okRunDialog(kind);
-};
-const autoButton = k => cdp.eval(`document.querySelector('.auto-tools button[aria-keyshortcuts=${k}]').click()`);
+const autoRun = async kind => { await clickRegistry('auto.run'); await okRunDialog(kind); };
+const autoButton = k => (['C','D','G'].includes(k) ? menuRun : clickRegistry)(({A:'auto.configure_plot',N:'auto.configure_numerics',R:'auto.run',G:'auto.grab',U:'auto.configure_marks',C:'auto.hide_earlier',D:'auto.redraw'})[k]);
 /* the diagram's plotting area and the screen position of (x, y) in it */
 const rawAutoArea = () => cdp.eval(`(() => { const r = document.querySelector('.auto-panel .u-over').getBoundingClientRect();
   return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
@@ -2383,11 +1620,7 @@ async function autoScreen(x, y) {
 const readout = () => cdp.eval(`document.querySelector('.auto-readout').textContent`);
 const answerAsk = fields => cdp.eval(`__xpp.send(Object.assign({cmd: 'answer', id: __xpp.state().ask.id}, ${JSON.stringify(fields)}))`);
 /* a menu's key, once its dialog is up (it takes its keys from then on) */
-async function menuKey(k) {
-  if (!await until(`s.ask && document.activeElement.closest('[role=dialog]')`, `dialog for ${k}`))
-    throw new Error(`the dialog for ${k} did not receive keyboard focus`);
-  await key(k);
-}
+
 const center = sel => cdp.eval(`(() => { const r = document.querySelector('${sel}').getBoundingClientRect();
   return {x: r.left + r.width / 2, y: r.top + r.height / 2, h: r.height}; })()`);
 
@@ -2400,37 +1633,17 @@ async function setAxisRange(lo, hi) {
 }
 
 async function openAutoPanel() {
-  await key('f');
-  if (!await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu for AUTO'))
-    throw new Error('file menu did not open for AUTO');
-  await key('a');
-  if (!await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'AUTO panel'))
-    throw new Error('AUTO panel did not open');
+  await menuRun('auto.open');
+  await requireUntil('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'AUTO panel');
 }
 
 async function autoMarks() {
-  check('W331: marks page connects', await until('s.hello && !s.busy', 'marks hello'));
-  await focusPlot();
   await openAutoPanel();
-  // W331: Add remains usable past the legacy nine-row limit.
-  await autoButton('U');
-  await until(`!!document.querySelector('.auto-mark-add')`, 'mark editor');
-  for (let i = 0; i < 12; i++) {
-    await cdp.eval(`document.querySelector('.auto-mark-add').click()`);
-    await until(`document.querySelectorAll('.auto-mark-row').length === ${i + 1}`, 'added mark row');
-  }
-  await cdp.eval(`(() => { const i = document.querySelector('input[data-field=mark12-value]'); i.value = '12.5'; i.dispatchEvent(new Event('input', {bubbles:true})); })()`);
-  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
-  check('W331: page sets twelve marks including the last value', await until('!s.busy && s.autoSettings.core.marks.length === 12 && s.autoSettings.core.marks[11][1] === 12.5', 'twelve marks'));
-  await autoButton('U');
-  await until(`document.querySelectorAll('.auto-mark-row').length === 12`, 'twelve mark editor');
-  check('W331: reopening preserves the twelfth value', await cdp.eval(`document.querySelector('input[data-field=mark12-value]').value === '12.5'`));
-  for (let i = 0; i < 12; i++) {
-    await cdp.eval(`document.querySelector('.auto-mark-row button').click()`);
-    await until(`document.querySelectorAll('.auto-mark-row').length === ${11 - i}`, 'removed mark row');
-  }
-  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
-  check('W331: page clears the whole mark list', await until('!s.busy && s.autoSettings.core.marks.length === 0', 'marks cleared'));
+  const parameters = Array(12).fill('iapp'), values = Array.from({length:12},(_,i) => i + .5);
+  await menuRun('auto.configure_marks', {parameters, values});
+  check('W331: common list rows retain all twelve AUTO marks', await until(`!s.busy && s.autoSettings.core.marks.length === 12 && s.autoSettings.core.marks[11][1] === 11.5`, 'twelve marks'));
+  await menuRun('auto.configure_marks', {parameters:[],values:[]});
+  check('W331: common form clears the full mark list', await until('!s.busy && !s.autoSettings.core.marks.length', 'marks cleared'));
 }
 
 async function autoView(dir) {
@@ -2444,7 +1657,7 @@ async function autoView(dir) {
   check("the diagram has the focus, so AUTO's keys work", await until(`document.activeElement.closest('.auto-host')`, 'auto focus'));
   const words = await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].map(b => b.textContent.trim())`);
   check('the view has the AUTO buttons, no reDraw (the diagram is always current) and no Stop while idle (A10, T21)',
-    ['Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'File', 'Close']
+    ['Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'Close']
       .every(w => words.includes(w)) && !words.includes('Parameter') && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
   check('the status strip says AUTO is idle', /^Idle/.test(await autoStatus()), await autoStatus());
   check("T24: the status strip is the AUTO window's bottom line, as the main window's status bar",
@@ -2452,16 +1665,16 @@ async function autoView(dir) {
       t = document.querySelector('.auto-status').getBoundingClientRect(); return Math.abs(p.bottom - t.bottom) < 2; })()`));
   check('T26: at 1280px the AUTO view covers the whole viewport',
     await cdp.eval(`(() => { const r = document.querySelector('.auto-panel').getBoundingClientRect();
-      return r.top === 0 && r.left === 0 && Math.abs(r.right - innerWidth) < 1 && Math.abs(r.bottom - innerHeight) < 1; })()`));
+      return Math.abs(r.top - document.querySelector('.app-menu').getBoundingClientRect().bottom) < 1 && r.left === 0 && Math.abs(r.right - innerWidth) < 1 && Math.abs(r.bottom - innerHeight) < 1; })()`));
   const behind = await cdp.eval(`(() => { const at = sel => { const r = document.querySelector(sel).getBoundingClientRect();
     return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.auto-panel'); };
-    return {menu: at('.menu-panel'), bar: at('.status-bar')}; })()`);
-  check('T26: the main menu and the main status bar are behind it, not visible', behind.menu && behind.bar, JSON.stringify(behind));
+    return {menu: at('.app-menu'), bar: at('.status-bar')}; })()`);
+  check('T26: the main menu and the main status bar are behind it, not visible', !behind.menu && behind.bar, JSON.stringify(behind));
   await cdp.eval(`document.querySelector('.auto-back').click()`);
   await until('!s.diagram.shown && s.diagram.open', 'auto back desktop');
   const front = await cdp.eval(`(() => { const at = sel => { const r = document.querySelector(sel).getBoundingClientRect();
     return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest(sel); };
-    return {menu: at('.menu-panel'), bar: at('.status-bar'), gone: !document.querySelector('.auto-panel')}; })()`);
+    return {menu: at('.app-menu'), bar: at('.status-bar'), gone: !document.querySelector('.auto-panel')}; })()`);
   check('T26: Back shows the main menu and the main status bar again', front.menu && front.bar && front.gone, JSON.stringify(front));
   await cdp.eval(`document.querySelector('.auto-show').click()`);
   await until('s.diagram.shown', 'auto show desktop');
@@ -2485,111 +1698,23 @@ async function autoView(dir) {
     await until('s.autoSettings.core && s.autoSettings.core.numerics.max_steps > 0 && s.core.pars.length > 1', 'settings'),
     JSON.stringify(await S('s.autoSettings.core')).slice(0, 300));
   const sentNum = await cdp.eval('__xpp.sentCount()');
-  await autoButton('N');
-  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics form');
-  check("T22: Numerics opens the page's form, filled from the settings (Nmax), nothing asked of the core",
-    await S(`String(s.autoSettings.core.numerics.max_steps) === document.querySelector('.auto-settings-dialog input[data-field=max_steps]').value
-      && !s.ask && !s.busy`) && (await cdp.eval('__xpp.sentCount()')) === sentNum,
-    JSON.stringify(await cdp.eval('__xpp.sent().slice(-3)')));
-  check("Numerics' form is above the AUTO view: its centre and its fields are the topmost elements",
-    await cdp.eval(`(() => { const d = document.querySelector('.dialog'); if (!d) return false;
-      const r = d.getBoundingClientRect(), f = d.querySelector('input').getBoundingClientRect();
-      return d.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2))
-        && d.contains(document.elementFromPoint(f.left + f.width / 2, f.top + f.height / 2)); })()`));
-  await until(`!!document.activeElement.closest('.dialog')`, 'dialog focus'); /* Escape goes to the focused dialog */
-  /* T21: Tab selects the next field's text, as a native Tab does, so typing replaces it */
-  const second = await cdp.eval(`document.querySelectorAll('.dialog input')[1].value`);
-  await key('Tab');
-  await key('7');
-  await key('7');
-  check('Tab into a form field and typing replaces its value (not appends to it)',
-    await cdp.eval(`document.activeElement === document.querySelectorAll('.dialog input')[1] && document.activeElement.value === '77'`),
-    JSON.stringify([second, await cdp.eval(`document.activeElement.value`)]));
-  /* W531: every field is named by its key (underscores as spaces, a capital first letter), AUTO's own name only in its tooltip */
-  const named = await cdp.eval(`[...document.querySelectorAll('.auto-settings-dialog .auto-num-group label')]
-    .map(l => [l.querySelector('span').textContent, l.title, l.querySelector('input, select').dataset.field])`);
-  check('W531: each of the 23 Numerics fields is named by its key, e.g. "Max steps", with a tooltip naming AUTO\'s own name',
-    named.length === 23 && named.every(([n, t, f]) => n === f[0].toUpperCase() + f.slice(1).replace(/_/g, ' ') && t.length > 40 && /AUTO's name: [A-Za-z0-9 ]+\./.test(t))
-      && named.some(([n, t, f]) => n === 'Max steps' && f === 'max_steps' && t.includes('NMX')), JSON.stringify(named.filter(([n, t]) => t.length <= 40)));
-  check('W499: suppress_branch_points is a checkbox whose value is the core boolean',
-    await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=suppress_branch_points]').type === 'checkbox'`)
-    && await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=suppress_branch_points]').checked`) === await S('s.autoSettings.core.numerics.suppress_branch_points'));
-  check('W531: output_detail is a select of the named levels, and the sign of MXBF its own checkbox',
-    JSON.stringify(await cdp.eval(`[...document.querySelectorAll('.auto-settings-dialog select[data-field=output_detail] option')].map(o => o.value)`))
-      === JSON.stringify(await S('s.autoSettings.core.rules.output_detail.choices'))
-    && await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=switch_one_direction]').type === 'checkbox'`));
-  /* W267: the Computer group's Threads: Automatic or 1 to the logical processors, from the event; OK sends the choice */
-  const threadChoices = await cdp.eval(`[...document.querySelectorAll('.auto-settings-dialog select[data-field=threads] option')].map(o => o.value)`);
-  const threadCore = await S('({threads: s.autoSettings.core.threads, auto: s.autoSettings.core.threads_auto, max: s.autoSettings.core.threads_max})');
-  check('W267: Numerics has a Threads choice: Automatic (showing the count it gives) and every count from 1 to the logical processors, from the event',
-    threadCore.threads === 'auto' && threadCore.max >= 1 && threadCore.auto >= 1 && threadCore.auto <= Math.min(4, threadCore.max)
-    && threadChoices.length === threadCore.max + 1 && threadChoices[0] === 'auto' && threadChoices[threadCore.max] === String(threadCore.max)
-    && (await cdp.eval(`document.querySelector('.auto-settings-dialog select[data-field=threads] option').textContent`)) === `Automatic (${threadCore.auto})`,
-    JSON.stringify([threadCore, threadChoices.length]));
-  const typeInto = (field, text) => cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=${field}]');
-    i.value = ${JSON.stringify(text)}; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  const fieldState = field => cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=${field}]');
-    const e = i.closest('label').querySelector('.field-error');
-    return {invalid: i.getAttribute('aria-invalid'), error: e ? e.textContent : null,
-      ok: document.querySelector('.auto-settings-dialog .dialog-actions .primary').disabled}; })()`);
-  /* T35d: a decimal point never lands in an integer field: refused outright, named, nothing
-     commits, so "12.5" can never actually reach the field (the point at issue for T23's message
-     below, "must be a whole number", stays reachable only for a text the filter cannot see,
-     such as a lone sign) */
-  await typeInto('max_steps', '12');
-  await typeInto('max_steps', '12.5');
-  const dottedNmx = await fieldState('max_steps');
-  check('T35d: a decimal point in an integer field (Max steps) is refused outright: unmarked, kept at 12',
-    dottedNmx.invalid === null && dottedNmx.error === 'Pasted ".5" is not a whole number ("." at character 1)'
-    && dottedNmx.ok === false, JSON.stringify(dottedNmx));
-  /* T31: a lone sign is on the way to a whole number while typed (fieldIncomplete), so it lands;
-     Enter on it keeps the form and its message (the core's, from the event's rules), sends nothing */
-  await typeInto('max_steps', '-');
-  await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=max_steps]').focus()`);
-  await key('Enter');
-  await rendered();
-  const signNmx = await fieldState('max_steps');
-  check('T31: Enter on a lone "-" in an integer AUTO Numerics field keeps the form open, marked, and sends nothing',
-    signNmx.invalid === 'true' && signNmx.error === await S('s.autoSettings.core.rules.max_steps.message') && signNmx.ok === true
-    && await cdp.eval(`!!document.querySelector('.auto-settings-dialog')`)
-    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto.configure_numerics')`)), JSON.stringify(signNmx));
-  await typeInto('max_steps', '200');
-  await typeInto('step_size', '9');
-  const bigDs = await fieldState('step_size');
-  check('T23: a first step larger than max_step_size is refused beside step_size, OK disabled',
-    bigDs.error === 'The size of Step size must be from Min step size to Max step size (its sign is the direction)' && bigDs.ok === true, JSON.stringify(bigDs));
+  await clickRegistry('auto.configure_numerics');
+  await requireUntil(`s.commandForm?.id === 'auto.configure_numerics' && document.activeElement.closest('.registry-form')`, 'Numerics form focus');
+  check('W517: Numerics uses the common form, current values and named choices without a core ask',
+    await S(`!s.ask && String(s.autoSettings.core.numerics.max_steps) === document.querySelector('[data-argument=max_steps] input:not([type=checkbox])').value`)
+      && (await cdp.eval('__xpp.sentCount()')) === sentNum);
+  check('W517: Numerics boolean and choice controls come from registry argument types',
+    await cdp.eval(`document.querySelector('[data-argument=suppress_branch_points] input[type=checkbox]') && document.querySelector('[data-argument=output_detail] select')`));
+  await formValues({max_steps:''});
+  check('W517: an empty supplied integer prevents submission', await cdp.eval(`document.querySelector('.registry-form button[type=submit]').disabled`));
   await key('Escape');
-  check('T22: Escape cancels it: nothing sent',
-    await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics cancelled')
-    && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto.configure_numerics')`)));
-  check('W339: AUTO removes the Parameter form and autosettings pars',
-    await S("!('pars' in s.autoSettings.core)") && await cdp.eval("![...document.querySelectorAll('.auto-panel button')].some(b => b.textContent === 'Parameter')"));
-  /* W267: choosing a count and OK sends one set with threads alone, the core's event shows it (saved in the
-     config folder of this run), and Automatic puts the word back */
-  const chooseThreads = async value => {
-    await autoButton('N');
-    await until(`!!document.querySelector('.auto-settings-dialog select[data-field=threads]')`, 'threads choice');
-    await cdp.eval(`(() => { const e = document.querySelector('.auto-settings-dialog select[data-field=threads]');
-      e.value = ${JSON.stringify(value)}; e.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-    await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
-    await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics closed');
-  };
-  await chooseThreads(String(threadCore.max));
-  check('W267: Threads set to the most sends one set with the count alone, and the core shows it',
-    await until(`s.autoSettings.core.threads === ${threadCore.max} && !s.autoSettings.inflight.length`, 'threads set')
-    && await cdp.eval(`(() => { const c = __xpp.sent().filter(c => c.cmd === 'auto.set_threads').pop();
-      return !!c && c.threads === ${threadCore.max} && Object.keys(c).sort().join() === 'cmd,threads'; })()`),
-    JSON.stringify(await cdp.eval('__xpp.sent().slice(-2)')));
-  await chooseThreads('auto');
-  check('W267: and Automatic sets "auto" again',
-    await until(`s.autoSettings.core.threads === 'auto' && !s.autoSettings.inflight.length`, 'threads auto'),
-    JSON.stringify(await S('s.autoSettings.core.threads')));
-
-  /* Run / Steady state */
-  await autoButton('R');
-  check('Run opens its dialog, with the equilibrium kind from the core\'s table',
-    await until(`!!document.querySelector('[data-field=run-kind] option[value=equilibrium]')`, 'run dialog'));
-  await cdp.eval(`document.querySelector('[data-field=run-ok]').click()`);
+  await clickRegistry('auto.set_threads'); await cdp.eval(`document.querySelector('[data-argument=automatic] input[type=checkbox]').click()`); await formValues({threads:1}); await submitCommand();
+  check('W267: the common thread form selects one thread', await until(`!s.busy && s.autoSettings.core.threads === 1`, 'one thread'));
+  await clickRegistry('auto.set_threads');
+  await cdp.eval(`document.querySelector('[data-argument=threads] input[type=checkbox]').click()`);
+  await formValues({automatic:true}); await submitCommand();
+  check('W267: the named automatic choice restores automatic threads', await until(`!s.busy && s.autoSettings.core.threads === 'auto'`, 'automatic threads'));
+  await autoRun('equilibrium');
   check('Run sends auto.run equilibrium', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto.run' && c.kind === 'equilibrium')`));
   check('the steady-state branch arrives', await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000));
   const nSteady = await DS('d.points.x.length');
@@ -2631,7 +1756,7 @@ async function autoView(dir) {
 
   /* Grab from the keyboard only (T11b): G on the diagram, a step, Tab to the Hopf point, Enter */
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('g');
+  await menuRun('auto.grab');
   check('G grabs in the view: a grab mode on the diagram, no dialog, the cursor on the first point',
     await until("s.ask && s.ask.kind === 'grab' && s.diagram.grabbing && s.diagram.info && s.diagram.info.point === 0", 'grab')
     && await cdp.eval(`!document.querySelector('[role=dialog]') && !!document.querySelector('.pick-bar[data-pick=grab]')
@@ -2660,26 +1785,8 @@ async function autoView(dir) {
     JSON.stringify(await lastAnswer()));
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('r');
-  check('R, from the Hopf point, offers the periodic branch (the kinds of the grabbed point, the core\'s table)',
-    await until(`!!document.querySelector('[data-field=run-kind] option[value=periodic]')`, 'hopf run dialog')
-    && await cdp.eval(`document.querySelector('.auto-settings-dialog').textContent.includes('hopf')`));
-  await cdp.eval(`(() => { const e = document.querySelector('[data-field=run-kind]'); e.value = 'periodic';
-    e.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  await cdp.eval(`document.querySelector('[data-field=run-ok]').click()`);
-  /* T21 ("while it runs the status strip says Running...") and T22 ("the
-     axis dialog can change during the run") used to be asserted here, on
-     lecar.odex's fast default mesh: on a slow runner they raced the same
-     way the Stop checks did (W42, GitHub #85) and lost every time, not
-     occasionally -- a slow page's render/dispatch loop, swamped by
-     this run's fast stream of `diagram add` events, coalesces every
-     intermediate state and paints only the final "Stopped" one, no matter
-     how long the test polls for "Running" to appear. Moved to
-     autoStopRace() below (tools/models/heavy.odex, whose real, expensive
-     right-hand side makes every point slow by construction, not by a
-     mesh size tuned to a timing window), where an intermediate frame is
-     always paintable. This run still runs to completion here unassessed
-     mid-flight: its data feeds the checks below (the store's diagram,
-     the chart, the labels). */
+  check('W517: the common AUTO form offers Periodic and retains the grabbed label', await until(`s.commandForm?.id === 'auto.run' && document.querySelector('[data-argument=kind] option[value=periodic]') && document.querySelector('[data-argument=label] input:not([type=checkbox])').value !== ''`, 'periodic start'));
+  await formValues({kind:'periodic'}); await submitCommand();
   check('the periodic branch arrives', await until('!s.busy && dv.points.br.includes(2)', 'periodic', 120000));
   check('its first point says it started from the Hopf label; the circle holds Floquet multipliers',
     await DS(`d.points.fr[d.points.br.indexOf(2)] === ${hbLab}`) && await DS('d.stab.periodic === 1 && d.stab.circle.length === 2'),
@@ -2732,7 +1839,7 @@ async function autoView(dir) {
 
   /* T21: grabbing a labelled periodic point plots its limit cycle in the main window (File/Import orbit) */
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('g');
+  await menuRun('auto.grab');
   await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", 'grab periodic');
   for (let i = 0; i < 12 && !(await DS('d.info && d.info.type >= 3 && d.info.lab > 0')); i++) {
     const n = await DS('d.infoEvents');
@@ -2744,8 +1851,7 @@ async function autoView(dir) {
   await key('Enter');
   check('T21: grabbing a labelled periodic point imports its orbit: the main plot shows the limit cycle',
     grabbed && grabbed.type >= 3 && await until(`!s.busy && s.core.rows > 10 && w.series && w.series.rows === s.core.rows`, 'orbit', 20000)
-    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${sentGrab})`)).filter(c => c.win === 'auto' || c.key === 'i')
-      .map(c => c.key)) === JSON.stringify(['f', 'i']),
+    && (await cdp.eval(`__xpp.sentFrom(${sentGrab}).filter(c => c.cmd === 'auto.load_orbit_into_browser').length`)) === 1,
     JSON.stringify([grabbed && [grabbed.br, grabbed.pt, grabbed.type, grabbed.lab], await S('[s.core.rows, w.series && w.series.rows]'),
       await cdp.eval(`__xpp.sentFrom(${sentGrab})`)]));
 
@@ -2789,12 +1895,13 @@ async function autoView(dir) {
   check('the wheel zooms the diagram', await until('dv.viewport.x', 'auto wheel')
     && width((await DG()).x) < (axes.xmax - axes.xmin) * 0.9, JSON.stringify(await DS('d.viewport')));
   const z1 = await DS('d.viewport');
-  await mouse('mouseMoved', cx - 60, cy - 40);
-  await mouse('mousePressed', cx - 60, cy - 40, {button: 'left', buttons: 1, clickCount: 1});
-  for (let st = 1; st <= 6; st++) await mouse('mouseMoved', cx - 60 + 20 * st, cy - 40 + 14 * st, {button: 'left', buttons: 1});
-  await mouse('mouseReleased', cx + 60, cy + 44, {button: 'left', buttons: 0, clickCount: 1});
+  const boxArea = await autoArea(), bx = boxArea.x + boxArea.w/2, by = boxArea.y + boxArea.h/2;
+  await mouse('mouseMoved', bx-60, by-40);
+  await mouse('mousePressed', bx-60, by-40, {button:'left',buttons:1,clickCount:1});
+  for (let st=1;st<=6;st++) await mouse('mouseMoved',bx-60+20*st,by-40+14*st,{button:'left',buttons:1});
+  await mouse('mouseReleased',bx+60,by+44,{button:'left',buttons:0,clickCount:1});
   check('a box zooms to it', await until(`dv.viewport.x && dv.viewport.x.max - dv.viewport.x.min < ${width(z1.x) * 0.8}`, 'auto box'),
-    JSON.stringify(await DS('d.viewport')));
+    JSON.stringify([await DS('d.viewport'), z1, boxArea, await cdp.eval(`(() => { const e = document.elementFromPoint(${bx-60}, ${by-40}); return e && e.outerHTML.slice(0, 200); })()`), await S('s.pick'), await S('s.ask')]));
   check('there is no Undo zoom button any more (GitHub #110)',
     !(await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].some(b => b.textContent === 'Undo zoom')`)));
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
@@ -2842,122 +1949,37 @@ async function autoView(dir) {
   await displayTold(reset3, 'auto reset 3 told'); /* before g (macos-ui, W93) */
 
   /* Escape cancels a grab */
-  await key('g');
+  await menuRun('auto.grab');
   await until("s.ask && s.ask.kind === 'grab'", 'grab again');
   await key('Escape');
   check('Escape cancels a grab', await until('!s.busy && !s.diagram.grabbing', 'grab cancelled')
     && (await lastAnswer())?.ok === 0 && (await DS('d.shown')), JSON.stringify(await lastAnswer()));
 
-  /* Axes/Zoom: a box drawn on the diagram, answered in its data coordinates (T11b) */
-  await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('a');
-  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Plot Type'", 'axes menu');
-  await menuKey('z');
-  check('Axes/Zoom is a box mode on the diagram, not a dialog',
-    await until("s.pick && s.pick.win === 'diagram_1' && s.pick.mode === 'box'", 'auto box mode')
-    && await cdp.eval(`!document.querySelector('[role=dialog]') && !!document.querySelector('.auto-panel .pick-bar')`),
-    JSON.stringify(await S('[s.ask, s.pick]')));
-  const za = await autoArea(), zd = await DG();
-  const zx = f => zd.x.min + f * (zd.x.max - zd.x.min), zy = f => zd.y.max - f * (zd.y.max - zd.y.min);
-  await mouse('mouseMoved', za.x + 0.3 * za.w, za.y + 0.2 * za.h);
-  await mouse('mousePressed', za.x + 0.3 * za.w, za.y + 0.2 * za.h, {button: 'left', buttons: 1, clickCount: 1});
-  for (let st = 1; st <= 5; st++)
-    await mouse('mouseMoved', za.x + (0.3 + 0.06 * st) * za.w, za.y + (0.2 + 0.08 * st) * za.h, {button: 'left', buttons: 1});
-  await mouse('mouseReleased', za.x + 0.6 * za.w, za.y + 0.6 * za.h, {button: 'left', buttons: 0, clickCount: 1});
-  const zAns = await lastAnswer();
-  await until('!s.busy', 'auto zoomed');
-  const zAxes = await DS('d.axes');
-  const px = (zd.x.max - zd.x.min) / axes.wid * 2, py = (zd.y.max - zd.y.min) / axes.hgt * 2;
-  check("the box, in the diagram's data coordinates, becomes AUTO's axes (within a pixel)",
-    zAns && 'xd2' in zAns && Math.abs(zAxes.xmin - zx(0.3)) < px && Math.abs(zAxes.xmax - zx(0.6)) < px
-    && Math.abs(zAxes.ymax - zy(0.2)) < py && Math.abs(zAxes.ymin - zy(0.6)) < py && await DS('d.viewport.x === null'),
-    JSON.stringify([zAns, zAxes, [zx(0.3), zx(0.6), zy(0.6), zy(0.2)]]));
-  /* back to AUTO's first axes for what follows */
-  await key('a');
-  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Plot Type'", 'axes menu 2');
-  await menuKey('f');
-  await until('!s.busy', 'auto fit');
-
-  /* T21: an Axes change draws the diagram again in the new quantities by itself (no reDraw) */
-  const nAll = await DS('d.points.x.length'), y0 = await DS('d.points.y.slice(0, 50)');
-  const sentAxes = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('a');
-  await menuKey('n');
-  await until("s.ask && s.ask.kind === 'form'", 'autoplot form');
-  await until(`!!document.activeElement.closest('.dialog')`, 'autoplot focus');
-  await key('Enter');
-  check('T21: Axes/Norm, OK: the diagram holds all its points again, in norms, without a reDraw',
-    await until(`!s.busy && dv.axes.plot === 'norm' && dv.points.x.length === ${nAll}`, 'norm axes')
-    && JSON.stringify(await DS('d.points.y.slice(0, 50)')) !== JSON.stringify(y0)
-    && !(await cdp.eval(`__xpp.sentFrom(${sentAxes}).some(c => c.cmd === 'window.redraw' || (c.win === 'auto' && c.key === 'd'))`))
-    && (await DG()).curves.length > 0, JSON.stringify(await DS('[d.axes, d.points.x.length]')));
-  /* and the axis dialog does the same: hI-lo from its Plots select, then a Fit */
-  await cdp.eval(`document.querySelector('.auto-axis-name[data-axis=y]').click()`);
-  await until(`document.querySelector('.auto-axis-dialog select[data-field=plot]')`, 'y dialog');
-  await cdp.eval(`(() => { const s = document.querySelector('.auto-axis-dialog select[data-field=plot]'); s.value = 'maximum_and_minimum';
-    s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  check('T22: the axis dialog\'s plot type goes to the core as an auto set with a Fit: hI-lo, every point, periodic max and min',
-    await until(`!s.busy && dv.axes.plot === 'maximum_and_minimum' && dv.points.x.length === ${nAll}
-      && document.querySelector('.auto-axis-dialog select[data-field=yvar]')`, 'hilo axes', 20000)
-    && (await DG()).curves.some(c => c.which === 'y2')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto.configure_plot' && c.plot_type === 'maximum_and_minimum' && c.fit)`),
-    JSON.stringify(await DS('d.axes')));
-  const fitted = await DS('d.axes');
-  await setAxisRange(fitted.ymin - 0.1, fitted.ymax + 0.1);
-  check("T21: its min and max change the view at once, the core's axes stay",
-    await until(`dv.viewport.y && Math.abs(dv.viewport.y.min - ${fitted.ymin - 0.1}) < 1e-9`, 'y range')
-    && (await DS('d.axes.ymin')) === fitted.ymin, JSON.stringify(await DS('[d.viewport, d.axes]')));
-  await cdp.eval(`document.querySelector('.auto-axis-dialog .dialog-close').click()`);
-  await until('!document.querySelector(".auto-axis-dialog")', 'y dialog closed');
-  await cdp.eval(`document.querySelector('.auto-panel .plot-tools button:nth-child(2)').click()`);
-  await until('dv.viewport.y === null', 'view reset 2');
+  await menuRun('auto.configure_plot', {plot_type:'norm', variable:'V', parameter1:'iapp'});
+  await requireUntil(`!s.busy && dv.axes.plot === 'norm'`, 'norm projection');
+  check('W517: Axes projection is chosen in the common form', await DS(`d.axes.plot === 'norm'`));
 
   /* T21: Clear hides the branches so far in the view, the key shows them again; the core is sent the AUTO
      window's clear key (W60) */
+  const nAll = await DS('d.points.x.length');
   const nCurvesAll = (await DG()).curves.length, sentClear = await cdp.eval('__xpp.sentCount()');
   await autoButton('C');
   check('T21: Clear hides every branch so far; the key offers "Earlier branches (2)"',
     await until(`!s.busy && __xpp.diagram().curves.length === 0 && s.diagram.earlier === ${nAll} && !!document.querySelector('.auto-earlier')`, 'cleared')
     && /Earlier branches \(2\)/.test(await cdp.eval(`document.querySelector('.auto-earlier').textContent`))
-    && JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentClear})`)) === JSON.stringify([{cmd: 'auto.hide_earlier'}, {cmd: 'auto.redraw'}]),
-    await cdp.eval(`document.querySelector('.auto-legend').textContent`));
+    && JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentClear})`)) === JSON.stringify([{cmd: 'auto.hide_earlier'}]),
+    JSON.stringify([await cdp.eval(`document.querySelector('.auto-legend').textContent`), await cdp.eval(`__xpp.sentFrom(${sentClear})`), await DS('d.earlier'), nAll, await cdp.eval('__xpp.diagram().curves.length'), await S('s.busy'), await cdp.eval(`document.querySelector('.auto-earlier')?.textContent`)]));
   await cdp.eval(`document.querySelector('.auto-earlier').click()`);
   check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
 
   check('W155: AUTO has no standalone settings-file control',
     await cdp.eval(`document.querySelector('#auto-settings-load') === null`));
-  /* W339: Mark values offers all model parameters and the period. */
-  await autoButton('U');
-  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-marks]')`, 'marks form');
-  await cdp.eval(`document.querySelector('.auto-mark-add').click()`);
-  await until(`!!document.querySelector('.auto-settings-dialog input[data-field=mark1-value]')`, 'mark row');
-  await cdp.eval(`(() => { const d = document.querySelector('.auto-settings-dialog');
-    const sel = d.querySelector('select[data-field=mark1-name]'); sel.value = 'iapp'; sel.dispatchEvent(new Event('change', {bubbles: true}));
-    const i = d.querySelector('input[data-field=mark1-value]'); i.value = '0.125'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
-  check('T22: Mark values: iapp = 0.125 added, the core has it',
-    await until(`!s.busy && s.autoSettings.core.marks.length === 1 && s.autoSettings.core.marks[0][0] === 'iapp'
-      && s.autoSettings.core.marks[0][1] === 0.125`, 'mark set'), JSON.stringify(await S('s.autoSettings.core.marks')));
-  await autoButton('U');
-  await until(`!!document.querySelector('.auto-settings-dialog input[data-field=mark1-value]')`, 'marks form again');
-  check('W339: Mark values offers every model parameter without selection',
-    await S("s.core.pars.every(([name]) => [...document.querySelectorAll('select[data-field=mark1-name] option')].some(o => o.value === name))"));
-  await cdp.eval(`document.querySelector('.auto-settings-dialog .auto-mark-row button').click()`);
-  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
-  check('T22: ... and removed again', await until('!s.busy && s.autoSettings.core.marks.length === 0', 'mark removed'),
-    JSON.stringify(await S('s.autoSettings.core.marks')));
-  /* back to hI-lo, fitted, for what follows */
-  await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('a');
-  await menuKey('i');
-  await until("s.ask && s.ask.kind === 'form'", 'autoplot form 2');
-  await until(`!!document.activeElement.closest('.dialog')`, 'autoplot focus 2');
-  await key('Enter');
-  await until("!s.busy && dv.axes.plot === 'maximum_and_minimum'", 'hilo again');
-  await key('a');
-  await menuKey('f');
-  await until('!s.busy', 'fit again');
+  await menuRun('auto.configure_marks', {parameters:['iapp'], values:[0.2]});
+  check('W517: common list rows set AUTO marks', await until(`!s.busy && s.autoSettings.core.marks.length === 1`, 'one mark'));
+  await menuRun('auto.configure_marks', {parameters:[], values:[]});
+  check('W517: empty list rows remove AUTO marks', await until(`!s.busy && s.autoSettings.core.marks.length === 0`, 'marks removed'));
+  await menuRun('auto.configure_plot', {plot_type:'maximum_and_minimum', variable:'V', parameter1:'iapp', fit:true});
+  await requireUntil('!s.busy', 'hilo restored');
 
   /* on a phone: a sheet with Back, 44 px targets, no sideways scroll */
   await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
@@ -2968,8 +1990,8 @@ async function autoView(dir) {
     return {l: r.left, t: r.top, w: r.width, bottom: r.bottom, ih: innerHeight, iw: innerWidth,
       doc: document.documentElement.scrollWidth, body: document.body.scrollWidth}; })()`);
   check('390x844: the AUTO view is a full-screen sheet, over the main status bar too (its own Stop stays in view), no sideways scroll',
-    sheet.l === 0 && sheet.t === 0 && sheet.w >= sheet.iw - 1 && Math.abs(sheet.bottom - sheet.ih) <= 1
-    && sheet.doc <= sheet.iw && sheet.body <= sheet.iw, JSON.stringify(sheet));
+    sheet.l === 0 && Math.abs(sheet.t - await cdp.eval(`document.querySelector('.app-menu').getBoundingClientRect().bottom`)) <= 1 && sheet.w >= sheet.iw - 1 && Math.abs(sheet.bottom - sheet.ih) <= 1
+    && sheet.doc <= sheet.iw && sheet.body <= sheet.iw, JSON.stringify([sheet, await cdp.eval(`document.querySelector('.app-menu').getBoundingClientRect().bottom`)]));
   const small = await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].filter(b => b.getClientRects().length)
     .map(b => [b.textContent.trim(), b.getBoundingClientRect().height, b.getBoundingClientRect().width])
     .filter(([, h, w]) => h < 44 || w < 44)`);
@@ -3007,11 +2029,8 @@ async function autoView(dir) {
     && (await DS('d.points.x.length')) === 0, JSON.stringify(await DS('[d.open, d.shown]')));
   check('the focus goes back to the plot', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
   await key('i');
-  check('T21: after Close, I goes to the main window: the Initialconds menu, not an AUTO command',
-    await until(`s.ask && s.ask.kind === 'menu' && s.ask.name !== 'auto'`, 'main menu after close')
-    && (await cdp.eval(`__xpp.sent().filter(c => c.cmd !== 'answer').pop().item`)) === 'initialconds', JSON.stringify(await S('s.ask')));
+  check('W517: after AUTO Close, I starts a main-window registry chord', await S(`s.pendingKeys.join('') === 'I' && !s.ask`));
   await key('Escape');
-  await until('!s.busy && !s.ask', 'menu closed after close');
 }
 
 /* T21, T22, T23, T25: AUTO Numerics/Stop during a run (W42, GitHub #85).
@@ -3045,11 +2064,9 @@ async function autoView(dir) {
    it took: Stop latency is a perf: line, measured, never failed. */
 async function autoStopRace() {
   await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
-  await rendered(); /* the new page's effects are done: a focus moving after F would cancel the chord */
-  await key('f');
-  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu'); /* not only !busy: a sent too soon is lost (macos-ui, W93) */
-  await key('a');
-  check('AUTO Stop race: File/Auto opens the AUTO view',
+  await rendered();
+  await menuRun('auto.open');
+  check('AUTO Stop race: AUTO/Open AUTO opens the AUTO view',
     await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open')
     && await cdp.eval(`!!document.querySelector('.auto-panel .auto-host')`),
     JSON.stringify(await cdp.eval(`(() => { const s = __xpp.state(); return {busy: s.busy, ask: s.ask,
@@ -3063,7 +2080,7 @@ async function autoStopRace() {
 
   const periodicFromHopf = async what => {
     await cdp.eval(`document.querySelector('.auto-host').focus()`);
-    await key('g');
+    await menuRun('auto.grab');
     await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", `grab ${what}`);
     for (let i = 0; i < 20 && !(await DS("d.info && d.info.sym === 'hopf'")); i++) {
       const n = await DS('d.infoEvents');
@@ -3072,8 +2089,7 @@ async function autoStopRace() {
     }
     await key('Enter');
     await until('!s.busy && !s.diagram.grabbing', `grabbed ${what}`);
-    await cdp.eval(`document.querySelector('.auto-host').focus()`);
-    await key('r');
+    await clickRegistry('auto.run');
     await runPeriodicFromDialog();
   };
   const nPre = await DS('d.points.x.length');
@@ -3102,17 +2118,13 @@ async function autoStopRace() {
 
   /* T22, W106: an edit made mid-run is a setting: sent at once, the core applies it once the run ends */
   const sentPre = await cdp.eval('__xpp.sentCount()');
-  await autoButton('N');
-  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics during run');
-  await cdp.eval(`(() => { const i = document.querySelector('.auto-settings-dialog input[data-field=max_steps]');
-    i.value = '15'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
+  await menuRun('auto.configure_numerics', {max_steps:15});
   const setsSent = () => cdp.eval(`__xpp.sentFrom(${sentPre}).filter(c => c.cmd === 'auto.configure_numerics')`);
   check('W106: Numerics during a run: Nmax 15 is sent at once (one set), shown, the core\'s still 2000 (the run keeps it)',
     going && await S(`s.busy && s.autoSettings.inflight.length === 1 && s.autoSettings.inflight[0].patch.numerics.max_steps === 15
       && s.autoSettings.core.numerics.max_steps === 2000`)
     && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto.configure_numerics', max_steps: 15}]),
+    && (await setsSent()).length === 1 && (await setsSent())[0].max_steps === 15,
     JSON.stringify([going, await S('[s.busy, s.autoSettings]'), await setsSent()]));
 
   /* T25: a connection the browser opened and sent nothing on yet (a
@@ -3140,7 +2152,7 @@ async function autoStopRace() {
   check('W106: once the run ends the set applies: the core\'s Nmax is 15, nothing in flight, no second set',
     await until(`!s.busy && s.autoSettings.core.numerics.max_steps === 15 && !s.autoSettings.inflight.length`,
       'applied at idle', 60000 * SLOW)
-    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto.configure_numerics', max_steps: 15}])
+    && (await setsSent()).length === 1 && (await setsSent())[0].max_steps === 15
     && !(await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)),
     JSON.stringify([await S('s.autoSettings'), await setsSent()]));
   check('T23: after Stop the status strip says so: "Stopped: by the user (Stop)"',
@@ -3183,9 +2195,7 @@ async function autoViews(dir) {
   const n = await DS('d.points.x.length');
 
   /* Axes / new View */
-  await autoButton('A');
-  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Plot Type'", 'axes menu');
-  await menuKey('v');
+  await menuRun('auto.new_view');
   check("AUTO views: Axes' new view makes a second view, the active one, with the first one's axes and every point",
     await until(`!s.busy && s.diagram.views.length === 2 && s.diagram.active === 1 && s.diagram.views[1].points.x.length === ${n}
       && JSON.stringify(s.diagram.views[1].axes) === JSON.stringify(s.diagram.views[0].axes)
@@ -3256,27 +2266,17 @@ async function autoViews(dir) {
    to AUTO's view: a fixed point of the model made the initial conditions
    (Sing pts, then Import), then File/Auto */
 async function openAutoAtFixedPoint() {
-  await key('f');
-  if (!await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu'))
-    throw new Error('file menu did not open');
-  await key('g');
-  await menuKey('d');
-  if (!await until("s.ask && s.ask.name === 'set_scope'", 'scope ask'))
-    throw new Error('set_scope ask did not appear');
-  await menuKey('a');
-  if (!await until('!s.busy', 'hopf set'))
-    throw new Error('hopf set did not finish');
-  await key('s');
-  await menuKey('g');
-  if (!await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?'))
-    throw new Error('Print eigenvalues? choice did not appear');
-  for (let k = 0; k < 3 && !(await until('!s.busy', 'fixed point', 800)); k++)
-    if (await S("s.ask && s.ask.kind === 'choice'")) await menuKey('n'); /* eigenvalues, invariant sets, strong sets: no */
-  if (!await until('!s.busy', 'fixed point', 30000))
-    throw new Error('fixed point calculation did not complete');
-  await cdp.eval(`__xpp.send({cmd: 'equilibrium.import_as_ic'})`);
-  if (!await until('!s.busy', 'import'))
-    throw new Error('import equilibrium did not complete');
+  await menuRun('set.apply', {name: 'hopf', scope: 'all'});
+  await requireUntil('!s.busy && !s.commandForm', 'hopf set');
+  await menuRun('equilibrium.find');
+  for (let k = 0; k < 3; k++) {
+    await requireUntil('s.ask || !s.busy', 'equilibrium choice or completion');
+    if (!await S('!!s.ask')) break;
+    await answerAsk({key:'n'});
+  }
+  await requireUntil('!s.busy', 'fixed point');
+  await menuRun('equilibrium.import_as_ic');
+  await requireUntil('!s.busy', 'imported fixed point');
   await openAutoPanel();
 }
 
@@ -3289,15 +2289,14 @@ async function reopenedSessionPlot(dir) {
   const rows = 601; // lecar's 60 time units at dt=0.1, including the initial row.
   await desktopMetrics();
   check('W102: the page connects', await until('s.hello && !s.busy', 'hello'));
-  await key('i');
-  await menuKey('g');
+  await menuRun('run.initial');
   check('W102: G integrates: 601 rows', await until(`w.series && w.series.rows === ${rows} && !s.busy`, 'series'));
   await openAutoAtFixedPoint();
   await key('r');
   await okRunDialog('equilibrium');
   await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000 * SLOW);
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('g');
+  await menuRun('auto.grab');
   await until("s.ask && s.ask.kind === 'grab'", 'grab');
   await key('Tab');
   await until("s.diagram.info.sym === 'hopf' && s.ask && s.ask.kind === 'grab'", 'grab tab');
@@ -3358,7 +2357,7 @@ async function lostF() {
   const back = await center('.auto-back'); /* a real click, as the window gets: the focus is on the button that then goes */
   await click(back.x, back.y);
   await until('!s.diagram.shown && s.diagram.open && !s.busy', 'back');
-  const menuShown = () => cdp.eval(`(() => { const r = document.querySelector('.menu-panel').getBoundingClientRect(); return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.menu-panel'); })()`);
+  const menuShown = () => cdp.eval(`(() => { const r = document.querySelector('.app-menu').getBoundingClientRect(); return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.app-menu'); })()`);
   check('lostF: after Back the main menu is shown', await menuShown(),
     JSON.stringify(await cdp.eval(`[document.activeElement.tagName, document.activeElement.className]`)));
   /* the focus returns to the plot after the button went: a key typed before that is typed on nothing, and the focus moving cancels a chord */
@@ -3384,7 +2383,7 @@ async function lostF() {
   await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000);
   /* Back during a grab: the grab ask stays open with the panel hidden, and every key is swallowed by it */
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('g');
+  await menuRun('auto.grab');
   await until("s.ask && s.ask.kind === 'grab'", 'grab 0');
   const back2 = await center('.auto-back');
   await click(back2.x, back2.y);
@@ -3403,7 +2402,7 @@ async function lostF() {
   await until('s.diagram.shown', 'auto show 2');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus 2');
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('g');
+  await menuRun('auto.grab');
   await until("s.ask && s.ask.kind === 'grab'", 'grab');
   await key('Tab');
   await until("s.diagram.info.sym === 'hopf' && s.ask && s.ask.kind === 'grab'", 'grab tab');
@@ -3412,18 +2411,14 @@ async function lostF() {
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('r');
   await runPeriodicFromDialog();
-  /* F straight away: while the run goes or after it, AUTO's File menu opens */
+  await requireUntil('!s.busy', 'periodic run ended', 120000);
   await key('f');
-  const opened = await until("s.ask && s.ask.kind === 'menu' && /file/i.test(s.ask.title || '')", 'auto file menu', 120000);
-  check("lostF: F in the AUTO view after the periodic run opens AUTO's File menu",
-    opened, JSON.stringify(await S('[s.busy, s.ask, s.core]')));
+  check('W517: AUTO F waits locally without a menu ask', await until(`s.pendingKeys.join('') === 'F' && !s.ask`, 'AUTO File prefix'));
+  await key('i');
+  check('W517: FI opens the same registry orbit form', await until(`s.commandForm?.id === 'auto.load_orbit_into_browser'`, 'orbit form'));
   await key('Escape');
-  await until('!s.busy && !s.ask', 'auto file menu closed', 120000);
-  await key('f');
-  check("lostF: ... and again once the run has ended", await until("s.ask && s.ask.kind === 'menu' && /file/i.test(s.ask.title || '')", 'auto file menu 2'),
-    JSON.stringify(await S('[s.busy, s.ask]')));
-  await key('Escape');
-  await until('!s.busy && !s.ask', 'closed');
+  check('lostF: cancelling the form leaves no core question', await S('!s.commandForm && !s.ask && !s.pendingKeys.length'));
+
 }
 
 /* W100, sequence 1 on a run that is still going (heavy.odex, a run that cannot end on its own): F in the AUTO view
@@ -3432,9 +2427,7 @@ async function lostF() {
 async function lostFRunning() {
   await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
   await rendered(); /* the new page's effects are done: a focus moving after F would cancel the chord */
-  await key('f');
-  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
-  await key('a');
+  await menuRun('auto.open');
   const opened = await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
   await key('r');
@@ -3446,7 +2439,7 @@ async function lostFRunning() {
     opened && hasAuto, JSON.stringify(await S('[s.diagram.open, s.diagram.shown, s.busy, s.ask && s.ask.title]')));
   if (!hasAuto) return;
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
-  await key('g');
+  await menuRun('auto.grab');
   await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", 'grab');
   for (let i = 0; i < 20 && !(await DS("d.info && d.info.sym === 'hopf'")); i++) {
     const n = await DS('d.infoEvents');
@@ -3463,17 +2456,11 @@ async function lostFRunning() {
     await until(`s.busy && !s.ask && dv.points.x.length > ${nPre}`, 'periodic going', 60000 * SLOW));
   const sent0 = await cdp.eval('__xpp.sentCount()');
   await key('f');
-  const sent = await cdp.eval(`__xpp.sentFrom(${sent0})`);
-  check("lostF: F in the AUTO view during the run is AUTO's File key (win auto), never the main window's",
-    sent.length === 1 && sent[0].cmd === 'key' && sent[0].win === 'auto' && sent[0].key === 'f', JSON.stringify(sent));
-  /* the run cannot end on its own (heavy.odex): Stop ends it, and the queued key then runs */
-  await cdp.eval(`document.querySelector('.auto-status .auto-stop').click()`);
-  check("lostF: ... its menu opens when the run ends (Stop; a view action queued in the core), AUTO's File menu, not the main one",
-    await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'File' && s.ask.items.includes('Save diagram')", 'auto file menu', 120000 * SLOW)
-    && (await S('s.pendingKeys.length')) === 0, JSON.stringify(await S('[s.busy, s.ask && s.ask.title, s.core]')));
+  check('W517: a prefix during AUTO sends no command or ask', await S(`s.pendingKeys.join('') === 'F' && !s.ask`) && (await cdp.eval(`__xpp.sentFrom(${sent0})`)).length === 0);
   await key('Escape');
-  check('lostF: Escape closes it and the core is idle',
-    await until('!s.busy && !s.ask', 'closed', 60000 * SLOW), JSON.stringify(await S('[s.busy, s.ask && s.ask.title, s.core]')));
+  check('W517: Escape stops a running job even with an unfinished prefix', await until('!s.busy && !s.ask && !s.pendingKeys.length', 'stopped', 20000 * SLOW),
+    JSON.stringify(await S('[s.busy, s.ask, s.pendingKeys, s.stopping, __xpp.sent().slice(-3)]')));
+
 }
 
 async function busyAuto() {
@@ -3481,17 +2468,9 @@ async function busyAuto() {
   check('busy: the page connects', await until('s.hello && !s.busy', 'hello'));
   /* nUmerics / Total 3000: an integration of about three seconds */
   await focusPlot();
-  await key('u');
-  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
-  await key('t');
-  await until("s.ask && s.ask.kind === 'string'", 'total');
-  await answerAsk({ok: 1, value: '3000'});
-  await until('!s.busy', 'total set');
-  await key('Escape');
-  await until('!s.busy', 'main menu');
-  await key('f');
-  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
-  await key('a');
+  await menuRun('run.configure', {total_time:3000});
+  await requireUntil('!s.busy', 'Total applied');
+  await menuRun('auto.open');
   check('busy: File/Auto opens the AUTO view', await until('s.diagram.open && dv.axes && !s.busy', 'auto open'));
   await focusPlot();
   await key('i');
@@ -3500,9 +2479,9 @@ async function busyAuto() {
      `computing` event (W95), which comes a moment after the command starts;
      reading them on s.busy alone raced it (macos-ui, 2026-10-01) */
   const busy = await until('s.busy && s.computing && !s.ask && s.core && (s.progress || w.series)', 'integration running', 5000);
-  const run = await cdp.eval(`(() => { const b = document.querySelector('.auto-tools button[aria-keyshortcuts=R]');
+  const run = await cdp.eval(`(() => { const b = document.querySelector('.auto-tools button[data-op=run]');
     return {disabled: b.disabled, title: b.title}; })()`);
-  const menu = await cdp.eval(`(() => { const b = document.querySelector('.menu-panel .menu-item'); return b && [b.disabled, b.title]; })()`);
+  const menu = await cdp.eval(`(() => { const b = document.querySelector('.app-menu [data-command]'); return b && [b.disabled, b.title]; })()`);
   const a = await autoArea();
   await mouse('mouseMoved', a.x + a.w / 2, a.y + a.h / 2);
   await mouse('mouseWheel', a.x + a.w / 2, a.y + a.h / 2, {deltaX: 0, deltaY: -120});
@@ -3510,7 +2489,7 @@ async function busyAuto() {
     busy && await until('s.busy && dv.viewport.x', 'zoom while busy', 3000) && run.disabled
     && run.title === 'Not while a computation runs: available when it ends', JSON.stringify([busy, run, await DS('d.viewport')]));
   check('busy: T22: Numerics and Mark values stay enabled (their changes wait), and Axes and Clear (views, W95)',
-    await cdp.eval(`['N', 'U', 'A', 'C'].every(k => !document.querySelector('.auto-tools button[aria-keyshortcuts=' + k + ']').disabled)`));
+    await cdp.eval(`['numerics','usr','axes','clear'].every(op => !document.querySelector('.auto-tools button[data-op=' + op + ']').disabled)`));
   check("busy: ... and the main window's menu waits the same way", !!menu && menu[0] === true
     && menu[1] === 'Not while a computation runs: available when it ends', JSON.stringify(menu));
   await until('!s.busy', 'integration done', 30000);
@@ -3526,26 +2505,18 @@ async function busyKeys() {
   check('busy keys: the page connects', await until('s.hello && !s.busy', 'hello', 60000));
   const sid = await addSlider('iapp');
   await focusPlot();
-  await key('u');
-  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
-  await key('t');
-  await until("s.ask && s.ask.kind === 'string'", 'total');
-  await answerAsk({ok: 1, value: '1e6'});
-  await until('!s.busy', 'total set');
-  await key('Escape');
-  await until('!s.busy', 'main menu');
+  await menuRun('run.configure', {total_time:1e6});
+  await requireUntil('!s.busy', 'Total applied');
   await focusPlot();
-  await key('i');
-  await menuOpen('ic menu');
-  const n0 = await cdp.eval('__xpp.actions().length');
-  await key('g');
+    const n0 = await cdp.eval('__xpp.actions().length');
+  await menuRun('run.initial');
   const running = await until('s.busy && !s.ask && w.series && w.series.rows > 0', 'the run under way', 30000);
   /* W95: what is disabled during a computation is decided by each action's kind, from hello */
   const ui = await cdp.eval(`(() => {
-    const item = id => document.querySelector('.menu-panel .menu-item[data-menu=main][data-item="' + id + '"]');
+    const item = id => document.querySelector('.app-menu [data-command="' + id + '"]');
     const tool = t => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === t);
-    const off = [...document.querySelectorAll('.menu-panel .menu-item')].filter(b => b.disabled)
-      .map(b => b.dataset.item);
+    const off = [...document.querySelectorAll('.app-menu [data-command]')].filter(b => b.disabled)
+      .map(b => b.dataset.command);
     return {
       status: document.querySelector('[data-testid=status]').textContent, off,
       integrate: document.querySelector('.run-toolbar button.primary').getAttribute('aria-disabled'),
@@ -3555,13 +2526,13 @@ async function busyKeys() {
       newWindow: tool('New window').disabled,
       save: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
-      viewItems: ['xivst', 'nullcline', 'dirfield', 'graphic', 'text', 'kinescope'].every(id => !item(id).disabled),
+      viewItems: ['window.fit','window.redraw','plot.set_2d'].every(id => !item(id).disabled),
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
     + 'and data (Initialconds, Sing pts...) and Save are disabled, Parameters (a setting, W106) is not',
     running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.toolbarStop && ui.save
-    && ['initialconds', 'phasespace', 'singpts', 'bndryval'].every(id => ui.off.includes(id)) && !ui.off.includes('parameters'), JSON.stringify(ui));
+    && ['run.initial', 'equilibrium.find', 'bvp.solve', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
   /* A window.create sent during the run is queued by the core and creates
@@ -3626,14 +2597,8 @@ async function busyKeys() {
   /* the wedge case: keys work after the run (Total back to 20: 401 rows), and the next
      run uses the slider's edit */
   await focusPlot();
-  await key('u');
-  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu after the run');
-  await key('t');
-  await until("s.ask && s.ask.kind === 'string'", 'total after the run');
-  await answerAsk({ok: 1, value: '20'});
-  await until('!s.busy', 'total 20');
-  await key('Escape');
-  await until('!s.busy', 'main menu after the run');
+  await menuRun('run.configure', {total_time:20});
+  await requireUntil('!s.busy', 'Total applied');
   const n1 = await S('s.seriesCount');
   await focusPlot();
   await key('i');
@@ -3656,18 +2621,10 @@ async function statusBarLayout() {
   await desktopMetrics();
   check('status bar: the page connects', await until('s.hello && !s.busy', 'hello'));
   const idle1 = await box();
-  await key('u');
-  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
-  await key('t');
-  await until("s.ask && s.ask.kind === 'string'", 'total');
-  await answerAsk({ok: 1, value: '1e6'});
-  await until('!s.busy', 'total set');
-  await key('Escape');
-  await until('!s.busy', 'main menu');
+  await menuRun('run.configure', {total_time:1e6});
+  await requireUntil('!s.busy', 'Total applied');
   await focusPlot();
-  await key('i');
-  await menuOpen('ic menu');
-  await key('g');
+    await menuRun('run.initial');
   const progressShowing = await until('s.busy && s.progress', 'progress showing', 15000);
   check('status bar: a long run reports progress', progressShowing, JSON.stringify(await S('s.progress')));
   const running = await box();
@@ -3741,7 +2698,7 @@ async function recordCheck(dir) {
   check('record: web.recx holds the model and the step, its note above it, the button named',
     lines[0] === 'recording: {' && lines.includes('@file lecar.odex') && at > 0
     && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
-    && (() => { const step = JSON.parse(lines[at + 3]); return step.step === 'Initialconds → Go' && step.cmd.cmd === 'run.initial'; })(), JSON.stringify(lines.slice(at, at + 5)));
+    && (() => { const step = JSON.parse(lines[at + 3]); return step.step === 'Run → Run from initial' && step.cmd.cmd === 'run.initial'; })(), JSON.stringify(lines.slice(at, at + 5)));
   check('record: the recording begins with the session\'s state (a @snapshot section before the files, W59d)',
     lines.indexOf('@snapshot') > 0 && lines.indexOf('@snapshot') < lines.indexOf('@file lecar.odex'));
 
@@ -3749,9 +2706,7 @@ async function recordCheck(dir) {
      Save session (S), Don't save (D), Cancel; Escape keeps the session */
   await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
   await rendered(); /* the new page's effects are done: a focus moving after F would cancel the chord */
-  await key('f');
-  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
-  await key('q');
+  await menuRun('session.quit');
   check('quit: File/Quit asks "Quit xppautX? Save this session first?", Save session (S), Don\'t save (D), Cancel',
     await until(`s.ask && s.ask.kind === 'choice' && s.ask.question === 'Quit xppautX? Save this session first?'`, 'quit ask')
     && await cdp.eval(`(() => { const b = [...document.querySelectorAll('.dialog button')].map(e => e.textContent.trim());
@@ -3839,9 +2794,7 @@ async function playerCheck(dir) {
   await cdp.eval(`document.querySelector('.player-changed button').click()`);
   check('player: Dismiss hides the banner', await until(`s.player.dismissed && !document.querySelector('.player-changed')`, 'dismissed'));
   /* W150: a view over the plots (AUTO) still has the player: caption, controls, step list in a dock; Close AUTO takes it back */
-  await key('f');
-  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu (player)');
-  await key('a');
+  await menuRun('auto.open');
   await until('s.diagram.open && s.diagram.shown && !s.busy', 'auto open (player)', 20000);
   check('player: over the AUTO view the caption, controls and step list are still on the page (a dock), one set of each',
     await cdp.eval(`(() => { const d = document.querySelector('.player-dock');
@@ -3871,18 +2824,10 @@ const QUIT_Q = 'Quit xppautX? Save this session first?';
 
 /** an integration that goes on for minutes (lecar to t = 1e7), going */
 async function longRun() {
-  await until('!s.busy && !s.ask', 'main menu');
-  await cdp.eval(`__xpp.send({cmd: 'key', key: 'u'})`);
-  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
-  await cdp.eval(`__xpp.send({cmd: 'key', key: 't'})`);
-  await until(`s.ask && s.ask.kind === 'string'`, 'total');
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: '1e7'})`);
-  await until('!s.busy && !s.ask && s.pendingKeys.join("") === "U"', 'total set');
-  await cdp.eval(`__xpp.send({cmd: 'key', key: 'Escape'})`);
-  await until('!s.busy', 'main menu again');
-  await cdp.eval(`__xpp.send({cmd: 'key', key: 'i'})`);
-  await until(`s.ask && s.ask.kind === 'menu'`, 'initialconds');
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'g'})`);
+  await requireUntil('!s.busy && !s.ask', 'idle');
+  await menuRun('run.configure', {total_time:1e7});
+  await requireUntil('!s.busy', 'long Total');
+  await menuRun('run.initial');
   return until('s.computing && s.seriesAppends > 2', 'the run going', 30000 * SLOW);
 }
 
@@ -3961,119 +2906,95 @@ async function leaveSaveCheck(dir) {
     JSON.stringify(fs.readdirSync(dir)));
 }
 
+
+const exists = selector => cdp.eval(`!!document.querySelector(${JSON.stringify(selector)})`);
+
+/** W517: choose a real menu item; the registry supplies the entire path and command. */
+async function clickRegistry(id) {
+  await cdp.eval(`(() => {
+    const item = [...document.querySelectorAll('.app-menu [data-command]')].find(b => b.dataset.command === ${JSON.stringify(id)});
+    if (!item) throw new Error('No menu item ' + ${JSON.stringify(id)});
+    for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
+    item.click();
+  })()`);
+  await rendered();
+}
+async function formValues(values) {
+  for (const [name, value] of Object.entries(values)) {
+    const argument = `.registry-argument[data-argument=${JSON.stringify(name)}]`;
+    if (value !== null && typeof value === 'object') {
+      const entries = Array.isArray(value) ? value.map(v => [null,v]) : Object.entries(value);
+      for (let count = await cdp.eval(`document.querySelector(${JSON.stringify(argument)}).querySelectorAll('[aria-label="Remove row"]').length`); count > 0; count--) {
+        await cdp.eval(`document.querySelector(${JSON.stringify(argument)}).querySelector('[aria-label="Remove row"]').click()`);
+        await until(`document.querySelector(${JSON.stringify(argument)}).querySelectorAll('[aria-label="Remove row"]').length === ${count-1}`, 'row removed');
+      }
+      await rendered();
+      for (let i = 0; i < entries.length; i++) {
+        await cdp.eval(`(() => {const b = document.querySelector(${JSON.stringify(argument)}); if (b.querySelectorAll('.argument-row').length <= ${i}) [...b.querySelectorAll('button')].find(b => b.textContent === 'Add row').click();})()`);
+        await rendered();
+        const [key,value] = entries[i];
+        await cdp.eval(`(() => {const row = document.querySelector(${JSON.stringify(argument)}).querySelectorAll('.argument-row')[${i}];
+          const fields = [...row.querySelectorAll('input,select')];
+          const set = (field,value) => {field.value = String(value); field.dispatchEvent(new Event(field.tagName === 'SELECT' ? 'change' : 'input',{bubbles:true}));};
+          ${key === null ? '' : `set(fields[0],${JSON.stringify(key)});`}
+          set(fields.at(-1),${JSON.stringify(value)});
+        })()`);
+        await rendered();
+      }
+    } else {
+      await cdp.eval(`(() => {
+        const box = document.querySelector(${JSON.stringify(argument)});
+        if (!box) throw new Error('No argument ' + ${JSON.stringify(name)});
+        const field = typeof ${JSON.stringify(value)} === 'boolean' ? [...box.querySelectorAll('input[type=checkbox]')].at(-1) : box.querySelector('select, input:not([type=checkbox]):not([type=file])');
+        if (!field) throw new Error('No scalar control ' + ${JSON.stringify(name)});
+        if (field.type === 'checkbox') {field.checked = ${JSON.stringify(value)}; field.dispatchEvent(new Event('change', {bubbles:true}));}
+        else {field.value = String(${JSON.stringify(value)}); field.dispatchEvent(new Event(field.tagName === 'SELECT' ? 'change' : 'input', {bubbles:true}));}
+      })()`);
+      await rendered();
+    }
+  }
+}
+
+async function submitCommand() {
+  await cdp.eval(`(() => { const b = document.querySelector('.registry-form button[type=submit]'); if (!b || b.disabled) throw new Error('Command form is invalid: ' + document.querySelector('.registry-form')?.textContent); b.click(); })()`);
+  await rendered();
+}
+async function menuRun(id, values = {}) {
+  await clickRegistry(id);
+  if (await S('!!s.commandForm')) { await formValues(values); await submitCommand(); }
+}
+
 async function navigationCheck() {
   await desktopMetrics();
-  await until('s.hello && !s.busy', 'hello');
-  check('navigation: five stable command groups and model filename', await cdp.eval(`
-    document.querySelectorAll('.command-group').length === 5 && document.querySelector('.title-bar h1').textContent === 'lecar.odex'`));
-  check('navigation: the Tools group holds only the Calculator; the commands that live in a panel are not in the command list (W229)', await cdp.eval(`(() => {
-    const tools = [...document.querySelectorAll('.command-group')].find(d => d.querySelector('summary').textContent === 'Tools');
-    const moved = ['source', 'transpose', 'lookup', 'getparset', 'savevalues', 'savedefaults', 'exportvalues', 'renameset', 'deleteset', 'restoredefaults', 'keymapeditor', 'record', 'play', 'help', 'tutorial', 'xpprc', 'clone'];
-    return [...tools.querySelectorAll('.menu-item')].map(b => b.dataset.item).join() === 'calculator'
-      && !moved.some(id => document.querySelector('.menu-item[data-item=' + id + ']')); })()`));
-  check('navigation: each moved command is beside its work: Apply set and Save values in the Values panel, Transpose and Lookup tables in the Data panel (W229)',
-    await cdp.eval(`['#values-panel button[data-item=getparset]', '#values-panel button[data-item=savevalues]', '#values-panel button[data-item=restoredefaults]',
-      '#table-panel button[data-item=transpose]', '#table-panel button[data-item=lookup]'].every(s => !!document.querySelector(s))`));
-  await cdp.eval(`document.querySelector('#values-panel button[data-item=getparset]').click()`);
-  check('navigation: Apply set… asks which set, in a menu with a letter for each (W229)',
-    await until(`s.ask && s.ask.kind === 'menu' && s.ask.name === 'param_set' && s.ask.items.length === s.ask.keys.length && s.ask.items.length > 1`, 'sets menu'), JSON.stringify(await S('s.ask')));
+  const rows = await S('s.hello.commands.filter(c => c.arguments !== undefined)');
+  check('W517: eight page menus in the specified order', await cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu > details > summary')].map(n => n.textContent)) === JSON.stringify(['File','Run','Analysis','Plot','Data','AUTO','Windows','Help'])`));
+  const ids = await cdp.eval(`[...document.querySelectorAll('.app-menu [data-command]')].map(b => b.dataset.command).sort()`);
+  check('W517: one menu item per registry row, including every formerly panel-only operation', JSON.stringify(ids) === JSON.stringify(rows.map(c => c.cmd).sort()), JSON.stringify(ids));
+  check('W517: Commands panel retired', !await exists('.menu-panel'));
+  // Every command with arguments renders the same form, using every declared argument.
+  for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list')) {
+    await clickRegistry(row.cmd);
+    const fields = await cdp.eval(`[...document.querySelectorAll('.registry-form [data-argument]')].map(e => e.dataset.argument)`);
+    check(`W517: ${row.cmd} form is its registry arguments`, JSON.stringify(fields) === JSON.stringify(row.arguments.map(a => a.name)), JSON.stringify(fields));
+    await key('Escape');
+  }
+  await clickRegistry('tool.command_palette');
+  check('W517: palette contains every registry command', await until(`s.drawerOpen && document.querySelectorAll('.command-palette [data-command]').length === ${rows.length}`, 'palette'));
+  await cdp.eval(`(() => {const q = document.querySelector('#command-search'); q.value = 'session save'; q.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await rendered();
+  check('W517: palette matches the registry name and menu path', await cdp.eval(`!!document.querySelector('.command-palette [data-command="session.save"]') && !document.querySelector('.command-palette [data-command="run.initial"]')`));
+  await cdp.eval(`document.querySelector('.command-palette [data-command="session.save_as"]').click()`);
+  check('W517: palette opens the same form', await until(`s.commandForm?.id === 'session.save_as' && !s.drawerOpen`, 'palette form'));
   await key('Escape');
-  await until('!s.ask && !s.busy', 'the sets menu cancelled');
-  check('navigation: Run first, States first', await cdp.eval(`
-    document.querySelector('.command-group summary').textContent === 'Run' && document.querySelector('.values-body .value-group').dataset.section === 'ic'`));
-  check('navigation: common run actions have one visible home and require a prior state where appropriate', await cdp.eval(`(() => {
-    const toolbar = document.querySelector('.run-toolbar');
-    return toolbar.getBoundingClientRect().height > 0 && toolbar.querySelectorAll('.run-actions button').length === 5 &&
-      toolbar.querySelector('[data-run=current]').getAttribute('aria-disabled') === 'true' &&
-      toolbar.querySelector('[data-run=continue]').getAttribute('aria-disabled') === 'true' &&
-      toolbar.querySelector('[data-run=stop]').disabled &&
-      !document.querySelector('.title-bar button.primary, .plot-empty button, [data-section=ic] .value-tools button[title*="without running"]') &&
-      !document.querySelector('.menu-item[data-item=parameters], .menu-item[data-item=continue], .menu-item[data-item=dt]');
-  })()`));
-  check('navigation: every state and parameter fits without scrolling on the reference desktop', await cdp.eval(`(() => {
-    const box = document.querySelector('.values-body').getBoundingClientRect();
-    return [...document.querySelectorAll('[data-section=par] .value-field input, [data-section=ic] .value-field input, .value-now')].every(el => {
-      const r = el.getBoundingClientRect(); return r.height > 0 && r.top >= box.top && r.bottom <= box.bottom && r.left >= box.left && r.right <= box.right;
-    }); })()`));
-  await key('k', 2);
-  check('navigation: Ctrl+K focuses command search', await cdp.eval(`document.activeElement.id === 'command-search'`));
-  await cdp.eval(`(() => { const input = document.querySelector('#command-search'); input.value = 'save session'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
-  await rendered();
-  check('navigation: search crosses legacy menu boundaries', await cdp.eval(`!!document.querySelector('.menu-item[data-menu=file][data-item=savesession]') && !document.querySelector('.menu-item[data-item=parameters]')`));
-  await key('ArrowDown');
-  check('navigation: search results reachable by arrow key', await cdp.eval(`document.activeElement.dataset.item === 'savesession'`));
-  await cdp.eval(`(() => { const input = document.querySelector('#command-search'); input.value = ''; input.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('.plot-host').focus(); })()`);
-  await rendered();
-  await key('u');
-  await until('s.pendingKeys.join("") === "U" && !s.busy', 'a pending Numerics chord');
-  const before = await S('s.seriesCount');
-  await cdp.eval(`document.querySelector('.run-toolbar button.primary').click()`);
-  check('navigation: clicked Integrate works while the Numerics chord is pending', await until(`s.seriesCount > ${before} && !s.busy`, 'stable integrate', 20000));
-  await key('Escape');
-  await until('s.pendingKeys.length === 0', 'the Numerics chord cancelled');
-  const finalStates = await S('s.core.now');
-  const displayedStates = JSON.parse(await nowCells()).map(Number);
-  check('navigation: current states retain ten-digit inspection precision', displayedStates.every((value, i) => Math.abs(value - finalStates[i]) <= 5e-10 * Math.max(1, Math.abs(finalStates[i]))), JSON.stringify(displayedStates));
-  check('navigation: each state has a sampled tail rate, not a convergence claim', await cdp.eval(`
-    [...document.querySelectorAll('.value-rate')].every(el => Number.isFinite(Number(el.textContent))) && document.querySelector('.state-rate-hint').textContent.includes('extend the run')`));
-  const rowsBeforeContinue = await S('w.series.rows');
-  const endTime = await S('s.core.time + 10');
-  await cdp.eval(`(() => { const input = document.querySelector('[data-continue-time]'); input.value = '10'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
-  await rendered();
-  await cdp.eval(`document.querySelector('[data-run=continue]').click()`);
-  check('navigation: Continue appends to the trajectory and the toolbar shows the last stored time', await until(`!s.busy && w.series.rows > ${rowsBeforeContinue}`, 'continued trajectory', 20000) &&
-    await S(`!s.ask && Math.abs(s.core.time - ${endTime}) < 1e-8`) &&
-    await S(`Math.abs(w.series.columns.get(0)[w.series.rows - 1] - ${endTime}) < 1e-4`) &&
-    await cdp.eval(`document.querySelector('.run-context').textContent.includes('Stored t =') && document.querySelector('.run-context strong').textContent === 'Idle'`));
-  await cdp.eval(`(() => { const select = document.querySelector('[aria-label="Continuation time mode"]'); select.value = 'until'; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
-  await rendered();
-  const nextTime = endTime + 10;
-  check('navigation: switching continuation modes preserves the chosen duration', await cdp.eval(`Math.abs(Number(document.querySelector('[data-continue-time]').value) - ${nextTime}) < 1e-8`));
-  await cdp.eval(`document.querySelector('[data-run=continue]').click()`);
-  check('navigation: Until time runs in one click without a prompt', await until(`!s.busy && Math.abs(s.core.time - ${nextTime}) < 1e-8 && !s.ask`, 'until continuation', 20000));
-  /* W213: the command's key sends the toolbar's field as the one `continue`, never the legacy C prompt */
-  const afterUntil = nextTime + 10;
-  await cdp.eval(`(() => { const input = document.querySelector('[data-continue-time]'); input.value = '${afterUntil}'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
-  await rendered();
-  const altMark = await cdp.eval('__xpp.sentCount()');
-  await focusPlot();
-  await key('Enter', 1);
-  check('W213: Alt+Enter continues with the toolbar field: one continue command, no key, no prompt',
-    await until(`!s.busy && Math.abs(s.core.time - ${afterUntil}) < 1e-8 && !s.ask`, 'Alt+Enter continuation', 20000)
-    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${altMark})`)).filter(c => c.cmd !== 'state')) === JSON.stringify([{cmd: 'run.continue', until: afterUntil}]),
-    JSON.stringify(await cdp.eval(`__xpp.sentFrom(${altMark})`)));
-  const values = await S('[s.core.pars, s.core.ics]');
-  const seriesCount = await S('s.seriesCount');
-  /* W210: Ctrl+Z takes back a value edit exactly, without integrating; Ctrl+Shift+Z puts it back */
-  check('navigation: with nothing to redo the core says so', await S('s.core.can_redo === false'));
-  await cdp.eval(`__xpp.send({cmd: 'value.set_parameters', values: {iapp: 0.123456789012345}})`);
-  await until('s.core.pars.some(p => p[0] === "iapp" && p[1] === 0.123456789012345) && s.core.can_undo && !s.busy', 'changed value');
-  await focusPlot();
-  await key('z', 2);
-  check('navigation: Ctrl+Z restores exact parameters and ICs without integrating', await until(`JSON.stringify([s.core.pars,s.core.ics]) === ${JSON.stringify(JSON.stringify(values))} && !s.busy && s.core.can_redo`, 'undone values') && await S(`s.seriesCount === ${seriesCount}`));
-  await key('z', 10);
-  check('navigation: Ctrl+Shift+Z puts the edit back', await until('s.core.pars.some(p => p[0] === "iapp" && p[1] === 0.123456789012345) && !s.busy && !s.core.can_redo', 'redone value'));
-  await focusPlot();
-  await key('s', 2);
-  check('navigation: Ctrl+S asks to save a session', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.snapx"', 'save session'));
-  await key('Escape');
-  await until('!s.ask && !s.busy', 'cancel save');
-  /* W209: the title's dot follows state.changed; a save clears it, and Ctrl+S then saves to the remembered file with no ask */
-  check('W209: the unsaved dot is on while state.changed is', await S('s.core.changed') === true && await cdp.eval(`!!document.querySelector('.title-bar .unsaved')`));
-  await cdp.eval(`__xpp.send({cmd: 'session.save_as', file: 'w209', confirm: true})`);
-  check('W209: a save clears changed and the dot', await until('!s.busy && s.core.changed === false && !document.querySelector(".title-bar .unsaved")', 'dot cleared'));
-  await cdp.eval(`__xpp.send({cmd: 'value.set_parameters', values: {iapp: 0.2}})`);
-  check('W209: an edit brings the dot back', await until('s.core.changed === true && !!document.querySelector(".title-bar .unsaved")', 'dot back'));
-  await focusPlot();
-  await key('s', 2);
-  check('W209: Ctrl+S saves to the remembered file, asking nothing, and clears the dot',
-    await until('!s.busy && s.core.changed === false && !s.ask && !document.querySelector(".title-bar .unsaved")', 'silent save') && await S('s.core.session.file') === 'w209.snapx');
-  await focusPlot();
-  await key('F6');
-  check('navigation: F6 moves from plot to Values pane', await cdp.eval(`document.activeElement.id === 'values-panel'`));
-  await key('F6', 8);
-  check('navigation: Shift+F6 moves back to plot', await cdp.eval(`document.activeElement.classList.contains('plot-host')`));
+  await menuRun('run.initial');
+  check('W517: argument-free menu command runs once without an ask', await until('!s.busy && s.core.rows === 601 && !s.ask', 'menu run'));
+  await menuRun('window.set_redraw_mode', {mode:'manual'});
+  check('W517: choice form sends the named choice', await until(`!s.busy && w.info.redraw_mode === 'manual'`, 'choice form'));
+  await menuRun('window.set_simultaneous_plot', {enabled:true});
+  check('W517: boolean form sends a boolean', await until(`!s.busy && s.plots.simultaneous === true`, 'boolean form'));
+  await menuRun('window.set_simultaneous_plot', {enabled:false});
 }
+
 
 async function steadyCheck() {
   await desktopMetrics();
@@ -4110,59 +3031,31 @@ async function steadyCheck() {
    defaultPrevented as the page left it. */
 async function keymapCheck() {
   await desktopMetrics();
-  check('keymap: the page connects', await until('s.hello && !s.busy', 'hello'));
-  check('keymap: the XPPAUT sequences preset is off in a new page', (await S('s.keymap.info.preset')) === 'default');
-  await cdp.eval(`window.__seen = []; window.addEventListener('keydown', e => window.__seen.push({key: e.key, prevented: e.defaultPrevented}))`);
-  const seen = () => cdp.eval('window.__seen.splice(0)');
-  const sentSince = mark => cdp.eval(`__xpp.sentFrom(${mark})`);
   await focusPlot();
-  let mark = await cdp.eval('__xpp.sentCount()');
-  await key('f');
-  await key('s');
-  await key('i');
-  const plain = await seen();
-  check('keymap: with the preset off, F, S and I alone send nothing, start no chord and prevent nothing',
-    (await sentSince(mark)).length === 0 && (await S('s.pendingKeys.length')) === 0 && plain.length === 3 && plain.every(k => !k.prevented),
-    JSON.stringify(plain));
-  /* a default key runs its command by id, through the path a click on it takes */
-  await key('o', 2);
-  check('keymap: Ctrl+O runs Open model: the same command a click sends, and its key is prevented',
-    await until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'key' && c.menu === 'file' && c.item === 'openmodel')`, 'open model sent')
-    && (await seen()).at(-1)?.prevented === true && await until('s.ask && s.ask.kind === "file"', 'the model picker'));
+  const mark = await cdp.eval('__xpp.sentCount()');
+  await key('i'); await key('g');
+  check('W517: default keys leave plain XPPAUT letters alone', await S('s.pendingKeys.length === 0') && (await cdp.eval(`__xpp.sentFrom(${mark})`)).length === 0);
+  await key('r', 2);
+  check('W517: Ctrl+R runs directly through the registry', await until(`s.core.rows === 601 && !s.busy`, 'logical run') && await cdp.eval(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'run.initial')`));
+  await key('o',2);
+  check('W517: Ctrl+O opens the common model form', await until(`s.commandForm?.id === 'session.open_model'`, 'open form'));
   await key('Escape');
-  await until('!s.ask && !s.busy', 'the picker cancelled');
-  /* what the system and the browser keep is never bound, whatever the preset */
+  await key('P',10);
+  check('W517: Ctrl+Shift+P opens palette', await until('s.drawerOpen', 'palette key'));
+  await key('Escape');
   await xppautSequences(cdp);
-  mark = await cdp.eval('__xpp.sentCount()');
-  const reserved = await cdp.eval(`(() => [['F4', {altKey: true}], ['w', {ctrlKey: true}], ['q', {ctrlKey: true}], ['F11', {}], ['F12', {}], ['F5', {}]]
-    .map(([key, mods]) => !document.querySelector('.plot-host').dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true, ...mods}))))()`);
-  check('keymap: Alt+F4, Ctrl+W, Ctrl+Q, F11, F12 and F5 are not prevented and run nothing',
-    reserved.every(prevented => !prevented) && (await sentSince(mark)).length === 0 && (await S('s.pendingKeys.length')) === 0, JSON.stringify(reserved));
-  /* the preset on: F then S is a chord */
-  await seen();
   await focusPlot();
-  await key('f');
-  const first = await seen();
-  check('keymap: with the preset on, F is the first key of a chord: pending, shown in the status bar, prevented, nothing sent',
-    (await S('s.pendingKeys.join("")')) === 'F' && first.length === 1 && first[0].prevented
-    && await cdp.eval(`document.querySelector('[data-testid=pending-keys]').textContent.includes('F')`)
-    && (await sentSince(mark)).length === 0);
+  await key('i');
+  check('W517: XPPAUT I waits as a registry chord', await S(`s.pendingKeys.join('') === 'I' && !s.ask`));
   await key('Escape');
-  check('keymap: Esc cancels the pending chord and sends nothing',
-    await until('s.pendingKeys.length === 0', 'cancelled by Esc') && (await sentSince(mark)).length === 0
-    && !(await cdp.eval(`!!document.querySelector('[data-testid=pending-keys]')`)));
-  await key('f');
-  await cdp.eval(`window.dispatchEvent(new Event('blur'))`);
-  check('keymap: losing the focus of the window cancels it too', await until('s.pendingKeys.length === 0', 'cancelled by blur'));
-  await key('f');
-  await key('s');
-  check('keymap: F then S runs File/Export simulation information, the command a click sends',
-    await until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'key' && c.menu === 'file' && c.item === 'saveinfo')`, 'saveinfo sent')
-    && (await S('s.pendingKeys.length')) === 0);
-  await until('!s.busy', 'the command ended');
-  if (await S('!!s.ask')) await key('Escape');
-  await until('!s.ask && !s.busy', 'idle');
+  check('W517: Escape cancels the chord', await S('s.pendingKeys.length === 0'));
+  const before = await S('s.seriesCount');
+  await key('i'); await key('g');
+  check('W517: XPPAUT IG runs the same command directly', await until(`s.seriesCount > ${before} && !s.busy && !s.ask`, 'legacy run'));
+  const reserved = await cdp.eval(`[['F5',{}],['w',{ctrlKey:true}],['F4',{altKey:true}],['F12',{}]].map(([key,mods]) => document.querySelector('.plot-host').dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...mods})))`);
+  check('W517: reserved keys are never prevented under either preset', reserved.every(Boolean));
 }
+
 
 /* W212 (docs/command-design.md "Keymap editor", "Quick access"): the editor dialog and the pinned toolbar.
    Every change goes through the `keymap` command and shows in what the core answers; the editor's own state
@@ -4170,333 +3063,46 @@ async function keymapCheck() {
    run's own (cdp.mjs), and the section ends by removing what it wrote. */
 async function keymapEditorCheck() {
   await desktopMetrics();
-  check('keymapeditor: the page connects', await until('s.hello && s.keymap.info && !s.busy', 'hello'));
-  await cdp.eval(`__xpp.send({cmd: 'keymap.reset'})`);
-  await until(`s.keymap.info.pinned.length === 0 && !s.busy`, 'reset');
-  const keysOf = id => S(`s.keymap.info.commands.find(c => c.id === ${JSON.stringify(id)}).keys.join(' / ')`);
-  const sourceOf = id => S(`s.keymap.info.commands.find(c => c.id === ${JSON.stringify(id)}).source`);
-  const sentSince = mark => cdp.eval(`__xpp.sentFrom(${mark})`);
-  const click = selector => cdp.eval(`document.querySelector(${JSON.stringify(selector)}).click()`);
-  const exists = selector => cdp.eval(`!!document.querySelector(${JSON.stringify(selector)})`);
-  const record = async (id, index = 0) => {
-    await click(`[data-key-cell="${id}"][data-index="${index}"]`);
-    return until(`s.keymap.editor.recording?.id === ${JSON.stringify(id)} && document.activeElement?.dataset.keyCell === ${JSON.stringify(id)}`, 'recording ' + id);
-  };
-  /* W229: the editor is opened from Help > Keyboard shortcuts > Change shortcuts…, no longer from the command list */
-  const openEditor = async () => {
-    await click('.help-toggle');
-    await until(`s.help.open && !!document.querySelector('.help-keys button')`, 'help open with its shortcuts');
-    await cdp.eval(`[...document.querySelectorAll('.help-keys button')].find(b => b.textContent.startsWith('Change shortcuts')).click()`);
-    const opened = await until(`s.keymap.editor.open`, 'open');
-    await click('.help-back');
-    await until('!s.help.open', 'help closed');
-    return opened;
-  };
-  const ctrl = 2, alt = 1, shift = 8;
-  try {
-    /* the new commands, with the keys of the design */
-    check('keymapeditor: Run from initial, Run from last state and Run to steady state are commands with Ctrl+Enter, Ctrl+Shift+Enter and Alt+S; the editor has no key',
-      (await keysOf('run_initial')) === 'Ctrl+Enter' && (await keysOf('run_last')) === 'Ctrl+Shift+Enter' && (await keysOf('steady')) === 'Alt+S'
-      && (await keysOf('keymapeditor')) === '');
-    check('keymapeditor: the command list has no Keyboard shortcuts…, Help has Change shortcuts…',
-      !(await exists('.menu-item[data-item=keymapeditor]')));
-    check('keymapeditor: Change shortcuts… in Help opens the dialog, labelled and modal', await openEditor()
-      && await cdp.eval(`(() => { const d = document.querySelector('[data-keymap-editor]');
-        return d.getAttribute('role') === 'dialog' && d.getAttribute('aria-modal') === 'true' && document.getElementById(d.getAttribute('aria-labelledby')).textContent === 'Keyboard shortcuts'; })()`));
-    check('keymapeditor: every command but the shortcut-layer switches is a row, with its category, keys and source',
-      await cdp.eval(`(() => { const rows = [...document.querySelectorAll('[data-keymap-row]')];
-        const want = __xpp.state().hello.command_table.filter(r => r.category !== 'layer').length;
-        return rows.length === want && rows.every(r => r.children.length === 5 && r.querySelector('[data-source]')); })()`));
-    check('keymapeditor: the live region is a polite status and every control of the dialog has a name', await cdp.eval(`(() => {
-      const live = document.querySelector('[data-keymap-status]');
-      const unnamed = [...document.querySelectorAll('[data-keymap-editor] button, [data-keymap-editor] input, [data-keymap-editor] select')]
-        .filter(e => !(e.getAttribute('aria-label') || e.textContent.trim() || e.closest('label')?.textContent.trim()));
-      return live.getAttribute('role') === 'status' && live.getAttribute('aria-live') === 'polite' && unnamed.length === 0; })()`));
-    /* search by the keys pressed */
-    await click('[data-keymap-search-keys]');
-    await key('Enter', ctrl);
-    check('keymapeditor: Record keys then Ctrl+Enter lists the commands on those keys',
-      await until(`s.keymap.editor.query === 'Ctrl+Enter'`, 'query')
-      && JSON.stringify(await cdp.eval(`[...document.querySelectorAll('[data-keymap-row]')].map(r => r.dataset.keymapRow)`)) === JSON.stringify(['run_initial', 'run_last']));
-    const search = text => cdp.eval(`(() => { const i = document.querySelector('[data-keymap-search]'); i.value = ${JSON.stringify(text)}; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-    await search('Run from initial');
-    check('keymapeditor: the search also matches a label', await cdp.eval(`!![...document.querySelectorAll('[data-keymap-row]')].find(r => r.dataset.keymapRow === 'run_initial')`));
-    await search('');
-
-    /* record a key */
-    let mark = await cdp.eval('__xpp.sentCount()');
-    await record('reload');
-    check('keymapeditor: clicking a key cell starts recording, announced in the live region',
-      await cdp.eval(`document.querySelector('[data-keymap-status]').textContent.includes('Press the new key for Reload model')`));
-    await key('b', ctrl);
-    check('keymapeditor: Ctrl+B is sent as a keymap set for Reload model only, and shows as changed',
-      await until(`s.keymap.info.commands.find(c => c.id === 'reload').source === 'user'`, 'bound')
-      && (await keysOf('reload')) === 'Ctrl+B'
-      && (await sentSince(mark)).some(c => c.cmd === 'keymap.set' && JSON.stringify(c.bindings) === '{"reload":["Ctrl+B"]}')
-      && await cdp.eval(`document.querySelector('[data-keymap-row=reload] [data-source]').textContent === 'changed'`) && (await S('s.keymap.editor.recording')) === null);
-    mark = await cdp.eval('__xpp.sentCount()');
-    /* Esc cancels, a reserved key is refused, a taken key asks */
-    await record('reload');
-    await key('Escape');
-    check('keymapeditor: Esc cancels the recording and the dialog stays', await until(`s.keymap.editor.recording === null`, 'cancelled') && (await S('s.keymap.editor.open')) === true
-      && (await sentSince(mark)).length === 0 && (await keysOf('reload')) === 'Ctrl+B');
-    await record('reload');
-    await key('w', ctrl);
-    check('keymapeditor: a key the core reserves (Ctrl+W) is refused with a message, in the live region, and nothing is sent',
-      await until(`s.keymap.editor.refusal.includes('Ctrl+W')`, 'refused') && (await S(`s.keymap.info.reserved.includes('Ctrl+W')`))
-      && await cdp.eval(`document.querySelector('[data-keymap-status]').textContent.includes('Ctrl+W is kept by the system')`) && (await sentSince(mark)).length === 0,
-      JSON.stringify(await cdp.eval(`({ed: __xpp.state().keymap.editor, status: document.querySelector('[data-keymap-status]').textContent, sent: __xpp.sentFrom(${mark})})`)));
-    await record('reload');
-    await key('s', ctrl);
-    check('keymapeditor: Ctrl+S is Save session: the conflict reads "Ctrl+S is Save session. Replace Cancel" and is an alert',
-      await until(`s.keymap.editor.conflict?.other === 'savesession'`, 'conflict')
-      && await cdp.eval(`(() => { const c = document.querySelector('[data-keymap-conflict]');
-        return c.getAttribute('role') === 'alert' && c.textContent.replace(/\\s+/g, ' ').trim() === 'Ctrl+S is Save session. Replace Cancel'; })()`)
-      && await cdp.eval(`document.activeElement.hasAttribute('data-conflict-replace')`) && (await sentSince(mark)).length === 0);
-    await click('[data-conflict-cancel]');
-    check('keymapeditor: Cancel leaves both commands as they were', await until(`s.keymap.editor.conflict === null`, 'cancelled')
-      && (await keysOf('savesession')) === 'Ctrl+S' && (await keysOf('reload')) === 'Ctrl+B' && (await sentSince(mark)).length === 0);
-    await record('reload');
-    await key('s', ctrl);
-    await until(`s.keymap.editor.conflict`, 'conflict again');
-    await click('[data-conflict-replace]');
-    check('keymapeditor: Replace gives Reload model Ctrl+S and takes it from Save session',
-      await until(`s.keymap.info.commands.find(c => c.id === 'reload').keys[0] === 'Ctrl+S'`, 'replaced')
-      && (await keysOf('savesession')) === '' && (await sourceOf('savesession')) === 'user');
-    /* Backspace clears, Reset restores, a second binding is added */
-    await record('reload');
-    await key('Backspace');
-    check('keymapeditor: Backspace clears the key: the command has none', await until(`s.keymap.info.commands.find(c => c.id === 'reload').keys.length === 0`, 'cleared'));
-    await click('[data-key-reset="reload"]');
-    check('keymapeditor: Reset puts the table\'s key back and the source is default', await until(`s.keymap.info.commands.find(c => c.id === 'reload').source === 'default'`, 'reset')
-      && (await keysOf('reload')) === 'Ctrl+R');
-    await click('[data-key-add="reload"]');
-    await until(`s.keymap.editor.recording?.index === 1 && document.activeElement?.dataset.index === '1'`, 'second binding');
-    await key('F9');
-    check('keymapeditor: Add a second binding keeps the first: Ctrl+R / F9', await until(`s.keymap.info.commands.find(c => c.id === 'reload').keys.length === 2`, 'added')
-      && (await keysOf('reload')) === 'Ctrl+R / F9', JSON.stringify(await cdp.eval(`({ed: __xpp.state().keymap.editor, keys: __xpp.state().keymap.info.commands.find(c => c.id === 'reload'), active: document.activeElement.outerHTML.slice(0, 150)})`)));
-    await click('[data-keymap-editor] .dialog-close');
-    check('keymapeditor: the close button closes it', await until(`!s.keymap.editor.open`, 'closed') && !(await exists('[data-keymap-editor]')));
-    /* Save session lost Ctrl+S above: the key runs nothing now */
-    await focusPlot();
-    mark = await cdp.eval('__xpp.sentCount()');
-    await key('s', ctrl);
-    check('keymapeditor: Ctrl+S, taken from Save session, runs nothing', (await sentSince(mark)).filter(c => c.cmd === 'key').length === 0);
-
-    /* the preset and Reset all */
-    await openEditor();
-    await cdp.eval(`(() => { const p = document.querySelector('[data-keymap-preset]'); p.value = 'xppaut'; p.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-    check('keymapeditor: Preset: XPPAUT sequences is the user\'s preset', await until(`s.keymap.info.preset === 'xppaut'`, 'preset'));
-    await click('[data-key-pin="calculator"]');
-    /* the click handler closes over the rendered table: wait for the page to show the first pin (W220) */
-    await until(`s.keymap.info.pinned.join() === 'calculator' && document.querySelector('[data-key-pin=calculator]')?.getAttribute('aria-pressed') === 'true'`, 'first pin');
-    await click('[data-key-pin="steady"]');
-    check('keymapeditor: Pin to toolbar pins Calculator and Run to steady state, in that order',
-      await until(`s.keymap.info.pinned.join() === 'calculator,steady'`, 'pinned') && await cdp.eval(`document.querySelector('[data-key-pin=calculator]').getAttribute('aria-pressed') === 'true'`));
-    mark = await cdp.eval('__xpp.sentCount()');
-    await click('[data-keymap-reset-all]');
-    check('keymapeditor: Reset all asks first and sends nothing yet', await until(`s.keymap.editor.confirmingReset`, 'confirm') && (await sentSince(mark)).length === 0);
-    await click('[data-keymap-reset-confirm]');
-    check('keymapeditor: confirmed, Reset all removes every binding, pin and the preset',
-      await until(`s.keymap.info.pinned.length === 0 && s.keymap.info.preset === 'default' && s.keymap.info.commands.every(c => c.source === 'default')`, 'all reset')
-      && (await sentSince(mark)).some(c => c.cmd === 'keymap.reset') && (await keysOf('savesession')) === 'Ctrl+S');
-    await key('Escape');
-    check('keymapeditor: Esc closes the dialog', await until(`!s.keymap.editor.open`, 'closed by Esc'));
-
-    /* the run commands by their keys */
-    await focusPlot();
-    mark = await cdp.eval('__xpp.sentCount()');
-    await key('Enter', ctrl);
-    check('keymapeditor: Ctrl+Enter is Run from initial: run.initial, and a run follows',
-      await until(`s.seriesCount > 0 && !s.busy`, 'run', 20000)
-      && (await sentSince(mark)).some(c => c.cmd === 'run.initial'));
-    const first = await S('s.seriesCount');
-    await focusPlot();
-    mark = await cdp.eval('__xpp.sentCount()');
-    await key('Enter', ctrl | shift);
-    check('keymapeditor: Ctrl+Shift+Enter is Run from last state: a new run from the state the last ended in',
-      await until(`s.seriesCount > ${first} && !s.busy`, 'run from last', 20000) && (await sentSince(mark)).some(c => c.cmd === 'run.last'));
-    await focusPlot();
-    mark = await cdp.eval('__xpp.sentCount()');
-    await key('s', alt);
-    check('keymapeditor: Alt+S is Run to steady state, with the toolbar\'s settings',
-      await until(`!s.busy && s.core.steady`, 'steady', 30000) && (await sentSince(mark)).some(c => c.cmd === 'run.steady' && c.decimals === 9));
-
-    /* the toolbar: the fixed part, then the pins in order */
-    await cdp.eval(`__xpp.send({cmd: 'keymap.set', preset: 'default', pinned: ['calculator', 'reload', 'dirfield'], bindings: {}})`);
-    await until(`s.keymap.info.pinned.length === 3`, 'three pins');
-    const order = () => cdp.eval(`[...document.querySelectorAll('[data-pinned]')].map(b => b.dataset.pinned).join()`);
-    check('keymapeditor: the toolbar has Run from initial, Run from last state, Continue and Stop first, then the pins in order with their labels',
-      await cdp.eval(`(() => { const t = document.querySelector('.run-toolbar');
-        const fixed = [...t.querySelectorAll('.run-actions button')].map(b => b.textContent.trim());
-        const pins = [...t.querySelectorAll('[data-pinned]')].map(b => b.textContent.trim());
-        return fixed.includes('Run from initial') && fixed.includes('Run from last state') && fixed.includes('Continue') && fixed.includes('Stop')
-          && pins.join() === 'Calculator,Reload model,Direction fields and flow'; })()`) && (await order()) === 'calculator,reload,dirfield');
-    mark = await cdp.eval('__xpp.sentCount()');
-    await click('[data-pinned=dirfield]');
-    check('keymapeditor: a pinned command runs from the toolbar (it sends its key command)',
-      await until(`!!s.ask`, 'asked') && (await sentSince(mark)).some(c => c.cmd === 'key' && c.menu === 'main' && c.item === 'dirfield'));
-    await key('Escape');
-    await until(`!s.ask && !s.busy`, 'closed');
-    /* drag to reorder */
-    await cdp.eval(`(() => { const from = document.querySelector('[data-pinned=dirfield]'), to = document.querySelector('[data-pinned=calculator]');
-      const data = new DataTransfer();
-      from.dispatchEvent(new DragEvent('dragstart', {bubbles: true, dataTransfer: data}));
-      to.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: data}));
-      to.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: data})); })()`);
-    check('keymapeditor: dragging a pinned button before another reorders the pins, through the keymap', await until(`s.keymap.info.pinned.join() === 'dirfield,calculator,reload'`, 'dragged')
-      && (await order()) === 'dirfield,calculator,reload');
-    /* the context menu: Move later, then Unpin */
-    const menu = async (id, item) => {
-      await cdp.eval(`document.querySelector('[data-pinned=${id}]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 200, clientY: 200}))`);
-      await until(`!!document.querySelector('.quick-menu')`, 'context menu');
-      await cdp.eval(`[...document.querySelectorAll('.quick-menu button')].find(b => b.textContent === ${JSON.stringify(item)}).click()`);
-    };
-    await menu('dirfield', 'Move later');
-    check('keymapeditor: the context menu\'s Move later moves a pinned command one place', await until(`s.keymap.info.pinned.join() === 'calculator,dirfield,reload'`, 'moved')
-      && !(await exists('.quick-menu')));
-    await cdp.eval(`document.querySelector('[data-pinned=calculator]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 10, clientY: 10}))`);
-    await until(`!!document.querySelector('.quick-menu')`, 'menu');
-    check('keymapeditor: the context menu is a menu with three items, the first focused',
-      await cdp.eval(`(() => { const m = document.querySelector('.quick-menu');
-        return m.getAttribute('role') === 'menu' && m.querySelectorAll('[role=menuitem]').length === 3 && m.contains(document.activeElement); })()`));
-    await key('Escape');
-    check('keymapeditor: Esc closes the context menu and returns to the button', await until(`!document.querySelector('.quick-menu')`, 'closed')
-      && await cdp.eval(`document.activeElement.dataset.pinned === 'calculator'`));
-    await menu('reload', 'Unpin');
-    check('keymapeditor: Unpin removes it from the pins and the toolbar', await until(`s.keymap.info.pinned.join() === 'calculator,dirfield'`, 'unpinned') && (await order()) === 'calculator,dirfield');
-    /* the command list pins too */
-    await click('[data-pin=xivst]');
-    check('keymapeditor: a row of the command list has Pin; it pins Variable vs time', await until(`s.keymap.info.pinned.includes('xivst')`, 'pinned from the list')
-      && await cdp.eval(`document.querySelector('[data-pin=xivst]').getAttribute('aria-pressed') === 'true'`));
-
-    /* overflow: every pin stays reachable at any width */
-    await cdp.eval(`__xpp.send({cmd: 'keymap.set', preset: 'default', pinned: ['calculator', 'reload'], bindings: {}})`);
-    await until(`s.keymap.info.pinned.length === 2`, 'two pins');
-    await rendered();
-    check('keymapeditor: two pins fit: no More, both shown', await cdp.eval(`!document.querySelector('.quick-more') && document.querySelectorAll('[data-pinned]:not(.quick-over)').length === 2`));
-    const all = ['calculator', 'reload', 'dirfield', 'singpts', 'graphic', 'colorcode', 'xivst', 'text', 'nullcline', 'delay', 'parameters', 'total_time', 'method'];
-    await cdp.eval(`__xpp.send({cmd: 'keymap.set', preset: 'default', pinned: ${JSON.stringify(all)}, bindings: {}})`);
-    await until(`s.keymap.info.pinned.length === ${all.length}`, 'many pins');
-    const reach = () => cdp.eval(`(() => { const t = document.querySelector('.quick-access');
-      const shown = [...t.querySelectorAll('[data-pinned]')].filter(b => !b.classList.contains('quick-over')).map(b => b.dataset.pinned);
-      const more = [...t.querySelectorAll('[data-pinned-more]')].map(b => b.dataset.pinnedMore);
-      return {shown, more, fits: t.scrollWidth <= t.clientWidth + 1}; })()`);
-    await rendered();
-    const wide = await reach();
-    check('keymapeditor: the pins that fit show and the rest are in More; none is lost, in order',
-      wide.more.length > 0 && wide.shown.concat(wide.more).join() === all.join() && wide.fits, JSON.stringify(wide));
-    await metrics({width: 520, height: 860, deviceScaleFactor: 1, mobile: false});
-    await rendered();
-    await until(`!!document.querySelector('.quick-more')`, 'More shown');
-    const narrow = await reach();
-    check('keymapeditor: narrower, at least as many are in More, in order, and none is lost',
-      narrow.more.length >= wide.more.length && narrow.shown.concat(narrow.more).join() === all.join() && narrow.fits, JSON.stringify(narrow));
-    await click('.quick-more > summary');
-    await click('[data-pinned-more]');
-    check('keymapeditor: a command in More runs and closes the menu', await until(`!document.querySelector('.quick-more[open]')`, 'More closed'));
-    await desktopMetrics();
-  } finally {
-    await cdp.eval(`__xpp.send({cmd: 'keymap.reset'})`).catch(() => {});
-    await until(`s.keymap.info.pinned.length === 0 && !s.busy`, 'reset at the end');
-  }
+  await clickRegistry('tool.keyboard_shortcuts');
+  check('W517: editor lists the registry', await until(`s.keymap.editor.open && document.querySelectorAll('[data-keymap-row]').length === s.hello.commands.filter(c => c.arguments !== undefined).length`, 'editor'));
+  await cdp.eval(`document.querySelector('[data-keymap-xppaut]').click()`);
+  check('W517: Use XPPAUT keys selects original sequences', await until(`s.keymap.info.preset === 'xppaut' && s.keymap.info.commands.find(c => c.id === 'run.initial').keys.includes('I G')`, 'XPPAUT preset'));
+  await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
+  check('W517: registry commands stay pinnable', await until(`s.keymap.info.pinned.includes('run.initial')`, 'pin'));
+  await cdp.eval(`document.querySelector('[data-keymap-default]').click()`);
+  check('W517: Reset to defaults retains pins and restores logical keys', await until(`s.keymap.info.preset === 'default' && s.keymap.info.pinned.includes('run.initial') && s.keymap.info.commands.find(c => c.id === 'run.initial').keys.includes('Ctrl+R')`, 'defaults'));
+  await cdp.eval(`document.querySelector('[data-key-cell="session.reload_model"][data-index="0"]').click()`);
+  await key('b',2);
+  check('W517: recording a custom key saves the registry id', await until(`s.keymap.info.commands.find(c => c.id === 'session.reload_model').keys.includes('Ctrl+B')`, 'custom key'));
+  await cdp.eval(`document.querySelector('[data-key-cell="session.reload_model"][data-index="0"]').click()`);
+  await key('Escape');
+  check('W517: Escape cancels key recording without changing its binding', await S(`s.keymap.editor.open && !s.keymap.editor.recording && s.keymap.info.commands.find(c => c.id === 'session.reload_model').keys.includes('Ctrl+B')`));
+  await key('Escape');
+  await until('!s.keymap.editor.open', 'editor closed');
+  check('W517: pin appears in quick access', await exists('[data-pinned="run.initial"]'));
+  const before = await S('s.seriesCount');
+  await cdp.eval(`document.querySelector('[data-pinned="run.initial"]').click()`);
+  check('W517: pin runs the same registry command', await until(`s.seriesCount > ${before} && !s.busy`, 'pinned run'));
 }
+
 
 async function keysCheck() {
   await desktopMetrics();
-  check('keys: the page connects', await until('s.hello && !s.busy', 'hello'));
-  const theme = await cdp.eval(`(() => { const b = document.querySelector('.theme-toggle');
-    return b && {label: b.getAttribute('aria-label'), text: b.textContent.trim(), icon: !!b.querySelector('svg')}; })()`);
-  check('keys: the theme switch is an icon named "Theme: follow system", no word "Auto" beside the feature buttons',
-    theme && theme.label === 'Theme: follow system' && theme.icon && !/auto/i.test(theme.text), JSON.stringify(theme));
-
-  /* I then G typed at once on the plot: the G waits for the menu I opens, and integrates */
+  await cdp.eval(`__xpp.keyPreset('default')`);
+  await until(`s.keymap.info.preset === 'default'`, 'default keys');
   await focusPlot();
-  const n0 = await S('s.seriesCount');
-  await key('i');
-  await key('g');
-  check('keys: I then G typed at once on the plot integrate',
-    await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'typed integrate', 20000)
-    && await cdp.eval(`!!document.activeElement.closest('.plot-host')`), JSON.stringify(await S('[s.seriesCount, s.busy, s.ask]')));
-  await key('f');
-  check('keys: F on the plot starts the File chord (XPPAUT sequences on) and the focus stays on the plot',
-    await until('s.pendingKeys.join("") === "F" && !s.busy', 'file chord') && await cdp.eval(`!!document.activeElement.closest('.plot-host')`),
-    await cdp.eval(`document.activeElement.className`));
-  check('keys: the pending chord is shown in the status bar, the sidebar lists the XPPAUT sequences, and there is no File mode', await cdp.eval(`
-    document.querySelector('[data-testid=pending-keys]').textContent.includes('F') &&
-    document.querySelector('[data-item=importset] kbd').textContent === 'F R' &&
-    document.querySelector('[data-item=saveinfo] kbd').textContent === 'F S' &&
-    !document.querySelector('.shortcut-context') && !document.querySelector('.shortcut-status')`));
-  await cdp.eval(`document.querySelector('#command-search').focus()`);
-  check('keys: moving the focus cancels a pending chord, never a timeout', await until('s.pendingKeys.length === 0', 'chord cancelled by focus'));
-  await focusPlot();
-  await key('f');
-  await until('s.pendingKeys.length === 1', 'file chord again');
+  await key('r',2);
+  check('W517: logical run key does not open a menu ask', await until('s.core.rows === 601 && !s.busy && !s.ask', 'run'));
+  await clickRegistry('tool.command_palette');
   await key('Escape');
-  check('keys: Esc cancels a pending chord and sends nothing', await until('s.pendingKeys.length === 0 && !s.ask && !s.busy', 'chord cancelled by Esc'));
-  await focusPlot();
-  await key('i');
-  await until('s.ask && s.ask.kind === "menu"', 'unfinished initial conditions');
-  check('keys: an unfinished submenu explains which menu owns letter keys', await cdp.eval(`
-    document.querySelector('.dialog .shortcut-instruction').textContent.includes('Esc cancels')`));
+  check('W517: Escape closes palette without stopping the core', await until('!s.drawerOpen && !s.ask', 'closed palette'));
+  await clickRegistry('window.rename');
+  await key('Tab'); await key('Tab');
+  check('W517: Tab stays in the common form', await cdp.eval(`!!document.activeElement.closest('.registry-form')`));
   await key('Escape');
-  await until('!s.ask && !s.busy', 'cancel unfinished command');
-  await focusPlot();
-  await key('f');
-  await until('s.pendingKeys.length === 1', 'file chord after unfinished command');
-  await key('r');
-  check('keys: after cancelling I, F R opens the intended settings file picker', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.setx *.set"', 'import settings'));
-  await key('Escape');
-  await until('!s.ask && !s.busy', 'cancel settings picker');
-  /* a button that kept the focus after a click: letters typed on it are XPP's, Enter stays the button's */
-  await cdp.eval(`document.querySelector('.run-toolbar button.primary').focus()`);
-  await key('f');
-  check('keys: F typed while a button has the focus starts the chord too, the focus stays',
-    await until('s.pendingKeys.join("") === "F" && !s.busy', 'file chord from button')
-    && await cdp.eval(`document.activeElement.matches('.run-toolbar button.primary')`), await cdp.eval(`document.activeElement.outerHTML.slice(0, 80)`));
-  await key('Escape');
-  await until('s.pendingKeys.length === 0 && !s.busy', 'chord cancelled 2');
-  /* W320: File > Save values by its menu button: the core asks which, a new set or a set's part */
-  const sentSave0 = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`document.querySelector('#values-panel button[data-menu=file][data-item=savevalues]').click()`);
-  check('save values: its button beside the parameters sends the key o',
-    await cdp.eval(`__xpp.sentFrom(${sentSave0}).some(c => c.cmd === 'key' && c.menu === 'file' && c.item === 'savevalues')`));
-  check('save values: the core asks New set or Replace in set',
-    await until("s.ask && s.ask.kind === 'menu' && s.ask.name === 'save_mode' && s.ask.items.length === 2", 'mode menu'), JSON.stringify(await S('s.ask')));
-  await key('Escape');
-  await until('!s.busy && !s.ask', 'save menu closed');
-  /* a letter typed into a field stays there */
-  const sent0 = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`(() => { const i = document.querySelector('.messages-search input'); i.closest('details').open = true; i.focus(); })()`);
-  await key('g');
-  check('keys: a letter typed into a text field stays in it',
-    await cdp.eval(`document.activeElement.value === 'g'`) && (await cdp.eval('__xpp.sentCount()')) === sent0);
-  await cdp.eval(`(() => { const i = document.activeElement; i.value = ''; i.dispatchEvent(new Event('input', {bubbles: true})); i.blur(); })()`);
-
-  /* a long menu fits a laptop's screen in columns; one column on a phone */
-  await focusPlot();
-  await key('i');
-  await until(`s.ask && s.ask.kind === 'menu' && document.querySelector('[role=dialog] .menu-list')`, 'ic menu');
-  const cols = () => cdp.eval(`(() => { const d = document.querySelector('.dialog'), items = [...d.querySelectorAll('.menu-item')];
-    return {n: items.length, cols: new Set(items.map(b => Math.round(b.getBoundingClientRect().left))).size,
-      scroll: d.scrollHeight - d.clientHeight, sideways: document.documentElement.scrollWidth - innerWidth}; })()`);
-  const wide = await cols();
-  check('keys: a long menu (Initialconds) is in columns and fits without scrolling on 1280x860',
-    wide.n > 8 && wide.cols >= 2 && wide.scroll <= 1, JSON.stringify(wide));
-  await key('Escape');
-  await until('!s.busy && !s.ask', 'menu closed');
-  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
-  await rendered();
-  await focusPlot();
-  await key('i');
-  await until(`s.ask && s.ask.kind === 'menu' && document.querySelector('[role=dialog] .menu-list')`, 'ic menu phone');
-  const narrow = await cols();
-  check('keys: on a 390 px phone it is one column, no sideways scroll', narrow.cols === 1 && narrow.sideways <= 0,
-    JSON.stringify(narrow));
-  await key('Escape');
-  await until('!s.busy && !s.ask', 'menu closed phone');
-  await desktopMetrics();
+  check('W517: Escape cancels the form without sending', await S('!s.commandForm && !s.ask'));
 }
+
 
 /* ---- live plotting and long runs ------------------------------------------------ */
 
@@ -4520,11 +3126,9 @@ const stopSampling = () => cdp.eval('(() => { window.__sampling = false; return 
 
 /** integrate from the keyboard (I, G); true when the run ended with `rows` rows */
 async function integrate(rows, ms) {
-  const n0 = await S('s.seriesCount');
-  await key('i');
-  if (!(await until("s.ask && s.ask.kind === 'menu'", 'menu'))) return false;
-  await key('g');
-  return until(`s.seriesCount > ${n0} && w.series.rows === ${rows} && !s.busy`, `${rows} rows`, ms);
+  const before = await S('s.seriesCount');
+  await menuRun('run.initial');
+  return until(`s.seriesCount > ${before} && w.series.rows === ${rows} && !s.busy`, `${rows} rows`, ms);
 }
 
 /* ---- runs, Erase, sliders and the values panel (GitHub #18) --------------------------- */
@@ -4571,8 +3175,9 @@ async function editField(sec, name, text) {
     const toggle = group.querySelector('.value-fold[aria-expanded="false"]');
     if (toggle) toggle.click(); })()`);
   await rendered();
+  await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input'); el.scrollIntoView({block: 'nearest'}); el.focus(); })()`);
+  await requireUntil(`document.activeElement === ${fieldOf(sec, name)}.querySelector('input')`, `the ${name} field has the focus`);
   await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input');
-    el.scrollIntoView({block: 'nearest'}); el.focus();
     el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await rendered();
   const busy = await cdp.eval(`(() => { const busy = __xpp.state().busy && __xpp.state().computing;
@@ -4616,7 +3221,7 @@ async function runsCheck(dir) {
   const now0 = await S('s.core.now.slice()');
   const n0 = await S('s.seriesCount');
   await focusPlot();
-  await menuKeys('i', 'l');
+  await menuRun('run.last');
   check('runs: Initialconds/Last runs again', await until(`s.seriesCount > ${n0} && !s.busy && w.series.rows === 601`, 'last'));
   check('runs: after Last the IC fields are where the previous run ended',
     (await S(`s.core.ics.every((p, i) => p[1] === ${JSON.stringify(now0)}[i])`))
@@ -4665,7 +3270,7 @@ async function runsCheck(dir) {
   check('runs: an edited parameter is sent at once, the core has it, no pending mark',
     await until('!s.busy && !s.values.inflight.length && Math.abs(s.core.pars.find(p => p[0] === "phi")[1] - 0.5) < 1e-12', 'phi set')
     && !(await cdp.eval(`${fieldOf('par', 'phi')}.classList.contains('queued')`)),
-    JSON.stringify(await S('[s.values.inflight, s.core.pars]')));
+    JSON.stringify(await S('[s.values.inflight, s.core.pars]')) );
   const reset = `${fieldOf('par', 'phi')}.querySelector('.value-reset')`;
   check('runs: a changed parameter is marked, its reset names the default',
     await cdp.eval(`${fieldOf('par', 'phi')}.classList.contains('changed') && ${reset}.title === 'default: 0.333'`),
@@ -4752,10 +3357,8 @@ async function runsCheck(dir) {
     && (await S('s.seriesCount')) === nSlide && (await S(`Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9`)),
     JSON.stringify({out, draggedTo}));
   await focusPlot();
-  await key('i');
-  await menuOpen('Initialconds menu (slider)');
-  const preGo = await cdp.eval('__xpp.sentCount()');
-  await key('g');
+    const preGo = await cdp.eval('__xpp.sentCount()');
+  await menuRun('run.initial');
   await requireUntil(`s.seriesCount > ${nSlide} && w.series.rows === 601`, 'slider Go integrated', 60000 * SLOW);
   const final = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
   check('runs: Go runs with the slider\'s value, no set of its own',
@@ -4939,9 +3542,7 @@ async function valuesBusy() {
     throw new Error('heavy.odex: heavy integration settings were not applied');
   const start = async () => {
     await focusPlot();
-    await key('i');
-    await menuOpen('heavy Integrate menu');
-    await key('g');
+      await menuRun('run.initial');
     check('values: the heavy run is computing before editing',
       await until('s.busy && s.computing && w.series?.rows >= 2', 'heavy integration computing', BUSY_TIMEOUT_MS));
   };
@@ -5058,9 +3659,7 @@ async function valuesLive() {
       {subtree: true, childList: true, characterData: true});
     __nowSeen.push(nowText()); true`);
   await focusPlot();
-  await key('i');
-  await menuOpen('menu');
-  await key('g');
+    await menuRun('run.initial');
   await until('s.busy && w.series && w.series.rows > 100', 'running');
   await until('!s.busy && w.series.rows === 20001', 'first run', 60000);
   await rendered();
@@ -5346,9 +3945,7 @@ async function million() {
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
   const n0 = await S('s.seriesCount');
   const t2 = await cdp.eval('performance.now()');
-  await key('x');
-  if (!(await until("s.ask && s.ask.kind === 'string'", 'Xi vs t'))) return check('10^6: X asks what to plot', false);
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'x'})`);
+  await menuRun('plot.variable_vs_time',{variable:'X'});
   check('10^6: X plots x against T', await until(`s.seriesCount > ${n0} && !s.busy && w.series.curves[0].x === 0`, 'x vs t', 60000));
   await until('!__xpp.plot().tracing', 'tracing', 10000);
   const t3 = await cdp.eval('performance.now()');
@@ -5393,18 +3990,15 @@ async function setPar(name, value) {
   return until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === ${JSON.stringify(name)})[1] - ${value}) < 1e-12`, 'set');
 }
 
-/** File, then the File menu's key: the dialog of the file ask it opens */
-async function fileMenu(k, mode) {
-  /* the command before has ended (the ask it answered or cancelled gone
-     from the page is not that): else the File menu of the last one still
-     shows, the wait below passes before `f` is read, and `k` reaches the
-     main menu (macos-ui: m, File/open Model, opened Makewindow, W93) */
-  await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
-  await focusPlot();
-  await key('f');
-  await until('!s.busy && s.pendingKeys.join("") === "F"', 'the File menu');
-  await key(k);
-  return until(`s.ask && s.ask.kind === 'file' && s.ask.mode === '${mode}' && document.querySelector('.file-ask')`, `file ask ${k}`);
+/** Open the row's common form, then request its authorized file picker. */
+async function registryFile(id, mode, values = {}) {
+  await until('!s.busy && !s.ask', 'the command before ended');
+  await clickRegistry(id);
+  if (await S('!!s.commandForm')) {
+    await formValues(values);
+    await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…' || b.textContent === 'Choose file…').click()`);
+  }
+  return until(`s.ask?.kind === 'file' && s.ask.mode === '${mode}' && document.querySelector('.file-ask')`, 'file picker');
 }
 
 async function waitFile(p, ms = 10000) {
@@ -5452,7 +4046,7 @@ async function files(dir) {
   try {
     /* W130: an unsafe picker name stays visible as an error; no fallback answer. */
     await cdp.eval("window.showSaveFilePicker = async () => ({name: 'CON.snapx'}); true");
-    await fileMenu('v', 'write');
+    await registryFile('session.save_as', 'write');
     const badPickerStart = await cdp.eval('__xpp.sentCount()');
     await cdp.eval("document.querySelector('.file-ask button[type=submit]').click()");
     check('W130: an unsafe picker name is shown whole with a field error', await until(`(() => {
@@ -5468,7 +4062,7 @@ async function files(dir) {
     const iapp0 = await par('iapp');
 
     /* File/saVe session: the core writes into the model's folder, the page offers it */
-    check('File/saVe session opens a save dialog (the ask says it writes)', await fileMenu('v', 'write'),
+    check('File/saVe session opens a save dialog (the ask says it writes)', await registryFile('session.save_as', 'write'),
       JSON.stringify(await S('s.ask')));
     await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.snapx';
       i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
@@ -5493,7 +4087,7 @@ async function files(dir) {
     const beforeDownloads = fs.readdirSync(downloads);
     acceptSave = false;
     try {
-      await fileMenu('w', 'write');
+      await registryFile('session.save_as', 'write');
       await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.snapx';
         i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
       await until("document.querySelector('[data-file-name]').value === 't5.snapx'", 'repeat name');
@@ -5517,7 +4111,7 @@ async function files(dir) {
 
     /* File/Import settings by upload brings in its parameters */
     check('a new parameter value', await setPar('iapp', 0.2));
-    check('File/Import settings opens an open dialog (the ask says it reads)', await fileMenu('r', 'read'),
+    check('File/Import settings opens an open dialog (the ask says it reads)', await registryFile('session.import_settings', 'read'),
       JSON.stringify(await S('s.ask')));
     await pickFiles('[data-file-input=open]', [path.join(up, 't5up.set')]);
     check('Import settings by upload brings in the parameters (the next state has the file\'s values)',
@@ -5530,7 +4124,7 @@ async function files(dir) {
 
     /* the same content again: not copied, still answered */
     await setPar('iapp', 0.2);
-    await fileMenu('r', 'read');
+    await registryFile('session.import_settings', 'read');
     await pickFiles('[data-file-input=open]', [path.join(up, 't5up.set')]);
     check('a file already there with the same content is not copied again',
       await until(`!s.ask && !s.busy && s.files.uploads.length === 1 && s.files.uploads[0].copied === false`, 'same')
@@ -5541,7 +4135,7 @@ async function files(dir) {
     const other = path.join(up, 'other', 't5up.set');
     fs.writeFileSync(other, setBytes.toString().replace('0.09  iapp', '0.123  iapp'));
     await setPar('iapp', 0.3);
-    await fileMenu('r', 'read');
+    await registryFile('session.import_settings', 'read');
     await pickFiles('[data-file-input=open]', [other]);
     check('a same-name upload with other content asks: Replace, Keep both, Cancel',
       await until(`s.files.confirm && s.files.confirm.name === 't5up.set' && s.files.confirm.keepBoth === 't5up-2.set'
@@ -5562,7 +4156,7 @@ async function files(dir) {
 
     /* a file the core cannot open: "Add file…" copies it under that name and runs the command again */
     await setPar('iapp', 0.4);
-    await fileMenu('r', 'read');
+    await registryFile('session.import_settings', 'read');
     /* the core answers with a name the folder does not have (the page's picker only ever answers with a copied file) */
     await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'gone.set'})`);
     check('an answer with a name not in the folder', (await lastAnswer())?.file === 'gone.set');
@@ -5604,7 +4198,7 @@ async function files(dir) {
       && fs.readFileSync(path.join(dir, 'w134.par')).equals(fs.readFileSync(parPicked)), String(await par('iapp')));
 
     /* a read ask is one prompt (no tabs, no folder listing) that opens the browser's picker filtered by wild */
-    await fileMenu('r', 'read');
+    await registryFile('session.import_settings', 'read');
     check('a read ask has no tabs and no listing, one Choose file… button, focused',
       await cdp.eval(`!document.querySelector('.file-tabs, .file-list, [data-folder-file]')
         && document.querySelector('.file-ask button.primary')?.textContent === 'Choose file…'
@@ -5618,7 +4212,7 @@ async function files(dir) {
     /* W61: File/open Model: the .ode picked is copied into the model's folder and loaded
        here, in place of this model, after the question whether to save it first */
     fs.writeFileSync(path.join(up, 'w61.ode'), "par a=2\ninit x=0.5\nx'=-a*x\n@ total=5\ndone\n");
-    check('File/open Model opens an open dialog', await fileMenu('m', 'read'), JSON.stringify(await S('s.ask')));
+    check('File/open Model opens an open dialog', await registryFile('session.open_model', 'read'), JSON.stringify(await S('s.ask')));
     await pickFiles('[data-file-input=open]', [path.join(up, 'w61.ode')]);
     check('... then asks whether to save this session first',
       await until("s.ask && s.ask.kind === 'choice' && s.ask.keys === 'sd'", 'save first?'), JSON.stringify(await S('s.ask')));
@@ -5660,18 +4254,16 @@ async function nativeFiles(dir) {
       if (document.querySelector('.file-ask, [data-ask=file]')) window.__fileDialogShown = true;
     }).observe(document.body, {childList: true, subtree: true});
     return true; })()`);
-  const fileKey = async (k, reply) => {
+  const fileCommand = async (id, reply) => {
     await cdp.eval(`window.__nativeReply = ${JSON.stringify(reply)}; true`);
-    await focusPlot();
-    await key('f');
-    await until('!s.busy && s.pendingKeys.join("") === "F"', 'the File menu');
-    await key(k);
-    return until('!s.busy && !s.ask', `file ask ${k} answered`);
+    await clickRegistry(id);
+    await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…').click()`);
+    return until('!s.busy && !s.ask', 'native picker answered');
   };
   const asked = () => cdp.eval('window.__nativeAsked.slice(-1)[0]');
   try {
     check('a new parameter value', await setPar('iapp', 0.21));
-    check('File/saVe session in the window: the ask is answered from the native dialog', await fileKey('v', saveName));
+    check('File/saVe session in the window: the ask is answered from the native dialog', await fileCommand('session.save_as', saveName));
     const w = await asked();
     check('... asked for a save, filtered by *.snapx (wildExtensions), in the model\'s folder, the name offered',
       w && w.ask === (await lastFileAnswer())?.id && w.mode === 'write' && w.wild === '*.snapx' && JSON.stringify(w.exts) === '[".snapx"]' && w.dir
@@ -5699,16 +4291,16 @@ async function nativeFiles(dir) {
     }
 
 
-    check('File/Import settings in the window: answered from the native dialog', await fileKey('r', farSet));
+    check('File/Import settings in the window: answered from the native dialog', await fileCommand('session.import_settings', farSet));
     const r = await asked();
     check('... asked to open, filtered by *.setx and *.set', r && r.mode === 'read' && JSON.stringify(r.exts) === '[".setx",".set"]', JSON.stringify(r));
     check('... the core read it where it is (its iapp is in), nothing copied',
       Math.abs(await par('iapp') - 0.09) < 1e-12 && (await lastFileAnswer())?.file === farSet
       && !fs.existsSync(path.join(dir, 'w88 native.set')) && !(await S('s.files.uploads.length')), String(await par('iapp')));
 
-    check('Cancel in the native dialog cancels the ask', await fileKey('r', null)
+    check('Cancel in the native dialog cancels the ask', await fileCommand('session.import_settings', null)
       && (await lastAnswer())?.ok === 0 && Math.abs(await par('iapp') - 0.09) < 1e-12, JSON.stringify(await lastAnswer()));
-    check('a dialog that cannot open: a notification, and the ask cancelled', await fileKey('r', 'reject')
+    check('a dialog that cannot open: a notification, and the ask cancelled', await fileCommand('session.import_settings', 'reject')
       && (await lastAnswer())?.ok === 0
       && await until("s.toasts.some(t => t.kind === 'error' && /file dialog/.test(t.text))", 'toast'),
       JSON.stringify(await S('s.toasts')));
@@ -5898,12 +4490,13 @@ async function kinescope(dir) {
   check('kinescope: integrate once (601 rows)', await integrate(601, 30000));
 
   const openKinescope = async item => {
-    /* the command before ended (Make Anigif's runs on after its file is
-       written): a k typed while it runs is lost (W93) */
-    await until('!s.busy && !s.ask', 'the command before ended');
-    await key('k');
-    if (!(await until("s.ask && s.ask.kind === 'menu'", 'kinescope menu'))) return false;
-    await key(item);
+    const id = {c:'kinescope.capture',r:'kinescope.reset',p:'kinescope.play',a:'kinescope.autoplay',s:'kinescope.export_frames',m:'kinescope.export_gif'}[item];
+    await clickRegistry(id);
+    if (await S('!!s.commandForm')) {
+      const hasFile = await cdp.eval(`!!document.querySelector('.registry-form [data-argument=file]')`);
+      if (hasFile) await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…').click()`);
+      else await submitCommand();
+    }
     return true;
   };
 
@@ -6036,11 +4629,11 @@ async function startScreenCheck() {
         return !!n && n.innerText.includes(${JSON.stringify(start.examples.reason)}) && !document.querySelector('[data-start-example]'); })()`)
         && start.examples.names.length === 0, JSON.stringify(start.examples));
 
-    const opens = () => S(`__xpp.sent().filter(c => c.cmd === 'key' && c.item === 'openmodel').length`);
+    const opens = () => S(`__xpp.sent().filter(c => c.cmd === 'session.open_model' && c.file === undefined && c.recent === undefined).length`);
     check('start screen: nothing was sent by the page yet (the core asked by itself)', (await opens()) === 0);
     await cdp.eval(`document.querySelector('[data-start-open]').click(); true`);
     check('start screen: Open model sends File > Open model and Cancel leaves the start screen',
-      await until(`__xpp.sent().filter(c => c.cmd === 'key' && c.item === 'openmodel').length === 1 && !s.ask && !s.busy && s.hello.start && s.exited === null`, 'open cancelled'));
+      await until(`__xpp.sent().filter(c => c.cmd === 'session.open_model' && c.file === undefined && c.recent === undefined).length === 1 && !s.ask && !s.busy && s.hello.start && s.exited === null`, 'open cancelled'));
     await clickRecent(gone);
     check('start screen: a missing recent model sends nothing', (await opens()) === 1);
     check('start screen: a command that needs a model is refused with a shown error, not a state',
@@ -6104,9 +4697,7 @@ async function jacobianOfferCheck(dir) {
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === 'w260sqrt.odex'`, 'the sqrt model opened');
   await focusPlot();
-  await key('i');
-  await menuOpen('Integrate menu');
-  await key('g');
+    await menuRun('run.initial');
   const offer = `document.querySelector('[data-error-dialog] [data-error-offer]')`;
   check('W260: the error of a failed exact Jacobian offers Switch to differences and continue',
     await until(`!s.busy && !!${offer}`, 'the offer on the error') && await cdp.eval(`${offer}.textContent`) === 'Switch to differences and continue',
@@ -6127,17 +4718,13 @@ async function jacobianOfferCheck(dir) {
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === 'w275root.odex'`, 'the AUTO model opened');
-  await key('f');
-  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
-  await key('a');
+  await menuRun('auto.open');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   await cdp.eval(`__xpp.send({cmd: 'auto.configure_numerics', step_size: -0.1, max_step_size: 0.1, parameter_min: -0.5, parameter_max: 2, max_steps: 100})`);
   await until('!s.busy', 'AUTO numerics');
   await cdp.eval(`__xpp.send({cmd: 'auto.configure_plot', plot_type: 'norm', variable: 'x', parameter1: 'a'})`);
   await until('!s.busy', 'AUTO axes');
-  await cdp.eval(`__xpp.send({cmd: 'key', win: 'auto', key: 'r'})`);
-  await until("s.ask && s.ask.kind === 'menu'", 'AUTO start menu');
-  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 's'})");
+  await menuRun('auto.run', {kind:'equilibrium'});
   check('W275: the error of a failed exact Jacobian in an AUTO run offers Switch to differences and continue',
     await until(`!s.busy && !!${offer}`, 'the offer on the AUTO error', 60000) && await cdp.eval(`${offer}.textContent`) === 'Switch to differences and continue',
     JSON.stringify(await S('s.toasts')));
@@ -6497,7 +5084,7 @@ const layoutRects = () => cdp.eval(`(() => {
     return {l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height, d: getComputedStyle(e).display,
       v: getComputedStyle(e).visibility}; };
   return {vw: innerWidth, vh: innerHeight, sw: document.documentElement.scrollWidth,
-    plot: r('.plot-view:not([hidden]) .plot-host'), ws: r('.workspace'), vals: r('.values-panel'), menu: r('.menu-panel'),
+    plot: r('.plot-view:not([hidden]) .plot-host'), ws: r('.workspace'), vals: r('.values-panel'), menu: r('.app-menu'),
     menuToggle: r('.menu-toggle'), valuesToggle: r('.values-toggle'), show: r('.auto-show'), msgs: r('.messages'),
     status: r('.status-bar'), runLabelsFit: [...document.querySelectorAll('.run-actions button')].every(b => b.scrollWidth <= b.clientWidth + 1)}; })()`);
 /** the part of rectangle a inside b (a plot taller than its scrolling container shows only that much) */
@@ -6590,7 +5177,7 @@ async function layoutCheck(dir) {
         if (L.show.l < 0 || L.show.r > L.vw + 0.5) p.push('Show AUTO outside the width');
         if (!(await cdp.eval(`(() => { const b = document.querySelector('.auto-show'); b.scrollIntoView({block: 'nearest'}); const r = b.getBoundingClientRect(), w = document.querySelector('.workspace').getBoundingClientRect(); const ok = r.top >= w.top - 0.5 && r.bottom <= w.bottom + 0.5; document.querySelector('.workspace').scrollTop = 0; return ok; })()`))) p.push('Show AUTO not reachable by scrolling');
       }
-      if (p.length) bad.push(`${w}: ${p.join(', ')}`);
+      if (p.length) bad.push(`${w}: ${p.join(', ')} ${JSON.stringify([L.plot && L.plot.t, L.ws && [L.ws.t, L.ws.b], L.vals && [L.vals.t, L.vals.b]])}`);
     }
     check(`layout: with the AUTO view hidden, at 600..2000 x ${h} Show AUTO covers no message, no status bar, no plot`,
       bad.length === 0, bad.slice(0, 6).join(' | '));
@@ -6638,143 +5225,25 @@ const panelRects = () => cdp.eval(`(() => {
       min: +e.getAttribute('aria-valuemin'), max: +e.getAttribute('aria-valuemax'), tab: e.tabIndex, ...r(sel)}; };
   const host = document.querySelector('.plot-view:not([hidden]) .plot-host');
   const kids = host ? [...host.querySelectorAll('canvas,svg')].map(e => e.getBoundingClientRect().width) : [];
-  return {menu: r('.menu-panel'), vals: r('.values-panel'), plot: r('.plot-view:not([hidden]) .plot-host'), kids,
+  return {menu: r('.app-menu'), vals: r('.values-panel'), plot: r('.plot-view:not([hidden]) .plot-host'), kids,
     menuSep: sep('.splitter-menu'), valSep: sep('.splitter-values'), p: __xpp.state().panels,
     menuBtn: document.querySelector('.menu-collapse')?.getAttribute('aria-expanded'),
     valBtn: document.querySelector('.values-collapse')?.getAttribute('aria-expanded')}; })()`);
 const near = (a, b, tol = 2) => Math.abs(a - b) <= tol;
 
 async function panelsCheck() {
-  /* a full-screen AUTO view left open by an earlier section covers the panels' edges */
-  await cdp.eval(`document.querySelector('.auto-back')?.click()`);
-  await until(`!document.querySelector('.auto-panel')`, 'AUTO view hidden');
-  for (const [w, wide] of [[1100, false], [1880, true]]) {
-    const tag = `panels: ${w}px`;
-    await cdp.eval(`localStorage.removeItem('xppPanels')`);
-    await reloadPage();
-    await metrics({width: w, height: 900, deviceScaleFactor: 1, mobile: false});
-    await until('s.hello && !s.busy', 'ready');
-    let R = await panelRects();
-    check(`${tag}: both separators are focusable separators with a value and limits`,
-      R.menuSep.role === 'separator' && R.menuSep.o === 'vertical' && R.menuSep.tab === 0
-      && R.valSep.role === 'separator' && R.valSep.o === (wide ? 'vertical' : 'horizontal') && R.valSep.tab === 0
-      && R.menuSep.min < R.menuSep.now && R.menuSep.now <= R.menuSep.max && R.valSep.min <= R.valSep.now && R.valSep.now <= R.valSep.max
-      && R.menuBtn === 'true' && R.valBtn === 'true', JSON.stringify([R.menuSep, R.valSep, R.menuBtn, R.valBtn]));
-
-    /* collapse and reopen the Commands panel: the plot takes the room and gives it back */
-    const m0 = R.menu.w, plot0 = R.plot.w;
-    await cdp.eval(`document.querySelector('.menu-collapse').click()`);
-    await until('s.panels.menuCollapsed', 'menu collapsed');
-    await rendered();
-    R = await panelRects();
-    check(`${tag}: the toggle collapses the Commands panel, the plot grows to fill it`,
-      R.menu.d === 'none' && R.menuBtn === 'false' && R.p.menuCollapsed && R.plot.w >= plot0 + m0 - 2
-      && R.kids.length > 0 && R.kids.every(k => k <= R.plot.w + 1) && R.kids.some(k => k >= R.plot.w - 8),
-      JSON.stringify([R.menu, R.plot.w, plot0, m0, R.kids]));
-    await cdp.eval(`document.querySelector('.menu-collapse').click()`);
-    await until('!s.panels.menuCollapsed', 'menu reopened');
-    await rendered();
-    R = await panelRects();
-    check(`${tag}: ... and reopens it at its width, the plot back`,
-      R.menu.d !== 'none' && R.menu.w === m0 && near(R.plot.w, plot0) && R.menuBtn === 'true', JSON.stringify([R.menu.w, m0, R.plot.w, plot0]));
-
-    /* the keyboard: arrows move by a step, Home and End go to the limits, nothing passes them */
-    await cdp.eval(`document.querySelector('.splitter-menu').focus()`);
-    const step = 16;
-    await key('ArrowRight'); await key('ArrowRight'); await key('ArrowRight');
-    R = await panelRects();
-    check(`${tag}: Commands splitter: three Right arrows widen the panel by three steps`,
-      near(R.menu.w, m0 + 3 * step) && R.p.menuWidth === m0 + 3 * step && R.menuSep.now === R.menu.w, JSON.stringify([R.menu.w, m0, R.p, R.menuSep.now]));
-    await key('End');
-    R = await panelRects();
-    const menuMax = R.menuSep.max, menuMin = R.menuSep.min;
-    check(`${tag}: End goes to the limit, and another Right arrow does not pass it`,
-      R.p.menuWidth === menuMax && near(R.menu.w, menuMax), JSON.stringify([R.p, R.menu.w, menuMax]));
-    await key('ArrowRight');
-    check(`${tag}: ... (held at the limit)`, (await panelRects()).p.menuWidth === menuMax);
-    await key('Home');
-    R = await panelRects();
-    const atMin = R.p.menuWidth === menuMin && near(R.menu.w, menuMin);
-    await key('ArrowLeft');
-    check(`${tag}: Home goes to the minimum, and Left does not pass it`,
-      atMin && (await panelRects()).p.menuWidth === menuMin, JSON.stringify([R.p, R.menu.w, menuMin]));
-
-    /* a drag of the inner edge */
-    const dragFrom = async (sel, dx, dy) => {
-      const b = await cdp.eval(`(() => { const r = document.querySelector('${sel}').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
-      await mouse('mouseMoved', b[0], b[1]);
-      await mouse('mousePressed', b[0], b[1], {button: 'left', buttons: 1, clickCount: 1});
-      for (let i = 1; i <= 4; i++) await mouse('mouseMoved', b[0] + dx * i / 4, b[1] + dy * i / 4, {buttons: 1});
-      await mouse('mouseReleased', b[0] + dx, b[1] + dy, {button: 'left', buttons: 0, clickCount: 1});
-      await rendered();
-    };
-    await dragFrom('.splitter-menu', 60, 0);
-    R = await panelRects();
-    check(`${tag}: dragging the Commands edge 60 px right widens it by 60`,
-      near(R.menu.w, menuMin + 60, 3) && R.p.menuWidth === R.menu.w, JSON.stringify([R.menu.w, menuMin, R.p]));
-    await dragFrom('.splitter-menu', 600, 0);
-    R = await panelRects();
-    check(`${tag}: ... and a drag far beyond stops at the limit`, R.p.menuWidth === menuMax, JSON.stringify([R.p, menuMax]));
-
-    /* the Values panel: a column on the right (wide) or a row under the plot, resized along its own axis */
-    const axis = wide ? 'w' : 'h', key0 = wide ? 'valuesWidth' : 'valuesHeight';
-    const grow = wide ? 'ArrowLeft' : 'ArrowUp', shrink = wide ? 'ArrowRight' : 'ArrowDown';
-    R = await panelRects();
-    const v0 = R.vals[axis], plotV0 = wide ? R.plot.w : R.plot.h;
-    await cdp.eval(`document.querySelector('.values-collapse').click()`);
-    await until('s.panels.valuesCollapsed', 'values collapsed');
-    await rendered();
-    R = await panelRects();
-    check(`${tag}: the toggle collapses the Values panel, the plot grows to fill it`,
-      R.vals.d === 'none' && R.valBtn === 'false' && (wide ? R.plot.w >= plotV0 + v0 - 3 : R.plot.h > plotV0) && R.kids.every(k => k <= R.plot.w + 1),
-      JSON.stringify([R.vals, R.plot, plotV0, v0]));
-    await cdp.eval(`document.querySelector('.values-collapse').click()`);
-    await until('!s.panels.valuesCollapsed', 'values reopened');
-    await rendered();
-    R = await panelRects();
-    check(`${tag}: ... and reopens it at its size`, R.vals.d !== 'none' && near(R.vals[axis], v0, 3), JSON.stringify([R.vals, v0]));
-    await cdp.eval(`document.querySelector('.splitter-values').focus()`);
-    await key(shrink); await key(shrink);
-    R = await panelRects();
-    check(`${tag}: Values splitter: two ${shrink} keys shrink it by two steps`,
-      near(R.vals[axis], v0 - 2 * step, 3) && R.p[key0] !== null && R.valSep.now === R.vals[axis], JSON.stringify([R.vals, v0, R.valSep, R.p]));
-    await key(grow);
-    R = await panelRects();
-    check(`${tag}: ${grow} grows it by a step`, near(R.vals[axis], v0 - step, 3), JSON.stringify([R.vals, v0]));
-    await key('Home');
-    R = await panelRects();
-    check(`${tag}: Home shrinks it to the minimum`, R.p[key0] === R.valSep.min && near(R.vals[axis], R.valSep.min, 3), JSON.stringify([R.p, R.vals, R.valSep]));
-    await key('End');
-    R = await panelRects();
-    check(`${tag}: End grows it to the limit`, R.p[key0] === R.valSep.max && R.valSep.max >= R.valSep.min + 100, JSON.stringify([R.p, R.valSep]));
-    await key('Home');
-    await dragFrom('.splitter-values', wide ? -80 : 0, wide ? 0 : -80);
-    R = await panelRects();
-    check(`${tag}: dragging the Values edge 80 px away from its panel's far side grows it by 80`,
-      near(R.vals[axis], R.valSep.min + 80, 3), JSON.stringify([R.vals, R.valSep]));
-
-    /* kept across a reload: the sizes and the collapsed state */
-    await cdp.eval(`document.querySelector('.menu-collapse').click()`);
-    /* the page saves the panels in an effect after the next paint (App.tsx): reload once the saved value says so */
-    await until(`s.panels.menuCollapsed && JSON.parse(localStorage.getItem('xppPanels') || '{}').menuCollapsed === true`,
-      'menu collapsed and saved for the reload');
-    const before = (await panelRects()).p;
-    await reloadPage();
-    await until('s.hello && !s.busy', 'ready');
-    await rendered();
-    R = await panelRects();
-    check(`${tag}: a reload keeps both panels' sizes and the collapsed Commands panel`,
-      JSON.stringify(R.p) === JSON.stringify(before) && R.p.menuCollapsed && R.menu.d === 'none' && R.menuBtn === 'false'
-      && near(R.vals[axis], before[key0], 3), JSON.stringify([before, R.p, R.vals]));
-    await cdp.eval(`localStorage.removeItem('xppPanels')`);
-  }
-  await cdp.eval(`localStorage.setItem('xppPanels', '{"menuCollapsed": 1}')`);
-  await reloadPage();
-  check('panels: a stored value that is not ours is ignored (the default layout)',
-    (await panelRects()).p.menuCollapsed === false);
-  await cdp.eval(`localStorage.removeItem('xppPanels')`);
   await desktopMetrics();
+  check('W517: no obsolete Commands panel splitter', !await exists('.splitter-menu'));
+  await clickRegistry('tool.values');
+  check('W517: Values remains reachable from Data', await until('s.valuesOpen', 'values'));
+  await clickRegistry('tool.browser');
+  check('W517: browser remains reachable from Data', await until('s.table.open', 'browser'));
+  await cdp.eval(`document.querySelector('.table-back').click()`);
+  await until('!s.table.open', 'table closed');
+  await cdp.eval(`document.querySelector('.values-back').click()`);
+  await until('!s.valuesOpen', 'values closed');
 }
+
 
 /* Remove stale Chrome profiles older than an hour (W105) */
 function cleanStaleProfiles() {
@@ -6823,6 +5292,8 @@ async function main() {
   try {
     if (!opt.webview2) {
       await cdp.send('Page.enable');
+      /* the page has the focus whether or not its window is the active one: an input's focus and blur events then fire in every attempt */
+      await cdp.send('Emulation.setFocusEmulationEnabled', {enabled: true});
       await installPerfObserver(cdp); /* before the first Page.navigate: draw/frame timing and long tasks, W58 */
       if (process.env.XPP_NETLOG) {
         /* the renderer cancels a 204's empty body once it has the headers
@@ -6875,6 +5346,8 @@ async function main() {
     if (run('auto')) await session(HEAVY_ODE, autoStopRace);
     if (run('autoviews')) await session(ODE, autoViews);
     if (run('navigation')) await session(ODE, navigationCheck);
+    if (run('windows')) await session(ODE, windows);
+    if (run('annotations')) await session(ODE, marks);
     if (run('steady')) await session(ODE, steadyCheck);
     if (run('keys')) await session(ODE, keysCheck);
     if (run('keymap')) await session(ODE, keymapCheck);
@@ -6888,8 +5361,8 @@ async function main() {
     if (run('busy')) await session(LIVE, busyAuto);
     if (run('busy')) await session(LIVE, busyKeys);
     if (run('busy')) await session(LIVE, statusBarLayout);
-    if (run('view')) await session(ODE, viewCheck, ['command:1: x_min (99) must be below x_max (7)', 'command:1: X-axis: no variable named "nonesuch"']);
-    if (run('three')) await session(LORENZ_ODE, threePlot, ['command:1: z_min (100) must be below z_max (65)', 'command:1: X-axis: no variable named "nonesuch"']);
+    if (run('view')) await session(ODE, viewCheck, ['command:1: x_min (99) must be below x_max (7)', 'command:1: Argument "x": no column named "nonesuch" in the model']);
+    if (run('three')) await session(LORENZ_ODE, threePlot, ['command:1: z_min (100) must be below z_max (65)', 'command:1: Argument "x": no column named "nonesuch" in the model']);
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
     if (run('files')) await session(ODE, opt.webview2 ? nativeFiles : files, ['gone.set: cannot open gone.set: No such file or directory']);

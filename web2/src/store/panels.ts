@@ -1,12 +1,9 @@
-/* The side panels of the main screen (W226): the Commands panel on the left and the Values panel
-   (a column on the right from 80rem, a row under the work area below that) can each be collapsed
-   and resized by dragging their inner edge. Kept per viewer (store/prefs.ts). */
+/* The Values panel (a column from 80rem, a row below that) can be collapsed
+   and resized by its inner edge. Kept per viewer (store/prefs.ts). */
 import {readPref, writePref} from './prefs';
 
 /** sizes in CSS px; null is the stylesheet's default size */
 export interface Panels {
-  menuCollapsed: boolean;
-  menuWidth: number | null;
   valuesCollapsed: boolean;
   /** the Values panel as a right column */
   valuesWidth: number | null;
@@ -15,13 +12,12 @@ export interface Panels {
 }
 
 export const defaultPanels: Panels = {
-  menuCollapsed: false, menuWidth: null, valuesCollapsed: false, valuesWidth: null, valuesHeight: null,
+  valuesCollapsed: false, valuesWidth: null, valuesHeight: null,
 };
 
 /** the limits of each panel's size (px); a panel is also held to a share of the window by the
     stylesheet (`min(..., 40vw)`), so a narrowed window never leaves the plot without room */
 export const PANEL_LIMITS = {
-  menuWidth: {min: 160, max: 384, share: 0.4, label: 'Commands panel width'},
   valuesWidth: {min: 288, max: 800, share: 0.5, label: 'Values panel width'},
   valuesHeight: {min: 96, max: 480, share: 0.5, label: 'Values panel height'},
 } as const;
@@ -42,9 +38,9 @@ const isSize = (v: unknown, size: PanelSize): v is number | null =>
   v === null || (typeof v === 'number' && v >= PANEL_LIMITS[size].min && v <= PANEL_LIMITS[size].max);
 
 const parsePanels = (v: any): Panels | null =>
-  v && typeof v.menuCollapsed === 'boolean' && typeof v.valuesCollapsed === 'boolean'
-    && isSize(v.menuWidth, 'menuWidth') && isSize(v.valuesWidth, 'valuesWidth') && isSize(v.valuesHeight, 'valuesHeight')
-    ? {menuCollapsed: v.menuCollapsed, menuWidth: v.menuWidth, valuesCollapsed: v.valuesCollapsed,
+  v && typeof v.valuesCollapsed === 'boolean'
+    && isSize(v.valuesWidth, 'valuesWidth') && isSize(v.valuesHeight, 'valuesHeight')
+    ? {valuesCollapsed: v.valuesCollapsed,
       valuesWidth: v.valuesWidth, valuesHeight: v.valuesHeight}
     : null;
 

@@ -1,10 +1,10 @@
+import {registryRows} from './navigation';
 /* The pinned commands of the quick-access toolbar (docs/command-design.md "Quick access"), after the
    fixed run buttons: the user's own commands (keymap.pinned) in order, each with its label, dragged to
    reorder, with a context menu (Unpin, Move earlier, Move later: also the keyboard's way, Shift+F10 or
    the menu key). Those that do not fit the row go into a "More" menu, never away. Every change is the
    `keymap` command's `set`, so the page keeps no second copy of the pins. */
 import {useLayoutEffect, useRef, useState} from 'preact/hooks';
-import {menuCommand} from '../protocol/kinds';
 import type {CommandRow} from '../protocol/kinds';
 import {effectiveKeys, movePinned, pinnedRows, togglePinned, visibleCount, withPinned} from '../store/keymap';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
@@ -19,7 +19,7 @@ export function QuickAccess() {
   const may = useMay();
   const hello = useStore(s => s.hello);
   const keymap = useStore(s => s.keymap.info);
-  const rows = pinnedRows(keymap, hello?.command_table ?? []);
+  const rows = pinnedRows(keymap, registryRows(hello));
   const box = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(rows.length);
   const [menu, setMenu] = useState<{id: string; x: number; y: number} | null>(null);
@@ -44,14 +44,14 @@ export function QuickAccess() {
   if (!rows.length || !keymap) return null;
   const pinned = keymap.pinned;
   const save = (next: string[]) => session.setKeymap(withPinned(keymap, next));
-  const run = (row: CommandRow) => session.menuAction(row.menu, row.id);
+  const run = (row: CommandRow) => session.registryAction(row.id);
   const dropOn = (target: string) => {
     const id = dragged.current;
     dragged.current = null;
     if (id && id !== target) save(movePinned(pinned, id, pinned.indexOf(target)));
   };
   const button = (row: CommandRow, hidden: boolean) => {
-    const off = !may(menuCommand(row.menu, row.id));
+    const off = !may({cmd: row.id});
     const keys = effectiveKeys(keymap, row).join(' / ');
     return <button type="button" class={'quick-button' + (hidden ? ' quick-over' : '')} data-pinned={row.id} draggable
       aria-disabled={off} aria-haspopup="menu" aria-keyshortcuts={effectiveKeys(keymap, row)[0]?.replace('Ctrl', 'Control')}
@@ -67,10 +67,10 @@ export function QuickAccess() {
     {overflow.length > 0 && <details class="quick-more">
       <summary aria-label={`More pinned commands (${overflow.length})`}>More</summary>
       <ul class="quick-more-list">{overflow.map(row => <li key={row.id}>
-        <button type="button" data-pinned-more={row.id} aria-disabled={!may(menuCommand(row.menu, row.id))}
+        <button type="button" data-pinned-more={row.id} aria-disabled={!may({cmd: row.id})}
           onClick={e => {
             (e.currentTarget.closest('details') as HTMLDetailsElement).open = false;
-            if (may(menuCommand(row.menu, row.id))) run(row);
+            if (may({cmd: row.id})) run(row);
           }}
           onContextMenu={e => { e.preventDefault(); setMenu({id: row.id, x: e.clientX, y: e.clientY}); }}>{row.label}</button></li>)}</ul>
     </details>}

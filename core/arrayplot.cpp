@@ -67,30 +67,6 @@ void begin_array_range(xpp::Session &s, bool still, bool tag, std::string_view f
   s.array_plot.save_cancelled=false;
 }
 
-/* the Range key: Array range saving's form and file, then the range's own form, then the sweep */
-void set_up_aplot_range(xpp::Session &s)
-{
-  static const char *const n[]={"Still(1/0)","Tag(0/1)"};
-  std::array<std::string, 2> values;
- values[0] = xpp::format("{:d}", s.array_plot.still);
- values[1] = xpp::format("{:d}", s.array_plot.tag);
- static const int kinds[]={xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER};
- if(xpp::do_string_box_of(2,1,"Array range saving",n,values,kinds)==0)return;
- std::string root=xpp::files::output_name(s.model().this_file,".gif","array");
- if(!xpp::file_selector("Save array frames",root,"*.gif"))return;
- xpp::TypedFields f(s);
- const int still=f.integer(n[0],values[0]),tag=f.integer(n[1],values[1]);
- if(f.error()){
-   xpp::command_error("Array range saving",*f.error());
-   return;
- }
- s.integrator.range.rtype=xpp::RANGE_SINGLE;
- if(xpp::set_up_range(s)==0)return;
- begin_array_range(s,still!=0,tag!=0,root);
- xpp::RangeProgress done;
- xpp::ok_or_show(xpp::run_range(s,0,&done));
- s.array_plot.range=0;
-}
 void fit_aplot(xpp::Session &s)
 {
 double zmax,zmin;
@@ -208,22 +184,6 @@ xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file)
     .maxcol=s.browser.view.maxcol, .data=s.browser.view.data,
     .zmin=ap->zmin, .zmax=ap->zmax, .tlo=times.first, .thi=times.last};
   return xpp::array_print(s,picture);
-}
-
-/* the Print key: the labels and the file asked, then the picture written */
-void print_aplot(xpp::Session &s)
-{
-  static const char *const n[]={"Top label","Side label","Bottom label"};
-  APLOT *ap=&s.array_plot.plot;
-  if(!xpp::ok_or_show(aplot_ready(s,"array_plot.export_pdf")))return;
-  std::array<std::string, 3> values={ap->xtitle,ap->ytitle,ap->bottom};
-  if(xpp::do_string_box(3,1,"Print arrayplot",n,values)==0)return;
-  ap->xtitle=values[0];
-  ap->ytitle=values[1];
-  ap->bottom=values[2];
-  std::string file=ap->filename.empty()?xpp::files::output_name(s.model().this_file,".pdf","array"):ap->filename;
-  if(!xpp::file_selector("Save array plot",file,"*.pdf"))return;
-  xpp::ok_or_show(write_aplot_pdf(s,file));
 }
 
 /* splits an array plot's first column name at its trailing digits:

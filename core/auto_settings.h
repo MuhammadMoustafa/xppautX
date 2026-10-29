@@ -67,14 +67,10 @@ inline constexpr std::array<AutoFieldShape, AUTO_NUM_N> auto_num_shapes = {
     AutoFieldShape::real, AutoFieldShape::real, AutoFieldShape::real, AutoFieldShape::real, AutoFieldShape::whole,
     AutoFieldShape::whole, AutoFieldShape::boolean, AutoFieldShape::choice, AutoFieldShape::whole, AutoFieldShape::whole,
     AutoFieldShape::whole, AutoFieldShape::whole, AutoFieldShape::boolean};
-/* the names a choice field takes, in the order of its index (none for any other) */
-std::span<const char *const> auto_settings_num_choices(int i);
 
 /* the key of Numerics field i in the event, the command and the files
-   ("mesh_intervals", ...), and its label on the core's form ("Mesh
-   intervals", derived from the key, W381); NULL or empty out of range */
+   ("mesh_intervals", ...); NULL or empty out of range */
 const char *auto_settings_num_key(int i);
-std::string auto_settings_num_label(int i);
 /* field i's value as the files and forms write it: the number, `true` or
    `false`, or the choice's name */
 std::string auto_settings_num_text(int i, double v);

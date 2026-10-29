@@ -72,7 +72,6 @@ int main()
     xpp::auto_settings_num_ok(xpp::AUTO_NUM_COLLOCATION_POINTS, 9, num_why);
     CHECK_STR(num_why.c_str(), "collocation_points=9: Collocation points must be a whole number from 2 to 7");
     CHECK_STR(xpp::auto_settings_num_key(xpp::AUTO_NUM_PARAMETER_MIN), "parameter_min");
-    CHECK_STR(xpp::auto_settings_num_label(xpp::AUTO_NUM_PARAMETER_MIN).c_str(), "Parameter min");
     CHECK(xpp::auto_settings_num_key(xpp::AUTO_NUM_N) == nullptr);
 
     /* W531: a name's label is derived from it; a choice and a boolean are written and read by their words */

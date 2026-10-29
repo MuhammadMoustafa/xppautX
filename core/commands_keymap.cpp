@@ -21,12 +21,12 @@ constexpr std::array GET_EVENTS = {"keymap", "done"};
 constexpr std::array SET_EVENTS = {"keymap", "state", "done"};
 
 constexpr std::array ROWS = {
-    Command{"keymap.get", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "", "",
+    Command{"keymap.get", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Help/Keymap/Get", "",
             "The user's keymap: the keys of the commands they changed, the pinned commands and the preset.", GET_RESULTS, GET_EVENTS, false, front_end},
-    Command{"keymap.set", SET_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "", "",
+    Command{"keymap.set", SET_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Help/Keymap/Set", "",
             "Replace the bindings, the pinned commands or the preset given (what is left out stays); the keymap is checked whole, then written.",
             SET_RESULTS, SET_EVENTS, false, front_end},
-    Command{"keymap.reset", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "", "", "Remove the user's keymap: every command has its default keys.",
+    Command{"keymap.reset", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Help/Keymap/Reset", "", "Remove the user's keymap: every command has its default keys.",
             RESET_RESULTS, SET_EVENTS, false, front_end}};
 
 } // namespace

@@ -117,6 +117,8 @@ void send_window(const char *what, std::string_view name, int w, int h, std::str
 
 std::string windows_event_line(const xpp::Session &s) { return "{\"ev\":\"windows\",\"windows\":" + xpp::windows_json(s) + '}'; }
 
+void j_window_selected(xpp::Session &, std::string_view name, std::string_view kind) { send_window("select", name, 0, 0, "", kind); }
+
 void j_window_renamed(xpp::Session &, std::string_view old_name, std::string_view new_name)
 {
     std::string event="{\"ev\":\"window.renamed\",\"window\":";
@@ -466,26 +468,5 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
 }
 
 xpp::Result<bool> j_aplot_gif(xpp::Session &s, std::string_view file) { return aplot_gif(s.array_plot, std::string(file).c_str(), 1); }
-
-/* a key of the array plot window (menu_aplot_window): each asks what its command takes, then does what it does */
-void aplot_key(xpp::Session &s, int ch)
-{
-    if (!s.array_plot.plot.alive) return;
-    const auto run = [&](const char *line) { xpp::ok_or_show(xpp::command::run_button(s, line, xpp::command_place())); };
-    switch (menu_index(&menu_aplot_window, ch)) {
-    case PK_REDRAW: run("{\"cmd\":\"array_plot.redraw\"}"); break;
-    case PK_EDIT: editaplot(s, &s.array_plot.plot); break;
-    case PK_FIT: run("{\"cmd\":\"array_plot.fit\"}"); break;
-    case PK_RANGE: set_up_aplot_range(s); break;
-    case PK_PRINT: print_aplot(s); break;
-    case PK_GIF: {
-        if (!xpp::ok_or_show(aplot_ready(s, "array_plot.export_gif"))) return;
-        const char *ext = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension;
-        std::string file = xpp::files::output_name(s.model().this_file,xpp::format(".{}",ext),"array");
-        if (file_selector("GIF plot", file, xpp::format("*.{}", ext))) xpp::ok_or_show(aplot_gif(s.array_plot, file.c_str(), 1));
-        break;
-    }
-    }
-}
 
 } // namespace xpp::json

@@ -139,7 +139,7 @@ export function AniView() {
         <button class="ani-back" onClick={close}>Back</button>
         <h2>Animation</h2>
         <HelpButton target={HELP.animation} label="the animation" />
-        {!exists && <button onClick={() => session.openAni()} disabled={!mayMain('viewaxes')}>Open</button>}
+        {!exists && <button onClick={() => session.openAni()} disabled={!mayMain('plot.set_2d')}>Open</button>}
         <button data-button="ani:file" onClick={() => session.aniLoad()} disabled={!mayKey('ani', 'file') || !exists} title="Load an animation (.ani) file">
           Load…
         </button>

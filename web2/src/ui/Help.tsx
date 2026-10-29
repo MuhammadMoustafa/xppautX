@@ -1,3 +1,4 @@
+import {registryRows} from './navigation';
 import {requestUpdateCheck} from '../help/updates';
 /* The Help view (docs/roadmap.md W12: the manual, step 3): a table of
    contents, a search box (help/search.ts, over the manual's headings and
@@ -75,14 +76,14 @@ function AboutBody({lines}: {lines: AboutLine[]}) {
   );
 }
 
-/** The keyboard shortcuts, made from the command table (hello.command_table) and the page's own few keys
+/** The keyboard shortcuts, made from the registry rows (hello.commands) and the page's own few keys
     (FIXED_KEYS), with the switch of the preset "XPPAUT sequences" (off: the table's default keys only;
     on: each command's XPPAUT sequence as well, F then S). */
 function KeyTable() {
   const session = useSession();
   const hello = useStore(s => s.hello);
   const keymap = useStore(s => s.keymap.info);
-  const rows = (hello?.command_table ?? []).filter(row => row.category !== 'layer' && shortcutLabel(row, keymap) !== '');
+  const rows = registryRows(hello).filter(row => shortcutLabel(row, keymap) !== '');
   return (
     <details class="help-keys">
       <summary>Keyboard shortcuts</summary>
@@ -95,7 +96,7 @@ function KeyTable() {
       <table>
         <tbody>
           {FIXED_KEYS.map(k => <tr key={k.key}><th scope="row"><kbd>{k.key}</kbd></th><td>{k.does}</td></tr>)}
-          {rows.map(row => <tr key={`${row.menu}:${row.id}`}><th scope="row"><kbd>{shortcutLabel(row, keymap)}</kbd></th><td>{row.label}</td></tr>)}
+          {rows.map(row => <tr key={row.id}><th scope="row"><kbd>{shortcutLabel(row, keymap)}</kbd></th><td>{row.label}</td></tr>)}
         </tbody>
       </table>
     </details>

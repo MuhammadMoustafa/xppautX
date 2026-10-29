@@ -235,7 +235,7 @@ int select_marker_type(int *type)
     static const char *const list[] = {"Box", "Diamond", "Triangle", "Plus", "X", "Circle"};
     static constexpr std::string_view key = "bdtpxc";
     static_assert(std::size(list) == MARKER_SHAPE_COUNT && key.size() == MARKER_SHAPE_COUNT);
-    XppMenu m = {"markers", "Markers", MARKER_SHAPE_COUNT, list, key.data(), no_hint, -1};
+    XppMenu m = {"markers", "Markers", MARKER_SHAPE_COUNT, list, key.data()};
     const char ch = static_cast<char>(menu_choose(&m, ival));
     if (ch == ESC) return 0;
     for (int i = 0; i < MARKER_SHAPE_COUNT; i++) {

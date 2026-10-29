@@ -205,12 +205,5 @@ void init_browser(Session &s);
 void get_data_xyz(const Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off);
 /* the stored row `row` made the initial conditions (and the values of the auxiliaries and the time the formulas read) */
 void ic_of_row(Session &s, int row);
-/* the keys' forms (a form, the answer's operation above, its error shown) */
-void data_del_col(Session &s);
-void data_add_col(Session &s);
-void data_replace(Session &s);
-void data_unreplace(Session &s);
-void data_table(Session &s);
-void data_find(Session &s);
 
 } // namespace xpp

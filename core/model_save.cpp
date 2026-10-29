@@ -162,14 +162,6 @@ Result<> save(Session &s, const Edit &edit, const Adopt &changed = {}) { return 
 
 }
 
-std::vector<std::string> own_set_names(const Session &s)
-{
-    std::vector<std::string> names;
-    for (const Model::InternalSet &set : s.model().intern_sets)
-        if (set.place.file == s.model().this_file) names.push_back(set.name);
-    return names;
-}
-
 Result<> save_new_set(Session &s, std::string_view name, std::string_view scope, std::optional<int> graph, bool last_state)
 {
     Result<odex::Values> values = captured_values(s, scope, graph, last_state);

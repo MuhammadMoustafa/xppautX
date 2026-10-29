@@ -38,8 +38,8 @@ inline constexpr std::size_t MAX_FILE_BYTES = 64 * 1024;
 inline constexpr std::size_t MAX_KEY_BYTES = 64;
 /* keys per command: the command table gives two (a binding and one alternative), the user may add a few */
 inline constexpr std::size_t MAX_KEYS_PER_COMMAND = 8;
-/* the parts of one key (a chord): XPPAUT's sequences are a layer key then an item key, VS Code's chords two */
-inline constexpr std::size_t MAX_CHORD_PARTS = 2;
+/* Four nested XPPAUT menu letters reach a frozen-curve key; custom chords can use the same depth. */
+inline constexpr std::size_t MAX_CHORD_PARTS = 4;
 
 /* Keys the page and the system keep (docs/command-design.md "Principles" 4):
    Alt+F4, Ctrl+W, Ctrl+Q, F11, F12 and the browser's own tab, window,
@@ -83,6 +83,11 @@ std::string serialize(const Keymap &map);
 /* the effective keys of command `id` (a row of the table): the user's when
    map binds it, else the table's defaults */
 std::vector<std::string> effective_keys(const Keymap &map, std::string_view id);
+
+struct KeyMatch { std::string command; bool prefix = false; };
+/* Match within the preset's key context; an unfinished sequence never executes. */
+KeyMatch match_keys(const Keymap &map, std::string_view context, std::string_view sequence);
+
 
 /* the settings file's path, "" when the system names no config folder */
 std::string path();

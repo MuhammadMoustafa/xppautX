@@ -27,7 +27,6 @@ void set_total(Session &s, double total);
 void get_num_par(Session &s, char ch);
 void chk_delay(Session &s);
 void set_delay(Session &s);
-void ruelle(Session &s);
 /* the active plot window's rUelle shifts (how many rows each axis lags): each 0 or more; redrawn */
 Result<> set_axis_shifts(Session &s, int x, int y, int z);
 void compute_one_period(Session &s, double period,double *x, const char *name);

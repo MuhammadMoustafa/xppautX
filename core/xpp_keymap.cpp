@@ -1,7 +1,7 @@
 /* keymap.json: see xpp_keymap.h. */
 #include "xpp_keymap.h"
 
-#include "command_table.h"
+#include "command_def.h"
 #include "json_error.h"
 #include "json_reader.h"
 #include "xpp_files.h"
@@ -89,7 +89,6 @@ std::string cut(std::string_view text)
 
 std::string quoted(std::string_view text) { return "\"" + cut(text) + "\""; }
 
-bool is_command(const CommandRow &row) { return row.category != CommandCategory::Layer; }
 
 /* one pass over the text: every value checked and put in a Keymap, which is
    the caller's only when the whole file was good (a problem throws ReadFailed) */
@@ -156,9 +155,9 @@ private:
         return key;
     }
 
-    const CommandRow &read_command(const std::string &id, const char *at) const
+    const command::Command &read_command(const std::string &id, const char *at) const
     {
-        const CommandRow *row = find_command_by_id(id);
+        const command::Command *row = command::find(id);
         if (!row) fail(at, xpp::format("unknown command {}", quoted(id)));
         return *row;
     }
@@ -169,8 +168,7 @@ private:
         std::string id;
         const char *cursor = v, *value = nullptr;
         while (json::js_member(cursor, id, value)) {
-            if (!is_command(read_command(id, value)))
-                fail(value, xpp::format("{} only switches the shortcut layer, it takes no keys", quoted(id)));
+            read_command(id, value);
             if (map.bindings.contains(id)) fail(value, xpp::format("{} is given twice", quoted(id)));
             if (*value != '[') fail(value, xpp::format("the keys of {} are an array of strings, not {}", quoted(id), shown(value)));
             std::vector<std::string> &keys = map.bindings[id];
@@ -189,7 +187,7 @@ private:
         for (int i = 0; const char *elem = json::js_elem(v, i); i++) {
             std::string id;
             if (!json::js_string(elem, id)) fail(elem, xpp::format("a pinned command is a string, not {}", shown(elem)));
-            if (!read_command(id, elem).pinnable) fail(elem, xpp::format("{} cannot be pinned", quoted(id)));
+            read_command(id, elem);
             if (std::ranges::find(map.pinned, id) != map.pinned.end()) fail(elem, xpp::format("{} is pinned twice", quoted(id)));
             map.pinned.push_back(std::move(id));
         }
@@ -207,24 +205,29 @@ private:
        the table's keys of the commands the file leaves alone, then the file's, in its order */
     void check_clashes(const Keymap &map) const
     {
-        struct Owner {
-            std::string_view id, key;
-        };
+        struct Owner { std::string id, key, context; const char *at; };
         std::vector<Owner> owners;
-        for (const CommandRow &row : COMMANDS)
-            if (!map.bindings.contains(std::string(row.id)))
-                for (std::string_view key : row.default_keys)
-                    if (!key.empty()) owners.push_back({row.id, key});
-        for (const Placed &p : placed_) {
-            for (const Owner &o : owners) {
-                if (!keys_clash(o.key, p.key)) continue;
-                if (o.id == p.id)
-                    fail(p.at, xpp::format("{} and {} of {} clash (one is the start of the other)", quoted(o.key), quoted(p.key),
-                                           quoted(p.id)));
-                fail(p.at, xpp::format("{} is already {} ({}){}", quoted(p.key), find_command_by_id(o.id)->label, o.id,
-                                       o.key == p.key ? "" : xpp::format(": its key {} starts it", quoted(o.key))));
+        for (const command::Command *row : command::rows()) {
+            const std::string context = map.preset == PRESET_XPPAUT ? row->legacy_context : "";
+            const auto keys = effective_keys(map, row->name);
+            if (keys.size() > MAX_KEYS_PER_COMMAND) fail(text_.c_str(), xpp::format("{} has more than {} keys", quoted(row->name), MAX_KEYS_PER_COMMAND));
+            for (const std::string &key : keys) {
+                if (!map.bindings.contains(row->name)) {
+                    if (const std::string problem = key_problem(key); !problem.empty())
+                        fail(text_.c_str(), xpp::format("{} key {}: {}", quoted(row->name), quoted(key), problem));
+                    for (const std::string_view part : parts_of(key))
+                        if (is_reserved_key(part)) fail(text_.c_str(), xpp::format("{} key {} is reserved", quoted(row->name), quoted(key)));
+                }
+                const auto placed = std::find_if(placed_.rbegin(), placed_.rend(), [&](const Placed &p) { return p.id == row->name && p.key == key; });
+                const char *at = placed == placed_.rend() ? text_.c_str() : placed->at;
+                for (const Owner &owner : owners) {
+                    if (owner.context != context || !keys_clash(owner.key, key)) continue;
+                    fail(std::max(owner.at, at),
+                         xpp::format("{} key {} and {} key {} clash (one is the start of the other) in context {}",
+                                     quoted(owner.id), quoted(owner.key), quoted(row->name), quoted(key), quoted(context)));
+                }
+                owners.push_back({row->name, key, context, at});
             }
-            owners.push_back({p.id, p.key});
         }
     }
 
@@ -293,17 +296,48 @@ std::vector<std::string> effective_keys(const Keymap &map, std::string_view id)
 {
     if (const auto it = map.bindings.find(std::string(id)); it != map.bindings.end()) return it->second;
     std::vector<std::string> keys;
-    if (const CommandRow *row = find_command_by_id(id))
-        for (std::string_view key : row->default_keys)
-            if (!key.empty()) keys.emplace_back(key);
+    if (const command::Command *row = command::find(id)) {
+        if (map.preset == PRESET_XPPAUT) {
+            const std::string_view legacy = row->legacy_keys;
+            for (std::size_t from = 0; from < legacy.size();) {
+                const std::size_t slash = legacy.find('/', from);
+                const std::string_view sequence = legacy.substr(from, slash == std::string_view::npos ? slash : slash - from);
+                std::string key;
+                if (sequence == "Esc") key = "Escape";
+                else for (const char letter : sequence) {
+                    if (!key.empty()) key += ' ';
+                    key += letter;
+                }
+                if (!key.empty()) keys.push_back(std::move(key));
+                if (slash == std::string_view::npos) break;
+                from = slash + 1;
+            }
+        } else for (const char *key : row->default_keys) keys.emplace_back(key);
+    }
     return keys;
+}
+
+KeyMatch match_keys(const Keymap &map, std::string_view context, std::string_view sequence)
+{
+    KeyMatch match;
+    for (const command::Command *row : command::rows()) {
+        if (map.preset == PRESET_XPPAUT && context != row->legacy_context) continue;
+        for (const std::string &key : effective_keys(map, row->name)) {
+            if (key == sequence) match.command = row->name;
+            else if (key.starts_with(sequence) && key.size() > sequence.size() && key[sequence.size()] == ' ') match.prefix = true;
+        }
+    }
+    if (match.prefix) match.command.clear();
+    return match;
 }
 
 std::string path() { return files::config_path(FILE_NAME); }
 
 Result<Keymap> load_keymap()
 {
-    return load_config_file<Keymap>(WHERE, FILE_NAME, MAX_FILE_BYTES, parse_keymap);
+    const auto loaded = load_config_file<Keymap>(WHERE, FILE_NAME, MAX_FILE_BYTES, parse_keymap);
+    if (!loaded) return loaded;
+    return parse_keymap(serialize(*loaded), path());
 }
 
 Result<> save(const Keymap &map) { return write_config_file(WHERE, FILE_NAME, serialize(map)); }
@@ -337,15 +371,15 @@ std::string effective_json(const Result<Keymap> &loaded)
     out += xpp::format("],\"limits\":{{\"keys\":{},\"parts\":{},\"key_bytes\":{}}},\"commands\":[", MAX_KEYS_PER_COMMAND,
                        MAX_CHORD_PARTS, MAX_KEY_BYTES);
     bool first = true;
-    for (const CommandRow &row : COMMANDS) {
-        if (!is_command(row)) continue;
+    for (const command::Command *entry : command::rows()) {
+        const command::Command &row = *entry;
         if (!first) out += ',';
         first = false;
         out += "{\"id\":";
-        json_append_string(out, row.id);
+        json_append_string(out, row.name);
         out += ",\"keys\":[";
-        append_strings(out, effective_keys(map, row.id), ",");
-        out += map.bindings.contains(std::string(row.id)) ? "],\"source\":\"user\"}" : "],\"source\":\"default\"}";
+        append_strings(out, effective_keys(map, row.name), ",");
+        out += map.bindings.contains(std::string(row.name)) ? "],\"source\":\"user\"}" : "],\"source\":\"default\"}";
     }
     return out + "]}";
 }

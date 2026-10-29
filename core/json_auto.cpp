@@ -503,15 +503,6 @@ static void show_views_for_ask(xpp::Session &s)
     for (AutoDiagramView &view : s.auto_state.views) view.hidden = false;
 }
 
-int j_auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
-{
-    show_views_for_ask(s);
-    std::array<int, 4> v;
-    if (!mouse_ask(s, WIN_AUTO, "rubber", flag, v)) return 0;
-    *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
-    return 1;
-}
-
 int j_auto_grab_event(xpp::Session &s, int *x, int *y)
 {
     std::string b;
@@ -543,48 +534,5 @@ int j_auto_grab_event(xpp::Session &s, int *x, int *y)
     return XPP_AUTO_CLICK;
 }
 void j_auto_show_hint(xpp::Session &s) { send_simple("message", "auto", s.auto_state.bifur.hinttxt.c_str()); }
-
-/* AUTO Axes/Scroll: drag the diagram (auto_x11.c x11_auto_scroll_window) */
-void j_auto_scroll_window(xpp::Session &s)
-{
-    int i, j, t, i0 = 0, j0 = 0, state = 0;
-    show_views_for_ask(s);
-    float xlo = s.auto_state.axes().xmin, ylo = s.auto_state.axes().ymin, xhi = s.auto_state.axes().xmax, yhi = s.auto_state.axes().ymax, dx = 0, dy = 0;
-    send_simple("message", "auto", "Drag the diagram to scroll it; any key ends");
-    while ((t = ask_drag(s, WIN_AUTO, &i, &j)) != 0) {
-        if (t == 1 && state == 0) {
-            i0 = i;
-            j0 = j;
-            state = 1;
-        } else if (t == 2 && state == 1) {
-            dx = static_cast<float>(i0 - i) * (xhi - xlo) / static_cast<float>(s.auto_state.bifur.wid);
-            dy = static_cast<float>(j - j0) * (yhi - ylo) / static_cast<float>(s.auto_state.bifur.hgt);
-            auto_update_view(s, xlo + dx, xhi + dx, ylo + dy, yhi + dy);
-        } else if (t == 3) {
-            state = 0;
-            xlo += dx;
-            xhi += dx;
-            ylo += dy;
-            yhi += dy;
-            dx = dy = 0;
-        }
-        json_flush();
-    }
-}
-
-/* a key of the AUTO window (menu_auto_window) */
-void auto_key(xpp::Session &s, int ch)
-{
-    switch (menu_index(&menu_auto_window, ch)) {
-    case AK_AXES: auto_plot_par(s); break;
-    case AK_NUMERICS: auto_num_par(s); break;
-    case AK_RUN: auto_run(s); break;
-    case AK_GRAB: auto_grab(s); break;
-    case AK_USR: auto_per_par(s); break;
-    case AK_CLEAR: xpp::auto_hide_earlier(s); break;
-    case AK_REDRAW: redraw_diagram(s); break;
-    case AK_FILE: auto_file(s); break;
-    }
-}
 
 } // namespace xpp::json

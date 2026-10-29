@@ -133,3 +133,8 @@ export function textPx(size: number): number {
 
 /** the CSS font style and weight each text style is drawn with, by its name (core/text_style.h) */
 export const TEXT_CSS: Record<TextStyle, string> = {normal: 'normal', bold: 'bold', italic: 'italic', bold_italic: 'italic bold'};
+
+/** Small annotations need a mouse target wider than the painted stroke. */
+export const ANNOTATION_HIT_PX = 12;
+/** The selection ring surrounds the anchor without covering the mark. */
+export const ANNOTATION_SELECTION_PX = 8;

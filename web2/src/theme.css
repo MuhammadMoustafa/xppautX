@@ -41,7 +41,7 @@
   --radius: 0.5rem;
   /* the smallest target: 44px on touch screens (WCAG 2.5.5), 2rem with a mouse */
   --target: 2rem;
-  --menu-width: 13rem;
+
 
   /* colours: text on --bg and --surface is at least 4.5:1, --fg-muted too */
   --bg: #f6f7f9;
@@ -154,17 +154,9 @@ kbd {
 .skip-link { position: absolute; left: var(--space-2); top: -3rem; z-index: 300; }
 .skip-link:focus { top: var(--space-2); background: var(--surface); padding: var(--space-2); }
 
-/* ---- shell: title / (menu | work) / status ---- */
-.shell {
-  display: grid;
-  height: 100%;
-  grid-template-columns: var(--menu-width) minmax(0, 1fr);
-  /* the values row takes what its content needs, but at most 40% of the height:
-     the plot row keeps the rest (W98: an auto row let a tall Values panel
-     squeeze the plot to nothing between 48rem and 80rem) */
-  grid-template-rows: auto minmax(10rem, 1fr) var(--values-row, fit-content(40%)) auto;
-  grid-template-areas: 'title title' 'menu work' 'menu values' 'status status';
-}
+/* ---- shell: title / menu bar / work / values / status; the values panel is a right column from 80rem ---- */
+.shell { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(10rem, 1fr) var(--values-row, fit-content(40%)) auto; grid-template-areas: 'title' 'menus' 'work' 'values' 'status'; }
+.start-shell { grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title' 'menus' 'work' 'status'; }
 .title-bar {
   grid-area: title;
   display: flex;
@@ -193,15 +185,6 @@ kbd {
 .workspace-tools > summary { min-height: var(--target); padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
 .workspace-tools-menu { position: absolute; z-index: 180; top: 100%; right: 0; min-width: 14rem; padding: var(--space-2); display: grid; gap: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .workspace-tools:not([open]) .workspace-tools-menu { display: none; }
-.command-group { border-bottom: 1px solid var(--border); padding: var(--space-2) 0; }
-.command-group > summary { min-height: var(--target); padding: var(--space-1) var(--space-2); font-weight: 650; cursor: pointer; }
-.command-group .menu-item { justify-content: space-between; gap: var(--space-2); white-space: normal; text-align: left; padding-block: var(--space-1); }
-.command-group li { display: flex; align-items: center; gap: var(--space-1); }
-.command-group li .menu-item { flex: 1; min-width: 0; width: auto; }
-.menu-pin { flex: none; font-size: var(--text-xs); padding: 0 var(--space-2); min-height: 1.5rem; color: var(--fg-muted); }
-.menu-pin[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-.command-group .menu-item span { min-width: 0; overflow-wrap: anywhere; }
-.command-group .menu-item kbd { flex: none; font-size: var(--text-xs); }
 #command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
 .key-pending { color: var(--accent); font-size: var(--text-xs); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .shortcut-instruction { font-size: var(--text-xs); color: var(--fg-muted); }
@@ -214,30 +197,14 @@ kbd {
 @media (min-width: 48rem) {
   .splitter { display: block; z-index: 20; background: transparent; touch-action: none; }
   .splitter:hover, .splitter:focus-visible { background: var(--accent); opacity: 0.5; }
-  .splitter-menu { grid-area: menu; justify-self: end; width: 0.5rem; margin-right: -0.25rem; cursor: col-resize; }
   .splitter-values { grid-area: values; align-self: start; height: 0.5rem; margin-top: -0.25rem; cursor: row-resize; }
-  .shell[data-menu="collapsed"] .menu-panel, .shell[data-menu="collapsed"] .splitter-menu,
+
   .shell[data-values="collapsed"] .values-panel, .shell[data-values="collapsed"] .splitter-values { display: none; }
 }
 @media (max-width: 47.999rem) {
   .icon-button.panel-toggle { display: none; }
 }
-.menu-panel {
-  grid-area: menu;
-  overflow: auto;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: var(--space-2);
-}
-.menu-title-row { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-2); }
-.menu-title {
-  flex: 1;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--fg-muted);
-}
-.menu-panel ul, .menu-list { list-style: none; margin: 0; padding: 0; }
+ .menu-list { list-style: none; margin: 0; padding: 0; }
 .menu-item {
   width: 100%;
   justify-content: flex-start;
@@ -249,19 +216,8 @@ kbd {
 .menu-item:hover { background: var(--surface-2); }
 /* a long menu in the prompt dialog (T21): columns of at most 8 items from
    48rem, so it fits a laptop's screen without scrolling; one column on a phone */
-@media (min-width: 48rem) {
-  .dialog:has(.menu-columns) { width: min(52rem, 100%); }
-  .menu-list.menu-columns {
-    display: grid;
-    grid-auto-flow: column;
-    grid-template-rows: repeat(var(--menu-rows, 8), auto);
-    grid-auto-columns: minmax(0, 1fr);
-    column-gap: var(--space-3);
-  }
-}
 .icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: var(--target); padding: 0; }
 .icon-button .icon { display: block; }
-.drawer-scrim { display: none; }
 
 /* ---- values panel (docs/ui-v2.md T3): a section under the plot by default, ---- */
 /* a right column from 80rem (below), a full-screen sheet under 48rem (below) */
@@ -610,7 +566,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 /* Short stacked desktops reserve room for the run toolbar and trajectory;
    Values remains scrollable below. Wide side-by-side layouts are unchanged. */
 @media (min-width: 48rem) and (max-width: 79.99rem) and (max-height: 40rem) {
-  .shell { grid-template-rows: auto minmax(10rem, 1fr) fit-content(20%) auto; }
+  .shell { grid-template-rows: auto auto minmax(10rem, 1fr) fit-content(12%) auto; }
 }
 .banner.error { background: var(--danger-bg); border-color: var(--danger); }
 /* the recording bar (RecordBar.tsx, docs/mockups/record-play.html) */
@@ -1245,12 +1201,7 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 /* ---- breakpoints (docs/ui-v2.md "Responsive layout") ---- */
 /* wide: more room for the menu, and the values panel becomes a right column (R3, R6) */
 @media (min-width: 80rem) {
-  :root { --menu-width: 15rem; }
-  .shell {
-    grid-template-columns: var(--menu-width) minmax(0, 1fr) var(--values-col, 30rem);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas: 'title title title' 'menu work values' 'status status status';
-  }
+  .shell { grid-template-columns: minmax(0, 1fr) var(--values-col, 30rem); grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title title' 'menus menus' 'work values' 'status status'; }
   .values-panel { border-top: none; border-left: 1px solid var(--border); }
   .splitter-values { align-self: stretch; width: 0.5rem; height: auto; margin: 0 0 0 -0.25rem; justify-self: start; cursor: col-resize; }
   .value-group[data-section="par"] .value-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); }
@@ -1293,29 +1244,9 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 }
 /* narrow (phones, small tablets): one column, the menu and the values panel are drawers/sheets */
 @media (max-width: 47.99rem) {
-  .shell {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas: 'title' 'work' 'status';
-  }
   .menu-toggle, .values-toggle { display: inline-flex; }
   .title-bar { padding: var(--space-2); }
   .title-bar .file, .title-bar .wide-only { display: none; }
-  .menu-panel {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: min(18rem, 85vw);
-    z-index: 150;
-    transform: translateX(-100%);
-    visibility: hidden; /* out of the tab order while closed */
-    transition: transform 0.2s ease, visibility 0s 0.2s; /* hidden once it has slid out */
-    box-shadow: var(--shadow);
-  }
-  /* visible at once, so the focus can move into it */
-  .menu-panel.open { transform: none; visibility: visible; transition: transform 0.2s ease; }
-  .drawer-scrim { display: block; position: fixed; inset: 0; z-index: 140; background: rgba(15, 23, 42, 0.3); }
   .workspace { padding: var(--space-2); }
   .form-grid label { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
   .status-bar .rows { display: none; }
@@ -1370,3 +1301,42 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 .color-field [data-color-hex] { width: 2.5rem; height: 1.75rem; padding: 0; }
 .color-field [data-color-alpha] { width: 6rem; }
 .color-field [data-color-text] { width: 8rem; font-family: monospace; }
+
+
+/* W517: registry menu, palette, form and annotations. */
+.app-menu{ grid-area: menus; display: flex; flex-wrap: wrap; gap: .25rem; padding: .125rem .75rem; border-bottom: 1px solid var(--border); z-index: 160; background: var(--surface); }
+
+.app-menu > details{ position: relative; }
+
+.app-menu summary{ padding: .25rem .6rem; cursor: pointer; }
+
+.app-menu ul{ list-style: none; margin: 0; padding: .35rem; }
+
+.app-menu > details > ul{ position: absolute; min-width: 15rem; max-height: 70vh; overflow: auto; background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+
+.app-menu button{ width: 100%; text-align: left; display: flex; justify-content: space-between; gap: 1rem; }
+
+.command-palette{ width: min(50rem, 95vw); }
+
+.command-palette ul{ max-height: 60vh; overflow: auto; list-style: none; padding: 0; }
+
+.command-palette li{ display: flex; }
+
+.command-palette .menu-item{ flex: 1; }
+
+.registry-form{ max-height: 90vh; overflow: auto; width: min(48rem, 95vw); }
+
+.registry-argument{ margin: .5rem 0; }
+
+.registry-argument > label{ display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+
+.registry-argument > label > span:first-child{ min-width: 9rem; }
+
+.argument-row{ display: flex; gap: .3rem; }
+
+.annotations-panel{ position: fixed; right: 0; top: 6rem; max-height: 75vh; overflow: auto; max-width: 35rem; z-index: 25; padding: 1rem; background: var(--surface); border: 1px solid var(--border); }
+
+.annotations-panel [aria-selected=true]{ outline: 2px solid var(--accent); }
+
+.argument-rows { min-width: 0; width: 100%; }
+.argument-row > input, .argument-row > select { min-width: 0; width: 100%; }

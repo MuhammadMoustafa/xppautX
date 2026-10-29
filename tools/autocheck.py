@@ -87,19 +87,13 @@ def perf(name, detail=''):
 
 
 def run_menu(s, key, timeout=60 * SLOW):
-    """Auto/Run, answer the start menu with key; returns the events to idle"""
-    s.send(cmd='key', win='auto', key='r')
-    evs, ask = s.collect(is_ask)
-    if ask is None:
-        return evs
-    s.send(cmd='answer', id=ask['id'], key=key)
-    more, _ = s.collect(is_idle, timeout=timeout)
-    return evs + more
+    """Run the registry kind corresponding to the fixture's historical AUTO letter."""
+    return run_any(s, key, timeout)
 
 
 def grab_hopf(s):
     """Grab, Tab to the first label, take it; the events"""
-    s.send(cmd='key', win='auto', key='g')
+    s.send(cmd='auto.grab')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='Tab')
     more, ask = s.collect(is_ask)
@@ -161,7 +155,7 @@ def section_diagram():
     s.send(cmd='events.subscribe', events=['autoinfo'])
     s.collect(is_idle)
     open_auto(s)
-    s.send(cmd='key', win='auto', key='d')
+    s.send(cmd='auto.redraw')
     evs, _ = s.collect(is_idle)
     dg = Diagram().apply(evs)
     evs = run_menu(s, 's')
@@ -189,14 +183,14 @@ def section_diagram():
     check('the run ends with its last point\'s stability circle (autoinfo)',
           bool(got) and got[-1]['stab'] is not None and got[-1]['info'] is None, str(got[-1:]))
 
-    s.send(cmd='key', win='auto', key='d')
+    s.send(cmd='auto.redraw')
     evs, _ = s.collect(is_idle)
     print('INFO reDraw: %d events %s' % (len(evs), sorted({e.get('ev') for e in evs})))
     check('a reDraw arrives in a few events', len(evs) <= 10, '%d events' % len(evs))
     check('a reDraw of the same diagram sends its axes, not its points again', diagram_ops(evs) == ['axes'],
           str(diagram_ops(evs)))
 
-    s.send(cmd='key', win='auto', key='g')
+    s.send(cmd='auto.grab')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='ArrowRight')
     evs, ask = s.collect(is_ask)
@@ -217,7 +211,7 @@ def section_diagram():
     check('taking a grab point (Enter) ends in a few events', len(take_evs) < 10, '%d events' % len(take_evs))
 
     # Esc ends a grab without taking anything
-    s.send(cmd='key', win='auto', key='g')
+    s.send(cmd='auto.grab')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='ArrowRight')
     esc_evs, ask = s.collect(is_ask)
@@ -231,15 +225,14 @@ def section_diagram():
     # same values, a steady branch's max and min being one, so only the
     # axes go out); a Fit after that only sends the new axes
     n = len(dg.pts)
-    s.send(cmd='key', win='auto', key='a')
-    evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'i'},
-                                     'form': lambda e: {'ok': 1, 'values': e['values']}})
+    s.send(cmd='auto.configure_plot', plot_type='maximum_and_minimum')
+    evs,_ = s.collect(is_idle)
     dg.apply(evs)
     check('Axes/hI-lo draws the diagram again at once: every point, the new plot type',
           'axes' in diagram_ops(evs) and len(dg.pts) == n and dg.axes['plot'] == 'maximum_and_minimum',
           '%s, %d points of %d' % (diagram_ops(evs), len(dg.pts), n))
-    s.send(cmd='key', win='auto', key='a')
-    evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'f'}})
+    s.send(cmd='auto.fit')
+    evs,_ = s.collect(is_idle)
     dg.apply(evs)
     st = [e for e in evs if is_state(e)][-1]['auto']
     check('Axes/Fit sends the fitted axes only', diagram_ops(evs) == ['axes'] and same_axes(dg.axes, st),
@@ -415,9 +408,7 @@ def periodic_run(s):
     open_auto(s)
     run_menu(s, 's')
     grab_hopf(s)
-    s.send(cmd='key', win='auto', key='r')
-    evs, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], key='p')
+    run_periodic(s)
     stamps = []
     while len(stamps) < 2:
         evs, e = s.collect(lambda e: is_point(e) or is_idle(e) or is_ask(e), timeout=60 * SLOW)
@@ -428,12 +419,9 @@ def periodic_run(s):
 
 
 def run_periodic(s):
-    """Auto/Run from the grabbed point, continuing its periodic branch: the
-    Hopf point's menu starts it (p), a periodic label's extends it (e)"""
-    s.send(cmd='key', win='auto', key='r')
-    evs, ask = s.collect(is_ask)
-    if ask:
-        s.send(cmd='answer', id=ask['id'], key='p' if 'p' in ask.get('keys', '') else 'e')
+    """Run periodic orbits from the grabbed point, without waiting for the run to end"""
+    label = s.grabbed_label
+    s.send(cmd='auto.run', kind='periodic', **({'label': label} if label else {}))
 
 
 def section_abort():
@@ -465,7 +453,7 @@ def section_abort():
 
     # the run ends on an end point (EP, not MX: no convergence), which is
     # where it can be continued from
-    s.send(cmd='key', win='auto', key='g')
+    s.send(cmd='auto.grab')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='End')
     evs, ask = s.collect(is_ask)
@@ -474,7 +462,7 @@ def section_abort():
     print('INFO last point after abort: %s' % json.dumps(last)[:200])
     check('an aborted run ends on an EP point', last.get('sym') == 'end', str(last)[:200])
     s.send(cmd='answer', id=ask['id'], key='Return')
-    s.collect(is_idle)
+    taken, _ = s.collect(is_idle)
     check('the server is still alive after an abort', s.alive())
 
     # a second run continues the branch from that point
@@ -525,11 +513,8 @@ def save_diagram(s, name, written=None):
     """File/Save diagram, answering name; the members of the .snapx it
     wrote, written (name when not given), by name ({} if not written)"""
     import zipfile
-    s.send(cmd='key', win='auto', key='f')
-    s.answer_asks(is_idle, {'menu': lambda e: {'key': 's'},
-                            'file': lambda e: {'ok': 1, 'file': name},
-                            'string': lambda e: {'ok': 1, 'value': name},
-                            'choice': lambda e: {'key': 'y'}})
+    s.send(cmd='auto.save_session', file=name)
+    s.answer_asks(is_idle, {'choice':lambda e:{'key':'y'}})
     path = os.path.join(s.run, written or name)
     if not os.path.exists(path) or not zipfile.is_zipfile(path):
         return {}
@@ -537,23 +522,24 @@ def save_diagram(s, name, written=None):
     return {n: z.read(n) if n.endswith('.npz') else z.read(n).decode() for n in z.namelist()}
 
 
+def in_model_folder(s, path):
+    """a file argument is a base name in the model's folder: path, copied there when it is elsewhere"""
+    if os.path.dirname(path) not in ('', s.run):
+        shutil.copy(path, s.run)
+    return os.path.basename(path)
+
+
 def load_diagram(s, path):
     """File/Load diagram of path (answering a reset's question yes, a model
     switch's "save first?" don't): the events"""
-    s.send(cmd='key', win='auto', key='f')
-    evs, e = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'l'},
-                                     'file': lambda e: {'ok': 1, 'file': path},
-                                     'string': lambda e: {'ok': 1, 'value': path},
-                                     'choice': lambda e: {'key': 'd' if e.get('keys') == 'sd' else 'y'}})
-    return evs
+    s.send(cmd='auto.open_session', file=in_model_folder(s, path))
+    return s.answer_asks(is_idle, {'choice':lambda e:{'key':'d' if e.get('keys') == 'sd' else 'y'}})[0]
 
 
 def import_diagram(s, path):
     """Import a foreign XPPAUT diagram through its explicit menu item."""
-    s.send(cmd='key', win='auto', key='f')
-    return s.answer_asks(is_idle, {'menu': lambda e: {'key': 'f'},
-                                  'file': lambda e: {'ok': 1, 'file': path},
-                                  'choice': lambda e: {'key': 'y'}})[0]
+    s.send(cmd='auto.import_diagram', file=in_model_folder(s, path))
+    return s.answer_asks(is_idle, {'choice':lambda e:{'key':'d' if e.get('keys') == 'sd' else 'y'}})[0]
 
 
 def open_file(s, path):
@@ -725,9 +711,8 @@ def lecar_csv(s):
     grab_hopf(s)
     evs += run_menu(s, 'p', timeout=120 * SLOW)
     dg = Diagram().apply(evs)
-    s.send(cmd='key', win='auto', key='f')
-    s.answer_asks(is_idle, {'menu': lambda e: {'key': 'x'},
-                            'file': lambda e: {'ok': 1, 'file': 'lecar.csv'}})
+    s.send(cmd='auto.export_csv', file='lecar.csv')
+    s.collect(is_idle)
     dpath = os.path.join(s.run, 'lecar.csv')
     epath = os.path.join(s.run, 'lecar_eig.csv')
     if not os.path.exists(dpath) or not os.path.exists(epath):
@@ -798,8 +783,8 @@ def hopf_steady(s):
     """lecar's "hopf" parameter set, its fixed point as the IC (as
     examples/recordings/lecar_auto.recx does), AUTO; returns the events"""
     evs = []
-    for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'}, {'cmd': 'answer', 'key': 'a'},
-              {'cmd': 'equilibrium.find'}, {'cmd': 'equilibrium.import_as_ic'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}):
+    for c in ({'cmd': 'set.apply', 'name': 'hopf', 'scope': 'all'}, {'cmd': 'equilibrium.find'}, {'cmd': 'equilibrium.import_as_ic'},
+              {'cmd': 'auto.open'}):
         evs += step(s, **c)[0]
     return evs
 
@@ -807,7 +792,7 @@ def hopf_steady(s):
 def grab_point(s, i, take=False):
     """Grab, go to point i of the diagram data; take it (Return) or leave
     (Escape); returns the autoinfo there"""
-    s.send(cmd='key', win='auto', key='g')
+    s.send(cmd='auto.grab')
     evs, ask = s.collect(is_ask)  # the grab starts on the first point: its autoinfo is here
     if take:
         s.send(cmd='answer', id=ask['id'], point=i, key='Return')
@@ -919,7 +904,7 @@ def section_sessions():
     check('two sessions on one model both save their diagram', da is not None and db is not None)
     check('and the two diagrams agree', da == db)
     # a grabs the label its own run wrote, after b has run too
-    a.send(cmd='key', win='auto', key='g')
+    a.send(cmd='auto.grab')
     evs, ask = a.collect(is_ask)
     a.send(cmd='answer', id=ask['id'], key='Tab')
     evs, ask = a.collect(is_ask)
@@ -1004,7 +989,7 @@ def section_session():
 
     # grab the first label and Run extending the branch, as section_sessions
     # does for a session's own orbit: new points, and no NaN
-    s2.send(cmd='key', win='auto', key='g')
+    s2.send(cmd='auto.grab')
     evs, ask = s2.collect(is_ask)
     s2.send(cmd='answer', id=ask['id'], key='Tab')
     evs, ask = s2.collect(is_ask)
@@ -1525,8 +1510,7 @@ def names_diagram(ode):
     for command in ('run.initial', 'run.last'):
         s.send(cmd=command)
         s.collect(is_idle, timeout=30 * SLOW)
-    s.send(cmd='key', key='f')
-    s.send(cmd='key', key='a')
+    s.send(cmd='auto.open')
     evs, _ = s.collect(lambda e: e.get('ev') == 'window' and e.get('win') == 'diagram_1')
     more, _ = s.collect(is_idle)
     evs += more + run_menu(s, 's', timeout=60 * SLOW)
@@ -1618,12 +1602,8 @@ def section_names():
           str(br and br['cols'])[:300])
     # a column added under a 200-character name, from a formula over 200
     added = long_name('added_column_of_the_product')
-    s.send(cmd='key', win='browser', key='a')
-    evs, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], ok=1, value=added)
-    evs, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], ok=1, value=LONG_V.lower() + '*slow_recovery_variable_w')
-    evs, _ = s.collect(is_idle)
+    s.send(cmd='browser.add_column', name=added, formula=LONG_V.lower() + '*slow_recovery_variable_w')
+    evs,_ = s.collect(is_idle)
     errs = [e for e in evs if e.get('ev') == 'message' or (e.get('ev') == 'done' and e.get('error'))]
     s.send(cmd='browser.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 4})
     evs, br = s.collect(lambda e: e.get('ev') == 'browser')
@@ -1733,7 +1713,7 @@ def section_recording():
     with tempfile.TemporaryDirectory(prefix='xppsnapshot') as run:
         run_commands(args.server, LECAR, [
             {'cmd':'value.set_parameters', 'values':{'iapp':0.9}},
-            {'cmd': 'recording.start'}, {'cmd':'key', 'key':'i'}, {'cmd':'answer', 'key':'g'},
+            {'cmd': 'recording.start'}, {'cmd': 'run.initial'},
             {'cmd': 'recording.stop', 'file': 'start.recx'}], run)
         r = replay_recording(args.server, LECAR, os.path.join(run, 'start.recx'), run)
         states = [json.loads(l) for l in r.stdout.splitlines() if '"ev":"state"' in l]
@@ -1813,8 +1793,8 @@ def section_recording():
     code, out, run = run_recording(lines=[{'cmd':'answer', 'key':'s'}])
     check('an answer to nothing exits 1', code == 1, 'exit %d' % code)
     shutil.rmtree(run, ignore_errors=True)
-    code, out, run = run_recording(lines=[{'cmd':'key', 'key':'g'}, {'cmd':'key', 'key':'f'}])
-    check('a recording missing the open menu answer exits 1, naming the step once',
+    code, out, run = run_recording(lines=[{'cmd':'session.open_model'}, {'cmd':'run.initial'}])
+    check('a recording missing the answer to a command\'s question exits 1, naming the step once',
           code == 1 and 'run.recx:%d:' % run_recording.places[0][0] in run_recording.stderr
           and run_recording.stderr.count('the player stopped') == 1,
           'exit %d, %s' % (code, run_recording.stderr[-300:]))
@@ -1937,13 +1917,8 @@ NUMERICS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points']
 
 
 def set_numerics(s, **values):
-    """Answer Auto/Numerics and return the events, including a refused edit."""
-    s.send(cmd='key', win='auto', key='n')
-    _, ask = s.collect(lambda e: is_ask(e) or is_idle(e))
-    vals = list(ask['values'])
-    for k, v in values.items():
-        vals[NUMERICS.index(k)] = str(v)
-    s.send(cmd='answer', id=ask['id'], ok=1, values=vals)
+    """Configure the registry's numerics and return its result events."""
+    s.send(cmd='auto.configure_numerics', **values)
     return s.collect(is_idle)[0]
 
 
@@ -2039,11 +2014,11 @@ def section_errors():
             # Root bypasses mode permissions; a directory refuses fort.3 writes too.
             os.mkdir(os.path.join(scratch, 'fort.3'))
         evs = run_any(s, 's')
-        errors = [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+        errors = [e for e in evs if e.get('ev') in ('message', 'done') and e.get('error')]
         check('W328: a failed fort write reports its file once, with the original Place',
               len(errors) == 1 and 'fort.3' in errors[0]['error']
               and errors[0].get('file') == 'command' and errors[0].get('line') == 1
-              and json.loads(errors[0].get('source', '{}')).get('cmd') in ('key', 'answer')
+              and json.loads(errors[0].get('source', '{}')).get('cmd') == 'auto.run'
               and s.alive(), str(errors))
     finally:
         if denied:
@@ -2061,24 +2036,14 @@ def section_errors():
         template = f.read()
     body = [json.loads(line) for line in template.split('@steps\n', 1)[1].splitlines()
             if line.startswith('{')]
-    s = Server(args.server, LECAR, verbose=args.v)
-    try:
-        s.collect(is_idle)
-        open_auto(s)
-        s.send(cmd='key', win='auto', key='n')
-        _, ask = s.collect(is_ask)
-        values = list(ask['values'])
-        values[NUMERICS.index('collocation_points')] = '8'
-    finally:
-        s.close()
     # Inject immediately before the periodic Auto/Run step.
     insert = next(i for i, step in enumerate(body) if isinstance(step.get('cmd'), dict)
                   and step['cmd'].get('cmd') == 'auto.run' and step['cmd'].get('kind') == 'periodic')
-    body = body[:insert] + [{'win': 'auto', 'keys': ['n'], 'answers': [values]}] + body[insert:insert + 1]
+    body = body[:insert] + [{'cmd':dict(cmd='auto.configure_numerics',collocation_points=8)}] + body[insert:insert + 1]
     code, out, run = run_recording(steps=body)
     try:
         errors = [json.loads(line) for line in out.splitlines() if line.startswith('{')
-                  and json.loads(line).get('ev') == 'message' and json.loads(line).get('error')]
+                  and json.loads(line).get('ev') in ('message', 'done') and json.loads(line).get('error')]
         place = run_recording.places[insert]
         check('W328: a refused AUTO value names its recorded form step once in server and silent',
               code == 1 and len(errors) == 1 and 'Collocation points' in errors[0]['error']
@@ -2099,8 +2064,7 @@ def section_errors():
             f.write("x'=-x\ndone\n")
         s = Server(args.server, nopar, verbose=args.v)
         s.collect(is_idle)
-        for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}):
-            step(s, **c)
+        step(s, cmd='auto.open')
         errs = errors_of(run_any(s, 's'))
         check('errors: a model without parameters: AUTO refuses to run, naming why, and the server lives',
               any('needs a model parameter' in e for e in errs) and s.alive(), str(errs))
@@ -2124,17 +2088,12 @@ def integrate(s):
 
 
 def numerics_menu(s, key, item, replies=None):
-    """nUmerics, then its item key, whose menu is answered with item (and
-    any further asks by replies, kind -> answer); Escape: the events"""
-    s.send(cmd='key', key='u')
-    s.collect(is_idle)
-    s.send(cmd='key', key=key)
-    evs, ask = s.collect(is_ask)
-    s.send(cmd='answer', id=ask['id'], key=item)
-    more, e = s.answer_asks(is_idle, replies or {}, timeout=60 * SLOW)
-    s.send(cmd='key', key='Escape')
-    s.collect(is_idle)
-    return evs + more
+    """Registry operation used by the old numerical-menu fixture."""
+    operation = {('a','n'):'analysis.adjoint_compute',('a','m'):'analysis.adjoint_interaction',
+        ('a','a'):'analysis.adjoint_load',('a','h'):'analysis.adjoint_load_interaction',
+        ('h','o'):'analysis.reload_histogram',('h','d'):'analysis.load_stochastic_run'}[(key,item)]
+    s.send(cmd=operation, **({'couplings':{'x':'0','y':'0'}} if operation == 'analysis.adjoint_interaction' else {}))
+    return s.collect(is_idle)[0]
 
 
 def browser_block(s, rows):
@@ -2236,13 +2195,7 @@ def section_sessiondata():
         s.send(cmd='events.subscribe', events=PAGE_EVENTS, encoding='f32')
         evs, _ = s.collect(is_idle)
         # W against V, as a phase plane
-        s.send(cmd='key', window='graph_1', key='v')
-        evs, ask = s.collect(is_ask)
-        s.send(cmd='answer', id=ask['id'], key='2')
-        evs, ask = s.collect(is_ask)
-        vals = list(ask['values'])
-        vals[0], vals[1] = 'V', 'W'
-        s.send(cmd='answer', id=ask['id'], ok=1, values=vals)
+        s.send(cmd='plot.set_2d', x='V', y='W')
         s.collect(is_idle)
         s.send(cmd='run.initial')
         evs, _ = s.collect(is_idle, timeout=30 * SLOW)
@@ -2337,13 +2290,13 @@ def section_play():
     s.send(cmd='run.range')
     _, e = s.collect(lambda e: e.get('ev') == 'computing', timeout=30 * SLOW)
     s.collect(lambda e: e.get('ev') == 'progress' and e.get('n', 0) >= 200, timeout=60 * SLOW)
-    s.send(cmd='key', key='/')
+    s.send(cmd='run.abort')
     s.collect(is_idle, timeout=120 * SLOW)
     s.send(cmd='recording.stop', file='range')
     s.collect(is_idle)
     text = open(os.path.join(s.run, 'range.recx'), encoding='utf-8').read() if os.path.exists(os.path.join(s.run, 'range.recx')) else ''
     check('play: a / during a range is recorded in its step, with where the job was',
-          '"during":[{"key":"/","at":{"what":"integrate","rows":' in text, text[text.find('@steps'):][:400])
+          '"abort":{"what":"integrate","rows":' in text, text[text.find('@steps'):][:400])
     # the replay's range ends where the recorded one did: had the / not
     # come there (the stop is armed at its row), the step would say so,
     # or run all 20 of heavy.odex's runs

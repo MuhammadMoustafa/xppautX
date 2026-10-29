@@ -14,7 +14,7 @@ test('steady settings reject incomplete precision, insufficient hold and invalid
 });
 test('steady and direct continuation are computations guarded during another run or prompt', () => {
   for (const cmd of ['run.steady', 'run.continue']) {
-    const kind = kindOf(HELLO, 1, {cmd});
+    const kind = kindOf(HELLO, {cmd});
     assert.equal(kind, 'computation');
     assert.equal(mayStart(kind, true, false), false);
     assert.equal(mayStart(kind, false, true), false);

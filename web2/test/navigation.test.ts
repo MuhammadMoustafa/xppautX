@@ -1,84 +1,62 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {kindOf, menuCommand} from '../src/protocol/kinds';
-import {navigationGroups, navigationProblems} from '../src/ui/navigation';
-import {HELLO} from './hello';
+import {registryRows, menuTree, paletteRows} from '../src/ui/navigation';
+import {argumentSpec, argumentNames, argumentProblem, commandValues, argumentControl, blankArgument} from '../src/ui/argumentFields';
+import {REGISTRY_HELLO} from './hello';
+import {initialState} from '../src/store/state';
+import {withPreset} from '../src/store/keymap';
+import type {RegistryArgument} from '../src/protocol/kinds';
 
-const hello = HELLO;
-
-test('grouped navigation lists the primary commands, each once, in its category; a search reaches every command', () => {
-  const ids = (query = '') => navigationGroups(hello, query, hello.keymap).flatMap(group => group.items.map(item => `${item.menu}:${item.id}`));
-  const key = (row: {menu: string; id: string}) => `${row.menu}:${row.id}`;
-  const listed = new Set(hello.command_categories.filter(c => c.listed).map(c => c.id));
-  const rows = hello.command_table.filter(row => listed.has(row.category));
-  assert.deepEqual(navigationGroups(hello, '', hello.keymap).map(group => group.name), hello.command_categories.filter(c => c.listed).map(c => c.label));
-  assert.deepEqual(ids(), rows.filter(row => row.primary).map(key));
-  for (const row of rows) {
-    const hit = navigationGroups(hello, row.id, hello.keymap).find(group => group.items.some(item => item.menu === row.menu && item.id === row.id));
-    assert.equal(hit?.id, row.category, key(row));
-  }
+const rows = registryRows(REGISTRY_HELLO);
+test('W517: every registry command appears exactly once in the tree with its declared path', () => {
+  const found: string[] = [];
+  const walk = (nodes: ReturnType<typeof menuTree>, path: string[]) => nodes.forEach(n => {
+    if (n.row) {found.push(n.row.id); assert.equal([...path, n.name].join('/'), n.row.menu_path);}
+    walk(n.children, [...path, n.name]);
+  });
+  walk(menuTree(rows), []);
+  assert.deepEqual(found.sort(), rows.map(r => r.id).sort());
+  assert.ok(rows.length > 150);
+  assert.ok(rows.every(r => ['File','Run','Analysis','Plot','Data','AUTO','Windows','Help'].includes(r.menu_path!.split('/')[0])));
+});
+test('W517: palette matches each word in names, paths and descriptions', () => {
+  assert.ok(paletteRows(rows, 'session save').some(r => r.id === 'session.save'));
+  assert.ok(paletteRows(rows, 'plot annotation').some(r => r.id === 'annotation.move'));
+  assert.equal(paletteRows(rows, 'not-a-command').length, 0);
+});
+const arg = (type: string): RegistryArgument => ({name: 'value', type, required: true, choices: ['last_state','initial_state'], min: 0, max: 3});
+test('W517: form fields use registry types, choices, bounds and model/window names', () => {
+  assert.deepEqual(argumentSpec(arg('choice')), {kind: 'choice', choices: ['last_state','initial_state']});
+  assert.equal(argumentSpec(arg('boolean')).kind, 'boolean');
+  assert.equal(argumentSpec(arg('color')).kind, 'color');
+  assert.equal(argumentSpec(arg('file')).kind, 'file');
+  assert.ok(argumentProblem(arg('integer'), '4'));
+  assert.equal(argumentProblem(arg('integer'), '2'), null);
+  assert.ok(argumentProblem(arg('real'), '-'));
+  const state = {...initialState, hello: {...REGISTRY_HELLO, lists: [['T'], ['x'], ['p']]}, windows: [{name: 'Named graph', kind: 'graph' as const, shown: false}]};
+  assert.deepEqual(argumentNames(arg('window'), state), ['Named graph']);
+  assert.deepEqual(argumentNames({...arg('name'), names:'parameter'}, state), ['p']);
+  const list = {...arg('list'), element:'real'};
+  const map = {...arg('map'), element:'real'};
+  assert.deepEqual(commandValues([list], {value:['1','2']}), {value:[1,2]});
+  assert.deepEqual(commandValues([map], {value:{p:'2'}}), {value:{p:2}});
+  assert.ok(argumentProblem(list, ['wrong']));
+  assert.deepEqual(commandValues([{...arg('text'), required:false}], {}), {});
+});
+test('W517: both preset buttons retain pins and identify the core preset', () => {
+  const info = {...REGISTRY_HELLO.keymap, pinned:['session.save']};
+  assert.equal(withPreset(info, 'xppaut').preset, 'xppaut');
+  assert.deepEqual(withPreset(info, 'default').pinned, ['session.save']);
 });
 
-test('a command lists its default key, and its XPPAUT sequence only when that preset is on', () => {
-  const item = (preset: 'default' | 'xppaut', id: string) =>
-    navigationGroups(hello, id, {...hello.keymap, preset}).flatMap(group => group.items).find(i => i.id === id)!;
-  assert.equal(item('default', 'savesession').shortcut, 'Ctrl+S');
-  assert.equal(item('default', 'savesession').firstKey, 'Ctrl+S');
-  assert.equal(item('default', 'saveinfo').shortcut, '');
-  assert.equal(item('xppaut', 'saveinfo').shortcut, 'F S');
-});
-
-test('search finds file and analysis commands across legacy menu boundaries', () => {
-  const found = (query: string) => navigationGroups(hello, query, hello.keymap).flatMap(group => group.items.map(item => item.id));
-  assert.deepEqual(found('session as'), ['savesession', 'savesessionas', 'savesessioncopy']);
-  assert.deepEqual(found('EQUILIBRIA'), ['singpts']);
-  assert.equal(found('no such action').length, 0);
-});
-
-test('stable menu actions retain their kind in every legacy shortcut mode', () => {
-  for (const current of [0, 1, 2]) {
-    assert.equal(kindOf(HELLO, current, menuCommand('file', 'savesession')), 'data');
-    assert.equal(kindOf(HELLO, current, menuCommand('main', 'parameters')), 'setting');
-    assert.equal(kindOf(HELLO, current, menuCommand('main', 'singpts')), 'computation');
-  }
-  assert.equal(kindOf(HELLO, 0, menuCommand('file', 'does-not-exist')), null);
-  assert.equal(kindOf(HELLO, 0, {cmd: 'key', menu: 'invalid', item: 'quit'}), null);
-  for (const fields of [{menu: 'main'}, {item: 'undo'}, {menu: 42, item: 'undo'},
-    {menu: 'main', item: 'undo', key: 'Escape'}, {menu: 'main', item: 'undo', win: 'auto'}]) {
-    assert.equal(kindOf(HELLO, 0, {cmd: 'key', ...fields}), null);
-  }
-});
-
-test('the core table has no problems: every id once, in one known category', () => {
-  assert.deepEqual(navigationProblems(HELLO), []);
-  assert.equal(new Set(HELLO.command_table.map(row => `${row.menu}:${row.id}`)).size, HELLO.command_table.length);
-  const categories = new Set(HELLO.command_categories.map(category => category.id));
-  for (const row of HELLO.command_table) assert.ok(categories.has(row.category), `${row.menu}/${row.id}`);
-  /* the shortcut-layer switches are exactly the unlisted category, and none is pinnable */
-  assert.deepEqual(HELLO.command_table.filter(row => row.category === 'layer').map(row => `${row.menu}:${row.id}`),
-    ['main:file', 'main:numerics', 'num:exit']);
-  /* W229, W228: the Tools group is the Calculator; what lives in a panel or the title bar has a row but no group and no pin */
-  assert.deepEqual(HELLO.command_table.filter(row => row.category === 'tools').map(row => row.id), ['calculator']);
-  assert.deepEqual(HELLO.command_table.filter(row => row.category === 'panels').map(row => row.id).sort(),
-    ['3dparams', 'deleteset', 'exportvalues', 'getparset', 'keymapeditor', 'lookup', 'play', 'record', 'renameset', 'restoredefaults', 'savedefaults', 'savevalues', 'source', 'transpose', 'viewaxes', 'window']);
-  assert.ok(HELLO.command_table.filter(row => row.category === 'panels').every(row => !row.pinnable));
-  assert.ok(!HELLO.command_table.some(row => ['help', 'tutorial', 'xpprc', 'clone'].includes(row.id)));
-});
-
-test('a table the page and the core disagree on is a problem, never skipped silently', () => {
-  const row = HELLO.command_table.find(r => r.key !== '')!;
-  const twice = {...HELLO, command_table: [...HELLO.command_table, {...row, key: '\0'}]};
-  assert.match(navigationProblems(twice).join(' '), new RegExp(`${row.menu}/${row.id} is in the command table twice`));
-  const unknown = {...HELLO, command_table: [...HELLO.command_table, {...row, id: 'brandnew', key: '\x01', category: 'nowhere'}]};
-  assert.match(navigationProblems(unknown).join(' '), /main\/brandnew is in category nowhere/);
-  const sameKey = {...HELLO, command_table: [...HELLO.command_table, {...row, id: 'another'}]};
-  assert.match(navigationProblems(sameKey).join(' '), /main\/another shares its key/);
-  const sameChord = {...HELLO, command_table: HELLO.command_table.map(r => r.id === 'reload' ? {...r, default_keys: ['Ctrl+O']} : r)};
-  assert.match(navigationProblems(sameChord).join(' '), /both on Ctrl\+O/);
-  const pinnableSwitch = {...HELLO, command_table: HELLO.command_table.map(r => r.id === 'exit' ? {...r, pinnable: true} : r)};
-  assert.match(navigationProblems(pinnableSwitch).join(' '), /num\/exit is in a category that is not a sidebar group \(layer\) but can be pinned/);
-  const reserved = {...HELLO, command_table: HELLO.command_table.map(r => r.id === 'reload' ? {...r, default_keys: ['Ctrl+K Ctrl+W']} : r)};
-  assert.match(navigationProblems(reserved).join(' '), /file\/reload is on Ctrl\+K Ctrl\+W, which the system or the browser keeps/);
-  const emptyGroup = {...HELLO, command_table: HELLO.command_table.filter(r => r.category !== 'plot')};
-  assert.match(navigationProblems(emptyGroup).join(' '), /Category plot has no commands/);
+test('W517: widget selection uses the actual registry wire types, including name and fixed lists', () => {
+  for (const type of ['name','window','choice']) assert.equal(argumentControl(arg(type)), 'select');
+  for (const type of ['list','map','list[real, 2]','list[text]']) assert.equal(argumentControl(arg(type)), 'rows');
+  assert.equal(argumentControl(arg('boolean')), 'checkbox');
+  assert.equal(argumentControl(arg('file')), 'file');
+  assert.equal(argumentControl(arg('color')), 'color');
+  assert.deepEqual(commandValues([{...arg('map'), element:'list[real, 2]'}], {value:{x:['1','2']}}), {value:{x:[1,2]}});
+  assert.deepEqual(blankArgument(arg('list[real, 2]')), ['', '']);
+  assert.deepEqual(blankArgument(arg('list[text]')), []);
+  assert.throws(() => argumentControl(arg('unknown')));
 });

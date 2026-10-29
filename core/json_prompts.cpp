@@ -274,6 +274,8 @@ int j_choose(std::string_view title, std::string_view q, std::span<const std::st
     buf_str(b, keys);
     if (!ask_wait(b, id)) return 0;
     get_string(answer.c_str(), "key", k);
+    const int index = get_int(answer.c_str(), "index", -1);
+    if (k.empty() && index >= 0 && static_cast<std::size_t>(index) < choices.size()) return MENU_UNKEYED + index;
     return static_cast<unsigned char>(k[0]);
 }
 
@@ -531,42 +533,9 @@ int j_rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
     return 1;
 }
 
-int j_menu_choose(const struct XppMenu *m, int def)
-{
-    std::string b;
-    std::string k;
-    int id = ask_begin(b, "menu");
-    BUF_LIT(b, ",\"name\":");
-    buf_str(b, m->name);
-    BUF_LIT(b, ",\"title\":");
-    buf_str(b, m->title);
-    BUF_LIT(b, ",\"items\":");
-    buf_str_array(b, m->items, m->n);
-    BUF_LIT(b, ",\"keys\":");
-    buf_str(b, m->keys);
-    if (m->hints) {
-        BUF_LIT(b, ",\"hints\":");
-        buf_str_array(b, m->hints, m->n);
-    }
-    buf_format(b, ",\"def\":{:d}", def);
-    if (!ask_wait(b, id)) return 27;
-    get_string(answer.c_str(), "key", k);
-    int ch = k[0] ? static_cast<unsigned char>(k[0]) : 27;
-    /* an item with no key (past the keys the menu has) is answered by its index (menus.h MENU_UNKEYED) */
-    if (const int index = get_int(answer.c_str(), "index", -1);
-        !k[0] && index >= 0 && index < m->n && static_cast<std::size_t>(index) >= strlen(m->keys))
-        ch = MENU_UNKEYED + index;
-    record_menu_pick(m, ch);
-    return ch;
-}
 
-void j_show_menu(int which)
-{
-    session.menu.store(which, std::memory_order_relaxed);
-    std::string b;
-    buf_format(b, "{{\"ev\":\"menu\",\"which\":{:d}}}", which);
-    send_buf(b);
-}
+
+
 
 /* one pointer event of a drag in window win: 1 down, 2 move, 3 up; 0 when
    a key or Cancel ends the drag */

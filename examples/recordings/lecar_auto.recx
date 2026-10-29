@@ -204,14 +204,13 @@ fun ode_divisor(value) = if value then value else 2.23e-15
 @end
 
 @steps
-{"step":"File","keys":["f"],"view":true}
-{"step":"File → Apply set → d: hopf, all","keys":["g","d","a"]}
+{"step":"File → Apply set","cmd":{"cmd":"set.apply","name":"hopf","scope":"all"}}
 {"step":"Sing pts \u2192 Go","cmd":{"cmd":"equilibrium.find","print_eigenvalues":false}}
 {"step":"Equilibrium \u2192 Import","cmd":{"cmd":"equilibrium.import_as_ic"}}
 {"step":"File → AUTO","cmd":{"cmd": "auto.open"},"view":true}
 {"step":"AUTO → Run → Equilibrium","cmd":{"cmd": "auto.run", "kind": "equilibrium", "replace_diagram": false}}
 {"step":"AUTO → Grab","cmd":{"cmd": "auto.grab", "type": "hopf", "index": 1}}
 {"step":"AUTO → Run → Periodic","cmd":{"cmd": "auto.run", "kind": "periodic", "type": "hopf", "index": 1}}
-{"step":"AUTO → File → Save diagram","win":"auto","cmd":{"cmd": "key", "win": "auto", "key": "f", "replace": 1},"keys":["s"],"answers":[{"file":"lecar.snapx"}]}
+{"step":"AUTO → File → Save diagram","cmd":{"cmd":"auto.save_session","file":"lecar.snapx"}}
 
-fingerprint: 8bdb0c0dffa9bad74f0e791c3b083a5a7f23830eae5fc509f91bbd313a8fc584
+fingerprint: 6ff5d3141aa793377325c5d2d1c79c5969ef71bbeda9c1415b3a87d5775161ed

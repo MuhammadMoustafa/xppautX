@@ -52,7 +52,7 @@ test('mouse, rubber and drag asks of the shown 2D window are plot modes', () => 
   assert.equal(pickModeOf(ask('grab', {win: HELLO.window_names.auto}), view, false, HELLO.window_names, true), null, "a grab is the AUTO view's own mode");
   assert.equal(pickModeOf(ask('mouse'), {...view, three: 1}, true, HELLO.window_names), null, 'nor a 3D plot');
   assert.equal(pickModeOf(ask('mouse'), view, false, HELLO.window_names), null, 'nor a plot before the first series');
-  assert.equal(pickModeOf(ask('menu'), view, true, HELLO.window_names), null);
+  assert.equal(pickModeOf(ask('choice'), view, true, HELLO.window_names), null);
 });
 
 const box = (): PickState => startPick(null, ask('rubber'), 'box');
@@ -130,7 +130,7 @@ test('the store: a cancelled mode is gone at once; a drag lasts over its asks', 
   s = ev(s, ask('drag', {id: 9}));
   assert.equal(s.pick?.ask, 9);
   assert.deepEqual(s.pick?.cursor, {fx: 0.2, fy: 0.3}, 'the same mode keeps its crosshair');
-  s = ev(s, ask('menu', {id: 10}));
+  s = ev(s, ask('choice', {id: 10}));
   assert.equal(s.pick, null, 'any other ask ends it');
 });
 

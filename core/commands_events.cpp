@@ -20,11 +20,11 @@ constexpr std::array UNSUBSCRIBE_RESULTS = {ResultField{"unsubscribed", "list[te
 constexpr std::array EVENTS = {"state", "done"};
 
 constexpr std::array ROWS = {
-    Command{"events.subscribe", SUBSCRIBE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "", "",
+    Command{"events.subscribe", SUBSCRIBE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "Help/Events/Subscribe", "",
             "Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays "
             "as base64 float32 (what is left out stays as it was); diagram says whether AUTO's diagram points are sent.",
             SUBSCRIBE_RESULTS, EVENTS, false, front_end},
-    Command{"events.unsubscribe", UNSUBSCRIBE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "", "",
+    Command{"events.unsubscribe", UNSUBSCRIBE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "Help/Events/Unsubscribe", "",
             "Stop sending the data events named.", UNSUBSCRIBE_RESULTS, EVENTS, false, front_end}};
 
 } // namespace

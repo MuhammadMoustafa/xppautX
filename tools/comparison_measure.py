@@ -65,11 +65,11 @@ def elapsed(pid, start):
 
 
 class RunClock:
-    """Observe the shared key/answer adapter without another implementation of it.
+    """Observe the shared command adapter without another implementation of it.
 
-    A run starts at the final answer to Auto/Run, or at the Run key when
-    no menu is needed. Idle ends it. Setup, grab, disk exports and client
-    preparation are outside the window. The event subscription is the caller's.
+    A run starts when auto.run is sent and ends with its done. Setup, grab,
+    disk exports and client preparation are outside the window. The event
+    subscription is the caller's.
     """
     def __init__(self, server):
         self.server = server
@@ -82,16 +82,14 @@ class RunClock:
         server.collect = self.observed_collect
 
     def observed_send(self, **cmd):
-        if cmd.get('cmd') == 'key' and cmd.get('win') == 'auto' and cmd.get('key') == 'r':
+        if cmd.get('cmd') == 'auto.run':
             self.pending = True
-            self.start = clock(self.server.proc.pid)
-        elif self.pending and cmd.get('cmd') == 'answer':
             self.start = clock(self.server.proc.pid)
         return self.send(**cmd)
 
     def observed_collect(self, until, timeout=10):
         events, end = self.collect(until, timeout)
-        if self.pending and end and end.get('ev') == 'idle':
+        if self.pending and end and end.get('ev') in ('idle', 'done'):
             self.rows.append(elapsed(self.server.proc.pid, self.start))
             self.pending = False
         return events, end

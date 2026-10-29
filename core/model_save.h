@@ -40,8 +40,6 @@ Result<bool> export_values(Session &s, std::string_view name, std::string_view s
 /* the model's own set renamed or deleted, in the file */
 Result<> rename_intern_set(Session &s, std::string_view from, std::string_view to);
 Result<> delete_intern_set(Session &s, std::string_view name);
-/* the sets the model file itself wrote, in order: the ones that may be replaced, renamed or deleted */
-std::vector<std::string> own_set_names(const Session &s);
 
 }
 

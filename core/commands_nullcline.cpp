@@ -96,15 +96,15 @@ constexpr std::array MESH_RESULT={ResultField{"nullcline_mesh","integer"}};
 constexpr std::array EVENTS={"nullclines","state","done"};
 constexpr std::array DONE={"done"};
 constexpr std::array ROWS={
-    Command{"nullcline.compute",{},XPP_KIND_COMPUTE,CommandCategory::Analysis,"Nullclines/New","NN","Compute the phase plane's nullclines.",COMPUTED,EVENTS,true,compute},
-    Command{"nullcline.redraw",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Nullclines/Restore","NR","Draw stored nullclines again.",DRAWN,EVENTS,true,redraw},
-    Command{"nullcline.auto_mode",ENABLED,XPP_KIND_VIEW,CommandCategory::Analysis,"Nullclines/Auto or Manual","NA/NM","Set automatic nullcline redrawing.",AUTO,EVENTS,true,auto_mode},
-    Command{"nullcline.freeze",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Nullclines/Freeze/Freeze","NFF","Freeze the current nullclines.",FROZEN,EVENTS,true,freeze},
-    Command{"nullcline.clear_frozen",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Nullclines/Freeze/Delete all","NFD","Clear frozen nullclines.",CLEARED,EVENTS,true,clear_frozen},
-    Command{"nullcline.range_freeze",RANGE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Nullclines/Freeze/Range","NFR","Freeze nullclines over a parameter range.",STEPS,EVENTS,true,range_freeze},
-    Command{"nullcline.animate",DELAY,XPP_KIND_VIEW,CommandCategory::Analysis,"Nullclines/Freeze/Animate","NFA","Replay frozen nullclines.",ANIMATED,DONE,true,animate},
-    Command{"nullcline.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"Nullclines/Save","NS","Write the current nullcline segments.",EXPORTED,DONE,true,export_file},
-    Command{"nullcline.set_mesh",MESH,XPP_KIND_SETTING,CommandCategory::Analysis,"Numerics/Nullcline mesh","UN","Set the nullcline mesh.",MESH_RESULT,EVENTS,true,set_mesh}};
+    Command{"nullcline.compute",{},XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Nullclines/New","NN","Compute the phase plane's nullclines.",COMPUTED,EVENTS,true,compute},
+    Command{"nullcline.redraw",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Restore","NR","Draw stored nullclines again.",DRAWN,EVENTS,true,redraw},
+    Command{"nullcline.auto_mode",ENABLED,XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Auto or Manual","NA/NM","Set automatic nullcline redrawing.",AUTO,EVENTS,true,auto_mode},
+    Command{"nullcline.freeze",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Freeze/Freeze","NFF","Freeze the current nullclines.",FROZEN,EVENTS,true,freeze},
+    Command{"nullcline.clear_frozen",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Freeze/Delete all","NFD","Clear frozen nullclines.",CLEARED,EVENTS,true,clear_frozen},
+    Command{"nullcline.range_freeze",RANGE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Nullclines/Freeze/Range","NFR","Freeze nullclines over a parameter range.",STEPS,EVENTS,true,range_freeze},
+    Command{"nullcline.animate",DELAY,XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Freeze/Animate","NFA","Replay frozen nullclines.",ANIMATED,DONE,true,animate},
+    Command{"nullcline.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"Analysis/Nullclines/Save","NS","Write the current nullcline segments.",EXPORTED,DONE,true,export_file,{}, {}, "", "write", "*.dat"},
+    Command{"nullcline.set_mesh",MESH,XPP_KIND_SETTING,CommandCategory::Analysis,"Analysis/Numerics/Nullcline mesh","UN","Set the nullcline mesh.",MESH_RESULT,EVENTS,true,set_mesh}};
 }
 std::span<const Command> nullcline_commands(){return ROWS;}
 }

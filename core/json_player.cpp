@@ -852,7 +852,7 @@ void player_asked(const char *kind)
     try {
         const PlayStep &st = player.steps[static_cast<size_t>(player.running)];
         const std::string k = kind;
-        if (k == "menu" || k == "choice") {
+        if (k == "choice") {
             if (player.keys_used == st.keys.size()) return diverged(xpp::format("asks a {} it holds no key for", k));
             const size_t i = player.keys_used++;
             if (session.silent) xpp::report_automatic(xpp::format("the recording's {}", k), st.keys[i]);

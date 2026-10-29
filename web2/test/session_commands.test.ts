@@ -3,12 +3,12 @@ import {test} from 'node:test';
 import {Session} from '../src/session';
 import {reduce, initialState, noIdle} from '../src/store/state';
 import type {Command} from '../src/protocol/types';
-import {HELLO} from './hello';
+import {REGISTRY_HELLO, HELLO} from './hello';
 
 function connected() {
   const sent: Command[] = [];
   const session = new Session({send: command => sent.push(command), open: () => {}, close: () => {}});
-  session.store.dispatch({type: 'event', ev: HELLO});
+  session.store.dispatch({type: 'event', ev: {...HELLO, commands:[...REGISTRY_HELLO.commands, ...HELLO.commands]}});
   sent.length = 0;
   return {session, sent};
 }
@@ -38,7 +38,7 @@ test('opening a model, a recent model, an example and the source use the session
   session.selectTextTab('source');
   session.runAction(4);
   session.userButton(1);
-  assert.deepEqual(sent, [{cmd: 'key', menu: 'file', item: 'openmodel'}, {cmd: 'session.open_model', recent: 2},
+  assert.deepEqual(sent, [{cmd: 'session.open_model'}, {cmd: 'session.open_model', recent: 2},
     {cmd: 'session.open_model', example: 'lecar.odex'}, {cmd: 'session.get_source'}, {cmd: 'tool.run_source_action', index: 4},
     {cmd: 'tool.run_user_button', index: 1}]);
 });

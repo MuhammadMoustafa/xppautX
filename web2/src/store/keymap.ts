@@ -145,7 +145,8 @@ export function keysClash(a: string, b: string): boolean {
 
 /** the command other than `id` that has a key clashing with `key`, if any */
 export function conflictOf(info: KeymapInfo, rows: readonly CommandRow[], id: string, key: string): CommandRow | undefined {
-  return rows.find(row => row.id !== id && effectiveKeys(info, row).some(k => keysClash(k, key)));
+  const context = rows.find(row => row.id === id)?.legacy_context ?? '';
+  return rows.find(row => row.id !== id && (info.preset !== 'xppaut' || (row.legacy_context ?? '') === context) && effectiveKeys(info, row).some(k => keysClash(k, key)));
 }
 
 /** the keymap with `key` given to command `row` as its key number `index`, and taken from every other
@@ -154,6 +155,7 @@ export function replaceKey(info: KeymapInfo, rows: readonly CommandRow[], row: C
   const user = withKey(info, row, index, key);
   const bindings = {...user.bindings};
   for (const other of rows) {
+    if (info.preset === 'xppaut' && (other.legacy_context ?? '') !== (row.legacy_context ?? '')) continue;
     const keys = effectiveKeys(info, other);
     if (other.id !== row.id && keys.some(k => keysClash(k, key))) bindings[other.id] = keys.filter(k => !keysClash(k, key));
   }
@@ -185,7 +187,7 @@ export type Recorded =
   | {kind: 'set'; key: string};
 
 export function recordKey(info: KeymapInfo, rows: readonly CommandRow[], rec: Recording, name: string): Recorded {
-  if (name === 'Esc') return {kind: 'cancel'};
+  if (name === 'Escape') return {kind: 'cancel'};
   if (name === 'Backspace') return {kind: 'clear'};
   const row = rows.find(r => r.id === rec.id);
   if (!row) return {kind: 'cancel'};
@@ -197,11 +199,10 @@ export function recordKey(info: KeymapInfo, rows: readonly CommandRow[], rec: Re
 }
 
 /** The rows the editor lists for `query`: every word matches the label, description, category, id or
-    one of the keys (typed as "Ctrl+Enter" or "ctrl enter": the words are matched one by one), in the table's order. The
-    shortcut-layer switches take no keys and are not listed. */
+    one of the keys (typed as "Ctrl+Enter" or "ctrl enter": the words are matched one by one), in the table's order. */
 export function editorRows(info: KeymapInfo | null, rows: readonly CommandRow[], query: string): CommandRow[] {
   const words = query.toLocaleLowerCase().split(/[\s+]+/).filter(Boolean);
-  return rows.filter(row => row.category !== 'layer' && words.every(word =>
+  return rows.filter(row => words.every(word =>
     `${row.label} ${row.description} ${row.category} ${row.id} ${effectiveKeys(info, row).join(' ')}`.toLocaleLowerCase().replace(/\+/g, ' ').includes(word)));
 }
 

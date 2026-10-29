@@ -2,8 +2,8 @@
 
     s = Server('./xppautX', 'examples/ode/lecar.odex')
     s.collect(is_idle)
-    s.send(cmd='key', key='i')
-    evs, ask = s.collect(is_ask)
+    s.send(cmd='run.initial')
+    evs, end = s.collect(is_idle)
 
 Each Server runs in its own scratch directory (the model is copied there),
 reads events on a thread and hands them out with collect().
@@ -267,6 +267,7 @@ class Server:
         self.events = queue.Queue()
         self.series = SeriesMirror()
         self.sent_at = {}
+        self.grabbed_label = self.grabbed_type = None  # the label and type of the point the last AUTO grab took: AUTO runs start from it
         threading.Thread(target=self._read, daemon=True).start()
         self.log = []
         self.log_thread = drain_stderr(self.proc, self.log.append)
@@ -285,6 +286,9 @@ class Server:
             except ValueError:
                 ev = {'ev': 'bad', 'line': line[:300]}
             ev['_t'] = time.monotonic()
+            result = ev.get('result') if ev.get('ev') == 'done' else None
+            if isinstance(result, dict) and result.get('grabbed') and isinstance(result.get('label'), int):
+                self.grabbed_label, self.grabbed_type = result['label'], result.get('type')
             self.series.feed(ev)
             self.events.put(ev)
         self.events.put({'ev': 'eof', '_t': time.monotonic()})
@@ -345,9 +349,7 @@ class Server:
 
 def open_auto(s):
     """File/AUTO, waiting for its window and the command's completion."""
-    s.send(cmd='key', key='f')
-    s.collect(is_idle)
-    s.send(cmd='key', key='a')
+    s.send(cmd='auto.open')
     events, end = s.collect(is_idle)
     if end is None or not any(e.get('ev') == 'window' and e.get('win') == 'diagram_1' for e in events):
         raise RuntimeError('File/AUTO did not open its window: ' + str(events))
@@ -355,14 +357,20 @@ def open_auto(s):
 
 
 def run_any(s, key, timeout=120 * SLOW):
-    """Auto/Run, answering its menu with key if it asks; the events to idle."""
-    s.send(cmd='key', win='auto', key='r')
-    evs, e = s.collect(lambda e: is_idle(e) or is_ask(e), timeout=timeout)
-    if e is not None and is_ask(e):
-        s.send(cmd='answer', id=e['id'], key=key)
-        more, _ = s.collect(is_idle, timeout=timeout)
-        evs += more
-    return evs
+    """Run the registry's named AUTO kind from the point the last grab took (its label, until the next grab),
+    answering only a real continuation question; the events to idle."""
+    kind = {'s':'equilibrium','p':'periodic','e':'periodic','t':'two_parameter','b':'bvp'}[key]
+    if key == 'p' and s.grabbed_type == 'fold': kind = 'two_parameter'  # the run a fold point's menu offered
+    if key == 'e':  # extend the branch of the label: the kind of the branch it is on, as autoinfo's start says the point allows
+        s.send(cmd='events.subscribe', events=['autoinfo'])
+        shown, _ = s.collect(is_idle)
+        start = next((e['start'] for e in reversed(shown) if e.get('ev') == 'autoinfo' and e.get('start')), None)
+        kinds = start['kinds'] if start else []
+        kind = 'equilibrium' if 'equilibrium' in kinds else kinds[0] if kinds else kind
+    label = s.grabbed_label
+    s.send(cmd='auto.run', kind=kind, **({'label': label} if label else {}))
+    events,_ = s.answer_asks(is_idle, {'choice':lambda e:{'key':'y'}}, timeout=timeout)
+    return events
 
 
 def run_commands(binary, ode, lines, run, flags=()):

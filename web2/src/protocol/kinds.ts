@@ -1,13 +1,17 @@
 /* What an action is, and so whether it may start now (W95, docs/protocol.md
-   "Action kinds"). The core defines every action's kind once -- each menu
-   item's (the command table, core/command_table.h) and each other command's
-   (core/ui_json.cpp's command table) -- and sends them in `hello`: the
-   main-window menus' `command_table`, the windows' key layers `windows` (their keys,
-   kinds and the page's names for their items: the one place the page
-   learns a window's keys), and `commands`. Only a running computation (the
+   "Action kinds"). The core defines every command's kind once, in the registry
+   (core/command_def.h), and sends it in `hello.commands`. Only a running computation (the
    core's `computing` event, until the command's idle) or an open question
    disables anything; the page's own catch-up commands never do. */
-import type {Command, HelloEvent, MenuItemCommand, MenuName, StateEvent} from './types';
+import type {Command, HelloEvent, StateEvent} from './types';
+
+export interface RegistryGroup {rule: string; arguments: string[]}
+
+export interface RegistryArgument {
+  name: string; type: string; required: boolean; choices: string[];
+  names?: string; element?: string; max_items?: number; max_length?: number;
+  min?: number; max?: number; multiline?: boolean;
+}
 
 /** control (Abort, Quit, an answer): always; view (only changes what is
     shown) and setting (a parameter, an initial or boundary condition, a
@@ -18,38 +22,38 @@ export type Kind = 'control' | 'view' | 'setting' | 'data' | 'computation';
 
 const OF_LETTER: Record<string, Kind> = {c: 'control', v: 'view', s: 'setting', d: 'data', x: 'computation'};
 
-/** a window with a key layer of its own ({"cmd":"key","win":...}) */
+/** a window with a toolbar of its own (navigation.ts toolbarCommand) */
 export type LayerWindow = 'auto' | 'browser' | 'ani' | 'aplot';
 
-/** one window's key layer (hello.windows) */
-export interface WindowLayer {
-  items: string[];
-  keys: string;
-  kinds: string;
-  /** the page's name for each item (param, run, write, go, ...) */
-  ids: string[];
-  hints: string[];
-}
-
-/** a command with its kind (hello.commands; a key's is its menu item's: "") and whether it is
+/** a command with its kind (hello.commands) and whether it is
     a step of the user's (what a recording records, files.ts's run record); op absent: the
     command's other lines */
 export interface CommandKind {
-  arguments?: {name:string;type:string;required:boolean;choices:string[]}[];
+  arguments?: RegistryArgument[];
+  groups?: RegistryGroup[];
+  file_mode?: string;
+  file_wild?: string;
+  menu_path?: string;
+  description?: string;
+  category?: string;
+  legacy_keys?: string;
+  legacy_context?: string;
+  default_keys?: string[];
   cmd: string;
   op?: string;
   kind: string;
   step: boolean;
 }
 
-/** one row of hello.command_table (core/command_table.h, docs/protocol.md "Hello"): a command of the
-    main-window menus, which every list the page shows is made from */
+/** a registry command as every list the page shows it in (navigation.ts registryRows) */
 export interface CommandRow {
-  menu: MenuName;
-  /** stable: a `key` command's `item`, recordings, the page's calls */
+  arguments?: RegistryArgument[];
+  groups?: RegistryGroup[];
+  file_mode?: string;
+  file_wild?: string;
+  menu_path?: string;
+  /** stable: the command's name */
   id: string;
-  /** the legacy one-letter key in `menu` */
-  key: string;
   label: string;
   description: string;
   /** one kind letter (OF_LETTER) */
@@ -57,26 +61,11 @@ export interface CommandRow {
   /** a CommandCategory id */
   category: string;
   pinnable: boolean;
-  /** listed in its group before a search; the others only when searching */
-  primary: boolean;
   /** keys that run it from the page ("Ctrl+O": Ctrl, or Cmd on macOS) */
   default_keys: string[];
   /** the XPPAUT sequence: the shortcut layer's key, then the item's ("F", "P") */
   legacy_keys: string[];
-}
-
-/** a group commands are listed in; an unlisted one (the shortcut-layer switches) is no group */
-export interface CommandCategory {
-  id: string;
-  label: string;
-  listed: boolean;
-  /** the group is open before a search */
-  expanded: boolean;
-}
-
-/** the row of item `id` of main-window menu `menu`, undefined for none (or before hello) */
-export function commandRow(hello: HelloEvent | null, menu: MenuName, id: string): CommandRow | undefined {
-  return hello?.command_table.find(row => row.menu === menu && row.id === id);
+  legacy_context?: string;
 }
 
 /** the table's entry for `cmd` (the first with its op, else the one with none) */
@@ -89,88 +78,16 @@ export function isStep(hello: HelloEvent, cmd: Command): boolean {
   return commandOf(hello, cmd)?.step ?? false;
 }
 
-/** the name of main-window menu `menu` (state's menu number), null for none */
-export function menuName(hello: HelloEvent | null, menu: number): MenuName | null {
-  return hello?.menu_names[menu] ?? null;
-}
-
-/** the number of main-window menu `name` (state's menu) */
-export function menuNumber(hello: HelloEvent, name: MenuName): number {
-  return hello.menu_names.indexOf(name);
-}
-
-/** the key of item `id` of main-window menu `name` ('' before hello, or for no such item) */
-export function menuKey(hello: HelloEvent | null, name: MenuName, id: string): string {
-  return commandRow(hello, name, id)?.key ?? '';
-}
-
-/** the command of item `id` of the main menu (its key in no window) */
-export function mainKey(hello: HelloEvent | null, id: string): {cmd: 'key'; key: string} {
-  return {cmd: 'key', key: menuKey(hello, 'main', id)};
-}
-
-/** A menu action does not depend on which legacy shortcut menu is active. */
-export function menuCommand(menu: MenuName, item: string): MenuItemCommand {
-  return {cmd: 'key', menu, item};
-}
-
 /** whether `id` is undo or redo with no value edit to take back or put back (the state's can_undo, can_redo) */
 export function noValueEdit(core: StateEvent | null, id: string): boolean {
-  return !!core && (id === 'undo' && !core.can_undo || id === 'redo' && !core.can_redo);
+  return !!core && (id === 'value.undo' && !core.can_undo || id === 'value.redo' && !core.can_redo);
 }
 
-/** whether `cmd` is a menu item by id: a menu and an item and no shortcut key or window layer */
-function isMenuItemCommand(cmd: Command): cmd is MenuItemCommand {
-  return cmd.cmd === 'key' && typeof cmd.menu === 'string' && typeof cmd.item === 'string' && !('key' in cmd) && !('win' in cmd);
-}
-
-/** the key of item `id` of window `win`'s layer ('' before hello, or for no such item) */
-export function layerKey(hello: HelloEvent | null, win: LayerWindow, id: string): string {
-  const l = hello?.windows[win];
-  const i = l ? l.ids.indexOf(id) : -1;
-  return i >= 0 ? l!.keys[i] : '';
-}
-
-/** the command of item `id` of window `win`'s layer */
-export function windowCommand(hello: HelloEvent | null, win: LayerWindow, id: string,
-  extra: Record<string, unknown> = {}): {cmd: 'key'; win: string; key: string; [k: string]: unknown} {
-  return {cmd: 'key', win, key: layerKey(hello, win, id), ...extra};
-}
-
-/** whether `cmd` is item `id` of window `win`'s layer */
-export function isWindowKey(hello: HelloEvent | null, cmd: Command, win: LayerWindow, id: string): boolean {
-  const key = layerKey(hello, win, id);
-  return key !== '' && cmd.cmd === 'key' && cmd.win === win && cmd.key === key;
-}
-
-/** the kind of `cmd`, sent now with main-window menu `menu` shown (0 main, 1 File,
-    2 nUmerics); null before hello, or for a key no menu has */
-export function kindOf(hello: HelloEvent | null, menu: number, cmd: Command): Kind | null {
-  /* Startup can ask for a model (or conversion choices) before hello.
-     Its answer and cancellation must reach the waiting core. */
+/** The page resolves physical keys through the keymap before sending registry commands. */
+export function kindOf(hello: HelloEvent | null, cmd: Command): Kind | null {
   if (!hello) return cmd.cmd === 'answer' || cmd.cmd === 'run.abort' || cmd.cmd === 'session.quit' ? 'control' : null;
-  if (cmd.cmd === 'key') {
-    if (isMenuItemCommand(cmd)) {
-      const name = hello.menu_names.find(n => n === cmd.menu);
-      const row = name && commandRow(hello, name, cmd.item);
-      return row ? OF_LETTER[row.kind] ?? null : null;
-    }
-    /* a menu or an item with the rest of a menu item missing or mixed with a key is no command */
-    if (cmd.menu !== undefined || cmd.item !== undefined) return null;
-    const key = String(cmd.key ?? '');
-    if (key === 'Escape') return 'control';
-    if (typeof cmd.win === 'string') {
-      const l = hello.windows[cmd.win as LayerWindow];
-      const i = l ? l.keys.indexOf(key) : -1;
-      return i >= 0 ? OF_LETTER[l!.kinds[i]] ?? null : null;
-    }
-    const name = menuName(hello, menu);
-    if (!name) return null;
-    const row = key.length === 1 ? hello.command_table.find(r => r.menu === name && r.key === key) : undefined;
-    return row ? OF_LETTER[row.kind] ?? null : null;
-  }
-  const e = commandOf(hello, cmd);
-  return e ? OF_LETTER[e.kind] ?? null : null;
+  const entry = commandOf(hello, cmd);
+  return entry ? OF_LETTER[entry.kind] ?? null : null;
 }
 
 /** whether an action of `kind` may start: control and a setting always (a setting sent

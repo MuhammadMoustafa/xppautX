@@ -1,3 +1,4 @@
+import {CommandButton} from './CommandButton';
 /* The plot windows as tabs (docs/ui-v2.md T6): one tab per core window, the
    active one selected, each tab its own PlotView with its own zoom. The tabs
    follow the core: window.create adds one, close and destroy_all remove
@@ -20,7 +21,7 @@ function KinescopeBar() {
   const session = useSession();
   const {frames, playing, shown} = useStore(s => s.kinescope);
   const mayMain = useMayMain();
-  const busy = !mayMain('kinescope'); /* the Kinescope menu's kind (W95) */
+  const busy = !mayMain('kinescope.capture'); /* the Kinescope menu's kind (W95) */
   return (
     <div class="kinescope-bar" role="group" aria-label="Kinescope">
       <button class="small" disabled={busy} onClick={() => session.kinescopeCapture()}
@@ -122,8 +123,7 @@ export function Plots({dark}: {dark: boolean}) {
             <div class="plot-window-options-menu">
                 <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.redraw',window:active})}>Redraw plot</button>
                 <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.clear',window:active})}>Clear plot</button>
-                {[['Add text','t'],['Add arrow','a'],['Add pointer','p'],['Add marker','m']].map(([label,key])=>
-                  <button class="small" disabled={windowOff} title="Click the plot where it goes" onClick={()=>session.keys('t',key)}>{label}</button>)}
+                {['annotation.add_text','annotation.add_arrow','annotation.add_pointer','annotation.add_marker'].map(command => <CommandButton command={command} />)}
                 <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.destroy_all'})}>Close extra windows</button>
                 <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.send_to_bottom',window:active})}>Send to bottom</button>
                 <select aria-label="Redraw mode" disabled={windowOff} value={current?.info?.redraw_mode} onChange={e=>session.send({cmd:'window.set_redraw_mode',window:active,mode:e.currentTarget.value})}>

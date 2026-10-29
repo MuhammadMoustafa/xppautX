@@ -319,3 +319,20 @@ export function pairErrors(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<Nu
 export function pairError(s: Pick<AutoSettings, 'pairs' | 'step'>, v: Record<NumKey, number | boolean | string>): string | null {
   return Object.values(pairErrors(s, v))[0] ?? null;
 }
+
+
+/** Track settings from the common command form and specialised plot gestures alike. */
+export function commandSettings(command: Command): AutoSettingsPatch | null {
+  const {cmd, ...values} = command;
+  if (cmd === 'auto.configure_numerics') {
+    const {special_points, ...numerics} = values;
+    return {numerics: numerics as AutoSettingsPatch['numerics'], special_points: special_points as AutoSettingsPatch['special_points']};
+  }
+  if (cmd === 'auto.configure_plot') {
+    const names: Record<string,string> = {plot_type:'plot', variable:'var', parameter1:'par1', parameter2:'par2', x_min:'xmin', x_max:'xmax', y_min:'ymin', y_max:'ymax', fit:'fit', view:'view'};
+    return {axes: Object.fromEntries(Object.entries(values).filter(([key]) => key in names).map(([key,value]) => [names[key],value]))};
+  }
+  if (cmd === 'auto.configure_marks') return {marks: (command.parameters as string[] ?? []).map((name,i) => [name, (command.values as number[])[i]])};
+  if (cmd === 'auto.set_threads') return {threads: command.automatic === true ? 'auto' : command.threads as number};
+  return null;
+}

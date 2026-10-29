@@ -240,9 +240,10 @@ Result<std::string> select_window(Session &s, const Command &command, const Argu
     const std::string name = target_name(s, args);
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
-    if (const Result<std::string> refused = named_by_user(command, name, target->kind, place); !refused) return refused;
     if (target->kind == WindowKind::graph) make_active(s, target->index, 1);
-    else auto_activate_view(s, target->index);
+    else if (target->kind == WindowKind::diagram) auto_activate_view(s, target->index);
+    else s.selected_window = name;
+    ui.window_selected(s, name, window_kind_name(target->kind));
     return window_result(name) + '}';
 }
 
@@ -416,48 +417,48 @@ constexpr std::array BUTTON_COMMANDS = {"window.create", "window.destroy_all", "
 constexpr int BUTTON_REDRAW_AUTO = 4, BUTTON_REDRAW_MANUAL = 5, BUTTON_SIMULTANEOUS = 6;
 
 constexpr std::array ROWS = {
-    Command{"window.create", CREATE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Make window/Create", "MC",
+    Command{"window.create", CREATE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/New graph", "MC",
             "Create a graph copied from the active graph.", WINDOW_RESULTS, WINDOW_EVENTS, true, create_window},
-    Command{"window.rename", RENAME_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
+    Command{"window.rename", RENAME_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Window/Rename", "",
             "Rename an open graph or diagram view.", RENAME_RESULTS, RENAME_EVENTS, true, rename_window},
-    Command{"window.select", SELECT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
-            "Select an open graph or diagram view.", WINDOW_RESULTS, STATE_EVENTS, true, select_window},
-    Command{"window.hide", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
+    Command{"window.select", SELECT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Window/Select", "",
+            "Bring an open window to front and select it.", WINDOW_RESULTS, WINDOW_EVENTS, true, select_window},
+    Command{"window.hide", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Window/Hide", "",
             "Hide a window: it keeps everything it holds and comes back with window.show.", SHOWN_RESULTS, STATE_EVENTS, true, hide_window},
-    Command{"window.show", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
+    Command{"window.show", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Window/Show", "",
             "Show a hidden window exactly as it was.", SHOWN_RESULTS, STATE_EVENTS, true, show_window},
-    Command{"window.destroy", DESTROY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Make window/Destroy", "MD",
+    Command{"window.destroy", DESTROY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Make window/Destroy", "MD",
             "Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data browser stay; destroying an AUTO view keeps the diagram.",
             CLOSE_RESULTS, WINDOW_EVENTS, true, destroy_window},
-    Command{"window.list", {}, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
+    Command{"window.list", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Window/List", "",
             "List every window with its name, kind and whether it is shown.", LIST_RESULTS, STATE_EVENTS, true, list_windows_result},
-    Command{"window.destroy_all", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Make window/Kill all", "MK",
+    Command{"window.destroy_all", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Make window/Kill all", "MK",
             "Close every extra graph.", CLOSE_ALL_RESULTS, WINDOW_EVENTS, true, destroy_all},
-    Command{"window.set_bounds", BOUNDS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Window", "WW",
+    Command{"window.set_bounds", BOUNDS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Window/Window", "WW",
             "Set the view's bounds; a bound left out keeps the view's.", BOUNDS_RESULTS, PLOT_EVENTS, true, set_bounds},
-    Command{"window.zoom", ZOOM_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Zoom In", "WZ",
+    Command{"window.zoom", ZOOM_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Window/Zoom In", "WZ",
             "Zoom in: the view becomes the box.", BOUNDS_RESULTS, PLOT_EVENTS, true, zoom, BOX_GROUPS},
-    Command{"window.zoom_out", ZOOM_OUT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Zoom Out", "WO",
+    Command{"window.zoom_out", ZOOM_OUT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Window/Zoom Out", "WO",
             "Zoom out: the view grows by factor about a center (the view's own), or fills the box.", BOUNDS_RESULTS, PLOT_EVENTS, true,
             zoom_out_window, ZOOM_OUT_GROUPS},
-    Command{"window.fit", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Fit", "WF",
+    Command{"window.fit", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Window/Fit", "WF",
             "Fit the view to the data.", BOUNDS_RESULTS, PLOT_EVENTS, true, fit},
-    Command{"window.reset_default", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Default", "WD",
+    Command{"window.reset_default", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Window/Default", "WD",
             "Give the view its default bounds.", BOUNDS_RESULTS, PLOT_EVENTS, true, reset_default},
-    Command{"window.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Window/Scroll", "WS",
+    Command{"window.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Window/Scroll", "WS",
             "Move the view by dx and dy, in plot coordinates.", SCROLL_RESULTS, PLOT_EVENTS, true, scroll},
-    Command{"window.set_display", DISPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "", "",
+    Command{"window.set_display", DISPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Window/Set display", "",
             "Set what the page shows of a graph: the x and y ranges ([] for the window's own), the earlier runs, keeping a replaced run.",
             DISPLAY_RESULTS, PLOT_EVENTS, true, set_display},
-    Command{"window.redraw", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Redraw plot", "R",
+    Command{"window.redraw", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Redraw plot", "R",
             "Draw a graph again from the stored data (and its nullclines, texts and frozen curves), or send an AUTO view's diagram again.", REDRAWN_RESULTS, PLOT_EVENTS, false, redraw},
-    Command{"window.clear", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Clear plot", "E",
+    Command{"window.clear", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Clear plot", "E",
             "Clear a graph: its picture and earlier runs go until the next run.", CLEARED_RESULTS, PLOT_EVENTS, true, clear},
-    Command{"window.send_to_bottom", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Make window/Bottom", "MB",
+    Command{"window.send_to_bottom", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Make window/Bottom", "MB",
             "Send a graph to the bottom.", WINDOW_RESULTS, STATE_EVENTS, true, send_to_bottom},
-    Command{"window.set_redraw_mode", MODE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Make window/Auto or Manual", "MA/MM",
+    Command{"window.set_redraw_mode", MODE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Make window/Auto or Manual", "MA/MM",
             "Choose automatic or manual graph redrawing.", MODE_RESULTS, STATE_EVENTS, true, set_redraw_mode},
-    Command{"window.set_simultaneous_plot", SIMULTANEOUS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Make window/SimPlot", "MS",
+    Command{"window.set_simultaneous_plot", SIMULTANEOUS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Make window/SimPlot", "MS",
             "Draw on every open graph when enabled.", SIMULTANEOUS_RESULTS, STATE_EVENTS, true, set_simultaneous_plot}};
 
 } // namespace

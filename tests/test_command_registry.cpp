@@ -245,6 +245,16 @@ int main()
         CHECK(out.find("\"groups\":[{\"rule\":\"exactly_one\",\"arguments\":[\"n\",\"x\"]},{\"rule\":\"at_most_one\","
                        "\"arguments\":[\"flag\",\"mode\"]},{\"rule\":\"together\",\"arguments\":[\"first\",\"second\"]}]") != std::string::npos);
     }
+    /* W517: explicit picker requests validate all other arguments before any dialog. */
+    {
+        const Command &save = *find("session.save_as");
+        const auto picked = validate(&s, save, R"({"cmd":"session.save_as","file_picker":true})", PLACE, false);
+        CHECK(picked && picked->get<std::string>("file") == PICKER_FILE);
+        CHECK(!validate(&s, save, R"({"cmd":"session.save_as","file_picker":false})", PLACE, false));
+        CHECK(!validate(&s, save, R"({"cmd":"session.save_as","file_picker":true,"confirm":"yes"})", PLACE, false));
+        CHECK(!validate(&s, *find("window.create"), R"({"cmd":"window.create","file_picker":true})", PLACE, false));
+        CHECK(!validate(&s, *find("browser.tabulate_column"), R"({"cmd":"browser.tabulate_column","file_picker":true})", PLACE, false));
+    }
     /* W522: a map's fixed pair is bounded, finite and has exactly two scalars, in both wire forms. */
     {
         const Command &search=*find("equilibrium.search");

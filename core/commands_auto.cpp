@@ -239,13 +239,14 @@ Result<std::string> grab_point(Session &s, const Command &command, const Argumen
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     if (const auto label = args.optional<long long>(LABEL_KEY)) {
         if (!auto_grab_label(s, static_cast<int>(*label))) return fail(command.name, xpp::format("Grab: no point labelled {}", *label), place);
-    } else {
+    } else if (args.has("type")) {
         const std::string &type = args.get<std::string>("type");
         const long long index = args.get<long long>("index");
         const auto kind = auto_point_kind_from_name(type);
         if (!kind) return fail(command.name, xpp::format("Grab: \"{}\" is not a point type", type), place);
         if (!auto_grab_type_index(s, *kind, static_cast<int>(index))) return fail(command.name, xpp::format("Grab: no {} point number {}", type, index), place);
     }
+    if (!args.has(LABEL_KEY) && !args.has("type")) auto_grab(s);
     const GRABPT &g = s.auto_state.grabpt;
     std::string result = xpp::format("{{\"grabbed\":true,\"label\":{},\"type\":", g.lab);
     json_append_string(result, auto_point_kind_name(g.itp.kind));
@@ -265,6 +266,7 @@ Result<std::string> hide_earlier(Session &s, const Command &command, const Argum
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     auto_hide_earlier(s);
+    redraw_diagram(s); /* clearing blanks the picture: its points are sent again, the earlier ones marked */
     return xpp::format("{{\"hidden_points\":{}}}", s.auto_view.earlier);
 }
 
@@ -316,10 +318,10 @@ Result<std::string> set_display(Session &s, const Command &command, const Argume
     return xpp::format("{{\"x_range\":{},\"y_range\":{}}}", range_text(shown.zoom.x), range_text(shown.zoom.y));
 }
 
-Result<std::string> new_view(Session &s, const Command &command, const Arguments &, const Place &place)
+Result<std::string> new_view(Session &s, const Command &, const Arguments &, const Place &)
 {
-    if (const Result<std::string> open = need_open(s, command, place); !open) return open;
-    auto_new_view(s);
+    if (!s.auto_state.bifur.exist) do_auto_win(s);
+    else auto_new_view(s);
     return view_result(s);
 }
 
@@ -634,7 +636,7 @@ constexpr std::array GRAB_ARGUMENTS = {Argument{LABEL_KEY, Type::integer, false,
                                        Argument{"index", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)}};
 constexpr std::array<const char *, 2> GRAB_BY = {LABEL_KEY, "type"};
 constexpr std::array<const char *, 2> GRAB_TYPE = {"type", "index"};
-constexpr std::array<Group, 2> GRAB_GROUPS = {Group{GroupRule::exactly_one, GRAB_BY}, Group{GroupRule::together, GRAB_TYPE}};
+constexpr std::array<Group, 2> GRAB_GROUPS = {Group{GroupRule::at_most_one, GRAB_BY}, Group{GroupRule::together, GRAB_TYPE}};
 
 constexpr std::array PLOT_ARGUMENTS = {
     Argument{"plot_type", Type::choice, false, MAX_TEXT_BYTES, PROJECTION_CHOICES},
@@ -709,80 +711,80 @@ constexpr std::array EVENTS_INFO = {"autoinfo", "diagram", "state", "done"};
 constexpr std::array EVENTS_BROWSER = {"state", "done"};
 
 constexpr std::array ROWS = {
-    Command{"auto.open", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "File/AUTO continuation", "FA",
+    Command{"auto.open", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Open AUTO", "FA",
             "Open the AUTO window, the bifurcation package.", RESULT_OPEN, EVENTS_OPEN, true, open_auto},
     Command{"auto.run", RUN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "AUTO/Run", "R",
             "Run AUTO from the current state or a stored point: its kind (what is computed), switch for a branch switch, its start (a label, a point type and index, or the current state, optionally settled first), the settings of this run only (ds's sign is the direction) and the equilibria of a homoclinic start. The start point's type decides which kinds fit it: hello's auto_run table, and autoinfo's start.",
-            RESULT_RUN, EVENTS_RUN, true, run_auto, RUN_GROUPS},
+            RESULT_RUN, EVENTS_RUN, true, run_auto, RUN_GROUPS, {}, "auto"},
     Command{"auto.grab", GRAB_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/Grab", "G",
-            "Grab a stored point by its label, or by its type and index (the 2nd hopf): what a following run starts from.", RESULT_GRAB, EVENTS_GRAB, true, grab_point, GRAB_GROUPS},
+            "Grab a stored point by label or type and index; omit both to pick it on the diagram.", RESULT_GRAB, EVENTS_GRAB, true, grab_point, GRAB_GROUPS, {}, "auto"},
     Command{"auto.configure_numerics", CONFIGURE_NUMERICS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "AUTO/Numerics", "N",
             "Set AUTO's Numerics by their names (mesh_intervals, step_size, ...) and the codimension-two points it detects (special_points), all or nothing.",
-            RESULT_SETTINGS, EVENTS_SETTINGS, true, configure_numerics},
-    Command{"auto.configure_plot", PLOT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "AUTO/Axes", "A",
+            RESULT_SETTINGS, EVENTS_SETTINGS, true, configure_numerics, {}, {}, "auto"},
+    Command{"auto.configure_plot", PLOT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "AUTO/Axes", "AH/AN/AI/AP/AT",
             "Set what a view of the diagram plots: the plot type, the variable, the two parameters and the ranges, optionally fitted afterwards.",
-            RESULT_PLOT, EVENTS_SETTINGS, true, configure_plot},
+            RESULT_PLOT, EVENTS_SETTINGS, true, configure_plot, {}, {}, "auto"},
     Command{"auto.configure_marks", MARKS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "AUTO/Usr period", "U",
-            "Set the Mark values: the parameters (or T, the period) and the values at which AUTO labels a point.", RESULT_MARKS, EVENTS_SETTINGS, true, configure_marks},
+            "Set the Mark values: the parameters (or T, the period) and the values at which AUTO labels a point.", RESULT_MARKS, EVENTS_SETTINGS, true, configure_marks, {}, {}, "auto"},
     Command{"auto.set_threads", THREADS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "AUTO/Numerics", "",
-            "Set AUTO's thread count, a preference of the program: a count, or automatic.", RESULT_THREADS, EVENTS_SETTINGS, true, set_threads, THREADS_GROUPS},
+            "Set AUTO's thread count, a preference of the program: a count, or automatic.", RESULT_THREADS, EVENTS_SETTINGS, true, set_threads, THREADS_GROUPS, {}, "auto"},
     Command{"auto.hide_earlier", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Clear", "C",
-            "Hide the branches so far: new runs draw alone until set_display shows them again.", RESULT_HIDDEN, EVENTS_DIAGRAM, true, hide_earlier},
+            "Hide the branches so far: new runs draw alone until set_display shows them again.", RESULT_HIDDEN, EVENTS_DIAGRAM, true, hide_earlier, {}, {}, "auto"},
     Command{"auto.redraw", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Redraw", "D",
-            "Draw the diagram again.", RESULT_REDRAWN, EVENTS_DIAGRAM, true, redraw},
-    Command{"auto.pick", PICK_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO diagram/Click", "",
-            "A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot.", RESULT_PICK, EVENTS_INFO, true, pick_point},
-    Command{"auto.set_display", DISPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "", "",
+            "Draw the diagram again.", RESULT_REDRAWN, EVENTS_DIAGRAM, true, redraw, {}, {}, "auto"},
+    Command{"auto.pick", PICK_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/AUTO diagram/Click", "",
+            "A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot.", RESULT_PICK, EVENTS_INFO, true, pick_point, {}, {}, "auto"},
+    Command{"auto.set_display", DISPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Auto/Set display", "",
             "Set what the page shows of a view: its zoom (a [low, high] range, [] for the whole range of an axis) and whether the hidden branches are drawn.",
-            RESULT_DISPLAY, EVENTS_DIAGRAM, true, set_display},
-    Command{"auto.new_view", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Axes/New view", "AV",
-            "Add a view of the diagram, with the axes of the active one; it becomes the active view.", RESULT_VIEW, EVENTS_DIAGRAM, true, new_view},
+            RESULT_DISPLAY, EVENTS_DIAGRAM, true, set_display, {}, {}, "auto"},
+    Command{"auto.new_view", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "Windows/New AUTO view", "AV",
+            "Add a view of the diagram, with the axes of the active one; it becomes the active view.", RESULT_VIEW, EVENTS_DIAGRAM, true, new_view, {}, {}, "auto"},
     Command{"auto.use_last_plot", LAST_PLOT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Axes/Last plot", "A1",
-            "Go back to the last one-parameter or two-parameter plot's axes.", RESULT_PLOT_CHOICE, EVENTS_DIAGRAM, true, use_last_plot},
+            "Go back to the last one-parameter or two-parameter plot's axes.", RESULT_PLOT_CHOICE, EVENTS_DIAGRAM, true, use_last_plot, {}, {}, "auto"},
     Command{"auto.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Axes/Scroll", "AS",
-            "Move the view's visible ranges by dx and dy, in the plotted quantities.", RESULT_VIEW, EVENTS_DIAGRAM, true, scroll_view},
+            "Move the view's visible ranges by dx and dy, in the plotted quantities.", RESULT_VIEW, EVENTS_DIAGRAM, true, scroll_view, {}, {}, "auto"},
     Command{"auto.default_view", VIEW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Axes/Default", "AD",
-            "Give the view the model's own diagram ranges.", RESULT_VIEW, EVENTS_DIAGRAM, true, default_view},
+            "Give the view the model's own diagram ranges.", RESULT_VIEW, EVENTS_DIAGRAM, true, default_view, {}, {}, "auto"},
     Command{"auto.fit", VIEW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Axes/Fit", "AF",
-            "Fit the view to the diagram.", RESULT_VIEW, EVENTS_DIAGRAM, true, fit_view},
+            "Fit the view to the diagram.", RESULT_VIEW, EVENTS_DIAGRAM, true, fit_view, {}, {}, "auto"},
     Command{"auto.zoom", BOX_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Axes/Zoom in", "AZ",
-            "Zoom the view in to a box of its plotted quantities.", RESULT_VIEW, EVENTS_DIAGRAM, true, zoom_in},
+            "Zoom the view in to a box of its plotted quantities.", RESULT_VIEW, EVENTS_DIAGRAM, true, zoom_in, {}, {}, "auto"},
     Command{"auto.zoom_out", BOX_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/Axes/Zoom out", "AO",
-            "Zoom the view out so that what it shows now fills a box of its plotted quantities.", RESULT_VIEW, EVENTS_DIAGRAM, true, zoom_out},
+            "Zoom the view out so that what it shows now fills a box of its plotted quantities.", RESULT_VIEW, EVENTS_DIAGRAM, true, zoom_out, {}, {}, "auto"},
     Command{"auto.clear_grab", {}, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/Clear grab", "FC",
-            "Forget the grabbed point: a following run starts from the current state.", RESULT_CLEARED, EVENTS_GRAB, true, clear_grab},
+            "Forget the grabbed point: a following run starts from the current state.", RESULT_CLEARED, EVENTS_GRAB, true, clear_grab, {}, {}, "auto"},
     Command{"auto.load_orbit_into_browser", LABEL_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/Import orbit", "FI",
-            "Load the stored orbit of a labelled point (the grabbed one without label) into the data browser.", RESULT_ORBIT, EVENTS_BROWSER, true, load_orbit_into_browser},
-    Command{"auto.save_session", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/Save diagram", "FS",
-            "Save the session, with its diagram and AUTO's settings (.snapx).", RESULT_SAVED, EVENTS_BROWSER, true, save_session},
-    Command{"auto.open_session", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/Load diagram", "FL",
-            "Open a saved session (.snapx), with its AUTO diagram.", RESULT_LOADED, EVENTS_RUN, true, open_session},
-    Command{"auto.export_pdf", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/PDF", "FP",
-            "Write a view of the diagram as a PDF picture.", RESULT_FILE, EVENTS_BROWSER, true, export_pdf},
-    Command{"auto.export_svg", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/SVG", "FV",
-            "Write a view of the diagram as an SVG picture.", RESULT_FILE, EVENTS_BROWSER, true, export_svg},
+            "Load the stored orbit of a labelled point (the grabbed one without label) into the data browser.", RESULT_ORBIT, EVENTS_BROWSER, true, load_orbit_into_browser, {}, {}, "auto"},
+    Command{"auto.save_session", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "File/AUTO/Save diagram", "FS",
+            "Save the session, with its diagram and AUTO's settings (.snapx).", RESULT_SAVED, EVENTS_BROWSER, true, save_session, {}, {}, "auto", "write", "*.snapx"},
+    Command{"auto.open_session", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "File/AUTO/Open diagram", "FL",
+            "Open a saved session (.snapx), with its AUTO diagram.", RESULT_LOADED, EVENTS_RUN, true, open_session, {}, {}, "auto"},
+    Command{"auto.export_pdf", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "File/AUTO/PDF", "FP",
+            "Write a view of the diagram as a PDF picture.", RESULT_FILE, EVENTS_BROWSER, true, export_pdf, {}, {}, "auto", "write", "*"},
+    Command{"auto.export_svg", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "File/AUTO/SVG", "FV",
+            "Write a view of the diagram as an SVG picture.", RESULT_FILE, EVENTS_BROWSER, true, export_svg, {}, {}, "auto", "write", "*"},
     Command{"auto.reset_all", {}, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/Reset diagram", "FR",
-            "Destroy the diagram and AUTO's files.", RESULT_RESET, EVENTS_DIAGRAM, true, reset_all},
-    Command{"auto.export_points", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/Write pts", "FW",
-            "Write the diagram's points as the view plots them.", RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_points},
-    Command{"auto.export_all_info", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/All info", "FA",
-            "Write every point with its parameters, extremes and eigenvalues.", RESULT_WRITTEN_FILE, EVENTS_BROWSER, true, export_all_info},
-    Command{"auto.export_initial_data", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/init Data", "FD",
-            "Write every point's main parameter and solution as initial data.", RESULT_WRITTEN_FILE, EVENTS_BROWSER, true, export_initial_data},
+            "Destroy the diagram and AUTO's files.", RESULT_RESET, EVENTS_DIAGRAM, true, reset_all, {}, {}, "auto"},
+    Command{"auto.export_points", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "File/AUTO/Write pts", "FW",
+            "Write the diagram's points as the view plots them.", RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_points, {}, {}, "auto", "write", "*"},
+    Command{"auto.export_all_info", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "File/AUTO/All info", "FA",
+            "Write every point with its parameters, extremes and eigenvalues.", RESULT_WRITTEN_FILE, EVENTS_BROWSER, true, export_all_info, {}, {}, "auto", "write", "*"},
+    Command{"auto.export_initial_data", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "File/AUTO/init Data", "FD",
+            "Write every point's main parameter and solution as initial data.", RESULT_WRITTEN_FILE, EVENTS_BROWSER, true, export_initial_data, {}, {}, "auto", "write", "*"},
     Command{"auto.set_auto_redraw", REDRAW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "AUTO/File/Toggle redraw", "FT",
-            "Redraw the diagram automatically when enabled.", RESULT_REDRAW_MODE, EVENTS_BROWSER, true, set_auto_redraw},
+            "Redraw the diagram automatically when enabled.", RESULT_REDRAW_MODE, EVENTS_BROWSER, true, set_auto_redraw, {}, {}, "auto"},
     Command{"auto.range_branch", STRETCH_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "AUTO/File/auto raNge", "FN",
-            "Run the sweep over a stretch of a branch (its points first_point to last_point), once for each.", RESULT_RANGE, EVENTS_BROWSER, true, range_branch},
+            "Run the sweep over a stretch of a branch (its points first_point to last_point), once for each.", RESULT_RANGE, EVENTS_BROWSER, true, range_branch, {}, {}, "auto"},
     Command{"auto.select_2parameter_point", SELECT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/sElect 2par pt", "FE",
-            "Set the two parameters to the point picked on a two-parameter plot, or to x and y.", RESULT_SELECTED, EVENTS_BROWSER, true, select_two_parameter_point, SELECT_GROUPS},
+            "Set the two parameters to the point picked on a two-parameter plot, or to x and y.", RESULT_SELECTED, EVENTS_BROWSER, true, select_two_parameter_point, SELECT_GROUPS, {}, "auto"},
     Command{"auto.draw_labeled_orbits", ORBIT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/draw laBled", "FB",
-            "Draw the orbits of the labelled points when grabbed: off, draw (no erase) or clear_and_draw.", RESULT_ORBITS_DRAWN, EVENTS_BROWSER, true, draw_labeled_orbits},
+            "Draw the orbits of the labelled points when grabbed: off, draw (no erase) or clear_and_draw.", RESULT_ORBITS_DRAWN, EVENTS_BROWSER, true, draw_labeled_orbits, {}, {}, "auto"},
     Command{"auto.load_branch_into_browser", STRETCH_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/lOad branch", "FO",
-            "Load a stretch of a branch (its points first_point to last_point) into the data browser.", RESULT_BRANCH_ROWS, EVENTS_BROWSER, true, load_branch_into_browser},
-    Command{"auto.export_csv", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/eXport CSV", "FX",
-            "Write the diagram and its eigenvalues as two CSV files.", RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_csv},
+            "Load a stretch of a branch (its points first_point to last_point) into the data browser.", RESULT_BRANCH_ROWS, EVENTS_BROWSER, true, load_branch_into_browser, {}, {}, "auto"},
+    Command{"auto.export_csv", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "File/AUTO/eXport CSV", "FX",
+            "Write the diagram and its eigenvalues as two CSV files.", RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_csv, {}, {}, "auto", "write", "*"},
     Command{"auto.import_diagram", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "AUTO/File/Import diagram", "FF",
-            "Import an XPPAUT diagram (.auto) into the open model.", RESULT_IMPORTED, EVENTS_RUN, true, import_diagram}};
+            "Import an XPPAUT diagram (.auto) into the open model.", RESULT_IMPORTED, EVENTS_RUN, true, import_diagram, {}, {}, "auto"}};
 
 } // namespace
 

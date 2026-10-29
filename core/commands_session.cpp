@@ -27,6 +27,8 @@ Result<std::string> open_model(Session &s, const Command &command, const Argumen
     Result<bool> asked = false;
     if (const std::optional<std::string> example = args.optional<std::string>("example")) {
         asked = xpp_model_open_example(s, *example);
+    } else if (!args.has(FILE_KEY) && !args.has("recent")) {
+        asked = xpp_model_open(s, nullptr);
     } else {
         std::string path;
         if (const std::optional<std::string> file = args.optional<std::string>(FILE_KEY)) path = *file;
@@ -43,7 +45,7 @@ Result<std::string> open_model(Session &s, const Command &command, const Argumen
         asked = xpp_model_open(s, path.c_str());
     }
     if (!asked) return std::unexpected<Error>(asked.error());
-    if (!*asked) return fail(command.name, "The model was not opened: the question was declined or the error shown says why", place);
+    if (!*asked) return std::string("{\"cancelled\":true}");
     return std::string("{}");
 }
 
@@ -74,10 +76,8 @@ Result<std::string> saved_result(const Session &s, bool saved)
     return ResultObject().text(FILE_KEY, s.saved_session.file).boolean("saved", saved).done();
 }
 
-Result<std::string> save(Session &s, const Command &command, const Arguments &args, const Place &place)
+Result<std::string> save(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    if (s.saved_session.file.empty())
-        return fail(command.name, "This session has no file yet: save it with session.save_as first", place);
     return saved_result(s, xpp_session_save_here(s, data_choice(args)) != 0);
 }
 
@@ -117,7 +117,7 @@ constexpr std::array OPEN_MODEL_ARGUMENTS = {
     Argument{FILE_KEY, Type::path, false}, Argument{"example", Type::text, false},
     Argument{"recent", Type::integer, false, MAX_TEXT_BYTES, {}, constant(0)}};
 constexpr std::array OPEN_MODEL_ONE_OF = {FILE_KEY, "example", "recent"};
-constexpr std::array OPEN_MODEL_GROUPS = {Group{GroupRule::exactly_one, OPEN_MODEL_ONE_OF}};
+constexpr std::array OPEN_MODEL_GROUPS = {Group{GroupRule::at_most_one, OPEN_MODEL_ONE_OF}};
 constexpr std::array OPEN_ARGUMENTS = {FILE_REQUIRED};
 constexpr std::array SAVE_ARGUMENTS = {DATA};
 constexpr std::array SAVE_AS_ARGUMENTS = {FILE_REQUIRED, DATA, CONFIRM};
@@ -142,34 +142,37 @@ constexpr std::array STATE_EVENTS = {"state", "done"};
 constexpr std::array SOURCE_EVENTS = {"source", "equations", "done"};
 constexpr std::array DONE_EVENTS = {"done"};
 
+constexpr std::array KEY_0 = {"Ctrl+O"};
+constexpr std::array KEY_1 = {"Ctrl+S"};
+constexpr std::array KEY_2 = {"Ctrl+Shift+S"};
 constexpr std::array ROWS = {
     Command{"session.open_model", OPEN_MODEL_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Open model", "FM",
             "Open a model: a model file by its path (--server's own input only), a bundled example by its name, or one of the "
             "recent models by its place in hello.start.recent. Asks first whether to save this session.",
-            OPEN_MODEL_RESULTS, LOAD_EVENTS, true, open_model, OPEN_MODEL_GROUPS},
+            OPEN_MODEL_RESULTS, LOAD_EVENTS, true, open_model, OPEN_MODEL_GROUPS, KEY_0},
     Command{"session.reload_model", {}, XPP_KIND_DATA, CommandCategory::Files, "File/Reload model", "FE",
             "Load the model's file again; the parameters, initial data, numerics and AUTO settings keep their values by name.",
             RELOAD_RESULTS, LOAD_EVENTS, true, reload_model},
     Command{"session.open", OPEN_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Open session", "FN",
-            "Open a session file (.snapx): its model, then everything as it was saved.", OPEN_RESULTS, LOAD_EVENTS, true, open_session},
+            "Open a session file (.snapx): its model, then everything as it was saved.", OPEN_RESULTS, LOAD_EVENTS, true, open_session, {}, {}, "", "read", "*.snapx"},
     Command{"session.save", SAVE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Save session", "FV",
             "Save the session to the file it was last saved to or opened from; data false leaves the data table out.", SAVE_RESULTS,
-            SAVE_EVENTS, true, save},
+            SAVE_EVENTS, true, save, {}, KEY_1},
     Command{"session.save_as", SAVE_AS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Save session as", "FW",
             "Save the session to a file of the model's folder (.snapx added); confirm true replaces an existing file without asking.",
-            SAVE_RESULTS, SAVE_EVENTS, true, save_as},
+            SAVE_RESULTS, SAVE_EVENTS, true, save_as, {}, KEY_2, "", "write", "*.snapx"},
     Command{"session.save_copy", SAVE_AS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Save a copy of the session", "FB",
-            "Save a copy of the session, leaving the file it is saved to as it was.", COPY_RESULTS, DONE_EVENTS, true, save_copy},
+            "Save a copy of the session, leaving the file it is saved to as it was.", COPY_RESULTS, DONE_EVENTS, true, save_copy, {}, {}, "", "write", "*.snapx"},
     Command{"session.import_settings", IMPORT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "File/Import settings", "FR",
-            "Apply a settings file (.setx, or XPPAUT's .set, converted beside it).", IMPORT_RESULTS, STATE_EVENTS, true, import_settings_file},
+            "Apply a settings file (.setx, or XPPAUT's .set, converted beside it).", IMPORT_RESULTS, STATE_EVENTS, true, import_settings_file, {}, {}, "", "read", "*.setx *.set"},
     Command{"session.export_info", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Export simulation information", "FS",
-            "Write the equations, numerics, initial conditions and parameters to a file.", EXPORT_RESULTS, DONE_EVENTS, true, export_info},
+            "Write the equations, numerics, initial conditions and parameters to a file.", EXPORT_RESULTS, DONE_EVENTS, true, export_info, {}, {}, "", "write", "*.txt"},
     Command{"session.get_source", {}, XPP_KIND_VIEW, CommandCategory::Files, "File/Model source", "FP",
             "The model's source, its active comments and its equations.", SOURCE_RESULTS, SOURCE_EVENTS, true, front_end},
     Command{"session.quit", QUIT_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Files, "File/Quit", "FQ",
             "Quit: save true saves the session (and a recording in progress) first, false quits at once, and left out asks.",
             QUIT_RESULTS, DONE_EVENTS, false, front_end},
-    Command{"session.get_state", {}, XPP_KIND_VIEW, CommandCategory::Files, "", "",
+    Command{"session.get_state", {}, XPP_KIND_VIEW, CommandCategory::Files, "File/Session/Get state", "",
             "The session's state: sliders, parameters, initial conditions, the view, the saved session and the recording.",
             STATE_RESULTS, STATE_EVENTS, false, front_end}};
 

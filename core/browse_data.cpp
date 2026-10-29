@@ -399,27 +399,6 @@ Result<> delete_added_column(xpp::Session &s, std::string_view name)
   return {};
 }
 
-void data_del_col(xpp::Session &s)
-{
-  if(!ok_or_show(require_stored_data(s)))return;
-  if(s.browser.added_columns.empty()){
-    command_error("browser", "There are no added columns to delete");
-    return;
-  }
-  std::string name;
-  if(!get_dialog("Delete added column","Name",name,"Delete","Cancel"))return;
-  ok_or_show(delete_added_column(s,name));
-}
-
-void data_add_col(xpp::Session &s)
-{
-  std::string var,form;
-  if(!ok_or_show(require_stored_data(s)))return;
-  if(get_dialog("Add Column","Name",var,"Ok","Cancel")!=0&&
-     get_dialog_of("Add Column","Formula:",form,"Add it","Cancel",XPP_FIELD_EXPRESSION)!=0)
-    ok_or_show(add_data_column(s,var,form));
-}
-
 namespace {
 
 /* the parser's values set to one stored row, for a formula computed row by
@@ -668,49 +647,6 @@ Result<std::size_t> tabulate_column(xpp::Session &s, std::string_view column, do
 }
 
 
-void data_replace(xpp::Session &s)
-{
- std::string var=s.model().uvar_names[0],form=s.model().uvar_names[0];
- if(get_dialog_of("Replace","Variable:",var,"Ok","Cancel",XPP_FIELD_NAME_IN(0))!=0&&
-    get_dialog_of("Replace","Formula:",form,"Replace","Cancel",XPP_FIELD_EXPRESSION)!=0)
-   ok_or_show(replace_data_column(s,var,form));
-}
-
-void data_unreplace(xpp::Session &s)
-{
- ok_or_show(unreplace_column(s));
-}
-
-void data_table(xpp::Session &s)
-{
- if(!save_ready(s.browser.view.iend>s.browser.view.istart))return;
- int status;
-
- static const char *const name[]={"Variable","Xlo","Xhi"};
- std::array<std::string, 3> value;
-
- double xlo=0,xhi=1;
- int col;
- value[0] = s.model().uvar_names[0];
- value[1] = "0.00";
- value[2] = "1.00";
- static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
- status=do_string_box_of(3,1,"Tabulate",name,value,kinds);
- if(status==0)return;
- xpp::TypedFields f(s);
- xlo=f.number(name[1],value[1]);
- xhi=f.number(name[2],value[2]);
- if(f.error()){
-   command_error("Tabulate",*f.error());
-   return;
- }
- find_variable(s,value[0].c_str(),&col);
-  if(col>=0){
-   std::string file=xpp::files::output_name(s.model().this_file,".tab",value[0]);
-   if(file_selector("Save table",file,"*.tab"))ok_or_show(tabulate_column(s,value[0],xlo,xhi,file));
-  }
-}
-
 namespace {
 
 /* the row, from the selected one on, whose value in column col is nearest val */
@@ -744,30 +680,6 @@ Result<int> find_in_column(xpp::Session &s, std::string_view column, double valu
  b.row0=row;
  ui.browser_redraw(0);
  return row;
-}
-
-void data_find(xpp::Session &s)
-{
- int status;
-
- static const char *const name[]={"*0Variable","Value"};
- std::array<std::string, 2> value;
-
- double val;
-
- value[0] = s.model().uvar_names[0];
- value[1] = "0.00";
- static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
- status=do_string_box_of(2,1,"Find Data",name,value,kinds);
-
- if(status==0)return;
- xpp::TypedFields f(s);
- val=f.number(name[1],value[1]);
- if(f.error()){
-   command_error("Find Data",*f.error());
-   return;
- }
- ok_or_show(find_in_column(s,value[0],val));
 }
 
 Result<DataLoaded> load_data_file(xpp::Session &s, std::string_view format, std::string_view name)
@@ -809,7 +721,7 @@ const xpp::DataFormat *choose_data_format()
    items.push_back(f.title);
    keys+=f.key;
  }
- const XppMenu m={"save_format","Save data as",static_cast<int>(items.size()),items.data(),keys.c_str(),nullptr,-1};
+ const XppMenu m={"save_format","Save data as",static_cast<int>(items.size()),items.data(),keys.c_str()};
  const int k=menu_choose(&m,0);
  for(const xpp::DataFormat &f : xpp::data_formats())
    if(k==f.key)return &f;

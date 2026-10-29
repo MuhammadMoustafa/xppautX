@@ -61,8 +61,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         assert final['time'] == CONTINUE_TO_MS
 
         command(server, cmd='recording.add_note', note='Open AUTO to continue the resting equilibrium in applied current Iapp.')
-        command(server, cmd='key', key='f')
-        command(server, cmd='key', key='a')
+        command(server, cmd='auto.open')
         command(server, cmd='recording.add_note', note='Use bounded equilibrium continuation in Iapp; allow the resting state norm.')
         command(server, cmd='auto.configure_numerics', **{'ntst': 15, 'nmx': 1500, 'npr': 20,
             'ds': 1, 'dsmax': 50, 'rl0': -500, 'rl1': 17500, 'a0': -200, 'a1': 200, 'mxbf': 5})
@@ -70,10 +69,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         command(server, cmd='auto.configure_plot', **{'plot_type': 'maximum', 'variable': 'V', 'parameter1': 'Iapp',
             'x_min': -20, 'x_max': 200, 'y_min': -90, 'y_max': -35})
         command(server, cmd='recording.add_note', note='Run steady-state continuation; AUTO marks stability changes and labelled special points.')
-        server.send(cmd='key', win='auto', key='r')
-        _, ask = server.collect(lambda e: e.get('ev') == 'ask')
-        assert ask is not None
-        server.send(cmd='answer', id=ask['id'], key='s')
+        server.send(cmd='auto.run', kind='equilibrium')
         events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
         assert idle is not None and not any(e.get('error') for e in events), events[-5:]
         final = state(events)

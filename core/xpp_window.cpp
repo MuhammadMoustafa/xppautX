@@ -1,4 +1,3 @@
-#include "command_table.h"
 #include "open_model.h"
 /* The desktop window (xpp_window.h): web2 in the operating system's web
    view, through the vendored webview library (third_party/webview, built
@@ -186,17 +185,6 @@ void close_window_cb(const char *id, const char *, void *arg)
     webview_terminate(w);
 }
 
-/* Help > Manual (chapter NULL: where Help was left, as F1) and Help >
-   Keyboard shortcuts: web2's hook (web2/src/desktop.ts) */
-[[maybe_unused]] void open_help(webview_t w, const char *chapter)
-{
-    std::string js = "window.__xppOpenHelp && window.__xppOpenHelp(";
-    if (chapter) js += std::string("'") + chapter + "'";
-    js += ")";
-    webview_eval(w, js.c_str());
-}
-
-[[maybe_unused]] void check_updates(webview_t w) { webview_eval(w, "window.__xppCheckUpdates()"); }
 
 /* The window is gone (closed by the user, File > Quit, or the core's exit).
    On the window's own thread. Unless the core closed it, Quit the session:
@@ -268,71 +256,7 @@ struct FileDialog {
    could not open */
 std::optional<std::string> pick_file(void *window, const FileDialog &d);
 
-/* ---- File > Open model and Reload: the protocol's open and reload -------
-   The model picked is loaded in this process (W61): the core asks before
-   the model it has goes, offering to save its session, in the page. A
-   session file (.snapx, W57) or recording (.recx, W59c) picked here opens
-   the model saved in it with that session or diagram (W103). */
-[[maybe_unused]] constexpr std::string_view RELOAD = "{\"cmd\":\"session.reload_model\"}";
-
-/* The File items this window names are rows of the command table (core/command_table.h): their labels and
-   protocol ids come from it, so the page's sidebar and these menus cannot disagree. */
-static_assert(xpp::find_command(FILE_MENU, "openmodel") && xpp::find_command(FILE_MENU, "opensession")
-              && xpp::find_command(FILE_MENU, "savesession") && xpp::find_command(FILE_MENU, "savesessionas")
-              && xpp::find_command(FILE_MENU, "savesessioncopy")
-              && xpp::find_command(FILE_MENU, "reload")
-              && xpp::find_command(FILE_MENU, "quit"), "the native File menu names commands the table lacks");
-
-/* the label of File command `id` with `marker` (the platform's mnemonic character) before the first word
-   that starts with `mnemonic` */
-[[maybe_unused]] std::string native_label(std::string_view id, char marker, char mnemonic)
-{
-    std::string label(xpp::find_command(FILE_MENU, id)->label);
-    for (std::size_t i = 0; i < label.size(); ++i)
-        if ((i == 0 || label[i - 1] == ' ') && std::toupper(static_cast<unsigned char>(label[i])) == mnemonic) {
-            label.insert(i, 1, marker);
-            break;
-        }
-    return label;
-}
-
-/* the title of the dialog File command `id` opens: its label without the ellipsis that says one follows */
-[[maybe_unused]] std::string dialog_title(std::string_view id)
-{
-    std::string_view label = xpp::find_command(FILE_MENU, id)->label;
-    constexpr std::string_view ELLIPSIS = "â¦";
-    if (label.ends_with(ELLIPSIS)) label.remove_suffix(ELLIPSIS.size());
-    return std::string(label);
-}
-
-#if defined(_WIN32) || defined(__APPLE__)
-/* File command `id`'s first default key, "" for none (the GTK menu shows no key hint) */
-std::string_view native_key(std::string_view id)
-{
-    return xpp::find_command(FILE_MENU, id)->default_keys[0];
-}
-#endif
-
-/* the protocol line that runs File command `id` as the page's own call does */
-[[maybe_unused]] void push_file_command(std::string_view id)
-{
-    const std::string line = "{\"cmd\":\"key\",\"menu\":\"" + std::string(xpp::MENU_NAMES[FILE_MENU]) + "\",\"item\":\""
-        + std::string(id) + "\"}";
-    host->inbox_push(line.data(), line.size());
-}
-
-[[maybe_unused]] void open_model(void *window)
-{
-    const FileDialog models{false, dialog_title("openmodel"), "", "", "XPP models, sessions and recordings (*.ode, *.odex, *.snapx, *.recx)",
-                            {xpp::OPEN_MODEL_EXTENSIONS.begin(), xpp::OPEN_MODEL_EXTENSIONS.end()}};
-    std::optional<std::string> path = pick_file(window, models);
-    if (path && !path->empty()) host->open_model(path->c_str());
-}
-
-/* ---- the platform's menu bar, icon and dialogs -------------------------- */
-
-enum MenuId { ID_OPEN = 101, ID_RELOAD, ID_QUIT, ID_MANUAL, ID_KEYS, ID_UPDATES, ID_ABOUT, ID_OPEN_SESSION, ID_SAVE_SESSION, ID_SAVE_SESSION_AS, ID_SAVE_SESSION_COPY };
-[[maybe_unused]] const char *const KEYS_CHAPTER = "05-commands"; /* the hotkeys, from its first paragraph */
+enum MenuId { ID_QUIT = 101, ID_ABOUT };
 
 #if defined(_WIN32)
 
@@ -454,22 +378,8 @@ WNDPROC webview_proc; /* the library's own window procedure */
 LRESULT CALLBACK menu_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     if (msg == WM_COMMAND && HIWORD(wp) == 0) {
-        webview_t w;
-        {
-            std::lock_guard<std::mutex> lk(st->mu);
-            w = st->view;
-        }
         switch (LOWORD(wp)) {
-        case ID_OPEN: open_model(hwnd); return 0;
-        case ID_OPEN_SESSION: push_file_command("opensession"); return 0;
-        case ID_SAVE_SESSION: push_file_command("savesession"); return 0;
-        case ID_SAVE_SESSION_AS: push_file_command("savesessionas"); return 0;
-        case ID_SAVE_SESSION_COPY: push_file_command("savesessioncopy"); return 0;
-        case ID_RELOAD: host->inbox_push(RELOAD.data(), RELOAD.size()); return 0;
         case ID_QUIT: PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0; /* as the close box */
-        case ID_MANUAL: if (w) open_help(w, nullptr); return 0;
-        case ID_KEYS: if (w) open_help(w, KEYS_CHAPTER); return 0;
-        case ID_UPDATES: if (w) check_updates(w); return 0;
         case ID_ABOUT:
             show_about(hwnd);
             return 0;
@@ -494,21 +404,9 @@ void add_menus(webview_t w)
     HMENU bar = CreateMenu(), file = CreatePopupMenu(), help = CreatePopupMenu();
     const auto file_item = [&](UINT id, std::string_view command, char mnemonic) {
         std::string label = native_label(command, '&', mnemonic);
-        if (const std::string_view key = native_key(command); !key.empty()) label += "\t" + std::string(key);
         AppendMenuW(file, MF_STRING, id, wide(label).c_str());
     };
-    file_item(ID_OPEN, "openmodel", 'O');
-    file_item(ID_OPEN_SESSION, "opensession", 'S');
-    file_item(ID_SAVE_SESSION, "savesession", '\0'); /* no mnemonic: S is Open session's */
-    file_item(ID_SAVE_SESSION_AS, "savesessionas", 'A');
-    file_item(ID_SAVE_SESSION_COPY, "savesessioncopy", 'C');
-    file_item(ID_RELOAD, "reload", 'R');
-    AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     file_item(ID_QUIT, "quit", 'Q');
-    AppendMenuW(help, MF_STRING, ID_MANUAL, L"&Manual");
-    AppendMenuW(help, MF_STRING, ID_KEYS, L"&Keyboard shortcuts");
-    AppendMenuW(help, MF_STRING, ID_UPDATES, L"Check for &updates");
-    AppendMenuW(help, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(help, MF_STRING, ID_ABOUT, L"&About xppautX");
     AppendMenuW(bar, MF_POPUP, reinterpret_cast<UINT_PTR>(file), L"&File");
     AppendMenuW(bar, MF_POPUP, reinterpret_cast<UINT_PTR>(help), L"&Help");
@@ -593,34 +491,19 @@ void add_method(const char *name, const char *sel, IMP imp, const char *types)
     if (c) class_replaceMethod(c, sel_registerName(sel), imp, types);
 }
 
-void check_updates_action(id, SEL, id)
+void about_action(id, SEL, id)
 {
-    std::lock_guard<std::mutex> lk(st->mu);
-    if (st->view) check_updates(st->view);
+    msg<void>(msg(cls("NSApplication"), "sharedApplication"), "orderFrontStandardAboutPanel:", static_cast<id>(nullptr));
 }
 
-void file_action(id, SEL selector, id)
-{
-    if (selector == sel_registerName("xppOpenModel:")) open_model(nullptr);
-    else {
-        if (selector == sel_registerName("xppOpenSession:")) push_file_command("opensession");
-        else if (selector == sel_registerName("xppSaveSession:")) push_file_command("savesession");
-        else if (selector == sel_registerName("xppSaveSessionAs:")) push_file_command("savesessionas");
-        else if (selector == sel_registerName("xppSaveSessionCopy:")) push_file_command("savesessioncopy");
-        else if (selector == sel_registerName("xppReloadModel:")) host->inbox_push(RELOAD.data(), RELOAD.size());
-    }
-}
-
-/* The app menu's Quit and Help's on-demand update check. The icon comes
+/* The app menu's Quit and About. The icon comes
    with the .app bundle (W13b). */
 void add_menus(webview_t)
 {
     add_method("WebviewNSWindowDelegate", "windowShouldClose:", reinterpret_cast<IMP>(window_should_close), "c@:@");
     add_method("WebviewAppDelegate", "applicationShouldTerminate:", reinterpret_cast<IMP>(application_should_terminate),
                "Q@:@");
-    add_method("WebviewAppDelegate", "xppCheckUpdates:", reinterpret_cast<IMP>(check_updates_action), "v@:@");
-    for (const char *selector : {"xppOpenModel:", "xppOpenSession:", "xppSaveSession:", "xppSaveSessionAs:", "xppSaveSessionCopy:", "xppReloadModel:"})
-        add_method("WebviewAppDelegate", selector, reinterpret_cast<IMP>(file_action), "v@:@");
+    add_method("WebviewAppDelegate", "xppAbout:", reinterpret_cast<IMP>(about_action), "v@:@");
     id pool = msg(cls("NSAutoreleasePool"), "new");
     id bar = msg(msg(cls("NSMenu"), "alloc"), "init");
     id app_item = msg(msg(cls("NSMenuItem"), "alloc"), "init");
@@ -633,42 +516,10 @@ void add_menus(webview_t)
         msg<void>(bar, "addItem:", app_item);
         msg<void>(msg(cls("NSApplication"), "sharedApplication"), "setMainMenu:", bar);
     }
-    id files_item = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
-                        ns_string("File"), static_cast<SEL>(nullptr), ns_string(""));
-    id files = msg(msg(cls("NSMenu"), "alloc"), "initWithTitle:", ns_string("File"));
-    struct FileItem { std::string_view command; const char *selector; };
-    for (const FileItem &entry : {FileItem{"openmodel", "xppOpenModel:"}, FileItem{"opensession", "xppOpenSession:"},
-         FileItem{"savesession", "xppSaveSession:"}, FileItem{"savesessionas", "xppSaveSessionAs:"},
-         FileItem{"savesessioncopy", "xppSaveSessionCopy:"},
-         FileItem{"reload", "xppReloadModel:"}}) {
-        /* Cmd plus the last character of the default key ("Ctrl+S"): the page's own chord; a key with Shift
-           ("Ctrl+Shift+S") is that character in capitals, Cocoa's way of asking for Shift */
-        const std::string_view default_key = native_key(entry.command);
-        const bool shifted = default_key.find("Shift+") != std::string_view::npos;
-        const std::string key = default_key.empty() ? std::string()
-            : std::string(1, static_cast<char>(shifted ? std::toupper(static_cast<unsigned char>(default_key.back()))
-                                                        : std::tolower(static_cast<unsigned char>(default_key.back()))));
-        id item = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
-                      ns_string(std::string(xpp::find_command(FILE_MENU, entry.command)->label)), sel_registerName(entry.selector),
-                      ns_string(key));
-        msg<void>(item, "setTarget:", msg(msg(cls("NSApplication"), "sharedApplication"), "delegate"));
-        msg<void>(files, "addItem:", item);
-    }
-    msg<void>(files_item, "setSubmenu:", files);
-    msg<void>(bar, "addItem:", files_item);
-    id help_item = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
-                       ns_string("Help"), static_cast<SEL>(nullptr), ns_string(""));
-    id help = msg(msg(cls("NSMenu"), "alloc"), "initWithTitle:", ns_string("Help"));
-    id update = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
-                    ns_string("Check for updates"), sel_registerName("xppCheckUpdates:"), ns_string(""));
-    if (bar && help_item && help && update) {
-        id app = msg(cls("NSApplication"), "sharedApplication");
-        msg<void>(update, "setTarget:", msg(app, "delegate"));
-        msg<void>(help, "addItem:", update);
-        msg<void>(help_item, "setSubmenu:", help);
-        msg<void>(bar, "addItem:", help_item);
-        msg<void>(app, "setHelpMenu:", help);
-    }
+    id about_item = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
+                        ns_string("About xppautX"), sel_registerName("xppAbout:"), ns_string(""));
+    msg<void>(about_item, "setTarget:", msg(msg(cls("NSApplication"), "sharedApplication"), "delegate"));
+    msg<void>(app_menu, "insertItem:atIndex:", about_item, static_cast<long>(0));
     msg<void>(pool, "drain");
 }
 
@@ -892,16 +743,7 @@ void on_menu(GtkMenuItem *, gpointer id_ptr)
     if (!w) return;
     GtkWindow *win = GTK_WINDOW(webview_get_window(w));
     switch (GPOINTER_TO_INT(id_ptr)) {
-    case ID_OPEN: open_model(win); break;
-    case ID_OPEN_SESSION: push_file_command("opensession"); break;
-    case ID_SAVE_SESSION: push_file_command("savesession"); break;
-    case ID_SAVE_SESSION_AS: push_file_command("savesessionas"); break;
-    case ID_SAVE_SESSION_COPY: push_file_command("savesessioncopy"); break;
-    case ID_RELOAD: host->inbox_push(RELOAD.data(), RELOAD.size()); break;
     case ID_QUIT: gtk_window_close(win); break; /* as the close box: delete_event */
-    case ID_MANUAL: open_help(w, nullptr); break;
-    case ID_KEYS: open_help(w, KEYS_CHAPTER); break;
-    case ID_UPDATES: check_updates(w); break;
     case ID_ABOUT: {
         GtkWidget *dlg = gtk_message_dialog_new(win, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, nullptr);
         gtk_message_dialog_set_markup(GTK_MESSAGE_DIALOG(dlg), st->about.c_str());
@@ -974,17 +816,8 @@ void add_menus(webview_t w)
     set_window_icon(GTK_WINDOW(win));
     GtkWidget *bar = gtk_menu_bar_new(), *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     GtkWidget *file = top_menu(bar, "_File"), *help = top_menu(bar, "_Help");
-    menu_item(file, native_label("openmodel", '_', 'O').c_str(), ID_OPEN);
-    menu_item(file, native_label("opensession", '_', 'S').c_str(), ID_OPEN_SESSION);
-    menu_item(file, native_label("savesession", '_', '\0').c_str(), ID_SAVE_SESSION); /* no mnemonic: S is Open session's */
-    menu_item(file, native_label("savesessionas", '_', 'A').c_str(), ID_SAVE_SESSION_AS);
-    menu_item(file, native_label("savesessioncopy", '_', 'C').c_str(), ID_SAVE_SESSION_COPY);
-    menu_item(file, native_label("reload", '_', 'R').c_str(), ID_RELOAD);
     gtk_menu_shell_append(GTK_MENU_SHELL(file), gtk_separator_menu_item_new());
     menu_item(file, native_label("quit", '_', 'Q').c_str(), ID_QUIT);
-    menu_item(help, "_Manual", ID_MANUAL);
-    menu_item(help, "_Keyboard shortcuts", ID_KEYS);
-    menu_item(help, "Check for _updates", ID_UPDATES);
     gtk_menu_shell_append(GTK_MENU_SHELL(help), gtk_separator_menu_item_new());
     menu_item(help, "_About xppautX", ID_ABOUT);
     g_object_ref(view);

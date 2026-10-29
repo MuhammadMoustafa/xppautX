@@ -34,32 +34,16 @@ int main()
     for(int slot=0;slot<layout.block;slot++)CHECK(layout.model_index(slot)==-1);
     CHECK(layout.model_index(layout.size())==-1);
     CHECK(layout.solver_index(9)==layout.block+9);
-    // W301: the homoclinic form has two dimensions and two values per model state.
-    const xpp::XppUi saved_ui=xpp::ui;
-    xpp::XppUi form_ui=saved_ui;
-    form_ui.question_policy=[](bool) { return xpp::QuestionPolicy::User; };
-    form_ui.typed_form=[](std::string_view title,std::span<xpp::FormField> fields) {
-        CHECK(title=="Homoclinic info" && fields.size()==804);
-        CHECK(fields[0].name=="unstable_dimension" && fields[1].name=="stable_dimension");
-        CHECK(fields[402].name=="X400_left" && fields[803].name=="X400_right");
-        CHECK(fields[0].kind==xpp::XPP_FIELD_INTEGER && fields[1].kind==xpp::XPP_FIELD_INTEGER);
-        CHECK(fields[402].value=="0" && fields[803].value=="0");
-        fields[0].value="2";
-        fields[1].value="399";
-        fields[402].value="2.75";
-        fields[803].value="3.25";
-        return 1;
-    };
-    xpp::set_ui(&form_ui);
-    s.auto_state.homo_flag=HomoclinicRun::Heteroclinic;
-    const auto asked=xpp::auto_ask_homoclinic(s);
-    xpp::set_ui(&saved_ui);
-    CHECK(asked && asked->unstable==2 && asked->stable==399);
-    CHECK(asked && asked->left[400]==2.75 && asked->right[400]==3.25);
+    // W301: the common form supplies model-sized homoclinic lists, not a fixed field array.
+    xpp::HomoclinicStart start{2,399,s.auto_state.homo_l,s.auto_state.homo_r};
+    start.left[400]=2.75;
+    start.right[400]=3.25;
+    CHECK(start.left.size()==401 && start.right.size()==401);
+    CHECK(start.left[400]==2.75 && start.right[400]==3.25);
     // W365: dimensions that do not add up to the model's start no run and keep the ones before.
     xpp::AutoRunRequest request;
     request.kind=xpp::AutoRunKind::heteroclinic;
-    request.homoclinic=xpp::HomoclinicStart{2,400,asked->left,asked->right};
+    request.homoclinic=xpp::HomoclinicStart{2,400,start.left,start.right};
     const xpp::Result<> refused=xpp::auto_run_start(s,request);
     CHECK(!refused && refused.error().what.find("must add up to the number of variables, 401")!=std::string::npos);
     CHECK(s.auto_state.run.nunstab==1);
@@ -94,22 +78,11 @@ int main()
     set.mark_name.clear();
     set.mark_value.clear();
     CHECK(xpp::auto_settings_apply(s,set,why)==0);
-    // W331/#392: a form can create more marks than any old storage layer held.
-    form_ui.new_string=[](std::string_view title,std::string &value,int kind) {
-        CHECK(title=="Mark values: how many?" && kind==xpp::XPP_FIELD_INTEGER);
-        value="128";
-        return 1;
-    };
-    form_ui.string_box=[](int,int,std::string_view,const char *const *names,
-                          std::span<std::string> values,const int *) {
-        CHECK(values.size()==128 && std::string_view(names[127])=="Uzr128");
-        CHECK(values[0]=="T=11" && values[8]=="T=35" && values[127]=="T=392");
-        for(std::size_t i=0;i<values.size();i++)values[i]=xpp::format("T={}",100+i);
-        return 1;
-    };
-    xpp::set_ui(&form_ui);
-    xpp::auto_per_par(s);
-    xpp::set_ui(&saved_ui);
+    // W331/#392: registry list values can create more marks than the old storage held.
+    xpp::AutoSettingsSet many;
+    many.nmarks=128;
+    for(int i=0;i<many.nmarks;i++) {many.mark_name.emplace_back("T");many.mark_value.push_back(100+i);}
+    CHECK(xpp::auto_settings_apply(s,many,why)==0);
     const auto marks=s.auto_state.bifur.marks;
     CHECK(marks.size()==128 && marks.back().value==227);
     const auto marks_text=xpp::snapx::auto_members::settings_text(xpp::auto_settings_now(s));
@@ -123,30 +96,12 @@ int main()
     invalid.mark_name.back()="unknown";
     CHECK(xpp::auto_settings_apply(s,invalid,why)!=0);
     CHECK(s.auto_state.bifur.marks==marks && s.auto_state.bifur.nmx==4);
-    form_ui.string_box=[](int,int,std::string_view,const char *const *,std::span<std::string> values,const int *) {
-        values.front()="T=5";
-        values.back()="T=not_a_number";
-        return 1;
-    };
-    xpp::set_ui(&form_ui);
-    xpp::auto_per_par(s);
-    xpp::set_ui(&saved_ui);
-    CHECK(s.auto_state.bifur.marks==marks);
-    form_ui.new_string=[](std::string_view,std::string &value,int) { value="1"; return 1; };
-    form_ui.string_box=[](int,int,std::string_view,const char *const *,std::span<std::string>,const int *) { return 0; };
-    xpp::set_ui(&form_ui);
-    xpp::auto_per_par(s);
-    xpp::set_ui(&saved_ui);
-    CHECK(s.auto_state.bifur.marks==marks);
     invalid=xpp::auto_settings_now(s);
     invalid.nmarks=129;
     CHECK(xpp::auto_settings_apply(s,invalid,why)!=0 && s.auto_state.bifur.marks==marks);
-    // A count from a recording must be checked before sizing a form.
-    form_ui.new_string=[](std::string_view,std::string &value,int) { value="2147483647"; return 1; };
-    xpp::set_ui(&form_ui);
-    xpp::auto_per_par(s);
-    xpp::set_ui(&saved_ui);
-    CHECK(s.auto_state.bifur.marks==marks);
+    // An input count must be checked against its values before any allocation.
+    invalid.nmarks=2147483647;
+    CHECK(xpp::auto_settings_apply(s,invalid,why)!=0 && s.auto_state.bifur.marks==marks);
     CHECK(xpp::auto_run_start(s,xpp::AutoRunRequest{}));
     CHECK(diagram_count(s.diagram)==4);
     CHECK(s.auto_state.run.marks.size()==128 && s.auto_state.run.marks.back().value==227);

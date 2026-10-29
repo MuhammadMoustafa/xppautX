@@ -1,3 +1,5 @@
+import {annotationRows} from '../store/marks';
+import {ANNOTATION_HIT_PX, ANNOTATION_SELECTION_PX} from './marks';
 import {cssVar} from './css';
 /* The plot widget: a uPlot chart for a PlotModel. It draws, maps between
    data and screen, and finds the point under a position; the gestures that
@@ -120,6 +122,7 @@ export class Chart {
   private dfield: Dfield | null = null;
   private layers: Layer[] = [];
   private marks: Marks | null = null;
+  private selectedAnnotation: number | null = null;
   /** the texts of the last draw, as boxes of the canvas (device pixels) */
   private textBoxes: {id: number; x0: number; y0: number; x1: number; y1: number}[] = [];
   private markLayers: MarkLayer[] = [];
@@ -314,7 +317,7 @@ export class Chart {
       hooks: {
         setScale: [() => this.scaleChanged()],
         drawAxes: [u => this.drawPhase(u)], /* after the axes, before the curves */
-        draw: [u => { this.drawCurveMarkers(u); this.drawMarks(u); this.drawHighlight(u); this.drawn(); }], /* over the curves */
+        draw: [u => { this.drawCurveMarkers(u); this.drawMarks(u); this.drawAnnotationSelection(u); this.drawHighlight(u); this.drawn(); }], /* over the curves */
       },
     };
     this.u = new uPlot(opts, this.data(), this.root);
@@ -328,6 +331,26 @@ export class Chart {
     this.dfield = dfield;
     this.layers = phaseLayers(nullclines, dfield);
     this.u?.redraw(false, false);
+  }
+
+  selectAnnotation(id: number | null): void {
+    if (this.selectedAnnotation === id) return;
+    this.selectedAnnotation = id;
+    this.u?.redraw(false, false);
+  }
+
+  annotationAt(px: number, py: number): number | null {
+    const text = this.textAt(px, py);
+    if (text !== null) return text;
+    const u = this.u;
+    if (!u) return null;
+    // CSS pixels keep the target stable while zooming.
+    const hit = annotationRows(this.marks).filter(a => Math.hypot(u.valToPos(a.x, 'x') - px, u.valToPos(a.y, 'y') - py) <= ANNOTATION_HIT_PX).pop();
+    return hit?.id ?? null;
+  }
+
+  annotationPoint(px: number, py: number): {x: number; y: number} | null {
+    return this.u ? {x: this.u.posToVal(px, 'x'), y: this.u.posToVal(py, 'y')} : null;
   }
 
   /** the window's marks (null: none) */
@@ -575,6 +598,19 @@ export class Chart {
         this.layerDrawn.set('text', drawn);
       }
     });
+  }
+
+  private drawAnnotationSelection(u: uPlot): void {
+    const selected = annotationRows(this.marks).find(a => a.id === this.selectedAnnotation);
+    if (!selected) return;
+    const r = devicePixelRatio || 1, ctx = u.ctx;
+    ctx.save();
+    ctx.strokeStyle = this.dark ? '#ffffff' : '#000000';
+    ctx.lineWidth = 2 * r;
+    ctx.beginPath();
+    ctx.arc(u.bbox.left + u.valToPos(selected.x, 'x') * r, u.bbox.top + u.valToPos(selected.y, 'y') * r, ANNOTATION_SELECTION_PX * r, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.restore();
   }
 
   /** the text under (px, py), CSS pixels of the plotting area: its id, the one drawn last when they overlap */

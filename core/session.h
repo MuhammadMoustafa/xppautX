@@ -182,9 +182,6 @@ struct Session {
   std::string last_equilibrium_stability;
   bool print_eigenvalues=false, draw_invariant_sets=false, draw_strong_sets=false;
   bool equilibrium_append=false, equilibrium_shoot=false;
-  /* which menu the main window's keys go to: MAIN_MENU, FILE_MENU or
-     NUM_MENU (commands.cpp show_main_menu) */
-  int help_menu=0;
   /* the command line named a model file */
   int got_file=0;
   /* the colour scale: its name (@ colormap, the Colormap menu; viridis the

@@ -15,7 +15,10 @@ import {Splitter, useMinWidth} from './Splitter';
 import {UpdateDialog} from './UpdateDialog';
 import {HelpView} from './Help';
 import {useHotkeys} from './hotkeys';
-import {MenuPanel} from './MenuPanel';
+import {MenuBar} from './MenuBar';
+import {CommandPalette} from './CommandPalette';
+import {CommandForm} from './CommandForm';
+import {AnnotationsPanel} from './AnnotationsPanel';
 import {Messages} from './Messages';
 import {PlayerStage} from './Player';
 import {RecordBar} from './RecordBar';
@@ -75,8 +78,6 @@ const track = (size: PanelSize, px: number, unit: 'vw' | 'vh') => `min(${px}px, 
 /** the grid tracks the user's collapsing and dragging override (theme.css gives the defaults) */
 function panelStyle(p: Panels): Record<string, string> {
   const style: Record<string, string> = {};
-  if (p.menuCollapsed) style['--menu-width'] = '0px';
-  else if (p.menuWidth !== null) style['--menu-width'] = track('menuWidth', p.menuWidth, 'vw');
   if (p.valuesCollapsed) {
     style['--values-col'] = '0px';
     style['--values-row'] = '0px';
@@ -96,12 +97,15 @@ function Shell() {
   const wide = useMinWidth(WIDE_REM);
   useEffect(() => savePanels(panels), [panels]);
   return (
-    <div class="shell" style={panelStyle(panels)} data-menu={panels.menuCollapsed ? 'collapsed' : 'open'}
+    <div class="shell" style={panelStyle(panels)}
       data-values={panels.valuesCollapsed ? 'collapsed' : 'open'}>
       <a class="skip-link" href="#main">Skip to the plot</a>
       <TitleBar />
-      <MenuPanel />
-      <Splitter controls="command-menu" size="menuWidth" className="splitter-menu" orientation="vertical" growth={1} />
+      <MenuBar />
+      <CommandPalette />
+      <CommandForm />
+      <AnnotationsPanel />
+
       <main id="main" class="workspace">
         <Banner />
         {playerOpen ? null : <RunToolbar key={modelFile} />}
@@ -142,8 +146,9 @@ function StartShell() {
         <h1>xppautX</h1>
         <span class="spacer" />
         <button class="help-toggle" aria-controls="help-panel" onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}
-          title="The manual (F1)">Help</button>
+          title="The manual">Help</button>
       </header>
+      <MenuBar /><CommandPalette /><CommandForm />
       <main id="main" class="workspace">
         <Banner />
         <StartScreen />

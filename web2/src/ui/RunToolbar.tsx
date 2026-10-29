@@ -39,7 +39,7 @@ export function RunToolbar() {
   }, [total?.value]);
   const run = steadyRun(hello, numerics, steadyEdit);
   const steady = run?.input ?? null;
-  const continueKeys = hello?.command_table.find(row => row.id === 'continue')?.default_keys.join(' / ') ?? '';
+  const continueKeys = hello?.commands.find(row => row.cmd === 'run.continue')?.default_keys?.join(' / ') ?? '';
   const plan = continuePlan(continueInput, numerics, core, hello);
   const initialOff = !may({cmd: 'run.initial'});
   const currentOff = initialOff || !hasNow;
@@ -61,10 +61,10 @@ export function RunToolbar() {
   return <section class="run-toolbar" aria-label="Run controls">
     <div class="run-actions">
       <button class="primary" data-button="Integrate" aria-disabled={initialOff}
-        onClick={() => { if (!initialOff) session.menuAction('main', 'run_initial'); }}
+        onClick={() => { if (!initialOff) session.send({cmd:'run.initial'}); }}
         title={initialOff ? BUSY_TITLE : 'Start a new trajectory from Initial values (I, G)'}>Run from initial</button>
       <button data-run="current" aria-disabled={currentOff}
-        onClick={() => { if (!currentOff) session.menuAction('main', 'run_last'); }}
+        onClick={() => { if (!currentOff) session.send({cmd:'run.last'}); }}
         title={initialOff ? BUSY_TITLE : !hasNow ? 'Run once to obtain a last state' : 'Use the last state as Initial and start a new trajectory (I, L)'}>Run from last state</button>
       <button data-run="steady" aria-disabled={steadyOff}
         onClick={() => { if (!steadyOff) session.runSteady(); }}

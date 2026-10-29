@@ -129,8 +129,6 @@ struct AnimationState {
    drawn (render_ani), an animation file chosen and loaded (get_ani_file), and the
    frames shown while integrating (on_the_fly) */
 void update_ani_motion_stuff(Session &s, double x, double y);
-void ani_create_mpeg(Session &s);
-void ani_newskip(Session &s);
 void on_the_fly(Session &s, int task);
 void ani_view_created(Session &s);
 void ani_grab_start(Session &s);
@@ -140,7 +138,6 @@ void ani_flip1(Session &s, int n);
 void ani_zero(Session &s);
 /* animation.load's work: the animation file `file` loaded, and its first frame shown when there is data to show */
 Result<> load_chosen_animation(Session &s, const std::string &file);
-void get_ani_file(Session &s);
 /* Go's frames also written: as numbered PPM files from `file`, or as one animated GIF `file` */
 enum class AniExportKind { none, ppm, gif };
 struct AniExport {

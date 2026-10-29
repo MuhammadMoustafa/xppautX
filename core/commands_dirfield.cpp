@@ -54,11 +54,11 @@ constexpr std::array EXPORTED={ResultField{"file","file"},ResultField{"written",
 constexpr std::array EVENTS={"dfield","flow","nullclines","state","done"};
 constexpr std::array DONE={"done"};
 constexpr std::array ROWS={
-    Command{"dirfield.compute",COMPUTE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Two-D Fun/Direct or Scaled Field","DD/DS","Compute the phase plane's direction field.",VECTORS,EVENTS,true,compute},
-    Command{"dirfield.flow",GRID_ARGS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Two-D Fun/Flow","DF","Integrate trajectories on the phase plane grid.",TRAJECTORIES,EVENTS,true,flow},
-    Command{"dirfield.clear",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Two-D Fun/No dir. fld.","DN","Clear the direction field.",CLEARED,EVENTS,true,clear},
-    Command{"dirfield.colorize",GRID_ARGS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Two-D Fun/Colorize","DC","Color the phase plane grid.",CELLS,EVENTS,true,colorize},
-    Command{"dirfield.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"","","Write direction field arrows.",EXPORTED,DONE,true,export_file}};
+    Command{"dirfield.compute",COMPUTE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Two-D Fun/Direct or Scaled Field","DD/DS","Compute the phase plane's direction field.",VECTORS,EVENTS,true,compute},
+    Command{"dirfield.flow",GRID_ARGS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Two-D Fun/Flow","DF","Integrate trajectories on the phase plane grid.",TRAJECTORIES,EVENTS,true,flow},
+    Command{"dirfield.clear",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Two-D Fun/No dir. fld.","DN","Clear the direction field.",CLEARED,EVENTS,true,clear},
+    Command{"dirfield.colorize",GRID_ARGS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Two-D Fun/Colorize","DC","Color the phase plane grid.",CELLS,EVENTS,true,colorize},
+    Command{"dirfield.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"Analysis/export","","Write direction field arrows.",EXPORTED,DONE,true,export_file,{}, {}, "", "write", "*.dat"}};
 }
 std::span<const Command> dirfield_commands(){return ROWS;}
 }

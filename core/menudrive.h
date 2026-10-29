@@ -161,21 +161,14 @@ enum MenuCommand : int {
 
 /* make MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the main window's menu,
    the one its keys go to */
-void show_main_menu(Session &s, int which);
 
 /* The command layer's entry points take the Session a command runs in
    (ui_json.cpp's handle_line chooses it, W47d). */
 /* the M_* command com */
 void run_the_commands(Session &s, MenuCommand com);
 /* the main window's key ch, in the menu it shows (show_main_menu) */
-void commander(Session &s, int ch);
 /* the menus the nUmerics menu opens (commands.cpp): stocHast, Poincare
    map, colorize, adjoint, lookup tables; and the Freeze cline menu */
-void do_stochast(Session &s);
-void get_pmap_pars(Session &s);
-void set_col_par(Session &s);
-void make_adj(Session &s);
-void new_lookup(Session &s);
 
 
 } // namespace xpp

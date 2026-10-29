@@ -107,8 +107,6 @@ def read(run_dir, name):
 
 
 pixels = lambda e: {'w': 2, 'h': 1, 'rgb': base64.b64encode(bytes([255, 0, 0, 0, 0, 255])).decode()}
-menu = lambda key: (lambda e: {'key': key})
-form_defaults = lambda e: {'ok': 1, 'values': e['values']}
 
 
 def run_and_go(s):
@@ -133,15 +131,14 @@ def run_lecar(home):
         # Graphic stuff/PDF: menu 'g', its submenu's 'p', the picture
         # parameters form (kept at its own defaults), then the file to
         # write it to
-        s.send(cmd='key', key='g')
-        s.answer_asks(is_idle, {'menu': menu('p'), 'form': form_defaults,
-                                 'file': lambda e: {'ok': 1, 'file': 'lecar.pdf'}})
+        s.send(cmd='plot.export_pdf', file='lecar.pdf')
+        s.collect(is_idle)
         check_file('lecar.pdf', read(s.run, 'lecar.pdf'))
 
         # .../SVG: the same submenu's 'v' (the same parameters form), then
         # the file to write
-        s.send(cmd='key', key='g')
-        s.answer_asks(is_idle, {'menu': menu('v'), 'form': form_defaults, 'file': lambda e: {'ok': 1, 'file': 'lecar.svg'}})
+        s.send(cmd='plot.export_svg', file='lecar.svg')
+        s.collect(is_idle)
         check_file('lecar.svg', read(s.run, 'lecar.svg'))
 
         # the IC box's arry button (V, W, lecar's own two variables), then
@@ -149,12 +146,8 @@ def run_lecar(home):
         s.send(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
         s.collect(is_idle)
 
-        def print_form(e):
-            values = list(e['values'])
-            return {'ok': 1, 'values': values}
-
-        s.send(cmd='key', win='aplot', key='p')
-        s.answer_asks(is_idle, {'form': print_form, 'file': lambda e: {'file': 'lecar_array.pdf'}})
+        s.send(cmd='array_plot.export_pdf', file='lecar_array.pdf')
+        s.collect(is_idle)
         check_file('lecar_array.pdf', read(s.run, 'lecar_array.pdf'))
         s.send(cmd='window.destroy', window='array_plot_1')
         s.collect(is_idle)
@@ -162,12 +155,11 @@ def run_lecar(home):
         # Kinescope: capture window 1 twice, then Save writes a GIF per
         # frame from whatever picture the client answers "pixels" with
         for _ in range(2):
-            s.send(cmd='key', key='k')
-            s.answer_asks(lambda e: e.get('ev') == 'film', {'menu': menu('c')})
+            s.send(cmd='kinescope.capture')
+            s.collect(lambda e: e.get('ev') == 'film')
             s.collect(is_idle)
-        s.send(cmd='key', key='k')
-        # one ask for the series: the second frame's name is derived (W130)
-        s.answer_asks(is_idle, {'menu': menu('s'), 'file': lambda e: {'file': 'kin.gif'}, 'pixels': pixels})
+        s.send(cmd='kinescope.export_frames', file='kin.gif')
+        s.answer_asks(is_idle, {'pixels': pixels})
         for name in ('kin.gif', 'kin-frame1.gif'):
             check_file(name, read(s.run, name))
     finally:
@@ -185,8 +177,8 @@ def run_vanderpol(home):
         s.send(cmd='plot.set_variables', how='phase_plane', names=['x', 'xp'])
         s.collect(is_idle)
         # (Window/Window: the keys w w, then the four numbers)
-        s.send(cmd='key', key='w')
-        s.answer_asks(is_idle, {'menu': menu('w'), 'form': lambda e: {'ok': 1, 'values': ['-3', '3', '-3', '3']}})
+        s.send(cmd='window.set_bounds', x_min=-3, x_max=3, y_min=-3, y_max=3)
+        s.collect(is_idle)
 
         # Nullcline/New, then Dir.field-Flow/(D)irect Field, so the
         # export carries a nullcline and a direction field, not curves
@@ -197,9 +189,8 @@ def run_vanderpol(home):
         s.send(cmd='dirfield.compute', grid=16, scaled=False)
         s.collect(is_idle)
 
-        s.send(cmd='key', key='g')
-        s.answer_asks(is_idle, {'menu': menu('p'), 'form': form_defaults,
-                                 'file': lambda e: {'ok': 1, 'file': 'vanderpol.pdf'}})
+        s.send(cmd='plot.export_pdf', file='vanderpol.pdf')
+        s.collect(is_idle)
         check_file('vanderpol.pdf', read(s.run, 'vanderpol.pdf'))
     finally:
         s.close()
@@ -216,22 +207,20 @@ def run_pictures(home):
         s.send(cmd='annotation.add_text', window='graph_1', x=0.1, y=0.9, text='\\1a\\0 label', text_size=3, color='#1c7ed6cc')
         s.collect(is_idle)
         # Graphic stuff/Freeze/Freeze, its form: colour, how it is drawn, dash, width, marker and its size, key and name
-        s.send(cmd='key', key='g')
-        s.answer_asks(is_idle, {'menu': lambda e: {'key': 'f'}, 'form': lambda e: {
-            'ok': 1, 'values': ['#7048e8b0', 'both', 'dotted', '2', 'cross', '3', 'first run', 'frz1']}})
+        s.send(cmd='plot.freeze_curve', color='#7048e8b0', draw='both', dash='dotted', width=2, marker='cross', marker_size=3, key='first run', name='frz1')
+        s.collect(is_idle)
         s.send(cmd='run.initial')
         s.collect(is_idle)
-        s.send(cmd='key', key='g')
-        s.answer_asks(is_idle, {'menu': menu('p'), 'form': form_defaults, 'file': lambda e: {'ok': 1, 'file': 'pictures.pdf'}})
+        s.send(cmd='plot.export_pdf', file='pictures.pdf')
+        s.collect(is_idle)
         check_file('pictures.pdf', read(s.run, 'pictures.pdf'))
-        s.send(cmd='key', key='g')
-        s.answer_asks(is_idle, {'menu': menu('v'), 'form': form_defaults, 'file': lambda e: {'ok': 1, 'file': 'pictures.svg'}})
+        s.send(cmd='plot.export_svg', file='pictures.svg')
+        s.collect(is_idle)
         check_file('pictures.svg', read(s.run, 'pictures.svg'))
         s.send(cmd='plot.set_variables', how='array_plot', names=['v', 'w'])
         s.collect(is_idle)
-        s.send(cmd='key', win='aplot', key='p')
-        s.answer_asks(is_idle, {'form': lambda e: {'ok': 1, 'values': ['top', 'side', 'bottom']},
-                                 'file': lambda e: {'file': 'pictures_array.pdf'}})
+        s.send(cmd='array_plot.export_pdf', file='pictures_array.pdf', top_label='top', side_label='side', bottom_label='bottom')
+        s.collect(is_idle)
         check_file('pictures_array.pdf', read(s.run, 'pictures_array.pdf'))
         s.send(cmd='window.destroy', window='array_plot_1')
         s.collect(is_idle)

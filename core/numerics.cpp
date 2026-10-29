@@ -216,44 +216,7 @@ void  get_num_par(xpp::Session &s, char ch)
                case 'b': ask_configured_numerics(s,'b'); break;
                case 'm': ask_configured_numerics(s,'m'); break;
                case 'e': ask_configured_numerics(s,'e'); break;
-               case 'a':
-                       make_adj(s);
-		       break;
-
-               case 'n': run_the_commands(s,M_UN); break;
-               case 'i': run_the_commands(s,M_UI); break;
-		case 'c': flash(10);
-			 /* color */
-			 if(color_table.enabled==0)break;
-			  set_col_par(s);
-			flash(10);
-			break;
-		    case 'h': flash(11);
-		          do_stochast(s);
-		          flash(11);
-		          break;      
-		case 'p': flash(12);
-			 /*Poincare map */
-		        get_pmap_pars(s);
-			flash(12);
-			break;
-		case 'u': flash(13);
-			 /* ruelle */
-                       ruelle(s);
-			flash(13);
-			break;
-		case 'k': flash(14);
-			 /*lookup table */
-                        new_lookup(s);
-			flash(14);
-			break;
-		case 27: 
-		       do_meth(s);
-		      s.numerics.total_time=fabs(s.numerics.total_time);
-			show_main_menu(s,MAIN_MENU);
-			break;
-
-		}  /* End num switch */
+}  /* End num switch */
 	   } 
 
 void chk_delay(xpp::Session &s)
@@ -280,15 +243,6 @@ Result<> set_axis_shifts(xpp::Session &s, int x, int y, int z)
    g.zshft=z;
    redraw_the_graph(s);
    return {};
-}
-
-void ruelle(xpp::Session &s)
-{
-   int x=s.plot_windows.current->xshft,y=s.plot_windows.current->yshft,z=s.plot_windows.current->zshft;
-   new_int("x-axis shift ",&x);
-   new_int("y-axis shift ",&y);
-   new_int("z-axis shift",&z);
-   xpp::ok_or_show(set_axis_shifts(s,x,y,z));
 }
 
 void compute_one_period(xpp::Session &s, double period,double *x,const char *name)

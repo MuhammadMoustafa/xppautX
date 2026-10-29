@@ -44,7 +44,7 @@ test('the zoom survives new data for the same curves, not other curves', () => {
 test('busy from a command to its idle; an answer closes the ask', () => {
   let s = reduce(READY, {type: 'sent', cmd: {cmd: 'key', key: 'i'}});
   assert.equal(s.busy, true);
-  s = ev(s, {ev: 'ask', id: 3, kind: 'menu'});
+  s = ev(s, {ev: 'ask', id: 3, kind: 'choice'});
   assert.equal(s.ask?.id, 3);
   s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 3, key: 'g'}});
   assert.equal(s.ask, null);
@@ -103,7 +103,7 @@ test('errors and alerts become notifications; Abort shows Stopping until idle', 
 test('W68: the status line names what runs (the menu item answered) and that Escape stops it', () => {
   let s = reduce(READY, {type: 'sent', cmd: {cmd: 'key', key: 'i'}});
   assert.equal(s.running, null);
-  s = ev(s, {ev: 'ask', id: 3, kind: 'menu', items: ['(R)ange', '(L)ast', '(G)o'], keys: 'rlg'});
+  s = ev(s, {ev: 'ask', id: 3, kind: 'choice', choices: ['(R)ange', '(L)ast', '(G)o'], keys: 'rlg'});
   assert.equal(busyText(s.running, s.ask !== null), 'Working…');
   s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 3, key: 'g'}});
   assert.equal(s.running, 'Go');

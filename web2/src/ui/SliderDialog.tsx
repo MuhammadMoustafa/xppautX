@@ -16,7 +16,7 @@ import {sixSig} from '../store/values';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
-import {FOCUSABLE, useDialogFocus} from './dialogFocus';
+import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
 
 const STEP: FieldSpec = {kind: 'number', positive: true};
 
@@ -93,12 +93,7 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
       e.stopPropagation();
       onClose();
     } else if (e.key === 'Tab') {
-      const all = [...box.current!.querySelectorAll<HTMLElement>(FOCUSABLE)];
-      if (!all.length) return;
-      const i = all.indexOf(document.activeElement as HTMLElement);
-      const next = e.shiftKey ? (i <= 0 ? all.length - 1 : i - 1) : (i === all.length - 1 ? 0 : i + 1);
-      e.preventDefault();
-      all[next].focus();
+      cycleDialogFocus(e, box.current);
     }
   };
 

@@ -1,9 +1,6 @@
-/* Menu labels and hint strings. Generated from upstream menus.h; the
-   MENUDEF widget struct lives in menus.h. */
+/* The pop-up menus a command asks one of its choices with (menus.h). */
 #include "menus.h"
 #include "auto_codes.h"
-#include "command_table.h"
-#include "menudrive.h"
 
 #include <string>
 #include <string_view>
@@ -33,365 +30,26 @@ consteval int menu_count(size_t items, size_t keys, size_t kinds, const char *k)
 } // namespace
 
 /* a menu's initializer, one key and one kind per item checked when it compiles */
-#define XPP_MENU(name, title, items, keys, kinds, hints, first)                                                     \
-    {name, title, menu_count(sizeof(items) / sizeof(items[0]), sizeof(keys), sizeof(kinds), kinds), items, keys, \
-     hints, first, kinds}
-
-
-
-/* other hints  */
-
-const char *const null_hint[]={
-"Compute new nullclines",
-"Redraw last nullclines",
-"Set automatic redraw -- X redraws when needed",
-"Only redraw when asked (Redraw)",
-"Freeze multiple nullclines",
-"Save nullcline values to a file"
-};
-
-const char *const null_freeze[]={
-  "Freeze current clines",
-  "Delete all frozen clines",
-  "Range freeze a bunch of clines",
-  "Animate nullclines"
-};
-const char *const ic_hint[]={
-"Integrate over a range of parameters, init data, etc",
-"Integrate over range of 2 parameters,init data, etc",
-"Pick up from last step of previous solution",
-"Use current initial data",
-"Use current initial data",
-"Specify initial data with mouse",
-"Pick up from last step and shift T to latest time",
-"Input new initial data",
-"Use the initial data from last shooting from fixed pt",
-"Read init data from file",
-"Type in function of 't' for t^th equation",
-"Repeated ICs using mouse ","Guess new values for DAE",
-"Integrate backwards"
-};
-
-const char *const wind_hint[]={
-"Manually choose 2D view",
-"Zoom into with mouse",
-"Zoom out with mouse",
-"Let XPP automatically choose window",
-"Reset to default view",
-"Scroll around the view"
-};
-
-const char *const flow_hint[]={
-"Draw vector field for 2D section",
-"Draw regular series of trajectories",
-" ",
-"Color the PP on a grid",
-"Draw only directions"
-};
-
-const char *const phas_hint[]={
-"Each variable is on a circle",
-"No variable on circle",
-"Choose circle variables"
-};
-
-const char *const kin_hint[]={
-"Grab a screen shot",
-"Clear all screen shots",
-"Manually cycle thru screenshots",
-"Continuously cycle through screen shots",
-"Dump the screen shots to disk",
-"Make animated gif file from screenshots"
-};
-
-const char *const graf_hint[]={
-"Add another curve to the current plot",
-"Delete last added plot",
-"Remove all the added plots except the main one",
-"Edit parameters for a plot",
-"Create a pdf file of current plot",
-"Create a styleable svg file of current plot",
-"Options for permanently saving curve",
-"Axes label sizes and zero axes for the picture files",
-"Save what the plot shows (its curves and frozen curves) as data",
-"Change colormap"
-};
-
-const char *const frz_hint[]={
-"Permanently keep main curve -- even after reintegrating",
-"Delete specified frozen curve",
-"Edit specified frozen curve",
-"Remove all frozen curves",
-"Toggle key on/off",
-"Import bifurcation data",
-"Clear imported bifurcation curve",
-"Automatically freeze after each integration",
-};
-
-const char *const stoch_hint[]={
-"Seed random number generator",
-"Run many simulations to get average trajectory",
-"Get data from last simulation",
-"Load average trajectory from many runs",
-"Load variance of from many runs",
-"Compute histogram",
-"Reload last histogram",
-"Fourier series of trajectory",
-"Power spectrum/phase",
-"Fit data from file to trajectory",
-"Get mean/variance of single trajectory",
-"Compute maximal Liapunov exponent",
-"Compute spike-time autocorrel",
-"Compute correlations - subtracting mean",
-"Compute windowed spectral density",
-"Compute two-variable histograms"
-};
-
-const char *const bvp_hint[]={
-"Solve BVP over range of parameters",
-"Don't show any but final step",
-"Show each step of iteration",
-"Solve BVP with periodic conditions",
-"Set up special homoclinic stuff"
-}; 
-
-const char *const adj_hint[]={
-"Compute a new adjoint function",
-"Compute averaging interaction function",
-"Load computed adjoint",
-"Load computed orbit",
-"Load computed interaction function",
-"Adjoint numerical parameters",
-"Range over stuff to computte many adjoints"
-};
-
-const char *const map_hint[]={
-"Turn off Poincare map",
-"Define section for Poincare map",
-"Compute Poincare map on maximum/minimum of variable",
-"Compute map based on period between events",
-};
-
-
-const char *const view_hint[]={
-  "Two-dimensional view settings",
-  "Three-dimensional view settings",
-  "Plot array ",
-  "Animation window"
-};
-
-
-const char *const text_hint[]={
-"Create text labels in different fonts ",
-"Add arrows to trajectories",
-"Create lines with arrowheads",
-"Add squares, circles, etc to plot",
-"Change properties, delete, or move existing add-on",
-"Delete all text, markers, arrows",
-"Create many markers based on browser data"
-};
-
-const char *const edit_hint[]={
-"Move the selected item",
-"Change properties of selected item",
-"Delete selected item"
-};
-
-const char *const sing_hint[]={
-"Find fixed points over range of parameter",
-" ",
-"Use mouse to guess fixed point",
-"Monte carlo search for fixed points"};
-
-const char *const meth_hint[]={
-"Discrete time -- difference equations",
-"Euler method",
-"Heun method -- 2nd order Euler",
-"4th order Runge-Kutta",
-"4th order predictor-corrector",
-"Gear's method -- for stiff systems",
-"Integrator for Volterra equations",
-"Implicit Euler scheme",
-"4th order Runge-Kutta with adaptive steps <- RECOMMENDED",
-"Another stiff method if Gear fails",
-"Stiff - bad for discontinuous systems",
-"Dormand-Prince5",
-"Dormand-Prince8(3)",
-"Rosenbrock(2,3) - good with discontinuties",
-"Symplectic - x''=F(x)"};
-
-const char *const color_hint[]={
-" ",
-"Color according to magnitude of derivative",
-"Color according to height of Z-axis"
-};
-
-const char *const tab_hint[]={"Edit the lookup tables","View a table in the data browser"};
-
-
-const char *const auto_hint[]={
-"What will be plotted on the axes and what parameter(s)",
-"Tell AUTO range, direction, and tolerance",
-"Run the continuation",
-"Grab a point to continue from",
-"Tell AUTO to save at values of period or parameter",
-"Erase the screen",
-"Redraw the diagram",
-"Save and output options"};
-
-const char *const no_hint[]={ 
-" "," "," "," "," "," "," "," "," "," ", " "," "," "," "};
-
-const char *const aaxes_hint[]={
-"Plot maximum of variable vs parameter",
-"Plot norm of solution vs parameter",
-"Plot max/min of variable vs parameter",
-"Plot period of orbit vs parameter",
-"Set up two-parameter bifurcation",
-"Zoom in with mouse",
-"Zoom out with mouse",
-"Recall last 1 parameter plot",
-"Recall last 2 parameter plot",
-"Let XPP determine the bounds of the plot",
-"Plot frequency vs parameter",
-"Plot average of orbit vs parameter",
-"Return to default bounds of the plot",
-"Scroll around the plot",
-"Another view of the diagram, with the same axes to start with"
-};
-
-const char *const aspecial_hint[]={
-"Bifurcation or branch point",
-"Endpoint of a branch",
-"Hopf bifurcation point",
-"Limit point or turning point of a branch",
-"Failure to converge",
-"Period doubling bifurcation",
-"Torus bifurcation from a periodic",
-"User defined function",
-};
-
-const char *const arun_hint[]={
-  "Start at fixed point",
-  "Start at periodic orbit",
-  "Start at solution to boundary value problem",
-  "Start at homoclinics",
-  "Start at a heteroclinic",
-}; 
-
-int main_menu_key(int which, std::string_view id)
-{
-    const CommandRow *row = find_command(which, id);
-    return row ? static_cast<unsigned char>(row->key) : 0;
-}
-
-int main_menu_number(std::string_view name)
-{
-    for (int i = MAIN_MENU; i <= NUM_MENU; ++i)
-        if (name == MENU_NAMES[i]) return i;
-    return -1;
-}
-
-std::optional<MenuAction> main_menu_action(std::string_view menu, std::string_view item)
-{
-    const int which = main_menu_number(menu);
-    if (which < 0) return std::nullopt;
-    const int key = main_menu_key(which, item);
-    if (!key) return std::nullopt;
-    return MenuAction{which, key};
-}
-
-std::string menu_label(std::string_view item)
-{
-    std::string out;
-    for (char c : item)
-        if (c != '(' && c != ')') out += c;
-    return out;
-}
-
-char main_menu_kind(int which, int ch)
-{
-    const CommandRow *row = find_command_by_key(which, ch);
-    return row ? row->kind : 0;
-}
+#define XPP_MENU(name, title, items, keys, kinds)                                                            \
+    {name, title, menu_count(sizeof(items) / sizeof(items[0]), sizeof(keys), sizeof(kinds), kinds), items, keys, kinds}
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */
-static const char *const ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",
-  "(M)ouse","(S)hift","(N)ew","s(H)oot","(F)ile","form(U)la","m(I)ce",
-  "DAE guess","(B)ackward"};
-static const char *const null_items[]={"(N)ew","(R)estore","(A)uto","(M)anual",
-  "(F)reeze","(S)ave"};
-static const char *const frzcline_items[]={"(F)reeze","(D)elete all","(R)ange","(A)nimate"};
-static const char *const dfield_items[]={"(D)irect Field","(F)low","(N)o dir. fld.",
-  "(C)olorize","(S)caled Dir.Fld"};
-static const char *const window_items[]={"(W)indow","(Z)oom In","Zoom (O)ut","(F)it",
-  "(D)efault","(S)croll"};
-static const char *const torus_items[]={"(A)ll","(N)one","(C)hoose"};
+
 /* (X)tra is defined but not shown: the menu has 6 entries */
-static const char *const kin_items[]={"(C)apture","(R)eset","(P)layback","(A)utoplay",
-  "(S)ave","(M)ake AniGif"};
-static const char *const curve_items[]={"(A)dd curve","(D)elete last","(R)emove all",
-  "(E)dit curve","(P)DF","S(V)G","(F)reeze","a(X)es opts",
-  "exp(O)rt data","(C)olormap"};
-static const char *const freeze_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
-  "(K)ey","(B)if.Diag","(C)lr. BD","(O)n freeze"};
-static const char *const freeze_off_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
-  "(K)ey","(B)if.Diag","(C)lr. BD","(O)ff freeze"};
-static const char *const key_items[]={"(N)o key","(K)ey"};
-static const char *const text_items[]={"(T)ext","(A)rrow","(P)ointer","(M)arker",
-  "(E)dit","(D)elete all","marker(S)"};
-static const char *const text_edit_items[]={"(M)ove","(C)hange","(D)elete"};
-static const char *const sing_items[]={"(G)o","(M)ouse","(R)ange","monte(C)ar"};
-static const char *const view_items[]={"2D","3D","Array","Toon"};
-static const char *const bvp_items[]={"(R)ange","(N)o show","(S)how","(P)eriodic"};
-static const char *const stoch_items[]={"New seed","Compute","Data","Mean","Variance",
-  "Histogram","Old hist","Fourier","Power","fIt data","Stat","Liapunov",
-  "stAutocor","Xcorrel etc","spEc.dns","2D-hist"};
-static const char *const map_items[]={"(N)one","(S)ection","(M)ax/min","(P)eriod"};
-static const char *const color_items[]={"(N)o color","(V)elocity","(A)nother quantity"};
-static const char *const adj_items[]={"(N)ew adj","(M)ake H","(A)djoint","(O)rbit",
-  "(H)fun","(P)arameters","(R)ange"};
-static const char *const tab_items[]={"(E)dit","(V)iew"};
+
 static const char *const meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
   "(R)unge-Kutta","(A)dams","(G)ear","(V)olterra","(B)ackEul",
   "(Q)ualst.RK4","(S)tiff","(C)Vode","DoPri(5)","DoPri(8)3",
   "Rosen(2)3","sYmplectic"};
 
-/*                                 name  title  n  items  keys  hints  first_cmd */
-const XppMenu menu_integrate = XPP_MENU("integrate", "Integrate", ic_items, "r2logmsnhfuidb", "xxxxxxxxxxxxxx", ic_hint, M_IR);
-const XppMenu menu_nullclines = XPP_MENU("nullclines", "Nullclines", null_items, "nramfs", "xvvvxd", null_hint, M_NN);
-const XppMenu menu_freeze_cline = XPP_MENU("freeze_cline", "Freeze cline", frzcline_items, "fdra", "vvxv", null_freeze, M_NFF);
-const XppMenu menu_dirfield = XPP_MENU("dirfield", "Two-D Fun", dfield_items, "dfncs", "xxvxx", flow_hint, M_DD);
-const XppMenu menu_window = XPP_MENU("window", "Window", window_items, "wzofds", "vvvvvv", wind_hint, M_WW);
-const XppMenu menu_torus = XPP_MENU("torus", "Torus", torus_items, "anc", "ddd", phas_hint, M_AA);
-const XppMenu menu_kinescope = XPP_MENU("kinescope", "Kinescope", kin_items, "crpasm", "vvvvdd", kin_hint, M_KC);
 /* (F)reeze and (C)olormap open the next two menus instead of a command */
-const XppMenu menu_curves = XPP_MENU("curves", "Curves", curve_items, "adrepvfxoc", "vvvvdddvdv", graf_hint, M_GA);
-const XppMenu menu_freeze = XPP_MENU("freeze", "Freeze", freeze_items, "fderkbco", "vvvvvdvv", frz_hint, M_GFF);
-const XppMenu menu_freeze_off = XPP_MENU("freeze_off", "Freeze", freeze_off_items, "fderkbco", "vvvvvdvv", frz_hint, M_GFF);
-const XppMenu menu_freeze_key = XPP_MENU("freeze_key", "Key", key_items, "nk", "vv", no_hint, M_GFKN);
 /* (E)dit opens menu_text_edit */
-const XppMenu menu_text = XPP_MENU("text", "Text,etc", text_items, "tapmeds", "vvvvvvv", text_hint, M_TT);
-const XppMenu menu_text_edit = XPP_MENU("text_edit", "Edit", text_edit_items, "mcd", "vvv", edit_hint, M_TEM);
-const XppMenu menu_equilibria = XPP_MENU("equilibria", "Equilibria", sing_items, "gmrc", "xxxx", sing_hint, M_SG);
-const XppMenu menu_view = XPP_MENU("view", "Axes", view_items, "23at", "vvvv", view_hint, M_V2);
-const XppMenu menu_bvp = XPP_MENU("bvp", "Bndry Value Prob", bvp_items, "rnsp", "xxxx", bvp_hint, M_BR);
-const XppMenu menu_stochastic = XPP_MENU("stochastic", "Stochastic", stoch_items, "ncdmvhofpislaxe2", "dxdddxdxxxxxxxxx", stoch_hint, M_UHN);
-const XppMenu menu_poincare = XPP_MENU("poincare", "Poincare map", map_items, "nsmp", "ssss", map_hint, M_UPN);
-const XppMenu menu_color_code = XPP_MENU("color_code", "Color code", color_items, "nva", "vvv", color_hint, M_UCN);
-const XppMenu menu_adjoint = XPP_MENU("adjoint", "Adjoint", adj_items, "nmaohpr", "xxddddx", adj_hint, M_UAN);
-const XppMenu menu_lookup = XPP_MENU("lookup", "Tables", tab_items, "ev", "dv", tab_hint, M_UKE);
 /* Save data (browse_data.cpp data_write): what it writes; the format
    comes next, from the data formats' registry (data_formats.h) */
 static const char *const save_what_items[]={"The data table","What the plot shows"};
-static const char *const save_what_hint[]={"The stored rows from First to Last, every column",
-  "The current plot's curves and frozen curves, one row per point: curve,x,y (and z in 3D)"};
-const XppMenu menu_save_what = XPP_MENU("save_what", "Save data", save_what_items, "tp", "dd", save_what_hint, -1);
+const XppMenu menu_save_what = XPP_MENU("save_what", "Save data", save_what_items, "tp", "dd");
 /* sets METHOD directly */
-const XppMenu menu_method = XPP_MENU("method", "Method", meth_items, "demragvbqsc582y", "sssssssssssssss", meth_hint, -1);
-
-
-/* ---- the windows' key layers (menus.h) ---- */
+const XppMenu menu_method = XPP_MENU("method", "Method", meth_items, "demragvbqsc582y", "sssssssssssssss");
 
 int menu_index(const XppMenu *m, int ch)
 {
@@ -402,108 +60,14 @@ int menu_index(const XppMenu *m, int ch)
   return -1;
 }
 
-char menu_kind(const XppMenu *m, int ch)
-{
-  int i = menu_index(m, ch);
-  return i >= 0 && m->kinds ? m->kinds[i] : 0;
-}
 
-/* (F)ile opens AUTO's File menu: a view, as a menu opener takes its items'
-   least restrictive kind (its Toggle redraw), so it opens once a run ends */
-static const char *const auto_window_items[]={"(A)xes","(N)umerics","(R)un","(G)rab",
-  "(U)sr period","(C)lear","re(D)raw","(F)ile"};
-const XppMenu menu_auto_window = XPP_MENU("auto_window", "AUTO", auto_window_items, "anrgucdf", "vsxdsvvv", auto_hint, -1);
-
-static const char *const browser_window_items[]={"(F)ind","(G)et","(R)eplace","(U)nreplace","(T)able","(H)ome: first",
-  "(E)nd: last","re(S)tore","(A)dd column","(D)elete column","(L)oad","(W)rite"};
-static const char *const browser_window_hint[]={"Find a value in a column","Make the selected row the initial conditions",
-  "Replace a column's values","Undo the last replace","View a table","The first row to keep","The last row to keep",
-  "Keep every row again","Add a column from a formula","Delete the last added column","Load data from a file",
-  "Save the data or the plot to a file"};
-const XppMenu menu_browser_window = XPP_MENU("browser_window", "Data browser", browser_window_items, "fgruthesadlw", "vdddvddddddd", browser_window_hint, -1);
-
-static const char *const ani_window_items[]={"(F)ile","(G)o","(R)eset","(S)kip","(M)peg","(O)n the fly","gr(A)b"};
-static const char *const ani_window_hint[]={"Load an animation file","Play the animation","Back to the first frame",
-  "Frames skipped between two shown","Save the frames as files","Toggle drawing while integrating",
-  "Grab a point of the picture"};
-const XppMenu menu_ani_window = XPP_MENU("ani_window", "Animation", ani_window_items, "fgrsmoa", "vvvvdvd", ani_window_hint, -1);
-
-static const char *const aplot_window_items[]={"re(D)raw","(E)dit","(F)it","(R)ange","(P)rint","(G)IF"};
-static const char *const aplot_window_hint[]={"Redraw the array plot","Edit its settings","Fit the range to the data",
-  "Draw a range of parameter values","Write a PDF","Write a GIF"};
-const XppMenu menu_aplot_window = XPP_MENU("aplot_window", "Array plot", aplot_window_items, "defrpg", "vvvxdd", aplot_window_hint, -1);
-
-/* the page's name for each item of a window's layer (hello.windows) */
-static const char *const auto_window_ids[]={"axes","numerics","run","grab","usr","clear","redraw","file"};
-static const char *const browser_window_ids[]={"find","get","replace","unreplace","table","first","last","restore",
-  "addcol","delcol","load","write"};
-static const char *const ani_window_ids[]={"file","go","reset","skip","mpeg","fly","grab"};
-static const char *const aplot_window_ids[]={"redraw","edit","fit","range","print","gif"};
-static_assert(sizeof(auto_window_ids) / sizeof(auto_window_ids[0]) == sizeof(auto_window_items) / sizeof(auto_window_items[0])
-              && sizeof(browser_window_ids) == sizeof(browser_window_items) && sizeof(ani_window_ids) == sizeof(ani_window_items)
-              && sizeof(aplot_window_ids) == sizeof(aplot_window_items), "one name per item");
-
-const XppWindowLayer window_layers[XPP_WINDOW_LAYERS]={{"auto",&menu_auto_window,auto_window_ids},
-  {"browser",&menu_browser_window,browser_window_ids},{"ani",&menu_ani_window,ani_window_ids},
-  {"aplot",&menu_aplot_window,aplot_window_ids}};
-
-const XppWindowLayer *window_layer(std::string_view win)
-{
-  for (const XppWindowLayer &l : window_layers)
-    if (win == l.win)
-      return &l;
-  return nullptr;
-}
 
 /* AUTO's pop-up menus (W96). The protocol names each one "auto": that is the
    name the page has always been sent. Nothing about them is dynamic but the
    default item, which the caller passes to menu_choose, and the Special
    menu's title (menu_auto_special copied with its own). */
-static const char *const auto_plot_items[]={"Hi","Norm","hI-lo","Period","Two par","(Z)oom in","Zoom (O)ut",
-  "last 1 par", "last 2 par","Fit","fRequency","Average","Default","Scroll","new (V)iew"};
-const XppMenu menu_auto_plot_type = XPP_MENU("auto", "Plot Type", auto_plot_items, "hniptzo12fradsv", "vvvvvvvvvvvvvvv", aaxes_hint, -1);
-
-static const char *const auto_start_items[]={"Steady state","Periodic","Bdry Value","Homoclinic","hEteroclinic"};
-const XppMenu menu_auto_start = XPP_MENU("auto", "Start", auto_start_items, "spbhe", "xxxxx", arun_hint, -1);
-
-static const char *const auto_torus_items[]={"Two Param","Fixed period","Extend"};
-const XppMenu menu_auto_torus = XPP_MENU("auto", "Torus", auto_torus_items, "tfe", "xxx", no_hint, -1);
-
-static const char *const auto_per_doub_items[]={"Doubling","Two Param","Fixed period","Extend"};
-const XppMenu menu_auto_per_doub = XPP_MENU("auto", "Per. Doub.", auto_per_doub_items, "dtfe", "xxxx", no_hint, -1);
-
-static const char *const auto_periodic_items[]={"Extend","Fixed Period"};
-const XppMenu menu_auto_periodic = XPP_MENU("auto", "Periodic ", auto_periodic_items, "ef", "xx", no_hint, -1);
-
-static const char *const auto_hopf_items[]={"Periodic","Extend","New Point","Two Param"};
-const XppMenu menu_auto_hopf = XPP_MENU("auto", "Hopf Pt", auto_hopf_items, "pent", "xxxx", no_hint, -1);
-
-static const char *const auto_branch_items[]={"Switch","Extend","New Point","Two Param"};
-const XppMenu menu_auto_branch = XPP_MENU("auto", "Branch Pt", auto_branch_items, "sent", "xxxx", no_hint, -1);
 
 /* AUTO's File menu: session save/open and foreign diagram import. */
-static const char *const auto_file_hint[]={
-"Load a computed orbit into XPP",
-"Save this session, including the diagram and AUTO's settings (.snapx)",
-"Open a saved session (.snapx), including its AUTO diagram",
-"Create pdf file of picture",
-"Create SVG file of picture",
-"Delete all points of diagram and associated files",
-"Clear grab point to allow start from new point",
-"Write the x-y values of the current diagram to file",
-"Write all the info for the whole diagram!",
-"Save initial data for whole diagram",
-"Toggle automatic redraw",
-"Range over a marked branch",
-"Select a point in 2 parameter diagram",
-"Draw orbits of labeled points automatically",
-"Put all data from branch into browser",
-"Write the diagram, and its eigenvalues/multipliers, as CSV",
-"Import a foreign XPPAUT diagram (.auto)"};
-static const char *const auto_file_items[]={"Import orbit","Save diagram","Load diagram","PDF","SVG",
-  "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt",
-  "draw laBled","lOad branch","eXport CSV","Import diagram"};
-const XppMenu menu_auto_file = XPP_MENU("auto", "File", auto_file_items, "islpvrcwadtneboxf", "ddddddddddvxdxddd", auto_file_hint, -1);
 
 // the grab-by-type menu: its items are the point types' names (query_special shows their labels)
 // the grab-by-type menu: its items are the point types' labels, in the order auto_grab_kinds (auto_nox.cpp) gives
@@ -512,6 +76,6 @@ static const char *const auto_special_items[]={
   auto_point_kind_label(AutoPointKind::Hopf).data(), auto_point_kind_label(AutoPointKind::Fold).data(),
   auto_point_kind_label(AutoPointKind::MaxSteps).data(), auto_point_kind_label(AutoPointKind::PeriodDoubling).data(),
   auto_point_kind_label(AutoPointKind::NeimarkSacker).data(), auto_point_kind_label(AutoPointKind::UserZero).data()};
-const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu", "vvvvvvvv", aspecial_hint, -1);
+const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu", "vvvvvvvv");
 
 } // namespace xpp

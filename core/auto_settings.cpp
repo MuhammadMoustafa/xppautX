@@ -502,9 +502,7 @@ std::string auto_settings_event_line(const xpp::Session &s) { return have_settin
 
 const char *auto_settings_num_key(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].key : nullptr; }
 
-std::string auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? name_label(num_fields[i].key) : std::string(); }
 
-std::span<const char *const> auto_settings_num_choices(int i) { return choices_of(i); }
 
 std::string auto_settings_num_text(int i, double v)
 {

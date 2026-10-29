@@ -134,10 +134,7 @@ static int hl_file_selector(std::string_view, std::string &, std::string_view)
 {
     return 0;
 }
-static int hl_menu_choose(const struct XppMenu *, int)
-{
-    return 0;
-}
+
 static int hl_get_mouse_xy(Session &, int *, int *) { return 0; }
 static int hl_check_abort(void) { return KEY_NONE; }
 static void hl_progress(int, int, int) {}
@@ -167,10 +164,6 @@ static void hl_show_eq_box(Session &, int cp, int cm, int rp, int rm, int im, do
         else xpp::log(XPP_LOG_DEBUG, "  y[{}]={:.8g}\n", i, y[i]);
     }
 }
-static int hl_dialog(std::string_view, std::string_view, std::string &, std::string_view, std::string_view, int)
-{
-    return 0;
-}
 static void hl_param_box_set(int, const char *) {}
 static int hl_checklist(std::string_view, const char *const *, int *, int)
 {
@@ -180,7 +173,6 @@ static Result<int> hl_ani_go(Session &, const AniExport &) { return 0; }
 static Result<bool> hl_aplot_gif(Session &, std::string_view) { return false; }
 static Result<int> hl_movie_save(Session &, std::string_view, int) { return 0; }
 static Result<> hl_movie_make_anigif(Session &, std::string_view) { return {}; }
-static void hl_record_toggle(Session &) { xpp::log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
 static void hl_play_recording(Session &, std::string_view) { xpp::log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
 static bool hl_recording(void) { return false; }
 static bool hl_save_recording(Session &) { return true; }
@@ -212,12 +204,9 @@ XppUi ui = {
     .typed_form = hl_typed_form,
     .grid_box = hl_grid_box,
     .file_selector = hl_file_selector,
-    .dialog = hl_dialog,
     .get_mouse_xy = hl_get_mouse_xy,
     .menu_flash = hl_int,
-    .show_menu = hl_int,
     .redraw_menu = hl_void,
-    .menu_choose = hl_menu_choose,
     .check_abort = hl_check_abort,
     .progress_begin = hl_no,
     .progress = hl_progress,
@@ -242,6 +231,7 @@ XppUi ui = {
     .browser_redraw = hl_int,
     .create_plot_window = hl_s,
     .destroy_plot_window = hl_s,
+    .window_selected = hl_s_str_str,
     .window_renamed = hl_auto_make_window,
     .auto_closed = hl_s_str,
     .tool_window_closed = hl_s_str_str,
@@ -266,8 +256,6 @@ XppUi ui = {
     .auto_make_window = hl_auto_make_window,
     .auto_refresh = hl_s,
     .auto_check_abort = hl_auto_check_abort,
-    .auto_rubber = hl_auto_rubber,
-    .auto_scroll_window = hl_s,
     .auto_grab_event = hl_auto_grab_event,
     .auto_show_hint = hl_s,
     .auto_grab_end = hl_int,
@@ -281,7 +269,6 @@ XppUi ui = {
     .show_eq_box = hl_show_eq_box,
     .make_txtview = hl_s,
     .q_calc = hl_s,
-    .record_toggle = hl_record_toggle,
     .play_recording = hl_play_recording,
     .recording = hl_recording,
     .save_recording = hl_save_recording,
@@ -398,11 +385,6 @@ static int question_fields(const char *const *names, std::span<std::string> valu
     std::copy(answered.begin(), answered.end(), values.begin());
     return 1;
 }
-int do_string_box(int row, int col, std::string_view title, const char *const *names,
-                  std::span<std::string> values)
-{
-    return do_string_box_of(row, col, title, names, values, nullptr);
-}
 int do_string_box_of(int row, int col, std::string_view title, const char *const *names,
                      std::span<std::string> values, const int *kinds)
 {
@@ -466,20 +448,16 @@ int file_selector(std::string_view title, std::string &file, std::string_view wi
     if (policy == QuestionPolicy::User) return ui.file_selector(title, file, wild);
     return question_string(title, file, XPP_FIELD_FILE);
 }
-int get_dialog(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
-               std::string_view cancel)
-{
-    return get_dialog_of(wname, name, value, ok, cancel, XPP_FIELD_TEXT);
-}
-int get_dialog_of(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
-                  std::string_view cancel, int kind)
-{
-    if (ui.question_policy(false) == QuestionPolicy::User) return ui.dialog(wname, name, value, ok, cancel, kind);
-    return question_string(name, value, kind);
-}
 int GetMouseXY(Session &s, int *x, int *y) { return ui.get_mouse_xy(s, x, y); }
 void flash(int num) { ui.menu_flash(num); }
-int menu_choose(const struct XppMenu *m, int def) { return ui.menu_choose(m, def); }
+int menu_choose(const struct XppMenu *m, int def)
+{
+  std::vector<std::string> choices;
+  for (int i = 0; i < m->n; ++i) choices.emplace_back(m->items[i]);
+  const std::string_view keys(m->keys);
+  return Choose(m->name, m->title, choices, keys,
+                   def >= 0 && static_cast<std::size_t>(def) < keys.size() ? keys[static_cast<std::size_t>(def)] : '\0');
+}
 
 int pick_from_list(std::string_view id, std::string_view title, std::span<const std::string> names)
 {
@@ -498,7 +476,7 @@ int pick_from_list(std::string_view id, std::string_view title, std::span<const 
   for (const std::string &l : labels) items.push_back(l.c_str());
   const std::string name(id), head(title);
   /* no hints: a list's items have none */
-  const XppMenu m = {name.c_str(), head.c_str(), static_cast<int>(items.size()), items.data(), keys.c_str(), nullptr, -1, nullptr};
+  const XppMenu m = {name.c_str(), head.c_str(), static_cast<int>(items.size()), items.data(), keys.c_str(), nullptr};
   return menu_index(&m, menu_choose(&m, 0));
 }
 /* the running job's checkpoint (xpp_job.h): Escape as soon as the job is
@@ -543,11 +521,6 @@ int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
     if (*iflag == 1) xpp::job::cancel_current();
     return r;
 }
-int auto_rubber(Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
-{
-    return ui.auto_rubber(s, i1, j1, i2, j2, flag);
-}
-void auto_scroll_window(Session &s) { ui.auto_scroll_window(s); }
 int auto_points_held(Session &s) { return ui.auto_points_held(s); }
 void auto_diagram(Session &s, int view, const XppDiagPoint *p) { ui.auto_diagram(s, view, p); }
 void init_txtview(void) { ui.init_txtview(); }
@@ -573,7 +546,6 @@ void new_vcr(Session &s) { ui.new_vcr(s); }
 void redraw_the_graph(Session &s) { ui.redraw_graph(s); }
 void make_txtview(Session &s) { ui.make_txtview(s); }
 void q_calc(Session &s) { ui.q_calc(s); }
-void record_toggle(Session &s) { ui.record_toggle(s); }
 void play_recording(Session &s, std::string_view path) { ui.play_recording(s, path); }
 bool recording_in_progress(void) { return ui.recording(); }
 bool save_recording(Session &s) { return ui.save_recording(s); }

@@ -1,9 +1,8 @@
-/* A hello with the command table and key layers the tests use (the core's own, the command table read from
-   core/command_table.h, core/menus.cpp, core/ui_json.cpp's command table). Not a test itself. */
+/* A hello the tests use: the registry's rows read from the core's source. Not a test itself. */
 import {readdirSync, readFileSync} from 'node:fs';
-import type {CommandCategory, CommandRow} from '../src/protocol/kinds';
-import {PROTOCOL, type HelloEvent, type MenuName} from '../src/protocol/types';
+import {PROTOCOL, type HelloEvent} from '../src/protocol/types';
 import {initialState, reduce} from '../src/store/state';
+import {registryRows} from '../src/ui/navigation';
 import {setLineGeometry, type LineGeometry} from '../src/plot/linestyle';
 import {setAnnotationGlyphs, type AnnotationGlyphs} from '../src/plot/marks';
 import type {CoreColor, LineStyle} from '../src/protocol/types';
@@ -47,49 +46,14 @@ export const ANNOTATION_GLYPHS: AnnotationGlyphs = {
 };
 setAnnotationGlyphs(ANNOTATION_GLYPHS);
 
-/** the string literal `"..."` of C++ source as its text */
-const cString = (literal: string): string => JSON.parse(literal);
-
-/** the core's own table, read from its source so that no copy can drift (npm test runs in web2/):
-    the kind letters from menus.h, the categories and rows from command_table.h */
-function coreTable(): {categories: CommandCategory[]; rows: CommandRow[]} {
-  const source = (file: string) => readFileSync(`../core/${file}`, 'utf8');
-  const kinds = new Map([...source('menus.h').matchAll(/#define (XPP_KIND_\w+) '(\w)'/g)].map(m => [m[1], m[2]]));
-  const text = '(?:\\\\.|[^"\\\\])*';
-  /* a row may name its text by a string constant of the header (STORE_EVERY_LABEL): read as the text */
-  const constants = [...source('command_table.h').matchAll(new RegExp(`inline constexpr std::string_view (\\w+) = ("${text}");`, 'g'))];
-  const header = constants.reduce((h, m) => h.replaceAll(`, ${m[1]},`, `, ${m[2]},`), source('command_table.h'));
-  const categories = [...header.matchAll(new RegExp(`\\{CommandCategory::\\w+, ("${text}"), ("${text}"), (true|false), (true|false)\\}`, 'g'))]
-    .map((m): CommandCategory => ({id: cString(m[1]), label: cString(m[2]), listed: m[3] === 'true', expanded: m[4] === 'true'}));
-  const rows = [...header.matchAll(new RegExp(
-    `\\{(MAIN|FILE|NUM)_MENU, ('(?:\\\\.|[^'\\\\])+'|PAGE_KEY), ("${text}"), ("${text}"), ("${text}"), (XPP_KIND_\\w+), CommandCategory::(\\w+), (true|false), (true|false), \\{([^}]*)\\}\\}`, 'g'))]
-    .map((m): CommandRow => {
-      const menu = m[1].toLowerCase() as MenuName;
-      /* a command the page runs itself has no legacy key (command_table.h PAGE_KEY) */
-      const key = m[2] === 'PAGE_KEY' ? '' : m[2] === "'\\033'" ? '\x1b' : m[2].slice(1, -1);
-      return {menu, id: cString(m[3]), key, label: cString(m[4]), description: cString(m[5]), kind: kinds.get(m[6])!, category: m[7].toLowerCase(),
-        pinnable: m[8] === 'true', primary: m[9] === 'true', default_keys: [...m[10].matchAll(new RegExp(`"(${text})"`, 'g'))].map(k => k[1]),
-        legacy_keys: []};
-    });
-  /* the XPPAUT sequence: the layer's key, then the item's (core/ui_json.cpp buf_command_table) */
-  for (const row of rows.filter(r => r.key !== '')) {
-    const entry = rows.find(r => r.menu === 'main' && r.id === (row.menu === 'file' ? 'file' : 'numerics'));
-    row.legacy_keys = [...row.menu === 'main' ? [] : [entry!.key.toUpperCase()], row.key === '\x1b' ? 'Esc' : row.key.toUpperCase()];
-  }
-  return {categories, rows};
-}
-
-const CORE = coreTable();
-/** the keys no command may take, read from core/xpp_keymap.h like the table (hello.keymap.reserved) */
-/* the rows of the registry: every resource's table (core/commands_<resource>.cpp) and the help row */
+/** the rows of the registry: every resource's table (core/commands_<resource>.cpp) and the help row, read from
+    the source so that no copy can drift (npm test runs in web2/) */
 function registrySource(): string {
   const files = ['command_registry.cpp', ...readdirSync('../core').filter(f => /^commands_.*\.cpp$/.test(f))];
   return files.map(f => readFileSync(`../core/${f}`, 'utf8')).join('\n');
 }
 
 const RESERVED = [...readFileSync('../core/xpp_keymap.h', 'utf8').match(/RESERVED_KEYS = \{([^}]*)\}/)![1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
-
-const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys, kinds, hints: ids, ids});
 
 /** AUTO's point types as hello gives them (core/auto_codes.h's table) */
 export const POINT_TYPES: PointType[] = [
@@ -131,20 +95,11 @@ export const HELLO: HelloEvent = {
   continue: {grid_tolerance: 1e-6},
   steady: {max_decimals: 15, default_decimals: 9, default_hold: 1},
   quit: {question: 'Quit?', recording: 'Quit and stop recording?', choices: ['Save session', "Don't save"], keys: 'sd'},
-  lists: [], userbuttons: [], defaults: {pars: [], ics: []},
-  menu_names: ['main', 'file', 'num'],
-  command_categories: CORE.categories,
-  command_table: CORE.rows,
+  model_names: [], lists: [], userbuttons: [], defaults: {pars: [], ics: []},
   /* no keymap.json: every command with the table's keys (core/xpp_keymap.cpp effective_json) */
   keymap: {
     ok: true, path: '', preset: 'default', pinned: [], reserved: RESERVED, limits: {keys: 8, parts: 2, key_bytes: 64},
-    commands: CORE.rows.filter(r => r.category !== 'layer').map(r => ({id: r.id, keys: r.default_keys, source: 'default' as const})),
-  },
-  windows: {
-    auto: layer('anrgucdf', 'vsxdsvvv', ['axes', 'numerics', 'run', 'grab', 'usr', 'clear', 'redraw', 'file']),
-    ani: layer('fgrsmoa', 'vvvvdvd', ['file', 'go', 'reset', 'skip', 'mpeg', 'fly', 'grab']),
-    browser: layer('fru', 'vdd', ['find', 'replace', 'unreplace']),
-    aplot: layer('refrpg', 'vvvvdd', ['redraw', 'edit', 'fit', 'range', 'print', 'gif']),
+    commands: [],
   },
   commands: [
     {cmd: 'run.configure', kind: 's', step: true, arguments: [{name: 'total_time', type: 'real', required: false, choices: []}, {name: 'dt', type: 'real', required: false, choices: []},
@@ -153,7 +108,7 @@ export const HELLO: HelloEvent = {
     {cmd: 'key', kind: '', step: true},
     {cmd: 'answer', kind: 'c', step: false}, {cmd: 'run.abort', kind: 'c', step: false},
     {cmd: 'display', kind: 'v', step: true},
-    ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?XPP_KIND_(\w+)[\s\S]*?,\s*(true|false),\s*[\w:<>]+(?:,\s*\w+)?\}/g)]
+    ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?XPP_KIND_(\w+)[\s\S]*?,\s*(true|false),/g)]
       .map(m => ({cmd: m[1], kind: ({VIEW: 'v', COMPUTE: 'x', SETTING: 's', CONTROL: 'c', DATA: 'd'} as Record<string, string>)[m[2]], step: m[3] === 'true'})),
     {cmd: 'set', kind: 's', step: true},
   ],
@@ -170,3 +125,20 @@ export const HELLO: HelloEvent = {
 
 /** the state after the server's hello: every event but hello comes after one */
 export const READY = reduce(initialState, {type: 'event', ev: HELLO});
+/** the hello with every registry row (kind, menu path, legacy keys, default keys), for the key and menu tests */
+export const REGISTRY_HELLO: HelloEvent = {...HELLO, commands: []};
+for (const file of readdirSync('../core').filter(f => /^commands_.*\.cpp$/.test(f))) {
+  const source = readFileSync(`../core/${file}`, 'utf8');
+  for (const match of source.matchAll(/Command\{"([^"]+)",([\s\S]*?)\},?\n/g)) {
+    const body = match[2];
+    const metadata = /XPP_KIND_(\w+),\s*CommandCategory::\w+,\s*"([^"]*)", "([^"]*)",/.exec(body);
+    if (!metadata) continue;
+    const keyName = /, (\w+)\s*$/.exec(body)?.[1];
+    const keys = keyName ? new RegExp('constexpr std::array ' + keyName + ' = \\{([^}]*)\\}').exec(source)?.[1] : '';
+    REGISTRY_HELLO.commands.push({cmd: match[1], arguments: [], kind: ({VIEW:'v', COMPUTE:'x', SETTING:'s', CONTROL:'c', DATA:'d'} as Record<string,string>)[metadata[1]], step: true,
+      menu_path: metadata[2], legacy_keys: metadata[3], legacy_context: /,\s*"(auto|animation|array_plot|browser)"(?:,\s*"(?:read|write)",\s*"[^"]*")?\s*$/.exec(body)?.[1] ?? '', default_keys: [...(keys ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]), description: match[1]});
+  }
+}
+REGISTRY_HELLO.keymap = {...HELLO.keymap, commands: REGISTRY_HELLO.commands.map(c => ({id: c.cmd, keys: c.default_keys ?? [], source: 'default'}))};
+/** the rows the page lists commands from (navigation.ts registryRows) */
+export const ROWS = registryRows(REGISTRY_HELLO);

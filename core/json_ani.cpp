@@ -138,22 +138,6 @@ xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
 
 xpp::Result<int> j_ani_go(xpp::Session &s, const xpp::AniExport &out) { return ani_go(s, out); }
 
-/* a key of the animation window (menu_ani_window): each asks what its command takes, then does what it does */
-void ani_key(xpp::Session &s, int ch)
-{
-    const auto run = [&](const char *line) { xpp::ok_or_show(xpp::command::run_button(s, line, xpp::command_place())); };
-    switch (menu_index(&menu_ani_window, ch)) {
-    case NK_FILE: get_ani_file(s); break;
-    case NK_GO: run("{\"cmd\":\"animation.play\"}"); break;
-    case NK_RESET: run("{\"cmd\":\"animation.reset\"}"); break;
-    case NK_SKIP: ani_newskip(s); break;
-    case NK_MPEG: ani_create_mpeg(s); break;
-    case NK_FLY: run(s.animation.options.on_the_fly ? "{\"cmd\":\"animation.set_live_draw\",\"enabled\":false}" : "{\"cmd\":\"animation.set_live_draw\",\"enabled\":true}"); break;
-    case NK_GRAB: ani_grab_start(s); break;
-    }
-    send_ani_slider(s);
-}
-
 void j_new_vcr(xpp::Session &s)
 {
     /* already open: say so (a client that reconnected has not seen it made) */

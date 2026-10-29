@@ -1,7 +1,7 @@
 /* The protocol's messages as types (docs/protocol.md). Only the fields the
    new front end reads are typed; everything else passes through untouched. */
 
-import type {CommandCategory, CommandKind, CommandRow, LayerWindow, WindowLayer} from './kinds';
+import type {CommandKind} from './kinds';
 import type {LineGeometry} from '../plot/linestyle';
 import type {AnnotationGlyphs} from '../plot/marks';
 
@@ -11,9 +11,6 @@ export type TextStyle = 'normal' | 'bold' | 'italic' | 'bold_italic';
 /** the protocol this page speaks (core/ui_json.h JSON_UI_PROTOCOL): core and
     page ship together, so a hello with another is a shown error (session.ts) */
 export const PROTOCOL = 4;
-
-/** a main-window menu's name (hello.menu_names, by state's menu number) */
-export type MenuName = 'main' | 'file' | 'num';
 
 /** a run of the About text: a link when `url` is there */
 export interface AboutPart {text: string; url?: string}
@@ -53,16 +50,8 @@ export interface HelloEvent {
       (W110, store/state.ts LEAVE_ASK): the question, the one naming the recording in progress, the
       answers and their keys */
   quit: {question: string; recording: string; choices: string[]; keys: string};
-  /** each main-window menu's name, indexed by state's menu number (0 main, 1 File, 2 nUmerics) */
-  menu_names: MenuName[];
-  /** the groups commands are listed in, in order (core/command_table.h) */
-  command_categories: CommandCategory[];
-  /** every command of the three main-window menus, once, in the sidebar's order (core/command_table.h) */
-  command_table: CommandRow[];
   /** the user's keymap as the core read it (W211, store/keymap.ts) */
   keymap: KeymapInfo;
-  /** the windows' key layers (protocol/kinds.ts) */
-  windows: Record<LayerWindow, WindowLayer>;
   /** AUTO's Run: the kinds, the kinds a start from the current state takes, and one row for each start point type (core/auto_run.h) */
   auto_run: AutoRunTable;
   /** every command, with its kind (a key's is its menu item's: "") and whether it is a step */
@@ -82,6 +71,7 @@ export interface HelloEvent {
   /** Initial surface names; plots and diagram views subsequently carry their exact names. */
   window_names: {main: string; auto: string; ani: string; aplot: string; browser: string};
   lists: string[][];
+  model_names: string[];
   /** every point type: its name (the only input), its label and its mark (core/auto_codes.h's one table) */
   point_types: PointType[];
   userbuttons: string[];
@@ -120,7 +110,7 @@ export interface StartInfo {
   field?: string;
 }
 
-/** one command's effective keys: the user's (source `user`) or the command table's (`default`) */
+/** one command's effective keys: the user's (source `user`) or the registry's (`default`) */
 export interface KeymapCommand {
   id: string;
   keys: string[];
@@ -193,7 +183,6 @@ export interface StateEvent {
   steady?: {status: 'settled' | 'limit' | 'stopped' | 'failed'; decimals: number; time: number};
   view: View;
   rows: number;
-  menu: number;
   win: string;
   session?: {file?: string; set?: string; auto?: string};
   /** the values (parameters, initial conditions, the numerics' time span, method and tolerances, the run's data) differ from
@@ -451,12 +440,11 @@ export interface MarksEvent {
 export interface AskEvent {
   ev: 'ask';
   id: number;
-  kind: 'menu' | 'choice' | 'string' | 'form' | 'checklist' | 'file' | 'mouse' | 'rubber' | 'grab'
+  kind: 'choice' | 'string' | 'form' | 'checklist' | 'file' | 'mouse' | 'rubber' | 'grab'
     | 'drag' | 'pixels' | 'text';
   title?: string;
   name?: string;
   value?: string;
-  items?: string[];
   keys?: string;
   hints?: string[];
   question?: string;
@@ -723,8 +711,7 @@ export type XppEvent =
   /** the running command began computing: until its idle only view and control actions start */
   | {ev: 'computing'}
   | {ev: 'title'; text: string}
-  | {ev: 'menu'; which: number}
-  | {ev: 'window'; kind: 'graph' | 'diagram' | 'animation' | 'array_plot'; op: 'create' | 'select' | 'destroy'; win: string; w: number; h: number; title?: string}
+  | {ev: 'window'; kind: 'graph' | 'diagram' | 'animation' | 'array_plot' | 'browser'; op: 'create' | 'select' | 'destroy'; win: string; w: number; h: number; title?: string}
   | {ev: 'log'; text: string}
   | {ev: 'exit'; code: number}
   | {ev: 'bye'}
@@ -757,7 +744,3 @@ export interface NumericsField {
 }
 
 export type Command = {cmd: string; [k: string]: unknown};
-
-/** a `key` command naming a main-window menu item by its stable id (hello.command_table), not by a
-    shortcut key; `button` is the control clicked, for a recording's step */
-export type MenuItemCommand = {cmd: 'key'; menu: MenuName; item: string; button?: string};

@@ -124,6 +124,8 @@ struct ProtocolSession {
     /* the main-window menu shown (MAIN_MENU, FILE_MENU, NUM_MENU), for the
        reader thread's classify(): which menu a key is an item of */
     std::atomic<int> menu{0};
+    std::string pending_key_context;
+    std::string pending_keys; /* An unfinished raw key chord; never a running command. */
     /* the lines a command's prompt or computation took that were meant for
        after it, in arrival order; the command loop runs them first */
     std::deque<DeferredLine> deferred;
@@ -211,7 +213,6 @@ void send_hello(xpp::Session &s);
 xpp::Result<std::string> recording_start(xpp::Session &s);
 xpp::Result<std::string> recording_stop(const xpp::Session &s, const std::optional<std::string> &file, bool confirm);
 xpp::Result<std::string> recording_add_note(const std::string &note);
-void j_record_toggle(xpp::Session &s); /* File/recorD: start, or stop and save */
 bool j_recording(void);                /* a recording is in progress */
 bool j_save_recording(xpp::Session &s); /* Quit's Save: the recording saved (its name asked) and ended */
 /* a command handle_line is about to run: a step begins, when recording
@@ -230,9 +231,7 @@ xpp::Result<> reset_save_decision();
 void record_answer(const char *kind, const char *answer, bool ok);
 /* a key the running job read itself (control_line: / ending a range,
    Escape stopping the animation's Go), with where the job was */
-void record_key_read(const std::string &key);
 /* the menu m's item of key ch picked (j_menu_choose): the step's label */
-void record_menu_pick(const struct XppMenu *m, int ch);
 /* a setting a running command took and applied at once (take_setting): a
    step of its own, before that command's */
 void record_control(const char *line);
@@ -405,8 +404,6 @@ int j_grid_box(std::string_view title, std::span<const char *const> columns, std
 int j_file_selector(std::string_view title, std::string &file, std::string_view wild);
 int j_get_mouse_xy(xpp::Session &s, int *x, int *y);
 int j_rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
-int j_menu_choose(const struct XppMenu *m, int def);
-void j_show_menu(int which);
 int j_check_abort(void);
 int j_progress_begin(void);
 void j_progress(int nit, int icount, int cwidth);
@@ -428,7 +425,6 @@ void send_state_if_dirty(void);
 void j_state_dirty(void);
 void j_state_dirty_i(int i);
 void j_state_dirty_is(int i, const char *s);
-void browser_key(xpp::Session &s, int ch, const char *line);
 void browser_update(xpp::Session &s); /* at a command's end */
 void j_browser_changed(int i);
 void j_rows_stored(xpp::Session &s, int nrows);
@@ -442,6 +438,7 @@ void state_forget(void); /* what the model before showed (its last equilibrium) 
 
 void send_main_window(const xpp::Session &s,const char *title);
 void send_window(const char *what, std::string_view name, int w, int h, std::string_view title = {}, std::string_view kind = "graph");
+void j_window_selected(xpp::Session &s, std::string_view name, std::string_view kind);
 void j_window_renamed(xpp::Session &s, std::string_view old_name, std::string_view new_name);
 void j_auto_closed(xpp::Session &s, std::string_view name);
 void j_tool_window_closed(xpp::Session &s, std::string_view name, std::string_view kind);
@@ -471,7 +468,6 @@ xpp::Result<> j_movie_make_anigif(xpp::Session &s, std::string_view file);
 
 void aplot_changed(void); /* the data behind an array plot changed */
 void aplot_update(xpp::Session &s); /* at a command's end */
-void aplot_key(xpp::Session &s, int ch);
 void j_aplot_make(xpp::Session &s, std::string_view name);
 void j_aplot_redraw(xpp::Session &s);
 void j_aplot_draw_one(xpp::Session &s, std::string_view tag);
@@ -485,14 +481,11 @@ int diag_point_of_node(const xpp::Session &s, int node); /* the index in the dia
 /* the `autoview` event (hidden branches and zoom), for a client that asked for autoinfo */
 void auto_view_subscribe(int on);
 void auto_view_update(xpp::Session &s);
-void auto_key(xpp::Session &s, int ch);
 void auto_redraw_for_client(xpp::Session &s);
 void j_auto_make_window(xpp::Session &s, std::string_view wname, std::string_view iname);
 int j_auto_check_abort(int *iflag);
-int j_auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 int j_auto_grab_event(xpp::Session &s, int *x, int *y);
 void j_auto_show_hint(xpp::Session &s);
-void j_auto_scroll_window(xpp::Session &s);
 void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
 int j_auto_points_held(xpp::Session &s); /* XppUi.auto_points_held: the points the active view holds */
 void j_auto_refresh(xpp::Session &s);
@@ -516,7 +509,6 @@ xpp::Result<xpp::Session *> switch_model(xpp::Session &before, const xpp::ModelR
 /* ---- json_ani.cpp ---- */
 
 xpp::Result<int> j_ani_go(xpp::Session &s, const xpp::AniExport &out);
-void ani_key(xpp::Session &s, int ch);
 void j_ani_slider(xpp::Session &s);
 void j_new_vcr(xpp::Session &s);
 void j_ani_show(void);

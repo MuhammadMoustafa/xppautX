@@ -34,7 +34,26 @@ export function useDialogFocus(box: {current: HTMLElement | null}, deps: Inputs)
     return () => {
       cancelAnimationFrame(again);
       const now = document.activeElement;
-      if (!now || now === document.body || (el && el.contains(now))) before?.focus?.();
+      if (!now || now === document.body || (el && el.contains(now))) {
+        const target = before?.isConnected && before.getClientRects().length ? before
+          : before?.closest<HTMLElement>('[data-top-menu]')?.querySelector<HTMLElement>('summary')
+            ?? document.querySelector<HTMLElement>('.menu-toggle, .plot-host');
+        target?.focus();
+      }
     };
   }, deps);
+}
+
+/** Cycle a modal's fields like native Tab, selecting text on arrival. */
+export function cycleDialogFocus(e: KeyboardEvent, box: HTMLElement | null): void {
+  if (e.key !== 'Tab' || !box) return;
+  const all = [...box.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(el => el.getClientRects().length > 0);
+  if (!all.length) return;
+  const i = all.indexOf(document.activeElement as HTMLElement);
+  const next = e.shiftKey ? (i <= 0 ? all.length - 1 : i - 1) : (i === all.length - 1 ? 0 : i + 1);
+  e.preventDefault();
+  const to = all[next];
+  to.focus();
+  if (to instanceof HTMLInputElement && /^(text|search|number|url|tel|email|password)?$/.test(to.getAttribute('type') ?? '')) to.select();
+  else if (to instanceof HTMLTextAreaElement) to.select();
 }

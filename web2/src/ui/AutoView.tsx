@@ -72,8 +72,7 @@ import {activeView, autoWindow, EMPTY_VIEW, pointCount, type DiagramHover, type 
 import {branchesBefore} from '../store/diagram';
 import type {AppState} from '../store/state';
 import {AutoAxisDialog, type AxisName} from './AutoAxes';
-import {AutoRunDialog} from './AutoRun';
-import {AutoSettingsDialog, type AutoSettingsDialogKind} from './AutoSettings';
+type AutoSettingsDialogKind = 'numerics' | 'marks';
 import {AutoInfo} from './AutoInfo';
 import {AutoOutput, AutoStatus} from './AutoStatus';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
@@ -81,11 +80,11 @@ import {HelpButton} from './HelpButton';
 import {FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
 import './auto.css';
 
-/** label and op (its key is the core's: hello.windows.auto), in the X11 window's order; no
+/** label and op (the registry command is navigation.ts toolbarCommand's), in the X11 window's order; no
     reDraw (T21): the diagram is always the current one */
 const BUTTONS: [string, AutoOp][] = [
   ['Axes', 'axes'], ['Numerics', 'numerics'], ['Run', 'run'],
-  ['Grab', 'grab'], ['Mark values…', 'usr'], ['Clear', 'clear'], ['File', 'file'],
+  ['Grab', 'grab'], ['Mark values…', 'usr'], ['Clear', 'clear'],
 ];
 /** the view's own words for a button, over the core's hint */
 const TITLES: Partial<Record<AutoOp, string>> = {
@@ -372,6 +371,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
       return;
     }
     const key = e.ctrlKey || e.metaKey ? '' : e.key;
+    if (key === 'Escape' && session.store.getState().busy) return; /* Escape stops the running command (hotkeys.ts), whatever the readout holds */
     const r = plotKey(key, {ranges: c.ranges(), hover: at, counts: m.curves.map(cd => cd.xs.length)});
     if (!r) return;
     e.preventDefault();
@@ -549,7 +549,6 @@ function Readout() {
 
 function AutoPanel({dark}: {dark: boolean}) {
   const session = useSession();
-  const layer = useStore(s => s.hello?.windows.auto);
   /* a button that opens the page's own form works during a run too (its edits wait); the others
      by the kind of the key they send (W95: Axes and Clear are views, Run, Grab and File wait) */
   const mayKey = useMayKey();
@@ -559,16 +558,10 @@ function AutoPanel({dark}: {dark: boolean}) {
   const pick = useStore(s => (s.pick?.win === autoWindow(s) && !s.pick.waiting ? s.pick : null));
   const views = useStore(s => s.diagram.views.length);
   const what = useStore(s => whatOf(activeView(s.diagram)));
-  const [settingsOpen, setSettingsOpen] = useState<AutoSettingsDialogKind | null>(null);
-  const [runOpen, setRunOpen] = useState(false);
   const pending = pendingFields(useStore(s => s.autoSettings));
   /* a button: its form (T22), else its command */
-  const act = (op: AutoOp) => {
-    const kind = SETTINGS_DIALOG[op];
-    if (kind) setSettingsOpen(kind);
-    else if (op === 'run') setRunOpen(true);
-    else session.autoOp(op);
-  };
+  const act = (op: AutoOp) => session.autoOp(op);
+
   const panel = useRef<HTMLElement>(null);
 
   /* keys anywhere in the panel: AUTO's hotkeys (not from a control), Escape hides it */
@@ -576,22 +569,13 @@ function AutoPanel({dark}: {dark: boolean}) {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     const {ask, busy: running} = session.store.getState();
     if (ask) return;
-    const t = e.target as HTMLElement;
     if (e.key === 'Escape' && !running) {
       e.preventDefault();
       e.stopPropagation();
       session.showAuto(false);
       return;
     }
-    const layer = session.store.getState().hello?.windows.auto;
-    const i = layer && e.key.length === 1 ? layer.keys.indexOf(e.key.toLowerCase()) : -1;
-    const op = BUTTONS.find(([, o]) => o === layer?.ids[i])?.[1];
-    /* a letter typed on a button is AUTO's too (T21): the focus stays on a button after a click */
-    if (op && (SETTINGS_DIALOG[op] || session.mayKey('auto', op)) && !t.closest('input, select, textarea, [role="dialog"]')) {
-      e.preventDefault();
-      e.stopPropagation();
-      act(op);
-    }
+
   };
 
   return (
@@ -608,14 +592,14 @@ function AutoPanel({dark}: {dark: boolean}) {
       </div>
       <div class="auto-tools" role="toolbar" aria-label="AUTO">
         {BUTTONS.map(([text, op]) => {
-          const k = layer?.keys[layer.ids.indexOf(op)] ?? '';
+          const k = '';
           const kind = SETTINGS_DIALOG[op];
           const waits = !!kind && [...pending].some(PENDING_OF[kind]);
           return (
             <button key={op} disabled={off(op)} aria-keyshortcuts={k.toUpperCase()}
               class={waits ? 'auto-pending' : undefined} data-op={op} data-button={`auto:${op}`}
               title={off(op) ? BUSY_TITLE
-                : (TITLES[op] ?? layer?.hints[layer.ids.indexOf(op)] ?? text) + (waits ? ' (changes wait for the run to end)' : '')}
+                : (TITLES[op] ?? text) + (waits ? ' (changes wait for the run to end)' : '')}
               onClick={() => act(op)}>{text}</button>
           );
         })}
@@ -628,8 +612,6 @@ function AutoPanel({dark}: {dark: boolean}) {
         </div>
         <Readout />
       </div>
-      {runOpen && <AutoRunDialog onClose={() => setRunOpen(false)} />}
-      {settingsOpen && <AutoSettingsDialog kind={settingsOpen} onClose={() => setSettingsOpen(null)} />}
       <AutoInfo />
       <AutoOutput />
       {stored && (

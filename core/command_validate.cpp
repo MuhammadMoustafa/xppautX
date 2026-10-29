@@ -309,6 +309,14 @@ Result<Arguments> validate(Session *session, const Command &command, const char 
             if (valid_id(value)) continue;
             return fail(command.name, "id must be text of at most 1024 bytes", place);
         }
+        if (key == FILE_PICKER_KEY) {
+            bool request = false;
+            if (!parse_bool(json::js_raw(value), request) || !request ||
+                !picker_argument(command))
+                return fail(command.name, "file_picker must be true on a command with one file argument", place);
+            args.add(key, Scalar{true});
+            continue;
+        }
         const auto arg = std::ranges::find(command.arguments, key, &Argument::name);
         if (arg == command.arguments.end())
             return fail(command.name, xpp::format("Unknown argument \"{}\"", key), place);
@@ -325,6 +333,10 @@ Result<Arguments> validate(Session *session, const Command &command, const char 
             if (!scalar) return std::unexpected<Error>(scalar.error());
             args.add(key, std::move(*scalar));
         }
+    }
+    if (args.has(FILE_PICKER_KEY)) {
+        const Argument *file = picker_argument(command);
+        if (!args.has(file->name)) args.add(file->name, Scalar{std::string(PICKER_FILE)});
     }
     for (const Argument &arg : command.arguments)
         if (arg.required && !args.has(arg.name))

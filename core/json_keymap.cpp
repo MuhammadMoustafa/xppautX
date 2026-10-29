@@ -76,6 +76,7 @@ xpp::Result<std::string> keymap_set(const xpp::command::Arguments &args)
         if (const xpp::Result<> saved = xpp::keymap::save(*checked); !saved) checked = std::unexpected(saved.error());
     }
     if (!checked) return std::unexpected(checked.error());
+    session.pending_keys.clear();
     send_keymap("set");
     return xpp::command::ResultObject().boolean("saved", true).done();
 }
@@ -83,6 +84,7 @@ xpp::Result<std::string> keymap_set(const xpp::command::Arguments &args)
 xpp::Result<std::string> keymap_reset()
 {
     if (const xpp::Result<> reset = xpp::keymap::reset(); !reset) return std::unexpected(reset.error());
+    session.pending_keys.clear();
     send_keymap("reset");
     return xpp::command::ResultObject().boolean("reset", true).done();
 }

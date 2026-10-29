@@ -13,8 +13,7 @@
    script does not expect stops it (exit 1, silent_fail).
 
    For one run (no internal sets, or each set in turn):
-     select the set          set.apply, scope all (File/Apply set, the set
-                             by its name: no menu key limits their number)
+     select the set          set.apply, scope all (the set by its name)
      --qsets/--qpars/--qics     write_values_query (-dryrun: nothing is run)
      run                     run.initial, or run.range (the settings
                              the @ range options made) for @ range=1 or a
@@ -24,8 +23,7 @@
      @ stoch=1/2             analysis.load_stochastic_mean or _variance (the Mean
                              or Variance of the runs)
      output.dat              the output columns' data file, replacing it (save_data_file)
-     --mkplot                 key g, answer p (pdf) or v (svg), the picture parameters
-                             form answered with its values, the file
+     --mkplot                 plot.export_pdf or plot.export_svg, by the plot format
    The core computes requested nullclines and direction fields after a run.
    After every run: --equil 0/1 (equilibrium write equil.dat). */
 #include "ui_json_internal.h"
@@ -61,36 +59,12 @@ private:
     bool ran = false;                            /* the current run integrates */
 
     void add_run(int set);
-    void line(std::string_view cmd, std::string_view field, std::string_view value);
-    void key(std::string_view k) { line("key", "key", k); }
     void registry(std::string_view cmd) { lines.push_back(xpp::format("{{\"cmd\":\"{}\"}}", cmd)); }
-    void answer(std::string_view field, std::string_view value) { line("answer", field, value); }
-    void answer_values(std::span<const std::string> values);
     void apply_set(std::string_view name);
     void post_process();
     /* the files --silent writes itself replace what is there, unasked, as its key lines' "replace":1 said */
     void replace_files() { xpp::json::session.save_replace = SAVE_REPLACE; }
 };
-
-/* {"cmd":cmd,"field":value} */
-void SilentScript::line(std::string_view cmd, std::string_view field, std::string_view value)
-{
-    std::string b;
-    buf_format(b, "{{\"cmd\":\"{}\",\"{}\":", cmd, field);
-    buf_str(b, value);
-    if(cmd=="key")BUF_LIT(b, ",\"replace\":1");
-    BUF_LIT(b, "}");
-    lines.push_back(std::move(b));
-}
-
-void SilentScript::answer_values(std::span<const std::string> values)
-{
-    std::string b;
-    BUF_LIT(b, "{\"cmd\":\"answer\",\"values\":");
-    buf_str_array(b, values);
-    BUF_LIT(b, "}");
-    lines.push_back(std::move(b));
-}
 
 /* the model's @ postprocess of the run's data: the analysis the option names, with the settings the model gave, and only the
    time and its first column written after it (the postprocess kinds are the option's own numbers) */
@@ -157,14 +131,14 @@ void SilentScript::add_run(int set)
             }
             if (s.integrator.make_plot_flag) {
                 const xpp::ImageFormat *format=xpp::find_image_format_by_extension(s.plot_export.format);
-                if (!format || !format->plot_key) {
+                if (!format || !format->write) {
                     xpp::command_error("mkplot",xpp::format("Unsupported batch picture format {}",s.plot_export.format));
                     return;
                 }
-                key("g");
-                answer("key", format->plot_key);
-                answer_values(xpp::picture_parameter_values(s));
-                answer("file", batch_plot_name(s, -1));
+                std::string line = xpp::format("{{\"cmd\":\"plot.export_{}\",\"file\":", format->extension);
+                buf_str(line, batch_plot_name(s, -1));
+                line += '}';
+                lines.push_back(std::move(line));
             }
         }
         xpp::log(XPP_LOG_INFO, " Run complete ... \n");

@@ -45,7 +45,6 @@ export function useMay(): (cmd: Command) => boolean {
   useStore(s => s.computing);
   useStore(s => s.ask);
   useStore(s => s.hello);
-  useStore(s => s.core?.menu);
   useStore(s => s.player.running);
   return cmd => session.may(cmd);
 }
@@ -57,7 +56,7 @@ export function useMayMain(): (id: string) => boolean {
   return id => session.mayMain(id);
 }
 
-/** the same for item `id` of window `win`'s key layer (Session.mayKey) */
+/** the same for the toolbar button `id` of window `win` (Session.mayKey) */
 export function useMayKey(): (win: LayerWindow, id: string) => boolean {
   const session = useSession();
   useMay();

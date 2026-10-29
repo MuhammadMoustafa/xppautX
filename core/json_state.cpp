@@ -172,7 +172,7 @@ std::string build_state(xpp::Session &s)
         buf_format(b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
                    "\"ymin\":{:g},\"ymax\":{:g}}}", s.auto_state.bifur.x0, s.auto_state.bifur.y0, s.auto_state.bifur.wid, s.auto_state.bifur.hgt, s.auto_state.axes().xmin, s.auto_state.axes().xmax,
                    s.auto_state.axes().ymin, s.auto_state.axes().ymax);
-    buf_format(b,",\"rows\":{},\"menu\":{},\"win\":",s.browser.view.maxrow,s.help_menu);buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
+    buf_format(b,",\"rows\":{},\"win\":",s.browser.view.maxrow);buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
     if (s.numerics.last_seed) buf_format(b, ",\"seed\":{:d}", *s.numerics.last_seed);
     const SavedSession &saved = s.saved_session;
     if (!saved.file.empty()) {
@@ -250,29 +250,6 @@ void j_browser_changed(int)
     session.state_dirty = 1;
     session.browser_dirty = 1;
     aplot_changed();
-}
-
-/* a key of the data browser window (menu_browser_window), on the selected
-   row: {"cmd":"key","win":"browser","key":k,"row":r} */
-void browser_key(xpp::Session &s, int ch, const char *line)
-{
-    int row = get_int(line, "row", -1);
-    if (row >= 0 && row < s.browser.view.maxrow) s.browser.view.row0 = row;
-    switch (menu_index(&menu_browser_window, ch)) {
-    case BK_FIND: data_find(s); break;
-    case BK_GET: ic_of_row(s, s.browser.view.row0); break;
-    case BK_REPLACE: data_replace(s); break;
-    case BK_UNREPLACE: data_unreplace(s); break;
-    case BK_TABLE: data_table(s); break;
-    case BK_FIRST: xpp::ok_or_show(xpp::set_first_row(s, s.browser.view.row0)); break;
-    case BK_LAST: xpp::ok_or_show(xpp::set_last_row(s, s.browser.view.row0)); break;
-    case BK_RESTORE: xpp::ok_or_show(xpp::restore_whole_data(s)); break;
-    case BK_ADDCOL: data_add_col(s); break;
-    case BK_DELCOL: data_del_col(s); break;
-    case BK_LOAD: xpp::ok_or_show(xpp::load_data_file(s, "", "")); break;
-    case BK_WRITE: data_write(s, std::nullopt, "", ""); break;
-    }
-    session.browser_dirty = 1;
 }
 
 /* the block the client sees, when the data changed */

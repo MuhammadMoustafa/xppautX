@@ -297,11 +297,11 @@ st = [e for e in evs if e['ev'] == 'state']
 done = evs[-1] if evs else None
 check('integrating from the page', st and st[-1]['rows'] == 601 and done and done.get('status') == 'ok' and done.get('id') == 'http run', str(st[-1:])[:120])
 check('the stream carries no drawing ops', not any(e['ev'] == 'draw' for e in evs))
-post({'cmd': 'key', 'key': 'g'})
+post({'cmd': 'session.open_model'})
 _, ask = collect(lambda e: e['ev'] == 'ask')
-check('a key opens a menu', ask is not None and ask['kind'] == 'menu', str(ask))
+check('Open model asks through the registry', ask is not None and ask['kind'] == 'file', str(ask))
 if ask:
-    post({'cmd': 'answer', 'id': ask['id'], 'key': 'Escape'})
+    post({'cmd': 'answer', 'id': ask['id'], 'ok': 0})
     collect(lambda e: e['ev'] in ('idle','done'))
 
 # ---- the model's folder over HTTP (docs/protocol.md "Files", docs/ui-v2.md T5)
@@ -420,7 +420,7 @@ stall = socket.create_connection(('127.0.0.1', port), timeout=20)
 stall.sendall(('PUT /files/stall.txt%s HTTP/1.1\r\nHost: x\r\nContent-Length: 1000\r\n\r\nhalf' % tok).encode())
 # The menu reply below acknowledges acceptance behind both connected sockets.
 try:
-    post({'cmd': 'key', 'key': 'g'})
+    post({'cmd': 'session.open_model'})
     _, ask = collect(lambda e: e['ev'] == 'ask', 10)
 except OSError:  # the POST timed out
     ask = None
@@ -433,7 +433,7 @@ except BlockingIOError:
 check('an idle connection (a preconnect) and a stalled upload hold up no command: its menu arrives while the upload still waits',
       ask is not None and upload_waiting, 'ask %s, upload still waiting %s' % (ask is not None, upload_waiting))
 if ask:
-    post({'cmd': 'answer', 'id': ask['id'], 'key': 'Escape'})
+    post({'cmd': 'answer', 'id': ask['id'], 'ok': 0})
     collect(lambda e: e['ev'] in ('idle','done'))
 idle.close()
 stall.close()
@@ -461,8 +461,7 @@ evs, _ = collect(lambda e: False, 1)
 check('W124: a bad or half command number is refused (400) and nothing runs',
       bad == [400] * 5 and not any(e['ev'] in ('idle','done') for e in evs), '%s %s' % (bad, [e['ev'] for e in evs][:6]))
 
-post({'cmd': 'key', 'key': 'f'})
-post({'cmd': 'key', 'key': 'q'})
+post({'cmd': 'session.quit'})
 _, ask = collect(lambda e: e['ev'] == 'ask')
 if ask:
     post({'cmd': 'answer', 'id': ask['id'], 'key': 'd'})
@@ -743,8 +742,7 @@ if os.name == 'nt':
         evs, _ = collect(lambda e: e['ev'] in ('idle','done'))
         check('T27: ... and what xppaut printed still reaches the page', any(e['ev'] == 'log' for e in evs),
               str([e['ev'] for e in evs][:8]))
-        post({'cmd': 'key', 'key': 'f'}, token)
-        post({'cmd': 'key', 'key': 'q'}, token)
+        post({'cmd': 'session.quit'}, token)
         _, ask = collect(lambda e: e['ev'] == 'ask')
         if ask:
             post({'cmd': 'answer', 'id': ask['id'], 'key': 'd'}, token)
@@ -826,13 +824,9 @@ else:
     pt, tk = int(mm.group(1)), mm.group(2)
     q = page_events(pt, tk)
     until_event(q, idle_event)
-    send_cmd(pt, tk, {'cmd': 'key', 'key': 'f'})
+    send_cmd(pt, tk, {'cmd':'auto.open'})
     until_event(q, idle_event)
-    send_cmd(pt, tk, {'cmd': 'key', 'key': 'a'})  # File/Auto opens the AUTO window
-    until_event(q, idle_event)
-    send_cmd(pt, tk, {'cmd': 'key', 'win': 'auto', 'key': 'r'})  # Run: the start menu
-    _, ask = until_event(q, lambda e: e['ev'] == 'ask')
-    send_cmd(pt, tk, {'cmd': 'answer', 'id': ask['id'], 'key': 's'})  # steady state
+    send_cmd(pt, tk, {'cmd':'auto.run','kind':'equilibrium'})
     evs, _ = until_event(q, idle_event, 300)
     page_log = ''.join(e.get('text', '') for e in evs if e['ev'] == 'log')
     check('W501: the page log has AUTO\'s table', 'BR    PT' in page_log and 'stopped at point' in page_log, page_log[:200])
