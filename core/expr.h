@@ -175,7 +175,6 @@ struct ParserState {
   int arg_count() const { return arg_count_; }
   void symbol_name_changed(int index);
   void forget_symbols_from(int index) const;
-  int arg_count_ = BUILTIN_ARGS;
 
   /* The constants (parameters), the variables and the symbols grow as
      the model adds them (add_con, add_var, set_symbol), so a model has no
@@ -206,6 +205,7 @@ private:
   void unindex_symbol(int index) const;
   mutable std::vector<std::string> indexed_names_;
   mutable std::map<std::string, std::set<int>, std::less<>> names_;
+  int arg_count_ = BUILTIN_ARGS;
 };
 
 } // namespace xpp
