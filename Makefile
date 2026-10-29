@@ -66,12 +66,18 @@ LDSTATIC = -static
 # untouched, W13b)
 NETLIBS  = -lpthread -lws2_32 -mwindows
 WINDRES ?= windres
+# the core's thread is the main one: the 8 MB stack Linux and macOS give it
+# (a PE gets 2 MB), so a file's expression nested to the parser's limit
+# (odex_parse.cpp max_expression_depth) fits in every build; a clang ASan
+# build overflowed 2 MB in test_animation's 300 parentheses (W546)
+MAINSTACK = -Wl,--stack,8388608
 else
 EXE      =
 # dlopen, for xpp_window_loader.cpp (the Linux window's library)
 DLLIB    = -ldl
 LDSTATIC =
 NETLIBS  = -lpthread
+MAINSTACK =
 endif
 
 # clang (Apple's on macOS; MSYS2's CLANG64 toolchain on Windows, W23:
@@ -428,7 +434,7 @@ endif
 vg:
 	@$(MAKE) BUILDDIR=build/vg VALGRIND=1 asan-link
 $(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
+	$(LINK_X) $(SANITIZE) $(MAINSTACK) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
 
 # the one X11-free program: browser front end, --server protocol and --silent batch;
 # a comparison build (LIBM, LINALG) links it in its own BUILDDIR, never over ./xppautX,
@@ -450,7 +456,7 @@ $(BUILDDIR)/corelib.stamp: FORCE | $(BUILDDIR)
 	@echo '$(CORE_OBJECTS)' > $@.tmp; if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(LDSTATIC) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
+	$(LINK_X) $(LDSTATIC) $(MAINSTACK) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
 
 # macOS: xppautX.app, a bundle Finder and LaunchServices know as the .ode
 # opener (tools/associate/Info.plist.in's CFBundleDocumentTypes), from the
@@ -489,7 +495,7 @@ test: $(TEST_BINS)
 # valgrind build keeps it: their reports name source lines.
 TEST_LDDEBUG ?= $(if $(or $(SANITIZE),$(VALGRIND)),,-Wl,-S)
 $(TEST_BINS): %$(EXE): %.o $(CORELIB)
-	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) $(TEST_LDDEBUG) -o $@ $< $(CORELIB) -lm $(DLLIB)
+	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) $(MAINSTACK) $(TEST_LDDEBUG) -o $@ $< $(CORELIB) -lm $(DLLIB)
 
 # Code nothing reaches (tools/deadcode.sh reads what this leaves; Linux):
 # every function and datum in a section of its own, at -O0 (no inlining),

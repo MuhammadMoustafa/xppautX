@@ -672,8 +672,8 @@ if sess:
     check('W529: a pending ask is told to a page that reconnects after a control command\'s done',
           ask is not None and asked is not None and asked.get('id') == ask.get('id') and asked.get('job') == ask.get('job'), str((ask, asked)))
     post_cmd(pt, tk, {'cmd': 'session.quit', 'save': False})
-    for stream in (c, c2, c3):
-        stream.close()
+    for conn in (c, c2, c3):
+        conn.close()
     try:
         p.wait(timeout=15)
     except subprocess.TimeoutExpired:

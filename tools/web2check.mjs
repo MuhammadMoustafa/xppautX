@@ -3045,8 +3045,10 @@ async function keymapEditorCheck() {
   check('W536: the editor has no XPPAUT key preset', !await exists('[data-keymap-xppaut]') && await S('!("preset" in s.keymap.info)'));
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
   check('W517: registry commands stay pinnable', await until(`s.keymap.info.pinned.includes('run.initial')`, 'pin'));
-  await cdp.eval(`document.querySelector('[data-keymap-default]').click()`);
-  check('W517: Reset to defaults retains pins and restores logical keys', await until(`s.keymap.info.pinned.includes('run.initial') && s.keymap.info.commands.find(c => c.id === 'run.initial').keys.includes('Ctrl+R')`, 'defaults'));
+  /* Reset's own answer, a new info: the pin and Ctrl+R hold before it too, and an answer arriving after the
+     click below would end the key recording that click starts */
+  await cdp.eval(`(window.__pinnedInfo = __xpp.state().keymap.info, document.querySelector('[data-keymap-default]').click())`);
+  check('W517: Reset to defaults retains pins and restores logical keys', await until(`s.keymap.info !== window.__pinnedInfo && s.keymap.info.pinned.includes('run.initial') && s.keymap.info.commands.find(c => c.id === 'run.initial').keys.includes('Ctrl+R')`, 'defaults'));
   await cdp.eval(`document.querySelector('[data-key-cell="session.reload_model"][data-index="0"]').click()`);
   await key('b',2);
   check('W517: recording a custom key saves the registry id', await until(`s.keymap.info.commands.find(c => c.id === 'session.reload_model').keys.includes('Ctrl+B')`, 'custom key'));
