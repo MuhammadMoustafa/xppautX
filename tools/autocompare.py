@@ -936,15 +936,38 @@ def table_row(name, d, rows, references, measures, diffs):
 def stop_at_global_end(rows, r):
     """The reference run up to where ours ends. A run of ours that ends on a global end (SNIC, HOC, HEC: W518)
     stops there; the reference has no such end and runs on to its step limit through ever slower cycles, whose
-    special points are the mesh's (docs/auto-references.md). Its points and curve after the sample nearest our
-    last point are left out of the comparison. A reference run with no curve is compared whole."""
+    special points are the mesh's (docs/auto-references.md). Its points and curve after our end are left out.
+    With the period in the curve (an .auto07p reference, W539) our end is where the reference's period, along its
+    samples, reaches our last point's period: the last segment whose period passes it is cut there, by linear
+    interpolation, so a reference sample that lies past our end (ode_mu26_blocked: our snic lies between two of
+    its samples) is not kept. The last segment, not the first, because a cycle's period is not monotone early on
+    (pp2's coarse cycles fall back from 94 to 72 before their end). Without a period (an .xppaut reference) the
+    cut is the sample nearest our last point in (parameter, norm)."""
     if code_of(rows[-1]['itp']) not in GLOBAL_ENDS or 'curve' not in r:
         return r
+    if 'curve_period' in r:
+        period = np.array(r['curve_period'], dtype=float)
+        last = float(rows[-1]['per'])
+        crossing = [i for i in range(len(period) - 1) if period[i] <= last < period[i + 1]]
+        if not crossing:  # our period is past the reference's last sample or before its first: the samples as they are
+            cut, fraction = (len(period) - 1 if period[-1] <= last else 0), 0.0
+        else:
+            cut = crossing[-1]
+            fraction = (last - period[cut]) / (period[cut + 1] - period[cut])
+        curve = np.array(r['curve'], dtype=float)
+        if fraction > 0:
+            point = curve[cut] + fraction * (curve[cut + 1] - curve[cut])
+            sample = [float(v) for v in point]
+            return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1],
+                    'curve': r['curve'][:cut + 1] + [sample], 'curve_period': r['curve_period'][:cut + 1] + [last]}
+        return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1], 'curve': r['curve'][:cut + 1],
+                'curve_period': r['curve_period'][:cut + 1]}
     curve = np.array(r['curve'])
-    last = np.array([float(rows[-1]['continued_parameter']), float(rows[-1].get('continued_parameter2', 0)), float(rows[-1]['norm'])])
+    end = np.array([float(rows[-1]['continued_parameter']), float(rows[-1].get('continued_parameter2', 0)), float(rows[-1]['norm'])])
     spans = np.where(np.ptp(curve, axis=0) > 0, np.ptp(curve, axis=0), 1)
-    nearest = int(np.argmin((((curve - last) / spans) ** 2).sum(axis=1)))
-    return {**r, 'points': [p for p in r['points'] if p['point'] <= nearest + 1], 'curve': r['curve'][:nearest + 1]}
+    cut = int(np.argmin((((curve - end) / spans) ** 2).sum(axis=1)))
+    # a sample is row PT - 1 of the file (the curve starts at point 1): the points up to the cut's own point stay
+    return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1], 'curve': r['curve'][:cut + 1]}
 
 
 def compare_reference_run(name, suffix, dr, r, rows, known):

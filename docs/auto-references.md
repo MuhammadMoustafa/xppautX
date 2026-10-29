@@ -1837,7 +1837,43 @@ reference had it only because its start was 1.8e-4 off the equilibrium); `ode_mu
 test that is 6e-11 of noise (finding 10), and its neutral multiplier at the 0.1 pA mark is 1.00003 (1.00001 before; the exact 1) in the same finite-difference
 way as the 1 pA mark's.
 
-**Open (W538's).** `ode_mu26_blocked`'s `to_snic` curve fails `tools/autocompare.py` against its new reference with the cut by the nearest sample in (parameter, norm):
-our run ends on the SNIC at norm 100.0426, period 4974; the nearest sample is 157 (norm 100.0364, period 5012), which lies 0.0062 beyond our last point on a curve that
-falls 0.16 per sample, and the comparison finds it 0.00626 off ours (tolerance 0.00139). A cut that keeps the last sample whose period does not pass ours (156) agrees;
-one that keeps the first sample whose period reaches ours keeps 157 and fails the same.
+**Resolved (W538).** `ode_mu26_blocked`'s `to_snic` curve failed `tools/autocompare.py` against its new reference with the cut by the nearest sample in (parameter, norm), and also with the last sample whose period does not pass ours: our end lies between two reference samples (the snic at period 4974, the samples at 4212 and 5012), so a cut at a sample keeps one that lies past our end or drops the segment that reaches it. The cut now interpolates the reference's last segment at our period (W538 section); it passes.
+## W538: a heteroclinic end on a coarse mesh ([#603](https://github.com/MuhammadMoustafa/xppautX/issues/603))
+
+The pp2 demo's cycles (`pp2_heteroclinic`, NTST 90) end on the heteroclinic cycle between the saddles (0.1276, 0) and
+(0.6518, 0), and the end is named `heteroclinic`. At NTST 15 (`pp2_heteroclinic_coarse`, the same run with `mesh_intervals` 15)
+the same end was named `homoclinic`. The cause (traced by a temporary print of every mesh point's speed |f|, removed): the
+global end looks at the mesh points only. At NTST 15 the orbit's slowest mesh point (speed 2.1e-7 against 0.22, which just
+passes the 1e-6 criterion) lies at the saddle (0.6518, 0), and the saddle (0.1276, 0) is passed at speeds of 0.013 and more:
+no mesh point of the coarse mesh is slow enough there, so `auto_slow_points` returned one point and one saddle was seen
+(`auto_global_kind`: one saddle, homoclinic).
+
+The fix (core/auto_global.cpp): the slow stretches are searched as before, and Newton's method is also started from every other
+local minimum of the speed around the cycle. Such a minimum counts only for a saddle it converges to, and only when the root
+lies within `auto_global_near_orbit` (1e-2, core/auto_global.h) of the orbit's extent from the minimum: a Newton jump further
+is another equilibrium the orbit is nowhere near. The rest is unchanged: the 1e-6 criterion still decides whether the branch
+is a global end at all, and a local minimum that converges to a focus or a node is ignored as before (it counts at NTST 90 only
+through its slow stretches, so the focus near the cycle (1/3, 0.277) of this model does not make the end `end`).
+
+With the fix, NTST 15 names the end `heteroclinic` (label 15, quota 0.7080698 against NTST 90's 0.7080728, the coarse
+mesh's own position of the end). Measured on the way: the local minima converge to the two saddles at distances of 2e-6 to
+4e-4 of the orbit's extent (0.78), while the same rule on ode_mu26_control's SNIC orbit lands 0.28 to 0.52 of its extent from
+the equilibria it jumps to, so 1e-2 separates them with margin on both sides. Without the distance rule the mu26 SNIC became
+`end` (its three far saddles added to the fold). The baselines are unchanged: `tools/autocompare.py` (71 models, 9 skipped,
+0 failures, byte for byte), `tools/examples_check.sh` (215 of 216 match, ml-range.odex has no output by design), servercheck
+(2681 checks). New baseline: `tests/auto/pp2_heteroclinic_coarse.diagram.csv`.
+
+Its AUTO-07p reference (`pp2_heteroclinic_coarse.auto07p`, made with the built AUTO-07p and the period column, W539) is
+compared with the cut of `stop_at_global_end`: our end is where the reference's period, along its samples, reaches our last
+period, and the last segment whose period passes it is cut there by linear interpolation (the reference's period is not
+monotone early on, so the last segment, not the first, is taken). Cut that way, the comparison passes except for one
+difference (`differences`): AUTO-07p labels a fold of the cycles at point 93 (period 62.9, norm 0.42775, parameter
+0.7080717), which xppautX does not label at this step size. The two runs share the constants (NTST 15, NCOL 4, DS 0.025,
+DSMIN 1e-5, DSMAX 0.025, NMX 800, NPR 100, ISP 2, IAD 3, IADS 1, EPSL/EPSU/EPSS 1e-4, MXBF 0) and agree to 1e-6 in norm
+through point 41. The traced cause: the fold is real, and the step size is what misses it. With DS 0.0125 (a probe description,
+not kept) xppautX labels two folds at parameter 0.7080724 (point 48, norm 0.42635, period 64.5) and 0.7080721 (point 50,
+norm 0.42337, period 81.0) and then the heteroclinic end at point 51: a pair of folds 3e-7 apart in parameter, inside one
+default step of the spiral, which the sign test on the stored points cannot see; AUTO-07p's step lands on one of them. So
+AUTO-07p's point 93 is not an artefact, and xppautX's default run misses a fold of the same branch at its step size. This
+is a step-resolution limit of the continuation, not a wrong result, and it is recorded here as a known difference; a card
+for step-size control near a fold pair would be the fix (not made in W538).

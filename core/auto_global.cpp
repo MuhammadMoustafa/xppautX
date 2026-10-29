@@ -77,7 +77,7 @@ std::vector<std::size_t> auto_slow_points(std::span<const double> speeds, double
 
 namespace {
 
-double distance(const std::vector<double> &a, const std::vector<double> &b)
+double distance(std::span<const double> a, std::span<const double> b)
 {
     double sum = 0;
     for (std::size_t i = 0; i < a.size(); ++i) sum += (a[i] - b[i]) * (a[i] - b[i]);
@@ -116,7 +116,19 @@ std::optional<AutoGlobalEnd> auto_global_end(const iap_type &iap, const double *
     double extent = 0;
     for (std::size_t k = 0; k < n; ++k) extent += (high[k] - low[k]) * (high[k] - low[k]);
     extent = std::sqrt(extent);
-    for (const std::size_t m : auto_slow_points(speeds, auto_global_slow_ratio)) {
+    /* the slow stretches' equilibria first, then the saddles Newton's method finds from the other local minima of the
+       speed: a coarse mesh can sample a saddle's neighbourhood only at its slow end, and a saddle the cycle passes near
+       is a saddle of the type whatever the mesh's speeds say */
+    const std::vector<std::size_t> slow = auto_slow_points(speeds, auto_global_slow_ratio);
+    std::vector<std::size_t> starts = slow;
+    for (std::size_t m = 0; m < count; ++m) {
+        const std::size_t before = (m + count - 1) % count, after = (m + 1) % count;
+        if (speeds[m] <= speeds[before] && speeds[m] <= speeds[after] && std::find(slow.begin(), slow.end(), m) == slow.end())
+            starts.push_back(m);
+    }
+    for (std::size_t k = 0; k < starts.size(); ++k) {
+        const bool from_slow = k < slow.size();
+        const std::size_t m = starts[k];
         const std::span<const double> start(&points[m * n], n);
         auto found = equilibrium_near(s, start);
         if (!found) { /* the model failed to evaluate: the branch still ends, unnamed, with the reason */
@@ -130,6 +142,9 @@ std::optional<AutoGlobalEnd> auto_global_end(const iap_type &iap, const double *
         approach.re = std::move(found->re);
         approach.im = std::move(found->im);
         auto_approach_judge(approach);
+        /* a local minimum that is no slow point counts only for a saddle it converges to, and only when Newton's
+           root lies near it: a jump further is another equilibrium the orbit is nowhere near */
+        if (!from_slow && (approach.kind != AutoApproachKind::saddle || distance(approach.x, start) > auto_global_near_orbit * extent)) continue;
         const bool known = std::any_of(end.approaches.begin(), end.approaches.end(),
             [&](const AutoApproach &a) { return distance(a.x, approach.x) <= auto_global_same_equilibrium * extent; });
         if (!known) end.approaches.push_back(std::move(approach));

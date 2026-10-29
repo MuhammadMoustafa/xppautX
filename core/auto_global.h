@@ -55,6 +55,11 @@ inline constexpr double auto_global_zero_eigenvalue = 1e-3;
    fraction of the orbit's extent: Newton's tolerance is far below, and the
    saddles of a heteroclinic cycle are an orbit's length apart */
 inline constexpr double auto_global_same_equilibrium = 1e-2;
+/* A saddle the orbit passes near at a local minimum of its speed that is no slow point counts when Newton's method from that
+   minimum lands this fraction of the orbit's extent from it (a coarse mesh samples a saddle's neighbourhood only at its
+   edges: pp2's NTST 15 lands 5e-4 from the saddles it passes, mu26's SNIC orbit lands 0.28 and more from the equilibria it
+   jumps to, which are no approach at all) */
+inline constexpr double auto_global_near_orbit = 1e-2;
 /* The variables a message names for an equilibrium; the rest is "..." */
 inline constexpr std::size_t auto_global_shown_variables = 6;
 

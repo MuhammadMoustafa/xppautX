@@ -1,0 +1,61 @@
+{
+  "model": "examples/tstauto/pp2.odex",
+  "reason": "W538 (#603): the same cycles as pp2_heteroclinic (AUTO-07p's pp2 demo, Doedel 1984) at NTST 15 instead of the demo's 90. The cycles end on the same heteroclinic cycle at quota 0.7080728; a coarse mesh must not name that end a homoclinic one.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "par0",
+      "auto": {
+        "step_size": 0.05,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": -0.1,
+        "parameter_max": 2,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "par0",
+      "auto": {
+        "step_size": 0.025,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.025,
+        "max_steps": 800,
+        "output_every": 100,
+        "parameter_min": -0.1,
+        "parameter_max": 2,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "u0": 0.3333333333333333,
+    "u1": 2
+  },
+  "xppaut_skip": "no XPPAUT 8.0 reference for this mesh: the card asks for AUTO-07p's reference only (W538, #603)",
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "cycles",
+      "side": "reference",
+      "type": "cycle_fold",
+      "index": 6,
+      "cause": "W538 (#603): AUTO-07p labels a fold of the cycles at point 93 (period 62.9, norm 0.42775, parameter 0.7080717), where xppautX at DS 0.025 labels none. The fold is real: with DS 0.0125 xppautX labels folds at parameter 0.7080724 and 0.7080721 (points 48 and 50), a pair 3e-7 apart inside one default step, which the sign test on stored points cannot see; AUTO-07p's step lands on one of them. A step-resolution limit of the continuation, not a wrong result; its fix would be a card on step-size control near a fold pair (docs/auto-references.md, W538)."
+    }
+  ]
+}
