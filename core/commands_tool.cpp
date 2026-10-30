@@ -37,7 +37,7 @@ Result<std::string> run_user_button(Session &s, const Command &command, const Ar
 }
 
 constexpr Argument INDEX = {"index", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0)};
-constexpr std::array CALCULATOR_ARGUMENTS = {Argument{"expression", Type::expression, true}};
+constexpr std::array CALCULATOR_ARGUMENTS = {Argument{"expression", Type::expression, true, MAX_EXPRESSION_BYTES}};
 constexpr std::array INDEX_ARGUMENTS = {INDEX};
 constexpr std::array CALCULATOR_RESULTS = {ResultField{"expression", "expression"}, ResultField{"value", "real"}};
 constexpr std::array RAN_RESULTS = {ResultField{"ran", "boolean"}};

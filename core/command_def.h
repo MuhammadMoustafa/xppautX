@@ -31,6 +31,8 @@ namespace xpp::command {
 inline constexpr std::size_t MAX_COMMAND_BYTES = 16384;
 /* Room for descriptive command names and opaque client correlation ids. */
 inline constexpr std::size_t MAX_TEXT_BYTES = 1024;
+/* A formula is a model's expression, as long as a model line: only the command's own size bounds it. */
+inline constexpr std::size_t MAX_EXPRESSION_BYTES = MAX_COMMAND_BYTES;
 /* The most items a list or map argument takes unless its row says fewer or more. */
 inline constexpr std::size_t MAX_ITEMS = 256;
 /* The largest whole number a JSON number carries exactly (2^53 - 1): an

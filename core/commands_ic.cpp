@@ -158,10 +158,10 @@ constexpr std::array STREAM_ARGUMENTS = {Argument{"x", Type::list, true, MAX_TEX
                                          Argument{"y", Type::list, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::real},
                                          Argument{WINDOW_KEY, Type::window, false}};
 constexpr std::array LOAD_ARGUMENTS = {Argument{"file", Type::file, true}};
-constexpr std::array FORMULA_ARGUMENTS = {Argument{"variable", Type::text, true}, Argument{"formula", Type::text, true}};
+constexpr std::array FORMULA_ARGUMENTS = {Argument{"variable", Type::text, true}, Argument{"formula", Type::text, true, MAX_EXPRESSION_BYTES}};
 constexpr std::array ARRAY_ARGUMENTS = {Argument{"name", Type::model_name, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::variable},
                                         Argument{"size", Type::integer, true, MAX_TEXT_BYTES, {}, constant(1)},
-                                        Argument{"formula", Type::expression, true}};
+                                        Argument{"formula", Type::expression, true, MAX_EXPRESSION_BYTES}};
 constexpr std::array ROW_ARGUMENTS = {Argument{"row", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0)}};
 
 constexpr std::array SET_RESULTS = {ResultField{"applied", "map[name, real]"}};

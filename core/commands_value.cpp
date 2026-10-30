@@ -147,7 +147,7 @@ constexpr Argument FILE = {FILE_KEY, Type::file, false};
 
 constexpr std::array PARAMETERS_ARGUMENTS = {Argument{"values", Type::map, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::parameter, Type::real}};
 constexpr std::array FORMULA_ARGUMENTS = {Argument{NAME_KEY, Type::model_name, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::parameter},
-                                          Argument{"formula", Type::expression, true}};
+                                          Argument{"formula", Type::expression, true, MAX_EXPRESSION_BYTES}};
 constexpr std::array SLIDE_ARGUMENTS = {SLIDER_NAME, Argument{VALUE_KEY, Type::real, true}};
 constexpr std::array SLIDER_ARGUMENTS = {SLOT, SLIDER_NAME, Argument{"low", Type::real, true}, Argument{"high", Type::real, true},
                                          Argument{"step", Type::real, false, MAX_TEXT_BYTES, {}, constant(0)}};

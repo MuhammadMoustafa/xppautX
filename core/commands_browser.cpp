@@ -128,7 +128,7 @@ Result<std::string> transpose(Session &s, const Command &, const Arguments &args
 constexpr int MAX_INDEX = std::numeric_limits<int>::max();
 constexpr Argument COLUMN = {COLUMN_KEY, Type::model_name, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::column};
 constexpr Argument ROW = {ROW_KEY, Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(MAX_INDEX)};
-constexpr Argument FORMULA = {FORMULA_KEY, Type::expression, true};
+constexpr Argument FORMULA = {FORMULA_KEY, Type::expression, true, MAX_EXPRESSION_BYTES};
 /* a file of the model's folder; left out, asked for (the desktop window's own dialog) */
 constexpr Argument FILE_ASKED = {FILE_KEY, Type::file, false};
 constexpr Argument FORMAT = {FORMAT_KEY, Type::choice, false, MAX_TEXT_BYTES, data_format_ids};
@@ -136,7 +136,7 @@ constexpr Argument TRANSPOSE_INTEGER_FIRST = {"first_row", Type::integer, false,
 
 constexpr std::array FIND_ARGUMENTS = {COLUMN, Argument{"value", Type::real, true}};
 /* a formula that is a sequence (1:10), an integral (&x) or a derivative (@x) is not an expression: the core reads it */
-constexpr std::array REPLACE_ARGUMENTS = {COLUMN, Argument{FORMULA_KEY, Type::text, true}};
+constexpr std::array REPLACE_ARGUMENTS = {COLUMN, Argument{FORMULA_KEY, Type::text, true, MAX_EXPRESSION_BYTES}};
 constexpr std::array TABULATE_ARGUMENTS = {Argument{"variable", Type::model_name, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::column},
                                            Argument{"x_low", Type::real, true}, Argument{"x_high", Type::real, true}, Argument{FILE_KEY, Type::file, true}};
 constexpr std::array SLICE_ARGUMENTS = {ROW};

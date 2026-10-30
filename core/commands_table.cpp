@@ -37,7 +37,7 @@ constexpr Argument NAME = {"name", Type::model_name, true, MAX_TEXT_BYTES, {}, {
 constexpr std::array VIEW_ARGUMENTS = {NAME};
 constexpr std::array EDIT_ARGUMENTS = {
     NAME,
-    Argument{"formula", Type::expression, false},
+    Argument{"formula", Type::expression, false, MAX_EXPRESSION_BYTES},
     Argument{"x_min", Type::real, false},
     Argument{"x_max", Type::real, false},
     Argument{"points", Type::integer, false, MAX_TEXT_BYTES, {}, constant(2), constant(table_points_limit)},
