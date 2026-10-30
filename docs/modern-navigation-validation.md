@@ -187,7 +187,7 @@ dialog. No push or merge was performed.
 |---|---|
 | `tools/steadycheck.py`, `tools/livestatecheck.py` | `tools/verify.sh` and every platform's protocol step in `.github/workflows/build.yml` |
 | `tools/uiworkflowcheck.mjs`, `tools/startupcheck.mjs` (browser mode) | the `linux-ui`, `macos-ui` and `windows-ui` jobs, after `web2check` |
-| `tools/startupcheck.mjs --webview2`, `tools/playbackworkflowcheck.mjs` | by hand on Windows: they need the real WebView2 window, which CI's runners cannot be relied on to start (W13c's `web2check --webview2` is run by hand for the same reason); `playbackworkflowcheck` also needs the recording `tools/makesandboxfixture.py` writes from the user's PY_S1Bf model, which is not in the repository |
+| `tools/startupcheck.mjs --webview2`, `tools/playbackworkflowcheck.mjs` | by hand on Windows: they need the real WebView2 window, which CI's runners cannot be relied on to start (W13c's `web2check --webview2` is run by hand for the same reason); `playbackworkflowcheck` also needs the recording `tools/makesandboxfixture.py` writes from paper/benchmarks/auto/models/PY_S1Bf.ode |
 
 ## Visual evidence
 

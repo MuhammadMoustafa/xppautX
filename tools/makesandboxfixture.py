@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Create and validate portable PY_S1Bf live-value demo files using core writers.
 
-A generator, not a gate: it needs the user's own PY_S1Bf model (--model),
-which is not in the repository, so no check runs it. It stays in tools/
+A generator, not a gate: run it by hand with --model
+paper/benchmarks/auto/models/PY_S1Bf.ode (tracked since W543). It stays in tools/
 because it is the only script that records the sandbox demo with the core's
 own writers and proves the recording replays and the snapshot restores;
 tools/playbackworkflowcheck.mjs plays its .recx in the native window."""
@@ -82,7 +82,8 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
     snap = Path(folder) / 'PY_S1Bf-live.snapx'
     header, files, steps, fingerprint, computed = read_recx(rec.read_text(encoding='utf-8'))
     assert fingerprint == computed and len(steps) >= 7
-    assert steps[2][0]['keys'] == ['c'] and steps[2][0]['answers'] == [str(CONTINUE_TO_MS)]
+    assert any(step[0].get('cmd', {}).get('cmd') == 'run.continue' and step[0]['cmd'].get('until') == CONTINUE_TO_MS
+               for step in steps), [step[0] for step in steps]
     with tempfile.TemporaryDirectory(prefix='xpp-sandbox-replay-') as replay:
         quiet = replay_recording(binary, model, str(rec), replay)
         events = [json.loads(line) for line in quiet.stdout.splitlines()]
@@ -93,7 +94,9 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
     with zipfile.ZipFile(snap) as archive:
         auto_saved = {name: archive.read(name) for name in
             ('auto/diagram.csv', 'auto/solutions.s', 'auto/settings.txt', 'auto/views.txt')}
-    points = list(csv.DictReader(io.StringIO(auto_saved['auto/diagram.csv'].decode())))
+    # the branch lines (`branch,N,parameters...`) come before the points' header
+    points = list(csv.DictReader(line for line in auto_saved['auto/diagram.csv'].decode().splitlines()
+                                 if not line.startswith('branch,')))
     assert len(points) > MIN_AUTO_POINTS, points
     assert any(point['itp'] == HOPF for point in points), 'Hopf point must be retained'
     assert any(point['itp'] == FOLD for point in points), 'Fold point must be retained'
