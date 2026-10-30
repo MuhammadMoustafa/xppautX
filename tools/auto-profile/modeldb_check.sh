@@ -7,8 +7,8 @@
 # removed it (docs/auto-references.md, "W549"). A build that searches, or goes back, has lost the W458 rule or
 # its Hopf location (W412's finding on the Hopf: the start 5e-6 off the Hopf made the searches).
 # A step of the checks after a wave of AUTO cards, beside diagram_diff.py with the LAPACK build. In WSL from the
-# checkout's root, through tools/wslrun.sh, into a new folder OUT (profile.py needs paper/benchmarks/auto's driver
-# helpers, git-ignored: the maintainer's checkout has them; --paper in profile.py points elsewhere):
+# checkout's root (through tools/wslrun.sh on the Windows laptop), into a new folder OUT (profile.py uses this
+# checkout's paper/benchmarks/auto driver helpers, tracked since W543; --paper points elsewhere):
 #   tools/wslrun.sh tools/auto-profile/modeldb_check.sh build/modeldb-check
 # Writes OUT/runs.csv (newton_summary.py); exits 1 naming the build whose searches or backward_steps are not 0.
 set -eu
