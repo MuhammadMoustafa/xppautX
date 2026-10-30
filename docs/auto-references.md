@@ -2042,3 +2042,42 @@ histories differ: W540).
 
 **Cost** (callgrind, docs/studies/w545-speed.md): P1, E1, P2, E2 and T1 +0.00% to +0.10%; the 62 runnable descriptions at one thread
 +0.04% in all; only a model that searches more (global_heteroclinic +11%, 16 solves) pays.
+
+## W549: ModelDB 267710's periodic run makes no fold search ([#614](https://github.com/MuhammadMoustafa/xppautX/issues/614))
+
+W548 found `tools/auto-profile/modeldb_check.sh` (W429's guard) failing: the 20-point periodic run of
+`examples/ode/motoneuron6c.odex` made 0 fold searches where W429 expected 1, in the default, LIBM=system and LAPACK builds,
+with the grabbed Hopf point at ampPar 0.5727816 where W412's runs had 0.5727871. Two cards, both with their reasons in
+this file and the studies, explain both numbers; an independent check settles which behaviour is right.
+
+**Why the numbers changed.** The Hopf point: W358's and W412's 0.5727871 came from the steady run before W421 (the equilibria's
+tests read at the converged point; [docs/studies/w358-auto-profile.md](studies/w358-auto-profile.md): 5.45e-6 from where AUTO-07p
+puts it, which made the spurious searches near the start); W425's run after W421 already had 0.57278166, 8.5e-10 from AUTO-07p's.
+The search: W429's expected one was AUTO-07p's own, the fold test's sign change between the second and third point of the cycles
+(W431's "fold of cycles"), and [W458](#w458-the-first-steps-of-cycles-from-a-hopf-point-521) removed it: it factors the first two
+steps' points again at the converged point and orients the start's phase condition by DS, and its commit says
+`ode_motoneuron6c` "loses the LP at the third point of its cycles". At W543's a0710479 (the first tip the ported drivers run on)
+the run already makes 0 searches. Older tips could not be run (the drivers speak the old protocol), so the first tip without the search
+is W458's by its own record, not by a run of its parent.
+
+**The independent check** (numpy/scipy over the right-hand side AUTO-07p's `6c.c` holds, compiled apart from either program's solver;
+Newton continuation of the equilibria in ampPar, eigenvalues of a central-difference Jacobian):
+
+| | Hopf ampPar | the first periodic point |
+|---|---|---|
+| check (leading pair crosses, Re -2.8e-10, omega 1.2858) | 0.5727814553 | |
+| xppautX now | 0.5727816610 (2.1e-7 from the check, inside the finite-difference Jacobian's error of 1.4e-6, above) | 0.57278166098 |
+| AUTO-07p 0.9.4 (paper/benchmarks/modeldb-267710/auto07p, NMX 20) | 5.72782e-1 (grab 0.5727817) | LP at point 3, 0.572782 |
+| xppautX in W412's runs (before W421) | 0.5727871 | searches near the start |
+
+On the cycles, `(a - HB) / A^2` with A half the range of the first state's maximum and minimum over the cycle is 5.149e-4, 5.150e-4,
+5.151e-4 at points 2, 3 and 4 (the normal form's constant), 5.19e-4 at point 10 and 5.34e-4 at point 20: the parameter is a smooth,
+monotonic function of the amplitude, so there is no fold of cycles in the 20 points, and the LP AUTO-07p labels at point 3 (and the search
+W429 expected) is the start's artefact (the first point sits 2e-7 from the true Hopf point, so the second is reached with the
+parameter dipping 5.6e-8). Floquet multipliers from the monodromy matrix were not computed: LSODA failed on the perturbed gating variables
+of this model, and the monotonic law needs no second run.
+
+**The decision.** The expectation was wrong and the new behaviour is right: `modeldb_check.sh` now expects 0 searches and 0
+backward steps in the three builds (W549). Nothing in the core changed; the guard still catches a build that loses W458's rule or
+the start's accuracy.
+
