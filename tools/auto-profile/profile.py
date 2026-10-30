@@ -13,8 +13,8 @@ OUT/<workload>.newton.jsonl (tools/auto-profile/newton.py) instead.
 
 WORKLOAD: py_s1bf (W246/W269's periodic run: phases setup, steady, periodic), modeldb (W269's ModelDB
 267710 as examples/ode/motoneuron6c.odex, W429: the same phases), or a tests/auto description name (tstauto_lecar, ...: phase
-'all', the description's runs at 1 thread). --paper is paper/benchmarks (git-ignored, so only
-the maintainer's checkout has it; default: the main checkout's). Run it through tools/heavy.sh in WSL.
+'all', the description's runs at 1 thread). --paper is this checkout's paper/benchmarks (its drivers,
+tracked since W543). Run it through tools/heavy.sh in WSL.
 """
 import argparse, glob, json, os, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -78,6 +78,30 @@ def converted(args, src, ode, dest, edits=()):
     return Path(dest) / (Path(ode).stem + '.odex')
 
 
+# W412's --periodic-settings names (AUTO's, as the ModelDB studies write them) and the protocol's
+# auto.configure_numerics fields (docs/protocol.md, the Numerics form's names)
+NUMERICS_FIELDS = {'ntst': 'mesh_intervals', 'nmx': 'max_steps', 'npr': 'output_every', 'ncol': 'collocation_points',
+                   'ds': 'step_size', 'dsmin': 'min_step_size', 'dsmax': 'max_step_size',
+                   'parmin': 'parameter_min', 'parmax': 'parameter_max', 'normmin': 'norm_min', 'normmax': 'norm_max',
+                   'epsl': 'parameter_tolerance', 'epsu': 'state_tolerance', 'epss': 'special_point_tolerance'}
+
+
+def periodic_settings(s, settings, explore, auto):
+    """{"numerics": {AUTO's names: values}, "marks": [[parameter, value], ...]} as auto.configure_numerics and
+    auto.configure_marks; each command sets all its values or none"""
+    numerics = {}
+    for name, value in settings.get('numerics', {}).items():
+        if name not in NUMERICS_FIELDS:
+            raise ValueError(f'--periodic-settings: no numerics field for {name!r}')
+        numerics[NUMERICS_FIELDS[name]] = value
+    if numerics:
+        auto._ok(explore.step(s, cmd='auto.configure_numerics', **numerics)[0], 'numerics')
+    marks = settings.get('marks', [])
+    if marks:
+        auto._ok(explore.step(s, cmd='auto.configure_marks', parameters=[p for p, _ in marks],
+                              values=[v for _, v in marks])[0], 'marks')
+
+
 def periodic(args, prof, wrapper):
     sys.path[:0] = [str(Path(args.paper) / 'auto'), str(Path(args.paper) / 'modeldb-267710')]
     import explore_xppautx, hopf_xppautx, auto_xppautx
@@ -85,9 +109,9 @@ def periodic(args, prof, wrapper):
 
     def run(s, key, *a, **k):
         if args.periodic_settings and key == 'p':  # W412: AUTO's numerics or marks for the periodic run
-            auto_xppautx._ok(explore_xppautx.step(s, cmd='auto', op='set', **args.periodic_settings)[0], 'settings')
+            periodic_settings(s, args.periodic_settings, explore_xppautx, auto_xppautx)
         if args.nmax and key == 'p':  # a section of the periodic branch (the steady run must reach its Hopf point): valgrind is 50-100 times slower
-            explore_xppautx.numerics(s, nmx=args.nmax)
+            explore_xppautx.numerics(s, max_steps=args.nmax)
         if key == 's':  # everything before AUTO's first run (start-up, ModelDB's integrations)
             prof.cut(s, 'setup')
         wall, cpu, labs, pts = real(s, key, *a, **k)
@@ -128,8 +152,9 @@ def main():
     ap.add_argument('--tool', choices=('callgrind', 'gdb', 'newton'), default='callgrind',
                     help='callgrind: instruction counts; gdb: the matrices EISPACK is given (OUT/WORKLOAD.matrices); '
                          'newton: the BVP solves, steps and meshes (OUT/WORKLOAD.newton.jsonl)')
-    ap.add_argument('--periodic-settings', type=json.loads, help="an `auto set` command's fields (JSON) for the periodic run")
-    ap.add_argument('--paper', default='/mnt/c/gitRepos/xppautX/paper/benchmarks')
+    ap.add_argument('--periodic-settings', type=json.loads,
+                    help='JSON {"numerics": {AUTO names: values}, "marks": [[parameter, value], ...]} for the periodic run')
+    ap.add_argument('--paper', default=str(ROOT / 'paper' / 'benchmarks'))
     args = ap.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
