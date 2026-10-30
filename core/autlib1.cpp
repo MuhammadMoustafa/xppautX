@@ -287,10 +287,11 @@ void special_point_rejected(const iap_type &iap, integer ibr, integer ntot, cons
    - a search that ends at ITMX bisects the bracket the iteration holds, down
      to the tolerance, where AUTO-07p gives the point up (finding 11).
    Both are accepted only as a crossing of a smooth test (auto_crossing_smooth,
-   after the search) and, for a cycle's branch-point test, a ratio of
-   consecutive determinants, only while the values at the ends of the step are
-   of a size a crossing within it gives (auto_ratio_in_scale, before). A zero
-   refused is said once and the state restored, exactly as for a point given up.
+   after the search). A cycle's branch-point test, a ratio of consecutive
+   determinants, brackets a zero only while the values at the ends of the step
+   are of a size a crossing within it gives (auto_ratio_in_scale, before the
+   search), for every bracket, AUTO-07p's own included (W547). A zero refused
+   is said once and the state restored, exactly as for a point given up.
    evaluate(chng) is the test at the current point, advance(rds) the predictor
    and corrector for a step of rds (rds may come back shorter, a corrector's
    retry), snapshot() the state a failed search restores, torus_singular()
@@ -327,14 +328,11 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
   const double saved_dstest = dstest;
   const double s_start = discarded.value_or(0.);
   const double step_length = std::abs(saved_dstest - s_start);
-  const bool in_scale = !ratio_test || auto_ratio_in_scale(q_start, q_end, step_length, location_tolerance(rap));
-  const auto out_of_scale = [&] {
-    return xpp::format("its test is a ratio of consecutive determinants, and its values {:.3g} and {:.3g} at the ends of the step are beyond what a crossing within it gives",
-                       q_start, q_end);
-  };
-  if (discarded && !in_scale) {
+  if (ratio_test && !auto_ratio_in_scale(q_start, q_end, step_length, location_tolerance(rap))) {
     q = q_end;
-    special_point_rejected(iap, ibr, ntot, kind, parameter, out_of_scale());
+    special_point_rejected(iap, ibr, ntot, kind, parameter,
+                           xpp::format("its test is a ratio of consecutive determinants, and its values {:.3g} and {:.3g} at the ends of the step are beyond what a crossing within it gives",
+                                       q_start, q_end));
     return;
   }
 
@@ -414,27 +412,23 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
   if (!cancelled && !converged && !why && std::min(s0, s1) >= lo && std::max(s0, s1) <= hi) {
     // AUTO-07p gives the point up here. The bracket (s0, s1) holds opposite signs and the state
     // is at s1: halve it down to the tolerance. Whether it ends on a zero is the rule's to say.
-    if (!in_scale) {
-      refused = out_of_scale() + ", so the bracket was not bisected";
-    } else {
-      bisected = true;
-      stepped = true; // the state moves from here
-      const double tolerance = location_tolerance(rap);
-      while (std::abs(s1 - s0) >= tolerance) {
-        s = (s0 + s1) / 2;
-        if (s == s0 || s == s1) break;
-        rds = s - s1;
-        if (!trial()) break;
-        if ((q < 0.) != (q1 < 0.)) { // a value of exactly 0 is on the non-negative side
-          q0 = q1;
-          s0 = s1;
-        }
-        q1 = q;
-        s1 = s;
-        dstest = s;
+    bisected = true;
+    stepped = true; // the state moves from here
+    const double tolerance = location_tolerance(rap);
+    while (std::abs(s1 - s0) >= tolerance) {
+      s = (s0 + s1) / 2;
+      if (s == s0 || s == s1) break;
+      rds = s - s1;
+      if (!trial()) break;
+      if ((q < 0.) != (q1 < 0.)) { // a value of exactly 0 is on the non-negative side
+        q0 = q1;
+        s0 = s1;
       }
-      converged = !why && !cancelled;
+      q1 = q;
+      s1 = s;
+      dstest = s;
     }
+    converged = !why && !cancelled;
   }
   if (cancelled) {
     q = 0.;

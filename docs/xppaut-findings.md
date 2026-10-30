@@ -2158,6 +2158,8 @@ Keeping the original endpoint's test instead of zero finds that fold but also la
 kept the inherited rule at W541 (docs/auto-references.md W541).
 **xppautX** now keeps the discarded end's test and accepts the zero it brackets only as a crossing of a smooth test: the slope of the
 test across the last bracket of the search against its slope across the step, within a factor 3 either way, and for a cycle's
-branch-point test also of a size a crossing within the step gives. The fold above is found; a Hopf test's pair-switch jump,
+branch-point test also of a size a crossing within the step gives (since W547 for every bracket of that test, the inherited ones too:
+[AUTO-07p finding 12](auto07p-findings.md#12-a-cycles-branch-point-test-at-its-noise-labels-branch-points-that-are-not-there)). The fold above is
+found (a turn of the NTST 15 branch: pp2's own cycles have no fold there, docs/auto-references.md W547); a Hopf test's pair-switch jump,
 global_heteroclinic's branch points and pp2's mesh noise are refused with a note (W545, docs/auto-references.md W545).
 [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606), [W545 / #610](https://github.com/MuhammadMoustafa/xppautX/issues/610).

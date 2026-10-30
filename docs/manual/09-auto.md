@@ -528,7 +528,12 @@ points 36 and 37 was not accepted at parameter 0.7080731095: its test is not a
 smooth crossing: across the last 6.4e-05 of the search its slope is 51.9 times
 its slope across the step, more than 3 either way; it is missing from the
 diagram": the branch is followed on a mesh too coarse for its folds, raise
-`mesh_intervals`), and Floquet multipliers that turn inaccurate
+`mesh_intervals`), a branch point of cycles whose test is beyond its scale
+("Br 2 Pt 29: a branch point (BP) between points 29 and 30 was not accepted at
+parameter 0.3314459819: its test is a ratio of consecutive determinants, and
+its values -9.03e+08 and 2.43e+13 at the ends of the step are beyond what a
+crossing within it gives; it is missing from the diagram": the determinant is
+at its noise, as near a homoclinic or heteroclinic end), and Floquet multipliers that turn inaccurate
 (period doubling and torus detection are off until they are accurate
 again: raise `mesh_intervals` or `collocation_points`).
 

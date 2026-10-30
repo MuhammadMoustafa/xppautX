@@ -399,10 +399,21 @@ def check_auto_stops():
     observed = Notes()
     autocompare.compute(args.server, d, 1, observer=observed)
     refused = [n for n in observed.notes if 'was not accepted' in n]
-    check('stops AUTO refused zero: the folds of pp2 at NTST 15 that are jumps of the mesh, not crossings, are each a note naming it, its points, its parameter and the slopes; the branch goes on to its end',
-          len(refused) == 3
+    check('stops AUTO refused zero: the fold of pp2 at NTST 15 that is a jump of the mesh, not a crossing, is a note naming it, its points, its parameter and the slopes; the branch goes on to its end',
+          len(refused) == 1
           and all(re.search(r'^Br 3 Pt \d+: a fold \(LP\) between points \d+ and \d+ was not accepted at parameter 0\.70[0-9]+: '
                             r'its test is not a smooth crossing: across the last [0-9.e-]+ of the search its slope is [0-9.]+ times its slope across the step, more than 3 either way; '
+                            r'it is missing from the diagram$', n) for n in refused)
+          and isinstance(observed.stop, dict) and observed.stop.get('why') == 'heteroclinic', '%s %s' % (refused, observed.stop))
+    # W547: a cycle's branch-point test out of scale is refused for every bracket, AUTO-07p's own included: the two
+    # branch points AUTO-07p labels on global_heteroclinic's cycles, where the cycles' second multiplier is far from 1
+    observed = Notes()
+    autocompare.compute(args.server, autocompare.read_description(autocompare.BASE / 'global_heteroclinic.json'), 1, observer=observed)
+    refused = [n for n in observed.notes if 'was not accepted' in n]
+    check('stops AUTO refused branch point: the branch points of global_heteroclinic\'s cycles whose test is beyond its scale are each a note naming it, its points, its parameter and the test\'s values; the branch goes on to its end',
+          len(refused) == 2
+          and all(re.search(r'^Br 2 Pt \d+: a branch point \(BP\) between points \d+ and \d+ was not accepted at parameter 0\.3314[0-9]+: '
+                            r'its test is a ratio of consecutive determinants, and its values [-0-9.e+]+ and [-0-9.e+]+ at the ends of the step are beyond what a crossing within it gives; '
                             r'it is missing from the diagram$', n) for n in refused)
           and isinstance(observed.stop, dict) and observed.stop.get('why') == 'heteroclinic', '%s %s' % (refused, observed.stop))
 
@@ -417,7 +428,9 @@ def check_auto_global_ends():
         ('global_homoclinic', 'homoclinic', 'HOC', ['parameter mu = 0.3287', 'period growing without bound: T = ', 'times the shortest period of the branch (4.44288)',
                                                     'lingers near a saddle (1 unstable and 1 stable eigenvalues) at "X" = ', 'point type homoclinic (HOC)']),
         ('global_heteroclinic', 'heteroclinic', 'HEC', ['parameter mu = 0.3314', 'period growing without bound: T = ',
-                                                        'lingers near a saddle (1 unstable and 1 stable eigenvalues) at "X" = 1, "Y" = 0; then a saddle (1 unstable and 1 stable eigenvalues) at "X" = -1',
+                                                        # the two saddles in the order the last orbit passes them, which the cycle's end does not fix (W547)
+                                                        'lingers near a saddle (1 unstable and 1 stable eigenvalues) at "X" = ', '; then a saddle (1 unstable and 1 stable eigenvalues) at "X" = ',
+                                                        '"X" = 1, "Y" = 0', '"X" = -1, "Y" = 0',
                                                         'point type heteroclinic (HEC)'])]
     for name, key, mark, words in cases:
         d = autocompare.read_description(autocompare.BASE / (name + '.json'))
