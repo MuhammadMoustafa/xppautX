@@ -873,8 +873,16 @@ else:
     send_cmd(pt, tk, {'cmd':'auto.open', 'id':'w501-open'})
     until_event(q, lambda e: done_event(e) and e.get('id') == 'w501-open')
     send_cmd(pt, tk, {'cmd':'auto.run','kind':'equilibrium', 'id':'w501-run'})
-    evs, _ = until_event(q, lambda e: done_event(e) and e.get('id') == 'w501-run', 300)
-    page_log = ''.join(e.get('text', '') for e in evs if e['ev'] == 'session.log')
+    # what the core prints reaches the page from xpp_http.cpp's log reader thread, not in order with the
+    # run's done: the wait is for the table's last line itself
+    logged = []
+
+    def table_ended(e):
+        if e['ev'] == 'session.log':
+            logged.append(e.get('text', ''))
+        return 'stopped at point' in ''.join(logged)
+    until_event(q, table_ended, 300)
+    page_log = ''.join(logged)
     check('W501: the page log has AUTO\'s table', 'BR    PT' in page_log and 'stopped at point' in page_log, page_log[:200])
     stop_page(p, reader)
     lines = [line for line in term if not line.startswith('XPP: ')]
