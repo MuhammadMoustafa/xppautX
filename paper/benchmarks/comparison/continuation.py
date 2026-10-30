@@ -329,7 +329,13 @@ def converged_sides(d, converged, program, folder):
     if program == 'xppautx':
         return ((folder / 'diagram.csv').read_bytes(), json.loads((folder / 'run-ranges.json').read_text()), CONVERGED,
                 repeat_references(d, {CONVERGED: converged['reference']})[CONVERGED])
-    return converged['data'], by_original(d, converged['ranges']), reference.SUFFIX[program], comparison.checked_reference(json.loads((folder / 'reference.json').read_text()), reference.SUFFIX[program], d)
+    return (converged['data'], by_original(d, converged['ranges']), reference.SUFFIX[program],
+            comparison.checked_reference(json.loads((folder / 'reference.json').read_text()), reference.SUFFIX[program], given(d, program)))
+
+
+def given(d, program):
+    """The description a program is given: XPPAUT is not given the limit-point-of-cycles runs, past 600 s each (W436/W437)."""
+    return dict(d, runs=[r for r in d['runs'] if not r['name'].startswith('lpc_')]) if program == 'xppaut' else d
 
 
 def exact_gate(name, d, converged, program, folder):
@@ -498,10 +504,8 @@ def measure_key(engine, commit=None):
 
 def description_sha(d, engine):
     # What a program is asked to do: the description with the model's contents in place of where this attempt put it.
-    d = copy.deepcopy(d)
+    d = given(copy.deepcopy(d), engine)
     d['model'] = sha(d['model'])
-    if engine == 'xppaut':
-        d['runs'] = [r for r in d['runs'] if not r['name'].startswith('lpc_')]
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()
 
 
@@ -646,9 +650,7 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
                              unavailable=[], traced_differences=[], rhs=rhs, scope='stopped after the right-hand side check'))
         refs, pilots = {}, {}
         for program in ('xppaut', 'auto07p'):
-            rd = copy.deepcopy(d)
-            if program == 'xppaut':
-                rd['runs'] = [r for r in rd['runs'] if not r['name'].startswith('lpc_')]
+            rd = given(copy.deepcopy(d), program)
             measured = not a.check and timed
             pilot_key = row_key(a, program, rd, start, dict(label='pilot-' + program, measured=measured), a.cores[:1])
             earlier, why = reusable_pilot(a, name, mode, program, pilot_key) if a.reuse else (None, 'no --reuse')
@@ -761,9 +763,7 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
                 os.environ['OMP_NUM_THREADS'] = str(threads)
                 os.environ['OPENBLAS_NUM_THREADS'] = '1'
                 exact = jac == 'exact'
-                fd = copy.deepcopy(run_d)
-                if program == 'xppaut':
-                    fd['runs'] = [r for r in fd['runs'] if not r['name'].startswith('lpc_')]
+                fd = given(copy.deepcopy(run_d), program)
                 row = dict(label=label, threads=threads, jacobian=jac, events=events, measured=True)
                 key = row_key(a, program, run_d, start, row, cpus)
                 recs, source = reusable_row(a, name, mode, rep, label, program, key, row, cpus) if a.reuse else (None, 'no --reuse')
