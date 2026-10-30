@@ -330,7 +330,7 @@ def converged_sides(d, converged, program, folder):
         return ((folder / 'diagram.csv').read_bytes(), json.loads((folder / 'run-ranges.json').read_text()), CONVERGED,
                 repeat_references(d, {CONVERGED: converged['reference']})[CONVERGED])
     return (converged['data'], by_original(d, converged['ranges']), reference.SUFFIX[program],
-            comparison.checked_reference(json.loads((folder / 'reference.json').read_text()), reference.SUFFIX[program], given(d, program)))
+            saved_reference(folder, program, given(d, program)))
 
 
 def given(d, program):
@@ -514,6 +514,13 @@ def start_values(data):
     return [float(first[k]) for k in first if k.startswith('u0.')]
 
 
+def saved_reference(folder, program, d):
+    """A row's saved reference, checked against the description. Its model's path names the attempt that wrote it, and a row
+    reused from another attempt has the same model only by its key (the model's contents): the path checked is this one's."""
+    ref = json.loads((folder / 'reference.json').read_text())
+    return comparison.checked_reference(dict(ref, model=d['model']), reference.SUFFIX[program], d)
+
+
 def reference_digest(ref):
     # A foreign row's result without the model's path, which names the attempt's folder: a row reused from another attempt
     # was otherwise never equal to a fresh one (series 22h, 2026-10-23)
@@ -656,8 +663,7 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
             earlier, why = reusable_pilot(a, name, mode, program, pilot_key) if a.reuse else (None, 'no --reuse')
             if earlier:
                 link_tree(earlier, out / ('pilot-' + program))
-                ref, metric = (json.loads((earlier / f).read_text()) for f in ('reference.json', 'measurement.json'))
-                ref = comparison.checked_reference(ref, reference.SUFFIX[program], rd)
+                ref, metric = saved_reference(earlier, program, rd), json.loads((earlier / 'measurement.json').read_text())
                 phase('%s pilot REUSED from %s' % (program, a.reuse))
             else:
                 phase('%s pilot starts%s' % (program, ' (not reused: %s)' % why if a.reuse else ''))
