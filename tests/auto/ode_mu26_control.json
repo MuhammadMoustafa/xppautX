@@ -160,16 +160,8 @@
       "run": "to_snic",
       "side": "ours",
       "type": "user_point",
-      "index": 2,
-      "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
-    },
-    {
-      "reference": ".xppaut",
-      "run": "to_snic",
-      "side": "ours",
-      "type": "user_point",
       "index": 3,
-      "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 control continuation to_snic (labels 5 pA, passes 1 pA without locating it, labels a spurious LP at 0.09994824 pA (point 141), reverses and locates 1 pA (0.9999985) on the way back, and ends at its NMX at 4.54 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.09994824 pA (period 949.927) the multipliers are 1, 4.2e-4, 3.6e-4, -7.8e-6 (the difference Jacobian's flow gives 0.908, 4.4e-4, ...): no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.5, 0.999 and 4.54 pA the second multiplier is 6.1e-3, 1.6e-2 and 0.085. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.9990257 pA and returned to 5 pA. docs/auto-references.md W550."
     },
     {
       "reference": ".xppaut",
@@ -177,15 +169,7 @@
       "side": "ours",
       "type": "user_point",
       "index": 4,
-      "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
-    },
-    {
-      "reference": ".xppaut",
-      "run": "to_snic",
-      "side": "reference",
-      "type": "user_point",
-      "index": 2,
-      "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 control continuation to_snic (labels 5 pA, passes 1 pA without locating it, labels a spurious LP at 0.09994824 pA (point 141), reverses and locates 1 pA (0.9999985) on the way back, and ends at its NMX at 4.54 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.09994824 pA (period 949.927) the multipliers are 1, 4.2e-4, 3.6e-4, -7.8e-6 (the difference Jacobian's flow gives 0.908, 4.4e-4, ...): no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.5, 0.999 and 4.54 pA the second multiplier is 6.1e-3, 1.6e-2 and 0.085. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.9990257 pA and returned to 5 pA. docs/auto-references.md W550."
     },
     {
       "reference": ".xppaut",
@@ -193,7 +177,23 @@
       "side": "reference",
       "type": "fold",
       "index": 1,
-      "cause": "W437 (#499), findings 47 and 73: the marked XPPAUT 8.0 control continuation labels 5 pA, fails to locate 1 pA, labels a spurious LP at 0.9990257 pA, then reverses and labels 5 pA a second time. It never reaches 0.1 or 0.07 pA. The original uncentered ICPS condition and failed-location iterate left installed explain this native reproduction; the unmarked XPPAUT run reaches the SNIC. xppautX's centered condition and rollback reach all four marks without reversal. The actual native reference points and diagnostics are retained; no tolerance is changed. docs/auto-references.md W437."
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 control continuation to_snic (labels 5 pA, passes 1 pA without locating it, labels a spurious LP at 0.09994824 pA (point 141), reverses and locates 1 pA (0.9999985) on the way back, and ends at its NMX at 4.54 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.09994824 pA (period 949.927) the multipliers are 1, 4.2e-4, 3.6e-4, -7.8e-6 (the difference Jacobian's flow gives 0.908, 4.4e-4, ...): no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.5, 0.999 and 4.54 pA the second multiplier is 6.1e-3, 1.6e-2 and 0.085. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.9990257 pA and returned to 5 pA. docs/auto-references.md W550."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 2,
+      "quantity": "spectrum",
+      "cause": "W550 (#615): the 1 pA UZ's neutral Floquet multiplier, which is exactly 1 for an autonomous cycle: XPPAUT 8.0's is 1.000055 and ours 0.999861, both off by the finite-difference Jacobian's error on the long-period variational problem (W437, W474: the same quantity against AUTO-07p). The independent check (docs/studies/floquet_check.py, exact derivatives) gives 0.99999997 for the cycle at 0.999 pA, and the difference-Jacobian flow 0.9965 there. No tolerance is widened."
+    }
+  ],
+  "curve_runs_on": [
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 control continuation to_snic (labels 5 pA, passes 1 pA without locating it, labels a spurious LP at 0.09994824 pA (point 141), reverses and locates 1 pA (0.9999985) on the way back, and ends at its NMX at 4.54 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.09994824 pA (period 949.927) the multipliers are 1, 4.2e-4, 3.6e-4, -7.8e-6 (the difference Jacobian's flow gives 0.908, 4.4e-4, ...): no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.5, 0.999 and 4.54 pA the second multiplier is 6.1e-3, 1.6e-2 and 0.085. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.9990257 pA and returned to 5 pA. docs/auto-references.md W550."
     }
   ]
 }

@@ -93,7 +93,7 @@ def no_duplicates(pairs):
 
 def read_description(path):
     d = codes_of_types(json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates))
-    members(d, ('model', 'reason', 'parameters', 'initial_conditions', 'runs', 'skip', 'differences', *REFERENCE_SKIPS.values()), ('model', 'reason'))
+    members(d, ('model', 'reason', 'parameters', 'initial_conditions', 'runs', 'skip', 'differences', 'curve_runs_on', *REFERENCE_SKIPS.values()), ('model', 'reason'))
     model = ROOT / d['model']
     if model.resolve().parent not in (ROOT / 'examples/tstauto', ROOT / 'examples/ode', ROOT / 'tools/models') or not model.is_file():
         raise ValueError('model must be a file in examples/tstauto, examples/ode or tools/models')
@@ -201,6 +201,15 @@ def read_description(path):
         if key in traced:
             raise ValueError('duplicate traced difference: ' + str(k))
         traced.add(key)
+    # a reference's run that stops short of ours (it reversed or ended: XPPAUT's marked Mu26 runs): our curve beyond where it
+    # stops is not on its curve, and the samples of ours off its curve are this difference, one entry per reference run
+    run_curves = set()
+    for k in d.get('curve_runs_on', ()):
+        members(k, ('reference', 'run', 'cause'), ('reference', 'run', 'cause'))
+        if (k['reference'] not in REFERENCES or k['run'] not in names or not isinstance(k['cause'], str) or not k['cause'].strip()
+                or (k['reference'], k['run']) in run_curves):
+            raise ValueError('invalid or duplicate curve_runs_on: ' + str(k))
+        run_curves.add((k['reference'], k['run']))
     return d
 
 
@@ -827,7 +836,7 @@ def chord_error(polyline, i):
 CURVE_QUANTITIES = ('curve par', 'curve par2', 'curve norm')
 
 
-def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter=True):
+def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter=True, runs_on=None):
     """Differences (strings) and measurements of a two-parameter run's curve against a reference's
     samples. The programs' steps differ, so points are matched by where they lie: every sample of one
     curve against the other as a polyline. Match all three coordinates against each segment's
@@ -844,7 +853,9 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
     the first point beyond a bound, which depends on the step before it, and two programs' step
     sequences differ; samples inside the bounds have the other curve's polyline around them. For the
     same reason, when both runs end at their NMX-th point the samples of one beyond the other's last
-    point are not compared (W405): where a run of NMX steps ends is its step sequence's, not the curve's."""
+    point are not compared (W405): where a run of NMX steps ends is its step sequence's, not the curve's.
+    `runs_on`, a traced difference of the description (`curve_runs_on`): the samples of ours off the reference's curve are expected, not
+    differences; with none off it the traced difference is gone and is reported."""
     epsl, epsu = auto.get('parameter_tolerance', 1e-4), auto.get('state_tolerance', 1e-4)
     # a curve of cycles first stores the starting data of the curve (the run xppautX does before it) as a branch of
     # one continued parameter: those rows are not on the curve
@@ -906,6 +917,10 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
                     worst[q] = diff, tol, '%s sample %d' % (side, n + 1)
                 if diff > tol:
                     failed.setdefault(q, []).append((n + 1, point, diff, tol))
+        if runs_on and side == 'ours':
+            if not failed:
+                diffs.append('%s: traced difference not present any more, remove it: %s' % (who, runs_on))
+            failed = {}
         for q, bad in failed.items():
             n, point, diff, tol = bad[0]
             diffs.append('%s %s: %d of %d %s samples are off the other curve; the first, sample %d %s, is %.3g away in the %s > tolerance %.3g'
@@ -970,9 +985,10 @@ def stop_at_global_end(rows, r):
     return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1], 'curve': r['curve'][:cut + 1]}
 
 
-def compare_reference_run(name, suffix, dr, r, rows, known):
+def compare_reference_run(name, suffix, dr, r, rows, known, runs_on=None):
     """One reference run against one of our runs: its special points, then its curve."""
-    r = stop_at_global_end(rows[dr['name']], r)
+    # a reference that stops short of our end has no sample there to cut at
+    r = r if runs_on else stop_at_global_end(rows[dr['name']], r)
     who = '%s %s/%s' % (name, REFERENCES[suffix], r['name'])
     a, m = compare_run(rows[dr['name']], dr['auto'], dr['kind'], r['points'], who, known,
                        # An equilibrium restarted from an EP reuses that point;
@@ -982,7 +998,7 @@ def compare_reference_run(name, suffix, dr, r, rows, known):
                        and not dr.get('start_refined'))
     if 'curve' in r:
         c, cm = compare_curve(rows[dr['name']], dr['auto'], r['curve'], who, XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None,
-                              dr['kind'] in ('two_parameter', *HOMCONT))
+                              dr['kind'] in ('two_parameter', *HOMCONT), runs_on)
         a, m = a + c, m + cm
     return a, m
 
@@ -1005,7 +1021,8 @@ def compare_references(name, d, data, ranges, refs, notes=None):
             best = None
             for dr in arms:
                 known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == dr['name']]
-                a, m = compare_reference_run(name, suffix, dr, r, rows, known)
+                runs_on = next((k for k in d.get('curve_runs_on', ()) if k['reference'] == suffix and k['run'] == dr['name']), None)
+                a, m = compare_reference_run(name, suffix, dr, r, rows, known, runs_on)
                 if best is None or len(a) < len(best[1]):
                     best = dr, a, m
             dr, a, m = best

@@ -1718,15 +1718,18 @@ its converged state
 that restoration in xppautX (finding 47). W437 changes the phase condition;
 it does not replace or weaken the failed-location rollback.
 
-Native XPPAUT 8.0 with the four Mu26 marks reproduces the failure. Control
-labels 5 pA, reports a possible special point while locating 1 pA, labels an LP
-at 0.9990257 pA and returns through 5 pA. Blocked labels 5 and 0.9999987 pA,
-then LPs at 0.1009347 and 0.07001995 pA and returns to 0.08047857 pA.
-Neither labels all four targets; unmarked runs approach the SNIC. The stored
-native reference points retain these outcomes. With centered phase and the
-existing W326 rollback, both xppautX continuations label all four targets and
-have no upward current step. The UZ test, discrete phase bias and failed-search
-restoration are distinct parts of this explanation.
+Native XPPAUT 8.0 with the four Mu26 marks reproduces the failure, and where it fails depends on its start (W550, #615).
+From today's start (the equilibrium at 0 pA that xppautX's baseline gives) the control run labels 5 pA, passes 1 pA
+without locating it, labels an LP at 0.09994824 pA (point 141), turns back, locates 1 pA on the way up and ends at its
+NMX at 4.54 pA; the blocked run labels 5 and 0.9999991 pA, an LP at 0.1010236 pA (point 144) and ends at 0.84 pA. From the
+W437 start, 1.8e-4 mV away in V (2.6e-6 relative), the same driver, binary and settings gave the control run an LP at
+0.9990257 pA and a second 5 pA mark, and the blocked run LPs at 0.1009347 and 0.07001995 pA. Neither run labels all four targets;
+unmarked runs approach the SNIC. Every one of these LPs is spurious: the Floquet multipliers of the cycles at them
+(`docs/studies/floquet_check.py`, the model's equations with exact derivatives and the variational equations, no continuation)
+are 1 and then at most 4.2e-4 at 0.09994824 pA, 0.016 at 0.999 pA; 1.1e-5 at 0.1010236 pA and 2.1e-6 at 0.07001995 pA: no
+multiplier at 1 besides the trivial one, so no fold of cycles. With centered phase and the existing W326 rollback both
+xppautX continuations label all four targets and have no upward current step. The UZ test, discrete phase bias and
+failed-search restoration are distinct parts of this explanation.
 
 Measured consequence on `tstauto_pp2` (the existing NTST 15 periodic description): the centered condition
 locates the first cycle LP at parameter 0.7080732822986838, norm 0.4180552886559583, period 79.8935775600.

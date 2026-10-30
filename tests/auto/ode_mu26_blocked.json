@@ -275,38 +275,6 @@
       "cause": "W539 (#604): AUTO-07p's regenerated reference labels no cusp on the fold curve; the curve turns at SmIapp 1.0811, SmHxgMax -9.368 (its samples agree with ours to 1e-7 up to there), and its CP test changes sign between points 34 and 35 (-5.5e-9, +5.9e-8), but the ten iterations of its location print a test of +-6e-11, the Newton residual's noise, the step never shrinks and the location is dropped. Before W495 the start was 7e-4 off in the norm and the same location converged (CP at point 35). xppautX locates the cusp. docs/auto07p-findings.md finding 10."
     },
     {
-      "reference": ".xppaut",
-      "run": "to_snic",
-      "side": "ours",
-      "type": "user_point",
-      "index": 3,
-      "cause": "W437 (#499), findings 47 and 73: XPPAUT 8.0's actual marked to_snic run finds 5 and 1 pA, misses 0.1 and 0.07 pA, labels LPs at 0.1009347 and 0.07001995 pA, then reverses to end at 0.08047857 pA. The unmarked XPPAUT reference reaches the SNIC without these LPs. Its uncentered phase condition and LCSPBV's displaced iterate after failed location account for this legacy continuation failure. xppautX's centered condition and rollback reach all four marks monotonically. Actual native outputs are retained; the two shared UZ points still compare all quantities. docs/auto-references.md W437 and finding 73."
-    },
-    {
-      "reference": ".xppaut",
-      "run": "to_snic",
-      "side": "ours",
-      "type": "user_point",
-      "index": 4,
-      "cause": "W437 (#499), findings 47 and 73: XPPAUT 8.0's actual marked to_snic run finds 5 and 1 pA, misses 0.1 and 0.07 pA, labels LPs at 0.1009347 and 0.07001995 pA, then reverses to end at 0.08047857 pA. The unmarked XPPAUT reference reaches the SNIC without these LPs. Its uncentered phase condition and LCSPBV's displaced iterate after failed location account for this legacy continuation failure. xppautX's centered condition and rollback reach all four marks monotonically. Actual native outputs are retained; the two shared UZ points still compare all quantities. docs/auto-references.md W437 and finding 73."
-    },
-    {
-      "reference": ".xppaut",
-      "run": "to_snic",
-      "side": "reference",
-      "type": "fold",
-      "index": 1,
-      "cause": "W437 (#499), findings 47 and 73: XPPAUT 8.0's actual marked to_snic run finds 5 and 1 pA, misses 0.1 and 0.07 pA, labels LPs at 0.1009347 and 0.07001995 pA, then reverses to end at 0.08047857 pA. The unmarked XPPAUT reference reaches the SNIC without these LPs. Its uncentered phase condition and LCSPBV's displaced iterate after failed location account for this legacy continuation failure. xppautX's centered condition and rollback reach all four marks monotonically. Actual native outputs are retained; the two shared UZ points still compare all quantities. docs/auto-references.md W437 and finding 73."
-    },
-    {
-      "reference": ".xppaut",
-      "run": "to_snic",
-      "side": "reference",
-      "type": "fold",
-      "index": 2,
-      "cause": "W437 (#499), findings 47 and 73: XPPAUT 8.0's actual marked to_snic run finds 5 and 1 pA, misses 0.1 and 0.07 pA, labels LPs at 0.1009347 and 0.07001995 pA, then reverses to end at 0.08047857 pA. The unmarked XPPAUT reference reaches the SNIC without these LPs. Its uncentered phase condition and LCSPBV's displaced iterate after failed location account for this legacy continuation failure. xppautX's centered condition and rollback reach all four marks monotonically. Actual native outputs are retained; the two shared UZ points still compare all quantities. docs/auto-references.md W437 and finding 73."
-    },
-    {
       "reference": ".auto07p",
       "run": "to_snic",
       "side": "ours",
@@ -320,9 +288,31 @@
       "run": "to_snic",
       "side": "ours",
       "type": "user_point",
-      "index": 2,
-      "cause": "W474 (#537): the 1 pA UZ's neutral Floquet multiplier, traced against AUTO-07p above (W437: finite-difference sensitivity of the long-period variational problem at NTST 50); against XPPAUT 8.0 it is 3.44e-5 off in AUTO-07p's nested-dissection order, 1.42e-5 in AUTO2000's chain order and 5.0e-6 in a tree split at mid=(lo+hi-1)/2. No tolerance is widened.",
-      "quantity": "spectrum"
+      "index": 3,
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 blocked continuation to_snic (labels 5 and 0.9999991 pA, then a spurious LP at 0.1010236 pA (point 144), reverses and ends at its NMX at 0.84 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.1010236 pA (period 1359.66) the multipliers are 1, 1.1e-5, 1.1e-5, -1.2e-6, at 0.07001995 pA (the old run's LP) 1, -2.1e-6, ...: no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.84 pA the second multiplier is 0.010. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.1009347 and 0.07001995 pA and returned to 5 pA. docs/auto-references.md W550."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 4,
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 blocked continuation to_snic (labels 5 and 0.9999991 pA, then a spurious LP at 0.1010236 pA (point 144), reverses and ends at its NMX at 0.84 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.1010236 pA (period 1359.66) the multipliers are 1, 1.1e-5, 1.1e-5, -1.2e-6, at 0.07001995 pA (the old run's LP) 1, -2.1e-6, ...: no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.84 pA the second multiplier is 0.010. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.1009347 and 0.07001995 pA and returned to 5 pA. docs/auto-references.md W550."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "reference",
+      "type": "fold",
+      "index": 1,
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 blocked continuation to_snic (labels 5 and 0.9999991 pA, then a spurious LP at 0.1010236 pA (point 144), reverses and ends at its NMX at 0.84 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.1010236 pA (period 1359.66) the multipliers are 1, 1.1e-5, 1.1e-5, -1.2e-6, at 0.07001995 pA (the old run's LP) 1, -2.1e-6, ...: no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.84 pA the second multiplier is 0.010. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.1009347 and 0.07001995 pA and returned to 5 pA. docs/auto-references.md W550."
+    }
+  ],
+  "curve_runs_on": [
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 blocked continuation to_snic (labels 5 and 0.9999991 pA, then a spurious LP at 0.1010236 pA (point 144), reverses and ends at its NMX at 0.84 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.1010236 pA (period 1359.66) the multipliers are 1, 1.1e-5, 1.1e-5, -1.2e-6, at 0.07001995 pA (the old run's LP) 1, -2.1e-6, ...: no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.84 pA the second multiplier is 0.010. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.1009347 and 0.07001995 pA and returned to 5 pA. docs/auto-references.md W550."
     }
   ]
 }

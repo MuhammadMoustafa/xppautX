@@ -282,8 +282,8 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | ode_lecar | steady: EP HB HB; cycles: LP | agrees (4 points; par 2.7e-11, norm 2.5e-11, period 9.6e-09, spectrum 4.2e-07) | agrees, 1 traced (3 points; par 5.4e-05, norm 1.5e-06, period 0.0017, spectrum 0.00041) |
 | ode_ma23 | steady: EP LP LP HB; cycles: - | agrees (4 points; par 4.6e-07, norm 5e-09, period 5.7e-09, spectrum 1.2e-06) | agrees (4 points; par 9.3e-06, norm 4.7e-06, period 2.1e-08, spectrum 8.5e-08) |
 | ode_motoneuron6c | steady: EP LP LP HB HB LP HB LP HB HB; periodic: -; hb_up: -; hb_down: - | agrees, 6 traced (10 points; par 1.4e-09, norm 1.6e-08, period 3.7e-07, spectrum 4.6e-06; curve par 5.8e-06, par2 7.4e-08, norm 0.00015) | agrees, 1 traced (10 points; par 5.4e-06, norm 0.00019, period 0.1, spectrum 1e-05; curve par 2.2e-05, par2 5.1e-07, norm 0.00067) |
-| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: UZ UZ UZ UZ; hb_soma: -; hb_dend: -; lp_soma: CP; lpc_soma: -; lpc_dend: - | agrees, 2 traced (10 points; par 1.2e-07, par2 7.3e-08, norm 8e-05, period 0.0028, spectrum 4.4e-05; curve par 6.4e-05, par2 1.4e-07, norm 6.9e-09) | agrees, 6 traced (7 points; par 1.2e-06, norm 4.1e-05, period 0.00018, spectrum 3.4e-05; curve par 0.024, par2 0.00087, norm 0.00021) |
-| ode_mu26_control | steady: EP LP LP HB; cycles: LP; to_snic: UZ UZ UZ UZ | agrees, 3 traced (9 points; par 8.9e-08, norm 3.1e-05, period 0.0004, spectrum 0.00052) | agrees, 5 traced (6 points; par 3.5e-06, norm 4.4e-05, period 1.2e-05, spectrum 4.8e-07) |
+| ode_mu26_blocked | steady: EP LP LP HB; cycles: LP; to_snic: UZ UZ UZ UZ; hb_soma: -; hb_dend: -; lp_soma: CP; lpc_soma: -; lpc_dend: - | agrees, 4 traced (8 points; par 1.7e-07, norm 7.3e-05, period 0.0034, spectrum 3e-05; curve par 0.00038, par2 0.001, norm 0.0012) | agrees, 4 traced (6 points; par 1.2e-06, norm 4.1e-05, period 0.00011, spectrum 1.4e-05; curve par 0.034, par2 0.00087, norm 2.1) |
+| ode_mu26_control | steady: EP LP LP HB; cycles: LP; to_snic: UZ UZ UZ UZ | agrees, 3 traced (8 points; par 3.2e-08, norm 3.1e-05, period 0.00041, spectrum 0.00053; curve par 0.0009, par2 0, norm 8.6e-05) | agrees, 4 traced (6 points; par 3.5e-06, norm 4.4e-05, period 0.00018, spectrum 0.00019; curve par 4.1, par2 0, norm 1.9) |
 | ode_osc | steady: EP | agrees (1 points; par 0, norm 2.7e-11) | agrees (1 points; par 0, norm 4.7e-07) |
 | res_cycles | steady: EP HB HB; cycles: TR; torus_down: R1 R4 R3 R2 R3; torus_up: R4 R3 R2 R3 R4 BP | agrees, 6 traced (9 points; par 4.3e-07, par2 3.3e-07, norm 1.9e-07, period 2.2e-11, spectrum 0.0013; curve par 2.3e-06, par2 2.5e-05, norm 1.5e-06) | agrees, 11 traced (4 points; par 4e-08, norm 2.2e-08, period 2.2e-11, spectrum 2.4e-07; curve par 2.8e-06, par2 2.4e-05, norm 7.2e-06) |
 | tstauto_ab | steady: EP LP | agrees (2 points; par 3.1e-13, norm 1.1e-09, spectrum 4.2e-08) | agrees (2 points; par 2.2e-08, norm 4.6e-07, spectrum 2.9e-09) |
@@ -2156,3 +2156,64 @@ of this model, and the monotonic law needs no second run.
 backward steps in the three builds (W549). Nothing in the core changed; the guard still catches a build that loses W458's rule or
 the start's accuracy.
 
+
+## W550: XPPAUT's marked to_snic run of Mu26 depends on its start ([#615](https://github.com/MuhammadMoustafa/xppautX/issues/615))
+
+The W354 series of 2026-10-30 found `ode_mu26_control` and `ode_mu26_blocked` failing their gate: "traced difference not present
+any more" for XPPAUT 8.0's marked to_snic run (W437), and the curve 0.55 off.
+
+**What changed.** Nothing XPPAUT is given but its start. The binary, the settings dialogs (the driver checks every AutoNum value and
+the mark count against the b-file's constants) and the marks are the same; the W437 driver and description, run again from
+a copy of that tree, reproduce W437's stored reference exactly (LP 0.9990257 pA, a second 5 pA mark, EP 18.30 pA). The start is the
+first point of the description's diagram baseline (`first_point`), the equilibrium at 0 pA, and that moved between W437 and today
+(V -70.30083920658 to -70.30066290344 mV, every state by 1e-6 to 1e-4 relative): the model.ode files XPPAUT is given differ only in
+the 28 `init` lines. XPPAUT's marked run is not stable under that: a failed location of the 1 pA mark leaves the displaced iterate
+installed (finding 47), and where the branch turns afterwards depends on it.
+
+| run | W437 start | today's start |
+|---|---|---|
+| control, XPPAUT | UZ 5, LP 0.9990257, UZ 5, EP 18.30 | UZ 5, LP 0.09994824, UZ 0.9999985, EP 4.54 |
+| blocked, XPPAUT | UZ 5, UZ 0.9999987, LP 0.1009347, LP 0.07001995, EP 0.0805 | UZ 5, UZ 0.9999991, LP 0.1010236, EP 0.84 |
+| xppautX, either start | UZ 5, 1, 0.1, 0.07, SNIC | the same |
+
+**The independent check** (`docs/studies/floquet_check.py`): the right-hand side is the model's own equations (the Fortran FUNC the
+AUTO-07p reference is given, with exact derivatives from `paper/benchmarks/auto/auto07p/exact_source.py`, which W459 checks against
+Richardson differences), the cycle is found by Newton's method on the return map to the section V = -20 mV, and the monodromy matrix is the
+solution of the variational equations over its period (LSODA, rtol 1e-11); no continuation, no collocation, no finite-difference
+Jacobian in the multipliers. A second monodromy by central differences of the flow is printed beside it.
+
+| run, SmIapp (pA) | period | multipliers, exact Jacobian | difference Jacobian's flow |
+|---|---|---|---|
+| control 4.999999 | 281.73353 | 0.99999999, 0.0932, 0.0917, 0.0300 | 0.998, 0.0932, ... |
+| control 0.09994824 (XPPAUT's LP) | 949.92713 | 1, 4.2e-4, 3.6e-4, -7.8e-6 | 0.908, 4.4e-4, ... |
+| control 0.9990257 (W437's LP) | 504.12584 | 0.99999997, 0.01569, 0.01483, 0.00186 | 0.996, 0.0157, ... |
+| control 0.5 | 617.09845 | 0.99999993, 0.0061, 0.0059, 4.5e-4 | 1.011, ... |
+| control 4.539555 (XPPAUT's end) | 294.13126 | 0.99999999, 0.0845, 0.0829, 0.0258 | 1.0005, ... |
+| blocked 0.1010236 (XPPAUT's LP) | 1359.66259 | 0.99999986, 1.1e-5, 1.1e-5, -1.2e-6 | 1.05, ... |
+| blocked 0.1009347 (W437's LP) | 1360.65798 | 1.0000004, 1.1e-5, 1.1e-5, -1.5e-6 | 1.29, ... |
+| blocked 0.07001995 (W437's LP) | 2710.46870 | 0.99999447, -2.1e-6, -4.4e-10, 2.3e-10 | 2.96, ... |
+| blocked 0.8399 (XPPAUT's end) | 560.48803 | 0.99999992, 0.0100, 0.0099, 9.2e-4 | 1.029, ... |
+
+The trivial multiplier is exactly 1 and the others are far inside the unit circle at every parameter, XPPAUT's own listings agree
+(0.0932108, 0.09171, 0.03004 at 5 pA), and the difference Jacobian's flow is off in the trivial one by as much as a factor of 3 over a
+period of 2710: the same sensitivity W437 traced. All five XPPAUT LPs (both starts) are therefore labels where a cycle has no fold
+and the branch is a smooth monotone descent; no label of xppautX's is in dispute, and its run is the same with the exact Jacobian
+(`make`'s default and `jacobian exact`: control UZ 4.999999970, 0.9999999355, 0.0999996694, 0.0699999969, SNIC 0.0063386; blocked the same
+four marks, SNIC 0.066765; identical labels to the difference run). AUTO-07p has no exact-Jacobian row for either description
+(`EXACT_AUTO07P` names P1, E1, P2, E2, T1), none was added.
+
+**The decision.** The new run is XPPAUT's behaviour for the description's settings, from the start the baseline gives, and the
+reference was stale, not the driver wrong: `tests/auto/ode_mu26_{control,blocked}.xppaut` are regenerated
+(`tools/auto_reference.py --program xppaut --only ode_mu26_control,ode_mu26_blocked`, 25 minutes, the lpc runs
+still recorded as unavailable), and with the tool's current format they also keep the curve of every one-parameter run. The traced
+entries follow the new run: ours UZ 3 and 4 and XPPAUT's LP are missing in the other program (the 0.1 and 0.07 pA marks it never reaches, the
+spurious LP), the 1 pA mark's neutral multiplier differs in the control run (XPPAUT 1.000055, ours 0.999861, both the finite
+difference's: exact 1) and no longer in the blocked run (the entry W474 added is removed). A curve of XPPAUT's that reverses
+and stops short has no counterpart to our samples below its turn; autocompare's curve comparison cannot trace that, so a description now
+has `curve_runs_on` (reference, run, cause): the samples of ours off that reference's curve are the difference, and the entry says it is gone when none is.
+The reference's own samples are still all checked against ours, including its way back up. Finding 73 holds the new native run.
+
+**Gates.** `tools/autocompare.py`: 73 models, 0 failures. The comparison's pilots (`continuation.py --pilots --only ode_mu26_control,ode_mu26_blocked`):
+the gates against XPPAUT and AUTO-07p pass for both; the converged exact pilot is unavailable for the control run ("no convergence even at the smallest
+step" at tolerance 1e-10) and the blocked one's stage after the gate stops on a harness error: the XPPAUT pilot's reference.json leaves
+out the lpc runs (`lpc_soma`, `lpc_dend`) that `checked_reference` wants for the converged comparison (a gap of the drivers, not of this card; not changed).

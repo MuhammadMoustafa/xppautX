@@ -317,6 +317,18 @@ class Curves(unittest.TestCase):
         diffs, _ = compare_curve(self.rows(ours), self.AUTO, ref, 'm')
         self.assertTrue(any('curve par2: 1 of 30 reference samples' in d and 'the first, sample 11' in d for d in diffs), diffs)
 
+    def test_a_curve_that_runs_on_is_traced_and_the_traced_difference_goes_when_it_stops(self):
+        ours, ref = self.parabola(40), [list(v) for v in self.parabola(20)]  # the reference stops short of ours
+        self.assertTrue(compare_curve(self.rows(ours), self.AUTO, ref, 'm')[0])
+        traced = dict(reference='.xppaut', run='r', cause='the reference stops short')
+        self.assertEqual(compare_curve(self.rows(ours), self.AUTO, ref, 'm', runs_on=traced)[0], [])
+        full = [list(v) for v in self.parabola(40)]
+        diffs = compare_curve(self.rows(ours), self.AUTO, full, 'm', runs_on=traced)[0]
+        self.assertEqual(len(diffs), 1)
+        self.assertIn('traced difference not present any more', diffs[0])
+        ref[5][1] += 0.05  # the samples the reference has are still all checked
+        self.assertTrue(compare_curve(self.rows(ours), self.AUTO, ref, 'm', runs_on=traced)[0])
+
     def test_xppaut_printed_unit_does_not_hide_a_larger_curve_error(self):
         # A constant norm has zero chord error: %14.5E alone loses these digits.
         ours = [(x, 0.3, 0.41826665768) for x in (0.2, 0.4, 0.8)]
