@@ -46,3 +46,28 @@ ode_mu26_blocked and ode_mu26_control (87 s and 24 s at one thread natively, 37 
 trace of every bracket they search shows none new (no bracket after a located zero, no bisection: the trace of the two models' brackets is the master's),
 so the extra instructions are the rule's own, which the five workloads (T1 is Mu26's Hopf curve) and the 60 descriptions bound at
 +0.02%.
+
+## W547: the branch-point scale rule on every bracket
+
+Card [#612](https://github.com/MuhammadMoustafa/xppautX/issues/612), 2026-10-30: the same method, master's tip `9faf7e70` against it with W547's
+change (core/autlib1.cpp, core/auto_c.h), both with the comparison's flags, Ubuntu g++ 15.2.0, valgrind 3.26.0, eight processes at a time,
+both binaries reading the worktree's descriptions (pp2_heteroclinic_coarse at its new step, 0.0225, for both).
+
+| Workload | master | fix | ratio | points |
+|---|---:|---:|---:|---:|
+| P1, PY_S1Bf periodic | 22,882,221,246 | 22,882,220,163 | 1.0000 | 741 |
+| E1, PY_S1Bf steady | 246,156,383 | 246,585,068 | 1.0017 | 403 |
+| P2, ModelDB 267710 periodic | 80,144,499,630 | 80,144,472,397 | 1.0000 | 1,189 |
+| E2, ModelDB 267710 steady | 13,359,013,206 | 13,360,070,964 | 1.0001 | 1,081 |
+| T1, Mu26 Hopf curve of the soma | 2,573,251,420 | 2,574,480,497 | 1.0005 | 268 |
+| the 61 descriptions whose diagram is the same (1 thread) | 191,012,824,001 | 190,897,617,163 | 0.9994 | |
+
+Every workload's diagram is the same on both builds. E1's +0.17% and T1's +0.05% are the run's own variation, not the change: neither
+has a cycle's branch-point test, and repeated with two processes at a time E1 gave 245,948,790 and 245,978,940 (master) against
+245,970,394 and 246,019,050 (fix), T1 2,570,557,830 and 2,570,559,905 against 2,570,522,272 and 2,570,577,403 (the throttled progress
+events depend on time, and eight callgrind processes at once slow each other). The descriptions that change by more than 0.5% are the
+ones whose branch-point brackets the rule now refuses before a search: ode_lecar and tstauto_lecar -17% (two searches of nine solves each
+that gave up at ITMX), pp2_heteroclinic -16%, pp2_coarse_bisected_fold -3.3% (one each), with the same diagrams; global_heteroclinic,
+whose diagram changes on purpose, -41% (224,733,531 to 133,173,218: two branch points refused, a shorter branch to its end).
+ode_mu26_blocked and ode_mu26_control are left out as before; they have no cycle branch-point bracket out of scale (the trace of every
+bracket at their steps), so their counts are T1's.

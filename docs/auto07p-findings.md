@@ -46,6 +46,7 @@ so the index started empty.
 | [9](#9-a-special-point-located-on-a-branchs-last-step-is-relabelled-as-its-end) | Branch ends | a branch point, fold or Hopf point located on the step that also passes Par Min/Max, Norm Min/Max or NMX is labelled EP, so the special point is lost | [W495](https://github.com/MuhammadMoustafa/xppautX/issues/559) |
 | [10](#10-a-cusp-located-from-noise-is-dropped-after-itmx-iterations) | Fold curves of equilibria | the cusp test is the Newton residual's noise (6e-11) at the point where its sign changes, so the secant location cannot shrink its step, is given up after ITMX iterations and the cusp is labelled nowhere; a start 7e-4 away in the norm finds it | [W539 / #604](https://github.com/MuhammadMoustafa/xppautX/issues/604) |
 | [11](#11-a-zero-immediately-after-a-located-zero-is-invisible) | Special-point location | a stored zero hides a second crossing in the next step | [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606) |
+| [12](#12-a-cycles-branch-point-test-at-its-noise-labels-branch-points-that-are-not-there) | Special-point location | a cycle's branch-point test, a ratio of consecutive determinants, changes sign at the determinant's noise near a heteroclinic cycle: branch points where the cycles' multipliers are far from 1 | [W547 / #612](https://github.com/MuhammadMoustafa/xppautX/issues/612) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -402,6 +403,32 @@ test creeps from -1.4e-5 to +7e-7 over nine iterations), and the cycles' paramet
 finds only as a crossing of a smooth test: the slope of the test across the last bracket of the search against its slope across the
 step, within a factor 3 either way (a jump, noise or a touching is refused with a note, the state restored as for a point given up), and for
 a cycle's branch-point test, a ratio of consecutive determinants, only while its values at the ends of the step are of a size a crossing
-within it gives. Both folds above are found, the parameter's turning proves them; a Hopf test's pair-switch jump, global_heteroclinic's
+within it gives. Both folds above are found, the parameter's turning proves them as turns of the NTST 15 branch (W547 found the ODE's
+cycles have no fold there: they are the discretization's, as are AUTO-07p's own folds at that mesh); a Hopf test's pair-switch jump, global_heteroclinic's
 branch points and pp2's mesh noise are refused. The zeros AUTO-07p's own search converges on are accepted as before.
 [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606), [W545 / #610](https://github.com/MuhammadMoustafa/xppautX/issues/610); docs/auto-references.md W545.
+
+## 12. A cycle's branch-point test at its noise labels branch points that are not there
+
+AUTO-07p's branch-point test of cycles is the ratio of the reduced system's determinant at the last point to the one at this
+point, `FNBPBV=AP%DET/DET` ([toolboxbv.f90:404](../reference/auto-07p/src/toolboxbv.f90#L404)), and LCSPBV locates any sign change of
+it ([bvp.f90:1325](../reference/auto-07p/src/bvp.f90#L1325)) whatever the values. Where a branch of cycles approaches a heteroclinic
+cycle the determinant swings by orders of magnitude from one point to the next, the ratio's values at the ends of a step reach 1e13 to
+1e18, and its sign changes are the determinant's noise. On tools/models/global_heteroclinic.odex (x' = y, y' = -x + x^3 + mu y - y^3; tests/auto
+global_heteroclinic's constants, AUTO-07p 0.9.4 through tools/auto_reference.py) AUTO-07p labels BP 30 (mu 0.33144612, period 31.0) and BP 32
+(0.33144607, 37.5) at NTST 30, then BP 35 to 56 and LP 44 and 49 out to period 7829; at NTST 90 BP 29 (0.33144657, 25.6) and twenty more LP and
+BP to period 2073. The system is planar, so a cycle's only nontrivial Floquet multiplier is m = exp(integral of div f = mu - 3 y^2 over the
+period), and a fold or a branch point of cycles needs m = 1. The ODE's own cycles (scipy's solve_bvp at tolerance 1e-9, independent of both
+programs) have one fold, at mu = 0.3314707 (period 16.8, AUTO-07p's LP 25), and after it log m rises monotonically, +3.0 at period 25.9,
++4.7 at 30.9, +6.7 at 37.0, while mu falls to the heteroclinic cycle at 0.3314461934: no branch point and no other fold; at 0.33144612 and
+0.33144607 there is no cycle of the ODE at all. On pp2 (AUTO-07p's demo, Doedel 1984) at NTST 15 and step 0.025 AUTO-07p labels BP 31
+(0.70807364, period 94.4), where the ODE has no cycle (its cycles end at 0.7080728) and, at period 80, m = e^-12.5, and then follows the
+cycles back to the Hopf point (LP 70 at 0.67159387, period 10.39) and up again (LP 93, MX 100); the descriptions' runs and the ODE check are
+docs/auto-references.md W547.
+
+**xppautX:** the branch-point test of cycles brackets a zero only while its values at the ends of the step are of a size a crossing within
+the step gives (below one over the location tolerance times the step's length); a bracket beyond it is refused with a note, before any
+search. The real branch points of the descriptions reach 244 times the step's length, the refused 2.7e7 and more. global_heteroclinic
+labels its fold and ends on the heteroclinic cycle (at NTST 90 at 0.3314461932); pp2 at NTST 15 and step 0.025 refuses BP 31 and the next
+steps stop with no convergence, the 15 intervals not resolving cycles of period 70 to 85, which the run says.
+[W545 / #610](https://github.com/MuhammadMoustafa/xppautX/issues/610) (new brackets), [W547 / #612](https://github.com/MuhammadMoustafa/xppautX/issues/612) (every bracket).

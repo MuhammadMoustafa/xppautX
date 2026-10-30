@@ -187,7 +187,11 @@ inline bool auto_crossing_smooth(doublereal step_change, doublereal step_length,
    secant method on the ratio, which has a pole there, puts the zero a step
    away. A bracket whose values pass that size is not a crossing the search
    can place; the determinant there is at its noise (global_heteroclinic's
-   1e13 to 1e18, lecar's 1e7 near its fold). */
+   1e13 to 1e18, lecar's 1e7 near its fold). W547 (#612): it gates every
+   bracket of the test, AUTO-07p's own included: the real branch points of
+   the descriptions, at their steps and at 0.5, 0.75 and 1.5 times them, reach
+   244 times the step's length, the refused ones 3.6e9 and more, each shown
+   spurious by the cycles' Floquet multipliers (docs/auto-references.md W547). */
 inline bool auto_ratio_in_scale(doublereal start, doublereal end, doublereal step_length, doublereal tolerance) {
   return std::max(std::abs(start), std::abs(end)) * tolerance <= step_length;
 }

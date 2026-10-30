@@ -2017,7 +2017,8 @@ cycles at points 47 to 50 is 0.70807234, 0.70807240 (a fold AUTO-07p's own searc
 old code stores 0 after the first fold and does not see C. `pp2_coarse_bisected_fold` (step 0.0075, Max Steps 86): the search between points 79 and 80
 uses up its eight iterations (the test is flat and creeps, -1.4e-5 to +6.9e-7) and AUTO-07p gives it up; bisected it ends at 0.70807259, the parameter's maximum
 (0.70807259 at point 79, 0.70807250 at point 81). Neither is in AUTO-07p's own reference (it shares the blind spots, and at this mesh the two programs'
-histories differ: W540).
+histories differ: W540). W547 checked the ODE's own cycles: pp2 has no fold between its Hopf point and the heteroclinic cycle, so these are
+turns of the NTST 15 discretization's branch, not folds of pp2 (the W547 section).
 
 **What it leaves out.**
 
@@ -2042,3 +2043,77 @@ histories differ: W540).
 
 **Cost** (callgrind, docs/studies/w545-speed.md): P1, E1, P2, E2 and T1 +0.00% to +0.10%; the 62 runnable descriptions at one thread
 +0.04% in all; only a model that searches more (global_heteroclinic +11%, 16 solves) pays.
+
+## W547: every bracket of a cycle's branch-point test is gated, and what no rule can gate ([#612](https://github.com/MuhammadMoustafa/xppautX/issues/612))
+
+W545 gated only the zeros new to AUTO-07p. W547 asked for every located zero to pass the rule, no real point lost, each point checked by
+a method independent of xppautX and AUTO-07p both. One part lands; the rest is shown impossible with the slopes a search measures.
+
+**What changed.** A cycle's branch-point test (AUTO-07p's FNBPBV, `AP%DET/DET`, a ratio of consecutive determinants:
+[toolboxbv.f90:404](../reference/auto-07p/src/toolboxbv.f90#L404)) brackets a zero only while its values at the ends of the step are of
+a size a crossing within the step gives (`auto_ratio_in_scale`), now for every bracket, AUTO-07p's own included; a bracket beyond it is
+refused before any search, with a note (`its test is a ratio of consecutive determinants, and its values ... are beyond what a crossing
+within it gives`). Over the descriptions at their steps and at 0.5, 0.75 and 1.5 times them (the 64 that run, 4 x 64 runs), the real
+branch points' values reach 244 times the step's length (res_cycles at 1.5 times), the refused ones 2.7e7 and more (pp2 at NTST 15
+2.7e7 to 3.6e9, lecar 1.6e9 and 1e10, global_heteroclinic 4.9e14 and 9.2e16); the threshold, one over the location tolerance, is 1e4 at
+special_point_tolerance 1e-4. Where the rule now stops a search before it starts, in lecar's two, pp2_heteroclinic's and
+pp2_coarse_bisected_fold's, the search gave up at ITMX before: the same diagram, a note that says why, fewer solves.
+
+**The independent check.** Both models whose diagrams change are planar, where a cycle has one nontrivial Floquet multiplier,
+m = exp(integral over the period of div f): a fold or a branch point of cycles needs m = 1 (a sign change of log m), a period doubling
+does not exist. Two scratch scripts compute the ODE's own cycles (not kept: they serve these two models only): global_heteroclinic's by
+scipy's `solve_bvp` (tolerance 1e-9, up to 366,588 mesh nodes; continued in the amplitude, then in the period), pp2's as the fixed points of
+the Poincare return map on u0 = 1/3 (DOP853 at rtol 1e-13, brentq on the log of the crossing height), log m by quadrature of div f.
+
+| model, period | ODE parameter | ODE log m |
+|---|---|---|
+| global_heteroclinic, 15.78 / 16.79 / 17.80 | 0.3314609 / 0.3314707 / 0.3314667 | -0.32 / +0.005 / +0.34 (the fold, at the parameter's maximum) |
+| global_heteroclinic, 25.9 / 30.9 / 37.0 / 40.0 | 0.33144651 / 0.33144621 / 0.33144619 / 0.331446193 (to the heteroclinic cycle at 0.3314461934) | +3.0 / +4.7 / +6.7 / +7.7, rising |
+| pp2, 10.44 / 13.44 / 21.6 / 38.7 | 0.672 / 0.69 / 0.705 / 0.708 | -0.006 / -0.40 / -1.6 / -4.6 |
+| pp2, 53.4 / 68.2 / 80.2 | 0.70807 / 0.7080727 / 0.7080728 | -7.4 / -10.2 / -12.5, falling |
+
+global_heteroclinic's cycles have one fold, at 0.3314707 (period 16.8), and pp2's none between the Hopf point (0.6715938, where log m is 0)
+and the heteroclinic cycle: the period grows and the parameter rises monotonically to its end. Every other fold or branch point on these
+branches is the discretization's.
+
+**Per point** (xppautX before is master's tip; AUTO-07p is 0.9.4 at the description's constants, built from reference/auto-07p in a scratch copy):
+
+| model (mesh), point | xppautX before | xppautX now | AUTO-07p | independent | |
+|---|---|---|---|---|---|
+| global_heteroclinic (30), fold at 0.3314707, T 16.77 | LP 25 | LP 25 | LP 25 | log m crosses 0 at 0.3314707 | real, kept |
+| global_heteroclinic (30), 0.33144612, T 31.0 | BP 30 | refused, note | BP 30 | m = e^4.7 = 110 (and no ODE cycle below 0.3314461934) | spurious, removed |
+| global_heteroclinic (30), 0.33144607, T 37.5 | BP 32 | refused, note | BP 32 | m = e^6.6 | spurious, removed |
+| global_heteroclinic (30), the end | HEC 34 at 0.33144663, T 58.4 | HEC 32 at 0.33144432, T 58.3 | BP 35, 37, 39, 41, 43, LP 44, 49, BP 52, 56, MX 58 (T 7829) | heteroclinic cycle at 0.3314461934 | both ends a coarse mesh's |
+| global_heteroclinic (90), 0.33144657, T 25.6 | BP 29 | refused, note | BP 29 | m = e^3.0 | spurious, removed |
+| global_heteroclinic (90), T 28.9 and 42.3 | LP 30, LP 32 | not labelled (another path) | LP 30, 32, then 19 more LP and BP to T 2073 | m = e^3.7, e^5.6 | spurious |
+| global_heteroclinic (90), the end | HEC 34 at 0.3314461933 | HEC 32 at 0.3314461932 | MX 100 | 0.3314461934 | |
+| pp2 (15), step 0.025, 0.70807364, T 94.4 | BP 31, then back along the cycles to the Hopf point (LP 69 there), LP 36, 41, HEC 96 | refused, note; the run then stops, no convergence even at the smallest step (point 46) | BP 31, LP 36, 41, 70 (the Hopf point), 93, MX 100 | no ODE cycle at this parameter (above 0.7080728); m < 4e-6 at T 80 | spurious |
+| pp2 (15), folds near 0.70807 at every step | labelled | labelled | labelled | no fold | the mesh's (below) |
+| lamom2, step 1.5 times, fold at a = -0.25 | LP | LP | (not run) | exact: a = s^2 - s, s = r^2, minimum -1/4 | real; its slope ratio is 5.5 |
+| forced_pp_ns, PD at m = 0.46243 | PD 87 | PD 87 | PD | (x, y) multipliers -0.99996, -1.021 at 0.46243; -0.951, -1.075 at 0.47049 (DOP853, fsolve) | real; its slope ratio is 8.9 |
+| forced_pp_pd, R2 at (eps, b0) = (0.55102, 0.34013) | R2 26 | R2 26 | R2 | multipliers -1, -0.9972 at point 25; -1.000008 +- 4.7e-5 i at 26; -1, -1.015 at 27 | real; its slope ratio is 10.7 |
+
+**pp2 at NTST 15.** The folds a coarse run labels near the heteroclinic cycle are turns of the discretized branch, not of the ODE's:
+at period 80 the NTST 15 branch is at 0.70807328, the ODE's at 0.7080728, an error larger than the folds' own spread; with
+Mesh Adapt Every 0 the same branch has one fold, at 0.70804468, where the ODE has none either. So W545's two descriptions
+(pp2_coarse_second_fold, pp2_coarse_bisected_fold) show the location of a turn of the discretized branch (the parameter turns along
+the stored points), not a fold of pp2; AUTO-07p labels folds there too (its LP 27, 29, 36, 41, 93 at step 0.025). A run's passage there
+is chaotic: of 16 steps from 0.006 to 0.03 master completes 8 and this card 7, the same labels at the other 15; at 0.025 master's run
+labelled BP 31, turned back along the cycles through the Hopf point (a "fold" at 0.6715940, period 10.39, where the cycles shrink to the
+equilibrium) and ended on a "heteroclinic cycle" at 0.70806976, 3e-6 from the ODE's; now the branch point is refused and the next
+steps, on cycles of period 70 to 85 the 15 intervals do not resolve, stop with "no convergence even at the smallest step", which says why.
+The ODE's cycles exist and are strongly stable there (m = e^-10): the failure is the mesh's, not ours; at NTST 90 (pp2_heteroclinic)
+the run ends on the heteroclinic cycle at 0.7080728, the ODE's. pp2_heteroclinic_coarse now runs at step 0.0225 (both builds: one fold, the mesh's, as
+AUTO-07p's LP 27; the end named heteroclinic, the description's purpose), with a new AUTO-07p reference at that step.
+
+**What no rule gates** (step 4 of the card). The slope rule (W545, factor 3) gating AUTO-07p's own zeros loses real points, for every
+kind, in the measured runs (the 64 descriptions at their steps and at 0.5, 0.75 and 1.5 times them, every bracket traced):
+- folds: lamom2's fold at a = -1/4 (exact) at 1.5 times the step has ratio 5.5; global_heteroclinic's spurious folds 5.6 and up,
+  pp2_heteroclinic's (NTST 90, near its end) 3.5 and 66, pp2 at NTST 15 3.2 to 116: real and spurious overlap from 3.2 to 5.6;
+- PD and TR: forced_pp's real PD and R2 at 4.1 to 10.7 (the test is the distance from the unit circle of the multiplier picked nearest
+  it, and the pick switches where a pair meets the real axis, as at 0.46243 above);
+- the cusp: Mu26's at 3.1 (its test at its noise floor, 1e-12, finding 2);
+- a map's branch point: henon_rot_th's at R2, 2.7e-7 (the step starts on the test's zero, at the R2 point).
+Changing a threshold or measuring the slope over the last two brackets (a smooth test's bracket slopes converge) were tried on the same
+traces: the second refuses forced_pp_pd's R2 (10.7) and henon_rot_th's branch point. So W545's rule stays on the new zeros only, and
+the branch-point scale rule, whose real and spurious values are five decades apart, on every bracket.
