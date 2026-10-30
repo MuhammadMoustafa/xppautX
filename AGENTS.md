@@ -278,8 +278,9 @@ every platform's core CI job uploads differences as `auto-diagrams-<platform>`.
 The coordinator's checks after a wave of AUTO cards (not verify.sh's):
 `tools/auto-profile/diagram_diff.py` with a `LINALG=lapack` build (every description against the
 baselines and AUTO-07p), and `tools/wslrun.sh tools/auto-profile/modeldb_check.sh build/OUT`
-(W429, #491: ModelDB 267710's 20-point periodic run, `examples/ode/motoneuron6c.odex`, makes one
-fold search and no step back in the default, LIBM=system and LAPACK builds).
+(W429, #491; W549, #614: ModelDB 267710's 20-point periodic run, `examples/ode/motoneuron6c.odex`, makes no
+fold search and no step back in the default, LIBM=system and LAPACK builds: its parameter rises
+monotonically from the Hopf point).
 
 `tools/goldencheck.py` (W31c, run by verify.sh) drives `xppautX --server`
 through lecar.ode and vanderpol.ode to write PostScript (with a nullcline
