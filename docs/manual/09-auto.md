@@ -271,7 +271,7 @@ a run (W494):
 | `max_branch_switches` (MXBF) | steady states: at how many branch points AUTO follows the other branch by itself; 0: none | whole number, 0 or more |
 | `switch_one_direction` (MXBF below 0) | the branches AUTO switches to by itself are followed in one direction only (checked) or in both (unchecked) | boolean |
 | `output_detail` (IID) | how much AUTO writes to its diagnostics (.d file): `none`, `little`, `normal` (the usual), `start_jacobian` (also the Jacobian and residuals of the start), `extensive`, `debugging` | one of the six names |
-| `max_location_iterations` (ITMX) | the most iterations locating a special point | whole number, at least 1 |
+| `max_location_iterations` (ITMX) | the most iterations of the secant search that locates a special point; a search that uses them up then halves its bracket until it is as narrow as `special_point_tolerance` says | whole number, at least 1 |
 | `max_newton_iterations` (ITNW) | the most Newton iterations for a point, before the step is halved (`step_adapt_every` above 0) or the branch ends | whole number, at least 1 |
 | `full_newton_after` (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
 | `step_adapt_every` (IADS) | adapt the step every this many steps; 0 keeps it at `step_size`, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
@@ -521,8 +521,14 @@ before what they should hold (the label, the file and the part).
 What a run loses on the way is a warning in Output (and `auto.info`'s
 `notes` for a client), the branch going on: a special point AUTO gave up
 locating ("Br 1 Pt 12: a fold (LP) between points 12 and 13 was not
-located (not in max_location_iterations = 8 iterations); it is missing from the diagram":
-raise `max_location_iterations`, or lower `max_step_size`), and Floquet multipliers that turn inaccurate
+located (the corrector did not converge); it is missing from the diagram":
+lower `max_step_size`), a special point whose test is a jump, noise or a
+double zero rather than a smooth crossing ("Br 3 Pt 36: a fold (LP) between
+points 36 and 37 was not accepted at parameter 0.7080731095: its test is not a
+smooth crossing: across the last 6.4e-05 of the search its slope is 51.9 times
+its slope across the step, more than 3 either way; it is missing from the
+diagram": the branch is followed on a mesh too coarse for its folds, raise
+`mesh_intervals`), and Floquet multipliers that turn inaccurate
 (period doubling and torus detection are off until they are accurate
 again: raise `mesh_intervals` or `collocation_points`).
 

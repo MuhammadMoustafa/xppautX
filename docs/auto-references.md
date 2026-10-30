@@ -1912,6 +1912,9 @@ removing it alone is not enough. Not applied: the baselines stay as they were. A
 zero checked by the test's value at the located point against its bracket, or a bracket for the next step that keeps the
 discarded endpoint and the located point's true value, 0, apart).
 
+**Resolved (W545):** the discarded end's test is kept, and the zero it brackets is accepted only as a crossing of a smooth test
+(docs/auto-references.md W545 below).
+
 ## W542: a fold whose location fails ([#607](https://github.com/MuhammadMoustafa/xppautX/issues/607))
 
 When a location ends at ITMX (or its corrector or test fails), lcspae/lcspbv restore the step end and the run goes on without
@@ -1934,3 +1937,108 @@ the code is not changed and no baseline moves. A retake needs the same first ste
 from noise or a jump (a located point whose test value is not small against its bracket; the test's own continuity), before
 a failed location is given another try.
 
+
+**Resolved (W545):** a failed location's bracket is bisected and what it ends on is accepted only as a crossing of a smooth test
+(the W545 section below).
+
+## W545: a special point's test tells a smooth crossing from a jump or noise ([#610](https://github.com/MuhammadMoustafa/xppautX/issues/610))
+
+W541 (a zero right after a located zero) and W542 (a location that ends at ITMX) each found real folds and each labelled points that
+are not zeros of a smooth test, so neither landed. Both now land, each only for the brackets a rule accepts. The rule, the cases that
+chose it, what it measured over the 71 models and what it leaves out are below; the code is `locate_special_point`
+(core/autlib1.cpp), `auto_crossing_smooth` and `auto_ratio_in_scale` (core/auto_c.h), the tests tests/test_auto_location.cpp.
+
+**The rule.** A search leaves a bracket (the test's value and its arclength at two samples, opposite signs) and ends on a point. Its
+slope across the step, `|q_end - q_start| / step_length`, and its slope across the last bracket of the search,
+`|q1 - q0| / width` (a tolerance wide, or the width Mueller's method left), say whether the sign change is a crossing of a smooth test:
+a smooth crossing has about the same slope at both scales; a jump or noise has a slope that grows as the bracket shrinks; a touching (a
+double zero that the samples straddle) has one that shrinks. A new zero is accepted when the ratio of the two slopes is within a factor
+(`auto_crossing_slope_ratio_max`, 3) either way. One rule for every test, equilibria and cycles. It needs no solve the search did not
+make. Two parts are specific to a test's construction: a cycle's branch-point test, AUTO's `DET0/DET`, a ratio of consecutive
+determinants (about 1 along a branch), is also required to be of a size a crossing within the step gives (`auto_ratio_in_scale`:
+its values at the ends below the step's length in location tolerances, since beyond that an end lies within one tolerance of the
+determinant's zero and the secant method on a ratio with a pole puts the zero a step away); and a zero found by the first secant step
+(no search) is not accepted for a new bracket, since that step measures no slope (it lands within the tolerance of the end, which a
+test at its noise does by chance).
+
+**What the fixes do on it.** A: a located zero leaves the test at the discarded end of its step as the test's value (with its
+arclength from the located point), where AUTO-07p stores 0, so a second zero ahead of it is a sign change of the next step; the
+bracket's start is that sample. B: a search that ends at ITMX bisects the bracket Mueller's iteration holds (it stays a sign change,
+and the state is at one end), down to the location tolerance, instead of giving the point up; only a bracket inside the step. Both
+are accepted by the rule or restored exactly as for a point given up (the same saved state), and a refused zero is one note, like
+`special_point_lost`: `Br 3 Pt 36: a fold (LP) between points 36 and 37 was not accepted at parameter 0.7080731095: its test is not
+a smooth crossing: across the last 6.4e-05 of the search its slope is 51.9 times its slope across the step, more than 3 either way;
+it is missing from the diagram` (servercheck's "stops AUTO refused zero"). The rule gates the new brackets only: a zero AUTO-07p's own
+search converges on is accepted as before (below, what gating those changes).
+
+**Candidates weighed, with the cases' numbers** (each from the trace of the locations, a temporary print in lcspae/lcspbv, removed):
+
+- *The located point's own test value against the bracket's.* frcp's pair-switch jump ends on q = +1.0 against a bracket of -0.52 and
+  +1.0 (the value is of their size), but pp2 coarse's real fold C has -6.1e-6 against -4.0e-5 and +3.7e-4, and the mesh-noise folds
+  of the baseline (point 40: -2.9e-4 against -1.3e-4 and +7.3e-5) pass or fail it by the sign of the noise; global_heteroclinic's branch points end
+  at 1.6e9 and 3.6e13 against brackets of 2.4e13 and 5.9e14 (6.5e-5 and 0.06 of them). No threshold separates them. Dropped.
+- *Mueller's iterates converging geometrically.* The noise folds converge in two iterations as real ones do (baseline pp2 coarse
+  points 35 and 40 in two, lecar's real cycle fold 0.248414 in two), and the jump converges (its bracket collapses on it). Dropped.
+- *The Hopf pair's identity at both ends.* Right for frcp (the pair switches), and blind to every other test: the other jumps
+  (global_heteroclinic's folds, pp2's) are not pair switches. The slope ratio finds frcp too (51.7). Not needed.
+- *The branch-point test's magnitude.* Right for global_heteroclinic (1e13 to 1e18) and lecar's noise branch points (1e7 to 1e8),
+  but the test is a ratio only for cycles; kept, as the one per-test part above, together with the slope ratio.
+- *A noise floor tied to EPSS or EPSL.* The Newton tolerances bound a step's correction, not the test's noise: at the end of a long
+  cycle branch the parameter moves by 1e-12 per point against EPSL 1e-4, and every fold test there is below its own noise. No floor
+  built from them separates the real fold C from the noise next to it. Dropped.
+
+**Measured** (the 71 models of tests/auto at their own settings; `tools/autocompare.py` 0 failures before and after). The slope
+ratio, final over step, of every located zero of the baseline: 171 of 182 lie in 1/3 to 3 (the ordinary tests' real zeros, 0.7 to
+2.3), 11 above, the fold curve's cusp (3.1), two PD/TR tests (4.9 to 10.7) and the baseline's own noise (pp2 coarse 3.2 to 34, global_heteroclinic
+5.6 to 23). The new zeros, with 390 brackets searched against 382 before:
+
+| model, branch | point | test | path | ratio | |
+|---|---|---|---|---|---|
+| tstauto_frcp, equilibria | 38 | Hopf | after a located zero | 51.7 (jump) | refused |
+| global_heteroclinic, cycles | 30, 32 | fold | ITMX, bisected | 692, 986 (jump) | refused |
+| global_heteroclinic, cycles | 30 | branch point | after a located zero | values 2.4e13, -5.9e14 against 500 | refused |
+| henon_rot_th, turn | 33 | branch point | ITMX, bisected | 1.1e-6 (touching) | refused |
+| pp2_heteroclinic_coarse, cycles | 36, 41 | fold | after a located zero | 51.9, 29.7 (noise) | refused |
+| pp2_heteroclinic_coarse, cycles | 94 | fold | ITMX, bisected | 112 (jump at the step's start) | refused |
+| ode_lecar, tstauto_lecar, pp2_heteroclinic | 20, 23, 24 | branch point | ITMX | the iteration left the step | as before, given up |
+| pp2_coarse_second_fold (new) | 49 | fold | after a located zero | 1.02 | accepted |
+| pp2_coarse_bisected_fold (new) | 80 | fold | ITMX, bisected | 1.76 | accepted |
+
+The cases the card named come out right: frcp's jump, global_heteroclinic's new branch points and pp2 coarse's new noise folds are refused;
+the real cycle fold of lecar (0.248414) is a baseline zero and stays; henon_rot_th's branch point, which the bisection locates in front of the resonance R2 (3.14153626,
+then R2 is not labelled, which AUTO-07p does: R2 and BP at 3.14159132), is a touching and refused, so the baseline keeps R2 and BP as AUTO-07p labels them. No baseline moves. The constant 3 sits above the accepted new zeros'
+1.02 and 1.76 and the ordinary baseline range (0.7 to 2.3) and far below the nearest refused ratio (29.7); a PD/TR zero or a cusp new to
+a search could be refused (a label missing, never an extra one).
+
+**Real new zeros, proved** by the parameter's turning, which is independent of the test (a fold is where the parameter along the
+branch stops rising and falls; the stored points on both sides show it). Two descriptions of AUTO-07p's pp2 demo (Doedel 1984) at
+NTST 15, the mesh of pp2_heteroclinic_coarse, keep them. `pp2_coarse_second_fold` (step 0.0125, Max Steps 50): the parameter along the
+cycles at points 47 to 50 is 0.70807234, 0.70807240 (a fold AUTO-07p's own search labels, not a turn), 0.70807272 (the new fold C, the maximum) and 0.70807239; the
+old code stores 0 after the first fold and does not see C. `pp2_coarse_bisected_fold` (step 0.0075, Max Steps 86): the search between points 79 and 80
+uses up its eight iterations (the test is flat and creeps, -1.4e-5 to +6.9e-7) and AUTO-07p gives it up; bisected it ends at 0.70807259, the parameter's maximum
+(0.70807259 at point 79, 0.70807250 at point 81). Neither is in AUTO-07p's own reference (it shares the blind spots, and at this mesh the two programs'
+histories differ: W540).
+
+**What it leaves out.**
+
+- *The rule does not gate a zero AUTO-07p's own search converges on.* Gating those too (a temporary experiment, every located zero
+  with at least one iteration) changed six models and lost real zeros: forced_pp_ns and forced_pp_pd (their PD/TR points, which AUTO-07p labels
+  too), henon_rot_th (the BP after R2), ode_mu26_blocked (the cusp, ratio 3.1), global_heteroclinic, and made pp2_heteroclinic_coarse stop at
+  point 94 with no convergence. The baseline's own noise labels (pp2 coarse's folds at points 29 and 41, where the parameter keeps rising; the branch point at 31, where the
+  parameter is at its maximum; global_heteroclinic's two branch points) stay as they were: no rule found here removes them
+  without removing a real one, and they are AUTO-07p's own.
+- *The last stretch before a global end.* On NTST 90 the parameter moves by 1e-12 over the last points and every fold test there is
+  below its noise; the old path labels folds there already (pp2_heteroclinic at step 0.0375: a fold at period 74.9 where the parameter
+  still rises). A and B add nothing there since the first-secant rule: before it, one such fold changed where the global end was
+  found and the run went on to label three more.
+- *The NTST 15 mesh near the heteroclinic cycle is chaotic, and its folds are the adapted mesh's.* With Mesh Adapt Every 0 the same cycles
+  have one fold, at 0.70804468, and none near 0.70807, at the steps 0.0075, 0.0125 and 0.025, old code and new alike (the same diagrams, each
+  ending on the heteroclinic cycle): the folds near 0.70807 are what the mesh adaptation every third point makes of the branch (W540), and a run's passage depends on every point it inserts, since the adaptation
+  lands on other points. Of 16 steps from 0.006 to 0.03 the old code completes 10 and the new 7: at 0.009, 0.012 and 0.0125 the new
+  code locates a fold the old does not and the next adaptation, in the long-period part of the branch, does not converge ("no
+  convergence even at the smallest step"), where the old run ends on the heteroclinic cycle before reaching it. A perturbation
+  study (174 runs: every description's steps scaled by 0.5, 0.75 and 1.5) changed two, both pp2 at NTST 15: this one (step 0.0125,
+  no convergence) and tstauto_pp2 at the same step, which runs on past the old end and labels more.
+
+**Cost** (callgrind, docs/studies/w545-speed.md): P1, E1, P2, E2 and T1 +0.00% to +0.10%; the 62 runnable descriptions at one thread
++0.04% in all; only a model that searches more (global_heteroclinic +11%, 16 solves) pays.

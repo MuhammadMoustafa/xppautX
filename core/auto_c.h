@@ -2,8 +2,10 @@
 /* AUTO's own API between its files (autlib1-3/5, conpar2,
    setubv2) and the AUTO front end (gogoauto, auto_nox, autevd). */
 #include <stdio.h>
+#include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <vector>
 #include <span>
 #include <string_view>
@@ -146,6 +148,50 @@ typedef struct {
 inline constexpr doublereal auto_test_not_applicable = std::numeric_limits<doublereal>::quiet_NaN();
 inline bool auto_test_applies(doublereal value) { return !std::isnan(value); }
 
+/* W545 (#610): what a test function keeps from one step to the next. `value`
+   is the test at the last stored point, 0 where none is known. After a step
+   that located a zero it is the test at the discarded end of that step
+   instead, so a second zero ahead of the located point shows as a sign
+   change (AUTO-07p stores 0, which hides it: docs/auto07p-findings.md 11);
+   `offset` is then the arclength from the stored point to where that value
+   was sampled. */
+struct AutoTestSample {
+  doublereal value = 0;
+  std::optional<doublereal> offset;
+};
+
+/* W545 (#610): a located zero is a transversal crossing of a smooth test,
+   a jump, noise, or a touching. A smooth transversal crossing has about the
+   same slope across the step as at the end of the location, a tolerance
+   wide; a jump or noise has a slope that grows as the bracket shrinks, a
+   touching (a double zero) one that shrinks. A zero counts as a crossing
+   when the slope across the final bracket is within this factor of the slope
+   across the step, either way. Measured (docs/auto-references.md W545): the
+   new zeros that are crossings give 1.02 and 1.76, the ordinary zeros of the
+   71 models 0.7 to 2.3, the jumps and noise refused 29.7 and more, the
+   touching 1e-6: 3 lies between, close to the ordinary range. */
+inline constexpr doublereal auto_crossing_slope_ratio_max = 3;
+inline bool auto_crossing_smooth(doublereal step_change, doublereal step_length,
+                                 doublereal final_change, doublereal final_width) {
+  if (!(step_length > 0 && final_width > 0)) return false;
+  const doublereal step_slope = std::abs(step_change) / step_length;
+  const doublereal final_slope = std::abs(final_change) / final_width;
+  return final_slope <= auto_crossing_slope_ratio_max * step_slope &&
+         step_slope <= auto_crossing_slope_ratio_max * final_slope;
+}
+
+/* W545 (#610): a cycle's branch-point test is a ratio of consecutive
+   determinants (AUTO-07p's DET0/DET), about 1 along the branch. Where the
+   determinant has a simple zero in a step, a sample of the ratio larger than
+   the step holds location tolerances lies within one tolerance of it, and the
+   secant method on the ratio, which has a pole there, puts the zero a step
+   away. A bracket whose values pass that size is not a crossing the search
+   can place; the determinant there is at its noise (global_heteroclinic's
+   1e13 to 1e18, lecar's 1e7 near its fold). */
+inline bool auto_ratio_in_scale(doublereal start, doublereal end, doublereal step_length, doublereal tolerance) {
+  return std::max(std::abs(start), std::abs(end)) * tolerance <= step_length;
+}
+
 /* the two continuation drivers: autoae (algebraic problems) and autobv
    (boundary value problems, periodic orbits included) */
 enum class AutoSolver { Algebraic, BoundaryValue };
@@ -190,7 +236,7 @@ STPNT_TYPE_AE(stpnae);
 int stprae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), doublereal *rds, integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu);
 int contae(iap_type *iap, rap_type *rap, doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot);
 int solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), doublereal *rds, integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu);
-int lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *q, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped);
+int lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, AutoTestSample &q, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped);
 int mueller(doublereal *q0, doublereal *q1, doublereal *q, doublereal *s0, doublereal *s1, doublereal *s, doublereal *rds);
 FNCS_TYPE_AE(fnbpae);
 FNCS_TYPE_AE(fnlpae);
@@ -262,7 +308,7 @@ STPNT_TYPE_BVP(stpnbv);
 STPNT_TYPE_BVP(stpnub);
 int setrtn(iap_type *iap, integer *ntst, integer *ndxloc, doublereal *ups, doublereal *par);
 int stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dtm, integer iperp, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu);
-int lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), doublereal *q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped);
+int lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), AutoTestSample &q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped);
 FNCS_TYPE_BVP(fnlpbv);
 FNCS_TYPE_BVP(fnbpbv);
 FNCS_TYPE_BVP(fnspbv);

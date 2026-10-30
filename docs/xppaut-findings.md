@@ -2155,5 +2155,9 @@ A temporary trace of the inherited rule in xppautX on the published pp2 demo at 
 parameter 0.7080724009, a discarded endpoint test -4.0e-5 and the next endpoint test +3.7e-4: a real intervening crossing
 was skipped because its stored test was zero. These are xppautX measurements, not an XPPAUT numerical run.
 Keeping the original endpoint's test instead of zero finds that fold but also labels points that are not zeros, so xppautX
-keeps the inherited rule for now (docs/auto-references.md W541).
-[W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606).
+kept the inherited rule at W541 (docs/auto-references.md W541).
+**xppautX** now keeps the discarded end's test and accepts the zero it brackets only as a crossing of a smooth test: the slope of the
+test across the last bracket of the search against its slope across the step, within a factor 3 either way, and for a cycle's
+branch-point test also of a size a crossing within the step gives. The fold above is found; a Hopf test's pair-switch jump,
+global_heteroclinic's branch points and pp2's mesh noise are refused with a note (W545, docs/auto-references.md W545).
+[W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606), [W545 / #610](https://github.com/MuhammadMoustafa/xppautX/issues/610).

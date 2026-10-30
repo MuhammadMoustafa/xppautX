@@ -358,7 +358,7 @@ def check_stops():
 
 def auto_lost_points(itmx):
     """W491: a steady-state run of examples/ode/lecar.odex (tests/auto/ode_lecar.json's first run) with
-    ITMX itmx: the last autoinfo's notes and stop"""
+    ITMX itmx: the last autoinfo's notes and stop, and the types of the points it labelled"""
     d = autocompare.read_description(autocompare.BASE / 'ode_lecar.json')
     s = Server(args.server, autocompare.ROOT / d['model'])
     try:
@@ -369,23 +369,42 @@ def auto_lost_points(itmx):
         r = d['runs'][0]
         autocompare.restore_start(s, r, [], {})
         infos = [e for e in autocompare.execute_run(s, r, diagram, {}) if e.get('ev') == 'auto.info']
-        return (infos[-1].get('notes'), infos[-1].get('stop')) if infos else (None, None)
+        labelled = [p['sym'] for p in diagram.points if p['sym']]
+        return (infos[-1].get('notes'), infos[-1].get('stop'), labelled) if infos else (None, None, labelled)
     finally:
         s.close()
 
 
 def check_auto_stops():
-    """W480's AUTO cases (docs/studies/w480-stops.md A4): a special point AUTO gives up locating is a note
-    naming it, its points and ITMX; the branch goes on. Restart-file checks below cover A2 and
-    A3's load-time rejection; tests/test_auto_restart.cpp also covers direct short reads."""
-    notes, stop = auto_lost_points(1)
-    check('stops AUTO special point: max_location_iterations 1 gives up the folds, each a note naming it, its points and the setting',
-          isinstance(notes, list) and len(notes) > 0
-          and all(re.search(r'^Br 1 Pt \d+: a fold \(LP\) between points \d+ and \d+ was not located \(not in max_location_iterations = 1 iterations\)', n)
-                  for n in notes)
-          and isinstance(stop, dict) and stop.get('why') == 'parameter_max', '%s %s' % (notes, stop))
-    notes, _ = auto_lost_points(8)
-    check('stops AUTO special point: the default max_location_iterations locates them, no note', notes == [], str(notes))
+    """W480's AUTO cases (docs/studies/w480-stops.md A4): a special point AUTO does not locate or accept is a
+    note naming it, its points and why; the branch goes on. W545: a search that uses up ITMX bisects the bracket
+    it holds, so ITMX 1 no longer loses the folds, and a zero that is a jump or noise, not a crossing of a smooth
+    test, is refused with its measurements. Restart-file checks below cover A2 and A3's load-time rejection;
+    tests/test_auto_restart.cpp also covers direct short reads."""
+    notes, stop, labelled = auto_lost_points(1)
+    notes8, _, labelled8 = auto_lost_points(8)
+    check('stops AUTO special point: max_location_iterations 1 no longer loses the folds, the bracket is bisected: they are located and labelled as with 8, no note',
+          notes == [] and notes8 == [] and 'LP' in labelled8 and labelled == labelled8
+          and isinstance(stop, dict) and stop.get('why') == 'parameter_max', '%s %s %s %s' % (notes, stop, labelled, labelled8))
+    d = autocompare.read_description(autocompare.BASE / 'pp2_heteroclinic_coarse.json')
+
+    class Notes:
+        notes, stop = [], None
+        def created(self, s): pass
+        def ready(self, s): pass
+        def finished(self, s, r, events, ranges):
+            infos = [e for e in events if e.get('ev') == 'auto.info']
+            if infos:
+                self.notes, self.stop = infos[-1].get('notes', []), infos[-1].get('stop')
+    observed = Notes()
+    autocompare.compute(args.server, d, 1, observer=observed)
+    refused = [n for n in observed.notes if 'was not accepted' in n]
+    check('stops AUTO refused zero: the folds of pp2 at NTST 15 that are jumps of the mesh, not crossings, are each a note naming it, its points, its parameter and the slopes; the branch goes on to its end',
+          len(refused) == 3
+          and all(re.search(r'^Br 3 Pt \d+: a fold \(LP\) between points \d+ and \d+ was not accepted at parameter 0\.70[0-9]+: '
+                            r'its test is not a smooth crossing: across the last [0-9.e-]+ of the search its slope is [0-9.]+ times its slope across the step, more than 3 either way; '
+                            r'it is missing from the diagram$', n) for n in refused)
+          and isinstance(observed.stop, dict) and observed.stop.get('why') == 'heteroclinic', '%s %s' % (refused, observed.stop))
 
 
 def check_auto_global_ends():
