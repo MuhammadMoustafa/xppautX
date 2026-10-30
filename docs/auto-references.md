@@ -2217,3 +2217,44 @@ The reference's own samples are still all checked against ours, including its wa
 the gates against XPPAUT and AUTO-07p pass for both; the converged exact pilot is unavailable for the control run ("no convergence even at the smallest
 step" at tolerance 1e-10) and the blocked one's stage after the gate stops on a harness error: the XPPAUT pilot's reference.json leaves
 out the lpc runs (`lpc_soma`, `lpc_dend`) that `checked_reference` wants for the converged comparison (a gap of the drivers, not of this card; not changed).
+
+## W551: P1's branch point at the third point of PY_S1Bf's cycles ([#616](https://github.com/MuhammadMoustafa/xppautX/issues/616))
+
+The W354 series' pilot of P1 (PY_S1Bf: `Iapp` from 20000 pA down to the Hopf point at 16409.41, then the cycles from it, DS -1,
+NTST 100) failed its gate: XPPAUT 8.0 labels a BP in the periodic run and xppautX labels nothing. AUTO-07p labels it too
+(point 3, 16394.432, period 2.16155; XPPAUT point 3, 16394.43). Neither is real.
+
+**The independent check** (`docs/studies/floquet_check.py --odex PY_S1Bf.odex --c paper/benchmarks/auto/auto07p/py_s1bf.c`): PY_S1Bf's
+hand-written exact Jacobian (W269, checked against differences by jac_check.c), the cycle by Newton's method on the return map to a
+section of V, the monodromy matrix from the variational equations (LSODA, rtol 1e-11), and, beside it, a central-difference monodromy.
+
+| Iapp | period | multipliers, exact Jacobian | central-difference flow, the second |
+|---|---|---|---|
+| 16409 | 2.15755 | 1.0000708 +- 1.4e-4 i, 0.97738, 0.89774 | 1.0000644 +- 1.6e-4 i |
+| 16400 | 2.16007 | 1, 0.99679, 0.97736, 0.89762 | 0.99679 |
+| 16394.43 (the BP) | 2.16156 | 1, 0.99490, 0.97734, 0.89756 | 0.99489938 |
+| 16392.93 | 2.16196 | 1, 0.99439, 0.97734, 0.89754 | 0.99435542 |
+| 16380 | 2.16542 | 1, 0.99003, 0.97731, 0.89738 | 0.98994748 |
+| 16358.65 | 2.17122 | 1, 0.98286, 0.97732, 0.89712 | 0.98289094 |
+| 16300 | 2.18762 | 1, 0.97692, 0.96418, 0.89639 | 0.97691785 |
+
+At the Hopf point (16409.41) the second multiplier is exactly 1 (e^(i w T) = 1: the amplitude direction), so a family born there starts
+with it at 1, and the pair at 16409 (0.41 from it) is that double root split by the integration error (about the square root of 1e-8).
+Beyond it (1 - m)/(16409.41 - Iapp) is 3.41e-4, 3.40e-4, 3.40e-4, 3.39e-4 and 3.38e-4 (16400 to 16358.65): the multiplier leaves 1 linearly
+from the Hopf point, as the normal form says, and does not return: no branch point of cycles. XPPAUT's and AUTO-07p's own listings at the BP
+(0.9949, 0.9773, 0.8976) are the exact ones, so the differenced Jacobian does not explain the label; what does is the start, as in
+[W458](#w458-the-first-steps-of-cycles-from-a-hopf-point-521): the label sits at the third point of a run with DS < 0 and the
+multiplier near 1 makes the branch-point test, a ratio of determinants, ill-conditioned at the first points (xppautX refactors them at the
+converged point and orients the phase condition by DS). That DS < 0 is the cause in XPPAUT (finding 86) and AUTO-07p (their finding 8) is
+consistent with all of it and was not isolated by a DS > 0 run.
+
+**Labels by Jacobian** (the pilots): xppautX with the difference Jacobian and with the exact one: none (its W458 start); AUTO-07p with the
+difference Jacobian: BP at 16394.431997; AUTO-07p with the hand-written exact derivatives (JAC 1): the same BP at 16394.431997, so differencing is
+not what labels it, and the exact-Jacobian pilot passes its gate against xppautX's converged run only because the stored points 2 and 3 of a branch
+of cycles started at a Hopf point are not compared (`start_artefact`, W458); XPPAUT (difference only, it takes no derivatives): BP at 16394.43.
+The BP is a start artefact of the programs' first steps, as W458 found for motoneuron6c, not of the Jacobian.
+
+**Gates.** P1's `periodic` run now has both traced references (`differences` in `workloads()`, `.xppaut` and `.auto07p`, reference side, BP 1);
+`continuation.py --pilots --only P1`: the gates against XPPAUT and AUTO-07p, the converged exact pilot and xppautX's and AUTO-07p's exact pilots against
+it pass; P1's fixed-step row (`--pilots` stops before it: the same description with DS and DSMIN = DSMAX = 1, NMX 100000, run by a script that
+calls `workload(..., 'fixed')` on it) passes its gates too (the XPPAUT run takes 7 minutes).

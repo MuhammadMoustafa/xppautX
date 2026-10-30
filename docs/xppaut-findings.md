@@ -1925,13 +1925,21 @@ third point, XPPAUT 8.0 places it at norm 0.0404764, b1 = -2.55853e-6, 1.2 perce
 -0.02 alike. `stpnps` also orients the start's phase-condition derivative `upoldp` by the eigen-cycle whatever the sign
 of DS, the cause of AUTO-07p's spurious BP with DS < 0
 ([auto07p-findings.md](auto07p-findings.md#8-the-first-comparison-of-cycles-from-a-hopf-point-reads-a-predictors-fold-test-and-a-misoriented-phase-condition));
-XPPAUT's Bautin run with DS < 0 labels no BP, which was not traced further.
+XPPAUT's Bautin run with DS < 0 labels no BP, which was not traced further. PY_S1Bf's cycles from its Hopf point at 16409.41 (DS -1,
+the comparison's P1) are such a run: XPPAUT labels a BP at their third point (Iapp 16394.43, 15 below the Hopf point), as AUTO-07p does,
+and the cycles have none: the Floquet multipliers from the model's equations with its hand-written exact Jacobian
+(`docs/studies/floquet_check.py`) have a second one of 1 at the Hopf point (e^(i w T) = 1: the amplitude direction, so cycles born
+there start with it at 1) that leaves 1 linearly, (1 - m)/(16409.41 - Iapp) = 3.41e-4, 3.40e-4 (the BP's point), 3.40e-4, 3.39e-4 at
+16400, 16394.43, 16392.93, 16380, and returns nowhere (0.99679, 0.99490, 0.99439, 0.99003; the next two 0.977 and 0.898); a flow
+differenced centrally gives the same (0.99489938 at the BP). A multiplier that near 1 from the first step is what makes the
+branch-point test, a ratio of determinants, ill-conditioned at the first points, and a sign change there is the start's, not a crossing.
+A DS > 0 run, which would isolate the orientation as the cause in XPPAUT, was not made (W551, [#616](https://github.com/MuhammadMoustafa/xppautX/issues/616)).
 
 xppautX factors the points of the first two steps of such a branch, and those of a location between them, again at the
 converged point before reading their tests and multipliers, and orients `upoldp` by the sign of DS: it labels nothing at
 motoneuron6c's start and locates the Bautin fold at norm 0.0399989, b1 = -2.5599999923e-6 (docs/auto-references.md, W458).
 
-**Card:** [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521).
+**Card:** [W458 / #521](https://github.com/MuhammadMoustafa/xppautX/issues/521), [W551 / #616](https://github.com/MuhammadMoustafa/xppautX/issues/616).
 
 ## 87. An event at a step's end is discarded by the crossing tolerance
 

@@ -69,6 +69,21 @@ def workloads(a):
     d = comparison.codes_of_types(dict(model=str(py.with_suffix('.odex')), reason='P1/E1: W269 PY_S1Bf, freshly converted by final tip', runs=[
         dict(name='steady', kind='equilibrium', start=dict(state='current'), parameter='Iapp', auto=eq),
         dict(name='periodic', kind='periodic', start=dict(run='steady', type='hopf', index=1), parameter='Iapp', auto=copy.deepcopy(eq))]))
+    # W551 (#616): the third point of the cycles from the Hopf point, with DS < 0 (finding 86, AUTO-07p finding 8; docs/auto-references.md W551)
+    p1_cause = (
+        "XPPAUT 8.0 (point 3, Iapp 16394.43) and AUTO-07p (point 3, 16394.432) label a BP at the third point of the cycles from the Hopf point (period 2.1616, 15 pA below the Hopf point at "
+        "16409.41), where the cycles have no branch point: an independent computation (docs/studies/floquet_check.py: PY_S1Bf's hand-written exact "
+        "Jacobian, the cycle by Newton's method on the return map, the monodromy matrix from the variational equations) gives the second Floquet "
+        "multiplier 1.00007 (a pair 1 +- 1.4e-4 i) at 16409, then 0.99679 (16400), 0.99490 (16394.43), 0.99439 (16392.93), 0.99003 (16380), "
+        "0.98286 (16358.65) and 0.97692 (16300), the next two 0.9773 and 0.8976. At the Hopf point (16409.41) it is exactly 1 (e^(i w T) = 1, the amplitude "
+        "direction), so cycles born there start with it at 1 and the 1.00007 is that double root split by the integration error; beyond it "
+        "(1 - m)/(16409.41 - Iapp) is constant, 3.41e-4 (16400), 3.40e-4 (16394.43), 3.40e-4 (16392.93), 3.39e-4 (16380): it leaves 1 linearly "
+        "from the Hopf point, as the normal form says, and returns to it nowhere. "
+        "A branch point of cycles needs it at 1; this near-double multiplier just after the Hopf point is also what makes the branch-point test ill-conditioned at the first points. A central-difference monodromy gives the same (0.99489938 at 16394.43), so the Jacobian's differencing "
+        "does not explain the label. It is the kind of start artefact W458 removed from xppautX (the label sits at the third point of a run with "
+        "DS < 0, where stpnps orients the start's phase-condition derivative by the eigen-cycle whatever the sign of DS and the branch-point test's "
+        "determinant changes sign: docs/xppaut-findings.md finding 86, docs/auto07p-findings.md finding 8); a DS > 0 run, which would isolate the orientation, was not made.")
+    d['differences'] = [dict(reference=suffix, run='periodic', side='reference', type='BP', index=1, cause=p1_cause) for suffix in ('.xppaut', '.auto07p')]
     result = [('P1', d, ['periodic'], True), ('E1', closure(d, ['steady']), ['steady'], True)]
     mdb = description('ode_motoneuron6c')
     p2 = closure(mdb, ['periodic'])
