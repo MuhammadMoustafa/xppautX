@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import sys
 import time
+import traceback
 from types import SimpleNamespace
 
 from common import (BENCH, REPO, TOOLS, before_series, derived_program_sha, earlier_context, environment, executable_sha,
@@ -65,9 +66,9 @@ def workloads(a):
     convert(a, py)
     eq = dict(step_size=-1, min_step_size=1e-4, max_step_size=50, max_steps=5000, output_every=5000, parameter_min=200, parameter_max=20001,
               mesh_intervals=100, collocation_points=4, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, max_branch_switches=5)
-    d = dict(model=str(py.with_suffix('.odex')), reason='P1/E1: W269 PY_S1Bf, freshly converted by final tip', runs=[
+    d = comparison.codes_of_types(dict(model=str(py.with_suffix('.odex')), reason='P1/E1: W269 PY_S1Bf, freshly converted by final tip', runs=[
         dict(name='steady', kind='equilibrium', start=dict(state='current'), parameter='Iapp', auto=eq),
-        dict(name='periodic', kind='periodic', start=dict(run='steady', type='hopf', index=1), parameter='Iapp', auto=copy.deepcopy(eq))])
+        dict(name='periodic', kind='periodic', start=dict(run='steady', type='hopf', index=1), parameter='Iapp', auto=copy.deepcopy(eq))]))
     result = [('P1', d, ['periodic'], True), ('E1', closure(d, ['steady']), ['steady'], True)]
     mdb = description('ode_motoneuron6c')
     p2 = closure(mdb, ['periodic'])
@@ -191,7 +192,7 @@ def foreign(a, d, program, inputs, folder, measured, exact=None):
             exact, process_env=env)
     save(folder / 'reference.json', value)
     save(folder / 'measurement.json', measurement)
-    return value, measurement
+    return comparison.checked_reference(value, reference.SUFFIX[program], d), measurement
 
 
 def gate(name, d, native_result, refs):
@@ -313,7 +314,7 @@ def converged_sides(d, converged, program, folder):
     if program == 'xppautx':
         return ((folder / 'diagram.csv').read_bytes(), json.loads((folder / 'run-ranges.json').read_text()), CONVERGED,
                 repeat_references(d, {CONVERGED: converged['reference']})[CONVERGED])
-    return converged['data'], by_original(d, converged['ranges']), reference.SUFFIX[program], json.loads((folder / 'reference.json').read_text())
+    return converged['data'], by_original(d, converged['ranges']), reference.SUFFIX[program], comparison.checked_reference(json.loads((folder / 'reference.json').read_text()), reference.SUFFIX[program], d)
 
 
 def exact_gate(name, d, converged, program, folder):
@@ -639,6 +640,7 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
             if earlier:
                 link_tree(earlier, out / ('pilot-' + program))
                 ref, metric = (json.loads((earlier / f).read_text()) for f in ('reference.json', 'measurement.json'))
+                ref = comparison.checked_reference(ref, reference.SUFFIX[program], rd)
                 phase('%s pilot REUSED from %s' % (program, a.reuse))
             else:
                 phase('%s pilot starts%s' % (program, ' (not reused: %s)' % why if a.reuse else ''))
@@ -848,7 +850,7 @@ def main():
         except Exception as e:
             failed.append(name)
             driver_failures.append(name)
-            save(a.out / name / 'failure.json', dict(error=str(e), type=type(e).__name__))
+            save(a.out / name / 'failure.json', dict(error=str(e), type=type(e).__name__, traceback=traceback.format_exc()))
             progress(a, 'FAILED %s: %s' % (name, e))
             if a.stop_on_failure:
                 stop_here(a, records, failed, driver_failures, name, '%s: %s' % (type(e).__name__, e))

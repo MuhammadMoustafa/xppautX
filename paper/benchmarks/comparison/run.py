@@ -72,7 +72,7 @@ def main():
         out = a.out / study / ('attempt-%03d' % attempt)
         machine = record(out.parent, a.check)
         script = HERE / ('terman.py' if study == 'terman' else 'continuation.py' if study == 'continuation' else 'integration.py')
-        argv = [sys.executable, str(script), '--out', str(out), '--xppautx', str(a.xppautx.resolve()),
+        argv = [sys.executable, '-X', 'faulthandler', str(script), '--out', str(out), '--xppautx', str(a.xppautx.resolve()),
                 '--xppaut', str(a.xppaut.resolve()), '--auto-dir', str(a.auto_dir.resolve()), '--machine-record', str(machine)]
         if study not in ('terman', 'continuation'):
             argv += ['--study', study]

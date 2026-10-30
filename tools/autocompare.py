@@ -488,12 +488,17 @@ XPPAUT_CURVE_DIGITS = 6
 
 
 def read_reference(path, d):
-    """A reference file, strictly: its format, the description's model and runs. It holds every run, a skipped
-    one too (kept for the card its reason names), and gives back the runs that are compared."""
+    """A reference file, strictly (checked_reference)."""
     ref = json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates)
+    return checked_reference(ref, next(s for s in REFERENCES if path.name.endswith(s)), d)
+
+
+def checked_reference(ref, suffix, d):
+    """A reference (a file's, or one a driver just made), strictly: its format, the description's model and runs. It holds
+    every run, a skipped one too (kept for the card its reason names), and gives back the runs that are compared."""
     members(ref, ('format', 'source', 'model', 'runs'), ('format', 'source', 'model', 'runs'))
     # one curve format per program (W539): an .auto07p sample is [par, par2, norm, period], an .xppaut one [par, par2, norm]
-    width = 4 if path.name.endswith('.auto07p') else 3
+    width = 4 if suffix == '.auto07p' else 3
     runs = d['runs']
     if ref['format'] != REFERENCE_FORMAT or ref['model'] != d['model'] or not isinstance(ref['source'], str):
         raise ValueError('format, source or model does not match the description')

@@ -430,7 +430,7 @@ def ladder(a, name, build, engines):
     reference = launch(a, own, 'reference', folder / 'reference', False)
     if not reference['valid']:
         raise RuntimeError('%s: the reference run failed, so no program can be placed on the ladder' % name)
-    own_tolerance = effective_numerics(own).tolerance
+    own_tolerance = effective_numerics(own).relative_tolerance
     rungs = [(own_tolerance, own)] + [(t, build('%s-pilot-%g' % (name, t), t, full=True)) for t in LADDER_TOLERANCES if t < own_tolerance]
     chosen, tried = {}, []
     for tolerance, model in rungs:
@@ -533,7 +533,7 @@ def dt_sweep(a, name, records, build, rungs, chosen, engines):
     # One fixed tolerance, the study's own (the loosest rung): there xppautX and Python take steps far larger than dt across
     # output points while XPPAUT's step is capped by dt, so the spacing sets XPPAUT's accuracy and cost (coarser: larger error, less work) while
     # xppautX's stay put. A tolerance every program already meets (the ladder's) would put all at the error floor.
-    tolerance = effective_numerics(rungs[0][1]).tolerance
+    tolerance = effective_numerics(rungs[0][1]).relative_tolerance
     base = effective_numerics(rungs[0][1]).dt
     points, reused = [], []
     for factor in SPACING_FACTORS:
@@ -583,7 +583,7 @@ def _series(a, source, name, records, method=None, native_only=False, horizon=No
         engines = [e for e in engines if chosen[e]]
         if not engines:
             return True
-        own = effective_numerics(model).tolerance
+        own = effective_numerics(model).relative_tolerance
         by_tolerance = {own: (model, ready)}
         for e in engines:
             t = chosen[e]
@@ -592,7 +592,7 @@ def _series(a, source, name, records, method=None, native_only=False, horizon=No
             inputs[e] = by_tolerance[t]
     before_series(a)
     allowed, baseline = True, None
-    accuracy = {e: dict(tolerance=effective_numerics(inputs[e][0]).tolerance) for e in engines} if a.study == 'python' else {}
+    accuracy = {e: dict(tolerance=effective_numerics(inputs[e][0]).relative_tolerance) for e in engines} if a.study == 'python' else {}
     long_engines, noted, measure = set(), set(), measure_sha(engine_argv)
     for rep in repetitions(a):
         # A program whose warm-up was long is counted once: it takes no part in the repetitions after the first counted one.
