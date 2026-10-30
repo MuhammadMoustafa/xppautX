@@ -392,4 +392,16 @@ The same inherited rule in xppautX missed the middle of three nearby cycle folds
 DS 0.0125: the discarded endpoint after fold A has test -4.0e-5, the next endpoint +3.7e-4, but the comparison starts at zero.
 These numerical traces are xppautX's (docs/auto-references.md W541), not a claim that AUTO-07p follows the identical mesh
 history. Keeping the discarded endpoint's test instead of zero finds that fold, but also labels points that are not zeros
-of a smooth test (docs/auto-references.md W541), so xppautX keeps AUTO-07p's rule for now. [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606).
+of a smooth test (docs/auto-references.md W541), so xppautX kept AUTO-07p's rule at W541.
+
+The same locator gives a point up when its search uses up ITMX ([ae.f90:729](../reference/auto-07p/src/ae.f90#L729), the loop
+`DO ITLCSP=0,ITMX`, as finding 10): on pp2 at NTST 15 and a step of 0.0075 the fold between points 79 and 80 is such a point (its
+test creeps from -1.4e-5 to +7e-7 over nine iterations), and the cycles' parameter has its maximum there.
+
+**xppautX:** keeps the discarded end's test instead of 0, and bisects a bracket that ends at ITMX, and accepts the zero either
+finds only as a crossing of a smooth test: the slope of the test across the last bracket of the search against its slope across the
+step, within a factor 3 either way (a jump, noise or a touching is refused with a note, the state restored as for a point given up), and for
+a cycle's branch-point test, a ratio of consecutive determinants, only while its values at the ends of the step are of a size a crossing
+within it gives. Both folds above are found, the parameter's turning proves them; a Hopf test's pair-switch jump, global_heteroclinic's
+branch points and pp2's mesh noise are refused. The zeros AUTO-07p's own search converges on are accepted as before.
+[W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606), [W545 / #610](https://github.com/MuhammadMoustafa/xppautX/issues/610); docs/auto-references.md W545.

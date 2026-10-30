@@ -1830,7 +1830,7 @@ core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
          "eig":[[6.093e-05,0.434962],[6.093e-05,-0.434962]]},
  "stop":{"why":"parameter_max","text":"parameter iapp reached parameter_max (0.5)","br":1,"pt":49,
          "value":0.5048396225954056,"limit":0.5},
- "notes":["Br 1 Pt 12: a Hopf bifurcation (HB) between points 12 and 13 was not located (not in max_location_iterations = 8 iterations); it is missing from the diagram"]}
+ "notes":["Br 1 Pt 12: a Hopf bifurcation (HB) between points 12 and 13 was not located (the corrector did not converge); it is missing from the diagram"]}
 ```
 
 | field | meaning |
@@ -1852,7 +1852,7 @@ core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
 | `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached parameter_max (0.5)` for every branch that ends |
 | `stop.br`, `pt` | the branch and point number of the end (positive, as in `diagram`) |
 | `stop.value`, `limit` | what crossed the limit and the limit: the parameter and `parameter_min`/`parameter_max`, the norm and `norm_min`/`norm_max`, the point count and `max_steps`, the step size and `min_step_size`, the period for a global end (`snic`, `homoclinic`, `heteroclinic`, `period_unbounded`; the limit `null`); `null` where there is none |
-| `notes` | what the run lost or could not trust, in words (W491): a special point AUTO gave up locating (the corrector did not converge, its test does not apply, or not in `max_location_iterations` iterations: the point is missing from the diagram), Floquet multipliers that are inaccurate (period doubling and torus detection are off until they are accurate again); `[]` for none, cleared when a run starts or AUTO's window is new. Each is also written in AUTO's Output (`Warning: ...`), or logged as a WARN where AUTO's Output is not shown |
+| `notes` | what the run lost or could not trust, in words (W491): a special point AUTO gave up locating (the corrector did not converge, its test does not apply, or not in `max_location_iterations` iterations and not bisected: the point is missing from the diagram), or one it located and refused because its test is a jump, noise or a double zero, not a smooth crossing (`was not accepted at parameter ...`, W545), Floquet multipliers that are inaccurate (period doubling and torus detection are off until they are accurate again); `[]` for none, cleared when a run starts or AUTO's window is new. Each is also written in AUTO's Output (`Warning: ...`), or logged as a WARN where AUTO's Output is not shown |
 | `start_refined` | `true` when the run's start was a steady state whose residual was above `state_tolerance` and Newton's method (the Sing pts settings) refined it before the run (W495, #559); `false` otherwise. Cleared when a run starts |
 | `stab.eig` | steady states only: the eigenvalues λ = log z of the `circle` values, `[null,null]` where z is 0 (Re λ below about -745); the imaginary part is only known modulo 2π, its principal value |
 

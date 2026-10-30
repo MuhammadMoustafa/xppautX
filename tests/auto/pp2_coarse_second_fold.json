@@ -1,0 +1,52 @@
+{
+  "model": "examples/tstauto/pp2.odex",
+  "reason": "W545 (#610): AUTO-07p's pp2 demo (Doedel 1984) at NTST 15, as pp2_heteroclinic_coarse, with the step 0.0125 (Max Steps 50 stops the cycles before the mesh's noise). The cycles' parameter rises past the first labelled fold (point 48, 0.70807240, which is no turn: AUTO-07p's own location, W540), turns at 0.70807272 and falls. The test beyond a located fold has the sign its discarded step end had (AUTO-07p stores 0 and does not see the crossing), so the fold that turns is located at point 49, where the parameter is above both its neighbours (0.70807240 before, 0.70807239 after).",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "par0",
+      "auto": {
+        "step_size": 0.05,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": -0.1,
+        "parameter_max": 2,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "par0",
+      "auto": {
+        "step_size": 0.0125,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.0125,
+        "max_steps": 50,
+        "output_every": 100,
+        "parameter_min": -0.1,
+        "parameter_max": 2,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "u0": 0.3333333333333333,
+    "u1": 2
+  },
+  "auto07p_skip": "AUTO-07p's run at these steps would be a comparison of the NTST 15 mesh's noise: the folds of this mesh lie 1e-7 apart in the parameter and move with every adaptation of the mesh (W540), so the two programs do not share their history; the card is xppautX's own location of a zero (W545, #610), proved by the parameter's turning (docs/auto-references.md W545)",
+  "xppaut_skip": "no XPPAUT 8.0 reference for this mesh and these steps: the card asks for xppautX's own location of a zero (W545, #610)"
+}

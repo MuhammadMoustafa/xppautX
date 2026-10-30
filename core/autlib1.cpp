@@ -172,7 +172,7 @@ struct LocationState {
 // bvp.f90:287-305. A later location invalidates earlier tests' samples.
 template<class Function> struct LocationTest {
   Function function;
-  double &value;
+  AutoTestSample &sample;
   xpp::AutoPointKind kind;
   std::optional<integer> user_index;
 };
@@ -199,7 +199,7 @@ void locate_tests(iap_type &iap, rap_type &rap,
   for (std::size_t i = 0; i < last_stepped; ++i) {
     auto &test = tests[i];
     if (test.user_index) iap.iuzr = *test.user_index;
-    test.value = evaluate(test);
+    test.sample = {evaluate(test), std::nullopt};
   }
   if (iap.istop != 1 && found && tests[*found].user_index &&
       marks[*tests[*found].user_index].parameter < 0) iap.istop = -1;
@@ -250,6 +250,234 @@ bool location_sign_change(iap_type &iap, const rap_type &rap,
 // point within that tolerance.
 double location_step(const rap_type &rap, double rds, bool singular) {
   return singular ? rds - std::copysign(location_tolerance(rap) / 2, rds) : rds;
+}
+
+/* the multipliers of a cycle, restored with the rest of a failed location's state */
+struct LocationStateWithMultipliers {
+  LocationState state;
+  doublecomplex *target;
+  std::vector<doublecomplex> ev;
+  LocationStateWithMultipliers(LocationState s, doublecomplex *e, std::size_t n)
+    : state(std::move(s)), target(e), ev(e, e + n) {}
+  void restore(iap_type &iap, rap_type &rap) const {
+    state.restore(iap, rap);
+    std::copy(ev.begin(), ev.end(), target);
+  }
+};
+
+/* lcspae/lcspbv met a bracket of a test (a sign change between two samples)
+   that a smooth crossing does not explain (W545): the branch goes on without
+   the point, and says so once. */
+void special_point_rejected(const iap_type &iap, integer ibr, integer ntot, const char *kind, double parameter,
+                            const std::string &why)
+{
+  xpp::auto_stop_note(*iap.lib->session,
+                      xpp::format("Br {} Pt {}: {} between points {} and {} was not accepted at parameter {:.10g}: {}; it is missing from the diagram",
+                                  f2c::abs(ibr), ntot, kind, ntot, ntot + 1, parameter, why));
+}
+
+/* W545 (#610): the search LCSPAE (equilibria) and LCSPBV (cycles) share.
+   AUTO-07p's secant and Mueller iteration, with its tolerance, stored values
+   and early exits, as W356 translated it, and two additions, each for a
+   bracket that is new to it:
+   - a located zero leaves the test at the discarded end of its step as the
+     test's value instead of 0, so the next step's sign change reports a second
+     zero ahead of it (AUTO-07p's LCSPAE ae.f90:759 and LCSPBV bvp.f90:1425
+     store 0 and miss it: docs/auto07p-findings.md 11);
+   - a search that ends at ITMX bisects the bracket the iteration holds, down
+     to the tolerance, where AUTO-07p gives the point up (finding 11).
+   Both are accepted only as a crossing of a smooth test (auto_crossing_smooth,
+   after the search) and, for a cycle's branch-point test, a ratio of
+   consecutive determinants, only while the values at the ends of the step are
+   of a size a crossing within it gives (auto_ratio_in_scale, before). A zero
+   refused is said once and the state restored, exactly as for a point given up.
+   evaluate(chng) is the test at the current point, advance(rds) the predictor
+   and corrector for a step of rds (rds may come back shorter, a corrector's
+   retry), snapshot() the state a failed search restores, torus_singular()
+   whether a torus curve's equations are singular there (location_step). */
+template<class Evaluate, class Advance, class Snapshot, class TorusSingular>
+void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, const char *kind,
+                          bool user_zero, bool ratio_test, const double &parameter,
+                          double &dstest, bool &stepped,
+                          Evaluate evaluate, Advance advance, Snapshot snapshot, TorusSingular torus_singular)
+{
+  stepped = false;
+  const integer iid = iap.iid;
+  const integer itmx = iap.itmx;
+  const integer ibr = iap.ibr;
+  const double ds = rap.ds;
+  const double dsmax = rap.dsmax;
+  const double epss = rap.epss;
+
+  /* Check whether the test has changed sign. */
+
+  double q0 = sample.value;
+  const std::optional<double> discarded = std::exchange(sample.offset, std::nullopt);
+  double &q = sample.value;
+  bool chng;
+  double q1 = evaluate(chng);
+  const integer ntot = iap.ntot;
+  if (!location_sign_change(iap, rap, q0, q1, dstest, chng, user_zero)) {
+    q = q1;
+    return;
+  }
+
+  const double q_start = q0;
+  const double q_end = q1;
+  const double saved_dstest = dstest;
+  const double s_start = discarded.value_or(0.);
+  const double step_length = std::abs(saved_dstest - s_start);
+  const bool in_scale = !ratio_test || auto_ratio_in_scale(q_start, q_end, step_length, location_tolerance(rap));
+  const auto out_of_scale = [&] {
+    return xpp::format("its test is a ratio of consecutive determinants, and its values {:.3g} and {:.3g} at the ends of the step are beyond what a crossing within it gives",
+                       q_start, q_end);
+  };
+  if (discarded && !in_scale) {
+    q = q_end;
+    special_point_rejected(iap, ibr, ntot, kind, parameter, out_of_scale());
+    return;
+  }
+
+  auto saved = snapshot();
+  const bool singular = torus_singular();
+  const char *why = nullptr; /* why the point was given up; null: ITMX */
+  integer iterations = 0;
+  double rds, s;
+
+  /* One trial point: false when the search must go on without the point (why says so), and
+     cancelled when a stop was asked for. */
+  bool cancelled = false;
+  const auto trial = [&] {
+    if (iid >= 2) {
+      xpp::print(iap.lib->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",iterations,rds);
+    }
+    {
+      Locating locating(*iap.lib); /* predictor and solve belong to the unstored point */
+      advance(rds);
+    }
+    if (iap.istop != 0) {
+      // AUTO-07p LCSPAE ae.f90:738 / LCSPBV bvp.f90:1393: a solve that does not converge leaves the
+      // search: the point is given up (NOTE: Possible special point) and the branch goes on.
+      if (stop_asked(&iap)) {
+        cancelled = true;
+        return false;
+      }
+      iap.istop = 0;
+      why = "the corrector did not converge";
+      return false;
+    }
+    q = evaluate(chng);
+    // W419: an iterate where the test does not apply is no zero: give the point up.
+    if (!auto_test_applies(q)) {
+      why = "its test function does not apply there";
+      return false;
+    }
+    return true;
+  };
+
+  /* Use the secant method for the first step: */
+
+  double s0 = s_start, s1 = saved_dstest;
+  double dq = q0 - q1;
+  rds = q1 / dq * (s1 - s0);
+  const double rtmp = auto_hmach1;
+  bool converged = false;
+  for (;;) {
+    rds = rtmp * rds;
+
+    /* Return if relative tolerance has been met : */
+
+    const double rrds = f2c::abs(rds) / (sqrt(f2c::abs(ds * dsmax)) + 1);
+    if (rrds < epss) {
+      converged = true;
+      break;
+    }
+
+    rds = location_step(rap, rds, singular);
+    if (!trial()) break;
+    ++iterations;
+    // AUTO-07p LCSPAE ae.f90:743 / LCSPBV bvp.f90:1414:
+    // the corrector may have retried with a shorter step.
+    s = s1 + rds;
+    const bool more = iterations <= itmx;
+    if (more) {
+      stepped = true;
+      dstest = s;
+    }
+    /*        Use Mueller's method with bracketing for subsequent steps */
+    mueller(&q0, &q1, &q, &s0, &s1, &s, &rds);
+    if (!more) break;
+  }
+  std::string refused;
+  bool bisected = false;
+  const auto lo = std::min(s_start, saved_dstest), hi = std::max(s_start, saved_dstest);
+  if (!cancelled && !converged && !why && std::min(s0, s1) >= lo && std::max(s0, s1) <= hi) {
+    // AUTO-07p gives the point up here. The bracket (s0, s1) holds opposite signs and the state
+    // is at s1: halve it down to the tolerance. Whether it ends on a zero is the rule's to say.
+    if (!in_scale) {
+      refused = out_of_scale() + ", so the bracket was not bisected";
+    } else {
+      bisected = true;
+      stepped = true; // the state moves from here
+      const double tolerance = location_tolerance(rap);
+      while (std::abs(s1 - s0) >= tolerance) {
+        s = (s0 + s1) / 2;
+        if (s == s0 || s == s1) break;
+        rds = s - s1;
+        if (!trial()) break;
+        if ((q < 0.) != (q1 < 0.)) { // a value of exactly 0 is on the non-negative side
+          q0 = q1;
+          s0 = s1;
+        }
+        q1 = q;
+        s1 = s;
+        dstest = s;
+      }
+      converged = !why && !cancelled;
+    }
+  }
+  if (cancelled) {
+    q = 0.;
+    return;
+  }
+
+  // a zero new to AUTO-07p is accepted as a crossing of a smooth test or not at all (W545); a first
+  // secant step that lands within the tolerance of the end measures no slope, so it shows no crossing
+  if (converged && (discarded || bisected)) {
+    const double width = std::abs(s1 - s0);
+    if (iterations == 0) {
+      converged = false;
+      refused = "its test is within the tolerance of zero at the end of the step, with no search to show it crosses there";
+    } else if (!auto_crossing_smooth(q_end - q_start, step_length, q1 - q0, width)) {
+      converged = false;
+      refused = xpp::format("its test is not a smooth crossing: across the last {:.3g} of the search its slope is {:.3g} times its slope across the step, more than {} either way",
+                            width, (std::abs(q1 - q0) / width) / (std::abs(q_end - q_start) / step_length),
+                            auto_crossing_slope_ratio_max);
+    }
+  }
+
+  if (converged) {
+    iap.itp = xpp::AutoPointCode{xpp::AutoPointKind::Pending};
+    // the discarded end is ahead of the located point: it, not 0, is the test's value there (W545)
+    const double ahead = saved_dstest - s1;
+    if (iterations > 0 && ahead * saved_dstest > 0) {
+      q = q_end;
+      sample.offset = ahead;
+    } else {
+      q = 0.;
+    }
+    xpp::print(iap.lib->fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
+    return;
+  }
+
+  const double refused_parameter = parameter;
+  saved.restore(iap, rap);
+  dstest = saved_dstest;
+  stepped = false;
+  q = q_end;
+  xpp::print(iap.lib->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
+  if (refused.empty()) special_point_lost(iap, ibr, ntot, kind, why);
+  else special_point_rejected(iap, ibr, ntot, kind, refused_parameter, refused);
 }
 
 /* AutoLib::setubv_stop set for one solvbv, cleared the same way */
@@ -948,11 +1176,10 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   doublereal ds;
 
   integer lab, ibr;
-  doublereal rbp, rds;
+  doublereal rds;
+  AutoTestSample rbp, rev, rlp;
   xpp::AutoProblem ips;
   integer irs, isp;
-  doublereal rev;
-  doublereal rlp;
   integer nit;
   xpp::AutoPointCode itp;
 
@@ -969,7 +1196,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   std::vector<doublereal> du(xpp::size_sum(iap->ndim, 1));
   std::vector<doublereal> rhs(xpp::size_sum(iap->ndim, 1));
   std::vector<doublereal> stu;
-  std::vector<doublereal> uzr(iap->nuzr);
+  std::vector<AutoTestSample> uzr(iap->nuzr);
     
   /* Controls the bifurcation analysis of algebraic problems */
 
@@ -986,12 +1213,10 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   nins = 0;
   iap->nins = nins;
-  rbp = 0.;
-  rev = 0.;
-  rlp = 0.;
+  rbp = rev = rlp = {};
   if (nuzr > 0) {
     for (i = 0; i < nuzr; ++i) {
-      uzr[i] = 0.;
+      uzr[i] = {};
     }
   }
   rds = ds;
@@ -1020,7 +1245,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* Generate the starting point */
 
   iap->lib->codim.prepare(iap->ndm);
-  double rbt=0, rcp=0, rgh=0;
+  AutoTestSample rbt, rcp, rgh;
   const auto special_points=iap->lib->session->auto_state.special_points;
   (*stpnt)(iap, rap, par, icp, u.data());
   xpp::auto_check_start_parameters(*iap,*rap,par,icp);
@@ -1080,12 +1305,10 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     ++nbfc;
   }
 
-  rbp = 0.;
-  rev = 0.;
-  rlp = 0.;
+  rbp = rev = rlp = {};
   if (nuzr > 0) {
     for (i = 0; i < nuzr; ++i) {
-      uzr[i] = 0.;
+      uzr[i] = {};
     }
   }
   if (ipos == 0 || mxbf < 0) {
@@ -1129,9 +1352,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (istop == 1) {
     goto L6;
   }
-  rbp = 0.;
-  rev = 0.;
-  rlp = 0.;
+  rbp = rev = rlp = {};
 
 /* Provide initial approximation to the next point on the branch */
 
@@ -1178,7 +1399,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
         lcspae(iap, rap, par, icp, test.function, funi, &aa_first_dimension,
             aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
             du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(),
-            &test.value, thl, thu, marks, dstest, stepped);
+            test.sample, thl, thu, marks, dstest, stepped);
         if (ips==xpp::AutoProblem::DiscreteMap && (test.function==fnhbae || test.function==fnrnae))
           test.kind=iap->lib->codim.map_kind;
       });
@@ -1630,24 +1851,8 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* ----------------------------------------------------------------------- */
 
 int 
-lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *q, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped)
+lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, AutoTestSample &q, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped)
 {
-  const char *why = nullptr; /* why the point was given up; null: ITMX */
-  stepped = false;
-
-  bool chng;
-  doublereal epss, rrds;
-  integer itmx;
-  doublereal rtmp;
-  integer ntot;
-  doublereal s, dsmax;
-  integer istop;
-  doublereal q0, q1, s0, s1, dq, ds;
-
-  integer itlcsp, iid, ibr;
-  doublereal rds;
-  xpp::AutoPointCode itp;
-
   /* This subroutine uses the secant method to accurately locate special */
   /* points (branch points, folds, Hopf bifurcations, user zeroes). */
   /* These are characterized as zeroes of the function FNCS supplied in the 
@@ -1657,121 +1862,29 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 /* The special point is assumed to have been found with sufficient */
 /* accuracy if the ratio between RDS and the user supplied value of */
 /* DS is less than the user-supplied toler du. */
-
-  iid = iap->iid;
-  itmx = iap->itmx;
-  ibr = iap->ibr;
-
-  ds = rap->ds;
-  dsmax = rap->dsmax;
-  epss = rap->epss;
-
-  /* Check whether FNCS has changed sign (FNCS is EXTERNAL). */
-
-  q0 = *q;
-  q1 = (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, 
-	       aa, rlcur, rlold, rldot, u, uold, udot, 
-	       rhs, dfdu, dfdp, marks);
-  ntot = iap->ntot;
-  if (!location_sign_change(*iap, *rap, q0, q1, dstest, chng, fncs == fnuzae)) {
-    *q = q1;
-    return 0;
-  }
-
   const auto n = static_cast<std::size_t>(iap->ndim);
   const auto np = static_cast<std::size_t>(iap->lib->parameter_count);
   const auto na = static_cast<std::size_t>(*m1aaloc) * (n + 1);
-  const double saved_q = q1;
-  const double saved_dstest = dstest;
-  LocationState saved(*iap, *rap, {{par, np}, {rlcur, 1}, {rlold, 1}, {rldot, 1},
-      {u, n}, {uold, n}, {udot, n}, {aa, na}, {rhs, n + 1}, {du, n + 1},
-      {f, n}, {dfdu, n * n}, {dfdp, n * np}});
-
-  const bool singular = iap->itpst == xpp::AutoPointKind::NeimarkSacker &&
-      xpp::auto_torus_singular(u[2 * iap->ndm]);
-
-  /* Use the secant method for the first step: */
-
-  s0 = 0.;
-  s1 = dstest;
-  itlcsp = 0;
-  dq = q0 - q1;
-  rds = q1 / dq * (s1 - s0);
-  rtmp = auto_hmach1;
- L1:
-  rds = rtmp * rds;
-
-  /* Return if relative tolerance has been met : */
-
-  rrds = f2c::abs(rds) / (sqrt(f2c::abs(ds * dsmax)) + 1);
-  if (rrds < epss) {
-    itp = xpp::AutoPointCode{xpp::AutoPointKind::Pending};
-    iap->itp = itp;
-    *q = 0.;
-    xpp::print(iap->lib->fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
-    return 0;
-  }
-
-  rds = location_step(*rap, rds, singular);
-
-  /* If requested write additional output on unit 9 : */
-
-  if (iid >= 2) {
-    xpp::print(iap->lib->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",itlcsp,rds);	
-  }
-
-  {
-    Locating locating(*iap->lib); /* predictor and solve belong to the unstored point */
-    contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold,
-	 udot);
-    solvae(iap, rap, par, icp, funi, &rds, m1aaloc, aa,
-	   rhs, rlcur, rlold, rldot, u, du, uold, udot, f,
-	   dfdu, dfdp, thl, thu);
-  }
-  istop = iap->istop;
-  if (istop != 0) {
-    // AUTO-07p LCSPAE ae.f90:738: a SOLVAE that does not converge leaves the
-    // search: the point is given up (NOTE: Possible special point) and the branch goes on.
-    if (stop_asked(iap)) {
-      *q = 0.;
-      return 0;
-    }
-    iap->istop = 0;
-    why = "the corrector did not converge";
-    goto L2;
-  }
-
-  *q = (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, 
-	       aa, rlcur, rlold, rldot, u, uold, udot,
-	       rhs, dfdu, dfdp, marks);
-  // W419: an iterate where the test does not apply is no zero: give the point up.
-  if (!auto_test_applies(*q)) {
-    why = "its test function does not apply there";
-    goto L2;
-  }
-  ++itlcsp;
-  if (itlcsp <= itmx) {
-    // AUTO-07p LCSPAE ae.f90:743 / LCSPBV bvp.f90:1414:
-    // the corrector may have retried with a shorter step.
-    stepped = true;
-    s = s1 + rds;
-    dstest = s;
-    /*        Use Mueller's method with bracketing for subsequent steps */
-    mueller(&q0, &q1, q, &s0, &s1, &s, &rds);
-    goto L1;
-  }
-
- L2:
-  saved.restore(*iap, *rap);
-  dstest = saved_dstest;
-  stepped = false;
-  *q = saved_q;
-
-  xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
-  special_point_lost(*iap, ibr, ntot, located_kind(fncs), why);
-
+  locate_special_point(*iap, *rap, q, located_kind(fncs), fncs == fnuzae, false, par[icp[0]], dstest, stepped,
+      [&](bool &chng) {
+        return (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, aa, rlcur, rlold, rldot,
+                       u, uold, udot, rhs, dfdu, dfdp, marks);
+      },
+      [&](double &rds) {
+        contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold, udot);
+        solvae(iap, rap, par, icp, funi, &rds, m1aaloc, aa, rhs, rlcur, rlold, rldot, u, du,
+               uold, udot, f, dfdu, dfdp, thl, thu);
+      },
+      [&] {
+        return LocationState(*iap, *rap, {{par, np}, {rlcur, 1}, {rlold, 1}, {rldot, 1},
+            {u, n}, {uold, n}, {udot, n}, {aa, na}, {rhs, n + 1}, {du, n + 1},
+            {f, n}, {dfdu, n * n}, {dfdp, n * np}});
+      },
+      [&] {
+        return iap->itpst == xpp::AutoPointKind::NeimarkSacker &&
+            xpp::auto_torus_singular(u[2 * iap->ndm]);
+      });
   return 0;
-
 } /* lcspae_ */
 
 int 
@@ -4169,12 +4282,13 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer nitps, istop;
   xpp::AutoPointKind itpst;
   doublereal ds;
-  doublereal bp1;
-  doublereal sp1;
+  AutoTestSample bp1;
+  AutoTestSample sp1;
   integer iad;
   integer ilp, isp, irs;
   xpp::AutoProblem ips;
-  doublereal rds, rlp;
+  doublereal rds;
+  AutoTestSample rlp;
   integer isw;
   xpp::AutoPointCode itp;
     
@@ -4193,7 +4307,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   std::vector<doublereal> p1(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublecomplex> ev(iap->ndim);
   if (iap->isw==2 && xpp::problem_has_orbit_multipliers(iap->ips)) iap->lib->codim.prepare_cycle(iap->ndim,iap->ndm);
-  std::vector<doublereal> uzr(iap->nuzr);
+  std::vector<AutoTestSample> uzr(iap->nuzr);
 
   /* INITIALIZE COMPUTATION OF BRANCH */
 
@@ -4219,12 +4333,10 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     isp = -isp;
     iap->isp = isp;
   }
-  sp1 = 0.;
-  bp1 = 0.;
-  rlp = 0.;
+  sp1 = bp1 = rlp = {};
   if (nuzr > 0) {
     for (i = 0; i < nuzr; ++i) {
-      uzr[i] = 0.;
+      uzr[i] = {};
     }
   }
   nitps = 0;
@@ -4350,7 +4462,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       },
       [&](auto &test, double &dstest, bool &stepped) {
         lcspbv(iap, rap, par, icp, test.function, funi, bcni, icni, pvli,
-            &test.value, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one,
+            test.sample, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one,
             ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(),
             fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(),
             ev.data(), thl, thu, marks, dstest, stepped);
@@ -5252,25 +5364,8 @@ stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* ----------------------------------------------------------------------- */
 
 int 
-lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), doublereal *q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped)
+lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), AutoTestSample &q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, std::span<const AutoMark> marks, double &dstest, bool &stepped)
 {
-  const char *why = nullptr; /* why the point was given up; null: ITMX */
-  stepped = false;
-  bool chng;
-  doublereal epss;
-  integer ntop, itmx;
-  doublereal rtmp, rrds;
-  integer ntot;
-  doublereal s, dsmax;
-  integer istop;
-  doublereal q0, q1, s0, s1;
-  integer nitsp1;
-  doublereal dq, ds;
-
-  integer iid, ibr;
-  doublereal rds;
-  xpp::AutoPointCode itp;
-
   /* This subroutine uses the Secant method to accurately locate folds */
   /* branch points, and zero(es) of user parameter values. */
   /* Such points are located as points on a solution branch where the */
@@ -5282,131 +5377,32 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   /* the user-supplied tolerance EPSS. */
   /* This subroutine is called from CNRLB, which controls the computation */
   /* of branches of solutions to general boundary value problems. */
-
-  iid = iap->iid;
-  itmx = iap->itmx;
-  ibr = iap->ibr;
-  ntot = iap->ntot;
-  ntop = ntot + 1;
-
-  ds = rap->ds;
-  dsmax = rap->dsmax;
-  epss = rap->epss;
-
-  /* Check for zero. */
-
-  q0 = *q;
-  q1 = (*fncs)(iap, rap, par, icp, &chng, funi, bcni, icni, p0, p1, 
-	       ev, rlcur, rlold, rldot, ndxloc, ups, uoldps, 
-	       udotps, upoldp, fa, fc, dups, tm, dtm, thl, thu, marks)
-    ;
-
-  if (!location_sign_change(*iap, *rap, q0, q1, dstest, chng, fncs == fnuzbv)) {
-    *q = q1;
-    return 0;
-  }
-
   const auto n = static_cast<std::size_t>(iap->ndim);
   const auto np = static_cast<std::size_t>(iap->lib->parameter_count);
   const auto nfpr = static_cast<std::size_t>(iap->nfpr);
   const auto nu = static_cast<std::size_t>(*ndxloc) * n * iap->ncol;
   const auto nc = static_cast<std::size_t>(iap->nbc + iap->nint + 1);
-  const double saved_q = q1;
-  const double saved_dstest = dstest;
-  LocationState saved(*iap, *rap, {{par, np}, {rlcur, nfpr}, {rlold, nfpr},
-      {rldot, nfpr}, {ups, nu}, {uoldps, nu}, {udotps, nu}, {upoldp, nu},
-      {p0, n * n}, {p1, n * n}, {dups, nu}, {fa, nu}, {fc, nc}});
-  const std::vector<doublecomplex> saved_ev(ev, ev + n);
-
-  const bool singular = iap->isw == 2 && iap->itpst == xpp::AutoPointKind::NeimarkSacker &&
-      xpp::auto_torus_singular(par[xpp::auto_unknown::torus_angle]);
-
-  /* Use the secant method for the first step: */
-
-  s0 = 0.;
-  s1 = dstest;
-  nitsp1 = 0;
-  dq = q0 - q1;
-  rds = q1 / dq * (s1 - s0);
-  rtmp = auto_hmach1;
- L1:
-  rds = rtmp * rds;
-
-  /* Return if tolerance has been met : */
-
-  rrds = f2c::abs(rds) / (sqrt(f2c::abs(ds * dsmax)) + 1);
-  if (rrds < epss) {
-    itp = xpp::AutoPointCode{xpp::AutoPointKind::Pending};
-    iap->itp = itp;
-    *q = 0.;
-    xpp::print(iap->lib->fp9,"==> Location of special point : Convergence.    Stepsize ={:11.3E}\n",rds);	
-
-    return 0;
-  }
-
-  rds = location_step(*rap, rds, singular);
-
-  /* If requested write additional output on unit 9 : */
-
-  if (iid >= 2) {
-    xpp::print(iap->lib->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",nitsp1,rds);	
-  }
-
-  {
-    Locating locating(*iap->lib); /* predictor and solve belong to the unstored point */
-    contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, &
-	 rldot[0], ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
-    stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, &rlcur[-1 +
-								   1], rlold, rldot, ndxloc, ups, dups, uoldps, udotps,
-	   upoldp, fa, fc, tm, dtm, p0, p1, thl, thu);
-  }
-  istop = iap->istop;
-  if (istop != 0) {
-    // AUTO-07p LCSPBV bvp.f90:1393: a STEPBV that does not converge leaves the
-    // search: the point is given up (NOTE: Possible special point) and the branch goes on.
-    if (stop_asked(iap)) {
-      *q = 0.;
-      return 0;
-    }
-    iap->istop = 0;
-    why = "the corrector did not converge";
-    goto L2;
-  }
-
-  /* Check for zero. */
-
-  *q = (*fncs)(iap, rap, par, icp, &chng, funi, bcni, icni, p0, p1, 
-	       ev, rlcur, rlold, rldot, ndxloc, ups, uoldps, 
-	       udotps, upoldp, fa, fc, dups, tm, dtm, thl, thu, marks)
-    ;
-  // W419: an iterate where the test does not apply is no zero: give the point up.
-  if (!auto_test_applies(*q)) {
-    why = "its test function does not apply there";
-    goto L2;
-  }
-
-  ++nitsp1;
-  if (nitsp1 <= itmx) {
-    // AUTO-07p LCSPAE ae.f90:743 / LCSPBV bvp.f90:1414:
-    // the corrector may have retried with a shorter step.
-    stepped = true;
-    s = s1 + rds;
-    dstest = s;
-    /*        Use Mueller's method with bracketing for subsequent steps */
-    mueller(&q0, &q1, q, &s0, &s1, &s, &rds);
-    goto L1;
-  }
-
- L2:
-  saved.restore(*iap, *rap);
-  dstest = saved_dstest;
-  stepped = false;
-  std::copy(saved_ev.begin(), saved_ev.end(), ev);
-  *q = saved_q;
-
-  xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntop);
-  special_point_lost(*iap, ibr, ntot, located_kind(fncs), why);
-
+  locate_special_point(*iap, *rap, q, located_kind(fncs), fncs == fnuzbv, fncs == fnbpbv, par[icp[0]], dstest, stepped,
+      [&](bool &chng) {
+        return (*fncs)(iap, rap, par, icp, &chng, funi, bcni, icni, p0, p1, ev, rlcur, rlold,
+                       rldot, ndxloc, ups, uoldps, udotps, upoldp, fa, fc, dups, tm, dtm,
+                       thl, thu, marks);
+      },
+      [&](double &rds) {
+        contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, &rldot[0], ndxloc, ups, uoldps,
+               udotps, upoldp, dtm, thl, thu);
+        stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, &rlcur[-1 + 1], rlold, rldot,
+               ndxloc, ups, dups, uoldps, udotps, upoldp, fa, fc, tm, dtm, p0, p1, thl, thu);
+      },
+      [&] {
+        return LocationStateWithMultipliers(LocationState(*iap, *rap, {{par, np}, {rlcur, nfpr},
+            {rlold, nfpr}, {rldot, nfpr}, {ups, nu}, {uoldps, nu}, {udotps, nu}, {upoldp, nu},
+            {p0, n * n}, {p1, n * n}, {dups, nu}, {fa, nu}, {fc, nc}}), ev, n);
+      },
+      [&] {
+        return iap->isw == 2 && iap->itpst == xpp::AutoPointKind::NeimarkSacker &&
+            xpp::auto_torus_singular(par[xpp::auto_unknown::torus_angle]);
+      });
   return 0;
 } /* lcspbv_ */
 

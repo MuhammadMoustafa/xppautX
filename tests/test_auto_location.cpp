@@ -7,6 +7,8 @@
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include <array>
+#include <optional>
+#include <tuple>
 #include <limits>
 #include <cmath>
 #include "autevd.h"
@@ -70,10 +72,52 @@ double noisy(iap_type *iap, rap_type *, double *, integer *, bool *chng,
     iap->lib->session->auto_state.stability.computed.re = {u[0]};
     return 1;
 }
+// W545 (#610): tests on the straight branch u = par (the test is a function of u alone).
+double two_zeros(iap_type *, rap_type *, double *, integer *, bool *chng,
+                 FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+                 double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
+{
+    *chng = true;
+    return (u[0] - 0.4) * (u[0] - 0.7);
+}
+double jump(iap_type *, rap_type *, double *, integer *, bool *chng,
+            FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+            double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
+{
+    *chng = true;
+    return u[0] < 0.4 ? -1 : 1;
+}
+// cells of width 0.02 alternate in sign: every sample's sign is that of its cell, none is a crossing
+double noise(iap_type *, rap_type *, double *, integer *, bool *chng,
+             FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+             double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
+{
+    *chng = true;
+    return static_cast<long>(std::floor(u[0] / 0.02)) % 2 == 0 ? 1e-3 : -1e-3;
+}
+double touching(iap_type *, rap_type *, double *, integer *, bool *chng,
+                FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+                double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
+{
+    *chng = true;
+    return std::pow(u[0] - 0.4, 3);
+}
 }
 
 int main()
 {
+    // W545: the crossing rule. The same slope across the step and at the end of the search is a crossing;
+    // a slope that grew (a jump, noise) or shrank (a touching) by more than the factor, either way, is not.
+    CHECK(auto_crossing_smooth(1, 1, 1e-6, 1e-6));
+    CHECK(auto_crossing_smooth(1, 1, 2e-6, 1e-6) && auto_crossing_smooth(1, 1, 5e-7, 1e-6));
+    CHECK(!auto_crossing_smooth(1, 1, 1, 1e-4) && !auto_crossing_smooth(1, 1, 1e-12, 1e-4));
+    CHECK(!auto_crossing_smooth(1, 1, 0, 1e-4) && !auto_crossing_smooth(1, 0, 1, 1) && !auto_crossing_smooth(1, 1, 1, 0));
+    CHECK(auto_crossing_smooth(-1, 1, 3e-6, 1e-6) && !auto_crossing_smooth(-1, 1, 3.1e-6, 1e-6));
+    // a cycle's branch-point ratio is in scale while it is below what the step holds tolerances
+    CHECK(auto_ratio_in_scale(-1.4, 0.25, 0.05, 1e-4));
+    CHECK(!auto_ratio_in_scale(2.4e13, -5.9e14, 0.05, 1e-4) && !auto_ratio_in_scale(-2.7e7, 1.0e8, 0.01, 1e-4));
+    CHECK(auto_ratio_in_scale(1e-7, -3e-8, 0.002, 1e-4));
+
     // MUELLER's quadratic through (-1,2), (0,1), (1,2) has no
     // real zero. AUTO-07p sets the radical to zero instead of sqrt(-1).
     double q0 = 2, q1 = 1, value = 2, s0 = -1, s1 = 0, abscissa = 1, step = 0;
@@ -113,7 +157,8 @@ int main()
     const AutoMark mark{0, 0};
     double rlcur = 1, rlold = 0, rldot = 1;
     double u = 1, uold = 0, udot = 1, f = 0, dfdu = 1;
-    double q = -1, thu = 1;
+    AutoTestSample q{-1};
+    double thu = 1;
     double dstest = rap.dsold;
     bool stepped = false;
     std::array<double, 4> aa{1, 2, 3, 4};
@@ -126,11 +171,11 @@ int main()
     const auto initial_du = du;
     CHECK(lcspae(&iap, &rap, par.data(), &icp, noisy, line, &stride, aa.data(),
                  rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
-                 &f, &dfdu, dfdp.data(), &q, thl.data(), &thu, std::span(&mark, 1), dstest, stepped) == 0);
+                 &f, &dfdu, dfdp.data(), q, thl.data(), &thu, std::span(&mark, 1), dstest, stepped) == 0);
     CHECK(iap.istop == 0 && iap.itp == xpp::AutoPointCode{} && iap.nit == 3 && iap.nins == 1);
     CHECK(rlcur == 1 && rlold == 0 && rldot == 1 && par[0] == 1);
     CHECK(u == 1 && uold == 0 && udot == 1);
-    CHECK(rap.dsold == 1 && rap.det == 7 && q == 1);
+    CHECK(rap.dsold == 1 && rap.det == 7 && q.value == 1 && !q.offset);
     CHECK(aa == initial_aa && rhs == initial_rhs && du == initial_du);
     CHECK(dfdu == 1 && dfdp[0] == -1 && f == 0);
     CHECK(s.auto_state.stability.computed.re == std::vector<double>{1});
@@ -140,14 +185,88 @@ int main()
     iap.iads = 1;
     rap.dsmin = 1e-5;
     thu = 0; // arclength measures only the parameter on u=par
-    q = -0.4;
+    q = AutoTestSample{-0.4};
     dstest = rap.dsold;
     CHECK(lcspae(&iap, &rap, par.data(), &icp, target, retry_line, &stride, aa.data(),
                  rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
-                 &f, &dfdu, dfdp.data(), &q, thl.data(), &thu, std::span(&mark, 1), dstest, stepped) == 0);
+                 &f, &dfdu, dfdp.data(), q, thl.data(), &thu, std::span(&mark, 1), dstest, stepped) == 0);
     CHECK(iap.istop == 0 && iap.itp.kind == xpp::AutoPointKind::Pending);
     CHECK(std::abs(u - 0.4) < rap.epss && std::abs(rlcur - 0.4) < rap.epss);
-    CHECK(q == 0 && std::abs(rap.dsold) <= 0.4);
+    // W545: the test keeps its value at the discarded end of the step (u = 1: 0.6), 0.6 ahead of the zero
+    CHECK(std::abs(q.value - 0.6) < 1e-12 && q.offset && std::abs(*q.offset - 0.6) < 10 * rap.epss && std::abs(rap.dsold) <= 0.4);
+    thu = 1;
+
+    // W545 (#610): the straight branch from u = 0, a step of `end` taken, the test's sample `from`.
+    thu = 0;
+    iap.itmx = 8;
+    const auto reset = [&](double end) {
+        par[0] = rlcur = u = end;
+        rlold = uold = 0;
+        rldot = udot = 1;
+        f = 0;
+        dfdu = 1;
+        dfdp[0] = -1;
+        rap.dsold = dstest = end;
+        iap.itp = xpp::AutoPointCode{};
+        iap.istop = 0;
+        stepped = false;
+    };
+    const auto locate = [&](auto &test, AutoTestSample &sample) {
+        return lcspae(&iap, &rap, par.data(), &icp, test, line, &stride, aa.data(),
+                      rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
+                      &f, &dfdu, dfdp.data(), sample, thl.data(), &thu, std::span(&mark, 1), dstest, stepped);
+    };
+    const auto notes = [&] { return s.auto_state.stop.notes.size(); };
+    const auto frozen = [&] { return std::array<double, 6>{u, uold, rlcur, rlold, rap.dsold, par[0]}; };
+    // A: a second zero in the step after a located one. AUTO-07p's stored 0 hides it.
+    {
+        const auto before = notes();
+        reset(0.55);
+        AutoTestSample sample{0.28};
+        CHECK(locate(two_zeros, sample) == 0);
+        CHECK(iap.itp.kind == xpp::AutoPointKind::Pending && std::abs(u - 0.4) < 1e-5);
+        CHECK(std::abs(sample.value + 0.0225) < 1e-9 && sample.offset && std::abs(*sample.offset - 0.15) < 1e-4);
+        iap.itp = xpp::AutoPointCode{};
+        double rds = 0.4;
+        contae(&iap, &rap, &rds, &rlcur, &rlold, &rldot, &u, &uold, &udot);
+        solvae(&iap, &rap, par.data(), &icp, line, &rds, &stride, aa.data(), rhs.data(), &rlcur, &rlold,
+               &rldot, &u, du.data(), &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
+        CHECK(std::abs(u - 0.8) < 1e-5);
+        dstest = rap.dsold;
+        AutoTestSample stored_zero{0};
+        const auto state = frozen();
+        CHECK(locate(two_zeros, stored_zero) == 0);
+        CHECK(iap.itp.kind != xpp::AutoPointKind::Pending && state == frozen());
+        CHECK(locate(two_zeros, sample) == 0);
+        CHECK(iap.itp.kind == xpp::AutoPointKind::Pending && std::abs(u - 0.7) < 1e-5 && notes() == before);
+    }
+    // B: a search that uses up ITMX (0 here) bisects its bracket and the zero of a smooth test is located
+    {
+        iap.itmx = 0;
+        reset(1);
+        const auto before = notes();
+        AutoTestSample sample{-0.4};
+        CHECK(locate(target, sample) == 0);
+        CHECK(iap.itp.kind == xpp::AutoPointKind::Pending && stepped && std::abs(u - 0.4) < 1e-5 && notes() == before);
+    }
+    // a jump, noise and a touching are crossings of nothing smooth: refused, said once, the state the step end's
+    // (the first starts from the test's discarded end, the others from ITMX 0's bisection)
+    for (const auto &[test, first, itmx] : {
+             std::tuple{jump, -1.0, 8}, std::tuple{jump, -1.0, 0},
+             std::tuple{noise, -1e-3, 0}, std::tuple{touching, -0.064, 0}}) {
+        iap.itmx = itmx;
+        reset(1);
+        const auto state = frozen();
+        const auto before = notes();
+        AutoTestSample sample{first, itmx == 8 ? std::optional<double>{0.} : std::nullopt};
+        CHECK(locate(test, sample) == 0);
+        const auto refused = notes() == before + 1 ? s.auto_state.stop.notes.back() : std::string();
+        CHECK(iap.itp.kind != xpp::AutoPointKind::Pending && !stepped && !sample.offset);
+        CHECK(state == frozen());
+        CHECK(refused.find("was not accepted at parameter") != std::string::npos);
+        CHECK(refused.find("not a smooth crossing") != std::string::npos);
+    }
+    iap.itmx = 2;
     thu = 1;
 
     // W343 (#404): reject a nonfinite step, retry down to Dsmin, restore
