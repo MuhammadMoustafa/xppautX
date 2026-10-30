@@ -650,17 +650,20 @@ def _series(a, source, name, records, method=None, native_only=False, horizon=No
         logs = {e: (outputs[e] / 'run.log').read_text(errors='replace') for e in active}
         last = {e: next((l.strip() for l in reversed(t.splitlines()) if 'not completed' not in l and l.strip() and 'Run complete' not in l), '')
                 for e, t in logs.items()}
-        # An engine aborted when its own log says so: both programs print "Integration not completed" and write what they have;
-        # Python's integrator stops without output.
-        stopped = {e: ('Integration not completed' in logs[e]) if e != 'python' else
-                   any(not r['valid'] for r in current if r['engine'] == e and r['row'] == 'run') and not (outputs[e] / 'output.dat').exists()
+        # An engine aborted: xppautX says why and exits 1 (W480), XPPAUT prints "Integration not completed" and exits 0, both
+        # writing what they have; Python's integrator stops without output.
+        run_failed = {e: any(r['exit_code'] != 0 for r in current if r['engine'] == e and r['row'] == 'run') for e in active}
+        stopped = {e: run_failed[e] if e == 'xppautx' else ('Integration not completed' in logs[e]) if e == 'xppaut' else
+                   run_failed[e] and not (outputs[e] / 'output.dat').exists()
                    for e in active}
-        same_prefix = len({sha(outputs[e] / 'output.dat') for e in ('xppautx', 'xppaut') if e in outputs and (outputs[e] / 'output.dat').exists()}) == 1
-        if rep == 0 and all(stopped.values()) and same_prefix:
-            # Every engine stops, and the two programs stop at the same row: the method fails on this model (it leaves the bounds or
-            # Newton does not converge), so there is no work to compare or time. A result of its own, not a failure of the harness.
-            save(a.out / 'diverged' / (name + '.json'), dict(workload=name, method=method, last_log_line=last,
-                 note='every engine aborts, xppautX and XPPAUT at the same row: the method fails on this model; nothing was timed'))
+        same_row = len({sha(outputs[e] / 'output.dat') for e in ('xppautx', 'xppaut') if e in outputs and (outputs[e] / 'output.dat').exists()}) == 1
+        if rep == 0 and all(stopped.values()):
+            # Every engine stops: the method fails on this model (it leaves the bounds or Newton does not converge), so there is no
+            # work to compare or time. A result of its own, not a failure of the harness; where xppautX and XPPAUT stop at different
+            # rows, each one's stop is kept.
+            save(a.out / 'diverged' / (name + '.json'), dict(workload=name, method=method, last_log_line=last, same_row=same_row,
+                 note='every engine aborts, xppautX and XPPAUT %s: the method fails on this model; nothing was timed'
+                      % ('at the same row' if same_row else 'at different rows')))
             progress(a, 'ALL ENGINES ABORT (%s): the method fails on this model; nothing timed: %s' % ('; '.join('%s: %s' % kv for kv in last.items()), name))
             for rec in current:
                 rec['equal_work'] = False

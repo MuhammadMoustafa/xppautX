@@ -138,7 +138,7 @@ def backward_euler_step(rhs, t, y, dt, numerics):
         yp = rhs(t, yg)
         errvec = yg - .5 * dt * (yp + yp2) - y
         err1 = total(np.abs(errvec))
-        jac = jacobian(rhs, t, yg, yp, numerics.equilibria.jacobian_step) * (-.5 * dt)
+        jac = jacobian(rhs, t, yg, yp, numerics.jacobian_step) * (-.5 * dt)
         jac[np.diag_indices_from(jac)] += 1.0
         ipvt, info = sgefa(jac)
         if info != -1:
