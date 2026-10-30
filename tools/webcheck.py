@@ -869,11 +869,20 @@ else:
     pt, tk = int(mm.group(1)), mm.group(2)
     q = page_events(pt, tk)
     until_event(q, done_event)
-    send_cmd(pt, tk, {'cmd':'auto.open'})
-    until_event(q, done_event)
-    send_cmd(pt, tk, {'cmd':'auto.run','kind':'equilibrium'})
-    evs, _ = until_event(q, done_event, 300)
-    page_log = ''.join(e.get('text', '') for e in evs if e['ev'] == 'session.log')
+    # each wait is for its own command's done, by id: another done (the page's connection) shifts no pairing
+    send_cmd(pt, tk, {'cmd':'auto.open', 'id':'w501-open'})
+    until_event(q, lambda e: done_event(e) and e.get('id') == 'w501-open')
+    send_cmd(pt, tk, {'cmd':'auto.run','kind':'equilibrium', 'id':'w501-run'})
+    # what the core prints reaches the page from xpp_http.cpp's log reader thread, not in order with the
+    # run's done: the wait is for the table's last line itself
+    logged = []
+
+    def table_ended(e):
+        if e['ev'] == 'session.log':
+            logged.append(e.get('text', ''))
+        return 'stopped at point' in ''.join(logged)
+    until_event(q, table_ended, 300)
+    page_log = ''.join(logged)
     check('W501: the page log has AUTO\'s table', 'BR    PT' in page_log and 'stopped at point' in page_log, page_log[:200])
     stop_page(p, reader)
     lines = [line for line in term if not line.startswith('XPP: ')]
