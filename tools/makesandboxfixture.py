@@ -63,8 +63,9 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         command(server, cmd='recording.add_note', note='Open AUTO to continue the resting equilibrium in applied current Iapp.')
         command(server, cmd='auto.open')
         command(server, cmd='recording.add_note', note='Use bounded equilibrium continuation in Iapp; allow the resting state norm.')
-        command(server, cmd='auto.configure_numerics', **{'ntst': 15, 'nmx': 1500, 'npr': 20,
-            'ds': 1, 'dsmax': 50, 'rl0': -500, 'rl1': 17500, 'a0': -200, 'a1': 200, 'mxbf': 5})
+        command(server, cmd='auto.configure_numerics', **{'mesh_intervals': 15, 'max_steps': 1500, 'output_every': 20,
+            'step_size': 1, 'max_step_size': 50, 'parameter_min': -500, 'parameter_max': 17500, 'norm_min': -200, 'norm_max': 200,
+            'max_branch_switches': 5})
         command(server, cmd='recording.add_note', note='Show voltage V versus applied current Iapp, with fixed readable axes.')
         command(server, cmd='auto.configure_plot', **{'plot_type': 'maximum', 'variable': 'V', 'parameter1': 'Iapp',
             'x_min': -20, 'x_max': 200, 'y_min': -90, 'y_max': -35})
