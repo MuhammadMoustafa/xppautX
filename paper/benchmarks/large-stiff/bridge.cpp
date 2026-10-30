@@ -27,10 +27,11 @@ struct Study {
     int cache_factors=0;
     std::chrono::steady_clock::time_point cache_start;
     double cache_seconds=0;
-    decltype(CVodeMemRec{}.cv_lsetup) cache_setup=nullptr;
+    decltype(xpp::cvode_solver::CVodeMemRec::cv_lsetup) cache_setup=nullptr;
 };
-int cache_setup(CVodeMem memory,int failure,N_Vector y,N_Vector f,bool *current,
-                N_Vector tmp1,N_Vector tmp2,N_Vector tmp3) {
+int cache_setup(xpp::cvode_solver::CVodeMemRec *memory,int failure,xpp::cvode_solver::N_VectorContent *y,
+                xpp::cvode_solver::N_VectorContent *f,bool &current,xpp::cvode_solver::N_VectorContent *tmp1,
+                xpp::cvode_solver::N_VectorContent *tmp2,xpp::cvode_solver::N_VectorContent *tmp3) {
     auto &s=*static_cast<Study *>(memory->cv_f_data);
     if(s.cache_factors==0) {
         s.cache_start=std::chrono::steady_clock::now();
@@ -56,7 +57,7 @@ template<class F> int guard(Study &s, F f) noexcept {
     catch(...) { s.error="study callback failed"; }
     return -1;
 }
-void rhs(int n, double t, N_Vector y, N_Vector f, void *data) {
+void rhs(int n, double t, xpp::cvode_solver::N_VectorContent *y, xpp::cvode_solver::N_VectorContent *f, void *data) {
     if(study_rhs(data,t,y->data,f->data)) throw std::runtime_error(study_error(data));
     (void)n;
 }
@@ -64,9 +65,9 @@ void rhs(int n, double t, N_Vector y, N_Vector f, void *data) {
 extern "C" void *study_load(const char *path) {
     auto p=std::make_unique<Study>();
     guard(*p,[&] {
-        std::string name="w378", file=path;
-        char *argv[]={name.data(),file.data(),nullptr};
-        auto loaded=xpp::load_model(2,argv,1);
+        auto line=xpp::parse_command_line({"w378",path});
+        if(!line) throw std::runtime_error(line.error().text());
+        auto loaded=xpp::load_model(std::move(*line),1);
         if(!loaded) throw std::runtime_error(loaded.error().text());
         p->session=*loaded;
         if(!xpp::ensure_exact_jacobian(**loaded)) throw std::runtime_error((*loaded)->model().jacobian.unavailable);
@@ -137,31 +138,30 @@ extern "C" int study_legacy(void *p,const char *solver,double tol,double total,i
     auto &s=*static_cast<Study *>(p);
     return guard(s,[&] {
         const int n=study_size(p);
-        std::unique_ptr<N_VectorContent,decltype(&N_VFree)> y(N_VNew(n,nullptr),N_VFree);
+        std::unique_ptr<xpp::cvode_solver::N_VectorContent,decltype(&xpp::cvode_solver::N_VFree)> y(xpp::cvode_solver::N_VNew(n),xpp::cvode_solver::N_VFree);
         if(study_initial(p,y->data)) throw std::runtime_error(s.error);
-        std::array<int,OPT_SIZE> iopt{};
-        std::array<double,OPT_SIZE> ropt{};
+        std::array<int,xpp::cvode_solver::OPT_SIZE> iopt{};
+        std::array<double,xpp::cvode_solver::OPT_SIZE> ropt{};
         // Same BDF/Newton/scalar settings as W34's adapter, 2000 steps/call.
-        void *memory=CVodeMalloc(n,rhs,0,y.get(),BDF,NEWTON,SS,&tol,&tol,p,false,iopt.data(),ropt.data(),nullptr);
+        xpp::cvode_solver::CVodeMemRec *memory=xpp::cvode_solver::CVodeMalloc(n,rhs,0,y.get(),xpp::cvode_solver::BDF,xpp::cvode_solver::NEWTON,xpp::cvode_solver::SS,&tol,&tol,p,false,iopt.data(),ropt.data());
         if(!memory) throw std::runtime_error("CVodeMalloc failed");
-        std::unique_ptr<void,decltype(&CVodeFree)> cv(memory,CVodeFree);
+        std::unique_ptr<xpp::cvode_solver::CVodeMemRec,decltype(&xpp::cvode_solver::CVodeFree)> owned(memory,xpp::cvode_solver::CVodeFree);
         const bool band=std::string(solver)=="legacy-band";
-        if(band) CVBand(memory,s.band,s.band,nullptr,nullptr);
-        else CVDense(memory,nullptr,nullptr);
+        if(band) xpp::cvode_solver::CVBand(memory,s.band,s.band,nullptr,nullptr);
+        else xpp::cvode_solver::CVDense(memory,nullptr,nullptr);
         const bool cache=std::getenv("W378_CACHE_PROFILE")!=nullptr;
         if(cache) {
             if(band) throw std::runtime_error("cache profiling requires legacy dense");
-            auto *m=static_cast<CVodeMem>(memory);
             s.cache_factors=0;
-            s.cache_setup=m->cv_lsetup;
-            m->cv_lsetup=cache_setup;
+            s.cache_setup=memory->cv_lsetup;
+            memory->cv_lsetup=cache_setup;
         }
         std::ofstream out(output);
         if(!out) throw std::runtime_error("cannot open trajectory");
         out<<std::setprecision(17);
         try { for(int k=0;k<rows;k++) {
             double t=total*k/(rows-1);
-            if(k && CVode(memory,t,y.get(),&t,NORMAL)!=SUCCESS) throw std::runtime_error("legacy CVode failed");
+            if(k && xpp::cvode_solver::CVode(memory,t,y.get(),t,xpp::cvode_solver::NORMAL)!=xpp::cvode_solver::SUCCESS) throw std::runtime_error("legacy CVode failed");
             out<<t; for(int j=0;j<n;j++) out<<' '<<y->data[j]; out<<'\n';
         } } catch(const CacheComplete &) {
             std::ofstream report(stats);
@@ -172,18 +172,19 @@ extern "C" int study_legacy(void *p,const char *solver,double tol,double total,i
         }
         if(cache) throw std::runtime_error("run ended before the cache factorization cap");
         std::ofstream report(stats);
-        report<<"{\"steps\":"<<iopt[NST]<<",\"rhs\":"<<iopt[NFE]<<",\"newton\":"<<iopt[NNI]
-              <<",\"setups\":"<<iopt[NSETUPS]<<",\"jacobians\":"<<iopt[DENSE_NJE]
+        report<<"{\"steps\":"<<iopt[xpp::cvode_solver::NST]<<",\"rhs\":"<<iopt[xpp::cvode_solver::NFE]<<",\"newton\":"<<iopt[xpp::cvode_solver::NNI]
+              <<",\"setups\":"<<iopt[xpp::cvode_solver::NSETUPS]<<",\"jacobians\":"<<iopt[xpp::cvode_solver::DENSE_NJE]
               <<",\"linear_iterations\":null,\"linear_iterations_note\":\"direct solve; not exposed\"}\n";
         if(!report || !out) throw std::runtime_error("trajectory/stats write failed");
     });
 }
 extern "C" void study_free(void *p) { delete static_cast<Study *>(p); }
-extern "C" int __real_DenseFactor(DenseMat,integer *);
-extern "C" int __wrap_DenseFactor(DenseMat a,integer *p) {
-    return factor_event("legacy-dense",[&]{return __real_DenseFactor(a,p);});
+// The retained CVODE is C++ (W511): --wrap names its factorizations by their mangled symbols.
+extern "C" int __real__ZN3xpp12cvode_solver11DenseFactorEPNS0_11DenseMatRecEPi(xpp::cvode_solver::DenseMatRec *,int *);
+extern "C" int __wrap__ZN3xpp12cvode_solver11DenseFactorEPNS0_11DenseMatRecEPi(xpp::cvode_solver::DenseMatRec *a,int *p) {
+    return factor_event("legacy-dense",[&]{return __real__ZN3xpp12cvode_solver11DenseFactorEPNS0_11DenseMatRecEPi(a,p);});
 }
-extern "C" int __real_BandFactor(BandMat,integer *);
-extern "C" int __wrap_BandFactor(BandMat a,integer *p) {
-    return factor_event("legacy-band",[&]{return __real_BandFactor(a,p);});
+extern "C" int __real__ZN3xpp12cvode_solver10BandFactorEPNS0_10BandMatRecEPi(xpp::cvode_solver::BandMatRec *,int *);
+extern "C" int __wrap__ZN3xpp12cvode_solver10BandFactorEPNS0_10BandMatRecEPi(xpp::cvode_solver::BandMatRec *a,int *p) {
+    return factor_event("legacy-band",[&]{return __real__ZN3xpp12cvode_solver10BandFactorEPNS0_10BandMatRecEPi(a,p);});
 }

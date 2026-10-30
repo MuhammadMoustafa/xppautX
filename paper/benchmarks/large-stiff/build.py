@@ -19,7 +19,8 @@ def build(prefix, out):
     commands += [['g++', '-std=c++23', '-g', '-O2', '-fPIC', '-ffp-contract=off', '-Wall', '-pedantic', '-Werror',
                   '-Icore', '-I'+str(HERE), '-shared', str(HERE/'bridge.cpp'), str(core/'libxppcore.a'),
                   '-Wl,-Bsymbolic', '-Wl,--version-script='+str(exports), '-Wl,--no-undefined',
-                  '-Wl,--wrap=DenseFactor', '-Wl,--wrap=BandFactor', '-lm', '-ldl', '-o', str(out/'libstudy.so')]]
+                  '-Wl,--wrap=_ZN3xpp12cvode_solver11DenseFactorEPNS0_11DenseMatRecEPi',
+                  '-Wl,--wrap=_ZN3xpp12cvode_solver10BandFactorEPNS0_10BandMatRecEPi', '-lm', '-ldl', '-o', str(out/'libstudy.so')]]
     # W34's explicit static component list, extended with sparse and SPGMR.
     libs = ['cvode', 'sunlinsolband', 'sunmatrixband', 'sunlinsolspgmr', 'sunmatrixsparse', 'nvecserial', 'sunnonlinsolnewton', 'core']
     klu = (prefix/'lib/libsundials_sunlinsolklu.a').is_file()
