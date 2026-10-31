@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "source": "XPPAUT 8.0 (reference/xppaut-8.0, c021b511) (tools/auto_reference.py)",
+  "model": "examples/tstauto/pf.odex",
+  "runs": [
+    {"name": "steady", "parameter": "r", "points": [
+      {"type": "EP", "branch": 1, "label": 1, "point": 1, "par": -1.0, "norm": 0.0, "period": null, "spectrum": "", "values": []},
+      {"type": "BP", "branch": 1, "label": 2, "point": 10, "par": 1e-07, "norm": 0.0, "period": null, "spectrum": "eigenvalue", "values": [[9.999999e-08, 0.0]]},
+      {"type": "EP", "branch": 1, "label": 4, "point": 30, "par": 2.0, "norm": 0.0, "period": null, "spectrum": "eigenvalue", "values": [[2.0, 0.0]]}
+    ], "curve": [
+      [-1.0, 0.0, 0.0],
+      [-0.8, 0.0, 0.0],
+      [-0.7, 0.0, 0.0],
+      [-0.6, 0.0, 0.0],
+      [-0.5, 0.0, 0.0],
+      [-0.4, 0.0, 0.0],
+      [-0.3, 0.0, 0.0],
+      [-0.2, 0.0, 0.0],
+      [-0.0999999, 0.0, 0.0],
+      [1e-07, 0.0, 0.0],
+      [0.1, 0.0, 0.0],
+      [0.2, 0.0, 0.0],
+      [0.3, 0.0, 0.0],
+      [0.4, 0.0, 0.0],
+      [0.5, 0.0, 0.0],
+      [0.6, 0.0, 0.0],
+      [0.7, 0.0, 0.0],
+      [0.8, 0.0, 0.0],
+      [0.9, 0.0, 0.0],
+      [1.0, 0.0, 0.0],
+      [1.1, 0.0, 0.0],
+      [1.2, 0.0, 0.0],
+      [1.3, 0.0, 0.0],
+      [1.4, 0.0, 0.0],
+      [1.5, 0.0, 0.0],
+      [1.6, 0.0, 0.0],
+      [1.7, 0.0, 0.0],
+      [1.8, 0.0, 0.0],
+      [1.9, 0.0, 0.0],
+      [2.0, 0.0, 0.0]
+    ]},
+    {"name": "switched", "parameter": "r", "unavailable": "our description skips it: PENDING a card of its own (W556 #621 found it): xppautX's restart from a branch point of equilibria with switch continues the known branch (core/autlib1.cpp cnrlae calls only stprae, as XPPAUT 8.0's autlib1.c:934 does; swpnt serves only the MXBF switches inside a run); AUTO-07p's STEPAE with SW starts on the other branch (ae.f90:158-174). The reference runs are kept for that card.", "points": [
+    ]}
+  ]
+}

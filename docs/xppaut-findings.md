@@ -132,6 +132,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [99](#99-a-spectrum-window-of-one-point-divides-by-zero) | Analysis | a spectral density window of 1 point makes a step of 0 and divides by it, and a window longer than the data is not checked before it is allocated | [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589) |
 | [100](#100-transpose-data-reads-a-row-past-the-stored-data) | Data browser | Transpose data clamps a row past the data to one row past it (the unused row of the storage), so its table holds garbage for rows that do not exist | [W526](https://github.com/MuhammadMoustafa/xppautX/issues/590) |
 | [101](#101-auto-misses-a-zero-immediately-after-a-located-zero) | Special-point location | a stored zero hides a second crossing in the next step | [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606) |
+| [102](#102-switch-at-a-branch-point-of-equilibria-continues-the-known-branch) | Branch switching | Switch at an equilibrium's branch point stays on the known branch | [W556 / #621](https://github.com/MuhammadMoustafa/xppautX/issues/621) |
 
 ## 1. Model options
 
@@ -2174,3 +2175,22 @@ branch-point test also of a size a crossing within the step gives (since W547 fo
 found (a turn of the NTST 15 branch: pp2's own cycles have no fold there, docs/auto-references.md W547); a Hopf test's pair-switch jump,
 global_heteroclinic's branch points and pp2's mesh noise are refused with a note (W545, docs/auto-references.md W545).
 [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606), [W545 / #610](https://github.com/MuhammadMoustafa/xppautX/issues/610).
+
+## 102. Switch at a branch point of equilibria continues the known branch
+
+XPPAUT 8.0's Run > Switch at a labelled branch point of a steady-state branch (`auto_switch_ss`, ISW=-1,
+[auto_nox.c:2488](../reference/xppaut-8.0/auto_nox.c#L2488)) runs AUTO's algebraic driver `cnrlae`, which reads `isw`
+([autlib1.c:853](../reference/xppaut-8.0/autlib1.c#L853)) and never uses it: a restart goes through `stprae`
+([autlib1.c:927](../reference/xppaut-8.0/autlib1.c#L927)), the starting procedure of the known branch, and only the MXBF
+switches inside one run reach `swpnt` ([autlib1.c:941](../reference/xppaut-8.0/autlib1.c#L941)). The continuation therefore
+leaves the branch point on the branch it came from. For a periodic orbit's branch point and a period doubling the boundary-value
+driver does switch ([autlib1.c:5082](../reference/xppaut-8.0/autlib1.c#L5082)). AUTO-07p switches in both
+(`STEPAE(..., SW)`, ae.f90:158-174 of reference/auto-07p).
+
+Evidence (tests/auto/tstauto_pf_switch.json, W556 / #621; XPPAUT 8.0 driven on Xvfb by tools/auto_reference.py): the pitchfork
+`x' = r*x - x^3` has its branch point at r = 0 (label 2); Run, Switch from it gave 40 steps to r = 2 with norm 0 throughout,
+where AUTO-07p's switched branch has norm sqrt(r) (r = 2.036, norm 1.4269 = sqrt(2.036)). On the published pp2 demo
+(tests/auto/tstauto_pp2_switch.json) XPPAUT again stays on the first branch, while AUTO-07p's switched branch is a branch of
+equilibria with u1 = 0 and u0 a root of the first equation, checked with scipy at seven parameter values (to 1e-6). The same rule is in
+xppautX's inherited `cnrlae` (core/autlib1.cpp); its own card fixes it, the description's switched run being skipped until then.
+**xppautX** (W556 / [#621](https://github.com/MuhammadMoustafa/xppautX/issues/621)): not yet fixed.

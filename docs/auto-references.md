@@ -2261,3 +2261,23 @@ The BP is a start artefact of the programs' first steps, as W458 found for moton
 `continuation.py --pilots --only P1`: the gates against XPPAUT and AUTO-07p, the converged exact pilot and xppautX's and AUTO-07p's exact pilots against
 it pass; P1's fixed-step row (`--pilots` stops before it: the same description with DS and DSMIN = DSMAX = 1, NMX 100000, run by a script that
 calls `workload(..., 'fixed')` on it) passes its gates too (the XPPAUT run takes 7 minutes).
+
+## W556: branch switching at branch points and period doublings ([#621](https://github.com/MuhammadMoustafa/xppautX/issues/621))
+
+Four descriptions restart from a labelled special point with `switch:true` (ISW=-1) and follow the other branch. Models: XPPAUT's
+`tstauto/pf` (the pitchfork `x' = r*x - x^3`), AUTO-07p's and XPPAUT's `pp2` demo, XPPAUT's `tstauto/brper`, and the published forced
+predator-prey model of Kuznetsov, Muratori and Rinaldi (1992) (MatCont Tutorial V). tools/auto_reference.py learned the switch for XPPAUT
+(Run, Switch at a branch point; Run, Doubling at a period doubling, whose NTST doubling it expects) and AUTO-07p (ISW=-1, already there).
+
+| Description | Start | xppautX | AUTO-07p | XPPAUT 8.0 |
+|---|---|---|---|---|
+| `tstauto_brper_switch` (brper started at a = -1.05, so that AUTO-07p labels the Hopf point) | cycles' BP (a = 1.00003) | switches: cycles r = 1, period 5.71199 = 2 pi/1.1 | agrees (BP, the switched branch's end a = -0.4707108, norm 1.0, period 5.7119866) | agrees |
+| `forced_pp_pd_switch` | cycles' PD (m = 0.372324) | period-2 cycles; a cycle fold at 0.3643003 (the PD is subcritical), end 0.700829 | agrees (LP 8, EP 11) | agrees |
+| `tstauto_pf_switch` | equilibria's BP (r = 0) | does not switch: the branch x = 0 goes on (skipped run) | switches: norm sqrt(r) (r = 2.036, norm 1.4269) | does not switch (finding 102) |
+| `tstauto_pp2_switch` | equilibria's BP (par0 = 0.8219) | does not switch (skipped run) | switches: a branch with u1 = 0 down to par0 = -0.1414 | does not switch |
+
+No label is in dispute between the programs where all three switch. Where they differ, an independent check from the model's equations
+decides: AUTO-07p's pf branch is x = +-sqrt(r) exactly, and every sampled point of its pp2 branch (seven parameter values, scipy
+`fsolve`) is an equilibrium of the model's equations with u1 = 0. AUTO-07p is right; xppautX inherits XPPAUT's AUTO2000 `cnrlae`, which ignores
+ISW for a restart (docs/xppaut-findings.md, finding 102), and its fix is a card of its own: the two skipped runs keep their
+AUTO-07p references for it. The `.xppaut` files of those two descriptions hold the first branch only (our skipped run is not run for the reference).

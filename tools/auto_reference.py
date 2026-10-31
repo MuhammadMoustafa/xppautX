@@ -834,6 +834,9 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
                 # a periodic run from a point of cycles extends them (Run's periodic_choice, auto_nox.c: Extend is 'e')
                 extends = start_run.get('state') != 'current' and start_run['type'] != 'HB'
                 run_keys = ['r', {'equilibrium': 's', 'periodic': 'e' if extends else 'p'}[r['kind']]]
+                if r.get('switch'):
+                    # a branch point's menu offers Switch, a period doubling's Doubling (auto_branch_choice, per_doub_choice)
+                    run_keys = ['r', 's' if start_run['type'] == 'BP' else 'd']
                 if r['kind'] == 'equilibrium' and start_run.get('type') == 'EP':
                     # E1's repeated branches: an ordinary labelled equilibrium
                     # extends directly, with no menu (XPPAUT 8.0 auto_nox.c:2006-2008).
@@ -887,6 +890,8 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
             want = dict(zip(('ntst', 'nmx', 'npr', 'ds', 'dsmin', 'ncol', 'epsl', 'dsmax', 'rl0', 'rl1', 'a0', 'a1', 'epsu', 'epss',
                              'iad', 'mxbf', 'iid', 'itmx', 'itnw', 'nwtn'), values))
             want['nuzr'] = len(marks)
+            if r.get('switch') and start_run['type'] == 'PD':
+                want['ntst'] *= 2  # auto_period_double doubles the mesh (auto_nox.c:2650)
             bad = {k: (used.get(k), v) for k, v in want.items()
                    if not math.isclose(used.get(k, math.nan), float(v), rel_tol=1e-3, abs_tol=1e-12)}
             if bad:

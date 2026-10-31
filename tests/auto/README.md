@@ -116,6 +116,11 @@ W423 (#485) extends both Mu26 descriptions' cycles down to the rheobase fold (`t
 `run_bifurcation_*_extend.auto`) and adds the folds of cycles in the h conductances (`lpc_soma`, `lpc_dend`), skipped
 for their cost with AUTO-07p's reference (docs/auto-references.md, "W423").
 
+W556 (#621) adds the branch switches, each from a labelled special point with `switch:true`: `tstauto_pf_switch` and
+`tstauto_pp2_switch` at a branch point of equilibria, `tstauto_brper_switch` at a branch point of cycles and
+`forced_pp_pd_switch` at a period doubling, following the doubled cycle (docs/auto-references.md, "W556"). The two equilibrium
+switches carry a skipped `switched` run: xppautX and XPPAUT 8.0 do not switch there, AUTO-07p does.
+
 ## Where each model comes from (W537, #602)
 
 The comparison with XPPAUT and AUTO-07p (W354) rests on real models only (AGENTS.md): a model is a published one (its paper,
@@ -144,7 +149,7 @@ models the descriptions run, 7 are published, 39 are named demos (XPPAUT 8.0's `
 | `examples/tstauto/bigaut.odex` | demo: XPPAUT 8.0's tstauto/bigaut.ode | `tstauto_bigaut` | none |
 | `examples/tstauto/bistable.odex` | demo: XPPAUT 8.0's tstauto/bistable.ode | `tstauto_bistable` | none |
 | `examples/tstauto/bob.odex` | demo: XPPAUT 8.0's tstauto/bob.ode | `tstauto_bob` | none |
-| `examples/tstauto/brper.odex` | demo: XPPAUT 8.0's tstauto/brper.ode | `tstauto_brper` | cycle_branch_point, hopf |
+| `examples/tstauto/brper.odex` | demo: XPPAUT 8.0's tstauto/brper.ode | `tstauto_brper`, `tstauto_brper_switch` | cycle_branch_point, hopf |
 | `examples/tstauto/dumb.odex` | demo: XPPAUT 8.0's tstauto/dumb.ode | `tstauto_dumb` | none |
 | `examples/tstauto/dumbvp.odex` | demo: XPPAUT 8.0's tstauto/dumbvp.ode | `tstauto_dumbvp` | none |
 | `examples/tstauto/eiz-hom.odex` | demo: XPPAUT 8.0's tstauto/eiz-hom.ode | `tstauto_eiz-hom` | none |
@@ -155,11 +160,11 @@ models the descriptions run, 7 are published, 39 are named demos (XPPAUT 8.0's `
 | `examples/tstauto/lecar.odex` | demo: XPPAUT 8.0's tstauto/lecar.ode | `tstauto_lecar` | cycle_fold, hopf |
 | `examples/tstauto/lo.odex` | demo: XPPAUT 8.0's tstauto/lo.ode | `tstauto_lo` | hopf |
 | `examples/tstauto/pen.odex` | demo: XPPAUT 8.0's tstauto/pen.ode | `tstauto_pen` | fold |
-| `examples/tstauto/pf.odex` | demo: XPPAUT 8.0's tstauto/pf.ode | `tstauto_pf` | branch_point |
+| `examples/tstauto/pf.odex` | demo: XPPAUT 8.0's tstauto/pf.ode | `tstauto_pf`, `tstauto_pf_switch` | branch_point |
 | `examples/tstauto/phs2.odex` | demo: XPPAUT 8.0's tstauto/phs2.ode | `tstauto_phs2` | none |
 | `examples/tstauto/phsmod.odex` | demo: XPPAUT 8.0's tstauto/phsmod.ode | `tstauto_phsmod` | none |
 | `examples/tstauto/phssimp.odex` | demo: XPPAUT 8.0's tstauto/phssimp.ode | `tstauto_phssimp` | none |
-| `examples/tstauto/pp2.odex` | demo: XPPAUT's tstauto/pp2 = AUTO-07p's pp2 demo (Doedel, J. Math. Biol. 20, 1984) | `pp2_heteroclinic`, `pp2_heteroclinic_coarse` (NTST 15, W538), `tstauto_pp2` | branch_point, cycle_fold, heteroclinic, hopf |
+| `examples/tstauto/pp2.odex` | demo: XPPAUT's tstauto/pp2 = AUTO-07p's pp2 demo (Doedel, J. Math. Biol. 20, 1984) | `pp2_heteroclinic`, `pp2_heteroclinic_coarse` (NTST 15, W538), `tstauto_pp2`, `tstauto_pp2_switch` | branch_point, cycle_fold, heteroclinic, hopf |
 | `examples/tstauto/san.odex` | demo: XPPAUT 8.0's tstauto/san.ode | `tstauto_san` | branch_point |
 | `examples/tstauto/she.odex` | demo: XPPAUT 8.0's tstauto/she.ode | `tstauto_she` | none |
 | `examples/tstauto/simplefold.odex` | demo: XPPAUT 8.0's tstauto/simplefold.ode | `tstauto_simplefold` | fold |
@@ -172,7 +177,7 @@ models the descriptions run, 7 are published, 39 are named demos (XPPAUT 8.0's `
 | `tools/models/bautin_near_hopf.odex` | made up: the Bautin normal form with chosen parameters | `bautin_near_hopf` | cycle_fold, hopf |
 | `tools/models/bykov.odex` | published: the Bykov-Yablonskii-Kim CO-oxidation model, equations and values of Kuznetsov's MatCont Tutorial IV | `bykov_hopf` | bogdanov_takens, cusp, fold, generalized_hopf, hopf |
 | `tools/models/explicit_homoclinic.odex` | made up: a 3D system with a closed-form homoclinic orbit | `explicit_homoclinic` | none |
-| `tools/models/forced_predator_prey.odex` | published: Kuznetsov, Muratori and Rinaldi 1992, values of MatCont Tutorial V | `forced_pp_ns`, `forced_pp_pd` | cycle_branch_point, hopf, neimark_sacker, period_doubling, resonance_1_2 |
+| `tools/models/forced_predator_prey.odex` | published: Kuznetsov, Muratori and Rinaldi 1992, values of MatCont Tutorial V | `forced_pp_ns`, `forced_pp_pd`, `forced_pp_pd_switch` | cycle_branch_point, hopf, neimark_sacker, period_doubling, resonance_1_2 |
 | `tools/models/global_heteroclinic.odex` | made up: a planar oscillator with two saddles | `global_heteroclinic` | cycle_branch_point, cycle_fold, heteroclinic, hopf |
 | `tools/models/global_homoclinic.odex` | made up: a damped double-well Duffing oscillator | `global_homoclinic` | cycle_fold, homoclinic, hopf |
 | `tools/models/global_snic.odex` | made up: a polar normal form | `global_snic` | hopf, snic |
