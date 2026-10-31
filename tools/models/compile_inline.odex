@@ -1,0 +1,11 @@
+version 4
+# W560 (#625): a user function whose body is one expression is written into each call of the compiled code.
+# Its argument is an expression (shared where the same one is given twice), a name, or in a branch, and it calls another such function.
+par a = 1.5
+w = g(a*2)+g(a*2)
+x' = if x > 0 then g(x*a)+g(x*a) else g(h(x, a))
+y' = -y+g(y-x)*h(y, w)+g(0)
+fun g(u) = if u then u else 7
+fun h(p, q) = g(p)*q+g(q-p)
+init x = 0.5
+init y = -0.25

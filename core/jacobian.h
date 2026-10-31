@@ -30,6 +30,13 @@ struct JacobianScratch {
   std::optional<DifferenceGroups> groups;
 };
 
+struct Model; /* model.h */
+
+/* The difference groups of m's n states, made on first need and kept in
+   scratch, or null when grouping gains nothing: the reads are not known,
+   or fewer than two groups fewer than states. */
+const DifferenceGroups *difference_groups(const Model &m, JacobianScratch &scratch, int n);
+
 /* How the model's Jacobian is formed, the numerics' `jacobian` (W260):
    by forward differences, XPPAUT's (the default: a model gives XPPAUT's
    numbers), or exactly, from the derivatives compile_model made of the

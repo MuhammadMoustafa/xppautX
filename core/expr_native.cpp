@@ -117,6 +117,34 @@ const void *helper_address(Helper h)
     return nullptr;
 }
 
+/* A user function whose body is one C expression of its arguments (no
+   statement, temporary or loop) is written into each call instead of
+   called: TinyCC does not inline, and the XPP division guard
+   (ode_divisor) is called for every division of a converted model. A body
+   longer than this many characters stays a call, so nested expansions
+   stay small. */
+constexpr size_t MAX_INLINE_TEXT = 512;
+
+/* body with each of its argument names a0, a1, ... (whole identifiers: the
+   text has no other name of that form) replaced by the argument's text */
+std::string with_arguments(std::string_view body, const std::vector<std::string> &arguments)
+{
+    const auto word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+    std::string text;
+    for (size_t i = 0; i < body.size();) {
+        size_t end = i + 1;
+        if (body[i] == 'a' && (i == 0 || !word(body[i - 1])))
+            while (end < body.size() && std::isdigit(static_cast<unsigned char>(body[end]))) ++end;
+        if (end > i + 1 && (end == body.size() || !word(body[end]))) {
+            text += arguments.at(std::stoul(std::string(body.substr(i + 1, end - i - 1))));
+            i = end;
+        } else {
+            text += body[i++];
+        }
+    }
+    return text;
+}
+
 struct Generator {
     Session &s;
     Place place;
@@ -124,6 +152,7 @@ struct Generator {
     std::set<int> unary, binary;
     std::vector<std::set<int>> calls;
     std::vector<char> pure_function; /* a user function written so far that changes no state */
+    std::vector<std::string> inline_text; /* a user function's body as one expression, empty when it is called */
     std::vector<double> numbers{expr::ZERO_DIVISOR}; /* N[0]: the zero divisor's value, bit-exact */
     std::unordered_map<std::uint64_t, size_t> literal_slot; /* a literal's bits: its N[], so one value has one name */
     /* the function being written: the pure calls already made at its top
@@ -377,11 +406,25 @@ struct Generator {
             } else if (type == UFUNTYPE) {
                 if (!allowed.empty() && !allowed[in]) return refuse("calls a refused user function");
                 if (user) calls[index].insert(in);
-                std::string text = xpp::format("u{}(c,v,S", in);
                 const size_t first = stack.size() - static_cast<size_t>(i.count);
-                for (size_t a = first; a < stack.size(); ++a) text += "," + stack[a].text;
+                std::string text;
+                /* inlined: each argument once, a name as it is, an expression in a temporary that
+                   the same expression shares (pure_call; only where a statement may be written) */
+                std::vector<std::string> arguments;
+                if (!inline_text[in].empty())
+                    for (size_t a = first; a < stack.size(); ++a) {
+                        const Node argument = stack[a].atom ? stack[a] : pure_call(stack[a].text, stack[a].mut, frames.empty());
+                        if (!argument.atom) { arguments.clear(); break; }
+                        arguments.push_back(argument.text);
+                    }
+                if (arguments.size() == static_cast<size_t>(i.count) && !inline_text[in].empty()) {
+                    text = with_arguments(inline_text[in], arguments);
+                } else {
+                    text = xpp::format("u{}(c,v,S", in);
+                    for (size_t a = first; a < stack.size(); ++a) text += "," + stack[a].text;
+                    text += ")";
+                }
                 stack.resize(first);
-                text += ")";
                 if (!user) {
                     if (!array_pure_function[in]) array_pure = false;
                     variable_reads.insert(function_reads[in].begin(),function_reads[in].end());
@@ -442,7 +485,10 @@ struct Generator {
         const auto result = value(p, index, user);
         if (!result) return std::unexpected(result.error());
         write(signature(index, user, name), xpp::format("return {};", result->text));
-        if (user) pure_function[index] = !impure;
+        if (user) {
+            pure_function[index] = !impure;
+            if (!impure && out.empty() && temps == 0 && loops == 0 && result->text.size() <= MAX_INLINE_TEXT) inline_text[index] = result->text;
+        }
         return {};
     }
 
@@ -699,6 +745,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     if (m.nfun<0 || static_cast<size_t>(m.nfun)>m.ufun_programs.size()) return g.refuse("an out-of-range function count");
     g.calls.resize(static_cast<size_t>(m.nfun));
     g.pure_function.assign(static_cast<size_t>(m.nfun),0);
+    g.inline_text.assign(static_cast<size_t>(m.nfun),std::string());
     g.array_pure_function.assign(static_cast<size_t>(m.nfun),0);
     g.function_reads.resize(static_cast<size_t>(m.nfun));
     std::vector<std::string> bodies(static_cast<size_t>(m.nfun));

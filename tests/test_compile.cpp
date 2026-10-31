@@ -332,7 +332,7 @@ int main()
        its own state and a changed one, and the loaded model compiled whole. */
     std::set<std::string> kinds;
     int whole=0; /* the models whose whole right-hand side is native */
-    for (const auto *path:{"tools/models/compile_derived.odex", "examples/canonical/swindale.odex", "examples/canonical/gb_wnet.odex", "examples/ode/koho.odex",
+    for (const auto *path:{"tools/models/compile_derived.odex", "tools/models/compile_inline.odex", "examples/canonical/swindale.odex", "examples/canonical/gb_wnet.odex", "examples/ode/koho.odex",
          "examples/ode/angela.odex", "examples/ode/gausvolt.odex", "examples/ode/kuramot100.odex",
          "examples/ode/waterwheel.odex", "examples/canonical/mackey.odex", "examples/ode/kohox.odex",
          "examples/ode/dae.odex", "examples/canonical/huygens.odex", "examples/canonical/qif-noise.odex",

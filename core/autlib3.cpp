@@ -9,6 +9,7 @@
 #include "auto_c.h"
 #include "auto_jacobian.h"
 #include "xpp_math.h"
+#include "solver.h"
 
 namespace {
 // Original amplitude of the torus restart's added eigenvector states.
@@ -460,7 +461,8 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   const xpp::Matrix<double> blocks({dfdu, static_cast<size_t>(ndm * ndim)}, ndm, ndim);
   const double kappa = u[2 * ndm];
   const double shift=map ? 2*(1-xpp::math::cos(kappa)) : kappa;
-  // The square goes into columns ndm..2*ndm-1, which share nothing with the Jacobian's.
+  // The square goes into columns ndm..2*ndm-1, which share nothing with the Jacobian's;
+  // each of those starts as a sum with 0., so none is -0 (product_accumulate's precondition).
   for (integer i = 0; i < ndm; ++i)
     for (integer j = 0; j < ndm; ++j)
       blocks(i, ndm + j) = (i == j ? shift : 0.) + (map ? shift*blocks(i,j) : 0.);
@@ -2652,10 +2654,14 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   f1zz.resize(ndim);
   f2zz.resize(ndim);
 
-  ep = xpp::auto_jacobian::central(
-      ndim, ndim, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),
-      [&](const doublereal *uu, doublereal *ff) { func(*iap->lib->session, ndim, uu, icp, nfpr, par, 0, ff, dfdu, dfdp, iap->lib); },
-      dfdu, dfdu_dim1);
+  const auto evaluate = [&](const doublereal *uu, doublereal *ff) { func(*iap->lib->session, ndim, uu, icp, nfpr, par, 0, ff, dfdu, dfdp, iap->lib); };
+  /* a map iterated store_every times reads more states than one step does */
+  const auto &numerics = iap->lib->session->numerics;
+  const bool chained = xpp::solver_info(numerics.method).traits.discrete && numerics.store_every != 1;
+  const xpp::DifferenceGroups *groups =
+      chained ? nullptr : xpp::difference_groups(iap->lib->session->model(), iap->lib->jacobian_scratch, ndim);
+  ep = groups ? xpp::auto_jacobian::central_grouped(ndim, u, f, *groups, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(), evaluate, dfdu, dfdu_dim1)
+              : xpp::auto_jacobian::central(ndim, ndim, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(), evaluate, dfdu, dfdu_dim1);
 
   if (ijac == 1) {
     return 0;

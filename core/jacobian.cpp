@@ -62,7 +62,7 @@ void column(const Session &s, JacobianScratch &scratch, const JacobianProgram &p
 }
 
 /* m's difference groups for its n states (DifferenceGroups) */
-DifferenceGroups difference_groups(const Model &m, int n)
+DifferenceGroups make_difference_groups(const Model &m, int n)
 {
   if (!m.auto_rhs_pure || n != m.node) return {};
   const int programs = m.node + m.fix_var;
@@ -104,6 +104,14 @@ DifferenceGroups difference_groups(const Model &m, int n)
 }
 
 } // namespace
+
+const DifferenceGroups *difference_groups(const Model &m, JacobianScratch &scratch, int n)
+{
+  if (!scratch.groups) scratch.groups = make_difference_groups(m, n);
+  const DifferenceGroups &g = *scratch.groups;
+  if (g.groups.empty() || g.rows.size() != static_cast<size_t>(n) || g.groups.size() + 1 >= static_cast<size_t>(n)) return nullptr;
+  return &g;
+}
 
 ErrorAction switch_to_differences(std::string resume)
 {
@@ -218,9 +226,8 @@ void jacobian(Session &s, double t, const double *x, const double *f0, int n, do
     if (form.discrete_map)
       for (int j = 0; j < n; j++) f[j] -= xp[j];
   };
-  if (!s.jacobian_scratch.groups) s.jacobian_scratch.groups = difference_groups(s.model(), n);
-  const DifferenceGroups &g = *s.jacobian_scratch.groups;
-  if (g.groups.empty() || g.rows.size() != static_cast<size_t>(n) || g.groups.size() + 1 >= static_cast<size_t>(n)) {
+  const DifferenceGroups *grouped = difference_groups(s.model(), s.jacobian_scratch, n);
+  if (!grouped) {
     auto evaluate = [&](int i, double xi, double *f) {
       xp[i] = xi;
       rhs(f);
@@ -235,6 +242,7 @@ void jacobian(Session &s, double t, const double *x, const double *f0, int n, do
      (fx-f0)/r as before; one that reads i reads no other state of i's
      group, so the group's evaluation gives it f at x with i alone
      perturbed. */
+  const DifferenceGroups &g = *grouped;
   std::vector<double> fx(n), f1(n), entry(n);
   rhs(fx.data());
   const bool banded = form.layout == JacobianLayout::Banded;

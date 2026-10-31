@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <vector>
 #include "xpp_math.h"
+#include "jacobian.h"
 #include "auto_c.h"
 #include "auto_state.h"
 #include "auto_f2c.h"
@@ -14,6 +15,17 @@ namespace xpp::auto_jacobian {
 
 // Algebraic fold/Hopf augmentations differentiate only the principal parameter.
 constexpr integer principal_parameter_count = 1;
+
+// AUTO's difference step about x[0..n): HMACH*(max|x| + 1).
+inline doublereal central_step(integer n, const doublereal *x) {
+  doublereal umx = 0.;
+  for (integer i = 0; i < n; ++i) {
+    if (f2c::abs(x[i]) > umx) {
+      umx = f2c::abs(x[i]);
+    }
+  }
+  return auto_hmach * (umx + 1);
+}
 
 // d(eval)/dx by central differences about x[0..n), step HMACH*(max|x| + 1)
 // (HMACH: AUTO's own relative step), one evaluation either side of x_i in turn.
@@ -25,13 +37,7 @@ template <class Eval>
 doublereal central(integer n, integer nout, const doublereal *x, doublereal *uu1, doublereal *uu2,
                    doublereal *ff1, doublereal *ff2, Eval &&eval, doublereal *out, integer ld,
                    std::span<const integer> columns = {}) {
-  doublereal umx = 0.;
-  for (integer i = 0; i < n; ++i) {
-    if (f2c::abs(x[i]) > umx) {
-      umx = f2c::abs(x[i]);
-    }
-  }
-  const doublereal ep = auto_hmach * (umx + 1);
+  const doublereal ep = central_step(n, x);
   const integer count = columns.empty() ? n : static_cast<integer>(columns.size());
   for (integer column = 0; column < count; ++column) {
     const integer i = columns.empty() ? column : columns[column];
@@ -45,6 +51,41 @@ doublereal central(integer n, integer nout, const doublereal *x, doublereal *uu1
     eval(uu2, ff2);
     for (integer j = 0; j < nout; ++j) {
       out[j + i * ld] = (ff2[j] - ff1[j]) / (ep * 2);
+    }
+  }
+  return ep;
+}
+
+// central() with the columns in difference groups (jacobian.h): one pair of
+// evaluations per group instead of per column, the same bits. Equation j
+// reads none of the group's states but one, i, so with the whole group
+// perturbed it gives j's value for i alone perturbed (an equation reading
+// none gives its value at x itself, fx, as it would with i perturbed
+// alone); those entries are (fx-fx)/(2 ep), as central() computes them.
+// fx is the evaluator at x.
+template <class Eval>
+doublereal central_grouped(integer n, const doublereal *x, const doublereal *fx, const DifferenceGroups &groups,
+                           doublereal *uu1, doublereal *uu2, doublereal *ff1, doublereal *ff2,
+                           Eval &&eval, doublereal *out, integer ld) {
+  const doublereal ep = central_step(n, x);
+  for (const std::vector<int> &group : groups.groups) {
+    for (integer j = 0; j < n; ++j) {
+      uu1[j] = x[j];
+      uu2[j] = x[j];
+    }
+    for (const int i : group) {
+      uu1[i] -= ep;
+      uu2[i] += ep;
+    }
+    eval(uu1, ff1);
+    eval(uu2, ff2);
+    for (const int i : group) {
+      for (integer j = 0; j < n; ++j) {
+        out[j + i * ld] = (fx[j] - fx[j]) / (ep * 2);
+      }
+      for (const int j : groups.rows[static_cast<size_t>(i)]) {
+        out[j + i * ld] = (ff2[j] - ff1[j]) / (ep * 2);
+      }
     }
   }
   return ep;

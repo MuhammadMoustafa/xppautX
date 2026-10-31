@@ -181,17 +181,22 @@ int main(void)
             state ^= state << 13; state ^= state >> 7; state ^= state << 17;
             return state;
         };
+        /* rounds 2 and 3 of 4: mostly zero, as a Jacobian; all finite (round 2) the zero terms are skipped */
+        bool sparse = false;
         auto value = [&](bool use_special) {
+            if (sparse && next() % 4 != 0) return next() % 2 ? 0.0 : -0.0;
             if (use_special && next() % 4 == 0) return special[next() % std::size(special)];
             return static_cast<double>(next() >> 11) * (1.0 / 9007199254740992.0) * 4 - 2;
         };
         int differ = 0;
         for (int round = 0; round < 200; ++round) {
             const bool use_special = round % 2 == 1;
+            sparse = round % 4 >= 2;
             std::vector<double> a(lda * p), b(ldb * n), c(ldc * n), expected;
             for (double &v : a) v = value(use_special);
             for (double &v : b) v = value(use_special);
             for (double &v : c) v = value(use_special);
+            for (double &v : c) if (v == 0) v = 0.0; /* product_accumulate's precondition: no -0 in c */
             expected = c;
             for (std::ptrdiff_t i = 0; i < m; ++i)
                 for (std::ptrdiff_t j = 0; j < n; ++j) {
