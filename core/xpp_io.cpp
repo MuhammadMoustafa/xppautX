@@ -650,6 +650,12 @@ int utf8_len(unsigned char c0)
     return 0;
 }
 
+/* a byte a JSON string holds as it is: printable ASCII but the quote and the backslash */
+bool plain_ascii(unsigned char c)
+{
+    return c >= 0x20 && c < 0x80 && c != '"' && c != '\\';
+}
+
 } // namespace
 
 void json_append_string(std::string &out, const char *s)
@@ -668,6 +674,11 @@ void json_encode_string(std::string &out, std::string_view s)
 {
     size_t i = 0, n = s.size();
     while (i < n) {
+        /* a run of bytes that need no escape is copied at once */
+        const size_t start = i;
+        while (i < n && plain_ascii(static_cast<unsigned char>(s[i]))) i++;
+        out.append(s.data() + start, i - start);
+        if (i == n) break;
         unsigned char c = static_cast<unsigned char>(s[i]);
         if (c == '"' || c == '\\') {
             out += '\\';
@@ -679,7 +690,6 @@ void json_encode_string(std::string &out, std::string_view s)
         else if (c == '\b') { out += "\\b"; i++; }
         else if (c == '\f') { out += "\\f"; i++; }
         else if (c < 0x20) { append_u00(out, c); i++; }
-        else if (c < 0x80) { out += static_cast<char>(c); i++; }
         else {
             int len = utf8_len(c);
             bool valid = len > 0 && i + static_cast<size_t>(len) <= n;

@@ -67,10 +67,14 @@ std::string_view rule_name(GroupRule rule)
 void append_bound(std::string &out, const char *key, const Bound &bound)
 {
     if (bound.value) {
-        out += xpp::format(",\"{}\":", key);
+        out += ",\"";
+        out += key;
+        out += "\":";
         json::json_append_number_shortest(out, *bound.value);
     } else if (bound.quantity) {
-        out += xpp::format(",\"{}_of\":", key);
+        out += ",\"";
+        out += key;
+        out += "_of\":";
         json_append_string(out, bound.quantity);
     }
 }
@@ -81,7 +85,11 @@ void append_argument(std::string &out, const Argument &arg)
     json_append_string(out, arg.name);
     out += ",\"type\":";
     json_append_string(out, type_name(arg.type));
-    out += xpp::format(",\"required\":{},\"max_length\":{},\"choices\":[", arg.required, arg.max_length);
+    out += ",\"required\":";
+    out += arg.required ? "true" : "false";
+    out += ",\"max_length\":";
+    xpp::append_integer(out, arg.max_length);
+    out += ",\"choices\":[";
     for (std::size_t j = 0; j < arg.choices.size(); ++j) {
         if (j) out += ',';
         json_append_string(out, arg.choices[j]);
@@ -97,7 +105,8 @@ void append_argument(std::string &out, const Argument &arg)
     if (arg.type == Type::list || arg.type == Type::map) {
         out += ",\"element\":";
         json_append_string(out, type_name(arg.element));
-        out += xpp::format(",\"max_items\":{}", arg.max_items);
+        out += ",\"max_items\":";
+        xpp::append_integer(out, arg.max_items);
     }
     out += '}';
 }
@@ -126,7 +135,13 @@ void append_command(std::string &out, const Command &command)
 {
     out += "{\"cmd\":";
     json_append_string(out, command.name);
-    out += xpp::format(",\"kind\":\"{}\",\"step\":{},\"completion\":\"done\",\"max_input_bytes\":{},\"category\":", command.kind, command.step, MAX_COMMAND_BYTES);
+    out += ",\"kind\":\"";
+    out += command.kind;
+    out += "\",\"step\":";
+    out += command.step ? "true" : "false";
+    out += ",\"completion\":\"done\",\"max_input_bytes\":";
+    xpp::append_integer(out, MAX_COMMAND_BYTES);
+    out += ",\"category\":";
     json_append_string(out, category_id(command.category));
     out += ",\"menu_path\":";
     json_append_string(out, command.menu_path);

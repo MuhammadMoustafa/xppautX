@@ -19,6 +19,7 @@
    wanted. */
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cmath>
 #include <cstdint>
@@ -132,6 +133,15 @@ inline void append_general(std::string &out, double v, int significant)
     std::array<char, 32> buf;
     const std::to_chars_result r = std::to_chars(buf.data(), buf.data() + buf.size(), v, std::chars_format::general, significant);
     if (r.ec == std::errc()) out.append(buf.data(), r.ptr);
+}
+
+/* v's decimal digits appended, the text "{}" gives, straight from std::to_chars */
+template <std::integral T>
+inline void append_integer(std::string &out, T v)
+{
+    std::array<char, 24> buf;
+    const std::to_chars_result r = std::to_chars(buf.data(), buf.data() + buf.size(), v);
+    out.append(buf.data(), r.ptr);
 }
 
 /* Checked stream positions. Positions returned by tell_stream are opaque:
