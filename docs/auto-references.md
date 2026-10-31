@@ -2386,3 +2386,28 @@ square-root noise of a Jordan block, recorded as a traced difference that replac
 
 Baselines changed (autocompare --update --only): forced_pp_pd (the R2 of pd_up and pd_down and every point after them, 334 rows), hill_cycles_pd (all five R2 and the points after each, 33
 rows); no other description changed: every other one passes unchanged, byte for byte. New: forced_pp_pd_ntst15 (AUTO-07p reference, 4 traced differences) and forced_pp_pd_ntst10 (diagram baseline only).
+
+## W564: the parameter is restored exactly after a difference step ([#629](https://github.com/MuhammadMoustafa/xppautX/issues/629))
+
+AUTO's finite-difference parameter derivative adds its step to the parameter and subtracts it again, which XPPAUT 8.0 does in every
+driver (docs/xppaut-findings.md, finding 103) and AUTO-07p does not: it saves the value and puts it back (`P=PAR(ICP(I))`,
+`PAR(ICP(I))=P`, periodic.f90:497-503). xppautX now does as AUTO-07p does, a deliberate difference from XPPAUT: where the two
+disagree the exact restore is the accurate one, and it makes the numbers independent of how many Jacobians a run forms. 23 diagram
+baselines changed, by rounding: each model's stored labels have the same types in the same order and their points the same places (a
+label whose stored point number moved by one is in forced_pp_ns' and the two forced_pp_pd NTST descriptions' cycle branch point and
+1:2 resonance, where the step sizes differ in the last bits and the same point is stored one index earlier).
+
+| Model | Stored points | Largest relative change of a stored value > 1e-3 |
+|---|---|---|
+| hen_lp, hen_pd, henon_rot_lp, henon_rot_pd, tstauto_brper, tstauto_lo, tstauto_pf, tstauto_pf_switch | one point | at the last bit or none |
+| hen_tr, henon_rot_th, henon_rot_tr, tstauto_lamom, zero_hopf | 1 to 19 | 1.1e-16 |
+| tstheti homcont, explicit_homoclinic, hill_cycles_torus | 44 to 140 | 7.9e-10, 1.3e-11, 2.6e-09 |
+| forced_pp_pd_switch, tstauto_torx_homcont | 49 to 137 | 6.8e-08, 2.0e-08 |
+| forced_pp_pd (+ ntst10, ntst15) | 652 | 1.6e-2 (a multiplier of -0.909 against -0.894 beside an R2, where two multipliers near -1 coalesce) |
+| forced_pp_ns | 211 | its Neimark-Sacker curve runs one stored point shorter; the branch point and the curve's points agree to 1e-10 |
+| res_cycles | 92 | none: the same four multipliers listed in another order |
+
+No label appears or disappears, so no independent check was needed; the R2 and the branch points are where they were (R2 at
+b0 = 1.948934, forced_pp_pd's NTST 10 and 15 as before to 1e-6). On Mu26 the parameter is exact now: of 964,056 parameter restores
+8,719 were off before, none of 898,326 are now. tests/auto/tstauto_pf_switch.diagram.csv changed in one quantity of size 1e-14 (the second parameter at a fold, 1.14176746199e-14 to 1.14176746183e-14).
+

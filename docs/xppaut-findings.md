@@ -133,6 +133,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [100](#100-transpose-data-reads-a-row-past-the-stored-data) | Data browser | Transpose data clamps a row past the data to one row past it (the unused row of the storage), so its table holds garbage for rows that do not exist | [W526](https://github.com/MuhammadMoustafa/xppautX/issues/590) |
 | [101](#101-auto-misses-a-zero-immediately-after-a-located-zero) | Special-point location | a stored zero hides a second crossing in the next step | [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606) |
 | [102](#102-switch-at-a-branch-point-of-equilibria-continues-the-known-branch) | Branch switching | Switch at an equilibrium's branch point stays on the known branch | [W556 / #621](https://github.com/MuhammadMoustafa/xppautX/issues/621) |
+| [103](#103-the-difference-step-of-a-parameter-leaves-it-an-ulp-off) | AUTO | the parameter derivative adds a step and subtracts it again, so the parameter drifts by an ulp | [W564 / #629](https://github.com/MuhammadMoustafa/xppautX/issues/629) |
 
 ## 1. Model options
 
@@ -2202,3 +2203,21 @@ descriptions keep XPPAUT's switched run unavailable with this reason (`xppaut_sk
 **xppautX** (W563 / [#628](https://github.com/MuhammadMoustafa/xppautX/issues/628)): fixed. A branch point keeps the direction of its branch in
 fort.8 (AUTO-07p's NTST=1 record) and a restart with ISW=-1 takes the null vector perpendicular to it (`stpswae` in core/autlib1.cpp, AUTO-07p's
 `STPRAE` with `IPERP=1`), then its second point by `swprc` (`STEPAE` with `SW`). The two descriptions' switched runs run and agree with AUTO-07p.
+
+## 103. The difference step of a parameter leaves it an ulp off
+
+Every finite-difference parameter derivative of XPPAUT 8.0's AUTO adds its step to the parameter and subtracts it again
+(`par[icp[i]] += ep; ...; par[icp[i]] -= ep;`): the fold/Hopf and algebraic drivers
+([autlib3.c:2305](../reference/xppaut-8.0/autlib3.c#L2305) ([master 2306](../reference/xppaut-master/autlib3.c#L2306)),
+2714, 3095, 3513, 3708, 4061, 4217, 4353, `funi` at [4646](../reference/xppaut-8.0/autlib3.c#L4646), 4772, 4872, 4963) and
+the boundary-value drivers ([autlib5.c:142](../reference/xppaut-8.0/autlib5.c#L142), 325, 743). `(p + ep) - ep` is not always `p`
+(it is not when `p` is small against `ep` or `p + ep` falls into the next binade), so every Jacobian of a run can leave the
+parameter an ulp off, and the next evaluation, the next Jacobian and the point stored all see the changed value; the drift depends
+on how many Jacobians were formed, so even a faster way to form them changes the numbers. AUTO-07p saves the value and puts it
+back (`P=PAR(ICP(I)); PAR(ICP(I))=P+EP; ...; PAR(ICP(I))=P`, periodic.f90:497-503, and its other drivers).
+
+Evidence (W564 / [#629](https://github.com/MuhammadMoustafa/xppautX/issues/629)): on tests/auto/ode_mu26_blocked, counted at every difference step of all its runs, 8,719 of
+964,056 parameter restores (XPPAUT's way) left the parameter different from what it was; across the 77 AUTO descriptions 33
+models have such restores, tstauto_torx_homcont 77,152 of 125,522. With the saved value put back, none do (0 of 898,326 on mu26 blocked),
+and 23 descriptions' diagrams moved by rounding (their largest relative changes in docs/auto-references.md "W564").
+**xppautX** (W564 / [#629](https://github.com/MuhammadMoustafa/xppautX/issues/629)): fixed, in the one place every driver differences a parameter (`xpp::auto_jacobian::forward_parameters`).

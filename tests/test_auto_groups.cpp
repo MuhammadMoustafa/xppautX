@@ -1,11 +1,13 @@
 /* W560 (#625): funi's difference Jacobian by column groups (jacobian.h's
-   DifferenceGroups) is the same bits as one column at a time. */
+   DifferenceGroups) is the same bits as one column at a time; W564 (#629): so is the fold
+   system's, and a difference step restores the parameter itself. */
 #include "load_args.h"
 #include "model_text.h"
 #include "xpptest.h"
 #include "session.h"
 #include "jacobian.h"
 #include "auto_c.h"
+#include "auto_jacobian.h"
 #include "auto_unknowns.h"
 #include "xpp_batch.h"
 #include "xpp_files.h"
@@ -22,9 +24,9 @@ int main() {
     std::string model = temp.path() + "/ring.odex";
     auto writer = xpp::Writer::binary(model);
     CHECK(writer.write(versioned("g=tanh(x1)+0.5*x4\n"
-                                 "x1'=-x1+p*x6*x2+g\nx2'=-x2+p*x1*x3\nx3'=-x3+p*x2*x4\n"
+                                 "x1'=-x1+p*x6*x2+g+q\nx2'=-x2+p*x1*x3\nx3'=-x3+p*x2*x4\n"
                                  "x4'=-x4+p*x3*x5\nx5'=-x5+p*x4*x6\nx6'=-x6+p*x5*x1\n"
-                                 "par p=1.3\ninit x1=.1,x2=-.2,x3=.3,x4=-.4,x5=.5,x6=.6\n")) && writer.commit());
+                                 "par p=1.3,q=0.7\ninit x1=.1,x2=-.2,x3=.3,x4=-.4,x5=.5,x6=.6\n")) && writer.commit());
     char name[] = "test_auto_groups";
     char *argv[] = {name, model.data(), nullptr};
     CHECK(load_args(2, argv, 1).has_value());
@@ -60,5 +62,33 @@ int main() {
     for (int i = 0; i < n; ++i) differ += std::bit_cast<std::uint64_t>(f[i]) != std::bit_cast<std::uint64_t>(f_columns[i]);
     CHECK(differ == 0);
     CHECK(grouped[0 + 0 * n] != 0 && grouped[2 + 0 * n] == 0); /* the Jacobian is not trivially zero, and x1 is not read by x3 */
+
+    /* the fold system (x, v, p2): its columns in groups give the same bits as one by one, and the
+       parameter, however small against the step, is restored exactly */
+    constexpr int ndim = 2 * n + 1;
+    iap.ndim = ndim;
+    iap.nfpr = 2;
+    std::array<integer, 2> icp2{icp[0], s.auto_state.parameter_layout.solver_index(1)};
+    const std::array<double, ndim> w{.1, -.2, .3, -.4, .5, .6, .3, .1, -.2, .4, .5, -.1, 0.7};
+    std::array<double, ndim * ndim> fold_grouped{}, fold_single{};
+    std::array<double, ndim> g{}, g_columns{};
+    std::vector<double> gp(ndim * lib.parameter_count), gp_columns(ndim * lib.parameter_count);
+    constexpr double tiny = 1e-9;
+    par[icp2[0]] = tiny;
+    par[icp2[1]] = w[ndim - 1];
+    lib.jacobian_scratch.groups.reset();
+    CHECK(xpp::auto_jacobian::state_groups(&iap, n) != nullptr);
+    const auto columns_of = xpp::auto_jacobian::fold_columns(*xpp::auto_jacobian::state_groups(&iap, n), n, ndim, w.data(),
+                                                             xpp::auto_jacobian::central_step(ndim, w.data()));
+    CHECK(columns_of.groups.size() < n + 1);
+    fnlp(&iap, &rap, ndim, w.data(), w.data(), icp2.data(), par.data(), 2, g.data(), fold_grouped.data(), gp.data());
+    CHECK(par[icp2[0]] == tiny && par[icp2[1]] == w[ndim - 1]);
+    lib.jacobian_scratch.groups = xpp::DifferenceGroups{};
+    fnlp(&iap, &rap, ndim, w.data(), w.data(), icp2.data(), par.data(), 2, g_columns.data(), fold_single.data(), gp_columns.data());
+    differ = 0;
+    for (int i = 0; i < ndim * ndim; ++i) differ += std::bit_cast<std::uint64_t>(fold_grouped[i]) != std::bit_cast<std::uint64_t>(fold_single[i]);
+    for (int i = 0; i < ndim; ++i) differ += std::bit_cast<std::uint64_t>(g[i]) != std::bit_cast<std::uint64_t>(g_columns[i]);
+    for (std::size_t i = 0; i < gp.size(); ++i) differ += std::bit_cast<std::uint64_t>(gp[i]) != std::bit_cast<std::uint64_t>(gp_columns[i]);
+    CHECK(differ == 0);
     TEST_REPORT("auto groups");
 }

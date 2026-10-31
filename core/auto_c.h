@@ -343,7 +343,7 @@ int dimrge(AutoLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c
 int print1(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc);
 /* autlib3.cpp */
 FUNI_TYPE(fnlp);
-int fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
+int fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
 STPNT_TYPE_AE(stpnlp);
 FUNI_TYPE(fnc1);
 STPNT_TYPE_AE(stpnc1);
@@ -353,7 +353,7 @@ STPNT_TYPE_AE(stpnc2);
 FUNI_TYPE(fnds);
 FUNI_TYPE(fnti);
 FUNI_TYPE(fnhb);
-int ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
+int ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);
 STPNT_TYPE_AE(stpnhb);
 FUNI_TYPE(fnhw);
 int ffhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp);

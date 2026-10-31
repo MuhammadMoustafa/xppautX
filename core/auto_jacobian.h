@@ -10,21 +10,38 @@
 #include "auto_c.h"
 #include "auto_state.h"
 #include "auto_f2c.h"
+#include "session.h"
+#include "solver.h"
 
 namespace xpp::auto_jacobian {
 
 // Algebraic fold/Hopf augmentations differentiate only the principal parameter.
 constexpr integer principal_parameter_count = 1;
 
-// AUTO's difference step about x[0..n): HMACH*(max|x| + 1).
-inline doublereal central_step(integer n, const doublereal *x) {
+// The largest |x[i]|, i < n.
+inline doublereal largest_magnitude(integer n, const doublereal *x) {
   doublereal umx = 0.;
   for (integer i = 0; i < n; ++i) {
     if (f2c::abs(x[i]) > umx) {
       umx = f2c::abs(x[i]);
     }
   }
-  return auto_hmach * (umx + 1);
+  return umx;
+}
+
+// AUTO's difference step about x[0..n): HMACH*(max|x| + 1).
+inline doublereal central_step(integer n, const doublereal *x) {
+  return auto_hmach * (largest_magnitude(n, x) + 1);
+}
+
+// The difference groups of the model's states (W488, jacobian.h) for AUTO's
+// differences of the right-hand side, or null when it does not group: its reads
+// are not known, or a map iterated store_every times reads more states than
+// one step does.
+inline const DifferenceGroups *state_groups(const iap_type *iap, integer n) {
+  const auto &numerics = iap->lib->session->numerics;
+  const bool chained = xpp::solver_info(numerics.method).traits.discrete && numerics.store_every != 1;
+  return chained ? nullptr : difference_groups(iap->lib->session->model(), iap->lib->jacobian_scratch, n);
 }
 
 // d(eval)/dx by central differences about x[0..n), step HMACH*(max|x| + 1)
@@ -91,6 +108,39 @@ doublereal central_grouped(integer n, const doublereal *x, const doublereal *fx,
   return ep;
 }
 
+// The fold system's difference columns in groups: the n states in the groups
+// of `states` (the model's), then the second parameter at ndim-1, alone, since
+// every equation reads it. Row n+j of the system, (A v)_j, reads exactly the
+// states equation j reads, so `states` serves for those rows, but A is itself
+// differenced with AUTO's step from the largest |x| of the states it is given,
+// and a group's perturbation must leave that step as each state's alone does:
+// a state that moves the largest |x| (the largest itself, or one within ep of
+// it) is a group of its own, with every row taken from its evaluations.
+inline DifferenceGroups fold_columns(const DifferenceGroups &states, integer n, integer ndim,
+                                     const doublereal *x, doublereal ep) {
+  const doublereal umx = largest_magnitude(n, x);
+  DifferenceGroups columns;
+  columns.rows.resize(static_cast<size_t>(ndim));
+  const auto alone = [&](integer i) {
+    for (integer row = n; row < ndim; ++row) columns.rows[static_cast<size_t>(i)].push_back(static_cast<int>(row));
+    columns.groups.push_back({static_cast<int>(i)});
+  };
+  for (const std::vector<int> &group : states.groups) {
+    std::vector<int> together;
+    for (const int i : group) {
+      if (f2c::abs(x[i] - ep) <= umx && f2c::abs(x[i] + ep) <= umx) {
+        together.push_back(i);
+        for (const int j : states.rows[static_cast<size_t>(i)]) columns.rows[static_cast<size_t>(i)].push_back(static_cast<int>(n) + j);
+      } else {
+        alone(i);
+      }
+    }
+    if (!together.empty()) columns.groups.push_back(std::move(together));
+  }
+  alone(ndim - 1);
+  return columns;
+}
+
 // The caller supplies AUTO's step and evaluator; columns follow icp, with
 // col0 accounting for state columns in boundary and integral Jacobians.
 template <class Eval>
@@ -98,12 +148,14 @@ void forward_parameters(integer count, integer nout, const integer *icp, doubler
                         doublereal *par, Eval &&eval, const doublereal *f,
                         doublereal *ff, doublereal *out, integer ld, integer col0) {
   for (integer i = 0; i < count; ++i) {
-    par[icp[i]] += ep;
+    // (p + ep) - ep is not always p: restore the value itself, as AUTO-07p does
+    const doublereal saved = par[icp[i]];
+    par[icp[i]] = saved + ep;
     eval(ff);
     for (integer j = 0; j < nout; ++j) {
       out[j + (col0 + icp[i]) * ld] = (ff[j] - f[j]) / ep;
     }
-    par[icp[i]] -= ep;
+    par[icp[i]] = saved;
   }
 }
 
@@ -152,11 +204,12 @@ int curve(const iap_type *iap, const rap_type *rap, integer ndim,
           doublereal *dfdp, bool hopf, Eval eval) {
   const integer n = iap->ndm;
   std::vector<double> base(xpp::size_product(n, ndim)), parameters(xpp::size_product(n, iap->lib->parameter_count));
-  const auto evaluate = [&](const double *state, double *value) {
-    eval(iap, rap, ndim, state, uold, icp, par, value, n,
+  // ijac 1 for the evaluations whose derivatives with respect to the parameters nobody reads
+  const auto evaluate = [&](const double *state, double *value, integer jac = 1) {
+    eval(iap, rap, ndim, state, uold, icp, par, jac, value, n,
          base.data(), parameters.data());
   };
-  evaluate(u, f);
+  evaluate(u, f, 2);
   if (ijac == 0) return 0;
   const Matrix<const double> a(base, n, ndim);
   const Matrix<const double> p(parameters, n, iap->lib->parameter_count);
@@ -180,24 +233,29 @@ int curve(const iap_type *iap, const rap_type *rap, integer ndim,
   for (integer i = 0; i < n; ++i) columns[i] = i;
   columns[n] = ndim - 1; // p2 is the last augmented state
   std::vector<double> low(ndim), high(ndim), minus(ndim), plus(ndim), numeric(xpp::size_product(ndim, ndim));
-  const double step = central(ndim, ndim, u, low.data(), high.data(), minus.data(), plus.data(),
-                              evaluate, numeric.data(), ndim, columns);
+  // The fold system's columns in groups where the model's reads allow; the Hopf
+  // system's phase row (the last) reads every state, so its columns go one by one.
+  const DifferenceGroups *states = hopf || iap->ips == AutoProblem::DiscreteMap || iap->jac != auto_jac_differences
+                                       ? nullptr : state_groups(iap, n);
+  const double step = states
+      ? central_grouped(ndim, u, f, fold_columns(*states, n, ndim, u, central_step(ndim, u)), low.data(), high.data(),
+                        minus.data(), plus.data(), evaluate, numeric.data(), ndim)
+      : central(ndim, ndim, u, low.data(), high.data(), minus.data(), plus.data(),
+                evaluate, numeric.data(), ndim, columns);
   const Matrix<const double> difference(numeric, ndim, ndim);
   for (const integer column : columns)
     for (integer row = n; row < ndim; ++row)
       if (row != 2 * n) jac(row, column) = difference(row, column);
   // AUTO-07p uses a forward difference for the principal parameter's
-  // variational equations; preserve the model's own parameter block above.
-  const double saved = par[icp[0]];
+  // variational equations; the model's own parameter block above wins in rows
+  // 0..n-1 (the difference also visited F, whose supplied derivatives are exact).
+  std::vector<double> principal(n);
+  for (integer i = 0; i < n; ++i) principal[i] = dp(i, icp[0]);
   forward_parameters(principal_parameter_count, ndim, icp, step, par,
                      [&](double *value) { evaluate(u, value); },
                      f, plus.data(), dfdp, ndim, 0);
-  par[icp[0]] = saved;
   par[icp[1]] = u[ndim - 1];
-  // The parameter difference also visited F; its supplied derivatives win.
-  // Re-evaluate the model blocks after perturbations before restoring them.
-  evaluate(u, plus.data());
-  for (integer i = 0; i < n; ++i) dp(i, icp[0]) = p(i, icp[0]);
+  for (integer i = 0; i < n; ++i) dp(i, icp[0]) = principal[i];
   dp(2 * n, icp[0]) = 0.;
   return 0;
 }

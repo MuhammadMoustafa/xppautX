@@ -33,7 +33,7 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 } /* fnlp_ */
 
 int 
-fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   integer dfdu_dim1;
   
@@ -46,9 +46,9 @@ fflp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   par[icp[1]] = u[-1 + ndim];
   if (ips == xpp::AutoProblem::DiscreteMap) {
-    fnds(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
+    fnds(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
   } else {
-    funi(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
+    funi(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
   }
 
   for (i = 0; i < ndm; ++i) {
@@ -448,7 +448,7 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 } /* fnhb_ */
 
 int 
-ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
+ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, integer ndm, doublereal *dfdu, doublereal *dfdp)
 {
   // AUTO-07p equilibrium.f90:190-258, Kuznetsov (10.80), reimplemented:
   // State = [equilibrium, real vector, omega^2, second parameter].
@@ -456,8 +456,8 @@ ffhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   // reimplemented from maps.f90 FFNSX (Kuznetsov 10.83).
   par[icp[1]] = u[ndim - 1];
   const bool map=iap->ips==xpp::AutoProblem::DiscreteMap;
-  if (map) fnds(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
-  else funi(iap, rap, ndm, u, uold, icp, par, 2, f, dfdu, dfdp);
+  if (map) fnds(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
+  else funi(iap, rap, ndm, u, uold, icp, par, ijac, f, dfdu, dfdp);
   const xpp::Matrix<double> blocks({dfdu, static_cast<size_t>(ndm * ndim)}, ndm, ndim);
   const double kappa = u[2 * ndm];
   const double shift=map ? 2*(1-xpp::math::cos(kappa)) : kappa;
@@ -500,7 +500,7 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   u[iap->ndim - 1] = par[icp[1]];
   std::vector<double> old(iap->ndim), residual(iap->ndim);
   std::vector<double> blocks(xpp::size_product(n, iap->ndim)), parameters(xpp::size_product(n, iap->lib->parameter_count));
-  ffhb(iap, rap, iap->ndim, u, old.data(), icp, par, residual.data(), n, blocks.data(), parameters.data());
+  ffhb(iap, rap, iap->ndim, u, old.data(), icp, par, 2, residual.data(), n, blocks.data(), parameters.data());
   integer size = n;
   // The Hopf pair gives a two-dimensional kernel. NLVC chooses its phase;
   // subsequent correctors use the previous vector's symmetric condition.
@@ -2655,11 +2655,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   f2zz.resize(ndim);
 
   const auto evaluate = [&](const doublereal *uu, doublereal *ff) { func(*iap->lib->session, ndim, uu, icp, nfpr, par, 0, ff, dfdu, dfdp, iap->lib); };
-  /* a map iterated store_every times reads more states than one step does */
-  const auto &numerics = iap->lib->session->numerics;
-  const bool chained = xpp::solver_info(numerics.method).traits.discrete && numerics.store_every != 1;
-  const xpp::DifferenceGroups *groups =
-      chained ? nullptr : xpp::difference_groups(iap->lib->session->model(), iap->lib->jacobian_scratch, ndim);
+  const xpp::DifferenceGroups *groups = xpp::auto_jacobian::state_groups(iap, ndim);
   ep = groups ? xpp::auto_jacobian::central_grouped(ndim, u, f, *groups, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(), evaluate, dfdu, dfdu_dim1)
               : xpp::auto_jacobian::central(ndim, ndim, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(), evaluate, dfdu, dfdu_dim1);
 
