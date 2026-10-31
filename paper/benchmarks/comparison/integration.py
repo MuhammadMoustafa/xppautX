@@ -14,7 +14,7 @@ import sys
 
 from common import (BENCH, INPUT_SUFFIXES, HERE, LONG_RUN_REASON, LONG_RUN_SECONDS, REPO, TOOLS, before_series, progress, command, derived_key, earlier_context, environment,
                     initialize, inputs_sha, is_long, link_tree, mark_reused, measure_sha, module, parser, repetitions, required_repetitions,
-                    reuse_key, rotation, save, selected, sha, summarize)
+                    reuse_key, rotation, save, selected, sha, short_home, summarize)
 
 screen = module('screen', BENCH / 'five-model-screen/screen.py')
 scaling = module('scaling', BENCH / 'size-scaling/scaling.py')
@@ -161,7 +161,8 @@ def launch(a, model, engine, folder, measured):
         if f.suffix in INPUT_SUFFIXES:
             shutil.copy2(f, folder / f.name)
     argv = engine_argv(a, model, engine, folder / (model.stem + '.ode.set'))
-    result = command(argv, folder, measured=measured, cpus=a.cores[:1], env=environment(folder / 'home'))
+    with short_home() as home:
+        result = command(argv, folder, measured=measured, cpus=a.cores[:1], env=environment(home))
     output = folder / 'output.dat'
     if output.exists():
         rows = [[float(v) for v in line.split()] for line in output.read_text().splitlines() if line.strip()]

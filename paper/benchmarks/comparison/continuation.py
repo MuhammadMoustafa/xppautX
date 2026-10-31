@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 from common import (BENCH, REPO, TOOLS, before_series, derived_program_sha, earlier_context, environment, executable_sha,
                     initialize, link_tree, mark_reused, measure_sha, progress, module, parser, reachable_sha, repetitions, rotation,
-                    save, selected, sha, summarize, tracked_text, tree_sha)
+                    save, selected, sha, short_home, summarize, tracked_text, tree_sha)
 import autocompare as comparison
 import auto_reference as reference
 from comparison_measure import RunClock, process_cpu
@@ -188,8 +188,9 @@ def native(a, d, folder, threads, events, jacobian, measured):
             if events:
                 digests[run['name']] = hashlib.sha256(json.dumps(old_events.points(emitted)).encode()).hexdigest()
 
-    data, _, threads_auto, ranges = comparison.compute(str(a.xppautx), d, threads,
-        env=environment(folder / 'home'), run=str(folder), diagram_data=events, jacobian=jacobian, observer=Observer())
+    with short_home() as home:
+        data, _, threads_auto, ranges = comparison.compute(str(a.xppautx), d, threads,
+            env=environment(home), run=str(folder), diagram_data=events, jacobian=jacobian, observer=Observer())
     (folder / 'diagram.csv').write_bytes(data)
     save(folder / 'run-ranges.json', ranges)
     save(folder / 'w269-event-digests.json', digests)
@@ -201,10 +202,11 @@ def foreign(a, d, program, inputs, folder, measured, exact=None):
     args = SimpleNamespace(auto_dir=str(a.auto_dir), xppaut=str(a.xppaut), keep=folder / 'files')
     args.keep.mkdir()
     measurement = {} if measured else None
-    env = environment(folder / 'home')
-    env['OMP_NUM_THREADS'] = os.environ.get('OMP_NUM_THREADS', '1')
-    value = reference.reference('series', d, program, args, inputs, measurement,
-            exact, process_env=env)
+    with short_home() as home:
+        env = environment(home)
+        env['OMP_NUM_THREADS'] = os.environ.get('OMP_NUM_THREADS', '1')
+        value = reference.reference('series', d, program, args, inputs, measurement,
+                exact, process_env=env)
     save(folder / 'reference.json', value)
     save(folder / 'measurement.json', measurement)
     return comparison.checked_reference(value, reference.SUFFIX[program], d), measurement
@@ -319,8 +321,35 @@ def converged_compare(name, d, data, ranges, suffix, ref):
             seen[r['name'], symbol] = seen.get((r['name'], symbol), 0) + 1
             if start_artefact(r, i):
                 known.append(dict(reference=suffix, run=r['name'], side='ours', type=symbol, index=seen[r['name'], symbol], cause='W458'))
+    if suffix == CONVERGED:
+        # W562 (D3): the converged run runs on past a row that stops at its step limit; its curve is cut at our last point
+        # (the other program's row is cut in clipped_ranges instead, the converged run being ours there)
+        rows = comparison.stored_rows(data, ranges)
+        ref = dict(ref, runs=[comparison.stop_at_row_end(rows[r['name']], r, beyond=1) if r['name'] in rows else r for r in ref['runs']])
     ref = dict(ref, runs=[dict(r, points=[p for p in r['points'] if not start_artefact(by_name[r['name']], abs(p['point']) - 1)]) for r in ref['runs']])
     return comparison.compare_references(name, dict(d, differences=known), data, ranges, {suffix: ref})
+
+
+def clipped_ranges(data, ranges, d, ref):
+    """The converged run's ranges cut where each of another program's rows ends (W562, D3): the converged run runs on past a row
+    that stops at its step limit, and its samples past that row's last point are not the row's. The cut is the converged sample
+    nearest the row's last sample (as stop_at_row_end cuts a reference at our end), read through the stored rows."""
+    rows = comparison.stored_rows(data, ranges)
+    curve_runs = {r['name']: r['kind'] in ('two_parameter', *comparison.HOMCONT) for r in d['runs']}
+    out = dict(ranges)
+    for r in ref['runs']:
+        if 'unavailable' in r or not r.get('curve') or r['name'] not in rows:
+            continue
+        stored = rows[r['name']]
+        kept = [i for i, row in enumerate(stored) if not curve_runs[r['name']] or 'continued_parameter2' in row]
+        if not kept:
+            continue
+        samples = [[comparison.quantity(stored[i], 'par'), comparison.quantity(stored[i], 'par2') if 'continued_parameter2' in stored[i] else 0.0,
+                    comparison.quantity(stored[i], 'norm')] for i in kept]
+        # the sample nearest the row's end and the next one (as stop_at_row_end's beyond=1): our end lies between them
+        cut = min(comparison.nearest_sample(samples, r['curve'][-1]) + 1, len(kept) - 1)
+        out[r['name']] = (ranges[r['name']][0], ranges[r['name']][0] + kept[cut] + 1)
+    return out
 
 
 def converged_sides(d, converged, program, folder):
@@ -329,8 +358,8 @@ def converged_sides(d, converged, program, folder):
     if program == 'xppautx':
         return ((folder / 'diagram.csv').read_bytes(), json.loads((folder / 'run-ranges.json').read_text()), CONVERGED,
                 repeat_references(d, {CONVERGED: converged['reference']})[CONVERGED])
-    return (converged['data'], by_original(d, converged['ranges']), reference.SUFFIX[program],
-            saved_reference(folder, program, given(d, program)))
+    ref = saved_reference(folder, program, given(d, program))
+    return (converged['data'], clipped_ranges(converged['data'], by_original(d, converged['ranges']), d, ref), reference.SUFFIX[program], ref)
 
 
 def given(d, program):
@@ -793,7 +822,8 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
                         digest = hashlib.sha256(result['data']).hexdigest()
                     else:
                         ref, result = foreign(a, fd, program, inputs, folder, True, exact=exact_c if exact else None)
-                        digest = reference_digest(ref)
+                        # the digest of the file as saved, as a reused row's is (W562, D1): ref was rewritten by checked_reference
+                        digest = reference_digest(json.loads((folder / 'reference.json').read_text()))
                         shared = dict(initial, ranges=by_original(run_d, initial['ranges']))
                         agreement = gate(name, run_d, shared, {reference.SUFFIX[program]: ref}) if rep == 0 else dict(passed=digest == baselines[label])
                         for r in result['runs']:

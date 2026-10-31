@@ -1,6 +1,7 @@
 """W439: shared foreground execution, provenance and summary protocol."""
 import argparse
 import ast
+from contextlib import contextmanager
 import csv
 import hashlib
 import importlib.util
@@ -14,6 +15,7 @@ import shutil
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = Path(__file__).resolve().parent
@@ -124,8 +126,20 @@ def before_series(a):
         waited += READY_POLL_SECONDS
 
 
+@contextmanager
+def short_home():
+    """A HOME for one run, short: XPPAUT 8.0 writes $HOME/<model file name> into a 200-byte array unchecked (docs/xppaut-findings.md
+    finding 75), and a run folder inside the series is longer than that with the model's name (W562). A folder under the system
+    temp dir, removed when the run that uses it is over."""
+    home = Path(tempfile.mkdtemp(prefix='xpphome'))
+    try:
+        yield home
+    finally:
+        shutil.rmtree(home)
+
+
 def environment(home):
-    home.mkdir(parents=True)
+    home.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, HOME=str(home), XPP_CONFIG_DIR=str(home / 'config'), LC_ALL='C',
                OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1')
     env.pop('DISPLAY', None)

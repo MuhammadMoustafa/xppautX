@@ -953,6 +953,13 @@ def table_row(name, d, rows, references, measures, diffs):
     return '| %s | %s | %s |' % (name, runs, ' | '.join(cells))
 
 
+def nearest_sample(curve, end):
+    """The index of the sample of `curve` nearest `end`, each coordinate scaled by its span over the curve."""
+    curve = np.array(curve, dtype=float)
+    spans = np.where(np.ptp(curve, axis=0) > 0, np.ptp(curve, axis=0), 1)
+    return int(np.argmin((((curve - end) / spans) ** 2).sum(axis=1)))
+
+
 def stop_at_global_end(rows, r):
     """The reference run up to where ours ends. A run of ours that ends on a global end (SNIC, HOC, HEC: W518)
     stops there; the reference has no such end and runs on to its step limit through ever slower cycles, whose
@@ -963,7 +970,17 @@ def stop_at_global_end(rows, r):
     its samples) is not kept. The last segment, not the first, because a cycle's period is not monotone early on
     (pp2's coarse cycles fall back from 94 to 72 before their end). Without a period (an .xppaut reference) the
     cut is the sample nearest our last point in (parameter, norm)."""
-    if code_of(rows[-1]['itp']) not in GLOBAL_ENDS or 'curve' not in r:
+    if code_of(rows[-1]['itp']) not in GLOBAL_ENDS:
+        return r
+    return stop_at_row_end(rows, r)
+
+
+def stop_at_row_end(rows, r, beyond=0):
+    """stop_at_global_end's cut at our last point, whatever ours ends on (W562, D3): a converged run of a description runs
+    on past a row that stops at its step limit, and its samples past that row's end are not the row's. Without a period,
+    `beyond` samples past the nearest one are kept too: our end lies on the polyline between the nearest sample and the next,
+    so the nearest alone would leave our last point off the curve."""
+    if 'curve' not in r:
         return r
     if 'curve_period' in r:
         period = np.array(r['curve_period'], dtype=float)
@@ -977,10 +994,8 @@ def stop_at_global_end(rows, r):
             curve = curve + [[a + fraction * (b - a) for a, b in zip(r['curve'][cut], r['curve'][cut + 1])]]
             periods = periods + [last]
         return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1], 'curve': curve, 'curve_period': periods}
-    curve = np.array(r['curve'])
     end = np.array([float(rows[-1]['continued_parameter']), float(rows[-1].get('continued_parameter2', 0)), float(rows[-1]['norm'])])
-    spans = np.where(np.ptp(curve, axis=0) > 0, np.ptp(curve, axis=0), 1)
-    cut = int(np.argmin((((curve - end) / spans) ** 2).sum(axis=1)))
+    cut = min(nearest_sample(r['curve'], end) + beyond, len(r['curve']) - 1)
     # a sample is row PT - 1 of the file (the curve starts at point 1): the points up to the cut's own point stay
     return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1], 'curve': r['curve'][:cut + 1]}
 

@@ -9,8 +9,9 @@ xppautX (--silent, the model's file and set file) and the Python integrator of t
   - the two outputs have the same rows, and the same time column, and
   - every value of the Python output is within FLOAT_STEPS step of a single-precision float (and the rounding of the
     digits printed) of xppautX's.
-The two programs do the same arithmetic step for step, so what is left is the C library's functions (xppautX's are
-correctly rounded) against Python's in the model's formulas: a rounding of a double, which gives the same single-precision
+The two programs do the same arithmetic step for step (a literal whole power from 2 to 16 is multiplied out by squaring in
+both, W471: model.py's _power_by_squaring), so what is left is the C library's functions (xppautX's are correctly rounded; Python's exp and the non-integer ** are
+the C library's) against xppautX's in the model's formulas: a rounding of a double, which gives the same single-precision
 floats but for a value either side of a rounding to single precision. Unless a model amplifies that, the agreement is
 on every row. A model that does amplify it (episodic's irregular firing; a spike's upstroke under DoPri8(3)) leaves
 the agreement at some row, and for those the requirement is that the agreement lasts as far as the Python run is itself

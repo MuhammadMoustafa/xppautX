@@ -4,8 +4,8 @@
     extra_runs.py integration --series S --out O --xppautx X --xppaut P   # Izhikevich 2004 (XPPAUT, short HOME) and the python study's diverging runs
     extra_runs.py lpc --attempt A --out O --xppaut P                      # XPPAUT on ode_mu26_blocked's full description
 
-Each run goes through the series' own functions (integration.launch, auto_reference.reference), in a short scratch folder:
-XPPAUT 8.0's AUTO file name is a 200-character array that a long HOME overflows (docs/xppaut-findings.md finding 75).
+Each run goes through the series' own functions (integration.launch, auto_reference.reference), in a short scratch folder, and
+with common.short_home() as its HOME: XPPAUT 8.0's AUTO file name is a 200-character array that a long HOME overflows (docs/xppaut-findings.md finding 75).
 The result is copied to O/<study>/<workload>/<program>/ with command.json and environment.json.
 """
 import argparse
@@ -36,9 +36,9 @@ def rerun(a, study, workload, programs, source, scratch):
         folder = scratch / ('%s-%s' % (workload, program))
         result = launch(a, model, program, folder, measured=False)
         dest = a.out / study / workload / program
-        shutil.copytree(folder, dest, ignore=shutil.ignore_patterns('home'))
-        env = {k: ('%s' % (folder / 'home') if k == 'HOME' else os.environ.get(k, 'set by common.environment')) for k in ENVIRONMENT_KEYS}
-        save(dest / 'environment.json', dict(env, note='common.environment(): HOME is the run folder\'s home; DISPLAY removed', original_folder=str(folder)))
+        shutil.copytree(folder, dest)
+        env = {k: ('short_home(): a temp folder, removed after the run' if k == 'HOME' else os.environ.get(k, 'set by common.environment')) for k in ENVIRONMENT_KEYS}
+        save(dest / 'environment.json', dict(env, note='common.environment(): HOME is common.short_home(); DISPLAY removed', original_folder=str(folder)))
         print(study, workload, program, 'exit', result['exit_code'], 'points', result.get('points'), flush=True)
 
 

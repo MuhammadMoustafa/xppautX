@@ -82,6 +82,24 @@ def _mod(x, y):
     return z + y if z < 0 else z
 
 
+MAX_INTEGER_POWER = 16  # core/xpp_math.h's MAX_INTEGER_POWER: a literal whole exponent from 2 to this is multiplied out (W471)
+
+
+def _power_by_squaring(x, n):
+    """x^n by squaring, in the order of core/xpp_math.h's power_by_squaring, so the same bits as xppautX (W471, W562)."""
+    while n & 1 == 0:
+        x = x * x
+        n >>= 1
+    r = x
+    n >>= 1
+    while n != 0:
+        x = x * x
+        if n & 1:
+            r = r * x
+        n >>= 1
+    return r
+
+
 def _sum(terms):
     """The terms added one after another from 0, as xppautX's SUM does (Python's own sum compensates)."""
     return functools.reduce(operator.add, terms, 0.0)
@@ -96,7 +114,7 @@ def _shift(values, slot, offset):
 
 
 FUNCTIONS = {'math': math, '_exp': _exp, '_cosh': _cosh, '_sinh': _sinh, '_log': _log, '_sqrt': _sqrt, '_max': _max,
-             '_min': _min, '_heav': _heav, '_mod': _mod, '_sum': _sum, '_shift': _shift}
+             '_min': _min, '_heav': _heav, '_mod': _mod, '_sum': _sum, '_shift': _shift, '_power_by_squaring': _power_by_squaring}
 
 
 class Table:
@@ -249,7 +267,11 @@ class _Parser:
         base = self.primary()
         if self.peek() == '^':
             self.take()
-            return '(%s ** %s)' % (base, self.unary())
+            exponent = self.unary()
+            # a literal whole exponent from 2 to 16 is multiplied out, as xppautX's INTEGER_POWER does; any other is pow
+            if re.fullmatch(r'\d+\.0', exponent) and 2 <= int(float(exponent)) <= MAX_INTEGER_POWER:
+                return '_power_by_squaring(%s, %d)' % (base, int(float(exponent)))
+            return '(%s ** %s)' % (base, exponent)
         return base
 
     def primary(self):
