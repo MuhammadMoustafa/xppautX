@@ -52,7 +52,6 @@ REFINEMENT = 10
 # henon_rot_th (the Henon map with a rotation) and explicit_homoclinic (the orbit in closed form). Branch switching is W556's.
 SPECIAL_POINT_DESCRIPTIONS = ('forced_pp_pd', 'forced_pp_ns', 'hen_pd', 'hen_tr', 'lorenz_homoclinic', 'lrz_cycles',
                               'hill_cycles_pd', 'hill_cycles_torus', 'henon_rot_pd', 'henon_rot_tr', 'henon_rot_th', 'explicit_homoclinic')
-STALE_HOMCONT_SKIP = 'No native XPPAUT HomCont run'  # the reason tests/auto's homoclinic descriptions skip XPPAUT with, W365's
 SPECIAL_POINT_TIMED = False  # phase 1 of W557 is untimed; the timed rerun turns it on
 CONVERGED = '.converged'  # that run's name where compare_references names a reference
 comparison.REFERENCES.setdefault(CONVERGED, 'the converged exact run')
@@ -141,12 +140,6 @@ def workloads(a):
     # (their own names; the published models first: the README's table in tests/auto). Untimed until the timed rerun.
     for name in SPECIAL_POINT_DESCRIPTIONS:
         d = description(name)
-        if d.get('xppaut_skip', '').startswith(STALE_HOMCONT_SKIP):
-            # tools/auto_reference.py now integrates the orbit in XPPAUT's main window and starts its homoclinic continuation from it; the
-            # run is kept and plotted, not gated: its starting data is the orbit sampled with an unscaled weight (finding 69)
-            d['xppaut_skip'] = ('W557 (#622): XPPAUT 8.0 starts its homoclinic continuation from the orbit sampled with an unscaled interpolation weight '
-                                '(docs/xppaut-findings.md finding 69), so its starting data, which neither program corrects, differs from the integrated '
-                                "orbit (the first point's L2 norm by 5e-5 relative at the description's step); the run is kept and compared by the independent check, not gated.")
         result.append((name, d, [r['name'] for r in d['runs']], SPECIAL_POINT_TIMED))
     if a.check:
         restart = copy.deepcopy(next(d for name, d, _, _ in result if name == 'E3-50'))
@@ -363,7 +356,12 @@ def converged_compare(name, d, data, ranges, suffix, ref):
         # (the other program's row is cut in clipped_ranges instead, the converged run being ours there)
         rows = comparison.stored_rows(data, ranges)
         ref = dict(ref, runs=[comparison.stop_at_row_end(rows[r['name']], r, beyond=1) if r['name'] in rows else r for r in ref['runs']])
-    ref = dict(ref, runs=[dict(r, points=[p for p in r['points'] if not start_artefact(by_name[r['name']], abs(p['point']) - 1)]) for r in ref['runs']])
+    # W566: compare_curve compares only the samples inside both curves' ends: the converged side's past the row's end, and the
+    # row's before the converged side's start where the run starts from the end of another (to_snic from the cycles'), cut at its step limit
+    side = 'reference' if suffix == CONVERGED else 'ours'
+    ref = dict(ref, runs=[dict(r, converged=dict(side=side, head=by_name[r['name']]['start'].get('type') == 'EP'),
+                               points=[p for p in r['points'] if not start_artefact(by_name[r['name']], abs(p['point']) - 1)])
+                          for r in ref['runs']])
     return comparison.compare_references(name, dict(d, differences=known), data, ranges, {suffix: ref})
 
 

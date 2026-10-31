@@ -2442,3 +2442,29 @@ stored point's multiplier is 0.999989, a zero eigenvalue to 1.1e-5, the location
 and the points after it come one step later; every point still solves the model's equations (autocheck's `switch` section, which now also checks the
 fold against the equations). No other description changed: all 79 compared (autocompare: 0 failures), the three other switched runs among them.
 Findings: docs/auto07p-findings.md 14, docs/xppaut-findings.md 105.
+
+
+## W566: the comparison's loose ends ([#631](https://github.com/MuhammadMoustafa/xppautX/issues/631))
+
+**Mu26 blocked's to_snic error of 4055 was the run's start, not its end.** From the saved data of the last series (W354 series e, the pilots against W561's converged run):
+to_snic starts from the end (EP 1) of cycles, which both runs cut at their step limit: ours at point 125 (SmIapp 96.155, norm 71.527), the converged run (steps
+a tenth, 1250 of them) at 70.588. The converged to_snic therefore starts 25.6 pA further down the same curve, and the 38 first samples of ours (96.155 to 70.59)
+lie on the converged *cycles*, off the converged to_snic polyline: sample 1 of ours was 25.7 away in the parameter and 3.58 in the norm, the two largest
+numbers of the run, and the gate's whole "to_snic" error (with cycles' 187, which came from the converged curve's boundary sample, below). Another program's row, which
+starts from xppautX's start, had the same 38 samples off the converged curve (XPPAUT 4023, AUTO-07p 4055). Nothing was wrong with the curve.
+`compare_curve` (tools/autocompare.py) now takes `converged`: on a run that starts from the end of another (`start` type EP) the row's samples before the
+converged curve's first are not compared, as W562's cut left out the converged samples past the row's end; the row's own end is compared against the whole converged
+polyline. Against the saved exact pilot no curve difference is left on cycles or to_snic (the pilot's special-point differences, UZ 135's spectrum and UZ 150's norm, are as before).
+
+**The converged curve's boundary sample.** The cut at the sample past the row's end (`stop_at_row_end(beyond=1)`) left one sample beyond the end, 0.0528 off in the
+parameter on cycles. `compare_curve` now compares the converged side's samples only up to the point of its polyline nearest the row's last sample (the row's last
+sample is compared against the whole polyline), so no sample past the end counts and no point is interpolated on the coarse polyline (a point made on a chord
+is off the curve by the chord's error, the first try's 4.8e-6 at to_snic's end). A run that ends on a global end (SNIC, HOC, HEC) stops where its own
+detection tripped, so there the other side's samples past the converged side's end are left out too. Only the descriptions' comparison with the converged
+run changes: `tools/autocompare.py`'s 79 models give the same output as before (201 checks, 0 failures, no baseline changed).
+
+**XPPAUT's homoclinic references.** `tests/auto/lorenz_homoclinic.xppaut` and `explicit_homoclinic.xppaut` are written by `tools/auto_reference.py --program xppaut`
+(W557's driver: XPPAUT 8.0 on Xvfb, `W300_DISPLAY`), their `xppaut_skip` dropped, and autocompare compares them. XPPAUT's start orbit is sampled with finding 69's
+unscaled weight: the first point's norm is 7.102317 for xppautX's 7.101925 (lorenz_homoclinic, 5.5e-5 relative) and 0.8649229 for 0.8648999 (explicit_homoclinic).
+Both are traced differences of the descriptions (`differences`, the EP's norm; lorenz_homoclinic's first curve sample too, 2.56e-4 against the 1.66e-4 its
+chord allows, as a `curve norm` entry, the new kind of traced difference); every other quantity of both curves agrees within the tolerances, none widened.

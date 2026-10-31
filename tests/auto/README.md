@@ -80,7 +80,9 @@ of the description's `differences` (run, side, type, index among that type, caus
 the check fails if the difference goes away. A numerical discrepancy adds `quantity` (`par`, `par2`,
 `norm`, `period` or `spectrum`) to an `ours` entry: only that quantity is traced,
 the label and every other quantity stay checked, and the check fails if the
-quantity now agrees so the exception must be removed.
+quantity now agrees so the exception must be removed. A curve's sample off the other curve is traced the same way: an entry of type `EP`
+with `quantity` one of `curve par`, `curve par2`, `curve norm`, its `index` the sample's number on its `side` (W566: XPPAUT's first sample
+of a homoclinic curve, its start orbit sampled with an unscaled weight, finding 69).
 
 A `two_parameter` run (W362, #424) continues a labelled point of an earlier run (`start`: its run, type
 fold or hopf, index) in its two `parameters`. Its reference run holds `parameters`, the special points with

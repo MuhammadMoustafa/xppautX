@@ -196,7 +196,11 @@ def read_description(path):
                 or k['type'] not in ('EP', *BIFURCATIONS.values(), *CODIM_TWO) or not isinstance(k['cause'], str) or not k['cause'].strip()):
             raise ValueError('invalid traced difference: ' + str(k))
         finite(k['index'], 'index', integer=True, positive=True)
-        if 'quantity' in k and (k['side'] != 'ours' or k['quantity'] not in POINT_QUANTITIES):
+        if k.get('quantity') in CURVE_QUANTITIES:
+            # W566: a curve's sample (index counts from 1 on its side) off the other curve in that quantity: of the start, an EP
+            if k['type'] != 'EP':
+                raise ValueError('a curve difference is of a start sample, type EP: ' + str(k))
+        elif 'quantity' in k and (k['side'] != 'ours' or k['quantity'] not in POINT_QUANTITIES):
             raise ValueError('quantity difference must name an ours point and a compared quantity: ' + str(k))
         key = tuple(k[x] for x in ('reference', 'run', 'side', 'type', 'index')) + (k.get('quantity'),)
         if key in traced:
@@ -837,7 +841,7 @@ def chord_error(polyline, i):
 CURVE_QUANTITIES = ('curve par', 'curve par2', 'curve norm')
 
 
-def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter=True, runs_on=None):
+def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter=True, runs_on=None, converged=None, traced=()):
     """Differences (strings) and measurements of a two-parameter run's curve against a reference's
     samples. The programs' steps differ, so points are matched by where they lie: every sample of one
     curve against the other as a polyline. Match all three coordinates against each segment's
@@ -856,7 +860,16 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
     same reason, when both runs end at their NMX-th point the samples of one beyond the other's last
     point are not compared (W405): where a run of NMX steps ends is its step sequence's, not the curve's.
     `runs_on`, a traced difference of the description (`curve_runs_on`): the samples of ours off the reference's curve are expected, not
-    differences; with none off it the traced difference is gone and is reported."""
+    differences; with none off it the traced difference is gone and is reported.
+    `traced`, the description's traced differences of a sample of this curve (a quantity of CURVE_QUANTITIES, the side, the sample's index): that sample is
+    expected off the other curve in that quantity, and a traced sample that agrees is reported.
+    `converged` (W566), {'side': 'ours' or 'reference', 'head': bool}: that side is a run converged beyond the other's, which runs
+    on past where the other stops at its step limit. Its samples past the other's last are not compared (the other's last
+    sample is, against the whole converged polyline), so no sample past an end counts; a run that ends on a global end (SNIC,
+    HOC, HEC) stops where its own detection tripped, so there the other side's samples past the converged side's end are left
+    out too. `head`: the run starts from the end of another run cut at its step limit (to_snic from the cycles' last point),
+    which is not where the converged run's step limit left it, so the other side's samples before the converged side's first
+    are not compared either."""
     epsl, epsu = auto.get('parameter_tolerance', 1e-4), auto.get('state_tolerance', 1e-4)
     # a curve of cycles first stores the starting data of the curve (the run xppautX does before it) as a branch of
     # one continued parameter: those rows are not on the curve
@@ -867,6 +880,15 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
     if len(ours) < 2 or len(ref) < 2:
         return ['%s: fewer than two branch samples' % who], []
     both_end_at_nmax = len(ours) == len(ref) == auto.get('max_steps')
+    first, last = {'ours': 0, 'reference': 0}, {'ours': len(ours), 'reference': len(ref)}
+    if converged:
+        row, conv = ('ours', 'reference') if converged['side'] == 'reference' else ('reference', 'ours')
+        curves = {'ours': ours, 'reference': ref}
+        last[conv] = samples_before(curves[conv], curves[row][-1])
+        if code_of(rows[-1]['itp']) in GLOBAL_ENDS:
+            last[row] = samples_before(curves[row], curves[conv][-1])
+        if converged['head']:
+            first[row] = samples_from(curves[row], curves[conv][0])
 
     def printed_by_segment(vertices):
         # the half last printed unit of the largest reference coordinate of each segment's endpoints
@@ -907,7 +929,8 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
                 return tubes(point, chords_max, target, printed_max)
             return tubes(point, chords[rows], target, None if printed is None else printed[rows])
 
-        for n, point in enumerate(source[:compared]):
+        for n in range(first[side], min(compared, last[side])):
+            point = source[n]
             if not auto['parameter_min'] <= point[0] <= auto['parameter_max']:
                 continue
             i, residual, tolerances = matcher.project(np.array(point), lambda rows: bounds_of(point, rows))
@@ -918,6 +941,15 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
                     worst[q] = diff, tol, '%s sample %d' % (side, n + 1)
                 if diff > tol:
                     failed.setdefault(q, []).append((n + 1, point, diff, tol))
+        for k in traced:
+            if k['side'] == side:
+                bad = failed.get(k['quantity'], [])
+                if any(b[0] == k['index'] for b in bad):
+                    failed[k['quantity']] = [b for b in bad if b[0] != k['index']]
+                    if not failed[k['quantity']]:
+                        del failed[k['quantity']]
+                else:
+                    diffs.append('%s: traced difference not present any more, remove it: %s' % (who, k))
         if runs_on and side == 'ours':
             if not failed:
                 diffs.append('%s: traced difference not present any more, remove it: %s' % (who, runs_on))
@@ -959,6 +991,31 @@ def nearest_sample(curve, end):
     curve = np.array(curve, dtype=float)
     spans = np.where(np.ptp(curve, axis=0) > 0, np.ptp(curve, axis=0), 1)
     return int(np.argmin((((curve - end) / spans) ** 2).sum(axis=1)))
+
+
+def project_on_curve(curve, point):
+    """(i, t): the point of the polyline `curve` nearest `point` lies a fraction t (0 to 1) along its segment i, each
+    coordinate scaled by its span over the curve as nearest_sample scales it."""
+    curve = np.array(curve, dtype=float)
+    spans = np.where(np.ptp(curve, axis=0) > 0, np.ptp(curve, axis=0), 1)
+    a, b, p = curve[:-1] / spans, curve[1:] / spans, np.array(point, dtype=float) / spans
+    along = b - a
+    length = (along ** 2).sum(axis=1)
+    t = np.clip(np.where(length > 0, ((p - a) * along).sum(axis=1) / np.where(length > 0, length, 1), 0.0), 0.0, 1.0)
+    i = int(np.argmin((((a + t[:, None] * along) - p) ** 2).sum(axis=1)))
+    return i, float(t[i])
+
+
+def samples_before(curve, point):
+    """How many leading samples of `curve` lie before the point of it nearest `point`: none of the samples past `point` counts."""
+    i, t = project_on_curve(curve, point)
+    return i + 2 if t >= 1 else i + 1
+
+
+def samples_from(curve, point):
+    """The index of the first sample of `curve` at or after the point of it nearest `point`: none of the samples before it counts."""
+    i, t = project_on_curve(curve, point)
+    return i if t <= 0 else i + 1
 
 
 def stop_at_global_end(rows, r):
@@ -1006,7 +1063,7 @@ def compare_reference_run(name, suffix, dr, r, rows, known, runs_on=None):
     # a reference that stops short of our end has no sample there to cut at
     r = r if runs_on else stop_at_global_end(rows[dr['name']], r)
     who = '%s %s/%s' % (name, REFERENCES[suffix], r['name'])
-    a, m = compare_run(rows[dr['name']], dr['auto'], dr['kind'], r['points'], who, known,
+    a, m = compare_run(rows[dr['name']], dr['auto'], dr['kind'], r['points'], who, [k for k in known if k.get('quantity') not in CURVE_QUANTITIES],
                        # An equilibrium restarted from an EP reuses that point;
                        # its seed remains checked by the whole branch,
                        # rather than counted as a newly labelled point.
@@ -1014,7 +1071,8 @@ def compare_reference_run(name, suffix, dr, r, rows, known, runs_on=None):
                        and not dr.get('start_refined'))
     if 'curve' in r:
         c, cm = compare_curve(rows[dr['name']], dr['auto'], r['curve'], who, XPPAUT_CURVE_DIGITS if suffix == '.xppaut' else None,
-                              dr['kind'] in ('two_parameter', *HOMCONT), runs_on)
+                              dr['kind'] in ('two_parameter', *HOMCONT), runs_on, r.get('converged'),
+                              [k for k in known if k.get('quantity') in CURVE_QUANTITIES])
         a, m = a + c, m + cm
     return a, m
 

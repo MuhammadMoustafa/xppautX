@@ -10,7 +10,26 @@
     "y": 0.000171297268,
     "z": 0.0
   },
-  "xppaut_skip": "No native XPPAUT HomCont run of this orbit was executed; the driver does not create its integrated starting orbit.",
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "homoclinic",
+      "side": "ours",
+      "type": "EP",
+      "index": 1,
+      "quantity": "norm",
+      "cause": "W566 (#631): docs/xppaut-findings.md finding 69: XPPAUT 8.0 samples the homoclinic start orbit with an unscaled interpolation weight (auto_nox.c:1765), so the starting data it continues from (its first point, which neither AUTO corrects) is not the integrated orbit: its first point's L2 norm is 7.102317, xppautX's 7.101925 (relative 5.5e-5). Traced, not declared equal: the later points agree within the tolerances, no tolerance is widened."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "homoclinic",
+      "side": "reference",
+      "type": "EP",
+      "index": 1,
+      "quantity": "curve norm",
+      "cause": "W566 (#631): docs/xppaut-findings.md finding 69: XPPAUT 8.0 samples the homoclinic start orbit with an unscaled interpolation weight (auto_nox.c:1765), so the starting data it continues from (its first point, which neither AUTO corrects) is not the integrated orbit: its first point's L2 norm is 7.102317, xppautX's 7.101925 (relative 5.5e-5). Traced, not declared equal: the later points agree within the tolerances, no tolerance is widened."
+    }
+  ],
   "runs": [
     {
       "name": "steady",
