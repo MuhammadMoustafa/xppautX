@@ -2414,3 +2414,31 @@ No label appears or disappears, so no independent check was needed; the R2 and t
 b0 = 1.948934, forced_pp_pd's NTST 10 and 15 as before to 1e-6). On Mu26 the parameter is exact now: of 964,056 parameter restores
 8,719 were off before, none of 898,326 are now. tests/auto/tstauto_pf_switch.diagram.csv changed in one quantity of size 1e-14 (the second parameter at a fold, 1.14176746199e-14 to 1.14176746183e-14).
 
+## W569: the fold of a switched branch's second step is labelled ([#634](https://github.com/MuhammadMoustafa/xppautX/issues/634))
+
+W563 (#628) found that pp2's switched branch (`tests/auto/tstauto_pp2_switch.json`: the branch of equilibria with u1 = 0 leaving the branch point at
+par0 = 0.8219) turns in par0 between its second and third points, and that neither xppautX nor AUTO-07p labels a fold there.
+
+**Independent check (numpy/scipy, from the model's own equations, not from either program).** On u1 = 0 the first equation gives
+par0(u0) = 3 u0 (1 - u0) / (1 - exp(-5 u0)); its maximum, a fold of equilibria, is at u0 = 0.41116156, par0 = 0.8329293222341569, and the
+Jacobian there has the eigenvalues -1.4e-8 and 0.2335 (a zero eigenvalue). The switched branch's points 2 (u0 = 0.38269, par0 = 0.831406) and 3
+(u0 = 0.43269, par0 = 0.832032) lie on the two sides of it, and the eigenvalues at point 3 are of opposite signs (-0.0743, 0.2981): the fold is real.
+
+**Why it was never labelled.** AUTO-07p's tests start at 0 and are first evaluated at the branch's third point (`TEST(I)=0` at ae.f90:137; the loop
+at ae.f90:187-215 evaluates `FNCS` after `STEPAE` for the next point, and the switched branch's second point is stored by `STPLAE` at ae.f90:179
+without any); a sign change needs two values. XPPAUT 8.0's `cnrlae` zeroes `rlp` after `swprc` ([autlib1.c:1000-1002](../reference/xppaut-8.0/autlib1.c#L1000))
+and so did xppautX's.
+
+**xppautX.** The fold test is evaluated at the second point of a branch it switched to (a restart with `switch`, or a switch inside a run with
+`max_branch_switches`): `cnrlae` calls `fnlpae` after the second point is stored, and `swprc` computes the converged point's Jacobian as `solvae`
+does (W421). The tangent in that evaluation is the branch point's direction, which has the sign of the point's own until a fold turns it, and
+the test's value is the parameter component of the unit tangent, so the next step compares like with like. Only the fold test: the Hopf test's
+evaluation stores a point's stability and the branch point test's determinant is of another Newton matrix there; a Hopf point or a user zero
+between the second and third points of a switched branch is still unlabelled, as is a fold between the first and second points of any branch.
+
+xppautX labels the fold at par0 = 0.8329293222, u0 = 0.411165 (the independent fold's par0 to 2e-12, its u0 to 3e-6, the flatness of par0 there; the
+stored point's multiplier is 0.999989, a zero eigenvalue to 1.1e-5, the location's tolerance): AUTO-07p's reference has no LP, the description records it in `differences` (reference
+`.auto07p`, run `switched`, side `ours`, type LP). tests/auto/tstauto_pp2_switch.diagram.csv has one more point, the fold (127 instead of 126),
+and the points after it come one step later; every point still solves the model's equations (autocheck's `switch` section, which now also checks the
+fold against the equations). No other description changed: all 79 compared (autocompare: 0 failures), the three other switched runs among them.
+Findings: docs/auto07p-findings.md 14, docs/xppaut-findings.md 105.

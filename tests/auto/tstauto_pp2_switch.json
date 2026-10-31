@@ -48,5 +48,15 @@
       "switch": true,
       "xppaut_skip": "XPPAUT 8.0 does not switch at an equilibrium's branch point: Run, Switch from the grabbed BP (ISW=-1 and IRS the BP's label in the .b header) continues the known branch, u0 = 1/3 held and u1 going negative to par0 = 2.0002 (62 steps), where AUTO-07p's switched branch leaves it (docs/xppaut-findings.md, finding 102; W563 #628: driven on Xvfb, its fort.7, fort.8 and the diagram's screenshot read)."
     }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "switched",
+      "side": "ours",
+      "type": "LP",
+      "index": 1,
+      "cause": "W569 (#634): the switched branch turns in par0 between its second and third points, a fold of equilibria that AUTO-07p never labels, since its tests start at the third point (the fold test of the second point is not evaluated, TEST is 0 until then: ae.f90:137, :212-215). xppautX evaluates the fold test at the second point of a branch it switched to, and labels it at par0 = 0.8329293222, u0 = 0.411165. Against the model's own equations (scipy: f = 0 and det J = 0, u1 = 0) the fold is at par0 = 0.8329293222341569, u0 = 0.41116156 (a zero eigenvalue of the Jacobian, -1.4e-8 there; the stored point's is -1.1e-5, the location's tolerance): the label is real. docs/auto-references.md W569, docs/auto07p-findings.md finding 14."
+    }
   ]
 }

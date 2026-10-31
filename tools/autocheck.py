@@ -2651,6 +2651,15 @@ def section_switch():
                                                               sorted(recorded, key=lambda z: (z.real, z.imag)))))
     check('switch pp2: every point of the other branch solves the model with u1 = 0, and its multipliers are e^lambda',
           len(rows) > 20 and worst < 1e-6 and u1_max < 1e-6 and eigen < 1e-6, str((len(rows), worst, u1_max, eigen)))
+    # W569 (#634): the branch turns between its second and third points, where the equilibrium's Jacobian is
+    # singular (a fold of the model's own equations: f = 0 and det J = 0 solved with scipy), and it is labelled
+    from scipy.optimize import fsolve
+    u0_fold, p_fold = fsolve(lambda v: [pp2((v[0], 0.), v[1])[0][0], np.linalg.det(pp2((v[0], 0.), v[1])[1])], (0.41, 0.83), xtol=1e-12)
+    folds = [r for r in rows if r['itp'] == 'fold']
+    near = len(folds) == 1 and abs(float(folds[0]['continued_parameter']) - p_fold) < 1e-9
+    check('switch pp2: the fold between the second and third points is labelled once, at the fold of the equations (numpy/scipy)',
+          near and abs(float(folds[0]['u0.U0']) - u0_fold) < 1e-4 and rows.index(folds[0]) == 2,
+          str((p_fold, u0_fold, [(r['continued_parameter'], r['u0.U0']) for r in folds])))
 
     # The direction a branch point keeps was made for one parameter: another is refused, naming both.
     s = Server(args.server, d['model'])

@@ -1451,6 +1451,18 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   rbp = rev = rlp = {};
 
+  /* W569: the new branch's fold test starts at its second point, not its third (AUTO-07p's tests begin
+     there: a fold between the second and third points is never labelled, as pp2's after the switch at
+     its branch point). Its tangent is the branch point's direction, which has the sign of the point's own
+     until a fold turns it. */
+
+  if (iap->ilp == 1) {
+    bool changed;
+    rlp = {fnlpae(iap, rap, par, icp, &changed, funi, &aa_first_dimension, aa.data(), rlcur.data(),
+                  rlold.data(), rldot.data(), u.data(), uold.data(), udot.data(), rhs.data(), dfdu.data(),
+                  dfdp.data(), marks), std::nullopt};
+  }
+
 /* Provide initial approximation to the next point on the branch */
 
  L3:
@@ -2544,8 +2556,11 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     rdrlm = f2c::abs(drlm) / (f2c::abs(rlcur[0]) + 1.);
     rdumx = dumx / (umx + 1.);
     if (rdrlm < epsl && rdumx < epsu) {
-      /* the point's parameter is the last Newton update's, as solvae stores it (the evaluation above used the one before) */
+      /* the point's parameter is the last Newton update's, as solvae stores it (the evaluation above used the one before);
+         W569: its Jacobian is the converged point's too, for the fold test cnrlae takes here (as solvae, W421) */
       par[icp[0]] = rlcur[0];
+      (*funi)(iap, rap, ndim, u, uold, icp, par, 2, f, dfdu, dfdp);
+      if (jacobian_failed(iap)) goto L5;
       return 0;
     }
     /* L3: */

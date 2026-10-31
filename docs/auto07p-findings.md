@@ -48,6 +48,7 @@ so the index started empty.
 | [11](#11-a-zero-immediately-after-a-located-zero-is-invisible) | Special-point location | a stored zero hides a second crossing in the next step | [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606) |
 | [12](#12-a-cycles-branch-point-test-at-its-noise-labels-branch-points-that-are-not-there) | Special-point location | a cycle's branch-point test, a ratio of consecutive determinants, changes sign at the determinant's noise near a heteroclinic cycle: branch points where the cycles' multipliers are far from 1 | [W547 / #612](https://github.com/MuhammadMoustafa/xppautX/issues/612) |
 | [13](#13-a-flip-curves-resonance-test-jumps-where-its-two-multipliers-swap-roles) | Fold and flip curves of cycles | near R1/R2 the test `|mu| - 1` of the multiplier next to the imposed one jumps where the two multipliers near it swap which is the imposed one, so its location stops short of the resonance (3e-5 in b0 at NTST 40, 9e-5 at NTST 15) or not at all | [W565 / #630](https://github.com/MuhammadMoustafa/xppautX/issues/630) |
+| [14](#14-the-fold-test-of-a-switched-branch-starts-at-its-third-point) | Branch switching | a fold between the second and third point of a branch started by a switch is never labelled: the tests start at 0 and are first evaluated at the third point | [W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -462,3 +463,21 @@ not depend on which is called imposed and crosses zero smoothly through the coll
 polynomial, whose error is that of the data, not its square root). At the resonance it is zero where the pair's product is 1: xppautX's R2 is
 8.5e-10 in eps and 1.3e-8 in b0 from the true one at NTST 40, and 5e-8 and 1.2e-6 at NTST 15; hill_cycles_pd's are 2.2 to 3 times closer to
 c = -mu. [W565 / #630](https://github.com/MuhammadMoustafa/xppautX/issues/630); docs/auto-references.md W565.
+
+## 14. The fold test of a switched branch starts at its third point
+
+A branch that `CNRLAE` starts with a switch (`ISW<0`: a restart at a branch point) stores its second point
+([ae.f90:179](../reference/auto-07p/src/ae.f90#L179)) and enters the loop that tests each new point. The tests are 0 until a point has
+been tested ([ae.f90:137](../reference/auto-07p/src/ae.f90#L137)), and the loop evaluates them after `STEPAE` for the next point
+([ae.f90:212-215](../reference/auto-07p/src/ae.f90#L212)), so the first value is the third point's and the first sign change can only
+be between the third and fourth. A fold, Hopf point or user zero between the second and third points of a switched branch is never labelled,
+although the second point is a converged point whose Jacobian and tangent are known.
+
+**Evidence** (tests/auto/tstauto_pp2_switch.json, AUTO-07p's and XPPAUT's pp2 demo; the independent check numpy/scipy from the model's equations):
+the switched branch (u1 = 0) has par0(u0) = 3 u0 (1 - u0) / (1 - exp(-5 u0)), which has a maximum, a fold of equilibria, at u0 = 0.41116156,
+par0 = 0.8329293222341569 (the Jacobian's eigenvalues there -1.4e-8 and 0.2335). The branch's points are u0 = 0.33333 (the branch point), 0.38269
+(par0 = 0.831406), 0.43269 (0.832032), 0.48186 (0.822980): par0 rises, passes its maximum between the second and third points and falls. AUTO-07p's
+fort.7 for the run has no LP (its special points are BP and EP only).
+
+**xppautX:** the fold test is evaluated at the second point of a switched branch ([W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634); core/autlib1.cpp `cnrlae`), and the fold is
+labelled at par0 = 0.8329293222, u0 = 0.411165. docs/auto-references.md W569.

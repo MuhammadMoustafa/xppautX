@@ -135,6 +135,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [102](#102-switch-at-a-branch-point-of-equilibria-continues-the-known-branch) | Branch switching | Switch at an equilibrium's branch point stays on the known branch | [W556 / #621](https://github.com/MuhammadMoustafa/xppautX/issues/621) |
 | [103](#103-the-difference-step-of-a-parameter-leaves-it-an-ulp-off) | AUTO | the parameter derivative adds a step and subtracts it again, so the parameter drifts by an ulp | [W564 / #629](https://github.com/MuhammadMoustafa/xppautX/issues/629) |
 | [104](#104-a-period-doubling-curve-near-a-12-resonance-cannot-be-read-from-the-six-digit-export) | AUTO | a period-doubling curve near a 1:2 resonance is exported to six digits, and a multiplier there moves 2,000 times as fast as the parameter, so the file puts the points 0.5-1.4% off -1 (the continuation itself is exact) | [W568 / #633](https://github.com/MuhammadMoustafa/xppautX/issues/633) |
+| [105](#105-the-fold-test-of-a-switched-branch-starts-at-its-third-point) | AUTO | the second point of a branch started by a switch (MXBF) is not tested: a fold between the second and third points is never labelled | [W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634) |
 
 ## 1. Model options
 
@@ -2250,3 +2251,15 @@ Not isolated further because nothing else is wrong: the extended system's equati
 by a constant that is zero to the collocation's accuracy), and xppautX's port, which differences the Jacobian the same way, gives the same curve.
 **xppautX**: shares nothing (its diagram keeps full precision). W557's check should read XPPAUT's labelled points from `fort.8` instead of the exported curve (a follow-up of the
 comparison, not part of this card); a comparison of XPPAUT's curve near a 1:2 resonance by its exported samples is a comparison of the print.
+## 105. The fold test of a switched branch starts at its third point
+
+When a run's MXBF switch starts a new branch, `cnrlae` stores the new branch's second point and zeroes the tests' values
+(`rbp = 0.; rev = 0.; rlp = 0.;`,
+[autlib1.c:1000-1002](../reference/xppaut-8.0/autlib1.c#L1000)), so the first values are the third point's and a fold (or Hopf point or user zero) between the
+second and third points of the branch is not labelled. AUTO-07p's tests start the same way (docs/auto07p-findings.md, finding 14), and
+the restart's Switch does not switch in XPPAUT at all (finding 102), so the miss is in XPPAUT's switches inside one run.
+
+Evidence: from the source, not run in XPPAUT; the model is pp2's switched branch (tests/auto/tstauto_pp2_switch.json), whose fold at
+par0 = 0.8329293222341569, u0 = 0.41116156 lies between its second and third points (numpy/scipy from the model's equations;
+docs/auto-references.md W569).
+**xppautX** (W569 / [#634](https://github.com/MuhammadMoustafa/xppautX/issues/634)): fixed: the fold test is evaluated at the second point of a switched branch.
