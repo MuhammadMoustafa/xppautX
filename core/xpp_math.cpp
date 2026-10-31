@@ -742,47 +742,20 @@ double bracketed_root(const std::function<double(double)> &f, double a, double b
 void product_accumulate(double *__restrict c, std::ptrdiff_t ldc, const double *__restrict a, std::ptrdiff_t lda,
                         const double *__restrict b, std::ptrdiff_t ldb, std::ptrdiff_t m, std::ptrdiff_t n, std::ptrdiff_t p)
 {
-    /* A term with a zero factor adds +-0, which leaves c(i,j) as it is
+    /* A term whose b factor is zero adds +-0, which leaves c(i,j) as it is
        (c has no -0: +0 + -0 is +0, and a sum that starts at +0 or a nonzero
-       value is never -0, x + -x being +0) unless the other factor is not
-       finite (0*inf is NaN). With a and b finite the zero terms are
-       skipped, the others added in the same order: a Jacobian is mostly
-       zero, and a zero is finite, so only the others are looked at. */
-    bool skip=true;
-    for(std::ptrdiff_t j=0;j<n;++j)
-        for(std::ptrdiff_t k=0;k<p;++k){
-            const double x=b[k+j*ldb];
-            if(x!=0) skip&=x-x==0;
-        }
-    std::vector<std::ptrdiff_t> rows(skip?static_cast<size_t>(m*p):0), count(static_cast<size_t>(p),0);
-    for(std::ptrdiff_t k=0;k<p&&skip;++k){
-        std::ptrdiff_t used=0;
-        for(std::ptrdiff_t i=0;i<m;++i){
-            const double x=a[i+k*lda];
-            if(x==0) continue;
-            skip&=x-x==0;
-            rows[static_cast<size_t>(k*m+used++)]=i;
-        }
-        count[static_cast<size_t>(k)]=used;
-    }
-    if(!skip){
-        for(std::ptrdiff_t j=0;j<n;++j)
-            for(std::ptrdiff_t k=0;k<p;++k){
-                const double factor=b[k+j*ldb];
-                for(std::ptrdiff_t i=0;i<m;++i) c[i+j*ldc]+=a[i+k*lda]*factor;
-            }
-        return;
-    }
+       value is never -0, x + -x being +0) unless a's factor is not finite
+       (0*inf is NaN). With a finite, those terms are skipped, the others
+       added in the same order, as reference BLAS's dgemm skips a zero
+       b(k,j): a Jacobian is mostly zero. */
+    bool finite=true;
+    for(std::ptrdiff_t k=0;k<p;++k)
+        for(std::ptrdiff_t i=0;i<m;++i) finite&=a[i+k*lda]-a[i+k*lda]==0;
     for(std::ptrdiff_t j=0;j<n;++j)
         for(std::ptrdiff_t k=0;k<p;++k){
             const double factor=b[k+j*ldb];
-            const std::ptrdiff_t used=count[static_cast<size_t>(k)];
-            if(factor==0||used==0) continue;
-            if(used==m) for(std::ptrdiff_t i=0;i<m;++i) c[i+j*ldc]+=a[i+k*lda]*factor;
-            else for(std::ptrdiff_t t=0;t<used;++t){
-                const std::ptrdiff_t i=rows[static_cast<size_t>(k*m+t)];
-                c[i+j*ldc]+=a[i+k*lda]*factor;
-            }
+            if(finite&&factor==0) continue;
+            for(std::ptrdiff_t i=0;i<m;++i) c[i+j*ldc]+=a[i+k*lda]*factor;
         }
 }
 } // namespace xpp

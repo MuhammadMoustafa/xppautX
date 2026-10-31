@@ -261,7 +261,7 @@ private:
    ldc, lda, ldb. Each c(i,j) gets its p terms added one after another,
    a(i,0)*b(0,j) first, each product rounded before the add (no
    reassociation, no FMA): the bits of `for k: c(i,j) += a(i,k)*b(k,j)`, for a
-   c with no -0 (a term with a zero factor is skipped when a and b are finite:
+   c with no -0 (a term with a zero b factor is skipped when a is finite:
    it would add +-0, which changes only a -0). The loops run with i innermost
    so the compiler vectorizes them (the restrict qualifiers say c shares no
    element with a or b, which the caller guarantees; c's own elements are
