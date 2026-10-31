@@ -88,6 +88,7 @@ ISP = {'equilibrium': 1, 'periodic': 2, 'bvp': 2, 'homoclinic': 0, 'heteroclinic
 IPS = {'equilibrium': 1, 'periodic': 2, 'bvp': 4, 'homoclinic': 9, 'heteroclinic': 9}
 # PAR(11) is HomCont's truncated time interval, PAR(12...) the equilibrium (equilibria)
 HOM_EQUILIBRIUM = 12
+HOM_STATE_BOUND = 1e12  # XPPAUT's integration stops when a state passes its bound (default 100): the homoclinic start's orbit must not
 # A two-parameter curve of an LP or HB of equilibria is the equilibrium problem with ISW=2. xppautX runs it
 # with ILP=0 and ISP=0 and detects no codim-2 point yet (core/auto_nox.cpp auto_2p_limit); the reference
 # keeps ILP=0 and the equilibria's ISP=1, which makes AUTO-07p label BT, CP, ZH and GH: those labels are what
@@ -557,8 +558,9 @@ def check_description(name, d, program):
         raise Refused('run kind %s needs constants not mapped here' % sorted(kinds - set(IPS) - {'two_parameter'}))
     kind_of = {r['name']: r['kind'] for r in d['runs']}
     homs = [r for r in d['runs'] if r['kind'] in HOMCONT]
-    if homs and (program == 'xppaut' or len(homs) != 1 or homs[0]['start'].get('state') != 'current' or 'step' not in homs[0]['start']):
-        raise Refused('HomCont: only AUTO-07p, one run, from the integrated orbit (start current, settle, step)')
+    if homs and (len(homs) != 1 or homs[0]['start'].get('state') != 'current' or 'step' not in homs[0]['start']
+                 or (program == 'xppaut' and homs[0]['kind'] != 'homoclinic')):
+        raise Refused('HomCont: one run, from the integrated orbit (start current, settle, step); XPPAUT drives homoclinic only')
     for r in d['runs']:
         for parameter, _ in r.get('marks', []):
             if parameter != 'T' and parameter not in eqs.slot:
@@ -719,8 +721,9 @@ def solution_parameters(text):
     return out
 
 
-def ode_text(eqs, start, discrete):
-    """XPPAUT's .ode for the model, with every fun and ode_divisor expanded."""
+def ode_text(eqs, start, discrete, orbit=None):
+    """XPPAUT's .ode for the model, with every fun and ode_divisor expanded. `orbit` = (total time, step): the integration
+    XPPAUT's homoclinic start reads from its storage (every step stored, no bound on the state)."""
     o = eqs.o
     lines = ['par %s=%r' % (n, float(eqs.values[n])) for n in o.pars]
     lines += ['init %s=%r' % (s, float(v)) for s, v in zip(o.states, start)]
@@ -728,6 +731,8 @@ def ode_text(eqs, start, discrete):
     lines += ["%s'=%s" % (s, ' '.join(eqs.conditionals(eqs.expand(o.odes[s]), xppaut=True))) for s in o.states]
     if discrete:
         lines.append('@ meth=discrete')
+    if orbit:
+        lines.append('@ total=%r, dt=%r, maxstor=%d, nout=1, bounds=%r' % (float(orbit[0]), float(orbit[1]), int(orbit[0] / orbit[1]) + 10, HOM_STATE_BOUND))
     return '\n'.join(lines + ['done', ''])
 
 
@@ -747,13 +752,24 @@ def constants_used(text):
 
 
 def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, process_env=None):
+    homoclinic = [r for r in d['runs'] if r['kind'] == 'homoclinic']
+    if homoclinic and len(homoclinic) < len(d['runs']):
+        # XPPAUT's AUTO leaves the last point's parameters and state in the main window, so the orbit its homoclinic start reads
+        # is integrated in a process of its own, with the description's (every HomCont run starts from them, as in AUTO-07p's)
+        known = {**odex.inits, **{k.lower(): v for k, v in d.get('initial_conditions', {}).items()}}  # the orbit's, not the equilibrium run's
+        results = [execute_xppaut(dict(d, runs=group), odex, eqs, begin, binary, keep, name + suffix, measurements, process_env)
+                   for group, begin, suffix in (([r for r in d['runs'] if r['kind'] != 'homoclinic'], start, ''),
+                                                (homoclinic, [known.get(x, 0.0) for x in odex.states], '-homoclinic'))]
+        return tuple({**a, **b} for a, b in zip(*results))
     (ROOT / 'build').mkdir(exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='w428-xpp-', dir=ROOT / 'build'))
     xvfb = xpp = None
     try:
         model = work / 'model.ode'
         eqs.source(start, False)  # every name in the expressions is a parameter, variable, formula or intrinsic
-        model.write_text(ode_text(eqs, start, odex.discrete), encoding='utf-8')
+        hom = next((r for r in d['runs'] if r['kind'] == 'homoclinic' and 'skip' not in r), None)
+        orbit = (hom['start']['settle'], hom['start']['step']) if hom else None
+        model.write_text(ode_text(eqs, start, odex.discrete, orbit), encoding='utf-8')
         xvfb = subprocess.Popen(['Xvfb', DISPLAY, '-screen', '0', '1600x1200x24', '-nolisten', 'tcp'],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         wait_for('Xvfb', lambda: subprocess.run(['xdpyinfo', '-display', DISPLAY], capture_output=True).returncode == 0, 30)
@@ -764,6 +780,8 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
         main = window('XPP')
         if measurements is not None:
             key_start = time.perf_counter()
+        if hom:
+            keys(main, 'i', 'g')  # Initialconds Go: the orbit XPPAUT's homoclinic start reads; the keys after it wait in the queue until it ends
         keys(main, 'f', 'a')
         if measurements is not None:
             key_pauses = time.perf_counter() - key_start
@@ -773,7 +791,7 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
                                          cpu_seconds=clock(xpp.pid)[1], excluded_key_driver_seconds=key_pauses)
             measurements['runs'] = []
         points, stab, failed, curves = {}, {}, {}, {}
-        curve_driver = any(r['kind'] == 'two_parameter' for r in d['runs'])
+        curve_driver = any(r['kind'] in ('two_parameter', 'homoclinic') for r in d['runs'])
         # Keep AUTO slots stable: saved solutions use these positions, not model parameter indices.
         selected = list(dict.fromkeys(n for r in d['runs'] for n in r.get('parameters', [r.get('parameter')]) if n))
         selected += [n for n in odex.pars if n not in selected]
@@ -783,8 +801,8 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
             if 'skip' in r:  # An explicit description skip also skips the foreign run.
                 failed[r['name']] = 'our description skips it: ' + r['skip']
                 continue
-            curve = r['kind'] == 'two_parameter'
-            base_kind = next(v['kind'] for v in d['runs'] if v['name'] == r['start'].get('run')) if curve else r['kind']
+            curve = r['kind'] in ('two_parameter', 'homoclinic')
+            base_kind = next(v['kind'] for v in d['runs'] if v['name'] == r['start'].get('run')) if r['kind'] == 'two_parameter' else r['kind']
             cycle_curve = curve and base_kind == 'periodic'
             seed_key = (r['start']['run'], r['start']['type'], r['start']['index'], tuple(r['parameters'])) if cycle_curve else None
             seed = seeds.get(seed_key)
@@ -827,7 +845,14 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
             bfile = work / 'model.ode.b'
             bsize = len(bfile.read_text()) if bfile.exists() else 0
             dsize = len(diag.read_text()) if diag.exists() else 0
-            if curve:
+            if r['kind'] == 'homoclinic':
+                if measurements is not None:
+                    raise Refused('a timed XPPAUT homoclinic run is not driven: its dialog follows the keys that start it')
+                c = r['connection']
+                # Start > Homoclinic, from the last integration: the dialog takes both dimensions and the equilibrium (the right one is unused)
+                fill_dialog(auto, (('r', 'h'), 'Homoclinic info'), [c['nunstab'], *c['left'], c['nstab'], *c['right']])
+                run_keys = None
+            elif curve:
                 # LP starts directly; HB/PD/TR offer Two Param (maps' HB starts directly too).
                 run_keys = ['r', *(['t'] if start_run['type'] != 'LP' and not odex.discrete else [])]
             else:
@@ -841,7 +866,9 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
                     # E1's repeated branches: an ordinary labelled equilibrium
                     # extends directly, with no menu (XPPAUT 8.0 auto_nox.c:2006-2008).
                     run_keys = ['r']
-            if measurements is None:
+            if run_keys is None:
+                pass
+            elif measurements is None:
                 keys(auto, *run_keys)
             else:
                 # All menu delays precede the timed final key. Its xdotool
@@ -918,7 +945,8 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
                 active = re.search(r'Active continuation parameters?:\s*([0-9 ]+)', btext)
                 slots = ([pars.index(n) for n in axes] if curve else [pars.index(r['parameter'])]) + (
                     [PERIOD - 1] if base_kind == 'periodic' else []) + (
-                    [CYCLE_EXTRA - 1] if cycle_curve and start_run['type'] in ('LP', 'TR') else [])
+                    [CYCLE_EXTRA - 1] if cycle_curve and start_run['type'] in ('LP', 'TR') else []) + (
+                    list(range(HOM_EQUILIBRIUM - 1, HOM_EQUILIBRIUM - 1 + len(odex.states))) if r['kind'] == 'homoclinic' else [])
                 if not active or [int(n) for n in active[1].split()] != slots:
                     raise Refused('XPPAUT active continuation slots differ from %s' % slots)
                 # The b-file's columns carry the actual free parameter slots.

@@ -43,6 +43,17 @@ T2_SIZED_POINTS = 400  # T2's sized pilot: a fixed size, as AUTO-07p's spurious 
 # xppautX's pilot time it grew to 598 points once W465/W466 made it faster, and AUTO-07p labelled two, not four (series 22i)
 T2_SIZED_GH = 4  # AUTO-07p's spurious GH labels at T2_SIZED_POINTS (W456's five at the description's steps)
 REFINEMENT = 10
+# W557 (#622): the continuations that start from a special point of cycles, maps or an orbit. Each is a tests/auto description
+# of a published model or a named demo: forced_pp_pd (the PD curve of Kuznetsov, Muratori and Rinaldi 1992's forced predator-prey
+# model, values of MatCont Tutorial V), forced_pp_ns (its torus curve), hen_pd and hen_tr (the flip and torus curves of the Henon
+# map of AUTO-07p's hen demo), lorenz_homoclinic (the homoclinic orbit of the Lorenz equations, Sparrow 1982: AUTO-07p's lrz demo)
+# and lrz_cycles (the cycles of its Hopf point, which end in a near-homoclinic orbit). Made-up models beside them, which the
+# README of tests/auto keeps for the redundancy: hill_cycles_pd and hill_cycles_torus (closed forms), henon_rot_pd, henon_rot_tr and
+# henon_rot_th (the Henon map with a rotation) and explicit_homoclinic (the orbit in closed form). Branch switching is W556's.
+SPECIAL_POINT_DESCRIPTIONS = ('forced_pp_pd', 'forced_pp_ns', 'hen_pd', 'hen_tr', 'lorenz_homoclinic', 'lrz_cycles',
+                              'hill_cycles_pd', 'hill_cycles_torus', 'henon_rot_pd', 'henon_rot_tr', 'henon_rot_th', 'explicit_homoclinic')
+STALE_HOMCONT_SKIP = 'No native XPPAUT HomCont run'  # the reason tests/auto's homoclinic descriptions skip XPPAUT with, W365's
+SPECIAL_POINT_TIMED = False  # phase 1 of W557 is untimed; the timed rerun turns it on
 CONVERGED = '.converged'  # that run's name where compare_references names a reference
 comparison.REFERENCES.setdefault(CONVERGED, 'the converged exact run')
 
@@ -126,6 +137,17 @@ def workloads(a):
     for name in ('tstauto_lecar', 'tstauto_simplefold', 'tstauto_tsthom', 'izh_class1_integrator', 'izh_class2', 'izh_resonator'):
         d = description(name)
         result.append(('V1-' + name if name.startswith('tstauto') else name, d, [r['name'] for r in d['runs']], False))
+    # W557 (#622): continuation from period doublings, tori and homoclinic orbits, as the descriptions of tests/auto run them
+    # (their own names; the published models first: the README's table in tests/auto). Untimed until the timed rerun.
+    for name in SPECIAL_POINT_DESCRIPTIONS:
+        d = description(name)
+        if d.get('xppaut_skip', '').startswith(STALE_HOMCONT_SKIP):
+            # tools/auto_reference.py now integrates the orbit in XPPAUT's main window and starts its homoclinic continuation from it; the
+            # run is kept and plotted, not gated: its starting data is the orbit sampled with an unscaled weight (finding 69)
+            d['xppaut_skip'] = ('W557 (#622): XPPAUT 8.0 starts its homoclinic continuation from the orbit sampled with an unscaled interpolation weight '
+                                '(docs/xppaut-findings.md finding 69), so its starting data, which neither program corrects, differs from the integrated '
+                                "orbit (the first point's L2 norm by 5e-5 relative at the description's step); the run is kept and compared by the independent check, not gated.")
+        result.append((name, d, [r['name'] for r in d['runs']], SPECIAL_POINT_TIMED))
     if a.check:
         restart = copy.deepcopy(next(d for name, d, _, _ in result if name == 'E3-50'))
         restart['runs'][0]['auto']['max_steps'] = SMOKE_POINTS
@@ -214,6 +236,16 @@ def foreign(a, d, program, inputs, folder, measured, exact=None):
     save(folder / 'reference.json', value)
     save(folder / 'measurement.json', measurement)
     return comparison.checked_reference(value, reference.SUFFIX[program], d), measurement
+
+
+def refused(name, d, program):
+    """Why the reference driver cannot run the description for the program (tools/auto_reference.py's own refusal, with the
+    description's traced skip left out: that skip says the program's result is not compared, not that it cannot run), or None."""
+    try:
+        reference.check_description(name, {k: v for k, v in d.items() if k != program + '_skip'}, program)
+    except reference.Refused as e:
+        return str(e)
+    return None
 
 
 def gate(name, d, native_result, refs):
@@ -692,6 +724,12 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
         refs, pilots = {}, {}
         for program in ('xppaut', 'auto07p'):
             rd = given(copy.deepcopy(d), program)
+            why = refused(name, d, program)
+            if why:
+                # W557 (#622): a program that cannot run the description (its driver's own refusal) is recorded, not run
+                save(out / ('pilot-%s-unsupported.json' % program), dict(program=program, reason=why))
+                phase('%s does not run this description: %s' % (program, why))
+                continue
             measured = not a.check and timed
             pilot_key = row_key(a, program, rd, start, dict(label='pilot-' + program, measured=measured), a.cores[:1])
             earlier, why = reusable_pilot(a, name, mode, program, pilot_key) if a.reuse else (None, 'no --reuse')
@@ -708,6 +746,11 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
                 for r in d['runs']:
                     if r['name'].startswith('lpc_'):
                         ref['runs'].append(dict(name=r['name'], parameters=r['parameters'], points=[], unavailable='past 600 s (W436/W437); deliberately not repeated in this series'))
+            if program + '_skip' in d:
+                # a traced skip of the description (tests/auto): the run's data is kept for the plots, but not gated
+                save(out / ('pilot-%s-not-gated.json' % program), dict(program=program, reason=d[program + '_skip']))
+                phase('%s ran; not gated: %s' % (program, d[program + '_skip'][:200]))
+                continue
             refs[reference.SUFFIX[program]] = ref
             pilots[program] = metric
             if program == 'xppaut':

@@ -35,6 +35,7 @@ PLOT_POINTS = 4000  # a curve is drawn with at most this many points; the errors
 LOG_DECADES = 2  # the error axis is logarithmic (absolute value) when its non-zero values span more decades than this
 DPI = 80
 STUDIES = ('screen', 'modeldb', 'research', 'izhikevich', 'scaling')  # their trajectories are runs/<workload>/0/<engine>/run
+CURVES = ('two_parameter', *autocompare.HOMCONT)  # the runs that continue in two parameters (W557: a homoclinic orbit's too)
 LABEL_LIMIT = 30  # labelled points written on a panel; the rest keep their marker
 RERUN_NOTE = 'untimed rerun (W555)'  # said in a figure's title and its manifest entry when its data came from --extra
 NO_PEER = {'scaling': 'XPPAUT cannot run a model of this size (docs/xppaut-findings.md finding 45), so there is no second program'}
@@ -374,7 +375,7 @@ def mark_points(ax, marks):
 
 
 def plot_continuation(entry, run, program, base, other, out, rerun=False):
-    two = run['kind'] == 'two_parameter'
+    two = run['kind'] in CURVES
     ylabel = '%s (second parameter)' % run['parameters'][1] if two else 'norm (AUTO L2 norm)'
     xlabel = run['parameters'][0] if two else run['parameter']
     x, e, en, notes = branch_error(base[:2], other[:2])
@@ -436,7 +437,7 @@ def continuation(attempt, out, manifest, skipped, extra=None):
                 if 'skip' in run:
                     skipped.append('continuation %s run %s: the description skips it (%s)' % (label, run['name'], run['skip']))
                     continue
-                two = run['kind'] == 'two_parameter'
+                two = run['kind'] in CURVES
                 if run['name'] not in stored:
                     skipped.append('continuation %s run %s: xppautX stored no rows' % (label, run['name']))
                     continue
