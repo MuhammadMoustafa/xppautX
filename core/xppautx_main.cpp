@@ -78,10 +78,6 @@
    (issue #11); a model's --silent command list runs no AUTO */
 static void start_auto_dir(void)
 {
-    /* issue #32: the folders of runs that ended without their atexit (a
-       kill, Ctrl+C, the watchdog's _exit) go at the next start: cleaning up
-       in a signal handler or from another thread is neither safe nor needed */
-    xpp::files::cleanup_stale_temp_dirs();
     std::string &dir = xpp::client_session().auto_state.dir;
     dir = xpp::files::make_temp_dir();
     /* at exit the folder is the session list's client's: every load hands
@@ -300,6 +296,11 @@ int main(int argc, char **argv)
         if (xpp::files::has_extension(cl.model_file, ".ani")) return xpp::convert_animation_file(cl.model_file);
         return xpp::odex::convert_file(cl.model_file);
     }
+    /* issue #32: the folders of runs that ended without their atexit (a
+       kill, Ctrl+C, the watchdog's _exit) go at the next start, --silent
+       included: cleaning up in a signal handler or from another thread is
+       neither safe nor needed (W573: --silent used to skip this) */
+    xpp::files::cleanup_stale_temp_dirs();
     const bool recording_batch = cl.silent && xpp::files::has_extension(cl.model_file, xpp::recx::extension);
     if (cl.silent && !recording_batch) {
         if (xpp_saved_file_name(cl.model_file)) {

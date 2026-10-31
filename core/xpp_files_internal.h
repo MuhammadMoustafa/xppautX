@@ -43,6 +43,7 @@ std::vector<PathPart> path_parts(std::string_view path, std::string_view folder)
 #ifdef _WIN32
 using Stat = struct _stat64;
 inline int stat_follow(const char *path, Stat *st) { return _stat64(path, st); }
+inline int stat_name(const char *name, Stat *st) { return _stat64(name, st); } /* a link is found by is_link first */
 inline bool is_link(const char *name) { return xpp::win32::path_is_link(name); }
 inline bool link_on_way(const char *name) { return is_link(name); }
 inline int make_dir(const char *path) { return _mkdir(path); }
@@ -53,6 +54,7 @@ inline constexpr char SEP = '\\';
 #else
 using Stat = struct stat;
 inline int stat_follow(const char *path, Stat *st) { return stat(path, st); }
+inline int stat_name(const char *name, Stat *st) { return lstat(name, st); } /* never follows a link */
 inline bool is_link(const char *name)
 {
     struct stat st;

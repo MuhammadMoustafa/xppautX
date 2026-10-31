@@ -258,26 +258,49 @@ bool is_scratch(std::string_view path, bool root_only)
     }
 }
 
+namespace {
+
+/* a file or a link, removed by its own name (never its target); on Windows a
+   folder link needs RemoveDirectory, which remove() does not do */
+void remove_entry(const char *path)
+{
+    if (std::remove(path) != 0) remove_dir(path);
+}
+
+} // namespace
+
 void remove_temp_dir(std::string_view dir_view)
 {
     if (dir_view.empty()) return;
-    std::string dir;
     try {
-        dir = dir_view;
-        if (DIR *d = opendir(dir.c_str())) {
+        const std::string root(dir_view);
+        Stat st;
+        if (is_link(root.c_str())) { /* a link named as our folder: the link goes, its target stays */
+            remove_entry(root.c_str());
+            return;
+        }
+        if (stat_name(root.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) return;
+        /* Folders found so far. A folder's subfolders come after it, so removing
+           from the back empties every folder before it is removed. No recursion:
+           a deep folder cannot overflow the stack. */
+        std::vector<std::string> folders{root};
+        for (std::size_t i = 0; i < folders.size(); i++) {
+            DIR *d = opendir(folders[i].c_str());
+            if (d == nullptr) continue;
             while (struct dirent *e = readdir(d)) {
                 if (std::strcmp(e->d_name, ".") == 0 || std::strcmp(e->d_name, "..") == 0) continue;
-                std::string file = dir;
-                file += SEP;
-                file += e->d_name;
-                std::remove(file.c_str());
+                std::string entry = folders[i] + SEP + e->d_name;
+                if (!is_link(entry.c_str()) && stat_name(entry.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+                    folders.push_back(std::move(entry));
+                else
+                    remove_entry(entry.c_str());
             }
             closedir(d);
         }
+        for (auto it = folders.rbegin(); it != folders.rend(); ++it) remove_dir(it->c_str());
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("removing the scratch folder");
     }
-    remove_dir(dir.c_str());
 }
 
 void cleanup_stale_temp_dirs()
@@ -295,7 +318,12 @@ void cleanup_stale_temp_dirs()
             path += SEP;
             path += e->d_name;
             Stat st;
-            if (stat_follow(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
+            /* a link is never followed (lstat; is_link for Windows' reparse points) */
+            if (is_link(path.c_str()) || stat_name(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
+#ifndef _WIN32
+            /* a folder another user made under our name is not ours to empty */
+            if (st.st_uid != geteuid()) continue;
+#endif
             remove_temp_dir(path);
         }
         closedir(d);

@@ -564,6 +564,25 @@ int main()
     }
 #endif
 #ifndef _WIN32
+    /* a scratch folder holding a subfolder, a file and a link to a folder
+       outside it is removed whole; the link goes, its target stays (W573) */
+    {
+        const std::string whole = std::string(dir) + "/xppautoX-" + std::to_string(getpid()) + "-7";
+        const std::string outside = std::string(dir) + "/outside-target";
+        CHECK(mkdir(whole.c_str(), 0700) == 0 && mkdir((whole + "/config").c_str(), 0700) == 0);
+        CHECK(mkdir(outside.c_str(), 0700) == 0);
+        std::FILE *keep = std::fopen((outside + "/keep.txt").c_str(), "w");
+        CHECK(keep != nullptr);
+        if (keep) std::fclose(keep);
+        std::FILE *inner = std::fopen((whole + "/config/preferences.setx").c_str(), "w");
+        if (inner) std::fclose(inner);
+        CHECK(symlink(outside.c_str(), (whole + "/config/link").c_str()) == 0);
+        CHECK(symlink(outside.c_str(), (whole + "/dirlink").c_str()) == 0);
+        xpp::files::remove_temp_dir(whole);
+        CHECK(!xpp::files::exists(whole.c_str()));
+        CHECK(xpp::files::exists((outside + "/keep.txt").c_str()));
+        CHECK(unlink((outside + "/keep.txt").c_str()) == 0 && rmdir(outside.c_str()) == 0);
+    }
     /* a killed run's folder is swept, a live one's is kept (issue #32) */
     const char *old_tmpdir = std::getenv("TMPDIR");
     std::string saved = old_tmpdir ? old_tmpdir : "";

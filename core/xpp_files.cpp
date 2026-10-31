@@ -70,17 +70,14 @@ bool device_name(std::string_view name)
 
 /* ---- the file system ------------------------------------------------------------ */
 
-/* is_link, stat_follow, make_dir, remove_dir, own_pid, temp_base,
+/* is_link, stat_name, stat_follow, make_dir, remove_dir, own_pid, temp_base,
    process_gone, SEP and the Stat type are xpp_files_internal.h, shared
-   with xpp_files_dir.cpp. stat_name (lstat, not stat_follow: a link is
-   never followed here) and rename_over are this file's own. */
+   with xpp_files_dir.cpp. rename_over is this file's own. */
 using namespace xpp::files;
 
 #ifdef _WIN32
-int stat_name(const char *name, Stat *st) { return _stat64(name, st); }
 int rename_over(const char *from, const char *to) { return xpp::win32::move_over(from, to) ? 0 : -1; }
 #else
-int stat_name(const char *name, Stat *st) { return lstat(name, st); }
 int rename_over(const char *from, const char *to) { return std::rename(from, to); }
 #endif
 
