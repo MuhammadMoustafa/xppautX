@@ -1126,17 +1126,33 @@ bool set_holds(const OptionRow &row)
   return !row.wide && std::ranges::find(set_groups, row.group) != set_groups.end();
 }
 
+namespace {
+
+/* name in lower case (ASCII letters only, as lower_case makes it) is text:
+   compared in place, so a lookup makes no copy of each row's name */
+bool lower_case_is(std::string_view name, std::string_view text)
+{
+  if (name.size() != text.size()) return false;
+  for (size_t i = 0; i < name.size(); i++) {
+    const char c = name[i] >= 'A' && name[i] <= 'Z' ? static_cast<char>(name[i] - 'A' + 'a') : name[i];
+    if (c != text[i]) return false;
+  }
+  return true;
+}
+
+} // namespace
+
 const OptionRow *find_odex_option(std::string_view key, int &index)
 {
   for (const OptionRow &row : rows) {
     if (row.group.empty()) continue;
-    const std::string name = lower_case(std::string(row.name));
+    const std::string_view name = row.name;
     if (!row.first_digit) {
-      if (key != name) continue;
+      if (!lower_case_is(name, key)) continue;
       index = 0;
       return &row;
     }
-    if (key.size() != name.size() + 1 || !key.starts_with(name)) continue;
+    if (key.size() != name.size() + 1 || !lower_case_is(name, key.substr(0, name.size()))) continue;
     const char d = key.back();
     if (d < row.first_digit || d > row.last_digit) continue;
     index = d - '0';

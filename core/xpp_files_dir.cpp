@@ -267,7 +267,10 @@ void remove_temp_dir(std::string_view dir_view)
         if (DIR *d = opendir(dir.c_str())) {
             while (struct dirent *e = readdir(d)) {
                 if (std::strcmp(e->d_name, ".") == 0 || std::strcmp(e->d_name, "..") == 0) continue;
-                std::remove(xpp::format("{}{}{}", dir, SEP, static_cast<const char *>(e->d_name)).c_str());
+                std::string file = dir;
+                file += SEP;
+                file += e->d_name;
+                std::remove(file.c_str());
             }
             closedir(d);
         }
@@ -287,10 +290,12 @@ void cleanup_stale_temp_dirs()
         while (struct dirent *e = readdir(d)) {
             long long pid;
             if (!scratch_dir_pid(e->d_name, &pid)) continue;
-            std::string path = xpp::format("{}{}{}", base, SEP, static_cast<const char *>(e->d_name));
+            if (!process_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
+            std::string path = base;
+            path += SEP;
+            path += e->d_name;
             Stat st;
             if (stat_follow(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
-            if (!process_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
             remove_temp_dir(path);
         }
         closedir(d);
