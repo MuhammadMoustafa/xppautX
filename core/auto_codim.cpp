@@ -295,13 +295,21 @@ double auto_cycle_test(const iap_type &iap, const rap_type &rap, const double *p
     }
     // spectrum[0] is the neutral multiplier; [1] is the curve's imposed
     // +1/-1, or one of the conjugate pair it splits into with [2] at the
-    // resonance itself. Test [2], as AUTO-07p's periodic.f90 PVSPBV does.
+    // resonance itself. Test [1] and [2] together (AUTO-07p's periodic.f90 PVSPBV tests [2]).
     constexpr double imposed_multiplier_tolerance=.05; // AUTO-07p's accuracy band.
     const double imposed=imposed_multiplier(start);
     const auto &fixed=spectrum[1], &remaining=spectrum[2];
     *changed=*changed && std::abs(remaining.i)<std::sqrt(std::sqrt(rap.epss)) &&
         imposed*remaining.r>0 && xpp::math::hypot(fixed.r-imposed,fixed.i)<imposed_multiplier_tolerance;
-    return *changed ? xpp::math::hypot(remaining.r,remaining.i)-1 : auto_test_not_applicable;
+    if (!*changed) return auto_test_not_applicable;
+    // W565 (#630): AUTO-07p's |remaining|-1, where the two multipliers near the imposed one are within the
+    // discretization's error of each other (the resonance), jumps: the pair swaps which of them is the
+    // imposed one, and it splits into a complex pair and back. Their product does not: for a conjugate
+    // pair its square root is the modulus AUTO-07p tests, for two real ones the geometric mean of their
+    // moduli, and the coefficient of the pair's polynomial is as well conditioned as the pair is not
+    // (its members move with the square root of the noise). The test crosses zero smoothly through the
+    // collision, and where the imposed multiplier is exact its zero is AUTO-07p's, |remaining| = 1.
+    return std::sqrt(xpp::math::hypot(fixed.r,fixed.i)*xpp::math::hypot(remaining.r,remaining.i))-1;
 }
 
 // The tests read dfdu as solvae left it, the converged point's Jacobian (W421).

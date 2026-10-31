@@ -99,6 +99,10 @@ W403 (#465) adds references from published models and models of our own (`res_cy
 HomCont runs it could not follow were skipped with PENDING W365 until W365 (#427) made them agree; the curves
 were skipped with PENDING W405 until W405 (#467) located their resonances where the torus equations are singular.
 
+W565 (#630) adds `forced_pp_pd_ntst15` and `forced_pp_pd_ntst10`: `forced_pp_pd` with the mesh of the cycles and of `pd_up` cut to 15 and 10 intervals and
+`pd_up`'s step to 0.005 and 0.02, the two settings where the far R2 was lost (docs/auto-references.md W565, docs/studies/w557_r2_repro.py); the first has an AUTO-07p
+reference with traced differences, the second only its baseline (`auto07p_skip`), neither an XPPAUT reference.
+
 W404 (#466) runs the Henon-with-rotation map descriptions against AUTO-07p:
 fixed-point PD/TR labels and both map fold/flip directions, plus the torus up direction.
 The torus down run retains a traced skip at its singular R1 endpoint: since W405 xppautX's

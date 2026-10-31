@@ -94,11 +94,20 @@ const char *located_kind(FNCS_TYPE_AE((*fncs)))
   if (fncs == fnuzae) return "a user zero (UZ)";
   return "a special point";
 }
-const char *located_kind(FNCS_TYPE_BVP((*fncs)))
+const char *located_kind(FNCS_TYPE_BVP((*fncs)), const iap_type &iap)
 {
   if (fncs == fnlpbv) return "a fold (LP)";
   if (fncs == fnbpbv) return "a branch point (BP)";
-  if (fncs == fnspbv) return "a period doubling or torus bifurcation (PD, TR)";
+  if (fncs == fnspbv) {
+    // on a two-parameter curve of cycles the test is the resonance of the curve's own multiplier (W565)
+    if (iap.isw == 2) switch (iap.itpst) {
+      case xpp::AutoPointKind::CycleFold: return "a 1:1 resonance (R1)";
+      case xpp::AutoPointKind::PeriodDoubling: return "a 1:2 resonance (R2)";
+      case xpp::AutoPointKind::NeimarkSacker: return "a strong resonance (R1, R2, R3, R4)";
+      default: break;
+    }
+    return "a period doubling or torus bifurcation (PD, TR)";
+  }
   if (fncs == fnuzbv) return "a user zero (UZ)";
   return "a special point";
 }
@@ -5376,7 +5385,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   const auto nfpr = static_cast<std::size_t>(iap->nfpr);
   const auto nu = static_cast<std::size_t>(*ndxloc) * n * iap->ncol;
   const auto nc = static_cast<std::size_t>(iap->nbc + iap->nint + 1);
-  locate_special_point(*iap, *rap, q, located_kind(fncs), fncs == fnuzbv, fncs == fnbpbv, par[icp[0]], dstest, stepped,
+  locate_special_point(*iap, *rap, q, located_kind(fncs, *iap), fncs == fnuzbv, fncs == fnbpbv, par[icp[0]], dstest, stepped,
       [&](bool &chng) {
         return (*fncs)(iap, rap, par, icp, &chng, funi, bcni, icni, p0, p1, ev, rlcur, rlold,
                        rldot, ndxloc, ups, uoldps, udotps, upoldp, fa, fc, dups, tm, dtm,

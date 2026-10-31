@@ -47,6 +47,7 @@ so the index started empty.
 | [10](#10-a-cusp-located-from-noise-is-dropped-after-itmx-iterations) | Fold curves of equilibria | the cusp test is the Newton residual's noise (6e-11) at the point where its sign changes, so the secant location cannot shrink its step, is given up after ITMX iterations and the cusp is labelled nowhere; a start 7e-4 away in the norm finds it | [W539 / #604](https://github.com/MuhammadMoustafa/xppautX/issues/604) |
 | [11](#11-a-zero-immediately-after-a-located-zero-is-invisible) | Special-point location | a stored zero hides a second crossing in the next step | [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606) |
 | [12](#12-a-cycles-branch-point-test-at-its-noise-labels-branch-points-that-are-not-there) | Special-point location | a cycle's branch-point test, a ratio of consecutive determinants, changes sign at the determinant's noise near a heteroclinic cycle: branch points where the cycles' multipliers are far from 1 | [W547 / #612](https://github.com/MuhammadMoustafa/xppautX/issues/612) |
+| [13](#13-a-flip-curves-resonance-test-jumps-where-its-two-multipliers-swap-roles) | Fold and flip curves of cycles | near R1/R2 the test `|mu| - 1` of the multiplier next to the imposed one jumps where the two multipliers near it swap which is the imposed one, so its location stops short of the resonance (3e-5 in b0 at NTST 40, 9e-5 at NTST 15) or not at all | [W565 / #630](https://github.com/MuhammadMoustafa/xppautX/issues/630) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -432,3 +433,32 @@ search. The real branch points of the descriptions reach 244 times the step's le
 labels its fold and ends on the heteroclinic cycle (at NTST 90 at 0.3314461932); pp2 at NTST 15 and step 0.025 refuses BP 31 and the next
 steps stop with no convergence, the 15 intervals not resolving cycles of period 70 to 85, which the run says.
 [W545 / #610](https://github.com/MuhammadMoustafa/xppautX/issues/610) (new brackets), [W547 / #612](https://github.com/MuhammadMoustafa/xppautX/issues/612) (every bracket).
+
+## 13. A flip curve's resonance test jumps where its two multipliers swap roles
+
+Besides the split of finding 6, the R2 test of a flip curve of cycles (|mu| - 1 of the multiplier next to the imposed -1) has a second
+fault where the two multipliers near -1 are within the discretization's error of each other, which is the resonance itself. The imposed
+multiplier of a collocation solution is not exactly -1 (the curve's own equation holds to the mesh's accuracy: -1.00003 at NTST 15 on
+forced_pp_pd's far R2), so which of the two real multipliers is "the one next to -1" is decided by that error and changes as the other crosses
+it ([periodic.f90:1922-1948](../reference/auto-07p/src/periodic.f90#L1922) picks the real multiplier nearest -1 as the imposed one, and
+[periodic.f90:2053](../reference/auto-07p/src/periodic.f90#L2053) tests the next one). The test is then the modulus of the other, minus 1, on the
+two sides of the swap: a jump of the size of the imposed multiplier's error (1e-5 to 1e-4), at a place that is not where the other
+multiplier crosses -1. A pair that splits complex and joins again (finding 6) adds noise of the square root of the perturbation to the
+test (1e-4 to 1e-3 at the description's tolerances). The secant and Mueller location then follows the jump or the noise, not a crossing.
+
+**Evidence** (tools/models/forced_predator_prey.odex; tests/auto/forced_pp_pd.json with `mesh_intervals` 15 for the cycles and pd_up, new
+description forced_pp_pd_ntst15): at the stored points around the far R2 the pair is real and complex by turns,
+(-1.0000026, -0.9998117), a pair -0.99981 +- 9.3e-4 i, (-0.999991, -1.0017344), (-0.999526, -1.000476), a pair -0.99993 +- 4.2e-4 i; the test
+values -1.9e-4, -1.9e-4, +1.7e-3, +4.8e-4, -6.8e-5, -1.4e-4, -1.6e-4, -2.1e-4: the sign change is a jump between -1.4e-4 and +4.8e-4 inside 7e-6 of
+the parameter, and eight iterations of xppautX's search (before W565) wander off it. The true R2 (the model's Poincare map over one period,
+numpy/scipy, trace -2 and determinant 1) is at (eps, b0) = (1.948933855, 2.570226715); xppautX before W565 labelled it at (1.948936101,
+2.570194149) at NTST 40 (3e-5 off in b0) and not at all at NTST 15 with step 0.005 and NTST 10 with step 0.02; AUTO-07p labels it in 21 runs
+(NTST 10 to 80, steps 0.005 to 0.02) but at NTST 15 at (1.9489277, 2.5703167), 9e-5 off in b0, and on hill_cycles_pd's five R2 (where c + mu = 0 is exact) 1e-6 to
+1.8e-5 off.
+
+**xppautX:** the test is the square root of the product of the moduli of the two multipliers next to the imposed one, minus 1. For a
+conjugate pair it is the modulus AUTO-07p tests, bit for bit; for two real multipliers it is the geometric mean of their moduli, which does
+not depend on which is called imposed and crosses zero smoothly through the collision of the two (it is the constant coefficient of the pair's
+polynomial, whose error is that of the data, not its square root). At the resonance it is zero where the pair's product is 1: xppautX's R2 is
+8.5e-10 in eps and 1.3e-8 in b0 from the true one at NTST 40, and 5e-8 and 1.2e-6 at NTST 15; hill_cycles_pd's are 2.2 to 3 times closer to
+c = -mu. [W565 / #630](https://github.com/MuhammadMoustafa/xppautX/issues/630); docs/auto-references.md W565.

@@ -267,12 +267,13 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | bautin_near_hopf | steady: EP HB; cycles_up: LP; cycles_down: LP | agrees, 4 traced (3 points; par 1.5e-09, norm 0.00048, period 2e-11, spectrum 2e-06; curve par 5.6e-05, par2 0, norm 3.5e-05) | agrees, 2 traced (4 points; par 1.5e-09, norm 0.00048, period 2e-11, spectrum 1.6e-06; curve par 5.6e-05, par2 0, norm 1.1e-05) |
 | explicit_homoclinic | steady: EP; homoclinic: EP | agrees (2 points; par 0, norm 1.8e-08; curve par 5.2e-08, par2 2.7e-15, norm 1.8e-08) | not run |
 | forced_pp_ns | steady: EP HB; cycles: TR PD; ns_up: BP; ns_down: - | agrees (5 points; par 7.9e-10, par2 9.1e-11, norm 4.3e-10, period 2e-14, spectrum 1.9e-05; curve par 0.00053, par2 9.8e-06, norm 4.9e-06) | agrees, 1 traced (4 points; par 3.1e-08, norm 2.6e-08, period 2e-14, spectrum 3.8e-07; curve par 0.00062, par2 7.9e-06, norm 4.2e-06) |
-| forced_pp_pd | steady: EP HB; cycles: PD; pd_up: R2; pd_down: R2 | agrees, 4 traced (5 points; par 5e-06, par2 5.2e-05, norm 3.5e-06, period 2.1e-14, spectrum 0.00032; curve par 9.5e-07, par2 7.7e-05, norm 5.8e-06) | agrees, 2 traced (3 points; par 1.6e-08, norm 4.8e-08, period 2.1e-14, spectrum 3.1e-07; curve par 6.5e-06, par2 0.0029, norm 0.00019) |
+| forced_pp_pd | steady: EP HB; cycles: PD; pd_up: R2; pd_down: R2 | agrees, 1 traced (5 points; par 4.9e-06, par2 1.9e-05, norm 1.3e-06, period 2.1e-14, spectrum 0.00038; curve par 9.5e-07, par2 7.7e-05, norm 5.8e-06) | agrees, 2 traced (3 points; par 1.6e-08, norm 4.8e-08, period 2.1e-14, spectrum 3.1e-07; curve par 6.5e-06, par2 0.0029, norm 0.0002) |
+| forced_pp_pd_ntst15 | steady: EP HB; cycles: PD; pd_up: R2 | agrees, 4 traced (4 points; par 6.1e-06, par2 8.9e-05, norm 6.1e-06, period 4.9e-11, spectrum 0.00094; curve par 9.7e-05, par2 4.9e-05, norm 0.00039) | not run |
 | henon_rot_lp | steady: EP LP TR PD; up: LTR LPD R1; down: LTR | agrees (8 points; par 1.4e-09, par2 1.4e-09, norm 1.2e-09, spectrum 1.7e-05; curve par 9.1e-06, par2 2.8e-06, norm 1.9e-06) | not run |
 | henon_rot_pd | steady: EP PD TR TR; up: PTR R2 PTR; down: LPD PTR PTR | agrees (10 points; par 9.8e-09, par2 3.7e-09, norm 2.2e-09, spectrum 1.3e-05; curve par 1.4e-09, par2 6.8e-09, norm 2.9e-09) | agrees, 6 traced (4 points; par 2.6e-07, norm 3.5e-07, spectrum 7e-07; curve par 0.0003, par2 0.00033, norm 0.0076) |
 | henon_rot_th | steady: EP PD TR TR; turn: R4 R3 R2 BP R3 R4 | agrees, 2 traced (8 points; par 3.8e-05, par2 2.8e-11, norm 7.7e-11, spectrum 3.5e-05; curve par 5e-11, par2 2.8e-11, norm 5.7e-12) | agrees, 6 traced (4 points; par 2e-07, norm 3e-07, spectrum 8.4e-07; curve par 5.2e-07, par2 3.9e-08, norm 3e-07) |
 | henon_rot_tr | steady: EP PD TR TR; up: R2 | agrees (5 points; par 1.3e-09, par2 1.4e-11, norm 4.5e-10, spectrum 3.8e-05; curve par 3.2e-08, par2 4.5e-09, norm 2.5e-08) | agrees, 1 traced (4 points; par 2e-07, norm 3e-07, spectrum 8.4e-07; curve par 0.00062, par2 1.8e-07, norm 2.8e-05) |
-| hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 2.4e-10, par2 4.6e-12, norm 6e-12, period 3.6e-10, spectrum 9.4e-07; curve par 2.6e-09, par2 1e-09, norm 8.4e-12) | agrees, 5 traced (5 points; par 4e-08, norm 4.2e-08, period 3.6e-10, spectrum 2.8e-07; curve par 0.0071, par2 0.0013, norm 3.4e-07) |
+| hill_cycles_pd | steady: EP HB HB; cycles: PD PD; doubling: R2 R2 R2 R2 R2 | agrees (10 points; par 9.6e-06, par2 5e-10, norm 6e-12, period 3.6e-10, spectrum 8.3e-05; curve par 3e-06, par2 8.4e-07, norm 1.1e-11) | agrees, 5 traced (5 points; par 4e-08, norm 4.2e-08, period 3.6e-10, spectrum 2.8e-07; curve par 0.0071, par2 0.0013, norm 3.4e-07) |
 | hill_cycles_torus | steady: EP HB HB; cycles: TR; torus_up: R4; torus_down: R3 BP R3 | agrees, 1 traced (7 points; par 5.8e-11, par2 1e-11, norm 7.7e-12, period 2e-11, spectrum 4.1e-06; curve par 5.8e-11, par2 1.9e-08, norm 1.5e-11) | agrees, 4 traced (4 points; par 4e-08, norm 4.3e-08, period 2e-11, spectrum 5.7e-08; curve par 2.5e-10, par2 0.0002, norm 4.4e-07) |
 | izh_class1_integrator | steady: EP LP | agrees (2 points; par 7.5e-15, norm 4.1e-10, spectrum 2e-08) | agrees (2 points; par 7.5e-15, norm 3.7e-06, spectrum 2e-08) |
 | izh_class2 | steady: EP HB LP | agrees (3 points; par 4.4e-13, norm 3.7e-10, period 6.6e-11, spectrum 4.6e-07) | agrees (3 points; par 7.1e-06, norm 4.7e-06, period 1.5e-05, spectrum 4.1e-08) |
@@ -2323,10 +2324,47 @@ tolerance is the cause (not isolated).
 NTST 10, 15, 20, 30, 40, 60, 80 and steps 0.005, 0.01, 0.02 (21 runs) AUTO-07p labels it every time and xppautX not at NTST 15 / DS 0.005 and NTST 10 / DS 0.02
 (pd_down's R2 in all). xppautX says why, once: "Br 3 Pt 204: a period doubling or torus bifurcation (PD, TR) between points 204 and 205 was not located (not in
 max_location_iterations = 8 iterations)", where the point it could not place is a 1:2 resonance, not a PD or TR. Reproduction:
-`uv run --locked python docs/studies/w557_r2_repro.py` (forced_pp_pd with the mesh of cycles and curves at 15). The curve itself is right (5.9e-7).
+`uv run --locked python docs/studies/w557_r2_repro.py` (forced_pp_pd with the mesh of cycles and curves at 15). The curve itself is right (5.9e-7). Fixed by W565 (below).
 Other grids (the labels of `forced_pp_ns`, `hill_cycles_*`, the maps, at three steps and meshes 15 and 80) agree with AUTO-07p's, except where the description traces
 the difference (W419's torus angle past pi, XPPAUT's disabled detection, finding 71).
 
 **Settle time and homoclinic starts** (lorenz_homoclinic at NTST 60 to 400, settle 4.0 to 8.0): 4.0, 4.6 agree; 5.5 (the orbit has passed its return) both
 programs follow the true curve (8e-9) but take different first steps and label different folds of the start (xppautX one at point 3, AUTO-07p up to four);
 8.0 xppautX stops with a shown error. These are starts that are not near the orbit and were not made workloads.
+
+## W565: a 1:2 resonance on a period-doubling curve is labelled at every mesh and step ([#630](https://github.com/MuhammadMoustafa/xppautX/issues/630))
+
+W557 found forced_pp_pd's far R2 (the model's Poincare map: multipliers -1 and -1 at (eps, b0) = (1.948933855, 2.570226715)) missed at NTST 15 with
+step 0.005 and at NTST 10 with step 0.02, while AUTO-07p labels it in all 21 runs of NTST 10, 15, 20, 30, 40, 60, 80 and steps 0.005, 0.01, 0.02.
+
+**Cause** (the test and the search, traced at NTST 15 / 0.005, branch 3 point 204 to 205): the test on a flip curve is `|remaining| - 1`, remaining
+being the multiplier that is not the imposed one, which is the one nearest -1. The imposed multiplier of a collocation solution is -1 only to the
+mesh's accuracy (-1.00003 there), so the two multipliers that coalesce at the resonance swap roles where the other passes the imposed one's value,
+and in the small interval where they are within 1e-4 of each other they come out real, complex and real again with the split of their square-root
+sensitivity. The test is -1.9e-4, +1.7e-3, +4.8e-4, -6.8e-5, -1.4e-4, -1.6e-4, -2.1e-4, -2.5e-4, -4.0e-4 at the eight iterations of the location, which are not
+monotone in the parameter; Mueller's step then leaves the step's bracket, W545's bisection of a search that ends at ITMX is not taken (its bracket must
+lie inside the step), and the note says "not in max_location_iterations" (AUTO-07p's own Possible special point). Where the location did finish (NTST
+40) it stopped 3e-5 in b0 short of the true R2.
+
+**Fix** (core/auto_codim.cpp): the test is the square root of the product of the moduli of the two multipliers next to the imposed one, minus 1:
+for a conjugate pair exactly the modulus AUTO-07p tests (bit for bit), for two real ones their geometric mean, symmetric in the two and so with no
+role to swap, and the coefficient of the pair's polynomial, whose error is the data's and not its square root. The same function serves the fold
+curve's R1 (+1). The note names the point's type: "a 1:2 resonance (R2)" on a PD curve, "a 1:1 resonance (R1)" on a fold curve of cycles, "a strong
+resonance (R1, R2, R3, R4)" on a torus curve, and "a period doubling or torus bifurcation (PD, TR)" only where a PD or a torus is searched (docs/auto07p-findings.md 13).
+
+| setting (pd_up) | before W565 | with W565 |
+|---|---|---|
+| NTST 10, 15, 20, 30, 40, 60, 80 at steps 0.005, 0.01, 0.02 (21 runs, docs/studies/w557_r2_repro.py) | NTST 15 / 0.005 and NTST 10 / 0.02 missed (W557) | 21 labelled |
+
+The R2's place against the model (the Poincare map of its own equations, numpy/scipy; trace -2 and determinant 1): forced_pp_pd's pd_up (NTST 40) 8.5e-10 in eps and
+1.3e-8 in b0 away, where it was 2.3e-6 and 3.3e-5 (AUTO-07p's own R2 is where xppautX's was, 3.6e-6 in par: the same test); pd_down's R2 is
+4.8e-6 and 1.7e-6 from the true one before, 4.6e-6 and 1.6e-6 after, the curve's own error on a steep part (the test is not what limits it); at NTST 15 (new description forced_pp_pd_ntst15)
+5e-8 and 1.2e-6, AUTO-07p's 6.1e-6 and 9.0e-5 (recorded as four traced differences, the programs' R2 not agreeing: AUTO-07p is further from the model);
+at NTST 10 (forced_pp_pd_ntst10, no AUTO-07p reference: both programs are 1.5e-5 to 1.8e-5 from the true R2 in eps, the mesh's error) it is labelled. hill_cycles_pd's
+five R2, where c + mu = 0 is exact (its comment), move toward it: the errors in c go from 1.4e-6, 1.0e-5, 1.8e-5, 1.0e-5, 1.8e-5 to 5.7e-7, 3.5e-6, 8.1e-6, 3.5e-6, 8.1e-6, so they no longer
+equal AUTO-07p's (9.6e-6 apart at most, inside the tolerance, no traced difference needed). With EPSL = EPSU = 1e-10 forced_pp_pd's pd_up R2 pair is -1.0000000047 +- 1.4e-5 i,
+within the tolerance of AUTO-07p's, so the spectrum difference at the description's 1e-7 (xppautX -0.99999991 +- 4.5e-4 i, AUTO-07p -0.99999 +- 7e-5 i) is the
+square-root noise of a Jordan block, recorded as a traced difference that replaces the four of W437 and W474 (their R2 par, norm and par2 now agree, and pd_down's spectrum).
+
+Baselines changed (autocompare --update --only): forced_pp_pd (the R2 of pd_up and pd_down and every point after them, 334 rows), hill_cycles_pd (all five R2 and the points after each, 33
+rows); no other description changed: every other one passes unchanged, byte for byte. New: forced_pp_pd_ntst15 (AUTO-07p reference, 4 traced differences) and forced_pp_pd_ntst10 (diagram baseline only).
