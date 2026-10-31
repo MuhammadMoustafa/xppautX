@@ -1545,8 +1545,11 @@ converged run's diagram as `ours`. (1) is checked once, on the pilots: the conve
 finite-difference pilot's, and (2) makes every row's equal to the converged run's. The first two points after a Hopf start
 are left out of both (W458's artefact: a test function that changes sign between a Hopf-started branch's first two points labels
 there, BP in xppautX and LP in AUTO-07p on P2's cycles, none at EPS/1000 and DS/10: the stored points 2 and 3 of a periodic run started at HB).
-A converged run that fails (the tight tolerances of ode_mu26_control and ode_mu26_blocked do not converge on the cycles near the
-SNIC, even with the tolerances divided by 10 only: "no convergence even at the smallest step", branches 49 and 50, near the end of the cycles run) is "unavailable" in `converged.json` and the
+W561 (#626): ode_mu26_control's converged run failed ("no convergence even at the smallest step", branch 49, point 2) not near the SNIC but at the
+first point of the cycles off the Hopf point: at EPS 1e-10 that point is not reached in 7 Newton iterations at any step down to DSMIN (10 are not enough, 12
+are), and AUTO-07p's run on the same tightened settings stops at the same point (MX), so it is not xppautX's. The converged run now allows
+20 Newton iterations (`CONVERGED_NEWTON` in continuation.py; a run whose points converge within the description's iterations is unchanged by the cap),
+and then completes with the finite-difference pilot's special points. A converged run that fails is "unavailable" in `converged.json` and the
 workload's exact rows keep the finite-difference gate; the fixed-step P1 has none (its step is the workload). A deliberately wrong
 exact row fails: xppautX's finite-difference pilot run as an exact row is refused on E2's HB period (607.319 against the converged 608.833, tolerance 0.26).
 
