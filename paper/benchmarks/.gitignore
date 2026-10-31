@@ -35,6 +35,7 @@
 !/comparison/common.py
 !/comparison/continuation.py
 !/comparison/integration.py
+!/comparison/overlays.py
 !/comparison/run.py
 !/comparison/terman-criteria.json
 !/comparison/terman.py
