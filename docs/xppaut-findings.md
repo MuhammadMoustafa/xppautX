@@ -136,6 +136,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [103](#103-the-difference-step-of-a-parameter-leaves-it-an-ulp-off) | AUTO | the parameter derivative adds a step and subtracts it again, so the parameter drifts by an ulp | [W564 / #629](https://github.com/MuhammadMoustafa/xppautX/issues/629) |
 | [104](#104-a-period-doubling-curve-near-a-12-resonance-cannot-be-read-from-the-six-digit-export) | AUTO | a period-doubling curve near a 1:2 resonance is exported to six digits, and a multiplier there moves 2,000 times as fast as the parameter, so the file puts the points 0.5-1.4% off -1 (the continuation itself is exact) | [W568 / #633](https://github.com/MuhammadMoustafa/xppautX/issues/633) |
 | [105](#105-the-fold-test-of-a-switched-branch-starts-at-its-third-point) | AUTO | the second point of a branch started by a switch (MXBF) is not tested: a fold between the second and third points is never labelled | [W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634) |
+| [106](#106-the-tests-of-a-branchs-first-steps-are-not-made) | AUTO | the tests start at 0 and the first value is the third point's (cycles: the second's): a zero between a branch's start and its third point is never labelled, and the second point of an equilibrium branch is not stored | [W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637) |
 
 ## 1. Model options
 
@@ -2263,3 +2264,16 @@ Evidence: from the source, not run in XPPAUT; the model is pp2's switched branch
 par0 = 0.8329293222341569, u0 = 0.41116156 lies between its second and third points (numpy/scipy from the model's equations;
 docs/auto-references.md W569).
 **xppautX** (W569 / [#634](https://github.com/MuhammadMoustafa/xppautX/issues/634)): fixed: the fold test is evaluated at the second point of a switched branch.
+
+## 106. The tests of a branch's first steps are not made
+
+`cnrlae` zeroes the three tests before the starting procedure (`rbp = 0.; rev = 0.; rlp = 0.;`, [autlib1.c:864-866](../reference/xppaut-8.0/autlib1.c#L864)), computes the second point
+with `stprae` and does not store it ([autlib1.c:927](../reference/xppaut-8.0/autlib1.c#L927)), and the loop from `L3` ([autlib1.c:1006](../reference/xppaut-8.0/autlib1.c#L1006)) makes the first test values at the
+third point; a fold, Hopf point, branch point or user zero between the start and the third point is not labelled. `cnrlbv` zeroes `sp1`, `bp1` and `rlp` the same way
+([autlib1.c:5039-5041](../reference/xppaut-8.0/autlib1.c#L5039)), stores the start and its tests begin at the second point ([autlib1.c:5213](../reference/xppaut-8.0/autlib1.c#L5213)): a zero between the first and second points is not
+labelled. AUTO-07p's tests start the same way (docs/auto07p-findings.md, finding 15); the switched branch's second point is finding 105.
+
+Evidence: from the source, not run in XPPAUT; the cases are runs of pp2, lamom2 and the forced predator-prey (docs/auto-references.md W572), each with its zero
+between the start and the third point (equilibria) or the first and second points (cycles), settled by numpy/scipy from the model's equations.
+**xppautX** (W572 / [#637](https://github.com/MuhammadMoustafa/xppautX/issues/637)): fixed: the tests are made at the start and the second point of an equilibrium branch and at a cycle branch's start.
+

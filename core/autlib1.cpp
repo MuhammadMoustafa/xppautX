@@ -186,6 +186,25 @@ template<class Function> struct LocationTest {
   std::optional<integer> user_index;
 };
 
+/* The first `count` tests' values at the current point, kept as their samples for the next step. */
+template<class Function, class Evaluate>
+void sample_tests(iap_type &iap, std::vector<LocationTest<Function>> &tests, std::size_t count, Evaluate evaluate) {
+  for (std::size_t i = 0; i < count; ++i) {
+    auto &test = tests[i];
+    if (test.user_index) iap.iuzr = *test.user_index;
+    test.sample = {evaluate(test), std::nullopt};
+  }
+}
+
+/* W572: whether a branch's starting point has tests that mean something: not a special point, where they are
+   zero (a sign change from noise would label it again), and not a two-parameter curve's, whose tests are the
+   codimension-two ones. The label the run restarts from says what the point is (irs 0: initial data). */
+bool start_is_tested(const iap_type &iap, xpp::AutoPointKind label) {
+  return iap.isw != 2 &&
+         (iap.irs == 0 || label == xpp::AutoPointKind::Regular || label == xpp::AutoPointKind::Output ||
+          label == xpp::AutoPointKind::End || label == xpp::AutoPointKind::MaxSteps);
+}
+
 template<class Function, class Evaluate, class Locate>
 void locate_tests(iap_type &iap, rap_type &rap,
                   std::vector<LocationTest<Function>> &tests, std::span<const AutoMark> marks,
@@ -205,11 +224,7 @@ void locate_tests(iap_type &iap, rap_type &rap,
       found = i;
     }
   }
-  for (std::size_t i = 0; i < last_stepped; ++i) {
-    auto &test = tests[i];
-    if (test.user_index) iap.iuzr = *test.user_index;
-    test.sample = {evaluate(test), std::nullopt};
-  }
+  sample_tests(iap, tests, last_stepped, evaluate);
   if (iap.istop != 1 && found && tests[*found].user_index &&
       marks[*tests[*found].user_index].parameter < 0) iap.istop = -1;
 }
@@ -1335,7 +1350,98 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   iap->lib->codim.prepare(iap->ndm);
   AutoTestSample rbt, rcp, rgh;
   const auto special_points=iap->lib->session->auto_state.special_points;
+
+  /* The tests of the point just solved. A switched branch's second point leaves the branch point test out: the
+     determinant there is of the switch's Newton matrix, whose last row is not the arclength condition. */
+  using Tests = std::vector<LocationTest<decltype(&fnuzae)>>;
+  const auto tests_at_point = [&](bool with_branch_point) {
+    Tests tests;
+    for (integer index = 0; index < nuzr; ++index)
+      tests.push_back({fnuzae, uzr[index], xpp::AutoPointKind::UserZero, index});
+    if (iap->ilp == 1) tests.push_back({fnlpae, rlp, xpp::AutoPointKind::Fold, {}});
+    if (with_branch_point && isp != 0 && (iap->isw!=2 || ips==xpp::AutoProblem::DiscreteMap)) tests.push_back({fnbpae, rbp, xpp::AutoPointKind::BranchPoint, {}});
+    const bool fold_curve=iap->isw==2 && iap->itpst==xpp::AutoPointKind::Fold;
+    const bool hopf_curve=iap->isw==2 && iap->itpst==xpp::AutoPointKind::Hopf && iap->ndim==2*iap->ndm+2;
+    const bool codim=ips==xpp::AutoProblem::SteadyState && (fold_curve || hopf_curve);
+    if (codim && isp!=0 && isp!=3 && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::BogdanovTakens))
+      tests.push_back({fnbtae,rbt,xpp::AutoPointKind::BogdanovTakens,{}});
+    if (codim && isp!=0 && isp!=3 && fold_curve && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::Cusp))
+      tests.push_back({fncpae,rcp,xpp::AutoPointKind::Cusp,{}});
+    if (ips==xpp::AutoProblem::DiscreteMap && iap->isw==2 && isp!=0)
+      tests.push_back({fnrnae,rbt,xpp::AutoPointKind::Pending,{}});
+    if (xpp::problem_is_steady_or_map(ips))
+      tests.push_back({fnhbae, rev, codim ? xpp::AutoPointKind::ZeroHopf : xpp::AutoPointKind::Hopf, {}});
+    if (codim && isp!=0 && isp!=3 && hopf_curve && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::GeneralizedHopf))
+      tests.push_back({fnghae,rgh,xpp::AutoPointKind::GeneralizedHopf,{}});
+    return tests;
+  };
+  const auto evaluate_test = [&](const auto &test) {
+    bool changed;
+    return test.function(iap, rap, par, icp, &changed, funi, &aa_first_dimension,
+        aa.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), uold.data(),
+        udot.data(), rhs.data(), dfdu.data(), dfdp.data(), marks);
+  };
+
+  /* The tests at the point just solved, as the loop makes them at each point it computes: a sign change from the
+     tests' last values is located, a branch point's data kept. */
+  const auto scan_point = [&] {
+    auto tests = tests_at_point(true);
+    locate_tests(*iap, *rap, tests, marks, evaluate_test,
+      [&](auto &test, double &dstest, bool &stepped) {
+        lcspae(iap, rap, par, icp, test.function, funi, &aa_first_dimension,
+            aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
+            du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(),
+            test.sample, thl, thu, marks, dstest, stepped);
+        if (ips==xpp::AutoProblem::DiscreteMap && (test.function==fnhbae || test.function==fnrnae))
+          test.kind=iap->lib->codim.map_kind;
+      });
+    if (iap->istop != 1 && iap->itp.kind == xpp::AutoPointKind::BranchPoint) {
+      ++nbif;
+      iap->nbif = nbif;
+      stla.resize(nbif);
+      stld.resize(nbif);
+      stud.resize(xpp::size_product(iap->ndim, nbif));
+      stu.resize(xpp::size_product(iap->ndim, nbif));
+      stbif(iap, rap, par, icp, &aa_first_dimension, aa.data(),
+	    stud.data(), stu.data(), stla.data(), stld.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
+	    du.data(), udot.data(), dfdu.data(), dfdp.data(), thl, thu);
+    }
+  };
+
+  /* The determinant of the Newton matrix the step from the start would have (solvae's: its last row,
+     2 thu (u - uold) / rds, is 2 thu udot for a step along udot), the branch point test's value at the start. */
+  const auto start_determinant = [&] {
+    const integer ndim = iap->ndim, ld = aa_first_dimension;
+    std::vector<doublereal> matrix(aa.size()), rhs_unused(ndim + 1), solution(ndim + 1);
+    for (integer i = 0; i < ndim; ++i) {
+      matrix[i + ndim * ld] = dfdp[icp[0] * ndim + i];
+      for (integer k = 0; k < ndim; ++k) matrix[i + k * ld] = dfdu[k * ndim + i];
+    }
+    for (integer k = 0; k < ndim; ++k) matrix[ndim + k * ld] = thu[k] * 2. * udot[k];
+    matrix[ndim + ndim * ld] = thl[icp[0]] * 2. * rldot[0];
+    doublereal det;
+    xpp::ge(iap->lib->fp9, iap->iid, ndim + 1, ld, matrix.data(), 1, ndim + 1, solution.data(), ndim + 1, rhs_unused.data(), &det);
+    return det;
+  };
+
+  /* W572: the tests' values at a point the loop does not test (a branch's first point, or the second of a
+     switched branch), so the step to the next compares two values and a zero between them is located. The
+     point's stored stability and period stay what they were: the Hopf test's evaluation writes both. A
+     switched branch's second point has no branch point test (its determinant is the switch's own). */
+  const auto seed_tests = [&](bool at_start) {
+    const auto stability = iap->lib->session->auto_state.stability.computed;
+    const double period = par[xpp::auto_unknown::period];
+    const doublereal det = rap->det;
+    if (at_start) rap->det = start_determinant();
+    auto tests = tests_at_point(at_start);
+    sample_tests(*iap, tests, tests.size(), evaluate_test);
+    iap->lib->session->auto_state.stability.computed = stability;
+    par[xpp::auto_unknown::period] = period;
+    rap->det = det;
+  };
+
   (*stpnt)(iap, rap, par, icp, u.data());
+  const xpp::AutoPointKind start_kind = iap->itp.kind; // what the restart label was (stpnt read it)
   xpp::auto_check_start_parameters(*iap,*rap,par,icp);
   xpp::auto_check_start_equilibrium(*iap,*rap,u.data(),par,icp);
   constexpr integer stride=1; // The algebraic state is contiguous.
@@ -1377,6 +1483,14 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Starting procedure  (to get second point on first branch) : */
 
+  stdirae(iap, rap, par, icp, funi, &aa_first_dimension, aa.data(), rhs.data(), rlold.data(), rldot.data(), u.data(),
+	  du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), thl, thu);
+
+  /* W572: the start's tests, from its Jacobian and direction */
+
+  if (start_is_tested(*iap, start_kind)) {
+    seed_tests(true);
+  }
   stprae(iap, rap, par, icp, funi, &rds, &aa_first_dimension, aa.data(), 
 	 rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(), thl, 
 	 thu);
@@ -1384,8 +1498,16 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (istop == 1) {
     goto L5;
   }
+
+  /* W572: the second point, which is not stored, is tested like each point the loop computes, so a zero between
+     the start and it, or between it and the next point, is located and stored; no zero: the loop goes on. */
+
   itp = xpp::AutoPointCode{};
   iap->itp = itp;
+  scan_point();
+  if (iap->istop != 0 || iap->itp.kind != xpp::AutoPointKind::Regular) {
+    goto L5;
+  }
   goto L3;
 
 /* Initialize computation of the next bifurcating branch. */
@@ -1451,17 +1573,12 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   rbp = rev = rlp = {};
 
-  /* W569: the new branch's fold test starts at its second point, not its third (AUTO-07p's tests begin
-     there: a fold between the second and third points is never labelled, as pp2's after the switch at
-     its branch point). Its tangent is the branch point's direction, which has the sign of the point's own
-     until a fold turns it. */
+  /* W569, W572: the new branch's tests start at its second point, not its third (AUTO-07p's tests begin there:
+     a fold between the second and third points is never labelled, as pp2's after the switch at its branch point).
+     The branch point test is not among them: its determinant is the switch's own. The fold's tangent is the branch
+     point's direction, which has the sign of the point's own until a fold turns it. */
 
-  if (iap->ilp == 1) {
-    bool changed;
-    rlp = {fnlpae(iap, rap, par, icp, &changed, funi, &aa_first_dimension, aa.data(), rlcur.data(),
-                  rlold.data(), rldot.data(), u.data(), uold.data(), udot.data(), rhs.data(), dfdu.data(),
-                  dfdp.data(), marks), std::nullopt};
-  }
+  seed_tests(false);
 
 /* Provide initial approximation to the next point on the branch */
 
@@ -1478,52 +1595,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     goto L5;
   }
 
-  {
-    std::vector<LocationTest<decltype(&fnuzae)>> tests;
-    for (integer index = 0; index < nuzr; ++index)
-      tests.push_back({fnuzae, uzr[index], xpp::AutoPointKind::UserZero, index});
-    if (iap->ilp == 1) tests.push_back({fnlpae, rlp, xpp::AutoPointKind::Fold, {}});
-    if (isp != 0 && (iap->isw!=2 || ips==xpp::AutoProblem::DiscreteMap)) tests.push_back({fnbpae, rbp, xpp::AutoPointKind::BranchPoint, {}});
-    const bool fold_curve=iap->isw==2 && iap->itpst==xpp::AutoPointKind::Fold;
-    const bool hopf_curve=iap->isw==2 && iap->itpst==xpp::AutoPointKind::Hopf && iap->ndim==2*iap->ndm+2;
-    const bool codim=ips==xpp::AutoProblem::SteadyState && (fold_curve || hopf_curve);
-    if (codim && isp!=0 && isp!=3 && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::BogdanovTakens))
-      tests.push_back({fnbtae,rbt,xpp::AutoPointKind::BogdanovTakens,{}});
-    if (codim && isp!=0 && isp!=3 && fold_curve && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::Cusp))
-      tests.push_back({fncpae,rcp,xpp::AutoPointKind::Cusp,{}});
-    if (ips==xpp::AutoProblem::DiscreteMap && iap->isw==2 && isp!=0)
-      tests.push_back({fnrnae,rbt,xpp::AutoPointKind::Pending,{}});
-    if (xpp::problem_is_steady_or_map(ips))
-      tests.push_back({fnhbae, rev, codim ? xpp::AutoPointKind::ZeroHopf : xpp::AutoPointKind::Hopf, {}});
-    if (codim && isp!=0 && isp!=3 && hopf_curve && xpp::auto_codim_enabled(special_points,xpp::AutoPointKind::GeneralizedHopf))
-      tests.push_back({fnghae,rgh,xpp::AutoPointKind::GeneralizedHopf,{}});
-    locate_tests(*iap, *rap, tests, marks,
-      [&](const auto &test) {
-        bool changed;
-        return test.function(iap, rap, par, icp, &changed, funi, &aa_first_dimension,
-            aa.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(), uold.data(),
-            udot.data(), rhs.data(), dfdu.data(), dfdp.data(), marks);
-      },
-      [&](auto &test, double &dstest, bool &stepped) {
-        lcspae(iap, rap, par, icp, test.function, funi, &aa_first_dimension,
-            aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
-            du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(),
-            test.sample, thl, thu, marks, dstest, stepped);
-        if (ips==xpp::AutoProblem::DiscreteMap && (test.function==fnhbae || test.function==fnrnae))
-          test.kind=iap->lib->codim.map_kind;
-      });
-    if (iap->istop != 1 && iap->itp.kind == xpp::AutoPointKind::BranchPoint) {
-      ++nbif;
-      iap->nbif = nbif;
-      stla.resize(nbif);
-      stld.resize(nbif);
-      stud.resize(xpp::size_product(iap->ndim, nbif));
-      stu.resize(xpp::size_product(iap->ndim, nbif));
-      stbif(iap, rap, par, icp, &aa_first_dimension, aa.data(),
-	    stud.data(), stu.data(), stla.data(), stld.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
-	    du.data(), udot.data(), dfdu.data(), dfdp.data(), thl, thu);
-    }
-  }
+  scan_point();
 
   /* Store plotting data on unit 7 : */
 
@@ -1584,8 +1656,10 @@ stpnae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   return 0;
 } /* stpnae_ */
 
+/* The direction of the branch at its starting point (W572 splits it from stprae: cnrlae tests the start
+   with its Jacobian and this direction before the step to the second point). */
 int 
-stprae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), doublereal *rds, integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+stdirae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
 {
   xpp::auto_stability_step_start(iap->lib->session->auto_state.stability,
       iap->ibr, iap->ntot + (iap->lib->locating ? 1 : 0));
@@ -1602,7 +1676,7 @@ stprae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   integer iid;
 
-/* Finds the second point on the initial solution branch. */
+/* Finds the direction at the first point of the initial solution branch. */
 
   aa_dim1 = *m1aaloc;
 
@@ -1658,9 +1732,19 @@ stprae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   rldot[0] = du[ndim];
 
+  return 0;
+} /* stdirae */
+
+/* Finds the second point on the initial solution branch, from the direction stdirae found. */
+
+int 
+stprae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), doublereal *rds, integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+{
+  const integer ndim = iap->ndim;
+
 /* Set initial approximations to the second point on the branch */
 
-  for (i = 0; i < ndim; ++i) {
+  for (integer i = 0; i < ndim; ++i) {
     u[i] = uold[i] + *rds * udot[i];
   }
   rlcur[0] = rlold[0] + *rds * rldot[0];
@@ -4469,6 +4553,56 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   istop = 0;
   iap->istop = istop;
 
+  using Tests = std::vector<LocationTest<decltype(&fnuzbv)>>;
+  const auto tests_at_point = [&] {
+    Tests tests;
+    for (integer index = 0; index < nuzr; ++index)
+      tests.push_back({fnuzbv, uzr[index], xpp::AutoPointKind::UserZero, index});
+    if (ilp == 1) tests.push_back({fnlpbv, rlp, xpp::AutoPointKind::CycleFold, {}});
+    if (isp >= 2) tests.push_back({fnbpbv, bp1, xpp::AutoPointKind::CycleBranch, {}});
+    if ((isp == 1 || isp == 2) && xpp::problem_has_orbit_multipliers(ips))
+      tests.push_back({fnspbv, sp1, xpp::AutoPointKind::Pending, {}});
+    return tests;
+  };
+  const auto evaluate_test = [&](const auto &test) {
+    bool changed;
+    return test.function(iap, rap, par, icp, &changed, funi, bcni, icni,
+        p0.data(), p1.data(), ev.data(), rlcur.data(), rlold.data(), rldot.data(),
+        &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(),
+        fa.data(), fc.data(), dups.data(), tm.data(), dtm.data(), thl, thu, marks);
+  };
+
+  /* W572: the tests' values at the starting point, which the loop does not test: the step to the second point
+     then compares two values and a zero between them is located. The point's Newton matrix is made and factored
+     as the tests read it (as a Hopf start's is, in stepbv), with the direction stdrbv found; the direction, the
+     multipliers, the stored stability and the determinant stay what they were, so no result changes where no
+     zero lies. */
+  const auto seed_start_tests = [&] {
+    const auto direction = rldot;
+    const auto tangent_ps = udotps;
+    const auto multipliers = ev;
+    const auto stability = iap->lib->session->auto_state.stability.computed;
+    const integer saved_isp = iap->isp, saved_nins = iap->nins;
+    const doublereal saved_det = rap->det;
+    const auto homcont = iap->lib->homcont; // a homoclinic run's boundary evaluations advance its projection state
+    integer refactor = 1, tangent = -1;
+    doublereal no_step = 0.;
+    solvbv(&refactor, iap, rap, par, icp, funi, bcni, icni, &no_step, &tangent,
+           rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), dups.data(), uoldps.data(),
+           udotps.data(), upoldp.data(), dtm.data(), fa.data(), fc.data(), p0.data(), p1.data(), thl, thu);
+    if (jacobian_failed(iap)) return;
+    auto tests = tests_at_point();
+    sample_tests(*iap, tests, tests.size(), evaluate_test);
+    rldot = direction;
+    udotps = tangent_ps;
+    ev = multipliers;
+    iap->lib->session->auto_state.stability.computed = stability;
+    iap->isp = saved_isp;
+    iap->nins = saved_nins;
+    rap->det = saved_det;
+    iap->lib->homcont = homcont;
+  };
+
   for (j = 0; j < (iap->ntst + 1); ++j) {
     for (i = 0; i < (iap->ndim * iap -> ncol); ++i) {
       ups[j + i * (iap->ntst + 1)] = 0.;
@@ -4489,6 +4623,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   rsptbv(iap, rap, par, icp, funi, stpnt, &rds, rlcur.data(), 
 	 rlold.data(), rldot.data(), &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(), dups.data(), tm.data(), 
 	 dtm.data(), ev.data(), &nodir, thl, thu);
+  const xpp::AutoPointKind start_kind = iap->itp.kind; // what the restart label was (stpnt read it)
   xpp::auto_check_start_parameters(*iap,*rap,par,icp);
   xpp::auto_check_start_norm(*iap,*rap,sqrt(rnrmsq(iap,&iap->ndm,&ntst_plus_one,ups.data(),dtm.data(),thu)));
   (*pvli)(iap, rap, icp, dtm.data(), &ntst_plus_one, ups.data(), &ndim, p0.data(), p1.data(), par);
@@ -4522,6 +4657,12 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   istop = iap->istop;
   if (istop == 1) {
     return 0;
+  }
+
+  /* W572: a Hopf start is no solution of the cycle's equations: its first step is not tested */
+
+  if (!iap->lib->hopf_start && start_is_tested(*iap, start_kind)) {
+    seed_start_tests();
   }
 
   extrbv(iap, rap, funi, &rds, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one, ups.data(),
@@ -4568,21 +4709,8 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
 
   {
-    std::vector<LocationTest<decltype(&fnuzbv)>> tests;
-    for (integer index = 0; index < nuzr; ++index)
-      tests.push_back({fnuzbv, uzr[index], xpp::AutoPointKind::UserZero, index});
-    if (ilp == 1) tests.push_back({fnlpbv, rlp, xpp::AutoPointKind::CycleFold, {}});
-    if (isp >= 2) tests.push_back({fnbpbv, bp1, xpp::AutoPointKind::CycleBranch, {}});
-    if ((isp == 1 || isp == 2) && xpp::problem_has_orbit_multipliers(ips))
-      tests.push_back({fnspbv, sp1, xpp::AutoPointKind::Pending, {}});
-    locate_tests(*iap, *rap, tests, marks,
-      [&](const auto &test) {
-        bool changed;
-        return test.function(iap, rap, par, icp, &changed, funi, bcni, icni,
-            p0.data(), p1.data(), ev.data(), rlcur.data(), rlold.data(), rldot.data(),
-            &ntst_plus_one, ups.data(), uoldps.data(), udotps.data(), upoldp.data(),
-            fa.data(), fc.data(), dups.data(), tm.data(), dtm.data(), thl, thu, marks);
-      },
+    auto tests = tests_at_point();
+    locate_tests(*iap, *rap, tests, marks, evaluate_test,
       [&](auto &test, double &dstest, bool &stepped) {
         lcspbv(iap, rap, par, icp, test.function, funi, bcni, icni, pvli,
             test.sample, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one,

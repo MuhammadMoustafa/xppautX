@@ -49,6 +49,7 @@ so the index started empty.
 | [12](#12-a-cycles-branch-point-test-at-its-noise-labels-branch-points-that-are-not-there) | Special-point location | a cycle's branch-point test, a ratio of consecutive determinants, changes sign at the determinant's noise near a heteroclinic cycle: branch points where the cycles' multipliers are far from 1 | [W547 / #612](https://github.com/MuhammadMoustafa/xppautX/issues/612) |
 | [13](#13-a-flip-curves-resonance-test-jumps-where-its-two-multipliers-swap-roles) | Fold and flip curves of cycles | near R1/R2 the test `|mu| - 1` of the multiplier next to the imposed one jumps where the two multipliers near it swap which is the imposed one, so its location stops short of the resonance (3e-5 in b0 at NTST 40, 9e-5 at NTST 15) or not at all | [W565 / #630](https://github.com/MuhammadMoustafa/xppautX/issues/630) |
 | [14](#14-the-fold-test-of-a-switched-branch-starts-at-its-third-point) | Branch switching | a fold between the second and third point of a branch started by a switch is never labelled: the tests start at 0 and are first evaluated at the third point | [W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634) |
+| [15](#15-the-tests-of-a-branchs-first-steps-are-not-made) | Special-point location | a zero between a branch's start and its third point (equilibria; cycles: its second) is never labelled: the tests start at 0 and the second point of an equilibrium branch is not even stored | [W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -481,3 +482,22 @@ fort.7 for the run has no LP (its special points are BP and EP only).
 
 **xppautX:** the fold test is evaluated at the second point of a switched branch ([W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634); core/autlib1.cpp `cnrlae`), and the fold is
 labelled at par0 = 0.8329293222, u0 = 0.411165. docs/auto-references.md W569.
+
+## 15. The tests of a branch's first steps are not made
+
+Every test starts at 0 for a branch ([ae.f90:137](../reference/auto-07p/src/ae.f90#L137), [bvp.f90:99](../reference/auto-07p/src/bvp.f90#L99)) and a test's first value is made at the first
+point the loop computes, so a sign change needs the point after it. `CNRLAE` stores the start, finds the second point with `STEPAE` and does not store it unless `ISW<0`
+([ae.f90:174-181](../reference/auto-07p/src/ae.f90#L174)); the loop's first `STEPAE` ([ae.f90:189](../reference/auto-07p/src/ae.f90#L189)) gives the third point, the first the tests
+see, so a fold, Hopf point, branch point or user zero between the start and the third point, two steps, is never labelled. `CNRLBV` stores the second point of a cycle
+branch but starts its tests there ([bvp.f90:194-227](../reference/auto-07p/src/bvp.f90#L194)): a zero between the first and second points is never labelled.
+
+**Evidence** (AUTO-07p 0.9.4 run on the same problems, tools/auto_reference.py in a scratch folder; the independent checks numpy/scipy from the models' equations,
+docs/auto-references.md W572): pp2 from par0 = 0.66 and 0.65 has its Hopf point at par0 = 0.67159384618 (trace of the Jacobian zero) between the start and the third
+point, and AUTO-07p's run has no HB; pp2's branch u1 = 0 from u0 = 0.45 and 0.36 has the fold at par0 = 0.8329293222 and none labelled; lamom2's cycles restarted from
+the end of a run with DS 0.1 pass the fold of cycles at a = -1/4 (the radial equation) in their first step and AUTO-07p's restart has no LP; the forced predator-prey's cycles restarted
+with DS 0.04 pass the period doubling at m = 0.3723241823 (the monodromy matrix's multiplier -1) and its run has no PD; the Lorenz equations' switched branch with DS 10 passes the
+Hopf point r = 24.736842 between its second and third points and its run has no HB.
+
+**xppautX:** the tests are made at the start, at the second point of an equilibrium branch and at the second point of a switched one, and at a cycle branch's start
+([W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637); core/autlib1.cpp `cnrlae`, `cnrlbv`); docs/auto-references.md W572.
+

@@ -2448,7 +2448,8 @@ and so did xppautX's.
 does (W421). The tangent in that evaluation is the branch point's direction, which has the sign of the point's own until a fold turns it, and
 the test's value is the parameter component of the unit tangent, so the next step compares like with like. Only the fold test: the Hopf test's
 evaluation stores a point's stability and the branch point test's determinant is of another Newton matrix there; a Hopf point or a user zero
-between the second and third points of a switched branch is still unlabelled, as is a fold between the first and second points of any branch.
+between the second and third points of a switched branch is still unlabelled, as is a fold between the first and second points of any branch
+(until W572, below).
 
 xppautX labels the fold at par0 = 0.8329293222, u0 = 0.411165 (the independent fold's par0 to 2e-12, its u0 to 3e-6, the flatness of par0 there; the
 stored point's multiplier is 0.999989, a zero eigenvalue to 1.1e-5, the location's tolerance): AUTO-07p's reference has no LP, the description records it in `differences` (reference
@@ -2482,3 +2483,62 @@ run changes: `tools/autocompare.py`'s 79 models give the same output as before (
 unscaled weight: the first point's norm is 7.102317 for xppautX's 7.101925 (lorenz_homoclinic, 5.5e-5 relative) and 0.8649229 for 0.8648999 (explicit_homoclinic).
 Both are traced differences of the descriptions (`differences`, the EP's norm; lorenz_homoclinic's first curve sample too, 2.56e-4 against the 1.66e-4 its
 chord allows, as a `curve norm` entry, the new kind of traced difference); every other quantity of both curves agrees within the tolerances, none widened.
+
+## W572: the tests of a branch's first steps ([#637](https://github.com/MuhammadMoustafa/xppautX/issues/637))
+
+W569 (#634) made the fold test run at the second point of a switched branch and left two things: the Hopf and user-zero tests there, and a zero
+of any test between the first and second points of any branch.
+
+**Where AUTO-07p and XPPAUT do not test.** Every test starts at 0 for a branch (`TEST(I)=0.d0`, [ae.f90:137](../reference/auto-07p/src/ae.f90#L137),
+[bvp.f90:99](../reference/auto-07p/src/bvp.f90#L99); XPPAUT's `rbp = rev = rlp = 0.`, [autlib1.c:864-866](../reference/xppaut-8.0/autlib1.c#L864), cycles
+[autlib1.c:5039-5041](../reference/xppaut-8.0/autlib1.c#L5039)), and a test's first value is made at the first point the loop computes, so a sign
+change needs the point after it:
+
+- an equilibrium branch's start is stored, its second point is computed by `STPRAE`/`STEPAE` and **not stored**
+  ([ae.f90:157-181](../reference/auto-07p/src/ae.f90#L157): stored only when `ISW<0` or `NIT==0`; XPPAUT's `stprae`, [autlib1.c:927](../reference/xppaut-8.0/autlib1.c#L927)),
+  and the loop's tests begin at the third point ([ae.f90:189-214](../reference/auto-07p/src/ae.f90#L189), the stored "point 2"): a zero between the
+  start and the third point, two steps, is never labelled (the reference curves show it: pp2's second stored point is at 2 DS from its first, 0.0380107 for DS 0.0190053);
+- a cycle branch's start and its second point are stored (`STDRBV`, `STPLBV`, `STEPBV`, [bvp.f90:169-194](../reference/auto-07p/src/bvp.f90#L169)) and the loop's tests
+  begin at the second point: a zero between the first and second points is never labelled;
+- a branch started by a switch stores its second point, and its tests begin at the third (W569, finding 14).
+
+**xppautX.** `cnrlae` and `cnrlbv` make the tests where the loop does not:
+
+| where | tests | how |
+|---|---|---|
+| an equilibrium branch's start | fold, Hopf, user zeros, branch point | from the start's Jacobian and direction (`stdirae`, the part of `stprae` that finds the direction, split from it): the fold from the matrix with the direction as its last row, the Hopf from the eigenvalues, the branch point from the determinant of the Newton matrix a step along the direction has (last row 2 thu udot) |
+| an equilibrium branch's second point | all | the point is tested like each point of the loop and stored only when it holds a special point: a zero between the start and it, or between it and the next point, is located and stored; no zero, nothing stored, as before |
+| a switched branch's second point | fold, Hopf, user zeros | as W569's fold: the tests' values at the stored point; its branch point test is left out (its determinant is the switch's own Newton matrix) |
+| a cycle branch's start | fold, branch point, period doubling and torus, user zeros | the start's Newton matrix is made and factored with the direction `stdrbv` found (as a Hopf start's is, `stepbv`, W458) so that the tests read it |
+
+What a test writes stays what it was, so no result changes where no zero lies: the stored stability (the Hopf test and the multipliers), the period, the direction and
+multipliers, the determinant and `isp` are put back after the tests of a point that is not stored. A start that is itself a special point (a restart from a BP, LP, HB,
+UZ, ... label), a Hopf start of cycles and a two-parameter curve are not tested: the tests there are zero by construction (a sign change from noise would label the start
+again), or the point is no solution of the equations the tests read, or its tests are the codimension-two ones. The first step of a switched branch (its start is the
+branch point) and the branch point test at the second point of a switched equilibrium branch are not tested either (above).
+No description changed: all 79 compared (autocompare: 0 failures, byte for byte), so the zeros these tests find lie in no baseline.
+
+**Cases and their independent checks** (autocheck's `first_steps`; each is a run of a published model, set so that the zero lies in the step; numpy and scipy from the
+model's own equations, none of either program's continuation; AUTO-07p's own run of the Hopf, fold, cycle fold, period doubling and Lorenz cases (tools/auto_reference.py with
+AUTO-07p 0.9.4, in a scratch folder) has no label there, and neither did xppautX before; its brper cycles run gave no points in this setting):
+
+| model | step | label | independent value |
+|---|---|---|---|
+| pp2 (Doedel 1984), u0 = 1/3 | start par0 = 0.66, first and second point | Hopf, par0 = 0.6715938466 | trace of the Jacobian = 0 at par0 = 0.67159384618; eigenvalues -6e-10 +- 0.6048i |
+| pp2, u0 = 1/3 | start par0 = 0.65, second and third point | Hopf, par0 = 0.6715938461 | the same |
+| pp2, u1 = 0 | start u0 = 0.45, first and second point | fold, par0 = 0.8329293222 | fold of the equations (`f = 0`, `det J = 0`): par0 = 0.8329293222341569, u0 = 0.41116156 |
+| pp2, u1 = 0 | start u0 = 0.36, second and third point | fold, par0 = 0.8329293228 | the same |
+| pp2, u1 = 0 | start u0 = 0.43, second and third point; starts 0.35 (step -0.05) and 0.31, first and second point | branch point, u0 = 0.333316 to 0.333348 (within 2e-5 of 1/3, the location's tolerance) | the Jacobian's second eigenvalue is -1 + 3 u0, zero at u0 = 1/3 |
+| pp2 | marks par0 = 0.67 and 0.69 from par0 = 0.66 | user zeros at the marks (1e-9) | the marks |
+| pp2, switched at its branch point | mark par0 = 0.8317, second and third point | user zero at par0 = 0.83170088, u0 = 0.385617; the base labelled only the one after the fold (u0 = 0.436305) | the two roots of par0(u0) = 0.8317: u0 = 0.385608 and 0.436330 |
+| Lorenz 1963 (AUTO-07p's lrz demo), switched at r = 1, DS 10 | second and third point | Hopf, r = 24.73733, the second point's stability still not computed | r = sigma (sigma + b + 3) / (sigma - b - 1) = 24.736842; the Jacobian at the label has a pair with real part below 1e-3 |
+| lamom2 (XPPAUT's demo), cycles restarted from the end of a run, DS 0.1 | first and second point | fold of cycles, a = -0.2499999963 (rho = 0.5000) | the radial equation r' = r (a + r^2 - r^4): the cycles' fold is at a = -1/4, rho = 1/2 |
+| lamom2 cycles | mark a = -0.247, DS 0.05 | user zeros at a = -0.24699 (rho = 0.4451) and, after the fold, -0.24701 (0.5547) | the two roots rho = (1 -+ sqrt(1 + 4 a)) / 2: 0.4452 and 0.5548 |
+| brper (XPPAUT's demo), cycles restarted, DS 0.1 | first and second point | branch point of cycles, a = 0.9999988 | the cycles r = a and r = b = 1 of r' = r (a - r) (b - r) meet at a = b = 1 |
+| forced predator-prey (Kuznetsov, Muratori, Rinaldi 1992), cycles in m restarted, DS 0.04 | first and second point | period doubling, m = 0.37232419 | the multiplier -1 of the monodromy matrix (scipy, variational equations of the forced (x, y) system with the exact forcing sqrt(m) cos 2 pi t) at m = 0.3723241823; MatCont's eps sqrt(m) = 0.3050914 gives m = 0.3723230 (their 7 digits are 5e-7 apart in eps) |
+
+Why a part is not done, where it is not: the branch point test between the start and the second point of a **switched** branch, because its first point is the branch point itself, where the tests of
+the old branch are zero; the branch point test at the second point of a switched equilibrium branch, because swprc's Newton matrix has the hyperplane's row, not the arclength's, so its determinant
+is not the loop's (a bracket with it would be spurious); a Hopf start of cycles, because its first point is no solution of the cycle's equations (W458); a start that is itself a special
+point, because its tests are zero there; a cycle switched at a period doubling or branch point, whose start is that point. Findings: docs/auto07p-findings.md 15, docs/xppaut-findings.md 106.
+

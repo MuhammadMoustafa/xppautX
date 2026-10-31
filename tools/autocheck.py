@@ -43,6 +43,9 @@ the same commands and a recorded abort stops them at
 the same point: the same data file, the same saved diagram.
 nagumo (W345) checks tstheti's planar HomCont branch against the exact
 front speed in both directions, then refines the mesh and interval.
+first_steps (W572) checks the zeros in a branch's first steps, which
+AUTO-07p's and XPPAUT's tests never see (pp2, Lorenz, lamom2, brper and the
+forced predator-prey), each against the model's own equations.
 """
 import argparse, base64, copy, csv, io, json, math, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -57,7 +60,7 @@ ap.add_argument('--list', action='store_true', help='print the selected sections
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'subscriptions', 'jacobian',
-                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced', 'codim', 'switch'])
+                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced', 'codim', 'switch', 'first_steps'])
 args = ap.parse_args()
 if args.shard:
     try:
@@ -2608,6 +2611,15 @@ def section_codim():
             s.close()
 
 
+def pp2_equations(u, p):
+    """AUTO-07p's and XPPAUT's pp2 (par1 = 3, par2 = 5, par3 = 3): the right-hand side and its Jacobian, by hand"""
+    import numpy as np
+    u0, u1 = u
+    e = math.exp(-5*u0)
+    return (np.array([3*u0*(1-u0) - u0*u1 - p*(1-e), -u1 + 3*u0*u1]),
+            np.array([[3*(1-2*u0) - u1 - 5*p*e, -u0], [3*u1, -1 + 3*u0]]))
+
+
 def section_switch():
     """W563/#628: a restart at a branch point of equilibria with switch follows the other branch.
 
@@ -2631,11 +2643,7 @@ def section_switch():
     check('switch pf: the stored multipliers are e^(r - 3 x^2) of the new branch (stable: below 1)',
           len(stable) > 10 and all(abs(m - math.exp(rr - 3*xx*xx)) < 1e-8 and m < 1 for m, rr, xx in stable), str(len(stable)))
 
-    def pp2(u, p):  # AUTO-07p's and XPPAUT's pp2 (par1 = 3, par2 = 5, par3 = 3)
-        u0, u1 = u
-        e = math.exp(-5*u0)
-        return (np.array([3*u0*(1-u0) - u0*u1 - p*(1-e), -u1 + 3*u0*u1]),
-                np.array([[3*(1-2*u0) - u1 - 5*p*e, -u0], [3*u1, -1 + 3*u0]]))
+    pp2 = pp2_equations
     d = read_description(BASE / 'tstauto_pp2_switch.json')
     data, _, _, ranges = compute(args.server, d, 1)
     rows = diagram_rows(data)[slice(*ranges['switched'])]
@@ -2680,6 +2688,201 @@ def section_switch():
               s_events is not None and 'par0' in s_events and 'par1' in s_events and 'switching continues the same parameter' in s_events, str(s_events))
     finally:
         s.close()
+
+
+def section_first_steps():
+    """W572/#637: the tests of a branch's first steps, where AUTO-07p's and XPPAUT's start at the third point.
+
+    Each case is a published model run so that a special point lies in a step they never test: between the
+    start and the second point, or the second and third point of a branch (the equilibria's second point is
+    computed and not stored), or the second and third point of a branch started by a switch, or between the
+    first and second point of a cycle branch. The new label is settled by the model's own equations, with
+    numpy and scipy and none of the continuation: the Jacobian's eigenvalues of an equilibrium, the exact
+    radial equations of a radial oscillator's cycles, the monodromy matrix of the forced predator-prey
+    cycle. Where no zero lies the diagrams are unchanged (autocompare's baselines, byte for byte), and the
+    stored stability of the point the tests start from stays as it was (the second point of a switched branch).
+    """
+    import numpy as np
+    from scipy.integrate import solve_ivp
+    from scipy.optimize import brentq, fsolve
+
+    def rows_of(d, name, threads=1):
+        data, _, _, ranges = compute(args.server, d, threads)
+        return diagram_rows(data)[slice(*ranges[name])]
+
+    def kinds(rows, kind):
+        return [(i, r) for i, r in enumerate(rows) if r['itp'] == kind]
+
+    def run_settings(r, **values):
+        r['auto'].update(values)
+        if 'step_size' in values:
+            r['auto']['max_step_size'] = abs(values['step_size'])
+        r['auto']['output_every'] = 1
+        return r
+
+    # pp2 (Doedel 1984; AUTO-07p's and XPPAUT's demo), the equilibria u0 = 1/3 and u1 = 0 (the exact solutions of its equations)
+    e53 = math.exp(-5 / 3)
+
+    def pp2_case(par0, u0, u1, steps, marks=None, step=0.05):
+        d = read_description(BASE / 'tstauto_pp2.json')
+        d['runs'] = d['runs'][:1]
+        d['parameters'], d['initial_conditions'] = {'par0': par0}, {'u0': u0, 'u1': u1}
+        r = run_settings(d['runs'][0], step_size=step, max_steps=steps)
+        if marks:
+            r['marks'] = marks
+        return d
+
+    def on_third(par0):  # u1 on the branch u0 = 1/3 at par0: f0 = 0
+        return 2 - 3 * par0 * (1 - e53)
+
+    def hopf_par0():  # the Jacobian's trace is zero on u0 = 1/3
+        return brentq(lambda p: np.trace(pp2_equations((1 / 3, on_third(p)), p)[1]), 0.6, 0.7, xtol=1e-14)
+
+    hb = hopf_par0()
+    for par0, where in ((0.66, 'first and second point'), (0.65, 'second and third point')):
+        rows = rows_of(pp2_case(par0, 1 / 3, on_third(par0), 8), 'steady')
+        found = kinds(rows, 'hopf')
+        f, jac = pp2_equations((float(found[0][1]['u0.U0']), float(found[0][1]['u0.U1'])), float(found[0][1]['continued_parameter'])) if found else (None, None)
+        eig = np.linalg.eigvals(jac) if found else None
+        check('first steps pp2: the Hopf point between the %s of the branch is labelled once, at the trace of the Jacobian = 0 (scipy)' % where,
+              len(found) == 1 and found[0][0] == 1 and abs(float(found[0][1]['continued_parameter']) - hb) < 1e-5 and
+              abs(f).max() < 1e-6 and abs(eig.real).max() < 1e-3 and abs(eig.imag).min() > 0.5,
+              str((hb, [(i, r['continued_parameter']) for i, r in found], eig)))
+
+    def u1_zero(u0):  # the branch u1 = 0: par0 as a function of u0
+        return 3 * u0 * (1 - u0) / (1 - math.exp(-5 * u0))
+
+    u0_fold, p_fold = fsolve(lambda v: [pp2_equations((v[0], 0.), v[1])[0][0], np.linalg.det(pp2_equations((v[0], 0.), v[1])[1])],
+                             (0.41, 0.83), xtol=1e-12)
+    for u0, where, index in ((0.45, 'first and second point', 1), (0.36, 'second and third point', 1)):
+        rows = rows_of(pp2_case(u1_zero(u0), u0, 0., 4), 'steady')
+        found = kinds(rows, 'fold')
+        check('first steps pp2: the fold between the %s of the branch u1 = 0 is labelled once, at the fold of the equations (scipy)' % where,
+              len(found) == 1 and found[0][0] == index and abs(float(found[0][1]['continued_parameter']) - p_fold) < 1e-7 and
+              abs(float(found[0][1]['u0.U0']) - u0_fold) < 1e-3, str((p_fold, u0_fold, [(i, r['continued_parameter'], r['u0.U0']) for i, r in found])))
+    # from u0 = 0.43 the branch passes the fold and then u0 = 1/3, where the Jacobian's second eigenvalue, -1 + 3 u0, is zero: its
+    # branch point (the branch u0 = 1/3 crosses there), between the second and third point
+    rows = rows_of(pp2_case(u1_zero(0.43), 0.43, 0., 5), 'steady')
+    found, folds = kinds(rows, 'branch_point'), kinds(rows, 'fold')
+    check('first steps pp2: the branch point of u1 = 0 (u0 = 1/3, a zero eigenvalue) and the fold before it are labelled once each',
+          len(found) == 1 and len(folds) == 1 and abs(float(found[0][1]['u0.U0']) - 1 / 3) < 1e-4 and
+          abs(float(folds[0][1]['continued_parameter']) - p_fold) < 1e-7, str(([(i, r['u0.U0']) for i, r in found], [(i, r['continued_parameter']) for i, r in folds])))
+
+    # and between the first and second point, from either side (the second point of the other direction is below it)
+    for u0, step in ((0.35, -0.05), (0.31, 0.05)):
+        rows = rows_of(pp2_case(u1_zero(u0), u0, 0., 3, step=step), 'steady')
+        found = kinds(rows, 'branch_point')
+        check('first steps pp2: the branch point u0 = 1/3 between the first and second point (start u0 = %g, step %g) is labelled once' % (u0, step),
+              len(found) == 1 and found[0][0] == 1 and abs(float(found[0][1]['u0.U0']) - 1 / 3) < 1e-4,
+              str([(i, r['u0.U0']) for i, r in found]))
+
+    # a user zero: a mark crossed where the tests were not made, from the start and from the second point
+    for mark, where in ((0.67, 'first and second point'), (0.69, 'second and third point')):
+        rows = rows_of(pp2_case(0.66, 1 / 3, on_third(0.66), 6, marks=[['par0', mark]]), 'steady')
+        found = kinds(rows, 'user_point')
+        check('first steps pp2: the user zero par0 = %g between the %s is labelled once, at the mark' % (mark, where),
+              len(found) == 1 and abs(float(found[0][1]['continued_parameter']) - mark) < 1e-7 and found[0][0] <= 2,
+              str([(i, r['continued_parameter']) for i, r in found]))
+
+    # the switched branch's second step: pp2 (u1 = 0) rises past the mark twice, before and after its fold
+    d = read_description(BASE / 'tstauto_pp2_switch.json')
+    d.pop('differences')
+    d['runs'][1]['marks'] = [['par0', 0.8317]]
+    rows = rows_of(d, 'switched')
+    found = kinds(rows, 'user_point')
+    roots = [brentq(lambda u: u1_zero(u) - 0.8317, lo, hi, xtol=1e-14) for lo, hi in ((0.34, u0_fold), (u0_fold, 0.6))]
+    check('first steps pp2 switched: the user zero between the second and third point is labelled, and the one after the fold, at the roots of the equations',
+          len(found) == 2 and found[0][0] == 2 and all(abs(float(r['continued_parameter']) - 0.8317) < 1e-5 and abs(float(r['u0.U0']) - u) < 1e-3
+                                                         for (_, r), u in zip(found, roots)), str(([(i, r['continued_parameter'], r['u0.U0']) for i, r in found], roots)))
+
+    # Lorenz (1963; AUTO-07p's lrz): the trivial branch has its pitchfork at r = 1, the switched branch a Hopf point at
+    # r = sigma (sigma + b + 3) / (sigma - b - 1); a step that puts the second and third point on its two sides
+    sigma, b = 10., 8 / 3
+    r_hopf = sigma * (sigma + b + 3) / (sigma - b - 1)
+    d = read_description(BASE / 'lrz_cycles.json')
+    steady = copy.deepcopy(d['runs'][0])
+    steady['start'] = {'state': 'current'}
+    steady['auto'].update(step_size=0.1, max_step_size=0.1, max_steps=30, output_every=5, parameter_min=-1, parameter_max=40, mesh_intervals=15)
+    switched = copy.deepcopy(steady)
+    switched.update(name='switched', start={'run': 'steady', 'type': 'branch_point', 'index': 1}, switch=True)
+    run_settings(switched, step_size=10., max_steps=5)
+    d['runs'] = [steady, switched]
+    d['parameters'], d['initial_conditions'] = {'r': 0., 's': sigma, 'b': b}, {'x': 0., 'y': 0., 'z': 0.}
+    rows = rows_of(d, 'switched')
+    found = kinds(rows, 'hopf')
+    x, y, z, rr = (float(found[0][1][k]) for k in ('u0.X', 'u0.Y', 'u0.Z', 'continued_parameter')) if found else (0,) * 4
+    eig = np.linalg.eigvals(np.array([[-sigma, sigma, 0.], [rr - z, -1., -x], [y, x, -b]]))
+    check('first steps Lorenz switched: the Hopf point between the second and third point is labelled once, at sigma (sigma + b + 3) / (sigma - b - 1)',
+          len(found) == 1 and found[0][0] == 2 and abs(rr - r_hopf) < 2e-3 and sorted(abs(eig.real))[0] < 1e-3 and sorted(abs(eig.imag))[-1] > 5,
+          str((r_hopf, rr, eig, [(i, r['continued_parameter']) for i, r in found])))
+    check('first steps Lorenz switched: the second point keeps its stability not computed (the Hopf test made there stores none)',
+          not any(float(rows[1]['evr%d' % k]) or float(rows[1]['evi%d' % k]) for k in (1, 2, 3)), str(rows[1]))
+
+    # cycles: the first and second point (the loop's first test is at the second point). Each case restarts from the
+    # last point of a run that stops just before the zero, with a step that carries the second point past it.
+    def restarted(base, steps, step, marks=None):
+        d = read_description(BASE / base)
+        first, second = copy.deepcopy(d['runs'][1]), copy.deepcopy(d['runs'][1])
+        d['runs'] = [d['runs'][0], first, second]
+        run_settings(first, max_steps=steps)
+        second.update(name='restart', start={'run': first['name'], 'type': 'EP', 'index': 1})
+        run_settings(second, step_size=step, max_steps=4)
+        if marks:
+            second['marks'] = marks
+        d.pop('differences', None)
+        return d
+
+    # lamom2 (XPPAUT's demo): x' = x (a + b s - s^2) - y (1 + q s), y' = y (...) + x (...), s = x^2 + y^2: the radius' equation
+    # is r' = r (a + b r^2 - r^4), its cycles r^2 = rho with a + b rho - rho^2 = 0, and the fold of cycles a = -b^2/4, rho = b/2
+    rows = rows_of(restarted('tstauto_lamom2.json', 15, 0.1), 'restart')
+    found = kinds(rows, 'cycle_fold')
+    rho = float(found[0][1]['u0.X']) ** 2 + float(found[0][1]['u0.Y']) ** 2 if found else 0
+    check('first steps lamom2 cycles: the fold of cycles between the first and second point is labelled once, at a = -1/4 and rho = 1/2 (the radial equation)',
+          len(found) == 1 and found[0][0] == 1 and abs(float(found[0][1]['continued_parameter']) + 0.25) < 1e-6 and abs(rho - 0.5) < 5e-4,
+          str(([(i, r['continued_parameter']) for i, r in found], rho)))
+    rows = rows_of(restarted('tstauto_lamom2.json', 15, 0.05, marks=[['a', -0.247]]), 'restart')
+    found = kinds(rows, 'user_point')
+    rhos = [float(r['u0.X']) ** 2 + float(r['u0.Y']) ** 2 for _, r in found]
+    roots = [(1 - s * math.sqrt(1 - 4 * 0.247)) / 2 for s in (1, -1)]  # a + rho - rho^2 = 0: rho = (1 -+ sqrt(1 + 4 a)) / 2
+    check('first steps lamom2 cycles: the user zero a = -0.247 between the first and second point is labelled, and the one after the fold, on the two radii of the equation',
+          len(found) == 2 and found[0][0] == 1 and all(abs(float(r['continued_parameter']) + 0.247) < 2e-5 for _, r in found) and
+          abs(rhos[0] - roots[0]) < 1e-3 and abs(rhos[1] - roots[1]) < 1e-3, str((found and [r['continued_parameter'] for _, r in found], rhos, roots)))
+
+    # brper (XPPAUT's demo): r' = r (a - r) (b - r), the cycles r = a and r = b meet at a = b = 1: a branch point of cycles
+    rows = rows_of(restarted('tstauto_brper.json', 27, 0.1), 'restart')
+    found = kinds(rows, 'cycle_branch_point')
+    check('first steps brper cycles: the branch point of cycles between the first and second point is labelled once, at a = b = 1 (the radial equation)',
+          len(found) == 1 and found[0][0] == 1 and abs(float(found[0][1]['continued_parameter']) - 1) < 1e-4, str([(i, r['continued_parameter']) for i, r in found]))
+
+    # the forced predator-prey (Kuznetsov, Muratori and Rinaldi 1992; MatCont's Tutorial V): the period-1 cycle's period
+    # doubling at eps sqrt(m) = 0.3050914 (b0 = 0.4); its multipliers from the monodromy matrix of the forced (x, y) system
+    def multipliers(m, guess, warmup=0, eps=0.5, b0=0.4, kk=1., r=6.28, a=12.56, e=1., dd=6.28):
+        amplitude = eps * math.sqrt(m)
+
+        def rhs(t, s):
+            x, y = s[0], s[1]
+            big = b0 * (1 + amplitude * math.cos(2 * math.pi * t))
+            q = x + big
+            jac = np.array([[r * (1 - 2 * x / kk) - a * y * big / q ** 2, -a * x / q], [e * a * y * big / q ** 2, e * a * x / q - dd]])
+            flow = np.array(s[2:]).reshape(2, 2)
+            return [r * x * (1 - x / kk) - a * x * y / q, e * a * x * y / q - dd * y, *(jac @ flow).ravel()]
+
+        def poincare(v):
+            return solve_ivp(rhs, (0, 1), [v[0], v[1], 1, 0, 0, 1], rtol=1e-12, atol=1e-14, method='DOP853').y[:, -1]
+        for _ in range(warmup):
+            guess = poincare(guess)[:2]
+        fixed = fsolve(lambda v: poincare(v)[:2] - v, guess, xtol=1e-13)
+        return fixed, np.linalg.eigvals(poincare(fixed)[2:].reshape(2, 2))
+    published = (0.3050914 / 0.5) ** 2
+    point = (0.4, 0.24)  # the unforced equilibrium; the cycle is followed from m = 0.30, where it is stable, to the doubling
+    for m in np.arange(0.30, 0.3601, 0.01):
+        point = multipliers(m, point, warmup=30 if m < 0.301 else 0)[0]
+    m_pd = brentq(lambda m: min(multipliers(m, point)[1].real) + 1, 0.36, 0.38, xtol=1e-12)
+    rows = rows_of(restarted('forced_pp_pd.json', 37, 0.04), 'restart')
+    found = kinds(rows, 'period_doubling')
+    check('first steps forced predator-prey cycles: the period doubling between the first and second point is labelled once, at the monodromy matrix\'s multiplier -1 and the published eps sqrt(m) = 0.3050914',
+          len(found) == 1 and found[0][0] == 1 and abs(float(found[0][1]['continued_parameter']) - m_pd) < 1e-5 and abs(m_pd - published) < 2e-6,
+          str((m_pd, published, [(i, r['continued_parameter']) for i, r in found])))
 
 
 for name in args.sections:
