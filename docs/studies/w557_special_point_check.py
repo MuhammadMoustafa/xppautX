@@ -21,12 +21,20 @@ the true curve, in the units of a parameter:
       as r falls to it: the orbit runs down the z axis, the origin's stable direction -b). For each sample (r, b) this
       bisects, at that b, for the r where the crossing appears: the sample's distance from the curve.
 
+Each program's samples are its own, at the precision it wrote them: xppautX's stored diagram, AUTO-07p's reference curve (ten
+digits), and XPPAUT's labelled points, read from the .s file of its series (ten digits, the file AUTO writes at each labelled point:
+docs/xppaut-findings.md 104). XPPAUT's exported curve, printed to six digits, is not judged: the labelled points are the samples where
+XPPAUT's accuracy is read. A labelled point belongs to a run when it lies within MEMBER_TOLERANCE of that run's exported curve, a test of
+membership only. A sample's distance is the nearest zero of the condition on each axis (nearest_root), never a jump of the condition.
+
     uv run --locked python docs/studies/w557_special_point_check.py --attempt DIR --workload forced_pp_pd [--runs pd_up,pd_down]
 
-Prints, per run and program, the number of samples checked, the largest and root-mean-square distance and where the largest is.
+Prints, per run and program, the number of samples checked, the largest and root-mean-square distance and where the largest is, and
+the source of the samples.
 """
 import argparse
 import ctypes
+import functools
 import json
 import math
 from pathlib import Path
@@ -50,6 +58,11 @@ STRIDE = 1  # every STRIDE-th sample of a curve is checked (--stride)
 LORENZ_TIME = 40.0  # the longest the unstable manifold is followed before it is said not to return
 LORENZ_BISECTIONS = 36  # halvings of the bracket around the homoclinic value (the bracket is 1e-6 or more wide)
 SEARCH = (1e-6, 1e-4, 1e-3, 1e-2)  # half-widths of the brackets tried when solving for a parameter that puts a sample on the curve
+GRID = tuple(1e-7 * 10 ** (k / 8) for k in range(41))  # 1e-7 to 1e-2, eight steps a decade: nearest_root's outward search
+ROOT_RESIDUAL = 1e-7  # |condition| at an accepted root, in the condition's units: a jump of the condition is not a zero, and a bisection's error is far below this
+MEMBER_TOLERANCE = 1e-3  # the largest distance of a labelled point from a run's exported curve for it to belong to that run (in the parameters' units)
+XPPAUT_PAR_TOLERANCE = 1e-6  # relative: a value printed to six digits matches the ten-digit parameter vector of its labelled point to this
+SOURCE = {'xppautX': 'stored diagram', 'XPPAUT': 'labelled points (.s, ten digits)', 'AUTO-07p': 'reference curve (ten digits)'}
 SECOND = 'second parameter'
 
 
@@ -144,22 +157,57 @@ def torus_condition(M):
     return np.linalg.det(M) - 1
 
 
-def distance_to_curve(condition, cycle, eps, b0):
-    """The smaller of the parameter changes (b0 at the sample's eps, eps at its b0) that make `condition` zero; nan if neither is bracketed."""
-    best, kept = [], cycle.state.copy()
-    for axis in (0, 1):
-        def f(v, axis=axis):
-            return condition(cycle.multipliers(*((v, b0) if axis == 0 else (eps, v))))
-        centre = (eps, b0)[axis]
-        for half in SEARCH:
-            lo, hi = centre - half, centre + half
+def nearest_root(f, centre, reset):
+    """The distance from centre to the nearest zero of f, searched outward from centre on GRID on each side: a sign change between
+    two grid points is solved by brentq and taken only if |f| there is ROOT_RESIDUAL or less, since a jump of f also changes sign
+    (the flip test's switch between its real and complex forms, near a 1:2 resonance) and is not a zero. Each side's walk starts
+    from reset() (the sample's own cycle) and each step is seeded from the cycle the last step converged on. None if no zero lies
+    within GRID on either side."""
+    best = None
+    for side in (-1.0, 1.0):
+        reset()
+        prev_h, prev_v = 0.0, f(centre)
+        for h in GRID:
             try:
-                if f(lo) * f(hi) < 0:
-                    best.append(abs(brentq(f, lo, hi, xtol=1e-14, rtol=1e-13) - centre))
-                    break
-            except ArithmeticError:
+                v = f(centre + side * h)
+            except ArithmeticError:  # no cycle on this step even from the sample's own: the side ends
                 break
-    cycle.state = kept  # the cycles of the brackets' ends are not the sample's
+            if prev_v * v < 0:
+                try:
+                    root = brentq(f, centre + side * prev_h, centre + side * h, xtol=1e-14, rtol=1e-13)
+                    residual = abs(f(root))
+                except (ValueError, ArithmeticError):  # the bracket's ends changed sign under the solver: not a zero found
+                    residual = math.inf
+                if residual <= ROOT_RESIDUAL:
+                    d = abs(root - centre)
+                    best = d if best is None else min(best, d)
+                    break
+            prev_h, prev_v = h, v
+    return best
+
+
+def distance_to_curve(condition, cycle, eps, b0):
+    """The smaller of the parameter changes (b0 at the sample's eps, eps at its b0) that make `condition` zero, each the nearest zero
+    on its axis (nearest_root); nan if neither axis has one within GRID."""
+    best, kept = [], cycle.state.copy()
+    try:
+        cycle.multipliers(eps, b0)
+        own = cycle.state.copy()  # the sample's own cycle: where each walk starts, and where a failed step retries from
+        def reset():
+            cycle.state = own.copy()
+        for axis in (0, 1):
+            def f(v, axis=axis):
+                args = (v, b0) if axis == 0 else (eps, v)
+                try:
+                    return condition(cycle.multipliers(*args))  # seeded from the last cycle this walk converged on
+                except ArithmeticError:
+                    reset()  # retry once from the sample's own cycle
+                    return condition(cycle.multipliers(*args))
+            d = nearest_root(f, (eps, b0)[axis], reset)
+            if d is not None:
+                best.append(d)
+    finally:
+        cycle.state = kept  # the cycles of the walks' ends are not the sample's, whether or not the search ended in an error
     cycle.multipliers(eps, b0)
     return min(best) if best else math.nan
 
@@ -170,17 +218,117 @@ def stored(workload_dir, run):
     return rows[run]
 
 
+def parameter_names(run):
+    """The continuation parameters of a reference run, in its order (par, par2)."""
+    return run['parameters'] if 'parameters' in run else [run['parameter']]
+
+
+def read_s(path):
+    """{label: (branch, par)} of an XPPAUT .s file (AUTO's fort.8 format, ten digits): each labelled point is a header of twelve
+    integers (branch, point, type, label, ..., NTST, NCOL, NPARX), then its solution, then its NPARX parameters, which end its block."""
+    blocks = []
+    for line in path.read_text().splitlines():
+        tok = line.split()
+        if len(tok) == 12 and all(t.lstrip('-').isdigit() for t in tok):
+            blocks.append(([int(t) for t in tok], []))
+        elif blocks:
+            blocks[-1][1].extend(float(t) for t in tok)
+    return {hdr[3]: (hdr[0], vals[-hdr[11]:]) for hdr, vals in blocks}
+
+
+def par_index(runs, blocks):
+    """{name: index}: the index in a labelled point's parameter vector of each parameter the runs name. Their points' values are
+    printed to six digits, so a value matches the point's own vector to XPPAUT_PAR_TOLERANCE (relative); a value that matches
+    two indices, or a zero, is no evidence and is skipped. A name with no unambiguous index, or two, is an error."""
+    index = {}
+    for run in runs:
+        names = parameter_names(run)
+        for p in run['points']:
+            if p['label'] not in blocks:
+                continue
+            par = blocks[p['label']][1]
+            for name, key in zip(names, ('par', 'par2')):
+                v = p.get(key)
+                if not v:
+                    continue
+                hits = [i for i, x in enumerate(par) if abs(x - v) <= XPPAUT_PAR_TOLERANCE * abs(v)]
+                if len(hits) != 1:  # equal values (a parameter at 1, say) tell nothing about which is which
+                    continue
+                if index.setdefault(name, hits[0]) != hits[0]:
+                    sys.exit('%s: %s has two indices in the .s file' % (run['name'], name))
+    for run in runs:
+        for name in parameter_names(run):
+            if name not in index:
+                sys.exit('%s: no labelled point gives the index of %s' % (run['name'], name))
+    return index
+
+
+@functools.lru_cache(maxsize=None)
+def xppaut_files(workload_dir):
+    """{run: (labelled points, index)} for each reference run of XPPAUT: the labelled points {label: (branch, par)} of the .s file
+    its series wrote, and the index (par_index) of its parameters in their vectors. A homoclinic run is in files/series-homoclinic
+    when that folder exists, the others in files/series."""
+    folder = workload_dir / 'pilot-xppaut'
+    runs = json.loads((folder / 'reference.json').read_text())['runs']
+    kinds = {r['name']: r['kind'] for r in json.loads((workload_dir / 'description.json').read_text())['runs']}
+    homoclinic = folder / 'files' / 'series-homoclinic'
+    by_series = {}
+    for run in runs:
+        series = homoclinic if kinds[run['name']] == 'homoclinic' and homoclinic.is_dir() else folder / 'files' / 'series'
+        by_series.setdefault(series, []).append(run)
+    out = {}
+    for series, group in by_series.items():
+        found = sorted(series.glob('*.s'))
+        if len(found) != 1:
+            sys.exit('%s: expected one .s file, found %d' % (series, len(found)))
+        blocks = read_s(found[0])
+        index = par_index(group, blocks)
+        for run in group:
+            out[run['name']] = (blocks, index)
+    return out
+
+
+def polyline_distance(point, curve):
+    """The distance from a point to the polyline through a curve's samples (their first two columns)."""
+    c = np.array([s[:2] for s in curve], dtype=float)
+    if len(c) == 1:
+        return float(np.linalg.norm(point - c[0]))
+    a, ab = c[:-1], c[1:] - c[:-1]
+    t = np.clip(((point - a) * ab).sum(1) / np.maximum((ab * ab).sum(1), 1e-300), 0.0, 1.0)
+    return float(np.linalg.norm(point - (a + t[:, None] * ab), axis=1).min())
+
+
+def xppaut_labelled(workload_dir, run):
+    """[(par, par2)] of XPPAUT's labelled points that belong to a run, at ten digits (the .s file's own values): the points within
+    MEMBER_TOLERANCE of the run's exported curve. The curve decides only which run a point belongs to; nothing is measured on it."""
+    ref = next(r for r in json.loads((workload_dir / 'pilot-xppaut' / 'reference.json').read_text())['runs'] if r['name'] == run)
+    names = parameter_names(ref)[:2]
+    if len(names) < 2 or not ref.get('curve'):
+        return []
+    blocks, index = xppaut_files(workload_dir)[run]
+    curve = [s[:2] for s in ref['curve']]
+    out = []
+    for label, (branch, par) in sorted(blocks.items()):
+        values = np.array([par[index[n]] for n in names])
+        if polyline_distance(values, curve) <= MEMBER_TOLERANCE:
+            out.append(tuple(float(v) for v in values))
+    return out
+
+
 def curves(workload_dir, run, stride=1):
-    """{program: [(par, par2, ...), ...]} of a run: xppautX's stored rows, and each reference's curve."""
+    """{program: [(par, par2, ...), ...]} of a run: xppautX's stored rows, AUTO-07p's reference curve and XPPAUT's labelled points."""
     out = {}
     rows = stored(workload_dir, run)
     out['xppautX'] = [(autocompare.quantity(r, 'par'), autocompare.quantity(r, 'par2')) for r in rows if 'continued_parameter2' in r]
-    for program, folder in (('XPPAUT', 'pilot-xppaut'), ('AUTO-07p', 'pilot-auto07p')):
-        path = workload_dir / folder / 'reference.json'
-        if path.exists():
-            ref = next(r for r in json.loads(path.read_text())['runs'] if r['name'] == run)
-            if 'unavailable' not in ref and ref.get('curve'):
-                out[program] = [tuple(s[:2]) for s in ref['curve']]
+    path = workload_dir / 'pilot-auto07p' / 'reference.json'
+    if path.exists():
+        ref = next(r for r in json.loads(path.read_text())['runs'] if r['name'] == run)
+        if 'unavailable' not in ref and ref.get('curve'):
+            out['AUTO-07p'] = [tuple(s[:2]) for s in ref['curve']]
+    if (workload_dir / 'pilot-xppaut' / 'reference.json').exists():
+        out['XPPAUT'] = xppaut_labelled(workload_dir, run)
+        if not out['XPPAUT']:
+            print('%-14s %-9s XPPAUT: no labelled point of the run lies on its curve (none checked)' % ('', run))
     return {program: samples[::stride] for program, samples in out.items()}
 
 
@@ -197,7 +345,11 @@ def special_value(workload_dir, run, kinds):
         ref = next(r for r in json.loads((workload_dir / folder / 'reference.json').read_text())['runs'] if r['name'] == run)
         for p in ref['points']:
             if p['type'] == kinds[1]:
-                out[program] = p['par']
+                if program == 'XPPAUT':  # ten digits: the point's own vector, at the index of the run's parameter
+                    blocks, index = xppaut_files(workload_dir)[run]
+                    out[program] = blocks[p['label']][1][index[parameter_names(ref)[0]]]
+                else:
+                    out[program] = p['par']
                 break
     return out
 
@@ -206,12 +358,13 @@ def report(label, run, program, distances, samples):
     d = np.array(distances)
     ok = np.isfinite(d)
     if not ok.any():
-        print('%-14s %-9s %-9s %4d samples, none could be checked' % (label, run, program, len(d)))
+        print('%-14s %-9s %-9s %4d samples, none could be checked  [%s]' % (label, run, program, len(d), SOURCE[program]))
         return None
     k = int(np.nanargmax(d))
-    print('%-14s %-9s %-9s %4d samples (%d unchecked)  max %.3e at (%.6g, %.6g)  rms %.3e' % (
-        label, run, program, len(d), int((~ok).sum()), d[k], samples[k][0], samples[k][1], math.sqrt(np.nanmean(d[ok] ** 2))))
-    return dict(program=program, run=run, samples=len(d), unchecked=int((~ok).sum()), max=float(d[k]), at=list(map(float, samples[k][:2])), rms=float(math.sqrt(np.nanmean(d[ok] ** 2))))
+    print('%-14s %-9s %-9s %4d samples (%d unchecked)  max %.3e at (%.6g, %.6g)  rms %.3e  [%s]' % (
+        label, run, program, len(d), int((~ok).sum()), d[k], samples[k][0], samples[k][1], math.sqrt(np.nanmean(d[ok] ** 2)), SOURCE[program]))
+    return dict(program=program, run=run, source=SOURCE[program], samples=len(d), unchecked=int((~ok).sum()), max=float(d[k]),
+                at=list(map(float, samples[k][:2])), rms=float(math.sqrt(np.nanmean(d[ok] ** 2))))
 
 
 def predator_prey(workload_dir, runs, condition, special, start_type):

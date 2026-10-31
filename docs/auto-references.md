@@ -2324,22 +2324,36 @@ explicit_homoclinic).
 
 **Independent check** (`docs/studies/w557_special_point_check.py`: each sample's distance from the true curve, in the units of a parameter, from the model's own
 equations: the Poincare map's multipliers of the forced predator-prey system for the PD and torus curves, the closed forms of the Henon map and of
-explicit_homoclinic, and the Lorenz unstable manifold's shooting for the homoclinic orbit; no program's continuation takes part):
+explicit_homoclinic, and the Lorenz unstable manifold's shooting for the homoclinic orbit; no program's continuation takes part). W571 (#636) changed
+two things. XPPAUT's samples are now its ten-digit labelled points, read from the .s file of its series (the points within 1e-3 of the run's exported
+curve, which decides only which run a point belongs to; the exported six-digit curve is no longer judged, so XPPAUT's row counts labelled points, not the
+curve's 237 or 325 samples). And the distance is the nearest zero of the condition on each axis, found on a walk outward from the sample, each step
+seeded from the last converged cycle, and accepted only where |condition| is 1e-7 or less (before, a jump of the flip test was taken for a root).
+The numbers are the check's at W571 (the largest distance; XPPAUT's labelled points checked in brackets):
 
-| Curve | xppautX | AUTO-07p | XPPAUT 8.0 |
+| Curve | xppautX | AUTO-07p | XPPAUT 8.0 (labelled points) |
 |---|---|---|---|
-| forced_pp_pd pd_up | 1.0e-10 | 1.4e-10 | 3.6e-4 (the export's six digits, not the continuation: XPPAUT's finding 104) |
-| forced_pp_pd pd_down | 2.3e-6 (at R2) | 1.0e-7 (at R2) | 2.5e-6 |
-| forced_pp_ns ns_up, ns_down | 2.7e-11 | 9.7e-11 | 5.0e-7 |
-| hen_pd, hen_tr, explicit_homoclinic | at the closed forms (3e-5 at the PD point of the one-parameter run: 1e-4 tolerance, all three) | same | same |
-| lorenz_homoclinic | 2.5e-9 | 2.4e-9 | 4.8e-5 (rms 3.0e-5 = the print's 1e-4 rounding) |
+| forced_pp_pd pd_up | 9.2e-3 at R2 (1.94894, 2.57019): see below | 1.2e-7 at R2 (1.94893, 2.57025) | 8.1e-10 (9 of 13 labelled points; 4 not bracketed) |
+| forced_pp_pd pd_down | 1.3e-10 | 1.0e-7 (at (0.55, 0.34), away from R2) | 8.1e-10 (15 labelled points) |
+| forced_pp_ns ns_up, ns_down | 2.7e-11, 2.2e-11 | 9.7e-11, 2.5e-11 | 3.1e-8 (12 and 11 labelled points) |
+| hen_pd (up, down) | 3.1e-5 (rms 4.1e-6; the closed form's, at the one-parameter run's PD point) | 3.1e-5 | 2.1e-7 (2 labelled points) |
+| hen_tr (up, down) | 1.8e-7 | 1.8e-7 | 2.1e-7 (2 labelled points) |
+| explicit_homoclinic | 2.3e-10 | 2.3e-10 | 1.4e-10 (2 labelled points) |
+| lorenz_homoclinic | 2.5e-9 | 2.4e-9 | 2.4e-9 (2 labelled points) |
+
+**The R2 corner (W571).** The flip test is continuous across R2 only in its value, not its sign: along b0 at the sample's eps the real
+multiplier's |mu + 1| and the complex pair's |mu| - 1 both stay positive through R2 (a scan at eps 1.94893: +0.028 just before R2, +1.3e-5 just
+after, then growing). So no axis-parallel line brackets the true curve there, and the search takes a far root: that is the 9.2e-3 (xppautX) and the
+1.2e-7 (AUTO-07p, at the R2 sample itself). Before W571 the search took any sign change, the switch included, so the old figures of 1.0e-10 at pd_up
+(xppautX) and 1.4e-10 (AUTO-07p) came from the switch, not from a zero of the test. Neither figure is the continuation's error: the check cannot judge a sample at the corner by one axis. A two-dimensional
+distance to the union of the flip and torus curves would fix it; it is not in this card.
 
 XPPAUT's pd_up error is its export, not its continuation (W568 / [#633](https://github.com/MuhammadMoustafa/xppautX/issues/633), docs/xppaut-findings.md
 [finding 104](xppaut-findings.md#104-a-period-doubling-curve-near-a-12-resonance-cannot-be-read-from-the-six-digit-export)): the multiplier that must be -1 is -1.0214 at (1.95468, 2.48815) and
 -0.9896 at (1.94508, 2.62663) near and past R2 only for the six-digit samples of its `.b` file, where a multiplier moves about 2.1e3 per unit of eps (the pair near -1 is 0.09 apart): a rounding
 of 5e-6 in eps is 0.01 in the multiplier. XPPAUT's labelled points (`fort.8`, ten digits) of the same run are on the true curve to 1e-11, label 12 (1.9437407461, 2.6463825630) with multipliers
 -0.91379661 and -0.99999998, and the exported curve agrees with xppautX's to 4.6e-6. NTST 100 and EPSL = EPSU = 1e-10 leave it because they cannot change the digits printed. The check
-(docs/studies/w557_special_point_check.py) reads the exported curve; read XPPAUT's labelled points instead to compare its accuracy here.
+(docs/studies/w557_special_point_check.py) now reads XPPAUT's labelled points (ten digits), as the sentence before asked; the table above has the numbers.
 
 **xppautX misses R2 on pd_up at some meshes.** The R2 at (1.94893, 2.57025) is real (the multipliers there are -1 and -1, and the pair -0.99999 +- 7e-5 i just before it). Over
 NTST 10, 15, 20, 30, 40, 60, 80 and steps 0.005, 0.01, 0.02 (21 runs) AUTO-07p labels it every time and xppautX not at NTST 15 / DS 0.005 and NTST 10 / DS 0.02
