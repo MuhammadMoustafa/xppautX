@@ -672,9 +672,10 @@ def xdo(*args):
                           capture_output=True, text=True).stdout.strip()
 
 
-def wait_for(what, found, timeout=RUN_LIMIT):
+def wait_for(what, found, timeout=None):
     """What `found()` returns once it is true (xppclient's wait_until polls)."""
     got = []
+    timeout = timeout or RUN_LIMIT
     if not wait_until(lambda: got.append(found()) or got[-1], timeout):
         raise Refused('XPPAUT: timed out waiting for %s after %d s' % (what, timeout))
     return got[-1]

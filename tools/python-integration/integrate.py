@@ -28,6 +28,8 @@ def main():
         model, numerics = load(args.model, args.setfile)
         run = run_model(model, numerics, args.method)
     except FAILURES as e:
+        if hasattr(e, 'run'):  # a run that stopped keeps its rows, as the other programs' output.dat does
+            args.outfile.write_text(format_rows(e.run.rows), encoding='utf-8')
         sys.exit('%s: %s' % (args.model, e))
     args.outfile.write_text(format_rows(run.rows), encoding='utf-8')
 

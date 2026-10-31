@@ -6,6 +6,9 @@ overlaid, and the error (other minus xppautX) on a common grid. manifest.json li
 Integration studies read runs/<workload>/0/<engine>/run/output.dat (repetition 0: results are bit-identical across
 repetitions, which the gates check); the continuation attempt reads each run's branch from xppautX's diagram.csv and from
 the references of XPPAUT and AUTO-07p, the quantities tools/autocompare.py compares (parameter, norm, second parameter).
+W555: --extra DIR (extra_runs.py's folder, <study>/<workload>/<program>/) supplies the data a program has no usable result for in the
+series, from an untimed rerun, and the figure and manifest say so; a scaling workload no other program can run (XPPAUT cannot hold
+a model that size, docs/xppaut-findings.md finding 45) is drawn for xppautX alone, with that reason.
 """
 import argparse
 import json
@@ -33,6 +36,8 @@ LOG_DECADES = 2  # the error axis is logarithmic (absolute value) when its non-z
 DPI = 80
 STUDIES = ('screen', 'modeldb', 'research', 'izhikevich', 'scaling')  # their trajectories are runs/<workload>/0/<engine>/run
 LABEL_LIMIT = 30  # labelled points written on a panel; the rest keep their marker
+RERUN_NOTE = 'untimed rerun (W555)'  # said in a figure's title and its manifest entry when its data came from --extra
+NO_PEER = {'scaling': 'XPPAUT cannot run a model of this size (docs/xppaut-findings.md finding 45), so there is no second program'}
 
 plt.rcParams.update({'font.size': 8, 'axes.grid': True, 'grid.alpha': .3, 'axes.spines.top': False, 'axes.spines.right': False,
                      'legend.frameon': False, 'lines.linewidth': 1.1})
@@ -133,7 +138,7 @@ def compare_trajectories(base, other):
     return t, interpolated - base[keep, 1:], "xppautX's times (the other interpolated, %d of %d rows, t %.6g to %.6g)" % (keep.sum(), len(base), lo, hi)
 
 
-def plot_integration(entry, base_path, other_path, program, out):
+def plot_integration(entry, base_path, other_path, program, out, stopped=False, rerun=False):
     base, other = load(base_path), load(other_path)
     names = column_names(base_path.parent, base.shape[1])
     t, err, grid = compare_trajectories(base, other)
@@ -146,6 +151,10 @@ def plot_integration(entry, base_path, other_path, program, out):
                  rms_error=float(np.sqrt(np.mean(err[finite] ** 2))) if finite.any() else None,
                  non_finite_values=int((~finite).sum()), plotted=[names[k] for k in chosen], worst_variable=names[worst],
                  rows=[len(base), len(other)])
+    if stopped:  # a run every program aborts: each output ends at the last row stored before its stop
+        entry['last_stored_time'] = [float(base[-1, 0]), float(other[-1, 0])]
+    if rerun:
+        entry['data_source'] = RERUN_NOTE
     fig, axes = plt.subplots(3, len(chosen), figsize=(max(5 * len(chosen) + 1, 8), 8), squeeze=False)
     for j, k in enumerate(chosen):
         alone, over, ax_err = axes[:, j]
@@ -154,6 +163,10 @@ def plot_integration(entry, base_path, other_path, program, out):
         alone.plot(to, oy, color=color(program), label=name_of(program))
         over.plot(to, oy, color=color(program), ls='--', lw=1.4, label=name_of(program))
         over.plot(tx, bx, color=color('xppautx'), lw=1.0, label='xppautX')
+        if stopped:
+            for ax, rows in ((alone, [(other, program)]), (over, [(other, program), (base, 'xppautx')])):
+                for data, who in rows:
+                    ax.axvline(data[-1, 0], color=color(who), ls=':', lw=1.2, label='%s stops after t = %.6g' % (name_of(who), data[-1, 0]))
         for ax in (alone, over):
             ax.set_ylabel(names[k])
             ax.legend(loc='best')
@@ -166,13 +179,29 @@ def plot_integration(entry, base_path, other_path, program, out):
     which = 'first variable %s' % names[0] if len(chosen) == 1 and worst == 0 else 'first variable %s and largest-error variable %s' % (names[0], names[worst])
     if len(chosen) == 1 and column_error[worst] == 0:
         which = 'first variable %s (errors are zero everywhere)' % names[0]
-    fig.suptitle('%s: %s against xppautX, %s\nall columns: max |error| %s, RMS %s' % (
+    fig.suptitle('%s: %s against xppautX, %s\nall columns: max |error| %s, RMS %s%s' % (
         entry['workload'], name_of(program), which, '%.3g' % entry['max_abs_error'] if entry['max_abs_error'] is not None else 'n/a',
-        '%.3g' % entry['rms_error'] if entry['rms_error'] is not None else 'n/a'), fontsize=9)
+        '%.3g' % entry['rms_error'] if entry['rms_error'] is not None else 'n/a',
+        ('\nthe run is aborted by every program; dotted lines mark where each stops' if stopped else '') + ('\ndata from an ' + RERUN_NOTE if rerun else '')), fontsize=9)
     finish(fig, out)
 
 
-def integration_jobs(series, only=None):
+def plot_alone(entry, base_path, reason, out):
+    """xppautX's first variable alone, for a workload no other program can run; the reason is the figure's title and the manifest's."""
+    base = load(base_path)
+    names = column_names(base_path.parent, base.shape[1])
+    entry.update(program='xppautx', quantity='first state variable', columns=len(names), rows=[len(base)], plotted=[names[0]], alone_reason=reason)
+    fig, ax = plt.subplots(figsize=(8, 3.5))
+    x, y = thin(base[:, 0], base[:, 1])
+    ax.plot(x, y, 'o-' if len(x) < 30 else '-', color=color('xppautx'), label='xppautX')
+    ax.set_xlabel('time')
+    ax.set_ylabel(names[0])
+    ax.legend(loc='best')
+    fig.suptitle('%s: xppautX alone, variable %s (%d rows)\n%s' % (entry['workload'], names[0], len(base), reason), fontsize=8.5)
+    finish(fig, out)
+
+
+def integration_jobs(series, only=None, extra=None):
     """(study, workload label, xppautX's output, [(program, output)]) of every trajectory the series kept, and skip notes."""
     jobs, skipped = [], []
     for study in (*STUDIES, 'python'):
@@ -187,10 +216,15 @@ def integration_jobs(series, only=None):
                 skipped.append((study + '/' + folder.name, 'no xppautX output.dat in repetition 0'))
                 continue
             others = [(p.name, p / 'run' / 'output.dat') for p in sorted(run.iterdir()) if p.name != 'xppautx']
+            if extra:  # a program with no output in the series: its untimed rerun's, when there is one
+                others = [(p, f if f.exists() or not (extra / study / folder.name / p / 'output.dat').exists() else extra / study / folder.name / p / 'output.dat')
+                          for p, f in others]
             found = [(p, f) for p, f in others if f.exists()]
             skipped += [(study + '/%s/%s' % (folder.name, p), 'no output.dat') for p, f in others if not f.exists()]
             if found:
                 jobs.append((study, folder.name, base, found))
+            elif study in NO_PEER:
+                jobs.append((study, folder.name, base, []))
             else:
                 skipped.append((study + '/' + folder.name, 'no other program ran it'))
         if study == 'python':  # the ladder's finest rung: every program at the tolerance of the last rung
@@ -225,17 +259,26 @@ def integration_jobs(series, only=None):
     return [j for j in jobs if only is None or j[0] in only], skipped
 
 
-def integration(series, out, manifest, skipped, only):
-    jobs, notes = integration_jobs(series, only)
+def integration(series, out, manifest, skipped, only, extra=None):
+    jobs, notes = integration_jobs(series, only, extra)
     skipped += ['%s: %s' % n for n in notes]
     for study, workload, base, others in jobs:
+        if not others:
+            entry = dict(study=study, workload='%s/%s' % (study, workload), kind='integration')
+            figure = out / 'integration' / study / ('%s__alone.png' % safe(workload))
+            plot_alone(entry, base, NO_PEER[study], figure)
+            entry['figure'] = str(figure.relative_to(out))
+            manifest.append(entry)
+            print('integration', entry['workload'], 'alone', flush=True)
+        stopped = study == 'python' and (series / 'python/attempt-001/diverged' / (workload + '.json')).exists()
         for program, path in others:
             entry = dict(study=study, workload='%s/%s' % (study, workload), kind='integration')
             figure = out / 'integration' / study / ('%s__%s.png' % (safe(workload), program))
             try:
-                plot_integration(entry, base, path, program, figure)
+                plot_integration(entry, base, path, program, figure, stopped, bool(extra) and extra in path.parents)
             except (ValueError, OSError) as e:
-                skipped.append('%s/%s %s: %s' % (study, workload, program, e))
+                why = 'every program aborts before a second row is stored: the run ends at its first row (t = 0)' if stopped and 'fewer than two rows' in str(e) else e
+                skipped.append('%s/%s %s: %s' % (study, workload, program, why))
                 continue
             entry['figure'] = str(figure.relative_to(out))
             manifest.append(entry)
@@ -330,7 +373,7 @@ def mark_points(ax, marks):
             ax.annotate(code, (px, py), textcoords='offset points', xytext=(3, 3), fontsize=6.5)
 
 
-def plot_continuation(entry, run, program, base, other, out):
+def plot_continuation(entry, run, program, base, other, out, rerun=False):
     two = run['kind'] == 'two_parameter'
     ylabel = '%s (second parameter)' % run['parameters'][1] if two else 'norm (AUTO L2 norm)'
     xlabel = run['parameters'][0] if two else run['parameter']
@@ -341,6 +384,9 @@ def plot_continuation(entry, run, program, base, other, out):
                  rms_error=float(np.sqrt(np.mean(e[finite] ** 2))) if finite.any() else None,
                  max_abs_error_normal=float(np.abs(en[finite]).max()) if finite.any() else None,
                  matched_points=int(finite.sum()), points=[len(base[0]), len(other[0])], notes=notes, labelled=[len(base[2]), len(other[2])])
+    if rerun:
+        entry['data_source'] = RERUN_NOTE
+        notes = notes + ['data from an ' + RERUN_NOTE]
     fig, (alone, over, err) = plt.subplots(3, 1, figsize=(8, 10))
     alone.plot(other[0], other[1], '-', color=color(program), label=name_of(program))
     mark_points(alone, other[2])
@@ -365,7 +411,11 @@ def plot_continuation(entry, run, program, base, other, out):
     finish(fig, out)
 
 
-def continuation(attempt, out, manifest, skipped):
+def usable(ref):
+    return ref is not None and 'unavailable' not in ref and len(ref.get('curve', [])) >= 2
+
+
+def continuation(attempt, out, manifest, skipped, extra=None):
     for wdir in sorted(p for p in attempt.iterdir() if p.is_dir() and p.name != 'models'):
         for mdir in sorted(p for p in wdir.iterdir() if (p / 'description.json').exists()):
             label = '%s/%s' % (wdir.name, mdir.name)
@@ -395,14 +445,17 @@ def continuation(attempt, out, manifest, skipped):
                     skipped.append('continuation %s run %s: fewer than two xppautX points' % (label, run['name']))
                     continue
                 for program, runs in refs.items():
-                    ref = runs.get(run['name'])
-                    if ref is None or 'unavailable' in ref or len(ref.get('curve', [])) < 2:
+                    ref, rerun = runs.get(run['name']), False
+                    kept = extra / 'continuation' / label / program / 'reference.json' if extra else None
+                    if not usable(ref) and kept and kept.exists():  # no curve in the series: the untimed rerun's
+                        ref, rerun = next((r for r in json.loads(kept.read_text())['runs'] if r['name'] == run['name']), None), True
+                    if not usable(ref):
                         skipped.append('continuation %s run %s %s: %s' % (label, run['name'], program, (ref or {}).get('unavailable', 'no curve in its reference')))
                         continue
                     entry = dict(study='continuation', workload=label, run=run['name'], kind='continuation')
                     figure = out / 'continuation' / ('%s__%s__%s.png' % (safe(label), safe(run['name']), program))
                     try:
-                        plot_continuation(entry, run, program, base, reference_branch(ref, two), figure)
+                        plot_continuation(entry, run, program, base, reference_branch(ref, two), figure, rerun)
                     except (ValueError, OSError) as e:
                         skipped.append('continuation %s run %s %s: %s' % (label, run['name'], program, e))
                         continue
@@ -416,14 +469,16 @@ def main():
     p.add_argument('--series', type=Path, required=True, help='the series folder holding the integration studies (screen, modeldb, ...)')
     p.add_argument('--continuation', type=Path, required=True, help="the continuation attempt folder")
     p.add_argument('--out', type=Path, required=True)
+    p.add_argument('--extra', type=Path, help="extra_runs.py's folder: untimed reruns that supply the data a program has none of in the series")
     p.add_argument('--only', help='comma-separated integration studies (screen, python, terman, large-stiff, ...) or "continuation"')
     a = p.parse_args()
     only = set(a.only.split(',')) if a.only else None
+    extra = a.extra.resolve() if a.extra else None
     manifest, skipped = [], []
     if only is None or only - {'continuation'}:
-        integration(a.series.resolve(), a.out.resolve(), manifest, skipped, only)
+        integration(a.series.resolve(), a.out.resolve(), manifest, skipped, only, extra)
     if only is None or 'continuation' in only:
-        continuation(a.continuation.resolve(), a.out.resolve(), manifest, skipped)
+        continuation(a.continuation.resolve(), a.out.resolve(), manifest, skipped, extra)
     save(a.out / 'manifest.json', dict(figures=manifest, skipped=skipped))
     print('%d figures, %d skipped' % (len(manifest), len(skipped)))
     for s in skipped:

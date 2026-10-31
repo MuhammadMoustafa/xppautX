@@ -84,16 +84,20 @@ def run_model(model, numerics, method=None):
         return FIXED_STEP[method](rhs, t, y, dtt)
 
     solver = Dop853(model, flags, numerics) if method == 'dopri8' else None
-    for count in range(outputs):
-        tout = tzero + dt * (count + 1)
-        if solver:
-            t, y = solver.advance(t, y, tout)
-        elif method == 'qualrk':
-            t, y = flag_loop(flags, step, t, y, 0.0, tend=tout) if model.events else step(t, y, 0.0)
-        else:
-            for _ in range(store_every):
-                t, y = flag_loop(flags, step, t, y, dt) if model.events else step(t, y, dt)
-        store(t, y)
+    try:
+        for count in range(outputs):
+            tout = tzero + dt * (count + 1)
+            if solver:
+                t, y = solver.advance(t, y, tout)
+            elif method == 'qualrk':
+                t, y = flag_loop(flags, step, t, y, 0.0, tend=tout) if model.events else step(t, y, 0.0)
+            else:
+                for _ in range(store_every):
+                    t, y = flag_loop(flags, step, t, y, dt) if model.events else step(t, y, dt)
+            store(t, y)
+    except IntegrationError as e:
+        e.run = Run(np.array(rows), names, times, flags.fired)  # the rows stored before the stop, as xppautX and XPPAUT write them
+        raise
     return Run(np.array(rows), names, times, flags.fired)
 
 
