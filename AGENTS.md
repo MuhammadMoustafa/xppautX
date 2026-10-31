@@ -16,8 +16,14 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
 - New request, including one that comes up while a task runs: a new card and
   GitHub issue at once (Cards: names and issues). A running card never
   grows. (skill: task-board)
-- Before starting a batch: propose it and wait for a yes. Pick each card's
-  model by the ladder and the pools' limits. (skills: task-board, task-ladder)
+- Before starting a batch, and before each card added to a running one: read
+  both pools' limits fresh (Claude: the app's usage; Codex: the task-board skill's
+  `codex_limits.py --probe`, since a reading from an old session log is stale),
+  propose the batch with each card's pool, model and the readings, and wait for
+  a yes. Codex is a full pool, not a fallback: a card goes to the pool with room,
+  and a proposal that names no Codex card says why (maintainer, 2026-10-31: a
+  batch of eight Claude cards was started with Codex at 20% of its week).
+  (skills: task-board, task-ladder)
 - Pack cards when it saves time (maintainer, 2026-10-14): ready cards that
   suit one agent (small, the same files or area, the same gates) go to one
   agent in one worktree, one card after another: one build, one gate run,
