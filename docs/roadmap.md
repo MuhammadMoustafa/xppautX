@@ -26,6 +26,9 @@ follow in order; the cards inside a phase run side by side. Each batch is still 
 and approved (AGENTS.md, Workflow), with both pools' limits read fresh.
 
 1. **Finish the comparison (the goal, W354 #416).**
+   - First, as they change what the timed rows measure or check: W566 the comparison's
+     loose ends (#631), W567 start-up's remaining costs (#632), W569 pp2's fold after
+     the switch (#634); W568 XPPAUT's period-doubling curve near R2 (#633) beside them.
    - W557 phase 2 (#622): the continuation study rerun, timed, with the special-point
      workloads and the converged runs of W561 and W562 (Codex).
    - Then W354's final report (a Haiku agent, with plots), the paper's Table 1
@@ -42,7 +45,8 @@ and approved (AGENTS.md, Workflow), with both pools' limits read fresh.
    (#382, ready).
 4. **Speed on many cores.** W433 independent subsystems at load (#495), then W435
    the study of integrating them apart (#497); W434 sweeps on CPU threads (#496);
-   W268 the GPU probe (#325), measured first.
+   W268 the GPU probe (#325), measured first; W570 the study of a faster compiler for
+   the generated code (#635), measured first.
 5. **Model language.** W380 Ornstein-Uhlenbeck noise as a declaration (#442).
 6. **Last.** W390 readable names for the numerical code (#452), low priority by the
    maintainer's call.
@@ -50,18 +54,6 @@ and approved (AGENTS.md, Workflow), with both pools' limits read fresh.
 Not planned or parked: W9 WebAssembly (declined), W314 components in .odex
 (parked), W467 within-function sub-expressions (not merged; the fixed variables
 are now one function, W468/W469, so it may be worth a second look).
-
-Found by this week's reviews, not carded yet (each its own card when approved):
-- the comparison's loose ends: to_snic's error of 4055 from its first sample, an
-  interpolated end point in compare_curve, `.xppaut` references for the two
-  homoclinic descriptions now that XPPAUT's homoclinic run is driven (W562, W557);
-- start-up: stale temp-folder cleanup at every start (2.3 M instructions) and the
-  .odex loader's run-time format parsing (2.4 M) (W558);
-- XPPAUT's period-doubling curve 3.6e-4 off near R2, cause not isolated (W557),
-  and pp2's fold between the switched branch's points 2 and 3, unlabelled by
-  xppautX and AUTO-07p alike, to settle by the independent check (W563);
-- periodic runs still 1.5x AUTO-07p, all of it TinyCC's generated code: a better
-  compiler (W472 named MIR) (W560).
 
 | ID  | Issue | Task | Needs | Status |
 |-----|-------|------|-------|--------|
@@ -1253,3 +1245,8 @@ Design: [command-design.md](command-design.md).
 | W563 | [#628](https://github.com/MuhammadMoustafa/xppautX/issues/628) | Switch at a branch point of equilibria (found by W556): xppautX's cnrlae restarts with stprae only and stays on the known branch; switch as AUTO-07p's STEPAE does, unskip tstauto_pf_switch and tstauto_pp2_switch, check against AUTO-07p and scipy; verify XPPAUT finding 102 by hand | W556 | done (Claude sonnet; AUTO-07p's method: a BP's fort.8 record keeps its branch's direction, an ISW=-1 restart takes the perpendicular null vector (stpswae) and its second point by swprc; tstauto_pf_switch and tstauto_pp2_switch unskipped, equal to AUTO-07p point by point, autocheck `switch` checks them from the equations; swprc stored the parameter of the Newton step before the last, fixed; XPPAUT finding 102 confirmed by hand) |
 | W564 | [#629](https://github.com/MuhammadMoustafa/xppautX/issues/629) | Restore AUTO's parameter exactly after a difference step (found by W560): par += ep; par -= ep can leave it an ulp off (XPPAUT's AUTO2000 too), AUTO-07p restores the saved value; baselines changed on purpose; then W560's deferred speedups (the outer Hopf/fold Jacobian's grouped columns, no unneeded parameter derivatives) | W560 | done (Claude sonnet; forward_parameters saves and restores the parameter: mu26 blocked 8,719 drifted restores to 0, 33 models drifted; 23 diagram baselines changed by rounding (largest 1.6e-2, a multiplier at an R2), no label changed, examples md5s unchanged; then the fold system's columns grouped and the outer evaluations without parameter derivatives, bit-identical: hb_soma 765 M to 694 M, lp_soma 3,200 M to 1,680 M instructions (AUTO-07p 712 M, 3,025 M); XPPAUT finding 103) |
 | W565 | [#630](https://github.com/MuhammadMoustafa/xppautX/issues/630) | A 1:2 resonance on a period-doubling curve is sometimes not labelled (found by W557: forced_pp_pd's R2 missed at NTST 15/DS 0.005 and NTST 10/DS 0.02, AUTO-07p labels it in all 21 runs; the note calls it PD/TR and its location uses up max_location_iterations; repro docs/studies/w557_r2_repro.py) | W557 | done (Claude sonnet: the cycle R1/R2 test was AUTO-07p's modulus minus 1 of the non-imposed multiplier, which jumps where the pair swaps roles and turns complex near R2; now the square root of the two moduli' product, AUTO-07p's value for a conjugate pair; R2 labelled in all 21 repro settings and 1.3e-8 from the true R2 (was 3.3e-5); lost points named R1/R2/strong resonance; baselines forced_pp_pd and hill_cycles_pd updated, new forced_pp_pd_ntst15/ntst10; AUTO-07p finding 13) |
+| W566 | [#631](https://github.com/MuhammadMoustafa/xppautX/issues/631) | The comparison's loose ends (found by W562, W557): Mu26 blocked's to_snic error of 4055 from its first sample; an interpolated end point in compare_curve; `.xppaut` references for lorenz_homoclinic and explicit_homoclinic now that XPPAUT's homoclinic run is driven | W562, W557 | to do (before W557 phase 2) |
+| W567 | [#632](https://github.com/MuhammadMoustafa/xppautX/issues/632) | Start-up: stale temp-folder cleanup at every start (2.3 M instructions) and the .odex loader's run-time format parsing (2.4 M) (found by W558); outputs unchanged, callgrind | W558 | to do (before W557 phase 2) |
+| W568 | [#633](https://github.com/MuhammadMoustafa/xppautX/issues/633) | XPPAUT's period-doubling curve is off near a 1:2 resonance (found by W557: up to 3.6e-4 from the true curve, a multiplier -1.0214 where -1 is required, not mesh or tolerance): the cause in XPPAUT's own source, a numbered finding | W557 | to do |
+| W569 | [#634](https://github.com/MuhammadMoustafa/xppautX/issues/634) | pp2's fold after the branch switch is not labelled (found by W563: the parameter turns between the switched branch's points 2 and 3, unlabelled by xppautX and AUTO-07p): settled by the independent check, labelled if real | W563 | to do (before W557 phase 2) |
+| W570 | [#635](https://github.com/MuhammadMoustafa/xppautX/issues/635) | Study: a faster compiler for the generated model code (found by W560: periodic runs 1.5x AUTO-07p, all of it TinyCC's code; W472 named MIR): candidates measured on the comparison's workloads, start-up, size, platforms, bit-identity; docs only | W560 | to do |
