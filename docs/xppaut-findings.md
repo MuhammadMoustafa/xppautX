@@ -2187,10 +2187,18 @@ leaves the branch point on the branch it came from. For a periodic orbit's branc
 driver does switch ([autlib1.c:5082](../reference/xppaut-8.0/autlib1.c#L5082)). AUTO-07p switches in both
 (`STEPAE(..., SW)`, ae.f90:158-174 of reference/auto-07p).
 
-Evidence (tests/auto/tstauto_pf_switch.json, W556 / #621; XPPAUT 8.0 driven on Xvfb by tools/auto_reference.py): the pitchfork
-`x' = r*x - x^3` has its branch point at r = 0 (label 2); Run, Switch from it gave 40 steps to r = 2 with norm 0 throughout,
-where AUTO-07p's switched branch has norm sqrt(r) (r = 2.036, norm 1.4269 = sqrt(2.036)). On the published pp2 demo
-(tests/auto/tstauto_pp2_switch.json) XPPAUT again stays on the first branch, while AUTO-07p's switched branch is a branch of
-equilibria with u1 = 0 and u0 a root of the first equation, checked with scipy at seven parameter values (to 1e-6). The same rule is in
-xppautX's inherited `cnrlae` (core/autlib1.cpp); its own card fixes it, the description's switched run being skipped until then.
-**xppautX** (W556 / [#621](https://github.com/MuhammadMoustafa/xppautX/issues/621)): not yet fixed.
+Evidence (tests/auto/tstauto_pf_switch.json, W556 / #621, checked by hand again at W563 / #628; XPPAUT 8.0 driven on Xvfb by
+tools/auto_reference.py's keys, the ones a user presses: Run, Grab the BP, Run, Switch): the pitchfork `x' = r*x - x^3` has its branch point at
+r = 0 (label 2). Its `.b` file's header for the switched run reads `IRS = 2`, `ISW = -1` (the switch was asked for), yet the run is branch 2 from
+point 1 on the line X = 0: 40 steps to r = 2 with norm 0 and U(1) = 0 on every row of its table and its fort.8 (`2 20 4 5 1 -1 ...` and
+`2 40 9 6 1 -1 ...`: ISW -1, X = 0), and the AUTO window's diagram (a screenshot of it) draws labels 5 and 6 on the first branch's line, where AUTO-07p's
+switched branch has norm sqrt(r) (r = 2.036, norm 1.4269 = sqrt(2.036)). On the published pp2 demo (tests/auto/tstauto_pp2_switch.json) the same
+keys give `IRS = 5`, `ISW = -1` and a branch that holds u0 = 1/3 and runs u1 below zero to par0 = 2.0002 (62 steps), the known branch past its branch point,
+where AUTO-07p's switched branch is a branch of equilibria with u1 = 0 and u0 a root of the first equation, which numpy and scipy confirm
+(tools/autocheck.py's `switch` section: every point of the switched branch solves the model's equations, to 1e-6, and its stored multipliers are
+e^lambda of the Jacobian's eigenvalues). The driver's key sequence was right: no correction to tools/auto_reference.py was needed, and the
+descriptions keep XPPAUT's switched run unavailable with this reason (`xppaut_skip`). The same rule is in xppautX's inherited `cnrlae`
+(core/autlib1.cpp) until W563.
+**xppautX** (W563 / [#628](https://github.com/MuhammadMoustafa/xppautX/issues/628)): fixed. A branch point keeps the direction of its branch in
+fort.8 (AUTO-07p's NTST=1 record) and a restart with ISW=-1 takes the null vector perpendicular to it (`stpswae` in core/autlib1.cpp, AUTO-07p's
+`STPRAE` with `IPERP=1`), then its second point by `swprc` (`STEPAE` with `SW`). The two descriptions' switched runs run and agree with AUTO-07p.

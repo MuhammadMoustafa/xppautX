@@ -1,6 +1,6 @@
 {
   "model": "examples/tstauto/pf.odex",
-  "reason": "W556 (#621): branch switching at a branch point of equilibria. XPPAUT 8.0's demo tstauto/pf.ode, the pitchfork normal form x' = r*x - x^3: the trivial branch x = 0 has a branch point at r = 0, where the branches x = +-sqrt(r) leave it. The run `switched` restarts from that point with branch switching and follows the new branch; xppautX and XPPAUT 8.0 do not switch (the run is skipped, see its reason), AUTO-07p does.",
+  "reason": "W556 (#621): branch switching at a branch point of equilibria. XPPAUT 8.0's demo tstauto/pf.ode, the pitchfork normal form x' = r*x - x^3: the trivial branch x = 0 has a branch point at r = 0, where the branches x = +-sqrt(r) leave it. The run `switched` restarts from that point with branch switching and follows the new branch; xppautX switches as AUTO-07p does (W563, #628: cnrlae's restart with ISW=-1, using the direction the branch point keeps); XPPAUT 8.0 does not (its run is not made, see its xppaut_skip; docs/xppaut-findings.md, finding 102).",
   "runs": [
     {
       "name": "steady",
@@ -42,7 +42,7 @@
         "max_branch_switches": 0
       },
       "switch": true,
-      "skip": "PENDING a card of its own (W556 #621 found it): xppautX's restart from a branch point of equilibria with switch continues the known branch (core/autlib1.cpp cnrlae calls only stprae, as XPPAUT 8.0's autlib1.c:927 does; swpnt serves only the MXBF switches inside a run); AUTO-07p's STEPAE with SW starts on the other branch (ae.f90:158-174). The reference runs are kept for that card."
+      "xppaut_skip": "XPPAUT 8.0 does not switch at an equilibrium's branch point: Run, Switch from the grabbed BP (ISW=-1 and IRS the BP's label in the .b header) continues the known branch, X = 0 and the norm 0 to r = 2 (40 steps), where AUTO-07p's switched branch leaves it (docs/xppaut-findings.md, finding 102; W563 #628: driven on Xvfb, its fort.7, fort.8 and the diagram's screenshot read)."
     }
   ]
 }

@@ -57,7 +57,7 @@ ap.add_argument('--list', action='store_true', help='print the selected sections
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'subscriptions', 'jacobian',
-                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced', 'codim'])
+                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced', 'codim', 'switch'])
 args = ap.parse_args()
 if args.shard:
     try:
@@ -2606,6 +2606,71 @@ def section_codim():
             check('map codim: session restores named switches', not flags['double_neimark_sacker'] and not flags['resonance_1_4'] and flags['fold_flip'])
         finally:
             s.close()
+
+
+def section_switch():
+    """W563/#628: a restart at a branch point of equilibria with switch follows the other branch.
+
+    Independent of AUTO-07p and of the baselines: every point of the switched branch is an equilibrium of
+    the model's own equations, its stored multipliers are e^lambda of the Jacobian's eigenvalues (numpy),
+    and the pitchfork's branch is x = sqrt(r) from the first step.
+    """
+    import numpy as np
+    d = read_description(BASE / 'tstauto_pf_switch.json')
+    data, _, _, ranges = compute(args.server, d, 1)
+    steady = diagram_rows(data)[slice(*ranges['steady'])]
+    rows = diagram_rows(data)[slice(*ranges['switched'])]
+    x = np.array([float(r['u0.X']) for r in rows])
+    r_ = np.array([float(r['continued_parameter']) for r in rows])
+    check('switch pf: the branch point is typed and the switched branch is a new branch',
+          sum(r['itp'] == 'branch_point' for r in steady) == 1 and {r['branch'] for r in rows} == {'1'} and {r['ibr'] for r in rows} == {'2'}, str({r['ibr'] for r in rows}))
+    check('switch pf: every point solves r*x - x^3 = 0 with x = sqrt(r) (x > 0 after the branch point)',
+          len(rows) > 10 and np.abs(r_*x - x**3).max() < 1e-6 and np.abs(x[1:]**2 - r_[1:]).max() < 1e-6 and (x[1:] > 0).all(),
+          str((np.abs(x[1:]**2 - r_[1:]).max(), x[:3])))
+    stable = [(float(r['evr1']), rr, xx) for r, rr, xx in zip(rows[1:], r_[1:], x[1:]) if float(r['evr1']) != 0.]
+    check('switch pf: the stored multipliers are e^(r - 3 x^2) of the new branch (stable: below 1)',
+          len(stable) > 10 and all(abs(m - math.exp(rr - 3*xx*xx)) < 1e-8 and m < 1 for m, rr, xx in stable), str(len(stable)))
+
+    def pp2(u, p):  # AUTO-07p's and XPPAUT's pp2 (par1 = 3, par2 = 5, par3 = 3)
+        u0, u1 = u
+        e = math.exp(-5*u0)
+        return (np.array([3*u0*(1-u0) - u0*u1 - p*(1-e), -u1 + 3*u0*u1]),
+                np.array([[3*(1-2*u0) - u1 - 5*p*e, -u0], [3*u1, -1 + 3*u0]]))
+    d = read_description(BASE / 'tstauto_pp2_switch.json')
+    data, _, _, ranges = compute(args.server, d, 1)
+    rows = diagram_rows(data)[slice(*ranges['switched'])]
+    worst = eigen = u1_max = 0.
+    for r in rows:
+        u = (float(r['u0.U0']), float(r['u0.U1']))
+        f, jac = pp2(u, float(r['continued_parameter']))
+        worst = max(worst, np.abs(f).max())
+        u1_max = max(u1_max, abs(u[1]))
+        recorded = [complex(float(r['evr%d' % k]), float(r['evi%d' % k])) for k in (1, 2)]
+        if any(recorded):  # the branch's second point has no stability (not computed: all zero)
+            eigen = max(eigen, max(abs(a - b) for a, b in zip(sorted(np.exp(np.linalg.eigvals(jac)), key=lambda z: (z.real, z.imag)),
+                                                              sorted(recorded, key=lambda z: (z.real, z.imag)))))
+    check('switch pp2: every point of the other branch solves the model with u1 = 0, and its multipliers are e^lambda',
+          len(rows) > 20 and worst < 1e-6 and u1_max < 1e-6 and eigen < 1e-6, str((len(rows), worst, u1_max, eigen)))
+
+    # The direction a branch point keeps was made for one parameter: another is refused, naming both.
+    s = Server(args.server, d['model'])
+    try:
+        completed(s)
+        completed(s, dict(cmd='events.subscribe', events=['auto.info', 'auto.settings']))
+        diagram = autocompare.Diagram().apply(open_auto(s))
+        intervals = {}
+        execute_run(s, d['runs'][0], diagram, intervals)
+        d['runs'][1]['parameter'] = 'par1'
+        d['runs'][1]['auto'].update(parameter_min=0, parameter_max=5)  # par1 = 3 starts inside
+        s_events = None
+        try:
+            execute_run(s, d['runs'][1], diagram, intervals)
+        except RuntimeError as e:
+            s_events = str(e)
+        check('switch: a restart in another parameter than the branch point keeps is an error naming both',
+              s_events is not None and 'par0' in s_events and 'par1' in s_events and 'switching continues the same parameter' in s_events, str(s_events))
+    finally:
+        s.close()
 
 
 for name in args.sections:

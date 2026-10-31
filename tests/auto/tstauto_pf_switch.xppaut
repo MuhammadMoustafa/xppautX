@@ -39,7 +39,7 @@
       [1.9, 0.0, 0.0],
       [2.0, 0.0, 0.0]
     ]},
-    {"name": "switched", "parameter": "r", "unavailable": "our description skips it: PENDING a card of its own (W556 #621 found it): xppautX's restart from a branch point of equilibria with switch continues the known branch (core/autlib1.cpp cnrlae calls only stprae, as XPPAUT 8.0's autlib1.c:934 does; swpnt serves only the MXBF switches inside a run); AUTO-07p's STEPAE with SW starts on the other branch (ae.f90:158-174). The reference runs are kept for that card.", "points": [
+    {"name": "switched", "parameter": "r", "unavailable": "XPPAUT 8.0 does not switch at an equilibrium's branch point: Run, Switch from the grabbed BP (ISW=-1 and IRS the BP's label in the .b header) continues the known branch, X = 0 and the norm 0 to r = 2 (40 steps), where AUTO-07p's switched branch leaves it (docs/xppaut-findings.md, finding 102; W563 #628: driven on Xvfb, its fort.7, fort.8 and the diagram's screenshot read).", "points": [
     ]}
   ]
 }

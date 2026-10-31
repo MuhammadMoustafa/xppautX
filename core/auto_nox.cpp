@@ -1408,8 +1408,8 @@ bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long 
     if (!itp) return false;
     h.itp = *itp;
     std::string why;
-    const bool collocation = h.ntst == 0 ? h.ncol == 0 : auto_settings_num_ok(AUTO_NUM_COLLOCATION_POINTS, h.ncol, why);
-    const bool mesh = h.ntst == 0 || auto_settings_num_ok(AUTO_NUM_MESH_INTERVALS, h.ntst, why);
+    const bool collocation = h.ntst == 0 ? h.ncol == 0 : h.equilibrium_direction() || auto_settings_num_ok(AUTO_NUM_COLLOCATION_POINTS, h.ncol, why);
+    const bool mesh = h.ntst == 0 || h.equilibrium_direction() || auto_settings_num_ok(AUTO_NUM_MESH_INTERVALS, h.ntst, why);
     return h.nfpr >= 0 && h.nfpr <= parameters && h.ntpl >= 1 && static_cast<std::size_t>(h.ntpl) <= auto_solution_values_limit / static_cast<std::size_t>(h.nar < 2 ? 2 : h.nar) && h.nar >= 2 && static_cast<std::size_t>(h.nar) <= auto_solution_values_limit
         && h.nskip >= h.ntpl && h.ntst >= 0 && h.ntst <= h.nskip
         && mesh && collocation && h.npar >= 0 && h.npar <= parameters && h.nfpr <= h.npar

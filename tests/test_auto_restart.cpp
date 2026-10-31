@@ -219,7 +219,7 @@ void point_files(xpp::Session &s, int count, bool collocation) {
         CHECK(wrtbv8(&iap, &rap, par.data(), icp.data(), &direction, &stride,
                       values.data(), tangent.data(), times.data(), &interval) == 0);
     } else {
-        CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data()) == 0);
+        CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), &direction) == 0);
     }
     CHECK(xpp::rewind_stream(lib.fp8.get(), solution_path).has_value());
     auto solutions = xpp::TokenReader::attach(lib.fp8.get());
@@ -256,6 +256,69 @@ void point_files(xpp::Session &s, int count, bool collocation) {
     lib.fp7 = lib.fp9 = nullptr;
     lib.session = nullptr;
 }
+// W563 (#628): a branch point keeps the direction of its branch (AUTO-07p's NTST=1 record), a regular
+// point none; the header counts every row, so a label after the record is found, and readlb gives the
+// direction back exactly as written.
+void branch_point_direction(xpp::Session &s) {
+    for (bool branch_point : {true, false}) {
+        xpp::TempDir temp;
+        const std::string path = temp.path() + "/fort.8";
+        auto &lib = s.auto_lib;  // wrtsp8 writes the session's own fort.8
+        lib.session = &s;
+        lib.parameter_count = s.auto_state.parameter_layout.size();
+        lib.fp8.reset(xpp::files::open_stream(path, "w+"));
+        CHECK(lib.fp8 != nullptr);
+        iap_type iap{};
+        iap.lib = &lib;
+        iap.ibr = 3;
+        iap.ntot = 5;
+        iap.lab = 7;
+        iap.nfpr = iap.nicp = 1;
+        iap.ndim = iap.ndm = 2;
+        iap.isw = 1;
+        iap.itp = {branch_point ? xpp::AutoPointKind::BranchPoint : xpp::AutoPointKind::End, xpp::AutoPointKind::Regular};
+        rap_type rap{};
+        std::array<integer, 1> icp = {s.auto_state.parameter_layout.solver_index(0)};
+        std::vector<double> par(lib.parameter_count);
+        std::array<double, 2> values = {2., 3.}, tangent = {.6, -.8};
+        std::array<double, 1> rldot = {.25};
+        double current = .5;
+        CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), rldot.data()) == 0);
+        iap.lab = 8;
+        iap.itp = {xpp::AutoPointKind::End, xpp::AutoPointKind::Regular};
+        CHECK(wrtsp8(&iap, &rap, par.data(), icp.data(), &iap.lab, &current, values.data(), tangent.data(), rldot.data()) == 0);
+        lib.fp3 = lib.fp8.get();
+        iap.irs = 7;
+        bool found = false;
+        integer free = 0;
+        findlb(&iap, &rap, 7, &free, &found);
+        CHECK(found);
+        xpp::AutoSolutionHeader header;
+        {
+            auto reader = xpp::TokenReader::attach(lib.fp3);
+            CHECK(xpp::read_auto_solution_header(reader, header, lib.parameter_count));
+            CHECK(header.equilibrium_direction() == branch_point);
+        }
+        CHECK(xpp::seek_stream(lib.fp3, 0, path).has_value());
+        std::array<double, 2> u{};
+        std::vector<double> restored(lib.parameter_count, canary);
+        readlb(&iap, &rap, u.data(), restored.data());
+        CHECK(u == values && restored[icp[0]] == current);
+        CHECK(lib.restart_direction.has_value() == branch_point);
+        if (branch_point) {
+            CHECK(lib.restart_direction->parameter == icp[0] && lib.restart_direction->rldot == rldot[0]);
+            CHECK(lib.restart_direction->udot == (std::vector<double>{.6, -.8}));
+        }
+        // the next label is found past the record: nrowpr counted every row of it
+        bool next = false;
+        findlb(&iap, &rap, 8, &free, &next);
+        CHECK(next);
+        lib.fp3 = nullptr;
+        lib.fp8.reset();
+        lib.restart_direction.reset();
+        lib.session = nullptr;
+    }
+}
 } // namespace
 
 int main() {
@@ -275,6 +338,7 @@ int main() {
         algebraic(s, truncated);
     }
     user_zero_text(s);
+    branch_point_direction(s);
     for (int count : {9999, 10000, 10001, 100000, std::numeric_limits<int>::max()})
         for (bool collocation : {false, true}) point_files(s, count, collocation);
     TEST_REPORT("AUTO restart families");

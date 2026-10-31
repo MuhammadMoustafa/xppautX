@@ -249,6 +249,16 @@ struct SolvbvWork {
   xpp::Matrix<double> d_matrix(std::ptrdiff_t ncb, std::ptrdiff_t nrc) { return {d, ncb, nrc}; }
 };
 
+/* The direction of the branch an equilibrium's branch point lies on, as
+   wrtsp8 stores it with the point (AUTO-07p's UDOT): the free parameter
+   it was computed for, PAR(ICP(1))-dot and U-dot. readlb reads it; cnrlae's
+   switch at the point continues along the null vector perpendicular to it. */
+struct AutoRestartDirection {
+  int parameter=0;
+  double rldot=0;
+  std::vector<double> udot;
+};
+
 struct AutoLib {
   /* the Session whose run this is, from go_go_auto until the run ends:
      how the translated routines, which reach this through their
@@ -282,6 +292,8 @@ struct AutoLib {
      branch) until the run writes its first label, which becomes the
      follow-up run's restart label (autlib1.cpp); a failed run clears it */
   bool restart_flag=false;
+  /* the direction readlb found stored with the restart label; none for a label that has no direction (autlib1.cpp) */
+  std::optional<AutoRestartDirection> restart_direction;
   /* while lcspae/lcspbv locate a special point: their solves run to
      the end (autlib1.cpp's Locating) */
   bool locating=false;

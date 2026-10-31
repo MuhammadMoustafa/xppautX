@@ -2274,14 +2274,32 @@ predator-prey model of Kuznetsov, Muratori and Rinaldi (1992) (MatCont Tutorial 
 |---|---|---|---|---|
 | `tstauto_brper_switch` (brper started at a = -1.05, so that AUTO-07p labels the Hopf point) | cycles' BP (a = 1.00003) | switches: cycles r = 1, period 5.71199 = 2 pi/1.1 | agrees (BP, the switched branch's end a = -0.4707108, norm 1.0, period 5.7119866) | agrees |
 | `forced_pp_pd_switch` | cycles' PD (m = 0.372324) | period-2 cycles; a cycle fold at 0.3643003 (the PD is subcritical), end 0.700829 | agrees (LP 8, EP 11) | agrees |
-| `tstauto_pf_switch` | equilibria's BP (r = 0) | does not switch: the branch x = 0 goes on (skipped run) | switches: norm sqrt(r) (r = 2.036, norm 1.4269) | does not switch (finding 102) |
-| `tstauto_pp2_switch` | equilibria's BP (par0 = 0.8219) | does not switch (skipped run) | switches: a branch with u1 = 0 down to par0 = -0.1414 | does not switch |
+| `tstauto_pf_switch` | equilibria's BP (r = 0) | switches (W563, #628): norm sqrt(r) from the first step (r = 2.036, norm 1.4269) | switches: norm sqrt(r) (r = 2.036, norm 1.4269) | does not switch (finding 102): X = 0 and norm 0 to r = 2 |
+| `tstauto_pp2_switch` | equilibria's BP (par0 = 0.8219) | switches (W563, #628): a branch with u1 = 0 down to par0 = -0.1414, every point to AUTO-07p's digits | switches: a branch with u1 = 0 down to par0 = -0.1414 | does not switch: u0 = 1/3 held, u1 below zero to par0 = 2.0002 |
 
 No label is in dispute between the programs where all three switch. Where they differ, an independent check from the model's equations
 decides: AUTO-07p's pf branch is x = +-sqrt(r) exactly, and every sampled point of its pp2 branch (seven parameter values, scipy
-`fsolve`) is an equilibrium of the model's equations with u1 = 0. AUTO-07p is right; xppautX inherits XPPAUT's AUTO2000 `cnrlae`, which ignores
-ISW for a restart (docs/xppaut-findings.md, finding 102), and its fix is a card of its own: the two skipped runs keep their
-AUTO-07p references for it. The `.xppaut` files of those two descriptions hold the first branch only (our skipped run is not run for the reference).
+`fsolve`) is an equilibrium of the model's equations with u1 = 0. AUTO-07p is right; XPPAUT 8.0's `cnrlae` ignores ISW for a restart
+(docs/xppaut-findings.md, finding 102), and so did xppautX's until W563 (#628).
+
+**W563: the switch at an equilibrium's branch point.** AUTO-07p's method, followed: the branch point's record in fort.8 keeps the direction of its
+branch (`WRTSP8`'s NTST=1 record: the free parameter, PAR-dot, U-dot); a restart with ISW=-1 takes the null vector of the Jacobian perpendicular to
+it (`STPRAE` with `IPERP=1`; `stpswae` in core/autlib1.cpp, sharing `perpendicular_null_direction` with `stbif`, which the switches inside a run use),
+scaled and signed as `STPRAE` does (PAR-dot positive, the first state that moves when it is zero), then the second point in the plane through the
+branch point perpendicular to that direction (`STEPAE` with `SW`, `swprc`). The two switched runs agree with AUTO-07p's references (autocompare's
+comparison of the branch points and labels, and the whole second branch point by point: pf's second point r = 0.0025000005, x = 0.050000005 both,
+pp2's r = 0.83140631724, u0 = 0.38269299998 both, its end par0 = -0.1414011471 both). The independent check is tools/autocheck.py's `switch` section
+(numpy): every point of the switched branch solves the model's own equations (pf: x^2 = r to 1e-6, x > 0; pp2: the residual of both equations
+below 1e-6 and u1 = 0 to 1e-9), and its stored multipliers are e^lambda of the Jacobian's eigenvalues (to 1e-8).
+Two notes on the new branch: its second point carries no stability (zeros: AUTO computes a point's stability in the tests of the next step), as every
+branch a switch inside a run starts; and pp2's fold between its second and third points is not labelled, in AUTO-07p's reference either (its tests
+begin at the third point). The switch inside a run (`max_branch_switches`) stored the parameter of the Newton iteration before the last for the second
+point of the new branch; the pp2 restart showed it (par0 0.8314409 where the point's own equation gives 0.8314063): `swprc` now stores the last one.
+
+XPPAUT 8.0's switched runs are checked by hand again at W563 (finding 102): Run, Switch from the BP with the driver's keys leaves ISW=-1 and
+IRS the BP's label in its `.b` header and stays on the first branch (pf: X = 0 and norm 0 to r = 2; pp2: u0 = 1/3 held, par0 up to 2.0002); a screenshot
+of its diagram (Xvfb, xwd) draws the new branch's labels on the first branch's line. The descriptions keep that run unavailable in their `.xppaut`
+files with this reason (the run's `xppaut_skip`, read by tools/auto_reference.py and tools/autocompare.py); the steady runs' XPPAUT references stay.
 
 ## W557: continuation from period doublings, tori and homoclinic orbits, untimed ([#622](https://github.com/MuhammadMoustafa/xppautX/issues/622))
 

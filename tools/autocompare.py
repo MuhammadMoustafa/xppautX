@@ -110,7 +110,7 @@ def read_description(path):
         raise ValueError('runs must be a nonempty list')
     names = set()
     for r in d['runs']:
-        members(r, ('name', 'kind', 'start', 'parameter', 'parameters', 'auto', 'switch', 'skip', 'expected_error', 'connection', 'marks'),
+        members(r, ('name', 'kind', 'start', 'parameter', 'parameters', 'auto', 'switch', 'skip', 'xppaut_skip', 'expected_error', 'connection', 'marks'),
                 ('name', 'kind', 'start', 'auto'))
         if not isinstance(r['name'], str) or not r['name'] or r['name'] in names or r['kind'] not in KINDS:
             raise ValueError('invalid run name or kind: ' + str(r))
@@ -182,8 +182,9 @@ def read_description(path):
                 or 'step_adapt_every' in a and a['step_adapt_every'] not in (0, 1)
                 or any(a[k] <= 0 for k in ('parameter_tolerance', 'state_tolerance', 'special_point_tolerance') if k in a)):
             raise ValueError('invalid AUTO setting (docs/protocol.md AUTO settings): ' + str(a))
-        if 'skip' in r and (not isinstance(r['skip'], str) or not r['skip'].strip()):
-            raise ValueError('run skip needs its reason')
+        for field in ('skip', 'xppaut_skip'):
+            if field in r and (not isinstance(r[field], str) or not r[field].strip()):
+                raise ValueError('run %s needs its reason' % field)
         if 'switch' in r and not isinstance(r['switch'], bool):
             raise ValueError('switch must be boolean')
     if all('skip' in r for r in d['runs']):

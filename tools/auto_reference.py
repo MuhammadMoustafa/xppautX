@@ -5,7 +5,8 @@ and XPPAUT 8.0 find for the problem a tests/auto description runs in xppautX.
 This is the maintainer's manual tool (Linux or WSL). Only its output is committed;
 tools/autocompare.py compares ours with those files on every push, without either
 program. A description whose problem a program cannot run the same way is refused with
-the reason (REFUSED), which the description keeps as auto07p_skip / xppaut_skip.
+the reason (REFUSED), which the description keeps as auto07p_skip / xppaut_skip; a run's own xppaut_skip
+is XPPAUT 8.0's unavailable run, written with that reason without being run.
 A curve's samples have one format per program (W539): an .auto07p curve row is [parameter, second parameter,
 norm, period] (AUTO-07p's PERIOD column; 0 for an equilibrium), an .xppaut curve row is [parameter, second parameter, norm].
 
@@ -800,6 +801,9 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
         for r in d['runs']:
             if 'skip' in r:  # An explicit description skip also skips the foreign run.
                 failed[r['name']] = 'our description skips it: ' + r['skip']
+                continue
+            if 'xppaut_skip' in r:  # a run XPPAUT 8.0 cannot do the way ours does (a switch at an equilibrium's branch point, finding 102)
+                failed[r['name']] = r['xppaut_skip']
                 continue
             curve = r['kind'] in ('two_parameter', 'homoclinic')
             base_kind = next(v['kind'] for v in d['runs'] if v['name'] == r['start'].get('run')) if r['kind'] == 'two_parameter' else r['kind']

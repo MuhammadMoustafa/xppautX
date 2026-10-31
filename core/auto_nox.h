@@ -22,6 +22,8 @@ class TokenReader;
 struct AutoSolutionHeader {
     long ibr{}, ntot{}, lab{}, nfpr{}, isw{}, ntpl{}, nar{}, nskip{}, ntst{}, ncol{}, npar{};
     AutoPointCode itp; /* decoded when the header is read: an unknown code is a bad header */
+    /* an equilibrium's record with the branch's direction after the point (AUTO-07p's NTST=1, no mesh); no orbit has no collocation points */
+    bool equilibrium_direction() const { return ntst == 1 && ncol == 0; }
 };
 bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h, long parameters);
 // Read a collocation payload into the formulation's explicit target columns.

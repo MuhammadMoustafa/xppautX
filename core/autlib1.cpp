@@ -1154,6 +1154,91 @@ rt */
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+/* The direction (PAR(ICP(1))-dot, U-dot) of the other branch at a branch point: the unit vector
+   in the 2-d nullspace of the Jacobian perpendicular to the known branch's direction (udot, rldot).
+   It is written to du (ndim + 1 values); dfdu and dfdp are the Jacobian at the point. */
+static void perpendicular_null_direction(iap_type *iap, integer *icp, integer *m1aaloc, doublereal *aa, doublereal *du, const doublereal *rldot, const doublereal *udot, const doublereal *dfdu, const doublereal *dfdp, const doublereal *thl, const doublereal *thu)
+{
+  const integer ndim = iap->ndim;
+  integer i, j;
+  doublereal sc;
+  doublereal ss;
+
+  integer aa_dim1 = *m1aaloc;
+
+  for (i = 0; i < ndim; ++i) {
+    for (j = 0; j < ndim; ++j) {
+      ARRAY2D(aa, i, j) = dfdu[j * ndim + i];
+    }
+  }
+
+  for (i = 0; i < ndim; ++i) {
+    ARRAY2D(aa, i, ndim) = dfdp[(icp[0]) * ndim + i];
+    ARRAY2D(aa, ndim, i) = udot[i];
+  }
+  ARRAY2D(aa, ndim, ndim) = rldot[0];
+
+  xpp::nlvc(iap->lib->fp9, ndim + 1, *m1aaloc, 1, aa, du);
+
+  ss = 0.;
+  for (i = 0; i < ndim; ++i) {
+    /* Computing 2nd power */
+    ss += thu[i] * (du[i] * du[i]);
+  }
+  /* Computing 2nd power */
+  ss += thl[icp[0]] * (du[ndim] * du[ndim]);
+  sc = 1. / sqrt(ss);
+
+  for (i = 0; i < ndim + 1; ++i) {
+    du[i] = sc * du[i];
+  }
+}
+
+/* The start of a restart that switches branches at a branch point of equilibria (ISW=-1; AUTO-07p's
+   STPRAE with IPERP=1): the direction of the other branch is the null vector of the Jacobian
+   perpendicular to the direction the point keeps with it (wrtsp8). Scaled and signed as AUTO-07p
+   does: PAR(ICP(1))-dot positive, or, when it is zero, the first state that moves positive. A
+   stored direction missing or made for another parameter ends the run saying so. */
+static void
+stpswae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *u, doublereal *du, doublereal *udot, doublereal *rldot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
+{
+  const auto &stored = iap->lib->restart_direction;
+  const std::string where = xpp::format("restart label {} in {}", iap->irs, xpp::auto_fort_path(*iap->lib->session, 3));
+  const integer ndim = iap->ndim;
+  if (!stored)
+    xpp::auto_fail(xpp::format("AUTO: {} keeps no direction of its branch, so the branch cannot be switched there: only a branch point of an equilibrium run stores it", where));
+  if (stored->parameter != icp[0] || stored->udot.size() != static_cast<std::size_t>(ndim)) {
+    const xpp::Session &session = *iap->lib->session;
+    const auto named = [&session](integer solver_index) {
+      const int k = session.auto_state.parameter_layout.model_index(static_cast<int>(solver_index));
+      return k < 0 ? xpp::format("AUTO's parameter {}", solver_index) : xpp::format("\"{}\"", session.model().upar_names[static_cast<std::size_t>(k)]);
+    };
+    xpp::auto_fail(xpp::Error{"auto", xpp::format("AUTO: the direction {} keeps was made for {} with {} variables; the run continues {} with {}: switching continues the same parameter", where,
+                                                  named(stored->parameter), stored->udot.size(), named(icp[0]), ndim), xpp::command_place()});
+  }
+
+  std::vector<doublereal> uold(u, u + ndim);
+  (*funi)(iap, rap, ndim, u, uold.data(), icp, par, 2, f, dfdu, dfdp);
+  std::copy(stored->udot.begin(), stored->udot.end(), udot);
+  rldot[0] = stored->rldot;
+  perpendicular_null_direction(iap, icp, m1aaloc, aa, du, rldot, udot, dfdu, dfdp, thl, thu);
+
+  /* the sign: PAR(ICP(1))-dot positive, or the first state that moves when that is zero */
+  doublereal lead = du[ndim];
+  if (f2c::abs(lead) / (1. + f2c::abs(rlcur[0])) <= rap->epsl) {
+    for (integer i = 0; i < ndim; ++i) {
+      if (f2c::abs(du[i]) / (1. + f2c::abs(u[i])) > rap->epsu) {
+        lead = du[i];
+        break;
+      }
+    }
+  }
+  const doublereal sign = lead < 0. ? -1. : 1.;
+  for (integer i = 0; i < ndim; ++i)
+    udot[i] = sign * du[i];
+  rldot[0] = sign * du[ndim];
+}
+
 int 
 cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), STPNT_TYPE_AE((*stpnt)), PVLI_TYPE_AE((*pvli)), doublereal *thl, doublereal *thu, std::span<const AutoMark> marks)
 {
@@ -1276,10 +1361,18 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   iap->itp = itp;
   rlcur[0] = par[icp[0]];
-  stplae(iap, rap, par, icp, rlcur.data(), u.data());
+  stplae(iap, rap, par, icp, rlcur.data(), u.data(), udot.data(), rldot.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
+  }
+
+  /* A restart that switches branches (ISW=-1) is at a branch point: the direction of the other
+     branch, then its second point in the hyper-plane through the point perpendicular to it. */
+
+  if (iap->isw < 0) {
+    stpswae(iap, rap, par, icp, funi, &aa_first_dimension, aa.data(), rlcur.data(), u.data(), du.data(), udot.data(), rldot.data(), f.data(), dfdu.data(), dfdp.data(), thl, thu);
+    goto L4;
   }
 
   /* Starting procedure  (to get second point on first branch) : */
@@ -1332,12 +1425,13 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
 /* Store plotting data for first point on the bifurcating branch */
 
-  stplae(iap, rap, par, icp, rlcur.data(), u.data());
+  stplae(iap, rap, par, icp, rlcur.data(), u.data(), udot.data(), rldot.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
   }
 
+ L4:
   /* Determine the second point on the bifurcating branch */
 
   swprc(iap, rap, par, icp, funi, &aa_first_dimension, aa.data(), rhs.data(), 
@@ -1350,7 +1444,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Store plotting data for second point : */
 
-  stplae(iap, rap, par, icp, rlcur.data(), u.data());
+  stplae(iap, rap, par, icp, rlcur.data(), u.data(), udot.data(), rldot.data());
   istop = iap->istop;
   if (istop == 1) {
     goto L6;
@@ -1422,7 +1516,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* Store plotting data on unit 7 : */
 
  L5:
-  stplae(iap, rap, par, icp, rlcur.data(), u.data());
+  stplae(iap, rap, par, icp, rlcur.data(), u.data(), udot.data(), rldot.data());
 
 /* Adapt the stepsize along the branch */
 
@@ -2205,13 +2299,9 @@ fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
 int 
 stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aaloc, doublereal *aa, doublereal *stud, doublereal *stu, doublereal *stla, doublereal *stld, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *udot, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
 {
-  integer aa_dim1;
-
   integer nbif, ndim;
 
-  integer i, j;
-  doublereal sc;
-  doublereal ss;
+  integer i;
 
   /* Stores branching data in the following arrays : */
   /*        STU    ( the solution vector U ) */
@@ -2223,39 +2313,8 @@ stbif(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *m1aa
   /* at branch point and is perpendicular to the direction vector of */
   /* known branch at this point. */
 
-  aa_dim1 = *m1aaloc;
-
   ndim = iap->ndim;
-  nbif = iap->nbif;
-
-  /* Keep track of the number of branch points stored. */
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(aa, i, j) = dfdu[j * ndim + i];
-    }
-  }
-
-  for (i = 0; i < ndim; ++i) {
-    ARRAY2D(aa, i, ndim) = dfdp[(icp[0]) * ndim + i];
-    ARRAY2D(aa, ndim, i) = udot[i];
-  }
-  ARRAY2D(aa, ndim, ndim) = rldot[0];
-
-  xpp::nlvc(iap->lib->fp9, ndim + 1, *m1aaloc, 1, aa, du);
-
-  ss = 0.;
-  for (i = 0; i < ndim; ++i) {
-    /* Computing 2nd power */
-    ss += thu[i] * (du[i] * du[i]);
-  }
-  /* Computing 2nd power */
-  ss += thl[icp[0]] * (du[ndim] * du[ndim]);
-  sc = 1. / sqrt(ss);
-
-  for (i = 0; i < ndim + 1; ++i) {
-    du[i] = sc * du[i];
-  }
+  perpendicular_null_direction(iap, icp, m1aaloc, aa, du, rldot, udot, dfdu, dfdp, thl, thu);
 
   nbif = iap->nbif;
   stld[-1 + nbif] = du[ndim];
@@ -2485,6 +2544,8 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     rdrlm = f2c::abs(drlm) / (f2c::abs(rlcur[0]) + 1.);
     rdumx = dumx / (umx + 1.);
     if (rdrlm < epsl && rdumx < epsu) {
+      /* the point's parameter is the last Newton update's, as solvae stores it (the evaluation above used the one before) */
+      par[icp[0]] = rlcur[0];
       return 0;
     }
     /* L3: */
@@ -2758,7 +2819,7 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 } /* headng_ */
 
 int 
-stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rlcur, doublereal *u)
+stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rlcur, doublereal *u, const doublereal *udot, const doublereal *rldot)
 {
 
   integer labw, nins, ntot, i;
@@ -2896,7 +2957,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* Write restart information for multi-parameter analysis : */
 
   if (labw != 0) {
-    wrtsp8(iap, rap, par, icp, &labw, rlcur, u);
+    wrtsp8(iap, rap, par, icp, &labw, rlcur, u, udot, rldot);
   }
 
   return 0;
@@ -3038,8 +3099,25 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   return 0;
 } /* wrline_ */
 
+/* Values in AUTO's solution-file rows: auto_solution_columns to a row, each row indented. */
+static void print_solution_row_values(FILE *fp, std::span<const doublereal> values)
+{
+  xpp::print(fp,"    ");
+  for (std::size_t i = 0; i < values.size(); ++i) {
+    if ((i > 0) && (i % auto_solution_columns == 0))
+      xpp::print(fp,"\n    ");
+    xpp::print(fp,"{:19.10E}",values[i]);
+  }
+  xpp::print(fp,"\n");
+}
+
+static integer solution_row_count(integer values)
+{
+  return (values - 1) / auto_solution_columns + 1;
+}
+
 int 
-wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab, doublereal *rlcur, doublereal *u)
+wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab, doublereal *rlcur, doublereal *u, const doublereal *udot, const doublereal *rldot)
 {
   xpp::Session &s=*iap->lib->session;
   integer ndim, nfpr, ntpl, jtmp, ntot, i;
@@ -3064,6 +3142,11 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   nar = ndim + 1;
   jtmp = iap->lib->parameter_count;
   nrowpr = ndim / auto_solution_columns + 1 + (jtmp - 1) / auto_solution_columns + 1;
+  /* A branch point keeps the direction of its branch (AUTO-07p's NTST=1 record: the
+     free parameter indices, PAR-dot, U-dot): a restart that switches branches needs it. */
+  const bool direction = itp.kind == xpp::AutoPointKind::BranchPoint && f2c::abs(isw) == 1;
+  if (direction)
+    nrowpr += (nfpr - 1) / auto_solution_parameter_indices_per_line + 1 + solution_row_count(nfpr) + solution_row_count(ndim);
   par[icp[0]] = rlcur[0];
   t = 0.;
 
@@ -3076,7 +3159,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   xpp::print(fp8," {:4}",ntpl);
   xpp::print(fp8," {:4}",nar);
   xpp::print(fp8," {:4}",nrowpr);
-  xpp::print(fp8," {:4}",0);
+  xpp::print(fp8," {:4}",direction ? 1 : 0);
   xpp::print(fp8," {:4}",0);
   xpp::print(fp8," {:4}\n",iap->lib->parameter_count);
   xpp::print(fp8,"    {:19.10E}",t);
@@ -3086,14 +3169,14 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
     xpp::print(fp8,"{:19.10E}",u[i]);
   }
   xpp::print(fp8,"\n");
-  for (i = 0; i < iap->lib->parameter_count; ++i) {
-    if(i==0)
-      xpp::print(fp8,"    ");
-    if((i>0)&&(i%auto_solution_columns==0))
-      xpp::print(fp8,"\n    ");
-    xpp::print(fp8,"{:19.10E}",par[i]);
+  if (direction) {
+    for (i = 0; i < nfpr; ++i)
+      xpp::print(fp8,"{:5}",icp[i]);
+    xpp::print(fp8,"\n");
+    print_solution_row_values(fp8, {rldot, static_cast<std::size_t>(nfpr)});
+    print_solution_row_values(fp8, {udot, static_cast<std::size_t>(ndim)});
   }
-  xpp::print(fp8,"\n");    
+  print_solution_row_values(fp8, {par, static_cast<std::size_t>(jtmp)});
   fflush(fp8);
 
   return 0;
@@ -3929,6 +4012,9 @@ void read_auto_restart_header(iap_type *iap, const rap_type *rap,
   if (!found) auto_restart_label_missing(iap);
   reader = xpp::TokenReader::attach(iap->lib->fp3);
   auto_restart_read(iap, xpp::read_auto_solution_header(reader, header, iap->lib->parameter_count), "its header");
+  if (header.equilibrium_direction())
+    xpp::auto_fail(xpp::format("AUTO: restart label {} in {} is an equilibrium's branch point, not a mesh of a periodic solution or a boundary value problem", iap->irs,
+                               xpp::auto_fort_path(*iap->lib->session, 3)));
   *ntst = header.ntst;
   *ncol = header.ncol;
   iap->ibr = header.ibr;
@@ -4011,6 +4097,25 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
   doublereal time;
   auto_restart_read(iap, xpp::read_auto_solution_rows(tr, ndim, 0, 0, 1, 0, ndim, u, &time, false, 0, {}),
                     "the solution");
+  iap->lib->restart_direction.reset();
+  if (header.equilibrium_direction()) {
+    /* the branch's direction, which wrtsp8 keeps at a branch point: the free parameter indices, PAR-dot, U-dot */
+    AutoRestartDirection direction;
+    for (long i = 0; i < header.nfpr; ++i) {
+      int index;
+      auto_restart_read(iap, tr.read(index), "the free parameter indices");
+      if (i == 0) direction.parameter = index;
+    }
+    for (long i = 0; i < header.nfpr; ++i) {
+      double rldot;
+      auto_restart_read(iap, tr.read(rldot), "the parameter derivatives");
+      if (i == 0) direction.rldot = rldot;
+    }
+    direction.udot.resize(static_cast<std::size_t>(ndim));
+    for (double &value : direction.udot)
+      auto_restart_read(iap, tr.read(value), "the arclength derivatives");
+    iap->lib->restart_direction = std::move(direction);
+  }
   auto_restart_read(iap, xpp::read_auto_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
 } /* readlb_ */
 
@@ -6130,13 +6235,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   xpp::print(fp8,"\n");  
 
 /* Write the direction of the branch: */
-  xpp::print(fp8,"    ");
-  for (i = 0; i < nfpr; ++i) {
-    if((i>0)&&((i)%auto_solution_columns==0))
-      xpp::print(fp8,"\n    ");
-    xpp::print(fp8,"{:19.10E}",rldot[i]);
-  }
-  xpp::print(fp8,"\n");  
+  print_solution_row_values(fp8, {rldot, static_cast<std::size_t>(nfpr)});
 
   for (j = 0; j < ntst; ++j) {
     for (i = 0; i < ncol; ++i) {
@@ -6163,13 +6262,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
 /* Write the parameter values. */
 
-  xpp::print(fp8,"    ");
-  for (i = 0; i < iap->lib->parameter_count; ++i) {
-    if((i>0)&&(i%auto_solution_columns==0))
-      xpp::print(fp8,"\n    ");
-    xpp::print(fp8,"{:19.10E}",par[i]);
-  }
-  xpp::print(fp8,"\n");
+  print_solution_row_values(fp8, {par, static_cast<std::size_t>(iap->lib->parameter_count)});
   fflush(fp8);
   return 0;
 } /* wrtbv8_ */
