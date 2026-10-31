@@ -15,6 +15,7 @@
 #include <array>
 #include <bit>
 #include <cctype>
+#include <climits>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -128,6 +129,13 @@ struct Generator {
     /* the function being written: the pure calls already made at its top
        level, by their C text, each held in a temporary (pure_call) */
     std::unordered_map<std::string, Node> calls_made;
+    /* an index over calls_made, so a variable's write finds the calls that
+       may read it without scanning them all (W559): each call's text by
+       the variables it names as v[k] or reaches through a pure user
+       function, and the calls that may read any variable. An entry
+       whose call was forgotten is skipped when it is looked up. */
+    std::unordered_map<int, std::vector<std::string>> call_readers;
+    std::vector<std::string> call_readers_any;
     std::array<bool, static_cast<size_t>(Helper::Count)> used{};
     /* the function being written: its statements in order, how many
        temporaries and loop counters it declares, how deep in sums it is,
@@ -185,7 +193,7 @@ struct Generator {
     {
         flush(stack, from);
         impure = true;
-        calls_made.clear();
+        forget_calls();
         return statement(std::move(call));
     }
 
@@ -214,6 +222,7 @@ struct Generator {
         if (!top) return {std::move(text), false, mut};
         Node t = statement(text);
         t.mut = false; /* a value of the state at its statement: never rewritten */
+        index_call(text);
         calls_made.emplace(std::move(text), t);
         return t;
     }
@@ -291,7 +300,7 @@ struct Generator {
                 const Node high = pop(), low = pop();
                 flush(stack, lower());
                 impure = true;
-                calls_made.clear();
+                forget_calls();
                 const int n = loops++;
                 const Node total{xpp::format("t{}", temps++), true};
                 /* lo, hi and ix are int: the assignments truncate the bounds and
@@ -394,7 +403,7 @@ struct Generator {
     void begin()
     {
         out.clear();
-        calls_made.clear();
+        forget_calls();
         temps = loops = depth = 0;
         impure = false;
         array_pure = true;
@@ -437,27 +446,54 @@ struct Generator {
         return {};
     }
 
-    /* Whether the C text may read variable k: by its name v[k], or through
-       a call given the Session S (the only S in the text): a user
-       function's that reads k or what is not its arguments or variables
-       (array_pure_function), or a helper's other than a table's. name_k is
-       "v[k]", made once by the caller, which asks for every call made. */
-    bool may_read(std::string_view text, int k, std::string_view name_k) const
+    /* The calls made are all forgotten. */
+    void forget_calls()
     {
-        if (text.find(name_k) != std::string_view::npos) return true;
-        for (size_t at = text.find('S'); at != std::string_view::npos; at = text.find('S', at + 1)) {
+        calls_made.clear();
+        call_readers.clear();
+        call_readers_any.clear();
+    }
+
+    /* Index a call's text by what it may read: the variables it names as
+       v[k], and through a call given the Session S (the only S in the
+       text): a user function's that reads k or what is not its arguments or
+       variables (array_pure_function) reads those it lists, and a helper's
+       other than a table's may read any variable. */
+    void index_call(const std::string &text)
+    {
+        for (size_t at = text.find("v["); at != std::string::npos; at = text.find("v[", at + 1)) {
+            size_t end = at + 2;
+            int k = 0;
+            while (end < text.size() && std::isdigit(static_cast<unsigned char>(text[end])) && k < INT_MAX / 10 - 10) k = k * 10 + (text[end++] - '0');
+            if (end > at + 2 && end < text.size() && text[end] == ']') call_readers[k].push_back(text);
+        }
+        for (size_t at = text.find('S'); at != std::string::npos; at = text.find('S', at + 1)) {
             const size_t open = text.rfind('(', at);
             size_t start = open;
             while (start > 0 && (std::isalnum(static_cast<unsigned char>(text[start - 1])) || text[start - 1] == '_')) --start;
-            const std::string_view call = text.substr(start, open - start);
+            const std::string_view call = std::string_view(text).substr(start, open - start);
             if (call == helper_text[static_cast<size_t>(Helper::Table)].name || call == helper_text[static_cast<size_t>(Helper::TableSlope)].name) continue;
             if (call.starts_with('u')) {
                 const size_t f = std::stoul(std::string(call.substr(1)));
-                if (array_pure_function[f] && !function_reads[f].contains(k)) continue;
+                if (array_pure_function[f]) {
+                    for (int k : function_reads[f]) call_readers[k].push_back(text);
+                    continue;
+                }
             }
-            return true;
+            call_readers_any.push_back(text);
+            return;
         }
-        return false;
+    }
+
+    /* Writing variable k forgets the calls whose text may read it. */
+    void forget_calls_reading(int k)
+    {
+        for (const std::string &text : call_readers_any) calls_made.erase(text);
+        call_readers_any.clear();
+        if (const auto readers = call_readers.find(k); readers != call_readers.end()) {
+            for (const std::string &text : readers->second) calls_made.erase(text);
+            call_readers.erase(readers);
+        }
     }
 
     /* One C function, name, for the right-hand side in its order: each
@@ -466,7 +502,7 @@ struct Generator {
        the caller gives o, each equation's value into o[i], as
        equation_values does (W469); so a math call two of them make on the
        same values is made once. Writing a variable forgets the calls whose
-       text may read it; nothing reads o. */
+       text may read it (forget_calls_reading); nothing reads o. */
     Result<> rhs(std::span<const Program> fixed, int first, std::span<const Program> equations, std::string_view name)
     {
         begin();
@@ -475,8 +511,7 @@ struct Generator {
             if (!result) return std::unexpected(result.error());
             const int variable = first + static_cast<int>(i);
             out.push_back(xpp::format("v[{}]={};", variable, result->text));
-            const std::string name_k = xpp::format("v[{}]", variable);
-            std::erase_if(calls_made, [&](const auto &made) { return may_read(made.first, variable, name_k); });
+            forget_calls_reading(variable);
         }
         if (!equations.empty()) out.push_back("if(!o)return;");
         for (size_t i = 0; i < equations.size(); ++i) {
