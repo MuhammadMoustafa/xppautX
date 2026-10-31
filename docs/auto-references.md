@@ -2333,7 +2333,7 @@ The numbers are the check's at W571 (the largest distance; XPPAUT's labelled poi
 
 | Curve | xppautX | AUTO-07p | XPPAUT 8.0 (labelled points) |
 |---|---|---|---|
-| forced_pp_pd pd_up | 9.2e-3 at R2 (1.94894, 2.57019): see below | 1.2e-7 at R2 (1.94893, 2.57025) | 8.1e-10 (9 of 13 labelled points; 4 not bracketed) |
+| forced_pp_pd pd_up | not judged at R2: the check's 9.2e-3 at (1.94894, 2.57019) is its own limit, below | 1.2e-7 at R2 (1.94893, 2.57025) | 8.1e-10 (9 of 13 labelled points; 4 not bracketed) |
 | forced_pp_pd pd_down | 1.3e-10 | 1.0e-7 (at (0.55, 0.34), away from R2) | 8.1e-10 (15 labelled points) |
 | forced_pp_ns ns_up, ns_down | 2.7e-11, 2.2e-11 | 9.7e-11, 2.5e-11 | 3.1e-8 (12 and 11 labelled points) |
 | hen_pd (up, down) | 3.1e-5 (rms 4.1e-6; the closed form's, at the one-parameter run's PD point) | 3.1e-5 | 2.1e-7 (2 labelled points) |

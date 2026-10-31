@@ -2249,8 +2249,8 @@ docs/studies/w557_special_point_check.py's own functions for the model's Poincar
 
 Not isolated further because nothing else is wrong: the extended system's equations match AUTO-07p's (the phase condition `u . upold` of `icpd` differs from `(u - uold) . upold`
 by a constant that is zero to the collocation's accuracy), and xppautX's port, which differences the Jacobian the same way, gives the same curve.
-**xppautX**: shares nothing (its diagram keeps full precision). W557's check should read XPPAUT's labelled points from `fort.8` instead of the exported curve (a follow-up of the
-comparison, not part of this card); a comparison of XPPAUT's curve near a 1:2 resonance by its exported samples is a comparison of the print.
+**xppautX**: shares nothing (its diagram keeps full precision). W557's check reads XPPAUT's labelled points (the series' `.s` file, ten digits) instead of the exported curve since W571
+([#636](https://github.com/MuhammadMoustafa/xppautX/issues/636)): pd_up's labelled points are within 8.1e-10 of the true curve; a comparison of XPPAUT's curve near a 1:2 resonance by its exported samples is a comparison of the print.
 ## 105. The fold test of a switched branch starts at its third point
 
 When a run's MXBF switch starts a new branch, `cnrlae` stores the new branch's second point and zeroes the tests' values
