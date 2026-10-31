@@ -134,6 +134,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [101](#101-auto-misses-a-zero-immediately-after-a-located-zero) | Special-point location | a stored zero hides a second crossing in the next step | [W541 / #606](https://github.com/MuhammadMoustafa/xppautX/issues/606) |
 | [102](#102-switch-at-a-branch-point-of-equilibria-continues-the-known-branch) | Branch switching | Switch at an equilibrium's branch point stays on the known branch | [W556 / #621](https://github.com/MuhammadMoustafa/xppautX/issues/621) |
 | [103](#103-the-difference-step-of-a-parameter-leaves-it-an-ulp-off) | AUTO | the parameter derivative adds a step and subtracts it again, so the parameter drifts by an ulp | [W564 / #629](https://github.com/MuhammadMoustafa/xppautX/issues/629) |
+| [104](#104-a-period-doubling-curve-near-a-12-resonance-cannot-be-read-from-the-six-digit-export) | AUTO | a period-doubling curve near a 1:2 resonance is exported to six digits, and a multiplier there moves 2,000 times as fast as the parameter, so the file puts the points 0.5-1.4% off -1 (the continuation itself is exact) | [W568 / #633](https://github.com/MuhammadMoustafa/xppautX/issues/633) |
 
 ## 1. Model options
 
@@ -2221,3 +2222,31 @@ Evidence (W564 / [#629](https://github.com/MuhammadMoustafa/xppautX/issues/629))
 models have such restores, tstauto_torx_homcont 77,152 of 125,522. With the saved value put back, none do (0 of 898,326 on mu26 blocked),
 and 23 descriptions' diagrams moved by rounding (their largest relative changes in docs/auto-references.md "W564").
 **xppautX** (W564 / [#629](https://github.com/MuhammadMoustafa/xppautX/issues/629)): fixed, in the one place every driver differences a parameter (`xpp::auto_jacobian::forward_parameters`).
+
+## 104. A period-doubling curve near a 1:2 resonance cannot be read from the six-digit export
+
+XPPAUT 8.0's AUTO writes every point of a curve to its `.b` file with `%14.5E`, six significant digits
+([autlib1.c:3035-3041](../reference/xppaut-8.0/autlib1.c#L3035), the same lines as finding 71; [master:3032](../reference/xppaut-master/autlib1.c#L3032)),
+and the full ten digits (`%19.10E`, [autlib1.c:3131-3143](../reference/xppaut-8.0/autlib1.c#L3131)) only for the solution at a labelled point (`fort.8`, the `.s` file).
+Its two-parameter period-doubling continuation (`fnpd`, `ffpd`, `bcpd`, `icpd`, [autlib3.c:2649-2879](../reference/xppaut-8.0/autlib3.c#L2649)) is the system
+AUTO-07p solves (periodic.f90:1261-1456: the cycle `u' = T f(u)`, `v' = T f_u(u) v` with `v(0) = -v(1)`, the phase of `u` and `|v|^2` fixed), the Jacobian differenced
+twice instead of analytically for the `v` block, and its solution is exact: the six-digit file is what is off, and near a 1:2 resonance (R2) six digits are too few
+to say where a flip curve is. A reader that takes the exported samples as XPPAUT's curve measures the file's rounding, not the continuation.
+
+Evidence (W568 / [#633](https://github.com/MuhammadMoustafa/xppautX/issues/633); W557's data, `~/xppautx-comparison/w557-untimed/continuation-final/forced_pp_pd`, and
+docs/studies/w557_special_point_check.py's own functions for the model's Poincare map, RK4 at 8000 steps, its multipliers from the monodromy matrix):
+
+- W557 measured XPPAUT's `pd_up` curve (the far R2 at (eps, b0) = (1.94893, 2.57025)) up to 3.6e-4 from the true curve and a multiplier that must be -1 at -1.0214
+  and -0.9896 at two samples, unchanged at NTST 100 or EPSL = EPSU = 1e-10. A change of NTST or of a tolerance cannot move six printed digits, which is why it did not.
+- The curve XPPAUT exports agrees with xppautX's to the print: at b0 from 2.2 to 2.8, eps differs by at most 4.6e-6 (half a last printed unit of 1.9x is 5e-6).
+- XPPAUT's own full-precision points, the labelled ones of `pd_up` (labels 9 to 12, points 50, 100, 150 and 200, read from the `.s` file with m = 0.37232418401), lie on the true
+  flip curve to 5.8e-12, 3.9e-11, 1.4e-11 and 1.0e-11; label 12, (1.9437407461, 2.6463825630) just before the R2, has multipliers -0.91379661 and -0.99999998.
+- The same label 12 rounded to the six digits the file prints, (1.94374, 2.64638), has multipliers -0.91169 and -1.00215, and a rounding of half a last unit in eps
+  (1.9437457 or 1.9437357) gives -0.98566 or -1.01066 (distances 4.9e-4 and 7.4e-5, from W557's check, which jumps to another root once the multiplier pair is off the curve): the multiplier moves
+  by about 2.1e3 per unit of eps there, because the two multipliers near -1 are 0.09 apart and the one that is -1 on the curve moves by `F / s`, F the flip function and s that gap.
+  The errors W557 saw are of this size (0.02, 0.01) and appear only in that window of the curve, b0 about 2.2 to 2.75; elsewhere the same samples are 1e-6 from the curve.
+
+Not isolated further because nothing else is wrong: the extended system's equations match AUTO-07p's (the phase condition `u . upold` of `icpd` differs from `(u - uold) . upold`
+by a constant that is zero to the collocation's accuracy), and xppautX's port, which differences the Jacobian the same way, gives the same curve.
+**xppautX**: shares nothing (its diagram keeps full precision). W557's check should read XPPAUT's labelled points from `fort.8` instead of the exported curve (a follow-up of the
+comparison, not part of this card); a comparison of XPPAUT's curve near a 1:2 resonance by its exported samples is a comparison of the print.

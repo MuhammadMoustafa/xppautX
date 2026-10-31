@@ -2328,15 +2328,18 @@ explicit_homoclinic, and the Lorenz unstable manifold's shooting for the homocli
 
 | Curve | xppautX | AUTO-07p | XPPAUT 8.0 |
 |---|---|---|---|
-| forced_pp_pd pd_up | 1.0e-10 | 1.4e-10 | 3.6e-4 (6 digits printed: 5e-6) |
+| forced_pp_pd pd_up | 1.0e-10 | 1.4e-10 | 3.6e-4 (the export's six digits, not the continuation: XPPAUT's finding 104) |
 | forced_pp_pd pd_down | 2.3e-6 (at R2) | 1.0e-7 (at R2) | 2.5e-6 |
 | forced_pp_ns ns_up, ns_down | 2.7e-11 | 9.7e-11 | 5.0e-7 |
 | hen_pd, hen_tr, explicit_homoclinic | at the closed forms (3e-5 at the PD point of the one-parameter run: 1e-4 tolerance, all three) | same | same |
 | lorenz_homoclinic | 2.5e-9 | 2.4e-9 | 4.8e-5 (rms 3.0e-5 = the print's 1e-4 rounding) |
 
-XPPAUT's pd_up error is not its print: the multiplier that must be -1 is -1.0214 at (1.95468, 2.48815) and -0.9896 at (1.94508, 2.62663) near and past R2,
-where AUTO-07p's and xppautX's are -1 to 1e-7; it stays at 1.9e-4 to 4.3e-4 with NTST 100 or with EPSL = EPSU = 1e-10, so neither the mesh nor the corrector's
-tolerance is the cause (not isolated).
+XPPAUT's pd_up error is its export, not its continuation (W568 / [#633](https://github.com/MuhammadMoustafa/xppautX/issues/633), docs/xppaut-findings.md
+[finding 104](xppaut-findings.md#104-a-period-doubling-curve-near-a-12-resonance-cannot-be-read-from-the-six-digit-export)): the multiplier that must be -1 is -1.0214 at (1.95468, 2.48815) and
+-0.9896 at (1.94508, 2.62663) near and past R2 only for the six-digit samples of its `.b` file, where a multiplier moves about 2.1e3 per unit of eps (the pair near -1 is 0.09 apart): a rounding
+of 5e-6 in eps is 0.01 in the multiplier. XPPAUT's labelled points (`fort.8`, ten digits) of the same run are on the true curve to 1e-11, label 12 (1.9437407461, 2.6463825630) with multipliers
+-0.91379661 and -0.99999998, and the exported curve agrees with xppautX's to 4.6e-6. NTST 100 and EPSL = EPSU = 1e-10 leave it because they cannot change the digits printed. The check
+(docs/studies/w557_special_point_check.py) reads the exported curve; read XPPAUT's labelled points instead to compare its accuracy here.
 
 **xppautX misses R2 on pd_up at some meshes.** The R2 at (1.94893, 2.57025) is real (the multipliers there are -1 and -1, and the pair -0.99999 +- 7e-5 i just before it). Over
 NTST 10, 15, 20, 30, 40, 60, 80 and steps 0.005, 0.01, 0.02 (21 runs) AUTO-07p labels it every time and xppautX not at NTST 15 / DS 0.005 and NTST 10 / DS 0.02
