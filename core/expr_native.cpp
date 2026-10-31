@@ -15,7 +15,7 @@
 #include <array>
 #include <bit>
 #include <cctype>
-#include <climits>
+#include <charconv>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -462,10 +462,9 @@ struct Generator {
     void index_call(const std::string &text)
     {
         for (size_t at = text.find("v["); at != std::string::npos; at = text.find("v[", at + 1)) {
-            size_t end = at + 2;
             int k = 0;
-            while (end < text.size() && std::isdigit(static_cast<unsigned char>(text[end])) && k < INT_MAX / 10 - 10) k = k * 10 + (text[end++] - '0');
-            if (end > at + 2 && end < text.size() && text[end] == ']') call_readers[k].push_back(text);
+            const auto [end, error] = std::from_chars(text.data() + at + 2, text.data() + text.size(), k);
+            if (error == std::errc() && end < text.data() + text.size() && *end == ']') call_readers[k].push_back(text);
         }
         for (size_t at = text.find('S'); at != std::string::npos; at = text.find('S', at + 1)) {
             const size_t open = text.rfind('(', at);
