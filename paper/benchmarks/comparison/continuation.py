@@ -234,6 +234,8 @@ def foreign(a, d, program, inputs, folder, measured, exact=None):
 def refused(name, d, program):
     """Why the reference driver cannot run the description for the program (tools/auto_reference.py's own refusal, with the
     description's traced skip left out: that skip says the program's result is not compared, not that it cannot run), or None."""
+    if not (reference.BASE / (name + '.diagram.csv')).exists():
+        return None  # the earlier workloads (P1, E1, ...) have no tests/auto description: the driver ran them unrefused before W557
     try:
         reference.check_description(name, {k: v for k, v in d.items() if k != program + '_skip'}, program)
     except reference.Refused as e:
