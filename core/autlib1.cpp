@@ -415,7 +415,10 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
       break;
     }
 
-    rds = location_step(rap, rds, singular);
+    // W580: a singular zero within half a tolerance of the step's start, a point already solved, is taken
+    // there, not half a tolerance past it (henon_rot_th's BP next to the R2 located at th = pi: 3.7e-5 off)
+    const bool at_start = singular && !discarded && std::abs(s1 + rds - s_start) < location_tolerance(rap) / 2;
+    rds = at_start ? s_start - s1 : location_step(rap, rds, singular);
     if (!trial()) break;
     ++iterations;
     // AUTO-07p LCSPAE ae.f90:743 / LCSPBV bvp.f90:1414:
@@ -425,6 +428,11 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
     if (more) {
       stepped = true;
       dstest = s;
+    }
+    if (at_start && s == s_start) {
+      s1 = s;
+      converged = true;
+      break;
     }
     /*        Use Mueller's method with bracketing for subsequent steps */
     mueller(&q0, &q1, &q, &s0, &s1, &s, &rds);

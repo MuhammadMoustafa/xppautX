@@ -80,7 +80,7 @@ def henon_rot_th():
             jacobian[:, k] = (henon_system(z + dz, w) - henon_system(z - dz, w)) / (2 * dz[k])
         print('   th - pi = %+.0e: determinant with the tangent %+.4e, smallest singular value %.2e'
               % (offset, np.linalg.det(np.vstack([jacobian, tangent])), np.linalg.svd(jacobian, compute_uv=False)[-1]))
-    print('   xppautX\'s BP at th = 3.141629293: th - pi = %.2e' % (3.141629293313594 - np.pi))
+    print('   xppautX\'s BP at th = 3.1415923639 (W580; 3.141629293 before): th - pi = %.2e' % (3.1415923638884355 - np.pi))
 
 
 # each program's R2 of pd_up: m (the curve's fixed parameter), eps, b0, its pair near -1; the cycle's state and the forcing's

@@ -2615,19 +2615,24 @@ noise, where the cubic gives 2e-20). The jumps and noise above the factor are re
 torus curve, where W419 has every Mueller step aim half a tolerance short of the zero because the equations are singular there: the halving
 has no such aim, and at the converged run's settings its last trial was 4.4e-8 past pi, after which the curve went back the way it came
 (R3 at 2pi/3 again, R4, R1 at 0). The bisection now leaves out a location the torus rule calls singular (1:1 or 1:2 nearest), which is given
-up after ITMX as AUTO-07p gives it up. So no result moves: autocompare's 79 models at 1 and automatic threads and the examples' md5s are as
+up after ITMX as AUTO-07p gives it up. This moves no result: autocompare's 79 models at 1 and automatic threads and the examples' md5s are as
 before, and the new rule has no case in tests/auto (tests/test_auto_location.cpp has a cubic accepted and an even touching refused).
 
 **henon_rot_th's branch point and the converged run.** The BP and the R2 are one point, th = pi. In the step that holds pi both runs give the
 BP up (the cubic is too flat for 8 Mueller iterations, and it is not bisected) and locate the R2; the next step brackets the BP only if the R2
-landed before pi, where the BP test is negative: ours at pi - 2.9e-7 (the BP then 3.66e-5 past pi), the converged run's at pi + 2.0e-8 (no BP).
+landed before pi, where the BP test is negative: ours at pi - 2.9e-7 (the BP then at the same point, below), the converged run's at pi + 2.0e-8 (no BP).
 AUTO-07p labels the BP 7.3e-9 from its R2 (both at pi - 1.3e-6). Which of two coincident labels a run keeps is AUTO-07p's own coincident rule
 (LCSPAE: a zero within the location tolerance of a located point keeps the first label), so the converged run's missing BP stays a traced
 difference (`.converged` in tests/auto/henon_rot_th.json, its cause rewritten); `continuation.py --pilots --only henon_rot_th` against the
 saved setup: the exact pilot against the converged run, equal work.
 
-**How close ours is.** The BP's search starts on the R2 point, where its test is -1.9e-17, and W419's rule for a singular torus curve ends it
-half a tolerance short of the secant's zero, which is that start: 5.2e-5 of arclength, 3.66e-5 in th, within the location tolerance
-(EPSS (1 + sqrt(DS DSMAX)) = 1.045e-4). The cubic does not mislead this search, which converges on its first step; it is why the search in the step
-before uses up its 8 iterations: Mueller's method converges only linearly on a zero of order 3, and a stop on the size of its step, AUTO-07p's,
-leaves such a zero up to about twice that size away.
+**How close ours is.** The BP's search starts on the R2 point, where its test is -1.9e-17, so the secant's zero is that start. W419's rule for
+a singular torus curve (W405, W419: Newton does not converge on the singular point itself, so a Mueller step aims half a tolerance short of
+its zero) put it half a tolerance past the start: 5.2e-5 of arclength, 3.66e-5 in th, inside the location tolerance (1.045e-4) but 27 times
+AUTO-07p's 1.34e-6. The start is a point already solved, so the shortening has nothing to avoid there: a singular zero whose estimate lies
+within half a tolerance of the step's start (not a discarded end's) is now taken at the start itself (`locate_special_point`'s `at_start`),
+one solve back to it and no Mueller step. The BP is now at th = 3.1415923638884, 2.9e-7 before pi, the R2's own point (AUTO-07p's BP is 7.3e-9
+from its R2), and the curve goes on forward from it (R3 at 4pi/3, R4 at 3pi/2, as before). henon_rot_th's diagram is the only baseline that
+moves (its BP row); the converged run, whose R2 lands past pi, is as before. Separately, the cubic is why the search in the step before uses up its
+8 iterations: Mueller's method converges only linearly on a zero of order 3, and a stop on the size of its step, AUTO-07p's, leaves such a zero
+up to about twice that size away.
