@@ -36,9 +36,9 @@ JACOBIAN_STEP = 1e-7  # relative, of the map system's central differences (the s
 OFFSETS = (-1e-4, -1e-5, 1e-5, 1e-4)  # from the singular point, where each test is evaluated
 
 
-def hill_monodromy(c, d):
+def hill_monodromy(c, d, mu=HILL_MU):
     def f(t, z):
-        a = np.array([[0, 1], [-(d + HILL_Q * np.sqrt(HILL_MU) * np.cos(t)), -(c + HILL_MU)]])
+        a = np.array([[0, 1], [-(d + HILL_Q * np.sqrt(mu) * np.cos(t)), -(c + mu)]])
         return (a @ z.reshape(2, 2)).ravel()
     return solve_ivp(f, (0, 2 * np.pi), np.eye(2).ravel(), rtol=RTOL, atol=ATOL, method='DOP853').y[:, -1].reshape(2, 2)
 

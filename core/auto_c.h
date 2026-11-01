@@ -154,10 +154,13 @@ inline bool auto_test_applies(doublereal value) { return !std::isnan(value); }
    instead, so a second zero ahead of the located point shows as a sign
    change (AUTO-07p stores 0, which hides it: docs/auto07p-findings.md 11);
    `offset` is then the arclength from the stored point to where that value
-   was sampled. */
+   was sampled. `after_branch_point` (W585) marks a torus curve's resonance
+   whose zero coincided with the branch point located at the stored point,
+   left for the next step to locate. */
 struct AutoTestSample {
   doublereal value = 0;
   std::optional<doublereal> offset;
+  bool after_branch_point = false;
 };
 
 /* W545 (#610): a located zero is a transversal crossing of a smooth test,

@@ -147,6 +147,22 @@
       "type": "resonance_1_3",
       "index": 2,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "cause": "W585 (#650), deliberate: the torus system's BP at the 1:2 point (theta = pi) and the R2 are one point; AUTO-07p's coincidence rule keeps the BP's label alone, ours locates the R2 on the next step. docs/studies/w585_torus_r2_check.py: the Hill pair at our R2 is a double -1 (trace + 2 = 1.0e-11, det - 1 = 1.1e-11), d 1.0e-11 from the true R2, as close as the BP (9.6e-12)."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     }
   ]
 }

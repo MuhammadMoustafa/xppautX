@@ -196,6 +196,10 @@ void sample_tests(iap_type &iap, std::vector<LocationTest<Function>> &tests, std
   }
 }
 
+bool is_branch_point(xpp::AutoPointKind kind) {
+  return kind == xpp::AutoPointKind::BranchPoint || kind == xpp::AutoPointKind::CycleBranch;
+}
+
 /* W572: whether a branch's starting point has tests that mean something: not a special point, where they are
    zero (a sign change from noise would label it again), and not a two-parameter curve's, whose tests are the
    codimension-two ones. The label the run restarts from says what the point is (irs 0: initial data). */
@@ -211,13 +215,18 @@ void locate_tests(iap_type &iap, rap_type &rap,
                   Evaluate evaluate, Locate locate) {
   double dstest = rap.dsold;
   std::size_t last_stepped = 0;
+  bool resonance_after_branch_point = false;
   std::optional<std::size_t> found;
   for (std::size_t i = 0; i < tests.size(); ++i) {
     auto &test = tests[i];
     if (test.user_index) iap.iuzr = *test.user_index;
     bool stepped = false;
+    const bool deferred = test.sample.after_branch_point;
     locate(test, dstest, stepped);
-    if (stepped) last_stepped = i;
+    if (stepped) {
+      last_stepped = i;
+      resonance_after_branch_point = deferred;
+    }
     if (iap.istop == 1) break;
     if (iap.itp.kind == xpp::AutoPointKind::Pending) {
       iap.itp = {test.kind, iap.itpst};
@@ -225,6 +234,11 @@ void locate_tests(iap_type &iap, rap_type &rap,
     }
   }
   sample_tests(iap, tests, last_stepped, evaluate);
+  // W585: the branch point test crosses zero again near the resonance located just after its own point (both are
+  // the one point: deferred_resonance); that crossing is the branch point already labelled, AUTO-07p's coincidence
+  if (resonance_after_branch_point)
+    for (std::size_t i = 0; i < last_stepped; ++i)
+      if (is_branch_point(tests[i].kind)) tests[i].sample = {};
   if (iap.istop != 1 && found && tests[*found].user_index &&
       marks[*tests[*found].user_index].parameter < 0) iap.istop = -1;
 }
@@ -263,6 +277,20 @@ bool location_sign_change(iap_type &iap, const rap_type &rap,
     q1 = 0;
   }
   return !((q0 >= 0 && q1 >= 0) || (q0 <= 0 && q1 <= 0) || !enabled);
+}
+
+// W585 (#650): a torus curve's own equations have a branch point where its
+// resonance test is zero at 1:1 and 1:2 (W405, W419: the fold or flip curve of
+// cycles crosses there), so a step that locates that BP first meets the
+// resonance's zero within the tolerance of it, and AUTO-07p's rule above keeps
+// the BP's label alone (hill_cycles_torus: the R2 at d = 0.2770059707517 was
+// lost). The point is both: the resonance is the curve's codimension-two point
+// and the BP its formulation's. The zero is not dropped but located on the
+// next step as a point of its own: where location_sign_change took it as
+// coincident with the BP (it set the value measured at the BP to 0), the test
+// keeps a value on the side of the zero it was measured on.
+bool deferred_resonance(const iap_type &iap, double q1_measured, double q1) {
+  return is_branch_point(iap.itp.kind) && q1 == 0 && q1_measured != 0 && auto_test_applies(q1_measured);
 }
 
 // W405 (#467): a torus curve's own equations are singular at its 1:1
@@ -316,13 +344,15 @@ void special_point_rejected(const iap_type &iap, integer ibr, integer ntot, cons
    are of a size a crossing within it gives (auto_ratio_in_scale, before the
    search), for every bracket, AUTO-07p's own included (W547). A zero refused
    is said once and the state restored, exactly as for a point given up.
+   A torus curve's resonance test whose zero coincides with a branch point the step
+   located is deferred to the next step, not dropped (W585, deferred_resonance).
    evaluate(chng) is the test at the current point, advance(rds) the predictor
    and corrector for a step of rds (rds may come back shorter, a corrector's
    retry), snapshot() the state a failed search restores, torus_singular()
    whether a torus curve's equations are singular there (location_step). */
 template<class Evaluate, class Advance, class Snapshot, class TorusSingular>
 void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, const char *kind,
-                          bool user_zero, bool ratio_test, const double &parameter,
+                          bool user_zero, bool ratio_test, bool torus_resonance, const double &parameter,
                           double &dstest, bool &stepped,
                           Evaluate evaluate, Advance advance, Snapshot snapshot, TorusSingular torus_singular)
 {
@@ -338,12 +368,24 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
 
   double q0 = sample.value;
   const std::optional<double> discarded = std::exchange(sample.offset, std::nullopt);
+  sample.after_branch_point = false;
   double &q = sample.value;
   bool chng;
   double q1 = evaluate(chng);
   const integer ntot = iap.ntot;
+  const double q1_measured = q1;
   if (!location_sign_change(iap, rap, q0, q1, dstest, chng, user_zero)) {
     q = q1;
+    if (torus_resonance && deferred_resonance(iap, q1_measured, q1)) {
+      sample.after_branch_point = true;
+      if ((q0 < 0) == (q1_measured < 0)) {
+        q = q1_measured; // the zero is ahead: the next step brackets it from here
+      } else {
+        // the zero is behind: the next step brackets it from where q0 was measured, behind this point
+        q = q0;
+        sample.offset = discarded.value_or(0.) - dstest;
+      }
+    }
     return;
   }
 
@@ -2077,7 +2119,8 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   const auto n = static_cast<std::size_t>(iap->ndim);
   const auto np = static_cast<std::size_t>(iap->lib->parameter_count);
   const auto na = static_cast<std::size_t>(*m1aaloc) * (n + 1);
-  locate_special_point(*iap, *rap, q, located_kind(fncs), fncs == fnuzae, false, par[icp[0]], dstest, stepped,
+  locate_special_point(*iap, *rap, q, located_kind(fncs), fncs == fnuzae, false,
+      fncs == fnrnae && iap->itpst == xpp::AutoPointKind::NeimarkSacker, par[icp[0]], dstest, stepped,
       [&](bool &chng) {
         return (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, aa, rlcur, rlold, rldot,
                        u, uold, udot, rhs, dfdu, dfdp, marks);
@@ -5652,7 +5695,8 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   const auto nfpr = static_cast<std::size_t>(iap->nfpr);
   const auto nu = static_cast<std::size_t>(*ndxloc) * n * iap->ncol;
   const auto nc = static_cast<std::size_t>(iap->nbc + iap->nint + 1);
-  locate_special_point(*iap, *rap, q, located_kind(fncs, *iap), fncs == fnuzbv, fncs == fnbpbv, par[icp[0]], dstest, stepped,
+  locate_special_point(*iap, *rap, q, located_kind(fncs, *iap), fncs == fnuzbv, fncs == fnbpbv,
+      fncs == fnspbv && iap->isw == 2 && iap->itpst == xpp::AutoPointKind::NeimarkSacker, par[icp[0]], dstest, stepped,
       [&](bool &chng) {
         return (*fncs)(iap, rap, par, icp, &chng, funi, bcni, icni, p0, p1, ev, rlcur, rlold,
                        rldot, ndxloc, ups, uoldps, udotps, upoldp, fa, fc, dups, tm, dtm,
