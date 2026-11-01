@@ -53,7 +53,6 @@ REFINEMENT = 10
 # henon_rot_th (the Henon map with a rotation) and explicit_homoclinic (the orbit in closed form). Branch switching is W556's.
 SPECIAL_POINT_DESCRIPTIONS = ('forced_pp_pd', 'forced_pp_ns', 'hen_pd', 'hen_tr', 'lorenz_homoclinic', 'lrz_cycles',
                               'hill_cycles_pd', 'hill_cycles_torus', 'henon_rot_pd', 'henon_rot_tr', 'henon_rot_th', 'explicit_homoclinic')
-SPECIAL_POINT_TIMED = False  # phase 1 of W557 is untimed; the timed rerun turns it on
 CONVERGED = '.converged'  # that run's name where compare_references names a reference
 comparison.REFERENCES.setdefault(CONVERGED, 'the converged exact run')
 
@@ -138,10 +137,10 @@ def workloads(a):
         d = description(name)
         result.append(('V1-' + name if name.startswith('tstauto') else name, d, [r['name'] for r in d['runs']], False))
     # W557 (#622): continuation from period doublings, tori and homoclinic orbits, as the descriptions of tests/auto run them
-    # (their own names; the published models first: the README's table in tests/auto). Untimed until the timed rerun.
+    # (their own names; the published models first: the README's table in tests/auto), timed (phase 2).
     for name in SPECIAL_POINT_DESCRIPTIONS:
         d = description(name)
-        result.append((name, d, [r['name'] for r in d['runs']], SPECIAL_POINT_TIMED))
+        result.append((name, d, [r['name'] for r in d['runs']], True))
     if a.check:
         restart = copy.deepcopy(next(d for name, d, _, _ in result if name == 'E3-50'))
         restart['runs'][0]['auto']['max_steps'] = SMOKE_POINTS
