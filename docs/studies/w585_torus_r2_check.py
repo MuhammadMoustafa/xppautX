@@ -9,7 +9,8 @@ two tests are zero at one point; xppautX used to keep the BP's label alone (AUTO
   res_cycles  torus_up: the (w, v) equilibrium w = sqrt(b) of tools/models/res_cycles.odex, whose eigenvalues lambda give the cycle's pair
       exp(2 pi lambda) (period 2 pi); the R1 (a double +1) is at b = 0, c = -mu (closed form in the model's header).
 
-The points are those of tests/auto/<model>.diagram.csv, at the descriptions' settings.
+The points are those of tests/auto/<model>.diagram.csv, at the descriptions' settings, and (W588, #653) forced_pp_ns' in the converged
+run (paper/benchmarks/comparison/continuation.py tightened(): EPS/1000, steps/10, 100 Newton iterations, the exact Jacobian).
 
     uv run --locked python docs/studies/w585_torus_r2_check.py
 """
@@ -25,9 +26,11 @@ import w557_special_point_check as w557  # noqa: E402
 
 HILL_MU = 0.29999999975303226  # the cycles' TR the torus curves start from (hill_cycles_torus.diagram.csv)
 HILL = {'BP': (-0.2999999997517784, 0.2770059707503156), 'R2': (-0.29999999975473624, 0.2770059707510082)}  # (c, d)
-NS_M = 0.3175425693891668  # the cycles' TR (forced_pp_ns.diagram.csv)
 NS_START = (0.5, 0.338)  # (eps, b0) where the curve's cycle is first found (w578_converged_check.forced_pp_ns)
-NS = {'BP': (0.5966569359300297, 0.3401301118010629), 'R2': (0.5966569357319971, 0.3401301118437829)}  # (eps, b0)
+NS_RUNS = {  # the cycles' TR m (forced_pp_ns.diagram.csv; the converged run's) and the run's (eps, b0) of the BP and the R2
+    'description': (0.3175425693891668, {'BP': (0.5966569359300297, 0.3401301118010629), 'R2': (0.5966569357319971, 0.3401301118437829)}),
+    'converged run': (0.3175445941520383, {'BP': (0.5966550380083478, 0.3401301104196885), 'R2': (0.5966550330471185, 0.34013011202135257)}),
+}
 RES_MU, RES_G = 0.5000000059882198, 1.0  # the cycles' TR (res_cycles.diagram.csv), the model's g
 RES = {'BP': (-0.5000000059886828, -7.040083787120241e-20), 'R1': (-0.50000000598855, -2.1644556564622926e-20)}  # (c, b)
 
@@ -42,15 +45,16 @@ def hill_cycles_torus():
 
 
 def forced_pp_ns():
-    cycle = w557.Cycle([0.33, 0.17], NS_M, 0.0)
-    cycle.move_to(*NS_START)
-    cycle.move_to(*NS['BP'])
-    true = fsolve(lambda p: [np.trace(cycle.multipliers(*p)) + 2, np.linalg.det(cycle.multipliers(*p)) - 1], NS['BP'], xtol=1e-12)
-    print('forced_pp_ns ns_up: the true R2 at m = %.13f: (eps, b0) = (%.10f, %.10f)' % (NS_M, *true))
-    for name, (eps, b0) in NS.items():
-        m = cycle.multipliers(eps, b0)
-        print('   %s: eps, b0 - true = %+.2e, %+.2e, trace + 2 = %+.2e, det - 1 = %+.2e, multipliers %s'
-              % (name, eps - true[0], b0 - true[1], np.trace(m) + 2, np.linalg.det(m) - 1, np.linalg.eigvals(m)))
+    for run, (m_tr, points) in NS_RUNS.items():
+        cycle = w557.Cycle([0.33, 0.17], m_tr, 0.0)
+        cycle.move_to(*NS_START)
+        cycle.move_to(*points['BP'])
+        true = fsolve(lambda p: [np.trace(cycle.multipliers(*p)) + 2, np.linalg.det(cycle.multipliers(*p)) - 1], points['BP'], xtol=1e-12)
+        print('forced_pp_ns ns_up (%s): the true R2 at m = %.13f: (eps, b0) = (%.10f, %.10f)' % (run, m_tr, *true))
+        for name, (eps, b0) in points.items():
+            m = cycle.multipliers(eps, b0)
+            print('   %s: eps, b0 - true = %+.2e, %+.2e, trace + 2 = %+.2e, det - 1 = %+.2e, multipliers %s'
+                  % (name, eps - true[0], b0 - true[1], np.trace(m) + 2, np.linalg.det(m) - 1, np.linalg.eigvals(m)))
 
 
 def res_cycles():

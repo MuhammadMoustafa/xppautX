@@ -386,7 +386,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
 
   double q0 = sample.value;
   const std::optional<double> discarded = std::exchange(sample.offset, std::nullopt);
-  sample.after_branch_point = false;
+  const bool coincident = std::exchange(sample.after_branch_point, false);
   double &q = sample.value;
   bool chng;
   double q1 = evaluate(chng);
@@ -525,6 +525,21 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
     }
     converged = !why && !cancelled;
   }
+  // W588 (#653): a zero the coincidence rule put at the stored point (deferred_resonance), which the search cannot
+  // reach where the torus equations are singular, is taken at that point, as at_start takes a singular zero at a
+  // solved point (W580): forced_pp_ns' converged run, whose corrector failed 1.5e-8 short of the R2 beside its BP
+  bool at_stored_point = false;
+  if (coincident && singular && why && !cancelled) {
+    saved.restore(iap, rap);
+    s1 = saved_dstest;
+    rds = -s1;
+    why = nullptr;
+    if (trial()) {
+      s = s0 = s1 = s1 + rds;
+      dstest = s;
+      stepped = converged = at_stored_point = true;
+    }
+  }
   if (cancelled) {
     q = 0.;
     return;
@@ -533,7 +548,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
   // a zero new to AUTO-07p is accepted as a crossing of a smooth test, or of one whose zero is of odd order
   // (W580), or not at all (W545); a first secant step that lands within the tolerance of the end measures no
   // slope, so it shows no crossing
-  if (converged && (discarded || bisected)) {
+  if (converged && (discarded || bisected) && !at_stored_point) {
     const double width = std::abs(s1 - s0);
     const double ratio = auto_crossing_slope_ratio(q_end - q_start, step_length, q1 - q0, width);
     if (iterations == 0) {

@@ -2749,3 +2749,19 @@ judge's `signature` (paper/benchmarks/comparison/continuation.py) both use it. N
 models). Rejudged offline with this tip's xppautX, the twelve special-point workloads: eleven equal work (hill_cycles_torus now among them);
 forced_pp_ns is not: its pilot's ns_up has BP and R2 (W585's R2 beside the BP), the converged run's the BP alone, a missing label and not an
 order.
+
+## W588: the resonance beside a torus curve's branch point at tight tolerances ([#653](https://github.com/MuhammadMoustafa/xppautX/issues/653))
+
+W587's rejudge found forced_pp_ns not equal work: ns_up's pilot labels the BP and, on the next step, the R2 beside it (W585), the converged run
+(continuation.py tightened(): EPS/1000, steps/10, 100 Newton iterations, exact Jacobian) the BP alone, with the note that the strong resonance
+between points 61 and 62 was not located because the corrector did not converge. **Cause:** the converged run's BP landed past theta = pi, so the R2's
+zero, which the coincidence rule put at the BP, lies behind it, and W585 searches for it from where the test was last measured, behind the BP. The
+search came within 2.6e-8 of the zero (its tolerance 1e-8), and its next trial, aimed half a tolerance short of it, did not converge: within 1e-8 of
+the singular point the torus equations' Newton iteration does not reach EPS 1e-10 even in 100 iterations.
+
+**Fix** (core/autlib1.cpp, locate_special_point): a zero the coincidence rule put at the stored point (`after_branch_point`, W585), whose search fails
+there, is taken at that point, as W580's `at_start` takes a singular zero at a solved point (and W586's BP beside an R2 the same way): the state goes
+back to the stored point, and the resonance is labelled there. Where the search reaches the zero, nothing changes: every autocompare description
+passes unchanged, byte for byte. The converged run's R2 against the model (`docs/studies/w585_torus_r2_check.py`, the Poincare map at the run's m):
+7.5e-10 in eps and 2.4e-10 in b0 from the true R2 (trace + 2 = 2.3e-9), closer than its BP (4.2e-9, 1.4e-9). Rejudged offline
+(the finite-difference pilot against the converged run, continuation.py's converged_mismatch): forced_pp_ns, hill_cycles_torus and henon_rot_th equal work.
