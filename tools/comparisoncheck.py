@@ -103,7 +103,9 @@ def auto_case(a, check):
     sys.path.insert(0, str(BENCH / 'auto'))
     import hopf_xppautx
     from explore_xppautx import step, numerics
-    s = Server(str(a.xppautx), str(BENCH / 'auto/models/PY_S1Bf_bench.ode'))
+    folder = a.out / 'auto'
+    shutil.copytree(BENCH / 'auto/models', folder, ignore=shutil.ignore_patterns('*.odex'))
+    s = Server(str(a.xppautx), str(folder / 'PY_S1Bf_bench.ode'), run=str(folder))
     try:
         step(s)
         step(s, cmd='events.subscribe', events=[], diagram=True)
@@ -119,7 +121,7 @@ def auto_case(a, check):
 def modeldb_auto_case(a, check):
     driver = module('modeldb_auto', BENCH / 'modeldb-267710/auto_xppautx.py')
     folder = a.out / 'modeldb-auto'
-    shutil.copytree(driver.MODEL_DIR, folder)
+    shutil.copytree(driver.MODEL_DIR, folder, ignore=shutil.ignore_patterns('*.odex'))
     s = Server(str(a.xppautx), str(folder / driver.MODEL), run=str(folder))
     try:
         completed(s)
