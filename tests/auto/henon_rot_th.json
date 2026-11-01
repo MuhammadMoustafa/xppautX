@@ -128,14 +128,6 @@
       "type": "resonance_1_4",
       "index": 2,
       "cause": "XPPAUT 8.0 auto_2p_hopf sets ISP=0 and ILP=0 (auto_nox.c:2634-2636), disabling strong-resonance detection on the map's torus curve; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
-    },
-    {
-      "reference": ".converged",
-      "run": "turn",
-      "side": "ours",
-      "type": "branch_point",
-      "index": 1,
-      "cause": "W578 (#643), W580 (#645): the converged exact run (EPS/1000, steps/10) labels the R2 at th = pi and not this branch point, which is the same point: the torus system's Jacobian (AUTO-07p's FFNSX, xppautX's ffhb) loses rank at th = pi, where the rotation's pair is the semisimple double -1, and its determinant with the tangent changes sign there as (th - pi)^3, -5.9e-13 at th - pi = -1e-5, +5.9e-13 at +1e-5 (docs/studies/w578_converged_check.py, the map's own equations). Both runs give the branch point up in the step that holds th = pi (the cubic is too flat for 8 Mueller iterations, and a torus curve's singular point is not bisected, W580) and locate the R2 in it; the next step brackets the branch point only when the R2 lands before pi: ours at -2.9e-7, the converged run's at +2.0e-8. A second label within the location tolerance of a located point is AUTO-07p's coincident case; ours is taken at the R2's point, 2.9e-7 before pi (AUTO-07p's 1.3e-6), W580."
     }
   ]
 }
