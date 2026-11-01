@@ -538,9 +538,12 @@ SOURCES = {'auto07p': 'AUTO-07p 0.9.4', 'xppaut': 'XPPAUT 8.0 (reference/xppaut-
 SUFFIX = {'auto07p': '.auto07p', 'xppaut': '.xppaut'}
 
 
-def check_description(name, d, program):
+XPPAUT_TIMED_HOMOCLINIC = 'a timed XPPAUT homoclinic run is not driven: its dialog follows the keys that start it'
+
+
+def check_description(name, d, program, measured=False):
     """The part of the problem both programs need (the Odex, the equations, the start); refused
-    with its reason when the program cannot run it the same way."""
+    with its reason when the program cannot run it the same way (timed, when `measured`)."""
     if 'skip' in d:
         raise Refused('our description skips it: ' + d['skip'])
     if program + '_skip' in d:  # a reason this program's reference is not kept (autocompare reads the same key)
@@ -562,6 +565,8 @@ def check_description(name, d, program):
     if homs and (len(homs) != 1 or homs[0]['start'].get('state') != 'current' or 'step' not in homs[0]['start']
                  or (program == 'xppaut' and homs[0]['kind'] != 'homoclinic')):
         raise Refused('HomCont: one run, from the integrated orbit (start current, settle, step); XPPAUT drives homoclinic only')
+    if homs and measured and program == 'xppaut':
+        raise Refused(XPPAUT_TIMED_HOMOCLINIC)
     for r in d['runs']:
         for parameter, _ in r.get('marks', []):
             if parameter != 'T' and parameter not in eqs.slot:
@@ -894,7 +899,7 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
             dsize = len(diag.read_text()) if diag.exists() else 0
             if r['kind'] == 'homoclinic':
                 if measurements is not None:
-                    raise Refused('a timed XPPAUT homoclinic run is not driven: its dialog follows the keys that start it')
+                    raise Refused(XPPAUT_TIMED_HOMOCLINIC)
                 c = r['connection']
                 # Start > Homoclinic, from the last integration: the dialog takes both dimensions and the equilibrium (the right one is unused)
                 fill_dialog(auto, (('r', 'h'), 'Homoclinic info'), [c['nunstab'], *c['left'], c['nstab'], *c['right']])

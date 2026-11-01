@@ -231,13 +231,13 @@ def foreign(a, d, program, inputs, folder, measured, exact=None):
     return comparison.checked_reference(value, reference.SUFFIX[program], d), measurement
 
 
-def refused(name, d, program):
+def refused(name, d, program, measured):
     """Why the reference driver cannot run the description for the program (tools/auto_reference.py's own refusal, with the
     description's traced skip left out: that skip says the program's result is not compared, not that it cannot run), or None."""
     if not (reference.BASE / (name + '.diagram.csv')).exists():
         return None  # the earlier workloads (P1, E1, ...) have no tests/auto description: the driver ran them unrefused before W557
     try:
-        reference.check_description(name, {k: v for k, v in d.items() if k != program + '_skip'}, program)
+        reference.check_description(name, {k: v for k, v in d.items() if k != program + '_skip'}, program, measured)
     except reference.Refused as e:
         return str(e)
     return None
@@ -778,16 +778,17 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
         if not rhs['passed']:
             return stop(dict(passed=False, differences=['%s: the right-hand side check failed, see %s' % (name, out / 'rhs')], notes=[], measures=[],
                              unavailable=[], traced_differences=[], rhs=rhs, scope='stopped after the right-hand side check'))
-        refs, pilots = {}, {}
+        refs, pilots, unsupported = {}, {}, set()
         for program in ('xppaut', 'auto07p'):
             rd = given(copy.deepcopy(d), program)
-            why = refused(name, d, program)
+            measured = not a.check and timed
+            why = refused(name, d, program, measured)
             if why:
                 # W557 (#622): a program that cannot run the description (its driver's own refusal) is recorded, not run
                 save(out / ('pilot-%s-unsupported.json' % program), dict(program=program, reason=why))
                 phase('%s does not run this description: %s' % (program, why))
+                unsupported.add(program)
                 continue
-            measured = not a.check and timed
             pilot_key = row_key(a, program, rd, start, dict(label='pilot-' + program, measured=measured), a.cores[:1])
             earlier, why = reusable_pilot(a, name, mode, program, pilot_key) if a.reuse else (None, 'no --reuse')
             if earlier:
@@ -885,7 +886,7 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
                 return workload(a, name, larger, targets, timed, records, mode + '-sized')
         run_d = repeats_description(d, targets, count)
         save(out / 'window.json', dict(branch_repetitions=count, nominal_min_seconds=MIN_WINDOW, description=run_d))
-        engines = variants(name, timed, a.check)
+        engines = [e for e in variants(name, timed, a.check) if e[1] not in unsupported]
         required = 4
         if len(a.cores) < required:
             raise ValueError('settled thread rows require four distinct physical cores in the machine record')
