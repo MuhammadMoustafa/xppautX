@@ -69,7 +69,7 @@ def compile_equations(text_path, scratch):
 def nearest_cycle_point(diagram, odex, slot, target):
     """The state of the periodic point of a run continuing the parameter in `slot` (AUTO's PAR number) nearest `target`."""
     with open(diagram, newline='') as f:
-        rows = [r for r in csv.DictReader(line for line in f if not line.startswith('branch,')) if float(r['per']) > 0 and int(r['icp1']) == slot]
+        rows = [r for r in csv.DictReader(line for line in f if not line.startswith('branch,')) if float(r['per']) > 0 and int(r['icp1']) + 1 == slot]  # icp1 is 0-based
     row = min(rows, key=lambda r: abs(float(re.split(r'[;\s]', r['values'])[0]) - target))
     return np.array([float(row['u0.' + s.upper()]) for s in odex.states])
 

@@ -2593,3 +2593,43 @@ new reference name a description may trace against (`autocompare.CONVERGED_REFER
 
 No tolerance is widened. Against the saved data of the series all nine exact pilots and every exact row of repetition 0 are equal work, and the 16
 other workloads' exact gates (and P1, E1, P2, E2, T1's AUTO-07p exact gates) are as before.
+
+## W584: Mu26's long-period cycles, xppautX's accuracy against AUTO-07p's ([#649](https://github.com/MuhammadMoustafa/xppautX/issues/649))
+
+W578 found xppautX's norm of ode_mu26_blocked's 0.07 pA UZ 7.5e-5 (exact Jacobian) and 6.0e-5 (difference Jacobian) below the model's
+own cycle, AUTO-07p's closer, and the neutral multiplier at the 1 pA UZ 0.99983 and 0.99979. One point does not say which program is more
+accurate, so both were checked along the whole approach to the SNIC, each at its own parameter, by the model's own equations
+(docs/studies/floquet_check.py --norm: exact derivatives, no collocation), at the same constants (NTST 50, NCOL 4, EPSL = EPSU 1e-7,
+EPSS 1e-5, difference Jacobians: AUTO-07p's JAC=0), from the W557 timed series' pilots. `docs/studies/w584_snic_accuracy.py` takes
+every third point with a period over 300 (the first ten), ten on blocked and nine on control (periods 300 to 3982 and 313 to 3316):
+
+| over the 19 samples | xppautX | AUTO-07p | xppautX's error smaller |
+|---|---|---|---|
+| norm, RMS error (largest) | 2.3e-5 (6.0e-5) | 3.9e-5 (9.9e-5) | 11 of 19 |
+| period, RMS error (largest) | 2.7e-3 (8.9e-3) | 2.7e-3 (1.0e-2) | 13 of 19 |
+| neutral multiplier - 1, RMS (largest) | 2.2e-4 (7.2e-4) | 3.1e-4 (8.0e-4) | 10 of 19 |
+
+At the UZ points (error = the program's value minus the model's cycle at the program's own parameter; AUTO-07p's are 1e-8 away):
+
+| model, UZ | norm, ours | norm, AUTO-07p | neutral multiplier - 1, ours | AUTO-07p |
+|---|---|---|---|---|
+| blocked 5 pA | -1.7e-6 | -1.9e-6 | -1.1e-6 | 0 (six digits) |
+| blocked 1 pA | +3.4e-6 | +1.6e-6 | -1.5e-4 | -1.3e-4 |
+| blocked 0.1 pA | +6.9e-7 | -3.4e-5 | +5e-8 | +3e-5 |
+| blocked 0.07 pA | -6.0e-5 | +1.4e-5 | +4.1e-6 | 0 |
+| control 5 pA | -2.3e-6 | -1.8e-6 | -5.2e-7 | 0 |
+| control 1 pA | -2.9e-7 | -1.4e-6 | -1.4e-4 | +1e-5 |
+| control 0.1 pA | -3.6e-5 | -5.6e-6 | +2.5e-4 | -8.7e-5 |
+| control 0.07 pA | -1.1e-5 | -4.2e-5 | +1.6e-5 | +5.5e-4 |
+
+Neither program is the more accurate: the error of each is where Newton stops at EPSU 1e-7 in a nearly singular collocation system
+(W474), and which of the two stops nearer the cycle changes from point to point; over the run xppautX's errors are the smaller. The
+mesh is not the limit: the converged run (EPS 1e-10, the same NTST 50) is 1.2e-6 from the norm at 0.07 pA. Read against AUTO-07p's
+source (bvp.f90 STEPBV, NEWTONBV, CONTBV; floquet.f90 FLOWKM), xppautX's Newton iteration (stepbv: the same ITNW, NWTN, EPSL/EPSU
+test on the relative increment and divergence test), secant tangent, elimination order (W474's nested dissection), norm (rnrmsq's
+collocation weights) and Floquet multipliers (the deflated circuit pencil of the last factorised condensed system) are AUTO-07p's;
+what differs is rounding (the elimination keeps AUTO2000's complete pivoting, W474), which is what moves the stopping point. Nothing in core/
+changes and no tolerance is widened; W578's traces in tests/auto/ode_mu26_{blocked,control}.json stay, since the converged run still
+differs from both programs there. floquet_check.py now matches a diagram row's 0-based `icp1` against the parameter's slot (it picked
+its start from a two-parameter run's rows on ode_mu26_blocked, and found none on ode_mu26_control; the cycle it converges to was the
+same).
