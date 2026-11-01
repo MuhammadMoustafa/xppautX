@@ -36,10 +36,7 @@ EXACT_AUTO07P = ('P1', 'E1', 'P2', 'E2', 'T1')  # the workloads AUTO-07p also ru
 # W457 (#520): an exact-Jacobian row is judged against a run of xppautX's own exact Jacobian that is converged: the
 # convergence tolerances divided by TIGHTENING, the continuation steps by REFINEMENT (and as many steps allowed).
 TIGHTENING = 1e3
-# W561 (#626): the converged run's Newton iterations. At EPS/1000 (1e-10) the first point of Mu26 control's cycles off the Hopf point
-# is not reached in 7 iterations, at any step down to DSMIN (AUTO-07p's the same: MX at branch 49, point 2, not near the SNIC);
-# 12 reach it, 20 leave room. A run whose points all converge within the description's iterations is unchanged by the cap.
-CONVERGED_NEWTON = 20
+CONVERGED_NEWTON = 100  # W581 (#646): room to converge at EPS/1000 near hill_cycles_torus's singular BP; 20 misses it.
 T2_SIZED_POINTS = 400  # T2's sized pilot: a fixed size, as AUTO-07p's spurious GH (finding 2) follow its step; sized from
 # xppautX's pilot time it grew to 598 points once W465/W466 made it faster, and AUTO-07p labelled two, not four (series 22i)
 T2_SIZED_GH = 4  # AUTO-07p's spurious GH labels at T2_SIZED_POINTS (W456's five at the description's steps)
