@@ -931,11 +931,13 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
                     else:
                         ref, result = foreign(a, fd, program, inputs, folder, True, exact=exact_c if exact else None)
                         # the digest of the file as saved, as a reused row's is (W562, D1): ref was rewritten by checked_reference
-                        digest = reference_digest(json.loads((folder / 'reference.json').read_text()))
+                        saved = json.loads((folder / 'reference.json').read_text())
+                        digest = reference_digest(saved)
                         shared = dict(initial, ranges=by_original(run_d, initial['ranges']))
                         agreement = gate(name, run_d, shared, {reference.SUFFIX[program]: ref}) if rep == 0 else dict(passed=digest == baselines[label])
                         for r in result['runs']:
-                            branch = next(v for v in ref['runs'] if v['name'] == r['run'])
+                            # the saved file's runs: a skipped run is timed but not compared (henon_rot_tr's down, W405)
+                            branch = next(v for v in saved['runs'] if v['name'] == r['run'])
                             r['points'] = len(branch.get('curve', []))
                     save(folder / 'gate.json', agreement)
                     made = list(aggregate(result, targets).items())
