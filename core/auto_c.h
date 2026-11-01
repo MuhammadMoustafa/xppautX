@@ -161,24 +161,38 @@ struct AutoTestSample {
 };
 
 /* W545 (#610): a located zero is a transversal crossing of a smooth test,
-   a jump, noise, or a touching. A smooth transversal crossing has about the
-   same slope across the step as at the end of the location, a tolerance
-   wide; a jump or noise has a slope that grows as the bracket shrinks, a
-   touching (a double zero) one that shrinks. A zero counts as a crossing
-   when the slope across the final bracket is within this factor of the slope
-   across the step, either way. Measured (docs/auto-references.md W545): the
-   new zeros that are crossings give 1.02 and 1.76, the ordinary zeros of the
-   71 models 0.7 to 2.3, the jumps and noise refused 29.7 and more, the
-   touching 1e-6: 3 lies between, close to the ordinary range. */
+   a jump, noise, or a zero of higher order. A smooth transversal crossing
+   has about the same slope across the step as at the end of the location, a
+   tolerance wide; a jump or noise has a slope that grows as the bracket
+   shrinks, a zero of higher order one that shrinks. The slope across the
+   final bracket over the slope across the step: 0 or more, NaN where a
+   length is not positive. Measured (docs/auto-references.md W545): the new
+   zeros that are crossings give 1.02 and 1.76, the ordinary zeros of the 71
+   models 0.7 to 2.3, the jumps and noise refused 29.7 and more: a zero whose
+   ratio is above this factor is no crossing, one below its inverse is of
+   higher order (auto_zero_order says whether it crosses). */
 inline constexpr doublereal auto_crossing_slope_ratio_max = 3;
-inline bool auto_crossing_smooth(doublereal step_change, doublereal step_length,
-                                 doublereal final_change, doublereal final_width) {
-  if (!(step_length > 0 && final_width > 0)) return false;
-  const doublereal step_slope = std::abs(step_change) / step_length;
-  const doublereal final_slope = std::abs(final_change) / final_width;
-  return final_slope <= auto_crossing_slope_ratio_max * step_slope &&
-         step_slope <= auto_crossing_slope_ratio_max * final_slope;
+inline doublereal auto_crossing_slope_ratio(doublereal step_change, doublereal step_length,
+                                            doublereal final_change, doublereal final_width) {
+  if (!(step_length > 0 && final_width > 0 && step_change != 0)) return std::numeric_limits<doublereal>::quiet_NaN();
+  return (std::abs(final_change) / final_width) / (std::abs(step_change) / step_length);
 }
+
+/* W580 (#645): the order of a zero whose slope shrinks as its bracket does,
+   from the test at the ends of the step, each against its distance from the
+   located zero: an order-k zero has |q| = c d^k on both sides, so
+   ln(|q_a| / |q_b|) = k ln(d_a / d_b). An odd order changes sign (a cubic is a
+   crossing, however flat: henon_rot_th's branch point at th = pi); an even
+   one is a touching the samples straddle only through a value at the noise
+   of a test that does not cross there (a double zero c d^2 against noise e
+   sampled at d = sqrt(e / c) gives 2). 0 where the ends cannot say (a value
+   or a distance of 0, or equal distances). */
+inline doublereal auto_zero_order(doublereal q_a, doublereal d_a, doublereal q_b, doublereal d_b) {
+  const doublereal distances = xpp::math::log(std::abs(d_a) / std::abs(d_b));
+  const doublereal order = xpp::math::log(std::abs(q_a) / std::abs(q_b)) / distances;
+  return std::isfinite(order) && distances != 0 ? std::round(order) : 0;
+}
+inline bool auto_zero_crosses(doublereal order) { return order > 0 && std::fmod(order, 2) == 1; }
 
 /* W545 (#610): a cycle's branch-point test is a ratio of consecutive
    determinants (AUTO-07p's DET0/DET), about 1 along the branch. Where the

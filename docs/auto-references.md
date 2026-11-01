@@ -2001,7 +2001,7 @@ ratio, final over step, of every located zero of the baseline: 171 of 182 lie in
 | tstauto_frcp, equilibria | 38 | Hopf | after a located zero | 51.7 (jump) | refused |
 | global_heteroclinic, cycles | 30, 32 | fold | ITMX, bisected | 692, 986 (jump) | refused |
 | global_heteroclinic, cycles | 30 | branch point | after a located zero | values 2.4e13, -5.9e14 against 500 | refused |
-| henon_rot_th, turn | 33 | branch point | ITMX, bisected | 1.1e-6 (touching) | refused |
+| henon_rot_th, turn | 33 | branch point | ITMX, bisected | 1.1e-6 (a cubic, not a touching: W580) | refused (W580: not bisected, given up) |
 | pp2_heteroclinic_coarse, cycles | 36, 41 | fold | after a located zero | 51.9, 29.7 (noise) | refused |
 | pp2_heteroclinic_coarse, cycles | 94 | fold | ITMX, bisected | 112 (jump at the step's start) | refused |
 | ode_lecar, tstauto_lecar, pp2_heteroclinic | 20, 23, 24 | branch point | ITMX | the iteration left the step | as before, given up |
@@ -2585,7 +2585,7 @@ new reference name a description may trace against (`autocompare.CONVERGED_REFER
 | workload | what | independent check |
 |---|---|---|
 | hill_cycles_torus | torus_down's BP: the converged run's corrector does not converge there in 20 Newton iterations | the Hill pair is a defective double -1 at d* = 0.2770059707517 and the flip curve passes through it (d - d* = -4.6e-8 at c + mu = +-1e-4): a second branch of the torus system; ours 1.4e-12 from d* |
-| henon_rot_th | turn's BP: the converged run's step starts on the R2 at th = pi, where the BP test is zero too, and W545's rule refuses it as a touching | the torus system's Jacobian loses rank at th = pi and its determinant with the tangent changes sign as (th - pi)^3 (-5.9e-13 and +5.9e-13 at -+1e-5) |
+| henon_rot_th | turn's BP: the BP and the R2 are one point, th = pi; the converged run's R2 lands past pi, so the next step does not bracket the BP (W580; W578 had it as W545's touching rule, which W580 corrected) | the torus system's Jacobian loses rank at th = pi and its determinant with the tangent changes sign as (th - pi)^3 (-5.9e-13 and +5.9e-13 at -+1e-5) |
 | forced_pp_pd | pd_up's R2 multipliers -0.99999982 +- 6.9e-4i, the converged run's -0.9999999999 +- 1.5e-5i | both R2 within 3.5e-9 of the true one; its monodromy is a Jordan block (off-diagonal 109) that a 1e-10 perturbation splits by 1.1e-3 (W565) |
 | forced_pp_ns | ns_up's BP norm, 1.46e-6, and both torus curves | ours locates the cycles' TR at m 2.0e-6 below the true one (within EPSS 1e-5; AUTO-07p's the same), the converged run at it; the curves keep that m, and the norm carries dm / (2 norm) = 1.46e-6 |
 | ode_mu26_control, ode_mu26_blocked | to_snic's 1 pA UZ, the neutral multiplier: ours 0.99983, 0.99979; the converged run's 1.000018, 1.000023 | exactly 1; the model's own multipliers at blocked's UZ 0.99999992, 0.013069072, 0.012902644, ours 0.013069071, 0.012902643 (W437) |
@@ -2593,3 +2593,41 @@ new reference name a description may trace against (`autocompare.CONVERGED_REFER
 
 No tolerance is widened. Against the saved data of the series all nine exact pilots and every exact row of repetition 0 are equal work, and the 16
 other workloads' exact gates (and P1, E1, P2, E2, T1's AUTO-07p exact gates) are as before.
+
+## W580: a flat zero of odd order crosses ([#645](https://github.com/MuhammadMoustafa/xppautX/issues/645))
+
+W545's rule refused a zero whose slope across the last bracket of its search was below a third of its slope across the step as a touching,
+"a double zero that the samples straddle". A continuous test changes sign only across a zero of odd order, so a sign change with a shrinking
+slope is a zero of order 3, 5, ... unless one sample is at the test's noise; the one case W545 refused that way, henon_rot_th's branch point
+at th = pi, is a cubic. `docs/studies/w578_converged_check.py` shows it from the map's own equations: the torus system's smallest singular value
+is 0.985 |th - pi| and its determinant with the tangent is 5.9491e2 (th - pi)^3 (-5.9e-13 and +5.9e-13 at -+1e-5, -6.2e-37 at pi).
+
+**The rule now** (`auto_zero_order`, `auto_zero_crosses`, core/auto_c.h). Below the factor, the order k of the zero is read from the test at
+the ends of the step against their distances from the located point, |q| = c d^k on both sides: k = ln(|q_start| / |q_end|) / ln(d_start / d_end),
+rounded. An odd k is a crossing and accepted; an even k (or none: a value or a distance of 0, equal distances) is refused with its own note
+(`its test does not cross zero there: ... make it a zero of order 2, not odd: a double zero the samples straddle`). A double zero c d^2 that
+the samples straddle only through a sample at the noise e, taken where c d^2 = e, gives exactly 2. henon_rot_th's bracket gives 3.0 at the
+description's settings (-0.2217 at 0.0809, +0.0029 at 0.0191) and 3.0 at the converged run's (-3.73e-7 at 9.61e-4, +3.11e-4 at 9.04e-3), as the
+independent check does; the final bracket itself is no witness (the converged run's ends there are -4.6e-19 and +1.4e-19, at the determinant's
+noise, where the cubic gives 2e-20). The jumps and noise above the factor are refused as before.
+
+**A singular torus curve is not bisected.** Accepted, henon_rot_th's branch point showed what the bisection does next to a 1:2 resonance of a
+torus curve, where W419 has every Mueller step aim half a tolerance short of the zero because the equations are singular there: the halving
+has no such aim, and at the converged run's settings its last trial was 4.4e-8 past pi, after which the curve went back the way it came
+(R3 at 2pi/3 again, R4, R1 at 0). The bisection now leaves out a location the torus rule calls singular (1:1 or 1:2 nearest), which is given
+up after ITMX as AUTO-07p gives it up. So no result moves: autocompare's 79 models at 1 and automatic threads and the examples' md5s are as
+before, and the new rule has no case in tests/auto (tests/test_auto_location.cpp has a cubic accepted and an even touching refused).
+
+**henon_rot_th's branch point and the converged run.** The BP and the R2 are one point, th = pi. In the step that holds pi both runs give the
+BP up (the cubic is too flat for 8 Mueller iterations, and it is not bisected) and locate the R2; the next step brackets the BP only if the R2
+landed before pi, where the BP test is negative: ours at pi - 2.9e-7 (the BP then 3.66e-5 past pi), the converged run's at pi + 2.0e-8 (no BP).
+AUTO-07p labels the BP 7.3e-9 from its R2 (both at pi - 1.3e-6). Which of two coincident labels a run keeps is AUTO-07p's own coincident rule
+(LCSPAE: a zero within the location tolerance of a located point keeps the first label), so the converged run's missing BP stays a traced
+difference (`.converged` in tests/auto/henon_rot_th.json, its cause rewritten); `continuation.py --pilots --only henon_rot_th` against the
+saved setup: the exact pilot against the converged run, equal work.
+
+**How close ours is.** The BP's search starts on the R2 point, where its test is -1.9e-17, and W419's rule for a singular torus curve ends it
+half a tolerance short of the secant's zero, which is that start: 5.2e-5 of arclength, 3.66e-5 in th, within the location tolerance
+(EPSS (1 + sqrt(DS DSMAX)) = 1.045e-4). The cubic does not mislead this search, which converges on its first step; it is why the search in the step
+before uses up its 8 iterations: Mueller's method converges only linearly on a zero of order 3, and a stop on the size of its step, AUTO-07p's,
+leaves such a zero up to about twice that size away.
