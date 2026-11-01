@@ -1065,7 +1065,7 @@ folded angle's nearest resonance. A curve that stays in 0 to pi is unchanged. Ne
 place (`autocheck codim`, "torus past pi") and each a traced difference against AUTO-07p:
 
 - `res_cycles` torus_up: R3 at c = -0.555556 (theta = 4 pi/3, w = 1/18) and R4 at c = -0.531250 (3 pi/2, w = 1/32);
-  at b = 0 (theta = 2 pi) the BP keeps the label of the coincident R1. torus_down, past theta = 0: R4, R3, R2, R3 at
+  at b = 0 (theta = 2 pi) the BP kept the label of the coincident R1 (since W585 the R1 is labelled too, on the next step). torus_down, past theta = 0: R4, R3, R2, R3 at
   c = -1.28125, -1.38889, -1.62500, -1.88889 (w = 25/32, 8/9, 9/8, 25/18).
 - `hill_cycles_torus` torus_down: after the BP near the 1:2 endpoint the curve comes back with theta past pi and
   meets the 1:3 point again, R3 at d = 0.4463560 (the first at 0.4463561).
@@ -2633,3 +2633,31 @@ changes and no tolerance is widened; W578's traces in tests/auto/ode_mu26_{block
 differs from both programs there. floquet_check.py now matches a diagram row's 0-based `icp1` against the parameter's slot (it picked
 its start from a two-parameter run's rows on ode_mu26_blocked, and found none on ode_mu26_control; the cycle it converges to was the
 same).
+
+## W585: a torus curve's resonance at its branch point is labelled ([#650](https://github.com/MuhammadMoustafa/xppautX/issues/650))
+
+W581's converged run labelled hill_cycles_torus torus_down's R2 at d* = 0.2770059707517 (the Hill pair a defective double -1) beside the BP;
+the description's run labelled the BP alone. **Cause:** a torus curve's own equations have a branch point at its 1:2 point (theta = pi, the flip
+curve of cycles crossing: W578) and at its 1:1 (theta = 0, the fold curve), so the BP test and the resonance test are zero at one point. The tests
+run in AUTO-07p's order (BP before the resonance), the BP is located first, and the resonance test, read at the BP within the tolerance of its own
+zero, meets AUTO-07p's coincidence rule (LCSPBV, LCSPAE: the zero is set to 0 and keeps the first label), so the R2 is dropped for good: the next
+step compares with 0. AUTO-07p does the same (hill_cycles_torus: R3, BP; forced_pp_ns: BP; res_cycles: the BP at b = 0, its R1). Whether the converged run and the description's run
+labelled the R2 decided only where each run's BP location happened to end (henon_rot_th, where both programs' steps put the R2 before the BP,
+label both).
+
+**Fix** (core/autlib1.cpp `deferred_resonance`): a torus curve's resonance test (cycles and maps) that the coincidence rule meets at a located BP
+keeps the value it measured there (or, where its zero lies behind the BP, the value before it, with its place), so the next step brackets the zero
+and locates it as its own point; that step's resample of the BP test, the same zero, is taken as the BP already labelled (0), so it is not labelled
+twice. The one point gets two labels, BP and then the resonance, a tolerance apart.
+
+Each new label checked from the model's own equations (`docs/studies/w585_torus_r2_check.py`), as close to the true point as the BP:
+
+| description, run | new label | distance from the true point (BP's) | the pair there |
+|---|---|---|---|
+| hill_cycles_torus torus_down | R2 | d - d* = 1.0e-11 (9.6e-12) | trace + 2 = 1.0e-11, det - 1 = 1.1e-11 |
+| forced_pp_ns ns_up | R2 | eps 3.0e-10, b0 6.3e-11 (1.0e-10, 2.0e-11) at the run's m | trace + 2 = 7.1e-10, det - 1 = -6.4e-10 |
+| res_cycles torus_up | R1 | b = -2.2e-20, c + mu = -3.3e-13 (-7.0e-20, -4.6e-13) | 1 +- 7.6e-5 (1 +- 1.0e-4) |
+
+Each is a traced difference against AUTO-07p and XPPAUT 8.0 (which labels no strong resonance, finding 71). Baselines changed
+(autocompare --update --only): hill_cycles_torus, forced_pp_ns, res_cycles (the new point and the points after it, which move by the
+location's step); every other description passes unchanged, byte for byte.
