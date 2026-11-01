@@ -2329,24 +2329,42 @@ two things. XPPAUT's samples are now its ten-digit labelled points, read from th
 curve, which decides only which run a point belongs to; the exported six-digit curve is no longer judged, so XPPAUT's row counts labelled points, not the
 curve's 237 or 325 samples). And the distance is the nearest zero of the condition on each axis, found on a walk outward from the sample, each step
 seeded from the last converged cycle, and accepted only where |condition| is 1e-7 or less (before, a jump of the flip test was taken for a root).
-The numbers are the check's at W571 (the largest distance; XPPAUT's labelled points checked in brackets):
+W574 (#639) added the plane's distance (below) for a sample whose axis search finds no root or one above 1e-7, and a cycle that follows a labelled point of XPPAUT's, which are up to 0.4 apart.
+The numbers are the check's at W574 (the largest distance; XPPAUT's labelled points checked in brackets):
 
 | Curve | xppautX | AUTO-07p | XPPAUT 8.0 (labelled points) |
 |---|---|---|---|
-| forced_pp_pd pd_up | not judged at R2: the check's 9.2e-3 at (1.94894, 2.57019) is its own limit, below | 1.2e-7 at R2 (1.94893, 2.57025) | 8.1e-10 (9 of 13 labelled points; 4 not bracketed) |
-| forced_pp_pd pd_down | 1.3e-10 | 1.0e-7 (at (0.55, 0.34), away from R2) | 8.1e-10 (15 labelled points) |
+| forced_pp_pd pd_up | 9.8e-11 (before W574: 9.2e-3, the check's own limit at R2) | 1.2e-10 (before: 1.2e-7 at R2 (1.94893, 2.57025)) | 8.1e-10 (all 13 labelled points; before W574 9 judged, 4 unchecked) |
+| forced_pp_pd pd_down | 1.3e-10 | 1.8e-10 (before: 1.0e-7 at (0.55, 0.34), which is pd_down's own R2: its multipliers there are -0.99999 and -1.00001) | 8.1e-10 (15 labelled points) |
 | forced_pp_ns ns_up, ns_down | 2.7e-11, 2.2e-11 | 9.7e-11, 2.5e-11 | 3.1e-8 (12 and 11 labelled points) |
 | hen_pd (up, down) | 3.1e-5 (rms 4.1e-6; the closed form's, at the one-parameter run's PD point) | 3.1e-5 | 2.1e-7 (2 labelled points) |
 | hen_tr (up, down) | 1.8e-7 | 1.8e-7 | 2.1e-7 (2 labelled points) |
 | explicit_homoclinic | 2.3e-10 | 2.3e-10 | 1.4e-10 (2 labelled points) |
 | lorenz_homoclinic | 2.5e-9 | 2.4e-9 | 2.4e-9 (2 labelled points) |
 
-**The R2 corner (W571).** The flip test is continuous across R2 only in its value, not its sign: along b0 at the sample's eps the real
+**The R2 corner (W571, W574).** The flip test is continuous across R2 only in its value, not its sign: along b0 at the sample's eps the real
 multiplier's |mu + 1| and the complex pair's |mu| - 1 both stay positive through R2 (a scan at eps 1.94893: +0.028 just before R2, +1.3e-5 just
-after, then growing). So no axis-parallel line brackets the true curve there, and the search takes a far root: that is the 9.2e-3 (xppautX) and the
-1.2e-7 (AUTO-07p, at the R2 sample itself). Before W571 the search took any sign change, the switch included, so the old figures of 1.0e-10 at pd_up
-(xppautX) and 1.4e-10 (AUTO-07p) came from the switch, not from a zero of the test. Neither figure is the continuation's error: the check cannot judge a sample at the corner by one axis. A two-dimensional
-distance to the union of the flip and torus curves would fix it; it is not in this card.
+after, then growing). So no axis-parallel line brackets the true curve there, and the one-axis search took a far root: W571's 9.2e-3 (xppautX) and
+1.2e-7 (AUTO-07p, at the R2 sample itself); before W571 the search took any sign change, the switch included, so the old figures of 1.0e-10 at pd_up
+(xppautX) and 1.4e-10 (AUTO-07p) came from the switch, not from a zero of the test. Neither figure was the continuation's error.
+
+W574 (#639) measures such a sample in the (eps, b0) plane. A sample whose axis search finds no root, or one above 1e-7 (AXIS_ENOUGH: a smaller axis
+distance is already within the check's accuracy and is kept as an upper bound), gets the smallest distance in the plane to the union of the flip
+curve (det(M + I) = 0: a multiplier -1) and the torus curve (det(M) = 1 with |trace(M)| <= 2: a complex pair on the unit circle, so the saddle
+branch of det = 1 is not a curve), M the monodromy matrix of the Poincare map as before: the model's own equations, no program's curve. The method
+is rays: the distance to a curve is the least over directions of the nearest root along the line through the sample (the nearest curve point lies on
+some line through the sample, at its distance, and on none nearer), so 12 lines (every 15 degrees, 24 rays) are searched with the same outward walk and
+the 1e-7 acceptance as the axes (the same function, `nearest_root`, along a line instead of an axis), and the best direction's refined to 1e-3
+radian by a bounded golden-section search (the distance's error from that is below 1e-6 relative). The coarse search alone finds the nearest point to 1% (it is within 7.5 degrees of one of the 24 rays). The distance reported is the smaller
+of the axes' and the plane's, the plane's the smaller of the two curves'.
+The same flip and torus curves are used for the forced_pp_ns check's fallback, which no ns sample reaches (every one's axis distance is below 1e-7:
+its numbers are unchanged). The step from one of XPPAUT's labelled points to the next is too far for Newton's method (0.4 in b0 near the start): the cycle is
+followed along the straight segment in 2^k equal steps (`Cycle.move_to`), which is why four of its pd_up points were "not bracketed" before: no cycle was found at them, not
+that no axis bracketed.
+
+Result, at R2 (xppautX's stored sample (1.9489361, 2.5701941), the multipliers -1.0000177 +- 7.8e-5 i): 2.6e-11 in the plane, where the axes gave a far root;
+the largest distance of any sample of any program is 1.8e-10 (xppautX, AUTO-07p) or 8.1e-10 (XPPAUT's labelled points), in the table. No sample is
+far from both curves, and XPPAUT's four unchecked points are on the curve to 4e-11 (label 12, (1.9437407461, 2.6463825630), included).
 
 XPPAUT's pd_up error is its export, not its continuation (W568 / [#633](https://github.com/MuhammadMoustafa/xppautX/issues/633), docs/xppaut-findings.md
 [finding 104](xppaut-findings.md#104-a-period-doubling-curve-near-a-12-resonance-cannot-be-read-from-the-six-digit-export)): the multiplier that must be -1 is -1.0214 at (1.95468, 2.48815) and

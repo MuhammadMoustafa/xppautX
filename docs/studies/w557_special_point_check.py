@@ -11,6 +11,9 @@ the true curve, in the units of a parameter:
       The period-doubling curve is where that matrix has an eigenvalue -1, the Neimark-Sacker curve where its determinant is 1
       with a trace below 2 in modulus (a complex pair on the unit circle). For each sample (eps, b0) at the curve's fixed m
       this solves for b0 (or eps where the curve is steep) that makes the condition hold: the sample's distance from the curve.
+      Where that gives no root, or one farther than AXIS_ENOUGH (a 1:2 resonance, where the test is positive on every axis line
+      through the corner), the distance is the smallest one in the (eps, b0) plane to the union of the flip curve (a multiplier -1) and
+      the torus curve (a complex pair with |mu| = 1), found along lines through the sample (plane_distance).
   hen_pd, hen_tr  AUTO-07p's hen demo, the map (x, y) -> (y, alpha - beta x - y^2): the fixed point's Jacobian
       [[0, 1], [-beta, -2 y]] has det beta and trace -2 y, so the flip curve is alpha = 3 (1 + beta)^2 / 4 and the
       torus curve beta = 1 (|alpha| below 3: |trace| < 2).
@@ -25,7 +28,9 @@ Each program's samples are its own, at the precision it wrote them: xppautX's st
 digits), and XPPAUT's labelled points, read from the .s file of its series (ten digits, the file AUTO writes at each labelled point:
 docs/xppaut-findings.md 104). XPPAUT's exported curve, printed to six digits, is not judged: the labelled points are the samples where
 XPPAUT's accuracy is read. A labelled point belongs to a run when it lies within MEMBER_TOLERANCE of that run's exported curve, a test of
-membership only. A sample's distance is the nearest zero of the condition on each axis (nearest_root), never a jump of the condition.
+membership only. A sample's distance is the nearest zero of the condition on each axis (nearest_root), never a jump of the condition,
+or, when that is missing or above AXIS_ENOUGH, the distance in the plane (plane_distance): never more than the axes' distance, and the same
+where the curve is smooth and an axis crosses it.
 
     uv run --locked python docs/studies/w557_special_point_check.py --attempt DIR --workload forced_pp_pd [--runs pd_up,pd_down]
 
@@ -45,7 +50,7 @@ import tempfile
 
 import numpy as np
 from scipy.integrate import solve_ivp
-from scipy.optimize import brentq
+from scipy.optimize import brentq, minimize_scalar
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -54,11 +59,15 @@ import autocompare  # noqa: E402
 RTOL, ATOL = 1e-12, 1e-14  # of every integration here
 NEWTON_TOLERANCE = 1e-12  # of the Poincare map's fixed point
 MAX_NEWTON = 40  # steps before a fixed point is called not found
+MAX_HALVINGS = 10  # move_to's finest walk: 2^10 steps from one sample to the next
 STRIDE = 1  # every STRIDE-th sample of a curve is checked (--stride)
 LORENZ_TIME = 40.0  # the longest the unstable manifold is followed before it is said not to return
 LORENZ_BISECTIONS = 36  # halvings of the bracket around the homoclinic value (the bracket is 1e-6 or more wide)
 SEARCH = (1e-6, 1e-4, 1e-3, 1e-2)  # half-widths of the brackets tried when solving for a parameter that puts a sample on the curve
 GRID = tuple(1e-7 * 10 ** (k / 8) for k in range(41))  # 1e-7 to 1e-2, eight steps a decade: nearest_root's outward search
+AXIS_ENOUGH = 1e-7  # an axis distance this small or smaller is kept as the sample's distance (an upper bound, already within the check's accuracy); above it the plane's is looked for
+LINES = 12  # directions (every 15 degrees, the axes among them) of plane_distance's coarse search; each line is searched on both sides, so 24 rays: the nearest curve point is within 7.5 degrees of one
+ANGLE_TOLERANCE = 1e-3  # radians: the direction of the nearest curve point is refined to this (the distance's error is then below 1e-6 relative)
 ROOT_RESIDUAL = 1e-7  # |condition| at an accepted root, in the condition's units: a jump of the condition is not a zero, and a bisection's error is far below this
 MEMBER_TOLERANCE = 1e-3  # the largest distance of a labelled point from a run's exported curve for it to belong to that run (in the parameters' units)
 XPPAUT_PAR_TOLERANCE = 1e-6  # relative: a value printed to six digits matches the ten-digit parameter vector of its labelled point to this
@@ -128,6 +137,7 @@ class Cycle:
 
     def __init__(self, state, m, phase):
         self.state, self.m, self.phase = np.array(state, dtype=float), m, phase
+        self.at = None  # the (eps, b0) of the last cycle found: where move_to starts from
 
     def multipliers(self, eps, b0):
         s = self.state.copy()
@@ -135,13 +145,30 @@ class Cycle:
             image, M = poincare(s, eps, b0, self.m, self.phase)
             residual = image - s
             if np.abs(residual).max() < NEWTON_TOLERANCE:
-                self.state = s
+                self.state, self.at = s, (eps, b0)
                 return M
             try:
                 s = s - np.linalg.solve(M - np.eye(2), residual)
             except np.linalg.LinAlgError:  # a multiplier 1: a fold of cycles, no Newton step
                 break
         raise ArithmeticError('no period-1 cycle at eps %.12g b0 %.12g' % (eps, b0))
+
+    def move_to(self, eps, b0):
+        """The cycle at (eps, b0) when it is farther from the last one found than Newton's method reaches (XPPAUT's labelled points are
+        up to 0.4 apart): followed from the last one along the straight segment in 2^k equal steps, k the first of 0 to MAX_HALVINGS
+        at which every step converges. ArithmeticError if none does."""
+        if self.at is None:
+            self.multipliers(eps, b0)
+            return
+        start, state = np.array(self.at), self.state.copy()
+        for k in range(MAX_HALVINGS + 1):
+            try:
+                for i in range(1, 2 ** k + 1):
+                    self.multipliers(*(start + (np.array((eps, b0)) - start) * i / 2 ** k))
+                return
+            except ArithmeticError:
+                self.state, self.at = state.copy(), tuple(start)  # the next, finer walk starts again from the last cycle found
+        raise ArithmeticError('no period-1 cycle at eps %.12g b0 %.12g, nor on the way from eps %.12g b0 %.12g' % (eps, b0, *start))
 
 
 def flip_condition(M):
@@ -157,59 +184,106 @@ def torus_condition(M):
     return np.linalg.det(M) - 1
 
 
-def nearest_root(f, centre, reset):
-    """The distance from centre to the nearest zero of f, searched outward from centre on GRID on each side: a sign change between
-    two grid points is solved by brentq and taken only if |f| there is ROOT_RESIDUAL or less, since a jump of f also changes sign
-    (the flip test's switch between its real and complex forms, near a 1:2 resonance) and is not a zero. Each side's walk starts
-    from reset() (the sample's own cycle) and each step is seeded from the cycle the last step converged on. None if no zero lies
+def nearest_root(f, reset, admissible=lambda h: True):
+    """The distance from a sample to the nearest zero of f, f(h) being the condition at offset h from it along a line: searched outward
+    on GRID on each side, a sign change between two grid points solved by brentq and taken only if |f| there is ROOT_RESIDUAL or less,
+    since a jump of f also changes sign (the flip test's switch between its real and complex forms, near a 1:2 resonance) and is not a
+    zero, and admissible(h) holds (a torus curve is det = 1 only with a trace below 2 in modulus). Each side's walk starts from
+    reset() (the sample's own cycle) and each step is seeded from the cycle the last step converged on. None if no zero lies
     within GRID on either side."""
     best = None
     for side in (-1.0, 1.0):
         reset()
-        prev_h, prev_v = 0.0, f(centre)
+        prev_h, prev_v = 0.0, f(0.0)
         for h in GRID:
             try:
-                v = f(centre + side * h)
+                v = f(side * h)
             except ArithmeticError:  # no cycle on this step even from the sample's own: the side ends
                 break
             if prev_v * v < 0:
                 try:
-                    root = brentq(f, centre + side * prev_h, centre + side * h, xtol=1e-14, rtol=1e-13)
-                    residual = abs(f(root))
+                    root = brentq(f, side * prev_h, side * h, xtol=1e-14, rtol=1e-13)
+                    ok = abs(f(root)) <= ROOT_RESIDUAL and admissible(root)
                 except (ValueError, ArithmeticError):  # the bracket's ends changed sign under the solver: not a zero found
-                    residual = math.inf
-                if residual <= ROOT_RESIDUAL:
-                    d = abs(root - centre)
+                    ok = False
+                if ok:
+                    d = abs(root)
                     best = d if best is None else min(best, d)
                     break
             prev_h, prev_v = h, v
     return best
 
 
-def distance_to_curve(condition, cycle, eps, b0):
+def line_distance(cycle, own, point, direction, value, admissible=lambda M: True):
+    """nearest_root along the line through point in direction (a unit vector): the nearest parameter change, either way, at which
+    value(M) is zero, M the monodromy matrix of the cycle there and admissible(M) true."""
+    def reset():
+        cycle.state = own.copy()
+
+    def monodromy(h):
+        args = (point[0] + h * direction[0], point[1] + h * direction[1])
+        try:
+            return cycle.multipliers(*args)  # seeded from the last cycle this walk converged on
+        except ArithmeticError:
+            reset()  # retry once from the sample's own cycle
+            return cycle.multipliers(*args)
+    return nearest_root(lambda h: value(monodromy(h)), reset, lambda h: admissible(monodromy(h)))
+
+
+def flip_curve(M):
+    """Zero where a multiplier is -1 (the real flip curve), the product (mu1 + 1)(mu2 + 1)."""
+    return np.linalg.det(M + np.eye(2))
+
+
+def complex_pair(M):
+    """Whether the multipliers are a complex pair or a double one, the only place det = 1 is a torus curve (|trace| <= 2)."""
+    return abs(np.trace(M)) <= 2.0
+
+
+PERIOD_DOUBLING_CURVES = ((flip_curve, lambda M: True), (torus_condition, complex_pair))
+TORUS_CURVES = ((torus_condition, complex_pair),)
+
+
+def plane_distance(cycle, own, point, union):
+    """The smallest distance in the (eps, b0) plane from point to the union of the curves, each a (value, admissible) pair of functions of
+    the monodromy matrix (line_distance). The distance to a curve is the least over directions of its nearest root along the line:
+    the nearest curve point lies on some line through the sample, at its distance and on no line nearer. LINES directions are tried
+    for each curve and the best one's refined (bounded golden-section search) to ANGLE_TOLERANCE; a curve with no root on any line
+    within GRID counts as infinitely far. Uses only the model's equations: no program's curve enters. math.inf if no curve is found."""
+    best = math.inf
+    for value, admissible in union:
+        def along(theta):
+            d = line_distance(cycle, own, point, (math.cos(theta), math.sin(theta)), value, admissible)
+            return math.inf if d is None else d
+        coarse = [(along(math.pi * k / LINES), math.pi * k / LINES) for k in range(LINES)]
+        d0, theta0 = min(coarse)
+        if not math.isfinite(d0):
+            continue
+        half = math.pi / LINES
+        refined = minimize_scalar(lambda t: min(along(t), 2 * d0), bounds=(theta0 - half, theta0 + half), method='bounded',
+                                  options={'xatol': ANGLE_TOLERANCE})
+        best = min(best, d0, refined.fun)
+    return best
+
+
+def distance_to_curve(condition, union, cycle, eps, b0):
     """The smaller of the parameter changes (b0 at the sample's eps, eps at its b0) that make `condition` zero, each the nearest zero
-    on its axis (nearest_root); nan if neither axis has one within GRID."""
-    best, kept = [], cycle.state.copy()
+    on its axis (nearest_root); when neither axis has one, or the smaller is above AXIS_ENOUGH, the smaller of that and the plane's
+    distance to the curves (plane_distance); nan if there is no root within GRID in the plane either."""
+    best, kept = math.inf, cycle.state.copy()
     try:
         cycle.multipliers(eps, b0)
         own = cycle.state.copy()  # the sample's own cycle: where each walk starts, and where a failed step retries from
-        def reset():
-            cycle.state = own.copy()
-        for axis in (0, 1):
-            def f(v, axis=axis):
-                args = (v, b0) if axis == 0 else (eps, v)
-                try:
-                    return condition(cycle.multipliers(*args))  # seeded from the last cycle this walk converged on
-                except ArithmeticError:
-                    reset()  # retry once from the sample's own cycle
-                    return condition(cycle.multipliers(*args))
-            d = nearest_root(f, (eps, b0)[axis], reset)
+        for direction in ((1.0, 0.0), (0.0, 1.0)):
+            d = line_distance(cycle, own, (eps, b0), direction, condition)
             if d is not None:
-                best.append(d)
+                best = min(best, d)
+        if best > AXIS_ENOUGH:
+            best = min(best, plane_distance(cycle, own, (eps, b0), union))
     finally:
         cycle.state = kept  # the cycles of the walks' ends are not the sample's, whether or not the search ended in an error
     cycle.multipliers(eps, b0)
-    return min(best) if best else math.nan
+    return best if math.isfinite(best) else math.nan
 
 
 def stored(workload_dir, run):
@@ -367,7 +441,7 @@ def report(label, run, program, distances, samples):
                 at=list(map(float, samples[k][:2])), rms=float(math.sqrt(np.nanmean(d[ok] ** 2))))
 
 
-def predator_prey(workload_dir, runs, condition, special, start_type):
+def predator_prey(workload_dir, runs, condition, union, special, start_type):
     results = []
     ms = special_value(workload_dir, 'cycles', special)
     for run in runs:
@@ -381,7 +455,8 @@ def predator_prey(workload_dir, runs, condition, special, start_type):
             distances = []
             for eps, b0 in samples:
                 try:
-                    distances.append(distance_to_curve(condition, cycle, eps, b0))
+                    cycle.move_to(eps, b0)
+                    distances.append(distance_to_curve(condition, union, cycle, eps, b0))
                 except ArithmeticError:
                     distances.append(math.nan)
             results.append(report(start_type, run, program, distances, samples))
@@ -458,9 +533,9 @@ def main():
     description = json.loads((folder / 'description.json').read_text())
     runs = a.runs.split(',') if a.runs else [r['name'] for r in description['runs'] if r['kind'] in ('two_parameter', 'homoclinic')]
     if case == 'forced_pp_pd':
-        results = predator_prey(folder, runs, flip_condition, ('period_doubling', 'PD'), 'forced_pp_pd')
+        results = predator_prey(folder, runs, flip_condition, PERIOD_DOUBLING_CURVES, ('period_doubling', 'PD'), 'forced_pp_pd')
     elif case == 'forced_pp_ns':
-        results = predator_prey(folder, runs, torus_condition, ('neimark_sacker', 'TR'), 'forced_pp_ns')
+        results = predator_prey(folder, runs, torus_condition, TORUS_CURVES, ('neimark_sacker', 'TR'), 'forced_pp_ns')
     elif case == 'hen_pd':
         results = henon(folder, runs, lambda al, be: al - 0.75 * (1 + be) ** 2, lambda al, be: True)
     elif case == 'hen_tr':
