@@ -586,51 +586,85 @@ def check_description(name, d, program):
     return odex, eqs, start, bvp
 
 
+def auto07p_files(d, odex, eqs, start, bvp, exact_source=None, measured=False):
+    """The files AUTO-07p is given ({name: text}: the equations, each run's constants, the script) and the run names, ICP
+    slots and cycle curves the results are read back with. The comparison keys a reused row on these files (W575)."""
+    files = {}
+    hom = None
+    if any(r['kind'] in HOMCONT for r in d['runs']):
+        run, = (r for r in d['runs'] if r['kind'] in HOMCONT)
+        known = {**odex.inits, **{k.lower(): v for k, v in d.get('initial_conditions', {}).items()}}
+        hom = dict(interval=run['start']['settle'], step=run['start']['step'], ic=[known.get(x, 0.0) for x in odex.states],
+                   equilibria=run['connection']['left'] + (run['connection']['right'] if run['kind'] == 'heteroclinic' else []))
+    if exact_source:
+        files['eq.c'] = Path(exact_source).read_text(encoding='utf-8')
+    else:
+        files['eq.f90'] = eqs.source(start, bvp, hom)
+    if hom:
+        files['eqs.f90'] = eqs.source(start, bvp)
+    names, icp1, icp2, cycles = [], {}, {}, set()
+    kind_of = {r['name']: r['kind'] for r in d['runs']}
+    for i, r in enumerate(d['runs']):
+        c = 'r%d' % i
+        names.append(c)
+        cycle = r['kind'] == 'two_parameter' and kind_of[r['start']['run']] == 'periodic'
+        if cycle:
+            cycles.add(r['name'])
+        pr = problem(r, odex.discrete, cycle)
+        if r['kind'] == 'two_parameter' or r['kind'] in HOMCONT:
+            icp1[r['name']], icp2[r['name']] = (eqs.slot[n] for n in r['parameters'])
+            icp = [icp1[r['name']], icp2[r['name']]] + ([PERIOD] if cycle else [])
+        else:
+            p = icp1[r['name']] = eqs.slot[r['parameter']]
+            icp = [p] if r['kind'] in ('equilibrium', 'bvp') else [p, PERIOD]
+        text = constants(r, len(odex.states), pr, len(odex.bcs) if bvp else 0,
+                         icp, 0, max(eqs.npar, HOM_EQUILIBRIUM - 1 + (2 if r['kind'] == 'heteroclinic' else 1) * len(odex.states)))
+        zeros = {}
+        for parameter, value in r.get('marks', []):
+            slot = PERIOD if parameter == 'T' else eqs.slot[parameter]
+            zeros.setdefault(slot, []).append(value)
+        text += 'UZR=%r\n' % zeros
+        if exact_source:
+            text = text.replace('JAC=0', 'JAC=1')
+        files['c.' + c] = text
+    files['run.auto'] = script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete, 'homcont': hom is not None}, names, measured)
+    return files, names, icp1, icp2
+
+
+def auto07p_results(work, d, names, icp1, icp2, stdout):
+    """{run: [point]}, {run: {(branch, point): spectrum}}, {run: reason}, {run: curve} from an AUTO-07p run's folder and
+    its script's output."""
+    curves = {r['name']: curve_points((work / ('b.' + c)).read_text(errors='replace'), icp1[r['name']], icp2.get(r['name']))
+              for c, r in zip(names, d['runs']) if (work / ('b.' + c)).exists()}
+    stab = {r['name']: (stability((work / ('d.' + c)).read_text(errors='replace'))
+                        if (work / ('d.' + c)).exists() else {}) for c, r in zip(names, d['runs'])}
+    failed = {l.split()[1]: l.split(None, 2)[2] for l in stdout.splitlines() if l.startswith('FAILED ')}
+    points = {r['name']: [] for r in d['runs']}
+    for line in stdout.splitlines():
+        if line.startswith('POINT '):
+            pt = json.loads(line[6:])
+            points[pt.pop('run')].append(pt)
+    return points, stab, failed, curves
+
+
+def reread_auto07p(d, inputs, work):
+    """The reference of an AUTO-07p run made earlier, read again from the folder it kept (its b., d. files and the script's
+    output in wrapper.log), so an imported row has this parser's format (W575: W539 added the period to a curve's samples)."""
+    odex, eqs, start, bvp = inputs
+    _, names, icp1, icp2 = auto07p_files(d, odex, eqs, start, bvp)
+    return assemble(d, odex, 'auto07p', *auto07p_results(work, d, names, icp1, icp2, (work / 'wrapper.log').read_text(errors='replace')))
+
+
 def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name, measurements=None, exact_source=None, process_env=None):
     """{run: [point]}, {run: {(branch, point): spectrum}}, {run: reason} from AUTO-07p."""
     (ROOT / 'build').mkdir(exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='w300-a07-', dir=ROOT / 'build'))
     try:
-        hom = None
-        if any(r['kind'] in HOMCONT for r in d['runs']):
-            run, = (r for r in d['runs'] if r['kind'] in HOMCONT)
-            known = {**odex.inits, **{k.lower(): v for k, v in d.get('initial_conditions', {}).items()}}
-            hom = dict(interval=run['start']['settle'], step=run['start']['step'], ic=[known.get(x, 0.0) for x in odex.states],
-                       equilibria=run['connection']['left'] + (run['connection']['right'] if run['kind'] == 'heteroclinic' else []))
-        (work / 'eq.f90').write_text(eqs.source(start, bvp, hom), encoding='utf-8')
-        if hom:
-            (work / 'eqs.f90').write_text(eqs.source(start, bvp), encoding='utf-8')
-        if exact_source:
-            (work / 'eq.f90').unlink()
-            shutil.copy2(exact_source, work / 'eq.c')
-        names, icp1, icp2, cycles = [], {}, {}, set()
-        kind_of = {r['name']: r['kind'] for r in d['runs']}
-        for i, r in enumerate(d['runs']):
-            c = 'r%d' % i
-            names.append(c)
-            cycle = r['kind'] == 'two_parameter' and kind_of[r['start']['run']] == 'periodic'
-            if cycle:
-                cycles.add(r['name'])
-            pr = problem(r, odex.discrete, cycle)
-            if r['kind'] == 'two_parameter' or r['kind'] in HOMCONT:
-                icp1[r['name']], icp2[r['name']] = (eqs.slot[n] for n in r['parameters'])
-                icp = [icp1[r['name']], icp2[r['name']]] + ([PERIOD] if cycle else [])
-            else:
-                p = icp1[r['name']] = eqs.slot[r['parameter']]
-                icp = [p] if r['kind'] in ('equilibrium', 'bvp') else [p, PERIOD]
-            text = constants(r, len(odex.states), pr, len(odex.bcs) if bvp else 0,
-                             icp, 0, max(eqs.npar, HOM_EQUILIBRIUM - 1 + (2 if r['kind'] == 'heteroclinic' else 1) * len(odex.states)))
-            zeros = {}
-            for parameter, value in r.get('marks', []):
-                slot = PERIOD if parameter == 'T' else eqs.slot[parameter]
-                zeros.setdefault(slot, []).append(value)
-            text += 'UZR=%r\n' % zeros
-            if exact_source:
-                text = text.replace('JAC=0', 'JAC=1')
-            (work / ('c.' + c)).write_text(text)
+        files, names, icp1, icp2 = auto07p_files(d, odex, eqs, start, bvp, exact_source, measurements is not None)
+        for file, text in files.items():
+            (work / file).write_text(text, encoding='utf-8')
         env = {**os.environ, **(process_env or {}), 'AUTO_DIR': auto_dir, 'PYTHONWARNINGS': 'ignore'}
         env['PATH'] = '%s/cmds:%s/bin:%s' % (auto_dir, auto_dir, env['PATH'])
-        (work / 'run.auto').write_text(script(d['runs'], {'icp1': icp1, 'icp2': icp2, 'cycles': cycles, 'discrete': odex.discrete, 'homcont': hom is not None}, names, measurements is not None))
         env['W439_START'] = str(time.perf_counter())
         p = run_foreground(['auto', 'run.auto'], cwd=work, env=env, timeout=RUN_LIMIT * len(d['runs']))
         (work / 'wrapper.log').write_text(p.stdout + p.stderr)
@@ -640,17 +674,7 @@ def execute_auto07p(d, odex, eqs, start, bvp, auto_dir, keep, name, measurements
             measurements['ready'] = next((json.loads(l[6:]) for l in p.stdout.splitlines() if l.startswith('READY ')), None)
         if p.returncode or 'POINT ' not in p.stdout:
             raise Refused('AUTO-07p failed: ' + (p.stderr or p.stdout)[-600:])
-        curves = {r['name']: curve_points((work / ('b.' + c)).read_text(errors='replace'), icp1[r['name']], icp2.get(r['name']))
-                  for c, r in zip(names, d['runs']) if (work / ('b.' + c)).exists()}
-        stab = {r['name']: (stability((work / ('d.' + c)).read_text(errors='replace'))
-                            if (work / ('d.' + c)).exists() else {}) for c, r in zip(names, d['runs'])}
-        failed = {l.split()[1]: l.split(None, 2)[2] for l in p.stdout.splitlines() if l.startswith('FAILED ')}
-        points = {r['name']: [] for r in d['runs']}
-        for line in p.stdout.splitlines():
-            if line.startswith('POINT '):
-                pt = json.loads(line[6:])
-                points[pt.pop('run')].append(pt)
-        return points, stab, failed, curves
+        return auto07p_results(work, d, names, icp1, icp2, p.stdout)
     finally:
         if keep:
             shutil.copytree(work, keep / name, dirs_exist_ok=True)
@@ -752,25 +776,44 @@ def constants_used(text):
     return used
 
 
-def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, process_env=None):
+def xppaut_processes(d, odex, start):
+    """[(description, start, folder suffix)]: one XPPAUT process per item. XPPAUT's AUTO leaves the last point's parameters
+    and state in the main window, so the orbit a homoclinic start after other runs reads is integrated in a process of its
+    own, with the description's (every HomCont run starts from them, as in AUTO-07p's)."""
     homoclinic = [r for r in d['runs'] if r['kind'] == 'homoclinic']
-    if homoclinic and len(homoclinic) < len(d['runs']):
-        # XPPAUT's AUTO leaves the last point's parameters and state in the main window, so the orbit its homoclinic start reads
-        # is integrated in a process of its own, with the description's (every HomCont run starts from them, as in AUTO-07p's)
-        known = {**odex.inits, **{k.lower(): v for k, v in d.get('initial_conditions', {}).items()}}  # the orbit's, not the equilibrium run's
-        results = [execute_xppaut(dict(d, runs=group), odex, eqs, begin, binary, keep, name + suffix, measurements, process_env)
-                   for group, begin, suffix in (([r for r in d['runs'] if r['kind'] != 'homoclinic'], start, ''),
-                                                (homoclinic, [known.get(x, 0.0) for x in odex.states], '-homoclinic'))]
+    if not homoclinic or len(homoclinic) == len(d['runs']):
+        return [(d, start, '')]
+    known = {**odex.inits, **{k.lower(): v for k, v in d.get('initial_conditions', {}).items()}}  # the orbit's, not the equilibrium run's
+    return [(dict(d, runs=[r for r in d['runs'] if r['kind'] != 'homoclinic']), start, ''),
+            (dict(d, runs=homoclinic), [known.get(x, 0.0) for x in odex.states], '-homoclinic')]
+
+
+def xppaut_model(d, odex, eqs, start):
+    """The .ode one XPPAUT process is given."""
+    eqs.source(start, False)  # every name in the expressions is a parameter, variable, formula or intrinsic
+    hom = next((r for r in d['runs'] if r['kind'] == 'homoclinic' and 'skip' not in r), None)
+    return ode_text(eqs, start, odex.discrete, (hom['start']['settle'], hom['start']['step']) if hom else None), hom
+
+
+def xppaut_files(d, odex, eqs, start):
+    """The files XPPAUT is given ({folder suffix + '/model.ode': text}); what is typed into its dialogs comes from the
+    description. The comparison keys a reused row on these files (W575)."""
+    return {suffix + '/model.ode': xppaut_model(group, odex, eqs, begin)[0] for group, begin, suffix in xppaut_processes(d, odex, start)}
+
+
+def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, process_env=None):
+    processes = xppaut_processes(d, odex, start)
+    if len(processes) > 1:
+        results = [execute_xppaut(group, odex, eqs, begin, binary, keep, name + suffix, measurements, process_env)
+                   for group, begin, suffix in processes]
         return tuple({**a, **b} for a, b in zip(*results))
     (ROOT / 'build').mkdir(exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='w428-xpp-', dir=ROOT / 'build'))
     xvfb = xpp = None
     try:
         model = work / 'model.ode'
-        eqs.source(start, False)  # every name in the expressions is a parameter, variable, formula or intrinsic
-        hom = next((r for r in d['runs'] if r['kind'] == 'homoclinic' and 'skip' not in r), None)
-        orbit = (hom['start']['settle'], hom['start']['step']) if hom else None
-        model.write_text(ode_text(eqs, start, odex.discrete, orbit), encoding='utf-8')
+        text, hom = xppaut_model(d, odex, eqs, start)
+        model.write_text(text, encoding='utf-8')
         xvfb = subprocess.Popen(['Xvfb', DISPLAY, '-screen', '0', '1600x1200x24', '-nolisten', 'tcp'],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         wait_for('Xvfb', lambda: subprocess.run(['xdpyinfo', '-display', DISPLAY], capture_output=True).returncode == 0, 30)
@@ -987,9 +1030,15 @@ def execute_xppaut(d, odex, eqs, start, binary, keep, name, measurements=None, p
 def reference(name, d, program, args, inputs=None, measurements=None, exact_source=None, process_env=None):
     odex, eqs, start, bvp = inputs if inputs is not None else check_description(name, d, program)
     if program == 'auto07p':
-        points, stab, failed, curves = execute_auto07p(d, odex, eqs, start, bvp, args.auto_dir, args.keep, name, measurements, exact_source, process_env)
+        results = execute_auto07p(d, odex, eqs, start, bvp, args.auto_dir, args.keep, name, measurements, exact_source, process_env)
     else:
-        points, stab, failed, curves = execute_xppaut(d, odex, eqs, start, args.xppaut, args.keep, name, measurements, process_env)
+        results = execute_xppaut(d, odex, eqs, start, args.xppaut, args.keep, name, measurements, process_env)
+    return assemble(d, odex, program, *results)
+
+
+def assemble(d, odex, program, points, stab, failed, curves):
+    """The reference file's contents from a program's points, spectra, failures and curves."""
+    if program == 'xppaut':
         # one format per program: an .xppaut curve's samples are [par, par2, norm] (XPPAUT's file has no period to keep)
         curves = {n: [sample[:3] for sample in c] for n, c in curves.items()}
     runs = []

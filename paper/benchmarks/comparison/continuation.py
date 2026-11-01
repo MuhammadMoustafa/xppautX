@@ -3,6 +3,7 @@
 import copy
 import functools
 import hashlib
+import inspect
 import json
 import math
 import os
@@ -13,7 +14,7 @@ import time
 import traceback
 from types import SimpleNamespace
 
-from common import (BENCH, REPO, TOOLS, before_series, derived_program_sha, earlier_context, environment, executable_sha,
+from common import (BENCH, REPO, TOOLS, before_series, command, derived_program_sha, earlier_context, environment, executable_sha,
                     initialize, link_tree, mark_reused, measure_sha, progress, module, parser, reachable_sha, repetitions, rotation,
                     save, selected, sha, short_home, summarize, tracked_text, tree_sha)
 import autocompare as comparison
@@ -553,31 +554,88 @@ def digest_history(name, result, folder):
 
 # W454 (#517): a program whose code, inputs and options did not change is not run again. A row's key names what its result
 # depended on; an earlier attempt's row is imported (its records, its run folder linked) only when every part is equal.
-# xppautX's rows depend on tools/autocompare.py's driver and xppclient's Server; XPPAUT's and AUTO-07p's on
-# tools/auto_reference.py's own program driver, so a change to the xppautX driver is never a change to theirs.
-TRACKED = {'xppautx': (('tools/autocompare.py', ('compute',)), ('tools/xppclient.py', ('Server',)), ('tools/comparison_measure.py', None)),
-           'xppaut': (('tools/auto_reference.py', ('reference', 'execute_xppaut')), ('tools/comparison_measure.py', None)),
-           'auto07p': (('tools/auto_reference.py', ('reference', 'execute_auto07p')), ('tools/comparison_measure.py', None))}
+# xppautX's rows depend on tools/autocompare.py's driver and xppclient's Server; XPPAUT's and AUTO-07p's on what they are
+# given (below, W575), so a change to the xppautX driver is never a change to theirs.
+TRACKED = (('tools/autocompare.py', ('compute',)), ('tools/xppclient.py', ('Server',)), ('tools/comparison_measure.py', None))
 
 
 @functools.cache
-def measure_key(engine, commit=None):
-    # The measurement code: the tracked files' reachable parts (as of `commit`, or now) and this driver's own function.
+def measure_key(commit=None):
+    # xppautX's measurement code: the tracked files' reachable parts (as of `commit`, or now) and this driver's own function.
     tracked = [(path, (hashlib.sha256(tracked_text(path, commit).encode()).hexdigest() if roots is None
-                       else reachable_sha(tracked_text(path, commit), roots)).encode()) for path, roots in TRACKED[engine]]
-    return tree_sha([('tracked', tree_sha(tracked).encode()), ('local', measure_sha(native if engine == 'xppautx' else foreign).encode())])
+                       else reachable_sha(tracked_text(path, commit), roots)).encode()) for path, roots in TRACKED]
+    return tree_sha([('tracked', tree_sha(tracked).encode()), ('local', measure_sha(native).encode())])
 
 
 def description_sha(d, engine):
-    # What a program is asked to do: the description with the model's contents in place of where this attempt put it.
+    # What a program is asked to do: the description with the model's contents in place of where this attempt put it (for
+    # xppautX, which reads the .odex; XPPAUT and AUTO-07p read the files made from it, their key's inputs), its settings under
+    # AUTO's names (W531 renamed them in the descriptions, not in what a program is given) and without what only the gate
+    # reads: the explained differences and whether our pilot refined a run's start (W495) (W575).
     d = given(copy.deepcopy(d), engine)
-    d['model'] = sha(d['model'])
+    if engine == 'xppautx':
+        d['model'] = sha(d['model'])
+    else:
+        del d['model']
+    d.pop('differences', None)
+    for r in d['runs']:
+        r.pop('start_refined', None)
+        if 'auto' in r:
+            r['auto'] = {reference.AUTO_NAMES.get(k, k): v for k, v in r['auto'].items()}
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()
+
+
+# W575 (#640): a foreign row depends on its program, the files it is given (auto_reference's auto07p_files/xppaut_files: the
+# equations, constants and script; the .ode), what is typed or passed from the description, and the clock. The driver's
+# own code is not keyed: a change to it reached old workloads only through those files or a description field.
+FOREIGN_CLOCK = ('clock', 'elapsed', 'run_foreground')
+
+
+@functools.cache
+def foreign_timing(commit=None):
+    return tree_sha([('comparison_measure.py', reachable_sha(tracked_text('tools/comparison_measure.py', commit), FOREIGN_CLOCK).encode()),
+                     *((f.__name__, inspect.getsource(f).encode()) for f in (command, environment, foreign))])
+
+
+def given_sha(files):
+    return tree_sha((name, text.encode()) for name, text in files.items())
+
+
+def foreign_files(engine, d, start, measured, exact):
+    odex = Odex(REPO / d['model'])
+    eqs = reference.Equations(odex, d.get('parameters', {}))
+    d = given(copy.deepcopy(d), engine)
+    if engine == 'auto07p':
+        return reference.auto07p_files(d, odex, eqs, start, False, exact, measured)[0]
+    return reference.xppaut_files(d, odex, eqs, start)
+
+
+def kept_files(engine, folder):
+    # The files an earlier row gave its program, from the work folders auto_reference kept (files/series, series-homoclinic)
+    kept = {}
+    for series in sorted((folder / 'files').glob('series*')):
+        for f in series.iterdir():
+            if engine == 'xppaut' and f.name == 'model.ode':
+                kept[series.name[len('series'):] + '/model.ode'] = f.read_text(encoding='utf-8')
+            elif engine == 'auto07p' and (f.name in ('eq.f90', 'eqs.f90', 'eq.c', 'run.auto') or f.name.startswith('c.')):
+                kept[f.name] = f.read_text(encoding='utf-8')
+    return kept
 
 
 def start_values(data):
     first = comparison.diagram_rows(data)[0]
     return [float(first[k]) for k in first if k.startswith('u0.')]
+
+
+def import_foreign(source, folder, program, d, inputs):
+    # An earlier foreign row's folder, linked into this attempt. AUTO-07p's reference is read again from the output the row
+    # kept, so it has this parser's format (W575: W539 added the period to a curve's samples); the link is replaced, never
+    # written through, since it is the earlier attempt's file too.
+    link_tree(source, folder)
+    if program == 'auto07p':
+        path = folder / 'reference.json'
+        path.unlink()
+        save(path, reference.reread_auto07p(d, inputs, folder / 'files' / 'series'))
 
 
 def saved_reference(folder, program, d):
@@ -593,25 +651,24 @@ def reference_digest(ref):
     return hashlib.sha256(json.dumps({k: v for k, v in ref.items() if k != 'model'}, sort_keys=True).encode()).hexdigest()
 
 
-def row_key(a, engine, d, start, row, cpus):
-    key = dict(program=executable_sha(a, engine), measure=measure_key(engine), description=description_sha(d, engine), row=row, cpus=list(cpus))
-    if engine != 'xppautx':
-        key['start'] = start
-    if engine == 'auto07p' and row.get('jacobian') == 'exact' and Path(d['model']).stem != 'PY_S1Bf':
-        key['exact_source'] = sha(exact_source.__file__)  # W459: the generator makes the equation file (PY_S1Bf's is by hand, in no key before)
-    return key
+def row_key(a, engine, d, start, row, cpus, exact=None):
+    if engine == 'xppautx':
+        return dict(program=executable_sha(a, engine), measure=measure_key(), description=description_sha(d, engine), row=row, cpus=list(cpus))
+    return dict(program=executable_sha(a, engine), timing=foreign_timing(), inputs=given_sha(foreign_files(engine, d, start, row['measured'], exact)),
+                description=description_sha(d, engine), row=row, cpus=list(cpus), start=start)
 
 
-def derived_row_key(a, engine, earlier_d, earlier_start, row, cpus):
-    # The key of an earlier row that recorded none (a series before W454), from what the earlier attempt kept: its
-    # provenance (binaries, commit), its description, the start its pilot found; the tracked code as of its commit and this
-    # driver's own functions as they are (git-ignored: taken as unchanged, as W452 took common.py).
+def derived_row_key(a, engine, earlier_d, earlier_start, row, cpus, folder):
+    # The key of an earlier row that recorded none (a series before W454; a foreign row before W575), from what the earlier
+    # attempt kept: its provenance (binaries, commit), its description, the start its pilot found, a foreign row's given files
+    # (its folder's); the tracked code as of its commit and this driver's own functions as they are (taken as unchanged, as
+    # W452 took common.py).
     commit = earlier_context(a)['provenance']['commit']
-    key = dict(program=derived_program_sha(a, engine), measure=measure_key(engine, commit), description=description_sha(earlier_d, engine),
-               row=row, cpus=list(cpus), derived=True)
-    if engine != 'xppautx':
-        key['start'] = earlier_start
-    return key
+    if engine == 'xppautx':
+        return dict(program=derived_program_sha(a, engine), measure=measure_key(commit), description=description_sha(earlier_d, engine),
+                    row=row, cpus=list(cpus), derived=True)
+    return dict(program=derived_program_sha(a, engine), timing=foreign_timing(commit), inputs=given_sha(kept_files(engine, folder)),
+                description=description_sha(earlier_d, engine), row=row, cpus=list(cpus), start=earlier_start, derived=True)
 
 
 def earlier_mode_file(a, name, mode, file):
@@ -624,15 +681,16 @@ def earlier_start(a, name, mode):
     return start_values(path.read_bytes()) if path.exists() else None
 
 
-def earlier_key(a, name, mode, engine, recorded, description_file, row, cpus):
-    # The recorded key, else the one derived from the earlier attempt's files; None when there is nothing to derive it from.
-    if recorded:
+def earlier_key(a, name, mode, engine, recorded, description_file, row, cpus, folder):
+    # The recorded key (a foreign one only when it has the given files'), else the one derived from the earlier attempt's
+    # files; None when there is nothing to derive it from.
+    if recorded and (engine == 'xppautx' or 'inputs' in recorded):
         return recorded
     window = earlier_mode_file(a, name, mode, description_file)
     start = earlier_start(a, name, mode)
     if window is None or start is None:
         return None
-    return derived_row_key(a, engine, window['description'] if description_file == 'window.json' else window, start, row, cpus)
+    return derived_row_key(a, engine, window['description'] if description_file == 'window.json' else window, start, row, cpus, folder)
 
 
 def key_differences(have, key):
@@ -651,7 +709,7 @@ def reusable_row(a, name, mode, rep, label, engine, key, row, cpus):
         return None, 'no earlier row'
     if not all(r.get('valid') and r.get('equal_work') for r in runs):
         return None, 'the earlier row was not valid equal work'
-    have = earlier_key(a, name, mode, engine, next((r['reuse_key'] for r in runs if r.get('reuse_key')), None), 'window.json', row, runs[0]['pinned_cpus'])
+    have = earlier_key(a, name, mode, engine, next((r['reuse_key'] for r in runs if r.get('reuse_key')), None), 'window.json', row, runs[0]['pinned_cpus'], folder)
     if not same_key(have, key):
         return None, 'differs in ' + ', '.join(key_differences(have, key))
     return recs, folder
@@ -662,7 +720,7 @@ def reusable_pilot(a, name, mode, program, key):
     if not (folder / 'reference.json').exists():
         return None, 'no earlier pilot'
     recorded = folder / 'reuse-key.json'
-    have = earlier_key(a, name, mode, program, json.loads(recorded.read_text()) if recorded.exists() else None, 'description.json', key['row'], key['cpus'])
+    have = earlier_key(a, name, mode, program, json.loads(recorded.read_text()) if recorded.exists() else None, 'description.json', key['row'], key['cpus'], folder)
     return (folder, None) if same_key(have, key) else (None, 'differs in ' + ', '.join(key_differences(have, key)))
 
 
@@ -671,7 +729,7 @@ def plan_reuse(a, name, mode, d, targets, timed, initial, start, phase):
     # keys and checks the series uses. Nothing but xppautX's pilot has run.
     for program in ('xppaut', 'auto07p'):
         rd = copy.deepcopy(d)
-        key = row_key(a, program, rd, start, dict(label='pilot-' + program, measured=True), a.cores[:1])
+        key = row_key(a, program, rd, start, dict(label='pilot-' + program, measured=timed), a.cores[:1])  # as a series measures it
         earlier, why = reusable_pilot(a, name, mode, program, key)
         phase('plan: %s pilot %s' % (program, 'imported' if earlier else 'runs: ' + why))
     sized = earlier_mode_file(a, name, mode, 'window.json')
@@ -680,7 +738,7 @@ def plan_reuse(a, name, mode, d, targets, timed, initial, start, phase):
     for label, program, threads, events, jac in variants(name, timed, False):
         cpus = a.cores[:initial['threads_auto'] if threads == 'auto' else threads]
         row = dict(label=label, threads=threads, jacobian=jac, events=events, measured=True)
-        key = row_key(a, program, run_d, start, row, cpus)
+        key = row_key(a, program, run_d, start, row, cpus, HAND_WRITTEN if jac == 'exact' and name in ('P1', 'E1') else None)
         found = [reusable_row(a, name, mode, rep, label, program, key, row, cpus) for rep in range(a.repeats + 1)]
         reasons = sorted({why for recs, why in found if not recs})
         phase('plan: row %s: %d of %d repetitions imported%s' % (label, sum(1 for recs, _ in found if recs), a.repeats + 1, '; runs: ' + '; '.join(reasons) if reasons else ''))
@@ -734,8 +792,8 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
             pilot_key = row_key(a, program, rd, start, dict(label='pilot-' + program, measured=measured), a.cores[:1])
             earlier, why = reusable_pilot(a, name, mode, program, pilot_key) if a.reuse else (None, 'no --reuse')
             if earlier:
-                link_tree(earlier, out / ('pilot-' + program))
-                ref, metric = saved_reference(earlier, program, rd), json.loads((earlier / 'measurement.json').read_text())
+                import_foreign(earlier, out / ('pilot-' + program), program, rd, inputs)
+                ref, metric = saved_reference(out / ('pilot-' + program), program, rd), json.loads((earlier / 'measurement.json').read_text())
                 phase('%s pilot REUSED from %s' % (program, a.reuse))
             else:
                 phase('%s pilot starts%s' % (program, ' (not reused: %s)' % why if a.reuse else ''))
@@ -848,10 +906,13 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
                 exact = jac == 'exact'
                 fd = given(copy.deepcopy(run_d), program)
                 row = dict(label=label, threads=threads, jacobian=jac, events=events, measured=True)
-                key = row_key(a, program, run_d, start, row, cpus)
+                key = row_key(a, program, run_d, start, row, cpus, exact_c if exact else None)
                 recs, source = reusable_row(a, name, mode, rep, label, program, key, row, cpus) if a.reuse else (None, 'no --reuse')
                 if recs:
-                    link_tree(source, folder)
+                    if program == 'xppautx':
+                        link_tree(source, folder)
+                    else:
+                        import_foreign(source, folder, program, fd, inputs)
                     agreement = json.loads((folder / 'gate.json').read_text())
                     digest = (hashlib.sha256((folder / 'diagram.csv').read_bytes()).hexdigest() if program == 'xppautx' else
                               reference_digest(json.loads((folder / 'reference.json').read_text())))
