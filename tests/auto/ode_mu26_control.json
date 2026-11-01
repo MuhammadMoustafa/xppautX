@@ -187,6 +187,15 @@
       "index": 2,
       "quantity": "spectrum",
       "cause": "W550 (#615): the 1 pA UZ's neutral Floquet multiplier, which is exactly 1 for an autonomous cycle: XPPAUT 8.0's is 1.000055 and ours 0.999861, both off by the finite-difference Jacobian's error on the long-period variational problem (W437, W474: the same quantity against AUTO-07p). The independent check (docs/studies/floquet_check.py, exact derivatives) gives 0.99999997 for the cycle at 0.999 pA, and the difference-Jacobian flow 0.9965 there. No tolerance is widened."
+    },
+    {
+      "reference": ".converged",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 2,
+      "quantity": "spectrum",
+      "cause": "W578 (#643): the neutral Floquet multiplier of this autonomous orbit is exactly 1; at the 1 pA UZ (period 504) ours (EPS 1e-7) is 0.99983 and the converged run's (EPS 1e-10) 1.000018, the error of the long-period variational problem at NTST 50 that the W437 entries trace for AUTO-07p; the other multipliers agree. No tolerance is widened."
     }
   ],
   "curve_runs_on": [

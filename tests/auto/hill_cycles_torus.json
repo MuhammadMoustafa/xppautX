@@ -147,6 +147,14 @@
       "type": "resonance_1_3",
       "index": 2,
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
+    },
+    {
+      "reference": ".converged",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "branch_point",
+      "index": 1,
+      "cause": "W578 (#643): the converged exact run (EPS/1000, steps/10) does not label this branch point: at the 1:2 point of the torus curve its corrector does not converge in CONVERGED_NEWTON = 20 Newton iterations (the extended system is singular there; with 100 it labels R2 and BP at the same d). The point is real (docs/studies/w578_converged_check.py, the model's own equations): the cycle's Hill pair is a defective double -1 at c = -0.3, d* = 0.2770059707517, and the flip curve 1 + trace + det = 0 passes through that point (d - d* = -4.6e-8 at c + mu = +-1e-4), so the torus system, whose theta = pi, v2 = 0 solutions are the flip system's, has a second branch through it. Ours lies 1.4e-12 from d*."
     }
   ]
 }
