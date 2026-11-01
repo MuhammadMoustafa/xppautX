@@ -2722,3 +2722,19 @@ Each new label checked from the model's own equations (`docs/studies/w585_torus_
 Each is a traced difference against AUTO-07p and XPPAUT 8.0 (which labels no strong resonance, finding 71). Baselines changed
 (autocompare --update --only): hill_cycles_torus, forced_pp_ns, res_cycles (the new point and the points after it, which move by the
 location's step); every other description passes unchanged, byte for byte.
+
+## W586: a torus curve's branch point and resonance, one point labelled as each ([#651](https://github.com/MuhammadMoustafa/xppautX/issues/651))
+
+On a torus curve the branch-point test and the 1:1 or 1:2 resonance test vanish at one point (the curve's equations are singular there,
+W419, W578's check: henon_rot_th's determinant with the tangent is 5.95e2 (th - pi)^3). W585 labels the resonance when the branch point is
+located first. W586 is the other order: the branch point's search gives up in the step (the cubic is too flat for ITMX Mueller steps, and a
+singular curve is not bisected, W580), the resonance is located in the same step, and when it lands past the branch point's zero the test
+there has the end's sign, so the next step never brackets it. henon_rot_th at the converged run's settings (EPS/1000, steps/10): R2 at
+pi + 2.0e-8 and no BP. Now the branch point's sample at that resonance is its value there with the sign of the step's start, so the next step
+brackets it at its start and takes it there (W580's at_start): BP at pi + 2.09e-8. A search from the step's start, as W585 makes for a resonance
+behind its branch point, was tried and does not converge on the cubic in ITMX steps. Both orders are one block of `locate_tests`
+(core/autlib1.cpp). henon_rot_th's `.converged` trace is dropped: the exact pilot against the converged run is equal work. No baseline moves
+(autocompare's 79 models at 1 and automatic threads, the examples' md5s).
+
+hill_cycles_torus' torus_down, judged the same way, is not equal work with master's binary as with this one: the converged run labels its
+1:2 point R2 then BP, the pilot BP then R2 (both points, the one place, in the other order; not changed here).

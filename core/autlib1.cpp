@@ -217,12 +217,16 @@ void locate_tests(iap_type &iap, rap_type &rap,
   std::size_t last_stepped = 0;
   bool resonance_after_branch_point = false;
   std::optional<std::size_t> found;
+  struct Bracket { AutoTestSample start; double end; }; // a test's sample at the step's start, its value after its location
+  std::vector<Bracket> brackets;
   for (std::size_t i = 0; i < tests.size(); ++i) {
     auto &test = tests[i];
     if (test.user_index) iap.iuzr = *test.user_index;
     bool stepped = false;
     const bool deferred = test.sample.after_branch_point;
+    const AutoTestSample start = test.sample;
     locate(test, dstest, stepped);
+    brackets.push_back({start, test.sample.value});
     if (stepped) {
       last_stepped = i;
       resonance_after_branch_point = deferred;
@@ -234,11 +238,25 @@ void locate_tests(iap_type &iap, rap_type &rap,
     }
   }
   sample_tests(iap, tests, last_stepped, evaluate);
-  // W585: the branch point test crosses zero again near the resonance located just after its own point (both are
-  // the one point: deferred_resonance); that crossing is the branch point already labelled, AUTO-07p's coincidence
+  // W585, W586 (#650, #651): on a torus curve the branch point and the 1:1 or 1:2 resonance are one point (the
+  // curve's equations are singular there, W419), labelled once as each, whichever is located first and whichever
+  // side of the zero it lands. A resonance located after its branch point (deferred_resonance): the branch-point
+  // test's crossing near it is that branch point, already labelled. A resonance located in the step where the
+  // branch point was given up, landing past it (henon_rot_th's converged run, 2e-8 past th = pi): the branch point's
+  // zero is within the tolerance of this point, so its sample is the test here with the sign of the step's start,
+  // and the next step takes it here (locate_special_point's at_start); a search from the step's start, as
+  // deferred_resonance's for a resonance behind, does not converge on the test's cubic zero in ITMX steps.
   if (resonance_after_branch_point)
     for (std::size_t i = 0; i < last_stepped; ++i)
       if (is_branch_point(tests[i].kind)) tests[i].sample = {};
+  if (!resonance_after_branch_point && iap.istop != 1 && found && iap.itpst == xpp::AutoPointKind::NeimarkSacker &&
+      (iap.itp.kind == xpp::AutoPointKind::Resonance1 || iap.itp.kind == xpp::AutoPointKind::Resonance2))
+    for (std::size_t i = 0; i < *found; ++i) {
+      const auto &[start, end] = brackets[i];
+      auto &sample = tests[i].sample;
+      if (is_branch_point(tests[i].kind) && start.value * end < 0 && sample.value * start.value <= 0)
+        sample = {std::copysign(std::max(std::abs(sample.value), std::numeric_limits<double>::denorm_min()), start.value), std::nullopt};
+    }
   if (iap.istop != 1 && found && tests[*found].user_index &&
       marks[*tests[*found].user_index].parameter < 0) iap.istop = -1;
 }
