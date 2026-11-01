@@ -1107,32 +1107,21 @@ def compare_reference_run(name, suffix, dr, r, rows, known, runs_on=None):
     return a, m
 
 
-def compare_references(name, d, data, ranges, refs, notes=None):
-    """Our runs against every reference's. Runs of one description that start at the same point and trace a
-    two-parameter curve (a Hopf curve continued up and down from one Hopf point) are the two arms of one curve:
-    which program calls an arm "up" is the sign convention of its tangent, so each reference arm is compared
-    with the arm of ours it overlaps (fewest differences), and a pairing other than by name is added to `notes`."""
+def compare_references(name, d, data, ranges, refs):
+    """Our runs against every reference's, each run with the run of ours of its name. Two arms of one curve (a Hopf curve
+    continued up and down from one Hopf point) are different runs: a program that follows an arm the other way round has the
+    other arm's curve under this name and differs here (W579: a pairing by overlap passed AUTO-07p's T2 arms run the other
+    way, and compared different branches under one name)."""
     rows = stored_rows(data, ranges)
     diffs, measures = [], []
     for suffix, ref in refs.items():
         for r in ref['runs']:
             if 'unavailable' in r:
                 continue
-            named = next(x for x in d['runs'] if x['name'] == r['name'])
-            # a skipped arm has no rows of ours to pair with (henon_rot_tr's down, W405)
-            arms = [x for x in d['runs'] if x['kind'] == 'two_parameter' and named['kind'] == 'two_parameter'
-                    and x['start'] == named['start'] and 'skip' not in x] or [named]
-            best = None
-            for dr in arms:
-                known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == dr['name']]
-                runs_on = next((k for k in d.get('curve_runs_on', ()) if k['reference'] == suffix and k['run'] == dr['name']), None)
-                a, m = compare_reference_run(name, suffix, dr, r, rows, known, runs_on)
-                if best is None or len(a) < len(best[1]):
-                    best = dr, a, m
-            dr, a, m = best
-            if dr is not named and notes is not None:
-                notes.append('%s %s: its %s overlaps our %s, not our %s: the two arms of one curve, opposite sign convention'
-                             % (name, REFERENCES[suffix], r['name'], dr['name'], named['name']))
+            dr = next(x for x in d['runs'] if x['name'] == r['name'])
+            known = [k for k in d.get('differences', ()) if k['reference'] == suffix and k['run'] == dr['name']]
+            runs_on = next((k for k in d.get('curve_runs_on', ()) if k['reference'] == suffix and k['run'] == dr['name']), None)
+            a, m = compare_reference_run(name, suffix, dr, r, rows, known, runs_on)
             diffs += a
             measures += [(suffix, dr['name']) + x for x in m]
     return diffs, measures
