@@ -21,11 +21,14 @@ docs/auto-references.md W455):
         --parameter SmIapp 0.09994824 0.9990257
     uv run --locked python docs/studies/floquet_check.py --odex PY_S1Bf.odex --c paper/benchmarks/auto/auto07p/py_s1bf.c \
         --diagram diagram.csv --section v --parameter Iapp 16394.43 16409
+    uv run --locked python docs/studies/floquet_check.py --description ode_mu26_blocked --section SmV=-20 --norm \
+        --parameter SmIapp 0.06999999993641051
 
-Prints the period and the largest multipliers (by modulus) at each parameter value.
+Prints the period and the largest multipliers (by modulus) at each parameter value, with --norm the cycle's L2 norm too.
 """
 import argparse
 import csv
+import math
 import re
 import ctypes
 import subprocess
@@ -34,7 +37,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from scipy.integrate import solve_ivp
+from scipy.integrate import quad_vec, solve_ivp
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -53,6 +56,8 @@ WARMUP = 3  # forward returns before Newton's method
 MAX_NEWTON = 30  # Newton steps on the return map before the cycle is called not found
 MAX_TIME = 1e6  # of one return
 SHOWN = 4  # multipliers printed
+NORM_TOLERANCE = 1e-12  # relative, of --norm's quadrature over the period (the integration's own error is RTOL)
+NORM_INTERVALS = 20000  # of that quadrature: a cycle near a SNIC spends most of its period in one slow stretch
 
 
 def compile_equations(text_path, scratch):
@@ -92,6 +97,7 @@ def main():
     p.add_argument('--section', required=True, help="NAME[=LEVEL]: the state crossing LEVEL upward once per cycle (default: the start state's own value)")
     p.add_argument('--parameter', required=True, help='the parameter checked')
     p.add_argument('--difference', action='store_true', help="also the multipliers of a central-difference monodromy matrix")
+    p.add_argument('--norm', action='store_true', help="also the cycle's L2 norm, AUTO's: the root of the period's mean of the states' squares (W578)")
     p.add_argument('values', nargs='+', type=float)
     a = p.parse_args()
     if a.description:
@@ -176,6 +182,10 @@ def main():
                 x0 = x0 + step - unit * step[section_index]  # stay on the section
             else:
                 raise SystemExit('the cycle did not converge in %d Newton steps at %s = %r' % (MAX_NEWTON, a.parameter, target))
+            if a.norm:
+                cycle = solve_ivp(rhs, (0, period), x0, method='LSODA', rtol=RTOL, atol=ATOL, dense_output=True).sol
+                mean_square = quad_vec(lambda t: (cycle(t) ** 2).sum(), 0, period, epsrel=NORM_TOLERANCE, limit=NORM_INTERVALS)[0] / period
+                print('%s %r: period %.8f, L2 norm %.10f' % (a.parameter, target, period, math.sqrt(mean_square)))
             monodromies = {'exact': monodromy(x0, period)}
             if a.difference:
                 phi = np.empty((n, n))

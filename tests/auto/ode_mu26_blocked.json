@@ -306,6 +306,24 @@
       "type": "fold",
       "index": 1,
       "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 blocked continuation to_snic (labels 5 and 0.9999991 pA, then a spurious LP at 0.1010236 pA (point 144), reverses and ends at its NMX at 0.84 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.1010236 pA (period 1359.66) the multipliers are 1, 1.1e-5, 1.1e-5, -1.2e-6, at 0.07001995 pA (the old run's LP) 1, -2.1e-6, ...: no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.84 pA the second multiplier is 0.010. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.1009347 and 0.07001995 pA and returned to 5 pA. docs/auto-references.md W550."
+    },
+    {
+      "reference": ".converged",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 2,
+      "quantity": "spectrum",
+      "cause": "W578 (#643): the neutral Floquet multiplier of this autonomous orbit is exactly 1; at the 1 pA UZ (period 528) ours (EPS 1e-7) is 0.99979 and the converged run's (EPS 1e-10) 1.000023, the error of the long-period variational problem at NTST 50 that the W437 entries trace for AUTO-07p. The model's own equations (docs/studies/floquet_check.py, exact derivatives, no collocation) give 0.99999992, 0.013069072 and 0.012902644; ours 0.99979, 0.013069071, 0.012902643. No tolerance is widened."
+    },
+    {
+      "reference": ".converged",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 4,
+      "quantity": "norm",
+      "cause": "W578 (#643): at the 0.07 pA UZ next to the SNIC (period 2715) the collocation system is nearly singular and where Newton stops at EPSU 1e-7 is 7e-7 relative off (the W474 entry for AUTO-07p): the model's own cycle (docs/studies/floquet_check.py --norm, no collocation) has the L2 norm 100.7344048; ours 100.7343301 (7.5e-5 below, the finite-difference pilot's 6.0e-5), the converged run's (EPSU 1e-10) 100.7344035 (1.2e-6). No tolerance is widened."
     }
   ],
   "curve_runs_on": [

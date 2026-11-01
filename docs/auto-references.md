@@ -2560,3 +2560,36 @@ the old branch are zero; the branch point test at the second point of a switched
 is not the loop's (a bracket with it would be spurious); a Hopf start of cycles, because its first point is no solution of the cycle's equations (W458); a start that is itself a special
 point, because its tests are zero there; a cycle switched at a period doubling or branch point, whose start is that point. Findings: docs/auto07p-findings.md 15, docs/xppaut-findings.md 106.
 
+
+## W578: the converged exact run as a judge ([#643](https://github.com/MuhammadMoustafa/xppautX/issues/643))
+
+The W557 timed series judged xppautX's exact rows of nine workloads not equal work against the converged exact run (W457: EPS/1000, steps/10).
+Each was settled by `docs/studies/w578_converged_check.py` (and `floquet_check.py --norm` for Mu26), from the model's own equations; none was an xppautX
+error beyond its tolerances.
+
+**Where the judge was wrong (paper/benchmarks/comparison/continuation.py, tools/autocompare.py).**
+
+- *Where a row ends on the converged curve.* W562 cuts the converged curve at the sample nearest the row's last point. A curve that comes back
+  over itself has such a sample on each pass: hen_tr's and henon_rot_tr's torus curve folds back at its 1:2 resonance (beta = 1, alpha = 3) and
+  retraces itself, hill_cycles_pd's lens is gone round twice, and the nearest sample was on the first pass, which cut off the R2 and the samples
+  after it (14 of 30 "1.07 off"). hill_cycles_torus' curve keeps c = -0.3 and the norm to 1e-15, and scaling each coordinate by its span made
+  that rounding decide the match. The cut now follows the row along the converged curve (`followed_sample`: the matches never go back, their
+  scaled squared distances add up to the least) and a coordinate that moves less than 1e-6 of its size is scaled by that (`curve_spans`);
+  `compare_curve`'s converged ends and `clipped_ranges` use the same.
+- *The converged run's special points against the pilot's* were taken over the whole converged run, which runs on past a pilot's run that stops
+  at its step limit (hill_cycles_pd's sixth R2, hill_cycles_torus' R4 at d = 0.5637): now up to where the pilot's run ends, as the comparison.
+
+**Where the converged run is not a judge**, each a traced difference of the description against `.converged` (`differences`, `curve_runs_on`), the
+new reference name a description may trace against (`autocompare.CONVERGED_REFERENCE`):
+
+| workload | what | independent check |
+|---|---|---|
+| hill_cycles_torus | torus_down's BP: the converged run's corrector does not converge there in 20 Newton iterations | the Hill pair is a defective double -1 at d* = 0.2770059707517 and the flip curve passes through it (d - d* = -4.6e-8 at c + mu = +-1e-4): a second branch of the torus system; ours 1.4e-12 from d* |
+| henon_rot_th | turn's BP: the converged run's step starts on the R2 at th = pi, where the BP test is zero too, and W545's rule refuses it as a touching | the torus system's Jacobian loses rank at th = pi and its determinant with the tangent changes sign as (th - pi)^3 (-5.9e-13 and +5.9e-13 at -+1e-5) |
+| forced_pp_pd | pd_up's R2 multipliers -0.99999982 +- 6.9e-4i, the converged run's -0.9999999999 +- 1.5e-5i | both R2 within 3.5e-9 of the true one; its monodromy is a Jordan block (off-diagonal 109) that a 1e-10 perturbation splits by 1.1e-3 (W565) |
+| forced_pp_ns | ns_up's BP norm, 1.46e-6, and both torus curves | ours locates the cycles' TR at m 2.0e-6 below the true one (within EPSS 1e-5; AUTO-07p's the same), the converged run at it; the curves keep that m, and the norm carries dm / (2 norm) = 1.46e-6 |
+| ode_mu26_control, ode_mu26_blocked | to_snic's 1 pA UZ, the neutral multiplier: ours 0.99983, 0.99979; the converged run's 1.000018, 1.000023 | exactly 1; the model's own multipliers at blocked's UZ 0.99999992, 0.013069072, 0.012902644, ours 0.013069071, 0.012902643 (W437) |
+| ode_mu26_blocked | to_snic's 0.07 pA UZ norm (period 2715) | the model's own cycle has norm 100.7344048: ours 7.5e-5 below (the finite-difference pilot 6.0e-5), the converged run 1.2e-6: where Newton stops at EPSU 1e-7 in a nearly singular system (W474) |
+
+No tolerance is widened. Against the saved data of the series all nine exact pilots and every exact row of repetition 0 are equal work, and the 16
+other workloads' exact gates (and P1, E1, P2, E2, T1's AUTO-07p exact gates) are as before.

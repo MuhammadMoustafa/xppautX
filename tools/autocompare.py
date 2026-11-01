@@ -192,7 +192,7 @@ def read_description(path):
     traced = set()
     for k in d.get('differences', ()):
         members(k, ('reference', 'run', 'side', 'type', 'index', 'cause', 'quantity'), ('reference', 'run', 'side', 'type', 'index', 'cause'))
-        if (k['reference'] not in REFERENCES or k['run'] not in names or k['side'] not in ('ours', 'reference')
+        if (k['reference'] not in TRACEABLE or k['run'] not in names or k['side'] not in ('ours', 'reference')
                 or k['type'] not in ('EP', *BIFURCATIONS.values(), *CODIM_TWO) or not isinstance(k['cause'], str) or not k['cause'].strip()):
             raise ValueError('invalid traced difference: ' + str(k))
         finite(k['index'], 'index', integer=True, positive=True)
@@ -211,7 +211,7 @@ def read_description(path):
     run_curves = set()
     for k in d.get('curve_runs_on', ()):
         members(k, ('reference', 'run', 'cause'), ('reference', 'run', 'cause'))
-        if (k['reference'] not in REFERENCES or k['run'] not in names or not isinstance(k['cause'], str) or not k['cause'].strip()
+        if (k['reference'] not in TRACEABLE or k['run'] not in names or not isinstance(k['cause'], str) or not k['cause'].strip()
                 or (k['reference'], k['run']) in run_curves):
             raise ValueError('invalid or duplicate curve_runs_on: ' + str(k))
         run_curves.add((k['reference'], k['run']))
@@ -436,6 +436,11 @@ REFERENCES = {'.auto07p': 'AUTO-07p', '.xppaut': 'XPPAUT 8.0'}
 # a description with no reference file says why in this field (an explicit reason, never silence)
 REFERENCE_SKIPS = {'.auto07p': 'auto07p_skip', '.xppaut': 'xppaut_skip'}
 REFERENCE_FORMAT = 1
+# W578 (#643): the converged exact run of paper/benchmarks/comparison/continuation.py (W457), which judges xppautX's
+# exact-Jacobian rows. No file holds it, and nothing here compares with it; a description's traced difference
+# (differences, curve_runs_on) may name it, with the independent evidence that explains the difference
+CONVERGED_REFERENCE = '.converged'
+TRACEABLE = (*REFERENCES, CONVERGED_REFERENCE)
 # xppautX writes a point's type as its name (core/auto_codes.h); the comparison works in the
 # two-letter codes of AUTO-07p and XPPAUT, so each name maps to its code here, once. Several
 # names share one code where both programs label the points alike (fold and cycle_fold: LP).
@@ -841,6 +846,14 @@ def chord_error(polyline, i):
 CURVE_QUANTITIES = ('curve par', 'curve par2', 'curve norm')
 
 
+def curve_samples(rows, two_parameter):
+    """A run's stored points as curve samples, (parameter, second parameter or 0, norm). A curve of cycles first stores the
+    starting data of the curve (the run xppautX does before it) as a branch of one continued parameter: with
+    `two_parameter` those rows are not on the curve and are left out."""
+    return [(float(r['continued_parameter']), float(r.get('continued_parameter2', 0)), float(r['norm']))
+            for r in rows if not two_parameter or 'continued_parameter2' in r]
+
+
 def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter=True, runs_on=None, converged=None, traced=()):
     """Differences (strings) and measurements of a two-parameter run's curve against a reference's
     samples. The programs' steps differ, so points are matched by where they lie: every sample of one
@@ -871,10 +884,7 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
     which is not where the converged run's step limit left it, so the other side's samples before the converged side's first
     are not compared either."""
     epsl, epsu = auto.get('parameter_tolerance', 1e-4), auto.get('state_tolerance', 1e-4)
-    # a curve of cycles first stores the starting data of the curve (the run xppautX does before it) as a branch of
-    # one continued parameter: those rows are not on the curve
-    ours = [(float(r['continued_parameter']), float(r.get('continued_parameter2', 0)), float(r['norm']))
-            for r in rows if not two_parameter or 'continued_parameter2' in r]
+    ours = curve_samples(rows, two_parameter)
     ref = [tuple(v) for v in ref_curve]
     diffs, worst = [], {}
     if len(ours) < 2 or len(ref) < 2:
@@ -884,9 +894,9 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
     if converged:
         row, conv = ('ours', 'reference') if converged['side'] == 'reference' else ('reference', 'ours')
         curves = {'ours': ours, 'reference': ref}
-        last[conv] = samples_before(curves[conv], curves[row][-1])
+        last[conv] = samples_before(curves[conv], curves[row])
         if code_of(rows[-1]['itp']) in GLOBAL_ENDS:
-            last[row] = samples_before(curves[row], curves[conv][-1])
+            last[row] = samples_before(curves[row], curves[conv])
         if converged['head']:
             first[row] = samples_from(curves[row], curves[conv][0])
 
@@ -986,35 +996,56 @@ def table_row(name, d, rows, references, measures, diffs):
     return '| %s | %s | %s |' % (name, runs, ' | '.join(cells))
 
 
-def nearest_sample(curve, end):
-    """The index of the sample of `curve` nearest `end`, each coordinate scaled by its span over the curve."""
-    curve = np.array(curve, dtype=float)
-    spans = np.where(np.ptp(curve, axis=0) > 0, np.ptp(curve, axis=0), 1)
-    return int(np.argmin((((curve - end) / spans) ** 2).sum(axis=1)))
+# W578 (#643): a coordinate that moves less than this, relative to its size, over a whole curve does not tell where along the
+# curve a point is (hill_cycles_torus' torus curve keeps c = -0.3 and the norm to 1e-15): it is scaled by this, not by its span,
+# so that its rounding does not decide the match
+CONSTANT_SPAN = 1e-6
 
 
-def project_on_curve(curve, point):
-    """(i, t): the point of the polyline `curve` nearest `point` lies a fraction t (0 to 1) along its segment i, each
-    coordinate scaled by its span over the curve as nearest_sample scales it."""
+def curve_spans(curve):
+    """Each coordinate's scale over `curve` for locating a point along it: its span, or CONSTANT_SPAN of its size when it hardly moves."""
+    curve = np.asarray(curve, dtype=float)
+    return np.maximum(np.ptp(curve, axis=0), CONSTANT_SPAN * (1 + np.abs(curve).max(axis=0)))
+
+
+def followed_sample(curve, path):
+    """The index of the sample of `curve` that the last point of `path` matches when `path` is followed along `curve` in order
+    (W578): the matches of its points never go back along `curve`, and their squared distances, each coordinate scaled by
+    curve_spans, add up to the least. A curve that comes back over itself (a torus curve folding back at its 1:2 resonance,
+    hen_tr) or goes round a closed curve more than once (hill_cycles_pd's lens) has a sample near `path`'s end on every pass;
+    the nearest one alone can be on the wrong pass, the one `path` reaches in order is not."""
+    curve, path = np.asarray(curve, dtype=float), np.asarray(path, dtype=float)
+    spans = curve_spans(curve)
+    cost = np.zeros(len(curve))
+    for point in path:
+        cost = np.minimum.accumulate(cost) + (((curve - point) / spans) ** 2).sum(axis=1)
+    return int(np.argmin(cost))
+
+
+def project_on_curve(curve, path):
+    """(i, t): the last point of `path` lies a fraction t (0 to 1) along segment i of the polyline `curve`, on one of the two
+    segments of the sample followed_sample matches it to, each coordinate scaled by curve_spans."""
     curve = np.array(curve, dtype=float)
-    spans = np.where(np.ptp(curve, axis=0) > 0, np.ptp(curve, axis=0), 1)
-    a, b, p = curve[:-1] / spans, curve[1:] / spans, np.array(point, dtype=float) / spans
+    spans = curve_spans(curve)
+    j = followed_sample(curve, path)
+    segments = np.array([i for i in (j - 1, j) if 0 <= i < len(curve) - 1])
+    a, b, p = curve[segments] / spans, curve[segments + 1] / spans, np.array(path[-1], dtype=float) / spans
     along = b - a
     length = (along ** 2).sum(axis=1)
     t = np.clip(np.where(length > 0, ((p - a) * along).sum(axis=1) / np.where(length > 0, length, 1), 0.0), 0.0, 1.0)
-    i = int(np.argmin((((a + t[:, None] * along) - p) ** 2).sum(axis=1)))
-    return i, float(t[i])
+    k = int(np.argmin((((a + t[:, None] * along) - p) ** 2).sum(axis=1)))
+    return int(segments[k]), float(t[k])
 
 
-def samples_before(curve, point):
-    """How many leading samples of `curve` lie before the point of it nearest `point`: none of the samples past `point` counts."""
-    i, t = project_on_curve(curve, point)
+def samples_before(curve, path):
+    """How many leading samples of `curve` lie before the point of it where `path` ends: none of the samples past it counts."""
+    i, t = project_on_curve(curve, path)
     return i + 2 if t >= 1 else i + 1
 
 
 def samples_from(curve, point):
     """The index of the first sample of `curve` at or after the point of it nearest `point`: none of the samples before it counts."""
-    i, t = project_on_curve(curve, point)
+    i, t = project_on_curve(curve, [point])
     return i if t <= 0 else i + 1
 
 
@@ -1036,8 +1067,8 @@ def stop_at_global_end(rows, r):
 def stop_at_row_end(rows, r, beyond=0):
     """stop_at_global_end's cut at our last point, whatever ours ends on (W562, D3): a converged run of a description runs
     on past a row that stops at its step limit, and its samples past that row's end are not the row's. Without a period,
-    `beyond` samples past the nearest one are kept too: our end lies on the polyline between the nearest sample and the next,
-    so the nearest alone would leave our last point off the curve."""
+    `beyond` samples past the one our end matches (followed_sample, our curve followed along the reference's) are kept too:
+    our end lies on the polyline between that sample and the next, so that sample alone would leave our last point off the curve."""
     if 'curve' not in r:
         return r
     if 'curve_period' in r:
@@ -1052,8 +1083,7 @@ def stop_at_row_end(rows, r, beyond=0):
             curve = curve + [[a + fraction * (b - a) for a, b in zip(r['curve'][cut], r['curve'][cut + 1])]]
             periods = periods + [last]
         return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1], 'curve': curve, 'curve_period': periods}
-    end = np.array([float(rows[-1]['continued_parameter']), float(rows[-1].get('continued_parameter2', 0)), float(rows[-1]['norm'])])
-    cut = min(nearest_sample(r['curve'], end) + beyond, len(r['curve']) - 1)
+    cut = min(followed_sample(r['curve'], curve_samples(rows, any('continued_parameter2' in row for row in rows))) + beyond, len(r['curve']) - 1)
     # a sample is row PT - 1 of the file (the curve starts at point 1): the points up to the cut's own point stay
     return {**r, 'points': [p for p in r['points'] if p['point'] <= cut + 1], 'curve': r['curve'][:cut + 1]}
 

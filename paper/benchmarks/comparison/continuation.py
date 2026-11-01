@@ -53,7 +53,7 @@ REFINEMENT = 10
 # henon_rot_th (the Henon map with a rotation) and explicit_homoclinic (the orbit in closed form). Branch switching is W556's.
 SPECIAL_POINT_DESCRIPTIONS = ('forced_pp_pd', 'forced_pp_ns', 'hen_pd', 'hen_tr', 'lorenz_homoclinic', 'lrz_cycles',
                               'hill_cycles_pd', 'hill_cycles_torus', 'henon_rot_pd', 'henon_rot_tr', 'henon_rot_th', 'explicit_homoclinic')
-CONVERGED = '.converged'  # that run's name where compare_references names a reference
+CONVERGED = comparison.CONVERGED_REFERENCE  # that run's name where compare_references names a reference
 comparison.REFERENCES.setdefault(CONVERGED, 'the converged exact run')
 
 
@@ -335,9 +335,34 @@ def converged_pilot(a, d, out, initial):
     xppautX's finite-difference pilot's."""
     run = native(a, tightened(d), out / 'pilot-xppautx-converged', 1, True, 'exact', measured=False)
     run['reference'] = reference_of(d, run['data'], run['ranges'])
-    want, got = signature(d, initial['data'], initial['ranges']), signature(d, run['data'], run['ranges'])
-    run['mismatch'] = None if want == got else 'special points of the converged exact run %s, of the finite-difference pilot %s' % (got, want)
+    run['mismatch'] = converged_mismatch(d, run, initial)
     return run
+
+
+def converged_mismatch(d, run, initial):
+    """None when the converged run's special points are the finite-difference pilot's, in order, else what differs. The
+    converged run runs on past a pilot's run that stops at its step limit (W562, D3): its points past that run's end are not
+    compared (W578: hill_cycles_pd's lens, gone round once more, has a sixth R2), the cut where clipped_ranges cuts its curve."""
+    ranges = clipped_ranges(run['data'], run['ranges'], d, reference_of(d, initial['data'], initial['ranges']))
+    want, got = untraced(d, signature(d, initial['data'], initial['ranges']), 'ours'), untraced(d, signature(d, run['data'], ranges), 'reference')
+    return None if want == got else 'special points of the converged exact run %s, of the finite-difference pilot %s' % (got, want)
+
+
+def converged_traced(d):
+    """The description's traced differences against the converged run (W578): where that run, at a singular point or an
+    ill-conditioned quantity, is not a judge, each with the independent evidence that explains it."""
+    return [k for k in d.get('differences', ()) if k['reference'] == CONVERGED]
+
+
+def untraced(d, points, side):
+    """A signature without the special points that converged_traced names on `side` ('ours': xppautX's rows and pilot,
+    'reference': the converged run)."""
+    dropped = set()
+    for k in converged_traced(d):
+        at = [i for i, symbol in enumerate(points.get(k['run'], ())) if symbol == k['type']]
+        if k['side'] == side and 'quantity' not in k and len(at) >= k['index']:
+            dropped.add((k['run'], at[k['index'] - 1]))
+    return {run: [symbol for i, symbol in enumerate(symbols) if (run, i) not in dropped] for run, symbols in points.items()}
 
 
 def converged_compare(name, d, data, ranges, suffix, ref):
@@ -347,7 +372,7 @@ def converged_compare(name, d, data, ranges, suffix, ref):
     rows = comparison.stored_rows(data, ranges)
     by_name = {r['name']: r for r in d['runs']}
     seen = {}
-    known = []
+    known = converged_traced(d) if suffix == CONVERGED else []
     for r in d['runs']:
         for symbol, i in comparison.labelled(rows[r['name']], r['kind']) if r['name'] in rows else ():
             seen[r['name'], symbol] = seen.get((r['name'], symbol), 0) + 1
@@ -370,7 +395,8 @@ def converged_compare(name, d, data, ranges, suffix, ref):
 def clipped_ranges(data, ranges, d, ref):
     """The converged run's ranges cut where each of another program's rows ends (W562, D3): the converged run runs on past a row
     that stops at its step limit, and its samples past that row's last point are not the row's. The cut is the converged sample
-    nearest the row's last sample (as stop_at_row_end cuts a reference at our end), read through the stored rows."""
+    the row's last sample matches, the row followed along the converged curve (as stop_at_row_end cuts a reference at our end),
+    read through the stored rows."""
     rows = comparison.stored_rows(data, ranges)
     curve_runs = {r['name']: r['kind'] in ('two_parameter', *comparison.HOMCONT) for r in d['runs']}
     out = dict(ranges)
@@ -381,10 +407,9 @@ def clipped_ranges(data, ranges, d, ref):
         kept = [i for i, row in enumerate(stored) if not curve_runs[r['name']] or 'continued_parameter2' in row]
         if not kept:
             continue
-        samples = [[comparison.quantity(stored[i], 'par'), comparison.quantity(stored[i], 'par2') if 'continued_parameter2' in stored[i] else 0.0,
-                    comparison.quantity(stored[i], 'norm')] for i in kept]
-        # the sample nearest the row's end and the next one (as stop_at_row_end's beyond=1): our end lies between them
-        cut = min(comparison.nearest_sample(samples, r['curve'][-1]) + 1, len(kept) - 1)
+        # the sample the row's end matches, the row followed along the converged curve, and the next one (as stop_at_row_end's
+        # beyond=1): the row's end lies between them
+        cut = min(comparison.followed_sample(comparison.curve_samples(stored, curve_runs[r['name']]), r['curve']) + 1, len(kept) - 1)
         out[r['name']] = (ranges[r['name']][0], ranges[r['name']][0] + kept[cut] + 1)
     return out
 
@@ -410,7 +435,7 @@ def exact_gate(name, d, converged, program, folder):
     diffs, measures = converged_compare(name, d, *sides)
     unavailable = [{"program": sides[2], "run": r['name'], "reason": r['unavailable']} for r in sides[3]['runs'] if 'unavailable' in r]
     return dict(passed=not diffs and not unavailable and converged['mismatch'] is None, differences=([converged['mismatch']] if converged['mismatch'] else []) + diffs,
-                notes=[], measures=measures, unavailable=unavailable, traced_differences=[],
+                notes=[], measures=measures, unavailable=unavailable, traced_differences=converged_traced(d),
                 scope='exact Jacobian: special points of the finite-difference pilot, values within the gate\'s tolerances of the converged exact run')
 
 
