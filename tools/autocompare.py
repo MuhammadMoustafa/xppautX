@@ -671,6 +671,34 @@ def labelled(rows, kind):
     return points
 
 
+
+def location_tolerance(auto):
+    """The arclength within which AUTO takes a zero as found (core/autlib1.cpp location_tolerance): EPSS (1 + sqrt(|DS DSMAX|))."""
+    return auto.get('special_point_tolerance', 1e-4) * (1 + math.sqrt(abs(auto['step_size'] * auto['max_step_size'])))
+
+
+def row_position(row):
+    """A stored point's place: its parameters and norm."""
+    return [quantity(row, q) for q in ('par', 'norm')] + ([quantity(row, 'par2')] if 'continued_parameter2' in row else [])
+
+
+def coincident_sorted(points, positions, tolerance):
+    """W587 (#652): special points, in their stored order, with the labels at one point as one set. Labels whose places
+    (`positions`, one per point) lie within the location tolerance of the one before are one point, a torus curve's BP
+    and R2 at its 1:2 resonance say: which a run stores first depends on which side its locations land (W585, W586), so
+    within such a group they are in the order of their types (stable: one type's points keep their order). A point is
+    labelled's (type, index) or a reference's dict."""
+    def type_of(point):
+        return point[0] if isinstance(point, tuple) else point['type']
+    groups = []
+    for point, place in zip(points, positions):
+        if groups and math.dist(groups[-1][-1][1], place) <= tolerance:
+            groups[-1].append((point, place))
+        else:
+            groups.append([(point, place)])
+    return [point for g in groups for point, _ in sorted(g, key=lambda x: type_of(x[0]))]
+
+
 def compare_run(rows, auto, kind, ref_points, who, known=(), compare_start=True):
     """Differences (strings) and measurements (quantity, point, difference, tolerance) of one run
     against a reference's special points. The tolerance of a quantity q at a special point:
@@ -692,6 +720,10 @@ def compare_run(rows, auto, kind, ref_points, who, known=(), compare_start=True)
         ours = [(symbol, i) for symbol, i in ours if not (symbol == 'EP' and i == 0)]
     detected = (*BIFURCATIONS.values(), *(CODIM_TWO if kind == 'two_parameter' else ()))
     theirs = [p for p in ref_points if p['type'] in detected or (compare_start and p['type'] == 'EP' and p['point'] == 1)]
+    tolerance = location_tolerance(auto)
+    ours = coincident_sorted(ours, [row_position(rows[i]) for _, i in ours], tolerance)
+    theirs = coincident_sorted(theirs, [[p['par'], p['norm']] + ([p['par2']] if p.get('par2') is not None else [])
+                                        for p in theirs], tolerance)
     diffs = []
     dropped = {'ours': set(), 'reference': set()}
     numerical = {}

@@ -93,7 +93,7 @@ class AutoCompare(unittest.TestCase):
 
 
 class References(unittest.TestCase):
-    AUTO = dict(max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4)
+    AUTO = dict(step_size=0.01, max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4)
 
     def row(self, itp, par, norm, per=0.0, ev=(0.0, 0.0)):
         return dict(itp=str(itp), continued_parameter=str(par), norm=str(norm), per=str(per), evr1=str(ev[0]), evi1=str(ev[1]))
@@ -126,6 +126,22 @@ class References(unittest.TestCase):
                          '| m | steady: EP LP | agrees (2 points; par 1e-07, norm 2e-07) | not run |')
         self.assertEqual(table_row('m', d, rows, ['.auto07p'], measures, ['m AUTO-07p/steady x']).split(' | ')[2],
                          'differs: 1 (2 points; par 1e-07, norm 2e-07)')
+
+    def test_labels_at_one_point_are_one_set_whatever_their_stored_order(self):
+        # W587: a torus curve's BP and R2 at its 1:2 point, stored in either order, 2e-8 apart (henon_rot_th's
+        # converged run); an R3 a step later and a BP and R2 farther apart than the location tolerance keep their order
+        auto = dict(special_point_tolerance=1e-7, step_size=0.002, max_step_size=0.01)
+        def sorted_labels(rows, auto):
+            labels = labelled(rows, 'two_parameter')
+            return autocompare.coincident_sorted(labels, [autocompare.row_position(rows[i]) for _, i in labels], autocompare.location_tolerance(auto))
+        def run(first, second, gap):
+            return [self.row('regular', 3.0, 0.65), self.row(first, 3.14159265, 0.65), self.row(second, 3.14159265 + gap, 0.65),
+                    self.row('resonance_1_3', 4.18879, 0.65)]
+        for first, second in (('branch_point', 'resonance_1_2'), ('resonance_1_2', 'branch_point')):
+            rows = run(first, second, 2e-8)
+            self.assertEqual([s for s, _ in sorted_labels(rows, auto)], ['BP', 'R2', 'R3'])
+        rows = run('resonance_1_2', 'branch_point', 1e-6)
+        self.assertEqual([s for s, _ in sorted_labels(rows, auto)], ['R2', 'BP', 'R3'])
 
     def test_a_homcont_runs_first_point_is_its_start(self):
         rows = [self.row('end', 1.0, 0.86), self.row('regular', 1.1, 0.85), self.row('end', 3.0, 0.7)]
@@ -282,7 +298,7 @@ class Projection(unittest.TestCase):
 
 
 class Curves(unittest.TestCase):
-    AUTO = dict(max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, parameter_min=0.05, parameter_max=1.4)
+    AUTO = dict(step_size=0.01, max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, parameter_min=0.05, parameter_max=1.4)
     WIDE = dict(AUTO, parameter_min=0.0, parameter_max=3.0)
 
     @staticmethod
@@ -456,7 +472,7 @@ class Curves(unittest.TestCase):
 
 
 class Arms(unittest.TestCase):
-    AUTO = dict(max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, parameter_min=-3.0, parameter_max=3.0)
+    AUTO = dict(step_size=0.01, max_step_size=0.1, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, parameter_min=-3.0, parameter_max=3.0)
 
     @staticmethod
     def arm(sign):

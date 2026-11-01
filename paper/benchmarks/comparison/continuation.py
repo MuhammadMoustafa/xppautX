@@ -305,7 +305,11 @@ def tightened(d):
 
 def signature(d, data, ranges):
     rows = comparison.stored_rows(data, ranges)
-    return {r['name']: [s for s, i in comparison.labelled(rows[r['name']], r['kind']) if not start_artefact(r, i)] for r in d['runs'] if r['name'] in rows}
+    def points(r):
+        run = rows[r['name']]
+        labels = comparison.labelled(run, r['kind'])
+        return comparison.coincident_sorted(labels, [comparison.row_position(run[i]) for _, i in labels], comparison.location_tolerance(r['auto']))
+    return {r['name']: [s for s, i in points(r) if not start_artefact(r, i)] for r in d['runs'] if r['name'] in rows}
 
 
 def reference_of(d, data, ranges):

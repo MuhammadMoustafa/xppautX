@@ -2738,3 +2738,14 @@ behind its branch point, was tried and does not converge on the cubic in ITMX st
 
 hill_cycles_torus' torus_down, judged the same way, is not equal work with master's binary as with this one: the converged run labels its
 1:2 point R2 then BP, the pilot BP then R2 (both points, the one place, in the other order; not changed here).
+
+## W587: labels at one point are one set in the comparisons ([#652](https://github.com/MuhammadMoustafa/xppautX/issues/652))
+
+A torus curve's BP and its 1:1 or 1:2 resonance are one point (W585, W586), and which a run stores first depends on which side its locations
+land: hill_cycles_torus' torus_down is R3, BP, R2, R3 in the description's run and R3, R2, BP, R3 in the converged run. `coincident_sorted`
+(tools/autocompare.py) takes labels whose places (parameters and norm) lie within the location tolerance, EPSS (1 + sqrt(|DS DSMAX|)), of the
+one before as one set, in the order of their types; `compare_run` (against AUTO-07p, XPPAUT and the converged run's reference form) and the
+judge's `signature` (paper/benchmarks/comparison/continuation.py) both use it. No AUTO-07p or XPPAUT comparison changes (autocompare, 79
+models). Rejudged offline with this tip's xppautX, the twelve special-point workloads: eleven equal work (hill_cycles_torus now among them);
+forced_pp_ns is not: its pilot's ns_up has BP and R2 (W585's R2 beside the BP), the converged run's the BP alone, a missing label and not an
+order.
