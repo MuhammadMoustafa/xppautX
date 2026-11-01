@@ -124,7 +124,7 @@ def workloads(a):
     # discrepancies are reported by the pilot, never silently transferred;
     # W456 traced the one this window's pilot reported.
     t2['differences'] = [dict(reference='.auto07p', run='hb_down', side='reference', type='GH', index=i, cause=(
-        "AUTO-07p labels five GH on the arm that runs to ampPar 0.82 (its hb_up, our hb_down: opposite sign convention), at ampPar 0.739 to 0.795 "
+        "AUTO-07p labels five GH on the arm that runs to ampPar 0.82 (hb_down: CaDen_Max falling, ampPar rising; AUTO-07p's tangent orientation is corrected to ours, W579), at ampPar 0.739 to 0.795 "
         "(CaDen_Max 9.7e-5 to 3.8e-5). An independent first Lyapunov coefficient (the model's Fortran right-hand side, quadruple precision, "
         "Kuznetsov's formula) is +8.5e-4 to +1.9e-3 at all 89 points of the arm and +9.1e-4 to +1.25e-3 at the five labels, and agrees with ours "
         "to 1.5e-4: no sign change. The cause is finding 2's (docs/auto07p-findings.md): with EPSL = EPSU = EPSS 1e-7 and 1e-9 AUTO-07p labels none "
@@ -244,8 +244,7 @@ def refused(name, d, program, measured):
 
 
 def gate(name, d, native_result, refs):
-    notes = []
-    diffs, measures = comparison.compare_references(name, d, native_result['data'], native_result['ranges'], refs, notes)
+    diffs, measures = comparison.compare_references(name, d, native_result['data'], native_result['ranges'], refs)
     unavailable = [{"program": suffix, "run": r['name'], "reason": r['unavailable']} for suffix, ref in refs.items() for r in ref['runs'] if 'unavailable' in r]
     if name in ('P1', 'P2'):
         rows = comparison.stored_rows(native_result['data'], native_result['ranges'])
@@ -260,7 +259,7 @@ def gate(name, d, native_result, refs):
                 if a['parameter_min'] < value < a['parameter_max']:
                     diffs.append('%s %s/%s ended inside the parameter bounds at %s; not the requested bounded workload' % (name, program, r['name'], value))
     unexpected = [u for u in unavailable if not (u['program'] == '.xppaut' and u['run'] in ('lpc_soma', 'lpc_dend'))]
-    return dict(passed=not diffs and not unexpected, differences=diffs, notes=notes, measures=measures, unavailable=unavailable,
+    return dict(passed=not diffs and not unexpected, differences=diffs, measures=measures, unavailable=unavailable,
                 traced_differences=d.get('differences', []), scope='special points plus both directions of every whole branch')
 
 
@@ -435,7 +434,7 @@ def exact_gate(name, d, converged, program, folder):
     diffs, measures = converged_compare(name, d, *sides)
     unavailable = [{"program": sides[2], "run": r['name'], "reason": r['unavailable']} for r in sides[3]['runs'] if 'unavailable' in r]
     return dict(passed=not diffs and not unavailable and converged['mismatch'] is None, differences=([converged['mismatch']] if converged['mismatch'] else []) + diffs,
-                notes=[], measures=measures, unavailable=unavailable, traced_differences=converged_traced(d),
+                measures=measures, unavailable=unavailable, traced_differences=converged_traced(d),
                 scope='exact Jacobian: special points of the finite-difference pilot, values within the gate\'s tolerances of the converged exact run')
 
 
@@ -801,7 +800,7 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
         phase('RHS check %s' % ('passed' if rhs['passed'] else 'FAILED'))
         digest_history(name, initial, out)
         if not rhs['passed']:
-            return stop(dict(passed=False, differences=['%s: the right-hand side check failed, see %s' % (name, out / 'rhs')], notes=[], measures=[],
+            return stop(dict(passed=False, differences=['%s: the right-hand side check failed, see %s' % (name, out / 'rhs')], measures=[],
                              unavailable=[], traced_differences=[], rhs=rhs, scope='stopped after the right-hand side check'))
         refs, pilots, unsupported = {}, {}, set()
         for program in ('xppaut', 'auto07p'):

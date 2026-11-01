@@ -499,8 +499,14 @@ def script(runs, eq, names, measure=False):
                   '    return r.ru_utime + r.ru_stime']
     else:
         lines += compile_lines
+    if any(r['kind'] == 'two_parameter' and r['name'] not in eq['cycles'] for r in runs):
+        # toArray's first column is the run's first parameter, PAR(ICP(1))
+        lines += ['def oriented(start, c, ds):',
+                  '    first = [row[0] for row in run(start, c=c, NMX=2, DS=ds).toArray()]',
+                  "    assert len(first) == 2, 'the orientation probe of %s stored %d points' % (c, len(first))",
+                  '    return -ds if (first[1] - first[0]) * ds < 0 else ds']
     for r, c in zip(runs, names):
-        start = r['start']
+        start, orient = r['start'], None
         if start.get('state') == 'current':
             # a HomCont description's `eq` starts every run from its orbit; an equilibrium run starts from our start (`eqs`)
             src = "run(e='%s', c='%s')" % ('eqs' if eq['homcont'] and r['kind'] == 'equilibrium' else 'eq', c)
@@ -512,12 +518,19 @@ def script(runs, eq, names, measure=False):
             src = "run(%s, c='%s')" % (at, c)
             if r['name'] in eq['cycles']:
                 # the starting data (an EP) of the curve; the curve is the run restarted from it, in the direction
-                # AUTO-07p takes for the description's DS (not necessarily the way xppautX's curve goes)
+                # AUTO-07p takes for the description's DS (xppautX takes AUTO-07p's rule here too)
                 src = "run(run(%s, c='%s'))" % (at, c)
+            elif r['kind'] == 'two_parameter':
+                # W579: AUTO-07p orients a curve of equilibria by the first significant component of its tangent, xppautX by
+                # the first parameter, so with a first parameter that moves little (CaDen_Max next to ampPar) the same DS ran
+                # the two the opposite ways. DS gets the sign that makes a positive DS raise the first parameter, probed with
+                # one step before the (timed) run.
+                orient = '    ds_%s = oriented(%s, %r, %r)' % (c, at, c, auto_constants(r)['ds'])
+                src = "run(%s, c='%s', DS=ds_%s)" % (at, c, c)
         second = ", 'par2': s['PAR(%d)']" % eq['icp2'][r['name']] if r['name'] in eq['icp2'] else ''
         # a boundary value problem has no period (its PAR(11) is unused); every other run's solutions carry PAR(11)
         period = 'None' if r['kind'] == 'bvp' else "s['PAR(%d)']" % PERIOD
-        lines += ['print("RUN %s")' % r['name'], 'try:', '    results[%r] = %s' % (r['name'], src),
+        lines += ['print("RUN %s")' % r['name'], 'try:', *([orient] if orient else []), '    results[%r] = %s' % (r['name'], src),
                   "    save(results[%r], %r)" % (r['name'], c),
                   "    for s in results[%r]():" % r['name'],
                   "        print('POINT ' + json.dumps({'run': %r, 'type': s['TY name'], 'branch': s['BR'], 'label': s['LAB'],"

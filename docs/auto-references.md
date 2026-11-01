@@ -1506,7 +1506,7 @@ codimension-two point; AUTO-07p labels five GH, at points 63, 67, 71, 76 and 83 
 | 76 | 5.9025e-5 | 0.773125 | +1.0228e-3 |
 | 83 | 3.8473e-5 | 0.795370 | +9.210e-4 |
 
-(AUTO-07p's `hb_up` is our `hb_down`. At each label's CaDen_Max the Hopf value of ampPar is found again, within 3e-7 of AUTO-07p's.)
+(This is T2's `hb_down` (CaDen_Max falling) in both programs since W579; before it AUTO-07p's `hb_up` ran this way. At each label's CaDen_Max the Hopf value of ampPar is found again, within 3e-7 of AUTO-07p's.)
 The independent coefficient: at each label and at each of our 89 points of the arm (CaDen_Max fixed), the equilibrium and the Hopf value of ampPar
 are found again in quadruple precision from AUTO-07p's own Fortran `FUNC` of the model (compiled with `-freal-8-real-16`), the
 Jacobian, and the bilinear and trilinear forms by central differences in quadruple precision with steps 1e-8 and 3e-9 (the two
@@ -1523,10 +1523,29 @@ labels the same five GH at the same points; at 1e-7 and at 1e-9 it labels none, 
 
 xppautX's own value does not change with the Jacobian: with `jacobian: exact` the coefficient is +8.5e-4 to +1.9e-3 as well.
 T2's `differences` therefore take five entries for the reference `.auto07p`, side `reference`, type `GH`, index 1 to 5, on
-the run `hb_down`: the gate compares AUTO-07p's `hb_up` with our `hb_down` (the two arms of one curve, opposite sign
-convention, its note), and a traced difference belongs to the arm it is compared with. With the five entries the gate reports no difference
+the run `hb_down` (W579: the gate compares each run by name, and AUTO-07p's driver follows each arm the way ours does; until then
+AUTO-07p's `hb_up` ran this way and the gate paired it with our `hb_down` by overlap, which let two arms run the other way pass).
+With the five entries the gate reports no difference
 for T2 on the pilot's data (checked with `compare_references` on the pilot's diagram, `reference.json`s and ranges: one
 difference without them, none with them).
+
+## W579: T2's AUTO-07p arms ran the other way ([#644](https://github.com/MuhammadMoustafa/xppautX/issues/644))
+
+T2 runs its Hopf locus with CaDen_Max first (the parameter bounds of the window act on the first parameter), and the saved rows
+of the final series had AUTO-07p's `hb_up` at 178 points and `hb_down` at 87 against xppautX's and XPPAUT's 87 and 177: AUTO-07p
+followed each arm the other way. The cause is the orientation rule. xppautX orients a curve of equilibria by its first parameter
+(a positive DS raises it), AUTO-07p by the first *significant* component of the tangent (bvp.f90 STDRBV, ae.f90 STPNAE: |rldot|/(1+|par|) > EPSL), and
+CaDen_Max (1e-4) moves too little next to ampPar (0.57), so AUTO-07p took ampPar. The descriptions in tests/auto name the parameters in
+the other order (ampPar first) and agree in both; `tools/autocompare.py` run with a note for every arm paired other than by name found no
+other description whose two arms ran apart, and the final series' gate notes name T2 alone. A curve of cycles takes AUTO-07p's rule in both programs.
+
+The gate let it pass because `compare_references` paired each reference arm with the arm of ours it overlaps (W562, D4), so AUTO-07p's
+`hb_up` was compared with our `hb_down` and the swap became a note; the converged-run error, taken by name, then read 1271 times the tolerance on that row
+(the finite-difference rows read 5.7 and 5.9 on the same arms: their own error against the exact converged run, which is not a gate). Now
+`compare_references` compares by name only, so a program whose arms run the other way is not equal work (the saved T2 pilot's AUTO-07p
+reference gives 13 differences, XPPAUT's none), and `tools/auto_reference.py` probes the first step of each curve of equilibria
+(`oriented`, outside the timed run) and gives DS the sign that raises the first parameter. The committed `.auto07p` files are unchanged
+by the new driver (all 61 regenerated identical: the probe flipped no description's DS).
 
 ## W457: the exact rows are judged against a converged exact run ([#520](https://github.com/MuhammadMoustafa/xppautX/issues/520))
 

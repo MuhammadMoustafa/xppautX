@@ -466,43 +466,34 @@ class Arms(unittest.TestCase):
         """one arm of a curve from the origin: the second parameter a + a^2, a every 0.05 on the side `sign`"""
         return [(sign * 0.05 * i, sign * 0.05 * i + (0.05 * i) ** 2, 2 * sign * 0.05 * i) for i in range(20)]
 
-    def compare(self, theirs_up, theirs_down, kind='two_parameter'):
+    def compare(self, theirs_up, theirs_down):
         start = dict(run='steady', type='HB', index=1)
-        d = dict(runs=[dict(name='up', kind=kind, start=start, auto=self.AUTO), dict(name='down', kind=kind, start=start, auto=self.AUTO)])
+        d = dict(runs=[dict(name='up', kind='two_parameter', start=start, auto=self.AUTO), dict(name='down', kind='two_parameter', start=start, auto=self.AUTO)])
         rows = {n: Curves.rows(v) for n, v in (('up', self.arm(1)), ('down', self.arm(-1)))}
         ref = {'.auto07p': dict(runs=[dict(name='up', points=[], curve=[list(v) for v in theirs_up]),
                                       dict(name='down', points=[], curve=[list(v) for v in theirs_down])])}
-        notes = []
         with mock.patch('autocompare.stored_rows', return_value=rows):
-            diffs, _ = compare_references('T', d, b'', {}, ref, notes)
-        return diffs, notes
+            diffs, _ = compare_references('T', d, b'', {}, ref)
+        return diffs
 
-    def test_the_two_arms_of_one_curve_may_be_named_the_other_way_round(self):
-        diffs, notes = self.compare(self.arm(1), self.arm(-1))
-        self.assertEqual((diffs, notes), ([], []))
-        diffs, notes = self.compare(self.arm(-1), self.arm(1))
-        self.assertEqual(diffs, [])
-        self.assertEqual(len(notes), 2, notes)
-        self.assertIn('its up overlaps our down', notes[0])
+    def test_the_two_arms_of_one_curve_are_compared_by_name(self):
+        self.assertEqual(self.compare(self.arm(1), self.arm(-1)), [])
+        # W579: a program that follows each arm the other way round is not equal work (it was paired by overlap and passed)
+        self.assertTrue(self.compare(self.arm(-1), self.arm(1)))
 
     def test_a_curve_that_is_neither_arm_is_still_a_difference(self):
         bent = [(a, b + 0.05, n) for a, b, n in self.arm(1)]
-        diffs, _ = self.compare(bent, self.arm(-1))
-        self.assertTrue(diffs)
+        self.assertTrue(self.compare(bent, self.arm(-1)))
 
-    def test_a_skipped_arm_is_not_paired(self):
+    def test_a_skipped_arm_has_nothing_to_compare(self):
         # henon_rot_tr's down is skipped: no rows of ours, and the reference keeps only up (read_reference)
         start = dict(run='steady', type='HB', index=1)
         d = dict(runs=[dict(name='up', kind='two_parameter', start=start, auto=self.AUTO),
                        dict(name='down', kind='two_parameter', start=start, auto=self.AUTO, skip='traced')])
         ref = {'.auto07p': dict(runs=[dict(name='up', points=[], curve=[list(v) for v in self.arm(1)])])}
         with mock.patch('autocompare.stored_rows', return_value={'up': Curves.rows(self.arm(1))}):
-            diffs, _ = compare_references('T', d, b'', {}, ref, [])
+            diffs, _ = compare_references('T', d, b'', {}, ref)
         self.assertEqual(diffs, [])
-
-    def test_runs_that_are_not_curves_are_paired_by_name_only(self):
-        diffs, notes = self.compare(self.arm(-1), self.arm(1), kind='equilibrium')
-        self.assertEqual(notes, [])
 
 
 class Stability(unittest.TestCase):
