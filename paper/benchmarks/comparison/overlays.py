@@ -431,6 +431,8 @@ def continuation(attempt, out, manifest, skipped, extra=None):
                 path = mdir / folder / 'reference.json'
                 if path.exists():
                     refs[program] = {r['name']: r for r in json.loads(path.read_text())['runs']}
+                elif extra and (extra / 'continuation' / label / program / 'reference.json').exists():
+                    refs[program] = {}  # no pilot in the series (a refused timed run): each curve from the untimed rerun, below
                 else:
                     skipped.append('continuation %s %s: no reference.json' % (label, program))
             for run in desc['runs']:
