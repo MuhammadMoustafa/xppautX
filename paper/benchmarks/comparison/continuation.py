@@ -846,9 +846,8 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
                 if exact_c:
                     foreign(a, d, 'auto07p', inputs, out / 'pilot-auto07p-exact', False, exact=exact_c)
                     gates['auto07p-exact'] = exact_gate(name, d, converged, 'auto07p', out / 'pilot-auto07p-exact')
-                errors = {'xppautx-fd': converged_errors(name, d, converged, 'xppautx', out / 'pilot-xppautx'),
-                          'xppaut-fd': converged_errors(name, d, converged, 'xppaut', out / 'pilot-xppaut'),
-                          'auto07p-fd': converged_errors(name, d, converged, 'auto07p', out / 'pilot-auto07p'),
+                errors = {**{program + '-fd': converged_errors(name, d, converged, program, out / ('pilot-' + program))
+                             for program in ('xppautx', 'xppaut', 'auto07p') if program not in unsupported},
                           **{label: converged_errors(name, d, converged, label.split('-')[0], out / ('pilot-' + label)) for label in gates}}
                 save(out / 'converged.json', dict(mismatch=converged['mismatch'], description=tightened(d), exact_pilots=gates, errors=errors))
                 for label, g_exact in gates.items():
