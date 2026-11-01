@@ -95,24 +95,37 @@ double noise(iap_type *, rap_type *, double *, integer *, bool *chng,
     *chng = true;
     return static_cast<long>(std::floor(u[0] / 0.02)) % 2 == 0 ? 1e-3 : -1e-3;
 }
+// W580 (#645): a flat zero of odd order crosses (henon_rot_th's branch point is a cubic)
+double cubic(iap_type *, rap_type *, double *, integer *, bool *chng,
+             FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
+             double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
+{
+    *chng = true;
+    return std::pow(u[0] - 0.4, 3);
+}
+// a double zero at the step's end, its sample there at the test's noise (1e-4 below 0): a touching
 double touching(iap_type *, rap_type *, double *, integer *, bool *chng,
                 FUNI_TYPE((*)), integer *, double *, double *, double *, double *,
                 double *u, double *, double *, double *, double *, double *, std::span<const AutoMark>)
 {
     *chng = true;
-    return std::pow(u[0] - 0.4, 3);
+    return (u[0] - 1) * (u[0] - 1) - 1e-4;
 }
 }
 
 int main()
 {
-    // W545: the crossing rule. The same slope across the step and at the end of the search is a crossing;
-    // a slope that grew (a jump, noise) or shrank (a touching) by more than the factor, either way, is not.
-    CHECK(auto_crossing_smooth(1, 1, 1e-6, 1e-6));
-    CHECK(auto_crossing_smooth(1, 1, 2e-6, 1e-6) && auto_crossing_smooth(1, 1, 5e-7, 1e-6));
-    CHECK(!auto_crossing_smooth(1, 1, 1, 1e-4) && !auto_crossing_smooth(1, 1, 1e-12, 1e-4));
-    CHECK(!auto_crossing_smooth(1, 1, 0, 1e-4) && !auto_crossing_smooth(1, 0, 1, 1) && !auto_crossing_smooth(1, 1, 1, 0));
-    CHECK(auto_crossing_smooth(-1, 1, 3e-6, 1e-6) && !auto_crossing_smooth(-1, 1, 3.1e-6, 1e-6));
+    // W545: the crossing rule. The slope across the end of the search over the slope across the step: about 1
+    // for a crossing, grown (a jump, noise) or shrunk (a zero of higher order) by more than the factor otherwise.
+    CHECK(auto_crossing_slope_ratio(1, 1, 1e-6, 1e-6) == 1 && auto_crossing_slope_ratio(-1, 1, 3e-6, 1e-6) > 2.99);
+    CHECK(auto_crossing_slope_ratio(1, 1, 1, 1e-4) > 1e3 && auto_crossing_slope_ratio(1, 1, 1e-12, 1e-4) < 1e-7);
+    CHECK(std::isnan(auto_crossing_slope_ratio(1, 0, 1, 1)) && std::isnan(auto_crossing_slope_ratio(1, 1, 1, 0)));
+    CHECK(auto_crossing_slope_ratio(1, 1, 0, 1e-4) == 0);
+    // W580: the order of a zero from the step's ends; henon_rot_th's branch point, the normal and the converged run
+    CHECK(auto_zero_order(-0.221699, 0.0809, 0.00290395, 0.0191) == 3);
+    CHECK(auto_zero_order(-3.73086e-7, 9.607e-4, 3.10664e-4, 9.0393e-3) == 3);
+    CHECK(auto_zero_order(1, 1, -1e-10, 1e-5) == 2 && auto_zero_order(-1, 0.5, 1, 0.5) == 0 && auto_zero_order(0, 1, 1, 2) == 0);
+    CHECK(auto_zero_crosses(1) && auto_zero_crosses(3) && !auto_zero_crosses(2) && !auto_zero_crosses(0) && !auto_zero_crosses(-1));
     // a cycle's branch-point ratio is in scale while it is below what the step holds tolerances
     CHECK(auto_ratio_in_scale(-1.4, 0.25, 0.05, 1e-4));
     CHECK(!auto_ratio_in_scale(2.4e13, -5.9e14, 0.05, 1e-4) && !auto_ratio_in_scale(-2.7e7, 1.0e8, 0.01, 1e-4));
@@ -249,11 +262,20 @@ int main()
         CHECK(locate(target, sample) == 0);
         CHECK(iap.itp.kind == xpp::AutoPointKind::Pending && stepped && std::abs(u - 0.4) < 1e-5 && notes() == before);
     }
+    // W580: a cubic's zero, flat as it is, is located by the bisection and accepted
+    {
+        iap.itmx = 0;
+        reset(1);
+        const auto before = notes();
+        AutoTestSample sample{-0.064};
+        CHECK(locate(cubic, sample) == 0);
+        CHECK(iap.itp.kind == xpp::AutoPointKind::Pending && std::abs(u - 0.4) < 1e-4 && notes() == before);
+    }
     // a jump, noise and a touching are crossings of nothing smooth: refused, said once, the state the step end's
     // (the first starts from the test's discarded end, the others from ITMX 0's bisection)
     for (const auto &[test, first, itmx] : {
              std::tuple{jump, -1.0, 8}, std::tuple{jump, -1.0, 0},
-             std::tuple{noise, -1e-3, 0}, std::tuple{touching, -0.064, 0}}) {
+             std::tuple{noise, -1e-3, 0}, std::tuple{touching, 1 - 1e-4, 0}}) {
         iap.itmx = itmx;
         reset(1);
         const auto state = frozen();
@@ -264,7 +286,7 @@ int main()
         CHECK(iap.itp.kind != xpp::AutoPointKind::Pending && !stepped && !sample.offset);
         CHECK(state == frozen());
         CHECK(refused.find("was not accepted at parameter") != std::string::npos);
-        CHECK(refused.find("not a smooth crossing") != std::string::npos);
+        CHECK(refused.find(test == touching ? "does not cross zero" : "not a smooth crossing") != std::string::npos);
     }
     iap.itmx = 2;
     thu = 1;

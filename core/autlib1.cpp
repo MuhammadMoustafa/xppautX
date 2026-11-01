@@ -415,7 +415,10 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
       break;
     }
 
-    rds = location_step(rap, rds, singular);
+    // W580: a singular zero within half a tolerance of the step's start, a point already solved, is taken
+    // there, not half a tolerance past it (henon_rot_th's BP next to the R2 located at th = pi: 3.7e-5 off)
+    const bool at_start = singular && !discarded && std::abs(s1 + rds - s_start) < location_tolerance(rap) / 2;
+    rds = at_start ? s_start - s1 : location_step(rap, rds, singular);
     if (!trial()) break;
     ++iterations;
     // AUTO-07p LCSPAE ae.f90:743 / LCSPBV bvp.f90:1414:
@@ -426,6 +429,11 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
       stepped = true;
       dstest = s;
     }
+    if (at_start && s == s_start) {
+      s1 = s;
+      converged = true;
+      break;
+    }
     /*        Use Mueller's method with bracketing for subsequent steps */
     mueller(&q0, &q1, &q, &s0, &s1, &s, &rds);
     if (!more) break;
@@ -433,7 +441,10 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
   std::string refused;
   bool bisected = false;
   const auto lo = std::min(s_start, saved_dstest), hi = std::max(s_start, saved_dstest);
-  if (!cancelled && !converged && !why && std::min(s0, s1) >= lo && std::max(s0, s1) <= hi) {
+  // W580: not where a torus curve's equations are singular: the halving has no aim short of the zero
+  // (location_step's), and a trial on it leaves the next step no tangent (henon_rot_th's converged run
+  // located its branch point 4.4e-8 past th = pi, and the curve went back the way it came)
+  if (!cancelled && !converged && !why && !singular && std::min(s0, s1) >= lo && std::max(s0, s1) <= hi) {
     // AUTO-07p gives the point up here. The bracket (s0, s1) holds opposite signs and the state
     // is at s1: halve it down to the tolerance. Whether it ends on a zero is the rule's to say.
     bisected = true;
@@ -459,18 +470,26 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoTestSample &sample, 
     return;
   }
 
-  // a zero new to AUTO-07p is accepted as a crossing of a smooth test or not at all (W545); a first
-  // secant step that lands within the tolerance of the end measures no slope, so it shows no crossing
+  // a zero new to AUTO-07p is accepted as a crossing of a smooth test, or of one whose zero is of odd order
+  // (W580), or not at all (W545); a first secant step that lands within the tolerance of the end measures no
+  // slope, so it shows no crossing
   if (converged && (discarded || bisected)) {
     const double width = std::abs(s1 - s0);
+    const double ratio = auto_crossing_slope_ratio(q_end - q_start, step_length, q1 - q0, width);
     if (iterations == 0) {
       converged = false;
       refused = "its test is within the tolerance of zero at the end of the step, with no search to show it crosses there";
-    } else if (!auto_crossing_smooth(q_end - q_start, step_length, q1 - q0, width)) {
+    } else if (!(ratio <= auto_crossing_slope_ratio_max)) {
       converged = false;
       refused = xpp::format("its test is not a smooth crossing: across the last {:.3g} of the search its slope is {:.3g} times its slope across the step, more than {} either way",
-                            width, (std::abs(q1 - q0) / width) / (std::abs(q_end - q_start) / step_length),
-                            auto_crossing_slope_ratio_max);
+                            width, ratio, auto_crossing_slope_ratio_max);
+    } else if (ratio * auto_crossing_slope_ratio_max < 1) {
+      const double order = auto_zero_order(q_start, s1 - s_start, q_end, saved_dstest - s1);
+      if (!auto_zero_crosses(order)) {
+        converged = false;
+        refused = xpp::format("its test does not cross zero there: across the last {:.3g} of the search its slope is {:.3g} times its slope across the step, and its values {:.3g} and {:.3g} at the ends of the step make it a zero of order {}, not odd: a double zero the samples straddle",
+                              width, ratio, q_start, q_end, order);
+      }
     }
   }
 
