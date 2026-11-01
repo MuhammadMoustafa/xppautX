@@ -531,7 +531,7 @@ def checked_reference(ref, suffix, d):
             raise ValueError('run %s: %s or points' % (r['name'], axes))
         if 'unavailable' in r and not (isinstance(r['unavailable'], str) and r['unavailable'].strip()):
             raise ValueError('run %s: unavailable needs its reason' % r['name'])
-        if (curve or 'curve' in r) and 'unavailable' not in r:
+        if 'unavailable' not in r:  # every run the driver wrote holds its curve (W577: a one-parameter run's too), a reference without it is stale
             if not isinstance(r.get('curve'), list) or len(r['curve']) < 2:
                 raise ValueError('run %s: a curve of at least two samples' % r['name'])
             for sample in r['curve']:
