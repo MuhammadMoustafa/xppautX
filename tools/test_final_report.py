@@ -6,7 +6,8 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'paper/benchmarks/comparison'))
-from final_report import compute, continuation_finding, equal_work_matches, gate_cell, interpolate, normalized_view, profile, profile_spec
+from final_report import (compute, continuation_finding, equal_work_matches, gate_cell, interpolate, jobs_text, memory_ratios, memory_text,
+                          normalized_view, profile, profile_spec, threads_text)
 
 
 class MatchedAccuracy(unittest.TestCase):
@@ -188,6 +189,41 @@ class GateAgreement(unittest.TestCase):
             c = lookup['hen_tr/adaptive/' + run, 'fd', 'xppaut']
             self.assertEqual(c['status'], 'unavailable')
             self.assertIn('finding 71', c['reason'])
+
+
+class ExtraRuns(unittest.TestCase):
+    """W592's and W591's tables, from synthetic saved rows."""
+    def memory(self):
+        def row(study, workload, program, kib, kind='run', second=None):
+            return dict(study=study, workload=workload, program=program, row=kind, runs=[dict(peak_kib=kib)] + ([dict(peak_kib=second)] if second else []))
+        integration = [row('screen', 'a', 'xppautx', 1000, second=1010), row('screen', 'a', 'xppaut', 3000, second=3000),
+                       row('screen', 'b', 'xppautx', 2000), row('screen', 'b', 'xppaut', 1000),
+                       row('screen', 'a', 'xppautx', 900, 'ready'), row('screen', 'a', 'xppaut', 1800, 'ready')]
+        continuation = dict(startup=dict(xppautx=[10, 10], xppaut=[20, 20], auto07p=[40, 40]),
+                            rows=[dict(workload='P1', mode='adaptive', program='xppautx', runs=[100]),
+                                  dict(workload='P1', mode='adaptive', program='auto07p', runs=[400]),
+                                  dict(workload='P1', mode='adaptive', program='xppaut', reason='refused')])
+        return integration, continuation
+
+    def test_ratio_is_other_over_xppautx_per_workload(self):
+        m = memory_ratios(*self.memory())
+        self.assertEqual(sorted(m['ratios']['screen']['xppaut']), [.5, 3000 / 1005])
+        self.assertEqual(m['ratios']['continuation']['auto07p'], [4.])
+        self.assertNotIn('xppaut', m['ratios']['continuation'])
+        self.assertAlmostEqual(m['spread'], .01)
+        self.assertEqual(m['startup']['screen'], {'xppautx': [900.], 'xppaut': [1800.]})
+
+    def test_memory_text_counts_workloads_where_xppautx_is_not_larger(self):
+        text = memory_text(*self.memory())
+        self.assertIn('on 2 of 3 paired workloads', text)
+        self.assertIn('| continuation | AUTO-07p | 1 | 4.00 |', text)
+
+    def test_threads_and_jobs_tables_name_identity(self):
+        row = dict(workload='P1', mode='fixed', identical=True, speedup_2=1.6, speedup_4=2.4, **{'wall_%d' % n: dict(mean=40. / n) for n in (1, 2, 4)})
+        self.assertIn('| P1/fixed | 40.00 | 20.00 | 10.00 | 1.60 | 2.40 | yes |', threads_text([row]))
+        self.assertIn('NO', threads_text([dict(row, identical=False)]))
+        jobs = dict(rows=[dict(n=2, concurrent=dict(mean=4.), sequential=dict(mean=6.), speedup=1.5, concurrent_all_equal=True, sequential_all_equal=False)])
+        self.assertIn('| 2 | 4.00 | 6.00 | 1.50 | NO |', jobs_text(jobs, {}))
 
 
 if __name__ == '__main__':

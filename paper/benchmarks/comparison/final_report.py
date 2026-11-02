@@ -1099,6 +1099,90 @@ $('coverage').textContent=JSON.stringify(D.coverage,null,2);$('terman-data').tex
     (out / 'report.html').write_text(template.replace('__PLOTLY__', license_notice + plotly).replace('__DATA__', blob).replace('__ATOL__', str(data['screen_tolerance']['atol'])).replace('__RTOL__', str(data['screen_tolerance']['rtol'])).replace('__TIMING__', str(data['screen_tolerance']['timing_fraction'])), encoding='utf-8')
 
 
+def extra_runs(final):
+    """W592's and W591's saved runs (final/extra-runs/w592 and w591): the studies' own summaries and the memory rows."""
+    base = final / 'extra-runs'
+    return dict(threads=read(base / 'w592/threads/summary.json'), jobs=read(base / 'w592/jobs/summary.json'),
+                auto=read(base / 'w592/auto-concurrent/summary.json'), integration_memory=read(base / 'w591/integration.json'),
+                continuation_memory=read(base / 'w591/continuation.json'))
+
+
+def threads_text(rows):
+    """W592 part 1 for the paper's text: one continuation run on 1, 2 and 4 threads, its time, speed-up and diagram bytes."""
+    table = ['| Workload | 1 thread (s) | 2 threads (s) | 4 threads (s) | Speed-up, 2 | Speed-up, 4 | Diagram identical |', '|---|---|---|---|---|---|---|']
+    for r in rows:
+        table.append(f"| {r['workload']}/{r['mode']} | " + ' | '.join(f"{r['wall_%d' % n]['mean']:.2f}" for n in (1, 2, 4))
+                     + f" | {r['speedup_2']:.2f} | {r['speedup_4']:.2f} | {'yes' if r['identical'] else 'NO'} |")
+    same = sum(r['identical'] for r in rows)
+    return ('## xppautX on several cores: threads in one AUTO run (W592)\n\nOne continuation run of xppautX\'s frozen build, with AUTO\'s '
+            'collocation on 1, 2 and 4 threads (each pinned to that many physical cores), the mean of the counted repetitions after a warm-up. '
+            f'The saved diagram is byte for byte the same at every thread count and repetition in {same} of {len(rows)} workloads.\n\n' + '\n'.join(table) + '\n')
+
+
+def jobs_text(jobs, auto):
+    """W592 part 2: N different jobs started together as separate processes under one HOME, against the same jobs one after another."""
+    table = ['| Jobs | N | Together (s) | One after another (s) | Throughput gain | Every result equals its run alone |', '|---|---|---|---|---|---|']
+    for r in jobs['rows']:
+        table.append(f"| Kuramoto (100), coupling k swept | {r['n']} | {r['concurrent']['mean']:.2f} | {r['sequential']['mean']:.2f} | {r['speedup']:.2f} | "
+                     f"{'yes' if r['concurrent_all_equal'] and r['sequential_all_equal'] else 'NO'} |")
+    for key, r in auto.items():
+        if key.startswith('diff-') and 'concurrent' in r:
+            n = int(key.rsplit('-N', 1)[1])
+            table.append(f"| PY_S1Bf AUTO, ParMin 200 to {(200, 400, 800, 1600)[n - 1]} pA | {n} | {r['concurrent']['wall']['mean']:.2f} | "
+                         f"{r['sequential']['wall']['mean']:.2f} | {r['speedup']:.2f} | "
+                         f"{'yes' if r['concurrent']['runs_equal'] == r['concurrent']['runs'] else 'NO'} |")
+    return ('## xppautX on several cores: several runs at once (W592)\n\nN different jobs started together as separate xppautX processes, '
+            'one user and one HOME, against the same jobs one after another (XPPAUT 8.0 and AUTO-07p are not rerun: their concurrent runs '
+            'are known to break, docs/xppaut-findings.md finding 8).\n\n' + '\n'.join(table) + '\n')
+
+
+def memory_ratios(integration, continuation):
+    """Peak memory (KiB, the mean of a row's runs) per (study, workload, program), the other / xppautX ratio per workload, the
+    start-up footprints and the largest difference between a row's two runs."""
+    peak, startup, spread = {}, defaultdict(dict), 0.
+    for r in integration:
+        kib = [x['peak_kib'] for x in r['runs']]
+        if len(kib) > 1:
+            spread = max(spread, (max(kib) - min(kib)) / min(kib))
+        if r['row'] == 'run':
+            peak[(r['study'], r['workload'], r['program'])] = sum(kib) / len(kib)
+        else:
+            startup[r['study']].setdefault(r['program'], []).append(sum(kib) / len(kib))
+    for r in continuation['rows']:
+        if 'runs' in r:
+            kib = r['runs']
+            if len(kib) > 1:
+                spread = max(spread, (max(kib) - min(kib)) / min(kib))
+            peak[('continuation', r['workload'] + '/' + r['mode'], r['program'])] = sum(kib) / len(kib)
+    for program, kib in continuation['startup'].items():
+        startup['continuation'][program] = [sum(kib) / len(kib)]
+    ratios = defaultdict(lambda: defaultdict(list))
+    for (study, workload, program), kib in peak.items():
+        if program != 'xppautx' and (study, workload, 'xppautx') in peak:
+            ratios[study][program].append(kib / peak[(study, workload, 'xppautx')])
+    return dict(ratios=ratios, startup=startup, spread=spread)
+
+
+def memory_text(integration, continuation):
+    """W591 for the paper's text: how much memory each program peaks at against xppautX, per study, and each start-up footprint."""
+    m = memory_ratios(integration, continuation)
+    table = ['| Study | Program | Workloads | Median other / xppautX | Range | Workloads where xppautX uses no more |', '|---|---|---|---|---|---|']
+    every = []
+    for study, programs in m['ratios'].items():
+        for program, values in sorted(programs.items()):
+            table.append(f'| {study} | {NAMES[program]} | {len(values)} | {np.median(values):.2f} | {min(values):.2f} to {max(values):.2f} | '
+                         f'{sum(v >= 1 for v in values)} of {len(values)} |')
+            every += values
+    start = ['| Study | ' + ' | '.join(NAMES[p] for p in ('xppautx', 'xppaut', 'auto07p', 'python')) + ' |', '|---|---|---|---|---|']
+    for study, programs in m['startup'].items():
+        start.append(f'| {study} | ' + ' | '.join(f"{np.median(programs[p]) / 1024:.0f}" if p in programs else '' for p in ('xppautx', 'xppaut', 'auto07p', 'python')) + ' |')
+    return ('## Peak memory (W591)\n\nPeak resident memory (the child\'s ru_maxrss; for continuation the process\'s VmHWM, and for AUTO-07p its wrapper, '
+            'compile and executable together) of each program on every workload at its timed row\'s settings, one run and a second to show it is '
+            f'stable (the two differ by at most {m["spread"] * 100:.1f}%). xppautX uses no more memory than the other program on '
+            f'{sum(v >= 1 for v in every)} of {len(every)} paired workloads; the ratio is other / xppautX (above 1: xppautX smaller).\n\n'
+            + '\n'.join(table) + '\n\nStart-up footprint (a run of next to nothing, one step for integration and five points for continuation; MiB, median over the study\'s workloads):\n\n' + '\n'.join(start) + '\n')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--final', type=Path, required=True)
@@ -1109,6 +1193,7 @@ def main():
         parser.error('--out must be outside the read-only frozen series')
     data = compute(final)
     data['overlays'] = read(final / 'overlays/manifest.json')
+    data['extra'] = extra_runs(final)
     data['history'] = issue_history()
     data['coverage'] = coverage(data)
     charts = views(data)
@@ -1129,7 +1214,9 @@ def main():
     # A figure not yet reviewed for the paper (W590) has its finding as a provisional caption.
     (out / 'figures/paper/README.md').write_text('# Paper figures\n\nEach figure is a PNG (300 dpi) with an SVG copy.\n\n' + ''.join(
         f'## {v["key"]}.png\n\n{v.get("caption") or v["title"] + " (provisional caption)"}\n\n' for v in charts if v['set'] == 'paper')
-        + continuation_agreement_text(data) + large_stiff_text(data['large_stiff']))
+        + continuation_agreement_text(data) + large_stiff_text(data['large_stiff'])
+        + threads_text(data['extra']['threads']) + jobs_text(data['extra']['jobs'], data['extra']['auto'])
+        + memory_text(data['extra']['integration_memory'], data['extra']['continuation_memory']))
     page(data, charts, out)
     print(json.dumps(data['coverage'], indent=2))
     print(f'{len(data["paper_files"])} paper views, {len(charts) - len(data["paper_files"])} appendix views; report: {out / "report.html"}')
