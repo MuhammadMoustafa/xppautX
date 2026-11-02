@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unittest
 from types import SimpleNamespace
 
 from autocompare import completed
@@ -178,6 +179,10 @@ def main():
     for path in sources:
         ast.parse(path.read_text(), filename=str(path))
     check('tracked Python syntax (%d files)' % len(sources), True)
+    import test_final_report
+    suite = unittest.defaultTestLoader.loadTestsFromModule(test_final_report)
+    result = unittest.TextTestRunner().run(suite)
+    check('final report analytical/gate tests (%d tests)' % result.testsRun, result.wasSuccessful())
     with tempfile.TemporaryDirectory(prefix='w543-smoke-') as scratch:
         args = SimpleNamespace(out=Path(scratch), xppautx=options.server.resolve(),
                                xppaut=options.comparison_build / 'xppaut-8.0/xppaut',

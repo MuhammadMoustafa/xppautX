@@ -1,0 +1,102 @@
+{
+  "series_cards": [
+    "W440",
+    "W441",
+    "W442",
+    "W443",
+    "W444",
+    "W445",
+    "W446",
+    "W447",
+    "W448",
+    "W449",
+    "W450",
+    "W451",
+    "W452",
+    "W453",
+    "W454",
+    "W455",
+    "W456",
+    "W457",
+    "W458",
+    "W459",
+    "W460",
+    "W461",
+    "W462",
+    "W463",
+    "W464",
+    "W465",
+    "W466",
+    "W467",
+    "W468"
+  ],
+  "issue_cards": [
+    "W550",
+    "W551",
+    "W552",
+    "W553",
+    "W555",
+    "W557",
+    "W558",
+    "W559",
+    "W560",
+    "W562",
+    "W575",
+    "W578",
+    "W579",
+    "W580",
+    "W581",
+    "W583",
+    "W584",
+    "W585",
+    "W586",
+    "W587",
+    "W588"
+  ],
+  "candidates": [
+    [
+      "C1",
+      "Start-up: xppautX is 1.3 to 2.0 times XPPAUT's in the integration studies (screen 5.4 to 19.3 ms against 3.8 to 14.8 ms; medians 1.54 screen, 1.66 python, 1.83 Izhikevich) and 1.3 to 2.7 ms longer than in the previous report; its continuation server is ready in 9.7 ms (median, 13 workloads in both series) against 11.4 ms in the previous continuation series and XPPAUT's 101 to 109 ms. W558 and W567 cut the --server start; the rest is not cut by any card. Open."
+    ],
+    [
+      "C2",
+      "Closed: start-up of very large amari models. W559 removed the quadratic scan; one step at N 6400 is now 1.13 of the 21c series (was 2.37), 30 microseconds per variable."
+    ],
+    [
+      "C3",
+      "Slower than AUTO-07p on 21 of 59 finite-difference continuation runs, 19 of them over 1.05: forced_pp_pd pd_down and pd_up (2.45, 2.01), Mu26 blocked hb_soma and hb_dend (2.22, 2.20), hill_cycles_torus torus_down (1.99), P1 (1.94, 1.65), hill_cycles_pd doubling (1.74), forced_pp_ns (1.14 to 1.75), ma23 cycles (1.40). With one thread each the median is 0.74. W560 and W564 cut the Hopf and fold rows; the special-point runs were not in their profile. Open."
+    ],
+    [
+      "C4",
+      "Closed: Mu26 control has a converged exact run, and the exact rows of Mu26 control and blocked are equal work (errors 0.58 to 8.85 and 0.65 to 10.6)."
+    ],
+    [
+      "C5",
+      "W552 #617 (SIGSEGV in T2's exact row, 20261030d): no recurrence in T2's rows of the W557 or the W583 series, and no segfault or machine check in the kernel journal during the W583 run. The W557 run saw two other xppautX segfaults, judged hardware. Not reproduced; a rare race is not excluded."
+    ],
+    [
+      "D1",
+      "Closed: the driver's reference digest of a reused AUTO-07p row was not comparable to a fresh row's; AUTO-07p's T2 rows are equal work since W575."
+    ],
+    [
+      "D2",
+      "Closed: the driver's HOME made XPPAUT overflow its 200-byte name array (finding 75); W562 gave it a short HOME, all 28 Izhikevich workloads have an XPPAUT time."
+    ],
+    [
+      "D3",
+      "Closed: the converged-run gate did not cut the converged curve at the row's end (W562 clips it)."
+    ],
+    [
+      "D4",
+      "Closed: T2's arms were paired crosswise against AUTO-07p because AUTO-07p followed them the other way; W579 corrected AUTO-07p's orientation and the report pairs by name."
+    ],
+    [
+      "D5",
+      "Closed: tools/python-integration/model.py computed x ** n with pow while W471 made xppautX multiply; W562 gave the port power_by_squaring."
+    ],
+    [
+      "D6",
+      "Closed: a stale traced-difference entry in tests/auto/forced_pp_ns.json (the converged run's BP norm on ns_up) made the gate refuse xppautX's exact forced_pp_ns rows; commit 03557cdc dropped it and forced_pp_ns was rerun, so the rows are equal work."
+    ]
+  ]
+}
