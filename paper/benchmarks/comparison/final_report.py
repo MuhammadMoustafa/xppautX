@@ -538,6 +538,35 @@ def large_stiff_text(rows):
             'already has matches KLU and GMRES; only the dense solver falls behind, in time and memory:\n\n' + '\n'.join(table) + '\n')
 
 
+AUTO_LABEL_NAMES = {'LP': 'fold', 'BP': 'branch point', 'GH': 'generalised Hopf', 'CP': 'cusp', 'R1': '1:1 resonance',
+                    'R2': '1:2 resonance', 'R3': '1:3 resonance', 'R4': '1:4 resonance', 'LPD': 'fold-flip', 'PTR': 'flip-torus',
+                    'UZ': 'user-requested point'}
+
+
+def continuation_agreement_text(data):
+    """The continuation gates' finding for the paper's text (W590: no figure): every comparison's verdict, and each kind of
+    traced label difference with the program that has the label and how many models it is in."""
+    compared = [c for c in data['agreement'] if c['status'] != 'unavailable']
+    groups = {(c['workload'].split('/')[0], c['program'], c['method']) for c in compared}
+    failed = {(c['workload'].split('/')[0], c['program'], c['method']) for c in compared if c['status'] == 'different'}
+    kinds = defaultdict(lambda: [0, set()])
+    for c in compared:
+        for t in c['traced']:
+            kind = kinds[(NAMES[c['program']], t['type'], 'xppautX' if t['side'] == 'ours' else NAMES[c['program']])]
+            kind[0] += 1
+            kind[1].add(c['workload'].split('/')[0])
+    table = ['| Compared with | Label | Only labelled by | Labels | Models |', '|---|---|---|---|---|']
+    for (other, label, by), (count, models) in sorted(kinds.items(), key=lambda k: (k[0][0], -k[1][0])):
+        table.append(f'| {other} | {label} ({AUTO_LABEL_NAMES[label]}) | {by} | {count} | {len(models)} |')
+    total = sum(k[0] for k in kinds.values())
+    return ('## Continuation agreement (in the text, no figure)\n\n'
+            f'{len(groups) - len(failed)} of {len(groups)} comparisons (model, program and Jacobian) of xppautX\'s bifurcation diagrams pass '
+            'their gates: the same labelled points at the same parameters, within tolerance. The diagrams differ by '
+            f'{total} labels, each traced to a recorded cause and settled by a check independent of both programs (the '
+            'eigenvalues or Floquet multipliers, or the first Lyapunov coefficient, from the model\'s own equations). A model '
+            'run in two variants counts its labels twice. data/report.json gives each cause.\n\n' + '\n'.join(table) + '\n\n')
+
+
 SCALING_FAMILIES = {'kuramoto': 'Kuramoto', 'lecdiff': 'Morris-Lecar chain', 'amari': 'Amari'}
 
 
@@ -748,7 +777,7 @@ def views(data):
     charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest, matched, data['scaling_cost']),
                        title=f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} study and method groups'))
     matrix, time = continuation_summaries(data)
-    charts += [matrix | dict(set='paper', width=7., height=9.5), time | dict(set='paper', width=7., height=8.)]
+    charts += [matrix | dict(set='appendix', width=7., height=9.5), time | dict(set='paper', width=7., height=8.)]
     data['ratio_limit'] = max(abs(math.log10(c['ratio'])) for r in data['overview'] for p, c in r['cells'].items() if p != 'xppautx' and c['ratio'])
     data['agreement_colors'] = AGREEMENT_COLORS
     data['findings'] = {s: heat_summary([r for r in data['overview'] if r['study'] == s], s)['title'] for s in studies}
@@ -970,7 +999,7 @@ body{font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);max
 <section id="terman"><h2>Terman acceptance is untimed evidence</h2><p>This study has acceptance and convergence readouts, not a runs.json timing series. It is not in the time heatmap or matched profile.</p><details><summary>Acceptance, convergence and saved readouts</summary><pre id="terman-data"></pre></details></section>
 <details><summary>Every overlay and skipped overlay</summary><div id="all-overlays"></div></details>
 <section id="issues"><h2>Issues found and fixes made</h2><p>Cards from the earlier series and the final report are carried forward together. The roadmap supplies the recorded titles, issue links and status; candidate descriptions preserve the 2026-10-31 report's historical assessment.</p><div id="issue-list"></div></section>
-<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains three curated PNG/SVG figures, with their captions in its README.md; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 7 in width. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the three paper views</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
+<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains two curated PNG/SVG figures, with their captions in its README.md; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 7 in width. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the two paper views</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
 <dialog id="detail"><button class="close" id="close">Close</button><h2 id="detail-title"></h2><div id="detail-chart" class="chart"></div><div id="detail-overlays"></div><pre id="detail-data"></pre></dialog>
 <script>__PLOTLY__</script><script id="report-data" type="application/json">__DATA__</script><script>
 'use strict';const B=JSON.parse(document.getElementById('report-data').textContent),D=B.data,V=B.views,C=B.colors,N=B.names;
@@ -1097,7 +1126,7 @@ def main():
     # A figure not yet reviewed for the paper (W590) has its finding as a provisional caption.
     (out / 'figures/paper/README.md').write_text('# Paper figures\n\nEach figure is a PNG (300 dpi) with an SVG copy.\n\n' + ''.join(
         f'## {v["key"]}.png\n\n{v.get("caption") or v["title"] + " (provisional caption)"}\n\n' for v in charts if v['set'] == 'paper')
-        + large_stiff_text(data['large_stiff']))
+        + continuation_agreement_text(data) + large_stiff_text(data['large_stiff']))
     page(data, charts, out)
     print(json.dumps(data['coverage'], indent=2))
     print(f'{len(data["paper_files"])} paper views, {len(charts) - len(data["paper_files"])} appendix views; report: {out / "report.html"}')
