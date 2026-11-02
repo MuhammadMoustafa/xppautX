@@ -44,6 +44,7 @@ STUDY_TITLES = {
     'continuation': 'Continuation (AUTO): equilibria, cycles, two-parameter curves',
 }
 PANEL_TITLES = {
+    'all': 'All workloads',
     'single': 'Published and demo models,\neach at its own method', 'izhikevich': 'Izhikevich\n(28 models)',
     'python': 'Python\n(screen models)', 'continuation': 'Continuation\n(AUTO)',
     'scaling': 'Model size\n(N = 10-6400)',
@@ -520,6 +521,42 @@ def overview_forest(overview):
     return panels
 
 
+PROFILE_TITLES = {'all': 'All\nworkloads', 'single': 'Published and\ndemo models'}  # the profile's panels are narrower
+PROFILE_TAUS = (.3, 200.)  # the profile's shared ratio axis: every ratio of the series, with room either side
+
+
+def profile_figure(matched):
+    """The paper's performance profile (W590): all workloads, then a panel per study. A workload counts only where xppautX
+    finished it (otherwise it is no comparison); size scaling counts each size once, its run to T."""
+    rows = [r for r in matched if r['baseline_time'] is not None and (r['study'] != 'scaling' or r['method'] == 'T')]
+    groups = [('all', rows), ('single', [r for r in rows if r['study'] in SINGLE_STUDIES])]
+    groups += [(s, [r for r in rows if r['study'] == s]) for s in ('izhikevich', 'python', 'scaling')]
+    panels = []
+    for key, group in groups:
+        values = [r['ratio'] for r in group if r['ratio'] is not None]
+        taus = sorted({*PROFILE_TAUS, *values})
+        traces = []
+        for p in ('xppaut', 'python'):
+            mine = [r['ratio'] for r in group if r['program'] == p]
+            if mine:
+                traces.append(line(NAMES[p], taus, profile(mine, taus), p, step=True,
+                                   finished=sum(v is not None for v in mine), total=len(mine)))
+        panels.append(dict(key=key, traces=traces))
+    count = {t['program']: (t['finished'], t['total']) for t in panels[0]['traces']}
+    limit = sum(r['program'] == 'xppaut' and r['ratio'] is None for r in rows)
+    caption = ('Performance profile: for each ratio x of the other program\'s time to xppautX\'s, at matched accuracy, the '
+               'fraction of workloads the other program finished within x times xppautX\'s time (log scale). At x = 1 the '
+               'height is the share where the other program was at least as fast as xppautX; where a curve levels off below '
+               'the top is the share it never finished. '
+               f'XPPAUT 8.0 finished {count["xppaut"][0]} of {count["xppaut"][1]} workloads; the {limit} it did not exceed '
+               'its limit of 5000 equations (the Amari and Morris-Lecar chains at N = 3200 and 6400). '
+               f'Python finished {count["python"][0]} of {count["python"][1]}. Workloads xppautX did not finish are '
+               'left out, being no comparison. The panels are the overview\'s studies, each workload counted once: model '
+               'size by its run to T.')
+    return dict(key='profile', kind='profiles', set='paper', width=7., height=2.6, panels=panels, caption=caption,
+                title='Performance profile')
+
+
 def overview_caption(panels):
     single, groups = panels[0], panels[1:]
     count = {p['key']: sum(c['count'] for r in p['rows'] for c in r['cells'].values()) for p in groups}
@@ -697,9 +734,7 @@ def views(data):
     forest = overview_forest(data['overview'])
     charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest),
                        title=f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} study and method groups'))
-    charts.append(profile_spec(matched, 'profile') | dict(set='paper', width=3.4, height=3.2))
-    charts.append(panel('profile-by-study', ratio_finding(matched) + '; coverage varies by study',
-                        [profile_spec([r for r in matched if r['study'] == s], s) for s in (*INTEGRATION, 'scaling')], 2, 8.))
+    charts.append(profile_figure(matched))
     charts.append(panel('scaling', ratio_finding([r for r in matched if r['study'] == 'scaling' and r['method'] == 'T']) + ' (full-horizon scaling)',
                         [next(c for c in charts if c['key'] == f'scaling-{f}-T') for f in ('kuramoto', 'lecdiff', 'amari')], 3, 3.6))
     dense_memory = max(r['peak_rss_kib_mean'] for r in data['large_stiff'] if r['solver'] == 'legacy-dense') / 1024
@@ -869,9 +904,34 @@ def static(charts, out, ratio_limit):
         fig.legend(handles=[Line2D([0], [0], color=COLORS[q], marker='o', linewidth=2.4, label=NAMES[q]) for q in programs],
                    loc='outside upper center', ncol=len(programs), frameon=False)
         return fig
+    def profiles(view):
+        # One row of panels on shared axes; each panel names how many workloads each program finished.
+        fig, axes = plt.subplots(1, len(view['panels']), figsize=(view['width'], view['height']), sharex=True, sharey=True,
+                                 layout='constrained')
+        for ax, panel in zip(axes, view['panels']):
+            for i, t in enumerate(panel['traces']):
+                ax.step(t['x'], t['y'], where='post', color=COLORS[t['program']], linewidth=1.4)
+                ax.text(.96, .04 + .09 * i, f"{t['finished']} of {t['total']}", transform=ax.transAxes, ha='right', va='bottom',
+                        fontsize=6.5, color=COLORS[t['program']])
+            ax.axvline(1, color='#555', linewidth=.8)
+            ax.set_title(PROFILE_TITLES.get(panel['key'], PANEL_TITLES[panel['key']]), fontsize=7.5, fontweight='bold')
+        ax = axes[0]
+        ax.set_xscale('log')
+        ax.set_xlim(*PROFILE_TAUS)
+        ax.set_xticks([1, 10, 100], ['1', '10', '100'])
+        ax.xaxis.set_minor_formatter(NullFormatter())
+        ax.set_ylim(0, 1.02)
+        ax.set_ylabel('Fraction of workloads')
+        fig.supxlabel('Other program\'s time ÷ xppautX\'s', fontsize=7)
+        programs = list(dict.fromkeys(t['program'] for p in view['panels'] for t in p['traces']))
+        fig.legend(handles=[Line2D([0], [0], color=COLORS[q], linewidth=1.4, label=NAMES[q]) for q in programs],
+                   loc='outside upper center', ncol=len(programs), frameon=False)
+        return fig
     for view in charts:
         if view.get('kind') == 'forest':
             fig = forest(view)
+        elif view.get('kind') == 'profiles':
+            fig = profiles(view)
         elif view.get('kind') == 'panels':
             ncols = view['ncols']; nrows = math.ceil(len(view['panels']) / ncols)
             fig, axes = plt.subplots(nrows, ncols, figsize=(view['width'], view['height']), squeeze=False, layout='constrained')

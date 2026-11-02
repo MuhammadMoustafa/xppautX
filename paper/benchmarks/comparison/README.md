@@ -18,13 +18,14 @@ is needed at runtime.
 (including start-up), acceptance evidence, label/gate evidence, exclusions and
 repetition samples. `data/views.json` exports the exact values used by both
 renderers; `data/coverage.json` lists profile reach counts by study and program.
-The seven curated PDF/SVG views are in `figures/paper/`: overview, profile,
-profile-by-study, scaling, large-stiff, continuation-agreement and
-continuation-time. Detailed views go to `figures/appendix/`. Saved widths are
-3.4 in (main profile) or 7 in, with fonts at least 7 pt. The overview is one
-study-by-method median heatmap figure with counts and workload ranges;
-per-workload heatmaps are retained in the appendix and HTML. Each study shows
-only programs run there, with xppautX named as the baseline rather than a column.
+The six curated paper figures are in `figures/paper/` as PNG (300 dpi) with
+SVG copies, their captions in its generated `README.md`: overview, profile,
+scaling, large-stiff, continuation-agreement and continuation-time. Detailed
+views go to `figures/appendix/`. The overview is one row of panels on a shared
+log axis of the time ratio (single models, then each study by method, with the
+median, the middle half and the count of comparable workloads); the profile is
+a row of performance profiles on shared axes, all workloads and then each
+study. Each study shows only programs run there, with xppautX the baseline.
 
 Matched accuracy means the **equal-work gate**, not identical absolute errors
 at an arbitrary ladder rung. The screen threshold is `5e-6 + 5e-5 * abs(ref)`;
