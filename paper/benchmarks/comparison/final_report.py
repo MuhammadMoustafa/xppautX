@@ -60,7 +60,7 @@ SINGLE_STUDIES = ('screen', 'modeldb', 'research')  # one model per row: each mo
 METHOD_TITLES = {
     'euler': 'Euler', 'runge_kutta': 'Runge-Kutta 4', 'backward_euler': 'Backward Euler', 'qualrk': 'Adaptive Runge-Kutta (QualRK)',
     'stiff': 'Stiff (XPPAUT\'s stiff solver)', 'dopri8': 'Dormand-Prince 8(5,3)', 'discrete': 'Discrete map',
-    'step': 'Start-up (one step)', 'T': 'Run to T', '2T': 'Run to 2T', 'integration': 'Integration (2T - T)',
+    'step': 'First step (start-up)', 'T': 'Average step (run to T)', '2T': 'Run to 2T',
     'fd': 'Finite-difference Jacobian', 'exact': 'Exact Jacobian',
 }
 # Sampling a shared error grid is only for the visual median and quartiles.
@@ -383,7 +383,7 @@ def compute(final):
     return dict(screen_tolerance=dict(atol=screen.ATOL, rtol=screen.RTOL, timing_fraction=screen.TIMING_FRACTION),
                 status=status, inventory=inventory, overview=overview, rows=rows, matched=matched, curves=curves, unequal=unequal,
                 agreement=labels, large_stiff=large, audit=audit, terman=terman,
-                gates=gates, scaling_cost=read(folders['scaling'] / 'cost-per-time.json'))
+                gates=gates)
 
 
 def equal_work_matches(overview):
@@ -503,10 +503,10 @@ def agreement_text(cell):
     return ''
 
 
-def overview_forest(overview, scaling_cost):
+def overview_forest(overview):
     """The paper's overview (W590): a panel of single models, each at its own method, then a panel per study of groups by
-    method; only comparable workloads count, so a group's number is how many it has. Size scaling shows start-up (the
-    one-step run) and integration (the 2T - T cost per unit of model time): its T and 2T runs mix the two."""
+    method; only comparable workloads count, so a group's number is how many it has. Size scaling shows its first step
+    (start-up) and its run to T; the run to 2T, only there for the 2T - T integration cost, is the scaling figure's."""
     single = [dict(label=f"{MODEL_TITLES[r['workload']]} ({METHOD_SHORT[r['method']]})",
                    cells={'xppaut': dict(ratio=r['cells']['xppaut']['ratio'])})
               for s in SINGLE_STUDIES for r in overview if r['study'] == s and r['cells']['xppaut']['ratio'] is not None]
@@ -515,14 +515,7 @@ def overview_forest(overview, scaling_cost):
         summary = heat_summary([r for r in overview if r['study'] == study], study)
         rows = [dict(label=METHOD_TITLES[r['method']], cells={q: c for q, c in r['cells'].items() if c['count']})
                 for r in summary['rows'] if any(c['count'] for c in r['cells'].values())
-                and (study != 'scaling' or r['method'] == 'step')]
-        if study == 'scaling':
-            cost = defaultdict(dict)
-            for c in scaling_cost:
-                cost[c['workload']][c['engine']] = c['wall_per_model_time']
-            ratios = [c['xppaut'] / c['xppautx'] for c in cost.values() if len(c) == 2]
-            q1, median, q3 = np.quantile(ratios, [.25, .5, .75]).tolist()
-            rows.append(dict(label=METHOD_TITLES['integration'], cells={'xppaut': dict(ratio=median, q1=q1, q3=q3, count=len(ratios))}))
+                and (study != 'scaling' or r['method'] != '2T')]
         panels.append(dict(key=study, programs=list(STUDY_PROGRAMS[study]), rows=rows))
     return panels
 
@@ -538,10 +531,11 @@ def overview_caption(panels):
             'are shown; data/coverage.json lists the rest and why. Izhikevich: the 28 firing behaviours of Izhikevich 2003 '
             'and 2004. Python: a Python re-implementation of xppautX\'s methods on the screen models. Continuation: AUTO '
             'branch runs, grouped by how the Jacobian is formed. Model size: Amari, Kuramoto and Morris-Lecar chains at '
-            f'N = 10 to 6400 variables ({count["scaling"] // 2} sizes), step 0.05. Start-up is a run of one step; '
-            'integration is the cost per unit of model time, (time to 2T - time to T) / T, with start-up and output '
-            'removed. T is chosen per model and size so XPPAUT\'s run to 2T integrates for about 3 s, since the cost of a '
-            'time unit grows steeply with N; the ratio does not depend on T.')
+            f'N = 10 to 6400 variables ({count["scaling"] // 2} sizes), step 0.05. The first step is a run of one step, '
+            'start-up alone (loading, parsing, setting up, writing output); the average step is a whole run to T divided '
+            'by its steps, start-up included. T is chosen per model and size so XPPAUT\'s run to T integrates for about '
+            '1.5 s, since the cost of a time unit grows steeply with N; both programs run the same T, so it cancels in the '
+            'ratio.')
 
 
 def heat_summary(rows, study):
@@ -700,7 +694,7 @@ def views(data):
     studies = list(dict.fromkeys(r['study'] for r in data['overview']))
     overview_panels = [heat_summary([r for r in data['overview'] if r['study'] == s], s) for s in studies]
     medians = [c['ratio'] for panel in overview_panels for r in panel['rows'] for c in r['cells'].values() if c['ratio'] is not None]
-    forest = overview_forest(data['overview'], data['scaling_cost'])
+    forest = overview_forest(data['overview'])
     charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest),
                        title=f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} study and method groups'))
     charts.append(profile_spec(matched, 'profile') | dict(set='paper', width=3.4, height=3.2))
