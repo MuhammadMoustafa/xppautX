@@ -43,6 +43,20 @@ STUDY_TITLES = {
     'scaling': 'Size scaling: Amari, Kuramoto and Morris-Lecar chains, N = 10 to 6400 variables',
     'continuation': 'Continuation (AUTO): equilibria, cycles, two-parameter curves',
 }
+PANEL_TITLES = {
+    'single': 'Published and demo models,\neach at its own method', 'izhikevich': 'Izhikevich\n(28 models)',
+    'python': 'Python\n(screen models)', 'continuation': 'Continuation\n(AUTO)',
+    'scaling': 'Model size\n(N = 10-6400)',
+}
+MODEL_TITLES = {
+    'amari': 'Amari bump', 'clustor': 'Weight clustering', 'episodic': 'Terman network', 'kuramot100': 'Kuramoto (100)',
+    'lecdiff200': 'Morris-Lecar chain (200)', 'PY_S1Bf': 'PY_S1Bf', 'fire': 'Motoneuron, firing', 'rest': 'Motoneuron, at rest',
+    'ma23': 'PV interneuron (Ma 2023)', 'mu26': 'PVN neuron (Mu 2026)',
+}
+# A single model's row names its method in brackets, short: the figure's caption spells them out.
+METHOD_SHORT = {'euler': 'Euler', 'runge_kutta': 'RK4', 'backward_euler': 'backward Euler', 'qualrk': 'QualRK', 'stiff': 'stiff',
+                'dopri8': 'Dormand-Prince 8', 'discrete': 'map'}
+SINGLE_STUDIES = ('screen', 'modeldb', 'research')  # one model per row: each model runs at its own method
 METHOD_TITLES = {
     'euler': 'Euler', 'runge_kutta': 'Runge-Kutta 4', 'backward_euler': 'Backward Euler', 'qualrk': 'Adaptive Runge-Kutta (QualRK)',
     'stiff': 'Stiff (XPPAUT\'s stiff solver)', 'dopri8': 'Dormand-Prince 8(5,3)', 'discrete': 'Discrete map',
@@ -489,6 +503,21 @@ def agreement_text(cell):
     return ''
 
 
+def overview_forest(overview):
+    """The paper's overview (W590): a panel of single models, each at its own method, then a panel per study of groups by
+    method; only comparable workloads count, so a group's number is how many it has."""
+    single = [dict(label=f"{MODEL_TITLES[r['workload']]} ({METHOD_SHORT[r['method']]})",
+                   cells={'xppaut': dict(ratio=r['cells']['xppaut']['ratio'])})
+              for s in SINGLE_STUDIES for r in overview if r['study'] == s and r['cells']['xppaut']['ratio'] is not None]
+    panels = [dict(key='single', programs=['xppaut'], rows=single)]
+    for study in ('izhikevich', 'python', 'continuation', 'scaling'):
+        summary = heat_summary([r for r in overview if r['study'] == study], study)
+        rows = [dict(label=METHOD_TITLES[r['method']], cells={q: c for q, c in r['cells'].items() if c['count']})
+                for r in summary['rows'] if any(c['count'] for c in r['cells'].values())]
+        panels.append(dict(key=study, programs=list(STUDY_PROGRAMS[study]), rows=rows))
+    return panels
+
+
 def heat_summary(rows, study):
     methods = list(dict.fromkeys(r['method'] for r in rows))
     summary = []
@@ -645,7 +674,7 @@ def views(data):
     studies = list(dict.fromkeys(r['study'] for r in data['overview']))
     overview_panels = [heat_summary([r for r in data['overview'] if r['study'] == s], s) for s in studies]
     medians = [c['ratio'] for panel in overview_panels for r in panel['rows'] for c in r['cells'].values() if c['ratio'] is not None]
-    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=overview_panels,
+    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=overview_forest(data['overview']),
                        title=f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} study and method groups'))
     charts.append(profile_spec(matched, 'profile') | dict(set='paper', width=3.4, height=3.2))
     charts.append(panel('profile-by-study', ratio_finding(matched) + '; coverage varies by study',
@@ -783,46 +812,41 @@ def static(charts, out, ratio_limit):
         title_width = max(24, int(ax.get_position().width * ax.figure.get_figwidth() * 72 / (8 * .55)))
         ax.set_title(fill(view['title'], title_width), fontsize=8)
     def forest(view):
-        # One row per study and method: the median ratio over its workloads (dot), the middle half of them (bar), and how many.
-        rows = []
-        for p in view['panels']:
-            rows.append(('study', p['study'], None))
-            rows += [('method', p['study'], r) for r in p['rows']]
-        height = .26 * len(rows) + 1.3
-        fig, ax = plt.subplots(figsize=(view['width'], height), layout='constrained')
-        offsets = {1: (0,), 2: (-.16, .16)}
-        for y, (kind, study, r) in enumerate(rows):
-            if kind == 'study':
-                ax.text(.01, y, STUDY_TITLES[study], transform=blended_transform_factory(fig.transFigure, ax.transData), ha='left', va='center',
-                        fontsize=7, fontweight='bold', bbox=dict(facecolor='white', edgecolor='none', pad=1), zorder=3)
-                continue
-            for dy, q in zip(offsets[len(STUDY_PROGRAMS[study])], STUDY_PROGRAMS[study]):
-                c = r['cells'][q]
-                if c['ratio'] is None:
-                    continue
-                ax.plot([c['q1'], c['q3']], [y + dy] * 2, color=COLORS[q], linewidth=2.4, solid_capstyle='butt', alpha=.45)
-                ax.plot(c['ratio'], y + dy, 'o', color=COLORS[q], markersize=4)
-                n = f'{c["count"]}' if c['count'] == c['total'] else f'{c["count"]} of {c["total"]}'
-                ax.text(1.005, y + dy, f'{c["ratio"]:.2g}×  (n = {n})', transform=ax.get_yaxis_transform(), va='center',
-                        fontsize=6.5, color=COLORS[q])
-        ax.axvline(1, color='#555', linewidth=.8)
-        ax.set_yticks([y for y, row in enumerate(rows) if row[0] == 'method'],
-                      ['    ' + METHOD_TITLES[row[2]['method']] for row in rows if row[0] == 'method'])
-        ax.tick_params(axis='y', length=0)
-        ax.set_ylim(len(rows) - .5, -.7)
-        ax.set_xscale('log')
-        ax.set_xlim(.2, 50)
-        ax.set_xticks([.2, .5, 1, 2, 5, 10, 20, 50], ['0.2', '0.5', '1', '2', '5', '10', '20', '50'])
-        ax.xaxis.set_minor_formatter(NullFormatter())
-        ax.set_xlabel('Time of the other program ÷ time of xppautX (log scale)')
-        ax.text(.9, -.6, '← xppautX slower', ha='right', va='center', fontsize=7, color='#555')
-        ax.text(1.1, -.6, 'xppautX faster →', ha='left', va='center', fontsize=7, color='#555')
-        ax.spines['left'].set_visible(False)
-        handles = [Line2D([0], [0], color=COLORS[q], marker='o', linewidth=2.4, alpha=.8, label=NAMES[q]) for q in ('xppaut', 'python', 'auto07p')]
-        handles.append(Line2D([0], [0], color='#888', marker='o', linewidth=0, label='dot: median over the workloads'))
-        handles.append(Line2D([0], [0], color='#888', linewidth=2.4, alpha=.45, label='bar: middle half of them (25th-75th percentile)'))
-        ax.legend(handles=handles, loc='upper center', bbox_to_anchor=(.5, -.06 * 30 / len(rows)), ncol=3, frameon=False)
-        ax.set_title(view['title'], fontsize=8)
+        # One row of panels on one shared log axis of the time ratio: a dot per single model; for a group, its median (dot),
+        # the middle half of its workloads (bar) and how many it has (the number above the bar). The caption says what the
+        # marks mean.
+        order = ('single', 'izhikevich', 'python', 'continuation', 'scaling')
+        panels = [next(p for p in view['panels'] if p['key'] == k) for k in order]
+        # A panel is as wide as its rows or its title's longest line (about four characters to a row), whichever is wider.
+        widths = [max(len(p['rows']), max(map(len, PANEL_TITLES[p['key']].split('\n'))) / 4) + .6 for p in panels]
+        fig, axes = plt.subplots(1, len(panels), figsize=(view['width'], 3.6), sharey=True, width_ratios=widths, layout='constrained')
+        for ax, panel in zip(axes, panels):
+            programs = panel['programs']
+            offsets = np.linspace(-.25, .25, len(programs)) if len(programs) > 1 else [0.]
+            for x, r in enumerate(panel['rows']):
+                for dx, q in zip(offsets, programs):
+                    c = r['cells'].get(q)
+                    if not c:
+                        continue
+                    if 'q1' in c:
+                        ax.plot([x + dx] * 2, [c['q1'], c['q3']], color=COLORS[q], linewidth=2.4, solid_capstyle='butt', alpha=.45)
+                        ax.text(x + dx, max(c['q3'], c['ratio']) * 1.15, str(c['count']), ha='center', va='bottom', fontsize=6.5, color=COLORS[q])
+                    ax.plot(x + dx, c['ratio'], 'o', color=COLORS[q], markersize=3.5)
+            ax.axhline(1, color='#555', linewidth=.8)
+            ax.set_xticks(range(len(panel['rows'])), [r['label'] for r in panel['rows']], rotation=45, ha='right', rotation_mode='anchor')
+            ax.tick_params(axis='x', length=0)
+            ax.set_xlim(-.6, len(panel['rows']) - .4)
+            ax.spines['bottom'].set_visible(False)
+            ax.set_title(PANEL_TITLES[panel['key']], fontsize=7.5, fontweight='bold')
+        ax = axes[0]
+        ax.set_yscale('log')
+        ax.set_ylim(.3, 50)
+        ax.set_yticks([.5, 1, 2, 5, 10, 20, 50], ['0.5', '1', '2', '5', '10', '20', '50'])
+        ax.yaxis.set_minor_formatter(NullFormatter())
+        ax.set_ylabel('Other program\'s time ÷ xppautX\'s\n↓ xppautX slower   |   xppautX faster ↑')
+        programs = list(dict.fromkeys(q for p in panels for q in p['programs']))
+        fig.legend(handles=[Line2D([0], [0], color=COLORS[q], marker='o', linewidth=2.4, label=NAMES[q]) for q in programs],
+                   loc='outside upper center', ncol=len(programs), frameon=False)
         return fig
     for view in charts:
         if view.get('kind') == 'forest':
@@ -847,7 +871,7 @@ def static(charts, out, ratio_limit):
             bar.set_label('Other / xppautX ratio (log colour): red = slower xppautX; blue = faster')
         directory = out / view['set']; directory.mkdir(parents=True, exist_ok=True)
         for suffix in ('png', 'svg'):
-            fig.savefig(directory / (view['key'] + '.' + suffix), dpi=PNG_DPI)
+            fig.savefig(directory / (view['key'] + '.' + suffix), dpi=PNG_DPI, bbox_inches='tight', pad_inches=.05)  # nothing clipped at the edge
         plt.close(fig)
 
 
