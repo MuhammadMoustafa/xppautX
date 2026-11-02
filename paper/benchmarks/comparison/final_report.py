@@ -1116,7 +1116,7 @@ def threads_text(rows):
     same = sum(r['identical'] for r in rows)
     return ('## xppautX on several cores: threads in one AUTO run (W592)\n\nOne continuation run of xppautX\'s frozen build, with AUTO\'s '
             'collocation on 1, 2 and 4 threads (each pinned to that many physical cores), the mean of the counted repetitions after a warm-up. '
-            f'The saved diagram is byte for byte the same at every thread count and repetition in {same} of {len(rows)} workloads.\n\n' + '\n'.join(table) + '\n')
+            f'The saved diagram is byte for byte the same at every thread count and repetition in {same} of {len(rows)} workloads.\n\n' + '\n'.join(table) + '\n\n')
 
 
 def jobs_text(jobs, auto):
@@ -1133,7 +1133,7 @@ def jobs_text(jobs, auto):
                          f"{'yes' if r['concurrent']['runs_equal'] == r['concurrent']['runs'] else 'NO'} |")
     return ('## xppautX on several cores: several runs at once (W592)\n\nN different jobs started together as separate xppautX processes, '
             'one user and one HOME, against the same jobs one after another (XPPAUT 8.0 and AUTO-07p are not rerun: their concurrent runs '
-            'are known to break, docs/xppaut-findings.md finding 8).\n\n' + '\n'.join(table) + '\n')
+            'are known to break, docs/xppaut-findings.md finding 8).\n\n' + '\n'.join(table) + '\n\n')
 
 
 def memory_ratios(integration, continuation):
