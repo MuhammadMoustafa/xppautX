@@ -9,8 +9,12 @@ from pathlib import Path
 import shutil
 import statistics
 import subprocess
+import sys
 
 from generate import generate
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'comparison'))
+from common import wait_until_ready  # noqa: E402  the comparison's one wait for an idle machine
 
 HERE = Path(__file__).resolve().parent
 SOLVERS = ['legacy-dense', 'legacy-band', 'klu', 'gmres']
@@ -253,8 +257,7 @@ def measure(args):
     available(worker, False)
     if identity(worker) != json.loads((args.pilot/'identity.json').read_text()):
         raise RuntimeError('pilot code, binary, or checkout identity changed; recalibrate')
-    # Calibration is a separate untimed command; --ready can refuse a busy machine
-    # without repeating a potentially expensive calibration or sleeping in a loop.
+    # Calibration is a separate untimed command, so a busy machine is waited for here, never recalibrated.
     gate = json.loads((args.pilot/'correctness.json').read_text())
     if gate['omitted'] or any(c['status'] != 'pass' for c in gate['cases']):
         raise RuntimeError('pilot must pass with KLU enabled')
@@ -266,7 +269,7 @@ def measure(args):
         if (digest(model) != case['model_sha256'] or digest(model.with_suffix('.json')) != case['metadata_sha256']
                 or digest(ref) != case['reference_sha256']):
             raise RuntimeError('pilot model or reference changed after validation')
-    subprocess.run(['tools/comparison-setup.sh', '--ready'], check=True)
+    wait_until_ready()
     if subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=no'], text=True).strip():
         raise RuntimeError('tracked checkout must be clean')
     root.mkdir(parents=True, exist_ok=False)
@@ -370,7 +373,7 @@ def main():
     elif a.mode == 'summarize':
         summarize(a.out.resolve())
     else:
-        subprocess.run(['tools/comparison-setup.sh', '--ready'], check=True)
+        wait_until_ready()
         root = a.out.resolve()
         gate = json.loads((root/'pilot/correctness.json').read_text())
         summaries=[]

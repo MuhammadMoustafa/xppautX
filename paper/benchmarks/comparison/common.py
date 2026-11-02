@@ -109,11 +109,9 @@ READY_POLL_SECONDS = 10  # the poll interval of the wait for an idle machine, no
 READY_LIMIT_SECONDS = 1800  # safety limit only: a machine busy for half an hour is a refusal, never a measurement
 
 
-def before_series(a):
+def wait_until_ready():
     # A desktop app's brief burst above the CPU limit must not end a study of many hours: wait for the machine to be idle,
     # printing who was busy, and refuse only when it stays busy. Every measurement still starts on a machine that passed the check.
-    if a.check:
-        return
     waited = 0
     while True:
         p = subprocess.run(['bash', str(TOOLS / 'comparison-setup.sh'), '--ready'], cwd=REPO, text=True, capture_output=True)
@@ -124,6 +122,11 @@ def before_series(a):
             raise RuntimeError('machine not idle after %d s: refusing to measure' % waited)
         time.sleep(READY_POLL_SECONDS)  # poll interval inside a wait for a condition
         waited += READY_POLL_SECONDS
+
+
+def before_series(a):
+    if not a.check:
+        wait_until_ready()
 
 
 @contextmanager

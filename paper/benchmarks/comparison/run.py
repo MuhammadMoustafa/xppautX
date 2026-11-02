@@ -5,12 +5,9 @@ import json
 from pathlib import Path
 import subprocess
 import sys
-import time
 
-from common import BENCH, HERE, REPO, TOOLS, save, sha
+from common import BENCH, HERE, REPO, TOOLS, save, sha, wait_until_ready
 
-READY_WAIT_SECONDS = 900  # how long a timed study waits for an idle machine before it gives up
-READY_POLL_SECONDS = 5
 
 STUDIES = ('terman', 'screen', 'modeldb', 'research', 'izhikevich', 'python', 'continuation', 'scaling', 'large-stiff')
 
@@ -22,11 +19,7 @@ def record(root, check):
     else:
         # W448: --ready (the governor, and no other process on the CPU) before each timed study. The session supervising
         # the series (its desktop app) is busy only while it acts, so wait for idle: a poll for a condition, bounded.
-        deadline = time.monotonic() + READY_WAIT_SECONDS
-        while subprocess.run(['bash', str(TOOLS / 'comparison-setup.sh'), '--ready'], cwd=REPO).returncode:
-            if time.monotonic() > deadline:
-                sys.exit('comparison-setup.sh --ready refused for %d s: the timed series needs the machine to itself' % READY_WAIT_SECONDS)
-            time.sleep(READY_POLL_SECONDS)  # the poll interval of a wait for an idle machine
+        wait_until_ready()
         p = subprocess.run(['bash', str(TOOLS / 'comparison-setup.sh'), '--record'], cwd=REPO, check=True, capture_output=True, text=True)
         path = next(l.removeprefix('record: ') for l in p.stdout.splitlines() if l.startswith('record: '))
         value = json.loads(Path(path).read_text())
