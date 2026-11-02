@@ -2565,13 +2565,13 @@ def section_codim():
                         check('map codim: ' + direction + ' ' + kind + ' closed-form place',
                               abs(float(rows[index]['continued_parameter'])-exact[kind])<3e-4)
     # W419: torus angles past pi and below 0, every resonance at its closed form's angle modulo 2*pi.
-    # torus_up's R1 at w = 0 is W585's, at its branch point (docs/studies/w585_torus_r2_check.py).
+    # torus_up's last R1, at b = 0 beside the branch point, is W585's (docs/studies/w585_torus_r2_check.py).
     # henon_rot_th continues the rotation's angle th itself; res_cycles' is 2*pi*(1-sqrt(2*w)), w = -c-mu, mu = 1/2.
     folded = {'R1': 0., 'R2': math.pi, 'R3': 2 * math.pi / 3, 'R4': math.pi / 2}
     for name, angle, expected in (
             ('henon_rot_th', lambda r: float(r['continued_parameter']), {'turn': ['R4', 'R3', 'R2', 'R3', 'R4']}),
             ('res_cycles', lambda r: 2 * math.pi * (1 - math.sqrt(2 * (-float(r['continued_parameter']) - .5))),
-             {'torus_down': ['R1', 'R4', 'R3', 'R2', 'R3'], 'torus_up': ['R1', 'R4', 'R3', 'R2', 'R3', 'R4']})):
+             {'torus_down': ['R1', 'R4', 'R3', 'R2', 'R3'], 'torus_up': ['R4', 'R3', 'R2', 'R3', 'R4', 'R1']})):
         data, _, _, intervals = compute(args.server, read_description(BASE / (name + '.json')), 1)
         runs = autocompare.stored_rows(data, intervals)
         for run, kinds in expected.items():
