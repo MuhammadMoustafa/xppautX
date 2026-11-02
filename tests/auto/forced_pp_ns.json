@@ -127,15 +127,6 @@
       "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), so its curve does not label this branch point; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
     },
     {
-      "reference": ".converged",
-      "run": "ns_up",
-      "side": "ours",
-      "type": "branch_point",
-      "index": 1,
-      "quantity": "norm",
-      "cause": "W578 (#643): the torus curves start from the cycles' TR, which ours locates at m = 0.3175425695 (special point tolerance 1e-5, as AUTO-07p's 0.3175425698) and the converged run at 0.3175445942. The true TR (docs/studies/w578_converged_check.py: det of the model's Poincare map = 1 at eps 0.5, b0 0.338) is m = 0.317544594152: ours is 2.0e-6 off, within its tolerance, the converged run's 9e-14. The curves continue at that fixed m, and the norm carries it whole (u^2 + v^2 = m): dm / (2 norm) = 1.46e-6, the difference at this BP and along both curves."
-    },
-    {
       "reference": ".auto07p",
       "run": "ns_up",
       "side": "ours",
@@ -156,12 +147,12 @@
     {
       "reference": ".converged",
       "run": "ns_up",
-      "cause": "W578 (#643): ours continues the torus curve at m = 0.3175425695, where it locates the cycles' TR within its tolerance, 2.0e-6 below the true TR (docs/studies/w578_converged_check.py); the converged run at the true m. Its samples are off ours by the norm's dm / (2 norm) = 1.46e-6 and, in eps and b0, by where the curve moves with m. The difference at the branch point is the norm entry of ns_up."
+      "cause": "W578 (#643): ours continues the torus curve at m = 0.3175425695, where it locates the cycles' TR within its tolerance, 2.0e-6 below the true TR (docs/studies/w578_converged_check.py); the converged run at the true m. Its samples are off ours by the norm's dm / (2 norm) = 1.46e-6 and, in eps and b0, by where the curve moves with m. At the branch point that offset, 1.46e-6 in the norm, is within the gate's tolerance (W583)."
     },
     {
       "reference": ".converged",
       "run": "ns_down",
-      "cause": "W578 (#643): ours continues the torus curve at m = 0.3175425695, where it locates the cycles' TR within its tolerance, 2.0e-6 below the true TR (docs/studies/w578_converged_check.py); the converged run at the true m. Its samples are off ours by the norm's dm / (2 norm) = 1.46e-6 and, in eps and b0, by where the curve moves with m. The difference at the branch point is the norm entry of ns_up."
+      "cause": "W578 (#643): ours continues the torus curve at m = 0.3175425695, where it locates the cycles' TR within its tolerance, 2.0e-6 below the true TR (docs/studies/w578_converged_check.py); the converged run at the true m. Its samples are off ours by the norm's dm / (2 norm) = 1.46e-6 and, in eps and b0, by where the curve moves with m. At the branch point that offset, 1.46e-6 in the norm, is within the gate's tolerance (W583)."
     }
   ]
 }
