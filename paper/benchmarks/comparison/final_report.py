@@ -31,6 +31,24 @@ from integration import effective_numerics, screen
 COLORS = {'xppautx': '#0072B2', 'xppaut': '#D55E00', 'auto07p': '#CC79A7', 'python': '#009E73'}
 NAMES = {'xppautx': 'xppautX', 'xppaut': 'XPPAUT 8.0', 'auto07p': 'AUTO-07p', 'python': 'Python'}
 INTEGRATION = ('screen', 'modeldb', 'research', 'izhikevich', 'python')
+# W590: what a reader of the paper's figures needs to know of each study and method, from the studies' own sources
+# (paper/benchmarks/five-model-screen/sources, modeldb-267710, examples/ode/mu26.ode and ma23.ode, izhikevich/README.md,
+# size-scaling/scaling.py, tools/python-integration/integrate.py).
+STUDY_TITLES = {
+    'screen': 'Model screen: Amari bump, weight clustering, Terman network, Kuramoto (100), Morris-Lecar chain (200), PY_S1Bf',
+    'modeldb': 'ModelDB 267710 motoneuron: at rest and firing',
+    'research': 'Published neurons: Ma et al. 2023 PV interneuron, Mu 2026 two-compartment PVN neuron',
+    'izhikevich': 'Izhikevich 2003 and 2004 firing behaviours (28 models)',
+    'python': 'Python re-implementation of xppautX\'s methods, on the screen models',
+    'scaling': 'Size scaling: Amari, Kuramoto and Morris-Lecar chains, N = 10 to 6400 variables',
+    'continuation': 'Continuation (AUTO): equilibria, cycles, two-parameter curves',
+}
+METHOD_TITLES = {
+    'euler': 'Euler', 'runge_kutta': 'Runge-Kutta 4', 'backward_euler': 'Backward Euler', 'qualrk': 'Adaptive Runge-Kutta (QualRK)',
+    'stiff': 'Stiff (XPPAUT\'s stiff solver)', 'dopri8': 'Dormand-Prince 8(5,3)', 'discrete': 'Discrete map',
+    'step': 'One step: start-up cost', 'T': 'Run to T', '2T': 'Run to 2T',
+    'fd': 'Finite-difference Jacobian', 'exact': 'Exact Jacobian',
+}
 # Sampling a shared error grid is only for the visual median and quartiles.
 HEATMAP_ROWS = 12  # Two text lines per cell keep ratio ranges legible on paper.
 CONTINUATION_ROWS = 18  # Long branch names need more space beside ratio bars.
@@ -39,6 +57,7 @@ GRID_POINTS = 120
 MIN_MEDIAN_CURVES = 3  # A population band needs at least three observed curves.
 STUDY_PROGRAMS = {s: ('xppaut',) for s in (*INTEGRATION, 'scaling')}
 STUDY_PROGRAMS.update(python=('xppaut', 'python'), continuation=('xppaut', 'auto07p'))
+PNG_DPI = 300  # a journal's minimum for line art at print size
 AGREEMENT_COLORS = {'found': '#b8ddb0', 'different': '#e66101', 'traced': '#b2abd2', 'unavailable': '#d9d9d9'}
 RATIO_LABEL = 'Other / xppautX wall time (above 1: xppautX faster)'
 
@@ -479,7 +498,8 @@ def heat_summary(rows, study):
             group = [r for r in rows if r['method'] == method]
             values = [r['cells'][program]['ratio'] for r in group if r['cells'][program]['ratio'] is not None]
             cells[program] = dict(ratio=float(np.median(values)) if values else None, count=len(values), total=len(group),
-                                  minimum=min(values) if values else None, maximum=max(values) if values else None)
+                                  minimum=min(values) if values else None, maximum=max(values) if values else None,
+                                  q1=float(np.percentile(values, 25)) if values else None, q3=float(np.percentile(values, 75)) if values else None)
         summary.append(dict(workload=method, method=method, cells=cells))
     values = [c['ratio'] for r in summary for c in r['cells'].values() if c['ratio'] is not None]
     title = f'{study}: medians span {min(values):.2g}–{max(values):.2g}×' if values else f'{study}: no comparable timings'
@@ -625,7 +645,8 @@ def views(data):
     studies = list(dict.fromkeys(r['study'] for r in data['overview']))
     overview_panels = [heat_summary([r for r in data['overview'] if r['study'] == s], s) for s in studies]
     medians = [c['ratio'] for panel in overview_panels for r in panel['rows'] for c in r['cells'].values() if c['ratio'] is not None]
-    charts.append(panel('overview', f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} comparable study/method medians', overview_panels, 2, 9.5))
+    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=overview_panels,
+                       title=f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} study and method groups'))
     charts.append(profile_spec(matched, 'profile') | dict(set='paper', width=3.4, height=3.2))
     charts.append(panel('profile-by-study', ratio_finding(matched) + '; coverage varies by study',
                         [profile_spec([r for r in matched if r['study'] == s], s) for s in (*INTEGRATION, 'scaling')], 2, 8.))
@@ -656,6 +677,7 @@ def static(charts, out, ratio_limit):
     from matplotlib.cm import ScalarMappable
     from matplotlib.ticker import LogLocator, FuncFormatter, NullFormatter, MaxNLocator
     from matplotlib.lines import Line2D
+    from matplotlib.transforms import blended_transform_factory
     from textwrap import fill
     plt.rcParams.update({'font.size': 7, 'axes.titlesize': 8, 'axes.labelsize': 7, 'xtick.labelsize': 7, 'ytick.labelsize': 7,
                          'legend.fontsize': 7, 'axes.spines.top': False, 'axes.spines.right': False, 'pdf.fonttype': 42, 'svg.fonttype': 'none'})
@@ -760,8 +782,52 @@ def static(charts, out, ratio_limit):
             ax.legend(frameon=False, loc='best')
         title_width = max(24, int(ax.get_position().width * ax.figure.get_figwidth() * 72 / (8 * .55)))
         ax.set_title(fill(view['title'], title_width), fontsize=8)
+    def forest(view):
+        # One row per study and method: the median ratio over its workloads (dot), the middle half of them (bar), and how many.
+        rows = []
+        for p in view['panels']:
+            rows.append(('study', p['study'], None))
+            rows += [('method', p['study'], r) for r in p['rows']]
+        height = .26 * len(rows) + 1.3
+        fig, ax = plt.subplots(figsize=(view['width'], height), layout='constrained')
+        offsets = {1: (0,), 2: (-.16, .16)}
+        for y, (kind, study, r) in enumerate(rows):
+            if kind == 'study':
+                ax.text(.01, y, STUDY_TITLES[study], transform=blended_transform_factory(fig.transFigure, ax.transData), ha='left', va='center',
+                        fontsize=7, fontweight='bold', bbox=dict(facecolor='white', edgecolor='none', pad=1), zorder=3)
+                continue
+            for dy, q in zip(offsets[len(STUDY_PROGRAMS[study])], STUDY_PROGRAMS[study]):
+                c = r['cells'][q]
+                if c['ratio'] is None:
+                    continue
+                ax.plot([c['q1'], c['q3']], [y + dy] * 2, color=COLORS[q], linewidth=2.4, solid_capstyle='butt', alpha=.45)
+                ax.plot(c['ratio'], y + dy, 'o', color=COLORS[q], markersize=4)
+                n = f'{c["count"]}' if c['count'] == c['total'] else f'{c["count"]} of {c["total"]}'
+                ax.text(1.005, y + dy, f'{c["ratio"]:.2g}×  (n = {n})', transform=ax.get_yaxis_transform(), va='center',
+                        fontsize=6.5, color=COLORS[q])
+        ax.axvline(1, color='#555', linewidth=.8)
+        ax.set_yticks([y for y, row in enumerate(rows) if row[0] == 'method'],
+                      ['    ' + METHOD_TITLES[row[2]['method']] for row in rows if row[0] == 'method'])
+        ax.tick_params(axis='y', length=0)
+        ax.set_ylim(len(rows) - .5, -.7)
+        ax.set_xscale('log')
+        ax.set_xlim(.2, 50)
+        ax.set_xticks([.2, .5, 1, 2, 5, 10, 20, 50], ['0.2', '0.5', '1', '2', '5', '10', '20', '50'])
+        ax.xaxis.set_minor_formatter(NullFormatter())
+        ax.set_xlabel('Time of the other program ÷ time of xppautX (log scale)')
+        ax.text(.9, -.6, '← xppautX slower', ha='right', va='center', fontsize=7, color='#555')
+        ax.text(1.1, -.6, 'xppautX faster →', ha='left', va='center', fontsize=7, color='#555')
+        ax.spines['left'].set_visible(False)
+        handles = [Line2D([0], [0], color=COLORS[q], marker='o', linewidth=2.4, alpha=.8, label=NAMES[q]) for q in ('xppaut', 'python', 'auto07p')]
+        handles.append(Line2D([0], [0], color='#888', marker='o', linewidth=0, label='dot: median over the workloads'))
+        handles.append(Line2D([0], [0], color='#888', linewidth=2.4, alpha=.45, label='bar: middle half of them (25th-75th percentile)'))
+        ax.legend(handles=handles, loc='upper center', bbox_to_anchor=(.5, -.06 * 30 / len(rows)), ncol=3, frameon=False)
+        ax.set_title(view['title'], fontsize=8)
+        return fig
     for view in charts:
-        if view.get('kind') == 'panels':
+        if view.get('kind') == 'forest':
+            fig = forest(view)
+        elif view.get('kind') == 'panels':
             ncols = view['ncols']; nrows = math.ceil(len(view['panels']) / ncols)
             fig, axes = plt.subplots(nrows, ncols, figsize=(view['width'], view['height']), squeeze=False, layout='constrained')
             for ax, panel in zip(axes.flat, view['panels']):
@@ -774,14 +840,14 @@ def static(charts, out, ratio_limit):
             default_height = max(3.7, rows * .23 + 1.6) if view.get('kind') in ('heatmap', 'agreement') else 4.6 if any(t.get('bars') for t in view.get('traces', [])) else 3.4
             fig, ax = plt.subplots(figsize=(view.get('width', 7.), view.get('height', default_height)), layout='constrained')
             draw(ax, view)
-        if view['key'] == 'overview' or view.get('kind') == 'heatmap':
+        if view.get('kind') == 'heatmap':
             bar = fig.colorbar(ScalarMappable(norm=TwoSlopeNorm(0, -ratio_limit, ratio_limit), cmap=cmap),
                                ax=[ax for ax in fig.axes if ax.get_visible()], orientation='horizontal', fraction=.025, pad=.04)
             bar.set_ticks([-ratio_limit, 0, ratio_limit], labels=[f'{10 ** -ratio_limit:.2g}', '1', f'{10 ** ratio_limit:.2g}'])
             bar.set_label('Other / xppautX ratio (log colour): red = slower xppautX; blue = faster')
         directory = out / view['set']; directory.mkdir(parents=True, exist_ok=True)
-        for suffix in ('pdf', 'svg'):
-            fig.savefig(directory / (view['key'] + '.' + suffix))
+        for suffix in ('png', 'svg'):
+            fig.savefig(directory / (view['key'] + '.' + suffix), dpi=PNG_DPI)
         plt.close(fig)
 
 
@@ -863,7 +929,7 @@ function drawRatioSummary(node,v){
  const traces=groups.map(([p,m],i)=>{const rr=v.records.filter(r=>r.program===p&&r.method===m);return {type:'scatter',mode:'markers',name:N[p]+' '+m,x:rr.map(r=>r.ratio),y:rr.map(r=>r.model),marker:{color:C[p],symbol:['circle','square','triangle-up'][i],size:7},error_x:{type:'data',symmetric:false,array:rr.map(r=>r.ratio===null?null:r.high-r.ratio),arrayminus:rr.map(r=>r.ratio===null?null:r.ratio-r.low)},text:rr.map(r=>JSON.stringify(r)),hovertemplate:'%{text}<extra></extra>'};});const missing=v.records.filter(r=>r.ratio===null);traces.push({type:'scatter',mode:'markers',name:'No paired timing (including pilot-only)',x:missing.map(()=>1),y:missing.map(r=>r.model),marker:{symbol:'x',color:'#888',size:6},text:missing.map(r=>JSON.stringify(r)),hovertemplate:'%{text}<extra></extra>'});Plotly.react(node,traces,l,{responsive:true});
 }
 function renderSpec(node,v){if(v.kind==='panels'){node.style.display='grid';node.style.gridTemplateColumns='repeat(2,minmax(0,1fr))';for(const panel of v.panels){const div=document.createElement('div');div.className='chart';node.append(div);renderSpec(div,panel);}}else if(v.kind==='heatmap')drawHeat(node,v);else if(v.kind==='agreement')drawAgreement(node,v);else if(v.kind==='ratio_summary')drawRatioSummary(node,v);else draw(node,v);}
-$('paper-section').ontoggle=()=>{if($('paper-section').open&&!$('paper-plots').children.length){for(const v of V.filter(v=>v.set==='paper')){const title=document.createElement('h3');title.textContent=v.key;$('paper-plots').append(title);const div=document.createElement('div');$('paper-plots').append(div);renderSpec(div,v);}}};
+$('paper-section').ontoggle=()=>{if($('paper-section').open&&!$('paper-plots').children.length){for(const v of V.filter(v=>v.set==='paper')){const title=document.createElement('h3');title.textContent=v.key;$('paper-plots').append(title);const div=document.createElement('div');$('paper-plots').append(div);const img=document.createElement('img');img.src='figures/paper/'+v.key+'.png';img.alt=v.title;img.style.maxWidth='100%';div.append(img);}}};
 function detail(r){$('detail-title').textContent=r.study+' / '+r.workload+' / '+r.method;const curves=D.curves.filter(c=>c.study===r.study&&c.workload===r.workload);
 draw('detail-chart',{title:curves.length?'Work-precision: every timed rung':'No timed tolerance ladder for this workload',xlabel:'Maximum absolute error versus reference (model units)',ylabel:'Wall time (s)',xlog:true,ylog:true,traces:curves.map(c=>({name:N[c.program],program:c.program,x:c.points.map(p=>p.error),y:c.points.map(p=>p.time),low:c.points.map(p=>p.low),high:c.points.map(p=>p.high)}))});
 $('detail-overlays').replaceChildren();let figs=D.overlays.figures.filter(f=>f.study===r.study&&((r.aggregated&&f.workload.split('/')[0]===r.workload)||f.workload===r.study+'/'+r.workload||f.workload===r.workload||(f.workload===r.workload.split('/').slice(0,2).join('/')&&f.run===r.workload.split('/')[2])));
@@ -909,7 +975,7 @@ table('excluded',['Study','Workload','Why excluded'],D.coverage.profile_exclusio
 table('unequal',['Study','Workloads','Programs','Reason','Evidence'],D.unequal.map(r=>[r.study,r.workloads.join(', '),r.programs.map(p=>N[p]).join(', '),r.reason,r.sources.join(', ')]));
 $('issue-list').innerHTML='<ul>'+D.history.cards.map(c=>'<li><b>'+esc(c.card)+'</b> '+c.roadmap.map(s=>esc(s).replace(/\[([^\]]+)\]\((https:\/\/github\.com\/[^)]+)\)/g,'<a href="$2">$1</a>')).join(' · ')+'</li>').join('')+'</ul><h3>Historical candidate assessment</h3><ul>'+D.history.candidates.map(c=>'<li><b>'+esc(c[0])+'</b> '+esc(c[1])+'</li>').join('')+'</ul>';
 $('all-overlays').innerHTML='<ul>'+D.overlays.figures.map(f=>'<li><a href="overlays/'+esc(f.figure)+'">'+esc([f.study,f.workload,f.run,f.program,f.quantity].filter(Boolean).join(' · '))+'</a></li>').join('')+'</ul><pre>'+esc(JSON.stringify(D.overlays.skipped,null,2))+'</pre>';
-$('paper-files').innerHTML='<ul>'+D.paper_files.map(f=>'<li><a href="'+esc(f)+'">'+esc(f)+'</a> · <a href="'+esc(f.replace('.pdf','.svg'))+'">SVG</a></li>').join('')+'</ul>';
+$('paper-files').innerHTML='<ul>'+D.paper_files.map(f=>'<li><a href="'+esc(f)+'">'+esc(f)+'</a> · <a href="'+esc(f.replace('.png','.svg'))+'">SVG</a></li>').join('')+'</ul>';
 $('coverage').textContent=JSON.stringify(D.coverage,null,2);$('terman-data').textContent=JSON.stringify(D.terman,null,2);redraw();
 </script></html>'''
     (out / 'report.html').write_text(template.replace('__PLOTLY__', license_notice + plotly).replace('__DATA__', blob).replace('__ATOL__', str(data['screen_tolerance']['atol'])).replace('__RTOL__', str(data['screen_tolerance']['rtol'])).replace('__TIMING__', str(data['screen_tolerance']['timing_fraction'])), encoding='utf-8')
@@ -928,7 +994,7 @@ def main():
     data['history'] = issue_history()
     data['coverage'] = coverage(data)
     charts = views(data)
-    data['paper_files'] = [f'figures/paper/{v["key"]}.pdf' for v in charts if v['set'] == 'paper']
+    data['paper_files'] = [f'figures/paper/{v["key"]}.png' for v in charts if v['set'] == 'paper']
     for directory in ('data', 'figures', 'overlays'):
         (out / directory).mkdir(parents=True, exist_ok=True)
     for f in data['overlays']['figures']:
