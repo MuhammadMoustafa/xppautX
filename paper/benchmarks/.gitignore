@@ -206,3 +206,10 @@
 !/windows-build/x11-stubs.c
 # third-party source with its own .git (ModelDB 267710): never tracked
 /modeldb-267710/source/
+
+# W589: offline report generator, historical issue notes and its pinned renderer.
+!/comparison/final_report.py
+!/comparison/final_report_history.json
+!/comparison/plotly-3.3.1.min.js
+!/comparison/README.md
+!/comparison/plotly-LICENSE.txt
