@@ -216,7 +216,7 @@ class ExtraRuns(unittest.TestCase):
     def test_memory_text_counts_workloads_where_xppautx_is_not_larger(self):
         text = memory_text(*self.memory())
         self.assertIn('on 2 of 3 paired workloads', text)
-        self.assertIn('| continuation | AUTO-07p | 1 | 4.00 |', text)
+        self.assertIn('| continuation | AUTO-07p | 1 | +0.3 | +0.3 to +0.3 | 4.00 | 1 of 1 |', text)
 
     def test_threads_and_jobs_tables_name_identity(self):
         row = dict(workload='P1', mode='fixed', identical=True, speedup_2=1.6, speedup_4=2.4, **{'wall_%d' % n: dict(mean=40. / n) for n in (1, 2, 4)})

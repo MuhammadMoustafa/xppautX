@@ -1156,22 +1156,27 @@ def memory_ratios(integration, continuation):
             peak[('continuation', r['workload'] + '/' + r['mode'], r['program'])] = sum(kib) / len(kib)
     for program, kib in continuation['startup'].items():
         startup['continuation'][program] = [sum(kib) / len(kib)]
-    ratios = defaultdict(lambda: defaultdict(list))
+    ratios, differences = defaultdict(lambda: defaultdict(list)), defaultdict(lambda: defaultdict(list))
     for (study, workload, program), kib in peak.items():
         if program != 'xppautx' and (study, workload, 'xppautx') in peak:
             ratios[study][program].append(kib / peak[(study, workload, 'xppautx')])
-    return dict(ratios=ratios, startup=startup, spread=spread)
+            differences[study][program].append((kib - peak[(study, workload, 'xppautx')]) / 1024)
+    return dict(ratios=ratios, differences=differences, startup=startup, spread=spread)
 
 
 def memory_text(integration, continuation):
     """W591 for the paper's text: how much memory each program peaks at against xppautX, per study, and each start-up footprint."""
     m = memory_ratios(integration, continuation)
-    table = ['| Study | Program | Workloads | Median other / xppautX | Range | Workloads where xppautX uses no more |', '|---|---|---|---|---|---|']
+    # A peak counts the program's code pages mapped from its file, so a larger program reads as a fixed offset: the difference in
+    # MiB shows it, where a ratio of two small peaks would read as a multiple.
+    table = ['| Study | Program | Workloads | Median other - xppautX (MiB) | Range (MiB) | Median other / xppautX | Workloads where xppautX uses no more |',
+             '|---|---|---|---|---|---|---|']
     every = []
     for study, programs in m['ratios'].items():
         for program, values in sorted(programs.items()):
-            table.append(f'| {study} | {NAMES[program]} | {len(values)} | {np.median(values):.2f} | {min(values):.2f} to {max(values):.2f} | '
-                         f'{sum(v >= 1 for v in values)} of {len(values)} |')
+            d = m['differences'][study][program]
+            table.append(f'| {study} | {NAMES[program]} | {len(values)} | {np.median(d):+.1f} | {min(d):+.1f} to {max(d):+.1f} | '
+                         f'{np.median(values):.2f} | {sum(v >= 1 for v in values)} of {len(values)} |')
             every += values
     start = ['| Study | ' + ' | '.join(NAMES[p] for p in ('xppautx', 'xppaut', 'auto07p', 'python')) + ' |', '|---|---|---|---|---|']
     for study, programs in m['startup'].items():
@@ -1179,7 +1184,11 @@ def memory_text(integration, continuation):
     return ('## Peak memory (W591)\n\nPeak resident memory (the child\'s ru_maxrss; for continuation the process\'s VmHWM, and for AUTO-07p its wrapper, '
             'compile and executable together) of each program on every workload at its timed row\'s settings, one run and a second to show it is '
             f'stable (the two differ by at most {m["spread"] * 100:.1f}%). xppautX uses no more memory than the other program on '
-            f'{sum(v >= 1 for v in every)} of {len(every)} paired workloads; the ratio is other / xppautX (above 1: xppautX smaller).\n\n'
+            f'{sum(v >= 1 for v in every)} of {len(every)} paired workloads. Against XPPAUT 8.0 most of the difference is an '
+            'offset, not a multiple: a peak includes the program\'s code pages mapped from its file (shared between processes and '
+            'reclaimable), and xppautX\'s code is larger: most of its start-up footprint, while the memory it allocates there is '
+            'small. Beyond that offset xppautX holds more on the largest models and the longest continuation runs (the table\'s '
+            'range), where its data grows faster than XPPAUT\'s. The ratio is other / xppautX (above 1: xppautX smaller).\n\n'
             + '\n'.join(table) + '\n\nStart-up footprint (a run of next to nothing, one step for integration and five points for continuation; MiB, median over the study\'s workloads):\n\n' + '\n'.join(start) + '\n')
 
 
