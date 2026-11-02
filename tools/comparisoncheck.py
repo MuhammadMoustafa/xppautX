@@ -17,6 +17,7 @@ import unittest
 from types import SimpleNamespace
 
 from autocompare import completed
+import test_final_report
 from xppclient import Checker, Server, open_auto, whole_series
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -179,7 +180,6 @@ def main():
     for path in sources:
         ast.parse(path.read_text(), filename=str(path))
     check('tracked Python syntax (%d files)' % len(sources), True)
-    import test_final_report
     suite = unittest.defaultTestLoader.loadTestsFromModule(test_final_report)
     result = unittest.TextTestRunner().run(suite)
     check('final report analytical/gate tests (%d tests)' % result.testsRun, result.wasSuccessful())
