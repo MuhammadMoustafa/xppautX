@@ -44,7 +44,6 @@ STUDY_TITLES = {
     'continuation': 'Continuation (AUTO): equilibria, cycles, two-parameter curves',
 }
 PANEL_TITLES = {
-    'all': 'All workloads',
     'single': 'Published and demo models,\neach at its own method', 'izhikevich': 'Izhikevich\n(28 models)',
     'python': 'Python\n(screen models)', 'continuation': 'Continuation\n(AUTO)',
     'scaling': 'Model size\n(N = 10-6400)',
@@ -521,44 +520,15 @@ def overview_forest(overview):
     return panels
 
 
-PROFILE_TITLES = {'all': 'All\nworkloads', 'single': 'Published and\ndemo models'}  # the profile's panels are narrower
-PROFILE_TAUS = (.3, 200.)  # the profile's shared ratio axis: every ratio of the series, with room either side
-
-
-def profile_figure(matched):
-    """The paper's performance profile (W590): all workloads, then a panel per study. A workload counts only where xppautX
-    finished it (otherwise it is no comparison); size scaling counts each size once, its run to T."""
-    rows = [r for r in matched if r['baseline_time'] is not None and (r['study'] != 'scaling' or r['method'] == 'T')]
-    groups = [('all', rows), ('single', [r for r in rows if r['study'] in SINGLE_STUDIES])]
-    groups += [(s, [r for r in rows if r['study'] == s]) for s in ('izhikevich', 'python', 'scaling')]
-    panels = []
-    for key, group in groups:
-        values = [r['ratio'] for r in group if r['ratio'] is not None]
-        taus = sorted({*PROFILE_TAUS, *values})
-        traces = []
-        for p in ('xppaut', 'python'):
-            mine = [r['ratio'] for r in group if r['program'] == p]
-            if mine:
-                traces.append(line(NAMES[p], taus, profile(mine, taus), p, step=True,
-                                   finished=sum(v is not None for v in mine), total=len(mine)))
-        panels.append(dict(key=key, traces=traces))
-    count = {t['program']: (t['finished'], t['total']) for t in panels[0]['traces']}
-    limit = sum(r['program'] == 'xppaut' and r['ratio'] is None for r in rows)
-    caption = ('Performance profile: for each ratio x of the other program\'s time to xppautX\'s, at matched accuracy, the '
-               'fraction of workloads the other program finished within x times xppautX\'s time (log scale). At x = 1 the '
-               'height is the share where the other program was at least as fast as xppautX; where a curve levels off below '
-               'the top is the share it never finished. '
-               f'XPPAUT 8.0 finished {count["xppaut"][0]} of {count["xppaut"][1]} workloads; the {limit} it did not exceed '
-               'its limit of 5000 equations (the Amari and Morris-Lecar chains at N = 3200 and 6400). '
-               f'Python finished {count["python"][0]} of {count["python"][1]}. Workloads xppautX did not finish are '
-               'left out, being no comparison. The panels are the overview\'s studies, each workload counted once: model '
-               'size by its run to T.')
-    return dict(key='profile', kind='profiles', set='paper', width=7., height=2.6, panels=panels, caption=caption,
-                title='Performance profile')
-
-
-def overview_caption(panels):
+def overview_caption(panels, matched):
     single, groups = panels[0], panels[1:]
+    # Workloads both programs finished, each once (model size by its run to T), and the sizes XPPAUT cannot run at all.
+    xppaut = [r for r in matched if r['program'] == 'xppaut' and r['baseline_time'] is not None
+              and (r['study'] != 'scaling' or r['method'] == 'T')]
+    both = [r for r in xppaut if r['ratio'] is not None]
+    lost = [r for r in both if r['ratio'] <= 1]
+    studies = sorted({STUDY_TITLES[r['study']].split(' ')[0] for r in lost})
+    unfinished = len(xppaut) - len(both)
     count = {p['key']: sum(c['count'] for r in p['rows'] for c in r['cells'].values()) for p in groups}
     return (f'Each program\'s time divided by xppautX\'s for the same work at matched accuracy, on a log scale: above 1, '
             f'xppautX is faster. The left panel holds the {len(single["rows"])} published and demo models, one workload each '
@@ -572,7 +542,9 @@ def overview_caption(panels):
             'start-up alone (loading, parsing, setting up, writing output); the average step is a whole run to T divided '
             'by its steps, start-up included. T is chosen per model and size so XPPAUT\'s run to T integrates for about '
             '1.5 s, since the cost of a time unit grows steeply with N; both programs run the same T, so it cancels in the '
-            'ratio.')
+            f'ratio. Of the {len(both)} workloads both XPPAUT 8.0 and xppautX finished, XPPAUT was at least as fast on '
+            f'{len(lost)}' + (f', all {studies[0]} models' if len(studies) == 1 else '') + f'; it could not run '
+            f'{unfinished} model sizes, past its limit of 5000 equations.')
 
 
 def heat_summary(rows, study):
@@ -732,9 +704,8 @@ def views(data):
     overview_panels = [heat_summary([r for r in data['overview'] if r['study'] == s], s) for s in studies]
     medians = [c['ratio'] for panel in overview_panels for r in panel['rows'] for c in r['cells'].values() if c['ratio'] is not None]
     forest = overview_forest(data['overview'])
-    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest),
+    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest, matched),
                        title=f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} study and method groups'))
-    charts.append(profile_figure(matched))
     charts.append(panel('scaling', ratio_finding([r for r in matched if r['study'] == 'scaling' and r['method'] == 'T']) + ' (full-horizon scaling)',
                         [next(c for c in charts if c['key'] == f'scaling-{f}-T') for f in ('kuramoto', 'lecdiff', 'amari')], 3, 3.6))
     dense_memory = max(r['peak_rss_kib_mean'] for r in data['large_stiff'] if r['solver'] == 'legacy-dense') / 1024
@@ -904,34 +875,9 @@ def static(charts, out, ratio_limit):
         fig.legend(handles=[Line2D([0], [0], color=COLORS[q], marker='o', linewidth=2.4, label=NAMES[q]) for q in programs],
                    loc='outside upper center', ncol=len(programs), frameon=False)
         return fig
-    def profiles(view):
-        # One row of panels on shared axes; each panel names how many workloads each program finished.
-        fig, axes = plt.subplots(1, len(view['panels']), figsize=(view['width'], view['height']), sharex=True, sharey=True,
-                                 layout='constrained')
-        for ax, panel in zip(axes, view['panels']):
-            for i, t in enumerate(panel['traces']):
-                ax.step(t['x'], t['y'], where='post', color=COLORS[t['program']], linewidth=1.4)
-                ax.text(.96, .04 + .09 * i, f"{t['finished']} of {t['total']}", transform=ax.transAxes, ha='right', va='bottom',
-                        fontsize=6.5, color=COLORS[t['program']])
-            ax.axvline(1, color='#555', linewidth=.8)
-            ax.set_title(PROFILE_TITLES.get(panel['key'], PANEL_TITLES[panel['key']]), fontsize=7.5, fontweight='bold')
-        ax = axes[0]
-        ax.set_xscale('log')
-        ax.set_xlim(*PROFILE_TAUS)
-        ax.set_xticks([1, 10, 100], ['1', '10', '100'])
-        ax.xaxis.set_minor_formatter(NullFormatter())
-        ax.set_ylim(0, 1.02)
-        ax.set_ylabel('Fraction of workloads')
-        fig.supxlabel('Other program\'s time ÷ xppautX\'s', fontsize=7)
-        programs = list(dict.fromkeys(t['program'] for p in view['panels'] for t in p['traces']))
-        fig.legend(handles=[Line2D([0], [0], color=COLORS[q], linewidth=1.4, label=NAMES[q]) for q in programs],
-                   loc='outside upper center', ncol=len(programs), frameon=False)
-        return fig
     for view in charts:
         if view.get('kind') == 'forest':
             fig = forest(view)
-        elif view.get('kind') == 'profiles':
-            fig = profiles(view)
         elif view.get('kind') == 'panels':
             ncols = view['ncols']; nrows = math.ceil(len(view['panels']) / ncols)
             fig, axes = plt.subplots(nrows, ncols, figsize=(view['width'], view['height']), squeeze=False, layout='constrained')
@@ -989,7 +935,7 @@ body{font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);max
 <section id="terman"><h2>Terman acceptance is untimed evidence</h2><p>This study has acceptance and convergence readouts, not a runs.json timing series. It is not in the time heatmap or matched profile.</p><details><summary>Acceptance, convergence and saved readouts</summary><pre id="terman-data"></pre></details></section>
 <details><summary>Every overlay and skipped overlay</summary><div id="all-overlays"></div></details>
 <section id="issues"><h2>Issues found and fixes made</h2><p>Cards from the earlier series and the final report are carried forward together. The roadmap supplies the recorded titles, issue links and status; candidate descriptions preserve the 2026-10-31 report's historical assessment.</p><div id="issue-list"></div></section>
-<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains seven curated PNG/SVG figures, with their captions in its README.md; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 3.4 in or 7 in widths. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the seven paper views</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
+<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains five curated PNG/SVG figures, with their captions in its README.md; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 7 in width. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the five paper views</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
 <dialog id="detail"><button class="close" id="close">Close</button><h2 id="detail-title"></h2><div id="detail-chart" class="chart"></div><div id="detail-overlays"></div><pre id="detail-data"></pre></dialog>
 <script>__PLOTLY__</script><script id="report-data" type="application/json">__DATA__</script><script>
 'use strict';const B=JSON.parse(document.getElementById('report-data').textContent),D=B.data,V=B.views,C=B.colors,N=B.names;
