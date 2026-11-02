@@ -60,7 +60,7 @@ SINGLE_STUDIES = ('screen', 'modeldb', 'research')  # one model per row: each mo
 METHOD_TITLES = {
     'euler': 'Euler', 'runge_kutta': 'Runge-Kutta 4', 'backward_euler': 'Backward Euler', 'qualrk': 'Adaptive Runge-Kutta (QualRK)',
     'stiff': 'Stiff (XPPAUT\'s stiff solver)', 'dopri8': 'Dormand-Prince 8(5,3)', 'discrete': 'Discrete map',
-    'step': 'One step: start-up cost', 'T': 'Run to T', '2T': 'Run to 2T',
+    'step': 'Start-up (one step)', 'T': 'Run to T', '2T': 'Run to 2T', 'integration': 'Integration (2T - T)',
     'fd': 'Finite-difference Jacobian', 'exact': 'Exact Jacobian',
 }
 # Sampling a shared error grid is only for the visual median and quartiles.
@@ -383,7 +383,7 @@ def compute(final):
     return dict(screen_tolerance=dict(atol=screen.ATOL, rtol=screen.RTOL, timing_fraction=screen.TIMING_FRACTION),
                 status=status, inventory=inventory, overview=overview, rows=rows, matched=matched, curves=curves, unequal=unequal,
                 agreement=labels, large_stiff=large, audit=audit, terman=terman,
-                gates=gates)
+                gates=gates, scaling_cost=read(folders['scaling'] / 'cost-per-time.json'))
 
 
 def equal_work_matches(overview):
@@ -503,9 +503,10 @@ def agreement_text(cell):
     return ''
 
 
-def overview_forest(overview):
+def overview_forest(overview, scaling_cost):
     """The paper's overview (W590): a panel of single models, each at its own method, then a panel per study of groups by
-    method; only comparable workloads count, so a group's number is how many it has."""
+    method; only comparable workloads count, so a group's number is how many it has. Size scaling shows start-up (the
+    one-step run) and integration (the 2T - T cost per unit of model time): its T and 2T runs mix the two."""
     single = [dict(label=f"{MODEL_TITLES[r['workload']]} ({METHOD_SHORT[r['method']]})",
                    cells={'xppaut': dict(ratio=r['cells']['xppaut']['ratio'])})
               for s in SINGLE_STUDIES for r in overview if r['study'] == s and r['cells']['xppaut']['ratio'] is not None]
@@ -513,9 +514,34 @@ def overview_forest(overview):
     for study in ('izhikevich', 'python', 'continuation', 'scaling'):
         summary = heat_summary([r for r in overview if r['study'] == study], study)
         rows = [dict(label=METHOD_TITLES[r['method']], cells={q: c for q, c in r['cells'].items() if c['count']})
-                for r in summary['rows'] if any(c['count'] for c in r['cells'].values())]
+                for r in summary['rows'] if any(c['count'] for c in r['cells'].values())
+                and (study != 'scaling' or r['method'] == 'step')]
+        if study == 'scaling':
+            cost = defaultdict(dict)
+            for c in scaling_cost:
+                cost[c['workload']][c['engine']] = c['wall_per_model_time']
+            ratios = [c['xppaut'] / c['xppautx'] for c in cost.values() if len(c) == 2]
+            q1, median, q3 = np.quantile(ratios, [.25, .5, .75]).tolist()
+            rows.append(dict(label=METHOD_TITLES['integration'], cells={'xppaut': dict(ratio=median, q1=q1, q3=q3, count=len(ratios))}))
         panels.append(dict(key=study, programs=list(STUDY_PROGRAMS[study]), rows=rows))
     return panels
+
+
+def overview_caption(panels):
+    single, groups = panels[0], panels[1:]
+    count = {p['key']: sum(c['count'] for r in p['rows'] for c in r['cells'].values()) for p in groups}
+    return (f'Each program\'s time divided by xppautX\'s for the same work at matched accuracy, on a log scale: above 1, '
+            f'xppautX is faster. The left panel holds the {len(single["rows"])} published and demo models, one workload each '
+            'at its own method (in brackets; QualRK is the adaptive Runge-Kutta method). Each other panel is a study, grouped '
+            'by method: the dot is the median ratio, the bar the middle half of the workloads (25th to 75th percentile) and '
+            'the number how many workloads the group compares. Only workloads both programs completed at matched accuracy '
+            'are shown; data/coverage.json lists the rest and why. Izhikevich: the 28 firing behaviours of Izhikevich 2003 '
+            'and 2004. Python: a Python re-implementation of xppautX\'s methods on the screen models. Continuation: AUTO '
+            'branch runs, grouped by how the Jacobian is formed. Model size: Amari, Kuramoto and Morris-Lecar chains at '
+            f'N = 10 to 6400 variables ({count["scaling"] // 2} sizes), step 0.05. Start-up is a run of one step; '
+            'integration is the cost per unit of model time, (time to 2T - time to T) / T, with start-up and output '
+            'removed. T is chosen per model and size so XPPAUT\'s run to 2T integrates for about 3 s, since the cost of a '
+            'time unit grows steeply with N; the ratio does not depend on T.')
 
 
 def heat_summary(rows, study):
@@ -674,7 +700,8 @@ def views(data):
     studies = list(dict.fromkeys(r['study'] for r in data['overview']))
     overview_panels = [heat_summary([r for r in data['overview'] if r['study'] == s], s) for s in studies]
     medians = [c['ratio'] for panel in overview_panels for r in panel['rows'] for c in r['cells'].values() if c['ratio'] is not None]
-    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=overview_forest(data['overview']),
+    forest = overview_forest(data['overview'], data['scaling_cost'])
+    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest),
                        title=f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} study and method groups'))
     charts.append(profile_spec(matched, 'profile') | dict(set='paper', width=3.4, height=3.2))
     charts.append(panel('profile-by-study', ratio_finding(matched) + '; coverage varies by study',
@@ -819,7 +846,7 @@ def static(charts, out, ratio_limit):
         panels = [next(p for p in view['panels'] if p['key'] == k) for k in order]
         # A panel is as wide as its rows or its title's longest line (about four characters to a row), whichever is wider.
         widths = [max(len(p['rows']), max(map(len, PANEL_TITLES[p['key']].split('\n'))) / 4) + .6 for p in panels]
-        fig, axes = plt.subplots(1, len(panels), figsize=(view['width'], 3.6), sharey=True, width_ratios=widths, layout='constrained')
+        fig, axes = plt.subplots(1, len(panels), figsize=(view['width'], 5.2), sharey=True, width_ratios=widths, layout='constrained')
         for ax, panel in zip(axes, panels):
             programs = panel['programs']
             offsets = np.linspace(-.25, .25, len(programs)) if len(programs) > 1 else [0.]
@@ -833,7 +860,7 @@ def static(charts, out, ratio_limit):
                         ax.text(x + dx, max(c['q3'], c['ratio']) * 1.15, str(c['count']), ha='center', va='bottom', fontsize=6.5, color=COLORS[q])
                     ax.plot(x + dx, c['ratio'], 'o', color=COLORS[q], markersize=3.5)
             ax.axhline(1, color='#555', linewidth=.8)
-            ax.set_xticks(range(len(panel['rows'])), [r['label'] for r in panel['rows']], rotation=45, ha='right', rotation_mode='anchor')
+            ax.set_xticks(range(len(panel['rows'])), [r['label'] for r in panel['rows']], rotation=90, ha='center')
             ax.tick_params(axis='x', length=0)
             ax.set_xlim(-.6, len(panel['rows']) - .4)
             ax.spines['bottom'].set_visible(False)
@@ -843,7 +870,7 @@ def static(charts, out, ratio_limit):
         ax.set_ylim(.3, 50)
         ax.set_yticks([.5, 1, 2, 5, 10, 20, 50], ['0.5', '1', '2', '5', '10', '20', '50'])
         ax.yaxis.set_minor_formatter(NullFormatter())
-        ax.set_ylabel('Other program\'s time ÷ xppautX\'s\n↓ xppautX slower   |   xppautX faster ↑')
+        ax.set_ylabel('Other program\'s time ÷ xppautX\'s')
         programs = list(dict.fromkeys(q for p in panels for q in p['programs']))
         fig.legend(handles=[Line2D([0], [0], color=COLORS[q], marker='o', linewidth=2.4, label=NAMES[q]) for q in programs],
                    loc='outside upper center', ncol=len(programs), frameon=False)
@@ -908,7 +935,7 @@ body{font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);max
 <section id="terman"><h2>Terman acceptance is untimed evidence</h2><p>This study has acceptance and convergence readouts, not a runs.json timing series. It is not in the time heatmap or matched profile.</p><details><summary>Acceptance, convergence and saved readouts</summary><pre id="terman-data"></pre></details></section>
 <details><summary>Every overlay and skipped overlay</summary><div id="all-overlays"></div></details>
 <section id="issues"><h2>Issues found and fixes made</h2><p>Cards from the earlier series and the final report are carried forward together. The roadmap supplies the recorded titles, issue links and status; candidate descriptions preserve the 2026-10-31 report's historical assessment.</p><div id="issue-list"></div></section>
-<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains seven curated PDF/SVG figures; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 3.4 in or 7 in widths. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the seven paper views</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
+<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains seven curated PNG/SVG figures, with their captions in its README.md; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 3.4 in or 7 in widths. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the seven paper views</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
 <dialog id="detail"><button class="close" id="close">Close</button><h2 id="detail-title"></h2><div id="detail-chart" class="chart"></div><div id="detail-overlays"></div><pre id="detail-data"></pre></dialog>
 <script>__PLOTLY__</script><script id="report-data" type="application/json">__DATA__</script><script>
 'use strict';const B=JSON.parse(document.getElementById('report-data').textContent),D=B.data,V=B.views,C=B.colors,N=B.names;
@@ -1032,6 +1059,9 @@ def main():
     save(out / 'data/views.json', charts)
     save(out / 'data/coverage.json', data['coverage'])
     static(charts, out / 'figures', data['ratio_limit'])
+    # A figure not yet reviewed for the paper (W590) has its finding as a provisional caption.
+    (out / 'figures/paper/README.md').write_text('# Paper figures\n\nEach figure is a PNG (300 dpi) with an SVG copy.\n\n' + ''.join(
+        f'## {v["key"]}.png\n\n{v.get("caption") or v["title"] + " (provisional caption)"}\n\n' for v in charts if v['set'] == 'paper'))
     page(data, charts, out)
     print(json.dumps(data['coverage'], indent=2))
     print(f'{len(data["paper_files"])} paper views, {len(charts) - len(data["paper_files"])} appendix views; report: {out / "report.html"}')
