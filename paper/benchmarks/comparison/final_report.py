@@ -383,7 +383,7 @@ def compute(final):
     return dict(screen_tolerance=dict(atol=screen.ATOL, rtol=screen.RTOL, timing_fraction=screen.TIMING_FRACTION),
                 status=status, inventory=inventory, overview=overview, rows=rows, matched=matched, curves=curves, unequal=unequal,
                 agreement=labels, large_stiff=large, audit=audit, terman=terman,
-                gates=gates)
+                gates=gates, scaling_cost=read(folders['scaling'] / 'cost-per-time.json'))
 
 
 def equal_work_matches(overview):
@@ -520,7 +520,30 @@ def overview_forest(overview):
     return panels
 
 
-def overview_caption(panels, matched):
+SCALING_FAMILIES = {'kuramoto': 'Kuramoto', 'lecdiff': 'Morris-Lecar chain', 'amari': 'Amari'}
+
+
+def scaling_sentence(scaling_cost):
+    """How the integration ratio, (2T - T) / T for XPPAUT over xppautX's, moves with N in each model, and how xppautX's
+    own cost grows past XPPAUT's limit."""
+    cost = defaultdict(dict)
+    for c in scaling_cost:
+        cost[c['workload']][c['engine']] = c['wall_per_model_time']
+    parts, beyond = [], []
+    for family, title in SCALING_FAMILIES.items():
+        sizes = sorted((int(re.search(r'\d+', w)[0]), c) for w, c in cost.items() if w.startswith(family))
+        both = [(n, c['xppaut'] / c['xppautx']) for n, c in sizes if 'xppaut' in c]
+        parts.append(f'{title} {both[0][1]:.2f} at N = {both[0][0]} and {both[-1][1]:.2f} at N = {both[-1][0]} '
+                     f'(all sizes {min(r for _, r in both):.2f}-{max(r for _, r in both):.2f})')
+        alone = [(n, c['xppautx']) for n, c in sizes if 'xppaut' not in c]
+        if len(alone) > 1:
+            beyond.append(f'{alone[-1][1] / alone[0][1]:.1f} times ({title}, N = {alone[0][0]} to {alone[-1][0]})')
+    return ('Integration ratio per model ((2T - T) / T, XPPAUT\'s over xppautX\'s), smallest and largest size both ran: '
+            + '; '.join(parts) + '. Past XPPAUT\'s limit, xppautX\'s cost per unit of model time grows in step with N: '
+            + ' and '.join(beyond) + '.')
+
+
+def overview_caption(panels, matched, scaling_cost):
     single, groups = panels[0], panels[1:]
     # Workloads both programs finished, each once (model size by its run to T), and the sizes XPPAUT cannot run at all.
     xppaut = [r for r in matched if r['program'] == 'xppaut' and r['baseline_time'] is not None
@@ -544,7 +567,7 @@ def overview_caption(panels, matched):
             '1.5 s, since the cost of a time unit grows steeply with N; both programs run the same T, so it cancels in the '
             f'ratio. Of the {len(both)} workloads both XPPAUT 8.0 and xppautX finished, XPPAUT was at least as fast on '
             f'{len(lost)}' + (f', all {studies[0]} models' if len(studies) == 1 else '') + f'; it could not run '
-            f'{unfinished} model sizes, past its limit of 5000 equations.')
+            f'{unfinished} model sizes, past its limit of 5000 equations. ' + scaling_sentence(scaling_cost))
 
 
 def heat_summary(rows, study):
@@ -704,10 +727,8 @@ def views(data):
     overview_panels = [heat_summary([r for r in data['overview'] if r['study'] == s], s) for s in studies]
     medians = [c['ratio'] for panel in overview_panels for r in panel['rows'] for c in r['cells'].values() if c['ratio'] is not None]
     forest = overview_forest(data['overview'])
-    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest, matched),
+    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest, matched, data['scaling_cost']),
                        title=f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} study and method groups'))
-    charts.append(panel('scaling', ratio_finding([r for r in matched if r['study'] == 'scaling' and r['method'] == 'T']) + ' (full-horizon scaling)',
-                        [next(c for c in charts if c['key'] == f'scaling-{f}-T') for f in ('kuramoto', 'lecdiff', 'amari')], 3, 3.6))
     dense_memory = max(r['peak_rss_kib_mean'] for r in data['large_stiff'] if r['solver'] == 'legacy-dense') / 1024
     other_memory = max(r['peak_rss_kib_mean'] for r in data['large_stiff'] if r['solver'] != 'legacy-dense') / 1024
     charts.append(panel('large-stiff', f'Dense memory reaches {dense_memory:.0f} MiB; other solvers stay below {other_memory:.0f} MiB',
@@ -935,7 +956,7 @@ body{font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);max
 <section id="terman"><h2>Terman acceptance is untimed evidence</h2><p>This study has acceptance and convergence readouts, not a runs.json timing series. It is not in the time heatmap or matched profile.</p><details><summary>Acceptance, convergence and saved readouts</summary><pre id="terman-data"></pre></details></section>
 <details><summary>Every overlay and skipped overlay</summary><div id="all-overlays"></div></details>
 <section id="issues"><h2>Issues found and fixes made</h2><p>Cards from the earlier series and the final report are carried forward together. The roadmap supplies the recorded titles, issue links and status; candidate descriptions preserve the 2026-10-31 report's historical assessment.</p><div id="issue-list"></div></section>
-<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains five curated PNG/SVG figures, with their captions in its README.md; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 7 in width. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the five paper views</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
+<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains four curated PNG/SVG figures, with their captions in its README.md; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 7 in width. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the four paper views</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
 <dialog id="detail"><button class="close" id="close">Close</button><h2 id="detail-title"></h2><div id="detail-chart" class="chart"></div><div id="detail-overlays"></div><pre id="detail-data"></pre></dialog>
 <script>__PLOTLY__</script><script id="report-data" type="application/json">__DATA__</script><script>
 'use strict';const B=JSON.parse(document.getElementById('report-data').textContent),D=B.data,V=B.views,C=B.colors,N=B.names;
