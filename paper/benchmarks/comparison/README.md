@@ -18,9 +18,9 @@ is needed at runtime.
 (including start-up), acceptance evidence, label/gate evidence, exclusions and
 repetition samples. `data/views.json` exports the exact values used by both
 renderers; `data/coverage.json` lists profile reach counts by study and program.
-The two curated paper figures are in `figures/paper/` as PNG (300 dpi) with
-SVG copies, their captions in its generated `README.md`: overview,
-continuation-time, and for the text the continuation agreement and large stiff networks tables. Detailed
+The paper figure, the overview, is in `figures/paper/` as PNG (300 dpi) with an
+SVG copy, its caption in the generated `README.md`, which also holds the
+continuation agreement and large stiff networks tables for the text. Detailed
 views go to `figures/appendix/`. The overview is one row of panels on a shared
 log axis of the time ratio (single models, then each study by method, with the
 median, the middle half and the count of comparable workloads; the caption

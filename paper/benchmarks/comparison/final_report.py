@@ -590,7 +590,7 @@ def scaling_sentence(scaling_cost):
             + ' and '.join(beyond) + '.')
 
 
-def overview_caption(panels, matched, scaling_cost):
+def overview_caption(panels, matched, scaling_cost, continuation):
     single, groups = panels[0], panels[1:]
     # Workloads both programs finished, each once (model size by its run to T), and the sizes XPPAUT cannot run at all.
     xppaut = [r for r in matched if r['program'] == 'xppaut' and r['baseline_time'] is not None
@@ -614,7 +614,8 @@ def overview_caption(panels, matched, scaling_cost):
             '1.5 s, since the cost of a time unit grows steeply with N; both programs run the same T, so it cancels in the '
             f'ratio. Of the {len(both)} workloads both XPPAUT 8.0 and xppautX finished, XPPAUT was at least as fast on '
             f'{len(lost)}' + (f', all {studies[0]} models' if len(studies) == 1 else '') + f'; it could not run '
-            f'{unfinished} model sizes, past its limit of 5000 equations. ' + scaling_sentence(scaling_cost))
+            f'{unfinished} model sizes, past its limit of 5000 equations. ' + scaling_sentence(scaling_cost)
+            + ' In continuation, ' + continuation + ' (branch runs).')
 
 
 def heat_summary(rows, study):
@@ -774,10 +775,12 @@ def views(data):
     overview_panels = [heat_summary([r for r in data['overview'] if r['study'] == s], s) for s in studies]
     medians = [c['ratio'] for panel in overview_panels for r in panel['rows'] for c in r['cells'].values() if c['ratio'] is not None]
     forest = overview_forest(data['overview'])
-    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest, matched, data['scaling_cost']),
+    charts.append(dict(key='overview', kind='forest', set='paper', width=7., panels=forest, caption=overview_caption(forest, matched, data['scaling_cost'], continuation_finding(
+                           [dict(program=p, ratio=r['cells'][p]['ratio']) for r in data['overview'] if r['study'] == 'continuation'
+                            for p in ('xppaut', 'auto07p')])),
                        title=f'xppautX is faster in {sum(v > 1 for v in medians)} of {len(medians)} study and method groups'))
     matrix, time = continuation_summaries(data)
-    charts += [matrix | dict(set='appendix', width=7., height=9.5), time | dict(set='paper', width=7., height=8.)]
+    charts += [matrix | dict(set='appendix', width=7., height=9.5), time | dict(set='appendix', width=7., height=8.)]
     data['ratio_limit'] = max(abs(math.log10(c['ratio'])) for r in data['overview'] for p, c in r['cells'].items() if p != 'xppautx' and c['ratio'])
     data['agreement_colors'] = AGREEMENT_COLORS
     data['findings'] = {s: heat_summary([r for r in data['overview'] if r['study'] == s], s)['title'] for s in studies}
@@ -999,7 +1002,7 @@ body{font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--fg);max
 <section id="terman"><h2>Terman acceptance is untimed evidence</h2><p>This study has acceptance and convergence readouts, not a runs.json timing series. It is not in the time heatmap or matched profile.</p><details><summary>Acceptance, convergence and saved readouts</summary><pre id="terman-data"></pre></details></section>
 <details><summary>Every overlay and skipped overlay</summary><div id="all-overlays"></div></details>
 <section id="issues"><h2>Issues found and fixes made</h2><p>Cards from the earlier series and the final report are carried forward together. The roadmap supplies the recorded titles, issue links and status; candidate descriptions preserve the 2026-10-31 report's historical assessment.</p><div id="issue-list"></div></section>
-<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains two curated PNG/SVG figures, with their captions in its README.md; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 7 in width. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the two paper views</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
+<section><h2>Reproducible numbers and paper figures</h2><p><a href="data/report.json">Complete report data</a> · <a href="data/views.json">Every chart's values</a> · <a href="data/coverage.json">Coverage and exclusions</a>. The figures/paper/ folder contains the curated PNG/SVG figure, with their captions in its README.md; figures/appendix/ holds the per-workload heatmaps, full branch panels and diagnostic views. All fonts are at least 7 pt at the saved 7 in width. Raw summary rows (including start-up) and selected engine identities are in report.json; the frozen input is never modified.</p><div id="paper-files"></div><details id="paper-section"><summary>Inspect the paper figure</summary><div id="paper-plots"></div></details><details><summary>Coverage</summary><pre id="coverage"></pre></details></section>
 <dialog id="detail"><button class="close" id="close">Close</button><h2 id="detail-title"></h2><div id="detail-chart" class="chart"></div><div id="detail-overlays"></div><pre id="detail-data"></pre></dialog>
 <script>__PLOTLY__</script><script id="report-data" type="application/json">__DATA__</script><script>
 'use strict';const B=JSON.parse(document.getElementById('report-data').textContent),D=B.data,V=B.views,C=B.colors,N=B.names;
