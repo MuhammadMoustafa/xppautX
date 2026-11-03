@@ -312,36 +312,36 @@ void homcont()
     auto &session = xpp::client_session();
     CHECK(xpp::ensure_exact_jacobian(session));
     session.numerics.jacobian = xpp::JACOBIAN_EXACT;
-    auto &lib = session.autox_lib;
-    lib.session = &session;
-    lib.parameter_count = session.autox_state.parameter_layout.size();
+    AutoxRun run;
+    run.session = &session;
+    run.parameter_count = session.autox_state.parameter_layout.size();
     iap_type iap{};
-    iap.lib = &lib; iap.ndim = n; iap.ndm = n; iap.nfpr = 2;
+    iap.run = &run; iap.ndim = n; iap.ndm = n; iap.nfpr = 2;
     std::array<integer, 2> icp{session.autox_state.parameter_layout.solver_index(0),
                                session.autox_state.parameter_layout.solver_index(1)};
-    std::vector<double> par(lib.parameter_count), dfdp(n*lib.parameter_count);
+    std::vector<double> par(run.parameter_count), dfdp(n*run.parameter_count);
     std::array<double,n> equilibrium{}, rr{}, ri{};
     std::array<double,n*n> a{}, zz{}, vectors{}, bound{};
     xpp::UniqueFile log(std::tmpfile());
     CHECK(log);
     if (!log) return;
-    lib.fp9 = log.get();
+    run.fp9 = log.get();
     integer dim = n;
     constexpr double tolerance = 1e-12; // Analytic invariant-subspace identities on a small, well-conditioned matrix.
     for (bool reverse : {false,true}) for (double shift : {0.,2.}) {
         par[xpp::autox_unknown::period] = reverse ? -1. : 1.;
         par[icp[1]] = shift;
-        lib.homcont.blhom.nstab = reverse ? 1 : 2;
-        lib.homcont.blhom.nunstab = reverse ? 2 : 1;
-        lib.homcont.blhme.ieigc.assign(2,0);
-        lib.homcont.blhme.vrprev.assign(2*n*n,0.);
-        lib.homcont.beyn.iflag.assign(4,0);
-        lib.homcont.beyn.cprev.assign(4*n*n,0.);
+        run.homcont.blhom.nstab = reverse ? 1 : 2;
+        run.homcont.blhom.nunstab = reverse ? 2 : 1;
+        run.homcont.blhme.ieigc.assign(2,0);
+        run.homcont.blhme.vrprev.assign(2*n*n,0.);
+        run.homcont.beyn.iflag.assign(4,0);
+        run.homcont.beyn.cprev.assign(4*n*n,0.);
         for (bool transpose : {true,false}) for (auto endpoint : {xpp::HomcontEndpoint::left,xpp::HomcontEndpoint::right}) {
             // Actual boundary/adjoint calls use one manifold per endpoint/transpose slot.
             const bool stable = (endpoint == xpp::HomcontEndpoint::left) == transpose;
             const auto manifold = stable ? xpp::HomcontManifold::stable : xpp::HomcontManifold::unstable;
-            const integer count = stable ? lib.homcont.blhom.nstab : lib.homcont.blhom.nunstab;
+            const integer count = stable ? run.homcont.blhom.nstab : run.homcont.blhom.nunstab;
             const integer first = stable ? 0 : n-count;
             const bool pair = stable != reverse;
             for (double p : {.2,.3}) {
@@ -365,12 +365,12 @@ void homcont()
                     }
                     CHECK(aa*bb-ab*ab > .1); // The two boundary rows span a plane.
                 }
-                const auto saved = lib.homcont.beyn.cprev;
-                const auto flags = lib.homcont.beyn.iflag;
+                const auto saved = run.homcont.beyn.cprev;
+                const auto flags = run.homcont.beyn.iflag;
                 const auto original = bound;
                 par[icp[0]] += autox_hmach;
                 CHECK(xpp::prjctn(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
-                CHECK(lib.homcont.beyn.cprev == saved && lib.homcont.beyn.iflag == flags);
+                CHECK(run.homcont.beyn.cprev == saved && run.homcont.beyn.iflag == flags);
                 par[icp[0]] = p;
                 CHECK(xpp::prjctn(&iap,bound.data(),equilibrium.data(),icp.data(),par.data(),manifold,endpoint,transpose,n,a.data(),dfdp.data(),false) == 0);
                 for (integer row=first; row<first+count; ++row)
@@ -416,18 +416,18 @@ void homcont()
         }
     }
     // The phase row has exact linear derivatives in states and zero parameter derivatives.
-    lib.homcont.blhom.nrev = 0;
-    lib.homcont.blhom.itwist = 0;
+    run.homcont.blhom.nrev = 0;
+    run.homcont.blhom.itwist = 0;
     iap.nint = 1;
     rap_type rap{};
     const std::array<double,n> old{1.,2.,3.}, state{1.5,1.,5.}, tangent{.25,-.5,2.};
     std::array<double,1> phase{};
-    std::vector<double> derivative(n+lib.parameter_count, 99.);
+    std::vector<double> derivative(n+run.parameter_count, 99.);
     CHECK(icho(&iap,&rap,n,par.data(),icp.data(),1,state.data(),old.data(),tangent.data(),tangent.data(),phase.data(),1,derivative.data()) == 0);
     CHECK(phase[0] == 4.625);
-    for (integer column=0; column<n+lib.parameter_count; ++column)
+    for (integer column=0; column<n+run.parameter_count; ++column)
         CHECK(derivative[column] == (column<n ? tangent[column] : 0.));
-    lib.fp9 = nullptr;
+    run.fp9 = nullptr;
 }
 } // namespace
 

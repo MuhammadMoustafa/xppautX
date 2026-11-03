@@ -13,6 +13,8 @@
 #include "autox_axis.h"
 
 
+struct AutoxRun; /* autox_state.h */
+
 namespace xpp {
 
 struct Session; /* session.h */
@@ -35,7 +37,7 @@ bool read_autox_solution_rows(TokenReader &reader, std::ptrdiff_t ndim, std::ptr
                              double *tm, bool line_bounded, std::ptrdiff_t extra_lines,
                              const std::function<void(std::ptrdiff_t, std::ptrdiff_t, double)> &complete);
 bool read_autox_solution_parameters(TokenReader &reader, const AutoxSolutionHeader &header,
-                                   const Session &session, double *parameters);
+                                   const AutoxRun &run, double *parameters);
 Result<> check_autox_solutions(std::string_view text, std::string file, int variables, int parameters, bool foreign, int hopf_dimension = 0);
 
 typedef struct {
@@ -138,11 +140,16 @@ void draw_export_axes(Session &s);
 void draw_bif_axes(Session &s);
 int IXVal(const Session &s, double x);
 int IYVal(const Session &s, double y);
-void close_autox(Session &s, int flag);
-void open_autox(Session &s, int flag);
-/* the path of autoX's fort.<unit> (3, 7, 8 or 9) open_autox set, "" for
+/* the run's end: its fort.7, .9 and .8 replace the session's .b, .d and .s
+   files (flag OVERWRITE) or go in front of them (APPEND), and its fort.3 and
+   the rest go; the fort files are the run's own (open_autox) */
+void close_autox(Session &s, AutoxRun &run, int flag);
+/* the run's own scratch folder and fort.3/7/8/9 in it; flag OPEN_3 copies the session's .s
+   file to fort.3 for a restart. An error when the folder cannot be made */
+Result<> open_autox(Session &s, AutoxRun &run, int flag);
+/* the path of the run's fort.<unit> (3, 7, 8 or 9) open_autox set, "" for
    another unit: gogoautox.cpp opens them for a run */
-const char *autox_fort_path(const Session &s, int unit);
+const char *autox_fort_path(const AutoxRun &run, int unit);
 /* do_autox's iold: autoX's fort.3 is opened for a restart (OPEN_3) or not; isave: the run's solutions replace the .s file or
    are added to it */
 inline constexpr int OPEN_3 = 1, NO_OPEN_3 = 0, OVERWRITE = 0, APPEND = 1;
@@ -153,8 +160,7 @@ Result<> do_autox(Session &s, int iold, int isave, AutoxPointCode itp);
    nothing run, for a label no point has */
 /* Restore model slots from the label's branch before a restart solver uses
    them. Non-continued constants were deliberately absent from autoX's PAR. */
-void autox_label_parameters(const Session &s, int label, double *parameters);
-void set_autox(Session &s);
+void autox_label_parameters(const AutoxRun &run, int label, double *parameters);
 /* the model parameter k's name, NULL when k is outside the model: the one lookup the forms,
    the settings event, the CSV export and the branch-end text share */
 const char *autox_par_name(const Session &s, int k);
@@ -183,7 +189,7 @@ void autox_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double p
    (type its get_bif_type, flag 0 for a branch's first point) */
 void add_ps_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
 /* the label the running continuation started from, once: for its first point */
-int autox_run_from_take(Session &s);
+int autox_run_from_take(AutoxRun &run);
 /* the stored point d (its branch, point and type, its entry in the
    diagram list, the label its run started from, its stability) plotted in
    every view: the diagram's data and the active view's drawing, resolving

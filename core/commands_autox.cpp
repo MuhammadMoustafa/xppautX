@@ -190,7 +190,7 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
     if (!request.from_point && request.kind == AutoxRunKind::equilibrium && diagram_count(s.diagram) > 1 && !args.has("replace_diagram"))
         return fail(command.name, xpp::format("The diagram holds {} points: say replace_diagram true to begin it again, false to add this run to it", diagram_count(s.diagram)), place);
     if (args.has("unstable_dimension") || args.has("stable_dimension") || args.has("left_equilibrium") || args.has("right_equilibrium")) {
-        HomoclinicStart start{s.autox_state.run.nunstab, s.autox_state.run.nstab, s.autox_state.homo_l, s.autox_state.homo_r};
+        HomoclinicStart start{s.autox_state.homo_equilibria.nunstab, s.autox_state.homo_equilibria.nstab, s.autox_state.homo_l, s.autox_state.homo_r};
         if (const auto v = args.optional<long long>("unstable_dimension")) start.unstable = static_cast<int>(*v);
         if (const auto v = args.optional<long long>("stable_dimension")) start.stable = static_cast<int>(*v);
         if (args.has("left_equilibrium")) start.left = args.list<double>("left_equilibrium");

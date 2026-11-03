@@ -54,7 +54,8 @@ int main()
     }
     /* ge writes its pivots to fort.9 */
     FILE *fp9 = std::tmpfile();
-    xpp::client_session().autox_lib.fp9 = fp9;
+    AutoxRun run;
+    run.fp9 = fp9;
 
     CHECK(fp9 != nullptr);
     /* Explicit text mode exercises Windows' translated newline positions. */
@@ -82,9 +83,9 @@ int main()
 
     /* chdim: more free parameters than autoX's arrays hold */
     iap_type iap{};
-    iap.lib = &xpp::client_session().autox_lib;
-    iap.lib->parameter_count = xpp::client_session().autox_state.parameter_layout.size();
-    iap.nfpr = iap.lib->parameter_count + 1;
+    iap.run = &run;
+    iap.run->parameter_count = xpp::client_session().autox_state.parameter_layout.size();
+    iap.nfpr = iap.run->parameter_count + 1;
     CHECK(has(failure([&] { chdim(&iap); }), "free parameters"));
     iap.nfpr = 2;
     CHECK(failure([&] { chdim(&iap); }).empty());
@@ -139,7 +140,7 @@ int main()
         failure([&] { xpp::dgemm("N", "N", &m, &nn, &kk, &one, a.data(), &ld, b.data(), &ld, &zero, c.data(), &ld, 1, 1); });
     CHECK(has(blas, "DGEMM") && has(blas, "parameter number 3"));
 
-    xpp::client_session().autox_lib.fp9 = nullptr;
+    run.fp9 = nullptr;
     std::fclose(fp9);
     TEST_REPORT("autox_errors");
 }

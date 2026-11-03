@@ -1,6 +1,6 @@
 #pragma once
-// autoX's persistent collocation pool, owned by the running Session's AutoxLib.
-struct AutoxLib;
+// autoX's persistent collocation pool, owned by the run's AutoxRun.
+struct AutoxRun;
 #include <functional>
 #include <cstddef>
 #include <memory>
@@ -15,7 +15,7 @@ public:
     static constexpr std::ptrdiff_t min_collocation_work = 1024;
     static unsigned automatic_threads();
     // Choose once after autoX has established the run's dimension and mesh.
-    static void select_run(AutoxLib &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol);
+    static void select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol);
     // The count a preference gives: 0 is automatic, else the number itself.
     static unsigned threads_for(unsigned preferred) { return preferred ? preferred : automatic_threads(); }
     // threads is at least 1; the callers' sources keep it within the logical processors (xpp_prefs.h).
@@ -24,9 +24,9 @@ public:
     AutoxParallel(const AutoxParallel &) = delete;
     AutoxParallel &operator=(const AutoxParallel &) = delete;
     unsigned threads() const { return threads_; }
-    void prepare(AutoxLib &source, std::ptrdiff_t ndim, std::ptrdiff_t nbc);
+    void prepare(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t nbc);
     void publish_rhs(Session &s);
-    void intervals(std::ptrdiff_t n, const std::function<void(std::ptrdiff_t, std::ptrdiff_t, AutoxLib &)> &work);
+    void intervals(std::ptrdiff_t n, const std::function<void(std::ptrdiff_t, std::ptrdiff_t, AutoxRun &)> &work);
 private:
     struct State;
     unsigned threads_;

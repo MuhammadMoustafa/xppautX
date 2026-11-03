@@ -5,7 +5,7 @@
 #include "autox_f2c.h"
 #include <cstdio>
 
-struct iap_type; // The adapter borrows the run's AutoxLib and diagnostics.
+struct iap_type; // The adapter borrows the run's AutoxRun and diagnostics.
 
 namespace xpp {
 

@@ -149,15 +149,29 @@ void autox_stop_clear(AutoxStop &st)
     st.global = {};
 }
 
-void autox_stop_note(Session &s, std::string text)
+void autox_stop_note(AutoxRun &run, std::string text)
 {
     if (xpp::log_autox_enabled()) xpp::log_autox("Warning: {}\n", text);
     else xpp::log(XPP_LOG_WARN, "autoX: {}\n", text);
     try {
-        s.autox_state.stop.notes.push_back(std::move(text));
+        run.stop.notes.push_back(std::move(text));
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("recording an autoX note");
     }
+}
+
+void autox_stop_merge(AutoxStop &shown, AutoxStop &&run)
+{
+    if (run.last_why != AUTOX_STOP_NONE) {
+        shown.last_why = run.last_why;
+        shown.last_br = run.last_br;
+        shown.last_pt = run.last_pt;
+        shown.last_value = run.last_value;
+        shown.last_limit = run.last_limit;
+        shown.last_text = std::move(run.last_text);
+    }
+    for (std::string &note : run.notes) shown.notes.push_back(std::move(note));
+    shown.start_refined |= run.start_refined;
 }
 
 void autox_stop_last(const AutoxStop &st, AutoxStopInfo *out)
@@ -171,13 +185,13 @@ void autox_stop_last(const AutoxStop &st, AutoxStopInfo *out)
     out->limit = st.last_limit;
 }
 
-void autox_stop_branch_end(Session &s, const AutoxStopAt *at)
+void autox_stop_branch_end(AutoxRun &run, const AutoxStopAt *at)
 {
-    AutoxStop &st = s.autox_state.stop;
+    AutoxStop &st = run.stop;
     try {
-        const int why = s.autox_lib.jacobian_failure ? AUTOX_STOP_JACOBIAN : autox_stop_why(st, at);
+        const int why = run.jacobian_failure ? AUTOX_STOP_JACOBIAN : autox_stop_why(st, at);
         double value, limit;
-        std::string text = describe(s, st, why, *at, value, limit);
+        std::string text = describe(*run.session, st, why, *at, value, limit);
         st.last_why = why;
         st.last_br = std::labs(at->br);
         st.last_pt = std::labs(at->pt);

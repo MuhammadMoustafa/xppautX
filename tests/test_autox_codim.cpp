@@ -25,16 +25,16 @@ int main()
     char *argv[]={name,path.data(),nullptr};
     CHECK(load_args(2,argv,1).has_value());
     auto &s=xpp::client_session();
-    auto &lib=s.autox_lib;
-    lib.session=&s;
-    lib.parameter_count=s.autox_state.parameter_layout.size();
-    lib.codim.prepare(2);
+    AutoxRun run;
+    run.session=&s;
+    run.parameter_count=s.autox_state.parameter_layout.size();
+    run.codim.prepare(2);
     iap_type iap{};
-    iap.lib=&lib; iap.ndm=2; iap.ndim=6; iap.nfpr=2; iap.isw=2; iap.ips=xpp::AutoxProblem::SteadyState;
+    iap.run=&run; iap.ndm=2; iap.ndim=6; iap.nfpr=2; iap.isw=2; iap.ips=xpp::AutoxProblem::SteadyState;
     iap.itpst=xpp::AutoxPointKind::Hopf;
     rap_type rap{};
     std::array<integer,2> icp{s.autox_state.parameter_layout.solver_index(0),s.autox_state.parameter_layout.solver_index(1)};
-    std::vector<double> par(lib.parameter_count),dp(6*lib.parameter_count);
+    std::vector<double> par(run.parameter_count),dp(6*run.parameter_count);
     std::array<double,6> u{0,0,1,0,1,1},rhs{},old=u;
     std::array<double,36> jac{};
     integer stride=7;
@@ -69,11 +69,11 @@ int main()
     char *reaction_args[]={name,reaction.data(),nullptr};
     CHECK(load_args(2,reaction_args,1).has_value());
     auto &reaction_session=xpp::client_session();
-    auto &reaction_lib=reaction_session.autox_lib;
+    AutoxRun reaction_lib;
     reaction_lib.session=&reaction_session;
     reaction_lib.parameter_count=reaction_session.autox_state.parameter_layout.size();
     reaction_lib.codim.prepare(2);
-    iap.lib=&reaction_lib;
+    iap.run=&reaction_lib;
     icp={reaction_session.autox_state.parameter_layout.solver_index(0),reaction_session.autox_state.parameter_layout.solver_index(1)};
     par.resize(reaction_lib.parameter_count); dp.resize(6*reaction_lib.parameter_count);
     const std::array<std::array<double,2>,3> cases={{{1,0.23809523809523817},{2,-0.2783653083592841},{5.5,-0.360695777622527}}};
@@ -182,10 +182,10 @@ int main()
     CHECK(xpp::ensure_exact_jacobian(map_session));
     map_session.numerics.jacobian=xpp::JACOBIAN_EXACT;
     iap.jac=1;
-    auto &map_lib=map_session.autox_lib;
+    AutoxRun map_lib;
     map_lib.session=&map_session;
     map_lib.parameter_count=map_session.autox_state.parameter_layout.size();
-    iap.lib=&map_lib; iap.ndm=4; iap.ndim=10;
+    iap.run=&map_lib; iap.ndm=4; iap.ndim=10;
     iap.ips=xpp::AutoxProblem::DiscreteMap; iap.itpst=xpp::AutoxPointKind::NeimarkSacker;
     icp={map_session.autox_state.parameter_layout.solver_index(0),map_session.autox_state.parameter_layout.solver_index(1)};
     std::vector<double> mp(map_lib.parameter_count),mj(100),mdp(10*map_lib.parameter_count),mr(10);
@@ -216,7 +216,7 @@ int main()
     // W407 (#469): the torus phase condition compares the eigenfunction with the previous point's.
     // XPPAUT's u.v - v.u was identically zero, so a rotated eigenfunction satisfied it.
     iap_type ti{};
-    ti.lib=&map_lib; ti.ndm=2; ti.ndim=6;
+    ti.run=&map_lib; ti.ndm=2; ti.ndim=6;
     map_lib.rotations.nrtn.assign(2,0);
     CHECK(map_lib.parameter_count>xpp::autox_unknown::torus_norm);
     std::vector<double> tpar(map_lib.parameter_count);

@@ -89,7 +89,7 @@ double distance(std::span<const double> a, std::span<const double> b)
 std::optional<AutoxGlobalEnd> autox_global_end(const iap_type &iap, const double *par, const std::ptrdiff_t *icp,
                                              const double *ups, std::ptrdiff_t ndxloc, double period, double shortest)
 {
-    Session &s = *iap.lib->session;
+    Session &s = *iap.run->session;
     const std::size_t n = static_cast<std::size_t>(iap.ndm), ntst = static_cast<std::size_t>(iap.ntst),
                       ncol = static_cast<std::size_t>(iap.ncol), count = ntst * ncol;
     /* the orbit's mesh points (the last, autoX's ups(ntst), is the first again), and the speed |f| at each */
@@ -102,7 +102,7 @@ std::optional<AutoxGlobalEnd> autox_global_end(const iap_type &iap, const double
             low[k] = std::min(low[k], v);
             high[k] = std::max(high[k], v);
         }
-        func(s, iap.ndm, &points[m * n], icp, iap.nfpr, par, 0, f.data(), nullptr, nullptr);
+        func(*iap.run, iap.ndm, &points[m * n], icp, iap.nfpr, par, 0, f.data(), nullptr, nullptr);
         double sum = 0;
         for (const double v : f) sum += v * v;
         speeds[m] = std::sqrt(sum);

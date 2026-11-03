@@ -14,19 +14,19 @@
 
 namespace {
 /* autoX's fort.3 (its restart data: read, or written from scratch), fort.7
-   and fort.9 for one run, opened where open_autox put them, and the
-   Session whose run it is: autoX reads and writes them through its
-   AutoxLib (autox_state.h), which the run's iap_type points at. Closed on
-   every way out of the run (Windows cannot rename or delete an open
-   file, which close_autox does next), the pointers cleared first. */
+   and fort.9 for one run, opened where open_autox put them: autoX reads and
+   writes them through its AutoxRun (autox_state.h), which the run's iap_type
+   points at. Closed on every way out of the run (Windows cannot rename or
+   delete an open file, which close_autox does next), the pointers cleared
+   first. */
 struct RunUnits {
-  AutoxLib &lib;
+  AutoxRun &run;
   xpp::UniqueFile u3,u7,u9;
-  RunUnits(xpp::Session &s, bool restart)
-    : lib(s.autox_lib)
+  RunUnits(AutoxRun &run_, bool restart)
+    : run(run_)
   {
-    const auto open = [&s](int unit, const char *mode) {
-      const std::string path=xpp::autox_fort_path(s,unit);
+    const auto open = [this](int unit, const char *mode) {
+      const std::string path=xpp::autox_fort_path(run,unit);
       xpp::UniqueFile file(xpp::files::open_stream(path,mode));
       if(!file)xpp::autox_fail((mode[0]=='r' ? xpp::files::open_error("autoX",path)
                                          : xpp::files::write_error("autoX",path)));
@@ -35,12 +35,11 @@ struct RunUnits {
     u3=open(3,restart?"r":"w+");
     u7=open(7,"w");
     u9=open(9,"w");
-    lib.session=&s;
-    lib.fp3=u3.get();
-    lib.fp7=u7.get();
-    lib.fp9=u9.get();
+    run.fp3=u3.get();
+    run.fp7=u7.get();
+    run.fp9=u9.get();
   }
-  ~RunUnits() { lib.fp3=lib.fp7=lib.fp9=nullptr; lib.session=nullptr; }
+  ~RunUnits() { run.fp3=run.fp7=run.fp9=nullptr; }
   RunUnits(const RunUnits &)=delete;
   RunUnits &operator=(const RunUnits &)=delete;
 };
@@ -182,8 +181,8 @@ function_list problem_functions(const iap_type &iap)
     const std::string_view name = xpp::autox_point_kind_name(c.kind);
     return name == "regular" ? std::string("a regular point") : "a point of type " + std::string(name);
   };
-  const auto &s=*iap.lib->session;
-  if(std::abs(iap.isw)==2 && s.autox_state.run.icp[0]==s.autox_state.run.icp[1])
+  const auto &s=*iap.run->session;
+  if(std::abs(iap.isw)==2 && iap.run->params.icp[0]==iap.run->params.icp[1])
     xpp::autox_fail(xpp::format("Two-parameter start has the same parameter \"{}\" on both axes; select two different parameters",xpp::autox_par_name(s,s.autox_state.axes().icp1)));
   /* the restart label's stored point decides whether it is a periodic orbit (its branch's sign, get_bif_type):
      a periodic branch's end point restarts a periodic run; a steady state needs a Hopf point */
@@ -206,18 +205,19 @@ function_list problem_functions(const iap_type &iap)
 
 /* one autoX run: the problem's functions, then the continuation; a failure
    is thrown as xpp::AutoxFailed (autox_state.h), which do_autox shows */
-void go_go_autox(xpp::Session &s)
+void go_go_autox(AutoxRun &run)
 {
-  s.autox_lib.parameter_count = s.autox_state.parameter_layout.size();
-  std::vector<integer> icp(xpp::size_product(2, s.autox_lib.parameter_count));
-  std::vector<doublereal> par(xpp::size_product(2, s.autox_lib.parameter_count));
-  std::vector<doublereal> thl(s.autox_lib.parameter_count);
+  xpp::Session &s=*run.session;
+  run.parameter_count = s.autox_state.parameter_layout.size();
+  std::vector<integer> icp(xpp::size_product(2, run.parameter_count));
+  std::vector<doublereal> par(xpp::size_product(2, run.parameter_count));
+  std::vector<doublereal> thl(run.parameter_count);
   std::vector<doublereal> thu;
-  std::vector<AutoxMark> marks(s.autox_state.run.marks.size());
+  std::vector<AutoxMark> marks(run.params.marks.size());
   iap_type iap;
   rap_type rap;
-  RunUnits units(s, s.autox_state.run.irs > 0);
-  iap.lib = &s.autox_lib;
+  RunUnits units(run, run.params.irs > 0);
+  iap.run = &run;
 
   init(&iap, &rap, par.data(), icp.data(), thl.data(), thu, marks);
 
@@ -226,16 +226,16 @@ void go_go_autox(xpp::Session &s)
     bool found = false;
     findlb(&iap, &rap, iap.irs, &(iap.nfpr), &found);
     if (!found)
-      xpp::autox_fail(xpp::format("autoX: restart label {} is not in {}", iap.irs, xpp::autox_fort_path(s, 3)));
+      xpp::autox_fail(xpp::format("autoX: restart label {} is not in {}", iap.irs, xpp::autox_fort_path(run, 3)));
   }
   const function_list list = problem_functions(iap);
   init1(&iap, &rap, icp.data(), par.data());
   chdim(&iap);
   if (list.solver == AutoxSolver::BoundaryValue)
-    xpp::AutoxParallel::select_run(s.autox_lib, iap.ndim, iap.ntst, iap.ncol);
-  else s.autox_lib.collocation.reset();
+    xpp::AutoxParallel::select_run(run, iap.ndim, iap.ntst, iap.ncol);
+  else run.collocation.reset();
 
-  /* the evaluator scratch (s.autox_lib.scratch) the run reuses in
+  /* the evaluator scratch (run.scratch) the run reuses in
      autox_lib3.cpp and autox_lib5.cpp, sized once */
   size_run_scratch(iap);
 

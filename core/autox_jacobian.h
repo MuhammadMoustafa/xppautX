@@ -39,9 +39,9 @@ inline doublereal central_step(integer n, const doublereal *x) {
 // are not known, or a map iterated store_every times reads more states than
 // one step does.
 inline const DifferenceGroups *state_groups(const iap_type *iap, integer n) {
-  const auto &numerics = iap->lib->session->numerics;
+  const auto &numerics = iap->run->session->numerics;
   const bool chained = xpp::solver_info(numerics.method).traits.discrete && numerics.store_every != 1;
-  return chained ? nullptr : difference_groups(iap->lib->session->model(), iap->lib->jacobian_scratch, n);
+  return chained ? nullptr : difference_groups(iap->run->session->model(), iap->run->jacobian_scratch, n);
 }
 
 // d(eval)/dx by central differences about x[0..n), step HMACH*(max|x| + 1)
@@ -186,11 +186,11 @@ int problem(const iap_type *iap, const rap_type *rap, integer ndim,
             doublereal *dfdp, integer count, Eval eval) {
   const auto evaluate = [&](const doublereal *state, doublereal *value) {
     eval(iap, rap, ndim, state, uold, icp, par, value, iap->ndm,
-         iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
+         iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
   };
   return differentiate(ndim, ndim, u, icp, par, ijac, f, dfdu, dfdp,
-                       count, 0, iap->lib->scratch.uu1.data(), iap->lib->scratch.uu2.data(),
-                       iap->lib->scratch.ff1.data(), iap->lib->scratch.ff2.data(), evaluate);
+                       count, 0, iap->run->scratch.uu1.data(), iap->run->scratch.uu2.data(),
+                       iap->run->scratch.ff1.data(), iap->run->scratch.ff2.data(), evaluate);
 }
 
 // Structured equilibrium fold/Hopf Jacobian, reimplemented from AUTO-07p
@@ -203,7 +203,7 @@ int curve(const iap_type *iap, const rap_type *rap, integer ndim,
           doublereal *par, integer ijac, doublereal *f, doublereal *dfdu,
           doublereal *dfdp, bool hopf, Eval eval) {
   const integer n = iap->ndm;
-  std::vector<double> base(xpp::size_product(n, ndim)), parameters(xpp::size_product(n, iap->lib->parameter_count));
+  std::vector<double> base(xpp::size_product(n, ndim)), parameters(xpp::size_product(n, iap->run->parameter_count));
   // ijac 1 for the evaluations whose derivatives with respect to the parameters nobody reads
   const auto evaluate = [&](const double *state, double *value, integer jac = 1) {
     eval(iap, rap, ndim, state, uold, icp, par, jac, value, n,
@@ -212,9 +212,9 @@ int curve(const iap_type *iap, const rap_type *rap, integer ndim,
   evaluate(u, f, 2);
   if (ijac == 0) return 0;
   const Matrix<const double> a(base, n, ndim);
-  const Matrix<const double> p(parameters, n, iap->lib->parameter_count);
+  const Matrix<const double> p(parameters, n, iap->run->parameter_count);
   const Matrix<double> jac({dfdu, static_cast<size_t>(ndim * ndim)}, ndim, ndim);
-  const Matrix<double> dp({dfdp, static_cast<size_t>(ndim * iap->lib->parameter_count)}, ndim, iap->lib->parameter_count);
+  const Matrix<double> dp({dfdp, static_cast<size_t>(ndim * iap->run->parameter_count)}, ndim, iap->run->parameter_count);
   std::fill_n(dfdu, ndim * ndim, 0.);
   for (integer i = 0; i < n; ++i) {
     for (integer j = 0; j < n; ++j) {
@@ -267,7 +267,7 @@ int supplied(const iap_type *iap, const rap_type *rap, integer ndim,
              doublereal *par, integer ijac, doublereal *f, doublereal *dfdu,
              doublereal *dfdp, Eval eval) {
   eval(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp,
-       iap->ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
+       iap->ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
   return 0;
 }
 
@@ -281,7 +281,7 @@ int integral(const iap_type *iap, const rap_type *rap, integer ndim,
              doublereal *dint, Eval eval) {
   std::vector<doublereal> ff1(iap->nint), ff2(iap->nint);
   std::vector<doublereal> uu1(iap->ndim), uu2(iap->ndim);
-  std::vector<doublereal> dfu(xpp::size_product(iap->ndim, xpp::size_sum(iap->ndim, iap->lib->parameter_count)));
+  std::vector<doublereal> dfu(xpp::size_product(iap->ndim, xpp::size_sum(iap->ndim, iap->run->parameter_count)));
   const auto evaluate = [&](const doublereal *state, doublereal *value) {
     eval(iap, rap, ndim, par, icp, nint, iap->nnt0, state, uold, udot,
          upold, value, dfu.data());

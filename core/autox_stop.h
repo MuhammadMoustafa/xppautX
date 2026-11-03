@@ -23,9 +23,9 @@
 
 #include "autox_global.h"
 
-namespace xpp {
+struct AutoxRun; /* autox_state.h */
 
-struct Session; /* session.h */
+namespace xpp {
 
 enum AutoxStopWhy {
     AUTOX_STOP_NONE = 0,
@@ -62,7 +62,8 @@ struct AutoxNoConvergence {
     double pivot = NAN;
 };
 
-/* what a Session's autoX runs recorded (AutoxState::stop) */
+/* what autoX runs recorded: one run's (AutoxRun::stop), or the last runs'
+   a Session shows (AutoxState::stop) */
 struct AutoxStop {
     /* the last "No convergence" NOTE */
     AutoxNoConvergence noconv;
@@ -103,11 +104,16 @@ struct AutoxStopAt {
 int autox_stop_why(const AutoxStop &st, const AutoxStopAt *at);
 
 
-/* a point the session s's run lost or computed unreliably (what fort.9's
-   NOTEs say: a special point not located, inaccurate Floquet multipliers):
-   kept for the autoxinfo event's "notes" until the next run starts, and
-   written in autoX's Output (a WARN where autoX's Output is not shown) */
-void autox_stop_note(Session &s, std::string text);
+/* a point the run lost or computed unreliably (what fort.9's NOTEs say: a
+   special point not located, inaccurate Floquet multipliers): kept for the
+   autoxinfo event's "notes" until the next run starts, and written in
+   autoX's Output (a WARN where autoX's Output is not shown) */
+void autox_stop_note(AutoxRun &run, std::string text);
+
+/* a run's end: what it recorded joins what the Session shows (shown): its
+   last branch end, if it had one, replaces the last one; its notes follow
+   the earlier ones; a refined start stays marked */
+void autox_stop_merge(AutoxStop &shown, AutoxStop &&run);
 
 /* a run starts, or autoX's window is new: no reason until a branch ends */
 void autox_stop_clear(AutoxStop &st);
@@ -124,8 +130,8 @@ struct AutoxStopInfo {
 };
 void autox_stop_last(const AutoxStop &st, AutoxStopInfo *out);
 
-/* the branch ended at `at` in the session s's run: record why (its
-   parameter by the name s gives it) and write it in autoX's Output */
-void autox_stop_branch_end(Session &s, const AutoxStopAt *at);
+/* the branch ended at `at` in the run: record why (its parameter by the
+   name its Session gives it) and write it in autoX's Output */
+void autox_stop_branch_end(AutoxRun &run, const AutoxStopAt *at);
 
 } // namespace xpp

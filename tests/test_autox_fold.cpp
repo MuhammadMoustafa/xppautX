@@ -23,11 +23,11 @@ int main()
     char *argv[] = {name, path.data(), nullptr};
     CHECK(load_args(2, argv, 1).has_value());
     auto &s = xpp::client_session();
-    auto &lib = s.autox_lib;
-    lib.session = &s;
-    lib.parameter_count = s.autox_state.parameter_layout.size();
+    AutoxRun run;
+    run.session = &s;
+    run.parameter_count = s.autox_state.parameter_layout.size();
     iap_type iap{};
-    iap.lib = &lib; iap.ndm = 2; iap.ndim = 4; iap.nfpr = 4;
+    iap.run = &run; iap.ndm = 2; iap.ndim = 4; iap.nfpr = 4;
     size_run_scratch(iap);
     // Isolate the augmented blocks from roundoff in nested first differences.
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;
@@ -36,7 +36,7 @@ int main()
     rap_type rap{};
     const integer a = s.autox_state.parameter_layout.solver_index(0);
     const integer b = s.autox_state.parameter_layout.solver_index(1);
-    std::vector<double> par(lib.parameter_count), dp(4 * lib.parameter_count);
+    std::vector<double> par(run.parameter_count), dp(4 * run.parameter_count);
     par[a] = 2; par[b] = 3;
     par[xpp::autox_unknown::period] = 2;
     par[xpp::autox_unknown::fold_beta] = 0.5;
@@ -68,7 +68,7 @@ int main()
     }
     // W437: the phase hyperplane passes through the previous computed orbit,
     // even when its discrete u_old dot u_old' is nonzero (-1 here).
-    lib.rotations.nrtn.assign(2, 0);
+    run.rotations.nrtn.assign(2, 0);
     const std::array<integer,4> phase_icp{a,b,xpp::autox_unknown::period,xpp::autox_unknown::fold_beta};
     const auto phase_old=u;
     const std::array<double,4> time_derivative{3,-2,0,0};
@@ -79,11 +79,11 @@ int main()
     icps(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
          u.data(),time_derivative.data(),f.data(),0,nullptr);
     CHECK(f[0]==0.75);
-    lib.rotations.nrtn[0]=1;
+    run.rotations.nrtn[0]=1;
     icps(&iap,&rap,2,par.data(),phase_icp.data(),1,u.data(),phase_old.data(),
          u.data(),time_derivative.data(),f.data(),1,dp.data());
     CHECK(f[0]==0 && dp[0]==0 && dp[1]==-2);
-    lib.rotations.nrtn[0]=0;
+    run.rotations.nrtn[0]=0;
     u=phase_old;
     icpl(&iap,&rap,4,par.data(),phase_icp.data(),3,u.data(),phase_old.data(),
          u.data(),time_derivative.data(),f.data(),0,nullptr);
@@ -104,7 +104,7 @@ int main()
     argv[1] = path.data();
     CHECK(load_args(2, argv, 1).has_value());
     auto &derived = xpp::client_session();
-    auto &worker = derived.autox_lib;
+    AutoxRun worker;
     worker.session = &derived;
     worker.parameter_count = derived.autox_state.parameter_layout.size();
     worker.pure_rhs = true;
@@ -117,7 +117,7 @@ int main()
     for (const auto &[first,second] : {std::pair{2.,3.},std::pair{-2.,3.},std::pair{2.,4.},
                                       std::pair{0.,4.},std::pair{-0.,4.},std::pair{-0.,4.},std::pair{2.,3.}}) {
         par[slots[0]]=first; par[slots[1]]=second;
-        func(derived,1,&state,slots.data(),2,par.data(),0,&value,&unused,&unused,&worker);
+        func(worker,1,&state,slots.data(),2,par.data(),0,&value,&unused,&unused);
         CHECK(value==first*second && std::signbit(value)==std::signbit(first*second));
     }
     TEST_REPORT("autoX fold blocks");

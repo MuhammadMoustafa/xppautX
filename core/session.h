@@ -148,11 +148,11 @@ struct Session {
      period (the nUmerics menu's Torus) */
   std::vector<int> itor;
 
-  /* autoX's settings, run parameters and scratch folder (autox_nox.cpp,
-     autox_evd.cpp), the autoX library's files and work arrays (autox_lib1.cpp,
-     gogoautox.cpp) and the diagram (diagram.cpp) */
+  /* autoX's settings, what its window shows and its scratch folder
+     (autox_nox.cpp), and the diagram (diagram.cpp). A run's own state, its
+     parameters, fort files and work arrays, is an AutoxRun (autox_state.h)
+     do_autox makes: none is kept here. */
   AutoxState autox_state;
-  AutoxLib autox_lib;
   AutoxDiagram diagram;
 
   /* the data browser (browse_data.cpp) */

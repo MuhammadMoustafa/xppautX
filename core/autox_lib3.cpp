@@ -16,8 +16,8 @@ namespace {
 constexpr doublereal torus_initial_amplitude = 1e-4;
 } // namespace
 
-/* Reused finite-difference scratch belongs to iap->lib: the calling
-   Session's AutoxLib, or a collocation worker's private AutoxLib (W247).
+/* Reused finite-difference scratch belongs to iap->run: the calling
+   run's AutoxRun, or a collocation worker's private AutoxRun (W247).
    Rotation counts are computed once per run and only read by workers. */
 
 /* ----------------------------------------------------------------------- */
@@ -94,14 +94,14 @@ stpnlp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   if (ips == xpp::AutoxProblem::DiscreteMap) {
     fnds(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-	 iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
+	 iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
   } else {
     funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
-	 iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
+	 iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
   }
   if (ips==xpp::AutoxProblem::DiscreteMap && iap->itp.is(xpp::AutoxPointKind::PeriodDoubling))
-    for (integer k=0;k<ndm;++k) iap->lib->scratch.dfu[k+ndm*k]+=2.;
-  xpp::nlvc(iap->lib->fp9, ndm, ndm, 1, iap->lib->scratch.dfu.data(), v.data());
+    for (integer k=0;k<ndm;++k) iap->run->scratch.dfu[k+ndm*k]+=2.;
+  xpp::nlvc(iap->run->fp9, ndm, ndm, 1, iap->run->scratch.dfu.data(), v.data());
   nrmlz(&ndm, v.data());
   for (i = 0; i < ndm; ++i) {
     u[ndm + i] = v[i];
@@ -123,7 +123,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer dfdu_dim1, dfdp_dim1;
 
   integer i, j;
-  std::vector<doublereal> ddp(iap->lib->parameter_count);
+  std::vector<doublereal> ddp(iap->run->parameter_count);
   integer ndm;
 
   std::vector<doublereal> ddu(iap->ndim);
@@ -147,7 +147,7 @@ fnc1(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
       }
     }
 
-    for (j = iap->lib->parameter_count - 1; j >= 0; --j) {
+    for (j = iap->run->parameter_count - 1; j >= 0; --j) {
       for (i = ndm - 1; i >= 0; --i) {
 	ARRAY2D(dfdp, i, j) = dfdp[j * ndm + i];
       }
@@ -185,7 +185,7 @@ stpnc1(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   ndim = iap->ndim;
   ndm = iap->ndm;
 
-  stpnt(*iap->lib->session, ndim, 0.0, u, par);
+  stpnt(*iap->run, ndim, 0.0, u, par);
   nfpr = 2;
   iap->nfpr = nfpr;
   fopi(iap, rap, ndm, u, icp, par, 0, &fop, &dum, &
@@ -215,7 +215,7 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffc2(iap, rap, ndim, u, uold, icp, par, f, ndm, 
-       iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
+       iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
 
   if (ijac == 0) {
     return 0;
@@ -224,8 +224,8 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   xpp::autox_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1.data(), iap->lib->scratch.uu2.data(), iap->lib->scratch.ff1.data(), iap->lib->scratch.ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { ffc2(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
+      ndim, ndim, u, iap->run->scratch.uu1.data(), iap->run->scratch.uu2.data(), iap->run->scratch.ff1.data(), iap->run->scratch.ff2.data(),
+      [&](const doublereal *uu, doublereal *ff) { ffc2(iap, rap, ndim, uu, uold, icp, par, ff, ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
       dfdu, dfdu_dim1);
 
   for (i = 0; i < ndim; ++i) {
@@ -245,7 +245,7 @@ ffc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   integer nfpr, i, j;
   doublereal fop;
-  std::vector<doublereal> ddp(iap->lib->parameter_count);
+  std::vector<doublereal> ddp(iap->run->parameter_count);
   integer ndm2;
 
   std::vector<doublereal> ddu(iap->ndim);
@@ -300,7 +300,7 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer i, j;
   bool found;
 
-  std::vector<doublereal> dp(iap->lib->parameter_count);
+  std::vector<doublereal> dp(iap->run->parameter_count);
 
   integer ndm;
   doublereal fop;
@@ -324,21 +324,21 @@ stpnc2(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   if (nfpr == 3) {
     funi(iap, rap, ndm, u, &uold, icp, par, 2, f.data(), 
-	 iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
+	 iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
     fopi(iap, rap, ndm, u, icp, par, 2, &fop, du.data(), 
 	 dp.data());
     /*       TRANSPOSE */
     for (i = 0; i < ndm; ++i) {
       for (j = 0; j < ndm; ++j) {
-	dd[i + j * ndim] = iap->lib->scratch.dfu[i * ndm + j];
+	dd[i + j * ndim] = iap->run->scratch.dfu[i * ndm + j];
       }
     }
     for (i = 0; i < ndm; ++i) {
       dd[i + ndm * ndim] = du[i];
-      dd[ndm + i * ndim] = iap->lib->scratch.dfp[(icp[1]) * ndm + i];
+      dd[ndm + i * ndim] = iap->run->scratch.dfp[(icp[1]) * ndm + i];
     }
     dd[ndm + ndm * ndim] = dp[icp[1]];
-    xpp::nlvc(iap->lib->fp9, ndm + 1, ndim, 1, dd.data(), v.data());
+    xpp::nlvc(iap->run->fp9, ndm + 1, ndim, 1, dd.data(), v.data());
     {
       integer tmp = ndm + 1;
       nrmlz(&tmp, v.data());
@@ -499,12 +499,12 @@ stpnhb(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   u[2 * n] = iap->ips==xpp::AutoxProblem::DiscreteMap ? omega : omega * omega;
   u[iap->ndim - 1] = par[icp[1]];
   std::vector<double> old(iap->ndim), residual(iap->ndim);
-  std::vector<double> blocks(xpp::size_product(n, iap->ndim)), parameters(xpp::size_product(n, iap->lib->parameter_count));
+  std::vector<double> blocks(xpp::size_product(n, iap->ndim)), parameters(xpp::size_product(n, iap->run->parameter_count));
   ffhb(iap, rap, iap->ndim, u, old.data(), icp, par, 2, residual.data(), n, blocks.data(), parameters.data());
   integer size = n;
   // The Hopf pair gives a two-dimensional kernel. NLVC chooses its phase;
   // subsequent correctors use the previous vector's symmetric condition.
-  xpp::nlvc(iap->lib->fp9, n, n, 2, blocks.data() + n * n, u + n);
+  xpp::nlvc(iap->run->fp9, n, n, 2, blocks.data() + n * n, u + n);
   nrmlz(&size, u + n);
   return 0;
 } /* stpnhb_ */
@@ -585,7 +585,7 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   std::vector<doublereal> smat(xpp::size_product(xpp::size_product(2, iap->ndim), xpp::size_product(2, iap->ndim)));
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> v(iap->ndim);
-  std::vector<doublereal> dfp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
+  std::vector<doublereal> dfp(xpp::size_product(iap->ndim, iap->run->parameter_count));
   std::vector<doublereal> dfu(xpp::size_product(iap->ndim, iap->ndim));
 
   /* Generates starting data for the continuation of a bifurcation to a */
@@ -623,13 +623,13 @@ stpnhw(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   for (i = 0; i < ndm; ++i) {
     for (j = 0; j < ndm; ++j) {
-      smat[i + j * (ndim*2)] = rom * iap->lib->scratch.dfu[j * ndm + i];
-      smat[ndm + i + (ndm + j) * (ndim*2)] = rom * iap->lib->scratch.dfu[j * ndm + i];
+      smat[i + j * (ndim*2)] = rom * iap->run->scratch.dfu[j * ndm + i];
+      smat[ndm + i + (ndm + j) * (ndim*2)] = rom * iap->run->scratch.dfu[j * ndm + i];
     }
   }
   {
     integer tmp=(ndim*2);
-    xpp::nlvc(iap->lib->fp9, ndm2, tmp, 2, smat.data(), v.data());
+    xpp::nlvc(iap->run->fp9, ndm2, tmp, 2, smat.data(), v.data());
   }
   nrmlz(&ndm2, v.data());
 
@@ -720,10 +720,10 @@ bcps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (iap->lib->rotations.irtn != 0) {
+  if (iap->run->rotations.irtn != 0) {
     for (i = 0; i < ndim; ++i) {
-      if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[xpp::autox_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
+      if (iap->run->rotations.nrtn[i] != 0) {
+	f[i] += par[xpp::autox_unknown::rotation_period] * iap->run->rotations.nrtn[i];
       }
     }
   }
@@ -732,7 +732,7 @@ bcps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nn = (ndim * 2) + jtmp;
   for (i = 0; i < nbc; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -760,7 +760,7 @@ icps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   // Center on the computed orbit: discrete quadrature need not make uold dot upold zero.
   f[0] = 0.;
   for (i = 0; i < ndim; ++i) {
-    if (iap->lib->rotations.nrtn[i] == 0) {
+    if (iap->run->rotations.nrtn[i] == 0) {
       f[0] += (u[i] - uold[i]) * upold[i];
     }
   }
@@ -769,14 +769,14 @@ icps(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nn = ndim + jtmp;
   for (i = 0; i < nn; ++i) {
     ARRAY2D(dint, 0, i) = 0.;
   }
 
   for (i = 0; i < ndim; ++i) {
-    if (iap->lib->rotations.nrtn[i] == 0) {
+    if (iap->run->rotations.nrtn[i] == 0) {
       ARRAY2D(dint, 0, i) = upold[i];
     } else {
       ARRAY2D(dint, 0, i) = 0.;
@@ -799,7 +799,7 @@ pdble(const iap_type *iap, const rap_type *rap, integer *ndim, integer *ntst, in
   ups_dim1 = *ndxloc;
     
   par[xpp::autox_unknown::period] *= 2.;
-  if (iap->lib->rotations.irtn != 0) {
+  if (iap->run->rotations.irtn != 0) {
     par[xpp::autox_unknown::rotation_period] *= 2.;
   }
 
@@ -886,18 +886,18 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   }
 
   funi(iap, rap, ndim, u.data(), &uold, icp, par, 1, f.data(), 
-       iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
+       iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
 
   for (i = 0; i < ndim; ++i) {
     for (j = 0; j < ndim; ++j) {
-      smat[i + (ndim + j) * (ndim*2)] = iap->lib->scratch.dfu[j * ndim + i];
-      smat[ndim + i + j * (ndim*2)] = iap->lib->scratch.dfu[j * ndim + i];
+      smat[i + (ndim + j) * (ndim*2)] = iap->run->scratch.dfu[j * ndim + i];
+      smat[ndim + i + j * (ndim*2)] = iap->run->scratch.dfu[j * ndim + i];
     }
   }
 
   {
     integer tmp=(ndim*2);
-    xpp::nlvc(iap->lib->fp9, ndim2, tmp, 2, smat.data(), rnllv.data());
+    xpp::nlvc(iap->run->fp9, ndim2, tmp, 2, smat.data(), rnllv.data());
   }
   nrmlz(&ndim2, rnllv.data());
 
@@ -934,8 +934,8 @@ fnws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ndm2 = ndm / 2;
-  ffws(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ndm2, iap->lib->scratch.dfu.data(), 
-       iap->lib->scratch.dfp.data());
+  ffws(iap, rap, ndim, u, uold, icp, par, ijac, f, dfdu, dfdp, ndm2, iap->run->scratch.dfu.data(), 
+       iap->run->scratch.dfp.data());
 
   return 0;
 } /* fnws_ */
@@ -977,11 +977,11 @@ ffws(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     }
     ARRAY2D(dfdu, i, (i + ndm)) = 1.;
     ARRAY2D(dfdu, i + ndm, (i + ndm)) = -c / par[i + xpp::autox_unknown::diffusion_start];
-    if (autox_model_parameter(*iap->lib->session,icp[0])) {
+    if (autox_model_parameter(*iap->run->session,icp[0])) {
       ARRAY2D(dfdp, i, (icp[0])) = 0.;
       ARRAY2D(dfdp, i + ndm, icp[0]) = -ARRAY2D(dfp, i, icp[0]) / par[i + xpp::autox_unknown::diffusion_start];
     }
-    if (nfpr > 1 && autox_model_parameter(*iap->lib->session,icp[1])) {
+    if (nfpr > 1 && autox_model_parameter(*iap->run->session,icp[1])) {
       ARRAY2D(dfdp, i, (icp[1])) = 0.;
       ARRAY2D(dfdp, i + ndm, icp[1]) = -ARRAY2D(dfp, i, icp[1]) / par[i + xpp::autox_unknown::diffusion_start];
     }
@@ -1092,7 +1092,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   std::vector<doublereal> f(iap->ndim);
   std::vector<doublereal> u(iap->ndim);
   std::vector<doublereal> rnllv(xpp::size_product(2, iap->ndim));
-  std::vector<doublereal> dfp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
+  std::vector<doublereal> dfp(xpp::size_product(iap->ndim, iap->run->parameter_count));
   std::vector<doublereal> dfu(xpp::size_product(iap->ndim, iap->ndim));
 
 /* Generates starting data for the continuation of a branch of periodic */
@@ -1138,7 +1138,7 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
     }
   }
 
-  xpp::nlvc(iap->lib->fp9, ndim2, ndim*2, 2, smat.data(), rnllv.data());
+  xpp::nlvc(iap->run->fp9, ndim2, ndim*2, 2, smat.data(), rnllv.data());
   nrmlz(&ndim2, rnllv.data());
 
   /* Generate the (initially uniform) mesh. */
@@ -1297,7 +1297,7 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   // FNPLF's block structure (AUTO-07p periodic.f90:427-507): only
   // the derivatives of the variational equations need second differences.
   const integer n = iap->ndm;
-  auto &scratch = iap->lib->scratch;
+  auto &scratch = iap->run->scratch;
   const auto evaluate = [&](const double *state, double *value, integer derivatives) {
     ffpl(iap, rap, ndim, state, uold, icp, par, derivatives, value, n,
          scratch.dfu.data(), scratch.dfp.data());
@@ -1307,11 +1307,11 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   const double period = par[xpp::autox_unknown::period];
   const bool variable_period = icp[2] == xpp::autox_unknown::period;
   const xpp::Matrix<const double> a(scratch.dfu, n, n);
-  const xpp::Matrix<const double> p(scratch.dfp, n, iap->lib->parameter_count);
+  const xpp::Matrix<const double> p(scratch.dfp, n, iap->run->parameter_count);
   const xpp::Matrix<double> jac({dfdu, xpp::size_product(ndim, ndim)}, ndim, ndim);
-  const xpp::Matrix<double> dp({dfdp, xpp::size_product(ndim, iap->lib->parameter_count)}, ndim, iap->lib->parameter_count);
+  const xpp::Matrix<double> dp({dfdp, xpp::size_product(ndim, iap->run->parameter_count)}, ndim, iap->run->parameter_count);
   std::fill_n(dfdu, ndim * ndim, 0.);
-  std::fill_n(dfdp, ndim * iap->lib->parameter_count, 0.);
+  std::fill_n(dfdp, ndim * iap->run->parameter_count, 0.);
   for (integer i = 0; i < n; ++i) {
     for (integer j = 0; j < n; ++j) {
       jac(i, j) = period * a(i, j);
@@ -1408,11 +1408,11 @@ bcpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (iap->lib->rotations.irtn != 0) {
+  if (iap->run->rotations.irtn != 0) {
     ndm = iap->ndm;
     for (i = 0; i < ndm; ++i) {
-      if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[xpp::autox_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
+      if (iap->run->rotations.nrtn[i] != 0) {
+	f[i] += par[xpp::autox_unknown::rotation_period] * iap->run->rotations.nrtn[i];
       }
     }
   }
@@ -1421,7 +1421,7 @@ bcpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nn = (ndim * 2) + jtmp;
   for (i = 0; i < nbc; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -1456,7 +1456,7 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   f[2] = par[xpp::autox_unknown::fold_beta] * par[xpp::autox_unknown::fold_beta] - par[xpp::autox_unknown::fold_norm];
 
   for (i = 0; i < ndm; ++i) {
-    if (iap->lib->rotations.nrtn[i] == 0) {
+    if (iap->run->rotations.nrtn[i] == 0) {
       f[1] += u[ndm + i] * upold[i];
     }
     f[2] += u[ndm + i] * u[ndm + i];
@@ -1466,7 +1466,7 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nn = ndim + jtmp;
   for (i = 0; i < nint; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -1475,7 +1475,7 @@ icpl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < ndm; ++i) {
-    if (iap->lib->rotations.nrtn[i] == 0) {
+    if (iap->run->rotations.nrtn[i] == 0) {
       ARRAY2D(dint, 0, i) = upold[i];
       ARRAY2D(dint, 1, ndm + i) = upold[i];
     } else {
@@ -1501,7 +1501,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer nfpr, nrsp1, i, j, k;
 
   integer k1, k2;
-  std::vector<integer> icprs(iap->lib->parameter_count);
+  std::vector<integer> icprs(iap->run->parameter_count);
 
   doublereal rd1, rd2;
   integer ndm;
@@ -1536,7 +1536,7 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
                     "the arclength derivatives");
   /* Read the parameter values. */
 
-  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
+  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->run, par), "the parameter values");
 
   /* Complement starting data */
   par[xpp::autox_unknown::fold_beta] = 0.;
@@ -1638,10 +1638,10 @@ bcpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (iap->lib->rotations.irtn != 0) {
+  if (iap->run->rotations.irtn != 0) {
     for (i = 0; i < ndm; ++i) {
-      if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[xpp::autox_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
+      if (iap->run->rotations.nrtn[i] != 0) {
+	f[i] += par[xpp::autox_unknown::rotation_period] * iap->run->rotations.nrtn[i];
       }
     }
   }
@@ -1650,7 +1650,7 @@ bcpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nn = (ndim * 2) + jtmp;
   for (i = 0; i < nbc; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -1692,7 +1692,7 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nn = ndim + jtmp;
   for (i = 0; i < nint; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -1701,7 +1701,7 @@ icpd(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < ndm; ++i) {
-    if (iap->lib->rotations.nrtn[i] == 0) {
+    if (iap->run->rotations.nrtn[i] == 0) {
       ARRAY2D(dint, 0, i) = upold[i];
     } else {
       ARRAY2D(dint, 0, i) = 0.;
@@ -1724,7 +1724,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer nfpr, i, j, k;
 
   integer k1, k2;
-  std::vector<integer> icprs(iap->lib->parameter_count);
+  std::vector<integer> icprs(iap->run->parameter_count);
 
   integer ndm;
 
@@ -1757,7 +1757,7 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
                     "the arclength derivatives");
   /* Read the parameter values. */
 
-  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
+  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->run, par), "the parameter values");
 
   /* Complement starting data */
   par[xpp::autox_unknown::doubling_norm] = 0.;
@@ -1856,10 +1856,10 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (iap->lib->rotations.irtn != 0) {
+  if (iap->run->rotations.irtn != 0) {
     for (i = 0; i < ndm; ++i) {
-      if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[xpp::autox_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
+      if (iap->run->rotations.nrtn[i] != 0) {
+	f[i] += par[xpp::autox_unknown::rotation_period] * iap->run->rotations.nrtn[i];
       }
     }
   }
@@ -1868,7 +1868,7 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nn = (ndim * 2) + jtmp;
   for (i = 0; i < nbc; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -1917,7 +1917,7 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     return 0;
   }
 
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nn = ndim + jtmp;
   for (i = 0; i < nint; ++i) {
     for (j = 0; j < nn; ++j) {
@@ -1926,7 +1926,7 @@ ictr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < ndm; ++i) {
-    if (iap->lib->rotations.nrtn[i] == 0) {
+    if (iap->run->rotations.nrtn[i] == 0) {
       ARRAY2D(dint, 0, i) = upold[i];
     } else {
       ARRAY2D(dint, 0, i) = 0.;
@@ -1951,7 +1951,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer ndim;
   integer nfpr, i;
 
-  std::vector<integer> icprs(iap->lib->parameter_count);
+  std::vector<integer> icprs(iap->run->parameter_count);
 
   integer ndm;
 
@@ -2003,7 +2003,7 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the parameter values. */
 
-  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
+  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->run, par), "the parameter values");
 
   par[xpp::autox_unknown::torus_norm] = 0.;
 
@@ -2054,7 +2054,7 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the function. */
 
   ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, f,
-       ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
+       ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
 
   if (ijac == 0) {
     return 0;
@@ -2063,14 +2063,14 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Generate the Jacobian. */
 
   ep = xpp::autox_jacobian::central(
-      ndim, ndim, u, iap->lib->scratch.uu1.data(), iap->lib->scratch.uu2.data(), iap->lib->scratch.ff1.data(), iap->lib->scratch.ff2.data(),
-      [&](const doublereal *uu, doublereal *ff) { ffpo(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
+      ndim, ndim, u, iap->run->scratch.uu1.data(), iap->run->scratch.uu2.data(), iap->run->scratch.ff1.data(), iap->run->scratch.ff2.data(),
+      [&](const doublereal *uu, doublereal *ff) { ffpo(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
       dfdu, dfdu_dim1);
 
   xpp::autox_jacobian::forward_parameters(
       nfpr, ndim, icp, ep, par,
-      [&](doublereal *ff) { ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, ff, ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
-      f, iap->lib->scratch.ff1.data(), dfdp, dfdp_dim1, 0);
+      [&](doublereal *ff) { ffpo(iap, rap, ndim, u, uold, upold.data(), icp, par, ff, ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
+      f, iap->run->scratch.ff1.data(), dfdp, dfdp_dim1, 0);
 
   return 0;
 } /* fnpo_ */
@@ -2082,7 +2082,7 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   integer i, j;
   doublereal gamma, rkappa, period, fop;
-  std::vector<doublereal> dfp(iap->lib->parameter_count);
+  std::vector<doublereal> dfp(iap->run->parameter_count);
 
   std::vector<doublereal> dfu(iap->ndim);
 
@@ -2094,13 +2094,13 @@ ffpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   gamma = par[xpp::autox_unknown::optimization_gamma];
 
   for (i = 0; i < ndm; ++i) {
-    for (j = 0; j < iap->lib->parameter_count; ++j) {
+    for (j = 0; j < iap->run->parameter_count; ++j) {
       ARRAY2D(dfdp, i, j) = 0.;
     }
   }
   funi(iap, rap, ndm, u, uold, icp, par, 1, f, 
        dfdu, dfdp);
-  for (i = 0; i < iap->lib->parameter_count; ++i) {
+  for (i = 0; i < iap->run->parameter_count; ++i) {
     dfp[i] = 0.;
   }
   fopi(iap, rap, ndm, u, icp, par, 1, &fop, dfu.data(), dfp.data());
@@ -2136,11 +2136,11 @@ bcpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /* Rotations */
-  if (iap->lib->rotations.irtn != 0) {
+  if (iap->run->rotations.irtn != 0) {
     nbc0 = iap->nbc0;
     for (i = 0; i < nbc0; ++i) {
-      if (iap->lib->rotations.nrtn[i] != 0) {
-	f[i] += par[xpp::autox_unknown::rotation_period] * iap->lib->rotations.nrtn[i];
+      if (iap->run->rotations.nrtn[i] != 0) {
+	f[i] += par[xpp::autox_unknown::rotation_period] * iap->run->rotations.nrtn[i];
       }
     }
   }
@@ -2175,7 +2175,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   std::vector<doublereal> f1(iap->nint);
   std::vector<doublereal> f2(iap->nint);
-  std::vector<doublereal> dnt(xpp::size_product(iap->nint, xpp::size_sum(iap->ndim, iap->lib->parameter_count)));
+  std::vector<doublereal> dnt(xpp::size_product(iap->nint, xpp::size_sum(iap->ndim, iap->run->parameter_count)));
 
 /* Generates integral conditions for periodic optimization problems. */
 
@@ -2188,7 +2188,7 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Generate the function. */
 
   fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, 
-       udot, upold, f, dnt.data(), ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data());
+       udot, upold, f, dnt.data(), ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data());
 
   if (ijac == 0) {
     return 0;
@@ -2197,13 +2197,13 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Generate the Jacobian. */
 
   ep = xpp::autox_jacobian::central(
-      ndim, nint, u, iap->lib->scratch.uu1.data(), iap->lib->scratch.uu2.data(), f1.data(), f2.data(),
-      [&](const doublereal *uu, doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
+      ndim, nint, u, iap->run->scratch.uu1.data(), iap->run->scratch.uu2.data(), f1.data(), f2.data(),
+      [&](const doublereal *uu, doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
       dint, dint_dim1);
 
   xpp::autox_jacobian::forward_parameters(
       nfpr, nint, icp, ep, par,
-      [&](doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dnt.data(), ndm, iap->lib->scratch.dfu.data(), iap->lib->scratch.dfp.data()); },
+      [&](doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, u, uold, udot, upold, ff, dnt.data(), ndm, iap->run->scratch.dfu.data(), iap->run->scratch.dfp.data()); },
       f, f1.data(), dint, dint_dim1, ndim);
 
   return 0;
@@ -2216,7 +2216,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   integer nfpr, indx;
   integer i, j, l;
-  std::vector<doublereal> dfp(iap->lib->parameter_count);
+  std::vector<doublereal> dfp(iap->run->parameter_count);
   integer ndm;
   doublereal fop;
 
@@ -2230,7 +2230,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   icps(iap, rap, ndm, par, icp, nint, u, uold, udot, upold, fi, 0, nullptr);
 
-  for (i = 0; i < iap->lib->parameter_count; ++i) {
+  for (i = 0; i < iap->run->parameter_count; ++i) {
     dfp[i] = 0.;
   }
   fopi(iap, rap, ndm, u, icp, par, 2, &fop, dfu.data(), dfp.data());
@@ -2244,7 +2244,7 @@ fipo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   for (i = 0; i < ndm; ++i) {
-    for (j = 0; j < iap->lib->parameter_count; ++j) {
+    for (j = 0; j < iap->run->parameter_count; ++j) {
       ARRAY2D(dfdp, i, j) = 0.;
     }
   }
@@ -2282,7 +2282,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   doublereal dumu;
   integer i, j, k;
 
-  std::vector<integer> icprs(iap->lib->parameter_count);
+  std::vector<integer> icprs(iap->run->parameter_count);
 
   integer k1, k2;
   doublereal fs;
@@ -2323,7 +2323,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
                                     0, ndm, udotps, nullptr, false, 0, {}),
                     "the arclength derivatives");
   /* Read the parameter values. */
-  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
+  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->run, par), "the parameter values");
 
   for (j = 0; j < *ntsr; ++j) {
     for (i = 0; i < *ncolrs; ++i) {
@@ -2345,7 +2345,7 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Complement starting data */
 
-  for (i = xpp::autox_unknown::optimization_norm; i < iap->lib->parameter_count; ++i) {
+  for (i = xpp::autox_unknown::optimization_norm; i < iap->run->parameter_count; ++i) {
     par[i] = 0.;
   }
 
@@ -2428,7 +2428,7 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   std::vector<doublereal> ff2(iap->nbc);
   std::vector<doublereal> uu1(iap->ndim);
   std::vector<doublereal> uu2(iap->ndim);
-  std::vector<doublereal> dfu(xpp::size_product(iap->nbc, xpp::size_sum(xpp::size_product(2, iap->ndim), iap->lib->parameter_count)));
+  std::vector<doublereal> dfu(xpp::size_product(iap->nbc, xpp::size_sum(xpp::size_product(2, iap->ndim), iap->run->parameter_count)));
 		     
 /* Generates the boundary conditions for the 2-parameter continuation */
 /* of folds (BVP). */
@@ -2555,7 +2555,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer ndim;
   integer nfpr, nfpx, nfpr0, i;
 
-  std::vector<integer> icprs(iap->lib->parameter_count);
+  std::vector<integer> icprs(iap->run->parameter_count);
 
   integer ndm;
 
@@ -2586,7 +2586,7 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
                     "the arclength derivatives");
   /* Read the parameter values. */
 
-  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
+  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->run, par), "the parameter values");
 
   nfpx = nfpr / 2 - 1;
   if (nfpx > 0) {
@@ -2624,10 +2624,10 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   doublereal ep;
   integer jac, ijc;
 
-  auto &u1zz = iap->lib->scratch.funi_u1;
-  auto &u2zz = iap->lib->scratch.funi_u2;
-  auto &f1zz = iap->lib->scratch.funi_f1;
-  auto &f2zz = iap->lib->scratch.funi_f2;
+  auto &u1zz = iap->run->scratch.funi_u1;
+  auto &u2zz = iap->run->scratch.funi_u2;
+  auto &f1zz = iap->run->scratch.funi_f1;
+  auto &f2zz = iap->run->scratch.funi_f2;
 
   /* Interface subroutine to user supplied FUNC. */
 
@@ -2640,8 +2640,8 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 /* Generate the function. */
 
   ijc = jac == autox_jac_differences ? 0 : ijac;
-  func(*iap->lib->session, ndim, u, icp, nfpr, par, ijc, f, dfdu,
-       dfdp, iap->lib);
+  func(*iap->run, ndim, u, icp, nfpr, par, ijc, f, dfdu,
+       dfdp);
 
   if (jac == autox_jac_supplied || ijac == 0) {
     return 0;
@@ -2654,7 +2654,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   f1zz.resize(ndim);
   f2zz.resize(ndim);
 
-  const auto evaluate = [&](const doublereal *uu, doublereal *ff) { func(*iap->lib->session, ndim, uu, icp, nfpr, par, 0, ff, dfdu, dfdp, iap->lib); };
+  const auto evaluate = [&](const doublereal *uu, doublereal *ff) { func(*iap->run, ndim, uu, icp, nfpr, par, 0, ff, dfdu, dfdp); };
   const xpp::DifferenceGroups *groups = xpp::autox_jacobian::state_groups(iap, ndim);
   ep = groups ? xpp::autox_jacobian::central_grouped(ndim, u, f, *groups, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(), evaluate, dfdu, dfdu_dim1)
               : xpp::autox_jacobian::central(ndim, ndim, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(), evaluate, dfdu, dfdu_dim1);
@@ -2668,7 +2668,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     xpp::autox_jacobian::forward_parameters(
         1, ndim, icp + i, ep, par,
-        [&](doublereal *ff) { func(*iap->lib->session, ndim, u, icp, nfpr, par, 0, ff, dfdu, dfdp, iap->lib); },
+        [&](doublereal *ff) { func(*iap->run, ndim, u, icp, nfpr, par, 0, ff, dfdu, dfdp); },
         f, f1zz.data(), dfdp, dfdp_dim1, 0);
   }
 
@@ -2700,7 +2700,7 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* xppautX's bcnd supplies no derivatives: they are differenced whatever
      JAC says (JAC=1 is the model's exact Jacobian in func, W260) */
-  bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, u1, 0, f, dbc);
+  bcnd(*iap->run, ndim, par, icp, nbc, u0, u1, 0, f, dbc);
 
   if (ijac == 0) {
     return 0;
@@ -2710,12 +2710,12 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   ep = xpp::autox_jacobian::central(
       ndim, nbc, u0, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),
-      [&](const doublereal *uu, doublereal *ff) { bcnd(*iap->lib->session, ndim, par, icp, nbc, uu, u1, 0, ff, dbc); },
+      [&](const doublereal *uu, doublereal *ff) { bcnd(*iap->run, ndim, par, icp, nbc, uu, u1, 0, ff, dbc); },
       dbc, dbc_dim1);
 
   ep = xpp::autox_jacobian::central(
       ndim, nbc, u1, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),
-      [&](const doublereal *uu, doublereal *ff) { bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, uu, 0, ff, dbc); },
+      [&](const doublereal *uu, doublereal *ff) { bcnd(*iap->run, ndim, par, icp, nbc, u0, uu, 0, ff, dbc); },
       dbc + ndim * dbc_dim1, dbc_dim1);
 
   if (ijac == 1) {
@@ -2727,7 +2727,7 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     xpp::autox_jacobian::forward_parameters(
         1, nbc, icp + i, ep, par,
-        [&](doublereal *ff) { bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, u1, 0, ff, dbc); },
+        [&](doublereal *ff) { bcnd(*iap->run, ndim, par, icp, nbc, u0, u1, 0, ff, dbc); },
         f, f1zz.data(), dbc, dbc_dim1, ndim * 2);
   }
 

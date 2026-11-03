@@ -16,7 +16,7 @@ struct AutoxParallel::State {
     std::mutex mutex;
     std::condition_variable wake, done;
     std::vector<std::thread> workers;
-    std::vector<std::unique_ptr<AutoxLib>> libs;
+    std::vector<std::unique_ptr<AutoxRun>> runs;
     std::vector<std::exception_ptr> failures;
     std::function<void(unsigned)> job;
     unsigned generation = 0, pending = 0;
@@ -33,7 +33,7 @@ struct AutoxParallel::State {
         for (auto &thread : workers) if (thread.joinable()) thread.join();
     }
     explicit State(unsigned count) : failures(count) {
-        for (unsigned k = 0; k < count; ++k) libs.push_back(std::make_unique<AutoxLib>());
+        for (unsigned k = 0; k < count; ++k) runs.push_back(std::make_unique<AutoxRun>());
         try {
             for (unsigned k = 1; k < count; ++k) workers.emplace_back([this, k] {
                 unsigned seen = 0;
@@ -71,7 +71,7 @@ bool autox_parallel_ready(const Session &s) {
         && (!solver_info(s.numerics.method).traits.discrete || s.numerics.store_every == 1);
 }
 
-void AutoxParallel::select_run(AutoxLib &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol) {
+void AutoxParallel::select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol) {
     const Session &s = *source.session;
     if (!autox_parallel_ready(s)) {
         source.collocation.reset();
@@ -86,22 +86,23 @@ void AutoxParallel::select_run(AutoxLib &source, std::ptrdiff_t ndim, std::ptrdi
         source.collocation = std::make_unique<AutoxParallel>(threads);
 }
 
-void AutoxParallel::prepare(AutoxLib &source, std::ptrdiff_t ndim, std::ptrdiff_t nbc) try {
+void AutoxParallel::prepare(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t nbc) try {
     if (!state_) state_ = std::make_unique<State>(threads_);
     const Session &s = *source.session;
-    for (auto &lib : state_->libs) {
-        lib->session = source.session;
-        lib->parameter_count = source.parameter_count;
+    for (auto &run : state_->runs) {
+        run->session = source.session;
+        run->owner = &source;
+        run->parameter_count = source.parameter_count;
         iap_type local{};
         local.ndim = ndim;
         local.nbc = nbc;
-        local.lib = lib.get();
-        if (lib->scratch.uu1.size() != static_cast<size_t>(ndim)) size_run_scratch(local);
-        lib->homcont = source.homcont; // RHS wrappers read these; boundary updates stay serial.
-        lib->rotations = source.rotations; // RHS wrappers only read the rotation counts (a copy of the vector, not a borrow of the source's).
-        lib->pure_rhs = true;
-        lib->rhs_constants = s.parser.constants;
-        lib->rhs_variables = s.parser.variables;
+        local.run = run.get();
+        if (run->scratch.uu1.size() != static_cast<size_t>(ndim)) size_run_scratch(local);
+        run->homcont = source.homcont; // RHS wrappers read these; boundary updates stay serial.
+        run->rotations = source.rotations; // RHS wrappers only read the rotation counts (a copy of the vector, not a borrow of the source's).
+        run->pure_rhs = true;
+        run->rhs_constants = s.parser.constants;
+        run->rhs_variables = s.parser.variables;
     }
 } catch (const std::exception &e) { autox_fail(xpp::format("collocation workers: {}",e.what())); }
 
@@ -109,14 +110,14 @@ void AutoxParallel::publish_rhs(Session &s) {
     // The serial loop leaves the final interval's last finite-difference
     // evaluation in the Session (including SUM's index). Later serial boundary
     // evaluation and the user's Session must see exactly that same state.
-    const AutoxLib &last = *state_->libs[state_->last];
+    const AutoxRun &last = *state_->runs[state_->last];
     s.parser.constants = last.rhs_constants;
     s.parser.variables = last.rhs_variables;
 }
 
-void AutoxParallel::intervals(std::ptrdiff_t n, const std::function<void(std::ptrdiff_t, std::ptrdiff_t, AutoxLib &)> &work) try {
+void AutoxParallel::intervals(std::ptrdiff_t n, const std::function<void(std::ptrdiff_t, std::ptrdiff_t, AutoxRun &)> &work) try {
     // All publication and completion uses the same mutex. No calling-thread
-    // write to job, libs or failures overlaps a worker's access.
+    // write to job, runs or failures overlaps a worker's access.
     std::fill(state_->failures.begin(), state_->failures.end(), nullptr);
     const unsigned count = n < static_cast<std::ptrdiff_t>(threads_) ? 1 : threads_;
     state_->last = count - 1;
@@ -127,7 +128,7 @@ void AutoxParallel::intervals(std::ptrdiff_t n, const std::function<void(std::pt
         return (n / pieces) * part + (n % pieces) * part / pieces;
     };
     state_->job = [&](unsigned k) {
-        work(at(k), at(k + 1), *state_->libs[k]);
+        work(at(k), at(k + 1), *state_->runs[k]);
     };
     if (count == 1) state_->execute(0);
     else {
@@ -143,12 +144,12 @@ void AutoxParallel::intervals(std::ptrdiff_t n, const std::function<void(std::pt
     }
     state_->job = {};
     // An exact Jacobian a worker found not finite (autox_pp.cpp): its failure is
-    // the Session's, and the job's cancel, which the main thread alone reads,
+    // its run's, and the job's cancel, which the main thread alone reads,
     // ends the run as a Stop does.
-    for (auto &lib : state_->libs) if (lib->jacobian_failure) {
-        AutoxLib &main = lib->session->autox_lib;
-        if (!main.jacobian_failure) main.jacobian_failure = std::move(lib->jacobian_failure);
-        lib->jacobian_failure.reset();
+    for (auto &run : state_->runs) if (run->jacobian_failure) {
+        AutoxRun &main = *run->owner;
+        if (!main.jacobian_failure) main.jacobian_failure = std::move(run->jacobian_failure);
+        run->jacobian_failure.reset();
         job::cancel_current();
     }
     for (const auto &failure : state_->failures) if (failure) {

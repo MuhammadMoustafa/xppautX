@@ -135,7 +135,7 @@ class Derivatives {
     }
 public:
     Derivatives(iap_type &i, rap_type &r, double *p, integer *indices, const double *state)
-        : iap(i), rap(r), par(p), icp(indices), u(state), w(i.lib->codim), n(i.ndm)
+        : iap(i), rap(r), par(p), icp(indices), u(state), w(i.run->codim), n(i.ndm)
     {
         double scale=0;
         for (integer j=0; j<n; ++j) scale=std::max(scale,std::abs(u[j]));
@@ -178,12 +178,12 @@ public:
 
 void left_null(iap_type &iap, const double *aa, integer stride)
 {
-    auto &w=iap.lib->codim;
+    auto &w=iap.run->codim;
     const integer n=iap.ndm;
     // The fold's eigenvector block is exactly the user's Jacobian.
     for (integer j=0; j<n; ++j) for (integer i=0; i<n; ++i)
         w.matrix[i+n*j]=aa[n+j+stride*(n+i)];
-    xpp::nlvc(iap.lib->fp9,n,n,1,w.matrix.data(),w.left.data());
+    xpp::nlvc(iap.run->fp9,n,n,1,w.matrix.data(),w.left.data());
     double length=std::sqrt(dot(w.left,w.left));
     if (dot(w.left,w.previous_left)<0) length=-length;
     for (auto &v:w.left) v/=length;
@@ -193,7 +193,7 @@ void left_null(iap_type &iap, const double *aa, integer stride)
 double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
                 const double *u, const double *aa, integer stride)
 {
-    auto &w=iap.lib->codim;
+    auto &w=iap.run->codim;
     const integer n=iap.ndm, m=2*n;
     const double omega=std::sqrt(u[2*n]);
     for (integer i=0; i<n; ++i) {
@@ -219,7 +219,7 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
         w.matrix[i+m*(n+i)]=-omega;
         w.matrix[n+i+m*i]=omega;
     }
-    xpp::nlvc(iap.lib->fp9,m,m,2,w.matrix.data(),w.solution.data());
+    xpp::nlvc(iap.run->fp9,m,m,2,w.matrix.data(),w.solution.data());
     const double alpha=dot({w.solution.data(),static_cast<size_t>(n)},w.qr)
         +dot({w.solution.data()+n,static_cast<size_t>(n)},w.qi);
     const double beta=dot({w.solution.data()+n,static_cast<size_t>(n)},w.qr)
@@ -238,7 +238,7 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
     for (integer j=0; j<n; ++j) for (integer i=0; i<n; ++i) w.matrix[i+n*j]=aa[i+stride*j];
     for (integer i=0; i<n; ++i) w.rhs[i]=w.a[i]+w.b[i];
     double determinant;
-    xpp::ge(iap.lib->fp9,iap.iid,n,n,w.matrix.data(),1,n,w.r.data(),n,w.rhs.data(),&determinant);
+    xpp::ge(iap.run->fp9,iap.iid,n,n,w.matrix.data(),1,n,w.r.data(),n,w.rhs.data(),&determinant);
     std::fill(w.matrix.begin(),w.matrix.end(),0.);
     for (integer j=0; j<n; ++j) for (integer i=0; i<n; ++i) {
         w.matrix[i+m*j]=-aa[i+stride*j];
@@ -249,7 +249,7 @@ double lyapunov(iap_type &iap, rap_type &rap, double *par, integer *icp,
         w.matrix[n+i+m*i]=2*omega;
         w.rhs[i]=w.a[i]-w.b[i]; w.rhs[n+i]=2*w.c[i];
     }
-    xpp::ge(iap.lib->fp9,iap.iid,m,m,w.matrix.data(),1,m,w.solution.data(),m,w.rhs.data(),&determinant);
+    xpp::ge(iap.run->fp9,iap.iid,m,m,w.matrix.data(),1,m,w.solution.data(),m,w.rhs.data(),&determinant);
     for (integer i=0; i<n; ++i) { w.sr[i]=w.solution[i]; w.si[i]=w.solution[n+i]; }
     const double sigma=derivatives.mixed(w.pr,w.qr,w.r)+derivatives.mixed(w.pi,w.qi,w.r);
     const double delta=derivatives.mixed(w.pr,w.qr,w.sr)+derivatives.mixed(w.pr,w.qi,w.si)
@@ -283,7 +283,7 @@ double autox_cycle_test(const iap_type &iap, const rap_type &rap, const double *
     const auto start=iap.itpst;
     const double angle=par[xpp::autox_unknown::torus_angle];
     const auto kind=xpp::autox_cycle_resonance_kind(start,angle);
-    const auto &enabled=iap.lib->session->autox_state.special_points;
+    const auto &enabled=iap.run->session->autox_state.special_points;
     if (start==xpp::AutoxPointKind::NeimarkSacker) {
         return resonance_test(enabled,angle,changed);
     }
@@ -318,14 +318,14 @@ FNCS_TYPE_AE(fnbtae)
     *chng=true;
     if (iap->itpst==xpp::AutoxPointKind::Hopf) return u[2*iap->ndm];
     left_null(*iap,dfdu,iap->ndim);
-    return dot({u+iap->ndm,static_cast<size_t>(iap->ndm)},iap->lib->codim.left);
+    return dot({u+iap->ndm,static_cast<size_t>(iap->ndm)},iap->run->codim.left);
 }
 
 FNCS_TYPE_AE(fncpae)
 {
     *chng=true;
     left_null(*iap,dfdu,iap->ndim);
-    auto &w=iap->lib->codim;
+    auto &w=iap->run->codim;
     Derivatives derivatives(*iap,*rap,par,icp,u);
     derivatives.quadratic({u+iap->ndm,static_cast<size_t>(iap->ndm)},w.a);
     return dot(w.left,w.a);
@@ -336,7 +336,7 @@ FNCS_TYPE_AE(fnghae)
     *chng=u[2*iap->ndm]>0 && iap->itp.kind!=xpp::AutoxPointKind::BogdanovTakens;
     if (!*chng) return autox_test_not_applicable;
     const double coefficient=lyapunov(*iap,*rap,par,icp,u,dfdu,iap->ndim);
-    if (iap->iid>=2) xpp::print(iap->lib->fp9,"GH first Lyapunov coefficient: {:.9E}\n",coefficient);
+    if (iap->iid>=2) xpp::print(iap->run->fp9,"GH first Lyapunov coefficient: {:.9E}\n",coefficient);
     return coefficient;
 }
 
@@ -344,14 +344,14 @@ FNCS_TYPE_AE(fnghae)
 // A-I (fold) or A+I (flip); a torus curve tests its continued angle.
 FNCS_TYPE_AE(fnrnae)
 {
-    auto &w=iap->lib->codim;
+    auto &w=iap->run->codim;
     if (iap->itpst==xpp::AutoxPointKind::NeimarkSacker) {
         const double angle=u[2*iap->ndm];
         w.map_kind=xpp::autox_cycle_resonance_kind(iap->itpst,angle);
-        return resonance_test(iap->lib->session->autox_state.special_points,angle,chng);
+        return resonance_test(iap->run->session->autox_state.special_points,angle,chng);
     }
     w.map_kind=xpp::autox_cycle_resonance_kind(iap->itpst,0.);
-    *chng=xpp::autox_codim_enabled(iap->lib->session->autox_state.special_points,w.map_kind);
+    *chng=xpp::autox_codim_enabled(iap->run->session->autox_state.special_points,w.map_kind);
     left_null(*iap,dfdu,iap->ndim);
     return dot({u+iap->ndm,static_cast<size_t>(iap->ndm)},w.left);
 }

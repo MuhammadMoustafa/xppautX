@@ -132,11 +132,11 @@ void conpar_process(const conpar_parallel_arglist *arg)
 }
 
 void
-conpar_default_wrapper(AutoxLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
+conpar_default_wrapper(AutoxRun &run, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
 
 {
     conpar_parallel_arglist data;
-    data.scratch = &lib.scratch;
+    data.scratch = &run.scratch;
     data.nov = nov;
     data.nra = nra;
     data.nca = nca;
@@ -151,11 +151,11 @@ conpar_default_wrapper(AutoxLib &lib, integer *nov, integer *na, integer *nra, i
     data.icf = icf;
     data.loop_start = 0;
     data.loop_end = *na;
-    if (!lib.collocation || lib.collocation->threads()==1) {
+    if (!run.collocation || run.collocation->threads()==1) {
       conpar_process(&data);
       return;
     }
-    auto &dlog = lib.solvbv.dlog;
+    auto &dlog = run.solvbv.dlog;
     dlog.resize(*na);
     const auto terms = xpp::size_product(*nra - *nov, *nrc - *nbc, *ncb);
     for (auto &interval : dlog) {
@@ -163,7 +163,7 @@ conpar_default_wrapper(AutoxLib &lib, integer *nov, integer *na, integer *nra, i
       interval.reserve(terms);
     }
     data.dlog=&dlog;
-    lib.collocation->intervals(*na,[&](long begin,long end,AutoxLib &worker) {
+    run.collocation->intervals(*na,[&](long begin,long end,AutoxRun &worker) {
       conpar_parallel_arglist mine=data;
       mine.scratch=&worker.scratch;
       mine.loop_start=begin;
@@ -177,7 +177,7 @@ conpar_default_wrapper(AutoxLib &lib, integer *nov, integer *na, integer *nra, i
 } // namespace
 
 int 
-conpar(AutoxLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
+conpar(AutoxRun &run, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
 {
   /* Aliases for the dimensions of the arrays */
   integer icf_dim1, irf_dim1;
@@ -206,7 +206,7 @@ conpar(AutoxLib &lib, integer *nov, integer *na, integer *nra, integer *nca, dou
   }
 
   /* The same condensation loop runs serially or over disjoint intervals. */
-  conpar_default_wrapper(lib,nov, na, nra, nca, a,
+  conpar_default_wrapper(run,nov, na, nra, nca, a,
 			  ncb, b, nbc, nrc, c, d,irf, icf);
   return 0;
 } 

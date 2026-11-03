@@ -347,8 +347,7 @@ void check_parameterless_model()
     const int points=diagram_count(s.diagram);
     CHECK(!xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
     CHECK(!s.autox_state.diag_flag && diagram_count(s.diagram)==points);
-    CHECK(!xpp::files::exists(xpp::autox_solutions_file(s))
-          && !xpp::files::exists(s.autox_state.fort3) && !xpp::files::exists(s.autox_state.fort8));
+    CHECK(!xpp::files::exists(xpp::autox_solutions_file(s)));
 }
 
 /* W339/#400: a constant changed between branches must come from the older
@@ -363,11 +362,11 @@ void check_branch_parameters()
     s.autox_state.dir=tmp.path();
     xpp::init_autox_win(s);
     // Mark functions must read a held model constant even though autoX never received it.
-    AutoxLib mark_lib;
+    AutoxRun mark_lib;
     mark_lib.session=&s;
     mark_lib.parameter_count=s.autox_state.parameter_layout.size();
     iap_type mark_iap{};
-    mark_iap.lib=&mark_lib;
+    mark_iap.run=&mark_lib;
     mark_iap.nfpr=1;
     rap_type mark_rap{};
     std::vector<double> parameters(mark_lib.parameter_count);
@@ -678,9 +677,14 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     const double seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
     std::printf("perf: autoX %u threads %.6f s, %zu diagram points\n",threads,seconds,s.diagram.points.size());
     CHECK(std::any_of(s.diagram.points.begin(),s.diagram.points.end(),[](const auto &p){return p.ibr<0;}));
-    if (compiled && !impure) CHECK(s.autox_lib.collocation && (!benchmark.empty()
-        || s.autox_lib.collocation->threads()==(mesh==serial_mesh?1:threads)));
-    else CHECK(!s.autox_lib.collocation && !xpp::autox_parallel_ready(s));
+    // The run's pool is its own, gone with it: the selection a run makes is the one select_run makes
+    // for its dimension and mesh.
+    AutoxRun run;
+    run.session=&s;
+    xpp::AutoxParallel::select_run(run,s.model().node,s.autox_state.bifur.ntst,s.autox_state.bifur.ncol);
+    if (compiled && !impure) CHECK(run.collocation && (!benchmark.empty()
+        || run.collocation->threads()==(mesh==serial_mesh?1:threads)));
+    else CHECK(!run.collocation && !xpp::autox_parallel_ready(s));
     return s.diagram.points;
 }
 
@@ -744,26 +748,26 @@ void check_collocation()
     // Failures are values observed after every worker has finished. A failed
     // dispatch must leave the persistent pool usable for the next call.
     auto &s=xpp::client_session();
-    AutoxLib lib;
-    lib.session=&s;
+    AutoxRun run;
+    run.session=&s;
     xpp::AutoxParallel pool(4);
-    pool.prepare(lib,2,2);
+    pool.prepare(run,2,2);
     std::atomic<int> visited=0;
     bool caught=false;
     try {
-        pool.intervals(17,[&](long begin,long end,AutoxLib &){
+        pool.intervals(17,[&](long begin,long end,AutoxRun &){
             visited+=static_cast<int>(end-begin);
             if (begin>0) throw std::runtime_error("injected worker failure");
         });
     } catch (const xpp::AutoxFailed &failure) { caught=failure.error.what.find("injected worker failure")!=std::string::npos; }
     CHECK(caught && visited==17);
     visited=0;
-    pool.intervals(17,[&](long begin,long end,AutoxLib &){visited+=static_cast<int>(end-begin);});
+    pool.intervals(17,[&](long begin,long end,AutoxRun &){visited+=static_cast<int>(end-begin);});
     CHECK(visited==17);
     // No mesh allocation: even the largest accepted integer partitions exactly.
     std::array<std::pair<long,long>,xpp::AutoxParallel::max_threads> ranges{};
     std::atomic<unsigned> next=0;
-    pool.intervals(std::numeric_limits<long>::max(),[&](long begin,long end,AutoxLib &){ranges[next++]={begin,end};});
+    pool.intervals(std::numeric_limits<long>::max(),[&](long begin,long end,AutoxRun &){ranges[next++]={begin,end};});
     std::sort(ranges.begin(),ranges.end());
     CHECK(next==ranges.size() && ranges.front().first==0 && ranges.back().second==std::numeric_limits<long>::max());
     for (size_t i=1;i<ranges.size();++i) CHECK(ranges[i-1].second==ranges[i].first);
@@ -777,45 +781,45 @@ void check_collocation()
 void check_pool_reuse()
 {
     auto &s=xpp::client_session();
-    AutoxLib lib;
-    lib.session=&s;
+    AutoxRun run;
+    run.session=&s;
     for (unsigned count:{4u,1u,3u,2u,4u}) {
         xpp::AutoxParallel pool(count);
-        pool.prepare(lib,2,2);
+        pool.prepare(run,2,2);
         for (long n:{17L,1L,5L,64L}) {
             std::atomic<long> covered=0;
             std::atomic<int> pieces=0;
-            pool.intervals(n,[&](long begin,long end,AutoxLib &){covered+=end-begin;++pieces;});
+            pool.intervals(n,[&](long begin,long end,AutoxRun &){covered+=end-begin;++pieces;});
             CHECK(covered==n);
             CHECK(pieces>=1 && static_cast<unsigned>(pieces)<=count);
         }
-        pool.prepare(lib,3,1); /* the dimension changes: the workers' scratch follows */
+        pool.prepare(run,3,1); /* the dimension changes: the workers' scratch follows */
         std::atomic<long> covered=0;
         std::atomic<bool> resized=true; /* CHECK's counters are the caller's, not the workers' */
-        pool.intervals(9,[&](long begin,long end,AutoxLib &worker){
+        pool.intervals(9,[&](long begin,long end,AutoxRun &worker){
             if(worker.scratch.uu1.size()!=3)resized=false;
             covered+=end-begin;
         });
         CHECK(resized);
         CHECK(covered==9);
         bool failed=false;
-        try { pool.intervals(9,[&](long begin,long,AutoxLib &){if(begin>0)throw 1;}); }
+        try { pool.intervals(9,[&](long begin,long,AutoxRun &){if(begin>0)throw 1;}); }
         catch (const xpp::AutoxFailed &) { failed=count>1; }
         CHECK(failed==(count>1));
         covered=0;
-        pool.intervals(9,[&](long begin,long end,AutoxLib &){covered+=end-begin;});
+        pool.intervals(9,[&](long begin,long end,AutoxRun &){covered+=end-begin;});
         CHECK(covered==9);
     }
     xpp::AutoxParallel pool(3);
-    pool.prepare(lib,2,2);
+    pool.prepare(run,2,2);
     xpp::job::begin(1);
     CHECK(!xpp::job::cancelled());
-    pool.intervals(9,[&](long begin,long,AutoxLib &worker){
+    pool.intervals(9,[&](long begin,long,AutoxRun &worker){
         if(begin>0)worker.jacobian_failure=xpp::Error{"exact jacobian","injected"};
     });
-    CHECK(s.autox_lib.jacobian_failure.has_value() && xpp::job::cancelled());
+    CHECK(run.jacobian_failure.has_value() && xpp::job::cancelled());
     xpp::job::end();
-    s.autox_lib.jacobian_failure.reset();
+    run.jacobian_failure.reset();
 }
 
 /* W474: brbd reduces the condensed blocks in a tree whose shape NTST alone
@@ -877,12 +881,12 @@ void check_brbd_tree()
     std::vector<double> first_fa,first_fc,second_fa,second_fc;
     double first_det=0;
     for (unsigned threads=1;threads<=xpp::AutoxParallel::max_threads;++threads) {
-        AutoxLib lib;
-        lib.session=&xpp::client_session();
-        lib.parameter_count=ncb;
-        lib.collocation=std::make_unique<xpp::AutoxParallel>(threads);
-        lib.collocation->prepare(lib,nov,nbc);
-        SolvbvWork &work=lib.solvbv;
+        AutoxRun run;
+        run.session=&xpp::client_session();
+        run.parameter_count=ncb;
+        run.collocation=std::make_unique<xpp::AutoxParallel>(threads);
+        run.collocation->prepare(run,nov,nbc);
+        SolvbvWork &work=run.solvbv;
         work.resize(nov,ncol,ntst,nbc,nint,ncb);
         std::copy(a.begin(),a.end(),work.a.begin());
         std::copy(b.begin(),b.end(),work.b.begin());
@@ -892,12 +896,12 @@ void check_brbd_tree()
         u.resize(work.ft.size());
         integer ifst=1,idb=0,nllv=0,nov_=nov,na=ntst,nbc_=nbc,nra_=nra,nca_=nca,ncb_=ncb,nrc_=nrc;
         double det=0;
-        brbd(lib,nullptr,u.data(),w.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
+        brbd(run,nullptr,u.data(),w.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
         CHECK(residual(u,w,fa,fc)<1e-10);
         std::vector<double> u2(fa2),w2(fc2);
         u2.resize(work.ft.size());
         ifst=0;
-        brbd(lib,nullptr,u2.data(),w2.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
+        brbd(run,nullptr,u2.data(),w2.data(),p0.data(),p1.data(),&ifst,&idb,&nllv,&det,&nov_,&na,&nbc_,&nra_,&nca_,&ncb_,&nrc_);
         CHECK(residual(u2,w2,fa2,fc2)<1e-10);
         if (threads==1) { first_fa=u; first_fc=w; second_fa=u2; second_fc=w2; first_det=det; }
         else CHECK(same_vector(first_fa,u) && same_vector(first_fc,w) && same_vector(second_fa,u2)

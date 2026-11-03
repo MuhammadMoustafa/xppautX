@@ -66,19 +66,19 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
   const integer ups_dim1=larg->ndxloc,uoldps_dim1=larg->ndxloc;
   const integer dfdu_dim1=larg->ndim,dfdp_dim1=larg->ndim;
   const integer wploc_dim1=larg->ncol+1,wp_dim1=larg->ncol+1,wt_dim1=larg->ncol+1;
-  auto &dfdp = larg->iap->lib->assembly.dfdp;
-  auto &dfdu = larg->iap->lib->assembly.dfdu;
-  auto &uold = larg->iap->lib->assembly.uold;
-  auto &f = larg->iap->lib->assembly.f;
-  auto &u = larg->iap->lib->assembly.u;
-  auto &wploc = larg->iap->lib->assembly.wploc;
-  auto &prm = larg->iap->lib->assembly.prm;
+  auto &dfdp = larg->iap->run->assembly.dfdp;
+  auto &dfdu = larg->iap->run->assembly.dfdu;
+  auto &uold = larg->iap->run->assembly.uold;
+  auto &f = larg->iap->run->assembly.f;
+  auto &u = larg->iap->run->assembly.u;
+  auto &wploc = larg->iap->run->assembly.wploc;
+  auto &prm = larg->iap->run->assembly.prm;
   /* Generate AA and BB: */
   
   /*      Partition the mesh intervals */
   /*jj will be replaced with loop_start and loop_end*/
   for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
-    if (!larg->iap->lib->pure_rhs && larg->iap->lib->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
+    if (!larg->iap->run->pure_rhs && larg->iap->run->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
     j = jj;
     jp1 = j + 1;
     dt = larg->dtm[j];
@@ -104,7 +104,7 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
 	}
       }
 
-      for (i = 0; i < larg->iap->lib->parameter_count; ++i) {
+      for (i = 0; i < larg->iap->run->parameter_count; ++i) {
 	prm[i] = larg->par[i];
       }
       (*(larg->funi))(larg->iap, larg->rap, larg->ndim, u.data(), uold.data(), larg->icp, prm.data(), larg->jacobian ? 2 : 0, f.data(), dfdu.data(), dfdp.data());
@@ -149,12 +149,12 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
 void dispatch_mesh(const setubv_parallel_arglist *larg,
                    void (*work)(const setubv_parallel_arglist *))
 {
-  AutoxLib &lib=*larg->iap->lib;
-  if (lib.collocation) {
-    lib.collocation->prepare(lib,larg->iap->ndim,larg->iap->nbc);
-    lib.collocation->intervals(larg->loop_end-larg->loop_start,[&](std::ptrdiff_t begin,std::ptrdiff_t end,AutoxLib &worker) {
+  AutoxRun &run=*larg->iap->run;
+  if (run.collocation) {
+    run.collocation->prepare(run,larg->iap->ndim,larg->iap->nbc);
+    run.collocation->intervals(larg->loop_end-larg->loop_start,[&](std::ptrdiff_t begin,std::ptrdiff_t end,AutoxRun &worker) {
       iap_type local=*larg->iap;
-      local.lib=&worker;
+      local.run=&worker;
       setubv_parallel_arglist mine=*larg;
       mine.iap=&local;
       worker.assembly.resize(larg->ndim, larg->ncol, larg->nbc, larg->nint, worker.parameter_count);
@@ -162,7 +162,7 @@ void dispatch_mesh(const setubv_parallel_arglist *larg,
       mine.loop_end=larg->loop_start+end;
       work(&mine);
     });
-    lib.collocation->publish_rhs(*lib.session);
+    run.collocation->publish_rhs(*run.session);
   } else work(larg);
 
 }
@@ -187,16 +187,16 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 
   const xpp::Matrix3<doublereal> cc = larg->cc;
 
-  auto &dicd = larg->iap->lib->assembly.dicd;
-  auto &ficd = larg->iap->lib->assembly.ficd;
-  auto &dbc = larg->iap->lib->assembly.dbc;
-  auto &fbc = larg->iap->lib->assembly.fbc;
-  auto &uic = larg->iap->lib->assembly.uic;
-  auto &uio = larg->iap->lib->assembly.uio;
-  auto &uid = larg->iap->lib->assembly.uid;
-  auto &uip = larg->iap->lib->assembly.uip;
-  auto &ubc0 = larg->iap->lib->assembly.ubc0;
-  auto &ubc1 = larg->iap->lib->assembly.ubc1;
+  auto &dicd = larg->iap->run->assembly.dicd;
+  auto &ficd = larg->iap->run->assembly.ficd;
+  auto &dbc = larg->iap->run->assembly.dbc;
+  auto &fbc = larg->iap->run->assembly.fbc;
+  auto &uic = larg->iap->run->assembly.uic;
+  auto &uio = larg->iap->run->assembly.uio;
+  auto &uid = larg->iap->run->assembly.uid;
+  auto &uip = larg->iap->run->assembly.uip;
+  auto &ubc0 = larg->iap->run->assembly.ubc0;
+  auto &ubc1 = larg->iap->run->assembly.ubc1;
 
   upoldp_dim1 = larg->ndxloc;
   udotps_dim1 = larg->ndxloc;
@@ -295,12 +295,12 @@ setubv(integer ndim, xpp::AutoxProblem ips, integer na, integer ncol, integer nb
        doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 
        doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1)
 {
-  iap->lib->assembly.resize(ndim, ncol, nbc, nint, iap->lib->parameter_count);
+  iap->run->assembly.resize(ndim, ncol, nbc, nint, iap->run->parameter_count);
   integer i, j, k;
 
-  auto &wi = iap->lib->assembly.wi;
-  auto &wp = iap->lib->assembly.wp;
-  auto &wt = iap->lib->assembly.wt;
+  auto &wi = iap->run->assembly.wi;
+  auto &wp = iap->run->assembly.wp;
+  auto &wt = iap->run->assembly.wt;
 
   /* Initialize to zero. */
   for (i = 0; i < nrc; ++i) {
@@ -348,17 +348,17 @@ setubv(integer ndim, xpp::AutoxProblem ips, integer na, integer ncol, integer nb
 					uoldps, udotps, upoldp, dtm, wp.data(), wt.data(), wi.data(), 
 					thu, thl, rldot, bcni, &arglist);
   
-    auto &residual_parameters = iap->lib->assembly.residual_parameters;
-    std::copy_n(par, iap->lib->parameter_count, residual_parameters.begin());
-    if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
+    auto &residual_parameters = iap->run->assembly.residual_parameters;
+    std::copy_n(par, iap->run->parameter_count, residual_parameters.begin());
+    if (iap->run->setubv_stop && xpp::job::cancelled()) return 0;
     setubv_make_aa_bb_cc(&arglist);
-    if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
+    if (iap->run->setubv_stop && xpp::job::cancelled()) return 0;
     // Boundary differencing can change PAR's last bits (notably HomCont).
     // Only then is the residual from the Jacobian visit no longer reusable.
-    if (std::memcmp(par, residual_parameters.data(), xpp::size_product(iap->lib->parameter_count, sizeof(double))) != 0) {
+    if (std::memcmp(par, residual_parameters.data(), xpp::size_product(iap->run->parameter_count, sizeof(double))) != 0) {
       arglist.jacobian = false;
       dispatch_mesh(&arglist, setubv_make_fa_aa_bb);
-      if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0;
+      if (iap->run->setubv_stop && xpp::job::cancelled()) return 0;
     }
     setubv_make_fc_dd(arglist,dups,rlcur,rlold,rds);
   }
@@ -390,17 +390,17 @@ void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, do
   integer upoldp_dim1 = larg.ndxloc;
   
   integer dbc_dim1 = larg.nbc;
-  auto &dbc = larg.iap->lib->assembly.dbc;
-  auto &fbc = larg.iap->lib->assembly.fbc;
-  auto &ubc0 = larg.iap->lib->assembly.ubc0;
-  auto &ubc1 = larg.iap->lib->assembly.ubc1;
+  auto &dbc = larg.iap->run->assembly.dbc;
+  auto &fbc = larg.iap->run->assembly.fbc;
+  auto &ubc0 = larg.iap->run->assembly.ubc0;
+  auto &ubc1 = larg.iap->run->assembly.ubc1;
   integer dicd_dim1 = larg.nint;
-  auto &dicd = larg.iap->lib->assembly.dicd;
-  auto &ficd = larg.iap->lib->assembly.ficd;
-  auto &uic = larg.iap->lib->assembly.uic;
-  auto &uio = larg.iap->lib->assembly.uio;
-  auto &uid = larg.iap->lib->assembly.uid;
-  auto &uip = larg.iap->lib->assembly.uip;
+  auto &dicd = larg.iap->run->assembly.dicd;
+  auto &ficd = larg.iap->run->assembly.ficd;
+  auto &uic = larg.iap->run->assembly.uic;
+  auto &uio = larg.iap->run->assembly.uio;
+  auto &uid = larg.iap->run->assembly.uid;
+  auto &uip = larg.iap->run->assembly.uip;
 
   /* Boundary condition part of FC */
   if (larg.nbc > 0) {

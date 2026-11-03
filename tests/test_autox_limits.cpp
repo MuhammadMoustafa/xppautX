@@ -6,6 +6,7 @@
 #include "xpp_files.h"
 #include "autox_settings.h"
 #include "autox_nox.h"
+#include "autox_evd.h"
 #include "autox_run.h"
 #include "diagram.h"
 #include "xpp_session_autox.h"
@@ -46,7 +47,7 @@ int main()
     request.homoclinic=xpp::HomoclinicStart{2,400,start.left,start.right};
     const xpp::Result<> refused=xpp::autox_run_start(s,request);
     CHECK(!refused && refused.error().what.find("must add up to the number of variables, 401")!=std::string::npos);
-    CHECK(s.autox_state.run.nunstab==1);
+    CHECK(s.autox_state.homo_equilibria.nunstab==1);
     s.autox_state.homo_flag=HomoclinicRun::None;
     xpp::AutoxSettingsSet set;
     set.par1="P39";
@@ -104,7 +105,9 @@ int main()
     CHECK(xpp::autox_settings_apply(s,invalid,why)!=0 && s.autox_state.bifur.marks==marks);
     CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
     CHECK(diagram_count(s.diagram)==4);
-    CHECK(s.autox_state.run.marks.size()==128 && s.autox_state.run.marks.back().value==227);
+    XAUTOX params; // the settings' marks, as the run copies them
+    xpp::init_autox(s.autox_state,params,s.model().node,false);
+    CHECK(params.marks.size()==128 && params.marks.back().value==227);
     const xpp::DIAGRAM *last=last_diagram(s.diagram);
     CHECK(last && last->icp1.is_parameter(39) && last->par.size()==1 && last->branch->parameters.size()==40);
     CHECK(last && diagram_parameter(*last,39)>0 && std::fabs(last->u0[400]-diagram_parameter(*last,39))<1e-8);

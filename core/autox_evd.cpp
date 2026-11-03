@@ -39,7 +39,7 @@ static std::size_t diagram_points_limit()
 
 void autox_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const integer *icp)
 {
-  const Session &s=*iap.lib->session;
+  const Session &s=*iap.run->session;
   const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(icp[0]));
   if(k<0)return; // autoX's period is not a model parameter; autoX bounds only the principal parameter.
   const double value=par[icp[0]];
@@ -63,11 +63,11 @@ void autox_check_start_norm(const iap_type &iap, const rap_type &rap, double nor
 void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, double *u, const double *par, const integer *icp)
 {
   if(iap.irs!=0 || iap.ips!=AutoxProblem::SteadyState)return;
-  Session &s=*iap.lib->session;
+  Session &s=*iap.run->session;
   const int n=s.model().node;
   if(n<=0)return;
   std::vector<double> residual(static_cast<std::size_t>(n));
-  func(s,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr); // also sets the constants to par
+  func(*iap.run,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr); // also sets the constants to par
   const int worst=xpp::worst_residual(residual.data(),n);
   const double start_value=std::abs(residual[worst]);
   if(std::isfinite(start_value) && start_value<=rap.epsu)return;
@@ -75,77 +75,80 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
   const auto &eq=s.numerics.equilibria;
   std::vector<double> start(u,u+n);
   std::vector<double> work(static_cast<std::size_t>(n*n+2*n));
-  xpp::NewtonRun run;
-  if(auto r=xpp::rooter(s,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),run,eq.max_iterations,n);!r)
+  xpp::NewtonRun newton;
+  if(auto r=xpp::rooter(s,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n);!r)
     autox_fail(r.error());
-  if(run.end!=xpp::NewtonEnd::converged){
+  if(newton.end!=xpp::NewtonEnd::converged){
     std::copy(start.begin(),start.end(),u);
     const std::string &name=s.model().uvar_names[worst];
-    const std::string why=xpp::newton_cause(s,run,static_cast<std::size_t>(n)).why;
+    const std::string why=xpp::newton_cause(s,newton,static_cast<std::size_t>(n)).why;
     autox_fail(Error{"autox",xpp::format("The initial conditions are not a steady state, and Newton's method from them did not converge ({}); equation \"{}\" has the largest residual |f(x,p)| = {}, above state_tolerance = {}. Newton settings: {}. Use Sing pts or integrate to a steady state before starting autoX",
         why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s,{"newton_tolerance","jacobian_step","search_limit","max_iterations"})),model_place(s.model(),name)});
   }
 
-  func(s,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);
+  func(*iap.run,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);
   const double refined=std::abs(residual[xpp::worst_residual(residual.data(),n)]);
-  s.autox_state.stop.start_refined=true;
+  iap.run->stop.start_refined=true;
   xpp::log(XPP_LOG_INFO,"autoX start is not a steady state: equation \"{}\" had the largest residual |f(x,p)| = {}; Newton's method refined it to {} before the run\n",s.model().uvar_names[worst],xpp::number(start_value),xpp::number(refined));
 }
 
-void init_autox(AutoxState &st, int ndim, bool exact)
+void init_autox(const AutoxState &st, XAUTOX &run, int ndim, bool exact)
 {
   const xpp::BIFUR &b=st.bifur;
   /* here are the constants that we do not allow the user to change */
   int nnbc;
-  st.run.iad=st.advanced.iad;   
-  st.run.iplt=0;
-  st.run.mxbf=st.advanced.switch_one_direction ? -st.advanced.max_branch_switches : st.advanced.max_branch_switches;
-  st.run.iid=st.advanced.iid;
-  st.run.itmx=st.advanced.itmx;
-  st.run.itnw=st.advanced.itnw;
-  st.run.nwtn=st.advanced.nwtn;
-  st.run.jac=exact?autox_jac_supplied:autox_jac_differences;
-  st.run.iads=st.advanced.iads;
-  st.run.weights={{xpp::autox_unknown::period,0.0}};
-  st.run.nint=0;    
+  run.iad=st.advanced.iad;   
+  run.iplt=0;
+  run.mxbf=st.advanced.switch_one_direction ? -st.advanced.max_branch_switches : st.advanced.max_branch_switches;
+  run.iid=st.advanced.iid;
+  run.itmx=st.advanced.itmx;
+  run.itnw=st.advanced.itnw;
+  run.nwtn=st.advanced.nwtn;
+  run.jac=exact?autox_jac_supplied:autox_jac_differences;
+  run.iads=st.advanced.iads;
+  run.weights={{xpp::autox_unknown::period,0.0}};
+  run.nunstab=st.homo_equilibria.nunstab;
+  run.nstab=st.homo_equilibria.nstab;
+  run.iequib=st.homo_equilibria.iequib;
+  run.nint=0;    
   
   if(b.ips==AutoxProblem::BoundaryValue)
     nnbc=ndim;
   else
     nnbc=0;
-  st.run.ndim=ndim;
-  st.run.nbc=nnbc; 
-  st.run.ips=b.ips;
-  st.run.irs=b.irs;
-  st.run.ilp=b.ilp;
-  st.run.nicp=b.nfpar;
-  st.run.icp.resize(std::max(5, b.nfpar));
-  st.run.icp[0]=st.parameter_layout.solver_index(st.axes().icp1);
-  st.run.icp[1]=st.axes().icp2<st.parameter_layout.model_parameters ? st.parameter_layout.solver_index(st.axes().icp2) : xpp::autox_unknown::period;
-  st.run.icp[2]=st.parameter_layout.solver_index(b.icp3);
-  st.run.icp[3]=st.parameter_layout.solver_index(b.icp4);
-  st.run.icp[4]=st.parameter_layout.solver_index(b.icp5);
-  st.run.ntst=b.ntst;
-  st.run.ncol=b.ncol;
-  st.run.isp=b.isp;
-  st.run.isw=b.isw;
-  st.run.nmx=b.nmx;
-  st.run.rl0=b.rl0;
-  st.run.rl1=b.rl1;
-  st.run.a0=b.a0;
-  st.run.a1=b.a1;
-  st.run.npr=b.npr;
+  run.ndim=ndim;
+  run.nbc=nnbc; 
+  run.ips=b.ips;
+  run.irs=b.irs;
+  run.ilp=b.ilp;
+  run.nicp=b.nfpar;
+  run.icp.resize(std::max(5, b.nfpar));
+  run.icp[0]=st.parameter_layout.solver_index(st.axes().icp1);
+  run.icp[1]=st.axes().icp2<st.parameter_layout.model_parameters ? st.parameter_layout.solver_index(st.axes().icp2) : xpp::autox_unknown::period;
+  run.icp[2]=st.parameter_layout.solver_index(b.icp3);
+  run.icp[3]=st.parameter_layout.solver_index(b.icp4);
+  run.icp[4]=st.parameter_layout.solver_index(b.icp5);
+  run.ntst=b.ntst;
+  run.ncol=b.ncol;
+  run.isp=b.isp;
+  run.isw=b.isw;
+  run.nmx=b.nmx;
+  run.rl0=b.rl0;
+  run.rl1=b.rl1;
+  run.a0=b.a0;
+  run.a1=b.a1;
+  run.npr=b.npr;
 
-  st.run.epsl=b.epsl;
-  st.run.epss=b.epss;
-  st.run.epsu=b.epsu;
-  st.run.ds=b.ds;
-  st.run.dsmax=b.dsmax;
-  st.run.dsmin=b.dsmin;
+  run.epsl=b.epsl;
+  run.epss=b.epss;
+  run.epsu=b.epsu;
+  run.ds=b.ds;
+  run.dsmax=b.dsmax;
+  run.dsmin=b.dsmin;
 
-  st.run.marks.clear();
+  run.marks.clear();
   for(const auto &mark:b.marks)
-    st.run.marks.push_back({mark.period ? xpp::autox_unknown::period : st.parameter_layout.solver_index(mark.parameter),
+    run.marks.push_back({mark.period ? xpp::autox_unknown::period : st.parameter_layout.solver_index(mark.parameter),
                             mark.value});
  
 }
@@ -160,7 +163,7 @@ DiagramPointType get_bif_type(int ibr, int ntot)
 }
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int lab, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar)
 {
-  xpp::Session &s=*iap->lib->session;
+  xpp::Session &s=*iap->run->session;
   int icp1=icp[0],icp2=icp[1],icp3=icp[2],icp4=icp[3];
   double per=par[xpp::autox_unknown::period];
   int n=iap->ndim;
@@ -168,10 +171,10 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   /* xppautX: the point's stability, or zeros: not computed (autox_stability.h) */
   xpp::DIAGRAM p{};
   p.size_variables(static_cast<size_t>(n));
-  autox_stability_for(s.autox_state.stability,static_cast<int>(ibrs),static_cast<int>(ntots),p.evr,p.evi);
+  autox_stability_for(iap->run->stability,static_cast<int>(ibrs),static_cast<int>(ntots),p.evr,p.evi);
 
   // Guard the final stored quantities too, including derived norms and spectra.
-  if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)}) ||
+  if (!xpp::all_finite({par, static_cast<size_t>(iap->run->parameter_count)}) ||
       !xpp::all_finite({a, 1}) || !xpp::all_finite({&per, 1}) ||
       !xpp::all_finite(uhigh) || !xpp::all_finite(ulow) || !xpp::all_finite(u0) || !xpp::all_finite(ubar) ||
       !xpp::all_finite(p.evr) || !xpp::all_finite(p.evi))
@@ -179,7 +182,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
 
   if(const std::size_t limit=diagram_points_limit();s.diagram.points.size()>=limit)
     autox_fail(xpp::format("the diagram holds {} points, the most a session keeps; the points so far are kept (clear the diagram or start a new one)", limit));
-  int from=autox_run_from_take(s);/* the run's first point says which label it started from */
+  int from=autox_run_from_take(*iap->run);/* the run's first point says which label it started from */
   p.ibr=static_cast<int>(ibrs);
   p.ntot=static_cast<int>(ntots);
   p.itp=iap->itp;

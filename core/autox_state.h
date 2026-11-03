@@ -1,11 +1,19 @@
 #pragma once
-/* autoX's part of a Session (session.h): its settings, the run's own
-   parameters, the diagram and the scratch folder. C++ only.
+/* autoX's part of a Session (session.h) and of one run. C++ only.
 
-   AutoxState is autox_nox.cpp's (the autoX window, its settings and the
-   parameters it continues) with autox_evd.cpp's run parameters beside it;
-   AutoxLib is the autoX library's own (autox_lib1-5, gogoautox, setubv2: the
-   fort files open during a run and its work arrays). */
+   AutoxState is the Session's: autox_nox.cpp's autoX window, its settings
+   and the parameters it continues, the diagram's views, what the window
+   shows (the last runs' stop, the info strip) and the folder the solutions
+   are kept in.
+
+   AutoxRun is one run's own (autox_lib1-5, gogoautox, setubv2): its
+   parameters, its fort folder and files, its work arrays, why its branches
+   ended, its stability values, and the Session whose model and settings it
+   reads. do_autox makes one per run and the numerical code reaches the
+   Session only through it, so two runs share no state of their own. What a
+   run still writes on the Session is what is not a run's: the model's
+   evaluation state (Session::parser, the integrator), the diagram its points
+   are appended to and what the window shows of them. */
 #include <stdio.h>
 #include "autox_unknowns.h"
 #include "jacobian.h"
@@ -19,6 +27,7 @@
 #include "display_state.h"
 #include "xAutox.h"
 #include "xpp_io.h"
+#include "xpp_files.h"
 #include "xpp_error.h"
 #include "xpp_math.h"
 
@@ -98,6 +107,13 @@ constexpr std::array<bool, xpp::autox_codim_kinds.size()> all_special_points()
   return on;
 }
 
+/* what a homoclinic or heteroclinic start gives HomCont's boundary conditions
+   (autox_run.cpp): the dimensions of the equilibria's unstable and stable
+   manifolds, and the kind of orbit (+1 homoclinic, -2 heteroclinic; 0 none) */
+struct HomoclinicEquilibria {
+  int nunstab=0,nstab=0,iequib=0;
+};
+
 struct AutoxState {
   /* the autoX window and its settings */
   xpp::BIFUR bifur{};
@@ -136,9 +152,6 @@ struct AutoxState {
   xpp::AutoxCalculation two_param=xpp::no_calculation;
   /* the kind of the last run asked for (autox.run), which the error that offers to go on from an end point repeats */
   xpp::AutoxRunKind run_kind=xpp::AutoxRunKind::equilibrium;
-  /* the label do_autox's follow-up run (a restart) continues from, 0 for
-     none */
-  int restart_label=0;
   /* the kind of run each stored point
      records */
   xpp::AutoxCalculation type_of_calc=xpp::no_calculation;
@@ -150,26 +163,21 @@ struct AutoxState {
   xpp::Color stable_po_color=xpp::xppaut_color(7),unstable_po_color=xpp::xppaut_color(9);
   /* the model's @ options for autoX */
   AutoxOptions options;
-  /* the autoX run's own parameters, filled from the model and settings
-     (autox_nox.cpp) before go_go_autox() (gogoautox.cpp) reads them */
-  XAUTOX run{};
+  /* the equilibria of the homoclinic start a run copies (autox_evd.cpp init_autox) */
+  HomoclinicEquilibria homo_equilibria;
   /* false until addbif (autox_evd.cpp) fills the diagram's first point
      (start_diagram's) */
   bool diag_flag=false;
-  /* autoX's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). Empty:
-     HOME, as upstream (--silent); xppautX sets a private one per session
-     so concurrent sessions never share autoX files (xppautx_main.cpp) */
+  /* autoX's scratch directory (<model>.ode.b/.d/.s). Empty: HOME, as
+     upstream (--silent); xppautX sets a private one per session so
+     concurrent sessions never share autoX files (xppautx_main.cpp) */
   std::string dir;
   /* <model>.ode under dir (the .b/.d/.s files are it plus their
-     extension), and autoX's unit files there (open_autox): fort.3 the
-     restart data, fort.7 the branches, fort.8 the solutions, fort.9 the
-     diagnostics */
+     extension): the diagram's branches, diagnostics and solutions, which
+     a run's fort files (AutoxRun) are moved into when it ends */
   std::string file;
-  std::string fort3,fort7,fort8,fort9;
-  /* the label the running continuation started from (Auto.irs), for its
-     first point: do_autox sets it, addbif takes it (autox_run_from_take) */
-  int run_from=0;
-  /* do_autox's own follow-up runs (restart_label) are one run: its depth */
+  /* do_autox's own follow-up runs (the run's restart_label) are one
+     chain: its depth */
   int depth=0;
   /* the point the Grab loop is on, which a run starts from */
   xpp::GRABPT grabpt{};
@@ -189,15 +197,14 @@ struct AutoxState {
   /* the axes a one-parameter and a two-parameter plot had last
      (keep_last_plot, load_last_plot) */
   xpp::AUTOAX old1p{},old2p{};
-  /* why the runs' branches ended (autox_stop.h) */
+  /* why the last runs' branches ended: what the runs of a chain (depth)
+     left, each run's own AutoxStop merged in when it ends (autox_stop.h) */
   xpp::AutoxStop stop;
-  /* the stability values of the run's points (autox_stability.h) */
-  xpp::AutoxStability stability;
   /* what the info strip and the stability circle show (autox_data.h) */
   xpp::AutoxDataShown shown;
 };
 
-// Collocation assembly scratch; each worker AutoxLib owns its own buffers.
+// Collocation assembly scratch; each worker AutoxRun owns its own buffers.
 struct AutoxAssemblyScratch {
   std::vector<double> dfdp, dfdu, uold, f, u, wploc, prm, residual_parameters, wi, wp, wt;
   std::vector<double> dicd, ficd, dbc, fbc, uic, uio, uid, uip, ubc0, ubc1;
@@ -259,19 +266,44 @@ struct AutoxRestartDirection {
   std::vector<double> udot;
 };
 
-struct AutoxLib {
-  /* the Session whose run this is, from go_go_autox until the run ends:
-     how the translated routines, which reach this through their
-     iap_type's lib, and the model's callbacks they call (autox_pp.cpp) reach
-     the model and its settings */
+/* One autoX run: do_autox makes it, the translated routines reach it through
+   their iap_type's run, and it is gone when the run ends. A collocation
+   worker (autox_parallel.cpp) is a run too, with only its scratch. */
+struct AutoxRun {
+  /* the Session whose run this is: the model and the settings, which a run
+     reads and never changes, and what the model's callbacks (autox_pp.cpp)
+     evaluate on */
   xpp::Session *session=nullptr;
+  /* a collocation worker's: the run it works for; null for a run itself */
+  AutoxRun *owner=nullptr;
+  /* the run's parameters, filled from the model and settings by do_autox
+     (set_autox) before go_go_autox (gogoautox.cpp) reads them */
+  XAUTOX params{};
   std::ptrdiff_t parameter_count=0;
+  /* the label the continuation started from (Auto.irs), for its first
+     point: do_autox sets it, addbif takes it (autox_run_from_take) */
+  int run_from=0;
+  /* the label a follow-up run (a restart) continues from, 0 for none:
+     autox_lib1.cpp's wrtsp8 sets it, do_autox reads it when the run ends */
+  int restart_label=0;
+  /* why this run's branches ended and the stability values of its points
+     (autox_stop.h, autox_stability.h); do_autox merges the stop into the
+     Session's when the run ends */
+  xpp::AutoxStop stop;
+  xpp::AutoxStability stability;
+  /* the run's own folder (xpp::files::make_temp_dir) and fort.3/7/8/9 in it
+     (open_autox): fort.3 the restart data, fort.7 the branches, fort.8 the
+     solutions, fort.9 the diagnostics. close_autox moves them to the
+     Session's .b/.d/.s files and the folder goes with the run. Declared
+     before fp8, which is closed before the folder is removed. */
+  std::optional<xpp::TempDir> folder;
+  std::string fort3,fort7,fort8,fort9;
   /* the fort.3/7/9 files open during a run (gogoautox.cpp's RunUnits) */
   FILE *fp3=nullptr,*fp7=nullptr,*fp9=nullptr;
   /* fort.8, opened when a run writes its first label (autox_lib1.cpp) and
-     closed by close_autox, or with the Session when a run never got there */
+     closed by close_autox, or with the run when it never got there */
   xpp::UniqueFile fp8;
-  /* W247: the pool persists across collocation calls. Worker AutoxLibs own
+  /* W247: the pool persists across collocation calls. Worker AutoxRuns own
      their evaluation arrays and finite-difference scratch, never a Session's. */
   std::unique_ptr<xpp::AutoxParallel> collocation;
   bool pure_rhs=false;
@@ -290,7 +322,7 @@ struct AutoxLib {
   bool setubv_stop=false;
   /* from init's "Generating starting data" (a restart that switches
      branch) until the run writes its first label, which becomes the
-     follow-up run's restart label (autox_lib1.cpp); a failed run clears it */
+     follow-up run's restart label (autox_lib1.cpp) */
   bool restart_flag=false;
   /* the direction readlb found stored with the restart label; none for a label that has no direction (autox_lib1.cpp) */
   std::optional<AutoxRestartDirection> restart_direction;
@@ -301,8 +333,8 @@ struct AutoxLib {
      first steps' tests read the converged point's Jacobian (autox_lib1.cpp) */
   bool hopf_start=false;
   /* the exact Jacobian's failure (W275): a derivative not finite where the
-     right-hand side is, recorded by func (autox_pp.cpp) on its own AutoxLib (a
-     collocation worker's, merged into the Session's by the caller when the
+     right-hand side is, recorded by func (autox_pp.cpp) on its own AutoxRun (a
+     collocation worker's, merged into its run's by the caller when the
      workers are done) and ended as a Stop ends a run, so the last
      converged point is stored as an end point to restart from; do_autox
      (autox_nox.cpp) shows it with the action that switches to differences */

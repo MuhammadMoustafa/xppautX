@@ -292,33 +292,36 @@ void check_autox_func(const char *path, double u0, double u1, int store_every = 
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;
     s.numerics.store_every = store_every;
     constexpr integer n = 2;
+    AutoxRun run;
+    run.session = &s;
+    run.parameter_count = s.autox_state.parameter_layout.size();
     const integer continued=s.autox_state.parameter_layout.solver_index(0);
-    std::vector<double> par(s.autox_lib.parameter_count, 0.0);
+    std::vector<double> par(run.parameter_count, 0.0);
     for (int k = 0; k < s.model().nupar; ++k) par[s.autox_state.parameter_layout.solver_index(k)] = s.parser.constants[static_cast<std::size_t>(s.model().upar_con[k])];
     par[xpp::autox_unknown::period] = 6.3;
     const integer icp[2] = {continued, xpp::autox_unknown::period};
     const double u[n] = {u0, u1};
     double f[n], dfdu[n * n];
-    std::vector<double> dfdp(n * s.autox_lib.parameter_count);
-    std::fill_n(dfdp.data(), n * s.autox_lib.parameter_count, -1.0);
-    func(s, n, u, icp, 2, par.data(), 2, f, dfdu, dfdp.data());
+    std::vector<double> dfdp(n * run.parameter_count);
+    std::fill_n(dfdp.data(), n * run.parameter_count, -1.0);
+    func(run, n, u, icp, 2, par.data(), 2, f, dfdu, dfdp.data());
     double worst = 0, fp[n], fm[n];
-    std::vector<double> unused(n * s.autox_lib.parameter_count);
+    std::vector<double> unused(n * run.parameter_count);
     for (integer j = 0; j < n; ++j) {
         double up[n] = {u[0], u[1]}, um[n] = {u[0], u[1]};
         up[j] += 1e-6;
         um[j] -= 1e-6;
-        func(s, n, up, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
-        func(s, n, um, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
+        func(run, n, up, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
+        func(run, n, um, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
         for (integer i = 0; i < n; ++i) {
             const double d = (fp[i] - fm[i]) / 2e-6;
             worst = std::max(worst, std::fabs(dfdu[i + j * n] - d) / std::max(1.0, std::fabs(d)));
         }
     }
     par[continued] += 1e-6;
-    func(s, n, u, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
+    func(run, n, u, icp, 2, par.data(), 0, fp, unused.data(), unused.data());
     par[continued] -= 2e-6;
-    func(s, n, u, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
+    func(run, n, u, icp, 2, par.data(), 0, fm, unused.data(), unused.data());
     for (integer i = 0; i < n; ++i) {
         const double d = (fp[i] - fm[i]) / 2e-6;
         worst = std::max(worst, std::fabs(dfdp[continued*n+i] - d) / std::max(1.0, std::fabs(d)));

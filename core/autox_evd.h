@@ -24,9 +24,9 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
 DiagramPointType get_bif_type(int ibr, int ntot);
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int labw, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar);
 
-/* the autoX run's own parameters (st.run) from its settings (st.bifur,
+/* the autoX run's own parameters (run) from its settings (st.bifur,
    the active view's parameters, the Mark values), for ndim variables;
    exact: func gives the model's exact Jacobian (JAC=1, W260) */
-void init_autox(AutoxState &st, int ndim, bool exact);
+void init_autox(const AutoxState &st, XAUTOX &run, int ndim, bool exact);
 
 } // namespace xpp

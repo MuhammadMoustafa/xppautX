@@ -176,7 +176,7 @@ void check_diagram_points(xpp::Session &s)
    counts owns them */
 // W359: count calls, independent of machine speed. The callbacks implement
 // u' = p with periodic ends; the arclength row fixes the constant direction.
-struct AssemblyProbe : AutoxLib {
+struct AssemblyProbe : AutoxRun {
     int evaluations = 0, residuals = 0, boundaries = 0;
     bool change_parameters = false;
 };
@@ -185,7 +185,7 @@ int probe_function(const iap_type *iap, const rap_type *, integer,
                    const double *, const double *, const integer *, double *par,
                    integer ijac, double *f, double *dfdu, double *dfdp)
 {
-    auto &probe = static_cast<AssemblyProbe &>(*iap->lib);
+    auto &probe = static_cast<AssemblyProbe &>(*iap->run);
     ++probe.evaluations;
     if (ijac == 0) ++probe.residuals;
     f[0] = par[0];
@@ -197,7 +197,7 @@ int probe_boundary(const iap_type *iap, const rap_type *, integer, double *par,
                    const integer *, integer, const double *u0, const double *u1,
                    double *f, integer, double *dbc)
 {
-    auto &probe = static_cast<AssemblyProbe &>(*iap->lib);
+    auto &probe = static_cast<AssemblyProbe &>(*iap->run);
     ++probe.boundaries;
     if (probe.change_parameters) par[0] = std::nextafter(par[0], 1.0);
     f[0] = u0[0] - u1[0];
@@ -207,11 +207,11 @@ int probe_boundary(const iap_type *iap, const rap_type *, integer, double *par,
 
 void check_assembly_passes(xpp::Session &s)
 {
-    AssemblyProbe lib;
-    lib.session = &s;
-    lib.parameter_count = 1;
+    AssemblyProbe run;
+    run.session = &s;
+    run.parameter_count = 1;
     iap_type iap{};
-    iap.lib = &lib;
+    iap.run = &run;
     iap.ndim = iap.nbc = iap.nfpr = 1;
     iap.ncol = 2; // autoX supports two through seven collocation points.
     iap.ntst = 2;
@@ -229,18 +229,18 @@ void check_assembly_passes(xpp::Session &s)
                dtm.data(), fa.data(), fc.data(), &p0, &p1, &thl, &thu);
     };
     solve();
-    CHECK(lib.evaluations == iap.ntst * iap.ncol && lib.residuals == 0);
+    CHECK(run.evaluations == iap.ntst * iap.ncol && run.residuals == 0);
     const auto first_fa = fa;
     const auto first_fc = fc;
     const double determinant = rap.det;
     fresh = 0;
     solve();
-    CHECK(lib.evaluations == 2 * iap.ntst * iap.ncol && lib.residuals == iap.ntst * iap.ncol);
+    CHECK(run.evaluations == 2 * iap.ntst * iap.ncol && run.residuals == iap.ntst * iap.ncol);
     CHECK(fa == first_fa && fc == first_fc && rap.det == determinant);
-    const int evaluations = lib.evaluations, boundaries = lib.boundaries;
+    const int evaluations = run.evaluations, boundaries = run.boundaries;
     nullity = -1;
     solve();
-    CHECK(lib.evaluations == evaluations && lib.boundaries == boundaries);
+    CHECK(run.evaluations == evaluations && run.boundaries == boundaries);
     // Quadrature and elimination round the analytically constant direction.
     constexpr double direction_tolerance = 1e-12;
     CHECK(std::abs(fc[0] - 1) < direction_tolerance && std::abs(fc[1]) < direction_tolerance);
@@ -248,47 +248,48 @@ void check_assembly_passes(xpp::Session &s)
         for (int i = 0; i < iap.ntst; ++i)
             CHECK(std::abs(fa[i + stride * j] - 1) < direction_tolerance);
     // Boundary assembly can change parameter bits; reuse is then invalid.
-    const int residuals = lib.residuals;
-    lib.change_parameters = true;
+    const int residuals = run.residuals;
+    run.change_parameters = true;
     fresh = 1;
     nullity = 0;
     solve();
-    CHECK(lib.evaluations == evaluations + 2 * iap.ntst * iap.ncol);
-    CHECK(lib.residuals == residuals + iap.ntst * iap.ncol);
+    CHECK(run.evaluations == evaluations + 2 * iap.ntst * iap.ncol);
+    CHECK(run.residuals == residuals + iap.ntst * iap.ncol);
     CHECK(par == std::nextafter(std::nextafter(current, 1.0), 1.0));
     // HomCont's boundary visits advance projection continuity even though
     // the direction solve discards their residual values.
-    lib.change_parameters = false;
-    const int hom_evaluations = lib.evaluations, hom_boundaries = lib.boundaries;
+    run.change_parameters = false;
+    const int hom_evaluations = run.evaluations, hom_boundaries = run.boundaries;
     iap.ips = xpp::AutoxProblem::Homoclinic;
     fresh = 0;
     nullity = -1;
     solve();
-    CHECK(lib.evaluations == hom_evaluations + iap.ntst * iap.ncol);
-    CHECK(lib.boundaries == hom_boundaries + 1);
+    CHECK(run.evaluations == hom_evaluations + iap.ntst * iap.ncol);
+    CHECK(run.boundaries == hom_boundaries + 1);
 }
 
 void check_library_arrays(xpp::Session &s)
 {
-    AutoxLib &lib = s.autox_lib;
-    lib.parameter_count = 5;
+    AutoxRun run;
+    run.session = &s;
+    run.parameter_count = 5;
     iap_type iap{};
-    iap.lib = &lib;
+    iap.run = &run;
     for (int ndim : {2, 4, 1, 3}) { /* the same library sized again for each run */
         iap.ndim = ndim;
         iap.nbc = ndim + 1;
         size_run_scratch(iap);
-        CHECK(lib.scratch.dfu.size() == static_cast<size_t>(ndim * ndim) && lib.scratch.dfp.size() == static_cast<size_t>(ndim * 5));
-        CHECK(lib.scratch.uu1.size() == static_cast<size_t>(ndim) && lib.scratch.ff2.size() == static_cast<size_t>(ndim));
-        CHECK(lib.rotations.nrtn.size() == static_cast<size_t>(ndim + 1));
+        CHECK(run.scratch.dfu.size() == static_cast<size_t>(ndim * ndim) && run.scratch.dfp.size() == static_cast<size_t>(ndim * 5));
+        CHECK(run.scratch.uu1.size() == static_cast<size_t>(ndim) && run.scratch.ff2.size() == static_cast<size_t>(ndim));
+        CHECK(run.rotations.nrtn.size() == static_cast<size_t>(ndim + 1));
     }
-    lib.rotations.irtn = 1;
-    lib.rotations.nrtn[0] = 3;
-    AutoxGlobalRotations worker = lib.rotations;
+    run.rotations.irtn = 1;
+    run.rotations.nrtn[0] = 3;
+    AutoxGlobalRotations worker = run.rotations;
     worker.nrtn[0] = 9;
-    CHECK(lib.rotations.nrtn[0] == 3 && worker.nrtn[0] == 9 && worker.irtn == 1);
-    lib.rotations = AutoxGlobalRotations{};
-    CHECK(worker.nrtn[0] == 9 && lib.rotations.nrtn.empty());
+    CHECK(run.rotations.nrtn[0] == 3 && worker.nrtn[0] == 9 && worker.irtn == 1);
+    run.rotations = AutoxGlobalRotations{};
+    CHECK(worker.nrtn[0] == 9 && run.rotations.nrtn.empty());
 }
 
 } // namespace

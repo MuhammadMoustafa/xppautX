@@ -39,7 +39,7 @@ struct AutoxIntegralContext {
   std::span<const doublereal> weights;
 };
 AutoxIntegralContext integral_context(const iap_type &iap) {
-  auto &weights = iap.lib->scratch.integral_weights;
+  auto &weights = iap.run->scratch.integral_weights;
   if (weights.size() != xpp::size_sum(iap.ncol, 1)) {
     weights.resize(xpp::size_sum(iap.ncol, 1));
     wint(iap.ncol + 1, weights.data());
@@ -63,7 +63,7 @@ AutoxIntegralContext integral_context(const iap_type &iap) {
 namespace {
 /* the exact Jacobian failed in this run (autox_pp.cpp): the derivatives of
    the solve in progress are not the model's, so its step is not taken */
-bool jacobian_failed(const iap_type *iap) { return iap->lib->session->autox_lib.jacobian_failure.has_value(); }
+bool jacobian_failed(const iap_type *iap) { return iap->run->jacobian_failure.has_value(); }
 
 /* the user cancelled, or the exact Jacobian failed: what ends a run where
    anything else (a solve that does not converge) only gives a point up */
@@ -117,7 +117,7 @@ const char *located_kind(FNCS_TYPE_BVP((*fncs)), const iap_type &iap)
    iterations did not reach it */
 void special_point_lost(const iap_type &iap, integer ibr, integer ntot, const char *kind, const char *why)
 {
-  xpp::autox_stop_note(*iap.lib->session,
+  xpp::autox_stop_note(*iap.run,
                       xpp::format("Br {} Pt {}: {} between points {} and {} was not located ({}); it is missing from the diagram",
                                   f2c::abs(ibr), ntot, kind, ntot, ntot + 1,
                                   why ? std::string(why) : xpp::format("not in max_location_iterations = {} iterations", iap.itmx)));
@@ -126,9 +126,9 @@ void special_point_lost(const iap_type &iap, integer ibr, integer ntot, const ch
 /* autox_locating = 1 for a scope: cleared however it ends, a failed solve
    (xpp::AutoxFailed) included, so the next run can be cancelled again */
 struct Locating {
-  AutoxLib &lib;
-  explicit Locating(AutoxLib &l) : lib(l) { lib.locating = true; }
-  ~Locating() { lib.locating = false; }
+  AutoxRun &run;
+  explicit Locating(AutoxRun &l) : run(l) { run.locating = true; }
+  ~Locating() { run.locating = false; }
   Locating(const Locating &) = delete;
   Locating &operator=(const Locating &) = delete;
 };
@@ -148,16 +148,16 @@ struct LocationState {
   integer nit, nins, isp;
   xpp::AutoxStability::Values stability;
   std::vector<double> codim_left;
-  decltype(AutoxLib::solvbv) solvbv;
-  decltype(AutoxLib::homcont) homcont;
+  decltype(AutoxRun::solvbv) solvbv;
+  decltype(AutoxRun::homcont) homcont;
 
   LocationState(const iap_type &iap, const rap_type &rap,
                 std::initializer_list<std::span<double>> data)
     : dsold(rap.dsold), det(rap.det), tivp(rap.tivp),
       nit(iap.nit), nins(iap.nins), isp(iap.isp),
-      stability(iap.lib->session->autox_state.stability.computed),
-      codim_left(iap.lib->codim.previous_left),
-      solvbv(iap.lib->solvbv), homcont(iap.lib->homcont)
+      stability(iap.run->stability.computed),
+      codim_left(iap.run->codim.previous_left),
+      solvbv(iap.run->solvbv), homcont(iap.run->homcont)
   {
     arrays.reserve(data.size());
     for (auto a : data) arrays.emplace_back(a);
@@ -170,10 +170,10 @@ struct LocationState {
     iap.nit = nit;
     iap.nins = nins;
     iap.isp = isp;
-    iap.lib->session->autox_state.stability.computed = stability;
-    iap.lib->codim.previous_left = codim_left;
-    iap.lib->solvbv = solvbv;
-    iap.lib->homcont = homcont;
+    iap.run->stability.computed = stability;
+    iap.run->codim.previous_left = codim_left;
+    iap.run->solvbv = solvbv;
+    iap.run->homcont = homcont;
   }
 };
 
@@ -341,7 +341,7 @@ struct LocationStateWithMultipliers {
 void special_point_rejected(const iap_type &iap, integer ibr, integer ntot, const char *kind, double parameter,
                             const std::string &why)
 {
-  xpp::autox_stop_note(*iap.lib->session,
+  xpp::autox_stop_note(*iap.run,
                       xpp::format("Br {} Pt {}: {} between points {} and {} was not accepted at parameter {:.10g}: {}; it is missing from the diagram",
                                   f2c::abs(ibr), ntot, kind, ntot, ntot + 1, parameter, why));
 }
@@ -431,10 +431,10 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
   bool cancelled = false;
   const auto trial = [&] {
     if (iid >= 2) {
-      xpp::print(iap.lib->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",iterations,rds);
+      xpp::print(iap.run->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",iterations,rds);
     }
     {
-      Locating locating(*iap.lib); /* predictor and solve belong to the unstored point */
+      Locating locating(*iap.run); /* predictor and solve belong to the unstored point */
       advance(rds);
     }
     if (iap.istop != 0) {
@@ -578,7 +578,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
     } else {
       q = 0.;
     }
-    xpp::print(iap.lib->fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
+    xpp::print(iap.run->fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
     return;
   }
 
@@ -587,16 +587,16 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
   dstest = saved_dstest;
   stepped = false;
   q = q_end;
-  xpp::print(iap.lib->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
+  xpp::print(iap.run->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
   if (refused.empty()) special_point_lost(iap, ibr, ntot, kind, why);
   else special_point_rejected(iap, ibr, ntot, kind, refused_parameter, refused);
 }
 
-/* AutoxLib::setubv_stop set for one solvbv, cleared the same way */
+/* AutoxRun::setubv_stop set for one solvbv, cleared the same way */
 struct SetubvStop {
-  AutoxLib &lib;
-  SetubvStop(AutoxLib &l, bool on) : lib(l) { lib.setubv_stop = on; }
-  ~SetubvStop() { lib.setubv_stop = false; }
+  AutoxRun &run;
+  SetubvStop(AutoxRun &l, bool on) : run(l) { run.setubv_stop = on; }
+  ~SetubvStop() { run.setubv_stop = false; }
   SetubvStop(const SetubvStop &) = delete;
   SetubvStop &operator=(const SetubvStop &) = delete;
 };
@@ -605,19 +605,18 @@ struct SetubvStop {
    kept open for the rest of it (close_autox closes it). One that cannot be
    opened fails the run instead of exit(1), a server must outlive a bad
    HOME; a later run tries again. */
-FILE *fort8(AutoxLib &lib)
+FILE *fort8(AutoxRun &run)
 {
-  if(!lib.fp8){
-    lib.fp8.reset(xpp::files::open_stream(xpp::autox_fort_path(*lib.session,8),"w"));
-    if(!lib.fp8)xpp::autox_fail(xpp::files::write_error("autoX", xpp::autox_fort_path(*lib.session,8)));
+  if(!run.fp8){
+    run.fp8.reset(xpp::files::open_stream(xpp::autox_fort_path(run,8),"w"));
+    if(!run.fp8)xpp::autox_fail(xpp::files::write_error("autoX", xpp::autox_fort_path(run,8)));
   }
-  return lib.fp8.get();
+  return run.fp8.get();
 }
 } // namespace
 
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, std::span<AutoxMark> marks)
 {
-  xpp::Session &s=*iap->lib->session;
   integer nbif;
   integer iads, ndim, nicp, ncol, mxbf;
   doublereal epsl;
@@ -637,74 +636,74 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   xpp::AutoxProblem ips;
   xpp::AutoxPointCode itp;
 
-  for (i = 0; i < iap->lib->parameter_count; ++i) {
+  for (i = 0; i < iap->run->parameter_count; ++i) {
     icp[i] = i;
-    jtmp = iap->lib->parameter_count;
+    jtmp = iap->run->parameter_count;
     icp[jtmp + i] = 0;
     par[i] = 0.;
     par[jtmp + i] = 0.;
     thl[icp[i]] = 1.;
   }
 
- ndim=s.autox_state.run.ndim;
-  ips=s.autox_state.run.ips;
-  irs=s.autox_state.run.irs;
-  ilp=s.autox_state.run.ilp;
+ ndim=iap->run->params.ndim;
+  ips=iap->run->params.ips;
+  irs=iap->run->params.irs;
+  ilp=iap->run->params.ilp;
 
   thu_vec.assign(xpp::size_product(static_cast<size_t>(ndim), AutoxState::state_copies), 1.);
 
-  jtmp = iap->lib->parameter_count;
-  nicp=s.autox_state.run.nicp;
+  jtmp = iap->run->parameter_count;
+  nicp=iap->run->params.nicp;
 
   for (i = 0; i < nicp; ++i) {
-    icp[jtmp+i]=s.autox_state.run.icp[i];
+    icp[jtmp+i]=iap->run->params.icp[i];
 
   }
   
   if (nicp > 0) {
     for (i = 0; i < nicp; ++i) {
-      jtmp = iap->lib->parameter_count;
+      jtmp = iap->run->parameter_count;
       icp[i] = icp[jtmp + i];
     }
   } else {
     nicp = 1;
-    jtmp = iap->lib->parameter_count;
+    jtmp = iap->run->parameter_count;
     icp[jtmp] = icp[0];
   }
       
-  ntst=s.autox_state.run.ntst;
-  ncol=s.autox_state.run.ncol;
-  iad=s.autox_state.run.iad;
-  isp=s.autox_state.run.isp;
-  isw=s.autox_state.run.isw;
-  iplt=s.autox_state.run.iplt;
-  nbc=s.autox_state.run.nbc;
-  nint=s.autox_state.run.nint;
-  nmx=s.autox_state.run.nmx;
-  rl0=s.autox_state.run.rl0;
-  rl1=s.autox_state.run.rl1;
-  a0=s.autox_state.run.a0;
-  a1=s.autox_state.run.a1;  
-  npr=s.autox_state.run.npr;
-  mxbf=s.autox_state.run.mxbf;
-  iid=s.autox_state.run.iid;
-  itmx=s.autox_state.run.itmx;
-  itnw=s.autox_state.run.itnw;
-  nwtn=s.autox_state.run.nwtn;
-  jac=s.autox_state.run.jac;
-  epsl=s.autox_state.run.epsl;
-  epss=s.autox_state.run.epss;
-  epsu=s.autox_state.run.epsu;
-  ds=s.autox_state.run.ds;
-  dsmin=s.autox_state.run.dsmin;
-  dsmax=s.autox_state.run.dsmax;
-  iads=s.autox_state.run.iads;
+  ntst=iap->run->params.ntst;
+  ncol=iap->run->params.ncol;
+  iad=iap->run->params.iad;
+  isp=iap->run->params.isp;
+  isw=iap->run->params.isw;
+  iplt=iap->run->params.iplt;
+  nbc=iap->run->params.nbc;
+  nint=iap->run->params.nint;
+  nmx=iap->run->params.nmx;
+  rl0=iap->run->params.rl0;
+  rl1=iap->run->params.rl1;
+  a0=iap->run->params.a0;
+  a1=iap->run->params.a1;  
+  npr=iap->run->params.npr;
+  mxbf=iap->run->params.mxbf;
+  iid=iap->run->params.iid;
+  itmx=iap->run->params.itmx;
+  itnw=iap->run->params.itnw;
+  nwtn=iap->run->params.nwtn;
+  jac=iap->run->params.jac;
+  epsl=iap->run->params.epsl;
+  epss=iap->run->params.epss;
+  epsu=iap->run->params.epsu;
+  ds=iap->run->params.ds;
+  dsmin=iap->run->params.dsmin;
+  dsmax=iap->run->params.dsmax;
+  iads=iap->run->params.iads;
 
-  for (const AutoxRunWeight &weight : s.autox_state.run.weights)
+  for (const AutoxRunWeight &weight : iap->run->params.weights)
     thl[weight.index]=weight.value;
     
-  nuzr=static_cast<integer>(s.autox_state.run.marks.size());
-  std::copy(s.autox_state.run.marks.begin(),s.autox_state.run.marks.end(),marks.begin());
+  nuzr=static_cast<integer>(iap->run->params.marks.size());
+  std::copy(iap->run->params.marks.begin(),iap->run->params.marks.end(),marks.begin());
 
   iap->ndim = ndim;
 
@@ -873,8 +872,8 @@ chdim(iap_type *iap)
 
   npar = iap->nfpr;
 
-  if (npar > iap->lib->parameter_count) {
-    xpp::autox_fail(xpp::format("dimension exceeded: {} free parameters, at most {}", npar, iap->lib->parameter_count));
+  if (npar > iap->run->parameter_count) {
+    xpp::autox_fail(xpp::format("dimension exceeded: {} free parameters, at most {}", npar, iap->run->parameter_count));
   }
 
   return 0;
@@ -925,7 +924,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
   xpp::AutoxProblem ips;
   xpp::AutoxPointCode itp;
 
-  std::vector<integer> ict(iap->lib->parameter_count);
+  std::vector<integer> ict(iap->run->parameter_count);
 
   /* General initialization. Redefinition of constants. */
 
@@ -1071,7 +1070,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
     /* Set indices of output parameters */
     nicp = nfpr - 3;
     for (i = 0; i < nicp; ++i) {
-      jtmp = iap->lib->parameter_count;
+      jtmp = iap->run->parameter_count;
       icp[jtmp + i] = icp[i];
     }
 
@@ -1125,7 +1124,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       isp = 0;
       nmx = 5;
       xpp::log_autox("\nGenerating starting data :\n Restart at EP label below :\n");
-      iap->lib->restart_flag=true;
+      iap->run->restart_flag=true;
 
     } else if ((itp.started_from(xpp::AutoxPointKind::CycleFold) || itp.started_from(xpp::AutoxPointKind::CycleBranch)) && ips == xpp::AutoxProblem::Periodic) {
       /*          ** Fold continuation (Periodic solutions); restart */
@@ -1159,7 +1158,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       isp = 0;
       nmx = 5;
       xpp::log_autox("\nGenerating starting data :\n Restart at EP label below :\n");
-      iap->lib->restart_flag=true;
+      iap->run->restart_flag=true;
 
     } else if (itp.started_from(xpp::AutoxPointKind::PeriodDoubling) && ips == xpp::AutoxProblem::Periodic) {
       /*          ** Continuation of period doubling bifurcations; resta
@@ -1187,7 +1186,7 @@ rt */
       isw = -2;
       nmx = 5;
       xpp::log_autox("\nGenerating starting data :\n Restart at EP label below :\n");
-      iap->lib->restart_flag=true;
+      iap->run->restart_flag=true;
 
     } else if (itp.started_from(xpp::AutoxPointKind::NeimarkSacker) && ips == xpp::AutoxProblem::Periodic) {
       /*          ** Continuation of torus bifurcations; restart */
@@ -1215,7 +1214,7 @@ rt */
       isw = -2;
       isp = 0;
       nmx = 5; 
-      iap->lib->restart_flag=true;
+      iap->run->restart_flag=true;
       xpp::log_autox("\nGenerating starting data :\n Restart at EP label below :\n");
 
     } else if (itp.started_from(xpp::AutoxPointKind::CycleFold) && ips == xpp::AutoxProblem::BoundaryValue) {
@@ -1287,7 +1286,7 @@ static void perpendicular_null_direction(iap_type *iap, integer *icp, integer *m
   }
   ARRAY2D(aa, ndim, ndim) = rldot[0];
 
-  xpp::nlvc(iap->lib->fp9, ndim + 1, *m1aaloc, 1, aa, du);
+  xpp::nlvc(iap->run->fp9, ndim + 1, *m1aaloc, 1, aa, du);
 
   ss = 0.;
   for (i = 0; i < ndim; ++i) {
@@ -1311,13 +1310,13 @@ static void perpendicular_null_direction(iap_type *iap, integer *icp, integer *m
 static void
 stpswae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *u, doublereal *du, doublereal *udot, doublereal *rldot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
 {
-  const auto &stored = iap->lib->restart_direction;
-  const std::string where = xpp::format("restart label {} in {}", iap->irs, xpp::autox_fort_path(*iap->lib->session, 3));
+  const auto &stored = iap->run->restart_direction;
+  const std::string where = xpp::format("restart label {} in {}", iap->irs, xpp::autox_fort_path(*iap->run, 3));
   const integer ndim = iap->ndim;
   if (!stored)
     xpp::autox_fail(xpp::format("autoX: {} keeps no direction of its branch, so the branch cannot be switched there: only a branch point of an equilibrium run stores it", where));
   if (stored->parameter != icp[0] || stored->udot.size() != static_cast<std::size_t>(ndim)) {
-    const xpp::Session &session = *iap->lib->session;
+    const xpp::Session &session = *iap->run->session;
     const auto named = [&session](integer solver_index) {
       const int k = session.autox_state.parameter_layout.model_index(static_cast<int>(solver_index));
       return k < 0 ? xpp::format("autoX's parameter {}", solver_index) : xpp::format("\"{}\"", session.model().upar_names[static_cast<std::size_t>(k)]);
@@ -1364,9 +1363,9 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer i;
   doublereal dsold;
 
-  std::vector<doublereal> rlold(iap->lib->parameter_count);
-  std::vector<doublereal> rldot(iap->lib->parameter_count);
-  std::vector<doublereal> rlcur(iap->lib->parameter_count);
+  std::vector<doublereal> rlold(iap->run->parameter_count);
+  std::vector<doublereal> rldot(iap->run->parameter_count);
+  std::vector<doublereal> rlcur(iap->run->parameter_count);
   integer istop;
   xpp::AutoxPointKind itpst;
 
@@ -1382,7 +1381,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   integer aa_first_dimension = iap->ndim + 1;
 
-  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
+  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->run->parameter_count));
   std::vector<doublereal> dfdu(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublereal> uold(iap->ndim);
   std::vector<doublereal> udot(iap->ndim);
@@ -1441,9 +1440,9 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* Generate the starting point */
 
-  iap->lib->codim.prepare(iap->ndm);
+  iap->run->codim.prepare(iap->ndm);
   AutoxTestSample rbt, rcp, rgh;
-  const auto special_points=iap->lib->session->autox_state.special_points;
+  const auto special_points=iap->run->session->autox_state.special_points;
 
   /* The tests of the point just solved. A switched branch's second point leaves the branch point test out: the
      determinant there is of the switch's Newton matrix, whose last row is not the arclength condition. */
@@ -1487,7 +1486,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
             du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(),
             test.sample, thl, thu, marks, dstest, stepped);
         if (ips==xpp::AutoxProblem::DiscreteMap && (test.function==fnhbae || test.function==fnrnae))
-          test.kind=iap->lib->codim.map_kind;
+          test.kind=iap->run->codim.map_kind;
       });
     if (iap->istop != 1 && iap->itp.kind == xpp::AutoxPointKind::BranchPoint) {
       ++nbif;
@@ -1514,7 +1513,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     for (integer k = 0; k < ndim; ++k) matrix[ndim + k * ld] = thu[k] * 2. * udot[k];
     matrix[ndim + ndim * ld] = thl[icp[0]] * 2. * rldot[0];
     doublereal det;
-    xpp::ge(iap->lib->fp9, iap->iid, ndim + 1, ld, matrix.data(), 1, ndim + 1, solution.data(), ndim + 1, rhs_unused.data(), &det);
+    xpp::ge(iap->run->fp9, iap->iid, ndim + 1, ld, matrix.data(), 1, ndim + 1, solution.data(), ndim + 1, rhs_unused.data(), &det);
     return det;
   };
 
@@ -1523,13 +1522,13 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
      point's stored stability and period stay what they were: the Hopf test's evaluation writes both. A
      switched branch's second point has no branch point test (its determinant is the switch's own). */
   const auto seed_tests = [&](bool at_start) {
-    const auto stability = iap->lib->session->autox_state.stability.computed;
+    const auto stability = iap->run->stability.computed;
     const double period = par[xpp::autox_unknown::period];
     const doublereal det = rap->det;
     if (at_start) rap->det = start_determinant();
     auto tests = tests_at_point(at_start);
     sample_tests(*iap, tests, tests.size(), evaluate_test);
-    iap->lib->session->autox_state.stability.computed = stability;
+    iap->run->stability.computed = stability;
     par[xpp::autox_unknown::period] = period;
     rap->det = det;
   };
@@ -1729,7 +1728,7 @@ stpnus(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   ndim = iap->ndim;
 
-  stpnt(*iap->lib->session, ndim, 0.0, u, par);
+  stpnt(*iap->run, ndim, 0.0, u, par);
 
   return 0;
 } /* stpnus_ */
@@ -1755,8 +1754,8 @@ stpnae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 int 
 stdirae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
 {
-  xpp::autox_stability_step_start(iap->lib->session->autox_state.stability,
-      iap->ibr, iap->ntot + (iap->lib->locating ? 1 : 0));
+  xpp::autox_stability_step_start(iap->run->stability,
+      iap->ibr, iap->ntot + (iap->run->locating ? 1 : 0));
 
   integer aa_dim1;
 
@@ -1800,7 +1799,7 @@ stdirae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((
     integer tmp = ndim + 1;
     wrjac(iap, &tmp, m1aaloc, aa, rhs);
   }
-  xpp::nlvc(iap->lib->fp9, ndim + 1, *m1aaloc, 1, aa, du);
+  xpp::nlvc(iap->run->fp9, ndim + 1, *m1aaloc, 1, aa, du);
 
   /* Scale and make sure that the PAR(ICP(1))-dot is positive. */
 
@@ -1853,8 +1852,8 @@ stprae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 int 
 contae(iap_type *iap, rap_type *rap, doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot)
 {
-  xpp::autox_stability_step_start(iap->lib->session->autox_state.stability,
-      iap->ibr, iap->ntot + (iap->lib->locating ? 1 : 0));
+  xpp::autox_stability_step_start(iap->run->stability,
+      iap->ibr, iap->ntot + (iap->run->locating ? 1 : 0));
 
   integer ndim, i;
   doublereal dsold;
@@ -1892,7 +1891,6 @@ int
 solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), doublereal *rds, integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, doublereal *thl, doublereal *thu)
 {
   double pivot = NAN; /* the last linear solve's smallest pivot (xpp::ge) */
-  xpp::Session &s=*iap->lib->session;
   integer aa_dim1;
 
   integer iads, ndim;
@@ -1916,7 +1914,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer nit, mxt;
   doublereal umx;
   integer nit1;
-  integer &last_ntop=iap->lib->solvae_ntop;
+  integer &last_ntop=iap->run->solvae_ntop;
 
 /* This is the subroutine for computing solution branches. It solves */
 /* the equations for finding the next point on the branch at distance DS 
@@ -1950,20 +1948,20 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
   if (iid >= 2) {
     if(last_ntop != ntop) {
-      xpp::print(s.autox_lib.fp9,"========================================");
-      xpp::print(s.autox_lib.fp9,"========================================\n");
+      xpp::print(iap->run->fp9,"========================================");
+      xpp::print(iap->run->fp9,"========================================\n");
       last_ntop = ntop;
     }
     if (nit == 0) {
-      xpp::print(s.autox_lib.fp9,"  BR    PT  IT\n");
+      xpp::print(iap->run->fp9,"  BR    PT  IT\n");
     }
 
-    xpp::print(s.autox_lib.fp9,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
+    xpp::print(iap->run->fp9,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
 	    nit,rlcur[0]);
     for (i = 0; i < ndmr; ++i) {
-      xpp::print(s.autox_lib.fp9,"{:14.6E}",u[i]);
+      xpp::print(iap->run->fp9,"{:14.6E}",u[i]);
     }
-    xpp::print(s.autox_lib.fp9,"\n");
+    xpp::print(iap->run->fp9,"\n");
   }
 
   /* Call user-supplied FUNC to evaluate the right hand side of the */
@@ -1971,7 +1969,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
-    if (!iap->lib->locating && xpp::job::cancelled()) goto L5; /* xppautX: cancel */
+    if (!iap->run->locating && xpp::job::cancelled()) goto L5; /* xppautX: cancel */
     nit = nit1;
     iap->nit = nit;
     par[icp[0]] = rlcur[0];
@@ -2008,7 +2006,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       wrjac(iap, &tmp, m1aaloc, aa, rhs);
     }
 
-    pivot = xpp::ge(iap->lib->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
+    pivot = xpp::ge(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -2038,12 +2036,12 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
 
     if (iid >= 2) {
-      xpp::print(s.autox_lib.fp9,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
+      xpp::print(iap->run->fp9,"{:4} {:5}{:4}    {:14.6E}              ",ibr,ntop,
 	      nit,rlcur[0]);
       for (i = 0; i < ndmr; ++i) {
-	xpp::print(s.autox_lib.fp9,"{:14.6E}",u[i]);
+	xpp::print(iap->run->fp9,"{:14.6E}",u[i]);
       }
-      xpp::print(s.autox_lib.fp9,"\n");
+      xpp::print(iap->run->fp9,"\n");
     }
 
     rdrlm = f2c::abs(drlm) / (f2c::abs(rlcur[0]) + 1.);
@@ -2055,12 +2053,12 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       (*funi)(iap, rap, ndim, u, uold, icp, par, 2, f, dfdu, dfdp);
       if (jacobian_failed(iap)) goto L5;
       pvlsae(iap, rap, u, par);
-      if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)})) {
+      if (!xpp::all_finite({par, static_cast<size_t>(iap->run->parameter_count)})) {
         nonfinite = true;
         goto L3;
       }
       if (iid >= 2) {
-	xpp::print(s.autox_lib.fp9,"\n");
+	xpp::print(iap->run->fp9,"\n");
       }
       return 0;
     }
@@ -2084,10 +2082,10 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L3:
   if (iads == 0) {
-    xpp::print(s.autox_lib.fp9,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
+    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
-    xpp::autox_stop_noconv(iap->lib->session->autox_state.stop, {xpp::AUTOX_STOP_NOCONV_FIXED, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
+    xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_FIXED, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
     goto L5;
   }
 
@@ -2104,22 +2102,22 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     u[i] = uold[i] + *rds * udot[i];
   }
   if (iid >= 2) {
-    xpp::print(s.autox_lib.fp9," NOTE:Retrying step\n");
+    xpp::print(iap->run->fp9," NOTE:Retrying step\n");
   }
   goto L1;
 
 /* Minimum stepsize reached */
 
  L4:
-  xpp::print(s.autox_lib.fp9,"{:4} {:5} NOTE:No convergence using minimum step size\n",ibr,ntop);
-  xpp::autox_stop_noconv(iap->lib->session->autox_state.stop, {xpp::AUTOX_STOP_NOCONV_MIN, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
+  xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence using minimum step size\n",ibr,ntop);
+  xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_MIN, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
   par[icp[0]] = rlcur[0];
   for (i = 0; i < ndim; ++i) {
     u[i] = uold[i];
   }
-  const bool retained = xpp::autox_stability_step_failed(iap->lib->session->autox_state.stability,
+  const bool retained = xpp::autox_stability_step_failed(iap->run->stability,
       iap->ibr, iap->ntot + 1);
   istop = 1;
   iap->istop = istop;
@@ -2150,7 +2148,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 /* accuracy if the ratio between RDS and the user supplied value of */
 /* DS is less than the user-supplied toler du. */
   const auto n = static_cast<std::size_t>(iap->ndim);
-  const auto np = static_cast<std::size_t>(iap->lib->parameter_count);
+  const auto np = static_cast<std::size_t>(iap->run->parameter_count);
   const auto na = static_cast<std::size_t>(*m1aaloc) * (n + 1);
   locate_special_point(*iap, *rap, q, located_kind(fncs), fncs == fnuzae, false,
       fncs == fnrnae && iap->itpst == xpp::AutoxPointKind::NeimarkSacker, par[icp[0]], dstest, stepped,
@@ -2224,7 +2222,7 @@ fnbpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4} {:5}        BP   Function {:14.6E}\n",ibr,ntop,ret_val);
+    xpp::print(iap->run->fp9,"{:4} {:5}        BP   Function {:14.6E}\n",ibr,ntop,ret_val);
   }
 
   return ret_val;
@@ -2269,7 +2267,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
      matrix's, whose last row is the arclength condition, as AUTO-07p's FNLPAE
      leaves AP%DET alone; the tangent row here changes sign when a step turns
      past a fold (W423, docs/xppaut-findings.md 72) */
-  xpp::ge(iap->lib->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
+  xpp::ge(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, ud.data(), ndim + 1, rhs, &det);
   {
     integer tmp = ndim + 1;
     nrmlz(&tmp, ud.data());
@@ -2280,7 +2278,7 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   /* If requested write additional output on unit 9 : */
 
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
+    xpp::print(iap->run->fp9,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
   }
   return ret_val;
 } /* fnlpae_ */
@@ -2344,7 +2342,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
     }
   }
   /* xppautX: the point's eigenvalues (autox_stability.h; eig computed ndm) */
-  xpp::autox_stability_computed(iap->lib->session->autox_state.stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndm)},xpp::AUTOX_STABILITY_STEADY);
+  xpp::autox_stability_computed(iap->run->stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndm)},xpp::AUTOX_STABILITY_STEADY);
   /* Order the eigenvalues by real part. */
 
   for (i = 0; i < ndm - 1; ++i) {
@@ -2401,11 +2399,11 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
       std::optional<doublecomplex> selected;
       for (i=forced;i<ndm;++i)
         if ((forced || ev[i].i!=0.) && (!selected || std::abs(ev[i].r)<std::abs(selected->r))) selected=ev[i];
-      auto &kind=iap->lib->codim.map_kind;
+      auto &kind=iap->run->codim.map_kind;
       kind=selected ? xpp::autox_map_secondary_kind(isw==2 ? iap->itpst : xpp::AutoxPointKind::Regular,std::abs(selected->i),rap->epss) : xpp::AutoxPointKind::Regular;
       ret_val=selected ? selected->r : autox_test_not_applicable;
       *chng=nins1!=iap->nins && kind!=xpp::AutoxPointKind::Regular && iap->isp!=0 &&
-          (isw!=2 || xpp::autox_codim_enabled(iap->lib->session->autox_state.special_points,kind));
+          (isw!=2 || xpp::autox_codim_enabled(iap->run->session->autox_state.special_points,kind));
       if (isw!=2 && selected && kind==xpp::AutoxPointKind::NeimarkSacker)
         par[xpp::autox_unknown::period]=pi(2.)/std::abs(selected->i);
     }
@@ -2419,7 +2417,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
     const integer required_change=isw==2 && iap->itpst==xpp::AutoxPointKind::Hopf ? 1 : hopf_stability_change;
     if (f2c::abs(nins1 - nins) >= required_change) *chng = true;
     if (isw==2 && (iap->isp==0 || iap->isp==3 ||
-        !xpp::autox_codim_enabled(iap->lib->session->autox_state.special_points,xpp::AutoxPointKind::ZeroHopf) ||
+        !xpp::autox_codim_enabled(iap->run->session->autox_state.special_points,xpp::AutoxPointKind::ZeroHopf) ||
         iap->itp.kind==xpp::AutoxPointKind::BogdanovTakens)) { *chng=false; ret_val=autox_test_not_applicable; }
   }
   nins = nins1;
@@ -2428,22 +2426,22 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   ntot = iap->ntot;
   ntotp1 = ntot + 1;
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4} {:5}        Hopf Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
+    xpp::print(iap->run->fp9,"{:4} {:5}        Hopf Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
   }
   if (nins1 == ndm) {
     ntotp1 = -ntotp1;
   }
 
-  xpp::print(iap->lib->fp9,"{:4} {:5}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);
+  xpp::print(iap->run->fp9,"{:4} {:5}        Eigenvalues:                                 Stable:{:3}\n",f2c::abs(ibr),ntop,nins);
   if (ips == xpp::AutoxProblem::DiscreteMap) {
     for (i = 0; i < ndm; ++i) {
       const double expx = xpp::math::exp(ev[i].r); /* exp(ev) */
-      xpp::print(iap->lib->fp9,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,
+      xpp::print(iap->run->fp9,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,
                  expx * xpp::math::cos(ev[i].i),expx * xpp::math::sin(ev[i].i));
     }
   } else {
     for (i = 0; i < ndm; ++i) {
-      xpp::print(iap->lib->fp9,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
+      xpp::print(iap->run->fp9,"{:4} {:5}        Eigenvalue{:3} {:14.6E}{:14.6E}\n",f2c::abs(ibr),ntop,i+1,ev[i].r,ev[i].i);
     }
   }
 
@@ -2462,12 +2460,12 @@ doublereal user_zero(const iap_type &iap, const doublereal *par,
                      std::span<const AutoxMark> marks, int width) {
   const integer iuzr = iap.iuzr;
   const doublereal value = autox_parameter_value(
-      *iap.lib->session, f2c::abs(marks[iuzr].parameter),
+      *iap.run->session, f2c::abs(marks[iuzr].parameter),
       {icp, static_cast<std::size_t>(iap.nfpr)},
-      {par, static_cast<std::size_t>(iap.lib->parameter_count)}) - marks[iuzr].value;
+      {par, static_cast<std::size_t>(iap.run->parameter_count)}) - marks[iuzr].value;
   *chng = true;
   if (iap.iid >= user_zero_diagnostic_level) {
-    xpp::print(iap.lib->fp9, "{:4} {:5}        User Func. {:3} {:{}.6E}\n",
+    xpp::print(iap.run->fp9, "{:4} {:5}        User Func. {:3} {:{}.6E}\n",
                f2c::abs(iap.ibr), iap.ntot + 1,
                iuzr, value, width);
   }
@@ -2580,7 +2578,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   double pivot = NAN; /* the last linear solve's smallest pivot (xpp::ge) */
   // Internal switches can reuse BR/PT for a different branch point. Point
   // zero means no proven record; on failure refresh the restored Jacobian.
-  xpp::autox_stability_step_start(iap->lib->session->autox_state.stability, iap->ibr, 0);
+  xpp::autox_stability_step_start(iap->run->stability, iap->ibr, 0);
 
   integer aa_dim1;
 
@@ -2648,12 +2646,12 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     ndmr = 6;
   }
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
+    xpp::print(iap->run->fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
 	    nit,icp[0],rlcur[0]);	
     for (i = 0; i < ndmr; ++i) {
-      xpp::print(iap->lib->fp9,"{:11.3E}",u[i]);	
+      xpp::print(iap->run->fp9,"{:11.3E}",u[i]);	
     }
-    xpp::print(iap->lib->fp9,"\n");	
+    xpp::print(iap->run->fp9,"\n");	
 
   }
 
@@ -2691,7 +2689,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
       integer tmp = ndim + 1;
       wrjac(iap, &tmp, m1aaloc, aa, rhs);
     }
-    pivot = xpp::ge(iap->lib->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
+    pivot = xpp::ge(iap->run->fp9, iap->iid, ndim + 1, *m1aaloc, aa, 1, ndim + 1, du,
        ndim + 1, rhs, &det);
     rap->det = det;
     drlm = du[ndim];
@@ -2721,12 +2719,12 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     }
 
     if (iid >= 2) {
-      xpp::print(iap->lib->fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
+      xpp::print(iap->run->fp9," Branch {:2} N={:5} IT={:2} PAR({:2})={:11.3E} U=",ibr,ntop,
 	      nit+1,icp[0],rlcur[0]);	
       for (i = 0; i < ndmr; ++i) {
-	xpp::print(iap->lib->fp9,"{:11.3E}",u[i]);	
+	xpp::print(iap->run->fp9,"{:11.3E}",u[i]);	
       }
-      xpp::print(iap->lib->fp9,"\n");	
+      xpp::print(iap->run->fp9,"\n");	
     }
 
     /* Check whether relative error has reached user-supplied tolerance : 
@@ -2749,10 +2747,10 @@ failed_step:
   /* Maximum number of iterations reached. Reduce stepsize and try again. */
 
   if (iads == 0) {
-    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
+    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
-    xpp::autox_stop_noconv(iap->lib->session->autox_state.stop, {xpp::AUTOX_STOP_NOCONV_SWITCH_FIXED, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
+    xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_SWITCH_FIXED, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
     goto L5;
   }
 
@@ -2767,22 +2765,22 @@ failed_step:
     u[i] = uold[i] + *rds * udot[i];
   }
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
+    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
   }
   goto L2;
 
 /* Minimum stepsize reached. */
 
  L4:
-  xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
-  xpp::autox_stop_noconv(iap->lib->session->autox_state.stop, {xpp::AUTOX_STOP_NOCONV_SWITCH_MIN, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
+  xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
+  xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_SWITCH_MIN, *rds, dsmin, itnw, epsl, epsu, pivot}); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
   par[icp[0]] = rlcur[0];
   for (i = 0; i < ndim; ++i) {
     u[i] = uold[i];
   }
-  const bool retained = xpp::autox_stability_step_failed(iap->lib->session->autox_state.stability,
+  const bool retained = xpp::autox_stability_step_failed(iap->run->stability,
       iap->ibr, iap->ntot + 1);
   istop = 1;
   iap->istop = istop;
@@ -2807,7 +2805,6 @@ failed_step:
 int 
 sthd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, doublereal *thu)
 {
-  xpp::Session &s=*iap->lib->session;
   integer ndim, ncol, mxbf, nicp;
   doublereal epsl;
   integer nfpr, iplt, nint;
@@ -2858,44 +2855,44 @@ sthd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *th
   epsu = rap->epsu;
   epss = rap->epss;
 
-  xpp::print(s.autox_lib.fp7,"   0 {:12.4E}{:12.4E}{:12.4E}{:12.4E}\n",rl0,rl1,a0,a1);
-  xpp::print(s.autox_lib.fp7,"   0   EPSL={:11.4E}  EPSU ={:11.4E}  EPSS ={:11.4E}\n",epsl,epsu,epss);
-  xpp::print(s.autox_lib.fp7,"   0   DS  ={:11.4E}  DSMIN={:11.4E}  DSMAX={:11.4E}\n",ds,dsmin,dsmax);
-  xpp::print(s.autox_lib.fp7,"   0   NDIM={:4}   IPS ={:4}   IRS ={:4}   ILP ={:4}\n",ndim,xpp::autox_problem_code(ips),irs,ilp); 
-  xpp::print(s.autox_lib.fp7,"   0   NTST={:4}   NCOL={:4}   IAD ={:4}   ISP ={:4}\n",ntst,ncol,iad,isp);
-  xpp::print(s.autox_lib.fp7,"   0   ISW ={:4}   IPLT={:4}   NBC ={:4}   NINT={:4}\n",isw,iplt,nbc,nint);
-  xpp::print(s.autox_lib.fp7,"   0   NMX={:5}   NPR ={:4}   MXBF={:4}   IID ={:4}\n",nmx,npr,mxbf,iid);
-  xpp::print(s.autox_lib.fp7,"   0   ITMX={:4}   ITNW={:4}   NWTN={:4}   JAC={:4}  NUZR={:4}\n",itmx,itnw,nwtn,jac,nuzr);
+  xpp::print(iap->run->fp7,"   0 {:12.4E}{:12.4E}{:12.4E}{:12.4E}\n",rl0,rl1,a0,a1);
+  xpp::print(iap->run->fp7,"   0   EPSL={:11.4E}  EPSU ={:11.4E}  EPSS ={:11.4E}\n",epsl,epsu,epss);
+  xpp::print(iap->run->fp7,"   0   DS  ={:11.4E}  DSMIN={:11.4E}  DSMAX={:11.4E}\n",ds,dsmin,dsmax);
+  xpp::print(iap->run->fp7,"   0   NDIM={:4}   IPS ={:4}   IRS ={:4}   ILP ={:4}\n",ndim,xpp::autox_problem_code(ips),irs,ilp); 
+  xpp::print(iap->run->fp7,"   0   NTST={:4}   NCOL={:4}   IAD ={:4}   ISP ={:4}\n",ntst,ncol,iad,isp);
+  xpp::print(iap->run->fp7,"   0   ISW ={:4}   IPLT={:4}   NBC ={:4}   NINT={:4}\n",isw,iplt,nbc,nint);
+  xpp::print(iap->run->fp7,"   0   NMX={:5}   NPR ={:4}   MXBF={:4}   IID ={:4}\n",nmx,npr,mxbf,iid);
+  xpp::print(iap->run->fp7,"   0   ITMX={:4}   ITNW={:4}   NWTN={:4}   JAC={:4}  NUZR={:4}\n",itmx,itnw,nwtn,jac,nuzr);
 
   if (nicp == 1) {
-    jtmp = iap->lib->parameter_count;
-    xpp::print(s.autox_lib.fp7,"   0   User-specified parameter:       ");
+    jtmp = iap->run->parameter_count;
+    xpp::print(iap->run->fp7,"   0   User-specified parameter:       ");
     for (i = 0; i < nicp; ++i) {
-      xpp::print(s.autox_lib.fp7,"{:4}",icp[jtmp + i]);
+      xpp::print(iap->run->fp7,"{:4}",icp[jtmp + i]);
     }
-    xpp::print(s.autox_lib.fp7,"\n");
+    xpp::print(iap->run->fp7,"\n");
   } else {
-    jtmp = iap->lib->parameter_count;
-    xpp::print(s.autox_lib.fp7,"   0   User-specified parameters:      ");
+    jtmp = iap->run->parameter_count;
+    xpp::print(iap->run->fp7,"   0   User-specified parameters:      ");
     for (i = 0; i < nicp; ++i) {
-      xpp::print(s.autox_lib.fp7,"{:4}",icp[jtmp + i]);
+      xpp::print(iap->run->fp7,"{:4}",icp[jtmp + i]);
     }
-    xpp::print(s.autox_lib.fp7,"\n");
+    xpp::print(iap->run->fp7,"\n");
   }
 
   if (nfpr == 1) {
-    xpp::print(s.autox_lib.fp7,"   0   Active continuation parameter:  ");
+    xpp::print(iap->run->fp7,"   0   Active continuation parameter:  ");
 	
     for (i = 0; i < nfpr; ++i) {
-      xpp::print(s.autox_lib.fp7,"{:4}",icp[i]);
+      xpp::print(iap->run->fp7,"{:4}",icp[i]);
     }
-    xpp::print(s.autox_lib.fp7,"\n");
+    xpp::print(iap->run->fp7,"\n");
   } else {
-    xpp::print(s.autox_lib.fp7,"   0   Active continuation parameters:  ");
+    xpp::print(iap->run->fp7,"   0   Active continuation parameters:  ");
     for (i = 0; i < nfpr; ++i) {
-      xpp::print(s.autox_lib.fp7,"{:4}",icp[i]);
+      xpp::print(iap->run->fp7,"{:4}",icp[i]);
     }
-    xpp::print(s.autox_lib.fp7,"\n");
+    xpp::print(iap->run->fp7,"\n");
   }
 
   return 0;
@@ -2925,10 +2922,10 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
     xpp::log_autox(" \n");
   }
   if (iunit == 7) {
-    xpp::print(iap->lib->fp7,"   0\n");
+    xpp::print(iap->run->fp7,"   0\n");
   }
   if (iunit == 9) {
-    xpp::print(iap->lib->fp9," \n");	
+    xpp::print(iap->run->fp9," \n");	
   }
 
   j = 0;
@@ -2992,21 +2989,21 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
     xpp::log_autox("  BR    PT  TY LAB ");
     for (i = 0; i < *n1 + *n2 + 1; ++i) {
       /* PAR(n)/U(n) as the user named them */
-      xpp::log_autox("{}",autox_screen_col(*iap->lib->session, col[i]).c_str());
+      xpp::log_autox("{}",autox_screen_col(*iap->run->session, col[i]).c_str());
     }
     xpp::log_autox("\n");
   } else if (iunit == 7) {
-    xpp::print(iap->lib->fp7,"   0    PT  TY LAB ");
+    xpp::print(iap->run->fp7,"   0    PT  TY LAB ");
     for (i = 0; i < *n1 + *n2 + 1; ++i) {
-      xpp::print(iap->lib->fp7,"{}",col[i]);
+      xpp::print(iap->run->fp7,"{}",col[i]);
     }
-    xpp::print(iap->lib->fp7,"\n");
+    xpp::print(iap->run->fp7,"\n");
   } else if (iunit == 9) {
-    xpp::print(iap->lib->fp9,"  BR    PT  TY LAB ");	
+    xpp::print(iap->run->fp9,"  BR    PT  TY LAB ");	
     for (i = 0; i < *n1 + *n2 + 1; ++i) {
-      xpp::print(iap->lib->fp9,"{}",col[i]);
+      xpp::print(iap->run->fp9,"{}",col[i]);
     }
-    xpp::print(iap->lib->fp9,"\n");	
+    xpp::print(iap->run->fp9,"\n");	
   }
 
   return 0;
@@ -3138,14 +3135,14 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
   }
   xpp::addbif(iap,rap,ntots,iap->ibr,par,icp,labw,&amp, {u,static_cast<size_t>(iap->ndim)}, {u,static_cast<size_t>(iap->ndim)}, {u,static_cast<size_t>(iap->ndim)}, {u,static_cast<size_t>(iap->ndim)});
-  wrline(iap, rap, par, icp, &icp[iap->lib->parameter_count], &context.ibr, &ntots,
+  wrline(iap, rap, par, icp, &icp[iap->run->parameter_count], &context.ibr, &ntots,
 	 &labw, &amp, u);
   if (iap->istop != 0) { /* xppautX: why the branch ended (autox_stop.h, T23) */
     stop_at.br = context.ibr, stop_at.pt = ntot, stop_at.ipar = icp[0], stop_at.par = rlcur[0], stop_at.norm = amp;
     stop_at.rl0 = context.rl0, stop_at.rl1 = context.rl1, stop_at.a0 = context.a0, stop_at.a1 = context.a1, stop_at.nmx = context.nmx;
     stop_at.mark = iap->istop == -1;
     if (stop_at.mark) stop_at.user = 0;
-    xpp::autox_stop_branch_end(*iap->lib->session, &stop_at);
+    xpp::autox_stop_branch_end(*iap->run, &stop_at);
   }
 
   /* Write restart information for multi-parameter analysis : */
@@ -3160,7 +3157,6 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 int 
 wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu, integer *ibr, integer *ntot, integer *lab, doublereal *vaxis, doublereal *u)
 {
-  xpp::Session &s=*iap->lib->session;
 
   integer nicp, i;
 
@@ -3169,10 +3165,10 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   integer nt, ndm, lb;
   xpp::AutoxPointCode itp;
   lb=*lab;
-  if(s.autox_lib.restart_flag&&(lb!=0)){
+  if(iap->run->restart_flag&&(lb!=0)){
     
-    s.autox_lib.restart_flag=false;
-    s.autox_state.restart_label=*lab;
+    iap->run->restart_flag=false;
+    iap->run->restart_label=*lab;
   }
 
 /* Write one line of output on unit 6 and 7. */
@@ -3214,20 +3210,20 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
       }
       xpp::log_autox("\n");
     }
-    xpp::print(s.autox_lib.fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::autox_point_encode(itp),(*lab));
-    xpp::print(s.autox_lib.fp7,"{:14.5E}",par[icu[0]]);
-    xpp::print(s.autox_lib.fp7,"{:14.5E}",(*vaxis));
+    xpp::print(iap->run->fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::autox_point_encode(itp),(*lab));
+    xpp::print(iap->run->fp7,"{:14.5E}",par[icu[0]]);
+    xpp::print(iap->run->fp7,"{:14.5E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
-      xpp::print(s.autox_lib.fp7,"{:14.5E}",par[icu[i]]);
+      xpp::print(iap->run->fp7,"{:14.5E}",par[icu[i]]);
     }
-    xpp::print(s.autox_lib.fp7,"\n");
-    xpp::print(s.autox_lib.fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
-    xpp::print(s.autox_lib.fp9,"{:14.6E}",par[icu[0]]);
-    xpp::print(s.autox_lib.fp9,"{:14.6E}",(*vaxis));
+    xpp::print(iap->run->fp7,"\n");
+    xpp::print(iap->run->fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
+    xpp::print(iap->run->fp9,"{:14.6E}",par[icu[0]]);
+    xpp::print(iap->run->fp9,"{:14.6E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
-      xpp::print(s.autox_lib.fp9,"{:14.6E}",par[icu[i]]);
+      xpp::print(iap->run->fp9,"{:14.6E}",par[icu[i]]);
     }
-    xpp::print(s.autox_lib.fp9,"\n");
+    xpp::print(iap->run->fp9,"\n");
   } else {
     if (n1 == 1) {
       if (itp.kind != xpp::AutoxPointKind::Regular) {
@@ -3239,20 +3235,20 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	}
 	xpp::log_autox("\n");
       }
-      xpp::print(s.autox_lib.fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::autox_point_encode(itp),(*lab));
-      xpp::print(s.autox_lib.fp7,"{:14.5E}",par[icu[0]]);
-      xpp::print(s.autox_lib.fp7,"{:14.5E}",(*vaxis));
+      xpp::print(iap->run->fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::autox_point_encode(itp),(*lab));
+      xpp::print(iap->run->fp7,"{:14.5E}",par[icu[0]]);
+      xpp::print(iap->run->fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	xpp::print(s.autox_lib.fp7,"{:14.5E}",u[i]);
+	xpp::print(iap->run->fp7,"{:14.5E}",u[i]);
       }
-      xpp::print(s.autox_lib.fp7,"\n");
-      xpp::print(s.autox_lib.fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
-      xpp::print(s.autox_lib.fp9,"{:14.6E}",par[icu[0]]);
-      xpp::print(s.autox_lib.fp9,"{:14.6E}",(*vaxis));
+      xpp::print(iap->run->fp7,"\n");
+      xpp::print(iap->run->fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
+      xpp::print(iap->run->fp9,"{:14.6E}",par[icu[0]]);
+      xpp::print(iap->run->fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	xpp::print(s.autox_lib.fp9,"{:14.6E}",u[i]);
+	xpp::print(iap->run->fp9,"{:14.6E}",u[i]);
       }
-      xpp::print(s.autox_lib.fp9,"\n");	
+      xpp::print(iap->run->fp9,"\n");	
 
     } else {
       if (itp.kind != xpp::AutoxPointKind::Regular) {
@@ -3267,26 +3263,26 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	}
 	xpp::log_autox("\n");
       }
-      xpp::print(s.autox_lib.fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::autox_point_encode(itp),(*lab));
-      xpp::print(s.autox_lib.fp7,"{:14.5E}",par[icu[0]]);
-      xpp::print(s.autox_lib.fp7,"{:14.5E}",(*vaxis));
+      xpp::print(iap->run->fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::autox_point_encode(itp),(*lab));
+      xpp::print(iap->run->fp7,"{:14.5E}",par[icu[0]]);
+      xpp::print(iap->run->fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	xpp::print(s.autox_lib.fp7,"{:14.5E}",u[i]);
+	xpp::print(iap->run->fp7,"{:14.5E}",u[i]);
       }
       for (i = 1; i < n1; ++i) {
-	xpp::print(s.autox_lib.fp7,"{:14.5E}",par[icu[i]]);
+	xpp::print(iap->run->fp7,"{:14.5E}",par[icu[i]]);
       }
-      xpp::print(s.autox_lib.fp7,"\n");
-      xpp::print(s.autox_lib.fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
-      xpp::print(s.autox_lib.fp9,"{:14.6E}",par[icu[0]]);
-      xpp::print(s.autox_lib.fp9,"{:14.6E}",(*vaxis));
+      xpp::print(iap->run->fp7,"\n");
+      xpp::print(iap->run->fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
+      xpp::print(iap->run->fp9,"{:14.6E}",par[icu[0]]);
+      xpp::print(iap->run->fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
-	xpp::print(s.autox_lib.fp9,"{:14.6E}",u[i]);
+	xpp::print(iap->run->fp9,"{:14.6E}",u[i]);
       }
       for (i = 1; i < n1; ++i) {
-	xpp::print(s.autox_lib.fp9,"{:14.6E}",par[icu[i]]);
+	xpp::print(iap->run->fp9,"{:14.6E}",par[icu[i]]);
       }
-      xpp::print(s.autox_lib.fp9,"\n");	
+      xpp::print(iap->run->fp9,"\n");	
     }
   }
 
@@ -3313,14 +3309,13 @@ static integer solution_row_count(integer values)
 int 
 wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab, doublereal *rlcur, doublereal *u, const doublereal *udot, const doublereal *rldot)
 {
-  xpp::Session &s=*iap->lib->session;
   integer ndim, nfpr, ntpl, jtmp, ntot, i;
   doublereal t;
   integer nrowpr, ibr;
   integer nar, isw;
   xpp::AutoxPointCode itp;
 
-  FILE *const fp8=fort8(s.autox_lib);
+  FILE *const fp8=fort8(*iap->run);
 
   /* Write restart information on singular points, plotting points, etc., */
   /* on unit 8. */
@@ -3334,7 +3329,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
 
   ntpl = 1;
   nar = ndim + 1;
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nrowpr = ndim / autox_solution_columns + 1 + (jtmp - 1) / autox_solution_columns + 1;
   /* A branch point keeps the direction of its branch (AUTO-07p's NTST=1 record: the
      free parameter indices, PAR-dot, U-dot): a restart that switches branches needs it. */
@@ -3355,7 +3350,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   xpp::print(fp8," {:4}",nrowpr);
   xpp::print(fp8," {:4}",direction ? 1 : 0);
   xpp::print(fp8," {:4}",0);
-  xpp::print(fp8," {:4}\n",iap->lib->parameter_count);
+  xpp::print(fp8," {:4}\n",iap->run->parameter_count);
   xpp::print(fp8,"    {:19.10E}",t);
   for (i = 0; i < ndim; ++i) {
     if((i>0)&&((i+1)%autox_solution_columns==0))
@@ -3385,18 +3380,18 @@ wrjac(iap_type *iap, integer *n, integer *m1aaloc, doublereal *aa, doublereal *r
 
   aa_dim1 = *m1aaloc;
     
-  xpp::print(iap->lib->fp9," Residual vector :\n");	
+  xpp::print(iap->run->fp9," Residual vector :\n");	
 
   for (i = 0; i < *n; ++i) {
-    xpp::print(iap->lib->fp9," {:10.3E}",rhs[i]);	
+    xpp::print(iap->run->fp9," {:10.3E}",rhs[i]);	
   }
-  xpp::print(iap->lib->fp9,"\n");	
-  xpp::print(iap->lib->fp9," Jacobian matrix :\n");	
+  xpp::print(iap->run->fp9,"\n");	
+  xpp::print(iap->run->fp9," Jacobian matrix :\n");	
   for (i = 0; i < *n; ++i) {
     for (j = 0; j < *n; ++j) {
-      xpp::print(iap->lib->fp9," {:10.3E}",ARRAY2D(aa, i, j));	
+      xpp::print(iap->run->fp9," {:10.3E}",ARRAY2D(aa, i, j));	
     }
-    xpp::print(iap->lib->fp9,"\n");	
+    xpp::print(iap->run->fp9,"\n");	
 
   }
 
@@ -3742,8 +3737,8 @@ adptds(iap_type *iap, rap_type *rap, doublereal *rds)
     *rds = *rds * dsmax / ards;
   }
 
-  xpp::print(iap->lib->fp9,"{:4} {:5}        Iterations     {:3}\n",f2c::abs(ibr),ntop - 1,nit);
-  xpp::print(iap->lib->fp9,"{:4} {:5}        Stepsize      {:14.6E}\n",f2c::abs(ibr),ntop,(*rds));
+  xpp::print(iap->run->fp9,"{:4} {:5}        Iterations     {:3}\n",f2c::abs(ibr),ntop - 1,nit);
+  xpp::print(iap->run->fp9,"{:4} {:5}        Stepsize      {:14.6E}\n",f2c::abs(ibr),ntop,(*rds));
 
   return 0;
 } /* adptds_ */
@@ -4138,14 +4133,14 @@ newlab(iap_type *iap, rap_type *rap)
 
   mbr = 0;
   mlab = 0;
-  if (auto r=xpp::rewind_stream(iap->lib->fp3, xpp::autox_fort_path(*iap->lib->session,3)); !r)
+  if (auto r=xpp::rewind_stream(iap->run->fp3, xpp::autox_fort_path(*iap->run, 3)); !r)
     xpp::autox_fail(r.error());
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
 
  L1:
   {
     xpp::AutoxSolutionHeader header;
-    if (!xpp::read_autox_solution_header(tr, header, iap->lib->parameter_count)) goto L2;
+    if (!xpp::read_autox_solution_header(tr, header, iap->run->parameter_count)) goto L2;
     ibrs = header.ibr;
     labrs = header.lab;
     nskip = header.nskip;
@@ -4159,7 +4154,7 @@ newlab(iap_type *iap, rap_type *rap)
   if (labrs > mlab) {
     mlab = labrs;
   }
-  skip3(iap->lib->fp3, &nskip, &eof3);
+  skip3(iap->run->fp3, &nskip, &eof3);
   if (! eof3) {
     goto L1;
   }
@@ -4167,7 +4162,7 @@ newlab(iap_type *iap, rap_type *rap)
  L2:
   /* A fresh run has an empty fort.3, but the diagram may retain older
      branches. Their labels must still identify their own restart solution. */
-  for(const auto &point:iap->lib->session->diagram.points){
+  for(const auto &point:iap->run->session->diagram.points){
     mbr=std::max(mbr,static_cast<integer>(f2c::abs(point.ibr)));
     mlab=std::max(mlab,static_cast<integer>(point.lab));
   }
@@ -4187,14 +4182,14 @@ newlab(iap_type *iap, rap_type *rap)
 
 void autox_restart_label_missing(const iap_type *iap)
 {
-  xpp::autox_fail(xpp::format("autoX: restart label {} is not in {}", iap->irs, xpp::autox_fort_path(*iap->lib->session, 3)));
+  xpp::autox_fail(xpp::format("autoX: restart label {} is not in {}", iap->irs, xpp::autox_fort_path(*iap->run, 3)));
 }
 
 void autox_restart_read(const iap_type *iap, bool ok, std::string_view what)
 {
   if (!ok)
     xpp::autox_fail(xpp::format("autoX: the restart data of label {} in {} ends before {}", iap->irs,
-                               xpp::autox_fort_path(*iap->lib->session, 3), what));
+                               xpp::autox_fort_path(*iap->run, 3), what));
 }
 
 void read_autox_restart_header(iap_type *iap, const rap_type *rap,
@@ -4204,11 +4199,11 @@ void read_autox_restart_header(iap_type *iap, const rap_type *rap,
   bool found;
   findlb(iap, rap, iap->irs, &free, &found);
   if (!found) autox_restart_label_missing(iap);
-  reader = xpp::TokenReader::attach(iap->lib->fp3);
-  autox_restart_read(iap, xpp::read_autox_solution_header(reader, header, iap->lib->parameter_count), "its header");
+  reader = xpp::TokenReader::attach(iap->run->fp3);
+  autox_restart_read(iap, xpp::read_autox_solution_header(reader, header, iap->run->parameter_count), "its header");
   if (header.equilibrium_direction())
     xpp::autox_fail(xpp::format("autoX: restart label {} in {} is an equilibrium's branch point, not a mesh of a periodic solution or a boundary value problem", iap->irs,
-                               xpp::autox_fort_path(*iap->lib->session, 3)));
+                               xpp::autox_fort_path(*iap->run, 3)));
   *ntst = header.ntst;
   *ncol = header.ncol;
   iap->ibr = header.ibr;
@@ -4228,18 +4223,18 @@ findlb(iap_type *iap, const rap_type *rap,
   /* If the label can not be located on unit 3 then FOUND will be .FALSE. */
 
   *found = false;
-  if (auto r=xpp::rewind_stream(iap->lib->fp3, xpp::autox_fort_path(*iap->lib->session,3)); !r)
+  if (auto r=xpp::rewind_stream(iap->run->fp3, xpp::autox_fort_path(*iap->run, 3)); !r)
     xpp::autox_fail(r.error());
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
   isw = iap->isw;
 
   while(1) {
     /* where this label line starts: readlb() reads it again from here */
-    const auto position=xpp::tell_stream(iap->lib->fp3, xpp::autox_fort_path(*iap->lib->session,3));
+    const auto position=xpp::tell_stream(iap->run->fp3, xpp::autox_fort_path(*iap->run, 3));
     if (!position) xpp::autox_fail(position.error());
     line_start = *position;
     xpp::AutoxSolutionHeader header;
-    if (!xpp::read_autox_solution_header(tr, header, iap->lib->parameter_count)) break;
+    if (!xpp::read_autox_solution_header(tr, header, iap->run->parameter_count)) break;
     ibr = header.ibr;
     itp = header.itp;
     labrs = header.lab;
@@ -4263,11 +4258,11 @@ findlb(iap_type *iap, const rap_type *rap,
 	 stream in the Windows C runtime (CRLF translation): it left the
 	 stream mid-line, so readlb() parsed garbage for nar and wrote
 	 that many values past the end of u, corrupting the heap. */
-      if (auto r=xpp::seek_stream(iap->lib->fp3, line_start, xpp::autox_fort_path(*iap->lib->session,3)); !r)
+      if (auto r=xpp::seek_stream(iap->run->fp3, line_start, xpp::autox_fort_path(*iap->run, 3)); !r)
         xpp::autox_fail(r.error());
       return 0;
     } else {
-      skip3(iap->lib->fp3, &nskip, &eof3);
+      skip3(iap->run->fp3, &nskip, &eof3);
       if (eof3) {
 	break;
       }
@@ -4281,17 +4276,17 @@ findlb(iap_type *iap, const rap_type *rap,
 void
 readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
 {
-  xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+  xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
   xpp::AutoxSolutionHeader header;
-  autox_restart_read(iap, xpp::read_autox_solution_header(tr, header, iap->lib->parameter_count), "its header");
+  autox_restart_read(iap, xpp::read_autox_solution_header(tr, header, iap->run->parameter_count), "its header");
   const integer ndim = header.nar - 1;
   if (ndim > iap->ndim)
     xpp::autox_fail(xpp::format("autoX: the restart data of label {} in {} has {} variables, the model {}", iap->irs,
-                               xpp::autox_fort_path(*iap->lib->session, 3), ndim, iap->ndim));
+                               xpp::autox_fort_path(*iap->run, 3), ndim, iap->ndim));
   doublereal time;
   autox_restart_read(iap, xpp::read_autox_solution_rows(tr, ndim, 0, 0, 1, 0, ndim, u, &time, false, 0, {}),
                     "the solution");
-  iap->lib->restart_direction.reset();
+  iap->run->restart_direction.reset();
   if (header.equilibrium_direction()) {
     /* the branch's direction, which wrtsp8 keeps at a branch point: the free parameter indices, PAR-dot, U-dot */
     AutoxRestartDirection direction;
@@ -4308,9 +4303,9 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
     direction.udot.resize(static_cast<std::size_t>(ndim));
     for (double &value : direction.udot)
       autox_restart_read(iap, tr.read(value), "the arclength derivatives");
-    iap->lib->restart_direction = std::move(direction);
+    iap->run->restart_direction = std::move(direction);
   }
-  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
+  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->run, par), "the parameter values");
 } /* readlb_ */
 
 int 
@@ -4577,10 +4572,10 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer ntot, ntst, nuzr, i, j;
   doublereal dsold;
   integer nodir = 0;
-  iap->lib->hopf_start = stpnt == stpnps || stpnt == stpnwp;
-  std::vector<doublereal> rlold(iap->lib->parameter_count);
-  std::vector<doublereal> rldot(iap->lib->parameter_count);
-  std::vector<doublereal> rlcur(iap->lib->parameter_count);
+  iap->run->hopf_start = stpnt == stpnps || stpnt == stpnwp;
+  std::vector<doublereal> rlold(iap->run->parameter_count);
+  std::vector<doublereal> rldot(iap->run->parameter_count);
+  std::vector<doublereal> rlcur(iap->run->parameter_count);
   integer nitps, istop;
   xpp::AutoxPointKind itpst;
   doublereal ds;
@@ -4608,7 +4603,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   std::vector<doublereal> p0(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublereal> p1(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublecomplex> ev(iap->ndim);
-  if (iap->isw==2 && xpp::problem_has_orbit_multipliers(iap->ips)) iap->lib->codim.prepare_cycle(iap->ndim,iap->ndm);
+  if (iap->isw==2 && xpp::problem_has_orbit_multipliers(iap->ips)) iap->run->codim.prepare_cycle(iap->ndim,iap->ndm);
   std::vector<AutoxTestSample> uzr(iap->nuzr);
 
   /* INITIALIZE COMPUTATION OF BRANCH */
@@ -4676,10 +4671,10 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     const auto direction = rldot;
     const auto tangent_ps = udotps;
     const auto multipliers = ev;
-    const auto stability = iap->lib->session->autox_state.stability.computed;
+    const auto stability = iap->run->stability.computed;
     const integer saved_isp = iap->isp, saved_nins = iap->nins;
     const doublereal saved_det = rap->det;
-    const auto homcont = iap->lib->homcont; // a homoclinic run's boundary evaluations advance its projection state
+    const auto homcont = iap->run->homcont; // a homoclinic run's boundary evaluations advance its projection state
     integer refactor = 1, tangent = -1;
     doublereal no_step = 0.;
     solvbv(&refactor, iap, rap, par, icp, funi, bcni, icni, &no_step, &tangent,
@@ -4691,11 +4686,11 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     rldot = direction;
     udotps = tangent_ps;
     ev = multipliers;
-    iap->lib->session->autox_state.stability.computed = stability;
+    iap->run->stability.computed = stability;
     iap->isp = saved_isp;
     iap->nins = saved_nins;
     rap->det = saved_det;
-    iap->lib->homcont = homcont;
+    iap->run->homcont = homcont;
   };
 
   for (j = 0; j < (iap->ntst + 1); ++j) {
@@ -4709,7 +4704,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
   }
   
-  for(j = 0; j < iap->lib->parameter_count; ++j) {
+  for(j = 0; j < iap->run->parameter_count; ++j) {
     rldot[j] = 0.0;
     rlcur[j] = 0.0;
     rlold[j] = 0.0;
@@ -4756,7 +4751,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   /* W572: a Hopf start is no solution of the cycle's equations: its first step is not tested */
 
-  if (!iap->lib->hopf_start && start_is_tested(*iap, start_kind)) {
+  if (!iap->run->hopf_start && start_is_tested(*iap, start_kind)) {
     seed_start_tests();
   }
 
@@ -4891,8 +4886,8 @@ contbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 int 
 extrbv(iap_type *iap, rap_type *rap, FUNI_TYPE((*funi)), doublereal *rds, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps)
 {
-  xpp::autox_stability_step_start(iap->lib->session->autox_state.stability,
-      iap->ibr, iap->ntot + (iap->lib->locating ? 1 : 0));
+  xpp::autox_stability_step_start(iap->run->stability,
+      iap->ibr, iap->ntot + (iap->run->locating ? 1 : 0));
 
   integer ups_dim1, udotps_dim1, uoldps_dim1;
 
@@ -4937,7 +4932,7 @@ stupbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer n1;
   xpp::AutoxProblem ips;
 
-  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->lib->parameter_count));
+  std::vector<doublereal> dfdp(xpp::size_product(iap->ndim, iap->run->parameter_count));
   std::vector<doublereal> dfdu(xpp::size_product(iap->ndim, iap->ndim));
   std::vector<doublereal> uold(iap->ndim);
   std::vector<doublereal> f(iap->ndim);
@@ -5072,7 +5067,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
     { int iflag; xpp::byeautox_(&iflag); } /* xppautX: cancel */
-    if (!iap->lib->locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
+    if (!iap->run->locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     nitps = nit1;
     iap->nit = nitps;
     nllv = 0;
@@ -5083,14 +5078,14 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
 
     {
-      SetubvStop stop(*iap->lib, !iap->lib->locating); /* xppautX: cancel */
+      SetubvStop stop(*iap->run, !iap->run->locating); /* xppautX: cancel */
       solvbv(&ifst, iap, rap, par, icp, funi, bcni, icni, 
 	     rds, &nllv, rlcur, rlold, rldot, ndxloc, 
 	     ups, dups, uoldps, 
 	     udotps, upoldp, dtm, fa, fc, p0, 
 	     p1, thl, thu);
     }
-    if ((!iap->lib->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel, W275 */
+    if ((!iap->run->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel, W275 */
     /* Add Newton increments. */
 
     for (i = 0; i < ndim; ++i) {
@@ -5125,7 +5120,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
         goto L3;
       }
     }
-    if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)})) {
+    if (!xpp::all_finite({par, static_cast<size_t>(iap->run->parameter_count)})) {
       nonfinite = true;
       goto L3;
     }
@@ -5151,21 +5146,21 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
     rdumx = dumx / (umx + 1.);
     if (done && rdumx < epsu) {
-      if (iap->lib->hopf_start && iap->ntot <= hopf_start_steps && (iap->ilp == 1 || iap->isp != 0)) {
+      if (iap->run->hopf_start && iap->ntot <= hopf_start_steps && (iap->ilp == 1 || iap->isp != 0)) {
         integer refactor = 1, tangent = -1;
         doublereal no_step = 0.;
         solvbv(&refactor, iap, rap, par, icp, funi, bcni, icni, &no_step, &tangent,
                rlcur, rlold, rldot, ndxloc, ups, dups, uoldps, udotps, upoldp, dtm,
                fa, fc, p0, p1, thl, thu);
-        if ((!iap->lib->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; }
+        if ((!iap->run->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; }
       }
       (*pvli)(iap, rap, icp, dtm, ndxloc, ups, &ndim, p0, p1, par);
-      if (!xpp::all_finite({par, static_cast<size_t>(iap->lib->parameter_count)})) {
+      if (!xpp::all_finite({par, static_cast<size_t>(iap->run->parameter_count)})) {
         nonfinite = true;
         goto L3;
       }
       if (iid >= 2) {
-	xpp::print(iap->lib->fp9," \n");	
+	xpp::print(iap->run->fp9," \n");	
       }
       return 0;
     }
@@ -5186,8 +5181,8 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
  L3:
   if (iads == 0) {
-    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
-    xpp::autox_stop_noconv(iap->lib->session->autox_state.stop, {xpp::AUTOX_STOP_NOCONV_FIXED, *rds, dsmin, itnw, epsl, epsu, iap->lib->solvbv.pivot}); /* xppautX: T23 */
+    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:No convergence with fixed step size\n",ibr,ntop);
+    xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_FIXED, *rds, dsmin, itnw, epsl, epsu, iap->run->solvbv.pivot}); /* xppautX: T23 */
     goto L13;
   }
 
@@ -5209,7 +5204,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
   }
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
+    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Retrying step\n",ibr,ntop);
 
   }
   goto L1;
@@ -5217,8 +5212,8 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* Minimum stepsize reached. */
 
  L12:
-  xpp::print(iap->lib->fp9,"{:4} {:5}, NOTE:No convergence using minimum step size\n",ibr,ntop);
-  xpp::autox_stop_noconv(iap->lib->session->autox_state.stop, {xpp::AUTOX_STOP_NOCONV_MIN, *rds, dsmin, itnw, epsl, epsu, iap->lib->solvbv.pivot}); /* xppautX: T23 */
+  xpp::print(iap->run->fp9,"{:4} {:5}, NOTE:No convergence using minimum step size\n",ibr,ntop);
+  xpp::autox_stop_noconv(iap->run->stop, {xpp::AUTOX_STOP_NOCONV_MIN, *rds, dsmin, itnw, epsl, epsu, iap->run->solvbv.pivot}); /* xppautX: T23 */
  L13:
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = rlold[i];
@@ -5229,7 +5224,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       ARRAY2D(ups, j, i) = ARRAY2D(uoldps, j, i);
     }
   }
-  const bool retained = xpp::autox_stability_step_failed(iap->lib->session->autox_state.stability,
+  const bool retained = xpp::autox_stability_step_failed(iap->run->stability,
       iap->ibr, iap->ntot + 1);
   istop = 1;
   iap->istop = istop;
@@ -5246,7 +5241,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     solvbv(&fresh, iap, rap, par, icp, funi, bcni, icni, &zero_step, &nullity,
            rlcur, rlold, rldot, ndxloc, ups, dups, uoldps, udotps, upoldp,
            dtm, fa, fc, p0, p1, thl, thu);
-    xpp::autox_stability_multipliers_restored(iap->lib->session->autox_state.stability, *iap, p0, p1);
+    xpp::autox_stability_multipliers_restored(iap->run->stability, *iap, p0, p1);
   }
   return 0;
 } /* stepbv_ */
@@ -5295,9 +5290,9 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if(iap->irs > 0) {
     bool found = false;
     findlb(iap, rap, iap->irs, &junk, &found);
-    xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
+    xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
     xpp::AutoxSolutionHeader header;
-    autox_restart_read(iap, xpp::read_autox_solution_header(tr, header, iap->lib->parameter_count), "its header");
+    autox_restart_read(iap, xpp::read_autox_solution_header(tr, header, iap->run->parameter_count), "its header");
     ntst_fort8 = header.ntst;
     ncol_fort8 = header.ncol;
   } else {
@@ -5403,7 +5398,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   integer i;
 
-  std::vector<integer> icprs(iap->lib->parameter_count);
+  std::vector<integer> icprs(iap->run->parameter_count);
 
   integer nfprs, nskip1, nskip2;
   xpp::AutoxPointCode itprs;
@@ -5456,7 +5451,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   /* Read the parameter values. */
 
-  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->lib->session, par), "the parameter values");
+  autox_restart_read(iap, xpp::read_autox_solution_parameters(tr, header, *iap->run, par), "the parameter values");
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = par[icp[i]];
   }
@@ -5465,7 +5460,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* continuation */
 
   if (ips == xpp::AutoxProblem::Homoclinic) {
-    preho(*iap->lib, ndxloc, ntsrs, &ndimrd, &ndim, ncolrs, ups, udotps, tm, par);
+    preho(*iap->run, ndxloc, ntsrs, &ndimrd, &ndim, ncolrs, ups, udotps, tm, par);
 
     /* Special case : Preprocess restart data in case of branch switching 
      */
@@ -5566,7 +5561,7 @@ int
 stpnub(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsrs, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu)
 {
   return autox_uniform_start(iap, rap, par, icp, ntsrs, ncolrs, rlcur, *ndxloc, ups, tm, nodir,
-      [&](doublereal *state, doublereal &time) { stpnt(*iap->lib->session, iap->ndim, time, state, par); });
+      [&](doublereal *state, doublereal &time) { stpnt(*iap->run, iap->ndim, time, state, par); });
 } /* stpnub_ */
 
 int 
@@ -5585,13 +5580,13 @@ setrtn(iap_type *iap, integer *ntst, integer *ndxloc, doublereal *ups, doublerea
   par[xpp::autox_unknown::rotation_period] = pi(2.0);
   nbc = iap->nbc;
 
-  iap->lib->rotations.irtn = 0;
+  iap->run->rotations.irtn = 0;
   for (i = 0; i < nbc; ++i) {
     doublereal tmp = (ARRAY2D(ups, *ntst, i) - ARRAY2D(ups, 0, i)) / pi(2.0);
-    iap->lib->rotations.nrtn[i] = static_cast<integer>(tmp >= 0. ? floor(tmp + .5) : -floor(.5 - tmp)); /* the nearest whole number */
+    iap->run->rotations.nrtn[i] = static_cast<integer>(tmp >= 0. ? floor(tmp + .5) : -floor(.5 - tmp)); /* the nearest whole number */
 
-    if (iap->lib->rotations.nrtn[i] != 0) {
-      iap->lib->rotations.irtn = 1;
+    if (iap->run->rotations.nrtn[i] != 0) {
+      iap->run->rotations.irtn = 1;
     }
   }
 
@@ -5693,10 +5688,10 @@ stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   }
 
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"Starting direction of the free parameter(s) :\n");	
+    xpp::print(iap->run->fp9,"Starting direction of the free parameter(s) :\n");	
 
     for (i = 0; i < nfpr; ++i) {
-      xpp::print(iap->lib->fp9," PAR({:3}) :{:11.3E}\n",icp[i],rldot[i]);	
+      xpp::print(iap->run->fp9," PAR({:3}) :{:11.3E}\n",icp[i],rldot[i]);	
     }
   }
 
@@ -5724,7 +5719,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   /* This subroutine is called from CNRLB, which controls the computation */
   /* of branches of solutions to general boundary value problems. */
   const auto n = static_cast<std::size_t>(iap->ndim);
-  const auto np = static_cast<std::size_t>(iap->lib->parameter_count);
+  const auto np = static_cast<std::size_t>(iap->run->parameter_count);
   const auto nfpr = static_cast<std::size_t>(iap->nfpr);
   const auto nu = static_cast<std::size_t>(*ndxloc) * n * iap->ncol;
   const auto nc = static_cast<std::size_t>(iap->nbc + iap->nint + 1);
@@ -5809,7 +5804,7 @@ fnlpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   scaleb(iap, icp, ndxloc, udotps, rldot, dtm, 
 	 thl, thu);
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,rldot[0]);
+    xpp::print(iap->run->fp9,"{:4} {:5}        Fold Function {:14.6E}\n",f2c::abs(ibr),ntop,rldot[0]);
   }
 
   /* Set the quantity to be returned. */
@@ -5853,7 +5848,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   for (i = 0; i < ndim * ndim; ++i) {
     pp[i] = p1[i];
   }
-  xpp::ge(iap->lib->fp9, iap->iid, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
+  xpp::ge(iap->run->fp9, iap->iid, ndim, ndim, pp.data(), 0, 1, &u, 1, &f, &det);
   rap->det = det;
 
   /* Set the determinant of the normalized reduced system. */
@@ -5876,7 +5871,7 @@ fnbpbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   }
 
   if (iid >= 2) {
-    xpp::print(iap->lib->fp9,"{:4} {:5}        BP   Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
+    xpp::print(iap->run->fp9,"{:4} {:5}        BP   Function {:14.6E}\n",f2c::abs(ibr),ntop,ret_val);
 
   }
   return ret_val;
@@ -5921,10 +5916,10 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   if (isw==2) {
     xpp::autox_cycle_multipliers(*iap,p0,p1,ev,true);
     ndim=iap->ndm;
-  } else xpp::flowkm(iap->lib->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
+  } else xpp::flowkm(iap->run->fp9, &ndim, p0, p1, &iid, wrk.data(), ev, true);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (autox_stability.h) */
-  xpp::autox_stability_computed(iap->lib->session->autox_state.stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTOX_STABILITY_PERIODIC);
+  xpp::autox_stability_computed(iap->run->stability,ibr,ntot+1,{&ev[0].r,2*static_cast<size_t>(ndim)},xpp::AUTOX_STABILITY_PERIODIC);
   amin = autox_rlarge;
   for (j = 0; j < ndim; ++j) {
     doublecomplex tmp;
@@ -5974,19 +5969,19 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   }
   if (amin > .05 && isp == 2) {
     if (iid >= 2) {
-      xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Multiplier inaccurate\n",f2c::abs(ibr),ntop);
+      xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Multiplier inaccurate\n",f2c::abs(ibr),ntop);
 
     }
-    xpp::autox_stop_note(*iap->lib->session,
+    xpp::autox_stop_note(*iap->run,
                         xpp::format("Br {} Pt {}: the Floquet multipliers are inaccurate (the one at 1 is off by {:.3g}); "
                                     "period doubling and torus detection are off until they are accurate again (try a larger mesh_intervals or collocation_points)",
                                     f2c::abs(ibr), ntop, amin));
     for (i = 0; i < ndim; ++i) {
-      xpp::print(iap->lib->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
+      xpp::print(iap->run->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
     }
     nins = 0;
     iap->nins = nins;
-    xpp::print(iap->lib->fp9,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
+    xpp::print(iap->run->fp9,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
     isp = -isp;
     iap->isp = isp;
     return ret_val;
@@ -5997,12 +5992,12 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
 
   if (isp < 0) {
     if (amin < .01) {
-      xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Multiplier accurate again\n",f2c::abs(ibr),ntop);
+      xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Multiplier accurate again\n",f2c::abs(ibr),ntop);
       isp = -isp;
       iap->isp = isp;
     } else {
       for (i = 0; i < ndim; ++i) {
-	xpp::print(iap->lib->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
+	xpp::print(iap->run->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
       }
       return ret_val;
     }
@@ -6044,16 +6039,16 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   nins = nins1;
   iap->nins = nins;
   if (iid >= 2 && (isp == 1 || isp == 2)) {
-    xpp::print(iap->lib->fp9,"{:4} {:5}        SPB  Function {:14.6E}\n",f2c::abs(ibr),ntop,d);
+    xpp::print(iap->run->fp9,"{:4} {:5}        SPB  Function {:14.6E}\n",f2c::abs(ibr),ntop,d);
   }
 
   /* Print the Floquet multipliers. */
 
   nins = iap->nins;
-  xpp::print(iap->lib->fp9,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
+  xpp::print(iap->run->fp9,"{:4} {:5}        Multipliers:   Stable: {:3}\n",f2c::abs(ibr),ntop,nins);
 
   for (i = 0; i < ndim; ++i) {
-    xpp::print(iap->lib->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
+    xpp::print(iap->run->fp9,"{:4} {:5}        Multiplier {:3} {:14.6E} {:14.6E}\n",f2c::abs(ibr),ntop,i,ev[i].r,ev[i].i);
 
   }
 
@@ -6267,7 +6262,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
      or a heteroclinic cycle (autox_global.h); a special point the last step
      located keeps its label and the next point decides */
   if (context.ips == xpp::AutoxProblem::Periodic && f2c::abs(context.isw) != 2) {
-    xpp::AutoxStop &stop = iap->lib->session->autox_state.stop;
+    xpp::AutoxStop &stop = iap->run->stop;
     const bool growing = xpp::autox_period_watch_add(stop.period_watch, par[xpp::autox_unknown::period], ntot == 1);
     if (growing && iap->istop == 0 && !xpp::job::cancelled() &&
         (context.itp.kind == xpp::AutoxPointKind::Regular || context.itp.kind == xpp::AutoxPointKind::Output)) {
@@ -6304,7 +6299,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
 
   /* compute max, min, etc of solutions   This is correct!! */
-  for (i=0;i<iap->lib->session->model().node;i++){
+  for (i=0;i<iap->run->session->model().node;i++){
     itmp=i+1;
     u_high[i]=rmxups(iap,ndxloc,&itmp,ups);
     u_low[i]=rmnups(iap,ndxloc,&itmp,ups);
@@ -6323,7 +6318,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       ntots = -ntot;
     }
   }
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   /* addbif max min  of variables & initial data 
 
   */
@@ -6336,7 +6331,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     stop_at.rl0 = context.rl0, stop_at.rl1 = context.rl1, stop_at.a0 = context.a0, stop_at.a1 = context.a1, stop_at.nmx = context.nmx;
     stop_at.mark = iap->istop == -1;
     if (stop_at.mark) stop_at.user = 0;
-    xpp::autox_stop_branch_end(*iap->lib->session, &stop_at);
+    xpp::autox_stop_branch_end(*iap->run, &stop_at);
   }
 
   /* Write plotting and restart data on unit 8. */
@@ -6352,7 +6347,6 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 int 
 wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *dtm)
 {
-  xpp::Session &s=*iap->lib->session;
   integer ups_dim1, udotps_dim1;
 
   integer ndim, ncol, nfpr, ntpl, jtmp, ntot, ntst, i, j, k;
@@ -6362,7 +6356,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer nrowpr, lab, ibr, nar, nrd, isw;
   xpp::AutoxPointCode itp;
 
-  FILE *const fp8=fort8(s.autox_lib);
+  FILE *const fp8=fort8(*iap->run);
 
   /* Writes plotting and restart data on unit 8, viz.: */
   /* (1) data identifying the corresponding point on unit 7, */
@@ -6386,7 +6380,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /*          (Used for quickly skipping a data set when searching). */
 /*  NTST  : The number of time intervals used in the discretization. */
 /*  NCOL  : The number of collocation points used. */
-/*  iap->lib->parameter_count : The dimension of the par array (and the number of */
+/*  iap->run->parameter_count : The dimension of the par array (and the number of */
 /*          number of values in the parameter block).*/
 
 /*  Following the above described identifying line there are NTPL lines */
@@ -6402,7 +6396,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 /* and following this are NTPL lines each containing */
 /*    U-dot-1(T), U-dot-2(T), ... , U-dot-NDIM(T). */
 
-/* Finally the parameter values PAR(i) , i=1,iap->lib->parameter_count, are written. */
+/* Finally the parameter values PAR(i) , i=1,iap->run->parameter_count, are written. */
 
 /*  Above, RL-dot(.) and U-dot(.) specify the direction of the branch. */
 
@@ -6424,7 +6418,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   ntpl = ncol * ntst + 1;
   nar = ndim + 1;
   nrd = ndim / autox_solution_columns + 2 + (ndim - 1) / autox_solution_columns;
-  jtmp = iap->lib->parameter_count;
+  jtmp = iap->run->parameter_count;
   nrowpr = nrd * (ncol * ntst + 1) + (nfpr - 1) / autox_solution_columns + 1 + (jtmp - 1) / autox_solution_columns + 
     1 + (nfpr - 1) / autox_solution_parameter_indices_per_line + 1;
 
@@ -6439,7 +6433,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   xpp::print(fp8," {:4}",nrowpr);
   xpp::print(fp8," {:4}",ntst);
   xpp::print(fp8," {:4}",ncol);
-  xpp::print(fp8," {:4}\n",iap->lib->parameter_count);
+  xpp::print(fp8," {:4}\n",iap->run->parameter_count);
 
 /* Write the entire solution on unit 8 : */
 
@@ -6501,7 +6495,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
 /* Write the parameter values. */
 
-  print_solution_row_values(fp8, {par, static_cast<std::size_t>(iap->lib->parameter_count)});
+  print_solution_row_values(fp8, {par, static_cast<std::size_t>(iap->run->parameter_count)});
   fflush(fp8);
   return 0;
 } /* wrtbv8_ */
@@ -6509,7 +6503,6 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 int 
 wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rlcur, integer *ndxloc, doublereal *ups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu)
 {
-  xpp::Session &s=*iap->lib->session;
   
   integer ups_dim1;
 
@@ -6547,40 +6540,40 @@ wrtbv9(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
   if (iid >= 2) {
     if (nitps == 0 || iid >= 3) {
-      xpp::print(s.autox_lib.fp9,"========================================");
-      xpp::print(s.autox_lib.fp9,"========================================\n");
-      xpp::print(s.autox_lib.fp9,"  BR    PT  IT\n");	
+      xpp::print(iap->run->fp9,"========================================");
+      xpp::print(iap->run->fp9,"========================================\n");
+      xpp::print(iap->run->fp9,"  BR    PT  IT\n");	
       
     }
     mtot = ntot + 1;
-    xpp::print(s.autox_lib.fp9,"{:4} {:5}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);
+    xpp::print(iap->run->fp9,"{:4} {:5}{:4}    {:14.6E}{:14.6E}\n",ibr,mtot,nitps,rlcur[0],amp);
   }
   
   if (iid >= 5) {
-    xpp::print(s.autox_lib.fp9," UPS :\n");	
+    xpp::print(iap->run->fp9," UPS :\n");	
     for (j = 0; j < ntst; ++j) {
       rn = 1. / ncol;
       for (i = 0; i < ncol; ++i) {
 	t = tm[j] + i * rn * dtm[j];
 	k1 = i * ndim;
 	k2 = (i + 1) * ndim;
-	xpp::print(s.autox_lib.fp9," {:14.6E}",t);	
+	xpp::print(iap->run->fp9," {:14.6E}",t);	
 	for (k = k1; k < k2; ++k) {
 	  if((k+1-k1)%7==0)
-	    xpp::print(s.autox_lib.fp9,"\n ");
-	  xpp::print(s.autox_lib.fp9," {:14.6E}",ARRAY2D(ups, j, k));	
+	    xpp::print(iap->run->fp9,"\n ");
+	  xpp::print(iap->run->fp9," {:14.6E}",ARRAY2D(ups, j, k));	
 	}
-	xpp::print(s.autox_lib.fp9,"\n");	
+	xpp::print(iap->run->fp9,"\n");	
 	
       }
     }
-    xpp::print(s.autox_lib.fp9," {:14.6E}",tm[ntst]);	
+    xpp::print(iap->run->fp9," {:14.6E}",tm[ntst]);	
     for (i = 0; i < ndim; ++i) {
       if((i+1)%7==0)
-	xpp::print(s.autox_lib.fp9,"\n ");
-      xpp::print(s.autox_lib.fp9," {:14.6E}",ARRAY2D(ups, ntst, i));	
+	xpp::print(iap->run->fp9,"\n ");
+      xpp::print(iap->run->fp9," {:14.6E}",ARRAY2D(ups, ntst, i));	
     }
-    xpp::print(s.autox_lib.fp9,"\n");	
+    xpp::print(iap->run->fp9,"\n");	
   }
   return 0;
 } /* wrtbv9_ */
@@ -6617,15 +6610,15 @@ pvlsbv(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 
 void size_run_scratch(const iap_type &iap) {
     /* assign: zeroed */
-    iap.lib->scratch.dfu.assign(xpp::size_product(iap.ndim, iap.ndim), 0.);
-    iap.lib->scratch.dfp.assign(xpp::size_product(iap.ndim, iap.lib->parameter_count), 0.);
-    iap.lib->scratch.uu1.assign(iap.ndim, 0.);
-    iap.lib->scratch.uu2.assign(iap.ndim, 0.);
-    iap.lib->scratch.ff1.assign(iap.ndim, 0.);
-    iap.lib->scratch.ff2.assign(iap.ndim, 0.);
-    iap.lib->scratch.funi_u1.resize(iap.ndim);
-    iap.lib->scratch.funi_u2.resize(iap.ndim);
-    iap.lib->scratch.funi_f1.resize(iap.ndim);
-    iap.lib->scratch.funi_f2.resize(iap.ndim);
-    iap.lib->rotations.nrtn.assign(iap.nbc, 0);
+    iap.run->scratch.dfu.assign(xpp::size_product(iap.ndim, iap.ndim), 0.);
+    iap.run->scratch.dfp.assign(xpp::size_product(iap.ndim, iap.run->parameter_count), 0.);
+    iap.run->scratch.uu1.assign(iap.ndim, 0.);
+    iap.run->scratch.uu2.assign(iap.ndim, 0.);
+    iap.run->scratch.ff1.assign(iap.ndim, 0.);
+    iap.run->scratch.ff2.assign(iap.ndim, 0.);
+    iap.run->scratch.funi_u1.resize(iap.ndim);
+    iap.run->scratch.funi_u2.resize(iap.ndim);
+    iap.run->scratch.funi_f1.resize(iap.ndim);
+    iap.run->scratch.funi_f2.resize(iap.ndim);
+    iap.run->rotations.nrtn.assign(iap.nbc, 0);
 }

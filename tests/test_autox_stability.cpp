@@ -188,12 +188,12 @@ int main()
     auto &session = xpp::client_session();
     xpp::TempDir temp;
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/stability.log", "w"));
-    auto &lib = session.autox_lib;
-    lib.session = &session;
-    lib.parameter_count = session.autox_state.parameter_layout.size();
-    lib.fp9 = diagnostics.get();
+    AutoxRun run;
+    run.session = &session;
+    run.parameter_count = session.autox_state.parameter_layout.size();
+    run.fp9 = diagnostics.get();
     iap_type iap{};
-    iap.lib = &lib;
+    iap.run = &run;
     iap.ibr = 1;
     iap.ntot = 5;
     iap.ndim = iap.ndm = iap.nfpr = 1;
@@ -208,8 +208,8 @@ int main()
     double u = 2, uold = 1, udot = 1, f = 0, dfdu = 1, thu = 1, ds = 1;
     std::array<double, 4> aa{};
     std::array<double, 2> rhs{}, du{};
-    std::vector<double> par(lib.parameter_count), dfdp(lib.parameter_count), thl(lib.parameter_count, 1);
-    auto &actual = session.autox_state.stability;
+    std::vector<double> par(run.parameter_count), dfdp(run.parameter_count), thl(run.parameter_count, 1);
+    auto &actual = run.stability;
     for (bool switching : {false, true}) {
         iap.istop = 0;
         iap.ips = switching ? xpp::AutoxProblem::SteadyState : xpp::AutoxProblem::Algebraic;
@@ -243,7 +243,7 @@ int main()
     // A failed equilibrium location also returns to an unstored point.
     xpp::autox_stability_run_start(actual, xpp::AUTOX_STABILITY_STEADY, 1,
         xpp::AUTOX_STABILITY_NONE, xpp::AutoxPointCode{}, {}, {});
-    lib.locating = true;
+    run.locating = true;
     iap.ips = xpp::AutoxProblem::SteadyState;
     iap.istop = 0;
     ds = rap.dsold = 1;
@@ -256,7 +256,7 @@ int main()
         &uold, &udot, &f, &dfdu, dfdp.data(), thl.data(), &thu);
     CHECK(iap.istop == 1 && ds < rap.dsmin && u == 2 && par[0] == 2);
     CHECK(xpp::autox_stability_for(actual, 1, 6, std::span(r, 1), std::span(i, 1)) == 1 && near(r[0], std::exp(3.0)) && i[0] == 0);
-    lib.locating = false;
+    run.locating = false;
 
     // stprae's successful seed is unstored: the following contae sees
     // NTOT=1 again, but its u is no longer the restart label's solution.
@@ -357,7 +357,7 @@ int main()
     xpp::autox_stability_multipliers_restored(actual, iap, rotation.data(), minus_identity.data());
     CHECK(xpp::autox_stability_for(actual, 1, 6, r, i) == 1);
     CHECK(near(r[0], 0) && near(r[1], 0) && near(std::fabs(i[0]), 0.75) && near(i[0], -i[1]));
-    lib.fp9 = nullptr;
+    run.fp9 = nullptr;
 
     TEST_REPORT("autox_stability");
 }

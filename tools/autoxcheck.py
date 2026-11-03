@@ -919,7 +919,7 @@ def section_sessions():
     runs = [a.run, b.run]
     # each session has an autoX scratch directory of its own, gone at exit
     autox_dirs = a.autox_dirs() + b.autox_dirs()
-    check('each session has its own autoX scratch directory', len(autox_dirs) == 2, str(autox_dirs))
+    check('each session has its own autoX scratch directory, and no run left its own folder (W595)', len(autox_dirs) == 2, str(autox_dirs))
     a.close()
     b.close()
     check('the scratch directories are gone once the sessions exit',
@@ -1996,7 +1996,8 @@ def section_errors():
               '%d points vs %d, errors %s' % (len(again), len(good), errors_of(evs)))
     s.close()
 
-    # W328: deny writes in this process's own scratch, after opening autoX.
+    # W328: deny writes in this process's own scratch, after opening autoX: the folder the solutions are
+    # kept in (a run's fort files are in a folder of the run's own, W595).
     s = Server(args.server, LECAR, verbose=args.v)
     denied = False
     scratch = None
@@ -2010,27 +2011,23 @@ def section_errors():
             r = subprocess.run(['icacls', scratch, '/deny', '*S-1-1-0:(W)'], capture_output=True)
             assert r.returncode == 0, r.stderr
             denied = True
-        elif os.geteuid() != 0:
+        elif os.geteuid() != 0:  # root bypasses mode permissions: nothing can be denied
             os.chmod(scratch, 0o555)
             denied = True
-        else:
-            # Root bypasses mode permissions; a directory refuses fort.3 writes too.
-            os.mkdir(os.path.join(scratch, 'fort.3'))
-        evs = run_any(s, 's')
-        errors = [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
-        check('W328: a failed fort write reports its file once, with the original Place',
-              len(errors) == 1 and 'fort.3' in errors[0]['error']
-              and errors[0].get('file') == 'command' and errors[0].get('line') == 1
-              and json.loads(errors[0].get('source', '{}')).get('cmd') == 'autox.run'
-              and s.alive(), str(errors))
+        if denied:
+            evs = run_any(s, 's')
+            errors = [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
+            check('W328: a folder autoX cannot write to is reported once, with the original Place',
+                  len(errors) == 1 and scratch in errors[0]['error']
+                  and errors[0].get('file') == 'command' and errors[0].get('line') == 1
+                  and json.loads(errors[0].get('source', '{}')).get('cmd') == 'autox.run'
+                  and not s.autox_dirs()[1:] and s.alive(), str(errors))
     finally:
         if denied:
             if os.name == 'nt':
                 subprocess.run(['icacls', scratch, '/remove:d', '*S-1-1-0'], capture_output=True, check=True)
             else:
                 os.chmod(scratch, 0o755)
-        if scratch and os.path.isdir(os.path.join(scratch, 'fort.3')):
-            os.rmdir(os.path.join(scratch, 'fort.3'))
         s.close()
 
     # W328: the shipped recording already has a periodic restart. Inject the

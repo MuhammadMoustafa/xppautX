@@ -781,9 +781,11 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   results borrow columns through `lend_columns`), `plot_windows`
   (many_pops.h: the graphs, the active one, the Simulplot list,
   draw_win), `frozen_curves` and `plot_export` (graf_par.h), the
-  integrator's state, autoX's (`autox_state`, `autox_lib`, and the
+  integrator's state, autoX's (`autox_state`: its settings, and the
   `diagram`, read through `diagram_count`/`diagram_point`/
-  `diagram_first`/`_next`/`_prev`), the browser, the kinescope, the
+  `diagram_first`/`_next`/`_prev`; one run's own state is an `AutoxRun`
+  (autox_state.h) that do_autox makes and the numerics reach the Session through,
+  W595), the browser, the kinescope, the
   numerics and plot settings, the parser's working state, `sliders` and
   `options_set` (which @ options a load gave, W119), the tables, the boundary conditions in use, and the
   drawing, label, array plot and animator state; a function takes the

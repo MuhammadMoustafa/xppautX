@@ -109,10 +109,10 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 
   if (*ifst == 1) {
     /* the arrays are sized in one place, SolvbvWork::resize */
-    iap->lib->solvbv.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->nfpr);
+    iap->run->solvbv.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->nfpr);
   }
 
-  auto &ft = iap->lib->solvbv.ft;
+  auto &ft = iap->run->solvbv.ft;
 
   ndim = iap->ndim;
   ips = iap->ips;
@@ -133,7 +133,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   if (*ifst == 1) {
     setubv(ndim, ips, ntst, ncol, nbc, nint, nfpr, nrc, nrow, nclm,
 	   funi, bcni, icni, *ndxloc, iap, rap, par, icp, 
-	   *rds, iap->lib->solvbv.a_matrix(nclm, nrow, ntst), iap->lib->solvbv.b_matrix(nfpr, nrow, ntst), iap->lib->solvbv.c_matrix(nclm, nrc, ntst), iap->lib->solvbv.d_matrix(nfpr, nrc), ft.data(), fc, rlcur, 
+	   *rds, iap->run->solvbv.a_matrix(nclm, nrow, ntst), iap->run->solvbv.b_matrix(nfpr, nrow, ntst), iap->run->solvbv.c_matrix(nclm, nrc, ntst), iap->run->solvbv.d_matrix(nfpr, nrc), ft.data(), fc, rlcur, 
 	   rlold, rldot, ups, uoldps, udotps, upoldp, dups, 
 	   dtm, thl, thu, p0, p1);
   } else if (*nllv >= 0 || ips == xpp::AutoxProblem::Homoclinic) {
@@ -146,9 +146,9 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 	   thu, p0, p1);
   }
 
-  if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0; /* xppautX: cancel */
+  if (iap->run->setubv_stop && xpp::job::cancelled()) return 0; /* xppautX: cancel */
 
-  brbd(*iap->lib, iap->lib->fp9, ft.data(), fc, p0, p1,
+  brbd(*iap->run, iap->run->fp9, ft.data(), fc, p0, p1,
        ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &nrc);
   
   faft(ft.data(), fa, &ntst, &nrow, ndxloc);
@@ -194,27 +194,27 @@ setrhs(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, intege
   integer ncp1;
   doublereal dt,ddt;
 
-  iap->lib->assembly.resize(iap->ndim, iap->ncol, iap->nbc, iap->nint, iap->lib->parameter_count);
-  auto &dicd = iap->lib->assembly.dicd;
-  auto &ficd = iap->lib->assembly.ficd;
-  auto &dfdp = iap->lib->assembly.dfdp;
-  auto &dfdu = iap->lib->assembly.dfdu;
-  auto &uold = iap->lib->assembly.uold;
-  auto &f = iap->lib->assembly.f;
-  auto &u = iap->lib->assembly.u;
-  auto &wploc = iap->lib->assembly.wploc;
-  auto &wi = iap->lib->assembly.wi;
-  auto &wp = iap->lib->assembly.wp;
-  auto &wt = iap->lib->assembly.wt;
-  auto &dbc = iap->lib->assembly.dbc;
-  auto &fbc = iap->lib->assembly.fbc;
-  auto &uic = iap->lib->assembly.uic;
-  auto &uio = iap->lib->assembly.uio;
-  auto &prm = iap->lib->assembly.prm;
-  auto &uid = iap->lib->assembly.uid;
-  auto &uip = iap->lib->assembly.uip;
-  auto &ubc0 = iap->lib->assembly.ubc0;
-  auto &ubc1 = iap->lib->assembly.ubc1;
+  iap->run->assembly.resize(iap->ndim, iap->ncol, iap->nbc, iap->nint, iap->run->parameter_count);
+  auto &dicd = iap->run->assembly.dicd;
+  auto &ficd = iap->run->assembly.ficd;
+  auto &dfdp = iap->run->assembly.dfdp;
+  auto &dfdu = iap->run->assembly.dfdu;
+  auto &uold = iap->run->assembly.uold;
+  auto &f = iap->run->assembly.f;
+  auto &u = iap->run->assembly.u;
+  auto &wploc = iap->run->assembly.wploc;
+  auto &wi = iap->run->assembly.wi;
+  auto &wp = iap->run->assembly.wp;
+  auto &wt = iap->run->assembly.wt;
+  auto &dbc = iap->run->assembly.dbc;
+  auto &fbc = iap->run->assembly.fbc;
+  auto &uic = iap->run->assembly.uic;
+  auto &uio = iap->run->assembly.uio;
+  auto &prm = iap->run->assembly.prm;
+  auto &uid = iap->run->assembly.uid;
+  auto &uip = iap->run->assembly.uip;
+  auto &ubc0 = iap->run->assembly.ubc0;
+  auto &ubc1 = iap->run->assembly.ubc1;
 
   fa_dim1 = *nra;
   dups_dim1 = *ndxloc;
@@ -263,7 +263,7 @@ setrhs(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, intege
       if (xpp::problem_is_parabolic_evolution(*ips)) {
 	rap->tivp = rlold[0];
       }
-      for (i = 0; i < iap->lib->parameter_count; ++i) {
+      for (i = 0; i < iap->run->parameter_count; ++i) {
 	prm[i] = par[i];
       }
       /* The residual reads only f: no Jacobian (docs/xppaut-findings.md #39). */
@@ -405,36 +405,36 @@ void chunk_ranges(integer lo, integer hi, int levels, std::array<BlockRange, sol
 
 /* Runs work on n independent blocks, on the collocation workers when there
    are some; the result does not depend on how they are shared. */
-void for_blocks(AutoxLib &lib, integer n, const std::function<void(integer begin, integer end)> &work)
+void for_blocks(AutoxRun &run, integer n, const std::function<void(integer begin, integer end)> &work)
 {
-  if (lib.collocation && lib.collocation->threads() > 1)
-    lib.collocation->intervals(n, [&](std::ptrdiff_t begin, std::ptrdiff_t end, AutoxLib &) { work(begin, end); });
+  if (run.collocation && run.collocation->threads() > 1)
+    run.collocation->intervals(n, [&](std::ptrdiff_t begin, std::ptrdiff_t end, AutoxRun &) { work(begin, end); });
   else work(0, n);
 }
 
 /* Runs walk on each chunk of blocks 0..na-1, a chunk on one thread. */
-void for_chunks(AutoxLib &lib, integer na, const std::function<void(integer lo, integer hi)> &walk)
+void for_chunks(AutoxRun &run, integer na, const std::function<void(integer lo, integer hi)> &walk)
 {
   std::array<BlockRange, solve_chunks> chunks{};
   std::size_t count = 0;
   chunk_ranges(0, na - 1, solve_chunk_levels, chunks, count);
-  for_blocks(lib, static_cast<integer>(count), [&](integer begin, integer end) {
+  for_blocks(run, static_cast<integer>(count), [&](integer begin, integer end) {
     for (integer k = begin; k < end; ++k) walk(chunks[k].lo, chunks[k].hi);
   });
 }
 
 /* The chunks' merges, then the merges above them on the caller. */
-void reduce_tree(AutoxLib &lib, integer na, const RangeWork &merge)
+void reduce_tree(AutoxRun &run, integer na, const RangeWork &merge)
 {
-  for_chunks(lib, na, [&](integer lo, integer hi) { tree_up(lo, hi, whole_subtree, merge); });
+  for_chunks(run, na, [&](integer lo, integer hi) { tree_up(lo, hi, whole_subtree, merge); });
   tree_up(0, na - 1, solve_chunk_levels, merge);
 }
 
 /* The back substitution: the same tree from the root down. */
-void backsubstitute_tree(AutoxLib &lib, integer na, const RangeWork &solve)
+void backsubstitute_tree(AutoxRun &run, integer na, const RangeWork &solve)
 {
   tree_down(0, na - 1, solve_chunk_levels, solve);
-  for_chunks(lib, na, [&](integer lo, integer hi) { tree_down(lo, hi, whole_subtree, solve); });
+  for_chunks(run, na, [&](integer lo, integer hi) { tree_down(lo, hi, whole_subtree, solve); });
 }
 
 /* The condensed system copycp builds, by block slot: nov x nov blocks
@@ -596,33 +596,33 @@ void bcksub_merge(const CondensedBlocks &m, const double *parameters, double *so
 
 /* The reduction of the blocks; what it subtracts from the conditions' d is
    gathered by range and added once, at the root. */
-void reduce(AutoxLib &lib, const CondensedBlocks &m, integer na, double *d)
+void reduce(AutoxRun &run, const CondensedBlocks &m, integer na, double *d)
 {
   std::fill_n(m.dd, na * m.ncb * m.nrc, 0.);
-  reduce_tree(lib, na, [&](integer lo, integer mid, integer hi) { reduce_merge(m, lo, mid, hi); });
+  reduce_tree(run, na, [&](integer lo, integer mid, integer hi) { reduce_merge(m, lo, mid, hi); });
   const double *root = m.dd + (na - 1) * m.ncb * m.nrc;
   for (integer ir = m.nbc; ir < m.nrc; ++ir)
     for (integer l = 0; l < m.ncb; ++l) d[l + ir * m.ncb] += root[l + ir * m.ncb];
 }
 
 /* The right-hand side through the same tree; fc's share added at the root. */
-void redrhs(AutoxLib &lib, const CondensedBlocks &m, integer na, double *fc)
+void redrhs(AutoxRun &run, const CondensedBlocks &m, integer na, double *fc)
 {
   std::fill_n(m.fcfc, na * m.nrc, 0.);
-  reduce_tree(lib, na, [&](integer, integer mid, integer hi) { redrhs_merge(m, mid, hi); });
+  reduce_tree(run, na, [&](integer, integer mid, integer hi) { redrhs_merge(m, mid, hi); });
   const double *root = m.fcfc + (na - 1) * m.nrc;
   for (integer ir = m.nbc; ir < m.nrc; ++ir) fc[ir] += root[ir];
 }
 
 /* x(0) and x(na) from dimrge's solution fcc (and fc = fcc after x(0)),
    then every other x(k) down the tree, into sol (nov x (na+1)). */
-void bcksub(AutoxLib &lib, const CondensedBlocks &m, integer na, const double *fc, const double *fcc, double *sol)
+void bcksub(AutoxRun &run, const CondensedBlocks &m, integer na, const double *fc, const double *fcc, double *sol)
 {
   for (integer l = 0; l < m.nov; ++l) {
     sol[l] = fcc[l];
     sol[l + na * m.nov] = fc[l];
   }
-  backsubstitute_tree(lib, na, [&](integer lo, integer mid, integer hi) { bcksub_merge(m, fc + m.nov, sol, lo, mid, hi); });
+  backsubstitute_tree(run, na, [&](integer lo, integer mid, integer hi) { bcksub_merge(m, fc + m.nov, sol, lo, mid, hi); });
 }
 
 /* Determine the local variables by backsubstitution, blocks begin..end-1:
@@ -657,10 +657,10 @@ void infpar(const doublereal *a, const doublereal *b, doublereal *fa, const doub
 } // namespace
 
 int 
-brbd(AutoxLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc)
+brbd(AutoxRun &run, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc)
 {
-  /* the matrices and index arrays solvbv sized and kept in lib.solvbv */
-  SolvbvWork &work = lib.solvbv;
+  /* the matrices and index arrays solvbv sized and kept in run.solvbv */
+  SolvbvWork &work = run.solvbv;
   doublereal *a = work.a.data(), *b = work.b.data(), *c = work.c.data(), *d = work.d.data();
   integer *irf = work.irf.data(), *icf = work.icf.data();
   const CondensedBlocks blocks{work.a1.data(), work.a2.data(), work.s1.data(), work.s2.data(), work.bb.data(),
@@ -671,7 +671,7 @@ brbd(AutoxLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, d
     print1(fp9, nov, na, nra, nca, ncb, nrc, a, b, c, d, fa, fc);
   }
   if (*ifst == 1) {
-    conpar(lib, nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
+    conpar(run, nov, na, nra, nca, a, ncb, b, nbc, nrc, c, d, irf, icf);
     copycp(na, nov, nra, nca, a, ncb, b, nrc, c, blocks.a1, blocks.a2, blocks.bb, blocks.cc, blocks.c2, irf);
   }
 
@@ -683,19 +683,19 @@ brbd(AutoxLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, d
   cpyrhs(na, nov, nra, blocks.faa, fa, irf);
 
   if (*ifst == 1) {
-    reduce(lib, blocks, *na, d);
+    reduce(run, blocks, *na, d);
   }
   if (*nllv == 0) {
-    redrhs(lib, blocks, *na, fc);
+    redrhs(run, blocks, *na, fc);
   }
 
-  dimrge(lib, fp9, work.e.data(), blocks.cc, blocks.c2, d, fc, ifst, na,
+  dimrge(run, fp9, work.e.data(), blocks.cc, blocks.c2, d, fc, ifst, na,
 	 nrc, nov, ncb, idb, nllv, work.fcc.data(), p0, p1, det, blocks.a1, blocks.a2,
 	 blocks.faa, blocks.bb);
 
-  bcksub(lib, blocks, *na, fc, work.fcc.data(), work.sol.data());
+  bcksub(run, blocks, *na, fc, work.fcc.data(), work.sol.data());
 
-  for_blocks(lib, *na, [&](integer begin, integer end) {
+  for_blocks(run, *na, [&](integer begin, integer end) {
     infpar(a, b, fa, work.sol.data(), fc, begin, end, *nov, *nra, *nca, *ncb, irf, icf);
   });
 
@@ -851,7 +851,7 @@ cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa,
 } /* cpyrhs_ */
 
 int 
-dimrge(AutoxLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb)
+dimrge(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb)
 {
 
   integer e_dim1, cc_dim1, cc_dim2, c2_dim1, c2_dim2, d_dim1, 
@@ -865,7 +865,7 @@ dimrge(AutoxLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, 
 
   integer novpj2, kc, kr, ncrloc;
 
-  auto &xe = lib.solvbv.xe;
+  auto &xe = run.solvbv.xe;
 
   faa_dim1 = *nov;
   a2_dim1 = *nov;
@@ -952,9 +952,9 @@ dimrge(AutoxLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, 
   }
 
   /* Solve for FCC */
-  lib.solvbv.pivot=NAN;
+  run.solvbv.pivot=NAN;
   if (*nllv == 0) {
-    lib.solvbv.pivot=xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    run.solvbv.pivot=xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   } else if (*nllv > 0) {
     xpp::nlvc(fp9, ncrloc, ncrloc, *nllv, e, fcc);
@@ -963,7 +963,7 @@ dimrge(AutoxLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, 
       xe[i] = 0.;
     }
     xe[-1 + ncrloc] = 1.;
-    lib.solvbv.pivot=xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
+    run.solvbv.pivot=xpp::ge(fp9, *idb, ncrloc, ncrloc, e, 1, ncrloc, fcc,
        ncrloc, xe.data(), det);
   }
   if (*idb >= 4) {

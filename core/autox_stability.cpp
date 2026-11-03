@@ -127,7 +127,7 @@ void autox_stability_equilibrium_restored(iap_type &iap, rap_type &rap, double *
 
 void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double *p1, doublecomplex *ev, bool deflate)
 {
-    auto &w=iap.lib->codim;
+    auto &w=iap.run->codim;
     const int dimension=static_cast<int>(iap.ndim), n=static_cast<int>(iap.ndm);
     const int offset=dimension-n;
     // The last variational block obeys the original orbit's equation.
@@ -146,7 +146,7 @@ void autox_cycle_multipliers(const iap_type &iap, const double *p0, const double
         w.cycle_p1[i+n*j]=p1[w.cycle_rows[i]+dimension*(offset+j)];
     }
     integer original=iap.ndm, iid=iap.iid;
-    flowkm(iap.lib->fp9,&original,w.cycle_p0.data(),w.cycle_p1.data(),&iid,w.cycle_matrix.data(),ev,deflate);
+    flowkm(iap.run->fp9,&original,w.cycle_p0.data(),w.cycle_p1.data(),&iid,w.cycle_matrix.data(),ev,deflate);
 }
 
 void autox_stability_multipliers_restored(AutoxStability &st, const iap_type &iap, double *p0, double *p1)
@@ -156,7 +156,7 @@ void autox_stability_multipliers_restored(AutoxStability &st, const iap_type &ia
     if (iap.isw==2) {
         autox_cycle_multipliers(iap,p0,p1,ev.data(),false);
         ndim=iap.ndm;
-    } else xpp::flowkm(iap.lib->fp9, &ndim, p0, p1, &iid, nullptr, ev.data(), false);
+    } else xpp::flowkm(iap.run->fp9, &ndim, p0, p1, &iid, nullptr, ev.data(), false);
     autox_stability_computed(st, iap.ibr, iap.ntot + 1, {&ev[0].r, 2 * static_cast<std::size_t>(ndim)}, AUTOX_STABILITY_PERIODIC);
 }
 

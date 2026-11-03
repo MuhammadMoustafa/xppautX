@@ -190,9 +190,9 @@ Result<> autox_extend_homoclinic(Session &s)
   s.autox_state.bifur.nbc=0;
   
   if(s.autox_state.homo_flag==HomoclinicRun::Homoclinic)
-    s.autox_state.run.iequib=1;
+    s.autox_state.homo_equilibria.iequib=1;
   if(s.autox_state.homo_flag==HomoclinicRun::Heteroclinic)
-    s.autox_state.run.iequib=-2;
+    s.autox_state.homo_equilibria.iequib=-2;
 
   return do_autox(s, OPEN_3,APPEND,s.autox_state.bifur.itp);
 
@@ -216,11 +216,11 @@ Result<> autox_start_at_homoclinic(Session &s, const HomoclinicStart &start)
   s.autox_state.bifur.nbc=0;
   
   if(s.autox_state.homo_flag==HomoclinicRun::Homoclinic)
-    s.autox_state.run.iequib=1;
+    s.autox_state.homo_equilibria.iequib=1;
   if(s.autox_state.homo_flag==HomoclinicRun::Heteroclinic)
-    s.autox_state.run.iequib=-2;
-  s.autox_state.run.nunstab=start.unstable;
-  s.autox_state.run.nstab=start.stable;
+    s.autox_state.homo_equilibria.iequib=-2;
+  s.autox_state.homo_equilibria.nunstab=start.unstable;
+  s.autox_state.homo_equilibria.nstab=start.stable;
   s.autox_state.homo_l=start.left;
   if(s.autox_state.homo_flag==HomoclinicRun::Heteroclinic)s.autox_state.homo_r=start.right;
   /* the shift is measured from the equilibrium just given */
@@ -560,7 +560,7 @@ Result<HomoclinicStart> homoclinic_start(const Session &s, const AutoxRunRequest
   const std::size_t n = static_cast<std::size_t>(s.model().node);
   HomoclinicStart start;
   if (request.homoclinic) start = *request.homoclinic;
-  else start = HomoclinicStart{a.run.nunstab, a.run.nstab, a.homo_l, a.homo_r};
+  else start = HomoclinicStart{a.homo_equilibria.nunstab, a.homo_equilibria.nstab, a.homo_l, a.homo_r};
   if (start.left.empty()) start.left = a.homo_l;
   if (start.right.empty()) start.right = a.homo_r;
   /* HomCont's projection takes that many directions at each end: one condition for each of the equilibrium's dimensions */

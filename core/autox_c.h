@@ -18,7 +18,7 @@
 
 namespace xpp { class TokenReader; struct AutoxSolutionHeader; }
 
-struct AutoxLib; /* autox_state.h */
+struct AutoxRun; /* autox_state.h */
 
 /* autoX's numerical thresholds and tolerances (autox_lib1-5, autox_jacobian). */
 inline constexpr doublereal autox_hmach = 1.0e-7;            // Relative finite-difference step and convergence tolerance
@@ -84,7 +84,7 @@ struct iap_type {
   /* 41 */ integer nicp;
   /* xppautX: the run's own state (autox_state.h), and through it the
      Session the run belongs to; go_go_autox sets it before init */
-  struct AutoxLib *lib;
+  struct AutoxRun *run;
 };
 
 typedef struct {
@@ -352,12 +352,12 @@ PVLI_TYPE_BVP(pvlsbv);
 int solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *rds, integer *nllv, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dtm, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, doublereal *thl, doublereal *thu);
 int faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *ndxloc);
 int setrhs(integer *ndim, xpp::AutoxProblem *ips, integer *na, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1);
-int brbd(AutoxLib &lib, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc);
+int brbd(AutoxRun &run, FILE *fp9, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc);
 int setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc);
 int conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf);
 int copycp(integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *c2, integer *irf);
 int cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa, integer *irf);
-int dimrge(AutoxLib &lib, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb);
+int dimrge(AutoxRun &run, FILE *fp9, doublereal *e, doublereal *cc, doublereal *c2, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *a1, doublereal *a2, doublereal *faa, doublereal *bb);
 int print1(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc);
 /* autox_lib3.cpp */
 FUNI_TYPE(fnlp);
@@ -430,7 +430,7 @@ int fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par
 ICNI_TYPE(icho);
 int fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint);
 int inho(iap_type *iap, integer *icp, doublereal *par);
-int preho(AutoxLib &lib, integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *par);
+int preho(AutoxRun &run, integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *par);
 int stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu);
 int stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t);
 PVLI_TYPE_BVP(pvlsho);
@@ -450,7 +450,7 @@ int fopt(integer ndim, const doublereal *u, const integer *icp,
 	 doublereal *fs, doublereal *dfdu, doublereal *dfdp);
 int pvls(integer ndim, const doublereal *u, doublereal *par);
 /* conpar2.cpp */
-int conpar(AutoxLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf);
+int conpar(AutoxRun &run, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf);
 /* setubv2.cpp */
 int setubv(integer ndim, xpp::AutoxProblem ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
 	   FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
@@ -471,21 +471,22 @@ double autox_parameter_value(const xpp::Session &s, integer slot,
                            std::span<const integer> free, std::span<const double> parameters);
 /* the problem defined functions that run the model (autox_pp.cpp): its
    right-hand side and Jacobian, the starting point and the boundary
-   conditions, in the Session s whose run this is (iap->lib->session).
+   conditions, on the run's Session (run.session; a collocation worker's run
+   evaluates on its own copies, autox_parallel.cpp).
    func gives dfdu for ijac 1 and the dfdp columns of the nfpr
    continuation parameters icp too for ijac 2 (JAC=1: the model's exact
    Jacobian, W260) */
-int func(xpp::Session &s, integer ndim, const doublereal *u, const integer *icp, integer nfpr,
+int func(AutoxRun &run, integer ndim, const doublereal *u, const integer *icp, integer nfpr,
 	 const doublereal *par, integer ijac,
-	 doublereal *f, doublereal *dfdu, doublereal *dfdp, AutoxLib *worker=nullptr);
-int stpnt(xpp::Session &s, integer ndim, doublereal t,
+	 doublereal *f, doublereal *dfdu, doublereal *dfdp);
+int stpnt(AutoxRun &run, integer ndim, doublereal t,
 	  doublereal *u, doublereal *par);
-int bcnd(xpp::Session &s, integer ndim, const doublereal *par, const integer *icp, integer nbc,
+int bcnd(AutoxRun &run, integer ndim, const doublereal *par, const integer *icp, integer nbc,
 	 const doublereal *u0, const doublereal *u1, integer ijac,
 	 doublereal *f, doublereal *dbc);
-/* gogoautox.cpp: autoX's run in the Session s, from the settings do_autox
-   (autox_nox.cpp) put in xAutox */
-void go_go_autox(xpp::Session &s);
+/* gogoautox.cpp: the autoX run, from the parameters do_autox (autox_nox.cpp)
+   put in run.params */
+void go_go_autox(AutoxRun &run);
 /* autox_lib1.cpp: fills thu (ndim*8 entries, each 1.) that thu_vec owns;
    thu_vec.data() is what the AE/BVP solves take as their doublereal *thu */
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, std::span<AutoxMark> marks);

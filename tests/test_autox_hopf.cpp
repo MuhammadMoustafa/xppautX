@@ -28,11 +28,11 @@ int main() {
     auto &s = xpp::client_session();
     CHECK(xpp::ensure_exact_jacobian(s));
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;
-    auto &lib = s.autox_lib;
-    lib.session = &s;
-    lib.parameter_count = s.autox_state.parameter_layout.size();
+    AutoxRun run;
+    run.session = &s;
+    run.parameter_count = s.autox_state.parameter_layout.size();
     iap_type iap{};
-    iap.lib = &lib;
+    iap.run = &run;
     iap.ndm = 2;
     iap.ndim = 6;
     iap.nfpr = 2;
@@ -41,7 +41,7 @@ int main() {
     iap.itpst = xpp::AutoxPointKind::Hopf;
     rap_type rap{};
     std::array<integer, 2> icp{s.autox_state.parameter_layout.solver_index(0), s.autox_state.parameter_layout.solver_index(1)};
-    std::vector<double> par(lib.parameter_count), dp(6 * lib.parameter_count);
+    std::vector<double> par(run.parameter_count), dp(6 * run.parameter_count);
     par[icp[0]] = -.25;
     std::array<double, 6> u{-.5, 0., 1., 0., 1., 0.}, old = u, f{}, minus{}, plus{};
     std::array<double, 36> jac{}, full{};
@@ -88,16 +88,16 @@ int main() {
         CHECK(xpp::autox_hopf_curve_kind(u[4]) == (x > 0 ? xpp::autox_neutral_saddle_curve : xpp::autox_hopf_curve));
     }
     // Start at a stored one-parameter HB: construct only the reduced layout.
-    lib.fp3 = xpp::files::open_stream(temp.path() + "/fort.3", "w+");
-    lib.fp9 = xpp::files::open_stream(temp.path() + "/fort.9", "w+");
-    CHECK(lib.fp3 && lib.fp9);
+    run.fp3 = xpp::files::open_stream(temp.path() + "/fort.3", "w+");
+    run.fp9 = xpp::files::open_stream(temp.path() + "/fort.9", "w+");
+    CHECK(run.fp3 && run.fp9);
     par[icp[0]] = -.25;
     par[icp[1]] = 0.;
     par[xpp::autox_unknown::period] = pi(2.);
-    xpp::print(lib.fp3, "1 1 3 1 1 1 1 3 2 0 0 {}\n0 -0.5 0\n", lib.parameter_count);
-    for (double value : par) xpp::print(lib.fp3, "{} ", value);
-    xpp::print(lib.fp3, "\n");
-    CHECK(xpp::rewind_stream(lib.fp3, "fort.3").has_value());
+    xpp::print(run.fp3, "1 1 3 1 1 1 1 3 2 0 0 {}\n0 -0.5 0\n", run.parameter_count);
+    for (double value : par) xpp::print(run.fp3, "{} ", value);
+    xpp::print(run.fp3, "\n");
+    CHECK(xpp::rewind_stream(run.fp3, "fort.3").has_value());
     iap.irs = 1;
     iap.isw = 2;
     u.fill(0.);
@@ -106,29 +106,29 @@ int main() {
     fnhb(&iap, &rap, 6, u.data(), old.data(), icp.data(), par.data(), 2, f.data(), jac.data(), dp.data());
     for (double value : f) CHECK(std::abs(value) < 1e-8);
     CHECK(u[4] == 1 && u[5] == 0);
-    xpp::UniqueFile restart(lib.fp3), diagnostics(lib.fp9);
-    lib.fp3 = lib.fp9 = nullptr;
+    xpp::UniqueFile restart(run.fp3), diagnostics(run.fp9);
+    run.fp3 = run.fp9 = nullptr;
     // Read the current reduced neutral-saddle restart through the same
     // validator used before restoring a session's solution member.
     par[icp[0]] = -.25;
-    std::string solution = xpp::format("1 1 34 1 2 2 1 7 2 0 0 {}\n0 0.5 0 1 0 -1 0\n", lib.parameter_count);
+    std::string solution = xpp::format("1 1 34 1 2 2 1 7 2 0 0 {}\n0 0.5 0 1 0 -1 0\n", run.parameter_count);
     for (double value : par) solution += xpp::number(value) + " ";
     solution += "\n";
-    CHECK(xpp::check_autox_solutions(solution, "current.snapx/autox/solutions.s", 16, lib.parameter_count, false, 6));
+    CHECK(xpp::check_autox_solutions(solution, "current.snapx/autox/solutions.s", 16, run.parameter_count, false, 6));
     auto current = xpp::Writer::binary(temp.path() + "/current.s");
     CHECK(current.write(solution) && current.commit());
     auto input = xpp::open_read(temp.path() + "/current.s");
-    lib.fp3 = input.get();
+    run.fp3 = input.get();
     u.fill(0.);
     CHECK(stpnae(&iap, &rap, par.data(), icp.data(), u.data()) == 0);
     CHECK(u == (std::array<double, 6>{.5, 0., 1., 0., -1., 0.}));
-    lib.fp3 = nullptr;
+    run.fp3 = nullptr;
     pvlsae(&iap, &rap, u.data(), par.data());
     CHECK(par[xpp::autox_unknown::period] == pi(2.));
     // Own files reject the obsolete augmented layout on its header line.
     const auto old_layout = xpp::check_autox_solutions(
-        xpp::format("1 1 34 1 2 2 1 9 2 0 0 {}\n", lib.parameter_count),
-        "sent.snapx/autox/solutions.s", 16, lib.parameter_count, false, 6);
+        xpp::format("1 1 34 1 2 2 1 9 2 0 0 {}\n", run.parameter_count),
+        "sent.snapx/autox/solutions.s", 16, run.parameter_count, false, 6);
     CHECK(!old_layout && old_layout.error().place.line == 1 && old_layout.error().place.file == "sent.snapx/autox/solutions.s");
     TEST_REPORT("autox_hopf");
 }

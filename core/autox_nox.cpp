@@ -230,7 +230,7 @@ int IYVal(const xpp::Session &s, double y)
   return(s.autox_state.bifur.hgt-static_cast<int>(temp)+s.autox_state.bifur.y0);
 }
 
-void close_autox(xpp::Session &s, int flg) /* labels compatible with A2K  */
+void close_autox(xpp::Session &s, AutoxRun &run, int flg) /* labels compatible with A2K  */
 {
   /* Close fp8 before the renames below: Windows refuses rename()/remove()
      on a file that is still open (see xpp::files::move), which left
@@ -238,29 +238,29 @@ void close_autox(xpp::Session &s, int flg) /* labels compatible with A2K  */
      renaming/removing an open file, which is likely why this was never
      turned on upstream -- it was dead code there, not a deliberate
      no-op. */
-  s.autox_lib.fp8.reset();
+  run.fp8.reset();
   if(flg==0) {/*Overwrite*/
-    xpp::files::move(s.autox_state.fort7.c_str(),(s.autox_state.file+".b").c_str());
-    xpp::files::move(s.autox_state.fort9.c_str(),(s.autox_state.file+".d").c_str());
-    xpp::files::move(s.autox_state.fort8.c_str(),(s.autox_state.file+".s").c_str());
+    xpp::files::move(run.fort7.c_str(),(s.autox_state.file+".b").c_str());
+    xpp::files::move(run.fort9.c_str(),(s.autox_state.file+".d").c_str());
+    xpp::files::move(run.fort8.c_str(),(s.autox_state.file+".s").c_str());
   }
   else {/*APPEND*/
-    xpp::files::prepend(s.autox_state.fort7.c_str(),(s.autox_state.file+".b").c_str());
-    xpp::files::prepend(s.autox_state.fort9.c_str(),(s.autox_state.file+".d").c_str());
-    xpp::files::prepend(s.autox_state.fort8.c_str(),(s.autox_state.file+".s").c_str());
+    xpp::files::prepend(run.fort7.c_str(),(s.autox_state.file+".b").c_str());
+    xpp::files::prepend(run.fort9.c_str(),(s.autox_state.file+".d").c_str());
+    xpp::files::prepend(run.fort8.c_str(),(s.autox_state.file+".s").c_str());
   }
 
-    xpp::files::remove(s.autox_state.fort8.c_str());
+    xpp::files::remove(run.fort8.c_str());
 
-    xpp::files::remove(s.autox_state.fort7.c_str());
-    xpp::files::remove(s.autox_state.fort9.c_str());
-    xpp::files::remove(s.autox_state.fort3.c_str());
+    xpp::files::remove(run.fort7.c_str());
+    xpp::files::remove(run.fort9.c_str());
+    xpp::files::remove(run.fort3.c_str());
 
 }
 
-/* autoX writes fort.3/7/8/9 under HOME. A HOME that is set but unusable
+/* autoX keeps its .b/.d/.s files under HOME. A HOME that is set but unusable
    (missing, not writable) must fall back to the model's directory like an
-   unset one, or the opens fail deep inside autox_lib1.cpp. */
+   unset one, or the moves fail at the end of a run. */
 static const char *autox_home_dir(xpp::Session &s, char *dname)
 {
   const char *home;
@@ -289,33 +289,34 @@ void create_autox_file_name(xpp::Session &s)
   s.autox_state.file=xpp::format("{}/{}",autox_dir,bname);
 }
 
-void open_autox(xpp::Session &s, int flg) /* compatible with new auto */
+xpp::Result<> open_autox(xpp::Session &s, AutoxRun &run, int flg) /* compatible with new auto */
 {
-  std::string basec = s.model().this_file, dirc = s.model().this_file;
-  char *bname = static_cast<char*>(basename(basec.data()));
-  char *dname = static_cast<char*>(dirname(dirc.data()));
-
-  const char* autox_dir = autox_home_dir(s, dname);
-
-  s.autox_state.file=xpp::format("{}/{}",autox_dir,bname);
-  s.autox_state.fort3=xpp::format("{}/fort.3",autox_dir);
-  s.autox_state.fort7=xpp::format("{}/fort.7",autox_dir);
-  s.autox_state.fort8=xpp::format("{}/fort.8",autox_dir);
-  s.autox_state.fort9=xpp::format("{}/fort.9",autox_dir);
+  /* the .b, .d and .s files close_autox moves the run's fort files to: a folder that cannot take them
+     is refused before the run, as its fort files used to be */
+  const std::string solutions=xpp::files::split_path(s.autox_state.file).first;
+  if(!xpp::files::dir_writable(solutions))
+    return xpp::fail("autox",xpp::format("cannot write autoX's files: the folder {} is not writable",solutions),xpp::command_place());
+  run.folder.emplace();
+  if(run.folder->path().empty())
+    return xpp::fail("autox","Cannot make autoX's scratch folder for the run",xpp::command_place());
+  run.fort3=run.folder->file("fort.3");
+  run.fort7=run.folder->file("fort.7");
+  run.fort8=run.folder->file("fort.8");
+  run.fort9=run.folder->file("fort.9");
 
   if(flg==1){
-    xpp::files::copy((s.autox_state.file+".s").c_str(),s.autox_state.fort3.c_str());
+    xpp::files::copy((s.autox_state.file+".s").c_str(),run.fort3.c_str());
   }
-
+  return {};
 }
 
-const char *autox_fort_path(const xpp::Session &s, int unit)
+const char *autox_fort_path(const AutoxRun &run, int unit)
 {
   switch(unit){
-  case 3: return s.autox_state.fort3.c_str();
-  case 7: return s.autox_state.fort7.c_str();
-  case 8: return s.autox_state.fort8.c_str();
-  case 9: return s.autox_state.fort9.c_str();
+  case 3: return run.fort3.c_str();
+  case 7: return run.fort7.c_str();
+  case 8: return run.fort8.c_str();
+  case 9: return run.fort9.c_str();
   default: return "";
   }
 }
@@ -340,14 +341,14 @@ static AutoxStabilityKind point_stability_kind(const DIAGRAM *d)
 /* a run starts from Auto.irs's label, or from initial data: its first
    point takes the label's stored stability when it is the label's own
    solution, else it is not computed (autox_stability.h) */
-static void stability_run_start(xpp::Session &s)
+static void stability_run_start(xpp::Session &s, AutoxRun &run)
 {
   const DIAGRAM *d=s.autox_state.bifur.irs>0?diagram_of_label(s,s.autox_state.bifur.irs):NULL;
   if(d==NULL){
-    autox_stability_run_start(s.autox_state.stability,run_stability_kind(s),s.autox_state.bifur.isw,AUTOX_STABILITY_NONE,AutoxPointCode{},{},{});
+    autox_stability_run_start(run.stability,run_stability_kind(s),s.autox_state.bifur.isw,AUTOX_STABILITY_NONE,AutoxPointCode{},{},{});
     return;
   }
-  autox_stability_run_start(s.autox_state.stability,run_stability_kind(s),s.autox_state.bifur.isw,point_stability_kind(d),d->itp,d->evr,d->evi);
+  autox_stability_run_start(run.stability,run_stability_kind(s),s.autox_state.bifur.isw,point_stability_kind(d),d->itp,d->evr,d->evi);
 }
 
 /* MAIN Running routine  Assumes that Auto structure is set up */
@@ -373,25 +374,30 @@ xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode
     if(const DIAGRAM *point=diagram_of_label(s,s.autox_state.bifur.irs))
       autox_set_pars_from(s,diagram_parameters(*point).data());
 
-    set_autox(s); /* this sets up all the continuation initialization 
+    const AutoxDepth depth(s);
+    std::optional<xpp::Error> reported; /* what the run says went wrong, for the command to return */
+    int restart_label=0; /* the label a follow-up run goes on from, 0 for none */
+    { /* the run lives in here: its memory and folder are gone before a follow-up run starts */
+    AutoxRun run; /* this run's own state: nothing of it is the Session's but the model and settings it reads */
+    run.session=&s;
+    init_autox(s.autox_state,run.params,s.model().node,s.numerics.jacobian==JACOBIAN_EXACT); /* this sets up all the continuation initialization 
                    it is equivalent to reading in auto parameters
                    and running init in auto 
 		*/
  
-    open_autox(s, iold); /* this copies the relevant files .s  to fort.3 */
-    const AutoxDepth depth(s);
-    s.autox_lib.jacobian_failure.reset();
+    create_autox_file_name(s); /* where the run's solutions are kept: the dir may have changed since the last run */
+    if(auto opened=open_autox(s, run, iold);!opened)return opened; /* the run's folder; this copies the relevant files .s  to fort.3 */
     std::optional<xpp::Error> failed; /* the run reports its failure after cleanup */
     {
       const xpp::Job job; /* Abort cancels it (xpp_job.h) */
-      s.autox_state.run_from=s.autox_state.bifur.irs>0?s.autox_state.bifur.irs:0; /* the diagram's data say where the run started */
-      stability_run_start(s); /* what its first point's stability is (autox_stability.h) */
+      run.run_from=s.autox_state.bifur.irs>0?s.autox_state.bifur.irs:0; /* the diagram's data say where the run started */
+      stability_run_start(s,run); /* what its first point's stability is (autox_stability.h) */
       {
           xpp::Computation computing; /* what Abort stops (xpp_job.h) */
           std::vector<double> before(s.model().nupar);
           for (int i = 0; i < s.model().nupar; i++) before[i] = s.parser.constants[s.model().upar_con[i]];
           try {
-              go_go_autox(s); /* this complets the initialization and calls the
+              go_go_autox(run); /* this complets the initialization and calls the
                                 main routines
                              */
           } catch (const xpp::AutoxFailed &e) {
@@ -405,24 +411,21 @@ xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode
           }
           autox_restore_finite_pars(s, before.data()); /* leave no NaN parameter behind (QA SCI-001) */
       }
-      s.autox_state.run_from=0;
-      if(xpp::job::cancelled()||failed.has_value())s.autox_state.restart_label=0; /* xppautX: cancel: no follow-up run */
-      if(failed.has_value())s.autox_lib.restart_flag=false;
+      if(xpp::job::cancelled()||failed.has_value())run.restart_label=0; /* xppautX: cancel: no follow-up run */
     }
+    xpp::autox_stop_merge(s.autox_state.stop,std::move(run.stop)); /* what the Session shows of why branches ended */
     /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoautox stuff */ 
-    close_autox(s, isave); /* this copies fort.8 to the .s file and other 
+    close_autox(s, run, isave); /* this copies fort.8 to the .s file and other 
                           irrelevant stuff 
 		       */
-    std::optional<xpp::Error> reported; /* what the run says went wrong, for the command to return */
     if(failed.has_value()){
       failed->what="autoX stopped: "+failed->what;
       xpp::log_autox("{}\n",failed->text()); /* the autoX window's Output */
       if(failed->place.file.empty() && failed->place.line==0)failed->place=command_place();
       reported=std::move(failed);
     }
-    if(s.autox_lib.jacobian_failure){
-      xpp::Error e=std::move(*s.autox_lib.jacobian_failure);
-      s.autox_lib.jacobian_failure.reset();
+    if(run.jacobian_failure){
+      xpp::Error e=std::move(*run.jacobian_failure);
       e.what="autoX stopped: "+e.what;
       /* the run stored the last converged point as an end point (the
          cancel it made itself: autox_pp.cpp): the continuation goes on from
@@ -433,11 +436,12 @@ xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode
       xpp::log_autox("{}\n",e.what);
       if(!reported)reported=std::move(e);
     }
+    restart_label=run.restart_label;
+    }
     
-    if(s.autox_state.restart_label!=0){
-      xpp::log_autox("RestartLabel={:d} itp={} ips={:d} nfpar={:d} ilp={:d} isw={:d} isp={:d} A2p={} \n",s.autox_state.restart_label,xpp::autox_point_text(s.autox_state.bifur.itp), xpp::autox_problem_code(s.autox_state.bifur.ips),s.autox_state.bifur.nfpar,s.autox_state.bifur.ilp,s.autox_state.bifur.isw,s.autox_state.bifur.isp,autox_calculation_name(s.autox_state.two_param));
-      s.autox_state.bifur.irs=s.autox_state.restart_label;
-      s.autox_state.restart_label=0;
+    if(restart_label!=0){
+      xpp::log_autox("RestartLabel={:d} itp={} ips={:d} nfpar={:d} ilp={:d} isw={:d} isp={:d} A2p={} \n",restart_label,xpp::autox_point_text(s.autox_state.bifur.itp), xpp::autox_problem_code(s.autox_state.bifur.ips),s.autox_state.bifur.nfpar,s.autox_state.bifur.ilp,s.autox_state.bifur.isw,s.autox_state.bifur.isp,autox_calculation_name(s.autox_state.two_param));
+      s.autox_state.bifur.irs=restart_label;
       const xpp::Result<> again=do_autox(s, iold,isave, s.autox_state.bifur.itp);
       if(!again&&!reported)reported=again.error();
     }
@@ -447,12 +451,13 @@ xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode
     return {};
 }
 
-void autox_label_parameters(const xpp::Session &s, int label, double *parameters)
+void autox_label_parameters(const AutoxRun &run, int label, double *parameters)
 {
+  const xpp::Session &s=*run.session;
   const DIAGRAM *point=diagram_of_label(s,label);
   if(!point)return; /* a library-generated starting solution may have no stored point */
-  for(int k=0;k<s.autox_state.run.nicp;k++){
-    const int slot=s.autox_state.run.icp[k];
+  for(int k=0;k<run.params.nicp;k++){
+    const int slot=run.params.icp[k];
     const int parameter=s.autox_state.parameter_layout.model_index(slot);
     if(parameter>=0 &&
        std::find(point->parameter_indices.begin(),point->parameter_indices.end(),parameter)==point->parameter_indices.end())
@@ -460,11 +465,6 @@ void autox_label_parameters(const xpp::Session &s, int label, double *parameters
   }
 }
 
-void set_autox(xpp::Session &s) /* Caution - need to include NICP here */
-{
-  init_autox(s.autox_state,s.model().node,s.numerics.jacobian==JACOBIAN_EXACT);
-  
-}
 const char *autox_par_name(const xpp::Session &s, int k)
 {
   return k>=0&&k<s.model().nupar?s.model().upar_names[k].c_str():NULL;
@@ -718,10 +718,10 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
   s.autox_state.bifur.lasty=y1;
 }
 
-int autox_run_from_take(xpp::Session &s)
+int autox_run_from_take(AutoxRun &run)
 {
-  int f=s.autox_state.run_from;
-  s.autox_state.run_from=0;
+  int f=run.run_from;
+  run.run_from=0;
   return f;
 }
 
@@ -998,7 +998,6 @@ void init_autox_win(xpp::Session &s)
   s.autox_state.parameter_layout.model_parameters=s.model().nupar;
   s.autox_state.parameter_layout.block=std::max(xpp::autox_unknown::block_size,
       xpp::autox_unknown::homoclinic_start+xpp::autox_unknown::homoclinic_blocks*s.model().node);
-  s.autox_lib.parameter_count=s.autox_state.parameter_layout.size();
   for (auto *v : {&s.autox_state.grabpt.uhi, &s.autox_state.grabpt.ulo, &s.autox_state.grabpt.u0,
                  &s.autox_state.grabpt.ubar, &s.autox_state.homo_l, &s.autox_state.homo_r}) v->resize(s.model().node);
   start_diagram(s, s.model().node);
@@ -1054,8 +1053,8 @@ void init_autox_win(xpp::Session &s)
   keep_last_plot(s, LastPlot::OneParameter);
   keep_last_plot(s, LastPlot::TwoParameter);
   s.autox_state.advanced={};
-  s.autox_state.run.nunstab=1;
-  s.autox_state.run.nstab=s.model().node-1;
+  s.autox_state.homo_equilibria.nunstab=1;
+  s.autox_state.homo_equilibria.nstab=s.model().node-1;
 }
 
 /* Clear selections and obsolete run files when a diagram is replaced. An import
@@ -1450,11 +1449,11 @@ bool read_autox_solution_rows(TokenReader &reader, std::ptrdiff_t ndim, std::ptr
 }
 
 bool read_autox_solution_parameters(TokenReader &reader, const AutoxSolutionHeader &header,
-                                   const Session &session, double *parameters)
+                                   const AutoxRun &run, double *parameters)
 {
     for (long i = 0; i < header.npar; ++i)
         if (!reader.read(parameters[i])) return false;
-    autox_label_parameters(session, static_cast<int>(header.lab), parameters);
+    autox_label_parameters(run, static_cast<int>(header.lab), parameters);
     return true;
 }
 

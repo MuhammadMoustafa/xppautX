@@ -86,7 +86,7 @@ eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev
     *ier = 1;
   }
   if (*ier == 1) {
-    xpp::print(iap->lib->fp9,"{:4} {:5} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);
+    xpp::print(iap->run->fp9,"{:4} {:5} NOTE:Error return from EISPACK routine RG\n",ibr,ntop);
     xpp::autox_fail("Error return from EISPACK routine RG");
   }
 
@@ -1003,7 +1003,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
     
   ifail = 0;
 
-  func(*iap->lib->session, *ndm, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, 
+  func(*iap->run, *ndm, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, 
        dfdp);
 
   if (*itrans == 1) {
@@ -1028,7 +1028,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
      iv1.data(), fv1.data(), &ifail);
 
   if (ifail != 0) {
-    xpp::print(iap->lib->fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
+    xpp::print(iap->run->fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
   }
 
   for (j = 0; j < *ndm; ++j) {
@@ -1094,7 +1094,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
       const double f = re[largest], g = im[largest], r = xpp::math::hypot(f, g);
       for (i = 0; i < *ndm; ++i) re[i] = (re[i]*f + im[i]*g) / r;
     }
-    if (iap->lib->homcont.blhme.ieigc[*itrans - 1] == 0) {
+    if (iap->run->homcont.blhme.ieigc[*itrans - 1] == 0) {
       const integer largest = idamax(ndm, re, &stride)-1;
       if (re[largest] < 0.)
         for (i = 0; i < *ndm; ++i) re[i] = -re[i];
@@ -1105,13 +1105,13 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
   /* commensurate with that of the corresponding eigenvector */
   /* from the previous call with the same value of ISIGN */
 
-  if (iap->lib->homcont.blhme.ieigc[*itrans - 1] == 0) {
+  if (iap->run->homcont.blhme.ieigc[*itrans - 1] == 0) {
     for (j = 0; j < *ndm; ++j) {
       for (i = 0; i < *ndm; ++i) {
-	iap->lib->homcont.blhme.vrprev[*itrans + (i * 2 + j * (*ndm) * 2) - 1] = vr[i + j * (*ndm)];
+	iap->run->homcont.blhme.vrprev[*itrans + (i * 2 + j * (*ndm) * 2) - 1] = vr[i + j * (*ndm)];
       }
     }
-    iap->lib->homcont.blhme.ieigc[*itrans - 1] = 1;
+    iap->run->homcont.blhme.ieigc[*itrans - 1] = 1;
   }
   for (i = 0; i < *ndm; ++i) {
     vdot = 0.;
@@ -1119,7 +1119,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
       integer tmp;
       tmp = *ndm;
       for (j = 0; j < tmp; ++j) {
-	vdot += vr[j + i * tmp] * iap->lib->homcont.blhme.vrprev[*itrans + (j * 2 + i * tmp * 2) - 1];
+	vdot += vr[j + i * tmp] * iap->run->homcont.blhme.vrprev[*itrans + (j * 2 + i * tmp * 2) - 1];
       }
     }
     if (vdot < 0.) {
@@ -1129,7 +1129,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
       }
     }
     for (j = 0; j < *ndm; ++j) {
-      iap->lib->homcont.blhme.vrprev[*itrans + (j * 2 + i * (*ndm) * 2) - 1] = vr[j + i * (*ndm)];
+      iap->run->homcont.blhme.vrprev[*itrans + (j * 2 + i * (*ndm) * 2) - 1] = vr[j + i * (*ndm)];
     }
   }
 
@@ -1150,15 +1150,15 @@ int prjctn(const iap_type *iap, double *bound, double *xequib, const integer *ic
            bool transpose, integer n, double *dfdu, double *dfdp, bool save_basis)
 {
     const bool stable = manifold == HomcontManifold::stable;
-    const integer count = stable ? iap->lib->homcont.blhom.nstab : iap->lib->homcont.blhom.nunstab;
+    const integer count = stable ? iap->run->homcont.blhom.nstab : iap->run->homcont.blhom.nunstab;
     if (n <= 0 || count < 0 || count > n) xpp::autox_fail("Invalid HomCont projection dimension");
     const integer first = stable ? 0 : n - count; // Preserve HomCont's boundary row layout.
     const integer slot = (endpoint == HomcontEndpoint::left ? 0 : 1) + (transpose ? 0 : 2);
-    auto &history = iap->lib->homcont.beyn;
+    auto &history = iap->run->homcont.beyn;
     double *previous = history.cprev.data() + slot * n * n;
     std::vector<double> f(n), a(xpp::size_product(n,n)), basis(a.size()), work(n), er(n), ei(n);
     std::vector<integer> types(n);
-    func(*iap->lib->session, n, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, dfdp);
+    func(*iap->run, n, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, dfdp);
     const double direction = par[xpp::autox_unknown::period] < 0. ? -1. : 1.;
     for (integer j = 0; j < n; ++j)
         for (integer i = 0; i < n; ++i)
@@ -1199,7 +1199,7 @@ int prjctn(const iap_type *iap, double *bound, double *xequib, const integer *ic
                 gram[i+j*count] += previous[first+i+k*n] * previous[first+j+k*n];
             }
     double det = 0.;
-    ge(iap->lib->fp9, iap->iid, count, count, overlap.data(), count, count, transport.data(), count, gram.data(), &det);
+    ge(iap->run->fp9, iap->iid, count, count, overlap.data(), count, count, transport.data(), count, gram.data(), &det);
     for (integer i = 0; i < count; ++i)
         for (integer j = 0; j < n; ++j) {
             double value = 0.;

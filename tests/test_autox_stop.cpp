@@ -35,7 +35,9 @@ int main()
     xpp::client_session().model().upar_names[0] = "iapp";
     xpp::client_session().model().nupar = 1;
     xpp::client_session().autox_state.parameter_layout.model_parameters=1;
-    xpp::AutoxStop &stop = xpp::client_session().autox_state.stop;
+    AutoxRun run;
+    run.session = &xpp::client_session();
+    xpp::AutoxStop &stop = run.stop;
 
     xpp::AutoxStopAt at = inside();
     at.par = 2.5;
@@ -66,14 +68,14 @@ int main()
     CHECK(st.why == xpp::AUTOX_STOP_NONE && std::strcmp(st.text, "") == 0);
     at = inside();
     at.par = 2.25;
-    xpp::autox_stop_branch_end(xpp::client_session(), &at);
+    xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTOX_STOP_PAR_MAX && st.br == 1 && st.pt == 7 && st.value == 2.25 && st.limit == 2);
     CHECK_STR(st.key, "parameter_max");
     CHECK_STR(st.text, "parameter iapp reached parameter_max (2)");
     at.ipar = xpp::autox_unknown::period;
     at.par = -0.5;
-    xpp::autox_stop_branch_end(xpp::client_session(), &at);
+    xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
     CHECK_STR(st.text, "the period T reached parameter_min (0)");
 
@@ -82,26 +84,26 @@ int main()
     at.noconv = 1;
     at.br = -2; /* autoX's sign is stability, not part of the number */
     xpp::autox_stop_noconv(stop, {xpp::AUTOX_STOP_NOCONV_MIN, -1e-5, 0.0001, 5, 1e-7, 1e-6, 1e-31});
-    xpp::autox_stop_branch_end(xpp::client_session(), &at);
+    xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTOX_STOP_NOCONV_MIN && st.br == 2 && st.value == 1e-5 && st.limit == 0.0001);
     CHECK_STR(st.key, "noconv-min");
     CHECK_STR(st.text, "no convergence even at the smallest step (min_step_size 0.0001; max_newton_iterations 5, parameter_tolerance 1e-07, state_tolerance 1e-06): "
                        "the linear system is singular (smallest pivot 1e-31 < 1e-30)");
-    xpp::autox_stop_branch_end(xpp::client_session(), &at);
+    xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTOX_STOP_NOCONV && std::isnan(st.value));
     CHECK_STR(st.text, "no convergence");
     at = inside();
     at.nmx = 7;
-    xpp::autox_stop_branch_end(xpp::client_session(), &at);
+    xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
     CHECK_STR(st.text, "the branch reached max_steps (7)");
 
     at = inside();
     at.noconv = 1;
     xpp::autox_stop_noconv(stop, {xpp::AUTOX_STOP_NOCONV_SWITCH_FIXED, 0.0, 0.0});
-    xpp::autox_stop_branch_end(xpp::client_session(), &at);
+    xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
     CHECK_STR(st.key, "noconv-switch-fixed");
     xpp::autox_stop_clear(stop);

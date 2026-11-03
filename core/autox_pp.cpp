@@ -33,38 +33,38 @@ namespace {
    continuation parameters icp[0..nfpr): the model's exact Jacobian
    (W260); a parameter of autoX's own (the period, ...) is no constant of
    the model, so its column is 0. One that is not finite ends the run as
-   a Stop does (W275): the failure is kept on lib (the error, with autoX's
+   a Stop does (W275): the failure is kept on run (the error, with autoX's
    point: its first continuation parameter's value), the Jacobian is the identity
    and the parameter columns 0, a system that solves, and the solve in progress
    is not used (autox_lib1.cpp), and the job is
    cancelled, so the next solve returns to the last converged point and
    the branch ends with an end point to restart from (autox_lib1.cpp). A
-   collocation worker's lib is merged into the Session's, and the job
+   collocation worker's failure is merged into its run's, and the job
    cancelled, by its caller when the workers are done
    (autox_parallel.cpp: a job's cancel is read by the main thread). */
-void exact_derivatives(const xpp::Session &s, AutoxLib &lib, const double *c, integer ndim, const double *u, const double *f, const integer *icp, integer nfpr, integer ijac, double *dfdu, double *dfdp)
+void exact_derivatives(const xpp::Session &s, AutoxRun &run, const double *c, integer ndim, const double *u, const double *f, const integer *icp, integer nfpr, integer ijac, double *dfdu, double *dfdp)
 {
   const int n=static_cast<int>(ndim);
   try {
-    xpp::exact_jacobian(s,lib.jacobian_scratch,c,0.0,u,f,n,{xpp::JacobianLayout::ColumnMajor},dfdu);
+    xpp::exact_jacobian(s,run.jacobian_scratch,c,0.0,u,f,n,{xpp::JacobianLayout::ColumnMajor},dfdu);
     if(ijac<2)return;
     for(integer i=0;i<nfpr;i++){
       double *column=dfdp+icp[i]*ndim;
       const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(icp[i]));
-      if(k>=0)xpp::exact_constant_derivative(s,lib.jacobian_scratch,c,s.model().upar_con[k],0.0,u,f,n,column);
+      if(k>=0)xpp::exact_constant_derivative(s,run.jacobian_scratch,c,s.model().upar_con[k],0.0,u,f,n,column);
       else std::fill_n(column,n,0.0);
     }
   } catch (const xpp::JacobianFailed &failed) {
-    if(!lib.jacobian_failure){
-      lib.jacobian_failure=failed.error;
+    if(!run.jacobian_failure){
+      run.jacobian_failure=failed.error;
       const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(icp[0]));
       if(k>=0)
-        lib.jacobian_failure->what+=xpp::format(" (autoX at {}={})",s.model().upar_names[k],c[s.model().upar_con[k]]);
+        run.jacobian_failure->what+=xpp::format(" (autoX at {}={})",s.model().upar_names[k],c[s.model().upar_con[k]]);
     }
     std::fill_n(dfdu,n*n,0.0);
     for(int i=0;i<n;i++)dfdu[i*n+i]=1;
     if(ijac>=2)for(integer i=0;i<nfpr;i++)std::fill_n(dfdp+icp[i]*ndim,n,0.0);
-    if(&lib==&s.autox_lib)xpp::job::cancel_current();
+    if(!run.owner)xpp::job::cancel_current();
   }
 }
 
@@ -103,7 +103,7 @@ bool continued_constants(const xpp::Session &s, double *constants, const integer
 /* The right-hand side f of a model with no function tables, no networks and
    native programs (Model::autox_rhs_pure), on the constants c and variables v:
    a collocation worker's own copies (autox_parallel.cpp: s is const, so a
-   worker writes only its own lib) or, serially, the Session's.
+   worker writes only its own run) or, serially, the Session's.
    The derived constants were current when the run began (the workers'
    prepare() copied them); a state difference changes no parameter, so they
    are worked out again only when a continued parameter actually changed,
@@ -116,7 +116,7 @@ void pure_values(const xpp::Session &s, double *c, double *v, const double *u, c
   pure_rhs(s,u,f,c,v);
 }
 
-void worker_func(const xpp::Session &s, AutoxLib &worker, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
+void worker_func(const xpp::Session &s, AutoxRun &worker, integer ndim, const double *u, const integer *icp, integer nfpr, std::span<const double> parameters, integer ijac, double *f, double *dfdu, double *dfdp)
 {
   double *c=worker.rhs_constants.data();
   pure_values(s,c,worker.rhs_variables.data(),u,icp,nfpr,parameters,f);
@@ -126,7 +126,7 @@ void worker_func(const xpp::Session &s, AutoxLib &worker, integer ndim, const do
 }
 
 /* The problem defined functions that run the model (autox_c.h's C++
-   section): autoX calls them with the Session whose run it is. */
+   section): autoX calls them with the run, which holds its Session. */
 bool autox_model_parameter(const xpp::Session &s, integer slot)
 {
   return s.autox_state.parameter_layout.model_index(static_cast<int>(slot))>=0;
@@ -141,11 +141,12 @@ double autox_parameter_value(const xpp::Session &s, integer slot,
   return parameters[slot];
 }
 
-int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp, AutoxLib *worker)
+int func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integer nfpr, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
 {
+   xpp::Session &s=*run.session;
    const auto parameters=s.autox_state.parameter_layout.parameters(par);
-   if (worker && worker->pure_rhs) {
-     worker_func(s,*worker,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
+   if (run.pure_rhs) {
+     worker_func(s,run,ndim,u,icp,nfpr,parameters,ijac,f,dfdu,dfdp);
      return 0;
    }
    const bool exact=ijac!=0&&s.numerics.jacobian==xpp::JACOBIAN_EXACT;
@@ -162,7 +163,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
      if(s.integrator.step_error)xpp::autox_fail(take_step_error(s).error());
    }
    const double *c=s.parser.constants.data();
-   if(exact)exact_derivatives(s,s.autox_lib,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
+   if(exact)exact_derivatives(s,run,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
    else if(ijac==1){
      xpp::jacobian(s,0.0,x,f,ndim,s.numerics.equilibria.jacobian_step,{xpp::JacobianLayout::ColumnMajor},dfdu);
    }
@@ -171,14 +172,14 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
       of each step's, and each step adds its own dependence on the
       parameters to what the steps before passed on */
    const size_t nn=static_cast<size_t>(ndim);
-   auto &zz = s.autox_lib.scratch.map_state;
-   auto &step = s.autox_lib.scratch.map_jacobian;
-   auto &step_p = s.autox_lib.scratch.map_parameters;
-   auto &scratch = s.autox_lib.scratch.map_chain;
+   auto &zz = run.scratch.map_state;
+   auto &step = run.scratch.map_jacobian;
+   auto &step_p = run.scratch.map_parameters;
+   auto &scratch = run.scratch.map_chain;
    zz.resize(nn);
    if (exact) {
      step.resize(xpp::size_product(nn,nn));
-     step_p.resize(xpp::size_product(nn,s.autox_lib.parameter_count));
+     step_p.resize(xpp::size_product(nn,run.parameter_count));
      scratch.resize(nn);
    }
    for(i=1;i<s.numerics.store_every;i++){
@@ -187,7 +188,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
      s.integrator.rhs(0.0,zz.data(),f,ndim);
      if(s.integrator.step_error)xpp::autox_fail(take_step_error(s).error());
      if(!exact)continue;
-     exact_derivatives(s,s.autox_lib,c,ndim,zz.data(),f,icp,nfpr,ijac,step.data(),step_p.data());
+     exact_derivatives(s,run,c,ndim,zz.data(),f,icp,nfpr,ijac,step.data(),step_p.data());
      const int n=static_cast<int>(ndim);
      for(int k=0;k<n;k++)chain(n,step.data(),dfdu+k*ndim,nullptr,scratch.data());
      if(ijac<2)continue;
@@ -198,8 +199,9 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, int
 
 } /* func_ */
 
-int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal *par)
+int stpnt(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doublereal *par)
 {
+  xpp::Session &s=*run.session;
   int i;
 
   double p;
@@ -238,11 +240,12 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 
 } /* stpnt_ */
 
-int bcnd(xpp::Session &s, integer ndim, const double *par, const integer *icp, integer nbc, const double *u0, const double *u1, integer ijac, double *fb, double *dbc)
+int bcnd(AutoxRun &run, integer ndim, const double *par, const integer *icp, integer nbc, const double *u0, const double *u1, integer ijac, double *fb, double *dbc)
 {
+ xpp::Session &s=*run.session;
 /* Hooks to the XPP bc parser!! */
 
- const bool changed=continued_constants(s,s.parser.constants.data(),icp,s.autox_state.run.nicp,
+ const bool changed=continued_constants(s,s.parser.constants.data(),icp,run.params.nicp,
                      s.autox_state.parameter_layout.parameters(par));
 
  /* with no function table the derived constants depend on the parameters

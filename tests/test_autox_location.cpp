@@ -69,7 +69,7 @@ double noisy(iap_type *iap, rap_type *, double *, integer *, bool *chng,
              double *u, double *, double *, double *, double *, double *, std::span<const AutoxMark>)
 {
     *chng = true;
-    iap->lib->session->autox_state.stability.computed.re = {u[0]};
+    iap->run->stability.computed.re = {u[0]};
     return 1;
 }
 // W545 (#610): tests on the straight branch u = par (the test is a function of u alone).
@@ -149,12 +149,12 @@ int main()
     auto &s = xpp::client_session();
     xpp::TempDir temp;
     xpp::UniqueFile diagnostics(xpp::files::open_stream(temp.path() + "/location.log", "w"));
-    auto &lib = s.autox_lib;
-    lib.session = &s;
-    lib.parameter_count = s.autox_state.parameter_layout.size();
-    lib.fp9 = diagnostics.get();
+    AutoxRun run;
+    run.session = &s;
+    run.parameter_count = s.autox_state.parameter_layout.size();
+    run.fp9 = diagnostics.get();
     iap_type iap{};
-    iap.lib = &lib;
+    iap.run = &run;
     iap.ndim = iap.ndm = iap.nfpr = 1;
     iap.itnw = 10;
     iap.nit = 3;
@@ -176,7 +176,7 @@ int main()
     bool stepped = false;
     std::array<double, 4> aa{1, 2, 3, 4};
     std::array<double, 2> rhs{5, 6}, du{7, 8};
-    std::vector<double> par(lib.parameter_count), dfdp(lib.parameter_count), thl(lib.parameter_count, 1);
+    std::vector<double> par(run.parameter_count), dfdp(run.parameter_count), thl(run.parameter_count, 1);
     par[0] = 1;
     dfdp[0] = -1;
     const auto initial_aa = aa;
@@ -191,7 +191,7 @@ int main()
     CHECK(rap.dsold == 1 && rap.det == 7 && q.value == 1 && !q.offset);
     CHECK(aa == initial_aa && rhs == initial_rhs && du == initial_du);
     CHECK(dfdu == 1 && dfdp[0] == -1 && f == 0);
-    CHECK(s.autox_state.stability.computed.re == std::vector<double>{1});
+    CHECK(run.stability.computed.re == std::vector<double>{1});
     // Two location iterations suffice only if Mueller sees the shortened
     // first step (-0.3 rather than -0.6) at its actual abscissa.
     iap.itmx = 2;
@@ -229,7 +229,7 @@ int main()
                       rhs.data(), &rlcur, &rlold, &rldot, &u, du.data(), &uold, &udot,
                       &f, &dfdu, dfdp.data(), sample, thl.data(), &thu, std::span(&mark, 1), dstest, stepped);
     };
-    const auto notes = [&] { return s.autox_state.stop.notes.size(); };
+    const auto notes = [&] { return run.stop.notes.size(); };
     const auto frozen = [&] { return std::array<double, 6>{u, uold, rlcur, rlold, rap.dsold, par[0]}; };
     // A: a second zero in the step after a located one. AUTO-07p's stored 0 hides it.
     {
@@ -282,7 +282,7 @@ int main()
         const auto before = notes();
         AutoxTestSample sample{first, itmx == 8 ? std::optional<double>{0.} : std::nullopt};
         CHECK(locate(test, sample) == 0);
-        const auto refused = notes() == before + 1 ? s.autox_state.stop.notes.back() : std::string();
+        const auto refused = notes() == before + 1 ? run.stop.notes.back() : std::string();
         CHECK(iap.itp.kind != xpp::AutoxPointKind::Pending && !stepped && !sample.offset);
         CHECK(state == frozen());
         CHECK(refused.find("was not accepted at parameter") != std::string::npos);
@@ -352,7 +352,7 @@ int main()
         CHECK(error == "Branch 1 point 2: nonfinite autoX solution");
         CHECK(s.diagram.points.size() == count && !s.autox_state.diag_flag);
     }
-    lib.fp9 = nullptr;
+    run.fp9 = nullptr;
     // Two UZ tests cross in the same step on u=p. The farther mark is
     // tested first, then the second locator moves back past it. Its sample
     // must be recomputed, so the next continuation step finds it again.

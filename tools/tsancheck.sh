@@ -5,7 +5,7 @@
 # only the inbox (core/xpp_inbox.cpp) and xpp_job's atomics; then the autoX
 # unit test (tests/test_session_autox.cpp), whose periodic runs on 1, 2 and 4
 # collocation workers (core/autox_parallel.cpp, W247) must touch only their own
-# AutoxLib and disjoint output blocks; and EISPACK's unit test
+# AutoxRun and disjoint output blocks; and EISPACK's unit test
 # (tests/test_eispack.cpp), four threads calling it at once (W336).
 #
 # Any ThreadSanitizer report fails the script, whether or not the check that
