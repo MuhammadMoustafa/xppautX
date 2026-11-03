@@ -1257,7 +1257,7 @@ def main():
                 check('%s threads=%s' % (name, threads), False, str(e))
             finally:
                 durations[threads] += time.monotonic() - began
-    print('perf: autoX 1 thread %.3fs; auto threads %.3fs' % (durations[1], durations['autox']))
+    print('perf: autoX 1 thread %.3fs; auto threads %.3fs' % (durations[1], durations['auto']))
     print('autoX %s: %d models, %d skipped, %d points, %d checks, %d failures' %
           ('FAILED' if check.failures else 'ok', len(selected), skipped, points, check.checks, check.failures))
     return int(bool(check.failures))

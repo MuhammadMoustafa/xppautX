@@ -1,4 +1,4 @@
-# AUTO numerical baseline (W299, #357)
+# autoX numerical baseline (W299, #357)
 
 One description per model in `examples/tstauto/`, plus each `examples/ode/`
 model with an `auto` options group. Names include the example folder to
@@ -20,7 +20,7 @@ which neither reference has, so they carry `auto07p_skip` and `xppaut_skip`.
 optional `parameters` and `initial_conditions` set the starting state.
 `runs` lists named runs in order. Each names its `kind` in W306's terms,
 its `parameter` (or two `parameters` for `two_parameter` / `fixed_period`),
-and its per-run `auto` settings, under AUTO's setting names (W531). `step_size` includes the direction.
+and its per-run `autox` settings, under autoX's setting names (W531). `step_size` includes the direction.
 `max_steps`, `output_every`, `mesh_intervals`, `min_step_size`, `max_step_size`, `parameter_min` and `parameter_max` are explicit. The driver
 maps these names to today's protocol fields, not to recording keys. Optional per-run
 `marks: [["parameter", value], ...]` locates user points (UZ); the same marks

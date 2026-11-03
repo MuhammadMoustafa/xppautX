@@ -76,7 +76,7 @@ join is made where a periodic branch starts at a Hopf label's parameter and
 its max..min spans the label's value). Zoom, pan, reset, undo and the
 readout (branch, point, kind, label, values) work as on the plot, with `<`
 `>` stepping from label to label; the autoX window's buttons and hotkeys
-send `auto` ops, their prompts are the ordinary dialogs. Hide autoX hides the
+send `autox` ops, their prompts are the ordinary dialogs. Hide autoX hides the
 panel (Show autoX brings it back), Close is done with autoX: it stops a
 running continuation first, then closes the window.
 
@@ -89,7 +89,7 @@ a `grab` answer with the point's index (`point`), so the cursor, the info
 strip and the circle are the core's. Axes/Zoom (and Zoom out) draw their
 box, Axes/Scroll its drag, as the plot's modes on the diagram, answered in
 its data coordinates; a click on a two-parameter diagram stores the point
-(`auto point`, marked on the diagram) for autoX's File/sElect 2par pt. Under the
+(`autox point`, marked on the diagram) for autoX's File/sElect 2par pt. Under the
 diagram, the `autoxinfo` data: the strip as a panel (branch, point, type,
 label, parameters, norm, the plotted variable, the period of a periodic
 orbit) and the stability circle as a small unit circle, a dot for a value
@@ -588,13 +588,13 @@ Target: WCAG 2.2 AA. Rules:
   equals the strip's text and autoX's printed eigenvalues and multipliers.
   autoX's settings (T22): `tools/servercheck.py` checks that `autoxsettings`
   is what the Numerics, Parameter, Axes and Mark values forms show, that a
-  form's OK and an `auto` `set` show in it (and the set in the forms), that
+  form's OK and an `autox` `set` show in it (and the set in the forms), that
   a set with a bad value (Ncol 9, Ntst 1.5, Dsmin 0, Par Min above Par
   Max, a name the model lacks ...) is refused whole with an error naming
   it, that a set sent while a question is open applies at the command's
   end, and that Nmax 12 stops the next run at 12 points;
   tests/test_autox_settings.cpp the rules and the all-or-nothing write.
-  `tools/web2check.mjs` (`auto`): Numerics, Parameter and Mark values are
+  `tools/web2check.mjs` (`autox`): Numerics, Parameter and Mark values are
   the page's forms on the data (nothing asked of the core), the axis
   dialog's plot type goes out as a set with a Fit, Save and Load settings
   on the data; during a periodic run Nmax 15 goes out at once as one set
@@ -680,7 +680,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T21 (**done**) | autoX view and dialogs from hands-on testing (sandbox/PY_S1Bf.ode): autoX's own status strip and output log, axes edited by clicking an axis name (variable, min, max; ranges usable during a run), Numerics save/load, menus in columns without scrolling, dialog Tab selects the field, the theme button no longer reads "autoX", Stop not Abort, single-letter keys act instead of moving focus | T19 | yes | web2check: status strip names the run and its point count, axis dialog sets the range during a run, numerics round trip, Tab replaces a field's text, keys F and G act on the plot |
 | T22 (**done**) | autoX settings as data: the core sends autoX's Numerics, Parameter choice, axes and Mark values (user points) as a data event and takes a set command for them, so web2 edits them at any time (during a run too: marked pending, applied when idle) instead of through the core's forms; only Run, Grab, Clear and File wait for idle | T21 | yes | servercheck: the event matches the forms' values, a set changes the next run; web2check: edit Numerics during a run, applied at idle, the run after uses it |
 | T23 (**done**) | autoX in plain words: a stop reason code set where autox_lib1.c/autox_lib2 end a branch (Par Min/Max, Norm Min/Max, Npts reached, Stop, a stopping Mark value, no convergence at Dsmin: fort.9's NOTE) and sent to the page, shown in the status strip ("Stopped: parameter reached Par Max (20)") and written as a line in the autoX view's Output messages; label types spelled out on hover (EP End point, MX No convergence, LP Fold, HB Hopf, BP Branch point, PD Period doubling, TR Torus, UZ Marked value); every Numerics field named plainly with autoX's short name kept (e.g. "Max points (NMX)"), a tooltip (what it does, valid values, what each option means), integer or float validation and ranges (Dsmin <= |Ds| <= Dsmax), also checked in the core; docs/manual/09-autox.md updated | T22 | yes | servercheck: each stop reason on a model built to hit it (Par Max, Norm Max, Npts, Stop, MX); saved .b/.d and verify.sh unchanged; web2check: status names the reason, a float in an integer field is refused with a message |
-| T24 (**done**) | From hands-on testing: autoX's status line at the bottom of its window, where the main window has its status bar | T21 | no | web2check auto: the status line is the panel's last visible row |
+| T24 (**done**) | From hands-on testing: autoX's status line at the bottom of its window, where the main window has its status bar | T21 | no | web2check autox: the status line is the panel's last visible row |
 | T25 (**done**) | From hands-on testing (bug): autoX's Stop showed Stopping… and the run went on; reproduce (sandbox/PY_S1Bf.ode, the user's model: steady and periodic runs, Stop from the autoX strip and the status bar, browser and desktop window) and fix; in the same session, check that a first steady-state run stopping at point 1 on its Norm Max (the model's normmax=60) is autoX's own rule, and why the info strip listed all 8 eigenvalues as "none (below the smallest number)" | none | maybe | autoxcheck/web2check: Stop during an autoX run ends it within 1 s with an EP label |
 | T26 (**done**) | From hands-on testing: autoX takes the whole window while it is shown, in place of R6's floating panel over the page: the main menu, plot and status bar hidden behind a plain background (Hide autoX returns to them), its own status strip (T24) also carrying the core's last message and, when it is not simply connected, the connection state | T24 | no | web2check auto: the panel covers the viewport; the main menu and status bar are not visible, and are again after Hide autoX; the core's message shows in the autoX strip |
 | T27 (**done**) | From hands-on testing (bug): in the desktop window (Windows, sandbox/PY_S1Bf.ode, Numerics' Npr=50) autoX's Output panel stays at "Output (0)" during a long periodic run: find where autoX's table (xpp_log_autox, autox_echo on in window mode) is lost on its way to the page (the log capture in xpp_http.cpp under the GUI subsystem, the log event, web2's classification of autoX lines) and fix | none | maybe | servercheck/web2check auto: a run with Npr prints its table lines into the Output panel, in browser mode and in the window's mode |

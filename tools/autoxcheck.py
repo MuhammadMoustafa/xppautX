@@ -2888,5 +2888,5 @@ def section_first_steps():
 
 for name in args.sections:
     globals()['section_' + name]()
-print('auto checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
+print('autoX checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

@@ -14,7 +14,7 @@ row changes.
 | Main, File, Numerics menus, hotkeys, hints | Menu panel and keys |
 | Every pop-up menu, string box, form, yes/no, file selector, alert | Dialogs; form fields `*n` pick from the X11 lists; the file selector lists folders and files |
 | Plot windows: create, kill, select, zoom, fit, scroll, text/arrows/markers, 3D rotation by dragging | Tabs; drag asks for Scroll; rotate command; 3D projected and rotated in the client (T14) |
-| x,y readout under the mouse (plot and autoX) | From `state.view` / `state.auto` |
+| x,y readout under the mouse (plot and autoX) | From `state.view` / `state.autox` |
 | IC, parameter, BC and delay boxes with %formulas, Default, xvst/pp/arry | Side panel (values panel, T3) |
 | The three parameter sliders, `@ s1=...` presets | Side panel |
 | `@ button` user buttons | Side panel |

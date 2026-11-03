@@ -21,7 +21,7 @@
         "mesh_intervals": 15,
         "max_branch_switches": 0
       },
-      "expected_error": "AUTO stopped: Branch 1 point 2: nonfinite AUTO solution"
+      "expected_error": "autoX stopped: Branch 1 point 2: nonfinite autoX solution"
     }
   ],
   "auto07p_skip": "The supplied BVP uses deprecated hom_bcs conditions that are identically zero; no valid connection is specified for an independent continuation reference.",

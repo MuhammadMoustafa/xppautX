@@ -139,7 +139,7 @@ else
   exit 1
 fi
 if uv run --locked python tools/autoxcheck.py > build/autoxcheck.log 2>&1; then
-  echo "auto checks ok: $(grep -c '^PASS' build/autoxcheck.log) checks"
+  echo "autoX checks ok: $(grep -c '^PASS' build/autoxcheck.log) checks"
 else
   grep -v '^PASS' build/autoxcheck.log
   echo "autoX CHECK FAILED"
