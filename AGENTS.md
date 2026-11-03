@@ -645,7 +645,10 @@ each card, passed with each start; default haiku at medium) implements one card 
   you wait, never around it.
 - Keep token use low: read the parts of files you need (grep, `sed -n`
   ranges), pipe check output through tail/grep, never paste full logs.
-- Leave no `until`/`while` sleep loops or background runs behind.
+- Leave no `until`/`while` sleep loops or background runs behind. Never wait
+  on `pgrep -f PATTERN`: the waiting shell's own command line holds the
+  pattern, so the loop matches itself and never ends (W591 and W602, 2026-11-02,
+  each left one running); run the command in the foreground, or wait on its PID.
 - Stop only your own processes, by their PID (`taskkill /PID`, `kill`),
   never by name (`taskkill /IM xppautX.exe`, `pkill xppautX`): that also
   ends the maintainer's own xppautX and other agents' runs.
