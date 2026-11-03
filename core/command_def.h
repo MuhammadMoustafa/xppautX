@@ -64,7 +64,7 @@ enum class Type { text, integer, real, boolean, choice, expression, model_name, 
 enum class NameSet { none, parameter, variable, either, any, column };
 
 /* One end of a number's range: nothing, a constant, or a quantity of the
-   session (a run's end time, the AUTO threads' maximum) that a callback
+   session (a run's end time, the autoX threads' maximum) that a callback
    reads when the command is checked. hello names the quantity; a check
    with no session (a recording's shape check) skips it. */
 struct Bound {
@@ -266,7 +266,7 @@ std::span<const Command> annotation_commands();
 std::span<const Command> run_commands();
 std::span<const Command> ic_commands();
 std::span<const Command> bvp_commands();
-std::span<const Command> auto_commands();
+std::span<const Command> autox_commands();
 std::span<const Command> plot_commands();
 std::span<const Command> analysis_commands();
 std::span<const Command> table_commands();

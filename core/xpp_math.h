@@ -6,8 +6,8 @@
    A new routine of one of these kinds goes here, never into the file that
    needs it (AGENTS.md "Single source").
 
-   AUTO's exact algorithms live in xpp_math_auto.cpp and
-   xpp_math_eispack.cpp (API: xpp_math_auto.h). Complete-pivot solves,
+   autoX's exact algorithms live in xpp_math_autox.cpp and
+   xpp_math_eispack.cpp (API: xpp_math_autox.h). Complete-pivot solves,
    EISPACK machine-precision eigenvalues/eigenvectors, QZ/SVD Floquet multipliers and
    HomCont Schur projections retain their own operation order. They are
    not substitutions for LINPACK partial pivoting or gear's fixed-tolerance
@@ -16,7 +16,7 @@
 
    Everything below is C++ in namespace xpp (W109a; the parser's function
    table holds some of these as plain function pointers). Matrix/Matrix3
-   reject short spans; AUTO's numerical failures retain their AutoFailed
+   reject short spans; autoX's numerical failures retain their AutoxFailed
    error values for the command dispatcher. */
 
 #include "../third_party/core-math/core_math.h"
@@ -219,9 +219,9 @@ int bandfac(double *a, int ml, int mr, int n);
 void bandsol(double *a, double *b, int ml, int mr, int n);
 void eigenvalues(int n, double *a, double *ev, double *work, int *ierr);
 
-/* ---- column-major views (W334): the layout of AUTO's Fortran arrays ----
+/* ---- column-major views (W334): the layout of autoX's Fortran arrays ----
    Matrix(i,j) is data[i + j*dim1] and Matrix3(i,j,k) data[i + (j + k*dim2)*dim1],
-   the index ARRAY2D and ARRAY3D (auto_f2c.h) compute, so a loop keeps its
+   the index ARRAY2D and ARRAY3D (autox_f2c.h) compute, so a loop keeps its
    order and a sum its operation order. The dimensions are stated once, where
    the view is made, from the span that must hold them (std::length_error
    when it is shorter: the owner's allocation is checked against the

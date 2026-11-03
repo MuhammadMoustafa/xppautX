@@ -119,7 +119,7 @@ Error write_error(std::string where, std::string_view file);
    The one place the core opens, copies, moves, deletes and probes files
    and makes its temp folders: the calls above are the page's, limited to
    base names in the model's folder; these are the core's (the model's
-   outputs, AUTO's fort.* and diagram files, its scratch folder).
+   outputs, autoX's fort.* and diagram files, its scratch folder).
    tools/filecheck.sh counts every direct fopen/remove/rename/mkdir/...
    left elsewhere. Reading and writing go through xpp_io.h's handles
    (xpp::Writer: write, binary, a replace only on commit;
@@ -127,7 +127,7 @@ Error write_error(std::string where, std::string_view file);
    which open their files here. */
 
 /* A stream the caller keeps open across calls and closes itself with
-   fclose (AUTO's fort.3/7/8/9 during a run, the array plot's GIF movie,
+   fclose (autoX's fort.3/7/8/9 during a run, the array plot's GIF movie,
    an input script): fopen's modes, NULL on failure. A file opened and
    closed in one scope uses a handle of xpp_io.h instead. */
 FILE *open_stream(std::string_view path, const char *mode);
@@ -183,7 +183,7 @@ bool write_path_ok(std::string_view path, bool opening = false);
    program, and started with no console (Explorer, a shortcut,
    Start-Process) the C library leaves stdout and stderr without a
    descriptor (_fileno -2), where a dup2 onto 1 and 2 never reaches them
-   and all the core prints, AUTO's table included, was lost to the page
+   and all the core prints, autoX's table included, was lost to the page
    (T27). -1 when it cannot be given one. */
 int stream_fd(FILE *f);
 /* Creates path for writing, failing when it exists already (a link
@@ -217,7 +217,7 @@ int remove(std::string_view path);
    into place, so it is either the whole copy or left as it was; a WARN
    when from cannot be read or to written */
 void copy(std::string_view from, std::string_view to);
-/* to becomes from's bytes followed by its own, the same way (AUTO's run
+/* to becomes from's bytes followed by its own, the same way (autoX's run
    output put ahead of the diagram files it keeps: its "append"); a copy
    when to does not exist */
 void prepend(std::string_view from, std::string_view to);
@@ -225,7 +225,7 @@ void prepend(std::string_view from, std::string_view to);
    source still open elsewhere) a copy, then from is removed if it can be */
 void move(std::string_view from, std::string_view to);
 
-/* AUTO's private scratch folder: "xppautoX-<pid>-<N>", mode 0700, under
+/* autoX's private scratch folder: "xppautoX-<pid>-<N>", mode 0700, under
    $TMPDIR or /tmp (POSIX) or the system temp path (Windows): its absolute
    path, or empty on failure */
 std::string make_temp_dir();

@@ -238,7 +238,7 @@ int main(void)
         CHECK(bytes_of(csv)=="col1\n1.0000000001\n");
     }
 
-    /* AUTO's mixed CSV keeps doubles exact and quotes headers and cells once. */
+    /* autoX's mixed CSV keeps doubles exact and quotes headers and cells once. */
     {
         xpp::DataTable mixed;
         mixed.names = {"parameter, name", "value"};

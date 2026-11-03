@@ -280,7 +280,7 @@ int largest_magnitude(const double *x, int n, int stride)
 }
 
 /* LINPACK partial pivoting, first maximum in each column, negative stored
-   multipliers (AUTO's ge instead searches the complete trailing matrix and
+   multipliers (autoX's ge instead searches the complete trailing matrix and
    accumulates a determinant and pivot log). LINPACK eliminates column by
    column, skipping a column whose pivot-row element t is zero; on this
    row-major block a column strides by lda. When the pivot row has no zero
@@ -416,7 +416,7 @@ double sign(double a, double b)
 namespace {
 
 /* Gear Householder variant: fabs/sign scalar semantics, reversed inner sums,
-   no eigenvector accumulation; AUTO's leading-dimension overload retains
+   no eigenvector accumulation; autoX's leading-dimension overload retains
    f2c abs/SIGN semantics (notably -0 and NaN) in xpp_math_eispack.cpp. */
 void orthes(int n, int low, int igh, double *a, double *ort)
 {

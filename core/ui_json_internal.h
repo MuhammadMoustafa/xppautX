@@ -9,7 +9,7 @@
    json_state.cpp    the state event, the data browser, parameter and IC
                      edits, the data subscription, equations, source
    json_windows.cpp  plot windows, pixels, the kinescope, the array plot
-   json_auto.cpp     the AUTO window, its diagram data and settings
+   json_autox.cpp     the autoX window, its diagram data and settings
    json_ani.cpp      the animation window
 
    docs/protocol.md is the contract.
@@ -38,8 +38,8 @@
 #include "data_event.h"
 #include "event_registry.h"
 #include "event_streams.h"
-#include "auto_data.h"
-#include "auto_settings.h"
+#include "autox_data.h"
+#include "autox_settings.h"
 #include <stddef.h>
 #include <array>
 #include <atomic>
@@ -91,13 +91,13 @@ struct DeferredLine {
     std::optional<xpp::Result<std::string>> taken;
 };
 
-std::string auto_view_event_line(const xpp::Session &s);
+std::string autox_view_event_line(const xpp::Session &s);
 /* the `windows` event: every open window with its kind and whether it is shown (window.list's
    result), sent again when it changed; for a client that asked for it with {"cmd":"data"} */
 std::string windows_event_line(const xpp::Session &s);
 
-/* what the client holds of one view of AUTO's diagram, and how far it got
-   (json_auto.cpp's comment): the list of points it was sent, its axes and
+/* what the client holds of one view of autoX's diagram, and how far it got
+   (json_autox.cpp's comment): the list of points it was sent, its axes and
    the replay in progress. The client's, so it is positional like the
    client's own lists, not the view's: a closed view leaves the lists after
    it to be sent again. */
@@ -111,7 +111,7 @@ struct ClientDiagramView {
     struct {
         double xmin, xmax, ymin, ymax;
         int x0, y0, wid, hgt;
-        xpp::AutoProjection plot;
+        xpp::AutoxProjection plot;
         std::string xlabel, ylabel;
     } ax{};
 };
@@ -133,11 +133,11 @@ struct ProtocolSession {
     int state_dirty = 0, browser_dirty = 0;
     int rows_seen = INT_MAX;
     double live_state_last = 0; /* Display pacing only; solver steps are unchanged. */
-    /* AUTO subscriptions, pacing and client view tracking */
-    xpp::ChangedEvent<xpp::Session, int> autoinfo{xpp::auto_data_event_line, "sending AUTO's info strip"};
-    double autoinfo_last = 0;
-    xpp::ChangedEvent<xpp::Session> autosettings{xpp::auto_settings_event_line, "sending AUTO's settings"};
-    xpp::ChangedEvent<xpp::Session> autoview{auto_view_event_line, "sending AUTO's view"};
+    /* autoX subscriptions, pacing and client view tracking */
+    xpp::ChangedEvent<xpp::Session, int> autoxinfo{xpp::autox_data_event_line, "sending autoX's info strip"};
+    double autoxinfo_last = 0;
+    xpp::ChangedEvent<xpp::Session> autoxsettings{xpp::autox_settings_event_line, "sending autoX's settings"};
+    xpp::ChangedEvent<xpp::Session> autoxview{autox_view_event_line, "sending autoX's view"};
     xpp::ChangedEvent<xpp::Session> windows{windows_event_line, "sending the windows"};
     std::vector<ClientDiagramView> client_diagram{1}; /* the lists the client holds, one per view */
     bool diagram_subscribed = true; /* diagrams are sent until a client explicitly opts out */
@@ -150,7 +150,7 @@ struct ProtocolSession {
     std::vector<std::string> client_view_names;
     int client_views = 1; /* how many of them */
     int grab_key_after = 0;
-    double auto_refresh_last = 0;
+    double autox_refresh_last = 0;
 };
 extern ProtocolSession session;
 
@@ -159,7 +159,7 @@ extern ProtocolSession session;
    callbacks take their Session from their caller (handle_line chooses it
    once per command); this is for what core code reaches through the seam
    with no Session at all, the front end's own: an ask (ask_wait), a
-   checkpoint (j_check_abort), the pending AUTO points before an event
+   checkpoint (j_check_abort), the pending autoX points before an event
    (flush_pending), and the state when it is dirty (send_state_if_dirty). */
 xpp::Session &client();
 
@@ -301,7 +301,7 @@ void buf_str(std::string &b, std::string_view s);
 void buf_str_array(std::string &b, const char *const *v, int n);
 void buf_str_array(std::string &b, std::span<const std::string> v);
 /* a JSON number, "null" when v is not finite (json_number.h): sig
-   significant digits, e.g. 16 for a full double, 7 for AUTO's diagram */
+   significant digits, e.g. 16 for a full double, 7 for autoX's diagram */
 void buf_num(std::string &b, double v, int sig);
 
 void open_protocol_stdout(void); /* the protocol on the stdout of now */
@@ -314,7 +314,7 @@ void send_buf(std::string &b);
 void send_simple(std::string_view ev, const char *key = nullptr, std::string_view text = {});
 void json_flush(void);
 /* a data module's event line (plot_data, phase_data, marks_data, ani_data);
-   the (line, n) form is the emit of auto_data, auto_settings and
+   the (line, n) form is the emit of autox_data, autox_settings and
    numerics_settings, whose callbacks still take a pointer and a length */
 void data_emit(std::string_view line);
 void data_emit(const char *line, size_t n);
@@ -438,7 +438,7 @@ void send_main_window(const xpp::Session &s,const char *title);
 void send_window(std::string_view event, std::string_view name, int w, int h, std::string_view title = {}, std::string_view kind = "graph");
 void j_window_selected(xpp::Session &s, std::string_view name, std::string_view kind);
 void j_window_renamed(xpp::Session &s, std::string_view old_name, std::string_view new_name);
-void j_auto_closed(xpp::Session &s, std::string_view name);
+void j_autox_closed(xpp::Session &s, std::string_view name);
 void j_tool_window_closed(xpp::Session &s, std::string_view name, std::string_view kind);
 /* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
 void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h);
@@ -460,7 +460,7 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h); /* emp
 xpp::Result<> j_film_clip(xpp::Session &s);
 void j_reset_film(xpp::Session &s);
 void j_movie_play_back(xpp::Session &s);
-void j_movie_auto_play(xpp::Session &s);
+void j_movie_autox_play(xpp::Session &s);
 xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fmat);
 xpp::Result<> j_movie_make_anigif(xpp::Session &s, std::string_view file);
 
@@ -471,22 +471,22 @@ void j_aplot_redraw(xpp::Session &s);
 void j_aplot_draw_one(xpp::Session &s, std::string_view tag);
 xpp::Result<bool> j_aplot_gif(xpp::Session &s, std::string_view file);
 
-/* ---- json_auto.cpp ---- */
+/* ---- json_autox.cpp ---- */
 
 void diag_flush(const xpp::Session &s, int final);
 void diag_forget(void); /* the client has no diagram */
-int diag_point_of_node(const xpp::Session &s, int node); /* the index in the diagram data the client holds of AUTO's entry `node`, or -1 */
-/* the `autoview` event (hidden branches and zoom), for a client that asked for autoinfo */
-void auto_view_subscribe(int on);
-void auto_view_update(xpp::Session &s);
+int diag_point_of_node(const xpp::Session &s, int node); /* the index in the diagram data the client holds of autoX's entry `node`, or -1 */
+/* the `autoxview` event (hidden branches and zoom), for a client that asked for autoxinfo */
+void autox_view_subscribe(int on);
+void autox_view_update(xpp::Session &s);
 void auto_redraw_for_client(xpp::Session &s);
-void j_auto_make_window(xpp::Session &s, std::string_view wname, std::string_view iname);
-int j_auto_check_abort(int *iflag);
-int j_auto_grab_event(xpp::Session &s, int *x, int *y);
-void j_auto_show_hint(xpp::Session &s);
-void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
-int j_auto_points_held(xpp::Session &s); /* XppUi.auto_points_held: the points the active view holds */
-void j_auto_refresh(xpp::Session &s);
+void j_autox_make_window(xpp::Session &s, std::string_view wname, std::string_view iname);
+int j_autox_check_abort(int *iflag);
+int j_autox_grab_event(xpp::Session &s, int *x, int *y);
+void j_autox_show_hint(xpp::Session &s);
+void j_autox_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
+int j_autox_points_held(xpp::Session &s); /* XppUi.autox_points_held: the points the active view holds */
+void j_autox_refresh(xpp::Session &s);
 
 /* ---- json_keymap.cpp ---- */
 

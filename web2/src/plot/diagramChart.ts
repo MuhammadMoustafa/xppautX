@@ -1,10 +1,10 @@
 import {cssVar} from './css';
-/* The AUTO diagram's chart: a uPlot chart in xy mode for a DiagramModel
+/* The autoX diagram's chart: a uPlot chart in xy mode for a DiagramModel
    (docs/ui-v2.md T11a). Branches are its series (lines, the unstable ones
    dashed), the labelled points are drawn in its draw hook (a cross at the
    value, and at the minimum of a periodic point, with the label's type and
    number beside it). Like plot/chart.ts it owns no application state: the
-   view (ui/AutoView.tsx) feeds it the store's viewport and puts what it
+   view (ui/AutoxView.tsx) feeds it the store's viewport and puts what it
    reports back into the store; the gestures are plot/interactions.ts's. */
 import uPlot from 'uplot';
 import type {Range, Viewport} from '../store/plots';

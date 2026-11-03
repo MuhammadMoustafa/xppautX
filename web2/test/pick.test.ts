@@ -46,10 +46,10 @@ test('mouse, rubber and drag asks of the shown 2D window are plot modes', () => 
   assert.equal(pickModeOf(ask('rubber', {flag: 0}), view, true, HELLO.window_names), 'box');
   assert.equal(pickModeOf(ask('rubber', {flag: 1}), view, true, HELLO.window_names), 'line');
   assert.equal(pickModeOf(ask('drag'), view, true, HELLO.window_names), 'drag');
-  assert.equal(pickModeOf(ask('rubber', {win: HELLO.window_names.auto}), view, true, HELLO.window_names), null, 'the AUTO diagram while AUTO is not open');
-  assert.equal(pickModeOf(ask('rubber', {win: HELLO.window_names.auto, flag: 0}), view, false, HELLO.window_names, true), 'box', 'Axes/Zoom on the AUTO view');
-  assert.equal(pickModeOf(ask('drag', {win: HELLO.window_names.auto}), undefined, false, HELLO.window_names, true), 'drag', 'Axes/Scroll on the AUTO view');
-  assert.equal(pickModeOf(ask('grab', {win: HELLO.window_names.auto}), view, false, HELLO.window_names, true), null, "a grab is the AUTO view's own mode");
+  assert.equal(pickModeOf(ask('rubber', {win: HELLO.window_names.auto}), view, true, HELLO.window_names), null, 'the autoX diagram while autoX is not open');
+  assert.equal(pickModeOf(ask('rubber', {win: HELLO.window_names.auto, flag: 0}), view, false, HELLO.window_names, true), 'box', 'Axes/Zoom on the autoX view');
+  assert.equal(pickModeOf(ask('drag', {win: HELLO.window_names.auto}), undefined, false, HELLO.window_names, true), 'drag', 'Axes/Scroll on the autoX view');
+  assert.equal(pickModeOf(ask('grab', {win: HELLO.window_names.auto}), view, false, HELLO.window_names, true), null, "a grab is the autoX view's own mode");
   assert.equal(pickModeOf(ask('mouse'), {...view, three: 1}, true, HELLO.window_names), null, 'nor a 3D plot');
   assert.equal(pickModeOf(ask('mouse'), view, false, HELLO.window_names), null, 'nor a plot before the first series');
   assert.equal(pickModeOf(ask('choice'), view, true, HELLO.window_names), null);

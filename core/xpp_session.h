@@ -19,9 +19,9 @@ struct Session; /* session.h */
    continuing where the user stopped, from one file, name.snapx -- a zip
    of ordinary files (snapx.h names them): the manifest, the model itself
    (W103: every file it read, model/<name>), model.setx (the
-   settings syntax, setx.h: values, numerics, delays, boundary conditions), AUTO's members
-   (auto/: the diagram, AUTO's settings and solutions, xpp_session_auto.h), windows.setx
-   (every plot window's axes, variables and zoom, AUTO's view), marks.setx
+   settings syntax, setx.h: values, numerics, delays, boundary conditions), autoX's members
+   (autox/: the diagram, autoX's settings and solutions, xpp_session_autox.h), windows.setx
+   (every plot window's axes, variables and zoom, autoX's view), marks.setx
    and frozen.npz (labels, arrows and markers, frozen curves) and data.npz
    (the data table, NPZ as Save data writes it). The earlier runs a window
    keeps until Erase are not saved: the data table is the last run's.
@@ -56,7 +56,7 @@ int xpp_session_save_here(xpp::Session &s, int data = -1);
    with. A value is a parameter's, an initial condition's, a numerics
    setting of the time span, method, tolerances and bounds, or the run's
    data (the rows stored and where the run ended). A view, a window or an
-   AUTO diagram alone is not a change. */
+   autoX diagram alone is not a change. */
 bool xpp_session_changed(const xpp::Session &s);
 /* the session's values as they are now are the saved ones: a save, an
    open of a session file and the end of every load call it */

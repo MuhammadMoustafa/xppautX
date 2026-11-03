@@ -43,7 +43,7 @@ export function installTestHook(session: Session): void {
      a full run's 200th command always empty) */
   let sentDropped = 0;
   /* the `diagram` events as they came, so a test can rebuild the diagram on its
-     own: from the last that started it over (a reset to no points), for AUTO's
+     own: from the last that started it over (a reset to no points), for autoX's
      window as it is now */
   let diagramEvents: unknown[] = [];
   /* every kinescope frame the page showed, in order (null: none), so a test
@@ -56,7 +56,7 @@ export function installTestHook(session: Session): void {
   session.store.dispatch = (a: Action) => {
     actions.push(a.type === 'event' ? `event:${a.ev.ev}` : a.type);
     if (actions.length > KEEP) actions.shift();
-    if (a.type === 'event' && a.ev.ev === 'auto.diagram') {
+    if (a.type === 'event' && a.ev.ev === 'autox.diagram') {
       if (a.ev.op === 'reset' && !a.ev.keep && a.ev.view === session.store.getState().diagram.views[0]?.name) diagramEvents = [];
       diagramEvents.push(a.ev);
     } else if (a.type === 'event' && a.ev.ev === 'window.destroyed' && a.ev.kind === 'diagram') diagramEvents = [];
@@ -93,8 +93,8 @@ export function installTestHook(session: Session): void {
     },
     /** window `win`'s chart (the active window's by default) */
     plot: (win?: string) => chartOf(win ?? session.store.getState().plots.active)?.info() ?? null,
-    /** view `view` of the AUTO diagram's chart (the active view's by default): its curves, label
-        marks and ranges (null while AUTO is not shown) */
+    /** view `view` of the autoX diagram's chart (the active view's by default): its curves, label
+        marks and ranges (null while autoX is not shown) */
     diagram: (view?: number) => diagramChart(view ?? session.store.getState().diagram.active)?.info() ?? null,
     /** every `diagram` event received, oldest first */
     diagramEvents: () => diagramEvents.slice(),

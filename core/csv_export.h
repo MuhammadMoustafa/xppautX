@@ -29,8 +29,8 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
    eigenvalue (a steady state) or Floquet multiplier (a periodic orbit) of
    every stored diagram point -- branch, point, index, re, im, kind
    ("eigenvalue"/"multiplier"). The values are the diagram's own copy of
-   what core/auto_stability.cpp computed for that point when it was
-   stored (autevd.cpp addbif, auto_stability_for), the one source of them;
+   what core/autox_stability.cpp computed for that point when it was
+   stored (autox_evd.cpp addbif, autox_stability_for), the one source of them;
    zeros mean "not computed", as elsewhere. Returns as
    csv_export_diagram does. */
 xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const char *filename);

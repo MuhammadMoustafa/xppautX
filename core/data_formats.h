@@ -25,8 +25,8 @@ struct DataTable {
     /* Storage is float: its CSV values must still use float's shortest text.
        Readers clear this marker because the file can contain doubles. */
     bool stored_floats = true;
-    /* CSV-only tables (AUTO): text and full-precision numeric fields share
-       the registry's quoter, without rounding AUTO's doubles to floats. */
+    /* CSV-only tables (autoX): text and full-precision numeric fields share
+       the registry's quoter, without rounding autoX's doubles to floats. */
     std::vector<std::vector<std::string>> fields;
     /* Source lines for text tables, so consumers report the actual row,
        including CSV's header and seed comment. Binary tables have none. */

@@ -10,7 +10,7 @@
 #include "integrate.h"
 #include "pp_shoot.h"
 #include "expr_decode.h"
-#include "auto_c.h"
+#include "autox_c.h"
 #include <cstdlib>
 #include <limits>
 

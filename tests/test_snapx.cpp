@@ -282,9 +282,9 @@ void check_plot_limits(const xpp::TempDir &tmp)
         xpp::create_a_pop(s);
         CHECK(s.plot_windows.active==i && s.plot_windows.current==&s.plot_windows.graph[i]);
         CHECK(s.plot_windows.current->nvars==curves);
-        CHECK(s.plot_windows.current->w<WIN_AUTO || s.plot_windows.current->w>WIN_APLOT);
+        CHECK(s.plot_windows.current->w<WIN_AUTOX || s.plot_windows.current->w>WIN_APLOT);
     }
-    CHECK(s.plot_windows.graph.back().w==windows+WIN_APLOT-WIN_AUTO+1);
+    CHECK(s.plot_windows.graph.back().w==windows+WIN_APLOT-WIN_AUTOX+1);
     xpp::make_active(s,7,1);
     xpp::destroy_a_pop(s);
     xpp::make_active(s,windows-1,1);

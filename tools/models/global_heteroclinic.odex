@@ -1,5 +1,5 @@
 version 4
-# Source: made up for this check (W537 audit); the published heteroclinic cycle is examples/tstauto/pp2.odex (AUTO-07p's pp2 demo; tests/auto/pp2_heteroclinic.json).
+# Source: made up for this check (W537 audit); the published heteroclinic cycle is examples/tstauto/pp2.odex (AUTO-07p's pp2 demo; tests/autox/pp2_heteroclinic.json).
 # A planar system whose cycle from a Hopf point ends on a heteroclinic cycle between two saddles (W518, #582).
 # x'' = -x + x^3 + mu x' - (x')^3: the pendulum-like oscillator with a centre at the origin and saddles at
 # (+-1, 0) joined by the two heteroclinic orbits y = +-(1 - x^2) / sqrt(2) of H = y^2/2 + x^2/2 - x^4/4 = 1/4
@@ -7,7 +7,7 @@ version 4
 # point at mu = 0, and its cycles grow with mu until they meet the two saddles, where the energy balance
 # mu int y^2 dt = int y^4 dt along a heteroclinic orbit holds (to first order mu = 12/35 = 0.343; the run finds
 # 0.3314), the same value for the two orbits by the symmetry: a heteroclinic cycle. Made for this check; no source.
-# tests/auto/global_heteroclinic.json runs it.
+# tests/autox/global_heteroclinic.json runs it.
 par mu = -0.3
 init x = 0, y = 0.01
 x' = y

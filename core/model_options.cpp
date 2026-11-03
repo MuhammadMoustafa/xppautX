@@ -12,8 +12,8 @@
 #include "setx.h"
 #include "odex.h"
 #include "xpp_util.h"
-#include "auto_settings.h"
-#include "xpp_session_auto.h"
+#include "autox_settings.h"
+#include "xpp_session_autox.h"
 #include "browse.h"
 #include "data_formats.h"
 #include "colormap.h"
@@ -122,7 +122,7 @@ std::string foreign_plot_color(std::string_view value)
 }
 
 /* XPPAUT's AUTO colour number as our colour's word: 0 or the slots 20 to 29 of its named colours */
-std::string foreign_auto_color(std::string_view value)
+std::string foreign_autox_color(std::string_view value)
 {
   int i = 0;
   if (!parse_int(value, i) || (i != 0 && (i < 20 || i > 19 + LAST_PLOT_COLOR))) return {};
@@ -465,7 +465,7 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      int f = 0;
      if (const char *why = whole_in(v, f)) return why;
-     if (v.apply) set_auto_eval_flags(s, f);
+     if (v.apply) set_autox_eval_flags(s, f);
      return nullptr;
    }},
 
@@ -816,73 +816,73 @@ constexpr OptionRow rows[] = {
      return nullptr;
    }},
 
-  /* ---- AUTO ---- */
+  /* ---- autoX ---- */
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MESH_INTERVALS",
    .xppaut_names = {"NTST"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ntst; }), .auto_numeric = AUTO_NUM_MESH_INTERVALS},
+   .whole = member([](auto &s) -> auto & { return s.autox_state.options.ntst; }), .autox_numeric = AUTOX_NUM_MESH_INTERVALS},
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MAX_STEPS",
    .xppaut_names = {"NMAX"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.nmx; }), .auto_numeric = AUTO_NUM_MAX_STEPS},
+   .whole = member([](auto &s) -> auto & { return s.autox_state.options.nmx; }), .autox_numeric = AUTOX_NUM_MAX_STEPS},
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "OUTPUT_EVERY",
    .xppaut_names = {"NPR"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.npr; }), .auto_numeric = AUTO_NUM_OUTPUT_EVERY},
+   .whole = member([](auto &s) -> auto & { return s.autox_state.options.npr; }), .autox_numeric = AUTOX_NUM_OUTPUT_EVERY},
   {.group = option_group::continuation, .kind = OptionKind::whole, .name = "COLLOCATION_POINTS",
    .xppaut_names = {"NCOL"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.ncol; }), .auto_numeric = AUTO_NUM_COLLOCATION_POINTS},
+   .whole = member([](auto &s) -> auto & { return s.autox_state.options.ncol; }), .autox_numeric = AUTOX_NUM_COLLOCATION_POINTS},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "MIN_STEP_SIZE",
    .xppaut_names = {"DSMIN"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.dsmin; }), .auto_numeric = AUTO_NUM_MIN_STEP_SIZE},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.dsmin; }), .autox_numeric = AUTOX_NUM_MIN_STEP_SIZE},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "MAX_STEP_SIZE",
    .xppaut_names = {"DSMAX"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.dsmax; }), .auto_numeric = AUTO_NUM_MAX_STEP_SIZE},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.dsmax; }), .autox_numeric = AUTOX_NUM_MAX_STEP_SIZE},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "STEP_SIZE",
    .xppaut_names = {"DS"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.ds; }), .auto_numeric = AUTO_NUM_STEP_SIZE},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.ds; }), .autox_numeric = AUTOX_NUM_STEP_SIZE},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARAMETER_MIN",
    .xppaut_names = {"PARMIN"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.rl0; }), .auto_numeric = AUTO_NUM_PARAMETER_MIN},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.rl0; }), .autox_numeric = AUTOX_NUM_PARAMETER_MIN},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARAMETER_MAX",
    .xppaut_names = {"PARMAX"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.rl1; }), .auto_numeric = AUTO_NUM_PARAMETER_MAX},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.rl1; }), .autox_numeric = AUTOX_NUM_PARAMETER_MAX},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "NORM_MIN",
    .xppaut_names = {"NORMMIN"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.a0; }), .auto_numeric = AUTO_NUM_NORM_MIN},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.a0; }), .autox_numeric = AUTOX_NUM_NORM_MIN},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "NORM_MAX",
    .xppaut_names = {"NORMMAX"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.a1; }), .auto_numeric = AUTO_NUM_NORM_MAX},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.a1; }), .autox_numeric = AUTOX_NUM_NORM_MAX},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARAMETER_TOLERANCE",
    .xppaut_names = {"EPSL"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.epsl; }), .auto_numeric = AUTO_NUM_PARAMETER_TOLERANCE},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.epsl; }), .autox_numeric = AUTOX_NUM_PARAMETER_TOLERANCE},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "STATE_TOLERANCE",
    .xppaut_names = {"EPSU"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.epsu; }), .auto_numeric = AUTO_NUM_STATE_TOLERANCE},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.epsu; }), .autox_numeric = AUTOX_NUM_STATE_TOLERANCE},
   {.group = option_group::continuation, .kind = OptionKind::number, .name = "SPECIAL_POINT_TOLERANCE",
    .xppaut_names = {"EPSS"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.epss; }), .auto_numeric = AUTO_NUM_SPECIAL_POINT_TOLERANCE},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.epss; }), .autox_numeric = AUTOX_NUM_SPECIAL_POINT_TOLERANCE},
   {.group = option_group::diagram, .kind = OptionKind::number, .name = "AUTOXMAX", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.xmax; })},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.xmax; })},
   {.group = option_group::diagram, .kind = OptionKind::number, .name = "AUTOYMAX", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.ymax; })},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.ymax; })},
   {.group = option_group::diagram, .kind = OptionKind::number, .name = "AUTOXMIN", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.xmin; })},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.xmin; })},
   {.group = option_group::diagram, .kind = OptionKind::number, .name = "AUTOYMIN", .once = true,
-   .real = member([](auto &s) -> auto & { return s.auto_state.options.ymin; })},
+   .real = member([](auto &s) -> auto & { return s.autox_state.options.ymin; })},
   {.group = option_group::diagram, .kind = OptionKind::name, .name = "AUTOVAR", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.auto_state.options.var; }),
+   .whole = member([](auto &s) -> auto & { return s.autox_state.options.var; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const int i = variable_of(s, v);
      if (i < 1) return "no such variable";
-     if (v.apply) s.auto_state.options.var = i - 1;
+     if (v.apply) s.autox_state.options.var = i - 1;
      return nullptr;
    }},
   {.group = option_group::diagram, .kind = OptionKind::color, .name = "SEC", .once = true,
-   .color = member([](auto &s) -> auto & { return s.auto_state.stable_eq_color; }), .foreign = foreign_auto_color},
+   .color = member([](auto &s) -> auto & { return s.autox_state.stable_eq_color; }), .foreign = foreign_autox_color},
   {.group = option_group::diagram, .kind = OptionKind::color, .name = "UEC", .once = true,
-   .color = member([](auto &s) -> auto & { return s.auto_state.unstable_eq_color; }), .foreign = foreign_auto_color},
+   .color = member([](auto &s) -> auto & { return s.autox_state.unstable_eq_color; }), .foreign = foreign_autox_color},
   {.group = option_group::diagram, .kind = OptionKind::color, .name = "SPC", .once = true,
-   .color = member([](auto &s) -> auto & { return s.auto_state.stable_po_color; }), .foreign = foreign_auto_color},
+   .color = member([](auto &s) -> auto & { return s.autox_state.stable_po_color; }), .foreign = foreign_autox_color},
   {.group = option_group::diagram, .kind = OptionKind::color, .name = "UPC", .once = true,
-   .color = member([](auto &s) -> auto & { return s.auto_state.unstable_po_color; }), .foreign = foreign_auto_color},
+   .color = member([](auto &s) -> auto & { return s.autox_state.unstable_po_color; }), .foreign = foreign_autox_color},
 
   /* ---- the histogram and the spectrum a batch run writes ---- */
   {.group = option_group::analysis, .kind = OptionKind::whole, .name = "POSTPROCESS", .once = true,
@@ -1243,7 +1243,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   /* Check the row's shared numeric bounds before its parser can apply a value. */
   double x = 0;
   const char *refused = parse_number(text, x) ? rule_problem(row->rule, x, row->maximum) : nullptr;
-  if (std::string auto_why; row->auto_numeric >= 0 && parse_number(text, x) && !auto_settings_num_ok(row->auto_numeric, x, auto_why)) return auto_why;
+  if (std::string autox_why; row->autox_numeric >= 0 && parse_number(text, x) && !autox_settings_num_ok(row->autox_numeric, x, autox_why)) return autox_why;
   if (row->zero_or_one && text != "0" && text != "1") why = "not 0 or 1";
   else if (row->once && !source.may(s, *row)) return std::nullopt;
   else if (refused) why = refused;

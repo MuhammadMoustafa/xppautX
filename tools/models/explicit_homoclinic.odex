@@ -7,7 +7,7 @@ version 4
 # zero), so the homoclinic curve of the (k, q) plane is the line k = 0 and each q has the exact orbit above.
 # The origin has the eigenvalues +sqrt(q), -sqrt(q), -2: NUNSTAB = 1, NSTAB = 2; q = 4 is where the stable
 # eigenvalues coincide. The loop lasts about 2*ln(6/x_end)/sqrt(q) time units from x = x_end at either end.
-# tests/auto/explicit_homoclinic.json runs it; docs/auto-references.md compares AUTO-07p's orbit with the exact one.
+# tests/autox/explicit_homoclinic.json runs it; docs/auto-references.md compares AUTO-07p's orbit with the exact one.
 x' = y
 y' = q*(x-x*x)-k*y
 z' = -2*(z-x*x)+2*x*y

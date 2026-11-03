@@ -1,10 +1,10 @@
 #pragma once
 /* What the page displays, held by the core (W65, docs/ui-v2.md "Display
    state"): each plot window's earlier runs until Erase, the zoom shown and
-   whether the earlier runs are drawn; AUTO's hidden branches and zoom.
-   Members of xpp::Session (session.h), set by the `display` and `auto`
+   whether the earlier runs are drawn; autoX's hidden branches and zoom.
+   Members of xpp::Session (session.h), set by the `display` and `autox`
    commands or by the runs themselves and sent as data (plot_data.cpp's
-   `runs` and `plots` events, json_auto.cpp's `autoview`), so a session
+   `runs` and `plots` events, json_autox.cpp's `autoxview`), so a session
    file can save them. C++ only. */
 #include <array>
 #include <string>
@@ -21,7 +21,7 @@ struct AxisRange {
     bool operator==(const AxisRange &) const = default;
 };
 
-/* the zoom shown: the part of a window's (or AUTO's) axes the page displays */
+/* the zoom shown: the part of a window's (or autoX's) axes the page displays */
 struct Zoom {
     AxisRange x, y;
     bool any() const { return x.set || y.set; }
@@ -66,10 +66,10 @@ struct PlotDisplay {
     PlotCurves axes_curves{};
 };
 
-/* AUTO's diagram display: the points before `earlier` are the branches
+/* autoX's diagram display: the points before `earlier` are the branches
    computed before Clear, hidden unless `show_earlier` (in every view; each
-   view's zoom is its own, auto_state.h's AutoDiagramView) */
-struct AutoView {
+   view's zoom is its own, autox_state.h's AutoxDiagramView) */
+struct AutoxView {
     int earlier = 0;
     bool show_earlier = false;
 };

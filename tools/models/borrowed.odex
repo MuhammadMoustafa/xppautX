@@ -3,7 +3,7 @@ version 4
 
 # The derived data sets that borrow the stored columns (storage.h's
 # LentColumns), shown again after a run grew the store or a load replaced
-# the session (tools/autocheck.py's memory section, W117): a stable limit
+# the session (tools/autoxcheck.py's memory section, W117): a stable limit
 # cycle of period 2*pi started on it, so the adjoint converges, with
 # three auxiliaries so that the adjoint, its H function and a histogram
 # each show stored columns beside their own; a small maxstor, so that a

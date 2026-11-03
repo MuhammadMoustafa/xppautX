@@ -1,4 +1,4 @@
-/* The events resource's registry rows (W528): which of the heavy data events (the plots, the AUTO info, the numerics ...)
+/* The events resource's registry rows (W528): which of the heavy data events (the plots, the autoX info, the numerics ...)
    a client gets after each command. The subscriptions are the front end's (json_state.cpp), so each row's handler is
    front_end. */
 #include "command_def.h"
@@ -23,7 +23,7 @@ constexpr std::array EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array ROWS = {
     Command{"events.subscribe", SUBSCRIBE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "Help/Events/Subscribe",
             "Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays "
-            "as base64 float32 (what is left out stays as it was); diagram says whether AUTO's diagram points are sent.",
+            "as base64 float32 (what is left out stays as it was); diagram says whether autoX's diagram points are sent.",
             SUBSCRIBE_RESULTS, EVENTS, false, front_end},
     Command{"events.unsubscribe", UNSUBSCRIBE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "Help/Events/Unsubscribe",
             "Stop sending the data events named.", UNSUBSCRIBE_RESULTS, EVENTS, false, front_end}};

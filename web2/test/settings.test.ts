@@ -1,5 +1,5 @@
 /* Settings during a computation (W106, GitHub #155): the values panel's and
-   the AUTO forms' edits go to the core at once, busy or not, and the field
+   the autoX forms' edits go to the core at once, busy or not, and the field
    shows what was sent until that set's own done -- nothing is held, no
    "pending" (npm test, through session.ts with a transport that records). */
 import assert from 'node:assert/strict';
@@ -8,7 +8,7 @@ import {Session} from '../src/session';
 import type {Command, XppEvent} from '../src/protocol/types';
 import type {Transport} from '../src/protocol/transport';
 import {sentText} from '../src/store/values';
-import {shownSettings} from '../src/store/autoSettings';
+import {shownSettings} from '../src/store/autoxSettings';
 import {HELLO} from './hello';
 
 function session(): {s: Session; sent: Command[]; ev: (e: object) => void} {
@@ -51,17 +51,17 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
   assert.equal(st().busy, false);
 });
 
-test('W106: an AUTO settings edit during a run is sent at once, shown until its own done', () => {
+test('W106: an autoX settings edit during a run is sent at once, shown until its own done', () => {
   const {s, sent, ev} = session();
   ev(HELLO);
-  ev({ev: 'auto.settings', numerics: {max_steps: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
+  ev({ev: 'autox.settings', numerics: {max_steps: 200}, pars: [], axes: {plot: 'norm'}, marks: []});
   ev({ev: 'done', status: 'ok'});
   s.send({cmd: 'run.initial'});
   ev({ev: 'job.computing'});
   sent.length = 0;
-  s.autoSettings({numerics: {max_steps: 25}});
-  assert.deepEqual(sent, [{cmd: 'auto.configure_numerics', max_steps: 25}]);
-  assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.max_steps, 25);
+  s.autoxSettings({numerics: {max_steps: 25}});
+  assert.deepEqual(sent, [{cmd: 'autox.configure_numerics', max_steps: 25}]);
+  assert.equal(shownSettings(s.store.getState().autoxSettings)!.numerics.max_steps, 25);
   ev({ev: 'done', status: 'ok'});
-  assert.equal(shownSettings(s.store.getState().autoSettings)!.numerics.max_steps, 25);
+  assert.equal(shownSettings(s.store.getState().autoxSettings)!.numerics.max_steps, 25);
 });

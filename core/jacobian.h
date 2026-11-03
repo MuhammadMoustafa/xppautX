@@ -18,12 +18,12 @@ struct Session; /* session.h */
    one it reads. rows[i] are the equations that read state i (through the
    fixed variables they read), i itself included; groups the states
    perturbed together. Empty when the model's reads are not known (an
-   interpreted program, a network, a DAE, ...: Model::auto_rhs_pure). */
+   interpreted program, a network, a DAE, ...: Model::autox_rhs_pure). */
 struct DifferenceGroups {
   std::vector<std::vector<int>> rows, groups;
 };
 
-// Compiled derivative evaluation storage; AUTO workers each own one.
+// Compiled derivative evaluation storage; autoX workers each own one.
 struct JacobianScratch {
   std::vector<double> point, workspace, values;
   /* the model's difference groups, made on the first difference Jacobian */
@@ -94,8 +94,8 @@ void jacobian(Session &s, double t, const double *x, const double *f0, int n, do
    run stops there. The exact Jacobian's functions below throw it, with
    the equation's line, the variable, the time and the state; the
    computation that asked catches it where it ends and returns its error
-   (Solver::advance, the equilibria's rooter, the adjoint, AUTO's func as
-   an AutoFailed, which a collocation worker's caller rethrows). No
+   (Solver::advance, the equilibria's rooter, the adjoint, autoX's func as
+   an AutoxFailed, which a collocation worker's caller rethrows). No
    difference is taken instead. */
 struct JacobianFailed {
   Error error;
@@ -111,7 +111,7 @@ ErrorAction switch_to_differences(std::string resume);
 
 /* The model's exact Jacobian at (t, x) with the constants c (W260), its
    n = Model::node equations' d f/d x in `form`, from the compiled
-   derivatives alone: nothing of the Session is written, so an AUTO
+   derivatives alone: nothing of the Session is written, so an autoX
    collocation worker gives its own constants and gets the same bits as
    the caller's thread. f is the right-hand side there (for a map's form,
    f(x)-x): an entry not finite where f is throws JacobianFailed. The

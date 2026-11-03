@@ -8,7 +8,7 @@ import {useEffect, useRef} from 'preact/hooks';
 import {closeTools} from './hotkeys';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
-/* the theme is an icon, not a word: "Auto" beside the feature buttons read as AUTO (T21) */
+/* the theme is an icon, not a word: "Autox" beside the feature buttons read as autoX (T21) */
 const THEME_NAME: Record<Theme, string> = {system: 'follow system', light: 'light', dark: 'dark'};
 
 function ThemeIcon({theme}: {theme: Theme}) {

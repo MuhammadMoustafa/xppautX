@@ -1,11 +1,11 @@
-/* W336: EISPACK (xpp_math_eispack.cpp, AUTO's eigenvalue, SVD and QZ routines) keeps no
+/* W336: EISPACK (xpp_math_eispack.cpp, autoX's eigenvalue, SVD and QZ routines) keeps no
    state between or across calls, so the same input gives the same bits at any
    time and when several threads call it at once (a collocation worker reaching
    an eigenvalue unit must not race the caller's own call). Each routine is run
    serially for a reference, then from several threads, with other inputs
    between the calls, and every result is compared bit for bit. */
 #include "xpptest.h"
-#include "auto_c.h"
+#include "autox_c.h"
 #include <array>
 #include <atomic>
 #include <bit>
@@ -50,7 +50,7 @@ std::vector<doublereal> run_rg(std::uint64_t seed, integer matz)
     return out;
 }
 
-/* the homoclinic code's way (autlib5.cpp): Hessenberg basis, then the real Schur form
+/* the homoclinic code's way (autox_lib5.cpp): Hessenberg basis, then the real Schur form
    with the stable (imfd -1) or unstable (1) eigenvalues first */
 std::vector<doublereal> run_schur(std::uint64_t seed, integer imfd)
 {

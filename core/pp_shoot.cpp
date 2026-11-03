@@ -144,7 +144,7 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend)
      ping();
    }
   refresh_browser(s,s.data_store.rows);
-  auto_freeze_it(s);     
+  autox_freeze_it(s);     
  swap_color(s,&color,1);
  if(failure)return std::unexpected(std::move(*failure));
  if(!film)return std::unexpected(film.error());
@@ -241,7 +241,7 @@ xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *
  problems.keep(last_shot(s,1));
  s.numerics.inflag=true;
  refresh_browser(s,s.data_store.rows);
- auto_freeze_it(s);
+ autox_freeze_it(s);
  ping();
  return problems.result();
 }

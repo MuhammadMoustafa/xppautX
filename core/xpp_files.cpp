@@ -1,5 +1,5 @@
 /* The model's folder as the page's workspace: see xpp_files.h. Folder
-   operations (listing, the wildcard match, the current folder, AUTO's
+   operations (listing, the wildcard match, the current folder, autoX's
    scratch folders) are core/xpp_files_dir.cpp, behind the same header;
    this file keeps the page's file API and the core's own single-file
    operations. */
@@ -433,7 +433,7 @@ std::string frame_name(std::string_view first, std::string_view ext, int frame)
 
 const char *ask_mode(std::string_view title)
 {
-    /* the file selectors' titles (file_selector() callers): "Load Auto",
+    /* the file selectors' titles (file_selector() callers): "Load Autox",
        "Read initial data", "Import XPPAUT set", "Import Diagram", "Select an ODE file",
        "Library:", "Play recording" open a file; "Save ...", "Write ...", "PDF",
        "GIF plot", "Clone ODE file", ... write one */
@@ -486,10 +486,10 @@ void copy_bytes(FILE *from, FILE *to)
     while ((n = std::fread(buf.data(), 1, buf.size(), from)) > 0) std::fwrite(buf.data(), 1, n, to);
 }
 
-/* to becomes first's bytes, then (when given) second's. Binary: AUTO's
+/* to becomes first's bytes, then (when given) second's. Binary: autoX's
    files carry their own line ends, which text mode would rewrite. Both
    opens are checked: on Windows a file still open elsewhere cannot be
-   opened, and writing into a NULL FILE * left fort.3 empty, which AUTO
+   opened, and writing into a NULL FILE * left fort.3 empty, which autoX
    then reported as "Restart label N not found". Both are closed before
    the rename: Windows cannot replace an open file. */
 void concat(const char *first, xpp::UniqueFile second, const char *to)
@@ -535,7 +535,7 @@ bool user_settings(std::string_view path)
 }
 
 /* the system's description of the machine (Linux's /sys and /proc: W270's core count), not a file the
-   model read (W294: a replay refused AUTO's start for want of /sys/devices/system/cpu/online) */
+   model read (W294: a replay refused autoX's start for want of /sys/devices/system/cpu/online) */
 bool machine_file(std::string_view path) { return path.starts_with("/sys/") || path.starts_with("/proc/"); }
 
 /* a file a recording neither holds nor serves */

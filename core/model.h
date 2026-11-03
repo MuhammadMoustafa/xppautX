@@ -147,7 +147,7 @@ struct Model {
   /* native_rhs writes the equations: each is native, and no network or DAE
      runs between them and the fixed variables */
   bool native_equations=false;
-  bool auto_rhs_pure=false; /* compile_model: every AUTO RHS program is native and Session-independent */
+  bool autox_rhs_pure=false; /* compile_model: every autoX RHS program is native and Session-independent */
   /* the exact Jacobian compile_model made, or why there is none (W260) */
   ExactJacobian jacobian;
   /* a boundary condition, 0=string: string (at most 255 bytes, the rest
@@ -401,7 +401,7 @@ struct Model {
   bool loaded() const { return !this_file.empty(); }
   /* the model's own files as its load read them (model_files.h):
      this_file first, then each file included, each file table, the
-     options file and --anifile's animation, in the order read; an AUTO
+     options file and --anifile's animation, in the order read; an autoX
      file and a session file save them all (xpp_session.h) */
   std::vector<ModelFile> files;
   /* the .snapx the model was loaded from (an absolute path),

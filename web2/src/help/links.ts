@@ -22,11 +22,11 @@ export const HELP = {
   dataTab: {chapter: '07-data-browser'} as HelpTarget,
   mainMenu: {chapter: '05-commands'} as HelpTarget,
   animation: {chapter: '10-animations', anchor: 'the-animation-view'} as HelpTarget,
-  autoView: {chapter: '09-auto', anchor: 'the-auto-view'} as HelpTarget,
-  autoAxes: {chapter: '09-auto', anchor: 'diagram-axes'} as HelpTarget,
-  autoNumerics: {chapter: '09-auto', anchor: 'numerical-parameters'} as HelpTarget,
-  autoMarks: {chapter: '09-auto', anchor: 'user-functions'} as HelpTarget,
-  autoSaving: {chapter: '09-auto', anchor: 'saving-diagrams'} as HelpTarget,
+  autoxView: {chapter: '09-auto', anchor: 'the-auto-view'} as HelpTarget,
+  autoxAxes: {chapter: '09-auto', anchor: 'diagram-axes'} as HelpTarget,
+  autoxNumerics: {chapter: '09-auto', anchor: 'numerical-parameters'} as HelpTarget,
+  autoxMarks: {chapter: '09-auto', anchor: 'user-functions'} as HelpTarget,
+  autoxSaving: {chapter: '09-auto', anchor: 'saving-diagrams'} as HelpTarget,
 } as const;
 
 /** a core prompt (AskDialog.tsx): the Data tab's own ops, the Numerics

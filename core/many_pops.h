@@ -18,7 +18,7 @@ struct XppPlotWindows {
     XppWinId draw_win;     /* graph[active].w, the window drawn into */
 };
 
-/* The windows that are neither graphs nor AUTO views have a name each, fixed
+/* The windows that are neither graphs nor autoX views have a name each, fixed
    and reserved (window_name_problem): the data browser, the animation and
    the array plot (W515). */
 inline constexpr std::string_view BROWSER_WINDOW = "browser", ANIMATION_WINDOW = "animation",

@@ -1,0 +1,33 @@
+{
+  "model": "examples/tstauto/tsthom2.odex",
+  "reason": "Homoclinic BVP setup: start from its integrated approximation.",
+  "runs": [
+    {
+      "name": "boundary",
+      "kind": "bvp",
+      "start": {
+        "state": "current",
+        "settle": 1
+      },
+      "parameter": "a",
+      "autox": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.01,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": -1,
+        "parameter_max": 1,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "x": 0.005,
+    "y": 0.004991659710623979,
+    "p": 14.176816163819215
+  },
+  "auto07p_skip": "The projection boundary conditions (hom_bcs) are XPPAUT's own construct and the start is the orbit XPPAUT integrates (settle); AUTO-07p's homoclinic and heteroclinic continuation takes the orbit and its equilibria through its own constants, which this translation does not build.",
+  "xppaut_skip": "XPPAUT's boundary value run starts from the solution in XPPAUT's storage, which the keys of tools/auto_reference.py do not produce (a run of the integrator first); not driven."
+}

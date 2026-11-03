@@ -11,7 +11,7 @@ struct Session; /* session.h */
    parameter changed), one added (name = rhs) */
 void compile_derived(Session &s);
 void evaluate_derived(Session &s);
-/* AUTO's pure compiled path, with the worker's arrays; s is only read. */
+/* autoX's pure compiled path, with the worker's arrays; s is only read. */
 void evaluate_derived_pure(const Session &s, double *constants, double *variables);
 int add_derived(Session &s, std::string_view name, std::string_view rhs);
 

@@ -14,7 +14,7 @@ version 4
 # Published values (the tutorial, MatCont 7.3, eps there): the period-1 cycle's PD at eps = 0.3050914 for b0 = 0.4;
 # R2 of the period-1 PD curve at (b0, eps) = (0.3401303, 0.3362213); on the Neimark-Sacker curve of the period-2 cycle,
 # (b0, eps): R3 at (0.1798043, 0.7084323), R4 at (0.1772744, 0.6740362) and R1 at (0.1771951, 0.6029715), its R2 at
-# (0.1838264, 0.7431615). tests/auto/forced_pp_*.json run them; docs/auto-references.md compares AUTO-07p's labels.
+# (0.1838264, 0.7431615). tests/autox/forced_pp_*.json run them; docs/auto-references.md compares AUTO-07p's labels.
 x' = r*x*(1-x/kk)-a*x*y/(b0*(1+eps*u)+x)
 y' = e*a*x*y/(b0*(1+eps*u)+x)-d*y
 u' = m*u-2*pi*v-(u*u+v*v)*u

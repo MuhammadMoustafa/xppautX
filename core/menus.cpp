@@ -1,6 +1,6 @@
 /* The pop-up menus a command asks one of its choices with (menus.h). */
 #include "menus.h"
-#include "auto_codes.h"
+#include "autox_codes.h"
 
 #include <string>
 #include <string_view>
@@ -51,20 +51,20 @@ int menu_index(const XppMenu *m, int ch)
 
 
 
-/* AUTO's pop-up menus (W96). The protocol names each one "auto": that is the
+/* autoX's pop-up menus (W96). The protocol names each one "autox": that is the
    name the page has always been sent. Nothing about them is dynamic but the
    default item, which the caller passes to menu_choose, and the Special
-   menu's title (menu_auto_special copied with its own). */
+   menu's title (menu_autox_special copied with its own). */
 
-/* AUTO's File menu: session save/open and foreign diagram import. */
+/* autoX's File menu: session save/open and foreign diagram import. */
 
 // the grab-by-type menu: its items are the point types' names (query_special shows their labels)
-// the grab-by-type menu: its items are the point types' labels, in the order auto_grab_kinds (auto_nox.cpp) gives
-static const char *const auto_special_items[]={
-  auto_point_kind_label(AutoPointKind::BranchPoint).data(), auto_point_kind_label(AutoPointKind::End).data(),
-  auto_point_kind_label(AutoPointKind::Hopf).data(), auto_point_kind_label(AutoPointKind::Fold).data(),
-  auto_point_kind_label(AutoPointKind::MaxSteps).data(), auto_point_kind_label(AutoPointKind::PeriodDoubling).data(),
-  auto_point_kind_label(AutoPointKind::NeimarkSacker).data(), auto_point_kind_label(AutoPointKind::UserZero).data()};
-const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu");
+// the grab-by-type menu: its items are the point types' labels, in the order autox_grab_kinds (autox_nox.cpp) gives
+static const char *const autox_special_items[]={
+  autox_point_kind_label(AutoxPointKind::BranchPoint).data(), autox_point_kind_label(AutoxPointKind::End).data(),
+  autox_point_kind_label(AutoxPointKind::Hopf).data(), autox_point_kind_label(AutoxPointKind::Fold).data(),
+  autox_point_kind_label(AutoxPointKind::MaxSteps).data(), autox_point_kind_label(AutoxPointKind::PeriodDoubling).data(),
+  autox_point_kind_label(AutoxPointKind::NeimarkSacker).data(), autox_point_kind_label(AutoxPointKind::UserZero).data()};
+const XppMenu menu_autox_special = XPP_MENU("autox", "", autox_special_items, "behlmptu");
 
 } // namespace xpp

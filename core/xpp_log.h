@@ -2,7 +2,7 @@
 
    Levels, most to least severe:
      XPP_LOG_ERROR  a model that does not parse, a file that cannot be
-                    opened, an AUTO failure the user must see
+                    opened, an autoX failure the user must see
      XPP_LOG_WARN   a real problem that is not fatal: a duplicate name,
                     a CLI usage mistake, a numerical warning
      XPP_LOG_INFO   the startup banner, "All formulas are valid!!",
@@ -27,10 +27,10 @@
    cannot show (log_set_terminal below): WARN and ERROR, and everything
    at --verbose or --debug.
 
-   xpp::log_auto() is AUTO's console table and its notes. The console gets
+   xpp::log_autox() is autoX's console table and its notes. The console gets
    it at INFO, like the rest; in browser mode it is always written
-   (xpp::log_set_auto_echo), because the AUTO window's Output panel is fed
-   from the log. AUTO's fort.7/8/9 files are data, written elsewhere.
+   (xpp::log_set_autox_echo), because the autoX window's Output panel is fed
+   from the log. autoX's fort.7/8/9 files are data, written elsewhere.
 
    C++ linkage in namespace xpp (W109a); the level stays the plain enum
    XppLogLevel, which the window library's C table names too
@@ -86,11 +86,11 @@ void log_set_threshold(XppLogLevel level);
    "@ quiet=1" for INFO) */
 bool log_enabled(XppLogLevel level);
 
-/* true when log_auto() writes (browser mode, or a threshold of INFO
+/* true when log_autox() writes (browser mode, or a threshold of INFO
    or more) */
-bool log_auto_enabled();
-/* true: AUTO's table is written whatever the threshold (browser mode) */
-void log_set_auto_echo(bool on);
+bool log_autox_enabled();
+/* true: autoX's table is written whatever the threshold (browser mode) */
+void log_set_autox_echo(bool on);
 
 /* With a page taking the log (browser and window modes: stderr is its
    pipe), `terminal` is the terminal's own copy of stderr. A WARN or ERROR
@@ -130,7 +130,7 @@ private:
 /* The checked calls below and the window library's callback share this
    formatting and delivery path. The caller writes the newline. */
 void log_message(XppLogLevel level, std::string_view fmt, std::format_args args) noexcept;
-void log_auto_message(std::string_view fmt, std::format_args args) noexcept;
+void log_autox_message(std::string_view fmt, std::format_args args) noexcept;
 
 /* Compile-time checked logging (see core/xpp_io.h's xpp::format, same
    idea): a bad "{}" against the argument types is a compile error, not a
@@ -143,11 +143,11 @@ void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) noe
                           std::forward<Args>(args)...);
 }
 
-/* the same checked call for AUTO's table and notes */
+/* the same checked call for autoX's table and notes */
 template <class... Args>
-void log_auto(std::format_string<Args...> fmt, Args &&...args) noexcept
+void log_autox(std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    xpp::with_format_args([&fmt](std::format_args a) { log_auto_message(fmt.get(), a); },
+    xpp::with_format_args([&fmt](std::format_args a) { log_autox_message(fmt.get(), a); },
                           std::forward<Args>(args)...);
 }
 } // namespace xpp

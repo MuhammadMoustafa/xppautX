@@ -31,9 +31,9 @@ std::optional<WindowTarget> find_window(const Session &s, std::string_view name)
     for (int i=0;i<static_cast<int>(s.plot_windows.graph.size());++i)
         if (s.plot_windows.graph[i].Use && s.plot_windows.graph[i].name==name)
             return WindowTarget{WindowKind::graph,i};
-    if (s.auto_state.bifur.exist)
-        for (int i=0;i<static_cast<int>(s.auto_state.views.size());++i)
-            if (s.auto_state.views[i].name==name) return WindowTarget{WindowKind::diagram,i};
+    if (s.autox_state.bifur.exist)
+        for (int i=0;i<static_cast<int>(s.autox_state.views.size());++i)
+            if (s.autox_state.views[i].name==name) return WindowTarget{WindowKind::diagram,i};
     if (name==BROWSER_WINDOW) return WindowTarget{WindowKind::browser,0};
     if (name==ANIMATION_WINDOW && s.animation.vcr.iexist) return WindowTarget{WindowKind::animation,0};
     if (name==ARRAY_PLOT_WINDOW && s.array_plot.plot.alive) return WindowTarget{WindowKind::array_plot,0};
@@ -56,7 +56,7 @@ bool window_hidden(const Session &s, const WindowTarget &target)
 {
     switch (target.kind) {
     case WindowKind::graph: return s.plot_windows.graph[target.index].hidden;
-    case WindowKind::diagram: return s.auto_state.views[target.index].hidden;
+    case WindowKind::diagram: return s.autox_state.views[target.index].hidden;
     case WindowKind::browser: return s.tools_hidden.browser;
     case WindowKind::animation: return s.tools_hidden.animation;
     case WindowKind::array_plot: return s.tools_hidden.array_plot;
@@ -68,7 +68,7 @@ void set_window_hidden(Session &s, const WindowTarget &target, bool hidden)
 {
     switch (target.kind) {
     case WindowKind::graph: s.plot_windows.graph[target.index].hidden = hidden; break;
-    case WindowKind::diagram: s.auto_state.views[target.index].hidden = hidden; break;
+    case WindowKind::diagram: s.autox_state.views[target.index].hidden = hidden; break;
     case WindowKind::browser: s.tools_hidden.browser = hidden; break;
     case WindowKind::animation: s.tools_hidden.animation = hidden; break;
     case WindowKind::array_plot: s.tools_hidden.array_plot = hidden; break;
@@ -107,8 +107,8 @@ std::vector<WindowInfo> list_windows(const Session &s)
     };
     for (int i=0;i<static_cast<int>(s.plot_windows.graph.size());++i)
         if (s.plot_windows.graph[i].Use) add(s.plot_windows.graph[i].name, {WindowKind::graph,i});
-    if (s.auto_state.bifur.exist)
-        for (int i=0;i<static_cast<int>(s.auto_state.views.size());++i) add(s.auto_state.views[i].name, {WindowKind::diagram,i});
+    if (s.autox_state.bifur.exist)
+        for (int i=0;i<static_cast<int>(s.autox_state.views.size());++i) add(s.autox_state.views[i].name, {WindowKind::diagram,i});
     if (s.model().loaded()) add(std::string(BROWSER_WINDOW), {WindowKind::browser,0});
     if (s.animation.vcr.iexist) add(std::string(ANIMATION_WINDOW), {WindowKind::animation,0});
     if (s.array_plot.plot.alive) add(std::string(ARRAY_PLOT_WINDOW), {WindowKind::array_plot,0});
@@ -119,13 +119,13 @@ std::string next_window_name(const Session &s, WindowKind kind)
 {
     for (std::size_t i=1;;++i) {
         std::string name=xpp::format("{}_{}",kind==WindowKind::graph?"graph":"diagram",i);
-        if (!find_window(s,name) && (kind!=WindowKind::diagram || !std::ranges::any_of(s.auto_state.views,[&](const AutoDiagramView &view){return view.name==name;}))) return name;
+        if (!find_window(s,name) && (kind!=WindowKind::diagram || !std::ranges::any_of(s.autox_state.views,[&](const AutoxDiagramView &view){return view.name==name;}))) return name;
     }
 }
 
 std::string window_name(const Session &s, XppWinId handle)
 {
-    if (handle==WIN_AUTO) return s.auto_state.views[s.auto_state.active_view].name;
+    if (handle==WIN_AUTOX) return s.autox_state.views[s.autox_state.active_view].name;
     if (handle==WIN_ANI || handle==WIN_APLOT) return std::string(fixed_window_name(handle));
     return s.plot_windows.graph[graph_of(s,handle)].name;
 }
@@ -176,7 +176,7 @@ void create_a_pop(Session &s, std::string_view requested)
     s.plot_windows.graph[i].x11Hgt=extra_plot_height;
     s.plot_windows.graph[i].w = i + 1;
     // Protocol auxiliary windows occupy 101 through 105; plots skip this range.
-    if(s.plot_windows.graph[i].w>=WIN_AUTO)s.plot_windows.graph[i].w+=WIN_APLOT-WIN_AUTO+1;
+    if(s.plot_windows.graph[i].w>=WIN_AUTOX)s.plot_windows.graph[i].w+=WIN_APLOT-WIN_AUTOX+1;
     set_active_windows(s);
     make_active(s, i, 1);
     ui.create_plot_window(s);

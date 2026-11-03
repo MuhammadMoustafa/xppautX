@@ -53,8 +53,8 @@ if ! uv run --locked python tools/test_xppclient.py; then
   echo "CHECKER UNIT TESTS FAILED"
   exit 1
 fi
-if ! uv run --locked python tools/test_autocompare.py; then
-  echo "AUTO BASELINE UNIT TESTS FAILED"
+if ! uv run --locked python tools/test_autoxcompare.py; then
+  echo "autoX BASELINE UNIT TESTS FAILED"
   exit 1
 fi
 if ! uv run --locked python tools/test_findingscheck.py; then
@@ -88,7 +88,7 @@ if [ -n "$csrc" ]; then
   echo "C SOURCE CHECK FAILED"
   exit 1
 fi
-# W304 (#363): terminal questions belong only to the dialog owner, including AUTO.
+# W304 (#363): terminal questions belong only to the dialog owner, including autoX.
 questions=$(grep -nE '(ask_terminal|confirm_terminal)[[:space:]]*[(]' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' || true)
 policy_reads=$(grep -nE 'batch_options[.](yes|check)' core/*.cpp core/*.h | grep -v '^core/xpp_ui.cpp:' | grep -vE 'batch_options[.](yes|check)[[:space:]]*=[^=]' || true)
 if [ -n "$questions$policy_reads" ]; then

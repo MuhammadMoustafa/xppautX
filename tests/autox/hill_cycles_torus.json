@@ -1,0 +1,168 @@
+{
+  "model": "tools/models/hill_cycles.odex",
+  "reason": "W402 (#464): the Hopf cycle of tools/models/hill_cycles.odex has a torus bifurcation at mu=-c=0.3 (the cycle's other two multipliers leave the unit circle there as a pair). Continuing it in c and d sweeps the multipliers' angle 2*pi*sqrt(d) through the 1:4 and 1:3 resonances: AUTO-07p labels R4 going up in d and R3 going down, then a BP of the curve near the 1:2 endpoint.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "mu",
+      "autox": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 50,
+        "parameter_min": -0.2,
+        "parameter_max": 0.8,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "mu",
+      "autox": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 60,
+        "output_every": 50,
+        "parameter_min": -0.2,
+        "parameter_max": 0.8,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "torus_up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "neimark_sacker",
+        "index": 1
+      },
+      "parameters": [
+        "c",
+        "d"
+      ],
+      "autox": {
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 20,
+        "output_every": 50,
+        "parameter_min": -3,
+        "parameter_max": 3,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "torus_down",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "neimark_sacker",
+        "index": 1
+      },
+      "parameters": [
+        "c",
+        "d"
+      ],
+      "autox": {
+        "step_size": -0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.05,
+        "max_steps": 60,
+        "output_every": 50,
+        "parameter_min": -3,
+        "parameter_max": 3,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "branch_point",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), so its curve does not label this branch point; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_up",
+      "side": "ours",
+      "type": "resonance_1_4",
+      "index": 1,
+      "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "resonance_1_3",
+      "index": 1,
+      "cause": "XPPAUT 8.0's two-parameter cycle routines set ISP=0 and ILP=0 (auto_nox.c:2536-2564); it does not label strong resonances. The curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "resonance_1_3",
+      "index": 2,
+      "cause": "W419 (#481), deliberate: AUTO-07p's resonance test sees the torus angle from 0 to pi only (docs/auto07p-findings.md 5), ours sees it modulo 2*pi (docs/auto-references.md, W419). After the BP near the 1:2 endpoint the curve returns with the angle 2*pi*sqrt(d) > pi: R3 at 4*pi/3, d about 4/9 again (closed form for q = 0; q = 0.1 moves it a little)."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "resonance_1_3",
+      "index": 2,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71. W419 (#481): ours labels this resonance past pi or below 0."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "cause": "W585 (#650), deliberate: the torus system's BP at the 1:2 point (theta = pi) and the R2 are one point; AUTO-07p's coincidence rule keeps the BP's label alone, ours locates the R2 on the next step. docs/studies/w585_torus_r2_check.py: the Hill pair at our R2 is a double -1 (trace + 2 = 1.0e-11, det - 1 = 1.1e-11), d 1.0e-11 from the true R2, as close as the BP (9.6e-12)."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "torus_down",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "cause": "XPPAUT 8.0 auto_torus sets ISP=0 and ILP=0 (auto_nox.c:2561-2563), disabling strong-resonance detection; the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    }
+  ]
+}

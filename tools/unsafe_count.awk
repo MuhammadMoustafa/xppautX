@@ -68,7 +68,7 @@ FNR == 1 {
   # casts: a C-style cast, "(type)"/"(type *)"/"(type **)" immediately
   # before an identifier, a digit or "(". type is a fixed list of
   # builtins and the core's own typedefs cast to (xpp_types.h's
-  # XppWinId, auto_f2c.h's integer/real/doublereal,
+  # XppWinId, autox_f2c.h's integer/real/doublereal,
   # llnltyps.h's N_Vector, xpp_win32.h's DWORD). This is a heuristic, not
   # a parse: it undercounts a cast to a project struct/typedef not in
   # this list, and does not try every spacing; it is meant to not grow,

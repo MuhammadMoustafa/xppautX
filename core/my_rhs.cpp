@@ -9,7 +9,7 @@
 #include "xpp_globals.h"
 
 namespace {
-// Session evaluation and AUTO's private arrays share the same state/fixed/RHS order.
+// Session evaluation and autoX's private arrays share the same state/fixed/RHS order.
 template <class Set>
 void state_values(const xpp::Model &m, double t, const double *y, int node, int markov, Set &&set)
 {
@@ -19,7 +19,7 @@ void state_values(const xpp::Model &m, double t, const double *y, int node, int 
 }
 
 /* The fixed variables into the variables v, from the constants c (the
-   Session s's, or AUTO's own copies): by the one native function
+   Session s's, or autoX's own copies): by the one native function
    compile_model made for the right-hand side (W468), else each program in
    order. */
 template <class Set, class Evaluate>
@@ -93,7 +93,7 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
 
 void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v)
 {
-  /* the native code only reads s's tables (Model::auto_rhs_pure) */
+  /* the native code only reads s's tables (Model::autox_rhs_pure) */
   rhs_order(s.model(),0.0,y,ydot,c,v,const_cast<xpp::Session *>(&s),[&](int i,double value){v[i]=value;},
             [&](const xpp::Program &p){return xpp::evaluate_pure(s,p,c,v);},[]{});
 }

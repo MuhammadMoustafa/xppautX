@@ -13,7 +13,7 @@
 #include "xpp_globals.h"
 #include "xpp_session.h"
 #include "xpp_util.h"
-#include "auto_nox.h"
+#include "autox_nox.h"
 #include "xpp_window.h"
 #include "colormap.h"
 #include "comline.h"
@@ -28,7 +28,7 @@
 #include "phase_data.h"
 #include "marks_data.h"
 #include "ani_data.h"
-#include "auto_data.h"
+#include "autox_data.h"
 #include <vector>
 
 namespace xpp::json {
@@ -76,7 +76,7 @@ std::vector<std::pair<std::string,std::string>> shown_windows(const xpp::Session
     std::vector<std::pair<std::string,std::string>> w;
     for (int i = 1; i < static_cast<int>(s.plot_windows.graph.size()); i++)
         if (s.plot_windows.graph[i].Use) w.emplace_back(s.plot_windows.graph[i].name,"graph");
-    if (s.auto_state.bifur.exist) w.emplace_back(xpp::window_name(s,WIN_AUTO),"diagram");
+    if (s.autox_state.bifur.exist) w.emplace_back(xpp::window_name(s,WIN_AUTOX),"diagram");
     if (s.animation.vcr.iexist) w.emplace_back(xpp::window_name(s,WIN_ANI),"animation");
     if (s.array_plot.plot.alive) w.emplace_back(xpp::window_name(s,WIN_APLOT),"array_plot");
     return w;
@@ -101,13 +101,13 @@ xpp::Result<xpp::Session *> switch_model(xpp::Session &before, const xpp::ModelR
         marks_data_cleared(s, i);
     }
     ani_data_forget(s);
-    auto_data_forget(s);
+    autox_data_forget(s);
     diag_forget();
     plot_data_changed();
     state_forget();
-    renew_auto_dir(s);
+    renew_autox_dir(s);
     start_model(s, req.keep_values ? &kept : nullptr);
-    if (req.restore) xpp_saved_restore(s, *req.restore); /* an AUTO or session file */
+    if (req.restore) xpp_saved_restore(s, *req.restore); /* an autoX or session file */
     redraw_graph(s);
     auto_redraw_for_client(s);
     return &s;

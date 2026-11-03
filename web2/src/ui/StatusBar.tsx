@@ -5,7 +5,7 @@ import {busyText} from '../store/state';
 import {useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 
-/* the connection, when it is not simply up (AutoStatus.tsx says it too) */
+/* the connection, when it is not simply up (AutoxStatus.tsx says it too) */
 export function connectionText(connected: boolean, exited: number | null): string | null {
   return exited !== null ? 'XPP has stopped' : !connected ? 'Connecting…' : null;
 }

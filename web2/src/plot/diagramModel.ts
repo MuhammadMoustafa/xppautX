@@ -1,4 +1,4 @@
-/* From the store's diagram to what the AUTO view draws (docs/ui-v2.md T11a).
+/* From the store's diagram to what the autoX view draws (docs/ui-v2.md T11a).
    Pure: no DOM.
 
    XPP's convention, kept: a steady state is a line (stable solid and thick,
@@ -197,7 +197,7 @@ function curveExtent(m: DiagramModel, axis: 'x' | 'y'): Range {
     client-side (the core has no notion of the diagram's fit); `m`'s curves
     already leave out whatever `buildDiagramModel`'s `hideBefore` hid, so a
     hidden "earlier branches" key never widens this. DiagramChart.fit() (the
-    corner button and the AUTO tools' Fit) is the caller; this half is pure
+    corner button and the autoX tools' Fit) is the caller; this half is pure
     for the unit test (test/diagram.test.ts). */
 export function fitRanges(m: DiagramModel): Ranges {
   return {x: curveExtent(m, 'x'), y: curveExtent(m, 'y')};
@@ -309,7 +309,7 @@ const CURVES = ['', 'limit point', 'limit point of periodic orbits', 'Hopf', 'to
 /** what each label type means, for the key's tooltips (docs/manual/09-auto.md) */
 const SYMBOL_HELP: Record<string, string> = {
   end: 'End point: where a branch starts or ends normally (a limit, Max points or Stop); the status strip says why it ended',
-  no_convergence: 'No convergence: AUTO could not compute the next point, even at the smallest step (min_step_size), and ended the branch; '
+  no_convergence: 'No convergence: autoX could not compute the next point, even at the smallest step (min_step_size), and ended the branch; '
     + 'a smaller step_size or max_step_size, a larger mesh_intervals or looser tolerances may get past it',
   fold: 'Fold (limit point): the branch turns back in the parameter; two solutions meet and disappear there',
   hopf: 'Hopf bifurcation: a pair of eigenvalues crosses the imaginary axis; a branch of periodic orbits starts here',
@@ -353,7 +353,7 @@ export function symbolHelp(sym: string): string {
 /** T29: one shape per label type, so a long run's plain numbered points no
     longer read as a row of crosses. The single source of truth for both
     the diagram (diagramChart.ts's drawLabels) and the key
-    (ui/AutoView.tsx): HB a filled circle, LP a triangle, BP a diamond, PD
+    (ui/AutoxView.tsx): HB a filled circle, LP a triangle, BP a diamond, PD
     a square, TR a star, UZ an inverted triangle, MX a bold cross, EP a
     bar across the branch; a plain numbered point (no type) a small,
     lighter dot; an unlisted code falls back to a cross. */

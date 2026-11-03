@@ -24,7 +24,7 @@ BASELINE=c281851de59ffd03b2a46428619a0c8f
 # the behaviour checks are python: without it the gate would pass having
 # run only part of itself, so it refuses to start (review 2026-10-01, W146)
 if ! command -v uv >/dev/null 2>&1; then
-  echo "verify.sh: uv is required (servercheck, autocheck, goldencheck, manualcheck)"
+  echo "verify.sh: uv is required (servercheck, autoxcheck, goldencheck, manualcheck)"
   exit 2
 fi
 # one verify.sh at a time on this machine, whatever the checkout (W84):
@@ -138,11 +138,11 @@ else
   echo "ASSOCIATE CHECK FAILED"
   exit 1
 fi
-if uv run --locked python tools/autocheck.py > build/autocheck.log 2>&1; then
-  echo "auto checks ok: $(grep -c '^PASS' build/autocheck.log) checks"
+if uv run --locked python tools/autoxcheck.py > build/autoxcheck.log 2>&1; then
+  echo "auto checks ok: $(grep -c '^PASS' build/autoxcheck.log) checks"
 else
-  grep -v '^PASS' build/autocheck.log
-  echo "AUTO CHECK FAILED"
+  grep -v '^PASS' build/autoxcheck.log
+  echo "autoX CHECK FAILED"
   exit 1
 fi
 # a differing output is kept in build/golden-differ (CI uploads it); the
@@ -164,11 +164,11 @@ else
   echo "EXAMPLES CHECK FAILED"
   exit 1
 fi
-if uv run --locked python tools/autocompare.py --keep build/auto-differ > build/autocompare.log 2>&1; then
-  tail -3 build/autocompare.log
+if uv run --locked python tools/autoxcompare.py --keep build/auto-differ > build/autoxcompare.log 2>&1; then
+  tail -3 build/autoxcompare.log
 else
-  cat build/autocompare.log
-  echo "AUTO BASELINE CHECK FAILED"
+  cat build/autoxcompare.log
+  echo "autoX BASELINE CHECK FAILED"
   exit 1
 fi
 [ "$golden_failed" -eq 0 ] || exit 1

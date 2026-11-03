@@ -5,7 +5,7 @@
    memory (made when it starts, freed with it), and every method's advance
    returns one Result<> (an xpp::Result, xpp_error.h) in place of its
    own kflag dialect. C++ only.
-   AUTO's own integrators are not here. */
+   autoX's own integrators are not here. */
 
 #include <initializer_list>
 #include <memory>

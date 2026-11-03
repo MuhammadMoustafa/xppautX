@@ -55,7 +55,7 @@ function registrySource(): string {
 
 const RESERVED = [...readFileSync('../core/xpp_keymap.h', 'utf8').match(/RESERVED_KEYS = \{([^}]*)\}/)![1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
 
-/** AUTO's point types as hello gives them (core/auto_codes.h's table) */
+/** autoX's point types as hello gives them (core/autox_codes.h's table) */
 export const POINT_TYPES: PointType[] = [
   {name: 'regular', label: 'Regular', mark: ''},
   {name: 'branch_point', label: 'Branch point', mark: 'BP'},
@@ -89,7 +89,7 @@ export const POINT_TYPES: PointType[] = [
 export const HELLO: HelloEvent = {
   ev: 'hello',
   point_types: POINT_TYPES,
-  auto_run: {kinds: ['equilibrium', 'periodic'], current: ['equilibrium'], rows: []},
+  autox_run: {kinds: ['equilibrium', 'periodic'], current: ['equilibrium'], rows: []},
   state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: [],
   output_names: {par: 'lecar.par', ic: 'lecar.ic', csv: 'lecar.csv', curves: 'lecar-curves.csv'},
   continue: {grid_tolerance: 1e-6},

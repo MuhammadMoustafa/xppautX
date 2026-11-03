@@ -10,7 +10,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 import argparse, base64, cmath, copy, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from xppclient import versioned, versioned_anix, copy_model, staged_model_names, CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission, ALL_EVENTS
-import autocompare
+import autoxcompare
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -139,26 +139,26 @@ check = Checker()
 
 def check_diagram_subscription():
     """W439: delivery is presentation only; resubscribe recovers every point."""
-    d = copy.deepcopy(autocompare.read_description(autocompare.BASE / 'tstauto_simplefold.json'))
-    d['runs'][0]['auto']['max_steps'] = 5
-    with_events = autocompare.compute(args.server, d, 1)[0]
-    without_events = autocompare.compute(args.server, d, 1, diagram_data=False)[0]
+    d = copy.deepcopy(autoxcompare.read_description(autoxcompare.BASE / 'tstauto_simplefold.json'))
+    d['runs'][0]['autox']['max_steps'] = 5
+    with_events = autoxcompare.compute(args.server, d, 1)[0]
+    without_events = autoxcompare.compute(args.server, d, 1, diagram_data=False)[0]
     check('data.diagram: opt-out keeps every saved number', with_events == without_events)
-    s = Server(args.server, autocompare.ROOT / d['model'])
+    s = Server(args.server, autoxcompare.ROOT / d['model'])
     try:
-        autocompare.completed(s)
-        autocompare.open_auto(s)
-        autocompare.completed(s, dict(cmd='events.subscribe', events=['auto.info'], diagram=False))
-        autocompare.completed(s, dict(cmd='ic.set', values=dict(d.get('initial_conditions', {}))))
-        events = autocompare.execute_run(s, d['runs'][0], autocompare.Diagram(), {}, diagram_data=False)
-        check('data.diagram: opt-out emits no diagram events', not any(e.get('ev') == 'auto.diagram' for e in events))
-        before = autocompare.session_diagram(s)
-        events = autocompare.completed(s, dict(cmd='events.subscribe', events=['auto.info'], diagram=True))
+        autoxcompare.completed(s)
+        autoxcompare.open_autox(s)
+        autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info'], diagram=False))
+        autoxcompare.completed(s, dict(cmd='ic.set', values=dict(d.get('initial_conditions', {}))))
+        events = autoxcompare.execute_run(s, d['runs'][0], autoxcompare.Diagram(), {}, diagram_data=False)
+        check('data.diagram: opt-out emits no diagram events', not any(e.get('ev') == 'autox.diagram' for e in events))
+        before = autoxcompare.session_diagram(s)
+        events = autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info'], diagram=True))
         check('data.diagram: resubscribe replays the existing points',
-              any(e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for e in events))
-        check('data.diagram: resubscribe keeps every saved number', before == autocompare.session_diagram(s))
+              any(e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for e in events))
+        check('data.diagram: resubscribe keeps every saved number', before == autoxcompare.session_diagram(s))
         s.send(cmd='events.subscribe', events=[], diagram='invalid')
-        events, end = s.collect(autocompare.is_done)
+        events, end = s.collect(autoxcompare.is_done)
         errors = [e for e in events if e.get('error')]
         check('data.diagram: invalid choice has one placed command error',
               end is not None and len(errors) == 1 and errors[0].get('file') and errors[0].get('line'), str(events))
@@ -356,50 +356,50 @@ def check_stops():
                   % (case['id'], card), False, 'all parts hold')
 
 
-def auto_lost_points(itmx):
-    """W491: a steady-state run of examples/ode/lecar.odex (tests/auto/ode_lecar.json's first run) with
-    ITMX itmx: the last autoinfo's notes and stop, and the types of the points it labelled"""
-    d = autocompare.read_description(autocompare.BASE / 'ode_lecar.json')
-    s = Server(args.server, autocompare.ROOT / d['model'])
+def autox_lost_points(itmx):
+    """W491: a steady-state run of examples/ode/lecar.odex (tests/autox/ode_lecar.json's first run) with
+    ITMX itmx: the last autoxinfo's notes and stop, and the types of the points it labelled"""
+    d = autoxcompare.read_description(autoxcompare.BASE / 'ode_lecar.json')
+    s = Server(args.server, autoxcompare.ROOT / d['model'])
     try:
-        autocompare.completed(s)
-        autocompare.completed(s, dict(cmd='events.subscribe', events=['auto.info']))
-        diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
-        autocompare.completed(s, dict(cmd='auto.configure_numerics', **{'max_location_iterations': itmx}))
+        autoxcompare.completed(s)
+        autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
+        diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'max_location_iterations': itmx}))
         r = d['runs'][0]
-        autocompare.restore_start(s, r, [], {})
-        infos = [e for e in autocompare.execute_run(s, r, diagram, {}) if e.get('ev') == 'auto.info']
+        autoxcompare.restore_start(s, r, [], {})
+        infos = [e for e in autoxcompare.execute_run(s, r, diagram, {}) if e.get('ev') == 'autox.info']
         labelled = [p['sym'] for p in diagram.points if p['sym']]
         return (infos[-1].get('notes'), infos[-1].get('stop'), labelled) if infos else (None, None, labelled)
     finally:
         s.close()
 
 
-def check_auto_stops():
-    """W480's AUTO cases (docs/studies/w480-stops.md A4): a special point AUTO does not locate or accept is a
+def check_autox_stops():
+    """W480's autoX cases (docs/studies/w480-stops.md A4): a special point autoX does not locate or accept is a
     note naming it, its points and why; the branch goes on. W545: a search that uses up ITMX bisects the bracket
     it holds, so ITMX 1 no longer loses the folds, and a zero that is a jump or noise, not a crossing of a smooth
     test, is refused with its measurements. Restart-file checks below cover A2 and A3's load-time rejection;
-    tests/test_auto_restart.cpp also covers direct short reads."""
-    notes, stop, labelled = auto_lost_points(1)
-    notes8, _, labelled8 = auto_lost_points(8)
-    check('stops AUTO special point: max_location_iterations 1 no longer loses the folds, the bracket is bisected: they are located and labelled as with 8, no note',
+    tests/test_autox_restart.cpp also covers direct short reads."""
+    notes, stop, labelled = autox_lost_points(1)
+    notes8, _, labelled8 = autox_lost_points(8)
+    check('stops autoX special point: max_location_iterations 1 no longer loses the folds, the bracket is bisected: they are located and labelled as with 8, no note',
           notes == [] and notes8 == [] and 'LP' in labelled8 and labelled == labelled8
           and isinstance(stop, dict) and stop.get('why') == 'parameter_max', '%s %s %s %s' % (notes, stop, labelled, labelled8))
-    d = autocompare.read_description(autocompare.BASE / 'pp2_heteroclinic_coarse.json')
+    d = autoxcompare.read_description(autoxcompare.BASE / 'pp2_heteroclinic_coarse.json')
 
     class Notes:
         notes, stop = [], None
         def created(self, s): pass
         def ready(self, s): pass
         def finished(self, s, r, events, ranges):
-            infos = [e for e in events if e.get('ev') == 'auto.info']
+            infos = [e for e in events if e.get('ev') == 'autox.info']
             if infos:
                 self.notes, self.stop = infos[-1].get('notes', []), infos[-1].get('stop')
     observed = Notes()
-    autocompare.compute(args.server, d, 1, observer=observed)
+    autoxcompare.compute(args.server, d, 1, observer=observed)
     refused = [n for n in observed.notes if 'was not accepted' in n]
-    check('stops AUTO refused zero: the fold of pp2 at NTST 15 that is a jump of the mesh, not a crossing, is a note naming it, its points, its parameter and the slopes; the branch goes on to its end',
+    check('stops autoX refused zero: the fold of pp2 at NTST 15 that is a jump of the mesh, not a crossing, is a note naming it, its points, its parameter and the slopes; the branch goes on to its end',
           len(refused) == 1
           and all(re.search(r'^Br 3 Pt \d+: a fold \(LP\) between points \d+ and \d+ was not accepted at parameter 0\.70[0-9]+: '
                             r'its test is not a smooth crossing: across the last [0-9.e-]+ of the search its slope is [0-9.]+ times its slope across the step, more than 3 either way; '
@@ -408,9 +408,9 @@ def check_auto_stops():
     # W547: a cycle's branch-point test out of scale is refused for every bracket, AUTO-07p's own included: the two
     # branch points AUTO-07p labels on global_heteroclinic's cycles, where the cycles' second multiplier is far from 1
     observed = Notes()
-    autocompare.compute(args.server, autocompare.read_description(autocompare.BASE / 'global_heteroclinic.json'), 1, observer=observed)
+    autoxcompare.compute(args.server, autoxcompare.read_description(autoxcompare.BASE / 'global_heteroclinic.json'), 1, observer=observed)
     refused = [n for n in observed.notes if 'was not accepted' in n]
-    check('stops AUTO refused branch point: the branch points of global_heteroclinic\'s cycles whose test is beyond its scale are each a note naming it, its points, its parameter and the test\'s values; the branch goes on to its end',
+    check('stops autoX refused branch point: the branch points of global_heteroclinic\'s cycles whose test is beyond its scale are each a note naming it, its points, its parameter and the test\'s values; the branch goes on to its end',
           len(refused) == 2
           and all(re.search(r'^Br 2 Pt \d+: a branch point \(BP\) between points \d+ and \d+ was not accepted at parameter 0\.3314[0-9]+: '
                             r'its test is a ratio of consecutive determinants, and its values [-0-9.e+]+ and [-0-9.e+]+ at the ends of the step are beyond what a crossing within it gives; '
@@ -418,7 +418,7 @@ def check_auto_stops():
           and isinstance(observed.stop, dict) and observed.stop.get('why') == 'heteroclinic', '%s %s' % (refused, observed.stop))
 
 
-def check_auto_global_ends():
+def check_autox_global_ends():
     """W518 (#582): a cycle branch whose period grows without bound while its orbit lingers at equilibria ends on a
     SNIC, a homoclinic orbit or a heteroclinic cycle: the run stops there, the stop says which with the period, the
     parameter and the equilibria approached, and the end point is stored and marked with the new type."""
@@ -433,33 +433,33 @@ def check_auto_global_ends():
                                                         '"X" = 1, "Y" = 0', '"X" = -1, "Y" = 0',
                                                         'point type heteroclinic (HEC)'])]
     for name, key, mark, words in cases:
-        d = autocompare.read_description(autocompare.BASE / (name + '.json'))
-        s = Server(args.server, autocompare.ROOT / d['model'])
+        d = autoxcompare.read_description(autoxcompare.BASE / (name + '.json'))
+        s = Server(args.server, autoxcompare.ROOT / d['model'])
         try:
-            autocompare.completed(s)
-            diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
+            autoxcompare.completed(s)
+            diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
             events = []
             for r in d['runs']:
-                autocompare.restore_start(s, r, [], {})
-                events = autocompare.execute_run(s, r, diagram, {})
-            stops = [e['stop'] for e in events if e.get('ev') == 'auto.info' and e.get('stop')]
+                autoxcompare.restore_start(s, r, [], {})
+                events = autoxcompare.execute_run(s, r, diagram, {})
+            stops = [e['stop'] for e in events if e.get('ev') == 'autox.info' and e.get('stop')]
             stop = stops[-1] if stops else {}
-            check('stops AUTO %s: the period growing without bound ends the cycles, says why with the period, the parameter and the equilibria' % key,
+            check('stops autoX %s: the period growing without bound ends the cycles, says why with the period, the parameter and the equilibria' % key,
                   stop.get('why') == key and all(w in stop.get('text', '') for w in words), str(stop))
-            ends = [lab for e in events if e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for r in e['runs'] for lab in r.get('lab', [])]
-            check('stops AUTO %s: the end point is stored with its type, which the page marks %s (hello\'s point types)' % (key, mark),
+            ends = [lab for e in events if e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for r in e['runs'] for lab in r.get('lab', [])]
+            check('stops autoX %s: the end point is stored with its type, which the page marks %s (hello\'s point types)' % (key, mark),
                   bool(ends) and ends[-1][2] == key and diagram.points[-1]['sym'] == mark, str(ends[-1:]))
         finally:
             s.close()
 
 
-def check_auto_starts():
+def check_autox_starts():
     """W495: reject bad starts before a first diagram point is produced. A start at or past a
-    bound is refused only when Ds leads away from the interval (autocheck's extend of a branch
+    bound is refused only when Ds leads away from the interval (autoxcheck's extend of a branch
     that ended just past Par Min goes back in)."""
-    path = os.path.join(STOPS_DIR, 'auto_start.odex')
-    # a start Newton cannot refine (no steady state) is refused; auto_start.odex's X = 1 is refined instead (below)
-    no_root = os.path.join(STOPS_DIR, 'auto_start_no_root.odex')
+    path = os.path.join(STOPS_DIR, 'autox_start.odex')
+    # a start Newton cannot refine (no steady state) is refused; autox_start.odex's X = 1 is refined instead (below)
+    no_root = os.path.join(STOPS_DIR, 'autox_start_no_root.odex')
     cases = [
         ('residual', no_root, {}, {}, ['largest residual', 'did not converge', 'Newton settings', 'Sing pts']),
         ('parameter low', path, {'pars': {'a': -3}}, {'step_size': -0.02}, ['parameter "a" = -3', 'parameter_min = -2', 'parameter_max = 2']),
@@ -472,75 +472,75 @@ def check_auto_starts():
     for name, case_path, values, limits, words in cases:
         s = Server(args.server, case_path)
         try:
-            autocompare.completed(s)
-            autocompare.open_auto(s)
+            autoxcompare.completed(s)
+            autoxcompare.open_autox(s)
             if values.get('ics'):
-                autocompare.completed(s, dict(cmd='ic.set', values=values['ics']))
+                autoxcompare.completed(s, dict(cmd='ic.set', values=values['ics']))
             if values.get('pars'):
-                autocompare.completed(s, dict(cmd='value.set_parameters', values=dict(values['pars'])))
-            autocompare.completed(s, dict(cmd='auto.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, **limits}))
-            evs = autocompare.run_any(s, 's')
+                autoxcompare.completed(s, dict(cmd='value.set_parameters', values=dict(values['pars'])))
+            autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, **limits}))
+            evs = autoxcompare.run_any(s, 's')
             errors = [e for e in evs if e.get('error')]
             text = errors[0]['error'] if len(errors) == 1 else str(errors)
-            check('stops AUTO start ' + name, len(errors) == 1 and all(w in text for w in words)
+            check('stops autoX start ' + name, len(errors) == 1 and all(w in text for w in words)
                   and bool(errors[0].get('file')) and bool(errors[0].get('line'))
-                  and not any(e.get('ev') == 'auto.diagram' and e.get('op') == 'add' and e.get('runs') for e in evs), text)
+                  and not any(e.get('ev') == 'autox.diagram' and e.get('op') == 'add' and e.get('runs') for e in evs), text)
             if name == 'residual':
-                check('stops AUTO residual names the equation line', len(errors) == 1
+                check('stops autoX residual names the equation line', len(errors) == 1
                       and errors[0].get('line') == stops_line(case_path, "x' ="), str(errors))
         finally:
             s.close()
-    # W495 (maintainer, 2026-10-26): auto_start.odex's X = 1 (residual 1 at a = 0) is refined by Newton to X = 0, and the run starts
+    # W495 (maintainer, 2026-10-26): autox_start.odex's X = 1 (residual 1 at a = 0) is refined by Newton to X = 0, and the run starts
     s = Server(args.server, path)
     try:
-        autocompare.completed(s)
-        autocompare.open_auto(s)
-        autocompare.completed(s, dict(cmd='ic.set', values={'X': 1}))
-        autocompare.completed(s, dict(cmd='auto.configure_numerics', parameter_min=-2, parameter_max=2))
-        evs = autocompare.run_any(s, 's')
+        autoxcompare.completed(s)
+        autoxcompare.open_autox(s)
+        autoxcompare.completed(s, dict(cmd='ic.set', values={'X': 1}))
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', parameter_min=-2, parameter_max=2))
+        evs = autoxcompare.run_any(s, 's')
         errors = [e for e in evs if e.get('error')]
-        check('stops AUTO start refined by Newton: X = 1 is refined and the run starts',
-              not errors and any(e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for e in evs), str(errors))
+        check('stops autoX start refined by Newton: X = 1 is refined and the run starts',
+              not errors and any(e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for e in evs), str(errors))
     finally:
         s.close()
 
 
-def check_auto_two_parameter_starts():
-    d = autocompare.read_description(autocompare.BASE / 'tstauto_ab_fold.json')
-    s = Server(args.server, autocompare.ROOT / d['model'])
+def check_autox_two_parameter_starts():
+    d = autoxcompare.read_description(autoxcompare.BASE / 'tstauto_ab_fold.json')
+    s = Server(args.server, autoxcompare.ROOT / d['model'])
     try:
-        autocompare.completed(s)
-        diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
-        autocompare.execute_run(s, d['runs'][0], diagram, {})
-        autocompare.completed(s, dict(cmd='auto.grab', type='fold', index=1))
-        autocompare.completed(s, dict(cmd='auto.configure_plot', **{'parameter1': 'p0', 'parameter2': 'p1'}))
-        evs = autocompare.run_any(s, 't')
+        autoxcompare.completed(s)
+        diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
+        autoxcompare.execute_run(s, d['runs'][0], diagram, {})
+        autoxcompare.completed(s, dict(cmd='autox.grab', type='fold', index=1))
+        autoxcompare.completed(s, dict(cmd='autox.configure_plot', **{'parameter1': 'p0', 'parameter2': 'p1'}))
+        evs = autoxcompare.run_any(s, 't')
         errors = [e for e in evs if e.get('error')]
-        # W495: AUTO bounds only the principal parameter (ae.f90 tests U(NDIM+1)), so p1 = 14 starts the run
-        check('stops AUTO second parameter is not bounded: p1 = 14 outside [Par Min, Par Max] starts the run',
-              not errors and any(e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for e in evs), str(errors))
-        autocompare.completed(s, dict(cmd='auto.grab', type='fold', index=1))
-        autocompare.completed(s, dict(cmd='auto.configure_plot', **{'parameter2': 'p0'}))
-        evs = autocompare.run_any(s, 't')
+        # W495: autoX bounds only the principal parameter (ae.f90 tests U(NDIM+1)), so p1 = 14 starts the run
+        check('stops autoX second parameter is not bounded: p1 = 14 outside [Par Min, Par Max] starts the run',
+              not errors and any(e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for e in evs), str(errors))
+        autoxcompare.completed(s, dict(cmd='autox.grab', type='fold', index=1))
+        autoxcompare.completed(s, dict(cmd='autox.configure_plot', **{'parameter2': 'p0'}))
+        evs = autoxcompare.run_any(s, 't')
         errors = [e for e in evs if e.get('error')]
-        check('stops AUTO duplicate parameters', len(errors) == 1
+        check('stops autoX duplicate parameters', len(errors) == 1
               and 'same parameter "p0"' in errors[0]['error']
               and 'two different parameters' in errors[0]['error'], str(errors))
         # Restart uses the last run's two-parameter formulation but this label is a plain EP.
-        evs = autocompare.completed(s, dict(cmd='auto.configure_plot', **{'parameter2': 'p1'}))
-        s.send(cmd='auto.run', kind='two_parameter', label=1)
+        evs = autoxcompare.completed(s, dict(cmd='autox.configure_plot', **{'parameter2': 'p1'}))
+        s.send(cmd='autox.run', kind='two_parameter', label=1)
         evs, _ = s.collect(stops_done)
         errors = [e for e in evs if e.get('error')]
-        check('stops AUTO incompatible start kind: the error names the kind, the label and its type', len(errors) == 1
+        check('stops autoX incompatible start kind: the error names the kind, the label and its type', len(errors) == 1
               and 'two_parameter needs a point of type hopf' in errors[0]['error'] and 'label 1 is an end point' in errors[0]['error'], str(errors))
     finally:
         s.close()
 
 
-def check_auto_registry():
+def check_autox_registry():
     """W516: the auto.* commands: a good call with its result, a refused argument with its message, and the old forms unknown"""
     folder = tempfile.mkdtemp(prefix='xppauto-registry')
-    shutil.copy(autocompare.ROOT / 'examples/ode/lecar.odex', folder)
+    shutil.copy(autoxcompare.ROOT / 'examples/ode/lecar.odex', folder)
     s = Server(args.server, os.path.join(folder, 'lecar.odex'))
 
     def call(**c):
@@ -549,80 +549,80 @@ def check_auto_registry():
         done = next((e for e in reversed(evs) if e.get('ev') == 'done'), {})
         return evs, done
     try:
-        autocompare.completed(s)
-        autocompare.completed(s, dict(cmd='events.subscribe', events=['auto.info', 'auto.settings']))
-        _, done = call(cmd='auto.run', kind='equilibrium')
-        check('auto.run: AUTO not open is refused naming auto.open', done['status'] == 'error' and 'auto.open' in done['error'], str(done))
-        evs_open, done = call(cmd='auto.open')
-        check('auto.open: the window opens', done['status'] == 'ok' and done['result'] == {'open': True}, str(done))
-        d = autocompare.read_description(autocompare.BASE / 'ode_lecar.json')
-        diagram = autocompare.Diagram().apply(evs_open)
-        autocompare.restore_start(s, d['runs'][0], [], {})
-        evs = autocompare.execute_run(s, d['runs'][0], diagram, {})
-        check('auto.run: a steady run ends with its points and branches',
+        autoxcompare.completed(s)
+        autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings']))
+        _, done = call(cmd='autox.run', kind='equilibrium')
+        check('autox.run: autoX not open is refused naming autox.open', done['status'] == 'error' and 'autox.open' in done['error'], str(done))
+        evs_open, done = call(cmd='autox.open')
+        check('autox.open: the window opens', done['status'] == 'ok' and done['result'] == {'open': True}, str(done))
+        d = autoxcompare.read_description(autoxcompare.BASE / 'ode_lecar.json')
+        diagram = autoxcompare.Diagram().apply(evs_open)
+        autoxcompare.restore_start(s, d['runs'][0], [], {})
+        evs = autoxcompare.execute_run(s, d['runs'][0], diagram, {})
+        check('autox.run: a steady run ends with its points and branches',
               any(e.get('ev') == 'done' and e.get('result', {}).get('points_computed', 0) > 5 and e['result']['branches_tracked'] == 1 for e in evs), str(evs[-2:])[:300])
-        _, done = call(cmd='auto.run', kind='equilibrium')
-        check('auto.run: a new start from the current state with a diagram needs replace_diagram', done['status'] == 'error'
+        _, done = call(cmd='autox.run', kind='equilibrium')
+        check('autox.run: a new start from the current state with a diagram needs replace_diagram', done['status'] == 'error'
               and 'replace_diagram' in done['error'], str(done))
-        _, done = call(cmd='auto.run', kind='two_parameter', label=1)
-        check('auto.run: a kind that does not fit the point is an error naming the kind, the label and the type',
+        _, done = call(cmd='autox.run', kind='two_parameter', label=1)
+        check('autox.run: a kind that does not fit the point is an error naming the kind, the label and the type',
               done['status'] == 'error' and 'two_parameter needs a point of type hopf' in done['error']
               and 'label 1 is an end point of a steady branch' in done['error'], str(done))
-        _, done = call(cmd='auto.run', kind='equilibrium', switch=True, label=1)
-        check('auto.run: a switch needs a branch point or period doubling', done['status'] == 'error' and 'switch' in done['error'], str(done))
-        _, done = call(cmd='auto.run', kind='periodic', label=1, type='hopf', index=1)
-        check('auto.run: two starts are refused', done['status'] == 'error' and 'At most one of' in done['error'], str(done))
-        _, done = call(cmd='auto.run', kind='homoclinic', unstable_dimension=1, stable_dimension=2)
-        check('auto.run: homoclinic dimensions must add up to the variables', done['status'] == 'error'
+        _, done = call(cmd='autox.run', kind='equilibrium', switch=True, label=1)
+        check('autox.run: a switch needs a branch point or period doubling', done['status'] == 'error' and 'switch' in done['error'], str(done))
+        _, done = call(cmd='autox.run', kind='periodic', label=1, type='hopf', index=1)
+        check('autox.run: two starts are refused', done['status'] == 'error' and 'At most one of' in done['error'], str(done))
+        _, done = call(cmd='autox.run', kind='homoclinic', unstable_dimension=1, stable_dimension=2)
+        check('autox.run: homoclinic dimensions must add up to the variables', done['status'] == 'error'
               and 'must add up to the number of variables, 2' in done['error'] and 'unstable_dimension (1)' in done['error'], str(done))
-        grab_events, done = call(cmd='auto.grab', type='hopf', index=1)
-        check('auto.grab: the 1st hopf', done['status'] == 'ok' and done['result']['type'] == 'hopf', str(done))
-        before_numerics = next(e for e in call(cmd='events.subscribe', events=['auto.settings'])[0] if e.get('ev') == 'auto.settings')['numerics']
-        evs, done = call(cmd='auto.run', kind='periodic', type='hopf', index=1, max_steps=10, mesh_intervals=10)
-        starts = [e['start'] for e in grab_events if e.get('ev') == 'auto.info' and e.get('start')]
-        check('auto.run: a periodic run from the 1st hopf computes; autoinfo says the kinds that fit the grabbed point',
+        grab_events, done = call(cmd='autox.grab', type='hopf', index=1)
+        check('autox.grab: the 1st hopf', done['status'] == 'ok' and done['result']['type'] == 'hopf', str(done))
+        before_numerics = next(e for e in call(cmd='events.subscribe', events=['autox.settings'])[0] if e.get('ev') == 'autox.settings')['numerics']
+        evs, done = call(cmd='autox.run', kind='periodic', type='hopf', index=1, max_steps=10, mesh_intervals=10)
+        starts = [e['start'] for e in grab_events if e.get('ev') == 'autox.info' and e.get('start')]
+        check('autox.run: a periodic run from the 1st hopf computes; autoxinfo says the kinds that fit the grabbed point',
               done['status'] == 'ok' and done['result']['points_computed'] > 2
               and any(x['type'] == 'hopf' and x['kinds'] == ['equilibrium', 'periodic', 'two_parameter'] for x in starts), str(done)[:200] + str(starts)[:200])
-        after_numerics = next(e for e in call(cmd='events.subscribe', events=['auto.settings'])[0] if e.get('ev') == 'auto.settings')['numerics']
-        check('auto.run: the settings given hold for that run only', after_numerics == before_numerics and before_numerics['max_steps'] != 10,
+        after_numerics = next(e for e in call(cmd='events.subscribe', events=['autox.settings'])[0] if e.get('ev') == 'autox.settings')['numerics']
+        check('autox.run: the settings given hold for that run only', after_numerics == before_numerics and before_numerics['max_steps'] != 10,
               str((before_numerics['max_steps'], after_numerics['max_steps'])))
-        _, done = call(cmd='auto.grab', label=999999)
-        check('auto.grab: an unknown label is refused', done['status'] == 'error' and 'no point labelled 999999' in done['error'], str(done))
-        _, done = call(cmd='auto.grab', label=1, type='hopf', index=1)
-        check('auto.grab: a label and a type are refused', done['status'] == 'error' and 'At most one of' in done['error'], str(done))
-        _, done = call(cmd='auto.fit')
-        check('auto.fit: the view ranges are the result', done['status'] == 'ok' and done['result']['window'] == 'diagram_1'
+        _, done = call(cmd='autox.grab', label=999999)
+        check('autox.grab: an unknown label is refused', done['status'] == 'error' and 'no point labelled 999999' in done['error'], str(done))
+        _, done = call(cmd='autox.grab', label=1, type='hopf', index=1)
+        check('autox.grab: a label and a type are refused', done['status'] == 'error' and 'At most one of' in done['error'], str(done))
+        _, done = call(cmd='autox.fit')
+        check('autox.fit: the view ranges are the result', done['status'] == 'ok' and done['result']['window'] == 'diagram_1'
               and done['result']['x_range'][0] < done['result']['x_range'][1], str(done))
-        _, done = call(cmd='auto.zoom', x_min=0, x_max=0.05, y_min=-0.5, y_max=0)
-        check('auto.zoom: the box is the view', done['result']['x_range'] == [0, 0.05] and done['result']['y_range'] == [-0.5, 0], str(done))
-        _, done = call(cmd='auto.zoom', x_min=1, x_max=0, y_min=-0.5, y_max=0)
-        check('auto.zoom: an unordered box is refused', done['status'] == 'error' and 'x_min' in done['error'], str(done))
-        _, done = call(cmd='auto.scroll', dx=0.01, dy=0.1)
-        check('auto.scroll: the ranges move', abs(done['result']['x_range'][0] - 0.01) < 1e-12 and abs(done['result']['x_range'][1] - 0.06) < 1e-12, str(done))
-        _, done = call(cmd='auto.set_display', x_range=[0.02, 0.04], y_range=[])
-        check('auto.set_display: a zoom for x, the whole range for y', done['result']['x_range'] == [0.02, 0.04] and done['result']['y_range'] == [], str(done))
-        _, done = call(cmd='auto.set_display', x_range=[3, 3])
-        check('auto.set_display: a bad range is refused', done['status'] == 'error', str(done))
-        _, done = call(cmd='auto.configure_plot', plot_type='norm', x_min=1, x_max=0)
-        check('auto.configure_plot: ranges in order', done['status'] == 'error' and 'x_min' in done['error'].lower().replace('xmin', 'x_min'), str(done))
-        _, done = call(cmd='auto.configure_marks', parameters=['iapp', 'T'], values=[0.02])
-        check('auto.configure_marks: parameters and values of one length', done['status'] == 'error' and '2 parameters but 1 values' in done['error'], str(done))
-        _, done = call(cmd='auto.configure_marks', parameters=['iapp', 'T'], values=[0.02, 30])
-        check('auto.configure_marks: the marks are set', done['status'] == 'ok' and done['result'] == {'marks_count': 2}, str(done))
-        _, done = call(cmd='auto.configure_numerics', output_detail='loud')
-        check('auto.configure_numerics: a level is a name', done['status'] == 'error' and 'loud' in done['error'], str(done))
-        _, done = call(cmd='auto.configure_numerics', switch_one_direction=True, output_detail='extensive', special_points={'cusp': False})
-        check('auto.configure_numerics: the levels and the boolean are set', done['status'] == 'ok', str(done))
-        _, done = call(cmd='auto.export_csv', file='w516.csv')
-        check('auto.export_csv: a file argument writes it and says how many points', done['status'] == 'ok'
+        _, done = call(cmd='autox.zoom', x_min=0, x_max=0.05, y_min=-0.5, y_max=0)
+        check('autox.zoom: the box is the view', done['result']['x_range'] == [0, 0.05] and done['result']['y_range'] == [-0.5, 0], str(done))
+        _, done = call(cmd='autox.zoom', x_min=1, x_max=0, y_min=-0.5, y_max=0)
+        check('autox.zoom: an unordered box is refused', done['status'] == 'error' and 'x_min' in done['error'], str(done))
+        _, done = call(cmd='autox.scroll', dx=0.01, dy=0.1)
+        check('autox.scroll: the ranges move', abs(done['result']['x_range'][0] - 0.01) < 1e-12 and abs(done['result']['x_range'][1] - 0.06) < 1e-12, str(done))
+        _, done = call(cmd='autox.set_display', x_range=[0.02, 0.04], y_range=[])
+        check('autox.set_display: a zoom for x, the whole range for y', done['result']['x_range'] == [0.02, 0.04] and done['result']['y_range'] == [], str(done))
+        _, done = call(cmd='autox.set_display', x_range=[3, 3])
+        check('autox.set_display: a bad range is refused', done['status'] == 'error', str(done))
+        _, done = call(cmd='autox.configure_plot', plot_type='norm', x_min=1, x_max=0)
+        check('autox.configure_plot: ranges in order', done['status'] == 'error' and 'x_min' in done['error'].lower().replace('xmin', 'x_min'), str(done))
+        _, done = call(cmd='autox.configure_marks', parameters=['iapp', 'T'], values=[0.02])
+        check('autox.configure_marks: parameters and values of one length', done['status'] == 'error' and '2 parameters but 1 values' in done['error'], str(done))
+        _, done = call(cmd='autox.configure_marks', parameters=['iapp', 'T'], values=[0.02, 30])
+        check('autox.configure_marks: the marks are set', done['status'] == 'ok' and done['result'] == {'marks_count': 2}, str(done))
+        _, done = call(cmd='autox.configure_numerics', output_detail='loud')
+        check('autox.configure_numerics: a level is a name', done['status'] == 'error' and 'loud' in done['error'], str(done))
+        _, done = call(cmd='autox.configure_numerics', switch_one_direction=True, output_detail='extensive', special_points={'cusp': False})
+        check('autox.configure_numerics: the levels and the boolean are set', done['status'] == 'ok', str(done))
+        _, done = call(cmd='autox.export_csv', file='w516.csv')
+        check('autox.export_csv: a file argument writes it and says how many points', done['status'] == 'ok'
               and done['result']['points_written'] > 5 and (glob.glob(os.path.join(folder, 'w516*.csv')) or glob.glob(os.path.join(s.run, 'w516*.csv'))), str(done))
-        _, done = call(cmd='auto.export_csv', file='../w516.csv')
-        check('auto.export_csv: a file name is a base name', done['status'] == 'error', str(done))
-        _, done = call(cmd='auto.set_threads', threads=1)
-        check('auto.set_threads: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
-        _, done = call(cmd='auto.set_threads', threads=1, automatic=True)
-        check('auto.set_threads: a count and automatic are refused together', done['status'] == 'error', str(done))
-        for old in ({'cmd': 'auto', 'op': 'grab', 'label': 1}, {'cmd': 'auto', 'op': 'set', 'numerics': {}}, {'cmd': 'auto', 'op': 'restart', 'label': 1}):
+        _, done = call(cmd='autox.export_csv', file='../w516.csv')
+        check('autox.export_csv: a file name is a base name', done['status'] == 'error', str(done))
+        _, done = call(cmd='autox.set_threads', threads=1)
+        check('autox.set_threads: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
+        _, done = call(cmd='autox.set_threads', threads=1, automatic=True)
+        check('autox.set_threads: a count and automatic are refused together', done['status'] == 'error', str(done))
+        for old in ({'cmd': 'autox', 'op': 'grab', 'label': 1}, {'cmd': 'autox', 'op': 'set', 'numerics': {}}, {'cmd': 'autox', 'op': 'restart', 'label': 1}):
             s.send(**old)
             evs, _ = s.collect(stops_done)
             check('the old form %s is an unknown command' % json.dumps(old),
@@ -630,36 +630,36 @@ def check_auto_registry():
     finally:
         s.close()
         shutil.rmtree(folder, ignore_errors=True)
-    # a model whose AUTO equations use t is refused, naming each equation's line
+    # a model whose autoX equations use t is refused, naming each equation's line
     with tempfile.TemporaryDirectory() as folder:
         model = os.path.join(folder, 'timed.odex')
         with open(model, 'w') as f:
             f.write(versioned("par a = 0.5\nfun g(u) = u*t\nx' = -x + a + sin(t)\ny' = g(y) - y\nz' = -z\ninit x = 0, y = 0, z = 0\n"))
         s = Server(args.server, model)
         try:
-            autocompare.completed(s)
-            autocompare.completed(s, dict(cmd='auto.open'))
-            _, done = call(cmd='auto.run', kind='equilibrium', replace_diagram=False)
-            check('auto.run: equations that use t are refused with each one\'s file and line',
+            autoxcompare.completed(s)
+            autoxcompare.completed(s, dict(cmd='autox.open'))
+            _, done = call(cmd='autox.run', kind='equilibrium', replace_diagram=False)
+            check('autox.run: equations that use t are refused with each one\'s file and line',
                   done['status'] == 'error' and "x' (" in done['error'].lower() and "y' (" in done['error'].lower() and "z' (" not in done['error'].lower()
                   and 'timed.odex:4' in done['error'] and 'timed.odex:5' in done['error'] and done.get('line') == 4, str(done))
         finally:
             s.close()
 
 
-def check_auto_periodic_start_kind():
-    d = autocompare.read_description(autocompare.BASE / 'ode_lecar.json')
-    s = Server(args.server, autocompare.ROOT / d['model'])
+def check_autox_periodic_start_kind():
+    d = autoxcompare.read_description(autoxcompare.BASE / 'ode_lecar.json')
+    s = Server(args.server, autoxcompare.ROOT / d['model'])
     try:
-        autocompare.completed(s)
-        diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
-        autocompare.restore_start(s, d['runs'][0], [], {})
+        autoxcompare.completed(s)
+        diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
+        autoxcompare.restore_start(s, d['runs'][0], [], {})
         for r in d['runs']:
-            autocompare.execute_run(s, r, diagram, {})
-        s.send(cmd='auto.run', kind='periodic', label=1)
+            autoxcompare.execute_run(s, r, diagram, {})
+        s.send(cmd='autox.run', kind='periodic', label=1)
         evs, _ = s.collect(stops_done)
         errors = [e for e in evs if e.get('error')]
-        check('stops AUTO periodic from a steady EP', len(errors) == 1
+        check('stops autoX periodic from a steady EP', len(errors) == 1
               and 'periodic needs a point of type hopf' in errors[0]['error'] and 'label 1 is an end point of a steady branch' in errors[0]['error'], str(errors))
     finally:
         s.close()
@@ -671,7 +671,7 @@ def check_fit_stops():
             ('singular', 'a,b', 50, ['Singular matrix', 'lambda', 'b', 'column 2 of 2'])]:
         s = Server(args.server, os.path.join(STOPS_DIR, 'fit.odex'))
         try:
-            autocompare.completed(s)
+            autoxcompare.completed(s)
             with open(os.path.join(s.run, 'fit.dat'), 'w') as f:
                 f.write(''.join('%d %.17g\n' % (i, math.exp(0.5*i)) for i in range(6)))
             s.send(cmd='analysis.fit_curve',variables=['x'],parameters=parameters.split(','),tolerance=1e-12,points=6,columns=2,data_columns=[2],epsilon=1e-6,max_iterations=maxiter,file='fit.dat')
@@ -691,7 +691,7 @@ def check_fit_stops():
 def check_event_count_note():
     s = Server(args.server, os.path.join(STOPS_DIR, 'events.odex'))
     try:
-        autocompare.completed(s)
+        autoxcompare.completed(s)
         s.send(cmd='run.initial')
         evs, end = s.collect(stops_done)
     finally:
@@ -702,19 +702,19 @@ def check_event_count_note():
           and 'step was taken without the later ones' in text, text)
 
 
-def check_auto_restart_file_stops():
-    s = Server(args.server, os.path.join(STOPS_DIR, 'auto_start.odex'))
+def check_autox_restart_file_stops():
+    s = Server(args.server, os.path.join(STOPS_DIR, 'autox_start.odex'))
     try:
-        autocompare.completed(s)
-        autocompare.open_auto(s)
-        autocompare.completed(s, dict(cmd='auto.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, 'max_steps': 4}))
-        evs = autocompare.run_any(s, 's')
+        autoxcompare.completed(s)
+        autoxcompare.open_autox(s)
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, 'max_steps': 4}))
+        evs = autoxcompare.run_any(s, 's')
         snapshot = os.path.join(s.run, 'base.snapx')
-        autocompare.completed(s, dict(cmd='session.save_as', file='base.snapx', data=False))
+        autoxcompare.completed(s, dict(cmd='session.save_as', file='base.snapx', data=False))
         with zipfile.ZipFile(snapshot) as z:
             members = {n: z.read(n) for n in z.namelist()}
         # A3: corrupt input is refused by the all-or-nothing session reader,
-        # before AUTO can reach a short restart read (also unit-tested directly).
+        # before autoX can reach a short restart read (also unit-tested directly).
         short = dict(members)
         short['auto/solutions.s'] = short['auto/solutions.s'].rsplit(b'\n', 2)[0] + b'\n'
         path = os.path.join(s.run, 'short.snapx')
@@ -724,7 +724,7 @@ def check_auto_restart_file_stops():
         s.send(cmd='session.open_model', file=path)
         evs, _ = s.answer_asks(stops_done, {'choice': lambda e: dict(key='d')})
         errors = [e for e in evs if e.get('error')]
-        check('stops AUTO A3: a short solution is rejected at its file line, with the label',
+        check('stops autoX A3: a short solution is rejected at its file line, with the label',
               len(errors) == 1 and 'label' in errors[0]['error']
               and 'solutions.s' in errors[0].get('file', '') and errors[0].get('line', 0) > 0
               and not any(e.get('ev') == 'hello' for e in evs), str(errors))
@@ -737,49 +737,49 @@ def check_auto_restart_file_stops():
                 z.writestr(name, value)
         s.send(cmd='session.open_model', file=path)
         evs, _ = s.answer_asks(stops_done, {'choice': lambda e: dict(key='d')})
-        s.send(cmd='auto.run', kind='equilibrium', label=1)
+        s.send(cmd='autox.run', kind='equilibrium', label=1)
         evs, _ = s.collect(stops_done)
         errors = [e for e in evs if e.get('error')]
-        check('stops AUTO A2: a missing restart label is one placed error',
+        check('stops autoX A2: a missing restart label is one placed error',
               len(errors) == 1 and 'restart label 1 is not in' in errors[0]['error']
               and bool(errors[0].get('file')) and errors[0].get('line', 0) > 0, str(errors))
     finally:
         s.close()
 
 
-def check_auto_multiplier_note():
-    d = autocompare.read_description(autocompare.BASE / 'ode_lecar.json')
-    s = Server(args.server, autocompare.ROOT / d['model'])
+def check_autox_multiplier_note():
+    d = autoxcompare.read_description(autoxcompare.BASE / 'ode_lecar.json')
+    s = Server(args.server, autoxcompare.ROOT / d['model'])
     try:
-        autocompare.completed(s)
-        autocompare.completed(s, dict(cmd='events.subscribe', events=['auto.info']))
-        diagram = autocompare.Diagram().apply(autocompare.open_auto(s))
-        autocompare.restore_start(s, d['runs'][0], [], {})
-        autocompare.execute_run(s, d['runs'][0], diagram, {})
+        autoxcompare.completed(s)
+        autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
+        diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
+        autoxcompare.restore_start(s, d['runs'][0], [], {})
+        autoxcompare.execute_run(s, d['runs'][0], diagram, {})
         r = copy.deepcopy(d['runs'][1])
-        r['auto'].update(mesh_intervals=2, collocation_points=2, max_steps=50, step_size=0.05, max_step_size=0.1)
+        r['autox'].update(mesh_intervals=2, collocation_points=2, max_steps=50, step_size=0.05, max_step_size=0.1)
         # The coarse mesh intentionally loses the unit Floquet multiplier.
-        evs = autocompare.execute_run(s, r, diagram, {})
-        notes = [n for e in evs if e.get('ev') == 'auto.info' for n in e.get('notes', [])]
-        check('stops AUTO A8: inaccurate Floquet multipliers name the point and mesh fix',
+        evs = autoxcompare.execute_run(s, r, diagram, {})
+        notes = [n for e in evs if e.get('ev') == 'autox.info' for n in e.get('notes', [])]
+        check('stops autoX A8: inaccurate Floquet multipliers name the point and mesh fix',
               any(re.search(r'Br \d+ Pt \d+: the Floquet multipliers are inaccurate', n)
                   and 'mesh_intervals or collocation_points' in n and 'detection are off' in n for n in notes), str(notes))
     finally:
         s.close()
 
 
-def check_auto_singular_pivot():
-    s = Server(args.server, os.path.join(STOPS_DIR, 'auto_singular.odex'))
+def check_autox_singular_pivot():
+    s = Server(args.server, os.path.join(STOPS_DIR, 'autox_singular.odex'))
     try:
-        autocompare.completed(s)
+        autoxcompare.completed(s)
         s.send(cmd='run.initial')
         evs, _ = s.collect(stops_done)
-        autocompare.completed(s, dict(cmd='events.subscribe', events=['auto.info']))
-        autocompare.open_auto(s)
-        autocompare.completed(s, dict(cmd='auto.configure_numerics', **{'parameter_min': -1, 'parameter_max': 1, 'max_steps': 4, 'step_adapt_every': 0, 'max_newton_iterations': 1, 'state_tolerance': 1e-30, 'parameter_tolerance': 1e-30}))
-        evs = autocompare.run_any(s, 'p')
-        stops = [e['stop'] for e in evs if e.get('ev') == 'auto.info' and e.get('stop')]
-        check('stops AUTO A7: a singular periodic solve names its pivot and bound',
+        autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
+        autoxcompare.open_autox(s)
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'parameter_min': -1, 'parameter_max': 1, 'max_steps': 4, 'step_adapt_every': 0, 'max_newton_iterations': 1, 'state_tolerance': 1e-30, 'parameter_tolerance': 1e-30}))
+        evs = autoxcompare.run_any(s, 'p')
+        stops = [e['stop'] for e in evs if e.get('ev') == 'autox.info' and e.get('stop')]
+        check('stops autoX A7: a singular periodic solve names its pivot and bound',
               bool(stops) and 'singular' in stops[-1]['text']
               and re.search(r'smallest pivot [^ ]+ < 1e-30', stops[-1]['text'])
               and stops[-1]['br'] == 1 and stops[-1]['pt'] > 0, str(stops))
@@ -900,7 +900,7 @@ def check_registry():
         result, _ = request({'cmd': 'window.destroy_all'})
         check('registry: close all reports count', result == {'closed_count': 1})
         request({'cmd': 'window.select', 'window': 'graph_2'}, False)
-        snd(cmd='auto.open')
+        snd(cmd='autox.open')
         col(lambda e: e.get('ev') == 'done')
         request({'cmd':'window.create','name':'diagram_1'},False)
         request({'cmd':'window.rename','window':'diagram_1','name':'graph_1'},False)
@@ -1056,13 +1056,13 @@ def check_registry():
         request({'cmd': 'plot.freeze_curve'})
         result, _ = request({'cmd': 'plot.delete_all_frozen'})
         check('plot.delete_all_frozen clears the graph of frozen curves', result == {'cleared': True}, str(result))
-        result, _ = request({'cmd': 'plot.set_auto_freeze', 'enabled': True})
-        check('plot.set_auto_freeze reports the setting', result == {'auto_freeze': True}, str(result))
-        request({'cmd': 'plot.set_auto_freeze', 'enabled': False})
+        result, _ = request({'cmd': 'plot.set_autox_freeze', 'enabled': True})
+        check('plot.set_autox_freeze reports the setting', result == {'autox_freeze': True}, str(result))
+        request({'cmd': 'plot.set_autox_freeze', 'enabled': False})
         for refused in [{'cmd': 'plot.delete_frozen', 'slot': slot}, {'cmd': 'plot.delete_frozen'}, {'cmd': 'plot.edit_frozen', 'slot': slot},
                         {'cmd': 'plot.freeze_curve', 'name': 'a name over nine'}, {'cmd': 'plot.freeze_curve', 'key': 'k' * 20},
                         {'cmd': 'plot.freeze_curve', 'width': -1}, {'cmd': 'plot.set_frozen_legend'},
-                        {'cmd': 'plot.set_frozen_legend', 'visible': True, 'x': 1}, {'cmd': 'plot.set_auto_freeze'}]:
+                        {'cmd': 'plot.set_frozen_legend', 'visible': True, 'x': 1}, {'cmd': 'plot.set_autox_freeze'}]:
             request(refused, False)
         result, _ = request({'cmd': 'plot.clear_bifurcation'})
         check('plot.clear_bifurcation reports', result == {'cleared': True}, str(result))
@@ -1157,9 +1157,9 @@ def check_registry():
         for obsolete in [
             {'cmd':'click','win':1},
             {'cmd':'key','menu':'main','item':'makewindow'},
-            {'cmd':'auto','op':'view','active':0},
-            {'cmd':'auto','op':'view','close':0},
-            {'cmd':'auto','op':'close'},
+            {'cmd':'autox','op':'view','active':0},
+            {'cmd':'autox','op':'view','close':0},
+            {'cmd':'autox','op':'close'},
             {'cmd':'window.close'},
             {'cmd':'window.close','window':'graph_2'},
             {'cmd':'display','window':'graph_1','x':[0,1]},
@@ -1281,7 +1281,7 @@ def check_registry():
         names = [e['name'] for e in listed['events']]
         check('registry: help events lists every event once, each with its fields and meaning',
               len(names) == len(set(names)) and all(e['description'] and isinstance(e['fields'], list) for e in listed['events'])
-              and {'hello', 'done', 'ask', 'exit', 'session.state', 'plot.series', 'auto.diagram'} <= set(names)
+              and {'hello', 'done', 'ask', 'exit', 'session.state', 'plot.series', 'autox.diagram'} <= set(names)
               and not {'idle', 'title', 'series', 'state'} & set(names), str(names))
         subscribable = [e['name'] for e in listed['events'] if e['stream'] == e['name']]
         check('registry: the subscribable events are the ones hello names as features', sorted(subscribable) == sorted(hello['features']), str(subscribable))
@@ -1432,7 +1432,7 @@ def check_session_commands():
                           (dict(preset='default'), 'preset'),
                           (dict(bindings={'session.reload_model': ['Ctrl+K S']}), 'never a sequence'),
                           (dict(bindings={'session.reload_model': ['Ctrl+K Ctrl+S']}), 'Ctrl+K Ctrl+S'),
-                          (dict(bindings={'auto.run': ['Ctrl+R']}), 'run.initial')):
+                          (dict(bindings={'autox.run': ['Ctrl+R']}), 'run.initial')):
             done, _ = call(cmd='keymap.set', **bad)
             kept, _ = call(cmd='keymap.get')
             check('W528: keymap.set %s is refused, the keymap as it was' % json.dumps(bad),
@@ -2191,20 +2191,20 @@ def check_atomic_commands():
             call(cmd=command['cmd'], file=after_file)
             with open(os.path.join(folder, before_file), 'rb') as before, open(os.path.join(folder, after_file), 'rb') as after:
                 check('W534: %s keeps export settings for the next file' % command['cmd'], before.read() == after.read())
-        call(cmd='auto.open')
-        call(cmd='auto.new_view')
-        refused(dict(cmd='auto.set_display', view='diagram_1', x_range=[0, 1], y_range=[1, 0]))
+        call(cmd='autox.open')
+        call(cmd='autox.new_view')
+        refused(dict(cmd='autox.set_display', view='diagram_1', x_range=[0, 1], y_range=[1, 0]))
         call(cmd='window.select', window='diagram_2')
-        refused(dict(cmd='auto.export_pdf', window='diagram_1', file='blocked.pdf'))
+        refused(dict(cmd='autox.export_pdf', window='diagram_1', file='blocked.pdf'))
         call(cmd='window.select', window='diagram_2')
-        refused(dict(cmd='auto.export_svg', window='diagram_1', file='blocked.svg'))
-        refused(dict(cmd='auto.run', kind='equilibrium', decimals=4, hold=1, maximum=1, parameter_min=10, parameter_max=1))
+        refused(dict(cmd='autox.export_svg', window='diagram_1', file='blocked.svg'))
+        refused(dict(cmd='autox.run', kind='equilibrium', decimals=4, hold=1, maximum=1, parameter_min=10, parameter_max=1))
         call(cmd='window.create', name='second graph')
         call(cmd='window.select', window='diagram_2')
         refused(dict(cmd='plot.set_2d', window='graph_1', x_min=0, x_max=1, y_min=1, y_max=0))
         selection, _ = call(cmd='window.set_redraw_mode', mode='auto')
-        check('W534: a refused graph edit preserves the selected AUTO window', selection.get('status') == 'error', selection)
-        refused(dict(cmd='auto.configure_numerics', max_steps=17, parameter_min=10, parameter_max=1))
+        check('W534: a refused graph edit preserves the selected autoX window', selection.get('status') == 'error', selection)
+        refused(dict(cmd='autox.configure_numerics', max_steps=17, parameter_min=10, parameter_max=1))
         call(cmd='recording.start')
         call(cmd='recording.add_note', note='keep for the next successful step')
         refused(dict(cmd='run.configure', total_time=17, dt=0), archive=False)
@@ -2234,7 +2234,7 @@ def check_atomic_commands():
 
 
 
-INDEPENDENT_SECTIONS = {'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_auto_stops(), check_auto_starts(), check_auto_two_parameter_starts(), check_auto_periodic_start_kind(), check_auto_registry(), check_fit_stops(), check_event_count_note(), check_auto_restart_file_stops(), check_auto_multiplier_note(), check_auto_singular_pivot())}
+INDEPENDENT_SECTIONS = {'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -2402,12 +2402,12 @@ check('size is no command any more (removed in protocol 2): state, then a done w
 # W493: a command's arguments are read by their kinds; a bad one is an error naming the command and the argument
 for bad_args, what in (({'label': 'x'}, 'Argument "label" must be a whole number'),
                    ({'label': 1.5}, 'Argument "label" must be a whole number')):
-    send(cmd='auto.run', kind='equilibrium', **bad_args)
+    send(cmd='autox.run', kind='equilibrium', **bad_args)
     evs, _ = collect(is_done)
     msg = next((e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e), {})
     check('a command argument of the wrong kind is a command error that names it: ' + what,
           what in msg.get('error', ''), str(evs)[:300])
-proc.stdin.write('{"cmd":"auto" "op":"restart"}\n')
+proc.stdin.write('{"cmd":"autox" "op":"restart"}\n')
 proc.stdin.flush()
 evs, _ = collect(is_done)
 msg = next((e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e), {})
@@ -2430,10 +2430,10 @@ def check_hello_kinds():
     check('W95: hello gives every documented command a kind', not missing and cmds
           and all(k in 'cvsdx' for k in kinds.values()), str(missing))
     want = {('window.set_display', None): 'v', ('set', None): 's', ('value.set_parameters', None): 's', ('value.save_file', None): 'd',
-            ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser.export', None): 'd', ('browser.page', None): 'v', ('auto.configure_numerics', None): 's',
-            ('auto.grab', None): 'd', ('auto.run', None): 'x', ('tool.run_user_button', None): 'x',
+            ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser.export', None): 'd', ('browser.page', None): 'v', ('autox.configure_numerics', None): 's',
+            ('autox.grab', None): 'd', ('autox.run', None): 'x', ('tool.run_user_button', None): 'x',
             ('equilibrium.find', None): 'x', ('session.save', None): 'd', ('session.quit', None): 'c'}
-    check('W95, W106: kinds as decided: display a view, set/value.set_parameters/auto.configure_numerics settings, Save data and auto.grab data, auto.run a computation, '
+    check('W95, W106: kinds as decided: display a view, set/value.set_parameters/auto.configure_numerics settings, Save data and autox.grab data, autox.run a computation, '
           'abort control, a user button a computation',
           all(kinds.get(k) == v for k, v in want.items()), str({k: kinds.get(k) for k in want}))
 
@@ -2442,13 +2442,13 @@ check_hello_kinds()
 
 # W517: the page's menu bar, palette, keymap editor and quick access are made from the registry rows of hello:
 # each row has a menu path in one of the bar's menus, a description and a category, and the default keys are the table's
-MENUS = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'AUTO', 'Windows', 'Help']
+MENUS = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'autoX', 'Windows', 'Help']
 CATEGORIES = ['run', 'files', 'analysis', 'plot', 'tools', 'panels']
 
 
 def check_registry_menu(table):
     bad = [r['cmd'] for r in table if r['menu_path'].split('/')[0] not in MENUS or not r['description'].strip() or r['category'] not in CATEGORIES]
-    check('W517: every registry command has a menu path in File, Run, Analysis, Plot, Data, AUTO, Windows or Help, a description and a known category',
+    check('W517: every registry command has a menu path in File, Run, Analysis, Plot, Data, autoX, Windows or Help, a description and a known category',
           not bad, str(bad))
     paths = [r['menu_path'] for r in table if r['menu_path'].split('/')[0] not in ('Help',)]
     check('W517: every one of the bar\'s menus has commands', all(any(p.split('/')[0] == m for p in paths) for m in MENUS[:-1]), str(sorted(set(p.split('/')[0] for p in paths))))
@@ -2467,7 +2467,7 @@ check_registry_menu([c for c in hello.get('commands', []) if 'arguments' in c])
 def check_hello_shared():
     check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
           hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
-          and hello.get('window_names') == {'main':'graph_1','auto':'diagram_1','ani':'animation','aplot':'array_plot_1','browser':'browser'},
+          and hello.get('window_names') == {'main':'graph_1','autox':'diagram_1','ani':'animation','aplot':'array_plot_1','browser':'browser'},
           str(hello.get('limits')) + str(hello.get('window_names')))
     check('W121b: hello gives the core player speed range', hello.get('player_speed') == {'min': 0.25, 'max': 8} and hello.get('upload_error') == 'larger than 64 MB', str(hello.get('player_speed')))
     steps = {(c['cmd'], c.get('op')): c.get('step') for c in hello.get('commands', [])}
@@ -3057,25 +3057,25 @@ evs,_=collect(is_done)
 st=last_state(evs)
 check('Window/Scroll moves the view through the registry',st is not None and st['view']['xlo']<view['xlo'],str(st and st['view']))
 
-send(cmd='auto.open')
+send(cmd='autox.open')
 evs, _ = collect(lambda e: e.get('ev') == 'window.created' and e.get('win') == 'diagram_1')
-check('File/Auto opens the AUTO window', any(e.get('ev') == 'window.created' and e.get('win') == 'diagram_1' for e in evs))
+check('File/Autox opens the autoX window', any(e.get('ev') == 'window.created' and e.get('win') == 'diagram_1' for e in evs))
 collect(is_done)
-send(cmd='auto.redraw')
+send(cmd='autox.redraw')
 evs, _ = collect(is_done)
-axes = [e for e in evs if e.get('ev') == 'auto.diagram' and e['op'] in ('axes', 'reset')]
-check('the AUTO diagram sends its axes as data', axes and axes[-1]['wid'] > 0 and axes[-1]['xlabel'], str(axes))
+axes = [e for e in evs if e.get('ev') == 'autox.diagram' and e['op'] in ('axes', 'reset')]
+check('the autoX diagram sends its axes as data', axes and axes[-1]['wid'] > 0 and axes[-1]['xlabel'], str(axes))
 
-# AUTO restart still reads a labelled solution through the registry.
-send(cmd='auto.run',kind='equilibrium')
+# autoX restart still reads a labelled solution through the registry.
+send(cmd='autox.run',kind='equilibrium')
 evs,_=collect(is_done,timeout=60*SLOW)
-check('W517: AUTO starts without a menu ask',not any(e.get('ev')== 'ask' for e in evs) and not any(e.get('error') for e in evs),str(evs)[-500:])
-send(cmd='auto.grab',label=1)
+check('W517: autoX starts without a menu ask',not any(e.get('ev')== 'ask' for e in evs) and not any(e.get('error') for e in evs),str(evs)[-500:])
+send(cmd='autox.grab',label=1)
 evs,_=collect(is_done)
-check('AUTO: a labelled solution is grabbed by name',not any(e.get('error') for e in evs),str(evs)[-300:])
-send(cmd='auto.run',kind='equilibrium',label=1)
+check('autoX: a labelled solution is grabbed by name',not any(e.get('error') for e in evs),str(evs)[-300:])
+send(cmd='autox.run',kind='equilibrium',label=1)
 evs,_=collect(is_done,timeout=60*SLOW)
-check('AUTO: restarting from a labelled solution stays clean',not any(e.get('error') for e in evs),str(evs)[-500:])
+check('autoX: restarting from a labelled solution stays clean',not any(e.get('error') for e in evs),str(evs)[-500:])
 
 # Live plotting (docs/protocol.md "The plot as data"): while an integration
 # runs, a subscribed client gets the rows as they are stored, in "append"
@@ -3203,7 +3203,7 @@ def check_stable_navigation():
     server=Server(args.server,args.ode)
     try:
         server.collect(is_done)
-        for command in [dict(cmd='key',key='Ctrl+R'),dict(cmd='key',menu='main',item='undo'),dict(cmd='key',win='auto',key='r')]:
+        for command in [dict(cmd='key',key='Ctrl+R'),dict(cmd='key',menu='main',item='undo'),dict(cmd='key',win='autox',key='r')]:
             server.send(**command);evs,_=server.collect(is_done)
             check('W517: obsolete key layer is refused with one placed error',len([e for e in evs if e.get('error')])==1 and not any(e.get('ev')== 'ask' for e in evs),str(evs)[-300:])
     finally:server.close()
@@ -4941,13 +4941,13 @@ check_view3d()
 check_fit_retained_runs()
 check_marks()
 check_ani_data()
-# AUTO's info strip and stability circle as data (docs/protocol.md "The AUTO
-# diagram as data", `autoinfo`), and a grab answered with a point of the
+# autoX's info strip and stability circle as data (docs/protocol.md "The autoX
+# diagram as data", `autoxinfo`), and a grab answered with a point of the
 # diagram's data (`point`). lecar's steady-state branch from its "hopf" fixed
 # point, then the periodic branch from the Hopf point, as
-# examples/recordings/lecar_auto.recx does it.
-def auto_scratch(p):
-    """AUTO's private scratch directories of server process p (xpp::files::make_temp_dir)"""
+# examples/recordings/lecar_autox.recx does it.
+def autox_scratch(p):
+    """autoX's private scratch directories of server process p (xpp::files::make_temp_dir)"""
     tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
     pre = 'xppautoX-%d-' % p.pid
     return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]
@@ -4957,10 +4957,10 @@ NUM = r'([-+]?\d\.\d+E[-+]\d+)'
 
 
 def printed_stability(p):
-    """(branch, point) -> the eigenvalues or multipliers AUTO printed for it
+    """(branch, point) -> the eigenvalues or multipliers autoX printed for it
     (its fort.9, kept as <model>.d in its scratch directory), the last printing"""
     out = {}
-    for d in auto_scratch(p):
+    for d in autox_scratch(p):
         for f in glob.glob(os.path.join(d, '*.d')):
             with open(f) as fh:
                 for line in fh:
@@ -4975,7 +4975,7 @@ def printed_stability(p):
 
 
 def strip_matches(info, diag):
-    """None when autoinfo's point is the diagram data's point it names (branch, point, the
+    """None when autoxinfo's point is the diagram data's point it names (branch, point, the
     parameter as the diagram's x), else why not"""
     if not 0 <= info['point'] < len(diag):
         return 'point %d of %d' % (info['point'], len(diag))
@@ -5005,14 +5005,14 @@ def close_pairs(a, b, tol):
 def diagram_view_name(evs, view):
     if isinstance(view, str):
         return view
-    names = next((e['names'] for e in reversed(evs) if e.get('ev') == 'auto.diagram' and e.get('op') == 'views'), ['diagram_1'])
+    names = next((e['names'] for e in reversed(evs) if e.get('ev') == 'autox.diagram' and e.get('op') == 'views'), ['diagram_1'])
     return names[view] if view < len(names) else 'diagram_%d' % (view + 1)
 
 
 def rebuild_diagram(evs, pts, view=0):
     """view `view`'s diagram data after these events: (br, pt, ty, x, y, y2, from) per point"""
     for e in evs:
-        if e.get('ev') != 'auto.diagram' or e.get('view') != diagram_view_name(evs, view):
+        if e.get('ev') != 'autox.diagram' or e.get('view') != diagram_view_name(evs, view):
             continue
         if e['op'] == 'reset':
             del pts[e['keep']:]
@@ -5025,12 +5025,12 @@ def rebuild_diagram(evs, pts, view=0):
     return pts
 
 
-def lecar_to_auto(snd, col):
-    """Apply hopf, find its equilibrium and start AUTO through registry commands."""
+def lecar_to_autox(snd, col):
+    """Apply hopf, find its equilibrium and start autoX through registry commands."""
     result=[]
     for command in [dict(cmd='set.apply',name='hopf',scope='all'),
                     dict(cmd='equilibrium.find'),
-                    dict(cmd='equilibrium.import_as_ic'),dict(cmd='auto.open'),dict(cmd='auto.run',kind='equilibrium')]:
+                    dict(cmd='equilibrium.import_as_ic'),dict(cmd='autox.open'),dict(cmd='autox.run',kind='equilibrium')]:
         snd(**command)
         evs,_=col(is_done,timeout=60*SLOW)
         result.extend(evs)
@@ -5038,11 +5038,11 @@ def lecar_to_auto(snd, col):
 
 
 def infos(evs):
-    return [e for e in evs if e.get('ev') == 'auto.info']
+    return [e for e in evs if e.get('ev') == 'autox.info']
 
 
 # XPP_NO_THROTTLE (core/xpp_job.h): every throttled flush happens, so the
-# autoinfo events are each state the strip passes through on any machine,
+# autoxinfo events are each state the strip passes through on any machine,
 # not the few a 0.1 s rate limit happens to catch (W49: a redraw's passage
 # of the circle over every point showed only on a slow runner)
 NO_THROTTLE = {'XPP_NO_THROTTLE': '1'}
@@ -5054,13 +5054,13 @@ def check_autoinfo():
     try:
         cola(is_done)
         colb(is_done)
-        snda(cmd='events.subscribe', events=['auto.info'])
+        snda(cmd='events.subscribe', events=['autox.info'])
         evs, _ = cola(is_done)
-        check('autoinfo: sent at once after data, empty before AUTO',
+        check('autoxinfo: sent at once after data, empty before autoX',
               [(e['info'], e['stab']) for e in infos(evs)] == [(None, None)], str(infos(evs)))
-        evs = lecar_to_auto(snda, cola)
+        evs = lecar_to_autox(snda, cola)
         diag_a = rebuild_diagram(evs, [])
-        runs = [r for e in evs if e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for r in e['runs']]
+        runs = [r for e in evs if e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for r in e['runs']]
         check('W118: every diagram run says whether it is stable and periodic, as its ty (1..4) is',
               runs and all(r.get('stable') == (r['ty'] in (1, 3)) and r.get('periodic') == (r['ty'] in (3, 4))
                            for r in runs), str([(r['ty'], r.get('stable'), r.get('periodic')) for r in runs])[:300])
@@ -5068,18 +5068,18 @@ def check_autoinfo():
         stab = got[-1]['stab'] if got else None
         last = diag_a[-1] if diag_a else None
         pr = printed_stability(pa).get(last[:2]) if last else None
-        check("autoinfo: after a run, the circle is its last point's (e^eigenvalue), as AUTO printed it",
+        check("autoxinfo: after a run, the circle is its last point's (e^eigenvalue), as autoX printed it",
               stab is not None and got[-1]['info'] is None and stab['periodic'] == 0 and len(stab['circle']) == 2
               and close_pairs(stab['eig'], pr, 2e-5), '%s vs %s' % (got[-1:], pr))
-        evs = lecar_to_auto(sndb, colb)
+        evs = lecar_to_autox(sndb, colb)
         diag_b = rebuild_diagram(evs, [])
-        check('autoinfo: a client that did not ask gets none', not infos(evs))
+        check('autoxinfo: a client that did not ask gets none', not infos(evs))
 
-        snda(cmd='auto.grab')
+        snda(cmd='autox.grab')
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         got = infos(evs)
         info = got[-1]['info'] if got else None
-        check("autoinfo: Grab sends the strip of the point under the cursor (the first), the diagram data's point",
+        check("autoxinfo: Grab sends the strip of the point under the cursor (the first), the diagram data's point",
               info is not None and info['point'] == 0 and info['br'] == 1 and info['pt'] == 1
               and strip_matches(info, diag_a) is None, info and strip_matches(info, diag_a) or str(got))
         check('W118: the strip says whether its point is stable and periodic, as its type is',
@@ -5089,15 +5089,15 @@ def check_autoinfo():
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         got = infos(evs)
         info, stab = (got[-1]['info'], got[-1]['stab']) if got else (None, None)
-        check('autoinfo: Tab to the Hopf point: its strip', info is not None and info['sym'] == 'hopf'
+        check('autoxinfo: Tab to the Hopf point: its strip', info is not None and info['sym'] == 'hopf'
               and info['lab'] > 0 and strip_matches(info, diag_a) is None, info and strip_matches(info, diag_a) or str(got))
         hb = info
         printed = printed_stability(pa)
         pr = printed.get((1, hb['pt'])) if hb else None
-        check("autoinfo: the Hopf point's eigenvalues are what AUTO printed for it, a pair on the imaginary axis",
+        check("autoxinfo: the Hopf point's eigenvalues are what autoX printed for it, a pair on the imaginary axis",
               stab is not None and stab['periodic'] == 0 and len(stab['circle']) == 2 and close_pairs(stab['eig'], pr, 2e-5)
               and all(abs(e[0]) < 1e-3 and abs(e[1]) > 0.1 for e in stab['eig']), '%s vs %s' % (stab, pr))
-        check('autoinfo: the circle is e^eigenvalue', stab is not None and all(
+        check('autoxinfo: the circle is e^eigenvalue', stab is not None and all(
             abs(complex(*z) - cmath.exp(complex(*e))) < 1e-9 for z, e in zip(stab['circle'], stab['eig'])))
         # a point of the data by its index moves the cursor there
         snda(cmd='answer', id=ask['id'], point=5)
@@ -5119,7 +5119,7 @@ def check_autoinfo():
         evs, end = cola(is_done)
         check('grab by point: point and Return take it in one answer', end is not None
               and not any(e.get('ev') == 'ask' for e in evs), str(evs)[:300])
-        sndb(cmd='auto.grab')
+        sndb(cmd='autox.grab')
         for k in ['Tab', 'Return']:
             evs, ask = colb(lambda e: e.get('ev') == 'ask')
             sndb(cmd='answer', id=ask['id'], key=k)
@@ -5128,11 +5128,11 @@ def check_autoinfo():
         for snd, col, diag in ((snda, cola, diag_a), (sndb, colb, diag_b)):
             # W338: keep the circle fixture short. W341 (#402) also preserves
             # the restored solution's multipliers at a failed-step MX endpoint.
-            snd(cmd='auto.configure_numerics', **{'max_steps': 20})
+            snd(cmd='autox.configure_numerics', **{'max_steps': 20})
             evs, _ = col(is_done)
             check('W338: the short periodic circle fixture is configured',
                   not any(e.get('ev') in ('session.message', 'done') and 'error' in e for e in evs), str(evs)[-300:])
-            snd(cmd='auto.run', kind='periodic', label=hb['lab'])
+            snd(cmd='autox.run', kind='periodic', label=hb['lab'])
             evs, _ = col(is_done, timeout=120 * SLOW)
             rebuild_diagram(evs, diag)
             run_evs = run_evs or evs
@@ -5144,39 +5144,39 @@ def check_autoinfo():
         got = infos(run_evs)
         stab = got[-1]['stab'] if got else None
         pr = printed_stability(pa).get(per[-1][:2]) if per else None
-        check("autoinfo: after the periodic run, the circle holds its last point's Floquet multipliers, as AUTO printed them",
+        check("autoxinfo: after the periodic run, the circle holds its last point's Floquet multipliers, as autoX printed them",
               stab is not None and stab['periodic'] == 1 and 'eig' not in stab and close_pairs(stab['circle'], pr, 2e-5)
               and any(abs(complex(*z) - 1) < 1e-3 for z in stab['circle']), '%s vs %s' % (stab, pr))
         snda(cmd='window.redraw')
         evs, _ = cola(is_done)
-        check('autoinfo: a redraw sends none (nothing it shows changed, nor on its way)', not infos(evs),
+        check('autoxinfo: a redraw sends none (nothing it shows changed, nor on its way)', not infos(evs),
               '%d events, the first %s' % (len(infos(evs)), str(infos(evs)[:1])[:300]))
         # a redraw after a grab: the strip and the circle stay the grabbed point's (W49: the circle
         # used to move to the diagram's last point, under the grabbed point's info)
-        snda(cmd='auto.grab')
+        snda(cmd='autox.grab')
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         snda(cmd='answer', id=ask['id'], point=5, key='Return')
         evs, _ = cola(is_done)
         snda(cmd='window.redraw')
         evs, _ = cola(is_done)
         sent = infos(evs)
-        snda(cmd='events.subscribe', events=['auto.info'])  # sends what it holds, changed or not
+        snda(cmd='events.subscribe', events=['autox.info'])  # sends what it holds, changed or not
         evs, _ = cola(is_done)
         got = infos(evs)
         info, stab = (got[-1]['info'], got[-1]['stab']) if got else (None, None)
         pr = printed.get((info['br'], info['pt'])) if info else None
-        check("autoinfo: a redraw after a grab sends none, and the strip and circle stay the grabbed point's",
+        check("autoxinfo: a redraw after a grab sends none, and the strip and circle stay the grabbed point's",
               not sent and info is not None and info['point'] == 5 and strip_matches(info, diag_a) is None
               and stab is not None and stab['periodic'] == 0 and close_pairs(stab['eig'], pr, 2e-5),
               '%d sent; %s %s vs %s' % (len(sent), info, stab, pr))
-        snda(cmd='auto.pick', x=0.125, y=-0.25)
+        snda(cmd='autox.pick', x=0.125, y=-0.25)
         evs, _ = cola(is_done)
-        hint = [e.get('auto') for e in evs if e.get('ev') in ('session.message', 'done') and 'auto' in e]
+        hint = [e.get('autox') for e in evs if e.get('ev') in ('session.message', 'done') and 'autox' in e]
         check('auto point in data coordinates shows exactly those', hint and hint[-1] == 'x=0.125,y=-0.25', str(hint))
         snda(cmd='window.destroy', window='diagram_1')
         evs, _ = cola(is_done)
         got = infos(evs)
-        check('autoinfo: closing AUTO empties it', got and got[-1]['info'] is None and got[-1]['stab'] is None, str(got))
+        check('autoxinfo: closing autoX empties it', got and got[-1]['info'] is None and got[-1]['stab'] is None, str(got))
     finally:
         stop_server(pa, ra, snda)
         stop_server(pb, rb, sndb)
@@ -5185,9 +5185,9 @@ def check_autoinfo():
 check_autoinfo()
 
 
-# W151: a file dialog starts in the model's folder, never in AUTO's scratch
-# folder: the ask's `dir` (the process's current folder) after an AUTO run
-def check_dialog_folder_after_auto():
+# W151: a file dialog starts in the model's folder, never in autoX's scratch
+# folder: the ask's `dir` (the process's current folder) after an autoX run
+def check_dialog_folder_after_autox():
     p, r, snd, col, _ = launch_server(NO_THROTTLE)
     try:
         col(is_done)
@@ -5202,12 +5202,12 @@ def check_dialog_folder_after_auto():
                 col(is_done)
             return ask, directory
         ask, d = ask_dir(['f', 'y'])
-        check('W151: a file ask before AUTO starts in the model folder',
+        check('W151: a file ask before autoX starts in the model folder',
               ask and d and os.path.realpath(d) == want, str(d))
-        lecar_to_auto(snd, col)
-        scratch = auto_scratch(p)
+        lecar_to_autox(snd, col)
+        scratch = autox_scratch(p)
         ask, d = ask_dir(['f', 'y'])
-        check('W151: a file ask after an AUTO run still starts in the model folder, not in AUTO scratch folder',
+        check('W151: a file ask after an autoX run still starts in the model folder, not in autoX scratch folder',
               ask and scratch and d and os.path.realpath(d) == want and
               not any(os.path.realpath(d).startswith(os.path.realpath(x)) for x in scratch), str(d) + ' ' + str(scratch))
         # a replay runs in a scratch folder of its own: its dialogs still start in the model's
@@ -5223,7 +5223,7 @@ def check_dialog_folder_after_auto():
             snd(cmd='answer', id=ask['id'], key='d')
             col(is_done, timeout=30 * SLOW)
         ask, d = ask_dir(['f', 'y'])
-        scratch = auto_scratch(p)
+        scratch = autox_scratch(p)
         check('W151: a file ask in a replayed recording starts in the folder of the recording, not in the replay scratch folder',
               ask and scratch and d and os.path.realpath(d) == want and
               not any(os.path.realpath(d).startswith(os.path.realpath(x)) for x in scratch), str(d) + ' ' + str(scratch))
@@ -5241,14 +5241,14 @@ def check_dialog_folder_after_auto():
         stop_server(p, r, snd)
 
 
-check_dialog_folder_after_auto()
+check_dialog_folder_after_autox()
 
 
-# AUTO's settings as data (docs/protocol.md "AUTO's settings as data", T22):
-# the autosettings event holds what the AUTO forms show, and `auto` `set`
+# autoX's settings as data (docs/protocol.md "autoX's settings as data", T22):
+# the autoxsettings event holds what the autoX forms show, and `auto` `set`
 # writes the same fields, checked, all or nothing.
 def settings_of(evs):
-    got = [e for e in evs if e.get('ev') == 'auto.settings']
+    got = [e for e in evs if e.get('ev') == 'autox.settings']
     return got[-1] if got else None
 
 
@@ -5263,46 +5263,46 @@ def check_autosettings():
         cola(is_done)
         colb(is_done)
 
-        def auto_errors(events):
+        def autox_errors(events):
             return [e['error'] for e in events if e.get('ev') in ('session.message', 'done') and 'error' in e]
 
-        def auto_set(**c):
+        def autox_set(**c):
             """the old one-command set as the registry's commands (marks, then the Numerics and the axes), stopping at an error"""
             commands = []
             marks = c.get('marks')
             if isinstance(marks, list) and all(isinstance(m, list) and len(m) == 2 for m in marks):
-                commands.append(dict(cmd='auto.configure_marks', parameters=[m[0] for m in marks], values=[m[1] for m in marks]))
+                commands.append(dict(cmd='autox.configure_marks', parameters=[m[0] for m in marks], values=[m[1] for m in marks]))
             elif 'marks' in c:
-                commands.append(dict(cmd='auto.configure_marks', marks=marks))
+                commands.append(dict(cmd='autox.configure_marks', marks=marks))
             numerics = dict(c.get('numerics', {}))
             if 'special_points' in c:
                 numerics['special_points'] = c['special_points']
             if 'numerics' in c or 'special_points' in c:
-                commands.append(dict(cmd='auto.configure_numerics', **numerics))
+                commands.append(dict(cmd='autox.configure_numerics', **numerics))
             if 'axes' in c:
                 rename = {'plot': 'plot_type', 'var': 'variable', 'par1': 'parameter1', 'par2': 'parameter2', 'xmin': 'x_min', 'xmax': 'x_max', 'ymin': 'y_min', 'ymax': 'y_max'}
-                commands.append(dict(cmd='auto.configure_plot', **{rename.get(k, k): v for k, v in c['axes'].items()}))
+                commands.append(dict(cmd='autox.configure_plot', **{rename.get(k, k): v for k, v in c['axes'].items()}))
             if 'pars' in c:
-                commands.append(dict(cmd='auto.configure_plot', pars=c['pars']))
+                commands.append(dict(cmd='autox.configure_plot', pars=c['pars']))
             if 'threads' in c:
-                commands.append(dict(cmd='auto.set_threads', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
+                commands.append(dict(cmd='autox.set_threads', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
             evs = []
             for command in commands:
                 snda(**command)
                 more, _ = cola(is_done)
                 evs += more
-                if auto_errors(more):
+                if autox_errors(more):
                     break
-            return evs, settings_of(evs), auto_errors(evs)
+            return evs, settings_of(evs), autox_errors(evs)
 
-        snda(cmd='events.subscribe', events=['auto.settings'])
+        snda(cmd='events.subscribe', events=['autox.settings'])
         evs, _ = cola(is_done)
         st = settings_of(evs)
-        check('autosettings: sent at once after data, before AUTO is open', st is not None
+        check('autoxsettings: sent at once after data, before autoX is open', st is not None
               and sorted(st['numerics']) == sorted(NUM_KEYS) and 'pars' not in st
               and st['axes']['par1'] == 'iapp', str(st)[:300])
         rules = st.get('rules', {}) if st else {}
-        check('W118: autosettings carries each Numerics rule with the message its refusal says, the pairs and the step',
+        check('W118: autoxsettings carries each Numerics rule with the message its refusal says, the pairs and the step',
               sorted(rules) == sorted(NUM_KEYS) and rules['collocation_points'].get('min') == 2 and rules['collocation_points'].get('max') == 7
               and isinstance(st['numerics']['suppress_branch_points'], bool) and rules['suppress_branch_points'].get('boolean') is True
               and rules['collocation_points'].get('integer') is True and rules['min_step_size'].get('positive') is True
@@ -5315,25 +5315,25 @@ def check_autosettings():
         point_keys = ('bogdanov_takens', 'cusp', 'zero_hopf', 'generalized_hopf', 'resonance_1_1', 'resonance_1_2', 'resonance_1_3', 'resonance_1_4', 'fold_flip', 'fold_neimark_sacker', 'flip_neimark_sacker', 'double_neimark_sacker')
         check('W364: named detection booleans enabled by default', st.get('special_points') == dict.fromkeys(point_keys, True))
         for value in (False, True):
-            events, current, errors = auto_set(special_points={'generalized_hopf': value})
+            events, current, errors = autox_set(special_points={'generalized_hopf': value})
             check('W364: registry applies GH '+str(value), not errors and current['special_points']['generalized_hopf'] is value)
-        snda(cmd='events.subscribe', events=['hello', 'auto.settings'])
+        snda(cmd='events.subscribe', events=['hello', 'autox.settings'])
         window_events, _ = cola(is_done)
         window_hello = next((e for e in window_events if e.get('ev') == 'hello'), {})
-        check('W339: AUTO has no Parameter form or pars field', 'pars' not in st
-              and 'param' not in str(window_hello.get('windows', {}).get('auto', {})))
-        evs, unchanged, errs = auto_set(pars=['iapp'])
+        check('W339: autoX has no Parameter form or pars field', 'pars' not in st
+              and 'param' not in str(window_hello.get('windows', {}).get('autox', {})))
+        evs, unchanged, errs = autox_set(pars=['iapp'])
         check('W339: removed pars command is rejected atomically', len(errs)==1 and 'pars' in errs[0] and unchanged is None)
-        evs, all_axes, errs = auto_set(axes={'par1':'gk'})
+        evs, all_axes, errs = autox_set(axes={'par1':'gk'})
         check('W339: Axes accepts a parameter beyond the old eight', not errs and all_axes and all_axes['axes']['par1']=='gk')
-        auto_set(axes={'par1':'iapp'})
-        check('autosettings: no Mark values at first', st['marks'] == [])
-        evs, st2, errs = auto_set(numerics={'output_every': 40})
-        check('autosettings: typed numerics emits current values', not errs and st2['numerics']['output_every'] == 40)
+        autox_set(axes={'par1':'iapp'})
+        check('autoxsettings: no Mark values at first', st['marks'] == [])
+        evs, st2, errs = autox_set(numerics={'output_every': 40})
+        check('autoxsettings: typed numerics emits current values', not errs and st2['numerics']['output_every'] == 40)
 
         # the set: every part, then read back through the forms
         p0, p1 = 'iapp', 'gca'
-        evs, st3, errs = auto_set(numerics={'max_steps': 12, 'step_size': -0.01}, axes={'plot': 'norm', 'var': 'W', 'par1': p1},
+        evs, st3, errs = autox_set(numerics={'max_steps': 12, 'step_size': -0.01}, axes={'plot': 'norm', 'var': 'W', 'par1': p1},
                                   marks=[[p0, 0.25], ['T', 30]])
         check('auto set: numerics, pars, axes and marks set, the event says so', not errs and st3
               and st3['numerics']['max_steps'] == 12 and st3['numerics']['step_size'] == -0.01
@@ -5341,16 +5341,16 @@ def check_autosettings():
               and st3['marks'] == [[p0, 0.25], ['T', 30]], '%s %s' % (errs, st3))
         # W331: protocol and legacy forms agree beyond all previous mark capacities.
         many_marks = [['T', 100 + i] for i in range(128)]
-        evs, many, errs = auto_set(marks=many_marks)
+        evs, many, errs = autox_set(marks=many_marks)
         check('W331: protocol sets 128 marks', not errs and many and many['marks'] == many_marks)
         for bad_marks in (many_marks[:-1] + [['unknown', 0]], 'bad', [['T', 1, 2]]):
-            evs, changed, errs = auto_set(numerics={'max_steps': 99}, marks=bad_marks)
+            evs, changed, errs = autox_set(numerics={'max_steps': 99}, marks=bad_marks)
             check('W331: bad mark command rejects its numerics too', len(errs) == 1 and changed is None)
-        snda(cmd='events.subscribe', events=['auto.settings'])
+        snda(cmd='events.subscribe', events=['autox.settings'])
         unchanged = settings_of(cola(is_done)[0])
         check('W331: settings stayed intact after bad forms and sets',
               unchanged and unchanged['marks'] == many_marks and unchanged['numerics']['max_steps'] == 12)
-        auto_set(marks=st3['marks'])
+        autox_set(marks=st3['marks'])
 
         # refused: bad values change nothing, and say why
         for bad, why in (({'numerics': {'suppress_branch_points': 1}}, 'must be boolean'), ({'numerics': {'suppress_branch_points': 'true'}}, 'must be boolean'),
@@ -5362,33 +5362,33 @@ def check_autosettings():
                          ({'axes': {'par1': 'nosuch'}}, 'nosuch'),
                          ({'axes': {'var': 'nosuch'}}, 'nosuch'), ({'axes': {'plot': 'sideways'}}, 'sideways'), ({'axes': {'plot': 7}}, 'plot_type'),
                          ({'axes': {'xmin': 1, 'xmax': 0}}, 'Xmin'), ({'marks': [['W', 1]]}, 'W')):
-            evs, st4, errs = auto_set(**bad)
+            evs, st4, errs = autox_set(**bad)
             check('auto set %s is refused with an error naming %s, nothing changes' % (json.dumps(bad), why),
                   len(errs) == 1 and why in errs[0] and st4 is None, '%s %s' % (errs, st4))
-        evs, boolean_set, errs = auto_set(numerics={'suppress_branch_points': True})
+        evs, boolean_set, errs = autox_set(numerics={'suppress_branch_points': True})
         check('W499: SuppBP accepts and publishes a boolean',
               not errs and boolean_set and boolean_set['numerics']['suppress_branch_points'] is True)
-        auto_set(numerics={'suppress_branch_points': False})
-        evs, st4, errs = auto_set(numerics={'collocation_points': 9})
+        autox_set(numerics={'suppress_branch_points': False})
+        evs, st4, errs = autox_set(numerics={'collocation_points': 9})
         check('W118: a refused value says the message the event gave its rule',
               errs == ['collocation_points=9: ' + rules.get('collocation_points', {}).get('message', '?')], str(errs))
 
         # a set changes the next run: Nmax 12 against the default on the other server
-        evs, st6, errs = auto_set(numerics={'max_steps': 12}, axes={'plot': 'maximum_and_minimum', 'var': 'V', 'par1': p0}, marks=[])
-        evs_a = lecar_to_auto(snda, cola)
-        evs_b = lecar_to_auto(sndb, colb)
+        evs, st6, errs = autox_set(numerics={'max_steps': 12}, axes={'plot': 'maximum_and_minimum', 'var': 'V', 'par1': p0}, marks=[])
+        evs_a = lecar_to_autox(snda, cola)
+        evs_b = lecar_to_autox(sndb, colb)
         na, nb = len(rebuild_diagram(evs_a, [])), len(rebuild_diagram(evs_b, []))
         check('auto set: Nmax 12 makes the next run stop at 12 points (the default goes on to %d)' % nb,
               not errs and na == 12 and nb > 12, '%s: %d vs %d points' % (errs, na, nb))
-        # W155: Reload keeps AUTO's settings without a settings file.
-        before_reload = settings_of(auto_set(numerics={'max_steps': 41}, marks=many_marks)[0])
+        # W155: Reload keeps autoX's settings without a settings file.
+        before_reload = settings_of(autox_set(numerics={'max_steps': 41}, marks=many_marks)[0])
         snda(cmd='session.reload_model')
         reload_ask = cola(lambda e: e.get('ev') == 'ask')[1]
         snda(cmd='answer', id=reload_ask['id'], key='d')
         cola(is_done)
-        snda(cmd='events.subscribe', events=['auto.settings'])
+        snda(cmd='events.subscribe', events=['autox.settings'])
         after_reload = settings_of(cola(is_done)[0])
-        check('W155: Reload keeps AUTO numerics, parameters, axes and marks without a settings file',
+        check('W155: Reload keeps autoX numerics, parameters, axes and marks without a settings file',
               before_reload is not None and after_reload is not None
               and all(before_reload[k] == after_reload[k] for k in ('numerics', 'axes', 'marks')),
               str(after_reload))
@@ -5401,29 +5401,29 @@ def check_autosettings():
 check_autosettings()
 
 
-# Why a branch ended (T23, docs/protocol.md "The AUTO diagram as data",
-# autoinfo's "stop"): tools/models/auto_stop.odex's line of steady states run
+# Why a branch ended (T23, docs/protocol.md "The autoX diagram as data",
+# autoxinfo's "stop"): tools/models/autox_stop.odex's line of steady states run
 # into each limit in turn, one fresh server each, and a Stop.
-STOP_ODE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'auto_stop.odex')
+STOP_ODE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'autox_stop.odex')
 
 
-def auto_stop_run(numerics, abort=False):
-    """a steady-state run of auto_stop.odex with these Numerics: (the last autoinfo's stop, the run's points)"""
+def autox_stop_run(numerics, abort=False):
+    """a steady-state run of autox_stop.odex with these Numerics: (the last autoxinfo's stop, the run's points)"""
     p, r, snd, col, _ = launch_server(ode=STOP_ODE)
     try:
         col(is_done)
-        snd(cmd='events.subscribe', events=['auto.info'])
+        snd(cmd='events.subscribe', events=['autox.info'])
         col(is_done)
-        snd(cmd='auto.open')
+        snd(cmd='autox.open')
         col(is_done)
-        snd(cmd='auto.configure_numerics', **numerics)
+        snd(cmd='autox.configure_numerics', **numerics)
         evs, _ = col(is_done)
         errs = [e['error'] for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
         if errs: return {'errors': errs}, 0
-        snd(cmd='auto.run', kind='equilibrium')
+        snd(cmd='autox.run', kind='equilibrium')
         evs = []
         if abort:
-            evs, _ = col(lambda e: e.get('ev') == 'auto.diagram' and e.get('op') == 'add', timeout=30 * SLOW)
+            evs, _ = col(lambda e: e.get('ev') == 'autox.diagram' and e.get('op') == 'add', timeout=30 * SLOW)
             snd(cmd='run.abort')
         more, _ = col(is_done, timeout=60 * SLOW)
         evs += more
@@ -5433,7 +5433,7 @@ def auto_stop_run(numerics, abort=False):
         stop_server(p, r, snd)
 
 
-def check_auto_stop():
+def check_autox_stop():
     wide = {'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 200}
     for numerics, why, text, abort in (
             ({**wide, 'parameter_max': 0.5}, 'parameter_max', 'parameter a reached parameter_max (0.5)', False),
@@ -5443,7 +5443,7 @@ def check_auto_stop():
             ({**wide, 'parameter_max': 10}, 'noconv-min', 'no convergence even at the smallest step (min_step_size 0.001; max_newton_iterations 7, parameter_tolerance 0.0001, state_tolerance 0.0001)', False),
             ({**wide, 'parameter_max': 10, 'step_adapt_every': 0}, 'noconv-fixed', 'no convergence with a fixed step size (step_adapt_every 0; max_newton_iterations 7, parameter_tolerance 0.0001, state_tolerance 0.0001)', False),
             ({**wide, 'max_steps': 1000000, 'step_size': 1e-7, 'min_step_size': 1e-8, 'max_step_size': 1e-7}, 'user', 'by the user (Stop)', True)):
-        stop, n = auto_stop_run(numerics, abort)
+        stop, n = autox_stop_run(numerics, abort)
         ok = isinstance(stop, dict) and stop.get('why') == why and stop.get('text') == text and stop.get('br') == 1
         if ok and why in ('parameter_max', 'parameter_min', 'norm_max'):
             ok = abs(stop['limit'] - numerics[why]) < 1e-9 and (
@@ -5452,13 +5452,13 @@ def check_auto_stop():
             ok = stop['pt'] == 5 and n == 5
         if ok and why == 'user':
             ok = 1 < stop['pt'] < 1000000
-        check('autoinfo stop: %s ends the branch with "%s"' % (why, text), ok, '%s (%d points)' % (stop, n))
+        check('autoxinfo stop: %s ends the branch with "%s"' % (why, text), ok, '%s (%d points)' % (stop, n))
 
 
-check_auto_stop()
+check_autox_stop()
 
 
-def check_auto_points_limit():
+def check_autox_points_limit():
     """W432 (#494): Nmax is a loop bound, not an allocation: 10^7 (XPPAUT models
     mean "no limit" by it) is accepted; the bound is where the diagram stores
     points (XPP_DIAGRAM_POINTS_LIMIT lowers it): the run stops with one error
@@ -5466,12 +5466,12 @@ def check_auto_points_limit():
     p, r, snd, col, _ = launch_server(ode=STOP_ODE, extra_env={'XPP_DIAGRAM_POINTS_LIMIT': '7'})
     try:
         col(is_done)
-        snd(cmd='auto.open')
+        snd(cmd='autox.open')
         col(is_done)
-        snd(cmd='auto.configure_numerics', **{'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 10000000})
+        snd(cmd='autox.configure_numerics', **{'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 10000000})
         evs, _ = col(is_done)
         check('W432: Nmax 10000000 is accepted', not [e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e], str(evs[-3:]))
-        snd(cmd='auto.run', kind='equilibrium')
+        snd(cmd='autox.run', kind='equilibrium')
         evs = []
         more, _ = col(is_done, timeout=60 * SLOW)
         evs += more
@@ -5484,43 +5484,43 @@ def check_auto_points_limit():
         stop_server(p, r, snd)
 
 
-check_auto_points_limit()
+check_autox_points_limit()
 
 
-def check_auto_no_nan_par():
+def check_autox_no_nan_par():
     """W35a (issue #73, QA SCI-001): a periodic-continuation script left the
     model's parameter at -nan after a run that never converged, which made
-    the next "state" event invalid JSON. auto_stop.odex's 'noconv-min' run
-    (above: Par Max far out of reach, so AUTO never converges even at its
+    the next "state" event invalid JSON. autox_stop.odex's 'noconv-min' run
+    (above: Par Max far out of reach, so autoX never converges even at its
     smallest step) is the same failure mode, small and fast. Every line
     from the server must still parse as strict JSON (a non-finite constant
     is rejected: json.loads' parse_constant, launch_server's reader), and
     the run's last "state" must show the continuation parameter 'a'
-    finite, not left over from a diverged Newton step (core/auto_nox.cpp's
-    auto_restore_finite_pars)."""
+    finite, not left over from a diverged Newton step (core/autox_nox.cpp's
+    autox_restore_finite_pars)."""
     wide = {'parameter_min': -0.5, 'parameter_max': 0.9, 'norm_min': -1, 'norm_max': 100, 'max_steps': 200}
     p, r, snd, col, evq = launch_server(ode=STOP_ODE)
     try:
         col(is_done)
-        snd(cmd='events.subscribe', events=['auto.info'])
+        snd(cmd='events.subscribe', events=['autox.info'])
         col(is_done)
-        snd(cmd='auto.open')
+        snd(cmd='autox.open')
         col(is_done)
-        snd(cmd='auto.configure_numerics', **{**wide, 'parameter_max': 10})
+        snd(cmd='autox.configure_numerics', **{**wide, 'parameter_max': 10})
         col(is_done)
-        snd(cmd='auto.run', kind='equilibrium')
+        snd(cmd='autox.run', kind='equilibrium')
         evs, _ = col(is_done, timeout=60*SLOW)
         bad = [e for e in evs if e.get('ev') == 'bad']
         states = [e for e in evs if e.get('ev') == 'session.state']
         pars = states[-1].get('pars', []) if states else []
         ok = not bad and bool(states) and all(math.isfinite(v) for _,v in pars)
         detail = str(bad or pars)
-        check('AUTO: a run with no convergence parses strictly and leaves every par finite', ok, detail)
+        check('autoX: a run with no convergence parses strictly and leaves every par finite', ok, detail)
     finally:
         stop_server(p, r, snd)
 
 
-check_auto_no_nan_par()
+check_autox_no_nan_par()
 
 
 # Save data (W52, docs/protocol.md "The data browser"): the browser's
@@ -5925,17 +5925,17 @@ def check_seed_per_run():
 
 check_seed_per_run()
 
-# A HOME the process cannot write to used to make AUTO exit(1) under the
-# client when it opened fort.8 there; open_auto() now falls back to the
+# A HOME the process cannot write to used to make autoX exit(1) under the
+# client when it opened fort.8 there; open_autox() now falls back to the
 # model's directory. Drive a second server with such a HOME and check it survives.
 bad_home = tempfile.mkdtemp(prefix='xppbadhome')
 shutil.rmtree(bad_home)  # a path that is guaranteed not to exist
 proc2, run2, send2, collect2, events2 = launch_server(extra_env={'HOME': bad_home})
 collect2(is_done)  # startup hello/state/done
-send2(cmd='auto.open')
+send2(cmd='autox.open')
 collect2(lambda e: e.get('ev') == 'window.created' and e.get('win') == 'diagram_1')
 collect2(is_done)
-send2(cmd='auto.run', kind='equilibrium')
+send2(cmd='autox.run', kind='equilibrium')
 evs, e = collect2(is_done, timeout=20*SLOW)
 st2 = [x for x in evs if x.get('ev') == 'session.state']
 alive = proc2.poll() is None
@@ -6376,8 +6376,8 @@ def check_jacobian_failure():
 check_jacobian_failure()
 
 
-def check_auto_jacobian_failure():
-    """W275: an exact derivative that is not finite during an AUTO run (the
+def check_autox_jacobian_failure():
+    """W275: an exact derivative that is not finite during an autoX run (the
     sqrt term is present below a = 0.5, on the branch x = 0, where its slope
     is infinite while the right-hand side is 0) stops the run as a Stop does:
     the last converged point is stored as an end point (EP) with a label.
@@ -6394,29 +6394,29 @@ def check_auto_jacobian_failure():
         p, r, snd, col, _ = launch_server(ode=model)
         try:
             col(is_done)
-            snd(cmd='events.subscribe', events=['auto.info'])
+            snd(cmd='events.subscribe', events=['autox.info'])
             col(is_done)
             snd(cmd='recording.start')
             col(is_done)
-            snd(cmd='auto.open')
+            snd(cmd='autox.open')
             col(lambda e: e.get('ev') == 'window.created' and e.get('win') == 'diagram_1')
             col(is_done)
-            snd(cmd='auto.configure_numerics', step_size=-0.1, max_step_size=0.1, parameter_min=-0.5, parameter_max=2, max_steps=100)
+            snd(cmd='autox.configure_numerics', step_size=-0.1, max_step_size=0.1, parameter_min=-0.5, parameter_max=2, max_steps=100)
             col(is_done)
-            snd(cmd='auto.configure_plot', plot_type='norm', variable='x', parameter1='a')
+            snd(cmd='autox.configure_plot', plot_type='norm', variable='x', parameter1='a')
             col(is_done)
-            snd(cmd='auto.run', kind='equilibrium')
+            snd(cmd='autox.run', kind='equilibrium')
             evs, _ = col(is_done, timeout=60 * SLOW)
             errs = [e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
             err = errs[-1] if errs else {}
             action = err.get('action') or {}
             cmds = action.get('commands') or [{}, {}]
-            labs = [(lab, sym) for e in evs if e.get('ev') == 'auto.diagram' and e.get('op') == 'add'
+            labs = [(lab, sym) for e in evs if e.get('ev') == 'autox.diagram' and e.get('op') == 'add'
                     for run in e['runs'] for _i, lab, sym in run.get('lab', [])]
-            info = [e['stop'] for e in evs if e.get('ev') == 'auto.info' and e.get('stop')]
-            check('W275: the exact Jacobian not finite in an AUTO run is one error, at the equation, naming it and the point',
+            info = [e['stop'] for e in evs if e.get('ev') == 'autox.info' and e.get('stop')]
+            check('W275: the exact Jacobian not finite in an autoX run is one error, at the equation, naming it and the point',
                   len(errs) == 1 and err.get('file') == 'rootfail.odex' and err.get('line') == 3
-                  and err.get('error', '').startswith('AUTO stopped: the exact Jacobian') and '(AUTO at a=' in err.get('error', ''),
+                  and err.get('error', '').startswith('autoX stopped: the exact Jacobian') and '(autoX at a=' in err.get('error', ''),
                   str(errs))
             check('W275: the run stored its last converged point as an end point, with a label, and says why it stopped',
                   bool(labs) and labs[-1][1] == 'end' and labs[-1][0] > 0 and info and info[-1].get('why') == 'jacobian',
@@ -6424,19 +6424,19 @@ def check_auto_jacobian_failure():
             check('W275: the error offers Switch to differences and continue: set the Jacobian to difference, then restart from the end point',
                   action.get('label') == 'Switch to differences and continue' and len(cmds) == 2
                   and cmds[0] == {'cmd': 'set', 'kind': 'num', 'name': 'jacobian', 'text': 'difference'}
-                  and cmds[1] == {'cmd': 'auto.run', 'kind': 'equilibrium', 'label': labs[-1][0] if labs else None}, str(action))
-            before = sum(len(run['x']) for e in evs if e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for run in e['runs'])
+                  and cmds[1] == {'cmd': 'autox.run', 'kind': 'equilibrium', 'label': labs[-1][0] if labs else None}, str(action))
+            before = sum(len(run['x']) for e in evs if e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for run in e['runs'])
             went = []
             for c in cmds:
                 snd(**c)
                 more, _ = col(is_done, timeout=60 * SLOW)
                 went += more
             errs = [e for e in went if e.get('ev') in ('session.message', 'done') and 'error' in e]
-            xs = [x for e in went if e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for run in e['runs'] for x in run['x']]
-            info = [e['stop'] for e in went if e.get('ev') == 'auto.info' and e.get('stop')]
+            xs = [x for e in went if e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for run in e['runs'] for x in run['x']]
+            info = [e['stop'] for e in went if e.get('ev') == 'autox.info' and e.get('stop')]
             check('W275: sending them takes the branch on, past the failure (a below 0.5) to Par Min, with no error',
                   not errs and xs and min(xs) < 0.4 and info and info[-1].get('why') == 'parameter_min', '%s %s %s' % (errs, xs[-3:], info))
-            branch_jacobians = lambda evs: sorted({(run['br'], run['jac']) for e in evs if e.get('ev') == 'auto.diagram' and e.get('op') == 'add'
+            branch_jacobians = lambda evs: sorted({(run['br'], run['jac']) for e in evs if e.get('ev') == 'autox.diagram' and e.get('op') == 'add'
                                                    for run in e['runs']})
             first = branch_jacobians(evs)
             second = branch_jacobians(went)
@@ -6446,7 +6446,7 @@ def check_auto_jacobian_failure():
             col(is_done)
             replay = replay_recording(args.server, model, os.path.join(r, 'click.recx'), r)
             replayed = [json.loads(l) for l in replay.stdout.splitlines() if l.strip()]
-            points = sum(len(run['x']) for e in replayed if e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for run in e['runs'])
+            points = sum(len(run['x']) for e in replayed if e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for run in e['runs'])
             check('W275: a recording made with the click replays to the same diagram (the run stopped where it did, the restart from its label)',
                   points == before + len(xs), '%d %d %s' % (points, before + len(xs), replay.stderr[-300:]))
             snd(cmd='session.save_as', file='jac')
@@ -6467,7 +6467,7 @@ def check_auto_jacobian_failure():
         shutil.rmtree(model_dir, ignore_errors=True)
 
 
-check_auto_jacobian_failure()
+check_autox_jacobian_failure()
 
 
 def check_settings_during_run():
@@ -6691,13 +6691,13 @@ def check_open_reload():
         open_model('lecar.odex')
         integrate()
         first = rows_of('lecar1.csv')
-        snd(cmd='auto.open')
+        snd(cmd='autox.open')
         evs, _ = col(is_done)
 
         def made(evs, event, win):
             return any(e.get('ev') == event and e.get('win') == win for e in evs)
 
-        check('File/Auto opens window 101 before the open', made(evs, 'window.created', 'diagram_1'), '')
+        check('File/Autox opens window 101 before the open', made(evs, 'window.created', 'diagram_1'), '')
         evs = open_model('other.ode', key=None)
         asks = [e for e in evs if e.get('ev') == 'ask']
         check('open asks first, offering to save (choice s/d)',
@@ -6709,7 +6709,7 @@ def check_open_reload():
         evs = open_model('other.ode')
         hello = next((e for e in evs if e.get('ev') == 'hello'), None)
         st = last_state(evs)
-        check("open: the model before's AUTO window goes", made(evs, 'window.destroyed', 'diagram_1'), '')
+        check("open: the model before's autoX window goes", made(evs, 'window.destroyed', 'diagram_1'), '')
         check('open loads the model here: a new hello names it', hello is not None and hello.get('file') == 'other.odex',
               str(hello)[:120])
         check('open: the state is the new model\'s', st and st['pars'] == [['a', 1]] and st['ics'] == [['X', 0.5]],
@@ -6792,8 +6792,8 @@ def check_open_reload():
 
 # W65: what the page displays is the core's (docs/protocol.md "Display state"):
 # earlier runs until Erase (the `runs` event), the zoom shown and the earlier
-# runs' toggle (`display`, `plots` zoom/runs), AUTO's hidden branches and zoom
-# (`autoview`).
+# runs' toggle (`display`, `plots` zoom/runs), autoX's hidden branches and zoom
+# (`autoxview`).
 def check_display_state():
     p, r, snd, col, _ = launch_server(NO_THROTTLE)
 
@@ -6866,33 +6866,33 @@ def check_display_state():
     p, r, snd, col, _ = launch_server(NO_THROTTLE)
     try:
         col(is_done)
-        snd(cmd='events.subscribe', events=['auto.info'])
+        snd(cmd='events.subscribe', events=['autox.info'])
         evs, _ = col(is_done)
-        av = lambda evs: [e for e in evs if e.get('ev') == 'auto.view']
-        check('autoview: sent at once after data, nothing hidden, the diagram own axes',
+        av = lambda evs: [e for e in evs if e.get('ev') == 'autox.view']
+        check('autoxview: sent at once after data, nothing hidden, the diagram own axes',
               [(e['earlier'], e['show'], e['active'], e['views']) for e in av(evs)] == [(0, 0, 'diagram_1', [{'name':'diagram_1','zoom': {'x': None, 'y': None}}])],
               str(av(evs)))
-        evs = lecar_to_auto(snd, col)
+        evs = lecar_to_autox(snd, col)
         n = len(rebuild_diagram(evs, []))
-        check('autoview: a run hides nothing', not av(evs) or av(evs)[-1]['earlier'] == 0, str(av(evs)))
-        snd(cmd='auto.hide_earlier')
+        check('autoxview: a run hides nothing', not av(evs) or av(evs)[-1]['earlier'] == 0, str(av(evs)))
+        snd(cmd='autox.hide_earlier')
         evs, _ = col(is_done)
-        snd(cmd='auto.redraw')
+        snd(cmd='autox.redraw')
         evs2, _ = col(is_done)
         got = av(evs) + av(evs2)
-        check('autoview: Clear makes the points so far the earlier branches, hidden',
+        check('autoxview: Clear makes the points so far the earlier branches, hidden',
               got and got[-1]['earlier'] == n and got[-1]['show'] == 0 and n > 1, str(got) + ' n=%d' % n)
-        snd(cmd='auto.set_display', show_earlier=True, x_range=[0.1, 0.2])
+        snd(cmd='autox.set_display', show_earlier=True, x_range=[0.1, 0.2])
         evs, _ = col(is_done)
-        check('autoview: show and the zoom are set by auto display',
+        check('autoxview: show and the zoom are set by auto display',
               av(evs) and av(evs)[-1] == dict(av(evs)[-1], earlier=n, show=1, views=[{'name':'diagram_1','zoom': {'x': [0.1, 0.2], 'y': None}}]),
               str(av(evs)))
-        snd(cmd='auto.set_display', x_range=[3, 3])
+        snd(cmd='autox.set_display', x_range=[3, 3])
         evs, _ = col(is_done)
-        check('autoview: a bad range is refused', any(e.get('ev') in ('session.message', 'done') and 'error' in e for e in evs), str(evs)[:200])
+        check('autoxview: a bad range is refused', any(e.get('ev') in ('session.message', 'done') and 'error' in e for e in evs), str(evs)[:200])
         snd(cmd='window.destroy', window='diagram_1')
         evs, _ = col(is_done)
-        check('autoview: closing AUTO resets it', av(evs) and av(evs)[-1]['earlier'] == 0
+        check('autoxview: closing autoX resets it', av(evs) and av(evs)[-1]['earlier'] == 0
               and av(evs)[-1]['views'] == [{'name':'diagram_1','zoom': {'x': None, 'y': None}}], str(av(evs)))
     finally:
         stop_server(p, r, snd)
@@ -7679,8 +7679,8 @@ def check_plot_limits():
 def check_session_file():
     """W57, W103: Save session writes one name.snapx (a zip of the files
     listed in core/snapx.h, the model's own included); a new server that
-    opens it shows the same state, plots, marks, AUTO view and diagram, and
-    AUTO continues from the restored diagram; with the .ode on the disk
+    opens it shows the same state, plots, marks, autoX view and diagram, and
+    autoX continues from the restored diagram; with the .ode on the disk
     edited, the saved model is the one loaded; a session file without its
     model, or a zip opened as a model, is refused and nothing changes; an
     added browser column comes back computed (W145)"""
@@ -7703,22 +7703,22 @@ def check_session_file():
             n += 1
             snd(cmd='answer', id=e['id'], **({'key': a} if isinstance(a, str) else a))
 
-    SUBSCRIBE = dict(cmd='events.subscribe', events=['plot.shown', 'plot.marks', 'auto.info', 'nullcline.curves'])
+    SUBSCRIBE = dict(cmd='events.subscribe', events=['plot.shown', 'plot.marks', 'autox.info', 'nullcline.curves'])
     p, r, snd, col, _ = launch_server()
     keep = tempfile.mkdtemp(prefix='xppsnapx')
     try:
         col(is_done)
         answered(snd, col, (), **SUBSCRIBE)
-        allev.extend(lecar_to_auto(snd, col))
+        allev.extend(lecar_to_autox(snd, col))
         answered(snd, col, (), cmd='value.set_parameters', values={'phi': 0.4})
         answered(snd, col, (), cmd='ic.set', values={'V': -0.3})
         answered(snd, col, (), cmd='run.initial')
         answered(snd, col, (), cmd='window.set_display', window='graph_1', x_range=[0, 50], y_range=[-0.5, 0.3], show_earlier_runs=False)
-        answered(snd, col, (), cmd='auto.set_display', x_range=[0.05, 0.3])
+        answered(snd, col, (), cmd='autox.set_display', x_range=[0.05, 0.3])
         # W50: a second view of the diagram, the norm, with a zoom of its own; the first active again
-        answered(snd, col, (), cmd='auto.new_view')
-        answered(snd, col, (), cmd='auto.configure_plot', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
-        answered(snd, col, (), cmd='auto.set_display', view='diagram_2', y_range=[0, 0.5])
+        answered(snd, col, (), cmd='autox.new_view')
+        answered(snd, col, (), cmd='autox.configure_plot', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
+        answered(snd, col, (), cmd='autox.set_display', view='diagram_2', y_range=[0, 0.5])
         answered(snd, col, (), cmd='window.select', window='diagram_1')
         answered(snd, col, (), cmd='annotation.add_text', window='graph_1', x=10, y=.1, text='here', text_size=2, style='italic', color='#ffcd00')
         answered(snd, col, (), cmd='plot.freeze_curve', window='graph_1', color='#ffcd00', draw='line', dash='dashed', width=2, marker='square', marker_size=4, key='first', name='frz1')
@@ -7739,7 +7739,7 @@ def check_session_file():
         st1 = no_t(last('session.state'))
         check('session save: state.session names the .snapx', st1 and st1.get('session') == {'file': 's1.snapx'},
               str(st1 and st1.get('session')))
-        saved = {k: no_t(last(k)) for k in ('plot.shown', 'auto.view', 'nullcline.curves')}
+        saved = {k: no_t(last(k)) for k in ('plot.shown', 'autox.view', 'nullcline.curves')}
         check('W135: the saved nullclines contain a current curve and one frozen pair',
               saved['nullcline.curves'] and saved['nullcline.curves'].get('x') and len(saved['nullcline.curves'].get('frozen', [])) == 1,
               str(saved['nullcline.curves'] and [len(saved['nullcline.curves'].get('x', [])), len(saved['nullcline.curves'].get('frozen', []))]))
@@ -7806,7 +7806,7 @@ def check_session_file():
                                                           next(((a, b) for a, b in zip(diagram1, diagram2) if a != b), None)))
         view2 = rebuild_diagram(allev, [], 1)
         check('%s: the second view is the saved one, its points exactly' % tag,
-              view1 and view1 == view2 and last('auto.view') and len(last('auto.view')['views']) == 2,
+              view1 and view1 == view2 and last('autox.view') and len(last('autox.view')['views']) == 2,
               '%d vs %d points' % (len(view1), len(view2)))
         return diagram2
 
@@ -7826,8 +7826,8 @@ def check_session_file():
         strip = lambda m: m and dict(m, equilibria=[])
         check('open session: the labels and frozen curves are the saved ones (not Sing pts\' symbols)',
               [strip(m) for m in marks1] == [strip(m) for m in m2], str(m2)[:300])
-        answered(snd, col, (), cmd='auto.grab', type='hopf', index=1)
-        evs = answered(snd, col, (), cmd='auto.run', kind='periodic', type='hopf', index=1)
+        answered(snd, col, (), cmd='autox.grab', type='hopf', index=1)
+        evs = answered(snd, col, (), cmd='autox.run', kind='periodic', type='hopf', index=1)
         more = rebuild_diagram(allev, [])
         check('open session: a grab and a periodic run continue the restored diagram',
               len(more) > len(diagram2) and more[:len(diagram2)] == diagram2 and p.poll() is None,
@@ -8032,12 +8032,12 @@ def check_session_file():
         shutil.rmtree(keep, ignore_errors=True)
 
 
-# W50: any number of views of the one AUTO diagram (docs/protocol.md "Views
+# W50: any number of views of the one autoX diagram (docs/protocol.md "Views
 # of the diagram"): each with its own axes and zoom, every one holding the
 # same points in the same order; a new view, a closed one and the active one
 # over `auto` `view` and the Axes menu; a run's points reach every view, a
 # grab goes by the active view's data.
-def check_auto_views():
+def check_autox_views():
     p, r, snd, col, _ = launch_server(NO_THROTTLE)
     allev = []
 
@@ -8047,24 +8047,24 @@ def check_auto_views():
         allev.extend(evs)
         return evs
 
-    av = lambda evs: [e for e in evs if e.get('ev') == 'auto.view']
-    dg = lambda evs, view=None: [e for e in evs if e.get('ev') == 'auto.diagram' and (view is None or e.get('view') == diagram_view_name(allev, view))]
+    av = lambda evs: [e for e in evs if e.get('ev') == 'autox.view']
+    dg = lambda evs, view=None: [e for e in evs if e.get('ev') == 'autox.diagram' and (view is None or e.get('view') == diagram_view_name(allev, view))]
     views_n = lambda evs: [e['n'] for e in dg(evs) if e['op'] == 'views']
     last_axes = lambda view: next((e for e in reversed(dg(allev, view)) if e['op'] in ('axes', 'reset')), None)
     same_points = lambda a, b: len(a) == len(b) and [x[:3] for x in a] == [x[:3] for x in b]
     try:
         col(is_done)
-        after(cmd='events.subscribe', events=['auto.info'])
-        allev.extend(lecar_to_auto(snd, col))
+        after(cmd='events.subscribe', events=['autox.info'])
+        allev.extend(lecar_to_autox(snd, col))
         v0 = rebuild_diagram(allev, [])
-        evs = after(cmd='auto.new_view')
+        evs = after(cmd='autox.new_view')
         check('views: a new view says there are two, then sends the diagram at the same axes, view 0 unchanged',
               views_n(evs) == [2] and len(v0) > 1 and rebuild_diagram(allev, [], 1) == v0
               and not [e for e in dg(evs, 0) if e['op'] != 'axes'], str([(e.get('op'), e.get('view')) for e in dg(evs)]))
         check('views: the new view is the active one, with a zoom of its own',
               av(evs) and av(evs)[-1]['active'] == 'diagram_2' and len(av(evs)[-1]['views']) == 2, str(av(evs)))
 
-        evs = after(cmd='auto.configure_plot', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
+        evs = after(cmd='autox.configure_plot', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
         a0, a1 = last_axes(0), last_axes(1)
         check("views: a view's axes are its own: view 1 plots the norm, view 0 still hI-lo",
               a1 and a1['plot'] == 'norm' and a1['ylabel'] == 'Norm' and a0 and a0['plot'] == 'maximum_and_minimum'
@@ -8073,31 +8073,31 @@ def check_auto_views():
         check('views: every view holds the same points in the same order (branch, point, kind), at its own axes',
               same_points(v0, v1) and rebuild_diagram(allev, [], 0) == v0 and v1 != v0, '%d vs %d' % (len(v0), len(v1)))
 
-        evs = after(cmd='auto.new_view')
+        evs = after(cmd='autox.new_view')
         a2 = last_axes(2)
         check("views: the Axes menu's new view makes a third, the active one, with the active one's axes (the norm)",
               views_n(evs) == [3] and a2 and a2['plot'] == 'norm' and av(evs) and av(evs)[-1]['active'] == 'diagram_3'
               and rebuild_diagram(allev, [], 2) == v1, '%s %s' % (views_n(evs), a2))
 
-        evs = after(cmd='auto.set_display', view='diagram_1', x_range=[0.1, 0.2])
+        evs = after(cmd='autox.set_display', view='diagram_1', x_range=[0.1, 0.2])
         check('views: auto display with a view zooms that view alone',
               av(evs) and [v['zoom']['x'] for v in av(evs)[-1]['views']] == [[0.1, 0.2], None, None], str(av(evs)))
 
         after(cmd='window.select', window='diagram_1')
-        after(cmd='auto.grab', type='hopf', index=1)
-        after(cmd='auto.run', kind='periodic', type='hopf', index=1)
+        after(cmd='autox.grab', type='hopf', index=1)
+        after(cmd='autox.run', kind='periodic', type='hopf', index=1)
         lists = [rebuild_diagram(allev, [], v) for v in range(3)]
         check("views: a run's points reach every view, the same points in each",
               len(lists[0]) > len(v0) and same_points(lists[0], lists[1]) and same_points(lists[0], lists[2])
               and lists[0][:len(v0)] == v0, str([len(x) for x in lists]))
 
         after(cmd='window.select', window='diagram_2')
-        snd(cmd='auto.grab')
+        snd(cmd='autox.grab')
         evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=60 * SLOW)
         at = next((i for i, x in enumerate(lists[1]) if x[3] is not None and x[4] is not None and i > 3), 4)
         snd(cmd='answer', id=ask['id'], point=at)
         evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=60 * SLOW)
-        info = next((e['info'] for e in reversed(evs) if e.get('ev') == 'auto.info' and e.get('info')), None)
+        info = next((e['info'] for e in reversed(evs) if e.get('ev') == 'autox.info' and e.get('info')), None)
         check('views: a grab in another view goes to the point of its data (the same index in every view)',
               info is not None and info['point'] == at and (info['br'], info['pt']) == lists[1][at][:2]
               and (info['br'], info['pt']) == lists[0][at][:2], '%s %s' % (info, lists[1][at] if at < len(lists[1]) else None))
@@ -8113,41 +8113,41 @@ def check_auto_views():
         check('views: closing a view there is not is refused', any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs), '')
         after(cmd='window.destroy', window='diagram_3')
         evs = after(cmd='window.destroy', window='diagram_2')
-        check('views: closing the last diagram closes AUTO', any(e.get('ev') == 'window.destroyed' for e in evs), str(evs)[:200])
+        check('views: closing the last diagram closes autoX', any(e.get('ev') == 'window.destroyed' for e in evs), str(evs)[:200])
         check('the process is alive after it all', p.poll() is None, '')
     finally:
         stop_server(p, r, snd)
 
 
-def check_auto_subscriptions():
-    """W335: AUTO's subscriptions are the protocol client's: subscribe,
-    unsubscribe and subscribe again send, stop and resend autosettings,
-    autoinfo and autoview (a reload and a grab after it: autocheck's
+def check_autox_subscriptions():
+    """W335: autoX's subscriptions are the protocol client's: subscribe,
+    unsubscribe and subscribe again send, stop and resend autoxsettings,
+    autoxinfo and autoxview (a reload and a grab after it: autoxcheck's
     subscriptions section)."""
     p, r, snd, col, _ = launch_server()
     try:
         col(is_done)
-        # 1. Subscribe to autoinfo, autosettings
-        snd(cmd='events.subscribe', events=['auto.info', 'auto.settings'])
+        # 1. Subscribe to autoxinfo, autoxsettings
+        snd(cmd='events.subscribe', events=['autox.info', 'autox.settings'])
         evs, _ = col(is_done)
-        st = [e for e in evs if e.get('ev') == 'auto.settings']
-        info = [e for e in evs if e.get('ev') == 'auto.info']
-        av = [e for e in evs if e.get('ev') == 'auto.view']
-        check('auto subscriptions: subscribe sends autosettings, autoinfo and autoview',
+        st = [e for e in evs if e.get('ev') == 'autox.settings']
+        info = [e for e in evs if e.get('ev') == 'autox.info']
+        av = [e for e in evs if e.get('ev') == 'autox.view']
+        check('auto subscriptions: subscribe sends autoxsettings, autoxinfo and autoxview',
               len(st) > 0 and len(info) > 0 and len(av) > 0, str([len(st), len(info), len(av)]))
 
         # Unsubscribe
         snd(cmd='events.unsubscribe', events=ALL_EVENTS)
         evs, _ = col(is_done)
-        unsub_evs = [e for e in evs if e.get('ev') in ('auto.info', 'auto.settings', 'auto.view')]
+        unsub_evs = [e for e in evs if e.get('ev') in ('autox.info', 'autox.settings', 'autox.view')]
         check('auto subscriptions: unsubscribe stops auto events', len(unsub_evs) == 0, str(unsub_evs))
 
         # Subscribe again
-        snd(cmd='events.subscribe', events=['auto.info', 'auto.settings'])
+        snd(cmd='events.subscribe', events=['autox.info', 'autox.settings'])
         evs, _ = col(is_done)
-        st2 = [e for e in evs if e.get('ev') == 'auto.settings']
-        info2 = [e for e in evs if e.get('ev') == 'auto.info']
-        av2 = [e for e in evs if e.get('ev') == 'auto.view']
+        st2 = [e for e in evs if e.get('ev') == 'autox.settings']
+        info2 = [e for e in evs if e.get('ev') == 'autox.info']
+        av2 = [e for e in evs if e.get('ev') == 'autox.view']
         check('auto subscriptions: subscribe again resends events',
               len(st2) > 0 and len(info2) > 0 and len(av2) > 0, str([len(st2), len(info2), len(av2)]))
 
@@ -8155,7 +8155,7 @@ def check_auto_subscriptions():
         stop_server(p, r, snd)
 
 
-check_auto_subscriptions()
+check_autox_subscriptions()
 
 
 
@@ -8817,7 +8817,7 @@ def check_parser_group():
         for mode in ('--check', '--server', '--silent'):
             p = run('presets.odex', mode)
             check('W317: %s accepts all five native presets' % mode, p.returncode == 0, p.stderr)
-            for group in ('numerics', 'auto', 'sliders', 'range', 'histogram', 'batch', 'log', 'buttons'):
+            for group in ('numerics', 'autox', 'sliders', 'range', 'histogram', 'batch', 'log', 'buttons'):
                 write('oldgroup.odex', "x'=0\ninit x=0\noptions { " + group + ": {} }\n")
                 p = run('oldgroup.odex', mode)
                 if mode == '--check':
@@ -9075,7 +9075,7 @@ check_player_ani()
 
 check_open_reload()
 check_display_state()
-check_auto_views()
+check_autox_views()
 check_plot_limits()
 check_session_file()
 check_save_session()
@@ -9139,7 +9139,7 @@ def check_terminal_playback():
             check('W144: recorded path %r is refused at its step without writing anything' % name,
                   result.returncode == 1 and result.stderr.count(path + ':') == 1
                   and sorted(os.listdir(destination)) == before and open(saved, 'rb').read() == data, result.stderr)
-        for form in [{'keys': ['i', 'g']}, {'cmd': {'cmd': 'run.initial'}, 'keys': ['Ctrl+R']}, {'cmd': {'cmd': 'run.initial'}, 'win': 'auto'}]:
+        for form in [{'keys': ['i', 'g']}, {'cmd': {'cmd': 'run.initial'}, 'keys': ['Ctrl+R']}, {'cmd': {'cmd': 'run.initial'}, 'win': 'autox'}]:
             with open(path, 'w', encoding='utf-8', newline='\n') as f: f.write(recording_text(template, [form]))
             result = play(automatic=True)
             member = next(m for m in ('keys', 'win') if m in form)
@@ -9677,9 +9677,9 @@ def check_start_examples():
 
 check_start_examples()
 
-def check_auto_threads():
-    """W267, docs/protocol.md "AUTO's settings as data": the thread count is a program preference: the
-    autosettings event carries it ("auto" or the count, what automatic gives, the most), `auto` `set`
+def check_autox_threads():
+    """W267, docs/protocol.md "autoX's settings as data": the thread count is a program preference: the
+    autoxsettings event carries it ("auto" or the count, what automatic gives, the most), `auto` `set`
     `threads` saves it in preferences.setx (in a config folder of its own) and a server started later reads
     it; a count outside 1 to threads_max, or a word that is not "auto", is refused whole, nothing saved."""
     root = tempfile.mkdtemp(prefix='xppthreads')
@@ -9689,7 +9689,7 @@ def check_auto_threads():
     errors = lambda evs: [e['error'] for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
 
     def threads_of(snd, col):
-        snd(cmd='events.subscribe', events=['auto.settings'])
+        snd(cmd='events.subscribe', events=['autox.settings'])
         return settings_of(col(is_done)[0])
 
     def text():
@@ -9703,21 +9703,21 @@ def check_auto_threads():
             most = st['threads_max']
             check('W267: the event gives threads "auto" at first, what automatic gives (1 to 4) and the most (the logical processors)',
                   st['threads'] == 'auto' and 1 <= st['threads_auto'] <= min(4, most) and most >= 1, str(st)[-200:])
-            snd(cmd='auto.set_threads', threads=most)
+            snd(cmd='autox.set_threads', threads=most)
             evs, _ = col(is_done)
             st = settings_of(evs)
             check('W267: set threads (the most) shows in the event and is saved in preferences.setx',
-                  not errors(evs) and st and st['threads'] == most and 'auto_threads: %d' % most in text(), str(evs)[-300:])
+                  not errors(evs) and st and st['threads'] == most and 'autox_threads: %d' % most in text(), str(evs)[-300:])
             before = text()
-            for bad in (0, most + 1, -1, 1.5, 'many', 'Auto', [2]):
-                snd(cmd='auto.set_threads', threads=bad)
+            for bad in (0, most + 1, -1, 1.5, 'many', 'Autox', [2]):
+                snd(cmd='autox.set_threads', threads=bad)
                 evs, _ = col(is_done)
                 err = errors(evs)
                 check('W267: set threads %r is refused naming the rule, the file is as it was' % (bad,),
                       len(err) == 1 and 'threads' in err[0] and text() == before, str(evs)[-300:])
             check('W267: and the shown count is the one before', threads_of(snd, col)['threads'] == most)
-            snd(cmd='auto.set_threads', threads=1)
-            check('W267: set threads 1', col(is_done) and 'auto_threads: 1' in text())
+            snd(cmd='autox.set_threads', threads=1)
+            check('W267: set threads 1', col(is_done) and 'autox_threads: 1' in text())
         finally:
             stop_server(p, r, snd)
         # a later start reads it, and "auto" puts the word back
@@ -9725,20 +9725,20 @@ def check_auto_threads():
         try:
             col(is_done)
             check('W267: a later server starts with the saved count', threads_of(snd, col)['threads'] == 1)
-            snd(cmd='auto.set_threads', automatic=True)
+            snd(cmd='autox.set_threads', automatic=True)
             evs, _ = col(is_done)
-            check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and 'auto_threads: auto' in text()
+            check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and 'autox_threads: auto' in text()
                   and settings_of(evs)['threads'] == 'auto', str(evs)[-300:])
         finally:
             stop_server(p, r, snd)
         # a file with a bad count is an error at its line on start and is never overwritten
-        bad_text = 'version: 4,\nrecent_models: [],\nauto_threads: 0,\n'
+        bad_text = 'version: 4,\nrecent_models: [],\nautox_threads: 0,\n'
         with open(prefs, 'w') as f:
             f.write(bad_text)
         p, r, snd, col, _ = launch_server(extra_env=env)
         try:
             evs, _ = col(is_done)
-            snd(cmd='auto.set_threads', threads=2)
+            snd(cmd='autox.set_threads', threads=2)
             evs2, _ = col(is_done)
             err = errors(evs2)
             check('W267: a bad count in the file is refused with its file and line, the set is refused with it and the file is left as it is',
@@ -9939,7 +9939,7 @@ def check_outside_paths():
         shutil.rmtree(root, ignore_errors=True)
 
 
-check_auto_threads()
+check_autox_threads()
 check_outside_paths()
 
 def check_create_folders():
@@ -10845,17 +10845,17 @@ check_recursive_user_functions()
 check_equilibrium_settings()
 check_run_registry()
 check_stops()
-check_auto_stops()
-check_auto_global_ends()
-check_auto_starts()
-check_auto_two_parameter_starts()
-check_auto_periodic_start_kind()
-check_auto_registry()
+check_autox_stops()
+check_autox_global_ends()
+check_autox_starts()
+check_autox_two_parameter_starts()
+check_autox_periodic_start_kind()
+check_autox_registry()
 check_fit_stops()
 check_event_count_note()
-check_auto_restart_file_stops()
-check_auto_multiplier_note()
-check_auto_singular_pivot()
+check_autox_restart_file_stops()
+check_autox_multiplier_note()
+check_autox_singular_pivot()
 
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

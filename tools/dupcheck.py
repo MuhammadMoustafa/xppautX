@@ -47,7 +47,7 @@ core/graphics.cpp bead_abs|keep: see core/graphics.cpp point
 core/odesol2.cpp discrete|merged (W33a): the step loop they shared is odesol2.cpp's fixed_steps; what is left is each method naming its own two step functions
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
 
-core/autlib3.cpp *block*|numerical, keep: Hopf/traveling-wave augmented matrices have different signs and block roles; W337 centralizes numerical kernels while formulation-specific Jacobian assembly stays in the caller
+core/autox_lib3.cpp *block*|numerical, keep: Hopf/traveling-wave augmented matrices have different signs and block roles; W337 centralizes numerical kernels while formulation-specific Jacobian assembly stays in the caller
 core/cvband.cpp *block*|numerical, keep: CVODE's band/dense solvers, translated C of parallel structure by the CVODE API's own design
 core/cvdense.cpp *block*|numerical, keep: see core/cvband.cpp *block*
 core/xpp_math_eispack.cpp *block*|numerical, keep: EISPACK reduction/QR/QZ and SVD order retained under xpp_math (W337, #398)
@@ -60,8 +60,8 @@ core/xpp_math_eispack.cpp *block*|numerical, keep: EISPACK reduction/QR/QZ and S
 # of the same algorithm written differently. The W30 audit found by hand
 # three LU solves and two eigenvalue routines; W32a moved LINPACK's
 # sgefa/sgesl, the banded bandfac/bandsol and the equilibria's eigenvalues
-# into core/xpp_math.cpp. W337 moves AUTO's complete-pivot ge/nlvc and
-# EISPACK into xpp_math_auto.cpp/xpp_math_eispack.cpp without substituting
+# into core/xpp_math.cpp. W337 moves autoX's complete-pivot ge/nlvc and
+# EISPACK into xpp_math_autox.cpp/xpp_math_eispack.cpp without substituting
 # algorithms: pivot, reduction, convergence and eigenvector semantics differ.
 # Nothing above allowlists those differing LU/eigen variants themselves.
 

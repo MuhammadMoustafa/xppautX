@@ -216,9 +216,9 @@ int main()
     CHECK(xpp::files::name_ok("console.txt")); /* only the device names themselves */
 
     /* the ask's mode, for every file selector title in the core */
-    const char *reads[] = {"Import XPPAUT set", "Load Auto", "Load data", "Load animation", "Load table",
+    const char *reads[] = {"Import XPPAUT set", "Load Autox", "Load data", "Load animation", "Load table",
                            "Read initial data", "Import Diagram", "Library:", "Select an ODE file", "Load session", "Play recording"};
-    const char *writes[] = {"Save Auto", "Write data", "Write all info", "Write init data file",
+    const char *writes[] = {"Save Autox", "Write data", "Write all info", "Write init data file",
                             "Write points", "PDF", "SVG", "Save As", "Print pdf", "Print svg",
                             "Export graph data", "Save info", "Save nullclines", "Clone ODE file", "GIF plot",
                             "Save session", "Export CSV"};
@@ -461,7 +461,7 @@ int main()
     CHECK(up == nullptr);
     if (up) std::fclose(up);
 
-    /* the core's own files (W32b): copy, prepend (AUTO's "append"), move,
+    /* the core's own files (W32b): copy, prepend (autoX's "append"), move,
        remove, whole or not at all */
     CHECK(xpp::files::exists("a.bin"));
     CHECK(!xpp::files::exists("none.dat"));

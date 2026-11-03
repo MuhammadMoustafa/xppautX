@@ -320,7 +320,7 @@ void json_encode_string(std::string &out, std::string_view s);
 
 /* Appends `s` as a whole JSON string, quotes included (json_encode_string
    between them); a null `s` as the empty string "". The data events'
-   text (plot_data, auto_data, ani_data, auto_settings) goes through this. */
+   text (plot_data, autox_data, ani_data, autox_settings) goes through this. */
 void json_append_string(std::string &out, const char *s);
 void json_append_string(std::string &out, std::string_view s);
 
@@ -409,7 +409,7 @@ inline bool read_bytes(std::string_view path, std::string &out, std::size_t limi
 }
 
 /* fprintf's type-checked counterpart: std::format into fp, for a stream
-   that stays a FILE * (AUTO's fort.7/8/9, written while it runs, and the
+   that stays a FILE * (autoX's fort.7/8/9, written while it runs, and the
    helpers that are handed one); a Writer prints with its own print().
    Nothing is written to a NULL fp. */
 template <class... Args>
@@ -478,7 +478,7 @@ private:
    have consumed too. read(long&) is fscanf "%ld" exactly, not a whole
    token: leading whitespace, an optional sign and the digits, and no
    more; what follows stays in the stream. For integer columns printed
-   flush against each other, like the "%5ld" label lines of AUTO's
+   flush against each other, like the "%5ld" label lines of autoX's
    fort.8/.s files, where "    2-1234" is 2 then -1234 and a
    whitespace-delimited token would swallow both. Each read is true on
    success, false at the end of the file or where fscanf would not have
@@ -612,8 +612,8 @@ Result<T> load_config_file(std::string_view where, std::string_view name, std::s
        with the settings members (read_session) before any is applied
        (apply_session); data.npz and frozen.npz are NPZ, checked whole
        (data_formats.cpp) the same way;
-     - AUTO's session members auto/settings.txt, auto/diagram.csv and
-       auto/views.txt: xpp_session_auto.cpp's parse_settings, parse_diagram_csv,
+     - autoX's session members autox/settings.txt, autox/diagram.csv and
+       autox/views.txt: xpp_session_autox.cpp's parse_settings, parse_diagram_csv,
        parse_views;
      - a recording (.recx: Play recording, Open model of one, the command
        line): recx.cpp's read.
@@ -621,9 +621,9 @@ Result<T> load_config_file(std::string_view where, std::string_view name, std::s
    load_eqn.cpp's extract_action checks every item before it applies one;
    a model's own files, .ode and .odex, load all or nothing through
    xpp::Load, session.h.) What proves it: tests/test_lunch.cpp,
-   test_session_auto.cpp and test_recx.cpp, servercheck's
+   test_session_autox.cpp and test_recx.cpp, servercheck's
    check_load_all_or_nothing, its session and player checks and
-   autocheck's sessiondiagram section give each kind a bad value on its last line
+   autoxcheck's sessiondiagram section give each kind a bad value on its last line
    and find the session as it was and the error at that line.
    Foreign formats (XPPAUT's .auto, a data file) are imports, read where
    they are converted. */

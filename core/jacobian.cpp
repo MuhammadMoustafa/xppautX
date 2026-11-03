@@ -1,5 +1,5 @@
 /* The model's Jacobian by forward differences: one owner (W255) of what
-   gear.cpp, odesol2.cpp, stiff.cpp, del_stab.cpp and AUTO's func each
+   gear.cpp, odesol2.cpp, stiff.cpp, del_stab.cpp and autoX's func each
    wrote for themselves; or the exact one, from the model's compiled
    derivatives (W260). */
 #include "jacobian.h"
@@ -64,10 +64,10 @@ void column(const Session &s, JacobianScratch &scratch, const JacobianProgram &p
 /* m's difference groups for its n states (DifferenceGroups) */
 DifferenceGroups make_difference_groups(const Model &m, int n)
 {
-  if (!m.auto_rhs_pure || n != m.node) return {};
+  if (!m.autox_rhs_pure || n != m.node) return {};
   const int programs = m.node + m.fix_var;
   /* the states each fixed variable and equation reads; a fixed variable
-     reads only those before it (auto_rhs_pure), so one pass in order */
+     reads only those before it (autox_rhs_pure), so one pass in order */
   std::vector<std::vector<int>> reads(static_cast<size_t>(programs));
   std::vector<char> read(static_cast<size_t>(n));
   for (int p = m.node; p < programs + m.node; p++) {
@@ -151,7 +151,7 @@ void exact_constant_derivative(const Session &s, JacobianScratch &scratch, const
   const auto it = std::ranges::lower_bound(columns, k, {}, [](const auto &e) { return e.first; });
   if (it == columns.end() || it->first != k) std::fill_n(out, n, 0.0);
   else column(s, scratch, it->second, c, t, x, f, n, [&]() -> std::string_view {
-    /* the parameter constant k is: AUTO's are the model's parameters */
+    /* the parameter constant k is: autoX's are the model's parameters */
     const std::string_view name = parameter_name(s, k);
     return name.empty() ? "a constant" : name;
   }, out);

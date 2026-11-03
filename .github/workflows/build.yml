@@ -38,11 +38,11 @@ concurrency:
 # an older system builds from source with tools/build_linux.sh.
 
 # Each platform runs the same behaviour checks against its own build
-# (build, unit tests, protocol, web, command-line modes, AUTO, every
+# (build, unit tests, protocol, web, command-line modes, autoX, every
 # example, the browser checks); the checks about the source, the same
 # everywhere, run once in `source` (W17). Every job runs in parallel: the
 # wall time is the longest job's. Jobs are named for what they test: a
-# platform's `-core` job (build, unit tests, protocol, modes, AUTO,
+# platform's `-core` job (build, unit tests, protocol, modes, autoX,
 # examples), its `-ui` job (the front end in a headless browser),
 # `linux-sanitizers`, `macos-sanitizers` and `windows-clang-sanitizers`
 # (the last two without LeakSanitizer, unsupported on Apple Silicon
@@ -128,7 +128,7 @@ jobs:
           sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
       # everything verify.sh checks but the source checks (the source job's);
       # one step: verify.sh runs every check itself and reports each
-      - name: Build, smoke test, protocol, modes, AUTO, examples, metrics
+      - name: Build, smoke test, protocol, modes, autoX, examples, metrics
         run: |
           # the machine the numerics ran on: a golden or md5 difference
           # between runners is read against it (W159)
@@ -151,7 +151,7 @@ jobs:
           name: golden-differ-linux
           retention-days: 14
           path: build/golden-differ/
-      - name: Upload the differing AUTO diagrams
+      - name: Upload the differing autoX diagrams
         if: ${{ !cancelled() && hashFiles('build/auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7
         with:
@@ -231,11 +231,11 @@ jobs:
           - shard: protocol-and-web
             only: build,servercheck,webcheck
           - shard: auto-1-of-3
-            only: build,autocheck-shard=1/3
+            only: build,autoxcheck-shard=1/3
           - shard: auto-2-of-3
-            only: build,autocheck-shard=2/3
+            only: build,autoxcheck-shard=2/3
           - shard: auto-3-of-3
-            only: build,autocheck-shard=3/3
+            only: build,autoxcheck-shard=3/3
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6.4.3
@@ -326,9 +326,9 @@ jobs:
           pkill -f 'xppautX.app/Contents/MacOS/xppautX' || true
           tail -n 20 "$log"
           grep -q 'macOS asked to open .*/examples/ode/lecar.odex' "$log" && grep -q 'Used [0-9]* constants' "$log"
-      - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
+      - name: "autoX over the protocol (tolerant of libm's last-digit ULP differences, autoxcheck.py's lines_close)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: uv run --locked python tools/autocheck.py
+        run: uv run --locked python tools/autoxcheck.py
       # compares strictly with tests/examples.md5 (one baseline for every
       # platform, W235); a crash or timeout fails too (tools/examples_check.sh)
       - name: "Every example: no crash, output md5s against tests/examples.md5"
@@ -345,10 +345,10 @@ jobs:
             examples.macos.md5
             examples-differ/
           if-no-files-found: ignore
-      - name: AUTO diagrams against the shared numerical baseline (1 and auto threads)
+      - name: autoX diagrams against the shared numerical baseline (1 and auto threads)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: uv run --locked python tools/autocompare.py --server ./xppautX --keep auto-differ
-      - name: Upload the differing AUTO diagrams
+        run: uv run --locked python tools/autoxcompare.py --server ./xppautX --keep auto-differ
+      - name: Upload the differing autoX diagrams
         if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7
         with:
@@ -435,9 +435,9 @@ jobs:
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh xppautX.exe
-      - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
+      - name: "autoX over the protocol (tolerant of libm's last-digit ULP differences, autoxcheck.py's lines_close)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: uv run --locked python tools/autocheck.py --server ./xppautX.exe
+        run: uv run --locked python tools/autoxcheck.py --server ./xppautX.exe
       # Linux's tests/examples.md5, no baseline of its own since W159: the
       # numbers are the same on every CPU and system (xpp::math); a crash,
       # a timeout or a differing md5 fails; output.dat's CRs are removed
@@ -456,12 +456,12 @@ jobs:
             examples.windows.md5
             examples-differ/
           if-no-files-found: ignore
-      - name: AUTO diagrams against the shared numerical baseline (1 and auto threads)
+      - name: autoX diagrams against the shared numerical baseline (1 and auto threads)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         # uv is a Windows program: outside the MSYS2 shell, whose PATH holds only its own tools
         shell: pwsh
-        run: uv run --locked python tools/autocompare.py --server ./xppautX.exe --keep auto-differ
-      - name: Upload the differing AUTO diagrams
+        run: uv run --locked python tools/autoxcompare.py --server ./xppautX.exe --keep auto-differ
+      - name: Upload the differing autoX diagrams
         if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7
         with:
@@ -553,12 +553,12 @@ jobs:
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh build/clang/xppautX.exe
-      # servercheck+webcheck, autocheck and examples_check ran one after
+      # servercheck+webcheck, autoxcheck and examples_check ran one after
       # another (32+90+88s); they touch disjoint parts of the binary (the
-      # protocol, AUTO, every .ode model) so nothing stops them running side
+      # protocol, autoX, every .ode model) so nothing stops them running side
       # by side instead (W41), each logged to its own file, verdicts printed
       # once all are done (the pattern tools/asancheck.sh's run_check uses)
-      - name: "Server protocol, web front end, AUTO and every example (run side by side)"
+      - name: "Server protocol, web front end, autoX and every example (run side by side)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           bin=build/clang/xppautX.exe
@@ -576,12 +576,12 @@ jobs:
           run_check spikecheck uv run --locked python tools/spikecheck.py --server "$bin" &
           run_check livestatecheck uv run --locked python tools/livestatecheck.py --server "$bin" &
           run_check webcheck uv run --locked python tools/webcheck.py --bin "$bin" &
-          run_check autocheck uv run --locked python tools/autocheck.py --server "$bin" &
+          run_check autoxcheck uv run --locked python tools/autoxcheck.py --server "$bin" &
           # Linux's tests/examples.md5, no baseline of its own since W159
           run_check examples tools/examples_check.sh --bin "$bin" --write examples.windows-clang.md5 --keep examples-differ &
           wait
           fail=0
-          for name in servercheck steadycheck spikecheck livestatecheck webcheck autocheck examples; do
+          for name in servercheck steadycheck spikecheck livestatecheck webcheck autoxcheck examples; do
             cat "$name.verdict"
             grep -q FAILED "$name.verdict" && fail=1
           done
@@ -596,15 +596,15 @@ jobs:
             examples.windows-clang.md5
             examples-differ/
           if-no-files-found: ignore
-      - name: AUTO diagrams against the shared numerical baseline (1 and auto threads)
+      - name: autoX diagrams against the shared numerical baseline (1 and auto threads)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         # uv is a Windows program: outside the MSYS2 shell, whose PATH holds only its own tools;
         # the dynamically linked clang build finds its runtime on clang64/bin
         shell: pwsh
         run: |
           $env:PATH = "C:\msys64\clang64\bin;$env:PATH"
-          uv run --locked python tools/autocompare.py --server ./build/clang/xppautX.exe --keep auto-differ
-      - name: Upload the differing AUTO diagrams
+          uv run --locked python tools/autoxcompare.py --server ./build/clang/xppautX.exe --keep auto-differ
+      - name: Upload the differing autoX diagrams
         if: ${{ !cancelled() && hashFiles('auto-differ/**') != '' }}
         uses: actions/upload-artifact@v7
         with:
@@ -618,10 +618,10 @@ jobs:
   # build (57-89s) turned out far cheaper than the artifact round trip and
   # the extra job's own msys2 setup, so each shard now builds for itself
   # (--skip-build stays for local iteration). W181 keeps six shards:
-  # smoke+examples, unit tests, protocol+web together, and three AUTO
-  # partitions selected by their owner. The previous AUTO partition 2
+  # smoke+examples, unit tests, protocol+web together, and three autoX
+  # partitions selected by their owner. The previous autoX partition 2
   # took 694s in CI 37177097317; combining the short protocol/web jobs
-  # offsets the new AUTO shard's repeated build. Measure both the matrix
+  # offsets the new autoX shard's repeated build. Measure both the matrix
   # critical path and summed runner time before further splitting.
   windows-clang-sanitizers:
     name: Windows - clang sanitizers - ${{ matrix.shard }}
@@ -641,11 +641,11 @@ jobs:
           - shard: protocol-and-web
             only: build,servercheck,webcheck
           - shard: auto-1-of-3
-            only: build,autocheck-shard=1/3
+            only: build,autoxcheck-shard=1/3
           - shard: auto-2-of-3
-            only: build,autocheck-shard=2/3
+            only: build,autoxcheck-shard=2/3
           - shard: auto-3-of-3
-            only: build,autocheck-shard=3/3
+            only: build,autoxcheck-shard=3/3
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6.4.3

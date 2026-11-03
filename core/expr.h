@@ -86,7 +86,7 @@ struct Program;
 double evaluate(Session &s, const Program &program);
 /* A native program's value from the caller's own arrays, with s only read:
    for a program compile_model proved array_pure (it reads c, v and the
-   immutable lookup tables, never s's stacks), so AUTO's collocation workers
+   immutable lookup tables, never s's stacks), so autoX's collocation workers
    share s const (expr_eval.cpp). */
 double evaluate_pure(const Session &s, const Program &program, double *constants, double *variables);
 /* name as the symbol table keeps it: blanks removed, upper case */

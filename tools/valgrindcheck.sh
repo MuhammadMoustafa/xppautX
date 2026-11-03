@@ -4,7 +4,7 @@
 # needs every library rebuilt). Builds xppautX at -O1 without sanitizers
 # (make vg, into build/vg), then runs the --silent smoke run (same checksum
 # as verify.sh), every example, the unit tests, the protocol
-# (servercheck.py) and AUTO (autocheck.py) under it.
+# (servercheck.py) and autoX (autoxcheck.py) under it.
 #
 # Any memcheck error fails the script, whether or not the check that
 # provoked it noticed: each process writes its report to its own file in
@@ -16,7 +16,7 @@
 # Slow (memcheck runs the programs 20-50 times slower), so not part of
 # verify.sh. Linux only; valgrind is `apt install valgrind`.
 # The checks run side by side after the examples: servercheck and each of
-# autocheck's sections in a process of its own. About 25 minutes on 32
+# autoxcheck's sections in a process of its own. About 25 minutes on 32
 # threads; --origins (memcheck's --track-origins, about twice as slow)
 # also says where an uninitialised value came from, for a report to fix.
 # Usage: tools/valgrindcheck.sh [--origins]
@@ -90,12 +90,12 @@ else
   fail=1
 fi
 
-# servercheck and autocheck's sections side by side, each logged to
+# servercheck and autoxcheck's sections side by side, each logged to
 # build/vg-<name>.log; then each one's exit status
 uv run --locked python tools/servercheck.py --server "$wrap" > build/vg-servercheck.log 2>&1 &
 jobs="servercheck:$!"
-for sec in $(uv run --locked python tools/autocheck.py --list); do
-  uv run --locked python tools/autocheck.py --server "$wrap" "$sec" > "build/vg-auto-$sec.log" 2>&1 &
+for sec in $(uv run --locked python tools/autoxcheck.py --list); do
+  uv run --locked python tools/autoxcheck.py --server "$wrap" "$sec" > "build/vg-auto-$sec.log" 2>&1 &
   jobs="$jobs auto-$sec:$!"
 done
 passes=0
@@ -110,7 +110,7 @@ for job in $jobs; do
     fail=1
   fi
 done
-echo "servercheck and autocheck: $passes checks passed"
+echo "servercheck and autoxcheck: $passes checks passed"
 
 n=0
 for f in "$reports"/*; do

@@ -7,7 +7,7 @@
    A Model (model.h) is what loading a .ode file produces and stays as the
    load left it; a Session is what a person does with it: the data a run
    stores, the plot windows and what is drawn in them, the numerics
-   settings in use, the integrator's state, AUTO's, the browser's and the
+   settings in use, the integrator's state, autoX's, the browser's and the
    kinescope's. Each part's type is defined by the module that owns it
    (storage.h's DataStore, many_pops.h's XppPlotWindows, ...), and the
    Session holds one of each.
@@ -27,7 +27,7 @@
 #include "many_pops.h"
 #include "graf_par.h"
 #include "integrate.h"
-#include "auto_state.h"
+#include "autox_state.h"
 #include "diagram.h"
 #include "browse.h"
 #include "kinescope.h"
@@ -112,15 +112,15 @@ struct Session {
      labels, objects and frozen curves (marks_data.cpp) */
   PhaseShown phase_shown;
   MarksShown marks_shown;
-  /* AUTO's hidden branches and zoom */
-  AutoView auto_view;
+  /* autoX's hidden branches and zoom */
+  AutoxView autox_view;
   /* how plots are written to files (graf_par.cpp) */
   XppPlotExport plot_export;
 
   /* where a file dialog starts (json_prompts.cpp, W151): the folder of the
      file of its kind (its wild pattern) last opened or saved, else `home`,
      the model's own folder -- never the process's current folder, which a
-     replay moves into its scratch folder and AUTO's files are not named by */
+     replay moves into its scratch folder and autoX's files are not named by */
   struct FileDialogs {
     std::string home;
     std::map<std::string,std::string> last;
@@ -148,12 +148,12 @@ struct Session {
      period (the nUmerics menu's Torus) */
   std::vector<int> itor;
 
-  /* AUTO's settings, run parameters and scratch folder (auto_nox.cpp,
-     autevd.cpp), the AUTO library's files and work arrays (autlib1.cpp,
-     gogoauto.cpp) and the diagram (diagram.cpp) */
-  AutoState auto_state;
-  AutoLib auto_lib;
-  AutoDiagram diagram;
+  /* autoX's settings, run parameters and scratch folder (autox_nox.cpp,
+     autox_evd.cpp), the autoX library's files and work arrays (autox_lib1.cpp,
+     gogoautox.cpp) and the diagram (diagram.cpp) */
+  AutoxState autox_state;
+  AutoxLib autox_lib;
+  AutoxDiagram diagram;
 
   /* the data browser (browse_data.cpp) */
   BrowserState browser;
@@ -310,7 +310,7 @@ struct LoadFailed {
    else sees them meanwhile); commit() keeps them
    and drops the ones before, and a load that never commits (it failed:
    LoadFailed) puts the ones before back, untouched. The fresh Session
-   keeps the process's AUTO scratch folder. Model and Session memory is
+   keeps the process's autoX scratch folder. Model and Session memory is
    never freed while a pointer into it may be held: the old ones go at
    commit, when the new ones have replaced every use. */
 class Load {

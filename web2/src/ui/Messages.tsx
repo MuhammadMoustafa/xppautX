@@ -1,6 +1,6 @@
 /* What XPP printed and the errors it reported, newest last (docs/ui-v2.md
    T16): errors (`message` `error`), the core's own log (stderr, `log`) and
-   AUTO's console table and notes (also `log`, but classified apart by
+   autoX's console table and notes (also `log`, but classified apart by
    store/state.ts's classifyLogText -- the protocol does not tag them, so
    this is a best-effort text match, cheap and good enough to filter by) are
    shown with their own label and colour (A7: never colour alone) and can be
@@ -13,7 +13,7 @@ import {TEXT} from '../store/fieldKinds';
 import {useStore} from './context';
 import {Field} from './Field';
 
-const KIND_LABEL: Record<LogEntry['kind'], string> = {error: 'Error', auto: 'AUTO', log: 'Log', info: 'Info'};
+const KIND_LABEL: Record<LogEntry['kind'], string> = {error: 'Error', auto: 'autoX', log: 'Log', info: 'Info'};
 const SHOWN_MAX = 1000;
 const FILTERS: (LogEntry['kind'] | 'all')[] = ['all', 'error', 'auto', 'log', 'info'];
 

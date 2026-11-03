@@ -221,7 +221,7 @@ function TextAsk({ask}: {ask: AskEvent}) {
 
 /* what an ask this interface does not offer yet wants, in words (A13) */
 const PENDING: Record<string, string> = {
-  grab: 'a point of the AUTO diagram',
+  grab: 'a point of the autoX diagram',
   mouse: 'a click in a window this interface does not show yet',
   rubber: 'a box in a window this interface does not show yet',
   drag: 'a drag in a window this interface does not show yet',
@@ -277,11 +277,11 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
 }
 
 /** whether an ask is on screen as the modal dialog (not answered at once, not a plot mode, not the
-    AUTO view's grab, not the desktop's own file dialog) */
-export function askIsModal(ask: AskEvent | null, pick: {ask: number} | null, autoOpen: boolean): boolean {
+    autoX view's grab, not the desktop's own file dialog) */
+export function askIsModal(ask: AskEvent | null, pick: {ask: number} | null, autoxOpen: boolean): boolean {
   if (!ask || ask.kind === 'pixels') return false;
   if (pick && pick.ask === ask.id) return false;
-  if (ask.kind === 'grab' && autoOpen) return false;
+  if (ask.kind === 'grab' && autoxOpen) return false;
   return !(ask.kind === 'file' && nativeFileDialog());
 }
 

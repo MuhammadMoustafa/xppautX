@@ -26,8 +26,8 @@
 #include "do_fit.h"
 #include "graphics.h"
 #include "browse.h"
-#include "auto_nox.h"
-#include "auto_settings.h"
+#include "autox_nox.h"
+#include "autox_settings.h"
 #include "my_rhs.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -85,8 +85,8 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     xpp::init_alloc_info(s);
     xpp::set_init_guess(s);
     update_all_ffts(s);
-    init_auto_win(s);
-    auto_threads_load(s);
+    init_autox_win(s);
+    autox_threads_load(s);
     if (disc(m)) {
         const auto picked = pick_method(m, "Discrete", Load::place());
         if (!picked) model_failed(picked.error());

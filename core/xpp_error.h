@@ -11,8 +11,8 @@
    delay or DAE solve) returns one -- in an xpp::Result, or beside a
    result of its own -- instead of showing a message itself; the command
    that ran it shows it with xpp::show_error (xpp_ui.h), once the
-   computation has ended and cleaned up. AUTO's numerics throw
-   xpp::AutoFailed (auto_state.h). */
+   computation has ended and cleaned up. autoX's numerics throw
+   xpp::AutoxFailed (autox_state.h). */
 #include <expected>
 #include <optional>
 #include <string>

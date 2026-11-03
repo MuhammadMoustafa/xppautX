@@ -16,7 +16,7 @@ test('W517: every registry command appears exactly once in the tree with its dec
   walk(menuTree(rows), []);
   assert.deepEqual(found.sort(), rows.map(r => r.id).sort());
   assert.ok(rows.length > 150);
-  assert.ok(rows.every(r => ['File','Run','Analysis','Plot','Data','AUTO','Windows','Help'].includes(r.menu_path!.split('/')[0])));
+  assert.ok(rows.every(r => ['File','Run','Analysis','Plot','Data','autoX','Windows','Help'].includes(r.menu_path!.split('/')[0])));
 });
 test('W517: palette matches each word in names, paths and descriptions', () => {
   assert.ok(paletteRows(rows, 'session save').some(r => r.id === 'session.save'));

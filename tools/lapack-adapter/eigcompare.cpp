@@ -1,6 +1,6 @@
-// W358 (#420): runs the matrices tools/auto-profile/dump_matrices.py wrote through both eigenvalue
+// W358 (#420): runs the matrices tools/autox-profile/dump_matrices.py wrote through both eigenvalue
 // libraries of the LINALG=lapack build, to compare them with a reference computed outside
-// (tools/auto-profile/eig_accuracy.py):
+// (tools/autox-profile/eig_accuracy.py):
 //   eigcompare MATRICES > RESULTS
 // MATRICES: lines "rg NM N MATZ A..." and "qz NM N A... B..." (column-major, C99 hex floats).
 // RESULTS, per matrix, an "eispack" and a "lapack" line: the routine's error code, then for rg the
@@ -8,7 +8,7 @@
 // Built by `make LINALG=lapack BUILDDIR=<its own> BUILDDIR/eigcompare`; it is a measuring tool and
 // is not part of xppautX. EISPACK's entry points are the ones core/xpp_math_eispack.cpp keeps under the
 // names the Makefile gave it for this build; the unprefixed names are the adapter's (LAPACK).
-#include "auto_c.h"
+#include "autox_c.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -30,7 +30,7 @@ int eispack_qzval(integer nm, integer n, doublereal *a, doublereal *b, doublerea
 
 namespace {
 
-constexpr doublereal QZ_EPS1 = 0;  // flowkm's QZEPS1 (autlib4.cpp): EISPACK's own default tolerance
+constexpr doublereal QZ_EPS1 = 0;  // flowkm's QZEPS1 (autox_lib4.cpp): EISPACK's own default tolerance
 
 void print(const char *library, integer ierr, const std::vector<std::vector<doublereal>> &columns)
 {

@@ -11,7 +11,7 @@ namespace xpp {
 
 namespace {
 XppLogLevel threshold = XPP_LOG_WARN;
-bool auto_echo;
+bool autox_echo;
 /* the LogCapture that keeps this thread's messages (the latest made), if
    any */
 thread_local xpp::LogCapture *capture = nullptr;
@@ -84,7 +84,7 @@ void log_new_model()
 }
 
 void log_set_threshold(XppLogLevel level) { threshold = level; }
-void log_set_auto_echo(bool on) { auto_echo = on; }
+void log_set_autox_echo(bool on) { autox_echo = on; }
 void log_set_terminal(FILE *out) { log_settings.terminal = out; }
 
 /* printf semantics: the caller writes the newline, so a line can be built
@@ -139,11 +139,11 @@ void log_message(XppLogLevel level, std::string_view fmt, std::format_args args)
     deliver(message, terminal_gets(level));
 }
 
-bool log_auto_enabled() { return auto_echo || threshold >= XPP_LOG_INFO; }
+bool log_autox_enabled() { return autox_echo || threshold >= XPP_LOG_INFO; }
 
-void log_auto_message(std::string_view fmt, std::format_args args) noexcept
+void log_autox_message(std::string_view fmt, std::format_args args) noexcept
 {
-    if (!log_auto_enabled()) return;
+    if (!log_autox_enabled()) return;
     std::string message = xpp::vformat(fmt, args);
     deliver(message, terminal_gets(XPP_LOG_INFO));
 }

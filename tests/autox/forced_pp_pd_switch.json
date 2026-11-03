@@ -1,0 +1,90 @@
+{
+  "model": "tools/models/forced_predator_prey.odex",
+  "parameters": {
+    "b0": 0.4,
+    "eps": 0.5
+  },
+  "initial_conditions": {
+    "x": 0.4,
+    "y": 0.24,
+    "u": 0.0,
+    "v": 0.0
+  },
+  "reason": "W556 (#621): branch switching at a period doubling. The periodically forced predator-prey model of Kuznetsov, Muratori and Rinaldi (1992) in the autonomous form of MatCont's Tutorial V (tools/models/forced_predator_prey.odex; see forced_pp_pd): the period-1 cycles from the Hopf point in m have a period doubling at eps*sqrt(m) = 0.3050914 (the tutorial's value). The run `doubled` restarts from it with branch switching and follows the cycles of twice the period.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "m",
+      "autox": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 50,
+        "parameter_min": -0.2,
+        "parameter_max": 1,
+        "mesh_intervals": 15,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "m",
+      "autox": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 50,
+        "parameter_min": -0.2,
+        "parameter_max": 1,
+        "mesh_intervals": 40,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "doubled",
+      "kind": "periodic",
+      "start": {
+        "run": "cycles",
+        "type": "period_doubling",
+        "index": 1
+      },
+      "parameter": "m",
+      "autox": {
+        "step_size": 0.005,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.01,
+        "max_steps": 60,
+        "output_every": 20,
+        "parameter_min": -0.2,
+        "parameter_max": 1,
+        "mesh_intervals": 40,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      },
+      "switch": true
+    }
+  ]
+}

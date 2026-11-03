@@ -1,13 +1,13 @@
-/* The page's log, what Messages and AUTO's Output show (docs/ui-v2.md
-   T16, T27): its entries in chunks, so an event (an AUTO run sends a line
+/* The page's log, what Messages and autoX's Output show (docs/ui-v2.md
+   T16, T27): its entries in chunks, so an event (an autoX run sends a line
    a point) appends to the last chunk alone instead of copying the whole
    log, the oldest past LOG_KEEP dropped, and the count of each kind kept up
    (the panels' totals, without a scan of the log at every event). A chunk
    a state holds never changes. Pure: no DOM, no I/O. */
 
 /** 'auto' is a best-effort guess (store/state.ts's classifyLogText): the
-    protocol does not tag xpp_log_auto's lines apart from any other stderr
-    text, so this is only ever as good as the patterns AUTO's own console
+    protocol does not tag xpp_log_autox's lines apart from any other stderr
+    text, so this is only ever as good as the patterns autoX's own console
     table prints. */
 export interface LogEntry {
   kind: 'log' | 'error' | 'info' | 'auto';
@@ -21,7 +21,7 @@ export interface Log {
   counts: Readonly<Record<LogEntry['kind'], number>>;
 }
 
-/* lines kept (T27: one entry per line, so a long AUTO run's table in Output) */
+/* lines kept (T27: one entry per line, so a long autoX run's table in Output) */
 export const LOG_KEEP = 5000;
 /* entries per chunk: what an event copies (and the chunk list, LOG_KEEP / LOG_CHUNK long) */
 const LOG_CHUNK = 256;

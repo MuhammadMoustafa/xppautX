@@ -1,4 +1,4 @@
-/* The AUTO diagram (docs/ui-v2.md T11a, docs/protocol.md "The AUTO diagram
+/* The autoX diagram (docs/ui-v2.md T11a, docs/protocol.md "The autoX diagram
    as data"): every point the core plots, in the diagram's axis quantities,
    built from the `diagram` events exactly (a `reset` drops the points after
    `keep`, an `add` puts points `from`.. in place), the core's axes, and the
@@ -6,8 +6,8 @@
    the user's zoom (no history: Reset view/Fit take it back) and the point
    read out. The window follows the
    core: `window` create/destroy for 101, and `state.auto`, which is there
-   exactly while AUTO is open (a page that connects later learns it so).
-   T11b adds the `autoinfo` event (the info strip and the stability circle
+   exactly while autoX is open (a page that connects later learns it so).
+   T11b adds the `autoxinfo` event (the info strip and the stability circle
    as data), the grab (the core's `grab` ask, answered from the view) and
    the point a click stored in a two-parameter diagram (`auto point`).
    W50: the one diagram has any number of views, each its own axes, points
@@ -15,16 +15,16 @@
    same points in the same order, so a point index (the hover, the grab,
    Clear's `earlier`) is the same in all of them.
    Pure: no DOM, no I/O. */
-import type {AutoViewEvent, CoreColor, HelloEvent} from '../protocol/types';
+import type {AutoxViewEvent, CoreColor, HelloEvent} from '../protocol/types';
 import {viewportOf, type Viewport} from './plots';
 
-/** the active AUTO view's name, null before hello */
-export function autoWindow(s: {hello: HelloEvent | null;diagram:DiagramState}): string | null {
+/** the active autoX view's name, null before hello */
+export function autoxWindow(s: {hello: HelloEvent | null;diagram:DiagramState}): string | null {
   return s.hello?s.diagram.views[s.diagram.active].name:null;
 }
 
 /** what a view of the diagram plots up its side against the main parameter (W381 question 12) */
-export type AutoProjection = 'maximum' | 'norm' | 'maximum_and_minimum' | 'period' | 'two_parameter' | 'frequency' | 'average';
+export type AutoxProjection = 'maximum' | 'norm' | 'maximum_and_minimum' | 'period' | 'two_parameter' | 'frequency' | 'average';
 
 /** `diagram` `axes` (and `reset`): the core's axes of a view of the diagram */
 export interface DiagramAxes {
@@ -32,7 +32,7 @@ export interface DiagramAxes {
   /** where the core draws it in window 101's pixels (for answers in pixels) */
   x0: number; y0: number; wid: number; hgt: number;
   /** what the view plots up its side (its projection) */
-  plot: AutoProjection;
+  plot: AutoxProjection;
   xlabel: string;
   ylabel: string;
 }
@@ -66,11 +66,11 @@ export interface DiagramRun {
 }
 
 export type DiagramEvent =
-  | ({ev: 'auto.diagram'; op: 'axes'; view: string} & DiagramAxes)
-  | ({ev: 'auto.diagram'; op: 'reset'; view: string; keep: number} & DiagramAxes)
-  | {ev: 'auto.diagram'; op: 'add'; view: string; from: number; runs: DiagramRun[]}
+  | ({ev: 'autox.diagram'; op: 'axes'; view: string} & DiagramAxes)
+  | ({ev: 'autox.diagram'; op: 'reset'; view: string; keep: number} & DiagramAxes)
+  | {ev: 'autox.diagram'; op: 'add'; view: string; from: number; runs: DiagramRun[]}
   /** the diagram has `n` views now (W50) */
-  | {ev: 'auto.diagram'; op: 'views'; n: number; names: string[]};
+  | {ev: 'autox.diagram'; op: 'views'; n: number; names: string[]};
 
 /** the points, one column per field, point i across them (NaN for null).
     A run's `add`s put their points after the last ones in place, as
@@ -110,8 +110,8 @@ export interface DiagramPoints {
   buffers: Record<PointField, Float64Array>;
 }
 
-/** `autoinfo` `info`: the point AUTO's info strip shows (the grab's cursor) */
-export interface AutoInfo {
+/** `autoxinfo` `info`: the point autoX's info strip shows (the grab's cursor) */
+export interface AutoxInfo {
   /** its index in the diagram's points, -1 when they do not have it */
   point: number;
   br: number;
@@ -139,8 +139,8 @@ export interface AutoInfo {
   y2: number | null;
 }
 
-/** `autoinfo` `stab`: what the stability circle shows */
-export interface AutoStab {
+/** `autoxinfo` `stab`: what the stability circle shows */
+export interface AutoxStab {
   /** 1: Floquet multipliers of a periodic orbit; 0: e^λ of a steady state's eigenvalues λ */
   periodic: number;
   circle: [number | null, number | null][];
@@ -148,14 +148,14 @@ export interface AutoStab {
   eig?: [number | null, number | null][];
 }
 
-/** `autoinfo` `stop` (T23): why the run's last branch ended */
-export interface AutoStop {
+/** `autoxinfo` `stop` (T23): why the run's last branch ended */
+export interface AutoxStop {
   /** parameter_min, parameter_max, norm_min, norm_max, max_steps, user, mark, noconv, noconv-fixed, noconv-min,
       noconv-switch-fixed, noconv-switch-min, jacobian (docs/protocol.md) */
   why: string;
   /** in words, to follow "Stopped: " ("parameter iapp reached parameter_max (0.45)") */
   text: string;
-  /** AUTO's branch and point number of the end */
+  /** autoX's branch and point number of the end */
   br: number;
   pt: number;
   /** what reached the limit, and the limit (null when there is none) */
@@ -163,8 +163,8 @@ export interface AutoStop {
   limit: number | null;
 }
 
-/** `autoinfo` `start`: the grabbed point a run would start from, and the kinds it takes (null: the current state) */
-export interface AutoRunStart {
+/** `autoxinfo` `start`: the grabbed point a run would start from, and the kinds it takes (null: the current state) */
+export interface AutoxRunStart {
   label: number;
   type: string;
   family: string;
@@ -172,19 +172,19 @@ export interface AutoRunStart {
   switch: string[];
 }
 
-export interface AutoInfoEvent {
-  ev: 'auto.info';
-  start?: AutoRunStart | null;
-  info: AutoInfo | null;
-  stab: AutoStab | null;
-  stop?: AutoStop | null;
+export interface AutoxInfoEvent {
+  ev: 'autox.info';
+  start?: AutoxRunStart | null;
+  info: AutoxInfo | null;
+  stab: AutoxStab | null;
+  stop?: AutoxStop | null;
 }
 
 export interface DiagramLabel {
   /** index of the point */
   point: number;
   lab: number;
-  /** EP, LP, HB, BP, PD, TR, UZ, MX (empty when AUTO gives none) */
+  /** EP, LP, HB, BP, PD, TR, UZ, MX (empty when autoX gives none) */
   sym: string;
 }
 
@@ -214,37 +214,37 @@ export interface DiagramState {
   /** the views of the one diagram (W50, docs/protocol.md "Views of the diagram"), at least one: each
       holds the same points in the same order, so a point's index is the same in every view */
   views: DiagramView[];
-  /** the core's active view: the one AUTO's Axes menu, zoom, the exports and a run go by */
+  /** the core's active view: the one autoX's Axes menu, zoom, the exports and a run go by */
   active: number;
   /** `diagram` events applied (tests wait on it) */
   events: number;
   /** an `add` did not follow on from what is held: the data must be sent again (session.ts asks) */
   outOfStep: boolean;
   hover: DiagramHover | null;
-  /** the info strip and the stability circle (`autoinfo`) */
-  info: AutoInfo | null;
-  stab: AutoStab | null;
-  /** the grabbed point a Run starts from (`autoinfo` `start`) */
-  start: AutoRunStart | null;
-  /** why the last run's last branch ended (`autoinfo` `stop`, T23) */
-  stop: AutoStop | null;
-  /** `autoinfo` events applied (tests wait on it) */
+  /** the info strip and the stability circle (`autoxinfo`) */
+  info: AutoxInfo | null;
+  stab: AutoxStab | null;
+  /** the grabbed point a Run starts from (`autoxinfo` `start`) */
+  start: AutoxRunStart | null;
+  /** why the last run's last branch ended (`autoxinfo` `stop`, T23) */
+  stop: AutoxStop | null;
+  /** `autoxinfo` events applied (tests wait on it) */
   infoEvents: number;
   /** the core is grabbing a point: from its `grab` ask to the command's end */
   grabbing: boolean;
   /** the point a click stored in a two-parameter diagram (`auto point`) */
   stored: {x: number; y: number} | null;
   /** the last Run (T21: the view's status strip), null before one */
-  run: AutoRun | null;
+  run: AutoxRun | null;
   /** Clear (T21): the points before this index are earlier branches, hidden
       unless `showEarlier` (the core keeps them; new runs draw alone) */
   earlier: number;
   showEarlier: boolean;
 }
 
-/** a Run of AUTO, as the status strip tells it; what it computed so far is
+/** a Run of autoX, as the status strip tells it; what it computed so far is
     read from the points from `first` on (runStatus) */
-export interface AutoRun {
+export interface AutoxRun {
   /** its command has not ended */
   active: boolean;
   /** Date.now() when it started computing (the Start menu answered), and when it ended */
@@ -302,26 +302,26 @@ export const initialDiagram: DiagramState = {
 export type DiagramAction =
   | {type: 'event'; ev: DiagramEvent}
   | {type: 'window'; op: 'create' | 'destroy'}
-  /** a `state` event: `auto` present while AUTO is open */
+  /** a `state` event: `auto` present while autoX is open */
   | {type: 'core'; open: boolean}
   | {type: 'show'; shown: boolean}
   | {type: 'viewport'; view: number; viewport: Viewport}
   | {type: 'hover'; hover: DiagramHover | null}
-  | {type: 'info'; ev: AutoInfoEvent}
+  | {type: 'info'; ev: AutoxInfoEvent}
   /** the core's grab: its ask came (on), or its command ended */
   | {type: 'grabbing'; on: boolean}
   | {type: 'stored'; at: {x: number; y: number} | null}
   /** Run pressed (start), its Start menu answered (clock), its command ended (end) */
   | {type: 'run'; op: 'start' | 'clock' | 'end'; at: number}
   | {type: 'runStopped'}
-  /** Clear: what is drawn now becomes the earlier branches (until the core's `autoview` says) */
+  /** Clear: what is drawn now becomes the earlier branches (until the core's `autoxview` says) */
   | {type: 'clear'}
   /** the core's display of the diagram (W65): the branches Clear hid, whether they are shown, the
       active view and each view's zoom; `show` and a view's `zoom` are absent while a change of the
       user's is on its way (session.ts) */
-  | {type: 'autoview'; ev: AutoViewEvent}
+  | {type: 'autoxview'; ev: AutoxViewEvent}
   | {type: 'showEarlier'; show: boolean}
-  /** a view clicked: the active one at once (the core's `autoview` says so too) */
+  /** a view clicked: the active one at once (the core's `autoxview` says so too) */
   | {type: 'activate'; view: number};
 
 export function pointCount(p: DiagramPoints): number {
@@ -502,7 +502,7 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       return s.run?.active ? {...s, run: {...s.run, stopped: true}} : s;
     case 'clear':
       return {...s, earlier: pointCount(activeView(s).points), showEarlier: false, hover: null};
-    case 'autoview': {
+    case 'autoxview': {
       let t: DiagramState = {...s, earlier: a.ev.earlier, hover: a.ev.earlier === s.earlier ? s.hover : null};
       if (a.ev.show !== undefined) t = {...t, showEarlier: a.ev.show !== 0};
       const zooms = a.ev.views ?? [];
@@ -529,7 +529,7 @@ function onRun(s: DiagramState, op: 'start' | 'clock' | 'end', at: number): Diag
 }
 
 /** a command ended: no grab any more. (A diagram that holds fewer points than Clear hid, File/Reset
-    diagram, has no earlier branches left: the core says so in its `autoview`.) */
+    diagram, has no earlier branches left: the core says so in its `autoxview`.) */
 export function diagramSettled(s: DiagramState): DiagramState {
   return reduceDiagram(s, {type: 'grabbing', on: false});
 }

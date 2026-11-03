@@ -35,7 +35,7 @@ inline constexpr std::array<std::string_view, 2> picture_format_names{"pdf", "sv
 
 extern const ImageFormat image_formats[];
 constexpr int n_image_formats = 4; /* one row for each supported picture format */
-/* image_formats' own order, for a caller that picks by index (the AUTO
+/* image_formats' own order, for a caller that picks by index (the autoX
    diagram's export menu, graf_par.cpp's plot-window export) rather than
    by name */
 constexpr int IMAGE_FORMAT_PDF = 0;

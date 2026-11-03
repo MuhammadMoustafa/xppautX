@@ -17,7 +17,7 @@
 #include "menudrive.h"
 
 #include "adj2.h"
-#include "auto_nox.h"
+#include "autox_nox.h"
 #include "comline.h"
 #include "graf_par.h"
 #include "graphics.h"
@@ -253,7 +253,7 @@ static void do_file_com(xpp::Session &s, int com)
   case M_FP: make_txtview(s); break;
   case M_FS: xpp::file_inf(s); break;
   case M_FA:
-    do_auto_win(s);
+    do_autox_win(s);
     break;
   case M_FC: q_calc(s); break;
   case M_FR: xpp::import_settings_command(s); break;

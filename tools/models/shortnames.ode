@@ -1,5 +1,5 @@
 # FitzHugh-Nagumo: longnames.ode with short names. The two must compute
-# the same numbers (tools/autocheck.py, section names).
+# the same numbers (tools/autoxcheck.py, section names).
 par i=0
 par eps=0.08, a=0.7
 par b=0.8

@@ -72,8 +72,8 @@ test('named diagram resets clear the trace independently of auxiliary window nam
   try {
     const session = new Session({send: () => {}, close: () => {}, open: () => {}});
     installTestHook(session);
-    session.store.dispatch({type:'event',ev:{ev:'auto.diagram',op:'views',n:2,names:['animation','Second view']}});
-    const reset = (view: string) => session.store.dispatch({type:'event',ev:{ev:'auto.diagram',op:'reset',view,keep:0,
+    session.store.dispatch({type:'event',ev:{ev:'autox.diagram',op:'views',n:2,names:['animation','Second view']}});
+    const reset = (view: string) => session.store.dispatch({type:'event',ev:{ev:'autox.diagram',op:'reset',view,keep:0,
       xmin:0,xmax:1,ymin:0,ymax:1,x0:0,y0:0,wid:100,hgt:100,plot:'maximum',xlabel:'a',ylabel:'x'}});
     reset('animation');
     reset('Second view');

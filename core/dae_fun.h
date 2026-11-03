@@ -36,7 +36,7 @@ struct DaeState {
 
 /* One run of the integrator (integrate()): while it lives, solve_dae
    follows the branch of the run's first solution, from step to step.
-   Every other solve (Sing pts, nullclines, a direction field, AUTO, the
+   Every other solve (Sing pts, nullclines, a direction field, autoX, the
    next run) starts without a branch, so no operation inherits another's.
    A run inside a run (none today) keeps the outer one's branch. */
 class DaeRun {

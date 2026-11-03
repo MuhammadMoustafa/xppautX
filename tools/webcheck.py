@@ -413,7 +413,7 @@ shutil.rmtree(secret, ignore_errors=True)
 
 # ---- a connection that sends nothing, or a stalled upload, holds up no command:
 # one thread used to answer every request, and a browser's preconnect held it
-# (and an Abort behind it) for 30 s while an AUTO run went on (T25)
+# (and an Abort behind it) for 30 s while an autoX run went on (T25)
 idle = socket.create_connection(('127.0.0.1', port), timeout=20)
 stall = socket.create_connection(('127.0.0.1', port), timeout=20)
 stall.sendall(('PUT /files/stall.txt%s HTTP/1.1\r\nHost: x\r\nContent-Length: 1000\r\n\r\nhalf' % tok).encode())
@@ -759,8 +759,8 @@ shutil.rmtree(lrun, ignore_errors=True)
 # ---- T27: the Windows exe with no standard error handle ------------------------------
 # xppautX.exe is a GUI-subsystem program: started from Explorer, a shortcut,
 # Start-Process or a terminal it has no standard error, and its C library
-# gives stderr no descriptor at all; what the core prints (AUTO's table in
-# the AUTO window's Output) must still reach the page. Only stdout is a pipe
+# gives stderr no descriptor at all; what the core prints (autoX's table in
+# the autoX window's Output) must still reach the page. Only stdout is a pipe
 # here, to read the address.
 if os.name == 'nt':
     import _winapi, msvcrt
@@ -797,7 +797,7 @@ if os.name == 'nt':
     _winapi.CloseHandle(hproc)
     shutil.rmtree(run, ignore_errors=True)
 
-# ---- W501: with a page, the terminal gets only what the page cannot show (core/xpp_log.h's rule). An AUTO
+# ---- W501: with a page, the terminal gets only what the page cannot show (core/xpp_log.h's rule). An autoX
 # run's table and the INFO lines go to the page's log alone; a WARN reaches the terminal too (no opener on
 # PATH here, so the browser cannot open). Each process is stopped by its own handle.
 trun = tempfile.mkdtemp(prefix='xppterm')
@@ -870,9 +870,9 @@ else:
     q = page_events(pt, tk)
     until_event(q, done_event)
     # each wait is for its own command's done, by id: another done (the page's connection) shifts no pairing
-    send_cmd(pt, tk, {'cmd':'auto.open', 'id':'w501-open'})
+    send_cmd(pt, tk, {'cmd':'autox.open', 'id':'w501-open'})
     until_event(q, lambda e: done_event(e) and e.get('id') == 'w501-open')
-    send_cmd(pt, tk, {'cmd':'auto.run','kind':'equilibrium', 'id':'w501-run'})
+    send_cmd(pt, tk, {'cmd':'autox.run','kind':'equilibrium', 'id':'w501-run'})
     # what the core prints reaches the page from xpp_http.cpp's log reader thread, not in order with the
     # run's done: the wait is for the table's last line itself
     logged = []
@@ -883,10 +883,10 @@ else:
         return 'stopped at point' in ''.join(logged)
     until_event(q, table_ended, 300)
     page_log = ''.join(logged)
-    check('W501: the page log has AUTO\'s table', 'BR    PT' in page_log and 'stopped at point' in page_log, page_log[:200])
+    check('W501: the page log has autoX\'s table', 'BR    PT' in page_log and 'stopped at point' in page_log, page_log[:200])
     stop_page(p, reader)
     lines = [line for line in term if not line.startswith('XPP: ')]
-    check('W501: the terminal shows no AUTO table or INFO line of a page run', lines == [], ''.join(lines)[:300])
+    check('W501: the terminal shows no autoX table or INFO line of a page run', lines == [], ''.join(lines)[:300])
 
 # No opener: only where xppautX looks its opener up on PATH. Windows opens the
 # browser through ShellExecute, which no PATH hides, and an emptied PATH there

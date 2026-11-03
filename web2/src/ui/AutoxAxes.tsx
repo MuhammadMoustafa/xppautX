@@ -1,0 +1,144 @@
+/* The autoX diagram's axis dialog (docs/ui-v2.md T21): a click on an axis
+   name opens it beside the diagram. Its minimum and maximum change the view
+   at once, in the page only (a zoom: Reset view or Fit take it back), so
+   they work while autoX runs. What the axis plots (the parameter,
+   the y axis's plot type and its variable or second parameter) is autoX's
+   Axes setting (T22: the `autoxsettings` data): a change goes to the core as
+   an `auto` `set` with a Fit (session.autoxSettings), at any time: while a
+   command runs it waits, shown dashed, and applies when the command ends.
+   Not modal: Escape or Close closes it, the focus goes back to the axis
+   name. */
+import {useEffect, useRef, useState} from 'preact/hooks';
+import {axesNames, boundText, PROJECTIONS, spinStep, typedRange, yNeeds} from '../plot/axisDialog';
+import {HELP} from '../help/links';
+import {pendingFields, shownSettings} from '../store/autoxSettings';
+import type {Range, Viewport} from '../store/plots';
+import {choiceLabel, fieldError, NUMBER} from '../store/fieldKinds';
+import type {AutoxProjection} from '../store/diagram';
+import {useSession, useStore} from './context';
+import {Field} from './Field';
+import {HelpButton} from './HelpButton';
+
+export type AxisName = 'x' | 'y';
+
+const WHOLE: Viewport = {x: null, y: null};
+
+/** the axis dialog of view `view` of the diagram (W50: opened from that view, which is the active one) */
+export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: number; onClose: () => void}) {
+  const session = useSession();
+  const axes = useStore(s => s.diagram.views[view]?.axes ?? null);
+  const viewport = useStore(s => s.diagram.views[view]?.viewport ?? WHOLE);
+  const busy = useStore(s => s.busy);
+  const settingsState = useStore(s => s.autoxSettings);
+  const settings = shownSettings(settingsState), pending = pendingFields(settingsState);
+  const ics = useStore(s => s.core?.ics);
+  const vars = (ics ?? []).map(([n]) => n);
+  /* the axes name two of autoX's parameters (Parameter sets which) */
+  const pars = useStore(s => s.core?.pars.map(([name]) => name)) ?? [];
+  const box = useRef<HTMLDivElement>(null);
+  const shown = (): Range | null => viewport[axis]
+    ?? (axes ? (axis === 'x' ? {min: axes.xmin, max: axes.xmax} : {min: axes.ymin, max: axes.ymax}) : null);
+  const [minText, setMin] = useState(() => (shown() ? boundText(shown()!.min) : ''));
+  const [maxText, setMax] = useState(() => (shown() ? boundText(shown()!.max) : ''));
+  /* the texts as typed, for two edits in one tick (the state is only read at the next render) */
+  const typed = useRef({min: minText, max: maxText});
+  const setMinText = (t: string) => { typed.current.min = t; setMin(t); };
+  const setMaxText = (t: string) => { typed.current.max = t; setMax(t); };
+
+  /* the fields follow the view when it changes elsewhere (a zoom, the core's Fit), not while typed in */
+  useEffect(() => {
+    const r = shown();
+    if (!r || box.current?.contains(document.activeElement) && document.activeElement?.tagName === 'INPUT') return;
+    setMinText(boundText(r.min));
+    setMaxText(boundText(r.max));
+  }, [viewport, axes]);
+
+  useEffect(() => {
+    box.current?.querySelector<HTMLElement>('select:not([disabled]), input')?.focus();
+    const outside = (e: PointerEvent) => {
+      const target = e.target as Element | null;
+      if (!box.current?.contains(target) && !target?.closest('.auto-axis-name')) onClose();
+    };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
+  }, []);
+
+  const apply = (lo: string, hi: string) => {
+    const r = typedRange(lo, hi);
+    if (!r) return;
+    const v = {...(session.store.getState().diagram.views[view]?.viewport ?? WHOLE), [axis]: r};
+    if (!v.x && axes) v.x = {min: axes.xmin, max: axes.xmax};
+    if (!v.y && axes) v.y = {min: axes.ymin, max: axes.ymax};
+    session.setDiagramViewport(view, v);
+  };
+  const r = typedRange(minText, maxText);
+  const numbers = fieldError(NUMBER, minText) === null && fieldError(NUMBER, maxText) === null; /* else each box says so */
+  const step = spinStep((r ?? shown() ?? {min: 0, max: 10}).max - (r ?? shown() ?? {min: 0, max: 10}).min);
+
+  const names = settings
+    ? {par1: settings.axes.par1 ?? '', yvar: settings.axes.var ?? '', par2: settings.axes.par2 ?? ''} : axesNames(axes);
+  const plot: AutoxProjection = settings?.axes.plot ?? axes?.plot ?? 'maximum';
+  const need = yNeeds(plot);
+  /* the new quantities, then a Fit: the diagram's ranges follow what it plots */
+  const change = (c: {plot?: AutoxProjection; var?: string; par1?: string; par2?: string}) => {
+    if (!settings) return;
+    session.autoxSettings({axes: {...c, fit: true, view:session.store.getState().diagram.views[view].name}});
+  };
+  const waiting = ['plot', 'var', 'par1', 'par2'].some(k => pending.has(`axes.${k}`));
+  const select = (label: string, value: string, options: {value: string; text: string}[], on: (v: string) => void,
+    field: string, key: string) => (
+    <label class={pending.has(`axes.${key}`) ? 'queued' : undefined}>
+      <span>{label}</span>
+      <select value={value} data-field={field} data-queued={pending.has(`axes.${key}`) ? '1' : undefined}
+        aria-describedby={waiting ? 'auto-axis-pending' : undefined}
+        onChange={e => on((e.target as HTMLSelectElement).value)}>
+        {!options.some(o => o.value === value) && <option value={value}>{value || '(as set)'}</option>}
+        {options.map(o => <option key={o.value} value={o.value}>{o.text}</option>)}
+      </select>
+    </label>
+  );
+  const listOf = (l: string[]) => l.map(n => ({value: n, text: n}));
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    onClose();
+  };
+  const title = axis === 'x' ? 'Horizontal axis' : 'Vertical axis';
+  return (
+    <div class="auto-axis-dialog" ref={box} role="dialog" aria-modal="false" aria-label={title} data-axis={axis}
+      onKeyDown={onKeyDown}>
+      <div class="dialog-title-row">
+        <h3>{title}</h3>
+        <HelpButton target={HELP.autoxAxes} label={title} />
+        <button class="dialog-close" aria-label={`Close ${title}`} onClick={onClose}>×</button>
+      </div>
+      <div class="auto-axis-fields">
+        {axis === 'x'
+          ? select('Parameter', names.par1, listOf(pars), v => change({par1: v}), 'par1', 'par1')
+          : select('Plots', plot, PROJECTIONS.map(p => ({value: p, text: choiceLabel(p)})),
+            v => change({plot: v as AutoxProjection}), 'plot', 'plot')}
+        {axis === 'y' && need === 'var' && select('Variable', names.yvar, listOf(vars), v => change({var: v}), 'yvar', 'var')}
+        {axis === 'y' && need === 'par2'
+          && select('Second parameter', names.par2, listOf(pars), v => change({par2: v}), 'par2', 'par2')}
+        <label>
+          <span>Minimum</span>
+          <Field spec={NUMBER} step={step} value={minText} data-field="min" id={`auto-axis-${axis}-min`}
+            error={!r && numbers ? 'The minimum must be below the maximum' : null}
+            onInput={t => { setMinText(t); apply(t, typed.current.max); }} />
+        </label>
+        <label>
+          <span>Maximum</span>
+          <Field spec={NUMBER} step={step} value={maxText} data-field="max" id={`auto-axis-${axis}-max`}
+            onInput={t => { setMaxText(t); apply(typed.current.min, t); }} />
+        </label>
+      </div>
+      {waiting && (
+        <p id="auto-axis-pending" class="muted" role="status">
+          {busy ? 'What the axis plots changes when autoX stops (dashed); the range changes now.' : 'Applying…'}
+        </p>
+      )}
+    </div>
+  );
+}

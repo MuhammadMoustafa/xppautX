@@ -54,9 +54,9 @@ Load::Load()
   std::unique_ptr<Model> model=std::make_unique<Model>();
   std::unique_ptr<Session> fresh=std::make_unique<Session>(*model);
   Client &c=sessions.entry;
-  /* the process's AUTO scratch folder (xppautx_main.cpp makes it before
+  /* the process's autoX scratch folder (xppautx_main.cpp makes it before
      the first load) stays the same across loads */
-  if(c.session)fresh->auto_state.dir=c.session->auto_state.dir;
+  if(c.session)fresh->autox_state.dir=c.session->autox_state.dir;
   session_=fresh.get();
   previous_session=std::exchange(c.session,std::move(fresh));
   previous_model=std::exchange(c.model,std::move(model));

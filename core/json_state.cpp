@@ -18,7 +18,7 @@
 #include "graphics.h"
 #include "integrate.h"
 #include "browse.h"
-#include "auto_nox.h"
+#include "autox_nox.h"
 #include "derived.h"
 #include "form_ode.h"
 #include "expr.h"
@@ -28,8 +28,8 @@
 #include "phase_data.h"
 #include "marks_data.h"
 #include "ani_data.h"
-#include "auto_data.h"
-#include "auto_settings.h"
+#include "autox_data.h"
+#include "autox_settings.h"
 #include "numerics_settings.h"
 #include "lunch-new.h"
 #include "histogram.h"
@@ -158,7 +158,7 @@ std::string build_state(xpp::Session &s)
         }
         BUF_LIT(b, "]");
     }
-    /* pixel to plot coordinates of the active window and the AUTO diagram,
+    /* pixel to plot coordinates of the active window and the autoX diagram,
        for the x,y readout under the mouse (scale_to_real) */
     get_draw_area(s);
     BUF_LIT(b,",\"view\":{\"win\":");buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
@@ -172,10 +172,10 @@ std::string build_state(xpp::Session &s)
     BUF_LIT(b, ",\"title\":");
     buf_str(b, xpp::plot_title(s));
     BUF_LIT(b, "}");
-    if (s.auto_state.bifur.exist)
-        buf_format(b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
-                   "\"ymin\":{:g},\"ymax\":{:g}}}", s.auto_state.bifur.x0, s.auto_state.bifur.y0, s.auto_state.bifur.wid, s.auto_state.bifur.hgt, s.auto_state.axes().xmin, s.auto_state.axes().xmax,
-                   s.auto_state.axes().ymin, s.auto_state.axes().ymax);
+    if (s.autox_state.bifur.exist)
+        buf_format(b, ",\"autox\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
+                   "\"ymin\":{:g},\"ymax\":{:g}}}", s.autox_state.bifur.x0, s.autox_state.bifur.y0, s.autox_state.bifur.wid, s.autox_state.bifur.hgt, s.autox_state.axes().xmin, s.autox_state.axes().xmax,
+                   s.autox_state.axes().ymin, s.autox_state.axes().ymax);
     buf_format(b,",\"rows\":{},\"win\":",s.browser.view.maxrow);buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
     if (s.numerics.last_seed) buf_format(b, ",\"seed\":{:d}", *s.numerics.last_seed);
     const SavedSession &saved = s.saved_session;
@@ -280,9 +280,9 @@ void apply_subscriptions(xpp::Session &s)
     phase_data_subscribe(on(xpp::events::NULLCLINE_CURVES), on(xpp::events::DIRFIELD_FIELD), f32);
     marks_data_subscribe(on(xpp::events::PLOT_MARKS), f32);
     ani_data_subscribe(s, on(xpp::events::ANIMATION_FRAME));
-    auto_data_subscribe(on(xpp::events::AUTO_INFO));
-    auto_view_subscribe(on(xpp::events::AUTO_INFO));
-    auto_settings_subscribe(s, on(xpp::events::AUTO_SETTINGS));
+    autox_data_subscribe(on(xpp::events::AUTOX_INFO));
+    autox_view_subscribe(on(xpp::events::AUTOX_INFO));
+    autox_settings_subscribe(s, on(xpp::events::AUTOX_SETTINGS));
     numerics_settings_subscribe(s, on(xpp::events::RUN_NUMERICS));
     session.windows.subscribe(on(xpp::events::WINDOW_LIST), s);
     if (on(xpp::events::RECORDING_PLAYER)) player_data();

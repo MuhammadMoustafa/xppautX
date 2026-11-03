@@ -92,7 +92,7 @@ int main(void)
     CHECK(!xpp::job::stop_armed());
     xpp::job::end();
 
-    /* AUTO: a stop at point P of branch B is reached when P-1 of B is stored
+    /* autoX: a stop at point P of branch B is reached when P-1 of B is stored
        (the cancelled run then ends B with point P, an end point) */
     xpp::job::begin(22);
     xpp::job::stop_at_point(2, 5);

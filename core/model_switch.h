@@ -10,7 +10,7 @@
    the ones before current, untouched, and says so. */
 
 #include "load_eqn.h"
-#include "auto_settings.h"
+#include "autox_settings.h"
 #include "model_files.h"
 #include "xpp_session.h"
 #include <optional>
@@ -61,7 +61,7 @@ void xpp_quit(xpp::Session &s, bool saving = false);
 /* File > Reload (key e) and {"cmd":"reload"}: asks first, as Open model
    does, then the model's file again, with
    the command line it was loaded with (a saved model's from its saved
-   files); the parameters, initial data, numerics and AUTO settings keep their values by
+   files); the parameters, initial data, numerics and autoX settings keep their values by
    name (restore_values). True when it asked for the load, false when the
    question was declined, the error when the model was not read from a file */
 xpp::Result<bool> xpp_model_reload(xpp::Session &s);
@@ -117,7 +117,7 @@ struct KeptValues {
   std::vector<std::pair<std::string,double>> pars, ics;
   std::vector<std::pair<std::string,std::string>> delays;
   NumericsSettings numerics;
-  AutoSettingsSet auto_settings;
+  AutoxSettingsSet autox_settings;
   std::string poincare_variable;
   /* the session file and the values it was saved with (W218): the next
      Ctrl+S saves to it, and the changed flag still compares with that

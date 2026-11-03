@@ -17,7 +17,7 @@ import {initialAni, reduceAni, type AniAction, type AniState} from './ani';
 import {initialKinescope, reduceKinescope, snapshotWindow, type KinescopeAction, type KinescopeState} from './kinescope';
 import {initialFiles, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
 import {
-  diagramSettled, initialDiagram, reduceDiagram, type AutoInfoEvent, type DiagramAction, type DiagramEvent, type DiagramState,
+  diagramSettled, initialDiagram, reduceDiagram, type AutoxInfoEvent, type DiagramAction, type DiagramEvent, type DiagramState,
 } from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {appendLog, emptyLog, lastEntry, type Log, type LogEntry} from './log';
@@ -29,8 +29,8 @@ import type {SteadyInput} from './steady';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 import {defaultPanels, type Panels} from './panels';
 import {
-  initialAutoSettings, reduceAutoSettings, type AutoSettings, type AutoSettingsAction, type AutoSettingsState,
-} from './autoSettings';
+  initialAutoSettings, reduceAutoSettings, type AutoxSettings, type AutoxSettingsAction, type AutoxSettingsState,
+} from './autoxSettings';
 
 export type {Range, Viewport} from './plots';
 
@@ -46,19 +46,19 @@ export interface Hover {
 
 export type {LogEntry} from './log';
 
-/** distinguishes AUTO's console output from the rest of the core's log
-    (docs/ui-v2.md T16, Messages: "the core's log and AUTO output are
-    distinguishable"), cheaply and without a protocol change: AUTO's table
-    header and rows (core/autlib1.c xpp_log_auto, "  BR    PT  TY LAB " then
+/** distinguishes autoX's console output from the rest of the core's log
+    (docs/ui-v2.md T16, Messages: "the core's log and autoX output are
+    distinguishable"), cheaply and without a protocol change: autoX's table
+    header and rows (core/autox_lib1.c xpp_log_autox, "  BR    PT  TY LAB " then
     "%4li%6li  %c%c%4li%14.6E..." rows, the type blank on the rows NPr
     prints, T27) and its handful of fixed messages
     ("Generating starting data", "Hopf point", ...) and why a branch ended
-    (core/auto_stop.cpp, "Branch 1 stopped at point 57: ..."). Anything else stays
+    (core/autox_stop.cpp, "Branch 1 stopped at point 57: ..."). Anything else stays
     plain `log`; this never sees `message` `error` text (handled separately). */
-const AUTO_ROW = /^\s*-?\d+\s+-?\d+\s+([A-Za-z]+\s+)?-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
-const AUTO_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|min_step_size|max_step_size|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+ stopped at point \d+:/;
+const AUTOX_ROW = /^\s*-?\d+\s+-?\d+\s+([A-Za-z]+\s+)?-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
+const AUTOX_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|min_step_size|max_step_size|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+ stopped at point \d+:/;
 export function classifyLogText(text: string): 'log' | 'auto' {
-  return AUTO_ROW.test(text) || AUTO_PHRASE.test(text) ? 'auto' : 'log';
+  return AUTOX_ROW.test(text) || AUTOX_PHRASE.test(text) ? 'auto' : 'log';
 }
 
 /** what a notification offers: "Add file…" for a file the core could not
@@ -93,7 +93,7 @@ export interface AppState {
       and control actions start then (protocol/kinds.ts, W95); busy alone disables nothing */
   computing: boolean;
   /** what the busy command runs, for the status line: the menu item last
-      answered ("Go"), "AUTO" for the AUTO view's Run; null when unknown (W68) */
+      answered ("Go"), "autoX" for the autoX view's Run; null when unknown (W68) */
   running: string | null;
   /** Abort was pressed; the run ends at its done */
   stopping: boolean;
@@ -146,10 +146,10 @@ export interface AppState {
   text: TextState;
   /** files through the browser's dialogs (T5): listing, replace confirm, uploads, see store/files.ts */
   files: FilesState;
-  /** the AUTO diagram and its view (T11a), see store/diagram.ts */
+  /** the autoX diagram and its view (T11a), see store/diagram.ts */
   diagram: DiagramState;
-  /** AUTO's Numerics, parameters, axes and Mark values (T22), see store/autoSettings.ts */
-  autoSettings: AutoSettingsState;
+  /** autoX's Numerics, parameters, axes and Mark values (T22), see store/autoxSettings.ts */
+  autoxSettings: AutoxSettingsState;
   /** the main numerics (the `numerics` event, W106), shown in the values panel */
   numerics: NumericsField[] | null;
   /** the array plot (T12): its latest event, colour map and panel state, see store/aplot.ts */
@@ -203,7 +203,7 @@ export type Action =
   | {type: 'text'; action: TextAction}
   | {type: 'files'; action: FilesAction}
   | {type: 'diagram'; action: DiagramAction}
-  | {type: 'autoSettings'; action: AutoSettingsAction}
+  | {type: 'autoxSettings'; action: AutoxSettingsAction}
   | {type: 'aplot'; action: AplotAction}
   | {type: 'ani'; action: AniAction}
   | {type: 'kinescope'; action: KinescopeAction}
@@ -250,7 +250,7 @@ export const initialState: AppState = {
   files: initialFiles,
   windows: [],
   diagram: initialDiagram,
-  autoSettings: initialAutoSettings,
+  autoxSettings: initialAutoSettings,
   numerics: null,
   aplot: initialAplot,
   ani: initialAni,
@@ -270,7 +270,7 @@ function addLog(state: AppState, entry: LogEntry): AppState {
    in chunks cut anywhere, several lines in one or a line in several, so a
    chunk that ends a line the last entry began joins that entry, and each
    line is classified whole ("Branch 1 stopped at point 5: pa" + "rameter
-   ..." is one AUTO line, T23) and alone (a row among other lines, T27) */
+   ..." is one autoX line, T23) and alone (a row among other lines, T27) */
 function addLogText(state: AppState, text: string): AppState {
   let rest = text, joined: LogEntry | undefined;
   const prev = lastEntry(state.log);
@@ -341,7 +341,7 @@ function runningName(cmd: Command, ask: AskEvent | null): string | null {
   if (cmd.cmd in RUN_NAMES) return RUN_NAMES[cmd.cmd];
   if (cmd.cmd === 'run.steady') return 'to steady state';
   if (cmd.cmd === 'run.continue') return 'continuation';
-  if (cmd.cmd === 'auto.run') return 'AUTO';
+  if (cmd.cmd === 'autox.run') return 'autoX';
   if (cmd.cmd !== 'answer' || !ask || ask.kind !== 'choice' || typeof cmd.key !== 'string')
     return null;
   const i = (ask.keys ?? '').toLowerCase().indexOf(cmd.key.toLowerCase());
@@ -380,7 +380,7 @@ function settled(state: AppState): AppState {
     ani: reduceAni(state.ani, {type: 'playing', playing: false}),
     diagram: diagramSettled(state.diagram),
     values: reduceValues(state.values, {type: 'ended'}),
-    autoSettings: reduceAutoSettings(state.autoSettings, {type: 'ended'}),
+    autoxSettings: reduceAutoSettings(state.autoxSettings, {type: 'ended'}),
   };
 }
 
@@ -392,7 +392,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       /* a set sent before gets no done now */
       setPointTypes(ev.point_types);
       return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, windows: [],
-        autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'}),
+        autoxSettings: reduceAutoSettings(state.autoxSettings, {type: 'reset'}),
         keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};
     }
     case 'keymap.changed': {
@@ -403,7 +403,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return state.core ? {...state, core: {...state.core, now: ev.now, time: ev.time, rates: ev.rates}} : state;
     case 'session.state': {
       const moved = ev.view && coreViewMoved(state.core?.view, ev.view);
-      /* `auto` is there exactly while AUTO is open */
+      /* `auto` is there exactly while autoX is open */
       const diagram = reduceDiagram(state.diagram, {type: 'core', open: !!(ev as {auto?: unknown}).auto});
       return {
         ...state, core: ev, title: ev.view?.title ?? state.title, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram,
@@ -431,7 +431,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       };
     }
     case 'window.list': {
-      /* the shown flags drive each window's panel: the AUTO view is shown when any of its views is, the
+      /* the shown flags drive each window's panel: the autoX view is shown when any of its views is, the
          animation and the array plot panels follow their windows */
       const flag = (kind: WindowListEntry['kind']) => {
         const next = ev.windows.find(w => w.kind === kind)?.shown;
@@ -499,7 +499,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const auto = state.diagram.open && state.diagram.views.some(v=>v.name===ev.win);
       const mode = ids ? pickModeOf(ev, state.core?.view, !!windowOf(state.plots, ev.win!)?.series, {...ids,auto:state.diagram.views[state.diagram.active].name}, auto) : null;
       const withAsk = {...state, ask: ev, pick: mode ? startPick(state.pick, ev, mode) : null};
-      /* the AUTO diagram's asks (a grab, Axes/Zoom's box, Axes/Scroll's drag) are the AUTO view's: it is shown */
+      /* the autoX diagram's asks (a grab, Axes/Zoom's box, Axes/Scroll's drag) are the autoX view's: it is shown */
       if (auto && (mode || ev.kind === 'grab')) {
         const diagram = reduceDiagram(reduceDiagram(state.diagram, {type: 'show', shown: true}),
           {type: 'grabbing', on: ev.kind === 'grab' || state.diagram.grabbing});
@@ -534,12 +534,12 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     }
     case 'job.stopped':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'runStopped'})};
-    case 'auto.view':
-      return {...state, diagram: reduceDiagram(state.diagram, {type: 'autoview', ev})};
-    case 'auto.info':
-      return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoInfoEvent})};
-    case 'auto.settings':
-      return {...state, autoSettings: reduceAutoSettings(state.autoSettings, {type: 'event', ev: ev as unknown as AutoSettings})};
+    case 'autox.view':
+      return {...state, diagram: reduceDiagram(state.diagram, {type: 'autoxview', ev})};
+    case 'autox.info':
+      return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoxInfoEvent})};
+    case 'autox.settings':
+      return {...state, autoxSettings: reduceAutoSettings(state.autoxSettings, {type: 'event', ev: ev as unknown as AutoxSettings})};
     case 'run.numerics':
       return {...state, numerics: ev.fields};
     case 'job.progress':
@@ -554,14 +554,14 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         /* Messages and the status line read as the console does (file:line: what), the dialog shows the place apart */
         const text = errorText(ev);
         const files = {...state.files, runFailed: true};
-        /* a rejected `set`/`slide` is that field's error (A11), a rejected `auto` `set` the AUTO
+        /* a rejected `set`/`slide` is that field's error (A11), a rejected `auto` `set` the autoX
            form's: the field or form shows it where it was typed and takes the focus back (WF-001),
            so it opens no error dialog (W104 review) -- it is still in Messages */
         const values = reduceValues(state.values, {type: 'error', text: ev.error, field: ev.field});
-        const autoSettings = /^AUTO settings: /.test(ev.error)
-          ? reduceAutoSettings(state.autoSettings, {type: 'error', text: ev.error}) : state.autoSettings;
-        const logged = addLog({...state, bottom: text, bottomHelp: null, files, values, autoSettings}, {kind: 'error', text});
-        const claimed = values !== state.values || autoSettings !== state.autoSettings;
+        const autoxSettings = /^autoX settings: /.test(ev.error)
+          ? reduceAutoSettings(state.autoxSettings, {type: 'error', text: ev.error}) : state.autoxSettings;
+        const logged = addLog({...state, bottom: text, bottomHelp: null, files, values, autoxSettings}, {kind: 'error', text});
+        const claimed = values !== state.values || autoxSettings !== state.autoxSettings;
         return claimed ? logged : addToast(logged, 'error', ev.error, action, errorPlace(ev), ev.action);
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom, bottomHelp: ev.help ?? null};
@@ -577,7 +577,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, text: reduceText(state.text, {type: 'source', ev})};
     case 'equilibrium.found':
       return {...state, text: reduceText(state.text, {type: 'equilibrium', ev})};
-    case 'auto.diagram':
+    case 'autox.diagram':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'event', ev: ev as unknown as DiagramEvent})};
     case 'recording.player':
       return {...state, player: reducePlayer(state.player, {type: 'player', ev})};
@@ -678,8 +678,8 @@ export function reduce(state: AppState, action: Action): AppState {
       const diagram = reduceDiagram(state.diagram, action.action);
       return diagram === state.diagram ? state : {...state, diagram};
     }
-    case 'autoSettings':
-      return {...state, autoSettings: reduceAutoSettings(state.autoSettings, action.action)};
+    case 'autoxSettings':
+      return {...state, autoxSettings: reduceAutoSettings(state.autoxSettings, action.action)};
     case 'aplot':
       return {...state, aplot: reduceAplot(state.aplot, action.action)};
     case 'ani':

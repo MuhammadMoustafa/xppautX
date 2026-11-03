@@ -9,7 +9,7 @@ namespace xpp {
    (Abort, Quit, an answer) always goes; a view action only changes what is
    shown and goes during a computation too (the core runs it after the
    computation); a setting (W106: a parameter, an initial or boundary
-   condition, a delay, the numerics, AUTO's forms) goes during a computation
+   condition, a delay, the numerics, autoX's forms) goes during a computation
    too and is applied when it ends, never to the run in progress; a data
    action (saving, loading) and a computation (anything that starts one)
    are refused during one. */

@@ -12,7 +12,7 @@ version 4
 # Q3 = 10, Q4 = 0.0675, Q5 = 1, Q6 = 0.1, K = 0.4. The tutorial's published values for (Q2, K): Bogdanov-Takens
 # points at (1.417628, 0.971397) and (1.161199, 0.722339), a cusp at (1.006408, 0.355991) and two Bautin points
 # (generalised Hopf) on the Hopf curve at (0.891319, 0.232487) and (0.924255, 0.305879).
-# tests/auto/bykov_*.json run them.
+# tests/autox/bykov_*.json run them.
 z = 1-x-y-s
 x' = 2*Q1*z^2-2*Q5*x^2-Q3*x*y
 y' = Q2*z-Q6*y-Q3*x*y

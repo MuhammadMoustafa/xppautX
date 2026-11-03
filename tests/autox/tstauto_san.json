@@ -1,0 +1,43 @@
+{
+  "model": "examples/tstauto/san.odex",
+  "reason": "Saddle normal form: continue unfolding par0 at the near-origin state.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "par0",
+      "autox": {
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": -1,
+        "parameter_max": 1,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "ours",
+      "type": "BP",
+      "index": 1,
+      "cause": "W539 (#604): the branch point at par0 = 1 is located by the step that also reaches Par Max 1 (the 50th, at 1.0000001), and AUTO-07p relabels a special point located on a branch's last step as its end (EP), so its reference has no branch point; xppautX keeps the label. AUTO-07p's reference of W357 had one only because its start, 1.8e-4 off the equilibrium, shifted its steps so that one fell inside the bound; the start of this description is now the equilibrium itself (W495). docs/auto07p-findings.md finding 9."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "steady",
+      "side": "ours",
+      "type": "BP",
+      "index": 1,
+      "cause": "W577 (#642): the same as for AUTO-07p. XPPAUT 8.0's regenerated run from the equilibrium itself (W495) ends at its 50th step, at Par Max 1, and labels that last point an end (EP, point 50, par0 1.0), while ours labels the branch point there. The branch point is real, by the Jacobian at the origin of the model's own equations: with u = 0 an equilibrium for every par0, it is [[par0, par1], [par1, par0], ...] with par1 = 1 and -par2 = 2 for u2, whose eigenvalues par0 + 1, par0 - 1 and -2 give a zero eigenvalue exactly at par0 = 1 (checked with numpy). XPPAUT 8.0's reference of W300 had a BP at 1.0 and an EP at 1.02 only because its start, 1.8e-4 off the equilibrium, shifted its steps so that one fell beyond the bound."
+    }
+  ]
+}

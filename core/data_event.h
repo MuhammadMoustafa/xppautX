@@ -1,8 +1,8 @@
 #pragma once
 
 /* A data event a client asked for (`{"cmd":"data"}`) that carries a
-   whole set of values and is sent again only when they changed: AUTO's
-   settings (auto_settings.cpp) and the main numerics
+   whole set of values and is sent again only when they changed: autoX's
+   settings (autox_settings.cpp) and the main numerics
    (numerics_settings.cpp). The front end gives the line's sink once
    (init); subscribe() says whether the client wants it and sends it at
    once whatever it holds (want(), at the next update); update() sends it

@@ -1,6 +1,6 @@
 import type {PointType} from '../protocol/types';
 
-/** AUTO's point types as hello gives them (core/auto_codes.h's one table): a name is the only
+/** autoX's point types as hello gives them (core/autox_codes.h's one table): a name is the only
     input, a label is what a person reads, a mark is the short text drawn at the point */
 let table = new Map<string, PointType>();
 

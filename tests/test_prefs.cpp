@@ -146,34 +146,34 @@ void check_good_files()
     CHECK(!xpp::prefs::serialize_prefs(bad));
 }
 
-/* AUTO's thread count (W267): "auto" or a whole number from 1 to the logical processors */
-void check_auto_threads()
+/* autoX's thread count (W267): "auto" or a whole number from 1 to the logical processors */
+void check_autox_threads()
 {
-    using xpp::prefs::AUTO_THREADS_AUTO;
+    using xpp::prefs::AUTOX_THREADS_AUTO;
     const unsigned most = xpp::cpu::logical_processors();
-    CHECK(parse("").value().auto_threads == AUTO_THREADS_AUTO);
-    CHECK(parse("auto_threads: auto,\n").value().auto_threads == AUTO_THREADS_AUTO);
+    CHECK(parse("").value().autox_threads == AUTOX_THREADS_AUTO);
+    CHECK(parse("autox_threads: auto,\n").value().autox_threads == AUTOX_THREADS_AUTO);
     /* every count the computer has round-trips; the list beside it is untouched */
     for (unsigned n = 1; n <= most; n++) {
         xpp::prefs::Preferences p;
         p.recent_models = {abs_path("a.odex")};
-        p.auto_threads = n;
+        p.autox_threads = n;
         const auto text = xpp::prefs::serialize_prefs(p);
         CHECK(text.has_value());
         const auto back = xpp::prefs::parse_prefs(*text, FILE_LABEL);
-        CHECK(back && back->auto_threads == n && back->recent_models == p.recent_models);
+        CHECK(back && back->autox_threads == n && back->recent_models == p.recent_models);
     }
     const auto automatic = xpp::prefs::serialize_prefs({});
-    CHECK(automatic && xpp::prefs::parse_prefs(*automatic, FILE_LABEL).value().auto_threads == AUTO_THREADS_AUTO);
+    CHECK(automatic && xpp::prefs::parse_prefs(*automatic, FILE_LABEL).value().autox_threads == AUTOX_THREADS_AUTO);
     /* a bad value is refused at its line, with the value */
     const std::string beyond = std::to_string(most + 1);
     const Bad bad[] = {
-        {"zero", "recent_models: [],\nauto_threads: 0,\n", 2, "from 1 to"},
-        {"negative", "auto_threads: -1,\n", 1, "from 1 to"},
-        {"past the processors", "\nauto_threads: " + beyond + ",\n", 2, "from 1 to"},
-        {"a word", "auto_threads: many,\n", 1, "many"},
-        {"a fraction", "auto_threads: 1.5,\n", 1, "1.5"},
-        {"a list", "auto_threads: [2],\n", 1, "auto_threads"},
+        {"zero", "recent_models: [],\nautox_threads: 0,\n", 2, "from 1 to"},
+        {"negative", "autox_threads: -1,\n", 1, "from 1 to"},
+        {"past the processors", "\nautox_threads: " + beyond + ",\n", 2, "from 1 to"},
+        {"a word", "autox_threads: many,\n", 1, "many"},
+        {"a fraction", "autox_threads: 1.5,\n", 1, "1.5"},
+        {"a list", "autox_threads: [2],\n", 1, "autox_threads"},
     };
     for (const Bad &t : bad) {
         const auto r = parse(t.text);
@@ -185,10 +185,10 @@ void check_auto_threads()
         }
     }
     xpp::prefs::Preferences p;
-    p.auto_threads = most + 1;
+    p.autox_threads = most + 1;
     CHECK(!xpp::prefs::serialize_prefs(p)); /* not written as a file that does not read */
-    CHECK(!xpp::prefs::auto_threads_problem(1) && !xpp::prefs::auto_threads_problem(most));
-    CHECK(xpp::prefs::auto_threads_problem(0) && xpp::prefs::auto_threads_problem(most + 1));
+    CHECK(!xpp::prefs::autox_threads_problem(1) && !xpp::prefs::autox_threads_problem(most));
+    CHECK(xpp::prefs::autox_threads_problem(0) && xpp::prefs::autox_threads_problem(most + 1));
 }
 
 void check_file()
@@ -230,7 +230,7 @@ int main(void)
     check_bad_files();
     check_outside_paths();
     check_good_files();
-    check_auto_threads();
+    check_autox_threads();
 
     xpp::TempDir temp;
     CHECK(!temp.path().empty());

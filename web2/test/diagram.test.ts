@@ -1,9 +1,9 @@
-/* The AUTO diagram (docs/ui-v2.md T11a): the store built from `diagram`
+/* The autoX diagram (docs/ui-v2.md T11a): the store built from `diagram`
    events (full and `add` increments), the curves by branch and stability,
    and the segment from a Hopf point to its periodic branch. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} from '../src/plot/autoInfo';
+import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} from '../src/plot/autoxInfo';
 import {
   buildDiagramModel, describePoint, fitRanges, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf,
   labelShape, labelTypes, symbolHelp,
@@ -42,11 +42,11 @@ const periodic: DiagramRun[] = [
     y2: [-0.2, -0.23, -0.26]},
   {br: 2, pt: 4, ty: 3, stable: true, periodic: true, d: 2, c: '#00e100', lw: 1, jac: 'difference', x: [0.25, 0.24], y: [-0.1, -0.05], y2: [-0.3, -0.35], lab: [[1, 5, 'fold']]},
 ];
-const add = (from: number, runs: DiagramRun[]) => ({ev: 'auto.diagram', view: 'diagram_1', op: 'add', from, runs});
+const add = (from: number, runs: DiagramRun[]) => ({ev: 'autox.diagram', view: 'diagram_1', op: 'add', from, runs});
 
 function opened(): AppState {
-  let s = ev(READY, {ev: 'window.created', kind: 'diagram', win: 'diagram_1', w: 687, h: 352, title: "It's AUTO man!"});
-  s = ev(s, {ev: 'auto.diagram', view: 'diagram_1', op: 'axes', ...axes});
+  let s = ev(READY, {ev: 'window.created', kind: 'diagram', win: 'diagram_1', w: 687, h: 352, title: "It's autoX man!"});
+  s = ev(s, {ev: 'autox.diagram', view: 'diagram_1', op: 'axes', ...axes});
   return s;
 }
 
@@ -96,11 +96,11 @@ test('an add from before the end replaces what follows; reset keeps the first k 
   assert.equal(pointCount(activeView(s.diagram).points), 5);
   assert.deepEqual(activeView(s.diagram).labels.map(l => l.point), [0], 'labels past the replaced point go');
   s = lecar();
-  s = ev(s, {ev: 'auto.diagram', view: 'diagram_1', op: 'reset', keep: 3, ...axes, ymax: 0.5});
+  s = ev(s, {ev: 'autox.diagram', view: 'diagram_1', op: 'reset', keep: 3, ...axes, ymax: 0.5});
   assert.equal(pointCount(activeView(s.diagram).points), 3);
   assert.deepEqual(activeView(s.diagram).labels.map(l => l.lab), [1]);
   assert.equal(activeView(s.diagram).axes?.ymax, 0.5);
-  s = ev(s, {ev: 'auto.diagram', view: 'diagram_1', op: 'reset', keep: 0, ...axes});
+  s = ev(s, {ev: 'autox.diagram', view: 'diagram_1', op: 'reset', keep: 0, ...axes});
   assert.equal(pointCount(activeView(s.diagram).points), 0);
   assert.equal(activeView(s.diagram).labels.length, 0);
 });
@@ -110,7 +110,7 @@ test('an add that does not follow on marks the data out of step, until it is sen
   s = ev(s, add(20, periodic));
   assert.equal(s.diagram.outOfStep, true);
   assert.equal(pointCount(activeView(s.diagram).points), 9, 'nothing applied');
-  s = ev(s, {ev: 'auto.diagram', view: 'diagram_1', op: 'reset', keep: 0, ...axes});
+  s = ev(s, {ev: 'autox.diagram', view: 'diagram_1', op: 'reset', keep: 0, ...axes});
   s = ev(s, add(0, steady));
   assert.equal(s.diagram.outOfStep, false);
 });
@@ -134,7 +134,7 @@ test('state.auto opens the view for a page that connected later; its absence clo
   assert.equal(s.diagram.open, false);
 });
 
-test('Back hides the panel, AUTO stays open', () => {
+test('Back hides the panel, autoX stays open', () => {
   let s = lecar();
   s = reduce(s, {type: 'diagram', action: {type: 'show', shown: false}});
   assert.equal(s.diagram.shown, false);
@@ -146,9 +146,9 @@ test('zoom, no history (GitHub #110): the core moving its axes goes back to them
   const zoom = {x: {min: 0.2, max: 0.3}, y: {min: -0.3, max: 0}};
   let s = reduce(lecar(), {type: 'diagram', action: {type: 'viewport', view: 0, viewport: zoom}});
   assert.deepEqual(activeView(s.diagram).viewport, zoom);
-  s = ev(s, {ev: 'auto.diagram', view: 'diagram_1', op: 'axes', ...axes});
+  s = ev(s, {ev: 'autox.diagram', view: 'diagram_1', op: 'axes', ...axes});
   assert.deepEqual(activeView(s.diagram).viewport, zoom, 'the same axes again (reDraw): the zoom stays');
-  s = ev(s, {ev: 'auto.diagram', view: 'diagram_1', op: 'axes', ...axes, xmax: 0.6});
+  s = ev(s, {ev: 'autox.diagram', view: 'diagram_1', op: 'axes', ...axes, xmax: 0.6});
   assert.deepEqual(activeView(s.diagram).viewport, {x: null, y: null});
 });
 
@@ -237,18 +237,18 @@ test('stepping from label to label, and the readout of a point', () => {
   assert.equal(initialDiagram.open, false);
 });
 
-/* ---- T11b: autoinfo, the grab, the label a branch started from ---- */
+/* ---- T11b: autoxinfo, the grab, the label a branch started from ---- */
 
 const hbInfo = {point: 4, br: 1, pt: 5, type: 2, stable: false, periodic: false, sym: 'hopf', lab: 2, jac: 'difference', par: [{name: 'iapp', value: 0.26}, {name: 'phi', value: 0.2}],
   norm: 0.29, var: 'V', u: -0.2, per: 14.4, x: 0.26, y: -0.2, y2: -0.2};
 const hbStab = {periodic: 0, circle: [[0.9, 0.42], [0.9, -0.42]], eig: [[6e-5, 0.435], [6e-5, -0.435]]};
 
-test('autoinfo holds the strip and the circle; a new window or a closed one has neither', () => {
-  let s = ev(lecar(), {ev: 'auto.info', info: hbInfo, stab: hbStab});
+test('autoxinfo holds the strip and the circle; a new window or a closed one has neither', () => {
+  let s = ev(lecar(), {ev: 'autox.info', info: hbInfo, stab: hbStab});
   assert.deepEqual(s.diagram.info, hbInfo);
   assert.deepEqual(s.diagram.stab, hbStab);
   assert.equal(s.diagram.infoEvents, 1);
-  s = ev(s, {ev: 'auto.info', info: null, stab: hbStab});
+  s = ev(s, {ev: 'autox.info', info: null, stab: hbStab});
   assert.equal(s.diagram.info, null);
   assert.equal(s.diagram.infoEvents, 2);
   s = ev(s, {ev: 'window.destroyed', kind: 'diagram', win: 'diagram_1'});
@@ -352,7 +352,7 @@ test("a first point's circle, all zeros, is not computed: no points, no zeros li
   assert.equal(stabComputed({periodic: 0, circle: [[null, null]]} as never), true, 'not finite is a value, not "not computed"');
 });
 
-/* T30: the corner Fit (and the AUTO tools' own Fit) fits the view to the
+/* T30: the corner Fit (and the autoX tools' own Fit) fits the view to the
    branches shown, client-side; the earlier ones Clear hid never widen it. */
 test('fitRanges: every plotted point lies in range, with a small margin', () => {
   const d = activeView(lecar().diagram), m = buildDiagramModel(d.points, d.labels, d.axes);
@@ -385,17 +385,17 @@ test('fitRanges: no branches yet is [0, 1], not NaN or an inverted range', () =>
   assert.deepEqual(r, {x: {min: 0, max: 1}, y: {min: 0, max: 1}});
 });
 
-test("autoview (W65): the branches Clear hid, whether they are shown and the zoom are the core's", () => {
+test("autoxview (W65): the branches Clear hid, whether they are shown and the zoom are the core's", () => {
   let s = lecar();
   const n = activeView(s.diagram).points.x.length;
-  s = reduce(s, {type: 'event', ev: {ev: 'auto.view', earlier: n, show: 1, active: 'diagram_1', views: [{name:'diagram_1',zoom: {x: [0, 1], y: null}}]} as never});
+  s = reduce(s, {type: 'event', ev: {ev: 'autox.view', earlier: n, show: 1, active: 'diagram_1', views: [{name:'diagram_1',zoom: {x: [0, 1], y: null}}]} as never});
   assert.equal(s.diagram.earlier, n);
   assert.equal(s.diagram.showEarlier, true);
   assert.deepEqual(activeView(s.diagram).viewport, {x: {min: 0, max: 1}, y: null});
-  s = reduce(s, {type: 'event', ev: {ev: 'auto.view', earlier: n, show: undefined, active: 'diagram_1', views: [{name:'diagram_1'}]} as never});
+  s = reduce(s, {type: 'event', ev: {ev: 'autox.view', earlier: n, show: undefined, active: 'diagram_1', views: [{name:'diagram_1'}]} as never});
   assert.equal(s.diagram.showEarlier, true, "without show and zoom (a change of the user's on its way) they stay");
   assert.deepEqual(activeView(s.diagram).viewport, {x: {min: 0, max: 1}, y: null});
-  s = reduce(s, {type: 'event', ev: {ev: 'auto.view', earlier: 0, show: 0, active: 'diagram_1', views: [{name:'diagram_1',zoom: {x: null, y: null}}]} as never});
+  s = reduce(s, {type: 'event', ev: {ev: 'autox.view', earlier: 0, show: 0, active: 'diagram_1', views: [{name:'diagram_1',zoom: {x: null, y: null}}]} as never});
   assert.equal(s.diagram.earlier, 0);
   assert.equal(s.diagram.showEarlier, false);
   assert.deepEqual(activeView(s.diagram).viewport, {x: null, y: null});
@@ -404,16 +404,16 @@ test("autoview (W65): the branches Clear hid, whether they are shown and the zoo
 test("views (W50): each view its own axes, points and zoom; `views` resizes; the active one is the core's", () => {
   let s = lecar();
   const one = activeView(s.diagram);
-  s = ev(s, {ev: 'auto.diagram', op: 'views', n: 2, names: ['diagram_1', 'diagram_2']});
+  s = ev(s, {ev: 'autox.diagram', op: 'views', n: 2, names: ['diagram_1', 'diagram_2']});
   assert.equal(s.diagram.views.length, 2);
   assert.equal(s.diagram.views[0], one, 'view 0 untouched');
   assert.equal(pointCount(s.diagram.views[1].points), 0, 'a new view starts empty');
-  s = ev(s, {ev: 'auto.diagram', view: 'diagram_2', op: 'reset', keep: 0, ...axes, plot: 'norm', ylabel: 'Norm'});
-  s = ev(s, {ev: 'auto.diagram', view: 'diagram_2', op: 'add', from: 0, runs: [{br: 1, pt: 1, ty: 1, stable: true, periodic: false, d: 1, c: '#ff0000', lw: 2, x: [0.1, 0.2], y: [1, 2]}]});
+  s = ev(s, {ev: 'autox.diagram', view: 'diagram_2', op: 'reset', keep: 0, ...axes, plot: 'norm', ylabel: 'Norm'});
+  s = ev(s, {ev: 'autox.diagram', view: 'diagram_2', op: 'add', from: 0, runs: [{br: 1, pt: 1, ty: 1, stable: true, periodic: false, d: 1, c: '#ff0000', lw: 2, x: [0.1, 0.2], y: [1, 2]}]});
   assert.equal(s.diagram.views[1].axes?.ylabel, 'Norm');
   assert.equal(pointCount(s.diagram.views[1].points), 2);
   assert.equal(s.diagram.views[0], one, "another view's events leave view 0 alone");
-  s = reduce(s, {type: 'event', ev: {ev: 'auto.view', earlier: 0, show: 0, active: 'diagram_2',
+  s = reduce(s, {type: 'event', ev: {ev: 'autox.view', earlier: 0, show: 0, active: 'diagram_2',
     views: [{name:'diagram_1',zoom: {x: null, y: null}}, {name:'diagram_2',zoom: {x: [0, 0.5], y: null}}]} as never});
   assert.equal(s.diagram.active, 1);
   assert.equal(activeView(s.diagram), s.diagram.views[1]);
@@ -421,7 +421,7 @@ test("views (W50): each view its own axes, points and zoom; `views` resizes; the
   assert.deepEqual(s.diagram.views[0].viewport, {x: null, y: null});
   s = reduce(s, {type: 'diagram', action: {type: 'activate', view: 0}});
   assert.equal(s.diagram.active, 0, 'a click makes a view active at once');
-  s = ev(s, {ev: 'auto.diagram', op: 'views', n: 1, names: ['diagram_1']});
+  s = ev(s, {ev: 'autox.diagram', op: 'views', n: 1, names: ['diagram_1']});
   assert.equal(s.diagram.views.length, 1);
   assert.equal(s.diagram.views[0], one);
 });

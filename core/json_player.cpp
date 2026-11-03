@@ -148,7 +148,7 @@ bool valid_position(const char *at)
     };
     return what == "other" || (what == "ani" && count("frame"))
         || (what == "integrate" && count("rows"))
-        || (what == "auto" && count("branch") && count("point"));
+        || (what == "autox" && count("branch") && count("point"));
 }
 
 /* the step of line, or an error saying why it cannot be played */
@@ -765,7 +765,7 @@ int player_controls(xpp::Session &s)
                               && p.frame >= get_int(at, "frame", 0))
             || (what == "integrate" && p.what == xpp::job::Reported::rows
                 && p.rows >= get_int(at, "rows", 0))
-            || (what == "auto" && p.what == xpp::job::Reported::point
+            || (what == "autox" && p.what == xpp::job::Reported::point
                 && p.branch == get_int(at, "branch", 0) && p.point >= get_int(at, "point", 0))
             || (what == "other" && p.what == xpp::job::Reported::nothing);
         if (!reached) break;

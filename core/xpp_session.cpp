@@ -2,8 +2,8 @@
    files that carry a model (.snapx): see xpp_session.h. Their
    pure part (the members' names, the manifest, the model's members) is
    snapx.cpp; this file writes and reads the members, each through the
-   module that owns its format: the settings (setx_file.cpp), AUTO's
-   members (xpp_session_auto_io.cpp), NPZ (data_formats.cpp), the zip (xpp_zip.cpp).
+   module that owns its format: the settings (setx_file.cpp), autoX's
+   members (xpp_session_autox_io.cpp), NPZ (data_formats.cpp), the zip (xpp_zip.cpp).
    Opening one is all or nothing (W125): every member is read whole
    (the settings syntax, setx.h, or xpp_io.h's Lines) and checked
    (read_session), its errors at the member's line ("name.snapx/windows.setx:12"),
@@ -25,8 +25,8 @@
 #include "setx_file.h"
 #include "setx.h"
 #include "nullcline.h"
-#include "diagram.h" /* redraw_diagram; pulls in auto_nox.h */
-#include "xpp_session_auto.h"
+#include "diagram.h" /* redraw_diagram; pulls in autox_nox.h */
+#include "xpp_session_autox.h"
 #include "data_formats.h"
 #include "browse.h"
 #include "graf_par.h"
@@ -65,7 +65,7 @@ bool name_or_ask(const xpp::Model &m, const char *title, std::string_view wild, 
     return true;
 }
 
-/* ---- windows.setx: the plot windows, AUTO's view, the added columns ---- */
+/* ---- windows.setx: the plot windows, autoX's view, the added columns ---- */
 
 void write_range(xpp::setx::Out &out, const xpp::AxisRange &r, std::string_view key)
 {
@@ -113,8 +113,8 @@ xpp::Result<std::string> windows_text(const xpp::Session &s)
     out.end_list();
     out.text("active",s.plot_windows.graph[s.plot_windows.active].name);
     out.flag("browser_hidden", s.tools_hidden.browser);
-    const xpp::AutoView &v = s.auto_view;
-    out.begin("auto_view");
+    const xpp::AutoxView &v = s.autox_view;
+    out.begin("autox_view");
     out.whole("earlier", v.earlier);
     out.flag("show_earlier", v.show_earlier);
     out.end();
@@ -143,7 +143,7 @@ struct WindowsRead {
     std::vector<SavedWindow> windows;
     int active = 0;
     bool browser_hidden = false;
-    xpp::AutoView auto_view;
+    xpp::AutoxView autox_view;
     std::vector<xpp::AddedColumn> added;
 };
 
@@ -205,9 +205,9 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &e
     if(current==r.windows.end())file.fail(*file.member("active"),xpp::format("Unknown window \"{}\"",active));
     r.active=static_cast<int>(current-r.windows.begin());
     file.flag("browser_hidden", r.browser_hidden);
-    if (std::optional<xpp::setx::Block> v = file.group("auto_view")) {
-        v->whole("earlier", r.auto_view.earlier);
-        v->flag("show_earlier", r.auto_view.show_earlier);
+    if (std::optional<xpp::setx::Block> v = file.group("autox_view")) {
+        v->whole("earlier", r.autox_view.earlier);
+        v->flag("show_earlier", r.autox_view.show_earlier);
         v->done();
     }
     return r;
@@ -284,7 +284,7 @@ xpp::Result<std::string> marks_text(const xpp::Session &s)
         out.end_item();
     }
     out.end_list();
-    out.whole("freeze_each_run", s.frozen_curves.auto_freeze);
+    out.whole("freeze_each_run", s.frozen_curves.autox_freeze);
     out.begin_list("frozen_curves");
     for (int i = 0; i < static_cast<int>(s.frozen_curves.curve.size()); i++) {
         const CURVE &c = s.frozen_curves.curve[i];
@@ -359,7 +359,7 @@ struct MarksRead {
     std::vector<SavedLabel> labels;
     std::vector<SavedGrob> grobs;
     int next_annotation_id = 0;
-    int auto_freeze = 0;
+    int autox_freeze = 0;
     std::vector<SavedCurve> curves;
 };
 
@@ -448,7 +448,7 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
         g.number("y_end", o.ye);
         g.done();
     }
-    file.whole("freeze_each_run", r.auto_freeze);
+    file.whole("freeze_each_run", r.autox_freeze);
     std::vector<xpp::setx::Block> curves;
     xpp::snapx::memory_groups(file, "frozen_curves", curves, sizeof(SavedCurve) + sizeof(xpp::setx::Block), expanded_bytes);
     r.curves.reserve(curves.size());
@@ -510,7 +510,7 @@ void apply_marks(xpp::Session &s, MarksRead r)
     for (const SavedGrob &g : r.grobs)
         s.grobs.push_back(xpp::GROB{static_cast<float>(g.xs), static_cast<float>(g.ys), static_cast<float>(g.xe), static_cast<float>(g.ye),
                                     g.size, g.id, w(g.window), g.type, g.color});
-    s.frozen_curves.auto_freeze = r.auto_freeze;
+    s.frozen_curves.autox_freeze = r.autox_freeze;
     const std::size_t slots = r.curves.empty() ? 0 : static_cast<std::size_t>(r.curves.back().slot) + 1;
     s.frozen_curves.curve.resize(slots);
     s.frozen_curves.points.resize(slots);
@@ -597,7 +597,7 @@ xpp::Result<std::string> sliders_text(const xpp::Session &s)
 /* a session file, read whole: every member, before any is applied */
 struct SessionRead {
     xpp::Settings set;
-    std::optional<xpp::snapx::auto_members::Members> diagram;
+    std::optional<xpp::snapx::autox_members::Members> diagram;
     WindowsRead windows;
     std::optional<xpp::DataTable> data;
     RandomRead random;
@@ -645,9 +645,9 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
     if (!set) return std::unexpected(set.error());
     r.set = std::move(*set);
 
-    /* Every AUTO-capable session holds its settings/views, with or without a diagram. */
+    /* Every autoX-capable session holds its settings/views, with or without a diagram. */
     {
-        xpp::Result<xpp::snapx::auto_members::Members> read = xpp::snapx::auto_members::members_read(s, mem, xpp::snapx::auto_folder, f.name);
+        xpp::Result<xpp::snapx::autox_members::Members> read = xpp::snapx::autox_members::members_read(s, mem, xpp::snapx::autox_folder, f.name);
         if (!read) return std::unexpected(read.error());
         r.diagram = std::move(*read);
     }
@@ -691,23 +691,23 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
 }
 
 /* r, read whole from f, applied to s (its model's session after the
-   front end's set-up): the values, AUTO's diagram, the windows and what
+   front end's set-up): the values, autoX's diagram, the windows and what
    they show, every window drawn. The error, nothing applied, when the data
-   table or AUTO's solutions cannot be put in place. */
+   table or autoX's solutions cannot be put in place. */
 xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
 {
-    /* what can fail first: the data table's room, AUTO's solution file */
+    /* what can fail first: the data table's room, autoX's solution file */
     if (r.data && r.data->rows() > 0 && put_stored_data(s, *r.data) == 0)
         return xpp::fail("session", xpp::format("its {} cannot be put in the data table", xpp::snapx::data_member), xpp::Place{f.name});
     if (r.diagram)
-        if (xpp::Result<> d = xpp::snapx::auto_members::restore_members(s, std::move(*r.diagram)); !d) return d;
+        if (xpp::Result<> d = xpp::snapx::autox_members::restore_members(s, std::move(*r.diagram)); !d) return d;
     if (r.data) s.numerics.last_seed = r.data->seed;
     xpp::apply_settings(s, r.set, true);
 
     apply_windows(s, r.windows);
     if (r.diagram) {
-        s.auto_view.earlier = std::min(r.windows.auto_view.earlier, diagram_count(s.diagram));
-        s.auto_view.show_earlier = r.windows.auto_view.show_earlier && s.auto_view.earlier > 0;
+        s.autox_view.earlier = std::min(r.windows.autox_view.earlier, diagram_count(s.diagram));
+        s.autox_view.show_earlier = r.windows.autox_view.show_earlier && s.autox_view.earlier > 0;
     }
     s.browser.added_columns = std::move(r.windows.added);
 
@@ -772,7 +772,7 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
         return std::unexpected(done.error());
     /* a diagram exists: without its orbits, the save is refused */
     {
-        if (const xpp::Result<> added = xpp::snapx::auto_members::add_members(s, *entries, xpp::snapx::auto_folder); !added)
+        if (const xpp::Result<> added = xpp::snapx::autox_members::add_members(s, *entries, xpp::snapx::autox_folder); !added)
             return std::unexpected(added.error());
     }
     if (const xpp::Result<> done = member(xpp::snapx::windows_member, windows_text(s)); !done) return std::unexpected(done.error());

@@ -45,10 +45,10 @@ inline constexpr char WINDOW_SELECTED[] = "window.selected";
 inline constexpr char WINDOW_DESTROYED[] = "window.destroyed";
 inline constexpr char WINDOW_RENAMED[] = "window.renamed";
 inline constexpr char WINDOW_LIST[] = "window.list";
-inline constexpr char AUTO_DIAGRAM[] = "auto.diagram";
-inline constexpr char AUTO_INFO[] = "auto.info";
-inline constexpr char AUTO_SETTINGS[] = "auto.settings";
-inline constexpr char AUTO_VIEW[] = "auto.view";
+inline constexpr char AUTOX_DIAGRAM[] = "autox.diagram";
+inline constexpr char AUTOX_INFO[] = "autox.info";
+inline constexpr char AUTOX_SETTINGS[] = "autox.settings";
+inline constexpr char AUTOX_VIEW[] = "autox.view";
 inline constexpr char ARRAY_PLOT_SHOWN[] = "array_plot.shown";
 inline constexpr char ANIMATION_STATE[] = "animation.state";
 inline constexpr char ANIMATION_FRAME[] = "animation.frame";
@@ -84,6 +84,6 @@ inline std::string open(std::string_view name)
 
 /* the heavy data events a client may subscribe to (events.subscribe), in hello's `features` order */
 inline constexpr std::array<std::string_view, 11> STREAMS = {PLOT_SERIES, PLOT_SHOWN, NULLCLINE_CURVES, DIRFIELD_FIELD, PLOT_MARKS, ANIMATION_FRAME,
-                                                             AUTO_INFO, AUTO_SETTINGS, RUN_NUMERICS, WINDOW_LIST, RECORDING_PLAYER};
+                                                             AUTOX_INFO, AUTOX_SETTINGS, RUN_NUMERICS, WINDOW_LIST, RECORDING_PLAYER};
 
 } // namespace xpp::events

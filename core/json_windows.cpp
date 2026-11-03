@@ -130,11 +130,11 @@ void j_window_renamed(xpp::Session &, std::string_view old_name, std::string_vie
     send_buf(event);
 }
 
-void j_auto_closed(xpp::Session &s, std::string_view name)
+void j_autox_closed(xpp::Session &s, std::string_view name)
 {
     send_window(xpp::events::WINDOW_DESTROYED,name,0,0,"","diagram");
     diag_forget();
-    auto_data_forget(s);
+    autox_data_forget(s);
 }
 
 void j_tool_window_closed(xpp::Session &, std::string_view name, std::string_view kind) { send_window(xpp::events::WINDOW_DESTROYED, name, 0, 0, "", kind); }
@@ -279,7 +279,7 @@ void play_film(const xpp::Session &s, const char *how)
 
 void j_movie_play_back(xpp::Session &s) { play_film(s, "play"); }
 
-void j_movie_auto_play(xpp::Session &s) { play_film(s, "autoplay"); }
+void j_movie_autox_play(xpp::Session &s) { play_film(s, "autoplay"); }
 
 xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fmat)
 {

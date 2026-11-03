@@ -28,7 +28,7 @@ int menu_index(const XppMenu *m, int ch);
 
 extern const XppMenu menu_method, menu_save_what;
 
-/* AUTO's pop-up menus; menu_auto_special has no title (its caller's) */
-extern const XppMenu menu_auto_special;
+/* autoX's pop-up menus; menu_autox_special has no title (its caller's) */
+extern const XppMenu menu_autox_special;
 
 } // namespace xpp

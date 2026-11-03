@@ -2,7 +2,7 @@
 version 4
 
 # CVODE stopped by the Poincare map's "Cannot zero RHS": a maximum of x
-# where its right-hand side is 0 on both sides (tools/autocheck.py's
+# where its right-hand side is 0 on both sides (tools/autoxcheck.py's
 # memory section, W117)
 x' = if t<1 then 1 else 0
 y' = -y

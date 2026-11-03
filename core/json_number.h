@@ -16,7 +16,7 @@ namespace xpp::json {
 
 /* Whether v is a JSON number: every finite double is one (any magnitude up to DBL_MAX); NaN and the
    infinities are not, JSON has neither. The writers below use this, and so do the other JSON number
-   writers (auto_settings.cpp, numerics_settings.cpp). */
+   writers (autox_settings.cpp, numerics_settings.cpp). */
 bool json_finite(double v);
 
 /* Appends v to s: "null" when not finite, else a 'g' conversion with sig

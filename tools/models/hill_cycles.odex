@@ -10,7 +10,7 @@ version 4
 #   (d = 1/9, 4/9), 1:2 (R2) at sqrt(d) = 1/2 (d = 1/4).
 #   period doubling (a multiplier -1) inside the Mathieu tongue about d = 1/4 for q != 0, whose curve in
 #   (c, d) is a closed lens |c+mu| = s(d)/pi ending in two R2 at c = -mu, d about 1/4 -+ q*sqrt(mu)/2.
-# tests/auto/hill_cycles_torus.json and hill_cycles_pd.json run them; docs/auto-references.md compares
+# tests/autox/hill_cycles_torus.json and hill_cycles_pd.json run them; docs/auto-references.md compares
 # AUTO-07p 0.9.4's labelled points with these places. xppautX's detection on cycle curves is W400's.
 x' = mu*x-y-x*(x*x+y*y)
 y' = x+mu*y-y*(x*x+y*y)

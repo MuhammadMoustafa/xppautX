@@ -1,0 +1,131 @@
+{
+  "model": "tools/models/forced_predator_prey.odex",
+  "reason": "W565 (#630): forced_pp_pd (the periodically forced predator-prey model of Kuznetsov, Muratori and Rinaldi 1992, tools/models/forced_predator_prey.odex; description W403) with the mesh of the cycles and of the period-doubling curve pd_up cut to 15 intervals and pd_up's step to 0.005: pd_up passes the 1:2 resonance (R2) at (eps, b0) = (1.94893, 2.57025), where the two multipliers near -1 are both -1 (the Poincare map of the model's own equations, docs/studies/w557_special_point_check.py), and AUTO-07p labels it in all 21 runs of NTST 10, 15, 20, 30, 40, 60 and 80 with step 0.005, 0.01 and 0.02. xppautX lost it at this setting, where its test (AUTO-07p's abs(EV(3))-1 of the multiplier that is not the imposed one) jumps as the pair swaps roles; its location used up max_location_iterations. docs/studies/w557_r2_repro.py runs all 21.",
+  "parameters": {
+    "b0": 0.4,
+    "eps": 0.5
+  },
+  "initial_conditions": {
+    "x": 0.4,
+    "y": 0.24,
+    "u": 0.0,
+    "v": 0.0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "m",
+      "autox": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 50,
+        "parameter_min": -0.2,
+        "parameter_max": 1,
+        "mesh_intervals": 15,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "m",
+      "autox": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 50,
+        "parameter_min": -0.2,
+        "parameter_max": 1,
+        "mesh_intervals": 15,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "pd_up",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "period_doubling",
+        "index": 1
+      },
+      "parameters": [
+        "eps",
+        "b0"
+      ],
+      "autox": {
+        "step_size": 0.005,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 400,
+        "output_every": 50,
+        "parameter_min": 0,
+        "parameter_max": 2,
+        "mesh_intervals": 15,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "pd_up",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "quantity": "par",
+      "cause": "W565 (#630): at 15 mesh intervals AUTO-07p's own R2 is off the true one (the Poincare map of the model's own equations, trace -2 and determinant 1, numpy/scipy: eps 1.948933855, b0 2.570226715) by 6.1e-6 in eps and 9.0e-5 in b0, xppautX's by 4.9e-8 and 1.2e-6; the programs' R2 differ by 6.1e-6 in par, where AUTO-07p's location of a jump of abs(EV(3))-1 stops short of the resonance. No tolerance is widened."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "pd_up",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "quantity": "norm",
+      "cause": "W565 (#630): at 15 mesh intervals AUTO-07p's own R2 is off the true one (the Poincare map of the model's own equations, trace -2 and determinant 1, numpy/scipy: eps 1.948933855, b0 2.570226715) by 6.1e-6 in eps and 9.0e-5 in b0, xppautX's by 4.9e-8 and 1.2e-6; the programs' R2 differ by 6.1e-6 in norm, the same displacement along the curve. No tolerance is widened."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "pd_up",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "quantity": "par2",
+      "cause": "W565 (#630): at 15 mesh intervals AUTO-07p's own R2 is off the true one (the Poincare map of the model's own equations, trace -2 and determinant 1, numpy/scipy: eps 1.948933855, b0 2.570226715) by 6.1e-6 in eps and 9.0e-5 in b0, xppautX's by 4.9e-8 and 1.2e-6; the programs' R2 differ by 8.9e-5 in par2, the same displacement along the curve. No tolerance is widened."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "pd_up",
+      "side": "ours",
+      "type": "resonance_1_2",
+      "index": 1,
+      "quantity": "spectrum",
+      "cause": "W565 (#630): at 15 mesh intervals AUTO-07p's own R2 is off the true one (the Poincare map of the model's own equations, trace -2 and determinant 1, numpy/scipy: eps 1.948933855, b0 2.570226715) by 6.1e-6 in eps and 9.0e-5 in b0, xppautX's by 4.9e-8 and 1.2e-6; and the two multipliers near -1 coalesce there, so their split moves as the square root of a perturbation: xppautX's are the real -1.00007 and -0.99993, AUTO-07p's -0.99995 +- 9.3e-4i. No tolerance is widened."
+    }
+  ],
+  "xppaut_skip": "no XPPAUT 8.0 reference for this mesh and step: the card asks for xppautX's own location of the R2 (W565, #630), and XPPAUT 8.0 does not label strong resonances on a two-parameter cycle curve (docs/xppaut-findings.md finding 71)"
+}

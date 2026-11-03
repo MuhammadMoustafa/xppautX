@@ -16,14 +16,14 @@ export const PROTOCOL = 4;
 export interface AboutPart {text: string; url?: string}
 export type AboutLine = AboutPart[];
 
-/** a point type of AUTO, as hello gives it */
+/** a point type of autoX, as hello gives it */
 export interface PointType {
   name: string;
   label: string;
   mark: string;
 }
 
-export interface AutoRunTable {
+export interface AutoxRunTable {
   kinds: string[];
   current: string[];
   rows: {point: string; family: string; kinds: string[]; switch: string[]}[];
@@ -52,8 +52,8 @@ export interface HelloEvent {
   quit: {question: string; recording: string; choices: string[]; keys: string};
   /** the user's keymap as the core read it (W211, store/keymap.ts) */
   keymap: KeymapInfo;
-  /** AUTO's Run: the kinds, the kinds a start from the current state takes, and one row for each start point type (core/auto_run.h) */
-  auto_run: AutoRunTable;
+  /** autoX's Run: the kinds, the kinds a start from the current state takes, and one row for each start point type (core/autox_run.h) */
+  autox_run: AutoxRunTable;
   /** every command, with its kind (a key's is its menu item's: "") and whether it is a step */
   commands: CommandKind[];
   /** what the core takes: the largest upload (bytes), the most rows and columns of one browser block */
@@ -72,7 +72,7 @@ export interface HelloEvent {
   window_names: {main: string; auto: string; ani: string; aplot: string; browser: string};
   lists: string[][];
   model_names: string[];
-  /** every point type: its name (the only input), its label and its mark (core/auto_codes.h's one table) */
+  /** every point type: its name (the only input), its label and its mark (core/autox_codes.h's one table) */
   point_types: PointType[];
   userbuttons: string[];
   /** the colour scales the core has, by name (the array plot's choice) */
@@ -356,10 +356,10 @@ export interface RunsEvent {
   }[];
 }
 
-/** AUTO's diagram display (docs/protocol.md "Display state"): the branches before `earlier`
+/** autoX's diagram display (docs/protocol.md "Display state"): the branches before `earlier`
     are those computed before Clear, `show`n or not, the active view and each view's zoom (W50) */
-export interface AutoViewEvent {
-  ev: 'auto.view';
+export interface AutoxViewEvent {
+  ev: 'autox.view';
   earlier: number;
   show?: number;
   active?: string;
@@ -674,7 +674,7 @@ export type XppEvent =
   | SeriesEndEvent
   | PlotsEvent
   | RunsEvent
-  | AutoViewEvent
+  | AutoxViewEvent
   | NullclinesEvent
   | DfieldEvent
   | MarksEvent
@@ -710,12 +710,12 @@ export type XppEvent =
   | {ev: 'session.bye'}
   /** the command's computation was cancelled: where it got to */
   | {ev: 'job.stopped'; at: {what: string; [k: string]: unknown}}
-  /* every other event (auto.diagram: store/diagram.ts reads it by its op) */
-  | {ev: 'auto.diagram' | 'session.ping'; [k: string]: unknown}
-  /* AUTO's info strip and stability circle (store/diagram.ts AutoInfoEvent) */
-  | {ev: 'auto.info'; [k: string]: unknown}
-  /* AUTO's settings (store/autoSettings.ts AutoSettings) */
-  | {ev: 'auto.settings'; [k: string]: unknown}
+  /* every other event (autox.diagram: store/diagram.ts reads it by its op) */
+  | {ev: 'autox.diagram' | 'session.ping'; [k: string]: unknown}
+  /* autoX's info strip and stability circle (store/diagram.ts AutoxInfoEvent) */
+  | {ev: 'autox.info'; [k: string]: unknown}
+  /* autoX's settings (store/autoxSettings.ts AutoxSettings) */
+  | {ev: 'autox.settings'; [k: string]: unknown}
   /** the main numerics (docs/protocol.md "The numerics as data") */
   | {ev: 'run.numerics'; fields: NumericsField[]};
 

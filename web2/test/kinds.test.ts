@@ -13,7 +13,7 @@ const may = (cmd: Command, computing: boolean, asking = false) =>
 test('W95: each action has the kind hello gives it', () => {
   assert.equal(kindOf(HELLO, {cmd: 'run.initial'}), 'computation');
   assert.equal(kindOf(HELLO, {cmd:'window.create'}), 'view');
-  assert.equal(kindOf(HELLO, {cmd:'auto.run'}), 'computation');
+  assert.equal(kindOf(HELLO, {cmd:'autox.run'}), 'computation');
   assert.equal(kindOf(HELLO, {cmd:'key',key:'g'}), null);
   assert.equal(kindOf(HELLO, {cmd: 'browser.export', file: 'x'}), 'data');
   assert.equal(kindOf(HELLO, {cmd: 'browser.page', from_row: 0, count: 10}), 'view');
@@ -29,8 +29,8 @@ test('startup prompts accept answers and cancellation before hello', () => {
 });
 
 test('W95: controls, views and settings run during a computation; questions allow controls and settings', () => {
-  for (const cmd of ['run.abort','window.create','run.configure','auto.configure_numerics']) assert.ok(may({cmd},true));
-  for (const cmd of ['run.initial','browser.export','auto.run','unknown']) assert.ok(!may({cmd},true));
+  for (const cmd of ['run.abort','window.create','run.configure','autox.configure_numerics']) assert.ok(may({cmd},true));
+  for (const cmd of ['run.initial','browser.export','autox.run','unknown']) assert.ok(!may({cmd},true));
   assert.ok(may({cmd:'run.configure'},true,true));
   assert.ok(may({cmd:'answer',id:1},false,true));
   assert.ok(!may({cmd:'window.create'},false,true));
@@ -48,7 +48,7 @@ test('W95: computing from the core\'s event to the command\'s done; a command th
   assert.equal(ev(s, {ev: 'done', status: 'ok'}).computing, false);
   s = reduce(reduce(s, {type: 'connection', open: true}), {type: 'event', ev: {ev: 'job.computing'}});
   assert.equal(reduce(s, {type: 'connection', open: false}).computing, false);
-  /* the AUTO view's Run is named by its key from hello */
-  s = reduce(ev(s, {ev: 'done', status: 'ok'}), {type: 'sent', cmd: {cmd:'auto.run'}});
-  assert.equal(s.running, 'AUTO');
+  /* the autoX view's Run is named by its key from hello */
+  s = reduce(ev(s, {ev: 'done', status: 'ok'}), {type: 'sent', cmd: {cmd:'autox.run'}});
+  assert.equal(s.running, 'autoX');
 });

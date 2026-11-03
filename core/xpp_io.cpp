@@ -325,7 +325,7 @@ bool TokenReader::read(int &x) noexcept
 
 /* fscanf "%ld"'s own grammar, one character of lookahead pushed back as
    fscanf pushes it back, so a field that follows with no space between
-   (AUTO's "%5ld" columns) is the next read's. */
+   (autoX's "%5ld" columns) is the next read's. */
 bool TokenReader::read(long long &x) noexcept
 {
     if (!state_ || !state_->has_input()) return false;

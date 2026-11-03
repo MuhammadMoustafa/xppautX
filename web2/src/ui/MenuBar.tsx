@@ -34,9 +34,9 @@ export function MenuBar() {
     {node.name} <kbd>{effectiveKeys(info, node.row).join(' / ')}</kbd></button></li>
     : <li key={node.name}><details><summary>{node.name}</summary><ul role="menu">{node.children.map(item)}</ul></details></li>;
   const tree = menuTree(registryRows(hello));
-  const order = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'AUTO', 'Windows', 'Help'];
+  const order = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'autoX', 'Windows', 'Help'];
   const windowNodes = tree.find(node => node.name === 'Windows')?.children ?? [];
-  const newWindows = windowNodes.filter(node => node.row?.id === 'window.create' || node.row?.id === 'auto.new_view')
+  const newWindows = windowNodes.filter(node => node.row?.id === 'window.create' || node.row?.id === 'autox.new_view')
     .sort((a,b) => Number(b.row?.id === 'window.create') - Number(a.row?.id === 'window.create'));
   const windowTools = windowNodes.filter(node => !newWindows.includes(node));
   return <nav class="app-menu" aria-label="Menu bar" ref={bar} onKeyDown={e => {
@@ -48,7 +48,7 @@ export function MenuBar() {
     }
   }}>{order.map(name => <details key={name} data-top-menu={name}><summary>{name}</summary><ul role="menu">
     {(name === 'Windows' ? newWindows : tree.find(node => node.name === name)?.children ?? []).map(item)}
-    {name === 'Windows' && ['Graphs', 'AUTO views', 'Others'].map((group, i) => <li key={group}><strong>{group}</strong><ul>
+    {name === 'Windows' && ['Graphs', 'autoX views', 'Others'].map((group, i) => <li key={group}><strong>{group}</strong><ul>
       {windows.filter(w => i === 0 ? w.kind === 'graph' : i === 1 ? w.kind === 'diagram' : !['graph','diagram'].includes(w.kind)).map(w => <li key={w.name}>
         <details data-window-menu={w.name}><summary>{w.shown ? '✓ ' : ''}{w.name}</summary><ul>
           {['window.select', 'window.rename', w.shown ? 'window.hide' : 'window.show', 'window.destroy'].map(id => <li key={id}>

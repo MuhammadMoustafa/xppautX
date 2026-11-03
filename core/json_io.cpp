@@ -123,8 +123,8 @@ void open_protocol_stdout(void)
     dup2(2, 1);
 }
 
-/* what is pending goes out before any other event: the AUTO diagram's
-   points (json_auto.cpp); before every event, from anywhere: the
+/* what is pending goes out before any other event: the autoX diagram's
+   points (json_autox.cpp); before every event, from anywhere: the
    client's session's */
 void flush_pending(void) { diag_flush(client(), 0); }
 

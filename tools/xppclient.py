@@ -118,7 +118,7 @@ def is_done(e):
 
 
 # every heavy data event a client subscribes to (hello's `features`)
-ALL_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'dirfield.field', 'plot.marks', 'animation.frame', 'auto.info', 'auto.settings', 'run.numerics', 'window.list', 'recording.player']
+ALL_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'dirfield.field', 'plot.marks', 'animation.frame', 'autox.info', 'autox.settings', 'run.numerics', 'window.list', 'recording.player']
 
 
 def save_permission(cmd):
@@ -284,13 +284,13 @@ class Server:
         self.events = queue.Queue()
         self.series = SeriesMirror()
         self.sent_at = {}
-        self.grabbed_label = self.grabbed_type = None  # the label and type of the point the last AUTO grab took: AUTO runs start from it
+        self.grabbed_label = self.grabbed_type = None  # the label and type of the point the last autoX grab took: autoX runs start from it
         threading.Thread(target=self._read, daemon=True).start()
         self.log = []
         self.log_thread = drain_stderr(self.proc, self.log.append)
 
-    def auto_dirs(self):
-        """AUTO's scratch directories of this process (xpp::files::make_temp_dir)"""
+    def autox_dirs(self):
+        """autoX's scratch directories of this process (xpp::files::make_temp_dir)"""
         tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
         pre = 'xppautoX-%d-' % self.proc.pid
         return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]
@@ -364,28 +364,28 @@ class Server:
             shutil.rmtree(self.run, ignore_errors=True)
 
 
-def open_auto(s):
-    """File/AUTO, waiting for its window and the command's completion."""
-    s.send(cmd='auto.open')
+def open_autox(s):
+    """File/autoX, waiting for its window and the command's completion."""
+    s.send(cmd='autox.open')
     events, end = s.collect(is_done)
     if end is None or not any(e.get('ev') == 'window.created' and e.get('win') == 'diagram_1' for e in events):
-        raise RuntimeError('File/AUTO did not open its window: ' + str(events))
+        raise RuntimeError('File/autoX did not open its window: ' + str(events))
     return events
 
 
 def run_any(s, key, timeout=120 * SLOW):
-    """Run the registry's named AUTO kind from the point the last grab took (its label, until the next grab),
+    """Run the registry's named autoX kind from the point the last grab took (its label, until the next grab),
     answering only a real continuation question; the events to done."""
     kind = {'s':'equilibrium','p':'periodic','e':'periodic','t':'two_parameter','b':'bvp'}[key]
     if key == 'p' and s.grabbed_type == 'fold': kind = 'two_parameter'  # the run a fold point's menu offered
-    if key == 'e':  # extend the branch of the label: the kind of the branch it is on, as autoinfo's start says the point allows
-        s.send(cmd='events.subscribe', events=['auto.info'])
+    if key == 'e':  # extend the branch of the label: the kind of the branch it is on, as autoxinfo's start says the point allows
+        s.send(cmd='events.subscribe', events=['autox.info'])
         shown, _ = s.collect(is_done)
-        start = next((e['start'] for e in reversed(shown) if e.get('ev') == 'auto.info' and e.get('start')), None)
+        start = next((e['start'] for e in reversed(shown) if e.get('ev') == 'autox.info' and e.get('start')), None)
         kinds = start['kinds'] if start else []
         kind = 'equilibrium' if 'equilibrium' in kinds else kinds[0] if kinds else kind
     label = s.grabbed_label
-    s.send(cmd='auto.run', kind=kind, **({'label': label} if label else {}))
+    s.send(cmd='autox.run', kind=kind, **({'label': label} if label else {}))
     events,_ = s.answer_asks(is_done, {'choice':lambda e:{'key':'y'}}, timeout=timeout)
     return events
 

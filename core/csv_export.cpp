@@ -10,20 +10,20 @@
 #include "xpp_ui.h"
 #include "diagram.h"
 #include "jacobian.h"
-#include "autevd.h"
+#include "autox_evd.h"
 #include "form_ode.h"
 #include <string>
 
 namespace {
 
 /* the model parameter name of the diagram point's axis (d->icp1/icp2), or "" */
-const char *par_name(const xpp::Session &s, xpp::AutoAxis icp)
+const char *par_name(const xpp::Session &s, xpp::AutoxAxis icp)
 {
-    const char *p = icp.is_parameter() ? auto_par_name(s, icp.index) : nullptr;
+    const char *p = icp.is_parameter() ? autox_par_name(s, icp.index) : nullptr;
     return p ? p : "";
 }
 
-/* AUTO's ibr and ntot without their sign (auto_f2c.h's abs macro rules
+/* autoX's ibr and ntot without their sign (autox_f2c.h's abs macro rules
    out std::abs here) */
 int unsigned_of(int v) { return v < 0 ? -v : v; }
 
@@ -60,13 +60,13 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
     for (const xpp::DIAGRAM &p : s.diagram.points) {
         const xpp::DIAGRAM *d = &p;
         xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot);
-        const std::string type_name(xpp::auto_point_kind_name(d->itp.kind));
+        const std::string type_name(xpp::autox_point_kind_name(d->itp.kind));
         double par1 = diagram_axis_value(*d,d->icp1);
         double par2 = d->icp2.is_parameter() ? diagram_axis_value(*d,d->icp2) : par1;
-        /* AUTO signs ibr and ntot by stability, which has its own column */
+        /* autoX signs ibr and ntot by stability, which has its own column */
         std::vector<std::string> row = {xpp::format("{}", unsigned_of(d->ibr)), xpp::format("{}", unsigned_of(d->ntot)),
             type_name, xpp::format("{}", d->lab), xpp::point_is_stable(type) ? "stable" : "unstable",
-            std::string(xpp::auto_calculation_name(d->flag2)), par_name(s, d->icp1), xpp::number(par1), par_name(s, d->icp2),
+            std::string(xpp::autox_calculation_name(d->flag2)), par_name(s, d->icp1), xpp::number(par1), par_name(s, d->icp2),
             xpp::number(par2), xpp::number(d->per), std::string(xpp::jacobian_name(d->jacobian))};
         for (int i = 0; i < m.nupar; i++) row.push_back(xpp::number(diagram_parameter(*d,i)));
         for (int i = 0; i < m.node; i++) row.push_back(xpp::number(d->uhi[i]));

@@ -170,7 +170,7 @@ function StepList() {
   );
 }
 
-/* a full view covers the plots: the AUTO view, the data table, the text
+/* a full view covers the plots: the autoX view, the data table, the text
    views, the animation, the array plot (each a fixed sheet or panel over
    the page) */
 function useCovered(): boolean {

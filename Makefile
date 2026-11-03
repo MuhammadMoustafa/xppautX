@@ -136,7 +136,7 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 # them is C++ (it brings the C++ runtime), else $(CC)
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
-SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_record json_player json_state json_windows json_auto json_ani json_model json_registry json_silent xppautx_main xpp_about xpp_http xpp_inbox)
+SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_record json_player json_state json_windows json_autox json_ani json_model json_registry json_silent xppautx_main xpp_about xpp_http xpp_inbox)
 # the window's (below): xpp_window, or on Linux the loader of its library;
 # xpp_webview is the web view library's own object (webview.o, below)
 WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader xpp_webview)
@@ -335,7 +335,7 @@ CORE_OBJECTS += $(BUILDDIR)/core_math_roundeven.o
 $(BUILDDIR)/core_math_roundeven.o: $(CORE_MATH_DIR)/roundeven.c $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CC) $(call NOLTO,$(OPT)) $(FPFLAGS) -fno-builtin -w -c $< -o $@
 endif
-# LINALG=lapack (W358, a comparison build, never shipped): AUTO's eigenvalues come from
+# LINALG=lapack (W358, a comparison build, never shipped): autoX's eigenvalues come from
 # Reference-LAPACK (third_party/lapack, Fortran, verbatim; DGEEV and DGGEV) through
 # tools/lapack-adapter/lapack_adapter.cpp instead of EISPACK's RG and QZ, to compare speed and
 # accuracy. core/xpp_math_eispack.cpp is compiled with those four names renamed, so the callers find the
@@ -365,7 +365,7 @@ $(BUILDDIR)/lapack_adapter.o: tools/lapack-adapter/lapack_adapter.cpp $(BUILDDIR
 	$(CXX) $(call NOLTO,$(CXXFLAGS)) -c $< -o $@
 $(BUILDDIR)/xpp_math_eispack.o: CXXFLAGS += -Drg=eispack_rg -Dqzhes=eispack_qzhes -Dqzit=eispack_qzit -Dqzval=eispack_qzval
 LINALG_LIBS = -lgfortran
-# the measuring tool of the comparison (tools/auto-profile/eig_accuracy.py): both libraries on dumped matrices
+# the measuring tool of the comparison (tools/autox-profile/eig_accuracy.py): both libraries on dumped matrices
 $(BUILDDIR)/eigcompare$(EXE): tools/lapack-adapter/eigcompare.cpp $(BUILDDIR)/libxppcore.a
 	$(CXX) $(call NOLTO,$(CXXFLAGS)) $< $(BUILDDIR)/libxppcore.a -o $@ -lgfortran -lm $(DLLIB) $(NETLIBS)
 else ifneq ($(LINALG),eispack)

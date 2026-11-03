@@ -44,7 +44,7 @@
 #include <string.h>
 #include <strings.h>
 #include "load_eqn.h"
-#include "auto_nox.h"
+#include "autox_nox.h"
 
 namespace xpp {
 
@@ -297,17 +297,17 @@ void eq_import(xpp::Session &s, double *y,int n)
   set_initial_data(s,{y,static_cast<size_t>(n)});
 
   if(n<20){
-    if(s.auto_state.homo_side==HomoclinicSide::Left){
+    if(s.autox_state.homo_side==HomoclinicSide::Left){
       for(i=0;i<n;i++)
-	s.auto_state.homo_l[i]=y[i];
+	s.autox_state.homo_l[i]=y[i];
       xpp::log(XPP_LOG_INFO, "Saved to left equilibrium\n");
     }
     else {
       for(i=0;i<n;i++)
-	s.auto_state.homo_r[i]=y[i];
+	s.autox_state.homo_r[i]=y[i];
       xpp::log(XPP_LOG_INFO, "Saved to right equilibrium\n");
     }
-    s.auto_state.homo_side=s.auto_state.homo_side==HomoclinicSide::Left?HomoclinicSide::Right:HomoclinicSide::Left;
+    s.autox_state.homo_side=s.autox_state.homo_side==HomoclinicSide::Left?HomoclinicSide::Right:HomoclinicSide::Left;
   }
    redraw_ics();
 }

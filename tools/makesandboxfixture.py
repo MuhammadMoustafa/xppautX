@@ -21,11 +21,11 @@ parser.add_argument('--server', required=True)
 parser.add_argument('--model', required=True)
 parser.add_argument('--output', required=True)
 args = parser.parse_args()
-RUN_TIMEOUT = 120  # seconds: the 200 ms model runs and AUTO's continuation, a safety ceiling
+RUN_TIMEOUT = 120  # seconds: the 200 ms model runs and autoX's continuation, a safety ceiling
 RUN_MS = 200  # the demo's first run and each continuation: short enough to record, long enough to move all eight states
 CONTINUE_TO_MS = 2 * RUN_MS  # the continuation's end time, matching the recorded note
-MIN_AUTO_POINTS = 20  # fewer means the continuation did not run across the Hopf and fold
-FOLD, HOPF = 'fold', 'hopf'  # AUTO's point types in diagram.csv (their names)
+MIN_AUTOX_POINTS = 20  # fewer means the continuation did not run across the Hopf and fold
+FOLD, HOPF = 'fold', 'hopf'  # autoX's point types in diagram.csv (their names)
 binary = str(Path(args.server).resolve())
 model = str(Path(args.model).resolve())
 output = Path(args.output).resolve()
@@ -60,17 +60,17 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         final = state(events)
         assert final['time'] == CONTINUE_TO_MS
 
-        command(server, cmd='recording.add_note', note='Open AUTO to continue the resting equilibrium in applied current Iapp.')
-        command(server, cmd='auto.open')
+        command(server, cmd='recording.add_note', note='Open autoX to continue the resting equilibrium in applied current Iapp.')
+        command(server, cmd='autox.open')
         command(server, cmd='recording.add_note', note='Use bounded equilibrium continuation in Iapp; allow the resting state norm.')
-        command(server, cmd='auto.configure_numerics', **{'mesh_intervals': 15, 'max_steps': 1500, 'output_every': 20,
+        command(server, cmd='autox.configure_numerics', **{'mesh_intervals': 15, 'max_steps': 1500, 'output_every': 20,
             'step_size': 1, 'max_step_size': 50, 'parameter_min': -500, 'parameter_max': 17500, 'norm_min': -200, 'norm_max': 200,
             'max_branch_switches': 5})
         command(server, cmd='recording.add_note', note='Show voltage V versus applied current Iapp, with fixed readable axes.')
-        command(server, cmd='auto.configure_plot', **{'plot_type': 'maximum', 'variable': 'V', 'parameter1': 'Iapp',
+        command(server, cmd='autox.configure_plot', **{'plot_type': 'maximum', 'variable': 'V', 'parameter1': 'Iapp',
             'x_min': -20, 'x_max': 200, 'y_min': -90, 'y_max': -35})
-        command(server, cmd='recording.add_note', note='Run steady-state continuation; AUTO marks stability changes and labelled special points.')
-        server.send(cmd='auto.run', kind='equilibrium')
+        command(server, cmd='recording.add_note', note='Run steady-state continuation; autoX marks stability changes and labelled special points.')
+        server.send(cmd='autox.run', kind='equilibrium')
         events, done = server.collect(is_done, timeout=RUN_TIMEOUT)
         assert done is not None and not any(e.get('error') for e in events), events[-5:]
         final = state(events)
@@ -92,15 +92,15 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         for key in ('pars', 'ics', 'now', 'time', 'rows'):
             assert played[key] == final[key], (key, played[key], final[key])
     with zipfile.ZipFile(snap) as archive:
-        auto_saved = {name: archive.read(name) for name in
+        autox_saved = {name: archive.read(name) for name in
             ('auto/diagram.csv', 'auto/solutions.s', 'auto/settings.txt', 'auto/views.txt')}
     # the branch lines (`branch,N,parameters...`) come before the points' header
-    points = list(csv.DictReader(line for line in auto_saved['auto/diagram.csv'].decode().splitlines()
+    points = list(csv.DictReader(line for line in autox_saved['auto/diagram.csv'].decode().splitlines()
                                  if not line.startswith('branch,')))
-    assert len(points) > MIN_AUTO_POINTS, points
+    assert len(points) > MIN_AUTOX_POINTS, points
     assert any(point['itp'] == HOPF for point in points), 'Hopf point must be retained'
     assert any(point['itp'] == FOLD for point in points), 'Fold point must be retained'
-    assert auto_saved['auto/solutions.s'], 'AUTO must retain labelled solutions'
+    assert autox_saved['auto/solutions.s'], 'autoX must retain labelled solutions'
     # Normal paced, automatic first playback exercises the user's path, in
     # addition to silent and fast-forward playback above.
     paced = Server(binary, str(rec))
@@ -115,7 +115,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         paced.collect(is_done)
         command(paced, cmd='session.save_as', file='paced.snapx', data=True)
         with zipfile.ZipFile(io.BytesIO(file_bytes(paced, 'paced.snapx'))) as archive:
-            for name, body in auto_saved.items():
+            for name, body in autox_saved.items():
                 assert archive.read(name) == body, 'Paced replay: ' + name
     finally:
         paced.close()
@@ -128,10 +128,10 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
             assert saved[key] == final[key], (key, saved.get(key), final[key])
         command(restored, cmd='session.save_as', file='restored.snapx', data=True)
         with zipfile.ZipFile(io.BytesIO(file_bytes(restored, 'restored.snapx'))) as archive:
-            for name, body in auto_saved.items():
+            for name, body in autox_saved.items():
                 assert archive.read(name) == body, 'Snapshot restore: ' + name
     finally:
         restored.close()
     for path in (rec, snap):
         shutil.copy2(path, output / path.name)
-    print('PASS: 8 live states; intact recording replays silently, fast and normally; snapshot restores %d trajectory rows and %d AUTO diagram lines with identical settings and solutions' % (final['rows'], len(points)))
+    print('PASS: 8 live states; intact recording replays silently, fast and normally; snapshot restores %d trajectory rows and %d autoX diagram lines with identical settings and solutions' % (final['rows'], len(points)))

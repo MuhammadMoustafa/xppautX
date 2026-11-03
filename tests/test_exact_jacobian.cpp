@@ -17,9 +17,9 @@
 #include "xpp_batch.h"
 #include "xpp_globals.h"
 #include "derived.h"
-#include "auto_c.h"
-#include "auto_unknowns.h"
-#include "auto_nox.h"
+#include "autox_c.h"
+#include "autox_unknowns.h"
+#include "autox_nox.h"
 #include "xpp_math.h"
 
 #include <algorithm>
@@ -250,7 +250,7 @@ void check_model(const char *path, bool map, bool forward = true)
     CHECK(central < 1e-6);
     for (std::size_t k = 0; k < dt.size(); ++k) worst = std::max(worst, std::fabs(dt_exact[k] - dt[k]) / std::max(1.0, std::fabs(dt_exact[k])));
     /* each parameter's column against a central difference, the derived
-       parameters worked out again from it as AUTO does */
+       parameters worked out again from it as autoX does */
     std::vector<double> fp(f.size()), fm(f.size()), column(f.size());
     for (int p = 0; p < m.nupar; ++p) {
         const int k = xpp::get_param_index(s, m.upar_names[static_cast<std::size_t>(p)]);
@@ -276,34 +276,34 @@ void check_model(const char *path, bool map, bool forward = true)
     if (forward) CHECK(worst < 1e-5);
 }
 
-/* AUTO's func with ijac 2 (JAC=1): dfdu and the continuation parameters'
+/* autoX's func with ijac 2 (JAC=1): dfdu and the continuation parameters'
    dfdp columns, exactly, against central differences of func itself; a
-   parameter of AUTO's own (the period, 10) has a column of 0; a map
+   parameter of autoX's own (the period, 10) has a column of 0; a map
    applied store_every times, through the chain rule */
-void check_auto_func(const char *path, double u0, double u1, int store_every = 1)
+void check_autox_func(const char *path, double u0, double u1, int store_every = 1)
 {
     std::string file = path;
     char name[] = "test_exact_jacobian";
     char *argv[] = {name, file.data(), nullptr};
     CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
-    xpp::init_auto_win(s);
+    xpp::init_autox_win(s);
     CHECK(xpp::ensure_exact_jacobian(s));
     s.numerics.jacobian = xpp::JACOBIAN_EXACT;
     s.numerics.store_every = store_every;
     constexpr integer n = 2;
-    const integer continued=s.auto_state.parameter_layout.solver_index(0);
-    std::vector<double> par(s.auto_lib.parameter_count, 0.0);
-    for (int k = 0; k < s.model().nupar; ++k) par[s.auto_state.parameter_layout.solver_index(k)] = s.parser.constants[static_cast<std::size_t>(s.model().upar_con[k])];
-    par[xpp::auto_unknown::period] = 6.3;
-    const integer icp[2] = {continued, xpp::auto_unknown::period};
+    const integer continued=s.autox_state.parameter_layout.solver_index(0);
+    std::vector<double> par(s.autox_lib.parameter_count, 0.0);
+    for (int k = 0; k < s.model().nupar; ++k) par[s.autox_state.parameter_layout.solver_index(k)] = s.parser.constants[static_cast<std::size_t>(s.model().upar_con[k])];
+    par[xpp::autox_unknown::period] = 6.3;
+    const integer icp[2] = {continued, xpp::autox_unknown::period};
     const double u[n] = {u0, u1};
     double f[n], dfdu[n * n];
-    std::vector<double> dfdp(n * s.auto_lib.parameter_count);
-    std::fill_n(dfdp.data(), n * s.auto_lib.parameter_count, -1.0);
+    std::vector<double> dfdp(n * s.autox_lib.parameter_count);
+    std::fill_n(dfdp.data(), n * s.autox_lib.parameter_count, -1.0);
     func(s, n, u, icp, 2, par.data(), 2, f, dfdu, dfdp.data());
     double worst = 0, fp[n], fm[n];
-    std::vector<double> unused(n * s.auto_lib.parameter_count);
+    std::vector<double> unused(n * s.autox_lib.parameter_count);
     for (integer j = 0; j < n; ++j) {
         double up[n] = {u[0], u[1]}, um[n] = {u[0], u[1]};
         up[j] += 1e-6;
@@ -323,9 +323,9 @@ void check_auto_func(const char *path, double u0, double u1, int store_every = 1
         const double d = (fp[i] - fm[i]) / 2e-6;
         worst = std::max(worst, std::fabs(dfdp[continued*n+i] - d) / std::max(1.0, std::fabs(d)));
     }
-    std::printf("%s: AUTO's func, exact against central differences, largest difference %.3g\n", path, worst);
+    std::printf("%s: autoX's func, exact against central differences, largest difference %.3g\n", path, worst);
     CHECK(worst < 1e-7);
-    CHECK(dfdp[xpp::auto_unknown::period * n] == 0 && dfdp[xpp::auto_unknown::period * n + 1] == 0);
+    CHECK(dfdp[xpp::autox_unknown::period * n] == 0 && dfdp[xpp::autox_unknown::period * n + 1] == 0);
 }
 
 } // namespace
@@ -340,8 +340,8 @@ int main()
     check_model("tools/models/exact_jacobian.odex", false);  /* derived, a user function, a fixed variable */
     check_model("examples/ode/mu26.odex", false, false);          /* W455: 15 states, gates near zero; the T1 model */
     check_model("examples/ode/motoneuron6c.odex", false, false);  /* W455: 25 states, concentrations near zero; the P2/E2 model */
-    check_auto_func("tools/models/exact_jacobian.odex", 0.3, -0.2);
-    check_auto_func("examples/ode/lecar.odex", -0.144, 0.03);
-    check_auto_func("examples/ode/cobweb2.odex", 0.4, 0.3, 3); /* a map, three steps a point */
+    check_autox_func("tools/models/exact_jacobian.odex", 0.3, -0.2);
+    check_autox_func("examples/ode/lecar.odex", -0.144, 0.03);
+    check_autox_func("examples/ode/cobweb2.odex", 0.4, 0.3, 3); /* a map, three steps a point */
     TEST_REPORT("exact jacobian");
 }

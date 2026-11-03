@@ -1,4 +1,4 @@
-#include "auto_c.h"
+#include "autox_c.h"
 #include "session.h"
 #include "xpp_math.h"
 #include <cmath>
@@ -19,7 +19,7 @@ struct conpar_parallel_arglist {
   integer *irf; /*array input size: na X nra*/
   integer *icf; /*array input: na X nca*/
   std::vector<std::vector<std::pair<integer,doublereal>>> *dlog=nullptr;
-  AutoGlobalScratch *scratch;
+  AutoxGlobalScratch *scratch;
   integer loop_start; /*scalar input*/
   integer loop_end; /*scalar output*/
 };
@@ -37,7 +37,7 @@ integer first_maximum(const double *row, integer from, integer to)
   return at;
 }
 
-/* The process function: the original AUTO called it per worker, on a
+/* The process function: the original autoX called it per worker, on a
    shared-memory machine or wrapped for message passing. */
 void conpar_process(const conpar_parallel_arglist *arg)
 {
@@ -132,7 +132,7 @@ void conpar_process(const conpar_parallel_arglist *arg)
 }
 
 void
-conpar_default_wrapper(AutoLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
+conpar_default_wrapper(AutoxLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
 
 {
     conpar_parallel_arglist data;
@@ -163,7 +163,7 @@ conpar_default_wrapper(AutoLib &lib, integer *nov, integer *na, integer *nra, in
       interval.reserve(terms);
     }
     data.dlog=&dlog;
-    lib.collocation->intervals(*na,[&](long begin,long end,AutoLib &worker) {
+    lib.collocation->intervals(*na,[&](long begin,long end,AutoxLib &worker) {
       conpar_parallel_arglist mine=data;
       mine.scratch=&worker.scratch;
       mine.loop_start=begin;
@@ -177,7 +177,7 @@ conpar_default_wrapper(AutoLib &lib, integer *nov, integer *na, integer *nra, in
 } // namespace
 
 int 
-conpar(AutoLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
+conpar(AutoxLib &lib, integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nbc, integer *nrc, doublereal *c, doublereal *d, integer *irf, integer *icf)
 {
   /* Aliases for the dimensions of the arrays */
   integer icf_dim1, irf_dim1;

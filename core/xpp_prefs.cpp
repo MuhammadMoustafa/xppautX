@@ -148,17 +148,17 @@ public:
 template <class IO, class P> void describe(IO &io, P &p)
 {
     io.paths("recent_models", p.recent_models, MAX_RECENT_MODELS, recent_problem);
-    io.count("auto_threads", p.auto_threads, AUTO_THREADS_WORD, auto_threads_problem);
+    io.count("autox_threads", p.autox_threads, AUTO_THREADS_WORD, autox_threads_problem);
     io.approvals("outside_paths", p.outside_paths, MAX_OUTSIDE_APPROVALS);
 }
 
 } // namespace
 
-std::optional<std::string> auto_threads_problem(long long n)
+std::optional<std::string> autox_threads_problem(long long n)
 {
     const unsigned most = cpu::logical_processors();
     if (n >= 1 && n <= static_cast<long long>(most)) return std::nullopt;
-    return xpp::format("AUTO's threads must be \"{}\" or a whole number from 1 to {} (this computer's logical processors)", AUTO_THREADS_WORD, most);
+    return xpp::format("autoX's threads must be \"{}\" or a whole number from 1 to {} (this computer's logical processors)", AUTO_THREADS_WORD, most);
 }
 
 Result<Preferences> parse_prefs(std::string_view text, std::string file)

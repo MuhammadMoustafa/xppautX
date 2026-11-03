@@ -390,7 +390,7 @@ export async function startWebView2(bin, dir, args) {
 }
 
 /* Ends a startServer() session: {"cmd":"session.quit","save":false} over its own /cmd (as
-   File/Quit does), so it removes its AUTO scratch folder and exits on its
+   File/Quit does), so it removes its autoX scratch folder and exits on its
    own (issue #32 -- a kill leaves the folder behind); a kill is only the
    fallback when quitting does not make it exit in time, or the request
    itself fails (a wedged server). */

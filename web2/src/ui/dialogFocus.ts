@@ -1,5 +1,5 @@
 /* A dialog's focus (W20): in on its first field when it opens, back to where
-   it was when it closes. One place for what AskDialog, AutoSettings and
+   it was when it closes. One place for what AskDialog, AutoxSettings and
    SliderDialog each did their own way. */
 import {useLayoutEffect, type Inputs} from 'preact/hooks';
 

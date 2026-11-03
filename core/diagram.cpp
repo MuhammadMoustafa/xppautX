@@ -1,7 +1,7 @@
-#include "auto_unknowns.h"
+#include "autox_unknowns.h"
 /* xpp_io.h first: it pulls in <optional>/<string_view>/<format>, which
-   auto_f2c.h's own min/max macros (included transitively below, through
-   auto_nox.h) break if they are already defined first. */
+   autox_f2c.h's own min/max macros (included transitively below, through
+   autox_nox.h) break if they are already defined first. */
 #include "xpp_files.h"
 #include <algorithm>
 #include <array>
@@ -12,8 +12,8 @@
 #include "xpp_ui.h"
 #include "xpp_log.h"
 #include "diagram.h"
-#include "auto_data.h"
-#include "autevd.h"
+#include "autox_data.h"
+#include "autox_evd.h"
 
 #include "my_svg.h"
 #include "picture.h"
@@ -28,7 +28,7 @@
 
 namespace {
 /* a new last point of n variables, zeroed */
-xpp::DIAGRAM *new_point(AutoDiagram &dg, std::size_t n)
+xpp::DIAGRAM *new_point(AutoxDiagram &dg, std::size_t n)
 {
   xpp::DIAGRAM &p=dg.points.emplace_back();
   p.size_variables(n);
@@ -36,11 +36,11 @@ xpp::DIAGRAM *new_point(AutoDiagram &dg, std::size_t n)
   return &p;
 }
 
-/* point d set to p, a point of AUTO's run, with flag2 (s: the run's
+/* point d set to p, a point of autoX's run, with flag2 (s: the run's
    kind of calculation and torus period) */
-void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, xpp::AutoCalculation flag2)
+void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, xpp::AutoxCalculation flag2)
 {
-  d->calc=s.auto_state.type_of_calc;
+  d->calc=s.autox_state.type_of_calc;
   d->ibr=p.ibr;
   d->ntot=p.ntot;
   d->itp=p.itp;
@@ -64,7 +64,7 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
   d->u0=p.u0;
   d->evr=p.evr;
   d->evi=p.evi;
-  d->torper=s.auto_state.blrtn.torper;
+  d->torper=s.autox_state.blrtn.torper;
   d->jacobian=p.jacobian;
 }
 } // namespace
@@ -78,7 +78,7 @@ double diagram_parameter(const xpp::DIAGRAM &point, int parameter)
   return 0.0;
 }
 
-double diagram_axis_value(const xpp::DIAGRAM &point, xpp::AutoAxis axis)
+double diagram_axis_value(const xpp::DIAGRAM &point, xpp::AutoxAxis axis)
 {
   if(axis.is_period())return point.per;
   return axis.is_parameter()?diagram_parameter(point,axis.index):0.0; /* unused numerical slots have no model value */
@@ -105,7 +105,7 @@ void diagram_record_branch(xpp::Session &s, xpp::DIAGRAM &point)
   point.branch=std::move(branch);
 }
 
-int diagram_count(const AutoDiagram &diagram)
+int diagram_count(const AutoxDiagram &diagram)
 {
   return static_cast<int>(diagram.points.size());
 }
@@ -119,14 +119,14 @@ void diagram_restore(xpp::Session &s, std::deque<xpp::DIAGRAM> points)
   s.diagram.points=std::move(points);
   int index=0;
   for(xpp::DIAGRAM &p:s.diagram.points)p.index=index++;
-  s.auto_state.diag_flag=true;
+  s.autox_state.diag_flag=true;
 }
 
 void start_diagram(xpp::Session &s, int n)
 {
   s.diagram.points.clear();
   new_point(s.diagram,static_cast<std::size_t>(n));
-  s.auto_state.diag_flag=false;
+  s.autox_state.diag_flag=false;
 }
 
 void edit_start(xpp::Session &s, const xpp::DIAGRAM &p)
@@ -140,30 +140,30 @@ void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p)
   edit_diagram(s,dnew,p,p.flag2);
 }
 
-xpp::DIAGRAM *last_diagram(AutoDiagram &diagram)
+xpp::DIAGRAM *last_diagram(AutoxDiagram &diagram)
 {
   return diagram.points.empty() ? NULL : &diagram.points.back();
 }
 
 const xpp::DIAGRAM *diagram_of_label(const xpp::Session &s, int lab)
 {
-  if(lab<=0||!s.auto_state.diag_flag)return NULL; /* not yet: the first point is not filled in yet */
+  if(lab<=0||!s.autox_state.diag_flag)return NULL; /* not yet: the first point is not filled in yet */
   for(const xpp::DIAGRAM &p:s.diagram.points)
     if(p.lab==lab)return &p;
   return NULL;
 }
 
 namespace {
-/* d is AUTO's point ntot of branch ibr, whichever sign either has */
+/* d is autoX's point ntot of branch ibr, whichever sign either has */
 bool is_point(const xpp::DIAGRAM &d, int ibr, int ntot) { return d.ibr==ibr&&abs(d.ntot)==abs(ntot); }
 }
 
-bool diagram_has(const AutoDiagram &diagram, int index,int ibr,int ntot)
+bool diagram_has(const AutoxDiagram &diagram, int index,int ibr,int ntot)
 {
   return index>=0&&index<diagram_count(diagram)&&is_point(diagram.points[index],ibr,ntot);
 }
 
-const xpp::DIAGRAM *diagram_find(const AutoDiagram &diagram, int ibr, int ntot)
+const xpp::DIAGRAM *diagram_find(const AutoxDiagram &diagram, int ibr, int ntot)
 {
   for(const xpp::DIAGRAM &d:diagram.points)
     if(is_point(d,ibr,ntot))return &d;
@@ -176,7 +176,7 @@ void redraw_diagram(xpp::Session &s)
   int flag=0;
   draw_bif_axes(s);
   if(diagram_count(s.diagram)<2)return;
-  xpp::auto_data_hold(s,1); /* plotting again leaves the strip and circle as they were */
+  xpp::autox_data_hold(s,1); /* plotting again leaves the strip and circle as they were */
   for(xpp::DIAGRAM &point:s.diagram.points){
     xpp::DIAGRAM *d=&point;
     type=xpp::get_bif_type(d->ibr,d->ntot);
@@ -185,7 +185,7 @@ void redraw_diagram(xpp::Session &s)
     else flag=1;
     add_point(s,*d,type,flag);
   }
-  xpp::auto_data_hold(s,0);
+  xpp::autox_data_hold(s,0);
 }
 
 std::string diagram_default_file(const xpp::Session &s, std::string_view what, std::string_view extension)
@@ -198,7 +198,7 @@ namespace {
 /* a diagram export needs points */
 xpp::Result<> need_points(const xpp::Session &s)
 {
-  if(diagram_count(s.diagram)<2)return xpp::fail("auto","The diagram has no points to write",xpp::command_place());
+  if(diagram_count(s.diagram)<2)return xpp::fail("autox","The diagram has no points to write",xpp::command_place());
   return {};
 }
 
@@ -235,7 +235,7 @@ xpp::Result<> export_diagram(xpp::Session &s, const std::optional<std::string> &
   if(!target)return {};
   if(const xpp::Result<> begun=xpp::begin_picture(s,f,*target,s.plot_export.color);!begun)return begun;
   if(!s.plot_file.writer)return {};
-  if(view)auto_activate_view(s,*view);
+  if(view)autox_activate_view(s,*view);
   draw_export_axes(s);
   int flag=0;
   for(xpp::DIAGRAM &point:s.diagram.points){
@@ -258,7 +258,7 @@ xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &
     for(xpp::DIAGRAM &point:s.diagram.points){
       xpp::DIAGRAM *d=&point;
       const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
-      const xpp::AutoAxis icp1=d->icp1,icp2=d->icp2;
+      const xpp::AutoxAxis icp1=d->icp1,icp2=d->icp2;
       auto parameters=diagram_parameters(*d);
       const double *par=parameters.data();
       const double per=d->per;
@@ -266,7 +266,7 @@ xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &
       const double par1=par[icp1.index];
       const double par2=icp2.is_parameter()?par[icp2.index]:par1;
       std::string line=xpp::format("{} {} {} {:g} {:g} {:g} ",
-              xpp::diagram_point_type_code(type),d->ibr,auto_calculation_name(d->flag2),par1,par2,per);
+              xpp::diagram_point_type_code(type),d->ibr,autox_calculation_name(d->flag2),par1,par2,per);
       for(int i=0;i<s.model().node;i++)
         line+=xpp::format("{:g} ",uhigh[i]);
       for(int i=0;i<s.model().node;i++)
@@ -282,7 +282,7 @@ xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &
 void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
 {
    int i,j,pt;
-  xpp::AutoAxis icp1;
+  xpp::AutoxAxis icp1;
   double *par;
   double par1,*u0;
   int first,last,nrows;
@@ -336,7 +336,7 @@ xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
     for(xpp::DIAGRAM &point:s.diagram.points){
       xpp::DIAGRAM *d=&point;
       const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
-      const xpp::AutoAxis icp1=d->icp1,icp2=d->icp2;
+      const xpp::AutoxAxis icp1=d->icp1,icp2=d->icp2;
       auto parameters=diagram_parameters(*d);
       const double *par=parameters.data();
       const double par1=par[icp1.index];
@@ -346,19 +346,19 @@ xpp::Result<> write_pts(xpp::Session &s, const std::optional<std::string> &file)
       */
       if(check_plot_type(s,d->flag2,icp1,icp2)==1){
         double x,y1,y2;
-        auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
+        autox_xy_plot(&s.autox_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
         w.print("{:g} {:g} {:g} {} {} {}\n",
-                x,y1,y2,xpp::diagram_point_type_code(type),abs(d->ibr),auto_calculation_name(d->flag2));
+                x,y1,y2,xpp::diagram_point_type_code(type),abs(d->ibr),autox_calculation_name(d->flag2));
       }
     }
   });
 }
 
-/* the AUTO File menu's PDF/SVG entries (W53, issue #101): one
+/* the autoX File menu's PDF/SVG entries (W53, issue #101): one
    function through the image_format.h registry in place of the former
-   post_auto/svg_auto pair, with model-based default names and
+   post_autox/svg_autox pair, with model-based default names and
    "*.pdf"/"*.svg" filter */
-xpp::Result<> export_auto_picture(xpp::Session &s, int fmt, const std::optional<std::string> &file, std::optional<int> view)
+xpp::Result<> export_autox_picture(xpp::Session &s, int fmt, const std::optional<std::string> &file, std::optional<int> view)
 {
   return export_diagram(s,file,xpp::image_formats[fmt],view);
 }
@@ -376,7 +376,7 @@ void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, doubl
     xpp::DIAGRAM *d=&point;
     par1=diagram_axis_value(*d,d->icp1);
     if(d->icp2.is_parameter())par2=diagram_axis_value(*d,d->icp2);
-    auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
+    autox_xy_plot(&s.autox_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
     if(x<*xlo)*xlo=x;
     if(x>*xhi)*xhi=x;
     if(y2<*ylo)*ylo=y2;

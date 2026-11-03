@@ -21,11 +21,11 @@ const MANUAL: ManualChapter[] = [
     headings: [{id: 'environment-variables', text: 'Environment variables', level: 2}],
   },
   {
-    id: '09-auto', title: 'Auto interface',
-    html: '<p>AUTO was written by Doedel.</p>\n'
-      + '<h2 id="the-auto-view">The AUTO view</h2>\n<p>Its status strip and Output.</p>\n'
+    id: '09-auto', title: 'Autox interface',
+    html: '<p>autoX was written by Doedel.</p>\n'
+      + '<h2 id="the-auto-view">The autoX view</h2>\n<p>Its status strip and Output.</p>\n'
       + '<h2 id="diagram-axes">Diagram axes</h2>\n<p>Choose what each axis plots.</p>',
-    headings: [{id: 'the-auto-view', text: 'The AUTO view', level: 2}, {id: 'diagram-axes', text: 'Diagram axes', level: 2}],
+    headings: [{id: 'the-auto-view', text: 'The autoX view', level: 2}, {id: 'diagram-axes', text: 'Diagram axes', level: 2}],
   },
 ];
 

@@ -1,5 +1,5 @@
-// W358 (#420): the comparison build LINALG=lapack. Gives AUTO's eigenvalue code (autlib1's eig,
-// autlib5's eigenvectors for HomCont, autlib4's flowkm) LAPACK in place of EISPACK, through
+// W358 (#420): the comparison build LINALG=lapack. Gives autoX's eigenvalue code (autox_lib1's eig,
+// autox_lib5's eigenvectors for HomCont, autox_lib4's flowkm) LAPACK in place of EISPACK, through
 // the four EISPACK entry points it calls, with their signatures (core/xpp_math.h):
 //   rg                    -> DGEEV   (eigenvalues, and eigenvectors when matz)
 //   qzhes, qzit           -> nothing (DGGEV reduces the pencil itself; qzit reports no error)
@@ -8,7 +8,7 @@
 // rest of that file (the SVD and BLAS copies other code calls) stays, and links third_party/lapack
 // (Fortran, verbatim). Compiled only by `make LINALG=lapack BUILDDIR=<its own>`; the default
 // build and every release use EISPACK. Neither throws: a failure is a return code, as EISPACK's.
-#include "auto_c.h"
+#include "autox_c.h"
 #include "xpp_log.h"
 
 #include <cstddef>

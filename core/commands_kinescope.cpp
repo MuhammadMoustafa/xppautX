@@ -42,7 +42,7 @@ Result<std::string> autoplay(Session &s, const Command &command, const Arguments
     if (const Result<> ready = need_frames(s, command, place); !ready) return std::unexpected<Error>(ready.error());
     s.kinescope.cycles = static_cast<int>(args.optional<long long>("cycles").value_or(s.kinescope.cycles));
     s.kinescope.frame_ms = static_cast<int>(args.optional<long long>("frame_ms").value_or(s.kinescope.frame_ms));
-    ui.movie_auto_play(s);
+    ui.movie_autox_play(s);
     return ResultObject().integer("cycles_completed", s.kinescope.cycles).done();
 }
 

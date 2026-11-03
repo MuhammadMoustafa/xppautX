@@ -1,5 +1,5 @@
 version 4
-# Source: made up for this check (W537 audit); the published homoclinic end is the Lorenz equations (tools/models/lorenz_homoclinic.odex; tests/auto/lrz_cycles.json).
+# Source: made up for this check (W537 audit); the published homoclinic end is the Lorenz equations (tools/models/lorenz_homoclinic.odex; tests/autox/lrz_cycles.json).
 # A planar system whose cycle from a Hopf point ends on a homoclinic orbit to a saddle (W518, #582).
 # x'' = x - x^3 + mu x' - (x')^3 is the double-well Duffing oscillator (a saddle at the origin, centres at
 # (+-1, 0), the two loops of the figure eight) with a damping that is negative for small x' and positive for
@@ -7,7 +7,7 @@ version 4
 # until they meet the origin's right loop, a homoclinic orbit to a saddle with eigenvalues +-1 (to first order
 # in mu, where the loop's energy balance mu int y^2 dt = int y^4 dt on the loop of H = y^2/2 - x^2/2 + x^4/4 = 0
 # holds: mu = (16/35) / (4/3) = 12/35 = 0.343; the run finds the loop at mu = 0.3287). Made for this check; no source.
-# tests/auto/global_homoclinic.json runs it.
+# tests/autox/global_homoclinic.json runs it.
 par mu = -0.3
 init x = 1, y = 0
 x' = y

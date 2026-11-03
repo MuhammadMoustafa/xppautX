@@ -44,13 +44,13 @@ double lookup(const Session &s, double x, int index);
 double lookup_slope(const Session &s, double x, int index);
 /* table index's formula worked out at n points of [xlo,xhi] into y (its
    error at the table's line); formula is a
-   std::string (a table's own) and not a string_view: AUTO redoes the
+   std::string (a table's own) and not a string_view: autoX redoes the
    tables at every right-hand side (redo_all_fun_tables), and a
    string_view there cost two instructions a call (W109c) */
 Result<> eval_fun_table(Session &s, int index, int n, double xlo, double xhi, const std::string &formula, double *y);
 /* the session s's tables: @ autoeval= for each, View, Numerics' tables
    menu (i: 0 view, 1 edit) and which table it picks, -1 for none */
-void set_auto_eval_flags(Session &s, int f);
+void set_autox_eval_flags(Session &s, int f);
 /* table index's values in the data browser: the rows shown, or why they cannot be */
 Result<int> view_table(Session &s, int index);
 /* the model's table of that name, or why there is none */

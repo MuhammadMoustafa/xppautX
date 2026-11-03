@@ -1,0 +1,59 @@
+{
+  "model": "examples/ode/ma23.odex",
+  "reason": "W415 (#477), W424 (#486): the one-compartment fast-spiking parvalbumin interneuron of Ma et al. 2023 (5 states) with Table 1's E_Ca = 68 mV. The applied current SmStmplti is continued from rest through the saddle-node pair (35.18 and 34.21 pA) to the Hopf point (539.2 pA), then the cycles born there: the stable fast-spiking cycles down to the end of the spiking range (35.8 pA, period 124 ms and growing towards the fold at 35.18). Settings are the c-file of the source's AUTO-07p export (NTST 25, NCOL 4, EPS 1e-7/1e-7/1e-5) with DSMAX 2.",
+  "parameters": {
+    "SmStmplti": 0.0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current",
+        "settle": 500,
+        "step": 0.01
+      },
+      "parameter": "SmStmplti",
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.005,
+        "max_step_size": 2.0,
+        "max_steps": 400,
+        "parameter_min": -100,
+        "parameter_max": 600.0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "SmStmplti",
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.005,
+        "max_step_size": 2.0,
+        "max_steps": 600,
+        "parameter_min": 36.0,
+        "parameter_max": 1000.0
+      }
+    }
+  ]
+}

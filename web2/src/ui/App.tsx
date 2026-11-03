@@ -7,7 +7,7 @@ import type {Session} from '../session';
 import {AplotView} from './AplotView';
 import {AniView} from './AniView';
 import {AskDialog} from './AskDialog';
-import {AutoShow, AutoView} from './AutoView';
+import {AutoxShow, AutoxView} from './AutoxView';
 import {useEffect} from 'preact/hooks';
 import {PANEL_LIMITS, savePanels, type PanelSize, type Panels} from '../store/panels';
 import {SessionContext, useSession, useStore} from './context';
@@ -110,7 +110,7 @@ function Shell() {
         <Banner />
         {playerOpen ? null : <RunToolbar key={modelFile} />}
         <RecordBar />
-        <AutoShow />
+        <AutoxShow />
         <PlayerStage dark={dark} />
         <SliderStrip />
         <Messages />
@@ -121,7 +121,7 @@ function Shell() {
         : <Splitter controls="values-panel" size="valuesHeight" className="splitter-values" orientation="horizontal" growth={-1} />}
       <TableView />
       <TextViews />
-      <AutoView dark={dark} />
+      <AutoxView dark={dark} />
       <AplotView />
       <AniView />
       <HelpView />

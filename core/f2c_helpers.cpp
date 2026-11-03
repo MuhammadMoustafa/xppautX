@@ -1,9 +1,9 @@
-/* f2c runtime helpers used by the AUTO and EISPACK code (originally f2c's
+/* f2c runtime helpers used by the autoX and EISPACK code (originally f2c's
    libF77 support files cabs.c, d_sign.c and z_abs.c); the one-use ones
    went into their callers (W491). */
 
 #include <cmath>
-#include "auto_f2c.h"
+#include "autox_f2c.h"
 
 namespace {
 

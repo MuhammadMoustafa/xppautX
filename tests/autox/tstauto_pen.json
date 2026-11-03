@@ -1,0 +1,49 @@
+{
+  "model": "examples/tstauto/pen.odex",
+  "reason": "Coupled pendula: follow the equal-angle rest equilibrium in drive ri.",
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "ri",
+      "autox": {
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": 0,
+        "parameter_max": 1,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    }
+  ],
+  "initial_conditions": {
+    "ph1": 0.411516846067488,
+    "ph2": 0.411516846067488,
+    "ps1": 0,
+    "ps2": 0
+  },
+  "differences": [
+    {
+      "reference": ".auto07p",
+      "run": "steady",
+      "side": "ours",
+      "type": "fold",
+      "index": 1,
+      "cause": "The branch's last step locates this point and also passes a bound: AUTO-07p and XPPAUT 8.0 relabel it EP, xppautX keeps its label and ends the branch there (W495 #559, docs/auto07p-findings.md finding 9)."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "steady",
+      "side": "ours",
+      "type": "fold",
+      "index": 1,
+      "cause": "The branch's last step locates this point and also passes a bound: AUTO-07p and XPPAUT 8.0 relabel it EP, xppautX keeps its label and ends the branch there (W495 #559, docs/auto07p-findings.md finding 9)."
+    }
+  ]
+}

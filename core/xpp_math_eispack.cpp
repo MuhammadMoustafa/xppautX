@@ -1,6 +1,6 @@
 #include "xpp_math.h"
 #include "session.h"
-#include "auto_c.h"
+#include "autox_c.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
 #include <array>
@@ -159,7 +159,7 @@ hqr(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, double
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE HQR, */
 /*     NUM. MATH. 14, 219-231(1970) BY MARTIN, PETERS, AND WILKINSON. */
-/*     HANDBOOK FOR AUTO. COMP., VOL.II-LINEAR ALGEBRA, 359-371(1971). */
+/*     HANDBOOK FOR autoX. COMP., VOL.II-LINEAR ALGEBRA, 359-371(1971). */
 
 /*     THIS SUBROUTINE FINDS THE EIGENVALUES OF A REAL */
 /*     UPPER HESSENBERG MATRIX BY THE QR METHOD. */
@@ -517,7 +517,7 @@ hqr2(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doubl
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE HQR2, */
 /*     NUM. MATH. 16, 181-204(1970) BY PETERS AND WILKINSON. */
-/*     HANDBOOK FOR AUTO. COMP., VOL.II-LINEAR ALGEBRA, 372-395(1971). */
+/*     HANDBOOK FOR autoX. COMP., VOL.II-LINEAR ALGEBRA, 372-395(1971). */
 
 /*     THIS SUBROUTINE FINDS THE EIGENVALUES AND EIGENVECTORS */
 /*     OF A REAL UPPER HESSENBERG MATRIX BY THE QR METHOD.  THE */
@@ -1233,7 +1233,7 @@ balanc(integer *nm, integer *n, doublereal *a, integer *low, integer *igh, doubl
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE BALANCE, */
 /*     NUM. MATH. 13, 293-304(1969) BY PARLETT AND REINSCH. */
-/*     HANDBOOK FOR AUTO. COMP., VOL.II-LINEAR ALGEBRA, 315-326(1971). */
+/*     HANDBOOK FOR autoX. COMP., VOL.II-LINEAR ALGEBRA, 315-326(1971). */
 
 /*     THIS SUBROUTINE BALANCES A REAL MATRIX AND ISOLATES */
 /*     EIGENVALUES WHENEVER POSSIBLE. */
@@ -1485,7 +1485,7 @@ balbak(integer *nm, integer *n, integer *low, integer *igh, doublereal *scale, i
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE BALBAK, */
 /*     NUM. MATH. 13, 293-304(1969) BY PARLETT AND REINSCH. */
-/*     HANDBOOK FOR AUTO. COMP., VOL.II-LINEAR ALGEBRA, 315-326(1971). */
+/*     HANDBOOK FOR autoX. COMP., VOL.II-LINEAR ALGEBRA, 315-326(1971). */
 
 /*     THIS SUBROUTINE FORMS THE EIGENVECTORS OF A REAL GENERAL */
 /*     MATRIX BY BACK TRANSFORMING THOSE OF THE CORRESPONDING */
@@ -1599,7 +1599,7 @@ elmhes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, integ
 
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE ELMHES, */
 /*     NUM. MATH. 12, 349-368(1968) BY MARTIN AND WILKINSON. */
-/*     HANDBOOK FOR AUTO. COMP., VOL.II-LINEAR ALGEBRA, 339-358(1971). */
+/*     HANDBOOK FOR autoX. COMP., VOL.II-LINEAR ALGEBRA, 339-358(1971). */
 
 /*     GIVEN A REAL GENERAL MATRIX, THIS SUBROUTINE */
 /*     REDUCES A SUBMATRIX SITUATED IN ROWS AND COLUMNS */
@@ -1742,7 +1742,7 @@ eltran(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, integ
 /*     THIS SUBROUTINE IS A TRANSLATION OF THE ALGOL PROCEDURE ELMTRANS, 
 */
 /*     NUM. MATH. 16, 181-204(1970) BY PETERS AND WILKINSON. */
-/*     HANDBOOK FOR AUTO. COMP., VOL.II-LINEAR ALGEBRA, 372-395(1971). */
+/*     HANDBOOK FOR autoX. COMP., VOL.II-LINEAR ALGEBRA, 372-395(1971). */
 
 /*     THIS SUBROUTINE ACCUMULATES THE STABILIZED ELEMENTARY */
 /*     SIMILARITY TRANSFORMATIONS USED IN THE REDUCTION OF A */
@@ -3873,7 +3873,7 @@ xerbla(const char *srname, integer *info, integer srname_len)
 
 /*     .. Executable Statements .. */
 
-    xpp::auto_fail(xpp::format("on entry to {}{}{}{}{}{} parameter number {} had an illegal value",
+    xpp::autox_fail(xpp::format("on entry to {}{}{}{}{}{} parameter number {} had an illegal value",
 	   srname[0],srname[1],srname[2],srname[3],srname[4],srname[5],(*info)));
 
 /*     End of XERBLA. */

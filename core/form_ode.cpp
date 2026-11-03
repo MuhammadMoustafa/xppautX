@@ -947,7 +947,7 @@ private:
      .odex model), a fixed variable whose formula reads only parameters,
      consts, pure functions and the derived quantities before it is worked
      out only when a parameter changes, as .ode's !name = expr is (a
-     slider, an event setting a parameter, each AUTO evaluation): the same
+     slider, an event setting a parameter, each autoX evaluation): the same
      numbers, worked out less often. One an aux quantity records under its
      name, delay, shift or a Volterra kernel needs as a variable, or a
      network or a vector may read (any name a word of theirs starts:

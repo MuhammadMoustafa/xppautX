@@ -15,7 +15,7 @@ export interface RegistryArgument {
 
 /** control (Abort, Quit, an answer): always; view (only changes what is
     shown) and setting (a parameter, an initial or boundary condition, a
-    delay, the numerics, AUTO's forms: W106, applied when a computation
+    delay, the numerics, autoX's forms: W106, applied when a computation
     ends, to the next one): also while a computation runs; data (saves,
     loads) and computation (starts one): only when none runs */
 export type Kind = 'control' | 'view' | 'setting' | 'data' | 'computation';

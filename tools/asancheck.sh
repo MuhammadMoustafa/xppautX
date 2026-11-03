@@ -3,7 +3,7 @@
 # UndefinedBehaviorSanitizer (make asan, into build/asan) and run the checks
 # under it: the --silent smoke run (same checksum as verify.sh), the unit
 # tests, the protocol (servercheck.py), browser mode (webcheck.py) and
-# AUTO (autocheck.py).
+# autoX (autoxcheck.py).
 #
 # Any sanitizer report fails the script, whether or not the check that
 # provoked it noticed: every report goes to a file in build/asan/reports
@@ -28,19 +28,19 @@
 #                    asan-link"
 #   --only LIST     run only these comma-separated phases, in order:
 #                    build,smoke,examples,unittests, then any of
-#                    servercheck,webcheck,autocheck (or the "checks" alias
+#                    servercheck,webcheck,autoxcheck (or the "checks" alias
 #                    for all three) -- these run side by side when more
-#                    than one is named. autocheck=SECTION+SECTION... (the
-#                    names tools/autocheck.py --list prints, '+'-joined)
+#                    than one is named. autoxcheck=SECTION+SECTION... (the
+#                    names tools/autoxcheck.py --list prints, '+'-joined)
 #                    runs only those sections instead of its default full
-#                    list. autocheck-shard=INDEX/COUNT partitions the owner's
+#                    list. autoxcheck-shard=INDEX/COUNT partitions the owner's
 #                    section list, including newly added checks automatically.
 #                    Default: build,smoke,examples,unittests,checks
 #                    (everything). Lets a slow platform (W41:
 #                    windows-clang-sanitizers) split the work across
 #                    parallel CI jobs, each with its own build (a build is
 #                    only 60-90s here, so unlike the checks a shard rarely
-#                    needs --skip-build); Linux also shards its long AUTO
+#                    needs --skip-build); Linux also shards its long autoX
 #                    checks; macOS CI runs it whole.
 #   VAR=value       passed to make (the compilers, say)
 #   $MAKE, $PYTHON  the make and python programs (default make, uv run --locked python)
@@ -155,7 +155,7 @@ if has_phase unittests; then
   fi
 fi
 
-# servercheck, webcheck and autocheck can be selected individually (a
+# servercheck, webcheck and autoxcheck can be selected individually (a
 # platform whose combined "checks" is still too slow for one CI job
 # splits them across shards, W41) or together as the "checks" alias
 # (Linux and macOS CI's whole-script run); whichever of these are
@@ -174,18 +174,18 @@ run_check() {
   fi
   echo "$name finished after $(( $(date +%s) - t0 ))s"
 }
-# AUTO owns the section list and its round-robin partitions (W180).
+# autoX owns the section list and its round-robin partitions (W180).
 # Explicit section selections remain for local iteration.
 want=""
 autosections=
 old_ifs=$IFS; IFS=,
 for tok in $only; do
   case "$tok" in
-    checks) want="$want servercheck webcheck autocheck" ;;
+    checks) want="$want servercheck webcheck autoxcheck" ;;
     servercheck|webcheck) want="$want $tok" ;;
-    autocheck) want="$want autocheck" ;;
-    autocheck=*) want="$want autocheck"; autosections=$(printf '%s' "${tok#autocheck=}" | tr '+' ' ') ;;
-    autocheck-shard=*) want="$want autocheck"; autosections="--shard ${tok#autocheck-shard=}" ;;
+    autoxcheck) want="$want autoxcheck" ;;
+    autoxcheck=*) want="$want autoxcheck"; autosections=$(printf '%s' "${tok#autoxcheck=}" | tr '+' ' ') ;;
+    autoxcheck-shard=*) want="$want autoxcheck"; autosections="--shard ${tok#autoxcheck-shard=}" ;;
   esac
 done
 IFS=$old_ifs
@@ -194,7 +194,7 @@ if [ -n "$want" ]; then
     case $name in
       servercheck) run_check servercheck $python tools/servercheck.py --server "$bin" & ;;
       webcheck) run_check webcheck $python tools/webcheck.py --bin "$bin" & ;;
-      autocheck) run_check autocheck $python tools/autocheck.py --server "$bin" $autosections & ;;
+      autoxcheck) run_check autoxcheck $python tools/autoxcheck.py --server "$bin" $autosections & ;;
     esac
   done
   wait

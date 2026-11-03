@@ -18,7 +18,7 @@ import {kindOf, mayStart, type LayerWindow} from './protocol/kinds';
 import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type UserKeymap, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import type {TextPosition, TextValues} from './store/marks';
-import {activeView, autoWindow} from './store/diagram';
+import {activeView, autoxWindow} from './store/diagram';
 import {
   answerName, keepBothName, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
 } from './store/files';
@@ -31,17 +31,17 @@ import {planRequest} from './store/table';
 import {continuePlan, steadyRun} from './store/steady';
 import type {TextTab} from './store/text';
 import {fieldKey, valueCommands, type ValueSet} from './store/values';
-import {autoSettingsCommands, commandSettings, type AutoSettingsPatch} from './store/autoSettings';
+import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from './store/autoxSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
 export type BrowserOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
   | 'restore' | 'addcol' | 'delcol';
 
-/** the AUTO window's buttons (toolbarCommand names the registry command of each); Close is session.closeAuto */
-export type AutoOp = 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw';
+/** the autoX window's buttons (toolbarCommand names the registry command of each); Close is session.closeAuto */
+export type AutoxOp = 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw';
 
 /** a change of what a window displays, as the `display` command carries it: the zoom of each axis
-    ([low, high] or null), the earlier runs' toggle (`runs`), AUTO's earlier branches' toggle (`show`) */
+    ([low, high] or null), the earlier runs' toggle (`runs`), autoX's earlier branches' toggle (`show`) */
 interface DisplayPatch {
   x?: [number, number] | null;
   y?: [number, number] | null;
@@ -49,7 +49,7 @@ interface DisplayPatch {
   show?: boolean;
 }
 
-/** the display key of view k of the AUTO diagram: 0, -1, -2 ... (the plot windows are 1 up) */
+/** the display key of view k of the autoX diagram: 0, -1, -2 ... (the plot windows are 1 up) */
 /** the scope of the core's `set.restore_defaults` for a values section (docs/protocol.md) */
 const RESTORE_SCOPE = {par: 'parameters', ic: 'initial'} as const;
 /** the kind of file the core's `value.save_file` and `value.load_file` take for a values section */
@@ -57,9 +57,9 @@ const VALUE_FILE = {par: 'parameters', ic: 'initial_conditions'} as const;
 
 
 
-/** a view's display change as auto.set_display: [] clears an axis' zoom, show_earlier is the earlier branches' toggle */
-const autoDisplayCommand = (view: string, p: DisplayPatch): Command => ({
-  cmd: 'auto.set_display', view,
+/** a view's display change as autox.set_display: [] clears an axis' zoom, show_earlier is the earlier branches' toggle */
+const autoxDisplayCommand = (view: string, p: DisplayPatch): Command => ({
+  cmd: 'autox.set_display', view,
   ...(p.x !== undefined ? {x_range: p.x ?? []} : {}),
   ...(p.y !== undefined ? {y_range: p.y ?? []} : {}),
   ...(p.show !== undefined ? {show_earlier: p.show} : {}),
@@ -83,7 +83,7 @@ export class Session {
   private otherProtocol = false;
   /** commands whose completion has not arrived yet */
   private donesOwed = 0;
-  /** a planned dialogue (T21: the axis dialog, AUTO settings save and load):
+  /** a planned dialogue (T21: the axis dialog, autoX settings save and load):
       the asks its commands open are answered by these steps in order, until
       the commands' dones */
 
@@ -117,10 +117,10 @@ export class Session {
   /** the last angle a window was turned to while the core was busy, sent at its done */
   private rotate3dHeld = new Map<string, {theta: number; phi: number}>();
   /** what the page displays is the core's (W65, docs/protocol.md "Display state"): the zoom
-      shown, the earlier runs' toggle, AUTO's shown branches. The page keeps a copy it changes
+      shown, the earlier runs' toggle, autoX's shown branches. The page keeps a copy it changes
       at once (a drag cannot wait for a round trip) and tells the core; the core's events
       set it back, except for a window whose change is held or on its way: `displayHeld` is the
-      latest change of each (window 0: the AUTO diagram) not yet sent, `displayGuard` the
+      latest change of each (window 0: the autoX diagram) not yet sent, `displayGuard` the
       windows whose zoom and toggles the core's events leave alone, until the done of the
       command that carried the change (`displayDones` counts down to it). */
   private displayHeld = new Map<string, DisplayPatch>();
@@ -129,9 +129,9 @@ export class Session {
   /** the tab last picked while the core was busy, shown and sent at its done */
   private windowHeld: string | null = null;
   private replayDones = 0;
-  /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
+  /** a command to send when the running one has ended (the autoX view's close while busy, A10) */
   private afterDone: Command[] | null = null;
-  /** `redraw` was sent for the AUTO diagram's data, not yet answered */
+  /** `redraw` was sent for the autoX diagram's data, not yet answered */
   private diagramAsked = false;
   /** the array plot's scroll made while the core was busy (plot/aplotScroll.ts) */
   private pendingAplotDy = 0;
@@ -252,8 +252,8 @@ export class Session {
     this.checkDiagram(ev);
   }
 
-  /* the AUTO diagram is data the page must hold whole: a page that connected
-     after AUTO opened has none, and an `add` it could not place leaves it out
+  /* the autoX diagram is data the page must hold whole: a page that connected
+     after autoX opened has none, and an `add` it could not place leaves it out
      of step; `redraw` makes the core send all of it again (docs/protocol.md);
      at the done, the page's own catch-up like the held changes below */
   private checkDiagram(ev: XppEvent): void {
@@ -264,7 +264,7 @@ export class Session {
     }
     if (this.diagramAsked || busy || (ev.ev !== 'session.state' && ev.ev !== 'done')) return;
     this.diagramAsked = true;
-    this.send({cmd: 'window.redraw', window: autoWindow(this.store.getState())});
+    this.send({cmd: 'window.redraw', window: autoxWindow(this.store.getState())});
   }
 
   private continueReplay(ask: AskEvent): void {
@@ -357,9 +357,9 @@ export class Session {
       False when it did not go. */
   send(cmd: Command): boolean {
     if (!this.may(cmd)) return false;
-    if (cmd.cmd === 'auto.run') this.store.dispatch({type:'diagram',action:{type:'run',op:'start',at:Date.now()}});
+    if (cmd.cmd === 'autox.run') this.store.dispatch({type:'diagram',action:{type:'run',op:'start',at:Date.now()}});
     const patch = commandSettings(cmd);
-    if (patch) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead: this.donesOwed}});
+    if (patch) this.store.dispatch({type: 'autoxSettings', action: {type: 'sent', patch, ahead: this.donesOwed}});
     if (cmd.cmd !== 'answer' && !noDone(cmd)) this.donesOwed++;
     this.store.dispatch({type: 'sent', cmd});
     this.transport.send(cmd);
@@ -509,7 +509,7 @@ export class Session {
     if (!this.displayGuard.size) return ev;
     if (ev.ev === 'plot.shown')
       return {...ev, windows: ev.windows.map(w => (this.displayGuard.has(w.win) ? {...w, zoom: undefined, runs: undefined} : w))};
-    if (ev.ev === 'auto.view') {
+    if (ev.ev === 'autox.view') {
       const views = ev.views?.map(v => (this.displayGuard.has(v.name) ? {...v,zoom:undefined} : v));
       const guarded = [...this.displayGuard].some(k => this.store.getState().diagram.views.some(v=>v.name===k));
       return {...ev, views, show: guarded ? undefined : ev.show};
@@ -531,7 +531,7 @@ export class Session {
     const [win, patch] = first.value;
     this.displayHeld.delete(win);
     const {x, y, runs} = patch;
-    this.send(this.store.getState().diagram.views.some(v=>v.name===win) ? autoDisplayCommand(win, patch)
+    this.send(this.store.getState().diagram.views.some(v=>v.name===win) ? autoxDisplayCommand(win, patch)
       : {cmd: 'window.set_display', window: win, ...(x === undefined ? {} : {x_range: x ?? []}), ...(y === undefined ? {} : {y_range: y ?? []}),
          ...(runs === undefined ? {} : {show_earlier_runs: runs})});
     this.displayGuard.add(win);
@@ -555,13 +555,13 @@ export class Session {
     this.display(win, rangesOf(viewport));
   }
 
-  /** the zoom of view `view` of the AUTO diagram changed */
+  /** the zoom of view `view` of the autoX diagram changed */
   setDiagramViewport(view: number, viewport: Viewport): void {
     this.store.dispatch({type: 'diagram', action: {type: 'viewport', view, viewport}});
     this.display(this.store.getState().diagram.views[view].name, rangesOf(viewport));
   }
 
-  /** a view of the AUTO diagram clicked: the active one (W50), whose axes AUTO's Axes menu,
+  /** a view of the autoX diagram clicked: the active one (W50), whose axes autoX's Axes menu,
       zoom and a run go by */
   activateView(view: number): void {
     const d = this.store.getState().diagram;
@@ -570,7 +570,7 @@ export class Session {
     this.send({cmd:'window.select',window:d.views[view].name});
   }
 
-  /** a view of the AUTO diagram closed (the last one stays: the core refuses it) */
+  /** a view of the autoX diagram closed (the last one stays: the core refuses it) */
   closeView(view: number): void {
     this.send({cmd:'window.destroy',window:this.store.getState().diagram.views[view].name});
   }
@@ -581,7 +581,7 @@ export class Session {
     this.display(win, {runs: show});
   }
 
-  /** AUTO's "Earlier branches" toggle */
+  /** autoX's "Earlier branches" toggle */
   setShowEarlier(show: boolean): void {
     this.store.dispatch({type: 'diagram', action: {type: 'showEarlier', show}});
     this.display(activeView(this.store.getState().diagram).name, {show});
@@ -666,19 +666,19 @@ export class Session {
     this.transport.send({cmd: 'run.abort'});
   }
 
-  /* ---- the AUTO view (docs/ui-v2.md T11a, docs/protocol.md `auto`) ---- */
+  /* ---- the autoX view (docs/ui-v2.md T11a, docs/protocol.md `auto`) ---- */
 
-  /** one of the AUTO window's buttons, sent as its key (`win` `auto`); its
+  /** one of the autoX window's buttons, sent as its key (`win` `auto`); its
       prompts come as ordinary asks. Clear also is the view's own (T21):
       the branches so far become the earlier ones, hidden until shown
       again; the core's own clear and redraw (keys `c`, `d`) follow */
-  autoOp(op: AutoOp): void {
+  autoxOp(op: AutoxOp): void {
     this.registryAction(toolbarCommand('auto', op));
   }
 
-  /** AUTO's Run (docs/protocol.md auto.run): the kind, and where it starts (a stored point's label, else the current state) */
-  autoRun(args: {kind: string; label?: number; switch?: boolean; replace_diagram?: boolean}): void {
-    const cmd: Command = {cmd: 'auto.run', ...args};
+  /** autoX's Run (docs/protocol.md autox.run): the kind, and where it starts (a stored point's label, else the current state) */
+  autoxRun(args: {kind: string; label?: number; switch?: boolean; replace_diagram?: boolean}): void {
+    const cmd: Command = {cmd: 'autox.run', ...args};
     if (!this.may(cmd)) return;
     this.send(cmd);
   }
@@ -692,29 +692,29 @@ export class Session {
     if (g !== null) this.importOrbit(g);
   }
 
-  /* a grab took point `point`: when it is a periodic orbit AUTO stored (a
+  /* a grab took point `point`: when it is a periodic orbit autoX stored (a
      labelled point), File/Import orbit loads it, so the main plot shows the
-     limit cycle (docs/ui-v2.md T21); AUTO keeps no orbit for other points */
+     limit cycle (docs/ui-v2.md T21); autoX keeps no orbit for other points */
   private importOrbit(point: number): void {
     const {points, labels} = activeView(this.store.getState().diagram);
     const ty = points.ty[point];
     if ((ty !== 3 && ty !== 4) || points.f2[point]) return;
     if (!labels.some(l => l.point === point)) {
-      this.store.dispatch({type: 'toast', kind: 'info', text: 'AUTO keeps the orbits of labelled points only: grab a '
+      this.store.dispatch({type: 'toast', kind: 'info', text: 'autoX keeps the orbits of labelled points only: grab a '
         + 'labelled point of the periodic branch (Tab steps through them) to plot its limit cycle.'});
       return;
     }
-    this.send({cmd: 'auto.load_orbit_into_browser'});
+    this.send({cmd: 'autox.load_orbit_into_browser'});
   }
 
-  /** AUTO's settings edited in the page's forms (T22, store/autoSettings.ts):
+  /** autoX's settings edited in the page's forms (T22, store/autoxSettings.ts):
       one `auto` `set` at once, busy or idle -- a setting (W106): during a
       run the core applies it when the run ends, to the next one */
-  autoSettings(patch: AutoSettingsPatch): void {
-    for (const {command} of autoSettingsCommands(patch)) this.send(command);
+  autoxSettings(patch: AutoxSettingsPatch): void {
+    for (const {command} of autoxSettingsCommands(patch)) this.send(command);
   }
 
-  /** the AUTO view's close: done with it (A10). A running job is stopped
+  /** the autoX view's close: done with it (A10). A running job is stopped
       first and the window closes at its done, instead of the close waiting
       behind the run. */
   closeAuto(): void {
@@ -746,20 +746,20 @@ export class Session {
   }
 
   /** a click on a two-parameter diagram: shown and kept as the point
-      AUTO's File/sElect 2par pt uses (docs/protocol.md `auto` `point`) */
-  autoPoint(x: number, y: number): void {
+      autoX's File/sElect 2par pt uses (docs/protocol.md `auto` `point`) */
+  autoxPoint(x: number, y: number): void {
     this.store.dispatch({type: 'diagram', action: {type: 'stored', at: {x, y}}});
-    this.send({cmd: 'auto.pick', x, y});
+    this.send({cmd: 'autox.pick', x, y});
   }
 
-  /** Hide AUTO hides every view of the diagram in the core (window.hide: they keep everything); Show brings them back */
+  /** Hide autoX hides every view of the diagram in the core (window.hide: they keep everything); Show brings them back */
   showAuto(shown: boolean): void {
     /* a grab or plot mode waiting on the diagram is cancelled with it: the ask would stay open behind
        the main window and swallow every key typed there (W100) */
     const {ask, pick, diagram} = this.store.getState();
-    if (!shown && diagram.shown && ask && (diagram.grabbing || (pick && pick.win === autoWindow(this.store.getState())))) this.cancelPick();
+    if (!shown && diagram.shown && ask && (diagram.grabbing || (pick && pick.win === autoxWindow(this.store.getState())))) this.cancelPick();
     for (const view of diagram.views) this.send({cmd: shown ? 'window.show' : 'window.hide', window: view.name});
-    if (shown && diagram.open) this.send({cmd:'window.select', window:autoWindow(this.store.getState())});
+    if (shown && diagram.open) this.send({cmd:'window.select', window:autoxWindow(this.store.getState())});
   }
 
   /* ---- values panel (docs/ui-v2.md T3, docs/protocol.md `set`/`slide`/`default`/`userbut`,

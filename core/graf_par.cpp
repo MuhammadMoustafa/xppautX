@@ -894,7 +894,7 @@ void freeze_com(xpp::Session &s, int c)
    clear_bifurcation(s);
    break;
  case 7:
-   s.frozen_curves.auto_freeze=1-s.frozen_curves.auto_freeze;
+   s.frozen_curves.autox_freeze=1-s.frozen_curves.autox_freeze;
    break;
    
  }
@@ -980,9 +980,9 @@ void kill_frz(xpp::Session &s)
   redraw_the_graph(s);
 }
 
-void auto_freeze_it(xpp::Session &s)
+void autox_freeze_it(xpp::Session &s)
 {
-  if(s.frozen_curves.auto_freeze==0)return;
+  if(s.frozen_curves.autox_freeze==0)return;
   xpp::ok_or_show(freeze_curve(s,0));
 }
 
@@ -1178,7 +1178,7 @@ void add_bd_crv(xpp::Session &s, const float *x, const float *y, int len, int ty
   s.frozen_curves.bif_diagram.curves.push_back(std::move(c));
 }
 
-/* a diagram.dat (AUTO's Write pts): x ylo yhi type branch 2par per line;
+/* a diagram.dat (autoX's Write pts): x ylo yhi type branch 2par per line;
    each run of points of one type and branch is a curve (two, ylo and yhi,
    for periodic orbits) */
 int read_bd(xpp::Session &s, const xpp::DataTable &table)
@@ -1256,7 +1256,7 @@ Result<int> import_bifurcation(xpp::Session &s, std::string_view filename)
   xpp::Result<xpp::DataTable> read=xpp::read_data_table(std::string(filename).c_str());
   if (!read) return std::unexpected<Error>(read.error());
   const xpp::DataTable &table=*read;
-  // AUTO's Write pts has six columns: x, low, high, type, branch, two-parameter flag.
+  // autoX's Write pts has six columns: x, low, high, type, branch, two-parameter flag.
   constexpr std::size_t diagram_columns=6;
   const auto bad=[&](std::string what,int line){return std::unexpected<Error>(Error{"diagram import",std::move(what),Place{std::string(filename),line}});};
   if (table.columns.size()!=diagram_columns) return bad("a diagram needs six columns",1);

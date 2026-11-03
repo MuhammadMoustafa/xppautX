@@ -6,7 +6,7 @@ version 4
 # 67 (1979) 93-108: the pair of homoclinic loops at r = 13.926). The origin has one unstable eigenvalue (7.13) and two
 # stable (-18.13, -8/3): HomCont runs it with NUNSTAB = 1, NSTAB = 2 in three dimensions.
 # AUTO-07p's value at these constants, to the digits it prints, is compared with the published 13.926 in
-# docs/auto-references.md. tests/auto/lorenz_homoclinic.json runs it.
+# docs/auto-references.md. tests/autox/lorenz_homoclinic.json runs it.
 x' = s*(y-x)
 y' = r*x-y-x*z
 z' = x*y-b*z

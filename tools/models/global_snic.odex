@@ -1,11 +1,11 @@
 version 4
-# Source: made up for this check (W537 audit); a published SNIC end is the maintainer's examples/ode/mu26.odex (tests/auto/ode_mu26_*.json).
+# Source: made up for this check (W537 audit); a published SNIC end is the maintainer's examples/ode/mu26.odex (tests/autox/ode_mu26_*.json).
 # A planar system whose cycle from a Hopf point ends on a saddle-node on an invariant circle (W518, #582).
 # In polar coordinates r' = r (mu - r^2), phi' = 1 - r x, with x = r cos(phi): the origin has a Hopf point at
 # mu = 0 and the circle r = sqrt(mu) is a stable cycle, on which phi' = 1 - mu cos(phi). Its period is
 # 2 pi / sqrt(1 - mu^2), so it grows without bound as mu reaches 1, where the circle gains two equilibria
 # (cos(phi) = 1/mu), a node and a saddle, at phi = 0: a SNIC. Made for this check; no source.
-# tests/auto/global_snic.json runs it.
+# tests/autox/global_snic.json runs it.
 par mu = -0.5
 init x = 0.1, y = 0
 r2 = x^2+y^2

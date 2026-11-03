@@ -63,7 +63,7 @@ function activePick(session: Session, win: string | null): PickState | null {
 }
 
 /** pointer events of a plot mode (plot/interactions.ts) as moves and answers
-    (the AUTO view's too, for its window) */
+    (the autoX view's too, for its window) */
 export function pickSink(session: Session, win: () => string | null, chart: () => Pick<Chart, 'ranges'> | null): PickSink {
   const drag = (what: 'down' | 'move' | 'up', at: Frac) => {
     const c = chart();
@@ -130,7 +130,7 @@ export function PickOverlay({pick, chart}: {pick: PickState; chart: Pick<Chart, 
 /** the toolbar's Fit, in the plot's own corner (T30, docs/ui-v2.md): still
     there after a scroll or a zoom gone astray, with no trip up to the
     toolbar. `onClick` and `title` are the caller's (the main plot and a 3D
-    plot go through the core's Window/Fit; the AUTO diagram fits
+    plot go through the core's Window/Fit; the autoX diagram fits
     client-side); the caller renders it only while the plot has data. */
 export function FitButton({onClick, title, disabled = false}: {onClick: () => void; title: string; disabled?: boolean}) {
   return (

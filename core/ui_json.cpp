@@ -1,7 +1,7 @@
 /* The protocol front end: an XppUi table that talks line-delimited JSON.
 
    One JSON object per line in each direction. What the core shows goes out
-   as events ("ev"), as data (series, plots, nullclines, marks, the AUTO
+   as events ("ev"), as data (series, plots, nullclines, marks, the autoX
    diagram, animation frames: the page draws them); keys, parameter edits
    and the answers to prompts come in as commands ("cmd"). A prompt (menu,
    string box, file name, mouse pick, ...) is an "ask" event with an id; the
@@ -24,7 +24,7 @@
 #include "integrate.h"
 #include "nullcline.h"
 #include "ui_json_internal.h"
-#include "auto_run.h"
+#include "autox_run.h"
 #include "picture.h"
 #include "json_error.h"
 #include "xpp_log.h"
@@ -47,8 +47,8 @@
 #include "marks_data.h"
 #include "ani_data.h"
 #include "aniparse.h"
-#include "auto_data.h"
-#include "auto_settings.h"
+#include "autox_data.h"
+#include "autox_settings.h"
 #include "numerics_settings.h"
 #include <algorithm>
 #include <stdio.h>
@@ -215,7 +215,7 @@ int handle_async(xpp::Session &s, const char *line)
 }
 
 /* What a running computation (xpp::job::computing(): an integration, a
-   range, Sing pts, a boundary value problem, an AUTO run) takes: the one
+   range, Sing pts, a boundary value problem, an autoX run) takes: the one
    list (docs/protocol.md "Commands during a command"). On the reader
    thread (classify()) and at the computation's checkpoint (j_check_abort,
    for a line queued just before the computation began); it only parses
@@ -444,7 +444,7 @@ void buf_stopped_at(std::string &b)
         buf_num(b, p.t, 9);
         BUF_LIT(b, "}");
     } else if (p.what == xpp::job::Reported::point) {
-        buf_format(b, "{{\"what\":\"auto\",\"branch\":{:d},\"point\":{:d}}}", p.branch, p.point);
+        buf_format(b, "{{\"what\":\"autox\",\"branch\":{:d},\"point\":{:d}}}", p.branch, p.point);
     } else if (p.what == xpp::job::Reported::frame) {
         buf_format(b, "{{\"what\":\"ani\",\"frame\":{:d}}}", p.frame);
     } else {
@@ -458,7 +458,7 @@ bool arm_recorded_stop(const char *at, int key)
     get_string(at, "what", what);
     if (what == "integrate")
         xpp::job::stop_at_rows(static_cast<long>(get_num(at, "rows", -1)));
-    else if (what == "auto")
+    else if (what == "autox")
         xpp::job::stop_at_point(get_int(at, "branch", -1), get_int(at, "point", -1));
     else if (what == "ani")
         xpp::job::stop_at_frame(get_int(at, "frame", -1));
@@ -552,7 +552,7 @@ XppUi make_json_ui(void)
     u.destroy_plot_window = j_destroy_plot_window;
     u.window_selected = j_window_selected;
     u.window_renamed = j_window_renamed;
-    u.auto_closed = j_auto_closed;
+    u.autox_closed = j_autox_closed;
     u.tool_window_closed = j_tool_window_closed;
     u.redraw_diagram_for_client = auto_redraw_for_client;
     u.lower_plot_window = j_void;
@@ -562,7 +562,7 @@ XppUi make_json_ui(void)
     u.film_clip = j_film_clip;
     u.reset_film = j_reset_film;
     u.movie_play_back = j_movie_play_back;
-    u.movie_auto_play = j_movie_auto_play;
+    u.movie_autox_play = j_movie_autox_play;
     u.movie_save = j_movie_save;
     u.movie_make_anigif = j_movie_make_anigif;
     u.rubber_band = j_rubber_band;
@@ -572,13 +572,13 @@ XppUi make_json_ui(void)
     u.aplot_reset_axes = j_aplot_redraw;
     u.aplot_draw_one = j_aplot_draw_one;
     u.aplot_gif = j_aplot_gif;
-    u.auto_make_window = j_auto_make_window;
-    u.auto_refresh = j_auto_refresh;
-    u.auto_check_abort = j_auto_check_abort;
-    u.auto_grab_event = j_auto_grab_event;
-    u.auto_show_hint = j_auto_show_hint;
-    u.auto_diagram = j_auto_diagram;
-    u.auto_points_held = j_auto_points_held;
+    u.autox_make_window = j_autox_make_window;
+    u.autox_refresh = j_autox_refresh;
+    u.autox_check_abort = j_autox_check_abort;
+    u.autox_grab_event = j_autox_grab_event;
+    u.autox_show_hint = j_autox_show_hint;
+    u.autox_diagram = j_autox_diagram;
+    u.autox_points_held = j_autox_points_held;
     u.new_vcr = j_new_vcr;
     u.ani_show = j_ani_show;
     u.ani_slider = j_ani_slider;
@@ -667,13 +667,13 @@ const CommandInfo *command_of(const char *line)
 }
 
 /* hello's "commands": the table, a key's kind left to its menu */
-/* hello's "point_types": each point type's name, label and mark, the one table of core/auto_codes.h (Pending is run-time only) */
+/* hello's "point_types": each point type's name, label and mark, the one table of core/autox_codes.h (Pending is run-time only) */
 void buf_point_types(std::string &b)
 {
     BUF_LIT(b, ",\"point_types\":[");
     bool first = true;
-    for (const xpp::AutoPointName &p : xpp::auto_point_names) {
-        if (p.kind == xpp::AutoPointKind::Pending) continue;
+    for (const xpp::AutoxPointName &p : xpp::autox_point_names) {
+        if (p.kind == xpp::AutoxPointKind::Pending) continue;
         buf_format(b, "{}{{\"name\":", first ? "" : ",");
         buf_str(b, p.name);
         BUF_LIT(b, ",\"label\":");
@@ -868,10 +868,10 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     marks_data_update(*s);
     ani_data_update(*s);
     diag_flush(*s, 1);
-    auto_data_update(*s, 1);
-    auto_view_update(*s);
+    autox_data_update(*s, 1);
+    autox_view_update(*s);
     session.windows.update(*s);
-    auto_settings_update(*s);
+    autox_settings_update(*s);
     numerics_settings_update(*s);
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
@@ -976,9 +976,9 @@ void install(bool silent)
     phase_data_init(data_emit);
     marks_data_init(data_emit);
     ani_data_init(data_emit);
-    session.autoinfo.init(data_emit);
-    session.autosettings.init(data_emit);
-    session.autoview.init(data_emit);
+    session.autoxinfo.init(data_emit);
+    session.autoxsettings.init(data_emit);
+    session.autoxview.init(data_emit);
     session.windows.init(data_emit);
     xpp::numerics_settings_init(data_emit);
     xpp::inbox::set_hooks(classify, busy);
@@ -1138,13 +1138,13 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b, ",\"line_styles\":");
     buf_add(b, line_styles.data(), line_styles.size());
     BUF_LIT(b,",\"window_names\":{\"main\":");buf_str(b,s.plot_windows.graph[0].name);
-    BUF_LIT(b,",\"auto\":");buf_str(b,xpp::window_name(s,WIN_AUTO));
+    BUF_LIT(b,",\"autox\":");buf_str(b,xpp::window_name(s,WIN_AUTOX));
     BUF_LIT(b,",\"ani\":");buf_str(b,xpp::window_name(s,WIN_ANI));
     BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,",\"browser\":");buf_str(b,std::string(xpp::BROWSER_WINDOW));BUF_LIT(b,"}");
     buf_commands(b);
     buf_point_types(b);
-    BUF_LIT(b, ",\"auto_run\":");
-    b += xpp::auto_run_table_json();
+    BUF_LIT(b, ",\"autox_run\":");
+    b += xpp::autox_run_table_json();
     /* The names accepted by a registry model_name of NameSet::any. */
     std::vector<std::string> model_names;
     model_names.reserve(m.names.size());

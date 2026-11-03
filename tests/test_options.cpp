@@ -139,7 +139,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"NULLCLINES.FILE", {"nc.dat", "nc.dat"}},
         {"RANGERESET", {"n", "false"}},
         {"RANGEOLDIC", {"n", "false"}},
-        {"AUTOVAR", {"y", "1"}},         /* AUTO counts from x */
+        {"AUTOVAR", {"y", "1"}},         /* autoX counts from x */
         {"HISTCOL", {"y", "2"}},
         {"HISTCOL2", {"z", "3"}},
         {"SPECCOL", {"y", "2"}},

@@ -35,7 +35,7 @@ unsigned long number();
 bool running();
 
 /* A computation inside the job: an integration (a range of them
-   included), Sing pts' and a boundary value problem's iterations, an AUTO
+   included), Sing pts' and a boundary value problem's iterations, an autoX
    run -- what Escape and Abort stop. While one runs, the protocol takes
    only what the computation itself acts on and drops everything else
    (core/ui_json.cpp during_run(), docs/protocol.md "Commands during a
@@ -107,15 +107,15 @@ bool cancelled();
 void resume(unsigned long seq);
 
 /* true at most every 50 ms (then the clock starts again): whether the
-   front end should be polled now. my_abort() and byeauto_() (xpp_ui.cpp)
+   front end should be polled now. my_abort() and byeautox_() (xpp_ui.cpp)
    share it, so a tight loop calling them does not hammer the front end. */
 bool poll_due();
 
 /* ---- where a job got to, and replaying an interruption ----------------
 
    Computations report their progress as they store results: an integration
-   every row it puts in storage (integrate.cpp), AUTO every point it adds to
-   the diagram (autevd.cpp addbif), the animation's Go every frame it shows
+   every row it puts in storage (integrate.cpp), autoX every point it adds to
+   the diagram (autox_evd.cpp addbif), the animation's Go every frame it shows
    (json_ani.cpp). When a job ends cancelled, the front end
    reads the last report to say where it stopped (docs/protocol.md,
    "stopped"). A script replaying the session arms the same point before
@@ -129,9 +129,9 @@ bool poll_due();
 
 /* what the last report was */
 enum class Reported {
-    nothing, /* no integration, no AUTO, no animation */
+    nothing, /* no integration, no autoX, no animation */
     rows,    /* an integration's rows and t */
-    point,   /* AUTO's branch and point */
+    point,   /* autoX's branch and point */
     frame    /* the animation's frames */
 };
 
@@ -139,7 +139,7 @@ struct Progress {
     Reported what = Reported::nothing; /* the last report */
     long rows = 0;                     /* rows in storage */
     double t = 0;                      /* the time of the last row stored */
-    int branch = 0, point = 0;         /* the last point AUTO stored */
+    int branch = 0, point = 0;         /* the last point autoX stored */
     int frame = 0;                     /* the animation's frames shown */
 };
 
@@ -148,10 +148,10 @@ struct Progress {
    job when a stop at `rows` is armed. */
 void report_rows(long rows, double t);
 
-/* AUTO stored point `point` (> 0) of branch `branch` (> 0). A stop at point
-   P is reached here when P-1 is stored: AUTO's next solve sees the cancel
+/* autoX stored point `point` (> 0) of branch `branch` (> 0). A stop at point
+   P is reached here when P-1 is stored: autoX's next solve sees the cancel
    and ends the branch on point P, an end point (EP) repeating P-1, which is
-   how every cancelled AUTO run ends (autlib1.cpp stplae, stplbv). */
+   how every cancelled autoX run ends (autox_lib1.cpp stplae, stplbv). */
 void report_point(int branch, int point);
 
 /* The animation's Go has shown `frame` frames (from 1). A stop at frame F
@@ -163,7 +163,7 @@ Progress progress();
 
 /* Arm a stop for the running job, or the next one to begin when none
    runs: it cancels itself when the integration has stored `rows` rows,
-   or when AUTO has stored point `point` of branch `branch` (see above). A
+   or when autoX has stored point `point` of branch `branch` (see above). A
    new arm replaces the old one; the outermost end() disarms. */
 void stop_at_rows(long rows);
 void stop_at_point(int branch, int point);
@@ -188,7 +188,7 @@ namespace xpp {
    (job::report_rows) share one reading of the clock (xpp_job.cpp). XPP_NO_THROTTLE set in the environment makes it always
    true: every throttled flush then happens, so a check sees each state a
    long loop passes through whatever the machine's speed
-   (tools/servercheck.py's autoinfo checks) */
+   (tools/servercheck.py's autoxinfo checks) */
 inline constexpr double INPUT_POLL_SECONDS = 0.05; /* Keep cancellation and question input responsive without busy polling. */
 inline constexpr double PROGRESS_SECONDS = 0.1; /* Bound progress event traffic to ten updates per second. */
 bool every(double &last, double seconds);
@@ -201,7 +201,7 @@ struct Computation {
     Computation &operator=(const Computation &) = delete;
 };
 /* a job the program gives itself (job::begin(0): no command line) as a
-   scope, ended however the scope is left (an AUTO run, an integration) */
+   scope, ended however the scope is left (an autoX run, an integration) */
 struct Job {
     Job() { job::begin(0); }
     ~Job() { job::end(); }

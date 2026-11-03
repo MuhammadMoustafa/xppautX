@@ -223,7 +223,7 @@ KeptValues keep_values(const Session &s)
   for(int i=0;i<m.node;i++)
     kept.delays.emplace_back(m.uvar_names[i],s.delay_string[i]);
   kept.numerics=s.numerics;
-  kept.auto_settings=auto_settings_now(s);
+  kept.autox_settings=autox_settings_now(s);
   kept.poincare_variable=poincare_name(m,s.numerics.poincare_variable);
   kept.saved=s.saved_session;
   return kept;
@@ -234,7 +234,7 @@ void restore_values(Session &s, const KeptValues &kept)
   const Model &m=s.model();
   /* the numerics: the settings kept, what a run leaves (data stored, a
      range's or shooting's state, the last seed) the new session's own */
-  auto_settings_reload(s, kept.auto_settings);
+  autox_settings_reload(s, kept.autox_settings);
   const NumericsSettings loaded=s.numerics;
   NumericsSettings &n=s.numerics;
   n=kept.numerics;

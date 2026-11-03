@@ -56,7 +56,7 @@
 #include "menudrive.h"
 #include "xpp_http.h"
 #include "xpp_util.h"
-#include "auto_nox.h"
+#include "autox_nox.h"
 #include "xpp_files.h"
 #include "xpp_about.h"
 #include "xpp_window.h"
@@ -74,15 +74,15 @@
 #include "axes2.h"
 #include "nullcline.h"
 
-/* AUTO's files in a directory of this session's own, removed at exit
-   (issue #11); a model's --silent command list runs no AUTO */
-static void start_auto_dir(void)
+/* autoX's files in a directory of this session's own, removed at exit
+   (issue #11); a model's --silent command list runs no autoX */
+static void start_autox_dir(void)
 {
-    std::string &dir = xpp::client_session().auto_state.dir;
+    std::string &dir = xpp::client_session().autox_state.dir;
     dir = xpp::files::make_temp_dir();
     /* at exit the folder is the session list's client's: every load hands
        it on to the Session it makes (session.cpp) */
-    if (!dir.empty()) atexit([] { xpp::cleanup_auto_dir(xpp::client_session()); });
+    if (!dir.empty()) atexit([] { xpp::cleanup_autox_dir(xpp::client_session()); });
 }
 
 /* --help: the modes, then the options that go with them */
@@ -110,7 +110,7 @@ static std::string usage_tail()
     "  --setx-schema    print the JSON Schema of a .setx settings file\n"
     "  --no-compile     run the equations in the interpreter, not as compiled code\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
-    "A session file (name.snapx, File/Save session or AUTO's Save diagram)\n"
+    "A session file (name.snapx, File/Save session or autoX's Save diagram)\n"
     "opens its saved model and whole session. A recording (name.recx)\n"
     "opens in the player; name.recx --silent plays it without an interface.\n"
     "Options:\n"
@@ -167,7 +167,7 @@ static void run_session(void)
         if (home && *home) xpp::files::change_dir(home);
     }
 #endif
-    /* a file that carries a model on the command line (W103: an AUTO
+    /* a file that carries a model on the command line (W103: an autoX
        file or a session file): its saved model is loaded, from the file's
        own folder as File > Open model loads one, then what the file adds */
     std::optional<SavedFile> saved;
@@ -226,7 +226,7 @@ static void run_session(void)
     if (!silent) {
         const xpp::Model &m = (**loaded).model();
         const auto noted = xpp::recent::note(opened.empty() ? xpp::files::absolute(m.this_file, m.load_dir) : opened);
-        /* a preferences file that cannot be read was said once already, with what it costs (auto_threads_load) */
+        /* a preferences file that cannot be read was said once already, with what it costs (autox_threads_load) */
         if (!noted && xpp::prefs::load_prefs()) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
     }
     /* the session the load made, the program's until the redraw (a protocol
@@ -305,7 +305,7 @@ int main(int argc, char **argv)
     if (cl.silent && !recording_batch) {
         if (xpp_saved_file_name(cl.model_file)) {
             xpp::log(XPP_LOG_ERROR, "{}\n",
-                     xpp::Error{"xppautX", "an AUTO or session file opens in the window, the browser or --server, not with --silent",
+                     xpp::Error{"xppautX", "an autoX or session file opens in the window, the browser or --server, not with --silent",
                                 xpp::Place{cl.model_file}}.text());
             return 2;
         }
@@ -315,14 +315,14 @@ int main(int argc, char **argv)
        so is a build without a window */
     xpp::Interface interface = cl.interface.value_or(xpp::Interface::window);
     if (interface == xpp::Interface::window && (cl.no_open || !xpp::window::supported())) interface = xpp::Interface::browser;
-    start_auto_dir();
+    start_autox_dir();
     if (recording_batch) interface = xpp::Interface::server;
     if (interface != xpp::Interface::server) {
         const bool browser = interface == xpp::Interface::browser;
         /* the window navigates to the address itself: shown nowhere */
         if (!xpp::http::start(cl.port.value_or(xpp::http::DEFAULT_PORT), browser, browser && !cl.no_open)) return 1;
-        /* the AUTO window's Output panel shows AUTO's table from the log */
-        xpp::log_set_auto_echo(1);
+        /* the autoX window's Output panel shows autoX's table from the log */
+        xpp::log_set_autox_echo(1);
     }
     /* the window runs the session itself; when it cannot open, the browser */
     if (interface == xpp::Interface::window && !xpp::window::run(run_session, xpp_about_markup().c_str())) xpp::http::show(true);

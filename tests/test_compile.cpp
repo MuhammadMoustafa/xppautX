@@ -81,7 +81,7 @@ void same_both_ways(xpp::Session &s,const xpp::Program &code)
    variables alone (fix_only) and, when the function writes the equations,
    the whole right-hand side (my_rhs), the same left behind (the
    variables, what SET writes, the generator's next draws) and the same
-   derivatives; and, when the model's right-hand side is AUTO's pure one,
+   derivatives; and, when the model's right-hand side is autoX's pure one,
    the same by its path on copies of the arrays. */
 void same_rhs(xpp::Session &s)
 {
@@ -114,7 +114,7 @@ void same_rhs(xpp::Session &s)
         CHECK(native_random==s.random.save());
         if (whole) CHECK(same(native_ydot,ydot));
     }
-    if (m.auto_rhs_pure) {
+    if (m.autox_rhs_pure) {
         auto c=constants;
         auto v=variables;
         pure_rhs(s,y.data(),ydot.data(),c.data(),v.data());

@@ -47,7 +47,7 @@ using Loaded = std::expected<Session *, Error>;
    the session list from now on, session.h), else what is wrong and where
    (the one before stays; the caller exits with status 1 when there is
    nothing to go on with). saved: a model saved in an
-   AUTO or session file, whose files the load reads instead of the disk's
+   autoX or session file, whose files the load reads instead of the disk's
    (model_files.h); cl names its first file. check, when given, reads
    what such a file adds against the loaded Session before the load keeps
    it (xpp_saved_check, xpp_session.h): what it finds wrong fails the load

@@ -17,7 +17,7 @@
    The core never calls the C library's malloc/calloc/realloc/strdup/free
    directly (ZeroedFloats, below, is the one owner of calloc); the exceptions are memory that crosses a boundary with a
    library: dirname()
-   (auto_nox.cpp, aniparse.cpp) returns a pointer into its argument; getcwd()
+   (autox_nox.cpp, aniparse.cpp) returns a pointer into its argument; getcwd()
    (xpp_files_dir.cpp) fills the caller's buffer). A new exception
    (getline, scandir, realpath(p, NULL), asprintf ...) is listed here and
    in tools/alloccheck.sh, which fails any other direct call

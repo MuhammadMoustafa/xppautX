@@ -10,7 +10,7 @@ version 4
 #   R3 at 1/3, 2/3 (w = 1/18, 2/9), R4 at 1/4, 3/4 (w = 1/32, 9/32); in b = w^2 and c = -mu - w.
 #   At w = 0 (b = 0) the cycle is a fold (the equilibrium w = +-sqrt(b) has its fold at b = 0): the torus curve
 #   passes through it at c = -mu, a 1:1 resonance of the fold curve b = 0, and returns on w < 0.
-# tests/auto/res_cycles.json runs it; docs/auto-references.md compares AUTO-07p 0.9.4's labels with these places.
+# tests/autox/res_cycles.json runs it; docs/auto-references.md compares AUTO-07p 0.9.4's labels with these places.
 x' = mu*x-y-x*(x*x+y*y)
 y' = x+mu*y-y*(x*x+y*y)
 w' = v

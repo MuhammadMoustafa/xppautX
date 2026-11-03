@@ -7,7 +7,7 @@
 #include <optional>
 #include <vector>
 #include "xpp_error.h"
-#include "auto_codes.h"
+#include "autox_codes.h"
 #include "colormap.h"
 
 namespace xpp {
@@ -28,7 +28,7 @@ namespace command { struct Command; class Arguments; } /* command_def.h */
  *
  * There are no pixel primitives: since protocol 2 (docs/ui-v2.md T18) the page
  * draws from data, which the code hands to the data modules (plot_data,
- * phase_data, marks_data, auto_data through auto_diagram, ani_data), and a
+ * phase_data, marks_data, autox_data through autox_diagram, ani_data), and a
  * PDF or SVG picture is recorded by picture.h (W492, #556 removed the 31
  * drawing callbacks that no front end implemented).
  *
@@ -91,27 +91,27 @@ struct FormField {
    2 the parameters, 3 both (ui_json.cpp hello) */
 #define XPP_FIELD_NAME_IN(n) (xpp::XPP_FIELD_NAME + (n))
 
-#define XPP_AUTO_CLICK 1000
-/* auto_grab_event: move the cursor to AUTO's diagram entry x (DIAGRAM.index) */
-#define XPP_AUTO_NODE 1001
+#define XPP_AUTOX_CLICK 1000
+/* autox_grab_event: move the cursor to autoX's diagram entry x (DIAGRAM.index) */
+#define XPP_AUTOX_NODE 1001
 
-/* One point of the AUTO diagram as add_point() (auto_nox.cpp) plots it in
-   one of its views, in that view's axis quantities (auto_xy_plot), for a
+/* One point of the autoX diagram as add_point() (autox_nox.cpp) plots it in
+   one of its views, in that view's axis quantities (autox_xy_plot), for a
    front end that draws the diagram from data. A point the view does not
    plot has draw 0 and x, y1 and y2 NaN. */
 typedef struct XppDiagPoint {
-    int ibr, pt;   /* AUTO's branch and point number, signed as AUTO has them */
-    AutoPointCode itp; /* AUTO's point type (auto_point_kind_name) */
+    int ibr, pt;   /* autoX's branch and point number, signed as autoX has them */
+    AutoxPointCode itp; /* autoX's point type (autox_point_kind_name) */
     int lab;       /* label, 0 when none or when the label mark is not drawn */
     DiagramPointType type; /* stable eq, unstable eq, stable periodic, unstable periodic */
-    AutoCalculation flag2;     /* two-parameter curve kind, no_calculation for one parameter */
+    AutoxCalculation flag2;     /* two-parameter curve kind, no_calculation for one parameter */
     int draw;      /* 0 not drawn (only the start of the next line), 1 a line
                       back to the previous point, 2 filled circles at y1 and
                       y2, 3 open circles */
     int newseg;    /* the previous point is this one: no line back */
     Color color;   /* the colour its line or marker is drawn in */
     int lw;        /* its line's width in pixels */
-    int node;      /* its entry in AUTO's diagram list (DIAGRAM.index) */
+    int node;      /* its entry in autoX's diagram list (DIAGRAM.index) */
     int from;      /* the label the run that computed it started from, on
                       the run's first point only (0 otherwise, or unknown) */
     int jacobian;  /* the Jacobian of the run that computed it (DIAGRAM.jacobian) */
@@ -159,11 +159,11 @@ void FlushDisplay(void);
 void redraw_params(void);
 void redraw_ics(void);
 void refreshdisplay(Session &s);
-int byeauto_(int *iflag);
+int byeautox_(int *iflag);
 void init_txtview(void);
 void bye_bye(void);
 
-/* The front end's character cell in pixels, for laying out the AUTO and
+/* The front end's character cell in pixels, for laying out the autoX and
    array plot windows and text in plots: a big and a small monospace font.
    0 when headless; xppautX sets them before it serves a session. */
 typedef struct {
@@ -254,9 +254,9 @@ typedef struct XppUi {
     void (*destroy_plot_window)(Session &s); /* the active one; not the main window */
     void (*window_selected)(Session &s, std::string_view name, std::string_view kind);
     void (*window_renamed)(Session &s, std::string_view old_name, std::string_view new_name);
-    void (*auto_closed)(Session &s, std::string_view name);
+    void (*autox_closed)(Session &s, std::string_view name);
     void (*tool_window_closed)(Session &s, std::string_view name, std::string_view kind); /* the animation or array plot window destroyed */
-    void (*redraw_diagram_for_client)(Session &s); /* the AUTO diagram sent to the client again, from its first point */
+    void (*redraw_diagram_for_client)(Session &s); /* the autoX diagram sent to the client again, from its first point */
     void (*lower_plot_window)(void);   /* put the active one at the bottom */
     /* Text,etc (T)ext: ask for a label, place it with the mouse, draw it
        and add_label() it */
@@ -267,7 +267,7 @@ typedef struct XppUi {
     void (*reset_film)(Session &s);
     /* kinescope: the captured frames live in the front end */
     void (*movie_play_back)(Session &s);  /* step through frames with keys/mouse */
-    void (*movie_auto_play)(Session &s);  /* the kinescope's cycles, frame_ms apart */
+    void (*movie_autox_play)(Session &s);  /* the kinescope's cycles, frame_ms apart */
     /* the frames as files `basename` names (image_format.h registry index): how many were saved, or why not */
     Result<int> (*movie_save)(Session &s, std::string_view basename, int fmat);
     Result<> (*movie_make_anigif)(Session &s, std::string_view file); /* the frames as one animated GIF */
@@ -290,23 +290,23 @@ typedef struct XppUi {
     void (*aplot_draw_one)(Session &s, std::string_view tag); /* redraw, tag and save a range frame */
     Result<bool> (*aplot_gif)(Session &s, std::string_view file); /* the picture as a GIF file; false: replacing the file was declined */
 
-    /* AUTO bifurcation window */
-    void (*auto_make_window)(Session &s, std::string_view wname, std::string_view iname);
-    void (*auto_refresh)(Session &s);
-    int (*auto_check_abort)(int *iflag);
+    /* autoX bifurcation window */
+    void (*autox_make_window)(Session &s, std::string_view wname, std::string_view iname);
+    void (*autox_refresh)(Session &s);
+    int (*autox_check_abort)(int *iflag);
     /* Grab: wait for a key (returns its code, mykeydef.h), a click on
-       the diagram (returns XPP_AUTO_CLICK with the pixel in x,y) or a
-       point of the diagram by its entry (XPP_AUTO_NODE, DIAGRAM.index in x) */
-    int (*auto_grab_event)(Session &s, int *x, int *y);
-    void (*auto_show_hint)(Session &s); /* Auto.hinttxt changed */
+       the diagram (returns XPP_AUTOX_CLICK with the pixel in x,y) or a
+       point of the diagram by its entry (XPP_AUTOX_NODE, DIAGRAM.index in x) */
+    int (*autox_grab_event)(Session &s, int *x, int *y);
+    void (*autox_show_hint)(Session &s); /* Autox.hinttxt changed */
     /* the grab is over: done=1 a point was taken (Enter), -1 cancelled (Esc) */
-    void (*auto_grab_end)(int done);
+    void (*autox_grab_end)(int done);
     /* The diagram as data, beside the drawing, in view `view` (W50,
-       AutoState::views): p is a point add_point() just plotted there, NULL
+       AutoxState::views): p is a point add_point() just plotted there, NULL
        that the view was cleared and its axes drawn again. */
-    void (*auto_diagram)(Session &s, int view, const XppDiagPoint *p);
+    void (*autox_diagram)(Session &s, int view, const XppDiagPoint *p);
     /* how many points of the diagram the client holds (Clear hides the branches up to them) */
-    int (*auto_points_held)(Session &s);
+    int (*autox_points_held)(Session &s);
 
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */
@@ -370,9 +370,9 @@ void kill_all_pops(Session &s);
 void cput_text(Session &s);
 void reset_film(Session &s);
 void draw_one_array_plot(Session &s, std::string_view bob);
-void make_auto(Session &s, std::string_view wname, std::string_view iname);
-void auto_diagram(Session &s, int view, const XppDiagPoint *p);
-int auto_points_held(Session &s);
+void make_autox(Session &s, std::string_view wname, std::string_view iname);
+void autox_diagram(Session &s, int view, const XppDiagPoint *p);
+int autox_points_held(Session &s);
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 void scroll_window(Session &s);

@@ -1,7 +1,7 @@
 #include "xpp_mem.h"
 #include <vector>
 #include <cstring>
-#include "auto_c.h"
+#include "autox_c.h"
 #include "session.h"
 #include "xpp_job.h" /* xppautX: cancel */
 
@@ -42,7 +42,7 @@ struct setubv_parallel_arglist {
   bool jacobian = true;
 };
 
-/* setubv's steps (the original AUTO also ran them on pthreads or MPI
+/* setubv's steps (the original autoX also ran them on pthreads or MPI
    workers). */
 void setubv_make_fc_dd(const setubv_parallel_arglist &larg, doublereal *dups, doublereal *rlcur,
 		       doublereal *rlold, doublereal rds);
@@ -149,10 +149,10 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
 void dispatch_mesh(const setubv_parallel_arglist *larg,
                    void (*work)(const setubv_parallel_arglist *))
 {
-  AutoLib &lib=*larg->iap->lib;
+  AutoxLib &lib=*larg->iap->lib;
   if (lib.collocation) {
     lib.collocation->prepare(lib,larg->iap->ndim,larg->iap->nbc);
-    lib.collocation->intervals(larg->loop_end-larg->loop_start,[&](std::ptrdiff_t begin,std::ptrdiff_t end,AutoLib &worker) {
+    lib.collocation->intervals(larg->loop_end-larg->loop_start,[&](std::ptrdiff_t begin,std::ptrdiff_t end,AutoxLib &worker) {
       iap_type local=*larg->iap;
       local.lib=&worker;
       setubv_parallel_arglist mine=*larg;
@@ -289,7 +289,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
 } // namespace
 
 int 
-setubv(integer ndim, xpp::AutoProblem ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
+setubv(integer ndim, xpp::AutoxProblem ips, integer na, integer ncol, integer nbc, integer nint, integer ncb, integer nrc, integer nra, integer nca, 
        FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, 
        doublereal rds, xpp::Matrix3<doublereal> aa, xpp::Matrix3<doublereal> bb, xpp::Matrix3<doublereal> cc, xpp::Matrix<doublereal> dd, doublereal *fa, doublereal *fc, doublereal *rlcur, 
        doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, 

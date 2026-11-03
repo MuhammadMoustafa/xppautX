@@ -6,7 +6,7 @@
    working folder or to an including .odex's folder):
 
    - a model read from the disk: each file is read there, and recorded in
-     the Model (Model::files) as it was read, so that an AUTO file (.snapx)
+     the Model (Model::files) as it was read, so that an autoX file (.snapx)
      or a session file (.snapx) saves the model whole (xpp_session.h);
    - a model saved in one of those: each file is the copy saved there and
      never the disk (Model::saved_in names the file), a file not saved

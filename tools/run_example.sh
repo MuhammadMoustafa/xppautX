@@ -13,7 +13,7 @@
 # there, under the model's path with / made _, a .sum file holding
 # "<md5> <model>" (the md5 of output.dat with its CRs removed, so a
 # Windows build's text-mode line ends hash like Linux's; "none" when the
-# model writes nothing by itself: AUTO tests; "noload" when it exits 1
+# model writes nothing by itself: autoX tests; "noload" when it exits 1
 # without output, not loading by itself: includes, DLLs; "timeout") and a
 # .st file holding the exit status (or "timeout"), and with KEEP_OUTPUT=1
 # the output.dat itself as a .dat file (examples_check.sh --keep).

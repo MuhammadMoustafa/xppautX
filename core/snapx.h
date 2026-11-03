@@ -6,8 +6,8 @@
    tests/test_snapx.cpp): the members' names, the manifest (session.setx:
    the model's first file, the animation it was loaded with, whether the
    data is in) and the model's members. Reading and writing a whole file
-   is xpp_session.cpp's; AUTO's members belong to the session too
-   (xpp_session_auto.h). C++ only. */
+   is xpp_session.cpp's; autoX's members belong to the session too
+   (xpp_session_autox.h). C++ only. */
 #include <expected>
 #include <optional>
 #include <span>
@@ -38,7 +38,7 @@ bool memory_groups(setx::Block &block, std::string_view key, std::vector<setx::B
    the model's (model_folder below), then these */
 inline constexpr const char *manifest_member = "session.setx"; /* Manifest below */
 inline constexpr const char *set_member = "model.setx";       /* the session's settings (setx_file.h), complete, without graphics */
-inline constexpr std::string_view auto_folder = "auto/";       /* AUTO's members, settings, views and optional diagram/orbits (xpp_session_auto.h) */
+inline constexpr std::string_view autox_folder = "autox/";       /* autoX's members, settings, views and optional diagram/orbits (xpp_session_autox.h) */
 inline constexpr const char *windows_member = "windows.setx"; /* the plot windows and what they display */
 inline constexpr const char *marks_member = "marks.setx";     /* labels, arrows and markers, frozen curves */
 inline constexpr const char *frozen_member = "frozen.npz";    /* the frozen curves' points */

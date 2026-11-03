@@ -30,7 +30,7 @@ struct BifCurve {
 /* The frozen curves of every plot window (Graphic stuff > Freeze) */
 typedef struct {
     std::vector<CURVE> curve; /* .use: the slot holds one; .w: its window */
-    int auto_freeze;     /* freeze the curve after every integration */
+    int autox_freeze;     /* freeze the curve after every integration */
     /* their points: curve[i].xv/yv/zv point into points[i][0..2] (CURVE,
        struct.h, holds plain pointers) */
     std::vector<std::array<std::vector<float>,plot_axes>> points;
@@ -190,11 +190,11 @@ Result<> frozen_slot_in_window(const Session &s, XppWinId w, int slot, std::stri
 Result<> delete_frozen(Session &s, XppWinId w, int slot);
 /* the imported bifurcation diagram cleared, redrawn */
 void clear_bifurcation(Session &s);
-/* AUTO's Write pts file `filename` (six columns, checked whole first) shown in the active window as curves
+/* autoX's Write pts file `filename` (six columns, checked whole first) shown in the active window as curves
    by kind: how many curves it made */
 Result<int> import_bifurcation(Session &s, std::string_view filename);
 /* a run's curve frozen when s freezes each run (Freeze > On freeze) */
-void auto_freeze_it(Session &s);
+void autox_freeze_it(Session &s);
 /* curve `ind` of the active window frozen in its window: the slot it took */
 Result<int> freeze_curve(Session &s, int ind);
 void edit_frz_crv(Session &s, int i);

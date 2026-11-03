@@ -10,7 +10,7 @@
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "typed_values.h"
-#include "auto_nox.h"
+#include "autox_nox.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_globals.h"
@@ -642,7 +642,7 @@ void set_cycle(xpp::Session &s, int flag, int *icol)
   if(*icol==10)*icol=0;
 } 
 
-int do_auto_range_go(xpp::Session &s)
+int do_autox_range_go(xpp::Session &s)
 {
   double *x;
   x=&s.data_store.current[0];
@@ -681,7 +681,7 @@ void show_stop_note(xpp::Session &s)
   s.integrator.stop_note.clear();
 }
 
-/* Range's sweep (flag 0 one parameter, 1 two, 2 AUTO's range over its
+/* Range's sweep (flag 0 one parameter, 1 two, 2 autoX's range over its
    diagram), the settings made: one integration per step; -1 when one
    stopped early (the sweep ends there), else 0; or the error it failed
    with */
@@ -691,7 +691,7 @@ xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFra
   bool complete=true; /* a failed capture can stop the sweep without an integration error */
 
   std::string bob;
-  std::string parn; /* auto_get_info writes the parameter's name */
+  std::string parn; /* autox_get_info writes the parameter's name */
  int ivar=0,ivar2=0,res=0,oldic=0;
  int nit=20,i=0,j=0,itype=0,itype2=0,cycle=0,icol=0,nit2=0,iii=0;
  xpp::Color color=s.plot_windows.current->color[0];
@@ -736,7 +736,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
 
  if(s.integrator.range.movie)reset_film(s);
  if(flag==2){
-   auto_get_info(s, &nit,parn);
+   autox_get_info(s, &nit,parn);
    nit2=0;
  }
  const int runs=(nit+1)*(nit2+1);
@@ -797,7 +797,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
      }
    }  /* normal range stuff   */ 
    else {  /* auto range stuff */
-     auto_set_mark(s, i);
+     autox_set_mark(s, i);
      get_ic(s,2,x);
      get_val(s,parn,&temp);
      bob=xpp::format("{:.230}={:.16g}",parn,temp);
@@ -855,7 +855,7 @@ if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_
  }
 
  do_this_liaprun(s,i,p);  /* sends parameter and index back */
- if(s.data_store.rows>2)auto_freeze_it(s);
+ if(s.data_store.rows>2)autox_freeze_it(s);
  if(s.array_plot.range==1)
    draw_one_array_plot(s,bob);
  
@@ -912,7 +912,7 @@ xpp::Result<int> sweep_range(xpp::Session &s, double *x, int flag, RangeProgress
 }
 }
 
-int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
+int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Autox range */
 {
  if(flag==0||flag==2){
    s.integrator.range.rtype=RANGE_SINGLE;
@@ -1288,7 +1288,7 @@ xpp::Result<bool> integrate_from(xpp::Session &s, double *x)
   const bool early=r&&(*r!=0||!s.integrator.stop_note.empty());
   show_stop_note(s);
   if(program.interactive){
- auto_freeze_it(s);
+ autox_freeze_it(s);
   redraw_ics();
   }
   if(!r)return std::unexpected(r.error());

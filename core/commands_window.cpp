@@ -1,5 +1,5 @@
 /* The window resource's registry rows (W353, moved here at W530): create,
-   rename, select, hide, show, destroy and list the windows (graphs, AUTO
+   rename, select, hide, show, destroy and list the windows (graphs, autoX
    views, the data browser, the animation and the array plot: W515), the
    redraw mode, SimPlot.
    Each handler gets its arguments validated and typed (command_def.h). */
@@ -8,7 +8,7 @@
 #include "command_registry.h"
 #include "json_error.h"
 #include "many_pops.h"
-#include "auto_nox.h"
+#include "autox_nox.h"
 #include "graf_par.h"
 #include "graphics.h"
 #include "model_options.h"
@@ -37,11 +37,11 @@ Result<std::string> unknown_window(const Command &command, const std::string &na
     return fail(command.name, xpp::format("Unknown window \"{}\"", name), place);
 }
 
-/* the windows that are graphs or AUTO views: the ones with a name of the user's, to select or rename */
+/* the windows that are graphs or autoX views: the ones with a name of the user's, to select or rename */
 Result<std::string> named_by_user(const Command &command, std::string_view name, WindowKind kind, const Place &place)
 {
     if (kind == WindowKind::graph || kind == WindowKind::diagram) return {};
-    return fail(command.name, xpp::format("\"{}\" is the {} window: this applies to a graph or an AUTO view", name,
+    return fail(command.name, xpp::format("\"{}\" is the {} window: this applies to a graph or an autoX view", name,
                                           window_kind_name(kind)), place);
 }
 
@@ -201,7 +201,7 @@ Result<std::string> redraw(Session &s, const Command &command, const Arguments &
         const ActiveGraph active(s, target->index);
         ui.redraw_graph(s);
         plot_data_picture(s, 1); /* a data client draws the current data again */
-    } else return fail(command.name, xpp::format("\"{}\" is the {} window: this applies to a graph or an AUTO view", name, window_kind_name(target->kind)), place);
+    } else return fail(command.name, xpp::format("\"{}\" is the {} window: this applies to a graph or an autoX view", name, window_kind_name(target->kind)), place);
     return window_result(name) + ",\"redrawn\":true}";
 }
 
@@ -227,7 +227,7 @@ Result<std::string> rename_window(Session &s, const Command &command, const Argu
     if (!target) return unknown_window(command, name, place);
     if (const Result<std::string> refused = named_by_user(command, name, target->kind, place); !refused) return refused;
     if (target->kind == WindowKind::graph) s.plot_windows.graph[target->index].name = new_name;
-    else s.auto_state.views[target->index].name = new_name;
+    else s.autox_state.views[target->index].name = new_name;
     ui.window_renamed(s, name, new_name);
     if (s.selected_window == name) s.selected_window = new_name;
     std::string result = window_result(name) + ",\"new_name\":";
@@ -241,7 +241,7 @@ Result<std::string> select_window(Session &s, const Command &command, const Argu
     const auto target = find_window(s, name);
     if (!target) return unknown_window(command, name, place);
     if (target->kind == WindowKind::graph) make_active(s, target->index, 1);
-    else if (target->kind == WindowKind::diagram) auto_activate_view(s, target->index);
+    else if (target->kind == WindowKind::diagram) autox_activate_view(s, target->index);
     else s.selected_window = name;
     ui.window_selected(s, name, window_kind_name(target->kind));
     return window_result(name) + '}';
@@ -272,7 +272,7 @@ Result<std::string> list_windows_result(Session &s, const Command &, const Argum
 }
 
 /* A graph's texts, arrows, markers and frozen curves cannot be made again:
-   destroying a graph that holds some is confirmed first. An AUTO view's
+   destroying a graph that holds some is confirmed first. An autoX view's
    diagram is the session's (a new view shows it again), the animation and
    the array plot are made again from their file and the stored data, so
    none of them asks. The question is asked in every front end as the
@@ -301,16 +301,16 @@ Result<std::string> destroy_window(Session &s, const Command &command, const Arg
         destroy_a_pop(s);
         break;
     case WindowKind::diagram:
-        if (!auto_close_view(s, target->index)) {
-            s.auto_state.bifur.exist = 0;
-            s.auto_view = AutoView();
-            for (AutoDiagramView &view : s.auto_state.views) {
+        if (!autox_close_view(s, target->index)) {
+            s.autox_state.bifur.exist = 0;
+            s.autox_view = AutoxView();
+            for (AutoxDiagramView &view : s.autox_state.views) {
                 view.zoom = Zoom();
                 view.hidden = false;
             }
-            ui.auto_closed(s, name);
+            ui.autox_closed(s, name);
             s.selected_window = s.plot_windows.graph[s.plot_windows.active].name;
-        } else s.selected_window = s.auto_state.views[s.auto_state.active_view].name;
+        } else s.selected_window = s.autox_state.views[s.autox_state.active_view].name;
         break;
     case WindowKind::browser:
         return fail(command.name, "The data browser stays open: it shows the session's stored data (Clear plot's Erase empties it)", place);
@@ -428,7 +428,7 @@ constexpr std::array ROWS = {
     Command{"window.show", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Window/Show",
             "Show a hidden window exactly as it was.", SHOWN_RESULTS, STATE_EVENTS, true, show_window},
     Command{"window.destroy", DESTROY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Make window/Destroy",
-            "Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data browser stay; destroying an AUTO view keeps the diagram.",
+            "Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data browser stay; destroying an autoX view keeps the diagram.",
             CLOSE_RESULTS, WINDOW_EVENTS, true, destroy_window},
     Command{"window.list", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Window/List",
             "List every window with its name, kind and whether it is shown.", LIST_RESULTS, STATE_EVENTS, true, list_windows_result},
@@ -451,12 +451,12 @@ constexpr std::array ROWS = {
             "Set what the page shows of a graph: the x and y ranges ([] for the window's own), the earlier runs, keeping a replaced run.",
             DISPLAY_RESULTS, PLOT_EVENTS, true, set_display},
     Command{"window.redraw", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Redraw plot",
-            "Draw a graph again from the stored data (and its nullclines, texts and frozen curves), or send an AUTO view's diagram again.", REDRAWN_RESULTS, PLOT_EVENTS, false, redraw},
+            "Draw a graph again from the stored data (and its nullclines, texts and frozen curves), or send an autoX view's diagram again.", REDRAWN_RESULTS, PLOT_EVENTS, false, redraw},
     Command{"window.clear", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Clear plot",
             "Clear a graph: its picture and earlier runs go until the next run.", CLEARED_RESULTS, PLOT_EVENTS, true, clear},
     Command{"window.send_to_bottom", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Windows/Make window/Bottom",
             "Send a graph to the bottom.", WINDOW_RESULTS, STATE_EVENTS, true, send_to_bottom},
-    Command{"window.set_redraw_mode", MODE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Make window/Auto or Manual",
+    Command{"window.set_redraw_mode", MODE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Make window/Autox or Manual",
             "Choose automatic or manual graph redrawing.", MODE_RESULTS, STATE_EVENTS, true, set_redraw_mode},
     Command{"window.set_simultaneous_plot", SIMULTANEOUS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Make window/SimPlot",
             "Draw on every open graph when enabled.", SIMULTANEOUS_RESULTS, STATE_EVENTS, true, set_simultaneous_plot}};

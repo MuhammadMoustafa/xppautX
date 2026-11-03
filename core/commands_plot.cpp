@@ -165,11 +165,11 @@ Result<std::string> import_bifurcation_command(Session &s, const Command &comman
     return ResultObject().text("file", file).integer("curves_imported", *count).done();
 }
 
-Result<std::string> set_auto_freeze_command(Session &s, const Command &, const Arguments &args, const Place &)
+Result<std::string> set_autox_freeze_command(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const bool enabled = args.get<bool>("enabled");
-    s.frozen_curves.auto_freeze = enabled ? 1 : 0;
-    return ResultObject().boolean("auto_freeze", enabled).done();
+    s.frozen_curves.autox_freeze = enabled ? 1 : 0;
+    return ResultObject().boolean("autox_freeze", enabled).done();
 }
 
 Result<std::string> export_picture(Session &s, const Command &command, const Arguments &args, const Place &place, int format)
@@ -412,7 +412,7 @@ constexpr std::array EDITED_FROZEN_RESULTS = {ResultField{"slot", "integer"}, Re
 constexpr std::array DELETED_FROZEN_RESULTS = {ResultField{"slot", "integer"}, ResultField{"deleted", "boolean"}};
 constexpr std::array LEGEND_RESULTS = {ResultField{"legend_visible", "boolean"}};
 constexpr std::array IMPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"curves_imported", "integer"}};
-constexpr std::array AUTO_FREEZE_RESULTS = {ResultField{"auto_freeze", "boolean"}};
+constexpr std::array AUTOX_FREEZE_RESULTS = {ResultField{"autox_freeze", "boolean"}};
 constexpr std::array PICTURE_RESULTS = {ResultField{"file", "file"}, ResultField{"bytes_written", "integer"}};
 constexpr std::array DATA_RESULTS = {ResultField{"file", "file"}, ResultField{"rows_written", "integer"}};
 constexpr std::array ORIGIN_RESULTS = {ResultField{"origin_updated", "boolean"}};
@@ -456,12 +456,12 @@ constexpr std::array ROWS = {
             "Show or hide the frozen curves' legend; x and y, the plot coordinates of its first line, move it.", LEGEND_RESULTS, PLOT_EVENTS, true,
             set_frozen_legend_command, LEGEND_GROUPS},
     Command{"plot.import_bifurcation", IMPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Plot/Freeze/Bif.Diag",
-            "Show an AUTO Write pts file of the model's folder (six columns, checked whole first) in the graph as curves by kind.", IMPORT_RESULTS,
+            "Show an autoX Write pts file of the model's folder (six columns, checked whole first) in the graph as curves by kind.", IMPORT_RESULTS,
             SERIES_EVENTS, true, import_bifurcation_command},
     Command{"plot.clear_bifurcation", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Plot/Freeze/Clr. BD",
             "Remove the imported bifurcation diagram from the graph.", CLEARED_RESULTS, PLOT_EVENTS, true, clear_command<clear_bifurcation>},
-    Command{"plot.set_auto_freeze", ENABLED_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Plot, "Plot/Freeze/On freeze",
-            "Freeze the first curve of a graph after every run.", AUTO_FREEZE_RESULTS, STATE_EVENTS, true, set_auto_freeze_command},
+    Command{"plot.set_autox_freeze", ENABLED_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Plot, "Plot/Freeze/On freeze",
+            "Freeze the first curve of a graph after every run.", AUTOX_FREEZE_RESULTS, STATE_EVENTS, true, set_autox_freeze_command},
     Command{"plot.export_pdf", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "File/Curves/PDF",
             "Write the graph as a PDF picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay.",
             PICTURE_RESULTS, STATE_EVENTS, true, export_pdf, {}, {}, "write", "*"},

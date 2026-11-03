@@ -1,15 +1,15 @@
-/* The AUTO diagram's axis dialog (docs/ui-v2.md T21), its pure part: the
+/* The autoX diagram's axis dialog (docs/ui-v2.md T21), its pure part: the
    projections the y axis can show, which name each needs (a variable, the
    second parameter or none), the names the core's axes show now, the
    spinners' step and the range typed. Pure. */
-import type {AutoProjection, DiagramAxes} from '../store/diagram';
+import type {AutoxProjection, DiagramAxes} from '../store/diagram';
 import {fieldError, NUMBER} from '../store/fieldKinds';
 
-/** the projections in the order of AUTO's Plot Type menu (each labelled by its name, choiceLabel) */
-export const PROJECTIONS: AutoProjection[] = ['maximum', 'maximum_and_minimum', 'norm', 'average', 'period', 'frequency', 'two_parameter'];
+/** the projections in the order of autoX's Plot Type menu (each labelled by its name, choiceLabel) */
+export const PROJECTIONS: AutoxProjection[] = ['maximum', 'maximum_and_minimum', 'norm', 'average', 'period', 'frequency', 'two_parameter'];
 
 /** the name the y axis needs besides the projection: a variable, the second parameter, or none */
-export function yNeeds(plot: AutoProjection): 'var' | 'par2' | null {
+export function yNeeds(plot: AutoxProjection): 'var' | 'par2' | null {
   return plot === 'maximum' || plot === 'maximum_and_minimum' || plot === 'average' ? 'var' : plot === 'two_parameter' ? 'par2' : null;
 }
 

@@ -1,6 +1,6 @@
 /* Platform filesystem primitives shared by xpp_files.cpp (the page's
    files and the core's own file operations) and xpp_files_dir.cpp (folder
-   listing, the current folder, AUTO's scratch folders): stat-without-
+   listing, the current folder, autoX's scratch folders): stat-without-
    following-a-link, mkdir/rmdir, the process id and whether it is still
    running, and the scratch-folder base. Each wraps one OS call, so it is
    inline rather than split into its own translation unit. The shared path

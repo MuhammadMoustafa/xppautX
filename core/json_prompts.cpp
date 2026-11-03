@@ -13,11 +13,11 @@
 #include "typed_values.h"
 #include "menus.h"
 #include "graphics.h"
-#include "auto_nox.h"
+#include "autox_nox.h"
 #include "xpp_files.h"
 #include "json_error.h"
-#include "auto_data.h"
-#include "auto_settings.h"
+#include "autox_data.h"
+#include "autox_settings.h"
 #include <array>
 #include <iterator>
 #include <stdio.h>
@@ -48,8 +48,8 @@ int ask_wait(std::string &b, int id)
     xpp::Session &s = client(); /* core code asks with no Session: the client's */
     BUF_LIT(b, "}");
     diag_flush(s, 1);
-    auto_data_update(s, 1);
-    auto_settings_update(s);
+    autox_data_update(s, 1);
+    autox_settings_update(s);
     json_flush();
     if (session.generated) {
         try {
@@ -496,9 +496,9 @@ void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y)
     if (!jx || !jy) {
         *x = get_int(answer.c_str(), px[k], 0);
         *y = get_int(answer.c_str(), py[k], 0);
-    } else if (win == WIN_AUTO) {
-        *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.auto_state.axes().xmin, s.auto_state.axes().xmax, s.auto_state.bifur.x0, s.auto_state.bifur.x0 + s.auto_state.bifur.wid);
-        *y = data_to_pixel(get_num(answer.c_str(), dy[k], 0), s.auto_state.axes().ymin, s.auto_state.axes().ymax, s.auto_state.bifur.y0 + s.auto_state.bifur.hgt, s.auto_state.bifur.y0);
+    } else if (win == WIN_AUTOX) {
+        *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.autox_state.axes().xmin, s.autox_state.axes().xmax, s.autox_state.bifur.x0, s.autox_state.bifur.x0 + s.autox_state.bifur.wid);
+        *y = data_to_pixel(get_num(answer.c_str(), dy[k], 0), s.autox_state.axes().ymin, s.autox_state.axes().ymax, s.autox_state.bifur.y0 + s.autox_state.bifur.hgt, s.autox_state.bifur.y0);
     } else {
         get_draw_area(s);
         *x = data_to_pixel(get_num(answer.c_str(), dx[k], 0), s.plot_windows.current->xlo, s.plot_windows.current->xhi, s.drawing.d_left, s.drawing.d_right);

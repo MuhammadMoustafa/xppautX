@@ -1,4 +1,4 @@
-/* Where the AUTO diagram writes its labels' names (docs/ui-v2.md T21):
+/* Where the autoX diagram writes its labels' names (docs/ui-v2.md T21):
    beside the cross, moved down or up a line at a time when that spot is
    taken by a name already written, so two labels at one place ("LP 6" and
    "MX 9" at a branch's end) are both readable. Greedy, in the order given.

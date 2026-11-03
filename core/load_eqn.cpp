@@ -15,7 +15,7 @@
 #include "ode_read.h"
 #include "nullcline.h"
 #include "colormap.h"
-#include "auto_settings.h"
+#include "autox_settings.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "typed_values.h"
@@ -677,16 +677,16 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
     for(const auto &[name,value] : options[s.options_applied].items)
       set_option(s,name,value,0,mask);
   }
-  std::array<double, xpp::AUTO_NUM_N> values{};
-  std::array<int, xpp::AUTO_NUM_N> supplied{};
+  std::array<double, xpp::AUTOX_NUM_N> values{};
+  std::array<int, xpp::AUTOX_NUM_N> supplied{};
   for (const xpp::OptionRow &row : xpp::option_rows()) {
-    if (row.auto_numeric < 0) continue;
-    values[row.auto_numeric] = row.real ? row.real(s) : row.whole(s);
-    supplied[row.auto_numeric] = s.options_set.has(row);
+    if (row.autox_numeric < 0) continue;
+    values[row.autox_numeric] = row.real ? row.real(s) : row.whole(s);
+    supplied[row.autox_numeric] = s.options_set.has(row);
   }
-  if (const auto valid = xpp::auto_settings_numbers_check(values, supplied); !valid) {
+  if (const auto valid = xpp::autox_settings_numbers_check(values, supplied); !valid) {
     const auto row = std::ranges::find_if(xpp::option_rows(), [&](const xpp::OptionRow &r) {
-      return r.auto_numeric >= 0 && valid.error().field == xpp::auto_settings_num_key(r.auto_numeric);
+      return r.autox_numeric >= 0 && valid.error().field == xpp::autox_settings_num_key(r.autox_numeric);
     });
     xpp::Error error = valid.error();
     error.place = xpp::model_place(s.model(), row->name);

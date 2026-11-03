@@ -1,14 +1,14 @@
 /* Long names: a model's names have no length limit (W76), and the places
    that must fit one into a fixed width shorten it visibly instead of
    overflowing or silently cutting it to another name. The whole-model side
-   (loading, the protocol, the forms, CSV and .set files, AUTO) is
-   tools/autocheck.py's names section, with 200-character names. */
+   (loading, the protocol, the forms, CSV and .set files, autoX) is
+   tools/autoxcheck.py's names section, with 200-character names. */
 #include "xpptest.h"
 #include "session.h"
 #include "model.h"
 #include <string>
 #include "expr.h"
-#include "auto_nox.h"
+#include "autox_nox.h"
 #include "lunch-new.h"
 #include "xpp_util.h"
 #include "typed_values.h"
@@ -66,7 +66,7 @@ int main(void)
     CHECK_STR(xpp::short_name("abcdefghijk", 10).c_str(), "abcdefghi~");
     CHECK(xpp::short_name(q1000, 10) == std::string(9, 'q') + "~");
 
-    /* AUTO's headings stay 14 wide: a long name is shortened with the marker
+    /* autoX's headings stay 14 wide: a long name is shortened with the marker
        and leaves a blank before the next heading */
     xpp::client_session().size_variables(1);
     xpp::client_session().model().size_parameters(1);
@@ -74,13 +74,13 @@ int main(void)
     xpp::client_session().model().uvar_names[0] = "MEMBRANE_POTENTIAL_FAST_VARIABLE";
     xpp::client_session().model().node = xpp::client_session().model().neq = 1;
     xpp::client_session().model().nupar = 1;
-    xpp::client_session().auto_state.parameter_layout.model_parameters=1;
-    out = auto_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().auto_state.parameter_layout.solver_index(0)));
+    xpp::client_session().autox_state.parameter_layout.model_parameters=1;
+    out = autox_screen_col(xpp::client_session(), xpp::format("PAR({})",xpp::client_session().autox_state.parameter_layout.solver_index(0)));
     CHECK_STR(out.c_str(), "applied_stim~ ");
-    out = auto_screen_col(xpp::client_session(), "   MAX U(1)   ");
+    out = autox_screen_col(xpp::client_session(), "   MAX U(1)   ");
     CHECK_STR(out.c_str(), "MAX MEMBRANE~ ");
     xpp::client_session().model().uvar_names[0] = "v";
-    out = auto_screen_col(xpp::client_session(), "     U(1)     ");
+    out = autox_screen_col(xpp::client_session(), "     U(1)     ");
     CHECK_STR(out.c_str(), "      v       "); /* a short name is centred as before */
 
     /* find_user_name finds a 200-character parameter, blanks and all */

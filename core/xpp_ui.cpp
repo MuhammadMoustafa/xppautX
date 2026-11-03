@@ -96,7 +96,7 @@ static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
-static int hl_auto_points_held(Session &s) { return diagram_count(s.diagram); }
+static int hl_autox_points_held(Session &s) { return diagram_count(s.diagram); }
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
 static void hl_live_state(Session &, const double *, double) {}
@@ -148,11 +148,11 @@ static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
     *h = g && g->x11Hgt > 0 ? static_cast<unsigned int>(g->x11Hgt) : 480;
 }
 static Result<> hl_film_clip(Session &) { return {}; }
-static void hl_auto_make_window(Session &, std::string_view, std::string_view) {}
-static void hl_auto_diagram(Session &, int, const XppDiagPoint *) {}
-static int hl_auto_grab_event(Session &, int *, int *) { return 27; }
-static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
-static int hl_auto_rubber(Session &, int *, int *, int *, int *, int)
+static void hl_autox_make_window(Session &, std::string_view, std::string_view) {}
+static void hl_autox_diagram(Session &, int, const XppDiagPoint *) {}
+static int hl_autox_grab_event(Session &, int *, int *) { return 27; }
+static int hl_autox_check_abort(int *iflag) { *iflag = 0; return 0; }
+static int hl_autox_rubber(Session &, int *, int *, int *, int *, int)
 {
     return 0;
 }
@@ -231,8 +231,8 @@ XppUi ui = {
     .create_plot_window = hl_s,
     .destroy_plot_window = hl_s,
     .window_selected = hl_s_str_str,
-    .window_renamed = hl_auto_make_window,
-    .auto_closed = hl_s_str,
+    .window_renamed = hl_autox_make_window,
+    .autox_closed = hl_s_str,
     .tool_window_closed = hl_s_str_str,
     .redraw_diagram_for_client = hl_s,
     .lower_plot_window = hl_void,
@@ -242,24 +242,24 @@ XppUi ui = {
     .film_clip = hl_film_clip,
     .reset_film = hl_s,
     .movie_play_back = hl_s,
-    .movie_auto_play = hl_s,
+    .movie_autox_play = hl_s,
     .movie_save = hl_movie_save,
     .movie_make_anigif = hl_movie_make_anigif,
-    .rubber_band = hl_auto_rubber,
+    .rubber_band = hl_autox_rubber,
     .scroll_window = hl_s,
     .aplot_make = hl_s_str,
     .aplot_redraw = hl_s,
     .aplot_reset_axes = hl_s,
     .aplot_draw_one = hl_s_str,
     .aplot_gif = hl_aplot_gif,
-    .auto_make_window = hl_auto_make_window,
-    .auto_refresh = hl_s,
-    .auto_check_abort = hl_auto_check_abort,
-    .auto_grab_event = hl_auto_grab_event,
-    .auto_show_hint = hl_s,
-    .auto_grab_end = hl_int,
-    .auto_diagram = hl_auto_diagram,
-    .auto_points_held = hl_auto_points_held,
+    .autox_make_window = hl_autox_make_window,
+    .autox_refresh = hl_s,
+    .autox_check_abort = hl_autox_check_abort,
+    .autox_grab_event = hl_autox_grab_event,
+    .autox_show_hint = hl_s,
+    .autox_grab_end = hl_int,
+    .autox_diagram = hl_autox_diagram,
+    .autox_points_held = hl_autox_points_held,
     .new_vcr = hl_s,
     .ani_show = hl_void,
     .ani_slider = hl_s,
@@ -503,9 +503,9 @@ void reset_graphics(Session &s) { ui.reset_graphics(s); }
 void cput_text(Session &s) { ui.cput_text(s); }
 void reset_film(Session &s) { ui.reset_film(s); }
 void draw_one_array_plot(Session &s, std::string_view bob) { ui.aplot_draw_one(s, bob); }
-void make_auto(Session &s, std::string_view wname, std::string_view iname) { ui.auto_make_window(s, wname, iname); }
-void refreshdisplay(Session &s) { ui.auto_refresh(s); }
-int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
+void make_autox(Session &s, std::string_view wname, std::string_view iname) { ui.autox_make_window(s, wname, iname); }
+void refreshdisplay(Session &s) { ui.autox_refresh(s); }
+int byeautox_(int *iflag) /* autoX's checkpoint, as my_abort() */
 {
     int r;
     *iflag = 0;
@@ -514,12 +514,12 @@ int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
         return 0;
     }
     if (!xpp::job::poll_due()) return 0;
-    r = ui.auto_check_abort(iflag);
+    r = ui.autox_check_abort(iflag);
     if (*iflag == 1) xpp::job::cancel_current();
     return r;
 }
-int auto_points_held(Session &s) { return ui.auto_points_held(s); }
-void auto_diagram(Session &s, int view, const XppDiagPoint *p) { ui.auto_diagram(s, view, p); }
+int autox_points_held(Session &s) { return ui.autox_points_held(s); }
+void autox_diagram(Session &s, int view, const XppDiagPoint *p) { ui.autox_diagram(s, view, p); }
 void init_txtview(void) { ui.init_txtview(); }
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n)

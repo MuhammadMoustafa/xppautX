@@ -1,0 +1,336 @@
+{
+  "model": "examples/ode/mu26.odex",
+  "reason": "W415 (#477): the same neuron with the h current blocked (both conductances 0), the source's c.mu26_blocked and run_2d_bifurcation.auto. The applied current is continued from rest through the rheobase fold (0.0658 pA; a saddle-node on an invariant circle, by the source's notes), the second fold (-79.06 pA) and the Hopf point (13.2657 pA), then the cycles up to their fold (99.9986 pA) and down to the rheobase fold (to_snic, W423; the source's run_bifurcation_blocked_extend.auto). Two-parameter loci, as the source's: the Hopf point in (g_h soma, current) and in (g_h dendrite, current) up to g_h 20, and the rheobase fold in (current, g_h soma) through its cusp (1.0811 pA). The folds of cycles in g_h (lpc_soma, lpc_dend) are checked against AUTO-07p (W436; Par Min -0.001: the start is at g_h -2e-7, which the script's RL0=0 stops at). DSMAX as in ode_mu26_control; the cusp is labelled by AUTO-07p at DSMAX 0.5 and 0.25 and by xppautX at 1, 0.5, 0.25 and 0.1, AUTO-07p's location gives up at 1, and at 0.1 neither reaches it within 45 points (docs/auto-references.md W423).",
+  "parameters": {
+    "SmIapp": 0.0,
+    "SmHxgMax": 0.0,
+    "HxHxgMax": 0.0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "SmIapp",
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.01,
+        "max_step_size": 0.8,
+        "max_steps": 300,
+        "parameter_min": -100,
+        "parameter_max": 14
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "SmIapp",
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 50,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.005,
+        "max_step_size": 1.0,
+        "max_steps": 125,
+        "parameter_min": -100,
+        "parameter_max": 120
+      }
+    },
+    {
+      "name": "to_snic",
+      "kind": "periodic",
+      "start": {
+        "run": "cycles",
+        "type": "end",
+        "index": 1
+      },
+      "parameter": "SmIapp",
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 50,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.01,
+        "max_step_size": 1.0,
+        "max_steps": 170,
+        "parameter_min": -100,
+        "parameter_max": 120
+      },
+      "marks": [
+        [
+          "SmIapp",
+          5
+        ],
+        [
+          "SmIapp",
+          1
+        ],
+        [
+          "SmIapp",
+          0.1
+        ],
+        [
+          "SmIapp",
+          0.07
+        ]
+      ]
+    },
+    {
+      "name": "hb_soma",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameters": [
+        "SmHxgMax",
+        "SmIapp"
+      ],
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.01,
+        "max_step_size": 2.0,
+        "max_steps": 40,
+        "parameter_min": 0,
+        "parameter_max": 20
+      }
+    },
+    {
+      "name": "hb_dend",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameters": [
+        "HxHxgMax",
+        "SmIapp"
+      ],
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.01,
+        "max_step_size": 2.0,
+        "max_steps": 40,
+        "parameter_min": 0,
+        "parameter_max": 20
+      }
+    },
+    {
+      "name": "lp_soma",
+      "kind": "two_parameter",
+      "start": {
+        "run": "steady",
+        "type": "fold",
+        "index": 1
+      },
+      "parameters": [
+        "SmIapp",
+        "SmHxgMax"
+      ],
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 25,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.005,
+        "max_step_size": 0.5,
+        "max_steps": 45,
+        "parameter_min": -12,
+        "parameter_max": 20
+      }
+    },
+    {
+      "name": "lpc_soma",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "fold",
+        "index": 1
+      },
+      "parameters": [
+        "SmHxgMax",
+        "SmIapp"
+      ],
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 50,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.005,
+        "max_step_size": 0.5,
+        "max_steps": 40,
+        "parameter_min": -0.001,
+        "parameter_max": 20
+      }
+    },
+    {
+      "name": "lpc_dend",
+      "kind": "two_parameter",
+      "start": {
+        "run": "cycles",
+        "type": "fold",
+        "index": 1
+      },
+      "parameters": [
+        "HxHxgMax",
+        "SmIapp"
+      ],
+      "autox": {
+        "output_every": 50,
+        "mesh_intervals": 50,
+        "collocation_points": 4,
+        "parameter_tolerance": 1e-07,
+        "state_tolerance": 1e-07,
+        "special_point_tolerance": 1e-05,
+        "max_branch_switches": 0,
+        "min_step_size": 1e-06,
+        "step_size": 0.005,
+        "max_step_size": 0.5,
+        "max_steps": 40,
+        "parameter_min": -0.001,
+        "parameter_max": 20
+      }
+    }
+  ],
+  "differences": [
+    {
+      "reference": ".xppaut",
+      "run": "lp_soma",
+      "side": "ours",
+      "type": "cusp",
+      "index": 1,
+      "cause": "XPPAUT 8.0's auto_2p_limit sets ISP=0 and ILP=0, disabling detection on the curve (auto_nox.c:2510-2512); the curve is still compared. W428 (#490), docs/xppaut-findings.md finding 71."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 2,
+      "cause": "W437 (#499): the 1 pA UZ parameter, norm and period agree, but its neutral Floquet multiplier does not at the requested NTST 50. A saved-orbit sweep at NTST 50/100/200/400 is nonmonotonic. At NTST 200, changing only xppautX's derivative mode changes the neutral multiplier from 1.00007887541 (difference) to 1.00000000156 (exact) with negligible orbit/norm change. The exact neutral multiplier of this autonomous orbit is 1; this isolates finite-difference sensitivity amplified by the long-period variational problem, with coarse-mesh effects too. Both references retain their original finite-difference outputs. docs/auto-references.md W437 and docs/studies/w437-reference-traces.json record all meshes, including the negative/nonconvergent results. No tolerance or production setting is changed; this quantity is traced, not declared equal.",
+      "quantity": "spectrum"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 3,
+      "cause": "W539 (#604): the same neutral Floquet multiplier at the 0.1 pA UZ: AUTO-07p's reference, regenerated from xppautX's start as it is since W495, gives 1.00003 (1.00001 before), xppautX 1.00000005, the exact value 1; parameter, norm and period agree. The reference's own value moves 2e-5 with a start 7e-4 away in the norm, the finite-difference sensitivity of the long-period variational problem that the index 2 entry traces (docs/auto-references.md W437, W539). This quantity is traced, not declared equal.",
+      "quantity": "spectrum"
+    },
+    {
+      "reference": ".auto07p",
+      "run": "lp_soma",
+      "side": "ours",
+      "type": "cusp",
+      "index": 1,
+      "cause": "W539 (#604): AUTO-07p's regenerated reference labels no cusp on the fold curve; the curve turns at SmIapp 1.0811, SmHxgMax -9.368 (its samples agree with ours to 1e-7 up to there), and its CP test changes sign between points 34 and 35 (-5.5e-9, +5.9e-8), but the ten iterations of its location print a test of +-6e-11, the Newton residual's noise, the step never shrinks and the location is dropped. Before W495 the start was 7e-4 off in the norm and the same location converged (CP at point 35). xppautX locates the cusp. docs/auto07p-findings.md finding 10."
+    },
+    {
+      "reference": ".auto07p",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 4,
+      "cause": "W474 (#537): the 0.07 pA UZ next to the SNIC (period 2715) has a nearly singular collocation system, so where Newton stops at EPSU 1e-7 depends on the elimination order: its norm is 5.0e-5 (AUTO2000's chain), 8.0e-5 (AUTO-07p's nested dissection, now used) and 8.3e-5 (a tree split at mid=(lo+hi-1)/2) from AUTO-07p's. With EPSL=EPSU=1e-10 on to_snic the three agree to 4e-6 and lie 0.7e-5 to 1.2e-5 from AUTO-07p's. No tolerance is widened.",
+      "quantity": "norm"
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 3,
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 blocked continuation to_snic (labels 5 and 0.9999991 pA, then a spurious LP at 0.1010236 pA (point 144), reverses and ends at its NMX at 0.84 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.1010236 pA (period 1359.66) the multipliers are 1, 1.1e-5, 1.1e-5, -1.2e-6, at 0.07001995 pA (the old run's LP) 1, -2.1e-6, ...: no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.84 pA the second multiplier is 0.010. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.1009347 and 0.07001995 pA and returned to 5 pA. docs/auto-references.md W550."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 4,
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 blocked continuation to_snic (labels 5 and 0.9999991 pA, then a spurious LP at 0.1010236 pA (point 144), reverses and ends at its NMX at 0.84 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.1010236 pA (period 1359.66) the multipliers are 1, 1.1e-5, 1.1e-5, -1.2e-6, at 0.07001995 pA (the old run's LP) 1, -2.1e-6, ...: no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.84 pA the second multiplier is 0.010. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.1009347 and 0.07001995 pA and returned to 5 pA. docs/auto-references.md W550."
+    },
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "side": "reference",
+      "type": "fold",
+      "index": 1,
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 blocked continuation to_snic (labels 5 and 0.9999991 pA, then a spurious LP at 0.1010236 pA (point 144), reverses and ends at its NMX at 0.84 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.1010236 pA (period 1359.66) the multipliers are 1, 1.1e-5, 1.1e-5, -1.2e-6, at 0.07001995 pA (the old run's LP) 1, -2.1e-6, ...: no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.84 pA the second multiplier is 0.010. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.1009347 and 0.07001995 pA and returned to 5 pA. docs/auto-references.md W550."
+    },
+    {
+      "reference": ".converged",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 2,
+      "quantity": "spectrum",
+      "cause": "W578 (#643): the neutral Floquet multiplier of this autonomous orbit is exactly 1; at the 1 pA UZ (period 528) ours (EPS 1e-7) is 0.99979 and the converged run's (EPS 1e-10) 1.000023, the error of the long-period variational problem at NTST 50 that the W437 entries trace for AUTO-07p. The model's own equations (docs/studies/floquet_check.py, exact derivatives, no collocation) give 0.99999992, 0.013069072 and 0.012902644; ours 0.99979, 0.013069071, 0.012902643. No tolerance is widened."
+    },
+    {
+      "reference": ".converged",
+      "run": "to_snic",
+      "side": "ours",
+      "type": "user_point",
+      "index": 4,
+      "quantity": "norm",
+      "cause": "W578 (#643): at the 0.07 pA UZ next to the SNIC (period 2715) the collocation system is nearly singular and where Newton stops at EPSU 1e-7 is 7e-7 relative off (the W474 entry for AUTO-07p): the model's own cycle (docs/studies/floquet_check.py --norm, no collocation) has the L2 norm 100.7344048; ours 100.7343301 (7.5e-5 below, the finite-difference pilot's 6.0e-5), the converged run's (EPSU 1e-10) 100.7344035 (1.2e-6). No tolerance is widened."
+    }
+  ],
+  "curve_runs_on": [
+    {
+      "reference": ".xppaut",
+      "run": "to_snic",
+      "cause": "W550 (#615), findings 47 and 73: the marked XPPAUT 8.0 blocked continuation to_snic (labels 5 and 0.9999991 pA, then a spurious LP at 0.1010236 pA (point 144), reverses and ends at its NMX at 0.84 pA). It never reaches 0.1 or 0.07 pA; xppautX's centered condition and rollback reach all four marks without reversal. Independent check (docs/studies/floquet_check.py: the model's equations, variational equations with exact derivatives, no continuation or collocation): at 0.1010236 pA (period 1359.66) the multipliers are 1, 1.1e-5, 1.1e-5, -1.2e-6, at 0.07001995 pA (the old run's LP) 1, -2.1e-6, ...: no multiplier at 1 besides the trivial one, so no fold of cycles; at 0.84 pA the second multiplier is 0.010. XPPAUT's run depends on its start, the equilibrium at 0 pA, which moved by 1.8e-4 mV in V (2.6e-6 relative) between the W437 baseline and today's: the W437 start labelled the spurious LP at 0.1009347 and 0.07001995 pA and returned to 5 pA. docs/auto-references.md W550."
+    }
+  ]
+}

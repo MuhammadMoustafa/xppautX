@@ -735,7 +735,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
 {
     Model &m=s.model();
     for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->array_pure=false; entry.code->native_reads.clear(); }
-    m.auto_rhs_pure=false;
+    m.autox_rhs_pure=false;
     m.native_rhs=nullptr;
     m.native_equations=false;
     m.native_program.reset();
@@ -856,16 +856,16 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     // Networks and DAEs run between the fixed variables and equations even
     // when no equation calls their helpers. Function tables can rebuild on
     // parameter changes (or when autoeval is toggled), so never freeze them.
-    m.auto_rhs_pure=m.nsvar==0 && m.naeqn==0 && m.nnetwork==0 && m.nmarkov==0 && m.nkernel==0;
-    for (int i=0;i<s.ntable;++i) if (s.tables[i].flag==2) m.auto_rhs_pure=false;
+    m.autox_rhs_pure=m.nsvar==0 && m.naeqn==0 && m.nnetwork==0 && m.nmarkov==0 && m.nkernel==0;
+    for (int i=0;i<s.ntable;++i) if (s.tables[i].flag==2) m.autox_rhs_pure=false;
     for (int i=0;i<m.node+m.fix_var;++i) {
         const auto &p=m.programs[i];
         const int available=i<m.node?m.node+m.fix_var:i;
-        m.auto_rhs_pure=m.auto_rhs_pure && p.native && p.array_pure
+        m.autox_rhs_pure=m.autox_rhs_pure && p.native && p.array_pure
             && std::all_of(p.native_reads.begin(),p.native_reads.end(),[&](int v){return v<=available;});
     }
     for (const auto &d:m.derived)
-        m.auto_rhs_pure=m.auto_rhs_pure && d.form.native && d.form.array_pure && d.form.native_reads.empty();
+        m.autox_rhs_pure=m.autox_rhs_pure && d.form.native && d.form.array_pure && d.form.native_reads.empty();
     log(XPP_LOG_INFO,"Compiled {} of {} programs\n",emitted.size(),entries.size());
     return warnings;
 }

@@ -1,7 +1,7 @@
 /* Folder operations: see xpp_files.h. Split out of xpp_files.cpp (W46b,
    folded in from the old core/read_dir.cpp) once the merged file grew
    past about 900 lines: is_dir, dir_writable, the
-   scratch folders AUTO runs in, the folder listing, the Unix-style
+   scratch folders autoX runs in, the folder listing, the Unix-style
    wildcard match and the file selector's current folder. */
 #include "xpp_files.h"
 #include "xpp_files_internal.h"
@@ -181,7 +181,7 @@ std::string writable_save_folder(std::string_view model_folder)
     return dir_writable(documents) ? documents : std::string();
 }
 
-/* ---- AUTO's scratch folders ------------------------------------------------------ */
+/* ---- autoX's scratch folders ------------------------------------------------------ */
 
 namespace {
 

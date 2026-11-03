@@ -126,7 +126,7 @@ int main(void)
     CHECK_STR(xpp::number(std::copysign(std::numeric_limits<double>::quiet_NaN(), -1.0)).c_str(), "nan");
 
     /* W172: compare the retired printf formats with the actual logging
-       path, including AUTO's columns, general/fixed floats and char semantics. */
+       path, including autoX's columns, general/fixed floats and char semantics. */
     {
         xpp::log_set_threshold(XPP_LOG_DEBUG);
         xpp::LogCapture outer;
@@ -165,14 +165,14 @@ int main(void)
         xpp::log_settings.errors = 0;
     }
     {
-        TempFile tf("test_io_auto.tmp");
+        TempFile tf("test_io_autox.tmp");
         CHECK(xpp::log_open_file(tf.c_str()));
-        xpp::log_auto("filtered");
+        xpp::log_autox("filtered");
         CHECK(read_raw(tf.c_str()).empty());
-        xpp::log_set_auto_echo(true);
-        xpp::log_auto("{:4d}{:6d}  {:c}{:c}{:4d}{:14.6E}\n", -1L, 123L, 'E', 'P', 7L, 1.0);
+        xpp::log_set_autox_echo(true);
+        xpp::log_autox("{:4d}{:6d}  {:c}{:c}{:4d}{:14.6E}\n", -1L, 123L, 'E', 'P', 7L, 1.0);
         CHECK_STR(read_raw(tf.c_str()).c_str(), "  -1   123  EP   7  1.000000E+00" TEXT_NL);
-        xpp::log_set_auto_echo(false);
+        xpp::log_set_autox_echo(false);
         xpp::log_new_model();
     }
 
@@ -278,7 +278,7 @@ int main(void)
         std::fclose(fp);
     }
 
-    /* long fields: fscanf "%ld" field by field, AUTO's "%5ld" columns
+    /* long fields: fscanf "%ld" field by field, autoX's "%5ld" columns
        printed flush ("    2-1234" is 2 then -1234), the rest of the line
        skipped, the stream left where fscanf leaves it */
     {

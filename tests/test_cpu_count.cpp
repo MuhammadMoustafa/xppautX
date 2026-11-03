@@ -1,7 +1,7 @@
 #include "xpptest.h"
 #include "xpp_cpu.h"
 #include "xpp_io.h"
-#include "auto_parallel.h"
+#include "autox_parallel.h"
 #include <thread>
 #include <algorithm>
 
@@ -28,8 +28,8 @@ int main()
 #endif
     const unsigned logical = std::thread::hardware_concurrency();
     const unsigned available = physical.value_or(logical);
-    CHECK(xpp::AutoParallel::automatic_threads() == std::clamp(available, 1u, xpp::AutoParallel::max_threads));
-    xpp::print(stdout, "CPU count: logical {}, physical/performance {}, AUTO used {}\n",
-               logical, physical.value_or(0), xpp::AutoParallel::automatic_threads());
+    CHECK(xpp::AutoxParallel::automatic_threads() == std::clamp(available, 1u, xpp::AutoxParallel::max_threads));
+    xpp::print(stdout, "CPU count: logical {}, physical/performance {}, autoX used {}\n",
+               logical, physical.value_or(0), xpp::AutoxParallel::automatic_threads());
     TEST_REPORT("cpu count");
 }

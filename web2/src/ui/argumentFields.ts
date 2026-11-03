@@ -1,5 +1,5 @@
-import {autoSettingsCommands, shownSettings} from '../store/autoSettings';
-import {autoWindow} from '../store/diagram';
+import {autoxSettingsCommands, shownSettings} from '../store/autoxSettings';
+import {autoxWindow} from '../store/diagram';
 import {annotationRows} from '../store/marks';
 import type {RegistryArgument, CommandRow} from '../protocol/kinds';
 import type {AppState} from '../store/state';
@@ -25,25 +25,25 @@ export function currentArguments(row: CommandRow, state: AppState): Record<strin
   for (const arg of row.arguments ?? []) {
     const numeric = state.numerics?.find(field => field.key === arg.name || field.key === `${row.id.split('.')[0]}_${arg.name}`);
     if (numeric && ['run', 'bvp'].includes(row.id.split('.')[0])) out[arg.name] = numeric.value;
-    const auto = shownSettings(state.autoSettings);
-    if (row.id === 'auto.run') {
+    const auto = shownSettings(state.autoxSettings);
+    if (row.id === 'autox.run') {
       if (arg.name === 'label' && (state.diagram.start?.label ?? 0) > 0) out[arg.name] = state.diagram.start!.label;
       if (arg.name === 'replace_diagram' && !state.diagram.start && state.diagram.views.some(v => v.points.x.length > 1)) out[arg.name] = false;
     }
-    if (auto && row.id === 'auto.configure_marks') {
+    if (auto && row.id === 'autox.configure_marks') {
       if (arg.name === 'parameters') out[arg.name] = auto.marks.map(mark => mark[0]);
       if (arg.name === 'values') out[arg.name] = auto.marks.map(mark => mark[1]);
     }
-    if (auto && row.id === 'auto.set_threads' && arg.name === 'automatic' && auto.threads === 'auto') out[arg.name] = true;
+    if (auto && row.id === 'autox.set_threads' && arg.name === 'automatic' && auto.threads === 'auto') out[arg.name] = true;
 
-    if (auto && row.id === 'auto.configure_numerics' && arg.name in auto.numerics) out[arg.name] = auto.numerics[arg.name as keyof typeof auto.numerics];
+    if (auto && row.id === 'autox.configure_numerics' && arg.name in auto.numerics) out[arg.name] = auto.numerics[arg.name as keyof typeof auto.numerics];
     if (auto) {
-      const command = autoSettingsCommands({axes: auto.axes}).find(c => c.command.cmd === row.id)?.command;
+      const command = autoxSettingsCommands({axes: auto.axes}).find(c => c.command.cmd === row.id)?.command;
       if (command && arg.name in command) out[arg.name] = command[arg.name];
     }
-    if (auto && row.id === 'auto.set_threads' && auto.threads !== 'auto') out[arg.name] = auto.threads;
+    if (auto && row.id === 'autox.set_threads' && auto.threads !== 'auto') out[arg.name] = auto.threads;
     if (arg.type === 'window') {
-      const name = row.id.startsWith('auto.') ? autoWindow(state) : state.plots.active;
+      const name = row.id.startsWith('auto.') ? autoxWindow(state) : state.plots.active;
       if (state.windows.some(window => window.name === name)) out[arg.name] = name;
     }
     if (annotation && arg.name in annotation.values) out[arg.name] = annotation.values[arg.name];
