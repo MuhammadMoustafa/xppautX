@@ -235,7 +235,7 @@ void replace_intern_sets(xpp::Model &m, const xpp::odex::Parsed &parsed)
   for(const xpp::odex::Statement &st : parsed.statements){
     if(st.kind!=xpp::odex::Statement::Kind::Set)continue;
     std::vector<std::pair<std::string,std::string>> settings;
-    for(const xpp::odex::Option &o : st.options)settings.emplace_back(o.name,o.value);
+    for(const xpp::odex::Option &o : st.more().options)settings.emplace_back(o.name,o.value);
     add_set_at(m,st.name,st.text,std::move(settings),xpp::Place{parsed.files.at(static_cast<std::size_t>(st.pos.file)),st.pos.line,st.pos.col});
   }
 }
@@ -244,7 +244,7 @@ void replace_model_options(xpp::Model &m, const xpp::odex::Parsed &parsed)
 {
   m.options.clear();
   for(const xpp::odex::Statement &st : parsed.statements)
-    if(st.kind==xpp::odex::Statement::Kind::Options&&!st.options.empty())add_model_options(m,st.options,parsed.files);
+    if(st.kind==xpp::odex::Statement::Kind::Options&&!st.more().options.empty())add_model_options(m,st.more().options,parsed.files);
 }
 
 namespace {

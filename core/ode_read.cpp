@@ -756,7 +756,7 @@ void command(const VAR_INFO &v, std::vector<Statement> &out)
     const std::string big="g "+v.rhs+" \n";
     xpp::Tokens tokens(big);
     tokens.next(" ,");
-    s.count=atoi_of(tokens.text("{ "));
+    s.more_mut().count=atoi_of(tokens.text("{ "));
     const std::string cond=tokens.text("{}");
     const std::string events=tokens.text("\n");
     std::vector<FlagEvent> split;
@@ -808,14 +808,14 @@ void table(const VAR_INFO &v, Statement &s)
   tokens.next(" ");
   std::string formula=tokens.text(" \n");
   if(formula[0]=='%'){
-    s.table_kind=Statement::TableKind::Formula;
-    s.count=atoi_of(tokens.text(" "));
-    s.lo=atof_of(tokens.text(" "));
-    s.hi=atof_of(tokens.text(" "));
+    s.more_mut().table_kind=Statement::TableKind::Formula;
+    s.more_mut().count=atoi_of(tokens.text(" "));
+    s.more_mut().lo=atof_of(tokens.text(" "));
+    s.more_mut().hi=atof_of(tokens.text(" "));
     s.expr=text_expr(tokens.text("\n"));
   }
   else if(formula[0]=='@'){
-    s.table_kind=Statement::TableKind::TwoD;
+    s.more_mut().table_kind=Statement::TableKind::TwoD;
     s.text=tokens.text(" ");
   }
   else
@@ -834,7 +834,7 @@ void add_statement(const VAR_INFO &v, std::vector<Statement> &out)
   case VEQ:
     s.kind=v.type==ODE?Statement::Kind::Ode:v.type==MAP?Statement::Kind::Map:Statement::Kind::Volterra;
     s.name=v.lhs;
-    s.written=v.written;
+    if(!v.written.empty())s.more_mut().written=v.written;
     s.expr=text_expr(v.rhs);
     break;
   case FIXED:
@@ -842,13 +842,13 @@ void add_statement(const VAR_INFO &v, std::vector<Statement> &out)
   case DAE:
     s.kind=v.type==FIXED?Statement::Kind::Fixed:v.type==SOL_VAR?Statement::Kind::Solv:Statement::Kind::Dae;
     s.name=v.lhs;
-    s.written=v.written;
+    if(!v.written.empty())s.more_mut().written=v.written;
     s.expr=text_expr(v.rhs);
     break;
   case FUNCTION:
     s.kind=Statement::Kind::Fun;
     s.name=v.lhs;
-    s.names=v.args;
+    s.more_mut().names=v.args;
     s.expr=text_expr(v.rhs);
     break;
   case AUX_VAR:
@@ -865,7 +865,7 @@ void add_statement(const VAR_INFO &v, std::vector<Statement> &out)
     break;
   case ONLY:
     s.kind=Statement::Kind::Only;
-    s.names=break_up_list(v.rhs);
+    s.more_mut().names=break_up_list(v.rhs);
     break;
   case GROUP: s.kind=Statement::Kind::Group; break;
   default: return; /* a Markov variable's: parse_model added it */
@@ -1048,13 +1048,13 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
        Statement markov;
        markov.kind=Statement::Kind::Markov;
        markov.name=name;
-       markov.count=nstates;
+       markov.more_mut().count=nstates;
        markov_states2.assign(nstates,std::string());
        for(istates=0;istates<nstates;istates++){
 	 subsk(markov_states[istates],markov_states2[istates],jj,is_array);
 	 int istart=0;
 	 for(int k=0;k<nstates;k++)
-	   markov.cells.push_back(text_expr(xpp::markov_cell(markov_states2[istates].c_str(),&istart)));
+	   markov.more_mut().cells.push_back(text_expr(xpp::markov_cell(markov_states2[istates].c_str(),&istart)));
        }
        out.push_back(std::move(markov));
        v.type=MARKOV_VAR;

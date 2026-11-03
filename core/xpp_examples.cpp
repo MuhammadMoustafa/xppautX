@@ -85,7 +85,7 @@ Result<std::string> install(std::string_view name)
         const auto parsed = odex::parse(model, members.front().bytes, source);
         for (const auto &statement : parsed.statements) {
             if (statement.kind != odex::Statement::Kind::Options) continue;
-            for (const auto &option : statement.options) {
+            for (const auto &option : statement.more().options) {
                 if (option.name != "animation") continue;
                 const Place at = line_place(source, members.front().bytes, option.pos.line);
                 if (!files::name_ok(option.value) || !files::has_extension(option.value, ".anix"))

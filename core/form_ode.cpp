@@ -793,7 +793,7 @@ private:
     if(entry.purity>=0)return entry.purity!=0;
     entry.purity=0; /* a function that calls itself is not pure */
     std::vector<std::string> args;
-    for(const std::string &a : f.names)args.push_back(xpp::upper_case(a));
+    for(const std::string &a : f.more().names)args.push_back(xpp::upper_case(a));
     const std::string body=f.expr.kind==Expr::Kind::Text?f.expr.text:xpp::odex::engine_text(f.expr);
     return (entry.purity=reads(body,args,false))!=0;
   }
@@ -895,7 +895,7 @@ private:
   void note(const std::string &name,const xpp::odex::Pos &pos,const Statement &s)
   {
     xpp::Model::Name &entry=m_.names[converted(name)];
-    entry.origins.push_back(xpp::Model::NameOrigin{s.written.empty()?name:s.written,pos,s.array.written});
+    entry.origins.push_back(xpp::Model::NameOrigin{s.more().written.empty()?name:s.more().written,pos,s.array.written});
     if(entry.written.empty())entry.written=name;
     if(entry.pos.line==0)entry.pos=pos;
   }
@@ -939,7 +939,7 @@ private:
   {
     std::vector<std::string> out={text(s.expr,true)};
     for(const Binding &b : s.bindings)out.push_back(text(b.value,true));
-    for(const Expr &c : s.cells)out.push_back(text(c,true));
+    for(const Expr &c : s.more().cells)out.push_back(text(c,true));
     return out;
   }
 
@@ -1016,20 +1016,20 @@ private:
     switch(s.kind){
     case Statement::Kind::Options:
       /* a .odex's block holds its entries, an .ode's @ line its text */
-      if(!s.options.empty())add_model_options(m,s.options,p_.files);
+      if(!s.more().options.empty())add_model_options(m,s.more().options,p_.files);
       else if(add_model_option(m,s.text)<0){
 	model_failed(xpp::format("Error in parsing {}",s.text));
       }
       break;
     case Statement::Kind::Comment: add_comment(m,"\""+s.text); break;
     case Statement::Kind::Only:
-      for(const std::string &n : s.names)add_only(m,n);
+      for(const std::string &n : s.more().names)add_only(m,n);
       break;
     case Statement::Kind::Markov: {
       note(s.name,s.pos,s);
-      xpp::add_markov(s_,s.count,s.name.c_str());
+      xpp::add_markov(s_,s.more().count,s.name.c_str());
       std::vector<std::string> cells;
-      for(const Expr &c : s.cells)cells.push_back(text(c));
+      for(const Expr &c : s.more().cells)cells.push_back(text(c));
       /* a second chain of the same name has no variable of its own */
       std::string name=converted(s.name);
       auto &entry=m.names[name];
@@ -1060,7 +1060,7 @@ private:
     case Statement::Kind::OptionFile: refuse_options_file(s.text);
     case Statement::Kind::Set: {
       std::vector<std::pair<std::string,std::string>> settings;
-      for(const odex::Option &o : s.options)settings.emplace_back(o.name,o.value);
+      for(const odex::Option &o : s.more().options)settings.emplace_back(o.name,o.value);
       add_intern_set(m,s.name,s.text,std::move(settings));
       break;
     }
@@ -1068,7 +1068,7 @@ private:
     case Statement::Kind::Event: {
       std::vector<FlagEvent> events;
       for(const Binding &b : s.bindings)events.push_back({b.name,text(b.value)});
-      add_flag(s_,text(s.expr),s.count,events);
+      add_flag(s_,text(s.expr),s.more().count,events);
       break;
     }
     case Statement::Kind::Ode:
@@ -1139,7 +1139,7 @@ private:
     case Statement::Kind::Fun: {
       const std::string name=converted(s.name);
       m.define_name(s.name,xpp::Model::NameKind::Function,nufun_,s.pos);
-      if(add_ufun_name(s_,name,nufun_,static_cast<int>(s.names.size()))==1){
+      if(add_ufun_name(s_,name,nufun_,static_cast<int>(s.more().names.size()))==1){
 	model_failed(xpp::format("Duplicate name or too many functions for {}",name));
       }
       nufun_++;
@@ -1326,16 +1326,16 @@ private:
       const std::string rhs=text(s.expr,true);
       /* the arguments as the formula reads them: an .odex formula is in
          upper case, an .ode one as its reader keeps it */
-      std::vector<std::string> args=s.names;
+      std::vector<std::string> args=s.more().names;
       if(s.expr.kind!=Expr::Kind::Text)
 	for(std::string &a : args)xpp::to_upper(a.data());
       if(add_ufun_new(s_,nufun_,rhs,args)!=0){
 	model_failed(xpp::format("Function {} messed up",s.name));
       }
       nufun_++;
-      xpp::log(XPP_LOG_INFO, "{}({}",s.name,s.names.empty()?std::string():s.names[0]);
-      for(size_t a=1;a<s.names.size();a++)
-	xpp::log(XPP_LOG_INFO, ",{}",s.names[a]);
+      xpp::log(XPP_LOG_INFO, "{}({}",s.name,s.more().names.empty()?std::string():s.more().names[0]);
+      for(size_t a=1;a<s.more().names.size();a++)
+	xpp::log(XPP_LOG_INFO, ",{}",s.more().names[a]);
       xpp::log(XPP_LOG_INFO, ")={}\n",rhs);
       break;
     }
@@ -1346,12 +1346,12 @@ private:
 
   void table(const Statement &s)
   {
-    switch(s.table_kind){
+    switch(s.more().table_kind){
     case Statement::TableKind::Formula: {
       const std::string formula=text(s.expr);
       xpp::log(XPP_LOG_INFO, " Function form of table....\n");
-      xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",s.name,s.count,s.lo,s.hi,formula);
-      if(auto t=add_form_table(s_,ntab_,s.count,s.lo,s.hi,formula);!t){
+      xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",s.name,s.more().count,s.more().lo,s.more().hi,formula);
+      if(auto t=add_form_table(s_,ntab_,s.more().count,s.more().lo,s.more().hi,formula);!t){
 	table_failed(t.error());
       }
       ntab_++;

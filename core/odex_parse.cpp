@@ -536,14 +536,14 @@ private:
       bool indexed = false;
       for (;;) {
         const Token &n = word == "wiener" ? declared_name("a name") : name_token("a name");
-        s.names.push_back(n.text);
-        s.name_positions.push_back(n.pos);
-        s.name_indices.push_back(name_index());
-        indexed = indexed || s.name_indices.back();
+        s.more_mut().names.push_back(n.text);
+        s.more_mut().name_positions.push_back(n.pos);
+        s.more_mut().name_indices.push_back(name_index());
+        indexed = indexed || s.more().name_indices.back();
         if (!at_punct(",")) break;
         take();
       }
-      if (!indexed) s.name_indices.clear();
+      if (!indexed) s.more_mut().name_indices.clear();
       end_of_list(word);
       push(std::move(s));
     } else if (word == "event") {
@@ -746,7 +746,7 @@ private:
     s.kind = Statement::Kind::Options;
     if (options_at_) fail(s.pos, xpp::format("options is written once in a file (the first is at line {})", options_at_));
     options_at_ = s.pos.line;
-    groups_block(s.options, false);
+    groups_block(s.more_mut().options, false);
     push(std::move(s));
   }
 
@@ -890,7 +890,7 @@ private:
       const auto [first, fresh] = keys.emplace(key.text, key.pos.line);
       if (!fresh) fail(key.pos, xpp::format("`{}` is given twice in the set (the first is at line {})", key.text, first->second));
       if (key.text == "options") {
-        groups_block(s.options, true);
+        groups_block(s.more_mut().options, true);
         return;
       }
       Binding b;
@@ -938,21 +938,21 @@ private:
     if (!at_punct(")")) {
       for (;;) {
         const Token &a = declared_name("an argument's name");
-        for (const std::string &other : s.names)
+        for (const std::string &other : s.more().names)
           if (other == a.text) fail(a.pos, xpp::format("{} names two arguments", a.text));
-        s.names.push_back(a.text);
-        s.name_positions.push_back(a.pos);
+        s.more_mut().names.push_back(a.text);
+        s.more_mut().name_positions.push_back(a.pos);
         if (!at_punct(",")) break;
         take();
       }
     }
     expect_punct(")", "after the function's arguments");
     if (at_punct("{")) {
-      s.has_body = true;
-      std::vector<std::string> scope = s.names;
+      s.more_mut().has_body = true;
+      std::vector<std::string> scope = s.more().names;
       Pos close;
-      s.body = block(scope, close);
-      if (!returns(s.body))
+      s.more_mut().body = block(scope, close);
+      if (!returns(s.more().body))
         fail(close, xpp::format("fun {} can end here without a return", s.name));
     } else {
       expect_punct("=", xpp::format("or `{{` after fun {}(...)", s.name));
@@ -1077,14 +1077,14 @@ private:
       push(std::move(s));
       return;
     }
-    s.table_kind = Statement::TableKind::Formula;
+    s.more_mut().table_kind = Statement::TableKind::Formula;
     s.expr = expr();
     named_number_key("n");
-    s.count = whole_number("the number of points");
+    s.more_mut().count = whole_number("the number of points");
     named_number_key("lo");
-    s.lo = signed_number("lo");
+    s.more_mut().lo = signed_number("lo");
     named_number_key("hi");
-    s.hi = signed_number("hi");
+    s.more_mut().hi = signed_number("hi");
     push(std::move(s));
   }
 
@@ -1092,11 +1092,11 @@ private:
   {
     s.kind = Statement::Kind::Markov;
     name_of(s, "the Markov variable's name");
-    s.count = whole_number("the number of states");
-    if (s.count < 2) fail(s.name_pos, xpp::format("{} needs at least 2 states", s.name));
-    for (int k = 0; k < s.count * s.count; k++) {
-      expect_punct("{", xpp::format("to open transition {} of {} ({} of them)", k + 1, s.name, s.count * s.count));
-      s.cells.push_back(expr());
+    s.more_mut().count = whole_number("the number of states");
+    if (s.more().count < 2) fail(s.name_pos, xpp::format("{} needs at least 2 states", s.name));
+    for (int k = 0; k < s.more().count * s.more().count; k++) {
+      expect_punct("{", xpp::format("to open transition {} of {} ({} of them)", k + 1, s.name, s.more().count * s.more().count));
+      s.more_mut().cells.push_back(expr());
       expect_punct("}", "to close the transition");
     }
     push(std::move(s));
@@ -1110,7 +1110,7 @@ private:
     const Token &n = peek();
     int v = whole_number("the event's direction (1, -1 or 0)");
     if (v != 0 && v != 1) fail(n.pos, "the event's direction is 1, -1 or 0");
-    s.count = sign * v;
+    s.more_mut().count = sign * v;
     s.expr = expr();
     while (at_punct(",")) {
       take();
@@ -1140,14 +1140,14 @@ private:
       const Pos at = peek().pos;
       /* an array's element, name[e] */
       if (peek().kind == Token::Kind::Name && !peek().primed && at_punct("[", 1)) {
-        s.call_args.push_back(take().text);
-        s.call_arg_indices.push_back(name_index());
+        s.more_mut().call_args.push_back(take().text);
+        s.more_mut().call_arg_indices.push_back(name_index());
         indexed = true;
         if (at_punct(")")) break;
         expect_punct(",", xpp::format("between the arguments of {}", s.text));
         continue;
       }
-      s.call_arg_indices.emplace_back();
+      s.more_mut().call_arg_indices.emplace_back();
       int depth = 0;
       size_t b = peek().begin, e = b;
       while (!at_end() && !(depth == 0 && (at_punct(",") || at_punct(")")))) {
@@ -1156,12 +1156,12 @@ private:
         e = take().end;
       }
       if (e == b) fail(at, xpp::format("an argument of {} is missing", s.text));
-      s.call_args.emplace_back(src_.substr(b, e - b));
+      s.more_mut().call_args.emplace_back(src_.substr(b, e - b));
       if (at_punct(")")) break;
       expect_punct(",", xpp::format("between the arguments of {}", s.text));
     }
     take();
-    if (!indexed) s.call_arg_indices.clear();
+    if (!indexed) s.more_mut().call_arg_indices.clear();
     push(std::move(s));
   }
 
@@ -1465,6 +1465,12 @@ private:
 };
 
 } // namespace
+
+const Statement::More &Statement::more() const
+{
+  static constexpr More none;
+  return extra ? *extra : none;
+}
 
 bool is_reserved(std::string_view word)
 {

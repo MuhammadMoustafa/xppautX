@@ -231,18 +231,11 @@ struct Statement {
   Pos name_pos;
   /* where the name starts in the text (.odex only) */
   std::size_t name_begin = 0;
-  /* the name as its author wrote it, when the .ode reader kept it in
-     upper case (name) ("" for the .odex's, and a statement with none) */
-  std::string written;
   /* the name's index, x[e] (an array's element) */
   Boxed<Expr> name_index;
   std::string text;
   Expr expr;
   std::vector<Binding> bindings;
-  std::vector<std::string> names;
-  std::vector<Pos> name_positions;
-  /* each of names' index, when one has one (empty when none has) */
-  std::vector<std::optional<Expr>> name_indices;
   /* the trailing range (.odex), and which array statement this one is a
      copy of (both readers' copies) */
   Boxed<Range> range;
@@ -253,30 +246,50 @@ struct Statement {
      for an .ode's !name = expr that reads t, a variable or a random
      function, which --convert refuses */
   bool parameters_only = false;
-  /* a block function's body (has_body) */
-  bool has_body = false;
-  std::vector<BlockStmt> body;
-  std::vector<Option> options;
-  /* an event's sign, a Markov variable's number of states, a formula
-     table's number of points */
-  int count = 0;
-  /* a formula table's lo and hi */
-  double lo = 0, hi = 0;
   /* a table's kind: a file's values (text the file), a formula's (expr,
      count points from lo to hi), or .ode's 2-D table (table name @ file:
      text the file) */
   enum class TableKind { File, Formula, TwoD };
-  TableKind table_kind = TableKind::File;
-  /* a Markov variable's transitions, row by row */
-  std::vector<Expr> cells;
-  /* where the import that brought this statement is (an import in an
-     import: the one in the model's own file); line 0 for a statement written
-     here. A name clash in it is reported at the import. */
-  Pos imported_at;
-  /* a network's arguments, each as written, and each one's index when it
-     is an array's element, name[e] (empty when none is) */
-  std::vector<std::string> call_args;
-  std::vector<std::optional<Expr>> call_arg_indices;
+  /* what most statements leave empty (a chain of 2400 cells keeps 9600
+     statements, W602): behind one pointer, read through more() and set
+     through more_mut(), which makes it */
+  struct More {
+    /* the name as its author wrote it, when the .ode reader kept it in
+       upper case (name) ("" for the .odex's, and a statement with none) */
+    std::string written;
+    std::vector<std::string> names;
+    std::vector<Pos> name_positions;
+    /* each of names' index, when one has one (empty when none has) */
+    std::vector<std::optional<Expr>> name_indices;
+    /* a block function's body (has_body) */
+    bool has_body = false;
+    std::vector<BlockStmt> body;
+    std::vector<Option> options;
+    /* an event's sign, a Markov variable's number of states, a formula
+       table's number of points */
+    int count = 0;
+    /* a formula table's lo and hi */
+    double lo = 0, hi = 0;
+    /* a table's kind */
+    TableKind table_kind = TableKind::File;
+    /* a Markov variable's transitions, row by row */
+    std::vector<Expr> cells;
+    /* where the import that brought this statement is (an import in an
+       import: the one in the model's own file); line 0 for a statement
+       written here. A name clash in it is reported at the import. */
+    Pos imported_at;
+    /* a network's arguments, each as written, and each one's index when it
+       is an array's element, name[e] (empty when none is) */
+    std::vector<std::string> call_args;
+    std::vector<std::optional<Expr>> call_arg_indices;
+  };
+  Boxed<More> extra;
+  const More &more() const;
+  More &more_mut()
+  {
+    if (!extra) extra = More();
+    return *extra;
+  }
 };
 
 /* a parsed model: its files (the model's, then those it includes) and

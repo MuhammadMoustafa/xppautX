@@ -36,22 +36,28 @@ public:
       expr(s.range->hi);
       expr(s.range->step);
     }
-    if (s.kind == Statement::Kind::Fun) locals_.insert(s.names.begin(), s.names.end());
+    if (s.kind == Statement::Kind::Fun) locals_.insert(s.more().names.begin(), s.more().names.end());
     if (!s.name.empty()) name(s.name, declares_name(s.kind));
     optional(s.name_index);
-    if (s.kind == Statement::Kind::Wiener || s.kind == Statement::Kind::Only)
-      for (std::string &n : s.names) name(n, s.kind == Statement::Kind::Wiener);
-    for (std::optional<Expr> &i : s.name_indices) optional(i);
+    if (s.extra) {
+      Statement::More &more = *s.extra;
+      if (s.kind == Statement::Kind::Wiener || s.kind == Statement::Kind::Only)
+        for (std::string &n : more.names) name(n, s.kind == Statement::Kind::Wiener);
+      for (std::optional<Expr> &i : more.name_indices) optional(i);
+    }
     for (Binding &b : s.bindings) {
       name(b.name, declares_binding(s.kind));
       optional(b.index);
       expr(b.value);
     }
     expr(s.expr);
-    for (Expr &c : s.cells) expr(c);
-    block(s.body);
-    for (std::string &arg : s.call_args) words(arg);
-    for (std::optional<Expr> &i : s.call_arg_indices) optional(i);
+    if (s.extra) {
+      Statement::More &more = *s.extra;
+      for (Expr &c : more.cells) expr(c);
+      block(more.body);
+      for (std::string &arg : more.call_args) words(arg);
+      for (std::optional<Expr> &i : more.call_arg_indices) optional(i);
+    }
   }
 
   /* a statement of kind k declares its name (a set's label too: one name each) */
@@ -254,7 +260,7 @@ std::vector<Statement> import_statements(std::vector<Statement> file, const Impo
 {
   std::erase_if(file, [](const Statement &s) { return s.kind == Statement::Kind::Options; });
   if (imp.selective) file = selected(std::move(file), imp, files);
-  for (Statement &s : file) s.imported_at = imp.at;
+  for (Statement &s : file) s.more_mut().imported_at = imp.at;
   return file;
 }
 

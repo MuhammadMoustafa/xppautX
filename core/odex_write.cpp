@@ -21,7 +21,7 @@ namespace {
 constexpr std::size_t line_width = 100;
 
 /* the statements the file itself wrote, not those an import brought */
-bool local(const Statement &s) { return s.pos.file == 0 && s.imported_at.line == 0; }
+bool local(const Statement &s) { return s.pos.file == 0 && s.more().imported_at.line == 0; }
 
 /* one piece of the old text replaced */
 struct Replacement {
@@ -154,7 +154,7 @@ void set_items(const Statement &old, std::string_view text, const Values &values
   if (values.parameters) for (const auto &[name, value] : values.parameter_values) parameters.push_back(entry(name, value));
   if (values.states) for (const auto &[name, value] : values.state_values) states.push_back(entry(name, value));
   for (std::vector<std::string> *kind : {&parameters, &states, &others}) items.insert(items.end(), kind->begin(), kind->end());
-  for (const Option &o : old.options)
+  for (const Option &o : old.more().options)
     if (!values.covers_group(o.group)) settings.push_back({o.group, slice(text, o.begin, o.end)});
   for (GroupItem &g : new_settings(values)) settings.push_back(std::move(g));
 }
@@ -215,7 +215,7 @@ std::optional<std::string> declared_at(const Parsed &p, Statement::Kind kind, st
     for (const Binding &b : s.bindings)
       if (xpp::converted(b.name) == wanted) {
         const std::string &file = p.files[static_cast<std::size_t>(s.pos.file)];
-        return xpp::format("{}:{}{}", file, b.pos.line, s.range ? " (an array statement)" : (s.imported_at.line ? " (an import)" : ""));
+        return xpp::format("{}:{}{}", file, b.pos.line, s.range ? " (an array statement)" : (s.more().imported_at.line ? " (an import)" : ""));
       }
   }
   return std::nullopt;
@@ -388,7 +388,7 @@ Result<Edited> set_defaults(Model &m, std::string_view text, const std::string &
       if (s.kind == Statement::Kind::Options && local(s)) block = &s;
     std::vector<GroupItem> items;
     if (block)
-      for (const Option &o : block->options)
+      for (const Option &o : block->more().options)
         if (!values.covers_group(o.group)) items.push_back({o.group, slice(text, o.begin, o.end)});
     for (GroupItem &g : new_settings(values)) items.push_back(std::move(g));
     const std::string text_block = options_block(items);

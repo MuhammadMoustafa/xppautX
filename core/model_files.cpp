@@ -226,9 +226,9 @@ void index_model_places(Model &m)
             if (auto [it, inserted] = m.names.try_emplace(converted(b.name)); inserted || it->second.pos.line == 0)
                 it->second.pos = b.pos.line > 0 ? b.pos : st.pos;
         if(st.kind==odex::Statement::Kind::Wiener)
-            for (size_t k = 0; k < st.names.size(); k++)
-                if (auto [it, inserted] = m.names.try_emplace(converted(st.names[k])); inserted || it->second.pos.line == 0)
-                    it->second.pos = k < st.name_positions.size() && st.name_positions[k].line > 0 ? st.name_positions[k] : st.pos;
+            for (size_t k = 0; k < st.more().names.size(); k++)
+                if (auto [it, inserted] = m.names.try_emplace(converted(st.more().names[k])); inserted || it->second.pos.line == 0)
+                    it->second.pos = k < st.more().name_positions.size() && st.more().name_positions[k].line > 0 ? st.more().name_positions[k] : st.pos;
     }
     for (auto &[name, entry] : m.names) {
         decltype(entry.origins){}.swap(entry.origins);

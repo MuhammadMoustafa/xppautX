@@ -293,7 +293,7 @@ private:
         s.kind == Statement::Kind::Network || s.kind == Statement::Kind::Vector ||
         s.kind == Statement::Kind::Group || s.kind == Statement::Kind::Wiener ||
         s.kind == Statement::Kind::Set ||
-        (s.kind == Statement::Kind::Table && s.table_kind != Statement::TableKind::Formula)) return;
+        (s.kind == Statement::Kind::Table && s.more().table_kind != Statement::TableKind::Formula)) return;
     if (!scanned_.insert({place_.file, place_.line}).second) return;
     const std::string raw = place_.source;
     const size_t end = ode_comment_start(raw);
@@ -1089,7 +1089,7 @@ private:
     case Statement::Kind::Only: {
       std::string out = "only ";
       int n = 0;
-      for (const std::string &w : s.names) out += (n++ ? ", " : "") + name(xpp::upper_case(w));
+      for (const std::string &w : s.more().names) out += (n++ ? ", " : "") + name(xpp::upper_case(w));
       return out + "\n";
     }
     case Statement::Kind::Vector: refuse("a vector statement has no .odex form yet");

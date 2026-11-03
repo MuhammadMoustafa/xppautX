@@ -276,14 +276,17 @@ private:
       b.index.reset();
       resolve(b.value, index, value);
     }
-    for (size_t i = 0; i < c.name_indices.size(); i++)
-      if (c.name_indices[i]) c.names[i] = defined(c.names[i], *c.name_indices[i], index, value);
-    c.name_indices.clear();
-    for (size_t i = 0; i < c.call_arg_indices.size(); i++)
-      if (c.call_arg_indices[i]) c.call_args[i] = element(c.call_args[i], *c.call_arg_indices[i], index, value);
-    c.call_arg_indices.clear();
-    for (Expr &e : c.cells) resolve(e, index, value);
-    resolve_block(c.body, index, value);
+    if (c.extra) {
+      Statement::More &more = *c.extra;
+      for (size_t i = 0; i < more.name_indices.size(); i++)
+        if (more.name_indices[i]) more.names[i] = defined(more.names[i], *more.name_indices[i], index, value);
+      more.name_indices.clear();
+      for (size_t i = 0; i < more.call_arg_indices.size(); i++)
+        if (more.call_arg_indices[i]) more.call_args[i] = element(more.call_args[i], *more.call_arg_indices[i], index, value);
+      more.call_arg_indices.clear();
+      for (Expr &e : more.cells) resolve(e, index, value);
+      resolve_block(more.body, index, value);
+    }
     if (c.kind == Statement::Kind::Const) {
       /* its value now, the consts before it read */
       for (Binding &b : c.bindings) {
@@ -397,7 +400,7 @@ private:
   void declare(const Statement &s)
   {
     declaring_ = s.array;
-    import_ = s.imported_at;
+    import_ = s.more().imported_at;
     switch (s.kind) {
     case Statement::Kind::Ode:
     case Statement::Kind::Volterra: add(s.name, Model::NameKind::Variable, s.name_pos); break;
@@ -418,9 +421,9 @@ private:
       for (const Binding &b : s.bindings) add(b.name, Model::NameKind::Const, b.pos);
       break;
     case Statement::Kind::Wiener:
-      for (size_t i = 0; i < s.names.size(); i++) add(s.names[i], Model::NameKind::Wiener, s.name_positions[i]);
+      for (size_t i = 0; i < s.more().names.size(); i++) add(s.more().names[i], Model::NameKind::Wiener, s.more().name_positions[i]);
       break;
-    case Statement::Kind::Fun: add(s.name, Model::NameKind::Function, s.name_pos, static_cast<int>(s.names.size())); break;
+    case Statement::Kind::Fun: add(s.name, Model::NameKind::Function, s.name_pos, static_cast<int>(s.more().names.size())); break;
     case Statement::Kind::Table: add(s.name, Model::NameKind::Table, s.name_pos, 1); break;
     case Statement::Kind::Network: add(s.name, Model::NameKind::Network, s.name_pos, 1); break;
     case Statement::Kind::Solv: add(s.name, Model::NameKind::Algebraic, s.name_pos); break;
@@ -442,7 +445,7 @@ private:
   {
     for (const Statement &s : statements) {
       if (s.kind != Statement::Kind::Options) continue;
-      for (const Option &o : s.options) {
+      for (const Option &o : s.more().options) {
         if (o.name != "neartol") continue;
         double v = 0;
         if (!xpp::parse_number(o.value, v) || !(v > 0))
@@ -729,7 +732,7 @@ private:
   {
     const auto [first, fresh] = sets_.emplace(s.name, s.pos);
     if (fresh) return;
-    const Pos at = s.imported_at.line ? s.imported_at : s.pos;
+    const Pos at = s.more().imported_at.line ? s.more().imported_at : s.pos;
     fail(at, xpp::format("the set `{}` is defined twice: at {}:{}:{} and at {}:{}:{}", s.name, p_.files[static_cast<size_t>(first->second.file)],
                          first->second.line, first->second.col, p_.files[static_cast<size_t>(s.pos.file)], s.pos.line, s.pos.col));
   }
@@ -749,8 +752,8 @@ private:
   {
     switch (s.kind) {
     case Statement::Kind::Options:
-      if (s.options.empty()) return false;
-      for (const Option &o : s.options) {
+      if (s.more().options.empty()) return false;
+      for (const Option &o : s.more().options) {
         if (!o.tree) continue;
         for (const setx::Value &preset : o.tree->items)
           for (const setx::Member &entry : preset.members) {
@@ -789,11 +792,11 @@ private:
       break;
     case Statement::Kind::Fun: {
       Scope sc;
-      sc.args = &s.names;
-      if (s.has_body) s.expr = flatten(s, s.body, 0, {}, nullptr);
+      sc.args = &s.more().names;
+      if (s.more().has_body) s.expr = flatten(s, s.more().body, 0, {}, nullptr);
       formula(s.expr, sc);
-      s.has_body = false;
-      s.body.clear();
+      s.more_mut().has_body = false;
+      s.more_mut().body.clear();
       break;
     }
     case Statement::Kind::Set:
@@ -804,17 +807,17 @@ private:
       }
       break;
     case Statement::Kind::Table:
-      if (s.table_kind == Statement::TableKind::Formula) formula(s.expr, formula_scope());
+      if (s.more().table_kind == Statement::TableKind::Formula) formula(s.expr, formula_scope());
       break;
     case Statement::Kind::Markov:
-      for (Expr &c : s.cells) formula(c, formula_scope());
+      for (Expr &c : s.more_mut().cells) formula(c, formula_scope());
       break;
     case Statement::Kind::Wiener:
       /* a Wiener parameter starts at 0, as .ode's wiener w does */
-      for (size_t i = 0; i < s.names.size(); i++) {
+      for (size_t i = 0; i < s.more().names.size(); i++) {
         Binding b;
-        b.name = s.names[i];
-        b.pos = s.name_positions[i];
+        b.name = s.more().names[i];
+        b.pos = s.more().name_positions[i];
         b.value.kind = Expr::Kind::Number;
         b.value.pos = b.pos;
         b.value.text = "0";
@@ -843,7 +846,7 @@ private:
     }
     case Statement::Kind::Network: {
       std::string def = s.text + "(";
-      for (size_t i = 0; i < s.call_args.size(); i++) def += (i ? "," : "") + s.call_args[i];
+      for (size_t i = 0; i < s.more().call_args.size(); i++) def += (i ? "," : "") + s.more().call_args[i];
       s.text = def + ")";
       break;
     }

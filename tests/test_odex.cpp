@@ -121,7 +121,7 @@ std::string lowered(const char *text)
       case Statement::Kind::Comment: add("\" " + s.text); break;
       case Statement::Kind::Options: {
         std::string line = "@ ";
-        for (const xpp::odex::Option &o : s.options) line += (line.size() > 2 ? "," : "") + o.name + "=" + o.value;
+        for (const xpp::odex::Option &o : s.more().options) line += (line.size() > 2 ? "," : "") + o.name + "=" + o.value;
         add(line);
         break;
       }
@@ -131,7 +131,7 @@ std::string lowered(const char *text)
           add((s.kind == Statement::Kind::Par ? "par " : "const ") + b.name + "=" + engine_text(b.value));
         break;
       case Statement::Kind::Wiener:
-        for (const std::string &n : s.names) add("wiener " + n);
+        for (const std::string &n : s.more().names) add("wiener " + n);
         break;
       case Statement::Kind::Network: add("special " + s.name + "=" + s.text); break;
       case Statement::Kind::History:
@@ -147,31 +147,31 @@ std::string lowered(const char *text)
       case Statement::Kind::Fixed: add(s.name + "=" + engine_text(s.expr)); break;
       case Statement::Kind::Fun: {
         std::string line = s.name + "(";
-        for (size_t i = 0; i < s.names.size(); i++) line += (i ? "," : "") + s.names[i];
+        for (size_t i = 0; i < s.more().names.size(); i++) line += (i ? "," : "") + s.more().names[i];
         add(line + ")=" + engine_text(s.expr));
         break;
       }
       case Statement::Kind::Set: {
         std::string line = "set " + s.name + " {" + s.text + "}";
-        for (const xpp::odex::Option &o : s.options) line += " " + o.group + "." + o.name + "=" + o.value;
+        for (const xpp::odex::Option &o : s.more().options) line += " " + o.group + "." + o.name + "=" + o.value;
         add(line);
         break;
       }
       case Statement::Kind::Table:
-        add("table " + s.name + " % " + std::to_string(s.count) + " " + xpp::odex::print_number(s.lo) + " " +
-            xpp::odex::print_number(s.hi) + " " + engine_text(s.expr));
+        add("table " + s.name + " % " + std::to_string(s.more().count) + " " + xpp::odex::print_number(s.more().lo) + " " +
+            xpp::odex::print_number(s.more().hi) + " " + engine_text(s.expr));
         break;
       case Statement::Kind::Markov: {
-        add("markov " + s.name + " " + std::to_string(s.count));
-        for (int r = 0; r < s.count; r++) {
+        add("markov " + s.name + " " + std::to_string(s.more().count));
+        for (int r = 0; r < s.more().count; r++) {
           std::string row;
-          for (int c = 0; c < s.count; c++) row += "{" + engine_text(s.cells[r * s.count + c]) + "} ";
+          for (int c = 0; c < s.more().count; c++) row += "{" + engine_text(s.more().cells[r * s.more().count + c]) + "} ";
           add(row);
         }
         break;
       }
       case Statement::Kind::Event: {
-        std::string line = "global " + std::to_string(s.count) + " {" + engine_text(s.expr) + "} {";
+        std::string line = "global " + std::to_string(s.more().count) + " {" + engine_text(s.expr) + "} {";
         for (size_t i = 0; i < s.bindings.size(); i++)
           line += (i ? ";" : "") + s.bindings[i].name + "=" + engine_text(s.bindings[i].value);
         add(line + "}");
@@ -364,25 +364,25 @@ int main(void)
       CHECK(s[4].kind == Statement::Kind::Fixed && s[4].name == "w");
       CHECK(s[5].kind == Statement::Kind::Aux && s[5].bindings.size() == 2);
       CHECK(s[6].kind == Statement::Kind::Const && s[6].bindings[0].name == "n");
-      CHECK(s[7].kind == Statement::Kind::Fun && !s[7].has_body && s[7].names.size() == 2);
-      CHECK(s[8].kind == Statement::Kind::Fun && s[8].has_body && s[8].body.size() == 2);
-      CHECK(s[9].kind == Statement::Kind::Options && s[9].options.size() == 4);
-      if (s[9].options.size() == 4) {
-        CHECK_STR(s[9].options[0].value.c_str(), "20");
-        CHECK_STR(s[9].options[3].value.c_str(), "out.dat");
+      CHECK(s[7].kind == Statement::Kind::Fun && !s[7].more().has_body && s[7].more().names.size() == 2);
+      CHECK(s[8].kind == Statement::Kind::Fun && s[8].more().has_body && s[8].more().body.size() == 2);
+      CHECK(s[9].kind == Statement::Kind::Options && s[9].more().options.size() == 4);
+      if (s[9].more().options.size() == 4) {
+        CHECK_STR(s[9].more().options[0].value.c_str(), "20");
+        CHECK_STR(s[9].more().options[3].value.c_str(), "out.dat");
       }
       CHECK(s[10].kind == Statement::Kind::Set && s[10].name == "fast" && s[10].bindings.size() == 2);
       CHECK(s[11].kind == Statement::Kind::Table && s[11].text == "w.tab");
-      CHECK(s[12].kind == Statement::Kind::Table && s[12].count == 51 && s[12].lo == -25 && s[12].hi == 25);
-      CHECK(s[13].kind == Statement::Kind::Markov && s[13].count == 2 && s[13].cells.size() == 4);
-      CHECK(s[14].kind == Statement::Kind::Wiener && s[14].names.size() == 2);
-      CHECK(s[15].kind == Statement::Kind::Event && s[15].count == -1 && s[15].bindings.size() == 2);
+      CHECK(s[12].kind == Statement::Kind::Table && s[12].more().count == 51 && s[12].more().lo == -25 && s[12].more().hi == 25);
+      CHECK(s[13].kind == Statement::Kind::Markov && s[13].more().count == 2 && s[13].more().cells.size() == 4);
+      CHECK(s[14].kind == Statement::Kind::Wiener && s[14].more().names.size() == 2);
+      CHECK(s[15].kind == Statement::Kind::Event && s[15].more().count == -1 && s[15].bindings.size() == 2);
       CHECK(s[16].kind == Statement::Kind::Boundary);
       CHECK_STR(tree(s[16].expr).c_str(), "(- x x')");
-      CHECK(s[17].kind == Statement::Kind::Network && s[17].text == "conv" && s[17].call_args.size() == 5);
+      CHECK(s[17].kind == Statement::Kind::Network && s[17].text == "conv" && s[17].more().call_args.size() == 5);
       CHECK(s[18].kind == Statement::Kind::Solv && s[18].name == "y");
       CHECK(s[19].kind == Statement::Kind::Dae);
-      CHECK(s[20].kind == Statement::Kind::Only && s[20].names.size() == 2);
+      CHECK(s[20].kind == Statement::Kind::Only && s[20].more().names.size() == 2);
       CHECK(s[21].kind == Statement::Kind::Comment && s[21].text == "{a=2} a comment the model shows");
     }
   }
