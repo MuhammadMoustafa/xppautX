@@ -481,7 +481,7 @@ class Arms(unittest.TestCase):
 
     def compare(self, theirs_up, theirs_down):
         start = dict(run='steady', type='HB', index=1)
-        d = dict(runs=[dict(name='up', kind='two_parameter', start=start, auto=self.autoX), dict(name='down', kind='two_parameter', start=start, auto=self.autoX)])
+        d = dict(runs=[dict(name='up', kind='two_parameter', start=start, autox=self.autoX), dict(name='down', kind='two_parameter', start=start, autox=self.autoX)])
         rows = {n: Curves.rows(v) for n, v in (('up', self.arm(1)), ('down', self.arm(-1)))}
         ref = {'.auto07p': dict(runs=[dict(name='up', points=[], curve=[list(v) for v in theirs_up]),
                                       dict(name='down', points=[], curve=[list(v) for v in theirs_down])])}
@@ -501,8 +501,8 @@ class Arms(unittest.TestCase):
     def test_a_skipped_arm_has_nothing_to_compare(self):
         # henon_rot_tr's down is skipped: no rows of ours, and the reference keeps only up (read_reference)
         start = dict(run='steady', type='HB', index=1)
-        d = dict(runs=[dict(name='up', kind='two_parameter', start=start, auto=self.autoX),
-                       dict(name='down', kind='two_parameter', start=start, auto=self.autoX, skip='traced')])
+        d = dict(runs=[dict(name='up', kind='two_parameter', start=start, autox=self.autoX),
+                       dict(name='down', kind='two_parameter', start=start, autox=self.autoX, skip='traced')])
         ref = {'.auto07p': dict(runs=[dict(name='up', points=[], curve=[list(v) for v in self.arm(1)])])}
         with mock.patch('autoxcompare.stored_rows', return_value={'up': Curves.rows(self.arm(1))}):
             diffs, _ = compare_references('T', d, b'', {}, ref)

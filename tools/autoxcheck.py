@@ -1299,16 +1299,16 @@ def section_sessiondiagram():
             ('noautoxsettings.snapx', lambda m: (m.pop('autox/settings.txt'), m.pop('autox/views.txt'), m.pop('autox/diagram.csv'), m.pop('autox/solutions.s')),
              'its autox/settings.txt is missing'),
             ('badsolution.snapx', lambda m: m.__setitem__('autox/solutions.s', b'1 1 4 1 2 0 1 9999 2 0 0 2\n0 1 2\n0 0\n'),
-             'badsolution.snapx/auto/solutions.s:1: '),
+             'badsolution.snapx/autox/solutions.s:1: '),
             ('cutdiagram.snapx', lambda m: m.__setitem__('autox/diagram.csv', '\n'.join(rows_csv[:5])[:-7].encode()),
-             'cutdiagram.snapx/auto/diagram.csv:5: '),
+             'cutdiagram.snapx/autox/diagram.csv:5: '),
             ('latersettings.snapx', lambda m: m.__setitem__('autox/settings.txt', m['autox/settings.txt'] + b'later 1\n'),
-             'latersettings.snapx/auto/settings.txt:%d: later is not one of autoX\'s settings' % (members['autox/settings.txt'].count(b'\n') + 1)),
+             'latersettings.snapx/autox/settings.txt:%d: later is not one of autoX\'s settings' % (members['autox/settings.txt'].count(b'\n') + 1)),
             # W125: a value autoX refuses (Ncol 9), at its line; a bad value on views.txt's last line
             ('badncol.snapx', lambda m: m.__setitem__('autox/settings.txt', re.sub(rb'(?m)^collocation_points .*$', b'collocation_points 9', m['autox/settings.txt'])),
-             'badncol.snapx/auto/settings.txt:4: Collocation points must be'),
+             'badncol.snapx/autox/settings.txt:4: Collocation points must be'),
             ('lastviews.snapx', lambda m: m.__setitem__('autox/views.txt', m['autox/views.txt'].rstrip(b'\n').rsplit(b'\n', 1)[0] + b'\nactive x\n'),
-             'lastviews.snapx/auto/views.txt:%d: invalid quoted window name' % (members['autox/views.txt'].rstrip(b'\n').count(b'\n') + 1)),
+             'lastviews.snapx/autox/views.txt:%d: invalid quoted window name' % (members['autox/views.txt'].rstrip(b'\n').count(b'\n') + 1)),
             ('latermanifest.snapx', lambda m: m.__setitem__('session.setx', m['session.setx'] + b'later: 1,\n'),
              'latermanifest.snapx/session.setx:%d:1: ' % (members['session.setx'].count(b'\n') + 1))):
         damaged = dict(members)
@@ -2431,9 +2431,9 @@ def section_hopf_reduced():
                          parameter_min=-.2, parameter_max=.2, mesh_intervals=15, max_branch_switches=0, parameter_tolerance=1e-9, state_tolerance=1e-9, special_point_tolerance=1e-8)
         d = dict(model=model, runs=[
             dict(name='steady', kind='equilibrium', start=dict(state='current'),
-                 parameter='b', auto=constants),
+                 parameter='b', autox=constants),
             dict(name='hopf', kind='two_parameter', start=dict(run='steady', type='hopf', index=1),
-                 parameters=['a', 'b'], auto=dict(constants, step_size=.03, max_step_size=.1, max_steps=70, parameter_min=-2, parameter_max=1))])
+                 parameters=['a', 'b'], autox=dict(constants, step_size=.03, max_step_size=.1, max_steps=70, parameter_min=-2, parameter_max=1))])
         data, _, _, ranges = compute(args.server, d, 1)
         rows = diagram_rows(data)[slice(*ranges['hopf'])]
         x = [float(r['u0.X']) for r in rows]
@@ -2508,8 +2508,8 @@ def section_codim():
         constants = dict(step_size=.02, min_step_size=1e-6, max_step_size=.05, max_steps=30, output_every=10,
                          parameter_min=-.2, parameter_max=.2, mesh_intervals=15, max_branch_switches=0, parameter_tolerance=1e-9, state_tolerance=1e-9, special_point_tolerance=1e-8)
         normal = dict(model=model, runs=[
-            dict(name='steady',kind='equilibrium',start=dict(state='current'),parameter='a',auto=constants),
-            dict(name='hopf',kind='two_parameter',start=dict(run='steady',type='hopf',index=1),parameters=['b','a'],auto=constants)])
+            dict(name='steady',kind='equilibrium',start=dict(state='current'),parameter='a',autox=constants),
+            dict(name='hopf',kind='two_parameter',start=dict(run='steady',type='hopf',index=1),parameters=['b','a'],autox=constants)])
         data, _, _, intervals = compute(args.server, normal, 1)
         rows = diagram_rows(data)[slice(*intervals['hopf'])]
         gh = [r for r in rows if r['itp']=='generalized_hopf_from_hopf']

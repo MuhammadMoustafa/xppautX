@@ -81,8 +81,8 @@ def workloads(a):
     eq = dict(step_size=-1, min_step_size=1e-4, max_step_size=50, max_steps=5000, output_every=5000, parameter_min=200, parameter_max=20001,
               mesh_intervals=100, collocation_points=4, parameter_tolerance=1e-4, state_tolerance=1e-4, special_point_tolerance=1e-4, max_branch_switches=5)
     d = comparison.codes_of_types(dict(model=str(py.with_suffix('.odex')), reason='P1/E1: W269 PY_S1Bf, freshly converted by final tip', runs=[
-        dict(name='steady', kind='equilibrium', start=dict(state='current'), parameter='Iapp', auto=eq),
-        dict(name='periodic', kind='periodic', start=dict(run='steady', type='hopf', index=1), parameter='Iapp', auto=copy.deepcopy(eq))]))
+        dict(name='steady', kind='equilibrium', start=dict(state='current'), parameter='Iapp', autox=eq),
+        dict(name='periodic', kind='periodic', start=dict(run='steady', type='hopf', index=1), parameter='Iapp', autox=copy.deepcopy(eq))]))
     # W551 (#616): the third point of the cycles from the Hopf point, with DS < 0 (finding 86, AUTO-07p finding 8; docs/auto-references.md W551)
     p1_cause = (
         "XPPAUT 8.0 (point 3, Iapp 16394.43) and AUTO-07p (point 3, 16394.432) label a BP at the third point of the cycles from the Hopf point (period 2.1616, 15 pA below the Hopf point at "
