@@ -126,7 +126,17 @@ public:
     out.files = p_.files;
     out.ieee_division = true;
     out.derived = true;
-    for (Statement &s : statements) in_copy(s.array, [&] { ready(s, out.statements); });
+    /* readied in place, the kept ones moved to the front: no second vector of statements beside the first */
+    std::size_t kept = 0;
+    for (Statement &s : statements)
+      in_copy(s.array, [&] {
+        if (!ready(s)) return;
+        if (&statements[kept] != &s) statements[kept] = std::move(s);
+        kept++;
+      });
+    statements.resize(kept);
+    statements.shrink_to_fit(); /* the kept list lives as long as the model: no spare capacity */
+    out.statements = std::move(statements);
     return out;
   }
 
@@ -734,12 +744,12 @@ private:
     }
   }
 
-  /* s (an expanded copy, changed in place) readied and moved to out */
-  void ready(Statement &s, std::vector<Statement> &out)
+  /* s (an expanded copy) readied in place; false when it leaves no statement */
+  bool ready(Statement &s)
   {
     switch (s.kind) {
     case Statement::Kind::Options:
-      if (s.options.empty()) return;
+      if (s.options.empty()) return false;
       for (const Option &o : s.options) {
         if (!o.tree) continue;
         for (const setx::Value &preset : o.tree->items)
@@ -841,7 +851,7 @@ private:
     case Statement::Kind::Dae: formula(s.expr, formula_scope()); break;
     default: break;
     }
-    out.push_back(std::move(s));
+    return true;
   }
 
   const Parsed &p_;
@@ -976,7 +986,9 @@ Parsed ready(Model &m, const Parsed &p)
 int load(xpp::Session &s, const std::string &path, std::string text)
 {
   try {
-    build_model(s, ready(s.model(), parse(s.model(), text, path)));
+    /* the parsed statements go before the model is built: the built list keeps only the expanded ones */
+    Parsed readied = ready(s.model(), parse(s.model(), text, path));
+    build_model(s, std::move(readied));
   } catch (const Error &e) {
     xpp::model_failed(e);
   }

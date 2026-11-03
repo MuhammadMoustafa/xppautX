@@ -44,22 +44,22 @@ void AutoAssemblyScratch::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::
   ubc1.resize(ndim);
 }
 
-void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t ntst, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t parameters)
+void SolvbvWork::resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t ntst, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t nfpr)
 {
   const std::size_t nrow = xpp::size_product(ndim,ncol);
   const std::size_t nclm = xpp::size_sum(nrow,ndim), nrc = xpp::size_sum(nbc,nint,1), nodes = xpp::size_sum(ntst,1);
   a.resize(xpp::size_product(nclm, nrow, nodes));
-  b.resize(xpp::size_product(parameters, nrow, nodes));
+  b.resize(xpp::size_product(nfpr, nrow, nodes));
   c.resize(xpp::size_product(nclm, nrc, nodes));
-  d.resize(xpp::size_product(nrc, parameters));
+  d.resize(xpp::size_product(nrc, nfpr));
   a1.resize(xpp::size_product(ndim, ndim, nodes));
   a2.resize(xpp::size_product(ndim, ndim, nodes));
   s1.resize(xpp::size_product(ndim, ndim, nodes));
   s2.resize(xpp::size_product(ndim, ndim, nodes));
-  bb.resize(xpp::size_product(ndim, parameters, nodes));
+  bb.resize(xpp::size_product(ndim, nfpr, nodes));
   cc.resize(xpp::size_product(ndim, nrc, nodes));
   c2.resize(xpp::size_product(ndim, nrc, nodes));
-  dd.resize(xpp::size_product(parameters, nrc, nodes));
+  dd.resize(xpp::size_product(nfpr, nrc, nodes));
   faa.resize(xpp::size_product(ndim, nodes));
   fcfc.resize(xpp::size_product(nrc, nodes));
   icf.resize(xpp::size_product(nclm, nodes));
@@ -109,7 +109,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 
   if (*ifst == 1) {
     /* the arrays are sized in one place, SolvbvWork::resize */
-    iap->lib->solvbv.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->lib->parameter_count);
+    iap->lib->solvbv.resize(iap->ndim, iap->ncol, iap->ntst, iap->nbc, iap->nint, iap->nfpr);
   }
 
   auto &ft = iap->lib->solvbv.ft;

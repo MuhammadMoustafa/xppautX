@@ -228,6 +228,13 @@ std::string diagram_csv(const std::deque<DIAGRAM> &points, int model_parameters,
     for (std::size_t i = 1; i <= vars.size(); i++) o += xpp::format(",evr{0},evi{0}", i);
     o += '\n';
     const std::size_t n = vars.size();
+    /* sized once from the points, not grown by doubling (a long run's text is tens of MiB, and each doubling holds the old
+       text beside the new): a row's numbers, each at most longest_number characters (-1.2345678901234567e-308), its
+       separators and its fixed words; the pages the text does not reach are never touched */
+    constexpr std::size_t longest_number = 24, row_words = 128;
+    std::size_t bound = o.size();
+    for (const DIAGRAM &p : points) bound += row_words + (6 + 6 * n + p.par.size() + p.parameter_indices.size()) * (longest_number + 1);
+    o.reserve(bound);
     for (const DIAGRAM &p : points) {
         const DIAGRAM &d = p;
         /* an axis is written as the file's integer (auto_axis.h) */

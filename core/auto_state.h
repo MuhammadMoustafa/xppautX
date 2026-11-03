@@ -238,9 +238,9 @@ struct SolvbvWork {
   std::vector<std::vector<std::pair<std::ptrdiff_t,double>>> dlog;
   std::vector<std::ptrdiff_t> icf,irf,ipr,icf2;
   /* for ndim variables, ncol collocation points, ntst intervals, nbc
-     boundary conditions, nint integral constraints and up to parameters
-     continuation parameters */
-  void resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t ntst, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t parameters);
+     boundary conditions, nint integral constraints and nfpr continuation
+     parameters (the run's, not the model's whole set) */
+  void resize(std::ptrdiff_t ndim, std::ptrdiff_t ncol, std::ptrdiff_t ntst, std::ptrdiff_t nbc, std::ptrdiff_t nint, std::ptrdiff_t nfpr);
   /* the Fortran A (nca x nra x ntst), B (ncb x nra x ntst), C (nca x nrc x
      ntst) and D (ncb x nrc), whose leading dimensions are those of the call */
   xpp::Matrix3<double> a_matrix(std::ptrdiff_t nca, std::ptrdiff_t nra, std::ptrdiff_t ntst) { return {a, nca, nra, ntst}; }
