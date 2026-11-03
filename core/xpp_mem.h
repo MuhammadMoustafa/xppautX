@@ -112,8 +112,10 @@ public:
   }
   Boxed &operator=(Boxed &&) noexcept = default;
   explicit operator bool() const noexcept { return static_cast<bool>(p_); }
-  T &operator*() const noexcept { return *p_; }
-  T *operator->() const noexcept { return p_.get(); }
+  T &operator*() noexcept { return *p_; }
+  const T &operator*() const noexcept { return *p_; }
+  T *operator->() noexcept { return p_.get(); }
+  const T *operator->() const noexcept { return p_.get(); }
   void reset() noexcept { p_.reset(); }
 private:
   std::unique_ptr<T> p_;
