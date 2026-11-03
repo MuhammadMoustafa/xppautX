@@ -22,6 +22,7 @@
    The expression tree is .odex's own: an operator is the word or symbol
    .odex spells it with ("and", "mod", "!=", ...). */
 #include "setx.h"
+#include "xpp_mem.h"
 #include "xpp_error.h"
 
 #include <functional>
@@ -234,7 +235,7 @@ struct Statement {
      upper case (name) ("" for the .odex's, and a statement with none) */
   std::string written;
   /* the name's index, x[e] (an array's element) */
-  std::optional<Expr> name_index;
+  Boxed<Expr> name_index;
   std::string text;
   Expr expr;
   std::vector<Binding> bindings;
@@ -244,7 +245,7 @@ struct Statement {
   std::vector<std::optional<Expr>> name_indices;
   /* the trailing range (.odex), and which array statement this one is a
      copy of (both readers' copies) */
-  Range range;
+  Boxed<Range> range;
   ArrayCopy array;
   /* a Derived computed only when a parameter changes, as its formula
      reads only parameters, consts and pure functions (and derived

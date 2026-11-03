@@ -599,10 +599,10 @@ int main(void)
       const Statement &a = p.statements[0], &b = p.statements[1];
       CHECK(a.kind == Statement::Kind::Ode && a.name == "x" && a.name_index && tree(*a.name_index) == "j");
       CHECK_STR(tree(a.expr).c_str(), "(+ (- ([] x j)) ([] x (- j 1)))");
-      CHECK(a.range.index == "j" && tree(a.range.lo) == "1" && tree(a.range.hi) == "n" && tree(a.range.step) == "1");
-      CHECK(a.range.index_pos.line == 2 && a.range.index_pos.col == 29);
+      CHECK(a.range->index == "j" && tree(a.range->lo) == "1" && tree(a.range->hi) == "n" && tree(a.range->step) == "1");
+      CHECK(a.range->index_pos.line == 2 && a.range->index_pos.col == 29);
       CHECK(b.kind == Statement::Kind::Aux && b.bindings.size() == 1 && b.bindings[0].index);
-      CHECK(tree(b.range.step) == "2");
+      CHECK(tree(b.range->step) == "2");
     }
   }
   CHECK(starts(model_error("x[j]' = 1 for j in 1..3..2\n"), "1:24 a range is a..b, its step written `by k`"));

@@ -38,6 +38,8 @@
 #include <string_view>
 #include <cstddef>
 #include <limits>
+#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 
@@ -89,6 +91,32 @@ public:
   float *data() const noexcept { return p_; }
 private:
   float *p_ = nullptr;
+};
+
+/* an optional T held behind a pointer, for a big member most records of a
+   long list do not use (W600: a statement's range, 392 bytes, kept by all
+   9600 statements of a 2400-cell chain): empty costs a pointer, a value
+   is a copy of its own (copying deep-copies, so two records never share
+   one T that a rename edits in place). */
+template<class T> class Boxed {
+public:
+  Boxed() noexcept = default;
+  Boxed(T value) : p_(std::make_unique<T>(std::move(value))) {}
+  Boxed(std::optional<T> value) { if (value) p_ = std::make_unique<T>(std::move(*value)); }
+  Boxed(const Boxed &other) : p_(other.p_ ? std::make_unique<T>(*other.p_) : nullptr) {}
+  Boxed(Boxed &&) noexcept = default;
+  Boxed &operator=(const Boxed &other)
+  {
+    if (this != &other) p_ = other.p_ ? std::make_unique<T>(*other.p_) : nullptr;
+    return *this;
+  }
+  Boxed &operator=(Boxed &&) noexcept = default;
+  explicit operator bool() const noexcept { return static_cast<bool>(p_); }
+  T &operator*() const noexcept { return *p_; }
+  T *operator->() const noexcept { return p_.get(); }
+  void reset() noexcept { p_.reset(); }
+private:
+  std::unique_ptr<T> p_;
 };
 
 /* what says what was being built ("reading a command"): the ERROR is

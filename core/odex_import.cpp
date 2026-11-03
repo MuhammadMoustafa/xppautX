@@ -30,11 +30,11 @@ public:
   void statement(Statement &s)
   {
     locals_.clear();
-    if (!s.range.index.empty()) {
-      locals_.insert(s.range.index);
-      expr(s.range.lo);
-      expr(s.range.hi);
-      expr(s.range.step);
+    if (s.range) {
+      locals_.insert(s.range->index);
+      expr(s.range->lo);
+      expr(s.range->hi);
+      expr(s.range->step);
     }
     if (s.kind == Statement::Kind::Fun) locals_.insert(s.names.begin(), s.names.end());
     if (!s.name.empty()) name(s.name, declares_name(s.kind));
@@ -74,7 +74,7 @@ private:
     if (!locals_.count(n)) visit_(n, declares);
   }
 
-  void optional(std::optional<Expr> &e)
+  template<class Held> void optional(Held &e)
   {
     if (e) expr(*e);
   }
@@ -151,7 +151,7 @@ struct Declared {
     Names([this](std::string &n, bool declares) {
       if (declares) names.insert(n);
     }).statement(s);
-    const bool array = !s.range.index.empty() || s.name_index;
+    const bool array = s.range || s.name_index;
     if (array && !s.name.empty()) arrays.insert(s.name);
     for (const Binding &b : s.bindings)
       if (array || b.index) arrays.insert(b.name);

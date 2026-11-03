@@ -116,10 +116,10 @@ public:
     std::vector<Statement> statements = expanded();
     for (const Statement &s : statements) in_copy(s.array, [&] { declare(s); });
     for (const Statement &s : p_.statements)
-      if (!s.range.index.empty())
-        if (const Model::Name *d = find(s.range.index))
-          fail(s.range.index_pos, xpp::format("the index `{}` is {}, declared at {}:{}: an index is named like "
-                                              "no declared name", s.range.index, kind_name(d->kind),
+      if (s.range)
+        if (const Model::Name *d = find(s.range->index))
+          fail(s.range->index_pos, xpp::format("the index `{}` is {}, declared at {}:{}: an index is named like "
+                                              "no declared name", s.range->index, kind_name(d->kind),
                                               d->pos.line, d->pos.col));
     scan_neartol(p_.statements);
     Parsed out;
@@ -144,8 +144,8 @@ public:
   {
     scan_neartol(m_.statements);
     for (const auto &s : p_.statements)
-      if (!s.range.index.empty() && find(s.range.index))
-        fail(s.range.index_pos, "a range index must not name a declared model quantity");
+      if (s.range && find(s.range->index))
+        fail(s.range->index_pos, "a range index must not name a declared model quantity");
     auto out = expanded(true);
     for (auto &s : out)
       for (auto &b : s.bindings) formula(b.value, formula_scope());
@@ -267,7 +267,7 @@ private:
   Statement copy(const Statement &s, const std::string &index, int value)
   {
     Statement c = s;
-    c.range = Range();
+    c.range.reset();
     if (c.name_index) c.name = defined(c.name, *c.name_index, index, value);
     c.name_index.reset();
     resolve(c.expr, index, value);
@@ -303,8 +303,7 @@ private:
     std::size_t memory = 0;
     int group = 0;
     for (const Statement &s : p_.statements) {
-      const Range &r = s.range;
-      std::size_t bytes = sizeof(Statement) + r.index.size() + s.name.size() + s.text.size();
+      std::size_t bytes = sizeof(Statement) + (s.range ? s.range->index.size() : 0) + s.name.size() + s.text.size();
       if (animation) {
         std::vector<const Expr *> expressions;
         for (const auto &b : s.bindings) {
@@ -323,12 +322,13 @@ private:
         if (animation && !snapx::account_memory(memory, 1, bytes))
           fail(s.pos, "animation range expansion exceeds the session memory budget");
       };
-      if (r.index.empty()) {
+      if (!s.range) {
         group_ = 0;
         reserve_copy();
         out.push_back(copy(s, std::string(), 0));
         continue;
       }
+      const Range &r = *s.range;
       if (!takes_range(s.kind)) fail(r.pos, "this statement takes no range");
       const int lo = whole(r.lo, "the range's first index", std::string(), 0, false);
       const int hi = whole(r.hi, "the range's last index", std::string(), 0, false);

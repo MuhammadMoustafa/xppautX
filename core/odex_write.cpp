@@ -198,7 +198,7 @@ const Binding *own_binding(const Parsed &p, Statement::Kind kind, std::string_vi
 {
   const std::string wanted = xpp::converted(name);
   for (const Statement &s : p.statements) {
-    if (s.kind != kind || !local(s) || !s.range.index.empty() || s.array.group) continue;
+    if (s.kind != kind || !local(s) || s.range || s.array.group) continue;
     for (const Binding &b : s.bindings)
       if (!b.index && xpp::converted(b.name) == wanted) return &b;
   }
@@ -215,7 +215,7 @@ std::optional<std::string> declared_at(const Parsed &p, Statement::Kind kind, st
     for (const Binding &b : s.bindings)
       if (xpp::converted(b.name) == wanted) {
         const std::string &file = p.files[static_cast<std::size_t>(s.pos.file)];
-        return xpp::format("{}:{}{}", file, b.pos.line, s.range.index.empty() ? (s.imported_at.line ? " (an import)" : "") : " (an array statement)");
+        return xpp::format("{}:{}{}", file, b.pos.line, s.range ? " (an array statement)" : (s.imported_at.line ? " (an import)" : ""));
       }
   }
   return std::nullopt;
