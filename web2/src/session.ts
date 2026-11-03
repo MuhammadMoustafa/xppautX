@@ -37,7 +37,7 @@ import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from '.
 export type BrowserOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
   | 'restore' | 'addcol' | 'delcol';
 
-/** the autoX window's buttons (toolbarCommand names the registry command of each); Close is session.closeAuto */
+/** the autoX window's buttons (toolbarCommand names the registry command of each); Close is session.closeAutox */
 export type AutoxOp = 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw';
 
 /** a change of what a window displays, as the `display` command carries it: the zoom of each axis
@@ -220,7 +220,7 @@ export class Session {
       this.nativeSave = null;
     } else if (ev.ev === 'done') {
       if (this.donesOwed > 0) this.donesOwed--;
-      this.afterAuto();
+      this.afterAutox();
       this.dragQueue = [];
       this.dragEnded = false;
       if (this.replayDones > 0 && --this.replayDones === 0) this.replayAnswers = [];
@@ -684,7 +684,7 @@ export class Session {
   }
 
   /* after every done: the run's clock stops, a plan ends, a grabbed periodic orbit is imported */
-  private afterAuto(): void {
+  private afterAutox(): void {
     if (this.store.getState().diagram.run?.active)
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'end', at: Date.now()}});
     const g = this.grabbed;
@@ -717,7 +717,7 @@ export class Session {
   /** the autoX view's close: done with it (A10). A running job is stopped
       first and the window closes at its done, instead of the close waiting
       behind the run. */
-  closeAuto(): void {
+  closeAutox(): void {
     const {busy, stopping, diagram} = this.store.getState();
     const commands = diagram.views.map(v => ({cmd: 'window.destroy', window: v.name}));
     if (!busy) {
@@ -753,7 +753,7 @@ export class Session {
   }
 
   /** Hide autoX hides every view of the diagram in the core (window.hide: they keep everything); Show brings them back */
-  showAuto(shown: boolean): void {
+  showAutox(shown: boolean): void {
     /* a grab or plot mode waiting on the diagram is cancelled with it: the ask would stay open behind
        the main window and swallow every key typed there (W100) */
     const {ask, pick, diagram} = this.store.getState();

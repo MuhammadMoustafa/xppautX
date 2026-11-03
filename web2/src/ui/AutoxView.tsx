@@ -11,7 +11,7 @@ import {WindowName} from './WindowName';
    is the same one, A10), and its Output panel shows autoX's table. Back (or
    Escape) hides the panel and leaves autoX open, showing the page again;
    "Show autoX" brings it back; Close is "done with it": it closes autoX's
-   window, stopping a running continuation first (session.closeAuto). The
+   window, stopping a running continuation first (session.closeAutox). The
    core's asks/prompts/messages and any dialog autoX opens stay on top of
    this view (the dialog backdrop's z-index is above every panel's).
 
@@ -572,7 +572,7 @@ function AutoxPanel({dark}: {dark: boolean}) {
     if (e.key === 'Escape' && !running) {
       e.preventDefault();
       e.stopPropagation();
-      session.showAuto(false);
+      session.showAutox(false);
       return;
     }
 
@@ -581,11 +581,11 @@ function AutoxPanel({dark}: {dark: boolean}) {
   return (
     <section id="autox-panel" ref={panel} class="autox-panel" aria-label="autoX" onKeyDown={onPanelKey}>
       <div class="autox-header">
-        <button class="autox-back" onClick={() => session.showAuto(false)}
+        <button class="autox-back" onClick={() => session.showAutox(false)}
           title="autoX stays open, with its diagram and a running continuation; Show autoX brings it back">Hide autoX</button>
         <h2>autoX <span class="muted autox-what">{views > 1 ? `${views} views, the active one ${what}` : what}</span></h2>
         <HelpButton target={HELP.autoxView} label="autoX" />
-        <button class="autox-close" onClick={() => session.closeAuto()}
+        <button class="autox-close" onClick={() => session.closeAutox()}
           title="Done with autoX: close its window (a running continuation is stopped first; File/autoX opens it again)">
           Close
         </button>
@@ -653,6 +653,6 @@ export function AutoxShow() {
   if (!open || shown) return null;
   return (
     <button class="autox-show" aria-controls="autox-panel" aria-expanded="false"
-      onClick={() => session.showAuto(true)} title="Show the autoX view again">Show autoX</button>
+      onClick={() => session.showAutox(true)} title="Show the autoX view again">Show autoX</button>
   );
 }

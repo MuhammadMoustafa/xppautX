@@ -26,7 +26,7 @@ Contents: [Platforms and install](#platforms-and-install) -
 [The interface](#the-interface) - [Files and formats](#files-and-formats) -
 [Sessions and recordings](#sessions-and-recordings) -
 [The model language](#the-model-language) -
-[Numerics and solvers](#numerics-and-solvers) - [AUTO](#auto) -
+[Numerics and solvers](#numerics-and-solvers) - [autoX](#autox) -
 [Batch, the protocol, --server](#batch-the-protocol---server) -
 [Limits removed](#limits-removed) - [Removed features](#removed-features) -
 [Fixed](#fixed)
@@ -237,9 +237,9 @@ every example, the goldens guard the output files.
 | Bit-identical results on every platform | not a goal | studied: `-ffp-contract=off` and a correctly rounded libm; adoption deferred ([studies](studies/w72-bit-identical.md)) | W72 |
 | Speed | C | measured after each C++ stage and not slower beyond noise | W109 |
 
-## AUTO
+## autoX
 
-AUTO's numerics derive from XPPAUT 8.0, converted to C++. W326 restores the
+autoX's numerics derive from XPPAUT 8.0's AUTO, converted to C++. W326 restores the
 converged state after a failed special-point location; its intentional diagram
 changes are checked against AUTO-07p and recorded in the baseline. The window: [manual 9](manual/09-autox.md).
 

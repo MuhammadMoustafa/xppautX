@@ -205,7 +205,7 @@ export interface AutoxSettingsState {
   error: string | null;
 }
 
-export const initialAutoSettings: AutoxSettingsState = {core: null, inflight: [], error: null};
+export const initialAutoxSettings: AutoxSettingsState = {core: null, inflight: [], error: null};
 
 export type AutoxSettingsAction =
   | {type: 'event'; ev: AutoxSettings}
@@ -217,7 +217,7 @@ export type AutoxSettingsAction =
   | {type: 'reset'}
   | {type: 'error'; text: string};
 
-export function reduceAutoSettings(s: AutoxSettingsState, a: AutoxSettingsAction): AutoxSettingsState {
+export function reduceAutoxSettings(s: AutoxSettingsState, a: AutoxSettingsAction): AutoxSettingsState {
   switch (a.type) {
     case 'event':
       return {...s, core: a.ev};

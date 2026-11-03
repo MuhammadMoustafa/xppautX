@@ -42,14 +42,14 @@ extends them (AUTO's Extend, W423). `switch:true` requests
 branch switching. A model or individual run may instead carry `skip` with
 an explicit reason; invalid descriptions always fail, including skips.
 
-Each `.diagram.csv` is the diagram as a session file keeps it (`auto/diagram.csv`
+Each `.diagram.csv` is the diagram as a session file keeps it (`autox/diagram.csv`
 in a `.snapx`, written by `session` `save` after the runs): a header, then one row
 per stored point in stored order, with its branch, label, type, stability, every
 parameter, every variable's value, maximum, minimum and mean, and its
 eigenvalues, each number written to round-trip exactly. A change in the last
 bit of any of them is a difference.
 
-Run `python3 tools/autocompare.py --server ./xppautX` (`.exe` on Windows).
+Run `python3 tools/autoxcompare.py --server ./xppautX` (`.exe` on Windows).
 `--only tstauto_lo,ode_lecar` selects descriptions. Both 1 and automatic
 threads must match the same baseline. `--update` writes a model only after
 both counts agree and prints each changed model. Use it only for an
@@ -69,7 +69,7 @@ random delay-network models. Their descriptions give the specific reasons.
 
 Beside a description's diagram, `NAME.auto07p` and `NAME.xppaut` hold the special points (type, parameter,
 norm, period, eigenvalues or multipliers; not the step sequence) that AUTO-07p 0.9.4 and XPPAUT 8.0 find
-for the same problem. `tools/autocompare.py` compares ours with them within a tolerance stated per quantity
+for the same problem. `tools/autoxcompare.py` compares ours with them within a tolerance stated per quantity
 ([docs/auto-references.md](../../docs/auto-references.md)) on every run, from the committed files alone.
 Regenerate them only on a machine that has the program, with `python3 tools/auto_reference.py --program
 auto07p|xppaut [--only NAME,...]` (its docstring says what each needs); a changed file is a changed
@@ -109,7 +109,7 @@ W404 (#466) runs the Henon-with-rotation map descriptions against AUTO-07p:
 fixed-point PD/TR labels and both map fold/flip directions, plus the torus up direction.
 The torus down run retains a traced skip at its singular R1 endpoint: since W405 xppautX's
 R1 is 3.7e-7 from (-1,1), but AUTO-07p's R1 and the BP after it lie 1.9e-5 along the fold
-branch its step entered there. `autocheck codim` independently checks the closed-form curves and torus
+branch its step entered there. `autoxcheck codim` independently checks the closed-form curves and torus
 labels before that endpoint, named controls, and session round trips. No tolerance is widened.
 
 W415 (#477) adds three descriptions from the maintainer's published research models (`examples/ode/mu26.odex`, the

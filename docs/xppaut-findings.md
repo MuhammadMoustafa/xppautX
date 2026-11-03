@@ -900,7 +900,7 @@ to previous (converged) state'; `ae.f90` `LCSPAE` the same), so a
 test function that changes sign by noise costs nothing.
 
 - **Evidence:** the Morris-Lecar model with `v3=0, v4=0.3, gca=1.1, phi=0.2`
-  (`tests/auto/tstauto_lecar.json`, W299), the cycles from the first Hopf
+  (`tests/autox/tstauto_lecar.json`, W299), the cycles from the first Hopf
   point at NTST 15 with the description's constants. Where the cycles'
   largest multiplier is 3e6 the BP test function changes sign by noise at
   point 21; the location runs its 9 iterations and ends in the NOTE (XPPAUT
@@ -1560,7 +1560,7 @@ times the last update, and the location of a special point by the secant method 
 not the same each time the point is solved.
 
 Evidence, the Hopf point of the PV interneuron of Ma et al. 2023 (`examples/ode/ma23.odex`, the steady run of
-`tests/auto/ode_ma23.json`: SmStmplti from 0 at DS 0.005, DSMAX 2, NTST 25, EPS 1e-7/1e-7/1e-5, ITMX 8, which
+`tests/autox/ode_ma23.json`: SmStmplti from 0 at DS 0.005, DSMAX 2, NTST 25, EPS 1e-7/1e-7/1e-5, ITMX 8, which
 `uv run --locked python tools/auto_reference.py --program xppaut --only ode_ma23` sets in XPPAUT's windows): the table lists EP, LP
 (35.05591 pA) and LP (34.01230) and no HB. XPPAUT's diagnostics file shows the Hopf function change sign between
 points 297 (7.8e-5, three stable eigenvalues) and 298 (-8.0e-4, five); its location then evaluates 3.3e-7, -2.9e-7,
@@ -1668,7 +1668,7 @@ continuation and sometimes has a different sign"
 stored ([ae.f90:548](../reference/auto-07p/src/ae.f90#L548)). The location iterations of a branch point then
 mix the two: its first value is the fold matrix's, each iterate's the Newton matrix's.
 
-Evidence, Mu26's steady branch at DSMAX 1 (`examples/ode/mu26.odex`, `tests/auto/ode_mu26_blocked.json`'s steady run
+Evidence, Mu26's steady branch at DSMAX 1 (`examples/ode/mu26.odex`, `tests/autox/ode_mu26_blocked.json`'s steady run
 with `dsmax` 1, h current blocked; the same with the control conductances): the step from point 112 (-78.790 pA)
 predicts -79.606 pA, past the fold at -79.0566, and its corrector converges at -78.849 on the branch beyond it.
 The fold function is -0.6925 at 112 and -0.6781 at 113 (no sign change: the fold is not detected), the determinant
@@ -1761,7 +1761,7 @@ a membrane voltage near -70 is stepped by 7e-6, far more than its own size, and 
 Hopf test and period carry the error. AUTO-07p's `FUNI` is the same
 ([auto07p-findings.md](auto07p-findings.md#7-the-finite-difference-jacobian-steps-every-state-by-the-largest-ones-scale)).
 
-Evidence: ModelDB 267710 (`examples/ode/motoneuron6c.odex`, `tests/auto/ode_motoneuron6c.json`, the steady run's Hopf point,
+Evidence: ModelDB 267710 (`examples/ode/motoneuron6c.odex`, `tests/autox/ode_motoneuron6c.json`, the steady run's Hopf point,
 stored point 362). The converged point (an independent centred-difference Jacobian of the right-hand side, and xppautX's exact
 Jacobian at EPS 1e-7) is at ampPar 0.1737640862 with period 608.8326; XPPAUT 8.0 labels it at 0.1737628 with period 607.215,
 AUTO-07p at 0.1737626685 with 607.3187, and a centred difference with this step rule at tight tolerances at 0.1737627148
@@ -1920,12 +1920,12 @@ the eigen-cycle predictor of `stpnps` ([autlib3.c:1653-1654](../reference/xppaut
 converges in one correction, which moves the parameter further than the branch has moved since the start, and the
 tangent is ill-conditioned there, since the fold and branch-point tests vanish at the Hopf point by construction.
 
-Evidence: on ModelDB 267710's cycles from the Hopf point at ampPar 0.5728 (`tests/auto/ode_motoneuron6c.json`, its
+Evidence: on ModelDB 267710's cycles from the Hopf point at ampPar 0.5728 (`tests/autox/ode_motoneuron6c.json`, its
 `.xppaut` reference) XPPAUT 8.0 labels an LP at ampPar 0.5727909, where ampPar rises monotonically from the Hopf point and
 nothing is labelled at EPSL = EPSU 1e-8 (W455); its multipliers there hold 1.000141 beside the trivial 1. With the same
 factorization xppautX's fold test was +4.57e-6 at the second point, and -2.5e-5 when factored at the point, the sign of
 every later point's. On the Bautin normal form `r' = r (b1 + b2 r^2 - r^4)`, b2 = 0.0032
-(`tests/auto/bautin_near_hopf.json`), whose fold of cycles is at amplitude 0.04, b1 = -2.56e-6, between the second and
+(`tests/autox/bautin_near_hopf.json`), whose fold of cycles is at amplitude 0.04, b1 = -2.56e-6, between the second and
 third point, XPPAUT 8.0 places it at norm 0.0404764, b1 = -2.55853e-6, 1.2 percent off in amplitude, at DS 0.02 and
 -0.02 alike. `stpnps` also orients the start's phase-condition derivative `upoldp` by the eigen-cycle whatever the sign
 of DS, the cause of AUTO-07p's spurious BP with DS < 0
@@ -2191,15 +2191,15 @@ leaves the branch point on the branch it came from. For a periodic orbit's branc
 driver does switch ([autlib1.c:5082](../reference/xppaut-8.0/autlib1.c#L5082)). AUTO-07p switches in both
 (`STEPAE(..., SW)`, ae.f90:158-174 of reference/auto-07p).
 
-Evidence (tests/auto/tstauto_pf_switch.json, W556 / #621, checked by hand again at W563 / #628; XPPAUT 8.0 driven on Xvfb by
+Evidence (tests/autox/tstauto_pf_switch.json, W556 / #621, checked by hand again at W563 / #628; XPPAUT 8.0 driven on Xvfb by
 tools/auto_reference.py's keys, the ones a user presses: Run, Grab the BP, Run, Switch): the pitchfork `x' = r*x - x^3` has its branch point at
 r = 0 (label 2). Its `.b` file's header for the switched run reads `IRS = 2`, `ISW = -1` (the switch was asked for), yet the run is branch 2 from
 point 1 on the line X = 0: 40 steps to r = 2 with norm 0 and U(1) = 0 on every row of its table and its fort.8 (`2 20 4 5 1 -1 ...` and
 `2 40 9 6 1 -1 ...`: ISW -1, X = 0), and the AUTO window's diagram (a screenshot of it) draws labels 5 and 6 on the first branch's line, where AUTO-07p's
-switched branch has norm sqrt(r) (r = 2.036, norm 1.4269 = sqrt(2.036)). On the published pp2 demo (tests/auto/tstauto_pp2_switch.json) the same
+switched branch has norm sqrt(r) (r = 2.036, norm 1.4269 = sqrt(2.036)). On the published pp2 demo (tests/autox/tstauto_pp2_switch.json) the same
 keys give `IRS = 5`, `ISW = -1` and a branch that holds u0 = 1/3 and runs u1 below zero to par0 = 2.0002 (62 steps), the known branch past its branch point,
 where AUTO-07p's switched branch is a branch of equilibria with u1 = 0 and u0 a root of the first equation, which numpy and scipy confirm
-(tools/autocheck.py's `switch` section: every point of the switched branch solves the model's equations, to 1e-6, and its stored multipliers are
+(tools/autoxcheck.py's `switch` section: every point of the switched branch solves the model's equations, to 1e-6, and its stored multipliers are
 e^lambda of the Jacobian's eigenvalues). The driver's key sequence was right: no correction to tools/auto_reference.py was needed, and the
 descriptions keep XPPAUT's switched run unavailable with this reason (`xppaut_skip`). The same rule is in xppautX's inherited `cnrlae`
 (core/autlib1.cpp) until W563.
@@ -2219,7 +2219,7 @@ parameter an ulp off, and the next evaluation, the next Jacobian and the point s
 on how many Jacobians were formed, so even a faster way to form them changes the numbers. AUTO-07p saves the value and puts it
 back (`P=PAR(ICP(I)); PAR(ICP(I))=P+EP; ...; PAR(ICP(I))=P`, periodic.f90:497-503, and its other drivers).
 
-Evidence (W564 / [#629](https://github.com/MuhammadMoustafa/xppautX/issues/629)): on tests/auto/ode_mu26_blocked, counted at every difference step of all its runs, 8,719 of
+Evidence (W564 / [#629](https://github.com/MuhammadMoustafa/xppautX/issues/629)): on tests/autox/ode_mu26_blocked, counted at every difference step of all its runs, 8,719 of
 964,056 parameter restores (XPPAUT's way) left the parameter different from what it was; across the 77 AUTO descriptions 33
 models have such restores, tstauto_torx_homcont 77,152 of 125,522. With the saved value put back, none do (0 of 898,326 on mu26 blocked),
 and 23 descriptions' diagrams moved by rounding (their largest relative changes in docs/auto-references.md "W564").
@@ -2260,7 +2260,7 @@ When a run's MXBF switch starts a new branch, `cnrlae` stores the new branch's s
 second and third points of the branch is not labelled. AUTO-07p's tests start the same way (docs/auto07p-findings.md, finding 14), and
 the restart's Switch does not switch in XPPAUT at all (finding 102), so the miss is in XPPAUT's switches inside one run.
 
-Evidence: from the source, not run in XPPAUT; the model is pp2's switched branch (tests/auto/tstauto_pp2_switch.json), whose fold at
+Evidence: from the source, not run in XPPAUT; the model is pp2's switched branch (tests/autox/tstauto_pp2_switch.json), whose fold at
 par0 = 0.8329293222341569, u0 = 0.41116156 lies between its second and third points (numpy/scipy from the model's equations;
 docs/auto-references.md W569).
 **xppautX** (W569 / [#634](https://github.com/MuhammadMoustafa/xppautX/issues/634)): fixed: the fold test is evaluated at the second point of a switched branch.

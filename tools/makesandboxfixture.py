@@ -93,14 +93,14 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
             assert played[key] == final[key], (key, played[key], final[key])
     with zipfile.ZipFile(snap) as archive:
         autox_saved = {name: archive.read(name) for name in
-            ('auto/diagram.csv', 'auto/solutions.s', 'auto/settings.txt', 'auto/views.txt')}
+            ('autox/diagram.csv', 'autox/solutions.s', 'autox/settings.txt', 'autox/views.txt')}
     # the branch lines (`branch,N,parameters...`) come before the points' header
-    points = list(csv.DictReader(line for line in autox_saved['auto/diagram.csv'].decode().splitlines()
+    points = list(csv.DictReader(line for line in autox_saved['autox/diagram.csv'].decode().splitlines()
                                  if not line.startswith('branch,')))
     assert len(points) > MIN_AUTOX_POINTS, points
     assert any(point['itp'] == HOPF for point in points), 'Hopf point must be retained'
     assert any(point['itp'] == FOLD for point in points), 'Fold point must be retained'
-    assert autox_saved['auto/solutions.s'], 'autoX must retain labelled solutions'
+    assert autox_saved['autox/solutions.s'], 'autoX must retain labelled solutions'
     # Normal paced, automatic first playback exercises the user's path, in
     # addition to silent and fast-forward playback above.
     paced = Server(binary, str(rec))

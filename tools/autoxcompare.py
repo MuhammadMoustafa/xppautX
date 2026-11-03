@@ -23,11 +23,11 @@ import numpy as np
 from xppclient import Checker, SLOW, Server, is_ask, is_done, open_autox, placed, run_any
 
 ROOT = Path(__file__).resolve().parent.parent
-BASE = ROOT / 'tests/auto'
+BASE = ROOT / 'tests/autox'
 # Mu26's 40-point, 28-state fold curves take minutes at one thread (W436).
 # Match the reference driver's hang guard; never a numerical acceptance criterion.
 TIMEOUT = 600 * SLOW
-DIAGRAM_MEMBER = 'auto/diagram.csv'  # the session file's diagram (core/xpp_session_autox.h)
+DIAGRAM_MEMBER = 'autox/diagram.csv'  # the session file's diagram (core/xpp_session_autox.h)
 HOMCONT = ('homoclinic', 'heteroclinic')
 KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp', *HOMCONT}
 # the per-run settings a description may give: autoX's settings by their names (core/autox_settings.cpp)
@@ -344,7 +344,7 @@ def read_unlabelled(s, diagram, ranges):
 
 
 def saved_member(s):
-    """The session file's diagram member (auto/diagram.csv), CRs removed."""
+    """The session file's diagram member (autox/diagram.csv), CRs removed."""
     name = 'baseline.snapx'
     completed(s, dict(cmd='session.save_as', file=name, data=False))
     path = os.path.join(s.run, name)
@@ -369,7 +369,7 @@ def check_size(count, diagram):
 
 
 def session_diagram(s):
-    """The diagram as the session file keeps it (auto/diagram.csv): every
+    """The diagram as the session file keeps it (autox/diagram.csv): every
     point's parameters, states, extremes and eigenvalues, each number
     written to round-trip exactly, where the diagram events carry only the
     plotted coordinates to seven digits."""

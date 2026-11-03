@@ -317,7 +317,7 @@ This brings up a menu with several options. Type `Esc` to abort.
   as **save session as** does. It writes the model itself
   (its `.odex` and every included file it read), the values and numerics (the set format), every
   plot window with its axes, variables and zoom, the text, arrows and
-  frozen curves, autoX's diagram and settings (saved under `auto/`) and views, and the data table (NumPy's `.npz`). The earlier runs a
+  frozen curves, autoX's diagram and settings (saved under `autox/`) and views, and the data table (NumPy's `.npz`). The earlier runs a
   window keeps until Erase are left out. A data table above 50 MB asks
   whether to leave it out (**Leave it out**: Go computes it again).
 - **save session as (W)** (Ctrl+Shift+S): always asks for the file name, and

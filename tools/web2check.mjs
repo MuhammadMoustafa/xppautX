@@ -1633,13 +1633,13 @@ async function setAxisRange(lo, hi) {
       i.value = String(v); i.dispatchEvent(new Event('input', {bubbles: true})); } })()`);
 }
 
-async function openAutoPanel() {
+async function openAutoxPanel() {
   await menuRun('autox.open');
   await requireUntil('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'autoX panel');
 }
 
 async function autoxMarks() {
-  await openAutoPanel();
+  await openAutoxPanel();
   const parameters = Array(12).fill('iapp'), values = Array.from({length:12},(_,i) => i + .5);
   await menuRun('autox.configure_marks', {parameters, values});
   check('W331: common list rows retain all twelve autoX marks', await until(`!s.busy && s.autoxSettings.core.marks.length === 12 && s.autoxSettings.core.marks[11][1] === 11.5`, 'twelve marks'));
@@ -1652,7 +1652,7 @@ async function autoxView(dir) {
   check('autoX: the page connects', await until('s.hello && !s.busy', 'hello'));
   check('autoX: no view before the core opens it', !(await cdp.eval(`!!document.querySelector('.autox-panel')`)));
 
-  await openAutoAtFixedPoint();
+  await openAutoxAtFixedPoint();
   check('File/autoX opens the autoX view', await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open')
     && await cdp.eval(`!!document.querySelector('.autox-panel .autox-host')`), JSON.stringify(await DS('d.axes')));
   check("the diagram has the focus, so autoX's keys work", await until(`document.activeElement.closest('.autox-host')`, 'auto focus'));
@@ -2184,7 +2184,7 @@ async function viewScreen(view, x, y) {
    the views back from a session file */
 async function autoxViews(dir) {
   check('autoX views: the page connects', await until('s.hello && !s.busy', 'hello'));
-  await openAutoAtFixedPoint();
+  await openAutoxAtFixedPoint();
   check('autoX views: one view at first, no title and no close button',
     await cdp.eval(`document.querySelectorAll('.autox-pane').length === 1 && !document.querySelector('.autox-pane-close')`)
     && (await S('s.diagram.views.length')) === 1);
@@ -2263,14 +2263,14 @@ async function autoxViews(dir) {
 /* examples/recordings/lecar_autox.recx: the "hopf" named set; from the main window
    to autoX's view: a fixed point of the model made the initial conditions
    (Sing pts, then Import), then File/autoX */
-async function openAutoAtFixedPoint() {
+async function openAutoxAtFixedPoint() {
   await menuRun('set.apply', {name: 'hopf', scope: 'all'});
   await requireUntil('!s.busy && !s.commandForm', 'hopf set');
   await menuRun('equilibrium.find');
   await requireUntil('!s.busy && !s.ask', 'fixed point');
   await menuRun('equilibrium.import_as_ic');
   await requireUntil('!s.busy', 'imported fixed point');
-  await openAutoPanel();
+  await openAutoxPanel();
 }
 
 /* W535 (GitHub #600): the equilibrium search asks nothing. Its three settings are Numerics rows
@@ -2304,7 +2304,7 @@ async function reopenedSessionPlot(dir) {
   check('W102: the page connects', await until('s.hello && !s.busy', 'hello'));
   await menuRun('run.initial');
   check('W102: G integrates: 601 rows', await until(`w.series && w.series.rows === ${rows} && !s.busy`, 'series'));
-  await openAutoAtFixedPoint();
+  await openAutoxAtFixedPoint();
   await clickRegistry('autox.run');
   await okRunDialog('equilibrium');
   await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000 * SLOW);
@@ -2363,7 +2363,7 @@ async function reopenedSessionPlot(dir) {
 async function lostF() {
   await desktopMetrics();
   check('lostF: the page connects', await until('s.hello && !s.busy', 'hello'));
-  await openAutoAtFixedPoint();
+  await openAutoxAtFixedPoint();
 
   /* sequence 2 first half: Back at once, F in the main window */
   const back = await center('.autox-back'); /* a real click, as the window gets: the focus is on the button that then goes */
@@ -2425,10 +2425,10 @@ async function lostFRunning() {
   await okRunDialog('equilibrium');
   await until('!s.busy && dv.points.x.length > 2', 'steady', 60000 * SLOW);
   /* a missing view is a failed check with the state, not a page error that hides which step lost it */
-  const hasAuto = await cdp.eval(`!!document.querySelector('.autox-host')`);
+  const hasAutox = await cdp.eval(`!!document.querySelector('.autox-host')`);
   check('lostF running: the autoX view opened and is still there after the steady branch',
-    opened && hasAuto, JSON.stringify(await S('[s.diagram.open, s.diagram.shown, s.busy, s.ask && s.ask.title]')));
-  if (!hasAuto) return;
+    opened && hasAutox, JSON.stringify(await S('[s.diagram.open, s.diagram.shown, s.busy, s.ask && s.ask.title]')));
+  if (!hasAutox) return;
   await cdp.eval(`document.querySelector('.autox-host').focus()`);
   await menuRun('autox.grab');
   await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", 'grab');
@@ -2451,7 +2451,7 @@ async function lostFRunning() {
 
 }
 
-async function busyAuto() {
+async function busyAutox() {
   await desktopMetrics();
   check('busy: the page connects', await until('s.hello && !s.busy', 'hello'));
   /* nUmerics / Total 3000: an integration of about three seconds */
@@ -5126,7 +5126,7 @@ async function layoutCheck(dir) {
   await rendered();
 
   /* autoX open, Back: Show autoX in the flow, off the plot, the messages and the status bar */
-  await openAutoAtFixedPoint();
+  await openAutoxAtFixedPoint();
   check('layout: File/autoX opens the autoX view', await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open'));
   await autoxRun('equilibrium');
   check('layout: an autoX run stores a diagram', await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000));
@@ -5331,7 +5331,7 @@ async function main() {
     if (run('leave')) await session(ODE, leaveSaveCheck);
     if (run('lostf')) await session(ODE, lostF);
     if (run('lostf')) await session(HEAVY_ODE, lostFRunning);
-    if (run('busy')) await session(LIVE, busyAuto);
+    if (run('busy')) await session(LIVE, busyAutox);
     if (run('busy')) await session(LIVE, busyKeys);
     if (run('busy')) await session(LIVE, statusBarLayout);
     if (run('view')) await session(ODE, viewCheck, ['command:1: x_min (99) must be below x_max (7)', 'command:1: Argument "x": no column named "nonesuch" in the model']);

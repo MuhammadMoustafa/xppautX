@@ -6,7 +6,7 @@ byte, which guards a change but not the numbers. W300
 were not written by us: **AUTO-07p 0.9.4** (the maintained AUTO, a newer line than XPPAUT's; the one reference since W357 ([#419](https://github.com/MuhammadMoustafa/xppautX/issues/419)), 0.9.3 having been used before) and **XPPAUT
 8.0** itself (reference/xppaut-8.0; its AUTO is AUTO2000's C translation, [autlib5.c:2008](../reference/xppaut-8.0/autlib5.c#L2008)
 names the translator, with XPPAUT's own glue in `auto_nox.c`, `autevd.c` and `autpp.c`). The comparison
-is part of `tools/autocompare.py` and runs on every push from committed files: neither program is
+is part of `tools/autoxcompare.py` and runs on every push from committed files: neither program is
 installed in CI, nor vendored.
 
 ## Steady-state starts refined by Newton (W495, [#559](https://github.com/MuhammadMoustafa/xppautX/issues/559))
@@ -20,7 +20,7 @@ is not bounded, as in AUTO-07p (`ae.f90` tests U(NDIM+1) only).
 
 Diagrams of the descriptions whose start was refined changed on purpose; their
 first point is the refined equilibrium. Against AUTO-07p and XPPAUT 8.0,
-autocompare leaves a refined run's first point out of the special-point and
+autoxcompare leaves a refined run's first point out of the special-point and
 quantity comparison, because both programs start from the inexact point, and
 keeps every later point in it. Descriptions this applies to and that pass:
 `explicit_homoclinic`, `lorenz_homoclinic`, `tstauto_eiz-hom`,
@@ -78,12 +78,12 @@ Own session solutions use the new layout and reject the old 3n+2 Hopf
 layout on the solution header line before restoring any state. No old-layout
 restart reader is provided. `test_auto_hopf` checks closed-form residuals,
 the structured Jacobian against full finite differences, the start and period
-handling; `autocheck hopf_reduced` continues the BT normal form
+handling; `autoxcheck hopf_reduced` continues the BT normal form
 `x'=y, y'=a+b*y+x*x` along `a=-x*x, b=0` across `x=0`.
 
 ## What is compared, and how
 
-- `tests/auto/<description>.auto07p` and `.xppaut` hold the **special points** each program finds
+- `tests/autox/<description>.auto07p` and `.xppaut` hold the **special points** each program finds
   for the problem a description runs: each bifurcation's type (BP, LP, HB, PD, TR), its parameter
   value, the state norm, the period (the Hopf point's, and every point of a periodic branch), and the
   eigenvalues (an equilibrium) or Floquet multipliers (a cycle) there; and the run's start. Not the step
@@ -97,7 +97,7 @@ handling; `autocheck hopf_reduced` continues the BT normal form
   Numerics dialogs, Run, Grab, Run), the constants it used read back from the `.b` header and required to
   be the run's. Its point table is XPPAUT's own stdout, the spectra its diagnostics file, the period its
   solution file's PAR(11), named `auto_unknown::period` in our solver. W340 ([#401](https://github.com/MuhammadMoustafa/xppautX/issues/401)) keeps AUTO's block at `max(36, 12 + 4*node)` and stores model parameter `k` at `block + k`; foreign XPPAUT PAR numbering is mapped only at import.
-- `tools/autocompare.py` runs our description as before (the byte-for-byte check unchanged), then compares
+- `tools/autoxcompare.py` runs our description as before (the byte-for-byte check unchanged), then compares
   our special points with each file, matched by type and order. **A missing or extra special point is a
   difference.** A description with no file for a program says why (`auto07p_skip`, `xppaut_skip`), never
   silence; a difference found, traced and kept is a `differences` entry with its cause, which the check
@@ -146,7 +146,7 @@ accepts the rounded export but rejects an offset larger than the printed unit.
 `tstauto_ab_fold` and `tstauto_ab_hopf` continue the exothermic reaction's fold (the LP of the feed `p0`
 at the model's `p1` = 14) and Hopf point (the same `p1`, `p0` = 0.1309) in `p0` and `p1`, as a user does:
 Grab the point, two-parameter. The Hopf description runs both directions of the curve (`hopf_up`, `hopf_down`).
-A model has more than one description now (`autocompare.py` still requires every model to have one).
+A model has more than one description now (`autoxcompare.py` still requires every model to have one).
 
 - **AUTO-07p's run** (`tools/auto_reference.py`): the equilibrium problem restarted from the label of the earlier
   run's LP or HB, `ISW=2`, `ICP=[p0, p1]`, the description's constants, `ILP=0` as ours. `ISP=1`
@@ -233,7 +233,7 @@ The older `tools/models/lecar_diagram.csv` fixture also contains a
 2,000-point fold continuation: that part is refreshed for the same current
 Jacobian/secondary-parameter/spectrum correction. Its 45-line header and
 one-parameter prefix are kept literally unchanged. The checked-in
-`lecar_auto.recx` starting snapshot is rewritten with the four required
+`lecar_autox.recx` starting snapshot is rewritten with the four required
 boolean settings and a recomputed fingerprint; its recorded steps stay the same.
 
 Both thread settings produce identical diagrams. All other diagrams,
@@ -315,7 +315,7 @@ and six traced points against AUTO-07p, and 44 compared points with none traced 
 | tstauto_wcbiwave | steady: EP | agrees (1 points; par 0, norm 0) | agrees (1 points; par 0, norm 0) |
 | zero_hopf | steady: EP LP; fold: ZH | agrees (3 points; par 1.7e-18, par2 1.3e-40, norm 5.8e-17, spectrum 7.4e-12; curve par 3.5e-18, par2 2.4e-21, norm 1e-16) | agrees, 1 traced (2 points; par 3.1e-18, norm 3.2e-13, spectrum 2.6e-12; curve par 9.2e-16, par2 1.3e-10, norm 3.7e-12) |
 
-Rows are the output of `autocompare.py --table`. Cells: `agrees` (every untraced comparison inside its tolerance), the
+Rows are the output of `autoxcompare.py --table`. Cells: `agrees` (every untraced comparison inside its tolerance), the
 number of points compared and the largest absolute difference per quantity (`par`, `par2` on curves, `norm`,
 `period`, `spectrum`: the eigenvalue or multiplier pair furthest apart); `traced` counts explicit difference
 entries, either unmatched labels or out-of-bound quantities. It does not assert numerical agreement for those
@@ -342,7 +342,7 @@ The maintainer's 2026-10-14 resolution rule for #418 judges an increase at the r
 printed digit, or EPSS for a located point. D1's increases of roughly 1e-10 to 3e-9 are numerical
 noise by that rule. Against the refreshed 0.9.4 references, no table entry grows beyond EPSS,
 at D1, D2 or D3, and every recorded-reference check passes its original scientific tolerance.
-This acceptance rule does not change the comparison tolerances in `autocompare.py`.
+This acceptance rule does not change the comparison tolerances in `autoxcompare.py`.
 
 Exactly seven baseline diagrams change: `ode_lecar`, `tstauto_lecar`, `tstauto_brper`,
 `tstauto_lamom2`, `tstauto_frcp`, `tstauto_pp2`, `tstauto_simplefold`; both thread counts agree.
@@ -444,7 +444,7 @@ there; the two recorded cases are the ones that reach it.
   with no special point, and the models whose run meets none before it ends on the step count or a bound
   compare the start alone. A run's last point is not compared.
 - **Constants not equal in the two programs:** XPPAUT 8.0 has no way to set a run's THL, ISP or ILP
-  from its window (it runs with the ones in `core/auto_nox.cpp`, which our descriptions share), so those are
+  from its window (it runs with the ones in `core/autox_nox.cpp`, which our descriptions share), so those are
   XPPAUT's as they are; the constants that can be set are read back and checked.
 
 ## W302's first stage: W326
@@ -477,7 +477,7 @@ not this IPS=4 run. The 1.01 integration provides a finite orbit but cannot add
 missing boundary constraints. See [finding 50](xppaut-findings.md#50-auto-accepts-nan-as-a-converged-bvp-solution)
 for the upstream source lines and the NaN convergence-test defect.
 
-The baseline was rewritten once with `autocompare.py --update --only ode_tstheti`:
+The baseline was rewritten once with `autoxcompare.py --update --only ode_tstheti`:
 point 1 is unchanged; former NaN points 2-120 are removed. Both thread counts
 must report `AUTO stopped: Branch 1 point 2: nonfinite AUTO solution`, with a
 command location, after the failed-step retries. The remaining row is the
@@ -492,11 +492,11 @@ W343's description and one-point baseline are retained unchanged as
 IEQUIB=-2. Its descriptions use two `parameters` and a `connection` object
 (`left`, `right`, `nunstab`, `nstab`); `execute_run` answers the existing AUTO
 Homoclinic info form through `Server.answer_asks`. No core numerics changed.
-Only `autocompare.py --update --only tstauto_tstheti_homcont` wrote a baseline, a new
+Only `autoxcompare.py --update --only tstauto_tstheti_homcont` wrote a baseline, a new
 one of 142 planar connection points
 (71 per direction). All other models keep their baseline bytes.
 
-`autocheck.py nagumo` reuses `read_description`, `compute` and `diagram_rows`
+`autoxcheck.py nagumo` reuses `read_description`, `compute` and `diagram_rows`
 to compare every full-precision speed against `(1-2*a)/sqrt(2)`, rather than
 comparing rounded plot coordinates. It also doubles NTST and lengthens the
 interval. [Finding 50](xppaut-findings.md#50-auto-accepts-nan-as-a-converged-bvp-solution)
@@ -604,7 +604,7 @@ These lists are alpha values, not (alpha, beta) pairs; AUTO-07p and W404 agree w
 How a reference reaches the repository when xppautX cannot run it yet: `NAME.auto07p` holds every run, and a run
 skipped in the description (its reason names the card that takes it: W405 or W365) is read but not compared; the runs xppautX does run are compared
 (the base runs and, since W404, all map runs except the torus down direction, whose skip W405 traced). The card that makes xppautX run the curve drops the skip.
-The `tools/autocompare.py` changes that came with it: a curve of cycles' first rows (the starting data, one continued parameter)
+The `tools/autoxcompare.py` changes that came with it: a curve of cycles' first rows (the starting data, one continued parameter)
 are not on the curve; a spectrum's order of a conjugate pair no longer depends on the last bit of its real parts; a
 HomCont run's reference is read like a two-parameter run's.
 
@@ -726,9 +726,9 @@ Three runs stay skipped, each with its traced reason in the description:
   that, and the curve is steep there.
 
 R1 now has a flow reference (res_cycles) but it is the skipped one (W405 takes the skipped runs); the fold and torus tests otherwise have
-synthetic-spectrum coverage (tests/test_auto_codim.cpp).
+synthetic-spectrum coverage (tests/test_autox_codim.cpp).
 
-The shipped lecar_auto.recx snapshot now includes the four resonance booleans and its missing W376 main-window
+The shipped lecar_autox.recx snapshot now includes the four resonance booleans and its missing W376 main-window
 open flag; its recording commands and all other snapshot data are unchanged.
 
 ## W404: AUTO on maps ([#466](https://github.com/MuhammadMoustafa/xppautX/issues/466))
@@ -771,7 +771,7 @@ was zero for every input (XPPAUT's own bug, [finding 67](xppaut-findings.md)). I
 point's eigenfunction, with its Jacobian row, as AUTO-07p's ICTR does. On the references it changed nothing a
 comparison can see: the tangent of the continuation already holds the phase between steps, so only the last
 digits of two diagrams moved (forced_pp_ns and hill_cycles_torus, rewritten once; both still agree with AUTO-07p,
-24 and 32 quantities). tests/test_auto_codim.cpp is the check that it matters: a rotated eigenfunction gives a
+24 and 32 quantities). tests/test_autox_codim.cpp is the check that it matters: a rotated eigenfunction gives a
 nonzero value and its Jacobian row matches a central difference, neither of which the old condition could.
 
 ## W405: the skipped resonance runs ([#467](https://github.com/MuhammadMoustafa/xppautX/issues/467))
@@ -806,7 +806,7 @@ The three runs W402 and W403 skipped were not held back by the projection: the f
 changed none of their numbers, and with the old projection and the fixes below all three agree too (the projection
 moves their diagrams by at most 5e-11, 4.5e-8 and 2e-10 relative). What differed:
 
-- `tools/autocompare.py` started a run from the current state with the parameters the run before it had left: the
+- `tools/autoxcompare.py` started a run from the current state with the parameters the run before it had left: the
   torx HomCont run started at rn = 1.6e-7, the end of its steady run, where AUTO-07p's STPNT starts every run at
   the description's values. A later run from the current state now sets them again.
 - A homoclinic start sampled the integrated orbit with an interpolation weight not divided by the step
@@ -818,7 +818,7 @@ moves their diagrams by at most 5e-11, 4.5e-8 and 2e-10 relative). What differed
   step 0.001, which `tools/auto_reference.py` takes from the description for AUTO-07p's orbit, and Lorenz's mesh has
   230 intervals, a mesh point on every fifth row; Lorenz's reference was regenerated for that mesh (explicit's and
   torx's came out byte for byte the same).
-- `autocompare` did not count a HomCont run's first point as its start (EP).
+- `autoxcompare` did not count a HomCont run's first point as its start (EP).
 
 Before: torx's first norm 0.214167 against AUTO-07p's 0.214053 (in the description's order, from rn = 1.6e-7), Lorenz
 stopped at its first step, the explicit orbit at its second point. After, against AUTO-07p: torx's first norm to
@@ -861,7 +861,7 @@ Three of the four skipped runs now run and agree with AUTO-07p; the fourth keeps
 - **The comparison.** torus_down's curve agrees, but AUTO-07p's ends 0.002 further in b: both runs take NMX = 130
   steps, and xppautX's are 0.1% shorter, its eigenfunction (squared norm 2.1e-2 against 7.6e-7) counting in the
   arclength. As for a parameter bound, when both runs end at NMX the samples beyond the other's last point are no
-  longer compared (tools/autocompare.py, tested in tools/test_autocompare.py with a run that stops before NMX and a curve
+  longer compared (tools/autoxcompare.py, tested in tools/test_autoxcompare.py with a run that stops before NMX and a curve
   that leaves the other, which still differ). In four other descriptions' rows of the table a trailing sample no
   longer compared lowers the largest curve difference (hill_cycles_torus par2 from 2.7e-6 to 1.9e-8); none changed agreement.
 
@@ -880,7 +880,7 @@ AUTO-07p (118 before).
 ## W415: two research neuron models ([#477](https://github.com/MuhammadMoustafa/xppautX/issues/477))
 
 Two of the maintainer's published models join `examples/ode` (each as the `.ode` with a header naming its source and its
-converted `.odex`, which `tools/odexcheck.sh` runs beside it) and three descriptions of `tests/auto`, each with a
+converted `.odex`, which `tools/odexcheck.sh` runs beside it) and three descriptions of `tests/autox`, each with a
 baseline and AUTO-07p's reference made by `tools/auto_reference.py`:
 
 | Description | Model | Runs | AUTO-07p | Points, quantities |
@@ -1012,7 +1012,7 @@ its tolerance) while that point's parameter comes 400 times closer (1.3e-6 to 3.
 evaluates at the last iterate, Morris-Lecar's HB spectrum moves from 0.12 to 0.29 of its tolerance and frcp's from
 0.011 to 0.024; both still agree. No tolerance was widened.
 
-**Cost**, `tools/auto-profile/profile.py` (callgrind) and `tables.py`, the steady phases: ModelDB 2.03 model Jacobians
+**Cost**, `tools/autox-profile/profile.py` (callgrind) and `tables.py`, the steady phases: ModelDB 2.03 model Jacobians
 per stored point before and after (then `solvae` 1.0 and the fold test 1.0, now `solvae` 2.0), 3.844 and 3.846 M
 instructions per point; PY_S1Bf 2.01 and 2.01, 0.378 and 0.378 M. Their periodic phases do not change. A run without
 fold detection (ILP 0) builds one Jacobian more per point; a two-parameter curve with BT, CP or GH detection builds
@@ -1024,7 +1024,7 @@ fewer.
 2dd9ba299e56c3f2962f883afaada5a899c4e3f6, `6cModel Xppaut/rest.ode` with its 19 include files inlined in the source's order):
 25 states, 254 fixed quantities. Staging edits: `@ OUTPUT=output.dat`, `@ total=600`, and `CaDen_Max` (glob.inc, 0.000168, the
 dendritic L-type Ca / PIC density) a `par`. Its `output.dat` is the original's, digit for digit (md5 0a075c6a7d80...).
-`tests/auto/ode_motoneuron6c.json` runs, with opt.inc's settings (NTST 100, NPR 100000, NMAX 10000000, DSMAX 0.1, ParMin -10, ParMax 1):
+`tests/autox/ode_motoneuron6c.json` runs, with opt.inc's settings (NTST 100, NPR 100000, NMAX 10000000, DSMAX 0.1, ParMin -10, ParMax 1):
 
 | Run | What | xppautX and AUTO-07p |
 |---|---|---|
@@ -1058,11 +1058,11 @@ stored points (1,000,000, what a saved session keeps), a shown error that keeps 
 **A deliberate difference from AUTO-07p.** A torus curve continues its angle theta unwrapped, and AUTO-07p's
 resonance test `theta (theta - pi/2) (theta - 2pi/3) (theta - pi)` sees 0 to pi only
 ([AUTO-07p finding 5](auto07p-findings.md#5-a-torus-curves-resonance-test-is-blind-once-its-angle-leaves-0-to-pi)).
-xppautX's (`resonance_test`, core/auto_codim.cpp, for cycles and maps) is that polynomial of theta modulo 2 pi folded
+xppautX's (`resonance_test`, core/autox_codim.cpp, for cycles and maps) is that polynomial of theta modulo 2 pi folded
 into 0 to pi, its sign flipped each time the fold turns at a resonance it tests (0 for 1:1, pi for 1:2), so it changes
 sign at every resonance of the circle; from 0 to pi it is AUTO-07p's value bit for bit, and the kind it labels is the
 folded angle's nearest resonance. A curve that stays in 0 to pi is unchanged. New labels, each at its closed form's
-place (`autocheck codim`, "torus past pi") and each a traced difference against AUTO-07p:
+place (`autoxcheck codim`, "torus past pi") and each a traced difference against AUTO-07p:
 
 - `res_cycles` torus_up: R3 at c = -0.555556 (theta = 4 pi/3, w = 1/18) and R4 at c = -0.531250 (3 pi/2, w = 1/32);
   at b = 0 (theta = 2 pi) the BP kept the label of the coincident R1 (since W585 the R1 is labelled too, on the next step). torus_down, past theta = 0: R4, R3, R2, R3 at
@@ -1084,7 +1084,7 @@ lost it so before this card (W426). A location whose zero is nearest a 1:1 or 1:
 short of it (`auto_torus_singular`, lcspae and lcspbv), as W405's did at 1:1 alone.
 
 **A test that does not apply** returned 0, which a location takes as the zero it seeks if an iterate falls where the
-test does not apply (W405 fixed one case, finding 6). Every such 0 is now `auto_test_not_applicable` (core/auto_c.h,
+test does not apply (W405 fixed one case, finding 6). Every such 0 is now `auto_test_not_applicable` (core/autox_c.h,
 a NaN, never a number), and a location neither starts from it (`location_sign_change`) nor stops on it: an iterate
 that meets it gives the point up, as a solve that does not converge does. The tests that return it: `fnhbae` (no
 complex pair; a map with no eigenvalue past the imposed ones; a curve of equilibria that is not a codimension-two
@@ -1127,7 +1127,7 @@ where the default build and AUTO-07p locate R2 at -0.625. Traced on master `bde3
 
 The location, not the test, decided it, and W419 makes it independent of the library here: a location whose zero is
 nearest a 1:2 resonance aims half its tolerance short of it, as one at 1:1 did since W405. After W419,
-`tools/auto-profile/diagram_diff.py build/lapack/xppautX` gives **0 AUTO-07p differences** over the 51 runnable
+`tools/autox-profile/diagram_diff.py build/lapack/xppautX` gives **0 AUTO-07p differences** over the 51 runnable
 descriptions (master's LAPACK build: 1, this one); res_cycles' largest difference is 0.48 of its tolerance, and
 forced_pp_ns's LAPACK diagram now has the default build's 264 points (it differed by 0.34 in the parameter after its
 BP at the 1:2 endpoint, where the same singular solve decided a step). The largest fraction, 0.908, is forced_pp_pd's
@@ -1281,7 +1281,7 @@ rows. Their ends are (g_h, current) = (15.9420397502, 99.8773794776) for `lpc_so
 The build uses `-Werror` with zero warnings; all 58 unit binaries pass (64 checks in the fold/derived unit).
 The selected control/blocked comparison stores 2522 points across one and automatic threads, both thread
 comparisons pass, and all 92 reference quantities agree. The control baseline does not change. Full packed-card
-AUTO, autocheck and example gates are recorded with W437 below.
+AUTO, autoxcheck and example gates are recorded with W437 below.
 
 ## W437: user points on Mu26's approach to the SNIC ([#499](https://github.com/MuhammadMoustafa/xppautX/issues/499))
 
@@ -1345,7 +1345,7 @@ last digits: final (g_h,current) is (15.9420397525,99.8773794775) for soma and
 maintainer approved adopting AUTO-07p's condition on 2026-10-17. The
 [before-update impact report](studies/w437-phase-impact.md) and its
 [raw measurements](studies/w437-phase-impact.json) preserve that result.
-The sixteen approved baselines were then updated with `autocompare.py --update`;
+The sixteen approved baselines were then updated with `autoxcompare.py --update`;
 all their special-point type sequences and label IDs stay unchanged. Each uses
 periodic corrections, including curves started from periodic points. The sizes
 below compare paired stored indices, so adaptive step changes are included and
@@ -1422,7 +1422,7 @@ Mu26 reference point and curve records remain byte for byte unchanged.
 Final committed-HEAD gates ran one at a time: zero compiler warnings under
 `-Werror`, all 58 unit binaries passing (70 fold/phase/derived checks); the full
 AUTO comparison has 60 descriptions, 9 skipped, 18674 points and 150 checks,
-zero untraced failures; all 286 `autocheck` assertions pass; all 216 example
+zero untraced failures; all 286 `autoxcheck` assertions pass; all 216 example
 models pass (215 matching outputs, with `ml-range.odex` intentionally writing
 none). The table above is copied from that full `--table` output: 48 AUTO-07p
 references / 176 compared points and 42 XPPAUT references / 120 points, with
@@ -1433,8 +1433,8 @@ byte. The final documentation amendment records these results without changing
 the tested code, descriptions, baselines or references.
 
 **The LAPACK build after W437** (coordinator, on the merged tip 0c6b5936): `tools/wslrun.sh
-tools/auto-profile/modeldb_check.sh` still finds one fold search and no step back in the default, LIBM=system and
-LAPACK builds. `tools/auto-profile/diagram_diff.py build/lapack/xppautX` gives 2 AUTO-07p differences, both at
+tools/autox-profile/modeldb_check.sh` still finds one fold search and no step back in the default, LIBM=system and
+LAPACK builds. `tools/autox-profile/diagram_diff.py build/lapack/xppautX` gives 2 AUTO-07p differences, both at
 forced_pp_pd's upper `pd_up` R2, the point traced above (before W437 it was already the largest fraction, 0.908 of
 its tolerance). With LAPACK's eigenvalue routines its par2 differs by 1.10e-5, inside the 2.10e-5 bound, so the
 default build's par2 trace reads as stale there, and its multipliers differ by 4.69e-5 against 4.29e-5 allowed. The
@@ -1535,8 +1535,8 @@ T2 runs its Hopf locus with CaDen_Max first (the parameter bounds of the window 
 of the final series had AUTO-07p's `hb_up` at 178 points and `hb_down` at 87 against xppautX's and XPPAUT's 87 and 177: AUTO-07p
 followed each arm the other way. The cause is the orientation rule. xppautX orients a curve of equilibria by its first parameter
 (a positive DS raises it), AUTO-07p by the first *significant* component of the tangent (bvp.f90 STDRBV, ae.f90 STPNAE: |rldot|/(1+|par|) > EPSL), and
-CaDen_Max (1e-4) moves too little next to ampPar (0.57), so AUTO-07p took ampPar. The descriptions in tests/auto name the parameters in
-the other order (ampPar first) and agree in both; `tools/autocompare.py` run with a note for every arm paired other than by name found no
+CaDen_Max (1e-4) moves too little next to ampPar (0.57), so AUTO-07p took ampPar. The descriptions in tests/autox name the parameters in
+the other order (ampPar first) and agree in both; `tools/autoxcompare.py` run with a note for every arm paired other than by name found no
 other description whose two arms ran apart, and the final series' gate notes name T2 alone. A curve of cycles takes AUTO-07p's rule in both programs.
 
 The gate let it pass because `compare_references` paired each reference arm with the arm of ours it overlaps (W562, D4), so AUTO-07p's
@@ -1616,7 +1616,7 @@ agree: the table of W457, and T1's, P2's cycles, all in the gate's tolerances of
 
 ## W474: AUTO-07p's nested dissection for the collocation blocks ([#537](https://github.com/MuhammadMoustafa/xppautX/issues/537))
 
-`brbd` (core/autlib2.cpp) no longer eliminates the condensed blocks in AUTO2000's chain (block 1 into 2, the result into 3, and so
+`brbd` (core/autox_lib2.cpp) no longer eliminates the condensed blocks in AUTO2000's chain (block 1 into 2, the result into 3, and so
 on) but in AUTO-07p's REDUCER tree (solvebv.f90): blocks lo..hi split at (lo+hi)/2, both halves reduced, then their interface;
 back substitution (BCKSUBR) walks the same tree down. The tree depends on NTST alone, so it is AUTO-07p's own order on one
 thread and xppautX's on every thread count (AUTO-07p cuts its ranges by its thread count). Pivoting is AUTO2000's complete
@@ -1643,7 +1643,7 @@ root of a perturbation: the 1e-7 Newton tolerance alone allows about 3e-4. Next 
 nearly singular, so where Newton stops depends on the order. With the tighter tolerances the tree is as close to AUTO-07p as the
 chain or closer.
 
-Times (Ubuntu, best of three, `autocompare.compute`): ode_mu26_blocked's steady and cycles runs 11.54, 6.96, 4.85 s at 1, 2 and 4
+Times (Ubuntu, best of three, `autoxcompare.compute`): ode_mu26_blocked's steady and cycles runs 11.54, 6.96, 4.85 s at 1, 2 and 4
 threads before, 11.44, 6.39, 4.07 s after (2.81 times faster at four threads instead of 2.38); motoneuron6c's steady and periodic runs
 2.95, 2.45, 2.19 s before, 2.93, 2.37, 2.09 s after. Four chunks (the tree's second level) go to the workers and the three merges above
 them run on the caller; eight chunks change no number and measured 1.7% slower at four threads, 1.2% faster at three.
@@ -1692,7 +1692,7 @@ lies in that step and would be lost. All steps at the converged point's Jacobian
 longer at one thread (197 s against 136 s), and on `tstauto_pp2`'s cycles near their homoclinic orbit (NTST 15) it
 labelled an LP at stored point 24, where the parameter rises monotonically (0.7080693, 0.7080721, 0.7080730).
 
-**A real fold close to the start is kept** (`tests/auto/bautin_near_hopf.json`, the Bautin normal form
+**A real fold close to the start is kept** (`tests/autox/bautin_near_hopf.json`, the Bautin normal form
 `r' = r (b1 + b2 r^2 - r^4)` with b2 = 0.0032, `tools/models/bautin_near_hopf.odex`): its fold of cycles is at amplitude
 0.04, b1 = -2.56e-6, between the second (0.02) and third (0.06) point of the cycles from the Hopf point at DS 0.02.
 
@@ -1756,10 +1756,10 @@ finds the equilibria the slow stretches of the orbit lie near (Newton's method w
 Sing pts settings, the eigenvalues at the root, or at the slowest point itself when there is none) and stores the
 end as `snic` (one equilibrium with a zero eigenvalue, within 1e-3 of the spectral radius), `homoclinic`
 (one saddle) or `heteroclinic` (two or more saddles), or as an end of branch that says "period growing
-without bound" when none fits (core/auto_global.h gives each number its reason). This is a deliberate
+without bound" when none fits (core/autox_global.h gives each number its reason). This is a deliberate
 difference: where the references run on, xppautX stops at the first point whose orbit is that slow.
 
-Against the references nothing else moves. `tools/autocompare.py` leaves the three new types out of the
+Against the references nothing else moves. `tools/autoxcompare.py` leaves the three new types out of the
 comparison of special points, as it does EP (`GLOBAL_ENDS`), so a stop that AUTO-07p labels EP or MX is
 not a missing or extra special point; every AUTO-07p and XPPAUT quantity still passes (the two `ode_mu26`
 descriptions' marks at 5, 1, 0.1 and 0.07 pA come before the end). Of the 61 baselines, two changed
@@ -1786,9 +1786,9 @@ section runs each and checks the stop's reason, its words and the stored type.
 
 ## W537: every point type from a published model, with an AUTO-07p reference ([#602](https://github.com/MuhammadMoustafa/xppautX/issues/602))
 
-Before the W354 comparison with XPPAUT and AUTO-07p, each point type xppautX names (`core/auto_codes.h`, `auto_point_names`)
+Before the W354 comparison with XPPAUT and AUTO-07p, each point type xppautX names (`core/autox_codes.h`, `auto_point_names`)
 is to be checked by a published model or a named demo, never one made up for the case (AGENTS.md). The audit of the 55 models the
-descriptions run (tests/auto/README.md, "Where each model comes from") found 7 published, 39 named demos and 9 made up, and four gaps.
+descriptions run (tests/autox/README.md, "Where each model comes from") found 7 published, 39 named demos and 9 made up, and four gaps.
 Each model's source is also the first comment of its file.
 
 | Type | Now checked by | AUTO-07p | XPPAUT 8.0 |
@@ -1819,7 +1819,7 @@ exactly the two published GH and no CP. The description holds those differences 
 
 **The global ends against AUTO-07p.** AUTO-07p and XPPAUT end a branch of cycles near a homoclinic or heteroclinic orbit at their step limit,
 through ever slower cycles whose labels (LP, BP, MX at periods of 5e3 to 5e4 for the Lorenz cycles) belong to the mesh. xppautX stops at the first cycle that is slow enough
-(W518). Since a reference run goes on past that end, `tools/autocompare.py` (`stop_at_global_end`) compares the reference's special points and curve only up to the sample
+(W518). Since a reference run goes on past that end, `tools/autoxcompare.py` (`stop_at_global_end`) compares the reference's special points and curve only up to the sample
 nearest ours' last point when ours ends on SNIC, HOC or HEC, and says nothing of what follows; a reference with no curve is compared whole. The `lrz_cycles`
 cycles' last sample (r = 13.926557423, norm 5.4166) lies 4e-4 from AUTO-07p's sample at r = 13.926557443, norm 5.4162; HomCont's orbit at r = 13.92655741 is
 1.3e-8 from the end.
@@ -1840,7 +1840,7 @@ follows the first steps and not the branch. xppautX labels none. `pp2_heteroclin
 ## W539: every AUTO-07p reference regenerated with the period, each difference explained ([#604](https://github.com/MuhammadMoustafa/xppautX/issues/604))
 
 An `.auto07p` curve sample is now `[parameter, second parameter, norm, period]` (W538 needs the period of each sample to cut a
-reference where ours ends); `tools/autocompare.py` reads four values for `.auto07p` and three for `.xppaut` and keeps the period apart. All
+reference where ours ends); `tools/autoxcompare.py` reads four values for `.auto07p` and three for `.xppaut` and keeps the period apart. All
 the 55 references were regenerated with `tools/auto_reference.py --program auto07p` (AUTO-07p 0.9.4) and every difference from the
 committed files traced to one of these causes (55 files; a description with `auto07p_skip` keeps none):
 
@@ -1860,7 +1860,7 @@ reference had it only because its start was 1.8e-4 off the equilibrium); `ode_mu
 test that is 6e-11 of noise (finding 10), and its neutral multiplier at the 0.1 pA mark is 1.00003 (1.00001 before; the exact 1) in the same finite-difference
 way as the 1 pA mark's.
 
-**Resolved (W538).** `ode_mu26_blocked`'s `to_snic` curve failed `tools/autocompare.py` against its new reference with the cut by the nearest sample in (parameter, norm), and also with the last sample whose period does not pass ours: our end lies between two reference samples (the snic at period 4974, the samples at 4212 and 5012), so a cut at a sample keeps one that lies past our end or drops the segment that reaches it. The cut now interpolates the reference's last segment at our period (W538 section); it passes.
+**Resolved (W538).** `ode_mu26_blocked`'s `to_snic` curve failed `tools/autoxcompare.py` against its new reference with the cut by the nearest sample in (parameter, norm), and also with the last sample whose period does not pass ours: our end lies between two reference samples (the snic at period 4974, the samples at 4212 and 5012), so a cut at a sample keeps one that lies past our end or drops the segment that reaches it. The cut now interpolates the reference's last segment at our period (W538 section); it passes.
 ## W538: a heteroclinic end on a coarse mesh ([#603](https://github.com/MuhammadMoustafa/xppautX/issues/603))
 
 The pp2 demo's cycles (`pp2_heteroclinic`, NTST 90) end on the heteroclinic cycle between the saddles (0.1276, 0) and
@@ -1871,9 +1871,9 @@ passes the 1e-6 criterion) lies at the saddle (0.6518, 0), and the saddle (0.127
 no mesh point of the coarse mesh is slow enough there, so `auto_slow_points` returned one point and one saddle was seen
 (`auto_global_kind`: one saddle, homoclinic).
 
-The fix (core/auto_global.cpp): the slow stretches are searched as before, and Newton's method is also started from every other
+The fix (core/autox_global.cpp): the slow stretches are searched as before, and Newton's method is also started from every other
 local minimum of the speed around the cycle. Such a minimum counts only for a saddle it converges to, and only when the root
-lies within `auto_global_near_orbit` (1e-2, core/auto_global.h) of the orbit's extent from the minimum: a Newton jump further
+lies within `auto_global_near_orbit` (1e-2, core/autox_global.h) of the orbit's extent from the minimum: a Newton jump further
 is another equilibrium the orbit is nowhere near. The rest is unchanged: the 1e-6 criterion still decides whether the branch
 is a global end at all, and a local minimum that converges to a focus or a node is ignored as before (it counts at NTST 90 only
 through its slow stretches, so the focus near the cycle (1/3, 0.277) of this model does not make the end `end`).
@@ -1882,9 +1882,9 @@ With the fix, NTST 15 names the end `heteroclinic` (label 15, quota 0.7080698 ag
 mesh's own position of the end). Measured on the way: the local minima converge to the two saddles at distances of 2e-6 to
 4e-4 of the orbit's extent (0.78), while the same rule on ode_mu26_control's SNIC orbit lands 0.28 to 0.52 of its extent from
 the equilibria it jumps to, so 1e-2 separates them with margin on both sides. Without the distance rule the mu26 SNIC became
-`end` (its three far saddles added to the fold). The baselines are unchanged: `tools/autocompare.py` (71 models, 9 skipped,
+`end` (its three far saddles added to the fold). The baselines are unchanged: `tools/autoxcompare.py` (71 models, 9 skipped,
 0 failures, byte for byte), `tools/examples_check.sh` (215 of 216 match, ml-range.odex has no output by design), servercheck
-(2681 checks). New baseline: `tests/auto/pp2_heteroclinic_coarse.diagram.csv`.
+(2681 checks). New baseline: `tests/autox/pp2_heteroclinic_coarse.diagram.csv`.
 
 Its AUTO-07p reference (`pp2_heteroclinic_coarse.auto07p`, made with the built AUTO-07p and the period column, W539) is
 compared with the cut of `stop_at_global_end`: our end is where the reference's period, along its samples, reaches our last
@@ -1917,7 +1917,7 @@ copy of the description, not kept): fold A at parameter 0.7080724009, the discar
 
 **Tried: store the discarded endpoint's test instead of 0** (`*q = saved_q` in both locators; the unit fixture's two paths
 check it). The probe then labels three folds (A, B and the missing C, 0.7080722 to 0.7080731), so the blindness is real. But
-the full `tools/autocompare.py` run changed three baselines, and none of the changes can be shown to be a zero:
+the full `tools/autoxcompare.py` run changed three baselines, and none of the changes can be shown to be a zero:
 
 - `tstauto_frcp`: a second HB at b = 0.74345 (HB 0.7377 is the equilibrium's only Hopf point; the (v, w) pair's real part is
   -0.99 there, from the Jacobian of the model). The test is the real part of the pair `auto_hopf_pair` picks: at 0.7434 the
@@ -1951,7 +1951,7 @@ locates a fold at point 95 (parameter 0.7080717016, norm 0.41986, period 80.6), 
 at its period 62.9, norm 0.42775: the folds of this mesh-noise region are many, W540). But the run then wanders in the noise
 (folds at 97 and 100, then no convergence at point 103) instead of ending on the heteroclinic cycle at point 96.
 
-The full `tools/autocompare.py` (71 models) showed the retake is not harmless: 16 failures in five models. `ode_lecar` and
+The full `tools/autoxcompare.py` (71 models) showed the retake is not harmless: 16 failures in five models. `ode_lecar` and
 `tstauto_lecar` lose the cycle fold AUTO-07p has (0.248414) and label two branch points (0.24870 at point 22, 0.24843 at
 point 29) that are noise of the branch-point test near the fold: the locations that were dropped before were such noise
 brackets, and a shorter bracket locates them. `henon_rot_th` changes the order of R2 and BP, `pp2_heteroclinic` labels an LP
@@ -1969,7 +1969,7 @@ a failed location is given another try.
 W541 (a zero right after a located zero) and W542 (a location that ends at ITMX) each found real folds and each labelled points that
 are not zeros of a smooth test, so neither landed. Both now land, each only for the brackets a rule accepts. The rule, the cases that
 chose it, what it measured over the 71 models and what it leaves out are below; the code is `locate_special_point`
-(core/autlib1.cpp), `auto_crossing_smooth` and `auto_ratio_in_scale` (core/auto_c.h), the tests tests/test_auto_location.cpp.
+(core/autox_lib1.cpp), `auto_crossing_smooth` and `auto_ratio_in_scale` (core/autox_c.h), the tests tests/test_autox_location.cpp.
 
 **The rule.** A search leaves a bracket (the test's value and its arclength at two samples, opposite signs) and ends on a point. Its
 slope across the step, `|q_end - q_start| / step_length`, and its slope across the last bracket of the search,
@@ -2010,7 +2010,7 @@ search converges on is accepted as before (below, what gating those changes).
   cycle branch the parameter moves by 1e-12 per point against EPSL 1e-4, and every fold test there is below its own noise. No floor
   built from them separates the real fold C from the noise next to it. Dropped.
 
-**Measured** (the 71 models of tests/auto at their own settings; `tools/autocompare.py` 0 failures before and after). The slope
+**Measured** (the 71 models of tests/autox at their own settings; `tools/autoxcompare.py` 0 failures before and after). The slope
 ratio, final over step, of every located zero of the baseline: 171 of 182 lie in 1/3 to 3 (the ordinary tests' real zeros, 0.7 to
 2.3), 11 above, the fold curve's cusp (3.1), two PD/TR tests (4.9 to 10.7) and the baseline's own noise (pp2 coarse 3.2 to 34, global_heteroclinic
 5.6 to 23). The new zeros, with 390 brackets searched against 382 before:
@@ -2143,7 +2143,7 @@ the branch-point scale rule, whose real and spurious values are five decades apa
 
 ## W549: ModelDB 267710's periodic run makes no fold search ([#614](https://github.com/MuhammadMoustafa/xppautX/issues/614))
 
-W548 found `tools/auto-profile/modeldb_check.sh` (W429's guard) failing: the 20-point periodic run of
+W548 found `tools/autox-profile/modeldb_check.sh` (W429's guard) failing: the 20-point periodic run of
 `examples/ode/motoneuron6c.odex` made 0 fold searches where W429 expected 1, in the default, LIBM=system and LAPACK builds,
 with the grabbed Hopf point at ampPar 0.5727816 where W412's runs had 0.5727871. Two cards, both with their reasons in
 this file and the studies, explain both numbers; an independent check settles which behaviour is right.
@@ -2226,17 +2226,17 @@ four marks, SNIC 0.066765; identical labels to the difference run). AUTO-07p has
 (`EXACT_AUTO07P` names P1, E1, P2, E2, T1), none was added.
 
 **The decision.** The new run is XPPAUT's behaviour for the description's settings, from the start the baseline gives, and the
-reference was stale, not the driver wrong: `tests/auto/ode_mu26_{control,blocked}.xppaut` are regenerated
+reference was stale, not the driver wrong: `tests/autox/ode_mu26_{control,blocked}.xppaut` are regenerated
 (`tools/auto_reference.py --program xppaut --only ode_mu26_control,ode_mu26_blocked`, 25 minutes, the lpc runs
 still recorded as unavailable), and with the tool's current format they also keep the curve of every one-parameter run. The traced
 entries follow the new run: ours UZ 3 and 4 and XPPAUT's LP are missing in the other program (the 0.1 and 0.07 pA marks it never reaches, the
 spurious LP), the 1 pA mark's neutral multiplier differs in the control run (XPPAUT 1.000055, ours 0.999861, both the finite
 difference's: exact 1) and no longer in the blocked run (the entry W474 added is removed). A curve of XPPAUT's that reverses
-and stops short has no counterpart to our samples below its turn; autocompare's curve comparison cannot trace that, so a description now
+and stops short has no counterpart to our samples below its turn; autoxcompare's curve comparison cannot trace that, so a description now
 has `curve_runs_on` (reference, run, cause): the samples of ours off that reference's curve are the difference, and the entry says it is gone when none is.
 The reference's own samples are still all checked against ours, including its way back up. Finding 73 holds the new native run.
 
-**Gates.** `tools/autocompare.py`: 73 models, 0 failures. The comparison's pilots (`continuation.py --pilots --only ode_mu26_control,ode_mu26_blocked`):
+**Gates.** `tools/autoxcompare.py`: 73 models, 0 failures. The comparison's pilots (`continuation.py --pilots --only ode_mu26_control,ode_mu26_blocked`):
 the gates against XPPAUT and AUTO-07p pass for both; the converged exact pilot is unavailable for the control run ("no convergence even at the smallest
 step" at tolerance 1e-10) and the blocked one's stage after the gate stops on a harness error: the XPPAUT pilot's reference.json leaves
 out the lpc runs (`lpc_soma`, `lpc_dend`) that `checked_reference` wants for the converged comparison (a gap of the drivers, not of this card; not changed).
@@ -2303,11 +2303,11 @@ decides: AUTO-07p's pf branch is x = +-sqrt(r) exactly, and every sampled point 
 
 **W563: the switch at an equilibrium's branch point.** AUTO-07p's method, followed: the branch point's record in fort.8 keeps the direction of its
 branch (`WRTSP8`'s NTST=1 record: the free parameter, PAR-dot, U-dot); a restart with ISW=-1 takes the null vector of the Jacobian perpendicular to
-it (`STPRAE` with `IPERP=1`; `stpswae` in core/autlib1.cpp, sharing `perpendicular_null_direction` with `stbif`, which the switches inside a run use),
+it (`STPRAE` with `IPERP=1`; `stpswae` in core/autox_lib1.cpp, sharing `perpendicular_null_direction` with `stbif`, which the switches inside a run use),
 scaled and signed as `STPRAE` does (PAR-dot positive, the first state that moves when it is zero), then the second point in the plane through the
-branch point perpendicular to that direction (`STEPAE` with `SW`, `swprc`). The two switched runs agree with AUTO-07p's references (autocompare's
+branch point perpendicular to that direction (`STEPAE` with `SW`, `swprc`). The two switched runs agree with AUTO-07p's references (autoxcompare's
 comparison of the branch points and labels, and the whole second branch point by point: pf's second point r = 0.0025000005, x = 0.050000005 both,
-pp2's r = 0.83140631724, u0 = 0.38269299998 both, its end par0 = -0.1414011471 both). The independent check is tools/autocheck.py's `switch` section
+pp2's r = 0.83140631724, u0 = 0.38269299998 both, its end par0 = -0.1414011471 both). The independent check is tools/autoxcheck.py's `switch` section
 (numpy): every point of the switched branch solves the model's own equations (pf: x^2 = r to 1e-6, x > 0; pp2: the residual of both equations
 below 1e-6 and u1 = 0 to 1e-9), and its stored multipliers are e^lambda of the Jacobian's eigenvalues (to 1e-8).
 Two notes on the new branch: its second point carries no stability (zeros: AUTO computes a point's stability in the tests of the next step), as every
@@ -2318,18 +2318,18 @@ point of the new branch; the pp2 restart showed it (par0 0.8314409 where the poi
 XPPAUT 8.0's switched runs are checked by hand again at W563 (finding 102): Run, Switch from the BP with the driver's keys leaves ISW=-1 and
 IRS the BP's label in its `.b` header and stays on the first branch (pf: X = 0 and norm 0 to r = 2; pp2: u0 = 1/3 held, par0 up to 2.0002); a screenshot
 of its diagram (Xvfb, xwd) draws the new branch's labels on the first branch's line. The descriptions keep that run unavailable in their `.xppaut`
-files with this reason (the run's `xppaut_skip`, read by tools/auto_reference.py and tools/autocompare.py); the steady runs' XPPAUT references stay.
+files with this reason (the run's `xppaut_skip`, read by tools/auto_reference.py and tools/autoxcompare.py); the steady runs' XPPAUT references stay.
 
 ## W557: continuation from period doublings, tori and homoclinic orbits, untimed ([#622](https://github.com/MuhammadMoustafa/xppautX/issues/622))
 
 Phase 1 of W557 (the timed rerun comes after the other cards of its batch). `paper/benchmarks/comparison/continuation.py` runs twelve
-tests/auto descriptions of continuations that start from a special point (`SPECIAL_POINT_DESCRIPTIONS`; untimed while
+tests/autox descriptions of continuations that start from a special point (`SPECIAL_POINT_DESCRIPTIONS`; untimed while
 `SPECIAL_POINT_TIMED` is False), each against xppautX, XPPAUT 8.0 and AUTO-07p, keeping every diagram and reference
 (`<out>/<name>/adaptive/pilot-*`) for `overlays.py` (now also drawing a homoclinic curve in its two parameters). Published models and named
 demos first: `forced_pp_pd` (the period-doubling curve of Kuznetsov, Muratori and Rinaldi 1992's forced predator-prey model, values of MatCont Tutorial V),
 `forced_pp_ns` (its torus curve), `hen_pd` and `hen_tr` (flip and torus curves of the Henon map of AUTO-07p's hen demo), `lorenz_homoclinic` (the
 homoclinic orbit of the Lorenz equations, Sparrow 1982; AUTO-07p's lrz demo) and `lrz_cycles` (the cycles of its Hopf point, to the near-homoclinic orbit).
-Beside them, as the README of tests/auto keeps them, the made-up `hill_cycles_pd`, `hill_cycles_torus`, `henon_rot_pd`, `henon_rot_tr`, `henon_rot_th`
+Beside them, as the README of tests/autox keeps them, the made-up `hill_cycles_pd`, `hill_cycles_torus`, `henon_rot_pd`, `henon_rot_tr`, `henon_rot_th`
 and `explicit_homoclinic`. Branch switching is W556's. Every gate passes (the differences each description traces are unchanged).
 
 **XPPAUT's homoclinic continuation is driven now.** XPPAUT 8.0 has Start > Homoclinic (auto_nox.c:1793-1830, 2283-2370), reading the last integration;
@@ -2418,7 +2418,7 @@ monotone in the parameter; Mueller's step then leaves the step's bracket, W545's
 lie inside the step), and the note says "not in max_location_iterations" (AUTO-07p's own Possible special point). Where the location did finish (NTST
 40) it stopped 3e-5 in b0 short of the true R2.
 
-**Fix** (core/auto_codim.cpp): the test is the square root of the product of the moduli of the two multipliers next to the imposed one, minus 1:
+**Fix** (core/autox_codim.cpp): the test is the square root of the product of the moduli of the two multipliers next to the imposed one, minus 1:
 for a conjugate pair exactly the modulus AUTO-07p tests (bit for bit), for two real ones their geometric mean, symmetric in the two and so with no
 role to swap, and the coefficient of the pair's polynomial, whose error is the data's and not its square root. The same function serves the fold
 curve's R1 (+1). The note names the point's type: "a 1:2 resonance (R2)" on a PD curve, "a 1:1 resonance (R1)" on a fold curve of cycles, "a strong
@@ -2438,7 +2438,7 @@ equal AUTO-07p's (9.6e-6 apart at most, inside the tolerance, no traced differen
 within the tolerance of AUTO-07p's, so the spectrum difference at the description's 1e-7 (xppautX -0.99999991 +- 4.5e-4 i, AUTO-07p -0.99999 +- 7e-5 i) is the
 square-root noise of a Jordan block, recorded as a traced difference that replaces the four of W437 and W474 (their R2 par, norm and par2 now agree, and pd_down's spectrum).
 
-Baselines changed (autocompare --update --only): forced_pp_pd (the R2 of pd_up and pd_down and every point after them, 334 rows), hill_cycles_pd (all five R2 and the points after each, 33
+Baselines changed (autoxcompare --update --only): forced_pp_pd (the R2 of pd_up and pd_down and every point after them, 334 rows), hill_cycles_pd (all five R2 and the points after each, 33
 rows); no other description changed: every other one passes unchanged, byte for byte. New: forced_pp_pd_ntst15 (AUTO-07p reference, 4 traced differences) and forced_pp_pd_ntst10 (diagram baseline only).
 
 ## W564: the parameter is restored exactly after a difference step ([#629](https://github.com/MuhammadMoustafa/xppautX/issues/629))
@@ -2463,11 +2463,11 @@ label whose stored point number moved by one is in forced_pp_ns' and the two for
 
 No label appears or disappears, so no independent check was needed; the R2 and the branch points are where they were (R2 at
 b0 = 1.948934, forced_pp_pd's NTST 10 and 15 as before to 1e-6). On Mu26 the parameter is exact now: of 964,056 parameter restores
-8,719 were off before, none of 898,326 are now. tests/auto/tstauto_pf_switch.diagram.csv changed in one quantity of size 1e-14 (the second parameter at a fold, 1.14176746199e-14 to 1.14176746183e-14).
+8,719 were off before, none of 898,326 are now. tests/autox/tstauto_pf_switch.diagram.csv changed in one quantity of size 1e-14 (the second parameter at a fold, 1.14176746199e-14 to 1.14176746183e-14).
 
 ## W569: the fold of a switched branch's second step is labelled ([#634](https://github.com/MuhammadMoustafa/xppautX/issues/634))
 
-W563 (#628) found that pp2's switched branch (`tests/auto/tstauto_pp2_switch.json`: the branch of equilibria with u1 = 0 leaving the branch point at
+W563 (#628) found that pp2's switched branch (`tests/autox/tstauto_pp2_switch.json`: the branch of equilibria with u1 = 0 leaving the branch point at
 par0 = 0.8219) turns in par0 between its second and third points, and that neither xppautX nor AUTO-07p labels a fold there.
 
 **Independent check (numpy/scipy, from the model's own equations, not from either program).** On u1 = 0 the first equation gives
@@ -2490,9 +2490,9 @@ between the second and third points of a switched branch is still unlabelled, as
 
 xppautX labels the fold at par0 = 0.8329293222, u0 = 0.411165 (the independent fold's par0 to 2e-12, its u0 to 3e-6, the flatness of par0 there; the
 stored point's multiplier is 0.999989, a zero eigenvalue to 1.1e-5, the location's tolerance): AUTO-07p's reference has no LP, the description records it in `differences` (reference
-`.auto07p`, run `switched`, side `ours`, type LP). tests/auto/tstauto_pp2_switch.diagram.csv has one more point, the fold (127 instead of 126),
-and the points after it come one step later; every point still solves the model's equations (autocheck's `switch` section, which now also checks the
-fold against the equations). No other description changed: all 79 compared (autocompare: 0 failures), the three other switched runs among them.
+`.auto07p`, run `switched`, side `ours`, type LP). tests/autox/tstauto_pp2_switch.diagram.csv has one more point, the fold (127 instead of 126),
+and the points after it come one step later; every point still solves the model's equations (autoxcheck's `switch` section, which now also checks the
+fold against the equations). No other description changed: all 79 compared (autoxcompare: 0 failures), the three other switched runs among them.
 Findings: docs/auto07p-findings.md 14, docs/xppaut-findings.md 105.
 
 
@@ -2504,7 +2504,7 @@ a tenth, 1250 of them) at 70.588. The converged to_snic therefore starts 25.6 pA
 lie on the converged *cycles*, off the converged to_snic polyline: sample 1 of ours was 25.7 away in the parameter and 3.58 in the norm, the two largest
 numbers of the run, and the gate's whole "to_snic" error (with cycles' 187, which came from the converged curve's boundary sample, below). Another program's row, which
 starts from xppautX's start, had the same 38 samples off the converged curve (XPPAUT 4023, AUTO-07p 4055). Nothing was wrong with the curve.
-`compare_curve` (tools/autocompare.py) now takes `converged`: on a run that starts from the end of another (`start` type EP) the row's samples before the
+`compare_curve` (tools/autoxcompare.py) now takes `converged`: on a run that starts from the end of another (`start` type EP) the row's samples before the
 converged curve's first are not compared, as W562's cut left out the converged samples past the row's end; the row's own end is compared against the whole converged
 polyline. Against the saved exact pilot no curve difference is left on cycles or to_snic (the pilot's special-point differences, UZ 135's spectrum and UZ 150's norm, are as before).
 
@@ -2513,10 +2513,10 @@ parameter on cycles. `compare_curve` now compares the converged side's samples o
 sample is compared against the whole polyline), so no sample past the end counts and no point is interpolated on the coarse polyline (a point made on a chord
 is off the curve by the chord's error, the first try's 4.8e-6 at to_snic's end). A run that ends on a global end (SNIC, HOC, HEC) stops where its own
 detection tripped, so there the other side's samples past the converged side's end are left out too. Only the descriptions' comparison with the converged
-run changes: `tools/autocompare.py`'s 79 models give the same output as before (201 checks, 0 failures, no baseline changed).
+run changes: `tools/autoxcompare.py`'s 79 models give the same output as before (201 checks, 0 failures, no baseline changed).
 
-**XPPAUT's homoclinic references.** `tests/auto/lorenz_homoclinic.xppaut` and `explicit_homoclinic.xppaut` are written by `tools/auto_reference.py --program xppaut`
-(W557's driver: XPPAUT 8.0 on Xvfb, `W300_DISPLAY`), their `xppaut_skip` dropped, and autocompare compares them. XPPAUT's start orbit is sampled with finding 69's
+**XPPAUT's homoclinic references.** `tests/autox/lorenz_homoclinic.xppaut` and `explicit_homoclinic.xppaut` are written by `tools/auto_reference.py --program xppaut`
+(W557's driver: XPPAUT 8.0 on Xvfb, `W300_DISPLAY`), their `xppaut_skip` dropped, and autoxcompare compares them. XPPAUT's start orbit is sampled with finding 69's
 unscaled weight: the first point's norm is 7.102317 for xppautX's 7.101925 (lorenz_homoclinic, 5.5e-5 relative) and 0.8649229 for 0.8648999 (explicit_homoclinic).
 Both are traced differences of the descriptions (`differences`, the EP's norm; lorenz_homoclinic's first curve sample too, 2.56e-4 against the 1.66e-4 its
 chord allows, as a `curve norm` entry, the new kind of traced difference); every other quantity of both curves agrees within the tolerances, none widened.
@@ -2553,9 +2553,9 @@ multipliers, the determinant and `isp` are put back after the tests of a point t
 UZ, ... label), a Hopf start of cycles and a two-parameter curve are not tested: the tests there are zero by construction (a sign change from noise would label the start
 again), or the point is no solution of the equations the tests read, or its tests are the codimension-two ones. The first step of a switched branch (its start is the
 branch point) and the branch point test at the second point of a switched equilibrium branch are not tested either (above).
-No description changed: all 79 compared (autocompare: 0 failures, byte for byte), so the zeros these tests find lie in no baseline.
+No description changed: all 79 compared (autoxcompare: 0 failures, byte for byte), so the zeros these tests find lie in no baseline.
 
-**Cases and their independent checks** (autocheck's `first_steps`; each is a run of a published model, set so that the zero lies in the step; numpy and scipy from the
+**Cases and their independent checks** (autoxcheck's `first_steps`; each is a run of a published model, set so that the zero lies in the step; numpy and scipy from the
 model's own equations, none of either program's continuation; AUTO-07p's own run of the Hopf, fold, cycle fold, period doubling and Lorenz cases (tools/auto_reference.py with
 AUTO-07p 0.9.4, in a scratch folder) has no label there, and neither did xppautX before; its brper cycles run gave no points in this setting):
 
@@ -2586,7 +2586,7 @@ The W557 timed series judged xppautX's exact rows of nine workloads not equal wo
 Each was settled by `docs/studies/w578_converged_check.py` (and `floquet_check.py --norm` for Mu26), from the model's own equations; none was an xppautX
 error beyond its tolerances.
 
-**Where the judge was wrong (paper/benchmarks/comparison/continuation.py, tools/autocompare.py).**
+**Where the judge was wrong (paper/benchmarks/comparison/continuation.py, tools/autoxcompare.py).**
 
 - *Where a row ends on the converged curve.* W562 cuts the converged curve at the sample nearest the row's last point. A curve that comes back
   over itself has such a sample on each pass: hen_tr's and henon_rot_tr's torus curve folds back at its 1:2 resonance (beta = 1, alpha = 3) and
@@ -2599,7 +2599,7 @@ error beyond its tolerances.
   at its step limit (hill_cycles_pd's sixth R2, hill_cycles_torus' R4 at d = 0.5637): now up to where the pilot's run ends, as the comparison.
 
 **Where the converged run is not a judge**, each a traced difference of the description against `.converged` (`differences`, `curve_runs_on`), the
-new reference name a description may trace against (`autocompare.CONVERGED_REFERENCE`):
+new reference name a description may trace against (`autoxcompare.CONVERGED_REFERENCE`):
 
 | workload | what | independent check |
 |---|---|---|
@@ -2648,7 +2648,7 @@ source (bvp.f90 STEPBV, NEWTONBV, CONTBV; floquet.f90 FLOWKM), xppautX's Newton 
 test on the relative increment and divergence test), secant tangent, elimination order (W474's nested dissection), norm (rnrmsq's
 collocation weights) and Floquet multipliers (the deflated circuit pencil of the last factorised condensed system) are AUTO-07p's;
 what differs is rounding (the elimination keeps AUTO2000's complete pivoting, W474), which is what moves the stopping point. Nothing in core/
-changes and no tolerance is widened; W578's traces in tests/auto/ode_mu26_{blocked,control}.json stay, since the converged run still
+changes and no tolerance is widened; W578's traces in tests/autox/ode_mu26_{blocked,control}.json stay, since the converged run still
 differs from both programs there. floquet_check.py now matches a diagram row's 0-based `icp1` against the parameter's slot (it picked
 its start from a two-parameter run's rows on ode_mu26_blocked, and found none on ode_mu26_control; the cycle it converges to was the
 same).
@@ -2661,7 +2661,7 @@ slope is a zero of order 3, 5, ... unless one sample is at the test's noise; the
 at th = pi, is a cubic. `docs/studies/w578_converged_check.py` shows it from the map's own equations: the torus system's smallest singular value
 is 0.985 |th - pi| and its determinant with the tangent is 5.9491e2 (th - pi)^3 (-5.9e-13 and +5.9e-13 at -+1e-5, -6.2e-37 at pi).
 
-**The rule now** (`auto_zero_order`, `auto_zero_crosses`, core/auto_c.h). Below the factor, the order k of the zero is read from the test at
+**The rule now** (`auto_zero_order`, `auto_zero_crosses`, core/autox_c.h). Below the factor, the order k of the zero is read from the test at
 the ends of the step against their distances from the located point, |q| = c d^k on both sides: k = ln(|q_start| / |q_end|) / ln(d_start / d_end),
 rounded. An odd k is a crossing and accepted; an even k (or none: a value or a distance of 0, equal distances) is refused with its own note
 (`its test does not cross zero there: ... make it a zero of order 2, not odd: a double zero the samples straddle`). A double zero c d^2 that
@@ -2674,15 +2674,15 @@ noise, where the cubic gives 2e-20). The jumps and noise above the factor are re
 torus curve, where W419 has every Mueller step aim half a tolerance short of the zero because the equations are singular there: the halving
 has no such aim, and at the converged run's settings its last trial was 4.4e-8 past pi, after which the curve went back the way it came
 (R3 at 2pi/3 again, R4, R1 at 0). The bisection now leaves out a location the torus rule calls singular (1:1 or 1:2 nearest), which is given
-up after ITMX as AUTO-07p gives it up. This moves no result: autocompare's 79 models at 1 and automatic threads and the examples' md5s are as
-before, and the new rule has no case in tests/auto (tests/test_auto_location.cpp has a cubic accepted and an even touching refused).
+up after ITMX as AUTO-07p gives it up. This moves no result: autoxcompare's 79 models at 1 and automatic threads and the examples' md5s are as
+before, and the new rule has no case in tests/autox (tests/test_autox_location.cpp has a cubic accepted and an even touching refused).
 
 **henon_rot_th's branch point and the converged run.** The BP and the R2 are one point, th = pi. In the step that holds pi both runs give the
 BP up (the cubic is too flat for 8 Mueller iterations, and it is not bisected) and locate the R2; the next step brackets the BP only if the R2
 landed before pi, where the BP test is negative: ours at pi - 2.9e-7 (the BP then at the same point, below), the converged run's at pi + 2.0e-8 (no BP).
 AUTO-07p labels the BP 7.3e-9 from its R2 (both at pi - 1.3e-6). Which of two coincident labels a run keeps is AUTO-07p's own coincident rule
 (LCSPAE: a zero within the location tolerance of a located point keeps the first label), so the converged run's missing BP stays a traced
-difference (`.converged` in tests/auto/henon_rot_th.json, its cause rewritten); `continuation.py --pilots --only henon_rot_th` against the
+difference (`.converged` in tests/autox/henon_rot_th.json, its cause rewritten); `continuation.py --pilots --only henon_rot_th` against the
 saved setup: the exact pilot against the converged run, equal work.
 
 **How close ours is.** The BP's search starts on the R2 point, where its test is -1.9e-17, so the secant's zero is that start. W419's rule for
@@ -2706,7 +2706,7 @@ step compares with 0. AUTO-07p does the same (hill_cycles_torus: R3, BP; forced_
 labelled the R2 decided only where each run's BP location happened to end (henon_rot_th, where both programs' steps put the R2 before the BP,
 label both).
 
-**Fix** (core/autlib1.cpp `deferred_resonance`): a torus curve's resonance test (cycles and maps) that the coincidence rule meets at a located BP
+**Fix** (core/autox_lib1.cpp `deferred_resonance`): a torus curve's resonance test (cycles and maps) that the coincidence rule meets at a located BP
 keeps the value it measured there (or, where its zero lies behind the BP, the value before it, with its place), so the next step brackets the zero
 and locates it as its own point; that step's resample of the BP test, the same zero, is taken as the BP already labelled (0), so it is not labelled
 twice. The one point gets two labels, BP and then the resonance, a tolerance apart.
@@ -2720,7 +2720,7 @@ Each new label checked from the model's own equations (`docs/studies/w585_torus_
 | res_cycles torus_up | R1 | b = -2.2e-20, c + mu = -3.3e-13 (-7.0e-20, -4.6e-13) | 1 +- 7.6e-5 (1 +- 1.0e-4) |
 
 Each is a traced difference against AUTO-07p and XPPAUT 8.0 (which labels no strong resonance, finding 71). Baselines changed
-(autocompare --update --only): hill_cycles_torus, forced_pp_ns, res_cycles (the new point and the points after it, which move by the
+(autoxcompare --update --only): hill_cycles_torus, forced_pp_ns, res_cycles (the new point and the points after it, which move by the
 location's step); every other description passes unchanged, byte for byte.
 
 ## W586: a torus curve's branch point and resonance, one point labelled as each ([#651](https://github.com/MuhammadMoustafa/xppautX/issues/651))
@@ -2733,8 +2733,8 @@ there has the end's sign, so the next step never brackets it. henon_rot_th at th
 pi + 2.0e-8 and no BP. Now the branch point's sample at that resonance is its value there with the sign of the step's start, so the next step
 brackets it at its start and takes it there (W580's at_start): BP at pi + 2.09e-8. A search from the step's start, as W585 makes for a resonance
 behind its branch point, was tried and does not converge on the cubic in ITMX steps. Both orders are one block of `locate_tests`
-(core/autlib1.cpp). henon_rot_th's `.converged` trace is dropped: the exact pilot against the converged run is equal work. No baseline moves
-(autocompare's 79 models at 1 and automatic threads, the examples' md5s).
+(core/autox_lib1.cpp). henon_rot_th's `.converged` trace is dropped: the exact pilot against the converged run is equal work. No baseline moves
+(autoxcompare's 79 models at 1 and automatic threads, the examples' md5s).
 
 hill_cycles_torus' torus_down, judged the same way, is not equal work with master's binary as with this one: the converged run labels its
 1:2 point R2 then BP, the pilot BP then R2 (both points, the one place, in the other order; not changed here).
@@ -2743,9 +2743,9 @@ hill_cycles_torus' torus_down, judged the same way, is not equal work with maste
 
 A torus curve's BP and its 1:1 or 1:2 resonance are one point (W585, W586), and which a run stores first depends on which side its locations
 land: hill_cycles_torus' torus_down is R3, BP, R2, R3 in the description's run and R3, R2, BP, R3 in the converged run. `coincident_sorted`
-(tools/autocompare.py) takes labels whose places (parameters and norm) lie within the location tolerance, EPSS (1 + sqrt(|DS DSMAX|)), of the
+(tools/autoxcompare.py) takes labels whose places (parameters and norm) lie within the location tolerance, EPSS (1 + sqrt(|DS DSMAX|)), of the
 one before as one set, in the order of their types; `compare_run` (against AUTO-07p, XPPAUT and the converged run's reference form) and the
-judge's `signature` (paper/benchmarks/comparison/continuation.py) both use it. No AUTO-07p or XPPAUT comparison changes (autocompare, 79
+judge's `signature` (paper/benchmarks/comparison/continuation.py) both use it. No AUTO-07p or XPPAUT comparison changes (autoxcompare, 79
 models). Rejudged offline with this tip's xppautX, the twelve special-point workloads: eleven equal work (hill_cycles_torus now among them);
 forced_pp_ns is not: its pilot's ns_up has BP and R2 (W585's R2 beside the BP), the converged run's the BP alone, a missing label and not an
 order.
@@ -2759,9 +2759,9 @@ zero, which the coincidence rule put at the BP, lies behind it, and W585 searche
 search came within 2.6e-8 of the zero (its tolerance 1e-8), and its next trial, aimed half a tolerance short of it, did not converge: within 1e-8 of
 the singular point the torus equations' Newton iteration does not reach EPS 1e-10 even in 100 iterations.
 
-**Fix** (core/autlib1.cpp, locate_special_point): a zero the coincidence rule put at the stored point (`after_branch_point`, W585), whose search fails
+**Fix** (core/autox_lib1.cpp, locate_special_point): a zero the coincidence rule put at the stored point (`after_branch_point`, W585), whose search fails
 there, is taken at that point, as W580's `at_start` takes a singular zero at a solved point (and W586's BP beside an R2 the same way): the state goes
-back to the stored point, and the resonance is labelled there. Where the search reaches the zero, nothing changes: every autocompare description
+back to the stored point, and the resonance is labelled there. Where the search reaches the zero, nothing changes: every autoxcompare description
 passes unchanged, byte for byte. The converged run's R2 against the model (`docs/studies/w585_torus_r2_check.py`, the Poincare map at the run's m):
 7.5e-10 in eps and 2.4e-10 in b0 from the true R2 (trace + 2 = 2.3e-9), closer than its BP (4.2e-9, 1.4e-9). Rejudged offline
 (the finite-difference pilot against the converged run, continuation.py's converged_mismatch): forced_pp_ns, hill_cycles_torus and henon_rot_th equal work.

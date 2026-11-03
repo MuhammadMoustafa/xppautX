@@ -294,7 +294,7 @@ autoX uses workers once `dimension * dimension * mesh_intervals * collocation_po
 the overhead of workers on a small mesh; the selected preference and the
 results stay the same.
 
-The session keeps every autoX setting under `auto/settings.txt`, with
+The session keeps every autoX setting under `autox/settings.txt`, with
 the names above (`max_steps`, `mesh_intervals`, ...); Reload keeps them too.
 The original window had the following items, under autoX's names:
 
@@ -607,7 +607,7 @@ Saves this session as `name.snapx`, through File > Save session: the
 model and its values, plots and autoX's settings, every diagram point at
 full precision, its eigenvalues or Floquet multipliers, views and labelled
 orbits. The data table is included unless you choose to leave a large table
-out, as Save session offers. The archive's `auto/diagram.csv` opens in a
+out, as Save session offers. The archive's `autox/diagram.csv` opens in a
 spreadsheet or `pandas.read_csv` (docs/protocol.md "Session files").
 
 ### Load Diagram

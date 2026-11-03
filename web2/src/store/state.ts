@@ -29,7 +29,7 @@ import type {SteadyInput} from './steady';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 import {defaultPanels, type Panels} from './panels';
 import {
-  initialAutoSettings, reduceAutoSettings, type AutoxSettings, type AutoxSettingsAction, type AutoxSettingsState,
+  initialAutoxSettings, reduceAutoxSettings, type AutoxSettings, type AutoxSettingsAction, type AutoxSettingsState,
 } from './autoxSettings';
 
 export type {Range, Viewport} from './plots';
@@ -250,7 +250,7 @@ export const initialState: AppState = {
   files: initialFiles,
   windows: [],
   diagram: initialDiagram,
-  autoxSettings: initialAutoSettings,
+  autoxSettings: initialAutoxSettings,
   numerics: null,
   aplot: initialAplot,
   ani: initialAni,
@@ -380,7 +380,7 @@ function settled(state: AppState): AppState {
     ani: reduceAni(state.ani, {type: 'playing', playing: false}),
     diagram: diagramSettled(state.diagram),
     values: reduceValues(state.values, {type: 'ended'}),
-    autoxSettings: reduceAutoSettings(state.autoxSettings, {type: 'ended'}),
+    autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'ended'}),
   };
 }
 
@@ -392,7 +392,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       /* a set sent before gets no done now */
       setPointTypes(ev.point_types);
       return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, windows: [],
-        autoxSettings: reduceAutoSettings(state.autoxSettings, {type: 'reset'}),
+        autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'reset'}),
         keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};
     }
     case 'keymap.changed': {
@@ -539,7 +539,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'autox.info':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoxInfoEvent})};
     case 'autox.settings':
-      return {...state, autoxSettings: reduceAutoSettings(state.autoxSettings, {type: 'event', ev: ev as unknown as AutoxSettings})};
+      return {...state, autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'event', ev: ev as unknown as AutoxSettings})};
     case 'run.numerics':
       return {...state, numerics: ev.fields};
     case 'job.progress':
@@ -559,7 +559,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
            so it opens no error dialog (W104 review) -- it is still in Messages */
         const values = reduceValues(state.values, {type: 'error', text: ev.error, field: ev.field});
         const autoxSettings = /^autoX settings: /.test(ev.error)
-          ? reduceAutoSettings(state.autoxSettings, {type: 'error', text: ev.error}) : state.autoxSettings;
+          ? reduceAutoxSettings(state.autoxSettings, {type: 'error', text: ev.error}) : state.autoxSettings;
         const logged = addLog({...state, bottom: text, bottomHelp: null, files, values, autoxSettings}, {kind: 'error', text});
         const claimed = values !== state.values || autoxSettings !== state.autoxSettings;
         return claimed ? logged : addToast(logged, 'error', ev.error, action, errorPlace(ev), ev.action);
@@ -679,7 +679,7 @@ export function reduce(state: AppState, action: Action): AppState {
       return diagram === state.diagram ? state : {...state, diagram};
     }
     case 'autoxSettings':
-      return {...state, autoxSettings: reduceAutoSettings(state.autoxSettings, action.action)};
+      return {...state, autoxSettings: reduceAutoxSettings(state.autoxSettings, action.action)};
     case 'aplot':
       return {...state, aplot: reduceAplot(state.aplot, action.action)};
     case 'ani':

@@ -1591,11 +1591,11 @@ sections below.
 | `done` | `job`, `id`, `status`, `result`, `error`, `file`, `line`, `col`, `source`, `field` | always | A command's end: every command sends one, with its result when status is ok. |
 | `ask` | `job`, `id`, `kind` | always | A question the running command asks; answer it with its `answer`. |
 | `exit` | `code` | always | The process ended (said by the host in browser mode). |
-| `session.state` | `sliders`, `pars`, `ics`, `now`, `rates`, `bcs`, `delays`, `view`, `auto`, `rows`, `win`, `seed`, `session`, `changed`, `can_undo`, `can_redo`, `recording`, `player` | always | The session's current values, sent after every command. |
+| `session.state` | `sliders`, `pars`, `ics`, `now`, `rates`, `bcs`, `delays`, `view`, `autox`, `rows`, `win`, `seed`, `session`, `changed`, `can_undo`, `can_redo`, `recording`, `player` | always | The session's current values, sent after every command. |
 | `session.saved` | `saved`, `file` | always | The save owner's result for this exact destination; only true authorizes delivery. |
 | `session.source` | `lines`, `comments` | always | The model's source lines. |
 | `session.equations` | `lines` | always | One dX/dT=... line per equation. |
-| `session.message` | `bottom`, `help`, `box`, `auto`, `calc`, `error`, `file`, `line`, `col`, `source` | always | Status text: one of bottom, box, auto or calc, or an error with its place. |
+| `session.message` | `bottom`, `help`, `box`, `autox`, `calc`, `error`, `file`, `line`, `col`, `source` | always | Status text: one of bottom, box, autox or calc, or an error with its place. |
 | `session.error` | `error`, `file`, `line`, `col`, `source` | always | The model did not load: sent instead of hello, then the program exits. |
 | `session.log` | `text` | always | What the program printed on stderr, in chunks cut anywhere (said by the host in browser mode). |
 | `session.ping` | none | always | Beep. |
@@ -1968,10 +1968,10 @@ set is applied: a count outside the range, a word other than `"auto"`, or a
 while it is bad) refuses the whole set (`autoX's threads must be
 "auto" or a whole number from 1 to 16 (this computer's logical processors)`).
 A pool already running keeps its count until the next run. The results never
-depend on it (W247). It is not in `auto/settings.txt` or a session file, and a
+depend on it (W247). It is not in `autox/settings.txt` or a session file, and a
 recording's replay changes the session's count only, never the file.
 
-autoX's settings are saved in the session's `auto/settings.txt`
+autoX's settings are saved in the session's `autox/settings.txt`
 (core/xpp_session_autox.cpp, settings_text); Reload keeps them in memory.
 The forms and `set` change the same fields and show what the other wrote.
 
@@ -2333,7 +2333,7 @@ is a zip of ordinary files, in this order:
 | `session.setx` | the manifest (W285): a `session` group of `version` (2), `model` (the model's own file, as the model names it), `anifile` (the animation `--anifile` loaded, one of the model's files; only when there is one) and `data` (1 when `data.npz` is there); the settings syntax |
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
 | `model.setx` | the session's settings (docs/odex.md ".setx"): the numerics (the Jacobian included) under the option table's keys, the run's position, the initial and ending values, the parameters, the delays, the boundary conditions, Transpose, the coupling, the array plot, the torus and the ranges; every key in it (a session loads nothing it does not hold), without the graphics, which `windows.setx` holds for every window |
-| `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | autoX's settings and views (a line `view "NAME" shown|hidden PLOT ...` per view: whether `window.hide` hid it); full-precision diagram and restart orbits when a diagram exists (xpp_session_autox.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
+| `autox/settings.txt`, `autox/diagram.csv`, `autox/solutions.s`, `autox/views.txt` | autoX's settings and views (a line `view "NAME" shown|hidden PLOT ...` per view: whether `window.hide` hid it); full-precision diagram and restart orbits when a diagram exists (xpp_session_autox.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
 | `windows.setx` | a `window.list` list, every open plot slot as a group in index order (its quoted `name` and its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`, and `hidden`, whether `window.hide` hid it), `active` (the quoted window name), `browser_hidden` (whether the data browser is hidden), an `autox_view` group (autoX's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
 | `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list of used slots in slot order (zero-based slot, boolean used, window, type, color, the style keys of a curve, points, key, name), per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
@@ -2412,7 +2412,7 @@ File/open Model asks (nothing is open to save).
 W339 ([#400](https://github.com/MuhammadMoustafa/xppautX/issues/400)) removes
 the `autoxsettings.pars` field and `autox.configure_plot`'s `pars` (an unknown argument).
 Use `state.pars` for all model parameter names and `axes.par1`/`par2` for
-the continuation. `auto/diagram.csv` begins with contiguous
+the continuation. `autox/diagram.csv` begins with contiguous
 `branch,ID,VALUE...` records, with one value per model parameter in model
 order. The point header follows: the previous metadata, then `branch`,
 `continued` and `values` (semicolon-separated indices and full-precision
@@ -2438,7 +2438,7 @@ autoX's File > Save diagram (`s`) calls Save session (`.snapx`), with the
 same data-table choice. Load diagram (`l`) opens a `.snapx` through Open
 session: it asks whether to save first and replaces the whole session,
 even when its saved model is already open. The diagram's full-precision
-points, settings, views and restart orbits are the session's `auto/`
+points, settings, views and restart orbits are the session's `autox/`
 members ("Session files"). Import diagram (`f`, wildcard `*.auto`)
 imports a foreign XPPAUT diagram into the model open, after a reset asks
 for confirmation; no `.auto` file is written.

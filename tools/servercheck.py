@@ -716,7 +716,7 @@ def check_autox_restart_file_stops():
         # A3: corrupt input is refused by the all-or-nothing session reader,
         # before autoX can reach a short restart read (also unit-tested directly).
         short = dict(members)
-        short['auto/solutions.s'] = short['auto/solutions.s'].rsplit(b'\n', 2)[0] + b'\n'
+        short['autox/solutions.s'] = short['autox/solutions.s'].rsplit(b'\n', 2)[0] + b'\n'
         path = os.path.join(s.run, 'short.snapx')
         with zipfile.ZipFile(path, 'w') as z:
             for name, value in short.items():
@@ -730,7 +730,7 @@ def check_autox_restart_file_stops():
               and not any(e.get('ev') == 'hello' for e in evs), str(errors))
         # A2: a valid empty solution stream has no label 1, even though the diagram does.
         missing = dict(members)
-        missing['auto/solutions.s'] = b''
+        missing['autox/solutions.s'] = b''
         path = os.path.join(s.run, 'missing.snapx')
         with zipfile.ZipFile(path, 'w') as z:
             for name, value in missing.items():
@@ -2412,7 +2412,7 @@ proc.stdin.flush()
 evs, _ = collect(is_done)
 msg = next((e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e), {})
 check('a command line that is not JSON is an error naming where it stops',
-      'the command line is not valid JSON (at character 15)' in msg.get('error', ''), str(evs)[:300])
+      'the command line is not valid JSON (at character 16)' in msg.get('error', ''), str(evs)[:300])
 check('hello lists the series feature', 'plot.series' in hello.get('features', []), str(hello.get('features')))
 
 # W95: every action's kind, one letter (c control, v view, d data, x
@@ -5048,7 +5048,7 @@ def infos(evs):
 NO_THROTTLE = {'XPP_NO_THROTTLE': '1'}
 
 
-def check_autoinfo():
+def check_autoxinfo():
     pa, ra, snda, cola, _ = launch_server(NO_THROTTLE)
     pb, rb, sndb, colb, _ = launch_server(NO_THROTTLE)
     try:
@@ -5182,7 +5182,7 @@ def check_autoinfo():
         stop_server(pb, rb, sndb)
 
 
-check_autoinfo()
+check_autoxinfo()
 
 
 # W151: a file dialog starts in the model's folder, never in autoX's scratch
@@ -5256,7 +5256,7 @@ NUM_KEYS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points',
             'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points']
 
 
-def check_autosettings():
+def check_autoxsettings():
     pa, ra, snda, cola, _ = launch_server()
     pb, rb, sndb, colb, _ = launch_server()
     try:
@@ -5398,7 +5398,7 @@ def check_autosettings():
         stop_server(pb, rb, sndb)
 
 
-check_autosettings()
+check_autoxsettings()
 
 
 # Why a branch ended (T23, docs/protocol.md "The autoX diagram as data",
@@ -7749,8 +7749,8 @@ def check_session_file():
         snap = os.path.join(r, 's1.snapx')
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed, the model in it',
-              sorted(names) == sorted(['session.setx', 'model/lecar.odex', 'model/ml.anix', 'model.setx', 'auto/settings.txt', 'auto/diagram.csv',
-                        'auto/solutions.s', 'auto/views.txt', 'windows.setx', 'marks.setx', 'frozen.npz', 'data.npz', 'random.txt', 'sliders.setx', 'nullclines.setx']),
+              sorted(names) == sorted(['session.setx', 'model/lecar.odex', 'model/ml.anix', 'model.setx', 'autox/settings.txt', 'autox/diagram.csv',
+                        'autox/solutions.s', 'autox/views.txt', 'windows.setx', 'marks.setx', 'frozen.npz', 'data.npz', 'random.txt', 'sliders.setx', 'nullclines.setx']),
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
@@ -7759,8 +7759,8 @@ def check_session_file():
                   and b'\n  model: "lecar.odex",\n' in z.read('session.setx'), str(z.read('session.setx')[:200]))
             with open(os.path.join(r, 'lecar.odex'), 'rb') as f:
                 check('session save: model/lecar.odex is the model, byte for byte', z.read('model/lecar.odex') == f.read())
-            vt = z.read('auto/views.txt').decode().splitlines()
-            check('session save: auto/views.txt holds both views, the first active',
+            vt = z.read('autox/views.txt').decode().splitlines()
+            check('session save: autox/views.txt holds both views, the first active',
                   len(vt) == 3 and vt[0].startswith('view "diagram_1" shown maximum_and_minimum V iapp ') and vt[1].startswith('view "diagram_2" shown norm V iapp ')
                   and vt[1].endswith(' - 0:0.5') and vt[2] == 'active "diagram_1"', str(vt))
             shutil.copy(snap, keep)
@@ -7869,13 +7869,13 @@ def check_session_file():
         # W50: a session file without the views of its diagram: an error names the member (no older files)
         with zipfile.ZipFile(os.path.join(r, 'noviews.snapx'), 'w') as out:
             for n in z.namelist():
-                if n != 'auto/views.txt':
+                if n != 'autox/views.txt':
                     out.writestr(n, z.read(n))
         del allev[:]
         answered(snd, col, ('d',), cmd='session.open_model', file='noviews.snapx')
         msgs = ' '.join(str(e.get('error', '')) for e in allev if e.get('ev') in ('session.message', 'done'))
-        check('a session file without the views of its diagram: an error names auto/views.txt, the session before stays',
-              'its auto/views.txt is missing' in msgs and not last('hello'), msgs[:300])
+        check('a session file without the views of its diagram: an error names autox/views.txt, the session before stays',
+              'its autox/views.txt is missing' in msgs and not last('hello'), msgs[:300])
         # W116: a member missing, cut short or with a line that does not
         # read fails the open before its model is kept: the error names the
         # member and the line, and the session before stays (no hello)

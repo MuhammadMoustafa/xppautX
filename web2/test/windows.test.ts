@@ -26,7 +26,7 @@ test('page window actions send registry commands and exact names', () => {
 test('closing autoX sends a named close for every open diagram view', () => {
   const {session,sent}=connected();
   session.store.dispatch({type:'diagram',action:{type:'event',ev:{ev:'autox.diagram',op:'views',n:2,names:['Diagram A','Diagram B']}}});
-  session.closeAuto();
+  session.closeAutox();
   assert.deepEqual(sent,[{cmd:'window.destroy',window:'Diagram A'},{cmd:'window.destroy',window:'Diagram B'}]);
 });
 
@@ -34,7 +34,7 @@ test('Hide autoX and Show autoX are window.hide and window.show of every view, a
   const {session,sent}=connected();
   session.store.dispatch({type:'diagram',action:{type:'core',open:true}});
   session.store.dispatch({type:'diagram',action:{type:'event',ev:{ev:'autox.diagram',op:'views',n:2,names:['Diagram A','Diagram B']}}});
-  session.showAuto(false);
+  session.showAutox(false);
   assert.deepEqual(sent,[{cmd:'window.hide',window:'Diagram A'},{cmd:'window.hide',window:'Diagram B'}]);
   const list = (shown: boolean) => ({ev:'window.list' as const,windows:[
     {name:'graph_1',kind:'graph' as const,shown:true},

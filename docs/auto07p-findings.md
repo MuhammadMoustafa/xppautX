@@ -90,7 +90,7 @@ derivative and can dominate the test. The mixed and cubic stencils cancel
 the constant term already.
 
 **Evidence:** the checked-in AUTO-07p 0.9.4 references
-`tests/auto/tstauto_ab_fold.auto07p` and `tstauto_ab_hopf.auto07p` (generated
+`tests/autox/tstauto_ab_fold.auto07p` and `tstauto_ab_hopf.auto07p` (generated
 by W362, not rerun in W364's sandbox). On the fold AUTO-07p labels five CP,
 but the model's analytic cusp is uniquely `(u1,u2)=(0.5,2)`,
 `p0=exp(-2),p1=12`. Only its third CP is there. On the Hopf curve it labels
@@ -104,14 +104,14 @@ of `24-10*t-8*t^2-t^3`, with positive prefactor
 `t/(16*(2*t-1)*u1^2)`. This polynomial is strictly decreasing for `t>0`
 and is negative throughout the reference cluster near `t=5.5`; those
 labels are not generalised Hopf points.
-[codim_coefficients.py](../tests/auto/codim_coefficients.py) independently
+[codim_coefficients.py](../tests/autox/codim_coefficients.py) independently
 contracts the exact analytic tensors with complex left/right eigenvectors;
 for unit complex eigenvector norm it gives `l1=-0.3606957776` at `t=5.5`.
 The C++ coefficient is checked against this and two other analytic points,
 and against the Bautin normal form's `l1=2*b`.
 
 The same labels, with an independent first Lyapunov coefficient (W456, [#519](https://github.com/MuhammadMoustafa/xppautX/issues/519)):
-ModelDB 267710's six-compartment motoneuron (25 states, `tests/auto/ode_motoneuron6c.json`, T2 of the benchmark), Hopf
+ModelDB 267710's six-compartment motoneuron (25 states, `tests/autox/ode_motoneuron6c.json`, T2 of the benchmark), Hopf
 locus in (CaDen_Max, ampPar) from the fifth HB. AUTO-07p 0.9.4 labels five GH at points 63, 67, 71, 76 and 83, ampPar 0.7392 to 0.7954
 (CaDen_Max 9.68e-5 to 3.85e-5), five sign changes of its test function within 0.056 of ampPar. The coefficient from Kuznetsov's
 formula with the multilinear forms differenced in quadruple precision, from the model's own Fortran `FUNC`, is +8.5e-4 to
@@ -120,14 +120,14 @@ test function agrees to 1.5e-4 relative, with the difference or the exact Jacobi
 five GH again on T2's own description; with 1e-7 and 1e-9 it labels none.
 
 The same at a published model's two Bautin points (W537, [#602](https://github.com/MuhammadMoustafa/xppautX/issues/602)): the Bykov-Yablonskii-Kim CO-oxidation model
-with the equations and values of Kuznetsov's MatCont Tutorial IV (`tests/auto/bykov_hopf.json`), whose Hopf curve in (Q2, K) has two Bautin points,
+with the equations and values of Kuznetsov's MatCont Tutorial IV (`tests/autox/bykov_hopf.json`), whose Hopf curve in (Q2, K) has two Bautin points,
 l1 = 0 at (0.891319, 0.232487) and (0.924255, 0.305879) in the tutorial. xppautX labels them at (0.891324, 0.232490) and (0.924256, 0.305880). AUTO-07p
 0.9.4 at EPSL = EPSU = EPSS 1e-4 labels five GH, the two real ones off by 0.002 and 0.007 in Q2 (0.893416 and 0.917241) and three more
 (0.78621, 0.81482 and 0.94617), and on the fold curve three CP, the nearest 0.002 from the tutorial's cusp (1.006408, 0.355991) (1.00845). With
 EPSL = EPSU = EPSS 1e-9 on the same description it labels exactly the two GH, at (0.891319, 0.232487) and (0.924256, 0.305880), and no CP.
 
 A cusp can also go unlabelled (W423, [#485](https://github.com/MuhammadMoustafa/xppautX/issues/485)); the noise below fits the residual term, though no experiment on AUTO-07p isolated it.
-On Mu26's rheobase-fold curve in (current, g_h soma) (`tests/auto/ode_mu26_blocked.json`, `lp_soma` with DSMAX 1)
+On Mu26's rheobase-fold curve in (current, g_h soma) (`tests/autox/ode_mu26_blocked.json`, `lp_soma` with DSMAX 1)
 the cusp function changes sign between points 28 (-3.4e-8) and 29 (8.1e-8), and the location evaluates 8.9e-10,
 -1.8e-10, 3.0e-10, -1.7e-10, -1.3e-10, -1.2e-10, -1.1e-10, -1.0e-10, -9.6e-11: next to the root the function jumps
 between iterates by more than it changes along the curve (its slope there is about 1.4e-7 per unit of arclength),
@@ -197,7 +197,7 @@ the Newton convergence test (EPSU) is absolute, and the system is singular at a 
 (R1, R2), where the difference-quotient Jacobian's noise, proportional to the eigenfunction, decides
 whether the update can reach EPSU.
 
-**Evidence** (tools/models/res_cycles.odex, tests/auto/res_cycles.json, AUTO-07p 0.9.4 through
+**Evidence** (tools/models/res_cycles.odex, tests/autox/res_cycles.json, AUTO-07p 0.9.4 through
 tools/auto_reference.py, only the constant in STPNTR changed): at 0.0001 AUTO-07p loses its first
 eight steps to non-convergence, ends with the eigenfunction's squared norm at 7.6e-7 (xppautX, which
 converges at once, ends at 2.1e-2) and labels R1 (torus_down) and R2 and the BP (torus_up). At 0.0003,
@@ -227,12 +227,12 @@ leave that interval. The resonance test is `THETA*(THETA-PI/2)*(THETA-2PI/3)*(TH
 [maps.f90:339](../reference/auto-07p/src/maps.f90#L339)): neither sees a resonance at 4 pi/3 (1:3), 3 pi/2 (1:4) or 2 pi
 (1:1), the same resonances reached from the other side.
 
-**Evidence** (tools/models/res_cycles.odex, tests/auto/res_cycles.json, torus_up): the pair's angle is
+**Evidence** (tools/models/res_cycles.odex, tests/autox/res_cycles.json, torus_up): the pair's angle is
 `2 pi - 2 pi sqrt(2w)` on the curve `c = -mu - w`, `b = w^2`, so after R2 at w = 1/8 (theta = pi) the curve crosses
 R3 at w = 1/18 (theta = 4 pi/3, (c, b) = (-0.5556, 0.003086)) and R4 at w = 1/32 (theta = 3 pi/2, (-0.53125, 9.77e-4)),
 and reaches R1 at w = 0 (theta = 2 pi). AUTO-07p's curve passes through the first two (its points 60 and 71:
 (-0.55566, 0.0030978) and (-0.53033, 9.199e-4)) without a label, and labels the third BP, its branch-point test
-changing sign there. xppautX's test has the same angles (auto_codim.cpp `resonance_angles`), so it matches
+changing sign there. xppautX's test has the same angles (autox_codim.cpp `resonance_angles`), so it matches
 AUTO-07p's labels; testing the angle modulo 2 pi would label all three, as the closed form says.
 
 **Card:** [W405 / #467](https://github.com/MuhammadMoustafa/xppautX/issues/467) (found);
@@ -240,8 +240,8 @@ AUTO-07p's labels; testing the angle modulo 2 pi would label all three, as the c
 polynomial of the angle taken modulo 2 pi and folded into 0 to pi, its sign flipped where the fold turns at a resonance
 it tests (0 for 1:1, pi for 1:2), so from 0 to pi it is AUTO-07p's bit for bit and past pi it changes sign at every
 resonance. torus_up labels R3 at c = -0.555556 and R4 at -0.531250, torus_down R4, R3, R2 and R3 past 0, and
-tests/auto/henon_rot_th.json, a map's torus curve whose angle is a parameter, R3 at 4 pi/3 and R4 at 3 pi/2: each at
-the closed form's place (`autocheck codim`), a traced difference from AUTO-07p (docs/auto-references.md, W419). At
+tests/autox/henon_rot_th.json, a map's torus curve whose angle is a parameter, R3 at 4 pi/3 and R4 at 3 pi/2: each at
+the closed form's place (`autoxcheck codim`), a traced difference from AUTO-07p (docs/auto-references.md, W419). At
 b = 0 the BP keeps the label of the coincident R1.
 
 ## 6. A fold or flip curve's resonance test gives 0 when its double multiplier splits
@@ -256,7 +256,7 @@ multiplier is near the imposed one, the test is 0, and the location (Mueller's s
 [bvp.f90:1415](../reference/auto-07p/src/bvp.f90#L1415)) stops there as converged
 ([bvp.f90:1422](../reference/auto-07p/src/bvp.f90#L1422)).
 
-**Evidence** (tools/models/forced_predator_prey.odex, tests/auto/forced_pp_pd.json, pd_up): AUTO-07p labels the far
+**Evidence** (tools/models/forced_predator_prey.odex, tests/autox/forced_pp_pd.json, pd_up): AUTO-07p labels the far
 R2 at b0 = 2.5702457 with the multipliers -0.99999 +- 6.99e-5 i, a split pair, so the point is the first location
 iterate whose pair had split. xppautX did the same before W405 at another iterate, b0 = 2.5701605 with
 -1.000036 +- 2.24e-4 i: where the location stops depends on which iterate splits the pair first, not on the
@@ -283,7 +283,7 @@ orders (a membrane voltage near -70 and gating variables or concentrations of 1e
 more than its own size: motoneuron6c's `EP` is 7.1e-6. The Jacobian's error is then that of the model's nonlinearity at
 the largest state's scale, whatever `EPSL`, `EPSU`, `EPSS` and the continuation step are.
 
-**Evidence** (ModelDB 267710, `tests/auto/ode_motoneuron6c.json`, the steady run's Hopf point at stored point 362; the
+**Evidence** (ModelDB 267710, `tests/autox/ode_motoneuron6c.json`, the steady run's Hopf point at stored point 362; the
 right-hand side is the Fortran `FUNC` of AUTO-07p's own run, `eq.f90`):
 
 | Jacobian | Hopf ampPar | period at it |
@@ -299,7 +299,7 @@ right-hand side is the Fortran `FUNC` of AUTO-07p's own run, `eq.f90`):
 The two kinds of Jacobian differ the same way at every tolerance, AUTO's rule reproduces its numbers to every printed digit,
 and the error shrinks with `HMACH`: it is the step, not Newton's tolerance. The Hopf point moves 1.4e-6 in ampPar (8e-6
 relative), and the period at a Hopf point changes by about 7e5 per unit of ampPar there, so the period is off by 1.5, 0.25
-percent. On Mu26 with blocked h-current (`tests/auto/ode_mu26_blocked.json`, the steady run's first fold) the two
+percent. On Mu26 with blocked h-current (`tests/autox/ode_mu26_blocked.json`, the steady run's first fold) the two
 Jacobians give the fold at SmIapp 0.0657989595 with norm 99.22379848 (exact) and 99.22409174 (difference), both at EPS 1e-10,
 DS 0.001, DSMAX 0.05. xppautX's exact Jacobian is the derivative of the right-hand side itself and agrees with a central
 difference of it to 1.3e-7 (motoneuron6c) and 7e-8 (Mu26), relative to the larger of 1 and the entry, at a point away
@@ -329,12 +329,12 @@ point's, can have the wrong sign at the second point, for two reasons:
   the determinant in `FNBPBV`'s ratio ([toolboxbv.f90:397-405](../reference/auto-07p/src/toolboxbv.f90#L397)), change sign
   between the second and third point.
 
-**Evidence.** The Bautin normal form `r' = r (b1 + b2 r^2 - r^4)`, b2 = 0.0032 (`tests/auto/bautin_near_hopf.json`, the
+**Evidence.** The Bautin normal form `r' = r (b1 + b2 r^2 - r^4)`, b2 = 0.0032 (`tests/autox/bautin_near_hopf.json`, the
 equations translated by `tools/auto_reference.py`): its fold of cycles is at amplitude 0.04, b1 = -2.56e-6, between the
 second and third point at DS 0.02. With DS 0.02 AUTO-07p labels it at norm 0.040476392578, b1 = -2.5585301701e-6, 1.2
 percent off in amplitude; with DS -0.02 it labels a BP at norm 0.020270071998 (just past the second point, 0.02) and an LP
 at norm 0.018453107838, before the second point, and the fold at 0.04 is not labelled. On ModelDB 267710's cycles from
-the Hopf point at ampPar 0.5728 (`tests/auto/ode_motoneuron6c.json`, DS -0.02) it labels an LP at the third point, 1.5e-7
+the Hopf point at ampPar 0.5728 (`tests/autox/ode_motoneuron6c.json`, DS -0.02) it labels an LP at the third point, 1.5e-7
 in ampPar from the Hopf point, where ampPar rises monotonically; there xppautX's fold test was +4.57e-6 at the second point
 from the last iterate's factorization and -2.5e-5 from the point's own, the sign of every later point's (-1.6e-5,
 -6.3e-5, ...), and the branch-point test -1.16e-16, then +1.85e-16 (with DS +0.02: -1.16e-16, -2.09e-17, -5.16e-16).
@@ -353,7 +353,7 @@ When the step that reaches a branch point, fold or Hopf point also takes the con
 Max (or the norm past Norm Min or Norm Max, or the point count to NMX), the point is located and then relabelled: the
 end check overwrites its type with EP ([ae.f90:957-961](../reference/auto-07p/src/ae.f90#L957) for equilibria,
 [bvp.f90:1574-1577](../reference/auto-07p/src/bvp.f90#L1574) for periodic orbits), so the special point appears
-nowhere in the output. Evidence: `tests/auto/tstauto_san.json` continues the trivial branch of the saddle normal form in
+nowhere in the output. Evidence: `tests/autox/tstauto_san.json` continues the trivial branch of the saddle normal form in
 par0 with Par Max 1, where the branch point is (det of the Jacobian is proportional to par0^2-1). From the exact
 equilibrium the steps land on multiples of 0.02, the 50th at par0 = 1.0000001: the branch point is located there and
 labelled EP. AUTO-07p's own reference run labels the branch point only because its start, 1.8e-4 off the equilibrium,
@@ -361,7 +361,7 @@ shifts its steps so that one lands at 0.99999998, inside the bound. With Par Max
 labelled BP at the same point.
 
 **xppautX:** a special point located on the last step keeps its label; the branch still ends there, and its stop note
-names the bound that was passed (core/autlib1.cpp, stplae and stplbv).
+names the bound that was passed (core/autox_lib1.cpp, stplae and stplbv).
 
 **Card:** [W495 / #559](https://github.com/MuhammadMoustafa/xppautX/issues/559).
 
@@ -370,11 +370,11 @@ names the bound that was passed (core/autlib1.cpp, stplae and stplbv).
 LCSPAE locates a special point by the secant method on its test function and gives it up when the step has not shrunk
 below EPSS after ITMX iterations ([ae.f90:729](../reference/auto-07p/src/ae.f90#L729), the loop `DO ITLCSP=0,ITMX`, then the saved
 state is restored). The cusp test carries the Newton residual (finding 2): near a cusp of a fold curve it is a function
-of about 1e-10 of noise, while it grows by 6e-8 per step. Evidence: `tests/auto/ode_mu26_blocked.json`'s `lp_soma` run,
+of about 1e-10 of noise, while it grows by 6e-8 per step. Evidence: `tests/autox/ode_mu26_blocked.json`'s `lp_soma` run,
 the fold curve of Mu26's soma in SmIapp and SmHxgMax, AUTO-07p 0.9.4. The curve turns at SmIapp 1.0811, SmHxgMax -9.368;
 the cusp test is -5.5e-9 at point 34 and +5.9e-8 at point 35, and the nine iterations of the location print -4.6e-11,
 +6.8e-11, -3.5e-11, -5.5e-11 and so on with a step of 3e-4 that does not shrink: no cusp is labelled and the curve goes on
-(`tests/auto/ode_mu26_blocked.auto07p`, written by W539). The same run from a start 7e-4 away in the norm (the reference
+(`tests/autox/ode_mu26_blocked.auto07p`, written by W539). The same run from a start 7e-4 away in the norm (the reference
 written at W437, before W495 refined xppautX's steady-state start) located it, at point 35.
 
 **xppautX:** locates the cusp (finding 2: its test takes the Newton residual out), at SmIapp 1.0811; a traced difference
@@ -448,7 +448,7 @@ two sides of the swap: a jump of the size of the imposed multiplier's error (1e-
 multiplier crosses -1. A pair that splits complex and joins again (finding 6) adds noise of the square root of the perturbation to the
 test (1e-4 to 1e-3 at the description's tolerances). The secant and Mueller location then follows the jump or the noise, not a crossing.
 
-**Evidence** (tools/models/forced_predator_prey.odex; tests/auto/forced_pp_pd.json with `mesh_intervals` 15 for the cycles and pd_up, new
+**Evidence** (tools/models/forced_predator_prey.odex; tests/autox/forced_pp_pd.json with `mesh_intervals` 15 for the cycles and pd_up, new
 description forced_pp_pd_ntst15): at the stored points around the far R2 the pair is real and complex by turns,
 (-1.0000026, -0.9998117), a pair -0.99981 +- 9.3e-4 i, (-0.999991, -1.0017344), (-0.999526, -1.000476), a pair -0.99993 +- 4.2e-4 i; the test
 values -1.9e-4, -1.9e-4, +1.7e-3, +4.8e-4, -6.8e-5, -1.4e-4, -1.6e-4, -2.1e-4: the sign change is a jump between -1.4e-4 and +4.8e-4 inside 7e-6 of
@@ -474,13 +474,13 @@ been tested ([ae.f90:137](../reference/auto-07p/src/ae.f90#L137)), and the loop 
 be between the third and fourth. A fold, Hopf point or user zero between the second and third points of a switched branch is never labelled,
 although the second point is a converged point whose Jacobian and tangent are known.
 
-**Evidence** (tests/auto/tstauto_pp2_switch.json, AUTO-07p's and XPPAUT's pp2 demo; the independent check numpy/scipy from the model's equations):
+**Evidence** (tests/autox/tstauto_pp2_switch.json, AUTO-07p's and XPPAUT's pp2 demo; the independent check numpy/scipy from the model's equations):
 the switched branch (u1 = 0) has par0(u0) = 3 u0 (1 - u0) / (1 - exp(-5 u0)), which has a maximum, a fold of equilibria, at u0 = 0.41116156,
 par0 = 0.8329293222341569 (the Jacobian's eigenvalues there -1.4e-8 and 0.2335). The branch's points are u0 = 0.33333 (the branch point), 0.38269
 (par0 = 0.831406), 0.43269 (0.832032), 0.48186 (0.822980): par0 rises, passes its maximum between the second and third points and falls. AUTO-07p's
 fort.7 for the run has no LP (its special points are BP and EP only).
 
-**xppautX:** the fold test is evaluated at the second point of a switched branch ([W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634); core/autlib1.cpp `cnrlae`), and the fold is
+**xppautX:** the fold test is evaluated at the second point of a switched branch ([W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634); core/autox_lib1.cpp `cnrlae`), and the fold is
 labelled at par0 = 0.8329293222, u0 = 0.411165. docs/auto-references.md W569.
 
 ## 15. The tests of a branch's first steps are not made
@@ -499,5 +499,5 @@ with DS 0.04 pass the period doubling at m = 0.3723241823 (the monodromy matrix'
 Hopf point r = 24.736842 between its second and third points and its run has no HB.
 
 **xppautX:** the tests are made at the start, at the second point of an equilibrium branch and at the second point of a switched one, and at a cycle branch's start
-([W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637); core/autlib1.cpp `cnrlae`, `cnrlbv`); docs/auto-references.md W572.
+([W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637); core/autox_lib1.cpp `cnrlae`, `cnrlbv`); docs/auto-references.md W572.
 
