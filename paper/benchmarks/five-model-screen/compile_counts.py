@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'tools'))
 from xppclient import Server, is_done, is_ask
-from autocompare import ensure_completed  # noqa: E402
+from autoxcompare import ensure_completed  # noqa: E402
 
 COMPILED = re.compile(r'Compiled (\d+) of (\d+) programs')
 JACOBIAN = re.compile(r'Compiled the exact Jacobian: (\d+) values, (\d+) derivatives')

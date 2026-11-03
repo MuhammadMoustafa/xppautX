@@ -742,7 +742,7 @@ constexpr std::array ROWS = {
             "Draw the diagram again.", RESULT_REDRAWN, EVENTS_DIAGRAM, true, redraw, {}, {}},
     Command{"autox.pick", PICK_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "autoX/autoX diagram/Click",
             "A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot.", RESULT_PICK, EVENTS_INFO, true, pick_point, {}, {}},
-    Command{"autox.set_display", DISPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "autoX/Autox/Set display",
+    Command{"autox.set_display", DISPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "autoX/autoX/Set display",
             "Set what the page shows of a view: its zoom (a [low, high] range, [] for the whole range of an axis) and whether the hidden branches are drawn.",
             RESULT_DISPLAY, EVENTS_DIAGRAM, true, set_display, {}, {}},
     Command{"autox.new_view", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "Windows/New autoX view",

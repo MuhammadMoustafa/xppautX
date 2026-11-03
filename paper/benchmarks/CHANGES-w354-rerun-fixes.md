@@ -73,7 +73,7 @@ Still open: continuation P1 fixed and T2 adaptive (refused), and the large-stiff
 ## Continuation refusals of `w354-ubuntu-20261019` (P1 fixed, T2 adaptive): analysis and fix (2026-10-20)
 
 Continuation itself has not been rerun: the fix below is tested by replay on the saved T2 data and by unit tests (30 pass),
-not by a new study. Committed: 4f28b929 `autocompare: the two arms of a two-parameter curve are paired by where they lie`.
+not by a new study. Committed: 4f28b929 `autoxcompare: the two arms of a two-parameter curve are paired by where they lie`.
 
 | Item | Finding | Fix / status |
 |---|---|---|

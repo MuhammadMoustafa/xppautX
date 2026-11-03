@@ -1,22 +1,22 @@
-# Auto interface
+# autoX interface
 
-AUTO is a program that was written several years ago by Eusebius Doedel. It has the ability to track bifurcation curves for steady-state and periodic systems. The program is very powerful particularly for following periodic orbits. A full FORTRAN implementation of it is available along with documentation from Doedel. His Email is doedel@cs.concordia.edu.
+autoX is a program that was written several years ago by Eusebius Doedel. It has the ability to track bifurcation curves for steady-state and periodic systems. The program is very powerful particularly for following periodic orbits. A full FORTRAN implementation of it is available along with documentation from Doedel. His Email is doedel@cs.concordia.edu.
 
-The version supported in XPP is a subset of AUTO but allows you to do most of the things you would nornally want to for autonomous ODEs and with BVPS. In particular, you can track fixed points, find turning points and Hopf bifurcation points, compute two-parameter curves of turning points and Hopf points, compute branches of periodic solutions emanating from a Hopf point, track period-doubling bifurcations, torus bifurcations, and two-parameter curves of fixed period orbits. Points can be imported into XPP as well as complete orbits. The bifurcation diagrams are dynamically produced and you can move around them using the arrow keys. Curves can be saved and reloaded for later use. Diagrams can be saved and imported into the main XPP window.
+The version supported in XPP is a subset of autoX but allows you to do most of the things you would nornally want to for autonomous ODEs and with BVPS. In particular, you can track fixed points, find turning points and Hopf bifurcation points, compute two-parameter curves of turning points and Hopf points, compute branches of periodic solutions emanating from a Hopf point, track period-doubling bifurcations, torus bifurcations, and two-parameter curves of fixed period orbits. Points can be imported into XPP as well as complete orbits. The bifurcation diagrams are dynamically produced and you can move around them using the arrow keys. Curves can be saved and reloaded for later use. Diagrams can be saved and imported into the main XPP window.
 
-Click on the `File Auto` menu item to bring up AUTO.
+Click on the `File autoX` menu item to bring up autoX.
 
-Every AUTO view has its own name, starting with `diagram_1`, `diagram_2`,
+Every autoX view has its own name, starting with `diagram_1`, `diagram_2`,
 and so on. Click its name to rename it; spaces and case are preserved.
-Names are unique among the open graphs and AUTO views. Select a view by
+Names are unique among the open graphs and autoX views. Select a view by
 clicking it and close it with its Close button. Closing the final view
-closes AUTO; File Auto opens it again (the diagram stays the session's).
-**Hide AUTO** hides every view and **Show AUTO** brings them back with their
+closes autoX; File autoX opens it again (the diagram stays the session's).
+**Hide autoX** hides every view and **Show autoX** brings them back with their
 axes and zoom: they are `window.hide` and `window.show` of each view, so a
 script does the same. Scripts use `window.rename`, `window.select` and
 `window.destroy` with the same quoted name (W353).
 
-Before a run, AUTO checks the start. Initial conditions for a steady-state
+Before a run, autoX checks the start. Initial conditions for a steady-state
 run whose largest equation residual is above `state_tolerance` are first refined by
 Newton's method, with the **Sing pts** settings, at the run's parameter
 values; the run starts from the converged point and the log says how the
@@ -32,11 +32,11 @@ point. The start norm must lie within **`norm_min`/`norm_max`**, whose defaults 
 0 and 1e100. Tighten these to end a branch when its norm leaves your interval.
 Errors name the value and bound and how to fix the start (W495, #559).
 
-## The AUTO view
+## The autoX view
 
-**In web2**, AUTO opens as its own view (`ui/AutoView.tsx`), a full-screen
+**In web2**, autoX opens as its own view (`ui/AutoxView.tsx`), a full-screen
 sheet at every width, over the main menu, the plot and the main status bar
-(Hide AUTO, or Escape, hides it and shows the page again; "Show AUTO" brings it
+(Hide autoX, or Escape, hides it and shows the page again; "Show autoX" brings it
 back). It has:
 
 - the **diagram**, drawn from the `diagram` data event: a curve per branch
@@ -45,16 +45,16 @@ back). It has:
   type (below), and the segment from a Hopf point to the first point of
   the periodic branch it started (`from`, which XPP itself leaves blank);
   it zooms (wheel) and pans (Shift+drag or the middle button) in the
-  page, the core holding the zoom shown (`autoview`), with no history (Reset view goes back to AUTO's own axes), and
+  page, the core holding the zoom shown (`autoxview`), with no history (Reset view goes back to autoX's own axes), and
   a tooltip or the readout names the point under the mouse or cursor; a
   **Fit** button in the diagram's own top-right corner (also in the tools
   row, alongside Reset view) fits the view to the branches currently
   shown, client-side — earlier branches stay out of it unless "Earlier
   branches" is on;
-- a **stability circle** (`ui/AutoInfo.tsx`) below it, and a **status
-  strip** (`ui/AutoStatus.tsx`) along the window's bottom edge, in place of
-  the small square and info windows of the X11 AUTO window, from the
-  `auto.info` event, in order of importance: branch, point, type, label,
+- a **stability circle** (`ui/AutoxInfo.tsx`) below it, and a **status
+  strip** (`ui/AutoxStatus.tsx`) along the window's bottom edge, in place of
+  the small square and info windows of the X11 autoX window, from the
+  `autox.info` event, in order of importance: branch, point, type, label,
   then what the diagram's axes show (the x axis's quantity, then the y
   axis's: the main parameter then the plotted variable, Norm or the
   period, or both parameters of a two-parameter diagram), then Norm, the
@@ -63,20 +63,20 @@ back). It has:
   and the Jacobian the point's run was computed with (difference or exact:
   a diagram can hold branches of both),
   and the eigenvalues/multipliers ("not
-  computed at this point" for a run's first point: AUTO computes them
+  computed at this point" for a run's first point: autoX computes them
   from its second point on. The exception is a run that restarts from a
   label of the same kind, a steady state extended from a steady label or
   a periodic orbit from a periodic one: its first point is the label's
   own solution and shows the label's values. A periodic branch started at
   a Hopf point, or a two-parameter curve started at a Hopf or limit
   point, starts "not computed", and a two-parameter curve of periodic
-  orbits has none at all (AUTO computes no multipliers along it). XPPAUT shows, and saves in `.auto`
+  orbits has none at all (autoX computes no multipliers along it). XPPAUT shows, and saves in `.auto`
   files, the values of the last point computed before, often on another
   branch; xppautX saves zeros there); it is the
-  only status line on screen while AUTO is shown, so it also carries the
+  only status line on screen while autoX is shown, so it also carries the
   core's last message and the connection state when it is not simply
   connected, as the main window's status bar does;
-- an **axis dialog** (`ui/AutoAxes.tsx`), opened by clicking an axis name
+- an **axis dialog** (`ui/AutoxAxes.tsx`), opened by clicking an axis name
   next to the diagram, for Axes' projections (Maximum, Maximum and
   minimum, Norm, Average, Period, Frequency, Two parameter, the labels
   of the projections' names) and their ranges below — usable during a
@@ -85,35 +85,35 @@ back). It has:
   below), side by side;
 - once a run ends, the status strip says **why it stopped**, in words:
   "Stopped: parameter iapp reached parameter_max (0.5)" (see "Why a branch
-  stopped" below), and AUTO's Output gets the same as a line for every
+  stopped" below), and autoX's Output gets the same as a line for every
   branch that ends ("Branch 1 stopped at point 49: ...");
 - the diagram's **key** lists the label types it has, spelled out with its label and mark (End of branch EP,
   Andronov–Hopf AH, ...), each with its meaning as a tooltip and the same
   shape it is drawn with on the diagram (a filled circle at a Hopf point,
   a triangle at a fold, a diamond at a branch point, a square at a period
   doubling, a star at a torus, an inverted triangle at a user point, a
-  bold cross where AUTO could not converge, a bar at an end point, and a
+  bold cross where autoX could not converge, a bar at an end point, and a
   small, lighter dot at a plain numbered point — so a long run's regular
   output no longer reads as a row of crosses); hovering a labelled point
   names its type; the point where the last run ended also says why;
-- an **Output** panel with AUTO's printed table (`xpp_log_auto()`, always
+- an **Output** panel with autoX's printed table (`xpp_log_autox()`, always
   written in the window and in browser mode): the header, a row for every
   labelled point (the special ones and the plain ones Numerics' `output_every`
   prints every `output_every` points) and why the branch stopped, one line each;
 - Numerics as a dialog in place of the X11 Numerics window: every field
-  is named by its setting ("Max steps"), with AUTO's own name (NMX) and its
+  is named by its setting ("Max steps"), with autoX's own name (NMX) and its
   help in the tooltip, and a message beside it when its value is not one
-  AUTO takes, worded as the core refuses it (OK waits until every value
+  autoX takes, worded as the core refuses it (OK waits until every value
   is);
 - **Grab** as a mode of the diagram: arrows, `[` `]`, Tab to the labelled
   points, Enter takes the point, Escape cancels, a click or tap takes the
   nearest point (see "Points and labels" below for what grabbing does);
 - **Clear** hides the branches computed so far behind a key entry
-  ("Earlier branches") instead of blanking the window until a redraw (AUTO
+  ("Earlier branches") instead of blanking the window until a redraw (autoX
   has no reDraw button any more: the diagram is always current); which
   branches are hidden and whether they are shown is the core's, sent as
-  `autoview`; it also
-  sends the AUTO window's own Clear key, which redraws the axes; and
+  `autoxview`; it also
+  sends the autoX window's own Clear key, which redraws the axes; and
   **Mark values** for user points (the `Usr Period` dialog below).
 
 There is no Abort button in the view (A10 in docs/ui-v2.md): the status
@@ -121,18 +121,18 @@ bar's Stop stops a running continuation, as it stops any long job; the
 view's own × or Close stops a run first, then closes.
 
 Everything below this section (parameters, axes, numerics, points and
-labels, the algorithm itself) is AUTO's own vocabulary and unchanged; only
+labels, the algorithm itself) is autoX's own vocabulary and unchanged; only
 where you click or type differs, as above.
 
 ## Preparation
 
-Before you can use AUTO, you must prepare your system for it. You must start your bifurcation analysis from either a fixed point of your model, a periodic orbit, or a solution to a boundary value problem. AUTO seems to work best when you start from a steady state, but I have had success starting at periodic orbits. If you want to start at a steady state, find one and integrate so that the system is at rest. If you want to start at a periodic orbit, then find one and make sure that the total integration time is the “period” of your orbit. This is what the AUTO interface uses as an approximate starting period. There are several ways to do this; the best is to use the boundary value solver of XPP but just plain old integration often works fine. To solve a boundary value problem, it is necessary to find an initial set of parameters for which you can solve the problem within XPP. You should arrange the “length” of the interval to always be 1. That is you must scale the problem so that the domain interval of interest is $`[0,1].`$ You must then compute a solution using XPP before calling AUTO. A Periodic, Bdry Value or homoclinic start with nothing integrated yet is refused with the message "Integrate first".
+Before you can use autoX, you must prepare your system for it. You must start your bifurcation analysis from either a fixed point of your model, a periodic orbit, or a solution to a boundary value problem. autoX seems to work best when you start from a steady state, but I have had success starting at periodic orbits. If you want to start at a steady state, find one and integrate so that the system is at rest. If you want to start at a periodic orbit, then find one and make sure that the total integration time is the “period” of your orbit. This is what the autoX interface uses as an approximate starting period. There are several ways to do this; the best is to use the boundary value solver of XPP but just plain old integration often works fine. To solve a boundary value problem, it is necessary to find an initial set of parameters for which you can solve the problem within XPP. You should arrange the “length” of the interval to always be 1. That is you must scale the problem so that the domain interval of interest is $`[0,1].`$ You must then compute a solution using XPP before calling autoX. A Periodic, Bdry Value or homoclinic start with nothing integrated yet is refused with the message "Integrate first".
 
-For discrete dynamical systems, I have added the capability of continuation of $`n-`$periodic orbits by having AUTO find fixed points of $`F^n(x).`$ To do this, just set the parameter **nOut** in the XPP numerics menu to the desired period. The example `del_log.ode` has set this up for a period 7 orbit.
+For discrete dynamical systems, I have added the capability of continuation of $`n-`$periodic orbits by having autoX find fixed points of $`F^n(x).`$ To do this, just set the parameter **nOut** in the XPP numerics menu to the desired period. The example `del_log.ode` has set this up for a period 7 orbit.
 
 For the example file `lecar.ode` the parameter of interest is `iapp` and this has been set at a negative value so that the system has a stable rest state. The variables have been initialized to their rest states as well. Once you have prepared the problem as such, you are ready to run.
 
-Click on the “File” item and choose “Auto” to open the AUTO view (see
+Click on the “File” item and choose “autoX” to open the autoX view (see
 above).
 
 ## Choosing parameters
@@ -140,7 +140,7 @@ above).
 Axes and Run offer every model parameter. Choose the main parameter for a
 one-parameter continuation, or the main and secondary parameters for a
 two-parameter continuation; there is no preliminary selection or Parameter
-form. AUTO receives the parameters the calculation continues.
+form. autoX receives the parameters the calculation continues.
 
 Each computed branch keeps every model parameter's value once. Its points
 keep the continued values and period. Grab and restart from a label restore
@@ -152,7 +152,7 @@ recorded; parameters absent from it take the importing model's values.
 
 ## Diagram axes
 
-Next, you should tell AUTO the axes and the main bifurcation parameters. Click on “Axes” and 6 choices appear:
+Next, you should tell autoX the axes and the main bifurcation parameters. Click on “Axes” and 6 choices appear:
 
 ### (H)i
 
@@ -234,7 +234,7 @@ names its variable, and Run continues in its parameters (Main Parm, and
 they come, and every view shows the grab's cursor and the point under
 the mouse, so you can grab a point in whichever view shows it best.
 
-The views are saved with the session (File/saVe session) and in AUTO's
+The views are saved with the session (File/saVe session) and in autoX's
 own file (File/Save diagram), each with its axes and zoom, and come back
 as they were when you open it.
 
@@ -243,7 +243,7 @@ as they were when you open it.
 Next, set the NUMERICAL parameters. Each setting has one name, the same in
 the Numerics dialog, a model's `continuation` options, the session file,
 the protocol and this manual (W531); the dialog shows it with its
-underscores as spaces and a capital first letter. AUTO's own name for it
+underscores as spaces and a capital first letter. autoX's own name for it
 (NTST, DS, MXBF ...) is only a search word: it is the note on a field's hover
 and in the table below, and is read on import only (an XPPAUT `.ode` file's
 `@ ntst=...`, a foreign `.auto` file), never typed anywhere else. **In web2**
@@ -251,10 +251,10 @@ the Numerics dialog has three groups; hovering a field shows its help. The
 page checks each value as you type (a message beside the field, OK disabled
 until all are good) and the core checks them again when they arrive. Model
 options and session files use the same continuation rules. Invalid values are
-refused before application; AUTO never repairs step limits or tolerances during
+refused before application; autoX never repairs step limits or tolerances during
 a run (W494):
 
-| Setting (AUTO's name) | What it does | Valid values |
+| Setting (autoX's name) | What it does | Valid values |
 |---|---|---|
 | `mesh_intervals` (NTST) | mesh intervals of a periodic orbit or boundary value solution; raise it when a periodic branch looks wrong or does not converge (doubled when following a period doubling) | whole number, at least 1 |
 | `max_steps` (NMX) | the most steps a branch may take; it ends (EP) at this many points | whole number, at least 1 |
@@ -268,9 +268,9 @@ a run (W494):
 | `parameter_tolerance`, `state_tolerance` (EPSL, EPSU) | Newton's relative convergence tolerances for the parameters and the solution | above 0, often 1e-4 to 1e-7 |
 | `special_point_tolerance` (EPSS) | how closely special points are located; usually 100 to 1000 times the two tolerances | above 0 |
 | `mesh_adapt_every` (IAD) | adapt a periodic orbit's mesh every this many steps; 0 keeps it fixed | whole number, 0 or more (3 is usual) |
-| `max_branch_switches` (MXBF) | steady states: at how many branch points AUTO follows the other branch by itself; 0: none | whole number, 0 or more |
-| `switch_one_direction` (MXBF below 0) | the branches AUTO switches to by itself are followed in one direction only (checked) or in both (unchecked) | boolean |
-| `output_detail` (IID) | how much AUTO writes to its diagnostics (.d file): `none`, `little`, `normal` (the usual), `start_jacobian` (also the Jacobian and residuals of the start), `extensive`, `debugging` | one of the six names |
+| `max_branch_switches` (MXBF) | steady states: at how many branch points autoX follows the other branch by itself; 0: none | whole number, 0 or more |
+| `switch_one_direction` (MXBF below 0) | the branches autoX switches to by itself are followed in one direction only (checked) or in both (unchecked) | boolean |
+| `output_detail` (IID) | how much autoX writes to its diagnostics (.d file): `none`, `little`, `normal` (the usual), `start_jacobian` (also the Jacobian and residuals of the start), `extensive`, `debugging` | one of the six names |
 | `max_location_iterations` (ITMX) | the most iterations of the secant search that locates a special point; a search that uses them up then halves its bracket until it is as narrow as `special_point_tolerance` says | whole number, at least 1 |
 | `max_newton_iterations` (ITNW) | the most Newton iterations for a point, before the step is halved (`step_adapt_every` above 0) or the branch ends | whole number, at least 1 |
 | `full_newton_after` (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
@@ -278,7 +278,7 @@ a run (W494):
 | `suppress_branch_points` (SuppBP) | checked: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); unchecked: look for them | boolean checkbox |
 
 Below the three groups the dialog has a fourth, **Computer**, with one choice,
-**Threads**: how many threads AUTO uses to compute a periodic orbit or a
+**Threads**: how many threads autoX uses to compute a periodic orbit or a
 boundary value problem. *Automatic* (the default; the number it gives is
 shown) is the computer's physical cores, at most 4, and on a processor with
 performance and efficiency cores only the performance cores where the system
@@ -286,17 +286,17 @@ says which. Any count from 1 to the computer's logical processors may be
 chosen. The results are the same to the last bit for every count; only the
 time differs. It is a preference of the program, not of the model or the
 session: it is kept in `preferences.setx` in the per-user configuration
-folder (as `auto_threads: auto` or `auto_threads: 4`), applies to every model
+folder (as `autox_threads: auto` or `autox_threads: 4`), applies to every model
 and every run, and is not in a session file. A model that is interpreted, not
 compiled, or that uses random numbers or delays computes on one thread
 whatever the count. Small collocation problems also compute on one thread:
-AUTO uses workers once `dimension * dimension * mesh_intervals * collocation_points` reaches 1024. This avoids
+autoX uses workers once `dimension * dimension * mesh_intervals * collocation_points` reaches 1024. This avoids
 the overhead of workers on a small mesh; the selected preference and the
 results stay the same.
 
-The session keeps every AUTO setting under `auto/settings.txt`, with
+The session keeps every autoX setting under `auto/settings.txt`, with
 the names above (`max_steps`, `mesh_intervals`, ...); Reload keeps them too.
-The original window had the following items, under AUTO's names:
+The original window had the following items, under autoX's names:
 
 ### Mesh intervals (NTST)
 
@@ -312,7 +312,7 @@ Give complete info every this many steps.
 
 ### Step size (DS)
 
-This is the initial step size for the bifurcation calculation. *The sign of `step_size` tells AUTO the direction to change the parameter.* Since stepsize is adaptive, `step_size` is just a “suggestion.”
+This is the initial step size for the bifurcation calculation. *The sign of `step_size` tells autoX the direction to change the parameter.* Since stepsize is adaptive, `step_size` is just a “suggestion.”
 
 ### Min step size (DSMIN)
 
@@ -320,7 +320,7 @@ The minimum stepsize (positive).
 
 ### Max step size (DSMAX)
 
-The maximum step size. If this is too big, AUTO will sometimes miss important points.
+The maximum step size. If this is too big, autoX will sometimes miss important points.
 
 ### Parameter min (RL0)
 
@@ -356,7 +356,7 @@ or
 
         T=<value>
 
-AUTO will mark and save complete information for any point that satisfies either of these criteria. The second is used to indicate that you want to keep a point with a particular period, e.g., ` T=25` will save the any periodic orbit with period 25.
+autoX will mark and save complete information for any point that satisfies either of these criteria. The second is used to indicate that you want to keep a point with a particular period, e.g., ` T=25` will save the any periodic orbit with period 25.
 
 ## Running
 
@@ -364,15 +364,15 @@ At this point, you are probably ready to run. But before doing a run, here is a 
 
 Click on “Run” to run the bifurcation. Depending on the situation, a number of menus can come up. For initial exploration, there are three choices, starting at a new steady state, periodic, or boundary value solution. If you are running the example, click on the steady-state option and a nice diagram will show up and a bunch of points will move around in the stability circle. These indicate stability: for fixed points, they represent exponentials of the eigenvalues; for periodics, the Floquet multipliers. Thus those in the circle are stable and those out of the circle are unstable. Bifurcations occur on the circle. The outer ones are “clipped” so that they will always lie in the square, thus you can keep count of them.
 
-The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that AUTO wants to keep. There are several of them (web2 draws each with a shape of its own instead of a plain cross, spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
+The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that autoX wants to keep. There are several of them (web2 draws each with a shape of its own instead of a plain cross, spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
 
 ### Run, by command
 
-In web2 the Run button opens a dialog: the kind of continuation the point takes (the core's own table: which kinds a Hopf point, a fold, a periodic point or the current state starts), and, where the point has branches to switch to, a Switch branches box. It sends `auto.run`, which a script sends directly (docs/protocol.md): `{"cmd":"auto.run","kind":"periodic","type":"hopf","index":1}` continues from the first Hopf point, `{"cmd":"auto.run","kind":"equilibrium","replace_diagram":true}` begins from the current state, and the Numerics may be given by their names for that run only (`"max_steps": 500`, `"step_size": -0.02`: the sign is the direction). A kind the start point does not take is an error naming the kind and the point's type. A start that is not a steady state is refined by Newton's method, and the log names the equation of the largest residual.
+In web2 the Run button opens a dialog: the kind of continuation the point takes (the core's own table: which kinds a Hopf point, a fold, a periodic point or the current state starts), and, where the point has branches to switch to, a Switch branches box. It sends `autox.run`, which a script sends directly (docs/protocol.md): `{"cmd":"autox.run","kind":"periodic","type":"hopf","index":1}` continues from the first Hopf point, `{"cmd":"autox.run","kind":"equilibrium","replace_diagram":true}` begins from the current state, and the Numerics may be given by their names for that run only (`"max_steps": 500`, `"step_size": -0.02`: the sign is the direction). A kind the start point does not take is an error naming the kind and the point's type. A start that is not a steady state is refined by Newton's method, and the log names the equation of the largest residual.
 
 ### Equations that use t
 
-AUTO evaluates the equations at a fixed t = 0, so a model whose equations use `t` is refused (each equation's file and line named); give `t` a state of its own, as `examples/tstauto/frcp.odex` does with an oscillator, and AUTO continues it as an ordinary autonomous system.
+autoX evaluates the equations at a fixed t = 0, so a model whose equations use `t` is refused (each equation's file and line named); give `t` a state of its own, as `examples/tstauto/frcp.odex` does with an oscillator, and autoX continues it as an ordinary autonomous system.
 
 ### End of branch (EP)
 
@@ -382,7 +382,7 @@ and Output say which (see "Why a branch stopped").
 
 ### No convergence (MX)
 
-AUTO could not compute the next point, even at the smallest step, and
+autoX could not compute the next point, even at the smallest step, and
 ended the branch there (failure to converge).
 
 ### Fold (LP)
@@ -437,7 +437,7 @@ crosses the unit circle.
 ### SNIC, Homoclinic, Heteroclinic (SNIC, HOC, HEC)
 
 The end of a branch of periodic orbits whose period grows without bound.
-AUTO labels such an end MX or EP, wherever the step limit or a convergence
+autoX labels such an end MX or EP, wherever the step limit or a convergence
 failure happens to come; xppautX finds it and names it. It watches each
 point of a branch of cycles (a branch from a Hopf point, or one extended
 from a cycle's end): when the period has grown over the last 5 points and
@@ -485,12 +485,12 @@ A point where a parameter, or the period T, reaches one of the Mark values
 
 ## Why a branch stopped
 
-AUTO labels the end of a branch EP or MX but does not say why. xppautX
-records it where AUTO decides it (autlib1.c's stplae and stplbv, and the
+autoX labels the end of a branch EP or MX but does not say why. xppautX
+records it where autoX decides it (autox_lib1.c's stplae and stplbv, and the
 "No convergence" notes of its fort.9) and says it in plain words: in the
-AUTO view's status strip once the run ends ("Stopped: ..."), as a line in
+autoX view's status strip once the run ends ("Stopped: ..."), as a line in
 Output for every branch that ends ("Branch 1 stopped at point 49: ..."),
-next to the end point's label when you hover it, and as `auto.info`'s
+next to the end point's label when you hover it, and as `autox.info`'s
 `stop` for a client (docs/protocol.md). The reasons:
 
 | Stopped: | Why | What to change to go further |
@@ -500,7 +500,7 @@ next to the end point's label when you hover it, and as `auto.info`'s
 | the branch reached max_steps (*n*) | the branch has as many points as `max_steps` allows | `max_steps` (NMX), or a larger `max_step_size` (DSMAX) |
 | by the user (Stop) | Stop (or the view's Close) during the run | Run again from the end point |
 | the exact Jacobian is not finite (see the error) | with Numerics' Jacobian set to exact, a derivative was not finite where the right-hand side is (sqrt or log at 0, 1/x at 0); the run stopped as a Stop does, on an end point | the error offers "Switch to differences and continue": it sets the Jacobian to difference and runs again from that end point with the same settings |
-| parameter *p* reached a Mark value set to stop | a user point marked as an end (AUTO's UZR endpoint) | the Mark values |
+| parameter *p* reached a Mark value set to stop | a user point marked as an end (autoX's UZR endpoint) | the Mark values |
 | parameter *p* = *value*: period growing without bound ... point type snic / homoclinic / heteroclinic | a branch of cycles whose period grew over 5 points to twice its shortest while the orbit lingers near equilibria (SNIC, HOC, HEC, above); without a type: the equilibria are no fold and no saddle | a homoclinic or heteroclinic run from the end point, or nothing: this is the end of the cycles |
 | no convergence even at the smallest step (min_step_size *value*) | the solver failed and halving the step reached `min_step_size` (DSMIN): a sharp turn, a jump, or a singular point (MX) | a smaller `min_step_size` or `max_step_size`, a larger `mesh_intervals`, looser tolerances |
 | no convergence with a fixed step size (step_adapt_every 0) | the solver failed and `step_adapt_every` (IADS) is 0, so the step is not reduced (MX) | `step_adapt_every` 1 |
@@ -508,18 +508,18 @@ next to the end point's label when you hover it, and as `auto.info`'s
 
 A no convergence's words also name the Newton settings that gave up
 (`max_newton_iterations`, `parameter_tolerance`, `state_tolerance`) and, when the last linear system was singular, its
-smallest pivot. Recording the reason changes nothing AUTO computes: the
+smallest pivot. Recording the reason changes nothing autoX computes: the
 points, labels and saved diagrams are the same as before, except where a
 branch of cycles ends on a SNIC, a homoclinic or a heteroclinic orbit (above):
-there it stops, where AUTO goes on to MX or the step limit.
+there it stops, where autoX goes on to MX or the step limit.
 
-A run that cannot start says so as an error, and AUTO stops: a start AUTO
+A run that cannot start says so as an error, and autoX stops: a start autoX
 has no continuation for (it names the problem, ISW and the start's type),
 a restart label that is not in the restart data, or restart data that end
 before what they should hold (the label, the file and the part).
 
-What a run loses on the way is a warning in Output (and `auto.info`'s
-`notes` for a client), the branch going on: a special point AUTO gave up
+What a run loses on the way is a warning in Output (and `autox.info`'s
+`notes` for a client), the branch going on: a special point autoX gave up
 locating ("Br 1 Pt 12: a fold (LP) between points 12 and 13 was not
 located (the corrector did not converge); it is missing from the diagram":
 lower `max_step_size`), a special point whose test is a jump, noise or a
@@ -539,19 +539,19 @@ again: raise `mesh_intervals` or `collocation_points`).
 
 ## Grabbing
 
-You can use these special points to continue calculations with AUTO. The “Grab” item lets you peruse the diagram at a leisurely pace and to grab special points or regular points for importing into XPP or continuing a bifurcation calculation. Click on “Grab” and stuff appears in the info window and a cross appears on the diagram. Use the left and right arrow keys to cruise through the diagram. The right key goes forward and the left backward. At the bottom, information about the branch, the point number, the type of point, the AUTO label, the parameters, and the period are given. The points marked by crosses have lables and types associated with them. The type is one of the above. The label corresponds to the number on the diagram. If point is positive, it is an unstable solution and if it is negative it is stable. As you traverse the diagram, stability is shown in the circle. In web2,
+You can use these special points to continue calculations with autoX. The “Grab” item lets you peruse the diagram at a leisurely pace and to grab special points or regular points for importing into XPP or continuing a bifurcation calculation. Click on “Grab” and stuff appears in the info window and a cross appears on the diagram. Use the left and right arrow keys to cruise through the diagram. The right key goes forward and the left backward. At the bottom, information about the branch, the point number, the type of point, the autoX label, the parameters, and the period are given. The points marked by crosses have lables and types associated with them. The type is one of the above. The label corresponds to the number on the diagram. If point is positive, it is an unstable solution and if it is negative it is stable. As you traverse the diagram, stability is shown in the circle. In web2,
 grabbing is a mode of the diagram itself (arrows, `[` `]`, Tab to the
 labelled points, Enter takes the point, Escape cancels, a click or tap
 takes the nearest point); there is no display-dependent drawing bug to
 work around. A script (docs/protocol.md "Grab by label") can also grab a
 point directly, by its label number or by its type and position ("the
-2nd HB"), with no interactive traversal: `{"cmd":"auto.grab","label":4}`
-or `{"cmd":"auto.grab","type":"hopf","index":2}`, same outcome as
+2nd HB"), with no interactive traversal: `{"cmd":"autox.grab","label":4}`
+or `{"cmd":"autox.grab","type":"hopf","index":2}`, same outcome as
 grabbing that point by hand and pressing Return. An unknown label, or a
 type/index with no such point, is refused (an error message) and changes
 nothing.
 
-You can traverse the diagram very quickly by tapping the `Tab` key which takes you the special points only. Type `Esc` to exit with no action or type `Return` to grab the point. If it is a regular point (i.e., not special) then the parameters and the variables will be set to the values for that point within XPP. You can then integrate the equations or look at nullclines, etc. If you grab a special point, then you can use this as a restart point for more AUTO calculations, such as fixed period, two-parameter studies, and continuations. Then, you can run AUTO again. Bifurcation diagrams are cumulative unless you reset them in the “File” menu. That is, new stuff is continually appended to the old. The only limit is machine memory.
+You can traverse the diagram very quickly by tapping the `Tab` key which takes you the special points only. Type `Esc` to exit with no action or type `Return` to grab the point. If it is a regular point (i.e., not special) then the parameters and the variables will be set to the values for that point within XPP. You can then integrate the equations or look at nullclines, etc. If you grab a special point, then you can use this as a restart point for more autoX calculations, such as fixed period, two-parameter studies, and continuations. Then, you can run autoX again. Bifurcation diagrams are cumulative unless you reset them in the “File” menu. That is, new stuff is continually appended to the old. The only limit is machine memory.
 
 If you grab a special point and click on “Run” several possibilities arise depending on the point:
 
@@ -604,7 +604,7 @@ If the grabbed point is a special one and is a periodic orbit, this loads the or
 ### Save diagram
 
 Saves this session as `name.snapx`, through File > Save session: the
-model and its values, plots and AUTO's settings, every diagram point at
+model and its values, plots and autoX's settings, every diagram point at
 full precision, its eigenvalues or Floquet multipliers, views and labelled
 orbits. The data table is included unless you choose to leave a large table
 out, as Save session offers. The archive's `auto/diagram.csv` opens in a
@@ -613,7 +613,7 @@ spreadsheet or `pandas.read_csv` (docs/protocol.md "Session files").
 ### Load Diagram
 
 Opens a `.snapx` through Open session, asking whether to save this session
-first. Its saved model, values, data, plots and AUTO diagram replace this
+first. Its saved model, values, data, plots and autoX diagram replace this
 session; grab a labelled point to continue from its saved orbit.
 
 ### Import diagram
@@ -652,23 +652,23 @@ and min: a more complete dump than `Write pts`.
 
 Offers `<model>-initdata.dat`: for every diagram point, the active parameter's
 value followed by that point's initial data for each variable, usable to
-seed new integrations away from the AUTO window.
+seed new integrations away from the autoX window.
 
 ### Toggle redraw
 
-Turns off (or back on) redrawing the diagram as AUTO computes it, for a
+Turns off (or back on) redrawing the diagram as autoX computes it, for a
 faster run when you only want the end result; a message confirms which.
 
 ### auto raNge
 
-Runs AUTO again over the branch marked with `S` and `E` (Grabbing,
+Runs autoX again over the branch marked with `S` and `E` (Grabbing,
 below), one run per marked point; asks for confirmation first if none is
 marked.
 
 ### sElect 2par pt
 
 In a two-parameter plot, marks the current mouse position as the point
-AUTO continues from next, the way clicking a diagram point does.
+autoX continues from next, the way clicking a diagram point does.
 
 ### draw laBled
 
@@ -687,7 +687,7 @@ Writes the whole stored diagram as two CSV files with LF line ends on every plat
 
 ## Homoclinics and heteroclinics
 
-A recent version of AUTO includes a library of routines called HOMCONT which allow the user to track homoclinic and heteroclinic orbits. XPP incorporates some aspects of this package. The hardest part of computing a branch of homoclinics is finding a starting point. Consider a differential equation:
+A recent version of autoX includes a library of routines called HOMCONT which allow the user to track homoclinic and heteroclinic orbits. XPP incorporates some aspects of this package. The hardest part of computing a branch of homoclinics is finding a starting point. Consider a differential equation:
 ``` math
 x'=f(x,\alpha)
 ```
@@ -707,7 +707,7 @@ Note that there are $`2n`$ differential equations and $`2n`$ boundary conditions
 ```
 This is *one* more condition which accounts for the need for an additional free parameter.
 
-XPP allows you to specify the projection boundary conditions and by setting a particular flag on in AUTO, you can implement the integral condition. Since the XPP version of AUTO does not allow you to have more conditions than there are differential equations, you should pick one parameter which will be slaved to all the other ones you vary and let this satisfy a trivial differential equation,
+XPP allows you to specify the projection boundary conditions and by setting a particular flag on in autoX, you can implement the integral condition. Since the XPP version of autoX does not allow you to have more conditions than there are differential equations, you should pick one parameter which will be slaved to all the other ones you vary and let this satisfy a trivial differential equation,
 ``` math
 \alpha'=0.
 ```
@@ -760,9 +760,9 @@ and the integral condition. XPP has a defined function for the projection bounda
     @ xlo=-.2,xhi=1.6,ylo=-1,yhi=1,xp=x,yp=y
     done
 
-The only new feature is the projection conditions. *XPP’s boundary value solver will not work here since there are more equations than conditions and it doesn’t know about the integral condition.* I have set the total integration time to 1 and have added the additional parameter `per` corresponding to the parameter $`P`$ in the differential equation. I use the Dormand-Prince order 8 integrator as it is pretty accurate. I have also set the view to be the $`(x,y)-`$plane. Note that this is a pretty rough approximation of the true homoclinic. We will use AUTO to improve this before continuing in the parameter $`a`$. Run XPP with this ODE file and integrate the equations. You will get a rough homoclinic pretty far from the fixed point. Click on File Auto to the the AUTO window. Now click on Axes Hi. Choose `xmin=0,xmax=50,ymin=-6,ymax=6` and also select `sig` as the variable in the y-axis. Click on OK and bring up the Auto Numerics dialog. Change `Ntst=35, Dsmin=1e-4,Dsmax=5`, `Par Max=50,EPSL=EPSU=EPSS=1e-7` and click OK. Now, before you run the program, click on Usr Period and choose 3 for the number. We want AUTO to output at particular values of the parameter `per` corresponding to $`P`$. When the dialog comes up, fill the first three entries in as `per=20,per=35,per=50` respectively and click OK. This forces AUTO to output when $`P`$ reaches these three values. Now, click on Run and choose Homoclinic. A little dialog box appears. Fill it in as follows: `Left Eq: Xe` `Right Eq: Xe` `NUnstable: 1` `NStable: 1`. You must tell AUTO the dimension of the stable and unstable manifolds as well as the fixed point to which the orbit is homoclinic. (Note that if you ever fill this in wrong or need to change it, you can access it from the main XPP menu under Bndry Value Homoclinic.) Once you click on OK, you should see a straight line across the screen as the homoclinic approximation gets better. Click on Grab and grab the second point corresponding to the point `Per=35`. For fun, in the XPP window, click on Initial Conds Go and you will see a much better homoclinic orbit.
+The only new feature is the projection conditions. *XPP’s boundary value solver will not work here since there are more equations than conditions and it doesn’t know about the integral condition.* I have set the total integration time to 1 and have added the additional parameter `per` corresponding to the parameter $`P`$ in the differential equation. I use the Dormand-Prince order 8 integrator as it is pretty accurate. I have also set the view to be the $`(x,y)-`$plane. Note that this is a pretty rough approximation of the true homoclinic. We will use autoX to improve this before continuing in the parameter $`a`$. Run XPP with this ODE file and integrate the equations. You will get a rough homoclinic pretty far from the fixed point. Click on File autoX to the the autoX window. Now click on Axes Hi. Choose `xmin=0,xmax=50,ymin=-6,ymax=6` and also select `sig` as the variable in the y-axis. Click on OK and bring up the autoX Numerics dialog. Change `Ntst=35, Dsmin=1e-4,Dsmax=5`, `Par Max=50,EPSL=EPSU=EPSS=1e-7` and click OK. Now, before you run the program, click on Usr Period and choose 3 for the number. We want autoX to output at particular values of the parameter `per` corresponding to $`P`$. When the dialog comes up, fill the first three entries in as `per=20,per=35,per=50` respectively and click OK. This forces autoX to output when $`P`$ reaches these three values. Now, click on Run and choose Homoclinic. A little dialog box appears. Fill it in as follows: `Left Eq: Xe` `Right Eq: Xe` `NUnstable: 1` `NStable: 1`. You must tell autoX the dimension of the stable and unstable manifolds as well as the fixed point to which the orbit is homoclinic. (Note that if you ever fill this in wrong or need to change it, you can access it from the main XPP menu under Bndry Value Homoclinic.) Once you click on OK, you should see a straight line across the screen as the homoclinic approximation gets better. Click on Grab and grab the second point corresponding to the point `Per=35`. For fun, in the XPP window, click on Initial Conds Go and you will see a much better homoclinic orbit.
 
-Now that we have a much improved homoclinic orbit, we will continue in the parameter $`a`$ as desired. First, lets make sure we get the orbits when $`a=-6,-4,-2,2,4,6`$ so we will click on Usr Period and choose 6. Type in `a=-6,a=-4, etc` for the first 6 entries and then click OK. Click on Axes Hi to change the axes and the continuation parameter. Change the `Main Parm` to `a`, `Xmin=-7,Xmax=7` and click OK. Click on Numerics and change `Par Min=-6, Par Max=6` and then click OK. Now click on Run and you will see a line that is almost diagonal. When done, click on Grab again, and watch the bottom of the AUTO window until you see Per=35 and click Enter. In the Numerics menu, change `Ds=-.02` to change directions, and click Ok. Now click Run and there will be another diagonal line that is in the opposite direction. Click on Grab and grab point number 7 corresponding to `a=6`. In the XPP window, click on Init Conds go and you will see a distorted homoclinic. It is not that great and could be improved probably by continuing with `Per` some more. Grab the point labeled 11 (`a=-6`) and in XPP try to integrate it. It doesn’t look even close. This is because the homoclinic orbit is unstable and shooting (which is what we are doing when we integrate the equation) is extremely sensitive to the stability of the orbits. In the AUTO window, click on File Import Orbit to get the orbit that AUTO computed using collocation. In the XPP main window, click on Restore and you will see a much better version of the homoclinic orbit. This is because collocation methods are not sensitive to the stability of orbits! In fact, you can verify that the fixed point (0,0) is a saddle-point with a positive eigenvalue, $`\lambda_u`$ and a negative one of $`\lambda_s`$ whose sum is the trace of the linearized matrix, $`-a`$. The sum of the eigenvalues is called the saddle-quantity and if it is positive (for us, $`a<0`$), then the homoclinic is unstable.
+Now that we have a much improved homoclinic orbit, we will continue in the parameter $`a`$ as desired. First, lets make sure we get the orbits when $`a=-6,-4,-2,2,4,6`$ so we will click on Usr Period and choose 6. Type in `a=-6,a=-4, etc` for the first 6 entries and then click OK. Click on Axes Hi to change the axes and the continuation parameter. Change the `Main Parm` to `a`, `Xmin=-7,Xmax=7` and click OK. Click on Numerics and change `Par Min=-6, Par Max=6` and then click OK. Now click on Run and you will see a line that is almost diagonal. When done, click on Grab again, and watch the bottom of the autoX window until you see Per=35 and click Enter. In the Numerics menu, change `Ds=-.02` to change directions, and click Ok. Now click Run and there will be another diagonal line that is in the opposite direction. Click on Grab and grab point number 7 corresponding to `a=6`. In the XPP window, click on Init Conds go and you will see a distorted homoclinic. It is not that great and could be improved probably by continuing with `Per` some more. Grab the point labeled 11 (`a=-6`) and in XPP try to integrate it. It doesn’t look even close. This is because the homoclinic orbit is unstable and shooting (which is what we are doing when we integrate the equation) is extremely sensitive to the stability of the orbits. In the autoX window, click on File Import Orbit to get the orbit that autoX computed using collocation. In the XPP main window, click on Restore and you will see a much better version of the homoclinic orbit. This is because collocation methods are not sensitive to the stability of orbits! In fact, you can verify that the fixed point (0,0) is a saddle-point with a positive eigenvalue, $`\lambda_u`$ and a negative one of $`\lambda_s`$ whose sum is the trace of the linearized matrix, $`-a`$. The sum of the eigenvalues is called the saddle-quantity and if it is positive (for us, $`a<0`$), then the homoclinic is unstable.
 
 We now describe how to find heteroclinic orbits. The methods are the same except that we must track two *different* fixed points. Thus, we need an additional $`n`$ equations for the other fixed point. As with homoclinic orbits, we go from the unstable manifold to the stable manifold. In this case, the “left” fixed point is the one emerging from the unstable manifold and the “right” fixed point is the one going into the stable manifold. Thus, the dynamical system is :
 ``` math
@@ -824,11 +824,11 @@ is constant along solutions when $`a=0.5,c=0.`$) We will use this as a starting 
     init uleft=1,upleft=0,uright=0,upright=0
     @ total=1.01,dt=.01
     @ xp=u,yp=up,xlo=-.25,xhi=1.25,ylo=-.75,yhi=.25
-    # some AUTO parameters
+    # some autoX parameters
     @ epss=1e-7,epsu=1e-7,epsl=1e-7,parmax=60,dsmax=5,dsmin=1e-4,ntst=35
     done
 
-I have added a few AUTO numerical settings so that I don’t have to set them later. Run XPP with this ODE file and integrate the equations. We will now continue this approximate heteroclinic in the parameter `per`. Fire up AUTO (File Auto) and click on Axes Hi. Put `c` on the y-axis and make ` Xmin=0,Xmax=60,Ymin=-2,Ymax=2`. Then click OK. As above, we will also keep solutions at particular values of `per` by clicking on ` Usr period` `3`, choosing `per=20,per=40,per=60`, and then OK. Now we are ready to run. Click on Run Homoclinic. When the dialog box comes up set the following: `Left Eq: ULEFT, Right Eq: URIGHT, NUnstable:1, NStable:1` and then click OK. You should see a nice straight line go across the screen. Grab the point labeled ` per=40` and then click on File Import Orbit. Look at it in the XPP main window and freeze it. Now in the Auto window, click on Axes Hi and change the Main Parm to `a` and `Xmax=1`. Click OK and then click on Numerics to get the Auto Numerics dialog. Change ` Dsmax=0.1, Par Max=1` and click OK. Now click on Usr Period 4 and make the four user functions `a=.75,a=.9,a=.25,a=.1` and click OK. Now click on Run and watch a line drawn across the screen. This is the velocity, $`c`$ as a function of the threshold, $`a`$. Click on Grab and looking at the bottom of the screen, wait until you see `per=40` and then click on Enter. Now, open the Numerics dialog box and change `Ds=-.02` to go the other direction. Click on Run and you should see the rest of the line drawn across the screen. Click on Grab and move to the point labeled `a=0.25` Click on File Import Orbit and plot this in the main XPP window.
+I have added a few autoX numerical settings so that I don’t have to set them later. Run XPP with this ODE file and integrate the equations. We will now continue this approximate heteroclinic in the parameter `per`. Fire up autoX (File autoX) and click on Axes Hi. Put `c` on the y-axis and make ` Xmin=0,Xmax=60,Ymin=-2,Ymax=2`. Then click OK. As above, we will also keep solutions at particular values of `per` by clicking on ` Usr period` `3`, choosing `per=20,per=40,per=60`, and then OK. Now we are ready to run. Click on Run Homoclinic. When the dialog box comes up set the following: `Left Eq: ULEFT, Right Eq: URIGHT, NUnstable:1, NStable:1` and then click OK. You should see a nice straight line go across the screen. Grab the point labeled ` per=40` and then click on File Import Orbit. Look at it in the XPP main window and freeze it. Now in the autoX window, click on Axes Hi and change the Main Parm to `a` and `Xmax=1`. Click OK and then click on Numerics to get the autoX Numerics dialog. Change ` Dsmax=0.1, Par Max=1` and click OK. Now click on Usr Period 4 and make the four user functions `a=.75,a=.9,a=.25,a=.1` and click OK. Now click on Run and watch a line drawn across the screen. This is the velocity, $`c`$ as a function of the threshold, $`a`$. Click on Grab and looking at the bottom of the screen, wait until you see `per=40` and then click on Enter. Now, open the Numerics dialog box and change `Ds=-.02` to go the other direction. Click on Run and you should see the rest of the line drawn across the screen. Click on Grab and move to the point labeled `a=0.25` Click on File Import Orbit and plot this in the main XPP window.
 
 ### Hopf curves at zero frequency (W363, #425)
 
@@ -845,9 +845,9 @@ file name and line; recompute that curve before saving it in the new format.
 
 ### Maps (W404, #466)
 
-For a discrete model, AUTO continues fixed points and labels a flip (multiplier -1) **PD** and a Neimark-Sacker bifurcation (a complex pair crossing the unit circle) **TR**. Continue their two-parameter curves, or a fold curve, with the same Run choices as for other labelled points. Map curves detect **R1?R4**, **LPD** (fold-flip), **LTR** (fold-torus), **PTR** (flip-torus) and **TTR** (torus-torus). Each codimension-two label is enabled by default and can be disabled individually in Special points. Session files retain these labels.
+For a discrete model, autoX continues fixed points and labels a flip (multiplier -1) **PD** and a Neimark-Sacker bifurcation (a complex pair crossing the unit circle) **TR**. Continue their two-parameter curves, or a fold curve, with the same Run choices as for other labelled points. Map curves detect **R1?R4**, **LPD** (fold-flip), **LTR** (fold-torus), **PTR** (flip-torus) and **TTR** (torus-torus). Each codimension-two label is enabled by default and can be disabled individually in Special points. Session files retain these labels.
 
-A periodic AUTO run that fails to converge reports a singular reduced
+A periodic autoX run that fails to converge reports a singular reduced
 linear system with its smallest pivot and the threshold, as a steady-state
 run does. A zero pivot that prevents a solve is an error with the same
 values. A short saved solution is refused at load, naming its label and

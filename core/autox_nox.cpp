@@ -161,7 +161,7 @@ std::string par_label(const xpp::Session &s, int k)
   return p?p:"";
 }
 
-/* the diagram's axis labels: its first parameter, and what Autox.plot
+/* the diagram's axis labels: its first parameter, and what Auto.plot
    shows up the side */
 struct AxisLabels {
   std::string x,y;
@@ -337,7 +337,7 @@ static AutoxStabilityKind point_stability_kind(const DIAGRAM *d)
   return d->ibr<0?AUTOX_STABILITY_PERIODIC:AUTOX_STABILITY_STEADY;
 }
 
-/* a run starts from Autox.irs's label, or from initial data: its first
+/* a run starts from Auto.irs's label, or from initial data: its first
    point takes the label's stored stability when it is the label's own
    solution, else it is not computed (autox_stability.h) */
 static void stability_run_start(xpp::Session &s)
@@ -350,7 +350,7 @@ static void stability_run_start(xpp::Session &s)
   autox_stability_run_start(s.autox_state.stability,run_stability_kind(s),s.autox_state.bifur.isw,point_stability_kind(d),d->itp,d->evr,d->evi);
 }
 
-/* MAIN Running routine  Assumes that Autox structure is set up */
+/* MAIN Running routine  Assumes that Auto structure is set up */
 namespace {
 /* one do_autox call's depth, however it ends */
 struct AutoxDepth {
@@ -409,7 +409,7 @@ xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode
       if(xpp::job::cancelled()||failed.has_value())s.autox_state.restart_label=0; /* xppautX: cancel: no follow-up run */
       if(failed.has_value())s.autox_lib.restart_flag=false;
     }
-    /*     run_aut(Autox.nfpar,itp); THIS WILL CHANGE TO gogoautox stuff */ 
+    /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoautox stuff */ 
     close_autox(s, isave); /* this copies fort.8 to the .s file and other 
                           irrelevant stuff 
 		       */

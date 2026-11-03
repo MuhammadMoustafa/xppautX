@@ -45,7 +45,7 @@ features** (below).
   them). `tools/sundials_eval.py` runs both programs over the models and
   `tools/sundials_report.py` makes the tables below (models:
   `tools/models/sundials/`).
-- On the SUNDIALS build, `tools/servercheck.py` (all of it), `tools/autocheck.py
+- On the SUNDIALS build, `tools/servercheck.py` (all of it), `tools/autoxcheck.py
   memory` (CVODE stopped by a delay, by the Poincare map) and
   `tools/examples_check.sh` ran: the first two pass unchanged, the third
   differs in the five examples that use CVODE and in no other.
@@ -139,7 +139,7 @@ at 1e-10 (the error test fails repeatedly at t = 1.9521, h = 1.06e-7), and
 the 1e-13 reference runs of fieldnoy and toy_ok. The wording differs
 ("CVode-- At t=0.379994, mxstep=2000 steps taken ..." against "At t =
 0.379994360260136, mxstep steps taken before reaching tout."); xppautX's own
-`servercheck.py` and `autocheck.py`'s `memory` section pass unchanged on the
+`servercheck.py` and `autoxcheck.py`'s `memory` section pass unchanged on the
 SUNDIALS build. SUNDIALS counts nonlinear convergence failures (`ncfn`) where
 the vendored CVODE reports 0 in the same runs (13 in toy_ok, 54 in fieldnoy):
 a counting difference, since the steps and work agree.

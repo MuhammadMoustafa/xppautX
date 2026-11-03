@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""W300/#358: write tests/auto/<description>.auto07p and .xppaut, the special points AUTO-07p
+"""W300/#358: write tests/autox/<description>.auto07p and .xppaut, the special points AUTO-07p
 and XPPAUT 8.0 find for the problem a tests/auto description runs in xppautX.
 
 This is the maintainer's manual tool (Linux or WSL). Only its output is committed;
-tools/autocompare.py compares ours with those files on every push, without either
+tools/autoxcompare.py compares ours with those files on every push, without either
 program. A description whose problem a program cannot run the same way is refused with
 the reason (REFUSED), which the description keeps as auto07p_skip / xppaut_skip; a run's own xppaut_skip
 is XPPAUT 8.0's unavailable run, written with that reason without being run.
@@ -15,7 +15,7 @@ gfortran. Each model's equations are translated from the .odex (the subset the d
 use: par, init, name' = expr, name = expr, fun, boundary, wiener, x[j] arrays) to a Fortran
 equation file; the constants come from the description (NTST, NCOL, DS, DSMIN, DSMAX, EPSL,
 EPSU, EPSS, NMX, NPR, MXBF as the description gives them, ITMX, ITNW, NWTN, IAD, IID, IADS as
-xppautX's run fixes them, core/auto_nox.cpp); the starting point is the first point of our
+xppautX's run fixes them, core/autox_nox.cpp); the starting point is the first point of our
 diagram (the Newton-corrected start); a run from a Hopf point continues from the first HB of
 the named run. A two_parameter run continues an LP or HB of an equilibrium run with ISW=2 (ICP the
 two parameters; ILP=0 as xppautX, ISP=1 so that AUTO-07p labels BT, CP, ZH, GH) and records, besides
@@ -50,7 +50,7 @@ import sys
 import tempfile
 import time
 
-from autocompare import CODIM_TWO, HOMCONT, SPECIAL_TYPES, completed, read_description
+from autoxcompare import CODIM_TWO, HOMCONT, SPECIAL_TYPES, completed, read_description
 from odex_model import Odex, Refused, INTRINSICS
 from comparison_measure import clock, elapsed, run_foreground
 from xppclient import Server, wait_until
@@ -58,7 +58,7 @@ from xppclient import Server, wait_until
 ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / 'tests/auto'
 FORMAT = 1
-# AUTO's index of the period among the parameters (PAR(11); core/auto_nox.h AUTO_PERIOD_INDEX is 0-based 10)
+# AUTO's index of the period among the parameters (PAR(11); core/autox_nox.h AUTO_PERIOD_INDEX is 0-based 10)
 PERIOD = 11
 # AUTO's reserved PAR(12): torus angle or fold-of-cycles normalization (autlib1.c init).
 CYCLE_EXTRA = 12
@@ -69,7 +69,7 @@ def fnum(v):
     """A Fortran double literal."""
     t = repr(float(v)).replace('e', 'd')
     return t if 'd' in t else t + 'd0'
-# the constants xppautX fixes (core/auto_nox.cpp: advanced numerics and the run's own ISP, ILP, ISW)
+# the constants xppautX fixes (core/autox_nox.cpp: advanced numerics and the run's own ISP, ILP, ISW)
 FIXED = dict(IAD=3, IID=2, ITMX=8, ITNW=7, NWTN=3, IADS=1, ILP=1, ISW=1, A0=0, A1=1000)
 DEFAULTS = dict(ncol=4, epsl=1e-4, epsu=1e-4, epss=1e-4, mxbf=5)
 # a description's setting (xppautX's name, W531) to AUTO's own constant it is given as
@@ -91,7 +91,7 @@ IPS = {'equilibrium': 1, 'periodic': 2, 'bvp': 4, 'homoclinic': 9, 'heteroclinic
 HOM_EQUILIBRIUM = 12
 HOM_STATE_BOUND = 1e12  # XPPAUT's integration stops when a state passes its bound (default 100): the homoclinic start's orbit must not
 # A two-parameter curve of an LP or HB of equilibria is the equilibrium problem with ISW=2. xppautX runs it
-# with ILP=0 and ISP=0 and detects no codim-2 point yet (core/auto_nox.cpp auto_2p_limit); the reference
+# with ILP=0 and ISP=0 and detects no codim-2 point yet (core/autox_nox.cpp auto_2p_limit); the reference
 # keeps ILP=0 and the equilibria's ISP=1, which makes AUTO-07p label BT, CP, ZH and GH: those labels are what
 # W363 and W364 are judged against.
 CURVE_ISW = 2
@@ -313,7 +313,7 @@ def constants(r, ndim, pr, nbc, icp, irs, npar):
 
 def first_point(name):
     with open(BASE / (name + '.diagram.csv'), newline='') as f:
-        # the file starts with one `branch,...` line per branch (core/xpp_session_auto.h), then the points
+        # the file starts with one `branch,...` line per branch (core/xpp_session_autox.h), then the points
         row = next(csv.DictReader(line for line in f if not line.startswith('branch,')))
     return [float(row[k]) for k in row if k.startswith('u0.')]
 
@@ -559,7 +559,7 @@ def check_description(name, d, program, measured=False):
     with its reason when the program cannot run it the same way (timed, when `measured`)."""
     if 'skip' in d:
         raise Refused('our description skips it: ' + d['skip'])
-    if program + '_skip' in d:  # a reason this program's reference is not kept (autocompare reads the same key)
+    if program + '_skip' in d:  # a reason this program's reference is not kept (autoxcompare reads the same key)
         raise Refused('our description skips this program: ' + d[program + '_skip'])
     odex = Odex(ROOT / d['model'])
     if odex.events or odex.networks:

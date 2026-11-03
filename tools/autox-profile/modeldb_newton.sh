@@ -3,7 +3,7 @@
 # AUTO-07p's run of it: at the model's tolerances, with EPSL/EPSU/EPSS 1e-8 between two marks (and
 # Ntst 200), and with Ds moved by 0.5-1%. In WSL from the checkout's root, through tools/wslrun.sh,
 # into a new folder OUT:
-#   AUTOX_DIR=~/auto-07p-0.9.4 tools/autox-profile/modeldb_newton.sh OUT
+#   AUTO_DIR=~/auto-07p-0.9.4 tools/autox-profile/modeldb_newton.sh OUT
 # Writes OUT/runs.csv and OUT/histories.json (newton_summary.py), OUT/accuracy.json
 # (mesh_accuracy.py) and OUT/auto07p.json (auto07p.py's summaries). Measurements, never baselines.
 set -eu

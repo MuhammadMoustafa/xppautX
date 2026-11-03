@@ -61,7 +61,7 @@ hidden from the legend, and PNG and CSV export what is shown. There is no
 zoom history any more (GitHub #110): Reset view and the corner Fit button
 (T30) are the way back.
 
-The AUTO view (T11a) opens when the core opens AUTO's window (File/Auto)
+The autoX view (T11a) opens when the core opens autoX's window (File/autoX)
 and closes when the core destroys it: a full-screen sheet at every width
 (T26), over the main menu, the plot and the main status bar, whose own
 status strip is then the only status line on screen and carries the Stop
@@ -75,9 +75,9 @@ leaves it blank; the data do not name a branch's starting label, so the
 join is made where a periodic branch starts at a Hopf label's parameter and
 its max..min spans the label's value). Zoom, pan, reset, undo and the
 readout (branch, point, kind, label, values) work as on the plot, with `<`
-`>` stepping from label to label; the AUTO window's buttons and hotkeys
-send `auto` ops, their prompts are the ordinary dialogs. Hide AUTO hides the
-panel (Show AUTO brings it back), Close is done with AUTO: it stops a
+`>` stepping from label to label; the autoX window's buttons and hotkeys
+send `auto` ops, their prompts are the ordinary dialogs. Hide autoX hides the
+panel (Show autoX brings it back), Close is done with autoX: it stops a
 running continuation first, then closes the window.
 
 T11b answers the core's asks on the diagram in the view itself. Grab is a
@@ -89,8 +89,8 @@ a `grab` answer with the point's index (`point`), so the cursor, the info
 strip and the circle are the core's. Axes/Zoom (and Zoom out) draw their
 box, Axes/Scroll its drag, as the plot's modes on the diagram, answered in
 its data coordinates; a click on a two-parameter diagram stores the point
-(`auto point`, marked on the diagram) for AUTO's File/sElect 2par pt. Under the
-diagram, the `autoinfo` data: the strip as a panel (branch, point, type,
+(`auto point`, marked on the diagram) for autoX's File/sElect 2par pt. Under the
+diagram, the `autoxinfo` data: the strip as a panel (branch, point, type,
 label, parameters, norm, the plotted variable, the period of a periodic
 orbit) and the stability circle as a small unit circle, a dot for a value
 inside, a cross for one outside, with the eigenvalues or multipliers
@@ -140,7 +140,7 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
   digits, which round-trip exactly; `null` is NaN. A binary encoding
   (`"encoding":"f32"` in `events.subscribe`, base64 of little-endian floats) is
   an option for very long runs, not the default; web2 asks for it.
-- **Increments for long runs.** A long integration or AUTO run sends `append`
+- **Increments for long runs.** A long integration or autoX run sends `append`
   parts at most ~60 times a second (a display frame, W82; `progress` and
   `diagram add` stay at ~10), and
   the final state at the end.
@@ -157,8 +157,8 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 | 4 | `nullclines` (**done**) | phase plane | per window: the x and y nullclines as flat segment lists `[x1,y1,x2,y2,...]` in plot coordinates, colours, plus the frozen nullclines | `core/phase_data.cpp`, recorded where `nullcline.cpp` draws them |
 | 5 | `dfield` (**done**) | phase plane | direction field: grid of `[x,y,ux,uy]` (unit direction in plot units) and each arrow's speed, scaled by the client; flow: the trajectories as `x`, `y` point lists per curve, NaN between two | `core/phase_data.cpp`, from `redraw_dfield`/`direct_field_com` and the integrator's `plot_one_graph` |
 | 6 | `marks` (**done**) | plot | equilibria found by Sing pts (x, y, stability type), labels, arrows and markers of Text,etc, frozen curves (Graphic stuff/Freeze) as series | `core/marks_data.cpp`, recorded where `eq_symb` (graphics.cpp), `draw_label` (grobs.cpp) and `draw_freeze`/`create_crv` (graf_par.cpp) draw them |
-| 7 | `diagram` + `autoinfo` (**done**) | AUTO view | the diagram's points (and `from`, the label a branch started from); the info strip as fields (branch, point, type, label, parameters, norm, the plotted variable, period) and the stability circle (e^λ or Floquet multipliers `[[re,im],...]`, and a steady state's eigenvalues); T23: `stop`, why the last branch ended | `core/auto_data.cpp`, reported by `auto_nox.c` where it draws the strip and the circle; `core/auto_stop.cpp`, told by autlib1.c where it ends a branch |
-| 7b | `autosettings` (**done**, T22) | AUTO view's forms | AUTO's Numerics (22 fields by AUTO's names), its parameters (Par1..Par8), the axes (plot type, variable, main and second parameter, ranges) and the Mark values; set with `auto` `set`, checked, all or nothing | `core/auto_settings.cpp`: the same fields the AUTO window's forms write |
+| 7 | `diagram` + `autoxinfo` (**done**) | autoX view | the diagram's points (and `from`, the label a branch started from); the info strip as fields (branch, point, type, label, parameters, norm, the plotted variable, period) and the stability circle (e^λ or Floquet multipliers `[[re,im],...]`, and a steady state's eigenvalues); T23: `stop`, why the last branch ended | `core/autox_data.cpp`, reported by `autox_nox.c` where it draws the strip and the circle; `core/autox_stop.cpp`, told by autox_lib1.c where it ends a branch |
+| 7b | `autoxsettings` (**done**, T22) | autoX view's forms | autoX's Numerics (22 fields by autoX's names), its parameters (Par1..Par8), the axes (plot type, variable, main and second parameter, ranges) and the Mark values; set with `auto` `set`, checked, all or nothing | `core/autox_settings.cpp`: the same fields the autoX window's forms write |
 | 8 | `browser` (exists) | data table | rows and columns on request: already data | none |
 | 9 | `aplot` (exists) | array plot | cells as colour indices; add `values` (the numbers) so the client picks its colour map | small |
 | 10 | `ani` `frame` (**done**) | animation | the frame's primitives (line, rect, circle, ellipse, comet dot, text) in unit coordinates of the `.ani`'s `dimension` box (y up, not clamped), their colours (XPP index or `#rrggbb` of the colour map), widths and fonts; the frame's row, time, box and the classic window's size; thinned to 25 a second while Go plays | `core/aniparse.cpp` computes a frame in the `.ani`'s coordinates and gives each primitive to the pixel ops and to `core/ani_data.cpp` (docs/protocol.md "The animation as data") |
@@ -182,7 +182,7 @@ already data and stay as they are.
    kinescope writers still ask for a window's picture, and web2 renders it
    from its data. The protocol number is 2 (docs/protocol.md "Removed in
    protocol 2"). State after T18: one page (web2 at `/`, `/v1/` and `/v2/`
-   redirect), no `web/`, no webtest.mjs; servercheck, autocheck, webcheck
+   redirect), no `web/`, no webtest.mjs; servercheck, autoxcheck, webcheck
    and web2check check data events only.
 
 ## 3. Commands, prompts and components
@@ -213,8 +213,8 @@ new page adds direct manipulation that maps onto existing commands:
 | `checklist` | checkbox list with All and None | done |
 | `alert` | a notification (toast); the ask is answered at once, so the run is not blocked | done |
 | `file` | the browser's open or save dialog (section 4, `ui/FileDialog.tsx`); one prompt with "Choose file…" that opens the picker filtered by `wild`; a save asks the name; in the desktop window the operating system's own dialog, answered with the full path (W88) | done |
-| `mouse`, `rubber`, `drag` | a plot mode (`plot/pick.ts`, the store's `pick`): a crosshair (click or tap picks), a box or line (drag it), or a drag of the plot, with an instruction bar and Cancel (Done for a drag); Escape cancels; from the keyboard, arrows move the crosshair or the free corner (Shift: ten times as far), Enter picks or fixes a corner, arrows drag in a drag. Answered in data coordinates (`xd`, `yd`, `xd2`, `yd2`, docs/protocol.md), so no pixel maths; the drag's events queue while the core works. When the core's window moves (Window/Zoom, Viewaxes), the plot shows it again (the client zoom is simply replaced, no history: GitHub #110). Asks for windows the page does not draw yet (AUTO, 3D) say so and offer Cancel | done |
-| `grab` (AUTO) | a mode of the AUTO view: arrows, `[` `]`, Tab to the labels, Enter takes, Escape cancels, a click or tap takes the nearest point; answered by index (`point`) | done (T11b) |
+| `mouse`, `rubber`, `drag` | a plot mode (`plot/pick.ts`, the store's `pick`): a crosshair (click or tap picks), a box or line (drag it), or a drag of the plot, with an instruction bar and Cancel (Done for a drag); Escape cancels; from the keyboard, arrows move the crosshair or the free corner (Shift: ten times as far), Enter picks or fixes a corner, arrows drag in a drag. Answered in data coordinates (`xd`, `yd`, `xd2`, `yd2`, docs/protocol.md), so no pixel maths; the drag's events queue while the core works. When the core's window moves (Window/Zoom, Viewaxes), the plot shows it again (the client zoom is simply replaced, no history: GitHub #110). Asks for windows the page does not draw yet (autoX, 3D) say so and offer Cancel | done |
+| `grab` (autoX) | a mode of the autoX view: arrows, `[` `]`, Tab to the labels, Enter takes, Escape cancels, a click or tap takes the nearest point; answered by index (`point`) | done (T11b) |
 | `pixels` | answered `ok:0` by the session: web2 renders frames from data (kinescope, GIF) itself | done / T15 |
 
 A prompt never steals keys it does not use: the menu dialog takes only its
@@ -345,7 +345,7 @@ protocol/   types.ts (events, commands), transport.ts (SSE + POST),
 store/      store.ts (generic store), state.ts (AppState + reducer), series.ts
             (float32 columns; appends fill growing buffers in place),
             plots.ts (the plot windows: each one's series and zoom, the
-            active one), values.ts, table.ts, diagram.ts (the AUTO
+            active one), values.ts, table.ts, diagram.ts (the autoX
             diagram's points, labels, axes and the view's zoom)
 session.ts  the only sender: commands, key sequences, answers, abort
 plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
@@ -359,7 +359,7 @@ plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
             diagramModel.ts (diagram -> curves, label marks, Hopf joins,
             nearest point, readout; pure), diagramChart.ts (uPlot adapter)
 ui/         App.tsx (shell), TitleBar, MenuBar (the menu bar from the registry rows), CommandPalette, CommandForm (the one argument form), Plots (the windows' tabs),
-            PlotView (one window), ValuesPanel, TableView, AutoView (with auto.css), AniView (the
+            PlotView (one window), ValuesPanel, TableView, AutoxView (with autox.css), AniView (the
             animation), AskDialog, Toasts, StatusBar, Messages, hotkeys.ts,
             theme.ts, context.ts
 ani/        frame.ts (a frame's primitives decoded, the box at the
@@ -384,7 +384,7 @@ Rules:
   theme. A chart's own state (ranges, visible curves) is read through
   `__xpp.plot(win)` (the active window's without `win`).
 - **State slices** follow the views: `plots` (windows, T6, done),
-  `values` (parameters, ICs, sliders, T3, done), `diagram` (AUTO), `table` (browser),
+  `values` (parameters, ICs, sliders, T3, done), `diagram` (autoX), `table` (browser),
   `ani` (T13, done), `aplot`, `files` (T5, done). Each gets its reducer file under `store/` and its
   view under `ui/`.
 
@@ -407,7 +407,7 @@ Rules:
 - **3D** plots (XPP's 3D is curves in a box) are projected in the client
   with the window's angles on uPlot's canvas; three.js (600 KB) is not worth
   it for line plots.
-- **AUTO** uses uPlot too (branches as xy series, labels as points).
+- **autoX** uses uPlot too (branches as xy series, labels as points).
 - Nothing else at runtime. Dev only: esbuild, TypeScript, @types/node,
   the Inter font package.
 
@@ -425,7 +425,7 @@ Rules:
   (0.75/0.875/1/1.125 rem), a spacing scale (0.25..1.5 rem), colours for
   light and `[data-theme=dark]`, the minimum target size.
 - **Light, dark or system**: the title bar's Theme button cycles
-  Auto → Light → Dark; the choice is remembered in the browser; Auto follows
+  autoX → Light → Dark; the choice is remembered in the browser; autoX follows
   `prefers-color-scheme`.
 - **Curve colours**: XPP's eleven colour indices (0 the foreground, then
   red .. purple) map to a palette per theme (`plot/colors.ts`), keeping the
@@ -457,7 +457,7 @@ Rules (each checkable; `tools/web2check.mjs` checks R1, R3 and R5 at 390x844):
   only, so the page still scrolls elsewhere.
 - **R6** Panels still to come (values, data table, animation) are columns
   or floating panels on wide screens, tabs under the plot on medium ones,
-  and full-screen sheets with a Back button on phones. AUTO (T11a) is a
+  and full-screen sheets with a Back button on phones. autoX (T11a) is a
   full-screen sheet at every width instead (T26): it is its own working
   view, not something to keep the main plot or menu in view beside.
 - **R7** Dialogs fit the viewport (`max-height: 100%`, scroll inside), with
@@ -505,7 +505,7 @@ Target: WCAG 2.2 AA. Rules:
   "Stopping…" until the run's `done`. Views have no Abort buttons of their
   own (decision 2026-09-23): a view's close (×) means "done with it", and
   stops a running job first, while Stop keeps the view and its partial
-  result (an AUTO branch ending on its EP, to grab and continue). While
+  result (an autoX branch ending on its EP, to grab and continue). While
   a computation runs only control, view and setting actions start (W68,
   W95, W106, GitHub #116, #144, #155): each action's kind comes from the core in `hello`
   (protocol/kinds.ts; docs/protocol.md "Action kinds"), and the core's
@@ -513,7 +513,7 @@ Target: WCAG 2.2 AA. Rules:
   data and computation buttons and menu items are disabled then, their
   keys do nothing and are not kept, and session.ts `may()` discards
   anything else at the source. The page's own catch-up commands (a held
-  zoom or tab pick, AUTO's settings) make it busy but disable nothing;
+  zoom or tab pick, autoX's settings) make it busy but disable nothing;
   the status bar says what runs ("Running Go… Esc stops").
   Typing ahead into a menu still works (a menu is a question, not a
   computation), and value edits wait for the next computation (W69). The
@@ -573,27 +573,27 @@ Target: WCAG 2.2 AA. Rules:
   (answered `ok` 0), Initialconds/Mouse by a click, Window/Scroll by an
   arrow key, a checklist answered. Phone (390x844, touch, coarse pointer): no
   sideways scroll, plot width, 44 px targets, the drawer, pinch, pan, tap.
-  AUTO (lecar, examples/recordings/lecar_auto.recx's steps from the page):
+  autoX (lecar, examples/recordings/lecar_autox.recx's steps from the page):
   the store's diagram equals the `diagram` events (`__xpp.diagramEvents()`
   rebuilt in the test), the chart (`__xpp.diagram()`) has one curve per
   branch and stability run and every label, the periodic branch starts at
   its Hopf point, hover and `<` `>` name the Hopf point, wheel, box, undo,
   pan and reset, no Abort in the view, a sheet at 390x844 with 44 px
   targets, Back and Show, Close; grab from the keyboard only (G, `]`, Tab
-  to the Hopf point, Enter) with the store's `autoinfo` following each
+  to the Hopf point, Enter) with the store's `autoxinfo` following each
   step, the periodic branch run from it and marked `from` its label,
   Escape cancelling a grab, Axes/Zoom by a box drawn on the diagram (the
   core's axes are the box within a pixel). `tools/servercheck.py`: grab by
-  index then Run gives the diagram grabbing by keys gives; `autoinfo`
-  equals the strip's text and AUTO's printed eigenvalues and multipliers.
-  AUTO's settings (T22): `tools/servercheck.py` checks that `autosettings`
+  index then Run gives the diagram grabbing by keys gives; `autoxinfo`
+  equals the strip's text and autoX's printed eigenvalues and multipliers.
+  autoX's settings (T22): `tools/servercheck.py` checks that `autoxsettings`
   is what the Numerics, Parameter, Axes and Mark values forms show, that a
   form's OK and an `auto` `set` show in it (and the set in the forms), that
   a set with a bad value (Ncol 9, Ntst 1.5, Dsmin 0, Par Min above Par
   Max, a name the model lacks ...) is refused whole with an error naming
   it, that a set sent while a question is open applies at the command's
   end, and that Nmax 12 stops the next run at 12 points;
-  tests/test_auto_settings.cpp the rules and the all-or-nothing write.
+  tests/test_autox_settings.cpp the rules and the all-or-nothing write.
   `tools/web2check.mjs` (`auto`): Numerics, Parameter and Mark values are
   the page's forms on the data (nothing asked of the core), the axis
   dialog's plot type goes out as a set with a Fit, Save and Load settings
@@ -666,8 +666,8 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T8 (**done**) | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |
 | T9 (**done**) | Use this view: Window/Window (`w` `w`, its form answered with the client's zoom; W60 removed the `view` command); Fit | T6 | small | servercheck: `view` then `state.view` matches; PostScript export uses it |
 | T10 (**done**) | Data table: virtualized browser table on `browser`, its buttons, CSV export, keyboard navigation | T3 | no | web2check: scroll to row 500, Get sets the ICs, keyboard reaches every button |
-| T11a (**done**) | AUTO view from `diagram`: branches by stability, labels, zoom, pan, readout; buttons (no Abort: the status bar's Stop, A10) | T4 | no | web2check: after an AUTO run the store's diagram equals the `diagram` events; readout names a labelled point |
-| T11b (**done**) | AUTO grab by point, `autoinfo`, stability circle as data | T11a | yes | servercheck: grab by index then run; web2check: grab from the keyboard |
+| T11a (**done**) | autoX view from `diagram`: branches by stability, labels, zoom, pan, readout; buttons (no Abort: the status bar's Stop, A10) | T4 | no | web2check: after an autoX run the store's diagram equals the `diagram` events; readout names a labelled point |
+| T11b (**done**) | autoX grab by point, `autoxinfo`, stability circle as data | T11a | yes | servercheck: grab by index then run; web2check: grab from the keyboard |
 | T12 (**done**) | Array plot view from `aplot` (with `values`), colour maps, scroll | T6 | small | web2check: cells equal the event's; scroll in time |
 | T13 (**done**) | Animation: frames in unit coordinates, player controls, scaling to any size | T6 | yes | servercheck: frame primitives in [0,1]; web2check: play, pause, step, seek update the frame index |
 | T14 (**done**) | 3D plots: projection and rotation in the client, angles synced with 3d-params (`3`; W60 removed `rotate`) | T6 | small | web2check: rotate by drag and keys; `state.view.three` agrees |
@@ -677,15 +677,15 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T18 (**done**) | Retire: remove `web/`, the `draw`/`palette`/`pixels` paths (the X11 program and guicheck were already removed by W8); protocol 2 | T17 | yes | verify.sh green without web/; servercheck and web2check cover what webshots did |
 | T19 (**done**) | From hands-on testing: runs accumulate until Erase (XPP's behaviour), Erase blanks web2's plot, any number of sliders under the plot with ranges from the value, edits while busy coalesce into one run, ICs show initial conditions, collapsible sections with Save/Load | T15 | yes | web2check: two runs keep two curves, Erase clears, 5 edits while busy give one run, slider range, section save/load round trip |
 | T20 (**done**) | Sliders from hands-on testing: compact sliders (label, value, edit icon), an Add/Edit slider dialog (searchable variable, min, max, step/precision as number spinners), ~3 per row on a laptop, responsive; a click on the plot never starts a run by itself | T19 | small | web2check: dialog sets min/max/step, the slider respects them, 3 per row at 1280px, a plot click sends nothing |
-| T21 (**done**) | AUTO view and dialogs from hands-on testing (sandbox/PY_S1Bf.ode): AUTO's own status strip and output log, axes edited by clicking an axis name (variable, min, max; ranges usable during a run), Numerics save/load, menus in columns without scrolling, dialog Tab selects the field, the theme button no longer reads "Auto", Stop not Abort, single-letter keys act instead of moving focus | T19 | yes | web2check: status strip names the run and its point count, axis dialog sets the range during a run, numerics round trip, Tab replaces a field's text, keys F and G act on the plot |
-| T22 (**done**) | AUTO settings as data: the core sends AUTO's Numerics, Parameter choice, axes and Mark values (user points) as a data event and takes a set command for them, so web2 edits them at any time (during a run too: marked pending, applied when idle) instead of through the core's forms; only Run, Grab, Clear and File wait for idle | T21 | yes | servercheck: the event matches the forms' values, a set changes the next run; web2check: edit Numerics during a run, applied at idle, the run after uses it |
-| T23 (**done**) | AUTO in plain words: a stop reason code set where autlib1.c/autlib2 end a branch (Par Min/Max, Norm Min/Max, Npts reached, Stop, a stopping Mark value, no convergence at Dsmin: fort.9's NOTE) and sent to the page, shown in the status strip ("Stopped: parameter reached Par Max (20)") and written as a line in the AUTO view's Output messages; label types spelled out on hover (EP End point, MX No convergence, LP Fold, HB Hopf, BP Branch point, PD Period doubling, TR Torus, UZ Marked value); every Numerics field named plainly with AUTO's short name kept (e.g. "Max points (NMX)"), a tooltip (what it does, valid values, what each option means), integer or float validation and ranges (Dsmin <= |Ds| <= Dsmax), also checked in the core; docs/manual/09-auto.md updated | T22 | yes | servercheck: each stop reason on a model built to hit it (Par Max, Norm Max, Npts, Stop, MX); saved .b/.d and verify.sh unchanged; web2check: status names the reason, a float in an integer field is refused with a message |
-| T24 (**done**) | From hands-on testing: AUTO's status line at the bottom of its window, where the main window has its status bar | T21 | no | web2check auto: the status line is the panel's last visible row |
-| T25 (**done**) | From hands-on testing (bug): AUTO's Stop showed Stopping… and the run went on; reproduce (sandbox/PY_S1Bf.ode, the user's model: steady and periodic runs, Stop from the AUTO strip and the status bar, browser and desktop window) and fix; in the same session, check that a first steady-state run stopping at point 1 on its Norm Max (the model's normmax=60) is AUTO's own rule, and why the info strip listed all 8 eigenvalues as "none (below the smallest number)" | none | maybe | autocheck/web2check: Stop during an AUTO run ends it within 1 s with an EP label |
-| T26 (**done**) | From hands-on testing: AUTO takes the whole window while it is shown, in place of R6's floating panel over the page: the main menu, plot and status bar hidden behind a plain background (Hide AUTO returns to them), its own status strip (T24) also carrying the core's last message and, when it is not simply connected, the connection state | T24 | no | web2check auto: the panel covers the viewport; the main menu and status bar are not visible, and are again after Hide AUTO; the core's message shows in the AUTO strip |
-| T27 (**done**) | From hands-on testing (bug): in the desktop window (Windows, sandbox/PY_S1Bf.ode, Numerics' Npr=50) AUTO's Output panel stays at "Output (0)" during a long periodic run: find where AUTO's table (xpp_log_auto, auto_echo on in window mode) is lost on its way to the page (the log capture in xpp_http.cpp under the GUI subsystem, the log event, web2's classification of AUTO lines) and fix | none | maybe | servercheck/web2check auto: a run with Npr prints its table lines into the Output panel, in browser mode and in the window's mode |
-| T28 (**done**) | From hands-on testing: AUTO's info strip in order of importance: branch, point, type, label, then what the diagram's axes show (the x axis's quantity, then the y axis's: e.g. Iapp then V, or both parameters of a two-parameter diagram), then Norm and the period, then the remaining parameters (a second parameter last) | none | no | web2 unit test of the order for one- and two-parameter diagrams; web2check auto |
-| T29 (**done**) | From hands-on testing: AUTO's labelled points each with a shape of their type instead of one × for all: HB filled circle, LP triangle, BP diamond, PD square, TR star, UZ inverted triangle, MX a bold ×, EP a small bar; the plain numbered points (Npr's regular output labels) a small tick, so a long run is not a row of crosses; the key shows each shape beside its code and name (A7: shape and text, not colour alone) | none | no | web2 unit test of type -> shape; web2check auto: the key's shapes match the drawn ones |
-| T30 (**done**) | From hands-on testing: Fit always at hand, on both plots. The user uses it all the time to find the picture again after a scroll or zoom in a wrong place: a Fit button in the plot's own corner (over the chart, always visible, with an icon and the word), on the main plots (Window/Fit, as the toolbar's Fit today) and on the AUTO diagram (which has none: fit its view to all its points, client-side); the toolbar's Fit stays | none | no | web2check: the corner Fit is visible on a plot and on the diagram; after a zoom far off, it brings every curve/point into view |
+| T21 (**done**) | autoX view and dialogs from hands-on testing (sandbox/PY_S1Bf.ode): autoX's own status strip and output log, axes edited by clicking an axis name (variable, min, max; ranges usable during a run), Numerics save/load, menus in columns without scrolling, dialog Tab selects the field, the theme button no longer reads "autoX", Stop not Abort, single-letter keys act instead of moving focus | T19 | yes | web2check: status strip names the run and its point count, axis dialog sets the range during a run, numerics round trip, Tab replaces a field's text, keys F and G act on the plot |
+| T22 (**done**) | autoX settings as data: the core sends autoX's Numerics, Parameter choice, axes and Mark values (user points) as a data event and takes a set command for them, so web2 edits them at any time (during a run too: marked pending, applied when idle) instead of through the core's forms; only Run, Grab, Clear and File wait for idle | T21 | yes | servercheck: the event matches the forms' values, a set changes the next run; web2check: edit Numerics during a run, applied at idle, the run after uses it |
+| T23 (**done**) | autoX in plain words: a stop reason code set where autox_lib1.c/autox_lib2 end a branch (Par Min/Max, Norm Min/Max, Npts reached, Stop, a stopping Mark value, no convergence at Dsmin: fort.9's NOTE) and sent to the page, shown in the status strip ("Stopped: parameter reached Par Max (20)") and written as a line in the autoX view's Output messages; label types spelled out on hover (EP End point, MX No convergence, LP Fold, HB Hopf, BP Branch point, PD Period doubling, TR Torus, UZ Marked value); every Numerics field named plainly with autoX's short name kept (e.g. "Max points (NMX)"), a tooltip (what it does, valid values, what each option means), integer or float validation and ranges (Dsmin <= |Ds| <= Dsmax), also checked in the core; docs/manual/09-autox.md updated | T22 | yes | servercheck: each stop reason on a model built to hit it (Par Max, Norm Max, Npts, Stop, MX); saved .b/.d and verify.sh unchanged; web2check: status names the reason, a float in an integer field is refused with a message |
+| T24 (**done**) | From hands-on testing: autoX's status line at the bottom of its window, where the main window has its status bar | T21 | no | web2check auto: the status line is the panel's last visible row |
+| T25 (**done**) | From hands-on testing (bug): autoX's Stop showed Stopping… and the run went on; reproduce (sandbox/PY_S1Bf.ode, the user's model: steady and periodic runs, Stop from the autoX strip and the status bar, browser and desktop window) and fix; in the same session, check that a first steady-state run stopping at point 1 on its Norm Max (the model's normmax=60) is autoX's own rule, and why the info strip listed all 8 eigenvalues as "none (below the smallest number)" | none | maybe | autoxcheck/web2check: Stop during an autoX run ends it within 1 s with an EP label |
+| T26 (**done**) | From hands-on testing: autoX takes the whole window while it is shown, in place of R6's floating panel over the page: the main menu, plot and status bar hidden behind a plain background (Hide autoX returns to them), its own status strip (T24) also carrying the core's last message and, when it is not simply connected, the connection state | T24 | no | web2check auto: the panel covers the viewport; the main menu and status bar are not visible, and are again after Hide autoX; the core's message shows in the autoX strip |
+| T27 (**done**) | From hands-on testing (bug): in the desktop window (Windows, sandbox/PY_S1Bf.ode, Numerics' Npr=50) autoX's Output panel stays at "Output (0)" during a long periodic run: find where autoX's table (xpp_log_autox, autox_echo on in window mode) is lost on its way to the page (the log capture in xpp_http.cpp under the GUI subsystem, the log event, web2's classification of autoX lines) and fix | none | maybe | servercheck/web2check auto: a run with Npr prints its table lines into the Output panel, in browser mode and in the window's mode |
+| T28 (**done**) | From hands-on testing: autoX's info strip in order of importance: branch, point, type, label, then what the diagram's axes show (the x axis's quantity, then the y axis's: e.g. Iapp then V, or both parameters of a two-parameter diagram), then Norm and the period, then the remaining parameters (a second parameter last) | none | no | web2 unit test of the order for one- and two-parameter diagrams; web2check auto |
+| T29 (**done**) | From hands-on testing: autoX's labelled points each with a shape of their type instead of one × for all: HB filled circle, LP triangle, BP diamond, PD square, TR star, UZ inverted triangle, MX a bold ×, EP a small bar; the plain numbered points (Npr's regular output labels) a small tick, so a long run is not a row of crosses; the key shows each shape beside its code and name (A7: shape and text, not colour alone) | none | no | web2 unit test of type -> shape; web2check auto: the key's shapes match the drawn ones |
+| T30 (**done**) | From hands-on testing: Fit always at hand, on both plots. The user uses it all the time to find the picture again after a scroll or zoom in a wrong place: a Fit button in the plot's own corner (over the chart, always visible, with an icon and the word), on the main plots (Window/Fit, as the toolbar's Fit today) and on the autoX diagram (which has none: fit its view to all its points, client-side); the toolbar's Fit stays | none | no | web2check: the corner Fit is visible on a plot and on the diagram; after a zoom far off, it brings every curve/point into view |
 | T31 (**done**) | From hands-on testing: every input box through one `Field` component with validators registered by kind (integer, number with XPP's %formula where allowed, name of the model's variables/parameters with suggestions, expression, file name, text): a wrong entry is marked while typed and cannot be committed (today a value box takes any letters and silently reverts them on leaving); the core's asks and forms send each field's kind from their call sites (new_int, new_float, new_string, the forms' fields) | none | yes (the ask/form field kind) | web2 unit tests per validator; servercheck: form fields carry their kind; web2check: letters in a number box are refused with a message, an integer box refuses 2.5, a %formula is accepted |
 | T32 (**done**) | The rest of T31: the core's forms that still send every field as text (Range and Range over equilibria, nullclines, the array plot, Graphic stuff/grobs, Numerics, Viewaxes/Window, Initial data range, Transpose, Fit, Stochastic, ...) send each field's kind from their call sites, so every box in the program is checked by its kind | T31 | yes (field kinds) | servercheck: each annotated form's fields carry their kinds |

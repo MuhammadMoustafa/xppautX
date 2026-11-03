@@ -1,5 +1,5 @@
 #include <vector>
-#include "auto_c.h"
+#include "autox_c.h"
 #include "session.h"
 #include "xpp_job.h" /* xppautX: cancel */
 #include "auto_par.inc" /* W251 prototype */

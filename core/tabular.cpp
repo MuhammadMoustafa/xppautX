@@ -176,7 +176,7 @@ void new_lookup_com(xpp::Session &s, int i)
     int autoeval=table.autoeval,npts=table.n;
     double xlo=table.xlo,xhi=table.xhi;
     std::string formula=table.filename;
-    new_int("Autox-evaluate? (1/0)",&autoeval);
+    new_int("Auto-evaluate? (1/0)",&autoeval);
     new_int("NPts: ",&npts);
     new_float(s,"Xlo: ",&xlo);
     new_float(s,"Xhi: ",&xhi);

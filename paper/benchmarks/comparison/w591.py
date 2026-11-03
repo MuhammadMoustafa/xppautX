@@ -30,7 +30,7 @@ import tempfile
 from common import REPO, environment, save, short_home
 from comparison_measure import run_foreground
 import auto_reference as reference
-import autocompare as comparison
+import autoxcompare as comparison
 import continuation as series
 from odex_model import Odex
 

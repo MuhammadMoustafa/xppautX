@@ -5,7 +5,7 @@ import os, sys, tempfile, time
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '../../..'))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 from xppclient import Server, is_done
-from autocompare import ensure_completed
+from autoxcompare import ensure_completed
 model = os.path.abspath(sys.argv[1]); cg = '--cg' in sys.argv
 binary = os.environ.get('BIN') or os.path.join(ROOT, 'xppautX')
 if cg:

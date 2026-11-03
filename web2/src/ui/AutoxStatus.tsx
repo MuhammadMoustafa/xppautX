@@ -44,9 +44,9 @@ export function AutoxStatus() {
   const conn = connectionText(connected, exited);
   const dot = exited !== null ? 'down' : !connected ? '' : st.phase === 'running' || st.phase === 'stopping' ? 'busy' : 'up';
   return (
-    <div class="auto-status" data-phase={st.phase}>
+    <div class="autox-status" data-phase={st.phase}>
       <span class={`status-dot ${dot}`} aria-hidden="true" />
-      <span class="auto-status-text" role="status" data-testid="auto-status" data-why={st.why ?? undefined}>
+      <span class="autox-status-text" role="status" data-testid="autox-status" data-why={st.why ?? undefined}>
         <b>{st.text}</b>
         {st.detail && <span> · {st.detail}</span>}
         {st.branch !== null && <span> · branch {st.branch}, point {st.point}</span>}
@@ -54,10 +54,10 @@ export function AutoxStatus() {
         {st.label && <span> · last label {st.label}</span>}
         {st.elapsed !== null && <span> · {formatElapsed(st.elapsed)}</span>}
       </span>
-      {conn && <span class="auto-conn" role="status" data-testid="auto-conn">{conn}</span>}
-      {bottom && <span class="auto-message muted">{bottom}</span>}
+      {conn && <span class="autox-conn" role="status" data-testid="autox-conn">{conn}</span>}
+      {bottom && <span class="autox-message muted">{bottom}</span>}
       {busy && (
-        <button class="small danger auto-stop" disabled={stopping} onClick={() => session.abort()}
+        <button class="small danger autox-stop" disabled={stopping} onClick={() => session.abort()}
           title="Stop the running command (autoX keeps the points computed so far)">
           {stopping ? 'Stopping…' : 'Stop'}
         </button>
@@ -70,9 +70,9 @@ export function AutoxOutput() {
   const log = useStore(s => s.log);
   const list = useRef<HTMLPreElement>(null);
   const [open, setOpen] = useState(false);
-  const count = log.counts.auto;
+  const count = log.counts.autox;
   /* the lines only while the panel is open: a long run's table is thousands of them */
-  const text = useMemo(() => (open ? logEntries(log).filter(l => l.kind === 'auto').map(l => l.text.replace(/\n$/, '')).join('\n') : ''),
+  const text = useMemo(() => (open ? logEntries(log).filter(l => l.kind === 'autox').map(l => l.text.replace(/\n$/, '')).join('\n') : ''),
     [open, log]);
   /* the newest line in view, as a console */
   useEffect(() => {
@@ -80,10 +80,10 @@ export function AutoxOutput() {
     if (open && el) el.scrollTop = el.scrollHeight;
   }, [count, open]);
   return (
-    <details class="auto-output" open={open} onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}>
+    <details class="autox-output" open={open} onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}>
       <summary>Output ({count})</summary>
       {count ? (
-        <pre ref={list} class="auto-output-text" tabIndex={0} aria-label="autoX's output">
+        <pre ref={list} class="autox-output-text" tabIndex={0} aria-label="autoX's output">
           {text}
         </pre>
       ) : <p class="muted">autoX has printed nothing yet: its table appears here while it runs.</p>}

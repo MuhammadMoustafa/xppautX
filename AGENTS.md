@@ -44,10 +44,10 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
 - Well-defined work goes to cheaper models (Haiku, Sonnet, Luna) by the ladder; after
   a comparison run, a Haiku agent writes its report with plots, showing which program
   did best (maintainer, 2026-10-20).
-- Models that check or compare xppautX (tests/auto/, the comparison) are real
+- Models that check or compare xppautX (tests/autox/, the comparison) are real
   published models, the paper, equations and parameter values cited, or a named
   AUTO-07p or XPPAUT demo (a model published as code counts); never one invented to reach a case. The made-up models
-  already in tests/auto/ stay beside the published ones: the redundancy checks accuracy. A brief that needs a
+  already in tests/autox/ stay beside the published ones: the redundancy checks accuracy. A brief that needs a
   model says "stop and report if no published one is found" (maintainer, 2026-10-29; W537, #602).
 - The comparison (W354): XPPAUT's and AUTO-07p's sources are never edited; a problem
   there is recorded (docs/xppaut-findings.md, docs/auto07p-findings.md). An xppautX
@@ -69,13 +69,14 @@ The sections below give the details.
 
 | Rule | Enforced by |
 |---|---|
-| One codebase: every rule here and every cleaning, unification, limit lift or refactor covers all of core/, AUTO's files included (autlib*, auto_*, autevd, autpp, setubv*, gogoauto, diagram); vendored means third_party/ only, and AUTO's translated Fortran is ours: a numerical routine's shape may stay only where changing it would change the numbers, and everything around it (sizes, memory, files, logging, errors, state, helpers) follows every rule; a card that leaves a part of core/ out says so in its row, with the reason and its follow-up card (maintainer, 2026-10-11: W243 lifted every limit but AUTO's; W301, #359) | review (the reviewer greps AUTO's files for every operation the card touched); AUTO's numeric baseline (W299) |
+| One codebase: every rule here and every cleaning, unification, limit lift or refactor covers all of core/, autoX's files included (autox_*, xAutox, setubv*, gogoautox, diagram); vendored means third_party/ only, and autoX's translated Fortran is ours: a numerical routine's shape may stay only where changing it would change the numbers, and everything around it (sizes, memory, files, logging, errors, state, helpers) follows every rule; a card that leaves a part of core/ out says so in its row, with the reason and its follow-up card (maintainer, 2026-10-11: W243 lifted every limit but autoX's; W301, #359) | review (the reviewer greps autoX's files for every operation the card touched); autoX's numeric baseline (W299) |
 | One behaviour, three front ends: a decision is made once in the core, and the window, `--server` and `--silent` (and `--convert`, `--check`) differ only in how it is shown (a dialog, an `ask`, the terminal); a bug found in some modes only is fixed where the logic split, never per mode, and its check runs in every mode; only presentation itself (the OS file picker, the window's menu, terminal input) is a front end's own (maintainer, 2026-10-11; W304, #363; W305, #364) | review; servercheck in each mode |
 | Single source: one module owns each kind of operation (memory, logging, text, files, dialogs, numerics); a new helper goes into its owner, two copies are merged (Conventions); no logic is written before the common files and the code are searched for it, and the report says what was searched and reused (maintainer, 2026-10-01; Task agents) | dupcheck (textual copies); review (the same algorithm in other words, and the report's search) |
 | One name per thing: no namespace alias, type alias, using-declaration or renaming #define of our own names (W113) | aliascheck |
+| xppautX's own continuation is called autoX (lowercase a, capital X, like xppautX; lowercase even at a sentence start): in what a user sees, in the protocol and our files (`autox.*` commands and events, the session's `autox/` members, `autox_threads`) and in the code (`autox_*`, `Autox*`, `AUTOX_*`); "AUTO-07p" (Doedel's) and XPPAUT's AUTO (AUTO2000) keep their names wherever they mean those programs, as do XPPAUT's own option spellings (`AUTOXMIN`, `AUTOVAR`) and C++'s `auto` keyword; no old name is kept as an alias (maintainer, 2026-11-02; W599, #666) | review; grep for `\bAUTO\b` and `auto_` in a diff |
 | No global state: what a load makes is the Model's, what a run changes the Session's, passed as `Model&`/`Session&`; the session list is the only global (W47) | globalcheck (external and internal-linkage state, each baseline line with its reason, W120), sessioncheck |
 | No fallbacks: our own files and commands load and accept only what they hold, a missing or bad piece is a shown error, no code for older files of ours; importing a foreign format is fine | review (W116) |
-| Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a bad value in any file stops the load with the file, its line and the value, and nothing is applied: .ode, .odex, .set, .par, .ic, .snapx, .recx alike (maintainer, 2026-10-01; .autox and .autoset went at W155: AUTO's files are the session's auto/ members) | review (W125) |
+| Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a bad value in any file stops the load with the file, its line and the value, and nothing is applied: .ode, .odex, .set, .par, .ic, .snapx, .recx alike (maintainer, 2026-10-01; .autox and .autoset went at W155: autoX's files are the session's auto/ members) | review (W125) |
 | No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
 | A choice is named: an option, setting, dialog or protocol field or file key that picks one of several things takes a named value, a yes/no is a boolean, and no number or sign stands for a choice (XPPAUT's negative Total for "forever", `@ range=1`); XPPAUT's spellings are read on import only. XPPAUT's set of options is not a limit: an option that is missing or makes no sense is proposed to the maintainer (maintainer, 2026-10-15; W381, #443). A choice's label is its name, underscores shown as spaces and a capital first letter, derived and never written apart, so the menu, the files, the protocol and the manual share one vocabulary (maintainer, 2026-10-24; W381's decisions in docs/studies/w381-choices.md) | review |
 | Security is designed in wherever input crosses a trust boundary (maintainer, 2026-10-01): the HTTP server and its token (xpp_http.cpp: 127.0.0.1 only, every route checks the token in constant time), `/files` and the `file` command (xpp_files.cpp: base names only, no links, temp-then-rename), the page's bound calls (`__xppFileDialog`, `__xppCloseWindow`), anything that starts a process (`XPPEDITOR`), temp folders, and every reader of a file a user may have been sent (.ode, .odex, recordings, our session files): no path outside its folder, no unbounded allocation or recursion from a value in the input, no shell built from input. A card that touches one says in its report what it checked and what an attacker could still do | review; asancheck and valgrindcheck for memory errors |
@@ -83,8 +84,8 @@ The sections below give the details.
 | Every error names its file and line (and the source line): read from a file, the file and its line; caused by a model line at run time, that line; from a command, the command (in a recording, its step's line); one error value, one renderer, one event (maintainer, 2026-10-01; W140) | errorcheck (W140: none without a place, outside its allowlist), review |
 | User text is quoted, a choice never: in every file of ours and in `--server`'s text form, anything the user names or writes (window, curve and key names, labels, titles, paths, set names) is a double-quoted string even without spaces, shown and referenced exactly as written; choices and keywords are bare one-word tokens; a colour is always a quoted string, a name and `foreground` too ("red", "foreground", "#ff0000"; maintainer, 2026-10-25, W494) (maintainer, 2026-10-24; W381 decisions) | review |
 | Commands, not letters: the program is driven through registry commands; a key binds one command and is one key (a single key or a modifier combination), never a letter sequence or chord, and there is no XPPAUT key preset; a command is atomic (all its values checked, then applied, or nothing changes), and asks nothing whose answer can be a setting (maintainer, 2026-10-29; W534, #599; W535, #600; W536, #601) | review; servercheck |
-| A window is named, never numbered: every graph and AUTO view has a name (defaults `graph_1`, ..., `diagram_1`, ...), unique while open, the user's text with spaces allowed; the protocol, files and recordings reference windows only by name, and an unknown name is an error (maintainer, 2026-10-14, W308 question 6, #367; defaults 2026-10-24; W353) | review |
-| Every stop says why: a computation that ends before what was asked (an integration, a sweep, an AUTO branch, a search, a shoot, a fit) reports why, once: what stopped (the variable and t, or the AUTO point and branch), the setting that caused it with its value, and the model line where there is one; no silent `break`, nothing only at DEBUG (maintainer, 2026-10-24: debuggability is a core value; XPPAUT stops without saying what went wrong; W480, #543) | review; servercheck triggers each kind of stop and checks its message (W480) |
+| A window is named, never numbered: every graph and autoX view has a name (defaults `graph_1`, ..., `diagram_1`, ...), unique while open, the user's text with spaces allowed; the protocol, files and recordings reference windows only by name, and an unknown name is an error (maintainer, 2026-10-14, W308 question 6, #367; defaults 2026-10-24; W353) | review |
+| Every stop says why: a computation that ends before what was asked (an integration, a sweep, an autoX branch, a search, a shoot, a fit) reports why, once: what stopped (the variable and t, or the autoX point and branch), the setting that caused it with its value, and the model line where there is one; no silent `break`, nothing only at DEBUG (maintainer, 2026-10-24: debuggability is a core value; XPPAUT stops without saying what went wrong; W480, #543) | review; servercheck triggers each kind of stop and checks its message (W480) |
 | The simplest clean way: before the report (the agent) and before the merge (the reviewer), ask "is this the simplest, cleanest way to do the job?"; no over-engineering: no layer, class, registry or option where a function or a value does, and the report names a simpler way it rejected and why (maintainer, 2026-10-15) | review |
 | YAGNI: nothing is written for a use that does not exist yet (a parameter nothing varies, an option nothing sets, a hook nothing calls, generality one caller needs); a shared abstraction is made when a second card needs the same thing, and that card does the refactor (maintainer, 2026-10-15) | review; deadcode.sh, deadcheck.py (what nothing calls) |
 | No dead code | deadcode.sh, deadcheck.py |
@@ -134,7 +135,7 @@ only HEAD would be checked. A check run in place over /mnt/c
 Gates come in two tiers. Every task (the agent, in its worktree): a
 clean build with 0 warnings (`make`: -Werror is the default), the unit tests, web2's
 typecheck, and only the checks the task touches, run directly (the
-examples md5s, goldencheck, servercheck, autocheck, odexcheck, `node
+examples md5s, goldencheck, servercheck, autoxcheck, odexcheck, `node
 tools/web2check.mjs --only <the task's sections>` when web2 changed).
 Agents never run verify.sh (maintainer, 2026-09-28): five agents each
 waiting their turn at it, one at a time, left the last one idle for 40
@@ -170,7 +171,7 @@ timed study:
     tools/heavy.sh [--alone] COMMAND [ARGS...]
 
 - Heavy means a build (`make`, `mingw32-make`, web2's `npm run
-  build`), a check script (servercheck, autocheck, webcheck,
+  build`), a check script (servercheck, autoxcheck, webcheck,
   examples_check, odexcheck, goldencheck, sourcecheck, web2check,
   asancheck, verify.sh) and any timing or profiling run. Reading,
   grepping, editing and git are not.
@@ -272,8 +273,8 @@ not a baseline of its own. Bessel `besselj`/`bessely` use the vendored musl impl
 `xpp::math` (W163, #215), so they also give the same bits on every platform. From Git Bash:
 `tools/examples_check.sh --bin xppautX.exe`.
 
-`tools/autocompare.py` (W299, #357; it runs under the repo's uv environment, `uv run --locked python tools/autocompare.py`, numpy from uv.lock) runs `tests/auto/`'s descriptions of
-all tstauto models and examples/ode models with AUTO settings through
+`tools/autoxcompare.py` (W299, #357; it runs under the repo's uv environment, `uv run --locked python tools/autoxcompare.py`, numpy from uv.lock) runs `tests/autox/`'s descriptions of
+all tstauto models and examples/ode models with autoX settings through
 `--server`, at 1 and automatic threads. It compares the diagram the session file
 keeps (every point's parameters, states and eigenvalues, exact) byte for
 byte (CRs removed) with the shared `.diagram.csv` baseline, naming the first differing point
@@ -281,9 +282,9 @@ and both lines; skipped models have explicit reasons. `--only MODEL,...`
 selects descriptions. Use `--update` only for an intended numerical change;
 it prints the models changed. verify.sh runs it after examples_check;
 every platform's core CI job uploads differences as `auto-diagrams-<platform>`.
-The coordinator's checks after a wave of AUTO cards (not verify.sh's):
-`tools/auto-profile/diagram_diff.py` with a `LINALG=lapack` build (every description against the
-baselines and AUTO-07p), and `tools/wslrun.sh tools/auto-profile/modeldb_check.sh build/OUT`
+The coordinator's checks after a wave of autoX cards (not verify.sh's):
+`tools/autox-profile/diagram_diff.py` with a `LINALG=lapack` build (every description against the
+baselines and AUTO-07p), and `tools/wslrun.sh tools/autox-profile/modeldb_check.sh build/OUT`
 (W429, #491; W549, #614: ModelDB 267710's 20-point periodic run, `examples/ode/motoneuron6c.odex`, makes no
 fold search and no step back in the default, LIBM=system and LAPACK builds: its parameter rises
 monotonically from the Hopf point).
@@ -304,7 +305,7 @@ tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
 platform runs the same behaviour checks against its own build (`<platform>-core`)
 and web2check against it (`<platform>-ui`), for linux, windows and macos;
 `windows-clang` runs windows-core's checks against a clang build (its
-servercheck/webcheck/autocheck/examples run side by side, W41), and
+servercheck/webcheck/autoxcheck/examples run side by side, W41), and
 `windows-clang-sanitizers` (a 6-shard matrix, each building its own ASan
 binary: below) asancheck with clang, beside it; a check step runs even
 after another one failed (only a failed build stops them).
@@ -409,7 +410,7 @@ shape is the original source's own; merge into the owner rather than add
 an entry. Heuristic and line-based (not a real C++ parser), so it cannot
 see two implementations of the same algorithm written differently
 (sgefa/sgesl vs. ge() vs. bandfac/bandsol, the three LU solves; gear.cpp's
-eigen() vs. autlib1.cpp's eig()): those were found by hand for the W30
+eigen() vs. autox_lib1.cpp's eig()): those were found by hand for the W30
 audit note, not by this script.
 
 `tools/aliascheck.sh` (W113; sourcecheck runs it with `--check`, a
@@ -423,7 +424,7 @@ also fails, in web2/src, a renamed import (`import {a as b}`) and two
 exported functions or consts of one name. Aliases of std::
 types, new function-pointer types, typedefs of builtins and
 `typedef struct {...} name;` definitions need no entry; the platform
-shims and vendored CVODE/AUTO names are entries. Use the real name.
+shims and vendored CVODE/autoX names are entries. Use the real name.
 
 `make ltocheck` (run by tools/sourcecheck.sh, which verify.sh runs) links xppautX with LTO into build/lto
 and fails on `-Wlto-type-mismatch`: an extern whose type or array bound
@@ -432,8 +433,8 @@ differs from its definition, which a normal build cannot see.
 `make asan` builds xppautX with AddressSanitizer, LeakSanitizer and
 UBSan into build/asan; `tools/asancheck.sh` (CI's `linux-sanitizers` job, not
 verify.sh: it takes a few minutes) builds it and runs the smoke run,
-every example, the unit tests, servercheck, webcheck and autocheck under
-it (servercheck, webcheck and autocheck side by side, their waits doubled
+every example, the unit tests, servercheck, webcheck and autoxcheck under
+it (servercheck, webcheck and autoxcheck side by side, their waits doubled
 by `XPP_CHECK_SLOW=2`), and fails on any report (written to build/asan/reports):
 
     tools/wslrun.sh tools/asancheck.sh
@@ -444,28 +445,28 @@ there), about 9 minutes:
     PATH=/c/msys64/clang64/bin:$PATH MAKE=mingw32-make tools/asancheck.sh --no-leaks --builddir build/clang-asan CC=clang CXX=clang++
 
 `--only LIST` (W41) runs only some of the script's phases:
-build,smoke,examples,unittests, then any of servercheck,webcheck,autocheck
+build,smoke,examples,unittests, then any of servercheck,webcheck,autoxcheck
 (or the `checks` alias for all three; whichever of these are named run
 side by side, `run_check` printing "NAME finished after Ns" as each
-finishes) -- `autocheck=SECTION+SECTION...` (the names
-`tools/autocheck.py --list` prints) narrows autocheck to just those
-sections. `autocheck-shard=INDEX/COUNT` partitions AUTO's own section list
+finishes) -- `autoxcheck=SECTION+SECTION...` (the names
+`tools/autoxcheck.py --list` prints) narrows autoxcheck to just those
+sections. `autoxcheck-shard=INDEX/COUNT` partitions autoX's own section list
 round-robin (one-based), so new sections are included automatically;
-`autocheck.py --list --shard INDEX/COUNT` shows the partition without
+`autoxcheck.py --list --shard INDEX/COUNT` shows the partition without
 running it. `--skip-build` skips the build phase even when `--only`
 includes it, for a shard given an already-built tree. Default: every
 phase, in order (the whole script; macOS still runs it this way).
 Linux's `linux-sanitizers` has five shards (W180): smoke+examples+unit
-tests, servercheck+webcheck, and three AUTO partitions. All keep leak
+tests, servercheck+webcheck, and three autoX partitions. All keep leak
 detection. The baseline CI 37175547727 took 17 minutes: about four to
-build, then examples and unit tests, then 568 seconds in AUTO. Each
+build, then examples and unit tests, then 568 seconds in autoX. Each
 shard builds independently; measure the elapsed time and runner minutes
 before adding further shards or a shared-build artifact.
 `windows-clang-sanitizers` is a 6-shard matrix, each with its own build:
-smoke+examples, unit tests, protocol+web together, and three AUTO
+smoke+examples, unit tests, protocol+web together, and three autoX
 partitions from the same owner as Linux's (W181). Combining the short
-protocol/web jobs removes a repeated build to offset the extra AUTO
-partition. In CI 37177097317 the previous second AUTO shard took 694s,
+protocol/web jobs removes a repeated build to offset the extra autoX
+partition. In CI 37177097317 the previous second autoX shard took 694s,
 Windows core 590s and macOS UI 579s; splitting jobs below the critical
 path cannot shorten the matrix by itself. Job labels describe platform,
 compiler and scope; workflow_dispatch keeps the stable job ids above.
@@ -487,7 +488,7 @@ The sanitizers do not see a read of memory never written; valgrind's
 memcheck does. `make vg` builds xppautX at -O1 without sanitizers into
 build/vg; `tools/valgrindcheck.sh` (W21; Linux, ~25 min on 32 threads, not
 in CI or verify.sh) runs the smoke run, every example, the unit tests
-(`TEST_RUNNER`), then servercheck and autocheck's sections side by side
+(`TEST_RUNNER`), then servercheck and autoxcheck's sections side by side
 under memcheck (`--origins`: also where a bad value came from, about
 twice as slow, for fixing a report) and fails on
 any report (build/vg/reports; tools/valgrind.supp only for code we do not
@@ -495,7 +496,7 @@ own). It sets `XPP_CHECK_SLOW=30`, which multiplies every wait of the
 python checks (tools/xppclient.py).
 `XPP_NO_THROTTLE=1` (core/xpp_job.h, W49) turns off `xpp::every`'s
 throttling of progress events, so a check sees every intermediate event
-on any machine instead of only on a slow one (servercheck's autoinfo
+on any machine instead of only on a slow one (servercheck's autoxinfo
 checks run under it).
 
 Metrics: verify.sh's `C++: N / M sources` (core/*.cpp over all core
@@ -553,7 +554,7 @@ and skipped it):
 
 - `-silent` (integration only) needs no X server, on either system;
   neither do any of xppautX's modes. XPPAUT's AUTO has no batch mode, so
-  any AUTO run in XPPAUT needs its window and an X server.
+  any autoX run in XPPAUT needs its window and an X server.
 - WSL: built from reference/xppaut-8.0
   (paper/benchmarks/five-model-screen/build.py), its window on a private
   Xvfb, driven with xdotool (paper/benchmarks/auto/hopf_xppaut.py).
@@ -561,7 +562,7 @@ and skipped it):
   cygwin, its X11 DLLs beside it), shows its window through Xming
   (`C:\Program Files (x86)\Xming`: start `Xming.exe :0 -multiwindow`, or
   XLaunch, then `DISPLAY=localhost:0`). W244's native UCRT build has its
-  X11 stubbed: it runs `-silent` only, never AUTO. Driving XPPAUT's keys
+  X11 stubbed: it runs `-silent` only, never autoX. Driving XPPAUT's keys
   needs an X client that reaches Xming's display, such as WSL's xdotool
   with `DISPLAY` set to the Windows host's `:0`, after Xming allows it
   (`X0.hosts`, or `-ac`). That route is untested: a card that needs it
@@ -625,10 +626,10 @@ each card, passed with each start; default haiku at medium) implements one card 
   instead of copying it. The report names what you searched for and what
   you reused or extended; a duplicate the review finds sends the card
   back.
-- A card's change reaches all of core/, AUTO's files included ("One
+- A card's change reaches all of core/, autoX's files included ("One
   codebase", Code quality): when it lifts a limit, unifies an operation
-  or cleans an idiom, grep AUTO's files (autlib*, auto_*, autevd, autpp,
-  setubv*, gogoauto, diagram) for the same and change them too; a part
+  or cleans an idiom, grep autoX's files (autox_*, xAutox,
+  setubv*, gogoautox, diagram) for the same and change them too; a part
   you leave out is named in the report with the reason, never left
   silent.
 - Gates: the per-task tier above. Iterate with `web2check --only <your
@@ -636,7 +637,7 @@ each card, passed with each start; default haiku at medium) implements one card 
   tools/asancheck.sh. Commit before `tools/wslrun.sh` (it checks HEAD
   and refuses uncommitted changes). The machine is a laptop that
   overheats (maintainer, 2026-09-29): build with -j4, and never run two
-  heavy things side by side yourself (a build, servercheck, autocheck,
+  heavy things side by side yourself (a build, servercheck, autoxcheck,
   web2check). Across agents, on the Windows laptop (on the Ubuntu machine
   builds and checks run directly, W448): every build, check or timing run goes
   through `tools/heavy.sh [--alone] COMMAND...` (Build: "At most three
@@ -780,7 +781,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   results borrow columns through `lend_columns`), `plot_windows`
   (many_pops.h: the graphs, the active one, the Simulplot list,
   draw_win), `frozen_curves` and `plot_export` (graf_par.h), the
-  integrator's state, AUTO's (`auto_state`, `auto_lib`, and the
+  integrator's state, autoX's (`autox_state`, `autox_lib`, and the
   `diagram`, read through `diagram_count`/`diagram_point`/
   `diagram_first`/`_next`/`_prev`), the browser, the kinescope, the
   numerics and plot settings, the parser's working state, `sliders` and
@@ -816,7 +817,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `json_prompts.cpp` (asks, messages, long loops), `json_state.cpp` (the
   state event, the data browser, value edits, the data subscription),
   `json_windows.cpp` (plot windows, pixels, kinescope, array plot),
-  `json_auto.cpp` (the AUTO window, its diagram data and settings) and
+  `json_autox.cpp` (the autoX window, its diagram data and settings) and
   `json_ani.cpp` (the animation window), which share
   `core/ui_json_internal.h` (C++ only, namespace `xpp::json`; shared
   mutable state in one struct, `xpp::json::session`; file-local state in
@@ -857,7 +858,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   work area and shrunk to fit it (W13f, `place_window`). It shows the page the HTTP
   server below serves, navigated to the tokened URL itself (browser mode
   prints it; the window shows it nowhere). Threads: the core keeps the
-  main thread; AUTO collocation may use up to four threads including the
+  main thread; autoX collocation may use up to four threads including the
   caller. Workers touch only their own evaluation/scratch arrays, immutable
   model/table data and their assigned mesh blocks; shared condensation updates
   are replayed on the caller. The integrators stay serial. The web view runs its own UI
@@ -927,12 +928,12 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   them from there; `--silent` starts no reader. Abort and Quit cancel the
   running job from the reader thread (`core/xpp_job.{h,cpp}`, by sequence
   number); computations ask `xpp::job::cancelled()` or go through the
-  throttled checkpoints `my_abort()`/`byeauto_()`. ui_json.cpp's `classify()`
+  throttled checkpoints `my_abort()`/`byeautox_()`. ui_json.cpp's `classify()`
   says which lines are control lines; docs/protocol.md "Commands during a
   command" is the contract. Computations report how far they got to
   xpp_job (`xpp::job::report_rows` per stored row in integrate.cpp's `row_stored()`,
   which also feeds `XppUi.rows_stored` (web2's live `series` appends),
-  `xpp::job::report_point` per AUTO point in autevd.cpp addbif): a cancelled
+  `xpp::job::report_point` per autoX point in autox_evd.cpp addbif): a cancelled
   command sends `stopped` with that, and the .recx player replays the step's
   recorded `abort` by arming `xpp::job::stop_at_rows/point` before its
   computation (json_player.cpp `arm_step`, ui_json.cpp `arm_recorded_stop`). Rebuild xppautX
@@ -948,8 +949,8 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   sink. There is no `plintf()` any more (retired at W25, ~620
   call sites): there is one logging call, `xpp::log`, checked with
   std::format like xpp::format in xpp_io.h. Dynamic widths and precisions
-  use nested replacement fields (`{:{}}`, `{:.{}}`); AUTO uses the same
-  checked formatting through `xpp::log_auto` (W172, #224).
+  use nested replacement fields (`{:{}}`, `{:.{}}`); autoX uses the same
+  checked formatting through `xpp::log_autox` (W172, #224).
   `err_msg()`'s headless default is ERROR. An INFO message additionally
   honours the model's own `@ quiet=1` (`xpp::log_settings.verbose`), what
   plintf() used to gate itself on. Picking a level for a new message:
@@ -981,8 +982,8 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   checks); tests/errors.baseline is empty since W140b. A command's error is
   `command_error(cmd, what)` at `command_place()` (xpp_ui.h: in a .recx Play, the step's file and line), a model line's
   `model_place(m, name)` (model_files.h).
-  AUTO's table goes through `xpp::log_auto()`: INFO on the console, always
-  written in browser mode, where the AUTO window's Output panel shows it.
+  autoX's table goes through `xpp::log_autox()`: INFO on the console, always
+  written in browser mode, where the autoX window's Output panel shows it.
   The core never prints to stdout or stderr directly; `tools/stdoutcheck.sh`
   (run by verify.sh) enforces it, with a short allowlist inside the script
   for the handful of lines that are legitimately direct (the `--version`
@@ -1000,18 +1001,18 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   (grobs.cpp draw_label) and frozen curves (graf_par.c) by their slot; the animation's frames, `animation.frame`, come from
   `core/ani_data.cpp`, to which aniparse.cpp gives every primitive in the
   `.ani`'s unit coordinates;
-  `auto.info`, AUTO's info strip and stability circle,
-  from `core/auto_data.cpp`, which auto_nox.cpp tells what it draws there
+  `autox.info`, autoX's info strip and stability circle,
+  from `core/autox_data.cpp`, which autox_nox.cpp tells what it draws there
   (the circle always a stored diagram point's values, running or grabbed;
-  those come from `core/auto_stability.cpp` (W15), the one source of a
-  point's eigenvalues/multipliers: autlib1.cpp's stability checks hand it
-  what they computed and autevd.cpp addbif stores what it says belongs to
+  those come from `core/autox_stability.cpp` (W15), the one source of a
+  point's eigenvalues/multipliers: autox_lib1.cpp's stability checks hand it
+  what they computed and autox_evd.cpp addbif stores what it says belongs to
   the point, zeros meaning "not computed", a run's first point included
   unless the run restarts from a label of the same kind);
-  the AUTO diagram's points, `auto.diagram`, from json_auto.cpp's `j_auto_diagram`).
+  the autoX diagram's points, `autox.diagram`, from json_autox.cpp's `j_autox_diagram`).
   Protocol 2 (T18) has no pixel drawing: the classic page's `draw` ops,
   `palette` and `size` went with it. The `XppUi` pixel primitives
-  (`draw_*`, `set_color`, `auto_line` ..., `ani_line` ...) stay as seams
+  (`draw_*`, `set_color`, `autox_line` ..., `ani_line` ...) stay as seams
   with headless no-op defaults and no front-end implementation; the code
   that calls them feeds the data modules, which are what the page sees.
   The `pixels` ask stays: web2 renders the picture from its data.
@@ -1040,7 +1041,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   window's own like hook, and `XPP_STORAGE_FAIL_GROW` (storage.cpp) makes
   the data store's growth fail, for servercheck's out-of-memory check
   (W347: the run stops with an error, its rows kept); `XPP_DIAGRAM_POINTS_LIMIT=N`
-  (autevd.cpp) lowers the most points a diagram holds, for servercheck's check that
+  (autox_evd.cpp) lowers the most points a diagram holds, for servercheck's check that
   a run reaching it stops with an error, its points kept (W432). The exceptions (memory a library allocates or
   frees) are listed in xpp_mem.h's comment; add any new one there and in
   `tools/alloccheck.sh` (sourcecheck.sh), which fails any other direct
@@ -1082,7 +1083,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   for a helper that takes a plain `FILE *` from elsewhere, such as
   `lunch-new.cpp`'s `io_int`/`io_double` or `diagram.cpp`'s
   `load_diagram`. Integer columns printed flush against each other
-  (AUTO's `%5ld` label lines in fort.8/.s) are read with `read(long&)`
+  (autoX's `%5ld` label lines in fort.8/.s) are read with `read(long&)`
   (fscanf `%ld`'s own grammar, not a whole token), and `skip_line()`
   skips the rest of a line; `xpp::Writer::binary(path)` writes a file
   byte for byte, and `xpp::print(FILE *, ...)` is the one overload for a
@@ -1093,16 +1094,16 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `xpp::UniqueFile`). Asking before overwriting a user's file is
   `open_writer_asking` (browse.h), a Writer that commits in place.
 - Every other file operation is `core/xpp_files.h` (W32b), namespace
-  `xpp::files`: a stream kept open across calls (`open_stream`: AUTO's
+  `xpp::files`: a stream kept open across calls (`open_stream`: autoX's
   fort.3/7/8/9 during a run, the array plot's GIF movie, an input
   script), an exclusive create (`create_new`, every temp file), `exists`,
-  `dir_writable`, `remove`, `copy`, `prepend` (AUTO's "append": new bytes
-  ahead of the file's own), `move`, and AUTO's scratch folders
+  `dir_writable`, `remove`, `copy`, `prepend` (autoX's "append": new bytes
+  ahead of the file's own), `move`, and autoX's scratch folders
   (`make_temp_dir`, `remove_temp_dir`, `cleanup_stale_temp_dirs`; the
   Windows API parts in xpp_win32.cpp); a path they only read is a
   `std::string_view`.
   The folder half (listing and its wildcard match, the file selector's
-  current folder, is_dir, dir_writable, AUTO's scratch folders) is
+  current folder, is_dir, dir_writable, autoX's scratch folders) is
   `core/xpp_files_dir.cpp` behind the same header (W46b, which folded
   read_dir in); the two share the platform primitives of
   `core/xpp_files_internal.h`.
@@ -1209,7 +1210,7 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   becomes its namespace: `xpp_files_exists` is `xpp::files::exists`,
   `xpp_job_cancelled` `xpp::job::cancelled`, `xpp_log` is
   `xpp::log`). Each stage was timed before and after (examples_check's
-  wall time, kuramot100.ode --silent, an AUTO run, and callgrind's
+  wall time, kuramot100.ode --silent, an autoX run, and callgrind's
   instruction counts for the last two, which do not depend on code
   layout): a stage slower beyond the noise was not merged, and if C++
   had cost speed the card would have stopped (maintainer, 2026-09-30); none
@@ -1278,7 +1279,7 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   `tools/sessioncheck.sh` (sourcecheck) fails a read of the list or of
   client() outside those owners, and any `xpp::session()`/`xpp::model()`.
   A hot loop gets the Session once where the run starts (the solvers
-  through their Solver or IntegratorState, AUTO's routines through
+  through their Solver or IntegratorState, autoX's routines through
   `iap->lib`). A load (`xpp::Load` in xpp::load_model, core/session.h) builds a
   fresh Model and Session and keeps them only when it finishes: a parse
   error's `xpp::model_failed` throws `xpp::LoadFailed`, and the Model and
@@ -1290,7 +1291,7 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
 
 - Upstream mergeability is no longer a goal (2026-09-23): refactor for
   single responsibility and clean code, numerics included. Numerical
-  results must not change: tools/verify.sh's checksums and saved AUTO
+  results must not change: tools/verify.sh's checksums and saved autoX
   diagram are the guard.
 - Tests check data (output files, protocol events, UI state), never
   pixels: do not add screenshot comparisons.
@@ -1298,10 +1299,10 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   tables) have no length limit (W76, which retired `XPP_NAME_MAX`,
   `MAX_LEN_SBOX` and `name_too_long`): they are `std::string` everywhere,
   and no dialog, form or protocol field cuts one (the `string` and `form`
-  asks carry no `max`). A display or file column of fixed width (AUTO's
+  asks carry no `max`). A display or file column of fixed width (autoX's
   printed headings and info strip) shortens with `short_name()`
   (xpp_util.cpp, ends in `~`); the JSON front end always sends names
-  whole. tools/models/longnames.ode (200-character names), autocheck's
+  whole. tools/models/longnames.ode (200-character names), autoxcheck's
   `names` section and tests/test_names.cpp are the test.
 - Files on disk may be CRLF (Windows checkout); scripts that edit them must
   preserve line endings. Python written with `newline=''` does.

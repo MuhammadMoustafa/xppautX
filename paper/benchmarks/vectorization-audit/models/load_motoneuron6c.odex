@@ -18,7 +18,7 @@ version 4
 #   @ total=600           (rest.ode's)
 #   par CaDen_Max         (glob.inc's fixed CaDen_Max=0.000168, the dendritic L-type Ca / PIC
 #                          density scaling both distal dendrites' Ca and Ca-activated K, is a
-#                          parameter, the second one of the Hopf locus in tests/auto/)
+#                          parameter, the second one of the Hopf locus in tests/autox/)
 ## ********************************************************** ##
 # Author:       Muhammad Moustafa
 # Email:        muhammadmoustafa@eng1.cu.edu.eg

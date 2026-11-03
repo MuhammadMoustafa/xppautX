@@ -2,7 +2,7 @@
 
 Upstream XPPAUT's interface was a set of X11 windows: a main window with
 its own menu, and separate windows for parameters, initial data, the
-data browser, AUTO, and so on, each independently resizeable and
+data browser, autoX, and so on, each independently resizeable and
 iconifiable. This fork (xppautX) replaced that with **web2**, a single
 responsive page served by the program itself and opened in your browser.
 It is the same XPPAUT underneath: the same menus, the same single-letter
@@ -47,7 +47,7 @@ checks rather than interactive use:
   over HTTP, instead over stdin/stdout, for a process that wants to drive
   xppautX directly (docs/protocol.md is the contract). `xppautX run.recx --silent`
   plays a recording without an interface, from its saved snapshot, and
-  reproduces each recorded interruption at its exact row or AUTO point
+  reproduces each recorded interruption at its exact row or autoX point
   (docs/protocol.md "Playing a recording without an interface", W144).
   Plain-name output files remain in the launch folder. Existing files ask
   the terminal for confirmation within 60 seconds; EOF or timeout stops
@@ -60,7 +60,7 @@ checks rather than interactive use:
 
 The page has a title bar (the model's name, the connection state, Search for
 the command palette), the **menu bar** below it (File, Run, Analysis, Plot, Data,
-AUTO, Windows and Help; "Commands", in the next chapter), the plot area with its tabs, and
+autoX, Windows and Help; "Commands", in the next chapter), the plot area with its tabs, and
 a **status bar** along the bottom that shows "Working…" with a progress
 bar and one **Stop** control whenever a command is running (in any view;
 there is no per-view Abort button — see "Long-running commands" below).
@@ -93,14 +93,14 @@ plot or as a sheet. Its size and visibility are remembered by this browser.
 
 ## Tabs instead of windows
 
-The plot, AUTO, the animation, an array plot, the data browser, the
+The plot, autoX, the animation, an array plot, the data browser, the
 equations and the ODE source are **tabs** above the plot area, not
 separate windows (docs/front-end-gaps.md "Different on purpose"). A tab
 comes forward by itself when its window opens in X11 terms, or when XPP
-waits for a click or a key in it (grabbing a point in AUTO, for example).
-Keys go to the tab you are looking at: with the AUTO tab in front, `a`,
-`n`, `r`, `g`, `d`, `c`, `u`, `p` and `f` are AUTO's own keys, as they are
-in the X11 AUTO window. `Window/Bottom` (raise a plot window) does
+waits for a click or a key in it (grabbing a point in autoX, for example).
+Keys go to the tab you are looking at: with the autoX tab in front, `a`,
+`n`, `r`, `g`, `d`, `c`, `u`, `p` and `f` are autoX's own keys, as they are
+in the X11 autoX window. `Window/Bottom` (raise a plot window) does
 nothing: tabs replace stacking, and there is nothing to iconify or
 resize — a tab always fills the space it has.
 
@@ -237,9 +237,9 @@ operations, so they scale and theme with the rest of the page.
 with the window's angles; rotate by dragging or the keys that rotated the
 X11 window.
 
-## The AUTO view
+## The autoX view
 
-See [Auto interface](09-auto.md#the-auto-view).
+See [autoX interface](09-autox.md#the-autox-view).
 
 ## The animation view
 
@@ -263,15 +263,15 @@ Every box checks what you type as you type it, by what it asks for:
 
 | the box asks for | it takes | for example |
 |---|---|---|
-| a whole number | digits, with a sign | AUTO's Max steps and Mesh intervals, a range's Steps, the animation's frame skip |
-| a number | `1e-3`, `-0.5`, `.5` | a window's limits, slider Min, Max and Step, AUTO's Step size, Mark values |
+| a whole number | digits, with a sign | autoX's Max steps and Mesh intervals, a range's Steps, the animation's frame skip |
+| a number | `1e-3`, `-0.5`, `.5` | a window's limits, slider Min, Max and Step, autoX's Step size, Mark values |
 | a number or %formula | a number, or `%` and a formula | parameters, initial conditions, nUmerics' Total, Dt, ... |
 | an expression | a formula, its brackets matched | boundary conditions, delays, a column's formula, the calculator |
 | a name | one of the model's names (it suggests them) | Xi vs t, the data browser's Replace and Tabulate |
 | a file name | a name only: no folder, no leading dot, none of `\ / : * ? " < > \|` | Save's file name, the frames' base name |
 | text | anything | labels, search boxes |
 
-Some also have a range (AUTO's Collocation points from 2 to 7, a Step above 0). A keystroke, a
+Some also have a range (autoX's Collocation points from 2 to 7, a Step above 0). A keystroke, a
 paste or a drop that would leave a box with text it never takes, and that
 is not on the way to text it does (a stray letter in a number box, say,
 or a second decimal point), is refused outright: the box's text does not
@@ -304,11 +304,11 @@ for whatever is running, in any view; it exists only while something
 runs and turns into a disabled "Stopping…" until the run's next `done`
 point. A view's own close (×) means "done with it": it stops a running
 job first, then closes; **Stop** itself keeps the view and whatever
-partial result it has (an interrupted AUTO branch ending on its last
+partial result it has (an interrupted autoX branch ending on its last
 point, ready to Grab and continue).
 
 While a computation runs (an integration, a range, Sing pts, a
-boundary value problem, an AUTO run), the status bar says what
+boundary value problem, an autoX run), the status bar says what
 (`Running Go… Esc stops`). What you can do meanwhile depends on what an
 action is; every button and menu item has one of five kinds:
 
@@ -316,9 +316,9 @@ action is; every button and menu item has one of five kinds:
 |---|---|---|
 | Control | Stop (Escape), Quit, answering a question | works |
 | View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
-| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Apply set, File/Restore defaults, AUTO's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
-| Data | Save and Load of values' files, Import settings, every file written, Save session, AUTO's Save and Load diagram, AUTO's Grab | disabled |
-| Computation | Integrate and Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
+| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Apply set, File/Restore defaults, autoX's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
+| Data | Save and Load of values' files, Import settings, every file written, Save session, autoX's Save and Load diagram, autoX's Grab | disabled |
+| Computation | Integrate and Initialconds, Continue, Range, autoX's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 
 A disabled control says so in its tooltip ("Not while a computation
 runs: available when it ends"), and a key of those kinds typed during a
@@ -332,7 +332,7 @@ applies. Typing ahead into menus still works: I then G typed quickly
 integrates, because the G answers the menu the I opens. Settings stay
 usable during a run: an edit is sent at once and shown as the value,
 and it applies when the run ends, never to the run in progress; so do
-AUTO's Parameter, Numerics and Mark values forms (for the next AUTO
+autoX's Parameter, Numerics and Mark values forms (for the next autoX
 run).
 
 ## Saving pictures and files
@@ -354,7 +354,7 @@ or turn No into a write when the destination's existence changes.
 No keeps the destination as it was and delivers nothing. A failed save
 shows one error and keeps the old file. An empty export says
 **“Nothing to save”** before asking for a name.
-This also applies to AUTO's Save diagram and the session written
+This also applies to autoX's Save diagram and the session written
 beside an imported XPPAUT `.set`. Declining the last keeps the imported values
 applied, without changing the session file. Scripts can put `replace:1` on
 the saving command to authorize it, or `replace:-1` to decline it (W129).
@@ -415,7 +415,7 @@ The title bar's Help button (or F1) opens this manual in the page's Help view. I
 
 ## The log
 
-What xppautX prints — including AUTO's table (`Output`, in the AUTO
+What xppautX prints — including autoX's table (`Output`, in the autoX
 view) — goes to **Messages** at the bottom of the page, quiet by default
 (warnings and errors); `--verbose`/`--debug` raise the level (core/xpp_log.h).
 The terminal that started it gets only what the page cannot show: the
@@ -431,7 +431,7 @@ You can enter a formula instead of a plain number in the values panel and
 in the prompts that ask for one number (the "number or %formula" boxes
 above: nUmerics' Total, Dt, ...): the first character must be `%`, e.g.
 `%2*pi` or `%sin(1.5)`; it is evaluated and converted to a number when
-the field takes effect. A form's number fields (a window's limits, AUTO's
+the field takes effect. A form's number fields (a window's limits, autoX's
 Numerics) take plain numbers only.
 
 

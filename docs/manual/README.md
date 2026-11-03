@@ -8,7 +8,7 @@ rewritten for web2, and chapter 1 is being rewritten for xppautX
 
 XPP's manual, converted from the original LaTeX (`docs/upstream/xpp_doc.tex`,
 `docs/upstream/xpp_sum.tex`) to Markdown (docs/roadmap.md W12). The model
-language, numerics and AUTO chapters are kept faithful to the original; the
+language, numerics and autoX chapters are kept faithful to the original; the
 chapters about windows, the mouse and keystrokes are rewritten for the
 current front end, **web2** (the page `xppautX model.ode` opens). Where an
 X11 feature has no web2 equivalent yet, the relevant chapter says so
@@ -29,7 +29,7 @@ dialogs straight to the sections below.
 6. [Numerical parameters](06-numerical-parameters.md) — the Numerics menu: integration methods, tolerances, Poincaré maps, curve fitting, averaging
 7. [The Data Browser](07-data-browser.md) — the Data tab: Find, Get, Replace, Table, Write, Load, Addcol, Delcol
 8. [Functional equations](08-functional-equations.md) — Volterra/integral equations, convolutions, networks (`special`)
-9. [Auto interface](09-auto.md) — the AUTO view, parameters, diagram axes, numerics, running, grabbing, homoclinics
+9. [autoX interface](09-autox.md) — the autoX view, parameters, diagram axes, numerics, running, grabbing, homoclinics
 10. [Creating Animations](10-animations.md) — the DASL scripting language and the Animation tab
 12. [Some comments on the numerical methods](12-numerical-methods-notes.md)
 13. [Colors](13-colors.md) — the curve colour indices and their web2 palette
@@ -48,7 +48,7 @@ link from a menu item or dialog to its section here.
 | Values panel: initial conditions, parameters, checkboxes, sliders, user buttons, boundary conditions, delay data | [Using the interface: the values panel](04-using-the-interface.md#the-values-panel) |
 | Slider Add/Edit dialog | [Using the interface: the values panel](04-using-the-interface.md#the-values-panel) |
 | Data tab | [The Data Browser](07-data-browser.md) (commands below) |
-| AUTO view (status strip, Output, axis dialog, Save/Load session, Grab, Clear) | [Auto interface: the AUTO view](09-auto.md#the-auto-view) |
+| autoX view (status strip, Output, axis dialog, Save/Load session, Grab, Clear) | [autoX interface: the autoX view](09-autox.md#the-autox-view) |
 | Animation tab | [Creating Animations: the animation view](10-animations.md#the-animation-view) |
 | File dialogs (Open/Save, Add file…) | [Using the interface: saving pictures and files](04-using-the-interface.md#saving-pictures-and-files) |
 | Messages panel, `--verbose`/`--debug`/`--logfile` | [Using the interface: the log](04-using-the-interface.md#the-log) |
@@ -77,4 +77,4 @@ link from a menu item or dialog to its section here.
 | Numerics — Poincaré map | [Numerical parameters: (P)oincare map](06-numerical-parameters.md#poincare-map) |
 | Numerics — Averaging | [Numerical parameters: (A)veraging](06-numerical-parameters.md#averaging) |
 | Data tab — Find/Get/Replace/Unreplace/First/Last/Table/Restore/Write/Load/Addcol/Delcol | [The Data Browser](07-data-browser.md) (one section per button) |
-| AUTO — Parameter, Axes, Numerics, User, Run, Grab, Abort, File | [Auto interface](09-auto.md): [Choosing parameters](09-auto.md#choosing-parameters), [Diagram axes](09-auto.md#diagram-axes), [Numerical parameters](09-auto.md#numerical-parameters), [User functions](09-auto.md#user-functions), [Running](09-auto.md#running), [Grabbing](09-auto.md#grabbing), [Aborting](09-auto.md#aborting), [Saving diagrams](09-auto.md#saving-diagrams) |
+| autoX — Parameter, Axes, Numerics, User, Run, Grab, Abort, File | [autoX interface](09-autox.md): [Choosing parameters](09-autox.md#choosing-parameters), [Diagram axes](09-autox.md#diagram-axes), [Numerical parameters](09-autox.md#numerical-parameters), [User functions](09-autox.md#user-functions), [Running](09-autox.md#running), [Grabbing](09-autox.md#grabbing), [Aborting](09-autox.md#aborting), [Saving diagrams](09-autox.md#saving-diagrams) |

@@ -526,7 +526,7 @@ class Stability(unittest.TestCase):
 '''
 
     def test_a_special_point_keeps_its_own_block_when_its_number_is_printed_again(self):
-        from autox_reference import stability
+        from auto_reference import stability
         self.assertEqual(stability(self.D), {(1, 2): ('Eigenvalue', [[-3.19686e-09, -2.91214], [-3.19686e-09, 2.91214]])})
 
 

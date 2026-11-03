@@ -1,5 +1,5 @@
 #include <utility>
-#include "auto_c.h"
+#include "autox_c.h"
 #include "auto_par.inc" /* W251 prototype */
 
 namespace {

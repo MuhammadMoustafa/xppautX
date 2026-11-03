@@ -188,30 +188,30 @@ test('the text panel open/tab state is tracked like the other panels', () => {
 });
 
 test('classifyLogText tells autoX\'s console table apart from the rest of the log', () => {
-  assert.equal(classifyLogText('  BR    PT  TY LAB '), 'auto');
-  assert.equal(classifyLogText('   1     1  end' + ' '.repeat(18) + '   1  1.000000E-01  2.000000E-01'), 'auto');
-  assert.equal(classifyLogText('Generating starting data :'), 'auto');
-  assert.equal(classifyLogText('Hopf point\n'), 'auto');
+  assert.equal(classifyLogText('  BR    PT  TY LAB '), 'autox');
+  assert.equal(classifyLogText('   1     1  end' + ' '.repeat(18) + '   1  1.000000E-01  2.000000E-01'), 'autox');
+  assert.equal(classifyLogText('Generating starting data :'), 'autox');
+  assert.equal(classifyLogText('Hopf point\n'), 'autox');
   assert.equal(classifyLogText('nvar=2 naux=4 nfix=0 nmark=0 NEQ=6 NODE=6'), 'log');
   assert.equal(classifyLogText('All formulas are valid!!\n'), 'log');
 });
 
 test('a log event is classified when it is added (Messages: autoX output distinguishable)', () => {
   const s = ev(READY, {ev: 'session.log', text: '  BR    PT  TY LAB \n'});
-  assert.equal(logEntries(s.log)[0].kind, 'auto');
+  assert.equal(logEntries(s.log)[0].kind, 'autox');
   const s2 = ev(READY, {ev: 'session.log', text: 'nvar=2 naux=4\n'});
   assert.equal(logEntries(s2.log)[0].kind, 'log');
 });
 
 test('T27: the rows NPr prints (no type) are autoX\'s, and a chunk of several lines is classified line by line', () => {
-  assert.equal(classifyLogText('   1    50       2  1.077149E-01  3.745827E-01 -3.658905E-01  8.022678E-02\n'), 'auto');
-  assert.equal(classifyLogText('   2  2250      47  3.129853E-01  1.000000E+00  2.500000E+01\n'), 'auto');
+  assert.equal(classifyLogText('   1    50       2  1.077149E-01  3.745827E-01 -3.658905E-01  8.022678E-02\n'), 'autox');
+  assert.equal(classifyLogText('   2  2250      47  3.129853E-01  1.000000E+00  2.500000E+01\n'), 'autox');
   const chunk = 'nvar=2 naux=4\n   1     5       2  1.077149E-01  3.745827E-01\n   1    10       3  1.682993E-01  3.212211E-01\n'
     + '   1    19  hopf' + ' '.repeat(17) + '   4  2.624638E-01  2.891081E-01\n   1    2';
   let s = ev(READY, {ev: 'session.log', text: chunk});
   s = ev(s, {ev: 'session.log', text: '0       5  2.725202E-01  2.911251E-01\nAll formulas are valid!!\n'});
-  assert.deepEqual(logEntries(s.log).map(l => [l.kind, l.text.trim().slice(0, 12)]), [['log', 'nvar=2 naux='], ['auto', '1     5     '],
-    ['auto', '1    10     '], ['auto', '1    19  hop'], ['auto', '1    20     '], ['log', 'All formulas']]);
+  assert.deepEqual(logEntries(s.log).map(l => [l.kind, l.text.trim().slice(0, 12)]), [['log', 'nvar=2 naux='], ['autox', '1     5     '],
+    ['autox', '1    10     '], ['autox', '1    19  hop'], ['autox', '1    20     '], ['log', 'All formulas']]);
 });
 
 test('zoomAbout keeps the point under the pointer', () => {

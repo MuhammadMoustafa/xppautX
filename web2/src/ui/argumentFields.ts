@@ -43,7 +43,7 @@ export function currentArguments(row: CommandRow, state: AppState): Record<strin
     }
     if (auto && row.id === 'autox.set_threads' && auto.threads !== 'auto') out[arg.name] = auto.threads;
     if (arg.type === 'window') {
-      const name = row.id.startsWith('auto.') ? autoxWindow(state) : state.plots.active;
+      const name = row.id.startsWith('autox.') ? autoxWindow(state) : state.plots.active;
       if (state.windows.some(window => window.name === name)) out[arg.name] = name;
     }
     if (annotation && arg.name in annotation.values) out[arg.name] = annotation.values[arg.name];

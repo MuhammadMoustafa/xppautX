@@ -4,7 +4,7 @@ repository) into the parallel collocation prototype:
 
   core/setubv2.cpp, core/conpar2.cpp  this folder's copies (88e09741's, with the
                                       threads and XPP_FA_FIX; auto_par.inc)
-  core/autpp.cpp                      func: XPP_HAND_RHS=4 calls hand_rhs.inc's pure
+  core/autox_pp.cpp                      func: XPP_HAND_RHS=4 calls hand_rhs.inc's pure
                                       core with Iapp from AUTO's par, writing no Session
                                       state (what makes the threads safe)
   core/my_rhs.cpp                     mode 4 integrates like mode 1
@@ -35,7 +35,7 @@ def patch(name, old, new):
 patch('my_rhs.cpp', '  if (hand_mode() == 1) {', '  if (hand_mode() == 1 || hand_mode() == 4) {')
 head = ('int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, const double *par, '
         'integer ijac, double *f, double *dfdu, double *dfdp)\n{\n')
-patch('autpp.cpp', head, '#include "hand_rhs.inc"\n\n' + head + '''   if (hand_mode() == 4) { /* W251: the pure compiled right-hand side */
+patch('autox_pp.cpp', head, '#include "hand_rhs.inc"\n\n' + head + '''   if (hand_mode() == 4) { /* W251: the pure compiled right-hand side */
      static const int iapp = [&] {
        const double *slot = xpp::value_slot(s, "Iapp");
        for (int k = 0; k < s.auto_state.npar; k++)
@@ -49,7 +49,7 @@ patch('autpp.cpp', head, '#include "hand_rhs.inc"\n\n' + head + '''   if (hand_m
 ''')
 if tcc:
     patch('my_rhs.cpp', '  if (hand_mode() == 3) {', '  if (hand_mode() == 3 || hand_mode() == 5) {')
-    patch('autpp.cpp', '   if (hand_mode() == 4) {', '''   if (hand_mode() == 5) { /* W251: the pure TinyCC-compiled right-hand side */
+    patch('autox_pp.cpp', '   if (hand_mode() == 4) {', '''   if (hand_mode() == 5) { /* W251: the pure TinyCC-compiled right-hand side */
      static const model_fn fn = tcc_compile();
      static const int iapp = [&] {
        const double *slot = xpp::value_slot(s, "Iapp");
@@ -62,5 +62,5 @@ if tcc:
      return 0;
    }
    if (hand_mode() == 4) {''')
-    patch('autpp.cpp', '#include "hand_rhs.inc"', '#include "hand_rhs.inc"' + chr(10) + '#include "tcc_rhs.inc"')
+    patch('autox_pp.cpp', '#include "hand_rhs.inc"', '#include "hand_rhs.inc"' + chr(10) + '#include "tcc_rhs.inc"')
 print('parallel prototype in', core)

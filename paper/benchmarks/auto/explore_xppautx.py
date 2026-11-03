@@ -9,7 +9,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[2] / 'tools'))
 from xppclient import Server, is_done, open_auto
-from autocompare import ensure_completed  # noqa: E402
+from autoxcompare import ensure_completed  # noqa: E402
 
 def step(s, timeout=60, **c):
     if c:
@@ -21,14 +21,14 @@ def step(s, timeout=60, **c):
 
 def numerics(s, **values):
     """AUTO's numerics without the form (docs/protocol.md, auto set); refused values arrive as an error message"""
-    step(s, cmd='auto.configure_numerics', **values)
+    step(s, cmd='autox.configure_numerics', **values)
     return values
 
 
 def labels(evs):
     out = []
     for e in evs:
-        if e.get('ev') == 'auto.diagram' and e.get('op') == 'add':
+        if e.get('ev') == 'autox.diagram' and e.get('op') == 'add':
             for r in e['runs']:
                 for i, lab, sym in r.get('lab', []):
                     out.append((r['br'], r['pt'] + i, lab, sym, r['x'][i], r['y'][i]))
@@ -49,7 +49,7 @@ def main():
         open_auto(s)
         print(numerics(s, parameter_max=float(parmax), parameter_min=float(parmin), norm_min=-200,
                        norm_max=200, max_step_size=float(dsmax), max_steps=int(nmax)))
-        evs, _ = step(s, cmd='auto.run', kind='equilibrium', timeout=600)
+        evs, _ = step(s, cmd='autox.run', kind='equilibrium', timeout=600)
         for lab in labels(evs):
             print(lab)
     finally:

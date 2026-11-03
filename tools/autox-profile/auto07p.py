@@ -1,6 +1,6 @@
 """W412 (#474): ModelDB 267710's AUTO-07p translation run by AUTO-07p itself.
 
-    AUTOX_DIR=~/auto-07p-0.9.4 uv run --locked python tools/autox-profile/auto07p.py OUT [--marks P ...] [--constants JSON]
+    AUTO_DIR=~/auto-07p-0.9.4 uv run --locked python tools/autox-profile/auto07p.py OUT [--marks P ...] [--constants JSON]
 The steady run (c.6c.eq), then 20 periodic points from its rightmost HB (c.6c.po),
 one thread, IID=3 (every Newton iterate in the diagnostics), NPR=1. --marks
 stops at the last of these ampPar values (UZR); --constants overrides c.6c.po's
@@ -55,7 +55,7 @@ def main():
     ap.add_argument('--marks', type=float, nargs='+', default=[])
     ap.add_argument('--constants', type=json.loads, default={})
     args = ap.parse_args()
-    auto = Path(os.environ['AUTOX_DIR']).resolve()
+    auto = Path(os.environ['AUTO_DIR']).resolve()
     sys.path.insert(0, str(auto / 'python'))
     from auto import run, save
     out = args.out.resolve()

@@ -16,7 +16,7 @@ import tempfile
 import unittest
 from types import SimpleNamespace
 
-from autocompare import completed
+from autoxcompare import completed
 import test_final_report
 from xppclient import Checker, Server, open_auto, whole_series
 
@@ -111,7 +111,7 @@ def auto_case(a, check):
     try:
         step(s)
         step(s, cmd='events.subscribe', events=[], diagram=True)
-        step(s, cmd='auto.set_threads', threads=1)
+        step(s, cmd='autox.set_threads', threads=1)
         open_auto(s)
         numerics(s, max_steps=AUTO_POINTS)
         _, _, _, points = hopf_xppautx.run(s, 's', limit=LIMIT)
@@ -138,7 +138,7 @@ def modeldb_auto_case(a, check):
         check('modeldb-auto/steady driver', len(points) == AUTO_POINTS, points)
     finally:
         s.close()
-    print('SKIP old AUTO full periodic workflows/foreign variants: Hopf searches and periodic branches use the full workloads; no under-minute bound. Shared auto.run adapter exercised above; continuation covers the small foreign case.')
+    print('SKIP old AUTO full periodic workflows/foreign variants: Hopf searches and periodic branches use the full workloads; no under-minute bound. Shared autox.run adapter exercised above; continuation covers the small foreign case.')
 
 
 def vectorization_case(a, check):

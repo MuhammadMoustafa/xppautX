@@ -51,7 +51,7 @@ The root of the checkout holds `pyproject.toml` and `uv.lock` (not a package: on
 dependencies numpy, matplotlib, mpmath and scipy; the repository's own checks use the standard library
 and do not need it). uv finds it from any folder inside the checkout, `paper/` included. Run a
 driver with `uv run --locked python PATH ARGS...` (for example `uv run --locked python
-tools/auto-profile/eig_accuracy.py DIR`, or `uv run --locked python tools/python-integration/integrate.py
+tools/autox-profile/eig_accuracy.py DIR`, or `uv run --locked python tools/python-integration/integrate.py
 model.odex --outfile output.dat`), not with the system `python3`, so the versions are the
 locked ones. To change a version,
 edit `pyproject.toml`, run `uv lock`, and commit both files; a series states the versions its

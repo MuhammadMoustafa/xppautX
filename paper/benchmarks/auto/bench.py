@@ -38,7 +38,7 @@ def auto07p(src, threads, jac=0, name='py_s1bf'):
                 text = (work / c).read_text()
                 assert text.count('JAC = 0') == 1, c
                 (work / c).write_text(text.replace('JAC = 0', 'JAC = 1'))
-        # auto_f2c.h's K&R declarations need gnu17 under gcc 15 (README); AUTO's make then keeps this object
+        # autox_f2c.h's K&R declarations need gnu17 under gcc 15 (README); AUTO's make then keeps this object
         subprocess.run(['gcc', '-std=gnu17', '-g', '-O2', '-I', os.path.join(os.environ['AUTO_DIR'], 'include'),
                         '-c', f'{name}.c', '-o', f'{name}.o'], cwd=work, check=True)
         env = {**os.environ, 'OMP_NUM_THREADS': str(threads)}

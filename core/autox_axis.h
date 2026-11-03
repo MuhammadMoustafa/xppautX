@@ -72,7 +72,7 @@ inline std::string autox_projection_unknown(std::string_view word)
     return text + ")";
 }
 
-/* XPPAUT's Autox.plot number (its .auto file, the Axes menu's item): 0 Hi,
+/* XPPAUT's Auto.plot number (its .auto file, the Axes menu's item): 0 Hi,
    1 Norm, 2 hI-lo, 3 Period, 4 Two par, 10 fRequency, 11 Average; read on
    import only */
 constexpr std::optional<AutoxProjection> autox_projection_from_xppaut(long code)

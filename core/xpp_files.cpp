@@ -433,7 +433,7 @@ std::string frame_name(std::string_view first, std::string_view ext, int frame)
 
 const char *ask_mode(std::string_view title)
 {
-    /* the file selectors' titles (file_selector() callers): "Load Autox",
+    /* the file selectors' titles (file_selector() callers): "Load autoX",
        "Read initial data", "Import XPPAUT set", "Import Diagram", "Select an ODE file",
        "Library:", "Play recording" open a file; "Save ...", "Write ...", "PDF",
        "GIF plot", "Clone ODE file", ... write one */

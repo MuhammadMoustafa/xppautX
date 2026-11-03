@@ -225,7 +225,7 @@ where `name` is one of the following and `value` is either an integer, floating 
 
 - YNC={0,...,10} sets the Y-nullcline color
 
-- SEC,UEC,SPC,UPC=color set the colors for the screen on AUTO for stable eq, unstable eq, stable per, unstable per.
+- SEC,UEC,SPC,UPC=color set the colors for the screen on autoX for stable eq, unstable eq, stable per, unstable per.
 
 - OUTPUT=filename sets the filename to which you want to write for “silent” integration. The default is “output.dat”.
 
@@ -333,7 +333,7 @@ The remaining options can be set from within the program. They are
 
 - SPECCOL=`name`, SPECCOL2=`name`, SPECWIDTH=`number`, SPECWIN=`0,1,2,3,4` (corresponding to square,parabolic,hamming,bartlett, or hanning windows), sets up relevant spectral stuff for use in conjunction with postprocessing.
 
-- AUTO-stuff. The following AUTO-specific variables can also be set: `NTST, NMAX, NPR, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within AUTO. In a `.odex` file the continuation settings have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
+- autoX-stuff. The following autoX-specific variables can also be set: `NTST, NMAX, NPR, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within autoX. In a `.odex` file the continuation settings have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
 
 - DFDRAW =`1, 2, or 3` computes a direction field after each run in the window, `--server` and `--silent`; 1 is unscaled, 2 is scaled, and 3 is colorized. The session keeps it for display and PS/SVG export. Values 4 and 5 also write `dirfields.dat` (unscaled and scaled respectively).
 
@@ -414,7 +414,7 @@ xppautX adds its own front-end flags ahead of xpp's original ones (see
 
 The recording starts from its saved snapshot and plays without an interface;
 exit 0 means every step played cleanly, exit 1 means a failure. Recorded
-interruptions stop at the exact row or AUTO point (W144, #196). Plain-name
+interruptions stop at the exact row or autoX point (W144, #196). Plain-name
 outputs remain in the current folder. Existing files ask the terminal
 `NAME exists. Replace it? [no] (60 s)`; EOF or timeout stops playback with
 exit 1 without replacing the file. Piped input can answer; `--yes`

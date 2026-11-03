@@ -1,10 +1,10 @@
 # usage: uv run --locked python autocg.py DESCRIPTION [--cg] [--threads N]
-# Runs one tests/auto description through tools/autocompare.py's compute (the same server session as the
+# Runs one tests/auto description through tools/autoxcompare.py's compute (the same server session as the
 # AUTO baseline check); with --cg the server runs under callgrind (out/auto_DESCRIPTION.cg).
 import os, stat, sys, tempfile, time
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '../../..'))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
-import autocompare as ac
+import autoxcompare as ac
 name = sys.argv[1]; cg = '--cg' in sys.argv
 threads = int(sys.argv[sys.argv.index('--threads') + 1]) if '--threads' in sys.argv else 1
 binary = os.environ.get('BIN') or os.path.join(ROOT, 'xppautX')

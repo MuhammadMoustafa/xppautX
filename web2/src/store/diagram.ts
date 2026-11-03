@@ -5,11 +5,11 @@
    view's own state: whether window 101 is open, whether its panel is shown,
    the user's zoom (no history: Reset view/Fit take it back) and the point
    read out. The window follows the
-   core: `window` create/destroy for 101, and `state.auto`, which is there
+   core: `window` create/destroy for 101, and `state.autox`, which is there
    exactly while autoX is open (a page that connects later learns it so).
    T11b adds the `autoxinfo` event (the info strip and the stability circle
    as data), the grab (the core's `grab` ask, answered from the view) and
-   the point a click stored in a two-parameter diagram (`auto point`).
+   the point a click stored in a two-parameter diagram (`autox point`).
    W50: the one diagram has any number of views, each its own axes, points
    and zoom (`views`, the core's active one `active`); every view holds the
    same points in the same order, so a point index (the hover, the grab,
@@ -232,7 +232,7 @@ export interface DiagramState {
   infoEvents: number;
   /** the core is grabbing a point: from its `grab` ask to the command's end */
   grabbing: boolean;
-  /** the point a click stored in a two-parameter diagram (`auto point`) */
+  /** the point a click stored in a two-parameter diagram (`autox point`) */
   stored: {x: number; y: number} | null;
   /** the last Run (T21: the view's status strip), null before one */
   run: AutoxRun | null;

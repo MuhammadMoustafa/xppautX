@@ -13,9 +13,9 @@ import {TEXT} from '../store/fieldKinds';
 import {useStore} from './context';
 import {Field} from './Field';
 
-const KIND_LABEL: Record<LogEntry['kind'], string> = {error: 'Error', auto: 'autoX', log: 'Log', info: 'Info'};
+const KIND_LABEL: Record<LogEntry['kind'], string> = {error: 'Error', autox: 'autoX', log: 'Log', info: 'Info'};
 const SHOWN_MAX = 1000;
-const FILTERS: (LogEntry['kind'] | 'all')[] = ['all', 'error', 'auto', 'log', 'info'];
+const FILTERS: (LogEntry['kind'] | 'all')[] = ['all', 'error', 'autox', 'log', 'info'];
 
 export function Messages() {
   const log = useStore(s => s.log);

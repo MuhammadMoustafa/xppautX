@@ -17,7 +17,7 @@ from types import SimpleNamespace
 from common import (BENCH, REPO, TOOLS, before_series, command, derived_program_sha, earlier_context, environment, executable_sha,
                     initialize, link_tree, mark_reused, measure_sha, progress, module, parser, reachable_sha, repetitions, rotation,
                     save, selected, sha, short_home, summarize, tracked_text, tree_sha)
-import autocompare as comparison
+import autoxcompare as comparison
 import auto_reference as reference
 from comparison_measure import RunClock, process_cpu
 from odex_model import Odex
@@ -103,7 +103,7 @@ def workloads(a):
     p2 = closure(mdb, ['periodic'])
     # A common parameter-bound window on the ascending cycles, before the
     # legacy spurious BP/failure near .6211; it is not an NMX comparison.
-    p2['runs'][-1]['auto'].update(parameter_max=.62, max_steps=100000)
+    p2['runs'][-1]['autox'].update(parameter_max=.62, max_steps=100000)
     result += [('P2', p2, ['periodic'], True), ('E2', closure(mdb, ['steady']), ['steady'], True)]
     for n in (50, 100, 200, 350):
         model = models / ('E3-%d.ode' % n)
@@ -119,7 +119,7 @@ def workloads(a):
         r['parameters'] = ['CaDen_Max', 'ampPar']
         # DS is arclength of the extended system, not a density increment.
         # Preserve W431's +/-0.1 and DSMAX .5; bound the density in both directions.
-        r['auto'].update(parameter_min=0, parameter_max=.000336)
+        r['autox'].update(parameter_min=0, parameter_max=.000336)
     # The former traces belong to another parameter order/window. Fresh
     # discrepancies are reported by the pilot, never silently transferred;
     # W456 traced the one this window's pilot reported.
@@ -143,12 +143,12 @@ def workloads(a):
         result.append((name, d, [r['name'] for r in d['runs']], True))
     if a.check:
         restart = copy.deepcopy(next(d for name, d, _, _ in result if name == 'E3-50'))
-        restart['runs'][0]['auto']['max_steps'] = SMOKE_POINTS
+        restart['runs'][0]['autox']['max_steps'] = SMOKE_POINTS
         restart = repeats_description(restart, ['steady'], 2)
         result.append(('V1-E1-restart', restart, [r['name'] for r in restart['runs']], False))
         fixed = description('tstauto_simplefold')
         for r in fixed['runs']:
-            r['auto'].update(min_step_size=abs(r['auto']['step_size']), max_step_size=abs(r['auto']['step_size']), step_adapt_every=0)
+            r['autox'].update(min_step_size=abs(r['autox']['step_size']), max_step_size=abs(r['autox']['step_size']), step_adapt_every=0)
         result.append(('V1-fixed', fixed, ['steady'], False))
     for name, d, targets, timed in result:
         if not selected(a, name):
@@ -176,7 +176,7 @@ def workloads(a):
                     r['start'].pop('step', None)
             if name.startswith(('V1-', 'E3-')):
                 for r in d['runs']:
-                    r['auto']['max_steps'] = SMOKE_POINTS
+                    r['autox']['max_steps'] = SMOKE_POINTS
             d.pop('differences', None)
         if name in ('P1', 'E1'):
             o = Odex(REPO / d['model'])
@@ -199,7 +199,7 @@ def native(a, d, folder, threads, events, jacobian, measured):
                 ready.update(wall_seconds=time.monotonic()-server.started_at, cpu_seconds=process_cpu(server.proc.pid))
 
         def finished(self, server, run, emitted, ranges):
-            if not events and any(e.get('ev') == 'auto.diagram' for e in emitted):
+            if not events and any(e.get('ev') == 'autox.diagram' for e in emitted):
                 raise RuntimeError('no-diagram row still received diagram events')
             metric = self.clock.rows[-1] if measured else {}
             lo, hi = ranges[run['name']]
@@ -251,7 +251,7 @@ def gate(name, d, native_result, refs):
         for r in d['runs']:
             if r['kind'] != 'periodic':
                 continue
-            a = r['auto']
+            a = r['autox']
             endpoints = [('xppautX', float(rows[r['name']][-1]['continued_parameter']))]
             endpoints += [(suffix, run['curve'][-1][0]) for suffix, ref in refs.items() for run in ref['runs']
                           if run['name'] == r['name'] and 'unavailable' not in run and run.get('curve')]
@@ -293,7 +293,7 @@ def tightened(d):
     out = copy.deepcopy(d)
     out.pop('differences', None)
     for r in out['runs']:
-        a = r['auto']
+        a = r['autox']
         for k in ('parameter_tolerance', 'state_tolerance', 'special_point_tolerance'):
             a[k] = a.get(k, reference.DEFAULTS[reference.AUTO_NAMES[k]]) / TIGHTENING
         for k in ('step_size', 'min_step_size', 'max_step_size'):
@@ -308,12 +308,12 @@ def signature(d, data, ranges):
     def points(r):
         run = rows[r['name']]
         labels = comparison.labelled(run, r['kind'])
-        return comparison.coincident_sorted(labels, [comparison.row_position(run[i]) for _, i in labels], comparison.location_tolerance(r['auto']))
+        return comparison.coincident_sorted(labels, [comparison.row_position(run[i]) for _, i in labels], comparison.location_tolerance(r['autox']))
     return {r['name']: [s for s, i in points(r) if not start_artefact(r, i)] for r in d['runs'] if r['name'] in rows}
 
 
 def reference_of(d, data, ranges):
-    """A diagram as the runs of a reference file (tools/autocompare.py read_reference), what compare_references reads of
+    """A diagram as the runs of a reference file (tools/autoxcompare.py read_reference), what compare_references reads of
     another program: the special points (spectrum values as the diagram stores them: multipliers), and every point's
     [parameter, second parameter, norm]."""
     rows = comparison.stored_rows(data, ranges)
@@ -581,9 +581,9 @@ def digest_history(name, result, folder):
 
 # W454 (#517): a program whose code, inputs and options did not change is not run again. A row's key names what its result
 # depended on; an earlier attempt's row is imported (its records, its run folder linked) only when every part is equal.
-# xppautX's rows depend on tools/autocompare.py's driver and xppclient's Server; XPPAUT's and AUTO-07p's on what they are
+# xppautX's rows depend on tools/autoxcompare.py's driver and xppclient's Server; XPPAUT's and AUTO-07p's on what they are
 # given (below, W575), so a change to the xppautX driver is never a change to theirs.
-TRACKED = (('tools/autocompare.py', ('compute',)), ('tools/xppclient.py', ('Server',)), ('tools/comparison_measure.py', None))
+TRACKED = (('tools/autoxcompare.py', ('compute',)), ('tools/xppclient.py', ('Server',)), ('tools/comparison_measure.py', None))
 
 
 @functools.cache
@@ -608,7 +608,7 @@ def description_sha(d, engine):
     for r in d['runs']:
         r.pop('start_refined', None)
         if 'auto' in r:
-            r['auto'] = {reference.AUTO_NAMES.get(k, k): v for k, v in r['auto'].items()}
+            r['autox'] = {reference.AUTO_NAMES.get(k, k): v for k, v in r['autox'].items()}
     return hashlib.sha256(json.dumps(d, sort_keys=True).encode()).hexdigest()
 
 
@@ -895,17 +895,17 @@ def workload(a, name, d, targets, timed, records, mode='adaptive', branch_repeti
             count = max(count, math.ceil(MIN_WINDOW / fastest))
         if name == 'T2':
             fastest = min(r['wall_seconds'] for r in initial['runs'] if r['run'] in targets)
-            if fastest < MIN_WINDOW and d['runs'][-1]['auto']['max_steps'] < T2_SIZED_POINTS:
+            if fastest < MIN_WINDOW and d['runs'][-1]['autox']['max_steps'] < T2_SIZED_POINTS:
                 larger = copy.deepcopy(d)
-                old = larger['runs'][-1]['auto']['max_steps']
+                old = larger['runs'][-1]['autox']['max_steps']
                 new = T2_SIZED_POINTS
-                larger['runs'][-1]['auto']['max_steps'] = new
+                larger['runs'][-1]['autox']['max_steps'] = new
                 # Keep both physical parameter windows fixed while taking more steps.
                 for r in larger['runs']:
                     if r['name'] in targets:
-                        r['auto']['max_steps'] = new
+                        r['autox']['max_steps'] = new
                         for key in ('step_size', 'max_step_size', 'min_step_size'):
-                            r['auto'][key] *= old / new
+                            r['autox'][key] *= old / new
                 # AUTO-07p's spurious GH (finding 2) come from the Newton residual, so their count follows the step: at the doubled
                 # points and halved steps it labels four, not five (series 22e, 2026-10-22); the traced entries follow it
                 larger['differences'] = [k for k in larger.get('differences', []) if not (k['type'] == 'GH' and k['index'] > T2_SIZED_GH)]
@@ -1030,7 +1030,7 @@ def main():
             if name == 'P1' and (a.plan or not a.check):
                 fixed = copy.deepcopy(d)
                 for r in fixed['runs']:
-                    r['auto'].update(min_step_size=abs(r['auto']['step_size']), max_step_size=abs(r['auto']['step_size']), step_adapt_every=0, max_steps=FIXED_POINT_BUDGET)
+                    r['autox'].update(min_step_size=abs(r['autox']['step_size']), max_step_size=abs(r['autox']['step_size']), step_adapt_every=0, max_steps=FIXED_POINT_BUDGET)
                 progress(a, 'WORKLOAD %s fixed step' % name)
                 if not workload(a, name, fixed, targets, timed, records, 'fixed'):
                     failed.append(name + '-fixed')

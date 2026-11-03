@@ -2,7 +2,7 @@
 
 ## Finding commands
 
-The menu bar has **File**, **Run**, **Analysis**, **Plot**, **Data**, **AUTO**,
+The menu bar has **File**, **Run**, **Analysis**, **Plot**, **Data**, **autoX**,
 **Windows** and **Help**. File holds models, sessions, recordings, sets and
 exports; Run holds integration, initial conditions and boundary values;
 Analysis holds equilibria, nullclines, direction fields, spectra, fits,
@@ -57,8 +57,8 @@ not kept; bind the command you want to a key in the editor instead.
 
 ## Windows and annotations
 
-**Windows** begins with **New graph** and **New AUTO view**. It also lists all
-windows, hidden ones included, under **Graphs**, **AUTO views** and **Others**.
+**Windows** begins with **New graph** and **New autoX view**. It also lists all
+windows, hidden ones included, under **Graphs**, **autoX views** and **Others**.
 A tick means the window is shown. Each named window offers **Bring to front**,
 **Rename**, **Hide** or **Show**, and **Destroy**. Destroying a graph that holds
 annotations or frozen curves asks before discarding them. The main graph and
@@ -137,7 +137,7 @@ use, explaining that changing them does not change its results.
 ## Legacy letter shortcuts
 
 Results such as a successful curve fit, a mean and standard deviation, a
-Liapunov exponent, a saved boundary-value point, and AUTO toggle states
+Liapunov exponent, a saved boundary-value point, and autoX toggle states
 appear in the status bar. They do not open an error dialog. If the
 kinescope fills, the command reports one error; frames already captured
 remain available. A script or `--silent` run exits 1 if any error occurred,
@@ -245,7 +245,7 @@ This induces a popup menu with several choices. Each choice of this menu, Axes (
   - **(E)dit**: This lets you edit a named curve; the key, name, colour and style can be altered.
   - **(R)emove all**: This gets rid of all of the frozen curves in the current window.
   - **(K)ey**: This turns the key on or off. If you turn it on, then you can position it with the mouse on the graph. The key consists of a line followed by some text describing the line. Only about 15 characters are permitted.
-  - **(B)if.diag**: will prompt you for a filename and then using the current view, draw the diagram. The file must be of the same format as is produced by the `Write pts` option in the AUTO menus. (see AUTO below.) The diagram is colored according to whether the points are stable/unstable fixed points or periodics. The diagram is “frozen” and there can only be one diagram at a time.
+  - **(B)if.diag**: will prompt you for a filename and then using the current view, draw the diagram. The file must be of the same format as is produced by the `Write pts` option in the autoX menus. (see autoX below.) The diagram is colored according to whether the points are stable/unstable fixed points or periodics. The diagram is “frozen” and there can only be one diagram at a time.
   - **(C)lr. BD**: clears out the current bifurcation diagram.
   - **(O)n freeze**: Toggles a flag that automatically freezes the curves as you integrate them.
 - **a(X)es opts**: This puts up a window which allows you to tell XPP where you want the axes to be drawn, whether you want them, and what fontsize to make the axes labels of the PDF and SVG pictures.
@@ -261,7 +261,7 @@ This is so important that a section is devoted to it. See below.
 This brings up a menu with several options. Type `Esc` to abort.
 - **(P)rt src**: The Model panel's Source tab (title bar, Model): brings up a window with the source code for the ODE file. If you click on `Action` it brings up the active comments so you can make little tutorials.
 - **(R) Import settings**: This applies a settings file, `.setx`, or imports a `.set` file that XPPAUT wrote (xppautX no longer writes a `.set`: **sa(V)e session** holds everything a set file did and more). A `.setx` holds the numerics (the Jacobian included), the parameters, the initial values, the delays, the boundary conditions and the active window's graphics, each by name and in any order, in the syntax of a model's `options` block; a file that names only some of them sets only those. A `.set` is converted: its values are written as a `.setx` beside it (`name.setx` for `name.set`; if one is there with other text you are asked whether to replace it, as when a `.ode` is converted to a `.odex`) and that `.setx` is applied. The `.set` file is very tightly connected to the ODE file it was written for, so you should not import one from a different problem. It must end with the equations XPPAUT writes after its last value (`RHS etc ...`, not read), and every named value must have the open model's expected name and every setting its expected label. A file is read whole and checked before anything is taken from it: the first mismatch or bad value is an error naming the file, line, column and the line as written, and nothing changes. One message names the `.setx` applied.
-- **(A)uto**: This brings up the AUTO window. See below for a description of this.
+- **(A)uto**: This brings up the autoX window. See below for a description of this.
 - **(C)alculator**: This pops up a little window. Type formulae in the command line involving your variables and the results are displayed in the popup. Click on Quit or type `Esc` to exit.
 - **(S)ave info**: This is like `(P)rt info` but saves the info to a file. It is human readable.
 - **(Q)uit**: Asks "Quit xppautX? Save this session first?", the one
@@ -284,7 +284,7 @@ This brings up a menu with several options. Type `Esc` to abort.
 - where `i2=i1+colskip, i3=i1+2*colskip, ...` and `i1` is the index corresponding to the name of the first column you provide. Similarly, `j2=j1+rowskip, ...`. As a brief example, suppose that you solve a system of equations of the form: ``` math x_j' = f(x_{j-1},x_j,x_{j+1},I_j) ``` where $`j=1,\dots,20.`$ Click on transpose and choose `x1` as the first column, `colskip=1, ncols=20` and say `row1=350, nrows=1,rowskip=1` then a new array will be produced. The first column is the index from 1 to 20 and the second is `xj(350)` where 350 is the index and not the actual value of time. By plotting the second column versus the first you get a “spatial profile.”
 
   In xppautX every column and row it reads must be in the data (XPPAUT read past the end and clamped), and it makes at most one fewer rows than the model has columns; a request that does not fit is an error naming what reaches too far. The command is `browser.transpose` (`first_column`, `columns`, `column_skip`, `first_row`, `rows`, `row_skip`: a left-out one keeps its last value, and the first row is 0).
-- **Apply set (G)** (the Values panel's **Apply set…**): This applies one of the named sets holding parameters, initial values and settings that you have defined in the ODE file; a model with none says so. A model may define any number of sets: the first 26 have the letters a to z, the rest are picked from the list. After the set it asks the **scope**: *all* (the default), only the *parameters*, only the *initial* values, or one group of settings the set holds (*integration*, *poincare*, *equilibria*, *continuation*, *plot*, *sweep*, *analysis*), and, for *all* and *plot* with several plot windows open, which window the plot settings go to (the active one is the default). A set is a patch: only what the scope takes of the set changes, over the current values, and a parameter-only apply leaves the initial values alone (an `init` formula is not evaluated again). *continuation* is the next AUTO run's; a finished run keeps what it used. A set is checked whole when the model loads: an item whose value is not a number, or a setting that does not take its value, stops the load with an error at the set's line; applying a set then changes all of it or nothing. The same command is `set.apply` in the protocol and in recordings.
+- **Apply set (G)** (the Values panel's **Apply set…**): This applies one of the named sets holding parameters, initial values and settings that you have defined in the ODE file; a model with none says so. A model may define any number of sets: the first 26 have the letters a to z, the rest are picked from the list. After the set it asks the **scope**: *all* (the default), only the *parameters*, only the *initial* values, or one group of settings the set holds (*integration*, *poincare*, *equilibria*, *continuation*, *plot*, *sweep*, *analysis*), and, for *all* and *plot* with several plot windows open, which window the plot settings go to (the active one is the default). A set is a patch: only what the scope takes of the set changes, over the current values, and a parameter-only apply leaves the initial values alone (an `init` formula is not evaluated again). *continuation* is the next autoX run's; a finished run keeps what it used. A set is checked whole when the model loads: an item whose value is not a number, or a setting that does not take its value, stops the load with an error at the set's line; applying a set then changes all of it or nothing. The same command is `set.apply` in the protocol and in recordings.
 - **Restore defaults (K)** (the Values panel's **Restore defaults…**): Asks for everything or one scope (as above) and puts the model's own values back: the parameters and initial values as the model file gives them, a group of settings as the built-in values with the model's `options` block over them. It is one undo step, and changes all of it or nothing. The panel's **Reset all** and each field's reset are the same command (`set.restore_defaults`) for a section or a field.
 - **Save values (O)** (the Values panel's **Save values…**): Writes the current values into the model file. It asks **New set** or **Replace in set**, the set (a name for a new one, `set1`, `set2`, ... is suggested; or one of the sets the model file itself writes), and what to save: *all*, only the *parameters*, only the *initial* values, or one group of settings (as in Apply set; the plot settings are the chosen window's). With the initial values it asks once whether to save the initial values or the last state reached, when a run has reached one. A **new set** is added at the end of the file as `set NAME { ... }`. **Replace in set** writes the current values in place of that set's part of that kind (its parameters, its states, or one group of its `options:`) and keeps its other parts exactly as written: build a mixed set from the window by saving the parameters as a new set, then **Replace in set** with the initial values. The rest of the file keeps its text as written, comments included. The new text is checked as a model before anything is written; if the file changed on the disk since the model was loaded, nothing is written and it says so (reload, then save again); the file is replaced in one step. A set that an `import` brought is read-only: saving over it is refused, and a name of your own is the way. The new set is in **Apply set (G)** at once. A model opened from a session file has no model file of its own: the session's copy changes, and saving the session keeps it.
 - **Save as defaults (J)** (the Values panel's **Save as defaults…**): Writes the current values of *all*, the *parameters*, the *initial* values or a group of settings as the model's own: the numbers of the `par` and `init` lines change where they stand (an `init` formula becomes the number; a state without an `init` line gets one), and a group of settings replaces its entry in the `options` block (added when there is none). **Restore defaults (K)** gives these values from then on. A default that an import or an array statement declares is not in this file's lines: it is refused, saying where it is declared.
@@ -307,7 +307,7 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **r(E)load**: Reads the model's file again (edit it in your editor, then
   Reload), after asking whether to save this session first, as **open
   (M)odel** does (its data and diagram go, which shows as an unsaved
-  change; the session file it was saved to stays, so Ctrl+S saves there). Parameters, initial data, numerics and AUTO settings keep their values by name;
+  change; the session file it was saved to stays, so Ctrl+S saves there). Parameters, initial data, numerics and autoX settings keep their values by name;
   what the file adds comes with the file's values, and what it drops is
   left out. A file that no longer loads changes nothing.
 - **sa(V)e session** (Ctrl+S): writes one session file, `name.snapx`, to
@@ -317,7 +317,7 @@ This brings up a menu with several options. Type `Esc` to abort.
   as **save session as** does. It writes the model itself
   (its `.odex` and every included file it read), the values and numerics (the set format), every
   plot window with its axes, variables and zoom, the text, arrows and
-  frozen curves, AUTO's diagram and settings (saved under `auto/`) and views, and the data table (NumPy's `.npz`). The earlier runs a
+  frozen curves, autoX's diagram and settings (saved under `auto/`) and views, and the data table (NumPy's `.npz`). The earlier runs a
   window keeps until Erase are left out. A data table above 50 MB asks
   whether to leave it out (**Leave it out**: Go computes it again).
 - **save session as (W)** (Ctrl+Shift+S): always asks for the file name, and
@@ -340,10 +340,10 @@ This brings up a menu with several options. Type `Esc` to abort.
   **Record** in the title bar to start) to stop, and it asks for a file
   name and writes one plain text file, `name.recx`, next to the model: the
   session as it was when you pressed Record (what **sa(V)e session**
-  writes, without the data table: the values, numerics, windows and AUTO's
+  writes, without the data table: the values, numerics, windows and autoX's
   diagram, so a recording begun in the middle of your work plays back
   from exactly there), the model itself and every file the session read while recording (a set, a
-  parameter file, a table, an animation; an AUTO file or a session file
+  parameter file, a table, an animation; an autoX file or a session file
   you opened, written as base64 text), then the steps. A step is everything
   one command does until XPP is ready again: **Run from initial**
   is one step, with its command, a dialog's answers are part of
@@ -404,18 +404,18 @@ keeping the graph reachable in a short or narrow workspace.
 The main graph stays open. Select a graph by its named tab. Click or
 double-click its name to rename it. Names can contain spaces and are shown
 exactly as written; a duplicate, empty name or surrounding space is an
-error. Graph defaults are `graph_1`, `graph_2`, ...; AUTO views similarly
+error. Graph defaults are `graph_1`, `graph_2`, ...; autoX views similarly
 use `diagram_1`, `diagram_2`, ... and can be renamed in their headers.
 
 Every window can be hidden: `window.hide` takes it off the screen and keeps
 everything it holds (curves, zoom, texts, arrows, markers, a diagram) and
-`window.show` brings it back as it was. This holds for graphs, AUTO views
+`window.show` brings it back as it was. This holds for graphs, autoX views
 and the three windows with a name of their own: the data browser
 (`browser`), the animation (`animation`) and the array plot
 (`array_plot_1`). `window.list` lists every window with its kind and whether
 it is shown. `window.destroy` deletes a window and what it holds; destroying a
 graph that holds texts, arrows, markers or frozen curves asks first (the
-page's question; a script passes `confirm` true), while an AUTO view, whose
+page's question; a script passes `confirm` true), while an autoX view, whose
 diagram the session keeps, the animation and the array plot, which can be
 made again, ask nothing. The main graph and the data browser cannot be
 destroyed. A session file keeps which windows are hidden.
@@ -485,7 +485,7 @@ This selects one of different types of graphs: a 2D box or a 3D Box; brings up a
 - The `Style` button does nothing yet. The `Edit` button lets you change ranges and arrays to plot. The `Redraw` button is obvious.
 - Since the animation option requires learning lots of new stuff, see [Creating Animations](10-animations.md) for a description of the animation language and what you can do with it.
 
-The plot's Graphic stuff > Freeze > Import diagram reads a six-column `.dat` or `.csv` table: x, low, high, type, branch and two-parameter flag. A CSV header is skipped. The richer AUTO Export CSV has a different layout.
+The plot's Graphic stuff > Freeze > Import diagram reads a six-column `.dat` or `.csv` table: x, low, high, type, branch and two-parameter flag. A CSV header is skipped. The richer autoX Export CSV has a different layout.
 
 ### (X)i vs t
 

@@ -4,7 +4,7 @@
    they work while autoX runs. What the axis plots (the parameter,
    the y axis's plot type and its variable or second parameter) is autoX's
    Axes setting (T22: the `autoxsettings` data): a change goes to the core as
-   an `auto` `set` with a Fit (session.autoxSettings), at any time: while a
+   an `autox` `set` with a Fit (session.autoxSettings), at any time: while a
    command runs it waits, shown dashed, and applies when the command ends.
    Not modal: Escape or Close closes it, the focus goes back to the axis
    name. */
@@ -57,7 +57,7 @@ export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: nu
     box.current?.querySelector<HTMLElement>('select:not([disabled]), input')?.focus();
     const outside = (e: PointerEvent) => {
       const target = e.target as Element | null;
-      if (!box.current?.contains(target) && !target?.closest('.auto-axis-name')) onClose();
+      if (!box.current?.contains(target) && !target?.closest('.autox-axis-name')) onClose();
     };
     document.addEventListener('pointerdown', outside);
     return () => document.removeEventListener('pointerdown', outside);
@@ -90,7 +90,7 @@ export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: nu
     <label class={pending.has(`axes.${key}`) ? 'queued' : undefined}>
       <span>{label}</span>
       <select value={value} data-field={field} data-queued={pending.has(`axes.${key}`) ? '1' : undefined}
-        aria-describedby={waiting ? 'auto-axis-pending' : undefined}
+        aria-describedby={waiting ? 'autox-axis-pending' : undefined}
         onChange={e => on((e.target as HTMLSelectElement).value)}>
         {!options.some(o => o.value === value) && <option value={value}>{value || '(as set)'}</option>}
         {options.map(o => <option key={o.value} value={o.value}>{o.text}</option>)}
@@ -107,14 +107,14 @@ export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: nu
   };
   const title = axis === 'x' ? 'Horizontal axis' : 'Vertical axis';
   return (
-    <div class="auto-axis-dialog" ref={box} role="dialog" aria-modal="false" aria-label={title} data-axis={axis}
+    <div class="autox-axis-dialog" ref={box} role="dialog" aria-modal="false" aria-label={title} data-axis={axis}
       onKeyDown={onKeyDown}>
       <div class="dialog-title-row">
         <h3>{title}</h3>
         <HelpButton target={HELP.autoxAxes} label={title} />
         <button class="dialog-close" aria-label={`Close ${title}`} onClick={onClose}>×</button>
       </div>
-      <div class="auto-axis-fields">
+      <div class="autox-axis-fields">
         {axis === 'x'
           ? select('Parameter', names.par1, listOf(pars), v => change({par1: v}), 'par1', 'par1')
           : select('Plots', plot, PROJECTIONS.map(p => ({value: p, text: choiceLabel(p)})),
@@ -124,18 +124,18 @@ export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: nu
           && select('Second parameter', names.par2, listOf(pars), v => change({par2: v}), 'par2', 'par2')}
         <label>
           <span>Minimum</span>
-          <Field spec={NUMBER} step={step} value={minText} data-field="min" id={`auto-axis-${axis}-min`}
+          <Field spec={NUMBER} step={step} value={minText} data-field="min" id={`autox-axis-${axis}-min`}
             error={!r && numbers ? 'The minimum must be below the maximum' : null}
             onInput={t => { setMinText(t); apply(t, typed.current.max); }} />
         </label>
         <label>
           <span>Maximum</span>
-          <Field spec={NUMBER} step={step} value={maxText} data-field="max" id={`auto-axis-${axis}-max`}
+          <Field spec={NUMBER} step={step} value={maxText} data-field="max" id={`autox-axis-${axis}-max`}
             onInput={t => { setMaxText(t); apply(typed.current.min, t); }} />
         </label>
       </div>
       {waiting && (
-        <p id="auto-axis-pending" class="muted" role="status">
+        <p id="autox-axis-pending" class="muted" role="status">
           {busy ? 'What the axis plots changes when autoX stops (dashed); the range changes now.' : 'Applying…'}
         </p>
       )}

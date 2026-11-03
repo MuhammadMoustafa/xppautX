@@ -1,7 +1,7 @@
 /* W252 (#308), test build only, never merged: PY_S1Bf's exact Jacobian by forward-mode
    automatic differentiation, the stand-in for a symbolically differentiated, compiled
    model (the same derivatives of the same formulas, in one pass). Included into
-   core/autpp.cpp by apply_jacobian.py after hand_rhs.inc. Every value is computed with
+   core/autox_pp.cpp by apply_jacobian.py after hand_rhs.inc. Every value is computed with
    the operations of hand_rhs.inc's hand_core (xpp::math exp/pow), so f is
    bit-identical; the derivatives are exact for each formula's branch (erel's series
    and quotient branches, ode_divisor's guard taken as the identity). */

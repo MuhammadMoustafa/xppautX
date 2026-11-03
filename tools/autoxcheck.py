@@ -2039,7 +2039,7 @@ def section_errors():
         template = f.read()
     body = [json.loads(line) for line in template.split('@steps\n', 1)[1].splitlines()
             if line.startswith('{')]
-    # Inject immediately before the periodic Autox/Run step.
+    # Inject immediately before the periodic autoX/Run step.
     insert = next(i for i, step in enumerate(body) if isinstance(step.get('cmd'), dict)
                   and step['cmd'].get('cmd') == 'autox.run' and step['cmd'].get('kind') == 'periodic')
     body = body[:insert] + [{'cmd':dict(cmd='autox.configure_numerics',collocation_points=8)}] + body[insert:insert + 1]

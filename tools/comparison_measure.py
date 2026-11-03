@@ -67,7 +67,7 @@ def elapsed(pid, start):
 class RunClock:
     """Observe the shared command adapter without another implementation of it.
 
-    A run starts when auto.run is sent and ends with its done. Setup, grab,
+    A run starts when autox.run is sent and ends with its done. Setup, grab,
     disk exports and client preparation are outside the window. The event
     subscription is the caller's.
     """
@@ -82,7 +82,7 @@ class RunClock:
         server.collect = self.observed_collect
 
     def observed_send(self, **cmd):
-        if cmd.get('cmd') == 'auto.run':
+        if cmd.get('cmd') == 'autox.run':
             self.pending = True
             self.start = clock(self.server.proc.pid)
         return self.send(**cmd)

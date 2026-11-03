@@ -57,8 +57,8 @@ export type {LogEntry} from './log';
     plain `log`; this never sees `message` `error` text (handled separately). */
 const AUTOX_ROW = /^\s*-?\d+\s+-?\d+\s+([A-Za-z]+\s+)?-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
 const AUTOX_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|min_step_size|max_step_size|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+ stopped at point \d+:/;
-export function classifyLogText(text: string): 'log' | 'auto' {
-  return AUTOX_ROW.test(text) || AUTOX_PHRASE.test(text) ? 'auto' : 'log';
+export function classifyLogText(text: string): 'log' | 'autox' {
+  return AUTOX_ROW.test(text) || AUTOX_PHRASE.test(text) ? 'autox' : 'log';
 }
 
 /** what a notification offers: "Add file…" for a file the core could not
@@ -274,9 +274,9 @@ function addLog(state: AppState, entry: LogEntry): AppState {
 function addLogText(state: AppState, text: string): AppState {
   let rest = text, joined: LogEntry | undefined;
   const prev = lastEntry(state.log);
-  if (prev && (prev.kind === 'log' || prev.kind === 'auto') && !prev.text.endsWith('\n')) {
+  if (prev && (prev.kind === 'log' || prev.kind === 'autox') && !prev.text.endsWith('\n')) {
     const nl = rest.indexOf('\n'), head = nl < 0 ? rest : rest.slice(0, nl + 1), text = prev.text + head;
-    joined = {kind: prev.kind === 'auto' || classifyLogText(text) === 'auto' ? 'auto' : 'log', text};
+    joined = {kind: prev.kind === 'autox' || classifyLogText(text) === 'autox' ? 'autox' : 'log', text};
     rest = rest.slice(head.length);
   }
   const lines = rest.match(/[^\n]*\n|[^\n]+$/g) ?? [];
@@ -404,7 +404,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'session.state': {
       const moved = ev.view && coreViewMoved(state.core?.view, ev.view);
       /* `auto` is there exactly while autoX is open */
-      const diagram = reduceDiagram(state.diagram, {type: 'core', open: !!(ev as {auto?: unknown}).auto});
+      const diagram = reduceDiagram(state.diagram, {type: 'core', open: !!(ev as {autox?: unknown}).autox});
       return {
         ...state, core: ev, title: ev.view?.title ?? state.title, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram,
         player: reducePlayer(state.player, {type: 'core', player: ev.player}),
@@ -497,7 +497,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'ask': {
       const ids = state.hello?.window_names;
       const auto = state.diagram.open && state.diagram.views.some(v=>v.name===ev.win);
-      const mode = ids ? pickModeOf(ev, state.core?.view, !!windowOf(state.plots, ev.win!)?.series, {...ids,auto:state.diagram.views[state.diagram.active].name}, auto) : null;
+      const mode = ids ? pickModeOf(ev, state.core?.view, !!windowOf(state.plots, ev.win!)?.series, {...ids,autox:state.diagram.views[state.diagram.active].name}, auto) : null;
       const withAsk = {...state, ask: ev, pick: mode ? startPick(state.pick, ev, mode) : null};
       /* the autoX diagram's asks (a grab, Axes/Zoom's box, Axes/Scroll's drag) are the autoX view's: it is shown */
       if (auto && (mode || ev.kind === 'grab')) {

@@ -2,7 +2,7 @@
    settings as data"): the Numerics, autoX's parameters, the axes and the
    Mark values, from the `autoxsettings` event, edited in the page's own
    forms at any time. They are settings (W106): an edit goes out at once
-   as an `auto` `set`, during a run too, when the core keeps it for the
+   as an `autox` `set`, during a run too, when the core keeps it for the
    run's end (the run in progress keeps what it started with). Each one
    sent is `inflight` until that set's own done, when the event has
    brought the core's values (or a `message` `error` said why not).
@@ -180,7 +180,7 @@ export interface AutoxSettings {
   step: NumStep;
 }
 
-/** what an `auto` `set` changes (docs/protocol.md), each part only when given */
+/** what an `autox` `set` changes (docs/protocol.md), each part only when given */
 export interface AutoxSettingsPatch {
   special_points?: Partial<Record<CodimKind, boolean>>;
   numerics?: Partial<AutoxSettings['numerics']>;

@@ -306,7 +306,7 @@ export function grabStep(key: string, shift: boolean, from: number, n: number, l
 
 const CURVES = ['', 'limit point', 'limit point of periodic orbits', 'Hopf', 'torus', 'branch point', 'period doubling',
   'fixed period', '', '', '', '', '', 'neutral saddle'];
-/** what each label type means, for the key's tooltips (docs/manual/09-auto.md) */
+/** what each label type means, for the key's tooltips (docs/manual/09-autox.md) */
 const SYMBOL_HELP: Record<string, string> = {
   end: 'End point: where a branch starts or ends normally (a limit, Max points or Stop); the status strip says why it ended',
   no_convergence: 'No convergence: autoX could not compute the next point, even at the smallest step (min_step_size), and ended the branch; '

@@ -10,7 +10,7 @@
     text, so this is only ever as good as the patterns autoX's own console
     table prints. */
 export interface LogEntry {
-  kind: 'log' | 'error' | 'info' | 'auto';
+  kind: 'log' | 'error' | 'info' | 'autox';
   text: string;
 }
 
@@ -26,7 +26,7 @@ export const LOG_KEEP = 5000;
 /* entries per chunk: what an event copies (and the chunk list, LOG_KEEP / LOG_CHUNK long) */
 const LOG_CHUNK = 256;
 
-export const emptyLog: Log = {chunks: [], length: 0, counts: {log: 0, error: 0, info: 0, auto: 0}};
+export const emptyLog: Log = {chunks: [], length: 0, counts: {log: 0, error: 0, info: 0, autox: 0}};
 
 /** the entries, oldest first */
 export function logEntries(l: Log): LogEntry[] {

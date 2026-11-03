@@ -245,7 +245,7 @@ def set_values(s, values):
 
 def restore_start(s, r, values, ranges):
     """A run from the current state starts from the description's parameters and initial conditions, as
-    AUTO-07p's STPNT starts each of its runs (tools/autox_reference.py): a run before it (`ranges`) left its
+    AUTO-07p's STPNT starts each of its runs (tools/auto_reference.py): a run before it (`ranges`) left its
     last point's parameters in the model."""
     if r['start'].get('state') == 'current' and ranges and values:
         set_values(s, values)
@@ -428,7 +428,7 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
 
 # --- W300/#358: the special points compared with other programs' -----------------
 # A reference file beside a diagram holds another program's special points for the
-# same problem, written by tools/autox_reference.py on a machine that has the programs:
+# same problem, written by tools/auto_reference.py on a machine that has the programs:
 # `.auto07p` is AUTO-07p 0.9.4's, `.xppaut` XPPAUT 8.0's (its autoX window driven with
 # xdotool on Xvfb). They are compared here, from the committed files alone, matched by type and
 # order. A missing or extra special point is a difference.

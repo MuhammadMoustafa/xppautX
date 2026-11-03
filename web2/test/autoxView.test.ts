@@ -55,7 +55,7 @@ test('a run: its clock, what it computed, its last label, how it ended', () => {
   /* the next run counts only its own points; a `stopped` event makes it "Stopped" */
   s = act(s, {type: 'run', op: 'start', at: 5000});
   s = ev(s, add(5, periodic));
-  s = ev(s, {ev: 'job.stopped', at: {what: 'auto', branch: 2, point: 3}});
+  s = ev(s, {ev: 'job.stopped', at: {what: 'autox', branch: 2, point: 3}});
   s = act(s, {type: 'run', op: 'end', at: 6000});
   st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 9999, flags);
   assert.deepEqual([st.phase, st.text, st.points, st.branch, st.label], ['stopped', 'Stopped: periodic orbits', 3, 2,
@@ -86,15 +86,15 @@ test('T23: an ended run says why its last branch ended, from autoxinfo stop', ()
   s = act(s, {type: 'run', op: 'end', at: 3500});
   assert.equal(runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 4000, flags, s.diagram.stop).text, 'Done');
   /* the line the core writes in Output is autoX's */
-  assert.equal(classifyLogText('Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'), 'auto');
+  assert.equal(classifyLogText('Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'), 'autox');
   /* ... also when the core's stderr cuts it in two: the line joins, whole */
   let t = ev(READY, {ev: 'session.log', text: 'Branch 1 stopped at point 5: pa'});
   t = ev(t, {ev: 'session.log', text: 'rameter iapp reached Par Max (0.3)\nnvar=2\n'});
-  assert.deepEqual(logEntries(t.log).map(l => [l.kind, l.text]), [['auto', 'Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'],
+  assert.deepEqual(logEntries(t.log).map(l => [l.kind, l.text]), [['autox', 'Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'],
     ['log', 'nvar=2\n']]);
   t = ev(READY, {ev: 'session.log', text: 'Branch 1 st'});
   t = ev(t, {ev: 'session.log', text: 'opped at point 5: by the user (Stop)\n'});
-  assert.deepEqual(logEntries(t.log).map(l => l.kind), ['auto']);
+  assert.deepEqual(logEntries(t.log).map(l => l.kind), ['autox']);
 });
 
 test('T23: the key lists the label types the diagram has, spelled out', () => {

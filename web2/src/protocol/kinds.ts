@@ -23,7 +23,7 @@ export type Kind = 'control' | 'view' | 'setting' | 'data' | 'computation';
 const OF_LETTER: Record<string, Kind> = {c: 'control', v: 'view', s: 'setting', d: 'data', x: 'computation'};
 
 /** a window with a toolbar of its own (navigation.ts toolbarCommand) */
-export type LayerWindow = 'auto' | 'browser' | 'ani' | 'aplot';
+export type LayerWindow = 'autox' | 'browser' | 'ani' | 'aplot';
 
 /** a command with its kind (hello.commands) and whether it is
     a step of the user's (what a recording records, files.ts's run record); op absent: the

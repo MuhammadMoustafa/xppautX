@@ -120,7 +120,7 @@ export const HELLO: HelloEvent = {
   line_styles: LINE_GEOMETRY,
   annotation_glyphs: ANNOTATION_GLYPHS,
   colormaps: ['jet', 'viridis', 'plasma'],
-  window_names: {main:'graph_1',auto:'diagram_1',ani:'animation',aplot:'array_plot_1',browser:'browser'},
+  window_names: {main:'graph_1',autox:'diagram_1',ani:'animation',aplot:'array_plot_1',browser:'browser'},
 };
 
 /** the state after the server's hello: every event but hello comes after one */

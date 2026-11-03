@@ -1,8 +1,8 @@
 # W354 (#416) stage 1: plan for rerunning the comparison with XPPAUT 8.0 and AUTO-07p
 
 Read-only study plan, 2026-10-14. Nothing was built, run or timed to write it. Sources: BENCHMARK_HANDOFF.md
-(H), the READMEs under benchmarks/, docs/auto-references.md (AR), tools/autocompare.py, tools/auto_reference.py,
-tests/auto/, AGENTS.md "XPPAUT itself", docs/roadmap.md, `git log 0643234f..HEAD`. "(inferred)" marks my
+(H), the READMEs under benchmarks/, docs/auto-references.md (AR), tools/autoxcompare.py, tools/auto_reference.py,
+tests/autox/, AGENTS.md "XPPAUT itself", docs/roadmap.md, `git log 0643234f..HEAD`. "(inferred)" marks my
 reading, not a fact in a file. Stage 2 (the runs) starts only on the merged tip after W302's stages and
 W329, W330, W334, W337 (roadmap row W354).
 
@@ -42,7 +42,7 @@ Changes on master since `0643234f` (git log), by kind:
   Session), W339/W340 (model parameters kept apart from AUTO's unknowns), W327/W328 (bounded import, stream
   positions checked), W335 (diagram caches moved to the client), and the pending W329 (typed codes), W330 (axes by
   kind), W334 (owned data and views), W337 (numerics in xpp_math, "each exact algorithm kept"). Their guard is
-  autocompare's byte-exact baseline at 1 and automatic threads; only a timing series shows a cost (a view or
+  autoxcompare's byte-exact baseline at 1 and automatic threads; only a timing series shows a cost (a view or
   bounds check in `setubv`/`conpar`/`brbd` would be a few percent; inferred).
 - **Speed on purpose:** W325 (workers chosen once per run, one thread below ndim^2*NTST*NCOL = 1024). Its
   commit message gives PY_S1Bf 5.194/2.211 s (1 thread/automatic, UCRT) but the paper's folder has no record of
@@ -51,8 +51,8 @@ Changes on master since `0643234f` (git log), by kind:
   old names refused: the staged `auto/models/w269/PY_S1Bf_bench.odex` uses `auto:` and will not load), W312
   (`runnow` removed), W313, W315, W318 (set syntax), W339 (no AUTO parameter selection; old session files
   refused). `models/` must be restaged from the `.ode` files by the new build, as W269 did for W246's. The
-  drivers use `execute_run`-style key/answer commands that autocompare calls "the replaceable adapter to
-  pre-W306 AUTO keys" (tools/autocompare.py:182); W306 and W353 (command registry) will change them.
+  drivers use `execute_run`-style key/answer commands that autoxcompare calls "the replaceable adapter to
+  pre-W306 AUTO keys" (tools/autoxcompare.py:182); W306 and W353 (command registry) will change them.
 - **Not in the way:** W350-W351, W346-W349, W319/W320 (UI and set commands).
 
 Material in the existing record that is stale, broken or inconsistent (also listed in my report):
@@ -89,13 +89,13 @@ Goal: equilibrium and periodic-orbit continuation, three programs, the same bran
 | P2 | ModelDB 267710 periodic over a matched window: stop all programs by a parameter bound (e.g. ParMin just past the fold at 0.62421 on the way back), not by NMX | the three programs part at the BP near 0.6211 (item 3 above); a bound defines the end point independent of the step sequence | new window |
 | E2 | ModelDB steady in ampPar (1081 points, five Hopf points, same in all three programs) | matched already; 0.2-1.9 s | new timing |
 | E3 | a dense-size ladder: `tstauto/bigaut` (350 variables) and a resized chain, e.g. 50, 100, 200, 350 variables (NAUTO was 400 in XPPAUT; W298 lifted xppautX's) | AUTO's equilibrium cost is dense linear algebra, which the integration studies never touch (inferred) | new |
-| T1 | Mu26 blocked's HB locus in (g_h soma, current): `tests/auto/ode_mu26_blocked.json` run `hb_soma`, from the steady run's first HB (13.2657 pA), 40 points, g_h 0 to 20, DSMAX 2; repeated k times in one session like E1 if one run is under 1 s | a two-parameter curve solves the extended Hopf system (a bordered Jacobian about twice the size), which no one-parameter workload touches; all three programs run it (xppautX, AUTO-07p ISW=2, XPPAUT 8.0's Two Param through W428's driver, #490) | new (maintainer, 2026-10-17); waits for W428 |
+| T1 | Mu26 blocked's HB locus in (g_h soma, current): `tests/autox/ode_mu26_blocked.json` run `hb_soma`, from the steady run's first HB (13.2657 pA), 40 points, g_h 0 to 20, DSMAX 2; repeated k times in one session like E1 if one run is under 1 s | a two-parameter curve solves the extended Hopf system (a bordered Jacobian about twice the size), which no one-parameter workload touches; all three programs run it (xppautX, AUTO-07p ISW=2, XPPAUT 8.0's Two Param through W428's driver, #490) | new (maintainer, 2026-10-17); waits for W428 |
 | T2 | ModelDB 267710's HB locus in (`ampPar`, `CaDen_Max`) from the HB at 0.57279 (P2's start), `CaDen_Max` (the dendritic L-type Ca density) 0 to 2x nominal, bounded by NMX; the model as examples/ode/motoneuron6c.odex (W431, #493, settled 2026-10-17) | the same extended Hopf system on a model many times Mu26's size, where a two-parameter curve's cost shows; all three programs, like T1 | new (maintainer, 2026-10-17); waits for W431 and W428 |
-| V1 | Morris-Lecar `lecar` and `simplefold`, `tsthom` (reference/xppaut-8.0/tstauto) | too small to time (microseconds per point); the harness check: the committed `tests/auto/*.auto07p` and `.xppaut` already give their special points | validation only |
+| V1 | Morris-Lecar `lecar` and `simplefold`, `tsthom` (reference/xppaut-8.0/tstauto) | too small to time (microseconds per point); the harness check: the committed `tests/autox/*.auto07p` and `.xppaut` already give their special points | validation only |
 
 **How each program is driven with no person:**
 
-- xppautX: `--server` (tools/xppclient.py `Server`), as `hopf_xppautx.py` and `autocompare.execute_run` do:
+- xppautX: `--server` (tools/xppclient.py `Server`), as `hopf_xppautx.py` and `autoxcompare.execute_run` do:
   `auto op=set numerics=...`, `auto op=grab`, the Run key and `answer`; the run ends at the command's `done`.
   The run descriptions of tests/auto (`kind`, `parameter`, `auto{ds,dsmin,dsmax,nmax,npr,ntst,parmin,parmax,...}`,
   `start{run,type,index}`) name a run in W306's terms, so only the adapter changes when W306/W353 lands.
@@ -120,7 +120,7 @@ Goal: equilibrium and periodic-orbit continuation, three programs, the same bran
 1. Same start: the Newton-corrected first point, or the same Hopf label; same constants (printed from each
    program's own header).
 2. Same number of points and the same special points in the same order (type, count), per run.
-3. Special points within tools/autocompare.py's tolerance formula, AR "The tolerance": `2*EPSS*(1+DSMAX)*g +
+3. Special points within tools/autoxcompare.py's tolerance formula, AR "The tolerance": `2*EPSS*(1+DSMAX)*g +
    2*EPS*(1+|q|)` per quantity (parameter, norm, period, spectrum), against the committed-style `.auto07p` and
    `.xppaut` records that `auto_reference.py` writes; XPPAUT's 7 printed digits and AUTO-07p's 6 digits for spectra
    are inside that formula. Not widened to make a point pass.
@@ -282,9 +282,9 @@ original screen (results/), the controls and 1e-9 refinement (terman-investigati
 6. **Matching mode.** Free adaptive steps with the agreement gate (A) plus the fixed-step variant (B) on PY_S1Bf?
    Recommend both, A the headline.
    **Settled (maintainer, 2026-10-18): both, (A) the headline,** (B) on PY_S1Bf only after a pilot converges.
-7. **Agreement gate.** Reuse autocompare's per-quantity tolerance (AR) for the whole branch rather than W269's
+7. **Agreement gate.** Reuse autoxcompare's per-quantity tolerance (AR) for the whole branch rather than W269's
    labels-and-counts? Recommend yes; one definition of "the same branch" for tests and paper.
-   **Settled (maintainer, 2026-10-18): yes**, autocompare's per-quantity tolerance along the whole branch, traced
+   **Settled (maintainer, 2026-10-18): yes**, autoxcompare's per-quantity tolerance along the whole branch, traced
    differences only as recorded; a workload that fails is reported with its numbers and not timed as equal work.
 8. **AUTO-07p's equations.** One generator (extend `tools/auto_reference.py`'s .odex to Fortran, or
    `odex_to_c.py`) checked against xppautX's right-hand side at the start point to 1e-12 relative, the hand-written
@@ -381,8 +381,8 @@ The maintainer added these models to the study set on 2026-10-16. They are in th
   - **control:** the steady branch in the applied current, then the cycles from its HB;
   - **g_h blocked:** the same two runs, plus the HB loci in g_h soma and in g_h dend, and the rheobase-LP locus through its CP.
 
-  The descriptions are tests/auto/ode_mu26_control.json and ode_mu26_blocked.json. W415 timed all three Mu26 runs at about 111 s on Linux with 1 thread, through autocompare.
-- **Ma23** (`examples/ode/ma23.odex`, the PVIN of Ma et al. 2023): the steady branch in the applied current, then the cycles from its HB (tests/auto/ode_ma23.json), about 3 s.
+  The descriptions are tests/autox/ode_mu26_control.json and ode_mu26_blocked.json. W415 timed all three Mu26 runs at about 111 s on Linux with 1 thread, through autoxcompare.
+- **Ma23** (`examples/ode/ma23.odex`, the PVIN of Ma et al. 2023): the steady branch in the applied current, then the cycles from its HB (tests/autox/ode_ma23.json), about 3 s.
   - E_Ca = 68 mV matching Table 1 (W424, #486; the source XPP export had 130 mV).
 - **Izhikevich's 28 parameter sets** (`examples/ode/izh_*.odex`, `paper/benchmarks/izhikevich/` with the .ode files and compare.sh):
   - integration only, against XPPAUT 8.0;
@@ -417,7 +417,7 @@ are historical inputs, not stage-2 entry points. No timing series ran on the lap
 | Run timing and ready | `comparison_measure.RunClock` observes the shared key/answer adapter. The reference driver optionally records AUTO-07p run() wall/child CPU after compiling, plus wrapper wall and ready. XPPAUT clocks its final zero-delay key; all earlier key pauses are excluded. Integration records whole-process and separate one-step ready rows. Per-point times and raw repeats are saved. |
 | Process protocol | One warm-up, five fresh measured processes, rotating order, sample SD; fresh HOME/config, locale C, BLAS one thread. No partial timing means. E1/T1 repeat within each session, resized from the fastest warm-up, without a timing acceptance test. T2's pilot increases points while preserving its parameter window. |
 | Threads/pinning | `common.physical_cores` parses recorded lscpu -e CPU/SOCKET/CORE/ONLINE, and chooses one logical CPU per physical core. xppautX 1/2/4/auto and AUTO-07p 1/2/4. Every integration process uses the same fixed single core and has no thread row. W269's SMT-sibling condition is stated with historical digests. |
-| Matching A/B | Adaptive headline; PY_S1Bf fixed DSMIN=DSMAX=abs(DS), IADS=0 second series only after its pilot gate. Failures retain numbers and have no equal-work timing summary. Shared `autocompare.compare_run/compare_curve` checks special quantities and both directions of whole-branch polylines. The reference reader now permits whole one-parameter branches too. No tolerance is widened. |
+| Matching A/B | Adaptive headline; PY_S1Bf fixed DSMIN=DSMAX=abs(DS), IADS=0 second series only after its pilot gate. Failures retain numbers and have no equal-work timing summary. Shared `autoxcompare.compare_run/compare_curve` checks special quantities and both directions of whole-branch polylines. The reference reader now permits whole one-parameter branches too. No tolerance is widened. |
 | Generator and RHS | `auto_reference.Equations` owns every Fortran RHS, including PY_S1Bf; `check_rhs` evaluates its compiled FUNC and the same expanded RHS with xppautX's evaluator at the start, retaining both vectors under the strict 1e-12 relative gate (zero separately). `odex_to_c.py` deleted. Handwritten py_s1bf.c is used only for its exact-Jacobian row. |
 | Jacobians | FD in all three programs is the headline. xppautX exact on every timed continuation workload; AUTO-07p exact only PY_S1Bf. The same shared numerical gates apply to those rows. |
 | Terman | `terman-criteria.json` predates new runs. Stage 0 computes spikes/counts, episodes/durations/intervals, within-episode ISI mean/CV/counts, STN-GPe latency, final states and output dt from saved arrays. `terman.py` runs 1e-3..1e-9, dtmax 1/.5/.25, dtmin 1e-12/1e-13, output dt .4/.1, DoPri8, 1e-9/1e-12 initial perturbations and W427 SciPy DOP853 at 1e-12. Two consecutive refinements plus reference must meet predeclared criteria; sensitivity restricts the claim to statistics. Timing refuses absent criteria/acceptance and applies the chosen tolerance. Claim limits are saved beside every acceptance result. |
@@ -429,7 +429,7 @@ nothing; diagrams were always sent. `data.diagram=false` now explicitly stops di
 collection/delivery, and true reconstructs the full diagram from the stored data. The
 numerical diagram is unchanged; `tools/servercheck.py --only diagram` checks equality, opt-out and resubscription.
 The no-events paper row asserts that no diagram event was delivered. The numerical/check
-paths otherwise call `autocompare.compute/execute_run` and `auto_reference.reference`.
+paths otherwise call `autoxcompare.compute/execute_run` and `auto_reference.reference`.
 The simpler alternative, composing the old W269 shell commands, was rejected because it
 could neither suppress actual diagram work nor use one whole-branch numerical gate.
 

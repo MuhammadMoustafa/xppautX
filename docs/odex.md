@@ -17,8 +17,8 @@ W73 (#121) introduced `.odex`; W154 makes it the model format.
 Foreign `.ode` input remains supported through conversion. Both readers
 use the same in-memory `Model` builder (core/model.h); the converter
 checks that its `.odex` compiles to the `.ode`'s programs and values.
-The integrators, AUTO and front end then use the saved `.odex`.
-AUTO's variable and parameter storage is sized by that model, with no fixed
+The integrators, autoX and front end then use the saved `.odex`.
+autoX's variable and parameter storage is sized by that model, with no fixed
 400-variable or eight-selected-parameter limit; its branch-point storage
 grows with the run (W298, [#356](https://github.com/MuhammadMoustafa/xppautX/issues/356)).
 
@@ -157,7 +157,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   formula reads only parameters, consts, pure functions (not `ran`,
   `normal`, `poisson`, nor a user function calling one) and the
   quantities before it, the loader works it out only when a parameter
-  changes (a slider, an event setting a parameter, each AUTO evaluation),
+  changes (a slider, an event setting a parameter, each autoX evaluation),
   as `.ode`'s `!` does, so the numbers are identical; otherwise at every
   evaluation (question 9).
 - `init NAME = VALUE, ...` — initial conditions: a fixed value, worked
@@ -197,7 +197,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   Groups: `integration`, `poincare`, `equilibria`, `continuation`,
   `diagram`, `plot`, `export`, `sweep`, `analysis`, `interface`, `output`.
   Integration holds solver and time settings; poincare holds section settings;
-  equilibria holds `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `neartol` and the search's three display choices `print_eigenvalues`, `draw_invariant_sets` and `draw_strong_sets` (each `true` or `false`, W535); continuation holds AUTO run settings by their names (`mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`; W531), AUTO's own names (`ntst`, `nmax`, `parmin`, ...) being XPPAUT's, read on `.ode` import only;
+  equilibria holds `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `neartol` and the search's three display choices `print_eigenvalues`, `draw_invariant_sets` and `draw_strong_sets` (each `true` or `false`, W535); continuation holds autoX run settings by their names (`mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`; W531), autoX's own names (`ntst`, `nmax`, `parmin`, ...) being XPPAUT's, read on `.ode` import only;
   diagram holds its axes and colours; plot holds view and grid settings; export
   holds `plotfmt` (`pdf` or `svg`), `picture_color` and `picture_font_size`; sweep holds range settings (including `rangefiles: true` or `false`, default `false`, which writes each reset run separately in every mode); analysis holds histograms
   and spectra; interface holds sliders and buttons; output holds files and logging.
@@ -235,7 +235,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   path outside the model's folder is a question the user answers (W175, W286). Only `output` and
   `logfile` are paths, and `but` (a button, `but: "quit:fq"`) a text. Every
   writer of options (the converter, Save values) writes them so.
-  Continuation numbers use the same ranges as the AUTO form, protocol and session reader:
+  Continuation numbers use the same ranges as the autoX form, protocol and session reader:
   `min_step_size`, `max_step_size`, `parameter_tolerance`, `state_tolerance` and `special_point_tolerance` are positive; `min_step_size <= max_step_size`,
   `min_step_size <= abs(step_size) <= max_step_size`, `parameter_min < parameter_max` and `norm_min < norm_max`.
   A bad value is refused at its line, before the model is installed (W494).
@@ -310,9 +310,9 @@ The allocation-sized whole options have inclusive maxima (W296,
 | `numerics.bandup`, `numerics.bandlo` | 0 | 100000 | Large banded models without int-sized bandwidths |
 | `histogram.histbins`, `histogram.histbins2` | 2 | 4096 | About 16 million cells in two dimensions |
 | `histogram.specwidth` | 1 | 1000000 | Bounds spectral workspaces |
-| `continuation.mesh_intervals` | 1 | 10000 | Bounds AUTO's mesh-sized matrices |
+| `continuation.mesh_intervals` | 1 | 10000 | Bounds autoX's mesh-sized matrices |
 | `continuation.max_steps` | 1 | 1000000 | Bounds a requested continuation diagram |
-| `continuation.collocation_points` | 2 | 7 | AUTO's settings reader requires supported collocation orders 2 through 7 |
+| `continuation.collocation_points` | 2 | 7 | autoX's settings reader requires supported collocation orders 2 through 7 |
 
 Settings that must keep an order are refused when it is broken, wherever they
 come from (an `options` block, a `.setx` or session file, `set num`, the
@@ -320,11 +320,11 @@ Numerics menu, the Window and histogram dialogs), with both names and values:
 `min_step` at most `max_step`, `xlo` below `xhi`, `ylo` below `yhi`, `xmin` below
 `xmax`, `ymin` below `ymax`, `zmin` below `zmax`, `histlo` below `histhi`,
 `histlo2` below `histhi2`, `autoxmin` below `autoxmax` and `autoymin` below
-`autoymax` (the continuation's pairs are AUTO's own). `torus_period` is above 0 and
+`autoymax` (the continuation's pairs are autoX's own). `torus_period` is above 0 and
 `rangestep` at least 1. The list, with each setting's range and the rule behind
 it, is [docs/studies/w494-numeric-settings.md](studies/w494-numeric-settings.md).
 
-These maxima also apply through the corresponding saved numerics and AUTO
+These maxima also apply through the corresponding saved numerics and autoX
 session settings. Iteration counts, output strides, seeds, flags and indices
 remain whole numbers in their existing ranges; they do not size an allocation.
 The JSON schemas publish the maxima from the same option rows. Exceeding one
@@ -784,7 +784,7 @@ from):
    formula's current value, and when it reads only parameters, consts
    and pure functions (not `ran`, `normal`, `poisson` or a function
    calling one) the loader computes it only when a parameter changes (a
-   slider, an event setting a parameter, each AUTO evaluation), as
+   slider, an event setting a parameter, each autoX evaluation), as
    .ode's `!` did, so the numbers are identical. `--convert` writes `!d =
    expr` as `d = expr` and refuses one reading t, a variable or a random
    function. No per-run snapshot (`hold`): that was a side effect of
@@ -930,7 +930,7 @@ one before's.
 Native `findext` networks name the extremum: `findext(minimum, 50, 1, d0)`,
 `findext(maximum, 50, 1, d0)` or `findext(both, 50, 1, d0)`. XPPAUT's -1,
 1 and 0 are read on `.ode` import only; conversion writes the name (W499).
-Native AUTO session diagrams likewise write calculation and curve names
+Native autoX session diagrams likewise write calculation and curve names
 (`equilibrium`, `periodic`, `equilibrium_fold`, `periodic_fold`, `hopf`,
 `neutral_saddle`, `torus`, `branch_point`, `period_doubling`, `fixed_period`,
 `boundary_value`, `discrete`, `homoclinic`, or `none`), rather than XPPAUT codes.

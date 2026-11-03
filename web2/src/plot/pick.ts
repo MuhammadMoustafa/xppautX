@@ -42,14 +42,14 @@ export const BIG_STEP = 0.1;
 
 /** the plot mode an ask is, when this page can show it: a 2D plot window
     it draws (identified by the current view), the active one (`state.view`), or the autoX
-    diagram (window `ids.auto`) while the autoX view is open (`auto`); null for
+    diagram (window `ids.autox`) while the autoX view is open (`auto`); null for
     anything else (a 3D plot, no plot yet), which the dialog then offers to
     cancel (A13). `ids`: hello.window_names */
 export function pickModeOf(ask: AskEvent, view: View | undefined, hasPlot: boolean,
-  ids: {auto: string}, auto = false): PickMode | null {
+  ids: {autox: string}, auto = false): PickMode | null {
   const win = ask.win!;
-  const plot = hasPlot && win !== ids.auto && !!view && view.win === win && !view.three;
-  if (!plot && !(auto && win === ids.auto)) return null;
+  const plot = hasPlot && win !== ids.autox && !!view && view.win === win && !view.three;
+  if (!plot && !(auto && win === ids.autox)) return null;
   switch (ask.kind) {
     case 'mouse': return 'point';
     case 'rubber': return ask.flag === 1 ? 'line' : 'box';

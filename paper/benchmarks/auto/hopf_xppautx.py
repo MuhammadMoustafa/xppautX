@@ -37,14 +37,14 @@ def cpu_seconds(proc):
 def points(evs):
     """every diagram point the events added: (branch, number, x, y, y2)"""
     return [(r['br'], r['pt'] + i, x, r['y'][i], r['y2'][i] if 'y2' in r else None) for e in evs
-            if e.get('ev') == 'auto.diagram' and e.get('op') == 'add' for r in e['runs'] for i, x in enumerate(r['x'])]
+            if e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for r in e['runs'] for i, x in enumerate(r['x'])]
 
 
 def run(s, key, limit=RUN_LIMIT, scratch=None):
     """A named AUTO run (s equilibrium, p periodic): (wall s, CPU s, labelled points, all points); W248: the
     process's AUTO scratch folders seen while it runs go into the list `scratch`"""
     c0, t0 = cpu_seconds(s.proc), time.perf_counter()
-    s.send(cmd='auto.run', kind={'s': 'equilibrium', 'p': 'periodic'}[key],
+    s.send(cmd='autox.run', kind={'s': 'equilibrium', 'p': 'periodic'}[key],
            **({'label': s.grabbed_label} if key == 'p' else {}))
     more, done = [], None
     while done is None:  # events up to done, looking at the scratch folders between them
@@ -86,7 +86,7 @@ def _measure(s, threads, jacobian, limit, ready, go, out):
     s.send(cmd='events.subscribe', events=[], diagram=True)
     step(s)
     if threads is not None:
-        step(s, cmd='auto.set_threads', **({'automatic': True} if threads == 0 else {'threads': threads}))
+        step(s, cmd='autox.set_threads', **({'automatic': True} if threads == 0 else {'threads': threads}))
     if jacobian is not None:
         step(s, cmd='set', kind='num', name='jacobian', text=jacobian)
     open_auto(s)
@@ -96,7 +96,7 @@ def _measure(s, threads, jacobian, limit, ready, go, out):
             time.sleep(0.05)  # poll the caller's start-barrier file
     for name, key in (('steady', 's'), ('periodic', 'p')):
         if key == 'p':
-            step(s, cmd='auto.grab', type='hopf', index=1)
+            step(s, cmd='autox.grab', type='hopf', index=1)
         scratch, t_wall0 = [], time.time()
         wall, cpu, labs, pts = run(s, key, limit, scratch)
         out[name] = {'wall': wall, 'cpu': cpu, 't0': t_wall0, 't1': time.time(), 'scratch': scratch, 'labels': [(pt, sym, x) for _, pt, _, sym, x, _ in labs if sym],

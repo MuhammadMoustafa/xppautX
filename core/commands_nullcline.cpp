@@ -98,7 +98,7 @@ constexpr std::array DONE={xpp::events::DONE};
 constexpr std::array ROWS={
     Command{"nullcline.compute",{},XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Nullclines/New","Compute the phase plane's nullclines.",COMPUTED,EVENTS,true,compute},
     Command{"nullcline.redraw",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Restore","Draw stored nullclines again.",DRAWN,EVENTS,true,redraw},
-    Command{"nullcline.auto_mode",ENABLED,XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Autox or Manual","Set automatic nullcline redrawing.",AUTO,EVENTS,true,auto_mode},
+    Command{"nullcline.auto_mode",ENABLED,XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Auto or Manual","Set automatic nullcline redrawing.",AUTO,EVENTS,true,auto_mode},
     Command{"nullcline.freeze",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Freeze/Freeze","Freeze the current nullclines.",FROZEN,EVENTS,true,freeze},
     Command{"nullcline.clear_frozen",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Analysis/Nullclines/Freeze/Delete all","Clear frozen nullclines.",CLEARED,EVENTS,true,clear_frozen},
     Command{"nullcline.range_freeze",RANGE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Analysis/Nullclines/Freeze/Range","Freeze nullclines over a parameter range.",STEPS,EVENTS,true,range_freeze},

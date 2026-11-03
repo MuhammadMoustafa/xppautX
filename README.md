@@ -65,8 +65,8 @@ its own behavioural regression test (`tools/web2check.mjs`).
       browser's commands (`browse_data.cpp`), the IC/parameter box values
       and sliders (`xpp_util.cpp`), the animation language and its drawing
       geometry (`aniparse.cpp`, drawing through `xpp_ui.ani_*`), array plot
-      settings and printing (`arrayplot.cpp`), AUTO diagram grabbing
-      (`auto_nox.cpp`), the GIF encoder (`scrngif.cpp`), user buttons
+      settings and printing (`arrayplot.cpp`), autoX diagram grabbing
+      (`autox_nox.cpp`), the GIF encoder (`scrngif.cpp`), user buttons
       (`userbut.cpp`) and the equilibrium import.
    3. *(done)* A protocol front end: `core/ui_json.cpp` is an `XppUi` table
       that speaks line-delimited JSON (data, state and prompts out; keys,
@@ -77,7 +77,7 @@ its own behavioural regression test (`tools/web2check.mjs`).
    4. *(done)* The front end: first a page that replayed the core's pixel
       drawing (`web/`, removed at docs/ui-v2.md T18 with protocol 1's
       `draw`, `palette` and `size`), now web2 (`web2/`), which draws plots,
-      the AUTO diagram and animations from data events. `xppautX` without
+      the autoX diagram and animations from data events. `xppautX` without
       `--server` is the same program
       with the page compiled in and a small HTTP server (`core/xpp_http.cpp`,
       127.0.0.1 only, a random token in the address) instead of Node;
@@ -107,7 +107,7 @@ them after a build and fails on any difference:
 |---|---|
 | `tools/examples_check.sh` | every `examples/**/*.ode` through `xppautX --silent`, each output's md5 against `tests/examples.md5` |
 | `tools/servercheck.py` | protocol session against `xppautX --server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, the data events) |
-| `tools/autocheck.py` | AUTO continuations over the protocol (diagrams, labels, grabs, long names) |
+| `tools/autoxcheck.py` | autoX continuations over the protocol (diagrams, labels, grabs, long names) |
 | `tools/webcheck.py` | `xppautX` over HTTP: page, token, event stream, files, commands, exit |
 
 `node tools/web2check.mjs` drives the front end (web2) in a headless
@@ -119,7 +119,7 @@ browser and checks its state (docs/ui-v2.md).
 |---|---|
 | `core/` | All C++ sources and headers. |
 | `docs/` | `manual/` (the current manual, Markdown), `upstream/` (the original TeX/PDF/HTML manual, historical reference), man page, upstream `HISTORY` and `README`. |
-| `examples/` | `ode/` example models, `canonical/`, `tstauto/` AUTO tests. |
+| `examples/` | `ode/` example models, `canonical/`, `tstauto/` autoX tests. |
 | `tools/` | The build, check and measurement scripts (AGENTS.md lists them), each run through `uv run --locked python` when it is Python. |
 | `contrib/` | The CUDA experiment and the XppBetty Java GUI jars from upstream. |
 
@@ -383,7 +383,7 @@ you have one, this is the part that needs it.
    it and relaunch from Terminal with a model argument, since Finder
    cannot pass one).
 3. **Try it.** With the window open: run the model (Initialconds > Go,
-   or the keys `i g`); open AUTO (File > Auto) and start a continuation
+   or the keys `i g`); open autoX (File > autoX) and start a continuation
    (Run > Steady state); resize and move the window; then close it and
    check that no xppautX process is left (`ps aux | grep xppautX`). The
    macOS window has no menu bar of its own yet (Open model, Help and About
@@ -403,7 +403,7 @@ historical parity record), [docs/xppautx-vs-xppaut.md](docs/xppautx-vs-xppaut.md
 (what is ours and what is XPPAUT's, by area), [docs/vscode-extension.md](docs/vscode-extension.md)
 and the [CHANGELOG.md](CHANGELOG.md) (what is new, changed and fixed, by release).
 
-The manual (model language, numerics, AUTO, the current front end) is
+The manual (model language, numerics, autoX, the current front end) is
 [docs/manual/](docs/manual/README.md), kept current with the code (W12). The
 original XPPAUT TeX/PDF manual and HTML help it was converted from live in
 `docs/upstream/` as historical reference. Upstream's install notes are in

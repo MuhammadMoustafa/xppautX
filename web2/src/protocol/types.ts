@@ -69,7 +69,7 @@ export interface HelloEvent {
   /** the marker glyphs and arrow head the pictures draw for texts, arrows, pointers and markers (core/grobs.h; plot/marks.ts) */
   annotation_glyphs: AnnotationGlyphs;
   /** Initial surface names; plots and diagram views subsequently carry their exact names. */
-  window_names: {main: string; auto: string; ani: string; aplot: string; browser: string};
+  window_names: {main: string; autox: string; ani: string; aplot: string; browser: string};
   lists: string[][];
   model_names: string[];
   /** every point type: its name (the only input), its label and its mark (core/autox_codes.h's one table) */
@@ -184,7 +184,7 @@ export interface StateEvent {
   view: View;
   rows: number;
   win: string;
-  session?: {file?: string; set?: string; auto?: string};
+  session?: {file?: string; set?: string; autox?: string};
   /** the values (parameters, initial conditions, the numerics' time span, method and tolerances, the run's data) differ from
       those last saved, opened or loaded: the title's unsaved dot (docs/protocol.md "state") */
   changed: boolean;
@@ -508,7 +508,7 @@ export interface MessageEvent extends Partial<ErrorFields> {
   bottom?: string;
   help?: {chapter: string; anchor: string};
   box?: string;
-  auto?: string;
+  autox?: string;
   calc?: string;
 }
 

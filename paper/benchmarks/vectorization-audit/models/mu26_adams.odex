@@ -10,7 +10,7 @@ version 4
 # Conditions (one model, the conductances of the h current are parameters):
 #   control  SmHxgMax = 0.05196355494318059, HxHxgMax = 0.6435532020105316 (as below)
 #   blocked  SmHxgMax = 0, HxHxgMax = 0 (g_h blocked in both compartments)
-# tests/auto/ode_mu26_control.json and ode_mu26_blocked.json continue the applied
+# tests/autox/ode_mu26_control.json and ode_mu26_blocked.json continue the applied
 # current SmIapp (and, for blocked, the two conductances) from the parameters and
 # initial conditions of the description, not from the values below.
 # Differences from the source: SmHxgMax and HxHxgMax are parameters (they were formulas),

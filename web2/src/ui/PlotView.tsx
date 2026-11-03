@@ -366,7 +366,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const zoomed = viewport.x !== null || viewport.y !== null;
   const noCurves = !model || model.curves.every(c => c.xs.length === 0);
   const area = chart.current?.areaBox();
-  const axisButton = (which: 'x' | 'y') => <button class={`auto-axis-name auto-axis-${which}`}
+  const axisButton = (which: 'x' | 'y') => <button class={`autox-axis-name autox-axis-${which}`}
     data-plot-axis={which} aria-haspopup="dialog" disabled={!mayMain('plot.set_2d')}
     aria-label={`Edit ${which === 'x' ? 'horizontal' : 'vertical'} axis variables and limits`}
     title="Change axis variables and limits" onClick={() => session.editPlotAxes(win, !!(info?.three ?? view?.three))}

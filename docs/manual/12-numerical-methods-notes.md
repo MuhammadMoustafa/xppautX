@@ -32,6 +32,6 @@ Most are standard.
 
 15. The FFT is Martin Reinecke's pocketfft, which transforms data of any length.
 
-16. The algorithms in the bifurcation package are described in the AUTO manual available from Eusebius Doedel. I just wrote the interface.
+16. The algorithms in the bifurcation package are described in the autoX manual available from Eusebius Doedel. I just wrote the interface.
 
 17. DAEs of the form $`F(X',X,W,t)=0`$ are solved by fixing $`X`$ and using Newton’s method to compute $`(X',W)`$. The value of $`X'`$ is sent to the integrator to update $`X.`$ This apparently is not how DASSL does it. It is essentially the method used by Rheinboldt et al in their package MANPAK. (I must confess that I invented my own way to solve them out of the inability to get DASSL to work.)

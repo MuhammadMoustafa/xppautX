@@ -912,7 +912,7 @@ xpp::Result<int> sweep_range(xpp::Session &s, double *x, int flag, RangeProgress
 }
 }
 
-int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Autox range */
+int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto range */
 {
  if(flag==0||flag==2){
    s.integrator.range.rtype=RANGE_SINGLE;

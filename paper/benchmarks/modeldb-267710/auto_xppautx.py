@@ -54,7 +54,7 @@ def _measure(s, threads, jacobian, limit):
     s.send(cmd='events.subscribe', events=[], diagram=True)
     step(s)
     if threads is not None:
-        _ok(step(s, cmd='auto.set_threads', **({'automatic': True} if threads == 0 else {'threads': threads}))[0], 'threads')
+        _ok(step(s, cmd='autox.set_threads', **({'automatic': True} if threads == 0 else {'threads': threads}))[0], 'threads')
     if jacobian is not None:
         _ok(step(s, cmd='set', kind='num', name='jacobian', text=jacobian)[0], 'jacobian')
     out = {}
@@ -66,7 +66,7 @@ def _measure(s, threads, jacobian, limit):
     for name, key in (('steady', 's'), ('periodic', 'p')):
         if key == 'p':
             k, x = rightmost_hb(out['steady']['labels'])
-            _ok(step(s, cmd='auto.grab', type='hopf', index=k)[0], 'grab')
+            _ok(step(s, cmd='autox.grab', type='hopf', index=k)[0], 'grab')
             numerics(s, step_size=-PERIODIC_DS)
             out['grabbed'] = {'index': k, 'ampPar': x}
         wall, cpu, labs, pts = run(s, key, limit)

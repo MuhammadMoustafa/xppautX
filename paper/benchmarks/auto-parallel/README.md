@@ -10,7 +10,7 @@ does running AUTO's collocation on threads gain, and with the same results?
   hand-written PY_S1Bf right-hand side, W249) and then `apply_parallel.py`,
   which brings in this folder's `setubv2.cpp`, `conpar2.cpp` and
   `auto_par.inc` (88e09741's files with the changes below) and patches
-  `autpp.cpp`'s `func`. Environment switches:
+  `autox_pp.cpp`'s `func`. Environment switches:
   - `XPP_HAND_RHS=4` (pure): `func` calls the compiled right-hand side with
     `Iapp` from AUTO's own `par` and writes no Session state. Stock `func`
     writes the parameters into the Session, re-evaluates derived values and

@@ -5,7 +5,7 @@ Per workload and per other program, one figure of three panels: that program's r
 overlaid, and the error (other minus xppautX) on a common grid. manifest.json lists every figure with the max and RMS error.
 Integration studies read runs/<workload>/0/<engine>/run/output.dat (repetition 0: results are bit-identical across
 repetitions, which the gates check); the continuation attempt reads each run's branch from xppautX's diagram.csv and from
-the references of XPPAUT and AUTO-07p, the quantities tools/autocompare.py compares (parameter, norm, second parameter).
+the references of XPPAUT and AUTO-07p, the quantities tools/autoxcompare.py compares (parameter, norm, second parameter).
 W555: --extra DIR (extra_runs.py's folder, <study>/<workload>/<program>/) supplies the data a program has no usable result for in the
 series, from an untimed rerun, and the figure and manifest say so; a scaling workload no other program can run (XPPAUT cannot hold
 a model that size, docs/xppaut-findings.md finding 45) is drawn for xppautX alone, with that reason.
@@ -23,7 +23,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from common import TOOLS, save  # puts tools/ on sys.path
-import autocompare
+import autoxcompare
 from odex_model import Odex
 
 # report-20261022's program colours; xppautX is always the solid blue line
@@ -35,7 +35,7 @@ PLOT_POINTS = 4000  # a curve is drawn with at most this many points; the errors
 LOG_DECADES = 2  # the error axis is logarithmic (absolute value) when its non-zero values span more decades than this
 DPI = 80
 STUDIES = ('screen', 'modeldb', 'research', 'izhikevich', 'scaling')  # their trajectories are runs/<workload>/0/<engine>/run
-CURVES = ('two_parameter', *autocompare.HOMCONT)  # the runs that continue in two parameters (W557: a homoclinic orbit's too)
+CURVES = ('two_parameter', *autoxcompare.HOMCONT)  # the runs that continue in two parameters (W557: a homoclinic orbit's too)
 LABEL_LIMIT = 30  # labelled points written on a panel; the rest keep their marker
 RERUN_NOTE = 'untimed rerun (W555)'  # said in a figure's title and its manifest entry when its data came from --extra
 NO_PEER = {'scaling': 'XPPAUT cannot run a model of this size (docs/xppaut-findings.md finding 45), so there is no second program'}
@@ -290,13 +290,13 @@ def integration(series, out, manifest, skipped, only, extra=None):
 
 def xppautx_branch(rows, two_parameter):
     """(x, y, labelled points) of one run's stored rows: the continued parameter against the norm, or against the second
-    parameter for a two-parameter run, the way autocompare reads them; labelled are the special points by their code."""
+    parameter for a two-parameter run, the way autoxcompare reads them; labelled are the special points by their code."""
     keep = [r for r in rows if not two_parameter or 'continued_parameter2' in r]
     x = np.array([float(r['continued_parameter']) for r in keep])
     y = np.array([float(r['continued_parameter2'] if two_parameter else r['norm']) for r in keep])
     marks = []
     for i, r in enumerate(keep):
-        code = autocompare.code_of(r['itp'])
+        code = autoxcompare.code_of(r['itp'])
         if code and (code != 'EP' or i in (0, len(keep) - 1)):  # an EP is a branch end: the references label the start and the end
             marks.append((code, x[i], y[i]))
     return x, y, marks
@@ -425,7 +425,7 @@ def continuation(attempt, out, manifest, skipped, extra=None):
             if not ranges_path.exists() or not diagram.exists():
                 skipped.append('continuation %s: no xppautX diagram or run ranges' % label)
                 continue
-            stored = autocompare.stored_rows(diagram.read_bytes(), json.loads(ranges_path.read_text()))
+            stored = autoxcompare.stored_rows(diagram.read_bytes(), json.loads(ranges_path.read_text()))
             refs = {}
             for program, folder in (('xppaut', 'pilot-xppaut'), ('auto07p', 'pilot-auto07p')):
                 path = mdir / folder / 'reference.json'

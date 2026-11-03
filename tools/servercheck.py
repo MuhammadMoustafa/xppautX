@@ -3059,7 +3059,7 @@ check('Window/Scroll moves the view through the registry',st is not None and st[
 
 send(cmd='autox.open')
 evs, _ = collect(lambda e: e.get('ev') == 'window.created' and e.get('win') == 'diagram_1')
-check('File/Autox opens the autoX window', any(e.get('ev') == 'window.created' and e.get('win') == 'diagram_1' for e in evs))
+check('File/autoX opens the autoX window', any(e.get('ev') == 'window.created' and e.get('win') == 'diagram_1' for e in evs))
 collect(is_done)
 send(cmd='autox.redraw')
 evs, _ = collect(is_done)
@@ -6697,7 +6697,7 @@ def check_open_reload():
         def made(evs, event, win):
             return any(e.get('ev') == event and e.get('win') == win for e in evs)
 
-        check('File/Autox opens window 101 before the open', made(evs, 'window.created', 'diagram_1'), '')
+        check('File/autoX opens window 101 before the open', made(evs, 'window.created', 'diagram_1'), '')
         evs = open_model('other.ode', key=None)
         asks = [e for e in evs if e.get('ev') == 'ask']
         check('open asks first, offering to save (choice s/d)',
@@ -9709,7 +9709,7 @@ def check_autox_threads():
             check('W267: set threads (the most) shows in the event and is saved in preferences.setx',
                   not errors(evs) and st and st['threads'] == most and 'autox_threads: %d' % most in text(), str(evs)[-300:])
             before = text()
-            for bad in (0, most + 1, -1, 1.5, 'many', 'Autox', [2]):
+            for bad in (0, most + 1, -1, 1.5, 'many', 'autoX', [2]):
                 snd(cmd='autox.set_threads', threads=bad)
                 evs, _ = col(is_done)
                 err = errors(evs)

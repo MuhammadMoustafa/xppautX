@@ -124,9 +124,9 @@ test('a second create is a resize: the data stay; destroy empties the view', () 
   assert.equal(activeView(s.diagram).axes, null);
 });
 
-test('state.auto opens the view for a page that connected later; its absence closes it', () => {
-  const state = (auto?: object) => ({ev: 'session.state', sliders: [], pars: [], ics: [], bcs: [], rows: 0, menu: 0, win: 'graph_1',
-    view: {win: 'graph_1', left: 0, right: 1, top: 0, bottom: 1, xlo: 0, xhi: 1, ylo: 0, yhi: 1, three: 0}, auto});
+test('state.autox opens the view for a page that connected later; its absence closes it', () => {
+  const state = (autox?: object) => ({ev: 'session.state', sliders: [], pars: [], ics: [], bcs: [], rows: 0, menu: 0, win: 'graph_1',
+    view: {win: 'graph_1', left: 0, right: 1, top: 0, bottom: 1, xlo: 0, xhi: 1, ylo: 0, yhi: 1, three: 0}, autox});
   let s = ev(READY, state({x0: 70, y0: 26, wid: 603, hgt: 300, xmin: 0, xmax: 1, ymin: 0, ymax: 1}));
   assert.equal(s.diagram.open, true);
   assert.equal(activeView(s.diagram).axes, null, 'the data come with the redraw the session asks for');

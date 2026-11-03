@@ -3,7 +3,7 @@
 ../auto-parallel/apply_parallel.py (never the repository), XPP_JAC=1 with
 XPP_HAND_RHS=4 gives the exact Jacobian of jac_ad.inc to
 
-  AUTO        autevd.cpp sets JAC=1, so funi takes dfdu/dfdp from func instead of
+  AUTO        autox_evd.cpp sets JAC=1, so funi takes dfdu/dfdp from func instead of
               differencing the right-hand side; func fills them (and f) in one pass
   Stiff       stiff.cpp's jacobn fills dermat from it (the model is autonomous:
               df/dt = 0) instead of n + 2 right-hand-side calls
@@ -40,14 +40,14 @@ SWITCH = NL.join([
     '} // namespace',
     ''])
 
-patch('autevd.cpp', '  st.run.jac=0;',
+patch('autox_evd.cpp', '  st.run.jac=0;',
       '  st.run.jac=std::getenv("XPP_JAC") && std::getenv("XPP_JAC")[0]==\'1\' && std::getenv("XPP_HAND_RHS") '
       '&& std::getenv("XPP_HAND_RHS")[0]==\'4\' ? 1 : 0; /* W252 */')
-t = (core / 'autevd.cpp').read_text()
-(core / 'autevd.cpp').write_text('#include <cstdlib>' + NL + t)
+t = (core / 'autox_evd.cpp').read_text()
+(core / 'autox_evd.cpp').write_text('#include <cstdlib>' + NL + t)
 
-patch('autpp.cpp', '#include "hand_rhs.inc"', '#include "hand_rhs.inc"' + NL + '#include "jac_ad.inc"' + NL + SWITCH)
-patch('autpp.cpp', '''     double fixed[21];
+patch('autox_pp.cpp', '#include "hand_rhs.inc"', '#include "hand_rhs.inc"' + NL + '#include "jac_ad.inc"' + NL + SWITCH)
+patch('autox_pp.cpp', '''     double fixed[21];
      hand_core<xpp::math::exp, xpp::math::pow>(u, f, fixed, par[iapp]);''', NL.join([
     '     if (jac_on() && ijac != 0) { /* W252: f, dfdu and df/dIapp in one pass */',
     '       double dfdiapp[8];',

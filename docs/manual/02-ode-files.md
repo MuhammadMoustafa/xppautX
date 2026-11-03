@@ -106,7 +106,7 @@ As you have probably guessed, comments have the form:
 
     # This is a comment
 
-The “@” sign tells XPP that you want to preset some of the internal parameters for numerical integration and graphing, AUTO, etc. Please put a space after the “@” on each line or it wont work. In this case, we have told XPP to integrate the equations until t=100 with a timestep of 0.25 and to set the high value for the x-axis to 100. You can, of course, change all these internal options from within XPP; this provides an easy way “set” up the problem for “one-button” operation.
+The “@” sign tells XPP that you want to preset some of the internal parameters for numerical integration and graphing, autoX, etc. Please put a space after the “@” on each line or it wont work. In this case, we have told XPP to integrate the equations until t=100 with a timestep of 0.25 and to set the high value for the x-axis to 100. You can, of course, change all these internal options from within XPP; this provides an easy way “set” up the problem for “one-button” operation.
 
 ## Quick exploration
 
@@ -654,7 +654,7 @@ The remaining options can be set from within the program. They are
 
 - DT=value sets the time step for the integrator (default is 0.05).
 
-- NJMP=`integer`, NOUT=`integer` (a .odex says `store_every=`, and so does Store every N steps in the Numerics menu) tell XPP how frequently to output the solution to the ODE. The default is 1, which means at each integration step. It is also used to specify a the period for maps in the continuation package AUTO.
+- NJMP=`integer`, NOUT=`integer` (a .odex says `store_every=`, and so does Store every N steps in the Numerics menu) tell XPP how frequently to output the solution to the ODE. The default is 1, which means at each integration step. It is also used to specify a the period for maps in the continuation package autoX.
 
 - T0=value sets the starting time (default is 0).
 
@@ -714,7 +714,7 @@ The remaining options can be set from within the program. They are
 
 - Picture options. `PS_COLOR,PS_FSIZE` are read as `picture_color` (`false`, `true`) and `picture_font_size` (points, default 12) of the PDF and SVG pictures; `PS_FONT` and `PS_LW` are read and ignored (a picture's font is Helvetica, and each curve has its own width). `PLOTFMT=ps` is read as `pdf`.
 
-- AUTO-stuff. The following AUTO-specific variables can also be set: `NTST, NMAX, NPR, EPSU, EPSS, EPSL, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within AUTO. In a `.odex` file the continuation settings have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
+- autoX-stuff. The following autoX-specific variables can also be set: `NTST, NMAX, NPR, EPSU, EPSS, EPSL, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within autoX. In a `.odex` file the continuation settings have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
 
 Sometimes, you want to prepare a bunch of simulations that use different initial data or parameter values or numerical methods, etc. You can, of course, change these within the program by choosing the desired option and changing it. Or, you can do the simulation and save the results in a “.set” file (see below). Another way to do this is by adding named sets holding parameters, initial values and settings to the ode file. The format for this is:
 

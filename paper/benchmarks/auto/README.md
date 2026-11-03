@@ -22,7 +22,7 @@ file, so each program runs with the same ones:
 2. Periodic branch from that HB down to Iapp = 200 pA (ParMin): Ntst 100, Ncol 4, Nmax
    5000, Ds -1, Dsmin 1e-4, Dsmax 50, EPSL/EPSU/EPSS 1e-4, IAD 3, MXBF 5,
    IID 2, ITMX 8, ITNW 7, NWTN 3, JAC 0 (finite differences), THL {11: 0}
-   (XPPAUT's fixed constants, core/autevd.cpp `init_auto`).
+   (XPPAUT's fixed constants, core/autox_evd.cpp `init_auto`).
 
 ParMin 200 stops the timed run before the branch's end, where the programs
 part: unbounded (ParMin 0), the periodic branch runs from the HB (a BP at
@@ -40,7 +40,7 @@ equilibrium fold at 158 pA, not a reachable Iapp = 0.
   AUTO.
 - AUTO-07p 0.9.3 (built in WSL with OpenMP): `auto07p/py_s1bf.c` (the same
   right-hand side in C), `c.py_s1bf.eq`, `c.py_s1bf.po`, `py_s1bf.auto`. Its
-  `auto_f2c.h` declares `func()` K&R style, which gcc 15's default C23
+  `autox_f2c.h` declares `func()` K&R style, which gcc 15's default C23
   rejects: the equation object is compiled first with `gcc -std=gnu17 -g
   -O2 -I$AUTO_DIR/include` (AUTO's own CFLAGS otherwise).
 

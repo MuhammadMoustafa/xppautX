@@ -18,7 +18,7 @@ PERIOD_INDEX = 10  # ModelDB's autoX translation uses PAR(1) and PAR(11).
 MAX_RK4_STEP = 0.00025  # ms: well inside stability for the observed ~-2220/ms fast mode.
 MARK_TOLERANCE = 1e-9  # a located mark at EPSS=1e-8 is within 2.2e-13 of its value
 MODEL = '/mnt/c/gitRepos/xppautX/paper/benchmarks/modeldb-267710/auto07p/6c.c'
-AUTOX_INCLUDE = '/mnt/c/gitRepos/xppautX/reference/auto-07p/include'  # autox_f2c.h
+AUTO_INCLUDE = '/mnt/c/gitRepos/xppautX/reference/auto-07p/include'  # auto_f2c.h
 
 
 def weights(n, x):
@@ -102,7 +102,7 @@ def main():
     args = ap.parse_args()
     with tempfile.TemporaryDirectory(prefix='w412-model-') as scratch:
         library = f'{scratch}/model.so'
-        subprocess.run(['gcc', '-std=gnu17', '-O2', '-ffp-contract=off', '-shared', '-fPIC', '-I', AUTOX_INCLUDE,
+        subprocess.run(['gcc', '-std=gnu17', '-O2', '-ffp-contract=off', '-shared', '-fPIC', '-I', AUTO_INCLUDE,
                         MODEL, '-o', library, '-lm'], check=True)
         function = model(library)
         results = {}

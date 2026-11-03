@@ -298,7 +298,7 @@ typedef struct XppUi {
        the diagram (returns XPP_AUTOX_CLICK with the pixel in x,y) or a
        point of the diagram by its entry (XPP_AUTOX_NODE, DIAGRAM.index in x) */
     int (*autox_grab_event)(Session &s, int *x, int *y);
-    void (*autox_show_hint)(Session &s); /* Autox.hinttxt changed */
+    void (*autox_show_hint)(Session &s); /* Auto.hinttxt changed */
     /* the grab is over: done=1 a point was taken (Enter), -1 cancelled (Esc) */
     void (*autox_grab_end)(int done);
     /* The diagram as data, beside the drawing, in view `view` (W50,

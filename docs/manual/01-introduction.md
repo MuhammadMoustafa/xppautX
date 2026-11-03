@@ -5,7 +5,7 @@
 XPPAUT (also called XPP; the two names are interchangeable) is
 G. Bard Ermentrout's tool for ordinary differential equations, difference
 equations, delay and functional equations, boundary value problems and
-stochastic equations, with the bifurcation program AUTO built in. It
+stochastic equations, with the bifurcation program autoX built in. It
 handles up to 5000 differential equations, has solvers for stiff and
 delay systems, computes equilibria, invariant sets, nullclines and
 Poincaré maps, and post-processes data with histograms, FFTs and a
@@ -13,7 +13,7 @@ curve fitter. **xppautX** is XPPAUT with its X11 interface (Xlib menus and
 windows) replaced by a browser front end, **web2**
 ([Using the interface](04-using-the-interface.md)): the same menus,
 sub-menus and single-letter hotkeys, running without an X server, on
-Linux, macOS and Windows. The numerics — the parser, the solvers, AUTO —
+Linux, macOS and Windows. The numerics — the parser, the solvers, autoX —
 are XPPAUT's own code, unchanged: every example model's output is
 compared against a saved checksum (`tools/verify.sh`) so a refactor
 cannot silently change a result.
@@ -148,7 +148,7 @@ at a time. Opening a `.ode` in any mode converts and saves `.odex` beside
 it, which becomes the model from then on; see [.odex](02-ode-files.md#odex).
 File/open Model (`F M` in the page, File > Open model… in
 the window's menu bar) picks a `.ode` or `.odex` file (or a `.snapx`
-session file, a `.recx` recording, below) and asks first: the current model's data and AUTO diagram
+session file, a `.recx` recording, below) and asks first: the current model's data and autoX diagram
 go, so it offers **Save session** (a session file, as File/saVe session
 writes it) or **Don't save**; Escape keeps the current model (the
 question every way of leaving a session asks, File/Quit's too). The new model is loaded from its own folder,
@@ -169,12 +169,12 @@ V`, Ctrl+S) writes everything you would need to pick up tomorrow into one file,
 files it includes, its tables), the
 parameters, initial data and numerics, every plot window (its axes,
 variables, zoom and the earlier-runs toggle), the text, arrows, markers
-and frozen curves, AUTO's diagram, settings and view, and the data
+and frozen curves, autoX's diagram, settings and view, and the data
 table. File/opeN session (`F N`), a double-click on the file, or
 `xppautX name.snapx` loads the model saved in it, from the file alone
 (the `.ode` may have changed since, or be gone: the saved one is the one
 loaded, and the title says so, `lecar.ode (saved in lecar.snapx)`), and
-restores it all as it was saved; AUTO can grab a point of the restored
+restores it all as it was saved; autoX can grab a point of the restored
 diagram and go on. The file's folder becomes the working folder, where
 what you save goes; nothing is written beside it. Opening one asks first
 whether to save the session open, since it takes its place. A session file without
@@ -184,7 +184,7 @@ not a number, a variable the model does not have): the error names the
 part and its line (`s1.snapx/windows.setx:12:7: ...`), and the
 session open stays exactly as it was, nothing of the file taken. Every
 file of xppautX's loads this way, all or nothing: a set, parameter or
-initial-conditions file, an AUTO file or AUTO settings file and a
+initial-conditions file, an autoX file or autoX settings file and a
 recording are read and checked whole first, and a bad value anywhere in
 one, even on its last line, is an error naming the file and that line,
 with nothing of the file applied. The
@@ -196,7 +196,7 @@ ordinary files: renamed to `.zip`, its `model/` folder holds the model's
 files, its `model.setx` holds the values and numerics (the settings syntax of a model's `options` block) and its
 `data.npz` reads in NumPy (`numpy.load`). XPPAUT's `.set` file is no longer a
 file xppautX saves: the session holds what it held, and
-File/Import settings applies a settings file (`.setx`), or checks the names in a `.set` XPPAUT wrote and converts it to a `.setx` beside it, which is then applied. AUTO's File > Save diagram and Load diagram save and open the session too.
+File/Import settings applies a settings file (`.setx`), or checks the names in a `.set` XPPAUT wrote and converts it to a `.setx` beside it, which is then applied. autoX's File > Save diagram and Load diagram save and open the session too.
 Import diagram reads a foreign XPPAUT `.auto` into the model open.
 
 The recording player offers speeds from 0.25× to 8×. These bounds come from
@@ -207,14 +207,14 @@ browser tab (the VS Code extension, a test script); the protocol itself
 is in [docs/protocol.md](../protocol.md). `xppautX run.recx --silent`
 loads the recording's snapshot, plays its steps without an interface,
 and exits 0 when they played cleanly or 1 otherwise. Recorded aborts stop
-at their exact row or AUTO point (docs/protocol.md "Playing a recording
+at their exact row or autoX point (docs/protocol.md "Playing a recording
 without an interface"). Its plain-name output files remain in the current
 folder. Existing files ask `NAME exists. Replace it? [no] (60 s)`; a line
 on the terminal or piped stdin answers. EOF or timeout refuses replacement
 and stops playback with exit 1. `--yes` replaces them without asking.
 
 `--verbose` and `--debug` raise how much xppautX logs (parser stats, the
-startup banner, AUTO's table, solver chatter); by default it logs only
+startup banner, autoX's table, solver chatter); by default it logs only
 warnings and errors. Without `--logfile`, that log goes to the page's
 Messages panel, live; the terminal gets the warnings and errors (a page
 may be closed), and everything with `--verbose` or `--debug`. `--logfile FILE`
@@ -234,7 +234,7 @@ same. The expressions of events, boundary conditions, derived parameters,
 Markov chains, DAEs and integral-equation kernels stay interpreted. A model
 with a recursive user function runs entirely in the interpreter; a warning
 identifies the equation. `--no-compile` selects the interpreter explicitly. Compilation happens once per
-load and can speed up integration and AUTO; the gain depends on the model.
+load and can speed up integration and autoX; the gain depends on the model.
 
 Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. `--setfile` remains an import of XPPAUT `.set` files (W156, #208).
 
@@ -280,7 +280,7 @@ An unrecognized option stops with ?no such option? and its name; `--help` prints
 
 web2 keeps every menu, sub-menu and hotkey, but the interaction is a
 browser page, not X11 widgets: dialogs, the values panel, plots, the
-data browser, animations and the AUTO view all work differently in
+data browser, animations and the autoX view all work differently in
 detail. [Using the interface](04-using-the-interface.md) describes the
 current front end; [docs/front-end-gaps.md](../front-end-gaps.md) is the
 row-by-row record of what changed and why.
@@ -328,7 +328,7 @@ on the project's [issue tracker](https://github.com/MuhammadMoustafa/xppautX/iss
   every numerics setting
 - [The Data Browser](07-data-browser.md),
   [Functional equations](08-functional-equations.md),
-  [Auto interface](09-auto.md) and
+  [autoX interface](09-autox.md) and
   [Creating Animations](10-animations.md) — the specialized views
 - [Quick reference](16-quick-reference.md) — the ODE file cheat sheet,
   built-in functions and the full command-line option list

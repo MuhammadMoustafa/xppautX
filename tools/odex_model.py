@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""tools/odex_model.py: the .odex reader shared by tools/autox_reference.py (AUTO-07p) and
+"""tools/odex_model.py: the .odex reader shared by tools/auto_reference.py (AUTO-07p) and
 tools/python-integration/ (the Python integrators), W427 (#489).
 
 It classifies the statements of a model (docs/odex.md "Statements"), expands its ranges

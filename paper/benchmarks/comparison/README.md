@@ -49,7 +49,7 @@ four resolve changing error (the others reach an error floor). The view stays in
 the HTML/appendix with that limitation and is omitted from the curated paper set.
 Continuation cells project saved pilot-gate judgments (passed, differences,
 measures and traced causes); exact cells use converged.json exact_pilots.
-Missing FD gates are replayed through continuation.gate/autocompare on the
+Missing FD gates are replayed through continuation.gate/autoxcompare on the
 saved outputs, without running a program or writing the frozen data. There is
 no separate label matcher: clipped labels and ignored types stay the gate's
 decision. Designed skips remain unavailable with their recorded reason. Colours

@@ -673,7 +673,7 @@ export class Session {
       the branches so far become the earlier ones, hidden until shown
       again; the core's own clear and redraw (keys `c`, `d`) follow */
   autoxOp(op: AutoxOp): void {
-    this.registryAction(toolbarCommand('auto', op));
+    this.registryAction(toolbarCommand('autox', op));
   }
 
   /** autoX's Run (docs/protocol.md autox.run): the kind, and where it starts (a stored point's label, else the current state) */
@@ -708,7 +708,7 @@ export class Session {
   }
 
   /** autoX's settings edited in the page's forms (T22, store/autoxSettings.ts):
-      one `auto` `set` at once, busy or idle -- a setting (W106): during a
+      one `autox` `set` at once, busy or idle -- a setting (W106): during a
       run the core applies it when the run ends, to the next one */
   autoxSettings(patch: AutoxSettingsPatch): void {
     for (const {command} of autoxSettingsCommands(patch)) this.send(command);
@@ -746,7 +746,7 @@ export class Session {
   }
 
   /** a click on a two-parameter diagram: shown and kept as the point
-      autoX's File/sElect 2par pt uses (docs/protocol.md `auto` `point`) */
+      autoX's File/sElect 2par pt uses (docs/protocol.md `autox` `point`) */
   autoxPoint(x: number, y: number): void {
     this.store.dispatch({type: 'diagram', action: {type: 'stored', at: {x, y}}});
     this.send({cmd: 'autox.pick', x, y});

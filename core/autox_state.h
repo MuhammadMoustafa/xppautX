@@ -166,7 +166,7 @@ struct AutoxState {
      diagnostics */
   std::string file;
   std::string fort3,fort7,fort8,fort9;
-  /* the label the running continuation started from (Autox.irs), for its
+  /* the label the running continuation started from (Auto.irs), for its
      first point: do_autox sets it, addbif takes it (autox_run_from_take) */
   int run_from=0;
   /* do_autox's own follow-up runs (restart_label) are one run: its depth */

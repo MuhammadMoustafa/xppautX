@@ -36,7 +36,7 @@ once, and keeps any other command for after the one that asked. See
 ## Typed command registry (W353, stage 1)
 
 The core registry owns `help`, window and annotation management, equilibria, nullclines and direction fields. Every graph and
-AUTO view has a unique, case-sensitive name. Defaults are `graph_1`,
+autoX view has a unique, case-sensitive name. Defaults are `graph_1`,
 `graph_2`, ... and `diagram_1`, ...; user names, including spaces, are
 shown and referenced exactly as written. Names are nonempty, have no
 leading or trailing space or control character, and take at most 1024
@@ -71,8 +71,8 @@ arguments are errors with the original command/recording place; nothing
 runs. Optional `window` is the session's selected window. Optional `name`
 on create chooses the next graph default; help's omitted filter lists all
 commands. Window creation copies the active graph. The main graph cannot
-be destroyed. AUTO views are also selected, renamed and destroyed through the
-registry; AUTO's existing new-view operation assigns the next diagram name.
+be destroyed. autoX views are also selected, renamed and destroyed through the
+registry; autoX's existing new-view operation assigns the next diagram name.
 
 Registry commands emit their declared data in exactly one terminal event:
 `{"ev":"done","id":"create phase plane","status":"ok","result":{"window":"phase plane"}}`.
@@ -86,12 +86,12 @@ too: `status` `ok` with `{}`, or `error` with the line's place.
 graph's curves, zoom, texts, arrows, markers; a diagram view's axes and
 zoom); `window.list` gives every open window as `{name, kind, shown}`, and
 the same list is the `window.list` event. They hold for every kind: graphs and
-AUTO views, and the data browser, animation and array plot, whose names are
+autoX views, and the data browser, animation and array plot, whose names are
 fixed, `browser`, `animation` and `array_plot_1`, and reserved (no graph or
 view takes them, and `window.rename` and `window.select` refuse them).
 `window.destroy` deletes a window and what it holds (it no longer doubles as
-AUTO's hide): the main graph and the data browser cannot be destroyed;
-destroying an AUTO view keeps the diagram, which a new view shows again;
+autoX's hide): the main graph and the data browser cannot be destroyed;
+destroying an autoX view keeps the diagram, which a new view shows again;
 destroying a graph that holds texts, arrows, markers or frozen curves
 asks first (a `choice` ask, answered by the page, a `--server` client or the
 terminal), or takes `confirm` `true` instead. A question about the diagram
@@ -106,7 +106,7 @@ The old Makewindow menu and keys and the `click` command are removed.
 commands that target a graph (`window.set_display`, annotation operations, and set
 operations) take `window` as a name; numeric `win` input is refused.
 Small plot events and prompts retain their event/field spellings (`win`),
-with name values. AUTO diagram `view`, autoview `active`, and AUTO's axes
+with name values. autoX diagram `view`, autoxview `active`, and autoX's axes
 `view` are names too; `diagram` `views` supplies ordered `names`. Internal
 slot numbers and point labels remain implementation details and data (a frozen curve's `slot` is the one the protocol gives, in `marks`).
 
@@ -156,7 +156,7 @@ and a map is `"key" value` pairs between `{` and `}`, items separated by blanks
 (the command names here only illustrate the forms):
 
 ```text
-auto.run --label 3 --threads 2 --ratio 0.5 --dry true
+autox.run --label 3 --threads 2 --ratio 0.5 --dry true
 ic.set --values {"x" 1.5 "y" -2} --note "start"
 plot.add --curves ["x" "y"] --color "#ff0000" --formula "x + y"
 ```
@@ -186,7 +186,7 @@ common overwrite question applies. They return a placed error if the output coul
 | `window.select` | `window`: required window (max 1024 bytes) | `v` / plot | Windows/Window/Select | `window`: `window` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Bring an open window to front and select it. |
 | `window.hide` | `window`: optional window (max 1024 bytes) | `v` / plot | Windows/Window/Hide | `window`: `window`, `shown`: `boolean` | `session.state`, `done` | Hide a window: it keeps everything it holds and comes back with window.show. |
 | `window.show` | `window`: optional window (max 1024 bytes) | `v` / plot | Windows/Window/Show | `window`: `window`, `shown`: `boolean` | `session.state`, `done` | Show a hidden window exactly as it was. |
-| `window.destroy` | `window`: optional window (max 1024 bytes), `confirm`: optional boolean | `v` / plot | Windows/Make window/Destroy | `window`: `window`, `closed`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data browser stay; destroying an AUTO view keeps the diagram. |
+| `window.destroy` | `window`: optional window (max 1024 bytes), `confirm`: optional boolean | `v` / plot | Windows/Make window/Destroy | `window`: `window`, `closed`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data browser stay; destroying an autoX view keeps the diagram. |
 | `window.list` | none | `v` / plot | Windows/Window/List | `windows`: `list of {name, kind, shown}` | `session.state`, `done` | List every window with its name, kind and whether it is shown. |
 | `window.destroy_all` | none | `v` / plot | Windows/Make window/Kill all | `closed_count`: `integer` | `window.created`, `window.selected`, `window.destroyed`, `session.state`, `done` | Close every extra graph. |
 | `window.set_bounds` | `window`: optional window (max 1024 bytes), `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real | `v` / plot | Plot/Window/Window | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plot.shown`, `session.state`, `done` | Set the view's bounds; a bound left out keeps the view's. |
@@ -196,7 +196,7 @@ common overwrite question applies. They return a placed error if the output coul
 | `window.reset_default` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Window/Default | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plot.shown`, `session.state`, `done` | Give the view its default bounds. |
 | `window.scroll` | `window`: optional window (max 1024 bytes), `dx`: required real, `dy`: required real | `v` / plot | Plot/Window/Scroll | `new_center`: `list of 2 real` | `plot.shown`, `session.state`, `done` | Move the view by dx and dy, in plot coordinates. |
 | `window.set_display` | `window`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier_runs`: optional boolean, `keep_replaced_run`: optional boolean | `v` / plot | Plot/Window/Set display | `x_range`: `list of 2 real, or []`, `y_range`: `list of 2 real, or []` | `plot.shown`, `session.state`, `done` | Set what the page shows of a graph: the x and y ranges ([] for the window's own), the earlier runs, keeping a replaced run. |
-| `window.redraw` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Redraw plot | `window`: `window`, `redrawn`: `boolean` | `plot.shown`, `session.state`, `done` | Draw a graph again from the stored data (and its nullclines, texts and frozen curves), or send an AUTO view's diagram again. |
+| `window.redraw` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Redraw plot | `window`: `window`, `redrawn`: `boolean` | `plot.shown`, `session.state`, `done` | Draw a graph again from the stored data (and its nullclines, texts and frozen curves), or send an autoX view's diagram again. |
 | `window.clear` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Clear plot | `window`: `window`, `cleared`: `boolean` | `plot.shown`, `session.state`, `done` | Clear a graph: its picture and earlier runs go until the next run. |
 | `window.send_to_bottom` | `window`: optional window (max 1024 bytes) | `v` / plot | Windows/Make window/Bottom | `window`: `window` | `session.state`, `done` | Send a graph to the bottom. |
 | `window.set_redraw_mode` | `window`: optional window (max 1024 bytes), `mode`: required choice (auto, manual) | `v` / plot | Plot/Make window/Auto or Manual | `redraw_mode`: `choice` | `session.state`, `done` | Choose automatic or manual graph redrawing. |
@@ -234,41 +234,41 @@ common overwrite question applies. They return a placed error if the output coul
 | `bvp.solve` | `show`: required boolean | `x` / analysis | Run/Boundary values/No show, Show | `converged`: `boolean` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Solve the boundary value problem from the initial values by shooting and make the solution the initial values; show draws every step. |
 | `bvp.solve_periodic` | `frequency_parameter`: required name (max 1024 bytes) [of parameter], `section_variable`: required name (max 1024 bytes) [of variable], `section`: required real, `show`: required boolean | `x` / analysis | Run/Boundary values/Periodic | `converged`: `boolean`, `period`: `real` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Solve for a periodic orbit whose period is the frequency parameter, held to a section of one variable. |
 | `bvp.configure` | `max_iterates`: optional integer [at least 1], `tolerance`: optional real, `epsilon`: optional real | `s` / analysis | Run/Numerics/bndVal | `settings`: `map[name, value]` | `run.numerics`, `session.state`, `done` | Set the shooting's iteration limit, tolerance and finite-difference step; the settings are checked together. |
-| `auto.open` | none | `v` / analysis | AUTO/Open AUTO | `open`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `auto.diagram`, `session.state`, `done` | Open the AUTO window, the bifurcation package. |
-| `auto.run` | `kind`: required choice (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic), `switch`: optional boolean, `label`: optional integer [at least 1], `type`: optional text (max 1024 bytes), `index`: optional integer [at least 1], `decimals`: optional integer [at least 0], `hold`: optional real [at least 0], `maximum`: optional real [at least 0], `replace_diagram`: optional boolean, `unstable_dimension`: optional integer [at least 0], `stable_dimension`: optional integer [at least 0], `left_equilibrium`: optional list [of real, at most 256], `right_equilibrium`: optional list [of real, at most 256], `mesh_intervals`: optional integer, `max_steps`: optional integer, `output_every`: optional integer, `collocation_points`: optional integer, `step_size`: optional real, `min_step_size`: optional real, `max_step_size`: optional real, `parameter_min`: optional real, `parameter_max`: optional real, `norm_min`: optional real, `norm_max`: optional real, `parameter_tolerance`: optional real, `state_tolerance`: optional real, `special_point_tolerance`: optional real, `mesh_adapt_every`: optional integer, `max_branch_switches`: optional integer, `switch_one_direction`: optional boolean, `output_detail`: optional choice (none, little, normal, start_jacobian, extensive, debugging), `max_location_iterations`: optional integer, `max_newton_iterations`: optional integer, `full_newton_after`: optional integer, `step_adapt_every`: optional integer, `suppress_branch_points`: optional boolean; at most one of `label`, `type`, `decimals`; all or none of `type`, `index`; all or none of `decimals`, `hold`, `maximum` | `x` / analysis | AUTO/Run | `points_computed`: `integer`, `branches_tracked`: `integer` | `auto.diagram`, `auto.info`, `auto.settings`, `session.state`, `done` | Run AUTO from the current state or a stored point: its kind (what is computed), switch for a branch switch, its start (a label, a point type and index, or the current state, optionally settled first), the settings of this run only (ds's sign is the direction) and the equilibria of a homoclinic start. The start point's type decides which kinds fit it: hello's auto_run table, and autoinfo's start. |
-| `auto.grab` | `label`: optional integer [at least 1], `type`: optional text (max 1024 bytes), `index`: optional integer [at least 1]; at most one of `label`, `type`; all or none of `type`, `index` | `d` / analysis | AUTO/Grab | `grabbed`: `boolean`, `label`: `integer`, `type`: `text`, `branch`: `integer`, `point`: `integer` | `auto.info`, `auto.diagram`, `session.state`, `done` | Grab a stored point by label or type and index; omit both to pick it on the diagram. |
-| `auto.configure_numerics` | `mesh_intervals`: optional integer, `max_steps`: optional integer, `output_every`: optional integer, `collocation_points`: optional integer, `step_size`: optional real, `min_step_size`: optional real, `max_step_size`: optional real, `parameter_min`: optional real, `parameter_max`: optional real, `norm_min`: optional real, `norm_max`: optional real, `parameter_tolerance`: optional real, `state_tolerance`: optional real, `special_point_tolerance`: optional real, `mesh_adapt_every`: optional integer, `max_branch_switches`: optional integer, `switch_one_direction`: optional boolean, `output_detail`: optional choice (none, little, normal, start_jacobian, extensive, debugging), `max_location_iterations`: optional integer, `max_newton_iterations`: optional integer, `full_newton_after`: optional integer, `step_adapt_every`: optional integer, `suppress_branch_points`: optional boolean, `special_points`: optional map [of boolean, at most 256] | `s` / analysis | AUTO/Numerics | `settings_updated`: `boolean` | `auto.settings`, `session.state`, `done` | Set AUTO's Numerics by their names (mesh_intervals, step_size, ...) and the codimension-two points it detects (special_points), all or nothing. |
-| `auto.configure_plot` | `plot_type`: optional choice (maximum, norm, maximum_and_minimum, period, two_parameter, frequency, average), `variable`: optional name (max 1024 bytes) [of variable], `parameter1`: optional name (max 1024 bytes) [of parameter], `parameter2`: optional name (max 1024 bytes) [of parameter], `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real, `view`: optional window (max 1024 bytes), `fit`: optional boolean | `s` / analysis | AUTO/Axes | `plot_configured`: `boolean` | `auto.settings`, `session.state`, `done` | Set what a view of the diagram plots: the plot type, the variable, the two parameters and the ranges, optionally fitted afterwards. |
-| `auto.configure_marks` | `parameters`: required list [of text, at most 256], `values`: required list [of real, at most 256] | `s` / analysis | AUTO/Usr period | `marks_count`: `integer` | `auto.settings`, `session.state`, `done` | Set the Mark values: the parameters (or T, the period) and the values at which AUTO labels a point. |
-| `auto.set_threads` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean; exactly one of `threads`, `automatic` | `s` / analysis | AUTO/Numerics | `threads`: `integer`, `automatic`: `boolean` | `auto.settings`, `session.state`, `done` | Set AUTO's thread count, a preference of the program: a count, or automatic. |
-| `auto.hide_earlier` | none | `v` / analysis | AUTO/Clear | `hidden_points`: `integer` | `auto.diagram`, `auto.view`, `session.state`, `done` | Hide the branches so far: new runs draw alone until set_display shows them again. |
-| `auto.redraw` | none | `v` / analysis | AUTO/Redraw | `redrawn`: `boolean` | `auto.diagram`, `auto.view`, `session.state`, `done` | Draw the diagram again. |
-| `auto.pick` | `x`: required real, `y`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/AUTO diagram/Click | `x`: `real`, `y`: `real` | `auto.info`, `auto.diagram`, `session.state`, `done` | A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot. |
-| `auto.set_display` | `view`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier`: optional boolean | `v` / analysis | AUTO/Auto/Set display | `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Set what the page shows of a view: its zoom (a [low, high] range, [] for the whole range of an axis) and whether the hidden branches are drawn. |
-| `auto.new_view` | none | `v` / analysis | Windows/New AUTO view | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Add a view of the diagram, with the axes of the active one; it becomes the active view. |
-| `auto.use_last_plot` | `parameters`: required choice (one, two), `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Last plot | `plot`: `choice` | `auto.diagram`, `auto.view`, `session.state`, `done` | Go back to the last one-parameter or two-parameter plot's axes. |
-| `auto.scroll` | `dx`: required real, `dy`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Scroll | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Move the view's visible ranges by dx and dy, in the plotted quantities. |
-| `auto.default_view` | `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Default | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Give the view the model's own diagram ranges. |
-| `auto.fit` | `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Fit | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Fit the view to the diagram. |
-| `auto.zoom` | `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Zoom in | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Zoom the view in to a box of its plotted quantities. |
-| `auto.zoom_out` | `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | AUTO/Axes/Zoom out | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `auto.diagram`, `auto.view`, `session.state`, `done` | Zoom the view out so that what it shows now fills a box of its plotted quantities. |
-| `auto.clear_grab` | none | `d` / analysis | AUTO/File/Clear grab | `cleared`: `boolean` | `auto.info`, `auto.diagram`, `session.state`, `done` | Forget the grabbed point: a following run starts from the current state. |
-| `auto.load_orbit_into_browser` | `label`: optional integer [at least 1] | `d` / analysis | AUTO/File/Import orbit | `orbit_loaded`: `boolean`, `rows`: `integer` | `session.state`, `done` | Load the stored orbit of a labelled point (the grabbed one without label) into the data browser. |
-| `auto.save_session` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/Save diagram | `file`: `file`, `saved`: `boolean` | `session.state`, `done` | Save the session, with its diagram and AUTO's settings (.snapx). |
-| `auto.open_session` | `file`: required file (max 1024 bytes) | `d` / analysis | File/AUTO/Open diagram | `file`: `file`, `loaded`: `boolean` | `auto.diagram`, `auto.info`, `auto.settings`, `session.state`, `done` | Open a saved session (.snapx), with its AUTO diagram. |
-| `auto.export_pdf` | `file`: optional file (max 1024 bytes), `window`: optional window (max 1024 bytes) | `d` / analysis | File/AUTO/PDF | `file`: `file` | `session.state`, `done` | Write a view of the diagram as a PDF picture. |
-| `auto.export_svg` | `file`: optional file (max 1024 bytes), `window`: optional window (max 1024 bytes) | `d` / analysis | File/AUTO/SVG | `file`: `file` | `session.state`, `done` | Write a view of the diagram as an SVG picture. |
-| `auto.reset_all` | none | `d` / analysis | AUTO/File/Reset diagram | `reset`: `boolean` | `auto.diagram`, `auto.view`, `session.state`, `done` | Destroy the diagram and AUTO's files. |
-| `auto.export_points` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/Write pts | `file`: `file`, `points_written`: `integer` | `session.state`, `done` | Write the diagram's points as the view plots them. |
-| `auto.export_all_info` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/All info | `file`: `file`, `written`: `integer` | `session.state`, `done` | Write every point with its parameters, extremes and eigenvalues. |
-| `auto.export_initial_data` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/init Data | `file`: `file`, `written`: `integer` | `session.state`, `done` | Write every point's main parameter and solution as initial data. |
-| `auto.set_auto_redraw` | `enabled`: required boolean | `v` / analysis | AUTO/File/Toggle redraw | `auto_redraw`: `boolean` | `session.state`, `done` | Redraw the diagram automatically when enabled. |
-| `auto.range_branch` | `branch`: required integer [at least 1], `first_point`: required integer [at least 1], `last_point`: required integer [at least 1] | `x` / analysis | AUTO/File/auto raNge | `runs_completed`: `integer` | `session.state`, `done` | Run the sweep over a stretch of a branch (its points first_point to last_point), once for each. |
-| `auto.select_2parameter_point` | `x`: optional real, `y`: optional real; all or none of `x`, `y` | `d` / analysis | AUTO/File/sElect 2par pt | `selected`: `boolean` | `session.state`, `done` | Set the two parameters to the point picked on a two-parameter plot, or to x and y. |
-| `auto.draw_labeled_orbits` | `mode`: required choice (off, draw, clear_and_draw) | `d` / analysis | AUTO/File/draw laBled | `orbits_drawn`: `choice` | `session.state`, `done` | Draw the orbits of the labelled points when grabbed: off, draw (no erase) or clear_and_draw. |
-| `auto.load_branch_into_browser` | `branch`: required integer [at least 1], `first_point`: required integer [at least 1], `last_point`: required integer [at least 1] | `d` / analysis | AUTO/File/lOad branch | `rows_loaded`: `integer` | `session.state`, `done` | Load a stretch of a branch (its points first_point to last_point) into the data browser. |
-| `auto.export_csv` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/AUTO/eXport CSV | `file`: `file`, `points_written`: `integer` | `session.state`, `done` | Write the diagram and its eigenvalues as two CSV files. |
-| `auto.import_diagram` | `file`: required file (max 1024 bytes) | `d` / analysis | AUTO/File/Import diagram | `file`: `file`, `points_imported`: `integer` | `auto.diagram`, `auto.info`, `auto.settings`, `session.state`, `done` | Import an XPPAUT diagram (.auto) into the open model. |
+| `autox.open` | none | `v` / analysis | autoX/Open autoX | `open`: `boolean` | `window.created`, `window.selected`, `window.destroyed`, `autox.diagram`, `session.state`, `done` | Open the autoX window, the bifurcation package. |
+| `autox.run` | `kind`: required choice (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic), `switch`: optional boolean, `label`: optional integer [at least 1], `type`: optional text (max 1024 bytes), `index`: optional integer [at least 1], `decimals`: optional integer [at least 0], `hold`: optional real [at least 0], `maximum`: optional real [at least 0], `replace_diagram`: optional boolean, `unstable_dimension`: optional integer [at least 0], `stable_dimension`: optional integer [at least 0], `left_equilibrium`: optional list [of real, at most 256], `right_equilibrium`: optional list [of real, at most 256], `mesh_intervals`: optional integer, `max_steps`: optional integer, `output_every`: optional integer, `collocation_points`: optional integer, `step_size`: optional real, `min_step_size`: optional real, `max_step_size`: optional real, `parameter_min`: optional real, `parameter_max`: optional real, `norm_min`: optional real, `norm_max`: optional real, `parameter_tolerance`: optional real, `state_tolerance`: optional real, `special_point_tolerance`: optional real, `mesh_adapt_every`: optional integer, `max_branch_switches`: optional integer, `switch_one_direction`: optional boolean, `output_detail`: optional choice (none, little, normal, start_jacobian, extensive, debugging), `max_location_iterations`: optional integer, `max_newton_iterations`: optional integer, `full_newton_after`: optional integer, `step_adapt_every`: optional integer, `suppress_branch_points`: optional boolean; at most one of `label`, `type`, `decimals`; all or none of `type`, `index`; all or none of `decimals`, `hold`, `maximum` | `x` / analysis | autoX/Run | `points_computed`: `integer`, `branches_tracked`: `integer` | `autox.diagram`, `autox.info`, `autox.settings`, `session.state`, `done` | Run autoX from the current state or a stored point: its kind (what is computed), switch for a branch switch, its start (a label, a point type and index, or the current state, optionally settled first), the settings of this run only (ds's sign is the direction) and the equilibria of a homoclinic start. The start point's type decides which kinds fit it: hello's autox_run table, and autoxinfo's start. |
+| `autox.grab` | `label`: optional integer [at least 1], `type`: optional text (max 1024 bytes), `index`: optional integer [at least 1]; at most one of `label`, `type`; all or none of `type`, `index` | `d` / analysis | autoX/Grab | `grabbed`: `boolean`, `label`: `integer`, `type`: `text`, `branch`: `integer`, `point`: `integer` | `autox.info`, `autox.diagram`, `session.state`, `done` | Grab a stored point by label or type and index; omit both to pick it on the diagram. |
+| `autox.configure_numerics` | `mesh_intervals`: optional integer, `max_steps`: optional integer, `output_every`: optional integer, `collocation_points`: optional integer, `step_size`: optional real, `min_step_size`: optional real, `max_step_size`: optional real, `parameter_min`: optional real, `parameter_max`: optional real, `norm_min`: optional real, `norm_max`: optional real, `parameter_tolerance`: optional real, `state_tolerance`: optional real, `special_point_tolerance`: optional real, `mesh_adapt_every`: optional integer, `max_branch_switches`: optional integer, `switch_one_direction`: optional boolean, `output_detail`: optional choice (none, little, normal, start_jacobian, extensive, debugging), `max_location_iterations`: optional integer, `max_newton_iterations`: optional integer, `full_newton_after`: optional integer, `step_adapt_every`: optional integer, `suppress_branch_points`: optional boolean, `special_points`: optional map [of boolean, at most 256] | `s` / analysis | autoX/Numerics | `settings_updated`: `boolean` | `autox.settings`, `session.state`, `done` | Set autoX's Numerics by their names (mesh_intervals, step_size, ...) and the codimension-two points it detects (special_points), all or nothing. |
+| `autox.configure_plot` | `plot_type`: optional choice (maximum, norm, maximum_and_minimum, period, two_parameter, frequency, average), `variable`: optional name (max 1024 bytes) [of variable], `parameter1`: optional name (max 1024 bytes) [of parameter], `parameter2`: optional name (max 1024 bytes) [of parameter], `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real, `view`: optional window (max 1024 bytes), `fit`: optional boolean | `s` / analysis | autoX/Axes | `plot_configured`: `boolean` | `autox.settings`, `session.state`, `done` | Set what a view of the diagram plots: the plot type, the variable, the two parameters and the ranges, optionally fitted afterwards. |
+| `autox.configure_marks` | `parameters`: required list [of text, at most 256], `values`: required list [of real, at most 256] | `s` / analysis | autoX/Usr period | `marks_count`: `integer` | `autox.settings`, `session.state`, `done` | Set the Mark values: the parameters (or T, the period) and the values at which autoX labels a point. |
+| `autox.set_threads` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean; exactly one of `threads`, `automatic` | `s` / analysis | autoX/Numerics | `threads`: `integer`, `automatic`: `boolean` | `autox.settings`, `session.state`, `done` | Set autoX's thread count, a preference of the program: a count, or automatic. |
+| `autox.hide_earlier` | none | `v` / analysis | autoX/Clear | `hidden_points`: `integer` | `autox.diagram`, `autox.view`, `session.state`, `done` | Hide the branches so far: new runs draw alone until set_display shows them again. |
+| `autox.redraw` | none | `v` / analysis | autoX/Redraw | `redrawn`: `boolean` | `autox.diagram`, `autox.view`, `session.state`, `done` | Draw the diagram again. |
+| `autox.pick` | `x`: required real, `y`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | autoX/autoX diagram/Click | `x`: `real`, `y`: `real` | `autox.info`, `autox.diagram`, `session.state`, `done` | A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot. |
+| `autox.set_display` | `view`: optional window (max 1024 bytes), `x_range`: optional list [of real, at most 2], `y_range`: optional list [of real, at most 2], `show_earlier`: optional boolean | `v` / analysis | autoX/autoX/Set display | `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Set what the page shows of a view: its zoom (a [low, high] range, [] for the whole range of an axis) and whether the hidden branches are drawn. |
+| `autox.new_view` | none | `v` / analysis | Windows/New autoX view | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Add a view of the diagram, with the axes of the active one; it becomes the active view. |
+| `autox.use_last_plot` | `parameters`: required choice (one, two), `view`: optional window (max 1024 bytes) | `v` / analysis | autoX/Axes/Last plot | `plot`: `choice` | `autox.diagram`, `autox.view`, `session.state`, `done` | Go back to the last one-parameter or two-parameter plot's axes. |
+| `autox.scroll` | `dx`: required real, `dy`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | autoX/Axes/Scroll | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Move the view's visible ranges by dx and dy, in the plotted quantities. |
+| `autox.default_view` | `view`: optional window (max 1024 bytes) | `v` / analysis | autoX/Axes/Default | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Give the view the model's own diagram ranges. |
+| `autox.fit` | `view`: optional window (max 1024 bytes) | `v` / analysis | autoX/Axes/Fit | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Fit the view to the diagram. |
+| `autox.zoom` | `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | autoX/Axes/Zoom in | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Zoom the view in to a box of its plotted quantities. |
+| `autox.zoom_out` | `x_min`: required real, `x_max`: required real, `y_min`: required real, `y_max`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | autoX/Axes/Zoom out | `window`: `window`, `x_range`: `list`, `y_range`: `list` | `autox.diagram`, `autox.view`, `session.state`, `done` | Zoom the view out so that what it shows now fills a box of its plotted quantities. |
+| `autox.clear_grab` | none | `d` / analysis | autoX/File/Clear grab | `cleared`: `boolean` | `autox.info`, `autox.diagram`, `session.state`, `done` | Forget the grabbed point: a following run starts from the current state. |
+| `autox.load_orbit_into_browser` | `label`: optional integer [at least 1] | `d` / analysis | autoX/File/Import orbit | `orbit_loaded`: `boolean`, `rows`: `integer` | `session.state`, `done` | Load the stored orbit of a labelled point (the grabbed one without label) into the data browser. |
+| `autox.save_session` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/autoX/Save diagram | `file`: `file`, `saved`: `boolean` | `session.state`, `done` | Save the session, with its diagram and autoX's settings (.snapx). |
+| `autox.open_session` | `file`: required file (max 1024 bytes) | `d` / analysis | File/autoX/Open diagram | `file`: `file`, `loaded`: `boolean` | `autox.diagram`, `autox.info`, `autox.settings`, `session.state`, `done` | Open a saved session (.snapx), with its autoX diagram. |
+| `autox.export_pdf` | `file`: optional file (max 1024 bytes), `window`: optional window (max 1024 bytes) | `d` / analysis | File/autoX/PDF | `file`: `file` | `session.state`, `done` | Write a view of the diagram as a PDF picture. |
+| `autox.export_svg` | `file`: optional file (max 1024 bytes), `window`: optional window (max 1024 bytes) | `d` / analysis | File/autoX/SVG | `file`: `file` | `session.state`, `done` | Write a view of the diagram as an SVG picture. |
+| `autox.reset_all` | none | `d` / analysis | autoX/File/Reset diagram | `reset`: `boolean` | `autox.diagram`, `autox.view`, `session.state`, `done` | Destroy the diagram and autoX's files. |
+| `autox.export_points` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/autoX/Write pts | `file`: `file`, `points_written`: `integer` | `session.state`, `done` | Write the diagram's points as the view plots them. |
+| `autox.export_all_info` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/autoX/All info | `file`: `file`, `written`: `integer` | `session.state`, `done` | Write every point with its parameters, extremes and eigenvalues. |
+| `autox.export_initial_data` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/autoX/init Data | `file`: `file`, `written`: `integer` | `session.state`, `done` | Write every point's main parameter and solution as initial data. |
+| `autox.set_auto_redraw` | `enabled`: required boolean | `v` / analysis | autoX/File/Toggle redraw | `auto_redraw`: `boolean` | `session.state`, `done` | Redraw the diagram automatically when enabled. |
+| `autox.range_branch` | `branch`: required integer [at least 1], `first_point`: required integer [at least 1], `last_point`: required integer [at least 1] | `x` / analysis | autoX/File/auto raNge | `runs_completed`: `integer` | `session.state`, `done` | Run the sweep over a stretch of a branch (its points first_point to last_point), once for each. |
+| `autox.select_2parameter_point` | `x`: optional real, `y`: optional real; all or none of `x`, `y` | `d` / analysis | autoX/File/sElect 2par pt | `selected`: `boolean` | `session.state`, `done` | Set the two parameters to the point picked on a two-parameter plot, or to x and y. |
+| `autox.draw_labeled_orbits` | `mode`: required choice (off, draw, clear_and_draw) | `d` / analysis | autoX/File/draw laBled | `orbits_drawn`: `choice` | `session.state`, `done` | Draw the orbits of the labelled points when grabbed: off, draw (no erase) or clear_and_draw. |
+| `autox.load_branch_into_browser` | `branch`: required integer [at least 1], `first_point`: required integer [at least 1], `last_point`: required integer [at least 1] | `d` / analysis | autoX/File/lOad branch | `rows_loaded`: `integer` | `session.state`, `done` | Load a stretch of a branch (its points first_point to last_point) into the data browser. |
+| `autox.export_csv` | `file`: optional file (max 1024 bytes) | `d` / analysis | File/autoX/eXport CSV | `file`: `file`, `points_written`: `integer` | `session.state`, `done` | Write the diagram and its eigenvalues as two CSV files. |
+| `autox.import_diagram` | `file`: required file (max 1024 bytes) | `d` / analysis | autoX/File/Import diagram | `file`: `file`, `points_imported`: `integer` | `autox.diagram`, `autox.info`, `autox.settings`, `session.state`, `done` | Import an XPPAUT diagram (.auto) into the open model. |
 | `plot.add_curve` | `window`: optional window (max 1024 bytes), `x`: required name (max 1024 bytes) [of column], `y`: required name (max 1024 bytes) [of column], `z`: optional name (max 1024 bytes) [of column], `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Curves/Add curve | `curve_index`: `integer` | `plot.shown`, `plot.series`, `session.state`, `done` | Add a curve to a graph: the data columns it plots (x, y and, in 3D, z) and its colour and line style; what is left out is the first curve's. |
 | `plot.delete_curve` | `window`: optional window (max 1024 bytes), `curve_index`: optional integer [at least 0] | `v` / plot | Plot/Curves/Delete last | `remaining_curves`: `integer` | `plot.shown`, `session.state`, `done` | Delete a curve of a graph (the last one when curve_index is left out); the first curve is the graph's own and stays. |
 | `plot.delete_all_curves` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Curves/Remove all | `cleared`: `boolean` | `plot.shown`, `session.state`, `done` | Delete every curve of a graph but the first. |
@@ -278,9 +278,9 @@ common overwrite question applies. They return a placed error if the output coul
 | `plot.edit_frozen` | `window`: optional window (max 1024 bytes), `slot`: required integer [at least 0], `name`: optional text (max 9 bytes), `key`: optional text (max 19 bytes), `color`: optional color (max 1024 bytes), `draw`: optional choice (line, points, both), `dash`: optional choice (solid, dashed, dotted, dash_dot), `width`: optional real, `marker`: optional choice (circle, square, triangle, diamond, cross, plus, star), `marker_size`: optional real [at least 0] | `v` / plot | Plot/Freeze/Edit | `slot`: `integer`, `updated`: `boolean` | `plot.shown`, `session.state`, `done` | Change one of the graph's frozen curves: its legend key, name, colour and line style; what is left out stays. |
 | `plot.delete_all_frozen` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Freeze/Remove all | `cleared`: `boolean` | `plot.shown`, `session.state`, `done` | Delete every frozen curve of a graph. |
 | `plot.set_frozen_legend` | `window`: optional window (max 1024 bytes), `visible`: required boolean, `x`: optional real, `y`: optional real; all or none of `x`, `y` | `v` / plot | Plot/Freeze/Key | `legend_visible`: `boolean` | `plot.shown`, `session.state`, `done` | Show or hide the frozen curves' legend; x and y, the plot coordinates of its first line, move it. |
-| `plot.import_bifurcation` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes) | `d` / plot | Plot/Freeze/Bif.Diag | `file`: `file`, `curves_imported`: `integer` | `plot.shown`, `plot.series`, `session.state`, `done` | Show an AUTO Write pts file of the model's folder (six columns, checked whole first) in the graph as curves by kind. |
+| `plot.import_bifurcation` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes) | `d` / plot | Plot/Freeze/Bif.Diag | `file`: `file`, `curves_imported`: `integer` | `plot.shown`, `plot.series`, `session.state`, `done` | Show an autoX Write pts file of the model's folder (six columns, checked whole first) in the graph as curves by kind. |
 | `plot.clear_bifurcation` | `window`: optional window (max 1024 bytes) | `v` / plot | Plot/Freeze/Clr. BD | `cleared`: `boolean` | `plot.shown`, `session.state`, `done` | Remove the imported bifurcation diagram from the graph. |
-| `plot.set_auto_freeze` | `enabled`: required boolean | `s` / plot | Plot/Freeze/On freeze | `auto_freeze`: `boolean` | `session.state`, `done` | Freeze the first curve of a graph after every run. |
+| `plot.set_autox_freeze` | `enabled`: required boolean | `s` / plot | Plot/Freeze/On freeze | `autox_freeze`: `boolean` | `session.state`, `done` | Freeze the first curve of a graph after every run. |
 | `plot.export_pdf` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes), `color`: optional boolean, `axes_font_size`: optional real [at least 1, at most 100] | `d` / plot | File/Curves/PDF | `file`: `file`, `bytes_written`: `integer` | `session.state`, `done` | Write the graph as a PDF picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay. |
 | `plot.export_svg` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes), `color`: optional boolean, `axes_font_size`: optional real [at least 1, at most 100] | `d` / plot | File/Curves/SVG | `file`: `file`, `bytes_written`: `integer` | `session.state`, `done` | Write the graph as an SVG picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay. |
 | `plot.export_data` | `window`: optional window (max 1024 bytes), `file`: required file (max 1024 bytes), `format`: optional text (max 1024 bytes) | `d` / plot | File/Curves/export data | `file`: `file`, `rows_written`: `integer` | `session.state`, `done` | Write what the graph shows (its curves and frozen curves, as the columns curve, x, y and z in 3D) into a file of the model's folder, in the data format named by format (dat, csv, csv.gz, npz) or by the file's extension. |
@@ -401,7 +401,7 @@ common overwrite question applies. They return a placed error if the output coul
 | `array_plot.export_gif` | `file`: required file (max 1024 bytes) | `d` / plot | File/Array plot/GIF | `file`: `file`, `bytes_written`: `integer` | `session.state`, `done` | Write the array plot as a GIF picture into a file of the model's folder. |
 | `array_plot.scroll` | `first_row`: required integer [at least 0, at most 2147483647] | `v` / plot | Windows/Array plot/Scroll | `first_row`: `integer` | `array_plot.shown`, `session.state`, `done` | Show the array plot from the stored row first_row on (row 0 is the first). |
 | `session.open_model` | `file`: optional path (max 1024 bytes), `example`: optional text (max 1024 bytes), `recent`: optional integer [at least 0]; at most one of `file`, `example`, `recent` | `d` / files | File/Open model | `model`: `text`, `variables`: `list[name]`, `parameters`: `list[name]` | `hello`, `session.state`, `done` | Open a model: a model file by its path (--server's own input only), a bundled example by its name, or one of the recent models by its place in hello.start.recent. Asks first whether to save this session. |
-| `session.reload_model` | none | `d` / files | File/Reload model | `reloaded`: `boolean` | `hello`, `session.state`, `done` | Load the model's file again; the parameters, initial data, numerics and AUTO settings keep their values by name. |
+| `session.reload_model` | none | `d` / files | File/Reload model | `reloaded`: `boolean` | `hello`, `session.state`, `done` | Load the model's file again; the parameters, initial data, numerics and autoX settings keep their values by name. |
 | `session.open` | `file`: required file (max 1024 bytes) | `d` / files | File/Open session | `file`: `file`, `loaded`: `boolean` | `hello`, `session.state`, `done` | Open a session file (.snapx): its model, then everything as it was saved. |
 | `session.save` | `data`: optional boolean | `d` / files | File/Save session | `file`: `file`, `saved`: `boolean` | `session.saved`, `session.state`, `done` | Save the session to the file it was last saved to or opened from; data false leaves the data table out. |
 | `session.save_as` | `file`: required file (max 1024 bytes), `data`: optional boolean, `confirm`: optional boolean | `d` / files | File/Save session as | `file`: `file`, `saved`: `boolean` | `session.saved`, `session.state`, `done` | Save the session to a file of the model's folder (.snapx added); confirm true replaces an existing file without asking. |
@@ -425,8 +425,8 @@ common overwrite question applies. They return a placed error if the output coul
 | `keymap.get` | none | `c` / panels | Help/Keymap/Get | `bindings`: `map[text, list[text]]`, `pinned`: `list[text]` | `keymap.changed`, `done` | The user's keymap: the keys of the commands they changed, and the pinned commands. |
 | `keymap.set` | `bindings`: optional map [of list[text], at most 256], `pinned`: optional list [of text, at most 256] | `c` / panels | Help/Keymap/Set | `saved`: `boolean` | `keymap.changed`, `session.state`, `done` | Replace the bindings or the pinned commands given (what is left out stays); the keymap is checked whole, then written. |
 | `keymap.reset` | none | `c` / panels | Help/Keymap/Reset | `reset`: `boolean` | `keymap.changed`, `session.state`, `done` | Remove the user's keymap: every command has its default keys. |
-| `events.subscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, dirfield.field, plot.marks, animation.frame, auto.info, auto.settings, run.numerics, window.list, recording.player) [of choice, at most 256], `encoding`: optional choice (json, f32), `diagram`: optional boolean | `v` / panels | Help/Events/Subscribe | `subscribed`: `list[text]` | `session.state`, `done` | Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays as base64 float32 (what is left out stays as it was); diagram says whether AUTO's diagram points are sent. |
-| `events.unsubscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, dirfield.field, plot.marks, animation.frame, auto.info, auto.settings, run.numerics, window.list, recording.player) [of choice, at most 256] | `v` / panels | Help/Events/Unsubscribe | `unsubscribed`: `list[text]` | `session.state`, `done` | Stop sending the data events named. |
+| `events.subscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, dirfield.field, plot.marks, animation.frame, autox.info, autox.settings, run.numerics, window.list, recording.player) [of choice, at most 256], `encoding`: optional choice (json, f32), `diagram`: optional boolean | `v` / panels | Help/Events/Subscribe | `subscribed`: `list[text]` | `session.state`, `done` | Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays as base64 float32 (what is left out stays as it was); diagram says whether autoX's diagram points are sent. |
+| `events.unsubscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, dirfield.field, plot.marks, animation.frame, autox.info, autox.settings, run.numerics, window.list, recording.player) [of choice, at most 256] | `v` / panels | Help/Events/Unsubscribe | `unsubscribed`: `list[text]` | `session.state`, `done` | Stop sending the data events named. |
 | `tool.values` | none | `v` / tools | Data/Values |  | `done` | Show the parameters and initial conditions. |
 | `tool.browser` | none | `v` / tools | Data/Browser |  | `done` | Open the stored data browser. |
 | `tool.command_palette` | none | `v` / tools | Help/Command palette |  | `done` | Search every registered command by name, menu path and description. |
@@ -561,7 +561,7 @@ must be a number, not "x"`; the command does not run. `true`, `false` and
   name in the model's folder, or a path); "" when none.
 - `line`, `col`: where in it, from 1; 0 when not known. A `file` with
   `line` 0 is one the command could not read (File/Import settings, a parameter
-  or IC file, a table, AUTO's files, a session or recording, W118): web2
+  or IC file, a table, autoX's files, a session or recording, W118): web2
   offers to add it to the model's folder under its own name and run the
   command again.
 - `source`: line `line` of `file` as written, when it could be read;
@@ -586,12 +586,12 @@ must be a number, not "x"`; the command does not run. `true`, `false` and
   it stopped, with differences. Nothing switches without them. web2 shows
   the action as a button on the error. An equilibrium or the adjoint a failed
   exact Jacobian stopped is the same error, with no action yet. W275: an
-  AUTO run one stopped (`AUTO stopped: ...`, at the equation's line, with
+  autoX run one stopped (`autoX stopped: ...`, at the equation's line, with
   the continuation parameter's value) ends as a Stop ends it: the last
   converged point is stored as an end point (EP) with its label, and
-  `auto.info`'s `stop.why` is `jacobian`. Its action has the same label and
+  `autox.info`'s `stop.why` is `jacobian`. Its action has the same label and
   the commands `{"cmd":"set","kind":"num","name":"jacobian","text":"difference"}`,
-  `{"cmd":"auto.run","kind":K,"label":N}`, K the run's kind, N the end point's label (no
+  `{"cmd":"autox.run","kind":K,"label":N}`, K the run's kind, N the end point's label (no
   action when the run stored no point to restart from).
 
 web2 shows `file`, `line` (and `col`) under the error's text in the
@@ -602,7 +602,7 @@ does (`file:line: what`).
 Every error has its place (W140b; `tools/errorcheck.py` fails one made
 without it):
 - read from a file: the file and its line (a table file, a values file, an
-  `.ani`, a data file a curve fit reads, AUTO's files, a session or a
+  `.ani`, a data file a curve fit reads, autoX's files, a session or a
   recording), or line 0 when it cannot be read at all;
 - caused by a model line, when the model loads or when it runs: that line
   (a table file a `table` line names that cannot be read; a variable an
@@ -661,7 +661,7 @@ A registry row has:
 | field | meaning |
 |---|---|
 | `cmd` | the command's name (`run.initial`): what the protocol, recordings, the keymap's bindings and pins call it; never renamed |
-| `menu_path` | where the page's menu bar places it: one of File, Run, Analysis, Plot, Data, AUTO, Windows or Help, then the submenus, then the item (`File/Save session`); the palette matches it too |
+| `menu_path` | where the page's menu bar places it: one of File, Run, Analysis, Plot, Data, autoX, Windows or Help, then the submenus, then the item (`File/Save session`); the palette matches it too |
 | `description` | one sentence |
 | `category` | `run`, `files`, `analysis`, `plot`, `tools` or `panels` (the commands the page opens from a panel or the title bar: Source, the Values panel's sets, Keyboard shortcuts, Record and Play) |
 | `kind` | `c`, `v`, `s`, `d` or `x`: what the command needs ("Action kinds") |
@@ -686,8 +686,8 @@ whole, temp then rename, and never overwritten while it is bad. With no
 config folder (no `HOME` or `APPDATA`, or a relative `XPP_CONFIG_DIR`) the
 error names the variable to set. Its keys: `recent_models` (a list of at most
 ten absolute paths, newest first: "Start screen");
-`auto_threads` (`auto` or a whole number from 1 to the logical processors:
-AUTO's thread count, "AUTO's settings as data"). A later group is one
+`autox_threads` (`auto` or a whole number from 1 to the logical processors:
+autoX's thread count, "autoX's settings as data"). A later group is one
 member of the Preferences struct and one line of the description that reads
 and writes it.
 
@@ -979,10 +979,10 @@ the command do one thing. What the rows leave to say:
   time, never a recording's step.
 - `events.subscribe` adds the named events to those the client already gets
   (`encoding` `f32` sends their arrays as base64 float32; `diagram` says
-  whether AUTO's diagram points are sent; left out, each stays as it was) and
+  whether autoX's diagram points are sent; left out, each stays as it was) and
   sends each at once, at the end of the command; `events.unsubscribe` stops
   the named ones. The names are `hello.features`: `plot.series`, `plot.shown`,
-  `nullcline.curves`, `dirfield.field`, `plot.marks`, `animation.frame`, `auto.info`, `auto.settings`,
+  `nullcline.curves`, `dirfield.field`, `plot.marks`, `animation.frame`, `autox.info`, `autox.settings`,
   `run.numerics`, `window.list` and `recording.player` (see their sections below).
 - `tool.run_source_action` runs the action of comment `index` of
   `source.comments`; `tool.run_user_button` presses button `index` of the
@@ -998,9 +998,9 @@ Every action has a kind (W95), defined once in the core and sent in
 |---|---|---|---|
 | control | `c` | Abort, Quit, an answer | acted on |
 | view | `v` | only changes what is shown: a zoom, a window picked, the data subscription, a menu that shows, Help | kept, and run after the computation |
-| setting | `s` | a value the next computation uses (W106): a parameter, an initial or boundary condition, a delay, the numerics (`set`, `value.set_parameters`, `value.slide`, `set.apply`, `set.restore_defaults`, `value.load_file`, the Parameters key, the Numerics menu's items that ask a value, File/Apply set, File/Restore defaults), AUTO's Numerics, axes, Mark values and threads (`auto.configure_numerics`, `auto.configure_plot`, `auto.configure_marks`, `auto.set_threads`, the AUTO window's keys `n`, `u`) | taken at once, applied when the computation ends: the run in progress keeps the values it started with |
-| data | `d` | saves and loads: Save/Load values' files, Import settings, Save values into the model file (`set.save_new`, `set.save_into`, `set.save_defaults`, `set.export`, `set.rename`, `set.delete`), every file written (`value.save_file`, `browser.export`), a session, AUTO's diagram files, AUTO's Grab (the curve is still changing) | refused |
-| computation | `x` | starts one: Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts, Stochastic, a user button | refused |
+| setting | `s` | a value the next computation uses (W106): a parameter, an initial or boundary condition, a delay, the numerics (`set`, `value.set_parameters`, `value.slide`, `set.apply`, `set.restore_defaults`, `value.load_file`, the Parameters key, the Numerics menu's items that ask a value, File/Apply set, File/Restore defaults), autoX's Numerics, axes, Mark values and threads (`autox.configure_numerics`, `autox.configure_plot`, `autox.configure_marks`, `autox.set_threads`, the autoX window's keys `n`, `u`) | taken at once, applied when the computation ends: the run in progress keeps the values it started with |
+| data | `d` | saves and loads: Save/Load values' files, Import settings, Save values into the model file (`set.save_new`, `set.save_into`, `set.save_defaults`, `set.export`, `set.rename`, `set.delete`), every file written (`value.save_file`, `browser.export`), a session, autoX's diagram files, autoX's Grab (the curve is still changing) | refused |
+| computation | `x` | starts one: Initialconds, Continue, Range, autoX's Run, Nullclines, Dir.field and Flow, Sing pts, Stochastic, a user button | refused |
 
 - Each row of `hello.commands` has a `kind` (one letter): its registry row's (core/command_def.h). The kinds of the pop-up
   lists a command asks a choice with are in core/menus.cpp (checked when it compiles), for the core itself.
@@ -1030,7 +1030,7 @@ What a client must keep to, from the core that keeps to it (W118):
 - `hello.annotation_glyphs` (W513, #577): how the pictures draw an annotation, decided once in the core (core/grobs.cpp), for the page to draw as they do: `markers` the strokes of each marker `shape` (a list of polylines of `[x, y]` in glyph units, y up, centred on the marker's position), `half_units` the units from a marker's centre to the edge of its box at size 1 (the page maps them to its own pixels), and `arrow_head_spread` how far the two strokes of an arrow head spread either side, as a part of their length.
 - `hello.line_styles` (W492, #556): how a curve's style is drawn, decided once in the core (core/picture.cpp): `dash` the pattern of each dash word at a width of 1 (a wider line multiplies it by its width, at least 1; empty: solid) and `markers` the glyph of each marker word at a size of 1 (a size s multiplies it by max(s, 0.5)): `circle` the radius of a filled circle (0 for none), `polygon` the corners of a filled polygon, `strokes` its line segments, in pixels with y down. The page draws a curve's markers and dashes from it as the PDF and SVG do.
 - `hello.colormaps`: the colour scales the core has, by name (the order of core/colormap.h `colormap_names`); `plot.set_colormap` changes the session's.
-- `hello.window_names`: names for the main graph, initial AUTO view,
+- `hello.window_names`: names for the main graph, initial autoX view,
   animation, array-plot and data browser surfaces (`main`, `auto`, `ani`,
   `array_plot.shown`, `browser`): the last three are fixed (`animation`, `array_plot_1`,
   `browser`) and no graph or view may take them.
@@ -1129,7 +1129,7 @@ Every committed `session.saved` event is delivered by the browser page, includin
 all files from a command that saves several outputs.
 
 Every user save uses the same owner (W129, #181), including sessions,
-recordings, pictures, Clone ODE, AUTO exports and the session beside an
+recordings, pictures, Clone ODE, autoX exports and the session beside an
 imported XPPAUT set. Numeric `replace` on a command means `1` permits the
 write/replacement, `-1` declines it, and `0` or omission leaves it undecided.
 Other values are errors. With no decision, a new file is written without a
@@ -1200,7 +1200,7 @@ in the input.
 - `run.abort` and `session.quit` with `save` false (but a `session.quit` that asks or saves, below) act the moment they arrive: they cancel the running job
   and every job whose line came before theirs, even one still waiting its
   turn, and the computation stops at its next check (every integration step;
-  AUTO between continuation points). So a `run.abort` sent right behind a
+  autoX between continuation points). So a `run.abort` sent right behind a
   command stops that command, however late the core gets to it, while a
   command sent after the `run.abort` runs normally. An answer to a prompt sent
   after a `run.abort` counts as the user's last word: the rest of that command
@@ -1208,7 +1208,7 @@ in the input.
   only a running computation, and waits its turn as an ordinary command:
   it asks, and exits only when the user says so.
 - While a *computation* runs (an integration, a range of them, Sing pts, a
-  boundary value problem, an AUTO run: what Escape stops; the `job.computing`
+  boundary value problem, an autoX run: what Escape stops; the `job.computing`
   event says it began), the server judges each line the moment it arrives
   by its kind ("Action kinds"; one list, core/ui_json.cpp `during_run`):
   - acted on at once, at the computation's next check: `run.abort`, `session.quit` with `save` false,
@@ -1217,9 +1217,9 @@ in the input.
     `animation.slower`;
   - taken at once, at the computation's next check, and kept for after
     it: a setting (W106: `set`, `value.set_parameters`, `value.slide`, `set.apply`, `set.restore_defaults`,
-    `value.load_file`, `auto.configure_*`; "Action kinds"). The computation
+    `value.load_file`, `autox.configure_*`; "Action kinds"). The computation
     runs on with the values it started with (the right-hand side, the
-    integrator and AUTO read nothing the setting changed); `session.state` sent
+    integrator and autoX read nothing the setting changed); `session.state` sent
     meanwhile still shows those. When the running command ends (its
     `done`), each setting taken runs as a command of its own, in the
     order sent and before any other line: it applies then (an invalid
@@ -1234,7 +1234,7 @@ in the input.
     or a window's Axes: its menu opens then), and a key of the setting
     kind (a Numerics item: its dialog opens then);
   - refused: a command of the data or computation kind (a key that
-    computes or saves, a file written, AUTO's Grab), with one
+    computes or saves, a file written, autoX's Grab), with one
     log line when it arrives (`refused during a computation: key s`); it
     never runs, and after the computation it gets a `session.message` `error`
     ("Not while a computation runs: <command> was refused"), `session.state` and `done`
@@ -1315,10 +1315,10 @@ from the interface fails in this mode.
 
 A step's `abort` arms `xpp::job::stop_at_rows`, `stop_at_point` or
 `stop_at_frame` before its computation. The job stops at that exact row,
-AUTO branch/point or animation frame, as interactive replay does. If it
+autoX branch/point or animation frame, as interactive replay does. If it
 never reaches that place, playback fails at the step. An interruption of
 `other` cannot be placed and the command runs to completion.
-An AUTO stop at point P ends the branch with an EP repeating point P - 1;
+An autoX stop at point P ends the branch with an EP repeating point P - 1;
 an integration stop counts stored rows, including the initial row. A range
 stops in the first run to reach that row count.
 
@@ -1337,12 +1337,12 @@ in its private scratch folder; use `--server` and the `file` command to
 inspect those files before closing. Protocol clients wait for
 `ask` and `done`; recordings are the only playable file format.
 
-`examples/recordings/lecar_auto.recx` records the former AUTO example's
+`examples/recordings/lecar_autox.recx` records the former autoX example's
 steps: select Le Car's `hopf` named set, find its fixed point, import
 it, continue the steady branch, grab the Hopf point, continue the periodic
 branch, and save the diagram. Run it with:
 
-    xppautX examples/recordings/lecar_auto.recx --silent
+    xppautX examples/recordings/lecar_autox.recx --silent
 
 ## Recordings
 
@@ -1388,7 +1388,7 @@ fingerprint: 5f0c...(64 hex digits)
 - `@snapshot` ... `@end` (W59d): the session as it was when the
   recording began, what Save session writes to a `.snapx` ("Session
   files": the model, the values, the numerics, the windows and what they
-  show, AUTO's diagram) but without the data table, which the replay
+  show, autoX's diagram) but without the data table, which the replay
   computes again; its bytes in base64, 76 digits a line, as a `@binary`
   section. It is the state at that moment, not the history before it: a
   recording begun partway through a session replays from there. Every
@@ -1516,7 +1516,7 @@ the steps before N with no wait (their `recording.press` events 0 ms), then paus
 The player acts from the command loop's and a question's wait for input,
 so the core stays on its one thread and keeps reading the client's lines
 while it waits. `tools/servercheck.py` (`check_player`,
-`check_player_ani`) and `tools/autocheck.py` (`recording.open`) play recordings
+`check_player_ani`) and `tools/autoxcheck.py` (`recording.open`) play recordings
 back and compare the data.
 
 Wildcard matching uses constant stack space, including long runs of `*`.
@@ -1618,10 +1618,10 @@ sections below.
 | `window.destroyed` | `kind`, `win`, `w`, `h`, `title` | always | A window was destroyed. |
 | `window.renamed` | `window`, `new_name` | always | A window was renamed. |
 | `window.list` | `windows` | `window.list` | Every open window and whether it is shown, sent again when it changed. |
-| `auto.diagram` | `op`, `view` | always | The AUTO diagram as data, each view of it; the rest of its fields depend on op (axes, reset, add, views). |
-| `auto.info` | `info`, `stab`, `stop`, `notes`, `start_refined` | `auto.info` | AUTO's info strip and stability circle, and why the last branch ended. |
-| `auto.settings` | `numerics`, `pars`, `axes`, `marks` | `auto.settings` | AUTO's settings as data. |
-| `auto.view` | `earlier`, `show`, `active`, `views` | always | AUTO's hidden branches, the active view and each view's zoom. |
+| `autox.diagram` | `op`, `view` | always | The autoX diagram as data, each view of it; the rest of its fields depend on op (axes, reset, add, views). |
+| `autox.info` | `info`, `stab`, `stop`, `notes`, `start_refined` | `autox.info` | autoX's info strip and stability circle, and why the last branch ended. |
+| `autox.settings` | `numerics`, `pars`, `axes`, `marks` | `autox.settings` | autoX's settings as data. |
+| `autox.view` | `earlier`, `show`, `active`, `views` | always | autoX's hidden branches, the active view and each view's zoom. |
 | `array_plot.shown` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `first_row`, `tag` | always | The array plot's cells and colours. |
 | `animation.state` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open` | always | The animation's state for its slider and toggles. |
 | `animation.frame` | `pos`, `rows`, `t`, `speed`, `skip`, `dim`, `w`, `h`, `prims` | `animation.frame` | A frame of the animation as data. |
@@ -1640,17 +1640,17 @@ The fields and meaning of the events no later section describes (the table above
 
 **`hello`**: First event, and again after `session.open_model` or `session.reload_model` loaded a model in its place; `features` are the events `events.subscribe` takes. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 markers, 5 methods (items like `2 Box` start with the number to enter); `line_styles` (above), `colormaps` (above). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `session.state`'s `pars` and `ics` in their order (what `default` restores).
 
-**`session.state`**: Current values; `view` maps pixels of the active window to plot coordinates (and has its `title`: what the window plots as text, `W vs V`, which the title bar shows) (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `--silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `changed` (W209, always sent) is whether the values differ from those the session was last saved, opened or loaded with: a parameter, an initial condition, the numerics' time span, method, tolerances and bounds, or the run's data (the rows stored and where the run ended); a view, window or AUTO diagram alone is not a change; a save (`session` `save`, Save session, Quit's save, the import of a set file) and the end of a load or of opening a session file make it `false` (the page shows the unsaved dot in its title); `can_undo` and `can_redo` say whether the table's `undo` and `redo` have a value edit to take back or put back ("Undo and redo of value edits" below); `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches).
+**`session.state`**: Current values; `view` maps pixels of the active window to plot coordinates (and has its `title`: what the window plots as text, `W vs V`, which the title bar shows) (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the autoX diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `--silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `changed` (W209, always sent) is whether the values differ from those the session was last saved, opened or loaded with: a parameter, an initial condition, the numerics' time span, method, tolerances and bounds, or the run's data (the rows stored and where the run ended); a view, window or autoX diagram alone is not a change; a save (`session` `save`, Save session, Quit's save, the import of a set file) and the end of a load or of opening a session file make it `false` (the page shows the unsaved dot in its title); `can_undo` and `can_redo` say whether the table's `undo` and `redo` have a value edit to take back or put back ("Undo and redo of value edits" below); `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches).
 
 **`job.live_state`**: The solver's doubles for every ODE/Markov state at the latest output step of a running integration, paced at the input interval, with no subscription ("Live integration state (W200)"); `rates` as `state.rates` ("Recording startup and all-state inspection"). The final `state` follows.
 
-**`job.stopped`**: The command's computation was cancelled; sent before its `session.state` and `done`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. The recording player replays the interruption from it (see "Playing a recording without an interface").
+**`job.stopped`**: The command's computation was cancelled; sent before its `session.state` and `done`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an autoX run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. The recording player replays the interruption from it (see "Playing a recording without an interface").
 
 **`recording.player`**: A recording opened in the player ("Playing a recording"), sent when its model has loaded and again after a `recording.set_step_note`: the `.recx` (absolute path), its model's file, whether its fingerprint matches (`false`: it was changed after it was made; it plays all the same), and its steps, each its line's object ("Recordings": `step`, `cmd`, `answers`, `view`, `abort`, `during`, `files`) with its `note` ("" for none).
 
 **`recording.press`**: What the player sends next, before it sends it: `what` `answer` (`answers[index]`, a dialog's or a choice's answer) or `cmd` (the step's `cmd`); it goes `ms` milliseconds later (the pace at the speed set), so the page shows it first; 0 while running to a `from` step. A step's first `press` tells the page the step runs: the questions it asks until its `state` with `player.running` -1 are the player's to answer, never the page's (a `pixels` ask excepted).
 
-**`session.message`**: Status text. Results (a fit outcome, mean, Liapunov exponent, saved BVP point, or AUTO toggle) use `bottom` (W133). `box` with empty text removes a hint box. An `error` carries its place ("Errors" above, W140): `file` with `line` 0 is a file the command could not read (W118), which web2 offers to add and run the command again.
+**`session.message`**: Status text. Results (a fit outcome, mean, Liapunov exponent, saved BVP point, or autoX toggle) use `bottom` (W133). `box` with empty text removes a hint box. An `error` carries its place ("Errors" above, W140): `file` with `line` 0 is a file the command could not read (W118), which web2 offers to add and run the command again.
 
 **`job.progress`**: Computation progress, at most 10 a second.
 
@@ -1722,21 +1722,21 @@ shows one error at a time in a red box (the newest replaces it and the next
 command clears it; a load failure or crash stays with the output that explains it)
 and keeps everything under "Messages".
 
-### The AUTO diagram as data
+### The autoX diagram as data
 
 A run beginning a segment carries `parameters`, the branch's `[name,value]` pairs in model order, at full precision (W339, [#400](https://github.com/MuhammadMoustafa/xppautX/issues/400)). Its point coordinates resolve the continued values over these immutable constants.
 
-The server sends the AUTO diagram's points (the selected AUTO view) as data, so that
+The server sends the autoX diagram's points (the selected autoX view) as data, so that
 a client draws it and can zoom, pan and name the point under the mouse
 without a round trip. The data describe exactly what XPP's diagram shows
-(and what PDF and SVG export draw): after `auto.hide_earlier` (Clear) it
+(and what PDF and SVG export draw): after `autox.hide_earlier` (Clear) it
 is empty (web2 does not send it: its Clear only hides the branches so far).
-An Axes change (the AutoPlot form, last 1 par, last 2 par), File/Load
+An Axes change (the AutoxPlot form, last 1 par, last 2 par), File/Load
 diagram and File/Reset diagram draw the diagram again at once, so a client
 always holds the diagram in the current quantities without a reDraw.
 
-A point is one `add_point()` of `core/auto_nox.cpp`, in the quantities the
-axes plot (`auto_xy_plot`: the parameter against the maximum, norm,
+A point is one `add_point()` of `core/autox_nox.cpp`, in the quantities the
+axes plot (`autox_xy_plot`: the parameter against the maximum, norm,
 period, ... of the Axes setting), in the order it was plotted.
 
 **Views of the diagram** (W50). The one diagram has any number of views
@@ -1748,47 +1748,47 @@ point of the diagram, in the same order, so a point's index is the same
 in every view (the grab, `info.point`, Clear's `earlier`): a point a view
 does not plot (a one-parameter point in a two-parameter view, a
 two-parameter point in another) comes with `d` 0 and `x`, `y` `null`. One
-view is the active one (`auto.view`'s `active`): the Axes menu (the AutoPlot
+view is the active one (`autox.view`'s `active`): the Axes menu (the AutoxPlot
 form, zoom, Fit, Scroll, last 1 and 2 par, Default), the exports, the info
 strip and a Run go by its axes (its parameters are the ones a run
 continues in), and a grab's point by its data.
 
-- `{"ev":"auto.diagram","op":"views","n":N,"names":["diagram_1",...]}` lists
+- `{"ev":"autox.diagram","op":"views","n":N,"names":["diagram_1",...]}` lists
   the open views in display order. The client preserves each named view's
   data and drops names absent from the list. Names stay unchanged when a
   preceding view closes.
-- `{"cmd":"auto.new_view"}` adds a named view with the active
+- `{"cmd":"autox.new_view"}` adds a named view with the active
   one's axes and makes it active (the Axes menu's New view does the same).
   `{"cmd":"window.select","window":"diagram_1"}` selects it;
   `{"cmd":"window.destroy","window":"diagram_1"}` destroys it (the
-  diagram is the session's and stays). Destroying the last view closes AUTO;
-  File/Auto reopens it. `window.hide` and `window.show` take a view off
+  diagram is the session's and stays). Destroying the last view closes autoX;
+  File/autoX reopens it. `window.hide` and `window.show` take a view off
   the screen and bring it back with its axes and zoom. These are views (kind `v`),
-  queued while AUTO computes, while each view receives the run's points.
+  queued while autoX computes, while each view receives the run's points.
 
-- `{"ev":"auto.diagram","op":"axes","view":"diagram_1", xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
+- `{"ev":"autox.diagram","op":"axes","view":"diagram_1", xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
   the diagram was drawn again at these axes (`plot` is the view's
   projection, by name: `maximum`, `norm`, `maximum_and_minimum`, `period`,
   `two_parameter`, `frequency` or `average`; W491); the points are unchanged. Pixel `x0 + wid*(x-xmin)/(xmax-xmin)`,
-  `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of the selected AUTO view is (x, y) in the
+  `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of the selected autoX view is (x, y) in the
   core's pixels (what a pixel answer to a `grab` or `rubber` ask means).
-- `{"ev":"auto.diagram","op":"reset","view":"diagram_1","keep":k, ...the axes fields}`: drop every
+- `{"ev":"autox.diagram","op":"reset","view":"diagram_1","keep":k, ...the axes fields}`: drop every
   point of that named view after the first `k` (all of them for 0), then the axes as above.
-- `{"ev":"auto.diagram","op":"add","view":"diagram_1","from":n,"runs":[...]}`: points `n`, `n+1`, ... of view v
+- `{"ev":"autox.diagram","op":"add","view":"diagram_1","from":n,"runs":[...]}`: points `n`, `n+1`, ... of view v
   (`n` is the number of points the client holds) in runs of points that
   share their branch, kind and style and whose numbers count up by one:
 
 | run field | meaning |
 |---|---|
 | `br`, `pt` | branch, and the number of the run's first point (absolute values) |
-| `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (core/auto_codes.h DiagramPointType) |
+| `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (core/autox_codes.h DiagramPointType) |
 | `stable`, `periodic` | what `ty` is (W118): stable or not, a periodic orbit or a steady state; what a client reads |
 | `f2` | two-parameter curve (1 limit point, 2 limit point of periodics, 3 Hopf, 4 torus, 5 branch point, 6 period doubling, 7 fixed period, 13 neutral saddle); absent for one parameter |
 | `d` | how it is drawn: 0 not at all (the next line starts from it), 1 a line back to the point before it, 2 filled circles of radius 3 at y and y2, 3 open circles |
 | `c`, `lw` | colour (a colour: `foreground`, `#rrggbb`, see "Colours") and line width |
 | `new` | 1: the run's first point starts a new line (no line back) |
-| `from` | the label the continuation that computed the run's first point started from (Auto.irs: the point Grab took), on the first point of such a continuation only; absent otherwise, and for a diagram loaded from a file or computed before AUTO kept it. A periodic branch's `from` names the Hopf point it bifurcates from |
-| `jac` | how the Jacobian of the AUTO run that computed the run was formed: `difference` (XPPAUT's forward differences) or `exact` (the Numerics' Jacobian at that run, W278); a run never joins one with another setting, so one diagram can hold both |
+| `from` | the label the continuation that computed the run's first point started from (Auto.irs: the point Grab took), on the first point of such a continuation only; absent otherwise, and for a diagram loaded from a file or computed before autoX kept it. A periodic branch's `from` names the Hopf point it bifurcates from |
+| `jac` | how the Jacobian of the autoX run that computed the run was formed: `difference` (XPPAUT's forward differences) or `exact` (the Numerics' Jacobian at that run, W278); a run never joins one with another setting, so one diagram can hold both |
 | `x`, `y` | the values, one per point (`null` for NaN) |
 | `y2` | the second value (the minimum, for hi and lo), when it differs from `y` anywhere in the run |
 | `lab` | [[index in the run, label, type (a point type's name, from hello's `point_types`: `end`, `fold`, `hopf`, `branch_point`, `period_doubling`, `neimark_sacker`, `user_point`, `no_convergence`, `bogdanov_takens`, `cusp`, `zero_hopf`, `generalized_hopf`, `resonance_1_1` to `resonance_1_4`, `fold_flip`, `fold_neimark_sacker`, `flip_neimark_sacker`, `double_neimark_sacker`, `snic`, `homoclinic`, `heteroclinic`, `cycle_fold`, `cycle_branch_point`, `output`, `regular`)], ...] for the labelled points |
@@ -1796,33 +1796,33 @@ continues in), and a grab's point by its data.
 On equilibrium fold curves, BT means Bogdanov-Takens (stored ITP -21), CP cusp
 (-22), ZH zero-Hopf (-23). On Hopf curves the encodings are BT -31, GH
 generalised Hopf -32, and ZH -33. GH uses the first Lyapunov coefficient.
-These are typed `AutoPointKind` values in `core/auto_codes.h`; `ty` remains
+These are typed `AutoxPointKind` values in `core/autox_codes.h`; `ty` remains
 the stability classification. Their location uses the same pipeline as the
 other special points (W364, #426).
 
-A run of AUTO sends `add` events as the points come, at most a few a
+A run of autoX sends `add` events as the points come, at most a few a
 second. A redraw that plots the same points at other axes
 (reDraw, Fit, zoom, scroll) sends only `axes`: the server
 compares the points it plots again with what it sent, and only when they
 differ (another Axes quantity, new points) does it send `reset` with how
 many still agree and `add` for the rest. The points of a redraw go out
-when the redraw is over, not while it runs. A new AUTO window starts empty.
+when the redraw is over, not while it runs. A new autoX window starts empty.
 
-**`auto.info`**: what the AUTO window's info strip and stability circle
+**`autox.info`**: what the autoX window's info strip and stability circle
 show, as data, for a client that asked with
-`{"cmd":"events.subscribe","events":["autoinfo"]}`. It is sent at the end of that
+`{"cmd":"events.subscribe","events":["autoxinfo"]}`. It is sent at the end of that
 command, and then whenever what it says changed: before every ask (so
 every step of a grab brings the point's strip and circle before the grab
 asks again), at the end of a command, and at most ten times a second while
-AUTO runs; a command that changes neither sends none. A redraw of the
+autoX runs; a command that changes neither sends none. A redraw of the
 diagram (reDraw, new axes, a loaded diagram) leaves the strip and the
 circle as they were: after a run, the run's last point; after a grab, the
-grabbed point. core/auto_data.cpp
-keeps it, from what auto_nox.cpp shows there; `stop` comes from
-core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
+grabbed point. core/autox_data.cpp
+keeps it, from what autox_nox.cpp shows there; `stop` comes from
+core/autox_stop.cpp, which autox_lib1.cpp tells where it ends a branch (T23).
 
 ```
-{"ev":"auto.info",
+{"ev":"autox.info",
   "info":{"point":18,"br":1,"pt":19,"type":2,"sym":"HB","lab":2,
          "par":[{"name":"iapp","value":0.2624638},{"name":"phi","value":0.2}],
          "norm":0.2891081,"var":"V","u":-0.1989438,"per":14.44537,"x":0.2624638,"y":-0.1989438,"y2":-0.1989438},
@@ -1835,24 +1835,24 @@ core/auto_stop.cpp, which autlib1.cpp tells where it ends a branch (T23).
 
 | field | meaning |
 |---|---|
-| `info` | the point the strip shows: the one a grab's cursor is on (the strip changes only while grabbing); `null` before a grab, and in a new AUTO window |
+| `info` | the point the strip shows: the one a grab's cursor is on (the strip changes only while grabbing); `null` before a grab, and in a new autoX window |
 | `info.point` | its index in the `diagram` data (the points the client holds, the same index in every view), -1 when they do not have it (after Clear, or a load not drawn yet) |
 | `info.br`, `pt`, `type`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 4 unstable periodic, with `stable` and `periodic` as a run's), the label's type (a point type's name, `end`, `fold`, `hopf`, ...; `info.sym` is the name, its mark and label come from hello's `point_types`), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
 | `info.jac` | `difference` or `exact`: the Jacobian setting of the run that computed the point (as a run's `jac`) |
 | `info.par` | the continuation parameter's `name` and `value`, and the second parameter's for a two-parameter point (the strip then shows both; for a one-parameter point it shows a blank name and 0) |
-| `info.norm`, `var`, `u`, `per` | the norm, the variable of the Axes setting and its value, the period (AUTO's value for a steady state too: what the strip prints) |
+| `info.norm`, `var`, `u`, `per` | the norm, the variable of the Axes setting and its value, the period (autoX's value for a steady state too: what the strip prints) |
 | `info.x`, `y`, `y2` | where the active view plots the point, in the quantities of its axes (another view's are its own `diagram` data's point `info.point`) |
-| `stab` | what the circle shows: the point AUTO computed last, or the grab's cursor; `null` before any |
+| `stab` | what the circle shows: the point autoX computed last, or the grab's cursor; `null` before any |
 | `stab.periodic` | 1: `circle` holds the Floquet multipliers of a periodic orbit; 0: e^λ of each eigenvalue λ of a steady state (XPP keeps them so: inside the unit circle is stable) |
-| `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95). All `[0,0]`: not computed. Always a stored diagram point's own values, while AUTO runs and while grabbing alike (core/auto_stability.h). AUTO computes them from a run's second point on, so a run's first point, and a run that stops there, has none, unless the run restarts from a label of the same kind (a steady state from a steady label, a periodic orbit from a periodic one, one parameter): that first point is the label's solution and carries the label's values. A periodic run from a Hopf point, a two-parameter run and a period doubling's branch switch start with none; a two-parameter curve of periodic orbits (a limit point's, a period doubling's, a torus') has none at all, AUTO computing no multipliers along it. (XPPAUT stores the last values computed with every point, so its first points carry those of another point.) |
-| `stop` | why the run's last branch ended; `null` until one ends, and again when a run starts or AUTO's window is new. AUTO labels the end EP (a limit, Max points, Stop, a Mark value) or MX (no convergence); this says which |
-| `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm AUTO checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (a `run.abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted. A no convergence's `text` names the Newton settings that gave up (`ITNW`, `EPSL`, `EPSU`) and, when the last linear solve was singular, its smallest pivot (W491); it is logged as a WARN where AUTO's Output is not shown |
-| `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached Par Max (0.5)` for every branch that ends |
-| `stop.why` | `parameter_min` / `parameter_max`: the continuation parameter went below `parameter_min` / above `parameter_max`; `norm_min` / `norm_max`: the norm AUTO checks went below `norm_min` / above `norm_max`; `max_steps`: the branch has `max_steps` points; `user`: Stop (an `abort`); `mark`: a Mark value set to stop (AUTO's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (`min_step_size`); `noconv-fixed`: no convergence with a fixed step (`step_adapt_every` 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted; `snic`, `homoclinic`, `heteroclinic`: a branch of cycles whose period grew over 5 points to twice its shortest while its orbit lingers (a mesh point's speed at most 1e-6 of the fastest's) near the equilibria the `text` names: one with a zero eigenvalue, one saddle, two or more saddles in turn (W518: the end point's type is that name); `period_unbounded`: the same with equilibria that fit none of them, the end an `end`. A no convergence's `text` names the Newton settings that gave up (`max_newton_iterations`, `parameter_tolerance`, `state_tolerance`) and, when the last linear solve was singular, its smallest pivot (W491); it is logged as a WARN where AUTO's Output is not shown |
-| `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); AUTO's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached parameter_max (0.5)` for every branch that ends |
+| `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95). All `[0,0]`: not computed. Always a stored diagram point's own values, while autoX runs and while grabbing alike (core/autox_stability.h). autoX computes them from a run's second point on, so a run's first point, and a run that stops there, has none, unless the run restarts from a label of the same kind (a steady state from a steady label, a periodic orbit from a periodic one, one parameter): that first point is the label's solution and carries the label's values. A periodic run from a Hopf point, a two-parameter run and a period doubling's branch switch start with none; a two-parameter curve of periodic orbits (a limit point's, a period doubling's, a torus') has none at all, autoX computing no multipliers along it. (XPPAUT stores the last values computed with every point, so its first points carry those of another point.) |
+| `stop` | why the run's last branch ended; `null` until one ends, and again when a run starts or autoX's window is new. autoX labels the end EP (a limit, Max points, Stop, a Mark value) or MX (no convergence); this says which |
+| `stop.why` | `parmin` / `parmax`: the continuation parameter went below Par Min (RL0) / above Par Max (RL1); `normmin` / `normmax`: the norm autoX checks went below Norm Min (A0) / above Norm Max (A1); `npts`: the branch has Max points (NMX); `user`: Stop (a `run.abort`); `mark`: a Mark value set to stop (autoX's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (Dsmin); `noconv-fixed`: no convergence with a fixed step (IADS 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted. A no convergence's `text` names the Newton settings that gave up (`ITNW`, `EPSL`, `EPSU`) and, when the last linear solve was singular, its smallest pivot (W491); it is logged as a WARN where autoX's Output is not shown |
+| `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); autoX's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached Par Max (0.5)` for every branch that ends |
+| `stop.why` | `parameter_min` / `parameter_max`: the continuation parameter went below `parameter_min` / above `parameter_max`; `norm_min` / `norm_max`: the norm autoX checks went below `norm_min` / above `norm_max`; `max_steps`: the branch has `max_steps` points; `user`: Stop (an `abort`); `mark`: a Mark value set to stop (autoX's UZR endpoint); `jacobian`: the exact Jacobian was not finite (W275: an error with an action follows); `noconv-min`: no convergence even at the smallest step (`min_step_size`); `noconv-fixed`: no convergence with a fixed step (`step_adapt_every` 0); `noconv-switch-min`, `noconv-switch-fixed`: the same while switching to a bifurcating branch; `noconv`: no convergence, how not noted; `snic`, `homoclinic`, `heteroclinic`: a branch of cycles whose period grew over 5 points to twice its shortest while its orbit lingers (a mesh point's speed at most 1e-6 of the fastest's) near the equilibria the `text` names: one with a zero eigenvalue, one saddle, two or more saddles in turn (W518: the end point's type is that name); `period_unbounded`: the same with equilibria that fit none of them, the end an `end`. A no convergence's `text` names the Newton settings that gave up (`max_newton_iterations`, `parameter_tolerance`, `state_tolerance`) and, when the last linear solve was singular, its smallest pivot (W491); it is logged as a WARN where autoX's Output is not shown |
+| `stop.text` | the reason in words, to follow "Stopped: " (the page's status strip); autoX's Output gets the line `Branch 1 stopped at point 49: parameter iapp reached parameter_max (0.5)` for every branch that ends |
 | `stop.br`, `pt` | the branch and point number of the end (positive, as in `diagram`) |
 | `stop.value`, `limit` | what crossed the limit and the limit: the parameter and `parameter_min`/`parameter_max`, the norm and `norm_min`/`norm_max`, the point count and `max_steps`, the step size and `min_step_size`, the period for a global end (`snic`, `homoclinic`, `heteroclinic`, `period_unbounded`; the limit `null`); `null` where there is none |
-| `notes` | what the run lost or could not trust, in words (W491): a special point AUTO gave up locating (the corrector did not converge, its test does not apply, or not in `max_location_iterations` iterations and not bisected: the point is missing from the diagram), or one it located and refused because its test is a jump, noise or a double zero, not a smooth crossing (`was not accepted at parameter ...`, W545), or a branch point of cycles whose test, a ratio of determinants, is beyond the size a crossing within the step gives (the same words, W547), Floquet multipliers that are inaccurate (period doubling and torus detection are off until they are accurate again); `[]` for none, cleared when a run starts or AUTO's window is new. Each is also written in AUTO's Output (`Warning: ...`), or logged as a WARN where AUTO's Output is not shown |
+| `notes` | what the run lost or could not trust, in words (W491): a special point autoX gave up locating (the corrector did not converge, its test does not apply, or not in `max_location_iterations` iterations and not bisected: the point is missing from the diagram), or one it located and refused because its test is a jump, noise or a double zero, not a smooth crossing (`was not accepted at parameter ...`, W545), or a branch point of cycles whose test, a ratio of determinants, is beyond the size a crossing within the step gives (the same words, W547), Floquet multipliers that are inaccurate (period doubling and torus detection are off until they are accurate again); `[]` for none, cleared when a run starts or autoX's window is new. Each is also written in autoX's Output (`Warning: ...`), or logged as a WARN where autoX's Output is not shown |
 | `start_refined` | `true` when the run's start was a steady state whose residual was above `state_tolerance` and Newton's method (the Sing pts settings) refined it before the run (W495, #559); `false` otherwise. Cleared when a run starts |
 | `stab.eig` | steady states only: the eigenvalues λ = log z of the `circle` values, `[null,null]` where z is 0 (Re λ below about -745); the imaginary part is only known modulo 2π, its principal value |
 
@@ -1866,33 +1866,33 @@ W404 (#466): maps label a Neimark-Sacker point `TR` and a flip `PD`. On map fold
 Numbers are doubles in the shortest of 15 or 17 digits that reads back
 exactly, `null` when not finite. `tools/servercheck.py` checks that the
 point is the `diagram` data's point it names and that the circle holds
-what AUTO printed (its fort.9) for that point, and runs
-tools/models/auto_stop.ode into each `stop` reason (`parameter_min` and `parameter_max`, `norm_max`, `max_steps`, no convergence with a fixed and at the smallest step, and
+what autoX printed (its fort.9) for that point, and runs
+tools/models/autox_stop.ode into each `stop` reason (`parameter_min` and `parameter_max`, `norm_max`, `max_steps`, no convergence with a fixed and at the smallest step, and
 Stop).
 
-### AUTO's settings as data
+### autoX's settings as data
 
-`autosettings.special_points` is an object of named booleans `bogdanov_takens`, `cusp`,
-`zero_hopf`, `generalized_hopf`, `resonance_1_1` to `resonance_1_4`, `fold_flip`, `fold_neimark_sacker`, `flip_neimark_sacker`, `double_neimark_sacker`, all true by default. `auto.configure_numerics` accepts a partial object, e.g.
-`{"cmd":"auto.configure_numerics","special_points":{"generalized_hopf":false}}`. Set all twelve
+`autoxsettings.special_points` is an object of named booleans `bogdanov_takens`, `cusp`,
+`zero_hopf`, `generalized_hopf`, `resonance_1_1` to `resonance_1_4`, `fold_flip`, `fold_neimark_sacker`, `flip_neimark_sacker`, `double_neimark_sacker`, all true by default. `autox.configure_numerics` accepts a partial object, e.g.
+`{"cmd":"autox.configure_numerics","special_points":{"generalized_hopf":false}}`. Set all twelve
 false to disable all equilibrium, cycle and map codimension-two detection. Invalid names or
 non-booleans refuse the whole transaction. Session settings require all twelve
 lines (`bogdanov_takens true` or `bogdanov_takens false`, etc.); validation precedes application.
 
-What the AUTO window's Numerics, Axes (the AutoPlot form and
+What the autoX window's Numerics, Axes (the AutoxPlot form and
 the plot type) and Mark values forms edit, as data, for a client with
-forms of its own (web2, docs/ui-v2.md T22). **`auto.settings`** is sent to a
-client that asked with `{"cmd":"events.subscribe","events":["autosettings"]}` at the
+forms of its own (web2, docs/ui-v2.md T22). **`autox.settings`** is sent to a
+client that asked with `{"cmd":"events.subscribe","events":["autoxsettings"]}` at the
 end of that command, and then whenever the settings changed: at the end of
 a command and before every ask. The settings exist from the model's load,
-before AUTO's window opens (a model with more variables than AUTO takes
-has none, and gets no event). core/auto_settings.cpp keeps it. Each setting has one name (W531), the same in the
-event, `set`, the settings file, a model's `continuation` options and the manual; AUTO's own names (NTST, DS, MXBF ...) are
+before autoX's window opens (a model with more variables than autoX takes
+has none, and gets no event). core/autox_settings.cpp keeps it. Each setting has one name (W531), the same in the
+event, `set`, the settings file, a model's `continuation` options and the manual; autoX's own names (NTST, DS, MXBF ...) are
 read on import only. `suppress_branch_points` and `switch_one_direction` are checkboxes in both forms and use `true` or
 `false` in commands and saved settings (W499), `output_detail` one of the level names.
 
 ```
-{"ev":"auto.settings",
+{"ev":"autox.settings",
  "numerics":{"mesh_intervals":15,"max_steps":2000,"output_every":500,"collocation_points":4,"step_size":0.02,
              "min_step_size":1e-05,"max_step_size":0.02,"parameter_min":-0.2,"parameter_max":0.5,"norm_min":0,
              "norm_max":1000,"parameter_tolerance":0.0001,"state_tolerance":0.0001,"special_point_tolerance":0.0001,
@@ -1911,17 +1911,17 @@ read on import only. `suppress_branch_points` and `switch_one_direction` are che
 
 | field | meaning |
 |---|---|
-| `numerics` | the Numerics form's fields by their names, in the form's order, with AUTO's own name (a search word, read on import only) in brackets: `mesh_intervals` (NTST), `max_steps` (NMX), `output_every` (NPR), `collocation_points` (NCOL), `step_size` (DS; its sign is the direction), `min_step_size` (DSMIN), `max_step_size` (DSMAX), `parameter_min` (RL0), `parameter_max` (RL1), `norm_min` (A0), `norm_max` (A1), `parameter_tolerance` (EPSL), `state_tolerance` (EPSU), `special_point_tolerance` (EPSS), `mesh_adapt_every` (IAD), `max_branch_switches` (MXBF, 0 or more), `switch_one_direction` (MXBF below 0; boolean `true`/`false`, never 0/1), `output_detail` (IID: `none`, `little`, `normal`, `start_jacobian`, `extensive`, `debugging`), `max_location_iterations` (ITMX), `max_newton_iterations` (ITNW), `full_newton_after` (NWTN), `step_adapt_every` (IADS), `suppress_branch_points` (SuppBP; boolean) |
+| `numerics` | the Numerics form's fields by their names, in the form's order, with autoX's own name (a search word, read on import only) in brackets: `mesh_intervals` (NTST), `max_steps` (NMX), `output_every` (NPR), `collocation_points` (NCOL), `step_size` (DS; its sign is the direction), `min_step_size` (DSMIN), `max_step_size` (DSMAX), `parameter_min` (RL0), `parameter_max` (RL1), `norm_min` (A0), `norm_max` (A1), `parameter_tolerance` (EPSL), `state_tolerance` (EPSU), `special_point_tolerance` (EPSS), `mesh_adapt_every` (IAD), `max_branch_switches` (MXBF, 0 or more), `switch_one_direction` (MXBF below 0; boolean `true`/`false`, never 0/1), `output_detail` (IID: `none`, `little`, `normal`, `start_jacobian`, `extensive`, `debugging`), `max_location_iterations` (ITMX), `max_newton_iterations` (ITNW), `full_newton_after` (NWTN), `step_adapt_every` (IADS), `suppress_branch_points` (SuppBP; boolean) |
 | `axes.plot` | the projection, by name: `maximum`, `norm`, `maximum_and_minimum`, `period`, `two_parameter`, `frequency`, `average` (a client labels it from its name; XPPAUT's numbers 0-4, 10, 11 are read only from an imported XPPAUT `.auto` file) |
 | `axes.var` | the variable the y axis plots (Y-axis) |
 | `axes.par1`, `par2` | Main Parm and Secnd Parm, two model parameters (`null` if none) |
 | `axes.xmin` .. `ymax` | the diagram's axes |
 | `axes` | all of it the active view's (see "Views of the diagram") |
-| `marks` | Mark values: `[name, value]` per user point, where the parameter `name` (any model parameter) or the period `T` reaches `value` AUTO labels the point (UZ) |
-| `threads` | AUTO's thread count, a program preference (W267) and not a setting of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.setx` (`auto_threads`) when a model is loaded |
+| `marks` | Mark values: `[name, value]` per user point, where the parameter `name` (any model parameter) or the period `T` reaches `value` autoX labels the point (UZ) |
+| `threads` | autoX's thread count, a program preference (W267) and not a setting of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.setx` (`autox_threads`) when a model is loaded |
 | `threads_auto` | the count `"auto"` gives on this computer: its physical cores (the performance cores where the system says which), at most 4 |
 | `threads_max` | the most `threads` may be: the computer's logical processors |
-| `rules` | what each `numerics` value takes, by key (W118): `label` (the form's, derived from the key: underscores as spaces and a capital first letter), `boolean`, `choices`, `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/auto_settings.cpp num_fields) |
+| `rules` | what each `numerics` value takes, by key (W118): `label` (the form's, derived from the key: underscores as spaces and a capital first letter), `boolean`, `choices`, `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/autox_settings.cpp num_fields) |
 | `pairs` | the values that must be in order: `lo` below `hi` (`strict`) or at most it, and the refusal's `message` |
 | `step` | the first step `key` must be from `lo` to `hi` in size, whichever its sign, and the refusal's `message` |
 
@@ -1930,17 +1930,17 @@ as integers; `null` when not finite.
 
 `events.subscribe` also takes `diagram`, true or false, (W439, #501). Diagrams
 are delivered initially; omitting this field keeps that choice. `false` stops
-diagram collection and delivery for this client, while AUTO still computes and
+diagram collection and delivery for this client, while autoX still computes and
 stores its complete numerical diagram. `true` replays the current diagram,
 including points computed while delivery was off. This switch is independent
 of `events`; `events: []` stops the listed data subscriptions. A non-boolean
 `diagram` is one command error and changes no subscription.
 
-**`auto.configure_numerics`, `auto.configure_plot`, `auto.configure_marks` and `auto.set_threads`** (W516) write
-the settings without the forms, each part only when given. `auto.configure_numerics` takes any of the Numerics
-by their names and `special_points`; `auto.configure_plot` the axes: `plot_type`, `variable`, `parameter1`,
+**`autox.configure_numerics`, `autox.configure_plot`, `autox.configure_marks` and `autox.set_threads`** (W516) write
+the settings without the forms, each part only when given. `autox.configure_numerics` takes any of the Numerics
+by their names and `special_points`; `autox.configure_plot` the axes: `plot_type`, `variable`, `parameter1`,
 `parameter2` (model names), the four ranges `x_min`, `x_max`, `y_min`, `y_max`, `fit` for Axes/Fit afterwards and
-`view` (a diagram view's name: its axes, made the active one; the active one's without it); `auto.configure_marks` the
+`view` (a diagram view's name: its axes, made the active one; the active one's without it); `autox.configure_marks` the
 whole list as two lists of equal length, `parameters` (a model parameter, or `T` for the period) and `values`
 (both `[]` for none); mark storage grows with the session. Sent commands and
   session files have a 65,536-mark input allocation budget (W331, [#392](https://github.com/MuhammadMoustafa/xppautX/issues/392)).
@@ -1961,21 +1961,21 @@ says what the core would.
 
 `threads` (`"auto"` or a whole number from 1 to `threads_max`) is the thread
 count (W267). It is checked with the rest, and saved by `prefs::update_prefs`
-into the per-user `preferences.setx` (`auto_threads: auto` or
-`auto_threads: 4`; `$XPP_CONFIG_DIR` names the folder) before anything of the
+into the per-user `preferences.setx` (`autox_threads: auto` or
+`autox_threads: 4`; `$XPP_CONFIG_DIR` names the folder) before anything of the
 set is applied: a count outside the range, a word other than `"auto"`, or a
 `preferences.setx` that cannot be read or written (it is never overwritten
-while it is bad) refuses the whole set (`AUTO's threads must be
+while it is bad) refuses the whole set (`autoX's threads must be
 "auto" or a whole number from 1 to 16 (this computer's logical processors)`).
 A pool already running keeps its count until the next run. The results never
 depend on it (W247). It is not in `auto/settings.txt` or a session file, and a
 recording's replay changes the session's count only, never the file.
 
-AUTO's settings are saved in the session's `auto/settings.txt`
-(core/xpp_session_auto.cpp, settings_text); Reload keeps them in memory.
+autoX's settings are saved in the session's `auto/settings.txt`
+(core/xpp_session_autox.cpp, settings_text); Reload keeps them in memory.
 The forms and `set` change the same fields and show what the other wrote.
 
-`set` is a setting (W106): sent while AUTO (or anything) computes, the
+`set` is a setting (W106): sent while autoX (or anything) computes, the
 core takes it at once and applies it after that job's `done`, as a command
 of its own (a continuation already running keeps the settings it started
 with; the next run uses the new ones). `tools/servercheck.py` checks that the
@@ -2333,8 +2333,8 @@ is a zip of ordinary files, in this order:
 | `session.setx` | the manifest (W285): a `session` group of `version` (2), `model` (the model's own file, as the model names it), `anifile` (the animation `--anifile` loaded, one of the model's files; only when there is one) and `data` (1 when `data.npz` is there); the settings syntax |
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
 | `model.setx` | the session's settings (docs/odex.md ".setx"): the numerics (the Jacobian included) under the option table's keys, the run's position, the initial and ending values, the parameters, the delays, the boundary conditions, Transpose, the coupling, the array plot, the torus and the ranges; every key in it (a session loads nothing it does not hold), without the graphics, which `windows.setx` holds for every window |
-| `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views (a line `view "NAME" shown|hidden PLOT ...` per view: whether `window.hide` hid it); full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
-| `windows.setx` | a `window.list` list, every open plot slot as a group in index order (its quoted `name` and its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`, and `hidden`, whether `window.hide` hid it), `active` (the quoted window name), `browser_hidden` (whether the data browser is hidden), an `auto_view` group (AUTO's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
+| `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | autoX's settings and views (a line `view "NAME" shown|hidden PLOT ...` per view: whether `window.hide` hid it); full-precision diagram and restart orbits when a diagram exists (xpp_session_autox.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
+| `windows.setx` | a `window.list` list, every open plot slot as a group in index order (its quoted `name` and its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`, and `hidden`, whether `window.hide` hid it), `active` (the quoted window name), `browser_hidden` (whether the data browser is hidden), an `autox_view` group (autoX's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
 | `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list of used slots in slot order (zero-based slot, boolean used, window, type, color, the style keys of a curve, points, key, name), per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
@@ -2371,7 +2371,7 @@ saved in it, from those saved files alone: an edit to the `.ode` since,
 or its absence, makes no difference, and a file the model reads that is
 not saved in it is a file that is not there. Then it restores the
 members: `session.state`, `plot.shown`, `plot.marks` (but Sing pts' equilibrium symbols),
-`auto.view` and the diagram in each of its views are as they were at the
+`autox.view` and the diagram in each of its views are as they were at the
 save, the diagram exactly (every digit). The earlier runs a window keeps until Erase are
 not saved. A file without its model (`model/<name>` missing, as in every
 session file saved before W103), or without its manifest, is refused (a
@@ -2381,11 +2381,11 @@ not a session file (.snapx) of this version: `later` is not a setting of the fil
 older layout (W285: `session.txt` and XPPAUT's set lines, no `session.setx`): the ordinary error, with no logic to explain
 it; and (W116) one with a member it always
 writes missing (`model.setx`, `windows.setx`, `marks.setx`, `sliders.setx`, `nullclines.setx`, `random.txt`, which must also load as a generator state; `data.npz` when
-`data` is 1, and only then; AUTO's four when one is there; the points of
+`data` is 1, and only then; autoX's four when one is there; the points of
 every frozen curve `marks.setx` lists) or one whose member does not read: a
 key missing or a value that is not a number, a value out of range, a key it
 does not know, a variable, a window or a slot it does not have, a value
-of AUTO's it does not take; and (W145) a numerical setting its rule
+of autoX's it does not take; and (W145) a numerical setting its rule
 refuses, as `set` `num` and an `@` line refuse it (0 `store_every`, 0 `DeltaT`),
 more added columns than the model has room for or one whose formula does
 not compile, an arrow's or marker's type out of range, a colour that is none, a
@@ -2407,17 +2407,17 @@ but `--silent`) starts the recording's own model and opens the recording in
 the player and starts playback automatically, as `recording.open` does, without the question
 File/open Model asks (nothing is open to save).
 
-### AUTO diagram files
+### autoX diagram files
 
 W339 ([#400](https://github.com/MuhammadMoustafa/xppautX/issues/400)) removes
-the `autosettings.pars` field and `auto.configure_plot`'s `pars` (an unknown argument).
+the `autoxsettings.pars` field and `autox.configure_plot`'s `pars` (an unknown argument).
 Use `state.pars` for all model parameter names and `axes.par1`/`par2` for
 the continuation. `auto/diagram.csv` begins with contiguous
 `branch,ID,VALUE...` records, with one value per model parameter in model
 order. The point header follows: the previous metadata, then `branch`,
 `continued` and `values` (semicolon-separated indices and full-precision
 values), then the state and spectrum columns. Point indices name model
-parameters directly; AUTO's numerical indices are distinguished from them.
+parameters directly; autoX's numerical indices are distinguished from them.
 Only continued values and the period vary at each point. Grab and label
 restart resolve them over the branch's immutable parameter record.
 Old xppautX session layouts are rejected; XPPAUT `.auto` import remains.
@@ -2425,16 +2425,16 @@ XPPAUT omitted parameters cannot be recovered from a foreign file and use
 the importing model's values.
 
 Session ZIP input and total decompressed members are limited to 512 MiB,
-with at most 4096 entries; duplicate file members are refused. Saved AUTO
+with at most 4096 entries; duplicate file members are refused. Saved autoX
 views are limited to 4096 and diagram points to 1,000,000, also capped by
 the 512 MiB budget for their expanded vectors. Restart headers, complete
-payloads and parameter indices use AUTO's shared reader checks; restart
-meshes are bounded by the same byte budget at AUTO's largest dimension. Member text,
+payloads and parameter indices use autoX's shared reader checks; restart
+meshes are bounded by the same byte budget at autoX's largest dimension. Member text,
 settings, dimensions and parameter indices are checked before the new
 model is kept. Members remain virtual files, with temporary model copies
 named by their numeric index; archive paths are never extracted.
 
-AUTO's File > Save diagram (`s`) calls Save session (`.snapx`), with the
+autoX's File > Save diagram (`s`) calls Save session (`.snapx`), with the
 same data-table choice. Load diagram (`l`) opens a `.snapx` through Open
 session: it asks whether to save first and replaces the whole session,
 even when its saved model is already open. The diagram's full-precision
@@ -2447,8 +2447,8 @@ for confirmation; no `.auto` file is written.
 
 What the page displays is the core's (W65, docs/ui-v2.md): the earlier runs
 of each plot window until Erase, its zoom, whether the earlier runs are
-drawn, and AUTO's hidden branches and zoom. They are members of the
-session (`xpp::Session::plot_display`, `auto_view`, core/display_state.h),
+drawn, and autoX's hidden branches and zoom. They are members of the
+session (`xpp::Session::plot_display`, `autox_view`, core/display_state.h),
 set by `window.set_display` or by the runs themselves, and sent as data,
 so a session file can save them. The page keeps a copy it changes at once
 (a drag cannot wait for a round trip) and sends the change; the core's
@@ -2495,16 +2495,16 @@ Window/Zoom, Fit, Xi vs t) drop the zoom. `window.set_display` sets them:
 `{"cmd":"display","window":"graph_1","x":[0,10],"y":null,"runs":false,"freeze":true}` (a missing key
 is left as it is).
 
-**`auto.view`** (with `auto.info`): `{"ev":"auto.view","earlier":n,"show":0,
+**`autox.view`** (with `autox.info`): `{"ev":"autox.view","earlier":n,"show":0,
 "active":"diagram_1","views":[{"name":"diagram_1","zoom":{"x":null,"y":null}},...]}`, sent at the end of
 a command when it changed, and at once after `events.subscribe`. `earlier`: the
 diagram's points before this index are the branches computed before Clear
-(the AUTO window's key `c` sets it to the points so far, in every view; a
-diagram of fewer points, File/Reset diagram, lowers it, closing AUTO clears
+(the autoX window's key `c` sets it to the points so far, in every view; a
+diagram of fewer points, File/Reset diagram, lowers it, closing autoX clears
 it); `show` 1: they are drawn; `active` the active view; `views` one entry
 per view of the diagram (W50), its `zoom` as above, dropped by other axes
-of that view (closing AUTO drops every view's zoom; the views stay).
-`{"cmd":"auto.set_display","view":"diagram_2","show_earlier":true,"x_range":[...],"y_range":[]}`
+of that view (closing autoX drops every view's zoom; the views stay).
+`{"cmd":"autox.set_display","view":"diagram_2","show_earlier":true,"x_range":[...],"y_range":[]}`
 sets `show` and `"diagram_2"`'s zoom (the active view's without `view`; `[]` is the whole range of an axis).
 
 ## Question answering
@@ -2538,12 +2538,12 @@ policy above, never a recorded save decision.
 | `string` | `title`, `name`, `value`, `ok`, `cancel`, `kinds` | `value` (any length: no dialog cuts what is typed, W76) |
 | `form` | `title`, `names`, `values`, `kinds` | `values` (same length, each of any length: W76 dropped `max`). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a marker (`*4`), ...; for a list whose items start with a number (`2 Box`) the value is that number. A form may also carry `columns` and `rows` (arrays of text), asking for a grid: its first `columns.length * rows.length` fields are the cells, row by row (field `r * columns.length + c` is column `c`, row `r`), and the others follow as plain fields. Viewaxes' 2D View (`X`, `Y`; `Variable`, `Min`, `Max`, `Label`) and 3D View (`X`, `Y`, `Z`, then `XLo`, `XHi`, `YLo`, `YHi` and the 3D params' ten fields) are the only grids (W225): the core reads every field whole before it sets any, and a variable that is not one, a number that is not one, a Min not below its Max (or XLo/YLo not below XHi/YHi) is a `message` error naming the field, with nothing applied. |
 | `checklist` | `title`, `names`, `flags` | `flags` |
-| `file` | `title`, `mode` (`read` or `write`), `file`, `wild`, `dir`, `save_dir`, `dirs`, `files` | `file` (a name in `dir`, or a full path anywhere, whole: the desktop window's own dialog answers with one, W88); a native save dialog also supplies `replace:1` and passes the ask `id` as `ask` to `__xppFileDialog`; the binding grants that exact path once for that prompt, so `replace:1` alone never authorizes an external write (W177, #229), while a browser save supplies no decision for the core's model-folder copy (W129); or `cd` (a folder name or `..`, in `dir`: only the folder listed changes, not the process's) or `wild` (a new pattern) to be asked again with that listing; `save_dir` is the writable model folder offered for a native save retry after permission denial; `dir` starts as the folder of the file of that `wild` last chosen, else the model's folder (a replay's recording's), never AUTO's or a replay's scratch folder (W151) |
+| `file` | `title`, `mode` (`read` or `write`), `file`, `wild`, `dir`, `save_dir`, `dirs`, `files` | `file` (a name in `dir`, or a full path anywhere, whole: the desktop window's own dialog answers with one, W88); a native save dialog also supplies `replace:1` and passes the ask `id` as `ask` to `__xppFileDialog`; the binding grants that exact path once for that prompt, so `replace:1` alone never authorizes an external write (W177, #229), while a browser save supplies no decision for the core's model-folder copy (W129); or `cd` (a folder name or `..`, in `dir`: only the folder listed changes, not the process's) or `wild` (a new pattern) to be asked again with that listing; `save_dir` is the writable model folder offered for a native save retry after permission denial; `dir` starts as the folder of the file of that `wild` last chosen, else the model's folder (a replay's recording's), never autoX's or a replay's scratch folder (W151) |
 | `text` | `title`, `value` (the text), `size`, `style`, `color` | `value`, `size` (a whole number in the range of `hello.text`), `style` (one of `hello.text_styles`), `color` (a colour); a value outside them is a `message` `error` and the text is not added. Text,etc/Text asks a `mouse` first (where the text goes), then this; a cancel adds nothing. |
 | `mouse` | `win` | `x`, `y`; or `xd`, `yd` (data coordinates, below) |
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2`; or `xd`, `yd`, `xd2`, `yd2` |
 | `grab` | `win` | `key`; or `x`, `y` (or `xd`, `yd`) for a click on the diagram; or `point`, a point of the `diagram` data by its index (with `key`, that key after it) |
-| `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` (or `xd`, `yd`) for each pointer event; cancel or a key ends. Window/Scroll and AUTO Axes/Scroll ask it again after every event. |
+| `drag` | `win` | `what` (`down`, `move`, `up`), `x`, `y` (or `xd`, `yd`) for each pointer event; cancel or a key ends. Window/Scroll and autoX Axes/Scroll ask it again after every event. |
 | `pixels` | `win`, or `kinescope.film` (a kinescope frame index) | `w`, `h`, `rgb` (base64 of w*h*3 bytes). Frame, GIF and kinescope writers use it: only the client has the picture, which web2 renders from the data it holds (the window's chart, or a kinescope frame's snapshot). |
 
 Range Integrate, Double Range Integrate and Range Equilibria are typed forms
@@ -2602,7 +2602,7 @@ numbers, an `integer` and a `name:0` ask.
 answer can be given in the plot's own quantities instead of pixels: `xd`,
 `yd` for the point (`xd2`, `yd2` for a rubber band's second corner), in the
 coordinates `state.view` maps to (the active window's `xlo`..`xhi`,
-`ylo`..`yhi`; for the AUTO diagram, the selected AUTO view, those of `state.auto` or
+`ylo`..`yhi`; for the autoX diagram, the selected autoX view, those of `state.auto` or
 the `diagram` `axes`). The server turns them into the nearest pixel of its
 window at the axes it has when the answer comes (the inverse of the
 mapping `state.view` describes), and the command goes on exactly as for a
@@ -2620,48 +2620,48 @@ or `ok` 0): arrow keys, `Tab` (the next labelled point), `Home`, `End`,
 `PageUp` and `PageDown` as in the X11 program, a click (the nearest
 point), or `{"point":i}`, point `i` of the `diagram` data as the client
 holds it (the order of `add`), which moves the cursor to exactly that point.
-Each answer that moves it brings the new point's `auto.info` (to a client
+Each answer that moves it brings the new point's `autox.info` (to a client
 that asked for it) and asks again. `{"point":i,"key":"Return"}` moves and
 takes in one answer. An index the data do not have (out of range) is
 ignored, and so is the key that came with it: the grab asks again. So is a
-point AUTO no longer has: after Reset diagram or a load the data are the
+point autoX no longer has: after Reset diagram or a load the data are the
 old diagram until reDraw.
 
-**Grab by label.** `{"cmd":"auto.grab","label":N}` grabs the
+**Grab by label.** `{"cmd":"autox.grab","label":N}` grabs the
 stored point labelled `N` directly, with no ask: the same outcome as the
 interactive grab above ending with `Return` on that point (`grabpt`, the
 parameters, the info strip, the stability circle, and what a following
-`auto.run` with a `label` starts from). `{"cmd":"auto.grab","type":"hopf","index":k}`
-grabs the `k`-th (1-based, in stored order) labelled point of that AUTO
+`autox.run` with a `label` starts from). `{"cmd":"autox.grab","type":"hopf","index":k}`
+grabs the `k`-th (1-based, in stored order) labelled point of that autoX
 type instead (a point type's name, the same names as hello's `point_types`: `branch_point`, `end`, `hopf`, `fold`, `no_convergence`, `period_doubling`, `neimark_sacker`, `user_point`, and the others: "the 2nd hopf"). A label no stored point has, or a `type`/`index` with
 no such point, is an error in the `done` and nothing changes -- the diagram,
 `grabpt` and the info strip stay as they were. The interactive grab is
-the AUTO window's key `g`, `{"cmd":"key","win":"auto","key":"g"}`,
+the autoX window's key `g`, `{"cmd":"key","win":"auto","key":"g"}`,
 which asks (`grab`, above). A script that recorded an interactive grab (W59) replays it as the
-keys it was answered with, exactly as it was driven; `auto.grab` is for
+keys it was answered with, exactly as it was driven; `autox.grab` is for
 a script that names the point instead (W56's --silent commands).
 
-**Running AUTO: `auto.run`** (W516, W306). `{"cmd":"auto.run","kind":K,...}` runs AUTO and ends with its `done`
-(`points_computed`, `branches_tracked`); an error of the run (`AUTO stopped: ...`) is the `done`'s error, shown
+**Running autoX: `autox.run`** (W516, W306). `{"cmd":"autox.run","kind":K,...}` runs autoX and ends with its `done`
+(`points_computed`, `branches_tracked`); an error of the run (`autoX stopped: ...`) is the `done`'s error, shown
 once. `kind` is what is computed: `equilibrium`, `periodic`, `two_parameter` (the curve of the start point's type),
 `fixed_period`, `bvp`, `homoclinic`, `heteroclinic`; `switch: true` is a branch switch (at a branch point, or the
 period doubling at a period doubling). The start is one of `label` (a stored point), `type` with `index` (the
-`k`-th point of that type, as `auto.grab`), or neither: the current state (the initial conditions and the last
+`k`-th point of that type, as `autox.grab`), or neither: the current state (the initial conditions and the last
 integration, for `periodic`, `bvp` and the connections), settled first by the `steady` command's rule when
 `decimals`, `hold` and `maximum` are given. The start point's type is never an argument: it comes from the point,
-through one table, hello's `auto_run` (`kinds`, the `current` kinds, and `rows` of `point`, `family` and the `kinds`
+through one table, hello's `autox_run` (`kinds`, the `current` kinds, and `rows` of `point`, `family` and the `kinds`
 and `switch` kinds they allow; the first row of the point's effective type and family, `other` for any other type,
-the `neutral_saddle` curve's own), and `auto.info`'s `start` is the grabbed point's row (`label`, `type`, `family`,
+the `neutral_saddle` curve's own), and `autox.info`'s `start` is the grabbed point's row (`label`, `type`, `family`,
 `kinds`, `switch`; `null` when none is grabbed), so a page offers only the kinds that fit. A kind that does not fit is
 an error naming both (`two_parameter needs a point of type hopf, ...; label 12 is a regular point of a steady
 branch`). A new start from the current state with an `equilibrium` run needs `replace_diagram` when the diagram has
 points: `true` begins it again, `false` adds the branch. The Numerics' names (`step_size`, whose sign is the direction,
-`max_steps`, ...) given to `auto.run` hold for that run only; an omitted one is the session's. A homoclinic or
+`max_steps`, ...) given to `autox.run` hold for that run only; an omitted one is the session's. A homoclinic or
 heteroclinic start takes `unstable_dimension`, `stable_dimension` and `left_equilibrium` (and `right_equilibrium`), the
-session's own when omitted. Before a run, a model whose AUTO equations use `t` (directly or through a function or a
+session's own when omitted. Before a run, a model whose autoX equations use `t` (directly or through a function or a
 fixed variable; auxiliary quantities do not count) is refused, with each such equation's file and line, and the
 start of a steady-state run whose residual is above `state_tolerance` is refined by Newton's method (a WARN naming
-the equation with the largest residual) or refused as not a steady state. The AUTO window's Run key asks XPPAUT's
+the equation with the largest residual) or refused as not a steady state. The autoX window's Run key asks XPPAUT's
 menus and ends in the same function. It is the command the error of an exact Jacobian's failure offers to repeat
 (`error`'s `action`, above), from the end point's label.
 
@@ -2939,7 +2939,7 @@ Writes into a missing folder ask **Create the folder <folder>?**. A model path o
 
 ### Reduced ODE Hopf curves (W363, #425)
 
-The `diagram` and `auto.info` curve field `f2` is 3 for an ODE Hopf curve
+The `diagram` and `autox.info` curve field `f2` is 3 for an ODE Hopf curve
 with nonnegative squared frequency and 13 for its neutral-saddle extension
 with negative squared frequency. These points retain their Hopf start type
 in `itp` for restarting the same formulation; this does not label the
@@ -2953,7 +2953,7 @@ For positive kappa, period is `2*pi/sqrt(kappa)`; at and beyond zero kappa,
 `per` retains the last positive-kappa period, as in AUTO-07p, and is not a
 period of the neutral saddle.
 
-### AUTO start validation (W495, #559)
+### autoX start validation (W495, #559)
 
 All front ends use the same checks before continuation. A refused start emits
 one placed error and adds no diagram point. An initial steady-state start
@@ -2972,8 +2972,8 @@ suggestion to change the section or integrate longer. A Monte Carlo search
 sends one summary of attempted and converged guesses, distinct equilibria,
 requested guesses and Newton settings. Manifold failures are placed errors,
 shown once by the command; an equilibrium already found remains available.
-Periodic AUTO's no-convergence text includes a tiny reduced-system pivot
-and its threshold, as equilibrium AUTO does. A short solution in a session
+Periodic autoX's no-convergence text includes a tiny reduced-system pivot
+and its threshold, as equilibrium autoX does. A short solution in a session
 is refused before load, naming its label, file and line.
 
 

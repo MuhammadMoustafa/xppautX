@@ -21,27 +21,27 @@ const MANUAL: ManualChapter[] = [
     headings: [{id: 'environment-variables', text: 'Environment variables', level: 2}],
   },
   {
-    id: '09-auto', title: 'Autox interface',
+    id: '09-autox', title: 'autoX interface',
     html: '<p>autoX was written by Doedel.</p>\n'
-      + '<h2 id="the-auto-view">The autoX view</h2>\n<p>Its status strip and Output.</p>\n'
+      + '<h2 id="the-autox-view">The autoX view</h2>\n<p>Its status strip and Output.</p>\n'
       + '<h2 id="diagram-axes">Diagram axes</h2>\n<p>Choose what each axis plots.</p>',
-    headings: [{id: 'the-auto-view', text: 'The autoX view', level: 2}, {id: 'diagram-axes', text: 'Diagram axes', level: 2}],
+    headings: [{id: 'the-autox-view', text: 'The autoX view', level: 2}, {id: 'diagram-axes', text: 'Diagram axes', level: 2}],
   },
 ];
 
 test('reduceHelp: open with a target shows it, closes, "open" with none keeps the place', () => {
-  const opened = reduceHelp(initialHelp, {type: 'open', target: {chapter: '09-auto', anchor: 'diagram-axes'}});
-  assert.deepEqual(opened, {open: true, chapter: '09-auto', anchor: 'diagram-axes', query: '', about: false});
+  const opened = reduceHelp(initialHelp, {type: 'open', target: {chapter: '09-autox', anchor: 'diagram-axes'}});
+  assert.deepEqual(opened, {open: true, chapter: '09-autox', anchor: 'diagram-axes', query: '', about: false});
   const closed = reduceHelp(opened, {type: 'close'});
   assert.equal(closed.open, false);
-  assert.equal(closed.chapter, '09-auto', 'closing does not forget where it was');
+  assert.equal(closed.chapter, '09-autox', 'closing does not forget where it was');
   const reopened = reduceHelp(closed, {type: 'open'});
   assert.deepEqual(reopened, {...closed, open: true});
 });
 
 test('reduceHelp: a target with no anchor goes to the chapter\'s top', () => {
-  const at = reduceHelp(initialHelp, {type: 'open', target: {chapter: '09-auto', anchor: 'diagram-axes'}});
-  const top = reduceHelp(at, {type: 'go', target: {chapter: '09-auto'}});
+  const at = reduceHelp(initialHelp, {type: 'open', target: {chapter: '09-autox', anchor: 'diagram-axes'}});
+  const top = reduceHelp(at, {type: 'go', target: {chapter: '09-autox'}});
   assert.equal(top.anchor, null);
 });
 
@@ -58,9 +58,9 @@ test('reduceHelp: the query is kept, and starts at the home chapter', () => {
 
 test('searchManual finds a known term by heading and by body text', () => {
   const byHeading = searchManual(MANUAL, 'diagram axes');
-  assert.ok(byHeading.some(h => h.chapter === '09-auto' && h.anchor === 'diagram-axes'));
+  assert.ok(byHeading.some(h => h.chapter === '09-autox' && h.anchor === 'diagram-axes'));
   const byText = searchManual(MANUAL, 'Doedel');
-  assert.ok(byText.some(h => h.chapter === '09-auto'));
+  assert.ok(byText.some(h => h.chapter === '09-autox'));
 });
 
 test('searchManual: a hit above the first heading has an empty anchor (the chapter\'s top)', () => {
@@ -78,11 +78,11 @@ test('manualLinkTarget reads a manual cross-reference, with or without an anchor
   assert.deepEqual(manualLinkTarget('06-numerical-parameters.md#poincare-map', '05-commands'),
     {chapter: '06-numerical-parameters', anchor: 'poincare-map'});
   assert.deepEqual(manualLinkTarget('05-commands.md', '01-introduction'), {chapter: '05-commands', anchor: undefined});
-  assert.deepEqual(manualLinkTarget('#the-auto-view', '09-auto'), {chapter: '09-auto', anchor: 'the-auto-view'});
+  assert.deepEqual(manualLinkTarget('#the-autox-view', '09-autox'), {chapter: '09-autox', anchor: 'the-autox-view'});
 });
 
 test('manualLinkTarget leaves an ordinary link (mailto:, an outside doc) alone', () => {
-  assert.equal(manualLinkTarget('mailto:doedel@cs.concordia.edu', '09-auto'), null);
+  assert.equal(manualLinkTarget('mailto:doedel@cs.concordia.edu', '09-autox'), null);
   assert.equal(manualLinkTarget('docs/protocol.md', '01-introduction'), null);
   assert.equal(manualLinkTarget('https://example.com', '01-introduction'), null);
 });
@@ -109,7 +109,7 @@ test('About: the reducer shows it in place of a chapter, a chapter target leaves
   let s = reduceHelp(initialHelp, {type: 'about'});
   assert.equal(s.open, true);
   assert.equal(s.about, true);
-  s = reduceHelp(s, {type: 'go', target: {chapter: '09-auto'}});
+  s = reduceHelp(s, {type: 'go', target: {chapter: '09-autox'}});
   assert.equal(s.about, false);
-  assert.equal(s.chapter, '09-auto');
+  assert.equal(s.chapter, '09-autox');
 });
