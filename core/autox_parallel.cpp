@@ -54,15 +54,16 @@ struct AutoxParallel::State {
     ~State() { stop(); }
 };
 
-unsigned AutoxParallel::automatic_threads() {
+unsigned AutoxParallel::physical_threads() {
     // Topology is process-wide and settings events ask for this repeatedly.
     static const unsigned count = [] {
         const auto physical = cpu::physical_cores();
         // Logical processors are used only when there is no usable physical topology.
-        return std::min(physical ? *physical : cpu::logical_processors(), max_threads);
+        return physical ? *physical : cpu::logical_processors();
     }();
     return count;
 }
+unsigned AutoxParallel::automatic_threads() { return std::min(physical_threads(), max_threads); }
 AutoxParallel::AutoxParallel(unsigned threads) : threads_(std::max(threads, 1u)) {}
 AutoxParallel::~AutoxParallel() = default;
 
@@ -81,7 +82,8 @@ void AutoxParallel::select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdi
     // avoids overflow at accepted input sizes; this only selects workers.
     const double work = static_cast<double>(ndim) * static_cast<double>(ndim)
         * static_cast<double>(ntst) * static_cast<double>(ncol);
-    const unsigned threads = work < min_collocation_work ? 1 : threads_for(s.autox_state.threads);
+    const unsigned threads = work < min_collocation_work ? 1
+        : source.collocation_threads ? source.collocation_threads : threads_for(s.autox_state.threads);
     if (!source.collocation || source.collocation->threads() != threads)
         source.collocation = std::make_unique<AutoxParallel>(threads);
 }
@@ -101,16 +103,22 @@ void AutoxParallel::prepare(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_
         run->homcont = source.homcont; // RHS wrappers read these; boundary updates stay serial.
         run->rotations = source.rotations; // RHS wrappers only read the rotation counts (a copy of the vector, not a borrow of the source's).
         run->pure_rhs = true;
-        run->rhs_constants = s.parser.constants;
-        run->rhs_variables = s.parser.variables;
+        run->rhs_constants = source.pure_rhs ? source.rhs_constants : s.parser.constants;
+        run->rhs_variables = source.pure_rhs ? source.rhs_variables : s.parser.variables;
     }
 } catch (const std::exception &e) { autox_fail(xpp::format("collocation workers: {}",e.what())); }
 
-void AutoxParallel::publish_rhs(Session &s) {
+void AutoxParallel::publish_rhs(AutoxRun &source) {
     // The serial loop leaves the final interval's last finite-difference
     // evaluation in the Session (including SUM's index). Later serial boundary
     // evaluation and the user's Session must see exactly that same state.
     const AutoxRun &last = *state_->runs[state_->last];
+    if (source.pure_rhs) {
+        source.rhs_constants = last.rhs_constants;
+        source.rhs_variables = last.rhs_variables;
+        return;
+    }
+    Session &s = *source.session;
     s.parser.constants = last.rhs_constants;
     s.parser.variables = last.rhs_variables;
 }

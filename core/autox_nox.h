@@ -153,6 +153,11 @@ const char *autox_fort_path(const AutoxRun &run, int unit);
 /* do_autox's iold: autoX's fort.3 is opened for a restart (OPEN_3) or not; isave: the run's solutions replace the .s file or
    are added to it */
 inline constexpr int OPEN_3 = 1, NO_OPEN_3 = 0, OVERWRITE = 0, APPEND = 1;
+/* the numerics of one run, which ends early with the Error it failed with */
+std::optional<Error> autox_numerics(AutoxRun &run);
+/* the end of a run (or of one job of several, once it is joined): why its branches ended is the Session's, its fort files
+   the session's .b/.d/.s (isave, as close_autox), and what failed is shown and returned for the command */
+std::optional<Error> autox_end_run(Session &s, AutoxRun &run, std::optional<Error> failed, int isave);
 /* a run set up (set_autox) and made; the error is what went wrong, shown by the command that ran it */
 Result<> do_autox(Session &s, int iold, int isave, AutoxPointCode itp);
 /* goes on from the point labelled `label` with the settings of the run

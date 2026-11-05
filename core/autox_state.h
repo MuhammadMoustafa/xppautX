@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <mutex>
 #include <optional>
 #include <span>
 #include <string>
@@ -266,6 +267,13 @@ struct AutoxRestartDirection {
   std::vector<double> udot;
 };
 
+/* a point a job (autox_jobs.h) computed, held until the jobs are joined:
+   the diagram entry, and whether it starts a new drawn segment (addbif's flag) */
+struct AutoxBufferedPoint {
+  xpp::DIAGRAM point;
+  bool new_segment=false;
+};
+
 /* One autoX run: do_autox makes it, the translated routines reach it through
    their iap_type's run, and it is gone when the run ends. A collocation
    worker (autox_parallel.cpp) is a run too, with only its scratch. */
@@ -306,10 +314,28 @@ struct AutoxRun {
   /* W247: the pool persists across collocation calls. Worker AutoxRuns own
      their evaluation arrays and finite-difference scratch, never a Session's. */
   std::unique_ptr<xpp::AutoxParallel> collocation;
+  /* the run evaluates the model on its own rhs_constants and rhs_variables
+     (a collocation worker, or a job run at once with others) and never writes
+     the Session's parser; autox_constants says which constants a run reads */
   bool pure_rhs=false;
   xpp::AutoxCodim codim;
-  std::vector<double> rhs_constants; /* the parser's constants and variables, copied for a worker */
+  std::vector<double> rhs_constants; /* the parser's constants and variables, copied for a worker or a job */
   std::vector<double> rhs_variables;
+  /* A job of follow_all_branches (autox_jobs.cpp): addbif keeps its points here
+     instead of in the Session's diagram, and the join appends them in the
+     jobs' order. Off for an ordinary run. */
+  bool job=false;
+  std::vector<AutoxBufferedPoint> points;
+  /* the job runs on a thread of its own: it never polls the front end or
+     reports progress (the main thread does), and takes the lock below to
+     use the Session itself */
+  bool on_thread=false;
+  /* this job's collocation threads (the thread budget's share when it
+     started); 0: the Session's setting */
+  unsigned collocation_threads=0;
+  /* held by a job run on a thread while it evaluates on the Session itself
+     (a start that needs Newton's refinement) */
+  std::mutex *session_lock=nullptr;
   AutoxGlobalScratch scratch{};
   AutoxAssemblyScratch assembly;
   xpp::JacobianScratch jacobian_scratch;

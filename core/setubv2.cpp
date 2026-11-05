@@ -78,7 +78,7 @@ void setubv_make_fa_aa_bb(const setubv_parallel_arglist *larg)
   /*      Partition the mesh intervals */
   /*jj will be replaced with loop_start and loop_end*/
   for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
-    if (!larg->iap->run->pure_rhs && larg->iap->run->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
+    if (!larg->iap->run->owner && larg->iap->run->setubv_stop && xpp::job::cancelled()) break; /* xppautX: cancel */
     j = jj;
     jp1 = j + 1;
     dt = larg->dtm[j];
@@ -162,7 +162,7 @@ void dispatch_mesh(const setubv_parallel_arglist *larg,
       mine.loop_end=larg->loop_start+end;
       work(&mine);
     });
-    run.collocation->publish_rhs(*run.session);
+    run.collocation->publish_rhs(run);
   } else work(larg);
 
 }

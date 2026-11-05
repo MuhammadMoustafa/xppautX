@@ -14,6 +14,8 @@ public:
     // W325 UCRT: work=512 loses, 1280 pays (ndim^2*NTST*NCOL).
     static constexpr std::ptrdiff_t min_collocation_work = 1024;
     static unsigned automatic_threads();
+    // The physical cores (logical ones when the topology is unknown): the total a run of jobs shares.
+    static unsigned physical_threads();
     // Choose once after autoX has established the run's dimension and mesh.
     static void select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t ntst, std::ptrdiff_t ncol);
     // The count a preference gives: 0 is automatic, else the number itself.
@@ -25,7 +27,7 @@ public:
     AutoxParallel &operator=(const AutoxParallel &) = delete;
     unsigned threads() const { return threads_; }
     void prepare(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdiff_t nbc);
-    void publish_rhs(Session &s);
+    void publish_rhs(AutoxRun &source);
     void intervals(std::ptrdiff_t n, const std::function<void(std::ptrdiff_t, std::ptrdiff_t, AutoxRun &)> &work);
 private:
     struct State;

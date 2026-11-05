@@ -91,17 +91,16 @@ std::vector<double> diagram_parameters(const xpp::DIAGRAM &point)
   return values;
 }
 
-void diagram_record_branch(xpp::Session &s, xpp::DIAGRAM &point)
+void diagram_record_branch(const xpp::Model &m, std::span<const double> constants, const xpp::DIAGRAM *last, xpp::DIAGRAM &point)
 {
-  const xpp::DIAGRAM *last=last_diagram(s.diagram);
   if(std::abs(point.ntot)!=1 && last && last->branch && last->ibr==point.ibr){
     point.branch=last->branch;
     return;
   }
   auto branch=std::make_shared<xpp::DiagramBranch>();
-  for(int i=0;i<s.model().nupar;i++)branch->parameters.push_back(s.parser.constants[s.model().upar_con[i]]);
+  for(int i=0;i<m.nupar;i++)branch->parameters.push_back(constants[m.upar_con[i]]);
   for(std::size_t i=0;i<point.parameter_indices.size();i++)
-    if(point.parameter_indices[i]<s.model().nupar)branch->parameters[point.parameter_indices[i]]=point.par[i];
+    if(point.parameter_indices[i]<m.nupar)branch->parameters[point.parameter_indices[i]]=point.par[i];
   point.branch=std::move(branch);
 }
 

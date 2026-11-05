@@ -23,6 +23,7 @@
 #include "expr.h"
 #include "my_rhs.h"
 #include "integrate.h"
+#include "xpp_ui.h"
 
 /*    Hooks to xpp RHS     */
 
@@ -132,12 +133,27 @@ bool autox_model_parameter(const xpp::Session &s, integer slot)
   return s.autox_state.parameter_layout.model_index(static_cast<int>(slot))>=0;
 }
 
-double autox_parameter_value(const xpp::Session &s, integer slot,
+std::span<const double> autox_constants(const AutoxRun &run)
+{
+  return run.pure_rhs?std::span<const double>(run.rhs_constants):std::span<const double>(run.session->parser.constants);
+}
+
+void autox_checkpoint(const AutoxRun &run, int *iflag)
+{
+  if(!run.on_thread){
+    xpp::byeautox_(iflag);
+    return;
+  }
+  *iflag=xpp::job::cancelled()?1:0;
+}
+
+double autox_parameter_value(const AutoxRun &run, integer slot,
                            std::span<const integer> free, std::span<const double> parameters)
 {
+  const xpp::Session &s=*run.session;
   const int k=s.autox_state.parameter_layout.model_index(static_cast<int>(slot));
   if(k>=0 && std::find(free.begin(),free.end(),slot)==free.end())
-    return s.parser.constants[s.model().upar_con[k]];
+    return autox_constants(run)[s.model().upar_con[k]];
   return parameters[slot];
 }
 
@@ -209,7 +225,8 @@ int stpnt(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doublereal *
   const auto &layout=s.autox_state.parameter_layout;
   const auto unknowns=layout.unknowns(par);
   const auto parameters=layout.parameters(par);
-  for(int k=0;k<s.model().nupar;k++)parameters[k]=s.parser.constants[s.model().upar_con[k]];
+  const auto constants=autox_constants(run);
+  for(int k=0;k<s.model().nupar;k++)parameters[k]=constants[s.model().upar_con[k]];
 
   if(!s.autox_state.new_period_flag){  
     for(i=0;i<ndim;i++)

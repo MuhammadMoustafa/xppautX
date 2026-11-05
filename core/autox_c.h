@@ -469,8 +469,15 @@ struct Session; /* session.h */
    model parameter from the Session, or an autoX unknown from its own slots. */
 // autoX's wave Jacobian classifies its free columns at the model boundary.
 bool autox_model_parameter(const xpp::Session &s, integer slot);
-double autox_parameter_value(const xpp::Session &s, integer slot,
+double autox_parameter_value(const AutoxRun &run, integer slot,
                            std::span<const integer> free, std::span<const double> parameters);
+/* the constants the run evaluates on: its own copies when it has them (a
+   collocation worker, a job run at once with others), else the Session's parser */
+std::span<const double> autox_constants(const AutoxRun &run);
+/* autoX's checkpoint (xpp::byeautox_), for a run on the main thread; a job's
+   thread only reads whether the job was cancelled: the front end is polled by
+   the main thread that waits for it */
+void autox_checkpoint(const AutoxRun &run, int *iflag);
 /* the problem defined functions that run the model (autox_pp.cpp): its
    right-hand side and Jacobian, the starting point and the boundary
    conditions, on the run's Session (run.session; a collocation worker's run

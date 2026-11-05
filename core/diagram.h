@@ -6,6 +6,7 @@
 #include "autox_codes.h" /* DiagramPointType */
 
 #include <deque>
+#include <span>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -19,7 +20,7 @@ struct AutoxDiagram {
   std::deque<xpp::DIAGRAM> points;
 };
 
-namespace xpp { struct Session; /* session.h */ }
+namespace xpp { struct Session; /* session.h */ struct Model; /* model.h */ }
 
 /* The session s's diagram: a list of points in the order they were
    stored. start_diagram empties it to one point of n variables, which the
@@ -71,4 +72,4 @@ double diagram_parameter(const xpp::DIAGRAM &point, int parameter);
 double diagram_axis_value(const xpp::DIAGRAM &point, xpp::AutoxAxis axis);
 std::vector<double> diagram_parameters(const xpp::DIAGRAM &point);
 /* Attach the current computed branch, capturing all model parameters once. */
-void diagram_record_branch(xpp::Session &s, xpp::DIAGRAM &point);
+void diagram_record_branch(const xpp::Model &m, std::span<const double> constants, const xpp::DIAGRAM *last, xpp::DIAGRAM &point);

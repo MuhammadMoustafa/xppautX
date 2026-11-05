@@ -2523,7 +2523,7 @@ doublereal user_zero(const iap_type &iap, const doublereal *par,
                      std::span<const AutoxMark> marks, int width) {
   const integer iuzr = iap.iuzr;
   const doublereal value = autox_parameter_value(
-      *iap.run->session, f2c::abs(marks[iuzr].parameter),
+      *iap.run, f2c::abs(marks[iuzr].parameter),
       {icp, static_cast<std::size_t>(iap.nfpr)},
       {par, static_cast<std::size_t>(iap.run->parameter_count)}) - marks[iuzr].value;
   *chng = true;
@@ -3157,7 +3157,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
     amp = sqrt(ss);
   }
-  xpp::byeautox_(&iflag);
+  autox_checkpoint(*iap->run,&iflag);
   istop = iap->istop;
   /* xppautX: cancel: a point the solve reached is stored as it is; the next
      solve sees the cancel and ends the branch with an EP repeating it, so a
@@ -5147,7 +5147,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
-    { int iflag; xpp::byeautox_(&iflag); } /* xppautX: cancel */
+    { int iflag; autox_checkpoint(*iap->run,&iflag); } /* xppautX: cancel */
     if (!iap->run->locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     nitps = nit1;
     iap->nit = nitps;
@@ -6322,7 +6322,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   /* here is another place for byeautox
    call with iflag  */
-  xpp::byeautox_(&iflag);
+  autox_checkpoint(*iap->run,&iflag);
   istop = iap->istop;
   if (istop == 0 && xpp::job::cancelled()) iflag = 0; /* xppautX: cancel: as in stplae */
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */

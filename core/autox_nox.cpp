@@ -351,6 +351,52 @@ static void stability_run_start(xpp::Session &s, AutoxRun &run)
   autox_stability_run_start(run.stability,run_stability_kind(s),s.autox_state.bifur.isw,point_stability_kind(d),d->itp,d->evr,d->evi);
 }
 
+std::optional<xpp::Error> autox_numerics(AutoxRun &run)
+{
+  try {
+    go_go_autox(run); /* this complets the initialization and calls the
+                         main routines
+                      */
+  } catch (const xpp::AutoxFailed &e) {
+    /* W63a: what the numerics used to exit() on ends the run
+       instead, as a cancel does (autox_state.h) */
+    return e.error;
+  } catch (const std::length_error &e) {
+    return xpp::Error{"autoX",e.what(),xpp::command_place()};
+  } catch (const std::bad_alloc &) {
+    return xpp::Error{"autoX","Cannot allocate autoX workspace",xpp::command_place()};
+  }
+  return std::nullopt;
+}
+
+std::optional<xpp::Error> autox_end_run(xpp::Session &s, AutoxRun &run, std::optional<xpp::Error> failed, int isave)
+{
+  std::optional<xpp::Error> reported; /* what the run says went wrong, for the command to return */
+  xpp::autox_stop_merge(s.autox_state.stop,std::move(run.stop)); /* what the Session shows of why branches ended */
+  close_autox(s, run, isave); /* this copies fort.8 to the .s file and other 
+                        irrelevant stuff 
+		     */
+  if(failed.has_value()){
+    failed->what="autoX stopped: "+failed->what;
+    xpp::log_autox("{}\n",failed->text()); /* the autoX window's Output */
+    if(failed->place.file.empty() && failed->place.line==0)failed->place=command_place();
+    reported=std::move(failed);
+  }
+  if(run.jacobian_failure){
+    xpp::Error e=std::move(*run.jacobian_failure);
+    e.what="autoX stopped: "+e.what;
+    /* the run stored the last converged point as an end point (the
+       cancel it made itself: autox_pp.cpp): the continuation goes on from
+       its label, with the settings of this run */
+    const DIAGRAM *last=s.autox_state.stop.last_why==xpp::AUTOX_STOP_JACOBIAN?last_diagram(s.diagram):NULL;
+    if(last!=NULL&&last->lab>0)
+      e.action=xpp::switch_to_differences(xpp::format(R"({{"cmd":"autox.run","kind":"{}","label":{}}})",xpp::autox_run_kind_name(s.autox_state.run_kind),last->lab));
+    xpp::log_autox("{}\n",e.what);
+    if(!reported)reported=std::move(e);
+  }
+  return reported;
+}
+
 /* MAIN Running routine  Assumes that Auto structure is set up */
 namespace {
 /* one do_autox call's depth, however it ends */
@@ -396,46 +442,12 @@ xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode
           xpp::Computation computing; /* what Abort stops (xpp_job.h) */
           std::vector<double> before(s.model().nupar);
           for (int i = 0; i < s.model().nupar; i++) before[i] = s.parser.constants[s.model().upar_con[i]];
-          try {
-              go_go_autox(run); /* this complets the initialization and calls the
-                                main routines
-                             */
-          } catch (const xpp::AutoxFailed &e) {
-              /* W63a: what the numerics used to exit() on ends the run
-                 instead, as a cancel does (autox_state.h) */
-              failed = e.error;
-          } catch (const std::length_error &e) {
-              failed = xpp::Error{"autoX",e.what(),xpp::command_place()};
-          } catch (const std::bad_alloc &) {
-              failed = xpp::Error{"autoX","Cannot allocate autoX workspace",xpp::command_place()};
-          }
+          failed=autox_numerics(run);
           autox_restore_finite_pars(s, before.data()); /* leave no NaN parameter behind (QA SCI-001) */
       }
       if(xpp::job::cancelled()||failed.has_value())run.restart_label=0; /* xppautX: cancel: no follow-up run */
     }
-    xpp::autox_stop_merge(s.autox_state.stop,std::move(run.stop)); /* what the Session shows of why branches ended */
-    /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoautox stuff */ 
-    close_autox(s, run, isave); /* this copies fort.8 to the .s file and other 
-                          irrelevant stuff 
-		       */
-    if(failed.has_value()){
-      failed->what="autoX stopped: "+failed->what;
-      xpp::log_autox("{}\n",failed->text()); /* the autoX window's Output */
-      if(failed->place.file.empty() && failed->place.line==0)failed->place=command_place();
-      reported=std::move(failed);
-    }
-    if(run.jacobian_failure){
-      xpp::Error e=std::move(*run.jacobian_failure);
-      e.what="autoX stopped: "+e.what;
-      /* the run stored the last converged point as an end point (the
-         cancel it made itself: autox_pp.cpp): the continuation goes on from
-         its label, with the settings of this run */
-      const DIAGRAM *last=s.autox_state.stop.last_why==xpp::AUTOX_STOP_JACOBIAN?last_diagram(s.diagram):NULL;
-      if(last!=NULL&&last->lab>0)
-        e.action=xpp::switch_to_differences(xpp::format(R"({{"cmd":"autox.run","kind":"{}","label":{}}})",xpp::autox_run_kind_name(s.autox_state.run_kind),last->lab));
-      xpp::log_autox("{}\n",e.what);
-      if(!reported)reported=std::move(e);
-    }
+    reported=autox_end_run(s,run,std::move(failed),isave);
     restart_label=run.restart_label;
     }
     

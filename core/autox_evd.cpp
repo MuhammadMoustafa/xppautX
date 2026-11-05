@@ -8,6 +8,8 @@
 #include <stdio.h>
 
 #include "diagram.h"
+#include "autox_c.h"
+#include <mutex>
 #include "xpp_session_autox.h"
 
 #include "autox_stability.h"
@@ -76,6 +78,9 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
   std::vector<double> start(u,u+n);
   std::vector<double> work(static_cast<std::size_t>(n*n+2*n));
   xpp::NewtonRun newton;
+  /* Newton's method evaluates on the Session itself: one job at a time */
+  std::unique_lock<std::mutex> session_lock;
+  if(iap.run->session_lock)session_lock=std::unique_lock<std::mutex>(*iap.run->session_lock);
   if(auto r=xpp::rooter(s,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n);!r)
     autox_fail(r.error());
   if(newton.end!=xpp::NewtonEnd::converged){
@@ -180,7 +185,8 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
       !xpp::all_finite(p.evr) || !xpp::all_finite(p.evi))
     autox_nonfinite(*iap, std::abs(ntots));
 
-  if(const std::size_t limit=diagram_points_limit();s.diagram.points.size()>=limit)
+  AutoxRun &run=*iap->run;
+  if(const std::size_t limit=diagram_points_limit();s.diagram.points.size()+run.points.size()>=limit)
     autox_fail(xpp::format("the diagram holds {} points, the most a session keeps; the points so far are kept (clear the diagram or start a new one)", limit));
   int from=autox_run_from_take(*iap->run);/* the run's first point says which label it started from */
   p.ibr=static_cast<int>(ibrs);
@@ -209,7 +215,15 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   if (iap->itpst == AutoxPointKind::Hopf && iap->ndim == 2 * iap->ndm + 2)
     p.flag2=autox_hopf_curve_kind(u0[2 * iap->ndm]);
   p.jacobian=s.numerics.jacobian;
-  diagram_record_branch(s,p);
+  if(run.job){
+    /* a job keeps its points apart, undrawn, until the jobs are joined (autox_jobs.cpp) */
+    p.from=from;
+    diagram_record_branch(s.model(),autox_constants(run),run.points.empty()?nullptr:&run.points.back().point,p);
+    run.points.push_back({std::move(p),iap->ntot==1});
+    if(!run.on_thread)xpp::job::report_point(static_cast<int>(std::abs(ibrs)),static_cast<int>(std::abs(ntots)));
+    return;
+  }
+  diagram_record_branch(s.model(),s.parser.constants,last_diagram(s.diagram),p);
   if(!s.autox_state.diag_flag){
     edit_start(s,p);
     s.autox_state.diag_flag=true;
