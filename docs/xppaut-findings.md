@@ -290,7 +290,7 @@ period from the last integration. With no row stored, the period is read from
 
 - **XPPAUT 8.0:** auto_nox.c get_start_period ([auto_nox.c:1721-1725](../reference/xppaut-8.0/auto_nox.c#L1721-L1725) ([master 1709-1713](../reference/xppaut-master/auto_nox.c#L1709-L1713)), `*p=storage[0][storind-1]`), called from autpp.c ([autpp.c:78](../reference/xppaut-8.0/autpp.c#L78) ([master 76](../reference/xppaut-master/autpp.c#L76))).
 - **Evidence:** asancheck reported the heap-buffer-overflow in xppautX's port of the same line; without the sanitizer the program read garbage as the period (a fresh model, Start > Periodic before any integration).
-- **xppautX:** refuses with "Integrate first" when fewer than 2 rows are stored.
+- **xppautX:** refuses with "Integrate first" when fewer than 2 rows are stored, naming the stored-row count (W603), and refuses a stored orbit that does not return to its first row (W603).
 - **Card:** [W97](https://github.com/MuhammadMoustafa/xppautX/issues/146) ([aacb087](https://github.com/MuhammadMoustafa/xppautX/commit/aacb087)).
 
 ## 12. AUTO: homoclinic test functions 11 and 12 read freed memory

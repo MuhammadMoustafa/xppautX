@@ -120,9 +120,13 @@ def read_description(path):
         if not isinstance(st, dict):
             raise ValueError('start must be an object')
         if st.get('state') == 'current':
-            members(st, ('state', 'settle', 'step'), ('state',))
+            members(st, ('state', 'settle', 'orbit', 'step'), ('state',))
             if 'settle' in st:
                 finite(st['settle'], 'settle', positive=True)
+            if 'orbit' in st:
+                if 'settle' not in st:
+                    raise ValueError('orbit is integrated after a settle')
+                finite(st['orbit'], 'orbit', positive=True)
             if 'step' in st:
                 if 'settle' not in st:
                     raise ValueError('step is the step of a settle')
@@ -251,18 +255,27 @@ def restore_start(s, r, values, ranges):
         set_values(s, values)
 
 
+def integrate(s, total, step=None):
+    """The model's integration from its initial conditions for `total` time (`step`, when given): run.configure, then run.initial."""
+    completed(s, dict(cmd='run.configure', total_time=total, **({'dt': step} if step is not None else {})))
+    s.send(cmd='run.initial')
+    events, end = s.collect(is_done, timeout=TIMEOUT)
+    ensure_completed(events, end)
+    return events
+
+
 def execute_run(s, r, diagram, ranges, diagram_data=True):
     """One description's run as the registry's commands: its settings, then autox.run with its kind and start."""
     start = r['start']
     run = dict(cmd='autox.run', kind=r['kind'])
     if start.get('state') == 'current':
         if 'settle' in start:
-            completed(s, dict(cmd='run.configure', total_time=start['settle'], **({'dt': start['step']} if 'step' in start else {})))
-            s.send(cmd='run.initial')
-            events, end = s.collect(is_done, timeout=TIMEOUT)
-            ensure_completed(events, end)
+            events = integrate(s, start['settle'], start.get('step'))
             state = next(e for e in reversed(events) if e.get('ev') == 'session.state')
             set_values(s, [dict(kind='ic', name=p[0], value=float(v)) for p, v in zip(state['ics'], state['now'])])
+            if 'orbit' in start:
+                # the settled state is on the cycle: one period from it is the stored orbit the start takes (W603)
+                integrate(s, start['orbit'], start.get('step'))
         if r['kind'] == 'equilibrium':
             run['replace_diagram'] = False
     else:

@@ -60,7 +60,7 @@ ap.add_argument('--list', action='store_true', help='print the selected sections
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'subscriptions', 'jacobian',
-                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced', 'codim', 'switch', 'first_steps'])
+                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced', 'codim', 'switch', 'first_steps', 'orbit_start'])
 args = ap.parse_args()
 if args.shard:
     try:
@@ -1128,8 +1128,9 @@ def section_sessiondiagram():
     s = server()
     # nothing integrated yet: Start/Periodic has no orbit to start from
     evs = run_menu(s, 'p')
-    check('sessiondiagram: Start/Periodic with nothing integrated refuses, and the server lives',
-          'Integrate first' in messages(evs) and s.alive(), messages(evs)[:200])
+    check('sessiondiagram: Start/Periodic with nothing integrated says to integrate first, with its 0 stored rows and the 2-row requirement',
+          'Integrate first' in messages(evs) and 'stored 0 row(s)' in messages(evs)
+          and 'at least 2' in messages(evs) and s.alive(), messages(evs)[:200])
     # some data: the same model open keeps it, only the diagram loads
     s.send(cmd='run.initial')
     evs, _ = s.collect(is_done, timeout=30 * SLOW)
@@ -1521,6 +1522,86 @@ def names_diagram(ode):
             for r in e['runs'] for i, lab, sym in r.get('lab', [])]
     s.close()
     return Diagram().apply(evs), syms
+
+
+def periodic_branches(data):
+    """The periodic branches of a description run's diagram (its CSV, CRs removed): a list of the branches' points
+    (iapp, period, amplitude) in the order each run stored them. The amplitude is the orbit's uhi.V less ulo.V."""
+    lines = data.decode('utf-8').replace('\r', '').splitlines()
+    rows = csv.DictReader(lines[next(i for i, line in enumerate(lines) if line.startswith('calc,')):])
+    branches = {}
+    for r in rows:
+        if r['calc'] == 'periodic':
+            branches.setdefault(r['ibr'], []).append((float(r['values']), float(r['per']), float(r['uhi.V']) - float(r['ulo.V'])))
+    return list(branches.values())
+
+
+def section_orbit_start():
+    """W603 (#670): a Periodic start from the stored integration takes its rows as one period, and the orbit runs of
+    tests/autox's ode_lecar_orbit_* compute. A total time of 1.5 periods of the class-I Morris-Lecar cycle (iapp 0.1,
+    period 16.4695) stores an orbit that does not return to its first row, so the start stops and says so, with the
+    gap and the total time; the same start over one period is not refused and computes points. The orbit run of
+    ode_lecar_orbit_hopf and its Hopf-label run follow one cycle family, the upper side from the Hopf point near 0.2624
+    and the lower side below it; over the iapp values both cover (0.3 to 0.397) the period and amplitude agree."""
+    home = tempfile.mkdtemp(prefix='xpporbit')
+    s = Server(args.server, LECAR, env={'HOME': home}, verbose=args.v)
+    try:
+        s.collect(is_done)
+        open_autox(s)
+        s.send(cmd='value.set_parameters', values={'iapp': 0.1})
+        s.collect(is_done)
+        s.send(cmd='run.configure', total_time=25)
+        s.collect(is_done)
+        s.send(cmd='run.initial')
+        s.collect(is_done, timeout=30 * SLOW)
+        evs = run_menu(s, 'p')
+        check('orbit_start: a Periodic start over 1.5 periods says the stored orbit does not return to its first row, with the gap and the total time',
+              'periodic start stopped' in messages(evs).lower() and 'does not return to its first row' in messages(evs)
+              and 'of the orbit' in messages(evs) and s.alive(), messages(evs)[:300])
+        s.send(cmd='value.set_parameters', values={'iapp': 0.1})
+        s.collect(is_done)
+        s.send(cmd='run.configure', total_time=16.4695)
+        s.collect(is_done)
+        s.send(cmd='run.initial')
+        s.collect(is_done, timeout=30 * SLOW)
+        evs = run_menu(s, 'p')
+        points = len(Diagram().apply(evs).pts)
+        check('orbit_start: a Periodic start over one period (16.4695) is not refused and computes points beyond its start',
+              'does not return' not in messages(evs) and 'start stopped' not in messages(evs) and points > 1,
+              '%d points: %s' % (points, messages(evs)[:300]))
+    finally:
+        s.close()
+        shutil.rmtree(home, ignore_errors=True)
+
+    # The two runs of ode_lecar_orbit_hopf: the orbit run starts at the description's iapp 0.3 and goes up; the Hopf-label
+    # run starts at the Hopf point (near 0.2624), goes down past its fold near 0.2484, and comes back up through 0.3.
+    # Its stored order after the fold is the upper side. A point of the orbit run is compared with that side interpolated
+    # at its iapp; the orbit run's start point is left out (its period is the grid's guess, see W603).
+    # Tolerances, each with its reason: the period within 1e-3 relative (the corrector stops at parameter_tolerance 1e-4 on
+    # 15-interval meshes; the largest difference measured is 1.3e-3 absolute on a period of about 15, 8e-5 relative), and the
+    # amplitude within 2e-3 absolute (1e-3 measured, the same corrector).
+    description = read_description(BASE / 'ode_lecar_orbit_hopf.json')
+    branches = periodic_branches(compute(args.server, description, 1)[0])
+    orbit = next(b for b in branches if min(p[0] for p in b) >= 0.3 - 1e-9)
+    hopf = next(b for b in branches if min(p[0] for p in b) < 0.26)
+    fold = min(range(len(hopf)), key=lambda i: hopf[i][0])
+    upper = hopf[fold:]
+    xs = [p[0] for p in upper]
+    compared = 0
+    worst_period = worst_amplitude = 0.0
+    for iapp, period, amplitude in orbit:
+        if not (iapp > 0.3 and xs[0] <= iapp <= xs[-1]):
+            continue
+        i = next(k for k in range(1, len(xs)) if xs[k] >= iapp)
+        t = (iapp - xs[i - 1]) / (xs[i] - xs[i - 1])
+        hopf_period = upper[i - 1][1] + t * (upper[i][1] - upper[i - 1][1])
+        hopf_amplitude = upper[i - 1][2] + t * (upper[i][2] - upper[i - 1][2])
+        worst_period = max(worst_period, abs(period - hopf_period) / period)
+        worst_amplitude = max(worst_amplitude, abs(amplitude - hopf_amplitude))
+        compared += 1
+    check('orbit_start: the orbit run and the Hopf-label run agree on the cycle family where both cover it (period within 1e-3 relative, amplitude within 2e-3)',
+          compared >= 10 and worst_period <= 1e-3 and worst_amplitude <= 2e-3,
+          '%d points compared, worst period %.2e relative, worst amplitude %.2e' % (compared, worst_period, worst_amplitude))
 
 
 def section_names():

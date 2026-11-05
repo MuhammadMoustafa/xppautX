@@ -1,0 +1,12 @@
+{
+  "model": "examples/ode/lecar.odex",
+  "reason": "W603 (#670): Rinzel and Ermentrout, Analysis of Neural Excitability and Oscillations (1989), chapter 7, class-I Morris-Lecar parameters v3 = 0.1, v4 = 0.145, gca = 1 and phi = 1/3. Its cycle is born at a SNIC (near iapp 0.08326: the saddle-node pair at v about -0.245), not a Hopf. The Periodic start integrates 100 time units to settle onto the cycle, then one period (12.2625, the period at iapp 0.12) from the settled state, and takes that orbit. Going down, the branch reaches the SNIC and stops with an unnamed period_unbounded end (W518): the equilibrium search at its slow stretch finds the stable node of the pair, not the saddle, so the SNIC is not named; a follow-up card.",
+  "parameters": { "iapp": 0.12, "v3": 0.1, "v4": 0.145, "gca": 1, "phi": 0.3333333333333333 },
+  "initial_conditions": { "v": -0.144, "w": 0.03 },
+  "runs": [{
+    "name": "orbit_from_snic", "kind": "periodic", "start": { "state": "current", "settle": 100, "orbit": 12.2625 }, "parameter": "iapp",
+    "autox": { "step_size": -0.002, "min_step_size": 1e-05, "max_step_size": 0.01, "max_steps": 300, "output_every": 10, "parameter_min": 0.08, "parameter_max": 0.2, "mesh_intervals": 30, "max_branch_switches": 0 }
+  }],
+  "auto07p_skip": "W603 (#670): AUTO-07p starts from its STPNT, not xppautX's stored integration orbit.",
+  "xppaut_skip": "W603 (#670): XPPAUT's Periodic interface is the implementation under test."
+}

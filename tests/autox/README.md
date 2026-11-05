@@ -26,7 +26,7 @@ maps these names to today's protocol fields, not to recording keys. Optional per
 `marks: [["parameter", value], ...]` locates user points (UZ); the same marks
 are passed to AUTO-07p as UZR and to XPPAUT through AutoPer (W437).
 
-A `start` is `{"state":"current"}`, optionally with `"settle":30`
+A `start` is `{"state":"current"}`, optionally with `"settle":30` and `"orbit":15.6` (W603: after the settle, one more integration of that total time from the settled state; its rows are the stored orbit, and the period guess is its last time)
 (integrate for 30 model-time units, then copy the ending values to the
 initial conditions) and `"step":0.001`, the settle's integration step
 (default: the model's). A run from the current state after another run
@@ -112,6 +112,8 @@ R1 is 3.7e-7 from (-1,1), but AUTO-07p's R1 and the BP after it lie 1.9e-5 along
 branch its step entered there. `autoxcheck codim` independently checks the closed-form curves and torus
 labels before that endpoint, named controls, and session round trips. No tolerance is widened.
 
+W603 (#670) adds the two `ode_lecar_orbit_*` descriptions: the class-I Morris-Lecar cycle born at a SNIC starts from a stored integration, and the class-II parameters start the same family from both a stored orbit and an HB label. The class-I and class-II parameters are those of Rinzel and Ermentrout (1989), chapter 7.
+
 W415 (#477) adds three descriptions from the maintainer's published research models (`examples/ode/mu26.odex`, the
 two-compartment PVN neuron of Mu26 in its control and h-blocked conditions, and `ma23.odex`, the PV interneuron of Ma
 et al. 2023; each also kept as the `.ode` it was converted from): the applied current from rest to the Hopf point, the
@@ -142,7 +144,7 @@ models the descriptions run, 7 are published, 39 are named demos (XPPAUT 8.0's `
 | `examples/ode/cuplamdif.odex` | demo: XPPAUT 8.0's ode/cuplamdif.ode | `ode_cuplamdif` | none |
 | `examples/ode/del_log.odex` | demo: XPPAUT 8.0's ode/del_log.ode | `ode_del_log` | none |
 | `examples/ode/gausvolt.odex` | demo: XPPAUT 8.0's ode/gausvolt.ode | `ode_gausvolt` | none |
-| `examples/ode/lecar.odex` | demo: XPPAUT 8.0's ode/lecar.ode | `ode_lecar` | cycle_fold, hopf |
+| `examples/ode/lecar.odex` | demo: XPPAUT 8.0's ode/lecar.ode; Rinzel and Ermentrout 1989, chapter 7, parameters for the W603 orbit starts | `ode_lecar`, `ode_lecar_orbit_snic`, `ode_lecar_orbit_hopf` | cycle_fold, hopf |
 | `examples/ode/ma23.odex` | published: Ma et al. 2023, Table 1 | `ode_ma23` | fold, hopf |
 | `examples/ode/motoneuron6c.odex` | published: Moustafa et al. 2023, ModelDB 267710 | `ode_motoneuron6c` | fold, hopf |
 | `examples/ode/mu26.odex` | published (as code; counted as published, maintainer 2026-10-29): the maintainer's two-compartment PVN neuron (github.com/MuhammadMoustafa/pvn-hcn-marmoset-model) | `ode_mu26_blocked`, `ode_mu26_control` | cusp, cycle_fold, fold, hopf, snic |
