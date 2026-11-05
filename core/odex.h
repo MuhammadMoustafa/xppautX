@@ -211,6 +211,7 @@ struct Statement {
                  hi= (table_kind says which) */
     Markov,   /* markov name count {cells}: count*count transitions */
     Wiener,   /* wiener names */
+    Ou,       /* ou name tau=expr, sigma=expr [, init=expr]: an Ornstein-Uhlenbeck process; name, expr is tau, cells are sigma and, when given, init */
     Event,    /* event sign expr, bindings */
     Boundary, /* boundary expr */
     Network,  /* network name = text(call_args); read, text is the whole

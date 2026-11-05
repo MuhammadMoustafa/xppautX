@@ -7430,8 +7430,8 @@ def check_session_random():
         for name, change, expect in (('norandom', lambda m: m.pop('random.txt'), 'its random.txt is missing'),
                                      ('noseed', lambda m: m.__setitem__('random.txt', m['random.txt'].split(b'\n', 1)[1]),
                                       ('noseed.snapx/random.txt:1:', 'not "seed <number>"')),
-                                     ('badrandom', lambda m: m.__setitem__('random.txt', b'seed 5\nwiener 0\nnot a state'),
-                                      ('badrandom.snapx/random.txt:3:', 'not a random generator'))):
+                                     ('badrandom', lambda m: m.__setitem__('random.txt', b'seed 5\nwiener 0\nou\nnot a state'),
+                                      ('badrandom.snapx/random.txt:4:', 'not a random generator'))):
             damaged = dict(members)
             change(damaged)
             with zipfile.ZipFile(os.path.join(r, name + '.snapx'), 'w') as out:

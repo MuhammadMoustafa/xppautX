@@ -37,12 +37,62 @@ void add_wiener(xpp::Session &s, int index)
   s.model().nwiener++;
 }
 
+void add_ou(xpp::Session &s, xpp::Model::OuProcess process)
+{
+  s.model().ou.push_back(std::move(process));
+}
+
+namespace {
+
+/* an Ornstein-Uhlenbeck process's tau and sigma now (a parameter's current
+   value); false, with the run's step error set, when they are not a
+   positive tau and a sigma of at least 0 (a parameter edited to one) */
+bool ou_scales(xpp::Session &s, const xpp::Model::OuProcess &o, double t, double &tau, double &sigma)
+{
+  const auto read=[&s](const xpp::Model::OuValue &v){return v.constant>=0?s.parser.constants[v.constant]:v.number;};
+  tau=read(o.tau);
+  sigma=read(o.sigma);
+  if(tau>0&&std::isfinite(tau)&&sigma>=0&&std::isfinite(sigma))return true;
+  if(!s.integrator.step_error){
+    const bool bad_tau=!(tau>0&&std::isfinite(tau));
+    s.integrator.step_error=xpp::Error{"integration",
+      xpp::format("{} at t = {}: {} = {}, {}",o.name,xpp::number(t),bad_tau?"tau":"sigma",xpp::number(bad_tau?tau:sigma),
+                  bad_tau?"but the correlation time must be positive":"but the standard deviation must be at least 0"),
+      xpp::model_place(s.model(),o.name)};
+  }
+  return false;
+}
+
+}
+
+/* a run's start: each process at its init, else a draw from its stationary
+   distribution, N(0, sigma^2 tau/2) */
+void start_ou(xpp::Session &s)
+{
+  for(const xpp::Model::OuProcess &o : s.model().ou){
+    double tau=0,sigma=0;
+    double value=0;
+    if(ou_scales(s,o,0,tau,sigma))
+      value=o.init?*o.init:s.random.normal(0.0,sigma*sqrt(tau/2));
+    s.parser.constants[o.slot]=value;
+  }
+}
+
 void set_wieners(xpp::Session &s, double dt, double *x, double t)
 {
   int i;
   update_markov(s,x,t,fabs(dt));
   for(i=0;i<s.model().nwiener;i++)
     s.parser.constants[s.model().wiener[i]]=s.random.normal(0.00,1.00)/sqrt(fabs(dt));
+  /* the exact update over |dt| (the stationary process is the same run
+     backwards): eta e^(-dt/tau) + sigma sqrt(tau/2 (1 - e^(-2dt/tau))) N(0,1) */
+  for(const xpp::Model::OuProcess &o : s.model().ou){
+    double tau=0,sigma=0;
+    if(!ou_scales(s,o,t,tau,sigma))continue;
+    const double decay=xpp::math::exp(-fabs(dt)/tau);
+    double &eta=s.parser.constants[o.slot];
+    eta=eta*decay+s.random.normal(0.0,sigma*sqrt(tau/2*(1-decay*decay)));
+  }
 }
 
 void add_markov(xpp::Session &s, int nstate, const char *name)

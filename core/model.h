@@ -284,6 +284,18 @@ struct Model {
   std::vector<MarkovChain> markov;
   /* the Wiener parameters' places in the parser's constants (nwiener) */
   std::vector<int> wiener;
+  /* an Ornstein-Uhlenbeck process (the .odex ou declaration): the value is the parser's constant at slot, advanced once a step with the Wiener parameters (set_wieners). tau and sigma are a number or, from a parameter, the constant they read each step; init (when given) is the value a run starts at, else it starts in the stationary distribution */
+  struct OuValue {
+    double number = 0;
+    int constant = -1; /* a parameter's constant slot, else -1 */
+  };
+  struct OuProcess {
+    std::string name;
+    int slot = 0;
+    OuValue tau, sigma;
+    std::optional<double> init;
+  };
+  std::vector<OuProcess> ou;
 
   /* the variables' names by index: the ODEs (NODE), the Markov variables
      (NMarkov), then the aux quantities, NEQ in all; browse_data's added
@@ -341,7 +353,7 @@ struct Model {
      built-ins, argument slots and temporary expression symbols. Indices
      are -1 until assigned by the builder, or when that namespace excludes
      the name (a fixed quantity can also have an aux output column). */
-  enum class NameKind { Variable, Markov, Fixed, Aux, Param, Const, Wiener,
+  enum class NameKind { Variable, Markov, Fixed, Aux, Param, Const, Wiener, Ou,
                         Function, Table, Network, Vector, Algebraic, Derived, Set, Kernel };
   struct NameOrigin {
     std::string written;

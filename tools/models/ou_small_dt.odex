@@ -1,0 +1,12 @@
+version 4
+
+# W380: an Ornstein-Uhlenbeck process stepped at dt = 0.05 << tau = 1 (its tau
+# and sigma are parameters), for tests/test_ou_noise.cpp. x never moves, so
+# every stored row is a sample of the stationary process with a fixed seed.
+par tc = 1, s = 2
+ou eta tau = tc, sigma = s
+x' = 0
+aux sample = eta
+options {
+  integration: { total_time: 5000, dt: 0.05, method: euler, seed: 77, storage_rows: 100100 },
+}

@@ -525,6 +525,13 @@ and is the same as:
     par a1=.25,b1=.3
     par a2=.25,b2=.3
 
+An `.odex` model can also declare an Ornstein-Uhlenbeck process, a noise with a memory (XPPAUT has none):
+
+    ou eta tau=5 sigma=0.3
+    ou g tau=tc, sigma=s, init=0
+
+`tau` is its correlation time, positive, and `sigma` the standard deviation of its stationary state, at least 0; each is a number or the name of a parameter, which is read at every step, so a change of the parameter takes effect at once. The process `eta` is a name like a Wiener parameter's: use it in a formula, and `aux v = eta` to plot it. Like the Wiener parameters it is advanced once for each step of the integration, `eta` becomes `eta e^(-dt/tau) + sigma sqrt(tau/2 (1 - e^(-2 dt/tau))) N(0,1)` (the exact update, so the step may be as large as you like), and every stage of the step reads the same value. A run starts it from the stationary distribution, a normal one of mean 0 and variance `sigma^2 tau/2`, unless `init=` gives its value. Like Wiener noise it needs a method that draws noise each step (Euler, Heun, RK4, backward Euler and the like; the numerics menu shows the others disabled with the reason), and with a negative `dt` it is advanced by `|dt|`, which is right, a stationary process looks the same backwards.
+
 User defined functions have the following form:
 
     <name>(x1,x2,...)=<expression>

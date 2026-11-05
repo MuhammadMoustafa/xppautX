@@ -287,6 +287,19 @@ you wrote (`1/30`) alone while the value is unchanged.
 - `table NAME EXPR` / `table NAME FILE` — as `.ode`; a formula table
   may call a `fun` written after it (every function is compiled first,
   W165).
+- `ou NAME tau=T sigma=S [init=V]` (W380): an Ornstein-Uhlenbeck process, new in
+  `.odex` (no `.ode` spelling). It is a name read like a Wiener parameter's, a
+  constant the integration advances once a step (`set_wieners`), by the exact
+  update `eta = eta e^(-dt/tau) + sigma sqrt(tau/2 (1 - e^(-2dt/tau))) N(0,1)`,
+  every stage of the step reading the same value. `tau` (positive) and `sigma`
+  (at least 0) are a number or the name of a parameter, read at the step (a
+  value that is not a positive `tau` or a negative `sigma` stops the run, naming
+  the line of the `ou`); `init` is a number. A run starts it at `init`, or at a
+  draw from the stationary N(0, sigma^2 tau/2). Methods that draw no noise each
+  step are refused, as for `wiener`; a negative `dt` advances it by |dt| (the
+  stationary process is the same backwards). Its value is in `random.txt` (an
+  `ou` line). It takes no range, and a name clash, a bad number or an unknown
+  item is a load error at its line.
 - `markov`, `wiener` kept; `event` (`.ode`'s `global`), `boundary`
   (`bdry`), `network` (`special`) renamed, same meaning, `.odex`-spelled
   arguments; no `volt` (an equation calling `volterra(...)` is a Volterra
@@ -492,7 +505,7 @@ by STEP`:
 model        = "version" , integer , { statement } ;
 statement    = ( ode_decl | par_decl | const_decl | init_decl | aux_decl
              | fixed_decl | fun_decl | option_decl | set_decl | table_decl
-             | markov_decl | wiener_decl | event_decl | boundary_decl
+             | markov_decl | wiener_decl | ou_decl | event_decl | boundary_decl
              | network_decl | import_decl ) , [ range ] ;
 (* comments, '#' to the end of the line and nested '/* */' blocks, are
    removed by the tokenizer before this grammar *)
@@ -531,6 +544,8 @@ set_entry    = name , ":" , [ "-" ] , ( number | name ) ;
 table_decl   = "table" , name , ( expr | filename ) ;
 markov_decl  = "markov" , name , integer , { transition_row } ;
 wiener_decl  = "wiener" , name , { "," , name } ;
+ou_decl      = "ou" , name , ou_item , { [ "," ] , ou_item } ;
+ou_item      = ( "tau" | "sigma" | "init" ) , "=" , expr ;
 event_decl   = "event" , sign , expr , { "," , event_stmt } ;
 boundary_decl = "boundary" , name , "=" , expr ;
 network_decl = "network" , name , "=" , network_call ;
@@ -588,7 +603,7 @@ outrank all arithmetic.
 ## Reserved words
 
 Statement keywords: `par`, `init`, `aux`, `fun`, `let`, `return`, `if`,
-`then`, `else`, `set`, `table`, `markov`, `wiener`, `event`, `boundary`,
+`then`, `else`, `set`, `table`, `markov`, `wiener`, `ou`, `event`, `boundary`,
 `network`, `import`, `const`, `options`; `by` (a range's step). `for` and `in`
 are words only where a range starts, after a statement on its line, so
 a parameter may be called `in` (W80). `!` and `number` are not `.odex`
@@ -637,7 +652,7 @@ e^x is written `exp(x)`.
 `not`, `set`, `if`/`then`/`else`, `arg1`..`arg9`, `t`, `pi`) against `.odex`'s:
 
 - New in `.odex` (accepted as names in `.ode` today): the statement
-  keywords `par`, `init`, `aux`, `table`, `markov`, `wiener`, `event`,
+  keywords `par`, `init`, `aux`, `table`, `markov`, `wiener`, `ou`, `event`,
   `boundary`, `network`; `fun`, `let`, `return`; `and`, `or`;
   `volterra`; `const` and `by` (W80; `for` and `in` only where a range
   starts); `options` (W280) and `import` (W282, replacing `include`;

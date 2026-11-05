@@ -252,6 +252,7 @@ void begin_model(xpp::Session &s)
   m.nupar=0;
   m.size_parameters(1); /* a model with no parameter still has the first one's empty name and value to read */
   m.nwiener=0;
+  m.ou.clear();
   add_var(s,"t",0.0);
 }
 
@@ -843,6 +844,8 @@ public:
       at(s);
       declare(s);
     }
+    /* the Ornstein-Uhlenbeck processes, once every parameter they may read is declared */
+    for(const Statement &s : p_.statements)if(s.kind==Statement::Kind::Ou)declare_ou(s);
     /* what follows is the whole model's */
     xpp::Load::at(m_.this_file);
     add_names();
@@ -1006,6 +1009,28 @@ private:
 	m_.names[converted(s.name)].purity_derived=true;
       }
     }
+  }
+
+  /* an Ornstein-Uhlenbeck process: a constant the run advances, its tau and
+     sigma a number or the constant of a parameter (declared anywhere in the
+     file) */
+  void declare_ou(const Statement &s)
+  {
+    at(s);
+    xpp::Model &m=m_;
+    note(s.name,s.name_pos,s);
+    add_constant(s_,s.name,0,false);
+    m.define_name(s.name,xpp::Model::NameKind::Ou,s_.parser.ncon-1,s.pos);
+    const auto value=[&](const Expr &e){
+      xpp::Model::OuValue v;
+      const auto it=e.kind==Expr::Kind::Name?m.names.find(converted(e.text)):m.names.end();
+      if(it!=m.names.end()&&it->second.kind==xpp::Model::NameKind::Param)v.constant=m.upar_con[it->second.parameter];
+      else v.number=e.value;
+      return v;
+    };
+    xpp::Model::OuProcess ou{.name=s.name,.slot=s_.parser.ncon-1,.tau=value(s.expr),.sigma=value(s.more().cells[0])};
+    if(s.more().cells.size()>1)ou.init=s.more().cells[1].value;
+    xpp::add_ou(s_,std::move(ou));
   }
 
   /* first, the names: every statement's that the formulas compiled

@@ -37,7 +37,7 @@ namespace {
    and in are words only where a range starts, after a statement) */
 constexpr auto reserved_words = std::to_array<std::string_view>({
   "par", "init", "aux", "fun", "let", "return", "if", "then", "else", "set",
-  "table", "markov", "wiener", "event", "boundary", "network", "import",
+  "table", "markov", "wiener", "ou", "event", "boundary", "network", "import",
   "solv", "only", "history", "const", "by", "options",
   "and", "or", "not", "mod", "volterra", "near", "of",
   "t", "pi", "mouse_x", "mouse_y", "mouse_vx", "mouse_vy",
@@ -546,6 +546,9 @@ private:
       if (!indexed) s.more_mut().name_indices.clear();
       end_of_list(word);
       push(std::move(s));
+    } else if (word == "ou") {
+      take();
+      ou(s);
     } else if (word == "event") {
       take();
       event(s);
@@ -661,6 +664,35 @@ private:
       take();
     }
     end_of_list(what);
+  }
+
+  /* ou name tau=expr sigma=expr [init=expr]: the items in any order, a comma
+     between them or not; tau is the statement's expr, sigma and init its cells */
+  void ou(Statement &s)
+  {
+    s.kind = Statement::Kind::Ou;
+    const Token &n = declared_name("a name");
+    s.name = n.text;
+    s.name_pos = n.pos;
+    std::optional<Expr> tau, sigma, init;
+    for (;;) {
+      const Token &key = name_token("tau, sigma or init");
+      std::optional<Expr> &item = key.text == "tau" ? tau : key.text == "sigma" ? sigma : init;
+      if (key.text != "tau" && key.text != "sigma" && key.text != "init")
+        fail(key.pos, xpp::format("ou takes tau=, sigma= and init=, not `{}`", key.text));
+      if (item) fail(key.pos, xpp::format("`{}` is given twice", key.text));
+      expect_punct("=", xpp::format("after {}", key.text));
+      item = expr();
+      if (at_punct(",")) take();
+      else if (at_end() || peek().pos.line != last_line_ || peek().kind != Token::Kind::Name || at_range()) break;
+    }
+    if (!tau) fail(n.pos, xpp::format("ou {} needs tau=, its correlation time", s.name));
+    if (!sigma) fail(n.pos, xpp::format("ou {} needs sigma=, the standard deviation of its stationary state", s.name));
+    s.expr = std::move(*tau);
+    s.more_mut().cells.push_back(std::move(*sigma));
+    if (init) s.more_mut().cells.push_back(std::move(*init));
+    end_of_list("ou");
+    push(std::move(s));
   }
 
   /* the text of the tokens from here that touch each other (no white
@@ -1443,7 +1475,7 @@ private:
   {
     static constexpr auto words = std::to_array<std::string_view>({
       "par", "init", "aux", "fun", "let", "return", "if", "then", "else",
-      "table", "markov", "wiener", "event", "boundary", "network", "import",
+      "table", "markov", "wiener", "ou", "event", "boundary", "network", "import",
       "solv", "only", "history", "const", "by", "options", "and", "or", "not", "mod", "of"});
     for (std::string_view k : words)
       if (k == w) return true;

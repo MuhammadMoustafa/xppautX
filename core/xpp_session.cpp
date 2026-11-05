@@ -520,16 +520,37 @@ void apply_marks(xpp::Session &s, MarksRead r)
                              std::move(c.y), std::move(c.z));
 }
 
-/* ---- random.txt: the next Go's seed, the Wiener parameters, the generator ---- */
+/* ---- random.txt: the next Go's seed, the Wiener parameters, the Ornstein-Uhlenbeck processes, the generator ---- */
 
 struct RandomRead {
     int seed = 0;
     std::vector<double> wieners;
+    std::vector<double> ous;
     std::string generator;
 };
 
+/* the next line of l, "label" and the numbers after it, one per
+   count of what the model has */
+std::vector<double> read_values(xpp::Lines &l, std::string_view label, std::string_view what, std::size_t count)
+{
+    std::string_view line = l.next(label);
+    if (!line.starts_with(label)) l.fail(xpp::format("not \"{}\" and {}", label, what));
+    line.remove_prefix(label.size());
+    std::vector<double> values;
+    while (!line.empty()) {
+        line.remove_prefix(1); /* the space before each value */
+        const std::size_t sp = line.find(' ');
+        double v = 0;
+        if (!xpp::parse_number(line.substr(0, sp), v)) l.fail(xpp::format("\"{}\" is not a number", line.substr(0, sp)));
+        values.push_back(v);
+        line = sp == std::string_view::npos ? std::string_view() : line.substr(sp);
+    }
+    if (values.size() != count) l.fail(xpp::format("{} {} values, the model has {}", values.size(), label, count));
+    return values;
+}
+
 /* random.txt's lines l read for the model m: "seed N", then "wiener" and
-   one value per wiener of the model, then the generator's state on a line
+   one value per wiener of the model, "ou" and one per Ornstein-Uhlenbeck process, then the generator's state on a line
    of its own, the last (checked by loading it into a generator of its
    own) */
 RandomRead read_random(const xpp::Model &m, xpp::Lines &l)
@@ -537,19 +558,8 @@ RandomRead read_random(const xpp::Model &m, xpp::Lines &l)
     RandomRead r;
     const std::string_view seed = l.next("seed");
     if (!seed.starts_with("seed ") || !xpp::parse_int(seed.substr(5), r.seed)) l.fail("not \"seed <number>\"");
-    std::string_view wl = l.next("wiener");
-    if (!wl.starts_with("wiener")) l.fail("not \"wiener\" and the Wiener parameters' values");
-    wl.remove_prefix(6);
-    while (!wl.empty()) {
-        wl.remove_prefix(1); /* the space before each value */
-        const std::size_t sp = wl.find(' ');
-        double v = 0;
-        if (!xpp::parse_number(wl.substr(0, sp), v)) l.fail(xpp::format("\"{}\" is not a number", wl.substr(0, sp)));
-        r.wieners.push_back(v);
-        wl = sp == std::string_view::npos ? std::string_view() : wl.substr(sp);
-    }
-    if (static_cast<int>(r.wieners.size()) != m.nwiener)
-        l.fail(xpp::format("{} wiener values, the model has {}", r.wieners.size(), m.nwiener));
+    r.wieners = read_values(l, "wiener", "the Wiener parameters' values", static_cast<std::size_t>(m.nwiener));
+    r.ous = read_values(l, "ou", "the Ornstein-Uhlenbeck processes' values", m.ou.size());
     r.generator = l.next("the random generator's state");
     /* only proves it reads: a generator of its own, not the Session's */
     xpp::Random probe;
@@ -714,6 +724,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     s.numerics.rand_seed = r.random.seed;
     const xpp::Model &m = s.model();
     for (int i = 0; i < m.nwiener; i++) s.parser.constants[m.wiener[i]] = r.random.wieners[static_cast<std::size_t>(i)];
+    for (std::size_t i = 0; i < m.ou.size(); i++) s.parser.constants[m.ou[i].slot] = r.random.ous[i];
     s.random.load(r.random.generator); /* read_random proved it loads */
     /* the added columns computed over the data put in place, with the
        values just restored */
@@ -741,13 +752,15 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     return {};
 }
 
-/* random.txt's text: the next Go's seed, the Wiener parameters' values, the generator */
+/* random.txt's text: the next Go's seed, the Wiener parameters' and the Ornstein-Uhlenbeck processes' values, the generator */
 std::string random_text(xpp::Session &s)
 {
     std::string w = "wiener";
     const xpp::Model &m = s.model();
     for (int i = 0; i < m.nwiener; i++) w += ' ' + xpp::number(s.parser.constants[m.wiener[i]]);
-    return xpp::format("seed {}\n{}\n{}", s.numerics.rand_seed, w, s.random.save());
+    std::string o = "ou";
+    for (const xpp::Model::OuProcess &p : m.ou) o += ' ' + xpp::number(s.parser.constants[p.slot]);
+    return xpp::format("seed {}\n{}\n{}\n{}", s.numerics.rand_seed, w, o, s.random.save());
 }
 
 /* the session file of s, as its bytes: the data table in when data;

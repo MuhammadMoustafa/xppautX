@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "xpp_error.h"
+#include "model.h" /* Model::OuProcess */
 
 namespace xpp {
 
@@ -19,6 +20,10 @@ void  one_gill_step(Session &s, int meth, int nrxn, int *rxn, double *v, double 
    in the Session s: a load's, or the run's */
 void add_markov(Session &s, int nstate, const char *name);
 void add_wiener(Session &s, int index);
+void add_ou(Session &s, Model::OuProcess process);
+/* every Ornstein-Uhlenbeck process to its start (a run's) */
+void start_ou(Session &s);
+/* the noise of the step of dt about to be taken: Markov chains, Wiener parameters and Ornstein-Uhlenbeck processes, once for all its stages */
 void set_wieners(Session &s, double dt, double *x, double t);
 int old_build_markov(Session &s, FILE *fptr, const char *name);
 void create_markov(Session &s, int nstates, double *st, int type, const char *name);

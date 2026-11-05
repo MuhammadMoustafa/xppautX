@@ -58,6 +58,7 @@ const char *kind_name(Model::NameKind k)
   case Model::NameKind::Param: return "a parameter";
   case Model::NameKind::Const: return "a const";
   case Model::NameKind::Wiener: return "a Wiener parameter";
+  case Model::NameKind::Ou: return "an Ornstein-Uhlenbeck process";
   case Model::NameKind::Function: return "a function";
   case Model::NameKind::Table: return "a table";
   case Model::NameKind::Network: return "a network";
@@ -177,16 +178,17 @@ private:
     }
   }
 
-  /* b's value becomes the number v it is worked out to */
-  static void number_of(Binding &b, double v)
+  /* e becomes the number v it is worked out to */
+  static void number_of(Expr &e, double v)
   {
     Expr n;
     n.kind = Expr::Kind::Number;
-    n.pos = b.value.pos;
+    n.pos = e.pos;
     n.value = v;
     n.text = print_number(v);
-    b.value = std::move(n);
+    e = std::move(n);
   }
+  static void number_of(Binding &b, double v) { number_of(b.value, v); }
   void number_of(Binding &b, const std::string &what) const { number_of(b, fixed(b.value, what, std::string(), 0)); }
 
   /* e with every const it reads its number: a formula drawn later reads no name */
@@ -423,6 +425,7 @@ private:
     case Statement::Kind::Wiener:
       for (size_t i = 0; i < s.more().names.size(); i++) add(s.more().names[i], Model::NameKind::Wiener, s.more().name_positions[i]);
       break;
+    case Statement::Kind::Ou: add(s.name, Model::NameKind::Ou, s.name_pos); break;
     case Statement::Kind::Fun: add(s.name, Model::NameKind::Function, s.name_pos, static_cast<int>(s.more().names.size())); break;
     case Statement::Kind::Table: add(s.name, Model::NameKind::Table, s.name_pos, 1); break;
     case Statement::Kind::Network: add(s.name, Model::NameKind::Network, s.name_pos, 1); break;
@@ -768,6 +771,24 @@ private:
       /* a fixed value, kept as its number */
       for (Binding &b : s.bindings) number_of(b, xpp::format("the value of parameter {}", b.name));
       break;
+    case Statement::Kind::Ou: {
+      /* tau and sigma are a parameter read at each step or a fixed number,
+         init (when given) a fixed number */
+      const auto value = [&](Expr &e, std::string_view what, bool parameter) {
+        if (parameter && e.kind == Expr::Kind::Name && !e.primed)
+          if (const Model::Name *d = find(e.text); d && d->kind == Model::NameKind::Param) return;
+        const double v = fixed(e, xpp::format("{} of {}", what, s.name), std::string(), 0);
+        if (what == "tau" && !(v > 0 && std::isfinite(v)))
+          fail(e.pos, xpp::format("tau of {} is {}: a positive number (its correlation time) is needed", s.name, print_number(v)));
+        if (what == "sigma" && !(v >= 0 && std::isfinite(v)))
+          fail(e.pos, xpp::format("sigma of {} is {}: a number of at least 0 is needed", s.name, print_number(v)));
+        number_of(e, v);
+      };
+      value(s.expr, "tau", true);
+      value(s.more_mut().cells[0], "sigma", true);
+      if (s.more().cells.size() > 1) value(s.more_mut().cells[1], "init", false);
+      break;
+    }
     case Statement::Kind::Init:
       variables(s, true, "init gives a variable its initial value");
       /* a fixed value, a number at once; one that calls ran stays a formula,

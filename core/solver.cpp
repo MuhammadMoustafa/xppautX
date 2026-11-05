@@ -335,8 +335,9 @@ Result<method::Id> check_method(const Model &model, int id, Place place)
     return fail("method", "Symplectic is only for even dimensions", std::move(place));
   if (model.nkernel > 0 && !traits.integral_history)
     return fail("method", "a model with integral equations is integrated by Volterra", std::move(place));
-  if (model.nwiener > 0 && !traits.wiener)
-    return fail("method", "a model with Wiener noise requires a method that draws it each step", std::move(place));
+  const char *noise = model.nwiener > 0 ? "Wiener" : !model.ou.empty() ? "Ornstein-Uhlenbeck" : nullptr;
+  if (noise && !traits.wiener)
+    return fail("method", xpp::format("a model with {} noise requires a method that draws it each step", noise), std::move(place));
   return static_cast<method::Id>(id);
 }
 

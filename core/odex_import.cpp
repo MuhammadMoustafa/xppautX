@@ -65,7 +65,7 @@ public:
   {
     using enum Statement::Kind;
     return k == Ode || k == Map || k == Volterra || k == Fixed || k == Solv || k == Markov ||
-           k == Fun || k == Table || k == Network || k == Set;
+           k == Fun || k == Table || k == Network || k == Set || k == Ou;
   }
 
   /* its bindings declare their names */

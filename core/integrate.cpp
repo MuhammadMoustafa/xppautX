@@ -668,6 +668,7 @@ void seed_this_run(xpp::Session &s)
   const int seed=s.numerics.rand_seed;
   s.random.seed(seed);
   s.numerics.last_seed=seed;
+  xpp::start_ou(s);
   xpp::log(XPP_LOG_INFO,"Go: seed {}\n",seed);
   s.numerics.rand_seed=xpp::next_seed(seed);
 }
