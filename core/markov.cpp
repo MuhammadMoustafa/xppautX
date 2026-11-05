@@ -37,11 +37,6 @@ void add_wiener(xpp::Session &s, int index)
   s.model().nwiener++;
 }
 
-void add_ou(xpp::Session &s, xpp::Model::OuProcess process)
-{
-  s.model().ou.push_back(std::move(process));
-}
-
 namespace {
 
 /* an Ornstein-Uhlenbeck process's tau and sigma now (a parameter's current
@@ -72,7 +67,7 @@ void start_ou(xpp::Session &s)
   for(const xpp::Model::OuProcess &o : s.model().ou){
     double tau=0,sigma=0;
     double value=0;
-    if(ou_scales(s,o,0,tau,sigma))
+    if(ou_scales(s,o,s.numerics.start_time,tau,sigma))
       value=o.init?*o.init:s.random.normal(0.0,sigma*sqrt(tau/2));
     s.parser.constants[o.slot]=value;
   }

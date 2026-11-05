@@ -1030,7 +1030,7 @@ private:
     };
     xpp::Model::OuProcess ou{.name=s.name,.slot=s_.parser.ncon-1,.tau=value(s.expr),.sigma=value(s.more().cells[0])};
     if(s.more().cells.size()>1)ou.init=s.more().cells[1].value;
-    xpp::add_ou(s_,std::move(ou));
+    m.ou.push_back(std::move(ou));
   }
 
   /* first, the names: every statement's that the formulas compiled
