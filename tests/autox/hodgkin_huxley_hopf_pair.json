@@ -1,0 +1,52 @@
+{
+  "model": "tools/models/hodgkin_huxley.odex",
+  "reason": "W604 (#671): the Hodgkin-Huxley equations (Hodgkin and Huxley 1952; Rinzel and Miller 1980's values), whose equilibria in the applied current I have two Hopf points, I = 9.78 and I = 154.5, joined by one family of cycles: the cycles from the first end where their amplitude falls back to zero at the second (the run ends at a Hopf, with its point type).",
+  "auto07p_skip": "W604 (#671): its cycles end at the second Hopf point (point type hopf_end), which neither reference has: without it xppautX went on past the Hopf point, back along the same family, to the step limit, and a reference run is cut at no such end (docs/auto-references.md W604), so there is no reference end to compare.",
+  "xppaut_skip": "W604 (#671): its cycles end at the second Hopf point (point type hopf_end), which neither reference has: without it xppautX went on past the Hopf point, back along the same family, to the step limit, and a reference run is cut at no such end (docs/auto-references.md W604), so there is no reference end to compare.",
+  "parameters": {
+    "I": 0
+  },
+  "runs": [
+    {
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current",
+        "settle": 30
+      },
+      "parameter": "I",
+      "autox": {
+        "step_size": 2,
+        "min_step_size": 1e-05,
+        "max_step_size": 4,
+        "max_steps": 200,
+        "output_every": 100,
+        "parameter_min": -10,
+        "parameter_max": 200,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "cycles",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "I",
+      "autox": {
+        "step_size": 1,
+        "min_step_size": 1e-07,
+        "max_step_size": 4,
+        "max_steps": 600,
+        "output_every": 100,
+        "parameter_min": -10,
+        "parameter_max": 200,
+        "mesh_intervals": 30,
+        "max_branch_switches": 0
+      }
+    }
+  ]
+}

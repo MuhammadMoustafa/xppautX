@@ -150,9 +150,9 @@ class References(unittest.TestCase):
         self.assertEqual(labelled(rows, 'periodic'), [])
 
     def test_the_global_ends_only_xppautx_names_are_branch_ends_like_ep(self):
-        # W518: a branch of cycles ending on a SNIC, a homoclinic or a heteroclinic orbit is an EP-like end for
+        # W518, W604: a branch of cycles ending on a SNIC, a homoclinic or a heteroclinic orbit, at a Hopf point, or a branch closed on itself is an EP-like end for
         # AUTO-07p and XPPAUT, which end it at MX or the step limit: not a special point to match
-        for end in ('snic', 'homoclinic', 'heteroclinic'):
+        for end in ('snic', 'homoclinic', 'heteroclinic', 'hopf_end', 'branch_closed'):
             rows = [self.row('end', 1.0, 0.86), self.row('regular', 1.1, 0.85), self.row(end, 3.0, 0.7)]
             self.assertEqual(labelled(rows, 'periodic'), [])
         self.assertEqual(labelled([self.row('end', 1.0, 0.86), self.row('fold', 1.1, 0.85), self.row('snic', 3.0, 0.7)], 'periodic'), [('LP', 1)])

@@ -184,6 +184,9 @@ template<class Function> struct LocationTest {
   AutoxTestSample &sample;
   xpp::AutoxPointKind kind;
   std::optional<integer> user_index;
+  /* W604: set for the hidden test of a branch's return to its start (autox_ends.h): a crossing it locates is kept
+     only when this says the states there are the start's */
+  const std::function<bool()> *accept = nullptr;
 };
 
 /* The first `count` tests' values at the current point, kept as their samples for the next step. */
@@ -209,6 +212,32 @@ bool start_is_tested(const iap_type &iap, xpp::AutoxPointKind label) {
           label == xpp::AutoxPointKind::End || label == xpp::AutoxPointKind::MaxSteps);
 }
 
+/* W604: an orbit as the same-point rule sees it, stplbv's u_high then its u_low: each of the model's variables'
+   maximum, then each one's minimum over the orbit. Phase-free, so a family that closes on itself in another phase
+   matches its start */
+std::vector<double> orbit_extremes(iap_type &iap, integer ndxloc, doublereal *ups) {
+  const std::size_t node = static_cast<std::size_t>(iap.run->session->model().node);
+  std::vector<double> extremes(2 * node);
+  for (std::size_t k = 0; k < node; ++k) {
+    integer variable = static_cast<integer>(k) + 1;
+    extremes[k] = rmxups(&iap, &ndxloc, &variable, ups);
+    extremes[node + k] = rmnups(&iap, &ndxloc, &variable, ups);
+  }
+  return extremes;
+}
+
+/* W604: a branch that came back to its start ends there (autox_ends.h). The point is labelled branch_closed unless a
+   special point located in the same step has its label (a limit's EP gives way to the label too), and the stop says
+   closed whichever limit it also reached */
+void end_closed_branch(iap_type &iap, xpp::AutoxPointCode &itp, xpp::AutoxStopAt &stop_at) {
+  if (!iap.run->stop.closure_gap) return;
+  iap.istop = 1;
+  if (itp.kind == xpp::AutoxPointKind::Regular || itp.kind == xpp::AutoxPointKind::Output || itp.kind == xpp::AutoxPointKind::End)
+    itp = xpp::AutoxPointCode{xpp::AutoxPointKind::BranchClosed, xpp::AutoxPointKind::Regular};
+  iap.itp = itp;
+  stop_at.closed = true, stop_at.user = 0;
+}
+
 template<class Function, class Evaluate, class Locate>
 void locate_tests(iap_type &iap, rap_type &rap,
                   std::vector<LocationTest<Function>> &tests, std::span<const AutoxMark> marks,
@@ -222,6 +251,14 @@ void locate_tests(iap_type &iap, rap_type &rap,
   for (std::size_t i = 0; i < tests.size(); ++i) {
     auto &test = tests[i];
     if (test.user_index) iap.iuzr = *test.user_index;
+    if (test.accept && iap.itp.kind != xpp::AutoxPointKind::Regular) {
+      /* another test located a point in this step: the branch closes there if that point is the start (the loop
+         closes where a special point is, and the parameter touches the start's value there without a sign change);
+         the hidden test never moves the point (W604) */
+      test.sample = {evaluate(test), std::nullopt};
+      (*test.accept)();
+      continue;
+    }
     bool stepped = false;
     const bool deferred = test.sample.after_branch_point;
     const AutoxTestSample start = test.sample;
@@ -367,11 +404,14 @@ void special_point_rejected(const iap_type &iap, integer ibr, integer ntot, cons
    evaluate(chng) is the test at the current point, advance(rds) the predictor
    and corrector for a step of rds (rds may come back shorter, a corrector's
    retry), snapshot() the state a failed search restores, torus_singular()
-   whether a torus curve's equations are singular there (location_step). */
+   whether a torus curve's equations are singular there (location_step).
+   accept (W604, the hidden test of a branch's return to its start, whose crossings are no special points): called
+   at the located zero, it says whether to keep it; one it refuses, and one the search fails to find, leave the
+   state as it was and no note, as though the step had no crossing. */
 template<class Evaluate, class Advance, class Snapshot, class TorusSingular>
 void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample, const char *kind,
                           bool user_zero, bool ratio_test, bool torus_resonance, const double &parameter,
-                          double &dstest, bool &stepped,
+                          double &dstest, bool &stepped, const std::function<bool()> *accept,
                           Evaluate evaluate, Advance advance, Snapshot snapshot, TorusSingular torus_singular)
 {
   stepped = false;
@@ -430,7 +470,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
      cancelled when a stop was asked for. */
   bool cancelled = false;
   const auto trial = [&] {
-    if (iid >= 2) {
+    if (iid >= 2 && !accept) {
       xpp::print(iap.run->fp9," ==> Location of special point :  Iteration {:3}   Stepsize ={:11.3E}\n",iterations,rds);
     }
     {
@@ -568,6 +608,8 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
     }
   }
 
+  if (converged && accept && !(*accept)()) converged = false;
+
   if (converged) {
     iap.itp = xpp::AutoxPointCode{xpp::AutoxPointKind::Pending};
     // the discarded end is ahead of the located point: it, not 0, is the test's value there (W545)
@@ -578,7 +620,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
     } else {
       q = 0.;
     }
-    xpp::print(iap.run->fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
+    if (!accept) xpp::print(iap.run->fp9," ==> Location of special point :  Convergence.    Stepsize ={:11.3E}\n",rds);
     return;
   }
 
@@ -587,6 +629,7 @@ void locate_special_point(iap_type &iap, rap_type &rap, AutoxTestSample &sample,
   dstest = saved_dstest;
   stepped = false;
   q = q_end;
+  if (accept) return;
   xpp::print(iap.run->fp9,"{:4} {:5} NOTE:Possible special point\n",ibr,ntot + 1);
   if (refused.empty()) special_point_lost(iap, ibr, ntot, kind, why);
   else special_point_rejected(iap, ibr, ntot, kind, refused_parameter, refused);
@@ -1373,7 +1416,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   integer lab, ibr;
   doublereal rds;
-  AutoxTestSample rbp, rev, rlp;
+  AutoxTestSample rbp, rev, rlp, closing;
   xpp::AutoxProblem ips;
   integer irs, isp;
   integer nit;
@@ -1409,7 +1452,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   nins = 0;
   iap->nins = nins;
-  rbp = rev = rlp = {};
+  rbp = rev = rlp = closing = {};
   if (nuzr > 0) {
     for (i = 0; i < nuzr; ++i) {
       uzr[i] = {};
@@ -1447,6 +1490,10 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   /* The tests of the point just solved. A switched branch's second point leaves the branch point test out: the
      determinant there is of the switch's Newton matrix, whose last row is not the arclength condition. */
   using Tests = std::vector<LocationTest<decltype(&fnuzae)>>;
+  /* W604: whether a crossing of the start's parameter value is the start (autox_ends.h) */
+  const std::function<bool()> closes = [&] {
+    return xpp::autox_branch_closes(*iap, rap->epss, par, icp, std::span<const doublereal>(u.data(), static_cast<std::size_t>(iap->ndim)));
+  };
   const auto tests_at_point = [&](bool with_branch_point) {
     Tests tests;
     for (integer index = 0; index < nuzr; ++index)
@@ -1466,6 +1513,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       tests.push_back({fnhbae, rev, codim ? xpp::AutoxPointKind::ZeroHopf : xpp::AutoxPointKind::Hopf, {}});
     if (codim && isp!=0 && isp!=3 && hopf_curve && xpp::autox_codim_enabled(special_points,xpp::AutoxPointKind::GeneralizedHopf))
       tests.push_back({fnghae,rgh,xpp::AutoxPointKind::GeneralizedHopf,{}});
+    tests.push_back({fnclosedae, closing, xpp::AutoxPointKind::BranchClosed, {}, &closes});
     return tests;
   };
   const auto evaluate_test = [&](const auto &test) {
@@ -1484,7 +1532,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
         lcspae(iap, rap, par, icp, test.function, funi, &aa_first_dimension,
             aa.data(), rhs.data(), rlcur.data(), rlold.data(), rldot.data(), u.data(),
             du.data(), uold.data(), udot.data(), f.data(), dfdu.data(), dfdp.data(),
-            test.sample, thl, thu, marks, dstest, stepped);
+            test.sample, thl, thu, marks, dstest, stepped, test.accept);
         if (ips==xpp::AutoxProblem::DiscreteMap && (test.function==fnhbae || test.function==fnrnae))
           test.kind=iap->run->codim.map_kind;
       });
@@ -1616,7 +1664,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     ++nbfc;
   }
 
-  rbp = rev = rlp = {};
+  rbp = rev = rlp = closing = {};
   if (nuzr > 0) {
     for (i = 0; i < nuzr; ++i) {
       uzr[i] = {};
@@ -1664,7 +1712,7 @@ cnrlae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (istop == 1) {
     goto L6;
   }
-  rbp = rev = rlp = {};
+  rbp = rev = rlp = closing = {};
 
   /* W569, W572: the new branch's tests start at its second point, not its third (AUTO-07p's tests begin there:
      a fold between the second and third points is never labelled, as pp2's after the switch at its branch point).
@@ -2136,7 +2184,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* ----------------------------------------------------------------------- */
 
 int 
-lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, AutoxTestSample &q, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped)
+lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE((*fncs)), FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rhs, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *du, doublereal *uold, doublereal *udot, doublereal *f, doublereal *dfdu, doublereal *dfdp, AutoxTestSample &q, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
 {
   /* This subroutine uses the secant method to accurately locate special */
   /* points (branch points, folds, Hopf bifurcations, user zeroes). */
@@ -2151,7 +2199,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   const auto np = static_cast<std::size_t>(iap->run->parameter_count);
   const auto na = static_cast<std::size_t>(*m1aaloc) * (n + 1);
   locate_special_point(*iap, *rap, q, located_kind(fncs), fncs == fnuzae, false,
-      fncs == fnrnae && iap->itpst == xpp::AutoxPointKind::NeimarkSacker, par[icp[0]], dstest, stepped,
+      fncs == fnrnae && iap->itpst == xpp::AutoxPointKind::NeimarkSacker, par[icp[0]], dstest, stepped, accept,
       [&](bool &chng) {
         return (*fncs)(iap, rap, par, icp, &chng, funi, m1aaloc, aa, rlcur, rlold, rldot,
                        u, uold, udot, rhs, dfdu, dfdp, marks);
@@ -2455,6 +2503,13 @@ constexpr integer user_zero_diagnostic_level = 3;
 constexpr int algebraic_user_zero_width = 16;
 constexpr int boundary_user_zero_width = 14;
 
+/* W604: the hidden test of a branch's return to its start: the continuation parameter less the start's, which
+   applies once the start is stored (autox_ends.h) */
+doublereal closed_test(const iap_type &iap, const doublereal *par, const integer *icp, bool *chng) {
+  *chng = iap.run->branch_start.has_value();
+  return *chng ? par[icp[0]] - iap.run->branch_start->point.parameters[0] : autox_test_not_applicable;
+}
+
 doublereal user_zero(const iap_type &iap, const doublereal *par,
                      const integer *icp, bool *chng,
                      std::span<const AutoxMark> marks, int width) {
@@ -2478,6 +2533,12 @@ fnuzae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
 {
   return user_zero(*iap, par, icp, chng, marks, algebraic_user_zero_width);
 } /* fnuzae_ */
+
+doublereal
+fnclosedae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*funi)), integer *m1aaloc, doublereal *aa, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *u, doublereal *uold, doublereal *udot, doublereal *rhs, doublereal *dfdu, doublereal *dfdp, std::span<const AutoxMark> marks)
+{
+  return closed_test(*iap, par, icp, chng);
+} /* fnclosedae_ */
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -3059,6 +3120,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   iap->ntot = ntot;
 
   pvlsae(iap, rap, u, par);
+  xpp::autox_branch_stored(*iap, ntot, rap->epss, par, icp, std::span<const doublereal>(u, static_cast<std::size_t>(iap->ndim)));
 
 /* ITP is set to 4 every NPR steps along a branch, and the entire */
 /* solution is written on unit 8. */
@@ -3117,6 +3179,10 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
   }
 
+  /* xppautX (W604): a branch that came back to its start ends there (autox_ends.h) */
+  end_closed_branch(*iap, context.itp, stop_at);
+  istop = iap->istop;
+
   labw = 0;
   if (context.itp.kind != xpp::AutoxPointKind::Regular) {
     lab = iap->lab;
@@ -3143,6 +3209,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     stop_at.mark = iap->istop == -1;
     if (stop_at.mark) stop_at.user = 0;
     xpp::autox_stop_branch_end(*iap->run, &stop_at);
+    iap->run->stop.closure_gap.reset();
   }
 
   /* Write restart information for multi-parameter analysis : */
@@ -4586,6 +4653,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   xpp::AutoxProblem ips;
   doublereal rds;
   AutoxTestSample rlp;
+  AutoxTestSample closing;
   integer isw;
   xpp::AutoxPointCode itp;
     
@@ -4630,7 +4698,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     isp = -isp;
     iap->isp = isp;
   }
-  sp1 = bp1 = rlp = {};
+  sp1 = bp1 = rlp = closing = {};
   if (nuzr > 0) {
     for (i = 0; i < nuzr; ++i) {
       uzr[i] = {};
@@ -4644,6 +4712,10 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   iap->istop = istop;
 
   using Tests = std::vector<LocationTest<decltype(&fnuzbv)>>;
+  /* W604: whether a crossing of the start's parameter value is the start (autox_ends.h) */
+  const std::function<bool()> closes = [&] {
+    return xpp::autox_branch_closes(*iap, rap->epss, par, icp, orbit_extremes(*iap, ntst_plus_one, ups.data()));
+  };
   const auto tests_at_point = [&] {
     Tests tests;
     for (integer index = 0; index < nuzr; ++index)
@@ -4652,6 +4724,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     if (isp >= 2) tests.push_back({fnbpbv, bp1, xpp::AutoxPointKind::CycleBranch, {}});
     if ((isp == 1 || isp == 2) && xpp::problem_has_orbit_multipliers(ips))
       tests.push_back({fnspbv, sp1, xpp::AutoxPointKind::Pending, {}});
+    tests.push_back({fnclosedbv, closing, xpp::AutoxPointKind::BranchClosed, {}, &closes});
     return tests;
   };
   const auto evaluate_test = [&](const auto &test) {
@@ -4806,7 +4879,7 @@ cnrlbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
             test.sample, rlcur.data(), rlold.data(), rldot.data(), &ntst_plus_one,
             ups.data(), dups.data(), uoldps.data(), udotps.data(), upoldp.data(),
             fa.data(), fc.data(), tm.data(), dtm.data(), p0.data(), p1.data(),
-            ev.data(), thl, thu, marks, dstest, stepped);
+            ev.data(), thl, thu, marks, dstest, stepped, test.accept);
       });
     if (iap->istop != 1 && iap->itp.kind == xpp::AutoxPointKind::Pending)
       tpspbv(iap, rap, par, icp, ev.data());
@@ -5705,7 +5778,7 @@ stdrbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 /* ----------------------------------------------------------------------- */
 
 int 
-lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), AutoxTestSample &q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped)
+lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BVP((*fncs)), FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), PVLI_TYPE_BVP((*pvli)), AutoxTestSample &q, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *dups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *tm, doublereal *dtm, doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks, double &dstest, bool &stepped, const std::function<bool()> *accept)
 {
   /* This subroutine uses the Secant method to accurately locate folds */
   /* branch points, and zero(es) of user parameter values. */
@@ -5724,7 +5797,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   const auto nu = static_cast<std::size_t>(*ndxloc) * n * iap->ncol;
   const auto nc = static_cast<std::size_t>(iap->nbc + iap->nint + 1);
   locate_special_point(*iap, *rap, q, located_kind(fncs, *iap), fncs == fnuzbv, fncs == fnbpbv,
-      fncs == fnspbv && iap->isw == 2 && iap->itpst == xpp::AutoxPointKind::NeimarkSacker, par[icp[0]], dstest, stepped,
+      fncs == fnspbv && iap->isw == 2 && iap->itpst == xpp::AutoxPointKind::NeimarkSacker, par[icp[0]], dstest, stepped, accept,
       [&](bool &chng) {
         return (*fncs)(iap, rap, par, icp, &chng, funi, bcni, icni, p0, p1, ev, rlcur, rlold,
                        rldot, ndxloc, ups, uoldps, udotps, upoldp, fa, fc, dups, tm, dtm,
@@ -6061,6 +6134,12 @@ fnuzbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
   return user_zero(*iap, par, icp, chng, marks, boundary_user_zero_width);
 } /* fnuzbv_ */
 
+doublereal
+fnclosedbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), doublereal *p0, doublereal *p1, doublecomplex *ev, doublereal *rlcur, doublereal *rlold, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *fa, doublereal *fc, doublereal *dups, doublereal *tm, doublereal *dtm, doublereal *thl, doublereal *thu, std::span<const AutoxMark> marks)
+{
+  return closed_test(*iap, par, icp, chng);
+} /* fnclosedbv_ */
+
 int 
 tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomplex *ev)
 {
@@ -6157,7 +6236,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   integer istop, n2, ntots;
 
-  integer iab, lab;
+  integer lab;
   doublereal amp;
 
   std::array<doublereal, autox_diagram_columns> umx;
@@ -6210,23 +6289,28 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   /* Check whether limits of the bifurcation diagram have been reached : */
 
-  iab = f2c::abs(context.iplt);
-  if (iab == 0 || iab > context.ndm * 3) {
-    amp = sqrt(rnrmsq(iap, &context.ndm, ndxloc, ups, dtm, thu));
-  }
-  if (context.iplt > 0 && iab <= context.ndm) {
-    amp = rmxups(iap, ndxloc, &iab, ups);
-  }
-  if (context.iplt > context.ndm && iab <= (context.ndm * 2)) {
-    amp = rintg(iap, ndxloc, iab - context.ndm, ups, dtm);
-  }
-  if (context.iplt > (context.ndm * 2) && iab <= context.ndm * 3) {
-    integer tmp = iab - (context.ndm * 2);
-    amp = rnrm2(iap, ndxloc, &tmp, ups, dtm);
-  }
-  if (context.iplt < 0 && iab <= context.ndm) {
-    amp = rmnups(iap, ndxloc, &iab, ups);
-  }
+  const auto orbit_norm = [&] {
+    doublereal norm = 0;
+    integer iab = f2c::abs(context.iplt);
+    if (iab == 0 || iab > context.ndm * 3) {
+      norm = sqrt(rnrmsq(iap, &context.ndm, ndxloc, ups, dtm, thu));
+    }
+    if (context.iplt > 0 && iab <= context.ndm) {
+      norm = rmxups(iap, ndxloc, &iab, ups);
+    }
+    if (context.iplt > context.ndm && iab <= (context.ndm * 2)) {
+      norm = rintg(iap, ndxloc, iab - context.ndm, ups, dtm);
+    }
+    if (context.iplt > (context.ndm * 2) && iab <= context.ndm * 3) {
+      integer tmp = iab - (context.ndm * 2);
+      norm = rnrm2(iap, ndxloc, &tmp, ups, dtm);
+    }
+    if (context.iplt < 0 && iab <= context.ndm) {
+      norm = rmnups(iap, ndxloc, &iab, ups);
+    }
+    return norm;
+  };
+  amp = orbit_norm();
 
   /* here is another place for byeautox
    call with iflag  */
@@ -6257,6 +6341,29 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
   }
 
+  /* Compute maxima of solution components. */
+
+  n2 = context.ndm;
+  if (n2 > autox_diagram_columns) {
+    n2 = autox_diagram_columns;
+  }
+  const std::vector<double> extremes = orbit_extremes(*iap, *ndxloc, ups);
+  const std::size_t node = static_cast<std::size_t>(iap->run->session->model().node);
+  for (i = 0; i < n2; ++i) {
+    itmp = i + 1;
+    umx[i] = static_cast<std::size_t>(i) < node ? extremes[static_cast<std::size_t>(i)] : rmxups(iap, ndxloc, &itmp, ups);
+  }
+
+  /* compute max, min, etc of solutions   This is correct!! */
+  for (std::size_t k=0;k<node;k++){
+    itmp=static_cast<integer>(k)+1;
+    u_high[k]=extremes[k];
+    u_low[k]=extremes[node+k];
+    u_0[k]=ups[static_cast<integer>(k)*(*ndxloc)];
+    u_bar[k]=rintg(iap, ndxloc, itmp, ups, dtm);
+  }
+  xpp::autox_branch_stored(*iap, ntot, rap->epss, par, icp, extremes); /* W604: what the branch closes on */
+
   /* xppautX (W518): a cycle branch whose period grows without bound while
      its orbit lingers at an equilibrium ends at a SNIC, a homoclinic orbit
      or a heteroclinic cycle (autox_global.h); a special point the last step
@@ -6277,6 +6384,36 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
   }
 
+  /* xppautX (W604): a branch of cycles whose amplitude falls back to about zero at an equilibrium with a purely
+     imaginary pair ends at that Hopf point (autox_ends.h), stored as one coherent point: its parameter where the
+     squared amplitude reaches zero, the equilibrium there as its orbit, extremes, mean and norm, and the period
+     2 pi over the pair's frequency; a special point the last step located keeps its label */
+  if (context.ips == xpp::AutoxProblem::Periodic && f2c::abs(context.isw) != 2 && context.ndm == static_cast<integer>(node)) {
+    xpp::AutoxStop &stop = iap->run->stop;
+    const double amplitude = xpp::autox_orbit_amplitude({u_high.data(), node}, {u_low.data(), node}, {u_bar.data(), node});
+    const bool shrunk = xpp::autox_amplitude_watch_add(stop.amplitude_watch, amplitude, par[icp[0]], ntot == 1);
+    if (shrunk && iap->istop == 0 && !xpp::job::cancelled() &&
+        (context.itp.kind == xpp::AutoxPointKind::Regular || context.itp.kind == xpp::AutoxPointKind::Output)) {
+      if (auto end = xpp::autox_hopf_end(*iap, par, icp, {u_bar.data(), node}, stop.amplitude_watch)) {
+        stop.hopf_end = std::move(*end);
+        xpp::autox_hopf_end_apply(*iap, stop.hopf_end, par, icp, *ndxloc, ups);
+        for (std::size_t k = 0; k < node; ++k) u_high[k] = u_low[k] = u_0[k] = u_bar[k] = stop.hopf_end.equilibrium[k];
+        for (i = 0; i < n2 && static_cast<std::size_t>(i) < node; ++i) umx[i] = stop.hopf_end.equilibrium[static_cast<std::size_t>(i)];
+        amp = orbit_norm();
+        istop = 1;
+        iap->istop = istop;
+        context.itp = xpp::AutoxPointCode{xpp::AutoxPointKind::HopfEnd, xpp::AutoxPointKind::Regular};
+        iap->itp = context.itp;
+        stop_at.user = 0, stop_at.hopf_end = true;
+      }
+    }
+  }
+
+  /* xppautX (W604): a branch that came back to its start ends there (autox_ends.h), unless it is the end at a
+     Hopf point */
+  if (!stop_at.hopf_end) end_closed_branch(*iap, context.itp, stop_at);
+  istop = iap->istop;
+
   /* All special points receive label: */
 
   labw = 0;
@@ -6287,26 +6424,6 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     labw = lab;
   }
 
-  /* Compute maxima of solution components. */
-
-  n2 = context.ndm;
-  if (n2 > autox_diagram_columns) {
-    n2 = autox_diagram_columns;
-  }
-  for (i = 0; i < n2; ++i) {
-    itmp = i + 1;
-    umx[i] = rmxups(iap, ndxloc, &itmp, ups);
-  }
-
-  /* compute max, min, etc of solutions   This is correct!! */
-  for (i=0;i<iap->run->session->model().node;i++){
-    itmp=i+1;
-    u_high[i]=rmxups(iap,ndxloc,&itmp,ups);
-    u_low[i]=rmnups(iap,ndxloc,&itmp,ups);
-    u_0[i]=ups[i*(*ndxloc)];
-    u_bar[i]=rintg(iap, ndxloc, itmp, ups, dtm);
-  }
-    
   /* Determine stability, and write output on units 7 and 8. */
 
   ibrs = context.ibr;
@@ -6332,6 +6449,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     stop_at.mark = iap->istop == -1;
     if (stop_at.mark) stop_at.user = 0;
     xpp::autox_stop_branch_end(*iap->run, &stop_at);
+    iap->run->stop.closure_gap.reset();
   }
 
   /* Write plotting and restart data on unit 8. */

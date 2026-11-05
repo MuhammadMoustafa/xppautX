@@ -108,6 +108,10 @@ test('W518: the ends of a periodic branch named by the core are labelled, marked
   assert.deepEqual(['snic', 'homoclinic', 'heteroclinic'].map(pointLabel), ['SNIC (saddle-node on invariant circle)', 'Homoclinic', 'Heteroclinic']);
   assert.ok(['snic', 'homoclinic', 'heteroclinic'].every(k => symbolHelp(k).includes('period of the cycles grows without bound')));
   assert.deepEqual(['snic', 'homoclinic', 'heteroclinic'].map(labelShape), ['bar', 'bar', 'bar']);
+  /* W604: the end at a Hopf point and the branch closed on itself */
+  assert.deepEqual(['hopf_end', 'branch_closed'].map(pointLabel), ['End at a Hopf point', 'Branch closed']);
+  assert.ok(['hopf_end', 'branch_closed'].every(k => symbolHelp(k).includes('the run stopped here')));
+  assert.deepEqual(['hopf_end', 'branch_closed'].map(labelShape), ['bar', 'bar']);
 });
 
 test('T29: one shape per label type, not a cross for every one; unknown codes and plain points fall back', () => {

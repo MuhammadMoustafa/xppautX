@@ -1,0 +1,13 @@
+# enz_isola.odex: AUTO-07p's demo enz (demos/enz/enz.f90), the two-cell, one-substrate enzyme model (Kernevez, Doedel and
+# others): s1' = (s0 - s1) + (s2 - s1) - rho R(s1), s2' = (s0 + mu - s2) + (s1 - s2) - rho R(s2), R(s) = s / (1 + s + kappa s^2),
+# at rho = 100, kappa = 1 (the demo's) and mu = 5, where the equilibria in s0 include an isola: a closed curve of
+# equilibria (s0 from 24.6 to 27.1, s1 3.3 to 5.6, s2 0.9 to 1.6). For tests/autox/enz_isola.json (W604, #671).
+version 4
+fun R(s) = s/(1+s+kappa*s^2)
+s1' = (s0-s1)+(s2-s1)-rho*R(s1)
+s2' = (s0+mu-s2)+(s1-s2)-rho*R(s2)
+par s0 = 25.617, mu = 5, rho = 100, kappa = 1
+init s1 = 3.9488, s2 = 1.5037
+options {
+  integration: { total_time: 40, method: gear, dt: .25, min_step: 1e-12 },
+}

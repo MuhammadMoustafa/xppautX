@@ -83,6 +83,8 @@ export const POINT_TYPES: PointType[] = [
   {name: 'snic', label: 'SNIC (saddle-node on invariant circle)', mark: 'SNIC'},
   {name: 'homoclinic', label: 'Homoclinic', mark: 'HOC'},
   {name: 'heteroclinic', label: 'Heteroclinic', mark: 'HEC'},
+  {name: 'hopf_end', label: 'End at a Hopf point', mark: 'HBE'},
+  {name: 'branch_closed', label: 'Branch closed', mark: 'CL'},
   {name: 'no_convergence', label: 'No convergence', mark: 'MX'},
 ];
 

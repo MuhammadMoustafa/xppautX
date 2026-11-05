@@ -19,7 +19,7 @@ namespace {
 const char *const keys[AUTOX_STOP_N] = {
     "", "parameter_min", "parameter_max", "norm_min", "norm_max", "max_steps", "user", "mark",
     "noconv", "noconv-fixed", "noconv-min", "noconv-switch-fixed", "noconv-switch-min", "jacobian",
-    "period_unbounded", "snic", "homoclinic", "heteroclinic",
+    "period_unbounded", "snic", "homoclinic", "heteroclinic", "hopf_end", "branch_closed",
 };
 
 /* the continuation parameter as the text names it */
@@ -99,6 +99,12 @@ std::string describe(const xpp::Session &s, const AutoxStop &st, int why, const 
     case AUTOX_STOP_HETEROCLINIC:
         value = st.global.period;
         return par_name(s, at.ipar) + " = " + num(at.par) + ": " + autox_global_text(s, st.global);
+    case AUTOX_STOP_HOPF_END:
+        value = st.hopf_end.amplitude;
+        return par_name(s, at.ipar) + " = " + num(at.par) + ": " + autox_hopf_end_text(s, st.hopf_end);
+    case AUTOX_STOP_CLOSED:
+        value = at.par;
+        return par_name(s, at.ipar) + " = " + num(at.par) + ": " + autox_closure_text(st.closure_gap.value_or(NAN), st.closure_epss);
     default:
         return "";
     }
@@ -128,6 +134,8 @@ int autox_stop_why(const AutoxStop &st, const AutoxStopAt *at)
 {
     if (at->user) return AUTOX_STOP_USER;
     if (at->global) return global_why(st.global.kind);
+    if (at->hopf_end) return AUTOX_STOP_HOPF_END;
+    if (at->closed) return AUTOX_STOP_CLOSED;
     if (at->noconv) return st.noconv.why;
     if (at->mark) return AUTOX_STOP_MARK;
     if (at->par < at->rl0) return AUTOX_STOP_PAR_MIN;
@@ -147,6 +155,10 @@ void autox_stop_clear(AutoxStop &st)
     st.start_refined = false;
     st.period_watch = {};
     st.global = {};
+    st.amplitude_watch = {};
+    st.hopf_end = {};
+    st.closure_gap.reset();
+    st.hopf_failure_noted = false;
 }
 
 void autox_stop_note(AutoxRun &run, std::string text)

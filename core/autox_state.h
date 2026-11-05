@@ -332,6 +332,10 @@ struct AutoxRun {
   /* the branch of cycles cnrlbv continues started at a Hopf point: its
      first steps' tests read the converged point's Jacobian (autox_lib1.cpp) */
   bool hopf_start=false;
+  /* the branch's first point as the same-point rule sees it, and whether the branch has left it (autox_ends.h,
+     W604): what a crossing of its parameter value is compared with, by the hidden test of autox_lib1.cpp; set when
+     the point is stored, empty before it */
+  std::optional<xpp::AutoxBranchStart> branch_start;
   /* the exact Jacobian's failure (W275): a derivative not finite where the
      right-hand side is, recorded by func (autox_pp.cpp) on its own AutoxRun (a
      collocation worker's, merged into its run's by the caller when the

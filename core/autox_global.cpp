@@ -17,7 +17,7 @@ namespace xpp {
 bool autox_period_watch_add(AutoxPeriodWatch &watch, double period, bool first_point)
 {
     if (first_point) watch = AutoxPeriodWatch{};
-    watch.growing = period > watch.last ? watch.growing + 1 : 0;
+    watch.growing = autox_trend_run(watch.growing, watch.last, period, true);
     watch.last = period;
     watch.shortest = std::min(watch.shortest, period);
     return watch.growing >= autox_global_growing_points && period >= autox_global_growth_factor * watch.shortest;
@@ -102,7 +102,7 @@ std::optional<AutoxGlobalEnd> autox_global_end(const iap_type &iap, const double
             low[k] = std::min(low[k], v);
             high[k] = std::max(high[k], v);
         }
-        func(*iap.run, iap.ndm, &points[m * n], icp, iap.nfpr, par, 0, f.data(), nullptr, nullptr);
+        autox_evaluate_at(iap, par, icp, {&points[m * n], n}, f);
         double sum = 0;
         for (const double v : f) sum += v * v;
         speeds[m] = std::sqrt(sum);
@@ -153,17 +153,30 @@ std::optional<AutoxGlobalEnd> autox_global_end(const iap_type &iap, const double
     return end;
 }
 
+std::string autox_number_text(double v) { return xpp::format("{:.6g}", v); }
+
+std::string autox_equilibrium_text(const Model &m, std::span<const double> x)
+{
+    std::string where;
+    for (std::size_t i = 0; i < std::min(x.size(), autox_global_shown_variables); ++i)
+        where += xpp::format("{}\"{}\" = {}", i ? ", " : "", m.uvar_names[i], autox_number_text(x[i]));
+    if (x.size() > autox_global_shown_variables) where += xpp::format(", ... ({} variables)", x.size());
+    return where;
+}
+
+void autox_evaluate_at(const iap_type &iap, const double *par, const std::ptrdiff_t *icp, std::span<const double> x,
+                       std::span<double> f)
+{
+    func(*iap.run, iap.ndm, x.data(), icp, iap.nfpr, par, 0, f.data(), nullptr, nullptr);
+}
+
 namespace {
 
-std::string g(double v) { return xpp::format("{:.6g}", v); }
 
 /* an approached equilibrium in words: its kind, its eigenvalues' counts and where it is */
 std::string describe_approach(const Model &m, const AutoxApproach &a)
 {
-    std::string where;
-    for (std::size_t i = 0; i < std::min(a.x.size(), autox_global_shown_variables); ++i)
-        where += xpp::format("{}\"{}\" = {}", i ? ", " : "", m.uvar_names[i], g(a.x[i]));
-    if (a.x.size() > autox_global_shown_variables) where += xpp::format(", ... ({} variables)", a.x.size());
+    const std::string where = autox_equilibrium_text(m, a.x);
     switch (a.kind) {
     case AutoxApproachKind::saddle:
         return xpp::format("a saddle ({} unstable and {} stable eigenvalues) at {}", a.unstable, a.stable, where);
@@ -172,15 +185,15 @@ std::string describe_approach(const Model &m, const AutoxApproach &a)
         for (std::size_t i = 0; i < a.re.size(); ++i)
             if (a.im[i] == 0 && std::abs(a.re[i]) < std::abs(nearest)) nearest = a.re[i];
         return xpp::format("{} with an eigenvalue {} of spectral radius {} (a zero eigenvalue, on a fold of the equilibria) at {}",
-                           a.exists ? "an equilibrium" : "the ghost of an equilibrium (Newton's method finds none)", g(nearest),
-                           g(a.spectral_radius), where);
+                           a.exists ? "an equilibrium" : "the ghost of an equilibrium (Newton's method finds none)", autox_number_text(nearest),
+                           autox_number_text(a.spectral_radius), where);
     }
     case AutoxApproachKind::other:
         break;
     }
     return xpp::format("{} ({} unstable and {} stable eigenvalues, spectral radius {}) at {}",
                        a.exists ? "an equilibrium that is no saddle" : "no equilibrium (Newton's method finds none, and no eigenvalue is zero)",
-                       a.unstable, a.stable, g(a.spectral_radius), where);
+                       a.unstable, a.stable, autox_number_text(a.spectral_radius), where);
 }
 
 } // namespace
@@ -188,7 +201,7 @@ std::string describe_approach(const Model &m, const AutoxApproach &a)
 std::string autox_global_text(const Session &s, const AutoxGlobalEnd &end)
 {
     std::string text = xpp::format("period growing without bound: T = {}, {} times the shortest period of the branch ({}), has grown over the last {} points",
-        g(end.period), g(end.period / end.shortest), g(end.shortest), autox_global_growing_points);
+        autox_number_text(end.period), autox_number_text(end.period / end.shortest), autox_number_text(end.shortest), autox_global_growing_points);
     if (!end.failed.empty()) return text + xpp::format("; the equilibria the orbit lingers near could not be searched: {}", end.failed);
     text += "; the orbit lingers near ";
     for (std::size_t i = 0; i < end.approaches.size(); ++i)

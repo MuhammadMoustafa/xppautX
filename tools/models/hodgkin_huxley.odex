@@ -1,0 +1,21 @@
+# hodgkin_huxley.odex: the Hodgkin-Huxley equations of the squid giant axon (Hodgkin and Huxley, J. Physiol. 117:500-544, 1952),
+# in the modern sign convention (V is the depolarization from rest, mV) at 6.3 C, with the parameter values of
+# Rinzel and Miller, Math. Biosci. 49:27-59, 1980: the equilibria in the applied current I (uA/cm^2) have Hopf points at
+# I = 9.78 and I = 154.5, joined by one family of cycles. For tests/autox/hodgkin_huxley_hopf_pair.json (W604, #671).
+version 4
+init V = 0, m = 0.05, n = 0.32, h = 0.6
+par I = 0, C = 1, GNA = 120, GK = 36, GL = 0.3, VNA = 115, VK = -12, VL = 10.6
+fun AM(v) = 0.1*(25-v)/ode_divisor(exp(0.1*(25-v))-1)
+fun BM(v) = 4*exp(-v/18)
+fun AH(v) = 0.07*exp(-v/20)
+fun BH(v) = 1/(exp(0.1*(30-v))+1)
+fun AN(v) = 0.01*(10-v)/ode_divisor(exp(0.1*(10-v))-1)
+fun BN(v) = 0.125*exp(-v/80)
+fun ode_divisor(value) = if value then value else 2.23e-15
+V' = (I-GNA*m^3*h*(V-VNA)-GK*n^4*(V-VK)-GL*(V-VL))/C
+m' = AM(V)*(1-m)-BM(V)*m
+n' = AN(V)*(1-n)-BN(V)*n
+h' = AH(V)*(1-h)-BH(V)*h
+options {
+  integration: { total_time: 40, method: gear, dt: .25, min_step: 1e-12 },
+}

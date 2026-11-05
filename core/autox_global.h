@@ -27,6 +27,7 @@ struct iap_type; /* autox_c.h */
 namespace xpp {
 
 struct Session; /* session.h */
+struct Model;   /* model.h */
 
 /* The criterion, each number with its reason. A period that has grown over
    this many points in a row is no wobble of the continuation's step ... */
@@ -62,6 +63,25 @@ inline constexpr double autox_global_same_equilibrium = 1e-2;
 inline constexpr double autox_global_near_orbit = 1e-2;
 /* The variables a message names for an equilibrium; the rest is "..." */
 inline constexpr std::size_t autox_global_shown_variables = 6;
+
+/* a number as the stop texts spell it: six significant digits */
+std::string autox_number_text(double v);
+
+/* an equilibrium's variables in words ("V" = 21.9, "n" = 0.3, ...: the first autox_global_shown_variables) */
+std::string autox_equilibrium_text(const Model &m, std::span<const double> x);
+
+/* the model at x with autoX's parameters par: its right-hand side into f, and its constants left at those
+   parameters, which Newton's method and the Jacobian (equilibrium_near) read */
+void autox_evaluate_at(const iap_type &iap, const double *par, const std::ptrdiff_t *icp, std::span<const double> x,
+                       std::span<double> f);
+
+/* How many points in a row a series has gone one way: run, one more when value goes on from last (above it when
+   rising, below it otherwise), else 0 (a first point, last NaN, starts again). The period's growth and (W604) a
+   cycle's amplitude falling are counted by it */
+inline int autox_trend_run(int run, double last, double value, bool rising)
+{
+    return (rising ? value > last : value < last) ? run + 1 : 0;
+}
 
 /* A branch's periods so far (AutoxStop::period_watch): the shortest, the last
    and how many points in a row the period has grown */

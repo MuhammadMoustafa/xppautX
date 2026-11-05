@@ -334,6 +334,8 @@ const SYMBOL_HELP: Record<string, string> = {
   snic: 'SNIC (saddle-node on invariant circle): the period of the cycles grows without bound as their orbit lingers at the ghost of an equilibrium with a zero eigenvalue; the run stopped here',
   homoclinic: 'Homoclinic: the period of the cycles grows without bound as their orbit lingers at a saddle and returns to it; the run stopped here',
   heteroclinic: 'Heteroclinic: the period of the cycles grows without bound as their orbit passes two or more saddles in turn; the run stopped here',
+  hopf_end: 'End at a Hopf point: the amplitude of the cycles fell back to zero at an equilibrium with a purely imaginary pair of eigenvalues; the run stopped here',
+  branch_closed: 'Branch closed: the branch came back to its own start; the run stopped here',
 };
 
 export function fmt(v: number): string {
@@ -365,7 +367,7 @@ const LABEL_SHAPES: Record<string, LabelShape> = {
   fold_flip: 'square', fold_neimark_sacker: 'triangle', flip_neimark_sacker: 'star', double_neimark_sacker: 'diamond',
   cycle_fold: 'triangle', cycle_branch_point: 'diamond',
   resonance_1_1: 'diamond', resonance_1_2: 'triangle', resonance_1_3: 'star', resonance_1_4: 'circle',
-  snic: 'bar', homoclinic: 'bar', heteroclinic: 'bar',
+  snic: 'bar', homoclinic: 'bar', heteroclinic: 'bar', hopf_end: 'bar', branch_closed: 'bar',
 };
 
 /** the plain points (no special type, and an output point) are the small dots */

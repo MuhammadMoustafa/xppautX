@@ -463,10 +463,11 @@ CODE_OF_NAME = {
     'no_convergence': 'MX', 'bogdanov_takens': 'BT', 'cusp': 'CP', 'zero_hopf': 'ZH', 'generalized_hopf': 'GH',
     'resonance_1_1': 'R1', 'resonance_1_2': 'R2', 'resonance_1_3': 'R3', 'resonance_1_4': 'R4', 'fold_flip': 'LPD',
     'fold_neimark_sacker': 'LTR', 'flip_neimark_sacker': 'PTR', 'double_neimark_sacker': 'TTR',
-    'snic': 'SNIC', 'homoclinic': 'HOC', 'heteroclinic': 'HEC'}
-# the ends of a periodic branch that only xppautX names (W518): AUTO-07p and XPPAUT end that branch at MX or the
-# step limit, a branch end like EP, which a comparison of special points leaves out (docs/auto-references.md)
-GLOBAL_ENDS = ('SNIC', 'HOC', 'HEC')
+    'snic': 'SNIC', 'homoclinic': 'HOC', 'heteroclinic': 'HEC', 'hopf_end': 'HBE', 'branch_closed': 'CL'}
+# the ends of a branch that only xppautX names (W518, W604): AUTO-07p and XPPAUT end that branch at MX or the
+# step limit, or go on past the Hopf point or round the closed branch, a branch end like EP, which a comparison of
+# special points leaves out (docs/auto-references.md)
+GLOBAL_ENDS = ('SNIC', 'HOC', 'HEC', 'HBE', 'CL')
 
 
 def code_of(name):
@@ -923,7 +924,7 @@ def compare_curve(rows, auto, ref_curve, who, printed_digits=None, two_parameter
     expected off the other curve in that quantity, and a traced sample that agrees is reported.
     `converged` (W566), {'side': 'ours' or 'reference', 'head': bool}: that side is a run converged beyond the other's, which runs
     on past where the other stops at its step limit. Its samples past the other's last are not compared (the other's last
-    sample is, against the whole converged polyline), so no sample past an end counts; a run that ends on a global end (SNIC,
+    sample is, against the whole converged polyline), so no sample past an end counts; a run that ends on a global end (SNIC, HBE, CL,
     HOC, HEC) stops where its own detection tripped, so there the other side's samples past the converged side's end are left
     out too. `head`: the run starts from the end of another run cut at its step limit (to_snic from the cycles' last point),
     which is not where the converged run's step limit left it, so the other side's samples before the converged side's first

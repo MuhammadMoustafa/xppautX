@@ -140,10 +140,17 @@ int main()
     CHECK(xpp::autox_point_kind_label(xpp::AutoxPointKind::Snic) == "SNIC (saddle-node on invariant circle)");
     CHECK(xpp::autox_point_kind_mark(xpp::AutoxPointKind::Homoclinic) == "HOC" && xpp::autox_point_kind_mark(xpp::AutoxPointKind::Heteroclinic) == "HEC");
     CHECK(xpp::autox_point_text(*xpp::autox_point_decode(101)) == "homoclinic");
+    /* W604: the end at a Hopf point and the branch closed on itself */
+    CHECK(xpp::autox_point_kind_name(xpp::autox_point_decode(103)->kind) == "hopf_end");
+    CHECK(xpp::autox_point_kind_name(xpp::autox_point_decode(104)->kind) == "branch_closed");
+    CHECK(xpp::autox_point_encode({xpp::AutoxPointKind::HopfEnd, xpp::AutoxPointKind::Regular}) == 103);
+    CHECK(xpp::autox_point_encode({xpp::AutoxPointKind::BranchClosed, xpp::AutoxPointKind::Regular}) == 104);
+    CHECK(xpp::autox_point_kind_label(xpp::AutoxPointKind::BranchClosed) == "Branch closed");
+    CHECK(xpp::autox_point_kind_mark(xpp::AutoxPointKind::HopfEnd) == "HBE" && xpp::autox_point_kind_mark(xpp::AutoxPointKind::BranchClosed) == "CL");
 
     /* an unknown code is refused: out of range, a negative kind autoX has no
        such point for, a negative composite of a plain kind */
-    for (long bad : {103L, -100L, 1000L, -5L, -3L, -2L, -11L, -10L, -20L, -99L - 1, -65L})
+    for (long bad : {105L, -100L, 1000L, -5L, -3L, -2L, -11L, -10L, -20L, -99L - 1, -65L})
         CHECK(!xpp::autox_point_decode(bad));
     CHECK_STR(xpp::autox_point_unknown(55 + 100).c_str(), "155 is not an autoX point type");
 
@@ -206,7 +213,7 @@ int main()
         xpp::TokenReader good = xpp::TokenReader::of_text("1 1 -34 1 1 1 5 3 5 0 0 2");
         CHECK(xpp::read_autox_solution_header(good, h, 10) && h.itp.kind == xpp::AutoxPointKind::UserZero
               && h.itp.start == xpp::AutoxPointKind::Hopf);
-        for (const char *text : {"1 1 -5 1 1 1 5 3 5 0 0 2", "1 1 103 1 1 1 5 3 5 0 0 2", "1 1 -1 1 1 1 5 3 5 0 0 2"}) {
+        for (const char *text : {"1 1 -5 1 1 1 5 3 5 0 0 2", "1 1 105 1 1 1 5 3 5 0 0 2", "1 1 -1 1 1 1 5 3 5 0 0 2"}) {
             xpp::TokenReader bad = xpp::TokenReader::of_text(text);
             CHECK(!xpp::read_autox_solution_header(bad, h, 10));
         }

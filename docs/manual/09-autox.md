@@ -476,6 +476,44 @@ The end is as near as the first point whose orbit is that slow: ask a
 smaller `max_step_size` for a closer one, or follow the global bifurcation
 itself with a homoclinic or heteroclinic run from it.
 
+### End at a Hopf point (HBE)
+
+The end of a branch of cycles whose amplitude falls back to zero at a Hopf
+point (the two Hopf points of Hodgkin and Huxley's equations, in the applied
+current, are joined by one family of cycles). autoX goes on past the Hopf
+point, back along the same family, to the step limit; xppautX ends the branch
+there. It watches the amplitude of each point of a branch of cycles, the
+largest range of a variable relative to 1 plus its mean: when it has fallen
+over the last 3 points and is at most 0.001, it looks for the equilibrium at
+the orbit's mean (Newton's method with Sing pts' settings) and its
+eigenvalues. When there is one, with a complex pair whose real part is at
+most a hundredth of its imaginary part, the branch ends: a Hopf point,
+point type `hopf_end` (HBE). The stored point is the Hopf point as one point:
+its parameter is where the squared amplitude of the last two cycles falls to
+zero (a line through them), the equilibrium there (Newton's method) is its
+states, extremes, mean and orbit, its norm is that equilibrium's, and its
+period is 2 pi over the pair's frequency, so it matches the Hopf point of the
+equilibrium branch by parameter, states and period. A branch that starts at a Hopf point starts at about zero amplitude
+and grows, so it is not an end. If the amplitude never falls to zero where
+the equilibrium has such a pair, the branch goes on.
+
+### Branch closed (CL)
+
+The end of a branch that comes back to its own start: an isola of
+equilibria (a closed curve in the parameter), or a closed family of cycles.
+autoX goes round again to the step limit. xppautX keeps the branch's first
+point and, as a test of its own that is never stored or labelled, locates
+every crossing of the start's parameter value (also with fold detection
+off). At each crossing it compares the point with the start: the same
+parameter values and every state within 8 times the special point tolerance
+(`special_point_tolerance`, EPSS) times 1 plus the value (a cycle by the
+maximum and minimum of each variable and its period). A crossing that is not
+the start leaves nothing in the diagram, not even a step; one that is ends
+the branch there with point type `branch_closed` (CL): the point is the crossing,
+within that tolerance of the start. The branch has to have left the start first (by
+more than that tolerance): a branch of cycles from a Hopf point starts at a
+cycle of no size and crosses the start's parameter again on its first steps.
+
 ### User point (UZ)
 
 A point where a parameter, or the period T, reaches one of the Mark values
@@ -502,6 +540,8 @@ next to the end point's label when you hover it, and as `autox.info`'s
 | the exact Jacobian is not finite (see the error) | with Numerics' Jacobian set to exact, a derivative was not finite where the right-hand side is (sqrt or log at 0, 1/x at 0); the run stopped as a Stop does, on an end point | the error offers "Switch to differences and continue": it sets the Jacobian to difference and runs again from that end point with the same settings |
 | parameter *p* reached a Mark value set to stop | a user point marked as an end (autoX's UZR endpoint) | the Mark values |
 | parameter *p* = *value*: period growing without bound ... point type snic / homoclinic / heteroclinic | a branch of cycles whose period grew over 5 points to twice its shortest while the orbit lingers near equilibria (SNIC, HOC, HEC, above); without a type: the equilibria are no fold and no saddle | a homoclinic or heteroclinic run from the end point, or nothing: this is the end of the cycles |
+| parameter *p* = *value*: the cycles' amplitude fell to ... point type hopf_end | a branch of cycles whose amplitude fell over 3 points to at most 0.001 where the equilibrium at their mean has an imaginary pair (HBE, above) | nothing: autoX starts no run from this point (the Hopf point it ends at is on the equilibrium branch, whose own Hopf label starts the cycles again) |
+| parameter *p* = *value*: the branch closed on itself ... point type branch_closed | a branch that came back to its start (CL, above) | nothing: the branch is complete |
 | no convergence even at the smallest step (min_step_size *value*) | the solver failed and halving the step reached `min_step_size` (DSMIN): a sharp turn, a jump, or a singular point (MX) | a smaller `min_step_size` or `max_step_size`, a larger `mesh_intervals`, looser tolerances |
 | no convergence with a fixed step size (step_adapt_every 0) | the solver failed and `step_adapt_every` (IADS) is 0, so the step is not reduced (MX) | `step_adapt_every` 1 |
 | no convergence switching branches, ... | the same while starting a bifurcating branch at a branch point | as above |
@@ -510,8 +550,8 @@ A no convergence's words also name the Newton settings that gave up
 (`max_newton_iterations`, `parameter_tolerance`, `state_tolerance`) and, when the last linear system was singular, its
 smallest pivot. Recording the reason changes nothing autoX computes: the
 points, labels and saved diagrams are the same as before, except where a
-branch of cycles ends on a SNIC, a homoclinic or a heteroclinic orbit (above):
-there it stops, where autoX goes on to MX or the step limit.
+branch of cycles ends on a SNIC, a homoclinic or a heteroclinic orbit, or at a Hopf point, or a
+branch closes on itself (above): there it stops, where autoX goes on to MX or the step limit.
 
 A run that cannot start says so as an error, and autoX stops: a start autoX
 has no continuation for (it names the problem, ISW and the start's type),

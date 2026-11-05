@@ -183,6 +183,8 @@ enum class AutoxPointKind : int {
     Snic = 22,            /* SNIC: a periodic branch ends on a saddle-node on an invariant circle (W518) */
     Homoclinic = 23,      /* HOC: a periodic branch ends on a homoclinic orbit to a saddle (W518) */
     Heteroclinic = 24,    /* HEC: a periodic branch ends on a heteroclinic cycle between saddles (W518) */
+    HopfEnd = 25,         /* HBE: a periodic branch ends where its cycles shrink to zero amplitude at a Hopf point (W604) */
+    BranchClosed = 26,    /* CL: a branch ends back at its own start (W604) */
     MaxSteps = -9         /* MX: no convergence, or the step limit */
 };
 
@@ -222,10 +224,12 @@ constexpr int autox_point_encode(AutoxPointCode c)
     if (c.kind == AutoxPointKind::FoldNeimarkSacker) return c.start == AutoxPointKind::Fold ? 23 : 83;
     if (c.kind == AutoxPointKind::FlipNeimarkSacker) return c.start == AutoxPointKind::PeriodDoubling ? 77 : 87;
     if (c.kind == AutoxPointKind::DoubleNeimarkSacker) return 88;
-    // W518: the ends of a periodic branch no autoX code names, ITP outside the composite range 0..99
+    // W518, W604: the ends of a branch no autoX code names, ITP outside the composite range 0..99
     if (c.kind == AutoxPointKind::Snic) return 100;
     if (c.kind == AutoxPointKind::Homoclinic) return 101;
     if (c.kind == AutoxPointKind::Heteroclinic) return 102;
+    if (c.kind == AutoxPointKind::HopfEnd) return 103;
+    if (c.kind == AutoxPointKind::BranchClosed) return 104;
     const int kind = static_cast<int>(c.kind), start = static_cast<int>(c.start);
     return kind < 0 ? kind - 10 * start : 10 * start + kind;
 }
@@ -247,6 +251,8 @@ constexpr std::optional<AutoxPointCode> autox_point_decode(long itp, bool allow_
     case 100: return AutoxPointCode{AutoxPointKind::Snic, AutoxPointKind::Regular};
     case 101: return AutoxPointCode{AutoxPointKind::Homoclinic, AutoxPointKind::Regular};
     case 102: return AutoxPointCode{AutoxPointKind::Heteroclinic, AutoxPointKind::Regular};
+    case 103: return AutoxPointCode{AutoxPointKind::HopfEnd, AutoxPointKind::Regular};
+    case 104: return AutoxPointCode{AutoxPointKind::BranchClosed, AutoxPointKind::Regular};
     case -21: return AutoxPointCode{AutoxPointKind::BogdanovTakens, AutoxPointKind::Fold};
     case -22: return AutoxPointCode{AutoxPointKind::Cusp, AutoxPointKind::Fold};
     case -23: return AutoxPointCode{AutoxPointKind::ZeroHopf, AutoxPointKind::Fold};
@@ -318,6 +324,8 @@ inline constexpr auto autox_point_names = std::to_array<AutoxPointName>({
     {AutoxPointKind::Snic, "snic", "SNIC (saddle-node on invariant circle)", "SNIC"},
     {AutoxPointKind::Homoclinic, "homoclinic", "Homoclinic", "HOC"},
     {AutoxPointKind::Heteroclinic, "heteroclinic", "Heteroclinic", "HEC"},
+    {AutoxPointKind::HopfEnd, "hopf_end", "End at a Hopf point", "HBE"},
+    {AutoxPointKind::BranchClosed, "branch_closed", "Branch closed", "CL"},
     {AutoxPointKind::MaxSteps, "no_convergence", "No convergence", "MX"},
 });
 

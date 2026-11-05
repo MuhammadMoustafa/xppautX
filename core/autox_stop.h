@@ -18,9 +18,11 @@
 
 #include <cmath>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "autox_ends.h"
 #include "autox_global.h"
 
 struct AutoxRun; /* autox_state.h */
@@ -46,6 +48,8 @@ enum AutoxStopWhy {
     AUTOX_STOP_SNIC,        /* ... at a saddle-node on an invariant circle */
     AUTOX_STOP_HOMOCLINIC,  /* ... at a homoclinic orbit to a saddle */
     AUTOX_STOP_HETEROCLINIC,/* ... at a heteroclinic cycle between saddles */
+    AUTOX_STOP_HOPF_END,    /* a cycle branch's amplitude fell to about zero at a Hopf point (W604) */
+    AUTOX_STOP_CLOSED,      /* the branch came back to its own start (W604) */
     AUTOX_STOP_N
 };
 
@@ -79,6 +83,14 @@ struct AutoxStop {
     /* the cycle branch's periods so far, and the end its period growing without bound was (W518) */
     AutoxPeriodWatch period_watch;
     AutoxGlobalEnd global;
+    /* the cycle branch's amplitudes so far, and the Hopf point its amplitude fell to zero at (W604) */
+    AutoxAmplitudeWatch amplitude_watch;
+    AutoxHopfEnd hopf_end;
+    bool hopf_failure_noted = false; /* the model failed where the Hopf end was checked: said once per run */
+    /* the branch came back to its start: autox_point_gap there, kept from the crossing that found it until the point
+       is stored (W604) */
+    std::optional<double> closure_gap;
+    double closure_epss = NAN; /* the EPSS it is measured in */
 };
 
 /* a "No convergence" NOTE; the branch end that follows says "no
@@ -96,6 +108,8 @@ struct AutoxStopAt {
     int mark;   /* istop -1: a Mark value set to stop */
     int user;   /* stopped by the user (byeautox's iflag, a cancel) */
     int global; /* a cycle branch's period grows without bound: AutoxStop::global says where (W518) */
+    bool hopf_end; /* a cycle branch's amplitude fell to zero at a Hopf point: AutoxStop::hopf_end says where (W604) */
+    bool closed;   /* the branch came back to its start: AutoxStop::closure_gap says how exactly (W604) */
 };
 
 /* why a branch ending at `at` ended; the first of: the user, no

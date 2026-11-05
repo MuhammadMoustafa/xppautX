@@ -2765,3 +2765,54 @@ back to the stored point, and the resonance is labelled there. Where the search 
 passes unchanged, byte for byte. The converged run's R2 against the model (`docs/studies/w585_torus_r2_check.py`, the Poincare map at the run's m):
 7.5e-10 in eps and 2.4e-10 in b0 from the true R2 (trace + 2 = 2.3e-9), closer than its BP (4.2e-9, 1.4e-9). Rejudged offline
 (the finite-difference pilot against the converged run, continuation.py's converged_mismatch): forced_pp_ns, hill_cycles_torus and henon_rot_th equal work.
+
+## W604: the end at a Hopf point and the branch closed on itself ([#671](https://github.com/MuhammadMoustafa/xppautX/issues/671))
+
+Neither AUTO-07p nor XPPAUT 8.0 ends a branch of cycles at the Hopf point its amplitude falls back to (they go on, and
+xppautX did before W604, back along the same family: `hodgkin_huxley_hopf_pair` ran 469 points and retraced the family
+four times to its step limit), nor a branch that closes on itself (`enz_isola` went round 2400 points). Both ends are
+new point types, `hopf_end` (HBE) and `branch_closed` (CL), so the two descriptions carry `auto07p_skip` and
+`xppaut_skip`; `tools/autoxcompare.py` treats them like W518's ends (a branch end, not a special point).
+
+Models: Hodgkin and Huxley's equations (1952; Rinzel and Miller 1980's values, `tools/models/hodgkin_huxley.odex`), whose
+equilibria in the applied current have Hopf points at I = 9.78 and 154.53 joined by one cycle family; and AUTO-07p's demo
+`enz` at mu = 5 (`tools/models/enz_isola.odex`), whose equilibria in s0 include an isola. The isola's folds were checked
+independently (numpy/scipy, the curve 3(s2 - s1) - rho (R(s1) - R(s2)) = mu): s0 = 24.610899 and 27.074710; at the
+description's step (0.05) autoX locates the upper one at 27.047 from one direction and 27.056 from the other, at
+step 0.02 and finer at 27.074710 from both (a step of the size of the loop's curvature, not a fault of the end).
+
+**The end at a Hopf point is one coherent point.** Its parameter is where the squared amplitude of the last two cycles above
+the limit reaches zero (a Hopf point's cycles have an amplitude squared linear in the parameter: `hodgkin_huxley_hopf_pair`,
+154.52733 against the Hopf point's 154.52633), the equilibrium there is found by Newton's method, and the stored point is
+that equilibrium: states, extremes and mean equal, norm and `.s` orbit the equilibrium's, the period 2 pi over the
+eigenvalue pair's frequency (5.90928 against the Hopf point's 5.91124). A branch that closes on itself stores the located
+crossing as it is, which the rule says is the start.
+
+**c of the same-point rule** (`autox_same_point_factor` = 8; distances in units of EPSS (1 + |a|), EPSS 1e-4). Measured, the
+same point found twice:
+
+| the points | parameter | states | period |
+|---|---|---|---|
+| `enz_isola`, the closing crossing against the start | 4e-4 | 4e-4 | |
+| `hodgkin_huxley_hopf_pair`, the Hopf end against the equilibrium run's second Hopf point | 0.064 | 0.004 to 0.024 | 2.8 |
+| `enz_isola`'s lower fold from the two directions, step 0.05 | 8e-9 | 0 | |
+| `enz_isola`'s upper fold from the two directions, step 0.05 (coarse) | 3.3 | 94 and 391 | |
+| the same, step 0.02, EPSS 1e-4 and finer | below 1e-3 | below 1e-2 | |
+| AUTO-07p's demos at step 0.02 and at 0.6 of it (the same points found from two step histories; `tstauto_ab` is demo ab, `pp2`, `lo`, `pen` the demos of those names): ab's fold | 0 | 0.11, 0.27 | |
+| pp2's branch point and Hopf point | 0 | 0 | |
+| lo's Hopf point; pen's fold | 0.001; 0 | 0; 0.0009 | |
+| the Morris-Lecar demo's two Hopf points (`tstauto_lecar`, `ode_lecar`) | 0.08 to 0.29 | 0.10 to 0.32 | |
+
+The AUTO-07p demos could not be run from two directions: ab's and pen's backward run from the parameter's upper limit lands
+on another part of the branch (ab) or fails to settle (pen), and pp2's lands on its other branch, so the same points are
+found from two step sizes instead. 8 is above every measurement at a step that resolves the branch (the period of the Hopf
+end, 2.8, the largest) and below the coarse fold's 94 and more, which is a point 0.03 from the fold, not the fold (the
+maintainer carded that fold's location separately). The Hopf end's frequency is compared through its period. A tolerance
+too tight costs only a repeated job (W605).
+
+Decisions the card made where the brief was silent: a cycle's "states" for the closing test are each variable's maximum and
+minimum over the orbit (phase-free), with the period among its parameters; the branch must have left the start (by more
+than the rule's tolerance) before a crossing counts, which `ode_motoneuron6c`'s cycles from a Hopf point need (they cross
+the start's parameter on their first steps, at about zero amplitude); autoX offers no run from a fold, so the closing at a
+start that is a special point is checked with a user's mark there (`enz_isola`'s run "marked": the mark's points are
+stored and labelled, and the branch closes at the last) and from the start label.

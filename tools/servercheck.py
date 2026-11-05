@@ -421,7 +421,8 @@ def check_autox_stops():
 def check_autox_global_ends():
     """W518 (#582): a cycle branch whose period grows without bound while its orbit lingers at equilibria ends on a
     SNIC, a homoclinic orbit or a heteroclinic cycle: the run stops there, the stop says which with the period, the
-    parameter and the equilibria approached, and the end point is stored and marked with the new type."""
+    parameter and the equilibria approached, and the end point is stored and marked with the new type. W604 (#671):
+    the same for a cycle branch whose amplitude falls to zero at a Hopf point and for a branch that closes on itself."""
     cases = [
         ('global_snic', 'snic', 'SNIC', ['parameter mu = 0.99999', 'period growing without bound: T = ', 'times the shortest period of the branch (6.28319)',
                                          'the ghost of an equilibrium', 'zero eigenvalue, on a fold of the equilibria', 'point type snic (SNIC)']),
@@ -431,12 +432,16 @@ def check_autox_global_ends():
                                                         # the two saddles in the order the last orbit passes them, which the cycle's end does not fix (W547)
                                                         'lingers near a saddle (1 unstable and 1 stable eigenvalues) at "X" = ', '; then a saddle (1 unstable and 1 stable eigenvalues) at "X" = ',
                                                         '"X" = 1, "Y" = 0', '"X" = -1, "Y" = 0',
-                                                        'point type heteroclinic (HEC)'])]
+                                                        'point type heteroclinic (HEC)']),
+        # W604 (#671): the cycles of Hodgkin-Huxley's first Hopf point end at its second, and the isola of enz closes on itself
+        ('hodgkin_huxley_hopf_pair', 'hopf_end', 'HBE', ['parameter I = 154.5', "the cycles' amplitude fell to ", " of their variables' size (at most 0.001) over the last 3 points; at the Hopf parameter 154.52", "the equilibrium has the imaginary pair ",
+                                                          '"V" = 21.94', ': a Hopf point, point type hopf_end (HBE)'])]
     for name, key, mark, words in cases:
         d = autoxcompare.read_description(autoxcompare.BASE / (name + '.json'))
         s = Server(args.server, autoxcompare.ROOT / d['model'])
         try:
             autoxcompare.completed(s)
+            autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
             diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
             events = []
             for r in d['runs']:
@@ -444,13 +449,46 @@ def check_autox_global_ends():
                 events = autoxcompare.execute_run(s, r, diagram, {})
             stops = [e['stop'] for e in events if e.get('ev') == 'autox.info' and e.get('stop')]
             stop = stops[-1] if stops else {}
-            check('stops autoX %s: the period growing without bound ends the cycles, says why with the period, the parameter and the equilibria' % key,
+            check('stops autoX %s: the branch ends there and says why, with the parameter and what it found' % key,
                   stop.get('why') == key and all(w in stop.get('text', '') for w in words), str(stop))
             ends = [lab for e in events if e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for r in e['runs'] for lab in r.get('lab', [])]
             check('stops autoX %s: the end point is stored with its type, which the page marks %s (hello\'s point types)' % (key, mark),
                   bool(ends) and ends[-1][2] == key and diagram.points[-1]['sym'] == mark, str(ends[-1:]))
         finally:
             s.close()
+
+
+def check_autox_closed_branch():
+    """W604 (#671): a branch that comes back to its start ends there (branch_closed, CL). enz_isola's runs: from a point of
+    the isola of equilibria; from its start label (autoX offers no run from a fold, so no start at a special point: a user mark there is the case of a special point where
+    the branch closes); and with a user's own mark at the start's parameter value, whose points
+    are still stored and labelled while the branch closes. A special point located where the branch closes keeps its label."""
+    d = autoxcompare.read_description(autoxcompare.BASE / 'enz_isola.json')
+    s = Server(args.server, autoxcompare.ROOT / d['model'])
+    try:
+        autoxcompare.completed(s)
+        autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
+        diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
+        seen = {}
+        for r in d['runs']:
+            autoxcompare.restore_start(s, r, [], {})
+            events = autoxcompare.execute_run(s, r, diagram, {})
+            stops = [e['stop'] for e in events if e.get('ev') == 'autox.info' and e.get('stop')]
+            labels = [lab[2] for e in events if e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for run in e['runs'] for lab in run.get('lab', [])]
+            seen[r['name']] = (stops[-1] if stops else {}, labels)
+        stop, labels = seen['isola']
+        check('stops autoX branch_closed: the isola of equilibria ends where it started, says why and marks the end CL',
+              stop.get('why') == 'branch_closed' and labels[-1] == 'branch_closed' and labels.count('fold') == 2
+              and all(w in stop.get('text', '') for w in ['parameter s0 = 25.617: the branch closed on itself: back at its start, every parameter and state within ',
+                                                         ' times special_point_tolerance = ', 'point type branch_closed (CL)']), str(seen['isola']))
+        stop, labels = seen['from_label']
+        check("stops autoX branch_closed: a run restarted from the isola's start label closes at its start again",
+              stop.get('why') == 'branch_closed' and labels[-1] == 'branch_closed', str(seen['from_label']))
+        stop, labels = seen['marked']
+        check("stops autoX branch_closed: a user's own mark at the start's parameter value is still stored and labelled while the branch closes",
+              stop.get('why') == 'branch_closed' and labels.count('user_point') == 2 and labels[-1] == 'user_point', str(seen['marked']))
+    finally:
+        s.close()
 
 
 def check_autox_starts():
@@ -10847,6 +10885,7 @@ check_run_registry()
 check_stops()
 check_autox_stops()
 check_autox_global_ends()
+check_autox_closed_branch()
 check_autox_starts()
 check_autox_two_parameter_starts()
 check_autox_periodic_start_kind()
