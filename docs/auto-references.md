@@ -2778,8 +2778,8 @@ Models: Hodgkin and Huxley's equations (1952; Rinzel and Miller 1980's values, `
 equilibria in the applied current have Hopf points at I = 9.78 and 154.53 joined by one cycle family; and AUTO-07p's demo
 `enz` at mu = 5 (`tools/models/enz_isola.odex`), whose equilibria in s0 include an isola. The isola's folds were checked
 independently (numpy/scipy, the curve 3(s2 - s1) - rho (R(s1) - R(s2)) = mu): s0 = 24.610899 and 27.074710; at the
-description's step (0.05) autoX locates the upper one at 27.047 from one direction and 27.056 from the other, at
-step 0.02 and finer at 27.074710 from both (a step of the size of the loop's curvature, not a fault of the end).
+description's step (0.05) autoX located the upper one at 27.047 from one direction and 27.056 from the other (W609 below found why:
+the fold test's orientation; it now gives 27.0747102496 from both).
 
 **The end at a Hopf point is one coherent point.** Its parameter is where the squared amplitude of the last two cycles above
 the limit reaches zero (a Hopf point's cycles have an amplitude squared linear in the parameter: `hodgkin_huxley_hopf_pair`,
@@ -2796,7 +2796,7 @@ same point found twice:
 | `enz_isola`, the closing crossing against the start | 4e-4 | 4e-4 | |
 | `hodgkin_huxley_hopf_pair`, the Hopf end against the equilibrium run's second Hopf point | 0.064 | 0.004 to 0.024 | 2.8 |
 | `enz_isola`'s lower fold from the two directions, step 0.05 | 8e-9 | 0 | |
-| `enz_isola`'s upper fold from the two directions, step 0.05 (coarse) | 3.3 | 94 and 391 | |
+| `enz_isola`'s upper fold from the two directions, step 0.05 (coarse; W609: 3.3 and 94 and 391 before its fix) | 1e-12 | 2e-9 | |
 | the same, step 0.02, EPSS 1e-4 and finer | below 1e-3 | below 1e-2 | |
 | AUTO-07p's demos at step 0.02 and at 0.6 of it (the same points found from two step histories; `tstauto_ab` is demo ab, `pp2`, `lo`, `pen` the demos of those names): ab's fold | 0 | 0.11, 0.27 | |
 | pp2's branch point and Hopf point | 0 | 0 | |
@@ -2807,7 +2807,7 @@ The AUTO-07p demos could not be run from two directions: ab's and pen's backward
 on another part of the branch (ab) or fails to settle (pen), and pp2's lands on its other branch, so the same points are
 found from two step sizes instead. 8 is above every measurement at a step that resolves the branch (the period of the Hopf
 end, 2.8, the largest) and below the coarse fold's 94 and more, which is a point 0.03 from the fold, not the fold (the
-maintainer carded that fold's location separately). The Hopf end's frequency is compared through its period. A tolerance
+location that gave it is W609's, fixed below). The Hopf end's frequency is compared through its period. A tolerance
 too tight costs only a repeated job (W605).
 
 Decisions the card made where the brief was silent: a cycle's "states" for the closing test are each variable's maximum and
@@ -2816,3 +2816,27 @@ than the rule's tolerance) before a crossing counts, which `ode_motoneuron6c`'s 
 the start's parameter on their first steps, at about zero amplitude); autoX offers no run from a fold, so the closing at a
 start that is a special point is checked with a user's mark there (`enz_isola`'s run "marked": the mark's points are
 stored and labelled, and the branch closes at the last) and from the start label.
+
+## W609: a fold located half a step off at a coarse step ([#676](https://github.com/MuhammadMoustafa/xppautX/issues/676))
+
+W604's review found `enz_isola`'s upper fold labelled at s0 = 27.047 (and 27.056 from the other direction) where it is at 27.074710 (numpy/scipy from the model's
+own equations, `fsolve` on f = 0 and det J = 0, 1e-14: s0 = 27.07471025, s1 = 3.35140074, s2 = 1.13446917; the lower fold 24.61089939). The cause is not the location
+(`locate_special_point`, Mueller's method with the bracketing of W545 behave as designed) but the sample it is given. The fold test of equilibria (`fnlpae`, AUTO-07p's
+FNLPAE, [toolboxae.f90:703-747](../reference/auto-07p/src/toolboxae.f90#L703)) is the parameter component of the Newton matrix's null vector, oriented by the tangent the
+step started with ([ae.f90:587-592](../reference/auto-07p/src/ae.f90#L587)). At step 0.05 the tangent turns by 101 degrees between points 17 and 18 (the null vectors
+(-0.053, -0.645, 0.762) and, along the travel, (0.543, -0.513, -0.665) in (s1, s2, s0)), so the oriented test stays positive (0.76, 0.66) across the fold, and the next
+step's test is 0.66 against -0.80: the sign change is found one step late, between a stale sample and a correctly oriented one, and the location ends 0.0003 from the point the step
+started at. It is AUTO-07p's own behaviour (docs/auto07p-findings.md 16; XPPAUT's AUTO was not read for it).
+
+**The fix** (core/autox_lib1.cpp `fnlpae`): the null vector is oriented by the step just taken, (u - uold, par - parold) over the step's signed length, the direction the run actually
+moved, as the Newton matrix's own last row is (solvae); no step taken yet (a branch's start: no move) keeps the old tangent's orientation. Nothing else changes: where the
+tangent turns by less than 90 degrees both orientations agree, so the test is the same number. The comparison over every description (83 models, 26070 points) changed
+`enz_isola` alone: its upper fold is now at 27.0747102496 (s1 3.3513998, s2 1.1344712) from all three runs against 27.074710249640 numerically, and its diagram has 226 points
+where it had 229 (the extra points were the steps after the late fold). The lower fold and the closing at the start are as before (24.61089939, 25.617000019).
+
+**How this differs from W542** (a failed bracket retaken at half steps: 16 failures in five models, because noise brackets of the branch-point test became located): this
+changes no bracket and retakes nothing. It changes the orientation of one test value, so a fold is found in the step it is in, and its effect is on steps whose tangent
+turns past 90 degrees only, which the 83 models show of none but this one.
+
+**Not done: cycles.** `fnlpbv` takes the direction from `solvbv` with the old tangent in the same way (the last row of the bordered system); a cycle's fold at a step that turns the
+tangent past 90 degrees has the same hazard. No description of ours has one, so it is not changed (YAGNI: nothing shows it); a card for it needs a model that does.

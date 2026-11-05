@@ -50,6 +50,7 @@ so the index started empty.
 | [13](#13-a-flip-curves-resonance-test-jumps-where-its-two-multipliers-swap-roles) | Fold and flip curves of cycles | near R1/R2 the test `|mu| - 1` of the multiplier next to the imposed one jumps where the two multipliers near it swap which is the imposed one, so its location stops short of the resonance (3e-5 in b0 at NTST 40, 9e-5 at NTST 15) or not at all | [W565 / #630](https://github.com/MuhammadMoustafa/xppautX/issues/630) |
 | [14](#14-the-fold-test-of-a-switched-branch-starts-at-its-third-point) | Branch switching | a fold between the second and third point of a branch started by a switch is never labelled: the tests start at 0 and are first evaluated at the third point | [W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634) |
 | [15](#15-the-tests-of-a-branchs-first-steps-are-not-made) | Special-point location | a zero between a branch's start and its third point (equilibria; cycles: its second) is never labelled: the tests start at 0 and the second point of an equilibrium branch is not even stored | [W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637) |
+| [16](#16-the-fold-test-of-an-equilibrium-is-oriented-by-the-old-tangent) | Special-point location | the fold test of equilibria is oriented by the tangent the step started with, so a step that turns past 90 degrees (a coarse step across a fold's tight turn) leaves its sign unchanged where the fold is and the fold is located a step late, half a step off | [W609 / #676](https://github.com/MuhammadMoustafa/xppautX/issues/676) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -501,3 +502,19 @@ Hopf point r = 24.736842 between its second and third points and its run has no 
 **xppautX:** the tests are made at the start, at the second point of an equilibrium branch and at the second point of a switched one, and at a cycle branch's start
 ([W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637); core/autox_lib1.cpp `cnrlae`, `cnrlbv`); docs/auto-references.md W572.
 
+## 16. The fold test of an equilibrium is oriented by the old tangent
+
+`FNLPAE` ([toolboxae.f90:703-747](../reference/auto-07p/src/toolboxae.f90#L703)) solves the Newton matrix with the last row set to `UDOT`, the tangent the step started with
+([ae.f90:587-592](../reference/auto-07p/src/ae.f90#L587): `AA(NDIM+1,K)=UDOT(K)`, and only afterwards `UDOT(:)=(U(:)-UOLD(:))/RDS`), normalises the null vector and returns its
+parameter component. The null vector's sign is the one that has a positive product with the old tangent, so when the tangent turns by more than 90 degrees within one
+step the product is negative for the true direction of travel, the returned value keeps its sign across the fold, and the zero shows one step later as a jump between a value
+of the wrong orientation and one of the right orientation: the fold is not located where it is.
+
+**Evidence** (tests/autox/enz_isola.json, AUTO-07p's demo `enz` at mu = 5, step 0.05; the independent check numpy/scipy from the model's equations: f = 0 and det J = 0
+solved together, `fsolve` to 1e-14): the isola's upper fold is at s0 = 27.07471025 (s1 3.3514, s2 1.1345). The points either side of it are at s0 = 27.0458 and 27.0473 (the tangent
+there, the null vector of [J f_p], is (s1, s2, s0) = (-0.053, -0.645, 0.762) and, along the direction of travel, (0.543, -0.513, -0.665), whose product with the old tangent is -0.20), and the
+test of the step across the fold keeps its sign (0.76, 0.66). The next step's test is 0.66 against -0.80 and the fold is located at s0 = 27.0470, 0.0277 from the fold and 0.0003 from the point the step started
+at. AUTO-07p has the same row ([ae.f90:587-592](../reference/auto-07p/src/ae.f90#L587)); its run was not made here (the description carries `auto07p_skip`).
+
+**xppautX:** the null vector is oriented by the step just taken, `(u - uold)` over the step's signed length (core/autox_lib1.cpp `fnlpae`), so the sign changes where the fold is and the
+location finds it. Cycles (`fnlpbv`, which takes the direction from `solvbv` with the old tangent in the same way) keep AUTO-07p's orientation; the same hazard is there. docs/auto-references.md W609.

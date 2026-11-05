@@ -2320,7 +2320,15 @@ fnlpae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, bool *chng, 
     integer tmp = ndim + 1;
     nrmlz(&tmp, ud.data());
   }
-  ret_val = ud[ndim];
+  /* W609 (#676): the null vector points along the step just taken (u - uold over its signed length), not along the
+     tangent the step started with. AUTO-07p's FNLPAE (toolboxae.f90:703-747) orients it by the old tangent; a step
+     that turns past 90 degrees in one go (a coarse step across a fold's tight turn) then leaves the test's sign
+     unchanged where the fold is, and the zero is found a step late, where the stale sample meets a correctly oriented
+     one (enz_isola at step 0.05: the fold 27.0747 labelled at 27.0470). No step taken yet (a branch's start) leaves the
+     old tangent's orientation. */
+  double along = ud[ndim] * (rlcur[0] - rlold[0]);
+  for (k = 0; k < ndim; ++k) along += ud[k] * (u[k] - uold[k]);
+  ret_val = along * rap->dsold < 0 ? -ud[ndim] : ud[ndim];
   *chng = true;
 
   /* If requested write additional output on unit 9 : */
