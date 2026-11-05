@@ -677,7 +677,7 @@ Result<> autox_run_check(const Session &s, const AutoxRunRequest &request, const
     }
     if(request.kind!=AutoxRunKind::equilibrium && s.data_store.rows<2 && !settling)
       return fail("autox",xpp::format("Integrate first: a {} run from the current state takes its orbit from the last integration, which stored {} row(s) (at least 2 are needed)",kind,s.data_store.rows),command_place());
-    if(request.kind==AutoxRunKind::periodic && s.data_store.rows>=2){
+    if(request.kind==AutoxRunKind::periodic && !settling){ /* rows >= 2 here; a run that settles first has no orbit yet */
       const double ratio=autox_orbit_return_ratio(s);
       if(!(ratio<=autox_orbit_return_limit))
         return fail("autox",xpp::format("{} start stopped: the stored orbit does not return to its first row: its last row (t = {:.6g}) is {:.3g} of the orbit's extent away, more than {} allowed; set the total integration time to one period, after the transient, and integrate again",kind,static_cast<double>(s.data_store.col[0][s.data_store.rows-1]),ratio,autox_orbit_return_limit),command_place());
