@@ -144,7 +144,7 @@ void autox_checkpoint(const AutoxRun &run, int *iflag)
     xpp::byeautox_(iflag);
     return;
   }
-  *iflag=xpp::job::cancelled()?1:0;
+  *iflag=xpp::job::cancelled()||run.dropped?1:0;
 }
 
 double autox_parameter_value(const AutoxRun &run, integer slot,
@@ -234,7 +234,7 @@ int stpnt(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doublereal *
   const auto unknowns=layout.unknowns(par);
   autox_fill_parameters(run,par);
 
-  if(!s.autox_state.new_period_flag){  
+  if(!run.orbit_start){
     for(i=0;i<ndim;i++)
       u[i]=s.last_ic[i];
     return 0;

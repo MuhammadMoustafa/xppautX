@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "autox_codes.h"
+#include "autox_nox.h"
 
 struct iap_type; /* autox_c.h */
 
@@ -109,6 +110,11 @@ struct AutoxPointId {
     std::vector<double> parameters, states;
     std::optional<double> frequency;
 };
+
+/* A stored point (a diagram point) as the rule sees it: its kind, its continued parameters, its states and, for a Hopf point or
+   the end at one, its frequency (2 pi over the period). The states of a cycle are each variable's maximum then minimum over
+   the orbit (phase-free, as the closing test's); those of a steady state, and of the end at a Hopf point, its variables */
+AutoxPointId autox_point_id(const DIAGRAM &point);
 
 /* whether a point of kind a is one of kind b: the same kind, or an end and the point it ends at: a Hopf end and a
    Hopf point (HB), a SNIC end and a fold (LP) */

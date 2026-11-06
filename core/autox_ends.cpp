@@ -139,6 +139,19 @@ AutoxPointId branch_point_id(const iap_type &iap, const double *par, const std::
 
 } // namespace
 
+AutoxPointId autox_point_id(const DIAGRAM &point)
+{
+    AutoxPointId id;
+    id.kind = point.itp.kind;
+    id.parameters = point.par;
+    if (point.ibr < 0 && id.kind != AutoxPointKind::HopfEnd) { /* a periodic branch (autoX's sign); the end at a Hopf point is its equilibrium */
+        id.states = point.uhi;
+        id.states.insert(id.states.end(), point.ulo.begin(), point.ulo.end());
+    } else id.states = point.u0;
+    if ((id.kind == AutoxPointKind::Hopf || id.kind == AutoxPointKind::HopfEnd) && point.per > 0) id.frequency = 2 * std::numbers::pi / point.per;
+    return id;
+}
+
 double autox_point_gap(const AutoxPointId &a, const AutoxPointId &b, double epss)
 {
     if (!autox_same_kind(a.kind, b.kind)) return INFINITY;

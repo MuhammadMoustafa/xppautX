@@ -1,0 +1,32 @@
+{
+  "model": "tools/models/hodgkin_huxley.odex",
+  "reason": "W605 (#672): the Hodgkin-Huxley equations (Hodgkin and Huxley 1952; Rinzel and Miller 1980's values) followed from rest at I = 0 with follow_all_branches on, as one run. The equilibria in the applied current have two Hopf points, I = 9.78 and 154.5, joined by one family of cycles: the equilibrium jobs find both, each starts its cycles, the two being a pair (the families grow towards each other, so the later waits for the earlier), and the cycles of the first end at the second Hopf point (hopf_end), which has made the second's cycles: they are never run, or dropped at the join. The diagram is the equilibria both ways and the one family, the same at 1 and automatic threads, byte for byte.",
+  "auto07p_skip": "W605 (#672): AUTO-07p continues one branch per run, and its cycles do not end at the second Hopf point (docs/auto-references.md W604); following all of them from one start is xppautX's.",
+  "xppaut_skip": "W605 (#672): XPPAUT continues one branch per run, and its cycles do not end at the second Hopf point (docs/auto-references.md W604); following all of them from one start is xppautX's.",
+  "parameters": {
+    "I": 0
+  },
+  "runs": [
+    {
+      "name": "all",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current",
+        "settle": 30
+      },
+      "parameter": "I",
+      "autox": {
+        "step_size": 1,
+        "min_step_size": 1e-07,
+        "max_step_size": 4,
+        "max_steps": 600,
+        "output_every": 100,
+        "parameter_min": -10,
+        "parameter_max": 200,
+        "mesh_intervals": 30,
+        "max_branch_switches": 0,
+        "follow_all_branches": true
+      }
+    }
+  ]
+}

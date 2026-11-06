@@ -15,6 +15,13 @@ W518 (#582): `global_snic`, `global_homoclinic` and `global_heteroclinic` run th
 of `tools/models/` named so, whose cycles from a Hopf point end on a SNIC, a homoclinic orbit and a
 heteroclinic cycle: the run stops there with the new point type (`snic`, `homoclinic`, `heteroclinic`),
 which neither reference has, so they carry `auto07p_skip` and `xppaut_skip`.
+W605 (#672): the descriptions whose names end in `_follow_all` run with `follow_all_branches` on, one
+run from the start, and follow every branch the jobs find (branch points, Hopf points, ends of cycles at
+a Hopf point or a SNIC; the SNIC's is unit-tested only, W518's cycles end on its ghost): `lrz_follow_all` (AUTO-07p's lrz demo: a branch point and the Hopf points of
+its two branches), `hodgkin_huxley_follow_all` (two Hopf points joined by one family of cycles),
+and `enz_follow_all` (a closed branch followed from both sides).
+Neither reference follows all branches from one start, so they carry the
+skips; each diagram is the same at 1 and at automatic threads, which this driver checks like every other.
 
 `model` is relative to the repository. `reason` explains the continuation;
 optional `parameters` and `initial_conditions` set the starting state.

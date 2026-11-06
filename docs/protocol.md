@@ -1925,8 +1925,10 @@ read on import only. `suppress_branch_points`, `switch_one_direction` and `follo
 `true` or `false` in commands and saved settings (W499), `output_detail` one of the level names. `follow_all_branches` (W596,
 on by default, sent with the run like the others and saved in the session file's settings) makes `autox.run` from the current
 state (an equilibrium start, a Periodic start from an integrated orbit) continue both directions, +|step_size| and -|step_size|, as two
-jobs at once; the diagram, `autox.diagram` events and `autox.info` come when both have ended, in the order of the two runs one after
-another (+ before -), branches and labels numbered so; `run.abort` while the jobs run at once ends both, keeps their points and joins them (how far each got depends on timing); when they run one after another (Threads 1, or a model whose evaluation cannot be shared) it ends the first and the second never starts. Replaying a recorded stop job by job is W606's.
+jobs at once, and every branch point (of equilibria or cycles), Hopf point and end of cycles at a Hopf point or a SNIC they find (W605) one more job
+(two for a branch point and for the equilibria through an end: +|step_size| and -|step_size|; one for a Hopf point's cycles), never twice for one point;
+the diagram, `autox.diagram` events and `autox.info` come when all have ended, in the order a queue served in turn would run the jobs (the two directions,
+then the jobs the first found by their points, then theirs), repeats dropped, branches and labels numbered so; `run.abort` while the jobs run at once ends both, keeps their points and joins them (how far each got depends on timing); when they run one after another (Threads 1, or a model whose evaluation cannot be shared) it ends the first and the second never starts. Replaying a recorded stop job by job is W606's.
 Off: one run, in the direction the sign of `step_size` gives.
 
 ```

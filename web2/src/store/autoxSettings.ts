@@ -140,8 +140,9 @@ export const NUM_FIELDS: NumField[] = [
     help: 'When checked, do not look for branch points (faster, and no false ones); for periodic orbits there are then no '
       + 'Floquet multipliers, period doublings or tori either. Unchecked: look for them.'},
   {key: 'follow_all_branches',
-    help: 'When checked, a run from the current state continues in both directions, +step size and -step size, at once, '
-      + 'and shows the diagram when both have ended. Unchecked: only the direction the sign of step size gives.'},
+    help: 'When checked, a run from the current state continues in both directions, +step size and -step size, and follows '
+      + 'every branch it finds (branch points, Hopf points), all at once, and shows the diagram when all have ended. '
+      + 'Unchecked: only the direction the sign of step size gives.'},
 ];
 
 /** the Numerics dialog's groups, as the core's form has its columns */

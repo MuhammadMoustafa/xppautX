@@ -4205,6 +4205,9 @@ newlab(iap_type *iap, rap_type *rap)
 
   mbr = 0;
   mlab = 0;
+  /* a job's fort.3 holds only the point it restarts from, numbered as the job that found it numbers (autox_jobs.cpp):
+     a job numbers from the diagram's, as every job does */
+  if (!iap->run->job) {
   if (auto r=xpp::rewind_stream(iap->run->fp3, xpp::autox_fort_path(*iap->run, 3)); !r)
     xpp::autox_fail(r.error());
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->run->fp3);
@@ -4230,6 +4233,7 @@ newlab(iap_type *iap, rap_type *rap)
   if (! eof3) {
     goto L1;
   }
+  }
 
  L2:
   /* A fresh run has an empty fort.3, but the diagram may retain older
@@ -4242,7 +4246,7 @@ newlab(iap_type *iap, rap_type *rap)
   iap->lab = lab;
   iap->run->base_branch = mbr;
   iap->run->base_label = mlab;
-  if (isw < 0 || irs == 0) {
+  if (isw < 0 || irs == 0 || iap->run->job) { /* a job's branch is the next number in its own numbering, never a label of the job it restarts from */
     ibr = mbr + 1;
     iap->ibr = ibr;
   } else if ((itp.start == xpp::AutoxPointKind::Regular && f2c::abs(isw) == 2) || (ips == xpp::AutoxProblem::Periodic && itp.is(xpp::AutoxPointKind::Hopf)) || 

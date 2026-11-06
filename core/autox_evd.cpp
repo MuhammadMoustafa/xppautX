@@ -251,6 +251,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
     p.from=from;
     diagram_record_branch(s.model(),autox_constants(run),run.points.empty()?nullptr:&run.points.back().point,p);
     run.points.push_back({std::move(p),iap->ntot==1});
+    if(run.point_stored)run.point_stored(run.points.size());
     return;
   }
   diagram_record_branch(s.model(),s.parser.constants,last_diagram(s.diagram),p);

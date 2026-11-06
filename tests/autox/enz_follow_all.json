@@ -1,0 +1,28 @@
+{
+  "model": "tools/models/enz_isola.odex",
+  "reason": "W605 (#672): AUTO-07p's demo enz at mu = 5 has an isola of equilibria in s0, a closed curve. Both directions of the start at once, with follow_all_branches on: +DS goes round the isola and ends where it started (branch_closed); -DS would go round the same loop the other way, so it is never started when +DS closed before it, and dropped at the join when it ran at once with +DS (it did not know). The diagram is the loop once, the same at 1 and automatic threads, byte for byte.",
+  "auto07p_skip": "W605 (#672): AUTO-07p continues one direction per run and its branch does not end where it closed (docs/auto-references.md W604); the second direction of a closed branch repeating the first is xppautX's to drop.",
+  "xppaut_skip": "W605 (#672): XPPAUT continues one direction per run and its branch does not end where it closed (docs/auto-references.md W604); the second direction of a closed branch repeating the first is xppautX's to drop.",
+  "runs": [
+    {
+      "name": "isola",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "s0",
+      "autox": {
+        "step_size": 0.05,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.1,
+        "max_steps": 600,
+        "output_every": 100,
+        "parameter_min": 0,
+        "parameter_max": 40,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0,
+        "follow_all_branches": true
+      }
+    }
+  ]
+}

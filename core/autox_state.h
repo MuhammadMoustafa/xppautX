@@ -33,7 +33,9 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstddef>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -140,8 +142,8 @@ struct AutoxState {
   std::vector<int> imported_parameters;
   /* Numerics' SuppBP: no branch point detection */
   bool suppress_bp=false;
-  /* a run from the current state continues both directions, +DS and -DS, as jobs
-     at once (autox_jobs.cpp); off: only the direction the sign of DS gives */
+  /* a run from the current state continues both directions, +DS and -DS, and every branch the jobs find (autox_queue.h)
+     as jobs at once (autox_jobs.cpp); off: only the direction the sign of DS gives */
   bool follow_all_branches=true;
   // AUTO-07p enables codimension-two detection by default.
   std::array<bool, xpp::autox_codim_kinds.size()> special_points=all_special_points();
@@ -344,6 +346,14 @@ struct AutoxRun {
   /* a job's start already refined by Newton's method, once for all the jobs, before they began
      (autox_jobs.cpp): the start check takes it instead of refining again */
   std::optional<std::vector<double>> refined_start;
+  /* the run starts from the integrated orbit (the Session's new_period_flag when it began) rather than from the initial
+     conditions: a job that starts at an equilibrium another job found has none, whatever run it belongs to started from */
+  bool orbit_start=false;
+  /* the queue stops this job (autox_jobs.cpp): another one made it unnecessary; checked where Stop is */
+  std::atomic<bool> dropped{false};
+  /* called by addbif with the number of points the job holds each time it holds one more (on the job's thread), so the
+     queue can see how the branch leaves its start (autox_jobs.cpp); none for an ordinary run */
+  std::function<void(std::size_t)> point_stored;
   /* the largest branch and label autoX's newlab found before this run's own: its numbers start above them
      (autox_lib1.cpp newlab); the join of jobs renumbers by them */
   int base_branch=0,base_label=0;

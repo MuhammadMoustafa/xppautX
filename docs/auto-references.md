@@ -2845,6 +2845,66 @@ tangent past 90 degrees has the same hazard. No description of ours has one, so 
 
 AUTO-07p continues one direction per run (the sign of DS), and so does XPPAUT; the other direction is a second run from the same start. xppautX's `follow_all_branches` (on by default) runs a start from the current state as those two runs at once, +DS and -DS, each a job on its own evaluation, and joins them in a fixed order (+DS first) with the branches and labels numbered as two runs in turn number them: the diagram and autoX's .b, .s and .d files are the same byte for byte (tests/autox `tstauto_ab_both` against `tstauto_ab_in_turn`, and servercheck's Periodic and Hodgkin-Huxley starts). Each direction's points and special points are those of the single run, which the references' comparison descriptions already check; a difference from AUTO-07p lies in nothing but the two runs being one command.
 
+## W605: the queue of found points ([#672](https://github.com/MuhammadMoustafa/xppautX/issues/672))
+
+AUTO-07p and XPPAUT continue the one branch a run is started on; every other branch of a diagram is a run the user starts from the label of a branch point
+or a Hopf point. xppautX's `follow_all_branches` (W596) now starts those runs itself: a branch point (BP) of equilibria or cycles starts the new branch
+(+DS and -DS), a Hopf point (HB) its cycles (one run), cycles that end at a Hopf point (HBE) or a SNIC the equilibria through that point (both directions);
+nothing starts from a fold, a period doubling, a torus point, a global end or a codimension-two point (#662 corner cases 3, 6, 7). Each run is a job on its
+own evaluation and thread, and the jobs join in the order a queue served one after another would run them, so the diagram does not depend on the timing or the
+thread count. The comparison with the references is the one their single-branch descriptions already make: every special point of a followed branch is a
+point of the run the user would start from its label, which `tstauto_lo`, `lrz_cycles` and `hodgkin_huxley_hopf_pair` check; the three new descriptions
+(`lrz_follow_all`, `hodgkin_huxley_follow_all`, `enz_follow_all`) carry `auto07p_skip` and `xppaut_skip`, since neither reference follows all of a diagram's
+branches from one start.
+
+Models and independent checks. `lrz_follow_all` is AUTO-07p's demo lrz, the Lorenz equations at sigma = 10, beta = 8/3 (Lorenz 1963), from the origin at
+r = 0 (-DS leaves the window and is not run). Against the model's own equations (numpy, `uv run --locked python`: the Jacobian's eigenvalues): the origin has
+a zero eigenvalue at r = 1 (-1.1e1, -2.67, 0 exactly), and the two nontrivial equilibria x = y = +-sqrt(beta (r - 1)), z = r - 1 a purely imaginary pair at
+r = sigma (sigma + beta + 3) / (sigma - beta - 1) = 24.7368421053 (real part 1.6e-15 there, -3.0e-5 and +3.0e-5 at r = 24.7368 -+ 1e-3; frequency 9.6245).
+The run finds the branch point at r = 1.0000001 and starts its two branches (the equilibria with x > 0 and x < 0); each finds its Hopf point at
+r = 24.736842079 (2.6e-8 from the exact value; period 0.65283035 = 2 pi / 9.62449), starts its cycles, and the two families, mirror images of each other
+(every state, minimum and maximum, the negative of the other's; norm 5.4166 and period 7.9079 at the same last point), each end at a near-homoclinic orbit to
+the origin (point type homoclinic, W518): the five branches, 390 points.
+
+`hodgkin_huxley_follow_all` (W604's two Hopf points, I = 9.78 and 154.5, joined by one family): from rest at I = 0 the equilibrium jobs find both Hopf points,
+each starts its cycles, the two being a pair (the families face each other), and the cycles of the first end at the second (hopf_end at I = 154.52734 against the
+Hopf point's 154.52633, a gap of 0.064 in the rule's units) which has made the second's cycles: the diagram is the two equilibrium branches and the one family
+(130 points), at 1 and at automatic threads the same. `enz_follow_all` (W604's isola): +DS goes round and closes (branch_closed), -DS would repeat the loop the other
+way and is dropped (75 points, the same at both thread counts).
+
+**What is not run by a model.** The equilibria through the end of cycles at a SNIC are covered by `tests/test_autox_queue.cpp` only: W518's SNIC ends name the
+equilibrium the cycles lingered at, and for `global_snic` (the one description whose cycles end on a SNIC) that is the ghost of the fold (the end is at
+mu = 0.99999), no equilibrium, so nothing is queued; a fold the cycles end before has no equilibrium to start from. The Hopf end's parameter is an
+extrapolation of the last two cycles (W604): at a coarse step (Hodgkin and Huxley's orbit start at step 2, the cycles ending at the lower Hopf point) it can be
+far from the Hopf point it ends at (9.51 against 9.78), the rule then does not match them, and the equilibria through the end are followed as a branch of their own,
+a repeat that only costs time.
+
+**Decisions the card made where the brief was silent.**
+
+- *A job's found points are queued when the job ends,* not while it runs. A found point's solution is read from the finding job's `fort.8`, which is complete
+  when the job has ended; starting a child while the finder still runs would need a queue the threads share and the finder's file read while it is written. A branch's
+  children start when it ends, together; siblings run at once. Rejected: queueing mid-run; if the diagram of a model with one long branch and early branch points
+  needs it, it is a card with a measurement.
+- *The visited set is one function of the jobs before a start, never of the clock.* Every job's start, what it ended with (its cycles ended at a Hopf point: the cycles
+  of that Hopf point are made) and the Hopf points and folds it found (the equilibria through them are traced) are the same kind of thing, a start already made
+  (autox_queue.h): the same problem, branch switch and direction (a Hopf's one run has none) at the same point by W604's rule. Only jobs earlier in the join's order
+  count, at the moment a job is queued, when it is about to start, and when the join decides which jobs were repeats: a job that ran in vain because the earlier
+  job that made it had not ended yet (they ran at once) is dropped at the join, and one whose earlier job had ended is never run, so the kept jobs are the same
+  whatever the order they finished in. (W604's rule is a tolerance, not transitive: a start that matches a job that is itself dropped as a repeat of another,
+  and not the other, would be kept by the join and might not have run; no model of ours has one.)
+- *The join's order is the queue's.* A job's key is its generation and the path of the points it was found at (each with its direction): the two directions of
+  the start, then the children of the first in the order of their points, then those of the second, then their children, which is the order a queue served one
+  after another would run them. A closed branch's second direction (W604) is never started when the first closed before it began, and dropped when it did not.
+- *A job numbers from the diagram's, never from its finder's.* A job's branch is the next free number, which for a Hopf point's cycles is not the point's label
+  (a run from a label has the label, AUTO-07p's newlab); its `fort.3` holds only the point it restarts from, numbered by the finding job, so it is not read for the
+  numbers; the first point's `from` label is the finder's, renumbered by the finder's join. A job whose start leaves the parameter window says so and is not run.
+- *`max_branch_switches` is off for the jobs.* autoX's own switching at a branch point continues the same run on the other branch (both directions, as the
+  diagram showed: branch 2 twice from the one branch point at `max_branch_switches` 5), which the queue's job at that point would follow again.
+- *The Hopf pair rule* (corner case 1) reads each family's direction from its second point (its first is the Hopf point itself) and the later of two neighbouring
+  Hopf points of one branch, whose families face each other, waits until the earlier has ended. A Hopf point's cycles are one run at either sign of the step:
+  Lorenz's cycles from the Hopf point are the same points, to smaller r, at +0.5 and at -0.5 (norm and period equal to 11 digits).
+- *The equilibria through an end of cycles* start from the end's equilibrium (W604's Hopf point, or the zero-eigenvalue equilibrium W518 found the cycles lingering
+  at, a SNIC's fold) as a run from the initial conditions does, refined by Newton's method before the job.
 ## W611: a fold of cycles labelled where a branch closes at its Hopf point ([#679](https://github.com/MuhammadMoustafa/xppautX/issues/679))
 
 `tests/autox/lecar_hopf_closure.json` (the Rinzel and Ermentrout class-II Morris-Lecar parameters of `ode_lecar_orbit_hopf`): the cycles from the Hopf point at iapp

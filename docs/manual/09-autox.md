@@ -276,7 +276,7 @@ a run (W494):
 | `full_newton_after` (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
 | `step_adapt_every` (IADS) | adapt the step every this many steps; 0 keeps it at `step_size`, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
 | `suppress_branch_points` (SuppBP) | checked: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); unchecked: look for them | boolean checkbox |
-| `follow_all_branches` | checked (the default): a run from the current state, an equilibrium start or a Periodic start from an integrated orbit, continues in both directions, +`step_size` and -`step_size`, as two jobs at once (see "Both directions at once" below); unchecked: only the direction the sign of `step_size` gives, as XPPAUT does | boolean checkbox |
+| `follow_all_branches` | checked (the default): a run from the current state, an equilibrium start or a Periodic start from an integrated orbit, continues in both directions, +`step_size` and -`step_size`, as two jobs at once, and every branch they find as one more (see "Following all the branches" below); unchecked: only the direction the sign of `step_size` gives, as XPPAUT does | boolean checkbox |
 
 Below the three groups the dialog has a fourth, **Computer**, with one choice,
 **Threads**: how many threads autoX uses to compute a periodic orbit or a
@@ -370,24 +370,61 @@ Click on “Run” to run the bifurcation. Depending on the situation, a number 
 
 The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that autoX wants to keep. There are several of them (web2 draws each with a shape of its own instead of a plain cross, spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
 
-### Both directions at once
+### Following all the branches
 
-With `follow_all_branches` checked, Run from the current state continues the start in both directions: one job takes
-+`step_size`, the other -`step_size` (the size is `step_size`'s without its sign). The jobs run at once on the
-computer's physical cores (Threads in the Numerics dialog is the total they share, each job taking at most four for
-its own collocation; with Threads at 1 they run one after another and give the same diagram), and the diagram is shown
-when both have ended. It is the diagram of the two runs one after another, +`step_size` first: the branches and the
-labels are numbered in that order, whichever job finished first, and the diagram, the `.b`, `.s` and `.d` files
-are the same byte for byte. A model whose equations use function tables, networks or delays runs its jobs one after another
-on its own, the same result. A direction that leaves the parameter window at the start (the start at `parameter_min`
-with the step pointing below it) is not run and says so; when both leave it the run is refused as a single one is.
-Stop, while the jobs run at once, ends both, keeps the points each had and joins them; how far each got depends on timing.
-With Threads at 1, and for a model that runs its jobs one after another, Stop in +`step_size`'s job ends the run there:
--`step_size`'s job never starts. (Replaying a recorded Stop job by job is a later card, W606.) Only these two directions are followed for now: the branches
-that start at the branch and Hopf points the jobs find are started from their labels, as before. The Output panel gets
-each job's table lines when the jobs are joined, +`step_size`'s first, numbered as the diagram is. A direction
-that ends at a Hopf point (HBE) or at a global end evaluates the model's equilibria on its own job, so it gives the same
-numbers whether the jobs run at once or in turn.
+With `follow_all_branches` checked, Run from the current state continues the start in both directions, and then every
+branch the jobs find: one job takes +`step_size`, the other -`step_size` (the size is `step_size`'s without its sign),
+and each of what they find is a job of its own. The jobs run at once on the computer's physical cores (Threads in the
+Numerics dialog is the total they share, each job taking at most four for its own collocation; with Threads at 1 they
+run one after another and give the same diagram), and the diagram is shown when all have ended. A model whose equations
+use function tables, networks or delays runs its jobs one after another on its own, the same result. A direction that
+leaves the parameter window at the start (the start at `parameter_min` with the step pointing below it) is not run and
+says so; when both leave it the run is refused as a single one is.
+
+What a job finds starts new jobs, each from the point's own solution:
+
+| a job finds | it starts |
+|---|---|
+| a branch point (BP) of equilibria | the new branch, two jobs: +`step_size` and -`step_size` |
+| a branch point of cycles (BPC) | the new branch of cycles, the same two jobs |
+| a Hopf point (HB) of equilibria | its cycles, one job (the family has one way to leave the point) |
+| cycles that end at a Hopf point (HBE) or at a SNIC | the equilibria through that point, both directions |
+
+There is no limit on the depth or the number of jobs: each ends at `max_steps` or at the parameter window, a point is
+never started twice (below), and Stop ends them all. A model with many symmetries has many branch points, and the jobs
+multiply with them. Nothing starts from a fold (LP), a period doubling (PD), a torus point (TR), the end of cycles at a
+homoclinic or heteroclinic orbit, or a point of a two-parameter curve: continuing a fold, a SNIC, a homoclinic or a
+heteroclinic orbit needs a second parameter, and autoX has no run that starts at a codimension-two point. What those lead
+to is yours to start by hand: a Bogdanov-Takens point (BT) to a curve of homoclinic orbits (a Hopf curve through it goes
+on as a neutral-saddle curve in the same job), a generalized Hopf point (GH) to a curve of folds of cycles, a zero-Hopf
+point (ZH) to curves of torus points; a cusp (CP)'s other fold branch is the curve already followed. A branch point of a
+boundary value problem is not followed. Cycles born only at a SNIC (class I excitability: no Hopf point anywhere) are
+not found; integrate onto the cycle and start a Periodic run from it, which follows both directions as well.
+`max_branch_switches` has no effect while `follow_all_branches` is checked: the jobs switch at the branch points, and
+autoX's own switching there would follow each branch twice.
+
+A point is never started twice. A job is not started for a start that an earlier job already made: the same problem and
+direction at the same point (the same kind of point, the same parameters, every state within 8 times
+`special_point_tolerance` times 1 + its value, a Hopf point also its frequency). Two jobs reach one branch point from
+its two branches and one job starts the branch; cycles that end at a Hopf point have made that Hopf point's cycles;
+a Hopf point or a fold found on a branch has made the equilibria through it. Two neighbouring Hopf points of one branch
+whose cycles grow towards each other (the two ends of one family, as Hodgkin and Huxley's equations have) are held: the
+later job waits until the earlier has ended, and goes on only if the earlier did not make it. A direction of a branch
+that closes on itself (an isola of equilibria, a closed family of cycles) ends where it started, and the other direction
+from the same start, which would go round it again, is not started.
+
+The jobs are joined in the order a queue served one after another would run them: the two directions of the start (+
+first), then the jobs the first found, in the order of their points (a point's +`step_size` before its -`step_size`),
+then the jobs of those, and so on. The branches and labels are numbered in that order, whichever job finished first, a
+job that a job before it in that order made unnecessary (one that ran in vain, because it started before the other
+ended) is dropped, and the diagram, the `.b`, `.s` and `.d` files do not depend on the timing or on Threads. The
+cycles of a Hopf point are the branch with the next number, not the point's label. Stop, while the jobs run at once,
+ends all of them, keeps the points each had, starts none of those it found, and joins them; how far each got depends on
+timing. With Threads at 1, and for a model that runs its jobs one after another, Stop ends the job that runs and the rest
+never start. (Replaying a recorded Stop job by job is a later card, W606.) The Output panel gets each job's table lines
+when the jobs are joined, in that order, numbered as the diagram is. A branch that ends at a Hopf point (HBE) or at a
+global end evaluates the model's equilibria on its own job, so it gives the same numbers whether the jobs run at once or
+in turn.
 
 ### Run, by command
 

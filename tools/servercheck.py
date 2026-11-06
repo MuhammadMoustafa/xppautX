@@ -705,12 +705,16 @@ def check_autox_directions_from_orbit():
     states = dict(V=8.585767401388178, m=0.12087667611762813, n=0.5133969213640369, h=0.2520504470303479)
     values = [dict(kind='par', name='I', value=49.119058076613086)] + [dict(kind='ic', name=n, value=v) for n, v in states.items()]
     numerics = dict(min_step_size=1e-5, max_step_size=4, max_steps=400, output_every=100, parameter_min=-10, parameter_max=200,
-                    mesh_intervals=30, max_branch_switches=0, step_size=2)
+                    mesh_intervals=30, max_branch_switches=0, suppress_branch_points=True, step_size=2)
     (diagram, files), (turn_diagram, turn_files) = orbit_directions('tools/models/hodgkin_huxley.odex', 'I', values, 12, numerics)
-    ends = [line for line in diagram.decode().splitlines() if line.startswith('periodic,') and ',hopf_end,' in line]
-    check('W596: both directions of a cycle family that ends at a Hopf point on each side (HBE) are the two runs in turn, byte for byte, with the autoX .b, .s and .d files',
-          diagram == turn_diagram and files == turn_files and sorted(files) == ['.b', '.d', '.s'] and len(ends) == 2,
-          '%d vs %d bytes; %d hopf_end points; %s' % (len(diagram), len(turn_diagram), len(ends), {k: (len(v), len(turn_files.get(k, b''))) for k, v in files.items()}))
+    rows = lambda d, *prefixes: [line for line in d.decode().splitlines() if line.startswith(prefixes)]
+    first_two = ('periodic,-1,', 'periodic,-2,')
+    ends = [line for line in rows(diagram, *first_two) if ',hopf_end,' in line]
+    check('W596, W605: both directions of a cycle family that ends at a Hopf point on each side (HBE) are the two runs in turn, byte for byte (branches -1 and -2); '
+          'each end starts the equilibria through it (W605), so the diagram holds equilibrium rows besides, which the runs in turn do not',
+          rows(diagram, *first_two) == rows(turn_diagram, *first_two) and len(ends) == 2 and len(rows(diagram, 'equilibrium,')) > 0
+          and not rows(turn_diagram, 'equilibrium,'),
+          '%d rows against %d; %d hopf_end points; %d equilibrium rows' % (len(rows(diagram, *first_two)), len(rows(turn_diagram, *first_two)), len(ends), len(rows(diagram, 'equilibrium,'))))
 
 
 def check_autox_registry():

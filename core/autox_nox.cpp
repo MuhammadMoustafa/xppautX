@@ -323,11 +323,11 @@ const char *autox_fort_path(const AutoxRun &run, int unit)
 }
 
 /* what a run continues, for autox_stability.h */
-static AutoxStabilityKind run_stability_kind(xpp::Session &s)
+static AutoxStabilityKind run_stability_kind(const xpp::Session &s, xpp::AutoxProblem ips, int isw)
 {
-  if(s.autox_state.two_param!=no_calculation||s.autox_state.bifur.isw==2)return AUTOX_STABILITY_OTHER;
-  if(s.autox_state.bifur.ips==xpp::AutoxProblem::Periodic)return AUTOX_STABILITY_PERIODIC;
-  if(xpp::problem_is_steady_or_map(s.autox_state.bifur.ips))return AUTOX_STABILITY_STEADY;
+  if(s.autox_state.two_param!=no_calculation||isw==2)return AUTOX_STABILITY_OTHER;
+  if(ips==xpp::AutoxProblem::Periodic)return AUTOX_STABILITY_PERIODIC;
+  if(xpp::problem_is_steady_or_map(ips))return AUTOX_STABILITY_STEADY;
   return AUTOX_STABILITY_OTHER;
 }
 
@@ -339,17 +339,16 @@ static AutoxStabilityKind point_stability_kind(const DIAGRAM *d)
   return d->ibr<0?AUTOX_STABILITY_PERIODIC:AUTOX_STABILITY_STEADY;
 }
 
-/* a run starts from Auto.irs's label, or from initial data: its first
-   point takes the label's stored stability when it is the label's own
-   solution, else it is not computed (autox_stability.h) */
-static void stability_run_start(xpp::Session &s, AutoxRun &run)
+/* a run (problem ips, branch switch isw) starts from the stored point d, or from initial data (d null): its first
+   point takes the point's stored stability when it is the point's own solution, else it is not computed
+   (autox_stability.h) */
+static void stability_run_start(const xpp::Session &s, AutoxRun &run, xpp::AutoxProblem ips, int isw, const DIAGRAM *d)
 {
-  const DIAGRAM *d=s.autox_state.bifur.irs>0?diagram_of_label(s,s.autox_state.bifur.irs):NULL;
   if(d==NULL){
-    autox_stability_run_start(run.stability,run_stability_kind(s),s.autox_state.bifur.isw,AUTOX_STABILITY_NONE,AutoxPointCode{},{},{});
+    autox_stability_run_start(run.stability,run_stability_kind(s,ips,isw),isw,AUTOX_STABILITY_NONE,AutoxPointCode{},{},{});
     return;
   }
-  autox_stability_run_start(run.stability,run_stability_kind(s),s.autox_state.bifur.isw,point_stability_kind(d),d->itp,d->evr,d->evi);
+  autox_stability_run_start(run.stability,run_stability_kind(s,ips,isw),isw,point_stability_kind(d),d->itp,d->evr,d->evi);
 }
 
 static std::string autox_solution_key(long branch, long point, long type, long label)
@@ -475,13 +474,27 @@ std::optional<xpp::Error> autox_end_run(xpp::Session &s, AutoxRun &run, std::opt
   return reported;
 }
 
-Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold)
+Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundStart *found)
 {
   run.session=&s;
   init_autox(s.autox_state,run.params,s.model().node,s.numerics.jacobian==JACOBIAN_EXACT); /* the continuation's initialization from the settings: what reading in AUTO's parameters and running its init did */
-  if(auto opened=open_autox(s,run,iold);!opened)return opened; /* the run's folder; this copies the relevant files .s  to fort.3 */
-  run.run_from=s.autox_state.bifur.irs>0?s.autox_state.bifur.irs:0; /* the diagram's data say where the run started */
-  stability_run_start(s,run); /* what its first point's stability is (autox_stability.h) */
+  run.orbit_start=s.autox_state.new_period_flag;
+  if(found){ /* the problem and the point of the job that found it, which are not the settings' */
+    run.params.ips=found->ips;
+    run.params.isw=found->isw;
+    run.params.isp=found->isp;
+    run.params.irs=found->label;
+  }
+  if(auto opened=open_autox(s,run,found?NO_OPEN_3:iold);!opened)return opened; /* the run's folder; this copies the relevant files .s  to fort.3 */
+  if(found&&!found->solution.empty()){ /* its fort.3 is that point's solution alone */
+    xpp::Writer restart(run.fort3);
+    if(!restart)return xpp::fail("autox","cannot write the restart point of a job",xpp::Place{run.fort3,0,0,{}});
+    restart.print("{}",found->solution);
+    if(auto written=restart.commit();!written)return written;
+  }
+  const xpp::BIFUR &b=s.autox_state.bifur;
+  run.run_from=run.params.irs>0?run.params.irs:0; /* the diagram's data say where the run started */
+  stability_run_start(s,run,run.params.ips,run.params.isw,found?found->point:b.irs>0?diagram_of_label(s,b.irs):NULL); /* what its first point's stability is (autox_stability.h) */
   return {};
 }
 
@@ -1609,6 +1622,25 @@ int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp)
       if (!tr.skip_line()) return 0;
   }
   return 0;
+}
+
+std::optional<std::string> autox_solution_block(const std::string &path, int label, long parameters)
+{
+  xpp::LineReader in(path);
+  if(!in)return std::nullopt;
+  while(const auto line=in.next()){
+    TokenReader fields=TokenReader::of_text(*line);
+    AutoxSolutionHeader header;
+    if(!read_autox_solution_header(fields,header,parameters))return std::nullopt;
+    std::string block=xpp::format("{}\n",*line);
+    for(long row=0;row<header.nskip;row++){
+      const auto text=in.next();
+      if(!text)return std::nullopt;
+      if(header.lab==label)block+=xpp::format("{}\n",*text);
+    }
+    if(header.lab==label)return block;
+  }
+  return std::nullopt;
 }
 
 void get_a_row(double *u, double *t, int n, FILE *fp)

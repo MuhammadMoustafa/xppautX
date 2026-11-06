@@ -182,9 +182,19 @@ struct AutoxDepth {
 };
 /* where the run's solutions are kept: the dir may have changed since the last run */
 void create_autox_file_name(Session &s);
+/* A job that starts at what another job found (autox_jobs.cpp): the problem it continues (ips, isw, isp as the start of such a
+   run sets them), and, when it restarts from the point itself (label above 0), the finding job's label, the point as that job
+   stored it (its stability), which is not in the diagram yet, and its solution as the finding job's fort.8 holds it, which
+   is this job's fort.3. Label 0: a run from the initial conditions, with no point and no solution */
+struct AutoxFoundStart {
+  AutoxProblem ips;
+  int isw,isp,label;
+  const DIAGRAM *point;
+  std::string solution;
+};
 /* a run made ready (the Session's settings into run.params, its folder and fort files, where it started from and its
    first point's stability); the error is what is wrong. After create_autox_file_name. */
-Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold);
+Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold, const AutoxFoundStart *found = nullptr);
 /* a run that left a model parameter not finite (a diverged Newton step) puts the value it had before, `before` (the model's
    nupar parameters), back, with a warning (QA SCI-001) */
 void autox_restore_finite_pars(Session &s, const double *before);
@@ -267,6 +277,9 @@ inline constexpr int xppaut_parameter_prefix = 8;
 /* Foreign XPPAUT import: validate whole, then replace; errors belong to the caller. */
 Result<> import_autox_file(Session &s, FILE *fp, const std::string &file);
 int move_to_label(const Session &s, int mylab, int *nrow, int *ndim, FILE *fp);
+/* the solution labelled `label` in a fort.8 or .s file (its header line and its rows, as written, each with its newline), for
+   a restart of another run (autox_jobs.cpp); none when the file has no such label or is damaged. parameters: the layout's size */
+std::optional<std::string> autox_solution_block(const std::string &path, int label, long parameters);
 void get_a_row(double *u, double *t, int n, FILE *fp);
 int check_plot_type(const Session &s, AutoxCalculation flag2, AutoxAxis icp1, AutoxAxis icp2);
 
