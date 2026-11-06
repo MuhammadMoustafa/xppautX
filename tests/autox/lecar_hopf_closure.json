@@ -1,29 +1,59 @@
 {
   "model": "examples/ode/lecar.odex",
-  "reason": "W611 (#679): Rinzel and Ermentrout (1989), chapter 7, class-II Morris-Lecar parameters v3 = 0, v4 = 0.3, gca = 1.1 and phi = 0.2, as in ode_lecar_orbit_hopf. The cycles from the Hopf point at iapp 0.2624534 (the second run) grow, fold at 0.2484 and 0.4657, pass the other Hopf point near 0.4569 (the cycles reach amplitude 0.005 there and the branch goes on, the same family back) and return along themselves to the first Hopf point, where the branch ends as branch_closed (point 109, label 115). Shooting from the model equations (the check in docs/auto-references.md W611) gives a first Lyapunov coefficient that is not zero there ((H - iapp)/amplitude^2 = 0.4825 from amplitude 0.0005 to 0.01), so the family has no fold of cycles at zero amplitude: the fold test fired on the turn of the parameter at the Hopf point, where a cycle and its phase shifts are one family, and the closure labels the point.",
-  "parameters": { "iapp": 0.3, "v3": 0, "v4": 0.3, "gca": 1.1, "phi": 0.2 },
-  "initial_conditions": { "v": -0.144, "w": 0.03 },
+  "reason": "W611 (#679), W612 (#680): Rinzel and Ermentrout (1989), chapter 7, class-II Morris-Lecar parameters v3 = 0, v4 = 0.3, gca = 1.1 and phi = 0.2, as in ode_lecar_orbit_hopf. The cycles from the Hopf point at iapp 0.2624534 (the second run) grow, fold at 0.2484 and 0.4657, and shrink to the other Hopf point near 0.4568 (period 9.375: the equilibrium's Jacobian has trace zero at iapp 0.456839178 by scipy, docs/auto-references.md W612). The step passes it at amplitude 0.005, where the cycles' parameter turns round (a cycle and its phase shifts are one family): the branch ends there as hopf_end (point 60) at iapp 0.4568405, the line of the squared amplitude to zero. Before W612 the branch went on through the Hopf point and back along the family to the first Hopf point, where W611's closure ended it as branch_closed; the closure rule stays for a branch that comes back to its own start.",
+  "parameters": {
+    "iapp": 0.3,
+    "v3": 0,
+    "v4": 0.3,
+    "gca": 1.1,
+    "phi": 0.2
+  },
+  "initial_conditions": {
+    "v": -0.144,
+    "w": 0.03
+  },
   "runs": [
-    { "name": "steady", "kind": "equilibrium", "start": { "state": "current" }, "parameter": "iapp", "autox": { "step_size": -0.02, "min_step_size": 1e-05, "max_step_size": 0.02, "max_steps": 80, "output_every": 20, "parameter_min": -0.2, "parameter_max": 0.5, "mesh_intervals": 15, "max_branch_switches": 0 } },
-    { "name": "from_hopf", "kind": "periodic", "start": { "run": "steady", "type": "hopf", "index": 1 }, "parameter": "iapp", "autox": { "step_size": 0.01, "min_step_size": 1e-05, "max_step_size": 0.02, "max_steps": 120, "output_every": 1, "parameter_min": -0.2, "parameter_max": 0.5, "mesh_intervals": 15, "max_branch_switches": 0 } }
-  ],
-  "xppaut_skip": "W611 (#679): not run. XPPAUT's AUTO needs its window and an X server, and it has no end at a closed branch (it goes round the family again); AUTO-07p's reference carries the comparison.",
-  "differences": [
     {
-      "reference": ".auto07p",
-      "run": "from_hopf",
-      "side": "reference",
-      "type": "BP",
-      "index": 2,
-      "cause": "W547 (#612), docs/auto07p-findings.md 12: a cycle's branch-point test is a ratio of determinants and changes sign at the determinant's noise; AUTO-07p's BP at label 110 (iapp 0.2515114) has the multipliers 1.025 and -0.602. In a planar system a cycle has the trivial multiplier 1 and one more, exp(the integral of the trace of the Jacobian over the period), which is -0.6 here: a branch point of cycles needs it at 1, so there is none."
+      "name": "steady",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current"
+      },
+      "parameter": "iapp",
+      "autox": {
+        "step_size": -0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 80,
+        "output_every": 20,
+        "parameter_min": -0.2,
+        "parameter_max": 0.5,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
     },
     {
-      "reference": ".auto07p",
-      "run": "from_hopf",
-      "side": "reference",
-      "type": "LP",
-      "index": 5,
-      "cause": "W611 (#679), deliberate: AUTO-07p labels the fold test's zero where the branch comes back to its Hopf point (label 115, iapp 0.2624534, multipliers 1 and 1) and goes on past it, round the same family again and again; ours ends the branch there as branch_closed. There is no fold of cycles at the Hopf point: shooting from the model's equations gives (H - iapp) / amplitude^2 = 0.4825 for amplitudes 0.0005 to 0.01, a family with no turn in the parameter (docs/auto-references.md W611)."
+      "name": "from_hopf",
+      "kind": "periodic",
+      "start": {
+        "run": "steady",
+        "type": "hopf",
+        "index": 1
+      },
+      "parameter": "iapp",
+      "autox": {
+        "step_size": 0.01,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 120,
+        "output_every": 1,
+        "parameter_min": -0.2,
+        "parameter_max": 0.5,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
     }
-  ]
+  ],
+  "xppaut_skip": "W612 (#680): not run. XPPAUT's AUTO needs its window and an X server, and it has no end at a Hopf point (it goes round the family again).",
+  "auto07p_skip": "W612 (#680): its cycles end at the second Hopf point (point type hopf_end), which neither reference has: AUTO-07p goes on past the Hopf point, back along the same family and round it again (docs/auto-references.md W611), so there is no reference end to compare."
 }

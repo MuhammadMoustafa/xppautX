@@ -27,10 +27,20 @@ double autox_orbit_amplitude(std::span<const double> high, std::span<const doubl
 bool autox_amplitude_watch_add(AutoxAmplitudeWatch &watch, double amplitude, double parameter, bool first_point)
 {
     if (first_point) watch = AutoxAmplitudeWatch{};
+    /* the cycles of a Hopf point are one family on both sides of it, so a continuation that steps over the point
+       turns round in the parameter there (a cycle and its phase shifts: W611), where the line of the last two
+       shrinking cycles' squared amplitude puts the point no further than one step beyond the last cycle: the
+       step turned at the Hopf point, whatever the amplitude (none is waited for) */
+    watch.passed.reset();
+    if (const auto hopf = autox_hopf_parameter(watch)) {
+        const double step = watch.cycles[1].parameter - watch.cycles[0].parameter, back = parameter - watch.cycles[1].parameter;
+        const double reach = (*hopf - watch.cycles[1].parameter) / step;
+        if (step * back < 0 && reach >= 0 && reach <= 1) watch.passed = hopf;
+    }
     watch.shrinking = autox_trend_run(watch.shrinking, watch.last, amplitude, false);
     watch.last = amplitude;
     if (amplitude > autox_hopf_end_amplitude) watch.cycles = {watch.cycles[1], {parameter, amplitude}};
-    return watch.shrinking >= autox_hopf_end_shrinking_points && amplitude <= autox_hopf_end_amplitude;
+    return watch.passed.has_value() || (watch.shrinking >= autox_hopf_end_shrinking_points && amplitude <= autox_hopf_end_amplitude);
 }
 
 std::optional<double> autox_hopf_parameter(const AutoxAmplitudeWatch &watch)
@@ -48,7 +58,7 @@ std::optional<AutoxHopfEnd> autox_hopf_end(const iap_type &iap, const double *pa
     /* autoX's parameters with the continued one at the Hopf point's, which the model is evaluated at */
     std::vector<double> at(par, par + 2 * iap.run->parameter_count);
     const double here = par[icp[0]];
-    at[icp[0]] = autox_hopf_parameter(watch).value_or(here);
+    at[icp[0]] = watch.passed.value_or(autox_hopf_parameter(watch).value_or(here)); /* the line before this point joined the cycles */
     const auto model = autox_equilibrium_model(iap, at.data(), icp, mean);
     auto found = equilibrium_near(s, *model, mean);
     if (!found) {
@@ -71,6 +81,7 @@ std::optional<AutoxHopfEnd> autox_hopf_end(const iap_type &iap, const double *pa
     end.frequency = std::abs(found->im[*pair]);
     end.period = 2 * std::numbers::pi / end.frequency;
     end.amplitude = watch.last;
+    end.passed = watch.passed.has_value();
     return end;
 }
 
@@ -87,6 +98,11 @@ void autox_hopf_end_apply(const iap_type &iap, const AutoxHopfEnd &end, double *
 std::string autox_hopf_end_text(const Session &s, const AutoxHopfEnd &end)
 {
     const auto g = autox_number_text;
+    if (end.passed)
+        return xpp::format("the cycles' amplitude shrank over the steps and the step to amplitude {} (of their variables' size) turned round in the parameter at the Hopf parameter {} (the squared amplitude's line to zero); there the equilibrium has the imaginary pair {} +- {}i (real part at most {} of the imaginary), period {}, at {}: a Hopf point, point type {} ({})",
+                           g(end.amplitude), g(end.parameter), g(end.real), g(end.frequency), g(autox_hopf_end_imaginary), g(end.period),
+                           autox_equilibrium_text(s.model(), end.equilibrium), autox_point_kind_name(AutoxPointKind::HopfEnd),
+                           autox_point_kind_mark(AutoxPointKind::HopfEnd));
     return xpp::format("the cycles' amplitude fell to {} of their variables' size (at most {}) over the last {} points; at the Hopf parameter {} (the squared amplitude's line to zero) the equilibrium has the imaginary pair {} +- {}i (real part at most {} of the imaginary), period {}, at {}: a Hopf point, point type {} ({})",
                        g(end.amplitude), g(autox_hopf_end_amplitude), autox_hopf_end_shrinking_points, g(end.parameter),
                        g(end.real), g(end.frequency), g(autox_hopf_end_imaginary), g(end.period),

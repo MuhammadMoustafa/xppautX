@@ -65,11 +65,14 @@ struct AutoxAmplitudeWatch {
     };
     double last = NAN;
     int shrinking = 0;
+    std::optional<double> passed; /* the Hopf parameter when the last step turned round at it: the line of the cycles before it gives it */
     std::array<Cycle, 2> cycles; /* the older first */
 };
 
 /* The amplitude and parameter of a branch's next point; first_point starts the branch's watch. True when the
-   amplitude has fallen over autox_hopf_end_shrinking_points points in a row and is at most autox_hopf_end_amplitude */
+   amplitude has fallen over autox_hopf_end_shrinking_points points in a row and is at most autox_hopf_end_amplitude,
+   or when the parameter turns round at this point within one step of the Hopf point the last two shrinking cycles' line
+   gives (the watch's `passed`: the step went over it, whatever the amplitude); the equilibrium's eigenvalues there decide */
 bool autox_amplitude_watch_add(AutoxAmplitudeWatch &watch, double amplitude, double parameter, bool first_point);
 
 /* the parameter at which the cycles' amplitude reaches zero: their squared amplitude is linear in the parameter near
@@ -80,6 +83,7 @@ std::optional<double> autox_hopf_parameter(const AutoxAmplitudeWatch &watch);
    there (Newton's method), the eigenvalue pair's real part and frequency, and the period 2 pi over the frequency */
 struct AutoxHopfEnd {
     double parameter = NAN, real = NAN, frequency = NAN, period = NAN, amplitude = NAN; /* amplitude: the last cycle's */
+    bool passed = false; /* found by a step that turned at the Hopf point, not by an amplitude below autox_hopf_end_amplitude */
     std::vector<double> equilibrium;
 };
 

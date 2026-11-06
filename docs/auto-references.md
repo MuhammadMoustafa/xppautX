@@ -2868,6 +2868,24 @@ it is, already stored once. The baselines of every description (86 models, 26854
 is exp of the integral of the trace, here -0.6, so no branch point). Its other points (LP at 0.2484140, 0.4656975, 0.4656983, 0.2484142, BP at 0.4582618) are ours to the digits shown. The two differences are in the
 description (`differences`); XPPAUT's AUTO needs its window and an X server and is not run. tools/auto_reference.py read `tests/auto/` and a run's `auto` key after W599 and failed on every description; both are corrected.
 
+## W612: a cycle branch that reaches another Hopf point between steps ends there ([#680](https://github.com/MuhammadMoustafa/xppautX/issues/680))
+
+W604's end at a Hopf point waited for three shrinking points below amplitude 0.001. `tests/autox/lecar_hopf_closure` (steps of 0.01) passes the other Hopf point, AH3, at amplitude about 0.005 and
+never reaches one, so the branch went on through the Hopf point and back along the family to AH2 (W611's closure ended it there). The family's real end is AH3.
+
+**Independent check** (scipy `fsolve` on the equilibrium of lecar.odex's `hopf` set, the trace of its Jacobian by central differences, `brentq`): the trace is zero at iapp 0.456839178 (real part 5e-11, imaginary part 0.670192, period 9.375203,
+equilibrium v = 0.064122, w = 0.605271). W611's shooting gives (H - iapp)/A^2 = 0.4825 for the other Hopf point; the cycles of AH3 are a parabola in the parameter the same way, so the squared amplitude is linear in it.
+
+**The rule** (core/autox_ends.cpp `autox_amplitude_watch_add`): the cycles of a Hopf point are one family on both sides of it (a cycle and its phase shifts), so a continuation that steps over the point turns round in the parameter there.
+The branch ends as `hopf_end` when the parameter turns round (the new step's direction is the opposite of the last one's) and the squared-amplitude line through the last two shrinking cycles puts its zero between the last cycle and
+one step beyond it (W604's line; the amplitude is then not waited for), and the equilibrium at that parameter has the purely imaginary pair `autox_hopf_end` already requires. A cycle that only comes near an equilibrium has no such
+pair there, and a fold of cycles (where the parameter also turns) has its line's zero far beyond one step or, at a fold of a family that does not shrink, no line at all (the amplitude does not fall): neither ends the branch.
+A first version that only asked for the line's zero to lie between the last cycle's parameter and the new one's ended hodgkin_huxley_hopf_pair one point early, at 154.5088, before the real point near 154.527: the line through
+cycles of amplitude 0.2 and 0.15 is a guess; the turn in the parameter is the test that says the point was passed.
+
+**Result.** lecar_hopf_closure ends at point 60 (iapp 0.4568405, period 9.3738: 1.3e-6 and 0.0014 from the check above), as `hopf_end`; its AUTO-07p comparison is skipped for the reason W604 gave (neither reference has
+the end), and the two differences W611 traced (BP at AUTO-07p's label 110 and the LP at the Hopf point) went with the part of the family the branch no longer goes round. Every other description of tests/autox is unchanged
+(86 models, 26754 points).
 ## W608: a Periodic start takes its period from the orbit's own return ([#675](https://github.com/MuhammadMoustafa/xppautX/issues/675))
 
 XPPAUT's Periodic start takes the last stored time as the period and the stored rows as one cycle. AUTO-07p starts from its own STPNT, so neither reference runs this start (`ode_lecar_orbit_hopf` and `ode_lecar_orbit_snic` skip both, with the reason). xppautX takes the time at which the stored orbit first comes back to its first row, found between rows (the orbit's crossing of the plane through its first row perpendicular to its first step, interpolated, at most a tenth of the orbit's extent from that row), and the rows up to it as the cycle; an orbit that never returns is refused. Checked independently from the model's own equations (scipy's `solve_ivp`, tight tolerances): the class-II Morris-Lecar cycle at iapp 0.3 has period 15.6359 and the start point of `ode_lecar_orbit_hopf` now has period 15.63560 (scipy 15.63591, 2e-5 relative), where the last stored time (15.6) was off by the output step; the class-I start at iapp 0.12 has 12.26252 (scipy 12.26247, 4e-6), where the grid gave 12.25. The names of the changed baselines: `ode_lecar_orbit_hopf` and `ode_lecar_orbit_snic`.
