@@ -333,6 +333,11 @@ constexpr OptionRow rows[] = {
      return i == JACOBIAN_EXACT && m.jacobian.tried && !m.jacobian.available() ? std::string_view(m.jacobian.unavailable) : std::string_view();
    },
    .prepare = [](Session &s, int i) { if (i == JACOBIAN_EXACT) ensure_exact_jacobian(s); }, .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::choice, .name = "SUBSYSTEM_SPLIT", .once = true,
+   .index = choice_member([](auto &s) -> auto & { return s.numerics.subsystem_split; }),
+   /* the equations alone: a Poincare section or stop does not join the states */
+   .reset = [](Session &s) { s.numerics.subsystem_split = SubsystemSplit::equations; },
+   .key = "subsystem_split", .label = "Subsystem split", .rule = OptionRule::choice, .choices = subsystem_split_names, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "RELATIVE_TOLERANCE", .xppaut_names = {"TOL"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.relative_tolerance; }),
    /* XPPAUT's */

@@ -63,6 +63,11 @@ void user_fun_info(const Model &m, FILE *fp);
    one keeps its start and ends in '~' so it cannot pass for another name */
 std::string short_name(std::string_view name, int width);
 
+/* The connected components of a graph of n nodes (W433), `edges[i]` the
+   nodes node i is joined to (an edge counts both ways): each component's
+   nodes ascending, the components by their least node. By union-find. */
+std::vector<std::vector<int>> connected_components(const std::vector<std::vector<int>> &edges);
+
 /* a name's label: its underscores as spaces and a capital first letter
    ("mesh_intervals" is "Mesh intervals"), derived and never written apart
    (W381; web2's choiceLabel is the page's) */

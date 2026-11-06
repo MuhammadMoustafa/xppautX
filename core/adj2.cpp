@@ -387,7 +387,7 @@ xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, dou
   int n2=node*node;
   double error;
 
-   std::vector<int> pivots(node);
+   xpp::BlockLu lu;
    std::vector<double> work_v(static_cast<size_t>(n2)+4*node);
    std::vector<double> yprime_v(node), yold_v(node), fold_v(node), fdev_v(node), dfdy_v(n2);
    double *work=work_v.data();
@@ -438,7 +438,7 @@ xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, dou
 	for(k=0;k<nt-1;k++){
 		k2=k+1;
 		if(k2>=nt)k2=k2-nt;
-		if(auto e=step_eul(jac,k,k2,yold,work,node,dt,pivots);!e){
+		if(auto e=step_eul(jac,k,k2,yold,work,node,dt,lu,s.model().subsystems);!e){
 		  rval=e;
 		  goto bye;
 		} 
@@ -478,7 +478,7 @@ xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, dou
       }
 	k2=k+1;
 	if(k2>=nt)k2-=nt;
-	 if(auto e=step_eul(jac,k,k2,yold,work,node,dt,pivots);!e){
+	 if(auto e=step_eul(jac,k,k2,yold,work,node,dt,lu,s.model().subsystems);!e){
 	  rval=e;
 	  goto bye;
 	    }	 
@@ -496,7 +496,7 @@ xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, dou
    return(rval);
  }
 
-xpp::Result<> step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt, std::span<int> ipvt)
+xpp::Result<> step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt, xpp::BlockLu &lu, std::span<const std::vector<int>> subsystems)
 {
 
 int j,i,n2=node*node,info;
@@ -512,12 +512,12 @@ mat=work+node;
   for(j=0;j<node;j++)yold[j]=yold[j]+.5*dt*fold[j];
   for(i=0;i<n2;i++)mat[i]=-jac[i][k2]*dt*.5;
   for(i=0;i<node;i++)mat[i+i*node]=1.+mat[i+i*node];
-  xpp::sgefa(mat,node,node,ipvt.data(),&info);
+  lu.factor(mat,node,node,subsystems,&info);
 if(info!=-1){
   
   return xpp::fail("adjoint","Uninvertible Jacobian",command_place());
 }
-xpp::sgesl(mat,node,node,ipvt.data(),yold);
+lu.solve(mat,node,yold);
 return {};
 }
 

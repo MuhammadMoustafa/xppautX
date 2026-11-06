@@ -211,6 +211,18 @@ def main():
             assert diagnostics[-1]['line'] == 1 and diagnostics[-1]['source'] == header, diagnostics
         code, diagnostics = run("x'=0\n", '.odex')
         assert code == 0 and diagnostics == [], diagnostics
+        # W433: a loaded model's independent subsystems are reported (information: exit 0), a coupled one's are not
+        code, diagnostics = run("x'=-y\ny'=x\nu'=-u\n", '.odex')
+        assert code == 0 and [d['id'] for d in diagnostics] == ['subsystems'], diagnostics
+        assert diagnostics[0]['severity'] == 'info' and '2 independent subsystems' in diagnostics[0]['message'], diagnostics
+        code, diagnostics = run("x'=-y\ny'=x\nu'=-u*x\n", '.odex')
+        assert code == 0 and diagnostics == [], diagnostics
+        # a Poincare stop on x: two subsystems by the equations (the default), one by the run, as the file's own setting says
+        stop = "x'=-x\ny'=-y\noptions { poincare: { poincare_map: section, poincare_variable: x, poincare_stop: true }%s }\n"
+        code, diagnostics = run(stop % '', '.odex')
+        assert code == 0 and [d['id'] for d in diagnostics] == ['subsystems'] and '2 independent subsystems' in diagnostics[0]['message'], diagnostics
+        code, diagnostics = run(stop % ', integration: { subsystem_split: run }', '.odex')
+        assert code == 0 and diagnostics == [], diagnostics
         for extension, text in [('.ode', "x'=unknown\ndone\n"), ('.odex', "x'=unknown\n")]:
             code, diagnostics = run(text, extension)
             assert code == 2 and diagnostics[-1]['id'] == 'load-error', diagnostics

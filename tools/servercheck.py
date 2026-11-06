@@ -6482,6 +6482,52 @@ def check_jacobian_setting():
 check_jacobian_setting()
 
 
+def check_subsystem_split():
+    """W433: the numerics' subsystem_split, equations (the default) or run: the
+    information file says two subsystems for a model of two independent states
+    with a Poincare stop on one of them under equations, and one under run, and
+    the numerics event shows the setting with its choices."""
+    model_dir = tempfile.mkdtemp(prefix='xppsubsystems')
+    model = os.path.join(model_dir, 'stop.odex')
+    with open(model, 'w') as f:
+        f.write(versioned("x' = -x\ny' = -y\ninit x = 1, y = 1\noptions { integration: { total_time: 5 }, "
+                          "poincare: { poincare_map: section, poincare_variable: x, poincare_plane: 0.5, poincare_stop: true } }\n"))
+    p, r, snd, col, _ = launch_server(ode=model)
+    try:
+        col(is_done)
+
+        def info():
+            snd(cmd='session.export_info', file='info.txt', confirm=True)
+            col(is_done)
+            with open(os.path.join(r, 'info.txt')) as f:
+                return f.read()
+        snd(cmd='events.subscribe', events=['run.numerics'])
+        field = next((f for e in col(is_done)[0] if e.get('ev') == 'run.numerics' for f in e['fields'] if f['key'] == 'subsystem_split'), {})
+        check('W433: the numerics event has subsystem_split, equations by default, with its choices',
+              field.get('value') == 'equations' and field.get('choices') == ['equations', 'run'], str(field))
+        text = info()
+        check('W433: a Poincare stop does not join two independent states under equations',
+              '2 independent subsystems: {X}, {Y}' in text, text[-300:])
+        snd(cmd='set', kind='num', name='subsystem_split', text='run')
+        evs, _ = col(is_done)
+        errs = [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
+        text = info()
+        check('W433: it joins them under run, and the report follows the setting after the load',
+              not errs and '1 subsystem, joined by a Poincare stop (subsystem_split: run)' in text, '%s %s' % (errs, text[-300:]))
+        snd(cmd='set', kind='num', name='subsystem_split', text='both')
+        evs, _ = col(is_done)
+        errs = [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
+        check('W433: a word that is no choice is refused', len(errs) == 1 and 'Subsystem split' in errs[0], str(errs))
+    finally:
+        p.stdin.close()
+        p.wait(timeout=10 * SLOW)
+        shutil.rmtree(r, ignore_errors=True)
+        shutil.rmtree(model_dir, ignore_errors=True)
+
+
+check_subsystem_split()
+
+
 def check_jacobian_failure():
     """W260: an exact derivative that is not finite where the right-hand
     side is (sqrt at 0) stops the run with an error at the equation's line,

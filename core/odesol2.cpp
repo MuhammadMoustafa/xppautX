@@ -126,7 +126,7 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
   double err=0.0,err1=0.0;
   
   int iter=0,info;
-  int *const ipivot=s.solver_work.size_pivots(neq);
+  xpp::BlockLu &lu=s.solver_work.lu;
   const auto form=xpp::model_jacobian_form(s,neq);
   int ml=form.lower,mr=form.upper,mt=ml+mr+1;
   set_wieners(s,dt,y,*t);
@@ -151,13 +151,13 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
       }
       else {
       for(i=0;i<neq;i++)jac[i*neq+i]+=1.0;
-      xpp::sgefa(jac,neq,neq,ipivot,&info);
+      lu.factor(jac,neq,neq,s.model().subsystems,&info);
       if(info!=-1)
 	{
 	  s.solver_work.stop={*t,dt,info,iter};
 	  return(NEWTON_SINGULAR);
 	}
-      xpp::sgesl(jac,neq,neq,ipivot,errvec);
+      lu.solve(jac,neq,errvec);
       }
       for(i=0;i<neq;i++){
 	err+=fabs(errvec[i]);
@@ -421,7 +421,7 @@ int *istart,int n,double *work,int *ierr)
  const auto form=xpp::model_jacobian_form(s,n);
  int i,done=0,info,ml=form.lower,mr=form.upper,mt=ml+mr+1,entries=xpp::jacobian_entries(n,form);
  int nofailed;
- int *const ipivot=s.solver_work.size_pivots(n);
+ xpp::BlockLu &lu=s.solver_work.lu;
  double temp,err,tdel;
  double *k1,*k2,*k3,*f0,*f1,*f2,*dfdt,*ynew,*dfdy;
  *ierr=1;
@@ -474,8 +474,8 @@ int *istart,int n,double *work,int *ierr)
 	  for(i=0;i<n;i++)
 	 dfdy[i*n+i]+=1;
 	
-	 xpp::sgefa(dfdy,n,n,ipivot,&info);
-	 xpp::sgesl(dfdy,n,n,ipivot,k1);
+	 lu.factor(dfdy,n,n,s.model().subsystems,&info);
+	 lu.solve(dfdy,n,k1);
        }
        for(i=0;i<n;i++)
 	 ynew[i]=y[i]+.5*h*k1[i];
@@ -485,7 +485,7 @@ int *istart,int n,double *work,int *ierr)
        if(s.numerics.cv_bandflag)
 	 xpp::bandsol(dfdy,k2,ml,mr,n);
        else
-	 xpp::sgesl(dfdy,n,n,ipivot,k2);
+	 lu.solve(dfdy,n,k2);
        for(i=0;i<n;i++){
 	 k2[i]=k2[i]+k1[i];
 	 ynew[i]=y[i]+h*k2[i];
@@ -497,7 +497,7 @@ int *istart,int n,double *work,int *ierr)
        if(s.numerics.cv_bandflag)
 	 xpp::bandsol(dfdy,k3,ml,mr,n);
        else
-	 xpp::sgesl(dfdy,n,n,ipivot,k3);
+	 lu.solve(dfdy,n,k3);
        /*ninf=0;  This is not used anywhere?
        */
        err=0.0;

@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <numeric>
 #include "model.h"
 #include "session.h"
 #include "ode_read.h"
@@ -97,6 +98,36 @@ std::string short_name(std::string_view name, int width)
   if(name.size()<=w)
     return std::string(name);
   return w?std::string(name.substr(0,w-1))+'~':std::string();
+}
+
+std::vector<std::vector<int>> connected_components(const std::vector<std::vector<int>> &edges)
+{
+  const size_t n=edges.size();
+  std::vector<int> parent(n);
+  std::iota(parent.begin(),parent.end(),0);
+  auto root=[&parent](int i){
+    while(parent[static_cast<size_t>(i)]!=i){
+      parent[static_cast<size_t>(i)]=parent[static_cast<size_t>(parent[static_cast<size_t>(i)])];
+      i=parent[static_cast<size_t>(i)];
+    }
+    return i;
+  };
+  for(size_t i=0;i<n;i++)
+    for(const int j:edges[i]){
+      const int a=root(static_cast<int>(i)),b=root(j);
+      if(a!=b)parent[static_cast<size_t>(std::max(a,b))]=std::min(a,b); /* the least node stays the root */
+    }
+  std::vector<std::vector<int>> components;
+  std::vector<int> component(n,-1); /* by root */
+  for(size_t i=0;i<n;i++){
+    int &c=component[static_cast<size_t>(root(static_cast<int>(i)))];
+    if(c<0){
+      c=static_cast<int>(components.size());
+      components.emplace_back();
+    }
+    components[static_cast<size_t>(c)].push_back(static_cast<int>(i));
+  }
+  return components;
 }
 
 void de_space(std::string &s)

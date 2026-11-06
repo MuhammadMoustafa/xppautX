@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include "xpp_error.h"
+#include "xpp_math.h"
 #include "xpp_mem.h"
 
 namespace xpp {
@@ -26,7 +27,8 @@ struct SolverWork {
   XPPVEC xpv{};             /* xpv.x points at state */
   std::vector<double> state;
   std::vector<double> flag_yold; /* flags.cpp's flag_loop: the state before a step */
-  std::vector<int> pivot;        /* the implicit steps' LU pivots (odesol2.cpp, volterra2.cpp), sized once by size_pivots */
+  std::vector<int> pivot;        /* the implicit steps' LU pivots (volterra2.cpp, do_fit.cpp), sized once by size_pivots */
+  xpp::BlockLu lu;               /* the implicit steps' LU of a model's Jacobian, by independent subsystem (odesol2.cpp, stiff.cpp) */
   /* where a method's routine (odesol2.cpp, stiff.cpp, volterra2.cpp) last
      gave up, for its Solver's error (solver.cpp): the time it reached, the
      step size it last tried, the variable it failed in (from 0, -1 when it

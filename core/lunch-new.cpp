@@ -22,6 +22,7 @@
 #include "xpp_files.h"
 
 #include "numerics.h"
+#include "expr_native.h"
 #include <stdio.h>
 #include <time.h>
 #include "load_eqn.h"
@@ -54,6 +55,7 @@ void put_equation(const xpp::Session &s, FILE *fp, int i)
 void put_equations(const xpp::Session &s, FILE *fp)
 {
   for(int i=0;i<s.model().neq;i++)put_equation(s,fp,i);
+  xpp::print(fp,"\n{}\n",describe_subsystems(s));
   if(s.model().fix_var>0){
     xpp::print(fp,"\nwhere ...\n");
     for(int i=0;i<s.model().fix_var;i++)

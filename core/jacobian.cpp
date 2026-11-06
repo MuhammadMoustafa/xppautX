@@ -12,6 +12,7 @@
 #include "solver.h"
 #include "xpp_io.h"
 #include "expr.h"
+#include "expr_native.h"
 #include "xpp_mem.h"
 
 namespace xpp {
@@ -65,23 +66,7 @@ void column(const Session &s, JacobianScratch &scratch, const JacobianProgram &p
 DifferenceGroups make_difference_groups(const Model &m, int n)
 {
   if (!m.autox_rhs_pure || n != m.node) return {};
-  const int programs = m.node + m.fix_var;
-  /* the states each fixed variable and equation reads; a fixed variable
-     reads only those before it (autox_rhs_pure), so one pass in order */
-  std::vector<std::vector<int>> reads(static_cast<size_t>(programs));
-  std::vector<char> read(static_cast<size_t>(n));
-  for (int p = m.node; p < programs + m.node; p++) {
-    const int q = p < programs ? p : p - programs; /* the fixed variables, then the equations */
-    std::fill(read.begin(), read.end(), 0);
-    for (const int v : m.programs[static_cast<size_t>(q)].native_reads) {
-      if (v >= 1 && v <= m.node) read[static_cast<size_t>(v - 1)] = 1;
-      else if (v > m.node && v <= programs)
-        for (const int k : reads[static_cast<size_t>(v - 1)]) read[static_cast<size_t>(k)] = 1;
-    }
-    if (q < m.node) read[static_cast<size_t>(q)] = 1; /* a map's f(x)-x reads its own state */
-    for (int k = 0; k < n; k++)
-      if (read[static_cast<size_t>(k)]) reads[static_cast<size_t>(q)].push_back(k);
-  }
+  const auto reads = equation_reads(m);
   DifferenceGroups g;
   g.rows.resize(static_cast<size_t>(n));
   for (int j = 0; j < n; j++)

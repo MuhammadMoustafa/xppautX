@@ -57,6 +57,12 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved = nullptr,
                   const std::function<std::optional<Error>(Session &)> &check = {});
 /* Import and validate in a temporary Model and Session, using the shared
    setup. Never commits; the converter alone supplies the .ode reader. */
+/* A loaded model compiled (compile_model, W260's exact Jacobian when the
+   numerics ask for it): the warnings the compiler gave, each with its place,
+   or the error of a model that asks for an exact Jacobian it has none of.
+   A load logs the warnings; --check reports them. */
+Result<std::vector<Error>> compile_loaded(Session &s);
+
 Result<> inspect_model(const CommandLine &cl, const std::function<void(Session &)> &read,
                       const std::function<std::optional<Error>(Session &)> &check = {},
                       const SavedModel *saved = nullptr);

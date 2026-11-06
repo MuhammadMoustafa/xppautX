@@ -74,7 +74,7 @@ struct CvodeRun::Memory {
     if(s.numerics.cv_bandflag)
       cvode_solver::CVBand(cvode,s.numerics.cv_bandupper,s.numerics.cv_bandlower,exact?cv_band_jacobian:nullptr,exact?&s:nullptr);
     else
-      cvode_solver::CVDense(cvode,exact?cv_dense_jacobian:nullptr,exact?&s:nullptr);
+      cvode_solver::CVDense(cvode,exact?cv_dense_jacobian:nullptr,exact?&s:nullptr,s.model().subsystems);
   }
   ~Memory()
   {

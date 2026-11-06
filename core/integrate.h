@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include "xpp_math.h"
 #include <functional>
 #include <array>
 #include <cstdio>
@@ -296,8 +297,8 @@ struct IntegratorState {
   double rosen_htry = 0;
   /* the global flags' states (flags.cpp) */
   std::vector<FlagState> flags; /* the model's flags (compile_flags) */
-  /* Gear's pivots of the Jacobian it factored last (gear.cpp ggear) */
-  std::vector<int> gear_pivot;
+  /* the LU of the Jacobian Gear factored last, by independent subsystem (gear.cpp ggear) */
+  xpp::BlockLu gear_lu;
   /* the array initial values in use */
   ArrayIcs array_ics;
   /* Sing pts' Monte Carlo search and Range */

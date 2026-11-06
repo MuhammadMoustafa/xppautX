@@ -256,8 +256,7 @@ L330:
       for(i=0;i<n*n;i++)dermat[i]*=a[0]*h;
       for(i=0;i<n;i++)dermat[n*i+i]+=1.0;
       iweval=-1;
-      if(static_cast<int>(s.integrator.gear_pivot.size())<n)s.integrator.gear_pivot.resize(n);
-      xpp::sgefa(dermat,n,n,s.integrator.gear_pivot.data(),&info);
+      s.integrator.gear_lu.factor(dermat,n,n,s.model().subsystems,&info);
       if(info==-1)j1=1;
       else j1=-1;
       if(j1<0)goto L520;
@@ -266,7 +265,7 @@ L460:
 
       for(i=0;i<n;i++)save12[i]=ytable[1][i]-save11[i]*h;
       for(i=0;i<n;i++)save9[i]=save12[i];
-      xpp::sgesl(dermat,n,n,s.integrator.gear_pivot.data(),save9);
+      s.integrator.gear_lu.solve(dermat,n,save9);
       nt=n;
       for(i=0;i<n;i++)
       {

@@ -122,7 +122,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 {
 
 	int i,j,jtry;
-	int *const indx = s.solver_work.size_pivots(n);
+	xpp::BlockLu &lu = s.solver_work.lu;
         int info;
       	double errmax,h,xsav,*a,*dfdx,*dfdy,*dysav,*err;
 	double *g1,*g2,*g3,*g4,*ysav,*work2;
@@ -151,7 +151,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 			for (i=0;i<n;i++) a[i+n*j] = -dfdy[i+n*j];
 			a[j+n*j] += 1.0/(GAM*h);
 		}
-		xpp::sgefa(a,n,n,indx,&info);
+		lu.factor(a,n,n,s.model().subsystems,&info);
 		if(info!=-1){
 		  s.solver_work.stop={xsav,h,info,0};
 		  *ier=ADAPTIVE_SINGULAR;
@@ -160,24 +160,24 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 
 		for (i=0;i<n;i++)
 			g1[i]=dysav[i]+h*C1X*dfdx[i];
-		xpp::sgesl(a,n,n,indx,g1);
+		lu.solve(a,n,g1);
 		for (i=0;i<n;i++)
 			y[i]=ysav[i]+A21*g1[i];
 		*x=xsav+A2X*h;
 		s.integrator.rhs(*x,y,dydx,n);
 		for (i=0;i<n;i++)
 			g2[i]=dydx[i]+h*C2X*dfdx[i]+C21*g1[i]/h;
-		xpp::sgesl(a,n,n,indx,g2);
+		lu.solve(a,n,g2);
 		for (i=0;i<n;i++)
 			y[i]=ysav[i]+A31*g1[i]+A32*g2[i];
 		*x=xsav+A3X*h;
 		s.integrator.rhs(*x,y,dydx,n);
 		for (i=0;i<n;i++)
 			g3[i]=dydx[i]+h*C3X*dfdx[i]+(C31*g1[i]+C32*g2[i])/h;
-		xpp::sgesl(a,n,n,indx,g3);
+		lu.solve(a,n,g3);
 		for (i=0;i<n;i++)
 			g4[i]=dydx[i]+h*C4X*dfdx[i]+(C41*g1[i]+C42*g2[i]+C43*g3[i])/h;
-		xpp::sgesl(a,n,n,indx,g4);
+		lu.solve(a,n,g4);
 		for (i=0;i<n;i++) {
 			y[i]=ysav[i]+B1*g1[i]+B2*g2[i]+B3*g3[i]+B4*g4[i];
 			err[i]=E1*g1[i]+E2*g2[i]+E3*g3[i]+E4*g4[i];

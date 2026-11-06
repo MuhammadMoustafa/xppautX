@@ -151,6 +151,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"FOLD", {"x", ""}},
         {"AUTOEVAL", {"1", ""}},
         {"JACOBIAN", {"exact", "1"}},
+        {"SUBSYSTEM_SPLIT", {"run", "1"}},
     };
     if (r.first_digit) return {r.name.ends_with('P') ? "y" : "1", ""}; /* xp2=y, xlo2=1 */
     if (const auto it = special.find(r.name); it != special.end()) return it->second;

@@ -16,6 +16,8 @@
 #pragma once
 
 
+#include <span>
+#include <vector>
 #include "cvode.h"
 #include "llnltyps.h"
 #include "dense.h"
@@ -157,9 +159,13 @@ typedef void (*CVDenseJacFn)(integer N, DenseMatRec *J, RhsFn f, void *f_data,
  * jac_data is a pointer to user data which is passed to the      *
  *         djac routine every time it is called.                  *
  *                                                                *
+ * independent are the model's independent subsystems             *
+ *         (Model::subsystems, kept by reference): M = I - gamma J *
+ *         is factored block by block (BlockLu, xpp_math.h).      *
+ *                                                                *
  ******************************************************************/
   
-void CVDense(CVodeMemRec *cvode_mem, CVDenseJacFn djac, void *jac_data);
+void CVDense(CVodeMemRec *cvode_mem, CVDenseJacFn djac, void *jac_data, std::span<const std::vector<int>> independent);
  
 
 /******************************************************************

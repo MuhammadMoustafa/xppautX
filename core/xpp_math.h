@@ -28,6 +28,7 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <vector>
 #include "xpp_mem.h"
 
 namespace xpp {
@@ -215,6 +216,43 @@ int largest_magnitude(const double *x, int n, int stride = 1);
 void sgefa(double *a, int lda, int n, int *ipvt, int *info);
 void sgesl(double *a, int lda, int n, int *ipvt, double *b);
 int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt);
+
+/* BlockLu: sgefa/sgesl for a matrix that is block diagonal under a
+   partition of its n indices (a model's independent subsystems, W433,
+   Model::subsystems: each block's indices ascending), block by block.
+   factor() gathers each block, factors it with sgefa, keeps the factors
+   and puts them back into a (as sgefa leaves them, so a caller that
+   scales the matrix again, Rosenbrock's retry, sees the same numbers);
+   solve() solves each block of b with sgesl. The entries outside the blocks
+   are never read: they must be exactly 0, as a Jacobian's are where an
+   equation does not read a state. Then the result is bit for bit sgefa's and
+   sgesl's of the whole matrix, for finite values and up to the sign of a
+   zero: the elimination adds a zero multiple or skips a zero pivot-row
+   entry, and the pivot search meets only zeros outside a block's own rows,
+   so neither an interchange nor an update leaves the block; *info is the
+   last zero pivot's index, as sgefa's. Two deliberate differences: sgesl
+   adds t*(+-0) across blocks, which turns a -0.0 of the solution into +0.0
+   where this keeps -0.0; and a NaN or inf (a non-finite right-hand side, a
+   singular matrix whose info the caller ignores) stays in its block where
+   sgefa and sgesl spread it into every column. With fewer
+   than two blocks, or blocks that do not cover n indices, factor() is sgefa
+   in place and solve() sgesl, so `a` must stay as factor() left it until
+   the solves are done. `transposed`: a holds the matrix's transpose (column-major,
+   CVODE's DenseMatRec), each block gathered the right way round. The
+   buffers are sized by the first factor() and kept. */
+class BlockLu {
+public:
+    void factor(double *a, int lda, int n, std::span<const std::vector<int>> blocks, int *info, bool transposed = false);
+    void solve(double *a, int lda, double *b);
+
+private:
+    std::span<const std::vector<int>> blocks() const { return split_ ? blocks_ : std::span<const std::vector<int>>(whole_); }
+    std::vector<std::vector<int>> whole_; /* the one block of every index, for a transposed matrix with no split */
+    std::span<const std::vector<int>> blocks_; /* the caller's, when split_ */
+    bool split_ = false, in_place_ = false;
+    std::vector<double> lu_, rhs_;
+    std::vector<int> pivots_;
+};
 int bandfac(double *a, int ml, int mr, int n);
 void bandsol(double *a, double *b, int ml, int mr, int n);
 void eigenvalues(int n, double *a, double *ev, double *work, int *ierr);

@@ -13,7 +13,10 @@ links here; `--silent` prints the conversion on the console.
 The same log panel shows the converter's quirk diagnostics once, with
 file, line and column where known (`--silent` uses the console).
 `xppautX --check model.ode` validates without a window or written files
-and prints one JSON object; `.odex` checking reports only errors.
+and prints one JSON object; `.odex` checking reports only errors and what the compiler warns of, and one
+information line when the model's states fall into several independent
+subsystems (states no equation links, which the implicit solvers then factor
+one subsystem at a time: W433).
 Exit 0 means clean or information alone, 1 warnings, 2 an error.
 See [Checking a .ode](../odex.md#checking-a-ode) for the format (W75, #123).
 

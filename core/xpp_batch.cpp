@@ -112,6 +112,19 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     }
 }
 
+Result<std::vector<Error>> compile_loaded(Session &s)
+{
+    auto compiled=compile_model(s);
+    if (!compiled) compiled=std::vector<Error>{compiled.error()};
+    /* the exact Jacobian a model asks for is known to exist only now
+       (W260): none is an error at the @ line, not a quiet difference */
+    const Model &m=s.model();
+    if (s.numerics.jacobian==JACOBIAN_EXACT && !m.jacobian.available())
+        return std::unexpected(Error{"options",option_error_text("jacobian","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
+                                     m.jacobian.requested});
+    return compiled;
+}
+
 namespace {
 
 Result<CommandLine> animation_command_line(CommandLine cl)
@@ -159,18 +172,14 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     }
     m.saved_copies.reset(); /* the load's readers are done with them */
     xpp_session_mark_clean(load.session()); /* what it loaded is not a change */
-    auto compiled=compile_model(load.session());
-    if (!compiled) compiled=std::vector<Error>{compiled.error()};
+    const auto compiled=compile_loaded(load.session());
+    if (!compiled) {
+        program = program_before;
+        return std::unexpected(compiled.error());
+    }
     for (const Error &warning:*compiled) {
         Load::at(warning.place.file,warning.place.line,warning.place.col);
         xpp::log(XPP_LOG_WARN,"{}\n",warning.what);
-    }
-    /* the exact Jacobian a model asks for is known to exist only now
-       (W260): none is an error at the @ line, not a quiet difference */
-    if (load.session().numerics.jacobian==JACOBIAN_EXACT && !m.jacobian.available()) {
-        program = program_before;
-        return std::unexpected(Error{"options",option_error_text("jacobian","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
-                                     m.jacobian.requested});
     }
     load.commit();
     return &load.session();

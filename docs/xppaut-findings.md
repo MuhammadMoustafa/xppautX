@@ -137,6 +137,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [104](#104-a-period-doubling-curve-near-a-12-resonance-cannot-be-read-from-the-six-digit-export) | AUTO | a period-doubling curve near a 1:2 resonance is exported to six digits, and a multiplier there moves 2,000 times as fast as the parameter, so the file puts the points 0.5-1.4% off -1 (the continuation itself is exact) | [W568 / #633](https://github.com/MuhammadMoustafa/xppautX/issues/633) |
 | [105](#105-the-fold-test-of-a-switched-branch-starts-at-its-third-point) | AUTO | the second point of a branch started by a switch (MXBF) is not tested: a fold between the second and third points is never labelled | [W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634) |
 | [106](#106-the-tests-of-a-branchs-first-steps-are-not-made) | AUTO | the tests start at 0 and the first value is the third point's (cycles: the second's): a zero between a branch's start and its third point is never labelled, and the second point of an equilibrium branch is not stored | [W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637) |
+| [107](#107-rosenbrock-scales-and-refactors-its-already-factored-matrix-after-a-failed-step) | Integrators | after a failed step `rosen` scales `dfdy`, which `sgefa` (or `bandfac`) has overwritten with its LU factors, again by -h*d and factors that: the retried step is solved with a meaningless matrix (the Jacobian is made again only for the next step) | [W433 / #495](https://github.com/MuhammadMoustafa/xppautX/issues/495) |
 
 ## 1. Model options
 
@@ -2277,3 +2278,12 @@ Evidence: from the source, not run in XPPAUT; the cases are runs of pp2, lamom2 
 between the start and the third point (equilibria) or the first and second points (cycles), settled by numpy/scipy from the model's equations.
 **xppautX** (W572 / [#637](https://github.com/MuhammadMoustafa/xppautX/issues/637)): fixed: the tests are made at the start and the second point of an equilibrium branch and at a cycle branch's start.
 
+## 107. Rosenbrock scales and refactors its already factored matrix after a failed step
+
+`rosen` makes the Jacobian once per step (`get_the_jac`, [odesol2.c:532](../reference/xppaut-8.0/odesol2.c#L532)) and then enters the retry loop, whose first lines scale it,
+`dfdy[i]=-h*d*dfdy[i]` ([odesol2.c:538-539](../reference/xppaut-8.0/odesol2.c#L538)), add the identity and factor it in place with `sgefa`
+([odesol2.c:553](../reference/xppaut-8.0/odesol2.c#L553)) or, with a banded Jacobian, `bandfac` ([odesol2.c:546](../reference/xppaut-8.0/odesol2.c#L546)). A step whose error is too large shrinks `h`
+and goes round again with `dfdy` now holding the LU factors, which are scaled (by a new -h*d) and factored again: the retried step is solved with a matrix that is neither J
+nor its factors (the next step makes the Jacobian again). The same in [master](../reference/xppaut-master/odesol2.c). Evidence: from the source; W433's block-by-block
+factorization had to put its factors back into `dfdy` to reproduce a run of 40 independent van der Pol pairs with a rejected step.
+**xppautX** (W433 / [#495](https://github.com/MuhammadMoustafa/xppautX/issues/495)): not fixed, since a fix changes every Rosenbrock run that rejects a step; the numbers stay XPPAUT's.

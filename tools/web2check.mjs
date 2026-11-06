@@ -3587,6 +3587,20 @@ async function valuesJacobian(dir) {
     && JSON.stringify((await S(`__xpp.sentFrom(${sent})`)).filter(c => c.cmd === 'set'))
       === JSON.stringify([{cmd: 'set', kind: 'num', name: 'jacobian', text: 'exact'}]),
     JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
+  /* W433: the Subsystem split, a choice of equations and run (its label derived from its name) */
+  const split = `document.querySelector('[data-section="num"] [data-num="subsystem_split"] select')`;
+  await until(`!!${split}`, 'the Subsystem split select');
+  const splitOptions = await cdp.eval(`[...${split}.options].map(o => [o.textContent, o.disabled])`);
+  check('W433: Numerics shows Subsystem split as a choice of Equations and Run, Equations selected',
+    JSON.stringify(splitOptions) === JSON.stringify([['Equations', false], ['Run', false]]) && await cdp.eval(`${split}.value === 'equations'`),
+    JSON.stringify(splitOptions));
+  const splitSent = await S('__xpp.sentCount()');
+  await cdp.eval(`(() => { const s = ${split}; s.value = 'run'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  check('W433: choosing run sends set num subsystem_split run, and the core takes it',
+    await until(`!s.busy && s.numerics.find(f => f.key === 'subsystem_split')?.value === 'run'`, 'run taken')
+    && JSON.stringify((await S(`__xpp.sentFrom(${splitSent})`)).filter(c => c.cmd === 'set'))
+      === JSON.stringify([{cmd: 'set', kind: 'num', name: 'subsystem_split', text: 'run'}]),
+    JSON.stringify(await S(`__xpp.sentFrom(${splitSent})`)));
   fs.writeFileSync(path.join(dir, 'w260noise.odex'), versioned("par a = 1\nx' = -a*x + ran(1)\n"));
   await openFile('w260noise.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');

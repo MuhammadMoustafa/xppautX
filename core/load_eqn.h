@@ -77,6 +77,8 @@ struct NumericsSettings {
   int poincare_variable = 0, poiext = 0;
   SectionSign poincare_sign = SectionSign::both;
   bool poincare_stop = false;
+  /* the independent subsystems the reports show (Model::subsystems is the equations' own) */
+  SubsystemSplit subsystem_split = SubsystemSplit::equations;
   double poincare_plane = 0;
   /* the torus and its period (each variable's flag is Session::itor) */
   bool torus = false;

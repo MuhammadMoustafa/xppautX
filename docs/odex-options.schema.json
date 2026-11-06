@@ -19,6 +19,7 @@
         "stop_at_limit": {"type": "boolean", "description": "Stop at the limit"},
         "method": {"type": "string", "enum": ["discrete", "euler", "modified_euler", "runge_kutta", "adams", "gear", "volterra", "backward_euler", "qualrk", "stiff", "cvode", "dopri5", "dopri8", "rosenbrock", "symplectic"], "description": "Method"},
         "jacobian": {"type": "string", "enum": ["difference", "exact"], "description": "Jacobian"},
+        "subsystem_split": {"type": "string", "enum": ["equations", "run"], "description": "Subsystem split"},
         "relative_tolerance": {"type": "number", "exclusiveMinimum": 0, "description": "Relative tolerance"},
         "min_step": {"type": "number", "exclusiveMinimum": 0, "description": "Minimum step"},
         "max_step": {"type": "number", "exclusiveMinimum": 0, "description": "Maximum step"},

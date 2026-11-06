@@ -29,20 +29,12 @@
  * The DenseAllocMat function allocates a dense matrix for use in *
  * the other DenseMatRec *routines listed in this file. Matrix        *
  * storage details are given in the documentation for the type    *
- * DenseMatRec *; DenseFreeMat frees it. The pivot information is an   *
- * array of N integers the caller keeps (cvdense.cpp holds it in  *
- * a std::vector). The DenseFactor and DenseBacksolve             *
- * routines perform the actual solution of a dense linear system. *
- * Note that the DenseBacksolve routine has a parameter b of type *
- * N_VectorContent. The current implementation makes use of a machine    *
- * environment-specific macro (N_VDATA) which may not exist for   *
- * other implementations of the type N_VectorContent. Thus, the          *
- * implementation of DenseBacksolve may need to change if the     *
- * type N_VectorContent pointer is changed.                                      *
+ * DenseMatRec *; DenseFreeMat frees it. The LU factorization and
+ * its solve are BlockLu's (xpp_math.h), which gathers a matrix's
+ * columns as DenseMatRec stores them.                            *
  *                                                                * 
- * Routines that work with real ** begin with "den" (except for   *
- * the factor and solve routines which are called gefa and gesl,  *
- * respectively). The underlying matrix storage is described in   *
+ * Routines that work with real ** begin with "den". The             *
+ * underlying matrix storage is described in                      *
  * the documentation for the type DenseMatRec.                       *
  *                                                                *
  ******************************************************************/
@@ -146,55 +138,6 @@ DenseMatRec *DenseAllocMat(integer N);
 
 /******************************************************************
  *                                                                *
- * Function : DenseFactor                                         *
- * Usage    : ier = DenseFactor(A, p);                            *
- *            if (ier != 0) ... A is singular                     *
- *----------------------------------------------------------------*
- * DenseFactor performs the LU factorization of the N by N dense  *
- * matrix A. This is done using standard Gaussian elimination     *
- * with partial pivoting.                                         *
- *                                                                *
- * A successful LU factorization leaves the matrix A and the      *
- * pivot array p with the following information:                  *
- *                                                                *
- * (1) p[k] contains the row number of the pivot element chosen   *
- *     at the beginning of elimination step k, k=0, 1, ..., N-1.  *
- *                                                                *
- * (2) If the unique LU factorization of A is given by PA = LU,   *
- *     where P is a permutation matrix, L is a lower triangular   *
- *     matrix with all 1's on the diagonal, and U is an upper     *
- *     triangular matrix, then the upper triangular part of A     *
- *     (including its diagonal) contains U and the strictly lower *
- *     triangular part of A contains the multipliers, I-L.        *
- *                                                                *
- * DenseFactor returns 0 if successful. Otherwise it encountered  *
- * a zero diagonal element during the factorization. In this case *
- * it returns the column index (numbered from one) at which       *
- * it encountered the zero.                                       *
- *                                                                *
- ******************************************************************/
-
-integer DenseFactor(DenseMatRec *A, integer *p);
-
-
-/******************************************************************
- *                                                                *
- * Function : DenseBacksolve                                      *
- * Usage    : DenseBacksolve(A, p, b);                            *
- *----------------------------------------------------------------*
- * DenseBacksolve solves the N-dimensional system A x = b using   *
- * the LU factorization in A and the pivot information in p       *
- * computed in DenseFactor. The solution x is returned in b. This *
- * routine cannot fail if the corresponding call to DenseFactor   *
- * did not fail.                                                  *
- *                                                                *
- ******************************************************************/
-
-void DenseBacksolve(DenseMatRec *A, integer *p, N_VectorContent *b);
-
-
-/******************************************************************
- *                                                                *
  * Function : DenseZero                                           *
  * Usage    : DenseZero(A);                                       *
  *----------------------------------------------------------------*
@@ -260,58 +203,6 @@ void DenseFreeMat(DenseMatRec *A);
 /* Functions that use the real ** representation for a dense matrix */
 
  
-/******************************************************************
- *                                                                *
- * Function : gefa                                                *
- * Usage    : integer ier;                                        *
- *            ier = gefa(a,n,p);                                  *
- *            if (ier > 0) ... zero element encountered during    *
- *                             the factorization                  *
- *----------------------------------------------------------------*
- * gefa(a,n,p) factors the n by n dense matrix a. It overwrites   *
- * the elements of a with its LU factors and keeps track of the   *
- * pivot rows chosen in the pivot array p.                        *
- *                                                                *
- * A successful LU factorization leaves the matrix a and the      *
- * pivot array p with the following information:                  *
- *                                                                *
- * (1) p[k] contains the row number of the pivot element chosen   *
- *     at the beginning of elimination step k, k=0, 1, ..., n-1.  *
- *                                                                *
- * (2) If the unique LU factorization of a is given by Pa = LU,   *
- *     where P is a permutation matrix, L is a lower triangular   *
- *     matrix with all 1's on the diagonal, and U is an upper     *
- *     triangular matrix, then the upper triangular part of a     *
- *     (including its diagonal) contains U and the strictly lower *
- *     triangular part of a contains the multipliers, I-L.        *
- *                                                                * 
- * gefa returns 0 if successful. Otherwise it encountered a zero  *
- * diagonal element during the factorization. In this case it     *
- * returns the column index (numbered from one) at which it       *
- * encountered the zero.                                          *
- *                                                                *
- ******************************************************************/
-
-integer gefa(real **a, integer n, integer *p);
-
-
-/******************************************************************
- *                                                                *
- * Function : gesl                                                *
- * Usage    : real *b;                                            *
- *            ier = gefa(a,n,p);                                  *
- *            if (ier == 0) gesl(a,n,p,b);                        *
- *----------------------------------------------------------------*
- * gesl(a,n,p,b) solves the n by n linear system ax = b. It       *
- * assumes that a has been LU factored and the pivot array p has  *
- * been set by a successful call to gefa(a,n,p). The solution x   *
- * is written into the b array.                                   *
- *                                                                *
- ******************************************************************/
-
-void gesl(real **a, integer n, integer *p, real *b);
-
-
 /******************************************************************
  *                                                                *
  * Function : denzero                                             *

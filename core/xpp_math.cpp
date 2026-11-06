@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <numeric>
 #include <limits>
 #include <complex>
 #include <cstdint>
@@ -354,6 +355,73 @@ int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt)
         if (ipvt[k] != k) sign = -sign;
     }
     return sign;
+}
+
+void BlockLu::factor(double *a, int lda, int n, std::span<const std::vector<int>> blocks, int *info, bool transposed)
+{
+    std::size_t covered = 0;
+    for (const auto &block : blocks) covered += block.size();
+    split_ = blocks.size() > 1 && covered == static_cast<std::size_t>(n);
+    pivots_.resize(static_cast<std::size_t>(n));
+    in_place_ = !split_ && !transposed;
+    if (in_place_) {
+        sgefa(a, lda, n, pivots_.data(), info);
+        return;
+    }
+    if (split_) {
+        blocks_ = blocks;
+    } else if (whole_.size() != 1 || whole_[0].size() != static_cast<std::size_t>(n)) {
+        /* a column-major matrix is sgefa's transpose, so it is gathered (O(n^2) against the factorization's O(n^3)) */
+        whole_.assign(1, std::vector<int>(static_cast<std::size_t>(n)));
+        std::iota(whole_[0].begin(), whole_[0].end(), 0);
+    }
+    std::size_t cells = 0, widest = 0;
+    for (const auto &block : this->blocks()) {
+        cells += block.size() * block.size();
+        widest = std::max(widest, block.size());
+    }
+    lu_.resize(cells);
+    rhs_.resize(widest);
+    *info = -1;
+    double *block_lu = lu_.data();
+    int *block_pivots = pivots_.data();
+    for (const auto &block : this->blocks()) {
+        const std::size_t m = block.size();
+        for (std::size_t i = 0; i < m; i++)
+            for (std::size_t j = 0; j < m; j++) {
+                const std::size_t row = static_cast<std::size_t>(block[i]), col = static_cast<std::size_t>(block[j]);
+                block_lu[i * m + j] = transposed ? a[col * static_cast<std::size_t>(lda) + row] : a[row * static_cast<std::size_t>(lda) + col];
+            }
+        int local;
+        sgefa(block_lu, static_cast<int>(m), static_cast<int>(m), block_pivots, &local);
+        if (local != -1) *info = std::max(*info, block[static_cast<std::size_t>(local)]);
+        /* a holds the factors, as after sgefa (a caller that scales it again, Rosenbrock's retry, reads them) */
+        for (std::size_t i = 0; i < m; i++)
+            for (std::size_t j = 0; j < m; j++) {
+                const std::size_t row = static_cast<std::size_t>(block[i]), col = static_cast<std::size_t>(block[j]);
+                (transposed ? a[col * static_cast<std::size_t>(lda) + row] : a[row * static_cast<std::size_t>(lda) + col]) = block_lu[i * m + j];
+            }
+        block_lu += m * m;
+        block_pivots += m;
+    }
+}
+
+void BlockLu::solve(double *a, int lda, double *b)
+{
+    if (in_place_) {
+        sgesl(a, lda, static_cast<int>(pivots_.size()), pivots_.data(), b);
+        return;
+    }
+    double *block_lu = lu_.data();
+    int *block_pivots = pivots_.data();
+    for (const auto &block : blocks()) {
+        const std::size_t m = block.size();
+        for (std::size_t i = 0; i < m; i++) rhs_[i] = b[block[i]];
+        sgesl(block_lu, static_cast<int>(m), static_cast<int>(m), block_pivots, rhs_.data());
+        for (std::size_t i = 0; i < m; i++) b[block[i]] = rhs_[i];
+        block_lu += m * m;
+        block_pivots += m;
+    }
 }
 
 /* ------------------------------------------------------------------ */

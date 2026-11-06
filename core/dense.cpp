@@ -43,18 +43,6 @@ DenseMatRec *DenseAllocMat(integer N)
 }
 
 
-integer DenseFactor(DenseMatRec *A, integer *p)
-{
-  return(gefa(A->data, A->size, p));
-}
-
-
-void DenseBacksolve(DenseMatRec *A, integer *p, N_VectorContent *b)
-{
-  gesl(A->data, A->size, p, N_VDATA(b));
-}
-
-
 void DenseZero(DenseMatRec *A)
 {
   denzero(A->data, A->size);
@@ -80,111 +68,6 @@ void DenseFreeMat(DenseMatRec *A)
   delete A;
 }
 
-
-integer gefa(real **a, integer n, integer *p)
-{
-  integer i, j, k, l;
-  real *col_j, *col_k, *diag_k;
-  real temp, mult, a_kj;
-  bool swap;
-
-  /* k = elimination step number */
-
-  for (k=0; k < n-1; k++, p++) {
-
-    col_k     = a[k];
-    diag_k    = col_k + k;
-
-    /* find l = pivot row number */
-
-    l=k;
-    for (i=k+1; i < n; i++)
-      if (ABS(col_k[i]) > ABS(col_k[l])) l=i;
-    *p = l;
-
-    /* check for zero pivot element */
-
-    if (col_k[l] == ZERO) return(k+1);
-    
-    /* swap a(l,k) and a(k,k) if necessary */
-    
-    if ((swap = (l != k))) {
-      temp = col_k[l];
-      col_k[l] = *diag_k;
-      *diag_k = temp;
-    }
-
-    /* Scale the elements below the diagonal in         */
-    /* column k by -1.0 / a(k,k). After the above swap, */
-    /* a(k,k) holds the pivot element. This scaling     */
-    /* stores the pivot row multipliers -a(i,k)/a(k,k)  */
-    /* in a(i,k), i=k+1, ..., n-1.                      */
-
-    mult = -ONE / (*diag_k);
-    for(i=k+1; i < n; i++)
-      col_k[i] *= mult;
-
-    /* row_i = row_i - [a(i,k)/a(k,k)] row_k, i=k+1, ..., n-1 */
-    /* row k is the pivot row after swapping with row l.      */
-    /* The computation is done one column at a time,          */
-    /* column j=k+1, ..., n-1.                                */
-
-    for (j=k+1; j < n; j++) {
-
-      col_j = a[j];
-      a_kj = col_j[l];
-
-      /* Swap the elements a(k,j) and a(k,l) if l!=k. */
-
-      if (swap) {
-	col_j[l] = col_j[k];
-	col_j[k] = a_kj;
-      }
-
-      /* a(i,j) = a(i,j) - [a(i,k)/a(k,k)]*a(k,j)  */
-      /* a_kj = a(k,j), col_k[i] = - a(i,k)/a(k,k) */
-
-      if (a_kj != ZERO) xpp::subtract_scaled(col_j + k + 1, col_k + k + 1, -a_kj, n - k - 1);
-    }
-  }
-
-  /* set the last pivot row to be n-1 and check for a zero pivot */
-
-  *p = n-1;
-  if (a[n-1][n-1] == ZERO) return(n);
-
-  /* return 0 to indicate success */
-
-  return(0);
-}
-
-void gesl(real **a, integer n, integer *p, real *b)
-{
-  integer k, l;
-  real mult, *col_k;
-
-  /* Solve Ly = Pb, store solution y in b */
-
-  for (k=0; k < n-1; k++) {
-    l = p[k];
-    mult = b[l];
-    if (l != k) {
-      b[l] = b[k];
-      b[k] = mult;
-    }
-    col_k = a[k];
-    xpp::subtract_scaled(b + k + 1, col_k + k + 1, -mult, n - k - 1);
-  }
-
-  /* Solve Ux = y, store solution x in b */
-
-  for (k=n-1; k >= 0; k--) {
-    col_k = a[k];
-    b[k] /= col_k[k];
-    mult = -b[k];
-    xpp::subtract_scaled(b, col_k, -mult, k);
-  }
-}
 
 void denzero(real **a, integer n)
 {

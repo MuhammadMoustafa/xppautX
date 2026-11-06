@@ -12,6 +12,7 @@
 #include "odex.h"
 #include "odex_write.h"
 #include "expr_internal.h"
+#include "expr_native.h"
 #include "form_ode.h"
 #include "ode_read.h"
 #include "integrate.h"
@@ -1766,7 +1767,16 @@ int check_file(const std::string &file)
   LogCapture capture;
   if (is_odex(file) || files::has_extension(file, ".anix")) {
     const Result<CommandLine> line = parse_command_line({"xppautX", file});
-    const Result<> loaded = line ? inspect_model(*line, load_eqn, {}) : std::unexpected(line.error());
+    /* a loaded model is compiled as a load does, which says what the compiler warns of and finds its
+       independent subsystems (W433), reported when there are several */
+    const auto compiled = [&](Session &s) -> std::optional<Error> {
+      const Result<std::vector<Error>> warnings = compile_loaded(s);
+      if (!warnings) return warnings.error();
+      for (const Error &warning : *warnings) diagnostics.push_back({warning.place, "compile", "warning", warning.what});
+      if (has_subsystems(s)) diagnostics.push_back({Place{file}, "subsystems", "info", describe_subsystems(s)});
+      return std::nullopt;
+    };
+    const Result<> loaded = line ? inspect_model(*line, load_eqn, compiled) : std::unexpected(line.error());
     if (!loaded) error = loaded.error();
   } else {
     const Result<std::string> converted = convert_text(file, {}, &diagnostics, nullptr, DeclinedRename::report);

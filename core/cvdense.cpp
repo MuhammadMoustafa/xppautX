@@ -14,6 +14,7 @@
 #include "xpp_log.h"
 #include <stdlib.h>
 #include "cvdense.h"
+#include "xpp_math.h"
 #include "llnlmath.h"
 
 namespace xpp::cvode_solver {
@@ -49,7 +50,9 @@ struct CVDenseMemRec {
 
     DenseMatRec *d_M;       /* M = I - gamma J, gamma = h / l1        */
 
-    std::vector<integer> d_pivots; /* pivots = pivot array for PM = LU */
+    xpp::BlockLu d_lu;      /* lu = the LU of M, by independent subsystem (xpp_math.h) */
+
+    std::span<const std::vector<int>> d_subsystems; /* the model's (Model::subsystems) */
 
     DenseMatRec *d_savedJ;  /* savedJ = old Jacobian                  */
 
@@ -158,7 +161,8 @@ void CVDenseDQJac(integer N, DenseMatRec *J, RhsFn f, void *f_data, real tn,
 
 #define jac       (cvdense_mem->d_jac)
 #define M         (cvdense_mem->d_M)
-#define pivots    (cvdense_mem->d_pivots)
+#define lu        (cvdense_mem->d_lu)
+#define subsystems (cvdense_mem->d_subsystems)
 #define savedJ    (cvdense_mem->d_savedJ)
 #define nstlj     (cvdense_mem->d_nstlj)
 #define nje       (cvdense_mem->d_nje)
@@ -183,7 +187,7 @@ void CVDenseDQJac(integer N, DenseMatRec *J, RhsFn f, void *f_data, real tn,
 
 **********************************************************************/
 
-void CVDense(CVodeMemRec *cvode_mem, CVDenseJacFn djac, void *jac_data)
+void CVDense(CVodeMemRec *cvode_mem, CVDenseJacFn djac, void *jac_data, std::span<const std::vector<int>> independent)
 {
   CVodeMemRec *cv_mem;
   CVDenseMemRec *cvdense_mem;
@@ -209,6 +213,7 @@ void CVDense(CVodeMemRec *cvode_mem, CVDenseJacFn djac, void *jac_data)
     jac = djac;
   }
   J_data = jac_data;
+  subsystems = independent;
 }
 
 /*************** CVDenseInit *****************************************
@@ -234,12 +239,11 @@ static int CVDenseInit(CVodeMemRec *cv_mem, bool &setupNonNull)
   /* Set flag setupNonNull = TRUE */  
   setupNonNull = true;
   
-  /* Allocate memory for M, savedJ, and pivot array (N > 0, which
+  /* Allocate memory for M and savedJ (N > 0, which
      CVodeMalloc checked, so DenseAllocMat cannot return NULL) */
 
   M = DenseAllocMat(N);
   savedJ = DenseAllocMat(N);
-  pivots.assign(N, 0);
   
   /* Initialize nje and nstlj, and set workspace lengths */
    
@@ -271,7 +275,6 @@ static int CVDenseSetup(CVodeMemRec *cv_mem, int convfail, N_VectorContent *ypre
 {
   bool jbad, jok;
   real dgamma;
-  integer ier;
   CVDenseMemRec *cvdense_mem;
   
   cvdense_mem = static_cast<CVDenseMemRec *>(lmem);
@@ -305,11 +308,11 @@ static int CVDenseSetup(CVodeMemRec *cv_mem, int convfail, N_VectorContent *ypre
   DenseAddI(M);
 
   /* Do LU factorization of M */
-  ier = DenseFactor(M, pivots.data()); 
-  
+  int info;
+  lu.factor(M->values.data(), N, N, subsystems, &info, true);
+
   /* Return 0 if the LU was complete; otherwise return 1 */
-  if (ier > 0) return(1);
-  return(0);
+  return info != -1 ? 1 : 0;
 }
 
 /*************** CVDenseSolve ****************************************
@@ -326,7 +329,7 @@ static int CVDenseSolve(CVodeMemRec *cv_mem, N_VectorContent *b, N_VectorContent
   
   cvdense_mem = static_cast<CVDenseMemRec *>(lmem);
   
-  DenseBacksolve(M, pivots.data(), b);
+  lu.solve(M->values.data(), N, N_VDATA(b));
 
   /* If BDF, scale the correction to account for change in gamma */
   if ((lmm == BDF) && (gamrat != ONE)) {

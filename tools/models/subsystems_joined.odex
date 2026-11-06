@@ -1,0 +1,11 @@
+version 4
+# W433 (#495): subsystems.odex with w' reading a fixed variable that reads
+# x and u, which joins the three subsystems into one
+r = x*x+y*y
+c = x+u
+x' = -y-x*r
+u' = -v
+y' = x
+v' = u
+w' = -c*w
+init x = 0.5, u = 0.3, y = 0, v = 1, w = 1

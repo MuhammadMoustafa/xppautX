@@ -38,8 +38,6 @@ CORE = ROOT / "core"
 # adding an entry for new code.
 ALLOW = """\
 
-core/cvband.cpp CVBandSolve|numerical, keep: CVODE's band and dense linear solvers (cvband.cpp/cvdense.cpp), the same solve and free by the CVODE API's own design, each over its own matrix type (BandBacksolve/DenseBacksolve, BandFreeMat/DenseFreeMat); W33a looked: keep
-core/cvdense.cpp CVDenseSolve|numerical, keep: see core/cvband.cpp CVBandSolve
 core/xpp_http.cpp release|keep: each object's own shutdown signal (lock, set its flag, broadcast its condition) over its own mutex and condition; a shared helper would only take all three
 core/xpp_inbox.cpp close|keep: see core/xpp_http.cpp release
 core/graphics.cpp point_abs|keep: each _abs form is clipped then scaled for its own primitive; the same shape per primitive by design, a merge would only hide which call each makes (W33f looked again)

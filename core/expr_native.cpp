@@ -10,6 +10,7 @@
 #include "tabular.h"
 #include "volterra2.h"
 #include "xpp_tcc.h"
+#include "xpp_util.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
 #include <array>
@@ -731,6 +732,44 @@ std::vector<ModelProgram> model_programs(Model &m)
 }
 
 namespace {
+/* Why the model's right-hand side is not pure (Model::autox_rhs_pure), or
+   "": every program native and reading only the constants, the variables
+   and the immutable lookup tables, nothing running between the fixed
+   variables and the equations. Networks and DAEs run between them even when
+   no equation calls their helpers; function tables can rebuild on parameter
+   changes (or when autoeval is toggled), so they are never frozen. */
+std::string rhs_impurity(const Session &s)
+{
+    const Model &m=s.model();
+    if (m.nsvar>0) return "algebraic solve variables (a DAE)";
+    if (m.ndelays>0) return "delays";
+    if (m.naeqn>0) return "algebraic equations";
+    if (m.nnetwork>0) return "networks";
+    if (m.nmarkov>0) return "Markov variables";
+    if (m.nkernel>0) return "integral equations";
+    for (int i=0;i<s.ntable;++i) if (s.tables[i].flag==2) return "a function table that is rebuilt";
+    for (int i=0;i<m.node+m.fix_var;++i) {
+        const auto &p=m.programs[i];
+        const int available=i<m.node?m.node+m.fix_var:i;
+        if (!p.native) return "a right-hand side that is not compiled";
+        if (!p.array_pure) return "a right-hand side that uses shifts, random numbers or sums over an index";
+        if (!std::all_of(p.native_reads.begin(),p.native_reads.end(),[&](int v){return v<=available;}))
+            return "a fixed variable that reads one after it";
+    }
+    for (const auto &d:m.derived)
+        if (!d.form.native || !d.form.array_pure || !d.form.native_reads.empty()) return "a derived parameter that is not compiled or reads variables";
+    return "";
+}
+
+/* what couples m's states beyond what their equations read, or "" (Model::subsystems) */
+std::string subsystem_joined_by(const Session &s)
+{
+    const Model &m=s.model();
+    if (m.flag_count()>0) return "global flags (events)";
+    if (m.bc_defined>0) return "boundary conditions";
+    return rhs_impurity(s);
+}
+
 Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelProgram> &entries)
 {
     Model &m=s.model();
@@ -853,19 +892,6 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     m.native_rhs=native_rhs;
     m.native_equations=equations;
     for (size_t i=0;i<emitted.size();++i) emitted[i]->code->native=functions[i];
-    // Networks and DAEs run between the fixed variables and equations even
-    // when no equation calls their helpers. Function tables can rebuild on
-    // parameter changes (or when autoeval is toggled), so never freeze them.
-    m.autox_rhs_pure=m.nsvar==0 && m.naeqn==0 && m.nnetwork==0 && m.nmarkov==0 && m.nkernel==0;
-    for (int i=0;i<s.ntable;++i) if (s.tables[i].flag==2) m.autox_rhs_pure=false;
-    for (int i=0;i<m.node+m.fix_var;++i) {
-        const auto &p=m.programs[i];
-        const int available=i<m.node?m.node+m.fix_var:i;
-        m.autox_rhs_pure=m.autox_rhs_pure && p.native && p.array_pure
-            && std::all_of(p.native_reads.begin(),p.native_reads.end(),[&](int v){return v<=available;});
-    }
-    for (const auto &d:m.derived)
-        m.autox_rhs_pure=m.autox_rhs_pure && d.form.native && d.form.array_pure && d.form.native_reads.empty();
     log(XPP_LOG_INFO,"Compiled {} of {} programs\n",emitted.size(),entries.size());
     return warnings;
 }
@@ -930,6 +956,63 @@ ExactJacobian compile_jacobian(Session &s, const std::vector<ModelProgram> &entr
     log(XPP_LOG_INFO, "Compiled the exact Jacobian: {} values, {} derivatives\n", derived->graph.size(), derived->entries.size());
     return j;
 }
+
+}
+
+std::vector<std::vector<int>> equation_reads(const Model &m)
+{
+    const int n=m.node,programs=n+m.fix_var;
+    /* the states each fixed variable and equation reads; a fixed variable
+       reads only those before it (autox_rhs_pure), so one pass in order */
+    std::vector<std::vector<int>> reads(static_cast<size_t>(programs));
+    std::vector<char> read(static_cast<size_t>(n));
+    for (int p=n;p<programs+n;p++) {
+        const int q=p<programs?p:p-programs; /* the fixed variables, then the equations */
+        std::fill(read.begin(),read.end(),0);
+        for (const int v:m.programs[static_cast<size_t>(q)].native_reads) {
+            if (v>=1 && v<=n) read[static_cast<size_t>(v-1)]=1;
+            else if (v>n && v<=programs)
+                for (const int k:reads[static_cast<size_t>(v-1)]) read[static_cast<size_t>(k)]=1;
+        }
+        if (q<n) read[static_cast<size_t>(q)]=1; /* a map's f(x)-x reads its own state */
+        for (int k=0;k<n;k++)
+            if (read[static_cast<size_t>(k)]) reads[static_cast<size_t>(q)].push_back(k);
+    }
+    reads.resize(static_cast<size_t>(n));
+    return reads;
+}
+
+std::string run_joined_by(const Session &s)
+{
+    if (s.numerics.subsystem_split != SubsystemSplit::run) return "";
+    if (s.numerics.poincare_stop) return "a Poincare stop";
+    if (s.numerics.poincare_map != PoincareMap::none) return "a Poincare section";
+    return "";
+}
+
+bool has_subsystems(const Session &s)
+{
+    return !s.model().subsystems.empty() && run_joined_by(s).empty();
+}
+
+std::string describe_subsystems(const Session &s)
+{
+    const Model &m=s.model();
+    if (const std::string run=run_joined_by(s); !run.empty() && !m.subsystems.empty())
+        return xpp::format("1 subsystem, joined by {} (subsystem_split: run)", run);
+    if (m.subsystems.empty())
+        return m.subsystem_joined_by.empty() ? "1 subsystem: the equations read each other's states"
+                                             : xpp::format("1 subsystem, joined by {}", m.subsystem_joined_by);
+    /* a model of hundreds shows its first ones */
+    constexpr size_t SHOWN = 8;
+    std::string text = xpp::format("{} independent subsystems: ", m.subsystems.size());
+    for (size_t c = 0; c < std::min(SHOWN, m.subsystems.size()); ++c) {
+        text += c ? ", {" : "{";
+        for (size_t i = 0; i < m.subsystems[c].size(); ++i)
+            text += xpp::format("{}{}", i ? ", " : "", m.uvar_names[static_cast<size_t>(m.subsystems[c][i])]);
+        text += '}';
+    }
+    return m.subsystems.size() > SHOWN ? text + ", ..." : text;
 }
 
 Result<std::vector<Error>> compile_model(Session &s)
@@ -939,6 +1022,14 @@ Result<std::vector<Error>> compile_model(Session &s)
     for(const auto &entry:entries)
         size_expr_stack(s,entry.code->rpn,entry.user_index<0?-1:m.narg_fun[entry.user_index]);
     auto compiled=compile_programs(s,entries);
+    m.autox_rhs_pure=rhs_impurity(s).empty();
+    m.subsystem_joined_by=subsystem_joined_by(s);
+    m.subsystems.clear();
+    if (m.subsystem_joined_by.empty()) {
+        auto parts=connected_components(equation_reads(m));
+        if (parts.size()>1) m.subsystems=std::move(parts);
+    }
+    log(XPP_LOG_INFO,"{}\n",describe_subsystems(s));
     Place requested=std::move(m.jacobian.requested);
     m.jacobian=ExactJacobian{};
     m.jacobian.requested=std::move(requested);

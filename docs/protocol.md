@@ -2005,6 +2005,8 @@ core/numerics_settings.cpp keeps it.
    "choices":["discrete","euler","modified_euler","runge_kutta",...]},
   {"key":"jacobian","label":"Jacobian","value":"difference",
    "choices":["difference","exact"]},
+  {"key":"subsystem_split","label":"Subsystem split","value":"equations",
+   "choices":["equations","run"]},
   {"key":"stop_at_limit","label":"Stop at the limit","value":true,"boolean":true},
   {"key":"relative_tolerance","label":"Relative tolerance","value":0.001,"unused":true}, ...]}
 ```
@@ -2021,7 +2023,9 @@ a negative value is refused with its place), `start_time`, `store_from`, `dt`, `
 `method` (its name, `choices` its names, W484 [#548](https://github.com/MuhammadMoustafa/xppautX/issues/548): the key of the
 solver table, never its number), `jacobian` (W260:
 how every Jacobian of the model is formed, `difference` by XPPAUT's forward differences or `exact`
-from the model's own derivatives, by name as `method`), `relative_tolerance`,
+from the model's own derivatives, by name as `method`), `subsystem_split` (W433: what the independent
+subsystems a report shows are split by, `equations` or `run`, by name; with `run` a Poincare section or stop in use
+joins every state into one; the solvers keep the equations' split), `relative_tolerance`,
 `min_step`, `max_step`, `absolute_tolerance`, `eul_tol`, `eul_iter` (the method's own), `delay` (only
 for a model with delays), `bvp_max_iterates`, `bvp_tolerance`, `bvp_epsilon` (bndVal). Each key
 is the words of its label, and the XPPAUT words (`total`, `nmesh`, `newt_tol`, ...) are not keys

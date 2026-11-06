@@ -15,6 +15,23 @@ struct ModelProgram {
     bool dynamic_operands=false;
 };
 std::vector<ModelProgram> model_programs(Model &m);
+/* The states each equation of m reads, through the fixed variables it
+   reads, itself included (a map's f(x)-x reads its own state), each list
+   ascending, from the programs compile_model compiled: only for a model
+   whose Model::autox_rhs_pure holds. The difference Jacobian's groups and
+   the independent subsystems (Model::subsystems) are made from it. */
+std::vector<std::vector<int>> equation_reads(const Model &m);
+/* What joins every state of s's model into one subsystem under the run
+   (the numerics' subsystem_split `run`: a Poincare section or stop in use),
+   or "". Model::subsystems is the equations' own, the one the solvers factor
+   by; the reports read the split through this. */
+std::string run_joined_by(const Session &s);
+/* s's independent subsystems in a line: how many and which states each
+   holds, or the one the model is and what joins its states (the info
+   file, the load's log, --check) */
+std::string describe_subsystems(const Session &s);
+/* the subsystems the model has under s's subsystem_split: several, or not */
+bool has_subsystems(const Session &s);
 /* Refuse unsupported programs independently; unit/compiler failures return an error. */
 Result<std::vector<Error>> compile_model(Session &s);
 /* The model's exact Jacobian (W260), made on its first need (the model's

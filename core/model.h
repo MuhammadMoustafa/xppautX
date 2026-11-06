@@ -150,6 +150,19 @@ struct Model {
   bool autox_rhs_pure=false; /* compile_model: every autoX RHS program is native and Session-independent */
   /* the exact Jacobian compile_model made, or why there is none (W260) */
   ExactJacobian jacobian;
+  /* The independent subsystems (W433, compile_model): the connected
+     components of "an equation reads a state" (through the fixed
+     variables, functions and tables), each one's states ascending, the
+     components by their least state: the Jacobian is block diagonal under
+     them, which the implicit solvers factor block by block (BlockLu). Empty
+     when the model is one subsystem, whether the structure joins every
+     state or subsystem_joined_by says what does: a global flag, boundary
+     conditions, delays, DAE solve variables, algebraic equations,
+     networks, Markov variables, integral equations, a function table that
+     is rebuilt, or a right-hand side not compiled or not pure (shifts, random
+     numbers), which couple the states beyond their reads. */
+  std::vector<std::vector<int>> subsystems;
+  std::string subsystem_joined_by;
   /* a boundary condition, 0=string: string (at most 255 bytes, the rest
      NUL), com its compiled form (200 commands), name "0=" (10 bytes;
      pp_shoot writes its side into it). C buffers: the shooting code and

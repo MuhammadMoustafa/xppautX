@@ -20,6 +20,11 @@ enum class PoincareMap { none, section, max, period };
 /* which crossings of the section count: those going down, either way, or up
    (the sign of the crossing's direction) */
 enum class SectionSign { negative = -1, both = 0, positive = 1 };
+/* What the independent subsystems are split by (W433, Model::subsystems): the
+   equations alone, or also the run, where a Poincare section or stop makes one
+   variable decide every other variable's run */
+enum class SubsystemSplit { equations, run };
+inline constexpr std::array<std::string_view, 2> subsystem_split_names{"equations", "run"};
 /* the sign a number's own sign says (XPPAUT's +1, -1 and 0) */
 constexpr SectionSign section_sign(double x) { return x < 0 ? SectionSign::negative : x == 0 ? SectionSign::both : SectionSign::positive; }
 /* the crossings' words, by the sign's number plus 1 (negative, both, positive); the .odex's and the commands' */

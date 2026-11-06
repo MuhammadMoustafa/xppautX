@@ -32,7 +32,9 @@ without writing files (W75, [#123](https://github.com/MuhammadMoustafa/xppautX/i
 Run `xppautX --check model.ode` to convert and validate in memory, with
 no window, integration, or written `.odex`. Reserved names take the
 converter's suggested replacements. `--check model.odex` uses the `.odex`
-reader and reports only errors. Inspection does not open `@ logfile`,
+reader and reports only errors, and what the compiler warns of (id `compile`, a load's WARN lines), and, when the loaded model's states fall into
+several independent subsystems (W433), one `info` diagnostic with id
+`subsystems` that lists them (a `.ode` is converted, not loaded, and reports none). Inspection does not open `@ logfile`,
 and asks nothing: a path outside the model's folder that the preferences
 do not already allow is a load error at its line (a load would ask, W286).
 Stdout is one UTF-8 JSON object followed by a newline:
@@ -271,7 +273,9 @@ you wrote (`1/30`) alone while the value is unchanged.
   (the default) or `exact`; `exact` in a model with no exact Jacobian stops
   the load at its line, with the reason (W260,
   [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317); the
-  manual's "Numerical parameters"). `neartol` (near's tolerance) is
+  manual's "Numerical parameters"). `subsystem_split` (also xppautX's own) is
+  `equations` (the default) or `run` (W433: what a report shows as independent
+  subsystems; with `run` a Poincare section or stop joins every state). `neartol` (near's tolerance) is
   an equilibria key.
 - `set "NAME" { key: value, ..., options: { group: { key: value } } }` — a named set. Its name is the user's text, so it is in double quotes even without spaces (`set "hopf" { ... }`; letters, digits and `_`, starting with a letter); a bare name is an error at its line. Its top-level keys are
   parameters and states only (`g: 9.81`, `v: -0.3`), each a number. Settings go only under `options:`, in the options

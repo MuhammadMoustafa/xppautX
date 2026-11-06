@@ -1,0 +1,10 @@
+version 4
+# W433 (#495): five states in three independent subsystems, their equations
+# interleaved: {x, y} through a fixed variable, {u, v}, and {w}
+r = x*x+y*y
+x' = -y-x*r
+u' = -v
+y' = x
+v' = u
+w' = -w
+init x = 0.5, u = 0.3, y = 0, v = 1, w = 1
