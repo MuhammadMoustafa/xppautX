@@ -1260,6 +1260,12 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   ours: all or nothing"), lists every place that performs it, and says
   what proves they all go through the one owner; a check that counts
   calls proves the calls only.
+  Unify always (maintainer, 2026-11-06: "Unifications is always should
+  be followed"): two things of one kind that follow different rules (two
+  path rules for the files a run writes, two names for one settings
+  group, two orders of one list) are one defect; whoever meets them, a
+  card or a design, makes them one without asking whether to, and says
+  which rule won and why.
 
 - No global state (maintainer, 2026-09-27): global variables are avoided.
   A new piece of state goes into its owner's struct, never a new global;
