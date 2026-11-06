@@ -2025,15 +2025,17 @@ async function autoxView(dir) {
   /* a page that connects while autoX is open gets the view and the whole diagram again */
   await reloadPage();
   check('a reloaded page opens the autoX view and asks for the diagram again',
-    await until(`s.diagram.open && dv.axes && !s.busy && dv.points.x.length === ${want.pts.length}`, 'reload auto', 30000)
-    && JSON.stringify(await DS('d.labels')) === JSON.stringify(labels), JSON.stringify(await DS('[d.open, d.points.x.length]')));
+    await until(`s.diagram.open && s.diagram.shown && document.querySelector('.autox-close') && dv.axes && !s.busy && dv.points.x.length === ${want.pts.length}`, 'reload auto', 30000)
+    && JSON.stringify(await DS('d.labels')) === JSON.stringify(labels),
+    JSON.stringify([await DS('[d.open, d.shown, d.points.x.length]'), await cdp.eval(`!!document.querySelector('.autox-close')`)]));
 
   /* T22/T23/T25 (Numerics edited during a run, Stop, the run after) moved
      to autoxStopRace() below, on tools/models/heavy.odex: see that
      function's own comment for why they no longer live here. */
 
   /* Close: done with autoX */
-  await cdp.eval(`document.querySelector('.autox-close').click()`);
+  /* W610 (#678): clicked only once the reload check saw it; a missing Close is that check's FAIL, never a throw here */
+  await cdp.eval(`document.querySelector('.autox-close')?.click()`);
   check("Close closes autoX's window and the view", await until('!s.diagram.open && !s.busy', 'auto close')
     && !(await cdp.eval(`!!document.querySelector('.autox-panel, .autox-show')`))
     && (await DS('d.points.x.length')) === 0, JSON.stringify(await DS('[d.open, d.shown]')));
