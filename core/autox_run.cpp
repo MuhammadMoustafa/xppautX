@@ -38,6 +38,60 @@ std::optional<Error> infinite_period(const GRABPT &point)
   return std::nullopt;
 }
 
+/* A periodic start takes its period from the stored orbit's own return: the first time it comes back to its first row,
+   found between rows. The return is where the orbit crosses, from behind, the plane through its first row perpendicular to
+   its first step (the flow there); the crossing is interpolated between the two rows, and its gap to the first row, over
+   the orbit's extent, must be at most this limit. A total time of several periods gives the first return; one that
+   still holds a transient returns far from its first row and misses by a good part of the extent, while a start a
+   little off the cycle misses by far less, and Newton's method takes it from there. */
+constexpr double autox_orbit_return_limit = 0.1;
+
+/* the first return of the stored orbit (rows >= 2): its time from the first row and its position among the rows, interpolated */
+Result<AutoxOrbitReturn> autox_orbit_return(const Session &s)
+{
+  const std::size_t rows = static_cast<std::size_t>(s.data_store.rows);
+  const std::size_t n = static_cast<std::size_t>(s.model().node);
+  const float *t = s.data_store.col[0];
+  double extent = 0, step = 0;
+  for (std::size_t k = 0; k < n; ++k) {
+    const float *c = s.data_store.col[k + 1];
+    const auto [low, high] = std::minmax_element(c, c + rows);
+    extent += static_cast<double>(*high - *low) * static_cast<double>(*high - *low);
+    step += static_cast<double>(c[1] - c[0]) * static_cast<double>(c[1] - c[0]);
+  }
+  if (extent == 0 || step == 0)
+    return fail("autox", xpp::format("Periodic start stopped: the stored orbit ({} rows from t = {:.6g}) does not move at its start; it is not a cycle", rows, static_cast<double>(t[0])), command_place());
+  /* the row's position along the first step: the orbit starts at > 0 and returns where it climbs through 0 */
+  const auto along = [&](std::size_t i) {
+    double sum = 0;
+    for (std::size_t k = 0; k < n; ++k) {
+      const float *c = s.data_store.col[k + 1];
+      sum += (static_cast<double>(c[i]) - static_cast<double>(c[0])) * (static_cast<double>(c[1]) - static_cast<double>(c[0]));
+    }
+    return sum;
+  };
+  double closest = INFINITY, behind = along(1);
+  for (std::size_t i = 1; i + 1 < rows; ++i) {
+    const double ahead = along(i + 1);
+    if (behind < 0 && ahead >= 0) {
+      const double lam = -behind / (ahead - behind);
+      double gap = 0;
+      for (std::size_t k = 0; k < n; ++k) {
+        const float *c = s.data_store.col[k + 1];
+        const double d = (1 - lam) * static_cast<double>(c[i]) + lam * static_cast<double>(c[i + 1]) - static_cast<double>(c[0]);
+        gap += d * d;
+      }
+      const double ratio = std::sqrt(gap / extent);
+      if (ratio <= autox_orbit_return_limit)
+        return AutoxOrbitReturn{(1 - lam) * static_cast<double>(t[i]) + lam * static_cast<double>(t[i + 1]) - static_cast<double>(t[0]), static_cast<double>(i) + lam};
+      closest = std::min(closest, ratio);
+    }
+    behind = ahead;
+  }
+  const std::string why = std::isinf(closest) ? "never comes back to its first row" : xpp::format("comes back no nearer than {:.3g} of the orbit's extent, more than {} allowed", closest, autox_orbit_return_limit);
+  return fail("autox", xpp::format("Periodic start stopped: the stored orbit (t = {:.6g} to {:.6g}, {} rows) {}; integrate for at least one period after the transient and try again", static_cast<double>(t[0]), static_cast<double>(t[rows - 1]), rows, why), command_place());
+}
+
 /*  RUN autoX HERE */
 /*  these are for setting the parameters to run for different choices    */
 
@@ -103,6 +157,9 @@ Result<> autox_start_at_per(Session &s)
   s.autox_state.bifur.nfpar=1;
   s.autox_state.two_param=no_calculation;
   s.autox_state.new_period_flag=true;
+  const Result<AutoxOrbitReturn> back=autox_orbit_return(s);
+  if(!back)return std::unexpected(back.error());
+  s.autox_state.start_return=*back;
   return autox_run_from_current_state(s, opn,cls);
 }
 
@@ -636,36 +693,6 @@ Result<> autox_time_check(const Session &s)
               first.line > 0 ? first : command_place());
 }
 
-namespace {
-
-/* A periodic start takes its orbit from the stored rows as one period: get_start_orbit wraps the last row to the first, so
-   the last row must come back to the first. The gap is taken as a fraction of the orbit's extent. A total time of several
-   periods, or one that still holds a transient, misses by a good part of the extent; a period guess a grid step off (the
-   last stored time is the period guess) misses by far less, and Newton's method takes it from there. */
-constexpr double autox_orbit_return_limit = 0.1;
-
-/* the gap between the first and the last stored row over the orbit's extent: each state's extent and gap, the Euclidean
-   lengths of both (rows >= 2; infinite for an orbit that does not move, which is no cycle) */
-double autox_orbit_return_ratio(const Session &s)
-{
-  const std::ptrdiff_t last = s.data_store.rows - 1;
-  double gap = 0, extent = 0;
-  for (int k = 0; k < s.model().node; ++k) {
-    const float *c = s.data_store.col[k + 1];
-    float low = c[0], high = c[0];
-    for (std::ptrdiff_t i = 1; i <= last; ++i) {
-      low = std::min(low, c[i]);
-      high = std::max(high, c[i]);
-    }
-    gap += static_cast<double>(c[0] - c[last]) * static_cast<double>(c[0] - c[last]);
-    extent += static_cast<double>(high - low) * static_cast<double>(high - low);
-  }
-  if (extent == 0) return INFINITY;
-  return std::sqrt(gap / extent);
-}
-
-} // namespace
-
 Result<> autox_run_check(const Session &s, const AutoxRunRequest &request, const GRABPT *point, bool settling)
 {
   const char *kind=autox_run_kind_name(request.kind);
@@ -679,9 +706,7 @@ Result<> autox_run_check(const Session &s, const AutoxRunRequest &request, const
     if(request.kind!=AutoxRunKind::equilibrium && s.data_store.rows<2 && !settling)
       return fail("autox",xpp::format("Integrate first: a {} run from the current state takes its orbit from the last integration, which stored {} row(s) (at least 2 are needed)",kind,s.data_store.rows),command_place());
     if(request.kind==AutoxRunKind::periodic && !settling){ /* rows >= 2 here; a run that settles first has no orbit yet */
-      const double ratio=autox_orbit_return_ratio(s);
-      if(!(ratio<=autox_orbit_return_limit))
-        return fail("autox",xpp::format("{} start stopped: the stored orbit does not return to its first row: its last row (t = {:.6g}) is {:.3g} of the orbit's extent away, more than {} allowed; set the total integration time to one period, after the transient, and integrate again",kind,static_cast<double>(s.data_store.col[0][s.data_store.rows-1]),ratio,autox_orbit_return_limit),command_place());
+      if(const Result<AutoxOrbitReturn> back=autox_orbit_return(s); !back)return std::unexpected(back.error());
     }
     return {};
   }

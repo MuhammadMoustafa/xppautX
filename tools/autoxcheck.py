@@ -1537,10 +1537,10 @@ def periodic_branches(data):
 
 
 def section_orbit_start():
-    """W603 (#670): a Periodic start from the stored integration takes its rows as one period, and the orbit runs of
-    tests/autox's ode_lecar_orbit_* compute. A total time of 1.5 periods of the class-I Morris-Lecar cycle (iapp 0.1,
-    period 16.4695) stores an orbit that does not return to its first row, so the start stops and says so, with the
-    gap and the total time; the same start over one period is not refused and computes points. The orbit run of
+    """W603 (#670), W608 (#675): a Periodic start from the stored integration takes its period from the orbit's own return,
+    and the orbit runs of tests/autox's ode_lecar_orbit_* compute. A total time of 1.5 periods of the class-I
+    Morris-Lecar cycle (iapp 0.1, period 16.4695) is not refused: the first return is taken; a total time of less than a
+    period stores an orbit that never returns, so the start stops and says so, with the total time and the rows. The orbit run of
     ode_lecar_orbit_hopf and its Hopf-label run follow one cycle family, the upper side from the Hopf point near 0.2624
     and the lower side below it; over the iapp values both cover (0.3 to 0.397) the period and amplitude agree."""
     home = tempfile.mkdtemp(prefix='xpporbit')
@@ -1555,19 +1555,30 @@ def section_orbit_start():
         s.send(cmd='run.initial')
         s.collect(is_done, timeout=30 * SLOW)
         evs = run_menu(s, 'p')
-        check('orbit_start: a Periodic start over 1.5 periods says the stored orbit does not return to its first row, with the gap and the total time',
-              'periodic start stopped' in messages(evs).lower() and 'does not return to its first row' in messages(evs)
-              and 'of the orbit' in messages(evs) and s.alive(), messages(evs)[:300])
+        diagram = Diagram().apply(evs)  # the runs that compute add to one diagram
+        points = len(diagram.pts)
+        check('orbit_start: a Periodic start over 1.5 periods takes the first return and computes points',
+              'start stopped' not in messages(evs) and points > 1 and s.alive(), '%d points: %s' % (points, messages(evs)[:300]))
         s.send(cmd='value.set_parameters', values={'iapp': 0.1})
         s.collect(is_done)
-        s.send(cmd='run.configure', total_time=16.4695)
+        s.send(cmd='run.configure', total_time=10)
         s.collect(is_done)
         s.send(cmd='run.initial')
         s.collect(is_done, timeout=30 * SLOW)
         evs = run_menu(s, 'p')
-        points = len(Diagram().apply(evs).pts)
-        check('orbit_start: a Periodic start over one period (16.4695) is not refused and computes points beyond its start',
-              'does not return' not in messages(evs) and 'start stopped' not in messages(evs) and points > 1,
+        check('orbit_start: a Periodic start over less than a period says the stored orbit never comes back to its first row, with the total time and the rows',
+              'periodic start stopped' in messages(evs).lower() and 'never comes back to its first row' in messages(evs)
+              and 't = 0 to 10' in messages(evs) and s.alive(), messages(evs)[:300])
+        s.send(cmd='value.set_parameters', values={'iapp': 0.1})
+        s.collect(is_done)
+        s.send(cmd='run.configure', total_time=17)
+        s.collect(is_done)
+        s.send(cmd='run.initial')
+        s.collect(is_done, timeout=30 * SLOW)
+        evs = run_menu(s, 'p')
+        before, points = points, len(diagram.apply(evs).pts)
+        check('orbit_start: a Periodic start over a period and a little (17) is not refused and computes points beyond its start',
+              'never comes back' not in messages(evs) and 'start stopped' not in messages(evs) and points > before,
               '%d points: %s' % (points, messages(evs)[:300]))
     finally:
         s.close()
@@ -1576,7 +1587,7 @@ def section_orbit_start():
     # The two runs of ode_lecar_orbit_hopf: the orbit run starts at the description's iapp 0.3 and goes up; the Hopf-label
     # run starts at the Hopf point (near 0.2624), goes down past its fold near 0.2484, and comes back up through 0.3.
     # Its stored order after the fold is the upper side. A point of the orbit run is compared with that side interpolated
-    # at its iapp; the orbit run's start point is left out (its period is the grid's guess, see W603).
+    # at its iapp; the orbit run's start point is left out (its first point is not converged, W603).
     # Tolerances, each with its reason: the period within 1e-3 relative (the corrector stops at parameter_tolerance 1e-4 on
     # 15-interval meshes; the largest difference measured is 1.3e-3 absolute on a period of about 15, 8e-5 relative), and the
     # amplitude within 2e-3 absolute (1e-3 measured, the same corrector).

@@ -1,7 +1,7 @@
 version 4
-# W498: a very small periodic orbit gives a nearly singular phase condition.
+# W498: a very small periodic orbit gives a nearly singular phase condition (a little over its period 2 pi: W608 takes the first return).
 par a = 0
 x' = a*x-y
 y' = x+a*y
 init x = 1e-20, y = 0
-options { integration: { total_time: 6.28, dt: 0.01 } }
+options { integration: { total_time: 7, dt: 0.01 } }

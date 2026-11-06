@@ -1171,7 +1171,7 @@ void autox_grab(xpp::Session &s)
 
 void get_start_period(xpp::Session &s, double *p)
 {
- *p=s.data_store.col[0][s.data_store.rows-1];
+ *p=s.autox_state.bifur.ips==xpp::AutoxProblem::Periodic?s.autox_state.start_return.period:static_cast<double>(s.data_store.col[0][s.data_store.rows-1]);
 }
 void find_best_homo_shift(xpp::Session &s, int n)
 /* this code looks for the best value
@@ -1198,12 +1198,14 @@ void find_best_homo_shift(xpp::Session &s, int n)
   xpp::log_autox("shifting {:g}\n",s.autox_state.homo_shift);
 }
 void get_start_orbit(xpp::Session &s, double *u, double t, double p, int n)
+/* the orbit at the fraction t of its period, interpolated between the stored rows: of the rows up to the first return when
+   the start is periodic, all of them otherwise (rows on an even time grid, as XPPAUT takes them) */
 {
   double tnorm,lam;
   int i1,i2,j;
   if(t>1.0)t-=1.0;
   if(t<0.0)t+=1.0;
-  tnorm=t*(s.data_store.rows-1);
+  tnorm=t*(s.autox_state.bifur.ips==xpp::AutoxProblem::Periodic?s.autox_state.start_return.index:static_cast<double>(s.data_store.rows-1));
   i1=static_cast<int>(tnorm);
   i2=i1+1;
   if(i2>=s.data_store.rows)i2-=s.data_store.rows;

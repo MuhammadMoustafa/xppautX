@@ -698,7 +698,7 @@ def check_autox_directions_from_orbit():
     values = [dict(kind='par', name=n, value=v) for n, v in lecar.items()] + [dict(kind='ic', name='v', value=-0.144), dict(kind='ic', name='w', value=0.03)]
     numerics = dict(min_step_size=1e-5, max_step_size=0.01, max_steps=20, output_every=10, parameter_min=0.1, parameter_max=0.4,
                     mesh_intervals=15, max_branch_switches=0)
-    (diagram, files), (turn_diagram, turn_files) = orbit_directions('examples/ode/lecar.odex', 'iapp', values, 15.6359, numerics, settle=100)
+    (diagram, files), (turn_diagram, turn_files) = orbit_directions('examples/ode/lecar.odex', 'iapp', values, 20, numerics, settle=100)
     check('W596: a Periodic start from an integrated orbit continues both directions: the diagram and the autoX .b, .s and .d files are the two runs in turn, byte for byte',
           diagram == turn_diagram and files == turn_files and sorted(files) == ['.b', '.d', '.s'] and len(diagram) > 1000,
           '%d vs %d bytes; %s' % (len(diagram), len(turn_diagram), {k: (len(v), len(turn_files.get(k, b''))) for k, v in files.items()}))
@@ -706,7 +706,7 @@ def check_autox_directions_from_orbit():
     values = [dict(kind='par', name='I', value=49.119058076613086)] + [dict(kind='ic', name=n, value=v) for n, v in states.items()]
     numerics = dict(min_step_size=1e-5, max_step_size=4, max_steps=400, output_every=100, parameter_min=-10, parameter_max=200,
                     mesh_intervals=30, max_branch_switches=0, step_size=2)
-    (diagram, files), (turn_diagram, turn_files) = orbit_directions('tools/models/hodgkin_huxley.odex', 'I', values, 8.595845030998337, numerics)
+    (diagram, files), (turn_diagram, turn_files) = orbit_directions('tools/models/hodgkin_huxley.odex', 'I', values, 12, numerics)
     ends = [line for line in diagram.decode().splitlines() if line.startswith('periodic,') and ',hopf_end,' in line]
     check('W596: both directions of a cycle family that ends at a Hopf point on each side (HBE) are the two runs in turn, byte for byte, with the autoX .b, .s and .d files',
           diagram == turn_diagram and files == turn_files and sorted(files) == ['.b', '.d', '.s'] and len(ends) == 2,

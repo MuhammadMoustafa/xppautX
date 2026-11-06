@@ -114,6 +114,12 @@ struct HomoclinicEquilibria {
   int nunstab=0,nstab=0,iequib=0;
 };
 
+/* where a stored orbit first returns to its first row (autox_run.cpp): the time from that row and the position among
+   the rows, both interpolated between two */
+struct AutoxOrbitReturn {
+  double period=0,index=0;
+};
+
 struct AutoxState {
   /* the autoX window and its settings */
   xpp::BIFUR bifur{};
@@ -151,6 +157,9 @@ struct AutoxState {
   /* a run that starts from an orbit, its period new (autox_pp.cpp's stpnt);
      false: from the steady state of the initial conditions */
   bool new_period_flag=false;
+  /* the stored orbit's first return a periodic start found (autox_run.cpp); a homoclinic start takes the whole orbit
+     (autox_nox.cpp get_start_period) */
+  AutoxOrbitReturn start_return;
   /* a two-parameter run */
   xpp::AutoxCalculation two_param=xpp::no_calculation;
   /* the kind of the last run asked for (autox.run), which the error that offers to go on from an end point repeats */
