@@ -2905,6 +2905,7 @@ a repeat that only costs time.
   Lorenz's cycles from the Hopf point are the same points, to smaller r, at +0.5 and at -0.5 (norm and period equal to 11 digits).
 - *The equilibria through an end of cycles* start from the end's equilibrium (W604's Hopf point, or the zero-eigenvalue equilibrium W518 found the cycles lingering
   at, a SNIC's fold) as a run from the initial conditions does, refined by Newton's method before the job.
+
 ## W611: a fold of cycles labelled where a branch closes at its Hopf point ([#679](https://github.com/MuhammadMoustafa/xppautX/issues/679))
 
 `tests/autox/lecar_hopf_closure.json` (the Rinzel and Ermentrout class-II Morris-Lecar parameters of `ode_lecar_orbit_hopf`): the cycles from the Hopf point at iapp
