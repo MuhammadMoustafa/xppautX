@@ -827,8 +827,8 @@ error with its place, and a stop (`run.abort`, Escape) as `job.stopped`.
   is judged on the result): `total_time`, `start_time`, `store_from`, `dt`,
   `method` (the key of the method table), `store_every`, `state_limit`,
   `stop_at_limit`, `delay`, `relative_tolerance`, `absolute_tolerance`,
-  `min_step`, `max_step`, `eul_tol`, `eul_iter`; and, named as the .odex
-  options name them, the method's own: `vmaxpts` and `autoeval` (the Volterra
+  `min_step`, `max_step`, `eul_tol`, `eul_iter`; and, named by the option table's own names,
+  the method's own: `vmaxpts` and `autoeval` (the Volterra
   method), `bandlo` and `bandup` (CVODE: giving one makes the system banded),
   `delay_real_guess`, `delay_imaginary_guess` and `delay_grid` (a model with
   delays). One that does not apply to the method or the model is an error

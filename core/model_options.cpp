@@ -154,6 +154,16 @@ const char *own_file(Session &s, const OptionValue &v, std::string &path)
   return "names a path outside the model's folder that was refused";
 }
 
+/* a data file a path option names (own_file's rule), its extension picking the data format: into target */
+const char *data_file_into(Session &s, const OptionValue &v, std::string &target)
+{
+  std::string path;
+  if (const char *why = own_file(s, v, path)) return why;
+  if (!data_format_of_file(path)) return "must end in the extension of a data format (.dat, .csv, .csv.gz, .npz)";
+  if (v.apply) target = path;
+  return nullptr;
+}
+
 /* the words a .odex writes for the choice rows (option_choices); the
    Jacobian's are jacobian.h's, the method's the registry's */
 constexpr std::array<std::string_view, 2> boolean_names{"false", "true"};
@@ -361,23 +371,28 @@ constexpr OptionRow rows[] = {
    .key = "delay", .label = "Maximal delay", .rule = OptionRule::nonnegative, .use = OptionUse::delays, .saved = true, .applied = chk_delay},
   {.group = option_group::integration, .kind = OptionKind::whole, .name = "VMAXPTS", .odex = "delay.history_points", .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.max_points; }), .rule = OptionRule::whole_positive, .maximum = option_limit::history_points, .use = OptionUse::integral_history, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .name = "EULER_TOLERANCE", .odex = "euler.tolerance", .once = true,.real = member([](auto &s) -> auto & { return s.numerics.eul_tol; }),
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "EULER_TOLERANCE", .odex = "euler.tolerance", .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.eul_tol; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.eul_tol = 1e-7; },
    .key = "eul_tol", .label = "Newton tolerance", .rule = OptionRule::positive, .use = OptionUse::newton, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::whole, .name = "EULER_ITERATIONS", .odex = "euler.iterations", .once = true,.whole = member([](auto &s) -> auto & { return s.numerics.max_eul_iter; }),
+  {.group = option_group::integration, .kind = OptionKind::whole, .name = "EULER_ITERATIONS", .odex = "euler.iterations", .once = true,
+   .whole = member([](auto &s) -> auto & { return s.numerics.max_eul_iter; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.max_eul_iter = 10; },
    .key = "eul_iter", .label = "Newton iterations", .rule = OptionRule::whole_positive, .use = OptionUse::newton, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::whole, .name = "BVP_MAX_ITERATES", .odex = "bvp.max_iterates", .once = true,.whole = member([](auto &s) -> auto & { return s.numerics.bvp_max_iterates; }),
+  {.group = option_group::integration, .kind = OptionKind::whole, .name = "BVP_MAX_ITERATES", .odex = "bvp.max_iterates", .once = true,
+   .whole = member([](auto &s) -> auto & { return s.numerics.bvp_max_iterates; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_max_iterates = 20; },
    .key = "bvp_max_iterates", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .name = "BVP_TOLERANCE", .odex = "bvp.tolerance", .once = true,.real = member([](auto &s) -> auto & { return s.numerics.bvp_tolerance; }),
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "BVP_TOLERANCE", .odex = "bvp.tolerance", .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.bvp_tolerance; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_tolerance = 1e-5; },
    .key = "bvp_tolerance", .label = "BVP tolerance", .rule = OptionRule::positive, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .name = "BVP_EPSILON", .odex = "bvp.epsilon", .once = true,.real = member([](auto &s) -> auto & { return s.numerics.bvp_epsilon; }),
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "BVP_EPSILON", .odex = "bvp.epsilon", .once = true,
+   .real = member([](auto &s) -> auto & { return s.numerics.bvp_epsilon; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_epsilon = 1e-5; },
    .key = "bvp_epsilon", .label = "BVP epsilon", .rule = OptionRule::positive, .saved = true},
@@ -924,11 +939,7 @@ constexpr OptionRow rows[] = {
    .text = member([](auto &s) -> auto & { return s.nullclines.file; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      /* the nullclines saved after a run: named like data_file, from the model's folder */
-     std::string path;
-     if (const char *why = own_file(s, v, path)) return why;
-     if (!data_format_of_file(path)) return "must end in the extension of a data format (.dat, .csv, .csv.gz, .npz)";
-     if (v.apply) s.nullclines.file = path;
-     return nullptr;
+     return data_file_into(s, v, s.nullclines.file);
    }},
   /* ---- the histogram and the spectrum a batch run writes ---- */
   {.group = option_group::output, .kind = OptionKind::choice, .name = "POSTPROCESS", .odex = "after_run", .once = true,
@@ -936,16 +947,12 @@ constexpr OptionRow rows[] = {
    .reset = [](Session &s) { s.histogram.post_process = 0; },
    .foreign = [](std::string_view v) { return numbered_word(after_run_names, v); },
    .rule = OptionRule::choice, .choices = after_run_names},
-  /* ---- the log, the user's buttons ---- */
   {.group = option_group::output, .kind = OptionKind::path, .name = "AFTER_RUN_FILE", .odex = "after_run_file", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     /* named like data_file, from the model's folder; its extension picks the data format */
-     std::string path;
-     if (const char *why = own_file(s, v, path)) return why;
-     if (!data_format_of_file(path)) return "must end in the extension of a data format (.dat, .csv, .csv.gz, .npz)";
-     if (v.apply) s.after_run_file = path;
-     return nullptr;
+     /* named like data_file, from the model's folder */
+     return data_file_into(s, v, s.after_run_file);
    }},
+  /* ---- the log ---- */
   {.group = option_group::output, .kind = OptionKind::whole, .name = "QUIET", .odex = "quiet",
    .parse = [](Session &, const OptionValue &v) -> const char * {
      if (v.apply && !log_settings.quiet_from_command_line) log_settings.verbose = v.text[0] == '0';
@@ -1200,15 +1207,21 @@ const OptionRow *find_option(std::string_view upper_name, int &index, bool xppau
   return best;
 }
 
+/* a numbered row's digit, "" for the others */
+static std::string digit_of(const OptionRow &row, int index)
+{
+  return row.first_digit ? std::string(1, static_cast<char>('0' + index)) : std::string();
+}
+
 /* a row's .odex key: its `odex` key, the digit of a numbered row */
 std::string odex_key(const OptionRow &row, int index)
 {
-  return std::string(row.odex) + (row.first_digit ? std::string(1, static_cast<char>('0' + index)) : std::string());
+  return std::string(row.odex) + digit_of(row, index);
 }
 
 std::string option_setting_name(const OptionRow &row, int index)
 {
-  return lower_case(std::string(row.name)) + (row.first_digit ? std::string(1, static_cast<char>('0' + index)) : std::string());
+  return lower_case(std::string(row.name)) + digit_of(row, index);
 }
 
 std::string odex_option_setting(std::string_view group, std::string_view key)
