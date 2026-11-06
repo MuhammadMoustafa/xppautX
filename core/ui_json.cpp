@@ -432,9 +432,6 @@ int control_line(xpp::Session &s, const char *line)
     return KEY_NONE;
 }
 
-/* where the running job was when it was cancelled, from what the
-   computation reported last (xpp_job.h): the stopped event's `at`, and a
-   recorded step's `abort` (json_record.cpp) */
 namespace {
 
 constexpr std::string_view JOB_STATE_NAMES[] = {"finished", "stopped", "never_started"};
@@ -493,6 +490,9 @@ bool read_recorded_jobs(const char *at, std::vector<xpp::job::BranchJob> &jobs)
     return true;
 }
 
+/* where the running job was when it was cancelled, from what the
+   computation reported last (xpp_job.h): the stopped event's `at`, and a
+   recorded step's `abort` (json_record.cpp) */
 void buf_stopped_at(std::string &b)
 {
     xpp::job::Progress p = xpp::job::progress();

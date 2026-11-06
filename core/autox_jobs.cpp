@@ -219,7 +219,7 @@ struct QueuedJob {
   bool left_out=false; /* the join dropped it: it repeats an earlier job's */
   bool announced=false; /* once done: its early end, if it had one, was shown */
   xpp::job::BranchJob ended; /* once the jobs ended: how it did (ended_as) */
-  bool ended_early=false; /* once the jobs ended: it failed, which the others did not share */
+  bool ended_early=false; /* once the jobs ended: it ended with an error of its own (early_end), which the others did not share */
   bool never=false; /* the run was stopped while it queued, so it never started (or, in a replay, it did not in the recording) */
   Renumber numbering; /* the join's, for the jobs that start from this one's labels */
 };
@@ -672,7 +672,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     run_queue(q);
     for(QueuedJob &queued:q.jobs){
       queued.ended=ended_as(queued);
-      queued.ended_early=(queued.failed||queued.run->jacobian_failure)&&!queued.never;
+      queued.ended_early=early_end(queued).has_value();
     }
     finish_replay(q);
     stopped=xpp::job::cancelled();
