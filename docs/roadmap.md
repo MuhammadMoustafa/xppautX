@@ -18,41 +18,37 @@ Status: `ready` (can start), `running`, `review`, `done`, `blocked`
 (waits for the task named in "Needs"). Each card is mirrored as a GitHub
 issue; the card here is the one kept up to date.
 
-## Plan for the open cards (2026-10-31)
+## Plan for the open cards (2026-11-06)
 
-The order the open cards run in, by phase. Phase 1 comes first (the maintainer,
-2026-10-14: the comparison is the goal), phase 2 runs beside it, phases 3 to 6
-follow in order; the cards inside a phase run side by side. Each batch is still proposed
-and approved (AGENTS.md, Workflow), with both pools' limits read fresh.
+The order the open cards run in. The comparison's final run (W583) and its
+reports (W589, W590) are done; the phases below follow in order, the cards
+inside a phase side by side where their files allow. Each batch is still
+proposed and approved (AGENTS.md, Workflow), with both pools' limits read fresh.
 
-1. **Finish the comparison (the goal, W354 #416).**
-   - First, as they change what the timed rows measure or check: W566 the comparison's
-     loose ends (#631), W567 start-up's remaining costs (#632), W569 pp2's fold after
-     the switch (#634), W571 the special-point check on XPPAUT's labelled points (#636);
-     W568 XPPAUT's period-doubling curve near R2 (#633) done: its six-digit export.
-   - W573 the scratch folders left behind (#638).
-   - W572 special-point tests at a branch's first steps (#637), with them if ready.
-   - W557 phase 2 (#622): the continuation study rerun, timed, with the special-point
-     workloads and the converged runs of W561 and W562 (Codex).
-   - Then W354's final report (a Haiku agent, with plots), the paper's Table 1
-     numbers from it, and W354 closed.
-   - W307 paper/advantages.md (#366), unblocked by the report's results;
-     W295 the paper's Python and cluster study (#353) after it.
-2. **CI and the machine.** W554 CI under ten minutes (#619, Codex), measured on the
-   push's run. W378 stage 2 (#440) once the maintainer installs cmake,
-   libsuitesparse-dev and SUNDIALS 7.9 with KLU. W256 (#313): the maintainer sends
-   TinyCC's bug report.
-3. **AUTO scripted and the sets.** W306 AUTO without an interface (#365, ready now:
-   W308, W309 and W516 done). W321 load values by scope (#381, ready), then W323
-   the window's sets row (#383, needs W321); W322 session state in .odex syntax
-   (#382, ready).
-4. **Speed on many cores.** W433 independent subsystems at load (#495), then W435
-   the study of integrating them apart (#497); W434 sweeps on CPU threads (#496);
-   W268 the GPU probe (#325), measured first; W570 the study of a faster compiler for
-   the generated code (#635), measured first.
-5. **Model language.** W380 Ornstein-Uhlenbeck noise as a declaration (#442).
-6. **Last.** W390 readable names for the numerical code (#452), low priority by the
-   maintainer's call.
+1. **Branches at once** (follow_all_branches is on by default, so these come first).
+   W606 failures, stopped runs and recordings per job (#673, ready: today one
+   failing job ends the whole command; its checks are the two .recx of one demo,
+   off and on); then W597 the page for several branches (#663; its worktree holds an
+   early, unreviewed commit to rebase onto W606) and W598 threads against
+   processes (#664, ready, a timed series run alone).
+2. **Options and files** (W614's design, discussion #687). W615 the option table
+   restructured (#685, ready); then side by side W616 every panel from the table
+   (#686), W613 stored data in double precision (#681, discussion #683) and W322
+   session state in .odex syntax (#382, discussion #682), each writing W615's keys.
+3. **autoX scripted.** W306 autoX without an interface (#365), after W615 (its
+   script's per-run options use the continuation group's keys).
+4. **The comparison's loose ends.** W354 (#416): its waits are all done and W583
+   made the final run; closed once the maintainer confirms nothing is left. W378
+   (#440): stage 2's timed series ran inside W583 (~/xppautx-comparison/final/large-stiff,
+   complete); left: its results written into docs/studies/w378-large-stiff.md and the
+   decision on a sparse or Krylov solve. W594 (#660): the memory cuts not yet made.
+   Then W307 paper/advantages.md (#366) and W295 the Python and cluster study (#353).
+5. **CI and the machine.** W554 CI under ten minutes (#619, Codex, later). W256
+   (#313): the maintainer sends TinyCC's bug report.
+6. **Probes, measured first.** W268 where a GPU would pay off (#325).
+7. **Last.** W390 stage 2 (#452): the rows marked ? checked against the
+   original sources first (docs/studies/w390-names.md, the 2026-11-06 review),
+   then the renames in packs by area.
 
 Not planned or parked: W9 WebAssembly (declined), W314 components in .odex
 (parked), W467 within-function sub-expressions (not merged; the fixed variables
