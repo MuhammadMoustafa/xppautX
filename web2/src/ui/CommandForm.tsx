@@ -3,17 +3,18 @@ import {useRef, useState} from 'preact/hooks';
 import type {RegistryArgument} from '../protocol/kinds';
 import {useSession, useStore} from './context';
 import {registryRows} from './navigation';
-import {argumentNames, argumentProblem, argumentSpec, argumentValue, currentArguments, commandValues, groupProblems, argumentControl, blankArgument} from './argumentFields';
+import {argumentNames, argumentProblem, argumentSpec, argumentValue, currentArguments, formValues, groupProblems, argumentControl, blankArgument} from './argumentFields';
 import {Field} from './Field';
 import {ColorField} from './ColorField';
 import {useDark} from './theme';
 import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
+import {SETS_OF_FORM, SetsRow} from './SetsRow';
 
 export function CommandForm() {
   const form = useStore(s => s.commandForm);
-  return form ? <Form key={form.id} id={form.id} initial={form.values} /> : null;
+  return form ? <Form key={form.id} id={form.id} initial={form.values} fixed={form.fixed ?? []} /> : null;
 }
-function Form({id, initial}: {id: string; initial: Record<string, unknown>}) {
+function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown>; fixed: string[]}) {
   const session = useSession(), state = useStore(s => s);
   const row = registryRows(state.hello).find(row => row.id === id)!;
   const [values, setValues] = useState<Record<string, unknown>>({...Object.fromEntries((row.arguments ?? []).filter(a => a.required && ['boolean','map','list','list[text]'].includes(a.type)).map(a => [a.name, blankArgument(a)])), ...currentArguments(row, state), ...initial});
@@ -52,7 +53,7 @@ function Form({id, initial}: {id: string; initial: Record<string, unknown>}) {
         const file = e.currentTarget.files?.[0]; if (!file) return;
         const name = await session.uploadArgument(file); if (name) change(name);
       }} />}<button type="button" disabled={[...args.filter(a => a !== arg).map(a => argumentProblem(a, values[a.name])), ...groupProblems(row, {...values, [arg.name]: 'selected_file'})].some(Boolean)} onClick={() => {
-        const command = commandValues(args, values); delete command[arg.name];
+        const command = formValues(args, values); delete command[arg.name];
         if (session.send({cmd: id, ...command, file_picker: true})) close();
       }}>Choose file and run…</button></span>;
     if (kind === 'path' && !arg.required) return <button type="button" onClick={() => {close(); session.send({cmd: id});}}>Choose file…</button>;
@@ -61,8 +62,9 @@ function Form({id, initial}: {id: string; initial: Record<string, unknown>}) {
   return <div class="dialog-backdrop"><div class="dialog registry-form" ref={box} role="dialog" aria-modal="true" aria-label={row.label} data-command-form={id}
     onKeyDown={e => {cycleDialogFocus(e, box.current);if (e.key === 'Escape') {e.stopPropagation(); close();}}}>
     <h2>{row.label}</h2><p>{row.description}</p>
-    <form onSubmit={e => {e.preventDefault(); if (problems.some(Boolean)) return; if (session.send({cmd: id, ...commandValues(args, values)})) close();}}>
-      {args.map((arg, i) => <div class="registry-argument" data-argument={arg.name} key={arg.name}>
+    {SETS_OF_FORM[id] && <SetsRow scope={SETS_OF_FORM[id]} />}
+    <form onSubmit={e => {e.preventDefault(); if (problems.some(Boolean)) return; if (session.send({cmd: id, ...formValues(args, values)})) close();}}>
+      {args.map((arg, i) => fixed.includes(arg.name) ? null : <div class="registry-argument" data-argument={arg.name} key={arg.name}>
         <label><span>{choiceLabel(arg.name)}{arg.required ? ' *' : ''}</span>
           {!arg.required && arg.type !== 'path' && <input type="checkbox" aria-label={`Set ${choiceLabel(arg.name)}`} checked={values[arg.name] !== undefined}
             onChange={e => set(arg.name, e.currentTarget.checked ? blankArgument(arg) : undefined)} />}

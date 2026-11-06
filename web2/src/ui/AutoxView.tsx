@@ -77,6 +77,7 @@ import {AutoxInfo} from './AutoxInfo';
 import {AutoxOutput, AutoxStatus} from './AutoxStatus';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
+import {SetsRow} from './SetsRow';
 import {FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
 import './autox.css';
 
@@ -603,6 +604,7 @@ function AutoxPanel({dark}: {dark: boolean}) {
               onClick={() => act(op)}>{text}</button>
           );
         })}
+        <SetsRow scope="continuation" />
       </div>
       <div class="autox-view">
         {grabbing && <GrabBar />}

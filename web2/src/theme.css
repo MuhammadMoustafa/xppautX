@@ -1339,3 +1339,12 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 .argument-row > input, .argument-row > select { min-width: 0; width: 100%; }
 .values-parts { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
 .values-parts li { display: flex; flex-direction: column; gap: var(--space-1); }
+
+/* a section's sets row (W323, ui/SetsRow.tsx): Sets and Save drop down; the row wraps on a phone */
+.sets-row { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
+.sets-menu { position: relative; }
+.sets-menu > summary { cursor: pointer; list-style: none; padding: .15rem .5rem; border: 1px solid var(--border); border-radius: var(--radius, .25rem); background: var(--surface); }
+.sets-menu > ul { position: absolute; z-index: 40; min-width: 12rem; max-width: min(24rem, 90vw); max-height: 60vh; overflow: auto; margin: 0; padding: .25rem; list-style: none;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+.sets-menu button { width: 100%; text-align: left; }
+.sets-menu .value-hint { margin: .25rem; }

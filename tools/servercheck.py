@@ -4327,6 +4327,12 @@ def check_save_values():
     try:
         s.collect(is_done)
         before = text()
+        # W323: the state lists the sets for the sections' Sets lists: the scopes each holds, an import's marked with its file
+        listed = {x['name']: x for x in last_state(run(cmd='session.get_state'))['sets']}
+        check('W323: the state lists each set with the scopes it holds and an imported one with its file',
+              listed['pa']['scopes'] == ['parameters'] and 'file' not in listed['pa']
+              and listed['mix']['scopes'] == ['parameters', 'initial', 'integration', 'plot']
+              and listed['shared']['scopes'] == ['parameters'] and os.path.basename(listed['shared'].get('file', '')) == 'lib.odex', str(listed))
         run(cmd='value.set_parameters', values={'a': 7, 'b': 2.5})
         # a new set goes at the end of the file, the rest as it was
         evs = run(cmd='set.save_new', name='s1', scope='parameters')
@@ -4337,6 +4343,8 @@ def check_save_values():
         run(cmd='value.set_parameters', values={'a': 1})
         evs = run(cmd='set.apply', name='s1', scope='parameters')
         check('W320: the live model knows the new set at once', not errs(evs) and view()[0]['a'] == 7, str(errs(evs)))
+        check("W323: a set saved is in the state's list at once, holding the parameters",
+              any(x['name'] == 's1' and x['scopes'] == ['parameters'] for x in last_state(run(cmd='session.get_state'))['sets']), '')
         # a part of a set replaced, its other parts as they were
         run(cmd='ic.set', values={'x': 0.1, 'y': 0.2})
         old = text()

@@ -467,6 +467,16 @@ std::string set_scope_problem(std::string_view scope)
   return xpp::format("{} is not a scope (one of {})",scope,all);
 }
 
+std::vector<std::string_view> scopes_held(const xpp::Session &s, std::size_t set)
+{
+  std::vector<std::string_view> scopes;
+  for(const SetItem &item : set_items(s.model().intern_sets[set])){
+    const std::string_view scope=item_scope(s,item);
+    if(!scope.empty()&&std::ranges::find(scopes,scope)==scopes.end())scopes.push_back(scope);
+  }
+  return scopes;
+}
+
 int intern_set_index(const xpp::Model &m, std::string_view name)
 {
   if(const auto *entry=m.name(name))

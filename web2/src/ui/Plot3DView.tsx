@@ -19,6 +19,7 @@ import {useMayMain, useSession, useStore} from './context';
 import {TraceDialog} from './TraceDialog';
 import {nearest3d} from '../plot/render3d';
 import {FitButton} from './PlotView';
+import {SetsRow} from './SetsRow';
 
 interface Props {
   win: string;
@@ -159,7 +160,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         <div class="plot-tools"><label title="Keep earlier trajectories on the next new run">
           <input type="checkbox" checked={info?.freeze !== 0} data-freeze-runs
             onChange={e => session.send({cmd:'window.set_display',window:win,keep_replaced_run:e.currentTarget.checked})} /> Freeze</label>{['X', 'Y', 'Z'].map(axis => <button data-plot-axis={axis.toLowerCase()} disabled={!mayMain('plot.set_2d')}
-          onClick={() => session.editPlotAxes(win, true)} title="Edit axis variables and limits">{axis} axis</button>)}</div>
+          onClick={() => session.editPlotAxes(win, true)} title="Edit axis variables and limits">{axis} axis</button>)}<SetsRow scope="plot" window={win} /></div>
       </header>
       <div
         class="plot-host"

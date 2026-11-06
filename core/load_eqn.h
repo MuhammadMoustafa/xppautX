@@ -203,6 +203,9 @@ std::string set_scope_problem(std::string_view scope);
 /* the index of the model's set called name (the spelling it was written in),
    -1 when it has none */
 int intern_set_index(const Model &m, std::string_view name);
+/* the scopes a set holds entries of (the parameters, the initial values, the option groups), each once, in the order its entries
+   come: what a section's Sets list offers (W323) */
+std::vector<std::string_view> scopes_held(const Session &s, std::size_t set);
 /* Apply set: a patch over the current values, the model's set `name` limited
    to the entries of `scope` (the parameters, the initial values, one group of
    settings, or all); the plot settings go to graph (the active one when

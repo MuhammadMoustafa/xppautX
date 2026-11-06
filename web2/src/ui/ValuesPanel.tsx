@@ -16,7 +16,7 @@
    (T31). Each parameter and IC has a reset to the model file's value
    (its title names it) and is marked when it differs; there is no undo
    (GitHub #110): Reset is the way back. Each section folds (remembered
-   per viewer), and Parameters and State save and load XPP's own files. */
+   per viewer), and Parameters, States and Numerics each have a sets row (SetsRow.tsx, W323). */
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren} from 'preact';
@@ -26,7 +26,7 @@ import {fieldKey, foldKey, inspectNumber, isFolded, sentText, showsBcSection, si
 import type {NumericsField} from '../protocol/types';
 import {NUM_METHOD, numericsField} from '../store/steady';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
-import {CommandButton} from './CommandButton';
+import {SetsRow} from './SetsRow';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
@@ -154,45 +154,14 @@ function FileTools({kind}: {kind: 'par' | 'ic'}) {
   );
 }
 
-/** Load values from a file by scope (W321): the picked file is read whole by the core, which lists its parts that hold
-    this section's kind; the dialog offers them (ValuesFileDialog.tsx) */
-function ValuesFileTool({scope, what}: {scope: string; what: string}) {
-  const session = useSession();
-  const input = useRef<HTMLInputElement>(null);
-  const off = !useMay()({cmd: 'set.file_contents'});
-  return (
-    <>
-      <button class="small" onClick={() => input.current?.click()} disabled={off} data-values-file={scope}
-        title={off ? BUSY_TITLE : `Load ${what} from a file: an .odex's defaults or one of its sets, or an XPPAUT file`}>Load from file…</button>
-      <input ref={input} id={`values-file-${scope}`} type="file" hidden accept=".odex,.par,.ic,.set"
-        onChange={async e => {
-          const el = e.target as HTMLInputElement, file = el.files?.[0];
-          if (file) await session.offerValuesFile(scope, file);
-          el.value = '';
-        }} />
-    </>
-  );
-}
-
 function Parameters() {
-  const session = useSession();
   const pars = useStore(s => s.core?.pars);
   if (!pars?.length) return null;
   return (
     <Section id="par" title="Parameters" hint="Edit for the next run; Enter or leave a field to apply." tools={(
       <>
         <FileTools kind="par" />
-        <CommandButton command="set.apply" />
-        <ValuesFileTool scope="parameters" what="parameters" />
-        <CommandButton command="set.save_new" />
-        <CommandButton command="set.save_defaults" />
-        <CommandButton command="set.export" />
-        <CommandButton command="set.rename" />
-        <CommandButton command="set.delete" />
-        <CommandButton command="set.restore_defaults" />
-        <button class="small" onClick={() => session.defaultValues('par')} title="Every parameter from the ODE file">
-          Reset all
-        </button>
+        <SetsRow scope="parameters" />
       </>
     )}>
       <div class="value-list">
@@ -213,7 +182,6 @@ function useNow(): (number | null)[] {
 }
 
 function StateSection() {
-  const session = useSession();
   const ics = useStore(s => s.core?.ics);
   const now = useNow();
   const rates = useStore(s => s.core?.rates);
@@ -223,10 +191,7 @@ function StateSection() {
     <Section id="ic" title="States" hint={STATE_HINT} tools={(
       <>
         <FileTools kind="ic" />
-        <ValuesFileTool scope="initial" what="initial values" />
-        <button class="small" onClick={() => session.defaultValues('ic')} title="Every initial condition from the ODE file">
-          Reset all
-        </button>
+        <SetsRow scope="initial" />
       </>
     )}>
       <div class="value-cols" aria-hidden="true"><span /><span>Initial</span><span>Current</span><span>Tail rate</span></div>
@@ -331,7 +296,7 @@ function NumericsSection() {
   const unused = fields.filter(f => f.unused);
   return (
     <Section id="num" title="Numerics" startFolded hint="Changes apply to the next run: a run in progress keeps its own."
-      tools={<ValuesFileTool scope="integration" what="integration settings" />}>
+      tools={<SetsRow scope="integration" />}>
       <p class="value-hint">Solver: <strong>{methodName}</strong>. Unused solver controls are separated below.</p>
       <div class="value-list">
         {fields.filter(f => !f.unused).map(f => <NumericField key={f.key} f={f} />)}

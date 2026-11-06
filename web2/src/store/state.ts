@@ -132,7 +132,8 @@ export interface AppState {
   panels: Panels;
   /** the command menu, a drawer on narrow screens */
   drawerOpen: boolean;
-  commandForm: {id: string; values: Record<string, unknown>} | null;
+  /** a command's form: the values it starts with, and the arguments the place it was opened from settles (a section's scope), which it leaves out */
+  commandForm: {id: string; values: Record<string, unknown>; fixed?: string[]} | null;
   /** the parts of a file of values that hold a section's kind, as `set.file_contents` listed them, offered to pick
       one to load with `set.load_file` (W321) */
   valuesFile: ValuesFileOffer | null;

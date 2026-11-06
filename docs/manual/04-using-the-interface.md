@@ -132,7 +132,7 @@ beside the plot (a sheet on a phone):
   value. There is no `Ok`/`Cancel` for the whole box, as in the
   X11 windows; `Escape` puts back the value that was there. Each changed
   field has a reset button whose tooltip shows the ODE file's value, and
-  there is no undo: reset (one field, or **Reset all**) is the way back.
+  there is no undo: reset (one field, or the section's **Restore defaults**) is the way back.
 - A parameter or initial condition takes a number or a `%formula`,
   exactly as the X11 boxes did (see "Formulas as values", below):
   `%2*pi`; a boundary condition or delay takes an expression. Anything
@@ -144,14 +144,19 @@ beside the plot (a sheet on a phone):
   nothing changes on an error. Initial-condition files (`.ic`) keep one
   value per differential equation in model order; too few or too many
   values report the file and line and change nothing (W310, #369).
-- **Reset all** puts back the values from the ODE file, as the X11
-  Parameter window's Default button did: it sends the core's
-  `set.restore_defaults` command (scope `parameters` or `initial`), which redoes
-  the tables once, and the values change together. A field's own reset is
-  the same command for that field. **Restore defaults…** in the Parameters
-  section asks for everything or one section (parameters, initial values or
-  a group of settings) and puts the model's own values back; a setting
-  returns to the built-in value with the model's `options` block over it.
+- **The sets row** (W323) is under the heading of Parameters, States and Numerics, of each graph's plot settings, of autoX's
+  panel and of the Range and Histogram dialogs, and acts on that section's kind only (a graph's on its own graph):
+  **Sets** lists the named sets that hold the section's kind (a set an import brought is marked with its file) and a pick
+  applies only that part of it; **Save** writes the section's current values into the model file as a *New set…*, in place
+  of that kind in one of the sets the model file itself writes (*Replace parameters in set …*, which says what it replaces
+  and keeps the set's other parts), *As defaults…* (the `par` or `init` lines, or the group in the `options` block) or
+  *Export…* into another `.odex`; **Load from file…** offers the parts of an `.odex` (its defaults and each set) or of an
+  XPPAUT file (`.par`, `.ic`, `.set`) that hold the kind and loads the one you choose; **Restore defaults** puts the
+  section's values back from the model file, as the X11 Parameter window's Default button did (a setting returns to the
+  built-in value with the model's `options` block over it), through the core's `set.restore_defaults` command
+  (scope `parameters`, `initial`, `integration`, ...), which redoes the tables once. A field's own reset is the same
+  command for that field. **File > Sets** has the same operations for everything or one section (it asks the scope,
+  *all* by default, and for plot settings the graph), and Rename, Delete and Import XPPAUT session state.
 - The core reads a number in a box, a script's answer or a `set` the same
   way everywhere: all of the text must be one number (or a `%formula`),
   so `1O0` (a letter O) or `5x` is refused, with an error naming the

@@ -129,3 +129,11 @@ export function blankArgument(arg: RegistryArgument): unknown {
   if (arg.type === 'list[real, 2]') return ['', ''];
   return '';
 }
+
+/** The values a form sends. A graph is the target of a set's scope all or plot only (the core refuses it for another scope,
+    docs/protocol.md `set.apply`), so the active graph the form fills in goes only with those. */
+export function formValues(args: RegistryArgument[], values: Record<string, unknown>): Record<string, unknown> {
+  const sent = commandValues(args, values);
+  if (args.some(a => a.name === 'scope') && args.some(a => a.name === 'window') && sent.scope !== 'all' && sent.scope !== 'plot') delete sent.window;
+  return sent;
+}

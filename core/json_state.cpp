@@ -10,6 +10,7 @@
 #include "event_registry.h"
 #include "event_streams.h"
 #include "load_eqn.h"
+#include "xpp_files.h"
 #include "model_save.h"
 #include "storage.h"
 #include "xpp_util.h"
@@ -81,6 +82,33 @@ static void buf_tail_rates(std::string &b, const xpp::Session &s)
 }
 
 namespace {
+
+/* the model's named sets for the sections' Sets lists (W323): each one's name, the scopes it holds entries of, and the file
+   it comes from when an import brought it (an imported set is read-only in the window) */
+void buf_sets(std::string &b, const xpp::Session &s)
+{
+    const xpp::Model &m = s.model();
+    BUF_LIT(b, ",\"sets\":[");
+    for (std::size_t i = 0; i < m.intern_sets.size(); ++i) {
+        const xpp::Model::InternalSet &set = m.intern_sets[i];
+        if (i) BUF_LIT(b, ",");
+        BUF_LIT(b, "{\"name\":");
+        buf_str(b, set.name.c_str());
+        BUF_LIT(b, ",\"scopes\":[");
+        const std::vector<std::string_view> scopes = xpp::scopes_held(s, i);
+        for (std::size_t k = 0; k < scopes.size(); ++k) {
+            if (k) BUF_LIT(b, ",");
+            buf_str(b, std::string(scopes[k]).c_str());
+        }
+        BUF_LIT(b, "]");
+        if (!set.place.file.empty() && xpp::files::absolute(set.place.file) != xpp::files::absolute(m.this_file)) {
+            BUF_LIT(b, ",\"file\":");
+            buf_str(b, set.place.file.c_str());
+        }
+        BUF_LIT(b, "}");
+    }
+    BUF_LIT(b, "]");
+}
 
 /* the state as an object, as the state event and session.get_state's result carry it */
 std::string build_state(xpp::Session &s)
@@ -186,6 +214,7 @@ std::string build_state(xpp::Session &s)
     }
     buf_format(b, ",\"changed\":{},\"can_undo\":{},\"can_redo\":{}", xpp_session_changed(s) ? "true" : "false",
                s.value_undo.undo.empty() ? "false" : "true", s.value_undo.redo.empty() ? "false" : "true");
+    buf_sets(b, s);
     buf_recording(b);
     buf_player(b);
     BUF_LIT(b, "}");

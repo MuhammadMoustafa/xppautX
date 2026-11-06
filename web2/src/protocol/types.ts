@@ -191,6 +191,8 @@ export interface StateEvent {
   /** a value edit can be taken back (undo) or put back (redo): the commands of those ids are off otherwise (docs/protocol.md "state") */
   can_undo: boolean;
   can_redo: boolean;
+  /** the model's named sets: each one's scopes it holds entries of, and the file an import brought it from (read-only here) */
+  sets: {name: string; scopes: string[]; file?: string}[];
   /** while the core records the steps (W59a): how many so far, and the note waiting for the next one */
   recording?: {steps: number; note: string};
   /** while a recording is open in the player (W59b): the next step, the one running (-1: none),

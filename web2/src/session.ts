@@ -101,8 +101,6 @@ export class Session {
   private savingReads = new Set<Promise<Blob | null>>();
   private nativeSave: string | null = null;
   private nativeRun: RunRecord | null = null;
-  /** the file `set.file_contents` is asked about, whose done carries the parts to offer (offerValuesFile) */
-  private valuesOffering: {file: string; scope: string} | null = null;
   private retrySave: RunRecord | null = null;
   private retrySaveDir: string | null = null;
   private nativeSaveDir = '';
@@ -221,13 +219,10 @@ export class Session {
       }
       this.nativeSave = null;
     } else if (ev.ev === 'done') {
-      const offering = this.valuesOffering;
-      if (offering && (ev.status !== 'ok' || ev.result?.file === offering.file)) {
-        this.valuesOffering = null;
-        const parts = ev.result?.parts;
-        if (ev.status === 'ok' && Array.isArray(parts))
-          this.store.dispatch({type: 'valuesFile', offer: {...offering, format: String(ev.result?.format), parts: parts as ValuesPart[]}});
-      }
+      /* `set.file_contents` (a section's Load from file, or File > Sets > Load from file): its done lists the parts to offer */
+      const parts = ev.status === 'ok' ? ev.result?.parts : null;
+      if (Array.isArray(parts))
+        this.store.dispatch({type: 'valuesFile', offer: {file: String(ev.result?.file), scope: String(ev.result?.scope), format: String(ev.result?.format), parts: parts as ValuesPart[]}});
       if (this.donesOwed > 0) this.donesOwed--;
       this.afterAutox();
       this.dragQueue = [];
@@ -302,7 +297,7 @@ export class Session {
   }
 
   /** Menu, palette, pins and keys all enter the same registry form. */
-  registryAction(id: string, values: Record<string, unknown> = {}): void {
+  registryAction(id: string, values: Record<string, unknown> = {}, fixed: string[] = []): void {
     const row = registryRows(this.store.getState().hello).find(row => row.id === id);
     if (!row) { this.failed(`Unknown command ${id}`); return; }
     if (id === 'tool.values') this.store.dispatch({type: 'valuesPanel', open: true});
@@ -315,7 +310,7 @@ export class Session {
       this.store.dispatch({type: 'annotations', open: true});
       this.send({cmd:'window.select', window:this.store.getState().plots.active});
       this.send({cmd: id, window:this.store.getState().plots.active});
-    } else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values}});
+    } else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
     else this.send({cmd: id});
   }
 
@@ -823,11 +818,12 @@ export class Session {
     this.send({cmd: 'set.restore_defaults', scope: RESTORE_SCOPE[kind], field: name});
   }
 
-  /** Reset all: the core's `set.restore_defaults`, every parameter or IC of `kind` back to the model
-      file's value (the core redoes the tables once) */
-  defaultValues(kind: 'par' | 'ic'): void {
-    this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
-    this.send({cmd: 'set.restore_defaults', scope: RESTORE_SCOPE[kind]});
+  /** a section's Restore defaults (the sets row, W323): the core's `set.restore_defaults` for the section's scope, every
+      value of it back to the model file's (the core redoes the tables once); a graph's section names its window */
+  restoreDefaults(scope: string, window?: string): void {
+    const kind = (Object.keys(RESTORE_SCOPE) as (keyof typeof RESTORE_SCOPE)[]).find(k => RESTORE_SCOPE[k] === scope);
+    if (kind) this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
+    this.send({cmd: 'set.restore_defaults', scope, ...(window ? {window} : {})});
   }
 
   /** a numerics field (the values panel's Numerics, W106): `key` as the
@@ -842,7 +838,6 @@ export class Session {
   async offerValuesFile(scope: string, file: File): Promise<void> {
     const uploads = await this.upload([{file, name: file.name}], null, true);
     if (!uploads) return;
-    this.valuesOffering = {file: uploads[0].name, scope};
     this.send({cmd: 'set.file_contents', file: uploads[0].name, scope});
   }
 

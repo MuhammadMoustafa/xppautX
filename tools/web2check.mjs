@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen] [-v]
+     [--only desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -3270,12 +3270,12 @@ async function runsCheck(dir) {
      loadValues, the same PUT any other upload uses) and the core reads it with `value.load_file` -- applied at
      once, so no Go is needed. */
   /* W95 (#143): a click while the page is busy with a command of its own (a redraw here, as its
-     catch-up after an idle is) goes out and runs in its turn: Reset all is sent right behind it */
+     catch-up after an idle is) goes out and runs in its turn: Restore defaults is sent right behind it */
   const sentSave = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`(() => { __xpp.send({cmd: 'window.redraw'});
-    [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Reset all').click(); })()`);
+    document.querySelector('[data-section="par"] [data-sets-row=parameters] [data-command="set.restore_defaults"]').click(); })()`);
   const behind = await cdp.eval(`__xpp.sentFrom(${sentSave}).map(c => c.cmd + (c.op ? ' ' + c.op : ''))`);
-  check('W95: a click right behind a command the page sent itself is not lost (Reset all behind a redraw goes out)',
+  check('W95: a click right behind a command the page sent itself is not lost (Restore defaults behind a redraw goes out)',
     JSON.stringify(behind) === JSON.stringify(['window.redraw', 'set.restore_defaults']), JSON.stringify(behind));
   await until('!s.busy', 'defaults restored');
   /* the .par XPPAUT would have written for the model's parameters */
@@ -3776,14 +3776,14 @@ async function valuesLive() {
   await key('Escape');
   await rendered();
 
-  /* Reset all sends the core's set.restore_defaults command, once, and no value command */
+  /* Restore defaults sends the core's set.restore_defaults command, once, and no value command */
   await editField('par', 'iapp', '0.3');
   await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.3) < 1e-12`, 'iapp = 0.3', 60000);
   const preAll = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`[...document.querySelectorAll('[data-section="par"] button')].find(b => b.textContent.trim() === 'Reset all').click()`);
-  await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.05) < 1e-12', 'Reset all applied', 60000);
+  await cdp.eval(`document.querySelector('[data-section="par"] [data-sets-row=parameters] [data-command="set.restore_defaults"]').click()`);
+  await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.05) < 1e-12', 'Restore defaults applied', 60000);
   const allSent = await cdp.eval(`__xpp.sentFrom(${preAll})`);
-  check('W131: Reset all sends one set.restore_defaults command for the parameters and no value command',
+  check('W131: Restore defaults sends one set.restore_defaults command for the parameters and no value command',
     allSent.filter(c => c.cmd === 'set.restore_defaults' && c.scope === 'parameters' && !c.field).length === 1 && !allSent.some(parEdit),
     JSON.stringify(allSent));
 }
@@ -3978,6 +3978,101 @@ const par = name => S(`(s.core.pars.find(p => p[0] === ${JSON.stringify(name)}) 
 async function setPar(name, value) {
   await cdp.eval(`__xpp.send({cmd: 'value.set_parameters', values: {${JSON.stringify(name)}: ${value}}})`);
   return until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === ${JSON.stringify(name)})[1] - ${value}) < 1e-12`, 'set');
+}
+
+/** W323: each section's sets row (Sets, Save, Load from file, Restore defaults) acts on its own scope only, and File > Sets
+    offers the scope itself. The page sends the core's `set.*` commands with the scope (and a graph's window) settled; what they
+    do is servercheck's. */
+async function setsRows() {
+  await desktopMetrics();
+  check('sets: the page connects', await until('s.hello && !s.busy && s.core', 'hello', 60000));
+  const row = scope => `[data-sets-row="${scope}"]`;
+  const names = scope => cdp.eval(`[...document.querySelectorAll('${row(scope)} [data-sets-menu=sets] button')].map(b => b.textContent)`);
+  const sentAfter = (n, cmd) => cdp.eval(`__xpp.sentFrom(${n}).filter(c => c.cmd === ${JSON.stringify(cmd)})`);
+  const click = (scope, menu, command, text) => cdp.eval(`(() => { const b = [...document.querySelectorAll('${row(scope)} ${menu ? `[data-sets-menu=${menu}] ` : ''}button')]
+    .find(b => b.dataset.command === ${JSON.stringify(command)} && (${JSON.stringify(text ?? null)} === null || b.textContent.startsWith(${JSON.stringify(text ?? '')}))); if (!b) throw new Error('no button ' + ${JSON.stringify(command + ' ' + (text ?? ''))}); b.click(); })()`);
+  const formArguments = () => cdp.eval(`[...document.querySelectorAll('.registry-form .registry-argument')].map(a => a.dataset.argument)`);
+  const par = name => S(`s.core.pars.find(p => p[0] === ${JSON.stringify(name)})[1]`);
+  const plotWin = await S('s.plots.active');
+
+  for (const scope of ['parameters', 'initial', 'integration', 'plot'])
+    check(`sets: the ${scope} section has its sets row`, await exists(row(scope)));
+  const holding = await names('parameters');
+  check('sets: the Parameters Sets list names the sets that hold parameters, not the plot-only one',
+    ['hom', 'hopf', 'snic', 'vvst'].every(n => holding.includes(n)) && !holding.includes('pp'), JSON.stringify(holding));
+  check('sets: the plot Sets list names the sets that hold plot settings', JSON.stringify((await names('plot')).sort()) === JSON.stringify(['pp', 'vvst']), JSON.stringify(await names('plot')));
+  check('sets: Initial values has no set to apply (lecar\'s sets hold none) and says so',
+    (await names('initial')).length === 0 && await cdp.eval(`/No set holds/.test(document.querySelector('${row('initial')} [data-sets-menu=sets]').textContent)`));
+
+  /* Sets: applies only that section's part, by its scope */
+  await setPar('iapp', 0.2);
+  const ic0 = await S('JSON.stringify(s.core.ics)');
+  let n = await S('__xpp.sentCount()');
+  await click('parameters', 'sets', 'set.apply', 'hopf');
+  check('sets: Parameters > Sets > hopf sends set.apply with scope parameters and no graph, and applies the parameters',
+    await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "gca")[1] - 1.1) < 1e-12', 'hopf applied')
+    && JSON.stringify(await sentAfter(n, 'set.apply')) === JSON.stringify([{cmd: 'set.apply', name: 'hopf', scope: 'parameters'}])
+    && await S('JSON.stringify(s.core.ics)') === ic0, JSON.stringify(await sentAfter(n, 'set.apply')));
+  n = await S('__xpp.sentCount()');
+  await click('plot', 'sets', 'set.apply', 'pp');
+  check('sets: a graph\'s row applies its plot settings to that graph (scope plot, its window)',
+    await until('!s.busy', 'pp applied') && JSON.stringify(await sentAfter(n, 'set.apply')) === JSON.stringify([{cmd: 'set.apply', name: 'pp', scope: 'plot', window: plotWin}]),
+    JSON.stringify(await sentAfter(n, 'set.apply')));
+
+  /* Save: the form leaves out what the place settles */
+  await click('parameters', 'save', 'set.save_new');
+  await requireUntil('!!s.commandForm', 'the save form');
+  check('sets: Save > New set asks only for the name in Parameters (scope, graph and saved state settled)', JSON.stringify(await formArguments()) === JSON.stringify(['name']), JSON.stringify(await formArguments()));
+  await formValues({name: 'w323a'});
+  n = await S('__xpp.sentCount()');
+  await submitCommand();
+  check('sets: ... and sends set.save_new for the parameters; the state then lists the new set',
+    await until(`!s.busy && s.core.sets.some(x => x.name === 'w323a' && x.scopes.join() === 'parameters')`, 'saved')
+    && JSON.stringify(await sentAfter(n, 'set.save_new')) === JSON.stringify([{cmd: 'set.save_new', name: 'w323a', scope: 'parameters'}]), JSON.stringify(await sentAfter(n, 'set.save_new')));
+  await click('initial', 'save', 'set.save_new');
+  await requireUntil('!!s.commandForm', 'the initial save form');
+  check('sets: Initial values also asks whether to save the initial values or the last state', JSON.stringify(await formArguments()) === JSON.stringify(['name', 'state']), JSON.stringify(await formArguments()));
+  await key('Escape');
+  await setPar('iapp', 0.3);
+  n = await S('__xpp.sentCount()');
+  await click('parameters', 'save', 'set.save_into', 'Replace parameters in set w323a');
+  await requireUntil('!!s.commandForm', 'the replace form');
+  check('sets: Save > Replace parameters in set w323a asks nothing more, and says what it does', (await formArguments()).length === 0 && /Replace the scope/.test(await cdp.eval(`document.querySelector('.registry-form p').textContent`)));
+  await submitCommand();
+  check('sets: ... and sends set.save_into for that set and scope',
+    await until('!s.busy', 'replaced') && JSON.stringify(await sentAfter(n, 'set.save_into')) === JSON.stringify([{cmd: 'set.save_into', name: 'w323a', scope: 'parameters'}]), JSON.stringify(await sentAfter(n, 'set.save_into')));
+  check('sets: Save > Export asks for its file and the name of the set',
+    (await (async () => { await click('parameters', 'save', 'set.export'); await requireUntil('!!s.commandForm', 'the export form'); return formArguments(); })()).join() === 'file,name');
+  await key('Escape');
+
+  /* Restore defaults: the section's scope only, the model file's own values */
+  n = await S('__xpp.sentCount()');
+  await click('parameters', '', 'set.restore_defaults');
+  check('sets: Restore defaults sends set.restore_defaults for the parameters only and puts the model\'s values back',
+    await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.05) < 1e-12', 'restored')
+    && JSON.stringify(await sentAfter(n, 'set.restore_defaults')) === JSON.stringify([{cmd: 'set.restore_defaults', scope: 'parameters'}]), JSON.stringify(await sentAfter(n, 'set.restore_defaults')));
+
+  /* Load from file: the section's own button (the dialog is W321's) */
+  check('sets: each row has Load from file for its scope', await cdp.eval(`!!document.querySelector('${row('integration')} [data-values-file=integration]')`));
+
+  /* the range and histogram dialogs hold their group's row; the autoX panel its own */
+  await clickRegistry('run.range');
+  check('sets: the Range dialog has the sweep row', await until(`!!document.querySelector('[data-command-form="run.range"] ${row('sweep')}')`, 'range row'));
+  await key('Escape');
+  await clickRegistry('analysis.histogram');
+  check('sets: the Histogram dialog has the analysis row', await until(`!!document.querySelector('[data-command-form="analysis.histogram"] ${row('analysis')}')`, 'histogram row'));
+  await key('Escape');
+  await openAutoxPanel();
+  check('sets: autoX\'s panel has the continuation row', await exists(row('continuation')));
+
+  /* File > Sets: the scope is asked there, and the old Copy parameter set line is gone */
+  const items = await cdp.eval(`[...document.querySelectorAll('.app-menu [data-top-menu=File] [data-command^="set."], .app-menu [data-top-menu=File] [data-command="session.import_xppaut_state"]')].map(b => b.dataset.command)`);
+  check('sets: File > Sets holds Apply, Load, Save, Replace, Export, Rename, Delete, Restore and Import XPPAUT session state',
+    ['set.apply', 'set.file_contents', 'set.save_new', 'set.save_into', 'set.save_defaults', 'set.export', 'set.rename', 'set.delete', 'set.restore_defaults', 'session.import_xppaut_state'].every(c => items.includes(c)), JSON.stringify(items));
+  check('sets: no Copy set line anywhere in the menus', await cdp.eval(`!/copy.*set line/i.test(document.querySelector('.app-menu').textContent)`));
+  await clickRegistry('set.apply');
+  check('sets: File > Sets > Apply set asks the scope, all by default, and the set', JSON.stringify(await formArguments()) === JSON.stringify(['name', 'scope', 'window']) && await cdp.eval(`!!document.querySelector('.registry-form [data-argument=scope] select')`), JSON.stringify(await formArguments()));
+  await key('Escape');
 }
 
 /** Open the row's common form, then request its authorized file picker. */
@@ -5386,6 +5481,7 @@ async function main() {
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
     if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:3:1: uses random numbers')]);
     if (run('values')) await session(ODE, equilibriumSettings);
+    if (run('sets')) await session(ODE, setsRows, ['command:1: The run stored 0 row(s): nothing to analyse (at least 1 are needed)']);
     if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('Argument "values.gca" must be a finite number')]);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));

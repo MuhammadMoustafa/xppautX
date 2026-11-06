@@ -12,7 +12,7 @@ constexpr std::array EVENTS = {
           "A command's end: every command sends one, with its result when status is ok."},
     Event{ASK, "job, id, kind", "A question the running command asks; answer it with its `answer`."},
     Event{EXIT, "code", "The process ended (said by the host in browser mode)."},
-    Event{SESSION_STATE, "sliders, pars, ics, now, rates, bcs, delays, view, autox, rows, win, seed, session, changed, can_undo, can_redo, recording, player",
+    Event{SESSION_STATE, "sliders, pars, ics, now, rates, bcs, delays, view, autox, rows, win, seed, session, changed, can_undo, can_redo, recording, player, sets",
           "The session's current values, sent after every command."},
     Event{SESSION_SAVED, "saved, file", "The save owner's result for this exact destination; only true authorizes delivery."},
     Event{SESSION_SOURCE, "lines, comments", "The model's source lines."},

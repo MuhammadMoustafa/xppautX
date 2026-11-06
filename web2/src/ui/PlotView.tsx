@@ -26,6 +26,7 @@ import type {Session} from '../session';
 import {TraceDialog} from './TraceDialog';
 import type {PlotSeries} from '../store/series';
 import {HOME, windowOf} from '../store/plots';
+import {SetsRow} from './SetsRow';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 
 type Axes = Pick<View, 'xlo' | 'xhi' | 'ylo' | 'yhi' | 'three'>;
@@ -455,6 +456,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
             title="Fit the window's axes to the data (Window/Fit)">Fit</button>
           <button disabled={noCurves || csvOff} onClick={() => session.writeDataFile('plot', 'csv')}
             title="Export the plotted numbers as a CSV file">CSV</button>
+          <SetsRow scope="plot" window={win} />
         </div>
       </header>
       {picking && <PickBar pick={picking} />}

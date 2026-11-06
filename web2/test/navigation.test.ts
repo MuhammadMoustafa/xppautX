@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {registryRows, menuTree, paletteRows} from '../src/ui/navigation';
-import {argumentSpec, argumentNames, argumentProblem, commandValues, argumentControl, blankArgument} from '../src/ui/argumentFields';
+import {argumentSpec, argumentNames, argumentProblem, commandValues, formValues, argumentControl, blankArgument} from '../src/ui/argumentFields';
 import {REGISTRY_HELLO} from './hello';
 import {initialState} from '../src/store/state';
 import type {RegistryArgument} from '../src/protocol/kinds';
@@ -53,4 +53,12 @@ test('W517: widget selection uses the actual registry wire types, including name
   assert.deepEqual(blankArgument(arg('list[real, 2]')), ['', '']);
   assert.deepEqual(blankArgument(arg('list[text]')), []);
   assert.throws(() => argumentControl(arg('unknown')));
+});
+
+test('W323: the active graph a form fills in goes with the scopes all and plot only', () => {
+  const args = [arg('choice'), arg('window')].map((a, i) => ({...a, name: ['scope', 'window'][i]}));
+  assert.deepEqual(formValues(args, {scope: 'parameters', window: 'graph_1'}), {scope: 'parameters'});
+  assert.deepEqual(formValues(args, {scope: 'plot', window: 'graph_1'}), {scope: 'plot', window: 'graph_1'});
+  assert.deepEqual(formValues(args, {scope: 'all', window: 'graph_1'}), {scope: 'all', window: 'graph_1'});
+  assert.deepEqual(formValues([args[1]], {window: 'graph_1'}), {window: 'graph_1'});
 });
