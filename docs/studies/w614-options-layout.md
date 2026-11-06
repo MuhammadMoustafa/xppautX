@@ -72,7 +72,25 @@ goes to `plot.nullclines`; `AUTOEVAL` leaves `diagram`.
 | `AUTOEVAL` | sets every table's auto-evaluation; filed under diagram | a table's own property (its `table` statement), import-only as an option |
 | `NEARTOL` | read at parse time into formulas calling `near()`; nothing at run time | a model-level tolerance, not a run setting: kept in the model's statements, out of the panels |
 
-## Open questions
+## Decided (maintainer, 2026-11-06; #684)
+
+All six questions below were settled as proposed, with these changes:
+- `plot.curves` holds the axes variables as its first curve; `axes` keeps
+  only the ranges and the 3D view (no `axes.x/y/z`: one source).
+- `output` is what a model's run writes by itself (`data_file`,
+  `nullclines_file`, `after_run`, `after_run_file`), one path rule for all
+  (OUTPUT's: relative to the model's folder, outside it asked), each with a
+  file picker in the Output panel; the log (`log_level`, `log_file`) moves
+  to preferences.
+- Several starting graphs are not built; XPPAUT's `multiwin`, `simplot`,
+  `xlo2-8` import with a warning that one graph opens.
+- Checks: a `static_assert` on the table's order, optioncheck (key, label,
+  help on every grouped row; no option-key literal in web2/src), a
+  web2check `options` section.
+
+Implementation: W615 (the table, #685), then W616 (the panels, #686).
+
+## Open questions (as asked)
 
 1. The structure: groups as panels, dotted sections, the table generating every panel, the order above.
 2. The renames: every row gets a snake_case key; XPPAUT names import-only (no alias kept, per "One name per thing").
