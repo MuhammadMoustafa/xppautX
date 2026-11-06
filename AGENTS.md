@@ -744,6 +744,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
 
 ## Hygiene
 
+- Paths used often (the frozen comparison run, the latest report, the references, the board's scripts) are in docs/paths.md: look there before searching, and add a path you had to search for (maintainer, 2026-11-06).
 - Never a bare `git stash` (shared by every worktree); use a WIP commit.
 - Never kill the maintainer's own running programs; never stop a process by
   name.
