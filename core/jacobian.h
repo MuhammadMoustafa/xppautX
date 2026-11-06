@@ -83,6 +83,14 @@ using JacobianEvaluate = std::function<void(int i, double xi, double *f)>;
 /* The Jacobian of `evaluate` at x by forward differences, f0 = f(x). */
 void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out);
 
+/* The model's Jacobian at (t, x) of a model whose right-hand side `rhs` evaluates (at the state it is given, t fixed
+   in it) on the constants c, with the scratch of its caller (the Session's, or an autoX run's own): exact when the
+   numerics say so, else by forward differences, in groups where the model allows, the same bits as one state at a
+   time. f0 is f(t, x) (for a map's form, already f(x)-x). */
+void model_jacobian(const Session &s, JacobianScratch &scratch, const double *c, double t,
+                    const std::function<void(double *x, double *f)> &rhs, const double *x, const double *f0, int n, double eps,
+                    const JacobianForm &form, double *out);
+
 /* The model's Jacobian at (t, x): by forward differences (the one owner
    of the step rule, W255), or the exact one when the numerics say so
    (W260; then eps and f0 are not used). `f0` is f(t, x) (for a map,

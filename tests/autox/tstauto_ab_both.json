@@ -1,0 +1,31 @@
+{
+  "model": "examples/tstauto/ab.odex",
+  "reason": "W596 (#662): XPPAUT's tstauto/ab (AUTO-07p's demo ab, an exothermic reaction): the feed p0 continued from p0 = 0.05 in both directions at once, follow_all_branches on, as two jobs (+DS, then -DS). Its diagram equals tstauto_ab_in_turn's, the same two directions run one after another, byte for byte, at 1 and automatic threads.",
+  "same_diagram_as": "tstauto_ab_in_turn",
+  "parameters": {"p0": 0.05},
+  "auto07p_skip": "W596 (#662): AUTO-07p continues one direction of a run; the in-turn description holds the two runs it compares with.",
+  "xppaut_skip": "W596 (#662): XPPAUT continues one direction of a run; the in-turn description holds the two runs it compares with.",
+  "runs": [
+    {
+      "name": "both",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current",
+        "settle": 100
+      },
+      "parameter": "p0",
+      "autox": {
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": 0,
+        "parameter_max": 1.5,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0,
+        "follow_all_branches": true
+      }
+    }
+  ]
+}

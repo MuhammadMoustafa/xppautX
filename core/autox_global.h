@@ -15,6 +15,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -28,6 +29,7 @@ namespace xpp {
 
 struct Session; /* session.h */
 struct Model;   /* model.h */
+class EquilibriumModel; /* equilibria.h */
 
 /* The criterion, each number with its reason. A period that has grown over
    this many points in a row is no wobble of the continuation's step ... */
@@ -74,6 +76,12 @@ std::string autox_equilibrium_text(const Model &m, std::span<const double> x);
    parameters, which Newton's method and the Jacobian (equilibrium_near) read */
 void autox_evaluate_at(const iap_type &iap, const double *par, const std::ptrdiff_t *icp, std::span<const double> x,
                        std::span<double> f);
+
+/* The evaluation the equilibrium search of a run's ends (a Hopf end, a global end) uses at autoX's parameters par (copied):
+   the run's own when it evaluates on its own constants (a job run at once or in turn with isolation), else the Session's,
+   its constants left at par. Never the Session's parser from a job, and the job's cancel is its Escape. */
+std::unique_ptr<EquilibriumModel> autox_equilibrium_model(const iap_type &iap, const double *par, const std::ptrdiff_t *icp,
+                                                           std::span<const double> state);
 
 /* How many points in a row a series has gone one way: run, one more when value goes on from last (above it when
    rising, below it otherwise), else 0 (a first point, last NaN, starts again). The period's growth and (W604) a

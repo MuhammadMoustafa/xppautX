@@ -872,7 +872,7 @@ else:
     # each wait is for its own command's done, by id: another done (the page's connection) shifts no pairing
     send_cmd(pt, tk, {'cmd':'autox.open', 'id':'w501-open'})
     until_event(q, lambda e: done_event(e) and e.get('id') == 'w501-open')
-    send_cmd(pt, tk, {'cmd':'autox.run','kind':'equilibrium', 'id':'w501-run'})
+    send_cmd(pt, tk, {'cmd':'autox.run','kind':'equilibrium','follow_all_branches':False,'id':'w501-run'})
     # what the core prints reaches the page from xpp_http.cpp's log reader thread, not in order with the
     # run's done: the wait is for the table's last line itself
     logged = []

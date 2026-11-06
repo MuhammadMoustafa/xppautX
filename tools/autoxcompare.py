@@ -33,7 +33,7 @@ KINDS = {'equilibrium', 'periodic', 'two_parameter', 'fixed_period', 'bvp', *HOM
 # the per-run settings a description may give: autoX's settings by their names (core/autox_settings.cpp)
 NUMERICS = ('step_size', 'min_step_size', 'max_step_size', 'max_steps', 'output_every', 'parameter_min', 'parameter_max',
             'mesh_intervals', 'collocation_points', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance',
-            'max_branch_switches', 'switch_one_direction', 'output_detail', 'step_adapt_every')
+            'max_branch_switches', 'switch_one_direction', 'output_detail', 'step_adapt_every', 'follow_all_branches')
 OUTPUT_DETAILS = ('none', 'little', 'normal', 'start_jacobian', 'extensive', 'debugging')
 
 
@@ -93,7 +93,7 @@ def no_duplicates(pairs):
 
 def read_description(path):
     d = codes_of_types(json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=no_duplicates))
-    members(d, ('model', 'reason', 'parameters', 'initial_conditions', 'runs', 'skip', 'differences', 'curve_runs_on', *REFERENCE_SKIPS.values()), ('model', 'reason'))
+    members(d, ('model', 'reason', 'parameters', 'initial_conditions', 'runs', 'skip', 'differences', 'curve_runs_on', 'same_diagram_as', *REFERENCE_SKIPS.values()), ('model', 'reason'))
     model = ROOT / d['model']
     if model.resolve().parent not in (ROOT / 'examples/tstauto', ROOT / 'examples/ode', ROOT / 'tools/models') or not model.is_file():
         raise ValueError('model must be a file in examples/tstauto, examples/ode or tools/models')
@@ -170,9 +170,9 @@ def read_description(path):
         for k, v in r['autox'].items():
             if k == 'output_detail':
                 continue
-            if k == 'switch_one_direction':
+            if k in ('switch_one_direction', 'follow_all_branches'):
                 if not isinstance(v, bool):
-                    raise ValueError('switch_one_direction must be boolean')
+                    raise ValueError(k + ' must be boolean')
                 continue
             finite(v, k, integer=k in ('max_steps', 'output_every', 'mesh_intervals', 'collocation_points', 'max_branch_switches'))
         a = r['autox']
@@ -264,18 +264,23 @@ def integrate(s, total, step=None):
     return events
 
 
+def settle(s, total, orbit=None, step=None):
+    """Integrate for `total` and start from where it ends; then, when `orbit` is given, integrate that long from there: the
+    settled state is on the cycle, so one period from it is the stored orbit a Periodic start takes (W603)."""
+    events = integrate(s, total, step)
+    state = next(e for e in reversed(events) if e.get('ev') == 'session.state')
+    set_values(s, [dict(kind='ic', name=p[0], value=float(v)) for p, v in zip(state['ics'], state['now'])])
+    if orbit is not None:
+        integrate(s, orbit, step)
+
+
 def execute_run(s, r, diagram, ranges, diagram_data=True):
     """One description's run as the registry's commands: its settings, then autox.run with its kind and start."""
     start = r['start']
     run = dict(cmd='autox.run', kind=r['kind'])
     if start.get('state') == 'current':
         if 'settle' in start:
-            events = integrate(s, start['settle'], start.get('step'))
-            state = next(e for e in reversed(events) if e.get('ev') == 'session.state')
-            set_values(s, [dict(kind='ic', name=p[0], value=float(v)) for p, v in zip(state['ics'], state['now'])])
-            if 'orbit' in start:
-                # the settled state is on the cycle: one period from it is the stored orbit the start takes (W603)
-                integrate(s, start['orbit'], start.get('step'))
+            settle(s, start['settle'], start.get('orbit'), start.get('step'))
         if r['kind'] == 'equilibrium':
             run['replace_diagram'] = False
     else:
@@ -286,7 +291,8 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
             raise ValueError('start point not found: ' + str(start))
         run['label'] = points[start['index'] - 1]['lab']
     pars = r.get('parameters', [r.get('parameter')])
-    completed(s, dict(cmd='autox.configure_numerics', **r['autox']))
+    # W596: a description follows one branch, as it was written, unless it asks for follow_all_branches
+    completed(s, dict(cmd='autox.configure_numerics', **{'follow_all_branches': False, **r['autox']}))
     marks = r.get('marks', [])
     completed(s, dict(cmd='autox.configure_marks', parameters=[m[0] for m in marks], values=[m[1] for m in marks]))
     diagram.apply(completed(s, dict(cmd='autox.configure_plot', parameter1=pars[0],
@@ -365,6 +371,18 @@ def saved_member(s):
         member = z.read(DIAGRAM_MEMBER).replace(b'\r\n', b'\n')
     os.remove(path)
     return member
+
+
+def run_files(s):
+    """autoX's .b, .s and .d files the runs so far left in the session's scratch folder (CRs removed), by extension"""
+    files = {}
+    for folder in s.autox_dirs():
+        for name in os.listdir(folder):
+            for extension in ('.b', '.s', '.d'):
+                if name.endswith(extension):
+                    with open(os.path.join(folder, name), 'rb') as f:
+                        files[extension] = f.read().replace(b'\r\n', b'\n')
+    return files
 
 
 def point_count(data):
@@ -1255,6 +1273,10 @@ def main():
                     same = want == data
                     check('%s threads=%s (%d points, auto=%d)' % (name, threads, count, autox_count),
                           same, difference(name, want, data) if not same else '')
+                    if 'same_diagram_as' in d:  # W596: follow_all_branches's diagram is the runs in turn
+                        other = (BASE / (d['same_diagram_as'] + '.diagram.csv')).read_bytes().replace(b'\r', b'')
+                        check('%s threads=%s equals %s, byte for byte' % (name, threads, d['same_diagram_as']), other == data,
+                              difference(name, other, data) if other != data else '')
                     if not same and args.keep:
                         args.keep.mkdir(parents=True, exist_ok=True)
                         (args.keep / ('%s.threads-%s.diagram.csv' % (name, threads))).write_bytes(data)

@@ -1601,7 +1601,7 @@ const DS = expr => cdp.eval(`(() => { const s = __xpp.state(), d = Object.assign
 /* Run: its dialog (opened by the R button or key) takes the kind, and OK sends autox.run (the kinds are the core's, hello.autox_run and the grabbed point's) */
 const okRunDialog = async kind => {
   await requireUntil(`s.commandForm?.id === 'autox.run' && document.activeElement.closest('.registry-form')`, 'Run form focus');
-  await formValues({kind});
+  await formValues({kind, follow_all_branches: false}); // W596: the checks follow the one branch they ask for
   await submitCommand();
 };
 const runPeriodicFromDialog = () => okRunDialog('periodic');
@@ -4698,7 +4698,7 @@ async function jacobianOfferCheck(dir) {
   await until('!s.busy', 'autoX numerics');
   await cdp.eval(`__xpp.send({cmd: 'autox.configure_plot', plot_type: 'norm', variable: 'x', parameter1: 'a'})`);
   await until('!s.busy', 'autoX axes');
-  await menuRun('autox.run', {kind:'equilibrium'});
+  await menuRun('autox.run', {kind:'equilibrium', follow_all_branches:false});
   check('W275: the error of a failed exact Jacobian in an autoX run offers Switch to differences and continue',
     await until(`!s.busy && !!${offer}`, 'the offer on the autoX error', 60000) && await cdp.eval(`${offer}.textContent`) === 'Switch to differences and continue',
     JSON.stringify(await S('s.toasts')));

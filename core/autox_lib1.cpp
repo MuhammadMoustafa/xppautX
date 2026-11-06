@@ -3277,7 +3277,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
   if (n2 == 0) {
     if (itp.kind != xpp::AutoxPointKind::Regular) {
-      xpp::log_autox("{:4d} {:5d}  {:<4} {:4d}",(*ibr),*ntot,atype,*(lab));
+      xpp::log_autox("{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
       xpp::log_autox("{:14.6E}",par[icu[0]]);
       xpp::log_autox("{:14.6E}",(*vaxis));
       for (i = 1; i < n1; ++i) {
@@ -3285,14 +3285,14 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
       }
       xpp::log_autox("\n");
     }
-    xpp::print(iap->run->fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::autox_point_encode(itp),(*lab));
+    xpp::print(iap->run->fp7,"{}",xpp::autox_branch_row_key(*ibr,*ntot,xpp::autox_point_encode(itp),*lab));
     xpp::print(iap->run->fp7,"{:14.5E}",par[icu[0]]);
     xpp::print(iap->run->fp7,"{:14.5E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
       xpp::print(iap->run->fp7,"{:14.5E}",par[icu[i]]);
     }
     xpp::print(iap->run->fp7,"\n");
-    xpp::print(iap->run->fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
+    xpp::print(iap->run->fp9,"{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
     xpp::print(iap->run->fp9,"{:14.6E}",par[icu[0]]);
     xpp::print(iap->run->fp9,"{:14.6E}",(*vaxis));
     for (i = 1; i < n1; ++i) {
@@ -3302,7 +3302,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   } else {
     if (n1 == 1) {
       if (itp.kind != xpp::AutoxPointKind::Regular) {
-	xpp::log_autox("{:4d} {:5d}  {:<4} {:4d}",f2c::abs(*ibr),f2c::abs(*ntot),atype,*(lab));
+	xpp::log_autox("{}",xpp::autox_point_row_key(f2c::abs(*ibr),f2c::abs(*ntot),atype,*lab));
 	xpp::log_autox("{:14.6E}",par[icu[0]]);
 	xpp::log_autox("{:14.6E}",(*vaxis));
 	for (i = 0; i < n2; ++i) {
@@ -3310,14 +3310,14 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	}
 	xpp::log_autox("\n");
       }
-      xpp::print(iap->run->fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::autox_point_encode(itp),(*lab));
+      xpp::print(iap->run->fp7,"{}",xpp::autox_branch_row_key(*ibr,*ntot,xpp::autox_point_encode(itp),*lab));
       xpp::print(iap->run->fp7,"{:14.5E}",par[icu[0]]);
       xpp::print(iap->run->fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
 	xpp::print(iap->run->fp7,"{:14.5E}",u[i]);
       }
       xpp::print(iap->run->fp7,"\n");
-      xpp::print(iap->run->fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
+      xpp::print(iap->run->fp9,"{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
       xpp::print(iap->run->fp9,"{:14.6E}",par[icu[0]]);
       xpp::print(iap->run->fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -3327,7 +3327,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
     } else {
       if (itp.kind != xpp::AutoxPointKind::Regular) {
-	xpp::log_autox("{:4d} {:5d}  {:<4} {:4d}",f2c::abs(*ibr),f2c::abs(*ntot),atype,*(lab));
+	xpp::log_autox("{}",xpp::autox_point_row_key(f2c::abs(*ibr),f2c::abs(*ntot),atype,*lab));
 	xpp::log_autox("{:14.6E}",par[icu[0]]);
 	xpp::log_autox("{:14.6E}",(*vaxis));
 	for (i = 0; i < n2; ++i) {
@@ -3338,7 +3338,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	}
 	xpp::log_autox("\n");
       }
-      xpp::print(iap->run->fp7,"{:4} {:5} {:3} {:3}",(*ibr),*ntot,xpp::autox_point_encode(itp),(*lab));
+      xpp::print(iap->run->fp7,"{}",xpp::autox_branch_row_key(*ibr,*ntot,xpp::autox_point_encode(itp),*lab));
       xpp::print(iap->run->fp7,"{:14.5E}",par[icu[0]]);
       xpp::print(iap->run->fp7,"{:14.5E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -3348,7 +3348,7 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 	xpp::print(iap->run->fp7,"{:14.5E}",par[icu[i]]);
       }
       xpp::print(iap->run->fp7,"\n");
-      xpp::print(iap->run->fp9,"{:4} {:5}  {:<4} {:4}",(*ibr),*ntot,atype,*(lab));
+      xpp::print(iap->run->fp9,"{}",xpp::autox_point_row_key(*ibr,*ntot,atype,*lab));
       xpp::print(iap->run->fp9,"{:14.6E}",par[icu[0]]);
       xpp::print(iap->run->fp9,"{:14.6E}",(*vaxis));
       for (i = 0; i < n2; ++i) {
@@ -3414,18 +3414,13 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   par[icp[0]] = rlcur[0];
   t = 0.;
 
-  xpp::print(fp8,"{:5}",ibr);
-  xpp::print(fp8," {:4}",ntot);
-  xpp::print(fp8," {:4}",xpp::autox_point_encode(itp));
-  xpp::print(fp8," {:4}",(*lab));
-  xpp::print(fp8," {:4}",nfpr);
-  xpp::print(fp8," {:4}",isw);
-  xpp::print(fp8," {:4}",ntpl);
-  xpp::print(fp8," {:4}",nar);
-  xpp::print(fp8," {:4}",nrowpr);
-  xpp::print(fp8," {:4}",direction ? 1 : 0);
-  xpp::print(fp8," {:4}",0);
-  xpp::print(fp8," {:4}\n",iap->run->parameter_count);
+  {
+    xpp::AutoxSolutionHeader header;
+    header.ibr=ibr; header.ntot=ntot; header.itp=itp; header.lab=*lab; header.nfpr=nfpr; header.isw=isw;
+    header.ntpl=ntpl; header.nar=nar; header.nskip=nrowpr; header.ntst=direction ? 1 : 0; header.ncol=0;
+    header.npar=iap->run->parameter_count;
+    xpp::print(fp8,"{}",xpp::autox_solution_header_text(header));
+  }
   xpp::print(fp8,"    {:19.10E}",t);
   for (i = 0; i < ndim; ++i) {
     if((i>0)&&((i+1)%autox_solution_columns==0))
@@ -4243,6 +4238,8 @@ newlab(iap_type *iap, rap_type *rap)
   }
   lab = mlab;
   iap->lab = lab;
+  iap->run->base_branch = mbr;
+  iap->run->base_label = mlab;
   if (isw < 0 || irs == 0) {
     ibr = mbr + 1;
     iap->ibr = ibr;
@@ -6548,18 +6545,13 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   nrowpr = nrd * (ncol * ntst + 1) + (nfpr - 1) / autox_solution_columns + 1 + (jtmp - 1) / autox_solution_columns + 
     1 + (nfpr - 1) / autox_solution_parameter_indices_per_line + 1;
 
-  xpp::print(fp8,"{:5}",ibr);
-  xpp::print(fp8," {:4}",ntot);
-  xpp::print(fp8," {:4}",xpp::autox_point_encode(itp));
-  xpp::print(fp8," {:4}",lab);
-  xpp::print(fp8," {:4}",nfpr);
-  xpp::print(fp8," {:4}",isw);
-  xpp::print(fp8," {:4}",ntpl);
-  xpp::print(fp8," {:4}",nar);
-  xpp::print(fp8," {:4}",nrowpr);
-  xpp::print(fp8," {:4}",ntst);
-  xpp::print(fp8," {:4}",ncol);
-  xpp::print(fp8," {:4}\n",iap->run->parameter_count);
+  {
+    xpp::AutoxSolutionHeader header;
+    header.ibr=ibr; header.ntot=ntot; header.itp=itp; header.lab=lab; header.nfpr=nfpr; header.isw=isw;
+    header.ntpl=ntpl; header.nar=nar; header.nskip=nrowpr; header.ntst=ntst; header.ncol=ncol;
+    header.npar=iap->run->parameter_count;
+    xpp::print(fp8,"{}",xpp::autox_solution_header_text(header));
+  }
 
 /* Write the entire solution on unit 8 : */
 

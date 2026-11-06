@@ -127,6 +127,20 @@ private:
     LogCapture *outer_;
 };
 
+/* While one lives, what this thread logs with log_autox() (autoX's table and its notes) is kept in `table` instead of
+   written, and what it logs at WARN (a branch's stop, a note) in `warnings`: a job (autox_jobs.cpp) keeps its lines,
+   which the join writes in the jobs' order, numbered as the diagram is, so the Output reads as the runs in turn. */
+class AutoxLogHold {
+public:
+    AutoxLogHold(std::string &table, std::string &warnings);
+    ~AutoxLogHold();
+    AutoxLogHold(const AutoxLogHold &) = delete;
+    AutoxLogHold &operator=(const AutoxLogHold &) = delete;
+
+private:
+    std::string *outer_table_, *outer_warnings_;
+};
+
 /* The checked calls below and the window library's callback share this
    formatting and delivery path. The caller writes the newline. */
 void log_message(XppLogLevel level, std::string_view fmt, std::format_args args) noexcept;

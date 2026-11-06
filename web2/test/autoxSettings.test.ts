@@ -33,7 +33,7 @@ const rules: Record<NumKey, NumRule> = {
   output_detail: {label: 'Output detail', choices: levels, message: `Output detail must be one of ${levels.join(', ')}`},
   max_location_iterations: whole('Max location iterations', 1), max_newton_iterations: whole('Max newton iterations', 1),
   full_newton_after: whole('Full newton after', 1), step_adapt_every: whole('Step adapt every', 0),
-  suppress_branch_points: bool('Suppress branch points'),
+  suppress_branch_points: bool('Suppress branch points'), follow_all_branches: bool('Follow all branches'),
 };
 
 const settings: AutoxSettings = {
@@ -42,7 +42,7 @@ const settings: AutoxSettings = {
     max_step_size: 0.5, parameter_min: 0, parameter_max: 2, norm_min: 0, norm_max: 1000, parameter_tolerance: 1e-4,
     state_tolerance: 1e-4, special_point_tolerance: 1e-4, mesh_adapt_every: 3, max_branch_switches: 5,
     switch_one_direction: false, output_detail: 'normal', max_location_iterations: 8, max_newton_iterations: 7,
-    full_newton_after: 3, step_adapt_every: 1, suppress_branch_points: false},
+    full_newton_after: 3, step_adapt_every: 1, suppress_branch_points: false, follow_all_branches: true},
   axes: {plot: 'maximum_and_minimum', var: 'V', par1: 'iapp', par2: 'phi', xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4},
   marks: [],
   threads: 'auto',
@@ -104,7 +104,7 @@ test("a refused set: the core's error is the forms', until the next edit", () =>
 });
 
 test("the core's rules, in the page, with its messages", () => {
-  assert.equal(NUM_FIELDS.length, 23);
+  assert.equal(NUM_FIELDS.length, 24);
   assert.deepEqual(NUM_FIELDS.map(f => f.key).sort(), Object.keys(rules).sort());
   assert.equal(numError(rules.collocation_points, '8'), 'Collocation points must be a whole number from 2 to 7');
   assert.equal(numError(rules.mesh_intervals, '2.5'), 'Mesh intervals must be a whole number of at least 1');
@@ -127,7 +127,7 @@ test("the core's rules, in the page, with its messages", () => {
   assert.deepEqual(pairErrors(settings, {...n, step_size: n.min_step_size / 2, norm_min: 5, norm_max: 1}), {step_size: step, norm_min: 'Norm min must be below Norm max'});
   /* every field is named by its key, labelled from it, with autoX's own name for a hover, and explained */
   for (const f of NUM_FIELDS) {
-    assert.ok(f.auto.length >= 2, f.key);
+    assert.ok(f.auto === undefined || f.auto.length >= 2, f.key); /* xppautX's own setting has no autoX name */
     assert.ok(f.help.length > 40, f.key);
     assert.equal(fieldName(f), rules[f.key].label, f.key);
   }

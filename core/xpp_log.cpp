@@ -15,6 +15,9 @@ bool autox_echo;
 /* the LogCapture that keeps this thread's messages (the latest made), if
    any */
 thread_local xpp::LogCapture *capture = nullptr;
+/* where this thread's log_autox() lines go while an AutoxLogHold keeps them */
+thread_local std::string *autox_held = nullptr;
+thread_local std::string *autox_held_warnings = nullptr;
 
 /* where messages go: --logfile's file when one was given, else stderr
    (stdout is the protocol's in --server mode; the file's default is stdout) */
@@ -131,6 +134,14 @@ void log_message(XppLogLevel level, std::string_view fmt, std::format_args args)
 {
     if (!log_enabled(level)) return; /* no formatting for a filtered message */
     std::string message = xpp::vformat(fmt, args);
+    if (level == XPP_LOG_WARN && autox_held_warnings != nullptr) {
+        try {
+            *autox_held_warnings += message;
+        } catch (const std::bad_alloc &) {
+            xpp::out_of_memory("a job's warnings");
+        }
+        return;
+    }
     if (level == XPP_LOG_ERROR) log_note_error();
     if (capture != nullptr && level <= XPP_LOG_WARN) {
         capture->keep(message.c_str());
@@ -141,10 +152,29 @@ void log_message(XppLogLevel level, std::string_view fmt, std::format_args args)
 
 bool log_autox_enabled() { return autox_echo || threshold >= XPP_LOG_INFO; }
 
+AutoxLogHold::AutoxLogHold(std::string &table, std::string &warnings) : outer_table_(autox_held), outer_warnings_(autox_held_warnings)
+{
+    autox_held = &table;
+    autox_held_warnings = &warnings;
+}
+AutoxLogHold::~AutoxLogHold()
+{
+    autox_held = outer_table_;
+    autox_held_warnings = outer_warnings_;
+}
+
 void log_autox_message(std::string_view fmt, std::format_args args) noexcept
 {
     if (!log_autox_enabled()) return;
     std::string message = xpp::vformat(fmt, args);
+    if (autox_held != nullptr) {
+        try {
+            *autox_held += message;
+        } catch (const std::bad_alloc &) {
+            xpp::out_of_memory("a job's autoX table");
+        }
+        return;
+    }
     deliver(message, terminal_gets(XPP_LOG_INFO));
 }
 

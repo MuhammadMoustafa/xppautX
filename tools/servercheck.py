@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, copy, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import versioned, versioned_anix, copy_model, staged_model_names, CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission, ALL_EVENTS
+from xppclient import FollowOneBranch, versioned, versioned_anix, copy_model, staged_model_names, CONFIG_ROOT, Server, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, file_bytes, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission, ALL_EVENTS
 import autoxcompare
 
 ap = argparse.ArgumentParser()
@@ -109,7 +109,10 @@ def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=
     threading.Thread(target=reader, daemon=True).start()
     drain_stderr(proc, (lambda l: log.append(l.rstrip('\n'))) if log is not None else None)
 
+    follow = FollowOneBranch()
+
     def send(**cmd):
+        follow.apply(cmd)
         save_permission(cmd)
         if args.v:
             print('  >', json.dumps(cmd))
@@ -573,6 +576,130 @@ def check_autox_two_parameter_starts():
               and 'two_parameter needs a point of type hopf' in errors[0]['error'] and 'label 1 is an end point' in errors[0]['error'], str(errors))
     finally:
         s.close()
+
+
+def check_autox_directions():
+    """W596: follow_all_branches runs both directions of a start as jobs at once and joins them in a fixed order: the
+    diagram is the two directions run one after another, at 1 and at automatic threads, from a steady state, from an
+    inexact start Newton's method refines (once, before the jobs), from an integrated orbit (a Periodic start) and for a
+    model whose evaluation cannot be shared (the jobs then run in turn). (The .b, .s and .d files are compared byte for
+    byte, and Stop while the jobs compute is checked, in tests/test_session_autox.cpp.)"""
+    both = autoxcompare.read_description(autoxcompare.BASE / 'tstauto_ab_both.json')
+    in_turn = autoxcompare.read_description(autoxcompare.BASE / 'tstauto_ab_in_turn.json')
+
+    def inexact(d):  # no integration before the run: the zero state is not a steady state at p0 = 0.05
+        d = copy.deepcopy(d)
+        for r in d['runs']:
+            r['start'].pop('settle', None)
+        return d
+
+    def in_turn_of(d):  # the description's one run as two: its step, then the opposite step
+        d = copy.deepcopy(d)
+        up = d['runs'][0]
+        up['name'] = 'up'
+        up['autox'].pop('follow_all_branches', None)
+        down = copy.deepcopy(up)
+        down['name'] = 'down'
+        down['autox']['step_size'] = -up['autox']['step_size']
+        d['runs'] = [up, down]
+        return d
+
+    cases = [('a steady state', both, in_turn), ('an inexact start', inexact(both), inexact(in_turn)),
+             ('a model that cannot share its evaluation',
+              autoxcompare.read_description(autoxcompare.BASE / 'ode_del_log.json'), None)]
+    for what, followed_d, turn_d in cases:
+        if turn_d is None:
+            turn_d = in_turn_of(followed_d)
+            followed_d = copy.deepcopy(followed_d)
+            followed_d['runs'][0]['autox']['follow_all_branches'] = True
+            for d in (followed_d, turn_d):  # the second run starts from the first one's start again
+                d['parameters'] = {'r': 2.177}
+        for threads in (1, 'auto'):
+            followed = autoxcompare.compute(args.server, followed_d, threads)[0]
+            turn = autoxcompare.compute(args.server, turn_d, threads)[0]
+            check('W596: follow_all_branches\'s diagram from %s is the two directions run in turn, byte for byte (threads %s)' % (what, threads),
+                  followed == turn and len(followed) > 1000, '%d vs %d bytes' % (len(followed), len(turn)))
+        if what == 'an inexact start':
+            check('W596: the inexact start was refined by Newton\'s method', followed_d['runs'][0].get('start_refined') is True,
+                  str(followed_d['runs'][0].get('start_refined')))
+    check_autox_directions_from_orbit()
+    folder = tempfile.mkdtemp(prefix='xppauto-directions')
+    shutil.copy(autoxcompare.ROOT / 'examples/tstauto/ab.odex', folder)
+    s = Server(args.server, os.path.join(folder, 'ab.odex'))
+    try:
+        autoxcompare.completed(s)
+        autoxcompare.open_autox(s)
+        # the steady state at p0 = 0.05 (tstauto_ab_both's first point), so the start needs no Newton refinement
+        autoxcompare.set_values(s, [dict(kind='par', name='p0', value=0.05), dict(kind='ic', name='U1', value=0.06282240276322631),
+                                    dict(kind='ic', name='U2', value=0.2931712128950587)])
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', max_steps=1000000, output_every=1000, parameter_min=0, parameter_max=1.5,
+                                       step_size=1e-6, min_step_size=1e-7, max_step_size=1e-6))
+        s.send(cmd='autox.run', kind='equilibrium', replace_diagram=False, follow_all_branches=True)
+        s.send(cmd='run.abort')
+        evs, end = s.collect(is_done, timeout=60 * SLOW)
+        done = next((e for e in reversed(evs) if e.get('ev') == 'done' and e.get('job')), {})
+        check('W596: an Abort sent with the run ends it cleanly (no job started, nothing stored, no error); a run stopped while its jobs compute is checked in tests/test_session_autox.cpp',
+              end is not None and not any(e.get('error') for e in evs) and done.get('status') == 'stopped', str(done)[:300])
+    finally:
+        s.close()
+
+
+def orbit_directions(model, parameter, values, orbit, numerics, settle=None):
+    """One run of a Periodic start from an integrated orbit, both directions: as one run with follow_all_branches, and as two
+    runs in turn (+step, then -step from the same start); each (diagram, autoX's .b, .s and .d files). The orbit is the model
+    integrated for orbit[1] from the state values (settled first for settle, when given)."""
+    results = []
+    for follow in (True, False):
+        folder = tempfile.mkdtemp(prefix='xppauto-orbit')
+        shutil.copy(autoxcompare.ROOT / model, folder)
+        s = Server(args.server, os.path.join(folder, os.path.basename(model)))
+        try:
+            autoxcompare.completed(s)
+            autoxcompare.open_autox(s)
+            autoxcompare.set_values(s, values)
+            if settle:
+                autoxcompare.settle(s, settle, orbit)
+            else:
+                autoxcompare.integrate(s, orbit)
+            autoxcompare.completed(s, dict(cmd='autox.configure_plot', parameter1=parameter))
+            step = numerics.pop('step_size') if 'step_size' in numerics else 0.01
+            for sign in ((1,) if follow else (1, -1)):
+                autoxcompare.completed(s, dict(cmd='autox.configure_numerics', step_size=sign * step, follow_all_branches=follow, **numerics))
+                s.send(cmd='autox.run', kind='periodic')
+                events, end = s.collect(lambda e: is_done(e) or is_ask(e), timeout=600 * SLOW)
+                autoxcompare.ensure_completed(events, end)
+                autoxcompare.set_values(s, [v for v in values if v['kind'] == 'par'])  # the second run starts from the same parameter
+            results.append((autoxcompare.saved_member(s), autoxcompare.run_files(s)))
+            numerics['step_size'] = step
+        finally:
+            s.close()
+    return results
+
+
+def check_autox_directions_from_orbit():
+    """W596: a Periodic start from an integrated orbit continues both directions, as two runs in turn do (the diagram and
+    autoX's .b, .s and .d files the same): Morris-Lecar's stable cycle at iapp 0.3 with Rinzel and Ermentrout's class-II
+    values, settled for 100 and then integrated for one period, as tests/autox/ode_lecar_orbit_hopf.json starts (W603); and
+    the Hodgkin-Huxley equations' stable cycle at I = 49.119 (tests/autox/hodgkin_huxley_hopf_pair.json's cycles, one period
+    from its first state), whose family ends at a Hopf point on both sides (point type hopf_end, W604): the search for the
+    Hopf point's equilibrium must run on each job's own evaluation, at the parameter the end is at"""
+    lecar = dict(iapp=0.3, v3=0, v4=0.3, gca=1.1, phi=0.2)
+    values = [dict(kind='par', name=n, value=v) for n, v in lecar.items()] + [dict(kind='ic', name='v', value=-0.144), dict(kind='ic', name='w', value=0.03)]
+    numerics = dict(min_step_size=1e-5, max_step_size=0.01, max_steps=20, output_every=10, parameter_min=0.1, parameter_max=0.4,
+                    mesh_intervals=15, max_branch_switches=0)
+    (diagram, files), (turn_diagram, turn_files) = orbit_directions('examples/ode/lecar.odex', 'iapp', values, 15.6359, numerics, settle=100)
+    check('W596: a Periodic start from an integrated orbit continues both directions: the diagram and the autoX .b, .s and .d files are the two runs in turn, byte for byte',
+          diagram == turn_diagram and files == turn_files and sorted(files) == ['.b', '.d', '.s'] and len(diagram) > 1000,
+          '%d vs %d bytes; %s' % (len(diagram), len(turn_diagram), {k: (len(v), len(turn_files.get(k, b''))) for k, v in files.items()}))
+    states = dict(V=8.585767401388178, m=0.12087667611762813, n=0.5133969213640369, h=0.2520504470303479)
+    values = [dict(kind='par', name='I', value=49.119058076613086)] + [dict(kind='ic', name=n, value=v) for n, v in states.items()]
+    numerics = dict(min_step_size=1e-5, max_step_size=4, max_steps=400, output_every=100, parameter_min=-10, parameter_max=200,
+                    mesh_intervals=30, max_branch_switches=0, step_size=2)
+    (diagram, files), (turn_diagram, turn_files) = orbit_directions('tools/models/hodgkin_huxley.odex', 'I', values, 8.595845030998337, numerics)
+    ends = [line for line in diagram.decode().splitlines() if line.startswith('periodic,') and ',hopf_end,' in line]
+    check('W596: both directions of a cycle family that ends at a Hopf point on each side (HBE) are the two runs in turn, byte for byte, with the autoX .b, .s and .d files',
+          diagram == turn_diagram and files == turn_files and sorted(files) == ['.b', '.d', '.s'] and len(ends) == 2,
+          '%d vs %d bytes; %d hopf_end points; %s' % (len(diagram), len(turn_diagram), len(ends), {k: (len(v), len(turn_files.get(k, b''))) for k, v in files.items()}))
 
 
 def check_autox_registry():
@@ -5291,7 +5418,7 @@ def settings_of(evs):
 
 
 NUM_KEYS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points', 'step_size', 'min_step_size', 'max_step_size', 'parameter_min', 'parameter_max', 'norm_min', 'norm_max', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance',
-            'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points']
+            'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points', 'follow_all_branches']
 
 
 def check_autoxsettings():
@@ -5554,6 +5681,14 @@ def check_autox_no_nan_par():
         ok = not bad and bool(states) and all(math.isfinite(v) for _,v in pars)
         detail = str(bad or pars)
         check('autoX: a run with no convergence parses strictly and leaves every par finite', ok, detail)
+        # W596: both directions as jobs leave no NaN either (the guard of do_autox, once, on the constants the jobs end with)
+        snd(cmd='autox.run', kind='equilibrium', replace_diagram=True, follow_all_branches=True)
+        evs, _ = col(is_done, timeout=60*SLOW)
+        bad = [e for e in evs if e.get('ev') == 'bad']
+        states = [e for e in evs if e.get('ev') == 'session.state']
+        pars = states[-1].get('pars', []) if states else []
+        check('W596: both directions with no convergence parse strictly and leave every par finite',
+              not bad and bool(states) and all(math.isfinite(v) for _, v in pars), str(bad or pars))
     finally:
         stop_server(p, r, snd)
 
@@ -10889,6 +11024,7 @@ check_autox_closed_branch()
 check_autox_starts()
 check_autox_two_parameter_starts()
 check_autox_periodic_start_kind()
+check_autox_directions()
 check_autox_registry()
 check_fit_stops()
 check_event_count_note()

@@ -103,6 +103,7 @@ int main()
     // An input count must be checked against its values before any allocation.
     invalid.nmarks=2147483647;
     CHECK(xpp::autox_settings_apply(s,invalid,why)!=0 && s.autox_state.bifur.marks==marks);
+    s.autox_state.follow_all_branches=false; /* one run, in the direction of the step */
     CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
     CHECK(diagram_count(s.diagram)==4);
     XAUTOX params; // the settings' marks, as the run copies them
@@ -120,6 +121,7 @@ int main()
     std::copy_n(last->u0.begin(),s.model().node,s.last_ic.begin());
     set.par1="P9";
     CHECK(xpp::autox_settings_apply(s,set,why)==0);
+    s.autox_state.follow_all_branches=false; /* one run, in the direction of the step */
     CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
     last=last_diagram(s.diagram);
     CHECK(last && last->icp1.is_parameter(9) && last->parameter_indices==std::vector<int>{9});

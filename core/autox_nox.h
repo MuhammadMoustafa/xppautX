@@ -6,8 +6,10 @@
 #include <array>
 #include <span>
 #include <vector>
-#include <memory>
 #include <functional>
+#include <optional>
+#include <utility>
+#include <memory>
 #include "xpp_error.h"
 #include "autox_codes.h"
 #include "autox_axis.h"
@@ -27,6 +29,20 @@ struct AutoxSolutionHeader {
     /* an equilibrium's record with the branch's direction after the point (AUTO-07p's NTST=1, no mesh); no orbit has no collocation points */
     bool equilibrium_direction() const { return ntst == 1 && ncol == 0; }
 };
+/* the first four fields of a point's row in fort.7 (.b): branch, point, type and label, as the writers print them and the
+   join of jobs (autox_jobs.cpp) prints them again once renumbered */
+/* a header line of fort.8 (.s), its newline included, from its twelve fields */
+std::string autox_solution_header_text(const AutoxSolutionHeader &header);
+/* the integer (a sign and digits) that starts at `at` after blanks and ends at a blank, a comma or the end, and where it ends */
+std::optional<std::pair<long,std::size_t>> autox_integer_at(std::string_view line, std::size_t at);
+/* a point's row of the table, on the screen and in fort.9 (.d): branch, point, the type's mark and the label */
+std::string autox_point_row_key(long branch, long point, std::string_view mark, long label);
+/* A line of the table or of fort.9 with the numbers of its branch and label moved by the callers' maps: a point's row
+   (autox_point_row_key), a line that starts "{:4} {:5}" (branch, point: the iteration and note lines), an iteration
+   line's " Branch {:2} N=", and the stop lines, warnings and notes that say "Branch N", "Br N" or "branch N". Parsed by the writers' own layout, whatever the widths a large number makes of it; any
+   other line as it is. */
+std::string autox_renumbered_line(std::string_view line, const std::function<int(int)> &branch, const std::function<int(int)> &label);
+std::string autox_branch_row_key(long branch, long point, long type, long label);
 bool read_autox_solution_header(TokenReader &reader, AutoxSolutionHeader &h, long parameters);
 // Read a collocation payload into the formulation's explicit target columns.
 // tm selects orbit rows (which carry a time); null selects tangent rows.
@@ -153,8 +169,30 @@ const char *autox_fort_path(const AutoxRun &run, int unit);
 /* do_autox's iold: autoX's fort.3 is opened for a restart (OPEN_3) or not; isave: the run's solutions replace the .s file or
    are added to it */
 inline constexpr int OPEN_3 = 1, NO_OPEN_3 = 0, OVERWRITE = 0, APPEND = 1;
+/* what every start of a run checks and prepares first: the model has a parameter, and isave and the parameters
+   a restart label holds are settled; the error is what is wrong */
+Result<> autox_run_prologue(Session &s, int &isave);
+/* one run's depth, however it ends: the outermost clears why the last runs' branches ended (autox_stop.h) */
+struct AutoxDepth {
+  int &depth;
+  explicit AutoxDepth(Session &s);
+  ~AutoxDepth() { depth--; }
+  AutoxDepth(const AutoxDepth &)=delete;
+  AutoxDepth &operator=(const AutoxDepth &)=delete;
+};
+/* where the run's solutions are kept: the dir may have changed since the last run */
+void create_autox_file_name(Session &s);
+/* a run made ready (the Session's settings into run.params, its folder and fort files, where it started from and its
+   first point's stability); the error is what is wrong. After create_autox_file_name. */
+Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold);
+/* a run that left a model parameter not finite (a diverged Newton step) puts the value it had before, `before` (the model's
+   nupar parameters), back, with a warning (QA SCI-001) */
+void autox_restore_finite_pars(Session &s, const double *before);
 /* the numerics of one run, which ends early with the Error it failed with */
 std::optional<Error> autox_numerics(AutoxRun &run);
+/* what a run that failed shows: its Error as the command returns it ("autoX stopped: ..."), also written to the autoX
+   window's Output, with the command's place when it has none */
+Error autox_shown_failure(Error failed);
 /* the end of a run (or of one job of several, once it is joined): why its branches ended is the Session's, its fort files
    the session's .b/.d/.s (isave, as close_autox), and what failed is shown and returned for the command */
 std::optional<Error> autox_end_run(Session &s, AutoxRun &run, std::optional<Error> failed, int isave);

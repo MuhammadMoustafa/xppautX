@@ -4,8 +4,10 @@
 #include "autox_c.h"
 #include "xAutox.h"
 #include "autox_codes.h"
+#include "autox_nox.h"
 
 struct AutoxState; /* autox_state.h */
+namespace xpp { struct Session; /* session.h */ }
 
 namespace xpp {
 
@@ -13,6 +15,11 @@ namespace xpp {
 
 /* One failure message for a refused autoX solution, rendered by do_autox. */
 [[noreturn]] void autox_nonfinite(const iap_type &iap, integer point);
+
+/* why a diagram of that many points (a Session's, with the points of the jobs not joined yet) takes no more, or nothing */
+std::optional<std::string> autox_diagram_full(std::size_t points);
+/* what it says (the same whichever run reaches the limit: a run's own buffer or the join of jobs) */
+std::string autox_diagram_limit_message();
 
 /* Start checks run before storing a point or taking a continuation step. */
 void autox_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const integer *icp);
@@ -22,6 +29,11 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
 /* a point's type from autoX's signs: a negative branch is periodic, a
    negative point stable (a zero sign: a stable steady state) */
 DiagramPointType get_bif_type(int ibr, int ntot);
+/* the point p of a run into the Session's diagram, drawn: a run's addbif, and the join of jobs (autox_jobs.cpp), do it;
+   new_segment: the point starts a branch (the drawing's new segment). p.from is the label its run started from, or 0 */
+void autox_store_point(Session &s, const DIAGRAM &p, bool new_segment);
+/* a start at or outside the parameter window's edge with the step leading out of it, which no run can make */
+bool autox_start_points_away(double value, double rl0, double rl1, double ds);
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int labw, double *a, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> u0, std::span<const double> ubar);
 
 /* the autoX run's own parameters (run) from its settings (st.bifur,

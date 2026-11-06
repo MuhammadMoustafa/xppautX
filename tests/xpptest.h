@@ -8,6 +8,7 @@
 #ifndef XPPTEST_H
 #define XPPTEST_H
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static int tests_run, tests_failed;
@@ -15,6 +16,16 @@ static int tests_run, tests_failed;
 /* stdout unbuffered: a test that crashes keeps every FAIL line it printed
    before, which a pipe's buffer (CI's log) would otherwise lose with it */
 static const int tests_stdout_unbuffered = setvbuf(stdout, NULL, _IONBF, 0);
+
+/* an environment variable set to value, or removed (value null), on every platform: 0 when it worked */
+static inline int test_setenv(const char *name, const char *value)
+{
+#ifdef _WIN32
+    return _putenv_s(name, value ? value : "");
+#else
+    return value ? setenv(name, value, 1) : unsetenv(name);
+#endif
+}
 
 #define CHECK(cond) do {                                                  \
     tests_run++;                                                          \

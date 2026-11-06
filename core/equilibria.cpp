@@ -57,7 +57,7 @@ enum class SingStatus { found, no_root, no_eigenvalues };
    Leaves work as the Jacobian transposed for the eigenvalue
    solver and oldwork as the Jacobian itself, work then back to oldwork
    transposed (as get_evec wants it). */
-xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double *x, double eps, double err, double big, int maxit, int n, int *ierr, bool ghost=false)
+xpp::Result<SingStatus> find_equilibrium(EquilibriumModel &model, Equilibrium &q, double *x, double eps, double err, double big, int maxit, int n, int *ierr, bool ghost=false)
 {
  int i,j;
  double temp;
@@ -71,13 +71,13 @@ xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double
  q.b=q.eval+2*n;
  q.bp=q.b+n;
  double *ework=q.bp+n;
- if(auto r=rooter(s,x,err,eps,big,q.work,q.run,maxit,n);!r)return std::unexpected(r.error());
+ if(auto r=rooter(model,x,err,eps,big,q.work,q.run,maxit,n);!r)return std::unexpected(r.error());
  *ierr=q.run.end==NewtonEnd::converged?0:1;
  if(*ierr!=0)
  {
   std::copy(q.old_x.begin(),q.old_x.end(),x);
   if(!ghost)return SingStatus::no_root;
-  getjac(s,x,q.oldwork,eps,q.work,n); /* oldwork is free until the copy below: getjac's scratch */
+  getjac(model,x,q.oldwork,eps,q.work,n); /* oldwork is free until the copy below: getjac's scratch */
  }
  std::copy(q.work,q.work+n*n,q.oldwork);
 /* Transpose for Eigen        */
@@ -94,7 +94,7 @@ xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double
  {
   double real=q.eval[2*i];
   double imag=q.eval[2*i+1];
-  if(xpp::solver_info(s.numerics.method).traits.discrete)real=real*real+imag*imag-1.00;
+  if(model.discrete())real=real*real+imag*imag-1.00;
   if(fabs(imag)<.00000001)imag=0.0;
   if(real<0.0)
   {
@@ -133,6 +133,13 @@ xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double
    q.work[i*n+j]=temp;
   }
  return SingStatus::found;
+}
+
+/* the same on the Session's own evaluation */
+xpp::Result<SingStatus> find_equilibrium(xpp::Session &s, Equilibrium &q, double *x, double eps, double err, double big, int maxit, int n, int *ierr, bool ghost=false)
+{
+ const auto model=session_equilibrium_model(s,n);
+ return find_equilibrium(*model,q,x,eps,err,big,maxit,n,ierr,ghost);
 }
 
 /* the equilibrium's symbol on the graph: saddle, unstable or stable */
@@ -395,7 +402,7 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
   return failure.result();
 }
 
-xpp::Result<EquilibriumNear> equilibrium_near(xpp::Session &s, std::span<const double> start)
+xpp::Result<EquilibriumNear> equilibrium_near(const xpp::Session &s, EquilibriumModel &model, std::span<const double> start)
 {
  const int n=static_cast<int>(start.size());
  const auto &eq=s.numerics.equilibria;
@@ -403,7 +410,7 @@ xpp::Result<EquilibriumNear> equilibrium_near(xpp::Session &s, std::span<const d
  EquilibriumNear root;
  root.x.assign(start.begin(),start.end());
  int ierr=0;
- auto found=find_equilibrium(s,q,root.x.data(),eq.jacobian_step,eq.newton_tolerance,eq.search_limit,eq.max_iterations,n,&ierr,true);
+ auto found=find_equilibrium(model,q,root.x.data(),eq.jacobian_step,eq.newton_tolerance,eq.search_limit,eq.max_iterations,n,&ierr,true);
  if(!found)return std::unexpected(found.error());
  if(*found==SingStatus::no_eigenvalues)return xpp::fail("equilibrium","Could not compute eigenvalues",command_place());
  root.found=q.run.end==NewtonEnd::converged;
@@ -547,13 +554,13 @@ xpp::Result<> get_evec(xpp::Session &s, double *a, double *anew, double *b, doub
      return {};
   }
 
-void getjac(xpp::Session &s, double *x, double *y, double eps, double *dermat, int n)
+void getjac(EquilibriumModel &model, double *x, double *y, double eps, double *dermat, int n)
 {
-  const bool discrete=xpp::solver_info(s.numerics.method).traits.discrete;
-  s.integrator.rhs(0.0,x,y,n);
+  const bool discrete=model.discrete();
+  model.rhs(x,y);
   if(discrete)
     for(int i=0;i<n;i++)y[i]=y[i]-x[i];
-  xpp::jacobian(s,0.0,x,y,n,eps,{xpp::JacobianLayout::RowMajor,0,0,discrete},dermat);
+  model.jacobian(x,y,eps,{xpp::JacobianLayout::RowMajor,0,0,discrete},dermat);
 }
 
 int worst_residual(const double *f, int n)
@@ -565,11 +572,10 @@ int worst_residual(const double *f, int n)
 }
 
 namespace {
-void newton(xpp::Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
+void newton(EquilibriumModel &model, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
 {
  int i,iter,info;
  std::vector<int> ipivot(static_cast<std::size_t>(n));
- char ch;
  double *y,*dermat,*dely;
  double r;
  dermat=work;
@@ -585,28 +591,13 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
  
  while(1)
  {
-   if(program.interactive){
-     ch=my_abort();
- 
-     {
-  
-       if(ch==27)
-	 {
-	   stop(NewtonEnd::cancelled);
-	   return;
-	 }
-       if(ch=='/')
-	 {
-	   stop(NewtonEnd::cancelled);
-	   s.numerics.endsing=true;
-	   return;
-	 }
-       if(ch=='p')s.numerics.pauser=true;
-     }
+   if(model.stopped()){ /* Escape, or "/" ending the search (the model noted it) */
+     stop(NewtonEnd::cancelled);
+     return;
    }
- 
-  getjac(s,x,y,eps,dermat,n);
-  if(s.integrator.step_error)
+
+  getjac(model,x,y,eps,dermat,n);
+  if(model.failed())
   {
    stop(NewtonEnd::step_error);
    return;
@@ -628,8 +619,8 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
   run.change=r;
   if(r<err)
   {
-     getjac(s,x,y,eps,dermat,n);
-     if(xpp::solver_info(s.numerics.method).traits.discrete)
+     getjac(model,x,y,eps,dermat,n);
+     if(model.discrete())
      for(i=0;i<n;i++)dermat[i*(n+1)]+=1.0;
      run.iterations=iter+1;
      return; /* success !! */
@@ -649,20 +640,58 @@ void newton(xpp::Session &s, double *x, double err, double eps, double big, doub
 }
 }
 
-xpp::Result<> rooter(xpp::Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
+xpp::Result<> rooter(EquilibriumModel &model, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
 {
- xpp::Computation computing; /* what Escape stops (xpp_job.h) */
  const std::vector<double> start(x,x+n);
  try {
-   newton(s,x,err,eps,big,work,run,maxit,n);
+   newton(model,x,err,eps,big,work,run,maxit,n);
  } catch (const xpp::JacobianFailed &failed) {
    std::copy(start.begin(),start.end(),x);
    return std::unexpected(failed.error);
  }
- if(s.integrator.step_error){
+ if(model.failed()){
    std::copy(start.begin(),start.end(),x);
-   return std::unexpected(take_step_error(s).error());
+   return std::unexpected(model.take_failure());
  }
  return {};
+}
+
+xpp::Result<> rooter(xpp::Session &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
+{
+ const auto model=session_equilibrium_model(s,n);
+ return rooter(*model,x,err,eps,big,work,run,maxit,n);
+}
+
+namespace {
+/* the Session's own right-hand side and Jacobian, and its front end's keys */
+class SessionEquilibriumModel final : public EquilibriumModel {
+public:
+  SessionEquilibriumModel(Session &s,int n) : s_(s), n_(n) { job::compute_begin(); } /* what Escape stops (xpp_job.h) */
+  ~SessionEquilibriumModel() override { job::compute_end(); }
+  void rhs(const double *x,double *f) override { s_.integrator.rhs(0.0,const_cast<double *>(x),f,n_); }
+  void jacobian(const double *x,const double *f0,double eps,const JacobianForm &form,double *out) override
+  {
+    xpp::jacobian(s_,0.0,x,f0,n_,eps,form,out);
+  }
+  bool discrete() const override { return xpp::solver_info(s_.numerics.method).traits.discrete; }
+  bool stopped() override
+  {
+    if(!program.interactive)return false;
+    const char ch=my_abort();
+    if(ch=='/')s_.numerics.endsing=true;
+    if(ch=='p')s_.numerics.pauser=true;
+    return ch==27||ch=='/';
+  }
+  bool failed() const override { return s_.integrator.step_error.has_value(); }
+  Error take_failure() override { return take_step_error(s_).error(); }
+private:
+  Session &s_;
+  int n_;
+};
+} // namespace
+
+std::unique_ptr<EquilibriumModel> session_equilibrium_model(xpp::Session &s, int n)
+{
+ return std::make_unique<SessionEquilibriumModel>(s,n);
 }
 } // namespace xpp

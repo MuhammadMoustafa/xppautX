@@ -18,10 +18,10 @@ import type {AutoxProjection} from './diagram';
 export const NUM_KEYS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points', 'step_size', 'min_step_size',
   'max_step_size', 'parameter_min', 'parameter_max', 'norm_min', 'norm_max', 'parameter_tolerance', 'state_tolerance',
   'special_point_tolerance', 'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail',
-  'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points'] as const;
+  'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points', 'follow_all_branches'] as const;
 export type NumKey = typeof NUM_KEYS[number];
 /** the fields that are true or false, and the one that is one of named levels */
-export type BooleanKey = 'switch_one_direction' | 'suppress_branch_points';
+export type BooleanKey = 'switch_one_direction' | 'suppress_branch_points' | 'follow_all_branches';
 export type ChoiceKey = 'output_detail';
 type NumericKey = Exclude<NumKey, BooleanKey | ChoiceKey>;
 
@@ -59,8 +59,8 @@ export interface NumStep {
 
 export interface NumField {
   key: NumKey;
-  /** autoX's own name for it: shown in the hover, a search word, never typed */
-  auto: string;
+  /** autoX's own name for it: shown in the hover, a search word, never typed; none for a setting autoX has not */
+  auto?: string;
   /** its tooltip: what it does, its valid values and what each option means (autoX's manual) */
   help: string;
 }
@@ -139,13 +139,16 @@ export const NUM_FIELDS: NumField[] = [
   {key: 'suppress_branch_points', auto: 'SuppBP',
     help: 'When checked, do not look for branch points (faster, and no false ones); for periodic orbits there are then no '
       + 'Floquet multipliers, period doublings or tori either. Unchecked: look for them.'},
+  {key: 'follow_all_branches',
+    help: 'When checked, a run from the current state continues in both directions, +step size and -step size, at once, '
+      + 'and shows the diagram when both have ended. Unchecked: only the direction the sign of step size gives.'},
 ];
 
 /** the Numerics dialog's groups, as the core's form has its columns */
 export const NUM_GROUPS: {title: string; keys: NumKey[]}[] = [
   {title: 'Mesh and steps', keys: ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points', 'step_size', 'min_step_size', 'max_step_size']},
   {title: 'Limits and tolerances', keys: ['parameter_min', 'parameter_max', 'norm_min', 'norm_max', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance']},
-  {title: 'Solver', keys: ['mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points']},
+  {title: 'Solver', keys: ['mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points', 'follow_all_branches']},
 ];
 
 export const fieldOf = (key: NumKey): NumField => NUM_FIELDS.find(f => f.key === key)!;

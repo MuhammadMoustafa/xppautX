@@ -380,6 +380,7 @@ int main()
     settings.mark_value = {0.35, 0.3};
     std::string why;
     CHECK(xpp::autox_settings_apply(events_session, settings, why) == 0);
+    events_session.autox_state.follow_all_branches = false; // one run, in the direction of the step
     CHECK(xpp::autox_run_start(events_session,xpp::AutoxRunRequest{}));
     std::vector<double> marks;
     for (const auto &point : events_session.diagram.points) {

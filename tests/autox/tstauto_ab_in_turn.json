@@ -1,0 +1,49 @@
+{
+  "model": "examples/tstauto/ab.odex",
+  "reason": "W596 (#662): XPPAUT's tstauto/ab (AUTO-07p's demo ab, an exothermic reaction): the feed p0 continued from p0 = 0.05 upwards (+DS), then downwards (-DS) from the same start, as two runs in turn. tstauto_ab_both's one run with follow_all_branches gives the same diagram.",
+  "parameters": {"p0": 0.05},
+  "auto07p_skip": "W596 (#662): a check of xppautX against itself (the two runs in turn follow_all_branches must equal); the references have no such run.",
+  "xppaut_skip": "W596 (#662): a check of xppautX against itself (the two runs in turn follow_all_branches must equal); the references have no such run.",
+  "runs": [
+    {
+      "name": "up",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current",
+        "settle": 100
+      },
+      "parameter": "p0",
+      "autox": {
+        "step_size": 0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": 0,
+        "parameter_max": 1.5,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    },
+    {
+      "name": "down",
+      "kind": "equilibrium",
+      "start": {
+        "state": "current",
+        "settle": 100
+      },
+      "parameter": "p0",
+      "autox": {
+        "step_size": -0.02,
+        "min_step_size": 1e-05,
+        "max_step_size": 0.02,
+        "max_steps": 100,
+        "output_every": 20,
+        "parameter_min": 0,
+        "parameter_max": 1.5,
+        "mesh_intervals": 15,
+        "max_branch_switches": 0
+      }
+    }
+  ]
+}

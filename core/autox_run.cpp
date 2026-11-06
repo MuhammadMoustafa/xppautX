@@ -12,6 +12,7 @@
 #include "autox_run.h"
 #include "autox_settings.h"
 #include "autox_evd.h"
+#include "autox_jobs.h"
 #include "diagram.h"
 #include "expr.h"
 #include "expr_decode.h"
@@ -102,7 +103,7 @@ Result<> autox_start_at_per(Session &s)
   s.autox_state.bifur.nfpar=1;
   s.autox_state.two_param=no_calculation;
   s.autox_state.new_period_flag=true;
-  return do_autox(s, opn,cls,s.autox_state.bifur.itp);
+  return autox_run_from_current_state(s, opn,cls);
 }
 
 Result<> autox_new_ss(Session &s, bool replace_diagram)
@@ -121,7 +122,7 @@ Result<> autox_new_ss(Session &s, bool replace_diagram)
       if(s.autox_state.suppress_bp) s.autox_state.bifur.isp=0;;
   s.autox_state.bifur.nfpar=1;
    s.autox_state.two_param=no_calculation;
-  return do_autox(s, opn,cls,s.autox_state.bifur.itp);
+  return autox_run_from_current_state(s, opn,cls);
 }
 
 Result<> autox_new_discrete(Session &s, bool replace_diagram)
@@ -139,7 +140,7 @@ Result<> autox_new_discrete(Session &s, bool replace_diagram)
     if(s.autox_state.suppress_bp) s.autox_state.bifur.isp=0;
   s.autox_state.bifur.nfpar=1;
    s.autox_state.two_param=no_calculation;
-  return do_autox(s, opn,cls,s.autox_state.bifur.itp);
+  return autox_run_from_current_state(s, opn,cls);
 }
  
 Result<> autox_extend_ss(Session &s)

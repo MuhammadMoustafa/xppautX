@@ -267,6 +267,7 @@ class Server:
     def __init__(self, binary, ode, env=None, verbose=False, stdin=subprocess.PIPE, run=None, extra_args=(),
                  parse_float=float, parse_int=int):
         self.verbose = verbose
+        self.follow = FollowOneBranch()
         self.parse_float = parse_float
         self.parse_int = parse_int
         self.owns_run = run is None
@@ -311,6 +312,7 @@ class Server:
         self.events.put({'ev': 'eof', '_t': time.monotonic()})
 
     def send(self, **cmd):
+        self.follow.apply(cmd)
         save_permission(cmd)
         if self.verbose:
             print('  >', json.dumps(cmd))
@@ -362,6 +364,19 @@ class Server:
         self.log_thread.join(timeout=5 * SLOW)
         if self.owns_run:
             shutil.rmtree(self.run, ignore_errors=True)
+
+
+class FollowOneBranch:
+    """W596: the checks follow the one branch they ask for: an autox.run carries follow_all_branches false unless the run,
+    or an autox.configure_numerics sent before it, says otherwise. One per connection to a server, for every client."""
+    def __init__(self):
+        self.follow_all_branches = False
+
+    def apply(self, cmd):
+        if cmd.get('cmd') == 'autox.configure_numerics' and 'follow_all_branches' in cmd:
+            self.follow_all_branches = cmd['follow_all_branches']
+        if cmd.get('cmd') == 'autox.run':
+            cmd.setdefault('follow_all_branches', self.follow_all_branches)
 
 
 def open_autox(s):

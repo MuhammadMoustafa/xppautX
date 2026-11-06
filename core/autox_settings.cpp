@@ -80,6 +80,7 @@ constexpr std::array<NumRule, AUTOX_NUM_N> num_rules = {{
     {Rule::range, 1, INT_MAX},                       /* full_newton_after */
     {Rule::range, 0, INT_MAX},                       /* step_adapt_every */
     {Rule::range, 0, 1},                             /* suppress_branch_points */
+    {Rule::range, 0, 1},                             /* follow_all_branches */
 }};
 
 constexpr std::array<NumField, AUTOX_NUM_N> make_fields()
@@ -158,7 +159,7 @@ void read_num(const xpp::Session &s, double v[AUTOX_NUM_N])
         b.ds, b.dsmin, b.dsmax, b.rl0, b.rl1, b.a0, b.a1, b.epsl, b.epsu, b.epss,
         static_cast<double>(a.iad), static_cast<double>(a.max_branch_switches), a.switch_one_direction ? 1.0 : 0.0,
         static_cast<double>(a.iid), static_cast<double>(a.itmx), static_cast<double>(a.itnw), static_cast<double>(a.nwtn),
-        static_cast<double>(a.iads), s.autox_state.suppress_bp ? 1.0 : 0.0,
+        static_cast<double>(a.iads), s.autox_state.suppress_bp ? 1.0 : 0.0, s.autox_state.follow_all_branches ? 1.0 : 0.0,
     };
     std::memcpy(v, now, sizeof now);
 }
@@ -191,6 +192,7 @@ void write_num(xpp::Session &s, const double v[AUTOX_NUM_N])
     a.nwtn = i(AUTOX_NUM_FULL_NEWTON_AFTER);
     a.iads = i(AUTOX_NUM_STEP_ADAPT_EVERY);
     s.autox_state.suppress_bp = i(AUTOX_NUM_SUPPRESS_BRANCH_POINTS) != 0;
+    s.autox_state.follow_all_branches = i(AUTOX_NUM_FOLLOW_ALL_BRANCHES) != 0;
 }
 
 /* ---- the event ---- */

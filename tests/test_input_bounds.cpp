@@ -17,11 +17,7 @@
 namespace {
 void fail_growth(bool fail)
 {
-#ifdef _WIN32
-    CHECK(_putenv_s("XPP_STORAGE_FAIL_GROW",fail?"1":"")==0);
-#else
-    CHECK((fail?setenv("XPP_STORAGE_FAIL_GROW","1",1):unsetenv("XPP_STORAGE_FAIL_GROW"))==0);
-#endif
+    CHECK(test_setenv("XPP_STORAGE_FAIL_GROW",fail?"1":nullptr)==0);
 }
 }
 

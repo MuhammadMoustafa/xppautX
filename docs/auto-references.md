@@ -2840,3 +2840,7 @@ turns past 90 degrees only, which the 83 models show of none but this one.
 
 **Not done: cycles.** `fnlpbv` takes the direction from `solvbv` with the old tangent in the same way (the last row of the bordered system); a cycle's fold at a step that turns the
 tangent past 90 degrees has the same hazard. No description of ours has one, so it is not changed (YAGNI: nothing shows it); a card for it needs a model that does.
+
+## W596: both directions of a start at once ([#662](https://github.com/MuhammadMoustafa/xppautX/issues/662))
+
+AUTO-07p continues one direction per run (the sign of DS), and so does XPPAUT; the other direction is a second run from the same start. xppautX's `follow_all_branches` (on by default) runs a start from the current state as those two runs at once, +DS and -DS, each a job on its own evaluation, and joins them in a fixed order (+DS first) with the branches and labels numbered as two runs in turn number them: the diagram and autoX's .b, .s and .d files are the same byte for byte (tests/autox `tstauto_ab_both` against `tstauto_ab_in_turn`, and servercheck's Periodic and Hodgkin-Huxley starts). Each direction's points and special points are those of the single run, which the references' comparison descriptions already check; a difference from AUTO-07p lies in nothing but the two runs being one command.

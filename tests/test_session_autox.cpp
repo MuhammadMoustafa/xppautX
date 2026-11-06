@@ -43,6 +43,13 @@
 #include <cmath>
 #include <cstring>
 #include <deque>
+#include <filesystem>
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
+#include <functional>
 #include <limits>
 #include <map>
 #include <string>
@@ -140,6 +147,7 @@ void check_settings_text()
     s.num[xpp::AUTOX_NUM_SWITCH_ONE_DIRECTION]=0;
     s.num[xpp::AUTOX_NUM_OUTPUT_DETAIL]=3; /* a choice is its index; a boolean is 0 or 1 */
     s.num[xpp::AUTOX_NUM_SUPPRESS_BRANCH_POINTS]=1;
+    s.num[xpp::AUTOX_NUM_FOLLOW_ALL_BRANCHES]=0;
     s.plot = xpp::AutoxProjection::average;
     s.var = "v";
     s.par1 = "iapp";
@@ -350,6 +358,252 @@ void check_parameterless_model()
     CHECK(!xpp::files::exists(xpp::autox_solutions_file(s)));
 }
 
+/* W596 (#662): what a run of XPPAUT's tstauto/ab left: autoX's .b, .s and .d files and the diagram */
+struct DirectionsRun {
+    std::string branches, solutions, diagnostics;
+    std::deque<xpp::DIAGRAM> points;
+    std::vector<double> constants, variables; /* the Session's parser when the run ended */
+};
+
+/* ab's feed p0 from 0.05 (and the zero state: not a steady state, so Newton's method refines it) over [0, 1.5] at
+   `step`; the start again as the first run had it, for the run after */
+void directions_settings(xpp::Session &s, double step)
+{
+    xpp::AutoxSettingsSet set;
+    const auto put=[&](int field,double value){ set.has_num[field]=1; set.num[field]=value; };
+    put(xpp::AUTOX_NUM_STEP_SIZE,step);
+    put(xpp::AUTOX_NUM_MIN_STEP_SIZE,1e-5);
+    put(xpp::AUTOX_NUM_MAX_STEP_SIZE,0.02);
+    put(xpp::AUTOX_NUM_MAX_STEPS,60);
+    put(xpp::AUTOX_NUM_OUTPUT_EVERY,20);
+    put(xpp::AUTOX_NUM_PARAMETER_MIN,0);
+    put(xpp::AUTOX_NUM_PARAMETER_MAX,1.5);
+    put(xpp::AUTOX_NUM_MESH_INTERVALS,15);
+    put(xpp::AUTOX_NUM_MAX_BRANCH_SWITCHES,0);
+    std::string why;
+    CHECK(xpp::autox_settings_apply(s,set,why)==0);
+    s.parser.constants[s.model().upar_con[0]]=0.05;
+    std::fill(s.last_ic.begin(),s.last_ic.end(),0.0);
+}
+
+DirectionsRun run_directions(bool follow_all_branches, unsigned threads)
+{
+    xpp::TempDir tmp;
+    DirectionsRun result;
+    CHECK(load("examples/tstauto/ab.odex"));
+    auto &s=xpp::client_session();
+    s.autox_state.dir=tmp.path();
+    xpp::init_autox_win(s);
+    s.autox_state.threads=threads;
+    s.autox_state.follow_all_branches=follow_all_branches;
+    directions_settings(s,0.02);
+    CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
+    if(!follow_all_branches){ /* the other direction, from the same start, as a second run */
+        directions_settings(s,-0.02);
+        CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
+    }
+    result.branches=file_text(s.autox_state.file+".b");
+    result.solutions=file_text(xpp::autox_solutions_file(s));
+    result.diagnostics=file_text(s.autox_state.file+".d");
+    result.points=s.diagram.points;
+    result.constants=s.parser.constants;
+    result.variables=s.parser.variables;
+    return result;
+}
+
+/* the labels the headers of a .s file hold */
+std::vector<int> solution_labels(const std::string &file)
+{
+    std::vector<int> labels;
+    xpp::LineReader lines(file);
+    long skip=0;
+    while(const auto line=lines.next()){
+        if(skip>0){
+            skip--;
+            continue;
+        }
+        xpp::TokenReader fields=xpp::TokenReader::of_text(*line);
+        xpp::AutoxSolutionHeader header;
+        if(!xpp::read_autox_solution_header(fields,header,1000))break;
+        labels.push_back(static_cast<int>(header.lab));
+        skip=header.nskip;
+    }
+    return labels;
+}
+
+/* W596: the numbers of branches and labels in autoX's table and fort.9, moved by a run's offsets: any width, a branch of
+   three digits, a label of five, a point of six */
+void check_renumbered_lines()
+{
+    const std::function<int(int)> branch=[](int value){return value>1?value+100:value;};
+    const std::function<int(int)> label=[](int value){return value>1?value+10000:value;};
+    CHECK(xpp::autox_renumbered_line(xpp::autox_point_row_key(2,7,"LP",12),branch,label)==xpp::autox_point_row_key(102,7,"LP",10012));
+    CHECK(xpp::autox_renumbered_line(xpp::autox_point_row_key(150,123456,"",12345),branch,label)==xpp::autox_point_row_key(250,123456,"",22345));
+    CHECK(xpp::autox_renumbered_line(xpp::autox_point_row_key(-3,9,"SNIC",4)+"   1.000000E+00   2.000000E+00",branch,label)
+          ==xpp::autox_point_row_key(-3,9,"SNIC",10004)+"   1.000000E+00   2.000000E+00"); /* the map leaves a branch of -3, a label of 4 moves */
+    CHECK(xpp::autox_renumbered_line(" Branch  2 N=    7 IT= 1 PAR( 1)=  1.0E-01 U=",branch,label)==" Branch 102 N=    7 IT= 1 PAR( 1)=  1.0E-01 U=");
+    CHECK(xpp::autox_renumbered_line(" Branch 99 N=    7",branch,label)==" Branch 199 N=    7");
+    const std::string iteration="   2     2   4      8.744019E-02                5.866629E-02  2.737760E-01";
+    CHECK(xpp::autox_renumbered_line(iteration,branch,label)==" 102"+iteration.substr(4)); /* an iteration line: its fourth column is a number's, not a label */
+    CHECK(xpp::autox_renumbered_line("   2     2        Eigenvalue  2  -2.061182E+00  0.000000E+00",branch,label)==" 102"+std::string("     2        Eigenvalue  2  -2.061182E+00  0.000000E+00"));
+    CHECK(xpp::autox_renumbered_line("   2     2 NOTE:Retrying step",branch,label)==" 102     2 NOTE:Retrying step");
+    CHECK(xpp::autox_renumbered_line("  BR    PT  IT",branch,label)=="  BR    PT  IT");
+    CHECK(xpp::autox_renumbered_line("   2     9, NOTE:No convergence using minimum step size",branch,label)==" 102     9, NOTE:No convergence using minimum step size");
+}
+
+/* W596: follow_all_branches, one run from an inexact start, is the two directions run in turn: the diagram and autoX's
+   .b, .s and .d files the same byte for byte, at one thread and at two */
+void check_directions()
+{
+    const DirectionsRun in_turn=run_directions(false,1);
+    CHECK(!in_turn.branches.empty() && !in_turn.solutions.empty() && !in_turn.diagnostics.empty());
+    for(const unsigned threads:{1u,2u}){
+        const DirectionsRun both=run_directions(true,threads);
+        CHECK(both.points.size()==in_turn.points.size() && both.points.size()>50);
+        bool same=both.points.size()==in_turn.points.size();
+        for(std::size_t i=0;same&&i<both.points.size();i++){
+            const xpp::DIAGRAM &a=both.points[i],&b=in_turn.points[i];
+            same=a.ibr==b.ibr&&a.ntot==b.ntot&&a.lab==b.lab&&a.itp.kind==b.itp.kind&&a.itp.start==b.itp.start&&a.par==b.par&&a.u0==b.u0&&a.per==b.per&&a.evr==b.evr;
+        }
+        CHECK(same);
+        CHECK(both.branches==in_turn.branches);
+        CHECK(both.solutions==in_turn.solutions);
+        CHECK(both.diagnostics==in_turn.diagnostics);
+        CHECK(both.constants==in_turn.constants && both.variables==in_turn.variables); /* the run leaves the model as two runs do */
+        int branches=0;
+        for(const xpp::DIAGRAM &p:both.points)branches=std::max(branches,std::abs(p.ibr));
+        CHECK(branches==2); /* +DS's branch 1, then -DS's 2 */
+    }
+}
+
+/* W596: autoX's Output (its table and the stop lines) names the diagram's branches, +DS's 1 and -DS's 2, at any thread count */
+void check_directions_output(unsigned threads)
+{
+    xpp::TempDir tmp;
+    CHECK(load("examples/tstauto/ab.odex"));
+    auto &s=xpp::client_session();
+    s.autox_state.dir=tmp.path();
+    xpp::init_autox_win(s);
+    s.autox_state.threads=threads;
+    s.autox_state.follow_all_branches=true;
+    directions_settings(s,0.02);
+    const std::string log=tmp.file("output.log");
+    FILE *const saved=xpp::log_settings.file;
+    xpp::log_settings.file=nullptr;
+    CHECK(xpp::log_open_file(log));
+    xpp::log_set_autox_echo(true);
+    const xpp::Result<> run=xpp::autox_run_start(s,xpp::AutoxRunRequest{});
+    xpp::log_set_autox_echo(false);
+    std::fclose(xpp::log_settings.file);
+    xpp::log_settings.file=saved;
+    CHECK(run);
+    const std::string text=file_text(log);
+    const auto count=[&](const std::string &what){
+        std::size_t n=0;
+        for(std::size_t at=text.find(what);at!=std::string::npos;at=text.find(what,at+1))n++;
+        return n;
+    };
+    CHECK(count("Branch 1 stopped at point")==1 && count("Branch 2 stopped at point")==1); /* -DS's job counted its branch as 1 */
+    CHECK(text.find(xpp::autox_point_row_key(2,1,"EP",0).substr(0,16))!=std::string::npos); /* its first point's row: branch 2, point 1, EP */
+}
+
+/* W596: the diagram's point limit is the whole run's: the points of both jobs and the diagram's, one error, the points
+   up to the limit kept (XPP_DIAGRAM_POINTS_LIMIT lowers it, as servercheck's W432 check does) */
+void check_directions_limit()
+{
+    xpp::TempDir tmp;
+    CHECK(load("examples/tstauto/ab.odex"));
+    auto &s=xpp::client_session();
+    s.autox_state.dir=tmp.path();
+    xpp::init_autox_win(s);
+    s.autox_state.follow_all_branches=true;
+    directions_settings(s,0.02);
+    CHECK(test_setenv("XPP_DIAGRAM_POINTS_LIMIT","30")==0);
+    const xpp::Result<> run=xpp::autox_run_start(s,xpp::AutoxRunRequest{});
+    CHECK(test_setenv("XPP_DIAGRAM_POINTS_LIMIT",nullptr)==0);
+    CHECK(!run && run.error().what.find("the diagram holds 30 points")!=std::string::npos);
+    CHECK(s.diagram.points.size()==30);
+    int branches=0;
+    for(const xpp::DIAGRAM &p:s.diagram.points)branches=std::max(branches,std::abs(p.ibr));
+    CHECK(branches==2); /* both jobs' points were joined up to the limit */
+    std::vector<int> diagram_labels;
+    for(const xpp::DIAGRAM &p:s.diagram.points)if(p.lab>0)diagram_labels.push_back(p.lab);
+    std::vector<int> stored_labels=solution_labels(xpp::autox_solutions_file(s));
+    std::sort(diagram_labels.begin(),diagram_labels.end());
+    std::sort(stored_labels.begin(),stored_labels.end());
+    CHECK(!diagram_labels.empty() && stored_labels==diagram_labels); /* no record of a point the diagram dropped */
+}
+
+/* how many jobs of this process have written at least two points to their solution file (their own scratch folders,
+   xppautoX-<pid>-<n>/fort.8, which autoX flushes at each labelled point) */
+int jobs_with_points()
+{
+#ifdef _WIN32
+    const std::string mine="xppautoX-"+std::to_string(_getpid())+"-";
+#else
+    const std::string mine="xppautoX-"+std::to_string(getpid())+"-";
+#endif
+    int ready=0;
+    for(const auto &entry:std::filesystem::directory_iterator(std::filesystem::temp_directory_path()))
+        if(entry.path().filename().string().rfind(mine,0)==0&&solution_labels((entry.path()/"fort.8").string()).size()>=2)ready++;
+    return ready;
+}
+
+/* what the front end's poll answers while the main thread of a run of jobs waits: Abort once `jobs_wanted` jobs have
+   points, the condition the check is about (the polls' count only bounds a run that never gets there) */
+int jobs_wanted=2,abort_polls=0;
+int abort_when_jobs_have_points(int *iflag)
+{
+    constexpr int safety_polls=20000;
+    *iflag=(jobs_with_points()>=jobs_wanted||++abort_polls>=safety_polls)?1:0;
+    return 0;
+}
+
+/* W596: Stop while both jobs compute (the front end's poll answers Abort once the jobs have written points, in runs
+   that would take minutes): each job keeps the points it had, and the join still numbers them */
+void check_directions_stopped(unsigned threads)
+{
+    xpp::TempDir tmp;
+    CHECK(load("examples/tstauto/ab.odex"));
+    auto &s=xpp::client_session();
+    s.autox_state.dir=tmp.path();
+    xpp::init_autox_win(s);
+    s.autox_state.threads=threads;
+    s.autox_state.follow_all_branches=true;
+    directions_settings(s,0.02);
+    xpp::AutoxSettingsSet slow;
+    slow.has_num[xpp::AUTOX_NUM_STEP_SIZE]=1;
+    slow.num[xpp::AUTOX_NUM_STEP_SIZE]=1e-6;
+    slow.has_num[xpp::AUTOX_NUM_MAX_STEPS]=1;
+    slow.num[xpp::AUTOX_NUM_MAX_STEPS]=100000000;
+    slow.has_num[xpp::AUTOX_NUM_MIN_STEP_SIZE]=1;
+    slow.num[xpp::AUTOX_NUM_MIN_STEP_SIZE]=1e-7;
+    slow.has_num[xpp::AUTOX_NUM_MAX_STEP_SIZE]=1;
+    slow.num[xpp::AUTOX_NUM_MAX_STEP_SIZE]=1e-6;
+    slow.has_num[xpp::AUTOX_NUM_OUTPUT_EVERY]=1;
+    slow.num[xpp::AUTOX_NUM_OUTPUT_EVERY]=10;
+    std::string why;
+    CHECK(xpp::autox_settings_apply(s,slow,why)==0);
+    /* the steady state at p0 = 0.05, so the start needs no Newton refinement */
+    s.last_ic[0]=0.06282240276322631;
+    s.last_ic[1]=0.2931712128950587;
+    CHECK(xpp::autox_parallel_ready(s));
+    int (*const polled)(int *)=xpp::ui.autox_check_abort;
+    jobs_wanted=threads>1?2:1;
+    abort_polls=0;
+    xpp::ui.autox_check_abort=abort_when_jobs_have_points;
+    CHECK(abort_polls<20000);
+    const xpp::Result<> run=xpp::autox_run_start(s,xpp::AutoxRunRequest{});
+    xpp::ui.autox_check_abort=polled;
+    CHECK(run && abort_polls<20000);
+    std::array<int,3> kept{};
+    for(const xpp::DIAGRAM &p:s.diagram.points)if(std::abs(p.ibr)>=1&&std::abs(p.ibr)<=2)kept[static_cast<std::size_t>(std::abs(p.ibr))]++;
+    /* at once, each job kept its own points, +DS's as branch 1 and -DS's as branch 2; one after another (one thread),
+       Stop in +DS ends it and -DS never starts: branch 1 alone */
+    CHECK(kept[1]>=2);
+    CHECK(threads>1 ? kept[2]>=2 : kept[2]==0);
+}
+
 /* W339/#400: a constant changed between branches must come from the older
    branch on grab and restart, including after reopening the entire session. */
 void check_branch_parameters()
@@ -361,6 +615,7 @@ void check_branch_parameters()
     auto &s=xpp::client_session();
     s.autox_state.dir=tmp.path();
     xpp::init_autox_win(s);
+    s.autox_state.follow_all_branches=false; /* these tests start one run each */
     // Mark functions must read a held model constant even though autoX never received it.
     AutoxRun mark_lib;
     mark_lib.session=&s;
@@ -664,6 +919,7 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     CHECK(s.model().autox_rhs_pure==(compiled && !impure));
     s.autox_state.dir=tmp.path();
     xpp::init_autox_win(s);
+    s.autox_state.follow_all_branches=false; /* these tests start one run each */
     s.autox_state.threads=threads; /* the preference's count, selected once for the run */
     CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
     CHECK(xpp::autox_grab_type_index(s,xpp::AutoxPointKind::Hopf,1)==1);
@@ -931,6 +1187,10 @@ int main(int argc,char **argv)
     check_collocation();
     check_brbd_tree();
     check_branch_parameters();
+    check_renumbered_lines();
+    check_directions();
+    check_directions_output(1);
+    check_directions_output(2);
     check_parameterless_model();
     check_pool_reuse();
     check_settings_text();
@@ -974,5 +1234,8 @@ int main(int argc,char **argv)
 
     CHECK(load("examples/ode/lecar.odex"));
     check_import(lecar_autox, tmp);
+    check_directions_limit();
+    check_directions_stopped(2);
+    check_directions_stopped(1); /* last: its Abort leaves the process-wide cancel set */
     TEST_REPORT("session_autox");
 }

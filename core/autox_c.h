@@ -474,6 +474,8 @@ double autox_parameter_value(const AutoxRun &run, integer slot,
 /* the constants the run evaluates on: its own copies when it has them (a
    collocation worker, a job run at once with others), else the Session's parser */
 std::span<const double> autox_constants(const AutoxRun &run);
+/* the model's parameters, as the run holds them, into autoX's par (the model's part of it): a start's */
+void autox_fill_parameters(const AutoxRun &run, double *par);
 /* autoX's checkpoint (xpp::byeautox_), for a run on the main thread; a job's
    thread only reads whether the job was cancelled: the front end is polled by
    the main thread that waits for it */

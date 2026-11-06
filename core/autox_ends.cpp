@@ -49,9 +49,8 @@ std::optional<AutoxHopfEnd> autox_hopf_end(const iap_type &iap, const double *pa
     std::vector<double> at(par, par + 2 * iap.run->parameter_count);
     const double here = par[icp[0]];
     at[icp[0]] = autox_hopf_parameter(watch).value_or(here);
-    std::vector<double> f(mean.size());
-    autox_evaluate_at(iap, at.data(), icp, mean, f);
-    auto found = equilibrium_near(s, mean);
+    const auto model = autox_equilibrium_model(iap, at.data(), icp, mean);
+    auto found = equilibrium_near(s, *model, mean);
     if (!found) {
         AutoxStop &stop = iap.run->stop;
         if (!std::exchange(stop.hopf_failure_noted, true))

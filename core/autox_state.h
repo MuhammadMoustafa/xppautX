@@ -34,7 +34,6 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
-#include <mutex>
 #include <optional>
 #include <span>
 #include <string>
@@ -138,6 +137,9 @@ struct AutoxState {
   unsigned threads=0;
   /* Numerics' SuppBP: no branch point detection */
   bool suppress_bp=false;
+  /* a run from the current state continues both directions, +DS and -DS, as jobs
+     at once (autox_jobs.cpp); off: only the direction the sign of DS gives */
+  bool follow_all_branches=true;
   // AUTO-07p enables codimension-two detection by default.
   std::array<bool, xpp::autox_codim_kinds.size()> special_points=all_special_points();
   /* a homoclinic orbit's left and right equilibria (autox_pp.cpp's stpnt),
@@ -327,15 +329,18 @@ struct AutoxRun {
   bool job=false;
   std::vector<AutoxBufferedPoint> points;
   /* the job runs on a thread of its own: it never polls the front end or
-     reports progress (the main thread does), and takes the lock below to
-     use the Session itself */
+     reports progress (the main thread does), and never touches the Session
+     but to read its model and settings */
   bool on_thread=false;
   /* this job's collocation threads (the thread budget's share when it
      started); 0: the Session's setting */
   unsigned collocation_threads=0;
-  /* held by a job run on a thread while it evaluates on the Session itself
-     (a start that needs Newton's refinement) */
-  std::mutex *session_lock=nullptr;
+  /* a job's start already refined by Newton's method, once for all the jobs, before they began
+     (autox_jobs.cpp): the start check takes it instead of refining again */
+  std::optional<std::vector<double>> refined_start;
+  /* the largest branch and label autoX's newlab found before this run's own: its numbers start above them
+     (autox_lib1.cpp newlab); the join of jobs renumbers by them */
+  int base_branch=0,base_label=0;
   AutoxGlobalScratch scratch{};
   AutoxAssemblyScratch assembly;
   xpp::JacobianScratch jacobian_scratch;

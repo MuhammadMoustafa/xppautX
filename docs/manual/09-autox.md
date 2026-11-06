@@ -276,6 +276,7 @@ a run (W494):
 | `full_newton_after` (NWTN) | after this many iterations the Jacobian is kept (chord method) | whole number, at least 1 |
 | `step_adapt_every` (IADS) | adapt the step every this many steps; 0 keeps it at `step_size`, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
 | `suppress_branch_points` (SuppBP) | checked: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); unchecked: look for them | boolean checkbox |
+| `follow_all_branches` | checked (the default): a run from the current state, an equilibrium start or a Periodic start from an integrated orbit, continues in both directions, +`step_size` and -`step_size`, as two jobs at once (see "Both directions at once" below); unchecked: only the direction the sign of `step_size` gives, as XPPAUT does | boolean checkbox |
 
 Below the three groups the dialog has a fourth, **Computer**, with one choice,
 **Threads**: how many threads autoX uses to compute a periodic orbit or a
@@ -365,6 +366,25 @@ At this point, you are probably ready to run. But before doing a run, here is a 
 Click on “Run” to run the bifurcation. Depending on the situation, a number of menus can come up. For initial exploration, there are three choices, starting at a new steady state, periodic, or boundary value solution. If you are running the example, click on the steady-state option and a nice diagram will show up and a bunch of points will move around in the stability circle. These indicate stability: for fixed points, they represent exponentials of the eigenvalues; for periodics, the Floquet multipliers. Thus those in the circle are stable and those out of the circle are unstable. Bifurcations occur on the circle. The outer ones are “clipped” so that they will always lie in the square, thus you can keep count of them.
 
 The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that autoX wants to keep. There are several of them (web2 draws each with a shape of its own instead of a plain cross, spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
+
+### Both directions at once
+
+With `follow_all_branches` checked, Run from the current state continues the start in both directions: one job takes
++`step_size`, the other -`step_size` (the size is `step_size`'s without its sign). The jobs run at once on the
+computer's physical cores (Threads in the Numerics dialog is the total they share, each job taking at most four for
+its own collocation; with Threads at 1 they run one after another and give the same diagram), and the diagram is shown
+when both have ended. It is the diagram of the two runs one after another, +`step_size` first: the branches and the
+labels are numbered in that order, whichever job finished first, and the diagram, the `.b`, `.s` and `.d` files
+are the same byte for byte. A model whose equations use function tables, networks or delays runs its jobs one after another
+on its own, the same result. A direction that leaves the parameter window at the start (the start at `parameter_min`
+with the step pointing below it) is not run and says so; when both leave it the run is refused as a single one is.
+Stop, while the jobs run at once, ends both, keeps the points each had and joins them; how far each got depends on timing.
+With Threads at 1, and for a model that runs its jobs one after another, Stop in +`step_size`'s job ends the run there:
+-`step_size`'s job never starts. (Replaying a recorded Stop job by job is a later card, W606.) Only these two directions are followed for now: the branches
+that start at the branch and Hopf points the jobs find are started from their labels, as before. The Output panel gets
+each job's table lines when the jobs are joined, +`step_size`'s first, numbered as the diagram is. A direction
+that ends at a Hopf point (HBE) or at a global end evaluates the model's equilibria on its own job, so it gives the same
+numbers whether the jobs run at once or in turn.
 
 ### Run, by command
 

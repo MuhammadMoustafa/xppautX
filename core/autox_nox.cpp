@@ -22,6 +22,7 @@
 #include "typed_values.h"
 #include <string.h>
 #include "autox_evd.h"
+#include <charconv>
 #include "autox_stop.h"
 #include "jacobian.h"
 #include "autox_stability.h"
@@ -100,7 +101,7 @@ static void autox_set_pars_from(xpp::Session &s, const double *par)
    autoX's own working copy of a continuation parameter (autox_pp.cpp's func,
    synced into constants[] every RHS call) not finite. Restore what the
    run started from instead of leaving -nan in the model (QA SCI-001). */
-static void autox_restore_finite_pars(xpp::Session &s, const double *before)
+void autox_restore_finite_pars(xpp::Session &s, const double *before)
 {
     for (int i = 0; i < s.model().nupar; i++) {
         const int idx = s.model().upar_con[i];
@@ -351,6 +352,80 @@ static void stability_run_start(xpp::Session &s, AutoxRun &run)
   autox_stability_run_start(run.stability,run_stability_kind(s),s.autox_state.bifur.isw,point_stability_kind(d),d->itp,d->evr,d->evi);
 }
 
+static std::string autox_solution_key(long branch, long point, long type, long label)
+{
+  return xpp::format("{:5} {:4} {:4} {:4}",branch,point,type,label);
+}
+
+std::optional<std::pair<long,std::size_t>> autox_integer_at(std::string_view line, std::size_t at)
+{
+  while(at<line.size()&&line[at]==' ')at++;
+  long value=0;
+  const char *begin=line.data()+at,*limit=line.data()+line.size();
+  const auto [stop,error]=std::from_chars(begin,limit,value);
+  if(error!=std::errc()||stop==begin||(stop!=limit&&*stop!=' '&&*stop!=','))return std::nullopt; /* a note's "{:4} {:5}, NOTE:" has a comma */
+  return std::pair<long,std::size_t>(value,static_cast<std::size_t>(stop-line.data()));
+}
+
+std::string autox_solution_header_text(const AutoxSolutionHeader &h)
+{
+  return xpp::format("{} {:4} {:4} {:4} {:4} {:4} {:4} {:4} {:4}\n",autox_solution_key(h.ibr,h.ntot,autox_point_encode(h.itp),h.lab),
+                     h.nfpr,h.isw,h.ntpl,h.nar,h.nskip,h.ntst,h.ncol,h.npar);
+}
+
+std::string autox_point_row_key(long branch, long point, std::string_view mark, long label)
+{
+  return xpp::format("{:4} {:5}  {:<4} {:4}",branch,point,mark,label);
+}
+
+namespace {
+/* a type mark autoX writes (autox_point_row_key's): none, or one of the table's */
+bool is_point_mark(std::string_view text)
+{
+  const std::size_t last=text.find_last_not_of(' ');
+  if(last==std::string_view::npos)return true;
+  const std::string_view mark=text.substr(0,last+1);
+  return std::any_of(autox_point_names.begin(),autox_point_names.end(),[&](const AutoxPointName &p){return mark==p.mark;});
+}
+}
+
+std::string autox_renumbered_line(std::string_view line, const std::function<int(int)> &branch, const std::function<int(int)> &label)
+{
+  constexpr std::string_view iteration=" Branch ";
+  if(line.substr(0,iteration.size())==iteration){ /* " Branch {:2} N={:5} ..." */
+    const auto number=autox_integer_at(line,iteration.size());
+    if(!number)return std::string(line);
+    return xpp::format("{}{:2}{}",iteration,branch(static_cast<int>(number->first)),line.substr(number->second));
+  }
+  /* the stop lines and notes: "Branch 2 stopped ...", "Br 2 Pt 30: ...", "Warning: Br 2 Pt 30: ..." */
+  for(const std::string_view prefix:{std::string_view("Branch "),std::string_view("Br "),std::string_view("Warning: Br "),
+                                      std::string_view("autoX: Br "),std::string_view("autoX: branch ")})
+    if(line.substr(0,prefix.size())==prefix)
+      if(const auto number=autox_integer_at(line,prefix.size()))
+        return xpp::format("{}{}{}",prefix,branch(static_cast<int>(number->first)),line.substr(number->second));
+  const auto first=autox_integer_at(line,0);
+  if(!first)return std::string(line);
+  const auto point=autox_integer_at(line,first->second);
+  if(!point||line[first->second]!=' ')return std::string(line);
+  const long moved=branch(static_cast<int>(first->first));
+  /* a point's row: two blanks, the mark in four columns, a blank, the label (autox_point_row_key) */
+  constexpr std::size_t before_mark=2,mark_width=4;
+  const std::size_t mark_at=point->second+before_mark,label_at=mark_at+mark_width+1;
+  if(line.size()>label_at&&line.substr(point->second,before_mark)=="  "&&is_point_mark(line.substr(mark_at,mark_width))&&line[label_at-1]==' ')
+    if(const auto number=autox_integer_at(line,label_at))
+      return autox_point_row_key(moved,point->first,line.substr(mark_at,mark_width).substr(0,line.substr(mark_at,mark_width).find_last_not_of(' ')+1),
+                                 label(static_cast<int>(number->first)))+std::string(line.substr(number->second));
+  /* any other line that begins with a branch and a point: the branch alone, in its four columns */
+  return xpp::format("{:4}",moved)+std::string(line.substr(first->second));
+}
+
+std::string autox_branch_row_key(long branch, long point, long type, long label)
+{
+  return xpp::format("{:4} {:5} {:3} {:3}",branch,point,type,label);
+}
+
+AutoxDepth::AutoxDepth(Session &s) : depth(s.autox_state.depth) { if(depth++==0)autox_stop_clear(s.autox_state.stop); } /* xppautX: T23: why this run's branches end */
+
 std::optional<xpp::Error> autox_numerics(AutoxRun &run)
 {
   try {
@@ -369,6 +444,14 @@ std::optional<xpp::Error> autox_numerics(AutoxRun &run)
   return std::nullopt;
 }
 
+Error autox_shown_failure(Error failed)
+{
+  failed.what="autoX stopped: "+failed.what;
+  xpp::log_autox("{}\n",failed.text()); /* the autoX window's Output */
+  if(failed.place.file.empty() && failed.place.line==0)failed.place=command_place();
+  return failed;
+}
+
 std::optional<xpp::Error> autox_end_run(xpp::Session &s, AutoxRun &run, std::optional<xpp::Error> failed, int isave)
 {
   std::optional<xpp::Error> reported; /* what the run says went wrong, for the command to return */
@@ -376,12 +459,7 @@ std::optional<xpp::Error> autox_end_run(xpp::Session &s, AutoxRun &run, std::opt
   close_autox(s, run, isave); /* this copies fort.8 to the .s file and other 
                         irrelevant stuff 
 		     */
-  if(failed.has_value()){
-    failed->what="autoX stopped: "+failed->what;
-    xpp::log_autox("{}\n",failed->text()); /* the autoX window's Output */
-    if(failed->place.file.empty() && failed->place.line==0)failed->place=command_place();
-    reported=std::move(failed);
-  }
+  if(failed.has_value())reported=autox_shown_failure(std::move(*failed));
   if(run.jacobian_failure){
     xpp::Error e=std::move(*run.jacobian_failure);
     e.what="autoX stopped: "+e.what;
@@ -397,19 +475,17 @@ std::optional<xpp::Error> autox_end_run(xpp::Session &s, AutoxRun &run, std::opt
   return reported;
 }
 
-/* MAIN Running routine  Assumes that Auto structure is set up */
-namespace {
-/* one do_autox call's depth, however it ends */
-struct AutoxDepth {
-  int &depth;
-  explicit AutoxDepth(xpp::Session &s) : depth(s.autox_state.depth) { if(depth++==0)autox_stop_clear(s.autox_state.stop); } /* xppautX: T23: why this run's branches end */
-  ~AutoxDepth() { depth--; }
-  AutoxDepth(const AutoxDepth &)=delete;
-  AutoxDepth &operator=(const AutoxDepth &)=delete;
-};
+Result<> autox_set_up_run(Session &s, AutoxRun &run, int iold)
+{
+  run.session=&s;
+  init_autox(s.autox_state,run.params,s.model().node,s.numerics.jacobian==JACOBIAN_EXACT); /* the continuation's initialization from the settings: what reading in AUTO's parameters and running its init did */
+  if(auto opened=open_autox(s,run,iold);!opened)return opened; /* the run's folder; this copies the relevant files .s  to fort.3 */
+  run.run_from=s.autox_state.bifur.irs>0?s.autox_state.bifur.irs:0; /* the diagram's data say where the run started */
+  stability_run_start(s,run); /* what its first point's stability is (autox_stability.h) */
+  return {};
 }
 
-xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode itp)
+xpp::Result<> autox_run_prologue(xpp::Session &s, int &isave)
 {
     // A model parameter must exist before run setup selects its solver index.
     if(s.model().nupar==0)
@@ -419,25 +495,24 @@ xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode
     if(s.autox_state.diag_flag && isave==OVERWRITE)isave=APPEND;
     if(const DIAGRAM *point=diagram_of_label(s,s.autox_state.bifur.irs))
       autox_set_pars_from(s,diagram_parameters(*point).data());
+    return {};
+}
+
+/* MAIN Running routine  Assumes that Auto structure is set up */
+xpp::Result<> do_autox(xpp::Session &s, int iold, int isave, xpp::AutoxPointCode itp)
+{
+    if(auto prepared=autox_run_prologue(s,isave);!prepared)return prepared;
 
     const AutoxDepth depth(s);
     std::optional<xpp::Error> reported; /* what the run says went wrong, for the command to return */
     int restart_label=0; /* the label a follow-up run goes on from, 0 for none */
     { /* the run lives in here: its memory and folder are gone before a follow-up run starts */
     AutoxRun run; /* this run's own state: nothing of it is the Session's but the model and settings it reads */
-    run.session=&s;
-    init_autox(s.autox_state,run.params,s.model().node,s.numerics.jacobian==JACOBIAN_EXACT); /* this sets up all the continuation initialization 
-                   it is equivalent to reading in auto parameters
-                   and running init in auto 
-		*/
- 
     create_autox_file_name(s); /* where the run's solutions are kept: the dir may have changed since the last run */
-    if(auto opened=open_autox(s, run, iold);!opened)return opened; /* the run's folder; this copies the relevant files .s  to fort.3 */
+    if(auto set_up=autox_set_up_run(s,run,iold);!set_up)return set_up;
     std::optional<xpp::Error> failed; /* the run reports its failure after cleanup */
     {
       const xpp::Job job; /* Abort cancels it (xpp_job.h) */
-      run.run_from=s.autox_state.bifur.irs>0?s.autox_state.bifur.irs:0; /* the diagram's data say where the run started */
-      stability_run_start(s,run); /* what its first point's stability is (autox_stability.h) */
       {
           xpp::Computation computing; /* what Abort stops (xpp_job.h) */
           std::vector<double> before(s.model().nupar);

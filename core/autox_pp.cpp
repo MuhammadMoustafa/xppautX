@@ -215,6 +215,14 @@ int func(AutoxRun &run, integer ndim, const double *u, const integer *icp, integ
 
 } /* func_ */
 
+void autox_fill_parameters(const AutoxRun &run, double *par)
+{
+  const xpp::Session &s=*run.session;
+  const auto parameters=s.autox_state.parameter_layout.parameters(par);
+  const auto constants=autox_constants(run);
+  for(int k=0;k<s.model().nupar;k++)parameters[k]=constants[s.model().upar_con[k]];
+}
+
 int stpnt(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doublereal *par)
 {
   xpp::Session &s=*run.session;
@@ -224,9 +232,7 @@ int stpnt(AutoxRun &run, integer ndim, doublereal t, doublereal *u, doublereal *
 
   const auto &layout=s.autox_state.parameter_layout;
   const auto unknowns=layout.unknowns(par);
-  const auto parameters=layout.parameters(par);
-  const auto constants=autox_constants(run);
-  for(int k=0;k<s.model().nupar;k++)parameters[k]=constants[s.model().upar_con[k]];
+  autox_fill_parameters(run,par);
 
   if(!s.autox_state.new_period_flag){  
     for(i=0;i<ndim;i++)

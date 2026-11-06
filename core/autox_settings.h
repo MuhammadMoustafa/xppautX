@@ -42,7 +42,7 @@ enum {
     AUTOX_NUM_PARAMETER_TOLERANCE, AUTOX_NUM_STATE_TOLERANCE, AUTOX_NUM_SPECIAL_POINT_TOLERANCE,
     AUTOX_NUM_MESH_ADAPT_EVERY, AUTOX_NUM_MAX_BRANCH_SWITCHES, AUTOX_NUM_SWITCH_ONE_DIRECTION, AUTOX_NUM_OUTPUT_DETAIL,
     AUTOX_NUM_MAX_LOCATION_ITERATIONS, AUTOX_NUM_MAX_NEWTON_ITERATIONS, AUTOX_NUM_FULL_NEWTON_AFTER,
-    AUTOX_NUM_STEP_ADAPT_EVERY, AUTOX_NUM_SUPPRESS_BRANCH_POINTS,
+    AUTOX_NUM_STEP_ADAPT_EVERY, AUTOX_NUM_SUPPRESS_BRANCH_POINTS, AUTOX_NUM_FOLLOW_ALL_BRANCHES,
     AUTOX_NUM_N
 };
 
@@ -60,13 +60,14 @@ inline constexpr std::array<const char *, AUTOX_NUM_N> autox_num_keys = {
     "mesh_intervals", "max_steps", "output_every", "collocation_points", "step_size", "min_step_size", "max_step_size",
     "parameter_min", "parameter_max", "norm_min", "norm_max", "parameter_tolerance", "state_tolerance",
     "special_point_tolerance", "mesh_adapt_every", "max_branch_switches", "switch_one_direction", "output_detail",
-    "max_location_iterations", "max_newton_iterations", "full_newton_after", "step_adapt_every", "suppress_branch_points"};
+    "max_location_iterations", "max_newton_iterations", "full_newton_after", "step_adapt_every", "suppress_branch_points",
+    "follow_all_branches"};
 inline constexpr std::array<AutoxFieldShape, AUTOX_NUM_N> autox_num_shapes = {
     AutoxFieldShape::whole, AutoxFieldShape::whole, AutoxFieldShape::whole, AutoxFieldShape::whole, AutoxFieldShape::real,
     AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real,
     AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::whole,
     AutoxFieldShape::whole, AutoxFieldShape::boolean, AutoxFieldShape::choice, AutoxFieldShape::whole, AutoxFieldShape::whole,
-    AutoxFieldShape::whole, AutoxFieldShape::whole, AutoxFieldShape::boolean};
+    AutoxFieldShape::whole, AutoxFieldShape::whole, AutoxFieldShape::boolean, AutoxFieldShape::boolean};
 
 /* the key of Numerics field i in the event, the command and the files
    ("mesh_intervals", ...); NULL or empty out of range */

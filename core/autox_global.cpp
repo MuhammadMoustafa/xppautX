@@ -7,6 +7,9 @@
 #include "autox_c.h"
 #include "autox_global.h"
 #include "equilibria.h"
+#include "jacobian.h"
+#include "solver.h"
+#include "xpp_job.h"
 #include "model.h"
 #include "session.h"
 #include "xpp_io.h"
@@ -77,6 +80,28 @@ std::vector<std::size_t> autox_slow_points(std::span<const double> speeds, doubl
 
 namespace {
 
+/* the model on a run's own constants (AutoxRun::pure_rhs): autoX's func at the parameters, and the Jacobian from them */
+class RunEquilibriumModel final : public EquilibriumModel {
+public:
+    RunEquilibriumModel(const iap_type &iap, const double *par, const std::ptrdiff_t *icp)
+        : run_(*iap.run), ndm_(iap.ndm), nfpr_(iap.nfpr), par_(par, par + iap.run->parameter_count), icp_(icp, icp + iap.nfpr) {}
+    void rhs(const double *x, double *f) override { func(run_, ndm_, x, icp_.data(), nfpr_, par_.data(), 0, f, nullptr, nullptr); }
+    void jacobian(const double *x, const double *f0, double eps, const JacobianForm &form, double *out) override
+    {
+        /* the constants are par's: the rhs at x just set them */
+        model_jacobian(*run_.session, run_.jacobian_scratch, autox_constants(run_).data(), 0.0,
+                       [&](double *xp, double *f) { rhs(xp, f); }, x, f0, static_cast<int>(ndm_), eps, form, out);
+    }
+    bool discrete() const override { return solver_info(run_.session->numerics.method).traits.discrete; }
+    bool stopped() override { return job::cancelled(); }
+
+private:
+    AutoxRun &run_;
+    integer ndm_, nfpr_;
+    std::vector<double> par_;
+    std::vector<integer> icp_;
+};
+
 double distance(std::span<const double> a, std::span<const double> b)
 {
     double sum = 0;
@@ -126,11 +151,12 @@ std::optional<AutoxGlobalEnd> autox_global_end(const iap_type &iap, const double
         if (speeds[m] <= speeds[before] && speeds[m] <= speeds[after] && std::find(slow.begin(), slow.end(), m) == slow.end())
             starts.push_back(m);
     }
+    const auto model = autox_equilibrium_model(iap, par, icp, {points.data(), n});
     for (std::size_t k = 0; k < starts.size(); ++k) {
         const bool from_slow = k < slow.size();
         const std::size_t m = starts[k];
         const std::span<const double> start(&points[m * n], n);
-        auto found = equilibrium_near(s, start);
+        auto found = equilibrium_near(s, *model, start);
         if (!found) { /* the model failed to evaluate: the branch still ends, unnamed, with the reason */
             end.failed = found.error().text();
             end.approaches.clear();
@@ -162,6 +188,15 @@ std::string autox_equilibrium_text(const Model &m, std::span<const double> x)
         where += xpp::format("{}\"{}\" = {}", i ? ", " : "", m.uvar_names[i], autox_number_text(x[i]));
     if (x.size() > autox_global_shown_variables) where += xpp::format(", ... ({} variables)", x.size());
     return where;
+}
+
+std::unique_ptr<EquilibriumModel> autox_equilibrium_model(const iap_type &iap, const double *par, const std::ptrdiff_t *icp,
+                                                           std::span<const double> state)
+{
+    if (iap.run->pure_rhs) return std::make_unique<RunEquilibriumModel>(iap, par, icp);
+    std::vector<double> f(static_cast<std::size_t>(iap.ndm));
+    autox_evaluate_at(iap, par, icp, state, f); /* the Session's constants at par, which its evaluation reads */
+    return session_equilibrium_model(*iap.run->session, static_cast<int>(iap.ndm));
 }
 
 void autox_evaluate_at(const iap_type &iap, const double *par, const std::ptrdiff_t *icp, std::span<const double> x,

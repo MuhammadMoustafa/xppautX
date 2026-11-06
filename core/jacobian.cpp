@@ -208,25 +208,33 @@ void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f
 
 void jacobian(Session &s, double t, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out, double *dfdt)
 {
-  if (s.numerics.jacobian == JACOBIAN_EXACT) {
-    exact_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), t, x, f0, n, form, out);
-    if (dfdt) exact_time_derivative(s, s.jacobian_scratch, s.parser.constants.data(), t, x, f0, n, dfdt);
-    return;
-  }
-  std::vector<double> xp(x, x + n);
-  if (dfdt) {
-    std::vector<double> f1(n);
+  const bool exact = s.numerics.jacobian == JACOBIAN_EXACT;
+  if (dfdt && !exact) {
+    std::vector<double> xp(x, x + n), f1(n);
     const double r = difference_step(eps, t);
     s.integrator.rhs(t + r, xp.data(), f1.data(), n);
     for (int i = 0; i < n; i++) dfdt[i] = (f1[i] - f0[i]) / r;
   }
-  /* the right-hand side at (t, xp) into f (for a map's fixed point, f(x)-x) */
+  model_jacobian(s, s.jacobian_scratch, s.parser.constants.data(), t, [&](double *xp, double *f) { s.integrator.rhs(t, xp, f, n); }, x, f0, n, eps, form, out);
+  if (dfdt && exact) exact_time_derivative(s, s.jacobian_scratch, s.parser.constants.data(), t, x, f0, n, dfdt);
+}
+
+void model_jacobian(const Session &s, JacobianScratch &scratch, const double *c, double t,
+                    const std::function<void(double *x, double *f)> &evaluate_rhs, const double *x, const double *f0, int n, double eps,
+                    const JacobianForm &form, double *out)
+{
+  if (s.numerics.jacobian == JACOBIAN_EXACT) {
+    exact_jacobian(s, scratch, c, t, x, f0, n, form, out);
+    return;
+  }
+  std::vector<double> xp(x, x + n);
+  /* the right-hand side at xp into f (for a map's fixed point, f(x)-x) */
   auto rhs = [&](double *f) {
-    s.integrator.rhs(t, xp.data(), f, n);
+    evaluate_rhs(xp.data(), f);
     if (form.discrete_map)
       for (int j = 0; j < n; j++) f[j] -= xp[j];
   };
-  const DifferenceGroups *grouped = difference_groups(s.model(), s.jacobian_scratch, n);
+  const DifferenceGroups *grouped = difference_groups(s.model(), scratch, n);
   if (!grouped) {
     auto evaluate = [&](int i, double xi, double *f) {
       xp[i] = xi;
