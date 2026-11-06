@@ -54,6 +54,13 @@ inline constexpr double autox_global_slow_ratio = 1e-6;
    (1e-4 of the radius in mu26 at its SNIC), a slow mode of the model is
    several times more (3e-3 there) */
 inline constexpr double autox_global_zero_eigenvalue = 1e-3;
+/* The equilibrium the orbit lingers near is one of a saddle-node pair, the node or the saddle whichever the search finds first,
+   when exactly one of its eigenvalues is this fraction of the spectral radius from zero: the pair's two equilibria have
+   eigenvalues of opposite sign and nearly equal size, of the order of the square root of their distance from the fold, so
+   the search can land on either (the class-I Morris-Lecar cycle of tests/autox/ode_lecar_orbit_snic stops at 8e-3, with
+   the pair's eigenvalues 2e-2 of the radius 1.7e-5 beyond the fold). Wider than the zero-eigenvalue tolerance above, which
+   only decides an eigenvalue's sign */
+inline constexpr double autox_global_pair_eigenvalue = 2e-2;
 /* Two equilibria (or slow stretches with none) are one when closer than this
    fraction of the orbit's extent: Newton's tolerance is far below, and the
    saddles of a heteroclinic cycle are an orbit's length apart */
@@ -107,7 +114,7 @@ bool autox_period_watch_add(AutoxPeriodWatch &watch, double period, bool first_p
    near is, by its eigenvalues */
 enum class AutoxApproachKind {
     saddle,          /* hyperbolic, with unstable and stable eigenvalues */
-    zero_eigenvalue, /* an eigenvalue at zero: on a fold of the equilibria */
+    zero_eigenvalue, /* an eigenvalue at or near zero: on or near a fold of the equilibria (a saddle-node pair) */
     other            /* a node or focus, or no real equilibrium and no zero eigenvalue */
 };
 

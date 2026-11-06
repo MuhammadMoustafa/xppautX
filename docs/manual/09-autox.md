@@ -471,7 +471,9 @@ there. Then the end is
 
 - a **SNIC** (saddle-node on invariant circle, mark SNIC) when the one
   equilibrium has a zero eigenvalue (within a thousandth of the spectral
-  radius): the orbit passes the fold of the equilibria, or its ghost where
+  radius), or exactly one eigenvalue within a fiftieth of it (the node or
+  the saddle of the saddle-node pair, whichever the search finds): the orbit
+  passes the fold of the equilibria, or its ghost where
   Newton's method no longer finds one, and the period grows as the inverse
   square root of the distance to it;
 - **Homoclinic** (HOC) when it is one saddle (unstable and stable

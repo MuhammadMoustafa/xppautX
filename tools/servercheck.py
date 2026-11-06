@@ -439,7 +439,7 @@ def check_autox_global_ends():
     the same for a cycle branch whose amplitude falls to zero at a Hopf point and for a branch that closes on itself."""
     cases = [
         ('global_snic', 'snic', 'SNIC', ['parameter mu = 0.99999', 'period growing without bound: T = ', 'times the shortest period of the branch (6.28319)',
-                                         'the ghost of an equilibrium', 'zero eigenvalue, on a fold of the equilibria', 'point type snic (SNIC)']),
+                                         'the ghost of an equilibrium', 'zero eigenvalue approached, on or near a fold of the equilibria', 'point type snic (SNIC)']),
         ('global_homoclinic', 'homoclinic', 'HOC', ['parameter mu = 0.3287', 'period growing without bound: T = ', 'times the shortest period of the branch (4.44288)',
                                                     'lingers near a saddle (1 unstable and 1 stable eigenvalues) at "X" = ', 'point type homoclinic (HOC)']),
         ('global_heteroclinic', 'heteroclinic', 'HEC', ['parameter mu = 0.3314', 'period growing without bound: T = ',

@@ -1754,7 +1754,7 @@ word on why. xppautX stops the branch where the period has grown over 5 points t
 shortest and the orbit lingers (some mesh point's speed |f| at most 1e-6 of the orbit's fastest),
 finds the equilibria the slow stretches of the orbit lie near (Newton's method with the
 Sing pts settings, the eigenvalues at the root, or at the slowest point itself when there is none) and stores the
-end as `snic` (one equilibrium with a zero eigenvalue, within 1e-3 of the spectral radius), `homoclinic`
+end as `snic` (one equilibrium with a zero eigenvalue, within 1e-3 of the spectral radius, or, W607 ([#674](https://github.com/MuhammadMoustafa/xppautX/issues/674)), with exactly one eigenvalue within 2e-2 of it: the node or the saddle of a saddle-node pair, which the search finds either of; checked independently with scipy, the class-I Morris-Lecar equilibria at iapp 0.08325 have eigenvalues -0.00993 and +0.01007 of radius 0.49, and at the end point 0.0832569 the ghost has 0.0039), `homoclinic`
 (one saddle) or `heteroclinic` (two or more saddles), or as an end of branch that says "period growing
 without bound" when none fits (core/autox_global.h gives each number its reason). This is a deliberate
 difference: where the references run on, xppautX stops at the first point whose orbit is that slow.

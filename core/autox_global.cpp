@@ -33,12 +33,20 @@ void autox_approach_judge(AutoxApproach &approach)
         approach.spectral_radius = std::max(approach.spectral_radius, xpp::math::hypot(approach.re[i], approach.im[i]));
     const double zero = autox_global_zero_eigenvalue * approach.spectral_radius;
     approach.unstable = approach.stable = 0;
+    const double near_zero = autox_global_pair_eigenvalue * approach.spectral_radius;
     bool zero_real = false;
+    std::size_t near = 0; /* eigenvalues within the pair's tolerance of zero */
+    bool near_real = false;
     for (std::size_t i = 0; i < approach.re.size(); ++i) {
         if (approach.re[i] > zero) ++approach.unstable;
         else if (approach.re[i] < -zero) ++approach.stable;
         else if (approach.im[i] == 0) zero_real = true;
+        if (std::abs(approach.re[i]) <= near_zero) {
+            ++near;
+            near_real = approach.im[i] == 0;
+        }
     }
+    zero_real = zero_real || (near == 1 && near_real); /* a saddle-node pair's node or saddle */
     if (zero_real) approach.kind = AutoxApproachKind::zero_eigenvalue;
     else if (approach.exists && approach.unstable > 0 && approach.stable > 0) approach.kind = AutoxApproachKind::saddle;
     else approach.kind = AutoxApproachKind::other;
@@ -219,7 +227,7 @@ std::string describe_approach(const Model &m, const AutoxApproach &a)
         double nearest = INFINITY; /* the eigenvalue at zero */
         for (std::size_t i = 0; i < a.re.size(); ++i)
             if (a.im[i] == 0 && std::abs(a.re[i]) < std::abs(nearest)) nearest = a.re[i];
-        return xpp::format("{} with an eigenvalue {} of spectral radius {} (a zero eigenvalue, on a fold of the equilibria) at {}",
+        return xpp::format("{} with an eigenvalue {} of spectral radius {} (a zero eigenvalue approached, on or near a fold of the equilibria) at {}",
                            a.exists ? "an equilibrium" : "the ghost of an equilibrium (Newton's method finds none)", autox_number_text(nearest),
                            autox_number_text(a.spectral_radius), where);
     }
