@@ -2099,7 +2099,7 @@ def section_errors():
             evs = run_any(s, 's')
             errors = [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
             check('W328: a folder autoX cannot write to is reported once, with the original Place',
-                  len(errors) == 1 and scratch in errors[0]['error']
+                  len(errors) == 1 and scratch.replace(os.sep, '/') in errors[0]['error']  # the error names the folder with / on Windows too
                   and errors[0].get('file') == 'command' and errors[0].get('line') == 1
                   and json.loads(errors[0].get('source', '{}')).get('cmd') == 'autox.run'
                   and not s.autox_dirs()[1:] and s.alive(), str(errors))
