@@ -226,13 +226,15 @@ std::vector<double> orbit_extremes(iap_type &iap, integer ndxloc, doublereal *up
   return extremes;
 }
 
-/* W604: a branch that came back to its start ends there (autox_ends.h). The point is labelled branch_closed unless a
-   special point located in the same step has its label (a limit's EP gives way to the label too), and the stop says
-   closed whichever limit it also reached */
+/* W604: a branch that came back to its start ends there (autox_ends.h). The point is labelled branch_closed, and the
+   stop says closed whichever limit it also reached. A point the same step located there is the start itself, not a
+   new one (W611: a cycle branch from a Hopf point returns to it with the fold test's zero at the turn of its
+   parameter there, where a cycle and its phase shifts are one family: no fold of cycles, docs/auto-references.md),
+   so the label gives way to the closure's; only a point the user asked for (UZ) keeps it */
 void end_closed_branch(iap_type &iap, xpp::AutoxPointCode &itp, xpp::AutoxStopAt &stop_at) {
   if (!iap.run->stop.closure_gap) return;
   iap.istop = 1;
-  if (itp.kind == xpp::AutoxPointKind::Regular || itp.kind == xpp::AutoxPointKind::Output || itp.kind == xpp::AutoxPointKind::End)
+  if (itp.kind != xpp::AutoxPointKind::UserZero)
     itp = xpp::AutoxPointCode{xpp::AutoxPointKind::BranchClosed, xpp::AutoxPointKind::Regular};
   iap.itp = itp;
   stop_at.closed = true, stop_at.user = 0;

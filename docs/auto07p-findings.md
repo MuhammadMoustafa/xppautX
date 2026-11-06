@@ -51,6 +51,7 @@ so the index started empty.
 | [14](#14-the-fold-test-of-a-switched-branch-starts-at-its-third-point) | Branch switching | a fold between the second and third point of a branch started by a switch is never labelled: the tests start at 0 and are first evaluated at the third point | [W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634) |
 | [15](#15-the-tests-of-a-branchs-first-steps-are-not-made) | Special-point location | a zero between a branch's start and its third point (equilibria; cycles: its second) is never labelled: the tests start at 0 and the second point of an equilibrium branch is not even stored | [W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637) |
 | [16](#16-the-fold-test-of-an-equilibrium-is-oriented-by-the-old-tangent) | Special-point location | the fold test of equilibria is oriented by the tangent the step started with, so a step that turns past 90 degrees (a coarse step across a fold's tight turn) leaves its sign unchanged where the fold is and the fold is located a step late, half a step off | [W609 / #676](https://github.com/MuhammadMoustafa/xppautX/issues/676) |
+| [17](#17-a-fold-tests-zero-at-the-hopf-point-a-branch-returns-to-is-labelled-lp) | Special-point location | a branch of cycles that returns to its own Hopf point passes the parabola's vertex of the Hopf family where the fold test changes sign, and is labelled LP with the multipliers 1 and 1; the cycles have no fold there | [W611 / #679](https://github.com/MuhammadMoustafa/xppautX/issues/679) |
 
 ## 1. An equilibrium's period depends on the spectrum's order outside the conservative band
 
@@ -518,3 +519,14 @@ at. AUTO-07p has the same row ([ae.f90:587-592](../reference/auto-07p/src/ae.f90
 
 **xppautX:** the null vector is oriented by the step just taken, `(u - uold)` over the step's signed length (core/autox_lib1.cpp `fnlpae`), so the sign changes where the fold is and the
 location finds it. Cycles (`fnlpbv`, which takes the direction from `solvbv` with the old tangent in the same way) keep AUTO-07p's orientation; the same hazard is there. docs/auto-references.md W609.
+
+## 17. A fold test's zero at the Hopf point a branch returns to is labelled LP
+
+A branch of cycles that comes back to its own Hopf point passes the parabola's vertex of the Hopf family: the parameter turns and `FNLPBV`'s test
+([toolboxbv.f90:330-363](../reference/auto-07p/src/toolboxbv.f90#L330), `AP%FLDF`) changes sign, so AUTO-07p labels an LP there with the multipliers 1 and 1; a cycle and its phase shifts are one family, and
+there is no fold of cycles at zero amplitude unless the first Lyapunov coefficient is zero.
+
+**Evidence** (tests/autox/lecar_hopf_closure.json, lecar at the class-II parameters, AUTO-07p 0.9.4 from `tools/auto_reference.py`): from AH2 (iapp 0.26245344584) the branch labels LP 24, 55, 75, 106,
+then LP 115 at iapp 0.26245344162, period 14.445032, and goes on past the Hopf point: with 2000 steps the same LP again at 226, 337, 448. Shooting from the model's equations (docs/auto-references.md W611) gives (H - iapp)/A^2 = 0.4825 for A = 0.0005 to 0.01.
+
+**xppautX:** the branch ends there as `branch_closed` (W604) and the closure's label replaces the fold's ([W611 / #679](https://github.com/MuhammadMoustafa/xppautX/issues/679); docs/auto-references.md W611).

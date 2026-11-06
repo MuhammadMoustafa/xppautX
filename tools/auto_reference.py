@@ -56,7 +56,7 @@ from comparison_measure import clock, elapsed, run_foreground
 from xppclient import Server, wait_until
 
 ROOT = Path(__file__).resolve().parent.parent
-BASE = ROOT / 'tests/auto'
+BASE = ROOT / 'tests/autox'
 FORMAT = 1
 # AUTO's index of the period among the parameters (PAR(11); core/autox_nox.h AUTO_PERIOD_INDEX is 0-based 10)
 PERIOD = 11
@@ -81,8 +81,8 @@ AUTO_NAMES = dict(mesh_intervals='ntst', max_steps='nmax', output_every='npr', c
 
 def auto_constants(r):
     """The run's settings under AUTO's constants (MXBF's sign is the description's switch_one_direction)."""
-    a = {**DEFAULTS, **{AUTO_NAMES[k]: v for k, v in r['auto'].items() if k in AUTO_NAMES}}
-    if r['auto'].get('switch_one_direction'):
+    a = {**DEFAULTS, **{AUTO_NAMES[k]: v for k, v in r['autox'].items() if k in AUTO_NAMES}}
+    if r['autox'].get('switch_one_direction'):
         a['mxbf'] = -a['mxbf']
     return a
 ISP = {'equilibrium': 1, 'periodic': 2, 'bvp': 2, 'homoclinic': 0, 'heteroclinic': 0}

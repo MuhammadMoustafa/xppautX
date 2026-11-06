@@ -2844,3 +2844,26 @@ tangent past 90 degrees has the same hazard. No description of ours has one, so 
 ## W596: both directions of a start at once ([#662](https://github.com/MuhammadMoustafa/xppautX/issues/662))
 
 AUTO-07p continues one direction per run (the sign of DS), and so does XPPAUT; the other direction is a second run from the same start. xppautX's `follow_all_branches` (on by default) runs a start from the current state as those two runs at once, +DS and -DS, each a job on its own evaluation, and joins them in a fixed order (+DS first) with the branches and labels numbered as two runs in turn number them: the diagram and autoX's .b, .s and .d files are the same byte for byte (tests/autox `tstauto_ab_both` against `tstauto_ab_in_turn`, and servercheck's Periodic and Hodgkin-Huxley starts). Each direction's points and special points are those of the single run, which the references' comparison descriptions already check; a difference from AUTO-07p lies in nothing but the two runs being one command.
+
+## W611: a fold of cycles labelled where a branch closes at its Hopf point ([#679](https://github.com/MuhammadMoustafa/xppautX/issues/679))
+
+`tests/autox/lecar_hopf_closure.json` (the Rinzel and Ermentrout class-II Morris-Lecar parameters of `ode_lecar_orbit_hopf`): the cycles from the Hopf point at iapp
+0.2624534 (AH2) grow, fold at 0.2484 and 0.4657, shrink to amplitude 0.0047 at the other Hopf point (0.4569, period 9.4; the branch passes it, W604's end needs three
+shrinking points below 0.001 and the step reaches none) and come back along themselves to AH2 (point 109). W604 ended the branch there but the fold test had located a zero in that
+step, and the point kept its label, LPC, where the branch is closed.
+
+**Is there a fold of cycles at the closing point? No.** Shooting from the model's equations (scipy `solve_ivp` at 1e-12, `fsolve` on the periodicity and a target amplitude A of
+the voltage's range; the Hopf point is where the Jacobian's trace is 0: iapp 0.26245344519, period 14.44503124) gives, for A = 0.0005, 0.001, 0.002, 0.004, 0.008, 0.016, iapp = 0.2624533246,
+0.2624529627, 0.2624515151, 0.2624457263, 0.2624225952, 0.2623304554: (H - iapp)/A^2 = 0.4824, 0.4825, 0.4825, 0.4824, 0.4820, 0.4804, a parabola with a non-zero first Lyapunov
+coefficient (the periods 14.44506 to 14.47496 agree with the diagram's), so iapp is monotone in the amplitude to 0.2 and the family has no turn in the parameter at zero amplitude. The closing point
+(iapp 0.262453442, amplitude 8.8e-5: 0.45 of the parabola's) lies on it. The fold test's sign change is the parameter's turn at the parabola's vertex, where a cycle and its phase shifts are
+one family (the test's zero is a Hopf point's, not a fold's; a fold of cycles at zero amplitude needs the coefficient zero, a Bautin point). The fold at 0.248414 (amplitude 0.587) is real: shooting gives iapp 0.24841417, 0.24841348, 0.24841755 at A = 0.580, 0.587, 0.600, a minimum.
+
+**The fix** (core/autox_lib1.cpp `end_closed_branch`): a special point located in the step that closes the branch is the start itself, as the closure is where the states are the start's by the same-point rule
+(W604), so the closure's label replaces any kind; only a user's mark (UZ) keeps its label. A fold in the closing step of a branch that did not start at a Hopf point is the same case: the start is where
+it is, already stored once. The baselines of every description (86 models, 26854 points) are unchanged; the description is new (`lecar_hopf_closure`, steps of 0.01, ends at point 109 as `branch_closed`, 4 folds of cycles).
+
+**AUTO-07p** (tools/auto_reference.py, 0.9.4, the same constants, 120 steps) labels an LP at that point (label 115, iapp 0.26245344162, the multipliers 1 and 1) and, with 2000 steps, again at each of the next laps
+(points 226, 337, 448, ...), going round the family without end; it also labels a BP at 0.2515114 (label 110) with the multipliers 1.025 and -0.602 (W547's noise, finding 12: a planar cycle's second multiplier
+is exp of the integral of the trace, here -0.6, so no branch point). Its other points (LP at 0.2484140, 0.4656975, 0.4656983, 0.2484142, BP at 0.4582618) are ours to the digits shown. The two differences are in the
+description (`differences`); XPPAUT's AUTO needs its window and an X server and is not run. tools/auto_reference.py read `tests/auto/` and a run's `auto` key after W599 and failed on every description; both are corrected.
