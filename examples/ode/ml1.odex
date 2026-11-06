@@ -26,7 +26,7 @@ init w = 0
 # some options
 options {
   integration: { total_time: 50 },
-  plot: { nullcline_mesh: 100, xp: v, yp: w, xlo: -1, xhi: 1, ylo: -.1, yhi: 1 },
+  plot: { nullclines.mesh: 100, curves.x: v, curves.y: w, axes.x_low: -1, axes.x_high: 1, axes.y_low: -.1, axes.y_high: 1 },
 }
 # Done!!
 

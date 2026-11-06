@@ -148,18 +148,13 @@ models the descriptions run, 7 are published, 39 are named demos (XPPAUT 8.0's `
 
 | Model | Source | Descriptions | Point types reached |
 |---|---|---|---|
-| `examples/ode/cuplamdif.odex` | demo: XPPAUT 8.0's ode/cuplamdif.ode | `ode_cuplamdif` | none |
 | `examples/ode/del_log.odex` | demo: XPPAUT 8.0's ode/del_log.ode | `ode_del_log` | none |
-| `examples/ode/gausvolt.odex` | demo: XPPAUT 8.0's ode/gausvolt.ode | `ode_gausvolt` | none |
 | `examples/ode/lecar.odex` | demo: XPPAUT 8.0's ode/lecar.ode; Rinzel and Ermentrout 1989, chapter 7, parameters for the W603 orbit starts | `ode_lecar`, `ode_lecar_orbit_snic`, `ode_lecar_orbit_hopf` | cycle_fold, hopf |
 | `examples/ode/ma23.odex` | published: Ma et al. 2023, Table 1 | `ode_ma23` | fold, hopf |
 | `examples/ode/motoneuron6c.odex` | published: Moustafa et al. 2023, ModelDB 267710 | `ode_motoneuron6c` | fold, hopf |
 | `examples/ode/mu26.odex` | published (as code; counted as published, maintainer 2026-10-29): the maintainer's two-compartment PVN neuron (github.com/MuhammadMoustafa/pvn-hcn-marmoset-model) | `ode_mu26_blocked`, `ode_mu26_control` | cusp, cycle_fold, fold, hopf, snic |
 | `examples/ode/osc.odex` | demo: XPPAUT 8.0's ode/osc.ode | `ode_osc` | none |
-| `examples/ode/tstdel.odex` | demo: XPPAUT 8.0's ode/tstdel.ode | `ode_tstdel` | none |
-| `examples/ode/tstdelsp.odex` | demo: XPPAUT 8.0's ode/tstdelsp.ode | `ode_tstdelsp` | none |
 | `examples/ode/tstheti.odex` | demo: XPPAUT 8.0's ode/tstheti.ode | `ode_tstheti` | none |
-| `examples/ode/tstvol3.odex` | demo: XPPAUT 8.0's ode/tstvol3.ode | `ode_tstvol3` | none |
 | `examples/tstauto/ab.odex` | demo: XPPAUT 8.0's tstauto/ab.ode | `tstauto_ab`, `tstauto_ab_fold`, `tstauto_ab_hopf` | bogdanov_takens, cusp, fold, hopf |
 | `examples/tstauto/bigaut.odex` | demo: XPPAUT 8.0's tstauto/bigaut.ode | `tstauto_bigaut` | none |
 | `examples/tstauto/bistable.odex` | demo: XPPAUT 8.0's tstauto/bistable.ode | `tstauto_bistable` | none |

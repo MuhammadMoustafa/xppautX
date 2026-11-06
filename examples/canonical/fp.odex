@@ -15,8 +15,8 @@ fr(t) = 1+cos(th)*(cos(delay(x, tau))*delay(fr, tau)-sin(delay(x, tau))*delay(fi
 fi(t) = 1+cos(th)*(sin(delay(x, tau))*delay(fr, tau)+cos(delay(x, tau))*delay(fi, tau))
 par q = 0.11, xs = 1.07, a = 11.459, th = 1, r = 1.2221, c = 120, eps = 0.1
 options {
-  integration: { dt: .05, total_time: 200, store_from: 50, delay: 4, vmaxpts: 1 },
-  plot: { xp: fr, yp: fi, xlo: -.5, xhi: 2.5, ylo: -.5, yhi: 2.5 },
+  integration: { dt: .05, total_time: 200, store_from: 50, delay.max_delay: 4, delay.history_points: 1 },
+  plot: { curves.x: fr, curves.y: fi, axes.x_low: -.5, axes.x_high: 2.5, axes.y_low: -.5, axes.y_high: 2.5 },
 }
 
 # what followed the .ode's done:

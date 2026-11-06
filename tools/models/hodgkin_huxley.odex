@@ -17,5 +17,5 @@ m' = AM(V)*(1-m)-BM(V)*m
 n' = AN(V)*(1-n)-BN(V)*n
 h' = AH(V)*(1-h)-BH(V)*h
 options {
-  integration: { total_time: 40, method: gear, dt: .25, min_step: 1e-12 },
+  integration: { total_time: 40, method: gear, dt: .25, step.min: 1e-12 },
 }

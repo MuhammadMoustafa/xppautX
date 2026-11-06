@@ -449,10 +449,10 @@ private:
     for (const Statement &s : statements) {
       if (s.kind != Statement::Kind::Options) continue;
       for (const Option &o : s.more().options) {
-        if (o.name != "neartol") continue;
+        if (o.name != "near_tolerance") continue;
         double v = 0;
         if (!xpp::parse_number(o.value, v) || !(v > 0))
-          fail(o.value_pos, xpp::format("neartol: {} is not a positive number", o.value));
+          fail(o.value_pos, xpp::format("near_tolerance: {} is not a positive number", o.value));
         neartol_ = v;
       }
     }
@@ -716,7 +716,7 @@ private:
     const Model::Name *d = find(b.name);
     int index = 0;
     if (d && (d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov || d->kind == Model::NameKind::Param)) return;
-    if (const OptionRow *row = xpp::find_odex_option(b.name, index))
+    if (const OptionRow *row = xpp::find_odex_option_anywhere(b.name, index))
       fail(b.pos, xpp::format("`{}` is a setting: a set holds it under `options: {{ {}: {{ {}: ... }} }}`", b.name, row->group, b.name));
     fail(b.pos, xpp::format("a set's keys are the model's parameters and states, and `{}` is neither", b.name));
   }

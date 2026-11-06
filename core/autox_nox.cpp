@@ -1154,7 +1154,6 @@ void init_autox_win(xpp::Session &s)
   s.autox_state.bifur.icp5=1;
   keep_last_plot(s, LastPlot::OneParameter);
   keep_last_plot(s, LastPlot::TwoParameter);
-  s.autox_state.advanced={};
   s.autox_state.homo_equilibria.nunstab=1;
   s.autox_state.homo_equilibria.nstab=s.model().node-1;
 }

@@ -136,7 +136,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"LINE.MARKER_SIZE", {"3", ""}},
         {"XNC", {"3", "#ffa500"}}, {"YNC", {"4", "#ffcd00"}}, {"SMC", {"1", "#ff0000"}}, {"UMC", {"0", "foreground"}},
         {"SEC", {"22", "#ffa500"}}, {"UEC", {"0", "foreground"}}, {"SPC", {"26", "#00e100"}}, {"UPC", {"28", "#0000ff"}},
-        {"NULLCLINES.FILE", {"nc.dat", "nc.dat"}},
+        {"NULLCLINES.FILE", {"nc.dat", "build/nc.dat"}}, {"AFTER_RUN_FILE", {"after.dat", ""}},
         {"RANGERESET", {"n", "false"}},
         {"RANGEOLDIC", {"n", "false"}},
         {"AUTOVAR", {"y", "1"}},         /* autoX counts from x */
@@ -328,17 +328,17 @@ int main(void)
     /* the limits and the nullclines' options: our own words in a .odex, XPPAUT's bound and ncdraw
        (each several of ours) in a .ode */
     CHECK(write_file("build/test_limits.odex", "x' = -x\noptions { integration: { state_limit: 7, stop_at_limit: false }, equilibria: { search_limit: 9 }, "
-                                               "plot: { nullclines.draw: true, nullclines.file: \"nc.dat\" } }\n"));
+                                               "plot: { nullclines.draw: true }, output: { nullclines_file: \"nc.dat\" } }\n"));
     {
         const xpp::Session *l = load("build/test_limits.odex");
         CHECK(l && l->numerics.state_limit == 7 && !l->numerics.stop_at_limit && l->numerics.equilibria.search_limit == 9);
-        CHECK(l && l->nullclines.draw && l->nullclines.file == "nc.dat");
+        CHECK(l && l->nullclines.draw && l->nullclines.file == "build/nc.dat");
     }
     for (const char *ncdraw : {"0", "1", "2"}) {
         CHECK(write_file("build/test_bound.ode", xpp::format("x'=-x\n@ bound=7 ncdraw={}\ndone\n", ncdraw)));
         const xpp::Session *l = load("build/test_bound.ode");
         CHECK(l && l->numerics.state_limit == 7 && l->numerics.stop_at_limit && l->numerics.equilibria.search_limit == 7);
-        CHECK(l && l->nullclines.draw == (std::string_view(ncdraw) == "1") && l->nullclines.file == (std::string_view(ncdraw) == "2" ? "nullclines.dat" : ""));
+        CHECK(l && l->nullclines.draw == (std::string_view(ncdraw) == "1") && l->nullclines.file == (std::string_view(ncdraw) == "2" ? "build/nullclines.dat" : ""));
     }
     /* XPPAUT's lt is the line style every new curve starts with: its line types; our own style is any */
     for (const int lt : {1, 0, -3}) {
@@ -371,7 +371,7 @@ int main(void)
     }
 
     /* a number or a yes for a choice is no word of ours */
-    for (const char *bad : {"poincare: { poincare_sign: 1 }", "poincare: { poincare_stop: 1 }", "integration: { stop_at_limit: yes }", "integration: { method: 3 }"}) {
+    for (const char *bad : {"poincare: { sign: 1 }", "poincare: { stop: 1 }", "integration: { stop_at_limit: yes }", "integration: { method: 3 }"}) {
         CHECK(write_file("build/test_bad_choice.odex", xpp::format("x' = -x\noptions {{ {} }}\n", bad)));
         char arg0[] = "test_options";
         char file[] = "build/test_bad_choice.odex";
@@ -420,11 +420,14 @@ int main(void)
         CHECK(xpp::find_option("NOSUCH", index, true) == nullptr);
         CHECK(xpp::find_option("NOUT", index, true)->name == "STORE_EVERY" && xpp::find_option("NJMP", index, true) == xpp::find_option("NOUT", index, true));
         CHECK(xpp::find_option("NOUT", index, false) == nullptr && xpp::odex_option_key("NJMP") == "store_every" && xpp::odex_option_key("dt") == "dt"
-               && xpp::odex_option_key("DTMIN") == "min_step" && xpp::odex_option_key("meth") == "method" && xpp::odex_option_key("method") == "method");
+               && xpp::odex_option_key("DTMIN") == "step.min" && xpp::odex_option_key("meth") == "method" && xpp::odex_option_key("method") == "method");
         /* a prefix of a row's name is its key too (xplot, bounds), a name no group has is none */
-        CHECK(xpp::odex_option_key("xplot") == "xp" && xpp::odex_option_key("XP3") == "xp3" && xpp::odex_option_key("bell").empty()
+        CHECK(xpp::odex_option_key("xplot") == "curves.x" && xpp::odex_option_key("XP3") == "curves.x3" && xpp::odex_option_key("bell").empty()
                && xpp::odex_option_key("nosuch").empty());
-        CHECK(xpp::find_odex_option("xp3", index) && index == 3 && !xpp::find_odex_option("xplot", index) && !xpp::find_odex_option("total", index));
+        CHECK(xpp::find_odex_option("plot", "curves.x3", index) && index == 3 && !xpp::find_odex_option("plot", "xplot", index) && !xpp::find_odex_option("integration", "total", index));
+        /* a key is its group's: the same word in another group is another row, a top-level row has no group */
+        CHECK(xpp::find_odex_option("poincare", "variable", index)->name == "POINCARE_VARIABLE" && xpp::find_odex_option("sweep", "variable", index)->name == "RANGEOVER"
+               && !xpp::find_odex_option("plot", "variable", index) && xpp::find_odex_option("", "animation", index) && !xpp::find_odex_option("interface", "animation", index));
     }
 
     /* the defaults a model with no options gets */
@@ -595,7 +598,7 @@ int main(void)
             CHECK(refused.error().what.find("maximum 100000") != std::string::npos);
         }
     }
-    CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\noptions { plot: { ync: 12 } }\n"));
+    CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\noptions { plot: { nullclines.y_color: 12 } }\n"));
     {
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.odex";
@@ -623,7 +626,7 @@ int main(void)
         if (!loaded) CHECK(loaded.error().place.file == bad_odex && loaded.error().place.line == 3);
     }
     for (const std::string color : {"foreground", "red"}) {
-        CHECK(write_file(bad_odex, "x' = -x\noptions { plot: { xnc: " + color + " } }\n"));
+        CHECK(write_file(bad_odex, "x' = -x\noptions { plot: { nullclines.x_color: " + color + " } }\n"));
         char arg0[] = "test_options", file[] = "build/test_options_bad.odex";
         char *argv[] = {arg0, file, nullptr};
         const xpp::Loaded loaded = load_args(2, argv, 1);
@@ -750,7 +753,7 @@ int main(void)
         };
         for (const Case c : {Case{"out.dat", "build/out.dat"}, Case{"sub/o.dat", "build/sub/o.dat"},
                              Case{"../simulations/xpp.dat", ""}, Case{"/tmp/x.dat", ""}, Case{"sub/../../x.dat", ""}}) {
-            const std::string text = odex ? xpp::format("x' = -x\noptions {{ output: {{ output: \"{}\" }} }}\n", c.value)
+            const std::string text = odex ? xpp::format("x' = -x\noptions {{ output: {{ data_file: \"{}\" }} }}\n", c.value)
                                           : std::string(model_text) + "@ total=5\n@ output=" + c.value + "\ndone\n";
             CHECK(write_file(file_name, text));
             char arg0[] = "test_options";
@@ -778,7 +781,7 @@ int main(void)
        file and this path, so the next load does not ask, and another path asks */
     {
         const auto load_output = [&](const char *path) {
-            CHECK(write_file(bad_odex, std::string("x' = -x\noptions { output: { output: \"") + path + "\" } }\n"));
+            CHECK(write_file(bad_odex, std::string("x' = -x\noptions { output: { data_file: \"") + path + "\" } }\n"));
             char arg0[] = "test_options";
             char arg1[64];
             std::snprintf(arg1, sizeof arg1, "%s", bad_odex);

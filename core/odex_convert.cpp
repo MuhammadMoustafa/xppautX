@@ -1216,14 +1216,14 @@ private:
         continue;
       }
       const bool slider = row && xpp::xppaut_slider_option(*row);
-      if (!row || (row->group.empty() && !slider)) {
+      if (!row || (row->odex.empty() && !slider)) {
         option_note(xpp::format("{}={} in the .ode's set {}: XPP ignores it, so it is dropped", key, value, set.name), "set-value");
         continue;
       }
       if (!xpp::set_holds(*row)) refuse(xpp::format("{}={}: a set does not hold this setting", key, value));
       const std::string option_key = xpp::odex_key(*row, index);
       const std::string text = option_text(*row, key, value, "set-value");
-      const auto same = std::ranges::find_if(settings, [&](const OptionEntry &e) { return e.key == option_key; });
+      const auto same = std::ranges::find_if(settings, [&](const OptionEntry &e) { return e.row == row && e.key == option_key; });
       if (same != settings.end()) same->value = text; /* XPP applies the items in order: the last stays */
       else settings.push_back({option_key, text, row});
     }
@@ -1427,7 +1427,7 @@ private:
     for (const OptionRow &row : xpp::option_rows()) {
       if (row.imported_default.empty()) continue;
       const std::string key = xpp::odex_key(row, 0);
-      if (std::ranges::none_of(entries, [&](const OptionEntry &e) { return e.key == key; }))
+      if (std::ranges::none_of(entries, [&](const OptionEntry &e) { return e.row == &row; }))
         entries.push_back({key, std::string(row.imported_default), &row});
     }
     std::string prefix;
@@ -1440,7 +1440,8 @@ private:
         }
       prefix = noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f", "discrete-map", "info");
       int index = 0;
-      entries.push_back({"method", "discrete", xpp::find_odex_option("method", index)});
+      const OptionRow &method = *xpp::find_option("METHOD", index, false);
+      entries.push_back({xpp::odex_key(method, 0), "discrete", &method});
     }
     std::vector<std::string> presets;
     for (std::size_t slot = 0; slot < s_.sliders.size(); ++slot) {
@@ -1488,7 +1489,7 @@ private:
         continue;
       }
       const bool slider = row && xpp::xppaut_slider_option(*row);
-      if (!row || (row->group.empty() && !slider)) {
+      if (!row || (row->odex.empty() && !slider)) {
         option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row ? "an X11 window setting xppautX does not keep, dropped"
                                                                            : "XPP does not know this option, so it ignores it"),
                     "option");
@@ -1497,7 +1498,7 @@ private:
       if (map && row->rule == OptionRule::method) continue;
       const std::string text = option_text(*row, key, value, "option-value");
       const std::string name = xpp::odex_key(*row, index);
-      const auto same = std::ranges::find_if(entries, [&](const OptionEntry &e) { return e.key == name; });
+      const auto same = std::ranges::find_if(entries, [&](const OptionEntry &e) { return e.row == row && e.key == name; });
       if (same != entries.end() && !row->repeatable) {
         option_note(xpp::format("@ {} is set more than once in the .ode: XPP keeps the last value, {}", name, text), "option");
         same->value = text;
@@ -1527,12 +1528,13 @@ private:
   {
     const xpp::ForeignOptions ours = row.expand(value);
     if (ours.why) refuse(xpp::format("{}={} is {}", key, value, ours.why));
-    for (const auto &[ours_key, ours_value] : ours.items) {
-      int unused = 0;
-      const OptionRow *own = xpp::find_odex_option(ours_key, unused);
-      if (in_set && !xpp::set_holds(*own)) refuse(xpp::format("{}={}: a set does not hold {}", key, value, ours_key));
-      const std::string text = option_text(*own, ours_key, ours_value, in_set ? "set-value" : "option-value");
-      const auto same = std::ranges::find_if(entries, [&](const OptionEntry &e) { return e.key == ours_key; });
+    for (const auto &[ours_name, ours_value] : ours.items) {
+      int index = 0;
+      const OptionRow *own = xpp::find_option(xpp::upper_case(ours_name), index, false);
+      if (in_set && !xpp::set_holds(*own)) refuse(xpp::format("{}={}: a set does not hold {}", key, value, ours_name));
+      const std::string ours_key = xpp::odex_key(*own, index);
+      const std::string text = option_text(*own, ours_name, ours_value, in_set ? "set-value" : "option-value");
+      const auto same = std::ranges::find_if(entries, [&](const OptionEntry &e) { return e.row == own && e.key == ours_key; });
       if (same != entries.end()) same->value = text;
       else entries.push_back({ours_key, text, own});
     }

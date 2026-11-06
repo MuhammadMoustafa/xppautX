@@ -1591,15 +1591,15 @@ each set's data then in `<set>.dat` unless `--outfile` is given):
 | the internal set | `set.apply` with its `name` and scope `all` |
 | `--qsets`/`--qpars`/`--qics`, `-dryrun` | the internal sets, parameters and initial conditions asked for, each under its `#` heading, into the output file (core/lunch-new.cpp `write_values_query`, called by the script itself); nothing is run |
 | the run | `run.initial`, or `run.range` for `@ range=1` or `@ stoch=` |
-| `@ postprocess=` | the analysis it names, with the model's settings: `analysis.histogram`, `analysis.fourier_series`, `analysis.power_spectrum`, `analysis.spectral_density` (with its `type`) or `analysis.histogram_2d` |
+| `@ postprocess=` (`output: { after_run }`) | the analysis it names (written to `after_run_file` when the model names one, `output.dat` keeping the trajectory), with the model's settings: `analysis.histogram`, `analysis.fourier_series`, `analysis.power_spectrum`, `analysis.spectral_density` (with its `type`) or `analysis.histogram_2d` |
 | unless each run of a range wrote its own `output.dat.N`: `@ stoch=1`/`2` | `analysis.load_stochastic_mean` or `analysis.load_stochastic_variance` |
 | output.dat (`@ output=`, `--outfile`; not with `--noout`) | the output columns' rows as `dat` (core/browse_data.cpp `save_data_file`, `browser.export`'s `target` `output`), replacing the file, called by the script itself |
 | `--mkplot` | `plot.export_pdf` (or `plot.export_svg` for `--plotfmt svg`) with the picture parameters of the model |
 
-After a run, the core computes requested nullclines (`nullclines.draw`, `nullclines.file`; a `.ode`'s `ncdraw`)
-and `dfdraw` phase-plane data
-in every mode, before exports: `nullclines.file` (`ncdraw=2`: `nullclines.dat`) also writes the nullclines (a row a segment: `nullcline` 1 or 2, `x1`, `y1`, `x2`, `y2`, in the data format its extension names) and
-`dfdraw=4`/`5` dirfields.dat through the normal writer rules in the current
+After a run, the core computes requested nullclines (`nullclines.draw`, `output: { nullclines_file }`; a `.ode`'s `ncdraw`)
+and `direction_field.draw` phase-plane data (a `.ode`'s `dfdraw`)
+in every mode, before exports: `nullclines_file` (`ncdraw=2`: `nullclines.dat`) also writes the nullclines (a row a segment: `nullcline` 1 or 2, `x1`, `y1`, `x2`, `y2`, in the data format its extension names) and
+`direction_field.draw` `arrows_and_save`/`scaled_arrows_and_save` (`dfdraw=4`/`5`) dirfields.dat through the normal writer rules in the current
 working folder (W346). These are no longer extra script commands.
 After every run the script sends `--equil 0`/`1` as `equilibrium.export` with `file` `"equil.dat"` (`shoot` true for `--equil 1`, `confirm` true to replace the batch output). The files the command line names
 (`--setfile`, `--parfile`, `--icfile`, `--readset`, `--with`) are read by the
@@ -2617,7 +2617,7 @@ yes/no fields (`Reset storage`, `Use old ic's`, `Cycle color`, `Movie`,
 fields of at least 1, Start and End are `real`, and the double range's
 `Vary both` is a `choice` of `together` or `independently`. Every answer is
 read by its kind before any is used, a bad one is an error naming its field.
-`Write each run to its own file` controls `sweep.rangefiles` and matters only
+`Write each run to its own file` controls `sweep.write_files` and matters only
 with Reset storage on. The existing `form` ask and `values` answer carry them.
 
 A range run that fails (a solver's error) ends the sweep with that error,

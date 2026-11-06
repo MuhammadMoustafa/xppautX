@@ -20,7 +20,7 @@ options {
   animation: "pend.anix",
   integration: { state_limit: 1000 },
   equilibria: { search_limit: 1000 },
-  plot: { xp: x, yp: xp, xlo: -4, xhi: 4, ylo: -8, yhi: 8 },
+  plot: { curves.x: x, curves.y: xp, axes.x_low: -4, axes.x_high: 4, axes.y_low: -8, axes.y_high: 8 },
 }
 init x = 2
 # click on numerics colorize color via T.e

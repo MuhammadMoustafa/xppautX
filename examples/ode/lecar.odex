@@ -28,10 +28,10 @@ options {
     min_step_size: 1e-5, max_step_size: .02, parameter_min: -.2, parameter_max: .5,
     output_every: 500, max_steps: 2000,
   },
-  diagram: { autoymax: .4, autoymin: -.5, autoxmin: -.2, autoxmax: .5 },
+  diagram: { y_max: .4, y_min: -.5, x_min: -.2, x_max: .5 },
   plot: {
-    colormap: jet, xlo: -.6, xhi: 1.2, ylo: -.25, yhi: 1.2, xp: v, yp: w, dfgrid: 16,
-    nullclines.draw: true, dfdraw: 2,
+    colormap: jet, axes.x_low: -.6, axes.x_high: 1.2, axes.y_low: -.25, axes.y_high: 1.2, curves.x: v, curves.y: w, direction_field.grid: 16,
+    nullclines.draw: true, direction_field.draw: scaled_arrows,
   },
 }
 #
@@ -40,11 +40,11 @@ set "vvst" {
           iapp: 0.1,
           options: {
             integration: { total_time: 100 },
-            plot: { xp: t, yp: v, xlo: 0, xhi: 100, ylo: -.6, yhi: .5 },
+            plot: { curves.x: t, curves.y: v, axes.x_low: 0, axes.x_high: 100, axes.y_low: -.6, axes.y_high: .5 },
           },
         }
 # plot phaseplane
-set "pp" { options: { plot: { xp: v, yp: w, xlo: -.6, xhi: 1.2, ylo: -.25, yhi: 1.2 } } }
+set "pp" { options: { plot: { curves.x: v, curves.y: w, axes.x_low: -.6, axes.x_high: 1.2, axes.y_low: -.25, axes.y_high: 1.2 } } }
 # now some nice parameter sets for the homoclinic and the Hopf
 set "snic" { v3: 0.1, v4: 0.145, gca: 1, phi: 0.333 }
 set "hopf" { v3: 0, v4: 0.3, gca: 1.1, phi: 0.2 }

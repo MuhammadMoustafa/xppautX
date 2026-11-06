@@ -15,5 +15,5 @@ w[j]' = eps*(vv[j]-gamma*w[j]) for j in 0..20
 options {
   animation: "wave.anix",
   integration: { method: qualrk, dt: .25, total_time: 150 },
-  plot: { xhi: 150, colormap: periodic },
+  plot: { axes.x_high: 150, colormap: periodic },
 }

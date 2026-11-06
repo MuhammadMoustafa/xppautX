@@ -5,5 +5,5 @@ x' = -x
 init x = 1
 options {
   integration: { total_time: 5 },
-  analysis: { postprocess: 2 },
+  output: { after_run: fourier_series },
 }

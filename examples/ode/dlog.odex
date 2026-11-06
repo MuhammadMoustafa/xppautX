@@ -4,6 +4,6 @@ version 4
 x' = a*x*(1-delay(x, tau))
 par tau = 1, a = 2
 options {
-  integration: { delay: 5, total_time: 200 },
+  integration: { delay.max_delay: 5, total_time: 200 },
 }
 init x = 0.5

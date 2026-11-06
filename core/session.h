@@ -134,6 +134,9 @@ struct Session {
      internal set). The Session's, so a load that fails or another model
      opened later never inherits them. */
   std::string batch_out_file = "output.dat";
+  /* the file a batch run writes what its after_run analysis made to (the histogram, the spectrum), so batch_out_file
+     keeps the trajectory; empty: the analysis replaces the table batch_out_file is written from (XPPAUT's way) */
+  std::string after_run_file;
 
   /* the integrator's state (integrate.cpp) */
   IntegratorState integrator;

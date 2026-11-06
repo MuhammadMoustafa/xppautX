@@ -14,5 +14,5 @@ options {
     parameter_tolerance: 1e-9, state_tolerance: 1e-9, special_point_tolerance: 1e-9,
     mesh_intervals: 80, collocation_points: 4,
   },
-  plot: { xp: u, yp: up, xlo: 0, xhi: 1, ylo: -.2, yhi: 0 },
+  plot: { curves.x: u, curves.y: up, axes.x_low: 0, axes.x_high: 1, axes.y_low: -.2, axes.y_high: 0 },
 }

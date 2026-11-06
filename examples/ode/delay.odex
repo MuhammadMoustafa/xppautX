@@ -15,6 +15,6 @@ init x = 1
 aux si = 0
 # set maxdelay
 options {
-  integration: { delay: 20 },
+  integration: { delay.max_delay: 20 },
 }
 # done

@@ -638,8 +638,8 @@ def section_jacobian():
         exact = os.path.join(model_dir, 'lecar.odex')
         with open(LECAR) as f:
             text = f.read()
-        exact_text = text.replace('integration: {', 'integration: { jacobian: exact,', 1)
-        assert exact_text != text, 'lecar.odex has no integration group to give jacobian: exact'
+        exact_text = text.replace('integration: {', 'integration: { jacobian.kind: exact,', 1)
+        assert exact_text != text, 'lecar.odex has no integration group to give jacobian.kind: exact'
         with open(exact, 'w') as f:
             f.write(exact_text)
         diagrams, events = {}, {}
@@ -1841,7 +1841,7 @@ def section_recording():
                 data = source.read(name)
                 if name == 'model/lecar.odex':
                     assert b'options {' in data, 'the recorded lecar.odex has no options block'
-                    data = data.replace(b'options {', ('options {\n  output: { logfile: "' + marker.replace('\\', '/') + '" },').encode(), 1)
+                    data = data.replace(b'options {', ('options {\n  output: { log_file: "' + marker.replace('\\', '/') + '" },').encode(), 1)
                 target.writestr(name, data)
         hostile = template.replace(digits, base64.b64encode(encoded.getvalue()).decode(), 1)
         with open(path, 'w', encoding='utf-8', newline='\n') as f:

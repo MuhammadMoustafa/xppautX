@@ -9,5 +9,5 @@ s2' = (s0+mu-s2)+(s1-s2)-rho*R(s2)
 par s0 = 25.617, mu = 5, rho = 100, kappa = 1
 init s1 = 3.9488, s2 = 1.5037
 options {
-  integration: { total_time: 40, method: gear, dt: .25, min_step: 1e-12 },
+  integration: { total_time: 40, method: gear, dt: .25, step.min: 1e-12 },
 }

@@ -91,7 +91,7 @@ init t2 = 4.5
 init t2p = 5
 options {
   animation: "toy.anix",
-  integration: { state_limit: 10000, method: cvode, dt: .25, absolute_tolerance: 1e-4, relative_tolerance: 1e-5, total_time: 300 },
+  integration: { state_limit: 10000, method: cvode, dt: .25, step.absolute_tolerance: 1e-4, step.relative_tolerance: 1e-5, total_time: 300 },
   equilibria: { search_limit: 10000 },
 }
 

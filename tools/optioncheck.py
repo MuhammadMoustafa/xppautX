@@ -9,7 +9,9 @@ nothing else). The table is core/model_options.cpp. This fails when
     allows for that file: a file in the baseline has a reason on its line,
     and a count may only drop (a menu's ask, a foreign file's import);
   * web2/src/store/steady.ts, the one place the page spells a numerics key,
-    names a key the table does not have.
+    names a key the table does not have;
+  * a grouped row of the table has no `.odex` key, a key that is not snake_case (dots only between
+    a section and its key), or one key twice in a group (W615).
 
 Modes: --check (sourcecheck.sh), --update (rewrite the baseline, keeping
 the reasons of the files still in it), --list (every site).
@@ -90,6 +92,34 @@ def page_problems():
     return bad
 
 
+def key_problems():
+    """the table's grouped rows: each has a key, in snake case, once in its group"""
+    text = cstrip.strip_comments(read(TABLE))
+    start = text.index("constexpr OptionRow rows[] = {")
+    bad, seen = [], {}
+    for row in re.split(r"\n  \{", text[start:])[1:]:
+        group = re.match(r"\.group = option_group::([a-z_]+)", row)
+        if not group:
+            continue
+        head = row.split("\n")[0]
+        name = re.search(r'\.name = "([A-Za-z_0-9.]+)"', head)
+        key = re.search(r'\.odex = (?:"([^"]*)"|(autox_num_keys\[AUTOX_NUM_[A-Z_]+\]))', head)
+        label = name.group(1) if name else head[:40]
+        if not key or not (key.group(1) or key.group(2)):
+            bad.append(f"{TABLE}: the grouped row {label} has no .odex key")
+            continue
+        if key.group(2):  # autoX's numerics: their keys are autox_settings.h's, one list
+            seen[(group.group(1), key.group(2), False)] = label
+            continue
+        if not re.fullmatch(r"([a-z][a-z0-9_]*\.)?[a-z][a-z0-9_]*", key.group(1)):
+            bad.append(f"{TABLE}: the key {key.group(1)} of {label} is not snake_case (a section, a dot, the key)")
+        pair = (group.group(1), key.group(1), "first_digit" in row.split("\n")[0] + (row.split("\n")[1] if "\n" in row else ""))
+        if pair in seen:
+            bad.append(f"{TABLE}: the key {key.group(1)} is given twice in the group {group.group(1)} ({seen[pair]} and {label})")
+        seen[pair] = label
+    return bad
+
+
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "--check"
     found = sites()
@@ -105,7 +135,7 @@ def main():
             f.write("\n".join(lines) + "\n")
         return 0
     allowed = baseline()
-    bad = page_problems()
+    bad = page_problems() + key_problems()
     for rel, hits in found.items():
         if len(hits) > allowed.get(rel, (0, ""))[0]:
             bad.append(f"{rel}: {len(hits)} option names passed as literals, {allowed.get(rel, (0,))[0]} allowed: "

@@ -28,7 +28,7 @@ options {
     max_step_size: 0.05, parameter_min: -1, parameter_max: 1000, parameter_tolerance: 1e-10,
     state_tolerance: 1e-10, special_point_tolerance: 1e-8,
   },
-  diagram: { autoxmin: -1, autoxmax: 1, autoymin: 0, autoymax: 1.5 },
+  diagram: { x_min: -1, x_max: 1, y_min: 0, y_max: 1.5 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

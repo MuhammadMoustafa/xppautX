@@ -87,7 +87,7 @@ void add_options(ValuesPart &part, std::span<const odex::Option> entries, const 
 {
     for (const odex::Option &o : entries) {
         int index = 0;
-        const OptionRow *row = find_odex_option(o.name, index);
+        const OptionRow *row = find_odex_option(o.group, o.name, index);
         if (!row) {
             keep_problem(part, file, o.pos, xpp::format("\"{}\" is not a setting", o.name));
             continue;
@@ -96,7 +96,7 @@ void add_options(ValuesPart &part, std::span<const odex::Option> entries, const 
             if (in_set) keep_problem(part, file, o.pos, xpp::format("\"{}\" is a setting of {}, which no set holds", o.name, row->group));
             continue;
         }
-        part.items.push_back({o.name, o.value, true, file.at(o.pos)});
+        part.items.push_back({option_setting_name(*row, index), o.value, true, file.at(o.pos)});
     }
 }
 
@@ -191,7 +191,7 @@ Result<ValuesSource> read_set_source(Session &s, std::string_view path)
         part.items.push_back({m.uvar_names[static_cast<std::size_t>(i)], odex::print_number(f->last_ic[static_cast<std::size_t>(i)]), false, {}});
     for (const auto *rows : {&f->numerics, &f->range})
         for (const auto &[row, text] : *rows)
-            if (set_holds(*row)) part.items.push_back({odex_key(*row, 0), text, true, {}});
+            if (set_holds(*row)) part.items.push_back({option_setting_name(*row, 0), text, true, {}});
     return ValuesSource{FORMAT_SET, {}, {std::move(part)}};
 }
 

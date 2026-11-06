@@ -62,6 +62,11 @@ private:
     void registry(std::string_view cmd) { lines.push_back(xpp::format("{{\"cmd\":\"{}\"}}", cmd)); }
     void apply_set(std::string_view name);
     void post_process();
+    /* the run's data into batch_out_file (the stochastic mean or variance first); once, until the next run */
+    void save_output();
+    /* a range that resets its storage wrote each run's file itself (integrate.cpp do_range, write_this_run) */
+    bool writes_output() const { return !session.integrator.range.write_files || session.integrator.range.reset == 0; }
+    bool trajectory_saved = false;
     /* the files --silent writes itself replace what is there, unasked, as its key lines' "replace":1 said */
     void replace_files() { xpp::json::session.save_replace = SAVE_REPLACE; }
 };
@@ -80,6 +85,17 @@ void SilentScript::post_process()
     else if (kind == HISTOGRAM_2D) registry("analysis.histogram_2d");
     else if (kind >= FIRST_SPECTRUM && kind <= LAST_SPECTRUM)
         lines.push_back(xpp::format("{{\"cmd\":\"analysis.spectral_density\",\"type\":\"{}\"}}", xpp::spectrum_type_names[static_cast<std::size_t>(kind - FIRST_SPECTRUM)]));
+}
+
+void SilentScript::save_output()
+{
+    const xpp::Session &s = session;
+    trajectory_saved = true;
+    if (s.stochastic.flag == 1 || s.stochastic.flag == 2)
+        registry(s.stochastic.flag == 1 ? "analysis.load_stochastic_mean" : "analysis.load_stochastic_variance");
+    if (s.integrator.suppress_out) return;
+    replace_files();
+    xpp::ok_or_show(xpp::save_data_file(s, xpp::DataTarget::output, "dat", s.batch_out_file));
 }
 
 /* {"cmd":"set.apply","name":name,"scope":"all"}: the whole set */
@@ -116,19 +132,21 @@ void SilentScript::add_run(int set)
         const bool range = session.integrator.range.write_files || session.stochastic.flag > 0;
         registry(range ? "run.range" : "run.initial");
     });
+    /* with after_run_file the trajectory is written first, so the analysis does not replace it */
+    steps.push_back([this] {
+        if (ran && writes_output() && !session.after_run_file.empty() && session.histogram.post_process != 0) save_output();
+    });
     steps.push_back([this] { post_process(); });
+    steps.push_back([this] {
+        if (!ran || !writes_output() || session.after_run_file.empty() || session.histogram.post_process == 0) return;
+        replace_files();
+        xpp::ok_or_show(xpp::save_data_file(session, xpp::DataTarget::output, "", session.after_run_file));
+    });
     steps.push_back([this] {
         if (!ran) return;
         const xpp::Session &s = session;
-        /* a range that resets its storage wrote each run's file itself
-           (integrate.cpp do_range, write_this_run) */
-        if (!s.integrator.range.write_files || s.integrator.range.reset == 0) {
-            if (s.stochastic.flag == 1 || s.stochastic.flag == 2)
-                registry(s.stochastic.flag == 1 ? "analysis.load_stochastic_mean" : "analysis.load_stochastic_variance");
-            if (!s.integrator.suppress_out) {
-                replace_files();
-                xpp::ok_or_show(xpp::save_data_file(s, xpp::DataTarget::output, "dat", s.batch_out_file));
-            }
+        if (writes_output()) {
+            if (!trajectory_saved) save_output();
             if (s.integrator.make_plot_flag) {
                 const xpp::ImageFormat *format=xpp::find_image_format_by_extension(s.plot_export.format);
                 if (!format || !format->write) {
@@ -141,6 +159,7 @@ void SilentScript::add_run(int set)
                 lines.push_back(std::move(line));
             }
         }
+        trajectory_saved = false;
         xpp::log(XPP_LOG_INFO, " Run complete ... \n");
     });
 }

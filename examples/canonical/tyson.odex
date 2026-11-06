@@ -10,5 +10,5 @@ m' = b*m
 event -1 u-0.2, m = 0.5*m
 options {
   integration: { total_time: 1000, method: dopri8, dt: .25 },
-  plot: { xhi: 1000, ylo: 0, yhi: 2, yp: m },
+  plot: { axes.x_high: 1000, axes.y_low: 0, axes.y_high: 2, curves.y: m },
 }

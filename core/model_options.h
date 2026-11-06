@@ -124,18 +124,19 @@ namespace option_group {
 inline constexpr std::string_view integration = "integration";
 inline constexpr std::string_view poincare = "poincare";
 inline constexpr std::string_view equilibria = "equilibria";
+inline constexpr std::string_view sweep = "sweep";
 inline constexpr std::string_view continuation = "continuation";
 inline constexpr std::string_view diagram = "diagram";
 inline constexpr std::string_view plot = "plot";
-inline constexpr std::string_view export_ = "export";
-inline constexpr std::string_view sweep = "sweep";
 inline constexpr std::string_view analysis = "analysis";
+inline constexpr std::string_view export_ = "export";
 inline constexpr std::string_view interface = "interface";
 inline constexpr std::string_view output = "output";
 } // namespace option_group
-/* Groups follow the work they affect, in converter output order (W317). */
+/* Groups in workflow order: run, analyse the run, continue, draw, write (W614, W615). The option
+   table's rows, a .odex's options block and every panel keep it. */
 inline constexpr std::array<std::string_view, 11> option_groups{
-    option_group::integration, option_group::poincare, option_group::equilibria, option_group::continuation, option_group::diagram, option_group::plot, option_group::export_, option_group::sweep, option_group::analysis, option_group::interface, option_group::output};
+    option_group::integration, option_group::poincare, option_group::equilibria, option_group::sweep, option_group::continuation, option_group::diagram, option_group::plot, option_group::analysis, option_group::export_, option_group::interface, option_group::output};
 
 /* The groups a `set`'s `options:` may hold: each is one graph's or one run's
    own configuration. The rest are the model's or the session's as a whole
@@ -169,6 +170,11 @@ struct OptionRow {
   std::string_view group;
   OptionKind kind = OptionKind::number;
   std::string_view name;          /* "" for a numerics setting the model cannot set */
+  /* the key a .odex writes in the row's group (W615): snake_case, with a dotted section
+     ("step.min", "axes.x_low") where the group is large; "" for a row that is no .odex option.
+     The rows run in the order of option_groups, then their sections (a section's rows together,
+     after the group's unsectioned ones), the order the panels show them. */
+  std::string_view odex;
   std::string_view alias;         /* a second name, or "" */
   /* XPPAUT's names for it, read in a .ode, an .xpprc and the command line
      (foreign formats) and refused in a .odex: "" when XPPAUT's name is the name */
@@ -275,13 +281,22 @@ const OptionRow *find_option(std::string_view upper_name, int &index, bool xppau
    NOUT is store_every, xplot is xp), "" when no row of a group does */
 std::string odex_option_key(std::string_view key);
 
-/* the key a .odex writes for a row (its name in lower case, a numbered
-   row's digit index after it) */
+/* the key a .odex writes for a row (its `odex` key, a numbered row's digit
+   index after it) */
 std::string odex_key(const OptionRow &row, int index);
 
-/* the row a .odex key names, exactly (lower case, a numbered row's digit
+/* the name a row goes by inside (a set's item, an @ line applied, set_option's name): its name in lower case, a
+   numbered row's digit after it; the .odex key is the file's own word for it (odex_key) */
+std::string option_setting_name(const OptionRow &row, int index);
+
+/* the setting name of the row a .odex key names in group, "" when none does */
+std::string odex_option_setting(std::string_view group, std::string_view key);
+
+/* the row a .odex key names in group ("" for the options block itself), exactly (a numbered row's digit
    included), and the digit; nullptr when none does */
-const OptionRow *find_odex_option(std::string_view key, int &index);
+const OptionRow *find_odex_option(std::string_view group, std::string_view key, int &index);
+/* the row a .odex key names in whichever group has it (to say which group a misplaced key belongs to) */
+const OptionRow *find_odex_option_anywhere(std::string_view key, int &index);
 
 /* a set may hold the row: its group is one of set_groups and it is no `wide` row */
 bool set_holds(const OptionRow &row);

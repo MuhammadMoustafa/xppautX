@@ -235,7 +235,7 @@ void replace_intern_sets(xpp::Model &m, const xpp::odex::Parsed &parsed)
   for(const xpp::odex::Statement &st : parsed.statements){
     if(st.kind!=xpp::odex::Statement::Kind::Set)continue;
     std::vector<std::pair<std::string,std::string>> settings;
-    for(const xpp::odex::Option &o : st.more().options)settings.emplace_back(o.name,o.value);
+    for(const xpp::odex::Option &o : st.more().options)settings.emplace_back(xpp::odex_option_setting(o.group,o.name),o.value);
     add_set_at(m,st.name,st.text,std::move(settings),xpp::Place{parsed.files.at(static_cast<std::size_t>(st.pos.file)),st.pos.line,st.pos.col});
   }
 }
@@ -560,8 +560,8 @@ xpp::Result<> restore_defaults(xpp::Session &s, std::string_view scope, std::str
   }
   else if(single){
     int index=0;
-    const OptionRow *row=find_odex_option(field,index);
-    if(!row||row->group!=scope||row->wide)return fail(xpp::format("{} is not a setting of {}",field,scope));
+    const OptionRow *row=find_odex_option(scope,field,index);
+    if(!row||row->wide)return fail(xpp::format("{} is not a setting of {}",field,scope));
     if(!has_built_in(*row))return fail(xpp::format("{} has no default of its own: restore the {} settings together",field,scope));
     rows.push_back(row);
   }
@@ -697,7 +697,7 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
   std::array<int, xpp::AUTOX_NUM_N> supplied{};
   for (const xpp::OptionRow &row : xpp::option_rows()) {
     if (row.autox_numeric < 0) continue;
-    values[row.autox_numeric] = row.real ? row.real(s) : row.whole(s);
+    values[row.autox_numeric] = row.real ? row.real(s) : row.whole ? row.whole(s) : row.boolean ? row.boolean(s) : row.index.read(s);
     supplied[row.autox_numeric] = s.options_set.has(row);
   }
   if (const auto valid = xpp::autox_settings_numbers_check(values, supplied); !valid) {
@@ -774,7 +774,7 @@ int add_model_option(xpp::Model &m, std::string_view s1)
 void add_model_options(xpp::Model &m, std::span<const xpp::odex::Option> entries, const std::vector<std::string> &files)
 {
   for(const xpp::odex::Option &o : entries){
-    m.options.push_back(xpp::Model::OptionLine{"",{{o.name,o.value}},
+    m.options.push_back(xpp::Model::OptionLine{"",{{xpp::odex_option_setting(o.group,o.name),o.value}},
       xpp::Place{files.at(static_cast<std::size_t>(o.pos.file)),o.pos.line,o.pos.col}});
   }
 }

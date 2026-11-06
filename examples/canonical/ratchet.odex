@@ -15,7 +15,7 @@ markov z 2
   {beta} {0} 
 options {
   integration: { method: euler, dt: .1, total_time: 2000, store_every: 10 },
-  plot: { xhi: 2000, yhi: 8, ylo: -8 },
+  plot: { axes.x_high: 2000, axes.y_high: 8, axes.y_low: -8 },
 }
 aux xm = x mod 1
 

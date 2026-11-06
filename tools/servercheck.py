@@ -1964,10 +1964,10 @@ def check_data_value_set():
         f.write(versioned("x'=-a*x+b\ny'=-y+c\npar a=1,b=2,c=0.5\ninit x=0.5,y=2\n"
                 "options { integration: { dt: 0.02, total_time: 9 } }\n"
                 "set \"pa\" { a: 10, b: 20 }\n"
-                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n"))
+                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { axes.x_low: -3, axes.x_high: 3 } } }\n"))
     post_model = os.path.join(folder, 'w526post.odex')
     with open(post_model, 'w') as f:
-        f.write(versioned("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { postprocess: 1, histcol: x, histlo: -1, histhi: 1, histbins: 20 } }\n"))
+        f.write(versioned("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { histogram.column: x, histogram.low: -1, histogram.high: 1, histogram.bins: 20 }, output: { after_run: histogram } }\n"))
     servers = []
     # this section also runs alone (--only), before the helpers below the registry's are defined
     is_done = lambda e: e.get('ev') == 'done'
@@ -2130,6 +2130,18 @@ def check_data_value_set():
         post(cmd='analysis.histogram')
         evs, _, blocks = post(cmd='browser.page', from_row=0, count=1)
         check('W526: the data browser shows the histogram of the model\'s @ postprocess', blocks and blocks[-1]['rows'] == 21, str(blocks)[:200])
+        # ---- W615: after_run_file, the analysis in a file of its own while output.dat keeps the trajectory ----
+        for named in (False, True):
+            with tempfile.TemporaryDirectory(prefix='w615after') as after:
+                with open(os.path.join(after, 'm.odex'), 'w') as f:
+                    f.write(versioned("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { histogram.column: x, histogram.low: -1, histogram.high: 1, histogram.bins: 20 }, output: { after_run: histogram"
+                                      + (', after_run_file: "hist.csv"' if named else '') + " } }\n"))
+                subprocess.run([os.path.abspath(args.server), 'm.odex', '--silent'], cwd=after, capture_output=True, text=True, timeout=60 * SLOW)
+                rows = lambda name: len(open(os.path.join(after, name)).read().splitlines()) if os.path.isfile(os.path.join(after, name)) else -1
+                check('W615: after_run_file %s: output.dat is %s' % ('set' if named else 'unset', 'the trajectory (1001 rows)' if named else 'the histogram (21 rows)'),
+                      rows('output.dat') == (1001 if named else 21), str(rows('output.dat')))
+                check('W615: after_run_file %s: the histogram file %s' % ('set' if named else 'unset', 'has its 20 bins' if named else 'is not written'),
+                      (rows('hist.csv') == 23) if named else rows('hist.csv') == -1, str(rows('hist.csv')))
         # ---- set ----
         ps, rs, ss, cs, _ = start(sets_model)
         sets = requester(ss, cs)
@@ -2701,8 +2713,8 @@ def check_load_error():
         for name, text, line, src, needle in (
                 ('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", 4, '@ ync=12', 'ync=12'),
                 ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", 4, '@ dt=2*3', 'dt=2*3'),
-                ('badopt.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5 },\n  plot: { ync: 12 },\n}\n",
-                 6, '  plot: { ync: 12 },', 'double quotes'),
+                ('badopt.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5 },\n  plot: { nullclines.y_color: 12 },\n}\n",
+                 6, '  plot: { nullclines.y_color: 12 },', 'double quotes'),
                 # W206: XPPAUT's name for store_every is a .ode's; a .odex refuses it
                 ('oldname.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5, nout: 2 },\n}\n",
                  5, '  integration: { total_time: 5, nout: 2 },', 'nout')):
@@ -4378,7 +4390,7 @@ def check_apply_restore():
         f.write(versioned("x'=-a*x+b\ny'=-y+c\npar a=1,b=2,c=0.5\ninit x=0.5,y=2\n"
                 "options { integration: { dt: 0.02, total_time: 9 } }\n"
                 "set \"pa\" { a: 10, b: 20 }\n"
-                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n"))
+                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { axes.x_low: -3, axes.x_high: 3 } } }\n"))
     p, r, snd, col, _ = launch_server(ode=model)
     errs = lambda evs: [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
 
@@ -4504,7 +4516,7 @@ def check_save_values():
                 "\n"
                 "# regimes\n"
                 "set \"pa\" { a: 10, b: 20 }\n"
-                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { xlo: -3, xhi: 3 } } }\n")
+                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { axes.x_low: -3, axes.x_high: 3 } } }\n")
     with open(model, 'w', newline='') as f:
         f.write(original)
     with open(os.path.join(folder, 'lib.odex'), 'w', newline='') as f:
@@ -4555,14 +4567,14 @@ def check_save_values():
         mix = [new[new.index('set "mix"'):]]
         check('W320: replacing the initial values of mix keeps its parameter and its options as written',
               not errs(evs) and mix and 'a: 5' in mix[0] and 'x: 0.1' in mix[0] and 'y: 0.2' in mix[0] and 'x: 0.9' not in mix[0]
-              and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: { xlo: -3, xhi: 3 }' in mix[0], str(mix) + str(errs(evs)))
+              and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: { axes.x_low: -3, axes.x_high: 3 }' in mix[0], str(mix) + str(errs(evs)))
         check('W320: the rest of the file is byte for byte as it was', new[:old.index('set "mix"')] == old[:old.index('set "mix"')], '')
         run(cmd='ic.set', values={'x': 3})
         run(cmd='set.apply', name='mix', scope='initial')
         check('W320: the live model uses the replaced part', view()[1]['x'] == 0.1)
         evs = run(cmd='set.save_into', name='mix', scope='plot')
         mix = [text()[text().index('set "mix"'):]]
-        check('W320: replacing the plot settings leaves the rest of the set', not errs(evs) and mix and 'xlo: -3' not in mix[0]
+        check('W320: replacing the plot settings leaves the rest of the set', not errs(evs) and mix and 'axes.x_low: -3' not in mix[0]
               and 'x: 0.1' in mix[0] and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: {' in mix[0], str(mix) + str(errs(evs)))
         # the defaults: par and init lines in place, an options group
         run(cmd='value.set_parameters', values={'a': 4})
@@ -5349,12 +5361,12 @@ def check_fit_retained_runs():
     in 2D and in 3D alike: a first run that grows far past the live one is
     inside the fitted box."""
     zeq = "\nz'=a*z\ninit z=1"
-    for dims, extra, plot in ((2, '', ''), (3, zeq, ', xp: x, yp: y, zp: z, axes: 3, zmin: 0, zmax: 10')):
+    for dims, extra, plot in ((2, '', ''), (3, zeq, ', curves.x: x, curves.y: y, curves.z: z, axes.kind: 3, axes.z_min: 0, axes.z_max: 10')):
         d = tempfile.mkdtemp(prefix='xppfit')
         ode = os.path.join(d, 'fit.odex')
         with open(ode, 'w') as f:
             f.write(versioned("par a=2\nx'=a*x\ny'=a*y\ninit x=1,y=1" + extra + "\noptions { integration: { total_time: 1, dt: .1 }, "
-                    "plot: { xlo: 0, xhi: 1, ylo: 0, yhi: 1" + plot + " } }\n"))
+                    "plot: { axes.x_low: 0, axes.x_high: 1, axes.y_low: 0, axes.y_high: 1" + plot + " } }\n"))
         proc, run, snd, col, _ = launch_server(ode=ode)
 
         try:
@@ -6708,7 +6720,7 @@ def check_jacobian_setting():
             p.wait(timeout=10 * SLOW)
             shutil.rmtree(r, ignore_errors=True)
         with open(noisy, 'a') as f:
-            f.write('options { integration: { jacobian: exact } }\n')
+            f.write('options { integration: { jacobian.kind: exact } }\n')
         run = subprocess.run([os.path.abspath(args.server), 'noisy.odex', '--silent'], capture_output=True, text=True, cwd=model_dir,
                              timeout=60 * SLOW)
         check('W260: @ jacobian=exact in a model with none fails the load at the @ line, with the reason',
@@ -6726,7 +6738,7 @@ def check_jacobian_setting():
         check('W260: a model loaded with the default setting has not compiled an exact Jacobian',
               'Compiled ' in log and 'Compiled the exact Jacobian' not in log, log[-300:])
         with open(smooth, 'a') as f:
-            f.write('options { integration: { jacobian: exact } }\n')
+            f.write('options { integration: { jacobian.kind: exact } }\n')
         check('W260: its own @ jacobian=exact compiles it at load', 'Compiled the exact Jacobian' in load_log())
         # Reload keeps the setting; a model with no exact Jacobian says so and takes difference
         lines = []
@@ -6767,7 +6779,7 @@ def check_subsystem_split():
     model = os.path.join(model_dir, 'stop.odex')
     with open(model, 'w') as f:
         f.write(versioned("x' = -x\ny' = -y\ninit x = 1, y = 1\noptions { integration: { total_time: 5 }, "
-                          "poincare: { poincare_map: section, poincare_variable: x, poincare_plane: 0.5, poincare_stop: true } }\n"))
+                          "poincare: { map: section, variable: x, plane: 0.5, stop: true } }\n"))
     p, r, snd, col, _ = launch_server(ode=model)
     try:
         col(is_done)
@@ -6815,7 +6827,7 @@ def check_jacobian_failure():
     try:
         model = os.path.join(model_dir, 'sqrt.odex')
         with open(model, 'w') as f:
-            f.write(versioned("x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian: exact } }\n"))
+            f.write(versioned("x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian.kind: exact } }\n"))
         p, r, snd, col, _ = launch_server(ode=model)
         try:
             col(is_done)
@@ -6885,7 +6897,7 @@ def check_autox_jacobian_failure():
     try:
         model = os.path.join(model_dir, 'rootfail.odex')
         with open(model, 'w') as f:
-            f.write(versioned("par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { integration: { jacobian: exact, total_time: 1 } }\n"))
+            f.write(versioned("par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { integration: { jacobian.kind: exact, total_time: 1 } }\n"))
         p, r, snd, col, _ = launch_server(ode=model)
         try:
             col(is_done)
@@ -7471,7 +7483,7 @@ def check_silent_commands():
         dirs.append(tempfile.mkdtemp(prefix='xpppost'))
         post = os.path.join(dirs[-1], 'post.odex')
         with open(post, 'w') as f:
-            f.write(versioned("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { postprocess: 1, histcol: x, histlo: -1, histhi: 1, histbins: 20 } }\n"))
+            f.write(versioned("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { histogram.column: x, histogram.low: -1, histogram.high: 1, histogram.bins: 20 }, output: { after_run: histogram } }\n"))
         s, r = silent(post)
         dirs.append(s)
         c, rc = script(post, go + [{'cmd': 'analysis.histogram'},
@@ -9326,14 +9338,14 @@ def check_parser_group():
                 check('W317: %s refuses old group %s at its source line' % (mode, group), rejected, p.stderr + p.stdout)
         # W494: a value outside its range, or two that break an order, is refused at its line in every mode
         for body, line, words in (
-                ('integration: { total_time: .02, dt: .01, min_step: 1, max_step: 0.5 }', 2, 'min_step (1) must be at most max_step (0.5)'),
-                ('plot: { xlo: 3, xhi: 1 }', 2, 'xlo (3) must be below xhi (1)'),
-                ('analysis: { histlo: 2, histhi: 2 }', 2, 'histlo (2) must be below histhi (2)'),
-                ('analysis: { histbins: 1 }', 2, 'must be a whole number of at least 2'),
-                ('plot: { nplot: 9 }', 2, 'exceeds the allocation maximum'),
-                ('plot: { dfgrid: 1 }', 2, 'must be a whole number of at least 2'),
-                ('integration: { torus_period: 0 }', 2, 'must be a number above 0'),
-                ('sweep: { rangestep: 0 }', 2, 'must be a whole number of at least 1')):
+                ('integration: { total_time: .02, dt: .01, step.min: 1, step.max: 0.5 }', 2, 'min_step (1) must be at most max_step (0.5)'),
+                ('plot: { axes.x_low: 3, axes.x_high: 1 }', 2, 'xlo (3) must be below xhi (1)'),
+                ('analysis: { histogram.low: 2, histogram.high: 2 }', 2, 'histlo (2) must be below histhi (2)'),
+                ('analysis: { histogram.bins: 1 }', 2, 'must be a whole number of at least 2'),
+                ('plot: { curves.count: 9 }', 2, 'exceeds the allocation maximum'),
+                ('plot: { direction_field.grid: 1 }', 2, 'must be a whole number of at least 2'),
+                ('integration: { torus.period: 0 }', 2, 'must be a number above 0'),
+                ('sweep: { steps: 0 }', 2, 'must be a whole number of at least 1')):
             write('badrange.odex', "x'=0\ninit x=0\noptions { " + body + " }\n")
             for mode in ('--check', '--silent'):
                 p = run('badrange.odex', mode)
@@ -10404,7 +10416,7 @@ def check_outside_paths():
             f.write('keep target')
         logmodel = os.path.join(proj, 'log.odex')
         with open(logmodel, 'w') as f:
-            f.write(versioned("x'=-x\ninit x=1\noptions { output: { logfile: \"" + log + "\" } }\n"))
+            f.write(versioned("x'=-x\ninit x=1\noptions { output: { log_file: \"" + log + "\" } }\n"))
         s = start(logmodel)
         try:
             evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
@@ -10422,7 +10434,7 @@ def check_outside_paths():
                 evs, error = s.collect(failed)
                 check('W297: swapped log link is refused with file and source line',
                       error and 'swapped.log' in str(error) and 'log.odex' in str(error)
-                      and error.get('line') == 4 and 'logfile:' in error.get('source', '')
+                      and error.get('line') == 4 and 'log_file:' in error.get('source', '')
                       and ('refused' in str(error) or 'symbolic link' in str(error)), str(evs)[-600:])
                 check('W297: swapped log target is untouched', open(target).read() == 'keep target')
                 result = subprocess.run([binary, 'tab.odex', '--silent', '--logfile', log], cwd=proj, input='',
@@ -10587,7 +10599,7 @@ def check_create_folders():
             output = 'model-output-' + mode + '/data.dat'
             origin = os.path.join(root, 'output.odex')
             with open(origin, 'w', encoding='utf-8') as f:
-                f.write(versioned("x' = -x\noptions { output: { output: \"%s\" }, integration: { total_time: 1 } }\n" % output))
+                f.write(versioned("x' = -x\noptions { output: { data_file: \"%s\" }, integration: { total_time: 1 } }\n" % output))
             command = [binary, '--check', origin, '--yes'] if mode == 'check' else [binary, origin, '--silent', *flags]
             result = subprocess.run(command, cwd=root, env=dict(os.environ, **env),
                                     input=answer, capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
@@ -10597,14 +10609,14 @@ def check_create_folders():
                   and ('Create the folder' not in result.stderr if mode == 'check' else result.stderr.count('Create the folder') == 1), result.stderr)
         inspection = os.path.join(root, 'inspect-log.odex')
         with open(inspection, 'w', encoding='utf-8') as f:
-            f.write(versioned("x' = -x\noptions { output: { logfile: \"inspect-missing/log.txt\" } }\n"))
+            f.write(versioned("x' = -x\noptions { output: { log_file: \"inspect-missing/log.txt\" } }\n"))
         result = subprocess.run([binary, '--check', inspection, '--yes'], cwd=root, env=dict(os.environ, **env),
                                 input='', capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
         check('W303: inspection neither asks nor creates a logfile folder', result.returncode == 0
               and 'Create the folder' not in result.stderr and not os.path.exists(os.path.join(root, 'inspect-missing')), result.stderr)
         shared = os.path.join(root, 'shared.odex')
         with open(shared, 'w', encoding='utf-8') as f:
-            f.write(versioned("x' = -x\noptions { output: { logfile: \"shared/run.log\", output: \"shared/data.dat\" }, integration: { total_time: 1 } }\n"))
+            f.write(versioned("x' = -x\noptions { output: { log_file: \"shared/run.log\", data_file: \"shared/data.dat\" }, integration: { total_time: 1 } }\n"))
         result = subprocess.run([binary, shared, '--silent', '--yes'], cwd=root, env=dict(os.environ, **env),
                                 input='', capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
         with open(os.path.join(root, 'shared', 'run.log'), encoding='utf-8') as log: transcript = result.stderr + log.read()
@@ -10620,7 +10632,7 @@ def check_create_folders():
         for answer in ('y', 'n'):
             destination = '../outside-' + answer + '/run.log'
             with open(source, 'w', encoding='utf-8') as f:
-                f.write(versioned("x' = -x\noptions { output: { logfile: \"%s\" } }\n" % destination))
+                f.write(versioned("x' = -x\noptions { output: { log_file: \"%s\" } }\n" % destination))
             server = Server(binary, source, env=env, run=project)
             try:
                 _, outside = server.collect(lambda e: e.get('ev') in ('ask', 'session.error'))
@@ -10674,8 +10686,8 @@ def check_range_files():
         model = os.path.join(folder, 'range.odex')
         with open(model, 'w') as f:
             f.write(versioned("par a=1\nx'=a\ninit x=0\noptions { integration: { dt: 0.1, total_time: 0.2 }, "
-                    "sweep: { rangeover: a, rangestep: 2, rangelow: 1, rangehigh: 3, "
-                    "rangereset: true, rangeoldic: true, rangefiles: true } }\n"))
+                    "sweep: { variable: a, steps: 2, low: 1, high: 3, "
+                    "reset: true, old_ic: true, write_files: true } }\n"))
         with tempfile.TemporaryDirectory(prefix='w349run') as run:
             s = Server(args.server, model, run=run)
             try:
@@ -10718,7 +10730,7 @@ def check_range_files():
                 s.send(cmd='set.save_defaults', scope='all')
                 s.answer_asks(is_done, {'choice': lambda e: {'key': 'y'}})
                 saved = open(os.path.join(run, 'range.odex')).read()
-                check('W349: saving .odex writes the named range setting', 'rangefiles: true' in saved, saved)
+                check('W349: saving .odex writes the named range setting', 'write_files: true' in saved, saved)
                 s.send(cmd='session.open_model', file='range.odex')
                 s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}})
                 s.send(cmd='session.save_as', file='odex-roundtrip', data=False)
@@ -10749,8 +10761,8 @@ def check_range_files():
                                   capture_output=True, text=True, timeout=60 * SLOW)
         converted = os.path.join(folder, 'legacy.odex')
         text = open(converted).read() if os.path.isfile(converted) else ''
-        check('W349: .ode range=1 imports as sweep rangefiles: true',
-              imported.returncode == 0 and 'rangefiles: true' in text and 'range: 1' not in text, imported.stderr + text)
+        check('W349: .ode range=1 imports as sweep write_files: true',
+              imported.returncode == 0 and 'write_files: true' in text and 'range: 1' not in text, imported.stderr + text)
         result = subprocess.run([os.path.abspath(args.server), converted, '--silent', '--outfile', 'out.dat'],
                                 cwd=folder, capture_output=True, text=True, timeout=60 * SLOW)
         paths = sorted(glob.glob(os.path.join(folder, 'out.dat.*')))
@@ -11424,7 +11436,7 @@ def check_recursive_user_functions():
         field = os.path.join(folder, 'field.odex')
         with open(field, 'w') as f:
             f.write(versioned("fun f(x) = f(x)+1\nx' = -f(x)\ny' = x\n"
-                    "options { plot: { xp: x, yp: y, xlo: -1, xhi: 1, ylo: -1, yhi: 1 } }\n"))
+                    "options { plot: { curves.x: x, curves.y: y, axes.x_low: -1, axes.x_high: 1, axes.y_low: -1, axes.y_high: 1 } }\n"))
         s = Server(args.server, field)
         try:
             s.collect(is_done)

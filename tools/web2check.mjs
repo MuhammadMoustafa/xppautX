@@ -4796,7 +4796,7 @@ async function startScreenExamplesCheck() {
    and continue" on its error; the button sends the core's commands and the
    run ends where it was going, with differences. */
 async function jacobianOfferCheck(dir) {
-  fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), versioned("x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian: exact } }\n"));
+  fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), versioned("x' = sqrt(x) + 1\ninit x = 0\noptions { integration: { method: stiff, total_time: 4, jacobian.kind: exact } }\n"));
   await openFile('w260sqrt.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
@@ -4818,7 +4818,7 @@ async function jacobianOfferCheck(dir) {
 
   /* W275: the same in an autoX run. The branch x = 0 of x' = (a-1)x + (sqrt(x*x) below a = 0.5) has an
      infinite slope there: the run stops on an end point, and the button restarts from its label */
-  fs.writeFileSync(path.join(dir, 'w275root.odex'), versioned("par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { integration: { jacobian: exact, total_time: 1 } }\n"));
+  fs.writeFileSync(path.join(dir, 'w275root.odex'), versioned("par a=1.5\nx' = (a+1)*x + if(a<0.5)then(sqrt(x*x))else(0)\ninit x=0\noptions { integration: { jacobian.kind: exact, total_time: 1 } }\n"));
   await openFile('w275root.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");

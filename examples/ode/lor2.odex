@@ -15,7 +15,7 @@ zp' = -b*zp+xp*yp
 options {
   integration: { dt: .025, total_time: 40, storage_rows: 20000 },
   plot: {
-    xp: x, yp: y, zp: z, axes: 3, xmin: -20, xmax: 20, ymin: -30, ymax: 30, zmin: 0, zmax: 50,
-    xlo: -1.5, ylo: -2, xhi: 1.5, yhi: 2, phi: 60,
+    curves.x: x, curves.y: y, curves.z: z, axes.kind: 3, axes.x_min: -20, axes.x_max: 20, axes.y_min: -30, axes.y_max: 30, axes.z_min: 0, axes.z_max: 50,
+    axes.x_low: -1.5, axes.y_low: -2, axes.x_high: 1.5, axes.y_high: 2, axes.phi: 60,
   },
 }

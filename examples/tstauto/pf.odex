@@ -9,5 +9,5 @@ par r = -1
 init x = 0
 options {
   continuation: { max_step_size: .1, parameter_min: -2, parameter_max: 2 },
-  diagram: { autoxmin: -1.25, autoxmax: 2, autoymin: -2, autoymax: 2, autovar: x },
+  diagram: { x_min: -1.25, x_max: 2, y_min: -2, y_max: 2, variable: x },
 }

@@ -1085,7 +1085,7 @@ private:
     case Statement::Kind::OptionFile: refuse_options_file(s.text);
     case Statement::Kind::Set: {
       std::vector<std::pair<std::string,std::string>> settings;
-      for(const odex::Option &o : s.more().options)settings.emplace_back(o.name,o.value);
+      for(const odex::Option &o : s.more().options)settings.emplace_back(odex_option_setting(o.group,o.name),o.value);
       add_intern_set(m,s.name,s.text,std::move(settings));
       break;
     }

@@ -191,51 +191,66 @@ you wrote (`1/30`) alone while the value is unchanged.
   the file differs, W281):
 
         options {
-          integration: { total_time: 100, method: stiff, jacobian: exact },
-          plot:     { xp: v, yp: w, xlo: -0.6, xhi: 1.2 },
+          integration: { total_time: 100, method: stiff, jacobian.kind: exact },
+          plot:     { curves.x: v, curves.y: w, axes.x_low: -0.6, axes.x_high: 1.2 },
           continuation: { mesh_intervals: 50, parameter_max: 10 },
         }
 
-  Groups: `integration`, `poincare`, `equilibria`, `continuation`,
-  `diagram`, `plot`, `export`, `sweep`, `analysis`, `interface`, `output`.
-  Integration holds solver and time settings; poincare holds section settings;
-  equilibria holds `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `neartol` and the search's three display choices `print_eigenvalues`, `draw_invariant_sets` and `draw_strong_sets` (each `true` or `false`, W535); continuation holds autoX run settings by their names (`mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`; W531), autoX's own names (`ntst`, `nmax`, `parmin`, ...) being XPPAUT's, read on `.ode` import only;
-  diagram holds its axes and colours; plot holds view and grid settings; export
-  holds `plotfmt` (`pdf` or `svg`), `picture_color` and `picture_font_size`; sweep holds range settings (including `rangefiles: true` or `false`, default `false`, which writes each reset run separately in every mode); analysis holds histograms
-  and spectra; interface holds sliders and buttons; output holds files and logging.
-  Older group names are errors. A key is the option's one name in lower
-  case, spelled exactly (`xp2`..`xp8` for the numbered ones): XPPAUT's word
-  (`total`, `nout`, `meth`, ...), a prefix match (`xplot`, `state_limits`), a key
-  of another group and a key twice (but for `fold` and `but`, which name one
-  thing each) are errors at the key, as is anything the old `@` form wrote.
-  The X11 window's settings (`bell`, `bigfont`, ...) are no options: the
-  converter drops them. Every option has one name: `total_time`,
-  `start_time`, `store_from` (a time, not a duration: `trans` of a `.ode`),
-  `nullcline_mesh`, `max_iterations`, `newton_tolerance`, `jacobian_step`,
-  `method`, `relative_tolerance`, `min_step`, `max_step`, `absolute_tolerance`,
-  `storage_rows`, `torus_period`, `poincare_map`, `poincare_variable`,
-  `poincare_sign`, `poincare_stop`, `poincare_plane`, where a `.ode` says
-  `total`, `t0`, `trans`, `nmesh`, `newt_iter`, `newt_tol`, `jac_eps`,
-  `meth`, `tol`, `dtmin`, `dtmax`, `atol`, `maxstor`, `tor_per`, `poimap`,
-  `poivar`, `poisgn`, `poistop`, `poipln`; `store_every` is `nout`/`njmp`.
+  Groups, in the order a run, its analysis, the continuation, the pictures and the files
+  come in (the order the table, the schema, the files the program writes and the panels
+  keep, W615): `integration`, `poincare`, `equilibria`, `sweep`, `continuation`, `diagram`,
+  `plot`, `analysis`, `export`, `interface`, `output`. A key is the option's one name in
+  snake case; in a large group a dotted word is a section (`step.min`, `jacobian.kind`,
+  `axes.x_low`, `histogram.bins`, `colors.stable_equilibrium`), and a section's keys come
+  together. What each group holds:
+
+  | group | keys |
+  |---|---|
+  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `seed`, `storage_rows`, `stochastic`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `bvp.max_iterates`, `bvp.tolerance`, `bvp.epsilon`; `torus.period`, `torus.fold`; `tables.auto_evaluate` |
+  | `poincare` | `map`, `variable`, `sign`, `plane`, `stop` |
+  | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535), `near_tolerance` |
+  | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |
+  | `continuation` | autoX run settings by their names: `mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance` (W531) and the ten that were Numerics-form settings only: `mesh_adapt_every`, `max_branch_switches`, `switch_one_direction`, `output_detail`, `max_location_iterations`, `max_newton_iterations`, `full_newton_after`, `step_adapt_every`, `suppress_branch_points`, `follow_all_branches` (each the autox.configure_numerics argument of its name); autoX's own names (`ntst`, `nmax`, `parmin`, ...) are XPPAUT's, read on `.ode` import only |
+  | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max`; `colors.stable_equilibrium`, `colors.unstable_equilibrium`, `colors.stable_periodic`, `colors.unstable_periodic` |
+  | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_low`, `axes.x_high`, `axes.y_low`, `axes.y_high` (the 2D window), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `axes.phi`, `axes.theta` (the 3D box and view); `curves.x`, `curves.y`, `curves.z`, `curves.count`, and `curves.x2` to `curves.z8`, `curves.x_low2` to `curves.y_high8` for the numbered curves; `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`, `nullclines.x_color`, `nullclines.y_color`; `direction_field.grid`, `direction_field.draw`; `manifolds.stable_color`, `manifolds.unstable_color`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high`; `windows.simultaneous`, `windows.multiple` |
+  | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
+  | `export` | `format` (`pdf` or `svg`), `color`, `font_size` |
+  | `interface` | `sliders`, `buttons` (and `animation`, written directly in `options`, outside any group) |
+  | `output` | `data_file`, `nullclines_file`, `after_run`, `after_run_file`, `quiet`, `log_file` (a path is named from the model's folder, a path outside it is a question, and its extension picks the data format; with `after_run_file` the analysis `after_run` names is written there and `data_file` keeps the trajectory, without it the analysis replaces the table `data_file` is written from, as XPPAUT's batch run does) |
+
+  Older group names and older keys are errors, as is a key of another group. A key
+  twice (but for `fold` and `buttons`, which name one thing each) is an error at
+  the key. XPPAUT's words (`total`, `nout`, `meth`, `xlo`, `dfgrid`, `postprocess`,
+  `rangeover`, `histbins`, ...) are import names only: a `.ode` or `.set` says them, a
+  `.odex` never does, and `--convert` writes the key. A number that stood for a choice
+  is its word: `direction_field.draw` is `none`, `arrows`, `scaled_arrows`, `flow`,
+  `arrows_and_save` or `scaled_arrows_and_save` (XPPAUT's `dfdraw` 0 to 5),
+  `after_run` is `none`, `histogram`, `fourier_series`, `power_spectrum`, `psd_x`,
+  `psd_xy`, `coherence_xy` or `histogram_2d` (`postprocess` 0 to 7), and a yes or no is
+  `true` or `false` (`color_by.enabled`, XPPAUT's `colorize`). Every option has one name
+  and its key says what it sets: `total_time`, `start_time`, `store_from` (a time, not a
+  duration: `trans` of a `.ode`), `nullclines.mesh`, `step.min`, `poincare: { map, variable,
+  sign, plane, stop }`, where a `.ode` says `total`, `t0`, `trans`, `nmesh`, `dtmin`,
+  `poimap`, `poivar`, `poisgn`, `poipln`, `poistop`; `store_every` is `nout`/`njmp`.
+  The X11 window's settings (`bell`, `bigfont`, ...) are no options: the converter drops them.
   A `.ode`'s `bound` is two settings of ours: `state_limit` (a variable past
   it is a blow-up, and `stop_at_limit: true`, the default, ends the run) and
   `search_limit` (the equilibria's search gives up past it), both read from
   it; the DAE solver's own cap is a constant, no setting. A `.ode`'s
-  `ncdraw` is `nullclines.draw` and `nullclines.file` (`1`: draw; `2`: not
-  drawn and saved to `nullclines.dat`; `nullclines.file` is a file name written
-  in the working folder, in the data format its extension names: `.dat`, `.csv`,
+  `ncdraw` is `nullclines.draw` (in `plot`) and `nullclines_file` (in `output`) (`1`: draw; `2`: not
+  drawn and saved to `nullclines.dat`; `nullclines_file` is a file written
+  like `data_file`, in the data format its extension names: `.dat`, `.csv`,
   `.csv.gz` or `.npz`, one row a segment: `nullcline` (1 or 2), `x1`, `y1`, `x2`, `y2`). A bad value is an error naming the option and the bad text, at
   its line.
 
   A value is one bare word or number (letters, digits, `_ . + -`), no
   quotes, except a **path**, a **text** or a **colour**, which is a double-quoted string
-  (`logfile: "out/run 1.log"`, `output: "données.dat"`, `xnc: "#ffa500"`; a colour is
+  (`log_file: "out/run 1.log"`, `data_file: "données.dat"`, `nullclines.x_color: "#ffa500"`; a colour is
   `"foreground"`, a quoted CSS colour name or `"#rrggbb"` (`#rrggbbaa` with alpha, drawn by the page,
   SVG and PDF), and every colour is double quoted, including names; a name is read and written back as hex): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
-  path outside the model's folder is a question the user answers (W175, W286). Only `output` and
-  `logfile` are paths, and `but` (a button, `but: "quit:fq"`) a text. Every
+  path outside the model's folder is a question the user answers (W175, W286). Only `data_file`, `nullclines_file`, `after_run_file` and
+  `log_file` are paths, and `buttons` (a button, `buttons: "quit:fq"`) a text. Every
   writer of options (the converter, Save values) writes them so.
   Continuation numbers use the same ranges as the autoX form, protocol and session reader:
   `min_step_size`, `max_step_size`, `parameter_tolerance`, `state_tolerance` and `special_point_tolerance` are positive; `min_step_size <= max_step_size`,
@@ -256,26 +271,26 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `DoPri5` | `dopri5` |
   | `QualRK` (`Qual RK`, `qualrk4`) | `qualrk` |
   | `Discrete`, `Euler`, `Adams`, `Gear`, `Volterra`, `Stiff`, `CVode`, `Rosenbrock`, `Symplectic` | the same in lower case |
-  | `range=0/1` | `sweep: { rangefiles: false/true }` (W349, [#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)) |
+  | `range=0/1` | `sweep: { write_files: false/true }` (W349, [#410](https://github.com/MuhammadMoustafa/xppautX/issues/410)) |
   | `rangereset=y...`, `rangeoldic=n...`, `poistop=1` | `true`, `false` (a yes or no is always `true` or `false`) |
-  | `poincare_map=s...`, `m...`, `p...` | `section`, `max`, `period` |
+  | `poimap=s...`, `m...`, `p...` | `poincare: { map: section/max/period }` |
   | `poisgn=-1`, `0`, `1` | `negative`, `both`, `positive` |
   | `colormap=0`..`6` | `jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix` (XPPAUT's seven; ours also has `viridis`, `plasma`, `inferno`, `magma`, `cividis`, `coolwarm`, `rdbu`, `seismic`, `twilight`, `hsv`, `turbo`, `greys`, `blues`, `reds`, `greens`, `oranges` and `purples`: 256 colours each, third_party/colormaps/README.md says where each is from; a model of ours without `colormap` has `viridis`, a `.ode` without one is converted with `colormap: jet`, its own) |
   | `xnc`, `ync`, `smc`, `umc` `=0`..`10`; `sec`, `uec`, `spc`, `upc` `=0`, `20`..`29` | the colour in XPPAUT's own table: `"foreground"` for 0, else `"#rrggbb"` |
   | `lt=1`, `0`, `-n` | `plot: { line.draw: line }`, `line.draw: points`, `line.draw: points, line.marker: circle, line.marker_size: n` (the style every new curve starts with: `line.draw` is `line`, `points` or `both`, `line.dash` `solid`, `dashed`, `dotted` or `dash_dot`, `line.width`, `line.marker` `circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`, `line.marker_size`) |
-  | `plotfmt=ps`, `svg` | `pdf`, `svg` (PostScript is gone) |
-  | `ps_color=0`, `1`; `ps_fsize=n` | `picture_color: false`, `true`; `picture_font_size: n` (points) |
+  | `plotfmt=ps`, `svg` | `export: { format: pdf/svg }` (PostScript is gone) |
+  | `ps_color=0`, `1`; `ps_fsize=n` | `export: { color: false/true, font_size: n }` (points) |
   | `ps_font`, `ps_lw` | none: a picture's font is Helvetica, and each curve has its own width |
   | `axes=3d` | `3` |
 
   A choice takes exactly one of its words (`runge_kutta`, not `Runge-Kutta`
-  or `rk4`). `jacobian` (xppautX's own: XPPAUT has none) is `difference`
+  or `rk4`). `jacobian.kind` (xppautX's own: XPPAUT has none) is `difference`
   (the default) or `exact`; `exact` in a model with no exact Jacobian stops
   the load at its line, with the reason (W260,
   [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317); the
   manual's "Numerical parameters"). `subsystem_split` (also xppautX's own) is
   `equations` (the default) or `run` (W433: what a report shows as independent
-  subsystems; with `run` a Poincare section or stop joins every state). `neartol` (near's tolerance) is
+  subsystems; with `run` a Poincare section or stop joins every state). `near_tolerance` (near's tolerance) is
   an equilibria key.
 - `set "NAME" { key: value, ..., options: { group: { key: value } } }` — a named set. Its name is the user's text, so it is in double quotes even without spaces (`set "hopf" { ... }`; letters, digits and `_`, starting with a letter); a bare name is an error at its line. Its top-level keys are
   parameters and states only (`g: 9.81`, `v: -0.3`), each a number. Settings go only under `options:`, in the options
@@ -320,13 +335,13 @@ The allocation-sized whole options have inclusive maxima (W296,
 
 | Option | Minimum | Maximum | Reason |
 |---|---:|---:|---|
-| `numerics.vmaxpts`, `numerics.storage_rows` | 1 | 10000000 | Large histories and initial storage without int-sized requests |
-| `numerics.nullcline_mesh` | 1 | 4096 | Bounds mesh work to about 16 million cells |
-| `plot.dfgrid` | 2 | 4096 | The direction field has spacing between two or more points; bounds its work like the mesh |
-| `plot.nplot` | 1 | 8 | XPPAUT's most curves in one window (`xp2` to `xp8` and the first) |
-| `numerics.bandup`, `numerics.bandlo` | 0 | 100000 | Large banded models without int-sized bandwidths |
-| `histogram.histbins`, `histogram.histbins2` | 2 | 4096 | About 16 million cells in two dimensions |
-| `histogram.specwidth` | 1 | 1000000 | Bounds spectral workspaces |
+| `delay.history_points`, `storage_rows` | 1 | 10000000 | Large histories and initial storage without int-sized requests |
+| `nullclines.mesh` | 1 | 4096 | Bounds mesh work to about 16 million cells |
+| `direction_field.grid` | 2 | 4096 | The direction field has spacing between two or more points; bounds its work like the mesh |
+| `curves.count` | 1 | 8 | XPPAUT's most curves in one window (`curves.x2` to `curves.x8` and the first) |
+| `jacobian.band_upper`, `jacobian.band_lower` | 0 | 100000 | Large banded models without int-sized bandwidths |
+| `histogram.bins`, `histogram2.bins` | 2 | 4096 | About 16 million cells in two dimensions |
+| `spectrum.width` | 1 | 1000000 | Bounds spectral workspaces |
 | `continuation.mesh_intervals` | 1 | 10000 | Bounds autoX's mesh-sized matrices |
 | `continuation.max_steps` | 1 | 1000000 | Bounds a requested continuation diagram |
 | `continuation.collocation_points` | 2 | 7 | autoX's settings reader requires supported collocation orders 2 through 7 |
@@ -334,11 +349,9 @@ The allocation-sized whole options have inclusive maxima (W296,
 Settings that must keep an order are refused when it is broken, wherever they
 come from (an `options` block, a `.setx` or session file, `set num`, the
 Numerics menu, the Window and histogram dialogs), with both names and values:
-`min_step` at most `max_step`, `xlo` below `xhi`, `ylo` below `yhi`, `xmin` below
-`xmax`, `ymin` below `ymax`, `zmin` below `zmax`, `histlo` below `histhi`,
-`histlo2` below `histhi2`, `autoxmin` below `autoxmax` and `autoymin` below
-`autoymax` (the continuation's pairs are autoX's own). `torus_period` is above 0 and
-`rangestep` at least 1. The list, with each setting's range and the rule behind
+`min_step` at most `max_step`, `xlo` below `xhi`, `ylo` below `yhi`, `xmin` below `xmax`, `ymin` below `ymax`, `zmin` below `zmax`, `histlo` below `histhi`,
+`histlo2` below `histhi2`, `autoxmin` below `autoxmax` and `autoymin` below `autoymax` (the settings' internal names, which the message names; the keys are `step.min`, `step.max`, `axes.x_low`, `axes.x_high`, `axes.y_low`, `axes.y_high`, `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `histogram.low`, `histogram.high`, `histogram2.low`, `histogram2.high`, `x_min`, `x_max`, `y_min` and `y_max` of the diagram) (the continuation's pairs are autoX's own). `torus.period` is above 0 and
+`steps` of the sweep at least 1. The list, with each setting's range and the rule behind
 it, is [docs/studies/w494-numeric-settings.md](studies/w494-numeric-settings.md).
 
 These maxima also apply through the corresponding saved numerics and autoX
@@ -401,7 +414,7 @@ curves by variable name and its rotation, scales and box), `transpose`,
 are the option table's (core/model_options.cpp, the rows marked `saved`): a
 numerics setting is written under the key the Numerics menu and `set num`
 use (`total_time`, `dt`, `method`, `jacobian`, `relative_tolerance`, ...), a choice
-by its word (`jacobian: exact`, `poincare_map: section`) and a yes or no as `true` or `false` (`rangereset: false`), a bare number never standing for either,
+by its word (`jacobian.kind: exact`, `poincare: { map: section }`) and a yes or no as `true` or `false` (`sweep: { reset: false }`), a bare number never standing for either,
 so a setting added to the table is a key of the file with no other change.
 The `columns` and `rows` of `array_plot` and `transpose` are whole numbers
 from 1 through 4096, limiting their rectangle to about 16 million cells.
@@ -781,11 +794,11 @@ from):
 6. **Extension gap**: moot, since `.odex` does not reserve `e` (question 4).
 7. **Approximate equality** (decided, maintainer, 2026-09-28; W78): `==`
    and `!=` stay exact. `near(a, b)` is true when |a-b| <= tol ·
-   max(1, |a|, |b|), tol being `@ neartol=` (default 1e-9) or
+   max(1, |a|, |b|), tol being `equilibria: { near_tolerance }` (default 1e-9) or
    `near(a, b, tol=...)` for one call. Not `~=` (MATLAB, Lua and Octave's
    "not equal"), not `eps` (a common parameter name) and not `atol` (the
    integrator's tolerance: the solver must never change the model's
-   logic). `near` is reserved; `neartol` is an option name, not reserved.
+   logic). `near` is reserved; `near_tolerance` is an option key, not reserved.
 8. **Arrays** (decided, maintainer, 2026-09-28; W80): a trailing range on
    each statement, `x[j]' = -x[j] + x[j-1]  for j in 1..n by 2`; the index
    named explicitly (no implicit `[j]`), an index named like a declared

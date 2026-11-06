@@ -5,5 +5,5 @@ x' = y
 y' = -x
 init x = 1
 options {
-  plot: { xp: x, yp: y, xlo: -2, xhi: 2, ylo: -2, yhi: 2 },
+  plot: { curves.x: x, curves.y: y, axes.x_low: -2, axes.x_high: 2, axes.y_low: -2, axes.y_high: 2 },
 }

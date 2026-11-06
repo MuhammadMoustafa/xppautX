@@ -73,7 +73,7 @@ const std::string model =
     "\n"
     "# regimes\n"
     "set \"one\" { a: 10 }\n"
-    "set \"two\" { a: 5, x: 0.9, options: { integration: { dt: 0.1 }, plot: { xlo: -3 } } }\n";
+    "set \"two\" { a: 5, x: 0.9, options: { integration: { dt: 0.1 }, plot: { axes.x_low: -3 } } }\n";
 
 } // namespace
 
@@ -85,7 +85,7 @@ int main()
     CHECK(braced({"a: 1", "b: 2"}, 4) == "{ a: 1, b: 2 }");
     CHECK(options_block({}).empty());
     CHECK(options_block({{"integration", "dt: 0.1"}}) == "options {\n  integration: { dt: 0.1 },\n}\n");
-    CHECK(set_block("s", {"a: 1"}, {{"plot", "xlo: 1"}}) == "set \"s\" { a: 1, options: { plot: { xlo: 1 } } }");
+    CHECK(set_block("s", {"a: 1"}, {{"plot", "axes.x_low: 1"}}) == "set \"s\" { a: 1, options: { plot: { axes.x_low: 1 } } }");
     std::string many;
     std::vector<std::string> items;
     for (int i = 0; i < 40; i++) items.push_back("name" + std::to_string(i) + ": 1.5");
@@ -133,10 +133,11 @@ int main()
         const std::size_t at = model.find("set \"two\"");
         CHECK(out.substr(0, at) == model.substr(0, at));
         CHECK(out.substr(at).find("a: 5, x: 0.1, y: 0.2") != std::string::npos);
-        CHECK(out.substr(at).find("options: { integration: { dt: 0.1 }, plot: { xlo: -3 } }") != std::string::npos);
+        CHECK(out.substr(at).find("options: { integration: { dt: 0.1 }, plot: { axes.x_low: -3 } }") != std::string::npos);
         /* a group replaced, the others and the values kept */
-        const std::string g = result(replace_in_set(*m, model, file, "two", group("plot", {{"xlo", "1"}, {"xhi", "2"}}), classify));
-        CHECK(g.substr(g.find("set \"two\"")).find("a: 5, x: 0.9, options: { integration: { dt: 0.1 }, plot: { xlo: 1, xhi: 2 } }") != std::string::npos);
+        const std::string g = result(replace_in_set(*m, model, file, "two", group("plot", {{"axes.x_low", "1"}, {"axes.x_high", "2"}}), classify));
+        const std::string two = g.substr(g.find("set \"two\""));
+        CHECK(two.find("a: 5, x: 0.9,") != std::string::npos && two.find("options: { integration: { dt: 0.1 }, plot: { axes.x_low: 1, axes.x_high: 2 } }") != std::string::npos);
         /* a kind emptied: its entries go and the others stay */
         Values none;
         none.parameters = true;
@@ -186,8 +187,8 @@ int main()
         /* a group of the options block replaced, the others as written */
         const std::string opt = result(set_defaults(*m, model, file, group("integration", {{"dt", "0.05"}})));
         CHECK(opt.find("options {\n  integration: { dt: 0.05 },\n}\n") != std::string::npos);
-        const std::string more = result(set_defaults(*m, model, file, group("plot", {{"xlo", "1"}})));
-        CHECK(more.find("options {\n  integration: { dt: 0.02, total_time: 9 },\n  plot: { xlo: 1 },\n}\n") != std::string::npos);
+        const std::string more = result(set_defaults(*m, model, file, group("plot", {{"axes.x_low", "1"}})));
+        CHECK(more.find("options {\n  integration: { dt: 0.02, total_time: 9 },\n  plot: { axes.x_low: 1 },\n}\n") != std::string::npos);
         /* a file with no options block gets one at its end */
         const std::string block = result(set_defaults(*m, "version 4\nx' = -x\npar a = 1\n", file, group("integration", {{"dt", "0.5"}})));
         CHECK(block == "version 4\nx' = -x\npar a = 1\n\noptions {\n  integration: { dt: 0.5 },\n}\n");

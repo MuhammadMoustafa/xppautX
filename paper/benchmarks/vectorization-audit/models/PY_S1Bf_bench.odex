@@ -53,14 +53,14 @@ init pM = 0.8364424360688298, aA = 0.8272121071765125, bA = 3.643341281469538e-0
 aux Iionic = INa+IKdr+IL+IM+IA+INaP
 aux Mgate = pM
 options {
-  integration: { total_time: 2000, dt: 0.01, method: stiff, relative_tolerance: 1e-8, state_limit: 100000, stop_at_limit: true },
+  integration: { total_time: 2000, dt: 0.01, method: stiff, step.relative_tolerance: 1e-8, state_limit: 100000, stop_at_limit: true },
   continuation: {
     mesh_intervals: 100, max_steps: 5000, output_every: 5000, step_size: -1, min_step_size: 0.0001,
     max_step_size: 50, parameter_min: 200, parameter_max: 20001, norm_min: -200, norm_max: 200,
     parameter_tolerance: 0.0001, state_tolerance: 0.0001, special_point_tolerance: 0.0001,
   },
-  diagram: { autovar: v, autoxmin: 0, autoxmax: 20000, autoymin: -80, autoymax: 60 },
-  plot: { xlo: 0, xhi: 2000, ylo: -110, yhi: 60 },
+  diagram: { variable: v, x_min: 0, x_max: 20000, y_min: -80, y_max: 60 },
+  plot: { axes.x_low: 0, axes.x_high: 2000, axes.y_low: -110, axes.y_high: 60 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

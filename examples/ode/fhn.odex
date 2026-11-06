@@ -11,5 +11,5 @@ par a = 0.25, eps = 0.05, gamma = 1, I_0 = 0.25
 par al = 0, omega = 2
 options {
   integration: { total_time: 100, dt: .2 },
-  plot: { xhi: 100, nplot: 2, xp2: t, yp2: w },
+  plot: { axes.x_high: 100, curves.count: 2, curves.x2: t, curves.y2: w },
 }

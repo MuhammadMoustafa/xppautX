@@ -121,7 +121,7 @@ std::string lowered(const char *text)
       case Statement::Kind::Comment: add("\" " + s.text); break;
       case Statement::Kind::Options: {
         std::string line = "@ ";
-        for (const xpp::odex::Option &o : s.more().options) line += (line.size() > 2 ? "," : "") + o.name + "=" + o.value;
+        for (const xpp::odex::Option &o : s.more().options) line += (line.size() > 2 ? "," : "") + xpp::odex_option_setting(o.group, o.name) + "=" + o.value;
         add(line);
         break;
       }
@@ -332,7 +332,7 @@ int main(void)
       "const n = 3\n"
       "fun f(v, s) = v*s\n"
       "fun g(v, w) { let s = v + w  if s > 1 { return a*s } else if s > 0 { return b } else { return 0 } }\n"
-      "options { integration: { total_time: 20, dt: 0.05, method: stiff }, output: { output: \"out.dat\" } }\n"
+      "options { integration: { total_time: 20, dt: 0.05, method: stiff }, output: { data_file: \"out.dat\" } }\n"
       "set \"fast\" { a: 2, b: 3 }\n"
       "table w1 \"w.tab\"\n"
       "table w2 exp(-abs(t)), n=51, lo=-25, hi=25\n"
@@ -404,13 +404,13 @@ int main(void)
   CHECK(starts(model_error("options { plot: { total_time: 10 } }\n"), "1:19 `total_time` is in the group integration, not plot"));
   CHECK(starts(model_error("options { integration: { dt: 1, dt: 2 } }\n"), "1:33 `dt` is given twice"));
   CHECK(starts(model_error("options { integration: { method: Runge-Kutta } }\n"), "1:34 the option method's value `Runge-Kutta` is none of"));
-  CHECK(starts(model_error("options { output: { logfile: out.dat } }\n"), "1:30 the option logfile takes a path in double quotes"));
+  CHECK(starts(model_error("options { output: { log_file: out.dat } }\n"), "1:31 the option log_file takes a path in double quotes"));
   CHECK(starts(model_error("options { integration: { dt: \"1\" } }\n"), "1:30 the option dt takes a bare word or number"));
   CHECK(starts(model_error("options { nowhere: { } }\n"), "1:11 `nowhere` is not a group of options"));
   CHECK(starts(model_error("options { }\noptions { }\n"), "2:1 options is written once in a file"));
   CHECK(starts(model_error("par a=1 b=2\n"), "1:9 expected `,` between the items of par"));
   CHECK(model_error("options { integration: { total_time: 0.03, dt: 0.01, }, }\nx'=1\n").empty());
-  CHECK(model_error("options { output: { logfile: \"C:/Users/RUNNER~1/AppData/Local/Temp/out side\\\"x\\\\.dat\" } }\nx'=1\n").empty());
+  CHECK(model_error("options { output: { log_file: \"C:/Users/RUNNER~1/AppData/Local/Temp/out side\\\"x\\\\.dat\" } }\nx'=1\n").empty());
   CHECK(model_error("par a=1,\n  b=2\nx'=a*b\n").empty());
   CHECK(starts(model_error("x = 1 +\n"), "2:1 expected a value, found the end of the file"));
   CHECK(starts(model_error("done\n"), "2:1 expected `'`, `=` or `(t) =` after `done`"));
@@ -534,7 +534,7 @@ int main(void)
   CHECK(starts(lowered("x' = 1\nset \"s\" { zz: 1 }\n"), "error 2:11 a set's keys are the model's parameters and states, and `zz` is neither"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { nosuch: { dt: 1 } } }\n"), "error 2:22 `nosuch` is not a group of options"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { output: { quiet: 1 } } }\n"), "error 2:22 a set does not hold the group `output`"));
-  CHECK(starts(lowered("x' = 1\nset \"s\" { options: { diagram: { autovar: x } } }\n"), "error 2:22 a set does not hold the group `diagram`"));
+  CHECK(starts(lowered("x' = 1\nset \"s\" { options: { diagram: { variable: x } } }\n"), "error 2:22 a set does not hold the group `diagram`"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { plot: { colormap: hot } } }\n"), "error 2:30 a set does not hold `colormap`"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { integration: { nosuch: 1 } } }\n"), "error 2:37 `nosuch` is not an option"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { plot: { dt: 1 } } }\n"), "error 2:30 `dt` is in the group integration, not plot"));
@@ -554,9 +554,9 @@ int main(void)
               ("x'=1|aux flag=(abs((x)-(1))<=(" + t9 + ")*max(1,max(abs(x),abs(1))))").c_str());
     CHECK_STR(lowered("x' = 1\naux flag = near(x, 1, tol=1e-6)\n").c_str(),
               ("x'=1|aux flag=(abs((x)-(1))<=(" + t6 + ")*max(1,max(abs(x),abs(1))))").c_str());
-    CHECK_STR(lowered("x' = 1\noptions { equilibria: { neartol: 1e-6 } }\naux flag = near(x, 1)\n").c_str(),
+    CHECK_STR(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 } }\naux flag = near(x, 1)\n").c_str(),
               ("x'=1|@ neartol=1e-6|aux flag=(abs((x)-(1))<=(" + t6 + ")*max(1,max(abs(x),abs(1))))").c_str());
-    CHECK_STR(lowered("x' = 1\noptions { equilibria: { neartol: 1e-6 }, integration: { dt: .1 } }\n").c_str(), "x'=1|@ neartol=1e-6,dt=.1");
+    CHECK_STR(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 }, integration: { dt: .1 } }\n").c_str(), "x'=1|@ neartol=1e-6,dt=.1");
     CHECK_STR(lowered("x' = 1\nevent 1 near(x, 1) - 1, x = 0\n").c_str(),
               ("x'=1|global 1 {(abs((x)-(1))<=(" + t9 + ")*max(1,max(abs(x),abs(1))))-1} {x=0}").c_str());
   }
@@ -586,8 +586,8 @@ int main(void)
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, eps=1e-6)\n"), "error 2:27 near has no argument named `eps`: only tol="));
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=-1)\n"), "error 2:27 near's tol= is not a positive number"));
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=x)\n"), "error 2:27 near's tol= is not a positive number"));
-  CHECK(starts(lowered("x' = 1\noptions { equilibria: { neartol: -1 } }\n"), "error 2:34 neartol: -1 is not a positive number"));
-  CHECK(starts(lowered("x' = 1\noptions { equilibria: { neartol: 0 } }\n"), "error 2:34 neartol: 0 is not a positive number"));
+  CHECK(starts(lowered("x' = 1\noptions { equilibria: { near_tolerance: -1 } }\n"), "error 2:41 near_tolerance: -1 is not a positive number"));
+  CHECK(starts(lowered("x' = 1\noptions { equilibria: { near_tolerance: 0 } }\n"), "error 2:41 near_tolerance: 0 is not a positive number"));
 
   /* arrays (docs/odex.md "Arrays", W80): a trailing range on a
      statement, its index named, both ends included, by a positive step */
@@ -790,7 +790,7 @@ int main(void)
     const auto result = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
-    CHECK(text.find("set \"trial\" { dt: 0.1, x: 3, options: { integration: { total_time: 5 }, plot: { xlo: -3 } } }") != std::string::npos);
+    CHECK(text.find("set \"trial\" { dt: 0.1, x: 3, options: { integration: { total_time: 5 }, plot: { axes.x_low: -3 } } }") != std::string::npos);
     if (result) CHECK(model_error(text.c_str()).empty());
   }
 

@@ -15,7 +15,7 @@ par iext = 32, vlow = 0, vhigh = 5, vl = 2.5, vh = 2.5, ibh = 6.5, ibl = 42, ita
 par vdd = 5, ut = 0.025, k = 0.65, c1 = 28, c2 = 28
 options {
   integration: { total_time: 50 },
-  plot: { nullcline_mesh: 100, xlo: 0, xhi: 5, ylo: 2.25, yhi: 2.8, xp: v, yp: w },
+  plot: { nullclines.mesh: 100, axes.x_low: 0, axes.x_high: 5, axes.y_low: 2.25, axes.y_high: 2.8, curves.x: v, curves.y: w },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

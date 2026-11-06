@@ -4,5 +4,5 @@ x' = delay(x,1)
 init x = 1
 history x = 1
 options {
-  integration: { total_time: .5, dt: .05, delay: 2 },
+  integration: { total_time: .5, dt: .05, delay.max_delay: 2 },
 }

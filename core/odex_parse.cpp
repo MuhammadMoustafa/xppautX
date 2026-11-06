@@ -791,7 +791,7 @@ private:
     std::map<std::string, int> keys;
     entries(in_set ? "the set's options" : "the options block", [&](const Token &g) {
       int index = 0;
-      if (const auto *row = find_odex_option(g.text, index); row && row->top_level && !in_set) {
+      if (const auto *row = find_odex_option("", g.text, index); row && !in_set) {
         out.push_back(option("", g, keys, false));
         return;
       }
@@ -829,19 +829,19 @@ private:
     o.name = key.text;
     o.pos = key.pos;
     int index = 0;
-    const OptionRow *row = find_odex_option(o.name, index);
+    const OptionRow *row = find_odex_option(group, o.name, index);
     if (!row) {
+      const OptionRow *elsewhere = find_odex_option_anywhere(o.name, index);
+      if (elsewhere && elsewhere->top_level) fail(key.pos, xpp::format("`{}` belongs directly in options, outside the groups", o.name));
+      if (elsewhere) fail(key.pos, xpp::format("`{}` is in the group {}, not {}", o.name, elsewhere->group, group));
       const OptionRow *xppaut = find_option(upper_case(o.name), index, true);
-      fail(key.pos, xppaut && !xppaut->group.empty()
+      fail(key.pos, xppaut && !xppaut->odex.empty()
                       ? xpp::format("`{}` is XPPAUT's word: the key is `{}`", o.name, odex_key(*xppaut, index))
                       : xpp::format("`{}` is not an option", o.name));
     }
-    if (row->top_level) {
-      if (!group.empty()) fail(key.pos, xpp::format("`{}` belongs directly in options, outside the groups", o.name));
-    } else if (row->group != group) fail(key.pos, xpp::format("`{}` is in the group {}, not {}", o.name, row->group, group));
     if (in_set && !set_holds(*row))
       fail(key.pos, xpp::format("a set does not hold `{}`: it is a setting of the whole session, not of one graph or run", o.name));
-    const auto [first, fresh] = keys.emplace(o.name, key.pos.line);
+    const auto [first, fresh] = keys.emplace(group + "/" + o.name, key.pos.line);
     if (!fresh && !row->repeatable)
       fail(key.pos, xpp::format("`{}` is given twice (the first is at line {})", o.name, first->second));
     if (row->kind == OptionKind::sliders) {

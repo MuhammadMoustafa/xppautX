@@ -27,7 +27,7 @@ struct NullclineSettings {
   int df_grid = 16, df_flag = 0;
   std::string color_via = "speed";
   double color_via_lo = 0, color_via_hi = 1;
-  int colorize_flag = 0;
+  bool colorize_flag = false;
 };
 
 /* A frozen pair of nullclines: 4 floats (a segment) per point. */

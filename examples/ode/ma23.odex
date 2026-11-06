@@ -101,9 +101,9 @@ options {
     parameter_max: 1, parameter_min: -10, output_every: 100000, max_steps: 1000, mesh_intervals: 100,
     max_step_size: 0.1,
   },
-  diagram: { autovar: SmV, autoxmin: -0.1, autoxmax: 1.1, autoymin: -90, autoymax: 20 },
-  plot: { xlo: 0, xhi: 1000.0, ylo: -90, yhi: 50, yp: SmV },
-  interface: { but: "fit:wf", but: "int:ig", but: "intl:il", but: "auto:fa" },
+  diagram: { variable: SmV, x_min: -0.1, x_max: 1.1, y_min: -90, y_max: 20 },
+  plot: { axes.x_low: 0, axes.x_high: 1000.0, axes.y_low: -90, axes.y_high: 50, curves.y: SmV },
+  interface: { buttons: "fit:wf", buttons: "int:ig", buttons: "intl:il", buttons: "auto:fa" },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -26,8 +26,8 @@ init v = 0.05
 init w = 0
 options {
   integration: { total_time: 100, store_from: 50 },
-  plot: { xp: v, yp: w, xlo: -.4, xhi: .6, ylo: -.1, yhi: .6, dfgrid: 16, nullclines.draw: true, dfdraw: 2 },
-  sweep: { rangefiles: true, rangeover: i, rangestep: 50, rangelow: -.2, rangehigh: .5, rangereset: true },
+  plot: { curves.x: v, curves.y: w, axes.x_low: -.4, axes.x_high: .6, axes.y_low: -.1, axes.y_high: .6, direction_field.grid: 16, nullclines.draw: true, direction_field.draw: scaled_arrows },
+  sweep: { write_files: true, variable: i, steps: 50, low: -.2, high: .5, reset: true },
 }
 # Done!!
 

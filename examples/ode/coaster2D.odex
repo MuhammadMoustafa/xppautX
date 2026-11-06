@@ -38,7 +38,7 @@ options {
   animation: "coaster2D.anix",
   integration: { state_limit: 100000 },
   equilibria: { search_limit: 100000 },
-  plot: { xp: X, yp: Z, xlo: -1, xhi: 1, ylo: -1, yhi: 1 },
+  plot: { curves.x: X, curves.y: Z, axes.x_low: -1, axes.x_high: 1, axes.y_low: -1, axes.y_high: 1 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15
