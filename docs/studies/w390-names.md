@@ -6,6 +6,30 @@ Scope read: function, type, struct field and file-scope names in core/ (autoX's 
 
 Proposed names follow core's own snake_case (a function says what it does; a type says what it is). "Origin" says where the algorithm comes from: LINPACK, EISPACK, BLAS, Hairer (DOPRI), Numerical Recipes, XPPAUT (its own code, cited in docs/xppaut-findings.md), AUTO-07p / AUTO2000 (the autoX Fortran, translated by f2c, so it is ours: AGENTS.md "One codebase"), CVODE, or f2c (the runtime helpers). A name marked **?** has a meaning I could not settle from the code: the maintainer or the origin's source (reference/auto-07p, reference/xppaut-8.0) settles it before stage 2.
 
+## Review against the rules (2026-11-06, before stage 2)
+
+The maintainer approved the names on the condition that they follow AGENTS.md's
+rules and format. Checked; stage 2 fixes these before it renames anything:
+
+1. **About 40 rows are marked `?`, and some are guesses that are wrong.** Two of
+   three checked against `reference/auto-07p/src` were: `stbif` "stores
+   branching data" (ae.f90), not `step_bifurcation`; `pdble` "preprocesses
+   restart data for switching branches at a period doubling" (periodic.f90),
+   not `double_precision_copy`. Every `?` row (and section 6's ambiguous list)
+   is checked against AUTO-07p's or XPPAUT's own source and named from what it
+   does there, the source line cited in the row; a meaning that cannot be
+   established keeps its old name and says so.
+2. **Rule 4 makes new aliases** (`Index`, `Single`, `Real`, `Complex`) and
+   treats autoX's code apart. One codebase and one name per thing: the f2c
+   types become the std types directly everywhere (`std::ptrdiff_t`, `float`,
+   `double`, `std::complex<double>` in place of the `{r, i}` struct), bits
+   unchanged.
+3. **No abbreviations left in a proposed name:** `start_bl`, `start_c1`,
+   `svd_nd`, `homoclinic_pvls`, `homoclinic_fn_ffho`, `objective_fn`,
+   `user_fn_fold` keep Fortran's letters; each gets a name that says what it is.
+4. **autoX's name** (W599): proposals use `autox` (lowercase in code), never
+   `auto_`; `go_go_autox` is named for what it does, not transliterated.
+
 ## 0. Rules proposed for stage 2 (for the maintainer)
 
 1. **One naming style:** core's snake_case. Fortran's `s`/`d` prefixes (single/double) go: they say a precision, and most of our routines are double (`sscal` and `saxpy` are double, so the `s` misleads).
