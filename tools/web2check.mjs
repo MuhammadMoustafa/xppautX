@@ -1784,6 +1784,12 @@ async function autoxView(dir) {
   check('Enter takes it: the grab ends', await until('!s.busy && !s.diagram.grabbing', 'grabbed')
     && (await lastAnswer())?.key === 'Return' && !(await cdp.eval(`!!document.querySelector('.pick-bar')`)),
     JSON.stringify(await lastAnswer()));
+  /* lecar's cycles from this Hopf point come back to it at point 109 and the branch ends there (W604's
+     branch_closed); steps of 0.005 (about 490 points) make it longer than the store's first buffers (web2/src/store/diagram.ts
+     MIN_CAPACITY, 256 points), so the equality below covers their growth, and output_every 50 gives it plain
+     labels for T27 (lecar's own 500 never comes). Sent directly, so the sent() checks below see only the run. */
+  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', step_size: 0.005, max_step_size: 0.005, output_every: 50})`);
+  await requireUntil('!s.busy && s.autoxSettings.core.numerics.output_every === 50', 'periodic numerics');
   await cdp.eval(`document.querySelector('.autox-host').focus()`);
   await clickRegistry('autox.run');
   check('W517: the common autoX form offers Periodic and retains the grabbed label', await until(`s.commandForm?.id === 'autox.run' && document.querySelector('[data-argument=kind] option[value=periodic]') && document.querySelector('[data-argument=label] input:not([type=checkbox])').value !== ''`, 'periodic start'));
@@ -1808,7 +1814,10 @@ async function autoxView(dir) {
   const fr = await DS('Array.from(d.points.fr)');
   for (let i = 0; i < want.pts.length && !bad; i++) if (fr[i] !== want.pts[i].fr) bad = `point ${i} fr: ${fr[i]} vs ${want.pts[i].fr}`;
   check(`the store's diagram equals the diagram events (${want.pts.length} points, ${want.labels.length} labels)`,
-    !bad && want.pts.length > 1000 && JSON.stringify(want.labels) === JSON.stringify(labels), bad || JSON.stringify(labels.slice(0, 5)));
+    !bad && want.pts.length > 256 && JSON.stringify(want.labels) === JSON.stringify(labels), bad || JSON.stringify(labels.slice(0, 5)));
+  const closed = await DS('d.stop');
+  check('W604: the periodic branch ends where it came back to its Hopf point (branch_closed)',
+    closed && closed.br === 2 && closed.why === 'branch_closed', JSON.stringify(closed));
 
   /* T27: autoX's table in the Output panel: a row per label, the plain ones NPr prints (no type) too,
      each line of the core's log classified alone however its chunks arrived */
