@@ -12,14 +12,20 @@ const WHAT: Record<string, string> = {
   plot: 'plot settings', sweep: 'range settings', analysis: 'histogram settings',
 };
 
-/** a drop-down of buttons: it closes when one is picked or a click lands outside it */
-function Menu({id, label, children}: {id: string; label: string; children: ComponentChildren}) {
+/** a drop-down (a details element) that closes when a click lands outside it */
+function useDropDown() {
   const box = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const outside = (e: PointerEvent) => {if (box.current && !box.current.contains(e.target as Node)) box.current.open = false;};
     document.addEventListener('pointerdown', outside);
     return () => document.removeEventListener('pointerdown', outside);
   }, []);
+  return box;
+}
+
+/** a drop-down of buttons: it closes when one is picked or a click lands outside it */
+function Menu({id, label, children}: {id: string; label: string; children: ComponentChildren}) {
+  const box = useDropDown();
   return (
     <details class="sets-menu" ref={box} data-sets-menu={id}>
       <summary class="small">{label} ▾</summary>
@@ -60,9 +66,12 @@ export function SetsRow({scope, window}: {scope: string; window?: string}) {
   const item = (cmd: string, label: string, run: () => void, title?: string) =>
     <li key={label}><button role="menuitem" data-command={cmd} disabled={off(cmd)} title={off(cmd) ? BUSY_TITLE : title} onClick={run}>{label}</button></li>;
   const own = sets.filter(set => !set.file);
-  return (
+  /* a graph's toolbar has no room for the row: it folds into one Sets drop-down, whose list of sets is Apply */
+  const folded = scope === 'plot';
+  const fold = useDropDown();
+  const row = (
     <div class="sets-row" role="group" aria-label={`Sets of ${what}`} data-sets-row={scope}>
-      <Menu id="sets" label="Sets">
+      <Menu id="sets" label={folded ? 'Apply' : 'Sets'}>
         {sets.length === 0 ? <li class="value-hint">No set holds {what}</li>
           : sets.map(set => item('set.apply', set.file ? `${set.name} (from ${set.file})` : set.name,
             () => session.send({cmd: 'set.apply', name: set.name, scope, ...target}), `Apply only the ${what} of the set ${set.name}`))}
@@ -81,6 +90,7 @@ export function SetsRow({scope, window}: {scope: string; window?: string}) {
         onClick={() => session.restoreDefaults(scope, window)}>Restore defaults</button>
     </div>
   );
+  return folded ? <details class="sets-menu sets-fold" ref={fold}><summary class="small">Sets ▾</summary>{row}</details> : row;
 }
 
 /** the dialogs that hold a settings group of their own (range, histogram), by command: their form carries the group's sets row */

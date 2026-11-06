@@ -145,7 +145,8 @@ beside the plot (a sheet on a phone):
   value per differential equation in model order; too few or too many
   values report the file and line and change nothing (W310, #369).
 - **The sets row** (W323) is under the heading of Parameters, States and Numerics, of each graph's plot settings, of autoX's
-  panel and of the Range and Histogram dialogs, and acts on that section's kind only (a graph's on its own graph):
+  panel and of the Range and Histogram dialogs, and acts on that section's kind only (a graph's on its own graph; in a
+  graph's toolbar the row is folded into one **Sets ▾** drop-down, where the list of sets is called **Apply**):
   **Sets** lists the named sets that hold the section's kind (a set an import brought is marked with its file) and a pick
   applies only that part of it; **Save** writes the section's current values into the model file as a *New set…*, in place
   of that kind in one of the sets the model file itself writes (*Replace parameters in set …*, which says what it replaces
