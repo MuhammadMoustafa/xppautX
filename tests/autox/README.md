@@ -140,8 +140,8 @@ switches carry a skipped `switched` run: xppautX and XPPAUT 8.0 do not switch th
 
 The comparison with XPPAUT and AUTO-07p (W354) rests on real models only (AGENTS.md): a model is a published one (its paper,
 equations and parameter values cited in its file), a named demo of AUTO-07p or XPPAUT, or it is made up, and a made-up one is
-kept beside the published models that reach the same point types: the redundancy checks accuracy (maintainer, 2026-10-29). The source is also the first comment of each model file. Of the 55
-models the descriptions run, 7 are published, 39 are named demos (XPPAUT 8.0's `tstauto/` and `ode/` examples, of which `pp2` and
+kept beside the published models that reach the same point types: the redundancy checks accuracy (maintainer, 2026-10-29). The source is also the first comment of each model file. Of the 50
+models the descriptions run, 7 are published, 34 are named demos (XPPAUT 8.0's `tstauto/` and `ode/` examples, of which `pp2` and
 `hen` are AUTO-07p demos with their papers) and 9 are made up. The point types are the ones the baselines hold
 (`.diagram.csv`, column `itp`, the `_from_` start of a two-parameter point dropped); `end`, `user_point`,
 `output` and `no_convergence` are left out.
