@@ -143,7 +143,7 @@ Note that the vertical axis of the window is automatically adjusted. Click
 - Xlabel: V
 - Ylabel: w
 
-and then click on `Ok.` The phase-plane will be drawn showing a limit cycle. Click `Nullclines` and then `New` to draw the nullclines. Click `Text,etc` then `Text` and type in “V-nullcline” followed by `Enter` at the prompt. Accept the defaults for text size and font by typing `Enter` twice. Move the mouse pointer to the cubic-like curve and click the button. The text should appear on the screen. Repeat this but type in “w-nullcline” for the text. Click `Graphic stuff` and then `Postscript`. Accept the defaults and a hardcopy postscript file will be produced which you can view or printout on an appropriate printer. Click ` File` and then `Quit` and answer `Yes` to exit XPP.
+and then click on `Ok.` The phase-plane will be drawn showing a limit cycle. Click `Nullclines` and then `New` to draw the nullclines. Click `Text,etc` then `Text` and type in “V-nullcline” followed by `Enter` at the prompt. Accept the defaults for text size and font by typing `Enter` twice. Move the mouse pointer to the cubic-like curve and click the button. The text should appear on the screen. Repeat this but type in “w-nullcline” for the text. Click `Graphic stuff` and then `PDF`. Accept the defaults and a PDF file will be produced which you can view or printout on an appropriate printer. Click ` File` and then `Quit` and answer `Yes` to exit XPP.
 
 A much more extensive tutorial is available on the World Wide Web (see above). This document is mainly a reference to all the features (bugs :) of XPP.
 

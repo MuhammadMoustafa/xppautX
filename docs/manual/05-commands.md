@@ -453,7 +453,6 @@ allows you to write text to the display in a variety of sizes and in two differe
   - $`\backslash`$S – superscript
   - $`\backslash`$n – neither sub nor superscript
   - $`\backslash`${expr} – evaluate the expression in the braces before rendering.
-- Note that not all X-servers will have these fonts, but the postscript file will still draw them.
 - **Arrow**: This lets you draw an arrow-head to indicate a direction on a trajectory. You will be prompted for the size, which should be some positive number, usually less than 1. Then you must move the the mouse and select a direction and starting point. Click on the starting point and holding the mouse button down, drag the mouse to indicate the direction of the arrow-head. Then release the mouse-button and the arrow will be drawn.
 - **Pointer**: This is like an arrow, but draws the stem as well as the arrow head. It can be used to point to important features of your graph. The prompts are like those for `Arrow.`
 - **Marker**: Choose the shape by name (`box`, `diamond`, `triangle`, `plus`, `cross` or `circle`), along with colour and size. This lets you draw little markers, such as triangles, squares, etc on the picture. When prompted to position the marker with the mouse, you can over-ride the mouse and manually type in coordinates if you hit the (Tab) key.

@@ -203,8 +203,8 @@ void get_autox_str(const xpp::Session &s, const AUTOAX &ax, std::string &xlabel,
   ylabel=std::move(l.y);
 }
 
-/* the diagram's axes in a PostScript or SVG export (diagram.cpp
-   export_diagram), whichever ps_init/svg_init began */
+/* the diagram's axes in a PDF or SVG export (diagram.cpp
+   export_diagram), the picture begin_picture began */
 void draw_export_axes(xpp::Session &s)
 {
  set_scale(s,s.autox_state.axes().xmin,s.autox_state.axes().ymin,s.autox_state.axes().xmax,s.autox_state.axes().ymax);

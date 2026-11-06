@@ -238,7 +238,7 @@ void autox_scroll_by(Session &s, double dx, double dy);
 /* where view ax plots a point: x, and y1 and y2 (the maximum and minimum,
    or y1 twice) */
 void autox_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, std::span<const double> uhigh, std::span<const double> ulow, std::span<const double> ubar, double a);
-/* the stored point d into the PostScript or SVG picture being written
+/* the stored point d into the PDF or SVG picture being written
    (type its get_bif_type, flag 0 for a branch's first point) */
 void add_ps_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
 /* the label the running continuation started from, once: for its first point */

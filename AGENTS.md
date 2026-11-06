@@ -290,8 +290,8 @@ fold search and no step back in the default, LIBM=system and LAPACK builds: its 
 monotonically from the Hopf point).
 
 `tools/goldencheck.py` (W31c, run by verify.sh) drives `xppautX --server`
-through lecar.ode and vanderpol.ode to write PostScript (with a nullcline
-and a direction field), SVG, kinescope GIFs and an array-print PostScript,
+through lecar.ode and vanderpol.ode to write PDF (with a nullcline
+and a direction field), SVG, kinescope GIFs and an array-print PDF,
 and compares each byte for byte (CRs removed) with tests/golden/
 (`--update` rewrites them); a difference names the file and its first
 differing line. They guard the conversion of the output code's fprintf
