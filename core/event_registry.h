@@ -47,6 +47,7 @@ inline constexpr char WINDOW_RENAMED[] = "window.renamed";
 inline constexpr char WINDOW_LIST[] = "window.list";
 inline constexpr char AUTOX_DIAGRAM[] = "autox.diagram";
 inline constexpr char AUTOX_INFO[] = "autox.info";
+inline constexpr char AUTOX_JOBS[] = "autox.jobs";
 inline constexpr char AUTOX_SETTINGS[] = "autox.settings";
 inline constexpr char AUTOX_VIEW[] = "autox.view";
 inline constexpr char ARRAY_PLOT_SHOWN[] = "array_plot.shown";

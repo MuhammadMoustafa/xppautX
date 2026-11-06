@@ -218,7 +218,10 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
     autox_nonfinite(*iap, std::abs(ntots));
 
   AutoxRun &run=*iap->run;
-  if(const auto full=autox_diagram_full(s.diagram.points.size()+run.points.size()))autox_fail(*full);
+  if(const auto full=autox_diagram_full(s.diagram.points.size()+run.points.size())){
+    run.run_wide_error=true; /* the whole run is over: the queue stops every job */
+    autox_fail(*full);
+  }
   int from=autox_run_from_take(*iap->run);/* the run's first point says which label it started from */
   p.ibr=static_cast<int>(ibrs);
   p.ntot=static_cast<int>(ntots);
@@ -251,6 +254,9 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
     p.from=from;
     diagram_record_branch(s.model(),autox_constants(run),run.points.empty()?nullptr:&run.points.back().point,p);
     run.points.push_back({std::move(p),iap->ntot==1});
+    if(run.fail_after_points&&run.points.size()==*run.fail_after_points)
+      autox_fail(xpp::format("a job failed for a check (XPP_AUTOX_FAIL_CHILD_AT={})",*run.fail_after_points));
+    if(run.stop_after_points&&run.points.size()+1==*run.stop_after_points)run.stopped_alone=true; /* the next solve ends the branch */
     if(run.point_stored)run.point_stored(run.points.size());
     return;
   }

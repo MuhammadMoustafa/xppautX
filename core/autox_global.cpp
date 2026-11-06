@@ -101,7 +101,7 @@ public:
                        [&](double *xp, double *f) { rhs(xp, f); }, x, f0, static_cast<int>(ndm_), eps, form, out);
     }
     bool discrete() const override { return solver_info(run_.session->numerics.method).traits.discrete; }
-    bool stopped() override { return job::cancelled(); }
+    bool stopped() override { return autox_cancelled(run_); }
 
 private:
     AutoxRun &run_;

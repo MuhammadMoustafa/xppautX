@@ -146,7 +146,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
 	   thu, p0, p1);
   }
 
-  if (iap->run->setubv_stop && xpp::job::cancelled()) return 0; /* xppautX: cancel */
+  if (iap->run->setubv_stop && autox_cancelled(*iap->run)) return 0; /* xppautX: cancel */
 
   brbd(*iap->run, iap->run->fp9, ft.data(), fc, p0, p1,
        ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &nrc);

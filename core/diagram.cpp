@@ -66,6 +66,7 @@ void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p,
   d->evi=p.evi;
   d->torper=s.autox_state.blrtn.torper;
   d->jacobian=p.jacobian;
+  d->job=p.job;
 }
 } // namespace
 

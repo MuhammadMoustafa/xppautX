@@ -19,6 +19,8 @@
 
    This file and xpp_job.cpp include no front-end header. */
 
+#include <vector>
+
 namespace xpp::job {
 
 /* A job begins and ends; nested pairs are fine (a counter), the outermost
@@ -127,6 +129,17 @@ bool poll_due();
 
    The progress is reset when a job begins. Main thread only. */
 
+/* How one of an autoX run's branch jobs (follow_all_branches, autox_jobs.cpp) ended: it is named by its key in the
+   queue (the roots' index, then the point it was found at and its direction, level by level), and ended finished (by
+   its own end), stopped (at its point `point`, counting the end point the stop makes), or never started (the run
+   was stopped while it queued). */
+enum class JobState { finished, stopped, never_started };
+struct BranchJob {
+    std::vector<long> key;
+    JobState state = JobState::finished;
+    long point = 0; /* a stopped job's number of points */
+};
+
 /* what the last report was */
 enum class Reported {
     nothing, /* no integration, no autoX, no animation */
@@ -141,6 +154,7 @@ struct Progress {
     double t = 0;                      /* the time of the last row stored */
     int branch = 0, point = 0;         /* the last point autoX stored */
     int frame = 0;                     /* the animation's frames shown */
+    std::vector<BranchJob> jobs;       /* how each of an autoX run's branch jobs ended (report_jobs), in queue order */
 };
 
 /* An integration has `rows` rows in storage, the last one at time t: a
@@ -153,6 +167,9 @@ void report_rows(long rows, double t);
    and ends the branch on point P, an end point (EP) repeating P-1, which is
    how every cancelled autoX run ends (autox_lib1.cpp stplae, stplbv). */
 void report_point(int branch, int point);
+
+/* An autoX run of branch jobs ended with these: what a stopped run is replayed from (stop_jobs). Main thread. */
+void report_jobs(std::vector<BranchJob> jobs);
 
 /* The animation's Go has shown `frame` frames (from 1). A stop at frame F
    is reached when frame F has been shown. */
@@ -168,6 +185,14 @@ Progress progress();
 void stop_at_rows(long rows);
 void stop_at_point(int branch, int point);
 void stop_at_frame(int frame);
+/* Arm the replay of a stopped run of branch jobs: each job ends as it did (the run that records it reported them):
+   finished runs to its end, stopped is cancelled alone at its `point`, never started is not started. The queue takes
+   it with armed_jobs and says jobs_reached when every job ended as recorded; until then the stop is armed. */
+void stop_jobs(std::vector<BranchJob> jobs);
+/* the armed jobs, or none */
+const std::vector<BranchJob> *armed_jobs();
+/* every armed job ended as recorded: nothing is armed any more */
+void jobs_reached();
 /* the stop just armed hands the job the key `key` (a key code) when it
    is reached, instead of cancelling it */
 void stop_with_key(int key);

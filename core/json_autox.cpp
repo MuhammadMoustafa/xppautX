@@ -102,7 +102,7 @@ int diag_same(ClientDiagramView &view, const XppDiagPoint *a, const XppDiagPoint
     }
     return a->ibr == b->ibr && a->pt == b->pt && a->itp == b->itp && a->lab == b->lab && a->type == b->type &&
            a->flag2 == b->flag2 && a->draw == b->draw && a->newseg == b->newseg && a->color == b->color &&
-           a->lw == b->lw && a->from == b->from && a->jacobian == b->jacobian && std::memcmp(&a->x, &b->x, sizeof a->x) == 0 && std::memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
+           a->lw == b->lw && a->from == b->from && a->job == b->job && a->jacobian == b->jacobian && std::memcmp(&a->x, &b->x, sizeof a->x) == 0 && std::memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
            std::memcmp(&a->y2, &b->y2, sizeof a->y2) == 0;
 }
 
@@ -209,6 +209,7 @@ void diag_run(const xpp::Session &s, std::string &b, const std::vector<XppDiagPo
     if (p->flag2!=no_calculation) buf_format(b, ",\"f2\":{:d}", static_cast<int>(p->flag2));
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
     if (p->from) buf_format(b, ",\"from\":{:d}", p->from);
+    if (p->job) buf_format(b, ",\"job\":{:d}", p->job);
     buf_format(b, ",\"jac\":\"{}\"", xpp::jacobian_name(p->jacobian));
     /* A branch's complete constants, once at its first point, in model order.
        Continued point coordinates are resolved from this same stored branch. */
@@ -278,7 +279,7 @@ namespace {
 int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
 {
     return !b->newseg && !b->from && std::abs(a->ibr) == std::abs(b->ibr) && std::abs(b->pt) == std::abs(a->pt) + 1 && a->type == b->type &&
-           a->draw == b->draw && a->color == b->color && a->lw == b->lw && a->flag2 == b->flag2 && a->jacobian == b->jacobian;
+           a->draw == b->draw && a->color == b->color && a->lw == b->lw && a->flag2 == b->flag2 && a->job == b->job && a->jacobian == b->jacobian;
 }
 
 /* what view v's client list lacks */
@@ -486,6 +487,13 @@ void j_autox_make_window(xpp::Session &s, std::string_view wname, std::string_vi
     autox_data_forget(s); /* nor an info strip or a stability circle */
     send_window(xpp::events::WINDOW_CREATED,xpp::window_name(s,WIN_AUTOX), s.autox_state.bifur.wid + 12 * text_metrics.small_width, s.autox_state.bifur.hgt + 4 * text_metrics.small_height, wname,"diagram");
     draw_bif_axes(s);
+}
+
+void j_autox_jobs(const XppAutoxJobs &jobs)
+{
+    std::string b = xpp::events::open(xpp::events::AUTOX_JOBS);
+    buf_format(b, ",\"running\":{:d},\"queued\":{:d},\"done\":{:d}}}", jobs.running, jobs.queued, jobs.done);
+    send_buf(b);
 }
 
 int j_autox_check_abort(int *iflag)

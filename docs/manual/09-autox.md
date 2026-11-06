@@ -421,10 +421,20 @@ ended) is dropped, and the diagram, the `.b`, `.s` and `.d` files do not depend 
 cycles of a Hopf point are the branch with the next number, not the point's label. Stop, while the jobs run at once,
 ends all of them, keeps the points each had, starts none of those it found, and joins them; how far each got depends on
 timing. With Threads at 1, and for a model that runs its jobs one after another, Stop ends the job that runs and the rest
-never start. (Replaying a recorded Stop job by job is a later card, W606.) The Output panel gets each job's table lines
+never start. Stop keeps the finished jobs, and the Output panel and the info strip's notes say how many
+finished, stopped and never started ("autoX stopped: 1 of 5 jobs finished, 3 stopped, 1 never started"). A recorded Stop
+is replayed job by job: each job stops at the point it stopped at, and the ones that never started do not start, so a recording
+of a stopped run gives the same diagram. The Output panel gets each job's table lines
 when the jobs are joined, in that order, numbered as the diagram is. A branch that ends at a Hopf point (HBE) or at a
 global end evaluates the model's equilibria on its own job, so it gives the same numbers whether the jobs run at once or
 in turn.
+
+A job that fails ends alone. Its points are kept, what it found before failing still starts its jobs, the other jobs go
+on, and a message says at once which job it was (the kind of its branches, the point it started from and the direction),
+how many points it had and why it ended; the run is not an error, and its notes end with "K of M jobs ended early".
+An error of the whole run (the diagram holds as many points as a session keeps, or memory runs out) ends every job as Stop
+does, keeps the finished jobs and the points so far, and is shown once. The diagram's points name the job that computed them,
+and a client shows how many jobs run, wait and have ended (the `autox.jobs` event).
 
 ### Run, by command
 

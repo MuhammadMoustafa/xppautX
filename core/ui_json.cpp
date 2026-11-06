@@ -435,6 +435,64 @@ int control_line(xpp::Session &s, const char *line)
 /* where the running job was when it was cancelled, from what the
    computation reported last (xpp_job.h): the stopped event's `at`, and a
    recorded step's `abort` (json_record.cpp) */
+namespace {
+
+constexpr std::string_view JOB_STATE_NAMES[] = {"finished", "stopped", "never_started"};
+/* a recording is read from a file a user may have been sent: no more jobs, and no key longer, than a run holds (a job's
+   key has an element per generation) */
+constexpr std::size_t MAX_RECORDED_JOBS = 1000000;
+constexpr std::size_t MAX_RECORDED_KEY = 1000;
+
+/* `"jobs":[{"key":[0,5],"state":"stopped","point":12},...]`, the autoX run's branch jobs and how each ended (xpp_job.h) */
+void buf_jobs(std::string &b, const std::vector<xpp::job::BranchJob> &jobs)
+{
+    BUF_LIT(b, ",\"jobs\":[");
+    for (std::size_t i = 0; i < jobs.size(); ++i) {
+        const xpp::job::BranchJob &job = jobs[i];
+        buf_format(b, "{}{{\"key\":[", i ? "," : "");
+        for (std::size_t k = 0; k < job.key.size(); ++k) buf_format(b, "{}{:d}", k ? "," : "", job.key[k]);
+        buf_format(b, "],\"state\":\"{}\"", JOB_STATE_NAMES[static_cast<std::size_t>(job.state)]);
+        if (job.state == xpp::job::JobState::stopped) buf_format(b, ",\"point\":{:d}", job.point);
+        BUF_LIT(b, "}");
+    }
+    BUF_LIT(b, "]");
+}
+
+} // namespace
+
+bool read_recorded_jobs(const char *at, std::vector<xpp::job::BranchJob> &jobs)
+{
+    jobs.clear();
+    const char *list = js_find(at, "jobs");
+    if (!list) return true;
+    if (*skip_ws(list) != '[') return false;
+    const char *cursor = list;
+    while (const char *e = js_element(cursor)) {
+        if (jobs.size() >= MAX_RECORDED_JOBS) return false;
+        xpp::job::BranchJob job;
+        const char *key = js_find(e, "key");
+        std::string state;
+        if (!key || *skip_ws(key) != '[' || !get_string(e, "state", state)) return false;
+        const char *k = key;
+        while (const char *element = js_element(k)) {
+            int value;
+            if (job.key.size() >= MAX_RECORDED_KEY || !xpp::parse_int(js_raw(element), value) || value < 0) return false;
+            job.key.push_back(value);
+        }
+        if (job.key.empty()) return false;
+        const auto named = std::find(std::begin(JOB_STATE_NAMES), std::end(JOB_STATE_NAMES), state);
+        if (named == std::end(JOB_STATE_NAMES)) return false;
+        job.state = static_cast<xpp::job::JobState>(named - std::begin(JOB_STATE_NAMES));
+        int point = 0;
+        const char *raw = js_find(e, "point");
+        if (job.state == xpp::job::JobState::stopped && (!raw || !xpp::parse_int(js_raw(raw), point) || point < 1)) return false;
+        if (job.state != xpp::job::JobState::stopped && raw) return false;
+        job.point = point;
+        jobs.push_back(std::move(job));
+    }
+    return true;
+}
+
 void buf_stopped_at(std::string &b)
 {
     xpp::job::Progress p = xpp::job::progress();
@@ -444,7 +502,9 @@ void buf_stopped_at(std::string &b)
         buf_num(b, p.t, 9);
         BUF_LIT(b, "}");
     } else if (p.what == xpp::job::Reported::point) {
-        buf_format(b, "{{\"what\":\"autox\",\"branch\":{:d},\"point\":{:d}}}", p.branch, p.point);
+        buf_format(b, "{{\"what\":\"autox\",\"branch\":{:d},\"point\":{:d}", p.branch, p.point);
+        if (!p.jobs.empty()) buf_jobs(b, p.jobs);
+        BUF_LIT(b, "}");
     } else if (p.what == xpp::job::Reported::frame) {
         buf_format(b, "{{\"what\":\"ani\",\"frame\":{:d}}}", p.frame);
     } else {
@@ -458,8 +518,11 @@ bool arm_recorded_stop(const char *at, int key)
     get_string(at, "what", what);
     if (what == "integrate")
         xpp::job::stop_at_rows(static_cast<long>(get_num(at, "rows", -1)));
-    else if (what == "autox")
-        xpp::job::stop_at_point(get_int(at, "branch", -1), get_int(at, "point", -1));
+    else if (what == "autox") {
+        std::vector<xpp::job::BranchJob> jobs;
+        if (read_recorded_jobs(at, jobs) && !jobs.empty()) xpp::job::stop_jobs(std::move(jobs));
+        else xpp::job::stop_at_point(get_int(at, "branch", -1), get_int(at, "point", -1));
+    }
     else if (what == "ani")
         xpp::job::stop_at_frame(get_int(at, "frame", -1));
     else
@@ -579,6 +642,7 @@ XppUi make_json_ui(void)
     u.autox_show_hint = j_autox_show_hint;
     u.autox_diagram = j_autox_diagram;
     u.autox_points_held = j_autox_points_held;
+    u.autox_jobs = j_autox_jobs;
     u.new_vcr = j_new_vcr;
     u.ani_show = j_ani_show;
     u.ani_slider = j_ani_slider;

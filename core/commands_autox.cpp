@@ -711,7 +711,7 @@ constexpr std::array RESULT_SELECTED = {ResultField{"selected", "boolean"}};
 constexpr std::array RESULT_ORBITS_DRAWN = {ResultField{"orbits_drawn", "choice"}};
 
 constexpr std::array EVENTS_OPEN = {xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::AUTOX_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
-constexpr std::array EVENTS_RUN = {xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_INFO, xpp::events::AUTOX_SETTINGS, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array EVENTS_RUN = {xpp::events::AUTOX_JOBS, xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_INFO, xpp::events::AUTOX_SETTINGS, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_GRAB = {xpp::events::AUTOX_INFO, xpp::events::AUTOX_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_SETTINGS = {xpp::events::AUTOX_SETTINGS, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_DIAGRAM = {xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_VIEW, xpp::events::SESSION_STATE, xpp::events::DONE};

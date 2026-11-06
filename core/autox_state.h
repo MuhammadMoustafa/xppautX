@@ -30,6 +30,7 @@
 #include "xpp_files.h"
 #include "xpp_error.h"
 #include "xpp_math.h"
+#include "xpp_job.h"
 
 #include <algorithm>
 #include <array>
@@ -351,6 +352,14 @@ struct AutoxRun {
   bool orbit_start=false;
   /* the queue stops this job (autox_jobs.cpp): another one made it unnecessary; checked where Stop is */
   std::atomic<bool> dropped{false};
+  /* the job is stopped alone, as Stop stops every job (a replayed recording's stop: xpp::job::stop_jobs): addbif sets
+     it when the job holds one point fewer than stop_after_points, and the next solve ends the branch with an end point */
+  std::optional<std::size_t> stop_after_points;
+  std::atomic<bool> stopped_alone{false};
+  /* the job fails when it holds this many points (XPP_AUTOX_FAIL_CHILD_AT, autox_jobs.cpp: servercheck's failing job) */
+  std::optional<std::size_t> fail_after_points;
+  /* the error this run ends with is the whole run's (the diagram's limit, memory): the queue stops every job */
+  bool run_wide_error=false;
   /* called by addbif with the number of points the job holds each time it holds one more (on the job's thread), so the
      queue can see how the branch leaves its start (autox_jobs.cpp); none for an ordinary run */
   std::function<void(std::size_t)> point_stored;
@@ -410,6 +419,9 @@ struct AutoxRun {
     struct { std::vector<double> cprev; std::vector<std::ptrdiff_t> iflag; } beyn;
   } homcont;
 };
+
+/* Stop was pressed or this job was stopped alone: what ends a branch with an end point */
+inline bool autox_cancelled(const AutoxRun &run) { return xpp::job::cancelled() || run.stopped_alone; }
 
 namespace xpp {
 /* What autoX's numerics throw where they used to exit() (W63a): a

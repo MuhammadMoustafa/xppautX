@@ -116,6 +116,25 @@ int main(void)
     xpp::job::end();
     CHECK(!xpp::job::stop_armed());
 
+    /* W606: a stopped run of branch jobs is replayed from how each job ended: armed between jobs, taken by the run, armed
+       until every job ended so, gone at the job's end; the run reports them for the stopped event */
+    xpp::job::stop_jobs({{{0}, xpp::job::JobState::stopped, 12}, {{1, 5}, xpp::job::JobState::never_started, 0}});
+    CHECK(xpp::job::stop_armed() && xpp::job::armed_jobs() && xpp::job::armed_jobs()->size() == 2);
+    xpp::job::begin(24);
+    CHECK(xpp::job::armed_jobs()->at(0).key == std::vector<long>{0} && xpp::job::armed_jobs()->at(0).point == 12);
+    CHECK(!xpp::job::cancelled());
+    xpp::job::jobs_reached();
+    CHECK(!xpp::job::stop_armed() && !xpp::job::armed_jobs());
+    xpp::job::report_jobs({{{0}, xpp::job::JobState::finished, 0}});
+    CHECK(xpp::job::progress().jobs.size() == 1 && xpp::job::progress().jobs[0].state == xpp::job::JobState::finished);
+    xpp::job::stop_jobs({{{2}, xpp::job::JobState::finished, 0}}); /* never reached: still armed at the end, gone after it */
+    CHECK(xpp::job::stop_armed());
+    xpp::job::end();
+    CHECK(!xpp::job::stop_armed() && !xpp::job::armed_jobs());
+    xpp::job::begin(25);
+    CHECK(xpp::job::progress().jobs.empty()); /* a new job starts with none reported */
+    xpp::job::end();
+
     /* an upload lands outside a computation (W134): held when none runs,
        several at once; refused while one runs */
     {

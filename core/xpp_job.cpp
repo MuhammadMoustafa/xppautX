@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <thread>
+#include <utility>
 
 namespace {
 
@@ -37,7 +38,8 @@ unsigned long load_upto() { return cancel_upto.load(std::memory_order_acquire); 
 /* where the job got to (progress()), and the armed stop */
 xpp::job::Progress reported;
 
-enum class Stop { none, rows, point, frame };
+enum class Stop { none, rows, point, frame, jobs };
+std::vector<xpp::job::BranchJob> stop_jobs_plan; /* the armed jobs (Stop::jobs) */
 Stop stop = Stop::none;
 long stop_count; /* the rows, the point or the frame it stops at */
 int stop_branch;
@@ -104,6 +106,7 @@ void end()
 {
     if (depth == 0 || --depth > 0) return;
     stop = Stop::none;
+    stop_jobs_plan.clear();
     reached_key = 0;
     job_running.store(false, std::memory_order_release);
 }
@@ -143,6 +146,22 @@ void stop_at_point(int branch, int point)
 }
 
 void stop_at_frame(int frame) { arm(Stop::frame, frame); }
+
+void report_jobs(std::vector<BranchJob> jobs) { reported.jobs = std::move(jobs); }
+
+void stop_jobs(std::vector<BranchJob> jobs)
+{
+    arm(Stop::jobs, 0);
+    stop_jobs_plan = std::move(jobs);
+}
+
+const std::vector<BranchJob> *armed_jobs() { return stop == Stop::jobs ? &stop_jobs_plan : nullptr; }
+
+void jobs_reached()
+{
+    if (stop == Stop::jobs) stop = Stop::none;
+    stop_jobs_plan.clear();
+}
 
 void stop_with_key(int key) { stop_key = key; }
 

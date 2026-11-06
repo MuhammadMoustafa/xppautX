@@ -32,6 +32,7 @@
 #include "xpp_io.h"
 #include "xpp_mem.h"
 #include "xpp_inbox.h"
+#include "xpp_job.h"
 #include "display_state.h"
 #include "grobs.h"
 #include "diagram.h"
@@ -200,6 +201,9 @@ bool line_is_step(const char *line); /* a step of the user's (ui_json.cpp's comm
    placed (what "other"): nothing is armed. The recording's replayed
    steps (json_player.cpp) arm through this. */
 bool arm_recorded_stop(const char *at, int key);
+/* the branch jobs an autoX stop's `at` records (empty when it has none), false for a list that is not one (a name, a key or
+   a count that cannot be, or more jobs than a run holds) */
+bool read_recorded_jobs(const char *at, std::vector<xpp::job::BranchJob> &jobs);
 /* where the running job was when it was cancelled, the stopped event's
    `at` object (docs/protocol.md "stopped"), into b */
 void buf_stopped_at(std::string &b);
@@ -486,6 +490,7 @@ int j_autox_grab_event(xpp::Session &s, int *x, int *y);
 void j_autox_show_hint(xpp::Session &s);
 void j_autox_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
 int j_autox_points_held(xpp::Session &s); /* XppUi.autox_points_held: the points the active view holds */
+void j_autox_jobs(const XppAutoxJobs &jobs); /* XppUi.autox_jobs: the autox.jobs event */
 void j_autox_refresh(xpp::Session &s);
 
 /* ---- json_keymap.cpp ---- */

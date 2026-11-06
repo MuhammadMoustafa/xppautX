@@ -21,6 +21,7 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -216,6 +217,10 @@ struct QueuedJob {
   bool skipped=false; /* never run: its direction leaves the parameter window at the start, or an earlier job made it */
   bool started=false,done=false,expanded=false;
   bool left_out=false; /* the join dropped it: it repeats an earlier job's */
+  bool announced=false; /* once done: its early end, if it had one, was shown */
+  xpp::job::BranchJob ended; /* once the jobs ended: how it did (ended_as) */
+  bool ended_early=false; /* once the jobs ended: it failed, which the others did not share */
+  bool never=false; /* the run was stopped while it queued, so it never started (or, in a replay, it did not in the recording) */
   Renumber numbering; /* the join's, for the jobs that start from this one's labels */
 };
 
@@ -229,6 +234,12 @@ struct Queue {
   bool isolated=false; /* the jobs evaluate on copies of the model's constants (else on the Session's own, in turn) */
   bool at_once=false; /* one thread each, at most `budget` together */
   unsigned budget=1;
+  std::atomic<bool> fatal{false}; /* a job ended with an error of the whole run: every job is stopped, as Stop does */
+  std::atomic<std::size_t> points_held{0}; /* every job's points together, which with the diagram's own are the run's */
+  std::size_t diagram_base=0; /* the diagram's points when the jobs began */
+  std::vector<xpp::job::BranchJob> plan; /* a recording's replay: how each job ended (xpp_job.h's stop_jobs); empty otherwise */
+  std::map<std::vector<long>,const xpp::job::BranchJob *> plan_of; /* plan by job key: a recording may list a great many jobs */
+  XppAutoxJobs shown_counts{-1,-1,-1}; /* the last autox.jobs event sent; a count is never negative, so the first is always sent */
   std::vector<double> constants,variables; /* the Session's, when the run began */
   double epss=0,ds=0; /* special_point_tolerance, the size of step_size */
   explicit Queue(Session &session) : s(session) {}
@@ -237,6 +248,13 @@ struct Queue {
 
 /* a job another has no use for: not run, dropped as a repeat, or stopped by the queue */
 bool unmade(const QueuedJob &job) { return job.skipped||job.left_out||job.run->dropped; }
+
+/* the recording's entry for a job, none when it holds none (or there is no recording) */
+const xpp::job::BranchJob *planned(const Queue &q, const AutoxJobKey &key)
+{
+  const auto at=q.plan_of.find(key.path);
+  return at==q.plan_of.end()?nullptr:at->second;
+}
 
 /* whether a job with this key and start is already made by one before it (autox_queue.h): its twin's loop closed, or
    another's start or end made the start. The mutex is held when the jobs are running. */
@@ -265,14 +283,26 @@ void skip_if_away(Queue &q, QueuedJob &job, double start)
                                        xpp::number(ds),q.s.model().upar_names[principal],xpp::number(start),xpp::number(state.bifur.rl0),xpp::number(state.bifur.rl1)));
 }
 
+/* XPP_AUTOX_FAIL_CHILD_AT=N makes every job that starts at what another found fail when it holds N points, so servercheck
+   reaches a failing job without a model that fails (the way XPP_STORAGE_FAIL_GROW reaches a full store) */
+std::optional<std::size_t> child_failure_point()
+{
+  const char *at=std::getenv("XPP_AUTOX_FAIL_CHILD_AT");
+  if(!at)return std::nullopt;
+  return static_cast<std::size_t>(std::strtoull(at,nullptr,10));
+}
+
 /* the job's direction, evaluation and threads, once it is about to run */
 void configure(Queue &q, QueuedJob &job)
 {
   AutoxRun &run=*job.run;
   run.job=true;
   run.on_thread=q.at_once;
+  if(job.parent)run.fail_after_points=child_failure_point();
   run.params.mxbf=0; /* the queue follows the branch points: autoX's own switching at them is off */
   run.params.ds=job.start.sign.value_or(1)*q.ds;
+  if(const xpp::job::BranchJob *entry=planned(q,job.key);entry&&entry->state==xpp::job::JobState::stopped)
+    run.stop_after_points=static_cast<std::size_t>(entry->point); /* the recording stopped it there */
   if(q.at_once)run.collocation_threads=std::min<unsigned>(AutoxParallel::max_threads,std::max<unsigned>(1,q.budget/static_cast<unsigned>(q.running+1)));
   if(q.isolated){
     run.pure_rhs=true;
@@ -352,7 +382,24 @@ void run_job(Queue &q, QueuedJob &job)
     job.run->fp8.reset();
   }
   const std::lock_guard lock(q.mutex);
+  if(job.failed&&job.run->run_wide_error)q.fatal=true;
   finish(q,job);
+}
+
+/* the autox.jobs event, when how many jobs run, wait or have ended changed */
+void announce_counts(Queue &q)
+{
+  XppAutoxJobs counts{0,0,0};
+  {
+    const std::lock_guard lock(q.mutex);
+    for(const QueuedJob &job:q.jobs){
+      if(job.skipped||job.never)continue;
+      (job.done?counts.done:job.started?counts.running:counts.queued)++;
+    }
+  }
+  if(counts.running==q.shown_counts.running&&counts.queued==q.shown_counts.queued&&counts.done==q.shown_counts.done)return;
+  q.shown_counts=counts;
+  autox_jobs(counts);
 }
 
 /* sets a queued job up and starts it, on a thread or here (the jobs in turn); not started when an earlier job made it, or when
@@ -361,7 +408,7 @@ void begin(Queue &q, QueuedJob &job, std::vector<std::thread> &threads)
 {
   {
     const std::lock_guard lock(q.mutex);
-    if(repeats(q.jobs,job.key,job.start,job.twin,q.epss)){
+    if((!q.plan.empty()&&!planned(q,job.key))||repeats(q.jobs,job.key,job.start,job.twin,q.epss)){
       job.skipped=job.done=job.expanded=true;
       q.changed.notify_all();
       return;
@@ -382,8 +429,16 @@ void begin(Queue &q, QueuedJob &job, std::vector<std::thread> &threads)
     const int slot=q.s.model().upar_con[q.s.autox_state.axes().icp1];
     (run.pure_rhs?run.rhs_constants:q.s.parser.constants)[static_cast<std::size_t>(slot)]=job.start.parameter;
   }
-  if(q.at_once&&job.hopf_before)run.point_stored=[&q,&job](std::size_t points){if(points==2)hold_for_neighbour(q,job);};
+  run.point_stored=[&q,&job](std::size_t points){
+    if(autox_diagram_full(q.diagram_base+q.points_held.fetch_add(1))){ /* more points than the diagram holds: the run is over */
+      q.fatal=true;
+      if(!q.at_once)xpp::job::cancel_current();
+      q.changed.notify_all();
+    }
+    if(q.at_once&&job.hopf_before&&points==2)hold_for_neighbour(q,job);
+  };
   job.started=true;
+  announce_counts(q); /* before a job in turn computes: the main thread is busy until it ends */
   if(!q.at_once){
     run_job(q,job);
     return;
@@ -412,10 +467,13 @@ void expand(Queue &q, QueuedJob &job)
 {
   job.expanded=true;
   if(xpp::job::cancelled()||job.run->dropped)return;
+  if(const xpp::job::BranchJob *entry=planned(q,job.key);entry&&entry->state!=xpp::job::JobState::finished)return; /* a stopped job's points started nothing */
   QueuedJob *last_hopf=nullptr;
   for(AutoxJobStart &start:autox_found_starts(job.start.ips,job.run->points,job.run->stop)){
     const bool negative=start.sign&&*start.sign<0;
     const AutoxJobKey key=autox_child_key(job.key,start.point,negative);
+    const xpp::job::BranchJob *entry=q.plan.empty()?nullptr:planned(q,key);
+    if(!q.plan.empty()&&!entry)continue; /* the recorded run never made it */
     const std::lock_guard lock(q.mutex);
     QueuedJob *twin=negative?&q.jobs.back():nullptr; /* the +DS run of the same point, just made, when it was */
     if(twin&&(twin->parent!=&job||twin->start.point!=start.point))twin=nullptr;
@@ -432,7 +490,10 @@ void expand(Queue &q, QueuedJob &job)
       last_hopf=&child;
     }
     skip_if_away(q,child,parameter);
-    if(child.skipped)child.done=child.expanded=true;
+    if(child.skipped||(entry&&entry->state==xpp::job::JobState::never_started)){
+      child.never=!child.skipped;
+      child.done=child.expanded=true;
+    }
   }
 }
 
@@ -446,21 +507,90 @@ QueuedJob *next_queued(Queue &q)
   return next;
 }
 
+/* what a job ended early with: its failure, or the exact Jacobian's (autox_pp.cpp); not an error of the whole run, which the join
+   shows once (the mutex held, the job done) */
+std::optional<Error> early_end(const QueuedJob &job)
+{
+  if(job.run->run_wide_error)return std::nullopt;
+  if(job.failed)return job.failed;
+  return job.run->jacobian_failure;
+}
+
+/* which job, for a message made while the jobs run, before the join numbers them: what it continues and from where */
+std::string job_text(const Queue &q, const QueuedJob &job)
+{
+  const AutoxJobStart &start=job.start;
+  const std::string from=job.parent?xpp::format("the point at {} = {}",q.s.model().upar_names[q.s.autox_state.axes().icp1],xpp::number(start.id->parameters[0])):"the start";
+  const std::string direction=start.sign?(*start.sign>0?", +step_size":", -step_size"):"";
+  return xpp::format("the job of {} from {}{}",start.ips==AutoxProblem::Periodic?"cycles":"steady states",from,direction);
+}
+
+/* a job ended early, without the others: shown at once, in autoX's output and as a message; the run goes on (the job's points are kept) */
+void show_early_end(const Queue &q, const QueuedJob &job, Error error)
+{
+  error.what=xpp::format("{} ended early after {} points: {}",job_text(q,job),job.run->points.size(),error.what);
+  if(error.place.file.empty()&&error.place.line==0)error.place=command_place();
+  xpp::log_autox("{}\n",error.text());
+  show_error(error);
+}
+
+/* how a job ended, for a stopped run to be replayed from (xpp_job.h): stopped when the user's Stop (or the replay's) ended its
+   branch, never started when it did not start or stopped before storing a point (which leaves nothing in the diagram either) */
+xpp::job::BranchJob ended_as(const QueuedJob &job)
+{
+  xpp::job::BranchJob end{job.key.path,xpp::job::JobState::finished,0};
+  const AutoxRun &run=*job.run;
+  if(job.never||(job.started&&run.points.empty()&&!job.failed))end.state=xpp::job::JobState::never_started;
+  else if(job.started&&run.stop.last_why==AUTOX_STOP_USER){
+    end.state=xpp::job::JobState::stopped;
+    end.point=static_cast<long>(run.points.size());
+  }
+  return end;
+}
+
+/* a recording's stop replayed: every job ended as recorded, so the run ends stopped as it did; else the stop stays armed, which the
+   player says (it never got to its recorded interruption) */
+void finish_replay(const Queue &q)
+{
+  if(q.plan.empty())return;
+  bool stopped=false;
+  for(const xpp::job::BranchJob &entry:q.plan)stopped|=entry.state!=xpp::job::JobState::finished;
+  std::size_t matched=0;
+  bool every=true;
+  for(const QueuedJob &job:q.jobs){
+    const xpp::job::BranchJob *entry=planned(q,job.key);
+    if(!entry)continue;
+    matched++;
+    every=every&&job.ended.state==entry->state&&job.ended.point==entry->point;
+  }
+  if(!every||matched!=q.plan_of.size())return;
+  xpp::job::jobs_reached();
+  if(stopped)xpp::job::cancel_current();
+}
+
 /* Runs the jobs and what they find until none is left: each when a thread is free (at once: the main thread waits and polls the
    front end for Abort), or one after another on the main thread. Jobs start in their order. */
 void run_queue(Queue &q)
 {
   std::vector<std::thread> threads;
   for(;;){
+    if(q.fatal&&!xpp::job::cancelled())xpp::job::cancel_current(); /* an error of the whole run stops every job, as Stop does */
     for(std::size_t i=0;i<q.jobs.size();i++){
       QueuedJob &job=q.jobs[i];
       bool ended;
+      std::optional<Error> early;
       {
         const std::lock_guard lock(q.mutex);
         ended=job.done&&!job.expanded;
+        if(job.done&&!job.announced){
+          job.announced=true;
+          early=early_end(job);
+        }
       }
+      if(early)show_early_end(q,job,std::move(*early));
       if(ended)expand(q,job);
     }
+    announce_counts(q);
     while(QueuedJob *next=next_queued(q)){
       if(q.at_once?q.running>=q.budget:q.running>0)break;
       begin(q,*next,threads);
@@ -475,6 +605,9 @@ void run_queue(Queue &q)
     byeautox_(&stop); /* the front end's Abort, which cancels every job */
   }
   for(std::thread &thread:threads)thread.join();
+  for(QueuedJob &job:q.jobs)
+    if(!job.started&&!job.done&&!job.skipped)job.never=true; /* what a stop left queued */
+  announce_counts(q);
 }
 
 Result<> autox_run_jobs(Session &s, int iold, int isave)
@@ -493,6 +626,9 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
   q.ds=std::abs(state.bifur.ds);
   q.budget=s.thread_budget();
   q.at_once=q.isolated&&q.budget>1;
+  q.diagram_base=s.diagram.points.size();
+  if(const std::vector<xpp::job::BranchJob> *armed=xpp::job::armed_jobs())q.plan=*armed; /* a recording's stopped run: each job ends as it did */
+  for(const xpp::job::BranchJob &entry:q.plan)q.plan_of.emplace(entry.key,&entry);
   for(const int sign:{1,-1}){ /* the roots: both directions of the start */
     QueuedJob &root=q.jobs.emplace_back();
     root.key.path={sign>0?0L:1L};
@@ -523,12 +659,23 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
   if(autox_start_points_away(start,state.bifur.rl0,state.bifur.rl1,q.ds)&&autox_start_points_away(start,state.bifur.rl0,state.bifur.rl1,-q.ds))
     q.jobs[1].skipped=true;
   else for(QueuedJob &root:q.jobs)skip_if_away(q,root,start);
-  for(QueuedJob &root:q.jobs)root.done=root.expanded=root.skipped;
+  for(QueuedJob &root:q.jobs){
+    const xpp::job::BranchJob *entry=q.plan.empty()?nullptr:planned(q,root.key);
+    root.never=!root.skipped&&entry&&entry->state==xpp::job::JobState::never_started;
+    root.done=root.expanded=root.skipped||root.never;
+  }
+  bool stopped=false; /* the run was stopped (Stop, or an error of the whole run) */
   const AutoxCalculation calculation=s.autox_state.type_of_calc; /* the roots' kind of calculation, which each job stores its points under */
   {
     const xpp::Job job;
     const Computation computing;
     run_queue(q);
+    for(QueuedJob &queued:q.jobs){
+      queued.ended=ended_as(queued);
+      queued.ended_early=(queued.failed||queued.run->jacobian_failure)&&!queued.never;
+    }
+    finish_replay(q);
+    stopped=xpp::job::cancelled();
   }
   /* the join's order is the jobs' keys (a queue served in turn would run them so) */
   std::vector<QueuedJob *> order;
@@ -557,7 +704,8 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     moved.base_label=(*first)->run->base_label;
   }
   const std::string limit_text=autox_diagram_limit_message();
-  bool diagram_full=false,limit_shown=false;
+  bool diagram_full=false,wide_shown=false;
+  int job_number=0; /* the jobs that keep their points, in the join's order: what the diagram's points name */
   std::optional<std::pair<int,int>> last_stored; /* the last point of the diagram, which a stopped run reports */
   for(QueuedJob *queued:order){
     QueuedJob &job=*queued;
@@ -567,7 +715,6 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
       continue;
     }
     if(!job.started){
-      if(job.failed&&!reported)reported=autox_shown_failure(std::move(*job.failed)); /* it could not be set up */
       if(!job.warnings.empty())xpp::log(XPP_LOG_WARN,"{}",job.warnings);
       autox_stop_merge(s.autox_state.stop,std::move(run.stop));
       continue;
@@ -576,9 +723,9 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
       job.left_out=true;
       continue;
     }
-    if(job.failed&&job.failed->what==limit_text){ /* the diagram's limit is one error for the run, shown once */
-      if(limit_shown)job.failed.reset();
-      limit_shown=true;
+    if(job.failed&&run.run_wide_error){ /* an error of the whole run (the diagram's limit, memory) is one error, shown once */
+      if(wide_shown)job.failed.reset();
+      wide_shown=true;
     }
     const int saving=s.autox_state.diag_flag&&isave==OVERWRITE?APPEND:isave;
     const Renumber mine=moved;
@@ -588,17 +735,22 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     StoredPoints stored;
     bool cut=diagram_full; /* some of this job's points were not stored */
     s.autox_state.type_of_calc=autox_job_calculation(job.start.ips);
+    job_number++;
     for(AutoxBufferedPoint &held:run.points){
       DIAGRAM &p=held.point;
       p.ibr=mine.branch(p.ibr);
       p.lab=mine.label(p.lab);
       p.from=from.label(p.from);
+      p.job=job_number;
       branches=std::max(branches,std::abs(p.ibr));
       labels=std::max(labels,p.lab);
       if(!diagram_full&&autox_diagram_full(s.diagram.points.size())){ /* the limit is the whole run's: every job's points and the diagram's */
         diagram_full=cut=true;
-        if(!limit_shown&&!job.failed)job.failed=Error{"autoX",limit_text,command_place()};
-        limit_shown=true;
+        if(!wide_shown&&!job.failed){
+          job.failed=Error{"autoX",limit_text,command_place()};
+          run.run_wide_error=true;
+        }
+        wide_shown=true;
       }
       if(diagram_full)continue;
       stored.insert({std::abs(p.ibr),std::abs(p.ntot)});
@@ -616,10 +768,33 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     run.stop.last_br=mine.branch(static_cast<int>(run.stop.last_br)); /* why this job's branches ended, as the diagram numbers them */
     for(std::string &note:run.stop.notes)
       note=autox_renumbered_line(note,[&](int value){return mine.branch(value);},[&](int value){return mine.label(value);});
-    if(auto ended=autox_end_run(s,run,std::move(job.failed),saving);ended&&!reported)reported=std::move(ended);
+    /* a job that ended early alone was shown when it did; the run's own error is the command's */
+    std::optional<Error> wide_error;
+    if(run.run_wide_error)wide_error=std::move(job.failed);
+    if(auto ended=autox_end_run(s,run,std::move(wide_error),saving);ended&&!reported&&run.run_wide_error)reported=std::move(ended);
+  }
+  std::vector<xpp::job::BranchJob> ends; /* how the jobs that count ended, and the counts a stop or an early end reports */
+  int finished=0,stopped_jobs=0,never_started=0,early=0;
+  for(const QueuedJob *queued:order){
+    if(unmade(*queued))continue;
+    ends.push_back(queued->ended);
+    if(queued->ended_early)early++;
+    else switch(queued->ended.state){
+      case xpp::job::JobState::finished: finished++; break;
+      case xpp::job::JobState::stopped: stopped_jobs++; break;
+      case xpp::job::JobState::never_started: never_started++; break;
+    }
+  }
+  std::vector<std::string> notes; /* the jobs' counts, in autoX's output and the info strip's notes */
+  if(stopped)notes.push_back(xpp::format("autoX stopped: {} of {} jobs finished, {} stopped, {} never started",finished,ends.size(),stopped_jobs,never_started));
+  if(early)notes.push_back(xpp::format("autoX: {} of {} jobs ended early (the messages above say why)",early,ends.size()));
+  for(std::string &note:notes){
+    xpp::log_autox("{}\n",note);
+    s.autox_state.stop.notes.push_back(std::move(note));
   }
   s.autox_state.type_of_calc=calculation;
   if(last_stored)xpp::job::report_point(last_stored->first,last_stored->second);
+  xpp::job::report_jobs(std::move(ends));
   ping();
   redraw_params();
   if(reported)return std::unexpected(std::move(*reported));

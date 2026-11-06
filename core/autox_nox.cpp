@@ -240,16 +240,15 @@ void close_autox(xpp::Session &s, AutoxRun &run, int flg) /* labels compatible w
      turned on upstream -- it was dead code there, not a deliberate
      no-op. */
   run.fp8.reset();
-  if(flg==0) {/*Overwrite*/
-    xpp::files::move(run.fort7.c_str(),(s.autox_state.file+".b").c_str());
-    xpp::files::move(run.fort9.c_str(),(s.autox_state.file+".d").c_str());
-    xpp::files::move(run.fort8.c_str(),(s.autox_state.file+".s").c_str());
-  }
-  else {/*APPEND*/
-    xpp::files::prepend(run.fort7.c_str(),(s.autox_state.file+".b").c_str());
-    xpp::files::prepend(run.fort9.c_str(),(s.autox_state.file+".d").c_str());
-    xpp::files::prepend(run.fort8.c_str(),(s.autox_state.file+".s").c_str());
-  }
+  /* a run that ended before it wrote a label (fort.8) or a point has nothing of that file to keep */
+  const auto keep=[&](const std::string &from, const char *suffix){
+    if(!xpp::files::exists(from))return;
+    if(flg==0)xpp::files::move(from.c_str(),(s.autox_state.file+suffix).c_str()); /*Overwrite*/
+    else xpp::files::prepend(from.c_str(),(s.autox_state.file+suffix).c_str()); /*APPEND*/
+  };
+  keep(run.fort7,".b");
+  keep(run.fort9,".d");
+  keep(run.fort8,".s");
 
     xpp::files::remove(run.fort8.c_str());
 
@@ -436,8 +435,10 @@ std::optional<xpp::Error> autox_numerics(AutoxRun &run)
        instead, as a cancel does (autox_state.h) */
     return e.error;
   } catch (const std::length_error &e) {
+    run.run_wide_error=true; /* memory is the whole run's: the queue of jobs stops every job */
     return xpp::Error{"autoX",e.what(),xpp::command_place()};
   } catch (const std::bad_alloc &) {
+    run.run_wide_error=true;
     return xpp::Error{"autoX","Cannot allocate autoX workspace",xpp::command_place()};
   }
   return std::nullopt;
@@ -890,6 +891,7 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
   dp.node=d.index;
   dp.from=d.from;
   dp.jacobian=d.jacobian;
+  dp.job=d.job;
   dp.type=type;
   dp.flag2=flag2;
   dp.newseg=(flg==0);

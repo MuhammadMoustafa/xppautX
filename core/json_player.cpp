@@ -148,7 +148,7 @@ bool valid_position(const char *at)
     };
     return what == "other" || (what == "ani" && count("frame"))
         || (what == "integrate" && count("rows"))
-        || (what == "autox" && count("branch") && count("point"));
+        || (what == "autox" && count("branch") && count("point") && [at] { std::vector<xpp::job::BranchJob> jobs; return read_recorded_jobs(at, jobs); }());
 }
 
 /* the step of line, or an error saying why it cannot be played */

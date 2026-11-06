@@ -115,8 +115,14 @@ typedef struct XppDiagPoint {
     int from;      /* the label the run that computed it started from, on
                       the run's first point only (0 otherwise, or unknown) */
     int jacobian;  /* the Jacobian of the run that computed it (DIAGRAM.jacobian) */
+    int job;       /* the branch job that computed it (DIAGRAM.job), 0 for none */
     double x, y1, y2;
 } XppDiagPoint;
+
+/* the jobs of a run of branch jobs (follow_all_branches): the autox.jobs event */
+struct XppAutoxJobs {
+    int running, queued, done;
+};
 
 /* Historical names, now dispatchers. Declared here so every core file sees
    one consistent prototype. */
@@ -307,6 +313,8 @@ typedef struct XppUi {
     void (*autox_diagram)(Session &s, int view, const XppDiagPoint *p);
     /* how many points of the diagram the client holds (Clear hides the branches up to them) */
     int (*autox_points_held)(Session &s);
+    /* a run of branch jobs (follow_all_branches) changed: how many run, wait and have ended */
+    void (*autox_jobs)(const XppAutoxJobs &jobs);
 
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */
@@ -373,6 +381,7 @@ void draw_one_array_plot(Session &s, std::string_view bob);
 void make_autox(Session &s, std::string_view wname, std::string_view iname);
 void autox_diagram(Session &s, int view, const XppDiagPoint *p);
 int autox_points_held(Session &s);
+void autox_jobs(const XppAutoxJobs &jobs);
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 void scroll_window(Session &s);

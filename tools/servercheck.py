@@ -705,7 +705,7 @@ def check_autox_directions_from_orbit():
     states = dict(V=8.585767401388178, m=0.12087667611762813, n=0.5133969213640369, h=0.2520504470303479)
     values = [dict(kind='par', name='I', value=49.119058076613086)] + [dict(kind='ic', name=n, value=v) for n, v in states.items()]
     numerics = dict(min_step_size=1e-5, max_step_size=4, max_steps=400, output_every=100, parameter_min=-10, parameter_max=200,
-                    mesh_intervals=30, max_branch_switches=0, suppress_branch_points=True, step_size=2)
+                    mesh_intervals=30, max_branch_switches=0, step_size=2)
     (diagram, files), (turn_diagram, turn_files) = orbit_directions('tools/models/hodgkin_huxley.odex', 'I', values, 12, numerics)
     rows = lambda d, *prefixes: [line for line in d.decode().splitlines() if line.startswith(prefixes)]
     first_two = ('periodic,-1,', 'periodic,-2,')
@@ -715,6 +715,204 @@ def check_autox_directions_from_orbit():
           rows(diagram, *first_two) == rows(turn_diagram, *first_two) and len(ends) == 2 and len(rows(diagram, 'equilibrium,')) > 0
           and not rows(turn_diagram, 'equilibrium,'),
           '%d rows against %d; %d hopf_end points; %d equilibrium rows' % (len(rows(diagram, *first_two)), len(rows(turn_diagram, *first_two)), len(ends), len(rows(diagram, 'equilibrium,'))))
+
+
+# W606 (#673): a run of branch jobs (follow_all_branches): a job that fails ends alone, an error of the whole run and Stop
+# end every job, the counts they say, and a stopped run and the shipped recordings replayed
+LORENZ = 'tools/models/lorenz_homoclinic.odex'  # the Lorenz equations, AUTO-07p's lrz demo (tests/autox/lrz_follow_all.json)
+LORENZ_START = [dict(kind='par', name='r', value=0.0)] + [dict(kind='ic', name=n, value=0.0) for n in ('x', 'y', 'z')]
+LORENZ_RUN = dict(kind='equilibrium', replace_diagram=False, follow_all_branches=True, step_size=0.5, min_step_size=1e-5,
+                  max_step_size=0.5, max_steps=300, output_every=100, parameter_min=0, parameter_max=31, mesh_intervals=35,
+                  max_branch_switches=0)
+# AUTO-07p's tstauto ab at p0 = 0.05, run with a step too small to end in the time a check takes: the jobs run until they are stopped
+STOPPED_MODEL = 'examples/tstauto/ab.odex'
+STOPPED_START = [dict(kind='par', name='p0', value=0.05), dict(kind='ic', name='U1', value=0.06282240276322631),
+                 dict(kind='ic', name='U2', value=0.2931712128950587)]
+STOPPED_RUN = dict(kind='equilibrium', replace_diagram=False, follow_all_branches=True, max_steps=1000000, output_every=1000,
+                   parameter_min=0, parameter_max=1.5, step_size=1e-6, min_step_size=1e-7, max_step_size=1e-6)
+
+
+def jobs_session(model, start, env=None, threads=None, record=None):
+    """A server on `model` at `start`, with autoX open (inside the recording when `record` is set)"""
+    s = Server(args.server, autoxcompare.ROOT / model, env=env)
+    autoxcompare.completed(s)
+    if threads is not None:
+        autoxcompare.completed(s, dict(cmd='session.set_threads', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
+    autoxcompare.set_values(s, start)
+    if record:
+        autoxcompare.completed(s, dict(cmd='recording.start'))
+    autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
+    autoxcompare.completed(s, dict(cmd='autox.open'))
+    if model == LORENZ:
+        autoxcompare.completed(s, dict(cmd='autox.configure_plot', parameter1='r'))
+    return s
+
+
+def jobs_done(e):
+    return e.get('ev') == 'done' and e.get('job')
+
+
+def jobs_diagram(evs):
+    """the diagram the events leave: (branch, point, x, y, job) per point"""
+    pts = []
+    for e in evs:
+        if e.get('ev') != 'autox.diagram' or e.get('view') != 'diagram_1':
+            continue
+        if e['op'] == 'reset':
+            del pts[e['keep']:]
+        elif e['op'] == 'add':
+            del pts[e['from']:]
+            for r in e['runs']:
+                pts += [(r['br'], r['pt'] + i, x, r['y'][i], r.get('job', 0)) for i, x in enumerate(r['x'])]
+    return pts
+
+
+def jobs_notes(evs):
+    notes = [e['notes'] for e in evs if e.get('ev') == 'autox.info' and e.get('notes')]
+    return notes[-1] if notes else []
+
+
+def jobs_errors(evs):
+    return [e['error'] for e in evs if e.get('ev') == 'session.message' and e.get('error')]
+
+
+def stop_when_running(s, running, run):
+    """a run that Stop ends: sent once `running` jobs run (the autox.jobs event says so, no time waited for); its events and done"""
+    s.send(cmd='autox.run', **run)
+    evs = []
+    while True:
+        e = s.events.get(timeout=60 * SLOW)
+        evs.append(e)
+        if e.get('ev') == 'autox.jobs' and e['running'] == running:
+            break
+    s.send(cmd='run.abort')
+    more, end = s.collect(jobs_done, timeout=120 * SLOW)
+    return evs + more, end or {}
+
+
+def check_autox_branch_jobs():
+    s = jobs_session(LORENZ, LORENZ_START, env={'XPP_AUTOX_FAIL_CHILD_AT': '80'})
+    try:  # the branch points' two branches fail at their 80th point, after their Hopf point (the 74th)
+        s.send(cmd='autox.run', **LORENZ_RUN)
+        evs, end = s.collect(jobs_done, timeout=300 * SLOW)
+        errors = jobs_errors(evs)
+        pts = jobs_diagram(evs)
+        first_error = next((i for i, e in enumerate(evs) if jobs_errors([e])), None)
+        first_points = next((i for i, e in enumerate(evs) if e.get('ev') == 'autox.diagram' and e.get('op') == 'add'), None)
+        check('W606: a job that fails ends alone: its reason is shown at once (the job, its start, its points, the setting), the run ends ok',
+              len(errors) == 2 and all('the job of steady states from the point at r = 1.0000001' in m and 'ended early after 80 points' in m
+                                       and 'XPP_AUTOX_FAIL_CHILD_AT=80' in m for m in errors) and end.get('status') == 'ok'
+              and first_error is not None and first_points is not None and first_error < first_points, str(errors) + str(end)[:200])
+        check('W606: a failed job keeps its points, and the Hopf point it found before failing still starts its cycles (5 jobs, 366 points)',
+              sorted({p[4] for p in pts}) == [1, 2, 3, 4, 5] and len(pts) == 366, '%s, %d points' % (sorted({p[4] for p in pts}), len(pts)))
+        check('W606: the run counts only the jobs that ended early', jobs_notes(evs) and jobs_notes(evs)[-1:] == ['autoX: 2 of 5 jobs ended early (the messages above say why)'],
+              str(jobs_notes(evs)))
+        counts = [(e['running'], e['queued'], e['done']) for e in evs if e.get('ev') == 'autox.jobs']
+        check('W606: the autox.jobs event counts the jobs running, queued and done, and ends at all of them done',
+              counts and counts[-1] == (0, 0, 5) and all(sum(c) <= 5 for c in counts), str(counts))
+    finally:
+        s.close()
+
+    for threads in (1, 'auto'):  # a limit of the whole run (the diagram's points) stops every job as Stop does, the error shown once
+        s = jobs_session(LORENZ, LORENZ_START, env={'XPP_DIAGRAM_POINTS_LIMIT': '150'},
+                         threads=None if threads == 'auto' else threads)
+        try:
+            s.send(cmd='autox.run', **LORENZ_RUN)
+            evs, end = s.collect(jobs_done, timeout=300 * SLOW)
+            errors = jobs_errors(evs) + ([end['error']] if end.get('error') else [])
+            check('W606: an error of the whole run (the diagram\'s limit) is shown once, the finished jobs and the points so far kept (threads %s)' % threads,
+                  len(errors) == 1 and 'holds 150 points' in errors[0] and len(jobs_diagram(evs)) == 150, str(errors) + ' %d points' % len(jobs_diagram(evs)))
+            check('W606: it stops the other jobs as Stop does, and says how many (threads %s)' % threads,
+                  any(n.startswith('autoX stopped: ') for n in jobs_notes(evs)), str(jobs_notes(evs)))
+        finally:
+            s.close()
+
+    for threads, running in ((1, 1), ('auto', 2)):  # Stop: finished jobs kept, running ones keep their points, queued ones dropped
+        s = jobs_session(STOPPED_MODEL, STOPPED_START, threads=threads)
+        try:
+            evs, end = stop_when_running(s, running, STOPPED_RUN)
+            stop = [n for n in jobs_notes(evs) if n.startswith('autoX stopped: ')]
+            found = re.fullmatch(r'autoX stopped: (\d+) of 2 jobs finished, (\d+) stopped, (\d+) never started', stop[0]) if stop else None
+            got = tuple(int(g) for g in found.groups()) if found else ()
+            check('W606: Stop counts the jobs finished, stopped and never started (threads %s: %s)' % (threads, got),
+                  end.get('status') == 'stopped' and got and got[0] == 0 and got[1] + got[2] == 2 and (threads != 1 or got[2] >= 1),
+                  str(jobs_notes(evs)) + str(end)[:200])
+            check('W606: the points of the stopped jobs are kept, each as its job', len(jobs_diagram(evs)) >= 2 and len({p[4] for p in jobs_diagram(evs)}) == 2 - got[2],
+                  str(len(jobs_diagram(evs))))
+        finally:
+            s.close()
+    check_autox_stopped_replay()
+    check_autox_branch_recordings()
+
+
+def replayed_events(model, recording):
+    """the events of a recording played by the core's own player over --server, and its silent play's exit code"""
+    run = tempfile.mkdtemp(prefix='xppauto-replay')
+    try:
+        result = replay_recording(args.server, autoxcompare.ROOT / model, recording, run)
+        return result.returncode, [json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')], result.stderr
+    finally:
+        shutil.rmtree(run, ignore_errors=True)
+
+
+def check_autox_stopped_replay():
+    """a stopped run of branch jobs is recorded with how each job ended and replayed so: each job armed to its own point, the
+    never-started ones not started: the same diagram and the same counts"""
+    s = jobs_session(STOPPED_MODEL, STOPPED_START, record=True)
+    try:
+        evs, end = stop_when_running(s, 2, STOPPED_RUN)
+        autoxcompare.completed(s, dict(cmd='recording.stop', file='stopped.recx'))
+        path = os.path.join(s.run, 'stopped.recx')
+        with open(path, encoding='utf-8') as f:
+            text = f.read()
+        jobs = re.search(r'"abort":\{"what":"autox","branch":\d+,"point":\d+,"jobs":(\[.*?\])\}\}', text)
+        check('W606: a stopped run is recorded with its jobs: each with its key and how it ended',
+              jobs and '"key":[0]' in jobs.group(1) and '"key":[1]' in jobs.group(1) and '"state":"stopped"' in jobs.group(1), text[text.find('@steps'):][:600])
+        code, replay, err = replayed_events(STOPPED_MODEL, path)
+        errors = jobs_errors(replay) + [e['error'] for e in replay if e.get('ev') == 'done' and e.get('error')]
+        check('W606: the stopped run replays: no error, silently too (exit %s), each job stopped at its recorded point: the same diagram' % code,
+              code == 0 and not errors and jobs_diagram(replay) == jobs_diagram(evs) and len(jobs_diagram(evs)) > 2,
+              '%s %s %d vs %d points' % (errors, err[-200:], len(jobs_diagram(replay)), len(jobs_diagram(evs))))
+        last_done = [e for e in replay if e.get('ev') == 'done' and e.get('job')][-1]
+        counts = lambda events: [(e['running'], e['queued'], e['done']) for e in events if e.get('ev') == 'autox.jobs'][-1]
+        check('W606: the replay ends stopped, with the same jobs ended (running, queued, done)',
+              last_done.get('status') == 'stopped' and counts(replay) == counts(evs) == (0, 0, 2), str(last_done)[:200] + str(counts(replay)) + str(counts(evs)))
+    finally:
+        s.close()
+
+
+def check_autox_branch_recordings():
+    """examples/recordings/lorenz_follow_off.recx and lorenz_follow_on.recx: the Lorenz equations (AUTO-07p's lrz demo), the branch
+    point at r = 1 and the Hopf point at r = 24.74, run one branch after another from their points (off), or all of them as one run
+    (on, 5 jobs): each plays to its end, silently and over --server, to the diagram its own commands give"""
+    for name, jobs in (('lorenz_follow_off', 0), ('lorenz_follow_on', 5)):
+        path = str(autoxcompare.ROOT / 'examples' / 'recordings' / (name + '.recx'))
+        with open(path, encoding='utf-8') as f:
+            _, _, steps, written, computed = read_recx(f.read())
+        s = jobs_session(LORENZ, LORENZ_START)
+        try:  # the recorded commands run live
+            live = []
+            for step, _ in steps:
+                if step['cmd']['cmd'] in ('autox.open', 'autox.configure_plot'):
+                    continue
+                s.send(**step['cmd'])
+                got, end = s.collect(jobs_done, timeout=300 * SLOW)
+                live += got
+                if jobs_errors(got) or end.get('error'):
+                    break
+        finally:
+            s.close()
+        code, replay, err = replayed_events(LORENZ, path)
+        errors = jobs_errors(replay) + [e['error'] for e in replay if e.get('ev') == 'done' and e.get('error')]
+        labelled = {p['sym'] for p in autoxcompare.Diagram().apply(replay).points}
+        check('%s.recx: follow_all_branches is in its commands, it plays silently (exit %s) and over --server with no error' % (name, code),
+              written == computed and code == 0 and not errors and any(step['cmd'].get('follow_all_branches') is (jobs > 0)
+                                                                         for step, _ in steps), '%s %s' % (errors, err[-200:]))
+        check('%s.recx: it replays to the diagram its commands give, byte for byte (%d points), with its branch point and Hopf point, in %s'
+              % (name, len(jobs_diagram(live)), 'jobs 1..5' if jobs else 'no jobs'),
+              jobs_diagram(replay) == jobs_diagram(live) and len(jobs_diagram(live)) > 200 and {'BP', 'HB'} <= labelled
+              and sorted({p[4] for p in jobs_diagram(replay)}) == (list(range(1, jobs + 1)) if jobs else [0]),
+              '%d vs %d points, %s, %s' % (len(jobs_diagram(replay)), len(jobs_diagram(live)), labelled, sorted({p[4] for p in jobs_diagram(replay)})))
 
 
 def check_autox_registry():
@@ -2413,7 +2611,7 @@ def check_atomic_commands():
 
 
 
-INDEPENDENT_SECTIONS = {'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -11270,6 +11468,7 @@ check_autox_starts()
 check_autox_two_parameter_starts()
 check_autox_periodic_start_kind()
 check_autox_directions()
+check_autox_branch_jobs()
 check_autox_registry()
 check_fit_stops()
 check_event_count_note()

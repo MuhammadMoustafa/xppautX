@@ -45,6 +45,8 @@ constexpr std::array EVENTS = {
     Event{WINDOW_LIST, "windows", "Every open window and whether it is shown, sent again when it changed.", WINDOW_LIST},
     Event{AUTOX_DIAGRAM, "op, view", "The autoX diagram as data, each view of it; the rest of its fields depend on op (axes, reset, add, views)."},
     Event{AUTOX_INFO, "info, stab, stop, notes, start_refined", "autoX's info strip and stability circle, and why the last branch ended.", AUTOX_INFO},
+    Event{AUTOX_JOBS, "running, queued, done",
+          "A run of branch jobs (follow_all_branches) changed: how many jobs run, wait to start and have ended; the last one is the run's end."},
     Event{AUTOX_SETTINGS, "numerics, pars, axes, marks", "autoX's settings as data.", AUTOX_SETTINGS},
     Event{AUTOX_VIEW, "earlier, show, active, views", "autoX's hidden branches, the active view and each view's zoom."},
     Event{ARRAY_PLOT_SHOWN, "title, nx, ny, values, enc, colormap, ramp, zmin, zmax, tlo, thi, first_row, tag", "The array plot's cells and colours."},

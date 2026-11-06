@@ -140,11 +140,9 @@ std::span<const double> autox_constants(const AutoxRun &run)
 
 void autox_checkpoint(const AutoxRun &run, int *iflag)
 {
-  if(!run.on_thread){
-    xpp::byeautox_(iflag);
-    return;
-  }
-  *iflag=xpp::job::cancelled()||run.dropped?1:0;
+  if(run.on_thread)*iflag=xpp::job::cancelled()?1:0;
+  else xpp::byeautox_(iflag);
+  if(run.dropped||run.stopped_alone)*iflag=1;
 }
 
 double autox_parameter_value(const AutoxRun &run, integer slot,

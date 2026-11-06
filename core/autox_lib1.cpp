@@ -67,7 +67,7 @@ bool jacobian_failed(const iap_type *iap) { return iap->run->jacobian_failure.ha
 
 /* the user cancelled, or the exact Jacobian failed: what ends a run where
    anything else (a solve that does not converge) only gives a point up */
-bool stop_asked(const iap_type *iap) { return xpp::job::cancelled() || jacobian_failed(iap); }
+bool stop_asked(const iap_type *iap) { return autox_cancelled(*iap->run) || jacobian_failed(iap); }
 
 /* x^n (n >= 1) by repeated squaring, in f2c's pow_di order (its bits) */
 double power_by_squaring(double x, integer n)
@@ -2019,7 +2019,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
-    if (!iap->run->locating && xpp::job::cancelled()) goto L5; /* xppautX: cancel */
+    if (!iap->run->locating && autox_cancelled(*iap->run)) goto L5; /* xppautX: cancel */
     nit = nit1;
     iap->nit = nit;
     par[icp[0]] = rlcur[0];
@@ -3164,9 +3164,9 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* xppautX: cancel: a point the solve reached is stored as it is; the next
      solve sees the cancel and ends the branch with an EP repeating it, so a
      cancel always ends the same way, wherever it came (xpp_job.h, replay) */
-  if (istop == 0 && xpp::job::cancelled()) iflag = 0;
+  if (istop == 0 && autox_cancelled(*iap->run)) iflag = 0;
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
-  if (istop == 1 && !xpp::job::cancelled()) { /* xppautX: cancel: EP, not MX */
+  if (istop == 1 && !autox_cancelled(*iap->run)) { /* xppautX: cancel: EP, not MX */
     /*        Maximum number of iterations reached somewhere. */
     context.itp = xpp::AutoxPointCode{xpp::AutoxPointKind::MaxSteps, context.itpst};
     iap->itp = context.itp;
@@ -5151,7 +5151,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
     { int iflag; autox_checkpoint(*iap->run,&iflag); } /* xppautX: cancel */
-    if (!iap->run->locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
+    if (!iap->run->locating && autox_cancelled(*iap->run)) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     nitps = nit1;
     iap->nit = nitps;
     nllv = 0;
@@ -5169,7 +5169,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	     udotps, upoldp, dtm, fa, fc, p0, 
 	     p1, thl, thu);
     }
-    if ((!iap->run->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel, W275 */
+    if ((!iap->run->locating && autox_cancelled(*iap->run)) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel, W275 */
     /* Add Newton increments. */
 
     for (i = 0; i < ndim; ++i) {
@@ -5236,7 +5236,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
         solvbv(&refactor, iap, rap, par, icp, funi, bcni, icni, &no_step, &tangent,
                rlcur, rlold, rldot, ndxloc, ups, dups, uoldps, udotps, upoldp, dtm,
                fa, fc, p0, p1, thl, thu);
-        if ((!iap->run->locating && xpp::job::cancelled()) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; }
+        if ((!iap->run->locating && autox_cancelled(*iap->run)) || jacobian_failed(iap)) { nrow = ndim * ncol; goto L13; }
       }
       (*pvli)(iap, rap, icp, dtm, ndxloc, ups, &ndim, p0, p1, par);
       if (!xpp::all_finite({par, static_cast<size_t>(iap->run->parameter_count)})) {
@@ -6327,9 +6327,9 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
    call with iflag  */
   autox_checkpoint(*iap->run,&iflag);
   istop = iap->istop;
-  if (istop == 0 && xpp::job::cancelled()) iflag = 0; /* xppautX: cancel: as in stplae */
+  if (istop == 0 && autox_cancelled(*iap->run)) iflag = 0; /* xppautX: cancel: as in stplae */
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
-  if (istop == 1 && !xpp::job::cancelled()) { /* xppautX: cancel: EP, not MX */
+  if (istop == 1 && !autox_cancelled(*iap->run)) { /* xppautX: cancel: EP, not MX */
     /*        ** Maximum number of iterations reached somewhere. */
     context.itp = xpp::AutoxPointCode{xpp::AutoxPointKind::MaxSteps, context.itpst};
     iap->itp = context.itp;
@@ -6382,7 +6382,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   if (context.ips == xpp::AutoxProblem::Periodic && f2c::abs(context.isw) != 2) {
     xpp::AutoxStop &stop = iap->run->stop;
     const bool growing = xpp::autox_period_watch_add(stop.period_watch, par[xpp::autox_unknown::period], ntot == 1);
-    if (growing && iap->istop == 0 && !xpp::job::cancelled() &&
+    if (growing && iap->istop == 0 && !autox_cancelled(*iap->run) &&
         (context.itp.kind == xpp::AutoxPointKind::Regular || context.itp.kind == xpp::AutoxPointKind::Output)) {
       if (auto end = xpp::autox_global_end(*iap, par, icp, ups, *ndxloc, par[xpp::autox_unknown::period], stop.period_watch.shortest)) {
         stop.global = std::move(*end);
@@ -6403,7 +6403,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     xpp::AutoxStop &stop = iap->run->stop;
     const double amplitude = xpp::autox_orbit_amplitude({u_high.data(), node}, {u_low.data(), node}, {u_bar.data(), node});
     const bool shrunk = xpp::autox_amplitude_watch_add(stop.amplitude_watch, amplitude, par[icp[0]], ntot == 1);
-    if (shrunk && iap->istop == 0 && !xpp::job::cancelled() &&
+    if (shrunk && iap->istop == 0 && !autox_cancelled(*iap->run) &&
         (context.itp.kind == xpp::AutoxPointKind::Regular || context.itp.kind == xpp::AutoxPointKind::Output)) {
       if (auto end = xpp::autox_hopf_end(*iap, par, icp, {u_bar.data(), node}, stop.amplitude_watch)) {
         stop.hopf_end = std::move(*end);

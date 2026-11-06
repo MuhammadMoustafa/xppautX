@@ -134,6 +134,7 @@ typedef struct diagram {
   AutoxAxis icp1,icp2,icp3,icp4; /* what the point continued in (autox_axis.h) */
   AutoxCalculation flag2=no_calculation;
   int from=0; /* the label its run started from, on a run's first point (not saved in files) */
+  int job=0; /* the branch job of a follow_all_branches run that computed it, counted in the order of the join; 0: none (not saved in files) */
   int jacobian=0; /* how the run that computed it formed the Jacobian: JACOBIAN_DIFFERENCE or JACOBIAN_EXACT (jacobian.h, W278) */
   /* the six arrays n long, zeroed: the one place a point's dimension is set */
   void size_variables(std::size_t n){
