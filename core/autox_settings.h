@@ -115,8 +115,8 @@ struct AutoxSettingsSet {
     std::optional<int> nmarks; /* absent: keep the current marks; present: whole list length */
     std::vector<std::string> mark_name;
     std::vector<double> mark_value;
-    /* autoX's thread count (W267), a program preference and not a setting of
-       the session: prefs::AUTOX_THREADS_AUTO or the count. Set by `autox`
+    /* the thread count of autoX and sweeps (W267, W434), a program preference and not a setting of
+       the session: prefs::THREADS_AUTO or the count. Set by `autox`
        `set`'s "threads" and saved in the preferences file; never filled by
        autox_settings_now, so a session file does not hold it. */
     std::optional<unsigned> threads;
@@ -126,7 +126,7 @@ struct AutoxSettingsSet {
    keeps the user's preferences out of it, and reads none); a bad file leaves
    the automatic count (the file's error is shown by the recent models' note,
    once). Called by the load. */
-void autox_threads_load(Session &s);
+void threads_load(Session &s);
 
 /* the settings now, whole: every Numerics field, the
    axes and the Mark values, names empty where there is none (the event's

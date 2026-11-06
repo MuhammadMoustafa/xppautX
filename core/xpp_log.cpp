@@ -15,7 +15,7 @@ bool autox_echo;
 /* the LogCapture that keeps this thread's messages (the latest made), if
    any */
 thread_local xpp::LogCapture *capture = nullptr;
-/* where this thread's log_autox() lines go while an AutoxLogHold keeps them */
+/* where this thread's log_autox() lines go while an LogHold keeps them */
 thread_local std::string *autox_held = nullptr;
 thread_local std::string *autox_held_warnings = nullptr;
 
@@ -152,12 +152,12 @@ void log_message(XppLogLevel level, std::string_view fmt, std::format_args args)
 
 bool log_autox_enabled() { return autox_echo || threshold >= XPP_LOG_INFO; }
 
-AutoxLogHold::AutoxLogHold(std::string &table, std::string &warnings) : outer_table_(autox_held), outer_warnings_(autox_held_warnings)
+LogHold::LogHold(std::string &table, std::string &warnings) : outer_table_(autox_held), outer_warnings_(autox_held_warnings)
 {
     autox_held = &table;
     autox_held_warnings = &warnings;
 }
-AutoxLogHold::~AutoxLogHold()
+LogHold::~LogHold()
 {
     autox_held = outer_table_;
     autox_held_warnings = outer_warnings_;

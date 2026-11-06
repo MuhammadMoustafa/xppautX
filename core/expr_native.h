@@ -18,7 +18,7 @@ std::vector<ModelProgram> model_programs(Model &m);
 /* The states each equation of m reads, through the fixed variables it
    reads, itself included (a map's f(x)-x reads its own state), each list
    ascending, from the programs compile_model compiled: only for a model
-   whose Model::autox_rhs_pure holds. The difference Jacobian's groups and
+   whose Model::rhs_impurity holds. The difference Jacobian's groups and
    the independent subsystems (Model::subsystems) are made from it. */
 std::vector<std::vector<int>> equation_reads(const Model &m);
 /* What joins every state of s's model into one subsystem under the run

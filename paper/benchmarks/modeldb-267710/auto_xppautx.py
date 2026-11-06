@@ -54,7 +54,7 @@ def _measure(s, threads, jacobian, limit):
     s.send(cmd='events.subscribe', events=[], diagram=True)
     step(s)
     if threads is not None:
-        _ok(step(s, cmd='autox.set_threads', **({'automatic': True} if threads == 0 else {'threads': threads}))[0], 'threads')
+        _ok(step(s, cmd='session.set_threads', **({'automatic': True} if threads == 0 else {'threads': threads}))[0], 'threads')
     if jacobian is not None:
         _ok(step(s, cmd='set', kind='num', name='jacobian', text=jacobian)[0], 'jacobian')
     out = {}

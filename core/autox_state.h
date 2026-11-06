@@ -138,9 +138,6 @@ struct AutoxState {
   static constexpr int state_copies = 8;
   // A foreign XPPAUT .auto alone carries its old selected-parameter mapping.
   std::vector<int> imported_parameters;
-  /* autoX's thread count, a program preference (xpp_prefs.h, W267) kept
-     here for the run: prefs::AUTOX_THREADS_AUTO, or the count */
-  unsigned threads=0;
   /* Numerics' SuppBP: no branch point detection */
   bool suppress_bp=false;
   /* a run from the current state continues both directions, +DS and -DS, as jobs

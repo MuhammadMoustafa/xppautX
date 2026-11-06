@@ -6,7 +6,9 @@
 # unit test (tests/test_session_autox.cpp), whose periodic runs on 1, 2 and 4
 # collocation workers (core/autox_parallel.cpp, W247) must touch only their own
 # AutoxRun and disjoint output blocks; and EISPACK's unit test
-# (tests/test_eispack.cpp), four threads calling it at once (W336).
+# (tests/test_eispack.cpp), four threads calling it at once (W336); and the ordered
+# runner of a sweep's runs (tests/test_sweep_runs.cpp, W434), whose threads touch
+# only their own item's result, while the servercheck's sweeps check the workers.
 #
 # Any ThreadSanitizer report fails the script, whether or not the check that
 # provoked it noticed: every report goes to a file in build/tsan/reports
@@ -38,7 +40,7 @@ mkdir -p build || exit 1
 if [ $skip_build -eq 1 ]; then
   echo "tsan build skipped (--skip-build): using $bdir as-is"
 else
-  if ! "$make" -j"$JOBS" BUILDDIR="$bdir" TSAN=1 "$@" asan-link "$bdir/tests/test_session_autox" "$bdir/tests/test_eispack" > "$log-build.log" 2>&1; then
+  if ! "$make" -j"$JOBS" BUILDDIR="$bdir" TSAN=1 "$@" asan-link "$bdir/tests/test_session_autox" "$bdir/tests/test_eispack" "$bdir/tests/test_sweep_runs" > "$log-build.log" 2>&1; then
     grep -E ' error:' "$log-build.log" | head -20
     echo "TSAN BUILD FAILED"
     exit 1
@@ -68,7 +70,8 @@ run_check webcheck $python tools/webcheck.py --bin "$bin" &
 wait
 run_check autox_threads "$bdir/tests/test_session_autox"
 run_check eispack_threads "$bdir/tests/test_eispack"
-for name in servercheck webcheck autox_threads eispack_threads; do
+run_check sweep_runs "$bdir/tests/test_sweep_runs"
+for name in servercheck webcheck autox_threads eispack_threads sweep_runs; do
   cat "$log-$name.verdict"
   grep -q ' FAILED$' "$log-$name.verdict" && fail=1
 done

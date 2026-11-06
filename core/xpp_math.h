@@ -189,6 +189,10 @@ private:
    small loggable int. */
 int next_seed(int seed);
 
+/* the seeds of n runs one after another: seed, next_seed(seed), ... A sweep gives run i the i-th one before any run
+   starts, so run i has the same numbers whichever thread computes it (W434). */
+std::vector<int> seed_stream(int seed, std::size_t n);
+
 /* ---- linear algebra ----
 
    sgefa/sgesl: LINPACK's dense LU factorisation with partial pivoting and

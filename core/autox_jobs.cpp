@@ -180,7 +180,7 @@ void run_jobs(std::vector<Direction> &jobs, bool at_once, const std::function<vo
       if(job.skipped||xpp::job::cancelled())continue;
       before_each();
       job.started=true;
-      const AutoxLogHold hold(job.table,job.warnings);
+      const LogHold hold(job.table,job.warnings);
       job.failed=run_numerics(*job.run);
       job.run->fp8.reset();
     }
@@ -201,7 +201,7 @@ void run_jobs(std::vector<Direction> &jobs, bool at_once, const std::function<vo
     try {
       threads.emplace_back([&mutex,&ended,&running,&job]{
         {
-          const AutoxLogHold hold(job.table,job.warnings);
+          const LogHold hold(job.table,job.warnings);
           job.failed=run_numerics(*job.run);
           job.run->fp8.reset();
         }
@@ -302,7 +302,7 @@ Result<> autox_run_directions(Session &s, int iold, int isave)
                                            xpp::number(job.run->params.ds),s.model().upar_names[principal],xpp::number(start),xpp::number(state.bifur.rl0),xpp::number(state.bifur.rl1)));
 
   const std::size_t wanted=static_cast<std::size_t>(std::count_if(jobs.begin(),jobs.end(),[](const Direction &j){return !j.skipped;}));
-  const unsigned budget=state.threads?state.threads:AutoxParallel::physical_threads();
+  const unsigned budget=s.thread_budget();
   const bool at_once=isolated&&budget>1&&wanted>1;
   for(Direction &job:jobs){
     AutoxRun &run=*job.run;

@@ -732,7 +732,7 @@ std::vector<ModelProgram> model_programs(Model &m)
 }
 
 namespace {
-/* Why the model's right-hand side is not pure (Model::autox_rhs_pure), or
+/* Why the model's right-hand side is not pure (Model::rhs_impurity), or
    "": every program native and reading only the constants, the variables
    and the immutable lookup tables, nothing running between the fixed
    variables and the equations. Networks and DAEs run between them even when
@@ -774,7 +774,6 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
 {
     Model &m=s.model();
     for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->array_pure=false; entry.code->native_reads.clear(); }
-    m.autox_rhs_pure=false;
     m.native_rhs=nullptr;
     m.native_equations=false;
     m.native_program.reset();
@@ -963,7 +962,7 @@ std::vector<std::vector<int>> equation_reads(const Model &m)
 {
     const int n=m.node,programs=n+m.fix_var;
     /* the states each fixed variable and equation reads; a fixed variable
-       reads only those before it (autox_rhs_pure), so one pass in order */
+       reads only those before it (Model::rhs_impurity), so one pass in order */
     std::vector<std::vector<int>> reads(static_cast<size_t>(programs));
     std::vector<char> read(static_cast<size_t>(n));
     for (int p=n;p<programs+n;p++) {
@@ -1022,7 +1021,7 @@ Result<std::vector<Error>> compile_model(Session &s)
     for(const auto &entry:entries)
         size_expr_stack(s,entry.code->rpn,entry.user_index<0?-1:m.narg_fun[entry.user_index]);
     auto compiled=compile_programs(s,entries);
-    m.autox_rhs_pure=rhs_impurity(s).empty();
+    m.rhs_impurity=rhs_impurity(s);
     m.subsystem_joined_by=subsystem_joined_by(s);
     m.subsystems.clear();
     if (m.subsystem_joined_by.empty()) {

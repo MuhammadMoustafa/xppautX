@@ -269,6 +269,9 @@ struct IntegratorState {
   RangeVars range{};
   /* a range integration is running (pp_shoot's shooting reads it) */
   int range_flag = 0;
+  /* this Session is a sweep's worker (sweep_runs.h): its integration runs on a thread of its own and calls the
+     front end for nothing (no progress, no plot, no poll), the main thread does */
+  bool on_worker = false;
   /* the integration starts afresh (the solvers' istart) */
   int my_start = 0;
   /* --noout: a batch run writes no output file */

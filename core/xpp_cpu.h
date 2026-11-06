@@ -8,6 +8,8 @@ namespace xpp::cpu {
 unsigned logical_processors();
 // Physical cores, restricted to performance cores when the OS identifies them.
 std::optional<unsigned> physical_cores();
+// The physical cores (the logical processors when the topology is unknown): what a run of jobs or of a sweep shares.
+unsigned physical_threads();
 // Bounds on what a sysfs CPU list may name, so a malformed one is refused, not expanded.
 inline constexpr unsigned max_cpu_ids = 65536; // More than current OS CPU limits.
 inline constexpr size_t max_sysfs_line = max_cpu_ids * 6; // A decimal id and comma per CPU.

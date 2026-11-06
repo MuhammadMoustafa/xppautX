@@ -794,10 +794,10 @@ def check_autox_registry():
               and done['result']['points_written'] > 5 and (glob.glob(os.path.join(folder, 'w516*.csv')) or glob.glob(os.path.join(s.run, 'w516*.csv'))), str(done))
         _, done = call(cmd='autox.export_csv', file='../w516.csv')
         check('autox.export_csv: a file name is a base name', done['status'] == 'error', str(done))
-        _, done = call(cmd='autox.set_threads', threads=1)
-        check('autox.set_threads: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
-        _, done = call(cmd='autox.set_threads', threads=1, automatic=True)
-        check('autox.set_threads: a count and automatic are refused together', done['status'] == 'error', str(done))
+        _, done = call(cmd='session.set_threads', threads=1)
+        check('session.set_threads: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
+        _, done = call(cmd='session.set_threads', threads=1, automatic=True)
+        check('session.set_threads: a count and automatic are refused together', done['status'] == 'error', str(done))
         for old in ({'cmd': 'autox', 'op': 'grab', 'label': 1}, {'cmd': 'autox', 'op': 'set', 'numerics': {}}, {'cmd': 'autox', 'op': 'restart', 'label': 1}):
             s.send(**old)
             evs, _ = s.collect(stops_done)
@@ -5527,7 +5527,7 @@ def check_autoxsettings():
             if 'pars' in c:
                 commands.append(dict(cmd='autox.configure_plot', pars=c['pars']))
             if 'threads' in c:
-                commands.append(dict(cmd='autox.set_threads', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
+                commands.append(dict(cmd='session.set_threads', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
             evs = []
             for command in commands:
                 snda(**command)
@@ -9972,7 +9972,7 @@ def check_start_examples():
 
 check_start_examples()
 
-def check_autox_threads():
+def check_threads():
     """W267, docs/protocol.md "autoX's settings as data": the thread count is a program preference: the
     autoxsettings event carries it ("auto" or the count, what automatic gives, the most), `auto` `set`
     `threads` saves it in preferences.setx (in a config folder of its own) and a server started later reads
@@ -9998,21 +9998,21 @@ def check_autox_threads():
             most = st['threads_max']
             check('W267: the event gives threads "auto" at first, what automatic gives (1 to 4) and the most (the logical processors)',
                   st['threads'] == 'auto' and 1 <= st['threads_auto'] <= min(4, most) and most >= 1, str(st)[-200:])
-            snd(cmd='autox.set_threads', threads=most)
+            snd(cmd='session.set_threads', threads=most)
             evs, _ = col(is_done)
             st = settings_of(evs)
             check('W267: set threads (the most) shows in the event and is saved in preferences.setx',
-                  not errors(evs) and st and st['threads'] == most and 'autox_threads: %d' % most in text(), str(evs)[-300:])
+                  not errors(evs) and st and st['threads'] == most and 'threads: %d' % most in text(), str(evs)[-300:])
             before = text()
             for bad in (0, most + 1, -1, 1.5, 'many', 'autoX', [2]):
-                snd(cmd='autox.set_threads', threads=bad)
+                snd(cmd='session.set_threads', threads=bad)
                 evs, _ = col(is_done)
                 err = errors(evs)
                 check('W267: set threads %r is refused naming the rule, the file is as it was' % (bad,),
                       len(err) == 1 and 'threads' in err[0] and text() == before, str(evs)[-300:])
             check('W267: and the shown count is the one before', threads_of(snd, col)['threads'] == most)
-            snd(cmd='autox.set_threads', threads=1)
-            check('W267: set threads 1', col(is_done) and 'autox_threads: 1' in text())
+            snd(cmd='session.set_threads', threads=1)
+            check('W267: set threads 1', col(is_done) and 'threads: 1' in text())
         finally:
             stop_server(p, r, snd)
         # a later start reads it, and "auto" puts the word back
@@ -10020,20 +10020,20 @@ def check_autox_threads():
         try:
             col(is_done)
             check('W267: a later server starts with the saved count', threads_of(snd, col)['threads'] == 1)
-            snd(cmd='autox.set_threads', automatic=True)
+            snd(cmd='session.set_threads', automatic=True)
             evs, _ = col(is_done)
-            check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and 'autox_threads: auto' in text()
+            check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and 'threads: auto' in text()
                   and settings_of(evs)['threads'] == 'auto', str(evs)[-300:])
         finally:
             stop_server(p, r, snd)
         # a file with a bad count is an error at its line on start and is never overwritten
-        bad_text = 'version: 4,\nrecent_models: [],\nautox_threads: 0,\n'
+        bad_text = 'version: 4,\nrecent_models: [],\nthreads: 0,\n'
         with open(prefs, 'w') as f:
             f.write(bad_text)
         p, r, snd, col, _ = launch_server(extra_env=env)
         try:
             evs, _ = col(is_done)
-            snd(cmd='autox.set_threads', threads=2)
+            snd(cmd='session.set_threads', threads=2)
             evs2, _ = col(is_done)
             err = errors(evs2)
             check('W267: a bad count in the file is refused with its file and line, the set is refused with it and the file is left as it is',
@@ -10234,8 +10234,127 @@ def check_outside_paths():
         shutil.rmtree(root, ignore_errors=True)
 
 
-check_autox_threads()
+check_threads()
 check_outside_paths()
+
+def check_sweep_threads():
+    """W434, docs/protocol.md "Sweeps on threads": a sweep's runs on 1 and on several threads give the same files, bit for
+    bit, a sweep that cannot go side by side says why, Stop ends a sweep whose runs are all long, and a sweep that fails at
+    a run fails with the same message and the same runs' files. ml-range.odex is the Morris-Lecar model of XPPAUT's
+    examples (Morris and Lecar 1981; Ermentrout's ml-range.ode) with its Wiener noise term; its `sig` is the noise
+    amplitude (0 in the file)."""
+    root = tempfile.mkdtemp(prefix='xppsweep')
+    config = os.path.join(root, 'config')
+    env = {'XPP_CONFIG_DIR': config}
+    errors = lambda evs: [e['error'] for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
+    model = os.path.join(root, 'ml-range.odex')
+    shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples', 'ode', 'ml-range.odex'), model)
+    failing = os.path.join(root, 'fails.odex')
+    with open(failing, 'w') as f:
+        f.write(versioned("par a=1\nx'=a/a\ninit x=0\noptions { integration: { dt: 0.1, total_time: 1 } }\n"))
+    sweeps = [
+        ('range over a parameter', dict(cmd='run.range', variable='i', start=-.2, end=.5, steps=11)),
+        ('range over a state', dict(cmd='run.range', variable='v', start=-.2, end=.4, steps=7)),
+        ('two parameters independently', dict(cmd='run.double_range', variable1='i', start1=-.2, end1=.5, steps1=3,
+                                              variable2='sig', start2=0, end2=.1, steps2=2, vary='independently')),
+        ('two parameters together', dict(cmd='run.double_range', variable1='i', start1=-.2, end1=.5, steps1=5,
+                                         variable2='sig', start2=0, end2=.1, vary='together')),
+        ('one value four times, only the noise differs', dict(cmd='run.range', variable='i', start=.2, end=.2, steps=3)),
+    ]
+    common = dict(reset_storage=True, use_old_ic=True, cycle_color=False, movie=False, write_each_run_to_file=True)
+
+    def files(folder, base):
+        names = glob.glob(os.path.join(folder, base + '.dat.*'))
+        names.sort(key=lambda n: int(n.rsplit('.', 1)[1]))
+        got = []
+        for n in names:
+            with open(n, 'rb') as f:
+                got.append(f.read())
+            os.remove(n)
+        return got
+
+    def sweep(threads, odex, command, base, set_sig=True, use_old_ic=True, configure=None):
+        """the files of the sweep, its done, and the log, from a server whose thread count is `threads`"""
+        folder = tempfile.mkdtemp(prefix='run', dir=root)
+        s = Server(args.server, odex, run=folder, env=env, extra_args=('--verbose',))
+        try:
+            s.collect(is_done)
+            s.send(cmd='session.set_threads', threads=threads)
+            s.collect(is_done)
+            if set_sig:
+                s.send(cmd='value.set_parameters', values={'sig': .05})
+                s.collect(is_done)
+            if configure:
+                s.send(cmd='run.configure', **configure)
+                s.collect(is_done)
+            s.send(**command, **dict(common, use_old_ic=use_old_ic))
+            evs, done = s.collect(is_done, timeout=120 * SLOW)
+            return files(folder, base), done, list(s.log)
+        finally:
+            s.close()
+    try:
+        p, r, snd, col, _ = launch_server(extra_env=env)
+        try:
+            col(is_done)
+            snd(cmd='events.subscribe', events=['autox.settings'])
+            most = settings_of(col(is_done)[0])['threads_max']
+        finally:
+            stop_server(p, r, snd)
+        many = min(4, most)
+        for what, command in sweeps:
+            serial, done1, log1 = sweep(1, model, command, 'ml-range')
+            wide, doneN, logN = sweep(many, model, command, 'ml-range')
+            check('W434: %s: the runs are the same on 1 and on %d threads, byte for byte' % (what, many),
+                  done1 and doneN and done1['status'] == doneN['status'] == 'ok' and len(serial) > 1 and serial == wide
+                  and done1['result'] == doneN['result'], str(done1)[-200:] + str(doneN)[-200:])
+            check('W434: %s: on %d threads the runs are computed side by side (no note that they go one after another)' % (what, many),
+                  many == 1 or not any('one after another' in l for l in logN), str([l for l in logN if 'Range' in l])[-300:])
+            if what.startswith('one value'):
+                check('W434: %s: the runs differ from each other, each has its own seed' % what, len(set(serial)) == len(serial) == 4, str(len(set(serial))))
+        # every method: a solver that keeps anything from one run to the next would show as a difference
+        for method in ('euler', 'modified_euler', 'runge_kutta', 'adams', 'gear', 'backward_euler', 'qualrk', 'stiff', 'cvode', 'dopri5', 'dopri8', 'rosenbrock'):
+            command = dict(cmd='run.range', variable='i', start=-.2, end=.5, steps=5)
+            configure = dict(method=method, total_time=20, store_from=0)
+            serial, done1, _ = sweep(1, model, command, 'ml-range', configure=configure)
+            wide, doneN, _ = sweep(many, model, command, 'ml-range', configure=configure)
+            check('W434: method %s: six runs, the same on 1 and on %d threads, byte for byte' % (method, many),
+                  done1 and doneN and done1['status'] == doneN['status'] == 'ok' and len(serial) == 6 and serial == wide,
+                  str(done1)[-200:] + str(doneN)[-200:])
+        # a sweep whose runs start where the last ended is one after another, and says why
+        command = dict(sweeps[0][1])
+        chained, done, log = sweep(many, model, command, 'ml-range', use_old_ic=False)
+        check('W434: a sweep with Use old I.C.s off runs one after another on %d threads and says why' % many,
+              done and done['status'] == 'ok' and (many == 1 or any('one after another' in l and 'Use old I.C.s' in l for l in log)),
+              str(log)[-300:])
+        # a sweep that fails at a run: the same error and the files of the runs before it, on 1 and on several threads
+        fail_command = dict(cmd='run.range', variable='a', start=-1, end=1, steps=4)
+        serial, done1, _ = sweep(1, failing, fail_command, 'fails', False)
+        wide, doneN, _ = sweep(many, failing, fail_command, 'fails', False)
+        check('W434: a sweep that fails at its third run fails with the same message and the same two files on 1 and on %d threads' % many,
+              done1 and doneN and done1['status'] == doneN['status'] == 'error' and done1['error'] == doneN['error']
+              and 'run 3 of 5' in done1['error'] and len(serial) == 2 and serial == wide, str(done1)[-300:] + str(doneN)[-300:])
+        # Stop ends every run of a sweep whose runs each take long
+        folder = tempfile.mkdtemp(prefix='run', dir=root)
+        s = Server(args.server, model, run=folder, env=env)
+        try:
+            s.collect(is_done)
+            s.send(cmd='session.set_threads', threads=many)
+            s.collect(is_done)
+            s.send(cmd='run.configure', total_time=1e7, store_every=100000)
+            s.collect(is_done)
+            s.send(cmd='run.range', variable='i', start=-.2, end=.5, steps=7, reset_storage=True, use_old_ic=True)
+            s.collect(lambda e: e.get('ev') == 'job.computing', timeout=30 * SLOW)
+            s.send(cmd='run.abort')
+            evs, done = s.collect(is_done, timeout=60 * SLOW)
+            check('W434: Stop ends a sweep whose runs each take 2e8 steps, on %d threads' % many,
+                  done is not None and any(e.get('ev') == 'job.stopped' for e in evs), str([e.get('ev') for e in evs])[-300:])
+        finally:
+            s.close()
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+check_sweep_threads()
 
 def check_create_folders():
     """W303: all writers use the same parent-folder decision and OS denial."""

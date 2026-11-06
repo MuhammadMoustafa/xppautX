@@ -102,7 +102,7 @@ bool continued_constants(const xpp::Session &s, double *constants, const integer
 }
 
 /* The right-hand side f of a model with no function tables, no networks and
-   native programs (Model::autox_rhs_pure), on the constants c and variables v:
+   native programs (Model::rhs_impurity), on the constants c and variables v:
    a collocation worker's own copies (autox_parallel.cpp: s is const, so a
    worker writes only its own run) or, serially, the Session's.
    The derived constants were current when the run began (the workers'
@@ -273,7 +273,7 @@ int bcnd(AutoxRun &run, integer ndim, const double *par, const integer *icp, int
 
  /* with no function table the derived constants depend on the parameters
     alone (pure_values) */
- const bool pure=s.model().autox_rhs_pure;
+ const bool pure=s.model().rhs_impurity.empty();
  if(changed||!pure)xpp::evaluate_derived(s);
  if(!pure)if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::autox_fail(r.error());
  /* the boundary conditions only read the two ends */

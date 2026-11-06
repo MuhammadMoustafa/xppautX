@@ -154,11 +154,11 @@ Result<std::string> set_threads(Session &s, const Command &command, const Argume
 {
     AutoxSettingsSet set;
     if (const auto count = args.optional<long long>("threads")) set.threads = static_cast<unsigned>(*count);
-    else if (args.get<bool>("automatic")) set.threads = prefs::AUTOX_THREADS_AUTO;
+    else if (args.get<bool>("automatic")) set.threads = prefs::THREADS_AUTO;
     else return fail(command.name, "automatic is true; give threads for a count", place);
     if (const Result<> done = apply_settings(s, command, set, place); !done) return std::unexpected<Error>(done.error());
-    const bool automatic = s.autox_state.threads == prefs::AUTOX_THREADS_AUTO;
-    return xpp::format("{{\"threads\":{},\"automatic\":{}}}", automatic ? AutoxParallel::automatic_threads() : s.autox_state.threads, automatic);
+    const bool automatic = s.threads == prefs::THREADS_AUTO;
+    return xpp::format("{{\"threads\":{},\"automatic\":{}}}", automatic ? AutoxParallel::automatic_threads() : s.threads, automatic);
 }
 
 /* ---- running autoX ---- */
@@ -734,8 +734,8 @@ constexpr std::array ROWS = {
             RESULT_PLOT, EVENTS_SETTINGS, true, configure_plot, {}, {}},
     Command{"autox.configure_marks", MARKS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "autoX/Usr period",
             "Set the Mark values: the parameters (or T, the period) and the values at which autoX labels a point.", RESULT_MARKS, EVENTS_SETTINGS, true, configure_marks, {}, {}},
-    Command{"autox.set_threads", THREADS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "autoX/Numerics",
-            "Set autoX's thread count, a preference of the program: a count, or automatic.", RESULT_THREADS, EVENTS_SETTINGS, true, set_threads, THREADS_GROUPS, {}},
+    Command{"session.set_threads", THREADS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "autoX/Numerics",
+            "Set the thread count of autoX and of sweeps, a preference of the program: a count, or automatic.", RESULT_THREADS, EVENTS_SETTINGS, true, set_threads, THREADS_GROUPS, {}},
     Command{"autox.hide_earlier", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "autoX/Clear",
             "Hide the branches so far: new runs draw alone until set_display shows them again.", RESULT_HIDDEN, EVENTS_DIAGRAM, true, hide_earlier, {}, {}},
     Command{"autox.redraw", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "autoX/Redraw",

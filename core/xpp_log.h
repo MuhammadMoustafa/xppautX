@@ -129,13 +129,14 @@ private:
 
 /* While one lives, what this thread logs with log_autox() (autoX's table and its notes) is kept in `table` instead of
    written, and what it logs at WARN (a branch's stop, a note) in `warnings`: a job (autox_jobs.cpp) keeps its lines,
-   which the join writes in the jobs' order, numbered as the diagram is, so the Output reads as the runs in turn. */
-class AutoxLogHold {
+   which the join writes in the jobs' order, numbered as the diagram is, so the Output reads as the runs in turn. A sweep's run
+   (integrate.cpp, W434) keeps only its warnings: it gives a table it never reads. */
+class LogHold {
 public:
-    AutoxLogHold(std::string &table, std::string &warnings);
-    ~AutoxLogHold();
-    AutoxLogHold(const AutoxLogHold &) = delete;
-    AutoxLogHold &operator=(const AutoxLogHold &) = delete;
+    LogHold(std::string &table, std::string &warnings);
+    ~LogHold();
+    LogHold(const LogHold &) = delete;
+    LogHold &operator=(const LogHold &) = delete;
 
 private:
     std::string *outer_table_, *outer_warnings_;

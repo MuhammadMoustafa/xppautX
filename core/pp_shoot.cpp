@@ -1,3 +1,4 @@
+#include "sweep_runs.h"
 #include "mykeydef.h"
 #include "model.h"
 #include "session.h"
@@ -111,6 +112,7 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend)
  xpp::Result<> film;
  if(s.shoot_range.movie==1)
    reset_film(s);
+ xpp::say_sweep_serial(s,"Range Shoot",npar+1,"each shot starts from the solution before it");
  for(i=0;i<=npar;i++)
    {
      if(xpp::job::cancelled())break;

@@ -114,7 +114,7 @@ void same_rhs(xpp::Session &s)
         CHECK(native_random==s.random.save());
         if (whole) CHECK(same(native_ydot,ydot));
     }
-    if (m.autox_rhs_pure) {
+    if (m.rhs_impurity.empty()) {
         auto c=constants;
         auto v=variables;
         pure_rhs(s,y.data(),ydot.data(),c.data(),v.data());

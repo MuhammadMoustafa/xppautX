@@ -18,7 +18,7 @@ struct Session; /* session.h */
    one it reads. rows[i] are the equations that read state i (through the
    fixed variables they read), i itself included; groups the states
    perturbed together. Empty when the model's reads are not known (an
-   interpreted program, a network, a DAE, ...: Model::autox_rhs_pure). */
+   interpreted program, a network, a DAE, ...: Model::rhs_impurity). */
 struct DifferenceGroups {
   std::vector<std::vector<int>> rows, groups;
 };

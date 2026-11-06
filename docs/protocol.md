@@ -240,7 +240,7 @@ common overwrite question applies. They return a placed error if the output coul
 | `autox.configure_numerics` | `mesh_intervals`: optional integer, `max_steps`: optional integer, `output_every`: optional integer, `collocation_points`: optional integer, `step_size`: optional real, `min_step_size`: optional real, `max_step_size`: optional real, `parameter_min`: optional real, `parameter_max`: optional real, `norm_min`: optional real, `norm_max`: optional real, `parameter_tolerance`: optional real, `state_tolerance`: optional real, `special_point_tolerance`: optional real, `mesh_adapt_every`: optional integer, `max_branch_switches`: optional integer, `switch_one_direction`: optional boolean, `output_detail`: optional choice (none, little, normal, start_jacobian, extensive, debugging), `max_location_iterations`: optional integer, `max_newton_iterations`: optional integer, `full_newton_after`: optional integer, `step_adapt_every`: optional integer, `suppress_branch_points`: optional boolean, `follow_all_branches`: optional boolean, `special_points`: optional map [of boolean, at most 256] | `s` / analysis | autoX/Numerics | `settings_updated`: `boolean` | `autox.settings`, `session.state`, `done` | Set autoX's Numerics by their names (mesh_intervals, step_size, ...) and the codimension-two points it detects (special_points), all or nothing. |
 | `autox.configure_plot` | `plot_type`: optional choice (maximum, norm, maximum_and_minimum, period, two_parameter, frequency, average), `variable`: optional name (max 1024 bytes) [of variable], `parameter1`: optional name (max 1024 bytes) [of parameter], `parameter2`: optional name (max 1024 bytes) [of parameter], `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real, `view`: optional window (max 1024 bytes), `fit`: optional boolean | `s` / analysis | autoX/Axes | `plot_configured`: `boolean` | `autox.settings`, `session.state`, `done` | Set what a view of the diagram plots: the plot type, the variable, the two parameters and the ranges, optionally fitted afterwards. |
 | `autox.configure_marks` | `parameters`: required list [of text, at most 256], `values`: required list [of real, at most 256] | `s` / analysis | autoX/Usr period | `marks_count`: `integer` | `autox.settings`, `session.state`, `done` | Set the Mark values: the parameters (or T, the period) and the values at which autoX labels a point. |
-| `autox.set_threads` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean; exactly one of `threads`, `automatic` | `s` / analysis | autoX/Numerics | `threads`: `integer`, `automatic`: `boolean` | `autox.settings`, `session.state`, `done` | Set autoX's thread count, a preference of the program: a count, or automatic. |
+| `session.set_threads` | `threads`: optional integer [at least 1, at most the session's threads_max], `automatic`: optional boolean; exactly one of `threads`, `automatic` | `s` / analysis | autoX/Numerics | `threads`: `integer`, `automatic`: `boolean` | `autox.settings`, `session.state`, `done` | Set the thread count of autoX and of sweeps, a preference of the program: a count, or automatic. |
 | `autox.hide_earlier` | none | `v` / analysis | autoX/Clear | `hidden_points`: `integer` | `autox.diagram`, `autox.view`, `session.state`, `done` | Hide the branches so far: new runs draw alone until set_display shows them again. |
 | `autox.redraw` | none | `v` / analysis | autoX/Redraw | `redrawn`: `boolean` | `autox.diagram`, `autox.view`, `session.state`, `done` | Draw the diagram again. |
 | `autox.pick` | `x`: required real, `y`: required real, `view`: optional window (max 1024 bytes) | `v` / analysis | autoX/autoX diagram/Click | `x`: `real`, `y`: `real` | `autox.info`, `autox.diagram`, `session.state`, `done` | A point of the diagram in its plotted quantities: shown, and stored for select_2parameter_point in a two-parameter plot. |
@@ -686,8 +686,8 @@ whole, temp then rename, and never overwritten while it is bad. With no
 config folder (no `HOME` or `APPDATA`, or a relative `XPP_CONFIG_DIR`) the
 error names the variable to set. Its keys: `recent_models` (a list of at most
 ten absolute paths, newest first: "Start screen");
-`autox_threads` (`auto` or a whole number from 1 to the logical processors:
-autoX's thread count, "autoX's settings as data"). A later group is one
+`threads` (`auto` or a whole number from 1 to the logical processors:
+the thread count of autoX and sweeps, "autoX's settings as data"). A later group is one
 member of the Preferences struct and one line of the description that reads
 and writes it.
 
@@ -998,7 +998,7 @@ Every action has a kind (W95), defined once in the core and sent in
 |---|---|---|---|
 | control | `c` | Abort, Quit, an answer | acted on |
 | view | `v` | only changes what is shown: a zoom, a window picked, the data subscription, a menu that shows, Help | kept, and run after the computation |
-| setting | `s` | a value the next computation uses (W106): a parameter, an initial or boundary condition, a delay, the numerics (`set`, `value.set_parameters`, `value.slide`, `set.apply`, `set.restore_defaults`, `value.load_file`, the Parameters key, the Numerics menu's items that ask a value, File/Apply set, File/Restore defaults), autoX's Numerics, axes, Mark values and threads (`autox.configure_numerics`, `autox.configure_plot`, `autox.configure_marks`, `autox.set_threads`, the autoX window's keys `n`, `u`) | taken at once, applied when the computation ends: the run in progress keeps the values it started with |
+| setting | `s` | a value the next computation uses (W106): a parameter, an initial or boundary condition, a delay, the numerics (`set`, `value.set_parameters`, `value.slide`, `set.apply`, `set.restore_defaults`, `value.load_file`, the Parameters key, the Numerics menu's items that ask a value, File/Apply set, File/Restore defaults), autoX's Numerics, axes, Mark values and threads (`autox.configure_numerics`, `autox.configure_plot`, `autox.configure_marks`, `session.set_threads`, the autoX window's keys `n`, `u`) | taken at once, applied when the computation ends: the run in progress keeps the values it started with |
 | data | `d` | saves and loads: Load values' XPPAUT files, Import XPPAUT session state, Save values into the model file (`set.save_new`, `set.save_into`, `set.save_defaults`, `set.export`, `set.rename`, `set.delete`), every file written (`browser.export`), a session, autoX's diagram files, autoX's Grab (the curve is still changing) | refused |
 | computation | `x` | starts one: Initialconds, Continue, Range, autoX's Run, Nullclines, Dir.field and Flow, Sing pts, Stochastic, a user button | refused |
 
@@ -1300,6 +1300,39 @@ in the input.
   A `session.quit` with `save` false read by the computation's own check ends the command at once: it sends
   `job.stopped` too, then `session.bye` and the exit (it never reaches `session.state` and `done`), the same
   `job.stopped` as when the computation sees the cancel first and the quit runs after the command.
+
+## Sweeps on threads (W434, [#496](https://github.com/MuhammadMoustafa/xppautX/issues/496))
+
+`run.range`, `run.double_range` (and the commands that run a range inside: `analysis.stochastic_integrate`,
+`analysis.lyapunov_exponent` over parameters, `array_plot.range`) compute their runs on as many threads as the
+`threads` setting gives (`session.set_threads`, `autox.settings`' `threads`; automatic is all the physical cores), when
+the runs are independent and the model allows it:
+
+- `use_old_ic` is on (every run starts from the session's initial data), and the range does not follow autoX's diagram;
+- the model is compiled and its right-hand side is pure (`Model::rhs_impurity` is empty, the condition autoX's
+  collocation threads need): no delays, networks, DAE, Markov variables, rebuilt function tables or integral equations,
+  every program native; global flags (events), Wiener and Ornstein-Uhlenbeck noise are allowed; and no unchanged-digits
+  run, no animation drawing as it goes, no recording being made and no replayed stop at a row is on (a Stop is replayed at a row, which runs side by side cannot reach).
+
+A sweep that does not meet them computes its runs one after another on the session, by the same function, and, with
+more than one thread asked for, says why at INFO in the log. `equilibrium.range` and `bvp.solve_range` always go one
+after another (each search or shot starts from the one before; a Monte Carlo step adds to the list of equilibria and draws
+their manifolds in order) and say so.
+
+The results do not depend on the thread count: each run is computed from the session's state at the sweep's start (the
+initial data, the parameters, a seed of its own) and nothing an earlier run left, the runs are joined in order on the main
+thread, and the rows, `write_each_run_to_file`'s files, the messages (a run's WARN lines are held and written in run
+order), `plot.series`, `job.progress` and the sweep's drawing come out as for the runs one after another, to the last
+bit. `job.progress` and `plot.series` of a sweep on threads come as each run is taken in, not as its rows are stored.
+`run.abort` ends every run at its next checkpoint, and the sweep reports the runs completed in order, as it does with one
+thread.
+
+Each run has a seed of its own: the sweep's seeds are the stream (`xpp::seed_stream`) from the seed set for the next run,
+the k-th one for run k, computed before any run starts, so run k has the same numbers on one thread or sixteen. The
+`seed` of `session.state` and of the data table is the seed of the run shown (the last one taken in); the numerics' seed
+for the next run is the one after the last run's, as after that many Go's, and the generator ends the sweep seeded with it.
+`equilibrium.range` with `monte_carlo` seeds each step the same way. This changed what a stochastic sweep gives (W434): a
+run drew from the stream the runs before it left, it now draws from its own.
 
 ## Playing a recording without an interface
 
@@ -1923,8 +1956,8 @@ Off: one run, in the direction the sign of `step_size` gives.
 | `axes.xmin` .. `ymax` | the diagram's axes |
 | `axes` | all of it the active view's (see "Views of the diagram") |
 | `marks` | Mark values: `[name, value]` per user point, where the parameter `name` (any model parameter) or the period `T` reaches `value` autoX labels the point (UZ) |
-| `threads` | autoX's thread count, a program preference (W267) and not a setting of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.setx` (`autox_threads`) when a model is loaded |
-| `threads_auto` | the count `"auto"` gives on this computer: its physical cores (the performance cores where the system says which), at most 4 |
+| `threads` | the thread count of autoX and sweeps, a program preference (W267) and not a setting of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.setx` (`threads`) when a model is loaded |
+| `threads_auto` | the count `"auto"` gives autoX's collocation on this computer: its physical cores (the performance cores where the system says which), at most 4; a sweep's runs and autoX's two directions use all the physical cores for `"auto"` |
 | `threads_max` | the most `threads` may be: the computer's logical processors |
 | `rules` | what each `numerics` value takes, by key (W118): `label` (the form's, derived from the key: underscores as spaces and a capital first letter), `boolean`, `choices`, `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/autox_settings.cpp num_fields) |
 | `pairs` | the values that must be in order: `lo` below `hi` (`strict`) or at most it, and the refusal's `message` |
@@ -1941,7 +1974,7 @@ including points computed while delivery was off. This switch is independent
 of `events`; `events: []` stops the listed data subscriptions. A non-boolean
 `diagram` is one command error and changes no subscription.
 
-**`autox.configure_numerics`, `autox.configure_plot`, `autox.configure_marks` and `autox.set_threads`** (W516) write
+**`autox.configure_numerics`, `autox.configure_plot`, `autox.configure_marks` and `session.set_threads`** (W516) write
 the settings without the forms, each part only when given. `autox.configure_numerics` takes any of the Numerics
 by their names and `special_points`; `autox.configure_plot` the axes: `plot_type`, `variable`, `parameter1`,
 `parameter2` (model names), the four ranges `x_min`, `x_max`, `y_min`, `y_max`, `fit` for Axes/Fit afterwards and
@@ -1966,14 +1999,16 @@ says what the core would.
 
 `threads` (`"auto"` or a whole number from 1 to `threads_max`) is the thread
 count (W267). It is checked with the rest, and saved by `prefs::update_prefs`
-into the per-user `preferences.setx` (`autox_threads: auto` or
-`autox_threads: 4`; `$XPP_CONFIG_DIR` names the folder) before anything of the
+into the per-user `preferences.setx` (`threads: auto` or
+`threads: 4`; `$XPP_CONFIG_DIR` names the folder) before anything of the
 set is applied: a count outside the range, a word other than `"auto"`, or a
 `preferences.setx` that cannot be read or written (it is never overwritten
-while it is bad) refuses the whole set (`autoX's threads must be
+while it is bad) refuses the whole set (`the thread count must be
 "auto" or a whole number from 1 to 16 (this computer's logical processors)`).
 A pool already running keeps its count until the next run. The results never
-depend on it (W247). It is not in `autox/settings.txt` or a session file, and a
+depend on it (W247, W434). The same count is the number of threads `run.range`, `run.double_range`,
+`analysis.stochastic_integrate`, `analysis.lyapunov_exponent` over a range and `array_plot.range` compute their
+runs on, side by side, when `use_old_ic` is on and the model is compiled with a pure right-hand side (W434, "Sweeps on threads" below). It is not in `autox/settings.txt` or a session file, and a
 recording's replay changes the session's count only, never the file.
 
 autoX's settings are saved in the session's `autox/settings.txt`

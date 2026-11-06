@@ -41,15 +41,15 @@ inline constexpr std::size_t MAX_RECENT_MODELS = 10;
    path past it needs the \?\ form no model's folder uses */
 inline constexpr std::size_t MAX_PATH_BYTES = 4096;
 
-/* autoX's thread count (W267): the file says "auto" or a whole number from 1
-   to the logical processors (xpp::cpu::logical_processors); AUTOX_THREADS_AUTO
+/* the thread count of autoX and sweeps (W267, W434): the file says "auto" or a whole number from 1
+   to the logical processors (xpp::cpu::logical_processors); THREADS_AUTO
    in the Preferences is "auto", the count AutoxParallel::automatic_threads
    gives. Any count gives the same results (W247). */
-inline constexpr unsigned AUTOX_THREADS_AUTO = 0;
-inline constexpr std::string_view AUTO_THREADS_WORD = "auto";
-/* why n cannot be autoX's thread count, or nothing; the one check of the file's
+inline constexpr unsigned THREADS_AUTO = 0;
+inline constexpr std::string_view THREADS_AUTO_WORD = "auto";
+/* why n cannot be the thread count, or nothing; the one check of the file's
    reader and writer and of the protocol's `set` */
-std::optional<std::string> autox_threads_problem(long long n);
+std::optional<std::string> threads_problem(long long n);
 
 /* how many of the user's "Allow always" answers about a path outside a
    model's folder are kept (W286): each is two paths of at most MAX_PATH_BYTES
@@ -68,8 +68,8 @@ struct OutsideApproval {
 struct Preferences {
     /* absolute paths of the models opened lately, newest first, none twice */
     std::vector<std::string> recent_models;
-    /* AUTOX_THREADS_AUTO, or the number of threads autoX's collocation uses */
-    unsigned autox_threads = AUTOX_THREADS_AUTO;
+    /* THREADS_AUTO, or the number of threads autoX's collocation and a sweep's runs use */
+    unsigned threads = THREADS_AUTO;
     /* newest first, none twice */
     std::vector<OutsideApproval> outside_paths;
 };

@@ -148,7 +148,8 @@ struct Model {
   /* native_rhs writes the equations: each is native, and no network or DAE
      runs between them and the fixed variables */
   bool native_equations=false;
-  bool autox_rhs_pure=false; /* compile_model: every autoX RHS program is native and Session-independent */
+  /* compile_model: why the right-hand side is not pure, or "" when every program is native and Session-independent (autoX's workers and a sweep's runs on threads need it) */
+  std::string rhs_impurity="the model is not compiled";
   /* the exact Jacobian compile_model made, or why there is none (W260) */
   ExactJacobian jacobian;
   /* The independent subsystems (W433, compile_model): the connected

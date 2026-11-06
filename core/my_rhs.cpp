@@ -91,9 +91,14 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
   return 1;
 }
 
+bool pure_rhs_ready(const xpp::Session &s)
+{
+  return s.model().rhs_impurity.empty() && s.integrator.rhs.function==my_rhs;
+}
+
 void pure_rhs(const xpp::Session &s, const double *y, double *ydot, double *c, double *v)
 {
-  /* the native code only reads s's tables (Model::autox_rhs_pure) */
+  /* the native code only reads s's tables (Model::rhs_impurity) */
   rhs_order(s.model(),0.0,y,ydot,c,v,const_cast<xpp::Session *>(&s),[&](int i,double value){v[i]=value;},
             [&](const xpp::Program &p){return xpp::evaluate_pure(s,p,c,v);},[]{});
 }

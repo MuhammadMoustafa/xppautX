@@ -1709,9 +1709,9 @@ async function autoxView(dir) {
   await formValues({max_steps:''});
   check('W517: an empty supplied integer prevents submission', await cdp.eval(`document.querySelector('.registry-form button[type=submit]').disabled`));
   await key('Escape');
-  await clickRegistry('autox.set_threads'); await cdp.eval(`document.querySelector('[data-argument=automatic] input[type=checkbox]').click()`); await formValues({threads:1}); await submitCommand();
+  await clickRegistry('session.set_threads'); await cdp.eval(`document.querySelector('[data-argument=automatic] input[type=checkbox]').click()`); await formValues({threads:1}); await submitCommand();
   check('W267: the common thread form selects one thread', await until(`!s.busy && s.autoxSettings.core.threads === 1`, 'one thread'));
-  await clickRegistry('autox.set_threads');
+  await clickRegistry('session.set_threads');
   await cdp.eval(`document.querySelector('[data-argument=threads] input[type=checkbox]').click()`);
   await formValues({automatic:true}); await submitCommand();
   check('W267: the named automatic choice restores automatic threads', await until(`!s.busy && s.autoxSettings.core.threads === 'auto'`, 'automatic threads'));

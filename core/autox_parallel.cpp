@@ -54,21 +54,12 @@ struct AutoxParallel::State {
     ~State() { stop(); }
 };
 
-unsigned AutoxParallel::physical_threads() {
-    // Topology is process-wide and settings events ask for this repeatedly.
-    static const unsigned count = [] {
-        const auto physical = cpu::physical_cores();
-        // Logical processors are used only when there is no usable physical topology.
-        return physical ? *physical : cpu::logical_processors();
-    }();
-    return count;
-}
-unsigned AutoxParallel::automatic_threads() { return std::min(physical_threads(), max_threads); }
+unsigned AutoxParallel::automatic_threads() { return std::min(cpu::physical_threads(), max_threads); }
 AutoxParallel::AutoxParallel(unsigned threads) : threads_(std::max(threads, 1u)) {}
 AutoxParallel::~AutoxParallel() = default;
 
 bool autox_parallel_ready(const Session &s) {
-    return s.model().autox_rhs_pure && s.integrator.rhs.function == my_rhs
+    return pure_rhs_ready(s)
         && (!solver_info(s.numerics.method).traits.discrete || s.numerics.store_every == 1);
 }
 
@@ -83,7 +74,7 @@ void AutoxParallel::select_run(AutoxRun &source, std::ptrdiff_t ndim, std::ptrdi
     const double work = static_cast<double>(ndim) * static_cast<double>(ndim)
         * static_cast<double>(ntst) * static_cast<double>(ncol);
     const unsigned threads = work < min_collocation_work ? 1
-        : source.collocation_threads ? source.collocation_threads : threads_for(s.autox_state.threads);
+        : source.collocation_threads ? source.collocation_threads : threads_for(s.threads);
     if (!source.collocation || source.collocation->threads() != threads)
         source.collocation = std::make_unique<AutoxParallel>(threads);
 }

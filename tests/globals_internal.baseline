@@ -1,5 +1,4 @@
 core/ani_data.cpp 1 the protocol client's (one struct): its subscription, its sink and whether and when it got the last frame, which outlive a load (the frames are the Session's ani_shown)
-core/autox_parallel.cpp 1 the const automatic worker count built once per process from CPU topology (W375); the guard is excluded by globalcheck
 core/form_ode.cpp 2 ode_as_odex (OdeAsOdex's scope count) and Purity's const table built at first use
 core/json_io.cpp 6 the protocol client's: the output's sequence, its protocol version, the input line read last and whether it was refused, the argument check in progress (thread_local), and the lock that keeps an event line whole between the core and the reader thread's busy reply (file-local per AGENTS.md)
 core/json_player.cpp 1 the .recx player in progress (the protocol client's)
@@ -15,6 +14,7 @@ core/session.cpp 2 the session list (the one global that holds Sessions, AGENTS.
 core/ui_json.cpp 1 the XppUi table installed (the protocol client's)
 core/xpp_about.cpp 1 About's text, a const string built at first use
 core/xppautx_main.cpp 1 the program's command line (process-wide: the window calls run_session with no argument)
+core/xpp_cpu.cpp 1 the const physical core count built once per process from CPU topology (W375, W434); the guard is excluded by globalcheck
 core/xpp_files.cpp 4 the files module's cache and the HTTP reader's hooks (process-wide, thread-shared)
 core/xpp_files_dir.cpp 1 the file selector's current folder (process-wide, like the working directory)
 core/xpp_http.cpp 15 the HTTP server's threads, sockets and locks (process-wide)

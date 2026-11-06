@@ -46,6 +46,7 @@
 #include "numerics.h"
 #include "numerics_settings.h"
 #include "my_rhs.h" /* extra */
+#include "sweep_runs.h"
 #include "volterra2.h"
 #include <stdlib.h> 
 #include <cmath>
@@ -168,9 +169,11 @@ DenseEvent dense_event(Session &s, double from, double until, double step_from, 
 }
 
 /* a row was just stored (storage[.][storind-1]): a replayed script may stop
-   the job here (xpp_job.h), and a front end may show the run growing */
+   the job here (xpp_job.h), and a front end may show the run growing (a sweep's worker does neither: the main thread
+   reports the rows it takes in) */
 static void row_stored(xpp::Session &s)
 {
+  if(s.integrator.on_worker)return;
   xpp::job::report_rows(s.data_store.rows, s.data_store.col[0][s.data_store.rows-1]);
   rows_stored(s,s.data_store.rows);
 }
@@ -559,6 +562,12 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
    s.numerics.shoot=false;
  }
  if(s.integrator.eq_range.movie)reset_film(s);
+ /* the steps go one after another: each equilibrium search starts from the last one's (x), and a Monte Carlo step
+    adds to the list of equilibria found and draws the manifolds it finds into the windows, in order */
+ xpp::say_sweep_serial(s,"Range Equilibria",npar+1,mc?"each step adds to the equilibria found and draws their manifolds in order":"each search starts from the equilibrium before it");
+ /* a Monte Carlo step has a seed of its own, the sweep's seed stream's, as a run of Range has (range_sweep) */
+ const std::vector<int> seeds=mc?xpp::seed_stream(s.numerics.rand_seed,static_cast<std::size_t>(npar)+1):std::vector<int>();
+ if(mc)s.numerics.rand_seed=xpp::next_seed(seeds.back());
  for(i=0;i<=npar;i++)
    {
      if(xpp::job::cancelled())break;
@@ -574,6 +583,8 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
         evaluate_derived(s);
         /*  I think  */ failure.keep(redo_all_fun_tables(s));
         if(mc) {
+	  s.random.seed(seeds[static_cast<std::size_t>(i)]);
+	  s.numerics.last_seed=seeds[static_cast<std::size_t>(i)];
 	  failure.keep(do_monte_carlo_search(s,0,0,1));
           points_found+=s.integrator.fixptlist.n;
         }
@@ -612,6 +623,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
       if(s.numerics.endsing||xpp::job::cancelled())break;
     }
     refresh_browser(s,s.data_store.rows);
+ if(mc)s.random.seed(s.numerics.rand_seed); /* the next run's seed, as a sweep of Range ends (range_sweep) */
  s.numerics.par_fol=false;
  if(without_root>0)bottom_msg(0,xpp::format("{} of {} values have no equilibrium; the first: {}",without_root,npar+1,first_without));
  if(const auto result=failure.result();!result)return std::unexpected(result.error());
@@ -651,8 +663,8 @@ int do_autox_range_go(xpp::Session &s)
 
 namespace {
 
-/* Seeds the random generator for a run about to start (Go, a do_range
-   sweep, usual_integrate_stuff's plain run): rand_seed is the seed shown
+/* Seeds the random generator for a run about to start (Go, usual_integrate_stuff's
+   plain run; a sweep gives each of its runs its own seed, range_sweep): rand_seed is the seed shown
    or set for the next run (docs/roadmap.md W71, "@ seed=" in
    load_eqn.cpp, Stochastic > New seed in markov.cpp, --newseed in
    expr_symbols.cpp's init_rpn -- each of those already seeds s.random
@@ -682,10 +694,109 @@ void show_stop_note(xpp::Session &s)
   s.integrator.stop_note.clear();
 }
 
+/* What every run of a range reads (range_sweep): the settings made and the sweep's start. Run k is the grid point
+   (i, j), k = j*(steps+1)+i (j counts the second parameter's values, i the first's): its values and its seed are
+   functions of k alone, so the runs may be computed in any order, on any thread. */
+struct RangeRuns {
+  int type=0,type2=0,index=0,index2=0,rtype=RANGE_SINGLE,steps=0;
+  std::string item,item2;
+  double plow=0,dpar=0,plow2=0,dpar2=0;
+  bool apply=true;   /* the runs set the values above (not autoX's range, which sets them itself) */
+  bool fresh=false;  /* every run starts afresh from the initial data and the sweep's constants ("Use old I.C.s"): the
+                        runs are independent, else each starts where the last ended */
+  std::vector<int> seeds;                 /* the seed of each run (xpp::seed_stream) */
+  std::vector<double> constants,variables; /* the parameters and variables at the sweep's start, which a fresh run begins from */
+
+  struct Values { double p,p2; };
+  Values values(int i,int j) const
+  {
+    Values v{plow+dpar*static_cast<double>(i),0.0};
+    if(rtype==RANGE_TOGETHER)v.p2=plow2+dpar2*static_cast<double>(i);
+    if(rtype==RANGE_INDEPENDENT)v.p2=plow2+dpar2*static_cast<double>(j);
+    return v;
+  }
+};
+
+/* What one run of a range gives the sweep's join: how it ended, what it stored and said. A run on a worker keeps its
+   rows here (rows of ncol columns, column after column) for the join to take in; a run on the sweep's own Session
+   stored them there already. */
+struct RunOutcome {
+  xpp::Result<int> run{0};            /* the integration's result */
+  std::optional<xpp::Error> setup_error; /* the first error of setting the run's values (a function table that failed to rebuild) */
+  bool setup_failed=false;            /* the run could not begin: setup_error is why, and it was not integrated */
+  std::string unexpected;             /* an exception a worker caught, when the run did not end any other way */
+  int stored=0;                       /* the rows the integration stored, the first row not counted */
+  std::string stop_note,warnings;     /* why the run ended early without failing; what it logged at WARN */
+  int rows=0;                         /* a worker's rows */
+  std::vector<float> columns;
+  double last_time=0;                 /* where the integration stopped */
+};
+
+/* One run of a range on the Session x, from the state: its seed, its values set, its start flags, its first row and
+   its integration, what it gave back in o. The run on the sweep's own Session and on a worker are this one function,
+   so a run's numbers do not depend on where it was computed. A fresh run reads nothing an earlier run left: the
+   constants and variables are the sweep's, the state the initial data, the generator its own seed. */
+void compute_run(xpp::Session &x, double *state, const RangeRuns &r, int i, int j, std::size_t k, RunOutcome &o)
+{
+  x.integrator.my_start=1;
+  x.numerics.poiext=0;
+  if(r.fresh){
+    x.parser.constants=r.constants;
+    x.parser.variables=r.variables;
+  }
+  x.random.seed(r.seeds[k]);
+  xpp::start_ou(x);
+  if(r.apply){
+    const RangeRuns::Values v=r.values(i,j);
+    if(r.fresh){
+      get_ic(x,1,state);
+      if(x.delay.flag){
+        /* restart initial data */
+        if(const xpp::Result<> d=do_init_delay(x,x.numerics.delay);!d){
+          o.setup_error=d.error();
+          o.setup_failed=true;
+          return;
+        }
+      }
+    }
+    const auto set_value=[&](int type,int index,const std::string &item,double value){
+      if(type==IC)state[index]=value;
+      else {
+        set_val(x,item,value);
+        if(auto t=redo_all_fun_tables(x);!t&&!o.setup_error)o.setup_error=t.error();
+        re_evaluate_kernels(x);
+      }
+    };
+    set_value(r.type,r.index,r.item,v.p);
+    if(r.rtype!=RANGE_SINGLE)set_value(r.type2,r.index2,r.item2,v.p2);
+  }
+  double t=x.numerics.start_time;
+  do_start_flags(x,state,&x.data_store.current_time);
+  if(stored_from(x.numerics.store_from,x.data_store.current_time,x.numerics.delta_t)&&x.numerics.storflag&&x.numerics.poincare_map==PoincareMap::none)
+  {
+    x.data_store.col[0][x.data_store.rows]=static_cast<float>(x.data_store.current_time);
+    extra(x,state,x.data_store.current_time,x.model().node,x.model().neq);
+    for(int e=0;e<x.model().neq;e++)x.data_store.col[1+e][x.data_store.rows]=static_cast<float>(state[e]);
+    x.data_store.rows++;
+  }
+  const int rows_before=x.data_store.rows;
+  o.run=integrate(x,&t,state,x.numerics.total_time,x.numerics.delta_t,1,x.numerics.store_every,&x.integrator.my_start);
+  o.stored=x.data_store.rows-rows_before;
+  o.stop_note=std::move(x.integrator.stop_note);
+  x.integrator.stop_note.clear();
+  o.last_time=x.integrator.last_time;
+}
+
 /* Range's sweep (flag 0 one parameter, 1 two, 2 autoX's range over its
    diagram), the settings made: one integration per step; -1 when one
    stopped early (the sweep ends there), else 0; or the error it failed
-   with */
+   with.
+
+   Each run has a seed of its own, the sweep's seed stream's k-th (xpp::seed_stream), so a run's numbers are its own,
+   whichever runs came before it or at the same time (W434). The runs that do not start where the last ended ("Use old
+   I.C.s" on) and whose model allows it (sweep_serial_reason) are computed on as many worker threads as the thread
+   setting gives; every run, on a worker or here, is compute_run, and what comes after a run (its rows, files, messages,
+   drawing) is done here, in run order, as each run is taken in. */
 xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFrame &take_frame, const ShowProgress &show_progress, RangeProgress &progress)
 {
   std::optional<xpp::Error> failure;
@@ -694,25 +805,23 @@ xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFra
   std::string bob;
   std::string parn; /* autox_get_info writes the parameter's name */
  int ivar=0,ivar2=0,res=0,oldic=0;
- int nit=20,i=0,j=0,itype=0,itype2=0,cycle=0,icol=0,nit2=0,iii=0;
+ int nit=20,itype=0,itype2=0,cycle=0,icol=0,nit2=0;
  xpp::Color color=s.plot_windows.current->color[0];
- double t,dpar,plow=0.0,phigh=1.0,p=0.0,plow2=0.0,phigh2=0.0,p2=0.0,dpar2=0.0;
+ double dpar,plow=0.0,phigh=1.0,plow2=0.0,phigh2=0.0,dpar2=0.0;
  double temp,temp2;
  int ierr=0;
  xpp::Computation computing; /* the whole range, between its integrations too (xpp_job.h) */
 
- seed_this_run(s); /* the whole sweep (Stochastic > Compute's many runs
-                      included) is one computation, one seed */
  s.integrator.my_start=1;
  itype=s.integrator.range.type;
  ivar=s.integrator.range.index;
- 
+
  res=s.integrator.range.reset;
  oldic=s.integrator.range.oldic;
  nit=s.integrator.range.steps;
  plow=s.integrator.range.plow;
  phigh=s.integrator.range.phigh;
- 
+
  cycle=s.integrator.range.cycle;
  dpar=(phigh-plow)/static_cast<double>(nit);
 
@@ -721,7 +830,7 @@ xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFra
  s.numerics.storflag=true;
  s.numerics.pauser=false;
 nit2=0;
-if(s.integrator.range.rtype==RANGE_INDEPENDENT)nit2=s.integrator.range.steps2; 
+if(s.integrator.range.rtype==RANGE_INDEPENDENT)nit2=s.integrator.range.steps2;
 if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
  alloc_liap(s,nit); /* make space */
  if(s.integrator.range.rtype!=RANGE_SINGLE){
@@ -732,7 +841,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
   if(s.integrator.range.rtype==RANGE_INDEPENDENT)dpar2=(phigh2-plow2)/static_cast<double>(nit2);
   else dpar2=(phigh2-plow2)/static_cast<double>(nit);
   if(s.integrator.range.type2==PARAM)get_val(s,s.integrator.range.item2,&temp2);
- 
+
  }
 
  if(s.integrator.range.movie)reset_film(s);
@@ -741,62 +850,62 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
    nit2=0;
  }
  const int runs=(nit+1)*(nit2+1);
+ const std::size_t run_count=runs>0?static_cast<std::size_t>(runs):0; /* autoX's range over an empty diagram has none */
+ RangeRuns plan;
+ plan.type=itype;plan.type2=itype2;plan.index=ivar;plan.index2=ivar2;
+ plan.rtype=s.integrator.range.rtype;plan.steps=nit;
+ plan.item=s.integrator.range.item;plan.item2=s.integrator.range.item2;
+ plan.plow=plow;plan.dpar=dpar;plan.plow2=plow2;plan.dpar2=dpar2;
+ plan.apply=flag!=2;
+ plan.fresh=oldic==1&&flag!=2;
+ plan.constants=s.parser.constants;
+ plan.variables=s.parser.variables;
+ /* run k's seed is the k-th of the stream from the seed set for the next run, and the next run's is the one after the
+    last: a sweep uses up its runs' seeds as that many Go's would */
+ plan.seeds=xpp::seed_stream(s.numerics.rand_seed,run_count);
+ if(run_count>0){
+   s.numerics.rand_seed=xpp::next_seed(plan.seeds.back());
+   xpp::log(XPP_LOG_INFO,"Range: seed {} for the first of {} runs, the seed after it for the next\n",plan.seeds.front(),runs);
+ }
+
+ /* the runs side by side, when the runs are independent and the model lets them; else one after another here, and
+    said why when more than one thread was there to use */
+ const unsigned budget=s.thread_budget();
+ unsigned threads=1;
+ if(runs>1&&budget>1){
+   const std::string why=flag==2?"the runs follow autoX's diagram"
+     :!plan.fresh?"\"Use old I.C.s\" is off, so each run starts where the last ended"
+     :xpp::sweep_serial_reason(s);
+   if(why.empty())threads=std::min(budget,static_cast<unsigned>(runs));
+   else xpp::say_sweep_serial(s,"Range",runs,why);
+ }
+ std::vector<std::unique_ptr<xpp::Session>> workers;
+ for(unsigned w=0;threads>1&&w<threads;w++)workers.push_back(xpp::make_sweep_worker(s,s.data_store.max_rows));
+
  int early=0; /* the runs that ended before their end without failing */
  std::string first_early; /* the first of them, with its parameter value */
- for(j=0;j<=nit2;j++){
- for(i=0;i<=nit;i++)
-  {
-    if(s.integrator.range.movie)clear_draw_window(s);
+
+ /* run k taken in, on the main thread: what is shown before it, its outcome o (computed by `compute` here, or already
+    by a worker), what is done after it. False when the sweep ends with it. */
+ const auto take=[&](std::size_t k,auto &&compute)->bool{
+   const int i=static_cast<int>(k%static_cast<std::size_t>(nit+1)),j=static_cast<int>(k/static_cast<std::size_t>(nit+1));
+   const int run_number=static_cast<int>(k)+1;
+   if(s.integrator.range.movie)clear_draw_window(s);
    if(cycle)s.plot_windows.current->color[0]=xpp::xppaut_color(icol+1);
    icol++;
    if(icol==10)icol=0;
-   t=s.numerics.start_time;
-   s.integrator.my_start=1;
-   s.numerics.poiext=0;
-
+   s.numerics.last_seed=plan.seeds[k];
+   RangeRuns::Values v{0.0,0.0};
    if(flag!=2){
-     p=plow+dpar*static_cast<double>(i);
-     if(s.integrator.range.rtype==RANGE_TOGETHER)
-       p2=plow2+dpar2*static_cast<double>(i);
-     if(s.integrator.range.rtype==RANGE_INDEPENDENT)
-       p2=plow2+dpar2*static_cast<double>(j);
-   
-     if(oldic==1){
-       get_ic(s,1,x);
-       
-       if(s.delay.flag){
-	 /* restart initial data */
-	 if(const xpp::Result<> r=do_init_delay(s,s.numerics.delay);!r){
-	   failure=r.error();
-	   complete=false;
-	   break;
-	 }
-       }
-     }
-
-     if(itype==IC)x[ivar]=p;
-     else {
-       set_val(s,s.integrator.range.item,p);
-       if(auto t=redo_all_fun_tables(s);!t&&!failure)failure=t.error();
-       re_evaluate_kernels(s);
-       
-     }
-     if(s.integrator.range.rtype!=RANGE_SINGLE){
-       if(itype2==IC)x[ivar2]=p2;
-       else {
-	 set_val(s,s.integrator.range.item2,p2);
-	 if(auto t=redo_all_fun_tables(s);!t&&!failure)failure=t.error();
-	 re_evaluate_kernels(s);
-       }
-     }
-     if(program.interactive){   
-       if(s.integrator.range.rtype!=RANGE_SINGLE)
-	 bob=xpp::format("{}={:.16g}  {}={:.16g}",s.integrator.range.item,p,s.integrator.range.item2,p2);
+     v=plan.values(i,j);
+     if(program.interactive){
+       if(plan.rtype!=RANGE_SINGLE)
+	 bob=xpp::format("{}={:.16g}  {}={:.16g}",plan.item,v.p,plan.item2,v.p2);
        else
-	 bob=xpp::format("{}={:.16g}  i={}",s.integrator.range.item,p,i);
+	 bob=xpp::format("{}={:.16g}  i={}",plan.item,v.p,i);
        show_progress(bob);
      }
-   }  /* normal range stuff   */ 
+   }  /* normal range stuff   */
    else {  /* auto range stuff */
      autox_set_mark(s, i);
      get_ic(s,2,x);
@@ -804,76 +913,148 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
      bob=xpp::format("{:.230}={:.16g}",parn,temp);
      show_progress(bob);
    }
-   const int run_number=j*(nit+1)+i+1;
    const std::string where=flag==2?xpp::format("{} = {}",parn,xpp::number(temp))
-     :s.integrator.range.rtype!=RANGE_SINGLE?xpp::format("{} = {}, {} = {}",s.integrator.range.item,xpp::number(p),s.integrator.range.item2,xpp::number(p2))
-     :xpp::format("{} = {}",s.integrator.range.item,xpp::number(p));
-   do_start_flags(s,x,&s.data_store.current_time);
-if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_t)&&s.numerics.storflag&&s.numerics.poincare_map==PoincareMap::none)
-  {
-    s.data_store.col[0][s.data_store.rows]=static_cast<float>(s.data_store.current_time);
-    extra(s,x,s.data_store.current_time,s.model().node,s.model().neq);
-    for(iii=0;iii<s.model().neq;iii++)s.data_store.col[1+iii][s.data_store.rows]=static_cast<float>(x[iii]);
-    s.data_store.rows++;
-  }
-
- const int rows_before=s.data_store.rows;
- const xpp::Result<int> run=integrate(s,&t,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
- if(!run||*run==1||xpp::job::cancelled()){
-   if(!run){
-     failure=run.error();
-     failure->what=xpp::format("Range stopped at {} (run {} of {}): {}",where,run_number,runs,failure->what);
-     failure->action.reset(); /* Continue goes on from a single run, not a sweep's */
+     :plan.rtype!=RANGE_SINGLE?xpp::format("{} = {}, {} = {}",plan.item,xpp::number(v.p),plan.item2,xpp::number(v.p2))
+     :xpp::format("{} = {}",plan.item,xpp::number(v.p));
+   RunOutcome &o=compute();
+   if(o.setup_failed){
+     failure=o.setup_error;
+     complete=false;
+     return false;
    }
-   ierr=-1;
-   complete=false;
-   break;
- }
- progress.runs++;
- progress.steps+=s.data_store.rows-rows_before;
- if(!s.integrator.stop_note.empty()){
-   const std::string note=xpp::format("{}: {}",where,s.integrator.stop_note);
-   xpp::log(XPP_LOG_WARN,"Range run {} of {} ended early at {}\n",run_number,runs,note);
-   if(early++==0)first_early=note;
-   s.integrator.stop_note.clear();
- }
- if(s.stochastic.flag)
-   append_stoch(s,i,s.data_store.rows);
-
- if(s.integrator.range.movie){
-   redraw_dfield(s);
-	create_new_cline(s);
-   draw_label(s,s.plot_windows.draw_win);
-   if(!take_frame()){complete=false;break;}
- }
- do_batch_nclines(s);
- do_batch_dfield(s);
- refresh_browser(s,s.data_store.rows);
- if(s.integrator.adj_range==1){
-   bob=xpp::format("{}_{:g}",s.integrator.range.item,p);
-   data_get_mybrowser(s,s.data_store.rows-1);
-   compute_one_period(s,static_cast<double>(s.data_store.col[0][s.data_store.rows-1]),s.last_ic.data(),bob.c_str());
- }
-
- do_this_liaprun(s,i,p);  /* sends parameter and index back */
- if(s.data_store.rows>2)autox_freeze_it(s);
- if(s.array_plot.range==1)
-   draw_one_array_plot(s,bob);
- 
- if(res==1||s.stochastic.flag)
-   {
-     if(s.integrator.range.write_files){
-       post_process_stuff(s);
-       const std::string file = program.interactive
-         ? xpp::include_path(s.model().this_file,xpp::files::output_name(s.model().this_file,".dat"))
-         : s.batch_out_file;
-       write_this_run(s,file.c_str(),j*(nit+1)+i);
+   if(o.setup_error&&!failure)failure=o.setup_error;
+   if(!o.warnings.empty())xpp::log(XPP_LOG_WARN,"{}",o.warnings); /* what a worker logged while it ran, here in run order */
+   if(!o.unexpected.empty()){
+     failure=xpp::Error{"Range",xpp::format("Range stopped at {} (run {} of {}): a run stopped unexpectedly: {}",where,run_number,runs,o.unexpected),xpp::command_place()};
+     ierr=-1;
+     complete=false;
+     return false;
+   }
+   if(!workers.empty()){ /* a worker's rows into the Session's store, and where its integration stopped */
+     bool room=true;
+     while(room&&s.data_store.rows+o.rows>s.data_store.max_rows)
+       if(const auto grown=stor_full(s);!grown){
+         if(o.run)o.run=std::unexpected(grown.error()); /* the run's own failure, if it had one, is told first */
+         room=false;
+       }
+     if(room&&o.rows>0){
+       const std::size_t rows=static_cast<std::size_t>(o.rows);
+       for(int c=0;c<=s.model().neq;c++)
+	 std::copy_n(o.columns.data()+static_cast<std::size_t>(c)*rows,rows,s.data_store.col[c]+s.data_store.rows);
+       s.data_store.rows+=o.rows;
+       xpp::job::report_rows(s.data_store.rows,s.data_store.col[0][s.data_store.rows-1]);
+       rows_stored(s,s.data_store.rows);
      }
-     s.data_store.rows=0;
+     s.integrator.last_time=o.last_time;
    }
-  }
-  if(!complete)break;
+   if(!o.run||*o.run==1||xpp::job::cancelled()){
+     if(!o.run){
+       failure=o.run.error();
+       failure->what=xpp::format("Range stopped at {} (run {} of {}): {}",where,run_number,runs,failure->what);
+       failure->action.reset(); /* Continue goes on from a single run, not a sweep's */
+     }
+     ierr=-1;
+     complete=false;
+     return false;
+   }
+   progress.runs++;
+   progress.steps+=o.stored;
+   if(!o.stop_note.empty()){
+     const std::string note=xpp::format("{}: {}",where,o.stop_note);
+     xpp::log(XPP_LOG_WARN,"Range run {} of {} ended early at {}\n",run_number,runs,note);
+     if(early++==0)first_early=note;
+   }
+   if(s.stochastic.flag)
+     append_stoch(s,i,s.data_store.rows);
+
+   if(s.integrator.range.movie){
+     redraw_dfield(s);
+	create_new_cline(s);
+     draw_label(s,s.plot_windows.draw_win);
+     if(!take_frame()){complete=false;return false;}
+   }
+   do_batch_nclines(s);
+   do_batch_dfield(s);
+   refresh_browser(s,s.data_store.rows);
+   if(s.integrator.adj_range==1){
+     bob=xpp::format("{}_{:g}",plan.item,v.p);
+     data_get_mybrowser(s,s.data_store.rows-1);
+     compute_one_period(s,static_cast<double>(s.data_store.col[0][s.data_store.rows-1]),s.last_ic.data(),bob.c_str());
+   }
+
+   do_this_liaprun(s,i,v.p);  /* sends parameter and index back */
+   if(s.data_store.rows>2)autox_freeze_it(s);
+   if(s.array_plot.range==1)
+     draw_one_array_plot(s,bob);
+
+   if(res==1||s.stochastic.flag)
+     {
+       if(s.integrator.range.write_files){
+         post_process_stuff(s);
+         const std::string file = program.interactive
+           ? xpp::include_path(s.model().this_file,xpp::files::output_name(s.model().this_file,".dat"))
+           : s.batch_out_file;
+         write_this_run(s,file.c_str(),j*(nit+1)+i);
+       }
+       s.data_store.rows=0;
+     }
+   return true;
+ };
+
+ std::size_t taken=0;
+ if(workers.empty()){
+   for(std::size_t k=0;k<run_count;k++){
+     RunOutcome o;
+     if(!take(k,[&]()->RunOutcome &{
+       compute_run(s,x,plan,static_cast<int>(k%static_cast<std::size_t>(nit+1)),static_cast<int>(k/static_cast<std::size_t>(nit+1)),k,o);
+       return o;
+     }))break;
+     taken++;
+   }
  }
+ else {
+   const std::size_t window=xpp::sweep_window(threads);
+   std::vector<RunOutcome> slots(window);
+   const auto compute_on_worker=[&](unsigned w,std::size_t k){
+     RunOutcome &o=slots[k%window];
+     o=RunOutcome{};
+     xpp::Session &worker=*workers[w];
+     try {
+       std::string table; /* log_autox's, which a run never writes */
+       const xpp::LogHold hold(table,o.warnings);
+       worker.data_store.rows=0;
+       compute_run(worker,worker.data_store.current.data(),plan,static_cast<int>(k%static_cast<std::size_t>(nit+1)),static_cast<int>(k/static_cast<std::size_t>(nit+1)),k,o);
+       o.rows=worker.data_store.rows;
+       const std::size_t rows=static_cast<std::size_t>(o.rows),columns=static_cast<std::size_t>(worker.model().neq)+1;
+       o.columns.resize(rows*columns);
+       for(std::size_t c=0;c<columns;c++)
+	 std::copy_n(worker.data_store.col[c],rows,o.columns.data()+c*rows);
+     } catch (const std::bad_alloc &) {
+       xpp::out_of_memory("a run of a sweep");
+     } catch (const std::exception &e) {
+       o.unexpected=e.what();
+     }
+   };
+   const xpp::Result<bool> ran=xpp::run_ordered(run_count,threads,compute_on_worker,[&](std::size_t k){
+     const bool go=take(k,[&]()->RunOutcome &{return slots[k%window];});
+     if(go)taken++;
+     return go;
+   });
+   if(!ran&&!failure){
+     failure=ran.error();
+     complete=false;
+   }
+   if(ran&&*ran){ /* the / key ended the sweep, as it ends one on a thread of its own */
+     s.numerics.endsing=true;
+     ierr=-1;
+     complete=false;
+   }
+   if(complete&&taken<run_count&&xpp::job::cancelled()){ /* Stop came before the next run was taken in */
+     ierr=-1;
+     complete=false;
+   }
+ }
+ workers.clear();
  if(early>0)bottom_msg(0,xpp::format("{} of {} runs ended early; the first at {}",early,runs,first_early));
  if(s.array_plot.range==1){
    s.array_plot.range=0;
@@ -887,7 +1068,9 @@ if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_
  evaluate_derived(s);
 s.plot_windows.current->color[0]=color;
  s.numerics.inflag=true;
- 
+ /* whichever runs were computed and wherever, the generator ends seeded for the next run: the same after any thread count */
+ s.random.seed(s.numerics.rand_seed);
+
  ping();
  s.integrator.adj_range=0;
  if(s.stochastic.flag)
@@ -1725,7 +1908,10 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
 {
   if(!s.integrator.steady)s.integrator.steady_result.reset();
   s.integrator.stop_note.clear();
-  xpp::Computation computing; /* what Escape stops (xpp_job.h) */
+  /* what Escape stops (xpp_job.h); a sweep's worker is not the main thread: its sweep holds the computation and the front end is the main thread's */
+  const bool front_end=!s.integrator.on_worker;
+  std::optional<xpp::Computation> computing;
+  if(front_end)computing.emplace();
   const DaeRun dae_run(s); /* the run follows one branch of a DAE's solutions */
   xpp::Solver &solver=*s.integrator.solver;
   if(auto limits=xpp::check_step_limits(s,solver.info(),dt,tend);!limits)return std::unexpected(limits.error());
@@ -1766,7 +1952,7 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
 
 mswtch(s,s.solver_work.xpv.x,x);
 
-if(program.interactive) cwidth=get_command_width();
+if(program.interactive&&front_end) cwidth=get_command_width();
 
  s.integrator.last_time=*t;
  evaluate_derived(s);
@@ -1800,7 +1986,7 @@ if(program.interactive) cwidth=get_command_width();
  if(tscal==0.0)tscal=1.0;
  stor_delay(s,x);
  /* xppautX: the rows a cancel before the first step finds (xpp_job.h) */
- xpp::job::report_rows(s.data_store.rows, s.data_store.rows > 0 ? s.data_store.col[0][s.data_store.rows-1] : *t);
+ if(front_end)xpp::job::report_rows(s.data_store.rows, s.data_store.rows > 0 ? s.data_store.col[0][s.data_store.rows-1] : *t);
 
  /* the variables' last two values up to ieqn, then the rest, at DEBUG: what
     --debug shows about a state that stopped the run */
@@ -1829,7 +2015,7 @@ if(program.interactive) cwidth=get_command_width();
 	       return take_step_error(s);
 	     }
 	     if(!r){
-	       ping();
+	       if(front_end)ping();
 	       s.integrator.last_time=*t;
 	       return std::unexpected(stopped(r.error(),tzero+tend,dt));
 	     }
@@ -1841,7 +2027,7 @@ if(program.interactive) cwidth=get_command_width();
 						 .dt=dt,.steps=store_every});
 	     mswtch(s,x,s.solver_work.xpv.x);
 	     if(!r){
-	       ping();
+	       if(front_end)ping();
 	       s.integrator.last_time=*t;
 	       return std::unexpected(stopped(r.error(),tzero+tend,dt));
 	     }
@@ -1898,8 +2084,8 @@ if(program.interactive) cwidth=get_command_width();
            }
 	                
         /*   This is where the progresser goes   */
-	   if(program.interactive) plot_command(nit,icount,cwidth);
-	   esc=my_abort();
+	   if(program.interactive&&front_end) plot_command(nit,icount,cwidth);
+	   esc=front_end?my_abort():xpp::job::cancelled()?ESC:KEY_NONE; /* a worker only sees the cancel the main thread (or Stop) made */
 
            {
             
@@ -1921,7 +2107,7 @@ if(program.interactive) cwidth=get_command_width();
              break;
            }
            if(ieqn<(s.model().neq+1))break;
-           ui.live_state(s, x, *t);
+           if(front_end)ui.live_state(s, x, *t);
            tv=static_cast<float>(*t);
 	   xv[0]=tv;
  if(solver.traits().dense_output&&s.numerics.poincare_map!=PoincareMap::none){
@@ -2027,7 +2213,7 @@ dense_poi:
    oldperiod=*t;
  }
      
-          if(stored_from(s.numerics.store_from,*t,dt)&&program.interactive&&OnTheFly)
+          if(stored_from(s.numerics.store_from,*t,dt)&&program.interactive&&front_end&&OnTheFly)
 	  {
 	     plot_the_graphs(s,xv,xvold,s.model().node,s.model().neq,fabs(dt*s.numerics.store_every),torcross,0); 
 

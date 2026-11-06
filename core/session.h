@@ -58,6 +58,8 @@
 #include "value_undo.h"
 #include "display_state.h"
 #include "xpp_session.h"
+#include "xpp_prefs.h"
+#include "xpp_cpu.h"
 
 #include <array>
 #include <map>
@@ -147,6 +149,12 @@ struct Session {
   /* each variable's torus flag: 1 when it is taken modulo the torus
      period (the nUmerics menu's Torus) */
   std::vector<int> itor;
+
+  /* the thread count of autoX's collocation and of a sweep's runs (W267, W434), a program preference
+     (xpp_prefs.h) kept here for the run: prefs::THREADS_AUTO, or the count */
+  unsigned threads = prefs::THREADS_AUTO;
+  /* the threads a set of jobs or runs shares: the count, or all the physical cores when automatic */
+  unsigned thread_budget() const { return threads != prefs::THREADS_AUTO ? threads : cpu::physical_threads(); }
 
   /* autoX's settings, what its window shows and its scratch folder
      (autox_nox.cpp), and the diagram (diagram.cpp). A run's own state, its

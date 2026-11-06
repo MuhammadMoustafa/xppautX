@@ -154,6 +154,16 @@ int next_seed(int seed)
     return static_cast<int>(stream.draw() & SEED_MASK);
 }
 
+std::vector<int> seed_stream(int seed, std::size_t n)
+{
+    std::vector<int> seeds(n);
+    for (int &value : seeds) {
+        value = seed;
+        seed = next_seed(seed);
+    }
+    return seeds;
+}
+
 double Random::uniform()
 {
     /* the top 53 bits, centred in their interval: (0,1), never 0 (the

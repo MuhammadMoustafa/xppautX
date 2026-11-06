@@ -226,7 +226,7 @@ static void run_session(void)
     if (!silent) {
         const xpp::Model &m = (**loaded).model();
         const auto noted = xpp::recent::note(opened.empty() ? xpp::files::absolute(m.this_file, m.load_dir) : opened);
-        /* a preferences file that cannot be read was said once already, with what it costs (autox_threads_load) */
+        /* a preferences file that cannot be read was said once already, with what it costs (threads_load) */
         if (!noted && xpp::prefs::load_prefs()) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
     }
     /* the session the load made, the program's until the redraw (a protocol

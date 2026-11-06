@@ -394,7 +394,7 @@ DirectionsRun run_directions(bool follow_all_branches, unsigned threads)
     auto &s=xpp::client_session();
     s.autox_state.dir=tmp.path();
     xpp::init_autox_win(s);
-    s.autox_state.threads=threads;
+    s.threads=threads;
     s.autox_state.follow_all_branches=follow_all_branches;
     directions_settings(s,0.02);
     CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
@@ -484,7 +484,7 @@ void check_directions_output(unsigned threads)
     auto &s=xpp::client_session();
     s.autox_state.dir=tmp.path();
     xpp::init_autox_win(s);
-    s.autox_state.threads=threads;
+    s.threads=threads;
     s.autox_state.follow_all_branches=true;
     directions_settings(s,0.02);
     const std::string log=tmp.file("output.log");
@@ -568,7 +568,7 @@ void check_directions_stopped(unsigned threads)
     auto &s=xpp::client_session();
     s.autox_state.dir=tmp.path();
     xpp::init_autox_win(s);
-    s.autox_state.threads=threads;
+    s.threads=threads;
     s.autox_state.follow_all_branches=true;
     directions_settings(s,0.02);
     xpp::AutoxSettingsSet slow;
@@ -916,11 +916,11 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
     program.compile=compiled;
     CHECK(load(file));
     xpp::Session &s=xpp::client_session();
-    CHECK(s.model().autox_rhs_pure==(compiled && !impure));
+    CHECK(s.model().rhs_impurity.empty()==(compiled && !impure));
     s.autox_state.dir=tmp.path();
     xpp::init_autox_win(s);
     s.autox_state.follow_all_branches=false; /* these tests start one run each */
-    s.autox_state.threads=threads; /* the preference's count, selected once for the run */
+    s.threads=threads; /* the preference's count, selected once for the run */
     CHECK(xpp::autox_run_start(s,xpp::AutoxRunRequest{}));
     CHECK(xpp::autox_grab_type_index(s,xpp::AutoxPointKind::Hopf,1)==1);
     const auto start=std::chrono::steady_clock::now();
@@ -963,11 +963,11 @@ void check_collocation_purity()
         const std::string file=tmp.file(xpp::format("purity{}.ode",index++));
         CHECK(write_file(file,test.source));
         CHECK(load(file));
-        CHECK(xpp::client_session().model().autox_rhs_pure==test.pure);
+        CHECK(xpp::client_session().model().rhs_impurity.empty()==test.pure);
     }
     CHECK(load("tools/models/compile_derived.odex"));
     auto &s=xpp::client_session();
-    CHECK(s.model().autox_rhs_pure && xpp::autox_parallel_ready(s));
+    CHECK(s.model().rhs_impurity.empty() && xpp::autox_parallel_ready(s));
     s.numerics.method=xpp::method::DISCRETE;
     s.numerics.store_every=2;
     CHECK(!xpp::autox_parallel_ready(s));

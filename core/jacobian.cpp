@@ -65,7 +65,7 @@ void column(const Session &s, JacobianScratch &scratch, const JacobianProgram &p
 /* m's difference groups for its n states (DifferenceGroups) */
 DifferenceGroups make_difference_groups(const Model &m, int n)
 {
-  if (!m.autox_rhs_pure || n != m.node) return {};
+  if (!m.rhs_impurity.empty() || n != m.node) return {};
   const auto reads = equation_reads(m);
   DifferenceGroups g;
   g.rows.resize(static_cast<size_t>(n));
