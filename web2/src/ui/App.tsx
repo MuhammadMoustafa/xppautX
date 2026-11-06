@@ -18,6 +18,7 @@ import {useHotkeys} from './hotkeys';
 import {MenuBar} from './MenuBar';
 import {CommandPalette} from './CommandPalette';
 import {CommandForm} from './CommandForm';
+import {ValuesFileDialog} from './ValuesFileDialog';
 import {AnnotationsPanel} from './AnnotationsPanel';
 import {Messages} from './Messages';
 import {PlayerStage} from './Player';
@@ -104,6 +105,7 @@ function Shell() {
       <MenuBar />
       <CommandPalette />
       <CommandForm />
+      <ValuesFileDialog />
       <AnnotationsPanel />
 
       <main id="main" class="workspace">

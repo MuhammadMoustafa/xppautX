@@ -1,10 +1,8 @@
 #pragma once
-/* A settings file, name.setx (W284, docs/odex.md ".setx"): the values,
-   numerics, delays, boundary conditions and graphics of a model, in the
-   settings syntax (setx.h), every key named and in any order. It is also a
-   session file's model.setx (W285, snapx.h): the session's own copy of the
-   same settings, complete and without the graphics, which windows.setx
-   holds for every window.
+/* The settings of a session, in the settings syntax (setx.h, docs/odex.md ".setx"): a session file's model.setx
+   (W285, snapx.h), every key named, complete and without the graphics, which windows.setx holds for every window.
+   No user file of ours is a .setx (W321: a user's values are .odex sets, set_load.h; XPPAUT's .set is imported,
+   lunch-new.h): the same Settings also carry an imported .set, graphics included.
 
    The numerics and the range keys are the option table's rows marked
    `saved` (model_options.h, numerics_settings.h), under the key the table
@@ -14,8 +12,8 @@
    A settings file is read whole and checked (read_settings), then
    applied in one step (apply_settings): a file with a bad value
    changes nothing (W125). XPPAUT's own .set is read by lunch-new.cpp
-   into the same Settings, which is written as a .setx (File > Import,
-   --setfile). C++ only. */
+   into the same Settings, which is applied as it is (File > Import XPPAUT
+   session state, --setfile). C++ only. */
 #include <optional>
 #include <span>
 #include <string>
@@ -36,8 +34,6 @@ namespace xpp {
 
 struct Session;   /* session.h */
 struct OptionRow; /* model_options.h */
-
-inline constexpr std::string_view setx_extension = ".setx";
 
 /* 4096 sides bound a saved array/transpose rectangle to 16 million cells. */
 inline constexpr int settings_dimension_limit = 4096;
@@ -77,9 +73,8 @@ struct Settings {
     void set_setting(const OptionRow *row, std::string text);
 };
 
-/* which file: a settings file a user keeps (partial: it sets what it
-   names; with the active window's graphics) or a session's model.setx
-   (complete: every key must be there; no graphics) */
+/* which settings: those with the active window's graphics (what an XPPAUT .set holds, compared and applied by
+   lunch-new.cpp) or a session's model.setx (complete: every key must be there; no graphics) */
 enum class SettingsUse { file, session };
 
 /* s's settings now */
@@ -88,10 +83,9 @@ Settings capture_settings(const Session &s, SettingsUse use);
 /* settings as a .setx's text; the error when a text cannot be written */
 Result<std::string> setx_text(const Session &s, const Settings &f);
 
-/* text, the .setx named file, read for s (its model's names; what the
-   file does not name is s's own): every key and value checked, or the
+/* text, the session's .setx named file, read for s (its model's names): every key and value checked, or the
    error at the one that is wrong. Nothing of s changes. */
-Result<Settings> read_settings(Session &s, std::string file, std::string_view text, SettingsUse use);
+Result<Settings> read_settings(Session &s, std::string file, std::string_view text);
 
 /* f put in s, in one step (the front end shown it when redraw) */
 void apply_settings(Session &s, const Settings &f, bool redraw);

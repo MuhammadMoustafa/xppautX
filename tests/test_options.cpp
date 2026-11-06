@@ -483,7 +483,7 @@ int main(void)
     CHECK(s->sliders.size() == 3 && s->sliders[0].var == "x" && s->sliders[2].var == "z");
     CHECK(s->sliders[0].lo == -1 && s->sliders[2].hi == 2);
 
-    /* a .set file brings back what it holds */
+    /* a .setx file brings back what it holds */
     init_browser(*s);
     init_all_graph(*s);
     for (std::size_t k = 0; k < rows.size(); k++) {
@@ -493,11 +493,10 @@ int main(void)
         CHECK(!held || in_session(*s, r));
         if (!r.key.empty()) CHECK(held); /* every numerics setting the menu edits is in a .setx */
     }
-    const xpp::Result<std::string> own = xpp::setx_text(*s, xpp::capture_settings(*s, xpp::SettingsUse::file));
+    const xpp::Result<std::string> own = xpp::setx_text(*s, xpp::capture_settings(*s, xpp::SettingsUse::session));
     CHECK(own.has_value());
     if (!own) TEST_REPORT("options");
-    CHECK(xpp::read_settings(*s, set_file, *own, xpp::SettingsUse::file).has_value());
-    CHECK(write_file(set_file, *own));
+    CHECK(xpp::read_settings(*s, set_file, *own).has_value());
     std::vector<std::string> written;
     for (const xpp::OptionRow &r : rows) {
         written.push_back(value_of(*s, r));
@@ -512,7 +511,9 @@ int main(void)
     }
     std::vector<std::string> changed;
     for (const xpp::OptionRow &r : rows) changed.push_back(value_of(*s, r));
-    CHECK(xpp::import_settings(*s, set_file, false).has_value());
+    const xpp::Result<xpp::Settings> back = xpp::read_settings(*s, set_file, *own);
+    CHECK(back.has_value());
+    if (back) xpp::apply_settings(*s, *back, false);
     for (std::size_t k = 0; k < rows.size(); k++) {
         const xpp::OptionRow &r = rows[k];
         if (!in_session(*s, r)) continue;

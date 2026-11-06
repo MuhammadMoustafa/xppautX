@@ -109,6 +109,10 @@ Result<Edited> set_defaults(Model &m, std::string_view text, const std::string &
 Result<Edited> rename_set(Model &m, std::string_view text, const std::string &file, std::string_view from, std::string_view to);
 Result<Edited> delete_set(Model &m, std::string_view text, const std::string &file, std::string_view name);
 
+/* the statements of text (a file of m's folder or one of values), parsed,
+   not checked against any model's names: the error is the parser's */
+Result<Parsed> read_statements(Model &m, std::string_view text, const std::string &file);
+
 /* Parse (and, unless partial, check) text as a model of its own: the error
    is where it is wrong. */
 Result<> check_text(Model &m, std::string_view text, const std::string &file, bool partial = false);

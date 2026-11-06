@@ -95,11 +95,17 @@ Result<std::string> save_copy(Session &s, const Command &, const Arguments &args
     return ResultObject().text(FILE_KEY, snapx::session_file_name(file)).boolean("copied", copied).done();
 }
 
-Result<std::string> import_settings_file(Session &s, const Command &, const Arguments &args, const Place &)
+Result<std::string> import_xppaut_state_file(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const std::string &file = args.get<std::string>(FILE_KEY);
-    if (const Result<> applied = import_settings(s, file, true); !applied) return std::unexpected<Error>(applied.error());
-    return ResultObject().text(FILE_KEY, file).boolean("applied", true).done();
+    const Result<std::vector<std::string>> changes = import_xppaut_state(s, file, true);
+    if (!changes) return std::unexpected<Error>(changes.error());
+    std::string changed = "[";
+    for (const std::string &what : *changes) {
+        if (changed.size() > 1) changed += ',';
+        json_append_string(changed, what);
+    }
+    return ResultObject().text(FILE_KEY, file).boolean("applied", true).raw("changes", changed + ']').done();
 }
 
 Result<std::string> export_info(Session &s, const Command &, const Arguments &args, const Place &)
@@ -131,7 +137,7 @@ constexpr std::array RELOAD_RESULTS = {ResultField{"reloaded", "boolean"}};
 constexpr std::array OPEN_RESULTS = {ResultField{"file", "file"}, ResultField{"loaded", "boolean"}};
 constexpr std::array SAVE_RESULTS = {ResultField{"file", "file"}, ResultField{"saved", "boolean"}};
 constexpr std::array COPY_RESULTS = {ResultField{"file", "file"}, ResultField{"copied", "boolean"}};
-constexpr std::array IMPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"applied", "boolean"}};
+constexpr std::array IMPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"applied", "boolean"}, ResultField{"changes", "list[text]"}};
 constexpr std::array EXPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"written", "boolean"}};
 constexpr std::array SOURCE_RESULTS = {ResultField{"source", "text"}, ResultField{"equations", "list[text]"}};
 constexpr std::array QUIT_RESULTS = {ResultField{"quitting", "boolean"}};
@@ -163,8 +169,9 @@ constexpr std::array ROWS = {
             SAVE_RESULTS, SAVE_EVENTS, true, save_as, {}, KEY_2, "write", "*.snapx"},
     Command{"session.save_copy", SAVE_AS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Save a copy of the session",
             "Save a copy of the session, leaving the file it is saved to as it was.", COPY_RESULTS, DONE_EVENTS, true, save_copy, {}, {}, "write", "*.snapx"},
-    Command{"session.import_settings", IMPORT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "File/Import settings",
-            "Apply a settings file (.setx, or XPPAUT's .set, converted beside it).", IMPORT_RESULTS, STATE_EVENTS, true, import_settings_file, {}, {}, "read", "*.setx *.set"},
+    Command{"session.import_xppaut_state", IMPORT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "File/Import XPPAUT session state",
+            "Apply a whole set file XPPAUT wrote (its parameters, initial conditions, numerics, delays, boundary conditions, active graph and run position), all or nothing; the result names what it changed. Nothing is written beside it.",
+            IMPORT_RESULTS, STATE_EVENTS, true, import_xppaut_state_file, {}, {}, "read", "*.set"},
     Command{"session.export_info", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Export simulation information",
             "Write the equations, numerics, initial conditions and parameters to a file.", EXPORT_RESULTS, DONE_EVENTS, true, export_info, {}, {}, "write", "*.txt"},
     Command{"session.get_source", {}, XPP_KIND_VIEW, CommandCategory::Files, "File/Model source",

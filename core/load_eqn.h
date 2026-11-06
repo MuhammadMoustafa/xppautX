@@ -181,6 +181,23 @@ namespace set_scope {
 inline constexpr std::string_view all = "all", parameters = "parameters", initial = "initial";
 }
 std::vector<std::string> set_scopes();
+/* one name=value of a set or of a file of values: a model name's (a parameter's
+   or a state's) or a setting's, which no model name takes the place of; at is
+   its line in its file (line 0: the set's; no file: the one the set is in) */
+struct SetItem {
+  std::string name, value;
+  bool setting;
+  Place at;
+};
+/* the items of scope (all of them for `all`), in order */
+std::vector<SetItem> scoped_items(const Session &s, std::span<const SetItem> items, std::string_view scope);
+/* items limited to scope applied as a patch over the current values, the plot
+   settings to graph (the active one when none): every item checked first, the
+   first that cannot be applied the error (at its line, or at where) with
+   nothing changed; one undo step. command names the operation in an error.
+   apply_named_set and Load values from a file are this. */
+Result<> apply_values(Session &s, std::span<const SetItem> items, const Place &where, std::string_view scope, std::optional<int> graph,
+                      std::string_view command);
 /* why scope is none of them (naming them), "" when it is */
 std::string set_scope_problem(std::string_view scope);
 /* the index of the model's set called name (the spelling it was written in),

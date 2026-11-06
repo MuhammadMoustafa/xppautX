@@ -724,10 +724,8 @@ private:
   /* a set's value for a parameter or a state: a number (signed) */
   std::string set_value(const Binding &b) const
   {
-    const Expr &v = b.value;
-    if (v.kind == Expr::Kind::Number) return print_number(v.value);
-    if (v.kind == Expr::Kind::Neg && v.args[0].kind == Expr::Kind::Number) return "-" + print_number(v.args[0].value);
-    fail(v.pos, xpp::format("a set's value for `{}` is a number, not `{}`", b.name, print(v)));
+    if (const std::optional<std::string> number = literal_number_text(b.value)) return *number;
+    fail(b.value.pos, xpp::format("a set's value for `{}` is a number, not `{}`", b.name, print(b.value)));
   }
 
   /* a set's name is its own, given once in the load, an imported file's sets included */

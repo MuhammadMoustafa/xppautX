@@ -81,8 +81,6 @@ test('W129: a committed destination with the dialog suffix delivers the core fil
 
 test('W130: page saves use hello names, even when they differ from the model filename', () => {
   const {s, sent} = saving();
-  s.saveValues('par');
-  assert.equal(sent.at(-1)?.file, HELLO.output_names.par);
   s.writeDataFile('table', 'csv');
   assert.equal(sent.at(-1)?.file, HELLO.output_names.csv);
   s.writeDataFile('plot', 'csv');
@@ -90,15 +88,11 @@ test('W130: page saves use hello names, even when they differ from the model fil
 });
 
 
-test('W177: desktop Values and CSV buttons ask the core for a picker destination', () => {
+test('W177: desktop CSV buttons ask the core for a picker destination', () => {
   const original = Object.getOwnPropertyDescriptor(globalThis, 'window');
   Object.defineProperty(globalThis, 'window', {configurable: true, value: {__xppFileDialog: async () => null}});
   try {
     const {s, sent} = saving();
-    s.saveValues('par');
-    assert.deepEqual(sent.at(-1), {cmd: 'value.save_file', kind: 'parameters'});
-    s.saveValues('ic');
-    assert.deepEqual(sent.at(-1), {cmd: 'value.save_file', kind: 'initial_conditions'});
     for (const [what, target] of [['table', 'table'], ['plot', 'plot_curves']] as const) {
       s.writeDataFile(what, 'csv');
       assert.deepEqual(sent.at(-1), {cmd: 'browser.export', target, format: 'csv'});

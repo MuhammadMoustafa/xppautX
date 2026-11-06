@@ -355,12 +355,13 @@ Both `.ode` and `.odex` ranges may expand to at most 100000 elements per
 statement; the length is checked before any copies are made. These caps
 allow large models while bounding compact hostile input's expansion.
 
-## Settings files (.setx)
+## Settings syntax (.setx)
 
-A settings file, `name.setx` (its first entry is `version: 4,`: W529; the session's own members, whose
-`session.setx` has the version, do not repeat it; W284, [#344](https://github.com/MuhammadMoustafa/xppautX/issues/344);
-design in [Discussion #341](https://github.com/MuhammadMoustafa/xppautX/discussions/341)),
-holds what XPPAUT's `.set` held (the parameters, the initial values, the
+The `.setx` syntax is the session's own and the program preferences' (a session file's `model.setx`, `windows.setx`
+and the other members, `preferences.setx`, a recording's header; W284, [#344](https://github.com/MuhammadMoustafa/xppautX/issues/344);
+design in [Discussion #341](https://github.com/MuhammadMoustafa/xppautX/discussions/341)). It is not a file a user
+keeps or imports (W321): a user's values are `.odex` sets, loaded by scope (Load values from file), and XPPAUT's `.set`
+is imported whole (Import XPPAUT session state). A session's `model.setx` holds what XPPAUT's `.set` held (the parameters, the initial values, the
 numerics, the delays, the boundary conditions, the active window's graphics),
 in the options block's syntax: `key: value` entries separated by commas,
 groups `{ ... }` nested, a trailing comma allowed, a bare one-token value
@@ -380,8 +381,8 @@ grammar (core/odex_parse.cpp), not a second parser, and loaded all or
 nothing: every key and value is checked, an error names the file, the line
 and the column with the line as written, and nothing is applied before the
 whole file has read. A key no group has, a key twice, a group nested deeper
-than 8 and a list longer than the reader allows are errors (a `.setx` may be
-a file you were sent).
+than 8 and a list longer than the reader allows are errors (a session file may
+be one you were sent).
 
         numerics: { total_time: 100, dt: 0.05, method: stiff, jacobian: exact, },
         parameters: { iapp: 0.09, gca: 1, },
@@ -391,9 +392,7 @@ a file you were sent).
           xlo: 0, xhi: 100,
         },
 
-A file names what it sets: `parameters: { iapp: 0.5 }` alone changes that
-parameter and nothing else (a group, or a key in it, that is absent leaves
-the session as it is). The groups are `numerics`, `run` (the integrator's
+A session's `model.setx` names every key (a missing one is an error). The groups are `numerics`, `run` (the integrator's
 position), `initial`, `ending` (the values the last run ended at),
 `parameters`, `delays`, `boundary`, `graphics` (the active window: its
 curves by variable name and its rotation, scales and box), `transpose`,
@@ -414,11 +413,10 @@ The JSON Schema generated from the file's description and the table is
 `tools/optionschema.sh --check` fails when it differs).
 
 XPPAUT's `.set` (positional lines, a value and then its label, read by their
-order) is import only: File > Import settings and `--setfile` of one read it,
-write the `.setx` beside it (`lecar.ode.set` gives `lecar.ode.setx`; the
-question before another text replaces a `.setx` that is there is the one
-`.ode` to `.odex` asks), and read and apply that `.setx`. The same command
-and `--setfile` take a `.setx` as it is. Session files (`.snapx`) keep their
+order) is import only: File > Import XPPAUT session state and `--setfile` of one
+read it and apply all of it (W321), writing nothing beside it; Load values from
+file takes a scope's part of it (its parameters, initial conditions and the numerics
+a set may hold). A `.setx` is no longer imported by either. Session files (`.snapx`) keep their
 settings in the same syntax, one member each (`model.setx`, `windows.setx`,
 `marks.setx`, `sliders.setx`, `nullclines.setx`, the manifest `session.setx`),
 and a recording's (`.recx`) header is a `recording` group of it: see

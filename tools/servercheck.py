@@ -65,8 +65,19 @@ def check_logging():
 
 
 # the values files and the data a command names, as the registry names them
-VALUE_KIND = {'par': 'parameters', 'ic': 'initial_conditions'}
 WHAT_TARGET = {'table': 'table', 'plot': 'plot_curves', 'output': 'output'}
+
+
+def xppaut_par(pars):
+    """XPPAUT's .par text for the (name, value) pairs: the count, a "value  name" line each, then its trailer.
+    XPPAUT wrote these files and nothing of ours writes them (W321), so a check makes its own."""
+    return '%d   Number params\n' % len(pars) + ''.join('%r  %s\n' % (value, name) for name, value in pars) \
+        + '\n\nFile:model.odex\nWed Jun 30 21:49:08 1993\n'
+
+
+def xppaut_ic(ics):
+    """XPPAUT's .ic text for the (name, value) pairs: the values alone, one per line"""
+    return ''.join('%r\n' % value for _, value in ics)
 
 
 def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=False, server=None):
@@ -1646,8 +1657,8 @@ def check_session_commands():
         done, _ = call(cmd='session.export_info', file='info.pars')
         check('W528: session.export_info writes the file', done['result'] == {'file': 'info.pars', 'written': True}
               and 'Equations' in open(os.path.join(run_dir, 'info.pars')).read(), str(done))
-        done, _ = call(cmd='session.import_settings', file='absent.set')
-        check('W528: session.import_settings names the file it cannot read', 'absent.set' in error_of(done), str(done))
+        done, _ = call(cmd='session.import_xppaut_state', file='absent.set')
+        check('W528: session.import_xppaut_state names the file it cannot read', 'absent.set' in error_of(done), str(done))
         done, evs = call(answers=['d'], cmd='session.open', file='first.snapx')
         check('W528: session.open loads the saved session and sends a new hello',
               done['result'] == {'file': 'first.snapx', 'loaded': True} and any(e.get('ev') == 'hello' for e in evs), str(done))
@@ -1801,6 +1812,7 @@ def check_data_value_set():
                     {'cmd': 'saveset', 'set': 's', 'mode': 'new', 'scope': 'all'}, {'cmd': 'savedefaults', 'scope': 'all'},
                     {'cmd': 'exportset', 'set': 's', 'scope': 'all', 'file': 'x.odex'}, {'cmd': 'renameset', 'set': 'a', 'to': 'b'},
                     {'cmd': 'deleteset', 'set': 'a'}, {'cmd': 'restoredefaults', 'scope': 'all'},
+                    {'cmd': 'value.save_file', 'kind': 'parameters', 'file': 'x.par'}, {'cmd': 'session.import_settings', 'file': 'x.setx'},
                     {'cmd': 'slide', 'name': 'iapp', 'value': 1}, {'cmd': 'slider', 'slot': 0, 'name': 'iapp', 'lo': 0, 'hi': 1, 'step': 0.1}):
             snd(**old)
             evs, _ = col(is_done)
@@ -1838,17 +1850,15 @@ def check_data_value_set():
         refused(request, 'value.configure_slider', 'finite low < high', cmd='value.configure_slider', slot=0, name='iapp', low=1, high=0)
         good(request, 'value.remove_slider empties the slot', {'slot': 0, 'removed': True}, cmd='value.remove_slider', slot=0)
         refused(request, 'value.remove_slider', 'Slot 5', cmd='value.remove_slider', slot=5)
-        good(request, 'value.save_file writes the parameters into the model folder',
-             {'file': 'w526.par', 'kind': 'parameters'}, cmd='value.save_file', kind='parameters', file='w526.par')
-        good(request, 'value.save_file writes the initial conditions', {'file': 'w526.ic', 'kind': 'initial_conditions'},
-             cmd='value.save_file', kind='initial_conditions', file='w526.ic')
+        state = last_state(request(cmd='session.get_state')[0])
+        with open(os.path.join(r, 'w526.par'), 'w') as f:
+            f.write(xppaut_par(state['pars']))
         request(cmd='value.set_parameters', values={'iapp': 0.5})
         good(request, 'value.load_file reads the parameters back', {'file': 'w526.par', 'kind': 'parameters'},
              cmd='value.load_file', kind='parameters', file='w526.par')
         check('W526: ... iapp is what was saved', dict(last_state(request(cmd='session.get_state')[0])['pars'])['iapp'] == 0.07)
         refused(request, 'value.load_file of a file that is not there', 'w526gone.par', cmd='value.load_file', kind='parameters', file='w526gone.par')
-        refused(request, 'value.save_file with a kind it does not know', 'Invalid choice "xyz"', cmd='value.save_file', kind='xyz', file='x.par')
-        refused(request, 'value.save_file with a path', 'not a plain file name', cmd='value.save_file', kind='parameters', file='../x.par')
+        refused(request, 'value.load_file with a path', 'not a plain file name', cmd='value.load_file', kind='parameters', file='../x.par')
         # ---- browser ----
         request(cmd='run.initial')
         result = good(request, 'browser.page gives the block asked for',
@@ -2594,7 +2604,7 @@ def check_hello_kinds():
     missing = sorted(d for d in documented if not any(c == d for c, _ in kinds))
     check('W95: hello gives every documented command a kind', not missing and cmds
           and all(k in 'cvsdx' for k in kinds.values()), str(missing))
-    want = {('window.set_display', None): 'v', ('set', None): 's', ('value.set_parameters', None): 's', ('value.save_file', None): 'd',
+    want = {('window.set_display', None): 'v', ('set', None): 's', ('value.set_parameters', None): 's', ('set.load_file', None): 's', ('set.file_contents', None): 'v',
             ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser.export', None): 'd', ('browser.page', None): 'v', ('autox.configure_numerics', None): 's',
             ('autox.grab', None): 'd', ('autox.run', None): 'x', ('tool.run_user_button', None): 'x',
             ('equilibrium.find', None): 'x', ('session.save', None): 'd', ('session.quit', None): 'c'}
@@ -2646,10 +2656,10 @@ def check_hello_shared():
 
 check_hello_shared()
 # W118: an error about a file the command could not read names the file (the page offers to add it)
-send(cmd='session.import_settings', file='w118-gone.set')
+send(cmd='session.import_xppaut_state', file='w118-gone.set')
 evs, _ = collect(is_done)
 err = next((e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e), None)
-check('W118: File/Import settings of a file that is not there: the error names the file',
+check('W118: File/Import XPPAUT session state of a file that is not there: the error names the file',
       err is not None and err.get('file') == 'w118-gone.set', str(err))
 send(cmd='events.subscribe', events=['plot.series'])
 evs, _ = collect(is_done)
@@ -2735,35 +2745,20 @@ evs, _ = collect(is_done)
 st = last_state(evs)
 check('default parameters', st is not None and dict(st['pars'])['iapp'] == 0.05, str(st and st['pars']))
 
-# W66: the values panel's Save/Load of XPP's own .par/.ic file, through the
-# core (docs/protocol.md "values") -- omitting `name` asks for one, like
-# any other Save/Load; given, it skips the ask and writes into the
-# model's folder at once
-send(cmd='value.save_file', kind='parameters')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('value.save_file with no file asks for one', ask is not None and ask['kind'] == 'file'
-      and ask.get('mode') == 'write', str(ask))
-if ask:
-    send(cmd='answer', id=ask['id'], ok=0)
-collect(is_done)
-
-send(cmd='value.save_file', kind='parameters', file='t_values.par')
-collect(is_done)
-with open(os.path.join(run, 't_values.par')) as f:
-    par_text = f.read()
-first_line = par_text.split('\n', 1)[0]
-check('values write par: XPP\'s format, a count then "value  name" lines',
-      first_line.endswith('   Number params') and first_line.split()[0].isdigit()
-      and '0.05  iapp\n' in par_text, par_text[:80])
-
-send(cmd='value.save_file', kind='initial_conditions', file='t_values.ic')
-collect(is_done)
-with open(os.path.join(run, 't_values.ic')) as f:
-    ic_lines = [l.strip() for l in f if l.strip()]
-check('values write ic: the values alone, one per line, in the model order',
+# W66, W321: the values panel's Load of XPPAUT's own .par/.ic files, an import through the core
+# (docs/protocol.md "values"); nothing of ours writes them, so the checks write the files XPPAUT would
+send(cmd='session.get_state')
+evs, _ = collect(is_done)
+st = last_state(evs)
+with open(os.path.join(run, 't_values.par'), 'w') as f:
+    f.write(xppaut_par(st['pars']))
+with open(os.path.join(run, 't_values.ic'), 'w') as f:
+    f.write(xppaut_ic(st['ics']))
+ic_lines = [l.strip() for l in open(os.path.join(run, 't_values.ic')) if l.strip()]
+check('values: the .ic of this model holds the values alone, one per line, in the model order',
       ic_lines == ['-0.144', '0.03'], str(ic_lines))
 
-# change both, away from what was just written
+# change both, away from what the files hold
 send(cmd='value.set_parameters', values={'iapp': 0.09})
 collect(is_done)
 send(cmd='ic.set', values={'V': -0.4})
@@ -2773,23 +2768,22 @@ check('values round trip: the values changed before reading back',
       st is not None and dict(st['pars'])['iapp'] == 0.09 and dict(st['ics'])['V'] == -0.4,
       str(st and (st['pars'], st['ics'])))
 
-# read them back through the existing load path (io_parameter_file/io_ic_file, READEM)
 send(cmd='value.load_file', kind='parameters', file='t_values.par')
 evs, _ = collect(is_done)
 st = last_state(evs)
-check('values read par restores the written value exactly',
+check('values read par restores the value in the file exactly',
       st is not None and dict(st['pars'])['iapp'] == 0.05, str(st and st['pars']))
 
 send(cmd='value.load_file', kind='initial_conditions', file='t_values.ic')
 evs, _ = collect(is_done)
 st = last_state(evs)
-check('values read ic restores the written values exactly',
+check('values read ic restores the values in the file exactly',
       st is not None and dict(st['ics'])['V'] == -0.144 and dict(st['ics'])['W'] == 0.03,
       str(st and st['ics']))
 
-send(cmd='value.save_file', kind='xyz', file='t_values.bad')
+send(cmd='value.load_file', kind='xyz', file='t_values.bad')
 evs, msg = collect(lambda e: e.get('ev') in ('session.message', 'done') and 'error' in e)
-check('value.save_file with a kind other than parameters/initial_conditions is refused', msg is not None, str(msg))
+check('value.load_file with a kind other than parameters/initial_conditions is refused', msg is not None, str(msg))
 collect(is_done)
 
 send(cmd='browser.page', **{'from_row': 10, 'count': 3, 'first_column': 2, 'columns': 1})
@@ -2927,33 +2921,70 @@ if ask:
     if listed:send(cmd='answer',id=listed['id'],ok=0)
 collect(is_done)
 
-# W88: a file ask answered with a full path outside the model's folder (what
-# the desktop window's own dialog answers) is read and written right there,
-# the path whole, however long (Windows' fopen stops at MAX_PATH, so shorter
-# there)
-elsewhere = tempfile.mkdtemp(prefix='xppelsewhere')
-far = os.path.join(elsewhere, 'd' * (40 if os.name == 'nt' else 200))
-os.makedirs(far)
-far_set = os.path.join(far, 'w88 far.setx')
-send(cmd='value.set_parameters', values={'iapp': 0.33})
-collect(is_done)
-send(cmd='session.save_as', file='w88', data=False)
-collect(is_done)
-# the settings file is the session's model.setx
-with zipfile.ZipFile(os.path.join(run, 'w88.snapx')) as z:
-    with open(far_set, 'wb') as f:
-        f.write(b'version: 4,\n' + z.read('model.setx'))  # a settings file of its own says its version; the session's member does not
-send(cmd='value.set_parameters', values={'iapp': 0.77})
-collect(is_done)
-with open(far_set,'rb') as f: uploaded=f.read()
-send(cmd='file',op='put',name='w88-selected.setx',data=base64.b64encode(uploaded).decode())
-collect(is_done)
-send(cmd='session.import_settings',file='w88-selected.setx')
-evs,_=collect(is_done)
-st=last_state(evs)
-check('W517: a selected external settings file is imported through its uploaded basename',
-      st is not None and dict(st['pars'])['iapp'] == 0.33, str(st and st['pars']))
-shutil.rmtree(elsewhere,ignore_errors=True)
+def check_import_xppaut_state():
+    """W88, W517, W321: Import XPPAUT session state reads the set file of XPPAUT's (its 2013 file for lecar counts
+    4 equations and auxiliaries, the model has 6) through its uploaded basename, applies all of it, names what it
+    changed and writes nothing beside it; a server of its own, since the file sets the numerics too."""
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_done)
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'examples', 'ode', 'lecar.ode.set'), encoding='utf-8') as f:
+            xppaut_set = f.read().replace('4   Number of equations', '6   Number of equations', 1).replace('0.09  iapp', '0.33  iapp', 1)
+        send_file = lambda name, text: (snd(cmd='file', op='put', name=name, data=base64.b64encode(text.encode('utf-8')).decode()), col(is_done))
+        send_file('w88-selected.set', xppaut_set)
+        snd(cmd='value.set_parameters', values={'iapp': 0.77})
+        col(is_done)
+        # an expression the run would refuse is refused at its line, nothing applied (W125)
+        rows = xppaut_set.split('\n')
+        at = rows.index('# Delays') + 1
+        rows[at] = 'x(('
+        send_file('w321-bad.set', '\n'.join(rows))
+        snd(cmd='session.import_xppaut_state', file='w321-bad.set')
+        evs, done = col(is_done)
+        snd(cmd='session.get_state')
+        after, _ = col(is_done)
+        check('W321: a delay that is not an expression is refused at its file, line and source, nothing applied',
+              done.get('status') == 'error' and os.path.basename(done.get('file', '')) == 'w321-bad.set' and done.get('line') == at + 1
+              and done.get('source') == 'x((' and dict(last_state(after)['pars'])['iapp'] == 0.77, str(done))
+        snd(cmd='session.import_xppaut_state', file='w88-selected.set')
+        evs, done = col(is_done)
+        st = last_state(evs)
+        check('W517: a selected external XPPAUT set file is imported through its uploaded basename',
+              st is not None and dict(st['pars'])['iapp'] == 0.33, str(st and st['pars']))
+        check('W321: Import XPPAUT session state names what it changed and writes nothing beside the file',
+              done.get('result', {}).get('applied') is True and 'the parameters' in done.get('result', {}).get('changes', [])
+              and 'the delays' not in done.get('result', {}).get('changes', [])
+              and not os.path.exists(os.path.join(r, 'w88-selected.setx')), str(done))
+        # by scope: only the parameters of a set file (set.load_file from file), the numerics as they were
+        snd(cmd='value.set_parameters', values={'iapp': 0.5})
+        col(is_done)
+        snd(cmd='set.load_file', file='w88-selected.set', scope='parameters', **{'from': 'file'})
+        evs, done = col(is_done)
+        st = last_state(evs)
+        check('W321: an XPPAUT set loads its parameters by scope', done.get('status') == 'ok' and dict(st['pars'])['iapp'] == 0.33, str(done))
+        snd(cmd='set.load_file', file='w88-selected.set', scope='integration', **{'from': 'file'})
+        evs, done = col(is_done)
+        snd(cmd='session.get_state')
+        evs, _ = col(is_done)
+        check('W321: ... and its integration settings by that scope',
+              done.get('status') == 'ok' and dict(last_state(evs)['pars'])['iapp'] == 0.33, str(done))
+        # a .par of XPPAUT's loaded by scope parameters, and refused for a scope it does not hold
+        snd(cmd='session.get_state')
+        evs, _ = col(is_done)
+        with open(os.path.join(r, 'w321.par'), 'w') as f:
+            f.write(xppaut_par(last_state(evs)['pars']))
+        snd(cmd='set.load_file', file='w321.par', scope='parameters', **{'from': 'file'})
+        evs, done = col(is_done)
+        check('W321: an XPPAUT .par loads in the parameters scope', done.get('status') == 'ok', str(done))
+        snd(cmd='set.load_file', file='w321.par', scope='integration', **{'from': 'file'})
+        evs, done = col(is_done)
+        check('W321: ... and is refused, not skipped, for a scope it holds nothing of',
+              done.get('status') == 'error' and 'holds no integration' in done.get('error', ''), str(done))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_import_xppaut_state()
 transpose=next(c for c in hello['commands'] if c['cmd']=='browser.transpose')
 check('T32: Transpose arguments retain their name and integer types',
       [a['type'] for a in transpose['arguments']] == ['name','integer','integer','integer','integer','integer'],str(transpose['arguments']))
@@ -3619,13 +3650,6 @@ def check_param_set_cancel():
         snd(cmd='set.apply',scope='all')
         evs,_=col(is_done)
         check('W517: an incomplete set form applies nothing',len([e for e in evs if e.get('error')])==1 and dict(last_state(evs)['pars'])['iapp']==0.3,str(evs)[-300:])
-        snd(cmd='value.save_file', kind='parameters', file='w101.par')
-        evs, _ = col(is_done)
-        with open(os.path.join(r, 'w101.par')) as f:
-            txt = f.read()
-        check('values write par with an edited value: file written, no error',
-              '0.3  iapp' in txt and not [e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e],
-              txt[:80] + str(evs)[:150])
     finally:
         stop_server(p, r, snd)
 
@@ -3831,12 +3855,9 @@ def check_ic_file_markov():
               and [n.lower() for n, _ in st0['ics']] == ['x1', 'x2', 'z'],
               str(st0 and st0['ics']))
 
-        sndm(cmd='value.save_file', kind='initial_conditions', file='kepler_markov.ic')
-        colm(is_done)
-        with open(os.path.join(rm, 'kepler_markov.ic')) as f:
-            lines = [l.strip() for l in f if l.strip()]
-        check('values write ic on a markov model: exactly `node` lines (2), z excluded',
-              lines == ['0.0001', '0.0001'], str(lines))
+        # XPPAUT's .ic holds the node values only, one per line (the chain z is not in it)
+        with open(os.path.join(rm, 'kepler_markov.ic'), 'w') as f:
+            f.write(xppaut_ic([('x1', 0.0001), ('x2', 0.0001)]))
 
         sndm(cmd='ic.set', values={'x1': 0.5})
         colm(is_done)
@@ -3950,12 +3971,11 @@ check_error_places_of_each_kind()
 
 
 def check_load_all_or_nothing():
-    """W125: loading one of our files is all or nothing. A set file (File >
-    Import settings), a parameter file and an initial-conditions file (`values`
-    `read`) whose last value is bad are refused at that line, naming the file
-    and the line as written, and the session is exactly as it was (its state,
-    and the set file it writes). A model's internal set (File > Get par set)
-    is checked whole when the model loads (W318), so none can fail here."""
+    """W125, W321: loading values from a file is all or nothing. A file of sets (`set.load_file`), an XPPAUT
+    parameter file and an initial-conditions file (`value.load_file`) whose last value is bad are refused at that
+    line, naming the file and the line as written, and the session is exactly as it was (its state, and the
+    settings it writes). A model's internal set is checked whole when the model loads (W318), so none can fail
+    here."""
     model = os.path.join(tempfile.mkdtemp(prefix='w125m'), 'w125.odex')
     with open(model, 'w') as f:
         f.write(versioned("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset \"good\" { a: 3, b: 4 }\n"))
@@ -3991,31 +4011,33 @@ def check_load_all_or_nothing():
         with zipfile.ZipFile(os.path.join(r, written[-1] + '.snapx')) as z:
             return 'version: 4,\n' + z.read('model.setx').decode().replace('\r\n', '\n')  # as a settings file of its own
 
-    def read_set(name):
-        """File > Import settings of name"""
-        return answered((), cmd='session.import_settings', file=name)
+    def load_set(name, from_='set', part=None, scope='all'):
+        """Load values from file name: its set `part`, or its defaults (from_ defaults)"""
+        cmd = {'cmd': 'set.load_file', 'file': name, 'scope': scope, 'from': from_}
+        if part is not None:
+            cmd['name'] = part
+        return answered((), **cmd)
 
     try:
         col(is_done)
         answered((), cmd='value.set_parameters', values={'a': 1.5})
         answered((), cmd='ic.set', values={'x': 0.25})
         st0, set0 = state(), set_file()
-        rows = set0.split('\n')
-        high = max(k for k in range(len(rows)) if rows[k].startswith('  high:')) + 1  # its line in the file
-        lines = set0.split('\n')
-        lines[high - 1] = '  high: 1e999,'
-        with open(os.path.join(r, 'bad.setx'), 'w') as f:
-            f.write('\n'.join(lines))
+        # a file of sets whose last set names what the model has not is refused at that line, nothing applied
+        bad_text = versioned('set "fine" { a: 5 }\nset "worse" {\n  a: 6,\n  nosuch: 1\n}\n')
+        high = next(k for k, row in enumerate(bad_text.split('\n')) if 'nosuch' in row) + 1
+        with open(os.path.join(r, 'bad.odex'), 'w') as f:
+            f.write(bad_text)
         par = '2   Number params\n9  a\noops  b\n'
         with open(os.path.join(r, 'bad.par'), 'w') as f:
             f.write(par)
         with open(os.path.join(r, 'bad.ic'), 'w') as f:
             f.write('9\nnan?\n')
-        for what, cmd, answers, file, line, source in (
-                ('a settings file', None, 'bad.setx', 'bad.setx', high, '  high: 1e999,'),
-                ('a parameter file', dict(cmd='value.load_file', kind='parameters', file='bad.par'), (), 'bad.par', 3, 'oops  b'),
-                ('an initial-conditions file', dict(cmd='value.load_file', kind='initial_conditions', file='bad.ic'), (), 'bad.ic', 2, 'nan?')):
-            errs = errors(read_set(answers) if cmd is None else answered(answers, **cmd))
+        for what, cmd, file, line, source in (
+                ('a file of sets', dict(cmd='set.load_file', file='bad.odex', scope='all', **{'from': 'set'}, name='worse'), 'bad.odex', high, '  nosuch: 1'),
+                ('a parameter file', dict(cmd='value.load_file', kind='parameters', file='bad.par'), 'bad.par', 3, 'oops  b'),
+                ('an initial-conditions file', dict(cmd='value.load_file', kind='initial_conditions', file='bad.ic'), 'bad.ic', 2, 'nan?')):
+            errs = errors(answered((), **cmd))
             e = errs[0] if len(errs) == 1 else {}
             check('W125: %s whose last value is bad is refused at that line (%s:%d)' % (what, file, line),
                   os.path.basename(e.get('file', '')) == file and e.get('line') == line
@@ -4051,43 +4073,90 @@ def check_load_all_or_nothing():
             st, set1 = state(), set_file()
             check('W310: %s leaves all values and settings unchanged' % file,
                   st == st0 and set1 == set0, str(st))
-        # W153: another model's names; valid earlier changes must not apply.
-        other = set0.split('\n')
-        named_line = next(k for k, row in enumerate(other) if row.startswith('  b:'))
-        other[named_line] = '  another_models_parameter: 9,'
-        with open(os.path.join(r, 'other.setx'), 'w') as f:
-            f.write('\n'.join(other))
-        evs = read_set('other.setx')
-        errs = errors(evs)
+        # W153, W321: another model's names; valid earlier changes must not apply.
+        other_text = versioned('set "foreign" {\n  a: 9,\n  another_models_parameter: 9\n}\n')
+        named_line = next(k for k, row in enumerate(other_text.split('\n')) if 'another_models' in row)
+        with open(os.path.join(r, 'other.odex'), 'w') as f:
+            f.write(other_text)
+        errs = errors(load_set('other.odex', part='foreign'))
         e = errs[0] if len(errs) == 1 else {}
         check('W153: another model refused with file, wrong line and source',
-              os.path.basename(e.get('file', '')) == 'other.setx' and e.get('line') == named_line + 1
-              and e.get('source') == other[named_line] and 'another_models_parameter' in e.get('error', ''), str(errs))
+              os.path.basename(e.get('file', '')) == 'other.odex' and e.get('line') == named_line + 1
+              and e.get('source') == other_text.split('\n')[named_line] and 'another_models_parameter' in e.get('error', ''), str(errs))
         check('W153: refused names apply nothing', state() == st0 and set_file() == set0)
-        # a key the file does not know, and a group written twice, are refused at their line
-        with open(os.path.join(r, 'extra.setx'), 'w') as f:
-            f.write(set0 + 'nosuch_group: { a: 1 },\n')
-        errs = errors(read_set('extra.setx'))
-        e = errs[0] if len(errs) == 1 else {}
-        check('W284: a group the settings do not have is refused at its line',
-              os.path.basename(e.get('file', '')) == 'extra.setx' and e.get('line') == len(set0.split('\n'))
-              and 'nosuch_group' in e.get('error', ''), str(errs))
+        # a set the file has not, an XPPAUT-only file kind it is not, and a file that is none of them
+        with open(os.path.join(r, 'mix.odex'), 'w') as f:
+            f.write(versioned('set "mix" { a: 2.5 }\npar a = 7\ninit x = 0.5\n'))
+        errs = errors(load_set('mix.odex', part='nosuch'))
+        check('W321: a set the file does not have is refused naming the file and the set',
+              len(errs) == 1 and 'nosuch' in errs[0].get('error', '') and 'mix.odex' in errs[0].get('error', ''), str(errs))
+        with open(os.path.join(r, 'values.txt'), 'w') as f:
+            f.write('a = 1')
+        errs = errors(load_set('values.txt', from_='file'))
+        check('W321: a file that is none of the files of values is refused', len(errs) == 1 and 'values.txt' in errs[0].get('error', ''), str(errs))
+        check('W321: refused files apply nothing', state() == st0 and set_file() == set0)
+        # what a file offers: its parts that hold the scope's kind
+        done = answered((), cmd='set.file_contents', file='mix.odex', scope='parameters')
+        contents = next(e for e in done if e.get('ev') == 'done').get('result', {})
+        check('W321: set.file_contents lists the defaults and the set that hold parameters',
+              contents.get('format') == 'odex' and contents.get('parts') == [{'from': 'defaults', 'name': ''}, {'from': 'set', 'name': 'mix'}], str(contents))
+        done = answered((), cmd='set.file_contents', file='mix.odex', scope='poincare')
+        check('W321: ... and none for a kind it does not hold',
+              next(e for e in done if e.get('ev') == 'done').get('result', {}).get('parts') == [], str(done)[-300:])
+        # a set loads only the scope's part; a part that holds none of it is refused, not skipped
+        errs = errors(load_set('mix.odex', part='mix', scope='initial'))
+        mix_line = 2  # the line of `set "mix"`, after the version line
+        check('W321: a set with no initial values refuses to load them, at its file, line and source',
+              len(errs) == 1 and 'holds no initial' in errs[0].get('error', '') and os.path.basename(errs[0].get('file', '')) == 'mix.odex'
+              and errs[0].get('line') == mix_line and errs[0].get('source') == 'set "mix" { a: 2.5 }', str(errs))
+        # a value the model refuses, in a set's settings: the file, line and source of that entry
+        bad_value = versioned('set "s" {\n  a: 5,\n  options: { integration: { dt: 0 } }\n}\n')
+        with open(os.path.join(r, 'vals.odex'), 'w') as f:
+            f.write(bad_value)
+        bad_line = next(k for k, row in enumerate(bad_value.split('\n')) if 'dt: 0' in row)
+        errs = errors(load_set('vals.odex', part='s'))
+        check('W321: a bad value in a set names the command, its file, line and source',
+              len(errs) == 1 and os.path.basename(errs[0].get('file', '')) == 'vals.odex' and errs[0].get('line') == bad_line + 1
+              and errs[0].get('source') == bad_value.split('\n')[bad_line] and 'dt' in errs[0].get('error', ''), str(errs))
+        check('W321: ... and applied nothing', state() == st0 and set_file() == set0)
+        # the whole read is within one bound, the imports of a values file in it
+        pad = versioned('# padding padding padding padding\n' * 60000)  # about 2 MiB
+        for k in (1, 2, 3):
+            with open(os.path.join(r, 'imp%d.odex' % k), 'w') as f:
+                f.write(pad)
+        with open(os.path.join(r, 'imports.odex'), 'w') as f:
+            f.write(versioned('import "imp1.odex"\nimport "imp2.odex"\nimport "imp3.odex"\nset "i" { a: 3 }\n'))
+        errs = errors(load_set('imports.odex', part='i'))
+        check('W321: a values file whose imports exceed the read bound is refused, nothing applied',
+              len(errs) == 1 and state() == st0, str(errs)[:300])
+        with open(os.path.join(r, 'import1.odex'), 'w') as f:
+            f.write(versioned('import "imp1.odex"' + chr(10) + 'set "i" { a: 3 }' + chr(10)))
+        errs = errors(load_set('import1.odex', part='i', scope='initial'))
+        check('W321: ... while one import within the bound is read (the set has no initial values to load)',
+              len(errs) == 1 and 'holds no initial' in errs[0].get('error', ''), str(errs)[:300])
+        # a file of many sets is offered within a cap
+        with open(os.path.join(r, 'many.odex'), 'w') as f:
+            f.write(versioned(''.join('set "s%d" { a: 1 }\n' % k for k in range(1200))))
+        errs = errors(answered((), cmd='set.file_contents', file='many.odex', scope='parameters'))
+        check('W321: set.file_contents says why it will not list more than its cap of parts',
+              len(errs) == 1 and 'more than' in errs[0].get('error', ''), str(errs))
+        errs = errors(load_set('mix.odex', part='mix', scope='parameters'))
+        st = state()
+        check('W321: a set file loads its parameters only, the initial values and the settings stay',
+              not errs and dict(st['pars'])['a'] == 2.5 and st['ics'] == st0['ics'], str(errs))
+        errs = errors(load_set('mix.odex', from_='defaults', scope='all'))
+        st = state()
+        check('W321: a file\'s defaults load too: its par and init lines',
+              not errs and dict(st['pars'])['a'] == 7 and {k.lower(): v for k, v in st['ics']}['x'] == 0.5, str(errs))
+        # a default that is a formula cannot be loaded: said where it is, and when it is offered
+        with open(os.path.join(r, 'formula.odex'), 'w') as f:
+            f.write(versioned('par a = 1\ninit y = 2*a\n'))
+        errs = errors(load_set('formula.odex', from_='defaults'))
+        check('W321: a default that is a formula is refused at its line',
+              len(errs) == 1 and os.path.basename(errs[0].get('file', '')) == 'formula.odex' and errs[0].get('line') == 3, str(errs))
         answered((), cmd='value.set_parameters', values={'a': 8})
         answered((), cmd='ic.set', values={'x': 7})
-        with open(os.path.join(r, 'own.setx'), 'w') as f:
-            f.write(set0)
-        evs = read_set('own.setx')
-        messages = [e for e in evs if e.get('ev') == 'session.message']
-        check('W284: own settings apply, with one message and no session written',
-              not errors(evs) and state() == st0 and not os.path.exists(os.path.join(r, 'own.snapx'))
-              and len(messages) == 1 and 'own.setx' in messages[0].get('bottom', ''), str(messages))
-        # a file that names little sets only that
-        with open(os.path.join(r, 'little.setx'), 'w') as f:
-            f.write('version: 4,\nparameters: { a: 2.5 },\n')
-        errs = errors(read_set('little.setx'))
-        st = state()
-        check('W284: a settings file that names only a parameter sets only it',
-              not errs and dict(st['pars'])['a'] == 2.5 and st['ics'] == st0['ics'], str(errs))
+        st0 = state()
         errs = errors(answered((), cmd='set.apply', name='good', scope='all'))
         st = state()
         check('W125: a good internal set still applies whole', not errs and st['pars'] != st0['pars'], str(errs))
@@ -5874,45 +5943,46 @@ def check_save_owner():
               and errors(evs)[0]['error'] == 'Nothing to save'
               and results(evs) == [{'ev': 'session.saved', 'saved': False, 'file': ''}], str(evs)[-400:])
         live_run(snd, col)
-        snd(cmd='value.save_file', kind='parameters', file='same.par')
+        snd(cmd='browser.export', target='table', format='csv', file='same.csv')
         evs, end = col(lambda e: is_done(e) or is_ask(e))
         check('W129: a new file saves without a question or a command decision',
               end is not None and is_done(end)
-              and results(evs) == [{'ev': 'session.saved', 'saved': True, 'file': 'same.par'}]
+              and results(evs) == [{'ev': 'session.saved', 'saved': True, 'file': 'same.csv'}]
               and not errors(evs), str(evs)[-300:])
-        before = open(os.path.join(r, 'same.par'), 'rb').read()
+        before = open(os.path.join(r, 'same.csv'), 'rb').read()
         snd(cmd='value.set_parameters', values={'iapp': 0.11})
         col(is_done)
-        snd(cmd='value.save_file', kind='parameters', file='same.par')
+        live_run(snd, col)
+        snd(cmd='browser.export', target='table', format='csv', file='same.csv')
         _, ask = col(is_ask)
         check('W129: an existing target without a decision asks once',
-              ask is not None and ask.get('question') == 'same.par exists. Replace it?'
+              ask is not None and ask.get('question') == 'same.csv exists. Replace it?'
               and ask.get('keys') == 'yn', str(ask))
         snd(cmd='answer', id=ask['id'], key='n')
         evs, _ = col(is_done)
         check('W129: No preserves the file and emits saved false, the command saying it was declined',
-              before == open(os.path.join(r, 'same.par'), 'rb').read()
-              and results(evs) == [{'ev': 'session.saved', 'saved': False, 'file': 'same.par'}]
+              before == open(os.path.join(r, 'same.csv'), 'rb').read()
+              and results(evs) == [{'ev': 'session.saved', 'saved': False, 'file': 'same.csv'}]
               and len(errors(evs)) == 1 and 'declined' in errors(evs)[0]['error'], str(evs)[-300:])
-        snd(cmd='value.save_file', kind='parameters', file='same.par')
+        snd(cmd='browser.export', target='table', format='csv', file='same.csv')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='y')
         evs, end = col(lambda e: is_done(e) or is_ask(e))
         check('W129: Yes replaces the existing file without a second question',
               end is not None and is_done(end) and not errors(evs)
-              and results(evs) == [{'ev': 'session.saved', 'saved': True, 'file': 'same.par'}]
-              and before != open(os.path.join(r, 'same.par'), 'rb').read(), str(evs)[-300:])
-        snd(cmd='value.save_file', kind='parameters', file='same.par', replace=1)
+              and results(evs) == [{'ev': 'session.saved', 'saved': True, 'file': 'same.csv'}]
+              and before != open(os.path.join(r, 'same.csv'), 'rb').read(), str(evs)[-300:])
+        snd(cmd='browser.export', target='table', format='csv', file='same.csv', replace=1)
         evs, end = col(lambda e: is_done(e) or is_ask(e))
         check('W526: a registry command carries no replace decision: it asks, or is refused naming the argument',
               end is not None and is_done(end) and any('Unknown argument "replace"' in e.get('error', '') for e in evs), str(evs)[-300:])
-        os.mkdir(os.path.join(r, 'blocked.par'))
-        marker = os.path.join(r, 'blocked.par', 'original')
+        os.mkdir(os.path.join(r, 'blocked.csv'))
+        marker = os.path.join(r, 'blocked.csv', 'original')
         with open(marker, 'wb') as f: f.write(b'old bytes')
         # The temp can be created beside this directory, but rename cannot
         # replace it: a deterministic commit failure, including on Windows.
-        for name in ['blocked.par']:
-            snd(cmd='value.save_file', kind='parameters', file=name)
+        for name in ['blocked.csv']:
+            snd(cmd='browser.export', target='table', format='csv', file=name)
             evs, end = col(lambda e: is_done(e) or is_ask(e))
             if end and is_ask(end):
                 snd(cmd='answer', id=end['id'], key='y')
@@ -5929,7 +5999,7 @@ def check_save_owner():
     d = tempfile.mkdtemp(prefix='w129script')
     try:
         copy_model(args.ode, d)
-        commands = [{'cmd': 'value.save_file', 'kind': 'parameters', 'file': 'repeat.par'}]
+        commands = [{'cmd': 'run.initial'}, {'cmd': 'browser.export', 'target': 'table', 'format': 'csv', 'file': 'repeat.csv'}]
         folders = [d, tempfile.mkdtemp(prefix='w129script')]
         copy_model(args.ode, folders[1])
         runs = [run_commands(args.server, args.ode, commands, folder) for folder in folders]
@@ -5951,8 +6021,7 @@ def check_output_names():
         evs, _ = col(is_done)
         h = next(e for e in evs if e.get('ev') == 'hello')
         check('W130: hello supplies all page save names from the model base',
-              h.get('output_names') == {'par': 'lecar.par', 'ic': 'lecar.ic',
-                                       'csv': 'lecar.csv', 'curves': 'lecar-curves.csv'}, str(h.get('output_names')))
+              h.get('output_names') == {'csv': 'lecar.csv', 'curves': 'lecar-curves.csv'}, str(h.get('output_names')))
         def cancel_name(want):
             _, ask = col(lambda e: is_ask(e) or is_done(e))
             while ask and ask.get('kind') == 'form':
@@ -5964,9 +6033,6 @@ def check_output_names():
             if ask and is_ask(ask): snd(cmd='answer', id=ask['id'], ok=0)
             evs, _ = col(is_done)
             return evs
-        for kind in ('par', 'ic'):
-            snd(cmd='value.save_file', kind=VALUE_KIND[kind])
-            cancel_name('lecar.' + kind)
         snd(cmd='session.save_as', file_picker=True, confirm=False)
         cancel_name('lecar.snapx')
         live_run(snd, col)
@@ -5994,11 +6060,11 @@ def check_output_names():
         names=['lecar.gif','lecar-frame1.gif','lecar-frame2.gif']
         check('W130: three captured frames save through the registry', [x.get('file') for x in saved] == names and all(os.path.isfile(os.path.join(r,n)) for n in names), str(saved))
         # W177: a live JSON reply cannot grant native-picker authorization.
-        victim = os.path.join(os.path.dirname(r), os.path.basename(r) + '-victim.par')
+        victim = os.path.join(os.path.dirname(r), os.path.basename(r) + '-victim.csv')
         with open(victim, 'wb') as f: f.write(b'keep victim')
         try:
             for path in (victim, os.path.relpath(victim, r)):
-                snd(cmd='value.save_file', kind='parameters')
+                snd(cmd='browser.export', target='table', format='csv')
                 _, ask = col(is_ask)
                 snd(cmd='answer', id=ask['id'], file=path, replace=1)
                 evs, _ = col(is_done)
@@ -6023,15 +6089,15 @@ def check_output_names():
         snd(cmd='window.destroy', window='array_plot_1')
         col(is_done)
         # A long valid name is retained, while traversal/device names report an error.
-        long = 'save-' + 'a' * 80 + '.par'
-        snd(cmd='value.save_file', kind='parameters')
+        long = 'save-' + 'a' * 80 + '.csv'
+        snd(cmd='browser.export', target='table', format='csv')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], file=long)
         evs, _ = col(is_done)
         check('W130: a filename over 24 characters is written whole',
               os.path.isfile(os.path.join(r, long)) and any(e.get('file') == long and e.get('saved') for e in evs), str(evs)[-300:])
-        for bad in ('../escape.par', 'CON.par', '.hidden.par'):
-            snd(cmd='value.save_file', kind='parameters')
+        for bad in ('../escape.csv', 'CON.csv', '.hidden.csv'):
+            snd(cmd='browser.export', target='table', format='csv')
             _, ask = col(is_ask)
             snd(cmd='answer', id=ask['id'], file=bad)
             evs, _ = col(is_done)
@@ -8407,7 +8473,7 @@ def check_save_recording():
         return col(is_done, timeout=30 * SLOW)[0]
     try:
         col(is_done)
-        with open(os.path.join(r, 'browser-no.par'), 'wb') as f: f.write(b'unchanged')
+        with open(os.path.join(r, 'browser-no.csv'), 'wb') as f: f.write(b'unchanged')
         run(cmd='recording.start')
         for name in ('first.snapx', 'second.snapx'):
             run(cmd='session.save_as', file=name)
@@ -8415,8 +8481,9 @@ def check_save_recording():
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], file='dialog-save.snapx')
         col(is_done)
-        fresh = run(cmd='value.save_file', kind='parameters', file='browser-new.par')
-        snd(cmd='value.save_file', kind='parameters', file='browser-no.par')
+        run(cmd='run.initial')
+        fresh = run(cmd='browser.export', target='table', format='csv', file='browser-new.csv')
+        snd(cmd='browser.export', target='table', format='csv', file='browser-no.csv')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='n')
         declined, _ = col(is_done)
@@ -8428,7 +8495,7 @@ def check_save_recording():
               and saves[-1].get('answers', [])[:1] == [{'file':'dialog-save.snapx'}], str(saves))
         check('W534: a core refused save is not recorded',
               any(e.get('saved') for e in fresh) and any(e.get('ev') == 'session.saved' and not e.get('saved') for e in declined)
-              and all(step.get('cmd', {}).get('file') != 'browser-no.par' for step,_ in steps), str(steps))
+              and all(step.get('cmd', {}).get('file') != 'browser-no.csv' for step,_ in steps), str(steps))
         snd(cmd='recording.open', play=False, file=path)
         evs, end = col(lambda e: is_ask(e) or is_done(e))
         if end and is_ask(end):
@@ -8438,7 +8505,7 @@ def check_save_recording():
         prepared = run(cmd='session.save_as', file='dialog-save.snapx', confirm=True)
         check('W129: the replay folder already contains the native dialog destination',
               any(e.get('ev') == 'session.saved' and e.get('saved') and e.get('file') == 'dialog-save.snapx' for e in prepared), str(prepared)[-200:])
-        snd(cmd='value.save_file', kind='parameters', file='browser-new.par')
+        snd(cmd='browser.export', target='table', format='csv', file='browser-new.csv')
         evs, end = col(lambda e: is_ask(e) or is_done(e))
         if end and is_ask(end):
             snd(cmd='answer', id=end['id'], key='y')
@@ -8454,8 +8521,8 @@ def check_save_recording():
         listing = run(cmd='file', op='list')
         names = {f['name'] for e in listing if e.get('ev') == 'file.result' for f in e.get('files', [])}
         check('W534: replay omits a refused save even when its target no longer exists',
-              not any(e.get('ev') == 'session.saved' and e.get('file') == 'browser-no.par' for e in evs)
-              and 'browser-no.par' not in names and 'browser-new.par' in names
+              not any(e.get('ev') == 'session.saved' and e.get('file') == 'browser-no.csv' for e in evs)
+              and 'browser-no.csv' not in names and 'browser-new.csv' in names
               and not any(e.get('ev') == 'ask' and e.get('kind') == 'choice'
                           and e.get('question', '').endswith(' exists. Replace it?') for e in evs), str(names))
     finally:
@@ -8741,7 +8808,8 @@ def check_recording():
         check('record: editing a step changes it', edited != text and w2 != g2, '')
 
         # File/recorD starts and stops; the File menu opened to stop is no step
-        run(cmd='value.save_file', kind='parameters', file='saved.par')
+        with open(os.path.join(r, 'saved.par'), 'w') as f:
+            f.write(xppaut_par(last_state(run(cmd='session.get_state'))['pars']))
         run(cmd='recording.start')
         run(cmd='value.load_file', kind='parameters', file='saved.par')
         run(cmd='window.clear')
@@ -9349,7 +9417,7 @@ def check_terminal_playback():
               and 'saved.dat exists. Replace it? -> yes (answered automatically)' in result.stderr, result.stderr)
         with open(path, encoding='utf-8') as f: template = f.read()
         for name in ['../escaped.par', 'sub/escaped.par', os.path.join(destination, 'escaped.par'), 'bad..par']:
-            steps = [{'cmd':{'cmd': 'value.save_file', 'kind': 'parameters', 'file':name}},
+            steps = [{'cmd':{'cmd': 'session.export_info', 'file':name}},
                      {'cmd':{'cmd':'file', 'op':'put', 'name':'after.dat', 'data':'YWZ0ZXI='}}]
             with open(path, 'w', encoding='utf-8', newline='\n') as f: f.write(recording_text(template, steps))
             if os.path.exists(after): os.remove(after)

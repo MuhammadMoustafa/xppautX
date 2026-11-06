@@ -1066,7 +1066,7 @@ void send_hello(xpp::Session &s)
     buf_format(b, ",\"state_inspection\":{{\"tail_intervals\":{}}}", STATE_TAIL_INTERVALS);
     BUF_LIT(b, ",\"output_names\":{");
     static constexpr struct { std::string_view key, ext, what; } names[]={
-        {"par",".par",""},{"ic",".ic",""},{"csv",".csv",""},{"curves",".csv","curves"}};
+        {"csv",".csv",""},{"curves",".csv","curves"}};
     for (std::size_t n=0;n<std::size(names);++n){
         if(n)BUF_LIT(b,",");
         buf_str(b,names[n].key); BUF_LIT(b,":");

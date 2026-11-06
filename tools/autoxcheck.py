@@ -1817,7 +1817,7 @@ def section_recording():
                 f.write(recording_text(template, steps))
             return subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=run,
                 capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
-        outside = {'cmd':{'cmd':'value.save_file', 'kind':'parameters', 'file':marker}}
+        outside = {'cmd':{'cmd':'session.export_info', 'file':marker}}
         r = quiet([outside])
         check('W144: a recording cannot overwrite a path using a recorded path',
               r.returncode == 1 and r.stdout == '' and file_content(marker, 'rb') == b'keep', r.stderr)
@@ -1844,11 +1844,11 @@ def section_recording():
         check('W144: a file refusal is printed once at the recording step',
               r.returncode == 1 and r.stdout == '' and r.stderr.count('run.recx:') == 1
               and file_content(marker, 'rb') == b'keep', r.stderr)
-        early = {'cmd':{'cmd':'value.save_file', 'kind':'parameters', 'file':'early.par'}}
+        early = {'cmd':{'cmd':'session.export_info', 'file':'early.pars'}}
         r = quiet([early, {'cmd':{'cmd':'run.initial'}, 'files':[0.5]}])
         check('W144: an invalid final step is refused before any earlier step executes',
               r.returncode == 1 and r.stdout == '' and 'file section 0.5' in r.stderr
-              and r.stderr.count('run.recx:') == 1 and not os.path.exists(os.path.join(run, 'early.par')), r.stderr)
+              and r.stderr.count('run.recx:') == 1 and not os.path.exists(os.path.join(run, 'early.pars')), r.stderr)
         r = quiet([{'cmd':{'cmd':'run.initial'}, 'abort':{'what':'integrate','rows':1e100}}])
         check('W144: an out-of-range interruption is refused before playback',
               r.returncode == 1 and 'invalid recorded interruption' in r.stderr and r.stdout == '', r.stderr)

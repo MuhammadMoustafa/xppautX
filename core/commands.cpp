@@ -256,7 +256,7 @@ static void do_file_com(xpp::Session &s, int com)
     do_autox_win(s);
     break;
   case M_FC: q_calc(s); break;
-  case M_FR: xpp::import_settings_command(s); break;
+  case M_FR: xpp::import_xppaut_state_command(s); break;
   case M_FQ: xpp_quit(s); break;
   }
 }

@@ -26,6 +26,7 @@
    limit on their number): it writes an entry by its index (a variable, a
    Markov variable, an aux quantity each at its own offset). */
 #include "xpp_error.h"
+#include "xpp_zip.h"
 #include "comline.h"
 #include "volterra.h"
 #include "tabular.h"
@@ -436,6 +437,11 @@ struct Model {
   /* the paths outside the model's folder the user allowed while this model
      loaded, as files::resolve_path gives them (approve_model_path, model_files.h) */
   std::vector<std::string> outside_paths;
+  /* a Model made to parse a file of values in (set_load.cpp, scratch_model) holds those two apart: the most bytes
+     its files may hold in all, and whether a path outside the folder the user allows is for this read only (asked
+     every time, never kept in the preferences) */
+  std::size_t files_bytes_limit = zip::archive_bytes_limit;
+  bool outside_once_only = false;
   /* during a load of a saved model, the scratch folder of the copies a
      reader of a FILE * reads (model_files.cpp) */
   std::shared_ptr<TempDir> saved_copies;

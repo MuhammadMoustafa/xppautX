@@ -23,7 +23,7 @@ import {
   answerName, keepBothName, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
-import {initialState, LEAVE_ASK, noDone, reduce, type Action, type AppState} from './store/state';
+import {initialState, LEAVE_ASK, noDone, reduce, type Action, type AppState, type ValuesFileOffer, type ValuesPart} from './store/state';
 import {closeDesktopWindow} from './desktop';
 import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
@@ -52,7 +52,7 @@ interface DisplayPatch {
 /** the display key of view k of the autoX diagram: 0, -1, -2 ... (the plot windows are 1 up) */
 /** the scope of the core's `set.restore_defaults` for a values section (docs/protocol.md) */
 const RESTORE_SCOPE = {par: 'parameters', ic: 'initial'} as const;
-/** the kind of file the core's `value.save_file` and `value.load_file` take for a values section */
+/** the kind of file the core's `value.load_file` takes for a values section */
 const VALUE_FILE = {par: 'parameters', ic: 'initial_conditions'} as const;
 
 
@@ -101,6 +101,8 @@ export class Session {
   private savingReads = new Set<Promise<Blob | null>>();
   private nativeSave: string | null = null;
   private nativeRun: RunRecord | null = null;
+  /** the file `set.file_contents` is asked about, whose done carries the parts to offer (offerValuesFile) */
+  private valuesOffering: {file: string; scope: string} | null = null;
   private retrySave: RunRecord | null = null;
   private retrySaveDir: string | null = null;
   private nativeSaveDir = '';
@@ -219,6 +221,13 @@ export class Session {
       }
       this.nativeSave = null;
     } else if (ev.ev === 'done') {
+      const offering = this.valuesOffering;
+      if (offering && (ev.status !== 'ok' || ev.result?.file === offering.file)) {
+        this.valuesOffering = null;
+        const parts = ev.result?.parts;
+        if (ev.status === 'ok' && Array.isArray(parts))
+          this.store.dispatch({type: 'valuesFile', offer: {...offering, format: String(ev.result?.format), parts: parts as ValuesPart[]}});
+      }
       if (this.donesOwed > 0) this.donesOwed--;
       this.afterAutox();
       this.dragQueue = [];
@@ -827,30 +836,30 @@ export class Session {
     this.edit({kind: 'num', name: key, text});
   }
 
-  /** Save of a section: the core writes its own .par/.ic (docs/protocol.md
-      "values"; core/lunch-new.cpp io_parameter_file/io_ic_file), then, at
-      the command's done, the page offers it as a download -- the same
-      `pendingSave`/`deliver` path `writeDataFile` uses (W66: the page
-      itself builds no file). */
-  saveValues(kind: 'par' | 'ic'): void {
-    const name = this.store.getState().hello?.output_names[kind];
-    if (!name) return;
-    if (nativeFileDialog()) this.send({cmd: 'value.save_file', kind: VALUE_FILE[kind]});
-    else {
-      this.pendingSave = {name, handle: null, ahead: this.donesOwed};
-      this.send({cmd: 'value.save_file', kind: VALUE_FILE[kind], file: name});
-    }
+  /** Load values from a file by scope (W321, docs/protocol.md `set.file_contents`): the picked file goes into the model's
+      folder as every upload does, the core reads it whole and lists the parts that hold `scope`'s kind, and the page
+      offers them (ui/ValuesFileDialog.tsx); the part chosen is loaded by loadValuesPart. */
+  async offerValuesFile(scope: string, file: File): Promise<void> {
+    const uploads = await this.upload([{file, name: file.name}], null, true);
+    if (!uploads) return;
+    this.valuesOffering = {file: uploads[0].name, scope};
+    this.send({cmd: 'set.file_contents', file: uploads[0].name, scope});
   }
 
-  /** Load of a section (W66 review): the picked file goes into the
-      model's folder through `upload`, as every upload does (the same name
-      with other content asks first: Replace, Keep both, Cancel; W134), then
-      the core reads it with `values` `read` (io_parameter_file/io_ic_file,
-      READEM) -- at once, like File/Read set, not staged as a pending edit
-      (the values panel has nothing left to parse: the file is XPP's own
-      par/ic format, or nothing reads it). A bad file's `message` `error`
-      (core/lunch-new.cpp err_msg, e.g. "Expected N initial conditions...")
-      becomes a notification the same way any other command's does. */
+  /** the offered part chosen: `set.load_file` applies it limited to the scope, and the offer closes */
+  loadValuesPart(offer: ValuesFileOffer, part: ValuesPart): void {
+    this.store.dispatch({type: 'valuesFile', offer: null});
+    this.send({cmd: 'set.load_file', file: offer.file, scope: offer.scope, from: part.from, ...(part.from === 'set' ? {name: part.name} : {})});
+  }
+
+  /** Load of a section's XPPAUT .par/.ic (W66 review; an import, nothing of ours writes these files, W321): the
+      picked file goes into the model's folder through `upload`, as every
+      upload does (the same name with other content asks first: Replace,
+      Keep both, Cancel; W134), then the core reads it with `value.load_file`
+      -- at once, not staged as a pending edit (the values panel has nothing
+      left to parse). A bad file's `message` `error` (core/lunch-new.cpp,
+      e.g. "Expected N initial conditions...") becomes a notification the
+      same way any other command's does. */
   async loadValues(kind: 'par' | 'ic', file: File): Promise<void> {
     const uploads = await this.upload([{file, name: file.name}], null, true);
     if (uploads) this.send({cmd: 'value.load_file', kind: VALUE_FILE[kind], file: uploads[0].name});

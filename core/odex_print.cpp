@@ -271,6 +271,13 @@ std::string print_number(double v)
   return xpp::number(v);
 }
 
+std::optional<std::string> literal_number_text(const Expr &e)
+{
+  if (e.kind == Expr::Kind::Number) return print_number(e.value);
+  if (e.kind == Expr::Kind::Neg && e.args[0].kind == Expr::Kind::Number) return "-" + print_number(e.args[0].value);
+  return std::nullopt;
+}
+
 std::string quote_string(std::string_view text)
 {
   std::string out = "\"";

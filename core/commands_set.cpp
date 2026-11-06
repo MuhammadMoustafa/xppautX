@@ -1,6 +1,6 @@
-/* The set resource's registry rows (W526): apply one of the model's named sets, save the current values into
-   the model file (a new set, a set's part, the defaults, another file), rename and delete a set, and restore the
-   model's own values. Each handler gets its arguments validated and typed (command_def.h) and calls the same core
+/* The set resource's registry rows (W526): apply one of the model's named sets, load values from another file by
+   scope (W321), save the current values into the model file (a new set, a set's part, the defaults, another
+   file), rename and delete a set, and restore the model's own values. Each handler gets its arguments validated and typed (command_def.h) and calls the same core
    function the File menu's picks do (load_eqn.h, model_save.h): one behaviour, whichever front end asks. The
    settings of a plot (scope plot, or all) are the graph `window` names, the active graph when it is left out; the
    values saved are the initial ones unless `state` says last. */
@@ -10,13 +10,15 @@
 #include "model_options.h"
 #include "model_save.h"
 #include "session.h"
+#include "set_load.h"
 #include "xpp_io.h"
+#include <algorithm>
 #include <array>
 
 namespace xpp::command {
 namespace {
 
-constexpr const char *WINDOW_KEY = "window", *SCOPE_KEY = "scope", *STATE_KEY = "state", *NAME_KEY = "name", *FILE_KEY = "file";
+constexpr const char *WINDOW_KEY = "window", *SCOPE_KEY = "scope", *STATE_KEY = "state", *NAME_KEY = "name", *FILE_KEY = "file", *FROM_KEY = "from";
 
 /* the scopes of a set, as the C strings a row's choices are: all, the parameters, the initial values, then the
    option groups a set may hold (set_scopes, load_eqn.h, lists the same) */
@@ -30,6 +32,8 @@ constexpr auto SCOPE_CHOICES = scope_choices();
 /* the values a save writes: the initial ones, or the state the last run reached */
 constexpr std::string_view STATE_INITIAL = "initial", STATE_LAST = "last";
 constexpr std::array STATE_CHOICES = {STATE_INITIAL.data(), STATE_LAST.data()};
+/* the part of a file of values loaded: its defaults, one of its sets, or the whole of an XPPAUT file */
+constexpr std::array FROM_CHOICES = {values_origin_names[0].data(), values_origin_names[1].data(), values_origin_names[2].data()};
 
 /* the plot settings' graph: the one `window` names, none (the active one) when it is left out */
 Result<std::optional<int>> graph_of(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -52,6 +56,44 @@ Result<std::string> set_apply(Session &s, const Command &command, const Argument
     const std::string &name = args.get<std::string>(NAME_KEY), &scope = args.get<std::string>(SCOPE_KEY);
     if (const Result<> applied = apply_named_set(s, name, scope, *graph); !applied) return std::unexpected<Error>(applied.error());
     return ResultObject().text("applied", name).text(SCOPE_KEY, scope).done();
+}
+
+/* the parts of a file of values that hold a scope's kind: where each comes from (its defaults, a set, an XPPAUT file),
+   its set's name, and its problem when it cannot be loaded (what is wrong with it, at its line); the whole file is read
+   and checked first */
+Result<std::string> set_file_contents(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const std::string &file = args.get<std::string>(FILE_KEY), &scope = args.get<std::string>(SCOPE_KEY);
+    const Result<ValuesSource> source = read_values_source(s, file);
+    if (!source) return std::unexpected<Error>(source.error());
+    std::string parts = "[";
+    std::size_t count = 0;
+    for (const ValuesPart &part : source->parts) {
+        if (!offers(s, part, scope)) continue;
+        ResultObject entry;
+        entry.text(FROM_KEY, values_origin_names[static_cast<std::size_t>(part.origin)]).text(NAME_KEY, part.name);
+        if (part.problem)
+            entry.text("problem", part.problem->place.line > 0 ? xpp::format("line {}: {}", part.problem->place.line, part.problem->what) : part.problem->what);
+        if (parts.size() > 1) parts += ',';
+        parts += entry.done();
+        if (++count > offered_parts_limit || parts.size() > offered_bytes_limit)
+            return fail(command.name, xpp::format("{} offers more than {} parts or {} bytes of them for the scope {}: load one by its name with set.load_file", file, offered_parts_limit, offered_bytes_limit, scope), place);
+    }
+    return ResultObject().text(FILE_KEY, file).text("format", source->format).text(SCOPE_KEY, scope).raw("parts", parts + ']').done();
+}
+
+Result<std::string> set_load_file(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    GRAPH_OF(graph);
+    const std::string &file = args.get<std::string>(FILE_KEY), &scope = args.get<std::string>(SCOPE_KEY), &from = args.get<std::string>(FROM_KEY);
+    const std::string name = args.optional<std::string>(NAME_KEY).value_or(std::string{});
+    const std::size_t origin = static_cast<std::size_t>(std::ranges::find(values_origin_names, from) - values_origin_names.begin());
+    const bool is_set = origin == static_cast<std::size_t>(ValuesOrigin::set);
+    if (is_set && name.empty()) return fail(command.name, "from set names the file's set: give its name", place);
+    if (!is_set && !name.empty()) return fail(command.name, xpp::format("a file's {} has no name: left out, not \"{}\"", from, name), place);
+    if (const Result<> loaded = load_values_from_file(s, file, scope, static_cast<ValuesOrigin>(origin), name, *graph); !loaded)
+        return std::unexpected<Error>(loaded.error());
+    return ResultObject().text(FILE_KEY, file).text(SCOPE_KEY, scope).text(FROM_KEY, from).boolean("loaded", true).done();
 }
 
 /* a save of the current values into a set called name (a new one, or a part of one of the file's own), `member` what
@@ -120,8 +162,12 @@ constexpr Argument SET_NAME = {NAME_KEY, Type::text, true};
 constexpr Argument SCOPE = {SCOPE_KEY, Type::choice, true, MAX_TEXT_BYTES, SCOPE_CHOICES};
 constexpr Argument WINDOW = {WINDOW_KEY, Type::window, false};
 constexpr Argument STATE = {STATE_KEY, Type::choice, false, MAX_TEXT_BYTES, STATE_CHOICES};
+constexpr Argument VALUES_FILE = {FILE_KEY, Type::file, true};
+constexpr Argument FROM = {FROM_KEY, Type::choice, true, MAX_TEXT_BYTES, FROM_CHOICES};
 
 constexpr std::array APPLY_ARGUMENTS = {SET_NAME, SCOPE, WINDOW};
+constexpr std::array CONTENTS_ARGUMENTS = {VALUES_FILE, SCOPE};
+constexpr std::array LOAD_ARGUMENTS = {VALUES_FILE, SCOPE, FROM, Argument{NAME_KEY, Type::text, false}, WINDOW};
 constexpr std::array SAVE_ARGUMENTS = {SET_NAME, SCOPE, WINDOW, STATE};
 constexpr std::array DEFAULTS_ARGUMENTS = {SCOPE, WINDOW, STATE};
 constexpr std::array EXPORT_ARGUMENTS = {Argument{FILE_KEY, Type::file, true}, SET_NAME, SCOPE, WINDOW, STATE};
@@ -130,6 +176,9 @@ constexpr std::array DELETE_ARGUMENTS = {SET_NAME};
 constexpr std::array RESTORE_ARGUMENTS = {SCOPE, WINDOW, Argument{"field", Type::text, false}};
 
 constexpr std::array APPLY_RESULTS = {ResultField{"applied", "text"}, ResultField{SCOPE_KEY, "text"}};
+constexpr std::array CONTENTS_RESULTS = {ResultField{FILE_KEY, "file"}, ResultField{"format", "text"}, ResultField{SCOPE_KEY, "text"},
+                                         ResultField{"parts", "list of {from, name, problem}"}};
+constexpr std::array LOAD_RESULTS = {ResultField{FILE_KEY, "file"}, ResultField{SCOPE_KEY, "text"}, ResultField{FROM_KEY, "text"}, ResultField{"loaded", "boolean"}};
 constexpr std::array SAVE_NEW_RESULTS = {ResultField{NAME_KEY, "text"}, ResultField{"saved", "boolean"}};
 constexpr std::array SAVE_INTO_RESULTS = {ResultField{NAME_KEY, "text"}, ResultField{"updated", "boolean"}};
 constexpr std::array DEFAULTS_RESULTS = {ResultField{"saved_as_defaults", "boolean"}};
@@ -139,11 +188,18 @@ constexpr std::array DELETE_RESULTS = {ResultField{NAME_KEY, "text"}, ResultFiel
 constexpr std::array RESTORE_RESULTS = {ResultField{"restored", "boolean"}};
 
 constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DONE_EVENTS = {xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"set.apply", APPLY_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "File/Apply set",
             "Apply one of the model's named sets over the current values: all of it, or only its parameters, initial values or one group of settings; the plot settings go to the graph window names.",
             APPLY_RESULTS, STATE_EVENTS, true, set_apply},
+    Command{"set.file_contents", CONTENTS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Files, "File/Values file contents",
+            "Read a file of values whole (an .odex, or XPPAUT's .par, .ic or .set) and list its parts that hold the scope's kind: its defaults, each set, or the XPPAUT file; a part that cannot be loaded says why. Nothing is applied.",
+            CONTENTS_RESULTS, DONE_EVENTS, true, set_file_contents, {}, {}, "read", "*.odex *.par *.ic *.set"},
+    Command{"set.load_file", LOAD_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "File/Load values from file",
+            "Load values from a file by scope: the file's defaults (from defaults), one of its sets (from set, name) or an XPPAUT .par, .ic or .set (from file), limited to the scope, over the current values; the plot settings go to the graph window names. The whole file is checked against this model first and an unknown name refuses it; nothing runs and the model file is not changed.",
+            LOAD_RESULTS, STATE_EVENTS, true, set_load_file, {}, {}, "read", "*.odex *.par *.ic *.set"},
     Command{"set.save_new", SAVE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Save values",
             "Write the current values (all of them, or one scope) into the model file as a new set called name; state says whether the initial values or the last state reached are saved.",
             SAVE_NEW_RESULTS, STATE_EVENTS, true, set_save_new},

@@ -18,6 +18,7 @@
 #include "xpp_io.h"
 #include "odex.h"
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -51,7 +52,7 @@ std::string include_path(const std::string &including, const std::string &name);
    (W286), as keys: Allow always (kept in the preferences for this model file
    and this path; a .ode uses its generated .odex), Allow once (this load),
    Refuse (or no answer). */
-inline constexpr std::string_view OUTSIDE_PATH_KEYS = "aor";
+inline constexpr std::string_view OUTSIDE_PATH_KEYS = "aor", OUTSIDE_PATH_KEYS_ONCE_ONLY = "or";
 inline constexpr std::string_view PATH_REFUSED = "path refused"; /* the `where` of the refusal's Error */
 inline constexpr char OUTSIDE_PATH_ALWAYS = 'a', OUTSIDE_PATH_ONCE = 'o';
 
@@ -95,6 +96,11 @@ bool is_model_text(std::string_view bytes);
 void replace_model_text(Model &m, std::string bytes);
 /* m.source: the model file's lines of text, each with its line end */
 void set_model_source(Model &m, std::string_view text);
+
+/* a Model of its own to parse a file in without touching m (a save's edited text, a file of values to
+   load): the folder, the paths the user allowed and (for a saved model) the files are m's, so an
+   import is read, and an outside path asked about, as m's load read it */
+std::unique_ptr<Model> scratch_model(const Model &m);
 
 /* Finish the load's name index with diagnostic places and source lines. */
 void index_model_places(Model &m);

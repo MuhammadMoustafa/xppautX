@@ -81,6 +81,12 @@ export interface Toast {
   offer?: ErrorAction;
 }
 
+/** a part of a file of values (docs/protocol.md `set.file_contents`): where it comes from, its set's name, and why it
+    cannot be loaded when it cannot */
+export interface ValuesPart {from: 'defaults' | 'set' | 'file'; name: string; problem?: string}
+/** the file asked about, for which scope, what kind of file it is and its parts that hold that scope's kind */
+export interface ValuesFileOffer {file: string; scope: string; format: string; parts: ValuesPart[]}
+
 export interface AppState {
   connected: boolean;
   exited: number | null;
@@ -127,6 +133,9 @@ export interface AppState {
   /** the command menu, a drawer on narrow screens */
   drawerOpen: boolean;
   commandForm: {id: string; values: Record<string, unknown>} | null;
+  /** the parts of a file of values that hold a section's kind, as `set.file_contents` listed them, offered to pick
+      one to load with `set.load_file` (W321) */
+  valuesFile: ValuesFileOffer | null;
   annotationsOpen: boolean;
   selectedAnnotation: number | null;
   /** the Continue field of the run toolbar, which the Continue command's key reads too (W213) */
@@ -187,6 +196,7 @@ export type Action =
   | {type: 'toast'; kind: Toast['kind']; text: string}
   | {type: 'dismiss'; id: number}
   | {type: 'commandForm'; form: AppState['commandForm']}
+  | {type: 'valuesFile'; offer: ValuesFileOffer | null}
   | {type: 'annotations'; open: boolean; selected?: number | null}
   | {type: 'drawer'; open: boolean}
   | {type: 'continueInput'; input: ContinueInput}
@@ -239,7 +249,7 @@ export const initialState: AppState = {
   nextToast: 1,
   theme: 'system',
   panels: defaultPanels,
-  drawerOpen: false, commandForm: null, annotationsOpen: false, selectedAnnotation: null,
+  drawerOpen: false, commandForm: null, valuesFile: null, annotationsOpen: false, selectedAnnotation: null,
   continueInput: CONTINUE_INPUT_DEFAULT,
   steadyEdit: {},
   controlDone: 0,
@@ -391,7 +401,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const values = reduceValues({...state.values, defaults: null}, {type: 'settled'});
       /* a set sent before gets no done now */
       setPointTypes(ev.point_types);
-      return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, windows: [],
+      return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, valuesFile: null, windows: [],
         autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'reset'}),
         keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};
     }
@@ -657,6 +667,7 @@ export function reduce(state: AppState, action: Action): AppState {
     case 'continueInput':
       return action.input.mode === state.continueInput.mode && action.input.text === state.continueInput.text ? state : {...state, continueInput: action.input};
     case 'commandForm': return {...state, commandForm: action.form};
+    case 'valuesFile': return {...state, valuesFile: action.offer};
     case 'annotations': return {...state, annotationsOpen: action.open, selectedAnnotation: action.selected === undefined ? state.selectedAnnotation : action.selected};
     case 'drawer':
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};

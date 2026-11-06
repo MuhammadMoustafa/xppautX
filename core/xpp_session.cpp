@@ -650,7 +650,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
     xpp::Result<xpp::Settings> set = [&]() -> xpp::Result<xpp::Settings> {
         const auto it = mem.find(xpp::snapx::set_member);
         if (it == mem.end()) return missing(xpp::snapx::set_member);
-        return xpp::read_settings(s, xpp::format("{}/{}", f.name, xpp::snapx::set_member), it->second, xpp::SettingsUse::session);
+        return xpp::read_settings(s, xpp::format("{}/{}", f.name, xpp::snapx::set_member), it->second);
     }();
     if (!set) return std::unexpected(set.error());
     r.set = std::move(*set);

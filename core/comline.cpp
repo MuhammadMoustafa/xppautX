@@ -322,7 +322,7 @@ static int if_needed_load_set(xpp::Session &s)
 {
   const CommandLine &cl = s.model().command_line;
   if(!cl.set_file) return 1;
-  if(const xpp::Result<> r=import_settings(s,*cl.set_file,true);!r)
+  if(const xpp::Result<std::vector<std::string>> r=import_xppaut_state(s,*cl.set_file,true);!r)
   {
     xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
     return 0;
@@ -336,11 +336,11 @@ void load_command_line_values(xpp::Session &s)
   if_needed_load_set(s);
   if(cl.par_file){
     xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",*cl.par_file);
-    xpp::ok_or_show(load_parameter_file_named(s,*cl.par_file));
+    xpp::ok_or_show(load_xppaut_values(s,ValueFile::parameters,*cl.par_file));
   }
   if(cl.ic_file){
     xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",*cl.ic_file);
-    xpp::ok_or_show(load_ic_file_named(s,*cl.ic_file));
+    xpp::ok_or_show(load_xppaut_values(s,ValueFile::initial_conditions,*cl.ic_file));
   }
   if_needed_load_ext_options(s);
 }

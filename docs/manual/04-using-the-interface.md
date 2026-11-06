@@ -138,7 +138,7 @@ beside the plot (a sheet on a phone):
   `%2*pi`; a boundary condition or delay takes an expression. Anything
   else (letters in a parameter box) is refused, not sent: see "What a box
   accepts", below.
-- **Load** reads a parameter file (`.par`) by name: its count must match
+- **Load** imports a parameter file (`.par`) XPPAUT wrote, by name (nothing of ours writes one: a set in the model file holds parameters, and **Load values from file** reads sets and defaults of an `.odex` by scope): its count must match
   the model and every parameter must appear exactly once, in any order.
   An unknown, duplicate or missing name reports the file, line and name;
   nothing changes on an error. Initial-condition files (`.ic`) keep one
@@ -317,7 +317,7 @@ action is; every button and menu item has one of five kinds:
 | Control | Stop (Escape), Quit, answering a question | works |
 | View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
 | Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Apply set, File/Restore defaults, autoX's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
-| Data | Save and Load of values' files, Import settings, every file written, Save session, autoX's Save and Load diagram, autoX's Grab | disabled |
+| Data | Load of values' XPPAUT files, Import XPPAUT session state, every file written, Save session, autoX's Save and Load diagram, autoX's Grab | disabled |
 | Computation | Integrate and Initialconds, Continue, Range, autoX's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 
 A disabled control says so in its tooltip ("Not while a computation
@@ -363,7 +363,7 @@ Files (PDF/SVG, GIF, `.dat`, tables, kinescope frames) are
 written next to the ODE file, by the program, exactly as in X11. The
 browser never silently downloads anything on its own.
 
-- **Open** (Import settings, Load diagram, the browser's Load, ...): the page
+- **Open** (Import XPPAUT session state, Load diagram, the browser's Load, ...): the page
   shows a prompt whose "Choose file…" opens the browser's own file picker, showing
   the files of the kind the command reads (`*.set`, ...); picked files are uploaded into
   xppautX's working directory (the model's folder) so relative names in
@@ -442,7 +442,7 @@ kinescope frames, eigenvector manifolds and periodic-orbit data. Cancel
 writes nothing. Settings forms contain settings; file names are asked
 separately and kept whole. A bad name is an error.
 
-Defaults use the model's base: `lecar.par`, `lecar.pdf`, `lecar.svg`,
+Defaults use the model's base: `lecar.csv`, `lecar.pdf`, `lecar.svg`,
 `lecar.gif`, `lecar.dat`, `lecar.csv`, `lecar.snapx`. Another output of the
 same type adds its purpose, such as `lecar-curves.csv`, `lecar-array.pdf`
 or `lecar-eigen1-stable.dat`. Kinescope and animation PPM sequences ask

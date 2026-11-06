@@ -1337,3 +1337,5 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 
 .argument-rows { min-width: 0; width: 100%; }
 .argument-row > input, .argument-row > select { min-width: 0; width: 100%; }
+.values-parts { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+.values-parts li { display: flex; flex-direction: column; gap: var(--space-1); }

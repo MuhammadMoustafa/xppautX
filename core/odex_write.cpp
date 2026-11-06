@@ -67,8 +67,9 @@ Error error_in(const std::string &file, const Pos &at, std::string what)
   return Error{"save values", std::move(what), Place{file, at.line, at.col}};
 }
 
-/* the file's statements, parsed; the error is the parser's */
-Result<Parsed> read(Model &m, std::string_view text, const std::string &file)
+} // namespace
+
+Result<Parsed> read_statements(Model &m, std::string_view text, const std::string &file)
 {
   try {
     return parse(m, text, file);
@@ -77,7 +78,9 @@ Result<Parsed> read(Model &m, std::string_view text, const std::string &file)
   }
 }
 
-/* read(), and the fixed values worked out (par and init become the numbers
+namespace {
+
+/* read_statements(), and the fixed values worked out (par and init become the numbers
    they are): what the defaults are compared with */
 Result<Parsed> read_worked_out(Model &m, std::string_view text, const std::string &file)
 {
@@ -293,7 +296,7 @@ Result<> check_text(Model &m, std::string_view text, const std::string &file, bo
 
 Result<std::vector<std::pair<std::string, Pos>>> local_sets(Model &m, std::string_view text, const std::string &file)
 {
-  const Result<Parsed> p = read(m, text, file);
+  const Result<Parsed> p = read_statements(m, text, file);
   if (!p) return std::unexpected(p.error());
   std::vector<std::pair<std::string, Pos>> out;
   for (const Statement &s : p->statements)
@@ -308,7 +311,7 @@ std::string export_header(std::string_view file, std::string_view time)
 
 Result<Edited> add_set(Model &m, std::string_view text, const std::string &file, std::string_view name, const Values &values, bool partial)
 {
-  const Result<Parsed> p = read(m, text, file);
+  const Result<Parsed> p = read_statements(m, text, file);
   if (!p) return std::unexpected(p.error());
   if (const std::string why = name_problem(*p, name); !why.empty()) return std::unexpected(Error{"save values", why, Place{file}});
   std::vector<std::string> items;
@@ -320,7 +323,7 @@ Result<Edited> add_set(Model &m, std::string_view text, const std::string &file,
 Result<Edited> replace_in_set(Model &m, std::string_view text, const std::string &file, std::string_view name, const Values &values,
                               const Classify &classify, bool partial)
 {
-  const Result<Parsed> p = read(m, text, file);
+  const Result<Parsed> p = read_statements(m, text, file);
   if (!p) return std::unexpected(p.error());
   const Result<const Statement *> old = local_set(*p, file, name);
   if (!old) return std::unexpected(old.error());
@@ -333,7 +336,7 @@ Result<Edited> replace_in_set(Model &m, std::string_view text, const std::string
 
 Result<Edited> rename_set(Model &m, std::string_view text, const std::string &file, std::string_view from, std::string_view to)
 {
-  const Result<Parsed> p = read(m, text, file);
+  const Result<Parsed> p = read_statements(m, text, file);
   if (!p) return std::unexpected(p.error());
   const Result<const Statement *> old = local_set(*p, file, from);
   if (!old) return std::unexpected(old.error());
@@ -343,7 +346,7 @@ Result<Edited> rename_set(Model &m, std::string_view text, const std::string &fi
 
 Result<Edited> delete_set(Model &m, std::string_view text, const std::string &file, std::string_view name)
 {
-  const Result<Parsed> p = read(m, text, file);
+  const Result<Parsed> p = read_statements(m, text, file);
   if (!p) return std::unexpected(p.error());
   const Result<const Statement *> old = local_set(*p, file, name);
   if (!old) return std::unexpected(old.error());

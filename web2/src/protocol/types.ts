@@ -39,7 +39,7 @@ export interface HelloEvent {
   features: string[];
   title: string;
   file: string;
-  output_names: {par: string; ic: string; csv: string; curves: string};
+  output_names: {csv: string; curves: string};
   state_inspection: {tail_intervals: number};
   continue: {grid_tolerance: number};
   steady: {max_decimals: number; default_decimals: number; default_hold: number};

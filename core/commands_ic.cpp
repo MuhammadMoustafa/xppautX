@@ -113,7 +113,7 @@ Result<std::string> ic_mouse_stream(Session &s, const Command &command, const Ar
 Result<std::string> ic_load(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const std::string &file = args.get<std::string>("file");
-    const Result<> loaded = load_ic_file_named(s, file);
+    const Result<> loaded = load_xppaut_values(s, ValueFile::initial_conditions, file);
     if (!loaded) return std::unexpected<Error>(loaded.error());
     redraw_ics();
     return ResultObject().text("file", file).raw("applied", applied(s, all_states(s))).done();

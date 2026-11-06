@@ -424,8 +424,7 @@ xpp::Result<bool> open_ode(const std::string &ode, const std::vector<std::string
    it: true when written; false when out already holds this text, or the
    user chose to keep the file that is there (a question through xpp_ui
    before another text replaces it); an error when cancelled or not written.
-   .ode -> .odex (open_ode) and XPPAUT's .set -> .setx (import) both
-   convert this way. */
+   .ode -> .odex (open_ode) converts this way. */
 xpp::Result<bool> write_converted(const std::string &source, const std::string &out, std::string_view text);
 /* model.ode's .odex: its extension made .odex */
 std::string odex_name(const std::string &ode);
@@ -436,6 +435,9 @@ std::string odex_name(const std::string &ode);
 std::string print(const Expr &e);
 /* v as an .odex number: the shortest text that reads back as v */
 std::string print_number(double v);
+/* e as the number it is written as, a number or a signed one (a set's value, a
+   file of values'), print_number's text; none for any other expression */
+std::optional<std::string> literal_number_text(const Expr &e);
 /* text as an .odex string, in double quotes, a " and a \ escaped: the
    only escapes a string has (a path, a narration) */
 std::string quote_string(std::string_view text);

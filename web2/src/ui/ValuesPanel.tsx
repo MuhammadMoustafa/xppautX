@@ -132,26 +132,42 @@ function fieldProps(value: string | number) {
   };
 }
 
-/** Save and Load of a section's values, both through the core (session.ts
-    saveValues/loadValues, docs/protocol.md "values", W66 review) */
+/** Load of a section's XPPAUT .par/.ic, an import through the core (session.ts loadValues,
+    docs/protocol.md "value.load_file", W66 review); nothing of ours writes these files (W321) */
 function FileTools({kind}: {kind: 'par' | 'ic'}) {
   const session = useSession();
   const input = useRef<HTMLInputElement>(null);
   const what = kind === 'par' ? 'parameters' : 'initial conditions';
-  /* a file written or read: data, not while a computation runs (W95) */
-  const saveOff = !useMay()({cmd: 'value.save_file'});
+  /* a file read: a setting, not while a computation runs (W95) */
+  const loadOff = !useMay()({cmd: 'value.load_file'});
   return (
     <>
-      <button class="small" onClick={() => session.saveValues(kind)} disabled={saveOff}
-        title={saveOff ? BUSY_TITLE : `Save the ${what} as a file XPP reads (${kind === 'par' ? 'File/Read par' : 'Initialconds/File, --icfile'})`}>
-        Save
-      </button>
-      <button class="small" onClick={() => input.current?.click()} disabled={saveOff}
-        title={saveOff ? BUSY_TITLE : `Load ${what} from a file in XPP's own format`}>Load</button>
+      <button class="small" onClick={() => input.current?.click()} disabled={loadOff}
+        title={loadOff ? BUSY_TITLE : `Import ${what} from a file XPPAUT wrote (.${kind})`}>Load</button>
       <input ref={input} id={`values-load-${kind}`} type="file" hidden
         onChange={async e => {
           const el = e.target as HTMLInputElement, file = el.files?.[0];
           if (file) await session.loadValues(kind, file);
+          el.value = '';
+        }} />
+    </>
+  );
+}
+
+/** Load values from a file by scope (W321): the picked file is read whole by the core, which lists its parts that hold
+    this section's kind; the dialog offers them (ValuesFileDialog.tsx) */
+function ValuesFileTool({scope, what}: {scope: string; what: string}) {
+  const session = useSession();
+  const input = useRef<HTMLInputElement>(null);
+  const off = !useMay()({cmd: 'set.file_contents'});
+  return (
+    <>
+      <button class="small" onClick={() => input.current?.click()} disabled={off} data-values-file={scope}
+        title={off ? BUSY_TITLE : `Load ${what} from a file: an .odex's defaults or one of its sets, or an XPPAUT file`}>Load from file…</button>
+      <input ref={input} id={`values-file-${scope}`} type="file" hidden accept=".odex,.par,.ic,.set"
+        onChange={async e => {
+          const el = e.target as HTMLInputElement, file = el.files?.[0];
+          if (file) await session.offerValuesFile(scope, file);
           el.value = '';
         }} />
     </>
@@ -167,6 +183,7 @@ function Parameters() {
       <>
         <FileTools kind="par" />
         <CommandButton command="set.apply" />
+        <ValuesFileTool scope="parameters" what="parameters" />
         <CommandButton command="set.save_new" />
         <CommandButton command="set.save_defaults" />
         <CommandButton command="set.export" />
@@ -206,6 +223,7 @@ function StateSection() {
     <Section id="ic" title="States" hint={STATE_HINT} tools={(
       <>
         <FileTools kind="ic" />
+        <ValuesFileTool scope="initial" what="initial values" />
         <button class="small" onClick={() => session.defaultValues('ic')} title="Every initial condition from the ODE file">
           Reset all
         </button>
@@ -312,7 +330,8 @@ function NumericsSection() {
   const methodName = method ? choiceLabel(String(method.value)) : 'the selected solver';
   const unused = fields.filter(f => f.unused);
   return (
-    <Section id="num" title="Numerics" startFolded hint="Changes apply to the next run: a run in progress keeps its own.">
+    <Section id="num" title="Numerics" startFolded hint="Changes apply to the next run: a run in progress keeps its own."
+      tools={<ValuesFileTool scope="integration" what="integration settings" />}>
       <p class="value-hint">Solver: <strong>{methodName}</strong>. Unused solver controls are separated below.</p>
       <div class="value-list">
         {fields.filter(f => !f.unused).map(f => <NumericField key={f.key} f={f} />)}

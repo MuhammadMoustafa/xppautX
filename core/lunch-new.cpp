@@ -1,7 +1,7 @@
-/* XPPAUT's set file (.set), read for an import only (lunch-new.h), the
-   settings file (.setx) it is converted to, and the parameter file (.par)
-   and initial-conditions file (.ic): read through xpp_io.h's Lines whole,
-   checked, then applied in one step (W125). */
+/* XPPAUT's set file (.set), read for an import only (lunch-new.h), and
+   XPPAUT's parameter file (.par) and initial-conditions file (.ic), which are
+   imports too: read through xpp_io.h's Lines whole, checked, then applied in one
+   step (W125). Nothing of ours writes any of them. */
 #include <algorithm>
 #include <cmath>
 #include "model.h"
@@ -81,9 +81,8 @@ void put_parameters(const xpp::Session &s, FILE *fp, const char *prefix)
 
 /* ---- XPPAUT's set file, read (an import only) ----
    Positional lines, a value and then its label, read by their order: the
-   layout XPPAUT writes and nothing of ours writes. It is read into the
-   Settings of a .setx (setx_file.h), every value checked and every label
-   compared. */
+   layout XPPAUT writes and nothing of ours writes. It is read into
+   setx_file.h's Settings, every value checked and every label compared. */
 
 /* the Poincare map's names, as a set file labels its number with them */
 constexpr std::array<const char *, 4> poincare_names = {"Poincare None", "Poincare Section", "Poincare Max", "Period"};
@@ -194,14 +193,31 @@ void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
   }
 }
 
-void read_exprs(const xpp::Session &s, Lines &l, Settings &f)
+/* the line just read, text, is an expression of the model (what the run compiles it as), or the line is wrong: what names it */
+void check_expression(xpp::Session &s, Lines &l, std::string_view what, std::string_view text)
+{
+  if(!compile_formula(s,text))l.fail(xpp::format("{} \"{}\" is not an expression of the model",what,text));
+}
+
+/* the line just read, name, is a data column of the model (T, a variable, a column the browser added), or the line is wrong */
+void check_column(const xpp::Session &s, Lines &l, std::string_view what, std::string_view name)
+{
+  if(variable_column(s,name)<0)l.fail(xpp::format("{} \"{}\" is not a column of the model",what,name));
+}
+
+void read_exprs(xpp::Session &s, Lines &l, Settings &f)
 {
   const xpp::Model &m=s.model();
   l.heading("# Delays");
-  for(int i=0;i<m.node;i++)f.delays[static_cast<std::size_t>(i)]=l.next(xpp::format("the delay of {}",m.uvar_names[static_cast<std::size_t>(i)]));
+  for(int i=0;i<m.node;i++){
+    std::string &delay=f.delays[static_cast<std::size_t>(i)];
+    delay=l.next(xpp::format("the delay of {}",m.uvar_names[static_cast<std::size_t>(i)]));
+    check_expression(s,l,xpp::format("the delay of {}",m.uvar_names[static_cast<std::size_t>(i)]),delay);
+  }
   l.heading("# Bndry conds");
   for(int i=0;i<m.node;i++){
     const std::string_view bc=l.next(xpp::format("boundary condition {}",i+1));
+    check_expression(s,l,xpp::format("boundary condition {}",i+1),bc);
     /* the room the session's boundary condition has, its NUL left out */
     const std::size_t room=s.bcs[static_cast<std::size_t>(i)].string.empty()?0:s.bcs[static_cast<std::size_t>(i)].string.size()-1;
     if(bc.size()>room)l.fail(xpp::format("a boundary condition of {} characters: at most {}",bc.size(),room));
@@ -307,11 +323,12 @@ int read_dimension(Lines &l, std::string_view label)
   return v;
 }
 
-void read_more(const xpp::Session &s, Lines &l, Settings &f)
+void read_more(xpp::Session &s, Lines &l, Settings &f)
 {
   auto &t=f.transpose;
   l.heading("# Transpose variables etc");
   t.firstcol=l.next("Transpose's first column");
+  check_column(s,l,"Transpose's first column",t.firstcol);
   t.ncol=read_dimension(l,"n columns");
   t.nrow=read_dimension(l,"n rows");
   t.rowskip=l.whole("row skip",true);
@@ -319,11 +336,16 @@ void read_more(const xpp::Session &s, Lines &l, Settings &f)
   t.row0=l.whole("row 0",true);
 
   l.heading("# Coupling stuff for H funs");
-  for(int i=0;i<s.model().node;i++)f.coupling[static_cast<std::size_t>(i)]=l.next(xpp::format("the coupling of {}",s.model().uvar_names[static_cast<std::size_t>(i)]));
+  for(int i=0;i<s.model().node;i++){
+    std::string &coupling=f.coupling[static_cast<std::size_t>(i)];
+    coupling=l.next(xpp::format("the coupling of {}",s.model().uvar_names[static_cast<std::size_t>(i)]));
+    check_expression(s,l,xpp::format("the coupling of {}",s.model().uvar_names[static_cast<std::size_t>(i)]),coupling);
+  }
 
   APLOT &a=f.aplot;
   l.heading("# Array plot stuff");
   a.name=l.next("the array plot's first column");
+  if(!a.name.empty())check_column(s,l,"the array plot's first column",a.name); /* a set file of a model with no array plot has none */
   a.nacross=read_dimension(l,"NCols");
   a.nstart=l.whole("Row 1",true);
   a.ndown=read_dimension(l,"NRows");
@@ -374,7 +396,7 @@ void read_more(const xpp::Session &s, Lines &l, Settings &f)
 /* XPPAUT's set file whose lines are l, for s; ReadFailed at a line that is
    wrong. It has its model's equations after it, "RHS etc ...", written for
    a reader and not read, and is refused without them. */
-Settings read_set(const xpp::Session &s, Lines &l)
+Settings read_set(xpp::Session &s, Lines &l)
 {
   const xpp::Model &m=s.model();
   Settings f=capture_settings(s,SettingsUse::file);
@@ -417,8 +439,8 @@ bool is_ctime(std::string_view text)
 }
 
 /* a parameter file's values, the model's parameters' in order; the lines
-   after them are the trailer write_parameter_file writes (XPPAUT's too):
-   "File:" and the model's name, then the time it was written */
+   after them are the trailer XPPAUT's file ends with: "File:" and the model's
+   name, then the time it was written */
 std::vector<double> read_parameters(const xpp::Model &m, Lines &l)
 {
   const int np=l.whole("Number params");
@@ -463,37 +485,66 @@ std::vector<double> read_ics(const xpp::Model &m, Lines &l)
 
 } // namespace
 
-void write_whole(FILE *fp, int value, std::string_view name) { xpp::print(fp,"{}   {}\n",value,name); }
-
-void write_real(FILE *fp, double value, std::string_view name) { xpp::print(fp,"{:.16g}  {}\n",value,name); }
-
-Result<> import_settings(xpp::Session &s, std::string_view path, bool redraw)
+Result<Settings> read_xppaut_set(xpp::Session &s, std::string_view path)
 {
-  std::string bytes;
-  /* the settings of a file a user may have been sent are read within a bound */
-  if(!xpp::read_bytes(path,bytes,xpp::settings_bytes_limit))
-    return std::unexpected(xpp::files::exists(path)?xpp::files::open_error("settings file",path,xpp::format("cannot be read within {} bytes",xpp::settings_bytes_limit))
-                                                   :xpp::files::open_error("settings file",path));
-  std::string file(path);
-  std::string note;
-  if(!xpp::files::has_extension(path,xpp::setx_extension)){
-    /* XPPAUT's set file: converted to a .setx beside it, which is what is used */
-    Result<Settings> legacy=xpp::read_lines("set file",file,bytes,[&s](Lines &l){ return read_set(s,l); });
-    if(!legacy)return std::unexpected(legacy.error());
-    const Result<std::string> text=setx_text(s,*legacy);
-    if(!text)return std::unexpected(text.error());
-    const auto [folder,base]=xpp::files::split_path(path);
-    file=(folder.empty()?std::string():folder+"/")+base.substr(0,base.find_last_of('.'))+std::string(xpp::setx_extension);
-    const Result<bool> written=xpp::odex::write_converted(std::string(path),file,*text);
-    if(!written)return std::unexpected(written.error());
-    if(!xpp::read_bytes(file,bytes,xpp::settings_bytes_limit))return std::unexpected(xpp::files::open_error("settings file",file));
-    note=xpp::format("Imported {}: {} {}, which is applied.",path,*written?"converted to":"already converted to",file);
+  /* a set file a user may have been sent is read within a bound */
+  return xpp::read_file_lines("set file",path,[&s](Lines &l){ return read_set(s,l); },xpp::settings_bytes_limit);
+}
+
+namespace {
+
+/* a part of the settings a set file holds: what it is called, and the members of Settings it sets */
+struct SetPart {
+  const char *name;
+  void (*copy)(Settings &to, const Settings &from);
+};
+
+constexpr std::array<SetPart,12> set_parts={{
+  {"the parameters",[](Settings &t,const Settings &f){ t.params=f.params; }},
+  {"the initial conditions",[](Settings &t,const Settings &f){ t.last_ic=f.last_ic; }},
+  {"the numerics and sweep settings",[](Settings &t,const Settings &f){ t.numerics=f.numerics; t.range=f.range; }},
+  {"the delays",[](Settings &t,const Settings &f){ t.delays=f.delays; }},
+  {"the boundary conditions",[](Settings &t,const Settings &f){ t.bcs=f.bcs; }},
+  {"the coupling",[](Settings &t,const Settings &f){ t.coupling=f.coupling; }},
+  {"the run position",[](Settings &t,const Settings &f){
+    t.current_time=f.current_time; t.last_time=f.last_time; t.my_start=f.my_start; t.inflag=f.inflag; t.delay_flag=f.delay_flag; t.current=f.current; }},
+  {"the active graph",[](Settings &t,const Settings &f){ t.graph=f.graph; }},
+  {"the transpose settings",[](Settings &t,const Settings &f){ t.transpose=f.transpose; }},
+  {"the array plot",[](Settings &t,const Settings &f){ t.aplot=f.aplot; }},
+  {"the torus settings",[](Settings &t,const Settings &f){ t.torus=f.torus; t.torus_period=f.torus_period; t.itor=f.itor; }},
+  {"the range settings",[](Settings &t,const Settings &f){
+    t.range_item2=f.range_item2; t.range_low2=f.range_low2; t.range_high2=f.range_high2; t.range_cycle=f.range_cycle; t.eq_range=f.eq_range; t.shoot_range=f.shoot_range; }},
+}};
+
+/* the parts of f that differ from what s holds now: a part differs when the settings written with it taken from f are
+   not the settings written as they are */
+std::vector<std::string> differing_parts(const xpp::Session &s, const Settings &f)
+{
+  const Settings now=capture_settings(s,SettingsUse::file);
+  const Result<std::string> before=setx_text(s,now);
+  std::vector<std::string> changes;
+  for(const SetPart &part : set_parts){
+    Settings with=now;
+    part.copy(with,f);
+    const Result<std::string> after=setx_text(s,with);
+    if(!before||!after||*before!=*after)changes.push_back(part.name);
   }
-  Result<Settings> f=read_settings(s,file,bytes,SettingsUse::file);
+  return changes;
+}
+
+} // namespace
+
+Result<std::vector<std::string>> import_xppaut_state(xpp::Session &s, std::string_view path, bool redraw)
+{
+  const Result<Settings> f=read_xppaut_set(s,path);
   if(!f)return std::unexpected(f.error());
+  /* what the file changes, named for the user: found before anything is applied */
+  std::vector<std::string> changes=differing_parts(s,*f);
   apply_settings(s,*f,redraw);
-  xpp::bottom_msg(0,note.empty()?xpp::format("Applied {}.",path):note);
-  return {};
+  std::string named;
+  for(const std::string &c : changes)named+=(named.empty()?"":", ")+c;
+  xpp::bottom_msg(0,changes.empty()?xpp::format("Imported {}: nothing differed from the session.",path):xpp::format("Imported {}: changed {}.",path,named));
+  return changes;
 }
 
 Result<bool> write_info(xpp::Session &s, const std::string &filename, bool confirm)
@@ -545,12 +596,12 @@ void do_info(const xpp::Session &s, FILE *fp)
   put_parameters(s,fp,"");
 }
 
-void import_settings_command(xpp::Session &s)
+void import_xppaut_state_command(xpp::Session &s)
 {
   std::string filename=xpp::files::output_name(s.model().this_file,".set");
   ping();
-  if(!file_selector("Import settings",filename,"*.setx *.set"))return;
-  if(const Result<> r=import_settings(s,filename,true);!r)show_error(r.error());
+  if(!file_selector("Import XPPAUT session state",filename,"*.set"))return;
+  if(const Result<std::vector<std::string>> r=import_xppaut_state(s,filename,true);!r)show_error(r.error());
 }
 
 Result<std::vector<double>> read_parameter_file(const xpp::Model &m, std::string_view path)
@@ -563,75 +614,6 @@ Result<std::vector<double>> read_ic_file(const xpp::Model &m, std::string_view p
   return read_file_lines("initial conditions file",path,[&m](Lines &l){ return read_ics(m,l); },xpp::settings_bytes_limit);
 }
 
-Result<> load_parameter_file_named(xpp::Session &s, std::string_view fn)
-{
-  const xpp::Model &m=s.model();
-  const Result<std::vector<double>> z=read_parameter_file(m,fn);
-  if(!z)return std::unexpected(z.error());
-  for(int i=0;i<m.nupar;i++)set_val(s,m.upar_names[i],(*z)[static_cast<std::size_t>(i)]);
-  redraw_params();
-  redo_stuff(s);
-  return {};
-}
-
-Result<bool> write_parameter_file(xpp::Session &s, std::string_view fn)
-{
-  const xpp::Model &m=s.model();
-  Result<> opened;
-  xpp::Writer w=open_writer_asking(std::string(fn).c_str(),false,&opened);
-  if(!opened)return std::unexpected<Error>(opened.error());
-  if(!w)return false;
-  FILE *fp=w.file();
-  write_whole(fp,m.nupar,"Number params");
-  for(int i=0;i<m.nupar;i++)write_real(fp,parameter_value(s,i),m.upar_names[i]);
-  time_t ttt=time(0);
-  xpp::print(fp,"\n\nFile:{}\n{}",m.this_file,ctime(&ttt));
-  if(Result<> saved=xpp::commit_save(w);!saved)return std::unexpected<Error>(saved.error());
-  return true;
-}
-
-/* the --icfile / Initialconds/File format: the values alone, one per
-   line, one per differential-equation variable, in the model's order --
-   exactly `node` of them, as XPPAUT's own io_ic_file always read (the
-   Markov chains are not in this file, in XPPAUT or here: docs/manual
-   16-quick-reference.md) */
-Result<> load_ic_file_named(xpp::Session &s, std::string_view fn)
-{
-  const xpp::Model &m=s.model();
-  const Result<std::vector<double>> z=read_ic_file(m,fn);
-  if(!z)return std::unexpected(z.error());
-  set_initial_data(s,*z);
-  return {};
-}
-
-Result<bool> write_ic_file(const xpp::Session &s, std::string_view fn)
-{
-  Result<> opened;
-  xpp::Writer w=open_writer_asking(std::string(fn).c_str(),false,&opened);
-  if(!opened)return std::unexpected<Error>(opened.error());
-  if(!w)return false;
-  for(int i=0;i<s.model().node;i++)w.print("{:.16g}\n",s.last_ic[i]);
-  if(Result<> saved=xpp::commit_save(w);!saved)return std::unexpected<Error>(saved.error());
-  return true;
-}
-
-Result<ValueFileSaved> save_value_file(xpp::Session &s, ValueFile kind, std::string file)
-{
-  const bool parameters=kind==ValueFile::parameters;
-  if(parameters?s.model().nupar<=0:s.model().node<=0){
-    ui.save_result("",false);
-    return fail("save",xpp::format("Nothing to save: the model has no {}",parameters?"parameters":"initial conditions"),command_place());
-  }
-  if(file.empty()){
-    const char *ext=parameters?".par":".ic";
-    file=xpp::files::output_name(s.model().this_file,ext);
-    if(!file_selector(parameters?"Save Parameters":"Save Initial Conditions",file,xpp::format("*{}",ext)))return ValueFileSaved{};
-  }
-  const Result<bool> written=parameters?write_parameter_file(s,file):write_ic_file(s,file);
-  if(!written)return std::unexpected<Error>(written.error());
-  return ValueFileSaved{file,*written};
-}
-
 Result<std::string> load_value_file(xpp::Session &s, ValueFile kind, std::string file)
 {
   const bool parameters=kind==ValueFile::parameters;
@@ -640,8 +622,7 @@ Result<std::string> load_value_file(xpp::Session &s, ValueFile kind, std::string
     file=xpp::files::output_name(s.model().this_file,ext);
     if(!file_selector(parameters?"Load Parameters":"Load Initial Conditions",file,xpp::format("*{}",ext)))return std::string{};
   }
-  xpp::push_value_undo(s);
-  const Result<> loaded=parameters?load_parameter_file_named(s,file):load_ic_file_named(s,file);
+  const Result<> loaded=load_xppaut_values(s,kind,file);
   if(!loaded)return std::unexpected<Error>(loaded.error());
   return file;
 }

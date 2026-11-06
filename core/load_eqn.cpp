@@ -287,16 +287,9 @@ std::string intern_item_problem(xpp::Session &s, const std::string &name1, const
 
 namespace {
 
-/* one name=value of a set: a model name's (a parameter's or a state's) or a
-   setting's, which no model name takes the place of */
-struct SetItem {
-  std::string name,value;
-  bool setting;
-};
-
 /* the scope an item belongs to: parameters, initial (a state) or its
    option's group ("" for a name that is none of them: only `all` takes it) */
-std::string_view item_scope(const xpp::Session &s, const SetItem &item, bool xppaut_names)
+std::string_view item_scope(const xpp::Session &s, const SetItem &item)
 {
   if(!item.setting){
     const ModelValue kind=model_value_of(s.model(),item.name);
@@ -304,27 +297,34 @@ std::string_view item_scope(const xpp::Session &s, const SetItem &item, bool xpp
     if(kind==ModelValue::parameter)return set_scope::parameters;
   }
   int index=0;
-  const OptionRow *row=find_option(xpp::upper_case(item.name),index,xppaut_names);
+  const OptionRow *row=find_option(xpp::upper_case(item.name),index,false);
   return row?row->group:std::string_view();
 }
 
-/* the items of scope, in order */
-std::vector<SetItem> scoped(const xpp::Session &s, std::span<const SetItem> items, std::string_view scope, bool xppaut_names)
+} // namespace
+
+std::vector<SetItem> scoped_items(const xpp::Session &s, std::span<const SetItem> items, std::string_view scope)
 {
   std::vector<SetItem> out;
   for(const SetItem &item : items)
-    if(scope==set_scope::all||item_scope(s,item,xppaut_names)==scope)out.push_back(item);
+    if(scope==set_scope::all||item_scope(s,item)==scope)out.push_back(item);
   return out;
 }
 
+namespace {
+
 /* every item checked before one is applied: the first bad one is the error,
-   at where, and s is as it was */
-xpp::Result<> check_set_items(xpp::Session &s, std::span<const SetItem> items, const xpp::Place &where, bool xppaut_names)
+   at its own line when it has one, else at where, and s is as it was */
+xpp::Result<> check_set_items(xpp::Session &s, std::span<const SetItem> items, const xpp::Place &where, bool xppaut_names, std::string_view command)
 {
   for(const SetItem &item : items){
     const std::string why=item.setting?option_problem(s,item.name,item.value,xppaut_names).value_or(""):
                                        intern_item_problem(s,item.name,item.value,xppaut_names);
-    if(!why.empty())return std::unexpected(xpp::Error{"internal set",xpp::format("{}={}: {}",item.name,item.value,why),where});
+    if(!why.empty()){
+      xpp::Place at=item.at;
+      if(at.line>0&&at.file.empty())at.file=where.file; /* an item of the set's own file names none */
+      return std::unexpected(xpp::Error{std::string(command),xpp::format("{}={}: {}",item.name,item.value,why),at.line>0?at:where});
+    }
   }
   return {};
 }
@@ -477,7 +477,7 @@ int intern_set_index(const xpp::Model &m, std::string_view name)
 xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::Place &where, bool xppaut_names, bool graph_settings)
 {
   const std::vector<SetItem> items=set_items(ptr);
-  if(xpp::Result<> r=check_set_items(s,items,where,xppaut_names);!r)return r;
+  if(xpp::Result<> r=check_set_items(s,items,where,xppaut_names,"internal set");!r)return r;
   if(graph_settings)get_graph(s);
   apply_set_items(s,items);
   return {};
@@ -494,26 +494,32 @@ Result<> do_txt_action(Session &s, std::string_view action)
   return {};
 }
 
-xpp::Result<> apply_named_set(xpp::Session &s, std::string_view name, std::string_view scope, std::optional<int> graph)
+xpp::Result<> apply_values(xpp::Session &s, std::span<const SetItem> items, const xpp::Place &where, std::string_view scope,
+                           std::optional<int> graph, std::string_view command)
 {
-  const xpp::Place at=xpp::command_place();
-  if(const std::string why=set_scope_problem(scope);!why.empty())return std::unexpected(xpp::Error{"apply set",why,at});
-  const int j=intern_set_index(s.model(),name);
-  if(j<0)return std::unexpected(xpp::Error{"apply set",xpp::format("the model has no set {}",name),at});
-  if(xpp::Result<> r=graph_fits_scope(graph,scope,"apply set");!r)return r;
-  const xpp::Result<int> target=target_graph(s,graph,"apply set");
+  if(const std::string why=set_scope_problem(scope);!why.empty())return std::unexpected(xpp::Error{std::string(command),why,xpp::command_place()});
+  if(xpp::Result<> r=graph_fits_scope(graph,scope,command);!r)return r;
+  const xpp::Result<int> target=target_graph(s,graph,command);
   if(!target)return std::unexpected(target.error());
-  const xpp::Model::InternalSet &set=s.model().intern_sets[static_cast<std::size_t>(j)];
-  const std::vector<SetItem> items=scoped(s,set_items(set),scope,false);
-  /* all of it or nothing (W125): a bad item is the error, at the set's line */
-  if(xpp::Result<> r=check_set_items(s,items,set.place,false);!r)return r;
+  const std::vector<SetItem> chosen=scoped_items(s,items,scope);
+  /* all of it or nothing (W125): a bad item is the error, at its line */
+  if(xpp::Result<> r=check_set_items(s,chosen,where,false,command);!r)return r;
   xpp::push_value_undo(s);
   {
     const GraphTarget on(s,*target,scope==set_scope::all||scope==option_group::plot);
-    apply_set_items(s,items);
+    apply_set_items(s,chosen);
     on.store();
   }
   values_changed(s,scope);
+  return {};
+}
+
+xpp::Result<> apply_named_set(xpp::Session &s, std::string_view name, std::string_view scope, std::optional<int> graph)
+{
+  const int j=intern_set_index(s.model(),name);
+  if(j<0)return std::unexpected(xpp::Error{"apply set",xpp::format("the model has no set {}",name),xpp::command_place()});
+  const xpp::Model::InternalSet &set=s.model().intern_sets[static_cast<std::size_t>(j)];
+  if(xpp::Result<> r=apply_values(s,set_items(set),set.place,scope,graph,"apply set");!r)return r;
   s.this_internset="_"+set.name;
   return {};
 }
@@ -625,7 +631,7 @@ xpp::Result<> check_intern_sets(xpp::Session &s)
   /* an .ode's sets are XPPAUT's flat ones, which only the converter reads */
   if(!xpp::odex::is_odex(s.model().this_file))return {};
   for(const xpp::Model::InternalSet &set : s.model().intern_sets)
-    if(xpp::Result<> r=check_set_items(s,set_items(set),set.place,false);!r)return r;
+    if(xpp::Result<> r=check_set_items(s,set_items(set),set.place,false,"internal set");!r)return r;
   return {};
 }
 

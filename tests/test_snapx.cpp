@@ -337,10 +337,10 @@ void check_plot_limits(const xpp::TempDir &tmp)
     CHECK(!rejected && rejected.error().place.line == 2 && rejected.error().place.file == "limits.snapx/windows.setx");
     CHECK(graph.yv == old_y && graph.nvars == curves && s.plot_windows.current->nvars == curves);
     /* .setx uses the same curve reader, independently of the archive. */
-    const auto settings=xpp::setx_text(s,xpp::capture_settings(s,xpp::SettingsUse::file));
+    const auto settings=xpp::setx_text(s,xpp::capture_settings(s,xpp::SettingsUse::session));
     CHECK(settings.has_value());
     if(settings){
-        const auto read=xpp::read_settings(s,"limits.setx",*settings,xpp::SettingsUse::file);
+        const auto read=xpp::read_settings(s,"limits.setx",*settings);
         CHECK(read && read->graph.nvars==curves && read->graph.yv.back()==curves);
     }
     CHECK(write_file(tmp.file("limits.snapx"),*bytes));

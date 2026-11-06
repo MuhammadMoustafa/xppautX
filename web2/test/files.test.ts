@@ -49,9 +49,9 @@ test('an upload is copied, skipped or confirmed against the folder', () => {
 const fileAsk = (mode: 'read' | 'write'): AskEvent => ({ev: 'ask', id: 7, kind: 'file', title: 'Import XPPAUT set', mode});
 
 test('the run record: the command, the menu it ran in, and its answers', () => {
-  let s = onSent(initialFiles, HELLO, {cmd:'session.import_settings',file:'x.set'}, null);
-  assert.deepEqual(s.run, {cmd: {cmd:'session.import_settings',file:'x.set'}, answers: []});
-  s = onSent(s, HELLO, {cmd:'session.import_settings',file:'x.set'}, null); /* the core has not said menu 1 yet */
+  let s = onSent(initialFiles, HELLO, {cmd:'session.import_xppaut_state',file:'x.set'}, null);
+  assert.deepEqual(s.run, {cmd: {cmd:'session.import_xppaut_state',file:'x.set'}, answers: []});
+  s = onSent(s, HELLO, {cmd:'session.import_xppaut_state',file:'x.set'}, null); /* the core has not said menu 1 yet */
   s = onSent(s, HELLO, {cmd: 'answer', id: 7, file: 'x.set'}, fileAsk('read'));
   assert.deepEqual(s.run!.answers, [{kind: 'file', mode: 'read', fields: {file: 'x.set'}}]);
   assert.equal(onSent(s, HELLO, {cmd: 'session.get_state'}, null), s, 'a query is no command of the user');
@@ -60,7 +60,7 @@ test('the run record: the command, the menu it ran in, and its answers', () => {
 });
 
 test('an error about a file the command could not read gets "Add file…"', () => {
-  let s = reduce(READY, {type: 'sent', cmd: {cmd:'session.import_settings',file:'x.set'}});
+  let s = reduce(READY, {type: 'sent', cmd: {cmd:'session.import_xppaut_state',file:'x.set'}});
   s = reduce(s, {type: 'event', ev: fileAsk('read')});
   s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 7, file: 'gone.set'}});
   s = reduce(s, {type: 'event', ev: {ev: 'session.message', error: 'Cannot open file'}});

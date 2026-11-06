@@ -1,4 +1,4 @@
-/* A settings file (.setx) read, written and applied: see setx_file.h.
+/* A session's settings (.setx) read, written and applied: see setx_file.h.
    Every group of it is described once, by `describe`, which is given a
    writer (Put) or a reader (Take) and says "this key, this member"; the
    same description writes and reads, so a key is never named twice. */
@@ -606,12 +606,10 @@ Result<std::string> setx_text(const Session &s, const Settings &f)
     return out.result("settings");
 }
 
-Result<Settings> read_settings(Session &s, std::string file, std::string_view text, SettingsUse use)
+Result<Settings> read_settings(Session &s, std::string file, std::string_view text)
 {
-    const bool session = use == SettingsUse::session;
-    return setx::read_block(session ? "session" : "settings file", std::move(file), text, session, [&](setx::Block &block) {
-        if (!session) block.require_version("settings files");
-        Settings f = capture_settings(s, use);
+    return setx::read_block("session", std::move(file), text, true, [&](setx::Block &block) {
+        Settings f = capture_settings(s, SettingsUse::session);
         Take io(block, &s);
         describe(io, f, names_of(s));
         return f;

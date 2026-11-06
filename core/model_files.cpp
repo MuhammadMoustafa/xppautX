@@ -37,9 +37,13 @@ Result<> approve_model_path(Model &m, const std::string &name, const Place &at)
     /* The approval owner is the absolute native-model path, including
        the .odex a foreign .ode becomes. */
     const std::string model = files::absolute(files::has_extension(m.this_file, ".ode") ? odex::odex_name(m.this_file) : m.this_file);
-    const Result<bool> remembered = prefs::outside_path_approved(model, found.path);
-    if (!remembered) return std::unexpected(remembered.error());
-    if (!*remembered) {
+    bool remembered = false;
+    if (!m.outside_once_only) {
+        const Result<bool> kept = prefs::outside_path_approved(model, found.path);
+        if (!kept) return std::unexpected(kept.error());
+        remembered = *kept;
+    }
+    if (!remembered) {
         const std::string source = at.source.empty() && at.line > 0 ? model_source_line(m, at.file, at.line) : at.source;
         const std::string who = at.line > 0 ? xpp::format("line {} of {}", at.line, at.file) : std::string("the command line");
         const std::string question =
@@ -47,7 +51,9 @@ Result<> approve_model_path(Model &m, const std::string &name, const Place &at)
                         name == found.path ? std::string() : xpp::format(" ({})", found.path), model,
                         source.empty() ? std::string() : xpp::format(" [{}]", source));
         const std::array<std::string, 3> choices{"Allow always", "Allow once", "Refuse"};
-        const int key = Choose("Path outside the model's folder", question, choices, OUTSIDE_PATH_KEYS, OUTSIDE_PATH_ONCE);
+        const std::array<std::string, 2> once_choices{"Allow once", "Refuse"};
+        const int key = m.outside_once_only ? Choose("Path outside the model's folder", question, once_choices, OUTSIDE_PATH_KEYS_ONCE_ONLY, OUTSIDE_PATH_ONCE)
+                                            : Choose("Path outside the model's folder", question, choices, OUTSIDE_PATH_KEYS, OUTSIDE_PATH_ONCE);
         if (key != OUTSIDE_PATH_ONCE && key != OUTSIDE_PATH_ALWAYS)
             return fail(std::string(PATH_REFUSED), xpp::format("names {}, outside the model's folder: refused", found.path), place);
         if (key == OUTSIDE_PATH_ALWAYS) {
@@ -72,7 +78,7 @@ long file_index(const Model &m, const std::string &name)
    copy. Reads and later validated picks share this archive budget. */
 std::size_t remaining_file_bytes(const Model &m, const std::string &name)
 {
-    std::size_t available = zip::archive_bytes_limit;
+    std::size_t available = m.files_bytes_limit;
     for (const auto &file : m.files) {
         if (file.name == name) continue;
         if (file.bytes.size() > available) return 0;
@@ -280,6 +286,19 @@ std::string model_title(const Model &m)
 {
     if (m.saved_in.empty()) return m.this_file;
     return m.this_file + " (saved in " + xpp::files::split_path(m.saved_in).second + ")";
+}
+
+std::unique_ptr<Model> scratch_model(const Model &m)
+{
+    std::unique_ptr<Model> scratch = std::make_unique<Model>();
+    scratch->this_file = m.this_file;
+    scratch->outside_paths = m.outside_paths;
+    scratch->load_dir = m.load_dir;
+    if (!m.saved_in.empty()) { /* its files are the session's copies, never the disk's */
+        scratch->saved_in = m.saved_in;
+        scratch->files = m.files;
+    }
+    return scratch;
 }
 
 } // namespace xpp

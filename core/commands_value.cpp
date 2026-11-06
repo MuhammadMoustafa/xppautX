@@ -1,5 +1,5 @@
 /* The value resource's registry rows (W526): the parameters, the sliders that move them, the undo and redo of
-   value edits, and the .par and .ic files of values. They are settings: sent during a computation they apply when
+   value edits, and the Load of XPPAUT's .par and .ic files. They are settings: sent during a computation they apply when
    it ends, never to the run in progress. A handler calls the same core function the main menu's keys do (the
    Parameters form, Undo and Redo): one behaviour, whichever front end asks. */
 #include "command_def.h"
@@ -120,15 +120,6 @@ ValueFile value_file_of(const Arguments &args)
     return args.get<std::string>(KIND_KEY) == value_file_names[0] ? ValueFile::parameters : ValueFile::initial_conditions;
 }
 
-Result<std::string> save_file(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    const Result<ValueFileSaved> saved = save_value_file(s, value_file_of(args), args.optional<std::string>(FILE_KEY).value_or(std::string{}));
-    if (!saved) return std::unexpected<Error>(saved.error());
-    if (!saved->file.empty() && !saved->written)
-        return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", saved->file), place);
-    return ResultObject().text(FILE_KEY, saved->file).text(KIND_KEY, args.get<std::string>(KIND_KEY)).done();
-}
-
 Result<std::string> load_file(Session &s, const Command &, const Arguments &args, const Place &)
 {
     const Result<std::string> read = load_value_file(s, value_file_of(args), args.optional<std::string>(FILE_KEY).value_or(std::string{}));
@@ -187,11 +178,8 @@ constexpr std::array ROWS = {
             SLIDER_RESULTS, STATE_EVENTS, true, configure_slider},
     Command{"value.remove_slider", REMOVE_SLIDER_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Data/Values/Remove slider",
             "Empty a slider's slot.", REMOVE_SLIDER_RESULTS, STATE_EVENTS, true, remove_slider},
-    Command{"value.save_file", FILE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "File/Values/Save file",
-            "Write the parameters (.par) or the initial conditions (.ic) as XPP's own file into the model's folder; with no file, ask for one (the result's file is empty when that question was cancelled).",
-            FILE_RESULTS, STATE_EVENTS, true, save_file, {}, {}, "write", "*"},
     Command{"value.load_file", FILE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "File/Values/Load file",
-            "Read the parameters (.par) or the initial conditions (.ic) from XPP's own file of the model's folder, all or nothing; with no file, ask for one (the result's file is empty when that question was cancelled).",
+            "Import the parameters (.par) or the initial conditions (.ic) from a file XPPAUT wrote, in the model's folder, all or nothing; with no file, ask for one (the result's file is empty when that question was cancelled). Nothing of ours writes these files.",
             FILE_RESULTS, STATE_EVENTS, true, load_file}};
 
 } // namespace

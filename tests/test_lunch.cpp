@@ -1,7 +1,7 @@
-/* The settings file (.setx, setx_file.h) and XPPAUT's set file, the import
+/* The settings file (.setx, setx_file.h, the session's model.setx) and XPPAUT's set file, the import
    (lunch-new.h). XPPAUT's own examples/ode/lecar.ode.set is imported (File >
-   Import settings, --setfile): converted to a .setx beside it, which is read
-   and applied, and the session then holds every value the set file named.
+   Import XPPAUT session state, --setfile): read and applied whole, nothing written
+   beside it, and the session then holds every value the set file named.
    The settings written again, read, applied and written once more give the
    same file. A file with a value that is wrong, a key that is not one of the
    model's or a group written twice is refused at its line and column and
@@ -48,7 +48,7 @@ void put(const char *path, const std::string &text)
 /* the settings of the session now, as a .setx's text */
 std::string snapshot(const xpp::Session &s)
 {
-    const xpp::Result<std::string> t = xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::file));
+    const xpp::Result<std::string> t = xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
     CHECK(t.has_value());
     return t ? *t : std::string();
 }
@@ -61,23 +61,41 @@ std::string with_line(const std::string &text, int n, const std::string &line)
     return text.substr(0, at) + line + text.substr(text.find('\n', at));
 }
 
-/* the number (from 1) of the first line of text that contains what */
-int line_with(const std::string &text, const std::string &what)
+/* the number (from 1) of the first line of text, after line `after`, that contains what */
+int line_with(const std::string &text, const std::string &what, int after = 0)
 {
     int n = 0;
     for (const std::string_view line : xpp::split_lines(text)) {
         n++;
-        if (line.find(what) != std::string_view::npos) return n;
+        if (n > after && line.find(what) != std::string_view::npos) return n;
     }
     return 0;
+}
+
+/* the settings file at path read and applied (a session file's model.setx is read the same way) */
+xpp::Result<> apply_setx(xpp::Session &s, const char *path)
+{
+    const std::string text = bytes_of(path);
+    const xpp::Result<xpp::Settings> f = xpp::read_settings(s, path, text);
+    if (!f) return std::unexpected(f.error());
+    xpp::apply_settings(s, *f, false);
+    return {};
 }
 
 /* the error of path (text put there) as a settings file, "" when it loads */
 std::string setx_error(xpp::Session &s, const char *path, const std::string &text)
 {
     put(path, text);
-    const xpp::Result<> r = xpp::import_settings(s, path, false);
+    const xpp::Result<> r = apply_setx(s, path);
     return r ? std::string() : r.error().text(); /* "path:line:col: what" */
+}
+
+/* the same for XPPAUT's set file imported */
+std::string set_error(xpp::Session &s, const char *path, const std::string &text)
+{
+    put(path, text);
+    const auto r = xpp::import_xppaut_state(s, path, false);
+    return r ? std::string() : r.error().text();
 }
 
 } // namespace
@@ -97,16 +115,17 @@ int main(void)
     init_browser(s);
     init_all_graph(s);
 
-    /* XPPAUT's set file imported: a .setx beside it, applied (the 2013 file counts the model's 4 equations and auxiliaries,
-       the model now has 6) */
+    /* XPPAUT's set file imported whole, nothing written beside it (the 2013 file counts the model's 4 equations and
+       auxiliaries, the model now has 6) */
     std::string set = bytes_of("examples/ode/lecar.ode.set");
     set.replace(set.find("4   Number of equations"), 1, "6");
     put(xs, set);
     remove(xsx);
-    const xpp::Result<> imported = xpp::import_settings(s, xs, false);
+    const auto imported = xpp::import_xppaut_state(s, xs, false);
     CHECK(imported.has_value());
     if (!imported) printf("  %s\n", imported.error().text().c_str());
-    CHECK(xpp::files::exists(xsx));
+    CHECK(!xpp::files::exists(xsx));
+    CHECK(imported && !imported->empty()); /* it names what it changed */
     CHECK(s.numerics.total_time == 500 && s.numerics.delta_t == 0.05 && s.numerics.store_from == 200);
     CHECK(s.numerics.method == xpp::method::RK4);
     CHECK(s.data_store.current_time == 8.549999999999986);
@@ -121,14 +140,14 @@ int main(void)
     /* W347: XPPAUT's negative Total remains a finite absolute duration. */
     put(xs,with_line(set,line_with(set,"  total"),"-500  total"));
     remove(xsx);
-    CHECK(xpp::import_settings(s,xs,false).has_value());
+    CHECK(xpp::import_xppaut_state(s,xs,false).has_value());
     CHECK(s.numerics.total_time==500);
 
     /* the .setx written again, read, applied and written once more: the same */
     const std::string first = snapshot(s);
     CHECK(first.size() > 500);
     put(own, first);
-    CHECK(xpp::import_settings(s, own, false).has_value());
+    CHECK(apply_setx(s, own).has_value());
     CHECK(snapshot(s) == first);
     /* every part the file names is there, by name */
     CHECK(first.find("  total_time: 500,\n") != std::string::npos && first.find("  jacobian: difference,\n") != std::string::npos);
@@ -143,49 +162,43 @@ int main(void)
     }
 
     /* Saved dimensions and numerics are refused with their member's place. */
+    const auto session_text = xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
+    CHECK(session_text);
     for (const char *group : {"array_plot", "transpose"}) {
         for (const char *key : {"columns", "rows"}) {
-            const std::string text = xpp::format("version: {},\n{}: {{\n  {}: {},\n}}\n", xpp::format_version, group, key, xpp::settings_dimension_limit + 1);
-            const auto r = xpp::read_settings(s, "sent.setx", text, xpp::SettingsUse::file);
+            if (!session_text) break;
+            const int in_group = line_with(*session_text, xpp::format("{}: {{", group));
+            const int line = line_with(*session_text, xpp::format("  {}:", key), in_group);
+            CHECK(in_group > 0 && line > in_group);
+            const auto r = xpp::read_settings(s, "sent.setx", with_line(*session_text, line, xpp::format("  {}: {},", key, xpp::settings_dimension_limit + 1)));
             CHECK(!r);
             if (!r) {
-                CHECK(r.error().place.file == "sent.setx" && r.error().place.line == 3);
+                CHECK(r.error().place.file == "sent.setx" && r.error().place.line == line);
                 CHECK(r.error().what.find("4097") != std::string::npos);
             }
         }
     }
-    const auto session_text = xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
-    CHECK(session_text);
     if (session_text) {
         const int line = line_with(*session_text, "nullcline_mesh:");
         const auto mesh = xpp::read_settings(s, "session.snapx/model.setx",
-            with_line(*session_text, line, "  nullcline_mesh: 4097,"), xpp::SettingsUse::session);
+            with_line(*session_text, line, "  nullcline_mesh: 4097,"));
         CHECK(!mesh);
         if (!mesh) CHECK(mesh.error().place.file == "session.snapx/model.setx" && mesh.error().place.line == line);
     }
     const int mesh_line = line_with(set, "nullcline mesh");
     const std::string bad_mesh = with_line(set, mesh_line, "4097 nullcline mesh");
     put(xs, bad_mesh);
-    const auto imported_mesh = xpp::import_settings(s, xs, false);
+    const auto imported_mesh = xpp::import_xppaut_state(s, xs, false);
     CHECK(!imported_mesh);
     if (!imported_mesh) CHECK(imported_mesh.error().place.file == xs && imported_mesh.error().place.line == mesh_line);
     for (const char *label : {"n columns", "n rows", "NCols", "NRows"}) {
         const int line = line_with(set, label);
         put(xs, with_line(set, line, xpp::format("{} {}", xpp::settings_dimension_limit + 1, label)));
-        const auto r = xpp::import_settings(s, xs, false);
+        const auto r = xpp::import_xppaut_state(s, xs, false);
         CHECK(!r);
         if (!r) CHECK(r.error().place.file == xs && r.error().place.line == line);
     }
     put(xs, set);
-
-    /* a file that names little sets only that */
-    s.numerics.total_time = 7;
-    xpp::set_val(s, "gca", 3);
-    CHECK(setx_error(s, own, "version: 4,\nparameters: { iapp: 0.5 },\n").empty());
-    xpp::get_val(s, "iapp", &x);
-    CHECK(x == 0.5 && s.numerics.total_time == 7);
-    xpp::get_val(s, "gca", &x);
-    CHECK(x == 3);
 
     /* all or nothing: the session changed, then a file with a bad value last
        is refused at that line, the session as it was, value for value */
@@ -216,29 +229,22 @@ int main(void)
     }
     CHECK(setx_error(s, own, first + "numerics: {},\n").find("`numerics` is given twice") != std::string::npos);
     CHECK(setx_error(s, own, first + "nosuch: {},\n").find("`nosuch` is not a setting") != std::string::npos);
-    CHECK(setx_error(s, own, "version: 4,\ntotal_time: 5,\n").find("`total_time` is not a setting") != std::string::npos); /* outside its group */
+    CHECK(!setx_error(s, own, "total_time: 5,\n").empty()); /* outside its group */
     CHECK(setx_error(s, own, "numerics: { total_time: 5 \n").find("expected") != std::string::npos);
     CHECK(snapshot(s) == before);
 
     /* XPPAUT's set file: cut short, a value that is no number, a name that
        is not the model's: refused at its line, nothing applied */
     const std::string cut = set.substr(0, set.find("# Delays"));
-    const std::string short_error = setx_error(s, xs, cut);
+    const std::string short_error = set_error(s, xs, cut);
     CHECK(short_error.starts_with(std::string(xs) + ":") && short_error.find("the file ends here") != std::string::npos);
-    const std::string bad_total = setx_error(s, xs, with_line(set, 8, "x  total"));
+    const std::string bad_total = set_error(s, xs, with_line(set, 8, "x  total"));
     CHECK(bad_total.starts_with(std::string(xs) + ":8:") && bad_total.find("is not a number") != std::string::npos);
-    const std::string wrong_name = setx_error(s, xs, with_line(set, 5, "40  another_model_name"));
+    const std::string wrong_name = set_error(s, xs, with_line(set, 5, "40  another_model_name"));
     CHECK(wrong_name.starts_with(std::string(xs) + ":5:") && wrong_name.find("another_model_name") != std::string::npos);
-    const std::string no_trailer = setx_error(s, xs, set.substr(0, set.find("RHS etc")));
+    const std::string no_trailer = set_error(s, xs, set.substr(0, set.find("RHS etc")));
     CHECK(no_trailer.find("the file ends here") != std::string::npos);
     CHECK(snapshot(s) == before);
-
-    /* a .setx beside the set file that differs is replaced when the question is answered yes */
-    put(xsx, "numerics: {},\n");
-    put(xs, set);
-    xpp::batch_options.yes = true; /* the test loads as --silent does: the question is answered by --yes */
-    CHECK(xpp::import_settings(s, xs, false).has_value());
-    CHECK(bytes_of(xsx).find("total_time: 500") != std::string::npos);
 
     /* a parameter file and an initial-conditions file: read whole as well */
     const xpp::Model &m = s.model();
@@ -250,15 +256,11 @@ int main(void)
     const xpp::Result<std::vector<double>> pr = xpp::read_parameter_file(m, par);
     CHECK(!pr && pr.error().text() == xpp::format("{}:{}: \"x  {}\" is not a number ({})", par, m.nupar + 1,
                                                   m.upar_names[m.nupar - 1], m.upar_names[m.nupar - 1]));
-    CHECK(!xpp::load_parameter_file_named(s, par));
+    CHECK(!xpp::load_xppaut_values(s, xpp::ValueFile::parameters, par));
     CHECK(snapshot(s) == kept);
-    /* its trailer: as write_parameter_file writes it, then the end */
-    remove(par); /* written afresh, no question asked */
-    CHECK(xpp::write_parameter_file(s, par).value_or(false));
-    CHECK(xpp::read_parameter_file(m, par).has_value());
-    std::string written = bytes_of(par);
-    std::erase(written, '\r'); /* a text file: CRLF on Windows */
-    const std::string values = written.substr(0, written.find("\n\nFile:"));
+    /* its trailer, as XPPAUT's file ends: the file, then the time it was written, then the end */
+    std::string values = xpp::format("{}   Number params\n", m.nupar);
+    for (int i = 0; i < m.nupar; i++) values += xpp::format("1  {}\n", m.upar_names[i]);
     put(par, values + "\n\nFile:lecar.odex\nWed Jun  3 21:49:08 1993\n");
     CHECK(xpp::read_parameter_file(m, par).has_value());
     put(par, values + "\n\nFile:lecar.odex\nyesterday\n");
@@ -272,7 +274,7 @@ int main(void)
     put(ic, ic_text);
     const xpp::Result<std::vector<double>> ir = xpp::read_ic_file(m, ic);
     CHECK(!ir && ir.error().place.file == ic && ir.error().place.line == m.node && ir.error().place.source == "nan?");
-    xpp::ok_or_show(xpp::load_ic_file_named(s, ic));
+    xpp::ok_or_show(xpp::load_xppaut_values(s, xpp::ValueFile::initial_conditions, ic));
     CHECK(snapshot(s) == kept);
     put(ic, "0.5\n");
     const xpp::Result<std::vector<double>> short_ic = xpp::read_ic_file(m, ic);

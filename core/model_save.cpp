@@ -51,21 +51,6 @@ Result<const ModelFile *> own_file(const Session &s)
     return &m.files.front();
 }
 
-/* a Model of its own to parse the text in: the folder, the paths the user
-   allowed and (for a saved model) the files are the live model's, so an import is read as the load read it */
-std::unique_ptr<Model> scratch_model(const Model &m)
-{
-    std::unique_ptr<Model> scratch = std::make_unique<Model>();
-    scratch->this_file = m.this_file;
-    scratch->outside_paths = m.outside_paths;
-    scratch->load_dir = m.load_dir;
-    if (!m.saved_in.empty()) { /* its files are the session's copies, never the disk's */
-        scratch->saved_in = m.saved_in;
-        scratch->files = m.files;
-    }
-    return scratch;
-}
-
 /* a place of the model file moved to where its line went */
 void remap(Place &place, const std::string &file, const odex::LineMap &lines)
 {

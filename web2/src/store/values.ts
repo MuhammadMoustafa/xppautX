@@ -11,12 +11,11 @@
    them a `message` `error` belongs to (the one whose command runs, so it
    is shown on that field, not as a modal, A11/A14), the model's defaults
    and the sliders under the plot (store/sliders.ts).
-   Save and Load of a section's .par/.ic go through the core (W66, then
-   the W66 review): both are the `values` command (session.ts
-   saveValues/loadValues), Save's write delivered like any other file the
-   core writes (session.ts's `pendingSave`), Load's read applying at
-   once, like File/Import settings -- not staged here as a pending edit, since
-   the page no longer parses the file itself. No undo (GitHub #110):
+   Load of a section's XPPAUT .par/.ic goes through the core (W66, then
+   the W66 review, an import since W321: nothing of ours writes these
+   files): the `value.load_file` command (session.ts loadValues), applying at
+   once, like File/Import XPPAUT session state -- not staged here as a pending
+   edit, since the page no longer parses the file itself. No undo (GitHub #110):
    Reset (one field, or every field of a section) is the way back,
    through the model's own values. Pure: no DOM, no I/O. */
 import type {Command, HelloEvent} from '../protocol/types';

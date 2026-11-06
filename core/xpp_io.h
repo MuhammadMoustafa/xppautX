@@ -714,16 +714,27 @@ auto read_lines(std::string where, std::string file, std::string_view text, F &&
     }
 }
 
+/* the bytes of the file at path, read whole; the error when it cannot be read, or is longer than limit
+   (its place the file, no line): a file a user may have been sent is read within a bound */
+inline Result<std::string> read_file_bytes(std::string where, std::string_view path, std::size_t limit = std::numeric_limits<std::size_t>::max())
+{
+    UniqueFile f = open_read_binary(path);
+    if (!f) return std::unexpected(files::open_error(std::move(where), path));
+    std::string bytes;
+    if (read_bytes(f.get(), bytes, limit)) return bytes;
+    /* read_bytes stops without an error of the stream when the file is longer than the bound */
+    return std::unexpected(files::open_error(std::move(where), path, std::ferror(f.get()) ? "cannot be read" : xpp::format("is longer than {} bytes", limit)));
+}
+
 /* the same over the file at path, read whole; the error when it cannot
    be read (its place the file, no line) */
 template <class F>
 auto read_file_lines(std::string where, std::string_view path, F &&parse, std::size_t limit = std::numeric_limits<std::size_t>::max())
     -> Result<std::invoke_result_t<F &, Lines &>>
 {
-    std::string bytes;
-    if (!read_bytes(path, bytes, limit))
-        return std::unexpected(files::open_error(std::move(where), path));
-    return read_lines(std::move(where), std::string(path), bytes, parse);
+    Result<std::string> bytes = read_file_bytes(where, path, limit);
+    if (!bytes) return std::unexpected(bytes.error());
+    return read_lines(std::move(where), std::string(path), *bytes, parse);
 }
 
 } // namespace xpp

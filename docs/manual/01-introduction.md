@@ -196,7 +196,7 @@ ordinary files: renamed to `.zip`, its `model/` folder holds the model's
 files, its `model.setx` holds the values and numerics (the settings syntax of a model's `options` block) and its
 `data.npz` reads in NumPy (`numpy.load`). XPPAUT's `.set` file is no longer a
 file xppautX saves: the session holds what it held, and
-File/Import settings applies a settings file (`.setx`), or checks the names in a `.set` XPPAUT wrote and converts it to a `.setx` beside it, which is then applied. autoX's File > Save diagram and Load diagram save and open the session too.
+File/Import XPPAUT session state applies a `.set` XPPAUT wrote, whole and all or nothing; values from our own files (an `.odex` and its sets) or from XPPAUT's `.par`, `.ic` and `.set` come in by scope with Load values from file. autoX's File > Save diagram and Load diagram save and open the session too.
 Import diagram reads a foreign XPPAUT `.auto` into the model open.
 
 The recording player offers speeds from 0.25× to 8×. These bounds come from
@@ -347,7 +347,7 @@ for the rename command. See the [protocol reference](../protocol.md#typed-comman
 The File menu's operations are registry commands too, so a script can do
 everything the menu does: `session.open_model`, `session.reload_model`,
 `session.open`, `session.save`, `session.save_as`, `session.save_copy`,
-`session.import_settings`, `session.export_info`, `session.get_source` and
+`session.import_xppaut_state`, `session.export_info`, `session.get_source` and
 `session.quit` (for example `session.save_as --file mysession`, or
 `session.quit --save false` to leave at once); `recording.start`,
 `recording.stop` and the player's `recording.open`, `recording.play`,

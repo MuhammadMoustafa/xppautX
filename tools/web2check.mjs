@@ -35,7 +35,7 @@
    frame pacing and series appends per second (W82), printed as perf:
    lines, never pass/fail (W58: performance is for CI, not the program).
    Files (T5): Save session lands in the model's folder and is downloaded,
-   Import settings by upload restores the parameters, a same-content upload is not
+   Import XPPAUT session state by upload restores the parameters, a same-content upload is not
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
    file…" adds a file the core could not open and runs the command again.
    Animation (T13): tools/gui_test.ani loaded by upload, its frames in the
@@ -2520,14 +2520,14 @@ async function busyKeys() {
       continue: document.querySelector('[data-run=continue]').getAttribute('aria-disabled'),
       toolbarStop: document.querySelector('[data-run=stop]').disabled,
       newWindow: tool('New window').disabled,
-      save: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').disabled,
+      load: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Load').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
       viewItems: ['window.fit','window.redraw','plot.set_2d'].every(id => !item(id).disabled),
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
-    + 'and data (Initialconds, Sing pts...) and Save are disabled, Parameters (a setting, W106) is not',
-    running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.toolbarStop && ui.save
+    + 'and data (Initialconds, Sing pts...) are disabled, Parameters and Load (settings, W106) are not',
+    running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.toolbarStop && !ui.load
     && ['run.initial', 'equilibrium.find', 'bvp.solve', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
@@ -3263,26 +3263,23 @@ async function runsCheck(dir) {
   await cdp.eval(`${reset}.click()`);
   check('runs: reset restores the model value', await until('!s.busy && s.core.pars.find(p => p[0] === "phi")[1] === 0.333', 'reset'));
 
-  /* Save, then Load a changed copy (W66 review, #114): both go through
-     the core (docs/protocol.md "values"). Save writes into the model's
-     folder, the same `pendingSave`/`deliver` path as Save session (T5,
-     above) offers it as a download; Load uploads the picked file with
-     the files API (session.ts loadValues, the same PUT any other upload
-     uses) and sends `values` `read` -- applied at once, like File/Import settings
-     so no Go is needed. */
+  /* Load of XPPAUT's .par/.ic (W66 review, #114; an import since W321, nothing of ours writes these files): it goes
+     through the core (docs/protocol.md "values"): the picked file is uploaded with the files API (session.ts
+     loadValues, the same PUT any other upload uses) and the core reads it with `value.load_file` -- applied at
+     once, so no Go is needed. */
   /* W95 (#143): a click while the page is busy with a command of its own (a redraw here, as its
-     catch-up after an idle is) goes out and runs in its turn: Save is sent right behind it */
+     catch-up after an idle is) goes out and runs in its turn: Reset all is sent right behind it */
   const sentSave = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`(() => { __xpp.send({cmd: 'window.redraw'});
-    [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').click(); })()`);
+    [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Reset all').click(); })()`);
   const behind = await cdp.eval(`__xpp.sentFrom(${sentSave}).map(c => c.cmd + (c.op ? ' ' + c.op : ''))`);
-  check('W95: a click right behind a command the page sent itself is not lost (Save behind a redraw goes out)',
-    JSON.stringify(behind) === JSON.stringify(['window.redraw', 'value.save_file']), JSON.stringify(behind));
-  await until("s.files.offered && s.files.offered.name.endsWith('.par') && !s.busy", 'par saved');
-  const parName = await S('s.files.offered.name');
-  const saved = fs.readFileSync(path.join(dir, parName), 'utf8').replace(/\r\n/g, '\n');
-  check('runs: Save writes XPP\'s parameter file', /^\d+   Number params\n/.test(saved) && /\n0\.05  iapp\n/.test(saved),
-    saved.slice(0, 80));
+  check('W95: a click right behind a command the page sent itself is not lost (Reset all behind a redraw goes out)',
+    JSON.stringify(behind) === JSON.stringify(['window.redraw', 'set.restore_defaults']), JSON.stringify(behind));
+  await until('!s.busy', 'defaults restored');
+  /* the .par XPPAUT would have written for the model's parameters */
+  const pars = await S('s.core.pars');
+  const saved = `${pars.length}   Number params\n` + pars.map(([name, value]) => `${value}  ${name}\n`).join('')
+    + '\n\nFile:model.odex\nWed Jun 30 21:49:08 1993\n';
   const parFile = path.join(dir, 'changed.par');
   fs.writeFileSync(parFile, saved.replace('\n0.05  iapp\n', '\n0.075  iapp\n'));
   await pickFiles('#values-load-par', [parFile]);
@@ -3292,12 +3289,6 @@ async function runsCheck(dir) {
   check('runs: the loaded file was copied into the model\'s folder',
     fs.existsSync(path.join(dir, 'changed.par')), '');
 
-  await cdp.eval(`[...document.querySelectorAll('[data-section="ic"] .value-tools button')].find(b => b.textContent === 'Save').click()`);
-  await until("s.files.offered && s.files.offered.name.endsWith('.ic') && !s.busy", 'ic saved');
-  const icName = await S('s.files.offered.name');
-  const icText = fs.readFileSync(path.join(dir, icName), 'utf8').replace(/\r\n/g, '\n');
-  check('runs: IC Save is the values alone, one per node variable (V, W: 2 lines)',
-    icText.trim().split('\n').length === 2, icText);
   const icFile = path.join(dir, 'changed.ic');
   fs.writeFileSync(icFile, '-0.25\n0.1\n');
   await pickFiles('#values-load-ic', [icFile]);
@@ -4106,12 +4097,12 @@ async function files(dir) {
     check('the model\'s iapp is not the set\'s', Math.abs(iapp0 - setIapp) > 1e-3, String(iapp0));
     fs.writeFileSync(path.join(up, 't5up.set'), setBytes);
 
-    /* File/Import settings by upload brings in its parameters */
+    /* File/Import XPPAUT session state by upload brings in its parameters */
     check('a new parameter value', await setPar('iapp', 0.2));
-    check('File/Import settings opens an open dialog (the ask says it reads)', await registryFile('session.import_settings', 'read'),
+    check('File/Import XPPAUT session state opens an open dialog (the ask says it reads)', await registryFile('session.import_xppaut_state', 'read'),
       JSON.stringify(await S('s.ask')));
     await pickFiles('[data-file-input=open]', [path.join(up, 't5up.set')]);
-    check('Import settings by upload brings in the parameters (the next state has the file\'s values)',
+    check('Import XPPAUT session state by upload brings in the parameters (the next state has the file\'s values)',
       await until(`!s.ask && !s.busy && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - ${setIapp}) < 1e-12`, 'import set'),
       String(await par('iapp')));
     const copied = fs.existsSync(path.join(dir, 't5up.set')) && fs.readFileSync(path.join(dir, 't5up.set'));
@@ -4121,7 +4112,7 @@ async function files(dir) {
 
     /* the same content again: not copied, still answered */
     await setPar('iapp', 0.2);
-    await registryFile('session.import_settings', 'read');
+    await registryFile('session.import_xppaut_state', 'read');
     await pickFiles('[data-file-input=open]', [path.join(up, 't5up.set')]);
     check('a file already there with the same content is not copied again',
       await until(`!s.ask && !s.busy && s.files.uploads.length === 1 && s.files.uploads[0].copied === false`, 'same')
@@ -4132,7 +4123,7 @@ async function files(dir) {
     const other = path.join(up, 'other', 't5up.set');
     fs.writeFileSync(other, setBytes.toString().replace('0.09  iapp', '0.123  iapp'));
     await setPar('iapp', 0.3);
-    await registryFile('session.import_settings', 'read');
+    await registryFile('session.import_xppaut_state', 'read');
     await pickFiles('[data-file-input=open]', [other]);
     check('a same-name upload with other content asks: Replace, Keep both, Cancel',
       await until(`s.files.confirm && s.files.confirm.name === 't5up.set' && s.files.confirm.keepBoth === 't5up-2.set'
@@ -4153,7 +4144,7 @@ async function files(dir) {
 
     /* a file the core cannot open: "Add file…" copies it under that name and runs the command again */
     await setPar('iapp', 0.4);
-    await registryFile('session.import_settings', 'read');
+    await registryFile('session.import_xppaut_state', 'read');
     /* the core answers with a name the folder does not have (the page's picker only ever answers with a copied file) */
     await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'gone.set'})`);
     check('an answer with a name not in the folder', (await lastAnswer())?.file === 'gone.set');
@@ -4170,8 +4161,9 @@ async function files(dir) {
 
     /* W134: Values > Load is an upload like the others: a same-name file with other content
        asks first, in a dialog of its own (no file ask is open), and Cancel copies and reads nothing */
-    await cdp.eval(`__xpp.send({cmd: 'value.save_file', kind: 'parameters', file: 'w134.par'})`);
-    await until(`!s.busy`, 'w134.par written');
+    const w134Pars = await S('s.core.pars');
+    fs.writeFileSync(path.join(dir, 'w134.par'), `${w134Pars.length}   Number params\n` + w134Pars.map(([name, value]) => `${value}  ${name}\n`).join('')
+      + '\n\nFile:model.odex\nWed Jun 30 21:49:08 1993\n');
     const parThere = fs.readFileSync(path.join(dir, 'w134.par'));
     const parPicked = path.join(up, 'w134.par');
     fs.writeFileSync(parPicked, parThere.toString().replace(/\n[^\n]*  iapp\r?\n/, '\n0.0777  iapp\n'));
@@ -4194,8 +4186,29 @@ async function files(dir) {
       await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - 0.0777) < 1e-12`, 'load replace')
       && fs.readFileSync(path.join(dir, 'w134.par')).equals(fs.readFileSync(parPicked)), String(await par('iapp')));
 
+    /* W321: Load values from a file by scope, through the page: the Parameters section's button picks a file, the core
+       lists the parts of it that hold parameters (set.file_contents), the dialog offers them, a part that cannot be
+       loaded says why, and the one chosen is loaded (set.load_file) over the current values */
+    fs.writeFileSync(path.join(up, 'w321.odex'), 'version 4\nset "w321" { iapp: 0.321 }\nset "broken" {\n  iapp: 0.5,\n  nosuch: 1\n}\n');
+    await setPar('iapp', 0.2);
+    const sentOffer = await cdp.eval('__xpp.sentCount()');
+    await pickFiles('#values-file-parameters', [path.join(up, 'w321.odex')]);
+    check('W321: the page asks the core what the file offers, and the dialog lists its parts for parameters',
+      await until(`s.valuesFile && s.valuesFile.scope === 'parameters' && s.valuesFile.parts.length === 2
+        && document.querySelector('[data-values-file-dialog=parameters] [data-values-part="set:w321"]')`, 'offer')
+      && (await cdp.eval(`__xpp.sentFrom(${sentOffer}).some(c => c.cmd === 'set.file_contents' && c.scope === 'parameters' && c.file === 'w321.odex')`)),
+      JSON.stringify(await S('s.valuesFile')));
+    check('W321: a part that cannot be loaded is shown with why and cannot be chosen',
+      await cdp.eval(`(() => { const b = document.querySelector('[data-values-part="set:broken"]');
+        return !!b && b.disabled && /nosuch/.test(b.parentElement.textContent); })()`));
+    await cdp.eval(`document.querySelector('[data-values-part="set:w321"]').click()`);
+    check('W321: the chosen set is loaded by scope: the parameter has its value, the dialog is closed',
+      await until(`!s.busy && !s.valuesFile && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - 0.321) < 1e-12`, 'loaded')
+      && (await cdp.eval(`__xpp.sentFrom(${sentOffer}).some(c => c.cmd === 'set.load_file' && c.from === 'set' && c.name === 'w321' && c.scope === 'parameters')`)),
+      String(await par('iapp')));
+
     /* a read ask is one prompt (no tabs, no folder listing) that opens the browser's picker filtered by wild */
-    await registryFile('session.import_settings', 'read');
+    await registryFile('session.import_xppaut_state', 'read');
     check('a read ask has no tabs and no listing, one Choose file… button, focused',
       await cdp.eval(`!document.querySelector('.file-tabs, .file-list, [data-folder-file]')
         && document.querySelector('.file-ask button.primary')?.textContent === 'Choose file…'
@@ -4271,9 +4284,7 @@ async function nativeFiles(dir) {
     /* A JS stub cannot grant an external path: servercheck covers that
        rejection; a real OS picker grant remains a manual desktop check. */
     check('W177: integrate for the desktop CSV exports', await integrate(601, 30000));
-    for (const [call, name] of [["[...document.querySelectorAll('[data-section=par] .value-tools button')].find(b => b.textContent === 'Save').click()", 'native-button.par'],
-        ["[...document.querySelectorAll('[data-section=ic] .value-tools button')].find(b => b.textContent === 'Save').click()", 'native-button.ic'],
-        ["document.querySelector('.table-header .small').click()", 'native-table.csv'],
+    for (const [call, name] of [["document.querySelector('.table-header .small').click()", 'native-table.csv'],
         ["document.querySelector('[title=\"Export the plotted numbers as a CSV file\"]').click()", 'native-plot.csv']]) {
       if (name === 'native-table.csv') {
         await cdp.eval(`document.querySelector('.table-toggle').click()`);
@@ -4288,16 +4299,16 @@ async function nativeFiles(dir) {
     }
 
 
-    check('File/Import settings in the window: answered from the native dialog', await fileCommand('session.import_settings', farSet));
+    check('File/Import XPPAUT session state in the window: answered from the native dialog', await fileCommand('session.import_xppaut_state', farSet));
     const r = await asked();
-    check('... asked to open, filtered by *.setx and *.set', r && r.mode === 'read' && JSON.stringify(r.exts) === '[".setx",".set"]', JSON.stringify(r));
+    check('... asked to open, filtered by *.set', r && r.mode === 'read' && JSON.stringify(r.exts) === '[".set"]', JSON.stringify(r));
     check('... the core read it where it is (its iapp is in), nothing copied',
       Math.abs(await par('iapp') - 0.09) < 1e-12 && (await lastFileAnswer())?.file === farSet
       && !fs.existsSync(path.join(dir, 'w88 native.set')) && !(await S('s.files.uploads.length')), String(await par('iapp')));
 
-    check('Cancel in the native dialog cancels the ask', await fileCommand('session.import_settings', null)
+    check('Cancel in the native dialog cancels the ask', await fileCommand('session.import_xppaut_state', null)
       && (await lastAnswer())?.ok === 0 && Math.abs(await par('iapp') - 0.09) < 1e-12, JSON.stringify(await lastAnswer()));
-    check('a dialog that cannot open: a notification, and the ask cancelled', await fileCommand('session.import_settings', 'reject')
+    check('a dialog that cannot open: a notification, and the ask cancelled', await fileCommand('session.import_xppaut_state', 'reject')
       && (await lastAnswer())?.ok === 0
       && await until("s.toasts.some(t => t.kind === 'error' && /file dialog/.test(t.text))", 'toast'),
       JSON.stringify(await S('s.toasts')));

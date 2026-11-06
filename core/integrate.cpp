@@ -1225,7 +1225,7 @@ void do_init_data(xpp::Session &s, int com)
     std::string icfile;
     if(!file_selector("Read initial data",icfile,"*.dat"))break;
     /* the initial-conditions file, all of it or nothing (W125) */
-    if(xpp::ok_or_show(load_ic_file_named(s,icfile)))run(run_from(s,RunFrom::old));
+    if(xpp::ok_or_show(load_xppaut_values(s,ValueFile::initial_conditions,icfile)))run(run_from(s,RunFrom::old));
     break;}
   case M_IB:
     run(run_from(s,RunFrom::backward));
