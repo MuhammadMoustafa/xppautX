@@ -974,7 +974,7 @@ def check_recorded_jobs_refused(text):
             path = os.path.join(tmp, 'bad.recx')
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(text.replace(listed, jobs_text))
-            result = subprocess.run([args.server, path, '--silent', '--yes'], cwd=tmp, env=dict(os.environ, **extra),
+            result = subprocess.run([os.path.abspath(args.server), path, '--silent', '--yes'], cwd=tmp, env=dict(os.environ, **extra),
                                     capture_output=True, text=True, encoding='utf-8', timeout=120 * SLOW)
             refused = re.search(r'bad\.recx:\d+: step \d+ cannot be played: it has an invalid recorded interruption: ' + reason, result.stderr)
             check('W618: a recorded run with %s is refused at its step, with its place and why, and nothing is played (exit %s)' % (name, result.returncode),
