@@ -38,6 +38,11 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   them one at a time with the count remaining. (skill: settle-design)
   The outcome goes to a GitHub Discussion. (skill: design-discussions)
 - Work handed to Codex: skill delegate.
+- A UI decision is made by looking at it, never from a description: the coordinator shows
+  the maintainer mockups or screenshots of the real page (each width of docs/ui-v2.md's
+  responsive rules, light and dark) before a UI design is settled, and a card that changes
+  what the page looks like is reviewed the same way, judged for UI and UX, not only by its
+  checks (maintainer, 2026-11-07: "No blind acceptance without seeing the UI itself").
 - A tiny edit (a few lines, a flag, a constant, a docs line, a driver tweak) is the
   coordinator's own: done and committed directly, gated by what it touches, with no
   card, issue or agent (maintainer, 2026-10-21). Cards are for real work.
