@@ -25,13 +25,17 @@ function StabilityCircle() {
         <line class="autox-stab-axis" x1={-R} y1={0} x2={R} y2={0} />
         <line class="autox-stab-axis" x1={0} y1={-R} x2={0} y2={R} />
         <circle class="autox-stab-unit" cx={0} cy={0} r={1} />
-        {pts.map((p, i) => (p.trivial
-          ? <path key={i} class="autox-stab-trivial" d={`M${p.x},${-p.y - 0.16}L${p.x + 0.16},${-p.y}`
-            + `L${p.x},${-p.y + 0.16}L${p.x - 0.16},${-p.y}Z`}><title>{p.text}</title></path>
-          : p.inside
-            ? <circle key={i} class="autox-stab-in" cx={p.x} cy={-p.y} r={0.13}><title>{p.text}</title></circle>
-            : <path key={i} class="autox-stab-out" d={`M${p.x - 0.13},${-p.y - 0.13}L${p.x + 0.13},${-p.y + 0.13}`
-              + `M${p.x - 0.13},${-p.y + 0.13}L${p.x + 0.13},${-p.y - 0.13}`}><title>{p.text}</title></path>))}
+        {pts.map((p, i) => (
+          <g key={i} class="autox-stab-mark">
+            <title>{p.text}</title>
+            {p.trivial
+              ? <path class="autox-stab-trivial" d={`M${p.x},${-p.y - 0.16}L${p.x + 0.16},${-p.y}`
+                + `L${p.x},${-p.y + 0.16}L${p.x - 0.16},${-p.y}Z`} />
+              : p.inside
+                ? <circle class="autox-stab-in" cx={p.x} cy={-p.y} r={0.13} />
+                : <path class="autox-stab-out" d={`M${p.x - 0.13},${-p.y - 0.13}L${p.x + 0.13},${-p.y + 0.13}`
+                  + `M${p.x - 0.13},${-p.y + 0.13}L${p.x + 0.13},${-p.y - 0.13}`} />}
+          </g>))}
       </svg>
       <figcaption>
         {stabComputed(stab) ? (

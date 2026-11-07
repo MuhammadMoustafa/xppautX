@@ -1775,8 +1775,7 @@ async function autoxView(dir) {
     /Branch\s*1/.test(await cdp.eval(`document.querySelector('.autox-info').textContent`))
     && /^Stability circle: 2 eigenvalues: \d+ inside, \d+ outside$/.test(await cdp.eval(`document.querySelector('.autox-stab svg').getAttribute('aria-label')`))
     && /^2 eigenvalues: \d+ inside, \d+ outside$/.test(await cdp.eval(`document.querySelector('.autox-stab-summary')?.textContent ?? ''`))
-    && (await cdp.eval(`[...document.querySelectorAll('.autox-stab svg circle, .autox-stab svg path')].filter(m => m.querySelector('title')).length`)) === 2
-    && (await cdp.eval(`[...document.querySelectorAll('.autox-stab svg title')].every(t => t.textContent.trim() !== '')`)),
+    && (await cdp.eval(`[...document.querySelectorAll('.autox-stab-mark title')].filter(t => t.textContent.trim() !== '').length`)) === 2,
     await cdp.eval(`document.querySelector('.autox-info')?.textContent`));
   await key('Tab');
   check('Tab jumps to the next label, the Hopf point: its strip and a pair of eigenvalues on the imaginary axis',
@@ -1809,7 +1808,7 @@ async function autoxView(dir) {
     const m = /^2 Floquet multipliers: (\\d+) inside, (\\d+) outside, 1 trivial$/.exec(t); return m ? +m[1] + +m[2] : -1; })()`;
   check('W628: a cycle\'s trivial multiplier is drawn once, not counted: the summary says "1 trivial" and one other',
     await until(`document.querySelectorAll('.autox-stab-trivial').length === 1 && ${trivialSummary} === 1`, 'trivial mark')
-    && await cdp.eval(`document.querySelector('.autox-stab-trivial title')?.textContent.trim() !== ''`)
+    && await cdp.eval(`!!document.querySelector('.autox-stab-trivial').closest('.autox-stab-mark').querySelector('title')?.textContent.trim()`)
     && (await cdp.eval(`document.querySelectorAll('.autox-stab-in, .autox-stab-out').length`)) === 1,
     await cdp.eval(`document.querySelector('.autox-stab')?.textContent`));
 

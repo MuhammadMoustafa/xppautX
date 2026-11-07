@@ -75,7 +75,7 @@ export function stabComputed(stab: AutoxStab): boolean {
 }
 
 /** the circle's points: multipliers, or e^λ of a steady state's eigenvalues; none when not computed.
-    A cycle's trivial multiplier is the one nearest 1 (its exact value is 1, computed as 1.0003). */
+    A cycle's trivial multiplier is the one nearest 1 (exactly 1 in theory, a little off when computed). */
 export function circlePoints(stab: AutoxStab): CirclePoint[] {
   if (!stabComputed(stab)) return [];
   const distToOne = ([re, im]: [number | null, number | null]) => Math.hypot((re ?? 0) - 1, im ?? 0);
