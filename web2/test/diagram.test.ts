@@ -317,10 +317,23 @@ test('the strip in words and the circle: inside is stable, the eigenvalues liste
   const pts = circlePoints(hbStab as never);
   assert.deepEqual(pts.map(p => [p.inside, p.text]), [[true, '0.00006 + 0.435i'], [true, '0.00006 − 0.435i']]);
   const mult = circlePoints({periodic: 1, circle: [[1, 0], [2.5, 0], [0.1, -3]]} as never);
-  assert.deepEqual(mult.map(p => [p.x, p.y, p.inside, p.text]), [[1, 0, true, '1'], [1.95, 0, false, '2.5'],
-    [0.1, -1.95, false, '0.1 − 3i']]);
-  assert.equal(stabilitySummary({periodic: 1, circle: [[1, 0], [2.5, 0]]} as never), '2 Floquet multipliers, 1 inside the unit circle');
+  assert.deepEqual(mult.map(p => [p.x, p.y, p.inside, p.text, p.trivial]), [[1, 0, true, '1', true], [1.95, 0, false, '2.5', false],
+    [0.1, -1.95, false, '0.1 − 3i', false]]);
+  assert.equal(stabilitySummary({periodic: 1, circle: [[1, 0], [2.5, 0]]} as never), '2 Floquet multipliers: 0 inside, 1 outside, 1 trivial');
   assert.equal(complexText(null, null), 'none (below the smallest number)');
+});
+
+/* the trivial multiplier of a cycle (exactly 1 in theory, 1.0003 numerically): the one nearest 1 is marked,
+   counted as neither inside nor outside; a steady state has none */
+test('a cycle\'s trivial multiplier is the one nearest 1: marked, not counted; a steady state marks none', () => {
+  const cyc = circlePoints({periodic: 1, circle: [[1.0003, 0], [0.5, 0.2], [-2, 0]]} as never);
+  assert.deepEqual(cyc.map(p => p.trivial), [true, false, false], 'the nearest to 1, not the first');
+  assert.equal(stabilitySummary({periodic: 1, circle: [[1.0003, 0], [0.5, 0.2], [-2, 0]]} as never),
+    '3 Floquet multipliers: 1 inside, 1 outside, 1 trivial');
+  const steady = circlePoints({periodic: 0, circle: [[1, 0], [0.5, 0], [0.2, 0], [1.1, 0]]} as never);
+  assert.deepEqual(steady.map(p => p.trivial), [false, false, false, false], 'a steady state has no trivial multiplier');
+  assert.equal(stabilitySummary({periodic: 0, circle: [[0.5, 0], [0.2, 0], [0.3, 0.1], [1.1, 0]]} as never),
+    '4 eigenvalues: 3 inside, 1 outside');
 });
 
 /* T28: the strip in order of importance -- the axes' quantities, then Norm/the plotted variable/the

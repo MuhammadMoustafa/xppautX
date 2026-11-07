@@ -2,7 +2,9 @@
    `autoxinfo` data: the point the grab's cursor is on in words, and a small
    unit circle with the eigenvalues (as e^λ) or Floquet multipliers of the
    point autoX last drew. A point inside the circle is a filled dot, one
-   outside a cross (A7: not colour alone), and the values are listed too.
+   outside a cross, a cycle's trivial multiplier an open diamond (A7: not
+   colour alone); each mark's value is its tooltip, and a summary line
+   beside the circle counts them.
    autoX computes them from a run's second point on: a first point's
    circle (unless the run restarts from a label of the same kind) says so
    instead of listing zeros. */
@@ -23,19 +25,22 @@ function StabilityCircle() {
         <line class="autox-stab-axis" x1={-R} y1={0} x2={R} y2={0} />
         <line class="autox-stab-axis" x1={0} y1={-R} x2={0} y2={R} />
         <circle class="autox-stab-unit" cx={0} cy={0} r={1} />
-        {pts.map((p, i) => (p.inside
-          ? <circle key={i} class="autox-stab-in" cx={p.x} cy={-p.y} r={0.13} />
-          : <path key={i} class="autox-stab-out" d={`M${p.x - 0.13},${-p.y - 0.13}L${p.x + 0.13},${-p.y + 0.13}`
-            + `M${p.x - 0.13},${-p.y + 0.13}L${p.x + 0.13},${-p.y - 0.13}`} />))}
+        {pts.map((p, i) => (p.trivial
+          ? <path key={i} class="autox-stab-trivial" d={`M${p.x},${-p.y - 0.16}L${p.x + 0.16},${-p.y}`
+            + `L${p.x},${-p.y + 0.16}L${p.x - 0.16},${-p.y}Z`}><title>{p.text}</title></path>
+          : p.inside
+            ? <circle key={i} class="autox-stab-in" cx={p.x} cy={-p.y} r={0.13}><title>{p.text}</title></circle>
+            : <path key={i} class="autox-stab-out" d={`M${p.x - 0.13},${-p.y - 0.13}L${p.x + 0.13},${-p.y + 0.13}`
+              + `M${p.x - 0.13},${-p.y + 0.13}L${p.x + 0.13},${-p.y - 0.13}`}><title>{p.text}</title></path>))}
       </svg>
       <figcaption>
-        <span class="muted">{stab.periodic ? 'Multipliers' : 'Eigenvalues'}</span>
         {stabComputed(stab) ? (
-          <ul class="autox-stab-list">
-            {pts.map((p, i) => <li key={i}>{p.inside ? '●' : '×'} {p.text}</li>)}
-          </ul>
+          <p class="autox-stab-summary">{summary}</p>
         ) : (
-          <p class="muted autox-stab-none">Not computed at this point: autoX computes them from the second point of a branch on.</p>
+          <>
+            <span class="muted">{stab.periodic ? 'Multipliers' : 'Eigenvalues'}</span>
+            <p class="muted autox-stab-none">Not computed at this point: autoX computes them from the second point of a branch on.</p>
+          </>
         )}
       </figcaption>
     </figure>

@@ -62,7 +62,13 @@ back). It has:
   then the remaining parameters, a second parameter not on an axis last,
   and the Jacobian the point's run was computed with (difference or exact:
   a diagram can hold branches of both),
-  and the eigenvalues/multipliers ("not
+  and the circle's summary line beside the circle: the eigenvalues or
+  Floquet multipliers, how many lie inside and how many outside the unit
+  circle, and for a cycle its trivial multiplier (the one nearest 1, exactly
+  1 in theory), counted as neither, e.g. "28 Floquet multipliers: 26 inside,
+  1 outside, 1 trivial". The circle has no list of values, so the strip
+  does not grow with the number of states: each mark shows its value on
+  hover, and the trivial one is an open diamond ("not
   computed at this point" for a run's first point: autoX computes them
   from its second point on. The exception is a run that restarts from a
   label of the same kind, a steady state extended from a steady label or

@@ -157,7 +157,9 @@
 .autox-stab-in { fill: var(--fg); }
 .autox-stab-out { stroke: var(--danger); stroke-width: 0.08; fill: none; }
 .autox-stab figcaption { min-width: 0; }
-.autox-stab-list { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+/* the summary line beside the circle (plot/autoxInfo.ts stabilitySummary); a cycle's trivial multiplier, an open diamond */
+.autox-stab-summary { margin: 0; font-variant-numeric: tabular-nums; }
+.autox-stab-trivial { stroke: var(--fg-muted); stroke-width: 0.06; fill: none; }
 /* T21: the status strip (ui/AutoxStatus.tsx), its Output log, the axis names
    a click opens the axis dialog from (over the names the chart draws, which
    show through), the dialog itself and the key's earlier branches */

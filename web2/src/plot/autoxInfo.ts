@@ -57,6 +57,8 @@ export interface CirclePoint {
   y: number;
   /** inside (or on) the unit circle: a stable direction */
   inside: boolean;
+  /** a cycle's trivial multiplier (the one nearest 1): counted as neither inside nor outside */
+  trivial: boolean;
   text: string;
 }
 
@@ -72,25 +74,33 @@ export function stabComputed(stab: AutoxStab): boolean {
   return stab.circle.some(([re, im]) => re !== 0 || im !== 0);
 }
 
-/** the circle's points: multipliers, or e^λ of a steady state's eigenvalues; none when not computed */
+/** the circle's points: multipliers, or e^λ of a steady state's eigenvalues; none when not computed.
+    A cycle's trivial multiplier is the one nearest 1 (its exact value is 1, computed as 1.0003). */
 export function circlePoints(stab: AutoxStab): CirclePoint[] {
   if (!stabComputed(stab)) return [];
+  const distToOne = ([re, im]: [number | null, number | null]) => Math.hypot((re ?? 0) - 1, im ?? 0);
+  let trivialAt = -1;
+  if (stab.periodic) stab.circle.forEach((c, i) => {
+    if (trivialAt < 0 || distToOne(c) < distToOne(stab.circle[trivialAt])) trivialAt = i;
+  });
   return stab.circle.map(([re, im], i) => {
     const r = re ?? 0, m = im ?? 0;
     const e = stab.eig?.[i];
     return {
-      x: clamp(r), y: clamp(m), inside: Math.hypot(r, m) <= 1,
+      x: clamp(r), y: clamp(m), inside: Math.hypot(r, m) <= 1, trivial: i === trivialAt,
       text: stab.periodic ? complexText(re, im) : complexText(e ? e[0] : null, e ? e[1] : null),
     };
   });
 }
 
-/** the circle in a sentence, for its label (A7: not only its colours and shapes) */
+/** the circle in a sentence, for its label and the strip's summary line (A7: not only its colours and
+    shapes): how many lie inside and outside the circle, and a cycle's trivial multiplier apart */
 export function stabilitySummary(stab: AutoxStab): string {
   const pts = circlePoints(stab);
-  const inside = pts.filter(p => p.inside).length;
-  const what = stab.periodic ? 'Floquet multipliers' : 'eigenvalues';
-  if (!stabComputed(stab)) return `${stab.circle.length} ${what}, not computed at this point`;
-  const where = stab.periodic ? 'inside the unit circle' : 'with a negative real part (inside the circle)';
-  return `${pts.length} ${what}, ${inside} ${where}`;
+  if (!stabComputed(stab)) return `${stab.circle.length} ${stab.periodic ? 'Floquet multipliers' : 'eigenvalues'}, not computed at this point`;
+  const counted = pts.filter(p => !p.trivial);
+  const inside = counted.filter(p => p.inside).length;
+  const outside = counted.length - inside;
+  if (!stab.periodic) return `${pts.length} eigenvalues: ${inside} inside, ${outside} outside`;
+  return `${pts.length} Floquet multipliers: ${inside} inside, ${outside} outside, 1 trivial`;
 }

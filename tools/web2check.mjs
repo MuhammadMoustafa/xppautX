@@ -1773,8 +1773,10 @@ async function autoxView(dir) {
     JSON.stringify([await DS('d.info'), await lastAnswer()]));
   check('the info panel shows the point, the circle its eigenvalues',
     /Branch\s*1/.test(await cdp.eval(`document.querySelector('.autox-info').textContent`))
-    && (await cdp.eval(`document.querySelectorAll('.autox-stab-list li').length`)) === 2
-    && /Stability circle: 2 eigenvalues/.test(await cdp.eval(`document.querySelector('.autox-stab svg').getAttribute('aria-label')`)),
+    && /^Stability circle: 2 eigenvalues: \d+ inside, \d+ outside$/.test(await cdp.eval(`document.querySelector('.autox-stab svg').getAttribute('aria-label')`))
+    && /^2 eigenvalues: \d+ inside, \d+ outside$/.test(await cdp.eval(`document.querySelector('.autox-stab-summary')?.textContent ?? ''`))
+    && (await cdp.eval(`[...document.querySelectorAll('.autox-stab svg circle, .autox-stab svg path')].filter(m => m.querySelector('title')).length`)) === 2
+    && (await cdp.eval(`[...document.querySelectorAll('.autox-stab svg title')].every(t => t.textContent.trim() !== '')`)),
     await cdp.eval(`document.querySelector('.autox-info')?.textContent`));
   await key('Tab');
   check('Tab jumps to the next label, the Hopf point: its strip and a pair of eigenvalues on the imaginary axis',
@@ -1801,6 +1803,15 @@ async function autoxView(dir) {
   check('its first point says it started from the Hopf label; the circle holds Floquet multipliers',
     await DS(`d.points.fr[d.points.br.indexOf(2)] === ${hbLab}`) && await DS('d.stab.periodic === 1 && d.stab.circle.length === 2'),
     JSON.stringify(await DS('[d.points.fr.filter(f => f), d.stab]')));
+  /* W628: the cycle's trivial multiplier (the one nearest 1) is drawn once, as its own mark, and the summary
+     line counts the other multiplier (inside plus outside is 1) and names the trivial one */
+  const trivialSummary = `(() => { const t = document.querySelector('.autox-stab-summary')?.textContent ?? '';
+    const m = /^2 Floquet multipliers: (\\d+) inside, (\\d+) outside, 1 trivial$/.exec(t); return m ? +m[1] + +m[2] : -1; })()`;
+  check('W628: a cycle\'s trivial multiplier is drawn once, not counted: the summary says "1 trivial" and one other',
+    await until(`document.querySelectorAll('.autox-stab-trivial').length === 1 && ${trivialSummary} === 1`, 'trivial mark')
+    && await cdp.eval(`document.querySelector('.autox-stab-trivial title')?.textContent.trim() !== ''`)
+    && (await cdp.eval(`document.querySelectorAll('.autox-stab-in, .autox-stab-out').length`)) === 1,
+    await cdp.eval(`document.querySelector('.autox-stab')?.textContent`));
 
   /* the store is the events, exactly */
   const want = rebuildDiagram(await cdp.eval('__xpp.diagramEvents()'));
