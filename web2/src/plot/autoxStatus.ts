@@ -31,13 +31,14 @@ export interface RunStatus {
   elapsed: number | null;
 }
 
-/** the progress line of a run of several branch jobs (W597): "2 running (job 0: 12 points, job 1.4: 9 points), 3 queued, 1 done",
-    each running job by its key in the queue and its points so far (W620); '' once none runs (and for a one-job run, for which the
-    core sends nothing) */
 /** a branch job's name in the queue, "0.5": the integers of its key (the status strip and the diagram's legend name jobs so) */
 export function jobKeyText(key: number[]): string {
   return key.join('.');
 }
+
+/** the progress line of a run of several branch jobs (W597): "2 running (job 0: 12 points, job 1.4: 9 points), 3 queued, 1 done",
+    each running job by its key in the queue and its points so far (W620); '' once none runs (and for a one-job run, for which the
+    core sends nothing) */
 
 export function jobsText(j: AutoxJobs | null): string {
   if (!j || j.running <= 0) return '';

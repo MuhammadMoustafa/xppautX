@@ -231,10 +231,9 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
     const e = entries[entryOf[i]], a = appearance[e.key];
     return {...c, cssColor: a?.color, visible: a?.visible, legend: a?.label ?? e.name};
   })}), [rawModel, entries, entryOf, appearance]);
-  /* the curves an entry stands for, where a hovered curve highlights all its entry's */
   const modelRef = useRef(model);
   modelRef.current = model;
-  /* read from a ref: the hover handlers the chart holds were made by the first render */
+  /* a hovered curve highlights all its entry's curves, read from a ref: the chart's hover handlers were made by the first render */
   const entriesRef = useRef({entries, of: entryOf});
   entriesRef.current = {entries, of: entryOf};
   const entryCurves = (curve: number) => entriesRef.current.entries[entriesRef.current.of[curve]].curves;

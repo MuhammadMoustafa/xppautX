@@ -210,11 +210,11 @@ export function legendEntries(curves: DiagramCurve[], jobKeys: Record<number, nu
     const stability = c.stable ? 'stable' : 'unstable';
     let who: string, owner: string;
     if (c.live) {
+      /* a job is listed before its first point is sent (autox_jobs.cpp announces a job's start before it computes), but a page
+         that connected while the jobs ran missed the events that listed them, and autox.jobs lists only the running ones */
       const key: number[] | undefined = jobKeys[c.live];
-      /* a live point's job is listed before its point is sent (autox_jobs.cpp: the job's start is announced before it computes) */
-      if (!key) throw new Error(`autoX: the job of live point ${c.live} is not listed by autox.jobs`);
-      who = `job:${jobKeyText(key)}`;
-      owner = `Job ${jobKeyText(key)}`;
+      who = key ? `job:${jobKeyText(key)}` : `live:${c.live}`;
+      owner = key ? `Job ${jobKeyText(key)}` : 'Running job';
     } else {
       who = `branch:${c.branch}`;
       owner = `Branch ${c.branch}`;

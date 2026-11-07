@@ -471,11 +471,14 @@ test('two running jobs on branch 1: each legend entry is named by its job key, a
   assert.deepEqual(entries.map(e => e.curves.length), [1, 1]);
 });
 
-test('a live job whose key the store does not hold is an error, never a guessed name', () => {
-  const s = ev(opened(), add(0, [...jobOne]));
+test('a live job the page saw no autox.jobs list (it connected while the jobs ran) is a running job, kept apart by its live id', () => {
+  const s = ev(opened(), add(0, [...jobOne, ...jobTwo]));
   const v = activeView(s.diagram);
   const m = buildDiagramModel(v.points, v.labels, v.axes);
-  assert.throws(() => legendEntries(m.curves, s.diagram.liveKeys), /not listed by autox.jobs/);
+  const {entries} = legendEntries(m.curves, s.diagram.liveKeys);
+  assert.ok(entries.length >= 2 && entries.every(e => e.name.startsWith('Running job · ') && e.key.startsWith('live:')));
+  assert.equal(new Set(entries.map(e => e.key)).size, entries.length);
+  assert.ok(new Set(entries.map(e => e.key.split(':')[1])).size === 2, 'the two jobs stay apart');
 });
 
 test('a branch split by stability is one entry per stability and kind; a periodic max and min are one entry', () => {

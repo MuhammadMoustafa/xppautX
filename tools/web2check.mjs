@@ -3277,7 +3277,7 @@ async function runsCheck(dir) {
   check('runs: two runs keep two curves: the earlier one drawn under the current',
     await until('w.history.runs.length === 1 && __xpp.plot().runs.count === 1 && __xpp.plot().runs.drawn > 0 && __xpp.plot().curves[0].points === 601', 'two runs'),
     JSON.stringify(await cdp.eval('__xpp.plot().runs')));
-  const legend = `[...document.querySelectorAll('.autox-pane .legend-item')].find(b => b.dataset.layer === 'runs')`;
+  const legend = `[...document.querySelectorAll('.legend-item')].find(b => b.dataset.layer === 'runs')`;
   check('runs: the legend lists "previous runs (1)"', await cdp.eval(`(${legend} || {}).textContent === 'previous runs (1)'`));
   await cdp.eval(`${legend}.click()`);
   check('runs: the legend entry hides them', await until('!w.showRuns && __xpp.plot().runs.shown === false && __xpp.plot().runs.drawn === 0', 'hide runs'));
