@@ -6,7 +6,7 @@
    reached parameter_max (0.45)", from `autoxinfo` `stop`. Read from the store: the
    run (store/diagram.ts AutoxRun) and the diagram's points from the run's
    first on. Pure. */
-import type {AutoxRun, AutoxStop, DiagramLabel, DiagramPoints} from '../store/diagram';
+import type {AutoxJobs, AutoxRun, AutoxStop, DiagramLabel, DiagramPoints} from '../store/diagram';
 import {pointLabel} from '../store/pointTypes';
 
 export interface RunStatus {
@@ -29,6 +29,12 @@ export interface RunStatus {
   label: string | null;
   /** ms since the run started (to its end once it ended) */
   elapsed: number | null;
+}
+
+/** the progress line of a run of several branch jobs (W597): "2 running, 3 queued, 1 done"; '' once none runs
+    (and for a one-job run, for which the core sends nothing) */
+export function jobsText(j: AutoxJobs | null): string {
+  return j && j.running > 0 ? `${j.running} running, ${j.queued} queued, ${j.done} done` : '';
 }
 
 export function kindOfPoint(periodic: boolean, f2: number): string {

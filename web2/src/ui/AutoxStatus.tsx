@@ -13,7 +13,7 @@
    table and messages (the `log` lines store/state.ts classifies as autoX's)
    as they arrive. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
-import {formatElapsed, runStatus} from '../plot/autoxStatus';
+import {formatElapsed, jobsText, runStatus} from '../plot/autoxStatus';
 import {activeView} from '../store/diagram';
 import {logEntries} from '../store/log';
 import {useSession, useStore} from './context';
@@ -25,6 +25,7 @@ export function AutoxStatus() {
   const points = useStore(s => activeView(s.diagram).points);
   const labels = useStore(s => activeView(s.diagram).labels);
   const stop = useStore(s => s.diagram.stop);
+  const jobs = useStore(s => s.diagram.jobs);
   const asking = useStore(s => !!s.ask);
   const stopping = useStore(s => s.stopping);
   const busy = useStore(s => s.busy);
@@ -51,6 +52,7 @@ export function AutoxStatus() {
         {st.detail && <span> · {st.detail}</span>}
         {st.branch !== null && <span> · branch {st.branch}, point {st.point}</span>}
         {run && <span> · {st.points} point{st.points === 1 ? '' : 's'}</span>}
+        {active && jobsText(jobs) && <span data-testid="autox-jobs"> · {jobsText(jobs)}</span>}
         {st.label && <span> · last label {st.label}</span>}
         {st.elapsed !== null && <span> · {formatElapsed(st.elapsed)}</span>}
       </span>

@@ -1727,6 +1727,8 @@ async function autoxView(dir) {
       + `· last label End of branch \\d+ at point \\d+ · [\\d.:]+ s?`).test(await autoxStatus())
     && await cdp.eval(`document.querySelector('[data-testid=autox-status]').dataset.why`) === stop.why,
     JSON.stringify([stop, await autoxStatus()]));
+  check('W597: after the run no progress line of branch jobs is shown, and the last autox.jobs (if any) has none running',
+    !(await cdp.eval(`!!document.querySelector('[data-testid=autox-jobs]')`)) && (await DS('d.jobs === null || d.jobs.running === 0')));
   /* the panel builds its text once open (W122: a long run's table is thousands of lines) */
   await cdp.eval(`document.querySelector('.autox-output').open = true`);
   await until(`!!(document.querySelector('.autox-output pre') || {}).textContent`, 'Output open');

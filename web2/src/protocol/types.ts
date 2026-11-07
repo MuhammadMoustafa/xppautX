@@ -716,6 +716,8 @@ export type XppEvent =
   | {ev: 'autox.diagram' | 'session.ping'; [k: string]: unknown}
   /* autoX's info strip and stability circle (store/diagram.ts AutoxInfoEvent) */
   | {ev: 'autox.info'; [k: string]: unknown}
+  /* how a run of several branch jobs goes (store/diagram.ts AutoxJobs) */
+  | {ev: 'autox.jobs'; [k: string]: unknown}
   /* autoX's settings (store/autoxSettings.ts AutoxSettings) */
   | {ev: 'autox.settings'; [k: string]: unknown}
   /** the main numerics (docs/protocol.md "The numerics as data") */

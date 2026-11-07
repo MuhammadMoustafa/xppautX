@@ -17,7 +17,7 @@ import {initialAni, reduceAni, type AniAction, type AniState} from './ani';
 import {initialKinescope, reduceKinescope, snapshotWindow, type KinescopeAction, type KinescopeState} from './kinescope';
 import {initialFiles, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
 import {
-  diagramSettled, initialDiagram, reduceDiagram, type AutoxInfoEvent, type DiagramAction, type DiagramEvent, type DiagramState,
+  diagramSettled, initialDiagram, reduceDiagram, type AutoxInfoEvent, type AutoxJobs, type DiagramAction, type DiagramEvent, type DiagramState,
 } from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {appendLog, emptyLog, lastEntry, type Log, type LogEntry} from './log';
@@ -549,6 +549,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'autoxview', ev})};
     case 'autox.info':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoxInfoEvent})};
+    case 'autox.jobs':
+      return {...state, diagram: reduceDiagram(state.diagram, {type: 'jobs', ev: ev as unknown as AutoxJobs})};
     case 'autox.settings':
       return {...state, autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'event', ev: ev as unknown as AutoxSettings})};
     case 'run.numerics':

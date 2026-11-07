@@ -429,6 +429,8 @@ when the jobs are joined, in that order, numbered as the diagram is. A branch th
 global end evaluates the model's equilibria on its own job, so it gives the same numbers whether the jobs run at once or
 in turn.
 
+While the jobs run, the status strip adds one line, "2 running, 3 queued, 1 done" (a job that ended early counts as done); it is gone when none runs. The diagram appears when the jobs are joined, at the run's end.
+
 A job that fails ends alone. Its points are kept, what it found before failing still starts its jobs, the other jobs go
 on, and a message says at once which job it was (the kind of its branches, the point it started from and the direction),
 how many points it had and why it ended; the run is not an error, and its notes end with "K of M jobs ended early".
