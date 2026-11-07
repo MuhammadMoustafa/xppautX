@@ -446,9 +446,9 @@ void buf_jobs(std::string &b, const std::vector<xpp::job::BranchJob> &jobs)
     BUF_LIT(b, ",\"jobs\":[");
     for (std::size_t i = 0; i < jobs.size(); ++i) {
         const xpp::job::BranchJob &job = jobs[i];
-        buf_format(b, "{}{{\"key\":[", i ? "," : "");
-        for (std::size_t k = 0; k < job.key.size(); ++k) buf_format(b, "{}{:d}", k ? "," : "", job.key[k]);
-        buf_format(b, "],\"state\":\"{}\"", JOB_STATE_NAMES[static_cast<std::size_t>(job.state)]);
+        buf_format(b, "{}{{\"key\":", i ? "," : "");
+        buf_key(b, job.key);
+        buf_format(b, ",\"state\":\"{}\"", JOB_STATE_NAMES[static_cast<std::size_t>(job.state)]);
         if (job.state == xpp::job::JobState::stopped) buf_format(b, ",\"point\":{:d}", job.point);
         BUF_LIT(b, "}");
     }
@@ -643,6 +643,7 @@ XppUi make_json_ui(void)
     u.autox_diagram = j_autox_diagram;
     u.autox_points_held = j_autox_points_held;
     u.autox_jobs = j_autox_jobs;
+    u.autox_live_drop = j_autox_live_drop;
     u.new_vcr = j_new_vcr;
     u.ani_show = j_ani_show;
     u.ani_slider = j_ani_slider;

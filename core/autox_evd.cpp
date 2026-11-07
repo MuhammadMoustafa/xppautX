@@ -194,6 +194,11 @@ void autox_store_point(Session &s, const DIAGRAM &p, bool new_segment)
   add_point(s,*d,get_bif_type(p.ibr,p.ntot),new_segment?0:1);
 }
 
+void autox_show_live_point(Session &s, const DIAGRAM &p, int live, bool new_segment)
+{
+  add_live_point(s,p,live,get_bif_type(p.ibr,p.ntot),new_segment?0:1);
+}
+
 bool autox_start_points_away(double value, double rl0, double rl1, double ds)
 {
   return (value<=rl0 && ds<0) || (value>=rl1 && ds>0);
@@ -250,7 +255,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
     p.flag2=autox_hopf_curve_kind(u0[2 * iap->ndm]);
   p.jacobian=s.numerics.jacobian;
   if(run.job){
-    /* a job keeps its points apart, undrawn, until the jobs are joined (autox_jobs.cpp) */
+    /* a job keeps its points apart until the jobs are joined (autox_jobs.cpp), which draws them as they come in the meantime */
     p.from=from;
     diagram_record_branch(s.model(),autox_constants(run),run.points.empty()?nullptr:&run.points.back().point,p);
     run.points.push_back({std::move(p),iap->ntot==1});

@@ -31,10 +31,13 @@ export interface RunStatus {
   elapsed: number | null;
 }
 
-/** the progress line of a run of several branch jobs (W597): "2 running, 3 queued, 1 done"; '' once none runs
-    (and for a one-job run, for which the core sends nothing) */
+/** the progress line of a run of several branch jobs (W597): "2 running (job 0: 12 points, job 1.4: 9 points), 3 queued, 1 done",
+    each running job by its key in the queue and its points so far (W620); '' once none runs (and for a one-job run, for which the
+    core sends nothing) */
 export function jobsText(j: AutoxJobs | null): string {
-  return j && j.running > 0 ? `${j.running} running, ${j.queued} queued, ${j.done} done` : '';
+  if (!j || j.running <= 0) return '';
+  const each = j.jobs.map(x => `job ${x.key.join('.')}: ${x.points} point${x.points === 1 ? '' : 's'}`).join(', ');
+  return `${j.running} running${each ? ` (${each})` : ''}, ${j.queued} queued, ${j.done} done`;
 }
 
 export function kindOfPoint(periodic: boolean, f2: number): string {
@@ -67,7 +70,7 @@ export function runStatus(run: AutoxRun | null, p: DiagramPoints, labels: Diagra
   const added = n - first;
   const kind = added > 0 ? kindOfPoint(p.pe[last] === 1, p.f2[last]) : '';
   const lab = [...labels].reverse().find(l => l.point >= first && l.point < n);
-  const label = lab ? `${lab.sym ? pointLabel(lab.sym) : 'Label'} ${lab.lab} at point ${p.pt[lab.point]}` : null;
+  const label = lab ? `${lab.sym ? pointLabel(lab.sym) : 'Label'}${lab.lab ? ` ${lab.lab}` : ''} at point ${p.pt[lab.point]}` : null;
   const elapsed = (run.ended ?? now) - run.started;
   const base = {kind, ...none, branch: added > 0 ? p.br[last] : null, point: added > 0 ? p.pt[last] : null, points: added,
     label, elapsed};

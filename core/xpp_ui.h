@@ -116,12 +116,23 @@ typedef struct XppDiagPoint {
                       the run's first point only (0 otherwise, or unknown) */
     int jacobian;  /* the Jacobian of the run that computed it (DIAGRAM.jacobian) */
     int job;       /* the branch job that computed it (DIAGRAM.job), 0 for none */
+    int live;      /* a running branch job's point, drawn as it comes (W620): the job's id in the autox.jobs event, from 1; its numbers
+                      are the job's own until the join, and the join's diagram replaces them (autox_live_drop); 0 for a stored point */
     double x, y1, y2;
 } XppDiagPoint;
 
-/* the jobs of a run of branch jobs (follow_all_branches): the autox.jobs event */
+/* one running branch job: its id (what its live points name), its key in the queue (the join's order) and its points so far */
+struct XppAutoxJob {
+    int live;
+    std::vector<long> key;
+    int points;
+    bool operator==(const XppAutoxJob &) const = default;
+};
+
+/* the jobs of a run of branch jobs (follow_all_branches): the autox.jobs event; `each` are the running ones, in the join's order */
 struct XppAutoxJobs {
     int running, queued, done;
+    std::vector<XppAutoxJob> each;
 };
 
 /* Historical names, now dispatchers. Declared here so every core file sees
@@ -315,6 +326,9 @@ typedef struct XppUi {
     int (*autox_points_held)(Session &s);
     /* a run of branch jobs (follow_all_branches) changed: how many run, wait and have ended */
     void (*autox_jobs)(const XppAutoxJobs &jobs);
+    /* the points the running jobs drew as they came (XppDiagPoint.live) go, in every view: the jobs are joined, and the
+       diagram's own points follow, or the run ended with none */
+    void (*autox_live_drop)(Session &s);
 
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */
@@ -382,6 +396,7 @@ void make_autox(Session &s, std::string_view wname, std::string_view iname);
 void autox_diagram(Session &s, int view, const XppDiagPoint *p);
 int autox_points_held(Session &s);
 void autox_jobs(const XppAutoxJobs &jobs);
+void autox_live_drop(Session &s);
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 void scroll_window(Session &s);

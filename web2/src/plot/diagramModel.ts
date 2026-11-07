@@ -71,7 +71,7 @@ const PERIODIC = (d: number) => d === 2 || d === 3;
 
 /** point b continues a's curve */
 function follows(p: DiagramPoints, a: number, b: number): boolean {
-  return !p.nw[b] && p.br[a] === p.br[b] && p.ty[a] === p.ty[b] && p.d[a] === p.d[b] && p.c[a] === p.c[b]
+  return !p.nw[b] && p.lv[a] === p.lv[b] && p.br[a] === p.br[b] && p.ty[a] === p.ty[b] && p.d[a] === p.d[b] && p.c[a] === p.c[b]
     && p.lw[a] === p.lw[b] && p.f2[a] === p.f2[b];
 }
 
@@ -133,6 +133,13 @@ function curve(p: DiagramPoints, s: number, verts: number[], which: 'y' | 'y2', 
     xs, ys, idx, hopf};
 }
 
+/** the points in drawing order while jobs run (W620): the diagram's own, then each running job's in the order they arrived (a
+    stable sort by job), so a job's polyline never runs into another's whatever order the points came in; null when no point is a job's */
+function jobOrder(p: DiagramPoints): Int32Array | null {
+  if (!p.lv.some(j => j !== 0)) return null;
+  return Int32Array.from(p.lv.keys()).sort((a, b) => p.lv[a] - p.lv[b] || a - b);
+}
+
 export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes: DiagramAxes | null,
   hideBefore = 0): DiagramModel {
   const n = p.x.length;
@@ -141,31 +148,35 @@ export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes
   const span = axes && axes.xmax > axes.xmin && axes.ymax > axes.ymin
     ? {x: axes.xmax - axes.xmin, y: axes.ymax - axes.ymin} : {x: extent(p.x), y: extent(p.y)};
   const curves: DiagramCurve[] = [], hopf: DiagramModel['hopf'] = [];
+  const order = jobOrder(p);
+  /* the point at position k: while jobs run, each job's points in turn */
+  const at = (k: number): number => order ? order[k] : k;
   for (let s = first; s < n;) {
     let e = s;
-    while (e + 1 < n && follows(p, e, e + 1)) e++;
-    if (p.d[s] !== 0) {
+    while (e + 1 < n && follows(p, at(e), at(e + 1))) e++;
+    const sp = at(s);
+    if (p.d[sp] !== 0) {
       const verts: number[] = [];
       let from = -1;
-      const prev = s - 1;
-      if (PERIODIC(p.d[s])) {
+      const prev = s - 1, pp = at(prev);
+      if (PERIODIC(p.d[sp])) {
         /* the previous periodic point of the branch (a change of stability) */
-        if (prev >= first && !p.nw[s] && p.br[prev] === p.br[s] && PERIODIC(p.d[prev]) && !p.f2[prev]) verts.push(prev);
-        else if (!p.f2[s]) {
-          from = hopfOf(p, labels, s, span);
+        if (prev >= first && !p.nw[sp] && p.lv[pp] === p.lv[sp] && p.br[pp] === p.br[sp] && PERIODIC(p.d[pp]) && !p.f2[pp]) verts.push(pp);
+        else if (!p.f2[sp]) {
+          from = hopfOf(p, labels, sp, span);
           if (from >= 0) {
             verts.push(from);
-            hopf.push({point: s, from});
+            hopf.push({point: sp, from});
           }
         }
-      } else if (prev >= first && !p.nw[s]) {
-        verts.push(prev); /* the line back from the run's first point */
+      } else if (prev >= first && !p.nw[sp] && p.lv[pp] === p.lv[sp]) {
+        verts.push(pp); /* the line back from the run's first point */
       }
-      for (let i = s; i <= e; i++) verts.push(i);
-      curves.push(curve(p, s, verts, 'y', from));
+      for (let i = s; i <= e; i++) verts.push(at(i));
+      curves.push(curve(p, sp, verts, 'y', from));
       let two = false;
-      if (PERIODIC(p.d[s])) for (let i = s; i <= e && !two; i++) two = p.y2[i] !== p.y[i];
-      if (two) curves.push(curve(p, s, verts, 'y2', from));
+      if (PERIODIC(p.d[sp])) for (let i = s; i <= e && !two; i++) two = p.y2[at(i)] !== p.y[at(i)];
+      if (two) curves.push(curve(p, sp, verts, 'y2', from));
     }
     s = e + 1;
   }
@@ -405,7 +416,7 @@ export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: Di
   return {
     head: `Branch ${p.br[i]}, point ${p.pt[i]}`,
     kind: pointKind(p, i),
-    label: l ? [pointLabel(l.sym), `label ${l.lab}`, why ? `(${why})` : ''].filter(Boolean).join(' ') : '',
+    label: l ? [pointLabel(l.sym), l.lab ? `label ${l.lab}` : '', why ? `(${why})` : ''].filter(Boolean).join(' ') : '',
     values,
   };
 }

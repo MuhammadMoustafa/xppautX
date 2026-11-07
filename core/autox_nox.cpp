@@ -871,9 +871,10 @@ namespace {
    two-parameter point in any other) goes to the data too, with no
    coordinates, so every view holds one entry per point of the diagram in
    the same order: a point's index is the same in every view (the grab,
-   Clear's earlier branches). */
+   Clear's earlier branches). live: a running job's point (XppDiagPoint.live), which is in no diagram entry and whose
+   run's first label is its job's own; 0 for a stored one. */
 void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIAGRAM &d, DiagramPointType type,
-                int flg)
+                int flg, int live)
 {
   const int lab=d.lab;
   const AutoxCalculation flag2=d.flag2;
@@ -888,10 +889,11 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
   dp.ibr=d.ibr;
   dp.pt=d.ntot;
   dp.itp=d.itp;
-  dp.node=d.index;
-  dp.from=d.from;
+  dp.node=live?-1:d.index;
+  dp.from=live?0:d.from;
   dp.jacobian=d.jacobian;
   dp.job=d.job;
+  dp.live=live;
   dp.type=type;
   dp.flag2=flag2;
   dp.newseg=(flg==0);
@@ -936,15 +938,25 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, const DIA
   autox_diagram(s,v,&dp);
 }
 
+void plot_in_views(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int flg, int live)
+{
+  for(int v=0;v<static_cast<int>(s.autox_state.views.size());v++)
+    view_point(s, v,s.autox_state.views[static_cast<std::size_t>(v)].axes,v==s.autox_state.active_view,d,type,flg,live);
+}
+
 } // namespace
 
 /* main plotting code: the point in every view */
 void add_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int flg)
 {
-  for(int v=0;v<static_cast<int>(s.autox_state.views.size());v++)
-    view_point(s, v,s.autox_state.views[static_cast<std::size_t>(v)].axes,v==s.autox_state.active_view,d,type,flg);
+  plot_in_views(s,d,type,flg,0);
   show_stab(s, d.evr,d.evi,type==STABLE_PERIODIC||type==UNSTABLE_PERIODIC);
   refreshdisplay(s);
+}
+
+void add_live_point(xpp::Session &s, const DIAGRAM &d, int live, DiagramPointType type, int flg)
+{
+  plot_in_views(s,d,type,flg,live);
 }
 
 void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)

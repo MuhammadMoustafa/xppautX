@@ -107,6 +107,7 @@ struct ClientDiagramView {
     std::vector<std::shared_ptr<const xpp::DiagramBranch>> branches; /* immutable records behind those points */
     std::map<std::shared_ptr<const xpp::DiagramBranch>,std::map<std::shared_ptr<const xpp::DiagramBranch>,bool>> branch_matches;
     int n = 0, client = 0, dirty = 0;
+    int live_from = -1; /* the first live point's index (XppDiagPoint.live) while there are any, -1 when there are none */
     int match = 0;
     bool replay = false, axes = false;
     struct {
@@ -304,6 +305,8 @@ void buf_str(std::string &b, const char *s); /* a JSON string ("" for NULL) */
 void buf_str(std::string &b, std::string_view s);
 void buf_str_array(std::string &b, const char *const *v, int n);
 void buf_str_array(std::string &b, std::span<const std::string> v);
+/* a branch job's key (autox_queue.h) as a JSON array of integers */
+void buf_key(std::string &b, std::span<const long> key);
 /* a JSON number, "null" when v is not finite (json_number.h): sig
    significant digits, e.g. 16 for a full double, 7 for autoX's diagram */
 void buf_num(std::string &b, double v, int sig);
@@ -491,6 +494,7 @@ void j_autox_show_hint(xpp::Session &s);
 void j_autox_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
 int j_autox_points_held(xpp::Session &s); /* XppUi.autox_points_held: the points the active view holds */
 void j_autox_jobs(const XppAutoxJobs &jobs); /* XppUi.autox_jobs: the autox.jobs event */
+void j_autox_live_drop(xpp::Session &s); /* XppUi.autox_live_drop: the running jobs' live points leave every view's list */
 void j_autox_refresh(xpp::Session &s);
 
 /* ---- json_keymap.cpp ---- */

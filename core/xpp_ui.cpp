@@ -98,6 +98,7 @@ static void hl_int(int) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
 static int hl_autox_points_held(Session &s) { return diagram_count(s.diagram); }
 static void hl_autox_jobs(const XppAutoxJobs &) {}
+static void hl_autox_live_drop(Session &) {}
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
 static void hl_live_state(Session &, const double *, double) {}
@@ -262,6 +263,7 @@ XppUi ui = {
     .autox_diagram = hl_autox_diagram,
     .autox_points_held = hl_autox_points_held,
     .autox_jobs = hl_autox_jobs,
+    .autox_live_drop = hl_autox_live_drop,
     .new_vcr = hl_s,
     .ani_show = hl_void,
     .ani_slider = hl_s,
@@ -522,6 +524,7 @@ int byeautox_(int *iflag) /* autoX's checkpoint, as my_abort() */
 }
 int autox_points_held(Session &s) { return ui.autox_points_held(s); }
 void autox_jobs(const XppAutoxJobs &jobs) { ui.autox_jobs(jobs); }
+void autox_live_drop(Session &s) { ui.autox_live_drop(s); }
 void autox_diagram(Session &s, int view, const XppDiagPoint *p) { ui.autox_diagram(s, view, p); }
 void init_txtview(void) { ui.init_txtview(); }
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y,

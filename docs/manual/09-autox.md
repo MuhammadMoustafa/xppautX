@@ -429,7 +429,7 @@ when the jobs are joined, in that order, numbered as the diagram is. A branch th
 global end evaluates the model's equilibria on its own job, so it gives the same numbers whether the jobs run at once or
 in turn.
 
-While the jobs run, the status strip adds one line, "2 running, 3 queued, 1 done" (a job that ended early counts as done); it is gone when none runs. The diagram appears when the jobs are joined, at the run's end.
+While the jobs run, each job's points are drawn as they are stored, each job its own line, typed (a limit point, a branch point or a Hopf point is marked) but not numbered, since the numbers are given when the jobs are joined, in the order they would have run one after another. The stability circle follows the earliest running job in that order. The status strip adds one line, "2 running (job 0: 12 points, job 1: 9 points), 3 queued, 1 done": each running job by its place in the queue (its key: a start's two directions are 0 and 1, then the point each job was found at, level by level) with its points so far (a job that ended early counts as done); it is gone when none runs. When the jobs are joined, at the run's end, the labelled, numbered diagram replaces the live points.
 
 A job that fails ends alone. Its points are kept, what it found before failing still starts its jobs, the other jobs go
 on, and a message says at once which job it was (the kind of its branches, the point it started from and the direction),

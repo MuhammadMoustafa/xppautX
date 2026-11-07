@@ -81,6 +81,13 @@ void buf_str_array(std::string &b, std::span<const std::string> v)
     BUF_LIT(b, "]");
 }
 
+void buf_key(std::string &b, std::span<const long> key)
+{
+    BUF_LIT(b, "[");
+    for (std::size_t i = 0; i < key.size(); i++) buf_format(b, "{}{:d}", i ? "," : "", key[i]);
+    BUF_LIT(b, "]");
+}
+
 void buf_num(std::string &b, double v, int sig)
 {
     build_event([&] { json_append_number(b, v, sig); });

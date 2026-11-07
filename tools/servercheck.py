@@ -790,7 +790,73 @@ def stop_when_running(s, running, run):
     return evs + more, end or {}
 
 
+def live_state(evs):
+    """what the events leave of view diagram_1's points: the `live` job of each (0 for the diagram's own), after every reset and add"""
+    pts = []
+    for e in evs:
+        if e.get('ev') != 'autox.diagram' or e.get('view') != 'diagram_1':
+            continue
+        if e['op'] == 'reset':
+            del pts[e['keep']:]
+        elif e['op'] == 'add':
+            del pts[e['from']:]
+            for r in e['runs']:
+                pts += [r.get('live', 0)] * len(r['x'])
+    return pts
+
+
+def check_autox_live_jobs():
+    """W620 (#691): while branch jobs run, each job's points reach the client as they are stored, as runs that name their job
+    (`live`), typed and not numbered; `autox.jobs` gives each running job's key and points; the join's `reset` replaces them with
+    the joined diagram. With the jobs at once on two threads (the main thread sends what the threads record) and in turn on one;
+    XPP_NO_THROTTLE sends every point, so the counts are exact. (Job 2, the -step_size direction of the start, leaves the parameter
+    window at once and never runs: the jobs run are 1 and 3 to 6.)"""
+    for threads, what in ((2, 'two threads'), (1, 'one thread')):
+        s = jobs_session(LORENZ, LORENZ_START, env={'XPP_NO_THROTTLE': '1'}, threads=threads)
+        try:
+            s.send(cmd='autox.run', **LORENZ_RUN)
+            evs, end = s.collect(jobs_done, timeout=300 * SLOW)
+            adds = [(i, e) for i, e in enumerate(evs) if e.get('ev') == 'autox.diagram' and e.get('view') == 'diagram_1' and e['op'] == 'add']
+            live_runs = [(i, r) for i, e in adds for r in e['runs'] if 'live' in r]
+            joined_runs = [(i, r) for i, e in adds for r in e['runs'] if 'live' not in r]
+            resets = [i for i, e in enumerate(evs) if e.get('ev') == 'autox.diagram' and e.get('view') == 'diagram_1' and e['op'] == 'reset']
+            ids = sorted({r['live'] for _, r in live_runs})
+            check('W620: the points of every job reach the client as they are stored, each run naming its job (%s)' % what,
+                  end.get('status') == 'ok' and ids == [1, 3, 4, 5, 6] and len(live_runs) > 5 and all('job' not in r for _, r in live_runs),
+                  '%s %d live runs' % (ids, len(live_runs)))
+            check('W620: they come before the join: the first live point, then (the diagram had none) one reset to 0 and the joined points, none live (%s)' % what,
+                  len(resets) == 1 and live_runs[0][0] < resets[0] < joined_runs[0][0] and live_runs[-1][0] < resets[0]
+                  and sorted({r['job'] for _, r in joined_runs}) == [1, 2, 3, 4, 5] and live_state(evs) == [0] * len(jobs_diagram(evs))
+                  and len(jobs_diagram(evs)) == 390, '%s %s' % (resets, len(jobs_diagram(evs))))
+            typed = [lab for _, r in live_runs for lab in r.get('lab', [])]
+            check('W620: a live point has its type and no number (the labels are [index, 0, type]); the join numbers them (%s)' % what,
+                  typed and all(lab[1] == 0 and lab[2] for lab in typed) and any(lab[2] == 'hopf' for lab in typed)
+                  and all(lab[1] > 0 for _, r in joined_runs for lab in r.get('lab', [])), str(typed[:4]))
+            per_job = {}
+            for _, r in live_runs:
+                per_job[r['live']] = per_job.get(r['live'], 0) + len(r['x'])
+            events = [e for e in evs if e.get('ev') == 'autox.jobs']
+            seen = {}
+            ordered = True
+            for e in events:
+                keys = [j['key'] for j in e['jobs']]
+                ordered = ordered and len(keys) == e['running'] and keys == sorted(keys, key=lambda k: (len(k), k))
+                for j in e['jobs']:
+                    seen[j['live']] = max(seen.get(j['live'], 0), j['points'])
+                    ordered = ordered and j['points'] <= per_job.get(j['live'], 0) and all(isinstance(n, int) for n in j['key'])
+            check('W620: autox.jobs lists the running jobs in the join order, each with its key and its points so far, which the points drawn live account for (%s)' % what,
+                  ordered and sorted(seen) == [1, 3, 4, 5, 6] and all(seen[i] > 0 for i in seen) and events[-1]['jobs'] == []
+                  and events[-1]['running'] == 0 and sum(per_job.values()) >= 390, '%s %s' % (seen, per_job))
+            stabs = [e for e in evs if e.get('ev') == 'autox.info' and e.get('stab')]
+            check('W620: the stability circle is sent while the jobs run, before the join (%s)' % what,
+                  stabs and stabs[0]['_t'] < next(e['_t'] for e in evs if e.get('ev') == 'autox.diagram' and e.get('op') == 'reset'),
+                  str(len(stabs)))
+        finally:
+            s.close()
+
+
 def check_autox_branch_jobs():
+    check_autox_live_jobs()
     s = jobs_session(LORENZ, LORENZ_START, env={'XPP_AUTOX_FAIL_CHILD_AT': '80'})
     try:  # the branch points' two branches fail at their 80th point, after their Hopf point (the 74th)
         s.send(cmd='autox.run', **LORENZ_RUN)
@@ -798,7 +864,8 @@ def check_autox_branch_jobs():
         errors = jobs_errors(evs)
         pts = jobs_diagram(evs)
         first_error = next((i for i, e in enumerate(evs) if jobs_errors([e])), None)
-        first_points = next((i for i, e in enumerate(evs) if e.get('ev') == 'autox.diagram' and e.get('op') == 'add'), None)
+        first_points = next((i for i, e in enumerate(evs) if e.get('ev') == 'autox.diagram' and e.get('op') == 'add'
+                             and any('live' not in r for r in e['runs'])), None)  # the join's points (those drawn live come as they are stored)
         check('W606: a job that fails ends alone: its reason is shown at once (the job, its start, its points, the setting), the run ends ok',
               len(errors) == 2 and all('the job of steady states from the point at r = 1.0000001' in m and 'ended early after 80 points' in m
                                        and 'XPP_AUTOX_FAIL_CHILD_AT=80' in m for m in errors) and end.get('status') == 'ok'

@@ -250,6 +250,9 @@ int autox_run_from_take(AutoxRun &run);
    parameters from its stored branch. type is its get_bif_type, flag 0 for
    a branch's first point. */
 void add_point(Session &s, const DIAGRAM &d, DiagramPointType type, int flag);
+/* the point d of a running job (autox_jobs.cpp) in every view's data as it comes, where add_point puts a stored one: it is in no
+   diagram entry, leaves the info strip and the circle alone, and is the job `live`'s (XppDiagPoint.live) */
+void add_live_point(Session &s, const DIAGRAM &d, int live, DiagramPointType type, int flag);
 /* the info strip's line for the stored point d */
 void traverse_out(Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw);
 void do_autox_win(Session &s);

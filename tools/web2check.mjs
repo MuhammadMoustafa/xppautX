@@ -119,6 +119,7 @@ const MILLION = path.join(top, 'tools/models/million.odex');
 const APLOT_ODE = path.join(top, 'examples/ode/wcring.odex');
 const LORENZ_ODE = path.join(top, 'examples/ode/lorenz.odex');
 const HEAVY_ODE = path.join(top, 'tools/models/heavy.odex');
+const AB_ODE = path.join(top, 'examples/tstauto/ab.odex'); /* AUTO-07p's tstauto ab: its two branch jobs, run with a step too small to end in the time a check takes */
 
 /* macos-ui is the slowest, least steady runner (W40, GitHub #83): a wait for
    something to settle needs slack a fast machine never sees. XPP_CHECK_SLOW
@@ -2180,6 +2181,42 @@ async function autoxStopRace() {
   await cdp.eval(`document.querySelector('.autox-close').click()`);
   check("autoX Stop race: Close closes autoX's window and the view",
     await until('!s.diagram.open && !s.busy', 'auto close') && !(await cdp.eval(`!!document.querySelector('.autox-panel, .autox-show')`)));
+}
+
+/* ---- W620: the points of branch jobs drawn as they come ----------------------------------- */
+
+/* Two jobs run at once (follow_all_branches, two threads) and cannot end on their own: each one's points are in the diagram as they
+   are stored, typed and unnumbered, and the progress line says how many points each running job has; Stop ends them, and the
+   join's points (each with its branch and labels, none live) replace the live ones. */
+async function autoxLiveJobs() {
+  await until('!s.busy && !s.ask', 'the model loaded');
+  await menuRun('autox.open');
+  await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
+  const send = cmd => cdp.eval(`__xpp.send(${JSON.stringify(cmd)})`);
+  await send({cmd: 'session.set_threads', threads: 2});
+  await send({cmd: 'value.set_parameters', values: {p0: 0.05}});
+  await send({cmd: 'ic.set', values: {U1: 0.06282240276322631, U2: 0.2931712128950587}});
+  await until('!s.busy', 'values set');
+  await send({cmd: 'autox.run', kind: 'equilibrium', replace_diagram: false, follow_all_branches: true, max_steps: 1000000,
+    output_every: 1000, parameter_min: 0, parameter_max: 1.5, step_size: 1e-6, min_step_size: 1e-7, max_step_size: 1e-6});
+  const live = await until(`s.busy && s.diagram.jobs && s.diagram.jobs.running === 2 && [...dv.points.lv].includes(1)
+    && [...dv.points.lv].includes(2) && s.diagram.jobs.jobs.every(j => j.points > 0)`, 'both jobs drawn live', 60000 * SLOW);
+  const jobs = await S('s.diagram.jobs');
+  check('W620: while two branch jobs run, each one\'s points are in the diagram as they come, as its own (the points name their job)',
+    live && jobs.jobs.length === 2, JSON.stringify(jobs));
+  check('W620: the progress line names each running job by its key in the queue, with its points so far',
+    jobs.jobs.map(j => j.key.join('.')).join() === '0,1' && await until(`/ · 2 running \\(job 0: \\d+ points?, job 1: \\d+ points?\\), 0 queued, 0 done$/.test(
+      (document.querySelector('[data-testid=autox-jobs]') || {}).textContent || '')`, 'progress line'),
+    await cdp.eval(`(document.querySelector('[data-testid=autox-jobs]') || {}).textContent`));
+  const first = await DS('({n: d.points.x.length, label: d.labels.length})');
+  await until(`dv.points.x.length > ${first.n}`, 'more live points');
+  check('W620: the live points keep coming while the jobs run (the page is not waiting for the join)',
+    await S('s.busy && s.diagram.jobs.running === 2'));
+  await cdp.eval(`document.querySelector('.autox-status .autox-stop').click()`);
+  check('W620: Stop ends the jobs; the join\'s points replace the live ones: none is a job\'s any more, each has its branch, and no progress line is left',
+    await until(`!s.busy && dv.points.x.length >= 2 && [...dv.points.lv].every(v => v === 0) && s.diagram.jobs && s.diagram.jobs.running === 0
+      && !document.querySelector('[data-testid=autox-jobs]')`, 'joined', 60000 * SLOW),
+    JSON.stringify(await DS('({n: d.points.x.length, live: [...d.points.lv].filter(v => v).length, jobs: d.jobs})')));
 }
 
 /* ---- views of the autoX diagram (W50, docs/protocol.md "Views of the diagram") ------------ */
@@ -5450,6 +5487,7 @@ async function main() {
     if (run('autoxmarks')) await session(ODE, autoxMarks);
     if (run('autox')) await session(ODE, autoxView);
     if (run('autox')) await session(HEAVY_ODE, autoxStopRace);
+    if (run('autox')) await session(AB_ODE, autoxLiveJobs);
     if (run('autoxviews')) await session(ODE, autoxViews);
     if (run('navigation')) await session(ODE, navigationCheck);
     if (run('windows')) await session(ODE, windows);

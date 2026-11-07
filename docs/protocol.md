@@ -1657,7 +1657,7 @@ sections below.
 | `window.list` | `windows` | `window.list` | Every open window and whether it is shown, sent again when it changed. |
 | `autox.diagram` | `op`, `view` | always | The autoX diagram as data, each view of it; the rest of its fields depend on op (axes, reset, add, views). |
 | `autox.info` | `info`, `stab`, `stop`, `notes`, `start_refined` | `autox.info` | autoX's info strip and stability circle, and why the last branch ended. |
-| `autox.jobs` | `running`, `queued`, `done` | always | A run of branch jobs (follow_all_branches) changed: how many jobs run, wait to start and have ended; the last one is the run's end. |
+| `autox.jobs` | `running`, `queued`, `done`, `jobs` | always | A run of branch jobs (follow_all_branches) changed: how many jobs run, wait to start and have ended, and each running job's points so far; the last one is the run's end. |
 | `autox.settings` | `numerics`, `pars`, `axes`, `marks` | `autox.settings` | autoX's settings as data. |
 | `autox.view` | `earlier`, `show`, `active`, `views` | always | autoX's hidden branches, the active view and each view's zoom. |
 | `array_plot.shown` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `first_row`, `tag` | always | The array plot's cells and colours. |
@@ -1827,6 +1827,7 @@ continues in), and a grab's point by its data.
 | `new` | 1: the run's first point starts a new line (no line back) |
 | `from` | the label the continuation that computed the run's first point started from (Auto.irs: the point Grab took), on the first point of such a continuation only; absent otherwise, and for a diagram loaded from a file or computed before autoX kept it. A periodic branch's `from` names the Hopf point it bifurcates from |
 | `job` | the branch job that computed the run (W606, `follow_all_branches`): its number among the jobs that kept their points, counted from 1 in the order they are joined in; absent for a run that is not a job's, and for a diagram loaded from a file. A run never joins one of another job |
+| `live` | a running branch job's points, drawn as they are stored (W620, `follow_all_branches`): the job's id as `autox.jobs` gives it, from 1; absent for the diagram's own points. A live run's `br` and `pt` are the job's own (the join renumbers them), its `from` is left out, its `lab` entries carry the type and the number 0 (typed, not numbered; the join's labels are numbered), and it carries no `parameters`. Runs of different jobs are never one run, and their points arrive interleaved. The join replaces them: see "Branch jobs' points live" |
 | `jac` | how the Jacobian of the autoX run that computed the run was formed: `difference` (XPPAUT's forward differences) or `exact` (the Numerics' Jacobian at that run, W278); a run never joins one with another setting, so one diagram can hold both |
 | `x`, `y` | the values, one per point (`null` for NaN) |
 | `y2` | the second value (the minimum, for hi and lo), when it differs from `y` anywhere in the run |
@@ -1945,8 +1946,23 @@ ended early (the messages above say why)", counting only those. An error of the 
 job as Stop does, finished jobs and the points so far kept, the jobs joined, the error shown once (the command's own, as
 for one run). Stop (`run.abort`) keeps the finished jobs, lets the running ones keep their points, drops the queued ones and joins
 the rest; the `notes` then say "autoX stopped: F of M jobs finished, S stopped, N never started". The `autox.jobs` event
-`{"ev":"autox.jobs","running":R,"queued":Q,"done":D}` comes whenever those counts change while the jobs run (a job ended early counts as
-done), the last one at the run's end; the diagram's points carry `job` (the run field above).
+`{"ev":"autox.jobs","running":R,"queued":Q,"done":D,"jobs":[{"live":3,"key":[0,5],"points":55},...]}` comes whenever those counts change
+while the jobs run (a job ended early counts as done), the last one at the run's end (`running` 0, `jobs` empty); `jobs` are the
+running jobs in the join's order, each with its `live` id, its `key` in the queue (the integers of the recorded stop's `jobs` below: a
+root's index, then the point each job was found at and its direction, level by level) and the points it has stored so far, sent
+again as they grow no more often than ten times a second; the diagram's points carry `job` (the run field above).
+
+Branch jobs' points live (W620). While the jobs run, each one's points reach the client as they are stored, as `autox.diagram`
+`add` events whose runs carry `live` (above), appended to the points the diagram had when the run began: typed (a limit point,
+a branch point and a Hopf point are in `lab` with number 0) and not numbered, since the join numbers branches and labels in the
+order the jobs would have run one after another, which is only known when all have ended. Only the core's main thread sends them:
+the jobs' threads record their points and wake it, and it sends what is new no more often than ten times a second (every one, with
+`XPP_NO_THROTTLE`; jobs that run one after another send theirs as they are stored, at the same pace). The `stab` of `autox.info`
+follows the earliest running job in the join's order (the info strip, as for one run, is what a grab shows). The join then sends
+`{"op":"reset","keep":K}`, K the number of points the diagram had when the run began, which drops every live point, and `add`
+events from K with the joined, numbered points (`job`, never `live`); a run with no point to join sends the `reset` alone. A client
+that reads `live` runs only to draw them keeps nothing of them past that `reset`. A run of one branch (`follow_all_branches` off)
+sends no `live` run.
 
 ```
 {"ev":"autox.settings",

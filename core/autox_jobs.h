@@ -11,6 +11,8 @@
    have ended the main thread joins them in a fixed order, the order a queue served one after another would run them,
    renumbering branches and labels as if the jobs had run so and dropping the jobs an earlier one made unnecessary, so the
    diagram, the .b, .s and .d files and the labels do not depend on which thread finished first or on how many there were.
+   While they run each job's points are drawn as they are stored (W620): the threads only record them, the main thread, which
+   waits for them, draws them (typed, not numbered, each job its own line) and the join replaces them with the diagram's.
 
    autox_jobs.cpp. */
 #include "autox_nox.h"

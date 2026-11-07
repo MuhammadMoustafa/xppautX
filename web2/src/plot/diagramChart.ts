@@ -233,7 +233,8 @@ export class DiagramChart {
     ctx.font = `${Math.round(11 * r)}px Inter, system-ui, sans-serif`;
     ctx.textBaseline = 'top';
     this.named = shown.length <= NAMED_MAX ? shown.length : 0;
-    const names = shown.map(s => `${s.l.sym ? pointMark(s.l.sym) + ' ' : ''}${s.l.lab}`);
+    /* a live point of a running job has its type but no number until the join (lab 0) */
+    const names = shown.map(s => [s.l.sym ? pointMark(s.l.sym) : '', s.l.lab || ''].filter(Boolean).join(' '));
     /* two names at one spot are written a line apart (plot/labelPlace.ts) */
     const tops = this.named ? placeLabels(shown.map((s, i) => ({x: s.px + 5 * r, y: s.py + 3 * r,
       w: ctx.measureText(names[i]).width, h: 13 * r}))) : [];

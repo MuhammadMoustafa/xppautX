@@ -102,8 +102,15 @@ int diag_same(ClientDiagramView &view, const XppDiagPoint *a, const XppDiagPoint
     }
     return a->ibr == b->ibr && a->pt == b->pt && a->itp == b->itp && a->lab == b->lab && a->type == b->type &&
            a->flag2 == b->flag2 && a->draw == b->draw && a->newseg == b->newseg && a->color == b->color &&
-           a->lw == b->lw && a->from == b->from && a->job == b->job && a->jacobian == b->jacobian && std::memcmp(&a->x, &b->x, sizeof a->x) == 0 && std::memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
+           a->lw == b->lw && a->from == b->from && a->job == b->job && a->live == b->live && a->jacobian == b->jacobian && std::memcmp(&a->x, &b->x, sizeof a->x) == 0 && std::memcmp(&a->y1, &b->y1, sizeof a->y1) == 0 &&
            std::memcmp(&a->y2, &b->y2, sizeof a->y2) == 0;
+}
+
+/* the list is its first k points: the client must drop its points from k on (a flush says so) */
+void diag_drop_from(ClientDiagramView &d, int k)
+{
+    d.n = k;
+    if (k < d.dirty) d.dirty = k;
 }
 
 /* the replay is over: the list is its first k points */
@@ -111,8 +118,7 @@ void diag_end_replay(ClientDiagramView &d, int k)
 {
     d.branch_matches.clear();
     d.replay = false;
-    d.n = k;
-    if (k < d.dirty) d.dirty = k;
+    diag_drop_from(d, k);
 }
 
 } // namespace
@@ -148,6 +154,7 @@ void j_autox_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
         }
         diag_end_replay(d, d.match);
     }
+    if (p->live && d.live_from < 0) d.live_from = d.n;
     if (static_cast<size_t>(d.n) == d.dg.size()) {
         try {
             d.dg.resize(d.dg.empty() ? diagram_copy_initial : 2 * d.dg.size());
@@ -158,6 +165,15 @@ void j_autox_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
     }
     d.branches[d.n]=branch;
     d.dg[static_cast<std::size_t>(d.n++)] = *p;
+}
+
+void j_autox_live_drop(xpp::Session &)
+{
+    for (ClientDiagramView &d : session.client_diagram) {
+        if (d.live_from < 0) continue;
+        diag_drop_from(d, d.live_from);
+        d.live_from = -1;
+    }
 }
 
 /* the index in the data the client holds of autoX's diagram entry `node`
@@ -210,6 +226,7 @@ void diag_run(const xpp::Session &s, std::string &b, const std::vector<XppDiagPo
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
     if (p->from) buf_format(b, ",\"from\":{:d}", p->from);
     if (p->job) buf_format(b, ",\"job\":{:d}", p->job);
+    if (p->live) buf_format(b, ",\"live\":{:d}", p->live);
     buf_format(b, ",\"jac\":\"{}\"", xpp::jacobian_name(p->jacobian));
     /* A branch's complete constants, once at its first point, in model order.
        Continued point coordinates are resolved from this same stored branch. */
@@ -252,7 +269,7 @@ void diag_run(const xpp::Session &s, std::string &b, const std::vector<XppDiagPo
         for (k = i, nlab = 0; k <= j; k++) {
             if (!at(k).lab) continue;
             const std::string_view t = autox_point_kind_name(at(k).itp.kind);
-            buf_format(b, "{}[{:d},{:d},", nlab++ ? "," : "", k - i, at(k).lab);
+            buf_format(b, "{}[{:d},{:d},", nlab++ ? "," : "", k - i, p->live ? 0 : at(k).lab); /* a live point's number is its job's own: typed, not numbered */
             buf_str(b, t);
             BUF_LIT(b, "]");
         }
@@ -492,7 +509,14 @@ void j_autox_make_window(xpp::Session &s, std::string_view wname, std::string_vi
 void j_autox_jobs(const XppAutoxJobs &jobs)
 {
     std::string b = xpp::events::open(xpp::events::AUTOX_JOBS);
-    buf_format(b, ",\"running\":{:d},\"queued\":{:d},\"done\":{:d}}}", jobs.running, jobs.queued, jobs.done);
+    buf_format(b, ",\"running\":{:d},\"queued\":{:d},\"done\":{:d},\"jobs\":[", jobs.running, jobs.queued, jobs.done);
+    for (std::size_t i = 0; i < jobs.each.size(); ++i) {
+        const XppAutoxJob &job = jobs.each[i];
+        buf_format(b, "{}{{\"live\":{:d},\"key\":", i ? "," : "", job.live);
+        buf_key(b, job.key);
+        buf_format(b, ",\"points\":{:d}}}", job.points);
+    }
+    BUF_LIT(b, "]}");
     send_buf(b);
 }
 

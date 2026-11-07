@@ -63,13 +63,19 @@ export interface DiagramRun {
   y: (number | null)[];
   y2?: (number | null)[];
   lab?: [number, number, string][];
+  /** the running branch job (`autox.jobs`' `live`) that computed it, drawn as it comes (W620); absent for the diagram's own points.
+      Its branch and point numbers and its labels are the job's own, and a label's number is 0 (typed, not numbered): the
+      join's `reset` takes the live points away and the labelled, joined points follow */
+  live?: number;
 }
 
-/** `autox.jobs` (W597): how many branch jobs run, wait to start and have ended; running 0 is the run's end */
+/** `autox.jobs` (W597): how many branch jobs run, wait to start and have ended; running 0 is the run's end.
+    `jobs` are the running ones in the join's order, each with its live id, its key in the queue and its points so far (W620) */
 export interface AutoxJobs {
   running: number;
   queued: number;
   done: number;
+  jobs: {live: number; key: number[]; points: number}[];
 }
 
 export type DiagramEvent =
@@ -113,6 +119,8 @@ export interface DiagramPoints {
   nw: Float64Array;
   /** the label its run started from (a run's first point only), 0 otherwise */
   fr: Float64Array;
+  /** the running job that computed it (`live`), 0 for a point of the diagram: each job's points are its own polyline */
+  lv: Float64Array;
   /** the buffers behind the fields, at least as long: adds after the last point fill them in place */
   buffers: Record<PointField, Float64Array>;
 }
@@ -265,7 +273,7 @@ export interface AutoxRun {
   stopped: boolean;
 }
 
-export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'st', 'pe', 'd', 'c', 'lw', 'f2', 'nw', 'fr'] as const;
+export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'st', 'pe', 'd', 'c', 'lw', 'f2', 'nw', 'fr', 'lv'] as const;
 export type PointField = typeof FIELDS[number];
 
 /** points over `buffers`, the first `n` of them */
@@ -391,6 +399,7 @@ function add(p: DiagramPoints, labels: DiagramLabel[], from: number, runs: Diagr
       b.f2[k] = r.f2 ?? 0;
       b.nw[k] = i === 0 && r.new ? 1 : 0;
       b.fr[k] = i === 0 && r.from ? r.from : 0;
+      b.lv[k] = r.live ?? 0;
     }
     for (const [i, lab, sym] of r.lab ?? []) labs.push({point: base + i, lab, sym});
   }

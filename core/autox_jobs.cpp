@@ -6,6 +6,7 @@
 #include "autox_jobs.h"
 #include "autox_queue.h"
 #include "session.h"
+#include "autox_data.h"
 #include "autox_evd.h"
 #include "autox_c.h"
 #include "autox_parallel.h"
@@ -204,6 +205,7 @@ AutoxCalculation autox_job_calculation(AutoxProblem ips)
 /* one job: a branch run from a start (autox_queue.h gives the start and the order) */
 struct QueuedJob {
   AutoxJobKey key;
+  int id=0; /* what its live points and the autox.jobs event call it: its place among the jobs made, from 1 */
   AutoxJobStart start; /* what it continues: the problem, the direction and, for a found start, the point */
   QueuedJob *parent=nullptr; /* the job that found its start */
   QueuedJob *twin=nullptr; /* the job of the other direction from the same start, which comes before it */
@@ -211,6 +213,9 @@ struct QueuedJob {
   std::unique_ptr<AutoxRun> run=std::make_unique<AutoxRun>();
   std::optional<Error> failed;
   std::string table,warnings; /* its table lines and its warnings, kept while it runs, for the join to write */
+  std::vector<AutoxBufferedPoint> unseen; /* its points stored since the main thread last drew them: the thread records, only the main thread draws (q.mutex) */
+  std::size_t stored=0; /* its points so far (q.mutex) */
+  std::optional<DIAGRAM> latest; /* the last point drawn of it: what the circle shows while it is the earliest running (the main thread) */
   std::vector<AutoxJobStart> made; /* once done: what it made besides its start (autox_end_claims) */
   bool closed=false; /* once done: its branch ended back at its start */
   std::optional<int> first_step; /* a Hopf point's cycles: the sign of the parameter's first step away from the point */
@@ -239,12 +244,21 @@ struct Queue {
   std::size_t diagram_base=0; /* the diagram's points when the jobs began */
   std::vector<xpp::job::BranchJob> plan; /* a recording's replay: how each job ended (xpp_job.h's stop_jobs); empty otherwise */
   std::map<std::vector<long>,const xpp::job::BranchJob *> plan_of; /* plan by job key: a recording may list a great many jobs */
-  XppAutoxJobs shown_counts{-1,-1,-1}; /* the last autox.jobs event sent; a count is never negative, so the first is always sent */
+  XppAutoxJobs shown_counts{-1,-1,-1,{}}; /* the last autox.jobs event sent; a count is never negative, so the first is always sent */
+  double live_last=0,counts_last=0; /* when the live points were last drawn and the jobs' points last announced (xpp::every) */
   std::vector<double> constants,variables; /* the Session's, when the run began */
   double epss=0,ds=0; /* special_point_tolerance, the size of step_size */
   explicit Queue(Session &session) : s(session) {}
   void restore_constants() { s.parser.constants=constants; s.parser.variables=variables; }
 };
+
+/* a new job at the end of the queue (the mutex held when the jobs are running) */
+QueuedJob &make_job(Queue &q)
+{
+  QueuedJob &job=q.jobs.emplace_back();
+  job.id=static_cast<int>(q.jobs.size());
+  return job;
+}
 
 /* a job another has no use for: not run, dropped as a repeat, or stopped by the queue */
 bool unmade(const QueuedJob &job) { return job.skipped||job.left_out||job.run->dropped; }
@@ -386,20 +400,62 @@ void run_job(Queue &q, QueuedJob &job)
   finish(q,job);
 }
 
-/* the autox.jobs event, when how many jobs run, wait or have ended changed */
+/* the autox.jobs event, when how many jobs run, wait or have ended changed, or (no more often than the progress events)
+   how many points a running job has */
 void announce_counts(Queue &q)
 {
-  XppAutoxJobs counts{0,0,0};
+  XppAutoxJobs counts{0,0,0,{}};
+  std::vector<const QueuedJob *> running;
   {
     const std::lock_guard lock(q.mutex);
     for(const QueuedJob &job:q.jobs){
       if(job.skipped||job.never)continue;
-      (job.done?counts.done:job.started?counts.running:counts.queued)++;
+      if(job.done)counts.done++;
+      else if(job.started){
+        counts.running++;
+        running.push_back(&job);
+      }
+      else counts.queued++;
     }
+    std::sort(running.begin(),running.end(),[](const QueuedJob *a,const QueuedJob *b){return autox_job_before(a->key,b->key);});
+    for(const QueuedJob *job:running)counts.each.push_back({job->id,job->key.path,static_cast<int>(job->stored)});
   }
-  if(counts.running==q.shown_counts.running&&counts.queued==q.shown_counts.queued&&counts.done==q.shown_counts.done)return;
+  const bool same=counts.running==q.shown_counts.running&&counts.queued==q.shown_counts.queued&&counts.done==q.shown_counts.done;
+  if(same&&(counts.each==q.shown_counts.each||!xpp::every(q.counts_last,xpp::PROGRESS_SECONDS)))return;
   q.shown_counts=counts;
   autox_jobs(counts);
+}
+
+/* Draws the points the jobs stored since it last did, each as its job's (autox_show_live_point), and the stability circle of the
+   earliest job running (the join's order); at most as often as the progress events. Only the main thread draws: the jobs'
+   threads record (q.mutex) and wake it. */
+void show_live(Queue &q)
+{
+  if(!xpp::every(q.live_last,xpp::PROGRESS_SECONDS))return;
+  std::vector<std::pair<QueuedJob *,std::vector<AutoxBufferedPoint>>> fresh;
+  QueuedJob *earliest=nullptr;
+  {
+    const std::lock_guard lock(q.mutex);
+    for(QueuedJob &job:q.jobs)
+      if(!job.unseen.empty()){
+        fresh.emplace_back(&job,std::move(job.unseen));
+        job.unseen.clear();
+      }
+  }
+  for(auto &[job,points]:fresh){
+    for(const AutoxBufferedPoint &held:points)autox_show_live_point(q.s,held.point,job->id,held.new_segment);
+    job->latest=std::move(points.back().point);
+  }
+  {
+    const std::lock_guard lock(q.mutex);
+    for(QueuedJob &job:q.jobs)
+      if(job.started&&!job.done&&job.latest&&(!earliest||autox_job_before(job.key,earliest->key)))earliest=&job;
+  }
+  if(earliest){
+    const DIAGRAM &point=*earliest->latest;
+    autox_data_stab(q.s,point.evr,point.evi,point_is_periodic(get_bif_type(point.ibr,point.ntot)));
+  }
+  refreshdisplay(q.s);
 }
 
 /* sets a queued job up and starts it, on a thread or here (the jobs in turn); not started when an earlier job made it, or when
@@ -430,10 +486,19 @@ void begin(Queue &q, QueuedJob &job, std::vector<std::thread> &threads)
     (run.pure_rhs?run.rhs_constants:q.s.parser.constants)[static_cast<std::size_t>(slot)]=job.start.parameter;
   }
   run.point_stored=[&q,&job](std::size_t points){
+    {
+      const std::lock_guard lock(q.mutex);
+      job.stored=points;
+      job.unseen.push_back(job.run->points.back());
+    }
     if(autox_diagram_full(q.diagram_base+q.points_held.fetch_add(1))){ /* more points than the diagram holds: the run is over */
       q.fatal=true;
       if(!q.at_once)xpp::job::cancel_current();
-      q.changed.notify_all();
+    }
+    if(q.at_once)q.changed.notify_all(); /* the main thread draws it */
+    else{
+      show_live(q);
+      announce_counts(q);
     }
     if(q.at_once&&job.hopf_before&&points==2)hold_for_neighbour(q,job);
   };
@@ -478,7 +543,7 @@ void expand(Queue &q, QueuedJob &job)
     QueuedJob *twin=negative?&q.jobs.back():nullptr; /* the +DS run of the same point, just made, when it was */
     if(twin&&(twin->parent!=&job||twin->start.point!=start.point))twin=nullptr;
     if(repeats(q.jobs,key,start,twin,q.epss))continue;
-    QueuedJob &child=q.jobs.emplace_back();
+    QueuedJob &child=make_job(q);
     child.key=key;
     child.parent=&job;
     child.twin=twin;
@@ -590,6 +655,7 @@ void run_queue(Queue &q)
       if(early)show_early_end(q,job,std::move(*early));
       if(ended)expand(q,job);
     }
+    show_live(q);
     announce_counts(q);
     while(QueuedJob *next=next_queued(q)){
       if(q.at_once?q.running>=q.budget:q.running>0)break;
@@ -605,6 +671,7 @@ void run_queue(Queue &q)
     byeautox_(&stop); /* the front end's Abort, which cancels every job */
   }
   for(std::thread &thread:threads)thread.join();
+  show_live(q); /* what the threads stored last */
   for(QueuedJob &job:q.jobs)
     if(!job.started&&!job.done&&!job.skipped)job.never=true; /* what a stop left queued */
   announce_counts(q);
@@ -630,7 +697,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
   if(const std::vector<xpp::job::BranchJob> *armed=xpp::job::armed_jobs())q.plan=*armed; /* a recording's stopped run: each job ends as it did */
   for(const xpp::job::BranchJob &entry:q.plan)q.plan_of.emplace(entry.key,&entry);
   for(const int sign:{1,-1}){ /* the roots: both directions of the start */
-    QueuedJob &root=q.jobs.emplace_back();
+    QueuedJob &root=make_job(q);
     root.key.path={sign>0?0L:1L};
     root.start.ips=state.bifur.ips;
     root.start.isw=state.bifur.isw;
@@ -677,6 +744,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     finish_replay(q);
     stopped=xpp::job::cancelled();
   }
+  autox_live_drop(s); /* the join stores the diagram's own points in place of the live ones */
   /* the join's order is the jobs' keys (a queue served in turn would run them so) */
   std::vector<QueuedJob *> order;
   for(QueuedJob &job:q.jobs)order.push_back(&job);
