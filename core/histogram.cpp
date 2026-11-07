@@ -152,30 +152,18 @@ long long counted(xpp::Session &s)
 
 void post_process_stuff(xpp::Session &s)
 {
-
-  if(s.histogram.post_process==0)return;
-    s.plot_list.assign({0,1});
-    if(s.histogram.post_process==7){ /* two-d histogram stuff */
-      xpp::ok_or_show(new_2d_hist(s));
-      return;
-    }
-    if(s.histogram.post_process==1){
-      xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi,s.histogram.info.col,0,"",0));
-      return;
-    }
-    if(s.histogram.post_process==2){
-      xpp::ok_or_show(just_fourier(s,0));
-      return;
-    }
-    if(s.histogram.post_process==3){
-      xpp::ok_or_show(just_fourier(s,1));
-      return;
-    }
-    if(s.histogram.post_process>3&&s.histogram.post_process<7){
-      xpp::ok_or_show(just_sd(s,s.histogram.post_process-4));
-      return;
-    }
-
+  const AfterRun after=s.histogram.post_process;
+  if(after==AfterRun::none||after==AfterRun::mean_of_runs||after==AfterRun::variance_of_runs)return;
+  s.plot_list.assign({0,1});
+  switch(after){
+  case AfterRun::histogram_2d: xpp::ok_or_show(new_2d_hist(s)); break;
+  case AfterRun::histogram: xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi,s.histogram.info.col,0,"",0)); break;
+  case AfterRun::fourier_series: xpp::ok_or_show(just_fourier(s,0)); break;
+  case AfterRun::power_spectrum: xpp::ok_or_show(just_fourier(s,1)); break;
+  case AfterRun::spectral_density: case AfterRun::cross_spectral_density: case AfterRun::coherence:
+    xpp::ok_or_show(just_sd(s,spectrum_type_of(after))); break;
+  default: break;
+  }
 }
 
 int twod_hist(xpp::Session &s)

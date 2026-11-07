@@ -56,8 +56,8 @@ struct SolverWork {
 struct DataStore {
   float **col = nullptr; /* col[c] is column c, max_rows floats */
   int rows = 0;          /* rows stored so far */
-  int max_rows = 0;      /* rows each column has room for (the model's
-                            storage_rows; grows when a run fills it) */
+  int max_rows = 0;      /* rows each column has room for (start_rows at a load; grows when a run fills it or data
+                            that is longer is loaded) */
   std::vector<double> current; /* the state where the last run ended (the model's columns, set by allocate) */
   double current_time = 0;     /* and its time */
 
@@ -66,6 +66,11 @@ struct DataStore {
      browser keeps it as col), so it is made once, with this room. */
   static constexpr int ADDED_COLUMNS = 1000;
 
+  /* The rows the store starts with at a load: the length of a run of 5000 steps, enough for the usual run, and
+     the store grows from there when a run or the data loaded is longer. A steady run (run.steady) keeps at most
+     this many, thinning when it reaches them, so its memory does not grow with its length. */
+  static constexpr int start_rows = 5000;
+
   /* ncol columns of nrow rows, empty (rows = 0); nrow becomes max_rows;
      the table has room for ADDED_COLUMNS more */
   void allocate(int nrow, int ncol);
@@ -73,6 +78,10 @@ struct DataStore {
      added are zero), or the error when there is no memory (the columns
      as they were). The caller sets max_rows. */
   Result<> grow(int ncol, int nrow);
+  /* room for nrow rows in every column, the user's added ones too (the first ncol keep what they hold, the rows added
+     are zero): nothing when there is room already, else grown and max_rows set; the error when there is no memory
+     (the columns as they were) */
+  Result<> fit(int ncol, int nrow);
   /* the first ncol columns keep every second row (rows 0, 2, 4, ...), so
      the rows left still span the run, with room for as many more */
   void thin(int ncol);

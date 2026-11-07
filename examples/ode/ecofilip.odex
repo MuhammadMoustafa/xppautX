@@ -7,7 +7,7 @@ x1' = -(a+d1)*x1+b*x2/ode_divisor(c+x2)
 x2' = a*x1-d2*x2-heav(x2-p)*q*e*x2
 options {
   integration: { dt: .02 },
-  plot: { nullclines.mesh: 100, curves.x: x1, curves.y: x2, axes.x_low: -.2, axes.x_high: 2, axes.y_low: -.2, axes.y_high: 2 },
+  plot: { nullclines.mesh: 100, curves: [ { x: x1, y: x2 } ], axes.x_low: -.2, axes.x_high: 2, axes.y_low: -.2, axes.y_high: 2 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

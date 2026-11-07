@@ -844,18 +844,22 @@ private:
     const auto [first, fresh] = keys.emplace(group + "/" + o.name, key.pos.line);
     if (!fresh && !row->repeatable)
       fail(key.pos, xpp::format("`{}` is given twice (the first is at line {})", o.name, first->second));
-    if (row->kind == OptionKind::sliders) {
+    if (row->kind == OptionKind::sliders || row->kind == OptionKind::curves) {
+      const bool curves = row->kind == OptionKind::curves;
       o.value_pos = peek().pos;
       const std::size_t begin = peek().begin;
       const setx::Value value = setting_value(0);
-      if (value.kind != setx::Value::Kind::list) fail(o.value_pos, "sliders takes a list of presets");
+      if (value.kind != setx::Value::Kind::list) fail(o.value_pos, curves ? "curves takes a list of curves" : "sliders takes a list of presets");
       o.value = std::string(src_.substr(begin, toks_[i_ - 1].end - begin));
       setx::Value root;
       root.kind = setx::Value::Kind::group;
-      root.members.push_back({"sliders", key.pos.line, key.pos.col, value});
+      root.members.push_back({curves ? "curves" : "sliders", key.pos.line, key.pos.col, value});
       const setx::Document doc("options", out_.files[file_], std::string(src_));
-      setx::Block block(doc, root, false, "interface");
-      try { static_cast<void>(read_sliders(*model_, block, false)); } /* validates the presets */
+      setx::Block block(doc, root, false, curves ? "plot" : "interface");
+      try { /* validates the list */
+        if (curves) static_cast<void>(read_curves(nullptr, block));
+        else static_cast<void>(read_sliders(*model_, block, false));
+      }
       catch (ReadFailed &e) { throw std::move(e.error); }
       o.tree = value;
       return o;

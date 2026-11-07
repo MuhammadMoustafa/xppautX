@@ -8,7 +8,7 @@ z' = k*(w-u)
 par beta = 30, th = 0.2, c = 1.7453, k = 1
 options {
   integration: { total_time: 12 },
-  plot: { curves.x: u, curves.y: z, axes.x_low: -.1, axes.x_high: 1.1, axes.y_low: -.1, axes.y_high: 1.1 },
+  plot: { curves: [ { x: u, y: z } ], axes.x_low: -.1, axes.x_high: 1.1, axes.y_low: -.1, axes.y_high: 1.1 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

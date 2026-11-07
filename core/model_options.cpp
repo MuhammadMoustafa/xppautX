@@ -46,6 +46,8 @@ constexpr const char *nullclines_dump_file = "nullclines.dat";
 
 /* XPPAUT's most curves in one window (xp2 to xp8 and the first) */
 constexpr int max_plot_curves = 8;
+/* what a .ode's several starting graphs (multiwin, simplot, xlo2 to yhi8) become: one warning */
+constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join graph_1 and the options of several starting graphs are dropped: several graphs are a session's (window.create)";
 
 /* a 3D box side's default: wide enough for most models' variables */
 constexpr double box_side = 12;
@@ -177,8 +179,8 @@ constexpr std::array<std::string_view, autox_output_detail_names.size()> autox_o
 constexpr std::array<std::string_view, 4> poincare_map_names{"none", "section", "max", "period"};
 /* XPPAUT's dfdraw 0 to 5, in its order: what a batch run draws of the direction field, and whether it also saves it */
 constexpr std::array<std::string_view, 6> direction_field_draw_names{"none", "arrows", "scaled_arrows", "flow", "arrows_and_save", "scaled_arrows_and_save"};
-/* XPPAUT's postprocess 0 to 7, in its order: the analysis a batch run makes of its data (spectral density types: histogram.h) */
-constexpr std::array<std::string_view, 8> after_run_names{"none", "histogram", "fourier_series", "power_spectrum", spectrum_type_names[0], spectrum_type_names[1], spectrum_type_names[2], "histogram_2d"};
+/* XPPAUT's postprocess 0 to 7, in its order (read on import only; ours is histogram.h's after_run_names) */
+constexpr std::array<std::string_view, 8> xppaut_postprocess_words{"none", "histogram", "fourier_series", "power_spectrum", spectrum_type_names[0], spectrum_type_names[1], spectrum_type_names[2], "histogram_2d"};
 
 /* the word of words that value starts with, "" when none */
 template <class Words> std::string first_letter_word(const Words &words, std::string_view value)
@@ -301,12 +303,6 @@ constexpr OptionRow rows[] = {
      s.random.seed(s.numerics.rand_seed);
      return nullptr;
    }},
-  {.group = option_group::integration, .kind = OptionKind::whole, .name = "STORAGE_ROWS", .odex = "storage_rows", .xppaut_names = {"MAXSTOR"}, .once = true,
-   .whole = member([](auto &s) -> auto & { return s.data_store.max_rows; }),
-   /* rows the data store starts with: a run of 5000 steps (it grows) */
-   .reset = [](Session &s) { s.data_store.max_rows = 5000; }, .rule = OptionRule::whole_positive, .maximum = option_limit::storage_rows},
-  {.group = option_group::integration, .kind = OptionKind::whole, .name = "STOCH", .odex = "stochastic", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.stochastic.flag; })},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "RELATIVE_TOLERANCE", .odex = "step.relative_tolerance", .xppaut_names = {"TOL"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.relative_tolerance; }),
    /* XPPAUT's */
@@ -611,6 +607,10 @@ constexpr OptionRow rows[] = {
    .index = choice_member([](auto &s) -> auto & { return s.colormap; }),
    .foreign = [](std::string_view v) { return numbered_word(colormap_names, v); }, .imported_default = "jet",
    .rule = OptionRule::choice, .choices = colormap_names, .wide = true},
+  /* the curves of the starting graph, each `{ x, y, z }` (the time, then the first variable twice, when left out); the
+     first holds the axes' variables */
+  {.group = option_group::plot, .kind = OptionKind::curves, .name = "CURVES", .odex = "curves", .once = true,
+   .maximum = max_plot_curves},
   {.group = option_group::plot, .kind = OptionKind::choice, .name = "AXES", .odex = "axes.kind", .once = true,
    .whole = member([](auto &s) -> auto & { return s.plot_settings.axes; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -699,75 +699,6 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.drawing.phi0; })},
   {.group = option_group::plot, .kind = OptionKind::number, .name = "THETA", .odex = "axes.theta", .once = true,
    .real = member([](auto &s) -> auto & { return s.drawing.theta0; })},
-  /* ---- the plot: the defaults of xp..zp before nplot's, which copies
-     them, and of xlo..yhi before xmin..zmax's ---- */
-  {.group = option_group::plot, .kind = OptionKind::name, .name = "XP", .odex = "curves.x", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.plot_settings.ixplt; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return variable_into(s, s.plot_settings.ixplt, v);
-   },
-   /* the time */
-   .reset = [](Session &s) { s.plot_settings.ixplt = 0; }},
-  {.group = option_group::plot, .kind = OptionKind::name, .name = "YP", .odex = "curves.y", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.plot_settings.iyplt; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return variable_into(s, s.plot_settings.iyplt, v);
-   },
-   /* the first variable */
-   .reset = [](Session &s) { s.plot_settings.iyplt = 1; }},
-  {.group = option_group::plot, .kind = OptionKind::name, .name = "ZP", .odex = "curves.z", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.plot_settings.izplt; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return variable_into(s, s.plot_settings.izplt, v);
-   },
-   /* the first variable */
-   .reset = [](Session &s) { s.plot_settings.izplt = 1; }},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "NPLOT", .odex = "curves.count", .once = true,
-   .whole = member([](auto &s) -> auto & { return s.plot_settings.npltv; }),
-   /* one curve, every extra one (xp2=, ...) starting as the main one in
-     the default window */
-   .reset = [](Session &s) {
-     PlotSettings &p = s.plot_settings;
-     p.npltv = 1;
-     for (int i = 0; i < 10; i++) {
-       p.ix_plt[i] = p.ixplt;
-       p.iy_plt[i] = p.iyplt;
-       p.iz_plt[i] = p.izplt;
-       p.x_lo[i] = 0;
-       p.y_lo[i] = -1;
-       p.x_hi[i] = 20;
-       p.y_hi[i] = 1;
-     }
-   },
-   .rule = OptionRule::whole_positive, .maximum = max_plot_curves},
-  {.group = option_group::plot, .kind = OptionKind::name, .name = "XP", .odex = "curves.x", .first_digit = '2', .last_digit = '8',
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return variable_into(s, s.plot_settings.ix_plt[v.index], v);
-   }},
-  {.group = option_group::plot, .kind = OptionKind::name, .name = "YP", .odex = "curves.y", .first_digit = '2', .last_digit = '8',
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return variable_into(s, s.plot_settings.iy_plt[v.index], v);
-   }},
-  {.group = option_group::plot, .kind = OptionKind::name, .name = "ZP", .odex = "curves.z", .first_digit = '2', .last_digit = '8',
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return variable_into(s, s.plot_settings.iz_plt[v.index], v);
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .name = "XLO", .odex = "curves.x_low", .first_digit = '2', .last_digit = '8',
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return number_into(s.plot_settings.x_lo[v.index], v);
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .name = "XHI", .odex = "curves.x_high", .first_digit = '2', .last_digit = '8',
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return number_into(s.plot_settings.x_hi[v.index], v);
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .name = "YLO", .odex = "curves.y_low", .first_digit = '2', .last_digit = '8',
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return number_into(s.plot_settings.y_lo[v.index], v);
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .name = "YHI", .odex = "curves.y_high", .first_digit = '2', .last_digit = '8',
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return number_into(s.plot_settings.y_hi[v.index], v);
-   }},
   /* the line every new curve starts with */
   {.group = option_group::plot, .kind = OptionKind::choice, .name = "LINE.DRAW", .odex = "line.draw", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -846,16 +777,6 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.nullclines.color_via_lo; })},
   {.group = option_group::plot, .kind = OptionKind::number, .name = "COLORHI", .odex = "color_by.high", .once = true,
    .real = member([](auto &s) -> auto & { return s.nullclines.color_via_hi; })},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "SIMPLOT", .odex = "windows.simultaneous",
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (v.apply) s.plot_windows.simul = 1;
-     return nullptr;
-   }, .wide = true},
-  {.group = option_group::plot, .kind = OptionKind::whole, .name = "MULTIWIN", .odex = "windows.multiple",
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (v.apply) s.plot_settings.multi_win = 1;
-     return nullptr;
-   }, .wide = true},
   {.group = option_group::analysis, .kind = OptionKind::number, .name = "HISTLO", .odex = "histogram.low", .once = true,
    .real = member([](auto &s) -> auto & { return s.histogram.info.xlo; })},
   {.group = option_group::analysis, .kind = OptionKind::number, .name = "HISTHI", .odex = "histogram.high", .once = true,
@@ -942,10 +863,10 @@ constexpr OptionRow rows[] = {
      return data_file_into(s, v, s.nullclines.file);
    }},
   /* ---- the histogram and the spectrum a batch run writes ---- */
-  {.group = option_group::output, .kind = OptionKind::choice, .name = "POSTPROCESS", .odex = "after_run", .once = true,
+  {.group = option_group::output, .kind = OptionKind::choice, .name = "AFTER_RUN", .odex = "after_run", .xppaut_names = {"POSTPROCESS"}, .once = true,
    .index = choice_member([](auto &s) -> auto & { return s.histogram.post_process; }),
-   .reset = [](Session &s) { s.histogram.post_process = 0; },
-   .foreign = [](std::string_view v) { return numbered_word(after_run_names, v); },
+   .reset = [](Session &s) { s.histogram.post_process = AfterRun::none; },
+   .foreign = [](std::string_view v) { return numbered_word(xppaut_postprocess_words, v); },
    .rule = OptionRule::choice, .choices = after_run_names},
   {.group = option_group::output, .kind = OptionKind::path, .name = "AFTER_RUN_FILE", .odex = "after_run_file", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -968,6 +889,16 @@ constexpr OptionRow rows[] = {
        if (const char *why = own_file(s, v, path)) return why;
      if (v.apply && !log_open_file(path)) return log_open_failed;
      return nullptr;
+   }},
+  /* XPPAUT's maxstor (import only): the data store starts with DataStore::start_rows and grows to fit, so it has no size to set */
+  {.name = "MAXSTOR", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
+  /* XPPAUT's stoch (import only): 1 and 2 are the mean and the variance of the runs of a sweep, the after_run that makes them */
+  {.name = "STOCH", .once = true,
+   .expand = [](std::string_view value) -> ForeignOptions {
+     if (value == "1") return {{{"after_run", "mean_of_runs"}}, nullptr};
+     if (value == "2") return {{{"after_run", "variance_of_runs"}}, nullptr};
+     if (value == "0") return {};
+     return {{}, "not 0, 1 or 2"};
    }},
   /* a .ode's bound (import only) is both the state limit and the search limit */
   {.name = "BOUND", .once = true,
@@ -997,6 +928,34 @@ constexpr OptionRow rows[] = {
      if (value == "2") return {{{"nullclines.draw", "false"}, {"nullclines.file", nullclines_dump_file}}, nullptr};
      return {{}, "not 0, 1 or 2"};
    }},
+  /* XPPAUT's plotted variables (import only): xp, yp and zp are the first curve of `curves`, nplot says how many there are and
+     xp2 to zp8 are the others (the converter writes the list: odex_convert.cpp); with no window of ours opened by a model, they
+     only name the variables */
+  {.kind = OptionKind::name, .name = "XP", .once = true, .curve_field = CurveField::x,
+   .parse = [](Session &s, const OptionValue &v) -> const char * { return variable_into(s, s.plot_settings.curves[0].x, v); }},
+  {.kind = OptionKind::name, .name = "YP", .once = true, .curve_field = CurveField::y,
+   .parse = [](Session &s, const OptionValue &v) -> const char * { return variable_into(s, s.plot_settings.curves[0].y, v); }},
+  {.kind = OptionKind::name, .name = "ZP", .once = true, .curve_field = CurveField::z,
+   .parse = [](Session &s, const OptionValue &v) -> const char * { return variable_into(s, s.plot_settings.curves[0].z, v); }},
+  {.kind = OptionKind::whole, .name = "NPLOT", .once = true, .curve_field = CurveField::count,
+   .rule = OptionRule::whole_positive, .maximum = max_plot_curves},
+  {.kind = OptionKind::name, .name = "XP", .first_digit = '2', .last_digit = '8', .curve_field = CurveField::x,
+   .parse = [](Session &s, const OptionValue &v) -> const char * { int i = 0; return variable_into(s, i, v); }},
+  {.kind = OptionKind::name, .name = "YP", .first_digit = '2', .last_digit = '8', .curve_field = CurveField::y,
+   .parse = [](Session &s, const OptionValue &v) -> const char * { int i = 0; return variable_into(s, i, v); }},
+  {.kind = OptionKind::name, .name = "ZP", .first_digit = '2', .last_digit = '8', .curve_field = CurveField::z,
+   .parse = [](Session &s, const OptionValue &v) -> const char * { int i = 0; return variable_into(s, i, v); }},
+  /* XPPAUT's several starting graphs (import only): a model opens one graph; the session opens more */
+  {.name = "MULTIWIN", .dropped = several_graphs},
+  {.name = "SIMPLOT", .dropped = several_graphs},
+  {.kind = OptionKind::number, .name = "XLO", .first_digit = '2', .last_digit = '8', .dropped = several_graphs,
+   .parse = [](Session &, const OptionValue &v) -> const char * { double x = 0; return number_into(x, v); }},
+  {.kind = OptionKind::number, .name = "XHI", .first_digit = '2', .last_digit = '8', .dropped = several_graphs,
+   .parse = [](Session &, const OptionValue &v) -> const char * { double x = 0; return number_into(x, v); }},
+  {.kind = OptionKind::number, .name = "YLO", .first_digit = '2', .last_digit = '8', .dropped = several_graphs,
+   .parse = [](Session &, const OptionValue &v) -> const char * { double x = 0; return number_into(x, v); }},
+  {.kind = OptionKind::number, .name = "YHI", .first_digit = '2', .last_digit = '8', .dropped = several_graphs,
+   .parse = [](Session &, const OptionValue &v) -> const char * { double x = 0; return number_into(x, v); }},
   /* XPPAUT slider slots are import-only. */
   {.kind = OptionKind::name, .name = "S1", .once = true,
    .parse = slider_var<0>},
@@ -1377,6 +1336,12 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
     for (const auto &[key, value] : ours.items)
       if (const auto why = option_value(s, key, value, force, mask, apply, false)) return why;
   }
+  else if (row->kind == OptionKind::curves) {
+    const auto curves = setx::read_block("options", s.model().this_file, "curves: " + text, false,
+      [&](setx::Block &block) { return read_curves(&s, block); });
+    if (!curves) return curves.error().what;
+    if (apply) s.plot_settings.curves = *curves;
+  }
   else if (row->kind == OptionKind::sliders) {
     const auto sliders = setx::read_block("options", s.model().this_file, "sliders: " + text, false,
       [&](setx::Block &block) { return read_sliders(s.model(), block); });
@@ -1430,6 +1395,30 @@ std::vector<XppSlider> read_sliders(const Model &m, xpp::setx::Block &file, bool
     return sliders;
 }
 
+
+std::vector<PlotCurve> read_curves(const Session *s, xpp::setx::Block &file)
+{
+    std::vector<xpp::setx::Block> items;
+    file.groups("curves", items, static_cast<std::size_t>(max_plot_curves));
+    if (items.empty()) file.fail("curves holds at least one curve");
+    std::vector<PlotCurve> curves;
+    for (xpp::setx::Block &g : items) {
+        PlotCurve curve;
+        const std::array<std::pair<std::string_view, int PlotCurve::*>, 3> axes{{{"x", &PlotCurve::x}, {"y", &PlotCurve::y}, {"z", &PlotCurve::z}}};
+        for (const auto &[key, member] : axes) {
+            if (!g.has(key)) continue;
+            const xpp::setx::Member &m = *g.member(key);
+            if (!s) continue; /* the names are the model's: checked when the options are applied */
+            int column = -1;
+            find_variable(*s, g.name_of(m), &column);
+            if (column < 0) g.fail(m, "no such variable");
+            curve.*member = column;
+        }
+        g.done();
+        curves.push_back(curve);
+    }
+    return curves;
+}
 
 std::string option_error_text(std::string_view name, std::string_view value, std::string_view why)
 {

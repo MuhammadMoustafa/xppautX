@@ -1216,6 +1216,10 @@ private:
         continue;
       }
       const bool slider = row && xpp::xppaut_slider_option(*row);
+      if (row && (row->curve_field != CurveField::none || !row->dropped.empty())) {
+        option_note(xpp::format("{}={} in the .ode's set {}: a set does not hold the curves of a graph, so it is dropped", key, value, set.name), "set-value");
+        continue;
+      }
       if (!row || (row->odex.empty() && !slider)) {
         option_note(xpp::format("{}={} in the .ode's set {}: XPP ignores it, so it is dropped", key, value, set.name), "set-value");
         continue;
@@ -1415,13 +1419,58 @@ private:
   struct OptionEntry {
     std::string key, value;
     const OptionRow *row;
+    std::string from = {}; /* the XPPAUT option that is several of ours and set it (stoch: after_run), "" when it was set as itself */
   };
+
+  /* a .ode's xp, yp, zp and nplot (and their numbered ones): the `curves` list they say. xp is the first curve's, xp2 the
+     second's; a curve's variable left out is the first curve's (XPPAUT's nplot copies them), the first's the time and the
+     first variable, which is ours too, so they are not written. */
+  struct CurveOptions {
+    std::array<std::array<std::string, 3>, 8> names; /* by curve, then x, y, z */
+    int count = 1;
+    bool any = false;
+
+    void add(const OptionRow &row, int index, const std::string &text)
+    {
+      any = true;
+      if (row.curve_field == CurveField::count) {
+        count = std::atoi(text.c_str());
+        return;
+      }
+      names[static_cast<std::size_t>(index ? index - 1 : 0)][static_cast<std::size_t>(row.curve_field) - 1] = text;
+    }
+    /* the list, "" when the .ode names no curve */
+    std::string list() const
+    {
+      if (!any) return {};
+      std::string out = "[ ";
+      for (int i = 0; i < count; ++i) {
+        std::string item;
+        for (std::size_t f = 0; f < 3; ++f) {
+          const std::string &v = names[static_cast<std::size_t>(i)][f].empty() ? names[0][f] : names[static_cast<std::size_t>(i)][f];
+          if (!v.empty()) item += (item.empty() ? "" : ", ") + std::string(1, "xyz"[f]) + ": " + v;
+        }
+        out += (i ? ", " : "") + (item.empty() ? std::string("{}") : "{ " + item + " }");
+      }
+      return out + " ]";
+    }
+  };
+
+  CurveOptions curves_;
+  std::set<std::string> dropped_; /* the warnings of dropped options already said */
 
   std::string options_block()
   {
     const bool map = disc(m_) != 0;
     std::vector<OptionEntry> entries;
+    curves_ = {};
+    dropped_.clear();
     for (const xpp::Model::OptionLine &line : m_.options) collect_options(line, map, entries);
+    if (const std::string list = curves_.list(); !list.empty()) {
+      int index = 0;
+      const OptionRow &row = *xpp::find_option("CURVES", index, false);
+      entries.push_back({xpp::odex_key(row, 0), list, &row});
+    }
     /* an option XPPAUT's default for which is not ours (the colormap: jet, ours is viridis) is written out when the .ode does not
        set it, so the model keeps the look it had */
     for (const OptionRow &row : xpp::option_rows()) {
@@ -1488,6 +1537,14 @@ private:
         add_expanded(*row, key, value, entries, false);
         continue;
       }
+      if (row && row->curve_field != CurveField::none) {
+        curves_.add(*row, index, option_text(*row, key, value, "option-value"));
+        continue;
+      }
+      if (row && !row->dropped.empty()) {
+        if (dropped_.insert(std::string(row->dropped)).second) option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row->dropped), "option");
+        continue;
+      }
       const bool slider = row && xpp::xppaut_slider_option(*row);
       if (!row || (row->odex.empty() && !slider)) {
         option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row ? "an X11 window setting xppautX does not keep, dropped"
@@ -1499,7 +1556,10 @@ private:
       const std::string text = option_text(*row, key, value, "option-value");
       const std::string name = xpp::odex_key(*row, index);
       const auto same = std::ranges::find_if(entries, [&](const OptionEntry &e) { return e.row == row && e.key == name; });
-      if (same != entries.end() && !row->repeatable) {
+      if (same != entries.end() && !same->from.empty()) {
+        option_note(xpp::format("@ {}={} in the .ode sets {} as well as @ {}: the {} one, {}, is imported, not {}", key, value, name, same->from,
+                                same->from, same->value, text), "option");
+      } else if (same != entries.end() && !row->repeatable) {
         option_note(xpp::format("@ {} is set more than once in the .ode: XPP keeps the last value, {}", name, text), "option");
         same->value = text;
       } else {
@@ -1535,8 +1595,15 @@ private:
       const std::string ours_key = xpp::odex_key(*own, index);
       const std::string text = option_text(*own, ours_name, ours_value, in_set ? "set-value" : "option-value");
       const auto same = std::ranges::find_if(entries, [&](const OptionEntry &e) { return e.row == own && e.key == ours_key; });
-      if (same != entries.end()) same->value = text;
-      else entries.push_back({ours_key, text, own});
+      if (same != entries.end()) {
+        if (same->value != text)
+          option_note(xpp::format("@ {}={} in the .ode sets {} as well as @ {}: the {} one, {}, is imported, not {}", key, value, ours_key,
+                                  same->from.empty() ? ours_key : same->from, key, text, same->value), "option");
+        same->value = text;
+        same->from = key;
+      } else {
+        entries.push_back({ours_key, text, own, key});
+      }
     }
   }
 
@@ -1548,7 +1615,8 @@ private:
   {
     if (const std::optional<double> total = imported_total(row, value)) return print_number(*total);
     switch (row.kind) {
-    case OptionKind::sliders: return value;
+    case OptionKind::sliders:
+    case OptionKind::curves: return value;
     case OptionKind::path:
     case OptionKind::text: {
       std::string text = value;

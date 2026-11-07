@@ -3805,8 +3805,9 @@ check_plot_windows()
 
 
 def check_model_plot_windows():
-    """W348: model-defined graphs use the same core setup in every mode."""
-    model = os.path.join('tools', 'models', 'multiwin.odex')
+    """W619 (W348): a model opens one graph, its curves in it, in every mode; XPPAUT's several starting graphs
+    (multiwin, simplot, xlo2 ...) import with one warning and leave the run's data as it was."""
+    model = os.path.join('tools', 'models', 'curves3.odex')
     proc, run, send, collect, _ = launch_server(ode=model)
     try:
         collect(is_done)
@@ -3814,38 +3815,73 @@ def check_model_plot_windows():
         events, _ = collect(is_done)
         plots = next((e for e in events if e.get('ev') == 'plot.shown'), {})
         windows = plots.get('windows', [])
-        check('W348: model creates three graphs, with the first active',
-              [w['win'] for w in windows] == ['graph_1', 'graph_2', 'graph_3'] and plots.get('active') == 'graph_1', str(plots)[:400])
-        check('W348: secondary graphs keep their axes and bounds', len(windows) == 3
-              and windows[1]['curves'][0]['x'] == 2 and windows[1]['curves'][0]['y'] == 1
-              and [windows[1][k] for k in ('xlo', 'xhi', 'ylo', 'yhi')] == [-2, 3, -4, 5]
-              and windows[2]['curves'][0]['x'] == 0 and windows[2]['curves'][0]['y'] == 2
-              and [windows[2][k] for k in ('xlo', 'xhi', 'ylo', 'yhi')] == [0, 1, 0, 2], str(windows)[:400])
+        check('W619: a model opens one graph, with its three curves in it',
+              [w['win'] for w in windows] == ['graph_1'] and plots.get('active') == 'graph_1' and len(windows[0]['curves']) == 3
+              and [(c['x'], c['y']) for c in windows[0]['curves']] == [(1, 2), (2, 1), (0, 2)], str(plots)[:400])
         send(cmd='run.initial')
         events, _ = collect(is_done)
         series = whole_series(events)
-        check('W348: every graph carries the unchanged silent trajectory', len(series) == 3
-              and all(series_matches_output_dat(s, model) is None for s in series), str([s['win'] for s in series]))
+        check('W619: the one graph carries the unchanged silent trajectory', len(series) == 1
+              and series_matches_output_dat(series[0], model) is None, str([s['win'] for s in series]))
     finally:
         stop_server(proc, run, send)
     with tempfile.TemporaryDirectory(prefix='xppmultiwin') as run:
-        with open(model, encoding='utf-8') as source:
-            text = source.read()
+        body = "x'=-x\ny'=-2*y\ninit x=1,y=2\n@ total=1,dt=.1,meth=rk4%s\ndone\n"
+        several = ',multiwin=1,simplot=1,nplot=3,xp=x,yp=y,xp2=y,yp2=x,xlo2=-2,xhi2=3,ylo2=-4,yhi2=5,xp3=t,yp3=y,xlo3=0,xhi3=1'
         outputs = []
-        for multi in (True, False):
-            with open(os.path.join(run, 'plot.odex'), 'w', encoding='utf-8') as source:
-                source.write(versioned(text if multi else text.replace('multiwin: 1, ', '')))
-            result = subprocess.run([os.path.abspath(args.server), 'plot.odex', '--silent'], cwd=run,
+        for name, extra in (('several', several), ('one', '')):
+            with open(os.path.join(run, name + '.ode'), 'w', encoding='utf-8') as source:
+                source.write(body % extra)
+            converted = subprocess.run([os.path.abspath(args.server), '--convert', name + '.ode'], cwd=run,
+                                       capture_output=True, text=True, timeout=60 * SLOW)
+            with open(os.path.join(run, name + '.odex'), encoding='utf-8') as source:
+                text = source.read()
+            if extra:
+                check('W619: several starting graphs import with one warning that curves 2 to N join graph_1',
+                      converted.returncode == 0 and converted.stderr.count('xppautX opens one graph') == 1
+                      and 'curves: [ { x: x, y: y }, { x: y, y: x }, { x: t, y: y } ]' in text, converted.stderr + text)
+            result = subprocess.run([os.path.abspath(args.server), name + '.odex', '--silent'], cwd=run,
                                     capture_output=True, text=True, timeout=60 * SLOW)
-            check('W348: silent model runs / ' + ('multi' if multi else 'single'),
-                  result.returncode == 0, result.stderr)
+            check('W619: silent model runs / ' + name, result.returncode == 0, result.stderr)
             with open(os.path.join(run, 'output.dat'), 'rb') as data:
                 outputs.append(data.read())
-        check('W348: multi-window silent output is byte-identical to single-window output',
-              outputs[0] == outputs[1])
+        check('W619: the several-graphs model writes the same output.dat as the one-graph model', outputs[0] == outputs[1])
 
 
 check_model_plot_windows()
+
+
+def check_after_run_stochastic():
+    """W619: `output: { after_run }` of mean_of_runs or variance_of_runs runs the sweep as a stochastic compute and writes the
+    mean or the variance of its runs; XPPAUT's stoch=1/2 import as those words, and the spectra's names are the protocol's."""
+    runs = 50
+    model = ("version 4\nwiener n\npar dummy = 0\nx' = dummy*0\naux nsamp = normal(0, 1)\noptions {\n"
+             "  integration: { total_time: 10, dt: 1, method: euler, seed: 7 },\n"
+             "  sweep: { variable: dummy, steps: %d, low: 0, high: 0 },\n  output: { after_run: %%s },\n}\n" % (runs - 1))
+    with tempfile.TemporaryDirectory(prefix='xppafterrun') as run:
+        for word, centre, tolerance in (('mean_of_runs', 0.0, 4 / math.sqrt(runs)), ('variance_of_runs', 1.0, 4 * math.sqrt(2 / runs))):
+            with open(os.path.join(run, word + '.odex'), 'w', encoding='utf-8') as source:
+                source.write(model % word)
+            result = subprocess.run([os.path.abspath(args.server), word + '.odex', '--silent'], cwd=run,
+                                    capture_output=True, text=True, timeout=60 * SLOW)
+            rows = []
+            if os.path.isfile(os.path.join(run, 'output.dat')):
+                with open(os.path.join(run, 'output.dat'), encoding='utf-8') as data:
+                    rows = [list(map(float, line.split())) for line in data]
+                os.remove(os.path.join(run, 'output.dat'))
+            check('W619: after_run %s writes that statistic of the %d runs, one row for each time' % (word, runs),
+                  result.returncode == 0 and len(rows) == 11 and all(abs(r[2] - centre) < tolerance for r in rows), result.stderr + str(rows[:3]))
+        with open(os.path.join(run, 'both.ode'), 'w', encoding='utf-8') as source:
+            source.write("wiener n\npar dummy=0\nx'=dummy*0\n@ total=10,dt=1,meth=euler,stoch=2,postprocess=1\ndone\n")
+        converted = subprocess.run([os.path.abspath(args.server), '--convert', 'both.ode'], cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
+        with open(os.path.join(run, 'both.odex'), encoding='utf-8') as source:
+            text = source.read()
+        check('W619: stoch=2 imports as after_run variance_of_runs, with a warning when postprocess is also set',
+              converted.returncode == 0 and 'after_run: variance_of_runs' in text and 'the stoch one, variance_of_runs, is imported, not histogram' in converted.stderr,
+              converted.stderr + text)
+
+
+check_after_run_stochastic()
 
 
 # The values panel and the run history of web2 (GitHub #18, #117): hello's
@@ -5361,7 +5397,7 @@ def check_fit_retained_runs():
     in 2D and in 3D alike: a first run that grows far past the live one is
     inside the fitted box."""
     zeq = "\nz'=a*z\ninit z=1"
-    for dims, extra, plot in ((2, '', ''), (3, zeq, ', curves.x: x, curves.y: y, curves.z: z, axes.kind: 3, axes.z_min: 0, axes.z_max: 10')):
+    for dims, extra, plot in ((2, '', ''), (3, zeq, ', curves: [ { x: x, y: y, z: z } ], axes.kind: 3, axes.z_min: 0, axes.z_max: 10')):
         d = tempfile.mkdtemp(prefix='xppfit')
         ode = os.path.join(d, 'fit.odex')
         with open(ode, 'w') as f:
@@ -9342,7 +9378,7 @@ def check_parser_group():
                 ('plot: { axes.x_low: 3, axes.x_high: 1 }', 2, 'xlo (3) must be below xhi (1)'),
                 ('analysis: { histogram.low: 2, histogram.high: 2 }', 2, 'histlo (2) must be below histhi (2)'),
                 ('analysis: { histogram.bins: 1 }', 2, 'must be a whole number of at least 2'),
-                ('plot: { curves.count: 9 }', 2, 'exceeds the allocation maximum'),
+                ('plot: { curves: [ {}, {}, {}, {}, {}, {}, {}, {}, {} ] }', 2, '`curves` has 9 entries: at most 8'),
                 ('plot: { direction_field.grid: 1 }', 2, 'must be a whole number of at least 2'),
                 ('integration: { torus.period: 0 }', 2, 'must be a number above 0'),
                 ('sweep: { steps: 0 }', 2, 'must be a whole number of at least 1')):
@@ -10794,11 +10830,15 @@ def check_range_files():
 
 check_range_files()
 
+# the rows the data store starts with at a load (core/storage.h DataStore::start_rows)
+STORE_START_ROWS = 5000
+
+
 def check_storage_full():
     with tempfile.TemporaryDirectory(prefix='w347') as folder:
         model = os.path.join(folder, 'full.odex')
         with open(model, 'w') as f:
-            f.write(versioned("x'=1\noptions { integration: { total_time: 1, dt: .1, storage_rows: 4 } }\n"))
+            f.write(versioned("x'=1\noptions { integration: { total_time: 4000, dt: .5, state_limit: 100000 } }\n"))
         # W48 removed XPP_MEM_FAIL_AT. The storage owner's narrow hook tests
         # this recoverable failure without failing unrelated allocations.
         s = Server(args.server, model, env={'XPP_STORAGE_FAIL_GROW': '1'})
@@ -10817,9 +10857,9 @@ def check_storage_full():
                   and 'Cannot allocate sufficient storage' in errors[0].get('error', '')
                   and not any(e.get('kind') == 'choice' for e in evs), str(errors))
             check('W347: failed growth preserves every stored row in time order',
-                  state.get('rows') == 4 and len(cols.get(0, [])) == 4
-                  and all(abs(t - i * .1) < 1e-6 for i, t in enumerate(cols.get(0, [])))
-                  and all(abs(x - i * .1) < 1e-6 for i, x in enumerate(cols.get(1, []))), str(cols))
+                  state.get('rows') == STORE_START_ROWS and len(cols.get(0, [])) == STORE_START_ROWS
+                  and all(abs(t - i * .5) < 1e-6 for i, t in enumerate(cols.get(0, [])))
+                  and all(abs(x - i * .5) < 1e-6 for i, x in enumerate(cols.get(1, []))), str(cols)[:300])
             s.send(cmd='run.configure', total_time=-2)
             evs, _ = s.collect(is_done)
             check('W347: protocol rejects negative Total with its command place',
@@ -11163,10 +11203,10 @@ def check_analysis_registry():
         refused('analysis.cross_correlation with more lags than half the data allows', {'cmd': 'analysis.cross_correlation', 'lags': 4000}, 'lags')
         refused('analysis.cross_correlation by a method that is not one', {'cmd': 'analysis.cross_correlation', 'method': 'slow'}, 'slow')
         call(cmd='analysis.load_stochastic_run')
-        ok('analysis.spectral_density of one column', {'cmd': 'analysis.spectral_density', 'type': 'psd_x', 'column': 'v', 'window_length': 64, 'window': 'hann'},
+        ok('analysis.spectral_density of one column', {'cmd': 'analysis.spectral_density', 'type': 'spectral_density', 'column': 'v', 'window_length': 64, 'window': 'hann'},
            {'points': 32})
         call(cmd='analysis.load_stochastic_run')
-        ok('analysis.spectral_density of two (their coherence)', {'cmd': 'analysis.spectral_density', 'type': 'coherence_xy', 'column': 'v', 'column2': 'w',
+        ok('analysis.spectral_density of two (their coherence)', {'cmd': 'analysis.spectral_density', 'type': 'coherence', 'column': 'v', 'column2': 'w',
                                                                   'window_length': 64, 'window': 'square'}, {'points': 32})
         refused('analysis.spectral_density with a window of one point', {'cmd': 'analysis.spectral_density', 'window_length': 1}, 'window_length')
         refused('analysis.spectral_density with a window longer than the data', {'cmd': 'analysis.spectral_density', 'window_length': 100000}, 'No window of')
@@ -11436,7 +11476,7 @@ def check_recursive_user_functions():
         field = os.path.join(folder, 'field.odex')
         with open(field, 'w') as f:
             f.write(versioned("fun f(x) = f(x)+1\nx' = -f(x)\ny' = x\n"
-                    "options { plot: { curves.x: x, curves.y: y, axes.x_low: -1, axes.x_high: 1, axes.y_low: -1, axes.y_high: 1 } }\n"))
+                    "options { plot: { curves: [ { x: x, y: y } ], axes.x_low: -1, axes.x_high: 1, axes.y_low: -1, axes.y_high: 1 } }\n"))
         s = Server(args.server, field)
         try:
             s.collect(is_done)

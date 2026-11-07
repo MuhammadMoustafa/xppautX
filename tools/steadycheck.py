@@ -11,6 +11,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--server', default='./xppautX')
 args = parser.parse_args()
 check = Checker(detail_sep=': ')
+# the rows the data store starts with at a load, and a steady run's most kept (core/storage.h DataStore::start_rows);
+# the storage scenario's run is twice as long as that many steps of its dt
+STORE_START_ROWS = 5000
+STORAGE_RUN_TIME = 1000
 
 def command(server, **fields):
     server.send(**fields)
@@ -121,13 +125,13 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
     scenario(folder, 'nonfinite', "x'=sqrt(-1)\ninit x=1\n@ dt=.1,total=5,bound=10", nonfinite)
 
     def storage(server):
-        got, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=10)
+        got, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=STORAGE_RUN_TIME)
         check('storage: a steady run is not bounded by the store; it runs to its maximum without a prompt',
-              state and state['steady']['status'] == 'limit' and state['steady']['time'] > 9.9 and not any(e.get('ev') == 'ask' for e in got), state)
+              state and state['steady']['status'] == 'limit' and state['steady']['time'] > STORAGE_RUN_TIME - .1 and not any(e.get('ev') == 'ask' for e in got), state)
         series = whole_series(got)
         rows = len(series[-1]['columns'][0]['data']) if series else 0
-        check('storage: the thinned rows stay within storage_rows', 0 < rows <= 10, rows)
-    scenario(folder, 'storage', "x'=1\ninit x=0\n@ dt=.1,total=10,maxstor=10,bound=100", storage)
+        check('storage: the thinned rows stay within the store\'s start rows', 0 < rows <= STORE_START_ROWS, rows)
+    scenario(folder, 'storage', "x'=1\ninit x=0\n@ dt=.1,total=10,bound=1e6", storage)
 
     def discrete(server):
         got, state = command(server, cmd='run.steady', decimals=9, hold=2, maximum=50)

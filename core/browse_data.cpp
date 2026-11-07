@@ -1,6 +1,7 @@
 /* The data side of the browser: the one BROWSER instance, its storage
    pointer, row/column bookkeeping and the file writer. The page
    displays it. */
+#include <limits>
 #include "xpp_files.h"
 #include <array>
 #include <chrono>
@@ -135,12 +136,9 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
 {
   const int neq=s.model().neq;
   const int rows=static_cast<int>(t.rows());
-  if(rows>s.data_store.max_rows){
-    if(const xpp::Result<> r=s.data_store.grow(neq+1,rows);!r){
-      xpp::show_error(r.error());
-      return 0;
-    }
-    s.data_store.max_rows=rows;
+  if(const xpp::Result<> r=s.data_store.fit(neq+1,rows);!r){
+    xpp::show_error(r.error());
+    return 0;
   }
   for(std::size_t k=0;k<t.columns.size();k++){
     int col;
@@ -699,9 +697,12 @@ Result<DataLoaded> load_data_file(xpp::Session &s, std::string_view format, std:
  if(!f->read(fil.c_str(),t))
    return fail("load data",xpp::format("Cannot read {} as {}{}",fil,f->title,t.error.empty()?"":": "+t.error),command_place());
  /*  The file's columns fill the stored ones in order: more columns than
-     there are are left out, and at most max_rows rows are read. This data
+     there are are left out, and every row is read, the store growing to fit. This data
      can be plotted etc like anything else */
- const int len=static_cast<int>(std::min<std::size_t>(t.rows(),static_cast<std::size_t>(s.data_store.max_rows)));
+ if(t.rows()>static_cast<std::size_t>(std::numeric_limits<int>::max()))
+   return fail("load data",xpp::format("{} has {} rows: more than the data table can hold",fil,t.rows()),command_place());
+ const int len=static_cast<int>(t.rows());
+ if(const xpp::Result<> fitted=s.data_store.fit(s.model().neq+1,len);!fitted)return std::unexpected(fitted.error());
  for(std::size_t k=0;k<t.columns.size()&&k<static_cast<std::size_t>(b->maxcol);k++)
    std::copy(t.columns[k].begin(),t.columns[k].begin()+len,b->data[k]);
  refresh_browser(s,len);

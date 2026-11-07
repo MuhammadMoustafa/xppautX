@@ -192,7 +192,7 @@ you wrote (`1/30`) alone while the value is unchanged.
 
         options {
           integration: { total_time: 100, method: stiff, jacobian.kind: exact },
-          plot:     { curves.x: v, curves.y: w, axes.x_low: -0.6, axes.x_high: 1.2 },
+          plot:     { curves: [ { x: v, y: w } ], axes.x_low: -0.6, axes.x_high: 1.2 },
           continuation: { mesh_intervals: 50, parameter_max: 10 },
         }
 
@@ -206,13 +206,13 @@ you wrote (`1/30`) alone while the value is unchanged.
 
   | group | keys |
   |---|---|
-  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `seed`, `storage_rows`, `stochastic`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `bvp.max_iterates`, `bvp.tolerance`, `bvp.epsilon`; `torus.period`, `torus.fold`; `tables.auto_evaluate` |
+  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `bvp.max_iterates`, `bvp.tolerance`, `bvp.epsilon`; `torus.period`, `torus.fold`; `tables.auto_evaluate` |
   | `poincare` | `map`, `variable`, `sign`, `plane`, `stop` |
   | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535), `near_tolerance` |
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |
   | `continuation` | autoX run settings by their names: `mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance` (W531) and the ten that were Numerics-form settings only: `mesh_adapt_every`, `max_branch_switches`, `switch_one_direction`, `output_detail`, `max_location_iterations`, `max_newton_iterations`, `full_newton_after`, `step_adapt_every`, `suppress_branch_points`, `follow_all_branches` (each the autox.configure_numerics argument of its name); autoX's own names (`ntst`, `nmax`, `parmin`, ...) are XPPAUT's, read on `.ode` import only |
   | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max`; `colors.stable_equilibrium`, `colors.unstable_equilibrium`, `colors.stable_periodic`, `colors.unstable_periodic` |
-  | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_low`, `axes.x_high`, `axes.y_low`, `axes.y_high` (the 2D window), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `axes.phi`, `axes.theta` (the 3D box and view); `curves.x`, `curves.y`, `curves.z`, `curves.count`, and `curves.x2` to `curves.z8`, `curves.x_low2` to `curves.y_high8` for the numbered curves; `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`, `nullclines.x_color`, `nullclines.y_color`; `direction_field.grid`, `direction_field.draw`; `manifolds.stable_color`, `manifolds.unstable_color`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high`; `windows.simultaneous`, `windows.multiple` |
+  | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_low`, `axes.x_high`, `axes.y_low`, `axes.y_high` (the 2D window), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `axes.phi`, `axes.theta` (the 3D box and view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`, `nullclines.x_color`, `nullclines.y_color`; `direction_field.grid`, `direction_field.draw`; `manifolds.stable_color`, `manifolds.unstable_color`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
   | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
   | `export` | `format` (`pdf` or `svg`), `color`, `font_size` |
   | `interface` | `sliders`, `buttons` (and `animation`, written directly in `options`, outside any group) |
@@ -225,8 +225,10 @@ you wrote (`1/30`) alone while the value is unchanged.
   `.odex` never does, and `--convert` writes the key. A number that stood for a choice
   is its word: `direction_field.draw` is `none`, `arrows`, `scaled_arrows`, `flow`,
   `arrows_and_save` or `scaled_arrows_and_save` (XPPAUT's `dfdraw` 0 to 5),
-  `after_run` is `none`, `histogram`, `fourier_series`, `power_spectrum`, `psd_x`,
-  `psd_xy`, `coherence_xy` or `histogram_2d` (`postprocess` 0 to 7), and a yes or no is
+  `after_run` is `none`, `histogram`, `histogram_2d`, `fourier_series`, `power_spectrum`,
+  `spectral_density`, `cross_spectral_density`, `coherence` (`postprocess` 0 to 7 by their names, `stoch` 1 and
+  2 are `mean_of_runs` and `variance_of_runs`, the mean and the variance of the runs a sweep makes as a
+  stochastic compute), and a yes or no is
   `true` or `false` (`color_by.enabled`, XPPAUT's `colorize`). Every option has one name
   and its key says what it sets: `total_time`, `start_time`, `store_from` (a time, not a
   duration: `trans` of a `.ode`), `nullclines.mesh`, `step.min`, `poincare: { map, variable,
@@ -335,10 +337,10 @@ The allocation-sized whole options have inclusive maxima (W296,
 
 | Option | Minimum | Maximum | Reason |
 |---|---:|---:|---|
-| `delay.history_points`, `storage_rows` | 1 | 10000000 | Large histories and initial storage without int-sized requests |
+| `delay.history_points` | 1 | 10000000 | Large histories without int-sized requests |
 | `nullclines.mesh` | 1 | 4096 | Bounds mesh work to about 16 million cells |
 | `direction_field.grid` | 2 | 4096 | The direction field has spacing between two or more points; bounds its work like the mesh |
-| `curves.count` | 1 | 8 | XPPAUT's most curves in one window (`curves.x2` to `curves.x8` and the first) |
+| `curves` (its length) | 1 | 8 | XPPAUT's most curves in one window |
 | `jacobian.band_upper`, `jacobian.band_lower` | 0 | 100000 | Large banded models without int-sized bandwidths |
 | `histogram.bins`, `histogram2.bins` | 2 | 4096 | About 16 million cells in two dimensions |
 | `spectrum.width` | 1 | 1000000 | Bounds spectral workspaces |

@@ -218,32 +218,15 @@ void init_all_graph(xpp::Session &s)
 
 void set_extra_graphs(xpp::Session &s)
 {
-  int i;
-  if(s.plot_settings.npltv<2)return;
-  if(s.plot_settings.multi_win==0){
-    s.plot_windows.current->resize_curves(s.plot_settings.npltv);
-    for(i=1;i<s.plot_settings.npltv;i++){
-      s.plot_windows.current->xv[i]=s.plot_settings.ix_plt[i+1];
-    s.plot_windows.current->yv[i]=s.plot_settings.iy_plt[i+1];
-    s.plot_windows.current->zv[i]=s.plot_settings.iz_plt[i+1];
-    s.plot_windows.current->color[i]=xpp::xppaut_color(i%(LAST_PLOT_COLOR+1)); /* XPPAUT cycles its eleven colours */
-    }
-    return;
+  const std::vector<PlotCurve> &curves=s.plot_settings.curves;
+  if(curves.size()<2)return;
+  s.plot_windows.current->resize_curves(static_cast<int>(curves.size()));
+  for(std::size_t i=1;i<curves.size();i++){
+    s.plot_windows.current->xv[i]=curves[i].x;
+    s.plot_windows.current->yv[i]=curves[i].y;
+    s.plot_windows.current->zv[i]=curves[i].z;
+    s.plot_windows.current->color[i]=xpp::xppaut_color(static_cast<int>(i)%(LAST_PLOT_COLOR+1)); /* XPPAUT cycles its eleven colours */
   }
-  for(i=1;i<s.plot_settings.npltv;i++){
-    create_a_pop(s);
-    s.plot_windows.graph[i].xv[0]=s.plot_settings.ix_plt[i+1];
-    s.plot_windows.graph[i].yv[0]=s.plot_settings.iy_plt[i+1];
-    s.plot_windows.graph[i].zv[0]=s.plot_settings.iz_plt[i+1]; /* irrelevant probably */
-    s.plot_windows.graph[i].grtype=0; /* force 2D */
-    s.plot_windows.graph[i].xlo=s.plot_settings.x_lo[i+1];
-    s.plot_windows.graph[i].xhi=s.plot_settings.x_hi[i+1];
-    s.plot_windows.graph[i].ylo=s.plot_settings.y_lo[i+1];
-    s.plot_windows.graph[i].yhi=s.plot_settings.y_hi[i+1];
-    check_flags(s.plot_windows.graph[i]); /* its own axes: a window that plots t is a time plot */
-  }
-  xpp::set_active_windows(s);
-  xpp::make_active(s,0,1); 
 }
 
 void reset_graph(xpp::Session &s)
@@ -252,9 +235,9 @@ void reset_graph(xpp::Session &s)
     s.plot_settings.plot_3d=1;
   else
     s.plot_settings.plot_3d=0;
-  s.plot_windows.current->xv[0]=s.plot_settings.ixplt;
-  s.plot_windows.current->yv[0]=s.plot_settings.iyplt;
-  s.plot_windows.current->zv[0]=s.plot_settings.izplt;
+  s.plot_windows.current->xv[0]=s.plot_settings.curves[0].x;
+  s.plot_windows.current->yv[0]=s.plot_settings.curves[0].y;
+  s.plot_windows.current->zv[0]=s.plot_settings.curves[0].z;
    s.plot_windows.current->xmax=s.plot_settings.x_3d[1];
     s.plot_windows.current->ymax=s.plot_settings.y_3d[1];
     s.plot_windows.current->zmax=s.plot_settings.z_3d[1];
@@ -289,9 +272,9 @@ s.plot_settings.my_xlo=s.plot_windows.current->xlo;
 s.plot_settings.my_ylo=s.plot_windows.current->ylo;
 s.plot_settings.my_xhi=s.plot_windows.current->xhi;
 s.plot_settings.my_yhi=s.plot_windows.current->yhi;
-s.plot_settings.ixplt=s.plot_windows.current->xv[0];
-s.plot_settings.iyplt=s.plot_windows.current->yv[0];
-s.plot_settings.izplt=s.plot_windows.current->zv[0];
+s.plot_settings.curves[0].x=s.plot_windows.current->xv[0];
+s.plot_settings.curves[0].y=s.plot_windows.current->yv[0];
+s.plot_settings.curves[0].z=s.plot_windows.current->zv[0];
 s.plot_settings.plot_3d=s.plot_windows.current->ThreeDFlag;
 if(s.plot_settings.plot_3d)
   s.plot_settings.axes=5;
@@ -310,9 +293,9 @@ void init_graph(xpp::Session &s, int i)
 	else s.plot_windows.graph[i].rm[k][j]=0.0;
  s.plot_windows.graph[i].resize_curves(1);
   for(j=0;j<s.plot_windows.graph[i].nvars;j++){
-        s.plot_windows.graph[i].xv[j]=s.plot_settings.ixplt;
-	s.plot_windows.graph[i].yv[j]=s.plot_settings.iyplt;
-	s.plot_windows.graph[i].zv[j]=s.plot_settings.izplt;
+        s.plot_windows.graph[i].xv[j]=s.plot_settings.curves[0].x;
+	s.plot_windows.graph[i].yv[j]=s.plot_settings.curves[0].y;
+	s.plot_windows.graph[i].zv[j]=s.plot_settings.curves[0].z;
         s.plot_windows.graph[i].style[j]=s.plot_settings.start_line_style;
 	s.plot_windows.graph[i].color[j]=xpp::foreground_color;
         }

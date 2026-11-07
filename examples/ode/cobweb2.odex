@@ -26,5 +26,5 @@ aux st = 0.01*t
 # the .ode is a map: x' = f with the discrete method is x(t+1) = f
 options {
   integration: { total_time: 100, method: discrete },
-  plot: { axes.x_low: 0, axes.y_low: 0, axes.x_high: 1, axes.y_high: 1, curves.x: x, curves.y: y },
+  plot: { axes.x_low: 0, axes.y_low: 0, axes.x_high: 1, axes.y_high: 1, curves: [ { x: x, y: y } ] },
 }

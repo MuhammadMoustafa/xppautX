@@ -14,7 +14,7 @@ x[j]' = w(j)+k*sum(h(shift(x0, i')-x[j]), from=0, to=99)/100 for j in 0..99
 options {
   integration: {
     total_time: 20, state_limit: 100000, stop_at_limit: true, dt: 0.05, method: runge_kutta, start_time: 0, store_from: 0,
-    store_every: 1, storage_rows: 20000, step.relative_tolerance: .001, step.absolute_tolerance: .001, step.min: 1e-12,
+    store_every: 1, step.relative_tolerance: .001, step.absolute_tolerance: .001, step.min: 1e-12,
     step.max: 1,
   },
 }

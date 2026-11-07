@@ -15,13 +15,13 @@
    For one run (no internal sets, or each set in turn):
      select the set          set.apply, scope all (the set by its name)
      --qsets/--qpars/--qics     write_values_query (-dryrun: nothing is run)
-     run                     run.initial, or run.range (the settings
-                             the @ range options made) for @ range=1 or a
-                             stochastic run
-     @ postprocess           the analysis it names (analysis.histogram, ...)
+     run                     run.initial, run.range (the settings
+                             the sweep options made) for a sweep that writes files, or
+                             analysis.stochastic_integrate (the sweep's settings) for
+                             an after_run of mean_of_runs or variance_of_runs
+     after_run               the analysis it names (analysis.histogram, ...), or
+                             analysis.load_stochastic_mean or _variance
      then, unless each run of a range wrote its own file:
-     @ stoch=1/2             analysis.load_stochastic_mean or _variance (the Mean
-                             or Variance of the runs)
      output.dat              the output columns' data file, replacing it (save_data_file)
      --mkplot                 plot.export_pdf or plot.export_svg, by the plot format
    The core computes requested nullclines and direction fields after a run.
@@ -67,32 +67,36 @@ private:
     /* a range that resets its storage wrote each run's file itself (integrate.cpp do_range, write_this_run) */
     bool writes_output() const { return !session.integrator.range.write_files || session.integrator.range.reset == 0; }
     bool trajectory_saved = false;
+    /* the run's data were replaced by an after_run (the analysis, or the mean or the variance of the runs) */
+    bool after_run_analysed() const { return session.histogram.post_process != xpp::AfterRun::none; }
     /* the files --silent writes itself replace what is there, unasked, as its key lines' "replace":1 said */
     void replace_files() { xpp::json::session.save_replace = SAVE_REPLACE; }
 };
 
-/* the model's @ postprocess of the run's data: the analysis the option names, with the settings the model gave, and only the
-   time and its first column written after it (the postprocess kinds are the option's own numbers) */
+/* the model's after_run of the run's data: the analysis the option names, with the settings the model gave, and only the
+   time and its first column written after it; the mean or the variance of the runs of a stochastic sweep replaces the data */
 void SilentScript::post_process()
 {
-    constexpr int HISTOGRAM = 1, FOURIER = 2, POWER = 3, FIRST_SPECTRUM = 4, LAST_SPECTRUM = 6, HISTOGRAM_2D = 7;
-    const int kind = session.histogram.post_process;
-    if (!ran || kind == 0) return;
+    using xpp::AfterRun;
+    const AfterRun kind = session.histogram.post_process;
+    if (!ran || kind == AfterRun::none) return;
+    if (kind == AfterRun::mean_of_runs) return registry("analysis.load_stochastic_mean");
+    if (kind == AfterRun::variance_of_runs) return registry("analysis.load_stochastic_variance");
     session.plot_list.assign({0, 1});
-    if (kind == HISTOGRAM) registry("analysis.histogram");
-    else if (kind == FOURIER) registry("analysis.fourier_series");
-    else if (kind == POWER) registry("analysis.power_spectrum");
-    else if (kind == HISTOGRAM_2D) registry("analysis.histogram_2d");
-    else if (kind >= FIRST_SPECTRUM && kind <= LAST_SPECTRUM)
-        lines.push_back(xpp::format("{{\"cmd\":\"analysis.spectral_density\",\"type\":\"{}\"}}", xpp::spectrum_type_names[static_cast<std::size_t>(kind - FIRST_SPECTRUM)]));
+    switch (kind) {
+    case AfterRun::histogram: registry("analysis.histogram"); break;
+    case AfterRun::histogram_2d: registry("analysis.histogram_2d"); break;
+    case AfterRun::fourier_series: registry("analysis.fourier_series"); break;
+    case AfterRun::power_spectrum: registry("analysis.power_spectrum"); break;
+    default:
+        lines.push_back(xpp::format("{{\"cmd\":\"analysis.spectral_density\",\"type\":\"{}\"}}", xpp::after_run_names[static_cast<std::size_t>(kind)]));
+    }
 }
 
 void SilentScript::save_output()
 {
     const xpp::Session &s = session;
     trajectory_saved = true;
-    if (s.stochastic.flag == 1 || s.stochastic.flag == 2)
-        registry(s.stochastic.flag == 1 ? "analysis.load_stochastic_mean" : "analysis.load_stochastic_variance");
     if (s.integrator.suppress_out) return;
     replace_files();
     xpp::ok_or_show(xpp::save_data_file(s, xpp::DataTarget::output, "dat", s.batch_out_file));
@@ -129,16 +133,17 @@ void SilentScript::add_run(int set)
     });
     steps.push_back([this] {
         if (!ran) return;
-        const bool range = session.integrator.range.write_files || session.stochastic.flag > 0;
-        registry(range ? "run.range" : "run.initial");
+        const xpp::AfterRun after = session.histogram.post_process;
+        if (after == xpp::AfterRun::mean_of_runs || after == xpp::AfterRun::variance_of_runs) registry("analysis.stochastic_integrate");
+        else registry(session.integrator.range.write_files ? "run.range" : "run.initial");
     });
     /* with after_run_file the trajectory is written first, so the analysis does not replace it */
     steps.push_back([this] {
-        if (ran && writes_output() && !session.after_run_file.empty() && session.histogram.post_process != 0) save_output();
+        if (ran && writes_output() && !session.after_run_file.empty() && after_run_analysed()) save_output();
     });
     steps.push_back([this] { post_process(); });
     steps.push_back([this] {
-        if (!ran || !writes_output() || session.after_run_file.empty() || session.histogram.post_process == 0) return;
+        if (!ran || !writes_output() || session.after_run_file.empty() || !after_run_analysed()) return;
         replace_files();
         xpp::ok_or_show(xpp::save_data_file(session, xpp::DataTarget::output, "", session.after_run_file));
     });

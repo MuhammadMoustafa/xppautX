@@ -5,6 +5,5 @@ y' = -2*y
 init x = 1, y = 2
 options {
   integration: { total_time: 1, dt: .1, method: runge_kutta },
-  plot: { windows.multiple: 1, curves.count: 2, curves.x: t, curves.y: x, curves.x2: x, curves.y2: y,
-          curves.x_low2: -2, curves.x_high2: 3, curves.y_low2: -4, curves.y_high2: 5 },
+  plot: { curves: [ { x: t, y: x }, { x: x, y: y } ] },
 }

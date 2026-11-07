@@ -12,10 +12,10 @@ V' = 3*V-V^3+2-X+Input+sigma*z
 X' = eps*(gam*(1+tanh(V/ode_divisor(beta)))-X)
 options {
   animation: "osc.anix",
-  integration: { store_every: 10, storage_rows: 100000, total_time: 400, method: euler },
+  integration: { store_every: 10, total_time: 400, method: euler },
   continuation: { parameter_min: 0, parameter_max: 6, step_size: -0.001, max_step_size: .01 },
   diagram: { variable: V },
-  plot: { curves.x: V, curves.y: X, axes.x_low: -3, axes.x_high: 3, axes.y_low: -3, axes.y_high: 6 },
+  plot: { curves: [ { x: V, y: X } ], axes.x_low: -3, axes.x_high: 3, axes.y_low: -3, axes.y_high: 6 },
   interface: { buttons: "AUTO:fa" },
 }
 

@@ -17,7 +17,7 @@ init u[j] = 0.8 for j in 90..110
 options {
   integration: {
     total_time: 100, method: euler, dt: 0.05, start_time: 0, store_from: 0, store_every: 1,
-    storage_rows: 20000, state_limit: 100000, stop_at_limit: true, step.relative_tolerance: .001, step.absolute_tolerance: .001, step.min: 1e-12,
+    state_limit: 100000, stop_at_limit: true, step.relative_tolerance: .001, step.absolute_tolerance: .001, step.min: 1e-12,
     step.max: 1,
   },
 }

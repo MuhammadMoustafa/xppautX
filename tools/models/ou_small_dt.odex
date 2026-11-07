@@ -8,5 +8,5 @@ ou eta tau = tc, sigma = s
 x' = 0
 aux sample = eta
 options {
-  integration: { total_time: 5000, dt: 0.05, method: euler, seed: 77, storage_rows: 100100 },
+  integration: { total_time: 5000, dt: 0.05, method: euler, seed: 77 },
 }

@@ -125,10 +125,10 @@ sg[j]' = alphag*(1-sg[j])*sinfg(vg[j]+abg)-betag*sg[j] for j in 1..10
 options {
   integration: {
     dt: 0.4, total_time: 0.1, method: qualrk, state_limit: 5000, stop_at_limit: true, start_time: 0, store_from: 0,
-    store_every: 1, storage_rows: 20000, step.relative_tolerance: .001, step.absolute_tolerance: .001, step.min: 1e-12,
+    store_every: 1, step.relative_tolerance: .001, step.absolute_tolerance: .001, step.min: 1e-12,
     step.max: 1,
   },
-  plot: { curves.x: t, curves.y: v5, axes.x_low: 0, axes.x_high: 1000, axes.y_low: -80, axes.y_high: 20. },
+  plot: { curves: [ { x: t, y: v5 } ], axes.x_low: 0, axes.x_high: 1000, axes.y_low: -80, axes.y_high: 20. },
 }
 init v1 = 0
 init v2 = 0

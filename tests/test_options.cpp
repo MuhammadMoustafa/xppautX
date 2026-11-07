@@ -125,9 +125,6 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"METHOD", {"e", "1"}},            /* the Euler method */
         {"POINCARE_MAP", {"m", "2"}},          /* max */
         {"POINCARE_VARIABLE", {"y", "2"}},
-        {"XP", {"y", "2"}},
-        {"YP", {"z", "3"}},
-        {"ZP", {"x", "1"}},
         {"AXES", {"3", "5"}},            /* 3D */
         {"LT", {"-1", "-1"}},
         {"PLOTFMT", {"svg", ""}},
@@ -165,10 +162,11 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
     return {"1", ""};
 }
 
-/* what the option model leaves out: a log file, a button */
+/* what the option model leaves out: a log file, a button, a list, and what an XPPAUT file says that no member of ours holds */
 bool left_out(const xpp::OptionRow &r)
 {
-    return r.name.empty() || r.name == "LOGFILE" || r.name == "BUT" || r.kind == xpp::OptionKind::sliders || r.expand;
+    return r.name.empty() || r.name == "LOGFILE" || r.name == "BUT" || r.kind == xpp::OptionKind::sliders || r.kind == xpp::OptionKind::curves || r.expand
+           || r.curve_field != xpp::CurveField::none || !r.dropped.empty();
 }
 
 /* whether a .setx holds the option: the table's rows marked saved, and the
@@ -421,10 +419,15 @@ int main(void)
         CHECK(xpp::find_option("NOUT", index, true)->name == "STORE_EVERY" && xpp::find_option("NJMP", index, true) == xpp::find_option("NOUT", index, true));
         CHECK(xpp::find_option("NOUT", index, false) == nullptr && xpp::odex_option_key("NJMP") == "store_every" && xpp::odex_option_key("dt") == "dt"
                && xpp::odex_option_key("DTMIN") == "step.min" && xpp::odex_option_key("meth") == "method" && xpp::odex_option_key("method") == "method");
-        /* a prefix of a row's name is its key too (xplot, bounds), a name no group has is none */
-        CHECK(xpp::odex_option_key("xplot") == "curves.x" && xpp::odex_option_key("XP3") == "curves.x3" && xpp::odex_option_key("bell").empty()
-               && xpp::odex_option_key("nosuch").empty());
-        CHECK(xpp::find_odex_option("plot", "curves.x3", index) && index == 3 && !xpp::find_odex_option("plot", "xplot", index) && !xpp::find_odex_option("integration", "total", index));
+        /* XPPAUT's plotted variables are the `curves` list's on import only: no key of theirs, nor a name no group has */
+        CHECK(xpp::odex_option_key("curves") == "curves" && xpp::odex_option_key("xplot").empty() && xpp::odex_option_key("XP3").empty()
+               && xpp::odex_option_key("bell").empty() && xpp::odex_option_key("nosuch").empty());
+        CHECK(xpp::find_odex_option("plot", "curves", index) && !xpp::find_odex_option("plot", "curves.x", index) && !xpp::find_odex_option("plot", "xplot", index)
+               && !xpp::find_odex_option("integration", "total", index) && !xpp::find_odex_option("integration", "storage_rows", index));
+        /* what became after_run's choices, and the sweeps' one graph, are XPPAUT's names only */
+        CHECK(xpp::find_option("POSTPROCESS", index, true)->odex == "after_run" && !xpp::find_option("POSTPROCESS", index, false)
+               && xpp::find_option("STOCH", index, true)->expand && xpp::find_option("MAXSTOR", index, true)->odex.empty()
+               && !xpp::find_option("MULTIWIN", index, true)->dropped.empty() && !xpp::find_option("XLO3", index, true)->dropped.empty());
         /* a key is its group's: the same word in another group is another row, a top-level row has no group */
         CHECK(xpp::find_odex_option("poincare", "variable", index)->name == "POINCARE_VARIABLE" && xpp::find_odex_option("sweep", "variable", index)->name == "RANGEOVER"
                && !xpp::find_odex_option("plot", "variable", index) && xpp::find_odex_option("", "animation", index) && !xpp::find_odex_option("interface", "animation", index));
@@ -565,10 +568,11 @@ int main(void)
     }
     /* Each allocation limit is checked at the original model line, before allocation. */
     for (const xpp::OptionRow &row : xpp::option_rows()) {
-        if (!row.maximum) continue;
+        if (!row.maximum || row.kind == xpp::OptionKind::curves) continue; /* a list's length is checked where it is read (curves) */
         CHECK(!xpp::option_problem(*s, row.name, std::to_string(row.maximum), false));
         const std::string value = std::to_string(row.maximum + 1);
         for (bool native : {false, true}) {
+            if (native && row.odex.empty()) continue; /* an XPPAUT option has no key of ours */
             const char *path = native ? bad_odex : bad_ode;
             const std::string text = native ? "x' = -x\noptions { " + std::string(row.group) + ": { " + xpp::odex_key(row, 0) + ": " + value + " } }\n"
                                             : "x'=-x\n@ " + std::string(row.name) + "=" + value + "\ndone\n";

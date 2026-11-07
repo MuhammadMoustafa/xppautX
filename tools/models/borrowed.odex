@@ -15,7 +15,7 @@ aux a = x+y
 aux b = x-y
 init x = 1, y = 0
 options {
-  integration: { total_time: 6.283185307179586, dt: 0.010471975511965976, storage_rows: 1000 },
+  integration: { total_time: 6.283185307179586, dt: 0.010471975511965976 },
   analysis: { histogram.bins: 20, histogram.column: x, histogram.low: -1, histogram.high: 1 },
   output: { after_run: histogram },
 }

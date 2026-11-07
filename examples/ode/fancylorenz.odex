@@ -22,8 +22,8 @@ par xplane = -35, yplane = 60, zplane = -10
 options {
   integration: { total_time: 50, dt: .02 },
   plot: {
-    curves.x: x, curves.y: y, curves.z: z, axes.kind: 3, curves.count: 4, curves.x2: x, curves.y2: y, curves.z2: z2, curves.x3: x, curves.y3: y2, curves.z3: z,
-    curves.x4: x2, curves.y4: y, curves.z4: z, axes.x_min: -40, axes.x_max: 18, axes.y_min: -24, axes.y_max: 64, axes.z_min: -12, axes.z_max: 45,
+    curves: [ { x: x, y: y, z: z }, { x: x, y: y, z: z2 }, { x: x, y: y2, z: z }, { x: x2, y: y, z: z } ], axes.kind: 3,
+    axes.x_min: -40, axes.x_max: 18, axes.y_min: -24, axes.y_max: 64, axes.z_min: -12, axes.z_max: 45,
     axes.x_low: -1.4, axes.y_low: -1.7, axes.x_high: 1.7, axes.y_high: 1.7, axes.theta: 35,
   },
 }

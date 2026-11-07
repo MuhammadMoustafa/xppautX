@@ -478,11 +478,11 @@ Result<int> stochastic_integrate(xpp::Session &s)
   if(auto items=resolve_range_items(s,false);!items)return std::unexpected(items.error());
   if(auto allowed=run_allowed(s,"range");!allowed)return std::unexpected(allowed.error());
   free_stoch(s);
-  s.stochastic.flag=1;
+  s.stochastic.flag=true;
   /* the flag is only for this sweep, whatever it ends in */
   struct Unflag {
     xpp::Session &s;
-    ~Unflag(){s.stochastic.flag=0;}
+    ~Unflag(){s.stochastic.flag=false;}
   } unflag{s};
   s.integrator.range.rtype=RANGE_SINGLE;
   RangeProgress done;

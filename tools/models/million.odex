@@ -9,7 +9,7 @@ x' = y
 y' = mu*(1-x^2)*y-x
 init x = 2, y = 0
 options {
-  integration: { total_time: 10000, dt: .01, method: euler, storage_rows: 1000010, state_limit: 100 },
+  integration: { total_time: 10000, dt: .01, method: euler, state_limit: 100 },
   equilibria: { search_limit: 100 },
-  plot: { axes.x_low: -2.5, axes.x_high: 2.5, axes.y_low: -3, axes.y_high: 3, curves.x: x, curves.y: y },
+  plot: { axes.x_low: -2.5, axes.x_high: 2.5, axes.y_low: -3, axes.y_high: 3, curves: [ { x: x, y: y } ] },
 }

@@ -24,6 +24,13 @@ static void check_time_first_model()
     if (!loaded) return;
     xpp::Session &s = **loaded;
     xpp::batch_start(s);
+    CHECK(s.plot_windows.count == 1 && s.plot_windows.graph[0].nvars == 2);
+    xpp::create_a_pop(s); /* the second graph is the session's: a phase plane of x and y */
+    s.plot_windows.graph[1].xv[0] = s.plot_windows.graph[0].xv[1];
+    s.plot_windows.graph[1].yv[0] = s.plot_windows.graph[0].yv[1];
+    xpp::check_flags(s.plot_windows.graph[1]);
+    xpp::set_active_windows(s);
+    xpp::make_active(s, 0, 1);
     CHECK(s.plot_windows.count == 2);
     CHECK(s.plot_windows.graph[0].TimeFlag == 1);
     CHECK(s.plot_windows.graph[1].TimeFlag == 0);
@@ -40,13 +47,29 @@ static void check_time_first_model()
 int main()
 {
     char name[] = "test_headless_graphs";
-    char path[] = "tools/models/multiwin.odex";
+    char path[] = "tools/models/curves3.odex";
     char *argv[] = {name, path, nullptr};
     const xpp::Loaded loaded = load_args(2, argv, 1);
     CHECK(loaded.has_value());
     if (!loaded) TEST_REPORT("headless graphs");
     xpp::Session &s = **loaded;
     xpp::batch_start(s);
+    /* a model opens one graph, its three curves in it; more graphs are the session's */
+    CHECK(s.plot_windows.count == 1 && s.plot_windows.active == 0 && s.plot_windows.graph[0].nvars == 3);
+    CHECK(s.plot_windows.graph[0].xv[1] == 2 && s.plot_windows.graph[0].yv[1] == 1 && s.plot_windows.graph[0].xv[2] == 0 && s.plot_windows.graph[0].yv[2] == 2);
+    for (int i = 1; i < 3; i++) {
+        xpp::create_a_pop(s);
+        GRAPH &added = s.plot_windows.graph[i];
+        added.xv[0] = i == 1 ? 2 : 0;
+        added.yv[0] = i == 1 ? 1 : 2;
+        added.xlo = i == 1 ? -2 : 0;
+        added.xhi = i == 1 ? 3 : 1;
+        added.ylo = i == 1 ? -4 : 0;
+        added.yhi = i == 1 ? 5 : 2;
+        xpp::check_flags(added); /* its own axes: a window that plots t is a time plot */
+    }
+    xpp::set_active_windows(s);
+    xpp::make_active(s, 0, 1);
     CHECK(s.plot_windows.count == 3 && s.plot_windows.active == 0);
     for (int i = 0; i < 3; i++) {
         CHECK(s.plot_windows.graph[i].Use == 1);

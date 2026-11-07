@@ -43,7 +43,7 @@ options {
   animation: "atcoaster.anix",
   integration: { state_limit: 100000, dt: .05, method: cvode, step.relative_tolerance: 1e-10, step.absolute_tolerance: 1e-10, total_time: 50 },
   equilibria: { search_limit: 100000 },
-  plot: { curves.x: X, curves.y: Z, axes.x_low: -3.25, axes.x_high: 3.25, axes.y_low: -3.25, axes.y_high: 3.25 },
+  plot: { curves: [ { x: X, y: Z } ], axes.x_low: -3.25, axes.x_high: 3.25, axes.y_low: -3.25, axes.y_high: 3.25 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

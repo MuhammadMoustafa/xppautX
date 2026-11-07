@@ -13,7 +13,7 @@ fun f(u) = 1/(1+exp(-u))
 options {
   animation: "wcstim.anix",
   integration: { total_time: 50 },
-  plot: { curves.x: u, curves.y: v, axes.x_low: -.1, axes.y_low: -.1, axes.x_high: 1.1, axes.y_high: 1.1 },
+  plot: { curves: [ { x: u, y: v } ], axes.x_low: -.1, axes.y_low: -.1, axes.x_high: 1.1, axes.y_high: 1.1 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

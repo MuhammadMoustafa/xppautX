@@ -63,6 +63,23 @@ xpp::Result<> DataStore::grow(int ncol, int nrow)
   return {};
 }
 
+xpp::Result<> DataStore::fit(int ncol, int nrow)
+{
+  if(nrow<=max_rows)return {};
+  if(const xpp::Result<> grown=grow(ncol,nrow);!grown)return grown;
+  try {
+    for(std::size_t c=0;c<added_.size();c++){
+      if(added_[c].empty())continue;
+      added_[c].resize(static_cast<std::size_t>(nrow),0.0f);
+      table_[c]=added_[c].data();
+    }
+  } catch (const std::bad_alloc &) {
+    return xpp::fail("storage","Cannot allocate sufficient storage",xpp::command_place());
+  }
+  max_rows=nrow;
+  return {};
+}
+
 void DataStore::thin(int ncol)
 {
   const int kept=(rows+1)/2;

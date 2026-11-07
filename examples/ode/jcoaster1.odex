@@ -68,7 +68,7 @@ options {
   animation: "jcoaster1.anix",
   integration: { state_limit: 100000, method: runge_kutta, dt: .01, store_every: 5, total_time: 50 },
   equilibria: { search_limit: 100000 },
-  plot: { curves.x: X, curves.y: Z, axes.x_low: -6, axes.x_high: 4, axes.y_low: 0, axes.y_high: 6 },
+  plot: { curves: [ { x: X, y: Z } ], axes.x_low: -6, axes.x_high: 4, axes.y_low: 0, axes.y_high: 6 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

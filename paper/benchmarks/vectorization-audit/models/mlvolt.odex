@@ -18,7 +18,7 @@ init w1 = 0.5, w2 = -0.4
 # change w2=-.2 to get sync
 options {
   integration: { dt: .05, total_time: 100 },
-  plot: { curves.x: v1, curves.y: v2, axes.x_low: -.5, axes.x_high: 1, axes.y_low: -.5, axes.y_high: 1 },
+  plot: { curves: [ { x: v1, y: v2 } ], axes.x_low: -.5, axes.x_high: 1, axes.y_low: -.5, axes.y_high: 1 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

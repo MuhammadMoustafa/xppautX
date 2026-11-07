@@ -622,9 +622,9 @@ The format for changing the options is:
 
 where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case). A value the option cannot take (a word where a number goes, a colour outside 0 to 10, a variable the model does not have, ...) stops the load with an error at its line, and the model loaded before stays. The first four options *can only be set outside the program.* They are:
 
-A `.odex` (what a `.ode` is converted to) spells these options in full words, the same as the Numerics menu and the values panel: TOTAL is `total_time`, T0 `start_time`, TRANS `store_from`, NMESH `nullclines.mesh`, NEWT_ITER `max_iterations`, NEWT_TOL `newton_tolerance`, JAC_EPS `jacobian_step`, METH `method`, TOL `step.relative_tolerance`, DTMIN `step.min`, DTMAX `step.max`, ATOL `step.absolute_tolerance`, BVP_MAXIT `bvp.max_iterates`, BVP_TOL `bvp.tolerance`, BVP_EPS `bvp.epsilon`, MAXSTOR `storage_rows`, TOR_PER `torus.period`, POIMAP `map`, POIVAR `variable`, POISGN `sign`, POISTOP `stop`, POIPLN `plane` (the last five in the `poincare` group) (and NOUT/NJMP `store_every`). BOUND is `state_limit` and `search_limit` (both read from it; `stop_at_limit` is `true` unless the model says otherwise), NCDRAW `nullclines.draw` and `output: { nullclines_file }`, COLORMAP a name (`jet` for 0, up to `cubehelix` for 6), a yes or no `true` or `false`, a colour `foreground` or `"#rrggbb"`, a choice its word (`poincare: { sign: positive }`), never a number. A `.ode` keeps XPPAUT's words, and so do `.xpprc` and the command line; a `.odex` refuses them at their line.
+A `.odex` (what a `.ode` is converted to) spells these options in full words, the same as the Numerics menu and the values panel: TOTAL is `total_time`, T0 `start_time`, TRANS `store_from`, NMESH `nullclines.mesh`, NEWT_ITER `max_iterations`, NEWT_TOL `newton_tolerance`, JAC_EPS `jacobian_step`, METH `method`, TOL `step.relative_tolerance`, DTMIN `step.min`, DTMAX `step.max`, ATOL `step.absolute_tolerance`, BVP_MAXIT `bvp.max_iterates`, BVP_TOL `bvp.tolerance`, BVP_EPS `bvp.epsilon`, TOR_PER `torus.period`, POIMAP `map`, POIVAR `variable`, POISGN `sign`, POISTOP `stop`, POIPLN `plane` (the last five in the `poincare` group) (and NOUT/NJMP `store_every`). BOUND is `state_limit` and `search_limit` (both read from it; `stop_at_limit` is `true` unless the model says otherwise), NCDRAW `nullclines.draw` and `output: { nullclines_file }`, COLORMAP a name (`jet` for 0, up to `cubehelix` for 6), a yes or no `true` or `false`, a colour `foreground` or `"#rrggbb"`, a choice its word (`poincare: { sign: positive }`), never a number. A `.ode` keeps XPPAUT's words, and so do `.xpprc` and the command line; a `.odex` refuses them at their line.
 
-- MAXSTOR=`integer` sets the total number of time steps that will be kept in memory. The default is 5000. If you want to perform very long integrations change this to some large number.
+- MAXSTOR=`integer` sets the total number of time steps that will be kept in memory. The default is 5000. In xppautX the store starts with 5000 steps and grows as the run needs, so MAXSTOR is ignored.
 
 - BACK= `{Black,White}` sets the background to black or white.
 
@@ -654,7 +654,7 @@ The remaining options can be set from within the program. They are
 
 - ZP=name sets the name of the variable on the z-axis (if the plot is 3D.)
 
-- NPLOT=`int` tells XPP how many plots will be in the opening screen.
+- NPLOT=`int` tells XPP how many plots will be in the opening screen. xppautX writes NPLOT, XP, YP, ZP and the numbered ones as the `curves` list of a `.odex` (`curves: [ { x: v, y: w }, { x: t, y: w } ]`); MULTIWIN, SIMPLOT and XLO2 to YHI8 (several opening graphs) are dropped with a warning, since a model opens one graph and the session opens more.
 
 - XP2=name,YP2=name,ZP2=name tells XPP the variables on the axes of the second curve; XP8 etc are for the 8th plot. Up to 8 total plots can be specified on opening. They will be given different colors.
 
@@ -718,7 +718,7 @@ The remaining options can be set from within the program. They are
 
 - FOLD=name, tells XPP that the variable \<name\> is to be considered modulo the period. You can repeat this for many variables.
 
-- STOCH=`1,2` is useful in batch mode and allows one to use the RANGE parameters to compute a mean (1) trajectory or its variance (2). That is, suppose you want to average a simulation over 100 trials. Then set RANGESTEP=500,RANGELOW=0,RANGEHIGH=0, STOCH=1.
+- STOCH=`1,2` is useful in batch mode and allows one to use the RANGE parameters to compute a mean (1) trajectory or its variance (2). That is, suppose you want to average a simulation over 100 trials. Then set RANGESTEP=500,RANGELOW=0,RANGEHIGH=0, STOCH=1. xppautX imports STOCH=1 and 2 as `output: { after_run: mean_of_runs }` and `variance_of_runs`.
 
 - AUTOEVAL=`{0,1}` tells XPP whether or not to automatically re-evaluate tables everytime a parameter is changed. The default is to do this. However for random tables, you may want this off. Each table can be flagged individually within XPP.
 

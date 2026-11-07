@@ -26,14 +26,15 @@ struct Model;   /* model.h */
 
 struct OptionRow;
 struct XppSlider;
+struct PlotCurve; /* load_eqn.h */
 namespace setx { class Block; }
 /* Shared preset/session reader. Before model compilation, check_names is false;
    the .odex loader checks names against declarations instead. */
 std::vector<XppSlider> read_sliders(const Model &m, setx::Block &file, bool check_names = true);
 
 namespace option_limit {
-/* Ten million initial rows/history samples allow large recordings without int-sized requests. */
-inline constexpr int storage_rows = 10000000, history_points = 10000000;
+/* Ten million history samples allow large histories without int-sized requests. */
+inline constexpr int history_points = 10000000;
 /* A 4096-side mesh or histogram bounds quadratic work/storage to about 16 million cells. */
 inline constexpr int mesh = 4096, histogram_bins = 4096;
 /* A hundred thousand diagonals allow large banded models without int-sized bandwidths. */
@@ -150,7 +151,10 @@ inline constexpr std::array<std::string_view, 7> set_groups{
    bare word (a variable's, a parameter's, a name), one of the row's
    choices (option_choices), a path or a text, both in double quotes, a colour
    (always in double quotes) */
-enum class OptionKind { number, whole, name, choice, path, text, color, sliders };
+enum class OptionKind { number, whole, name, choice, path, text, color, sliders, curves };
+
+/* which of a curve's options an XPPAUT row (xp, yp, zp, nplot and their numbered ones) is: the converter writes them as the `curves` list */
+enum class CurveField { none, x, y, z, count };
 
 /* what an XPPAUT option (import only) says in our own options: the keys and
    their values as a .odex writes them (a path unquoted), or why the value is
@@ -186,6 +190,11 @@ struct OptionRow {
      that may be given any number of times (fold=, but=, xp2=, ...) has no
      `once`. */
   bool once = false;
+  /* an XPPAUT curve option (import only), or none */
+  CurveField curve_field = CurveField::none;
+  /* an XPPAUT option read on import only that a .odex has no key for: why it is dropped, said once as a warning
+     (""; the converter says it) */
+  std::string_view dropped;
   /* the member: a number (atof), a whole number (atoi) or text */
   Member<double> real;
   Member<int> whole;
@@ -300,6 +309,10 @@ const OptionRow *find_odex_option_anywhere(std::string_view key, int &index);
 
 /* a set may hold the row: its group is one of set_groups and it is no `wide` row */
 bool set_holds(const OptionRow &row);
+
+/* the curves of a `curves` list's groups (x, y, z: a variable's name each); with a Session the names are
+   checked and read as columns, without one only the shape of the list */
+std::vector<PlotCurve> read_curves(const Session *s, setx::Block &file);
 
 /* the slider presets' row (`sliders`, a list) */
 const OptionRow &slider_presets_option();

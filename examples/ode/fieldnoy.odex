@@ -14,7 +14,7 @@ aux lz = ln(abs(z))
 options {
   integration: { method: cvode, total_time: 1000, dt: .5, step.relative_tolerance: 1e-8, step.absolute_tolerance: 1e-7, state_limit: 1e7 },
   equilibria: { search_limit: 1e7 },
-  plot: { axes.x_low: 0, axes.x_high: 1000, axes.y_low: 0, axes.y_high: 12, curves.y: lz },
+  plot: { axes.x_low: 0, axes.x_high: 1000, axes.y_low: 0, axes.y_high: 12, curves: [ { y: lz } ] },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

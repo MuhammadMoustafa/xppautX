@@ -159,9 +159,10 @@ void set_all_vals(xpp::Session &s)
 
 /*                           */
 
- if(s.plot_settings.izplt>s.model().neq)s.plot_settings.izplt=s.model().neq;
- if(s.plot_settings.iyplt>s.model().neq)s.plot_settings.iyplt=s.model().neq;
- if(s.plot_settings.ixplt==0||s.plot_settings.iyplt==0)
+ PlotCurve &axes_curve=s.plot_settings.curves[0];
+ if(axes_curve.z>s.model().neq)axes_curve.z=s.model().neq;
+ if(axes_curve.y>s.model().neq)axes_curve.y=s.model().neq;
+ if(axes_curve.x==0||axes_curve.y==0)
    s.plot_settings.timplot=1;
  else 
    s.plot_settings.timplot=0;
@@ -171,7 +172,7 @@ void set_all_vals(xpp::Session &s)
    s.plot_settings.x_3d[1]=s.plot_settings.my_xhi;
    s.plot_settings.y_3d[1]=s.plot_settings.my_yhi;
  } 
- s.data_store.allocate(s.data_store.max_rows,s.model().neq+1);
+ s.data_store.allocate(DataStore::start_rows,s.model().neq+1);
  if(s.plot_settings.axes>=5)s.plot_settings.plot_3d=1;
  xpp::chk_delay(s); /* check for delay allocation */
  xpp::alloc_h_stuff(s);

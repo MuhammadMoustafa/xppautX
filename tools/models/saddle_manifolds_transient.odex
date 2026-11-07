@@ -5,5 +5,5 @@ y' = -y
 init x = 0, y = 0
 options {
   integration: { total_time: 1, dt: .05, store_from: .5 },
-  plot: { curves.x: x, curves.y: y, axes.x_low: -1, axes.x_high: 1, axes.y_low: -1, axes.y_high: 1 }
+  plot: { curves: [ { x: x, y: y } ], axes.x_low: -1, axes.x_high: 1, axes.y_low: -1, axes.y_high: 1 }
 }

@@ -4,7 +4,7 @@ version 4
 x' = -y+sin(1/ode_divisor(x))*x^2
 y' = x
 options {
-  plot: { nullclines.mesh: 101, curves.x: x, curves.y: y, axes.x_low: -2, axes.x_high: 2, axes.y_low: -2, axes.y_high: 2 },
+  plot: { nullclines.mesh: 101, curves: [ { x: x, y: y } ], axes.x_low: -2, axes.x_high: 2, axes.y_low: -2, axes.y_high: 2 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

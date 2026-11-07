@@ -2230,14 +2230,14 @@ def section_memory():
     s.send(cmd='analysis.histogram')  # the model's histogram
     s.collect(is_done)
     # another orbit, from elsewhere, long enough to grow the store
-    # (storage_rows 1000) twice
+    # (the store starts with 5000 rows) once
     s.send(cmd='ic.set', values={'x': 0.5})
     s.collect(is_done)
-    s.send(cmd='run.configure', total_time=30)
+    s.send(cmd='run.configure', total_time=60)
     s.collect(is_done)
     evs = integrate(s)
     st = [e for e in evs if e.get('ev') == 'session.state']
-    check('memory: the longer run stores more rows than storage_rows', st and st[-1].get('rows', 0) > 2000,
+    check('memory: the longer run stores more rows than the store starts with', st and st[-1].get('rows', 0) > 5000,
           str(st and st[-1].get('rows')))
     # the stored columns each shows, from: the adjoint's node+1 = 3, the H
     # function's 4 (its own: phase, H, odd and even parts), the

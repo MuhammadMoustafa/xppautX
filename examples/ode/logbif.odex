@@ -17,7 +17,7 @@ init x = 0.1
 # change amin and amax to change the window
 par amin = 2, amax = 4
 options {
-  integration: { storage_rows: 11000, total_time: 400, store_from: 350, method: discrete },
-  plot: { axes.x_low: 2, axes.x_high: 4.001, axes.y_low: 0, axes.y_high: 1.001, curves.x: a, curves.y: x, line.draw: points, line.marker: circle, line.marker_size: 0 },
+  integration: { total_time: 400, store_from: 350, method: discrete },
+  plot: { axes.x_low: 2, axes.x_high: 4.001, axes.y_low: 0, axes.y_high: 1.001, curves: [ { x: a, y: x } ], line.draw: points, line.marker: circle, line.marker_size: 0 },
   sweep: { write_files: true, variable: ind, reset: false, low: 0, high: 200, steps: 200 },
 }

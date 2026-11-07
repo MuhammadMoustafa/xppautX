@@ -10,5 +10,5 @@ x' = s*r*cos(th)
 y' = s*r*sin(th)
 options {
   integration: { total_time: 2000, method: discrete, store_from: 100 },
-  plot: { axes.x_low: -2, axes.y_low: -2, axes.x_high: 2, axes.y_high: 2, curves.x: x, curves.y: y },
+  plot: { axes.x_low: -2, axes.y_low: -2, axes.x_high: 2, axes.y_high: 2, curves: [ { x: x, y: y } ] },
 }

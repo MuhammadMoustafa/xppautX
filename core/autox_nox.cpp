@@ -1264,10 +1264,7 @@ xpp::Result<> load_autox_orbitx(xpp::Session &s, int ibr,int flag, int lab, doub
   if(nrow<1||ndim<1||ndim>s.model().node)
     return xpp::fail_reading("autoX","invalid orbit dimensions",string);
   nstor=std::min(ndim,s.model().node);
-  if(nrow>s.data_store.max_rows){
-    if(const xpp::Result<> grown=s.data_store.grow(s.model().neq+1,nrow);!grown)return grown;
-    s.data_store.max_rows=nrow;
-  }
+  if(const xpp::Result<> fitted=s.data_store.fit(s.model().neq+1,nrow);!fitted)return fitted;
   x=&s.data_store.current[0];
   for(i=0;i<nrow;i++){
     get_a_row(u.data(),&t,ndim,fp.get());

@@ -42,9 +42,9 @@ int main(void)
     xpp::client_session().integrator.range.movie = 0;
     xpp::client_session().integrator.range.rtype = 0;
 
-    xpp::client_session().stochastic.flag = 1;
+    xpp::client_session().stochastic.flag = true;
     int ierr = xpp::do_range(xpp::client_session(), xpp::client_session().data_store.current.data(), 0);
-    xpp::client_session().stochastic.flag = 0;
+    xpp::client_session().stochastic.flag = false;
 
     CHECK(ierr != -1);
     CHECK(xpp::client_session().stochastic.n_trials == ntrials);

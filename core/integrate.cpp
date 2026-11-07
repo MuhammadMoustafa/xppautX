@@ -2227,7 +2227,7 @@ dense_poi:
 		 s.data_store.col[ieqn][s.data_store.rows]=xv[ieqn];
 	    s.data_store.rows++;
 	    row_stored(s); /* xppautX: replay stops here, a front end shows the run grow */
-	    if(!(s.data_store.rows<s.data_store.max_rows)){
+	    if(s.integrator.steady?s.data_store.rows>=DataStore::start_rows:!(s.data_store.rows<s.data_store.max_rows)){
             if(s.integrator.steady){
               s.data_store.thin(s.model().neq+1);
               steady_stride*=2;
@@ -2499,11 +2499,7 @@ xpp::Result<> stor_full(xpp::Session &s)
 {
  if(s.data_store.max_rows>INT_MAX/2)
    return xpp::fail("storage","Cannot allocate sufficient storage",command_place());
- const int nrow=2*s.data_store.max_rows;
- const auto grown=s.data_store.grow(s.model().neq+1,nrow);
- if(!grown)return grown;
- s.data_store.max_rows=nrow;
- return {};
+ return s.data_store.fit(s.model().neq+1,2*s.data_store.max_rows);
 }
 
 } // namespace xpp

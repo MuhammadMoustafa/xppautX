@@ -50,6 +50,10 @@ std::string option_value_schema(const OptionRow &row)
            "\"name\": {\"type\": \"string\"}, \"low\": {\"type\": \"number\"}, \"high\": {\"type\": \"number\"}, "
            "\"step\": {\"type\": \"number\", \"minimum\": 0}}}";
     break;
+  case OptionKind::curves:
+    out += "\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, "
+           "\"properties\": {\"x\": {\"type\": \"string\"}, \"y\": {\"type\": \"string\"}, \"z\": {\"type\": \"string\"}}}";
+    break;
   case OptionKind::text: out += "\"type\": \"string\""; break;
   case OptionKind::color: out += "\"type\": \"string\", \"x-kind\": \"color\""; break;
   case OptionKind::choice: {
@@ -92,7 +96,7 @@ std::string option_schema()
       "  \"description\": \"The options block of a .odex model: options { group: { key: value, ... }, ... }. "
       "Generated from core/model_options.cpp by xppautX --options-schema; the JSON form of the block's "
       "dictionary. A key marked x-repeatable may be written more than once; a path or a text is a "
-      "double-quoted string, sliders a list of presets, every other value one bare word.\",\n"
+      "double-quoted string, sliders a list of presets, curves a list of curves, every other value one bare word.\",\n"
       "  \"type\": \"object\",\n"
       "  \"additionalProperties\": false,\n"
       "  \"properties\": {\n";

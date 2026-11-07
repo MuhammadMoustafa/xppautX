@@ -7,5 +7,5 @@ ou eta tau = 1 sigma = 2
 x' = 0
 aux sample = eta
 options {
-  integration: { total_time: 100000, dt: 1, method: euler, seed: 78, storage_rows: 100100 },
+  integration: { total_time: 100000, dt: 1, method: euler, seed: 78 },
 }

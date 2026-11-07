@@ -59,7 +59,9 @@ int build_markov(Session &s, std::span<const std::string> cells, const char *nam
    are arrays of row pointers, each into the vector of mean_rows/
    variance_rows that owns it. */
 struct StochasticState {
-  int flag = 0, here = 0, n_trials = 0, len = 0;
+  /* a Compute sweep is running: its runs add to the mean and the variance (markov.cpp stochastic_integrate sets it, only for the sweep) */
+  bool flag = false;
+  int here = 0, n_trials = 0, len = 0;
   std::vector<float *> mean, variance;
   std::vector<std::vector<float>> mean_rows, variance_rows;
 };

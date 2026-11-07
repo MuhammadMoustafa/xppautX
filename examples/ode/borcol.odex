@@ -9,10 +9,10 @@ x4' = x3
 init x1 = 500
 aux sx4 = x4/200
 options {
-  integration: { state_limit: 1000, total_time: 450, storage_rows: 10000 },
+  integration: { state_limit: 1000, total_time: 450 },
   equilibria: { search_limit: 1000 },
   plot: {
-    axes.kind: 3, curves.x: sx4, curves.y: x2, curves.z: x3, axes.x_min: 0, axes.x_max: 1.6, axes.y_max: 3.2, axes.y_min: 0, axes.z_max: 3, axes.z_min: 0,
+    axes.kind: 3, curves: [ { x: sx4, y: x2, z: x3 } ], axes.x_min: 0, axes.x_max: 1.6, axes.y_max: 3.2, axes.y_min: 0, axes.z_max: 3, axes.z_min: 0,
     axes.x_low: -1.45, axes.x_high: 1.45, axes.y_low: -1.75, axes.y_high: 1.75,
   },
 }
