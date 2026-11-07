@@ -404,13 +404,13 @@ int main(void)
   CHECK(starts(model_error("options { plot: { total_time: 10 } }\n"), "1:19 `total_time` is in the group integration, not plot"));
   CHECK(starts(model_error("options { integration: { dt: 1, dt: 2 } }\n"), "1:33 `dt` is given twice"));
   CHECK(starts(model_error("options { integration: { method: Runge-Kutta } }\n"), "1:34 the option method's value `Runge-Kutta` is none of"));
-  CHECK(starts(model_error("options { output: { log_file: out.dat } }\n"), "1:31 the option log_file takes a path in double quotes"));
+  CHECK(starts(model_error("options { output: { data_file: out.dat } }\n"), "1:32 the option data_file takes a path in double quotes"));
   CHECK(starts(model_error("options { integration: { dt: \"1\" } }\n"), "1:30 the option dt takes a bare word or number"));
   CHECK(starts(model_error("options { nowhere: { } }\n"), "1:11 `nowhere` is not a group of options"));
   CHECK(starts(model_error("options { }\noptions { }\n"), "2:1 options is written once in a file"));
   CHECK(starts(model_error("par a=1 b=2\n"), "1:9 expected `,` between the items of par"));
   CHECK(model_error("options { integration: { total_time: 0.03, dt: 0.01, }, }\nx'=1\n").empty());
-  CHECK(model_error("options { output: { log_file: \"C:/Users/RUNNER~1/AppData/Local/Temp/out side\\\"x\\\\.dat\" } }\nx'=1\n").empty());
+  CHECK(model_error("options { output: { data_file: \"C:/Users/RUNNER~1/AppData/Local/Temp/out side\\\"x\\\\.dat\" } }\nx'=1\n").empty());
   CHECK(model_error("par a=1,\n  b=2\nx'=a*b\n").empty());
   CHECK(starts(model_error("x = 1 +\n"), "2:1 expected a value, found the end of the file"));
   CHECK(starts(model_error("done\n"), "2:1 expected `'`, `=` or `(t) =` after `done`"));

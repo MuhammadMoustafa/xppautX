@@ -716,19 +716,6 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
 void set_internopts_xpprc_and_comline(xpp::Session &s, std::span<const std::string> interopt)
 {
   if(interopt.empty())return;
-  /* QUIET and LOGFILE first */
-  for(const std::string &opt : interopt){
-    xpp::Tokens tok(opt);
-    if(!tok.next(" ,"))continue;
-    std::string name,value;
-    while(std::optional<std::string_view> t=tok.next(" ,\n\r")){
-      split_apart(*t,name,value);
-      name=xpp::upper_case(name);
-      if(name=="QUIET"||name=="LOGFILE")
-        set_option(s,name,value,0,NULL);
-    }
-  }
-
   /*We make a BOOLEAN MASK using the current OptionsSet*/
   /*This allows options to be overwritten multiple times within .xpprc
   but prevents overwriting across comline, .xpprc etc.

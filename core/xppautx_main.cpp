@@ -257,7 +257,13 @@ int main(int argc, char **argv)
     }
     startup = std::move(*parsed);
     const xpp::CommandLine &cl = startup;
-    if (cl.log_threshold) xpp::log_set_threshold(*cl.log_threshold);
+    {
+        /* what the log shows and where it goes: the command line's, else the preferences' (a bad file is said by the load, threads_load) */
+        const xpp::Result<xpp::prefs::Preferences> kept = xpp::prefs::load_prefs();
+        xpp::log_set_threshold(cl.log_threshold.value_or(kept ? kept->log_level : XPP_LOG_WARN));
+        if (!cl.log_file && kept && !kept->log_file.empty() && !xpp::log_open_file(kept->log_file))
+            xpp::log(XPP_LOG_WARN, "{}\n", xpp::files::write_error("log_file", kept->log_file).text());
+    }
     if (cl.version) {
         /* the release tag (v1.2.0); the VS Code extension compares it with the latest release */
         printf("xppautX %s\n", xpp_version_string());

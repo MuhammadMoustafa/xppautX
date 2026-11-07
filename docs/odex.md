@@ -34,8 +34,7 @@ no window, integration, or written `.odex`. Reserved names take the
 converter's suggested replacements. `--check model.odex` uses the `.odex`
 reader and reports only errors, and what the compiler warns of (id `compile`, a load's WARN lines), and, when the loaded model's states fall into
 several independent subsystems (W433), one `info` diagnostic with id
-`subsystems` that lists them (a `.ode` is converted, not loaded, and reports none). Inspection does not open `@ logfile`,
-and asks nothing: a path outside the model's folder that the preferences
+`subsystems` that lists them (a `.ode` is converted, not loaded, and reports none). Inspection asks nothing: a path outside the model's folder that the preferences
 do not already allow is a load error at its line (a load would ask, W286).
 Stdout is one UTF-8 JSON object followed by a newline:
 
@@ -206,7 +205,7 @@ you wrote (`1/30`) alone while the value is unchanged.
 
   | group | keys |
   |---|---|
-  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `bvp.max_iterates`, `bvp.tolerance`, `bvp.epsilon`; `torus.period`, `torus.fold`; `tables.auto_evaluate` |
+  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `bvp.max_iterates`, `bvp.tolerance`, `bvp.epsilon`; `torus.period`, `torus.fold` |
   | `poincare` | `map`, `variable`, `sign`, `plane`, `stop` |
   | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535), `near_tolerance` |
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |
@@ -216,7 +215,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
   | `export` | `format` (`pdf` or `svg`), `color`, `font_size` |
   | `interface` | `sliders`, `buttons` (and `animation`, written directly in `options`, outside any group) |
-  | `output` | `data_file`, `nullclines_file`, `after_run`, `after_run_file`, `quiet`, `log_file` (a path is named from the model's folder, a path outside it is a question, and its extension picks the data format; with `after_run_file` the analysis `after_run` names is written there and `data_file` keeps the trajectory, without it the analysis replaces the table `data_file` is written from, as XPPAUT's batch run does) |
+  | `output` | `data_file`, `nullclines_file`, `after_run`, `after_run_file` (a path is named from the model's folder, a path outside it is a question, and its extension picks the data format; with `after_run_file` the analysis `after_run` names is written there and `data_file` keeps the trajectory, without it the analysis replaces the table `data_file` is written from, as XPPAUT's batch run does) |
 
   Older group names and older keys are errors, as is a key of another group. A key
   twice (but for `fold` and `buttons`, which name one thing each) is an error at
@@ -247,12 +246,11 @@ you wrote (`1/30`) alone while the value is unchanged.
 
   A value is one bare word or number (letters, digits, `_ . + -`), no
   quotes, except a **path**, a **text** or a **colour**, which is a double-quoted string
-  (`log_file: "out/run 1.log"`, `data_file: "données.dat"`, `nullclines.x_color: "#ffa500"`; a colour is
+  (`data_file: "out/run 1.dat"`, `nullclines_file: "données.dat"`, `nullclines.x_color: "#ffa500"`; a colour is
   `"foreground"`, a quoted CSS colour name or `"#rrggbb"` (`#rrggbbaa` with alpha, drawn by the page,
   SVG and PDF), and every colour is double quoted, including names; a name is read and written back as hex): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
-  path outside the model's folder is a question the user answers (W175, W286). Only `data_file`, `nullclines_file`, `after_run_file` and
-  `log_file` are paths, and `buttons` (a button, `buttons: "quit:fq"`) a text. Every
+  path outside the model's folder is a question the user answers (W175, W286). Only `data_file`, `nullclines_file`, `after_run_file` are paths, and `buttons` (a button, `buttons: "quit:fq"`) a text. Every
   writer of options (the converter, Save values) writes them so.
   Continuation numbers use the same ranges as the autoX form, protocol and session reader:
   `min_step_size`, `max_step_size`, `parameter_tolerance`, `state_tolerance` and `special_point_tolerance` are positive; `min_step_size <= max_step_size`,
@@ -305,7 +303,9 @@ you wrote (`1/30`) alone while the value is unchanged.
   and one setting. A set's name is its own, apart from the model's names; two sets of one name, an imported file's
   included, are an error naming both places. `--convert` writes XPPAUT's flat set by XPPAUT's precedence (a model name
   first) and nests the rest under `options:`.
-- `table NAME EXPR` / `table NAME FILE` — as `.ode`; a formula table
+- `table NAME EXPR, n=N, lo=A, hi=B [, auto_evaluate=false]` / `table NAME FILE` — as `.ode`; a formula table
+  is evaluated again whenever a parameter changes unless `auto_evaluate=false` (XPPAUT's `autoeval=0`, which `--convert`
+  writes on each formula table; the `table.edit` command sets it too); a formula table
   may call a `fun` written after it (every function is compiled first,
   W165).
 - `ou NAME tau=T sigma=S [init=V]` (W380): an Ornstein-Uhlenbeck process, new in
@@ -558,7 +558,7 @@ entry        = name , ":" , ( bare_word | string ) ;
 
 set_decl     = "set" , string , "{" , [ set_entry , { "," , set_entry } , [ "," ] ] , "}" ;
 set_entry    = name , ":" , [ "-" ] , ( number | name ) ;
-table_decl   = "table" , name , ( expr | filename ) ;
+table_decl   = "table" , name , ( expr , "," , "n" , "=" , whole , "," , "lo" , "=" , number , "," , "hi" , "=" , number , [ "," , "auto_evaluate" , "=" , ( "true" | "false" ) ] | filename ) ;
 markov_decl  = "markov" , name , integer , { transition_row } ;
 wiener_decl  = "wiener" , name , { "," , name } ;
 ou_decl      = "ou" , name , ou_item , { [ "," ] , ou_item } ;

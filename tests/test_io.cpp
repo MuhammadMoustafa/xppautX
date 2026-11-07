@@ -173,7 +173,7 @@ int main(void)
         xpp::log_autox("{:4d}{:6d}  {:c}{:c}{:4d}{:14.6E}\n", -1L, 123L, 'E', 'P', 7L, 1.0);
         CHECK_STR(read_raw(tf.c_str()).c_str(), "  -1   123  EP   7  1.000000E+00" TEXT_NL);
         xpp::log_set_autox_echo(false);
-        xpp::log_new_model();
+        CHECK(xpp::log_open_file(""));
     }
 
     /* ---- the file half: line reader, token reader, writer (W11 step 3) */

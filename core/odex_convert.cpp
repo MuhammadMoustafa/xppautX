@@ -1278,8 +1278,8 @@ private:
     const std::string n = name(xpp::upper_case(t.name.empty() ? s.name : t.name));
     if (t.flag == 2) {
       /* the formula's variable is t; its values at n points on [xlo,xhi] */
-      return xpp::format("table {} {}, n={}, lo={}, hi={}\n", n, text(compiled(t.filename)), t.n,
-                         print_number(t.xlo), print_number(t.xhi));
+      return xpp::format("table {} {}, n={}, lo={}, hi={}{}\n", n, text(compiled(t.filename)), t.n,
+                         print_number(t.xlo), print_number(t.xhi), t.autoeval == 0 ? ", auto_evaluate=false" : "");
     }
     return "table " + n + " " + quote_string(t.filename) + "\n";
   }
@@ -1467,8 +1467,7 @@ private:
     dropped_.clear();
     for (const xpp::Model::OptionLine &line : m_.options) collect_options(line, map, entries);
     if (const std::string list = curves_.list(); !list.empty()) {
-      int index = 0;
-      const OptionRow &row = *xpp::find_option("CURVES", index, false);
+      const OptionRow &row = xpp::curves_option();
       entries.push_back({xpp::odex_key(row, 0), list, &row});
     }
     /* an option XPPAUT's default for which is not ours (the colormap: jet, ours is viridis) is written out when the .ode does not
@@ -1541,6 +1540,7 @@ private:
         curves_.add(*row, index, option_text(*row, key, value, "option-value"));
         continue;
       }
+      if (row && row->in_statement) continue;
       if (row && !row->dropped.empty()) {
         if (dropped_.insert(std::string(row->dropped)).second) option_note(xpp::format("@ {}={} in the .ode: {}", key, value, row->dropped), "option");
         continue;

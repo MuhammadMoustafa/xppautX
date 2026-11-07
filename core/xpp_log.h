@@ -15,9 +15,9 @@
    err_msg()'s headless default logs at ERROR. There is no plintf() any
    more (retired at W25): call xpp::log(level, fmt, args...) (a
    std::format-checked call, below). Dynamic widths and precisions use
-   nested replacement fields (`{:{}}`, `{:.{}}`). An INFO message honours the
-   model's own "@ quiet=1" (xpp::log_settings.verbose), same as plintf()
-   used to.
+   nested replacement fields (`{:{}}`, `{:.{}}`). What the log shows and where
+   it goes are the user's, not a model's (W619): the preferences' log_level and
+   log_file, or --verbose, --debug, --quiet and --logfile.
 
    Messages follow printf: the caller writes the newline, so a line can be
    built in pieces. They go to --logfile's file when one was given, else to
@@ -37,6 +37,7 @@
    (xpp_window_plugin.h). */
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstdio> /* first, so MinGW's libstdc++ picks its C99 printf */
 #include <string>
@@ -53,14 +54,12 @@ typedef enum {
 
 namespace xpp {
 
-/* Where the log goes and whether the model may silence it. The model's
-   @ logfile= and @ quiet= options set file and verbose unless the command
-   line's --logfile / --quiet did first (they win over .xpprc and the model). */
+/* the words of the levels, as the preferences' log_level names them (in the enum's order) */
+inline constexpr std::array<std::string_view, 4> log_level_names{"error", "warn", "info", "debug"};
+
+/* Where the log goes. */
 struct LogSettings {
-    FILE *file;                  /* --logfile's file; NULL or stdout: stderr */
-    int verbose;                 /* 0: an INFO message prints nothing (@ quiet=1) */
-    int quiet_from_command_line; /* --quiet was given: @ quiet= is ignored */
-    int file_from_command_line;  /* --logfile was given: @ logfile= is ignored */
+    FILE *file;                  /* the log file (preferences, --logfile); NULL or stdout: stderr */
     FILE *terminal;              /* the terminal's copy while a page takes the log (log_set_terminal); NULL: none */
     std::atomic<unsigned> errors{0}; /* errors reported, even when output is suppressed */
 };
@@ -71,19 +70,14 @@ void log_note_error();
 int log_exit_code();
 [[noreturn]] void log_exit();
 
-/* The log goes to the file path from now on (@ logfile=): the one it
-   went to before is closed, unless that was stdout or stderr. */
+/* The log goes to the file path from now on: the one it
+   went to before is closed, unless that was stdout or stderr. An empty path
+   is stderr again. */
 bool log_open_file(std::string_view path);
-
-/* A model's load starts: what the model before set with @ logfile= and
-   @ quiet= goes (a log file it opened is closed, the log goes to stdout
-   again); what the command line set stays. */
-void log_new_model();
 
 /* Default is XPP_LOG_WARN. */
 void log_set_threshold(XppLogLevel level);
-/* true when a message at level would be printed now (the threshold, and
-   "@ quiet=1" for INFO) */
+/* true when a message at level would be printed now (the threshold) */
 bool log_enabled(XppLogLevel level);
 
 /* true when log_autox() writes (browser mode, or a threshold of INFO

@@ -164,6 +164,9 @@ struct ForeignOptions {
   const char *why = nullptr;
 };
 
+/* the longest help line of a row */
+inline constexpr std::size_t OPTION_HELP_MOST = 120;
+
 /* One option. Its names match as prefixes of the name given, upper case,
    the longest winning (so "method" and "methodx" are one, and "dt" is not
    "dtminimum"); a numbered one (xp2..xp8) is its name and one digit. */
@@ -179,7 +182,9 @@ struct OptionRow {
      The rows run in the order of option_groups, then their sections (a section's rows together,
      after the group's unsectioned ones), the order the panels show them. */
   std::string_view odex;
-  std::string_view alias;         /* a second name, or "" */
+  /* what the option does, in one line (a sentence, no more than OPTION_HELP_MOST characters): the schema's description and the
+     panels' help; every .odex row has it (optioncheck) */
+  std::string_view help;
   /* XPPAUT's names for it, read in a .ode, an .xpprc and the command line
      (foreign formats) and refused in a .odex: "" when XPPAUT's name is the name */
   std::array<std::string_view, 2> xppaut_names;
@@ -190,6 +195,9 @@ struct OptionRow {
      that may be given any number of times (fold=, but=, xp2=, ...) has no
      `once`. */
   bool once = false;
+  /* an XPPAUT option (import only) that a `--convert` writes into a statement of the model, not into options (autoeval:
+     each formula table's auto_evaluate): no key, and no warning */
+  bool in_statement = false;
   /* an XPPAUT curve option (import only), or none */
   CurveField curve_field = CurveField::none;
   /* an XPPAUT option read on import only that a .odex has no key for: why it is dropped, said once as a warning
@@ -290,6 +298,10 @@ const OptionRow *find_option(std::string_view upper_name, int &index, bool xppau
    NOUT is store_every, xplot is xp), "" when no row of a group does */
 std::string odex_option_key(std::string_view key);
 
+/* a row's label, as the panels and the schema show it: the numerics menu's own, else the key in words (underscores and dots
+   as spaces, a capital first letter: "step.min" is "Step min") */
+std::string option_label(const OptionRow &row);
+
 /* the key a .odex writes for a row (its `odex` key, a numbered row's digit
    index after it) */
 std::string odex_key(const OptionRow &row, int index);
@@ -310,10 +322,12 @@ const OptionRow *find_odex_option_anywhere(std::string_view key, int &index);
 /* a set may hold the row: its group is one of set_groups and it is no `wide` row */
 bool set_holds(const OptionRow &row);
 
-/* the curves of a `curves` list's groups (x, y, z: a variable's name each); with a Session the names are
+/* the curves of a model's `curves` list (a window's are setx_file.h's read_curves, with their colours and lines); the groups (x, y, z: a variable's name each); with a Session the names are
    checked and read as columns, without one only the shape of the list */
-std::vector<PlotCurve> read_curves(const Session *s, setx::Block &file);
+std::vector<PlotCurve> read_starting_curves(const Session *s, setx::Block &file);
 
+/* the starting graph's `curves` row */
+const OptionRow &curves_option();
 /* the slider presets' row (`sliders`, a list) */
 const OptionRow &slider_presets_option();
 /* row is one of XPPAUT's numbered slider slots (S1-S3, SLO1-3, SHI1-3):

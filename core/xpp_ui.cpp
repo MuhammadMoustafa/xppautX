@@ -553,9 +553,7 @@ bool save_recording(Session &s) { return ui.save_recording(s); }
    was a thin wrapper around xpp::log() at INFO (the banner, "All formulas
    are valid!!", parser statistics, duplicate-name notes) and was retired
    at W25: call xpp::log(XPP_LOG_INFO, ...)
-   directly -- xpp::log() itself now honours xpp::log_settings.verbose (the
-   ODE file's own QUIET option, load_eqn.c) for INFO-level messages, the
-   same gating plintf() used to do itself (see xpp_log.c/xpp_log.h). A
+   directly (see xpp_log.h). A
    real error uses err_msg()/xpp::log(..., XPP_LOG_ERROR/WARN) instead. */
 
 /* the question's name as a sentence's subject: "Total :" is Total */

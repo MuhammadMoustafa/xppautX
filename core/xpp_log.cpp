@@ -67,23 +67,15 @@ void close_log_file()
 }
 } // namespace
 
-LogSettings log_settings = {nullptr, 1, 0, 0, nullptr};
+LogSettings log_settings = {nullptr, nullptr};
 
 bool log_open_file(std::string_view path)
 {
     close_log_file();
     log_settings.file = nullptr; /* A folder question must not log through the closed stream. */
+    if (path.empty()) return true;
     log_settings.file = xpp::files::open_write_plain(path);
     return log_settings.file != nullptr;
-}
-
-void log_new_model()
-{
-    if (!log_settings.file_from_command_line) {
-        close_log_file();
-        log_settings.file = stdout;
-    }
-    if (!log_settings.quiet_from_command_line) log_settings.verbose = 1;
 }
 
 void log_set_threshold(XppLogLevel level) { threshold = level; }
@@ -94,10 +86,7 @@ void log_set_terminal(FILE *out) { log_settings.terminal = out; }
    in pieces */
 bool log_enabled(XppLogLevel level)
 {
-    /* the model's own "@ quiet=1" (log_settings.verbose==0) silences just
-       its INFO-level messages, as plintf() did; WARN/ERROR/DEBUG are
-       unaffected */
-    return level <= threshold && (level != XPP_LOG_INFO || log_settings.verbose);
+    return level <= threshold;
 }
 
 LogCapture::LogCapture() : outer_(capture)

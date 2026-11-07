@@ -1832,25 +1832,7 @@ def section_recording():
         r = quiet([outside])
         check('W144: a recording cannot overwrite a path using a recorded path',
               r.returncode == 1 and r.stdout == '' and file_content(marker, 'rb') == b'keep', r.stderr)
-        # A model option runs during the initial load, before any replay step.
-        digits = template.split('@snapshot\n', 1)[1].split('\n@end', 1)[0]
-        encoded = io.BytesIO()
-        with zipfile.ZipFile(io.BytesIO(base64.b64decode(digits))) as source, \
-                zipfile.ZipFile(encoded, 'w', zipfile.ZIP_DEFLATED) as target:
-            for name in source.namelist():
-                data = source.read(name)
-                if name == 'model/lecar.odex':
-                    assert b'options {' in data, 'the recorded lecar.odex has no options block'
-                    data = data.replace(b'options {', ('options {\n  output: { log_file: "' + marker.replace('\\', '/') + '" },').encode(), 1)
-                target.writestr(name, data)
-        hostile = template.replace(digits, base64.b64encode(encoded.getvalue()).decode(), 1)
-        with open(path, 'w', encoding='utf-8', newline='\n') as f:
-            f.write(recording_text(hostile, []))
-        r = subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=run,
-            capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
-        check('W144: even initial model options cannot write a recorded path, and fail once',
-              r.returncode == 1 and r.stdout == '' and file_content(marker, 'rb') == b'keep'
-              and r.stderr.count('not a plain file name in the launch folder') == 1, r.stderr)
+        # (a model's options no longer open a file at the load: the log is the user's, W619)
         r = quiet([{'cmd':{'cmd':'file','op':'put','name':'../outside.dat','data':'AA=='}}])
         check('W144: a file refusal is printed once at the recording step',
               r.returncode == 1 and r.stdout == '' and r.stderr.count('run.recx:') == 1

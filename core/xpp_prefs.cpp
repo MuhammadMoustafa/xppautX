@@ -6,6 +6,7 @@
 #include <span>
 #include <utility>
 
+#include "model_options.h" /* choice_index */
 #include "setx.h"
 #include "xpp_files.h"
 #include "xpp_cpu.h"
@@ -86,6 +87,24 @@ public:
         out = std::move(got);
     }
 
+    /* one of the log level's words */
+    void level(std::string_view key, XppLogLevel &out)
+    {
+        std::string text;
+        if (!block_.word(key, text)) return;
+        const int i = choice_index(log_level_names, text);
+        if (i < 0) block_.fail(block_.member(key)->value, xpp::format("`{}`: `{}` is none of error, warn, info or debug", key, text));
+        out = static_cast<XppLogLevel>(i);
+    }
+    /* an absolute path, when the file names one */
+    void path(std::string_view key, std::string &out)
+    {
+        std::string got;
+        if (!block_.text(key, got)) return;
+        if (const auto why = path_problem(got)) block_.fail(block_.member(key)->value, *why);
+        out = std::move(got);
+    }
+
     /* `automatic` (0 in out) or a whole number problem accepts */
     void count(std::string_view key, unsigned &out, std::string_view automatic, CountProblem problem)
     {
@@ -115,6 +134,13 @@ public:
         for (std::size_t i = 0; i < list.size(); i++)
             if (const auto why = problem(std::span(list).first(i), list[i]); why && !bad_) bad_ = *why;
         out.texts(key, list);
+    }
+    void level(std::string_view key, const XppLogLevel &value) { out.word(key, log_level_names[static_cast<std::size_t>(value)]); }
+    void path(std::string_view key, const std::string &value)
+    {
+        if (value.empty()) return;
+        if (const auto why = path_problem(value); why && !bad_) bad_ = *why;
+        out.text(key, value);
     }
     void count(std::string_view key, const unsigned &value, std::string_view automatic, CountProblem problem)
     {
@@ -149,6 +175,8 @@ template <class IO, class P> void describe(IO &io, P &p)
 {
     io.paths("recent_models", p.recent_models, MAX_RECENT_MODELS, recent_problem);
     io.count("threads", p.threads, THREADS_AUTO_WORD, threads_problem);
+    io.level("log_level", p.log_level);
+    io.path("log_file", p.log_file);
     io.approvals("outside_paths", p.outside_paths, MAX_OUTSIDE_APPROVALS);
 }
 

@@ -219,7 +219,7 @@ warnings and errors. Without `--logfile`, that log goes to the page's
 Messages panel, live; the terminal gets the warnings and errors (a page
 may be closed), and everything with `--verbose` or `--debug`. `--logfile FILE`
 sends it to FILE instead, so a run started that way has nothing in Messages
-and the terminal shows only its warnings and errors. See
+and the terminal shows only its warnings and errors. What the log shows and where it goes are yours, not a model's: the preferences file (`preferences.setx`) holds `log_level` (`error`, `warn`, `info` or `debug`) and `log_file` (an absolute path), and `--verbose`, `--debug`, `--quiet` and `--logfile` win over them; XPPAUT's `@ quiet=` and `@ logfile=` of a `.ode` are dropped with a warning. See
 [Using the interface: the log](04-using-the-interface.md#the-log).
 
 ### Command-line options
@@ -269,7 +269,7 @@ follow in any order. The options below control the model and its run.
 | `--check` | Validate `.ode` or `.odex` in memory; JSON diagnostics, no window or written files; exit 0 clean/info, 1 warnings, 2 error |
 | `-y`, `--yes` | Answer every terminal question yes (suggested conversion names, replacing files) and print each answer taken |
 | `--anifile FILE` | Load an animation script (`.ani`) at startup |
-| `--quiet <0\|1>` | Suppress the model's own console messages (independent of `--verbose`) |
+| `--quiet <0\|1>` | `1` logs only warnings and errors (the default level, the one `--verbose` and `--debug` raise) |
 | `--logfile FILE` | Send console output to FILE |
 | `--verbose` / `--debug` | Raise the log level (`xppautX`'s `--verbose`/`--debug` do the same) |
 | `--version` | Print the version and exit |

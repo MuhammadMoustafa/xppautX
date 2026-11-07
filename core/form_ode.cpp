@@ -1379,6 +1379,7 @@ private:
       if(auto t=add_form_table(s_,ntab_,s.more().count,s.more().lo,s.more().hi,formula);!t){
 	table_failed(t.error());
       }
+      s_.tables[ntab_].autoeval=s.more().auto_evaluate?1:0;
       ntab_++;
       break;
     }

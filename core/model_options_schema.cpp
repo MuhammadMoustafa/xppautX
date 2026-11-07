@@ -82,7 +82,7 @@ std::string option_value_schema(const OptionRow &row)
   }
   if (row.maximum) out += ", \"maximum\": " + std::to_string(row.maximum);
   if (row.autox_numeric >= 0) out += autox_settings_num_schema(row.autox_numeric);
-  if (!row.label.empty()) out += ", \"description\": " + quoted(row.label);
+  if (!row.odex.empty()) out += ", \"title\": " + quoted(option_label(row)) + ", \"description\": " + quoted(row.help);
   if (row.repeatable) out += ", \"x-repeatable\": true";
   return out + "}";
 }

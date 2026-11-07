@@ -37,6 +37,7 @@ struct CommandLine {
   bool silent = false, new_seed = false, make_plot = false, no_compile = false, no_output = false;
   bool query_sets = false, query_pars = false, query_ics = false;
   bool dry_run() const { return query_sets || query_pars || query_ics; } /* --qsets/--qpars/--qics: nothing is run */
+  std::optional<std::string> log_file;        /* --logfile: the log goes there (over the preferences' log_file) */
   std::optional<XppLogLevel> log_threshold;    /* --verbose, --debug: the last one given */
   std::optional<bool> use_all_sets;            /* --internset 1 / 0 */
   std::optional<int> equilibria;               /* --equil N */

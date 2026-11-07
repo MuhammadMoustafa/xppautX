@@ -207,8 +207,14 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     case Opt::uset: add_set(cl.use_sets, value); break;
     case Opt::rset: add_set(cl.skip_sets, value); break;
     case Opt::include: cl.include.push_back(value); break;
-    case Opt::quiet: cl.options.emplace_back("QUIET", value); break;
-    case Opt::logfile: cl.options.emplace_back("LOGFILE", value); break;
+    case Opt::quiet: {
+      int n = 0;
+      if (const Result<> r = whole_number(n); !r) return std::unexpected(r.error());
+      if (n != 0 && n != 1) return fail("options", xpp::format("{} must be 0 or 1, not {}", word, n), place);
+      if (n == 1) cl.log_threshold = XPP_LOG_WARN; /* no INFO line, whatever --verbose said before */
+      break;
+    }
+    case Opt::logfile: cl.log_file = value; break;
     case Opt::plotfmt: cl.options.emplace_back("PLOTFMT", value); break;
     case Opt::dfdraw: cl.options.emplace_back("DFDRAW", value); break;
     case Opt::ncdraw: cl.options.emplace_back("NCDRAW", value); break;
@@ -252,12 +258,9 @@ void apply_command_line(Session &s, CommandLine cl)
     batch_options.equilibria = *cl.equilibria;
     xpp::log(XPP_LOG_INFO, " Batch equilibria {:d} \n", batch_options.equilibria);
   }
-  /* --quiet and --logfile win over .xpprc and the model's @ lines */
-  for (const auto &[name, value] : cl.options) {
-    set_option(s, name, value, 1, NULL);
-    if (name == "QUIET") log_settings.quiet_from_command_line = 1;
-    else if (name == "LOGFILE") log_settings.file_from_command_line = 1;
-  }
+  /* --plotfmt, --dfdraw and --ncdraw win over .xpprc and the model's @ lines */
+  for (const auto &[name, value] : cl.options) set_option(s, name, value, 1, NULL);
+  if (cl.log_file && !log_open_file(*cl.log_file)) show_error(files::write_error("--logfile", *cl.log_file));
   s.model().command_line = std::move(cl);
 }
 

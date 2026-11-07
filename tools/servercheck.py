@@ -3884,6 +3884,35 @@ def check_after_run_stochastic():
 check_after_run_stochastic()
 
 
+def check_import_only_options():
+    """W619: XPPAUT options that a .odex has no key for: autoeval is each formula table's own auto_evaluate, quiet and logfile
+    (the log is the user's) are dropped with a warning each, maxstor is ignored; a table's auto_evaluate is true or false."""
+    with tempfile.TemporaryDirectory(prefix='xppimportonly') as run:
+        with open(os.path.join(run, 'ae.ode'), 'w', encoding='utf-8') as source:
+            source.write("par a=1\ntable w % 5 0 4 sin(a*t)\ntable v % 5 0 4 cos(a*t)\nx'=w(t)+v(t)\n"
+                         "@ total=1,dt=.1,autoeval=0,quiet=1,logfile=zz.log,maxstor=100\ndone\n")
+        converted = subprocess.run([os.path.abspath(args.server), '--convert', 'ae.ode'], cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
+        with open(os.path.join(run, 'ae.odex'), encoding='utf-8') as source:
+            text = source.read()
+        check('W619: autoeval=0 is auto_evaluate=false on each formula table, quiet and logfile each warn once, maxstor says nothing',
+              converted.returncode == 0 and 'table w sin(a*t), n=5, lo=0, hi=4, auto_evaluate=false' in text
+              and 'table v cos(a*t), n=5, lo=0, hi=4, auto_evaluate=false' in text
+              and converted.stderr.count('@ quiet=1') == 1 and converted.stderr.count('@ logfile=zz.log') == 1 and 'maxstor' not in converted.stderr
+              and 'auto_evaluate' not in text.split('options', 1)[-1], converted.stderr + text)
+        with open(os.path.join(run, 'bad.odex'), 'w', encoding='utf-8') as source:
+            source.write("version 4\ntable w sin(t), n=5, lo=0, hi=4, auto_evaluate=maybe\nx' = w(t)\n")
+        refused = subprocess.run([os.path.abspath(args.server), 'bad.odex', '--check'], cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
+        check('W619: a table\'s auto_evaluate is true or false, refused at its line', 'auto_evaluate is true or false' in refused.stdout + refused.stderr
+              and '"line":2' in refused.stdout.replace(' ', ''), refused.stdout + refused.stderr)
+        with open(os.path.join(run, 'log.odex'), 'w', encoding='utf-8') as source:
+            source.write("version 4\nx' = 1\noptions { output: { log_file: \"x.log\" } }\n")
+        moved = subprocess.run([os.path.abspath(args.server), 'log.odex', '--check'], cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
+        check('W619: log_file is no key of a model (the preferences hold it)', 'log_file' in moved.stdout + moved.stderr and moved.returncode != 0, moved.stdout + moved.stderr)
+
+
+check_import_only_options()
+
+
 # The values panel and the run history of web2 (GitHub #18, #117): hello's
 # defaults, state's now, a batched set (never a run of its own: the `rerun`
 # flag is gone from set/slide/default and ignored if sent), the ICs from
@@ -10445,40 +10474,22 @@ def check_outside_paths():
         finally:
             s.close()
 
-        # Swap the final log name while its approval is pending, after resolve_path.
+        # The log is the user's, not a model's: --logfile as typed refuses a link and names it.
         log = os.path.join(root, 'swapped.log').replace(os.sep, '/')
         target = os.path.join(root, 'target.txt')
         with open(target, 'w') as f:
             f.write('keep target')
-        logmodel = os.path.join(proj, 'log.odex')
-        with open(logmodel, 'w') as f:
-            f.write(versioned("x'=-x\ninit x=1\noptions { output: { log_file: \"" + log + "\" } }\n"))
-        s = start(logmodel)
         try:
-            evs, ask = s.collect(lambda e: e.get('ev') == 'ask')
-            check('W297: log approval precedes stream open', ask and log in ask.get('question', ''), str(ask))
-            try:
-                os.symlink(target, log)
-            except OSError as error:
-                if os.name != 'nt':
-                    raise
-                print('SKIP W297 Windows log symlink: ' + str(error))
-                s.send(cmd='answer', id=ask['id'], key='r')
-                s.collect(failed)
-            else:
-                s.send(cmd='answer', id=ask['id'], key='o')
-                evs, error = s.collect(failed)
-                check('W297: swapped log link is refused with file and source line',
-                      error and 'swapped.log' in str(error) and 'log.odex' in str(error)
-                      and error.get('line') == 4 and 'log_file:' in error.get('source', '')
-                      and ('refused' in str(error) or 'symbolic link' in str(error)), str(evs)[-600:])
-                check('W297: swapped log target is untouched', open(target).read() == 'keep target')
-                result = subprocess.run([binary, 'tab.odex', '--silent', '--logfile', log], cwd=proj, input='',
-                                        capture_output=True, text=True, timeout=60 * SLOW, env=dict(os.environ, **env))
-                check('W297: command-line logfile refuses link and names file',
-                      result.returncode != 0 and 'swapped.log' in result.stderr and open(target).read() == 'keep target', result.stderr)
-        finally:
-            s.close()
+            os.symlink(target, log)
+        except OSError as error:
+            if os.name != 'nt':
+                raise
+            print('SKIP W297 Windows log symlink: ' + str(error))
+        else:
+            result = subprocess.run([binary, 'tab.odex', '--silent', '--logfile', log], cwd=proj, input='',
+                                    capture_output=True, text=True, timeout=60 * SLOW, env=dict(os.environ, **env))
+            check('W297: command-line logfile refuses link and names file',
+                  result.returncode != 0 and 'swapped.log' in result.stderr and open(target).read() == 'keep target', result.stderr)
 
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -10645,49 +10656,12 @@ def check_create_folders():
                   and ('Create the folder' not in result.stderr if mode == 'check' else result.stderr.count('Create the folder') == 1), result.stderr)
         inspection = os.path.join(root, 'inspect-log.odex')
         with open(inspection, 'w', encoding='utf-8') as f:
-            f.write(versioned("x' = -x\noptions { output: { log_file: \"inspect-missing/log.txt\" } }\n"))
+            f.write(versioned("x' = -x\noptions { output: { data_file: \"inspect-missing/data.dat\" } }\n"))
         result = subprocess.run([binary, '--check', inspection, '--yes'], cwd=root, env=dict(os.environ, **env),
                                 input='', capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
-        check('W303: inspection neither asks nor creates a logfile folder', result.returncode == 0
+        check('W303: inspection neither asks nor creates an output folder', result.returncode == 0
               and 'Create the folder' not in result.stderr and not os.path.exists(os.path.join(root, 'inspect-missing')), result.stderr)
-        shared = os.path.join(root, 'shared.odex')
-        with open(shared, 'w', encoding='utf-8') as f:
-            f.write(versioned("x' = -x\noptions { output: { log_file: \"shared/run.log\", data_file: \"shared/data.dat\" }, integration: { total_time: 1 } }\n"))
-        result = subprocess.run([binary, shared, '--silent', '--yes'], cwd=root, env=dict(os.environ, **env),
-                                input='', capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
-        with open(os.path.join(root, 'shared', 'run.log'), encoding='utf-8') as log: transcript = result.stderr + log.read()
-        check('W303: a folder created for a log is not asked again for data', result.returncode == 0
-              and transcript.count('Create the folder') == 1
-              and os.path.isfile(os.path.join(root, 'shared', 'run.log'))
-              and os.path.isfile(os.path.join(root, 'shared', 'data.dat')), result.stderr)
-        # A model's logfile is prepared at its source line. An outside path
-        # must have its own earlier approval; two independent questions.
-        project = os.path.join(root, 'project')
-        os.mkdir(project)
-        source = os.path.join(project, 'log.odex')
-        for answer in ('y', 'n'):
-            destination = '../outside-' + answer + '/run.log'
-            with open(source, 'w', encoding='utf-8') as f:
-                f.write(versioned("x' = -x\noptions { output: { log_file: \"%s\" } }\n" % destination))
-            server = Server(binary, source, env=env, run=project)
-            try:
-                _, outside = server.collect(lambda e: e.get('ev') in ('ask', 'session.error'))
-                check('W303: outside approval precedes folder creation / ' + answer,
-                      outside and outside.get('keys') == 'aor', str(outside))
-                if outside and outside.get('ev') == 'ask':
-                    server.send(cmd='answer', id=outside['id'], key='o')
-                _, ask = server.collect(lambda e: e.get('ev') in ('ask', 'session.error'))
-                check('W303: server asks to create the folder / ' + answer,
-                      ask and 'Create the folder' in ask.get('question', '') and ask.get('keys') == 'yn', str(ask))
-                if ask and ask.get('ev') == 'ask':
-                    server.send(cmd='answer', id=ask['id'], key=answer)
-                events, _ = server.collect(lambda e: e.get('ev') == 'session.error')
-                errors = [e for e in events if e.get('ev') == 'session.error']
-                check('W303: server creation answer / ' + answer,
-                      os.path.isfile(os.path.join(root, 'outside-' + answer, 'run.log')) == (answer == 'y')
-                      and (not errors if answer == 'y' else any(e.get('line') == 3 and 'folder' in e.get('error', '') for e in errors)), str(events[-3:]))
-            finally:
-                server.close()
+        # (a model no longer opens a log: the log is the user's, so no model-created log folder is asked about, W619)
         denied = os.path.join(root, 'denied')
         os.mkdir(denied)
         sid = None

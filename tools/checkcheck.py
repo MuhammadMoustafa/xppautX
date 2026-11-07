@@ -115,7 +115,7 @@ def main():
             'aux z=1/(0)^0', 'aux z=1/((0))**0',
             'aux z=1+2|3<4', 'aux z=-1|3<4',
             'aux z=1e-3^2', 'aux z=-2+3^2', 'aux z=1|2*3',
-            '@ total=0,dt=0.1', '@ logfile=check.log',
+            '@ total=0,dt=0.1',
         ]
         for line in clean:
             code, diagnostics = run("x'=0\n" + line + '\ndone\n')

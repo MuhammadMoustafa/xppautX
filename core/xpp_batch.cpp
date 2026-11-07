@@ -68,9 +68,6 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
 
     s.options_applied = 0;
     read(s);
-    /* the log settings of the model before (@ logfile, @ quiet) go, now
-       that this one has parsed; its own options below set them again */
-    xpp::log_new_model();
     /* the boundary conditions in use start as the model's */
     s.bcs = m.bcs;
 
@@ -269,12 +266,8 @@ Result<> inspect_model(const CommandLine &cl, const std::function<void(Session &
                        const std::function<std::optional<Error>(Session &)> &check,
                        const SavedModel *saved)
 {
-    /* Inspection validates model options but must not create @ logfile's file. */
-    const int file_option = log_settings.file_from_command_line;
-    log_settings.file_from_command_line = 1;
     const auto resolved = animation_command_line(cl);
     Loaded inspected = resolved ? load_in(*resolved, 1, saved, check, read, false) : Loaded{std::unexpected(resolved.error())};
-    log_settings.file_from_command_line = file_option;
     if (!inspected) return std::unexpected(inspected.error());
     return {};
 }

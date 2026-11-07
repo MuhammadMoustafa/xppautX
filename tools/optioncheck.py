@@ -11,7 +11,8 @@ nothing else). The table is core/model_options.cpp. This fails when
   * web2/src/store/steady.ts, the one place the page spells a numerics key,
     names a key the table does not have;
   * a grouped row of the table has no `.odex` key, a key that is not snake_case (dots only between
-    a section and its key), or one key twice in a group (W615).
+    a section and its key), or one key twice in a group (W615), or no one-line `.help` (W619: key, label and help on every
+    grouped row; the label is derived from the key, option_label).
 
 Modes: --check (sourcecheck.sh), --update (rewrite the baseline, keeping
 the reasons of the files still in it), --list (every site).
@@ -109,8 +110,12 @@ def key_problems():
             bad.append(f"{TABLE}: the grouped row {label} has no .odex key")
             continue
         if key.group(2):  # autoX's numerics: their keys are autox_settings.h's, one list
+            if not re.search(r'\.help = "[^"]{4,}"', head):
+                bad.append(f"{TABLE}: the grouped row {label} has no one-line .help after its .odex key")
             seen[(group.group(1), key.group(2), False)] = label
             continue
+        if not re.search(r'\.help = "[^"]{4,}"', head):
+            bad.append(f"{TABLE}: the grouped row {label} has no one-line .help after its .odex key")
         if not re.fullmatch(r"([a-z][a-z0-9_]*\.)?[a-z][a-z0-9_]*", key.group(1)):
             bad.append(f"{TABLE}: the key {key.group(1)} of {label} is not snake_case (a section, a dot, the key)")
         pair = (group.group(1), key.group(1), "first_digit" in row.split("\n")[0] + (row.split("\n")[1] if "\n" in row else ""))

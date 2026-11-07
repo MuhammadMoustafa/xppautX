@@ -141,7 +141,6 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"HISTCOL2", {"z", "3"}},
         {"SPECCOL", {"y", "2"}},
         {"SPECCOL2", {"z", "3"}},
-        {"QUIET", {"1", ""}},
         {"BELL", {"1", ""}},
         {"TUTORIAL", {"1", ""}},
         {"GRADS", {"1", ""}},
@@ -165,8 +164,8 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
 /* what the option model leaves out: a log file, a button, a list, and what an XPPAUT file says that no member of ours holds */
 bool left_out(const xpp::OptionRow &r)
 {
-    return r.name.empty() || r.name == "LOGFILE" || r.name == "BUT" || r.kind == xpp::OptionKind::sliders || r.kind == xpp::OptionKind::curves || r.expand
-           || r.curve_field != xpp::CurveField::none || !r.dropped.empty();
+    return r.name.empty() || r.name == "BUT" || r.kind == xpp::OptionKind::sliders || r.kind == xpp::OptionKind::curves || r.expand
+           || r.curve_field != xpp::CurveField::none || !r.dropped.empty() || r.in_statement;
 }
 
 /* whether a .setx holds the option: the table's rows marked saved, and the
@@ -381,7 +380,7 @@ int main(void)
 
     /* each name finds its row */
     for (const xpp::OptionRow &r : rows) {
-        for (std::string_view n : {r.name, r.alias, r.xppaut_names[0], r.xppaut_names[1]}) {
+        for (std::string_view n : {r.name, r.xppaut_names[0], r.xppaut_names[1]}) {
             if (n.empty()) continue;
             int index = -1;
             std::string name(n);
@@ -548,7 +547,7 @@ int main(void)
     const char bad_ode[] = "build/test_options_bad.ode";
     const char bad_odex[] = "build/test_options_bad.odex";
     for (const char *bad : {"dt=abc", "ync=12", "xp=nosuch", "meth=k", "store_every=2.5", "nout=2.5", "rangereset=maybe",
-                            "axes=4", "quiet=2", "seed=-1", "lt=3", "histcol=nosuch", "xlo2=1e",
+                            "axes=4", "seed=-1", "lt=3", "histcol=nosuch", "xlo2=1e",
                             /* a number the setting's rule refuses (OptionRule) */
                             "store_every=0", "njmp=0", "dt=0", "nmesh=0", "bound=-1", "delay=-1", "tol=0"}) {
         CHECK(write_file(bad_ode, std::string(model_text) + "@ total=5\n@ " + bad + "\ndone\n"));

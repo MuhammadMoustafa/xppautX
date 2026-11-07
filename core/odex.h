@@ -271,6 +271,8 @@ struct Statement {
     int count = 0;
     /* a formula table's lo and hi */
     double lo = 0, hi = 0;
+    /* whether a formula table is evaluated again whenever a parameter changes (table ..., auto_evaluate=false) */
+    bool auto_evaluate = true;
     /* a table's kind */
     TableKind table_kind = TableKind::File;
     /* a Markov variable's transitions, row by row */

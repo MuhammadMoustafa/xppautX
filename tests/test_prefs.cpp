@@ -191,6 +191,39 @@ void check_threads()
     CHECK(xpp::prefs::threads_problem(0) && xpp::prefs::threads_problem(most + 1));
 }
 
+/* the log (W619): its level by name and the file it goes to, an absolute path; none is the defaults */
+void check_log()
+{
+    CHECK(parse("").value().log_level == XPP_LOG_WARN && parse("").value().log_file.empty());
+    for (std::size_t i = 0; i < xpp::log_level_names.size(); i++) {
+        xpp::prefs::Preferences p;
+        p.log_level = static_cast<XppLogLevel>(i);
+        p.log_file = abs_path("log.txt");
+        const auto text = xpp::prefs::serialize_prefs(p);
+        CHECK(text.has_value());
+        const auto back = xpp::prefs::parse_prefs(*text, FILE_LABEL);
+        CHECK(back && back->log_level == p.log_level && back->log_file == p.log_file);
+    }
+    const Bad bad[] = {
+        {"a number", "log_level: 2,\n", 1, "`2` is none of"},
+        {"another word", "\nlog_level: loud,\n", 2, "loud"},
+        {"a relative path", "log_file: \"log.txt\",\n", 1, "not an absolute path"},
+        {"a bare word", "log_file: log,\n", 1, "log_file"},
+    };
+    for (const Bad &t : bad) {
+        const auto r = parse(t.text);
+        CHECK(!r);
+        if (r) continue;
+        if (r.error().place.file != FILE_LABEL || r.error().place.line != t.line + 1 || r.error().what.find(t.value) == std::string::npos) {
+            printf("bad log %s: %s\n", t.what, r.error().text().c_str());
+            CHECK(false);
+        }
+    }
+    xpp::prefs::Preferences p;
+    p.log_file = "relative.txt";
+    CHECK(!xpp::prefs::serialize_prefs(p));
+}
+
 void check_file()
 {
     const std::string file = xpp::prefs::prefs_path();
@@ -231,6 +264,7 @@ int main(void)
     check_outside_paths();
     check_good_files();
     check_threads();
+    check_log();
 
     xpp::TempDir temp;
     CHECK(!temp.path().empty());

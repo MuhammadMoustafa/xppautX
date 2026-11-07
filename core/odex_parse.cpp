@@ -857,7 +857,7 @@ private:
       const setx::Document doc("options", out_.files[file_], std::string(src_));
       setx::Block block(doc, root, false, curves ? "plot" : "interface");
       try { /* validates the list */
-        if (curves) static_cast<void>(read_curves(nullptr, block));
+        if (curves) static_cast<void>(read_starting_curves(nullptr, block));
         else static_cast<void>(read_sliders(*model_, block, false));
       }
       catch (ReadFailed &e) { throw std::move(e.error); }
@@ -1121,6 +1121,16 @@ private:
     s.more_mut().lo = signed_number("lo");
     named_number_key("hi");
     s.more_mut().hi = signed_number("hi");
+    if (at_punct(",")) {
+      take();
+      expect_word("auto_evaluate", "after the table's hi");
+      expect_punct("=", "after auto_evaluate");
+      const Token &flag = peek();
+      if (flag.kind != Token::Kind::Name || (flag.text != "true" && flag.text != "false"))
+        fail(flag.pos, xpp::format("auto_evaluate is true or false, found {}", describe(flag)));
+      s.more_mut().auto_evaluate = flag.text == "true";
+      take();
+    }
     push(std::move(s));
   }
 
