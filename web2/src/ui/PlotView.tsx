@@ -490,13 +490,13 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
           <span>
             <b>{model.curves[hover.curve]?.label}</b>
             {' '}row {hover.row}
-            {hover.t !== null && <> Â· T = {fmt(hover.t)}</>}
-            {' '}Â· {model.curves[hover.curve]?.xName} = {fmt(hover.x)} Â· {model.curves[hover.curve]?.yName} = {fmt(hover.y)}
+            {hover.t !== null && <> · T = {fmt(hover.t)}</>}
+            {' '}· {model.curves[hover.curve]?.xName} = {fmt(hover.x)} · {model.curves[hover.curve]?.yName} = {fmt(hover.y)}
           </span>
         ) : (
           <span class="muted">
-            <span class="hint-mouse">Drag to zoom Â· wheel zooms Â· Shift+drag pans Â· double click resets</span>
-            <span class="hint-touch">Pinch zooms Â· drag pans Â· tap a point to read it</span>
+            <span class="hint-mouse">Drag to zoom · wheel zooms · Shift+drag pans · double click resets</span>
+            <span class="hint-touch">Pinch zooms · drag pans · tap a point to read it</span>
           </span>
         )}
       </footer>
