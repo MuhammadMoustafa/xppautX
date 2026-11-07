@@ -1,0 +1,20 @@
+/* Panels as one dock: Values, Table, Model and Help are tabs of the right column, below the header, one width
+   (the splitter resizes it), one × that hides the dock; the work area's views (graphs, autoX) are tabs too */
+.mock-tabs { display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid var(--border); background: var(--surface); padding: 0 .25rem 0 .5rem; min-height: 2.5rem; }
+.mock-tabs span { display: inline-flex; align-items: center; gap: .375rem; padding: 0 .75rem; font-size: .9375rem; color: var(--fg-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; }
+.mock-tabs span.on { color: var(--fg); font-weight: 600; border-bottom-color: var(--accent); }
+.mock-tabs .x { margin-left: auto; align-self: center; width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: .4rem; color: var(--fg-muted); font-size: 1rem; }
+.mock-tabs span .tx { font-size: .8rem; color: var(--fg-muted); margin-left: .125rem; }
+.values-header { display: none !important; }
+body.mock-table .shell { --values-col: 44rem !important; }
+body.mock-table .values-panel > :not(.mock-tabs) { visibility: hidden; }
+body.mock-table .table-panel { top: var(--menu-bottom, 5.1rem) !important; bottom: 1.9rem !important; right: 0 !important; left: auto !important; width: 44rem !important; transform: none !important; border-left: 1px solid var(--border); border-top: 0; padding-top: 2.5rem; box-shadow: none !important; z-index: 100 !important; }
+body.mock-table .table-header > :first-child, body.mock-table .table-header h2 { display: none; }
+body.mock-table .table-panel .mock-tabs { position: absolute; top: 0; left: 0; right: 0; }
+.mock-worktabs { display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid var(--border); padding: 0 .5rem; min-height: 2.375rem; background: var(--surface); }
+.mock-worktabs span { display: inline-flex; align-items: center; gap: .5rem; padding: 0 .875rem; font-size: .9375rem; color: var(--fg-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.mock-worktabs span.on { color: var(--fg); font-weight: 600; border-bottom-color: var(--accent); }
+.mock-worktabs span i { font-style: normal; font-size: .85rem; color: var(--fg-muted); }
+.mock-worktabs .new { color: var(--fg-muted); font-size: 1.1rem; }
+.autox-show, .autox-header > button:first-child { display: none !important; }
+body.mock-autox .autox-header :is(button) { }
