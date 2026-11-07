@@ -253,6 +253,9 @@ export interface DiagramState {
   run: AutoxRun | null;
   /** the last `autox.jobs` of a run (W597), null before one and when a run starts */
   jobs: AutoxJobs | null;
+  /** each running job's key by its live id (`autox.jobs`, W620), kept from the event that lists it, so the
+      job's live points can be named; emptied when a run starts and when a join leaves no live point in any view */
+  liveKeys: Record<number, number[]>;
   /** Clear (T21): the points before this index are earlier branches, hidden
       unless `showEarlier` (the core keeps them; new runs draw alone) */
   earlier: number;
@@ -313,7 +316,7 @@ export const EMPTY_VIEW: DiagramView = emptyView();
 export const initialDiagram: DiagramState = {
   open: false, shown: false, views: [emptyView()], active: 0, events: 0, outOfStep: false,
   hover: null, info: null, stab: null, start: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
-  run: null, jobs: null, earlier: 0, showEarlier: false,
+  run: null, jobs: null, liveKeys: {}, earlier: 0, showEarlier: false,
 };
 
 export type DiagramAction =
@@ -345,6 +348,11 @@ export type DiagramAction =
 
 export function pointCount(p: DiagramPoints): number {
   return p.x.length;
+}
+
+/** whether any point is a running branch job's (`live`, W620): the join's `reset` has taken them all away when none is */
+export function hasLivePoints(p: DiagramPoints): boolean {
+  return p.lv.some(j => j !== 0);
 }
 
 /** the active view (the first while the core has not said) */
@@ -465,7 +473,8 @@ function onEvent(s: DiagramState, ev: DiagramEvent): DiagramState {
         ...withAxes(v, ev), points: truncate(v.points, keep), labels: v.labels.filter(l => l.point < keep),
       }));
       const hover = s.hover && (s.hover.view !== k || s.hover.point < keep) ? s.hover : null;
-      return {...s, views, hover, outOfStep: false, events};
+      const liveKeys = views.some(v => hasLivePoints(v.points)) ? s.liveKeys : {};
+      return {...s, views, hover, liveKeys, outOfStep: false, events};
     }
     case 'add': {
       if (ev.from > (held ? pointCount(held) : 0)) return {...s, outOfStep: true, events};
@@ -518,8 +527,11 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       return {...s, stored: a.at};
     case 'run':
       return onRun(s, a.op, a.at);
-    case 'jobs':
-      return {...s, jobs: a.ev};
+    case 'jobs': {
+      const liveKeys = {...s.liveKeys};
+      for (const j of a.ev.jobs) liveKeys[j.live] = j.key;
+      return {...s, jobs: a.ev, liveKeys};
+    }
     case 'runStopped':
       return s.run?.active ? {...s, run: {...s.run, stopped: true}} : s;
     case 'clear':
@@ -544,7 +556,7 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
 }
 
 function onRun(s: DiagramState, op: 'start' | 'clock' | 'end', at: number): DiagramState {
-  if (op === 'start') return {...s, jobs: null, run: {active: true, started: at, ended: null, first: pointCount(activeView(s).points), stopped: false}};
+  if (op === 'start') return {...s, jobs: null, liveKeys: {}, run: {active: true, started: at, ended: null, first: pointCount(activeView(s).points), stopped: false}};
   if (!s.run?.active) return s;
   if (op === 'clock') return {...s, run: {...s.run, started: at}};
   return {...s, run: {...s.run, active: false, ended: at}};

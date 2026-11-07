@@ -34,9 +34,14 @@ export interface RunStatus {
 /** the progress line of a run of several branch jobs (W597): "2 running (job 0: 12 points, job 1.4: 9 points), 3 queued, 1 done",
     each running job by its key in the queue and its points so far (W620); '' once none runs (and for a one-job run, for which the
     core sends nothing) */
+/** a branch job's name in the queue, "0.5": the integers of its key (the status strip and the diagram's legend name jobs so) */
+export function jobKeyText(key: number[]): string {
+  return key.join('.');
+}
+
 export function jobsText(j: AutoxJobs | null): string {
   if (!j || j.running <= 0) return '';
-  const each = j.jobs.map(x => `job ${x.key.join('.')}: ${x.points} point${x.points === 1 ? '' : 's'}`).join(', ');
+  const each = j.jobs.map(x => `job ${jobKeyText(x.key)}: ${x.points} point${x.points === 1 ? '' : 's'}`).join(', ');
   return `${j.running} running${each ? ` (${each})` : ''}, ${j.queued} queued, ${j.done} done`;
 }
 

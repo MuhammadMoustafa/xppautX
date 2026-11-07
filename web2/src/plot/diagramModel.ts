@@ -19,11 +19,12 @@
    (loaded from a file) a periodic branch whose first point lies at a Hopf
    label's parameter (within a small part of the axes' width) and whose
    max..min spans the label's value is taken to start there. */
-import type {DiagramAxes, DiagramLabel, DiagramPoints} from '../store/diagram';
+import {hasLivePoints, type DiagramAxes, type DiagramLabel, type DiagramPoints} from '../store/diagram';
 import type {Range} from '../store/state';
 import type {CoreColor} from '../protocol/types';
 import type {Ranges} from './viewmath';
 import {pointLabel} from '../store/pointTypes';
+import {jobKeyText} from './autoxStatus';
 
 export type CurveKind = 'steady' | 'periodic' | 'two-parameter';
 
@@ -49,6 +50,8 @@ export interface DiagramCurve {
   idx: Int32Array;
   /** the Hopf label's point the curve starts from, or -1 */
   hopf: number;
+  /** the running branch job (`live`, W620) whose points these are, 0 for the diagram's own */
+  live: number;
 }
 
 export interface LabelMark extends DiagramLabel {
@@ -130,13 +133,13 @@ function curve(p: DiagramPoints, s: number, verts: number[], which: 'y' | 'y2', 
   });
   const width = kind === 'steady' ? (p.lw[s] >= 2 ? 2.25 : 1.25) : stable ? 1.75 : 1.25;
   return {branch: p.br[s], type: ty, f2: p.f2[s], kind, stable, which, color: p.palette[p.c[s]], width, dashed: !stable,
-    xs, ys, idx, hopf};
+    xs, ys, idx, hopf, live: p.lv[s]};
 }
 
 /** the points in drawing order while jobs run (W620): the diagram's own, then each running job's in the order they arrived (a
     stable sort by job), so a job's polyline never runs into another's whatever order the points came in; null when no point is a job's */
 function jobOrder(p: DiagramPoints): Int32Array | null {
-  if (!p.lv.some(j => j !== 0)) return null;
+  if (!hasLivePoints(p)) return null;
   return Int32Array.from(p.lv.keys()).sort((a, b) => p.lv[a] - p.lv[b] || a - b);
 }
 
@@ -183,6 +186,50 @@ export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes
   const marks = labels.filter(l => l.point >= first).map(l => ({...l, x: p.x[l.point], y: p.y[l.point],
     y2: p.y2[l.point] !== p.y[l.point] ? p.y2[l.point] : null}));
   return {curves, labels: marks, hopf, xLabel: axes?.xlabel ?? '', yLabel: axes?.ylabel ?? ''};
+}
+
+/* ---- the legend (W630): one entry per branch, stability and kind ---- */
+
+export interface LegendEntry {
+  /** what its name, colour and visibility are keyed by: `job:0.5:unstable:periodic` for a running job's curves, `branch:3:stable:steady` otherwise */
+  key: string;
+  /** what it is called: "Job 0.5 · unstable periodic", "Branch 3 · stable steady" */
+  name: string;
+  /** the model's curves it stands for: the segments a stability change splits, a periodic branch's maximum and minimum */
+  curves: number[];
+  /** the colour of its first curve, as the run says it */
+  color: CoreColor;
+}
+
+/** the legend's entries of `curves`, and for each curve the index of its entry. A running job's curves are named by its key
+    (`jobKeys`, the key of each running job by its live id, which the store keeps from `autox.jobs`); a curve of the diagram's
+    own is named by its branch. One entry per job or branch, stability and kind. Pure. */
+export function legendEntries(curves: DiagramCurve[], jobKeys: Record<number, number[]>): {entries: LegendEntry[]; of: number[]} {
+  const entries: LegendEntry[] = [], index = new Map<string, number>(), of: number[] = [];
+  curves.forEach((c, i) => {
+    const stability = c.stable ? 'stable' : 'unstable';
+    let who: string, owner: string;
+    if (c.live) {
+      const key: number[] | undefined = jobKeys[c.live];
+      /* a live point's job is listed before its point is sent (autox_jobs.cpp: the job's start is announced before it computes) */
+      if (!key) throw new Error(`autoX: the job of live point ${c.live} is not listed by autox.jobs`);
+      who = `job:${jobKeyText(key)}`;
+      owner = `Job ${jobKeyText(key)}`;
+    } else {
+      who = `branch:${c.branch}`;
+      owner = `Branch ${c.branch}`;
+    }
+    const key = `${who}:${stability}:${c.kind}`;
+    let e = index.get(key);
+    if (e === undefined) {
+      e = entries.length;
+      index.set(key, e);
+      entries.push({key, name: `${owner} · ${stability} ${c.kind}`, curves: [], color: c.color});
+    }
+    entries[e].curves.push(i);
+    of.push(e);
+  });
+  return {entries, of};
 }
 
 /* ---- Axes/Fit (T30, docs/ui-v2.md): the diagram's own fit, client-side ---- */

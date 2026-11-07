@@ -58,7 +58,7 @@ import {pointLabel, pointMark} from '../store/pointTypes';
 import {cssColor} from '../plot/colors';
 import {stopPoint} from '../plot/autoxStatus';
 import {
-  buildDiagramModel, describePoint, fmt, grabStep, labelShape, LABEL_GLYPH, labelTypes, stepLabel, symbolHelp,
+  buildDiagramModel, describePoint, fmt, grabStep, labelShape, LABEL_GLYPH, labelTypes, legendEntries, stepLabel, symbolHelp,
   vertexOf, type DiagramModel,
 } from '../plot/diagramModel';
 import {attachGestures, type PickSink} from '../plot/interactions';
@@ -209,6 +209,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
   const pick = useStore(s => (s.diagram.active === view && s.pick?.win === autoxWindow(s) && !s.pick.waiting ? s.pick : null));
   const earlier = useStore(s => Math.min(s.diagram.earlier, pointCount(viewOf(s, view).points)));
   const showEarlier = useStore(s => s.diagram.showEarlier);
+  const liveKeys = useStore(s => s.diagram.liveKeys);
   const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
   const [editing, setEditing] = useState<{key: string; label: string; color: string} | null>(null);
   const [trace, setTrace] = useState<number | null>(null);
@@ -224,14 +225,19 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
 
   const hidden = showEarlier ? 0 : earlier;
   const rawModel = useMemo(() => buildDiagramModel(points, labels, axes, hidden), [points, labels, axes, hidden]);
-  const traceKey = (c: typeof rawModel.curves[number]) => `${c.branch}:${c.type}:${c.which}:${c.idx[0]}`;
-  const model = useMemo(() => ({...rawModel, curves: rawModel.curves.map(c => {
-    const a = appearance[traceKey(c)];
-    return {...c, cssColor: a?.color, visible: a?.visible,
-      legend: a?.label ?? `Branch ${c.branch} · ${c.stable ? 'stable' : 'unstable'} ${c.kind}${c.which === 'y2' ? ' (minimum)' : ''}`};
-  })}), [rawModel, appearance]);
+  /* the legend's entries (W630): a branch's or running job's curves by stability and kind; the appearance is keyed by the entry */
+  const {entries, of: entryOf} = useMemo(() => legendEntries(rawModel.curves, liveKeys), [rawModel, liveKeys]);
+  const model = useMemo(() => ({...rawModel, curves: rawModel.curves.map((c, i) => {
+    const e = entries[entryOf[i]], a = appearance[e.key];
+    return {...c, cssColor: a?.color, visible: a?.visible, legend: a?.label ?? e.name};
+  })}), [rawModel, entries, entryOf, appearance]);
+  /* the curves an entry stands for, where a hovered curve highlights all its entry's */
   const modelRef = useRef(model);
   modelRef.current = model;
+  /* read from a ref: the hover handlers the chart holds were made by the first render */
+  const entriesRef = useRef({entries, of: entryOf});
+  entriesRef.current = {entries, of: entryOf};
+  const entryCurves = (curve: number) => entriesRef.current.entries[entriesRef.current.of[curve]].curves;
   const core: Ranges | null = useMemo(() => (axes && axes.xmax > axes.xmin && axes.ymax > axes.ymin
     ? {x: {min: axes.xmin, max: axes.xmax}, y: {min: axes.ymin, max: axes.ymax}} : null), [axes]);
 
@@ -240,7 +246,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
     if (!c || index < 0 || index >= c.idx.length) return;
     const point = c.idx[index], p = viewOf(session.store.getState(), view).points;
     hint.current = curve;
-    setTrace(curve); chart.current?.highlight(curve);
+    setTrace(curve); chart.current?.highlight(entryCurves(curve));
     setHover(session, {point, low: c.which === 'y2' && p.y2[point] !== p.y[point], view});
   };
 
@@ -465,14 +471,19 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
           )}
         </ul>
         <div class="legend" role="group" aria-label="Branches">
-          {model.curves.map((c, i) => <button key={traceKey(c)} data-auto-trace={traceKey(c)}
-            class={'legend-item' + (c.visible === false ? ' off' : '')} aria-pressed={c.visible !== false}
-            title="Click to show or hide; double click to edit name and colour"
-            onMouseEnter={() => chart.current?.highlight(i)} onMouseLeave={() => chart.current?.highlight(null)}
-            onClick={() => setAppearance(a => ({...a, [traceKey(c)]: {...a[traceKey(c)], visible: c.visible === false}}))}
-            onDblClick={() => setEditing({key: traceKey(c), label: c.legend!, color: c.cssColor ?? cssColor(c.color, dark)})}>
-            <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color, dark)}} aria-hidden="true" />{c.legend}
-          </button>)}
+          {entries.map(e => {
+            const a = appearance[e.key], off = a?.visible === false, color = a?.color ?? cssColor(e.color, dark);
+            return (
+              <button key={e.key} data-auto-trace={e.key}
+                class={'legend-item' + (off ? ' off' : '')} aria-pressed={!off}
+                title="Click to show or hide; double click to edit name and colour"
+                onMouseEnter={() => chart.current?.highlight(e.curves)} onMouseLeave={() => chart.current?.highlight(null)}
+                onClick={() => setAppearance(p => ({...p, [e.key]: {...p[e.key], visible: off}}))}
+                onDblClick={() => setEditing({key: e.key, label: a?.label ?? e.name, color})}>
+                <span class="swatch" style={{background: color}} aria-hidden="true" />{a?.label ?? e.name}
+              </button>
+            );
+          })}
         </div>
         <div class="plot-tools">
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}

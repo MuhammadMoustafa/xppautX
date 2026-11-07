@@ -122,11 +122,11 @@ export class DiagramChart {
 
   constructor(private readonly root: HTMLElement, private readonly cb: {onViewport(v: Viewport): void}) {}
 
-  /** Emphasise a trace without rebuilding its data or its axes. */
-  highlight(curve: number | null): void {
+  /** Emphasise some traces (a legend entry's curves, W630) without rebuilding their data or their axes. */
+  highlight(curves: readonly number[] | null): void {
     const u = this.u;
     if (!u) return;
-    this.model?.curves.forEach((c, i) => { u.series[i + 1].width = c.width + (i === curve ? 2 : 0); });
+    this.model?.curves.forEach((c, i) => { u.series[i + 1].width = c.width + (curves?.includes(i) ? 2 : 0); });
     u.redraw(true, false);
   }
 

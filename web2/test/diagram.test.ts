@@ -6,7 +6,7 @@ import {test} from 'node:test';
 import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} from '../src/plot/autoxInfo';
 import {
   buildDiagramModel, describePoint, fitRanges, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf,
-  labelShape, labelTypes, symbolHelp,
+  labelShape, labelTypes, legendEntries, symbolHelp,
 } from '../src/plot/diagramModel';
 import {pointLabel} from '../src/store/pointTypes';
 import {activeView, initialDiagram, pointCount, type DiagramRun} from '../src/store/diagram';
@@ -449,4 +449,56 @@ test('adds after the last point fill the same buffers; an older state keeps its 
   const again = ev(s, add(5, [{...periodic[0]}]));
   assert.notEqual(activeView(again.diagram).points.buffers, after.buffers, 'an add before the end gets new buffers');
   assert.equal(after.br[10], 2, 'and leaves the points the state before shows as they were');
+});
+
+/* ---- the legend (W630): one entry per branch or running job, stability and kind ---- */
+
+/* two running branch jobs, each numbering its own branch 1, the second's key 0.5 */
+const jobOne: DiagramRun[] = [{br: 1, pt: 1, ty: 2, stable: false, periodic: false, d: 1, c: 'foreground', lw: 1, jac: 'difference',
+  new: 1, x: [0.1, 0.12], y: [-0.3, -0.28], live: 1}];
+const jobTwo: DiagramRun[] = [{br: 1, pt: 1, ty: 1, stable: true, periodic: false, d: 1, c: '#ff0000', lw: 2, jac: 'difference',
+  new: 1, x: [0.2, 0.22], y: [-0.1, -0.08], live: 2}];
+const jobsEvent = {ev: 'autox.jobs', running: 2, queued: 0, done: 0,
+  jobs: [{live: 1, key: [0], points: 2}, {live: 2, key: [0, 5], points: 2}]};
+
+test('two running jobs on branch 1: each legend entry is named by its job key, and keyed by it', () => {
+  const s = ev(ev(opened(), jobsEvent), add(0, [...jobOne, ...jobTwo]));
+  const v = activeView(s.diagram);
+  const m = buildDiagramModel(v.points, v.labels, v.axes);
+  const {entries} = legendEntries(m.curves, s.diagram.liveKeys);
+  assert.deepEqual(entries.map(e => e.name), ['Job 0 · unstable steady', 'Job 0.5 · stable steady']);
+  assert.deepEqual(entries.map(e => e.key), ['job:0:unstable:steady', 'job:0.5:stable:steady']);
+  assert.deepEqual(entries.map(e => e.curves.length), [1, 1]);
+});
+
+test('a live job whose key the store does not hold is an error, never a guessed name', () => {
+  const s = ev(opened(), add(0, [...jobOne]));
+  const v = activeView(s.diagram);
+  const m = buildDiagramModel(v.points, v.labels, v.axes);
+  assert.throws(() => legendEntries(m.curves, s.diagram.liveKeys), /not listed by autox.jobs/);
+});
+
+test('a branch split by stability is one entry per stability and kind; a periodic max and min are one entry', () => {
+  const s = lecar();
+  const v = activeView(s.diagram);
+  const m = buildDiagramModel(v.points, v.labels, v.axes);
+  const {entries, of} = legendEntries(m.curves, s.diagram.liveKeys);
+  /* the steady branch's stable and unstable segments, the periodic branch's unstable and stable runs, each with max and min */
+  assert.deepEqual(entries.map(e => e.name), ['Branch 1 · unstable steady', 'Branch 1 · stable steady',
+    'Branch 2 · unstable periodic', 'Branch 2 · stable periodic']);
+  assert.deepEqual(entries.map(e => e.key), ['branch:1:unstable:steady', 'branch:1:stable:steady',
+    'branch:2:unstable:periodic', 'branch:2:stable:periodic']);
+  assert.equal(entries[0].curves.length, 2, 'two unstable steady segments, one entry');
+  assert.equal(entries[1].curves.length, 2, 'two stable steady segments, one entry');
+  assert.deepEqual(entries[2].curves.map(i => m.curves[i].which), ['y', 'y2'], 'the periodic max and min, one entry');
+  assert.ok(entries.every(e => !/minimum/.test(e.name)), 'no entry is named for the minimum');
+  assert.equal(of.length, m.curves.length);
+  assert.deepEqual(entries.flatMap(e => e.curves).sort((a, b) => a - b), m.curves.map((_, i) => i));
+});
+
+test('a legend entry follows the store: a reset that leaves no live point empties the job keys', () => {
+  const live = ev(ev(opened(), jobsEvent), add(0, [...jobOne, ...jobTwo]));
+  assert.deepEqual(live.diagram.liveKeys, {1: [0], 2: [0, 5]});
+  const joined = ev(live, {ev: 'autox.diagram', view: 'diagram_1', op: 'reset', keep: 0, ...axes});
+  assert.deepEqual(joined.diagram.liveKeys, {}, 'the join took the live points away');
 });

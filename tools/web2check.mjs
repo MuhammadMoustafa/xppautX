@@ -2222,11 +2222,23 @@ async function autoxLiveJobs() {
   await until(`dv.points.x.length > ${first.n}`, 'more live points');
   check('W620: the live points keep coming while the jobs run (the page is not waiting for the join)',
     await S('s.busy && s.diagram.jobs.running === 2'));
+  /* W630: the legend names each running job by its key, one entry per job and stability, each name distinct */
+  const liveNames = await cdp.eval(`[...document.querySelectorAll('.autox-pane .legend-item')].map(b => b.textContent.trim())`);
+  check('W630: while two jobs run, the legend names each by its key ("Job 0 · ...", "Job 1 · ..."): the names are distinct, each job has its entries',
+    new Set(liveNames).size === liveNames.length
+      && (await S('s.diagram.jobs.jobs')).every(j => liveNames.some(t => t.startsWith(`Job ${j.key.join('.')} · `)))
+      && liveNames.every(t => /^Job \d+(\.\d+)* · (stable|unstable) (steady|periodic|two-parameter)$/.test(t)),
+    JSON.stringify(liveNames));
   await cdp.eval(`document.querySelector('.autox-status .autox-stop').click()`);
   check('W620: Stop ends the jobs; the join\'s points replace the live ones: none is a job\'s any more, each has its branch, and no progress line is left',
     await until(`!s.busy && dv.points.x.length >= 2 && [...dv.points.lv].every(v => v === 0) && s.diagram.jobs && s.diagram.jobs.running === 0
       && !document.querySelector('[data-testid=autox-jobs]')`, 'joined', 60000 * SLOW),
     JSON.stringify(await DS('({n: d.points.x.length, live: [...d.points.lv].filter(v => v).length, jobs: d.jobs})')));
+  /* W630: after the join no two entries share a name, and none is named for a job */
+  const joinedNames = await cdp.eval(`[...document.querySelectorAll('.autox-pane .legend-item')].map(b => b.textContent.trim())`);
+  check('W630: after the join no two legend entries share a name, and none is named for a job',
+    joinedNames.length > 0 && new Set(joinedNames).size === joinedNames.length && joinedNames.every(t => !t.startsWith('Job ')),
+    JSON.stringify(joinedNames));
 }
 
 /* ---- views of the autoX diagram (W50, docs/protocol.md "Views of the diagram") ------------ */
@@ -3265,7 +3277,7 @@ async function runsCheck(dir) {
   check('runs: two runs keep two curves: the earlier one drawn under the current',
     await until('w.history.runs.length === 1 && __xpp.plot().runs.count === 1 && __xpp.plot().runs.drawn > 0 && __xpp.plot().curves[0].points === 601', 'two runs'),
     JSON.stringify(await cdp.eval('__xpp.plot().runs')));
-  const legend = `[...document.querySelectorAll('.legend-item')].find(b => b.dataset.layer === 'runs')`;
+  const legend = `[...document.querySelectorAll('.autox-pane .legend-item')].find(b => b.dataset.layer === 'runs')`;
   check('runs: the legend lists "previous runs (1)"', await cdp.eval(`(${legend} || {}).textContent === 'previous runs (1)'`));
   await cdp.eval(`${legend}.click()`);
   check('runs: the legend entry hides them', await until('!w.showRuns && __xpp.plot().runs.shown === false && __xpp.plot().runs.drawn === 0', 'hide runs'));
