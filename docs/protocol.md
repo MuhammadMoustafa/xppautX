@@ -1355,7 +1355,13 @@ An autoX stop at point P ends the branch with an EP repeating point P - 1; a sto
 jobs, `follow_all_branches`) arms each job to its own point (`xpp::job::stop_jobs`): a `finished` job runs to its end (and its
 points start the jobs they started), a `stopped` one is cancelled alone when it stores its point N - 1, a `never_started` one
 is not started, and a job the recording does not list is not started; the step ends stopped, as the recorded one did, and
-fails when a job did not end as recorded;
+fails when a job did not end as recorded. The list is read whole when the recording opens (W618, #689): it holds at least one
+job and no more than a run of branch jobs makes: 2 + 2 x (the diagram's point limit + 1), the two roots and at most two jobs
+for each point the jobs hold (`XPP_DIAGRAM_POINTS_LIMIT` lowers the limit as it does the diagram's). Each key is no longer than
+the jobs, and each key element is a whole number from 0, each state `finished`, `stopped` or `never_started`, each
+stopped job with its `point` from 1 and no other job with one. A list outside those bounds refuses the step: the recording says
+`file:line: step N cannot be played: it has an invalid recorded interruption: <why>` and nothing is played (a recording without
+a `jobs` key stops one run at its point, as before);
 an integration stop counts stored rows, including the initial row. A range
 stops in the first run to reach that row count.
 

@@ -27,20 +27,35 @@ namespace xpp {
    limit"); it is also what a saved session accepts back.
    XPP_DIAGRAM_POINTS_LIMIT lowers it, so servercheck reaches it without a
    million points (the way XPP_STORAGE_FAIL_GROW reaches a full store). */
-static std::size_t diagram_points_limit()
+std::size_t autox_diagram_points_limit()
 {
   const char *lowered=std::getenv("XPP_DIAGRAM_POINTS_LIMIT");
   return lowered ? static_cast<std::size_t>(std::strtoull(lowered,nullptr,10)) : snapx::autox_members::saved_points_limit;
 }
 
+/* The most jobs a run of branch jobs makes, which a recording's jobs list may not exceed (ui_json.cpp). Jobs come from two
+   places only (autox_jobs.cpp): the two roots, and expand, which makes the starts a job's points give, at most two per
+   point (a branch point's two directions, a cycle branch's two equilibria: autox_found_starts). The points the jobs hold
+   come to the diagram's limit, and the point that reaches it is held before the run stops (point_stored counts each point
+   the jobs hold against the limit). A threaded run's jobs still running at that point may store a few more before they
+   see the stop; those are not counted here. A key has one element per generation, a job of the chain, so it is no
+   longer than the jobs. */
+std::size_t autox_recorded_jobs_limit()
+{
+  constexpr std::size_t roots=2; /* both directions of the run's start (autox_run_jobs) */
+  constexpr std::size_t starts_per_point=2; /* see above */
+  constexpr std::size_t reaching_point=1; /* held before the run stops */
+  return roots+starts_per_point*(autox_diagram_points_limit()+reaching_point);
+}
+
 std::string autox_diagram_limit_message()
 {
-  return xpp::format("the diagram holds {} points, the most a session keeps; the points so far are kept (clear the diagram or start a new one)", diagram_points_limit());
+  return xpp::format("the diagram holds {} points, the most a session keeps; the points so far are kept (clear the diagram or start a new one)", autox_diagram_points_limit());
 }
 
 std::optional<std::string> autox_diagram_full(std::size_t points)
 {
-  if(points<diagram_points_limit())return std::nullopt;
+  if(points<autox_diagram_points_limit())return std::nullopt;
   return autox_diagram_limit_message();
 }
 

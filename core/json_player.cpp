@@ -135,10 +135,10 @@ std::optional<SavedFile> snapshot_of(const std::string &path, const recx::Record
     return parsed;
 }
 
-/* Only bounded whole checkpoint coordinates can reach xpp_job's counters. */
-bool valid_position(const char *at)
+/* Only bounded whole checkpoint coordinates can reach xpp_job's counters: "" when at can be placed, else why not */
+std::string position_error(const char *at)
 {
-    if (!at || *skip_ws(at) != '{') return false;
+    if (!at || *skip_ws(at) != '{') return "it is not an object";
     std::string what;
     get_string(at, "what", what);
     const auto count = [at](const char *name) {
@@ -146,9 +146,18 @@ bool valid_position(const char *at)
         int value;
         return raw && xpp::parse_int(js_raw(raw), value) && value >= 0;
     };
-    return what == "other" || (what == "ani" && count("frame"))
-        || (what == "integrate" && count("rows"))
-        || (what == "autox" && count("branch") && count("point") && [at] { std::vector<xpp::job::BranchJob> jobs; return read_recorded_jobs(at, jobs); }());
+    if (what == "other") return "";
+    if (what == "ani") return count("frame") ? "" : "its frame is not a whole number";
+    if (what == "integrate") return count("rows") ? "" : "its rows are not a whole number";
+    if (what != "autox") return "its what is not integrate, autox, ani or other";
+    if (!count("branch") || !count("point")) return "its branch or point is not a whole number";
+    std::vector<xpp::job::BranchJob> jobs;
+    return read_recorded_jobs(at, jobs);
+}
+
+bool valid_position(const char *at)
+{
+    return position_error(at).empty();
 }
 
 /* the step of line, or an error saying why it cannot be played */
@@ -189,8 +198,8 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
         out.files.push_back(static_cast<size_t>(k));
     }
     if (const char *ab = js_find(line, "abort")) {
-        if (!valid_position(ab)) {
-            error = "it has an invalid recorded interruption";
+        if (std::string why = position_error(ab); !why.empty()) {
+            error = "it has an invalid recorded interruption: " + why;
             return false;
         }
         out.abort = std::string(js_raw(ab));

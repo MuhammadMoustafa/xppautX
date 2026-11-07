@@ -25,6 +25,7 @@
 #include "nullcline.h"
 #include "ui_json_internal.h"
 #include "autox_run.h"
+#include "autox_evd.h"
 #include "picture.h"
 #include "json_error.h"
 #include "xpp_log.h"
@@ -435,10 +436,6 @@ int control_line(xpp::Session &s, const char *line)
 namespace {
 
 constexpr std::string_view JOB_STATE_NAMES[] = {"finished", "stopped", "never_started"};
-/* a recording is read from a file a user may have been sent: no more jobs, and no key longer, than a run holds (a job's
-   key has an element per generation) */
-constexpr std::size_t MAX_RECORDED_JOBS = 1000000;
-constexpr std::size_t MAX_RECORDED_KEY = 1000;
 
 /* `"jobs":[{"key":[0,5],"state":"stopped","point":12},...]`, the autoX run's branch jobs and how each ended (xpp_job.h) */
 void buf_jobs(std::string &b, const std::vector<xpp::job::BranchJob> &jobs)
@@ -457,37 +454,47 @@ void buf_jobs(std::string &b, const std::vector<xpp::job::BranchJob> &jobs)
 
 } // namespace
 
-bool read_recorded_jobs(const char *at, std::vector<xpp::job::BranchJob> &jobs)
+/* The jobs of a recorded run's abort, read whole: "" when they are a list a run of branch jobs can make, else why not (the
+   step is refused with it, read_step). An absent `jobs` is a single run's stop, which lists none: jobs stays empty. A
+   recorder writes the list only when the run made jobs, so an empty one is refused. The bound is what a run can hold
+   (autox_recorded_jobs_limit); a key has an element per generation, so it is no longer than that either. */
+std::string read_recorded_jobs(const char *at, std::vector<xpp::job::BranchJob> &jobs)
 {
     jobs.clear();
     const char *list = js_find(at, "jobs");
-    if (!list) return true;
-    if (*skip_ws(list) != '[') return false;
+    if (!list) return "";
+    if (*skip_ws(list) != '[') return "its jobs is not a list";
+    const std::size_t limit = xpp::autox_recorded_jobs_limit();
     const char *cursor = list;
     while (const char *e = js_element(cursor)) {
-        if (jobs.size() >= MAX_RECORDED_JOBS) return false;
+        if (jobs.size() >= limit) return xpp::format("it lists more jobs than a run of branch jobs makes ({} at most)", limit);
         xpp::job::BranchJob job;
         const char *key = js_find(e, "key");
         std::string state;
-        if (!key || *skip_ws(key) != '[' || !get_string(e, "state", state)) return false;
+        if (!key || *skip_ws(key) != '[') return "a job has no key list";
+        if (!get_string(e, "state", state)) return "a job has no state";
         const char *k = key;
         while (const char *element = js_element(k)) {
             int value;
-            if (job.key.size() >= MAX_RECORDED_KEY || !xpp::parse_int(js_raw(element), value) || value < 0) return false;
+            if (job.key.size() >= limit) return "a job's key is longer than the jobs a run makes";
+            if (!xpp::parse_int(js_raw(element), value) || value < 0)
+                return xpp::format("a job's key holds {}, not a point number", js_raw(element));
             job.key.push_back(value);
         }
-        if (job.key.empty()) return false;
+        if (job.key.empty()) return "a job has an empty key";
         const auto named = std::find(std::begin(JOB_STATE_NAMES), std::end(JOB_STATE_NAMES), state);
-        if (named == std::end(JOB_STATE_NAMES)) return false;
+        if (named == std::end(JOB_STATE_NAMES)) return xpp::format("a job's state \"{}\" is not finished, stopped or never_started", state);
         job.state = static_cast<xpp::job::JobState>(named - std::begin(JOB_STATE_NAMES));
         int point = 0;
         const char *raw = js_find(e, "point");
-        if (job.state == xpp::job::JobState::stopped && (!raw || !xpp::parse_int(js_raw(raw), point) || point < 1)) return false;
-        if (job.state != xpp::job::JobState::stopped && raw) return false;
+        if (job.state == xpp::job::JobState::stopped && (!raw || !xpp::parse_int(js_raw(raw), point) || point < 1))
+            return "a stopped job has no point (a whole number from 1)";
+        if (job.state != xpp::job::JobState::stopped && raw) return "a job that did not stop has a point";
         job.point = point;
         jobs.push_back(std::move(job));
     }
-    return true;
+    if (jobs.empty()) return "its jobs list is empty";
+    return "";
 }
 
 /* where the running job was when it was cancelled, from what the
@@ -520,7 +527,8 @@ bool arm_recorded_stop(const char *at, int key)
         xpp::job::stop_at_rows(static_cast<long>(get_num(at, "rows", -1)));
     else if (what == "autox") {
         std::vector<xpp::job::BranchJob> jobs;
-        if (read_recorded_jobs(at, jobs) && !jobs.empty()) xpp::job::stop_jobs(std::move(jobs));
+        if (!read_recorded_jobs(at, jobs).empty()) return false; /* read_step refused the step: nothing is armed */
+        if (!jobs.empty()) xpp::job::stop_jobs(std::move(jobs));
         else xpp::job::stop_at_point(get_int(at, "branch", -1), get_int(at, "point", -1));
     }
     else if (what == "ani")

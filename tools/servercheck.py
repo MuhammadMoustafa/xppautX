@@ -944,8 +944,43 @@ def check_autox_stopped_replay():
         counts = lambda events: [(e['running'], e['queued'], e['done']) for e in events if e.get('ev') == 'autox.jobs'][-1]
         check('W606: the replay ends stopped, with the same jobs ended (running, queued, done)',
               last_done.get('status') == 'stopped' and counts(replay) == counts(evs) == (0, 0, 2), str(last_done)[:200] + str(counts(replay)) + str(counts(evs)))
+        check_recorded_jobs_refused(text)
     finally:
         s.close()
+
+
+def check_recorded_jobs_refused(text):
+    """W618 (#689): a recorded run's jobs list is read whole, and a list a run cannot make is refused at its step, with its place
+    and why, nothing played: over what a run holds (XPP_DIAGRAM_POINTS_LIMIT=1 makes that 6 jobs), a key longer than that, a
+    negative key element, an unknown state, a stopped job without its point, an empty list, a list that is not one"""
+    job = lambda key, state='finished', point='': '{"key":[%s],"state":"%s"%s}' % (key, state, point)
+    listed = '"jobs":[%s,%s]' % (job('0', 'stopped', ',"point":2'), job('1', 'stopped', ',"point":2'))
+    assert listed in text, 'the recording lists its two stopped jobs'
+    cases = [
+        ('over what a run holds', {'XPP_DIAGRAM_POINTS_LIMIT': '1'}, '"jobs":[%s]' % ','.join(job(str(i)) for i in range(7)),
+         r'it lists more jobs than a run of branch jobs makes \(6 at most\)'),
+        ('a key longer than that', {'XPP_DIAGRAM_POINTS_LIMIT': '1'}, '"jobs":[%s]' % job(','.join(['0'] * 7)),
+         r"a job's key is longer than the jobs a run makes"),
+        ('a negative key element', {}, '"jobs":[%s]' % job('-1', 'stopped', ',"point":2'),
+         r"a job's key holds -1, not a point number"),
+        ('an unknown state', {}, '"jobs":[%s]' % job('0', 'bogus'), r"a job's state \"bogus\" is not finished, stopped or never_started"),
+        ('a stopped job without its point', {}, '"jobs":[%s]' % job('0', 'stopped'), r'a stopped job has no point'),
+        ('an empty list', {}, '"jobs":[]', r'its jobs list is empty'),
+        ('a list that is not one', {}, '"jobs":5', r'its jobs is not a list'),
+    ]
+    tmp = tempfile.mkdtemp(prefix='xppauto-jobs')
+    try:
+        for name, extra, jobs_text, reason in cases:
+            path = os.path.join(tmp, 'bad.recx')
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(text.replace(listed, jobs_text))
+            result = subprocess.run([args.server, path, '--silent', '--yes'], cwd=tmp, env=dict(os.environ, **extra),
+                                    capture_output=True, text=True, encoding='utf-8', timeout=120 * SLOW)
+            refused = re.search(r'bad\.recx:\d+: step \d+ cannot be played: it has an invalid recorded interruption: ' + reason, result.stderr)
+            check('W618: a recorded run with %s is refused at its step, with its place and why, and nothing is played (exit %s)' % (name, result.returncode),
+                  refused is not None and result.returncode == 1 and 'autoX stopped' not in result.stderr, result.stderr[-300:])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def check_autox_branch_recordings():

@@ -20,6 +20,10 @@ namespace xpp {
 std::optional<std::string> autox_diagram_full(std::size_t points);
 /* what it says (the same whichever run reaches the limit: a run's own buffer or the join of jobs) */
 std::string autox_diagram_limit_message();
+/* the most points a session's diagram holds (XPP_DIAGRAM_POINTS_LIMIT lowers it for servercheck) */
+std::size_t autox_diagram_points_limit();
+/* the most jobs a run of branch jobs makes: what a recorded run's jobs list may hold (autox_evd.cpp says why) */
+std::size_t autox_recorded_jobs_limit();
 
 /* Start checks run before storing a point or taking a continuation step. */
 void autox_check_start_parameters(const iap_type &iap, const rap_type &rap, const double *par, const integer *icp);

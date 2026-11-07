@@ -202,9 +202,8 @@ bool line_is_step(const char *line); /* a step of the user's (ui_json.cpp's comm
    placed (what "other"): nothing is armed. The recording's replayed
    steps (json_player.cpp) arm through this. */
 bool arm_recorded_stop(const char *at, int key);
-/* the branch jobs an autoX stop's `at` records (empty when it has none), false for a list that is not one (a name, a key or
-   a count that cannot be, or more jobs than a run holds) */
-bool read_recorded_jobs(const char *at, std::vector<xpp::job::BranchJob> &jobs);
+/* the branch jobs an autoX stop's `at` records (empty when it has none): "" when they are a list a run can make, else why not */
+std::string read_recorded_jobs(const char *at, std::vector<xpp::job::BranchJob> &jobs);
 /* where the running job was when it was cancelled, the stopped event's
    `at` object (docs/protocol.md "stopped"), into b */
 void buf_stopped_at(std::string &b);
