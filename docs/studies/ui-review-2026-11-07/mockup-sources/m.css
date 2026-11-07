@@ -1,0 +1,11 @@
+/* names: a fixed column that never wraps; a longer name is cut with … and its full name in the tip */
+.value-state .value-field, .value-list .value-field { grid-template-columns: 6rem 5.5rem minmax(0, 1fr) auto !important; position: relative; }
+.value-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.value-name.cut { text-decoration: underline dotted var(--fg-muted); text-underline-offset: .2em; cursor: help; }
+/* the copied state: the number tinted, the icon a green check with "Copied" */
+.value-now.copied { background: color-mix(in srgb, var(--ok, #1a7f37) 18%, transparent); border-radius: .25rem; outline: 1px solid color-mix(in srgb, var(--ok, #1a7f37) 55%, transparent); }
+.mock-tip .ok { color: var(--ok, #1a7f37); }
+.mock-tip.ok-tip { border-color: color-mix(in srgb, var(--ok, #1a7f37) 55%, var(--border)); }
+.value-field > :nth-child(2), .value-field input { width: 100% !important; min-width: 0; }
+.value-now .mock-tip { left: auto; right: 0; }
+.name-tip { left: 0 !important; right: auto !important; top: auto !important; bottom: calc(100% + 4px); font-family: inherit !important; }

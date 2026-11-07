@@ -1,0 +1,37 @@
+.fx-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; background: rgba(15,23,42,.38); }
+.fx { width: min(36rem, 100%); max-height: calc(100vh - 2rem); display: grid; grid-template-rows: auto minmax(0,1fr) auto; background: var(--surface); color: var(--fg);
+  border: 1px solid var(--border); border-radius: .75rem; box-shadow: 0 20px 50px rgba(0,0,0,.25); font-size: 1rem; container-type: inline-size; }
+.fx-head { display: flex; align-items: flex-start; gap: .75rem; padding: 1rem 1.25rem .75rem; border-bottom: 1px solid var(--border); }
+.fx-head h2 { margin: 0; font-size: 1.125rem; font-weight: 650; flex: 1; }
+.fx-head p { margin: .25rem 0 0; color: var(--fg-muted); font-size: .875rem; line-height: 1.4; }
+.fx-icon { width: 2rem; height: 2rem; border-radius: .5rem; border: 1px solid transparent; background: transparent; color: var(--fg-muted); display: grid; place-items: center; font-size: 1.1rem; padding: 0; min-height: 0; }
+.fx-icon:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
+.fx-body { overflow: auto; padding: .5rem 1.25rem 1rem; }
+.fx-group { border: 0; margin: 0; padding: .75rem 0 .25rem; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.fx-group:first-child { border-top: 0; }
+.fx-group > legend { padding: 0; font-size: .75rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-muted); margin-bottom: .5rem; }
+.fx-row { display: grid; grid-template-columns: 9.5rem minmax(0,1fr); gap: .25rem 1rem; align-items: start; padding: .375rem 0; }
+.fx-row > label, .fx-row > .fx-label { padding-top: .5rem; font-size: .9375rem; }
+.fx-ctl { display: grid; gap: .25rem; }
+.fx-help { font-size: .8125rem; color: var(--fg-muted); }
+.fx-input { display: flex; align-items: center; height: 2.375rem; border: 1px solid var(--field-border, var(--border)); border-radius: .5rem; background: var(--field-bg, var(--surface)); padding: 0 .625rem; gap: .5rem; }
+.fx-input input { all: unset; flex: 1; min-width: 0; font: inherit; font-variant-numeric: tabular-nums; }
+.fx-input .unit { color: var(--fg-muted); font-size: .8125rem; white-space: nowrap; }
+.fx-input:focus-within { outline: 2px solid var(--focus, #2563eb); outline-offset: 1px; }
+.fx-input.bad { border-color: var(--danger, #c62828); }
+.fx-err { display: flex; gap: .375rem; align-items: center; font-size: .8125rem; color: var(--danger, #c62828); }
+.fx-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--field-border, var(--border)); border-radius: .5rem; padding: 2px; gap: 2px; width: fit-content; }
+.fx-seg span { padding: .375rem .75rem; border-radius: .375rem; font-size: .9375rem; cursor: pointer; }
+.fx-seg span.on { background: var(--accent); color: #fff; }
+.fx-select { appearance: none; height: 2.375rem; border: 1px solid var(--field-border, var(--border)); border-radius: .5rem; padding: 0 2rem 0 .625rem; background: var(--field-bg, var(--surface)) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5'><path d='m6 9 6 6 6-6'/></svg>") no-repeat right .625rem center; color: var(--fg); font: inherit; width: 100%; }
+.fx-switch { display: inline-flex; align-items: center; gap: .625rem; padding-top: .375rem; font-size: .9375rem; }
+.fx-switch i { width: 2.25rem; height: 1.25rem; border-radius: 1rem; background: var(--accent); position: relative; }
+.fx-switch i::after { content: ''; position: absolute; top: 2px; left: calc(100% - 1.125rem); width: 1rem; height: 1rem; border-radius: 50%; background: #fff; }
+.fx-switch.off i { background: color-mix(in srgb, var(--fg) 25%, transparent); } .fx-switch.off i::after { left: 2px; }
+.fx-drop { border: 1.5px dashed var(--field-border, var(--border)); border-radius: .5rem; padding: .875rem; display: flex; align-items: center; gap: .75rem; }
+.fx-drop b { font-weight: 600; } .fx-drop .fx-help { margin-top: .125rem; }
+.fx-foot { display: flex; justify-content: flex-end; align-items: center; gap: .5rem; padding: .75rem 1.25rem; border-top: 1px solid var(--border); }
+.fx-foot .note { margin-right: auto; font-size: .8125rem; color: var(--fg-muted); }
+.fx-primary { background: var(--accent); color: #fff; border: 0; border-radius: .5rem; height: 2.375rem; padding: 0 1rem; font: inherit; font-weight: 600; }
+@container (max-width: 30rem) { .fx-row { grid-template-columns: 1fr; } .fx-row > label, .fx-row > .fx-label { padding-top: 0; font-weight: 550; } }
+@media (max-width: 47.999rem) { .fx-backdrop { padding: 0; place-items: stretch; } .fx { width: 100%; max-height: none; height: 100%; border-radius: 0; border: 0; } }

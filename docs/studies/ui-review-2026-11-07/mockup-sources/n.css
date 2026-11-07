@@ -1,0 +1,51 @@
+/* Option B: the controls above the plot compacted, Values a right column from 48 rem */
+.run-toolbar { padding: .375rem .5rem; }
+.run-toolbar > * { margin: 0; }
+.run-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem .75rem; }
+.run-actions { display: flex; flex-wrap: wrap; gap: .25rem; }
+.run-actions button { min-height: 1.75rem; padding: .125rem .625rem; width: auto; }
+.run-actions button.danger { display: none; }             /* A10: the one Stop is the status bar's */
+.run-time-controls { display: flex; flex-wrap: wrap; gap: .375rem .75rem; align-items: center; margin: 0 !important; }
+.run-time-controls input, .run-time-controls select { min-height: 1.75rem; width: 5rem; }
+.run-context { display: none; }                          /* the status bar says Idle and the stored t */
+.steady-settings > summary { white-space: nowrap; }
+.plots > .plot-windows { display: none; }                /* moved into the plot's own header */
+.plot-bar { flex-wrap: wrap; gap: .25rem .5rem; padding-block: .25rem; }
+.plot-bar .plot-window-tools { display: flex; gap: .25rem; margin-left: auto; align-items: center; }
+.plot-bar .plot-window-tools button, .plot-tools button, .plot-tools summary { min-height: 1.75rem; padding: .125rem .5rem; }
+.plot-tools .mock-more ~ * {}
+.plot-tools > button:is(:nth-of-type(1), :nth-of-type(2), :nth-of-type(4)), .plot-tools > .sets-menu { display: none; }
+.readout { min-height: 1.5rem; padding-block: .125rem; }
+.slider-strip, details.messages { display: none; }       /* Add slider -> Values' parameters; messages -> status bar */
+.mock-status-messages { margin-left: auto; margin-right: 1rem; }
+@media (min-width: 48rem) {
+  .shell { grid-template-columns: minmax(0, 1fr) var(--values-col, 20rem); grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: 'title title' 'menus menus' 'work values' 'status status'; }
+  .values-panel { border-top: none; border-left: 1px solid var(--border); }
+  .splitter-values { align-self: stretch; width: .5rem; height: auto; margin: 0 0 0 -.25rem; justify-self: start; cursor: col-resize; }
+  .values-panel { container-type: inline-size; }
+}
+@container (max-width: 24rem) {
+  .value-group button:is(.mock-hide) { display: none; }
+  .value-cols > :nth-child(4), .value-state .value-field > :nth-child(4) { display: none; }
+}
+.mock-hide-btn { display: none !important; }
+@media (max-width: 47.999rem) {
+  .app-menu { display: none; }                           /* R3: a drawer behind the title bar's Menu button */
+  .title-bar .mock-menu { display: inline-flex; }
+  .run-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+}
+.mock-menu { display: none; }
+.plot-tools { display: flex !important; flex-wrap: wrap; gap: .25rem; align-items: center; width: auto !important; }
+.plot-tools > * { flex: none !important; width: auto !important; }
+.run-time-controls select { width: auto; }
+.value-now .more { color: var(--fg-muted); margin-left: .05em; }
+.value-now.cut { cursor: help; text-decoration: underline dotted var(--fg-muted); text-underline-offset: .2em; }
+.value-now.tipped { position: relative; overflow: visible; } .mock-tip { position: absolute; left: 0; top: calc(100% + 6px); z-index: 400; padding: .3rem .55rem; border: 1px solid var(--border); border-radius: .4rem;
+  background: var(--surface); color: var(--fg); box-shadow: var(--shadow); font: .8rem/1.3 ui-monospace, monospace; white-space: nowrap; }
+.mock-tip small { display: block; font-family: var(--font, sans-serif); color: var(--fg-muted); }
+.mock-tip.line { display: flex; align-items: center; gap: .5rem; }
+.mock-tip .ic { display: inline-flex; color: var(--fg-muted); }
+.mock-tip .ic svg { width: 1rem; height: 1rem; }
+.mock-tip .copy { font: .75rem/1 var(--font, sans-serif); padding: .2rem .45rem; min-height: 0; border: 1px solid var(--border); border-radius: .3rem; background: var(--surface); color: var(--fg); display: inline-flex; gap: .25rem; align-items: center; }
+.mock-tip .ok { color: var(--ok, #1a7f37); display: inline-flex; gap: .25rem; align-items: center; font: .75rem/1 var(--font, sans-serif); }
