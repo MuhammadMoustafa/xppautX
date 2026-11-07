@@ -47,6 +47,7 @@ constexpr std::array EVENTS = {
     Event{AUTOX_INFO, "info, stab, stop, notes, start_refined", "autoX's info strip and stability circle, and why the last branch ended.", AUTOX_INFO},
     Event{AUTOX_JOBS, "running, queued, done, jobs",
           "A run of branch jobs (follow_all_branches) changed: how many jobs run, wait to start and have ended, and each running job's points so far; the last one is the run's end."},
+    Event{AUTOX_JOINED, "jobs", "A run of several branch jobs was joined: each job that kept its points, with its key and the branch its joined points carry."},
     Event{AUTOX_SETTINGS, "numerics, pars, axes, marks", "autoX's settings as data.", AUTOX_SETTINGS},
     Event{AUTOX_VIEW, "earlier, show, active, views", "autoX's hidden branches, the active view and each view's zoom."},
     Event{ARRAY_PLOT_SHOWN, "title, nx, ny, values, enc, colormap, ramp, zmin, zmax, tlo, thi, first_row, tag", "The array plot's cells and colours."},

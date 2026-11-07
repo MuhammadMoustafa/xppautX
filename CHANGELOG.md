@@ -9,6 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- A running job's legend settings move to its branch at the join (W631 A running job's legend settings move to its branch at the join, [#703](https://github.com/MuhammadMoustafa/xppautX/issues/703)): the name, colour and visibility set on a job's legend entry follow it to the branch its points carry, and a job the join dropped as a repeat takes its settings with it (the protocol's `autox.joined`).
 - The autoX diagram's legend names each running job's curves by its job, and has one entry per branch, stability and kind (W630 The diagram's legend names each running job's curves, [#702](https://github.com/MuhammadMoustafa/xppautX/issues/702)): `Job 0.5 · unstable periodic` while branch jobs run, a branch's stable and unstable segments and a periodic branch's maximum and minimum one entry each, and the name, colour and visibility kept by the entry.
 
 - autoX's stability circle no longer squeezes the diagram (W628 autoX's stability list never squeezes the diagram, [#700](https://github.com/MuhammadMoustafa/xppautX/issues/700)): the list of every eigenvalue or multiplier is gone; beside the circle one summary line counts them ("28 Floquet multipliers: 26 inside, 1 outside, 1 trivial", "4 eigenvalues: 3 inside, 1 outside"), each mark shows its value on hover, and a cycle's trivial multiplier (the one nearest 1) is an open diamond counted as neither inside nor outside.

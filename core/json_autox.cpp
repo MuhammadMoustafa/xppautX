@@ -520,6 +520,20 @@ void j_autox_jobs(const XppAutoxJobs &jobs)
     send_buf(b);
 }
 
+/* the autox.joined event: the jobs that kept their points in the join, each with the branch its joined points carry */
+void j_autox_joined(const std::vector<XppJoinedJob> &jobs)
+{
+    std::string b = xpp::events::open(xpp::events::AUTOX_JOINED);
+    BUF_LIT(b, ",\"jobs\":[");
+    for (std::size_t i = 0; i < jobs.size(); ++i) {
+        buf_format(b, "{}{{\"key\":", i ? "," : "");
+        buf_key(b, jobs[i].key);
+        buf_format(b, ",\"branch\":{:d}}}", jobs[i].branch);
+    }
+    BUF_LIT(b, "]}");
+    send_buf(b);
+}
+
 int j_autox_check_abort(int *iflag)
 {
     *iflag = 0;

@@ -6,7 +6,7 @@ import {test} from 'node:test';
 import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} from '../src/plot/autoxInfo';
 import {
   buildDiagramModel, describePoint, fitRanges, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf,
-  labelShape, labelTypes, legendEntries, symbolHelp,
+  carryAppearance, labelShape, labelTypes, legendEntries, symbolHelp,
 } from '../src/plot/diagramModel';
 import {pointLabel} from '../src/store/pointTypes';
 import {activeView, initialDiagram, pointCount, type DiagramRun} from '../src/store/diagram';
@@ -504,4 +504,28 @@ test('a legend entry follows the store: a reset that leaves no live point emptie
   assert.deepEqual(live.diagram.liveKeys, {1: [0], 2: [0, 5]});
   const joined = ev(live, {ev: 'autox.diagram', view: 'diagram_1', op: 'reset', keep: 0, ...axes});
   assert.deepEqual(joined.diagram.liveKeys, {}, 'the join took the live points away');
+});
+
+/* W631: a join moves each kept job's legend settings to its branch (the key a job's points now name) */
+test('a join moves a kept job\'s settings to its branch, replacing what that key held', () => {
+  const app = {
+    'job:0:unstable:steady': {label: 'first', color: '#00ff00', visible: false},
+    'branch:2:unstable:steady': {label: 'old', color: '#ff0000'},
+    'job:0.5:stable:steady': {label: 'second'},
+  };
+  const moved = carryAppearance(app, [{key: [0], branch: 2}, {key: [0, 5], branch: 3}]);
+  assert.deepEqual(moved, {
+    'branch:2:unstable:steady': {label: 'first', color: '#00ff00', visible: false},
+    'branch:3:stable:steady': {label: 'second'},
+  });
+});
+
+test('a join drops the settings of a job it dropped as a repeat and of a live entry', () => {
+  const app = {'job:0.5:stable:steady': {label: 'repeat'}, 'live:4:unstable:periodic': {visible: false}, 'branch:1:stable:steady': {label: 'kept'}};
+  assert.deepEqual(carryAppearance(app, [{key: [0], branch: 1}]), {'branch:1:stable:steady': {label: 'kept'}});
+});
+
+test('a join with no kept job keeps the branch settings and nothing else', () => {
+  assert.deepEqual(carryAppearance({'branch:4:stable:steady': {visible: true}}, []), {'branch:4:stable:steady': {visible: true}});
+  assert.deepEqual(carryAppearance({}, [{key: [1], branch: 2}]), {});
 });

@@ -58,8 +58,8 @@ import {pointLabel, pointMark} from '../store/pointTypes';
 import {cssColor} from '../plot/colors';
 import {stopPoint} from '../plot/autoxStatus';
 import {
-  buildDiagramModel, describePoint, fmt, grabStep, labelShape, LABEL_GLYPH, labelTypes, legendEntries, stepLabel, symbolHelp,
-  vertexOf, type DiagramModel,
+  buildDiagramModel, carryAppearance, describePoint, fmt, grabStep, labelShape, LABEL_GLYPH, labelTypes, legendEntries, stepLabel,
+  symbolHelp, vertexOf, type DiagramModel,
 } from '../plot/diagramModel';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickKey, toData} from '../plot/pick';
@@ -210,7 +210,12 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
   const earlier = useStore(s => Math.min(s.diagram.earlier, pointCount(viewOf(s, view).points)));
   const showEarlier = useStore(s => s.diagram.showEarlier);
   const liveKeys = useStore(s => s.diagram.liveKeys);
+  const joined = useStore(s => s.diagram.joined);
   const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
+  /* the join (W631): a job's legend settings follow it to its branch, the dropped jobs' and the live entries' go */
+  useEffect(() => {
+    if (joined) setAppearance(a => carryAppearance(a, joined.jobs));
+  }, [joined]);
   const [editing, setEditing] = useState<{key: string; label: string; color: string} | null>(null);
   const [trace, setTrace] = useState<number | null>(null);
   const [axisOpen, setAxisOpen] = useState<AxisName | null>(null);

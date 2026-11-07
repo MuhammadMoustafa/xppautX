@@ -718,6 +718,8 @@ export type XppEvent =
   | {ev: 'autox.info'; [k: string]: unknown}
   /* how a run of several branch jobs goes (store/diagram.ts AutoxJobs) */
   | {ev: 'autox.jobs'; [k: string]: unknown}
+  /* the jobs a join kept, each with its branch (store/diagram.ts AutoxJoined) */
+  | {ev: 'autox.joined'; [k: string]: unknown}
   /* autoX's settings (store/autoxSettings.ts AutoxSettings) */
   | {ev: 'autox.settings'; [k: string]: unknown}
   /** the main numerics (docs/protocol.md "The numerics as data") */

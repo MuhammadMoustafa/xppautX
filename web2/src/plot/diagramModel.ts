@@ -232,6 +232,24 @@ export function legendEntries(curves: DiagramCurve[], jobKeys: Record<number, nu
   return {entries, of};
 }
 
+/** the legend's settings (name, colour, visibility; keyed by entry, see LegendEntry.key) after a join (W631): each job that
+    kept its points moves its entries from `job:<key>:...` to `branch:<its branch>:...`, replacing what that key held; a job the
+    join dropped (a repeat) and a `live:` entry are gone with their curves. Pure. */
+export function carryAppearance<T>(appearance: Record<string, T>, joined: {key: number[]; branch: number}[]): Record<string, T> {
+  const branchOf = new Map(joined.map(j => [jobKeyText(j.key), j.branch]));
+  const kept: Record<string, T> = {}, moved: Record<string, T> = {};
+  for (const [key, value] of Object.entries(appearance)) {
+    const job = /^job:([^:]+)(:.*)$/.exec(key);
+    if (!job) {
+      if (!key.startsWith('live:')) kept[key] = value;
+      continue;
+    }
+    const branch = branchOf.get(job[1]);
+    if (branch !== undefined) moved[`branch:${branch}${job[2]}`] = value;
+  }
+  return {...kept, ...moved};
+}
+
 /* ---- Axes/Fit (T30, docs/ui-v2.md): the diagram's own fit, client-side ---- */
 
 /** one axis' extent across `m`'s curves, with a small margin (a dot when

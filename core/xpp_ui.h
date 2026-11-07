@@ -135,6 +135,14 @@ struct XppAutoxJobs {
     std::vector<XppAutoxJob> each;
 };
 
+/* a job that kept its points in the join (follow_all_branches): its key, and the branch number its joined points carry (one
+   branch per job: a job is one run, and autoX does not switch branches within it) */
+struct XppJoinedJob {
+    std::vector<long> key;
+    int branch;
+    bool operator==(const XppJoinedJob &) const = default;
+};
+
 /* Historical names, now dispatchers. Declared here so every core file sees
    one consistent prototype. */
 /* An error is command_error, err_reading or show_error with its place.
@@ -326,6 +334,8 @@ typedef struct XppUi {
     int (*autox_points_held)(Session &s);
     /* a run of branch jobs (follow_all_branches) changed: how many run, wait and have ended */
     void (*autox_jobs)(const XppAutoxJobs &jobs);
+    /* the jobs were joined: those that kept their points, in the join's order, with the branch their joined points carry */
+    void (*autox_joined)(const std::vector<XppJoinedJob> &jobs);
     /* the points the running jobs drew as they came (XppDiagPoint.live) go, in every view: the jobs are joined, and the
        diagram's own points follow, or the run ended with none */
     void (*autox_live_drop)(Session &s);
@@ -396,6 +406,7 @@ void make_autox(Session &s, std::string_view wname, std::string_view iname);
 void autox_diagram(Session &s, int view, const XppDiagPoint *p);
 int autox_points_held(Session &s);
 void autox_jobs(const XppAutoxJobs &jobs);
+void autox_joined(const std::vector<XppJoinedJob> &jobs);
 void autox_live_drop(Session &s);
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);

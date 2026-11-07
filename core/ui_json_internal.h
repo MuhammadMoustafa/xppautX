@@ -493,6 +493,7 @@ void j_autox_show_hint(xpp::Session &s);
 void j_autox_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
 int j_autox_points_held(xpp::Session &s); /* XppUi.autox_points_held: the points the active view holds */
 void j_autox_jobs(const XppAutoxJobs &jobs); /* XppUi.autox_jobs: the autox.jobs event */
+void j_autox_joined(const std::vector<XppJoinedJob> &jobs); /* XppUi.autox_joined: the autox.joined event */
 void j_autox_live_drop(xpp::Session &s); /* XppUi.autox_live_drop: the running jobs' live points leave every view's list */
 void j_autox_refresh(xpp::Session &s);
 

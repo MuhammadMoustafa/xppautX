@@ -78,6 +78,12 @@ export interface AutoxJobs {
   jobs: {live: number; key: number[]; points: number}[];
 }
 
+/** `autox.joined` (W631): the jobs of a run of several that kept their points in the join, in the join's order, each with the
+    branch its joined points carry (one branch per job) */
+export interface AutoxJoined {
+  jobs: {key: number[]; branch: number}[];
+}
+
 export type DiagramEvent =
   | ({ev: 'autox.diagram'; op: 'axes'; view: string} & DiagramAxes)
   | ({ev: 'autox.diagram'; op: 'reset'; view: string; keep: number} & DiagramAxes)
@@ -253,6 +259,8 @@ export interface DiagramState {
   run: AutoxRun | null;
   /** the last `autox.jobs` of a run (W597), null before one and when a run starts */
   jobs: AutoxJobs | null;
+  /** the last `autox.joined` (W631), null before one and when a run starts: the legend's settings follow each job to its branch */
+  joined: AutoxJoined | null;
   /** each running job's key by its live id (`autox.jobs`, W620), kept from the event that lists it, so the
       job's live points can be named; emptied when a run starts and when a join leaves no live point in any view */
   liveKeys: Record<number, number[]>;
@@ -316,7 +324,7 @@ export const EMPTY_VIEW: DiagramView = emptyView();
 export const initialDiagram: DiagramState = {
   open: false, shown: false, views: [emptyView()], active: 0, events: 0, outOfStep: false,
   hover: null, info: null, stab: null, start: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
-  run: null, jobs: null, liveKeys: {}, earlier: 0, showEarlier: false,
+  run: null, jobs: null, joined: null, liveKeys: {}, earlier: 0, showEarlier: false,
 };
 
 export type DiagramAction =
@@ -336,6 +344,8 @@ export type DiagramAction =
   | {type: 'runStopped'}
   /** `autox.jobs` (W597) */
   | {type: 'jobs'; ev: AutoxJobs}
+  /** `autox.joined` (W631) */
+  | {type: 'joined'; ev: AutoxJoined}
   /** Clear: what is drawn now becomes the earlier branches (until the core's `autoxview` says) */
   | {type: 'clear'}
   /** the core's display of the diagram (W65): the branches Clear hid, whether they are shown, the
@@ -532,6 +542,8 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       for (const j of a.ev.jobs) liveKeys[j.live] = j.key;
       return {...s, jobs: a.ev, liveKeys};
     }
+    case 'joined':
+      return {...s, joined: a.ev};
     case 'runStopped':
       return s.run?.active ? {...s, run: {...s.run, stopped: true}} : s;
     case 'clear':
@@ -556,7 +568,7 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
 }
 
 function onRun(s: DiagramState, op: 'start' | 'clock' | 'end', at: number): DiagramState {
-  if (op === 'start') return {...s, jobs: null, liveKeys: {}, run: {active: true, started: at, ended: null, first: pointCount(activeView(s).points), stopped: false}};
+  if (op === 'start') return {...s, jobs: null, joined: null, liveKeys: {}, run: {active: true, started: at, ended: null, first: pointCount(activeView(s).points), stopped: false}};
   if (!s.run?.active) return s;
   if (op === 'clock') return {...s, run: {...s.run, started: at}};
   return {...s, run: {...s.run, active: false, ended: at}};

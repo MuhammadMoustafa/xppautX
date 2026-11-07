@@ -2229,6 +2229,15 @@ async function autoxLiveJobs() {
       && (await S('s.diagram.jobs.jobs')).every(j => liveNames.some(t => t.startsWith(`Job ${j.key.join('.')} · `)))
       && liveNames.every(t => /^Job \d+(\.\d+)* · (stable|unstable) (steady|periodic|two-parameter)$/.test(t)),
     JSON.stringify(liveNames));
+  /* W631: a name set on job 0's legend entry (double click, the trace dialog's Apply) follows the job to its branch at the join */
+  const jobEntry = await cdp.eval(`(() => { const b = document.querySelector('[data-auto-trace^="job:0:"]'); return b ? b.dataset.autoTrace : null; })()`);
+  check('W631: while two jobs run, job 0 has a legend entry that a double click edits', jobEntry !== null, String(jobEntry));
+  await cdp.eval(`document.querySelector('[data-auto-trace="${jobEntry}"]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))`);
+  await until(`!!document.querySelector('[data-trace-dialog] [data-trace-name]')`, 'trace dialog open');
+  await cdp.eval(`(() => { const i = document.querySelector('[data-trace-dialog] [data-trace-name]'); i.value = 'kept job';
+    i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await cdp.eval(`document.querySelector('[data-trace-dialog] button[type=submit]').click()`);
+  await until(`!document.querySelector('[data-trace-dialog]')`, 'trace dialog closed');
   await cdp.eval(`document.querySelector('.autox-status .autox-stop').click()`);
   check('W620: Stop ends the jobs; the join\'s points replace the live ones: none is a job\'s any more, each has its branch, and no progress line is left',
     await until(`!s.busy && dv.points.x.length >= 2 && [...dv.points.lv].every(v => v === 0) && s.diagram.jobs && s.diagram.jobs.running === 0
@@ -2239,6 +2248,12 @@ async function autoxLiveJobs() {
   check('W630: after the join no two legend entries share a name, and none is named for a job',
     joinedNames.length > 0 && new Set(joinedNames).size === joinedNames.length && joinedNames.every(t => !t.startsWith('Job ')),
     JSON.stringify(joinedNames));
+  const joinedJobs = await S('s.diagram.joined ? s.diagram.joined.jobs : null');
+  const branch = joinedJobs && joinedJobs.find(j => j.key.join('.') === '0')?.branch;
+  const entries = await cdp.eval(`[...document.querySelectorAll('.autox-pane .legend-item')].map(b => [b.dataset.autoTrace, b.textContent.trim()])`);
+  check('W631: after the join job 0\'s name is on its branch\'s legend entry (the job moved to the branch its points carry)',
+    branch !== undefined && entries.some(([k, t]) => t === 'kept job' && k.startsWith(`branch:${branch}:`)),
+    JSON.stringify({branch, joinedJobs, entries}));
 }
 
 /* ---- views of the autoX diagram (W50, docs/protocol.md "Views of the diagram") ------------ */

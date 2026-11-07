@@ -56,7 +56,9 @@ back). It has:
   and minimum, are one entry (`Branch 3 · unstable periodic`). While branch
   jobs run (see "Following all the branches"), each job's curves are named
   by its key as the status strip names it (`Job 0.5 · unstable periodic`),
-  and become branch entries when the jobs are joined. A click shows or hides
+  and become branch entries when the jobs are joined: a job's name, colour
+  and visibility move to the branch its points carry, and the entries of a
+  job the join dropped as a repeat go with their curves. A click shows or hides
   all of an entry's curves, a double click renames it and changes its
   colour, and hovering over it highlights all of them;
 - a **stability circle** (`ui/AutoxInfo.tsx`) below it, and a **status

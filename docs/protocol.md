@@ -1664,6 +1664,7 @@ sections below.
 | `autox.diagram` | `op`, `view` | always | The autoX diagram as data, each view of it; the rest of its fields depend on op (axes, reset, add, views). |
 | `autox.info` | `info`, `stab`, `stop`, `notes`, `start_refined` | `autox.info` | autoX's info strip and stability circle, and why the last branch ended. |
 | `autox.jobs` | `running`, `queued`, `done`, `jobs` | always | A run of branch jobs (follow_all_branches) changed: how many jobs run, wait to start and have ended, and each running job's points so far; the last one is the run's end. |
+| `autox.joined` | `jobs` | always | A run of several branch jobs was joined: each job that kept its points, with its key and the branch its joined points carry. |
 | `autox.settings` | `numerics`, `pars`, `axes`, `marks` | `autox.settings` | autoX's settings as data. |
 | `autox.view` | `earlier`, `show`, `active`, `views` | always | autoX's hidden branches, the active view and each view's zoom. |
 | `array_plot.shown` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `first_row`, `tag` | always | The array plot's cells and colours. |
@@ -1957,6 +1958,11 @@ while the jobs run (a job ended early counts as done), the last one at the run's
 running jobs in the join's order, each with its `live` id, its `key` in the queue (the integers of the recorded stop's `jobs` below: a
 root's index, then the point each job was found at and its direction, level by level) and the points it has stored so far, sent
 again as they grow no more often than ten times a second; the diagram's points carry `job` (the run field above).
+
+`{"ev":"autox.joined","jobs":[{"key":[0,5],"branch":3},...]}` (W631, [#703](https://github.com/MuhammadMoustafa/xppautX/issues/703)) comes once,
+after the join's points, in a run of several jobs (a run of one job sends none): each job that kept its points, in the join's order, with
+its `key` as `autox.jobs` gives it and the `branch` its joined points carry (a job is one run, so one branch: its points' `br` is that
+number). A job the join dropped as a repeat is not listed. Nothing is stored per point; the page moves a job's legend settings to its branch.
 
 Branch jobs' points live (W620). While the jobs run, each one's points reach the client as they are stored, as `autox.diagram`
 `add` events whose runs carry `live` (above), appended to the points the diagram had when the run began: typed (a limit point,

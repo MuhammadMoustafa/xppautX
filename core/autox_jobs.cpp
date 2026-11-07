@@ -776,6 +776,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
   const std::string limit_text=autox_diagram_limit_message();
   bool diagram_full=false,wide_shown=false;
   int job_number=0; /* the jobs that keep their points, in the join's order: what the diagram's points name */
+  std::vector<XppJoinedJob> joined; /* the same jobs with the branch their points carry: the autox.joined event */
   std::optional<std::pair<int,int>> last_stored; /* the last point of the diagram, which a stopped run reports */
   for(QueuedJob *queued:order){
     QueuedJob &job=*queued;
@@ -829,6 +830,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     }
     for(const auto &[file,kind]:{std::pair{run.fort7,RunFile::branches},std::pair{run.fort8,RunFile::solutions},std::pair{run.fort9,RunFile::diagnostics}})
       if(auto numbered=renumber_file(run,file,kind,mine,kind==RunFile::diagnostics||!cut?nullptr:&stored);!numbered&&!reported)reported=numbered.error();
+    if(!stored.empty())joined.push_back({job.key.path,stored.begin()->first}); /* one run, one branch: every point stored has it */
     /* the next job numbers after this one's */
     moved.branch_offset=branches-moved.base_branch;
     moved.label_offset=labels-moved.base_label;
@@ -843,6 +845,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     if(run.run_wide_error)wide_error=std::move(job.failed);
     if(auto ended=autox_end_run(s,run,std::move(wide_error),saving);ended&&!reported&&run.run_wide_error)reported=std::move(ended);
   }
+  if(q.jobs.size()>1)autox_joined(joined); /* a run of one job has no legend's jobs to carry over */
   std::vector<xpp::job::BranchJob> ends; /* how the jobs that count ended, and the counts a stop or an early end reports */
   int finished=0,stopped_jobs=0,never_started=0,early=0;
   for(const QueuedJob *queued:order){

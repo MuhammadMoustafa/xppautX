@@ -862,8 +862,32 @@ def check_autox_live_jobs():
             check('W629: a live run holds one job\'s points: each job\'s runs go on from its last number, 1, 2, 3, ... (%s)' % what,
                   bad is None and sorted(expect_pt) == [1, 3, 4, 5, 6],
                   'first mismatch: job, expected pt, got pt = %s; ends at %s' % (bad, sorted(expect_pt.items())))
+            # W631 (#703): one autox.joined after the join's points: the jobs that kept points, in the join's order, each once,
+            # listed by autox.jobs, with the one branch its joined points carry (a job is one run: every point of it has it)
+            joins = [(i, e) for i, e in enumerate(evs) if e.get('ev') == 'autox.joined']
+            listed = {tuple(j['key']) for e in events for j in e['jobs']}
+            kept = joins[0][1]['jobs'] if joins else []
+            keys = [tuple(j['key']) for j in kept]
+            kept_branches = {}
+            for _, r in joined_runs:
+                if 'job' in r:
+                    kept_branches.setdefault(r['job'], set()).add(r['br'])
+            check('W631: one autox.joined follows the join\'s points: the jobs that kept points, in the join\'s order, each listed by autox.jobs once, each with the one branch its points carry (%s)' % what,
+                  len(joins) == 1 and resets and joins[0][0] > resets[0] and keys and len(set(keys)) == len(keys) and set(keys) <= listed
+                  and sorted(kept_branches) == list(range(1, len(kept) + 1))
+                  and all(kept_branches[k + 1] == {j['branch']} for k, j in enumerate(kept)),
+                  '%s %s %s' % (len(joins), keys, sorted(kept_branches.items())))
         finally:
             s.close()
+    # W631: a run of one branch, follow_all_branches off, has no jobs to join and sends no autox.joined
+    s = jobs_session(LORENZ, LORENZ_START)
+    try:
+        s.send(cmd='autox.run', **dict(LORENZ_RUN, follow_all_branches=False))
+        evs, end = s.collect(autoxcompare.is_done, timeout=300 * SLOW)
+        check('W631: a run of one branch (follow_all_branches off) sends no autox.joined',
+              end.get('status') == 'ok' and not [e for e in evs if e.get('ev') == 'autox.joined'], str(end)[:200])
+    finally:
+        s.close()
 
 
 def check_autox_branch_jobs():

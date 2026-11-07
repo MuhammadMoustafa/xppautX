@@ -651,6 +651,7 @@ XppUi make_json_ui(void)
     u.autox_diagram = j_autox_diagram;
     u.autox_points_held = j_autox_points_held;
     u.autox_jobs = j_autox_jobs;
+    u.autox_joined = j_autox_joined;
     u.autox_live_drop = j_autox_live_drop;
     u.new_vcr = j_new_vcr;
     u.ani_show = j_ani_show;
