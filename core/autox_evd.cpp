@@ -38,7 +38,7 @@ std::size_t autox_diagram_points_limit()
    point (a branch point's two directions, a cycle branch's two equilibria: autox_found_starts). The points the jobs hold
    come to the diagram's limit, and the point that reaches it is held before the run stops (point_stored counts each point
    the jobs hold against the limit). A threaded run's jobs still running at that point may store a few more before they
-   see the stop; those are not counted here. A key has one element per generation, a job of the chain, so it is no
+   see the stop, but no job is expanded once the run is fatal (autox_jobs.cpp expand), so those make no jobs. A key has one element per generation, a job of the chain, so it is no
    longer than the jobs. */
 std::size_t autox_recorded_jobs_limit()
 {

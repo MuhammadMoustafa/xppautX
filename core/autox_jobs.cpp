@@ -531,7 +531,9 @@ void begin(Queue &q, QueuedJob &job, std::vector<std::thread> &threads)
 void expand(Queue &q, QueuedJob &job)
 {
   job.expanded=true;
-  if(xpp::job::cancelled()||job.run->dropped)return;
+  /* a run over (stopped, or fatal: a point at the diagram's limit sets it before its job can end) makes no more jobs, so the
+     jobs made never exceed autox_recorded_jobs_limit, whatever the threads stored after it */
+  if(xpp::job::cancelled()||q.fatal||job.run->dropped)return;
   if(const xpp::job::BranchJob *entry=planned(q,job.key);entry&&entry->state!=xpp::job::JobState::finished)return; /* a stopped job's points started nothing */
   QueuedJob *last_hopf=nullptr;
   for(AutoxJobStart &start:autox_found_starts(job.start.ips,job.run->points,job.run->stop)){
