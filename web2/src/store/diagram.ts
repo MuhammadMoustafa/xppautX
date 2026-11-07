@@ -78,7 +78,7 @@ export interface AutoxJobs {
   jobs: {live: number; key: number[]; points: number}[];
 }
 
-/** `autox.joined` (W631): the jobs of a run of several that kept their points in the join, in the join's order, each with the
+/** `autox.joined` (W631): the jobs of a run of branch jobs that kept their points in the join, in the join's order, each with the
     branch its joined points carry (one branch per job) */
 export interface AutoxJoined {
   jobs: {key: number[]; branch: number}[];

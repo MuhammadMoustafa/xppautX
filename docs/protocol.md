@@ -1664,7 +1664,7 @@ sections below.
 | `autox.diagram` | `op`, `view` | always | The autoX diagram as data, each view of it; the rest of its fields depend on op (axes, reset, add, views). |
 | `autox.info` | `info`, `stab`, `stop`, `notes`, `start_refined` | `autox.info` | autoX's info strip and stability circle, and why the last branch ended. |
 | `autox.jobs` | `running`, `queued`, `done`, `jobs` | always | A run of branch jobs (follow_all_branches) changed: how many jobs run, wait to start and have ended, and each running job's points so far; the last one is the run's end. |
-| `autox.joined` | `jobs` | always | A run of several branch jobs was joined: each job that kept its points, with its key and the branch its joined points carry. |
+| `autox.joined` | `jobs` | always | A run of branch jobs (follow_all_branches) was joined: each job that kept its points, with its key and the branch its joined points carry. |
 | `autox.settings` | `numerics`, `pars`, `axes`, `marks` | `autox.settings` | autoX's settings as data. |
 | `autox.view` | `earlier`, `show`, `active`, `views` | always | autoX's hidden branches, the active view and each view's zoom. |
 | `array_plot.shown` | `title`, `nx`, `ny`, `values`, `enc`, `colormap`, `ramp`, `zmin`, `zmax`, `tlo`, `thi`, `first_row`, `tag` | always | The array plot's cells and colours. |
@@ -1960,7 +1960,7 @@ root's index, then the point each job was found at and its direction, level by l
 again as they grow no more often than ten times a second; the diagram's points carry `job` (the run field above).
 
 `{"ev":"autox.joined","jobs":[{"key":[0,5],"branch":3},...]}` (W631, [#703](https://github.com/MuhammadMoustafa/xppautX/issues/703)) comes once,
-after the join's points, in a run of several jobs (a run of one job sends none): each job that kept its points, in the join's order, with
+after the join's points, in every run of branch jobs (`follow_all_branches`; a run of one branch sends none): each job that kept its points, in the join's order, with
 its `key` as `autox.jobs` gives it and the `branch` its joined points carry (a job is one run, so one branch: its points' `br` is that
 number). A job the join dropped as a repeat is not listed. Nothing is stored per point; the page moves a job's legend settings to its branch.
 

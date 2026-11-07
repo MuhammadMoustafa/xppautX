@@ -845,7 +845,7 @@ Result<> autox_run_jobs(Session &s, int iold, int isave)
     if(run.run_wide_error)wide_error=std::move(job.failed);
     if(auto ended=autox_end_run(s,run,std::move(wide_error),saving);ended&&!reported&&run.run_wide_error)reported=std::move(ended);
   }
-  if(q.jobs.size()>1)autox_joined(joined); /* a run of one job has no legend's jobs to carry over */
+  autox_joined(joined);
   std::vector<xpp::job::BranchJob> ends; /* how the jobs that count ended, and the counts a stop or an early end reports */
   int finished=0,stopped_jobs=0,never_started=0,early=0;
   for(const QueuedJob *queued:order){
