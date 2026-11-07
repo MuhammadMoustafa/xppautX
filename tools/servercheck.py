@@ -851,6 +851,17 @@ def check_autox_live_jobs():
             check('W620: the stability circle is sent while the jobs run, before the join (%s)' % what,
                   stabs and stabs[0]['_t'] < next(e['_t'] for e in evs if e.get('ev') == 'autox.diagram' and e.get('op') == 'reset'),
                   str(len(stabs)))
+            # W629 (#701): a live run holds one job's points only, so each job's runs, in arrival order, number on from the last
+            # run's last number (the first run starts at 1): no repeat, no gap, no point of another job
+            expect_pt, bad = {}, None
+            for _, r in live_runs:
+                want = expect_pt.get(r['live'], 1)
+                if r['pt'] != want and bad is None:
+                    bad = (r['live'], want, r['pt'])
+                expect_pt[r['live']] = want + len(r['x'])
+            check('W629: a live run holds one job\'s points: each job\'s runs go on from its last number, 1, 2, 3, ... (%s)' % what,
+                  bad is None and sorted(expect_pt) == [1, 3, 4, 5, 6],
+                  'first mismatch: job, expected pt, got pt = %s; ends at %s' % (bad, sorted(expect_pt.items())))
         finally:
             s.close()
 

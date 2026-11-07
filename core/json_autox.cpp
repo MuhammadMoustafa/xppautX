@@ -296,7 +296,7 @@ namespace {
 int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
 {
     return !b->newseg && !b->from && std::abs(a->ibr) == std::abs(b->ibr) && std::abs(b->pt) == std::abs(a->pt) + 1 && a->type == b->type &&
-           a->draw == b->draw && a->color == b->color && a->lw == b->lw && a->flag2 == b->flag2 && a->job == b->job && a->jacobian == b->jacobian;
+           a->draw == b->draw && a->color == b->color && a->lw == b->lw && a->flag2 == b->flag2 && a->job == b->job && a->live == b->live && a->jacobian == b->jacobian;
 }
 
 /* what view v's client list lacks */
