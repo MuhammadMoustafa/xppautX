@@ -5463,6 +5463,7 @@ async function axisTitleCut() {
   await mouse('mouseMoved', at.x, at.y);
   check('axis cut: pointing at the title opens the tip with the whole title',
     await until(`(() => { const t = document.querySelector('.cut-tip'); return !!t && t.matches(':popover-open') && t.textContent === ${JSON.stringify(full)}; })()`, 'axis tip'));
+  check('axis cut: ... and the button drops its own hint (title) while the tip shows: one tip at a time', await cdp.eval(`!document.querySelector('${btn}').getAttribute('title')`));
   check('axis cut: ... with no clipboard icon: a click on the title opens the axis dialog', await cdp.eval(`!!document.querySelector('.cut-tip') && !document.querySelector('.cut-tip .cut-icon')`));
   check('axis cut: ... the whole title readable: wrapped, not cut, inside the window', await until(`(() => { const t = document.querySelector('.cut-tip'); if (!t) return false; const r = t.getBoundingClientRect(); return t.matches(':popover-open') && getComputedStyle(t).writingMode === 'horizontal-tb' && t.scrollWidth <= t.clientWidth && t.scrollHeight <= t.clientHeight && r.top >= 0 && r.bottom <= innerHeight && r.right <= innerWidth; })()`, 'axis tip whole'));
   await mouse('mouseMoved', 5, 5);
@@ -5507,6 +5508,12 @@ async function axisTitleShort() {
   check('axis short: a run stores rows', await integrate(601, 30000) || await until('s.seriesCount > 0 && !s.busy', 'rows'));
   check('axis short: a short x title is not marked cut',
     await cdp.eval(`(() => { const e = document.querySelector('.plot-view:not([hidden]) [data-plot-axis=x] .cut-text'); return !!e && !e.classList.contains('cut'); })()`));
+  const at = await center('.plot-view:not([hidden]) [data-plot-axis=x]');
+  await mouse('mouseMoved', at.x, at.y);
+  check('axis short: pointing at it opens no tip, and the button keeps its hint (title) of what a click does',
+    await until(`document.querySelector('.plot-view:not([hidden]) [data-plot-axis=x]').getAttribute('title') === 'Change axis variables and limits'`, 'short title hint')
+    && await cdp.eval(`!document.querySelector('.cut-tip')`));
+  await mouse('mouseMoved', 5, 5);
 }
 
 /* ---- layout (W98, #147): the plot at every window width, Show autoX clear of the messages,

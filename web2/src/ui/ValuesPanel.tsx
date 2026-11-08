@@ -39,10 +39,12 @@ const NUMBER_HINT = fieldMessage(FORMULA_HINT);
 
 /** the room of the changed mark " •" after a name that differs from its default (values.css), in characters */
 const CHANGED_MARK_CHARS = 2;
-/** a name/box/reset list's style (values.css `.value-fill`): its name column is as wide as its longest name, the
-    changed mark's room included, at most --value-name-max; every list of fields uses this one helper */
-function fillStyle(names: string[]): JSX.CSSProperties {
-  return {'--name-chars': String(Math.max(0, ...names.map(n => n.length)) + CHANGED_MARK_CHARS)} as JSX.CSSProperties;
+/** a name/box/reset list's style (values.css `.value-fill`): its name column is as wide as its longest name, with
+    the changed mark's room where its fields carry the mark (`marked`: Parameters; a numerics field never does), at
+    most --value-name-max; every list of fields uses this one helper */
+function fillStyle(names: string[], marked: boolean): JSX.CSSProperties {
+  const chars = Math.max(0, ...names.map(n => n.length)) + (marked ? CHANGED_MARK_CHARS : 0);
+  return {'--name-chars': String(chars)} as JSX.CSSProperties;
 }
 const STATE_HINT = 'Edits apply on Enter or leaving the field, to the next run. Run from initial uses Initial; Run from last state uses the last state and starts a new trajectory.';
 
@@ -176,7 +178,7 @@ function Parameters() {
         <SetsRow scope="parameters" />
       </>
     )}>
-      <div class="value-list value-fill" style={fillStyle(pars.map(([name]) => name))}>
+      <div class="value-list value-fill" style={fillStyle(pars.map(([name]) => name), true)}>
         {pars.map(([name, value]) => (
           <ValueField key={name.toLowerCase()} kind="par" label={name} name={name} hint={NUMBER_HINT} spec={FORMULA}
             {...fieldProps(value)} />
@@ -311,13 +313,13 @@ function NumericsSection() {
     <Section id="num" title="Numerics" startFolded hint="Changes apply to the next run: a run in progress keeps its own."
       tools={<SetsRow scope="integration" />}>
       <p class="value-hint">Solver: <strong>{methodName}</strong>. Unused solver controls are separated below.</p>
-      <div class="value-list value-fill" style={fillStyle(fields.filter(f => !f.unused).map(f => f.label))}>
+      <div class="value-list value-fill" style={fillStyle(fields.filter(f => !f.unused).map(f => f.label), false)}>
         {fields.filter(f => !f.unused).map(f => <NumericField key={f.key} f={f} />)}
       </div>
       {unused.length > 0 && <details class="unused-settings">
         <summary>Settings not used by {methodName}</summary>
         <p class="value-hint">These values are kept for other solvers. Editing them does not change {methodName}'s results.</p>
-        <div class="value-list value-fill" style={fillStyle(unused.map(f => f.label))}>{unused.map(f => <NumericField key={f.key} f={f} />)}</div>
+        <div class="value-list value-fill" style={fillStyle(unused.map(f => f.label), false)}>{unused.map(f => <NumericField key={f.key} f={f} />)}</div>
       </details>}
     </Section>
   );

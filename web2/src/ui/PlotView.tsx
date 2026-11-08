@@ -156,15 +156,18 @@ export function FitButton({onClick, title, disabled = false}: {onClick: () => vo
 
 /** the transparent button over an axis title (W646, the phase plot's and the autoX diagram's): as long as the side
     of the plotting area it names, its text the canvas's own title, so a cut title is marked and its whole text is in
-    the tip on hover or focus (ShownName, copy off: the click opens the axis dialog); the caller gives the click */
+    the tip on hover or focus (ShownName, copy off: the click opens the axis dialog); the caller gives the click and
+    the button's `title`, which a cut title drops while its tip is open, so only one tip shows */
 export function AxisTitle({which, area, text, ...button}: {
   which: 'x' | 'y'; area: {left: number; top: number; width: number; height: number}; text: string;
 } & JSX.ButtonHTMLAttributes<HTMLButtonElement>) {
   const [tipped, setTipped] = useState(false);
+  const own = useRef<HTMLButtonElement>(null);
+  const tipShown = tipped && !!own.current?.querySelector('.cut-text.cut');
   const place = which === 'x' ? {left: `${area.left}px`, width: `${area.width}px`, bottom: '0px'}
     : {left: '0px', top: `${area.top}px`, height: `${area.height}px`};
   return (
-    <button {...button} class={`autox-axis-name autox-axis-${which}`} style={place}
+    <button {...button} ref={own} title={tipShown ? undefined : button.title} class={`autox-axis-name autox-axis-${which}`} style={place}
       onPointerEnter={() => setTipped(true)} onPointerLeave={() => setTipped(false)}
       onFocus={() => setTipped(true)} onBlur={() => setTipped(false)}>
       <ShownName name={text} copy={false} tipped={tipped} />
