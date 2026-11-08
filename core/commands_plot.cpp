@@ -474,7 +474,7 @@ constexpr std::array ROWS = {
     Command{"plot.set_axes_origin", ORIGIN_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Axes options", "Plot/Curves",
             "Set where the graph's axes cross, whether each axis is drawn there, and the font size of the axes' text; what is left out stays.",
             ORIGIN_RESULTS, PLOT_EVENTS, true, set_axes_origin_command},
-    Command{"plot.set_colormap", COLORMAP_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Plot, "Colormap", "Plot/Curves",
+    Command{"plot.set_colormap", COLORMAP_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Plot, "Colour map", "Plot/Curves",
             "Set the session's colour scale, which the array plot, the direction field and the pictures use.", COLORMAP_RESULTS, PLOT_EVENTS, true,
             set_colormap_command},
     Command{"plot.set_2d", AXES_2D_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set 2D plot", "Plot/Axes",
