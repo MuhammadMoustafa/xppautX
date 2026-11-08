@@ -82,7 +82,7 @@ constexpr std::array RANGE={Argument{"parameter",Type::model_name,true,MAX_COMMA
     Argument{"start",Type::real,true},Argument{"end",Type::real,true},
     Argument{"steps",Type::integer,true,MAX_TEXT_BYTES,{},constant(1),constant(max_frozen_clines-1)}};
 constexpr std::array DELAY={Argument{"delay_ms",Type::integer,false,MAX_TEXT_BYTES,{},constant(0),constant(std::numeric_limits<int>::max())}};
-constexpr std::array FILE={Argument{"file",Type::file,true},Argument{"format",Type::choice,false,MAX_TEXT_BYTES,DATA_FORMAT_NAMES},Argument{"confirm",Type::boolean,false}};
+constexpr std::array FILE={Argument{"file",Type::file,true},Argument{"format",Type::choice,false,MAX_TEXT_BYTES,data_format_ids},Argument{"confirm",Type::boolean,false}};
 constexpr std::array MESH={Argument{"mesh",Type::integer,true,MAX_TEXT_BYTES,{},constant(1),constant(option_limit::mesh)}};
 constexpr std::array COMPUTED={ResultField{"curves_computed","integer"}};
 constexpr std::array DRAWN={ResultField{"drawn","boolean"}};

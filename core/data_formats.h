@@ -56,7 +56,6 @@ std::string data_column_name(const DataTable &t, std::size_t i);
 
 /* The export choices share the format registry's names, including their protocol spelling. */
 inline constexpr const char *DATA_FORMAT_DAT="dat", *DATA_FORMAT_CSV="csv", *DATA_FORMAT_CSV_GZ="csv.gz", *DATA_FORMAT_NPZ="npz";
-inline constexpr std::array DATA_FORMAT_NAMES={DATA_FORMAT_DAT,DATA_FORMAT_CSV,DATA_FORMAT_CSV_GZ,DATA_FORMAT_NPZ};
 
 struct DataFormat {
     const char *id;        /* the protocol's name for it ("dat", "csv", ...) */
@@ -75,7 +74,7 @@ struct DataFormat {
    through xpp::out_of_memory (xpp_mem.h). */
 
 /* the formats' ids in the registry's order (a choice of the protocol: data_formats.cpp checks it lists the registry) */
-inline constexpr std::array<const char *, 4> data_format_ids = {"dat", "csv", "csv.gz", "npz"};
+inline constexpr std::array data_format_ids = {DATA_FORMAT_DAT, DATA_FORMAT_CSV, DATA_FORMAT_CSV_GZ, DATA_FORMAT_NPZ};
 /* every format, in the Save data menu's order */
 std::span<const DataFormat> data_formats();
 /* the format of that id (case ignored), or nullptr */
