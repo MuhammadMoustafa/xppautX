@@ -5463,6 +5463,7 @@ async function axisTitleCut() {
   await mouse('mouseMoved', at.x, at.y);
   check('axis cut: pointing at the title opens the tip with the whole title',
     await until(`(() => { const t = document.querySelector('.cut-tip'); return !!t && t.matches(':popover-open') && t.textContent === ${JSON.stringify(full)}; })()`, 'axis tip'));
+  check('axis cut: ... with no clipboard icon: a click on the title opens the axis dialog', await cdp.eval(`!!document.querySelector('.cut-tip') && !document.querySelector('.cut-tip .cut-icon')`));
   check('axis cut: ... the whole title readable: wrapped, not cut, inside the window', await until(`(() => { const t = document.querySelector('.cut-tip'); if (!t) return false; const r = t.getBoundingClientRect(); return t.matches(':popover-open') && getComputedStyle(t).writingMode === 'horizontal-tb' && t.scrollWidth <= t.clientWidth && t.scrollHeight <= t.clientHeight && r.top >= 0 && r.bottom <= innerHeight && r.right <= innerWidth; })()`, 'axis tip whole'));
   await mouse('mouseMoved', 5, 5);
   check('axis cut: leaving it closes the tip', await until(`!document.querySelector('.cut-tip')`, 'axis tip closed'));

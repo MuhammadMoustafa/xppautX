@@ -18,7 +18,8 @@ const TIP_GAP = 6;
 const ICON = {width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
   'stroke-linecap': 'round' as const, 'stroke-linejoin': 'round' as const, 'aria-hidden': 'true' as const};
 
-function Tip({host, full, copied}: {host: HTMLElement; full: string; copied: boolean}) {
+/** the tip; its clipboard icon only where a click copies (`copy`), a green tick once it has */
+function Tip({host, full, copy, copied}: {host: HTMLElement; full: string; copy: boolean; copied: boolean}) {
   const tip = useRef<HTMLSpanElement>(null);
   /* placed under the text (over it when there is no room), kept inside the window, before it is painted */
   useLayoutEffect(() => {
@@ -35,7 +36,7 @@ function Tip({host, full, copied}: {host: HTMLElement; full: string; copied: boo
       <span class="cut-tip-text">{full}</span>
       {copied
         ? <svg {...ICON} class="cut-tick"><path d="M20 6 9 17l-5-5" /></svg>
-        : <svg {...ICON} class="cut-icon"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>}
+        : copy && <svg {...ICON} class="cut-icon"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>}
     </span>
   );
 }
@@ -97,7 +98,7 @@ export function CutText({full, cut, copy = true, tipped: owned, class: className
       onClick={copy ? doCopy : undefined}
       onKeyDown={copy ? e => { if (e.key === 'Enter' || e.key === ' ') void doCopy(e); } : undefined}>
       {children}
-      {tipped && host.current && <Tip host={host.current} full={full} copied={copied} />}
+      {tipped && host.current && <Tip host={host.current} full={full} copy={copy} copied={copied} />}
       {copied && <span class="visually-hidden" role="status">Copied</span>}
     </span>
   );
