@@ -686,11 +686,12 @@ constexpr std::array MARKS_ARGUMENTS = {Argument{"parameters", Type::list, true,
 constexpr std::array<const char *, 2> THREADS_ONE = {"threads", "automatic"};
 constexpr auto LOG_LEVELS = c_names(log_level_names);
 constexpr std::array THREADS_ARGUMENTS = {
-    Argument{"threads", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), session_quantity("threads_max", threads_maximum), NameSet::none, Type::text, MAX_ITEMS, false, "",
-             "How many threads autoX and a sweep's runs use, at most the computer's logical processors."},
-    Argument{"automatic", Type::boolean, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::text, MAX_ITEMS, false, "", "Let the program choose: all the physical cores."},
-    Argument{"log_level", Type::choice, false, MAX_TEXT_BYTES, LOG_LEVELS, {}, {}, NameSet::none, Type::text, MAX_ITEMS, false, "", "What the log shows; it applies from the next start."},
-    Argument{"log_file", Type::text, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::text, MAX_ITEMS, false, "", "The file the log goes to, an absolute path; empty is the terminal."}};
+    Argument{.name = "threads", .type = Type::integer, .required = false, .min = constant(1), .max = session_quantity("threads_max", threads_maximum),
+             .description = "How many threads autoX and a sweep's runs use, at most the computer's logical processors."},
+    Argument{.name = "automatic", .type = Type::boolean, .required = false, .description = "Let the program choose: all the physical cores."},
+    Argument{.name = "log_level", .type = Type::choice, .required = false, .choices = LOG_LEVELS,
+             .description = "What the log shows; it applies from the next start."},
+    Argument{.name = "log_file", .type = Type::text, .required = false, .description = "The file the log goes to, an absolute path; empty is the terminal."}};
 constexpr std::array<Group, 1> THREADS_GROUPS = {Group{GroupRule::at_most_one, THREADS_ONE}};
 constexpr std::array VIEW_ARGUMENTS = {Argument{VIEW_KEY, Type::window, false}};
 constexpr std::array PICK_ARGUMENTS = {Argument{"x", Type::real, true}, Argument{"y", Type::real, true}, Argument{VIEW_KEY, Type::window, false}};
