@@ -70,6 +70,7 @@ command starting or ending never resizes the bar or shifts the plot
 above it.
 
 One menu of the bar is open at a time. Opening another closes the first; while one is open, pointing at another title opens that one. Left and Right move between the titles (opening the next menu when one is open), Up and Down move through the open menu's entries, and Escape closes the menu and returns the focus to its title.
+
 What XPP prints appears under **Messages** at the bottom of the page
 ("The log", below); a problem it reports (an
 illegal formula, a value out of bounds, a file it cannot read) shows as a
