@@ -9,6 +9,7 @@ import {ColorField} from './ColorField';
 import {useDark} from './theme';
 import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
 import {SETS_OF_FORM, SetsRow} from './SetsRow';
+import {Modal} from './Modal';
 
 export function CommandForm() {
   const form = useStore(s => s.commandForm);
@@ -59,7 +60,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
     if (kind === 'path' && !arg.required) return <button type="button" onClick={() => {close(); session.send({cmd: id});}}>Choose file…</button>;
     return <Field spec={argumentSpec(arg)} value={text} onInput={text => change(argumentValue(arg, text))} />;
   };
-  return <div class="dialog-backdrop"><div class="dialog registry-form" ref={box} role="dialog" aria-modal="true" aria-label={row.label} data-command-form={id}
+  return <Modal><div class="dialog registry-form" ref={box} role="dialog" aria-modal="true" aria-label={row.label} data-command-form={id}
     onKeyDown={e => {cycleDialogFocus(e, box.current);if (e.key === 'Escape') {e.stopPropagation(); close();}}}>
     <h2>{row.label}</h2><p>{row.description}</p>
     {SETS_OF_FORM[id] && <SetsRow scope={SETS_OF_FORM[id]} />}
@@ -74,5 +75,5 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
       {groupProblems(row, values).map(problem => <p class="field-error">{problem}</p>)}
       <div class="dialog-actions"><button type="button" onClick={close}>Cancel</button><button type="submit" disabled={problems.some(Boolean)}>Run</button></div>
     </form>
-  </div></div>;
+  </div></Modal>;
 }

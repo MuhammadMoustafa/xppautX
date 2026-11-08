@@ -83,7 +83,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  z-index: 200;
+  z-index: var(--z-toast);
   width: min(24rem, calc(100vw - 2 * var(--space-4)));
 }
 .toast {
@@ -111,16 +111,25 @@
 
 /* ---- dialogs ---- */
 .dialog-backdrop {
+  /* a <dialog> opened by showModal() (ui/Modal.tsx): in the browser's top layer, over every panel and the
+     menu bar; the user agent's dialog styles are undone here */
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  overflow: visible;
+  color: var(--fg);
   display: grid;
   place-items: center;
   padding: var(--space-4);
   background: rgba(15, 23, 42, 0.3);
-  /* above every panel (autoX 155, table, text, array plot, animation 160) a
-     dialog can be opened from; only the toasts (200) are higher */
-  z-index: 180;
 }
+.dialog-backdrop.clear { background: transparent; }
+.dialog-backdrop::backdrop { background: transparent; }
 .dialog {
   width: min(34rem, 100%);
   max-height: 100%;

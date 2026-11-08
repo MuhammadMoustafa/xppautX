@@ -4,6 +4,7 @@ import {placeWords, type ErrorPlace} from '../protocol/errors';
 import {ErrorSource} from './ErrorSource';
 import {useSession} from './context';
 import {useDialogFocus} from './dialogFocus';
+import {Modal} from './Modal';
 
 export function UpdateDialog() {
   const session = useSession();
@@ -43,7 +44,7 @@ export function UpdateDialog() {
   }, [session]);
   if (!result) return null;
   const close = () => { cancel(); setResult(null); setPlace(undefined); };
-  return <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) close(); }}>
+  return <Modal onBackdrop={close}>
     <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="update-title" data-update-dialog
       onKeyDown={e => {
         if (e.key === 'Escape') { e.stopPropagation(); close(); }
@@ -64,5 +65,5 @@ export function UpdateDialog() {
         <button onClick={close}>Close</button>
       </div>
     </div>
-  </div>;
+  </Modal>;
 }

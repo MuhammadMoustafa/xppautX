@@ -7,7 +7,7 @@
 .autox-panel {
   position: fixed;
   inset: var(--menu-bottom, 0px) 0 0;
-  z-index: 155;
+  z-index: var(--z-autox);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -83,7 +83,7 @@
 .autox-label { color: var(--accent); }
 /* in the workspace's flow above the plot, and stuck to its top when the workspace
    scrolls (a focus scroll on a phone must not hide the way back into autoX) */
-.autox-show { flex: none; align-self: flex-start; position: sticky; top: 0; z-index: 5; font-weight: 600; }
+.autox-show { flex: none; align-self: flex-start; position: sticky; top: 0; z-index: var(--z-show-autox); font-weight: 600; }
 @container (max-width: 34rem) {
   .autox-view .plot-tools { width: 100%; }
   .autox-view .plot-tools button { flex: 1; }
@@ -100,7 +100,7 @@
   height: 1.25rem;
   margin: -0.625rem 0 0 -0.625rem;
   pointer-events: none;
-  z-index: 5;
+  z-index: var(--z-plot-overlay);
   background:
     linear-gradient(var(--fg), var(--fg)) center / 2px 100% no-repeat,
     linear-gradient(var(--fg), var(--fg)) center / 100% 2px no-repeat;
@@ -170,7 +170,7 @@
 }
 .autox-axis-name {
   position: absolute;
-  z-index: 6;
+  z-index: var(--z-plot-control);
   background: transparent;
   color: transparent;
   border: 1px dashed transparent;
@@ -188,7 +188,7 @@
 }
 .autox-axis-dialog {
   position: absolute;
-  z-index: 20;
+  z-index: var(--z-dropdown);
   right: var(--space-3);
   top: 6rem;
   width: min(22rem, calc(100% - 2 * var(--space-3)));

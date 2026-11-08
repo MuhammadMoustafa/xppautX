@@ -15,6 +15,7 @@ import {FILE} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
 import {useDialogFocus} from './dialogFocus';
 import {Field} from './Field';
+import {Modal} from './Modal';
 
 /* Enter in a field submits its form (A3), as in AskDialog's forms */
 function enterSubmits(e: KeyboardEvent) {
@@ -65,13 +66,13 @@ export function ReplaceDialog() {
   useDialogFocus(box, [shown]);
   if (!shown) return null;
   return (
-    <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) session.resolveReplace('cancel'); }}>
+    <Modal onBackdrop={() => session.resolveReplace('cancel')}>
       <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="replace-title" data-replace-dialog="">
         <div class="dialog-title-row"><h2 id="replace-title">Copy into the model's folder</h2>
           <button class="dialog-close" aria-label="Close replacement prompt" onClick={() => session.resolveReplace('cancel')}>×</button></div>
         <ReplaceConfirm />
       </div>
-    </div>
+    </Modal>
   );
 }
 

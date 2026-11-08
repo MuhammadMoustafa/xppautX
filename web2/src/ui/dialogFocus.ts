@@ -1,7 +1,7 @@
 /* A dialog's focus (W20): in on its first field when it opens, back to where
    it was when it closes. One place for what AskDialog, AutoxSettings and
    SliderDialog each did their own way. */
-import {useLayoutEffect, type Inputs} from 'preact/hooks';
+import {useLayoutEffect, useRef, type Inputs} from 'preact/hooks';
 
 /** what the keyboard can reach in a panel or dialog */
 export const FOCUSABLE = 'button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -19,8 +19,13 @@ export function firstFocus(el: HTMLElement): HTMLElement | null {
     taking the focus back from it lost the keys typed into it (macOS's CI runner). A layout effect:
    the focus is in before the page is painted, not after it, when keys typed meanwhile went elsewhere */
 export function useDialogFocus(box: {current: HTMLElement | null}, deps: Inputs): void {
+  /* where the focus was before the dialog: read while rendering, since Modal's showModal() moves it into the
+     dialog before any effect runs (the first run only: a later run is another ask in the same dialog) */
+  const opener = useRef<HTMLElement | null | undefined>(undefined);
+  if (opener.current === undefined) opener.current = document.activeElement as HTMLElement | null;
   useLayoutEffect(() => {
-    const before = document.activeElement as HTMLElement | null;
+    const before = opener.current !== undefined ? opener.current : document.activeElement as HTMLElement | null;
+    opener.current = undefined;
     const el = box.current;
     const first = el ? firstFocus(el) : null;
     first?.focus();
@@ -33,13 +38,18 @@ export function useDialogFocus(box: {current: HTMLElement | null}, deps: Inputs)
     });
     return () => {
       cancelAnimationFrame(again);
-      const now = document.activeElement;
-      if (!now || now === document.body || (el && el.contains(now))) {
+      /* once the dialog has left the page (the same task, right after this commit): while a modal <dialog> is
+         open the page behind it is inert, and a focus() there does nothing. Whatever took the focus meanwhile,
+         a dialog that replaces this one, keeps it. */
+      queueMicrotask(() => {
+        if (el?.isConnected) return; /* only re-run (another ask in the same dialog): its new first field has the focus */
+        const now = document.activeElement;
+        if (now && now !== document.body) return;
         const target = before?.isConnected && before.getClientRects().length ? before
           : before?.closest<HTMLElement>('[data-top-menu]')?.querySelector<HTMLElement>('summary')
             ?? document.querySelector<HTMLElement>('.menu-toggle, .plot-host');
         target?.focus();
-      }
+      });
     };
   }, deps);
 }

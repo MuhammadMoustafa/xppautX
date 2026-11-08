@@ -64,6 +64,27 @@
   --lit-fg: #3d2f00;
   --shadow: 0 0.5rem 1.75rem rgba(15, 23, 42, 0.18);
   color-scheme: light;
+
+  /* layers, lowest first: every z-index is one of these (csscheck). A modal dialog and a popup menu are
+     not here: they are in the browser's top layer (ui/Modal.tsx), over every z-index. */
+  --z-raised: 1; /* a sticky row head over its rows */
+  --z-plot-tip: 3; /* a tooltip or the player's key caps over the picture they annotate */
+  --z-plot-empty: 4; /* the empty plot's message over the canvas */
+  --z-plot-overlay: 5; /* the hover dot, the pick overlay and autoX's cursor, over the canvas */
+  --z-plot-control: 6; /* the corner Fit and autoX's axis names, over the overlay */
+  --z-dropdown: 20; /* a splitter or a drop-down inside a view, over what it sits among */
+  --z-toolbar: 22; /* the run toolbar, its drop-downs with it, over the plot's overlays and the splitter */
+  --z-show-autox: 23; /* the Show autoX row, stuck at the top with the toolbar, over it */
+  --z-annotations: 25; /* the annotations panel, over the toolbar */
+  --z-inline-menu: 40; /* a Sets drop-down, over the view it opens in */
+  --z-values-sheet: 150; /* the Values sheet on a phone, under the other sheets */
+  --z-autox: 155; /* the autoX view, over the Values sheet */
+  --z-panel: 160; /* the data table, array plot, text, animation and Help: over the page, the menu bar too */
+  --z-menu: 165; /* a <details> drop-down (the menu bar's, Tools), over the panels */
+  --z-player-dock: 170; /* the player's bar over the views it plays in */
+  --z-modal: 180; /* the recording's replayed ask, over the panels and the player's bar */
+  --z-toast: 200; /* a notification, over the page (a modal dialog's backdrop is over it) */
+  --z-skip: 300; /* the skip link when it has the focus, over everything */
 }
 
 :root[data-theme='dark'] {

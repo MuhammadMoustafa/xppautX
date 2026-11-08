@@ -151,7 +151,7 @@
   .values-panel {
     position: fixed;
     inset: 0;
-    z-index: 150;
+    z-index: var(--z-values-sheet);
     transform: translateX(100%);
     visibility: hidden;
     transition: transform 0.2s ease, visibility 0s 0.2s;

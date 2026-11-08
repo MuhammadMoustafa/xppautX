@@ -25,7 +25,7 @@
 .player-caption.empty { color: var(--fg-muted); font-size: var(--text-md); font-weight: 500; }
 .player-stage { position: relative; flex: 1 0 auto; display: flex; flex-direction: column; min-width: 0; }
 .player-keys {
-  position: absolute; left: 50%; top: 2.75rem; transform: translateX(-50%); z-index: 3;
+  position: absolute; left: 50%; top: 2.75rem; transform: translateX(-50%); z-index: var(--z-plot-tip);
   display: flex; align-items: center; gap: var(--space-2); max-width: 90%; flex-wrap: wrap;
   padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--warn);
   border-radius: var(--radius); box-shadow: var(--shadow);
@@ -43,7 +43,7 @@
 /* the player over a full view (Player.tsx Dock): above the views (z 155-160),
    which leave its height free through --player-dock-h */
 .player-dock {
-  position: fixed; left: 0; right: 0; top: 0; z-index: 170; max-height: 50vh; overflow: auto;
+  position: fixed; left: 0; right: 0; top: 0; z-index: var(--z-player-dock); max-height: 50vh; overflow: auto;
   display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3);
   background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: var(--shadow);
 }
@@ -52,7 +52,7 @@
 .player-dock-steps .player-steps { max-height: 30vh; }
 html.player-docked .autox-panel, html.player-docked .table-panel, html.player-docked .text-panel,
 html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--player-dock-h, 0); }
-.played-ask { position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%); z-index: 40; width: min(24rem, 92vw); border-color: var(--warn); }
+.played-ask { position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%); z-index: var(--z-modal); width: min(24rem, 92vw); border-color: var(--warn); }
 .played-ask .menu-item { display: flex; gap: var(--space-3); padding: var(--space-1) var(--space-2); border-radius: 0.375rem; }
 .played-value { min-height: var(--target); border: 1px solid var(--field-border); border-radius: 0.375rem; padding: 0.35rem var(--space-2); font: var(--text-sm) var(--mono); overflow-wrap: anywhere; }
 .played-value.typing { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn); }

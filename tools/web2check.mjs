@@ -3925,6 +3925,9 @@ async function valuesLive() {
   check('W131: a set with one bad value applies none of the three',
     close6(await parOf('iapp'), iapp5) && close6(await parOf('gca'), gca5) && close6(await parOf('phi'), 0.333),
     JSON.stringify([await parOf('iapp'), await parOf('gca'), await parOf('phi')]));
+  /* the refusal's error dialog is modal (W632: the page behind it is inert): dismissed first, as a user must */
+  await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
+  await until(`!document.querySelector('dialog.dialog-backdrop:modal')`, 'the error dialog closed');
   /* the page's own edit path: the error lands on its field */
   await editField('par', 'gca', '%bogus_symbol_zzz');
   const refusedGca = await until(`s.values.errors['par:gca']`, 'the core refuses a formula for gca', 60000);
@@ -5377,10 +5380,60 @@ function layoutProblems(L) {
   return bad;
 }
 
+/* W632: a modal dialog and a popup menu are in the browser's top layer (a <dialog> opened by showModal()),
+   above every panel and the menu bar: while one is open, the element at the menu bar's centre and at the open view's centre is the dialog's
+   backdrop (it dims and takes the clicks of the whole page), and a popup's item is the element at its own
+   centre even over the plot's buttons. By elementFromPoint, never by pixels or z-index numbers. */
+const overlayAt = selector => cdp.eval(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
+  const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return !!e && !!e.closest('dialog.dialog-backdrop:modal'); })()`);
+async function dialogOverEverything(opener, view, what) {
+  await cdp.eval(opener);
+  await until(`!!document.querySelector('[data-trace-dialog] [data-trace-name]')`, `${what}: trace dialog open`);
+  check(`W632: a dialog opened from ${what} is a modal <dialog> (in the top layer, the rest of the page inert)`,
+    await cdp.eval(`!!document.querySelector('dialog.dialog-backdrop:modal [data-trace-dialog]')`));
+  check(`W632: ... its backdrop is the element at the menu bar's centre (the bar is dimmed and takes no click)`, await overlayAt('.app-menu'));
+  check(`W632: ... and at the centre of ${view}`, await overlayAt(view));
+  check(`W632: ... and the focus is in the dialog`, await cdp.eval(`!!document.activeElement.closest('[data-trace-dialog]')`));
+  await cdp.eval(`document.querySelector('[data-trace-dialog] .dialog-close').click()`);
+  await until(`!document.querySelector('[data-trace-dialog]')`, `${what}: trace dialog closed`);
+}
+async function quickMenuOnTop() {
+  await clickRegistry('tool.keyboard_shortcuts');
+  await until('s.keymap.editor.open', 'editor');
+  await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
+  await until(`s.keymap.info.pinned.includes('run.initial')`, 'pinned');
+  await key('Escape');
+  await until('!s.keymap.editor.open && !!document.querySelector(\'[data-pinned="run.initial"]\')', 'editor closed');
+  /* the pinned command's context menu */
+  await cdp.eval(`document.querySelector('[data-pinned="run.initial"]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 40, clientY: 40}))`);
+  await until(`!!document.querySelector('.quick-menu')`, 'quick menu');
+  check('W632: a pinned command\'s menu is a modal <dialog> (in the top layer)',
+    await cdp.eval(`!!document.querySelector('dialog.dialog-backdrop:modal > .quick-menu')`));
+  check('W632: ... its first item, moved to the centre of the plot\'s Fit button, is the element at its own centre',
+    await cdp.eval(`(() => { const m = document.querySelector('.quick-menu'), b = m.querySelector('button'), f = document.querySelector('.plot-view:not([hidden]) .plot-fit').getBoundingClientRect();
+      let r = b.getBoundingClientRect();
+      m.style.left = (m.getBoundingClientRect().left + (f.left + f.width / 2) - (r.left + r.width / 2)) + 'px';
+      m.style.top = (m.getBoundingClientRect().top + (f.top + f.height / 2) - (r.top + r.height / 2)) + 'px';
+      r = b.getBoundingClientRect();
+      return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === b; })()`));
+  await key('Escape');
+  await until(`!document.querySelector('.quick-menu')`, 'quick menu closed');
+  await clickRegistry('tool.keyboard_shortcuts');
+  await until('s.keymap.editor.open', 'editor');
+  await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
+  await until(`!s.keymap.info.pinned.includes('run.initial')`, 'unpinned');
+  await key('Escape');
+  await until('!s.keymap.editor.open', 'editor closed');
+}
+
 async function layoutCheck(dir) {
   await desktopMetrics();
   check('layout: the page connects', await until('s.hello && !s.busy', 'hello'));
   check('layout: a run stores rows for the plot', await integrate(601, 30000) || await until('s.seriesCount > 0 && !s.busy', 'rows'));
+  await dialogOverEverything(`document.querySelector('.plot-view:not([hidden]) .legend-item').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))`,
+    '.plot-view:not([hidden]) .plot-host', 'the plot view');
+  await quickMenuOnTop();
   await panelsCheck();
 
   for (const h of [900, 560]) {
@@ -5420,6 +5473,8 @@ async function layoutCheck(dir) {
   await autoxRun('equilibrium');
   check('layout: an autoX run stores a diagram', await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000));
   const nPts = await DS('d.points.x.length');
+  await dialogOverEverything(`document.querySelector('.autox-panel [data-auto-trace]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))`,
+    '.autox-panel .u-over', 'the autoX view');
   await cdp.eval(`document.querySelector('.autox-back').click()`);
   check('layout: Back hides the view, Show autoX appears', await until('!s.diagram.shown && s.diagram.open', 'auto back')
     && await cdp.eval(`!!document.querySelector('.autox-show')`));

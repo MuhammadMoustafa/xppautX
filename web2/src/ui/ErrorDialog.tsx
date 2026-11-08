@@ -16,6 +16,7 @@ import {askIsModal} from './AskDialog';
 import {AddFile} from './Toasts';
 import {ErrorSource} from './ErrorSource';
 import {placeWords} from '../protocol/errors';
+import {Modal} from './Modal';
 
 export function ErrorDialog() {
   const session = useSession();
@@ -28,7 +29,7 @@ export function ErrorDialog() {
   if (!shown) return null;
   const close = () => session.store.dispatch({type: 'dismissErrors'});
   return (
-    <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) close(); }}>
+    <Modal onBackdrop={close}>
       <div class="dialog error-dialog" ref={box} role="alertdialog" aria-modal="true" aria-labelledby="error-title"
         data-error-dialog={errors.length}
         onKeyDown={e => {
@@ -64,6 +65,6 @@ export function ErrorDialog() {
           <button data-autofocus data-error-ok onClick={close}>OK</button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

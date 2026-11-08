@@ -7,6 +7,9 @@ unifications and no duplications"). Fails, in web2/src/**/*.css:
   - a width breakpoint off docs/ui-v2.md's list (R3: 48rem and 80rem, written
     min-width: 48rem / 80rem, and max-width: 47.99rem / 79.99rem on the other
     side; @container queries are a component's own, R4, and are not checked);
+  - a z-index that is not a named layer, `var(--z-...)` (tokens.css owns the
+    numbers, each with its reason; a modal dialog and a popup menu are in the
+    browser's top layer, ui/Modal.tsx, over every z-index);
 Comments are stripped first; @keyframes and @font-face bodies are not rules.
 Usage: tools/csscheck.py [--check] [FILE-OR-DIR...]   (exit 1 on a finding)"""
 import re, sys, glob, os
@@ -64,6 +67,10 @@ def check(paths):
             blocks.setdefault((media, key), []).append((where, sels))
         for s in sels:
             selectors.setdefault((media, s), []).append(where)
+        for d in decls:
+            m = re.match(r"z-index\s*:\s*(.*)$", d)
+            if m and not re.fullmatch(r"var\(--z-[a-z0-9-]+\)", m.group(1)):
+                bad.append(f"{where}: z-index {m.group(1)} is not a named layer (var(--z-...), tokens.css)")
         for m in re.finditer(r"\((min|max)-width:\s*([^)\s]+)\s*\)", media if media.startswith("@media") or "@media" in media else ""):
             if m.group(2) not in BREAKPOINTS[m.group(1) + "-width"]:
                 bad.append(f"{where}: breakpoint {m.group(1)}-width: {m.group(2)} is not on docs/ui-v2.md's list "

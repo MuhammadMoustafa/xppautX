@@ -17,6 +17,7 @@ import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
+import {Modal} from './Modal';
 
 const STEP: FieldSpec = {kind: 'number', positive: true};
 
@@ -99,7 +100,7 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
 
   const title = editing ? `Edit slider ${target.name}` : 'Add slider';
   return (
-    <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <Modal onBackdrop={onClose}>
       <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="slider-dialog-title" onKeyDown={onKeyDown}>
         <div class="dialog-title-row">
           <h2 id="slider-dialog-title">{title}</h2>
@@ -145,6 +146,6 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
           <button type="button" class="primary" disabled={!valid} onClick={submit}>OK</button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

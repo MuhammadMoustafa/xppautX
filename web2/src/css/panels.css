@@ -6,7 +6,7 @@
 .panel-sheet {
   position: fixed;
   inset: 0;
-  z-index: 160;
+  z-index: var(--z-panel);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -42,7 +42,7 @@
 .table-row-head {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: var(--z-raised);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   font-weight: 650;
@@ -196,7 +196,7 @@
 .help-keys { margin-bottom: var(--space-3); }
 .help-keys th { text-align: left; font-weight: normal; padding-right: var(--space-3); white-space: nowrap; }
 
-.annotations-panel{ position: fixed; right: 0; top: 6rem; max-height: 75vh; overflow: auto; max-width: 35rem; z-index: 25; padding: 1rem; background: var(--surface); border: 1px solid var(--border); }
+.annotations-panel{ position: fixed; right: 0; top: 6rem; max-height: 75vh; overflow: auto; max-width: 35rem; z-index: var(--z-annotations); padding: 1rem; background: var(--surface); border: 1px solid var(--border); }
 
 .annotations-panel [aria-selected=true]{ outline: 2px solid var(--accent); }
 

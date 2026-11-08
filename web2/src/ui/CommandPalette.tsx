@@ -3,6 +3,7 @@ import {useMay, useSession, useStore} from './context';
 import {paletteRows, registryRows} from './navigation';
 import {effectiveKeys, togglePinned, withPinned} from '../store/keymap';
 import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
+import {Modal} from './Modal';
 
 export function CommandPalette() {
   const open = useStore(s => s.drawerOpen);
@@ -16,7 +17,7 @@ function Palette() {
   useDialogFocus(box, []);
   const close = () => session.store.dispatch({type: 'drawer', open: false});
   const rows = paletteRows(registryRows(hello), query);
-  return <div class="dialog-backdrop"><div id="command-palette" class="dialog command-palette" role="dialog" aria-modal="true" aria-label="Command palette" ref={box}
+  return <Modal><div id="command-palette" class="dialog command-palette" role="dialog" aria-modal="true" aria-label="Command palette" ref={box}
     onKeyDown={e => {cycleDialogFocus(e, box.current);
       if (e.key === 'Escape') {e.stopPropagation(); close();}
       if (['ArrowDown','ArrowUp','Home','End'].includes(e.key)) {
@@ -33,5 +34,5 @@ function Palette() {
         onClick={() => {close(); session.registryAction(row.id);}}>{row.menu_path || row.id} <kbd>{effectiveKeys(info, row).join(' / ')}</kbd></button>
       {info && <button data-pin={row.id} aria-pressed={info.pinned.includes(row.id)} onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.id)))}>{info.pinned.includes(row.id) ? 'Unpin' : 'Pin'}</button>}
     </li>)}</ul><button onClick={close}>Close</button>
-  </div></div>;
+  </div></Modal>;
 }

@@ -438,8 +438,9 @@ shims and vendored CVODE/autoX names are entries. Use the real name.
 2026-11-07: "the rule is unifications and no duplications"): it fails, in
 `web2/src/css/`, a declaration block (two or more declarations) that two rules
 of one media condition both write, a selector that two rules of one media
-condition both start, and a width breakpoint off docs/ui-v2.md's list (48rem
-and 80rem, `max-width` as 47.99rem and 79.99rem). There is no allowlist: merge
+condition both start, a width breakpoint off docs/ui-v2.md's list (48rem
+and 80rem, `max-width` as 47.99rem and 79.99rem) and a `z-index` that is not a
+`var(--z-...)` layer of tokens.css. There is no allowlist: merge
 into one rule with a selector list, in the owner's file (tokens, layout,
 controls, values, panels, plot, player, dialogs, autox).
 

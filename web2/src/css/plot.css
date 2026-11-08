@@ -1,4 +1,4 @@
-.run-toolbar { position: sticky; top: 0; z-index: 5; flex: none; container-type: inline-size; padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.run-toolbar { position: sticky; top: 0; z-index: var(--z-toolbar); flex: none; container-type: inline-size; padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 /* Fit two actions even in the narrow desktop plot column; wrap labels rather
    than stacking four rows above the trajectory. */
 .run-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
@@ -17,9 +17,9 @@
 .quick-button.quick-over { position: absolute; visibility: hidden; pointer-events: none; }
 .quick-more { position: relative; flex: none; }
 .quick-more > summary { min-height: var(--target); padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; font-size: var(--text-sm); }
-.quick-more-list { position: absolute; z-index: 20; right: 0; top: 100%; margin: 0; padding: var(--space-2); list-style: none; display: grid; gap: var(--space-1); min-width: 12rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.quick-more-list { position: absolute; z-index: var(--z-dropdown); right: 0; top: 100%; margin: 0; padding: var(--space-2); list-style: none; display: grid; gap: var(--space-1); min-width: 12rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .quick-more:not([open]) .quick-more-list { display: none; }
-.quick-menu { position: fixed; z-index: 190; display: grid; min-width: 10rem; padding: var(--space-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.quick-menu { position: fixed; display: grid; min-width: 10rem; padding: var(--space-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .quick-menu button { text-align: left; border: none; background: none; }
 .quick-menu button[aria-disabled="true"] { opacity: 0.5; }
 .run-time-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-xs); }
@@ -101,13 +101,13 @@
    there after a scroll or a zoom gone astray, with no trip to the toolbar
    above; top right is clear of uPlot's own axes (left and bottom) and the
    legend (in the header, not the host). Above the pick overlay's crosshair
-   (z-index 5, which ignores pointer events) and the hover dot, translucent
+   (--z-plot-overlay, which ignores pointer events) and the hover dot, translucent
    so it reads as "on the glass" rather than part of the chart. */
 .plot-fit {
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
-  z-index: 6;
+  z-index: var(--z-plot-control);
   padding: 0 var(--space-2);
   font-size: var(--text-xs);
   gap: var(--space-1);
@@ -123,7 +123,7 @@
   justify-items: center;
   gap: var(--space-2);
   color: var(--fg-muted);
-  z-index: 4;
+  z-index: var(--z-plot-empty);
 }
 .plot-empty p { margin: 0; }
 .hover-dot {
@@ -135,7 +135,7 @@
   border: 2px solid var(--accent);
   background: var(--surface);
   pointer-events: none;
-  z-index: 5;
+  z-index: var(--z-plot-overlay);
 }
 .readout {
   padding: var(--space-1) var(--space-2);
@@ -162,7 +162,7 @@
 .pick-bar span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .plot-host.picking .u-over { cursor: crosshair; }
 .plot-host.pick-drag .u-over { cursor: move; }
-.pick-overlay { position: absolute; pointer-events: none; z-index: 5; overflow: visible; }
+.pick-overlay { position: absolute; pointer-events: none; z-index: var(--z-plot-overlay); overflow: visible; }
 .pick-overlay line { stroke: var(--fg-muted); stroke-width: 1; stroke-dasharray: 4 3; }
 .pick-overlay .pick-shape { stroke: var(--accent); stroke-width: 2; stroke-dasharray: none; fill: color-mix(in srgb, var(--accent) 15%, transparent); }
 .pick-overlay .pick-corner { fill: var(--accent); }
@@ -172,7 +172,7 @@
   .plot-tools button { flex: 1; }
 }
 
-.trace-tooltip { position: absolute; top: 10px; left: 80px; z-index: 3; pointer-events: none; padding: .3rem .6rem; border: 1px solid var(--border); border-radius: .4rem; background: var(--surface); color: var(--fg); }
+.trace-tooltip { position: absolute; top: 10px; left: 80px; z-index: var(--z-plot-tip); pointer-events: none; padding: .3rem .6rem; border: 1px solid var(--border); border-radius: .4rem; background: var(--surface); color: var(--fg); }
 .legend-item.highlighted { outline: 2px solid var(--accent); }
 
 .plot-tools label { display: inline-flex; align-items: center; gap: .3rem; }

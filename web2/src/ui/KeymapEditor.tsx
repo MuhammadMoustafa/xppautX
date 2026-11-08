@@ -13,6 +13,7 @@ import {
 import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
 import {useSession, useStore} from './context';
 import {keyName} from './hotkeys';
+import {Modal} from './Modal';
 
 export function KeymapEditor() {
   const open = useStore(s => s.keymap.editor.open);
@@ -84,7 +85,7 @@ function Editor() {
   const otherRow = conflict ? rowOf(conflict.other) : undefined;
   const recordingRow = editor.recording ? rowOf(editor.recording.id) : undefined;
   const shown = editorRows(info, rows, editor.query);
-  return <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) close(); }}>
+  return <Modal onBackdrop={close}>
     <div class="dialog keymap-dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="keymap-title" data-keymap-editor
       onKeyDownCapture={onKeyDown}>
       <div class="dialog-title-row"><h2 id="keymap-title">Keyboard shortcuts</h2>
@@ -151,5 +152,5 @@ function Editor() {
         {!shown.length && <p role="status">No command matches.</p>}
       </div>
     </div>
-  </div>;
+  </Modal>;
 }

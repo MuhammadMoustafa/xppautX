@@ -24,6 +24,7 @@ import {TextForm} from './TextForm';
 import {useSession, useStore} from './context';
 import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
 import {useDark} from './theme';
+import {Modal} from './Modal';
 
 
 function ChoiceAsk({ask}: {ask: AskEvent}) {
@@ -244,7 +245,7 @@ function PendingAsk({ask}: {ask: AskEvent}) {
 
 /* focus in on open (the first field, else the first control), trapped while
    open, back to where it was on close; Escape cancels */
-function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
+function AskModal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
   const session = useSession();
   const table = useStore(s => s.table);
   const box = useRef<HTMLDivElement>(null);
@@ -260,9 +261,7 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
   };
   const title = ask.title || ask.name || 'XPP';
   return (
-    <div class="dialog-backdrop" onPointerDown={e => {
-      if (e.target === e.currentTarget) { e.preventDefault(); session.cancel(ask); }
-    }}>
+    <Modal onBackdrop={e => { e.preventDefault(); session.cancel(ask); }}>
       <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="ask-title" data-ask={ask.kind}
         onKeyDown={onKeyDown}>
         <div class="dialog-title-row">
@@ -272,7 +271,7 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
         </div>
         {children}
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -372,5 +371,5 @@ export function AskDialog() {
         : ask.kind === 'file' ? <FileAsk ask={ask} />
           : ask.kind === 'text' ? <TextAsk ask={ask} />
             : <PendingAsk ask={ask} />;
-  return <Modal key={ask.id} ask={ask}>{body}</Modal>;
+  return <AskModal key={ask.id} ask={ask}>{body}</AskModal>;
 }

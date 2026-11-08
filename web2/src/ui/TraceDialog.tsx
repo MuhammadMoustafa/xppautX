@@ -4,6 +4,7 @@ import {ColorField} from './ColorField';
 import {useStore} from './context';
 import {useDialogFocus} from './dialogFocus';
 import {useDark} from './theme';
+import {Modal} from './Modal';
 
 /** what the picker shows for a colour it cannot be given (never written back: Apply keeps the trace's own) */
 const PICKER_BLACK = '#000000';
@@ -20,7 +21,7 @@ export function TraceDialog({label, color, close, apply}: {
   const [name, setName] = useState(label), [picked, setPicked] = useState<string | null>(null);
   const shown = picked ?? (CORE_COLOR.test(color) ? color : cssToHex(color, browserColor) ?? PICKER_BLACK);
   useDialogFocus(box, []);
-  return <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) close(); }}>
+  return <Modal onBackdrop={close}>
     <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="trace-title" data-trace-dialog
       onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } }}>
       <div class="dialog-title-row"><h2 id="trace-title">Edit trace legend</h2>
@@ -33,5 +34,5 @@ export function TraceDialog({label, color, close, apply}: {
         <div class="dialog-actions"><button class="primary" type="submit">Apply</button></div>
       </form>
     </div>
-  </div>;
+  </Modal>;
 }

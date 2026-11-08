@@ -3,6 +3,7 @@ import {choiceLabel} from '../store/fieldKinds';
 import type {ValuesFileOffer, ValuesPart} from '../store/state';
 import {useSession, useStore} from './context';
 import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
+import {Modal} from './Modal';
 
 /** what a part of a file of values is called: the file's defaults, one of its sets, or the whole XPPAUT file */
 function partLabel(part: ValuesPart, format: string): string {
@@ -24,7 +25,7 @@ function Offer({offer}: {offer: ValuesFileOffer}) {
   const close = () => session.store.dispatch({type: 'valuesFile', offer: null});
   const what = choiceLabel(offer.scope);
   return (
-    <div class="dialog-backdrop"><div class="dialog registry-form" ref={box} role="dialog" aria-modal="true" aria-label={`Load ${what} from a file`}
+    <Modal><div class="dialog registry-form" ref={box} role="dialog" aria-modal="true" aria-label={`Load ${what} from a file`}
       data-values-file-dialog={offer.scope}
       onKeyDown={e => {cycleDialogFocus(e, box.current); if (e.key === 'Escape') {e.stopPropagation(); close();}}}>
       <h2>Load {what.toLowerCase()} from {offer.file}</h2>
@@ -37,6 +38,6 @@ function Offer({offer}: {offer: ValuesFileOffer}) {
             {part.problem && <span class="field-error">{part.problem}</span>}
           </li>))}</ul>}
       <div class="dialog-actions"><button type="button" onClick={close}>Cancel</button></div>
-    </div></div>
+    </div></Modal>
   );
 }

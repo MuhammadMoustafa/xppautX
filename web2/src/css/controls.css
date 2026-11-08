@@ -44,7 +44,7 @@ kbd {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
-.skip-link { position: absolute; left: var(--space-2); top: -3rem; z-index: 300; }
+.skip-link { position: absolute; left: var(--space-2); top: -3rem; z-index: var(--z-skip); }
 .skip-link:focus { top: var(--space-2); background: var(--surface); padding: var(--space-2); }
 
 .menu-list { list-style: none; margin: 0; padding: 0; }
@@ -114,12 +114,12 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .sets-row, .keymap-keys, .run-time-controls label, .kinescope-bar { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
 .sets-menu { position: relative; }
 .sets-menu > summary { cursor: pointer; list-style: none; padding: .15rem .5rem; border: 1px solid var(--border); border-radius: var(--radius, .25rem); background: var(--surface); }
-.sets-menu > ul { position: absolute; z-index: 40; min-width: 12rem; max-width: min(24rem, 90vw); max-height: 60vh; overflow: auto; margin: 0; padding: .25rem; list-style: none;
+.sets-menu > ul { position: absolute; z-index: var(--z-inline-menu); min-width: 12rem; max-width: min(24rem, 90vw); max-height: 60vh; overflow: auto; margin: 0; padding: .25rem; list-style: none;
   background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
 .sets-menu button { width: 100%; text-align: left; }
 .sets-menu .value-hint { margin: .25rem; }
 /* a graph's sets row folded into one drop-down (its toolbar has no room for the row) */
-.sets-fold > .sets-row { position: absolute; right: 0; z-index: 40; width: max-content; max-width: min(24rem, 90vw); padding: .25rem;
+.sets-fold > .sets-row { position: absolute; right: 0; z-index: var(--z-inline-menu); width: max-content; max-width: min(24rem, 90vw); padding: .25rem;
   background: var(--surface); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
 
 /* ---- shapes several owners share: one rule each (csscheck) ---- */

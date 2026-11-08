@@ -431,6 +431,14 @@ Rules:
 - **Tokens** on `:root` (`web2/src/css/tokens.css`): a type scale
   (0.75/0.875/1/1.125 rem), a spacing scale (0.25..1.5 rem), colours for
   light and `[data-theme=dark]`, the minimum target size.
+- **Layers**: every `z-index` is a named `--z-*` token of tokens.css, each
+  with its reason (csscheck fails any other). A modal dialog and a popup menu
+  (a pinned command's) are a `<dialog>` opened by `showModal()` (`ui/Modal.tsx`),
+  in the browser's top layer: over every panel and the menu bar whatever
+  stacking context they are written in, the backdrop dims and takes the clicks
+  of the whole page, and the rest of the page is inert while one is open. The menu bar's drop-downs are
+  `<details>`, native, and are above the panels by their `--z-menu` (the bar
+  itself is no stacking context).
 - **Light, dark or system**: the title bar's Theme button cycles
   autoX → Light → Dark; the choice is remembered in the browser; autoX follows
   `prefers-color-scheme`.

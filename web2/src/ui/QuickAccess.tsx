@@ -8,6 +8,7 @@ import {useLayoutEffect, useRef, useState} from 'preact/hooks';
 import type {CommandRow} from '../protocol/kinds';
 import {effectiveKeys, movePinned, pinnedRows, togglePinned, visibleCount, withPinned} from '../store/keymap';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {Modal} from './Modal';
 
 /** the gap between the buttons of the row (css/plot.css .quick-pinned) in px, which the fit counts with */
 const GAP_PX = 4;
@@ -93,7 +94,7 @@ function PinMenu({id, x, y, pinned, close, save}: {id: string; x: number; y: num
     {label: 'Unpin', run: () => choose(togglePinned(pinned, id))},
     {label: 'Move earlier', off: at <= 0, run: () => choose(movePinned(pinned, id, at - 1))},
     {label: 'Move later', off: at >= pinned.length - 1, run: () => choose(movePinned(pinned, id, at + 1))}];
-  return <div class="quick-menu" role="menu" aria-label="Pinned command" ref={box} style={{left: `${x}px`, top: `${y}px`}}
+  return <Modal clear><div class="quick-menu" role="menu" aria-label="Pinned command" ref={box} style={{left: `${x}px`, top: `${y}px`}}
     onKeyDown={e => {
       const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not([aria-disabled="true"])')];
       const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -105,5 +106,5 @@ function PinMenu({id, x, y, pinned, close, save}: {id: string; x: number; y: num
     }}>
     {items.map(item => <button type="button" role="menuitem" key={item.label} aria-disabled={!!item.off}
       onClick={() => { if (!item.off) item.run(); }}>{item.label}</button>)}
-  </div>;
+  </div></Modal>;
 }
