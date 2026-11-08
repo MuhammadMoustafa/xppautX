@@ -271,7 +271,7 @@ constexpr OptionRow rows[] = {
    /* store from the start */
    .reset = [](Session &s) { s.numerics.store_from = 0; },
    .key = "store_from", .label = "Store from", .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::choice, .name = "STORAGE_PRECISION", .odex = "storage_precision", .help = "What the data table keeps each value as: a single (float) as XPPAUT does, or the integrator's double.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::choice, .name = "STORAGE_PRECISION", .odex = "storage_precision", .help = "What the data table keeps each value as: a single-precision float as XPPAUT does, or the integrator's double.", .once = true,
    .index = choice_member([](auto &s) -> auto & { return s.numerics.storage_precision; }),
    /* single: XPPAUT's float, half the memory */
    .reset = [](Session &s) { s.numerics.storage_precision = StoragePrecision::single; },
