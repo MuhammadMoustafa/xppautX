@@ -305,7 +305,7 @@ panel. Nothing is silently changed back. The core's own asks say what
 each field wants (the protocol's `kinds`); a field they do not describe
 takes any text, as before.
 
-**Escape, in order.** Each press does one thing, the innermost first: it closes an open menu (the menu bar's, then the Tools menu's), then the command drawer; then it cancels a pick or a grab; then a question the program asks is answered as cancelled (a dialog keeps its own Escape: it closes the dialog, and only that); then it closes the topmost open panel, the last one opened (Data, Text, Help, Array plot, Values, Animation, autoX); and only when none of these is open does it stop a running command. So during a run the first Escape closes a panel and the next one stops the run. A field with an edit to drop keeps its Escape for the drop (above).
+**Escape, in order.** Each press does one thing, the innermost first: it closes an open menu (the menu bar's, then the Tools menu's), then the command drawer; then it cancels a pick or a grab; then a question the program asks is answered as cancelled (a dialog keeps its own Escape: it closes the dialog, and only that); then it closes the topmost open panel, the last one opened (Data, Text, Help, Array plot, Values, Animation, and autoX when nothing runs); and only when none of these is open does it stop a running command. So during a run the first Escape closes a panel and the next one stops the run; in the autoX view, where a continuation is watched, Escape stops it at once. A field with an edit to drop keeps its Escape for the drop (above).
 
 ## Long-running commands
 

@@ -571,8 +571,10 @@ function AutoxPanel({dark}: {dark: boolean}) {
 
   const panel = useRef<HTMLElement>(null);
 
-  /* Escape hides the panel, through hotkeys.ts's one owner (openPanel), as the other panels */
-  useEffect(() => openPanel(() => session.showAutox(false)), [session]);
+  /* Escape hides the panel through hotkeys.ts's one owner (openPanel), only while nothing runs: the
+     autoX view is where its run is watched, so there Escape stops the run (W536), never hides it */
+  const running = useStore(s => s.busy);
+  useEffect(() => running ? undefined : openPanel(() => session.showAutox(false)), [session, running]);
 
   return (
     <section id="autox-panel" ref={panel} class="autox-panel" aria-label="autoX">
