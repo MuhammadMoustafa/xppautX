@@ -2,6 +2,7 @@
    workspace tools and panels. Common run actions belong to RunToolbar. */
 import type {Theme} from '../store/state';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
 import {saveTheme} from './theme';
 import {baseName} from '../store/files';
 import {useEffect, useRef} from 'preact/hooks';
@@ -87,7 +88,7 @@ export function TitleBar() {
       <div class="workspace-tools-menu" onClick={e => { if ((e.target as Element).closest('button') && tools.current) closeTools(tools.current, false); }}>
       {!recording && (
         <button class="play-open" aria-disabled={!mayPlay} onClick={() => { if (mayPlay) session.playOpen(); }}
-          title={mayPlay ? 'Play a recording (.recx): its model, then its steps (File/plaY recording)' : BUSY_TITLE}>Play a recording…</button>
+          title={mayPlay ? 'Play a recording (.recx): its model, then its steps ' : BUSY_TITLE}><CommandLabel command="recording.open" /></button>
       )}
       <button class="aplot-toggle" aria-controls="aplot-panel" aria-expanded={aplotOpen}
         onClick={() => (aplotOpen ? session.closeAplot() : session.openAplot())}>Array plot</button>
@@ -95,7 +96,7 @@ export function TitleBar() {
         onClick={() => (aniOpen ? session.closeAni() : session.openAni())}>Animation</button>
       {!recording && (
         <button class="record-toggle" aria-disabled={!mayRecord} onClick={() => { if (mayRecord) session.startRecording(); }}
-          title={mayRecord ? 'Record the steps you take to a .recx file (File/recorD)' : BUSY_TITLE}>Record</button>
+          title={mayRecord ? 'Record the steps you take to a .recx file ' : BUSY_TITLE}><CommandLabel command="recording.start" /></button>
       )}
       </div></details>
       <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
@@ -104,9 +105,9 @@ export function TitleBar() {
       </button>
       <PanelToggle collapsed={panels.valuesCollapsed} />
       <button class="values-toggle" aria-controls="values-panel" aria-expanded={valuesOpen}
-        onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}>Values</button>
+        onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}><CommandLabel command="tool.values" /></button>
       <button class="table-toggle" aria-controls="table-panel" aria-expanded={tableOpen}
-        onClick={() => (tableOpen ? session.closeTable() : session.openTable())}>Data</button>
+        onClick={() => (tableOpen ? session.closeTable() : session.openTable())}><CommandLabel command="tool.browser" /></button>
       <button class="text-toggle" aria-controls="text-panel" aria-expanded={textOpen}
         onClick={() => (textOpen ? session.closeText() : session.openText())}
         title="Equations, source and the last equilibrium">Model</button>

@@ -110,8 +110,8 @@ export const HELLO: HelloEvent = {
     {cmd: 'key', kind: '', step: true},
     {cmd: 'answer', kind: 'c', step: false}, {cmd: 'run.abort', kind: 'c', step: false},
     {cmd: 'display', kind: 'v', step: true},
-    ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?XPP_KIND_(\w+)[\s\S]*?,\s*(true|false),/g)]
-      .map(m => ({cmd: m[1], kind: ({VIEW: 'v', COMPUTE: 'x', SETTING: 's', CONTROL: 'c', DATA: 'd'} as Record<string, string>)[m[2]], step: m[3] === 'true'})),
+    ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?XPP_KIND_(\w+),\s*CommandCategory::\w+,\s*"([^"]*)",[\s\S]*?,\s*(true|false),/g)]
+      .map(m => ({cmd: m[1], kind: ({VIEW: 'v', COMPUTE: 'x', SETTING: 's', CONTROL: 'c', DATA: 'd'} as Record<string, string>)[m[2]], label: m[3], step: m[4] === 'true'})),
     {cmd: 'set', kind: 's', step: true},
   ],
   upload_error: 'larger than 64 MB',
@@ -133,12 +133,12 @@ for (const file of readdirSync('../core').filter(f => /^commands_.*\.cpp$/.test(
   const source = readFileSync(`../core/${file}`, 'utf8');
   for (const match of source.matchAll(/Command\{"([^"]+)",([\s\S]*?)\},?\n/g)) {
     const body = match[2];
-    const metadata = /XPP_KIND_(\w+),\s*CommandCategory::\w+,\s*"([^"]*)",/.exec(body);
+    const metadata = /XPP_KIND_(\w+),\s*CommandCategory::\w+,\s*"([^"]*)",\s*"([^"]*)",/.exec(body);
     if (!metadata) continue;
     const keyName = /, (\w+)\s*$/.exec(body)?.[1];
     const keys = keyName ? new RegExp('constexpr std::array ' + keyName + ' = \\{([^}]*)\\}').exec(source)?.[1] : '';
     REGISTRY_HELLO.commands.push({cmd: match[1], arguments: [], kind: ({VIEW:'v', COMPUTE:'x', SETTING:'s', CONTROL:'c', DATA:'d'} as Record<string,string>)[metadata[1]], step: true,
-      menu_path: metadata[2], default_keys: [...(keys ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]), description: match[1]});
+      label: metadata[2], menu_path: metadata[3], default_keys: [...(keys ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]), description: match[1]});
   }
 }
 REGISTRY_HELLO.keymap = {...HELLO.keymap, commands: REGISTRY_HELLO.commands.map(c => ({id: c.cmd, keys: c.default_keys ?? [], source: 'default'}))};

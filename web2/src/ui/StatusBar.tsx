@@ -3,6 +3,7 @@
    progress, Stop, then Stopping… until the run ends. */
 import {busyText} from '../store/state';
 import {useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
 import {HelpButton} from './HelpButton';
 
 /* the connection, when it is not simply up (AutoxStatus.tsx says it too) */
@@ -45,7 +46,7 @@ export function StatusBar() {
         <button class={`small danger${busy ? ' shown' : ''}`} disabled={!busy || stopping}
           tabIndex={busy ? 0 : -1} onClick={() => session.abort()}
           title="Stop the running command (Escape does the same)">
-          {stopping ? 'Stopping…' : 'Stop'}
+          {stopping ? 'Stopping…' : <CommandLabel command="run.abort" />}
         </button>
       </span>
     </footer>

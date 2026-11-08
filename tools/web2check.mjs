@@ -177,6 +177,9 @@ const ACTIVE = 's.plots.windows.find(x => x.win === s.plots.active) || {}';
 /* the autoX diagram's active view (W50: the diagram has views, each its own axes and points) */
 const DV = 's && s.diagram.views[s.diagram.active]';
 const S = expr => cdp.eval(`(() => { const s = __xpp.state(), w = ${ACTIVE}; return ${expr}; })()`);
+/* a command's name as the page shows it: the row's label from hello (W636), never a copy written here */
+const labelsOf = ids => S(`${JSON.stringify(ids)}.map(id => s.hello.commands.find(c => c.cmd === id).label)`);
+const labelOf = async id => (await labelsOf([id]))[0];
 /* Reads acknowledge the component callbacks, CSS transitions and the
    ResizeObserver delivery before measuring geometry or drawing data. */
 const rawP = () => cdp.eval('__xpp.plot()');
@@ -719,7 +722,7 @@ async function dataTable(want, dir) {
     JSON.stringify({row500, want: want[500]}));
 
   /* Get: the selected row (500) becomes the initial conditions */
-  await cdp.eval(`[...document.querySelectorAll('.table-tools button')].find(b => b.textContent === 'Get').click()`);
+  await cdp.eval(`[...document.querySelectorAll('.table-tools button')].find(b => b.dataset.button === 'browser:get').click()`);
   check("Get sets the ICs from the selected row: the next state has them", await until(
     `(() => { const ics = s.core.ics.map(p => p[1]); return Math.abs(ics[0] - ${want[500][1]}) < 1e-6 && !s.busy; })()`,
     'Get'), JSON.stringify(await S('s.core.ics')));
@@ -796,8 +799,8 @@ async function dataTable(want, dir) {
     if (t) labels.add(t);
     await key('Tab');
   }
-  const expect = ['Back', 'Export CSV', 'Find', 'Get', 'Replace', 'Unrepl', 'Table', 'Load', 'Write', 'First',
-    'Last', 'Restore', 'Add col', 'Del col'];
+  const expect = ['Back', 'Export CSV', ...await labelsOf(['browser.find', 'ic.from_data_row', 'browser.replace_column', 'browser.undo_replace', 'browser.tabulate_column',
+    'browser.load', 'browser.export', 'browser.set_slice_start', 'browser.set_slice_end', 'browser.restore_full_slice', 'browser.add_column', 'browser.delete_column'])];
   check('every button in the table panel is reachable by Tab', expect.every(l => labels.has(l)), JSON.stringify([...labels]));
 
   /* leave it closed for the phone session */
@@ -1120,7 +1123,7 @@ async function aplotView() {
 
   /* Fit rescales zmin/zmax to the data actually shown */
   const before = await S('[s.aplot.event.zmin, s.aplot.event.zmax]');
-  await cdp.eval(`[...document.querySelectorAll('.aplot-tools button')].find(b => b.textContent === 'Fit').click()`);
+  await cdp.eval(`document.querySelector('.aplot-tools [data-button="aplot:fit"]').click()`);
   check('Fit rescales zmin/zmax to the data actually shown', await until('!s.busy', 'fit'));
   const after = await S('[s.aplot.event.zmin, s.aplot.event.zmax]');
   check('... zmax > zmin, and the range changed from the core\'s default',
@@ -1166,7 +1169,7 @@ async function aplotView() {
     && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'array_plot.scroll')`));
 
   /* Redraw, then Back leaves the core's window alive */
-  await cdp.eval(`[...document.querySelectorAll('.aplot-tools button')].find(b => b.textContent === 'Redraw').click()`);
+  await cdp.eval(`document.querySelector('.aplot-tools [data-button="aplot:redraw"]').click()`);
   check('Redraw asks for a fresh picture', await until('!s.busy', 'redraw')
     && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'array_plot.redraw')`));
   await cdp.eval(`document.querySelector('.aplot-back').click()`);
@@ -1659,7 +1662,7 @@ async function autoxView(dir) {
   check("the diagram has the focus, so autoX's keys work", await until(`document.activeElement.closest('.autox-host')`, 'auto focus'));
   const words = await cdp.eval(`[...document.querySelectorAll('.autox-panel button')].map(b => b.textContent.trim())`);
   check('the view has the autoX buttons, no reDraw (the diagram is always current) and no Stop while idle (A10, T21)',
-    ['Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'Close']
+    [...await labelsOf(['autox.configure_plot', 'autox.configure_numerics', 'autox.run', 'autox.grab', 'autox.configure_marks', 'autox.hide_earlier']), 'Close']
       .every(w => words.includes(w)) && !words.includes('Parameter') && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
   check('the status strip says autoX is idle', /^Idle/.test(await autoxStatus()), await autoxStatus());
   check("T24: the status strip is the autoX window's bottom line, as the main window's status bar",
@@ -2586,6 +2589,7 @@ async function busyKeys() {
   await menuRun('run.initial');
   const running = await until('s.busy && !s.ask && w.series && w.series.rows > 0', 'the run under way', 30000);
   /* W95: what is disabled during a computation is decided by each action's kind, from hello */
+  const newGraphLabel = await labelOf('window.create');
   const ui = await cdp.eval(`(() => {
     const item = id => document.querySelector('.app-menu [data-command="' + id + '"]');
     const tool = t => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === t);
@@ -2597,7 +2601,7 @@ async function busyKeys() {
       current: document.querySelector('[data-run=current]').getAttribute('aria-disabled'),
       continue: document.querySelector('[data-run=continue]').getAttribute('aria-disabled'),
       toolbarStop: document.querySelector('[data-run=stop]').disabled,
-      newWindow: tool('New window').disabled,
+      newWindow: tool(${JSON.stringify(newGraphLabel)}).disabled,
       load: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Load').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
       viewItems: ['window.fit','window.redraw','plot.set_2d'].every(id => !item(id).disabled),
@@ -2605,14 +2609,14 @@ async function busyKeys() {
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
     + 'and data (Initialconds, Sing pts...) are disabled, Parameters and Load (settings, W106) are not',
-    running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.toolbarStop && !ui.load
+    running && ui.status === `Running ${await labelOf('run.initial')}… Esc stops` && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.toolbarStop && !ui.load
     && ['run.initial', 'equilibrium.find', 'bvp.solve', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
   /* A window.create sent during the run is queued by the core and creates
      the graph once the run has stopped. */
   const sentView = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`[...document.querySelectorAll('.plot-window-tools button')].find(b => /New window/.test(b.textContent)).click()`);
+  await cdp.eval(`[...document.querySelectorAll('.plot-window-tools button')].find(b => b.textContent === ${JSON.stringify(newGraphLabel)}).click()`);
   const viewSent = await cdp.eval(`__xpp.sentFrom(${sentView})`);
   check('W95: a view button clicked during the run goes out (window.create)',
     JSON.stringify(viewSent) === JSON.stringify([{cmd:'window.create'}]) && await S('s.busy'), JSON.stringify(viewSent));
@@ -2766,10 +2770,11 @@ async function recordCheck(dir) {
   const file = path.join(dir, 'web.recx');
   const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/) : [];
   const at = lines.indexOf('@steps');
+  const initialLabel = await labelOf('run.initial');
   check('record: web.recx holds the model and the step, its note above it, the button named',
     lines[0] === 'recording: {' && lines.includes('@file lecar.odex') && at > 0
     && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
-    && (() => { const step = JSON.parse(lines[at + 3]); return step.step === 'Run → Run from initial' && step.cmd.cmd === 'run.initial'; })(), JSON.stringify(lines.slice(at, at + 5)));
+    && (() => { const step = JSON.parse(lines[at + 3]); return step.step === initialLabel && step.cmd.cmd === 'run.initial'; })(), JSON.stringify(lines.slice(at, at + 5)));
   check('record: the recording begins with the session\'s state (a @snapshot section before the files, W59d)',
     lines.indexOf('@snapshot') > 0 && lines.indexOf('@snapshot') < lines.indexOf('@file lecar.odex'));
 
@@ -4600,7 +4605,7 @@ async function animation() {
 
   /* Load: the file ask for reading, answered by an upload of tools/gui_test.ani */
   await cdp.eval('window.showOpenFilePicker = undefined; true');
-  await cdp.eval(`[...document.querySelectorAll('.ani-panel .panel-header button')].find(b => b.textContent.startsWith('Load')).click()`);
+  await cdp.eval(`[...document.querySelectorAll('.ani-panel .panel-header button')].find(b => b.dataset.button === 'ani:file').click()`);
   check('ani: Load asks for a file to open', await until(`s.ask && s.ask.kind === 'file' && s.ask.mode === 'read'
     && document.querySelector('[data-file-input=open]')`, 'ani file ask'), JSON.stringify(await S('s.ask')));
   await pickFiles('[data-file-input=open]', [path.join(top, 'tools/gui_test.anix')]);
@@ -4788,7 +4793,7 @@ async function kinescope(dir) {
   const animName = 'lecar.gif';
   const animPath = path.join(dir, animName);
   fs.rmSync(animPath, {force: true});
-  await cdp.eval(`[...document.querySelectorAll('.kinescope-bar button')].find(b => b.textContent.trim() === 'Export GIF').click()`);
+  await cdp.eval(`[...document.querySelectorAll('.kinescope-bar button')].find(b => b.textContent.trim() === ${JSON.stringify(await labelOf('kinescope.export_gif'))}).click()`);
   await until("s.ask && s.ask.kind === 'file'", 'GIF name');
   await answerAsk({file: 'lecar.gif'});
   check('kinescope: Export GIF offers lecar.gif, written by the core',

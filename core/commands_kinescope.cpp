@@ -79,19 +79,19 @@ constexpr std::array FILM_EVENTS = {xpp::events::KINESCOPE_FILM, xpp::events::SE
 constexpr std::array DONE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"kinescope.capture", {}, XPP_KIND_VIEW, CommandCategory::Plot, "File/Kinescope/Capture",
+    Command{"kinescope.capture", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Capture frame", "File/Kinescope",
             "Capture the plot window as the next frame of the kinescope.", CAPTURE_RESULTS, FILM_EVENTS, true, capture},
-    Command{"kinescope.reset", {}, XPP_KIND_VIEW, CommandCategory::Plot, "File/Kinescope/Reset",
+    Command{"kinescope.reset", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Reset kinescope", "File/Kinescope",
             "Throw away every captured frame.", RESET_RESULTS, FILM_EVENTS, true, reset},
-    Command{"kinescope.play", {}, XPP_KIND_VIEW, CommandCategory::Plot, "File/Kinescope/Playback",
+    Command{"kinescope.play", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Play kinescope", "File/Kinescope",
             "Show the captured frames once.", PLAY_RESULTS, FILM_EVENTS, true, play},
-    Command{"kinescope.autoplay", AUTOPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "File/Kinescope/Autoplay",
+    Command{"kinescope.autoplay", AUTOPLAY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Autoplay kinescope", "File/Kinescope",
             "Show the captured frames cycles times, frame_ms apart; what is left out is the last autoplay's setting.",
             AUTOPLAY_RESULTS, FILM_EVENTS, true, autoplay},
-    Command{"kinescope.export_frames", FILE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "File/Kinescope/Save",
+    Command{"kinescope.export_frames", FILE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Save kinescope frames", "File/Kinescope",
             "Write every captured frame as a GIF file of the model's folder: file for the first, then its numbered names.",
             FRAMES_RESULTS, DONE_EVENTS, true, export_frames, {}, {}, "write", "*"},
-    Command{"kinescope.export_gif", FILE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "File/Kinescope/Make AniGif",
+    Command{"kinescope.export_gif", FILE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Make kinescope GIF", "File/Kinescope",
             "Write the captured frames as one animated GIF file of the model's folder.", GIF_RESULTS, DONE_EVENTS, true, export_gif, {}, {}, "write", "*"}};
 
 } // namespace

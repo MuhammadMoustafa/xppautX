@@ -78,15 +78,13 @@ import {AutoxInfo} from './AutoxInfo';
 import {AutoxOutput, AutoxStatus} from './AutoxStatus';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
+import {toolbarRow} from './navigation';
 import {SetsRow} from './SetsRow';
 import {FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
 
-/** label and op (the registry command is navigation.ts toolbarCommand's), in the X11 window's order; no
+/** the ops (the registry command, its label and description, are navigation.ts toolbarCommand's), in the X11 window's order; no
     reDraw (T21): the diagram is always the current one */
-const BUTTONS: [string, AutoxOp][] = [
-  ['Axes', 'axes'], ['Numerics', 'numerics'], ['Run', 'run'],
-  ['Grab', 'grab'], ['Mark values…', 'usr'], ['Clear', 'clear'],
-];
+const BUTTONS: AutoxOp[] = ['axes', 'numerics', 'run', 'grab', 'usr', 'clear'];
 /** the view's own words for a button, over the core's hint */
 const TITLES: Partial<Record<AutoxOp, string>> = {
   axes: "The active view's axes: what they plot, zoom, Fit, and New view (another view of the diagram)",
@@ -573,6 +571,7 @@ function AutoxPanel({dark}: {dark: boolean}) {
   /* Escape hides the panel through hotkeys.ts's one owner (openPanel), only while nothing runs: the
      autoX view is where its run is watched, so there Escape stops the run (W536), never hides it */
   const running = useStore(s => s.busy);
+  const hello = useStore(s => s.hello);
   useEffect(() => running ? undefined : openPanel(() => session.showAutox(false)), [session, running]);
 
   return (
@@ -588,7 +587,8 @@ function AutoxPanel({dark}: {dark: boolean}) {
         </button>
       </div>
       <div class="autox-tools" role="toolbar" aria-label="autoX">
-        {BUTTONS.map(([text, op]) => {
+        {BUTTONS.map(op => {
+          const row = toolbarRow(hello, 'autox', op);
           const k = '';
           const kind = SETTINGS_DIALOG[op];
           const waits = !!kind && [...pending].some(PENDING_OF[kind]);
@@ -596,8 +596,8 @@ function AutoxPanel({dark}: {dark: boolean}) {
             <button key={op} disabled={off(op)} aria-keyshortcuts={k.toUpperCase()}
               class={waits ? 'autox-pending' : undefined} data-op={op} data-button={`autox:${op}`}
               title={off(op) ? BUSY_TITLE
-                : (TITLES[op] ?? text) + (waits ? ' (changes wait for the run to end)' : '')}
-              onClick={() => act(op)}>{text}</button>
+                : (TITLES[op] ?? row?.description ?? '') + (waits ? ' (changes wait for the run to end)' : '')}
+              onClick={() => act(op)}>{row?.label}</button>
           );
         })}
         <SetsRow scope="continuation" />

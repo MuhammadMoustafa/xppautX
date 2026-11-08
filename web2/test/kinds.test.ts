@@ -48,7 +48,7 @@ test('W95: computing from the core\'s event to the command\'s done; a command th
   assert.equal(ev(s, {ev: 'done', status: 'ok'}).computing, false);
   s = reduce(reduce(s, {type: 'connection', open: true}), {type: 'event', ev: {ev: 'job.computing'}});
   assert.equal(reduce(s, {type: 'connection', open: false}).computing, false);
-  /* the autoX view's Run is named by its key from hello */
+  /* the status line names a computation by its row's label */
   s = reduce(ev(s, {ev: 'done', status: 'ok'}), {type: 'sent', cmd: {cmd:'autox.run'}});
-  assert.equal(s.running, 'autoX');
+  assert.equal(s.running, 'Run');
 });

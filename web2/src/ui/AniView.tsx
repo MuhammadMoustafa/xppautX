@@ -20,6 +20,7 @@ import {drawAniFrame, frameBox} from '../ani/render';
 import {HELP} from '../help/links';
 import {sixSig} from '../store/values';
 import {useMay, useMayMain, useMayKey, useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
 import {HelpButton} from './HelpButton';
 import {useDark} from './theme';
 
@@ -132,9 +133,9 @@ export function AniView() {
         <button class="ani-back" onClick={close}>Back</button>
         <h2>Animation</h2>
         <HelpButton target={HELP.animation} label="the animation" />
-        {!exists && <button onClick={() => session.openAni()} disabled={!mayMain('plot.set_2d')}>Open</button>}
+        {!exists && <button onClick={() => session.openAni()} disabled={!mayMain('plot.set_2d')}><CommandLabel command="animation.open" /></button>}
         <button data-button="ani:file" onClick={() => session.aniLoad()} disabled={!mayKey('ani', 'file') || !exists} title="Load an animation (.ani) file">
-          Load…
+          <CommandLabel command="animation.load" />
         </button>
       </div>
       <div class={'ani-stage' + (grab ? ' grabbing' : '')} ref={stage} tabIndex={0} role="application"
@@ -163,7 +164,7 @@ export function AniView() {
           aria-label="One frame back">◀</button>
         <button class="primary ani-play" data-button="ani:go" onClick={playPause} disabled={!canStep || busy}
           title="Play or pause (Space)" aria-pressed={playing}>
-          {playing ? 'Pause' : 'Play'}
+          {playing ? <CommandLabel command="animation.pause" /> : <CommandLabel command="animation.play" />}
         </button>
         <button onClick={() => session.aniStep(1)} disabled={!canStep || busy} title="One frame forward (Right arrow)"
           aria-label="One frame forward">▶</button>
@@ -177,7 +178,7 @@ export function AniView() {
           </select>
         </label>
         <button data-button="ani:grab" onClick={() => session.aniGrab()} disabled={!canStep || !mayKey('ani', 'grab')} aria-pressed={grab}
-          title="Drag the animation's grab points with the pointer">Grab</button>
+          title="Drag the animation's grab points with the pointer"><CommandLabel command="animation.grab_point" /></button>
       </div>
     </section>
   );

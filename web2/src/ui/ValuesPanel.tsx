@@ -27,6 +27,7 @@ import {fieldKey, foldKey, inspectNumber, isFolded, sentText, showsBcSection, si
 import type {NumericsField} from '../protocol/types';
 import {NUM_METHOD, numericsField} from '../store/steady';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {CommandLabel, useCommandLabel} from './CommandButton';
 import {SetsRow} from './SetsRow';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
@@ -331,6 +332,7 @@ function UserButtonsBlock() {
 /* ---- the panel: a column, a section, or a sheet, depending on the width (R6) ---- */
 
 export function ValuesPanel() {
+  const valuesLabel = useCommandLabel('tool.values');
   const session = useSession();
   const open = useStore(s => s.valuesOpen);
   const bcs = useStore(s => s.core?.bcs ?? []);
@@ -349,10 +351,10 @@ export function ValuesPanel() {
   }, [open]);
 
   return (
-    <section id="values-panel" ref={panel} class={'values-panel' + (open ? ' open' : '')} aria-label="Values">
+    <section id="values-panel" ref={panel} class={'values-panel' + (open ? ' open' : '')} aria-label={valuesLabel}>
       <div class="panel-header">
         <button class="values-back" onClick={close}>Back</button>
-        <h2>Values</h2>
+        <h2><CommandLabel command="tool.values" /></h2>
       </div>
       <div class="values-body">
         <StateSection />

@@ -88,7 +88,7 @@ where an **Until time** really ends. It never asks a question.
 **Stop** stops a running command or cancels its prompt. The toolbar shows
 Idle/Running/Awaiting input and the last stored time in the active plot;
 stored time has sampled trajectory precision. Parameter edits apply to
-the next run. **Run → More run options…** opens the advanced choices.
+the next run. **Run > Run settings** opens the integration's numerics.
 Parameters and Numerics have their main home in Values; command search
 still reaches their legacy actions.
 

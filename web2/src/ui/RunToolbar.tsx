@@ -4,6 +4,7 @@ import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {fieldKey, inspectNumber, sentText} from '../store/values';
 import {continuePlan, NUM_TOTAL, numericsField, runInterval, steadyRun} from '../store/steady';
 import {NUMBER} from '../store/fieldKinds';
+import {CommandLabel} from './CommandButton';
 import {Field} from './Field';
 import {QuickAccess} from './QuickAccess';
 
@@ -62,24 +63,24 @@ export function RunToolbar() {
     <div class="run-actions">
       <button class="primary" data-button="Integrate" aria-disabled={initialOff}
         onClick={() => { if (!initialOff) session.send({cmd:'run.initial'}); }}
-        title={initialOff ? BUSY_TITLE : 'Start a new trajectory from Initial values (I, G)'}>Run from initial</button>
+        title={initialOff ? BUSY_TITLE : 'Start a new trajectory from Initial values (I, G)'}><CommandLabel command="run.initial" /></button>
       <button data-run="current" aria-disabled={currentOff}
         onClick={() => { if (!currentOff) session.send({cmd:'run.last'}); }}
-        title={initialOff ? BUSY_TITLE : !hasNow ? 'Run once to obtain a last state' : 'Use the last state as Initial and start a new trajectory (I, L)'}>Run from last state</button>
+        title={initialOff ? BUSY_TITLE : !hasNow ? 'Run once to obtain a last state' : 'Use the last state as Initial and start a new trajectory (I, L)'}><CommandLabel command="run.last" /></button>
       <button data-run="steady" aria-disabled={steadyOff}
         onClick={() => { if (!steadyOff) session.runSteady(); }}
-        title={initialOff ? BUSY_TITLE : steadyProblem ?? 'Run from Initial until every state stops changing at the configured precision'}>Run to steady state</button>
+        title={initialOff ? BUSY_TITLE : steadyProblem ?? 'Run from Initial until every state stops changing at the configured precision'}><CommandLabel command="run.steady" /></button>
       <button data-run="continue" aria-disabled={continueOff}
         onClick={() => { if (!continueOff) session.continueRun(); }}
-        title={!may({cmd: 'run.continue'}) ? BUSY_TITLE : !hasNow ? 'Run once before continuing' : plan.problem ?? `Extend the existing trajectory using the time below (${continueKeys})`}>Continue</button>
+        title={!may({cmd: 'run.continue'}) ? BUSY_TITLE : !hasNow ? 'Run once before continuing' : plan.problem ?? `Extend the existing trajectory using the time below (${continueKeys})`}><CommandLabel command="run.continue" /></button>
       <button class="danger" data-run="stop" disabled={!busy || stopping} onClick={() => session.abort()}
-        title="Stop the running command or cancel its prompt (Esc)">{stopping ? 'Stopping…' : 'Stop'}</button>
+        title="Stop the running command or cancel its prompt (Esc)">{stopping ? 'Stopping…' : <CommandLabel command="run.abort" />}</button>
     </div>
     <QuickAccess />
     <div class="run-time-controls">
       {total && <label>Run duration <Field data-run-duration="" spec={{kind: 'number', positive: true}}
         value={sentDuration ?? String(total.value ?? '')} onCommit={text => session.setNumeric(NUM_TOTAL, text)}
-        error={durationError} settling={sentDuration !== null} title="Total duration of Run from initial/last state, in model time units" /></label>}
+        error={durationError} settling={sentDuration !== null} title="Total duration of a run, in model time units" /></label>}
       <label>Continue <select aria-label="Continuation time mode" value={continueInput.mode} onChange={e => changeMode(e.currentTarget.value as 'extra' | 'until')}>
         <option value="extra">For another</option><option value="until">Until time</option>
       </select><Field aria-label="Continuation time" data-continue-time="" spec={NUMBER} value={plan.text ?? ''}

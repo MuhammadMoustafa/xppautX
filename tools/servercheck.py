@@ -1781,7 +1781,7 @@ def check_registry():
             results = ', '.join('`%s`: `%s`' % (r['name'], r['type']) for r in command['result'])
             generated.append('| `%s` | %s | `%s` / %s | %s | %s | %s | %s |' %
                              (command['cmd'], arguments, command['kind'], command['category'],
-                              command['menu_path'] or 'none', results,
+                              '/'.join(part for part in (command['menu_path'], command['label']) if part), results,
                               ', '.join('`%s`' % e for e in command['events']), command['description']))
         generated = '\n'.join(generated) + '\n'
         path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs', 'protocol.md')
@@ -2989,6 +2989,82 @@ def check_registry_menu(table):
 
 
 check_registry_menu([c for c in hello.get('commands', []) if 'arguments' in c])
+
+
+# W636 (#708): a row's label is its one name, the same text in every place that shows the command
+def check_registry_labels(table):
+    labels = [r['label'] for r in table]
+    repeated = sorted({label for label in labels if labels.count(label) > 1})
+    check('W636: every registry row has a label, unique among the rows', all(labels) and not repeated, str(repeated))
+    # a mnemonic capital inside a word (sHoot, formUla), a listed choice (No show, Show) or a path's slash
+    bad = [r['label'] for r in table
+           if not re.fullmatch(r"[A-Z0-9][^,/]*", r['label']) or re.search(r'[a-z][A-Z]', r['label'].replace('autoX', ''))
+           or ' or ' in r['label'] or r['label'] != r['label'].strip()]
+    check('W636: no label holds a mnemonic capital, a listed choice or a slash', not bad, str(bad))
+    check('W636: a menu path holds only the groups above its label', not [r['cmd'] for r in table if r['menu_path'].split('/')[-1] == r['label']],
+          str([r['cmd'] for r in table if r['menu_path'].split('/')[-1] == r['label']]))
+
+
+check_registry_labels([c for c in hello.get('commands', []) if 'arguments' in c])
+
+
+# W636 (#708): nothing writes a command's name again. In web2/src no string a control shows is a row's label (the
+# few that are the same words for another thing are named here, each with its reason), and no menu path the manual
+# names (`File > Sets`, `File/Save session`) is one that no row has. A name on the page comes from the row.
+LABEL_WORDS_OF_OTHER_THINGS = {
+    ('ui/CommandForm.tsx', 'Run'): "the submit button of any command's form",
+    ('ui/MenuBar.tsx', 'Run'): "the top menu's title, a group",
+    ('ui/Plots.tsx', 'Stop'): "the Kinescope player's own Stop: the core keeps no play position",
+    ('ui/KeymapEditor.tsx', 'Replace'): "the answer that replaces a key's other command",
+    ('ui/RunToolbar.tsx', 'Continue'): "the caption of the continuation time's fields, the plan's, not the command's button",
+    ('ui/SliderDialog.tsx', 'Step'): "a slider's step size",
+    ('ui/TextViews.tsx', 'Values'): "the caption of the table of values in the Model view",
+    ('ui/ValuesPanel.tsx', 'Numerics'): "the name of the panel's numerics section",
+    ('plot/phase.ts', 'Flow'): "the name of a layer of the plot",
+}
+# the window's own native menu, which no row describes
+NATIVE_MENU_ITEMS = {'Help/About', 'Help/Check for updates'}
+
+
+def check_names_from_rows(table):
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    labels = {r['label'] for r in table}
+    found = set()
+    literal = re.compile(r"\'((?:[^\'\\\n]|\\.)*)\'|\"((?:[^\"\\\n]|\\.)*)\"|`((?:[^`\\]|\\.)*)`|>([^<>{}\n]+)<")
+    for path in glob.glob(os.path.join(root, 'web2', 'src', '**', '*.ts*'), recursive=True):
+        name = os.path.relpath(path, os.path.join(root, 'web2', 'src')).replace(os.sep, '/')
+        with open(path, encoding='utf-8') as f: text = f.read()
+        for m in literal.finditer(text):
+            shown = next(g for g in m.groups() if g is not None).strip().rstrip('\u2026').strip()
+            if shown in labels: found.add((name, shown))
+    written = sorted(found - set(LABEL_WORDS_OF_OTHER_THINGS))
+    check('W636: no command label is written by hand in web2/src (a control reads its row)', not written, str(written))
+    stale = sorted(set(LABEL_WORDS_OF_OTHER_THINGS) - found)
+    check('W636: every allowed same-word text in web2/src is still there', not stale, str(stale))
+
+    places, groups = set(), set()
+    for r in table:
+        parts = r['menu_path'].split('/')
+        groups.update('/'.join(parts[:i]) for i in range(1, len(parts) + 1))
+        places.add(r['menu_path'] + '/' + r['label'])
+    menus = 'File|Run|Analysis|Plot|Data|autoX|Windows|Help'
+    path_in_text = re.compile(r'(?<![\w/.\-])(?:%s)(?:(?: (?:>|\u2192) |/)[A-Za-z0-9][^>\u2192/\n()]*)+' % menus)
+    unknown = []
+    for path in sorted(glob.glob(os.path.join(root, 'docs', 'manual', '*.md'))):
+        with open(path, encoding='utf-8') as f: lines = f.read().splitlines()
+        for number, line in enumerate(lines, 1):
+            line = line.replace('\u2026', '').replace('**', '').replace('`', '')
+            for m in path_in_text.finditer(line):
+                segments = [part.strip() for part in re.split(r' (?:>|\u2192) |/', m.group(0))]
+                words = segments[-1].split(' ')
+                # the last segment may run on into the sentence: the longest start of it that is a place or a group
+                options = ['/'.join(segments[:-1] + [re.sub(r"(?:'s)?[.,:;]*$", '', ' '.join(words[:n]))]) for n in range(len(words), 0, -1)]
+                if not any(o in places or o in groups or o in NATIVE_MENU_ITEMS for o in options):
+                    unknown.append('%s:%d %s' % (os.path.basename(path), number, '/'.join(segments)[:60]))
+    check('W636: every menu path the manual names is one a row has', not unknown, str(unknown))
+
+
+check_names_from_rows([c for c in hello.get('commands', []) if 'arguments' in c])
 
 
 # W118: what core and page both know comes in hello, written once in the core
@@ -9211,13 +9287,13 @@ def check_recording():
         check('record: the model is embedded whole, and nothing else was read',
               list(files) == [ode, 'ml.anix'] and files[ode] == want, str(list(files)))
         s = [x for x, _ in steps]
-        check('record: run.initial is one step, its label from its menu path, its note above it',
-              s and s[0] == {'step': 'Run → Run from initial', 'cmd': {'cmd': 'run.initial'}} and steps[0][1] == 'First run.\nThe cell settles.',
+        check('record: run.initial is one step, its label from its row, its note above it',
+              s and s[0] == {'step': 'Run from initial', 'cmd': {'cmd': 'run.initial'}} and steps[0][1] == 'First run.\nThe cell settles.',
               str(steps[:1]))
         check('record: a cancelled menu is a step (keys g, Escape)',
               len(s) > 1 and s[1] == {'step': 'Clear plot', 'cmd': {'cmd':'window.clear'}, 'view': True} and steps[1][1] == '', str(s[1:2]))
         check('record: run.configure is a step with its arguments',
-              s[2:3] == [{'step': 'Run → Settings', 'cmd': {'cmd': 'run.configure', 'total_time': 1e7}}], str(s[2:3]))
+              s[2:3] == [{'step': 'Run settings', 'cmd': {'cmd': 'run.configure', 'total_time': 1e7}}], str(s[2:3]))
         check('record: an Abort belongs to its step, where it stopped as the stopped event said',
               len(s) > 3 and s[3].get('cmd') == {'cmd': 'run.initial'} and stopped and s[3].get('abort') == stopped[0]
               and stopped[0]['what'] == 'integrate', str(s[3:4]) + str(stopped))
@@ -9248,7 +9324,7 @@ def check_recording():
         _, files, steps, written, got = read_recx(open(os.path.join(r, 'menu.recx'), encoding='utf-8').read()
                                                   if os.path.exists(os.path.join(r, 'menu.recx')) else '')
         check('File/recorD: the steps between (the file a step read named by its section), and not the File menu opened to stop',
-              [x for x, _ in steps] == [{'step': 'File → Values → Load file', 'cmd': {'cmd': 'value.load_file', 'kind': 'parameters', 'file': 'saved.par'},
+              [x for x, _ in steps] == [{'step': 'Load values file', 'cmd': {'cmd': 'value.load_file', 'kind': 'parameters', 'file': 'saved.par'},
                                          'files': [2]},
                                         {'step': 'Clear plot', 'cmd': {'cmd': 'window.clear'}, 'view': True}] and written == got, str(steps))
         par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()

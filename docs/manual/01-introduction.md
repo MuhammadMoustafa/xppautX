@@ -55,7 +55,7 @@ its own, titled "xppautX — model.ode", with the system's own web view
 (WebView2 on Windows, the system's WKWebView on macOS, WebKitGTK on
 Linux). Its menu
 bar holds what belongs to the app rather than the model: **File** (Open
-model… and Reload, the page's File/open Model and File/rEload, below;
+model… and Reload, the page's File > Open model and File > Reload model, below;
 Quit) and **Help** (Manual, Keyboard shortcuts, About: version,
 commit, compiler, protocol version and license) — except on macOS, whose menu bar
 holds only Quit xppautX (Cmd+Q) yet (untested there beyond CI). The model's
@@ -106,7 +106,7 @@ Keyboard shortcuts open the Help view in the page, Help > About shows
 the version box; File > Open model… loads the model you choose in the
 same window, after asking; File > Quit, or closing the window, asks
 whether to save the session first, then ends xppautX and
-leaves no process behind. On macOS, which has no File/Help menu bar of
+leaves no process behind. On macOS, which has no File and Help menu bar of
 its own yet, close the window instead to quit, and use the model's own
 menus inside the page.
 
@@ -146,14 +146,14 @@ from a source checkout) says so instead of listing any.
 **Opening another model, reloading this one.** xppautX serves one model
 at a time. Opening a `.ode` in any mode converts and saves `.odex` beside
 it, which becomes the model from then on; see [.odex](02-ode-files.md#odex).
-File/open Model (`F M` in the page, File > Open model… in
+File > Open model (Ctrl+O in the page, in
 the window's menu bar) picks a `.ode` or `.odex` file (or a `.snapx`
 session file, a `.recx` recording, below) and asks first: the current model's data and autoX diagram
-go, so it offers **Save session** (a session file, as File/saVe session
+go, so it offers **Save session** (a session file, as File > Save session
 writes it) or **Don't save**; Escape keeps the current model (the
-question every way of leaving a session asks, File/Quit's too). The new model is loaded from its own folder,
+question every way of leaving a session asks, File > Quit's too). The new model is loaded from its own folder,
 which becomes the folder the page's files are in, and every window of
-the model before closes. File/rEload (`F E`, File > Reload) reads the
+the model before closes. File > Reload model reads the
 model's own file again, with the command line it was started with,
 after the same question: edit
 the `.ode` in your editor, then Reload. Its parameters, initial data
@@ -163,14 +163,13 @@ the file's value. A model that cannot be loaded (a mistake in the file,
 a file that is gone) changes nothing: an error says so, the log says
 why, and the model before goes on as it was.
 
-**Continuing where you stopped: session files.** File/saVe session (`F
-V`, Ctrl+S) writes everything you would need to pick up tomorrow into one file,
+**Continuing where you stopped: session files.** File > Save session (Ctrl+S) writes everything you would need to pick up tomorrow into one file,
 `name.snapx`: the model itself (its `.odex`, and every file it read: the
 files it includes, its tables), the
 parameters, initial data and numerics, every plot window (its axes,
 variables, zoom and the earlier-runs toggle), the text, arrows, markers
 and frozen curves, autoX's diagram, settings and view, and the data
-table. File/opeN session (`F N`), a double-click on the file, or
+table. File > Open session, a double-click on the file, or
 `xppautX name.snapx` loads the model saved in it, from the file alone
 (the `.ode` may have changed since, or be gone: the saved one is the one
 loaded, and the title says so, `lecar.ode (saved in lecar.snapx)`), and
@@ -196,7 +195,7 @@ ordinary files: renamed to `.zip`, its `model/` folder holds the model's
 files, its `model.setx` holds the values and numerics (the settings syntax of a model's `options` block) and its
 `data.npz` reads in NumPy (`numpy.load`). XPPAUT's `.set` file is no longer a
 file xppautX saves: the session holds what it held, and
-File/Import XPPAUT session state applies a `.set` XPPAUT wrote, whole and all or nothing; values from our own files (an `.odex` and its sets) or from XPPAUT's `.par`, `.ic` and `.set` come in by scope with Load values from file. autoX's File > Save diagram and Load diagram save and open the session too.
+File > Sets > Import XPPAUT session state applies a `.set` XPPAUT wrote, whole and all or nothing; values from our own files (an `.odex` and its sets) or from XPPAUT's `.par`, `.ic` and `.set` come in by scope with Load values from file. File > autoX > Save diagram and Open diagram save and open the session too.
 Import diagram reads a foreign XPPAUT `.auto` into the model open.
 
 The recording player offers speeds from 0.25× to 8×. These bounds come from

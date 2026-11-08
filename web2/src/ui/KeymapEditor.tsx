@@ -12,6 +12,7 @@ import {
 } from '../store/keymap';
 import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
 import {useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
 import {keyName} from './hotkeys';
 import {Modal} from './Modal';
 
@@ -88,7 +89,7 @@ function Editor() {
   return <Modal onBackdrop={close}>
     <div class="dialog keymap-dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="keymap-title" data-keymap-editor
       onKeyDownCapture={onKeyDown}>
-      <div class="dialog-title-row"><h2 id="keymap-title">Keyboard shortcuts</h2>
+      <div class="dialog-title-row"><h2 id="keymap-title"><CommandLabel command="tool.keyboard_shortcuts" /></h2>
         <button class="dialog-close" aria-label="Close keyboard shortcuts" onClick={close}>×</button></div>
       {!info.ok && <p class="field-error" role="alert" data-keymap-error>
         The keymap file could not be loaded ({info.file}{info.line ? `:${info.line}` : ''}): {info.error}. The default keys are shown; changing a key replaces the file.</p>}

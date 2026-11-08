@@ -26,7 +26,7 @@ constexpr std::array HELP_ARGUMENTS = {Argument{"name", Type::text, false}};
 constexpr std::array HELP_RESULTS = {ResultField{"commands", "list[command]"}, ResultField{"events", "list[event]"}};
 constexpr std::array HELP_EVENTS = {events::SESSION_STATE, events::DONE};
 constexpr std::array HELP_ROWS = {
-    Command{HELP_COMMAND.data(), HELP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Help/Command reference",
+    Command{HELP_COMMAND.data(), HELP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Command reference", "Help",
             "Describe registered commands, or the command named by name; `help events` describes every event and its fields.", HELP_RESULTS, HELP_EVENTS, false, describe}};
 std::span<const Command> help_commands() { return HELP_ROWS; }
 
@@ -143,6 +143,8 @@ void append_command(std::string &out, const Command &command)
     xpp::append_integer(out, MAX_COMMAND_BYTES);
     out += ",\"category\":";
     json_append_string(out, category_id(command.category));
+    out += ",\"label\":";
+    json_append_string(out, command.label);
     out += ",\"menu_path\":";
     json_append_string(out, command.menu_path);
     out += ",\"default_keys\":[";
@@ -353,8 +355,7 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
             file = wild.starts_with("*.") && wild.find(' ') == std::string_view::npos
                 ? files::output_name(s.model().this_file, wild.substr(1)) : std::string{};
         }
-        const std::string title = xpp::format("{} {}", std::string_view(command->file_mode) == "write" ? "Save" : "Open", command->menu_path);
-        if (!file_selector(title, file, command->file_wild)) return std::string("{\"cancelled\":true}");
+        if (!file_selector(command->label, file, command->file_wild)) return std::string("{\"cancelled\":true}");
         args->add(file_arg->name, Scalar{std::move(file)});
     }
     Result<std::string> result = command->execute(s, *command, *args, place);

@@ -33,6 +33,7 @@ export interface CommandKind {
   groups?: RegistryGroup[];
   file_mode?: string;
   file_wild?: string;
+  label?: string;
   menu_path?: string;
   description?: string;
   category?: string;
@@ -49,6 +50,7 @@ export interface CommandRow {
   groups?: RegistryGroup[];
   file_mode?: string;
   file_wild?: string;
+  /** the groups above the label in the menu bar (`File/Sets`), none for a row with no menu place */
   menu_path?: string;
   /** stable: the command's name */
   id: string;
@@ -76,6 +78,12 @@ export function isStep(hello: HelloEvent, cmd: Command): boolean {
 /** whether `id` is undo or redo with no value edit to take back or put back (the state's can_undo, can_redo) */
 export function noValueEdit(core: StateEvent | null, id: string): boolean {
   return !!core && (id === 'value.undo' && !core.can_undo || id === 'value.redo' && !core.can_redo);
+}
+
+/** the row's label of a computation (what the status line says is running), null for any other command */
+export function computationLabel(hello: HelloEvent | null, cmd: Command): string | null {
+  const entry = hello && commandOf(hello, cmd);
+  return entry && OF_LETTER[entry.kind] === 'computation' ? entry.label ?? null : null;
 }
 
 /** The page resolves physical keys through the keymap before sending registry commands. */

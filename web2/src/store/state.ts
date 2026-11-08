@@ -3,6 +3,7 @@
    viewports, the tab shown, hover, notifications, the menu drawer) as their
    own actions. Pure: no DOM, no I/O, no clock. */
 import {setPointTypes} from './pointTypes';
+import {computationLabel} from '../protocol/kinds';
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, WindowListEntry, XppEvent} from '../protocol/types';
 import {errorPlace, errorText, unreadFile, type ErrorPlace} from '../protocol/errors';
@@ -340,19 +341,11 @@ export function busyText(running: string | null, asking: boolean): string {
   return `${running ? `Running ${running}` : 'Working'}… Esc stops`;
 }
 
-/** what the registry's runs are called in the status line (the Initialconds and Bndry Value menus' words) */
-const RUN_NAMES: Record<string, string> = {
-  'run.initial': 'Go', 'run.last': 'Last', 'run.old': 'Old', 'run.shift': 'Shift', 'run.backward': 'Backward',
-  'run.range': 'Range', 'run.double_range': '2par range', 'run.shoot': 'sHoot', 'ic.at': 'Mouse', 'ic.mouse_stream': 'mIce',
-  'bvp.solve': 'Bndry Value Prob', 'bvp.solve_periodic': 'Periodic', 'bvp.solve_range': 'Range'};
-
 /* the name of what an answer or a command starts, for the status line
    (null: not known, or not a new run) */
-function runningName(cmd: Command, ask: AskEvent | null): string | null {
-  if (cmd.cmd in RUN_NAMES) return RUN_NAMES[cmd.cmd];
-  if (cmd.cmd === 'run.steady') return 'to steady state';
-  if (cmd.cmd === 'run.continue') return 'continuation';
-  if (cmd.cmd === 'autox.run') return 'autoX';
+function runningName(hello: HelloEvent | null, cmd: Command, ask: AskEvent | null): string | null {
+  const label = computationLabel(hello, cmd);
+  if (label) return label;
   if (cmd.cmd !== 'answer' || !ask || ask.kind !== 'choice' || typeof cmd.key !== 'string')
     return null;
   const i = (ask.keys ?? '').toLowerCase().indexOf(cmd.key.toLowerCase());
@@ -627,14 +620,14 @@ export function reduce(state: AppState, action: Action): AppState {
       if (action.cmd.cmd === 'answer') {
         /* a point or a box is done once answered; a drag is asked again until it ends */
         const p = state.pick, cancelled = action.cmd.ok === 0;
-        const running = runningName(action.cmd, state.ask) ?? state.running;
+        const running = runningName(state.hello, action.cmd, state.ask) ?? state.running;
         return {...state, ask: null, running, pick: !p || cancelled ? null : p.mode === 'drag' ? p : {...p, waiting: true}};
       }
       if (action.cmd.cmd === 'animation.play')
         state = {...state, ani: reduceAni(state.ani, {type: 'playing', playing: true})};
       if (CONTROL_DONE.has(action.cmd.cmd)) return {...state, controlDone: state.controlDone + 1};
       if (noDone(action.cmd)) return state;
-      return {...state, busy: true, running: state.busy ? state.running : runningName(action.cmd, null)};
+      return {...state, busy: true, running: state.busy ? state.running : runningName(state.hello, action.cmd, null)};
     }
     case 'aborting':
       return state.busy ? {...state, stopping: true} : state;

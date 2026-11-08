@@ -21,26 +21,14 @@ import {HELP} from '../help/links';
 import type {BrowserOp} from '../session';
 import {rowAt} from '../store/table';
 import {BUSY_TITLE, useMay, useMayKey, useSession, useStore} from './context';
-import {CommandButton} from './CommandButton';
+import {CommandButton, useCommandLabel} from './CommandButton';
+import {toolbarRow} from './navigation';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 
 
-/** label, op, hint (web/xpp-client.js's BROWSER_BUTTONS, the same protocol) */
-const BUTTONS: [string, BrowserOp | 'get', string][] = [
-  ['Find', 'find', 'Find the row where a column is closest to a value'],
-  ['Get', 'get', 'Make the selected row the initial conditions'],
-  ['Replace', 'replace', 'Replace a column by a formula'],
-  ['Unrepl', 'unreplace', 'Undo the last Replace'],
-  ['Table', 'table', 'Write a column as a function table file'],
-  ['Load', 'load', 'Load data from a file'],
-  ['Write', 'write', 'Write the rows from First to Last to a file'],
-  ['First', 'first', 'Start the range at the selected row'],
-  ['Last', 'last', 'End the range at the selected row'],
-  ['Restore', 'restore', 'Redraw the plot from the rows First to Last'],
-  ['Add col', 'addcol', 'Add a column computed from a formula'],
-  ['Del col', 'delcol', 'Delete a column'],
-];
+/** the buttons' ops, in order; each button is the row navigation.ts toolbarCommand names (its label and description) */
+const BUTTONS: (BrowserOp | 'get')[] = ['find', 'get', 'replace', 'unreplace', 'table', 'load', 'write', 'first', 'last', 'restore', 'addcol', 'delcol'];
 
 /** a stored value as the core sent it (docs/protocol.md `browser`), full
     precision (A14): whatever digits it was sent with, no rounding here */
@@ -76,6 +64,7 @@ export function TableView() {
   const may = useMay();
   const mayKey = useMayKey();
   const open = useStore(s => s.table.open);
+  const hello = useStore(s => s.hello);
   const page = useStore(s => s.table.page);
   const selected = useStore(s => s.table.selected);
   const coreRows = useStore(s => s.core?.rows ?? 0);
@@ -167,7 +156,7 @@ export function TableView() {
   for (let i = first; i < last; i++) items.push({row: i, values: rowAt(page, i)});
 
   return (
-    <section id="table-panel" ref={panel} class={'table-panel panel-sheet' + (open ? ' open' : '')} aria-label="Data table">
+    <section id="table-panel" ref={panel} class={'table-panel panel-sheet' + (open ? ' open' : '')} aria-label={useCommandLabel('tool.browser')}>
       <div class="panel-header">
         <button class="table-back" onClick={close}>Back</button>
         <h2>Data</h2>
@@ -179,10 +168,11 @@ export function TableView() {
         </button>
       </div>
       <div class="table-tools">
-        {BUTTONS.map(([label, op, hint]) => {
+        {BUTTONS.map(op => {
+          const row = toolbarRow(hello, 'browser', op);
           const off = op === 'get' ? !may({cmd: 'ic.from_data_row', row: 0}) : !mayKey('browser', op);
-          return <button key={op} data-button={`browser:${op}`} title={off ? BUSY_TITLE : hint} disabled={off}
-            onClick={() => op === 'get' ? session.getRow() : session.browserOp(op)}>{label}</button>;
+          return <button key={op} data-button={`browser:${op}`} title={off ? BUSY_TITLE : row?.description} disabled={off}
+            onClick={() => op === 'get' ? session.getRow() : session.browserOp(op)}>{row?.label}</button>;
         })}
         <CommandButton command="browser.transpose" />
         <CommandButton command="table.edit" />

@@ -1,6 +1,6 @@
 import {useEffect, useRef} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
-import {menuTree, registryRows, type MenuNode} from './navigation';
+import {commandRow, menuTree, registryRows, type MenuNode} from './navigation';
 import {effectiveKeys} from '../store/keymap';
 import {closeMenuBar} from './hotkeys';
 
@@ -98,7 +98,7 @@ export function MenuBar() {
           {['window.select', 'window.rename', w.shown ? 'window.hide' : 'window.show', 'window.destroy'].map(id => <li key={id}>
             <button data-window-action={id} disabled={id === 'window.rename' && !['graph','diagram'].includes(w.kind) || id === 'window.destroy' && w.kind === 'browser'}
               title={id === 'window.rename' && !['graph','diagram'].includes(w.kind) ? 'This tool window keeps its role name' : id === 'window.destroy' && w.kind === 'browser' ? 'The data browser stays open; Hide keeps it out of view' : undefined} onClick={() => {close(); if (id === 'window.rename') session.registryAction(id, {window: w.name});
-              else {if (id === 'window.select') session.send({cmd: 'window.show', window: w.name}); session.send({cmd: id, window: w.name});}}}>{id === 'window.select' ? 'Bring to front' : id === 'window.rename' ? 'Rename' : id === 'window.destroy' ? 'Destroy' : w.shown ? 'Hide' : 'Show'}</button>
+              else {if (id === 'window.select') session.send({cmd: 'window.show', window: w.name}); session.send({cmd: id, window: w.name});}}}>{commandRow(hello, id)?.label}</button>
           </li>)}
         </ul></details>
       </li>)}

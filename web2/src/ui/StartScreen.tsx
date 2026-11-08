@@ -7,6 +7,7 @@
 import {placeWords} from '../protocol/errors';
 import {baseName} from '../store/files';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
 import {ErrorSource} from './ErrorSource';
 
 export function StartScreen() {
@@ -20,7 +21,7 @@ export function StartScreen() {
       <h2 id="start-title">Open a model</h2>
       <p class="muted">A model is an .ode or .odex file, a saved session (.snapx) or a recording (.recx).</p>
       <button class="primary" data-start-open aria-disabled={!may} title={may ? undefined : BUSY_TITLE}
-        onClick={() => { if (may) session.openModel(); }}>Open model…</button>
+        onClick={() => { if (may) session.openModel(); }}><CommandLabel command="session.open_model" /></button>
       <h3>Recent models</h3>
       {err && start.error && (
         <div class="banner error" role="alert" data-start-error>

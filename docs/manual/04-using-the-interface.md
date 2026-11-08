@@ -215,7 +215,7 @@ curves can be hidden from the legend, and CSV export (written by xppautX
 itself, then offered as a download) what is shown. The zoom shown and
 the earlier runs (drawn lighter until Erase, with a legend toggle) are
 held by the core's window and sent as data, so a saved session
-(File/saVe session) keeps the zoom and the toggle; the earlier runs
+(File > Save session) keeps the zoom and the toggle; the earlier runs
 themselves are not saved. There is no zoom
 history: "Reset view" and the **Fit** button
 below are the way back. "Use this view" makes the client's current zoom
@@ -327,7 +327,7 @@ action is; every button and menu item has one of five kinds:
 |---|---|---|
 | Control | Stop (Escape), Quit, answering a question | works |
 | View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
-| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Apply set, File/Restore defaults, autoX's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
+| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File > Sets > Apply set, File > Sets > Restore defaults, autoX's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
 | Data | Load of values' XPPAUT files, Import XPPAUT session state, every file written, Save session, autoX's Save and Load diagram, autoX's Grab | disabled |
 | Computation | Integrate and Initialconds, Continue, Range, autoX's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 

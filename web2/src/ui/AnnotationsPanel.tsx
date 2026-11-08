@@ -1,4 +1,5 @@
 import {useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
 import {annotationRows} from '../store/marks';
 
 export function AnnotationsPanel() {
@@ -10,8 +11,8 @@ export function AnnotationsPanel() {
     <h2>Annotations — {plots.active}</h2><button onClick={() => session.store.dispatch({type: 'annotations', open: false})}>Close</button>
     <ul>{rows.map(row => <li key={row.id} data-annotation={row.id} aria-selected={selectedAnnotation === row.id}>
       <button onClick={() => session.store.dispatch({type: 'annotations', open: true, selected: row.id})}>{row.kind}: {row.text} ({row.x}, {row.y}) {row.color}</button>
-      <button data-annotation-edit={row.id} onClick={() => session.registryAction('annotation.edit', row.values)}>Edit</button>
-      <button data-annotation-delete={row.id} onClick={() => session.send({cmd: 'annotation.delete', annotation_id: row.id})}>Delete</button>
+      <button data-annotation-edit={row.id} onClick={() => session.registryAction('annotation.edit', row.values)}><CommandLabel command="annotation.edit" /></button>
+      <button data-annotation-delete={row.id} onClick={() => session.send({cmd: 'annotation.delete', annotation_id: row.id})}><CommandLabel command="annotation.delete" /></button>
     </li>)}</ul>{!rows.length && <p>No annotations.</p>}
   </aside>;
 }

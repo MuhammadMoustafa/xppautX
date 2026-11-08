@@ -17,6 +17,7 @@ import {formatElapsed, jobsText, runStatus} from '../plot/autoxStatus';
 import {activeView} from '../store/diagram';
 import {logEntries} from '../store/log';
 import {useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
 import {connectionText} from './StatusBar';
 
 export function AutoxStatus() {
@@ -61,7 +62,7 @@ export function AutoxStatus() {
       {busy && (
         <button class="small danger autox-stop" disabled={stopping} onClick={() => session.abort()}
           title="Stop the running command (autoX keeps the points computed so far)">
-          {stopping ? 'Stopping…' : 'Stop'}
+          {stopping ? 'Stopping…' : <CommandLabel command="run.abort" />}
         </button>
       )}
     </div>

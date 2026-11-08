@@ -26,16 +26,11 @@ import {choiceLabel} from '../store/fieldKinds';
 import type {AplotOp} from '../session';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
+import {toolbarRow} from './navigation';
 
 
-const BUTTONS: [string, AplotOp, string][] = [
-  ['Redraw', 'redraw', 'Draw again from the data'],
-  ['Edit', 'edit', 'Columns, rows, skips and the z range'],
-  ['Fit', 'fit', 'Fit the z range to the data'],
-  ['Range', 'range', 'Save a GIF for each run of Integrate/Range'],
-  ['Print', 'print', 'Write a PDF file'],
-  ['GIF', 'gif', 'Save the picture as a GIF'],
-];
+/** the buttons' ops, in order; each button is the row navigation.ts toolbarCommand names */
+const BUTTONS: AplotOp[] = ['redraw', 'edit', 'fit', 'range', 'print', 'gif'];
 
 /** A14: six significant digits in a readout */
 function fmt6(v: number): string {
@@ -48,6 +43,7 @@ export function AplotView() {
   const session = useSession();
   const mayKey = useMayKey();
   const open = useStore(s => s.aplot.open);
+  const hello = useStore(s => s.hello);
   const windowOpen = useStore(s => s.aplot.windowOpen);
   const aplot = useStore(s => s.aplot);
   const ev = aplot.event;
@@ -164,9 +160,10 @@ export function AplotView() {
         </label>
       </div>
       <div class="aplot-tools">
-        {BUTTONS.map(([label2, op, hint]) => {
+        {BUTTONS.map(op => {
+          const row = toolbarRow(hello, 'aplot', op);
           const off = !mayKey('aplot', op);
-          return <button key={op} data-button={`aplot:${op}`} title={off ? BUSY_TITLE : hint} disabled={off} onClick={() => session.aplotOp(op)}>{label2}</button>;
+          return <button key={op} data-button={`aplot:${op}`} title={off ? BUSY_TITLE : row?.description} disabled={off} onClick={() => session.aplotOp(op)}>{row?.label}</button>;
         })}
       </div>
       <p class="aplot-info" role="status">

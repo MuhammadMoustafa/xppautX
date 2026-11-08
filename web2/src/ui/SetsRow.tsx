@@ -5,6 +5,8 @@
 import {useEffect, useRef} from 'preact/hooks';
 import type {ComponentChildren} from 'preact';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
+import {commandRow} from './navigation';
 
 /** what each scope's section holds, in the words of its buttons */
 const WHAT: Record<string, string> = {
@@ -43,7 +45,7 @@ function LoadFromFile({scope, what}: {scope: string; what: string}) {
   return (
     <>
       <button class="small" onClick={() => input.current?.click()} disabled={off} data-values-file={scope}
-        title={off ? BUSY_TITLE : `Load ${what} from a file: an .odex's defaults or one of its sets, or an XPPAUT file`}>Load from file…</button>
+        title={off ? BUSY_TITLE : `Load ${what} from a file: an .odex's defaults or one of its sets, or an XPPAUT file`}><CommandLabel command="set.file_contents" /></button>
       <input ref={input} id={`values-file-${scope}`} type="file" hidden accept=".odex,.par,.ic,.set"
         onChange={async e => {
           const el = e.target as HTMLInputElement, file = el.files?.[0];
@@ -63,8 +65,12 @@ export function SetsRow({scope, window}: {scope: string; window?: string}) {
   const fixed = ['scope', 'window', ...(scope === 'initial' ? [] : ['state'])];
   const ask = (cmd: string, values: Record<string, unknown> = {}) => session.registryAction(cmd, {scope, ...target, ...values}, fixed.concat(Object.keys(values)));
   const off = (cmd: string) => !may({cmd});
-  const item = (cmd: string, label: string, run: () => void, title?: string) =>
-    <li key={label}><button role="menuitem" data-command={cmd} disabled={off(cmd)} title={off(cmd) ? BUSY_TITLE : title} onClick={run}>{label}</button></li>;
+  const hello = useStore(s => s.hello);
+  /* a set's own entries name the set; the rest are the command's label */
+  const item = (cmd: string, named: string | null, run: () => void, title?: string) => {
+    const label = named ?? commandRow(hello, cmd)?.label;
+    return <li key={label}><button role="menuitem" data-command={cmd} disabled={off(cmd)} title={off(cmd) ? BUSY_TITLE : title} onClick={run}>{label}</button></li>;
+  };
   const own = sets.filter(set => !set.file);
   /* a graph's toolbar has no room for the row: it folds into one Sets drop-down, whose list of sets is Apply */
   const folded = scope === 'plot';
@@ -77,17 +83,17 @@ export function SetsRow({scope, window}: {scope: string; window?: string}) {
             () => session.send({cmd: 'set.apply', name: set.name, scope, ...target}), `Apply only the ${what} of the set ${set.name}`))}
       </Menu>
       <Menu id="save" label="Save">
-        {item('set.save_new', 'New set…', () => ask('set.save_new'), `Write the current ${what} into the model file as a new set`)}
+        {item('set.save_new', null, () => ask('set.save_new'), `Write the current ${what} into the model file as a new set`)}
         {own.length === 0 ? <li class="value-hint">No set of the model file to replace in</li>
           : own.map(set => item('set.save_into', `Replace ${what} in set ${set.name}…`, () => ask('set.save_into', {name: set.name}),
             `Replace the ${what} of the set ${set.name} by the current values; its other parts stay`))}
-        {item('set.save_defaults', 'As defaults…', () => ask('set.save_defaults'), `Write the current ${what} as the model's own`)}
-        {item('set.export', 'Export…', () => ask('set.export'), `Write the current ${what} as a set of another .odex file`)}
+        {item('set.save_defaults', null, () => ask('set.save_defaults'), `Write the current ${what} as the model's own`)}
+        {item('set.export', null, () => ask('set.export'), `Write the current ${what} as a set of another .odex file`)}
       </Menu>
       <LoadFromFile scope={scope} what={what} />
       <button class="small" data-command="set.restore_defaults" disabled={off('set.restore_defaults')}
         title={off('set.restore_defaults') ? BUSY_TITLE : `Put the model's own ${what} back`}
-        onClick={() => session.restoreDefaults(scope, window)}>Restore defaults</button>
+        onClick={() => session.restoreDefaults(scope, window)}><CommandLabel command="set.restore_defaults" /></button>
     </div>
   );
   return folded ? <details class="sets-menu sets-fold" ref={fold}><summary class="small">Sets ▾</summary>{row}</details> : row;

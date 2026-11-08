@@ -250,8 +250,8 @@ names its variable, and Run continues in its parameters (Main Parm, and
 they come, and every view shows the grab's cursor and the point under
 the mouse, so you can grab a point in whichever view shows it best.
 
-The views are saved with the session (File/saVe session) and in autoX's
-own file (File/Save diagram), each with its axes and zoom, and come back
+The views are saved with the session (File > Save session) and in autoX's
+own file (File > autoX > Save diagram), each with its axes and zoom, and come back
 as they were when you open it.
 
 ## Numerical parameters

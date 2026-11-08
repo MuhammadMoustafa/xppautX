@@ -28,6 +28,7 @@ import type {ManualChapter} from '../help/manual';
 import {searchManual} from '../help/search';
 import {TEXT} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
 import {Field} from './Field';
 import {FOCUSABLE} from './dialogFocus';
 import {FIXED_KEYS, shortcutLabel, openPanel} from './hotkeys';
@@ -84,7 +85,7 @@ function KeyTable() {
   const rows = registryRows(hello).filter(row => shortcutLabel(row, keymap) !== '');
   return (
     <details class="help-keys">
-      <summary>Keyboard shortcuts</summary>
+      <summary><CommandLabel command="tool.keyboard_shortcuts" /></summary>
       <p><button type="button" onClick={() => session.store.dispatch({type: 'keymapUi', action: {type: 'open'}})}>Change shortcuts…</button></p>
       <table>
         <tbody>

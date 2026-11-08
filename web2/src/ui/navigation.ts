@@ -3,36 +3,48 @@ import type {HelloEvent} from '../protocol/types';
 
 export function registryRows(hello: HelloEvent | null): CommandRow[] {
   return (hello?.commands ?? []).filter(row => row.arguments !== undefined).map(row => ({
-    ...row, id: row.cmd, label: row.menu_path?.split('/').pop() || row.cmd,
+    ...row, id: row.cmd, label: row.label!,
     description: row.description ?? '', category: row.category ?? '', pinnable: true,
     default_keys: row.default_keys ?? [],
   }));
+}
+/** the registry row of command `id`: its label, description and menu place are what every control for it shows */
+export function commandRow(hello: HelloEvent | null, id: string): CommandRow | undefined {
+  return registryRows(hello).find(row => row.id === id);
+}
+/** where a row sits in the menu bar, label last (`File/Sets/Apply set`) */
+export function menuPlace(row: CommandRow): string {
+  return [row.menu_path, row.label].filter(Boolean).join('/');
+}
+/** the row of a toolbar button: its label and description are the button's text and tooltip */
+export function toolbarRow(hello: HelloEvent | null, window: string, id: string): CommandRow | undefined {
+  return commandRow(hello, toolbarCommand(window, id));
 }
 export interface MenuNode {name: string; children: MenuNode[]; row?: CommandRow}
 export function menuTree(rows: CommandRow[]): MenuNode[] {
   const tree: MenuNode[] = [];
   for (const row of rows) {
+    if (!row.menu_path) continue;
     let children = tree;
-    const path = row.menu_path?.split('/') ?? [];
-    for (const [index, name] of path.entries()) {
+    for (const name of row.menu_path.split('/')) {
       let node = children.find(node => node.name === name && !node.row);
-      if (index === path.length - 1) { children.push({name, children: [], row}); break; }
       if (!node) { node = {name, children: []}; children.push(node); }
       children = node.children;
     }
+    children.push({name: row.label, children: [], row});
   }
   return tree;
 }
 export function paletteRows(rows: CommandRow[], query: string): CommandRow[] {
   const words = query.toLowerCase().trim().split(/\s+/);
-  return rows.filter(row => words.every(word => `${row.id} ${row.menu_path} ${row.description}`.toLowerCase().includes(word)));
+  return rows.filter(row => words.every(word => `${row.id} ${menuPlace(row)} ${row.description}`.toLowerCase().includes(word)));
 }
 
-/** Toolbar buttons use the registry path too; these are presentation shortcuts, not a menu tree. */
+/** the registry command of each toolbar button; a button's text is the row's label, never written again */
 export function toolbarCommand(window: string, id: string): string {
   const commands: Record<string, Record<string, string>> = {
     autox: {axes: 'autox.configure_plot', numerics: 'autox.configure_numerics', run: 'autox.run', grab: 'autox.grab', usr: 'autox.configure_marks', clear: 'autox.hide_earlier', redraw: 'autox.redraw'},
-    browser: {find: 'browser.find', replace: 'browser.replace_column', unreplace: 'browser.undo_replace', table: 'browser.tabulate_column', load: 'browser.load', write: 'browser.export', first: 'browser.set_slice_start', last: 'browser.set_slice_end', restore: 'browser.restore_full_slice', addcol: 'browser.add_column', delcol: 'browser.delete_column'},
+    browser: {get: 'ic.from_data_row', find: 'browser.find', replace: 'browser.replace_column', unreplace: 'browser.undo_replace', table: 'browser.tabulate_column', load: 'browser.load', write: 'browser.export', first: 'browser.set_slice_start', last: 'browser.set_slice_end', restore: 'browser.restore_full_slice', addcol: 'browser.add_column', delcol: 'browser.delete_column'},
     ani: {file: 'animation.load', grab: 'animation.grab_point'},
     aplot: {redraw: 'array_plot.redraw', edit: 'array_plot.configure', fit: 'array_plot.fit', range: 'array_plot.range', print: 'array_plot.export_pdf', gif: 'array_plot.export_gif'},
   };

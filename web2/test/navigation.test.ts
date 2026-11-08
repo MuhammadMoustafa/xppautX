@@ -10,7 +10,7 @@ const rows = registryRows(REGISTRY_HELLO);
 test('W517: every registry command appears exactly once in the tree with its declared path', () => {
   const found: string[] = [];
   const walk = (nodes: ReturnType<typeof menuTree>, path: string[]) => nodes.forEach(n => {
-    if (n.row) {found.push(n.row.id); assert.equal([...path, n.name].join('/'), n.row.menu_path);}
+    if (n.row) {found.push(n.row.id); assert.equal(path.join('/'), n.row.menu_path); assert.equal(n.name, n.row.label);}
     walk(n.children, [...path, n.name]);
   });
   walk(menuTree(rows), []);
@@ -18,7 +18,12 @@ test('W517: every registry command appears exactly once in the tree with its dec
   assert.ok(rows.length > 150);
   assert.ok(rows.every(r => ['File','Run','Analysis','Plot','Data','autoX','Windows','Help'].includes(r.menu_path!.split('/')[0])));
 });
-test('W517: palette matches each word in names, paths and descriptions', () => {
+test('W636: a row with no menu place has a label but no place in the tree, and a row is shown by its label', () => {
+  const bare = {...rows[0], id: 'x.bare', menu_path: '', label: 'Bare'};
+  assert.deepEqual(menuTree([bare]), []);
+  assert.deepEqual(menuTree([{...bare, menu_path: 'File/Sets'}]).map(n => [n.name, n.children.map(c => c.name), n.children[0].children.map(c => c.name)]), [['File', ['Sets'], ['Bare']]]);
+});
+test('W517: palette matches each word in names, menu places and descriptions', () => {
   assert.ok(paletteRows(rows, 'session save').some(r => r.id === 'session.save'));
   assert.ok(paletteRows(rows, 'plot annotation').some(r => r.id === 'annotation.move'));
   assert.equal(paletteRows(rows, 'not-a-command').length, 0);

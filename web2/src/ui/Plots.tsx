@@ -1,4 +1,4 @@
-import {CommandButton} from './CommandButton';
+import {CommandButton, CommandLabel, useCommandLabel} from './CommandButton';
 /* The plot windows as tabs (docs/ui-v2.md T6): one tab per core window, the
    active one selected, each tab its own PlotView with its own zoom. The tabs
    follow the core: window.create adds one, close and destroy_all remove
@@ -25,20 +25,20 @@ function KinescopeBar() {
   return (
     <div class="kinescope-bar" role="group" aria-label="Kinescope">
       <button class="small" disabled={busy} onClick={() => session.kinescopeCapture()}
-        title="Kinescope/Capture: keep this plot as a frame (k, c)">Capture</button>
+        title="Keep this plot as a frame"><CommandLabel command="kinescope.capture" /></button>
       {frames.length > 0 && (
         <>
           <span class="kinescope-count">{frames.length} frame{frames.length === 1 ? '' : 's'}
             {playing && shown !== null ? `, showing ${shown + 1}` : ''}</span>
           <button class="small" disabled={busy || playing} onClick={() => session.kinescopePlay()}
-            title="Kinescope/Playback: show the captured frames (k, p)">Play</button>
+            title="Show the captured frames"><CommandLabel command="kinescope.play" /></button>
           <button class="small" disabled={!playing} onClick={() => session.kinescopeStop()}>Stop</button>
           <button class="small" disabled={busy || playing} onClick={() => session.downloadKinescopeGif()}
-            title="Export the captured frames as an animated GIF (K, M)">
-            Export GIF
+            title="Export the captured frames as an animated GIF">
+            <CommandLabel command="kinescope.export_gif" />
           </button>
           <button class="small" disabled={busy} onClick={() => session.kinescopeReset()}
-            title="Kinescope/Reset: clear the captured frames (k, r)">Reset</button>
+            title="Clear the captured frames"><CommandLabel command="kinescope.reset" /></button>
         </>
       )}
     </div>
@@ -56,6 +56,7 @@ export function Plots({dark}: {dark: boolean}) {
   const current=all.find(w=>w.win===active);
   const modes=useStore(s=>s.hello?.commands.find(c=>c.cmd==='window.set_redraw_mode')?.arguments?.find(a=>a.name==='mode')?.choices ?? []);
   const simultaneous=useStore(s=>s.plots.simultaneous);
+  const redrawModeLabel = useCommandLabel('window.set_redraw_mode');
   /* a tab pick is a view: it works during a run too, only an open question waits (W95) */
   const tabOff = !may({cmd:'window.select',window:active});
   const windowOff = !may({cmd:'window.create'}); /* Makewindow */
@@ -113,23 +114,23 @@ export function Plots({dark}: {dark: boolean}) {
         <div class="plot-window-tools">
           <WindowName name={active} disabled={windowOff} />
           <button class="small" disabled={windowOff} onClick={() => session.newWindow()}
-            title="Create a graph copied from the active graph">New window</button>
+            title="Create a graph copied from the active graph"><CommandLabel command="window.create" /></button>
           {tabbed && (
             <button class="small" disabled={windowOff || active === windows[0]?.win} onClick={() => session.closeWindow()}
-              title="Close this graph; the main graph stays open">Close window</button>
+              title="Close this graph; the main graph stays open"><CommandLabel command="window.destroy" /></button>
           )}
           <details class="plot-window-options">
             <summary>Window options</summary>
             <div class="plot-window-options-menu">
-                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.redraw',window:active})}>Redraw plot</button>
-                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.clear',window:active})}>Clear plot</button>
+                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.redraw',window:active})}><CommandLabel command="window.redraw" /></button>
+                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.clear',window:active})}><CommandLabel command="window.clear" /></button>
                 {['annotation.add_text','annotation.add_arrow','annotation.add_pointer','annotation.add_marker'].map(command => <CommandButton command={command} />)}
-                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.destroy_all'})}>Close extra windows</button>
-                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.send_to_bottom',window:active})}>Send to bottom</button>
-                <select aria-label="Redraw mode" disabled={windowOff} value={current?.info?.redraw_mode} onChange={e=>session.send({cmd:'window.set_redraw_mode',window:active,mode:e.currentTarget.value})}>
+                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.destroy_all'})}><CommandLabel command="window.destroy_all" /></button>
+                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.send_to_bottom',window:active})}><CommandLabel command="window.send_to_bottom" /></button>
+                <select aria-label={redrawModeLabel} disabled={windowOff} value={current?.info?.redraw_mode} onChange={e=>session.send({cmd:'window.set_redraw_mode',window:active,mode:e.currentTarget.value})}>
                   {modes.map(mode=><option value={mode}>{choiceLabel(mode)}</option>)}
                 </select>
-                <label><input type="checkbox" checked={simultaneous} disabled={windowOff} onChange={e=>session.send({cmd:'window.set_simultaneous_plot',enabled:e.currentTarget.checked})}/>Simultaneous plot</label>
+                <label><input type="checkbox" checked={simultaneous} disabled={windowOff} onChange={e=>session.send({cmd:'window.set_simultaneous_plot',enabled:e.currentTarget.checked})}/><CommandLabel command="window.set_simultaneous_plot" /></label>
             </div>
           </details>
           <KinescopeBar />

@@ -17,12 +17,12 @@ constexpr std::array GET_EVENTS = {xpp::events::KEYMAP_CHANGED, xpp::events::DON
 constexpr std::array SET_EVENTS = {xpp::events::KEYMAP_CHANGED, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"keymap.get", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Help/Keymap/Get",
+    Command{"keymap.get", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Get keymap", "Help/Keymap",
             "The user's keymap: the keys of the commands they changed, and the pinned commands.", GET_RESULTS, GET_EVENTS, false, front_end},
-    Command{"keymap.set", SET_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Help/Keymap/Set",
+    Command{"keymap.set", SET_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Set keymap", "Help/Keymap",
             "Replace the bindings or the pinned commands given (what is left out stays); the keymap is checked whole, then written.",
             SET_RESULTS, SET_EVENTS, false, front_end},
-    Command{"keymap.reset", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Help/Keymap/Reset", "Remove the user's keymap: every command has its default keys.",
+    Command{"keymap.reset", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Reset keymap", "Help/Keymap", "Remove the user's keymap: every command has its default keys.",
             RESET_RESULTS, SET_EVENTS, false, front_end}};
 
 } // namespace

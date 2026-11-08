@@ -195,6 +195,10 @@ struct Command {
     std::span<const Argument> arguments;
     char kind;
     CommandCategory category;
+    /* the command's one name, in plain words (sentence case, no mnemonic letters, no listed choices), unique among the rows: every
+       menu, button, tooltip, palette entry, status line and the manual read it from here */
+    const char *label;
+    /* the menu groups above the label, slash-separated (`File/Sets`), its first one a menu of the bar; the label is not repeated in it */
     const char *menu_path;
     const char *description;
     std::span<const ResultField> results;
