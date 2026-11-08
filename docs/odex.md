@@ -205,7 +205,7 @@ you wrote (`1/30`) alone while the value is unchanged.
 
   | group | keys |
   |---|---|
-  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `bvp.max_iterates`, `bvp.tolerance`, `bvp.epsilon`; `torus.period`, `torus.fold` |
+  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `storage_precision`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `bvp.max_iterates`, `bvp.tolerance`, `bvp.epsilon`; `torus.period`, `torus.fold` |
   | `poincare` | `map`, `variable`, `sign`, `plane`, `stop` |
   | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535), `near_tolerance` |
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |
@@ -290,7 +290,11 @@ you wrote (`1/30`) alone while the value is unchanged.
   [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317); the
   manual's "Numerical parameters"). `subsystem_split` (also xppautX's own) is
   `equations` (the default) or `run` (W433: what a report shows as independent
-  subsystems; with `run` a Poincare section or stop joins every state). `near_tolerance` (near's tolerance) is
+  subsystems; with `run` a Poincare section or stop joins every state). `storage_precision` (W613,
+  [#681](https://github.com/MuhammadMoustafa/xppautX/issues/681); xppautX's own) is `single` (the default: the
+  data table keeps each value as a float, XPPAUT's own) or `double` (the integrator's double, exactly); changing
+  it with rows stored converts them in place. Every data file writes each stored value in the shortest text that
+  reads back as exactly it. `near_tolerance` (near's tolerance) is
   an equilibria key.
 - `set "NAME" { key: value, ..., options: { group: { key: value } } }` — a named set. Its name is the user's text, so it is in double quotes even without spaces (`set "hopf" { ... }`; letters, digits and `_`, starting with a letter); a bare name is an error at its line. Its top-level keys are
   parameters and states only (`g: 9.81`, `v: -0.3`), each a number. Settings go only under `options:`, in the options

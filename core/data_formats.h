@@ -22,8 +22,8 @@ namespace xpp {
 struct DataTable {
     std::vector<std::string> names; /* a column without one is col<i+1> */
     std::vector<std::vector<double>> columns;
-    /* Storage is float: its CSV values must still use float's shortest text.
-       Readers clear this marker because the file can contain doubles. */
+    /* The values are the data store's floats (storage_precision single): .dat and CSV write each in a float's
+       shortest text, else in a double's. Readers clear this marker because the file can contain doubles. */
     bool stored_floats = true;
     /* CSV-only tables (autoX): text and full-precision numeric fields share
        the registry's quoter, without rounding autoX's doubles to floats. */

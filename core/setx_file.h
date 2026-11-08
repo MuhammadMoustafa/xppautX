@@ -87,6 +87,10 @@ Result<std::string> setx_text(const Session &s, const Settings &f);
    error at the one that is wrong. Nothing of s changes. */
 Result<Settings> read_settings(Session &s, std::string file, std::string_view text);
 
+/* f's storage precision put in s, its stored data converted: before a session's data table is put in place, so the
+   table is kept at the precision the session was saved with */
+void apply_storage_precision(Session &s, const Settings &f);
+
 /* f put in s, in one step (the front end shown it when redraw) */
 void apply_settings(Session &s, const Settings &f, bool redraw);
 

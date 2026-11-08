@@ -320,9 +320,9 @@ xpp::Result<> last_shot(xpp::Session &s, int flag)
  s.numerics.storflag=flag;
  s.data_store.current_time=s.numerics.start_time;
  if(flag){
-  s.data_store.col[0][0]=static_cast<float>(s.numerics.start_time);
+  s.data_store.col[0][0]=s.numerics.start_time;
   extra(s,x,s.numerics.start_time,s.model().node,s.model().neq);
-  for(i=0;i<s.model().neq;i++)s.data_store.col[1+i][0]=static_cast<float>(x[i]);
+  for(i=0;i<s.model().neq;i++)s.data_store.col[1+i][0]=x[i];
   s.data_store.rows=1;
 
 }

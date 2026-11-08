@@ -28,7 +28,7 @@ namespace xpp {
    a delay differential equation. 
 */
 
-xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
+xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo)
 {
       double rr[2]={0,0};
 
@@ -105,7 +105,7 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
  else /* the contour's count of roots is still shown */
    xpp::log(XPP_LOG_WARN,"No characteristic root near {} + i {}: the search {}\n",xpp::number(guess_re),xpp::number(guess_im),
             newton_cause(s,root,1).why);
- *stabinfo=static_cast<float>(fabs(sign));
+ *stabinfo=fabs(sign);
  i=static_cast<int>(sign);
 if(i==0&&okroot&&s.delay.alpha_max>0)
   i=2;

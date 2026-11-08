@@ -3119,7 +3119,7 @@ def same_floats(a, b):
 
 def series_matches_output_dat(ser, ode=None):
     """the series' columns hold the numbers output.dat has for the same run
-    (xppautX --silent): both are the stored floats, output.dat prints %.8g"""
+    (xppautX --silent): both are the stored floats, output.dat prints each in its shortest text"""
     ode = ode or args.ode
     silent = tempfile.mkdtemp(prefix='xppsilent')
     copy_model(ode, silent)
@@ -3129,9 +3129,9 @@ def series_matches_output_dat(ser, ode=None):
         rows = [l.split() for l in f if l.strip()]
     shutil.rmtree(silent, ignore_errors=True)
     for c in ser['columns']:
-        want = [r[c['col']] for r in rows]
-        got = ['%.8g' % v for v in values(c, ser.get('enc'))]
-        if got != want:
+        want = [f32(float(r[c['col']])) for r in rows]
+        got = values(c, ser.get('enc'))
+        if not same_floats(got, want):
             bad = next(i for i, (a, b) in enumerate(zip(got, want)) if a != b) if len(got) == len(want) else -1
             return 'column %s differs at row %d (%d rows, output.dat %d)' % (c['name'], bad, len(got), len(want))
     return None
@@ -6288,6 +6288,19 @@ def npz_arrays(path):
     return out
 
 
+def sig_digits(text):
+    """the significant digits of a number's text: its mantissa without sign, point, leading and trailing zeros"""
+    mantissa = text.lower().lstrip('+-').split('e')[0].replace('.', '').strip('0')
+    return max(len(mantissa), 1)
+
+
+def shortest32_digits(v):
+    """the fewest significant digits whose text reads back as exactly the float v"""
+    if v == 0 or v != v or v in (float('inf'), float('-inf')):
+        return 1
+    return next(n for n in range(1, 10) if f32(float('%.*g' % (n, v))) == v)
+
+
 def check_data_formats():
     import gzip
     p, r, snd, col, _ = launch_server()
@@ -6335,8 +6348,11 @@ def check_data_formats():
         check('Save data as CSV: a header of the column names, then every row',
               header[:3] == ['T', 'V', 'W'] and rows and len(header) == len(rows[0]) and len(vals) == len(rows) == 601,
               '%s, %d rows' % (header, len(vals)))
-        check("CSV's values are the stored floats (output.dat's %.8g of them)",
-              all('%.8g' % f32(a) == '%.8g' % b for ra, rb in zip(vals, rows) for a, b in zip(ra, rb)))
+        dat_text = [l.split() for l in want.decode().splitlines() if l.strip()]
+        csv_text = [l.split(',') for l in csv[1:]]
+        check("CSV's values are the .dat's, digit for digit (the shortest text of each stored float)", dat_text == csv_text)
+        check('every .dat value is the shortest text that reads back as exactly the stored float',
+              all(sig_digits(x) == shortest32_digits(f32(float(x))) for r in dat_text for x in r))
         check('Save data as CSV.gz is the CSV, gzipped', gzip.decompress(read(r, 'd.csv.gz')) == read(r, 'd.csv'))
         try:
             arrays = npz_arrays(os.path.join(r, 'd.npz'))
@@ -7048,6 +7064,111 @@ def check_jacobian_setting():
 
 
 check_jacobian_setting()
+
+
+def logistic_iterates(precision, steps=60, a=3.95, x=0.01):
+    """the logistic map's iterates a*x*(1-x), each as the IEEE double the integrator computes (the same two operations in
+    the same order), rounded to a float when precision is single: what the data store must hold, computed here and
+    not by the program"""
+    out = [x]
+    for _ in range(steps):
+        x = a * x * (1 - x)
+        out.append(x)
+    return [f32(v) for v in out] if precision == 'single' else out
+
+
+def check_storage_precision():
+    """W613: `storage_precision`, single (XPPAUT's float, the default) or double: the stored values of a map whose iterates
+    are known exactly, in each mode (--server, and --silent from the model's own options), in every format (the same
+    digits), and kept or rounded when the setting changes with rows stored."""
+    import gzip
+    model_dir = tempfile.mkdtemp(prefix='xppprecision')
+    source = ("x' = a*x*(1-x)\npar a = 3.95\ninit x = 0.01\n"
+              "options { integration: { total_time: 60, method: discrete%s } }\n")
+    model = os.path.join(model_dir, 'map.odex')
+    with open(model, 'w') as f:
+        f.write(versioned(source % ''))
+    read = lambda d, n: open(os.path.join(d, n), 'rb').read() if os.path.exists(os.path.join(d, n)) else b''
+    table = lambda text: [l.split() for l in text.decode().splitlines() if l.strip()]
+    column = lambda rows, k: [float(r[k]) for r in rows]
+    p, r, snd, col, _ = launch_server(ode=model)
+
+    def export(fmt, name):
+        snd(cmd='browser.export', target='table', format=fmt, file=name)
+        evs, e = col(lambda e: e.get('ev') == 'ask' or is_done(e), timeout=20 * SLOW)
+        while e is not None and e.get('ev') == 'ask':
+            snd(cmd='answer', id=e['id'], key='y')
+            evs, e = col(lambda e: e.get('ev') == 'ask' or is_done(e), timeout=20 * SLOW)
+        return read(r, name)
+
+    def setting(word):
+        snd(cmd='set', kind='num', name='storage_precision', text=word)
+        evs, _ = col(is_done)
+        return evs
+
+    try:
+        col(is_done)
+        snd(cmd='events.subscribe', events=['run.numerics'])
+        evs, _ = col(is_done)
+        field = next((f for e in evs if e.get('ev') == 'run.numerics' for f in e['fields'] if f['key'] == 'storage_precision'), {})
+        check('W613: the numerics event has storage_precision, single by default, with its choices',
+              field.get('value') == 'single' and field.get('choices') == ['single', 'double'], str(field))
+        live_run(snd, col)
+        single_dat = export('dat', 's.dat')
+        check('W613 single: the .dat holds the iterates as floats, each in its shortest text',
+              [f32(v) for v in column(table(single_dat), 1)] == logistic_iterates('single') and
+              all(sig_digits(x[1]) == shortest32_digits(f32(float(x[1]))) for x in table(single_dat)), str(single_dat[:200]))
+        # single to double while rows are stored: converted in place, no question, the values as they were held
+        evs = setting('double')
+        check('W613: changing the precision with rows stored asks nothing and fails nothing',
+              not any(e.get('ev') == 'ask' or 'error' in e for e in evs), str([e for e in evs if e.get('ev') == 'ask' or 'error' in e]))
+        converted = export('dat', 'c.dat')
+        check('W613: single to double keeps every stored value exactly (a float, as a double)',
+              column(table(converted), 1) == logistic_iterates('single') and column(table(converted), 0) == [float(i) for i in range(61)],
+              str(converted[:200]))
+        live_run(snd, col)
+        dats = {fmt: export(fmt, 'd.' + fmt) for fmt in ('dat', 'csv', 'csv.gz')}
+        iterates = logistic_iterates('double')
+        check('W613 double: the .dat holds exactly what the integrator computed (its doubles, not floats)',
+              column(table(dats['dat']), 1) == iterates and iterates != logistic_iterates('single'), str(dats['dat'][:300]))
+        csv_rows = [l.split(',') for l in dats['csv'].decode().splitlines() if not l.startswith('#')][1:]
+        check('W613: the .dat, the CSV and the CSV.gz write the same digits', table(dats['dat']) == csv_rows
+              and gzip.decompress(dats['csv.gz']) == dats['csv'])
+        export('npz', 'd.npz')
+        try:
+            arrays = npz_arrays(os.path.join(r, 'd.npz'))
+            ok, detail = list(arrays['X'][1]) == iterates, str(arrays['X'][1][:3])
+        except Exception as ex:
+            ok, detail = False, repr(ex)
+        check('W613: the NPZ holds the same doubles', ok, detail)
+        snd(cmd='ic.from_data_row', row=60)
+        evs, _ = col(is_done)
+        got = next((e['result']['values']['X'] for e in evs if e.get('ev') == 'done' and 'result' in e), None)
+        check('W613: a stored row taken as the initial conditions is the stored double', got == iterates[60], '%r vs %r' % (got, iterates[60]))
+        # double to single: each stored value rounded as storing under single would have
+        setting('single')
+        back = export('dat', 'b.dat')
+        check('W613: double to single rounds each stored value to the float storing it under single keeps',
+              [f32(v) for v in column(table(back), 1)] == logistic_iterates('single') and back == single_dat, str(back[:200]))
+        # the same model under --silent from its own options: the same .dat as the server's export
+        for word in ('single', 'double'):
+            silent = tempfile.mkdtemp(prefix='xppsilent')
+            with open(os.path.join(silent, 'map.odex'), 'w') as f:
+                f.write(versioned(source % (', storage_precision: %s' % word)))
+            subprocess.run([os.path.abspath(args.server), 'map.odex', '--silent'], cwd=silent,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 * SLOW)
+            text = read(silent, 'output.dat').replace(b'\r', b'')
+            shutil.rmtree(silent, ignore_errors=True)
+            check('W613 --silent %s: output.dat is the server\'s .dat, digit for digit' % word,
+                  text == (single_dat if word == 'single' else dats['dat']).replace(b'\r', b''), str(text[:200]))
+    finally:
+        p.stdin.close()
+        p.wait(timeout=10 * SLOW)
+        shutil.rmtree(r, ignore_errors=True)
+        shutil.rmtree(model_dir, ignore_errors=True)
+
+
+check_storage_precision()
 
 
 def check_subsystem_split():

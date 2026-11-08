@@ -53,7 +53,7 @@ std::unique_ptr<Session> make_sweep_worker(Session &s, int rows)
         w.integrator.rhs = RightHandSide{my_rhs, &w};
         w.integrator.on_worker = true;
         init_alloc_info(w);
-        w.data_store.allocate(rows, s.model().neq + 1);
+        w.data_store.allocate(rows, s.model().neq + 1, s.numerics.storage_precision);
         w.data_store.current_time = s.data_store.current_time;
         start_solver(w);
         return worker;

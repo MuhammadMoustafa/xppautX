@@ -27,6 +27,12 @@
 
 namespace xpp {
 
+namespace {
+/* the correlations new_hist makes, by the store's value type (defined below) */
+template<class T> void mycor2(Column x,Column y,int n,int nbins,Column z,int flag);
+template<class T> void fftxcorr(Column data1,Column data2,int length,int nlag,Column cr,int flag);
+} // namespace
+
 
 
 
@@ -95,8 +101,7 @@ void new_four(xpp::Session &s, int nmodes, int col)
 {
   int i;
   int length=nmodes+1;
-  float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
-  float *bob;
+  const double total=s.data_store.round(s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0]);
   if(s.histogram.four_here){
    data_back(s);
    s.histogram.four_columns.release();
@@ -105,9 +110,8 @@ void new_four(xpp::Session &s, int nmodes, int col)
   s.histogram.four_len=nmodes;
  s.histogram.four_columns.make(s.data_store,3,length,s.model().neq);
  s.histogram.four_here=1;
-for(i=0;i<length;i++)s.histogram.four()[0][i]=static_cast<float>(i)/total; 
- bob=get_data_col(s,col);
-    fourier_modes(std::span(bob,s.data_store.rows),s.histogram.four()[1],s.histogram.four()[2],nmodes);
+for(i=0;i<length;i++)s.histogram.four()[0][i]=i/total; 
+    fourier_modes(get_data_col(s,col),s.data_store.rows,s.histogram.four()[1],s.histogram.four()[2],nmodes);
  four_back(s);
   ping();
 }
@@ -264,7 +268,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
   s.histogram.hist_columns.make(s.data_store,2,length,s.model().neq);
   s.histogram.hist_here=1;
   for(i=0;i<length;i++){
-    s.histogram.hist()[0][i]=static_cast<float>((zlo+dz*i));
+    s.histogram.hist()[0][i]=zlo+dz*i;
     s.histogram.hist()[1][i]=0.0;
   }
   if(which==0){
@@ -308,13 +312,13 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
     return {};
   }
   if(which==2){
-    mycor2(std::span(s.data_store.col[col],s.data_store.rows),std::span(s.data_store.col[col2],s.data_store.rows),nbins,s.histogram.hist()[1],1);
+    with_value_type(s.data_store.col[col],[&](auto t){mycor2<decltype(t)>(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,nbins,s.histogram.hist()[1],1);});
     hist_back(s);
     ping();
     return {};
   }
   if(which==3){
-    fftxcorr(std::span(s.data_store.col[col],s.data_store.rows),std::span(s.data_store.col[col2],s.data_store.rows),(nbins-1)/2,s.histogram.hist()[1],1);
+    with_value_type(s.data_store.col[col],[&](auto t){fftxcorr<decltype(t)>(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,(nbins-1)/2,s.histogram.hist()[1],1);});
     hist_back(s);
     ping();
     return {};
@@ -357,10 +361,10 @@ Result<int> compute_power(xpp::Session &s, std::optional<int> column)
 {
   int i;
   double sv,c;
-  float *datx,*daty,ptot=0;
+  double ptot=0;
   if(auto fourier=compute_fourier(s,column);!fourier)return std::unexpected(fourier.error());
-  datx=get_data_col(s,1);
-  daty=get_data_col(s,2);
+  const Column datx=get_data_col(s,1);
+  const Column daty=get_data_col(s,2);
 
   for(i=0;i<s.histogram.four_len;i++){
     c=datx[i];
@@ -369,7 +373,7 @@ Result<int> compute_power(xpp::Session &s, std::optional<int> column)
     daty[i]=xpp::math::atan2(sv,c);
     ptot+=(datx[i]*datx[i]);
   }
-  xpp::log(XPP_LOG_INFO, "a0={:g} L2norm= {:g}  \n",datx[0],sqrt(ptot));
+  xpp::log(XPP_LOG_INFO, "a0={:g} L2norm= {:g}  \n",static_cast<double>(datx[0]),sqrt(ptot));
   return s.histogram.four_len;
 }
 /* short-term fft 
@@ -388,11 +392,11 @@ Result<int> compute_power(xpp::Session &s, std::optional<int> column)
 
 namespace {
 /* the data window of win points, w_type 0 square, 1 parzen, 2 hamming, 3 bartlett, 4 hanning */
-std::vector<float> data_window(int win, int w_type)
+template<class T> std::vector<T> data_window(int win, int w_type)
 {
-  std::vector<float> f(win);
+  std::vector<T> f(win);
   for(int i=0;i<win;i++){
-    const float x=static_cast<float>(i)/(static_cast<float>(win));
+    const T x=static_cast<T>(i)/(static_cast<T>(win));
     switch(w_type){
     case 0: f[i]=1; break;
     case 1: f[i]=x*(1-x)*4.0; break;
@@ -405,20 +409,21 @@ std::vector<float> data_window(int win, int w_type)
 }
 }
 
-int spectrum(std::span<const float> data,int win,int w_type,float *pow)
+namespace {
+/* spectrum's arithmetic in T, the type of the columns it reads and writes: float, as it always was, for a single store */
+template<class T> int spectrum_in(Column data,int nr,int win,int w_type,Column pow)
 {
-  const int nr=static_cast<int>(data.size());
   /* assumes 50% overlap */
   int shift=win/2;
   int kwin=(nr-win+1)/shift;
  int i,j,kk;
- float x,nrmf;
+ T x,nrmf;
  if(nr<2)return(0);
  if(kwin<1)return(0);
- std::vector<float> ct_v(win), d_v(win), st_v(win);
- float *ct=ct_v.data(), *d=d_v.data(), *st=st_v.data();
- const std::vector<float> window=data_window(win,w_type);
- const float *f=window.data();
+ std::vector<T> ct_v(win), d_v(win), st_v(win);
+ T *ct=ct_v.data(), *d=d_v.data(), *st=st_v.data();
+ const std::vector<T> window=data_window<T>(win,w_type);
+ const T *f=window.data();
  nrmf=0.0;
  for(i=0;i<win;i++)nrmf+=(f[i]*f[i]/win);
  for(i=0;i<shift;i++)
@@ -429,7 +434,7 @@ int spectrum(std::span<const float> data,int win,int w_type,float *pow)
      kk=(j*shift+i+nr)%nr;
      d[i]=f[i]*data[kk];
    }
-   fourier_modes(d_v,ct,st,shift);
+   fourier_modes(Column(d),win,Column(ct),Column(st),shift);
    for(i=0;i<shift;i++){
      x=ct[i]*ct[i]+st[i]*st[i];
      pow[i]=pow[i]+sqrt(x);
@@ -439,6 +444,12 @@ int spectrum(std::span<const float> data,int win,int w_type,float *pow)
    pow[i]=pow[i]/((kwin)*sqrt(nrmf));
 
  return(1);
+}
+} // namespace
+
+int spectrum(Column data,int nr,int win,int w_type,Column pow)
+{
+  return with_value_type(data,[&](auto t){return spectrum_in<decltype(t)>(data,nr,win,w_type,pow);});
 }
 
 /*  here is what we do - I think it is what MatLab does as well 
@@ -456,26 +467,26 @@ int spectrum(std::span<const float> data,int win,int w_type,float *pow)
 
 */
 
-int cross_spectrum(std::span<const float> data,std::span<const float> data2,int win,int w_type,float *pow,int type)
+namespace {
+template<class T> int cross_spectrum_in(Column data,Column data2,int nr,int win,int w_type,Column pow,int type)
 {
-  const int nr=static_cast<int>(data.size());
   int shift=win/2;
   int kwin=(nr-win+1)/shift; 
   /*  int kwin=nr/shift; */
   int i,j,kk;
- float nrmwin;
+ T nrmwin;
  /*float sum; Not used anywhere*/
  if(nr<2)return(0);
  if(kwin<1)return(0);
- std::vector<float> ct_v(win), d_v(win), st_v(win);
- std::vector<float> ct2_v(win), d2_v(win), st2_v(win);
- std::vector<float> pxx_v(win), pyy_v(win), pxyr_v(win), pxym_v(win);
- const std::vector<float> window=data_window(win,w_type);
- const float *f=window.data();
- float *ct=ct_v.data(), *st=st_v.data(), *d=d_v.data();
- float *ct2=ct2_v.data(), *st2=st2_v.data(), *d2=d2_v.data();
- float *pxx=pxx_v.data(), *pyy=pyy_v.data();
- float *pxyr=pxyr_v.data(), *pxym=pxym_v.data();
+ std::vector<T> ct_v(win), d_v(win), st_v(win);
+ std::vector<T> ct2_v(win), d2_v(win), st2_v(win);
+ std::vector<T> pxx_v(win), pyy_v(win), pxyr_v(win), pxym_v(win);
+ const std::vector<T> window=data_window<T>(win,w_type);
+ const T *f=window.data();
+ T *ct=ct_v.data(), *st=st_v.data(), *d=d_v.data();
+ T *ct2=ct2_v.data(), *st2=st2_v.data(), *d2=d2_v.data();
+ T *pxx=pxx_v.data(), *pyy=pyy_v.data();
+ T *pxyr=pxyr_v.data(), *pxym=pxym_v.data();
  nrmwin=0.0;
  for(i=0;i<win;i++)nrmwin+=f[i]*f[i];
  for(i=0;i<shift;i++){
@@ -491,8 +502,8 @@ int cross_spectrum(std::span<const float> data,std::span<const float> data2,int 
      d[i]=f[i]*data[kk];
      d2[i]=f[i]*data2[kk];
    }
-   fourier_modes(d_v,ct,st,shift);
-   fourier_modes(d2_v,ct2,st2,shift);
+   fourier_modes(Column(d),win,Column(ct),Column(st),shift);
+   fourier_modes(Column(d2),win,Column(ct2),Column(st2),shift);
    for(i=0;i<shift;i++){
      pxyr[i]+=(ct[i]*ct2[i]+st[i]*st2[i]);
      pxym[i]+=(ct[i]*st2[i]-ct2[i]*st[i]);
@@ -515,6 +526,12 @@ int cross_spectrum(std::span<const float> data,std::span<const float> data2,int 
 
  return(1);
 }
+} // namespace
+
+int cross_spectrum(Column data,Column data2,int nr,int win,int w_type,Column pow,int type)
+{
+  return with_value_type(data,[&](auto t){return cross_spectrum_in<decltype(t)>(data,data2,nr,win,w_type,pow,type);});
+}
 
 Result<int> compute_sd(Session &s, std::optional<int> type, std::optional<int> column, std::optional<int> column2, std::optional<int> window_length, std::optional<int> window)
 {
@@ -532,7 +549,7 @@ Result<int> compute_sd(Session &s, std::optional<int> type, std::optional<int> c
   h.spec_win=win;
   if(column)h.spec_col=*column;
   if(column2)h.spec_col2=*column2;
-  float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
+  const double total=s.data_store.round(s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0]);
   h.spec_type=flag;
   if(h.hist_here){
     data_back(s);
@@ -543,10 +560,10 @@ Result<int> compute_sd(Session &s, std::optional<int> type, std::optional<int> c
    const int length=h.hist_len+2;
   h.hist_columns.make(s.data_store,2,length,s.model().neq);
   h.hist_here=1;
-  for(int j=0;j<h.hist_len;j++)h.hist()[0][j]=(static_cast<float>(j)*s.data_store.rows/h.spec_wid)/total;
+  for(int j=0;j<h.hist_len;j++)h.hist()[0][j]=s.data_store.round(s.data_store.round(static_cast<double>(j)*s.data_store.rows)/h.spec_wid)/total;
   const int computed=h.spec_type==0
-    ? spectrum(std::span(s.data_store.col[h.spec_col],s.data_store.rows),h.spec_wid,h.spec_win,h.hist()[1])
-    : cross_spectrum(std::span(s.data_store.col[h.spec_col],s.data_store.rows),std::span(s.data_store.col[h.spec_col2],s.data_store.rows),h.spec_wid,h.spec_win,h.hist()[1],h.spec_type);
+    ? spectrum(s.data_store.col[h.spec_col],s.data_store.rows,h.spec_wid,h.spec_win,h.hist()[1])
+    : cross_spectrum(s.data_store.col[h.spec_col],s.data_store.col[h.spec_col2],s.data_store.rows,h.spec_wid,h.spec_win,h.hist()[1],h.spec_type);
   hist_back(s);
   ping();
   if(!computed)
@@ -575,15 +592,14 @@ Result<int> just_fourier(xpp::Session &s, int flag, std::optional<int> column)
 {
   int i;
   double sv,c;
-  float *datx,*daty;
   int nmodes=s.data_store.rows/2-1;
   if(auto data=need_data(s,"fourier");!data)return std::unexpected(data.error());
    if(column)s.histogram.spec_col=*column;
    new_four(s,nmodes,s.histogram.spec_col);
    if(flag)
      {
-       datx=get_data_col(s,1);
-       daty=get_data_col(s,2);
+       const Column datx=get_data_col(s,1);
+       const Column daty=get_data_col(s,2);
        
        for(i=0;i<s.histogram.four_len;i++){
 	 c=datx[i];
@@ -612,15 +628,15 @@ Result<int> compute_correl(xpp::Session &s, const HIST_INFO *given)
     return fail("correlation",xpp::format("Number of lags ({}) is not between 2 and {}, half the {} rows the run stored less 2",info.nbins,most,s.data_store.rows),command_place());
   if(info.fftc!=0&&info.fftc!=1)
     return fail("correlation",xpp::format("The method {} is not 0 (direct) or 1 (FFT)",info.fftc),command_place());
-  const float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
-  const float dta=total/static_cast<float>((s.data_store.rows-1));
+  const double total=s.data_store.round(s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0]);
+  const double dta=s.data_store.round(total/(s.data_store.rows-1));
   
   info.nbins=2*(info.nbins/2)+1;
   const int lag=info.nbins/2;
 
   /* lets try to get the lags correct for plotting */
-  info.xlo=-lag*dta;
-  info.xhi=lag*dta;
+  info.xlo=-s.data_store.round(lag*dta);
+  info.xhi=s.data_store.round(lag*dta);
   
   if(auto made=new_hist(s,info.nbins,info.xlo,info.xhi,info.col,info.col2,info.cond.c_str(),2+info.fftc);!made)return std::unexpected(made.error());
   s.histogram.info=info;
@@ -655,19 +671,20 @@ bool ask_autocorrelation(xpp::Session &s)
   return ask_column(s,info.col,"Variable ");
 }
 
-void mycor2(std::span<const float> x,std::span<const float> y, int nbins, float *z, int flag)
+namespace {
+/* the circular cross-correlation of two columns of n values at lags -nbins/2.. nbins/2 into z, in T's arithmetic */
+template<class T> void mycor2(Column x,Column y,int n,int nbins,Column z,int flag)
 {
-  const int n=static_cast<int>(x.size());
   int i,j;
   int k,count=0,lag=nbins/2;
-  float sum,avx=0.0,avy=0.0;
+  T sum,avx=0.0,avy=0.0;
   if(flag){
     for(i=0;i<n;i++){
       avx+=x[i];
       avy+=y[i];
     }
-    avx=avx/static_cast<float>(n);
-    avy=avy/static_cast<float>(n);
+    avx=avx/static_cast<T>(n);
+    avy=avy/static_cast<T>(n);
   }
   for(j=0;j<=nbins;j++){
     sum=0.0;
@@ -677,7 +694,7 @@ void mycor2(std::span<const float> x,std::span<const float> y, int nbins, float 
       k=(k+n)%n;
       if((k>=0)&&(k<n)){
 	count++;
-	sum+=(x[i]-avx)*(y[k]-avy);
+	sum+=(static_cast<T>(x[i])-avx)*(static_cast<T>(y[k])-avy);
       }
     }
     if(count>0)
@@ -685,6 +702,7 @@ void mycor2(std::span<const float> x,std::span<const float> y, int nbins, float 
     z[j]=sum;
   }
 }
+} // namespace
 
 Result<HistogramCounts> compute_hist(xpp::Session &s, const HIST_INFO *given)
 {
@@ -710,27 +728,28 @@ bool ask_histogram(xpp::Session &s)
 
 /* experimental -- does it work */
 /* nlag should be less than length/2 */
-void fftxcorr(std::span<const float> data1,std::span<const float> data2,int nlag,float *cr,int flag)
+namespace {
+/* the same by the Fourier transform (experimental), in T's arithmetic where it keeps floats */
+template<class T> void fftxcorr(Column data1,Column data2,int length,int nlag,Column cr,int flag)
 {
-  const int length=static_cast<int>(data1.size());
   double x,y,sum;
-  float av1=0.0,av2=0.0;
+  T av1=0.0,av2=0.0;
   int i;
   if(flag){
     for(i=0;i<length;i++){
       av1+=data1[i];
       av2+=data2[i];
     }
-    av1=av1/static_cast<float>(length);
-    av2=av2/static_cast<float>(length);
+    av1=av1/static_cast<T>(length);
+    av2=av2/static_cast<T>(length);
   }
 
   std::vector<double> re1_v(length), im1_v(length), re2_v(length), im2_v(length);
   double *re1=re1_v.data(), *im1=im1_v.data(), *re2=re2_v.data(), *im2=im2_v.data();
 
   for(i=0;i<length;i++){
-    re1[i]=(data1[i]-av1);
-    re2[i]=(data2[i]-av2);
+    re1[i]=(static_cast<T>(data1[i])-av1);
+    re2[i]=(static_cast<T>(data2[i])-av2);
   }
 
    /* both transforms and the inverse divided by the length */
@@ -748,34 +767,34 @@ void fftxcorr(std::span<const float> data1,std::span<const float> data2,int nlag
    sum=0.0;
    for(i=0;i<nlag;i++){
      sum+=fabs(im1[i]);
-     cr[nlag+i]=static_cast<float>(re1[i])*length; /* positive part of the correlation */
+     cr[nlag+i]=static_cast<T>(re1[i])*length; /* positive part of the correlation */
    }
    for(i=0;i<nlag;i++){
      sum+=fabs(im1[length-nlag+i]);
-     cr[i]=static_cast<float>(re1[length-nlag+i])*length;}
+     cr[i]=static_cast<T>(re1[length-nlag+i])*length;}
    xpp::log(XPP_LOG_INFO, "residual = {:g}\n",sum);
    
 }
+} // namespace
 
 /* the Fourier modes 0..nmodes-1 of data (length points): ct[i] and st[i]
    are twice the real and imaginary parts of the transform
    (1/length) sum_j data[j] exp(+2 pi i j k/length), ct[0] once */
-void fourier_modes(std::span<const float> data, float *ct, float *st, int nmodes)
+void fourier_modes(Column data, int length, Column ct, Column st, int nmodes)
 {
-  const int length=static_cast<int>(data.size());
   if(length<=0)return;
-  std::vector<double> in(data.begin(),data.end());
+  std::vector<double> in=data.values(0,length);
   const int half=length/2+1;
   std::vector<double> re(half), im(half);
   xpp::fft_real(in,re,im,1,1.0/length);
-  ct[0]=static_cast<float>(re[0]);
+  ct[0]=re[0];
   st[0]=0.0;
   for(int i=1;i<nmodes;i++){
     /* past the half the real transform stores, X[n-k] = conj(X[k]) */
     const bool mirror=i>=half;
     const int k=mirror?length-i:i;
-    ct[i]=static_cast<float>(re[k]*2.0);
-    st[i]=static_cast<float>((mirror?-im[k]:im[k])*2.0);
+    ct[i]=re[k]*2.0;
+    st[i]=(mirror?-im[k]:im[k])*2.0;
   }
 }
 

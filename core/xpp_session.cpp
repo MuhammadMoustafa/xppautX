@@ -707,6 +707,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
 xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
 {
     /* what can fail first: the data table's room, autoX's solution file */
+    xpp::apply_storage_precision(s, r.set);
     if (r.data && r.data->rows() > 0 && put_stored_data(s, *r.data) == 0)
         return xpp::fail("session", xpp::format("its {} cannot be put in the data table", xpp::snapx::data_member), xpp::Place{f.name});
     if (r.diagram)

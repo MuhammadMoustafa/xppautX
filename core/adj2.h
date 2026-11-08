@@ -42,7 +42,7 @@ struct AdjointState {
   } transpose;
   /* the maximal Liapunov exponent over a range: the parameter, the
      exponent (liap_i points, while liap_flag) */
-  std::array<std::vector<float>, 2> liap;
+  std::array<std::vector<double>, 2> liap;
   int liap_flag = 0, liap_i = 0;
 };
 
@@ -69,7 +69,7 @@ void make_adj_com(Session &s, int com);
    `compile` (else the formulas of the last time are used again, as a range of adjoints does) */
 Result<> new_adjoint(Session &s);
 Result<> new_h_fun(Session &s, bool compile, const std::vector<std::string> *couplings = nullptr);
-Result<> make_h(Session &s, float **orb, float **adj, float **h, int nt);
+Result<> make_h(Session &s, ColumnTable orb, ColumnTable adj, ColumnTable h, int nt);
 /* the adjoint, the orbit and the H function in the data browser, or why there is none */
 Result<> load_adjoint(Session &s);
 Result<> load_interaction(Session &s);
@@ -90,7 +90,7 @@ void do_this_liaprun(Session &s, int i, double p);
 
 /* adjoints and the maximal Liapunov exponent return why they failed; the
    command (new_adjoint, do_liapunov) shows it */
-Result<> adjoint(Session &s, float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node);
+Result<> adjoint(Session &s, ColumnTable orbit, ColumnTable adjnt, int nt, double dt, double eps, double minerr, int maxit, int node);
 Result<> step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt, BlockLu &lu, std::span<const std::vector<int>> subsystems);
 Result<double> hrw_liapunov(Session &s, double eps);
 

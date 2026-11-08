@@ -6,6 +6,7 @@
 #include <span>
 #include <string>
 #include <vector>
+#include "storage.h"
 #include "xpp_error.h"
 #include "model.h" /* Model::OuProcess */
 
@@ -51,19 +52,21 @@ std::string markov_cell(const char *row, int *start);
 /* the Markov variable name's transitions, cells its nstates x nstates
    formulas row by row (text, or numbers for a fixed chain): its index */
 int build_markov(Session &s, std::span<const std::string> cells, const char *name);
+/* the mean and variance of the runs converted to the store's precision (storage_precision_changed) */
+void retype_stochastic(Session &s);
 /* stocHast's many-runs state (markov.cpp), a Session's (session.h):
    whether a Compute is running (flag), whether its mean and variance
    exist (here), the number of trials and the length of each run, and the
    mean and variance columns. The browser (new_browse_dat, browse.h) takes
-   the statistics as a plain float ** of one row per column, so mean/variance
-   are arrays of row pointers, each into the vector of mean_rows/
-   variance_rows that owns it. */
+   the statistics as a table of columns, so mean/variance are arrays of
+   column views, each into the mean_rows/variance_rows column that owns it
+   (at the store's precision, the arithmetic as the store keeps a value). */
 struct StochasticState {
   /* a Compute sweep is running: its runs add to the mean and the variance (markov.cpp stochastic_integrate sets it, only for the sweep) */
   bool flag = false;
   int here = 0, n_trials = 0, len = 0;
-  std::vector<float *> mean, variance;
-  std::vector<std::vector<float>> mean_rows, variance_rows;
+  std::vector<Column> mean, variance;
+  std::vector<OwnedColumn> mean_rows, variance_rows;
 };
 
 } // namespace xpp

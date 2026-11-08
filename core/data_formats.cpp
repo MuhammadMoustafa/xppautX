@@ -1,11 +1,12 @@
 /* The data file formats and their registry (data_formats.h, W52).
 
-   .dat is XPP's own: each row's values in "%.8g" followed by a blank, one
-   row per line, no names -- byte for byte what XPP always wrote (the
-   batch run's output.dat and the browser's Write), read back field by
-   field with the first line's width. CSV has a header row of the column
-   names and each stored float in its shortest text that reads back as
-   the same float. CSV.gz is that CSV, gzipped. NPZ is numpy.savez's
+   .dat is XPP's own: each row's values followed by a blank, one row per
+   line, no names (the batch run's output.dat and the browser's Write),
+   read back field by field, split on blanks. CSV has a header row of the
+   column names. Both write each stored value in its shortest text that
+   reads back as exactly the stored value (append_stored: a float's under
+   single storage, a double's under double), so they never differ in digits;
+   XPP wrote "%.8g". CSV.gz is that CSV, gzipped. NPZ is numpy.savez's
    format: a zip of .npy files, one float64 array per column named after
    it, or for what the plot shows one (points x 2 or 3) array per curve,
    curve1, curve2, ... */
@@ -56,7 +57,7 @@ bool write_dat(const DataTable &t, Writer &w)
     const std::size_t n = t.rows();
     for (std::size_t i = 0; i < n; i++) {
         for (const std::vector<double> &c : t.columns) {
-            append_general(text, c[i], 8);
+            append_stored(text, c[i], t.stored_floats);
             text += ' ';
         }
         text += '\n';
@@ -142,8 +143,7 @@ std::string csv_text(const DataTable &t)
         for (std::size_t j = 0; j < width; j++) {
             if (j) o += ',';
             if (t.fields.empty()) {
-                if (t.stored_floats) format_append(o, "{}", static_cast<float>(t.columns[j][i]));
-                else format_append(o, "{}", t.columns[j][i]);
+                append_stored(o, t.columns[j][i], t.stored_floats);
             }
             else append_csv_field(o, t.fields[j][i]);
         }

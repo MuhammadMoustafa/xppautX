@@ -15,7 +15,7 @@
    "out of memory <what>", then exit(1).
 
    The core never calls the C library's malloc/calloc/realloc/strdup/free
-   directly (ZeroedFloats, below, is the one owner of calloc); the exceptions are memory that crosses a boundary with a
+   directly (ZeroedBytes, below, is the one owner of calloc); the exceptions are memory that crosses a boundary with a
    library: dirname()
    (autox_nox.cpp, aniparse.cpp) returns a pointer into its argument; getcwd()
    (xpp_files_dir.cpp) fills the caller's buffer). A new exception
@@ -70,27 +70,28 @@ template<class... T> std::size_t size_sum(T... terms)
   (add(terms), ...);
   return size;
 }
-/* n floats, all zero, whose memory the system hands over untouched: pages
+/* n bytes, all zero, whose memory the system hands over untouched: pages
    are mapped and zero-filled only when first written, so a big block that
    a run fills slowly costs only what it uses (the data store's columns,
    storage.cpp: 16 MB for a 200-equation model, of which a short run
    writes a few rows). Move-only; the constructor throws std::bad_alloc
    when there is no memory. The one place that calls the C library's
    calloc (tools/alloccheck.sh): a std::vector fills what it makes. */
-class ZeroedFloats {
+class ZeroedBytes {
 public:
-  ZeroedFloats() noexcept = default;
-  explicit ZeroedFloats(std::size_t n);
-  ZeroedFloats(ZeroedFloats &&other) noexcept : p_(std::exchange(other.p_, nullptr)) {}
-  ZeroedFloats &operator=(ZeroedFloats &&other) noexcept
+  ZeroedBytes() noexcept = default;
+  explicit ZeroedBytes(std::size_t n);
+  ZeroedBytes(ZeroedBytes &&other) noexcept : p_(std::exchange(other.p_, nullptr)) {}
+  ZeroedBytes &operator=(ZeroedBytes &&other) noexcept
   {
     std::swap(p_, other.p_);
     return *this;
   }
-  ~ZeroedFloats();
-  float *data() const noexcept { return p_; }
+  ~ZeroedBytes();
+  /* the block, aligned for any type */
+  void *data() const noexcept { return p_; }
 private:
-  float *p_ = nullptr;
+  void *p_ = nullptr;
 };
 
 /* an optional T held behind a pointer, for a big member most records of a

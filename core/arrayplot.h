@@ -2,6 +2,7 @@
 
 #include "xpp_error.h"
 #include "xpp_io.h"
+#include "storage.h"
 #include <stdio.h>
 
 #include <string>
@@ -22,7 +23,7 @@ namespace xpp {
 struct ArrayPicture {
   const char *filename, *xtitle, *ytitle, *bottom;
   int nacross, ndown, col0, row0, nskip, ncskip, maxrow, maxcol;
-  float **data;
+  ColumnTable data;
   double zmin, zmax, tlo, thi;
 };
 struct Session; /* session.h */

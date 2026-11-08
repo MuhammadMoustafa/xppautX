@@ -55,6 +55,8 @@ struct NumericsSettings {
      stored once |t| is past store_from */
   double start_time = 0, total_time = 0, delta_t = 0, store_from = 0;
   int store_every = 0;
+  /* what the data store keeps each value as (W613); the store itself converts when it changes (storage_precision_changed) */
+  StoragePrecision storage_precision = StoragePrecision::single;
   /* the method and its step bounds, tolerances, the limit on the variables
      (and whether passing it ends the run) and the delays' maximum */
   method::Id method = method::DISCRETE;

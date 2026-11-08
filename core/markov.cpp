@@ -454,7 +454,7 @@ void do_stochast_com(xpp::Session &s, int i)
 }
 
 /* show the mean or the variance of the runs in the browser */
-static Result<> stats_back(xpp::Session &s, float **stats)
+static Result<> stats_back(xpp::Session &s, ColumnTable stats)
 {
   if(!s.stochastic.here)
     return fail("stochastic","No stochastic runs yet: run Stochastic Compute first",command_place());
@@ -465,12 +465,12 @@ static Result<> stats_back(xpp::Session &s, float **stats)
 
 Result<> mean_back(xpp::Session &s)
 {
-  return stats_back(s,s.stochastic.mean.data());
+  return stats_back(s,ColumnTable(s.stochastic.mean.data()));
 }
 
 Result<> variance_back(xpp::Session &s)
 {
-  return stats_back(s,s.stochastic.variance.data());
+  return stats_back(s,ColumnTable(s.stochastic.variance.data()));
 }
 
 Result<int> stochastic_integrate(xpp::Session &s)
@@ -497,11 +497,21 @@ void free_stoch(xpp::Session &s)
   if(s.stochastic.here){
     data_back(s);
     for(i=0;i<(s.model().neq+1);i++){
-      s.stochastic.mean_rows[i]=std::vector<float>();
-      s.stochastic.variance_rows[i]=std::vector<float>();
-      s.stochastic.mean[i]=s.stochastic.variance[i]=nullptr;
+      s.stochastic.mean_rows[i].clear();
+      s.stochastic.variance_rows[i].clear();
+      s.stochastic.mean[i]=s.stochastic.variance[i]=Column();
     }
     s.stochastic.here=0;
+  }
+}
+
+void retype_stochastic(xpp::Session &s)
+{
+  for(std::size_t i=0;i<s.stochastic.mean_rows.size();i++){
+    s.stochastic.mean_rows[i].convert(s.data_store.precision());
+    s.stochastic.variance_rows[i].convert(s.data_store.precision());
+    s.stochastic.mean[i]=s.stochastic.mean_rows[i].view();
+    s.stochastic.variance[i]=s.stochastic.variance_rows[i].view();
   }
 }
 
@@ -516,10 +526,10 @@ void init_stoch(xpp::Session &s, int len)
   s.stochastic.mean.resize(columns);
   s.stochastic.variance.resize(columns);
   for(i=0;i<(s.model().neq+1);i++){
-    s.stochastic.mean_rows[i].assign(s.stochastic.len,0.0f);
-    s.stochastic.variance_rows[i].assign(s.stochastic.len,0.0f);
-    s.stochastic.mean[i]=s.stochastic.mean_rows[i].data();
-    s.stochastic.variance[i]=s.stochastic.variance_rows[i].data();
+    s.stochastic.mean_rows[i].assign(s.stochastic.len,s.data_store.precision());
+    s.stochastic.variance_rows[i].assign(s.stochastic.len,s.data_store.precision());
+    s.stochastic.mean[i]=s.stochastic.mean_rows[i].view();
+    s.stochastic.variance[i]=s.stochastic.variance_rows[i].view();
   }
   for(j=0;j<s.stochastic.len;j++){
     s.stochastic.mean[0][j]=s.data_store.col[0][j];
@@ -531,14 +541,14 @@ void init_stoch(xpp::Session &s, int len)
 void append_stoch(xpp::Session &s, int first, int length)
 {
   int i,j;
-  float z;
+  double z;
   if(first==0)init_stoch(s,length);
   if(length!=s.stochastic.len|| !s.stochastic.here)return;
   for(i=0;i<s.stochastic.len;i++){
       for(j=1;j<=s.model().neq;j++){
 	z=s.data_store.col[j][i];
 	s.stochastic.mean[j][i]=s.stochastic.mean[j][i]+z;
-	s.stochastic.variance[j][i]=s.stochastic.variance[j][i]+z*z;
+	s.stochastic.variance[j][i]=s.stochastic.variance[j][i]+s.data_store.round(z*z);
       }
     }
   s.stochastic.n_trials++;
@@ -547,14 +557,14 @@ void append_stoch(xpp::Session &s, int first, int length)
 void do_stats(xpp::Session &s, int ierr)
 {
   int i,j;
-  float ninv,mean;
+  double ninv,mean;
   if(ierr!=-1&&s.stochastic.n_trials>0){
-    ninv=1./static_cast<float>(s.stochastic.n_trials);
+    ninv=s.data_store.round(1./s.stochastic.n_trials);
     for(i=0;i<s.stochastic.len;i++){
       for(j=1;j<=s.model().neq;j++){
-	mean=s.stochastic.mean[j][i]*ninv;
+	mean=s.data_store.round(s.stochastic.mean[j][i]*ninv);
 	s.stochastic.mean[j][i]=mean;
-	s.stochastic.variance[j][i]=(s.stochastic.variance[j][i]*ninv-mean*mean);
+	s.stochastic.variance[j][i]=s.data_store.round(s.stochastic.variance[j][i]*ninv)-s.data_store.round(mean*mean);
       }
     }
  

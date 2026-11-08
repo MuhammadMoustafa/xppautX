@@ -29,7 +29,7 @@ case $1 in
   *) echo "usage: tools/valgrindcheck.sh [--origins]"; exit 2 ;;
 esac
 top=$PWD
-BASELINE=c281851de59ffd03b2a46428619a0c8f
+BASELINE=58fed7a175a635010b7698da91dc4e4c
 if ! command -v valgrind > /dev/null; then
   echo "valgrind not found (sudo apt-get install valgrind)"
   exit 1

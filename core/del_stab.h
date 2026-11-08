@@ -32,6 +32,6 @@ NewtonRun find_positive_root(Session &s, double *coef, double *delay, int n, int
 
 /* Sing pts for a delay equation: the equilibrium Newton finds from x
    (or Could not converge, an error) and its stability (stabinfo) */
-Result<> do_delay_sing(Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo);
+Result<> do_delay_sing(Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo);
 
 } // namespace xpp

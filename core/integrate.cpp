@@ -484,8 +484,8 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
         const auto grown=stor_full(s);
         if(!grown){failure.keep(grown);break;}
       }
-      s.data_store.col[0][s.data_store.rows]=static_cast<float>(i);
-      for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=static_cast<float>(s.integrator.fixptlist.x[i][j]);
+      s.data_store.col[0][s.data_store.rows]=i;
+      for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=s.integrator.fixptlist.x[i][j];
       s.data_store.rows++;
     }
     refresh_browser(s,s.data_store.rows);
@@ -535,7 +535,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
  double parlo,parhi,dpar,temp;
  int npar,stabcol,i,j,ierr;
  int mc;
- float stabinfo;
+ double stabinfo;
  xpp::FirstError failure;
  int points_found=0;
  int without_root=0; /* the values the search found no equilibrium at */
@@ -613,7 +613,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
         if(!grown){failure.keep(grown);break;}
       }
       s.data_store.col[0][s.data_store.rows]=temp;
-      for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=static_cast<float>(x[j]);
+      for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=x[j];
       for(j=s.model().node;j<s.model().node+s.model().nmarkov;j++)s.data_store.col[j+1][s.data_store.rows]=0.0;
       if(stabcol>0)s.data_store.col[stabcol-1][s.data_store.rows]=stabinfo;
 
@@ -728,7 +728,7 @@ struct RunOutcome {
   int stored=0;                       /* the rows the integration stored, the first row not counted */
   std::string stop_note,warnings;     /* why the run ended early without failing; what it logged at WARN */
   int rows=0;                         /* a worker's rows */
-  std::vector<float> columns;
+  std::vector<double> columns;       /* a worker's rows, column after column (a float or a double of the store held exactly) */
   double last_time=0;                 /* where the integration stopped */
 };
 
@@ -774,9 +774,9 @@ void compute_run(xpp::Session &x, double *state, const RangeRuns &r, int i, int 
   do_start_flags(x,state,&x.data_store.current_time);
   if(stored_from(x.numerics.store_from,x.data_store.current_time,x.numerics.delta_t)&&x.numerics.storflag&&x.numerics.poincare_map==PoincareMap::none)
   {
-    x.data_store.col[0][x.data_store.rows]=static_cast<float>(x.data_store.current_time);
+    x.data_store.col[0][x.data_store.rows]=x.data_store.current_time;
     extra(x,state,x.data_store.current_time,x.model().node,x.model().neq);
-    for(int e=0;e<x.model().neq;e++)x.data_store.col[1+e][x.data_store.rows]=static_cast<float>(state[e]);
+    for(int e=0;e<x.model().neq;e++)x.data_store.col[1+e][x.data_store.rows]=state[e];
     x.data_store.rows++;
   }
   const int rows_before=x.data_store.rows;
@@ -940,7 +940,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
      if(room&&o.rows>0){
        const std::size_t rows=static_cast<std::size_t>(o.rows);
        for(int c=0;c<=s.model().neq;c++)
-	 std::copy_n(o.columns.data()+static_cast<std::size_t>(c)*rows,rows,s.data_store.col[c]+s.data_store.rows);
+	 s.data_store.col[c].store(s.data_store.rows,std::span(o.columns).subspan(static_cast<std::size_t>(c)*rows,rows));
        s.data_store.rows+=o.rows;
        xpp::job::report_rows(s.data_store.rows,s.data_store.col[0][s.data_store.rows-1]);
        rows_stored(s,s.data_store.rows);
@@ -1028,7 +1028,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
        const std::size_t rows=static_cast<std::size_t>(o.rows),columns=static_cast<std::size_t>(worker.model().neq)+1;
        o.columns.resize(rows*columns);
        for(std::size_t c=0;c<columns;c++)
-	 std::copy_n(worker.data_store.col[c],rows,o.columns.data()+c*rows);
+	 for(std::size_t r=0;r<rows;r++)o.columns[c*rows+r]=worker.data_store.col[c][r];
      } catch (const std::bad_alloc &) {
        xpp::out_of_memory("a run of a sweep");
      } catch (const std::exception &e) {
@@ -1449,9 +1449,9 @@ xpp::Result<bool> integrate_from(xpp::Session &s, double *x)
   do_start_flags(s,x,&s.data_store.current_time);
    if(stored_from(s.numerics.store_from,s.data_store.current_time,s.numerics.delta_t)&&s.numerics.storflag&&s.numerics.poincare_map==PoincareMap::none)
     {
-      s.data_store.col[0][0]=static_cast<float>(s.data_store.current_time);
+      s.data_store.col[0][0]=s.data_store.current_time;
       extra(s,x,s.data_store.current_time,s.model().node,s.model().neq);
-      for(i=0;i<s.model().neq;i++)s.data_store.col[1+i][0]=static_cast<float>(x[i]);
+      for(i=0;i<s.model().neq;i++)s.data_store.col[1+i][0]=x[i];
       s.data_store.rows=1;
     }
   if(s.integrator.step_error){
@@ -1919,9 +1919,11 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
 
  /* an added column (add_stor_col) plotted live has index above neq and no live value: it reads 0 */
  const std::size_t neq_size=static_cast<std::size_t>(s.model().neq);
- std::vector<float> xv_values(neq_size+1+xpp::DataStore::ADDED_COLUMNS),xvold_values(neq_size+1+xpp::DataStore::ADDED_COLUMNS);
- float *const xv=xv_values.data(),*const xvold=xvold_values.data();
- float oldperiod=0.0;
+ /* the row the step stores, at the store's precision (doubles, rounded by the store), and its float copy for the live plot */
+ std::vector<double> xv_values(neq_size+1+xpp::DataStore::ADDED_COLUMNS),xvold_values(neq_size+1+xpp::DataStore::ADDED_COLUMNS);
+ double *const xv=xv_values.data(),*const xvold=xvold_values.data();
+ std::vector<float> plot_xv(xv_values.size()),plot_xvold(xv_values.size());
+ double oldperiod=0.0;
  std::vector<double> xprime_values(neq_size),oldxprime_values(neq_size);
  double *const xprime=xprime_values.data(),*const oldxprime=oldxprime_values.data(),hguess=dt;
 
@@ -1937,7 +1939,8 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
  double *const oldx=oldx_values.data(),oldt=0,dint,dxp,sect,sect1,tout=*t,tzero=*t;
  double sss,tnew=*t;
  int iflagstart=1;
- float tscal=tend,tv;
+ float tscal=tend;
+ double tv;
  
  char esc;
  int ieqn,i,pflag=0;
@@ -1973,8 +1976,8 @@ if(program.interactive&&front_end) cwidth=get_command_width();
  if(s.integrator.step_error)return take_step_error(s);
   mswtch(s,s.solver_work.xpv.x,x);
  if(s.integrator.steady)s.integrator.steady->begin(std::span(x,static_cast<std::size_t>(s.model().node+s.model().nmarkov)),*t);
- xv[0]=static_cast<float>(*t);
- for(ieqn=1;ieqn<=s.model().neq;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
+ xv[0]=*t;
+ for(ieqn=1;ieqn<=s.model().neq;ieqn++)xv[ieqn]=x[ieqn-1];
  if(s.animation.options.on_the_fly)on_the_fly(s,1); 
    
  if(s.numerics.poincare_map!=PoincareMap::none)
@@ -2055,7 +2058,7 @@ if(program.interactive&&front_end) cwidth=get_command_width();
            for(ieqn=1;ieqn<(s.model().neq+1);ieqn++)
            {
 	    xvold[ieqn]=xv[ieqn];
-	    xv[ieqn]=static_cast<float>(x[ieqn-1]);
+	    xv[ieqn]=x[ieqn-1];
 	/* trap NaN using isnan() in math.h 
 	   modified the out of bounds message as well
 	   print all the variables on the terminal window, haven't decide
@@ -2108,7 +2111,7 @@ if(program.interactive&&front_end) cwidth=get_command_width();
            }
            if(ieqn<(s.model().neq+1))break;
            if(front_end)ui.live_state(s, x, *t);
-           tv=static_cast<float>(*t);
+           tv=*t;
 	   xv[0]=tv;
  if(solver.traits().dense_output&&s.numerics.poincare_map!=PoincareMap::none){
    pflag=solver.section_found()?1:0;
@@ -2157,9 +2160,9 @@ if(program.interactive&&front_end) cwidth=get_command_width();
      {
      dint=sect/(s.numerics.poincare_plane+sect-sect1);
      i=static_cast<int>((fabs(*t)/fabs(s.numerics.poincare_plane)));
-     tv=static_cast<float>(s.numerics.poincare_plane)*i;
+     tv=s.data_store.round(s.data_store.round(s.numerics.poincare_plane)*i);
      xv[0]=tv;
-     for(i=1;i<=s.model().neq;i++)xv[i]=static_cast<float>((dint*oldx[i-1]+(1-dint)*x[i-1]));
+     for(i=1;i<=s.model().neq;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
      pflag=1;
      }
      else pflag=0;
@@ -2206,16 +2209,18 @@ dense_poi:
  if(s.numerics.poincare_map==PoincareMap::period&&pflag==1){
    if(oldperiod==0.0){
      pflag=0; /* this is the first hit !! */
-     oldperiod=*t;
+     oldperiod=s.data_store.round(*t);
      goto out;
    }
    xv[0]=*t-oldperiod;
-   oldperiod=*t;
+   oldperiod=s.data_store.round(*t);
  }
      
           if(stored_from(s.numerics.store_from,*t,dt)&&program.interactive&&front_end&&OnTheFly)
 	  {
-	     plot_the_graphs(s,xv,xvold,s.model().node,s.model().neq,fabs(dt*s.numerics.store_every),torcross,0); 
+	     std::ranges::copy(xv_values,plot_xv.begin());
+	     std::ranges::copy(xvold_values,plot_xvold.begin());
+	     plot_the_graphs(s,plot_xv.data(),plot_xvold.data(),s.model().node,s.model().neq,fabs(dt*s.numerics.store_every),torcross,0); 
 
 	  }
 
@@ -2283,8 +2288,8 @@ void send_output(xpp::Session &s, double *y,double t)
   if((s.numerics.storflag)&&(s.data_store.rows<s.data_store.max_rows)){
     
     for(i=0;i<s.model().neq;i++)
-      s.data_store.col[i+1][s.data_store.rows]=static_cast<float>(yy[i]);
-    s.data_store.col[0][s.data_store.rows]=static_cast<float>(t);
+      s.data_store.col[i+1][s.data_store.rows]=yy[i];
+    s.data_store.col[0][s.data_store.rows]=t;
     s.data_store.rows++;
     row_stored(s);
   }
@@ -2363,7 +2368,7 @@ void restore(xpp::Session &s, int i1, int i2)
   int iiXPLT,iiYPLT,iiZPLT;
   float oldxpl,oldypl,oldzpl,xpl,ypl,zpl;
   std::vector<float> v1(s.model().neq+1),v2(s.model().neq+1);
-  float **data;
+  ColumnTable data;
 
   data=get_browser_data(s);
   XSHFT=s.plot_windows.current->xshft;

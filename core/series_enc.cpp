@@ -23,29 +23,41 @@ void base64(const float *v, int n, std::string &s)
     s += '"';
 }
 
-/* the shared JSON number writer (json_number.h), 9 digits: a float32
-   round-trips exactly in that many significant digits */
-void numbers(const float *v, int n, std::string &s)
+/* n values, get(i) each, in the shortest text of the stored value (xpp::append_stored, the data files' digits): a float's when single */
+template<class Get> void numbers(Get get, int n, bool single, std::string &s)
 {
     s.reserve(s.size() + 2 + 13 * static_cast<std::size_t>(n));
     s += '[';
     for (int i = 0; i < n; i++) {
         if (i) s += ',';
-        xpp::json::json_append_number(s, v[i], 9);
+        const double x = get(i);
+        if (xpp::json::json_finite(x)) xpp::append_stored(s, x, single);
+        else s += "null";
     }
     s += ']';
 }
 
 } // namespace
 
-void xpp_series_append(std::string &out, const float *v, int n, int f32) noexcept
+void xpp_series_append(std::string &out, const xpp::Column &v, int from, int n, int f32) noexcept
 {
     try {
         if (n < 0) n = 0;
-        if (f32) base64(v, n, out);
-        else numbers(v, n, out);
+        if (!f32) numbers([&](int i) { return v.get(from + i); }, n, !v.is_double(), out);
+        else if (v.float_data()) base64(v.float_data() + from, n, out);
+        else base64(v.as_floats(from, n).data(), n, out);
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("encoding a series");
     }
 }
 
+void xpp_series_append(std::string &out, const float *v, int n, int f32) noexcept
+{
+    try {
+        if (n < 0) n = 0;
+        if (f32) base64(v, n, out);
+        else numbers([&](int i) { return static_cast<double>(v[i]); }, n, true, out);
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("encoding a series");
+    }
+}

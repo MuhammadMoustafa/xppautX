@@ -35,9 +35,9 @@ int main()
     std::array<float, 32> a, b;
     a.fill(2); b.fill(3);
     std::array<float, 4> power{};
-    CHECK(xpp::cross_spectrum(a, b, 8, 0, power.data(), 1) == 1);
+    CHECK(xpp::cross_spectrum(xpp::Column(a.data()), xpp::Column(b.data()), 32, 8, 0, xpp::Column(power.data()), 1) == 1);
     CHECK(std::fabs(power[0] - std::log(0.75 * 0.75)) < 1e-6);
-    CHECK(xpp::cross_spectrum(a, b, 8, 0, power.data(), 2) == 1);
+    CHECK(xpp::cross_spectrum(xpp::Column(a.data()), xpp::Column(b.data()), 32, 8, 0, xpp::Column(power.data()), 2) == 1);
     CHECK(std::fabs(power[0] - 1) < 1e-6);
 
     /* Establish a previous sample, then land exactly on a root at t=1.

@@ -15,6 +15,7 @@
         "dt": {"type": "number", "title": "Dt", "description": "The time step of a fixed-step method, and the first step of an adaptive one."},
         "store_every": {"type": "integer", "minimum": 1, "title": "Store every N steps", "description": "Keep one step of every this many in the data table."},
         "store_from": {"type": "number", "title": "Store from", "description": "Keep no data before this time; the run before it is a transient."},
+        "storage_precision": {"type": "string", "enum": ["single", "double"], "title": "Storage precision", "description": "What the data table keeps each value as: a single (float) as XPPAUT does, or the integrator's double."},
         "state_limit": {"type": "number", "exclusiveMinimum": 0, "title": "State limit", "description": "A state beyond plus or minus this value stops the run."},
         "stop_at_limit": {"type": "boolean", "title": "Stop at the limit", "description": "Whether a state beyond the state limit stops the run, or only marks it."},
         "method": {"type": "string", "enum": ["discrete", "euler", "modified_euler", "runge_kutta", "adams", "gear", "volterra", "backward_euler", "qualrk", "stiff", "cvode", "dopri5", "dopri8", "rosenbrock", "symplectic"], "title": "Method", "description": "The integration method."},

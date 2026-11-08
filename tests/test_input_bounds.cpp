@@ -45,7 +45,7 @@ int main()
     s.integrator.eq_range.mc=0;
     s.integrator.eq_range.movie=0;
     for(bool fail:{false,true}){
-        s.data_store.allocate(2,s.model().neq+1);
+        s.data_store.allocate(2,s.model().neq+1,s.numerics.storage_precision);
         fail_growth(fail);
         s.data_store.current[0]=1;
         const auto result=xpp::equilibrium_range(s);
@@ -63,7 +63,7 @@ int main()
     CHECK(xpp::compile_bvp(s).has_value());
     s.numerics.storflag=false;
     for(bool fail:{false,true}){
-        s.data_store.allocate(2,s.model().neq+1);
+        s.data_store.allocate(2,s.model().neq+1,s.numerics.storage_precision);
         fail_growth(fail);
         double start=1,end=1;
         const xpp::Result<int> swept=xpp::do_sh_range(s,&start,&end);

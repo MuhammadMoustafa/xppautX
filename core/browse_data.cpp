@@ -17,6 +17,7 @@
 #include "xpp_util.h"
 #include "typed_values.h"
 #include "storage.h"
+#include "json_number.h"
 #include "form_ode.h"
 #include "expr.h"
 #include "xpp_io.h"
@@ -35,14 +36,14 @@
 
 namespace xpp {
 
-float **get_browser_data(xpp::Session &s)
+ColumnTable get_browser_data(xpp::Session &s)
 {
   return s.browser.view.data;
 }
 
 /* show another data set in the browser: its columns from new_dat[1] on,
    dat_len rows (the adjoint, the Fourier modes, a histogram, ...) */
-void new_browse_dat(xpp::Session &s, float **new_dat, int dat_len)
+void new_browse_dat(xpp::Session &s, ColumnTable new_dat, int dat_len)
 {
   s.browser.view.data=new_dat;
   refresh_browser(s,dat_len);
@@ -55,7 +56,7 @@ Result<> show_derived(xpp::Session &s, bool exists, const std::string &command, 
   return {};
 }
 
-float *get_data_col(const xpp::Session &s, int c)
+Column get_data_col(const xpp::Session &s, int c)
 {
   return s.browser.view.data[c];
 }
@@ -84,10 +85,10 @@ namespace {
 xpp::DataTable browser_table(const xpp::Session &s, const BROWSER &b, std::span<const int> cols)
 {
   xpp::DataTable t;
+  t.stored_floats=s.data_store.precision()==StoragePrecision::single;
   for(int j : cols){
     t.names.push_back(browse_column_name(s,j));
-    const float *c=b.data[j];
-    if(b.iend>b.istart)t.columns.emplace_back(c+b.istart,c+b.iend);
+    if(b.iend>b.istart)t.columns.push_back(b.data[j].values(b.istart,b.iend-b.istart));
     else t.columns.emplace_back();
   }
   return t;
@@ -125,9 +126,9 @@ xpp::DataTable stored_data_table(const xpp::Session &s)
   xpp::DataTable t;
   for(int j=0;j<ncol;j++){
     t.names.push_back(browse_column_name(s,j));
-    const float *c=s.data_store.col[j];
-    t.columns.emplace_back(c,c+s.data_store.rows);
+    t.columns.push_back(s.data_store.col[j].values(0,s.data_store.rows));
   }
+  t.stored_floats=s.data_store.precision()==StoragePrecision::single;
   t.seed=s.numerics.last_seed;
   return t;
 }
@@ -144,7 +145,7 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
     int col;
     find_variable(s,xpp::data_column_name(t,k),&col);
     if(col<0||col>neq||t.columns[k].size()<static_cast<std::size_t>(rows))continue;
-    std::copy(t.columns[k].begin(),t.columns[k].begin()+rows,s.data_store.col[col]);
+    s.data_store.col[col].store(0,std::span(t.columns[k]).first(static_cast<std::size_t>(rows)));
   }
   s.data_store.rows=rows;
   /* the store's own columns, which may just have grown (moved): not a
@@ -316,7 +317,7 @@ int file_replace_choice(bool open_existing)
 void  wipe_rep(BrowserState &b)
  {
     if(!b.replaced)return;
-    std::vector<float>().swap(b.old_column);
+    std::vector<double>().swap(b.old_column);
     b.replaced=0;
   }
 
@@ -348,9 +349,9 @@ void data_get_mybrowser(xpp::Session &s, int row)
 void get_data_xyz(const xpp::Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off)
 {
   int in=s.browser.view.row0+off;
-  *x=s.browser.view.data[i1][in];
-  *y=s.browser.view.data[i2][in];
-  *z=s.browser.view.data[i3][in];
+  *x=static_cast<float>(s.browser.view.data[i1][in]);
+  *y=static_cast<float>(s.browser.view.data[i2][in]);
+  *z=static_cast<float>(s.browser.view.data[i3][in]);
 }
 
 /* ---- the browser's commands (were in browse.c); the widget calls them ---- */
@@ -409,7 +410,7 @@ public:
     const xpp::Model &m=s.model();
     for(int j=m.node;j<m.neq;j++)slots_.push_back(xpp::value_slot(s,m.uvar_names[j]));
   }
-  void set(float *const *data, int row)
+  void set(ColumnTable data, int row)
   {
     const int node=s_.model().node;
     for(int j=0;j<node+1;j++)setvar(s_,j,static_cast<double>(data[j][row]));
@@ -448,7 +449,7 @@ Result<> compute_added_column(xpp::Session &s, const std::string &formula, int c
   RowValues row(s);
   for(int i=0;i<nrows;i++){
     row.set(s.data_store.col,i);
-    s.data_store.col[col_index][i]=static_cast<float>(xpp::evaluate(s,com.data()));
+    s.data_store.col[col_index][i]=xpp::evaluate(s,com.data());
   }
   forget_formula_symbols(s);
   return {};
@@ -507,7 +508,7 @@ Sequence chk_seq(xpp::TypedFields &f, std::string_view text, double &a1, double 
 
 Result<> replace_data_column(xpp::Session &s, std::string_view column, std::string_view formula)
 {
- float **dat=s.browser.view.data;
+ const ColumnTable dat=s.browser.view.data;
  const int n=s.browser.view.maxrow;
  std::string form(formula);
  std::vector<int> com;
@@ -516,8 +517,8 @@ Result<> replace_data_column(xpp::Session &s, std::string_view column, std::stri
  int dif_var=-1;
  Sequence seq=Sequence::none;
  double a1,a2,da=0.0;
- float old=0.0,dt,derv=0.0;
- float sum=0.0;
+ double old=0.0,dt,derv=0.0;
+ double sum=0.0;
  const Place here=command_place();
  if(n<2)return fail("browser","Replace needs at least two rows of data",here);
 
@@ -570,7 +571,7 @@ if(dif_var<0){
  /* Okay the formula is cool so lets allocate and replace  */
 
  wipe_rep(s.browser);
- s.browser.old_column.assign(static_cast<std::size_t>(n),0.0f);
+ s.browser.old_column.assign(static_cast<std::size_t>(n),0.0);
  s.browser.replaced=1;
  RowValues row(s);
  for(i=0;i<n;i++)
@@ -583,15 +584,15 @@ if(dif_var<0){
 	   row.set(dat,i);
 	   if(intflag)
 	     {
-	       sum+=static_cast<float>(xpp::evaluate(s,com.data()));
+	       sum+=xpp::evaluate(s,com.data());
 	       dat[s.browser.replaced_col][i]=sum*dt;
 	     }
 	   else 
-	     dat[s.browser.replaced_col][i]=static_cast<float>(xpp::evaluate(s,com.data()));
+	     dat[s.browser.replaced_col][i]=xpp::evaluate(s,com.data());
 	 }
        else 
 	 {
-	   dat[s.browser.replaced_col][i]=static_cast<float>(a1+i*da);
+	   dat[s.browser.replaced_col][i]=a1+i*da;
 	 }
      }
    else 
@@ -653,10 +654,10 @@ void find_value(int col, double val, int *row, const BROWSER &b)
  int n=b.maxrow;
  int i;
  int ihot=0;
- float err,errm;
- errm=static_cast<float>(fabs(b.data[col][0]-val));
+ double err,errm;
+ errm=fabs(b.data[col][0]-val);
  for(i=b.row0;i<n;i++){
- err=static_cast<float>(fabs(b.data[col][i]-val));
+ err=fabs(b.data[col][i]-val);
  if(err<errm){
 	ihot=i;
 	errm=err;
@@ -704,7 +705,7 @@ Result<DataLoaded> load_data_file(xpp::Session &s, std::string_view format, std:
  const int len=static_cast<int>(t.rows());
  if(const xpp::Result<> fitted=s.data_store.fit(s.model().neq+1,len);!fitted)return std::unexpected(fitted.error());
  for(std::size_t k=0;k<t.columns.size()&&k<static_cast<std::size_t>(b->maxcol);k++)
-   std::copy(t.columns[k].begin(),t.columns[k].begin()+len,b->data[k]);
+   b->data[k].store(0,std::span(t.columns[k]).first(static_cast<std::size_t>(len)));
  refresh_browser(s,len);
  s.data_store.rows=len;
  return DataLoaded{fil,static_cast<std::size_t>(len)};
@@ -809,9 +810,10 @@ std::string browser_block_rows(const xpp::Session &s)
  const BrowserBlock &k=s.browser.block;
  std::string rows="[";
  const int last=b.dataflag?std::min(k.from+k.count,b.maxrow):k.from;
- const auto number=[&rows](double z){
-   if(z!=z||z>1e300||z<-1e300)rows+="null"; /* not JSON numbers */
-   else rows+=xpp::format("{:.9g}",z);
+ const bool single=s.data_store.precision()==StoragePrecision::single;
+ const auto number=[&rows,single](double z){
+   if(!xpp::json::json_finite(z))rows+="null"; /* not JSON numbers */
+   else xpp::append_stored(rows,z,single);
  };
  for(int i=k.from;i<last;i++){
    if(i>k.from)rows+=',';

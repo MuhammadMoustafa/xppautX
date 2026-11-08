@@ -271,6 +271,11 @@ constexpr OptionRow rows[] = {
    /* store from the start */
    .reset = [](Session &s) { s.numerics.store_from = 0; },
    .key = "store_from", .label = "Store from", .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::choice, .name = "STORAGE_PRECISION", .odex = "storage_precision", .help = "What the data table keeps each value as: a single (float) as XPPAUT does, or the integrator's double.", .once = true,
+   .index = choice_member([](auto &s) -> auto & { return s.numerics.storage_precision; }),
+   /* single: XPPAUT's float, half the memory */
+   .reset = [](Session &s) { s.numerics.storage_precision = StoragePrecision::single; },
+   .key = "storage_precision", .label = "Storage precision", .rule = OptionRule::choice, .choices = storage_precision_names, .saved = true, .applied = storage_precision_changed},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "STATE_LIMIT", .odex = "state_limit", .help = "A state beyond plus or minus this value stops the run.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.state_limit; }),
    /* XPPAUT's: past it a solution is taken to blow up */

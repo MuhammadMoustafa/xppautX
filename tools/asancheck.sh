@@ -47,7 +47,7 @@
 cd "$(dirname "$0")/.." || exit 1
 top=$PWD
 . tools/jobs.sh
-BASELINE=c281851de59ffd03b2a46428619a0c8f
+BASELINE=58fed7a175a635010b7698da91dc4e4c
 leaks=1
 bdir=build/asan
 skip_build=0

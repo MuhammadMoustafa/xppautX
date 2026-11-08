@@ -77,7 +77,7 @@ Result<std::string> find_point(Session &s,const Command &c,const Arguments &a,co
     }
     const double oldtrans=s.numerics.store_from;
     if(const auto ready=prepare_equilibrium(s,c,p);!ready)return std::unexpected(ready.error());
-    int ierr=0;float stability=0;
+    int ierr=0;double stability=0;
     const auto &settings=s.numerics.equilibria;
     const auto found=s.delay.flag
         ?do_delay_sing(s,x.data(),settings.jacobian_step,settings.newton_tolerance,settings.search_limit,settings.max_iterations,s.model().node,&ierr,&stability)

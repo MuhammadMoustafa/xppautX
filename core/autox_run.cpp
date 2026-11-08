@@ -51,22 +51,26 @@ Result<AutoxOrbitReturn> autox_orbit_return(const Session &s)
 {
   const std::size_t rows = static_cast<std::size_t>(s.data_store.rows);
   const std::size_t n = static_cast<std::size_t>(s.model().node);
-  const float *t = s.data_store.col[0];
+  const Column t = s.data_store.col[0];
   double extent = 0, step = 0;
   for (std::size_t k = 0; k < n; ++k) {
-    const float *c = s.data_store.col[k + 1];
-    const auto [low, high] = std::minmax_element(c, c + rows);
-    extent += static_cast<double>(*high - *low) * static_cast<double>(*high - *low);
-    step += static_cast<double>(c[1] - c[0]) * static_cast<double>(c[1] - c[0]);
+    const Column c = s.data_store.col[k + 1];
+    double low = c.get(0), high = low;
+    for (std::size_t i = 1; i < rows; ++i) {
+      low = std::min(low, c.get(static_cast<std::ptrdiff_t>(i)));
+      high = std::max(high, c.get(static_cast<std::ptrdiff_t>(i)));
+    }
+    extent += s.data_store.round(high - low) * s.data_store.round(high - low);
+    step += s.data_store.round(c.get(1) - c.get(0)) * s.data_store.round(c.get(1) - c.get(0));
   }
   if (extent == 0 || step == 0)
-    return fail("autox", xpp::format("Periodic start stopped: the stored orbit ({} rows from t = {:.6g}) does not move at its start; it is not a cycle", rows, static_cast<double>(t[0])), command_place());
+    return fail("autox", xpp::format("Periodic start stopped: the stored orbit ({} rows from t = {:.6g}) does not move at its start; it is not a cycle", rows, t.get(0)), command_place());
   /* the row's position along the first step: the orbit starts at > 0 and returns where it climbs through 0 */
   const auto along = [&](std::size_t i) {
     double sum = 0;
     for (std::size_t k = 0; k < n; ++k) {
-      const float *c = s.data_store.col[k + 1];
-      sum += (static_cast<double>(c[i]) - static_cast<double>(c[0])) * (static_cast<double>(c[1]) - static_cast<double>(c[0]));
+      const Column c = s.data_store.col[k + 1];
+      sum += (c.get(static_cast<std::ptrdiff_t>(i)) - c.get(0)) * (c.get(1) - c.get(0));
     }
     return sum;
   };
@@ -77,19 +81,19 @@ Result<AutoxOrbitReturn> autox_orbit_return(const Session &s)
       const double lam = -behind / (ahead - behind);
       double gap = 0;
       for (std::size_t k = 0; k < n; ++k) {
-        const float *c = s.data_store.col[k + 1];
-        const double d = (1 - lam) * static_cast<double>(c[i]) + lam * static_cast<double>(c[i + 1]) - static_cast<double>(c[0]);
+        const Column c = s.data_store.col[k + 1];
+        const double d = (1 - lam) * c.get(static_cast<std::ptrdiff_t>(i)) + lam * c.get(static_cast<std::ptrdiff_t>(i + 1)) - c.get(0);
         gap += d * d;
       }
       const double ratio = std::sqrt(gap / extent);
       if (ratio <= autox_orbit_return_limit)
-        return AutoxOrbitReturn{(1 - lam) * static_cast<double>(t[i]) + lam * static_cast<double>(t[i + 1]) - static_cast<double>(t[0]), static_cast<double>(i) + lam};
+        return AutoxOrbitReturn{(1 - lam) * t.get(static_cast<std::ptrdiff_t>(i)) + lam * t.get(static_cast<std::ptrdiff_t>(i + 1)) - t.get(0), static_cast<double>(i) + lam};
       closest = std::min(closest, ratio);
     }
     behind = ahead;
   }
   const std::string why = std::isinf(closest) ? "never comes back to its first row" : xpp::format("comes back no nearer than {:.3g} of the orbit's extent, more than {} allowed", closest, autox_orbit_return_limit);
-  return fail("autox", xpp::format("Periodic start stopped: the stored orbit (t = {:.6g} to {:.6g}, {} rows) {}; integrate for at least one period after the transient and try again", static_cast<double>(t[0]), static_cast<double>(t[rows - 1]), rows, why), command_place());
+  return fail("autox", xpp::format("Periodic start stopped: the stored orbit (t = {:.6g} to {:.6g}, {} rows) {}; integrate for at least one period after the transient and try again", t.get(0), t.get(static_cast<std::ptrdiff_t>(rows - 1)), rows, why), command_place());
 }
 
 /*  RUN autoX HERE */

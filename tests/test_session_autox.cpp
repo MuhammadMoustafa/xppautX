@@ -685,7 +685,7 @@ void check_orbit_growth(const xpp::TempDir &tmp)
     CHECK(xpp::check_autox_solutions(orbit, "orbit.s", 24, s.autox_state.parameter_layout.size(),false));
     s.autox_state.file = tmp.file("orbit");
     CHECK(write_file(xpp::autox_solutions_file(s), orbit));
-    s.data_store.allocate(2, s.model().neq + 1);
+    s.data_store.allocate(2, s.model().neq + 1, s.numerics.storage_precision);
     CHECK(xpp::load_autox_orbitx(s, -1, 1, 1, 2));
     CHECK(s.data_store.rows == 3 && s.data_store.max_rows >= 3);
     CHECK(s.data_store.col[0][0] == 0 && s.data_store.col[0][1] == 1 && s.data_store.col[0][2] == 2);

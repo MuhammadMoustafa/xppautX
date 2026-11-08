@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "struct.h"
+#include "storage.h"
 
 namespace xpp {
 
@@ -44,7 +45,7 @@ struct PlotRun {
     PlotCurves curves{};
     int rows = 0;
     std::vector<int> cols;
-    std::vector<std::vector<float>> data;
+    std::vector<OwnedColumn> data; /* at the store's precision when the run was kept */
 };
 
 /* a plot window's display state */

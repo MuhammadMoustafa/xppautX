@@ -1085,8 +1085,8 @@ per format):
 
 | `format` | Extension | What is written |
 |---|---|---|
-| `dat` | `.dat` | XPP's own: a row per line, `%.8g` values each followed by a blank, no names (byte for byte what a batch run writes as output.dat) |
-| `csv` | `.csv` | a header row of the column names, then a row per point, each stored float in the shortest text that reads back as it; `
+| `dat` | `.dat` | XPP's own: a row per line, each value in the shortest text that reads back as exactly the stored value (a float's under `storage_precision` single, a double's under double; XPP wrote `%.8g`) followed by a blank, no names (what a batch run writes as output.dat) |
+| `csv` | `.csv` | a header row of the column names, then a row per point, each stored value in the same shortest text as `.dat` (a float's under single, a double's under double); `
 ` line ends |
 | `csv.gz` | `.csv.gz` | that CSV, gzipped (one member, time stamp 0) |
 | `npz` | `.npz` | NumPy's `numpy.savez_compressed` format: a zip of `.npy` files, one float64 array per column named after it (`T.npy`, `V.npy`, ...) |
@@ -2084,6 +2084,8 @@ core/numerics_settings.cpp keeps it.
   {"key":"total_time","label":"Total time","value":30},
   {"key":"dt","label":"Dt","value":0.05},
   {"key":"store_every","label":"Store every N steps","value":1,"integer":true},
+  {"key":"storage_precision","label":"Storage precision","value":"single",
+   "choices":["single","double"]},
   {"key":"method","label":"Method","value":"runge_kutta",
    "choices":["discrete","euler","modified_euler","runge_kutta",...]},
   {"key":"jacobian","label":"Jacobian","value":"difference",
@@ -2102,7 +2104,7 @@ and `search_limit`; the old `set` forms for these keys are unknown commands (W52
 The fields, in the menu's order: `total_time` (the run duration, 0 or more;
 a negative value is refused with its place), `start_time`, `store_from`, `dt`, `nullcline_mesh` (nullcline mesh),
 `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit` (sIng pt ctrl),
-`store_every`, `state_limit` and `stop_at_limit` (a boolean: whether a variable past the limit ends the run),
+`store_every`, `storage_precision` (W613, [#681](https://github.com/MuhammadMoustafa/xppautX/issues/681): what the data table keeps each value as, `single` (a float, XPPAUT's own; the default) or `double`, by name; changing it converts the stored rows and what is derived from them in place, with no question, a double rounded to the float storing it under single keeps), `state_limit` and `stop_at_limit` (a boolean: whether a variable past the limit ends the run),
 `method` (its name, `choices` its names, W484 [#548](https://github.com/MuhammadMoustafa/xppautX/issues/548): the key of the
 solver table, never its number), `jacobian` (W260:
 how every Jacobian of the model is formed, `difference` by XPPAUT's forward differences or `exact`
@@ -2206,10 +2208,11 @@ keeps the event whose `win` is the active one (`plots.active` or
 | `shift` | row shifts of the x, y and z columns (a lag plot): point `i` pairs x row `i - shift[0]` with y row `i - shift[1]`, from row `max(shift)` on |
 | `columns` | T and each column a curve uses, once each: `col`, its `name`, and `data`, one value per row (`null` for NaN) |
 
-The values are the stored single-precision numbers printed with 9
-significant digits, so they convert back to exactly the stored floats:
-`output.dat` for the same run holds the same numbers printed with 8
-(`tools/servercheck.py` checks this). The event carries the whole data every
+The values are the stored numbers, each in the shortest text that reads back as
+exactly the stored value (a float's under `storage_precision` single, the
+default; a double's under double): `output.dat` for the same run holds the same
+digits (`tools/servercheck.py` checks this). The base64 float32 encoding
+("Binary values") rounds a double to a float. The event carries the whole data every
 time, and `version`, a number that changes when the stored data does (an
 integration, a browser Load, ...): a series with the version of the one
 before shows the same data again (other curves or style of it), another
@@ -3013,8 +3016,8 @@ file opened receives its metadata along with the current `state.player`.
 
 `state.rates` and `liveState.rates` contain a number or null for every state in
 `state.ics` order. `hello.state_inspection.tail_intervals` gives the window size:
-ten most recent stored intervals. Rates are max |Δstate/Δt| from float32 stored
-samples; they are independent of plot columns and use stored times, including
+ten most recent stored intervals. Rates are max |Δstate/Δt| from the stored
+samples (floats under `storage_precision` single); they are independent of plot columns and use stored times, including
 backward time. `rates` is null for a state when fewer than two rows are stored (a model
 not yet run: all null), a sample is not finite, two stored times are equal,
 or the time direction changes inside the window (forward and backward runs

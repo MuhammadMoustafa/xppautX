@@ -131,7 +131,7 @@ bool same_plot(const SeriesSig &a, const SeriesSig &b)
 /* rows [from, to) of storage column col as a JSON value */
 void add_values(std::string &o, const BROWSER &view, int col, int from, int to)
 {
-    xpp_series_append(o, view.data[col] + from, to - from, client.series_f32);
+    xpp_series_append(o, view.data[col], from, to - from, client.series_f32);
 }
 
 void add_curves(std::string &o, const xpp::PlotCurves &s)
@@ -242,7 +242,7 @@ void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size
             o += ",\"name\":";
             xpp::json_append_string(o, xpp::ind_to_sym(s,r.cols[k]));
             o += ",\"data\":";
-            xpp_series_append(o, r.data[k].data(), r.rows, client.series_f32);
+            xpp_series_append(o, r.data[k].view(), 0, r.rows, client.series_f32);
             o += '}';
         }
         o += "]}";
@@ -309,11 +309,9 @@ void runs_on_full(xpp::Session &s, int pop, const SeriesSig &sig, const std::vec
     d.cur.curves = sig;
     d.cur.rows = rows;
     d.cur.cols = cols;
-    d.cur.data.assign(cols.size(), std::vector<float>());
-    for (std::size_t k = 0; k < cols.size(); k++) {
-        const float *src = s.browser.view.data[cols[k]];
-        d.cur.data[k].assign(src, src + rows);
-    }
+    d.cur.data.assign(cols.size(), xpp::OwnedColumn());
+    for (std::size_t k = 0; k < cols.size(); k++)
+        d.cur.data[k].assign_copy(s.browser.view.data[cols[k]], 0, static_cast<std::size_t>(rows));
 }
 
 /* an append from row `from` continues window pop's current run; then the
@@ -331,7 +329,7 @@ void runs_on_append(xpp::Session &s, int pop, int from, int rows)
                 d.cur = xpp::PlotRun();
                 d.cur.curves = curves;
                 d.cur.cols = cols;
-                d.cur.data.assign(cols.size(), std::vector<float>());
+                d.cur.data.assign(cols.size(), xpp::OwnedColumn());
             } else {
                 xpp::PlotRun r = d.cur;
                 k = keep_run(s, pop, std::move(r));
@@ -349,9 +347,8 @@ void runs_on_append(xpp::Session &s, int pop, int from, int rows)
     }
     d.cur.rows = rows;
     for (std::size_t k = 0; k < d.cur.cols.size(); k++) {
-        const float *src = s.browser.view.data[d.cur.cols[k]];
         d.cur.data[k].resize(static_cast<std::size_t>(from));
-        d.cur.data[k].insert(d.cur.data[k].end(), src + from, src + rows);
+        d.cur.data[k].append(s.browser.view.data[d.cur.cols[k]], static_cast<std::size_t>(from), static_cast<std::size_t>(rows));
     }
 }
 

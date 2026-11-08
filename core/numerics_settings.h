@@ -25,6 +25,10 @@ enum class SectionSign { negative = -1, both = 0, positive = 1 };
    variable decide every other variable's run */
 enum class SubsystemSplit { equations, run };
 inline constexpr std::array<std::string_view, 2> subsystem_split_names{"equations", "run"};
+/* What the data store keeps each value as (W613, storage.h): the integrator's value rounded to a float, XPPAUT's own, or
+   the double itself; the words are the .odex's `storage_precision` */
+enum class StoragePrecision { single, double_ };
+inline constexpr std::array<std::string_view, 2> storage_precision_names{"single", "double"};
 /* the sign a number's own sign says (XPPAUT's +1, -1 and 0) */
 constexpr SectionSign section_sign(double x) { return x < 0 ? SectionSign::negative : x == 0 ? SectionSign::both : SectionSign::positive; }
 /* the crossings' words, by the sign's number plus 1 (negative, both, positive); the .odex's and the commands' */

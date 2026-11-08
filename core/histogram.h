@@ -14,11 +14,11 @@ struct Session; /* session.h */
 
 /* the spectral analysis of stored columns (two columns of the same
    length) */
-int spectrum(std::span<const float> data, int win, int w_type, float *pow);
-int cross_spectrum(std::span<const float> data, std::span<const float> data2, int win, int w_type, float *pow, int type);
-void mycor2(std::span<const float> x, std::span<const float> y, int nbins, float *z, int flag);
-void fftxcorr(std::span<const float> data1, std::span<const float> data2, int nlag, float *cr, int flag);
-void fourier_modes(std::span<const float> data, float *ct, float *st, int nmodes);
+/* Each takes columns of n values and writes into columns of the same precision, doing its arithmetic at it (a float
+   column's in floats, as storing always did). */
+int spectrum(Column data, int n, int win, int w_type, Column pow);
+int cross_spectrum(Column data, Column data2, int n, int win, int w_type, Column pow, int type);
+void fourier_modes(Column data, int n, Column ct, Column st, int nmodes);
 
 /* the histogram / spectrum settings the dialogs and the model's own
    @ options edit (load_eqn.cpp's option reader; cond, the histogram's
@@ -50,8 +50,8 @@ inline constexpr int spectrum_type_of(AfterRun a) { return static_cast<int>(a) -
 struct HistogramState {
   HIST_INFO info{100,100,1,1,0,0,1,0,1,""};
   LentColumns hist_columns, four_columns;
-  float **hist() noexcept { return hist_columns.table(); }
-  float **four() noexcept { return four_columns.table(); }
+  ColumnTable hist() noexcept { return hist_columns.table(); }
+  ColumnTable four() noexcept { return four_columns.table(); }
   int hist_here=0, four_here=0, hist_len=0, four_len=0;
   int spec_col=1, spec_wid=512, spec_win=2, spec_col2=1;
   /* the spectrum computed: 0 the power spectral density, 1 the cross

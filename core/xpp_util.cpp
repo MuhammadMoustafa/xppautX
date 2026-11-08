@@ -63,8 +63,7 @@ std::string ind_to_sym(const xpp::Session &s, int ind)
 
 void  get_max(const xpp::Session &s, int index, double *vmin, double *vmax)
 {
-   float x0,x1,z;
-   double temp;
+   double x0,x1,z,temp;
    int i;
    x0=s.browser.view.data[index][0];
    x1=x0;
@@ -74,8 +73,8 @@ void  get_max(const xpp::Session &s, int index, double *vmin, double *vmax)
     if(z<x0)x0=z;
     if(z>x1)x1=z;
    }
-   *vmin=static_cast<double>(x0);
-   *vmax=static_cast<double>(x1);
+   *vmin=x0;
+   *vmax=x1;
     if(fabs(*vmin-*vmax)<REAL_SMALL){
       temp=.05*lmax(fabs(*vmin),1.0);
      *vmin=*vmin-temp;

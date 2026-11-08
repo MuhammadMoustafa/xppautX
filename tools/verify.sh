@@ -20,7 +20,7 @@ for arg in "$@"; do
     *) echo "verify.sh: unknown option $arg"; exit 2 ;;
   esac
 done
-BASELINE=c281851de59ffd03b2a46428619a0c8f
+BASELINE=58fed7a175a635010b7698da91dc4e4c
 # the behaviour checks are python: without it the gate would pass having
 # run only part of itself, so it refuses to start (review 2026-10-01, W146)
 if ! command -v uv >/dev/null 2>&1; then

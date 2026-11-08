@@ -172,7 +172,7 @@ void set_all_vals(xpp::Session &s)
    s.plot_settings.x_3d[1]=s.plot_settings.my_xhi;
    s.plot_settings.y_3d[1]=s.plot_settings.my_yhi;
  } 
- s.data_store.allocate(DataStore::start_rows,s.model().neq+1);
+ s.data_store.allocate(DataStore::start_rows,s.model().neq+1,s.numerics.storage_precision);
  if(s.plot_settings.axes>=5)s.plot_settings.plot_3d=1;
  xpp::chk_delay(s); /* check for delay allocation */
  xpp::alloc_h_stuff(s);

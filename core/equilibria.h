@@ -85,7 +85,7 @@ Result<> rooter(Session &s, double *x, double err, double eps, double big, doubl
    no eigenvalues: an error), its stability (stabinfo) and, when asked,
    its invariant manifolds, integrated from it; an eigenvector or a
    manifold that failed is returned once the rest are done */
-Result<> do_sing(Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo);
+Result<> do_sing(Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo);
 /* integrates the manifolds from the saddle's stored starting points,
    returning the first that failed once all are done */
 Result<> shoot_this_now(Session &s);

@@ -191,7 +191,7 @@ Error newton_error(const Session &s, const NewtonRun &run, std::span<const doubl
 }
 
 /* main fixed point finder */ 
-xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
+xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, double *stabinfo)
 {
  xpp::FirstError failure; /* an eigenvector or a manifold's */
  int i;
@@ -232,7 +232,7 @@ if(!s.numerics.par_fol)
 }
  mark_equilibrium(s,q,x);
  
- *stabinfo=static_cast<float>(cp+rp)+static_cast<float>(cn+rn)/1000.0;
+ *stabinfo=(cp+rp)+(cn+rn)/1000.0;
  
  create_eq_box(s,cp,cn,rp,rn,im,x,eval,n);
  if(((rp==1)||(rn==1))&&(n>1))

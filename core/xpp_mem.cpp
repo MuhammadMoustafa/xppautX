@@ -21,14 +21,14 @@ void xpp::out_of_memory_now(std::string_view what) noexcept
     std::_Exit(1);
 }
 
-xpp::ZeroedFloats::ZeroedFloats(std::size_t n)
+xpp::ZeroedBytes::ZeroedBytes(std::size_t n)
 {
-    p_ = static_cast<float *>(std::calloc(n ? n : 1, sizeof(float)));
+    p_ = std::calloc(n ? n : 1, 1);
     if (!p_)
         throw std::bad_alloc();
 }
 
-xpp::ZeroedFloats::~ZeroedFloats()
+xpp::ZeroedBytes::~ZeroedBytes()
 {
     std::free(p_);
 }

@@ -1502,7 +1502,7 @@ void ani_flip1(xpp::Session &s, int n)
 {
     if (s.animation.ncom == 0) return;
     if (s.browser.view.maxrow < 2) return;
-    float **ss = s.browser.view.data;
+    const ColumnTable ss = s.browser.view.data;
     if (s.animation.vcr.pos == 0) set_ani_perm(s);
 
     const long long target = static_cast<long long>(s.animation.vcr.pos) + n;

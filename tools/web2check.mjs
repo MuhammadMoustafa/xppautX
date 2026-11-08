@@ -700,8 +700,8 @@ async function dataTable(want, dir) {
     await until('s.table.page && s.table.page.cols.length >= 2', 'table page'),
     JSON.stringify(await S('s.table.page && s.table.page.cols')));
 
-  /* output.dat prints 8 digits, the table the exact float (9): they agree to 1e-7 */
-  const tol = (v, w) => Math.abs(v - w) <= 1e-7 * Math.abs(w) + 1e-30;
+  /* output.dat and the table write each stored float in its shortest text (W613): the same digits, so equal */
+  const tol = (v, w) => v === w;
   const rowOk = (row, want500) => row && row.every((v, i) => tol(v, want500[i]));
 
   /* scroll to row 500 with the scrollbar */
@@ -3765,6 +3765,40 @@ async function valuesJacobian(dir) {
     && JSON.stringify((await S(`__xpp.sentFrom(${splitSent})`)).filter(c => c.cmd === 'set'))
       === JSON.stringify([{cmd: 'set', kind: 'num', name: 'subsystem_split', text: 'run'}]),
     JSON.stringify(await S(`__xpp.sentFrom(${splitSent})`)));
+  /* W613: Storage precision, a choice of Single and Double, which the data table follows */
+  const precision = `document.querySelector('[data-section="num"] [data-num="storage_precision"] select')`;
+  await until(`!!${precision}`, 'the Storage precision select');
+  const precisionOptions = await cdp.eval(`[...${precision}.options].map(o => [o.textContent, o.disabled])`);
+  check('W613: Numerics shows Storage precision as a choice of Single and Double, Single selected',
+    JSON.stringify(precisionOptions) === JSON.stringify([['Single', false], ['Double', false]]) && await cdp.eval(`${precision}.value === 'single'`),
+    JSON.stringify(precisionOptions));
+  const firstRows = async () => {
+    await cdp.eval(`__xpp.send({cmd: 'browser.page', from_row: 0, count: 50, first_column: 1, columns: 1})`);
+    await until('!s.busy && s.table.page && s.table.page.from === 0 && s.table.page.data.length > 10', 'the table rows');
+    return cdp.eval(`__xpp.state().table.page.data.map(r => r[1])`);
+  };
+  await runInitial();
+  await until('s.core.rows === 601 && !s.busy', 'the run');
+  const asFloats = await firstRows();
+  const digits = v => String(Math.abs(v)).replace(/e.*$/, '').replace(/[.]/g, '').replace(/^0+/, '').replace(/0+$/, '').length;
+  check('W613: under Single every value the table shows is a float in its shortest text (at most 9 digits)',
+    asFloats.length > 10 && asFloats.every(v => digits(v) <= 9), JSON.stringify(asFloats.slice(0, 5)));
+  const precisionSent = await S('__xpp.sentCount()');
+  await cdp.eval(`(() => { const s = ${precision}; s.value = 'double'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  check('W613: choosing Double sends set num storage_precision double, and the core takes it',
+    await until(`!s.busy && s.numerics.find(f => f.key === 'storage_precision')?.value === 'double'`, 'double taken')
+    && JSON.stringify((await S(`__xpp.sentFrom(${precisionSent})`)).filter(c => c.cmd === 'set'))
+      === JSON.stringify([{cmd: 'set', kind: 'num', name: 'storage_precision', text: 'double'}]),
+    JSON.stringify(await S(`__xpp.sentFrom(${precisionSent})`)));
+  const converted = await firstRows();
+  check('W613: the rows stored under Single are kept as the floats they were when the precision changes',
+    converted.length === asFloats.length && converted.every((v, i) => v === Math.fround(asFloats[i])), JSON.stringify(converted.slice(0, 3)));
+  await runInitial();
+  await until('s.core.rows === 601 && !s.busy', 'the run under Double');
+  const doubles = await firstRows();
+  check('W613: under Double the table shows what the integrator computed, more than a float holds',
+    doubles.length > 10 && doubles.some(v => digits(v) > 9) && doubles.every((v, i) => Math.abs(v - asFloats[i]) <= 1e-6 * Math.abs(v) + 1e-12),
+    JSON.stringify(doubles.slice(0, 5)));
   fs.writeFileSync(path.join(dir, 'w260noise.odex'), versioned("par a = 1\nx' = -a*x + ran(1)\n"));
   await openFile('w260noise.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');

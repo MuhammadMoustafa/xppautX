@@ -426,8 +426,12 @@ FitBounds fit_bounds(const xpp::Session &s,bool three_d)
       for(int axis=0;axis<axes;axis++){
         const auto found=std::find(run.cols.begin(),run.cols.end(),cols[axis]);
         if(found==run.cols.end())continue;
-        for(float value:run.data[static_cast<std::size_t>(found-run.cols.begin())])
+        const OwnedColumn &kept=run.data[static_cast<std::size_t>(found-run.cols.begin())];
+        const Column values=kept.view();
+        for(std::size_t i=0;i<kept.size();i++){
+          const double value=values.get(static_cast<std::ptrdiff_t>(i));
           if(std::isfinite(value))b.include(axis,value);
+        }
       }
     }
   return b;
@@ -1028,10 +1032,10 @@ Result<int> freeze_curve(xpp::Session &s, int ind)
   while(i<static_cast<int>(s.frozen_curves.curve.size())&&s.frozen_curves.curve[i].use)++i;
   const GRAPH &g=*s.plot_windows.current;
   const int n=s.browser.view.maxrow;
-  float *const *d=s.browser.view.data;
-  fill_frozen_curve(s,i,std::vector<float>(d[g.xv[ind]],d[g.xv[ind]]+n),
-                    std::vector<float>(d[g.yv[ind]],d[g.yv[ind]]+n),
-                    g.grtype>0?std::vector<float>(d[g.zv[ind]],d[g.zv[ind]]+n):std::vector<float>(),
+  const ColumnTable d=s.browser.view.data;
+  fill_frozen_curve(s,i,d[g.xv[ind]].as_floats(0,n),
+                    d[g.yv[ind]].as_floats(0,n),
+                    g.grtype>0?d[g.zv[ind]].as_floats(0,n):std::vector<float>(),
                     g.grtype,s.plot_windows.draw_win);
   return i;
 }

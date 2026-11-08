@@ -55,7 +55,7 @@ namespace xpp::json {
 /* ---- state ------------------------------------------------------------------ */
 
 /* All state columns belong to storage even when the plot subscribes to only V.
-   Float32 sampled differences indicate recent motion, never certify settling. */
+   Sampled differences of the stored values indicate recent motion, never certify settling. */
 static void buf_tail_rates(std::string &b, const xpp::Session &s)
 {
     BUF_LIT(b, ",\"rates\":[");

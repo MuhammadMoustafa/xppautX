@@ -616,6 +616,13 @@ Result<Settings> read_settings(Session &s, std::string file, std::string_view te
     });
 }
 
+void apply_storage_precision(Session &s, const Settings &f)
+{
+    for (const auto &[row, text] : f.numerics)
+        if (row->applied == storage_precision_changed) setting_write(s, *row, text);
+    storage_precision_changed(s);
+}
+
 void apply_settings(Session &s, const Settings &f, bool redraw)
 {
     const Model &m = s.model();
@@ -624,6 +631,7 @@ void apply_settings(Session &s, const Settings &f, bool redraw)
         setting_write(s, *row, text);
         if (row->rule == OptionRule::method) do_meth(s);
     }
+    storage_precision_changed(s); /* the data held converted when the settings changed what it is kept as */
     s.delay.flag = f.delay_flag;
     s.data_store.current_time = f.current_time;
     s.integrator.last_time = f.last_time;

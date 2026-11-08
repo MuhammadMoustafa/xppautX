@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "xpp_io.h"
 #include "data_formats.h"
+#include "storage.h"
 #include <array>
 #include <optional>
 #include <string_view>
@@ -16,7 +17,7 @@ typedef struct {
     int dataflag;
     int row0;
     int maxrow,maxcol;
-    float **data;
+    ColumnTable data;
     int istart,iend;
 } BROWSER;
 
@@ -24,11 +25,11 @@ void waitasec(int msec);
 
 void refresh_browser(Session &s, int length);
 void reset_browser(Session &s);
-void new_browse_dat(Session &s, float **new_dat, int dat_len);
+void new_browse_dat(Session &s, ColumnTable new_dat, int dat_len);
 /* a derived data set (a histogram, the adjoint, the H function) in the browser again with `show` when it exists, else
    `missing` as the error of `command` */
 Result<> show_derived(Session &s, bool exists, const std::string &command, const std::string &missing, void (*show)(Session &));
-float **get_browser_data(Session &s);
+ColumnTable get_browser_data(Session &s);
 
 void data_get_mybrowser(Session &s, int row);
 
@@ -157,7 +158,7 @@ struct BrowserState {
   /* Replace's column as it was, for Unreplace: whether there is one,
      its column and its values */
   int replaced=0,replaced_col=0;
-  std::vector<float> old_column;
+  std::vector<double> old_column; /* the replaced column as it was, exactly at either precision */
   /* data_add_col's columns, in the order added, at data_store columns
      Model::neq+1, +2, ...: the Session's own data, not the
      Model's (docs/roadmap.md W77 -- the Model stays as the load left
@@ -171,14 +172,14 @@ struct BrowserState {
 };
 /* block's first row and column brought into the data (the last row, the last column), as the data is now */
 void fit_browser_block(Session &s);
-/* the rows of the (fitted) block as JSON, [[T, v, ...], ...], 9 significant digits (they read back as exactly the
-   stored floats), null for a number JSON cannot hold */
+/* the rows of the (fitted) block as JSON, [[T, v, ...], ...], each value in the shortest text that reads back as exactly
+   the stored value (the same digits as the data files), null for a number JSON cannot hold */
 std::string browser_block_rows(const Session &s);
 
 /* The browser's operations on the session s (docs/protocol.md "The data browser"): each returns its error as a
    value; the browser window's keys ask what they need (the data_* functions below) and call the same, as the
    registry's browser.* commands call them with their arguments. */
-float *get_data_col(const Session &s, int c);
+Column get_data_col(const Session &s, int c);
 /* the browser shows the stored data, not a derived set (the adjoint, a histogram, ...) */
 Result<> require_stored_data(const Session &s);
 /* the added column `name` (a column of the stored data, computed from `formula`) deleted, or added */

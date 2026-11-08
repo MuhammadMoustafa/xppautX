@@ -151,14 +151,14 @@ int main(void)
 
     const xpp::DataTable t = sample();
 
-    /* ---- .dat: "%.8g " per value, a row per line, no names */
+    /* ---- .dat: a float's shortest text and a blank per value, a row per line, no names */
     {
         const xpp::DataFormat &f = *xpp::data_format_named("dat");
         const std::string p = scratch("t.dat");
         CHECK(write_as(f, t, p));
         const std::string text = bytes_of(p);
         CHECK_STR(text.substr(0, text.find('\n') + 1).c_str(), "0 1 100 \n");
-        CHECK(text.find("\n1e-30 0.66666669 1e+30 \n") != std::string::npos);
+        CHECK(text.find("\n1e-30 0.6666667 1e+30 \n") != std::string::npos);
         xpp::DataTable r;
         CHECK(f.read(p.c_str(), r));
         CHECK(r.columns.size() == 3 && r.rows() == 4 && r.names.empty());

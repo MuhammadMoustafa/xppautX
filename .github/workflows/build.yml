@@ -302,7 +302,7 @@ jobs:
         run: |
           cd /tmp && "$GITHUB_WORKSPACE/xppautX" "$GITHUB_WORKSPACE/examples/ode/lecar.odex" --silent
           test "$(wc -l < output.dat)" -eq 601
-          echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"
+          echo "md5 on this platform: $(md5 -q output.dat) (linux baseline 58fed7a175a635010b7698da91dc4e4c)"
       - name: Server protocol and web front end
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: uv run --locked python tools/servercheck.py && uv run --locked python tools/steadycheck.py && uv run --locked python tools/spikecheck.py && uv run --locked python tools/livestatecheck.py && uv run --locked python tools/webcheck.py
@@ -428,7 +428,7 @@ jobs:
         run: |
           top=$PWD
           cd "$(mktemp -d)" && "$top/xppautX.exe" "$top/examples/ode/lecar.odex" --silent
-          test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
+          test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = 58fed7a175a635010b7698da91dc4e4c
       - name: Server protocol and web front end
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: uv run --locked python tools/servercheck.py --server ./xppautX.exe && uv run --locked python tools/steadycheck.py --server ./xppautX.exe && uv run --locked python tools/spikecheck.py --server ./xppautX.exe && uv run --locked python tools/livestatecheck.py --server ./xppautX.exe && uv run --locked python tools/webcheck.py --bin ./xppautX.exe
@@ -549,7 +549,7 @@ jobs:
         run: |
           top=$PWD
           cd "$(mktemp -d)" && "$top/build/clang/xppautX.exe" "$top/examples/ode/lecar.odex" --silent
-          test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
+          test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = 58fed7a175a635010b7698da91dc4e4c
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh build/clang/xppautX.exe

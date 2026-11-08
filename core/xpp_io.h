@@ -125,6 +125,18 @@ inline std::string number(double v)
     return std::to_string(v); /* unreachable for a finite double in 32 bytes */
 }
 
+/* A stored value's shortest round-trip text, appended to out: the shortest text that reads back as exactly the float v rounds
+   to when single (a float the data store held), else as exactly the double v. The one text of every format of stored data
+   (.dat, CSV, the page's numbers), so two formats of one run never differ in digits (W613). */
+inline void append_stored(std::string &out, double v, bool single)
+{
+    std::array<char, 32> buf;
+    const std::to_chars_result r = single
+        ? std::to_chars(buf.data(), buf.data() + buf.size(), static_cast<float>(canonical_nan(v)))
+        : std::to_chars(buf.data(), buf.data() + buf.size(), canonical_nan(v));
+    if (r.ec == std::errc()) out.append(buf.data(), r.ptr);
+}
+
 /* v appended in the general format with `significant` digits: printf's "%.*g"
    character for character (std::format's "{:.Ng}" too), straight from
    std::to_chars into a stack buffer, without the format string's parse */

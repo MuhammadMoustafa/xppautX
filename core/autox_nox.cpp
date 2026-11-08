@@ -1291,7 +1291,7 @@ xpp::Result<> load_autox_orbitx(xpp::Session &s, int ibr,int flag, int lab, doub
     }
     extra(s,x,static_cast<double>(s.data_store.col[0][i]),nstor,s.model().neq);
     for(j=nstor;j<s.model().neq;j++)
-      s.data_store.col[j+1][i]=static_cast<float>(x[j]);
+      s.data_store.col[j+1][i]=x[j];
   }
   s.data_store.rows=nrow;
   refresh_browser(s,nrow);

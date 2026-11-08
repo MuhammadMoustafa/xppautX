@@ -76,7 +76,7 @@ int ani_wait(xpp::Session &s, int ms)
 xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
 {
     std::vector<double> y(static_cast<std::size_t>(s.model().node + s.model().nmarkov));
-    float **ss = s.browser.view.data;
+    const ColumnTable ss = s.browser.view.data;
     xpp::Writer gif; /* chosen GIF, when the animation is written as one */
     xpp::Result<> outcome; /* ok until a frame cannot be written */
     int i, stop = 0, frame = 0, w, h;

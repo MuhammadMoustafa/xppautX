@@ -61,7 +61,7 @@ Saves numbers to a file in the working directory (see [Using the interface](04-u
 
 1. **What to save**: *The data table* (the rows marked by `First` and `Last`, every column: T, the variables, the auxiliary quantities) or *What the plot shows* (the current plot window's curves, then its frozen curves, as one long table with the columns `curve`, `x`, `y` and, in a 3D plot, `z`: one row per point, the window's curves numbered 1, 2, ... in order and the frozen curves after them).
 2. **The format**, one of:
-   - **XPP data (.dat)**: XPP's own, what it has always written (and what a batch run writes as `output.dat`): one row per line, the values separated by blanks, 8 significant digits, no names. It is ASCII readable and reflects the current contents of the DB:
+   - **XPP data (.dat)**: XPP's own, what it has always written (and what a batch run writes as `output.dat`): one row per line, the values separated by blanks, no names, each value in the shortest text that reads back as exactly the stored value (XPP wrote 8 significant digits; the CSV has the same digits). It is ASCII readable and reflects the current contents of the DB:
 
      ```
      t0 x1(t0) ... xn(t0)
