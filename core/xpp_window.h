@@ -35,9 +35,8 @@ bool supported();
    session, which ends the process with exit() -- with it: never returns
    when the window opened. Returns false at once, without running
    session(), when the window cannot open (no WebView2 runtime, no
-   display): the caller falls back to browser mode. `about` is Help >
-   About's text. */
-bool run(void (*session)(), const char *about);
+   display): the caller falls back to browser mode. */
+bool run(void (*session)());
 
 /* The model's file, for the title ("xppautX — lecar.ode"); any thread,
    a no-op without a window */

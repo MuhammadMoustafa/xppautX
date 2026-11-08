@@ -333,6 +333,7 @@ common overwrite question applies. They return a placed error if the output coul
 | `tool.command_palette` | none | `v` / tools | Help/Search commands |  | `done` | Search every registered command by name, menu path and description. |
 | `tool.keyboard_shortcuts` | none | `v` / tools | Help/Keyboard shortcuts |  | `done` | Edit command keys and pins. |
 | `tool.manual` | none | `v` / tools | Help/Manual |  | `done` | Read the manual. |
+| `tool.about` | none | `v` / tools | Help/About xppautX |  | `done` | Show the version, commit and links of this program. |
 | `tool.run_source_action` | `index`: required integer [at least 0] | `d` / panels | Run source action | `ran`: `boolean` | `session.state`, `done` | Run the action of an active comment of the model's source (a `{par=value,...}` block): comment `index` of session.get_source's list. |
 | `tool.run_user_button` | `index`: required integer [at least 0] | `x` / panels | Run user button | `ran`: `boolean` | `session.state`, `done` | Press a button of the model (an `@ button=name:keys` line), counted from 0 in the order the model gives them. |
 | `window.set_bounds` | `window`: optional window (max 1024 bytes), `x_min`: optional real, `x_max`: optional real, `y_min`: optional real, `y_max`: optional real | `v` / plot | Plot/View/Set view bounds | `x_min`: `real`, `x_max`: `real`, `y_min`: `real`, `y_max`: `real` | `plot.shown`, `session.state`, `done` | Set the view's bounds; a bound left out keeps the view's. |
@@ -444,7 +445,7 @@ common overwrite question applies. They return a placed error if the output coul
 
 ## Startup
 
-1. `hello`: protocol version (4), `about` (Help > About's lines, from core/xpp_about.cpp, the same lines the desktop window's own About box shows: an array of lines, each an array of parts `{"text":...}`, with `"url"` too when the part is a link (`https:` or `mailto:`); the first line's text is `xppautX <version>`; a blank line is `[]`), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
+1. `hello`: protocol version (4), `about` (Help > About xppautX's lines, from core/xpp_about.cpp: an array of lines, each an array of parts `{"text":...}`, with `"url"` too when the part is a link (`https:` or `mailto:`); the first line's text is `xppautX <version>`; a blank line is `[]`), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
    every command's kind and
    whether it is a step (`commands`): see "Action kinds"; the limits the
    core keeps to (`limits`) and the initial window names (`window_names`): see

@@ -317,6 +317,7 @@ export class Session {
     else if (id === 'tool.keyboard_shortcuts') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
     else if (id === 'session.get_source') {this.openText();}
     else if (id === 'tool.manual') this.store.dispatch({type: 'help', action: {type: 'open'}});
+    else if (id === 'tool.about') this.store.dispatch({type: 'help', action: {type: 'about'}});
     else if (id === 'array_plot.open') this.openAplot();
     else if (id === 'animation.open') this.openAni();
     else if (id === 'annotation.list') {
@@ -430,8 +431,8 @@ export class Session {
     this.answer(ask, {ok: 0});
   }
 
-  /** The desktop window's close box or File > Quit (desktop.ts __xppQuit,
-      W110): File > Quit's question. While a command runs (and asks
+  /** The desktop window's close box or the macOS app menu's Quit
+      (desktop.ts __xppQuit, W110): Quit's question. While a command runs (and asks
       nothing), the page asks it itself, the run going on (LEAVE_ASK): the
       core could ask only once the run had stopped, and a misclick then
       Cancel would have lost it. Otherwise the core asks it, as F Q does

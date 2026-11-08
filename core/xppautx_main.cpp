@@ -331,7 +331,7 @@ int main(int argc, char **argv)
         xpp::log_set_autox_echo(1);
     }
     /* the window runs the session itself; when it cannot open, the browser */
-    if (interface == xpp::Interface::window && !xpp::window::run(run_session, xpp_about_markup().c_str())) xpp::http::show(true);
+    if (interface == xpp::Interface::window && !xpp::window::run(run_session)) xpp::http::show(true);
     run_session();
     return 0;
 }

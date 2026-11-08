@@ -14,7 +14,7 @@
    table, filled by the loader. The static builds (Windows, macOS) fill it
    with the same functions at compile time, so the window's code is one. */
 /* W177 adds the native picker's prompt-bound save grant to the host seam. */
-#define XPP_WINDOW_HOST_VERSION 7
+#define XPP_WINDOW_HOST_VERSION 8
 typedef struct XppWindowHost {
     int version; /* XPP_WINDOW_HOST_VERSION */
     const char *(*http_url)(void);
@@ -38,7 +38,7 @@ typedef struct XppWindowHost {
 
 /* what the library gives back: xpp_window.h's run and set_model */
 typedef struct XppWindowApi {
-    bool (*run)(void (*session)(void), const char *about);
+    bool (*run)(void (*session)(void));
     void (*set_model)(const char *path);
 } XppWindowApi;
 

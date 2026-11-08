@@ -1,6 +1,5 @@
 /* The About text (W107, W224): the one place it is written. The desktop
-   window's Help > About box shows it and hello's "about" carries the same
-   lines to the page's Help > About, so they cannot differ. */
+   page's Help > About shows it, from hello's "about". */
 #pragma once
 
 #include <string>
@@ -21,10 +20,6 @@ struct AboutLine {
    and licence, and the build (commit, compiler, protocol); the links'
    labels and targets are written once, here */
 const std::vector<AboutLine> &xpp_about_lines();
-
-/* the same lines as the native boxes' markup: a link is
-   <a href="url">label</a>, the rest XML-escaped; lines separated by "\n" */
-std::string xpp_about_markup();
 
 /* whether `url` is exactly the target of one of the About links: the only
    addresses the window opens in the system browser */

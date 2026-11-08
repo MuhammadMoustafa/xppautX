@@ -5,7 +5,7 @@
 
    Like xpp_http.cpp this file includes no core header but small APIs
    (xpp_http.h, xpp_inbox.h, xpp_log.h, ui_json.h), so the platform headers it needs
-   for the menu bar and the file dialogs (<windows.h> and <shobjidl.h> on
+   for the file dialogs, the close box and the icon (<windows.h> and <shobjidl.h> on
    Windows, GTK on Linux, the Objective-C runtime on macOS) cannot clash
    with core names: the one exception to "Windows API code lives only in
    xpp_win32.cpp", kept behind _WIN32 and out of every header. It calls them
@@ -35,7 +35,7 @@
 #ifndef XPP_WINDOW
 
 bool xpp::window::supported() { return false; }
-bool xpp::window::run(void (*)(), const char *) { return false; }
+bool xpp::window::run(void (*)()) { return false; }
 void xpp::window::set_model(const char *) {}
 #ifdef __APPLE__
 const char *xpp::window::launch_document() { return nullptr; }
@@ -123,7 +123,6 @@ struct State {
     bool core_closing = false; /* the core's exit closes it (no quit to send) */
     bool core_exiting = false; /* the core is exiting: a close box closes the window */
     std::string model;         /* the title's file name */
-    std::string about;         /* Help > About's text */
     std::string error_msg;     /* why the window failed to open (W35e) */
 #ifdef __APPLE__
     bool session_started = false; /* a document to open is opened, not the model to load */
@@ -256,8 +255,6 @@ struct FileDialog {
    could not open */
 std::optional<std::string> pick_file(void *window, const FileDialog &d);
 
-enum MenuId { ID_QUIT = 101, ID_ABOUT };
-
 #if defined(_WIN32)
 
 constexpr bool HAS_FILE_DIALOG = true;
@@ -340,57 +337,15 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d)
     return picked;
 }
 
-/* Help > About: a task dialog, whose content markup carries the links (the
-   manifest asks for common controls 6, which has it); a click goes to the
-   core, which opens only the About set */
-HRESULT CALLBACK about_callback(HWND, UINT notification, WPARAM, LPARAM lp, LONG_PTR)
-{
-    if (notification == TDN_HYPERLINK_CLICKED)
-        if (xpp::Result<> r = host->open_about_link(narrow(reinterpret_cast<const wchar_t *>(lp))); !r)
-            host->log(XPP_LOG_WARN, "xppautX: {}\n", r.error().text());
-    return S_OK;
-}
-
-void show_about(HWND hwnd)
-{
-    const std::wstring content = wide(st->about);
-    TASKDIALOGCONFIG cfg{};
-    cfg.cbSize = sizeof cfg;
-    cfg.hwndParent = hwnd;
-    cfg.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_ALLOW_DIALOG_CANCELLATION;
-    cfg.dwCommonButtons = TDCBF_OK_BUTTON;
-    cfg.pszWindowTitle = L"About xppautX";
-    cfg.pszMainIcon = TD_INFORMATION_ICON;
-    cfg.pszContent = content.c_str();
-    cfg.pfCallback = about_callback;
-    /* About alone needs common controls; load the system DLL when it opens. */
-    const std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)> library(
-        LoadLibraryExW(L"comctl32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32), &FreeLibrary);
-    const auto show = library ? reinterpret_cast<decltype(&TaskDialogIndirect)>(
-        GetProcAddress(library.get(), "TaskDialogIndirect")) : nullptr;
-    const HRESULT r = show ? show(&cfg, nullptr, nullptr, nullptr) : HRESULT_FROM_WIN32(GetLastError());
-    if (FAILED(r))
-        host->log(XPP_LOG_WARN, "xppautX: the About box failed ({:#x})\n", static_cast<unsigned>(r));
-}
-
 WNDPROC webview_proc; /* the library's own window procedure */
 
-LRESULT CALLBACK menu_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+LRESULT CALLBACK close_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-    if (msg == WM_COMMAND && HIWORD(wp) == 0) {
-        switch (LOWORD(wp)) {
-        case ID_QUIT: PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0; /* as the close box */
-        case ID_ABOUT:
-            show_about(hwnd);
-            return 0;
-        default: break;
-        }
-    }
     if (msg == WM_CLOSE && quit_asking()) return 0;
     return CallWindowProcW(webview_proc, hwnd, msg, wp, lp);
 }
 
-void add_menus(webview_t w)
+void prepare_window(webview_t w)
 {
     HWND hwnd = static_cast<HWND>(webview_get_window(w));
     if (!hwnd) return;
@@ -401,14 +356,8 @@ void add_menus(webview_t w)
                              GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
     if (icon) SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(icon));
 
-    HMENU bar = CreateMenu(), file = CreatePopupMenu(), help = CreatePopupMenu();
-    AppendMenuW(file, MF_STRING, ID_QUIT, L"&Quit");
-    AppendMenuW(help, MF_STRING, ID_ABOUT, L"&About xppautX");
-    AppendMenuW(bar, MF_POPUP, reinterpret_cast<UINT_PTR>(file), L"&File");
-    AppendMenuW(bar, MF_POPUP, reinterpret_cast<UINT_PTR>(help), L"&Help");
     webview_proc = reinterpret_cast<WNDPROC>(
-        SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(menu_proc)));
-    SetMenu(hwnd, bar);
+        SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(close_proc)));
 }
 
 /* fit_in on the monitor the window opened on (the library sized it, frame
@@ -425,7 +374,7 @@ void place_window(webview_t w)
     const RECT &a = mi.rcWork;
     Placement p = fit_in(r.right - r.left, r.bottom - r.top, a.left, a.top, a.right - a.left, a.bottom - a.top);
     SetWindowPos(hwnd, nullptr, p.x, p.y, p.width, p.height, SWP_NOZORDER | SWP_NOACTIVATE);
-    ShowWindow(hwnd, SW_MAXIMIZE); /* W230: title bar, menu and taskbar stay */
+    ShowWindow(hwnd, SW_MAXIMIZE); /* W230: title bar and taskbar stay */
 }
 
 #elif defined(__APPLE__)
@@ -494,7 +443,7 @@ void about_action(id, SEL, id)
 
 /* The app menu's Quit and About. The icon comes
    with the .app bundle (W13b). */
-void add_menus(webview_t)
+void prepare_window(webview_t)
 {
     add_method("WebviewNSWindowDelegate", "windowShouldClose:", reinterpret_cast<IMP>(window_should_close), "c@:@");
     add_method("WebviewAppDelegate", "applicationShouldTerminate:", reinterpret_cast<IMP>(application_should_terminate),
@@ -666,19 +615,13 @@ void watch_for_documents()
 #else /* Linux: GTK 3 (webkit2gtk-4.1) */
 
 #if GTK_MAJOR_VERSION >= 4
-void add_menus(webview_t) {} /* webkitgtk-6.0 (GTK 4) has no GtkMenuBar */
+void prepare_window(webview_t) {} /* webkitgtk-6.0 (GTK 4): nothing to set up */
 void place_window(webview_t) {} /* nor a work area or a window position */
 /* nor gtk_dialog_run: web2 shows its own file dialog */
 constexpr bool HAS_FILE_DIALOG = false;
 std::optional<std::string> pick_file(void *, const FileDialog &) { return std::nullopt; }
 #else
 constexpr bool HAS_FILE_DIALOG = true;
-
-webview_t view_of_menu()
-{
-    std::lock_guard<std::mutex> lk(st->mu);
-    return st->view;
-}
 
 /* a pattern that matches ext in any case (GTK 3's are case-sensitive):
    ".ode" is "*.[oO][dD][eE]" */
@@ -726,53 +669,6 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d)
     return picked;
 }
 
-/* a link of the About box: the core opens it if it is one of the About set; TRUE says GTK need not */
-gboolean about_link_clicked(GtkLabel *, gchar *uri, gpointer)
-{
-    if (xpp::Result<> r = host->open_about_link(uri); !r) host->log(XPP_LOG_WARN, "xppautX: {}\n", r.error().text());
-    return TRUE;
-}
-
-void on_menu(GtkMenuItem *, gpointer id_ptr)
-{
-    webview_t w = view_of_menu();
-    if (!w) return;
-    GtkWindow *win = GTK_WINDOW(webview_get_window(w));
-    switch (GPOINTER_TO_INT(id_ptr)) {
-    case ID_QUIT: gtk_window_close(win); break; /* as the close box: delete_event */
-    case ID_ABOUT: {
-        GtkWidget *dlg = gtk_message_dialog_new(win, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, nullptr);
-        gtk_message_dialog_set_markup(GTK_MESSAGE_DIALOG(dlg), st->about.c_str());
-        /* a link goes to the core, which opens only the About set; GTK's own launcher is not used */
-        GList *labels = gtk_container_get_children(GTK_CONTAINER(gtk_message_dialog_get_message_area(GTK_MESSAGE_DIALOG(dlg))));
-        for (GList *l = labels; l; l = l->next)
-            if (GTK_IS_LABEL(l->data)) g_signal_connect(l->data, "activate-link", G_CALLBACK(about_link_clicked), nullptr);
-        g_list_free(labels);
-        gtk_window_set_title(GTK_WINDOW(dlg), "About xppautX");
-        gtk_dialog_run(GTK_DIALOG(dlg));
-        gtk_widget_destroy(dlg);
-        break;
-    }
-    default: break;
-    }
-}
-
-GtkWidget *menu_item(GtkWidget *menu, const char *label, int id)
-{
-    GtkWidget *item = gtk_menu_item_new_with_mnemonic(label);
-    g_signal_connect(item, "activate", G_CALLBACK(on_menu), GINT_TO_POINTER(id));
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-    return item;
-}
-
-GtkWidget *top_menu(GtkWidget *bar, const char *label)
-{
-    GtkWidget *item = gtk_menu_item_new_with_mnemonic(label), *menu = gtk_menu_new();
-    gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), menu);
-    gtk_menu_shell_append(GTK_MENU_SHELL(bar), item);
-    return menu;
-}
-
 /* the window icon (item 4, W13b): the installed hicolor theme icon by name
    (tools/associate/install-linux.sh put it there), else the PNG embedded at
    build time (Makefile, XPP_ICON_ASSET) so an unpacked-but-not-installed
@@ -798,29 +694,15 @@ void set_window_icon(GtkWindow *win)
 #endif
 }
 
-/* the close box, and File > Quit: the question first (quit_asking) */
+/* the close box: the question first (quit_asking) */
 gboolean on_delete(GtkWidget *, GdkEvent *, gpointer) { return quit_asking() ? TRUE : FALSE; }
 
-/* The library puts its web view straight into the window: move it into a
-   box under a menu bar. */
-void add_menus(webview_t w)
+void prepare_window(webview_t w)
 {
     GtkWidget *win = static_cast<GtkWidget *>(webview_get_window(w));
-    GtkWidget *view = static_cast<GtkWidget *>(webview_get_native_handle(w, WEBVIEW_NATIVE_HANDLE_KIND_UI_WIDGET));
-    if (!win || !view) return;
+    if (!win) return;
     g_signal_connect(win, "delete-event", G_CALLBACK(on_delete), nullptr);
     set_window_icon(GTK_WINDOW(win));
-    GtkWidget *bar = gtk_menu_bar_new(), *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    GtkWidget *file = top_menu(bar, "_File"), *help = top_menu(bar, "_Help");
-    menu_item(file, "_Quit", ID_QUIT);
-    menu_item(help, "_About xppautX", ID_ABOUT);
-    g_object_ref(view);
-    gtk_container_remove(GTK_CONTAINER(win), view);
-    gtk_box_pack_start(GTK_BOX(box), bar, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(box), view, TRUE, TRUE, 0);
-    g_object_unref(view);
-    gtk_container_add(GTK_CONTAINER(win), box);
-    gtk_widget_show_all(box);
 }
 
 /* fit_in on the primary monitor's work area (GTK sizes in logical pixels,
@@ -945,7 +827,7 @@ webview_t open_view()
     }
     webview_set_title(w, t.c_str());
     webview_set_size(w, WIDTH, HEIGHT, WEBVIEW_HINT_NONE);
-    add_menus(w);
+    prepare_window(w);
     place_window(w);
     /* before the page loads, so it is there from its first script */
     if (HAS_FILE_DIALOG) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
@@ -987,11 +869,10 @@ void set_window_model(const char *path)
     if (st->view) webview_dispatch(st->view, set_title_cb, nullptr);
 }
 
-bool run_window(void (*session)(), const char *about)
+bool run_window(void (*session)())
 {
     try {
         st = new State;
-        st->about = about ? about : "";
 #ifdef __APPLE__
         /* Cocoa: the window on the main thread, the session on another,
            with the main thread's 8 MB of stack (a new thread gets 512 KB).
@@ -1061,7 +942,7 @@ extern "C" __attribute__((visibility("default"))) int xpp_window_plugin_init(con
 #else
 bool xpp::window::supported() { return true; }
 void xpp::window::set_model(const char *path) { set_window_model(path); }
-bool xpp::window::run(void (*session)(), const char *about) { return run_window(session, about); }
+bool xpp::window::run(void (*session)()) { return run_window(session); }
 #ifdef __APPLE__
 const char *xpp::window::launch_document()
 {

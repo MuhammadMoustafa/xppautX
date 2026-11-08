@@ -79,8 +79,8 @@ click an annotation on the plot to select its row. **Edit** opens the common
 annotation form, **Delete** removes that annotation, and dragging one on the
 plot moves it in plot coordinates. Switching graphs changes the list.
 
-The desktop window's native menu has **Quit** and **About**. Model open/reload,
-Manual and Keyboard shortcuts are in the page menu. Session files preserve
+The desktop window has no native menu bar (macOS: Quit and About in its app menu). Model open/reload,
+Manual, Keyboard shortcuts and About xppautX are in the page menu; Quit is in the page's File menu only in a browser. Session files preserve
 the workspace; parameter/initial-condition files and data exports remain
 available through File. A dot beside the model name marks unsaved changes.
 
@@ -276,7 +276,7 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **(S)ave info**: This is like `(P)rt info` but saves the info to a file. It is human readable.
 - **(Q)uit**: Asks "Quit xppautX? Save this session first?", the one
   question every way of leaving a session asks (the desktop window's
-  File > Quit and its close box too; **open (M)odel** and **r(E)load**
+  close box too; **open (M)odel** and **r(E)load**
   ask it in their own words): **Save session** (`S`) writes the session
   first, as **sa(V)e session** does (to its remembered file with no question,
   else it asks for a name), then quits; **Don't save** (`D`)

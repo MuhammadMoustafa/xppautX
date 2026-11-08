@@ -175,8 +175,7 @@ the same page in your browser instead and prints its address (`XPP:
 http://127.0.0.1:...`), for a remote machine or the VS Code extension;
 `xppautX --help` lists the modes. To check the window by hand: the title
 reads "xppautX — lecar.ode" with the xppautX icon, Help > Manual opens the
-page's Help, Help > About shows the version, the author and where to report a problem, and after File > Quit (or
-closing the window) no xppautX process is left.
+page's Help, Help > About xppautX shows the version, the author and where to report a problem, and after closing the window no xppautX process is left.
 
 **Double-clicking a .ode file.** The Windows installer and the .deb register
 the file types for all users. The archives' `tools/associate/` sets
@@ -386,8 +385,7 @@ you have one, this is the part that needs it.
    or the keys `i g`); open autoX (File > autoX) and start a continuation
    (Run > Steady state); resize and move the window; then close it and
    check that no xppautX process is left (`ps aux | grep xppautX`). The
-   macOS window has no menu bar of its own yet (Open model, Help and About
-   are in the Windows and Linux windows' menus only): everything is in the
+   macOS window has only its app menu (Quit, About): everything is in the
    page, and a second model is a second `./xppautX other.ode`.
 4. **Report it** on [issue #4](https://github.com/MuhammadMoustafa/xppautX/issues/4):
    your macOS version, Apple silicon or Intel, what happened at each step
@@ -426,7 +424,7 @@ xppautX is by Muhammad Ahmad (the numerics are Bard Ermentrout's XPPAUT).
 - LinkedIn: https://www.linkedin.com/in/muhammad-ahmad-62743a125/
 - Report a problem: https://github.com/MuhammadMoustafa/xppautX/issues
 
-The same text is Help > About in the window and in the page.
+The same text is Help > About xppautX, in the window and in a browser.
 
 ## License
 

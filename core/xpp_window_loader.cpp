@@ -147,7 +147,7 @@ bool load(std::string &err)
 
 bool xpp::window::supported() { return true; }
 
-bool xpp::window::run(void (*session)(), const char *about)
+bool xpp::window::run(void (*session)())
 {
     try {
         std::string err;
@@ -160,7 +160,7 @@ bool xpp::window::run(void (*session)(), const char *about)
         xpp::log(XPP_LOG_WARN, "{}", xpp::browser_message(e.what()));
         return false;
     }
-    return api.run(session, about);
+    return api.run(session);
 }
 
 void xpp::window::set_model(const char *path)

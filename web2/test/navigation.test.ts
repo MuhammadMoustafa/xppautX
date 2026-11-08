@@ -19,6 +19,18 @@ test('W517: every registry command with a menu place appears exactly once in the
   assert.ok(placed.length > 150);
   assert.ok(placed.every(r => ['File','Run','Analysis','Plot','Data','autoX','Windows','Help'].includes(r.menu_path!.split('/')[0])));
 });
+test('W647: the window (its __xppCloseWindow bound) has no Quit; a browser has it, and About xppautX is a Help command in both', () => {
+  const w = globalThis as {__xppCloseWindow?: unknown};
+  try {
+    assert.ok(registryRows(REGISTRY_HELLO).some(r => r.id === 'session.quit'));
+    w.__xppCloseWindow = async () => {};
+    assert.ok(!registryRows(REGISTRY_HELLO).some(r => r.id === 'session.quit'));
+    assert.ok(registryRows(REGISTRY_HELLO).length > 150);
+  } finally { delete w.__xppCloseWindow; }
+  const about = rows.find(r => r.id === 'tool.about');
+  assert.equal(about?.label, 'About xppautX');
+  assert.equal(about?.menu_path, 'Help');
+});
 test('W636: a row with no menu place has a label but no place in the tree, and a row is shown by its label', () => {
   const bare = {...rows[0], id: 'x.bare', menu_path: '', label: 'Bare'};
   assert.deepEqual(menuTree([bare]), []);

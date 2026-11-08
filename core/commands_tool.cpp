@@ -60,6 +60,8 @@ constexpr std::array ROWS = {
             "Edit command keys and pins.", {}, CALCULATOR_EVENTS, false, page_tool},
     Command{"tool.manual", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Manual", "Help",
             "Read the manual.", {}, CALCULATOR_EVENTS, false, page_tool, {}, MANUAL_KEYS},
+    Command{"tool.about", {}, XPP_KIND_VIEW, CommandCategory::Tools, "About xppautX", "Help",
+            "Show the version, commit and links of this program.", {}, CALCULATOR_EVENTS, false, page_tool},
     Command{"tool.run_source_action", INDEX_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Run source action", "",
             "Run the action of an active comment of the model's source (a `{par=value,...}` block): comment `index` of session.get_source's list.",
             RAN_RESULTS, RAN_EVENTS, true, run_source_action},

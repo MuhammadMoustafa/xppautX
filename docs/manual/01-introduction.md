@@ -53,14 +53,13 @@ repeated here.
 `xppautX model.ode` loads the model and opens **web2** in a window of
 its own, titled "xppautX — model.ode", with the system's own web view
 (WebView2 on Windows, the system's WKWebView on macOS, WebKitGTK on
-Linux). Its menu
-bar holds what belongs to the app rather than the model: **File** (Open
-model… and Reload, the page's File > Open model and File > Reload model, below;
-Quit) and **Help** (Manual, Keyboard shortcuts, About: version,
-commit, compiler, protocol version and license) — except on macOS, whose menu bar
-holds only Quit xppautX (Cmd+Q) yet (untested there beyond CI). The model's
-own menus stay inside the page. Closing the window, or its File > Quit
-(on macOS also Cmd+Q), asks first, as the page's File/Quit does ("Quit
+Linux). It has no menu
+bar of its own: every menu is the page's (File > Open model and File > Reload model,
+below; Help > Manual, Keyboard shortcuts and About xppautX: version,
+commit, compiler, protocol version and license), and the page's File > Quit
+shows only in a browser, since the window has its close box. Closing the window
+(on macOS also Cmd+Q, its app menu's Quit xppautX, untested there beyond CI) asks first, as File > Quit
+does in a browser ("Quit
 xppautX? Save this session first?": Save session, Don't save, Cancel).
 It asks without stopping what is computing: the run goes on under the
 question, and Cancel leaves it running; Save session stops it, saves and
@@ -102,13 +101,11 @@ all and always uses the browser; `xppautX --help` says which you have.
 
 To try the window by hand: start `xppautX examples/ode/lecar.ode`; the
 window opens with the xppautX icon and title; Help > Manual and Help >
-Keyboard shortcuts open the Help view in the page, Help > About shows
-the version box; File > Open model… loads the model you choose in the
-same window, after asking; File > Quit, or closing the window, asks
-whether to save the session first, then ends xppautX and
-leaves no process behind. On macOS, which has no File and Help menu bar of
-its own yet, close the window instead to quit, and use the model's own
-menus inside the page.
+Keyboard shortcuts open the Help view in the page, Help > About xppautX shows
+the version; File > Open model… loads the model you choose in the
+same window, after asking; File has no Quit here: closing the window
+asks whether to save the session first, then ends xppautX and
+leaves no process behind.
 
 **Double-clicking a .ode file** (or a `.snapx` session file, a `.recx` recording, which opens in the player, below)
 opens it the same way, once xppautX is registered as its opener: run
@@ -146,8 +143,7 @@ from a source checkout) says so instead of listing any.
 **Opening another model, reloading this one.** xppautX serves one model
 at a time. Opening a `.ode` in any mode converts and saves `.odex` beside
 it, which becomes the model from then on; see [.odex](02-ode-files.md#odex).
-File > Open model (Ctrl+O in the page, in
-the window's menu bar) picks a `.ode` or `.odex` file (or a `.snapx`
+File > Open model (Ctrl+O) picks a `.ode` or `.odex` file (or a `.snapx`
 session file, a `.recx` recording, below) and asks first: the current model's data and autoX diagram
 go, so it offers **Save session** (a session file, as File > Save session
 writes it) or **Don't save**; Escape keeps the current model (the

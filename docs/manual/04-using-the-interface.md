@@ -435,7 +435,7 @@ Everything in xppautX works without a compiler. A model that called a
 compiled C library (`export`, `dll_lib`/`dll_fun`, a network's
 `import`) no longer loads: those statements were removed.
 
-The title bar's Help button (or F1) opens this manual in the page's Help view. Its About button shows the version, the author, links to the author's email, GitHub and LinkedIn, the source and where to report a problem, and the credit to XPPAUT and its author (the desktop window's Help > About shows the same lines; a link opens in the system's default browser, from the page and from the window's own About box).
+The title bar's Help button (or F1) opens this manual in the page's Help view. Its About button shows the version, the author, links to the author's email, GitHub and LinkedIn, the source and where to report a problem, and the credit to XPPAUT and its author (Help > About xppautX in the menu bar opens it too; a link opens in the system's default browser, from the page and from the desktop window).
 
 ## The log
 

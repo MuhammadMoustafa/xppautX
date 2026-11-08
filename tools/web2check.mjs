@@ -3211,6 +3211,25 @@ async function navigationCheck() {
   check('W517: one menu item per registry row with a menu place (W637: the rest are a view\'s controls and the palette\'s)',
     JSON.stringify(ids) === JSON.stringify(rows.filter(c => c.menu_path).map(c => c.cmd).sort()), JSON.stringify(ids));
   check('W517: Commands panel retired', !await exists('.menu-panel'));
+  /* W647: Quit is the browser's command; the desktop window (its __xppCloseWindow bound) has its close box instead */
+  check('W647: in a browser File > Quit is in the menu bar', await exists('.app-menu [data-command="session.quit"]'));
+  const {identifier: bound} = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: 'window.__xppCloseWindow = async () => {};'});
+  await reloadPage();
+  await clickRegistry('tool.command_palette');
+  check('W647: with __xppCloseWindow bound, neither the menu bar nor Search commands has Quit, and the rest are there',
+    await until(`s.drawerOpen && !document.querySelector('[data-command="session.quit"]')
+      && !!document.querySelector('.command-palette [data-command="session.save"]') && !!document.querySelector('.app-menu [data-command="tool.about"]')`, 'quit hidden'));
+  await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier: bound});
+  await reloadPage();
+  await clickRegistry('tool.command_palette');
+  await key('Escape');
+  /* W647: Help > About xppautX shows hello.about's version line in the page, in every mode */
+  await menuRun('tool.about');
+  check('W647: Help > About xppautX opens the About text with the version line',
+    await until(`s.help.open && s.help.about && document.querySelector('.help-about p')?.textContent === s.hello.about[0].map(p => p.text).join('') && /^xppautX /.test(document.querySelector('.help-about p').textContent)`, 'about command'),
+    JSON.stringify(await S('s.help')));
+  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await until('!s.help.open', 'help closed');
   // Every command with arguments renders the same form, using every declared argument.
   for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list')) {
     await clickRegistry(row.cmd);

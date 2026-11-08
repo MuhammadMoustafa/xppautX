@@ -1,8 +1,11 @@
 import type {CommandRow} from '../protocol/kinds';
 import type {HelloEvent} from '../protocol/types';
+import {inDesktopWindow} from '../desktop';
 
 export function registryRows(hello: HelloEvent | null): CommandRow[] {
-  return (hello?.commands ?? []).filter(row => row.arguments !== undefined).map(row => ({
+  /* the window leaves by its close box: Quit is the browser's command (W647) */
+  const desktop = inDesktopWindow();
+  return (hello?.commands ?? []).filter(row => row.arguments !== undefined && !(desktop && row.cmd === 'session.quit')).map(row => ({
     ...row, id: row.cmd, label: row.label!,
     description: row.description ?? '', category: row.category ?? '', pinnable: true,
     default_keys: row.default_keys ?? [],

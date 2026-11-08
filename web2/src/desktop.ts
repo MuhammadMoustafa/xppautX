@@ -2,8 +2,8 @@
    Help > Manual and Help > Keyboard shortcuts run
    `window.__xppOpenHelp(chapter?, anchor?)` in the page. It opens the Help
    view as F1 does: with no chapter where it was left, else at that
-   chapter (and anchor). Its close box and File > Quit (Cmd+Q on macOS) run
-   `window.__xppQuit()` (W110): File > Quit's question (session.ts
+   chapter (and anchor). Its close box and the macOS app menu's Quit (Cmd+Q) run
+   `window.__xppQuit()` (W110): the Quit command's question (session.ts
    quitAsked). In a browser nothing calls them. */
 import {requestUpdateCheck} from './help/updates';
 import type {Session} from './session';
@@ -23,10 +23,15 @@ export function installDesktopHooks(session: Session): void {
     when a computation never reaches a checkpoint. False in a browser, which
     has no such window. */
 export function closeDesktopWindow(): boolean {
-  const close = (window as unknown as {__xppCloseWindow?: () => Promise<unknown>}).__xppCloseWindow;
-  if (typeof close !== 'function') return false;
-  void close().catch(() => undefined);
+  if (!inDesktopWindow()) return false;
+  void (globalThis as unknown as {__xppCloseWindow: () => Promise<unknown>}).__xppCloseWindow().catch(() => undefined);
   return true;
+}
+
+/** Whether the page runs in the desktop window: it binds `__xppCloseWindow`. The window has its close box for
+    leaving, so the page's own Quit shows only in a browser (navigation.ts registryRows). */
+export function inDesktopWindow(): boolean {
+  return typeof (globalThis as {__xppCloseWindow?: unknown}).__xppCloseWindow === 'function';
 }
 
 /** Browser mode only (the desktop window binds `__xppFileDialog` and closes

@@ -56,41 +56,12 @@ std::vector<AboutLine> make_lines()
     return lines;
 }
 
-/* XML-escaped, for the native boxes' markup */
-std::string escaped(std::string_view s)
-{
-    std::string out;
-    for (char c : s) {
-        switch (c) {
-        case '&': out += "&amp;"; break;
-        case '<': out += "&lt;"; break;
-        case '>': out += "&gt;"; break;
-        case '"': out += "&quot;"; break;
-        default: out += c;
-        }
-    }
-    return out;
-}
-
 } // namespace
 
 const std::vector<AboutLine> &xpp_about_lines()
 {
     static const std::vector<AboutLine> lines = make_lines();
     return lines;
-}
-
-std::string xpp_about_markup()
-{
-    std::string out;
-    for (const AboutLine &line : xpp_about_lines()) {
-        if (!out.empty()) out += '\n';
-        for (const AboutPart &p : line.parts) {
-            if (p.url.empty()) out += escaped(p.text);
-            else out += "<a href=\"" + escaped(p.url) + "\">" + escaped(p.text) + "</a>";
-        }
-    }
-    return out;
 }
 
 bool xpp_about_has_link(std::string_view url)

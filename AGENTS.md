@@ -563,7 +563,7 @@ Windows API code lives only in `core/xpp_win32.cpp` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`). The exceptions
 are the two files that include no core header but small APIs:
 `core/xpp_http.cpp` (sockets) and `core/xpp_window.cpp` (the desktop
-window's menu bar, dialogs and icon, behind `_WIN32`); windows.h never
+window's dialogs, close box and icon, behind `_WIN32`); windows.h never
 reaches a header.
 
 XPPAUT itself (the reference program, for comparisons and benchmarks;
@@ -889,8 +889,8 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   thread (untested); there a file Finder opens in xppautX.app comes as an
   open-documents Apple Event, which xpp_window.cpp handles (W91: the
   launch's is the model, `xpp::window::launch_document`, a later one opens
-  as File > Open model; CI's macos-core checks it with `open -a`). Closing the window (its x, or the menu bar's Quit; on macOS also
-  Cmd+Q and the Dock's Quit, through `windowShouldClose:` and
+  as File > Open model; CI's macos-core checks it with `open -a`). Closing the window (its x; on macOS also
+  Cmd+Q, the app menu's and the Dock's Quit, through `windowShouldClose:` and
   `applicationShouldTerminate:` added to webview's delegate classes; W59d,
   W110) never stops a computation: the window calls the page's
   `__xppQuit` (web2/src/desktop.ts, through webview_eval, as Help does),
@@ -912,18 +912,19 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   exit closes the window after a bye, and after an error leaves it open
   on the log until it is closed (xpp_http's at_exit waits for that, or
   Ctrl+C). If the web view cannot start (no WebView2 runtime, no
-  display) xppautX logs it and falls back to browser mode. Its menu bar
-  (Win32 menu; GTK 3 menu bar on Linux; on macOS only the app menu's Quit xppautX, Cmd+Q): File > Open
+  display) xppautX logs it and falls back to browser mode. It has no menu bar of its
+  own (W647: every menu is the page's; the page shows its Quit only in a browser, where `__xppCloseWindow` is not bound;
+  macOS keeps only its app menu's Quit xppautX, Cmd+Q, and About): File > Open
   model and Reload (W61: loaded in this process, core/model_switch.cpp,
   once the command has returned; a failed load keeps the model before;
-  Open model picks the file in the OS dialog below), Quit; a `file` ask
+  Open model picks the file in the OS dialog below); a `file` ask
   opens the OS's own open or save dialog (W88: web2 calls the page's
   `__xppFileDialog`, bound with webview_bind and run on the UI thread by
   `pick_file` in xpp_window.cpp, and answers the ask with the true path;
   its filter is web2's `wildExtensions`; browser mode keeps the browser's
   picker, W90); Help > Manual and Keyboard shortcuts (web2's
   `window.__xppOpenHelp`, web2/src/desktop.ts, through webview_eval),
-  About (a native message box). The icon is `assets/icon.svg`, made into
+  and About xppautX (`tool.about`, a page command: hello's `about` lines, its links opened through the bound `__xppOpenAboutLink`). The icon is `assets/icon.svg`, made into
   `assets/icon.ico` by `tools/make_icons.py`, compiled into the Windows
   exe by `assets/xppautx.rc`. `tools/modecheck.sh` (verify.sh) checks
   `--help`, `--browser` and `--no-open`, and on Linux with the window

@@ -3103,7 +3103,7 @@ def check_registry_labels(table):
     check('W636: every registry row has a label, unique among the rows', all(labels) and not repeated, str(repeated))
     # a mnemonic capital inside a word (sHoot, formUla), a listed choice (No show, Show) or a path's slash
     bad = [r['label'] for r in table
-           if not re.fullmatch(r"[A-Z0-9][^,/]*", r['label']) or re.search(r'[a-z][A-Z]', r['label'].replace('autoX', ''))
+           if not re.fullmatch(r"[A-Z0-9][^,/]*", r['label']) or re.search(r'[a-z][A-Z]', r['label'].replace('autoX', '').replace('xppautX', ''))
            or ' or ' in r['label'] or r['label'] != r['label'].strip()]
     check('W636: no label holds a mnemonic capital, a listed choice or a slash', not bad, str(bad))
     check('W636: a menu path holds only the groups above its label', not [r['cmd'] for r in table if r['menu_path'].split('/')[-1] == r['label']],
