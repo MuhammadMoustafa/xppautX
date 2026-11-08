@@ -3866,8 +3866,9 @@ async function valuesJacobian(dir) {
     JSON.stringify(precisionOptions) === JSON.stringify([['Single', false], ['Double', false]]) && await cdp.eval(`${precision}.value === 'single'`),
     JSON.stringify(precisionOptions));
   const firstRows = async () => {
-    await cdp.eval(`__xpp.send({cmd: 'browser.page', from_row: 0, count: 50, first_column: 1, columns: 1})`);
-    await until('!s.busy && s.table.page && s.table.page.from === 0 && s.table.page.data.length > 10', 'the table rows');
+    /* browser.page ends with no done: wait for a page newer than the one the store holds */
+    await cdp.eval(`window.__w613Page = __xpp.state().table.page; __xpp.send({cmd: 'browser.page', from_row: 0, count: 50, first_column: 1, columns: 1})`);
+    await until('s.table.page !== window.__w613Page && s.table.page.from === 0 && s.table.page.data.length > 10', 'the table rows');
     return cdp.eval(`__xpp.state().table.page.data.map(r => r[1])`);
   };
   await runInitial();
