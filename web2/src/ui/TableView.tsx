@@ -173,11 +173,10 @@ export function TableView() {
   const items: {row: number; values: (number | null)[] | null}[] = [];
   for (let i = first; i < last; i++) items.push({row: i, values: rowAt(page, i)});
 
-  const run = (op: BrowserOp) => session.browserOp(op);
   const button = (op: BrowserOp, inMenu: boolean) => {
     const row = toolbarRow(hello, 'browser', op);
     const off = !mayKey('browser', op);
-    const click = {key: op, 'data-button': `browser:${op}`, title: off ? BUSY_TITLE : row?.description, disabled: off, onClick: () => run(op)};
+    const click = {key: op, 'data-button': `browser:${op}`, title: off ? BUSY_TITLE : row?.description, disabled: off, onClick: () => session.browserOp(op)};
     return inMenu ? <li key={op}><button role="menuitem" {...click}>{row?.label}</button></li> : <button {...click}>{row?.label}</button>;
   };
   const group = (name: string, ops: BrowserOp[], more: BrowserOp[] = []) => (
@@ -203,7 +202,6 @@ export function TableView() {
     session.writeDataFile('table', format);
   };
   const exportOff = !page?.data.length || !may({cmd: 'browser.export'});
-  const loadRow = toolbarRow(hello, 'browser', 'load');
   const selectedT = rowAt(page, selected)?.[0];
   const sliced = page && (page.start > 0 || page.end < rows);
 
@@ -217,8 +215,7 @@ export function TableView() {
           <HelpButton target={HELP.dataTab} label="the Data tab" />
         </div>
         <div class="table-actions">
-        <button data-button="browser:load" disabled={!mayKey('browser', 'load')} title={loadRow?.description}
-          onClick={() => run('load')}>{loadRow?.label}</button>
+        {button('load', false)}
         <DropDownMenu normal id="table-export" label={commandRow(hello, 'browser.export')?.label ?? ''}>
           {ordered.map(format => (
             <li key={format}>
@@ -231,8 +228,7 @@ export function TableView() {
         </div>
       </div>
       <div class="table-tools">
-        <button class="table-find" data-button="browser:find" disabled={!mayKey('browser', 'find')}
-          title={toolbarRow(hello, 'browser', 'find')?.description} onClick={() => run('find')}>{toolbarRow(hello, 'browser', 'find')?.label}</button>
+        {button('find', false)}
         {group('Rows', ROWS)}
         {group('Columns', COLUMNS, MORE_COLUMNS)}
       </div>
