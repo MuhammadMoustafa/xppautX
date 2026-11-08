@@ -5,7 +5,7 @@
    current one (editing keeps what it already has). OK is disabled until a
    candidate is picked and the fields validate (validateSliderFields);
    errors show inline. Follows the app's dialog pattern (AskDialog.tsx,
-   theme.css .dialog) but is local state, not a core ask. */
+   css/dialogs.css .dialog) but is local state, not a core ask. */
 import {useMemo, useRef, useState} from 'preact/hooks';
 import {HELP} from '../help/links';
 import {

@@ -2,7 +2,15 @@
    UI, the test hook, the desktop window's menu hooks. */
 import {render} from 'preact';
 import 'uplot/dist/uPlot.min.css';
-import './theme.css';
+import './css/tokens.css';
+import './css/layout.css';
+import './css/controls.css';
+import './css/values.css';
+import './css/panels.css';
+import './css/plot.css';
+import './css/player.css';
+import './css/dialogs.css';
+import './css/autox.css';
 import {HttpFiles} from './protocol/files';
 import {HttpTransport} from './protocol/transport';
 import {installBrowserLeave, installDesktopHooks} from './desktop';

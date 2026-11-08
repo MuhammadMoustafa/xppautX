@@ -27,13 +27,13 @@ export function StatusBar() {
   const dot = exited !== null ? 'down' : !connected ? '' : busy ? 'busy' : 'up';
   return (
     <footer class="status-bar" data-flash={flash}>
-      {/* a new warning: a second's flash, the key restarting the animation (theme.css .status-flash) */}
+      {/* a new warning: a second's flash, the key restarting the animation (css/layout.css .status-flash) */}
       {flash > 0 && <span key={flash} class="status-flash" aria-hidden="true" />}
       <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span role="status" data-testid="status">{status}</span>
       <span class="status-message">{bottom} {help && <HelpButton target={help} label=".odex models" />}</span>
       <span class="muted rows">{rows} rows</span>
-      {/* W83: a fixed-width slot the bar always keeps (theme.css .status-run), so
+      {/* W83: a fixed-width slot the bar always keeps (css/layout.css .status-run), so
           the progress bar and Stop button toggling with a run never resize the
           bar or move the message/rows beside it; visibility, not mount/unmount,
           keeps the box. At the bar's right end, after the rows (W86). */}

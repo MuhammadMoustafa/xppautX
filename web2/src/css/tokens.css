@@ -1,0 +1,95 @@
+/* Theme tokens (light, dark), the layout shell and the components' styles.
+   docs/ui-v2.md "Responsive layout" and "Accessibility and UX" are the rules.
+   Sizes are rem (1rem = the browser's font size, 16px by default); the
+   spacing and type scales below are the only sizes components use.
+   Inter is self-hosted (web2/dist/inter.woff2, embedded in xppautX): the
+   program works offline, so nothing loads from a CDN. Its Greek subset
+   (inter-greek.woff2) draws XPP's symbol-font labels as Greek text (T8);
+   the browser fetches it only for a page that shows Greek. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('inter.woff2') format('woff2-variations'), url('inter.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('inter-greek.woff2') format('woff2-variations'), url('inter-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+
+:root {
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+  --plot-font: 12px Inter, system-ui, sans-serif; /* canvas text: px is what uPlot takes */
+
+  /* type scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  /* spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --radius: 0.5rem;
+  /* the smallest target: 44px on touch screens (WCAG 2.5.5), 2rem with a mouse */
+  --target: 2rem;
+
+
+  /* colours: text on --bg and --surface is at least 4.5:1, --fg-muted too */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef0f3;
+  --border: #d5dae1; /* decoration; a field's edge is --field-border */
+  --field-border: #7b8494; /* 3:1 on --surface and --bg (WCAG 1.4.11) */
+  --fg: #1c2330;
+  --fg-muted: #525c6b;
+  --grid: #e6e9ee;
+  --accent: #2563d6;
+  --accent-fg: #ffffff;
+  --focus: #1a56c8;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --ok: #2b8a3e;
+  --warn: #b26b00;
+  --warn-bg: #fff4dc;
+  --lit: #fff2b8;
+  --lit-fg: #3d2f00;
+  --shadow: 0 0.5rem 1.75rem rgba(15, 23, 42, 0.18);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f1216;
+  --surface: #171b21;
+  --surface-2: #222933;
+  --border: #343c48;
+  --field-border: #6b7584;
+  --fg: #e6e9ee;
+  --fg-muted: #a3adbb;
+  --grid: #262c35;
+  --accent: #6aa5ff;
+  --accent-fg: #0b1220;
+  --focus: #8fbcff;
+  --danger: #ff8a80;
+  --danger-bg: #3a1614;
+  --ok: #69db7c;
+  --warn: #ffc14d;
+  --warn-bg: #3a2c0a;
+  --lit: #5a4a10;
+  --lit-fg: #fff2b8;
+  --shadow: 0 0.5rem 1.75rem rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+@media (pointer: coarse) {
+  :root { --target: 2.75rem; }
+}
+

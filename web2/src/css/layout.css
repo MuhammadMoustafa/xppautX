@@ -1,0 +1,138 @@
+* { box-sizing: border-box; }
+html { height: 100%; }
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--text-sm)/1.45 var(--font);
+  font-feature-settings: 'tnum' 1, 'cv11' 1;
+  overflow: hidden; /* the shell scrolls inside; never the page sideways */
+}
+#app { height: 100%; }
+h1, h2 { margin: 0; }
+
+/* ---- shell: title / menu bar / work / values / status; the values panel is a right column from 80rem ---- */
+.shell { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(10rem, 1fr) var(--values-row, fit-content(40%)) auto; grid-template-areas: 'title' 'menus' 'work' 'values' 'status'; }
+.start-shell { display: flex; flex-direction: column; height: 100%; grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title' 'menus' 'work' 'status'; }
+.title-bar {
+  grid-area: title;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.title-bar h1 { font-size: var(--text-md); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.title-bar .unsaved { color: var(--accent); font-size: var(--text-xs); }
+.title-bar .file { font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* ---- the start screen: no model is open (W232) ---- */
+.start-shell .workspace { flex: 1; overflow: auto; padding: var(--space-4); }
+.start-screen { max-width: 40rem; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.start-screen h2 { margin: 0; }
+.start-screen h3 { margin: var(--space-4) 0 0; }
+.start-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
+.start-recent li { display: flex; flex-direction: column; align-items: flex-start; }
+.start-path { font-size: var(--text-xs); overflow-wrap: anywhere; }
+.start-missing { color: var(--danger); }
+.workspace-tools { position: relative; }
+.workspace-tools > summary { min-height: var(--target); padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
+.workspace-tools-menu { position: absolute; z-index: 180; top: 100%; right: 0; min-width: 14rem; padding: var(--space-2); display: grid; gap: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.workspace-tools:not([open]) .workspace-tools-menu { display: none; }
+#command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
+.unused-settings { margin-top: var(--space-3); }
+.spacer { flex: 1; }
+.menu-toggle, .values-toggle { display: none; }
+/* the wide layouts' collapse buttons and splitters (W226): not on a phone, where the drawers do this */
+.splitter { display: none; }
+@media (min-width: 48rem) {
+  .splitter { display: block; z-index: 20; background: transparent; touch-action: none; }
+  .splitter:hover, .splitter:focus-visible { background: var(--accent); opacity: 0.5; }
+  .splitter-values { grid-area: values; align-self: start; height: 0.5rem; margin-top: -0.25rem; cursor: row-resize; }
+
+  .shell[data-values="collapsed"] .values-panel, .shell[data-values="collapsed"] .splitter-values { display: none; }
+}
+
+.workspace {
+  grid-area: work;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-3);
+  gap: var(--space-2);
+  overflow: auto;
+}
+
+.status-bar {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-4);
+  font-size: var(--text-xs);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  min-width: 0;
+  height: 2rem; /* W83: fixed, from its own line height, independent of what it shows */
+  position: relative;
+}
+.status-flash { position: absolute; inset: 0; pointer-events: none; background: var(--warn); opacity: 0; animation: status-flash 1.2s ease-out; }
+@keyframes status-flash { from { opacity: 0.45; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .status-flash { animation-duration: 0.01s; } }
+.status-message { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-dot { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--fg-muted); }
+.status-dot.up { background: var(--ok); }
+.status-dot.busy { background: var(--warn); }
+.status-dot.down { background: var(--danger); }
+/* W83: a fixed-width slot the bar always keeps for the progress bar and the
+   Stop/Stopping… button, so a run starting or ending never resizes the bar
+   or shifts the message/rows beside it (at the right end, W86); visibility (never display or
+   mount/unmount) keeps each one's box reserved while it is not shown. */
+.status-run { flex: none; display: flex; align-items: center; gap: var(--space-2); width: 10.5rem; }
+.status-run progress { width: 4.5rem; visibility: hidden; }
+.status-run progress.shown { visibility: visible; }
+.status-run button { min-height: 1.4rem; height: 1.4rem; visibility: hidden; }
+.status-run button.shown { visibility: visible; }
+
+
+/* W517: registry menu, palette, form and annotations. */
+.app-menu{ grid-area: menus; display: flex; flex-wrap: wrap; gap: .25rem; padding: .125rem .75rem; border-bottom: 1px solid var(--border); z-index: 160; background: var(--surface); }
+
+.app-menu > details{ position: relative; }
+
+.app-menu summary{ padding: .25rem .6rem; cursor: pointer; }
+
+.app-menu ul{ list-style: none; margin: 0; padding: .35rem; }
+
+.app-menu > details > ul{ position: absolute; min-width: 15rem; max-height: 70vh; overflow: auto; background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+
+.app-menu button{ width: 100%; text-align: left; display: flex; justify-content: space-between; gap: 1rem; }
+
+/* wide: the values panel becomes a right column (R3, R6), and a short stacked desktop
+   reserves room for the run toolbar and trajectory (Values stays scrollable below) */
+@media (min-width: 80rem) {
+  .shell { grid-template-columns: minmax(0, 1fr) var(--values-col, 30rem); grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title title' 'menus menus' 'work values' 'status status'; }
+  .splitter-values { align-self: stretch; width: 0.5rem; height: auto; margin: 0 0 0 -0.25rem; justify-self: start; cursor: col-resize; }
+}
+@media (min-width: 48rem) and (max-width: 79.99rem) and (max-height: 40rem) {
+  .shell { grid-template-rows: auto auto minmax(10rem, 1fr) fit-content(12%) auto; }
+}
+/* narrow (phones, small tablets): one column, the menu and the values panel are drawers/sheets */
+@media (max-width: 47.99rem) {
+  .menu-toggle, .values-toggle { display: inline-flex; }
+  .icon-button.panel-toggle { display: none; }
+  .title-bar { padding: var(--space-2); }
+  .title-bar .file, .title-bar .wide-only { display: none; }
+  .workspace { padding: var(--space-2); }
+  .status-bar .rows { display: none; }
+  .status-run { width: 8rem; }
+  .status-run progress { width: 2.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

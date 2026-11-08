@@ -3,7 +3,7 @@
    bar (a plain background, no page showing through); its own status strip
    (ui/AutoxStatus.tsx) is then the only status line on screen and carries
    the Stop, the one way to stop a run (A10). Sizes and colours are
-   theme.css's tokens. */
+   tokens.css's tokens. */
 .autox-panel {
   position: fixed;
   inset: var(--menu-bottom, 0px) 0 0;
@@ -15,30 +15,8 @@
   background: var(--surface);
   box-shadow: var(--shadow);
 }
-.autox-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border);
-  min-width: 0;
-}
-.autox-header h2 {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-md);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.autox-header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .autox-what { font-weight: 400; font-size: var(--text-sm); margin-left: var(--space-1); }
-.autox-tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border);
-}
 .autox-view {
   container-type: inline-size;
   flex: 1;
@@ -116,7 +94,7 @@
 /* T11b: the grab's cursor, the stored point of a two-parameter diagram, the
    info strip and the stability circle (ui/AutoxInfo.tsx) */
 .plot-host.pick-grab .u-over { cursor: pointer; }
-.autox-cursor, .autox-stored {
+.autox-cursor {
   position: absolute;
   width: 1.25rem;
   height: 1.25rem;
@@ -220,21 +198,8 @@
   box-shadow: var(--shadow);
   padding: var(--space-3);
 }
-.autox-axis-dialog h3 { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
-.autox-axis-fields { display: grid; gap: var(--space-2); }
 .autox-axis-fields label { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: var(--space-2); align-items: center; }
-.autox-axis-fields input, .autox-axis-fields select {
-  font: inherit;
-  color: var(--fg);
-  background: var(--bg);
-  border: 1px solid var(--field-border);
-  border-radius: 0.375rem;
-  min-height: var(--target);
-  padding: 0 var(--space-2);
-  min-width: 0;
-}
 .autox-axis-fields select:disabled { opacity: 0.55; }
-.autox-axis-dialog p { margin: var(--space-2) 0 0; font-size: var(--text-xs); }
 .autox-earlier { font-size: var(--text-xs); }
 .autox-earlier.active { border-color: var(--accent); }
 .autox-empty { pointer-events: none; } /* the diagram under it still zooms and pans */
@@ -249,18 +214,6 @@
 .autox-settings-dialog label.queued input, .autox-settings-dialog label.queued select,
 .autox-settings-dialog .autox-mark-row.queued input, .autox-settings-dialog .autox-mark-row.queued select,
 .autox-axis-fields label.queued select { border-style: dashed; background: var(--surface-2); }
-.autox-settings-note { margin: var(--space-2) 0 0; font-size: var(--text-xs); }
-.autox-marks { display: grid; gap: var(--space-2); }
 .autox-mark-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; }
-.autox-mark-row input, .autox-mark-row select {
-  font: inherit;
-  color: var(--fg);
-  background: var(--bg);
-  border: 1px solid var(--field-border);
-  border-radius: 0.375rem;
-  min-height: var(--target);
-  padding: 0 var(--space-2);
-  min-width: 0;
-}
 .autox-mark-add { justify-self: start; }
 .autox-tools button.autox-pending { border-style: dashed; }

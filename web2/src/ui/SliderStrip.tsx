@@ -9,7 +9,7 @@
    value box does not send on every keystroke or step: it waits ~400ms
    after the last one, or commits at once on blur/Enter, so a fast run of
    edits becomes one. They lay out as a responsive
-   grid (theme.css .slider-strip): 3 per row at 1280px, 2 on tablets, 1 on
+   grid (css/values.css .slider-strip): 3 per row at 1280px, 2 on tablets, 1 on
    phones. */
 import {useMemo, useRef, useState} from 'preact/hooks';
 import {fromPosition, RANGE_STEPS, sliderRange, sliderStep, toPosition, type SliderDef} from '../store/sliders';

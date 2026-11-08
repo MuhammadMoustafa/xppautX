@@ -127,8 +127,8 @@ export function AniView() {
             + (playing ? '. Playing.' : '') + (grab ? '. Grab: drag a point on the picture.' : '');
 
   return (
-    <section id="ani-panel" ref={panel} class={'ani-panel' + (open ? ' open' : '')} aria-label="Animation">
-      <div class="ani-header">
+    <section id="ani-panel" ref={panel} class={'ani-panel panel-sheet' + (open ? ' open' : '')} aria-label="Animation">
+      <div class="panel-header">
         <button class="ani-back" onClick={close}>Back</button>
         <h2>Animation</h2>
         <HelpButton target={HELP.animation} label="the animation" />

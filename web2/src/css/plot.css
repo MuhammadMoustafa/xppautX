@@ -1,0 +1,179 @@
+.run-toolbar { position: sticky; top: 0; z-index: 5; flex: none; container-type: inline-size; padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+/* Fit two actions even in the narrow desktop plot column; wrap labels rather
+   than stacking four rows above the trajectory. */
+.run-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.run-actions button { font-size: var(--text-sm); padding-inline: var(--space-2); white-space: normal; }
+/* A wide plot fits the natural button widths on one row. */
+@container (min-width: 28rem) {
+  .run-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .run-actions button { flex: 1 0 auto; padding-inline: var(--space-1); white-space: nowrap; }
+  .run-actions button.danger { flex: none; min-width: var(--target); }
+}
+/* the pinned commands (ui/QuickAccess.tsx): one row, labelled buttons; those that do not fit are invisible
+   (still measured) and listed in More */
+.quick-access { position: relative; display: flex; align-items: center; gap: var(--space-1); margin-top: var(--space-2); }
+.quick-pinned { position: relative; flex: 1; min-width: 0; display: flex; gap: 4px; overflow: hidden; }
+.quick-button { flex: none; font-size: var(--text-sm); padding-inline: var(--space-2); white-space: nowrap; }
+.quick-button.quick-over { position: absolute; visibility: hidden; pointer-events: none; }
+.quick-more { position: relative; flex: none; }
+.quick-more > summary { min-height: var(--target); padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; font-size: var(--text-sm); }
+.quick-more-list { position: absolute; z-index: 20; right: 0; top: 100%; margin: 0; padding: var(--space-2); list-style: none; display: grid; gap: var(--space-1); min-width: 12rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.quick-more:not([open]) .quick-more-list { display: none; }
+.quick-menu { position: fixed; z-index: 190; display: grid; min-width: 10rem; padding: var(--space-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.quick-menu button { text-align: left; border: none; background: none; }
+.quick-menu button[aria-disabled="true"] { opacity: 0.5; }
+.run-time-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-xs); }
+.run-time-controls input { width: 5rem; min-width: 0; min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
+.run-time-controls select { width: 7rem; min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
+.steady-settings summary { cursor: pointer; }
+.steady-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-2); margin-top: var(--space-2); }
+.steady-fields label { display: grid; gap: var(--space-1); min-width: 0; }
+.steady-fields input { min-width: 0; width: 100%; min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
+.run-context { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
+.run-context strong { color: var(--fg); }
+
+/* ---- plot windows (tabs), plot ---- */
+.plots { flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; min-height: 0; }
+.plot-windows { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-1) var(--space-2); min-width: 0; }
+.plot-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; }
+.plot-tab {
+  max-width: 100%;
+  border-color: transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 0.375rem 0.375rem 0 0;
+  background: none;
+  color: var(--fg-muted);
+}
+.plot-tab[aria-selected='true'] { color: var(--fg); border-bottom-color: var(--accent); background: var(--surface); }
+.plot-tab-num { font-weight: 600; }
+.plot-tab-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.plot-window-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-left: auto; }
+/* Keep the graph reachable in short, narrow workspaces. Less frequent window
+   settings expand on request instead of wrapping several rows above it. */
+.plot-window-options > summary { min-height: var(--target); padding: var(--space-1) var(--space-2); cursor: pointer; }
+.plot-window-options[open] { flex-basis: 100%; }
+.plot-window-options-menu { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); padding-block: var(--space-1); }
+.plot-window-options:not([open]) > .plot-window-options-menu { display: none; }
+.plot-window-options-menu label { display: inline-flex; align-items: center; gap: var(--space-1); }
+.kinescope-count { font-size: 0.875rem; color: var(--fg-muted); white-space: nowrap; }
+.plot-view[hidden] { display: none; }
+.plot-view {
+  container-type: inline-size;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 16rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.plot-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; max-height: 4.5rem; overflow-y: auto; }
+.legend-item { border: none; background: none; padding: 0 var(--space-2); }
+.legend-item[aria-pressed='false'] { opacity: 0.45; text-decoration: line-through; }
+.swatch { width: 0.9rem; height: 0.2rem; border-radius: 0.125rem; }
+/* the phase plane's layers (T7): nullclines thicker than a curve, the field an arrow */
+.swatch-xnull, .swatch-ynull { height: 0.25rem; }
+.swatch-dfield { height: 0.6rem; border-radius: 0; clip-path: polygon(0 40%, 60% 40%, 60% 5%, 100% 50%, 60% 95%, 60% 60%, 0 60%); }
+.swatch-flow { height: 0.125rem; }
+.swatch-runs { height: 0.2rem; background: var(--fg-muted); opacity: 0.45; }
+/* marks (T8): the equilibria a dot, markers a square, text a letter's stem */
+.swatch-equilibria { width: 0.6rem; height: 0.6rem; border-radius: 50%; }
+.swatch-markers { width: 0.55rem; height: 0.55rem; border-radius: 0; }
+.swatch-text { width: 0.2rem; height: 0.7rem; border-radius: 0; }
+.plot-host { position: relative; flex: 1; min-height: 12rem; overflow: hidden; }
+.plot-host .u-over { touch-action: none; }
+/* The chart follows the host's measured size; its old pixel height must not
+   feed back into flex layout. Keep the readout's intrinsic height in flow. */
+.plot-host .uplot { position: absolute; font-family: var(--font); }
+.plot-host .u-select { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+/* a 3D plot (T14): drag turns it, no zoom or pan, so its cursor says so */
+.plot-canvas-3d { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.plot-canvas-3d:active { cursor: grabbing; }
+/* the corner Fit (T30): always over the plot while it has data, so it is
+   there after a scroll or a zoom gone astray, with no trip to the toolbar
+   above; top right is clear of uPlot's own axes (left and bottom) and the
+   legend (in the header, not the host). Above the pick overlay's crosshair
+   (z-index 5, which ignores pointer events) and the hover dot, translucent
+   so it reads as "on the glass" rather than part of the chart. */
+.plot-fit {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 6;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  box-shadow: var(--shadow);
+}
+.plot-fit .icon { width: 0.85rem; height: 0.85rem; flex: none; }
+.plot-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  color: var(--fg-muted);
+  z-index: 4;
+}
+.plot-empty p { margin: 0; }
+.hover-dot {
+  position: absolute;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin: -0.375rem 0 0 -0.375rem;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--surface);
+  pointer-events: none;
+  z-index: 5;
+}
+.readout {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  border-top: 1px solid var(--border);
+  min-height: 1.75rem;
+  overflow-wrap: anywhere;
+}
+.hint-touch { display: none; }
+@media (pointer: coarse) {
+  .hint-mouse { display: none; }
+  .hint-touch { display: inline; }
+}
+/* a plot mode (a mouse, rubber or drag ask): the instruction bar and the overlay */
+.pick-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-bottom: 1px solid var(--border);
+}
+.pick-bar span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.plot-host.picking .u-over { cursor: crosshair; }
+.plot-host.pick-drag .u-over { cursor: move; }
+.pick-overlay { position: absolute; pointer-events: none; z-index: 5; overflow: visible; }
+.pick-overlay line { stroke: var(--fg-muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.pick-overlay .pick-shape { stroke: var(--accent); stroke-width: 2; stroke-dasharray: none; fill: color-mix(in srgb, var(--accent) 15%, transparent); }
+.pick-overlay .pick-corner { fill: var(--accent); }
+/* a narrow plot (container query): the tools wrap under the legend */
+@container (max-width: 34rem) {
+  .plot-tools { width: 100%; }
+  .plot-tools button { flex: 1; }
+}
+
+.trace-tooltip { position: absolute; top: 10px; left: 80px; z-index: 3; pointer-events: none; padding: .3rem .6rem; border: 1px solid var(--border); border-radius: .4rem; background: var(--surface); color: var(--fg); }
+.legend-item.highlighted { outline: 2px solid var(--accent); }
+
+.plot-tools label { display: inline-flex; align-items: center; gap: .3rem; }
+

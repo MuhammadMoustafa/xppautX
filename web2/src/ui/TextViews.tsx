@@ -156,8 +156,8 @@ export function TextViews() {
   }, [open]);
 
   return (
-    <section id="text-panel" ref={panel} class={'text-panel' + (open ? ' open' : '')} aria-label="Text views">
-      <div class="text-header">
+    <section id="text-panel" ref={panel} class={'text-panel panel-sheet' + (open ? ' open' : '')} aria-label="Text views">
+      <div class="panel-header">
         <button class="text-back" onClick={close}>Back</button>
         <h2>Text</h2>
       </div>

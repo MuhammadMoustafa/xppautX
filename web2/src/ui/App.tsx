@@ -70,13 +70,13 @@ function Banner() {
   return null;
 }
 
-/** the stylesheet's wide layout (theme.css: the Values panel a right column) starts here */
+/** the stylesheet's wide layout (css/layout.css: the Values panel a right column) starts here */
 const WIDE_REM = 80;
 
 /** `px`, held to the window's share for `size` (the stylesheet's limit, so a narrowed window keeps room for the plot) */
 const track = (size: PanelSize, px: number, unit: 'vw' | 'vh') => `min(${px}px, ${PANEL_LIMITS[size].share * 100}${unit})`;
 
-/** the grid tracks the user's collapsing and dragging override (theme.css gives the defaults) */
+/** the grid tracks the user's collapsing and dragging override (css/layout.css gives the defaults) */
 function panelStyle(p: Panels): Record<string, string> {
   const style: Record<string, string> = {};
   if (p.valuesCollapsed) {

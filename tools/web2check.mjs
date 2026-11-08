@@ -509,7 +509,7 @@ async function values() {
     !goSent.some(parEdit) && (await S(iappIs(0.35))), JSON.stringify(goSent));
 
   /* there is no undo (GitHub #110): Reset puts a field's model-file value back, sent at once */
-  check('there is no Undo button in the panel', !(await cdp.eval(`[...document.querySelectorAll('.values-header button')].some(b => b.textContent === 'Undo')`)));
+  check('there is no Undo button in the panel', !(await cdp.eval(`[...document.querySelectorAll('.values-panel .panel-header button')].some(b => b.textContent === 'Undo')`)));
   const preReset = await S('__xpp.sentCount()');
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).closest('.value-field').querySelector('.value-reset').click()`);
   check('Reset sends the model file\'s value at once, and the core has it',
@@ -758,7 +758,7 @@ async function dataTable(want, dir) {
   const dataCsvName = await S('s.hello.output_names.csv');
   const dataCsvPath = path.join(dir, dataCsvName);
   fs.rmSync(dataCsvPath, {force: true});
-  await cdp.eval(`document.querySelector('.table-header .small').click()`);
+  await cdp.eval(`document.querySelector('.table-panel .panel-header .small').click()`);
   check('Export CSV offers data.csv, written by the core',
     await until("s.files.offered && s.files.offered.name === s.hello.output_names.csv && !s.busy", 'csv offered'));
   await waitFile(dataCsvPath);
@@ -2681,7 +2681,7 @@ async function busyKeys() {
 }
 
 /* W83 (GitHub #132): the status bar reserves a fixed-width slot for the
-   progress bar and Stop/Stopping… button (theme.css .status-run) so a run
+   progress bar and Stop/Stopping… button (css/layout.css .status-run) so a run
    starting or ending never resizes the bar or moves the plot beside it.
    Total 1e6 (as busyKeys above) makes the run long enough, by construction,
    to see progress mid-run without racing the clock. */
@@ -4539,7 +4539,7 @@ async function nativeFiles(dir) {
     /* A JS stub cannot grant an external path: servercheck covers that
        rejection; a real OS picker grant remains a manual desktop check. */
     check('W177: integrate for the desktop CSV exports', await integrate(601, 30000));
-    for (const [call, name] of [["document.querySelector('.table-header .small').click()", 'native-table.csv'],
+    for (const [call, name] of [["document.querySelector('.table-panel .panel-header .small').click()", 'native-table.csv'],
         ["document.querySelector('[title=\"Export the plotted numbers as a CSV file\"]').click()", 'native-plot.csv']]) {
       if (name === 'native-table.csv') {
         await cdp.eval(`document.querySelector('.table-toggle').click()`);
@@ -4597,7 +4597,7 @@ async function animation() {
 
   /* Load: the file ask for reading, answered by an upload of tools/gui_test.ani */
   await cdp.eval('window.showOpenFilePicker = undefined; true');
-  await cdp.eval(`[...document.querySelectorAll('.ani-header button')].find(b => b.textContent.startsWith('Load')).click()`);
+  await cdp.eval(`[...document.querySelectorAll('.ani-panel .panel-header button')].find(b => b.textContent.startsWith('Load')).click()`);
   check('ani: Load asks for a file to open', await until(`s.ask && s.ask.kind === 'file' && s.ask.mode === 'read'
     && document.querySelector('[data-file-input=open]')`, 'ani file ask'), JSON.stringify(await S('s.ask')));
   await pickFiles('[data-file-input=open]', [path.join(top, 'tools/gui_test.anix')]);

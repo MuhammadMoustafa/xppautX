@@ -207,7 +207,7 @@ function StateSection() {
                 aria-label={`${name} now`} title={now[i] === null ? 'No run yet' : `Now: ${now[i]}`}>
                 {now[i] === null ? '–' : inspectNumber(now[i]!)}
               </output>
-              <output class="value-rate" aria-label={`${name} sampled tail rate`}
+              <output class="value-rate muted" aria-label={`${name} sampled tail rate`}
                 title={`Maximum |Δ${name}/Δt| over up to the last ${intervals} stored intervals; sampled float32 trajectory data, not a solver derivative.`}>
                 {rate === null ? '–' : rate.toExponential(2)}
               </output></>
@@ -350,7 +350,7 @@ export function ValuesPanel() {
 
   return (
     <section id="values-panel" ref={panel} class={'values-panel' + (open ? ' open' : '')} aria-label="Values">
-      <div class="values-header">
+      <div class="panel-header">
         <button class="values-back" onClick={close}>Back</button>
         <h2>Values</h2>
       </div>

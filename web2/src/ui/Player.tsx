@@ -178,7 +178,7 @@ function useCovered(): boolean {
 }
 
 /* the player while a view covers the plots: a dock over the view's top
-   edge (the views leave its height free, theme.css) with the caption, the
+   edge (the views leave its height free, css/player.css) with the caption, the
    keycaps, the controls and the step list */
 function Dock() {
   const ref = useRef<HTMLDivElement>(null);

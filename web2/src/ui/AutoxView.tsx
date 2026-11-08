@@ -80,7 +80,6 @@ import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {SetsRow} from './SetsRow';
 import {FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
-import './autox.css';
 
 /** label and op (the registry command is navigation.ts toolbarCommand's), in the X11 window's order; no
     reDraw (T21): the diagram is always the current one */
@@ -508,7 +507,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
         {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
         {cursor && <span class="autox-cursor" aria-hidden="true" style={{left: `${cursor.left}px`, top: `${cursor.top}px`}} />}
         {storedAt && (
-          <span class="autox-stored" style={{left: `${storedAt.left}px`, top: `${storedAt.top}px`}}
+          <span class="autox-cursor autox-stored" style={{left: `${storedAt.left}px`, top: `${storedAt.top}px`}}
             title={`Stored point: ${fmt(stored!.x)}, ${fmt(stored!.y)}`} />
         )}
         {pick && chart.current && <PickOverlay pick={pick} chart={chart.current} />}
@@ -578,7 +577,7 @@ function AutoxPanel({dark}: {dark: boolean}) {
 
   return (
     <section id="autox-panel" ref={panel} class="autox-panel" aria-label="autoX">
-      <div class="autox-header">
+      <div class="panel-header autox-header">
         <button class="autox-back" onClick={() => session.showAutox(false)}
           title="autoX stays open, with its diagram and a running continuation; Show autoX brings it back">Hide autoX</button>
         <h2>autoX <span class="muted autox-what">{views > 1 ? `${views} views, the active one ${what}` : what}</span></h2>

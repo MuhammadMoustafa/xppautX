@@ -9,7 +9,7 @@ import type {CommandRow} from '../protocol/kinds';
 import {effectiveKeys, movePinned, pinnedRows, togglePinned, visibleCount, withPinned} from '../store/keymap';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 
-/** the gap between the buttons of the row (theme.css .quick-pinned) in px, which the fit counts with */
+/** the gap between the buttons of the row (css/plot.css .quick-pinned) in px, which the fit counts with */
 const GAP_PX = 4;
 /** the "More" button's width before it has been drawn, in px */
 const MORE_PX = 64;

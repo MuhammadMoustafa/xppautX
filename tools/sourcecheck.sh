@@ -29,6 +29,9 @@
 #     tests/globals.baseline allows (tools/globalcheck.sh)
 #   - no new duplicated function/block/struct (tools/dupcheck.sh)
 #   - no second name for one of our names (tools/aliascheck.sh, W113)
+#   - web2's CSS has one rule per thing: no repeated declaration block or selector
+#     in one media condition, no breakpoint off docs/ui-v2.md's list, no bare
+#     z-index (tools/csscheck.sh, W638)
 #   - no dead declaration: an unused macro, type or field, a declaration
 #     with no definition or repeated in a second header, #if 0, commented-
 #     out code, a header nothing includes (tools/deadcheck.py)
@@ -181,6 +184,12 @@ if ! sh tools/aliascheck.sh --check > build/aliascheck.out 2>&1; then
   exit 1
 fi
 tail -1 build/aliascheck.out
+if ! sh tools/csscheck.sh --check web2/src > build/csscheck.out 2>&1; then
+  tail -40 build/csscheck.out
+  echo "CSS CHECK FAILED"
+  exit 1
+fi
+tail -1 build/csscheck.out
 if ! uv run --locked python tools/deadcheck.py --check > build/deadcheck.out 2>&1; then
   tail -40 build/deadcheck.out
   echo "DEAD DECLARATION CHECK FAILED"

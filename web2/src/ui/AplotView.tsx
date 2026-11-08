@@ -152,8 +152,8 @@ export function AplotView() {
   const label = ev && hover ? aplotColumnName(ev, hover.col) : '';
 
   return (
-    <section id="aplot-panel" ref={panel} class={'aplot-panel' + (open ? ' open' : '')} aria-label="Array plot">
-      <div class="aplot-header">
+    <section id="aplot-panel" ref={panel} class={'aplot-panel panel-sheet' + (open ? ' open' : '')} aria-label="Array plot">
+      <div class="panel-header">
         <button class="aplot-back" onClick={close}>Back</button>
         <h2>Array plot</h2>
         <label class="aplot-map">

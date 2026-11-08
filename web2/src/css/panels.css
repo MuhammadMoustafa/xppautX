@@ -1,0 +1,202 @@
+/* The floating panels (docs/ui-v2.md R6): the data table, the array plot, the text views, the
+   animation and Help are each a sheet (.panel-sheet) over the page: full screen under 48rem, a
+   side panel of the width the panel names (--panel-width) from there, so the plot stays
+   visible beside it. A sheet is shut (off to the right, hidden) until .open. The header of
+   every panel, these and the values panel's and autoX's, is .panel-header. */
+.panel-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform 0.2s ease, visibility 0s 0.2s;
+}
+.panel-sheet.open { transform: none; visibility: visible; transition: transform 0.2s ease; }
+@media (min-width: 48rem) {
+  .panel-sheet { left: auto; width: min(var(--panel-width), 92vw); border-left: 1px solid var(--border); }
+}
+.table-panel, .aplot-panel { --panel-width: 56rem; }
+.text-panel { --panel-width: 48rem; }
+.ani-panel { --panel-width: 40rem; }
+.help-panel { --panel-width: 64rem; }
+.panel-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.panel-header h2 { font-size: var(--text-md); flex: 1; min-width: 0; }
+.table-tools, .aplot-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.table-info, .aplot-info { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
+
+.table-grid-wrap { position: relative; overflow: auto; flex: 1; min-height: 0; }
+.table-row { display: flex; min-height: var(--target); }
+.table-row-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-weight: 650;
+}
+.table-body { position: relative; }
+.table-body .table-row { position: absolute; left: 0; right: 0; border-bottom: 1px solid var(--grid); cursor: pointer; }
+.table-body .table-row.selected { background: var(--surface-2); outline: 2px solid var(--focus); outline-offset: -2px; }
+.table-cell {
+  flex: 0 0 8rem;
+  padding: 0 var(--space-2);
+  display: flex;
+  align-items: center;
+  font: var(--text-sm) var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.table-cell:first-child { flex-basis: 6rem; color: var(--fg-muted); }
+
+/* ---- array plot (docs/ui-v2.md T12): the same floating-overlay pattern ---- */
+/* as the data table (R6) -- a panel from 48rem (the base rule below), a */
+/* full-screen sheet under that */
+.aplot-map select, .ani-speed select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: 0.375rem; min-height: var(--target); }
+.aplot-map { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
+.aplot-body { flex: 1; min-height: 0; display: flex; gap: var(--space-2); padding: 0 var(--space-3) var(--space-2); }
+.aplot-scale { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); font: var(--text-xs) var(--mono); color: var(--fg-muted); flex: none; }
+.aplot-bar { width: 1.25rem; flex: 1; min-height: 4rem; border: 1px solid var(--border); border-radius: 0.25rem; }
+.aplot-grid-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  touch-action: none; /* R5: the grid takes drag/pinch itself, the page still scrolls elsewhere */
+  cursor: ns-resize;
+}
+.aplot-canvas { display: block; width: 100%; height: 100%; }
+.aplot-hover { margin: 0; padding: var(--space-1) var(--space-3) var(--space-2); font: var(--text-xs) var(--mono); color: var(--fg-muted); min-height: 1.5em; }
+
+/* ---- text views (docs/ui-v2.md T16): equations, source, equilibrium; ---- */
+/* always a floating overlay (R6), like .table-panel -- full screen under */
+/* 48rem (the base rule below), a fixed-width panel from there */
+.text-tab { border-color: transparent; background: none; color: var(--fg-muted); }
+.text-tab.active { color: var(--fg); background: var(--surface-2); border-color: var(--border); }
+.text-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3); }
+.text-empty { color: var(--fg-muted); }
+.text-equations {
+  margin: 0;
+  font: var(--text-sm) var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.text-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+
+/* source: line numbers in a gutter, the text wrapped (R1: never sideways scroll), */
+/* an action comment's button below its line */
+.source-lines { font: var(--text-sm) var(--mono); }
+.source-row { display: flex; gap: var(--space-2); align-items: flex-start; padding: 0.0625rem 0; }
+.source-lineno { flex: none; width: 3ch; text-align: right; color: var(--fg-muted); user-select: none; }
+.source-line { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex: 1; }
+.source-action { font-size: var(--text-xs); min-height: 1.75rem; padding: 0 var(--space-2); }
+@media (pointer: coarse) { .source-action { min-height: var(--target); } }
+
+/* equilibrium */
+.eq-type { display: inline-block; font-weight: 650; padding: var(--space-1) var(--space-3); border-radius: var(--radius); margin: 0 0 var(--space-3); }
+.eq-stable { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
+.eq-unstable { color: var(--danger); background: var(--danger-bg); }
+.eq-neutral { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.eq-counts, .eq-values { border-collapse: collapse; margin-bottom: var(--space-4); width: 100%; max-width: 24rem; }
+.eq-counts caption, .eq-values caption { text-align: left; font-size: var(--text-sm); font-weight: 650; margin-bottom: var(--space-1); }
+.eq-counts th, .eq-counts td, .eq-values th, .eq-values td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--grid); text-align: left; font: var(--text-sm) var(--mono); }
+.eq-counts th[scope='row'] { color: var(--fg-muted); font-weight: 600; width: 2.5rem; }
+
+/* ---- animation (docs/ui-v2.md T13): always a floating overlay (R6), like ---- */
+/* .table-panel -- full screen under 48rem, a side panel from there */
+/* the picture: the canvas fills it, so its size never feeds back into the layout */
+.ani-stage { position: relative; flex: 1; min-height: 12rem; background: var(--surface-2); touch-action: none; }
+.ani-stage.grabbing { cursor: crosshair; }
+.ani-stage:focus-visible { outline-offset: -2px; }
+.ani-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ani-info { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); overflow-wrap: anywhere; }
+.ani-seek { padding: 0 var(--space-3); }
+.ani-slider { width: 100%; min-height: var(--target); margin: 0; accent-color: var(--accent); }
+.ani-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+.ani-play { min-width: 5.5rem; }
+.ani-speed { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-sm); }
+
+/* ---- Help (docs/roadmap.md W12b): the same floating-overlay pattern as ---- */
+/* the data table -- full screen under 48rem, a side panel from there */
+.help-about { padding: var(--space-3, 0.75rem) var(--space-4, 1rem); overflow: auto; user-select: text; }
+.help-about p { margin: 0 0 0.25rem; min-height: 1em; overflow-wrap: anywhere; }
+.help-search { display: block; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.help-results { list-style: none; margin: 0; padding: var(--space-1) 0; border-bottom: 1px solid var(--border); overflow: auto; max-height: 40%; }
+.help-no-results { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
+.help-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  min-height: var(--target);
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+.help-result:hover { background: var(--surface-2); }
+.help-result-text { font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.help-loading { margin: 0; padding: var(--space-3); color: var(--fg-muted); }
+.help-error { margin: 0; padding: var(--space-3); color: var(--danger); }
+.help-body { display: flex; flex: 1; min-height: 0; }
+.help-toc { flex: 0 0 14rem; overflow: auto; border-right: 1px solid var(--border); padding: var(--space-2); }
+.help-toc ol { list-style: none; margin: 0; padding: 0; counter-reset: none; }
+.help-toc-item {
+  display: block;
+  width: 100%;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: var(--text-sm);
+  border-radius: 0.375rem;
+}
+.help-toc-item:hover { background: var(--surface-2); }
+.help-toc-item.current { background: var(--surface-2); font-weight: 650; }
+.help-content { flex: 1; min-width: 0; overflow: auto; padding: var(--space-3) var(--space-4); line-height: 1.55; }
+.help-content h1 { font-size: var(--text-lg); margin: 0 0 var(--space-3); }
+.help-content h2 { font-size: var(--text-md); margin: var(--space-4) 0 var(--space-2); }
+.help-content h3 { font-size: var(--text-sm); margin: var(--space-3) 0 var(--space-1); }
+.help-content p, .help-content ul, .help-content ol, .help-content blockquote { margin: 0 0 var(--space-2); }
+.help-content pre { margin: 0 0 var(--space-2); overflow: auto; padding: var(--space-2); background: var(--surface-2); border-radius: 0.375rem; font: var(--text-sm) var(--mono); }
+.help-content code { font: var(--text-sm) var(--mono); }
+.help-content a { color: var(--accent); }
+
+/* a phone: no room for the table of contents beside the chapter (a chapter
+   link in the text and the search results still reach every chapter) */
+@media (max-width: 47.99rem) {
+  .help-toc { display: none; }
+}
+
+.help-keys { margin-bottom: var(--space-3); }
+.help-keys th { text-align: left; font-weight: normal; padding-right: var(--space-3); white-space: nowrap; }
+
+.annotations-panel{ position: fixed; right: 0; top: 6rem; max-height: 75vh; overflow: auto; max-width: 35rem; z-index: 25; padding: 1rem; background: var(--surface); border: 1px solid var(--border); }
+
+.annotations-panel [aria-selected=true]{ outline: 2px solid var(--accent); }
+

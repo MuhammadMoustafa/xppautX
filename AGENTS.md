@@ -433,6 +433,16 @@ types, new function-pointer types, typedefs of builtins and
 `typedef struct {...} name;` definitions need no entry; the platform
 shims and vendored CVODE/autoX names are entries. Use the real name.
 
+`tools/csscheck.sh` (W638; sourcecheck runs it with `--check`, a second;
+`tools/csscheck.py` does the work) is the same rule for web2's CSS (maintainer,
+2026-11-07: "the rule is unifications and no duplications"): it fails, in
+`web2/src/css/`, a declaration block (two or more declarations) that two rules
+of one media condition both write, a selector that two rules of one media
+condition both start, and a width breakpoint off docs/ui-v2.md's list (48rem
+and 80rem, `max-width` as 47.99rem and 79.99rem). There is no allowlist: merge
+into one rule with a selector list, in the owner's file (tokens, layout,
+controls, values, panels, plot, player, dialogs, autox).
+
 `make ltocheck` (run by tools/sourcecheck.sh, which verify.sh runs) links xppautX with LTO into build/lto
 and fails on `-Wlto-type-mismatch`: an extern whose type or array bound
 differs from its definition, which a normal build cannot see.

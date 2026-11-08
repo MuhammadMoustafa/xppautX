@@ -1,0 +1,192 @@
+/* ---- the Add/Edit slider dialog (T20) ---- */
+.slider-picker-list {
+  list-style: none;
+  margin: var(--space-2) 0;
+  padding: 0;
+  max-height: 12rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+}
+.slider-picker-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+.slider-picker-item.active { background: var(--surface-2); }
+.slider-picker-item.picked { font-weight: 600; }
+.slider-picker-name { font: var(--text-sm) var(--mono); }
+.slider-picker-value { font: var(--text-sm) var(--mono); }
+.slider-picker-empty { padding: var(--space-2); }
+.slider-dialog-fields { margin-top: var(--space-2); }
+
+/* a model that does not load: its line, a caret under the column, the cause */
+.load-error p { margin: 0 0 var(--space-2); }
+.load-error-title { font-weight: 650; overflow-wrap: anywhere; }
+.load-error-source { margin: 0 0 var(--space-2); }
+.load-error-caret { color: var(--danger); font-weight: 650; }
+.load-error-cause { margin: 0 0 var(--space-2); font: var(--text-sm) var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ---- messages, notifications (docs/ui-v2.md T16: errors, the core's log ---- */
+/* and autoX's output distinguishable, searchable and filterable) */
+.messages { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.messages summary { padding: var(--space-1) var(--space-3); cursor: pointer; font-size: var(--text-xs); min-height: var(--target); display: flex; align-items: center; }
+.error-count { color: var(--danger); }
+.messages-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.messages-search { margin-left: auto; min-width: 0; }
+.messages-search input {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--field-border);
+  border-radius: 0.375rem;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  width: 10rem;
+  max-width: 40vw;
+}
+.messages-list {
+  margin: 0;
+  padding: var(--space-1) var(--space-3) var(--space-2);
+  max-height: 12rem;
+  overflow: auto;
+  list-style: none;
+  font: var(--text-xs) var(--mono);
+}
+.message-line { display: flex; gap: var(--space-2); padding: 0.125rem 0; border-bottom: 1px solid var(--grid); }
+.message-kind {
+  flex: none;
+  width: 3.5rem;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.6875rem;
+}
+.message-error .message-kind { color: var(--danger); }
+.message-error .message-text { color: var(--danger); }
+.message-autox .message-kind { color: var(--accent); }
+.toasts {
+  position: fixed;
+  right: var(--space-4);
+  bottom: 3rem;
+  display: grid;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  z-index: 200;
+  width: min(24rem, calc(100vw - 2 * var(--space-4)));
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 0.25rem solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow-wrap: anywhere;
+}
+.toast span { flex: 1; padding-top: var(--space-1); }
+.toast.error { border-left-color: var(--danger); }
+/* the error dialog (ErrorDialog.tsx): above the panels, like an ask's */
+.error-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; gap: var(--space-2); }
+.error-list li { display: flex; align-items: flex-start; gap: var(--space-2); overflow-wrap: anywhere; white-space: pre-wrap; color: var(--danger); }
+.dialog h2.error-title { color: var(--danger); }
+/* an error's place under its text, and its line as written (ErrorSource.tsx) */
+.error-item { flex: 1; min-width: 0; display: grid; gap: var(--space-1); }
+.error-place { color: var(--fg-muted); font-size: var(--text-sm); }
+.error-item .load-error-source { margin: 0; color: var(--fg); white-space: pre; overflow-x: auto; }
+
+/* ---- dialogs ---- */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(15, 23, 42, 0.3);
+  /* above every panel (autoX 155, table, text, array plot, animation 160) a
+     dialog can be opened from; only the toasts (200) are higher */
+  z-index: 180;
+}
+.dialog {
+  width: min(34rem, 100%);
+  max-height: 100%;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow);
+  padding: var(--space-4);
+}
+.dialog h2 { font-size: var(--text-md); margin-bottom: var(--space-3); }
+.dialog-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
+.form-grid label { display: grid; grid-template-columns: minmax(6rem, auto) minmax(0, 1fr); gap: var(--space-3); align-items: center; }
+
+/* a form ask laid out in columns (the axes dialog): a column per axis, a row per kind of value */
+.form-columns { border-collapse: separate; border-spacing: var(--space-2); width: 100%; margin: 0 0 var(--space-2); }
+.form-columns th { font-weight: 650; text-align: left; white-space: nowrap; }
+.form-columns thead th { padding-left: var(--space-2); }
+.form-columns td label { display: block; }
+.form-columns td input, .form-columns td select { width: 100%; box-sizing: border-box; }
+
+/* the file dialog (FileDialog.tsx) */
+.file-ask p { margin: 0 0 var(--space-3); overflow-wrap: anywhere; }
+.file-confirm { border: 1px solid var(--border); border-left: 0.25rem solid var(--warn); border-radius: var(--radius); padding: var(--space-3); }
+.file-confirm p { margin: 0; }
+
+.dialog-close { margin-left: auto; font-size: 1.4rem; min-width: 2rem; line-height: 1; }
+.dialog-title-row h3 { flex: 1; }
+
+[data-trace-dialog] form > label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-block: .8rem; }
+[data-trace-dialog] input[type=color] { width: 4rem; height: 2.4rem; padding: .2rem; }
+
+/* ---- the keymap editor (ui/KeymapEditor.tsx) ---- */
+.keymap-dialog { width: min(60rem, 100%); }
+.keymap-live { min-height: 1.5em; margin: var(--space-2) 0; font-size: var(--text-sm); color: var(--fg-muted); }
+.keymap-conflict { margin: var(--space-2) 0; padding: var(--space-2); background: var(--warn-bg); border-radius: var(--radius); }
+.keymap-scroll { max-height: 55vh; overflow: auto; }
+.keymap-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.keymap-table th, .keymap-table td { text-align: left; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); vertical-align: middle; }
+.keymap-key { display: inline-flex; align-items: center; }
+.keymap-actions { white-space: nowrap; }
+.keymap-actions button, .keymap-keys button { font-size: var(--text-xs); }
+
+.command-palette{ width: min(50rem, 95vw); }
+
+.command-palette ul{ max-height: 60vh; overflow: auto; list-style: none; padding: 0; }
+
+.command-palette li{ display: flex; }
+
+.command-palette .menu-item{ flex: 1; }
+
+.registry-form{ max-height: 90vh; overflow: auto; width: min(48rem, 95vw); }
+
+.registry-argument{ margin: .5rem 0; }
+
+.registry-argument > label{ display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+
+.registry-argument > label > span:first-child{ min-width: 9rem; }
+
+.argument-row{ display: flex; gap: .3rem; }
+
+
+
+/* a phone: forms stack label over field (R3) */
+@media (max-width: 47.99rem) {
+  .form-grid label { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
+}

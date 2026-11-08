@@ -1,5 +1,5 @@
 /* docs/ui-v2.md A1: the theme's colours meet WCAG 2.2 AA contrast. Reads
-   the tokens from src/theme.css, so a change there is checked here. */
+   the tokens from src/css/tokens.css, so a change there is checked here. */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,7 +19,7 @@ export function contrast(a: string, b: string): number {
 
 /* the tokens of :root (light) and :root[data-theme='dark'] */
 function tokens(): {light: Record<string, string>; dark: Record<string, string>} {
-  const css = fs.readFileSync(path.join(process.cwd(), 'src/theme.css'), 'utf8');
+  const css = fs.readFileSync(path.join(process.cwd(), 'src/css/tokens.css'), 'utf8');
   const block = (re: RegExp) => {
     const body = re.exec(css)![1], out: Record<string, string> = {};
     for (const m of body.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})/g)) out[m[1]] = m[2];

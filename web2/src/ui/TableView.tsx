@@ -167,8 +167,8 @@ export function TableView() {
   for (let i = first; i < last; i++) items.push({row: i, values: rowAt(page, i)});
 
   return (
-    <section id="table-panel" ref={panel} class={'table-panel' + (open ? ' open' : '')} aria-label="Data table">
-      <div class="table-header">
+    <section id="table-panel" ref={panel} class={'table-panel panel-sheet' + (open ? ' open' : '')} aria-label="Data table">
+      <div class="panel-header">
         <button class="table-back" onClick={close}>Back</button>
         <h2>Data</h2>
         <HelpButton target={HELP.dataTab} label="the Data tab" />

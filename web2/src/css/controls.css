@@ -1,0 +1,196 @@
+button, .button {
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  min-height: var(--target);
+  min-width: var(--target);
+  padding: 0 var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+button:hover:not(:disabled):not([aria-disabled="true"]), .button:hover { border-color: var(--accent); }
+button:disabled, button[aria-disabled="true"] { opacity: 0.55; cursor: default; }
+button.primary, .player-speed button[aria-pressed='true'] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.danger { color: var(--danger); border-color: var(--danger); }
+button.small { font-size: var(--text-xs); }
+button.icon { border: none; background: none; font-size: var(--text-lg); padding: 0; }
+
+/* focus: always visible for the keyboard (WCAG 2.4.7, 2.4.11) */
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.plot-host:focus-visible { outline-offset: -2px; }
+
+kbd {
+  font: 600 var(--text-xs) var(--mono);
+  min-width: 1.6em;
+  text-align: center;
+  padding: 0 var(--space-1);
+  border-radius: 0.25rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.muted { color: var(--fg-muted); }
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.skip-link { position: absolute; left: var(--space-2); top: -3rem; z-index: 300; }
+.skip-link:focus { top: var(--space-2); background: var(--surface); padding: var(--space-2); }
+
+.menu-list { list-style: none; margin: 0; padding: 0; }
+.menu-item {
+  width: 100%;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  border: none;
+  background: none;
+  padding: 0 var(--space-2);
+}
+.menu-item:hover { background: var(--surface-2); }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: var(--target); padding: 0; }
+.icon-button .icon { display: block; }
+
+/* a box that does not take its text (ui/Field.tsx): a red border, its message under its row */
+input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--danger); }
+.value-field > .field-error, .form-grid label > .field-error, .form-columns label > .field-error, .autox-mark-row > .field-error,
+.autox-axis-fields label > .field-error { grid-column: 1 / -1; order: 1; }
+.slider-card-head > .field-error { order: 1; flex-basis: 100%; }
+.field-error { margin: var(--space-1) 0 0; color: var(--danger); font-size: var(--text-xs); }
+
+.banner {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.banner.error { background: var(--danger-bg); border-color: var(--danger); }
+
+.banner.warn { background: var(--warn-bg); border-color: var(--warn); display: flex; gap: var(--space-3); align-items: flex-start; }
+.banner.warn > span, .dialog-title-row h2 { flex: 1; min-width: 0; }
+.banner.warn b { color: var(--warn); }
+
+/* the "?" every menu and dialog gets (docs/roadmap.md W12b), opening Help at
+   its section (ui/HelpButton.tsx); .icon-button (above) gives it the same
+   44px target as the app's other icon-only buttons */
+.help-link {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--fg-muted);
+  font-weight: 650;
+}
+.help-link:hover, .messages-filters button.active, .keymap-actions button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+.checklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+.checklist label { display: flex; align-items: center; gap: var(--space-2); min-height: var(--target); overflow-wrap: anywhere; }
+.checklist input { width: 1.1rem; height: 1.1rem; margin: 0; accent-color: var(--accent); flex: none; }
+
+/* Text,etc/Text's colour choice (ui/TextDialog.tsx): the curves' colours as a row of swatches */
+.color-field, .keymap-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.color-field [data-color-hex] { width: 2.5rem; height: 1.75rem; padding: 0; }
+.color-field [data-color-alpha] { width: 6rem; }
+.color-field [data-color-text] { width: 8rem; font-family: monospace; }
+
+
+/* a section's sets row (W323, ui/SetsRow.tsx): Sets and Save drop down; the row wraps on a phone */
+.sets-row, .keymap-keys, .run-time-controls label, .kinescope-bar { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
+.sets-menu { position: relative; }
+.sets-menu > summary { cursor: pointer; list-style: none; padding: .15rem .5rem; border: 1px solid var(--border); border-radius: var(--radius, .25rem); background: var(--surface); }
+.sets-menu > ul { position: absolute; z-index: 40; min-width: 12rem; max-width: min(24rem, 90vw); max-height: 60vh; overflow: auto; margin: 0; padding: .25rem; list-style: none;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+.sets-menu button { width: 100%; text-align: left; }
+.sets-menu .value-hint { margin: .25rem; }
+/* a graph's sets row folded into one drop-down (its toolbar has no room for the row) */
+.sets-fold > .sets-row { position: absolute; right: 0; z-index: 40; width: max-content; max-width: min(24rem, 90vw); padding: .25rem;
+  background: var(--surface); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+
+/* ---- shapes several owners share: one rule each (csscheck) ---- */
+.shortcut-instruction, .text-hint, .help-result-heading, .player-keys-label {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.unused-settings > summary, .help-keys summary {
+  min-height: var(--target);
+  cursor: pointer;
+}
+.plot-tools, .messages-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.message-text, .source-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.player-speed, .slider-card-track {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.text-tabs, .autox-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.autox-axis-dialog h3, .slider-picker-picked {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+}
+.form-grid, .autox-axis-fields, .autox-marks {
+  display: grid;
+  gap: var(--space-2);
+}
+.autox-axis-dialog p, .autox-settings-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+}
+.form-grid input, .form-grid select, .form-columns input, .form-columns select, .autox-axis-fields input, .autox-axis-fields select,
+.autox-mark-row input, .autox-mark-row select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--field-border);
+  border-radius: 0.375rem;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  min-width: 0;
+}
+.slider-picker-search input, .help-search input {
+  width: 100%;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--field-border);
+  border-radius: 0.375rem;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+}
+.argument-rows, .argument-row > input, .argument-row > select {
+  min-width: 0;
+  width: 100%;
+}
+.steady-settings, .steady-settings p, .steady-result {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+}

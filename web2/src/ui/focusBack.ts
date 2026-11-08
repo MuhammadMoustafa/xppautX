@@ -5,7 +5,7 @@
    A layout effect, run in the same task as the render that drops the
    panel's `open` class, before the browser's next style update. A plain
    effect runs after that update (after the paint), and with
-   `prefers-reduced-motion: reduce` (theme.css drops every transition; a
+   `prefers-reduced-motion: reduce` (css/layout.css drops every transition; a
    Windows Server desktop, as CI's windows runner, has it on: W18) the
    update hides the panel at once, and the browser moves the focus inside it
    to <body>: the effect found it gone and left it there. Without reduced

@@ -359,12 +359,19 @@ plot/       model.ts (series -> curves, pure), nearest.ts, viewmath.ts,
             diagramModel.ts (diagram -> curves, label marks, Hopf joins,
             nearest point, readout; pure), diagramChart.ts (uPlot adapter)
 ui/         App.tsx (shell), TitleBar, MenuBar (the menu bar from the registry rows), CommandPalette, CommandForm (the one argument form), Plots (the windows' tabs),
-            PlotView (one window), ValuesPanel, TableView, AutoxView (with autox.css), AniView (the
+            PlotView (one window), ValuesPanel, TableView, AutoxView, AniView (the
             animation), AskDialog, Toasts, StatusBar, Messages, hotkeys.ts,
             theme.ts, context.ts
 ani/        frame.ts (a frame's primitives decoded, the box at the
             dimension's aspect, unit <-> canvas, pixel sizes, pure),
             render.ts (canvas drawing, __xpp.ani())
+css/        the page's styles, one file per owner (tools/csscheck.py: one rule
+            per thing): tokens (the scales and colours), layout (shell, title,
+            status), controls (buttons, shared shapes), values (the Values
+            panel and sliders), panels (the data table, array plot, text
+            views, animation and Help), plot (the run toolbar and the plot),
+            player (recording and playing), dialogs (dialogs, forms, messages,
+            toasts), autox
 testhook.ts window.__xpp for tests
 ```
 
@@ -421,7 +428,7 @@ Rules:
   Greek subset (19 KB, `inter-greek.woff2`, loaded only for Greek text)
   draws XPP's symbol-font labels, which the page turns into Unicode Greek
   (`plot/richtext.ts`, T8).
-- **Tokens** on `:root` (`web2/src/theme.css`): a type scale
+- **Tokens** on `:root` (`web2/src/css/tokens.css`): a type scale
   (0.75/0.875/1/1.125 rem), a spacing scale (0.25..1.5 rem), colours for
   light and `[data-theme=dark]`, the minimum target size.
 - **Light, dark or system**: the title bar's Theme button cycles
@@ -518,7 +525,7 @@ Target: WCAG 2.2 AA. Rules:
   Typing ahead into a menu still works (a menu is a question, not a
   computation), and value edits wait for the next computation (W69). The
   bar itself has a fixed height, and reserves a fixed-width slot at its
-  right end (W86, GitHub #135) for the progress bar and Stop/"Stopping…" (theme.css `.status-run`, visibility
+  right end (W86, GitHub #135) for the progress bar and Stop/"Stopping…" (css/layout.css `.status-run`, visibility
   toggled, never mounted/unmounted) so a run starting or ending never
   resizes the bar or shifts the plot above it or the message/rows beside
   it (W83, GitHub #132).
@@ -543,7 +550,7 @@ Target: WCAG 2.2 AA. Rules:
 - **Unit** (`npm test`, Node): reducers (the diagram's full and `add`
   events included), the plot model (modes, lag shifts), the diagram model
   (curves by branch and stability, the Hopf join), nearest point, zoom maths, the plot's key map, and the A1
-  contrast rules checked on the tokens of `theme.css` and the curve
+  contrast rules checked on the tokens of `css/tokens.css` and the curve
   palettes.
 - **Protocol** (`tools/servercheck.py`): a Window/Zoom box answered in
   data coordinates zooms as the same box in pixels, Initialconds/Mouse in

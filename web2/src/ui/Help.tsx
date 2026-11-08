@@ -155,8 +155,8 @@ export function HelpView() {
   };
 
   return (
-    <section id="help-panel" ref={panel} class={'help-panel' + (help.open ? ' open' : '')} aria-label="Help">
-      <div class="help-header">
+    <section id="help-panel" ref={panel} class={'help-panel panel-sheet' + (help.open ? ' open' : '')} aria-label="Help">
+      <div class="panel-header">
         <button class="help-back" onClick={close}>Back</button>
         <h2>Help</h2>
         <button onClick={requestUpdateCheck}>Check for updates</button>
