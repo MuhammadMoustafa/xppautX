@@ -25,6 +25,9 @@ function withRules(entries: Entry[]): ComponentChildren[] {
     ? [<li key={`rule-${i}`} class="menu-rule" role="separator" aria-hidden="true" />, entry.el] : [entry.el]);
 }
 
+/** a menu entry's key, or nothing for a command no key runs (no empty box) */
+const keyChip = (keys: string[]) => keys.length ? <kbd>{keys.join(' / ')}</kbd> : null;
+
 export function MenuBar() {
   const session = useSession(), hello = useStore(s => s.hello), info = useStore(s => s.keymap.info);
   const drawer = useStore(s => s.menuOpen);
@@ -93,7 +96,7 @@ export function MenuBar() {
   };
   const entry = (node: MenuNode): Entry => node.row ? {menu: false, el: <li key={node.row.id}><button role="menuitem" data-command={node.row.id} title={may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE}
     disabled={!may({cmd: node.row.id})} onClick={() => {close(); session.registryAction(node.row!.id);}}>
-    {node.name} <kbd>{effectiveKeys(info, node.row).join(' / ')}</kbd></button></li>}
+    {node.name} {keyChip(effectiveKeys(info, node.row))}</button></li>}
     : {menu: true, el: <li key={node.name}><details><summary>{node.name}</summary><ul role="menu">{withRules(node.children.map(entry))}</ul></details></li>};
   const tree = menuTree(registryRows(hello));
   const order = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'autoX', 'Windows', 'Help'];
