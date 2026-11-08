@@ -50,8 +50,8 @@ constexpr std::array AT_MOST = {"flag", "mode"};
 constexpr std::array TOGETHER = {"first", "second"};
 constexpr std::array GROUPS = {Group{GroupRule::exactly_one, ONE_OF}, Group{GroupRule::at_most_one, AT_MOST},
                                Group{GroupRule::together, TOGETHER}};
-constexpr Command ROW{"test.all", ARGUMENTS, XPP_KIND_VIEW, xpp::CommandCategory::Tools, "", "All the types.", {}, {}, false, nothing, {}};
-constexpr Command GROUPED{"test.groups", ARGUMENTS, XPP_KIND_VIEW, xpp::CommandCategory::Tools, "", "Groups.", {}, {}, false, nothing, GROUPS};
+constexpr Command ROW{"test.all", ARGUMENTS, XPP_KIND_VIEW, xpp::CommandCategory::Tools, "All", "", "All the types.", {}, {}, false, nothing, {}};
+constexpr Command GROUPED{"test.groups", ARGUMENTS, XPP_KIND_VIEW, xpp::CommandCategory::Tools, "Groups", "", "Groups.", {}, {}, false, nothing, GROUPS};
 
 const xpp::Place PLACE{"command", 1, 0, "line"};
 
