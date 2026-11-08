@@ -25,10 +25,42 @@ export function MenuBar() {
     return () => {observer.disconnect(); document.documentElement.style.removeProperty('--menu-bottom');};
   }, []);
   useEffect(() => {
+    const element = bar.current;
+    if (!element) return;
+    /* one menu open at a time: opening one closes every open menu that is neither its ancestor nor its
+       descendant (a window's submenu closes its sibling, not Windows). toggle does not bubble, so the
+       capture listener on the bar sees each menu's. */
+    const exclusive = (e: Event) => {
+      const opened = e.target as HTMLDetailsElement;
+      if (!opened.open) return;
+      element.querySelectorAll<HTMLDetailsElement>('details[open]').forEach(other => {
+        if (other !== opened && !other.contains(opened) && !opened.contains(other)) other.open = false;
+      });
+    };
+    element.addEventListener('toggle', exclusive, true);
+    return () => element.removeEventListener('toggle', exclusive, true);
+  }, []);
+  useEffect(() => {
     const outside = (e: PointerEvent) => {if (!bar.current?.contains(e.target as Node)) close(false);};
     document.addEventListener('pointerdown', outside);
     return () => document.removeEventListener('pointerdown', outside);
   }, []);
+  /** a top menu's title and the entries under it, in reading order, the hidden ones left out */
+  const menuItems = (top: HTMLElement) => [...top.querySelectorAll<HTMLElement>('summary, button:not(:disabled)')].filter(el => el.getClientRects().length);
+  /** with one top menu open, pointing at another title opens that one (the toggle above closes the first).
+      The click that follows the pointing keeps it open: the menu the pointer just opened is remembered
+      until the pointer leaves it, and its title's click then does not close it again. */
+  const pointed = useRef<HTMLDetailsElement | null>(null);
+  const hover = (e: PointerEvent) => {
+    const d = e.currentTarget as HTMLDetailsElement;
+    if (!d.open && bar.current?.querySelector(':scope > details[open]')) { d.open = true; pointed.current = d; }
+  };
+  const unhover = (e: PointerEvent) => {if (pointed.current === e.currentTarget) pointed.current = null;};
+  const title = (e: MouseEvent) => {
+    const d = (e.currentTarget as HTMLElement).parentElement as HTMLDetailsElement;
+    if (pointed.current === d && d.open) e.preventDefault();
+    pointed.current = null;
+  };
   const item = (node: MenuNode) => node.row ? <li key={node.row.id}><button role="menuitem" data-command={node.row.id} title={may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE}
     disabled={!may({cmd: node.row.id})} onClick={() => {close(); session.registryAction(node.row!.id);}}>
     {node.name} <kbd>{effectiveKeys(info, node.row).join(' / ')}</kbd></button></li>
@@ -40,13 +72,29 @@ export function MenuBar() {
     .sort((a,b) => Number(b.row?.id === 'window.create') - Number(a.row?.id === 'window.create'));
   const windowTools = windowNodes.filter(node => !newWindows.includes(node));
   return <nav class="app-menu" aria-label="Menu bar" ref={bar} onKeyDown={e => {
-    if (e.key === 'Escape') {e.preventDefault(); e.stopPropagation(); close();}
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      const buttons = [...e.currentTarget.querySelectorAll<HTMLElement>('summary, button:not(:disabled)')].filter(b => b.getClientRects().length);
-      const at = buttons.indexOf(document.activeElement as HTMLElement);
-      e.preventDefault(); buttons[(at + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+    if (e.key === 'Escape') {e.preventDefault(); e.stopPropagation(); close(); return;}
+    const active = document.activeElement as HTMLElement | null;
+    const top = active?.closest<HTMLDetailsElement>('details[data-top-menu]');
+    if (!top) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      /* from the title or an entry of this top menu, not from a submenu inside it */
+      if (active?.closest('details') !== top) return;
+      const tops = [...e.currentTarget.querySelectorAll<HTMLDetailsElement>(':scope > details[data-top-menu]')];
+      const next = tops[(tops.indexOf(top) + (e.key === 'ArrowRight' ? 1 : -1) + tops.length) % tops.length];
+      const wasOpen = top.open;
+      e.preventDefault();
+      top.open = false; next.open = wasOpen;
+      (wasOpen ? menuItems(next)[1] : next.querySelector<HTMLElement>(':scope > summary'))?.focus();
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      /* the open menu's entries (its title is item 0); a closed menu opens on its title's arrow */
+      e.preventDefault();
+      const down = e.key === 'ArrowDown';
+      top.open = true;
+      const entries = menuItems(top).slice(1);
+      const at = entries.indexOf(active as HTMLElement);
+      entries[at < 0 ? (down ? 0 : entries.length - 1) : (at + (down ? 1 : -1) + entries.length) % entries.length]?.focus();
     }
-  }}>{order.map(name => <details key={name} data-top-menu={name}><summary>{name}</summary><ul role="menu">
+  }}>{order.map(name => <details key={name} data-top-menu={name} onPointerEnter={hover} onPointerLeave={unhover}><summary onClick={title}>{name}</summary><ul role="menu">
     {(name === 'Windows' ? newWindows : tree.find(node => node.name === name)?.children ?? []).map(item)}
     {name === 'Windows' && ['Graphs', 'autoX views', 'Others'].map((group, i) => <li key={group}><strong>{group}</strong><ul>
       {windows.filter(w => i === 0 ? w.kind === 'graph' : i === 1 ? w.kind === 'diagram' : !['graph','diagram'].includes(w.kind)).map(w => <li key={w.name}>

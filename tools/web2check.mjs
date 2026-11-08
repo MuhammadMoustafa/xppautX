@@ -3067,6 +3067,50 @@ async function navigationCheck() {
   await menuRun('window.set_simultaneous_plot', {enabled:true});
   check('W517: boolean form sends a boolean', await until(`!s.busy && s.plots.simultaneous === true`, 'boolean form'));
   await menuRun('window.set_simultaneous_plot', {enabled:false});
+  await menuBarCheck();
+}
+
+/* W634: one top menu open at a time; pointing at another title opens it while one is open; Left and
+   Right move between the top menus, Up and Down through the open one's entries; Escape closes it and
+   returns the focus to its title; a window's submenu closes its sibling and not Windows. */
+async function menuBarCheck() {
+  const topOpen = () => cdp.eval(`[...document.querySelectorAll('.app-menu > details[open]')].map(d => d.dataset.topMenu)`);
+  const center = sel => cdp.eval(`(() => {const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2};})()`);
+  const press = async sel => {const {x, y} = await center(sel); await click(x, y); await rendered();};
+  const point = async sel => {const {x, y} = await center(sel); await mouse('mouseMoved', x, y); await rendered();};
+  const focusedTop = () => cdp.eval(`document.activeElement.closest('[data-top-menu]')?.dataset.topMenu ?? null`);
+  await press('[data-top-menu=File] > summary');
+  check('W634: clicking File opens File', JSON.stringify(await topOpen()) === '["File"]', JSON.stringify(await topOpen()));
+  await press('[data-top-menu=Analysis] > summary');
+  check('W634: clicking Analysis with File open leaves only Analysis open', JSON.stringify(await topOpen()) === '["Analysis"]', JSON.stringify(await topOpen()));
+  await point('[data-top-menu=Plot] > summary');
+  check('W634: with Analysis open, pointing at Plot opens Plot and closes Analysis', JSON.stringify(await topOpen()) === '["Plot"]', JSON.stringify(await topOpen()));
+  await cdp.eval(`document.querySelector('[data-top-menu=Plot] > summary').focus()`);
+  await key('ArrowRight');
+  check('W634: Right with Plot open moves to Data and opens it, focus in its entries',
+    JSON.stringify(await topOpen()) === '["Data"]' && await focusedTop() === 'Data' && !(await cdp.eval(`document.activeElement.matches('summary')`)),
+    JSON.stringify(await topOpen()) + ' focus ' + await focusedTop());
+  await cdp.eval(`window.__firstEntry = document.activeElement`);
+  await key('ArrowDown');
+  check('W634: Down moves to the next entry of the open menu', await cdp.eval(`document.activeElement !== window.__firstEntry && document.activeElement.closest('[data-top-menu]').dataset.topMenu === 'Data'`));
+  await key('ArrowUp');
+  check('W634: Up returns to the first entry', await cdp.eval(`document.activeElement === window.__firstEntry`));
+  await key('ArrowLeft');
+  check('W634: Left from an entry of Data moves to Plot, which opens', JSON.stringify(await topOpen()) === '["Plot"]' && await focusedTop() === 'Plot', JSON.stringify(await topOpen()));
+  await key('Escape');
+  check('W634: Escape closes the open menu and returns the focus to its title',
+    JSON.stringify(await topOpen()) === '[]' && await cdp.eval(`document.activeElement === document.querySelector('[data-top-menu=Plot] > summary')`));
+  await key('ArrowRight');
+  check('W634: Right with no menu open only moves the focus to the next title', JSON.stringify(await topOpen()) === '[]' && await cdp.eval(`document.activeElement === document.querySelector('[data-top-menu=Data] > summary')`));
+  await menuRun('window.create', {name: 'Second graph'});
+  check('W634: a second graph gives two window submenus', await until(`!s.busy && s.windows.some(w => w.name === 'Second graph')`, 'second graph'));
+  await press('[data-top-menu=Windows] > summary');
+  await press('[data-window-menu="graph_1"] > summary');
+  await press('[data-window-menu="Second graph"] > summary');
+  const submenus = await cdp.eval(`[...document.querySelectorAll('[data-window-menu][open]')].map(d => d.dataset.windowMenu)`);
+  check('W634: a window submenu opened after another closes it, Windows stays open',
+    JSON.stringify(submenus) === '["Second graph"]' && JSON.stringify(await topOpen()) === '["Windows"]', JSON.stringify(submenus) + ' ' + JSON.stringify(await topOpen()));
+  await key('Escape');
 }
 
 
