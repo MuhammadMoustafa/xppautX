@@ -5463,6 +5463,7 @@ async function axisTitleCut() {
   await mouse('mouseMoved', at.x, at.y);
   check('axis cut: pointing at the title opens the tip with the whole title',
     await until(`(() => { const t = document.querySelector('.cut-tip'); return !!t && t.matches(':popover-open') && t.textContent === ${JSON.stringify(full)}; })()`, 'axis tip'));
+  check('axis cut: ... the whole title readable: wrapped, not cut, inside the window', await until(`(() => { const t = document.querySelector('.cut-tip'); if (!t) return false; const r = t.getBoundingClientRect(); return t.matches(':popover-open') && getComputedStyle(t).writingMode === 'horizontal-tb' && t.scrollWidth <= t.clientWidth && t.scrollHeight <= t.clientHeight && r.top >= 0 && r.bottom <= innerHeight && r.right <= innerWidth; })()`, 'axis tip whole'));
   await mouse('mouseMoved', 5, 5);
   check('axis cut: leaving it closes the tip', await until(`!document.querySelector('.cut-tip')`, 'axis tip closed'));
   await cdp.eval(`document.querySelector('${btn}').focus()`);
@@ -5494,6 +5495,7 @@ async function axisTitleCut() {
   await mouse('mouseMoved', yAt.x, yAt.y);
   check('axis cut: pointing at the y title opens its whole text in the tip',
     await until(`document.querySelector('.cut-tip')?.textContent === ${JSON.stringify(longY)}`, 'y tip'));
+  check('axis cut: ... in a horizontal tip, wrapped and inside the window', await until(`(() => { const t = document.querySelector('.cut-tip'); if (!t) return false; const r = t.getBoundingClientRect(); return t.matches(':popover-open') && getComputedStyle(t).writingMode === 'horizontal-tb' && t.scrollWidth <= t.clientWidth && t.scrollHeight <= t.clientHeight && r.top >= 0 && r.bottom <= innerHeight && r.right <= innerWidth; })()`, 'y tip whole'));
   await mouse('mouseMoved', 5, 5);
 }
 

@@ -202,7 +202,8 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .cut-text.cut[role="button"] { cursor: copy; }
 .cut-more { color: var(--fg-muted); }
 .cut-text.copied { background: color-mix(in srgb, var(--ok) 18%, transparent); border-radius: 0.25rem; outline: 1px solid color-mix(in srgb, var(--ok) 55%, transparent); }
-.cut-tip { position: fixed; inset: auto; margin: 0; padding: var(--space-1) var(--space-2); max-width: min(90vw, 40rem); color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: 0.4rem; box-shadow: var(--shadow); font: var(--text-xs) var(--mono); text-decoration: none; cursor: copy; }
+/* a tip is a child of its text in the DOM, so it sets what a cut name or an axis title gives its text (nowrap, vertical writing, centring) */
+.cut-tip { white-space: normal; writing-mode: horizontal-tb; text-align: start; position: fixed; inset: auto; margin: 0; padding: var(--space-1) var(--space-2); max-width: min(90vw, 40rem); color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: 0.4rem; box-shadow: var(--shadow); font: var(--text-xs) var(--mono); text-decoration: none; cursor: copy; }
 .cut-tip:popover-open { display: flex; align-items: center; gap: var(--space-2); }
 .cut-tip-text { overflow-wrap: anywhere; }
 .cut-tip .cut-icon { flex: none; color: var(--fg-muted); }
