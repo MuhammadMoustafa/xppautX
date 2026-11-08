@@ -5,7 +5,7 @@
    this is a best-effort text match, cheap and good enough to filter by) are
    shown with their own label and colour (A7: never colour alone) and can be
    filtered by kind and searched, both kept as local UI state since neither
-   needs to be read by a test or survive a reload. */
+   needs to be read by a test or survive a reload. It is the status bar's pop-up (ui/StatusBar.tsx) once a model is open. */
 import {useMemo, useState} from 'preact/hooks';
 import type {LogEntry} from '../store/state';
 import {logEntries} from '../store/log';
@@ -33,6 +33,7 @@ export function Messages() {
       <summary>
         Messages ({log.length}){counts.error > 0 && <span class="error-count"> · {counts.error} error{counts.error > 1 ? 's' : ''}</span>}
       </summary>
+      <div class="messages-body">
       <div class="messages-tools">
         <div class="messages-filters" role="group" aria-label="Filter messages by kind">
           {FILTERS.map(f => (
@@ -61,6 +62,7 @@ export function Messages() {
         </ul>
         </>
       )}
+      </div>
     </details>
   );
 }

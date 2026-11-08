@@ -10,6 +10,7 @@ import {annotationRows} from '../store/marks';
    in data coordinates. Its nullclines, direction field and flows (T7) and
    its marks (T8: equilibria, text, arrows, markers, frozen curves) are
    drawn by the chart too, and listed in the legend after the curves. */
+import type {ComponentChildren} from 'preact';
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart, padded} from '../plot/chart';
 import {cssColor} from '../plot/colors';
@@ -26,8 +27,19 @@ import type {Session} from '../session';
 import {TraceDialog} from './TraceDialog';
 import type {PlotSeries} from '../store/series';
 import {HOME, windowOf} from '../store/plots';
-import {SetsRow} from './SetsRow';
+import {SetsRow, useDropDown} from './SetsRow';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
+
+/** the plot's ⋯: a pop-up holding the tools the plot's header has no room for (a pick, or a click outside, closes it) */
+function PlotMore({children}: {children: ComponentChildren}) {
+  const box = useDropDown();
+  return (
+    <details class="plot-more" ref={box}>
+      <summary aria-label="More plot tools" title="Reset view, Use this view, CSV and Sets">⋯</summary>
+      <div class="plot-more-menu" onClick={e => { if ((e.target as Element).closest('button') && box.current) box.current.open = false; }}>{children}</div>
+    </details>
+  );
+}
 
 type Axes = Pick<View, 'xlo' | 'xhi' | 'ylo' | 'yhi' | 'three'>;
 
@@ -169,9 +181,11 @@ interface Props {
   shown: boolean;
   /** shown as a tab panel (more than one window) */
   tabbed: boolean;
+  /** the window row (ui/Plots.tsx), drawn in the header of the shown window */
+  windowRow: ComponentChildren;
 }
 
-export function PlotView({win, dark, shown, tabbed}: Props) {
+export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
   const session = useSession();
   const pw = useStore(s => windowOf(s.plots, win));
   const series = pw?.series ?? null;
@@ -436,18 +450,21 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
             <input type="checkbox" data-freeze-runs checked={info?.freeze !== 0}
               onChange={e => session.send({cmd: 'window.set_display', window: win, keep_replaced_run: e.currentTarget.checked})} /> Freeze
           </label>
-          <button disabled={!zoomed} onClick={() => chart.current!.reset()}
-            title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
-          <button disabled={!zoomed || windowOff} onClick={() => session.useThisView(win, chart.current!.ranges())}
-            title="Make this zoom the window's own axes (Window/Window), for PostScript/SVG export and Restore">
-            Use this view
-          </button>
           <button disabled={noCurves || windowOff} onClick={fit}
             title="Fit the window's axes to the data (Window/Fit)">Fit</button>
-          <button disabled={noCurves || csvOff} onClick={() => session.writeDataFile('plot', 'csv')}
-            title="Export the plotted numbers as a CSV file">CSV</button>
-          <SetsRow scope="plot" window={win} />
+          <PlotMore>
+            <button disabled={!zoomed} onClick={() => chart.current!.reset()}
+              title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
+            <button disabled={!zoomed || windowOff} onClick={() => session.useThisView(win, chart.current!.ranges())}
+              title="Make this zoom the window's own axes (Window/Window), for PostScript/SVG export and Restore">
+              Use this view
+            </button>
+            <button disabled={noCurves || csvOff} onClick={() => session.writeDataFile('plot', 'csv')}
+              title="Export the plotted numbers as a CSV file">CSV</button>
+            <SetsRow scope="plot" window={win} />
+          </PlotMore>
         </div>
+        {windowRow}
       </header>
       {picking && <PickBar pick={picking} />}
       <div

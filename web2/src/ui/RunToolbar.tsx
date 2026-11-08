@@ -17,18 +17,11 @@ export function RunToolbar() {
   const steadyEdit = useStore(s => s.steadyEdit);
   const hasNow = !!core?.now;
   const busy = useStore(s => s.busy);
-  const computing = useStore(s => s.computing);
-  const stopping = useStore(s => s.stopping);
-  const asking = useStore(s => !!s.ask);
   const total = useStore(s => numericsField(s.numerics, NUM_TOTAL));
   const interval = useStore(s => runInterval(s.numerics));
   const durationField = fieldKey('num', NUM_TOTAL);
   const sentDuration = useStore(s => sentText(s.values.inflight, durationField));
   const durationError = useStore(s => s.values.errors[durationField] ?? null);
-  const storedTime = useStore(s => {
-    const series = s.plots.windows.find(w => w.win === s.plots.active)?.series;
-    return series?.rows ? series.columns.get(0)?.[series.rows - 1] : undefined;
-  });
   /* what the user typed; anything else follows Run duration, Dt and the core time (steadyDefaults,
      continueDefault), and a new Run duration drops the typed values so no old limit survives it */
   const continueInput = useStore(s => s.continueInput);
@@ -73,8 +66,6 @@ export function RunToolbar() {
       <button data-run="continue" aria-disabled={continueOff}
         onClick={() => { if (!continueOff) session.continueRun(); }}
         title={!may({cmd: 'run.continue'}) ? BUSY_TITLE : !hasNow ? 'Run once before continuing' : plan.problem ?? `Extend the existing trajectory using the time below (${continueKeys})`}><CommandLabel command="run.continue" /></button>
-      <button class="danger" data-run="stop" disabled={!busy || stopping} onClick={() => session.abort()}
-        title="Stop the running command or cancel its prompt (Esc)">{stopping ? 'Stopping…' : <CommandLabel command="run.abort" />}</button>
     </div>
     <QuickAccess />
     <div class="run-time-controls">
@@ -100,11 +91,6 @@ export function RunToolbar() {
       {steadyProblem && <p class="field-error" role="alert">{steadyProblem}</p>}
       <p>Starts from Initial. Compares every Dt interval ({inspectNumber(interval)}) using core values; stores every interval for this run. Adaptive solvers may take internal substeps. Matching digits depend on Dt and do not prove equilibrium stability.</p>
     </details>}
-    <div class="run-context">
-      <strong role="status">{stopping ? 'Stopping…' : computing ? 'Running' : asking ? 'Awaiting input' : busy ? 'Working…' : 'Idle'}</strong>
-      {storedTime !== undefined && Number.isFinite(storedTime) && <span title="Time of the last stored point in the active plot; sampled trajectory precision">Stored t = {inspectNumber(storedTime)}</span>}
-      <span>Parameter edits apply to the next run.</span>
-    </div>
     {!busy && resultText && <p class="steady-result" role="status">{resultText} t = {inspectNumber(result!.time)}</p>}
   </section>;
 }

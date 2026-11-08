@@ -58,9 +58,8 @@ checks rather than interactive use:
 
 ## The page layout
 
-The page has a title bar (the model's name, the connection state, Search for
-the command palette), the **menu bar** below it (File, Run, Analysis, Plot, Data,
-autoX, Windows and Help; "Commands", in the next chapter), the plot area with its tabs, and
+The page has a title bar (the model's name, Tools, the theme, Data, Model and Help), the **menu bar** below it (File, Run, Analysis, Plot, Data,
+autoX, Windows and Help; "Commands", in the next chapter), the plot, the **Values** panel beside it, and
 a **status bar** along the bottom that shows "Working…" with a progress
 bar and one **Stop** control whenever a command is running (in any view;
 there is no per-view Abort button — see "Long-running commands" below).
@@ -71,7 +70,7 @@ above it.
 
 One menu of the bar is open at a time. Opening another closes the first; while one is open, pointing at another title opens that one. Left and Right move between the titles (opening the next menu when one is open), Up and Down move through the open menu's entries, and Escape closes the menu and returns the focus to its title.
 
-What XPP prints appears under **Messages** at the bottom of the page
+What XPP prints appears under **Messages**, a button in the status bar that opens the list above it
 ("The log", below); a problem it reports (an
 illegal formula, a value out of bounds, a file it cannot read) shows as a
 dialog with an OK button (Enter or Escape closes it; errors that arrive
@@ -89,10 +88,14 @@ you wrote it (and, in an `.odex` model, a caret under the column), and
 what is wrong, such as a formula that stops making sense and where.
 Correct the line and start XPP again.
 
-**Making room for the plot.** The menu bar stays above the workspace. Search
-opens the command palette. The Values panel can be hidden and resized at its
-edge, including with the keyboard. At narrower widths it appears below the
-plot or as a sheet. Its size and visibility are remembered by this browser.
+**Making room for the plot.** The plot comes first on every screen. Above it are the run controls (one or two
+rows; the status bar says Ready, Running and has the one Stop) and, in the plot's own header, its legend, **Freeze**,
+**Fit**, a **⋯** (Reset view, Use this view, CSV and Sets) and the window row: the graph's name, New window, Window
+options and Capture. From 48 rem (768 px) the Values panel is a right column beside the plot; it can be hidden
+with the title bar's button and resized at its edge, including with the keyboard, and its size and visibility are
+remembered by this browser. Below 48 rem (a phone) the title bar is one row: the menu bar is a **drawer**
+behind its **Menu** button (Escape, a click outside it, or a choice closes it; Search commands is at its top),
+Data, Model and Help are in Tools, and Values is a sheet opened by its button.
 
 ## Tabs instead of windows
 
@@ -154,7 +157,7 @@ beside the plot (a sheet on a phone):
   applies only that part of it; **Save** writes the section's current values into the model file as a *New set…*, in place
   of that kind in one of the sets the model file itself writes (*Replace parameters in set …*, which says what it replaces
   and keeps the set's other parts), *As defaults…* (the `par` or `init` lines, or the group in the `options` block) or
-  *Export…* into another `.odex`; **Load from file…** offers the parts of an `.odex` (its defaults and each set) or of an
+  *Export…* into another `.odex`; (when the panel is narrower than 24 rem, **Load from file…** and **Restore defaults** are behind a **⋯**) **Load from file…** offers the parts of an `.odex` (its defaults and each set) or of an
   XPPAUT file (`.par`, `.ic`, `.set`) that hold the kind and loads the one you choose; **Restore defaults** puts the
   section's values back from the model file, as the X11 Parameter window's Default button did (a setting returns to the
   built-in value with the model's `options` block over it), through the core's `set.restore_defaults` command
@@ -169,14 +172,13 @@ beside the plot (a sheet on a phone):
   that value's field.
 - **The checkboxes** next to the variables pick what **x vs t**,
   **Phase** and **Array** plot, like `xvst`, `pp` and `arry` in X11.
-- **Sliders** sit under the plot, any number of them (the X11 main
+- **Sliders** sit in the Parameters section, with **Add slider**, any number of them (the X11 main
   window had three), including the ones an ODE file sets with `@ s1=...`;
   each is added or edited with a dialog (searchable variable, min, max,
   step/precision), not the small binding window upstream describes.
   Dragging one changes the value as it moves (during a run too, for the
   next run); nothing runs until you run it.
-- **Buttons the ODE file defines** (`@ but=name:keys`) appear above the
-  sliders.
+- **Buttons the ODE file defines** (`@ but=name:keys`) appear below Parameters.
 - **Boundary conditions** and **Delay initial data** are collapsed
   sections; boundary conditions appear only when the ODE file defines
   them (`b` or `bndry` lines, `boundary` in `.odex`), and delays only for

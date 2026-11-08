@@ -448,35 +448,51 @@ Rules:
 
 ## 7. Responsive layout
 
-Rules (each checkable; `tools/web2check.mjs` checks R1, R3 and R5 at 390x844):
+The plot comes first on every screen (maintainer, 2026-11-07, from mockups of the real page,
+docs/studies/ui-review-2026-11-07/: W639, #711). Rules (each checkable; `tools/web2check.mjs`'s `layout`
+section checks R1 and R3 at 390x844, 768x1024 and 1024x700):
 
 - **R1** No horizontal page scroll at any width from 320 px: the page does
   not scroll sideways; grid children have `min-width: 0`; long text wraps
-  (`overflow-wrap: anywhere`) or ellipsizes.
+  (`overflow-wrap: anywhere`) or ellipsizes. The plot's tools never overlap.
 - **R2** Sizes are `rem` and `%` (type, spacing, targets, panel widths);
   `px` only for hairlines and canvas text.
 - **R3** Breakpoints (`min-width` in rem, so they follow the user's font
   size):
-  - below 48 rem (phones, small tablets): one column; the command menu is a
-    drawer (the title bar's Menu button; Escape, the scrim or a choice
-    closes it, focus moves in and back); the file name and the Classic link
-    are hidden; forms stack label over field;
-  - 48-80 rem: the menu as a 13 rem column beside the work area;
-  - from 80 rem: a 15 rem menu, and room for the values panel (T3) as a
-    right column.
-- **R4** Components adapt to their own width with container queries (the
-  plot's tools wrap under the legend below 34 rem), not to the window.
+  - below 48 rem (phones, small tablets): one column and a one-row title
+    bar (a Menu button, the model's name, Tools, the theme, Values); the
+    **menu bar is a drawer** behind the Menu button (Escape, the scrim or a
+    choice closes it, focus moves in and back), with Search commands at its
+    top; Data, Model and Help are in Tools; the file name is hidden; Values is a
+    full-screen sheet; forms stack label over field;
+  - from 48 rem: the menu bar is a row under the title bar (there is no menu
+    column), and Values is a right column beside the plot (20 rem, 30 rem from
+    80 rem; resizable at its edge, hidden with the title bar's button). It is
+    never under the plot: the plot is at least 30% of the viewport's height
+    at 390x844, 768x1024 and 1024x700 (`PLOT_MIN_SHARE`).
+  There is no Classic link: the classic page was removed (T18).
+- **R4** Components adapt to their own width with container queries, not to
+  the window: Values folds its Tail rate column, and the sets row's Load from
+  file and Restore defaults into a ⋯, when it is narrower than 24 rem.
 - **R5** Touch: on a coarse pointer every control is at least 44x44 px; the
   plot takes one-finger pan, two-finger pinch zoom (about the fingers'
   midpoint) and tap to read a point; `touch-action: none` on the plot area
   only, so the page still scrolls elsewhere.
-- **R6** Panels still to come (values, data table, animation) are columns
-  or floating panels on wide screens, tabs under the plot on medium ones,
-  and full-screen sheets with a Back button on phones. autoX (T11a) is a
-  full-screen sheet at every width instead (T26): it is its own working
-  view, not something to keep the main plot or menu in view beside.
+- **R6** Panels (the data table, the text views, the array plot, the animation, Help)
+  are side panels on wide screens and full-screen sheets with a Back button
+  on phones; a panel closes with its ×. (W644 turns them into a dock; their
+  own behaviour is its card's.) autoX (T11a) is a view, a full-screen
+  sheet at every width (T26): it is its own working view, not something to
+  keep the main plot or menu in view beside.
 - **R7** Dialogs fit the viewport (`max-height: 100%`, scroll inside), with
   a 1 rem margin.
+- **R8** What sits above the plot is small: the run controls are one or two
+  rows (the toolbar has no Stop or Idle line of its own: the status bar has them, A10), the window
+  row (graph names, New window, Window options, Capture) is in the plot's header, and the plot's own tools
+  are Freeze, Fit and a ⋯ holding Reset view, Use this view, CSV and Sets. Add slider is in
+  Values' Parameters section, with the sliders; Messages is a button in the status bar.
+- **R9** Values: the name column is as wide as the group's longest name, up to 8 rem; every number box is
+  one width and one font in every group at every width.
 
 ## 8. Accessibility and UX
 

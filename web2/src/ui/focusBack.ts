@@ -16,7 +16,9 @@ import {useLayoutEffect} from 'preact/hooks';
 export function useFocusBackOnClose(open: boolean, panel: RefObject<HTMLElement>, toggle: string): void {
   useLayoutEffect(() => {
     if (open || !panel.current?.contains(document.activeElement)) return;
-    const button = document.querySelector<HTMLElement>(toggle);
+    /* the one the user can see: a phone's title bar hides Data, Model and Help and Tools lists them */
+    const buttons = [...document.querySelectorAll<HTMLElement>(toggle)];
+    const button = buttons.find(b => b.getClientRects().length) ?? buttons[0];
     /* a button inside the Tools menu is hidden once the menu closed on its choice: the focus goes
        to the menu's own button, the nearest thing the user can see (a hidden element takes none) */
     const menu = button?.closest('details');

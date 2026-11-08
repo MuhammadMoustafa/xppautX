@@ -1,4 +1,4 @@
-/* The sliders, under the plot where the eye already is (GitHub #18, T20):
+/* The sliders, in the Values panel's Parameters section, with Add slider (GitHub #18, T20; W639):
    any number of them (the model's `@ s1=..` presets first, then "Add
    slider"), each compact: the variable's name, a range track with its low
    and high end shown as small muted labels, the current value as a
@@ -9,8 +9,7 @@
    value box does not send on every keystroke or step: it waits ~400ms
    after the last one, or commits at once on blur/Enter, so a fast run of
    edits becomes one. They lay out as a responsive
-   grid (css/values.css .slider-strip): 3 per row at 1280px, 2 on tablets, 1 on
-   phones. */
+   grid (css/values.css .slider-strip): as many per row as the panel holds. */
 import {useMemo, useRef, useState} from 'preact/hooks';
 import {fromPosition, RANGE_STEPS, sliderRange, sliderStep, toPosition, type SliderDef} from '../store/sliders';
 import {NUMBER} from '../store/fieldKinds';

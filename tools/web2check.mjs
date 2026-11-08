@@ -590,8 +590,8 @@ async function values() {
   await cdp.eval(`document.querySelector('[data-slider="${sid}"] .slider-card-remove').click()`);
   check('a slider is removed by its button', await until(`!s.values.sliders.some(d => d.id === ${sid})`, 'remove'));
 
-  /* T20: the slider grid is responsive (docs/ui-v2.md T20): 3 per row at
-     1280px (laptop), 2 on a tablet, 1 on a phone */
+  /* T20, W639: the sliders are in the Values panel's Parameters section (a column 20 to 30rem wide, so
+     one per row at every width), the Add slider button among them */
   const gridIds = [await addSlider('iapp'), await addSlider('phi'), await addSlider('v1')];
   const gridRows = async () => {
     const boxes = await cdp.eval(`[...document.querySelectorAll('.slider-card')].map(e => Math.round(e.getBoundingClientRect().top))`);
@@ -600,11 +600,13 @@ async function values() {
   await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
   let g = await gridRows();
-  check('3 sliders wrap in the narrower plot beside the wide Values column', g.count === 3 && g.rows === 2, JSON.stringify(g));
+  check('W639: the sliders and Add slider are in the Values panel\'s Parameters section',
+    await cdp.eval(`document.querySelectorAll('.values-panel [data-section=par] .slider-card').length === 3 && !!document.querySelector('.values-panel [data-section=par] .slider-add')`));
+  check('3 sliders stack one per row in the Values column beside the plot (1280)', g.count === 3 && g.rows === 3, JSON.stringify(g));
   await metrics({width: 800, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
   g = await gridRows();
-  check('3 sliders wrap 2 per row on a tablet (48rem)', g.count === 3 && g.rows === 2, JSON.stringify(g));
+  check('3 sliders stack one per row on a tablet (800)', g.count === 3 && g.rows === 3, JSON.stringify(g));
   await metrics({width: 500, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
   g = await gridRows();
@@ -2015,9 +2017,9 @@ async function autoxView(dir) {
   const sheet = await cdp.eval(`(() => { const r = document.querySelector('.autox-panel').getBoundingClientRect();
     return {l: r.left, t: r.top, w: r.width, bottom: r.bottom, ih: innerHeight, iw: innerWidth,
       doc: document.documentElement.scrollWidth, body: document.body.scrollWidth}; })()`);
-  check('390x844: the autoX view is a full-screen sheet, over the main status bar too (its own Stop stays in view), no sideways scroll',
-    sheet.l === 0 && Math.abs(sheet.t - await cdp.eval(`document.querySelector('.app-menu').getBoundingClientRect().bottom`)) <= 1 && sheet.w >= sheet.iw - 1 && Math.abs(sheet.bottom - sheet.ih) <= 1
-    && sheet.doc <= sheet.iw && sheet.body <= sheet.iw, JSON.stringify([sheet, await cdp.eval(`document.querySelector('.app-menu').getBoundingClientRect().bottom`)]));
+  check('390x844: the autoX view is a full-screen sheet under the title bar (the menu bar is a drawer there), over the main status bar too (its own Stop stays in view), no sideways scroll',
+    sheet.l === 0 && Math.abs(sheet.t - await cdp.eval(`document.querySelector('.title-bar').getBoundingClientRect().bottom`)) <= 1 && sheet.w >= sheet.iw - 1 && Math.abs(sheet.bottom - sheet.ih) <= 1
+    && sheet.doc <= sheet.iw && sheet.body <= sheet.iw, JSON.stringify([sheet, await cdp.eval(`document.querySelector('.title-bar').getBoundingClientRect().bottom`)]));
   const small = await cdp.eval(`[...document.querySelectorAll('.autox-panel button')].filter(b => b.getClientRects().length)
     .map(b => [b.textContent.trim(), b.getBoundingClientRect().height, b.getBoundingClientRect().width])
     .filter(([, h, w]) => h < 44 || w < 44)`);
@@ -2600,7 +2602,6 @@ async function busyKeys() {
       integrate: document.querySelector('.run-toolbar button.primary').getAttribute('aria-disabled'),
       current: document.querySelector('[data-run=current]').getAttribute('aria-disabled'),
       continue: document.querySelector('[data-run=continue]').getAttribute('aria-disabled'),
-      toolbarStop: document.querySelector('[data-run=stop]').disabled,
       newWindow: tool(${JSON.stringify(newGraphLabel)}).disabled,
       load: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Load').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
@@ -2609,7 +2610,7 @@ async function busyKeys() {
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
     + 'and data (Initialconds, Sing pts...) are disabled, Parameters and Load (settings, W106) are not',
-    running && ui.status === `Running ${await labelOf('run.initial')}… Esc stops` && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.toolbarStop && !ui.load
+    running && ui.status === `Running ${await labelOf('run.initial')}… Esc stops` && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.load
     && ['run.initial', 'equilibrium.find', 'bvp.solve', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
@@ -2650,7 +2651,7 @@ async function busyKeys() {
     JSON.stringify({dragged, edited, shownDrag, stillBusy}));
   const runPars = await S('JSON.stringify(s.core.pars)');
   await focusPlot();
-  await cdp.eval(`document.querySelector('[data-run=stop]').click()`);
+  await cdp.eval(`document.querySelector('.status-bar button.danger').click()`);
   const stopped = await until(`__xpp.actions().slice(${n0}).some(e => e === 'event:done') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
   const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'value.set_parameters' && c !== 'nullcline.set_mesh')`);
@@ -3483,7 +3484,7 @@ async function runsCheck(dir) {
   check('runs: a picked slider ranges over [0, 2v], with a positive step',
     sdef && sdef.name === 'iapp' && sdef.lo === '0' && sdef.hi === String(2 * iapp) && Number(sdef.step) > 0,
     JSON.stringify(sdef));
-  const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
+  const track = await cdp.eval(`(() => { const el = document.getElementById('slider-range-${sid}'); el.scrollIntoView({block:'nearest'}); const r = el.getBoundingClientRect();
     return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
   const sent1 = await cdp.eval('__xpp.sentCount()');
   const nSlide = await S('s.seriesCount');
@@ -3707,7 +3708,7 @@ async function valuesBusy() {
 
   const sid = await addSlider('mu');
   await start();
-  const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
+  const track = await cdp.eval(`(() => { const el = document.getElementById('slider-range-${sid}'); el.scrollIntoView({block:'nearest'}); const r = el.getBoundingClientRect();
     return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
   const sent1 = await S('__xpp.sentCount()');
   const busyDrag = await S('s.busy && !!s.computing');
@@ -5357,6 +5358,10 @@ const layoutRects = () => cdp.eval(`(() => {
     plot: r('.plot-view:not([hidden]) .plot-host'), ws: r('.workspace'), vals: r('.values-panel'), menu: r('.app-menu'),
     menuToggle: r('.menu-toggle'), valuesToggle: r('.values-toggle'), show: r('.autox-show'), msgs: r('.messages'),
     status: r('.status-bar'), runLabelsFit: [...document.querySelectorAll('.run-actions button')].every(b => b.scrollWidth <= b.clientWidth + 1)}; })()`);
+/** the least share of the viewport's height the plot (its drawing area) keeps at the sizes of W639's design: the plot is the page's
+    main thing, so a run toolbar, a window row and a legend above it may not squeeze it (option B measured 0.39 to 0.49 at 390x844,
+    768x1024 and 1024x700; before it the plot was 0.19 of 1024x700), and a margin below that stays a failure */
+const PLOT_MIN_SHARE = 0.3;
 /** the part of rectangle a inside b (a plot taller than its scrolling container shows only that much) */
 const rectClip = (a, b) => (!a || !b) ? a : {...a, t: Math.max(a.t, b.t), b: Math.min(a.b, b.b), l: Math.max(a.l, b.l), r: Math.min(a.r, b.r)};
 const rectsCross = (a, b) => !!a && !!b && a.l < b.r - 0.5 && b.l < a.r - 0.5 && a.t < b.b - 0.5 && b.t < a.b - 0.5;
@@ -5469,6 +5474,50 @@ async function layoutCheck(dir) {
   await cdp.eval(`document.querySelector('.values-back').click()`);
   check('layout: ... and closes, the plot still there', await until('!s.valuesOpen', 'values closed')
     && layoutProblems(await layoutRects()).length === 0);
+  /* W639: the plot first on every screen, at a phone, a tablet and a short laptop window */
+  for (const [w, h] of [[390, 844], [768, 1024], [1024, 700]]) {
+    await metrics({width: w, height: h, deviceScaleFactor: 1, mobile: false});
+    await rendered();
+    const L = await layoutRects();
+    check(`W639: ${w}x${h}: the plot is at least ${Math.round(PLOT_MIN_SHARE * 100)}% of the viewport's height`,
+      !!L.plot && L.plot.h >= PLOT_MIN_SHARE * h, JSON.stringify([L.plot && Math.round(L.plot.h), h]));
+    const tools = await cdp.eval(`(() => {
+      const view = document.querySelector('.plot-view:not([hidden])');
+      const shown = [...view.querySelectorAll('.plot-bar > :not(.legend) button, .plot-bar > :not(.legend) summary, .plot-bar > :not(.legend) input, .plot-fit')]
+        .filter(e => e.getClientRects().length && !(e.closest('details:not([open])') && !e.matches('summary')));
+      const rects = shown.map(e => { const b = e.getBoundingClientRect(); return {n: e.textContent.trim() || e.className, l: b.left, r: b.right, t: b.top, b: b.bottom}; });
+      /* a tool whose label is wider than its box spills over its neighbour: that overlaps too */
+      const over = shown.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => (e.textContent.trim() || e.className) + ' spills');
+      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const a = rects[i], c = rects[j];
+        if (a.l < c.r - 0.5 && c.l < a.r - 0.5 && a.t < c.b - 0.5 && c.t < a.b - 0.5) over.push(a.n + ' x ' + c.n);
+      }
+      return {count: rects.length, over}; })()`);
+    check(`W639: ${w}x${h}: no two of the plot's tools overlap`, tools.count >= 4 && tools.over.length === 0, JSON.stringify(tools));
+    check(`W639: ${w}x${h}: no sideways scroll`, (await layoutRects()).sw <= w);
+    if (w >= 768) {
+      const side = await cdp.eval(`(() => { const p = document.querySelector('.plot-view:not([hidden])').getBoundingClientRect(), v = document.querySelector('.values-panel').getBoundingClientRect();
+        return {plotRight: p.right, valuesLeft: v.left, valuesTop: v.top, plotTop: p.top}; })()`);
+      check(`W639: ${w}x${h}: Values is a right column beside the plot`, side.valuesLeft >= side.plotRight - 1 && side.valuesTop < side.plotTop, JSON.stringify(side));
+    }
+  }
+  /* a phone: a one-row title bar, and the menu bar a drawer behind its Menu button */
+  await metrics({width: 390, height: 844, deviceScaleFactor: 1, mobile: false});
+  await rendered();
+  check('W639: 390: the title bar is one row (less than two buttons high)', await cdp.eval(`(() => { const t = document.querySelector('.title-bar'), b = t.querySelector('button').getBoundingClientRect();
+    return t.getBoundingClientRect().height < 2 * b.height; })()`));
+  check('W639: 390: the menu bar is closed (not reachable) until the Menu button opens it',
+    await cdp.eval(`getComputedStyle(document.querySelector('.app-menu')).visibility === 'hidden' && !s_open()`.replace('s_open()', '__xpp.state().menuOpen')));
+  await cdp.eval(`document.querySelector('.menu-toggle').click()`);
+  check('W639: 390: the Menu button opens the drawer, and the focus moves into it',
+    await until(`s.menuOpen && document.activeElement.closest('.app-menu') && getComputedStyle(document.querySelector('.app-menu')).visibility === 'visible'`, 'drawer open'));
+  await key('Escape');
+  check('W639: 390: Escape closes the drawer, and the focus goes back to the Menu button',
+    await until(`!s.menuOpen && document.activeElement === document.querySelector('.menu-toggle')`, 'drawer closed'));
+  await cdp.eval(`document.querySelector('.menu-toggle').click()`);
+  await until('s.menuOpen', 'drawer open again');
+  await cdp.eval(`document.querySelector('.menu-scrim').click()`);
+  check('W639: 390: a click on the scrim closes the drawer', await until('!s.menuOpen', 'scrim closed'));
   await desktopMetrics();
   await rendered();
 

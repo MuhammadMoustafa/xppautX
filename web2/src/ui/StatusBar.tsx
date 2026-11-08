@@ -1,10 +1,11 @@
 /* The bottom line: connection, work in progress (what runs and that Escape
-   stops it), the core's last message, stored rows, and at the right end
+   stops it), the core's last message, Messages (a pop-up above the bar), stored rows, and at the right end
    progress, Stop, then Stopping… until the run ends. */
 import {busyText} from '../store/state';
 import {useSession, useStore} from './context';
 import {CommandLabel} from './CommandButton';
 import {HelpButton} from './HelpButton';
+import {Messages} from './Messages';
 
 /* the connection, when it is not simply up (AutoxStatus.tsx says it too) */
 export function connectionText(connected: boolean, exited: number | null): string | null {
@@ -33,6 +34,7 @@ export function StatusBar() {
       <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span role="status" data-testid="status">{status}</span>
       <span class="status-message">{bottom} {help && <HelpButton target={help} label=".odex models" />}</span>
+      <Messages />
       <span class="muted rows">{rows} rows</span>
       {/* W83: a fixed-width slot the bar always keeps (css/layout.css .status-run), so
           the progress bar and Stop button toggling with a run never resize the

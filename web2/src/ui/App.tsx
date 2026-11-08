@@ -11,11 +11,11 @@ import {AutoxShow, AutoxView} from './AutoxView';
 import {useEffect} from 'preact/hooks';
 import {PANEL_LIMITS, savePanels, type PanelSize, type Panels} from '../store/panels';
 import {SessionContext, useSession, useStore} from './context';
-import {Splitter, useMinWidth} from './Splitter';
+import {Splitter} from './Splitter';
 import {UpdateDialog} from './UpdateDialog';
 import {HelpView} from './Help';
 import {useHotkeys} from './hotkeys';
-import {MenuBar} from './MenuBar';
+import {MenuBar, MenuButton} from './MenuBar';
 import {CommandPalette} from './CommandPalette';
 import {CommandForm} from './CommandForm';
 import {ValuesFileDialog} from './ValuesFileDialog';
@@ -33,7 +33,6 @@ import {KeymapEditor} from './KeymapEditor';
 import {ReplaceDialog} from './FileDialog';
 import {ErrorSource} from './ErrorSource';
 import {Toasts} from './Toasts';
-import {SliderStrip} from './SliderStrip';
 import {ValuesPanel} from './ValuesPanel';
 import {RunToolbar} from './RunToolbar';
 import {StartScreen} from './StartScreen';
@@ -70,22 +69,15 @@ function Banner() {
   return null;
 }
 
-/** the stylesheet's wide layout (css/layout.css: the Values panel a right column) starts here */
-const WIDE_REM = 80;
-
 /** `px`, held to the window's share for `size` (the stylesheet's limit, so a narrowed window keeps room for the plot) */
-const track = (size: PanelSize, px: number, unit: 'vw' | 'vh') => `min(${px}px, ${PANEL_LIMITS[size].share * 100}${unit})`;
+const track = (size: PanelSize, px: number) => `min(${px}px, ${PANEL_LIMITS[size].share * 100}vw)`;
 
 /** the grid tracks the user's collapsing and dragging override (css/layout.css gives the defaults) */
 function panelStyle(p: Panels): Record<string, string> {
   const style: Record<string, string> = {};
   if (p.valuesCollapsed) {
     style['--values-col'] = '0px';
-    style['--values-row'] = '0px';
-  } else {
-    if (p.valuesWidth !== null) style['--values-col'] = track('valuesWidth', p.valuesWidth, 'vw');
-    if (p.valuesHeight !== null) style['--values-row'] = track('valuesHeight', p.valuesHeight, 'vh');
-  }
+  } else if (p.valuesWidth !== null) style['--values-col'] = track('valuesWidth', p.valuesWidth);
   return style;
 }
 
@@ -95,7 +87,6 @@ function Shell() {
   const playerOpen = useStore(s => s.player.open);
   const dark = useDark(theme);
   const panels = useStore(s => s.panels);
-  const wide = useMinWidth(WIDE_REM);
   useEffect(() => savePanels(panels), [panels]);
   return (
     <div class="shell" style={panelStyle(panels)}
@@ -114,13 +105,9 @@ function Shell() {
         <RecordBar />
         <AutoxShow />
         <PlayerStage dark={dark} />
-        <SliderStrip />
-        <Messages />
       </main>
       <ValuesPanel />
-      {wide
-        ? <Splitter controls="values-panel" size="valuesWidth" className="splitter-values" orientation="vertical" growth={-1} />
-        : <Splitter controls="values-panel" size="valuesHeight" className="splitter-values" orientation="horizontal" growth={-1} />}
+      <Splitter controls="values-panel" size="valuesWidth" className="splitter-values" growth={-1} />
       <TableView />
       <TextViews />
       <AutoxView dark={dark} />
@@ -145,6 +132,7 @@ function StartShell() {
   return (
     <div class="start-shell">
       <header class="title-bar">
+        <MenuButton />
         <h1>xppautX</h1>
         <span class="spacer" />
         <button class="help-toggle" aria-controls="help-panel" onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}

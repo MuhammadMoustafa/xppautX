@@ -89,8 +89,9 @@ export function Plots({dark}: {dark: boolean}) {
     tabs.current?.querySelectorAll<HTMLElement>('[role=tab]')[next]?.focus();
   };
 
-  return (
-    <div class="plots">
+  /* the window row (the tabs, the name, New window, Window options, Capture) is drawn in the header of the
+     window that is shown (W639): the plot's own tools stay beside it */
+  const windowRow = (
       <div class="plot-windows">
         {tabbed && (
           <div class="plot-tabs" role="tablist" aria-label="Plot windows" ref={tabs} onKeyDown={onKeyDown}>
@@ -136,12 +137,15 @@ export function Plots({dark}: {dark: boolean}) {
           <KinescopeBar />
         </div>
       </div>
+  );
+  return (
+    <div class="plots">
       {shownWins.map(win => {
         const shown = win === active || shownWins.length === 1;
         const three = windows.find(w => w.win === win)?.info?.three;
         return three
-          ? <Plot3DView key={win} win={win} dark={dark} shown={shown} tabbed={tabbed} />
-          : <PlotView key={win} win={win} dark={dark} shown={shown} tabbed={tabbed} />;
+          ? <Plot3DView key={win} win={win} dark={dark} shown={shown} tabbed={tabbed} windowRow={shown ? windowRow : null} />
+          : <PlotView key={win} win={win} dark={dark} shown={shown} tabbed={tabbed} windowRow={shown ? windowRow : null} />;
       })}
       <p id="plot-keys-help" class="visually-hidden">{PLOT_KEYS_HELP}</p>
     </div>

@@ -12,8 +12,8 @@ body {
 #app { height: 100%; }
 h1, h2 { margin: 0; }
 
-/* ---- shell: title / menu bar / work / values / status; the values panel is a right column from 80rem ---- */
-.shell { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(10rem, 1fr) var(--values-row, fit-content(40%)) auto; grid-template-areas: 'title' 'menus' 'work' 'values' 'status'; }
+/* ---- shell: title / menu bar / work / values / status; the values panel is a right column from 48rem, a sheet below ---- */
+.shell { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(10rem, 1fr) auto auto; grid-template-areas: 'title' 'menus' 'work' 'values' 'status'; }
 .start-shell { display: flex; flex-direction: column; height: 100%; grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title' 'menus' 'work' 'status'; }
 .title-bar {
   grid-area: title;
@@ -45,13 +45,13 @@ h1, h2 { margin: 0; }
 #command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
 .unused-settings { margin-top: var(--space-3); }
 .spacer { flex: 1; }
-.menu-toggle, .values-toggle { display: none; }
+.menu-toggle, .values-toggle, .app-menu .menu-search, .phone-only, .menu-scrim { display: none; }
 /* the wide layouts' collapse buttons and splitters (W226): not on a phone, where the drawers do this */
 .splitter { display: none; }
 @media (min-width: 48rem) {
   .splitter { display: block; z-index: var(--z-dropdown); background: transparent; touch-action: none; }
   .splitter:hover, .splitter:focus-visible { background: var(--accent); opacity: 0.5; }
-  .splitter-values { grid-area: values; align-self: start; height: 0.5rem; margin-top: -0.25rem; cursor: row-resize; }
+  .splitter-values { grid-area: values; align-self: stretch; width: 0.5rem; margin: 0 0 0 -0.25rem; justify-self: start; cursor: col-resize; }
 
   .shell[data-values="collapsed"] .values-panel, .shell[data-values="collapsed"] .splitter-values { display: none; }
 }
@@ -113,21 +113,29 @@ h1, h2 { margin: 0; }
 
 .app-menu button{ width: 100%; text-align: left; display: flex; justify-content: space-between; gap: 1rem; }
 
-/* wide: the values panel becomes a right column (R3, R6), and a short stacked desktop
-   reserves room for the run toolbar and trajectory (Values stays scrollable below) */
+/* from 48rem the values panel is a right column (R3, R6), the plot first beside it; wider, the column is wider */
+@media (min-width: 48rem) {
+  .shell { grid-template-columns: minmax(0, 1fr) var(--values-col, 20rem); grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title title' 'menus menus' 'work values' 'status status'; }
+}
 @media (min-width: 80rem) {
-  .shell { grid-template-columns: minmax(0, 1fr) var(--values-col, 30rem); grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title title' 'menus menus' 'work values' 'status status'; }
-  .splitter-values { align-self: stretch; width: 0.5rem; height: auto; margin: 0 0 0 -0.25rem; justify-self: start; cursor: col-resize; }
+  .shell { grid-template-columns: minmax(0, 1fr) var(--values-col, 30rem); }
 }
-@media (min-width: 48rem) and (max-width: 79.99rem) and (max-height: 40rem) {
-  .shell { grid-template-rows: auto auto minmax(10rem, 1fr) fit-content(12%) auto; }
-}
-/* narrow (phones, small tablets): one column, the menu and the values panel are drawers/sheets */
+/* phones (below 48rem): the menu bar is a drawer behind the title bar's Menu button, the title bar one row, the values panel a sheet */
 @media (max-width: 47.99rem) {
-  .menu-toggle, .values-toggle { display: inline-flex; }
-  .icon-button.panel-toggle { display: none; }
-  .title-bar { padding: var(--space-2); }
+  .menu-toggle, .values-toggle, .workspace-tools-menu .phone-only { display: inline-flex; }
+  .app-menu .menu-search { display: flex; }
+  .icon-button.panel-toggle, .title-only { display: none; }
+  .title-bar { flex-wrap: nowrap; padding: var(--space-2); }
+  .title-bar > * { flex: none; }
+  .title-bar h1 { flex: 0 1 auto; min-width: 0; }
+  .workspace-tools > summary { white-space: nowrap; }
   .title-bar .file, .title-bar .wide-only { display: none; }
+  .app-menu { position: fixed; z-index: var(--z-menu); inset: 0 auto 0 0; width: min(20rem, 85vw); flex-direction: column; flex-wrap: nowrap; align-items: stretch; overflow: auto; padding: var(--space-3); box-shadow: var(--shadow);
+    transform: translateX(-100%); visibility: hidden; transition: transform 0.2s ease, visibility 0s 0.2s; }
+  .app-menu.open, .values-panel.open { transform: none; visibility: visible; transition: transform 0.2s ease; }
+  .app-menu > details > ul { position: static; max-height: none; min-width: 0; border: none; box-shadow: none; }
+  .menu-scrim { display: block; position: fixed; z-index: var(--z-menu); inset: 0; background: rgba(0, 0, 0, 0.45); visibility: hidden; }
+  .menu-scrim.open { visibility: visible; }
   .workspace { padding: var(--space-2); }
   .status-bar .rows { display: none; }
   .status-run { width: 8rem; }

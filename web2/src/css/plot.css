@@ -1,17 +1,17 @@
-.run-toolbar { position: sticky; top: 0; z-index: var(--z-toolbar); flex: none; container-type: inline-size; padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.run-toolbar { position: sticky; top: 0; z-index: var(--z-toolbar); flex: none; container-type: inline-size; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-1) var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+/* the run controls are one or two rows: the actions, then the durations and the steady-state summary */
 /* Fit two actions even in the narrow desktop plot column; wrap labels rather
    than stacking four rows above the trajectory. */
-.run-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.run-actions { flex: 1 1 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .run-actions button { font-size: var(--text-sm); padding-inline: var(--space-2); white-space: normal; }
 /* A wide plot fits the natural button widths on one row. */
 @container (min-width: 28rem) {
   .run-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
   .run-actions button { flex: 1 0 auto; padding-inline: var(--space-1); white-space: nowrap; }
-  .run-actions button.danger { flex: none; min-width: var(--target); }
 }
 /* the pinned commands (ui/QuickAccess.tsx): one row, labelled buttons; those that do not fit are invisible
    (still measured) and listed in More */
-.quick-access { position: relative; display: flex; align-items: center; gap: var(--space-1); margin-top: var(--space-2); }
+.quick-access { flex: 1 1 100%; position: relative; display: flex; align-items: center; gap: var(--space-1); }
 .quick-pinned { position: relative; flex: 1; min-width: 0; display: flex; gap: 4px; overflow: hidden; }
 .quick-button { flex: none; font-size: var(--text-sm); padding-inline: var(--space-2); white-space: nowrap; }
 .quick-button.quick-over { position: absolute; visibility: hidden; pointer-events: none; }
@@ -22,15 +22,15 @@
 .quick-menu { position: fixed; display: grid; min-width: 10rem; padding: var(--space-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .quick-menu button { text-align: left; border: none; background: none; }
 .quick-menu button[aria-disabled="true"] { opacity: 0.5; }
-.run-time-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-xs); }
+.run-time-controls { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); align-items: center; font-size: var(--text-xs); }
 .run-time-controls input { width: 5rem; min-width: 0; min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
 .run-time-controls select { width: 7rem; min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
+.run-toolbar > .steady-settings { flex: 1 1 auto; min-width: 0; margin-top: 0; }
+.run-toolbar > .steady-settings[open] { flex-basis: 100%; }
 .steady-settings summary { cursor: pointer; }
 .steady-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-2); margin-top: var(--space-2); }
 .steady-fields label { display: grid; gap: var(--space-1); min-width: 0; }
 .steady-fields input { min-width: 0; width: 100%; min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
-.run-context { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
-.run-context strong { color: var(--fg); }
 
 /* ---- plot windows (tabs), plot ---- */
 .plots { flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; min-height: 0; }
@@ -48,6 +48,8 @@
 .plot-tab-num { font-weight: 600; }
 .plot-tab-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .plot-window-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-left: auto; }
+/* the window row, in the plot's header */
+.plot-bar .plot-windows { margin-left: auto; }
 /* Keep the graph reachable in short, narrow workspaces. Less frequent window
    settings expand on request instead of wrapping several rows above it. */
 .plot-window-options > summary { min-height: var(--target); padding: var(--space-1) var(--space-2); cursor: pointer; }
@@ -75,7 +77,7 @@
   padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--border);
 }
-.legend { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; max-height: 4.5rem; overflow-y: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1 1 20rem; min-width: 0; max-height: 4.5rem; overflow-y: auto; }
 .legend-item { border: none; background: none; padding: 0 var(--space-2); }
 .legend-item[aria-pressed='false'] { opacity: 0.45; text-decoration: line-through; }
 .swatch { width: 0.9rem; height: 0.2rem; border-radius: 0.125rem; }
@@ -166,14 +168,16 @@
 .pick-overlay line { stroke: var(--fg-muted); stroke-width: 1; stroke-dasharray: 4 3; }
 .pick-overlay .pick-shape { stroke: var(--accent); stroke-width: 2; stroke-dasharray: none; fill: color-mix(in srgb, var(--accent) 15%, transparent); }
 .pick-overlay .pick-corner { fill: var(--accent); }
-/* a narrow plot (container query): the tools wrap under the legend */
-@container (max-width: 34rem) {
-  .plot-tools { width: 100%; }
-  .plot-tools button { flex: 1; }
-}
 
 .trace-tooltip { position: absolute; top: 10px; left: 80px; z-index: var(--z-plot-tip); pointer-events: none; padding: .3rem .6rem; border: 1px solid var(--border); border-radius: .4rem; background: var(--surface); color: var(--fg); }
 .legend-item.highlighted { outline: 2px solid var(--accent); }
 
 .plot-tools label { display: inline-flex; align-items: center; gap: .3rem; }
 
+
+/* the plot's ⋯: Reset view, Use this view, CSV and Sets in a pop-up (ui/PlotView.tsx) */
+.plot-more { position: relative; }
+.plot-more > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-width: var(--target); min-height: var(--target); border: 1px solid var(--border); border-radius: 0.375rem; background: var(--surface); }
+.plot-more-menu { position: absolute; z-index: var(--z-inline-menu); right: 0; min-width: 12rem; display: grid; gap: var(--space-1); padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.plot-more:not([open]) > .plot-more-menu { display: none; }
+.plot-more-menu button { justify-content: flex-start; }

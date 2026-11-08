@@ -6,6 +6,7 @@
    so `state.view.theta/phi` agrees once it stops. Siblings PlotView.tsx
    (2D); ui/Plots.tsx renders this one instead when a window's `plots`
    says `three`. No zoom, pan or pick modes here: those are a 2D plot's. */
+import type {ComponentChildren} from 'preact';
 import {cssVar} from '../plot/css';
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart3D} from '../plot/chart3d';
@@ -28,6 +29,8 @@ interface Props {
   shown: boolean;
   /** shown as a tab panel (more than one window) */
   tabbed: boolean;
+  /** the window row (ui/Plots.tsx), drawn in the header of the shown window */
+  windowRow: ComponentChildren;
 }
 
 interface Drag {
@@ -42,7 +45,7 @@ function fmt(v: number | undefined): string {
   return v === undefined ? '' : String(Math.round(v));
 }
 
-export function Plot3DView({win, dark, shown, tabbed}: Props) {
+export function Plot3DView({win, dark, shown, tabbed, windowRow}: Props) {
   const session = useSession();
   const pw = useStore(s => windowOf(s.plots, win));
   const info = pw?.info ?? null;
@@ -161,6 +164,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
           <input type="checkbox" checked={info?.freeze !== 0} data-freeze-runs
             onChange={e => session.send({cmd:'window.set_display',window:win,keep_replaced_run:e.currentTarget.checked})} /> Freeze</label>{['X', 'Y', 'Z'].map(axis => <button data-plot-axis={axis.toLowerCase()} disabled={!mayMain('plot.set_2d')}
           onClick={() => session.editPlotAxes(win, true)} title="Edit axis variables and limits">{axis} axis</button>)}<SetsRow scope="plot" window={win} /></div>
+        {windowRow}
       </header>
       <div
         class="plot-host"

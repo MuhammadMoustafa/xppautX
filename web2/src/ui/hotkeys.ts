@@ -16,8 +16,9 @@ import {BUSY_TITLE} from './context';
 /** the work areas F6 cycles, in reading order: the command search, the plot, then the panels. A pane
     that is hidden, or in a drawer that is closed, is skipped (focusPane) */
 const PANE_SELECTORS = [ '.plot-host', '#values-panel', '#table-panel', '#text-panel'];
-/** the workspace Tools menu (TitleBar.tsx) */
-export const TOOLS_MENU = '.workspace-tools';
+/** the pop-ups Escape closes after the menu bar's: the workspace Tools menu (TitleBar.tsx), the plot's ⋯ (PlotView.tsx)
+    and the status bar's Messages (Messages.tsx) */
+const TOOLS_MENU = ':is(.workspace-tools, .plot-more, .status-bar .messages)';
 
 /** Pane navigation is presentation, rather than a command binding. */
 export const FIXED_KEYS: readonly {key: string; does: string}[] = [
@@ -129,7 +130,7 @@ export function openPanel(close: () => void): () => void {
 const PICK_ASKS = new Set(['mouse', 'rubber', 'drag', 'grab']);
 
 /** Escape, the one owner of the key (W633). A press does one thing, the innermost first: an open menu (the
-    menu bar, then the Tools menu), the command drawer, a pick or a grab, a question the page asks (answered as
+    menu bar, then the Tools, ⋯ and Messages pop-ups), the command drawer, a pick or a grab, a question the page asks (answered as
     cancelled; a dialog keeps its own Escape and never reaches here), the topmost open panel, and last the stop of a
     running command. A panel's field that holds an edit to drop keeps its Escape (data-own-escape). True when taken. */
 function escape(session: Session, target: Element | null): boolean {

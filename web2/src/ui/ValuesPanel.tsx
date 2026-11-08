@@ -1,9 +1,8 @@
 /* The values panel (docs/ui-v2.md T3, GitHub #18, #155): parameters, the
    state (each variable's initial condition beside where the last run is
    now), boundary conditions, delay initial data, the numerics (W106), and
-   the model's user buttons. A right column from 80rem, a section under
-   the plot from 48rem, a full-screen sheet with a Back button below that
-   (R6). The sliders are under the plot (SliderStrip.tsx).
+   the model's user buttons. A right column from 48rem, a full-screen sheet
+   with a Back button below that (R6). The sliders are in Parameters (SliderStrip.tsx).
 
    Every field is a setting (W106): an edit goes to the core at once as a
    `set`, during a computation too, when the core applies it as that
@@ -29,6 +28,7 @@ import {NUM_METHOD, numericsField} from '../store/steady';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {CommandLabel, useCommandLabel} from './CommandButton';
 import {SetsRow} from './SetsRow';
+import {SliderStrip} from './SliderStrip';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
@@ -158,7 +158,8 @@ function FileTools({kind}: {kind: 'par' | 'ic'}) {
 
 function Parameters() {
   const pars = useStore(s => s.core?.pars);
-  if (!pars?.length) return null;
+  /* the sliders live with the parameters, Add slider among them (W639); a model without parameters keeps them alone */
+  if (!pars?.length) return <SliderStrip />;
   return (
     <Section id="par" title="Parameters" hint="Edit for the next run; Enter or leave a field to apply." tools={(
       <>
@@ -172,6 +173,7 @@ function Parameters() {
             {...fieldProps(value)} />
         ))}
       </div>
+      <SliderStrip />
     </Section>
   );
 }
@@ -196,8 +198,8 @@ function StateSection() {
         <SetsRow scope="initial" />
       </>
     )}>
-      <div class="value-cols" aria-hidden="true"><span /><span>Initial</span><span>Current</span><span>Tail rate</span></div>
       <div class="value-list value-state">
+        <div class="value-cols" aria-hidden="true"><span /><span>Initial</span><span>Current</span><span>Tail rate</span><span /></div>
         {ics.map(([name, value], i) => {
           const rate = rates?.[i] ?? null;
           return (

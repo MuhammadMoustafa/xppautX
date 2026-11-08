@@ -2,7 +2,7 @@
    file and Restore defaults, each acting on that section's scope only. The page decides nothing: every button sends or
    opens the core's `set.*` command with the section's scope (and, for a graph's, its window) settled, so the window,
    `--server` and a recording do the same thing; File > Sets asks for the scope and the graph itself. */
-import {useEffect, useRef} from 'preact/hooks';
+import {useEffect, useRef, useState} from 'preact/hooks';
 import type {ComponentChildren} from 'preact';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {CommandLabel} from './CommandButton';
@@ -14,15 +14,35 @@ const WHAT: Record<string, string> = {
   plot: 'plot settings', sweep: 'range settings', analysis: 'histogram settings',
 };
 
-/** a drop-down (a details element) that closes when a click lands outside it */
-function useDropDown() {
-  const box = useRef<HTMLDetailsElement>(null);
+/** calls `close` when a click lands outside `box` */
+function useOutsideClose(box: {current: HTMLElement | null}, close: () => void) {
   useEffect(() => {
-    const outside = (e: PointerEvent) => {if (box.current && !box.current.contains(e.target as Node)) box.current.open = false;};
+    const outside = (e: PointerEvent) => {if (box.current && !box.current.contains(e.target as Node)) close();};
     document.addEventListener('pointerdown', outside);
     return () => document.removeEventListener('pointerdown', outside);
   }, []);
+}
+
+/** a drop-down (a details element) that closes when a click lands outside it */
+export function useDropDown() {
+  const box = useRef<HTMLDetailsElement>(null);
+  useOutsideClose(box, () => {if (box.current) box.current.open = false;});
   return box;
+}
+
+/** the buttons a narrow Values panel has no room for (Load from file, Restore defaults): beside the others, or behind a ⋯
+    pop-up when the panel is narrow (css/values.css, the `values` container) */
+function SetsMore({children}: {children: ComponentChildren}) {
+  const box = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  useOutsideClose(box, () => setOpen(false));
+  return (
+    <div class={'sets-more' + (open ? ' open' : '')} ref={box}>
+      <button class="small sets-more-toggle" aria-expanded={open} aria-label="More: load from a file, restore defaults"
+        title="Load from file…, Restore defaults" onClick={() => setOpen(!open)}>⋯</button>
+      <div class="sets-more-body" onClick={() => setOpen(false)}>{children}</div>
+    </div>
+  );
 }
 
 /** a drop-down of buttons: it closes when one is picked or a click lands outside it */
@@ -90,10 +110,12 @@ export function SetsRow({scope, window}: {scope: string; window?: string}) {
         {item('set.save_defaults', null, () => ask('set.save_defaults'), `Write the current ${what} as the model's own`)}
         {item('set.export', null, () => ask('set.export'), `Write the current ${what} as a set of another .odex file`)}
       </Menu>
-      <LoadFromFile scope={scope} what={what} />
-      <button class="small" data-command="set.restore_defaults" disabled={off('set.restore_defaults')}
-        title={off('set.restore_defaults') ? BUSY_TITLE : `Put the model's own ${what} back`}
-        onClick={() => session.restoreDefaults(scope, window)}><CommandLabel command="set.restore_defaults" /></button>
+      <SetsMore>
+        <LoadFromFile scope={scope} what={what} />
+        <button class="small" data-command="set.restore_defaults" disabled={off('set.restore_defaults')}
+          title={off('set.restore_defaults') ? BUSY_TITLE : `Put the model's own ${what} back`}
+          onClick={() => session.restoreDefaults(scope, window)}><CommandLabel command="set.restore_defaults" /></button>
+      </SetsMore>
     </div>
   );
   return folded ? <details class="sets-menu sets-fold" ref={fold}><summary class="small">Sets ▾</summary>{row}</details> : row;

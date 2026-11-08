@@ -131,8 +131,10 @@ export interface AppState {
   theme: Theme;
   /** the side panels' collapsed state and sizes (W226), kept per viewer */
   panels: Panels;
-  /** the command menu, a drawer on narrow screens */
+  /** the command palette (Search commands) */
   drawerOpen: boolean;
+  /** the menu bar's drawer on a phone (below 48rem; the bar is always shown above that) */
+  menuOpen: boolean;
   /** a command's form: the values it starts with, and the arguments the place it was opened from settles (a section's scope), which it leaves out */
   commandForm: {id: string; values: Record<string, unknown>; fixed?: string[]} | null;
   /** the parts of a file of values that hold a section's kind, as `set.file_contents` listed them, offered to pick
@@ -201,6 +203,7 @@ export type Action =
   | {type: 'valuesFile'; offer: ValuesFileOffer | null}
   | {type: 'annotations'; open: boolean; selected?: number | null}
   | {type: 'drawer'; open: boolean}
+  | {type: 'menu'; open: boolean}
   | {type: 'continueInput'; input: ContinueInput}
   | {type: 'steadyEdit'; edit: Partial<SteadyInput>}
   /** the keymap editor (W212) */
@@ -251,7 +254,7 @@ export const initialState: AppState = {
   nextToast: 1,
   theme: 'system',
   panels: defaultPanels,
-  drawerOpen: false, commandForm: null, valuesFile: null, annotationsOpen: false, selectedAnnotation: null,
+  drawerOpen: false, menuOpen: false, commandForm: null, valuesFile: null, annotationsOpen: false, selectedAnnotation: null,
   continueInput: CONTINUE_INPUT_DEFAULT,
   steadyEdit: {},
   controlDone: 0,
@@ -669,6 +672,8 @@ export function reduce(state: AppState, action: Action): AppState {
     case 'annotations': return {...state, annotationsOpen: action.open, selectedAnnotation: action.selected === undefined ? state.selectedAnnotation : action.selected};
     case 'drawer':
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};
+    case 'menu':
+      return action.open === state.menuOpen ? state : {...state, menuOpen: action.open};
     case 'theme':
       return {...state, theme: action.theme};
     case 'panels':

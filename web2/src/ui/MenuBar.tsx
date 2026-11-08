@@ -2,22 +2,42 @@ import {useEffect, useRef} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {commandRow, menuTree, registryRows, type MenuNode} from './navigation';
 import {effectiveKeys} from '../store/keymap';
-import {closeMenuBar} from './hotkeys';
+import {closeMenuBar, openPanel} from './hotkeys';
+import {useFocusBackOnClose} from './focusBack';
+
+/** the title bar's Menu button: on a phone (below 48rem) the menu bar is a drawer this opens (css/layout.css) */
+export function MenuButton() {
+  const session = useSession(), open = useStore(s => s.menuOpen);
+  return <button class="menu-toggle" aria-controls="app-menu" aria-expanded={open}
+    onClick={() => session.store.dispatch({type: 'menu', open: !open})}>Menu</button>;
+}
 
 export function MenuBar() {
   const session = useSession(), hello = useStore(s => s.hello), info = useStore(s => s.keymap.info);
+  const drawer = useStore(s => s.menuOpen);
   const may = useMay();
   const windows = useStore(s => s.windows);
   const bar = useRef<HTMLElement>(null);
-  const close = (focus = true) => {closeMenuBar(focus);};
+  const closeDrawer = () => session.store.dispatch({type: 'menu', open: false});
+  const close = (focus = true) => {closeMenuBar(focus); closeDrawer();};
+  useFocusBackOnClose(drawer, bar, '.menu-toggle');
+  useEffect(() => {
+    if (!drawer) return;
+    bar.current?.querySelector<HTMLElement>('summary, button')?.focus();
+    /* Escape closes the drawer through hotkeys.ts's one owner, after an open submenu */
+    return openPanel(closeDrawer);
+  }, [drawer]);
   useEffect(() => {
     const element = bar.current;
     if (!element) return;
-    const place = () => document.documentElement.style.setProperty('--menu-bottom', `${element.getBoundingClientRect().bottom}px`);
+    /* what panels sit below: the menu bar's bottom, or the title bar's when the bar is a drawer (fixed) */
+    const place = () => document.documentElement.style.setProperty('--menu-bottom',
+      `${(getComputedStyle(element).position === 'fixed' ? document.querySelector('.title-bar')! : element).getBoundingClientRect().bottom}px`);
     /* the bar's bottom moves with the title bar above it, as well as with its own height */
     const observer = new ResizeObserver(place);
     observer.observe(element);
-    if (element.previousElementSibling) observer.observe(element.previousElementSibling);
+    const titleBar = document.querySelector('.title-bar');
+    if (titleBar) observer.observe(titleBar);
     place();
     return () => {observer.disconnect(); document.documentElement.style.removeProperty('--menu-bottom');};
   }, []);
@@ -68,7 +88,8 @@ export function MenuBar() {
   const newWindows = windowNodes.filter(node => node.row?.id === 'window.create' || node.row?.id === 'autox.new_view')
     .sort((a,b) => Number(b.row?.id === 'window.create') - Number(a.row?.id === 'window.create'));
   const windowTools = windowNodes.filter(node => !newWindows.includes(node));
-  return <nav class="app-menu" aria-label="Menu bar" ref={bar} onKeyDown={e => {
+  return <><div class={'menu-scrim' + (drawer ? ' open' : '')} onClick={closeDrawer} aria-hidden="true" />
+  <nav class={'app-menu' + (drawer ? ' open' : '')} id="app-menu" aria-label="Menu bar" ref={bar} onKeyDown={e => {
     const active = document.activeElement as HTMLElement | null;
     const top = active?.closest<HTMLDetailsElement>('details[data-top-menu]');
     if (!top) return;
@@ -90,7 +111,9 @@ export function MenuBar() {
       const at = entries.indexOf(active as HTMLElement);
       entries[at < 0 ? (down ? 0 : entries.length - 1) : (at + (down ? 1 : -1) + entries.length) % entries.length]?.focus();
     }
-  }}>{order.map(name => <details key={name} data-top-menu={name} onPointerEnter={hover} onPointerLeave={unhover}><summary onClick={title}>{name}</summary><ul role="menu">
+  }}><button class="menu-search" onClick={() => {close(false); session.store.dispatch({type: 'drawer', open: true});}}
+    title="Search every command by name">Search commands</button>
+  {order.map(name => <details key={name} data-top-menu={name} onPointerEnter={hover} onPointerLeave={unhover}><summary onClick={title}>{name}</summary><ul role="menu">
     {(name === 'Windows' ? newWindows : tree.find(node => node.name === name)?.children ?? []).map(item)}
     {name === 'Windows' && ['Graphs', 'autoX views', 'Others'].map((group, i) => <li key={group}><strong>{group}</strong><ul>
       {windows.filter(w => i === 0 ? w.kind === 'graph' : i === 1 ? w.kind === 'diagram' : !['graph','diagram'].includes(w.kind)).map(w => <li key={w.name}>
@@ -104,5 +127,5 @@ export function MenuBar() {
       </li>)}
     </ul></li>)}
     {name === 'Windows' && windowTools.map(item)}
-  </ul></details>)}</nav>;
+  </ul></details>)}</nav></>;
 }

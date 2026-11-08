@@ -34,6 +34,12 @@
 .messages { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 .messages summary { padding: var(--space-1) var(--space-3); cursor: pointer; font-size: var(--text-xs); min-height: var(--target); display: flex; align-items: center; }
 .error-count { color: var(--danger); }
+/* in the status bar the list is a pop-up above the bar; its summary is a small button */
+.status-bar .messages { flex: none; position: static; border: none; background: none; }
+.status-bar .messages > summary { min-height: 1.5rem; padding: 0 var(--space-2); list-style: none; border: 1px solid var(--border); border-radius: 0.375rem; }
+.status-bar .messages-body { position: absolute; z-index: var(--z-menu); right: 0; bottom: 100%; width: min(44rem, 100vw); max-height: 60vh; overflow: auto; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.status-bar .messages:not([open]) > .messages-body { display: none; }
+.status-bar .messages-list { max-height: 40vh; }
 .messages-tools {
   display: flex;
   flex-wrap: wrap;

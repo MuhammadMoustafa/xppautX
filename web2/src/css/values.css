@@ -1,6 +1,6 @@
-/* ---- values panel (docs/ui-v2.md T3): a section under the plot by default, ---- */
-/* a right column from 80rem (below), a full-screen sheet under 48rem (below) */
+/* ---- values panel (docs/ui-v2.md T3): a right column from 48rem, a full-screen sheet under it (below) ---- */
 .values-panel {
+  container: values / inline-size; /* the panel's own width decides what folds (Tail rate, the sets row's extras) */
   grid-area: values;
   display: flex;
   flex-direction: column;
@@ -12,7 +12,10 @@
 }
 .values-back { display: none; }
 .values-body {
-  --value-columns: minmax(2rem, 1fr) minmax(0, 6.5rem) minmax(0, 8rem) minmax(0, 4.5rem) var(--target);
+  /* every number box has this width and the one font (--text-sm mono), in every group at every width; the name
+     column is as wide as the group's longest name, up to --value-name-max */
+  --value-box: 6.5rem;
+  --value-name-max: 8rem;
   overflow: auto;
   min-height: 0;
   padding: var(--space-3);
@@ -39,19 +42,19 @@
 .value-fold-mark { width: 1em; }
 .value-hint { margin: 0 0 var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
 .value-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2); }
-.value-cols { display: grid; grid-template-columns: var(--value-columns); gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); margin-bottom: var(--space-1); }
-.value-state .value-field { grid-template-columns: var(--value-columns); }
+.value-cols { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; font-size: var(--text-xs); color: var(--fg-muted); }
 .value-now, .value-rate { font: var(--text-xs) var(--mono); white-space: nowrap; }
 .state-rate-hint { font-size: var(--text-xs); color: var(--fg-muted); margin: var(--space-2) 0 0; }
 .value-group[data-section="ic"] > div > .value-hint { display: none; }
 .value-now.none { opacity: 0.6; }
-.value-list { display: flex; flex-direction: column; gap: var(--space-2); }
-.value-buttons { flex-direction: row; flex-wrap: wrap; }
+.value-list { display: grid; grid-template-columns: fit-content(var(--value-name-max)) var(--value-box) var(--target); justify-content: start; gap: var(--space-2); }
+.value-state { grid-template-columns: fit-content(var(--value-name-max)) var(--value-box) minmax(0, 8rem) minmax(0, 4.5rem) var(--target); }
+.value-buttons { display: flex; flex-wrap: wrap; }
 .value-field {
   display: grid;
-  grid-template-columns: minmax(5rem, 1fr) minmax(0, 8rem) var(--target);
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: center;
-  gap: var(--space-2);
 }
 .value-reset {
   min-width: var(--target);
@@ -71,11 +74,12 @@
 .value-field.changed .value-name::after { content: ' •'; color: var(--fg-muted); }
 .value-num.unused .value-name { color: var(--fg-muted); }
 .value-num select {
-  min-width: 0; width: 100%; min-height: var(--target); font: var(--text-sm) var(--mono); color: var(--fg);
+  grid-column: 2 / span 2; min-width: 0; width: 100%; min-height: var(--target); font: var(--text-sm) var(--mono); color: var(--fg);
   background: var(--bg); border: 1px solid var(--field-border); border-radius: 0.375rem;
 }
-.value-name { overflow-wrap: anywhere; font: var(--text-sm) var(--mono); }
+.value-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--text-sm) var(--mono); }
 .value-field input {
+  width: 100%;
   font: var(--text-sm) var(--mono);
   color: var(--fg);
   background: var(--bg);
@@ -93,8 +97,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: var(--space-2);
-  padding: var(--space-2) 0;
-  border-top: 1px solid var(--border);
+  padding: var(--space-2) 0 0;
 }
 /* Cards need room for the value box and two controls; follow the actual plot
    width rather than the viewport now that the values column is wider. */
@@ -118,7 +121,7 @@
   font: var(--text-sm) var(--mono);
 }
 .slider-card-value {
-  width: 6rem;
+  width: var(--value-box);
   flex: none;
   font: var(--text-sm) var(--mono);
   color: var(--fg);
@@ -133,16 +136,23 @@
 .slider-card-lim { flex: none; font-size: var(--text-xs); font-family: var(--mono); }
 .slider-card-range { flex: 1; min-width: 0; min-height: var(--target); }
 
-@media (min-width: 80rem) {
+@media (min-width: 48rem) {
   .values-panel { border-top: none; border-left: 1px solid var(--border); }
-  .value-group[data-section="par"] .value-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); }
-  .value-group[data-section="par"] .value-field { grid-template-columns: minmax(2.5rem, 1fr) minmax(0, 7.5rem) var(--target); gap: var(--space-1); }
-  .value-group[data-section="par"] input { font-size: var(--text-xs); padding-inline: var(--space-1); }
 }
+.sets-more, .sets-more-body { display: contents; }
+.sets-more-toggle { display: none; }
 
+/* a narrow column folds the Tail rate (its column, its hint) and the sets row's Load from file and Restore defaults (ui/SetsRow.tsx) */
+@container values (max-width: 24rem) {
+  .value-state { grid-template-columns: fit-content(var(--value-name-max)) var(--value-box) minmax(0, 8rem) var(--target); }
+  .value-cols > :nth-child(4), .value-rate, .state-rate-hint { display: none; }
+  .sets-more { position: relative; }
+  .sets-more-toggle { display: inline-flex; }
+  .sets-more-body { display: none; }
+  .sets-more.open > .sets-more-body { display: grid; position: absolute; z-index: var(--z-inline-menu); left: 0; width: max-content; gap: var(--space-1); padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+}
 @media (max-width: 47.99rem) {
-  .values-body { --value-columns: minmax(2rem, 1fr) minmax(0, 5.5rem) minmax(0, 8rem) var(--target); }
-  .value-cols, .value-state .value-field { gap: var(--space-1); }
+  .value-state { grid-template-columns: fit-content(var(--value-name-max)) var(--value-box) minmax(0, 8rem) var(--target); }
   .value-cols > span:nth-child(4) { display: none; }
   .value-state .value-rate { grid-column: 3; grid-row: 2; }
   .value-state .value-rate::before { content: 'rate '; }
@@ -157,7 +167,6 @@
     transition: transform 0.2s ease, visibility 0s 0.2s;
     box-shadow: var(--shadow);
   }
-  .values-panel.open { transform: none; visibility: visible; transition: transform 0.2s ease; }
   .values-back { display: inline-flex; }
 }
 

@@ -1,5 +1,5 @@
-/* The top bar: the menu drawer's button (narrow screens), model, theme,
-   workspace tools and panels. Common run actions belong to RunToolbar. */
+/* The top bar: the menu drawer's button (phones), model, theme, workspace tools and panels; on a phone
+   it is one row, Data, Model and Help moving into Tools. Common run actions belong to RunToolbar. */
 import type {Theme} from '../store/state';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {CommandLabel} from './CommandButton';
@@ -7,6 +7,7 @@ import {saveTheme} from './theme';
 import {baseName} from '../store/files';
 import {useEffect, useRef} from 'preact/hooks';
 import {closeTools} from './hotkeys';
+import {MenuButton} from './MenuBar';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
 /* the theme is an icon, not a word: "autoX" beside the feature buttons read as autoX (T21) */
@@ -58,7 +59,6 @@ export function TitleBar() {
   const file = useStore(s => s.hello?.file ?? '');
   const changed = useStore(s => !!s.core?.changed);
   const theme = useStore(s => s.theme);
-  const drawer = useStore(s => s.drawerOpen);
   const valuesOpen = useStore(s => s.valuesOpen);
   const tableOpen = useStore(s => s.table.open);
   const textOpen = useStore(s => s.text.open);
@@ -75,11 +75,21 @@ export function TitleBar() {
     saveTheme(t);
     session.store.dispatch({type: 'theme', theme: t});
   };
+  /* Data, Model and Help: buttons of the bar, and again as Tools' entries on a phone (css/layout.css .title-only, .phone-only) */
+  const panelButtons = (where: 'title-only' | 'phone-only') => [
+    <button key="table" class={`table-toggle ${where}`} aria-controls="table-panel" aria-expanded={tableOpen}
+      onClick={() => (tableOpen ? session.closeTable() : session.openTable())}><CommandLabel command="tool.browser" /></button>,
+    <button key="text" class={`text-toggle ${where}`} aria-controls="text-panel" aria-expanded={textOpen}
+      onClick={() => (textOpen ? session.closeText() : session.openText())}
+      title="Equations, source and the last equilibrium">Model</button>,
+    <button key="help" class={`help-toggle ${where}`} aria-controls="help-panel" aria-expanded={helpOpen}
+      onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}
+      title="The manual">Help</button>,
+  ];
   return (
     <header class="title-bar">
 
-      <button class="menu-toggle" aria-controls="command-palette" aria-expanded={drawer}
-        onClick={() => session.store.dispatch({type: 'drawer', open: !drawer})}>Search</button>
+      <MenuButton />
       <h1 title={file}>{baseName(file) || 'xppautX'}</h1>
       {changed && <span class="unsaved" role="img" aria-label="Unsaved changes" title="Changed since the session was loaded or saved (Ctrl+S saves)">&#9679;</span>}
       <span class="muted file">{title}</span>
@@ -98,6 +108,7 @@ export function TitleBar() {
         <button class="record-toggle" aria-disabled={!mayRecord} onClick={() => { if (mayRecord) session.startRecording(); }}
           title={mayRecord ? 'Record the steps you take to a .recx file ' : BUSY_TITLE}><CommandLabel command="recording.start" /></button>
       )}
+      {panelButtons('phone-only')}
       </div></details>
       <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
         aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
@@ -106,14 +117,7 @@ export function TitleBar() {
       <PanelToggle collapsed={panels.valuesCollapsed} />
       <button class="values-toggle" aria-controls="values-panel" aria-expanded={valuesOpen}
         onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}><CommandLabel command="tool.values" /></button>
-      <button class="table-toggle" aria-controls="table-panel" aria-expanded={tableOpen}
-        onClick={() => (tableOpen ? session.closeTable() : session.openTable())}><CommandLabel command="tool.browser" /></button>
-      <button class="text-toggle" aria-controls="text-panel" aria-expanded={textOpen}
-        onClick={() => (textOpen ? session.closeText() : session.openText())}
-        title="Equations, source and the last equilibrium">Model</button>
-      <button class="help-toggle" aria-controls="help-panel" aria-expanded={helpOpen}
-        onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}
-        title="The manual">Help</button>
+      {panelButtons('title-only')}
     </header>
   );
 }
