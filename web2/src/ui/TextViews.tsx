@@ -1,7 +1,7 @@
-/* Text views (docs/ui-v2.md T16): the model's equations, its source with
+/* The Model panel (docs/ui-v2.md T16): the model's equations, its source with
    comment actions, and the last Sing pts equilibrium, in one panel with a
    tab strip (R6: a side panel from 48rem, a full-screen sheet with a Back
-   button under that, like ui/TableView.tsx). Opened by the title bar's Text
+   button under that, like ui/TableView.tsx). Opened by the title bar's Model
    button or a tab's own toggle; each tab asks the core to (re)send its data
    when picked (session.ts's openText/selectTextTab), since the model, the
    source or the initial conditions may have changed since it was last
@@ -156,10 +156,10 @@ export function TextViews() {
   }, [open]);
 
   return (
-    <section id="text-panel" ref={panel} class={'text-panel panel-sheet' + (open ? ' open' : '')} aria-label="Text views">
+    <section id="text-panel" ref={panel} class={'text-panel panel-sheet' + (open ? ' open' : '')} aria-label="Model">
       <div class="panel-header">
         <button class="text-back" onClick={close}>Back</button>
-        <h2>Text</h2>
+        <h2>Model</h2>
       </div>
       <div class="text-tabs" role="group" aria-label="Which text view to show">
         {TABS.map(t => (

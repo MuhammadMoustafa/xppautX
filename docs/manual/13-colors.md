@@ -1,6 +1,6 @@
-# Colors
+# Colours
 
-The colors used in individual curves take on numbers from 0 to 10. Here is the meaning of the numbers:
+The colours used in individual curves take on numbers from 0 to 10. Here is the meaning of the numbers:
 
 **0-Black/White; 1-Red; 2-Red Orange; 3-Orange; 4-Yellow Orange; 5-Yellow; 6-Yellow Green; 7-Green; 8-Blue Green; 9-Blue; 10-Purple.**
 

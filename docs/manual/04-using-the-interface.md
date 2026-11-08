@@ -90,7 +90,7 @@ Correct the line and start XPP again.
 
 **Making room for the plot.** The plot comes first on every screen. Above it are the run controls (one or two
 rows; the status bar says Ready, Running and has the one Stop) and, in the plot's own header, its legend, **Freeze**,
-**Fit**, a **⋯** (Reset view, Use this view, CSV and Sets) and the window row: the graph's name, New window, Window
+**Fit**, a **⋯** (Reset view, use this view, CSV and sets) and the window row: the graph's name, New window, Window
 options and Capture. From 48 rem (768 px) the Values panel is a right column beside the plot; it can be hidden
 with the title bar's button and resized at its edge, including with the keyboard, and its size and visibility are
 remembered by this browser. Below 48 rem (a phone) the title bar is one row: the menu bar is a **drawer**
@@ -101,7 +101,7 @@ Data, Model and Help are in Tools, and Values is a sheet opened by its button.
 below 0.0001 and from 1000000 (`1.23457e+8`); a name that does not fit its place is cut with an ellipsis and never wraps. Text that
 was cut says so: a muted **…** (in a number, before the exponent) and a dotted underline. Point at it, or move the focus to it, and a
 one-line tip shows the whole value or name beside a clipboard icon; a click or tap (or Enter) copies it,
-and the number turns green and the icon a green tick. This is one display for the Values panel, the Data table, a plot's
+and the number turns green and the icon a green tick. This is one display for the Values panel, the Table, a plot's
 hover readout, autoX's info strip and readout, the array plot, the equilibrium tables, the sliders, and for names in Values,
 legends and window names (a legend entry or a window tab keeps its click for its own job, so it has the tip only).
 An axis title too long for its side of the plot is cut the same way on the plot, and its whole text is in the tip when you point at it or focus it; a click still opens the axis dialog.
@@ -204,7 +204,7 @@ beside the plot (a sheet on a phone):
   are settings like the others: editable during a run, for the next one.
   A value the program does not take is refused on the field with its
   reason (`Dt must be a number other than 0`).
-- **Data** opens the Data tab ([The Data Browser](07-data-browser.md)),
+- **Table** opens the Table ([The Data Browser](07-data-browser.md)),
   **Equations** lists the equations (the X11 equation-listing window).
 
 Slider definitions (name, Min, Max and Step) are part of the session and

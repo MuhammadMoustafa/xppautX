@@ -27,12 +27,12 @@ dialogs straight to the sections below.
 4. [Using the interface](04-using-the-interface.md) — **web2**: starting xppautX, the page layout, the values panel, plots, dialogs, files, the log
 5. [The main commands](05-commands.md) — every main-menu command and its sub-choices
 6. [Numerical parameters](06-numerical-parameters.md) — the Numerics menu: integration methods, tolerances, Poincaré maps, curve fitting, averaging
-7. [The Data Browser](07-data-browser.md) — the Data tab: Find, Get, Replace, Table, Write, Load, Addcol, Delcol
+7. [The Data Browser](07-data-browser.md) — the Table: Find, Get, Replace, Table, Write, Load, Addcol, Delcol
 8. [Functional equations](08-functional-equations.md) — Volterra/integral equations, convolutions, networks (`special`)
 9. [autoX interface](09-autox.md) — the autoX view, parameters, diagram axes, numerics, running, grabbing, homoclinics
 10. [Creating Animations](10-animations.md) — the DASL scripting language and the Animation tab
 12. [Some comments on the numerical methods](12-numerical-methods-notes.md)
-13. [Colors](13-colors.md) — the curve colour indices and their web2 palette
+13. [Colours](13-colors.md) — the curve colour indices and their web2 palette
 14. [The options file](14-options-file.md) — dropped; use `@` lines
 16. [Quick reference](16-quick-reference.md) — ODE file format cheat sheet, built-in functions, the full options list, command line arguments
 
@@ -47,7 +47,7 @@ link from a menu item or dialog to its section here.
 | Plot tabs, zoom/pan/reset/Fit, "Use this view", legend, 3D rotation | [Using the interface: plots and axes](04-using-the-interface.md#plots-and-axes) |
 | Values panel: initial conditions, parameters, checkboxes, sliders, user buttons, boundary conditions, delay data | [Using the interface: the values panel](04-using-the-interface.md#the-values-panel) |
 | Slider Add/Edit dialog | [Using the interface: the values panel](04-using-the-interface.md#the-values-panel) |
-| Data tab | [The Data Browser](07-data-browser.md) (commands below) |
+| Table | [The Data Browser](07-data-browser.md) (commands below) |
 | autoX view (status strip, Output, axis dialog, Save/Load session, Grab, Clear) | [autoX interface: the autoX view](09-autox.md#the-autox-view) |
 | Animation tab | [Creating Animations: the animation view](10-animations.md#the-animation-view) |
 | File dialogs (Open/Save, Add file…) | [Using the interface: saving pictures and files](04-using-the-interface.md#saving-pictures-and-files) |
@@ -76,5 +76,5 @@ link from a menu item or dialog to its section here.
 | Numerics — Total/Start/Transient/Dt/Bounds/Method/Delay/... | [Numerical parameters](06-numerical-parameters.md) (one section per item, e.g. [(T)otal](06-numerical-parameters.md#total), [(M)ethod](06-numerical-parameters.md#method)) |
 | Numerics — Poincaré map | [Numerical parameters: (P)oincare map](06-numerical-parameters.md#poincare-map) |
 | Numerics — Averaging | [Numerical parameters: (A)veraging](06-numerical-parameters.md#averaging) |
-| Data tab — Find/Get/Replace/Unreplace/First/Last/Table/Restore/Write/Load/Addcol/Delcol | [The Data Browser](07-data-browser.md) (one section per button) |
+| Table — Find/Get/Replace/Unreplace/First/Last/Table/Restore/Write/Load/Addcol/Delcol | [The Data Browser](07-data-browser.md) (one section per button) |
 | autoX — Parameter, Axes, Numerics, User, Run, Grab, Abort, File | [autoX interface](09-autox.md): [Choosing parameters](09-autox.md#choosing-parameters), [Diagram axes](09-autox.md#diagram-axes), [Numerical parameters](09-autox.md#numerical-parameters), [User functions](09-autox.md#user-functions), [Running](09-autox.md#running), [Grabbing](09-autox.md#grabbing), [Aborting](09-autox.md#aborting), [Saving diagrams](09-autox.md#saving-diagrams) |

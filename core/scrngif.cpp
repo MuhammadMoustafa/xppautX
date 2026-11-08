@@ -68,7 +68,7 @@ int ppmtopix(ColourMap &m, unsigned char r,unsigned char g, unsigned char b,int 
     if(r==gifcol[i].r&&g==gifcol[i].g&&b==gifcol[i].b)
       return i;
   if(nc>255){
-    xpp::log(XPP_LOG_WARN, "Too many colors \n");
+    xpp::log(XPP_LOG_WARN, "Too many colours \n");
     return -1;
   }
   gifcol[nc].r=r;
@@ -94,7 +94,7 @@ int make_local_map(ColourMap &m, unsigned char *pixels,const unsigned char *ppm,
       l++;
     }
   }
-  xpp::log(XPP_LOG_INFO, "Got {} colors\n",ncol);
+  xpp::log(XPP_LOG_INFO, "Got {} colours\n",ncol);
   for(int i=ncol;i<256;i++){
     gifcol[i].r=255;
     gifcol[i].g=255;

@@ -1,5 +1,6 @@
 import {useEffect, useRef} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {CommandLabel} from './CommandButton';
 import {commandRow, menuTree, registryRows, type MenuNode} from './navigation';
 import {effectiveKeys} from '../store/keymap';
 import {closeMenuBar, openPanel} from './hotkeys';
@@ -112,7 +113,7 @@ export function MenuBar() {
       entries[at < 0 ? (down ? 0 : entries.length - 1) : (at + (down ? 1 : -1) + entries.length) % entries.length]?.focus();
     }
   }}><button class="menu-search" onClick={() => {close(false); session.store.dispatch({type: 'drawer', open: true});}}
-    title="Search every command by name">Search commands</button>
+    title="Search every command by name"><CommandLabel command="tool.command_palette" /></button>
   {order.map(name => <details key={name} data-top-menu={name} onPointerEnter={hover} onPointerLeave={unhover}><summary onClick={title}>{name}</summary><ul role="menu">
     {(name === 'Windows' ? newWindows : tree.find(node => node.name === name)?.children ?? []).map(item)}
     {name === 'Windows' && ['Graphs', 'autoX views', 'Others'].map((group, i) => <li key={group}><strong>{group}</strong><ul>

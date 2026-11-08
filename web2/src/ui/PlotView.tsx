@@ -36,7 +36,7 @@ function PlotMore({children}: {children: ComponentChildren}) {
   const box = useDropDown();
   return (
     <details class="plot-more" ref={box}>
-      <summary aria-label="More plot tools" title="Reset view, Use this view, CSV and Sets">⋯</summary>
+      <summary aria-label="More plot tools" title="Reset view, use this view, CSV and sets">⋯</summary>
       <div class="plot-more-menu" onClick={e => { if ((e.target as Element).closest('button') && box.current) box.current.open = false; }}>{children}</div>
     </details>
   );

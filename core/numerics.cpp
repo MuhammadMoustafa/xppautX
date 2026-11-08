@@ -404,7 +404,7 @@ Result<> set_color_coding(xpp::Session &s, ColorBy by, int variable, std::option
   if(limits){
     const auto [low,high]=*limits;
     if(!(high>low&&(flag==2||low>=0.0)))
-      return fail("numerics",xpp::format("The color range from {} to {} is empty or, for velocity, starts below 0",xpp::number(low),xpp::number(high)),command_place());
+      return fail("numerics",xpp::format("The colour range from {} to {} is empty or, for velocity, starts below 0",xpp::number(low),xpp::number(high)),command_place());
     graph.ColorFlag=flag;
     if(flag==2)graph.ColorValue=variable;
     graph.min_scale=low;
@@ -447,11 +447,11 @@ void set_col_par_com(xpp::Session &s, int i)
   int variable=graph.ColorValue;
   if(by==ColorBy::variable){
     std::string name=ind_to_sym(s,variable);
-    new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
+    new_string_of("Colour via:",name,XPP_FIELD_NAME_IN(0));
     find_variable(s,name.c_str(),&variable);
   }
   std::optional<std::pair<double,double>> limits;
-  if(by!=ColorBy::none&&TwoChoice("(O)ptimize","(C)hoose","Color","oc")=='c'){
+  if(by!=ColorBy::none&&TwoChoice("(O)ptimize","(C)hoose","Colour","oc")=='c'){
     double low=graph.min_scale,high=graph.min_scale+graph.color_scale;
     new_float(s,"Min :",&low);
     new_float(s,"Max :",&high);

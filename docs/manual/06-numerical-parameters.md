@@ -100,7 +100,7 @@ This sets the upper bound for the maximum delay and three other parameters that 
 
 In xppautX these are also commands (W525): `analysis.color_coding` (a mode `none`, `velocity` or `variable`, a `variable`, and `low` and `high` for the range, else the range of the stored data); see [the protocol](../protocol.md). Each takes its answers as named arguments, a left-out one keeps the session's current setting, and the menu and its keys call the same code.
 
-If you have a color system, XPP can code the output according to the magnitude of the velocity or the magnitude of another variable. A choice pops up for these two options or for turning off the color. This overrides any color on any other curves in your picture. Once you choose to color code, you are asked to either choose max and min values or have XPP do it for you via optimize. The latter will compute the max and min and set the scales accordingly.
+If you have a colour system, XPP can code the output according to the magnitude of the velocity or the magnitude of another variable. A choice pops up for these two options or for turning off the colour. This overrides any colour on any other curves in your picture. Once you choose to colour code, you are asked to either choose max and min values or have XPP do it for you via optimize. The latter will compute the max and min and set the scales accordingly.
 
 ### (P)oincare map
 

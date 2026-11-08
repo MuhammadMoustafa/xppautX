@@ -22,7 +22,7 @@ import {HELP} from '../help/links';
 import type {BrowserOp} from '../session';
 import {rowAt} from '../store/table';
 import {BUSY_TITLE, useMay, useMayKey, useSession, useStore} from './context';
-import {CommandButton, useCommandLabel} from './CommandButton';
+import {CommandButton, CommandLabel, useCommandLabel} from './CommandButton';
 import {toolbarRow} from './navigation';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
@@ -159,7 +159,7 @@ export function TableView() {
     <section id="table-panel" ref={panel} class={'table-panel panel-sheet' + (open ? ' open' : '')} aria-label={useCommandLabel('tool.browser')}>
       <div class="panel-header">
         <button class="table-back" onClick={close}>Back</button>
-        <h2>Data</h2>
+        <h2><CommandLabel command="tool.browser" /></h2>
         <HelpButton target={HELP.dataTab} label="the Data tab" />
         <button class="small" onClick={() => session.writeDataFile('table', 'csv')}
           disabled={!page?.data.length || !may({cmd: 'browser.export'})}

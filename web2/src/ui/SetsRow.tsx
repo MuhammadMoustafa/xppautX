@@ -39,7 +39,7 @@ function SetsMore({children}: {children: ComponentChildren}) {
   return (
     <div class={'sets-more' + (open ? ' open' : '')} ref={box}>
       <button class="small sets-more-toggle" aria-expanded={open} aria-label="More: load from a file, restore defaults"
-        title="Load from file…, Restore defaults" onClick={() => setOpen(!open)}>⋯</button>
+        title="Load from file…, restore defaults" onClick={() => setOpen(!open)}>⋯</button>
       <div class="sets-more-body" onClick={() => setOpen(false)}>{children}</div>
     </div>
   );

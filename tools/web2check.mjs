@@ -690,8 +690,10 @@ async function sliderModelSwitch(dir) {
 async function dataTable(want, dir) {
   await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
   await rendered();
+  check('W642: the header button and the table panel are named Table',
+    await cdp.eval(`document.querySelector('.table-toggle').textContent.trim() === 'Table' && document.querySelector('#table-panel h2').textContent.trim() === 'Table'`));
   await cdp.eval(`document.querySelector('.table-toggle').click()`);
-  check('the Data button opens the table panel', await until('s.table.open', 'table open')
+  check('the Table button opens the table panel', await until('s.table.open', 'table open')
     && await cdp.eval(`getComputedStyle(document.querySelector('.table-panel')).visibility === 'visible'`));
   check('its first control has the focus', await until(`document.activeElement.closest('.table-panel')`, 'table focus'));
   check('the table asks for rows and gets T plus every column',
@@ -822,8 +824,10 @@ async function dataTable(want, dir) {
 async function textViews() {
   await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
   await rendered();
+  check('W642: the Model button and the panel are named Model',
+    await cdp.eval(`document.querySelector('.text-toggle').textContent.trim() === 'Model' && document.querySelector('#text-panel h2').textContent.trim() === 'Model'`));
   await cdp.eval(`document.querySelector('.text-toggle').click()`);
-  check('the Text button opens the panel on Equations', await until("s.text.open && s.text.tab === 'equations'", 'text open')
+  check('the Model button opens the panel on Equations', await until("s.text.open && s.text.tab === 'equations'", 'text open')
     && await cdp.eval(`getComputedStyle(document.querySelector('.text-panel')).visibility === 'visible'`));
   check('its first control has the focus', await until(`document.activeElement.closest('.text-panel')`, 'text focus'));
 
@@ -3060,6 +3064,8 @@ async function navigationCheck() {
     await key('Escape');
   }
   await clickRegistry('tool.command_palette');
+  check('W642: the menu bar entry, the dialog and its Help item say Search commands',
+    await cdp.eval(`document.querySelector('.menu-search').textContent.trim() === 'Search commands' && document.querySelector('.command-palette h2').textContent.trim() === 'Search commands' && document.querySelector('.command-palette [data-command="tool.command_palette"]').textContent.includes('Search commands')`));
   check('W517: palette contains every registry command', await until(`s.drawerOpen && document.querySelectorAll('.command-palette [data-command]').length === ${rows.length}`, 'palette'));
   await cdp.eval(`(() => {const q = document.querySelector('#command-search'); q.value = 'session save'; q.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await rendered();

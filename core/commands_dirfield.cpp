@@ -57,7 +57,7 @@ constexpr std::array ROWS={
     Command{"dirfield.compute",COMPUTE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Compute direction field", "Analysis/Direction field","Compute the phase plane's direction field.",VECTORS,EVENTS,true,compute},
     Command{"dirfield.flow",GRID_ARGS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Flow", "Analysis/Direction field","Integrate trajectories on the phase plane grid.",TRAJECTORIES,EVENTS,true,flow},
     Command{"dirfield.clear",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Clear direction field", "Analysis/Direction field","Clear the direction field.",CLEARED,EVENTS,true,clear},
-    Command{"dirfield.colorize",GRID_ARGS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Colorize", "Analysis/Direction field","Color the phase plane grid.",CELLS,EVENTS,true,colorize},
+    Command{"dirfield.colorize",GRID_ARGS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Colorize", "Analysis/Direction field","Colour the phase plane grid.",CELLS,EVENTS,true,colorize},
     Command{"dirfield.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"Export direction field", "Analysis/Direction field","Write direction field arrows.",EXPORTED,DONE,true,export_file,{}, {}, "write", "*.dat"}};
 }
 std::span<const Command> dirfield_commands(){return ROWS;}

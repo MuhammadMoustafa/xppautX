@@ -632,13 +632,13 @@ A `.odex` (what a `.ode` is converted to) spells these options in full words, th
 
 - BIG=`fontname` sets the font for all the menus and popups.
 
-- SMC={0,...,10} sets the stable manifold color
+- SMC={0,...,10} sets the stable manifold colour
 
-- UMC={0,...,10} sets the unstable manifold color
+- UMC={0,...,10} sets the unstable manifold colour
 
-- XNC={0,...,10} sets the X-nullcline color
+- XNC={0,...,10} sets the X-nullcline colour
 
-- YNC={0,...,10} sets the Y-nullcline color
+- YNC={0,...,10} sets the Y-nullcline colour
 
 - BUT=s1:s2 defines a user button. You can use this many times in the same ODE file. The first string is the name of the button.The second is the set of key stroke short cuts. For example: ` BUT=mouse:im` will put a button on the main window labeled `mouse` and when you press it, it will act as though you had clicked ` InitConds Mouse`.
 
@@ -656,7 +656,7 @@ The remaining options can be set from within the program. They are
 
 - NPLOT=`int` tells XPP how many plots will be in the opening screen. xppautX writes NPLOT, XP, YP, ZP and the numbered ones as the `curves` list of a `.odex` (`curves: [ { x: v, y: w }, { x: t, y: w } ]`); MULTIWIN, SIMPLOT and XLO2 to YHI8 (several opening graphs) are dropped with a warning, since a model opens one graph and the session opens more.
 
-- XP2=name,YP2=name,ZP2=name tells XPP the variables on the axes of the second curve; XP8 etc are for the 8th plot. Up to 8 total plots can be specified on opening. They will be given different colors.
+- XP2=name,YP2=name,ZP2=name tells XPP the variables on the axes of the second curve; XP8 etc are for the 8th plot. Up to 8 total plots can be specified on opening. They will be given different colours.
 
 - AXES=`{2,3}` determine whether a 2D or 3D plot will be displayed.
 

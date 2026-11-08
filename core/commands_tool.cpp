@@ -50,9 +50,9 @@ constexpr std::array MANUAL_KEYS = {"F1"};
 constexpr std::array ROWS = {
     Command{"tool.values", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Values", "Data",
             "Show the parameters and initial conditions.", {}, CALCULATOR_EVENTS, false, page_tool},
-    Command{"tool.browser", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Data table", "Data",
+    Command{"tool.browser", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Table", "Data",
             "Open the stored data browser.", {}, CALCULATOR_EVENTS, false, page_tool},
-    Command{"tool.command_palette", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Command palette", "Help",
+    Command{"tool.command_palette", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Search commands", "Help",
             "Search every registered command by name, menu path and description.", {}, CALCULATOR_EVENTS, false, page_tool, {}, PALETTE_KEYS},
     Command{"tool.keyboard_shortcuts", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Keyboard shortcuts", "Help",
             "Edit command keys and pins.", {}, CALCULATOR_EVENTS, false, page_tool},

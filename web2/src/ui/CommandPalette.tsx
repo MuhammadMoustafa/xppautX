@@ -30,7 +30,7 @@ function Palette() {
       }
     }}>
     <h2><CommandLabel command="tool.command_palette" /></h2>
-    <input id="command-search" type="search" data-autofocus value={query} aria-label="Search commands" onInput={e => setQuery(e.currentTarget.value)} />
+    <input id="command-search" type="search" data-autofocus value={query} aria-label={title} onInput={e => setQuery(e.currentTarget.value)} />
     <ul>{rows.map(row => <li key={row.id}>
       <button class="menu-item" data-command={row.id} disabled={!may({cmd: row.id})} title={row.description}
         onClick={() => {close(); session.registryAction(row.id);}}>{menuPlace(row)} <kbd>{effectiveKeys(info, row).join(' / ')}</kbd></button>

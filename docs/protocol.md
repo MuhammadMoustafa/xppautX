@@ -312,7 +312,7 @@ common overwrite question applies. They return a placed error if the output coul
 | `dirfield.compute` | `grid`: required integer [at least 2, at most 4096], `scaled`: optional boolean | `x` / analysis | Analysis/Direction field/Compute direction field | `grid`: `integer`, `vectors_drawn`: `integer` | `dirfield.field`, `nullcline.curves`, `session.state`, `done` | Compute the phase plane's direction field. |
 | `dirfield.flow` | `grid`: required integer [at least 2, at most 4096] | `x` / analysis | Analysis/Direction field/Flow | `grid`: `integer`, `trajectories_run`: `integer` | `dirfield.field`, `nullcline.curves`, `session.state`, `done` | Integrate trajectories on the phase plane grid. |
 | `dirfield.clear` | none | `v` / analysis | Analysis/Direction field/Clear direction field | `cleared`: `boolean` | `dirfield.field`, `nullcline.curves`, `session.state`, `done` | Clear the direction field. |
-| `dirfield.colorize` | `grid`: required integer [at least 2, at most 4096] | `x` / analysis | Analysis/Direction field/Colorize | `grid`: `integer`, `cells_colored`: `integer` | `dirfield.field`, `nullcline.curves`, `session.state`, `done` | Color the phase plane grid. |
+| `dirfield.colorize` | `grid`: required integer [at least 2, at most 4096] | `x` / analysis | Analysis/Direction field/Colorize | `grid`: `integer`, `cells_colored`: `integer` | `dirfield.field`, `nullcline.curves`, `session.state`, `done` | Colour the phase plane grid. |
 | `dirfield.export` | `file`: required file (max 1024 bytes), `confirm`: optional boolean | `d` / analysis | Analysis/Direction field/Export direction field | `file`: `file`, `written`: `boolean` | `done` | Write direction field arrows. |
 | `analysis.seed_random` | `seed`: required integer [at least 0, at most 2147483647] | `d` / analysis | Analysis/Numerics/Stochastic/New seed | `seed`: `integer` | `session.state`, `done` | Seed the random numbers of the next run. |
 | `analysis.stochastic_integrate` | `trials`: optional integer [at least 2, at most 2147483647] | `x` / analysis | Analysis/Numerics/Stochastic/Compute stochastic runs | `trials_completed`: `integer` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run the model as many times as trials (the Range settings' steps plus one), keeping the mean and variance of the runs. |
@@ -332,7 +332,7 @@ common overwrite question applies. They return a placed error if the output coul
 | `analysis.spectral_density` | `type`: optional choice (spectral_density, cross_spectral_density, coherence), `column`: optional name (max 1024 bytes) [of column], `column2`: optional name (max 1024 bytes) [of column], `window_length`: optional integer [at least 2, at most 2147483647], `window`: optional choice (square, parzen, hamming, bartlett, hann) | `x` / analysis | Analysis/Numerics/Stochastic/Spectral density | `points`: `integer` | `browser.updated`, `plot.shown`, `plot.series`, `session.state`, `done` | Make the power spectral density of a column, the cross spectrum of two or their coherence, averaged over windows of the stored data. |
 | `analysis.poincare_map` | `type`: required choice (none, section, max_min, period), `variable`: optional name (max 1024 bytes) [of column], `section`: optional real, `direction`: optional choice (negative, both, positive), `stop_on_section`: optional boolean | `s` / analysis | Analysis/Numerics/Poincare map | `poincare_configured`: `boolean` | `session.state`, `done` | Set the Poincare map the runs store: none, the crossings of a section, the maxima and minima of a variable, or its period. |
 | `analysis.phase_space_torus` | `mode`: required choice (all, none, choose), `variables`: optional list [of variable, of name, at most 256], `period`: optional real [at least 2.2250738585072014e-308] | `d` / plot | Analysis/Phase space/Phase space torus | `torus_variables`: `list[name]` | `session.state`, `done` | Fold all, none or chosen variables of the phase space into a torus of the given period. |
-| `analysis.color_coding` | `mode`: required choice (none, velocity, variable), `variable`: optional name (max 1024 bytes) [of column], `low`: optional real, `high`: optional real, `window`: optional window (max 1024 bytes); all or none of `low`, `high` | `v` / plot | Analysis/Numerics/Color by value | `color_coding`: `choice` | `plot.shown`, `session.state`, `done` | Color a graph's orbit by its velocity or by a column, between given limits or those of the stored data. |
+| `analysis.color_coding` | `mode`: required choice (none, velocity, variable), `variable`: optional name (max 1024 bytes) [of column], `low`: optional real, `high`: optional real, `window`: optional window (max 1024 bytes); all or none of `low`, `high` | `v` / plot | Analysis/Numerics/Colour by value | `color_coding`: `choice` | `plot.shown`, `session.state`, `done` | Colour a graph's orbit by its velocity or by a column, between given limits or those of the stored data. |
 | `analysis.adjoint_compute` | none | `x` / analysis | Analysis/Numerics/Adjoint/Compute adjoint | `computed`: `boolean` | `done` | Compute the adjoint of the stored periodic orbit. |
 | `analysis.adjoint_interaction` | `couplings`: optional map [of variable, of expression, at most 256] | `x` / analysis | Analysis/Numerics/Adjoint/Make H function | `computed`: `boolean` | `done` | Make the interaction (H) function of the adjoint for the coupling of each differential equation; one left out keeps its coupling. |
 | `analysis.adjoint_load` | none | `d` / analysis | Analysis/Numerics/Adjoint/Show adjoint | `loaded`: `boolean` | `browser.updated`, `session.state`, `done` | Show the adjoint in the data browser. |
@@ -429,8 +429,8 @@ common overwrite question applies. They return a placed error if the output coul
 | `events.subscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, dirfield.field, plot.marks, animation.frame, autox.info, autox.settings, run.numerics, window.list, recording.player) [of choice, at most 256], `encoding`: optional choice (json, f32), `diagram`: optional boolean | `v` / panels | Help/Events/Subscribe to events | `subscribed`: `list[text]` | `session.state`, `done` | Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays as base64 float32 (what is left out stays as it was); diagram says whether autoX's diagram points are sent. |
 | `events.unsubscribe` | `events`: required list (plot.series, plot.shown, nullcline.curves, dirfield.field, plot.marks, animation.frame, autox.info, autox.settings, run.numerics, window.list, recording.player) [of choice, at most 256] | `v` / panels | Help/Events/Unsubscribe from events | `unsubscribed`: `list[text]` | `session.state`, `done` | Stop sending the data events named. |
 | `tool.values` | none | `v` / tools | Data/Values |  | `done` | Show the parameters and initial conditions. |
-| `tool.browser` | none | `v` / tools | Data/Data table |  | `done` | Open the stored data browser. |
-| `tool.command_palette` | none | `v` / tools | Help/Command palette |  | `done` | Search every registered command by name, menu path and description. |
+| `tool.browser` | none | `v` / tools | Data/Table |  | `done` | Open the stored data browser. |
+| `tool.command_palette` | none | `v` / tools | Help/Search commands |  | `done` | Search every registered command by name, menu path and description. |
 | `tool.keyboard_shortcuts` | none | `v` / tools | Help/Keyboard shortcuts |  | `done` | Edit command keys and pins. |
 | `tool.manual` | none | `v` / tools | Help/Manual |  | `done` | Read the manual. |
 | `tool.calculator` | `expression`: required expression (max 16384 bytes) | `v` / tools | Analysis/Calculator | `expression`: `expression`, `value`: `real` | `done` | Work out a formula of the model's names and functions. |
@@ -654,7 +654,7 @@ JSON strings need no such rule: a string is always a string.
 
 `hello.commands` is the one list of commands: every registry row of the "Typed command registry" above
 (`arguments` is present even when empty) and the few protocol lines that are not registry commands
-(`answer`, `file`, `set`). The page's menu bar, command palette, argument forms, quick-access toolbar,
+(`answer`, `file`, `set`). The page's menu bar, Search commands, argument forms, quick-access toolbar,
 keymap editor and keyboard help are all made from these rows; nothing on the page lists a command by hand.
 A registry row has:
 
@@ -3070,7 +3070,7 @@ is refused before load, naming its label, file and line.
 
 ### Registry navigation (W517, #581)
 
-The page's menu tree, command palette, argument forms and shortcut labels read
+The page's menu tree, Search commands, argument forms and shortcut labels read
 `hello.commands` registry rows (`arguments` is present even when empty).
 `label` is the command's name and `menu_path` the slash-separated groups above it in the page menu; `default_keys` is the
 shortcut list (one key each). Keymap

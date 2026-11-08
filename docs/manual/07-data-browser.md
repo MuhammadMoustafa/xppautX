@@ -5,7 +5,7 @@ them to a file and otherwise manipulate them; it is a very primitive
 spread sheet. Once you have computed a trajectory, use the Data Browser to
 look at the data.
 
-**In web2** the DB is the **Data** tab (`ui/TableView.tsx`): a virtualized
+**In web2** the DB is the **Table** (`ui/TableView.tsx`): a virtualized
 table, so there is no window to iconify, resize or "shake" to make the
 data show up (all known bugs of the X11 DB window). Across the top is a
 menu of commands and then there follows a list of titles for the
