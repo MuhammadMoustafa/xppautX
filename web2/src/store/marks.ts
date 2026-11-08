@@ -43,9 +43,6 @@ export interface TextValues {
   color: CoreColor;
 }
 
-/** where a text is, in the plot's coordinates */
-export interface TextPosition {x: number; y: number}
-
 export interface ArrowMark {
   id?: number;
   /** a pointer has a shaft; an arrow is only its head */

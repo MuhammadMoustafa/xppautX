@@ -17,7 +17,6 @@ import type {Transport} from './protocol/transport';
 import {kindOf, mayStart, type LayerWindow} from './protocol/kinds';
 import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type UserKeymap, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
-import type {TextPosition, TextValues} from './store/marks';
 import {activeView, autoxWindow} from './store/diagram';
 import {
   answerName, keepBothName, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type RunRecord, type Upload,
@@ -543,17 +542,6 @@ export class Session {
   }
 
   /** window `win`'s zoom changed (a wheel, a drag, a typed range, Reset view) */
-  /** the text with this id changed in its dialog: everything it takes, and where it is */
-  changeText(id: number, v: TextValues, at: TextPosition): void {
-    this.send({cmd: 'annotation.edit', annotation_id: id, text: v.text, text_size: v.size, style: v.style, color: v.color});
-    this.send({cmd: 'annotation.move', annotation_id: id, new_x: at.x, new_y: at.y});
-  }
-
-  /** the annotation with this id deleted */
-  deleteText(id: number): void {
-    this.send({cmd: 'annotation.delete', annotation_id: id});
-  }
-
   setViewport(win: string, viewport: Viewport): void {
     this.store.dispatch({type: 'viewport', viewport, win});
     this.display(win, rangesOf(viewport));
