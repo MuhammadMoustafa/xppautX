@@ -1657,14 +1657,14 @@ def check_registry():
         result, _ = request({'cmd': 'plot.export_pdf', 'file': 'plot.pdf'})
         check('plot.export_pdf writes the picture into the model folder', result['file'] == 'plot.pdf' and result['bytes_written'] > 100 and
               open(os.path.join(folder, 'plot.pdf'), 'rb').read(4) == b'%PDF', str(result))
-        result, _ = request({'cmd': 'plot.export_data', 'file': 'plot.csv'})
-        check('plot.export_data writes what the plot shows in the format of the extension', result['file'] == 'plot.csv' and result['rows_written'] > 0 and
+        result, _ = request({'cmd': 'browser.export', 'target': 'plot_curves', 'file': 'plot.csv'})
+        check('browser.export of plot_curves writes what the plot shows in the format of the extension', result['file'] == 'plot.csv' and result['rows_written'] > 0 and
               'curve,x,y' in open(os.path.join(folder, 'plot.csv')).read().splitlines()[:2], str(result))
-        result, _ = request({'cmd': 'plot.export_data', 'file': 'plot.out', 'format': 'dat'})
-        check('plot.export_data takes the format by name', result['rows_written'] > 0, str(result))
+        result, _ = request({'cmd': 'browser.export', 'target': 'plot_curves', 'file': 'plot.out', 'format': 'dat'})
+        check('browser.export of plot_curves takes the format by name', result['rows_written'] > 0, str(result))
         for refused in [{'cmd': 'plot.export_svg'}, {'cmd': 'plot.export_svg', 'file': '../plot.svg'}, {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'axes_font_size': 0},
-                        {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'color': 'yes'}, {'cmd': 'plot.export_data', 'file': 'plotdata'},
-                        {'cmd': 'plot.export_data', 'file': 'plot.zip', 'format': 'zip'}]:
+                        {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'color': 'yes'},
+                        {'cmd': 'browser.export', 'target': 'plot_curves', 'file': 'plot.zip', 'format': 'zip'}]:
             request(refused, False)
         # the old forms are gone
         for obsolete in [{'cmd': 'plotvars', 'how': 0, 'names': ['v']}, {'cmd': 'colormap', 'name': 'jet'}]:

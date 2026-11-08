@@ -1,7 +1,7 @@
-/* The floating panels (docs/ui-v2.md R6): the data table, the array plot, the text views, the
+/* The floating panels (docs/ui-v2.md R6): the array plot, the text views, the
    animation and Help are each a sheet (.panel-sheet) over the page: full screen under 48rem, a
    side panel of the width the panel names (--panel-width) from there, so the plot stays
-   visible beside it. A sheet is shut (off to the right, hidden) until .open. The header of
+   visible beside it (the data table is not one from 48rem: it is the right column's dock, below). A sheet is shut (off to the right, hidden) until .open. The header of
    every panel, these and the values panel's and autoX's, is .panel-header. */
 .panel-sheet {
   position: fixed;
@@ -20,7 +20,7 @@
 @media (min-width: 48rem) {
   .panel-sheet { left: auto; width: min(var(--panel-width), 92vw); border-left: 1px solid var(--border); }
 }
-.table-panel, .aplot-panel { --panel-width: 56rem; }
+.aplot-panel { --panel-width: 56rem; }
 .text-panel { --panel-width: 48rem; }
 .ani-panel { --panel-width: 40rem; }
 .help-panel { --panel-width: 64rem; }
@@ -34,12 +34,51 @@
   min-width: 0;
 }
 .panel-header h2 { font-size: var(--text-md); flex: 1; min-width: 0; }
-.table-tools, .aplot-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
-.table-info, .aplot-info { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
+.table-tools, .aplot-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.aplot-info { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
 
-.table-grid-wrap { position: relative; overflow: auto; flex: 1; min-height: 0; }
+/* the data table (W648): from 48rem the right column's dock, in the Values panel's place (layout.css hides
+   that one while this is open); under it a full-screen sheet with a x on top, like the others. Its own width
+   picks the toolbar's form: Rows and Columns are groups of buttons where there is room, two menus where not */
+.table-panel { container: table / inline-size; }
+.table-close { grid-area: close; display: none; }
+.table-narrow { display: none; }
+.table-title { grid-area: title; display: flex; align-items: center; gap: var(--space-2); }
+.table-actions { grid-area: actions; justify-self: start; display: flex; align-items: center; gap: var(--space-1); }
+.table-back { grid-area: back; }
+/* the header (W648): the title and its ? left, Load data and Export data side by side after them, Back to Values at the far right;
+   where that does not fit, the two buttons go together to a second row under the title and Back stays at the right of the first */
+.table-panel .panel-header { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: 'title actions back'; align-items: center; }
+/* the columns keep their width (the first 6rem, the others 8rem): the grid scrolls sideways inside its own box, rows and header as wide as the columns */
+.table-group-label { font-size: var(--text-xs); color: var(--fg-muted); margin-right: var(--space-1); }
+.table-panel .panel-header .sets-menu > ul { right: 0; }
+.table-panel .sets-menu button { justify-content: flex-start; }
+.table-panel .sets-menu > summary { display: inline-flex; align-items: center; min-height: var(--target); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
+.table-info { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
+@container table (max-width: 34rem) {
+  .table-panel .panel-header { grid-template-areas: 'title . back' 'actions actions actions'; }
+}
+@container table (max-width: 40rem) {
+  .table-wide { display: none; }
+  .table-narrow { display: flex; }
+}
+@media (max-width: 47.99rem) {
+  .table-back { display: none; }
+  .table-close { display: inline-flex; }
+  .table-panel .panel-header { grid-template-columns: auto auto 1fr; grid-template-areas: 'close title .' 'actions actions actions'; }
+}
+@media (min-width: 48rem) {
+  .table-panel { position: static; grid-area: values; width: auto; min-width: 0; overflow: hidden; transform: none; box-shadow: none; transition: none; border-left: 1px solid var(--border); }
+  .table-panel:not(.open) { display: none; }
+}
+
+.table-grid-wrap { --fade-left: 0rem; --fade-right: 0rem; position: relative; overflow: auto; flex: 1; min-height: 0;
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), transparent 100%); }
+.table-grid-wrap[data-fade-left="true"] { --fade-left: 2rem; }
+.table-grid-wrap[data-fade-right="true"] { --fade-right: 2rem; }
 .table-row { display: flex; min-height: var(--target); }
 .table-row-head {
+  min-width: calc(6rem + (var(--table-cols) - 1) * 8rem);
   position: sticky;
   top: 0;
   z-index: var(--z-raised);
@@ -47,7 +86,7 @@
   border-bottom: 1px solid var(--border);
   font-weight: 650;
 }
-.table-body { position: relative; }
+.table-body { position: relative; min-width: calc(6rem + (var(--table-cols) - 1) * 8rem); }
 .table-body .table-row { position: absolute; left: 0; right: 0; border-bottom: 1px solid var(--grid); cursor: pointer; }
 .table-body .table-row.selected { background: var(--surface-2); outline: 2px solid var(--focus); outline-offset: -2px; }
 .table-cell {

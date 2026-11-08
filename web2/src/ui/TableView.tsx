@@ -2,38 +2,50 @@
    stored rows -- T and every variable and aux, full precision (A14) -- as
    a virtualized grid: only the rows the viewport can show are ever in the
    DOM, fetched from the core in pages as the user scrolls or moves the
-   selection (session.fetchTableRows, store/table.ts planRequest). It is
-   always a floating overlay (R6: a panel anchored to the side from 48rem,
-   a full-screen sheet under that), opened by the title bar's Table button
-   and closed by Back or Escape, focus moving in and back like the values
-   panel (ui/ValuesPanel.tsx).
+   selection (session.fetchTableRows, store/table.ts planRequest). From
+   48rem it is the right column's dock (W648): it takes the Values panel's
+   place under the header, the plot staying whole beside it, and Back to
+   Values returns it; under that it is a full-screen sheet with a x on top
+   (css/panels.css). Opened by the title bar's Table button and closed by
+   Back or Escape, focus moving in and back like the values panel
+   (ui/ValuesPanel.tsx).
 
    The buttons are the core's own (docs/protocol.md `browser` op), acting
-   on the selected row: Find and Replace prompt through the ordinary `ask`
-   (AskDialog already renders a form for them), Load and Write through the
-   file ask (a Cancel-only placeholder until T5). Export CSV is the client's
-   own: the rows fetched so far (docs/ui-v2.md T10, "CSV export done in the
-   client from fetched data"). */
+   on the selected row, grouped as Find, Rows, Columns (and More): where the
+   panel is narrow (a container query, css/panels.css) Rows and Columns are
+   two menus. Find and Replace prompt through the ordinary `ask`. Load data
+   and one Export data menu, one entry per format of browser.export's
+   `format` choice (the last used first, marked), are in the header; Export
+   sends browser.export through the session's one export path. */
 import {openPanel} from './hotkeys';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
-import {ShownNumber} from './CutText';
+import {ShownName} from './CutText';
 import {HELP} from '../help/links';
 import type {BrowserOp} from '../session';
+import {DropDownMenu} from './SetsRow';
+import {choiceLabel} from '../store/fieldKinds';
+import {readPref, writePref} from '../store/prefs';
 import {rowAt} from '../store/table';
 import {BUSY_TITLE, useMay, useMayKey, useSession, useStore} from './context';
-import {CommandButton, CommandLabel, useCommandLabel} from './CommandButton';
-import {toolbarRow} from './navigation';
+import {CommandLabel, useCommandLabel} from './CommandButton';
+import {commandRow, toolbarRow} from './navigation';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 
 
-/** the buttons' ops, in order; each button is the row navigation.ts toolbarCommand names (its label and description) */
-const BUTTONS: (BrowserOp | 'get')[] = ['find', 'get', 'replace', 'unreplace', 'table', 'load', 'write', 'first', 'last', 'restore', 'addcol', 'delcol'];
+/** the toolbar's groups: the ops of each, in order; each op is the row navigation.ts toolbarCommand names (its label and description) */
+const ROWS: BrowserOp[] = ['first', 'last', 'restore'];
+const COLUMNS: BrowserOp[] = ['addcol', 'replace', 'delcol'];
+const MORE_COLUMNS: BrowserOp[] = ['unreplace', 'table', 'transpose'];
 
-/** a stored value (docs/protocol.md `browser`): six digits and the full value in the tip (A14, ShownNumber) */
+/** the format last exported, remembered per viewer (it is listed first and marked) */
+const FORMAT_KEY = 'xpp.table.exportFormat';
+
+/** a stored value (docs/protocol.md `browser`) as the core sent it, the store's shortest text (W613): whole where its
+    column has room, cut with a tip only where it has not (CutText measures the box) */
 function Cell({v}: {v: number | null | undefined}) {
-  return v === undefined ? null : <ShownNumber value={v === null ? NaN : v} />;
+  return v === undefined ? null : <ShownName name={v === null ? 'NaN' : String(v)} />;
 }
 
 /** the row height the layout actually uses (var(--target): 2rem with a
@@ -92,17 +104,23 @@ export function TableView() {
   useEffect(() => {
     const el = scroller.current;
     if (!open || !el) return;
-    const onScroll = () => setScrollTop(el.scrollTop);
-    const ro = new ResizeObserver(() => setViewHeight(el.clientHeight));
+    /* an edge with more columns past it fades (css/panels.css .table-grid-wrap), so a cut column is not read as a value */
+    const edges = () => {
+      el.dataset.fadeLeft = String(el.scrollLeft > 1);
+      el.dataset.fadeRight = String(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    };
+    const onScroll = () => { setScrollTop(el.scrollTop); edges(); };
+    const ro = new ResizeObserver(() => { setViewHeight(el.clientHeight); edges(); });
     ro.observe(el);
     el.addEventListener('scroll', onScroll);
     setViewHeight(el.clientHeight);
     setScrollTop(el.scrollTop);
+    edges();
     return () => {
       ro.disconnect();
       el.removeEventListener('scroll', onScroll);
     };
-  }, [open]);
+  }, [open, cols.length]);
 
   const visibleCount = Math.max(1, Math.ceil((viewHeight || 1) / rowHeight) + 1);
   const first = Math.max(0, Math.floor(scrollTop / rowHeight));
@@ -155,34 +173,78 @@ export function TableView() {
   const items: {row: number; values: (number | null)[] | null}[] = [];
   for (let i = first; i < last; i++) items.push({row: i, values: rowAt(page, i)});
 
+  const run = (op: BrowserOp) => session.browserOp(op);
+  const button = (op: BrowserOp, inMenu: boolean) => {
+    const row = toolbarRow(hello, 'browser', op);
+    const off = !mayKey('browser', op);
+    const click = {key: op, 'data-button': `browser:${op}`, title: off ? BUSY_TITLE : row?.description, disabled: off, onClick: () => run(op)};
+    return inMenu ? <li key={op}><button role="menuitem" {...click}>{row?.label}</button></li> : <button {...click}>{row?.label}</button>;
+  };
+  const group = (name: string, ops: BrowserOp[], more: BrowserOp[] = []) => (
+    <>
+      <div class="table-group table-wide" role="group" aria-label={name}>
+        <span class="table-group-label">{name}</span>
+        {ops.map(op => button(op, false))}
+        {more.length > 0 && <DropDownMenu normal id={`table-more-${name}`} label="More">{more.map(op => button(op, true))}</DropDownMenu>}
+      </div>
+      <div class="table-group table-narrow">
+        <DropDownMenu normal id={`table-${name}`} label={name}>{[...ops, ...more].map(op => button(op, true))}</DropDownMenu>
+      </div>
+    </>
+  );
+
+  /* Export data: one entry per format of browser.export's `format` choice, the last used first and marked */
+  const formats = commandRow(hello, 'browser.export')?.arguments?.find(a => a.name === 'format')?.choices ?? [];
+  const [lastFormat, setLastFormat] = useState(() => readPref(FORMAT_KEY, v => (typeof v === 'string' ? v : null), ''));
+  const ordered = [...formats].sort((a, b) => Number(b === lastFormat) - Number(a === lastFormat));
+  const exportAs = (format: string) => {
+    setLastFormat(format);
+    writePref(FORMAT_KEY, format);
+    session.writeDataFile('table', format);
+  };
+  const exportOff = !page?.data.length || !may({cmd: 'browser.export'});
+  const loadRow = toolbarRow(hello, 'browser', 'load');
+  const selectedT = rowAt(page, selected)?.[0];
+  const sliced = page && (page.start > 0 || page.end < rows);
+
   return (
     <section id="table-panel" ref={panel} class={'table-panel panel-sheet' + (open ? ' open' : '')} aria-label={useCommandLabel('tool.browser')}>
       <div class="panel-header">
-        <button class="table-back" onClick={close}>Back</button>
-        <h2><CommandLabel command="tool.browser" /></h2>
-        <HelpButton target={HELP.dataTab} label="the Data tab" />
-        <button class="small" onClick={() => session.writeDataFile('table', 'csv')}
-          disabled={!page?.data.length || !may({cmd: 'browser.export'})}
-          title="Export every stored row as a CSV file">
-          Export CSV
-        </button>
+        <button class="table-back" onClick={close}>Back to Values</button>
+        <button class="table-close" onClick={close} aria-label="Close" title="Close">×</button>
+        <div class="table-title">
+          <h2><CommandLabel command="tool.browser" /></h2>
+          <HelpButton target={HELP.dataTab} label="the Data tab" />
+        </div>
+        <div class="table-actions">
+        <button data-button="browser:load" disabled={!mayKey('browser', 'load')} title={loadRow?.description}
+          onClick={() => run('load')}>{loadRow?.label}</button>
+        <DropDownMenu normal id="table-export" label={commandRow(hello, 'browser.export')?.label ?? ''}>
+          {ordered.map(format => (
+            <li key={format}>
+              <button role="menuitem" data-export-format={format} disabled={exportOff}
+                title={exportOff ? BUSY_TITLE : `Export every stored row as ${choiceLabel(format)}${format === lastFormat ? ' (used last)' : ''}`}
+                onClick={() => exportAs(format)}>{format === lastFormat ? '✓ ' : ''}{choiceLabel(format)}</button>
+            </li>
+          ))}
+        </DropDownMenu>
+        </div>
       </div>
       <div class="table-tools">
-        {BUTTONS.map(op => {
-          const row = toolbarRow(hello, 'browser', op);
-          const off = op === 'get' ? !may({cmd: 'ic.from_data_row', row: 0}) : !mayKey('browser', op);
-          return <button key={op} data-button={`browser:${op}`} title={off ? BUSY_TITLE : row?.description} disabled={off}
-            onClick={() => op === 'get' ? session.getRow() : session.browserOp(op)}>{row?.label}</button>;
-        })}
-        <CommandButton command="browser.transpose" />
-        <CommandButton command="table.edit" />
+        <button class="table-find" data-button="browser:find" disabled={!mayKey('browser', 'find')}
+          title={toolbarRow(hello, 'browser', 'find')?.description} onClick={() => run('find')}>{toolbarRow(hello, 'browser', 'find')?.label}</button>
+        {group('Rows', ROWS)}
+        {group('Columns', COLUMNS, MORE_COLUMNS)}
       </div>
       <p class="table-info" role="status">
-        {!rows ? 'No data yet: integrate first.'
-          : `${rows} rows. Selected row ${selected}.`
-            + (page ? ` First..Last: ${page.start}..${Math.max(page.start, page.end - 1)}.` : '')}
+        {!rows ? 'No data yet: integrate first.' : <>
+          {`${rows} rows`}{sliced && ` · rows ${page.start}..${Math.max(page.start, page.end - 1)} kept`}
+          {` · row ${selected}`}{selectedT !== undefined && selectedT !== null && ` (t = ${selectedT})`}{' selected'}
+          {' '}<button class="small" data-button="ic.from_data_row" disabled={!may({cmd: 'ic.from_data_row', row: 0})}
+            title={commandRow(hello, 'ic.from_data_row')?.description} onClick={() => session.getRow()}>Use row {selected} as initial conditions</button>
+        </>}
       </p>
-      <div class="table-grid-wrap" ref={scroller} role="grid" aria-label="Stored data" aria-rowcount={rows + 1}
+      <div class="table-grid-wrap" ref={scroller} role="grid" aria-label="Stored data" style={{'--table-cols': cols.length}} aria-rowcount={rows + 1}
         aria-colcount={cols.length} aria-activedescendant={rows ? `table-row-${selected}` : undefined}
         tabIndex={0} onKeyDown={onKeyDown}>
         <div class="table-row table-row-head" role="row" aria-rowindex={1} ref={headRow}>

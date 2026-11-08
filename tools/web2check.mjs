@@ -684,6 +684,9 @@ async function sliderModelSwitch(dir) {
   check('W317: all five native presets reach the page', await S("s.values.sliders.length === 5 && s.core.sliders.length === 5 && s.values.sliders[4].hi === '6'"));
 }
 
+/** page-side call: the Export data menu's entry of `format` (the menu opened first, as a click on its title does) */
+const EXPORT_AS = format => `(() => { const m = document.querySelector('[data-sets-menu="table-export"]'); m.open = true; m.querySelector('[data-export-format="${format}"]').click(); })()`;
+
 /* the data table (docs/ui-v2.md T10): open it, scroll to row 500 by
    scrolling and by keyboard, check its values against output.dat, Get,
    CSV export, and Tab reachability of every button */
@@ -692,9 +695,18 @@ async function dataTable(want, dir) {
   await rendered();
   check('W642: the header button and the table panel are named Table',
     await cdp.eval(`document.querySelector('.table-toggle').textContent.trim() === 'Table' && document.querySelector('#table-panel h2').textContent.trim() === 'Table'`));
+  const plotBefore = await cdp.eval(`(() => { const r = document.querySelector('#main').getBoundingClientRect(); return [r.left, r.right, r.width]; })()`);
   await cdp.eval(`document.querySelector('.table-toggle').click()`);
   check('the Table button opens the table panel', await until('s.table.open', 'table open')
     && await cdp.eval(`getComputedStyle(document.querySelector('.table-panel')).visibility === 'visible'`));
+  /* W648: the table docks in the right column, in the Values panel's place, the plot whole beside it */
+  const dock = await cdp.eval(`(() => { const t = document.querySelector('#table-panel').getBoundingClientRect(), m = document.querySelector('#main').getBoundingClientRect();
+    const h = document.querySelector('.app-menu').getBoundingClientRect(), v = getComputedStyle(document.querySelector('#values-panel')).display;
+    return {tableLeft: t.left, tableRight: t.right, tableTop: t.top, tableBottom: t.bottom, mainRight: m.right, mainWidth: m.width, menuBottom: h.bottom, values: v, viewW: innerWidth,
+      onTable: document.elementFromPoint(t.left + t.width / 2, t.top + 40)?.closest('#table-panel') !== null, onPlot: document.elementFromPoint(m.left + m.width / 2, m.top + 40)?.closest('#main') !== null}; })()`);
+  check('W648: the table is the right column, beside the plot and under the header, not over the plot',
+    dock.tableLeft >= dock.mainRight - 1 && Math.abs(dock.tableRight - dock.viewW) <= 1 && dock.tableTop >= dock.menuBottom - 1 && dock.onTable && dock.onPlot, JSON.stringify(dock));
+  check("W648: the plot keeps its size and the Values panel gives its place up", Math.abs(dock.mainWidth - plotBefore[2]) <= 1 && dock.values === 'none', JSON.stringify([dock, plotBefore]));
   check('its first control has the focus', await until(`document.activeElement.closest('.table-panel')`, 'table focus'));
   check('the table asks for rows and gets T plus every column',
     await until('s.table.page && s.table.page.cols.length >= 2', 'table page'),
@@ -726,11 +738,29 @@ async function dataTable(want, dir) {
   check("the displayed row 500 (keyboard) equals output.dat's row 500", rowOk(row500, want[500]),
     JSON.stringify({row500, want: want[500]}));
 
-  /* Get: the selected row (500) becomes the initial conditions */
-  await cdp.eval(`[...document.querySelectorAll('.table-tools button')].find(b => b.dataset.button === 'browser:get').click()`);
-  check("Get sets the ICs from the selected row: the next state has them", await until(
+  /* W648: a number is shown whole where its column has room and cut (marked, the whole value in the tip) only where it has not:
+     the shown text of each cell of the rows in view is the stored value's text, or a cut one that says so; a value of seven digits or more
+     still fits some cells whole (the old rule cut every number to six digits) */
+  const cells = await cdp.eval(`(() => { const p = __xpp.state().table.page;
+    return [...document.querySelectorAll('.table-body .table-row')].flatMap(r => {
+      const i = Number(r.id.replace('table-row-', '')), vals = p.data[i - p.from];
+      return vals ? [...r.querySelectorAll('.table-cell')].map((c, k) => { const t = c.querySelector('.cut-text');
+        return {text: t.textContent, full: String(vals[k]), cut: t.classList.contains('cut'), over: t.scrollWidth > t.clientWidth}; }) : []; }); })()`);
+  check('W648: a value is shown whole where its column has room and cut, marked, only where it has not',
+    cells.length > 20 && cells.every(c => c.cut === c.over && (c.cut || c.text === c.full)), JSON.stringify(cells.filter(c => c.cut !== c.over || (!c.cut && c.text !== c.full)).slice(0, 3)));
+  check('W648: a value of seven digits or more is shown whole in a column with room for it',
+    cells.some(c => !c.cut && c.full.replace(/[-.e+]/g, '').length >= 7), JSON.stringify(cells.slice(0, 6)));
+
+  /* W648: a selected row says so, with its time, and offers its own button: the row becomes the initial conditions (ic.from_data_row) */
+  const info = await cdp.eval(`document.querySelector('.table-info').textContent`);
+  check('W648: the status line reads "601 rows · row 500 (t = ...) selected" and offers "Use row 500 as initial conditions"',
+    info.startsWith(`${want.length} rows · row 500 (t = ${want[500][0]}) selected`) && info.endsWith('Use row 500 as initial conditions'), info);
+  check('W648: the toolbar has no Initial conditions button any more', !await cdp.eval(`[...document.querySelectorAll('.table-tools button')].some(b => /Initial conditions/.test(b.textContent))`));
+  const getFrom = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-button="ic.from_data_row"]').click()`);
+  check("the row button sets the ICs from the selected row (ic.from_data_row, row 500): the next state has them", await until(
     `(() => { const ics = s.core.ics.map(p => p[1]); return Math.abs(ics[0] - ${want[500][1]}) < 1e-6 && !s.busy; })()`,
-    'Get'), JSON.stringify(await S('s.core.ics')));
+    'Get') && (await cdp.eval(`__xpp.sentFrom(${getFrom})`)).some(c => c.cmd === 'ic.from_data_row' && c.row === 500), JSON.stringify(await S('s.core.ics')));
 
   /* Enter is Get too, on whatever row is selected (a step away, so the check is meaningful) */
   await cdp.eval(`document.querySelector('.table-grid-wrap').focus()`);
@@ -743,7 +773,9 @@ async function dataTable(want, dir) {
   /* W526: First, Last and Restore are the registry's browser.set_slice_start, browser.set_slice_end and
      browser.restore_full_slice on the selected row; the browser block tells the rows kept */
   const sliceSent = await cdp.eval('__xpp.sentCount()');
-  const buttonOf = op => `document.querySelector('[data-button="browser:${op}"]').click()`;
+  /* the button of the toolbar's form that shows (menus where the dock is narrow), its menu opened first */
+  const buttonOf = op => `(() => { const b = [...document.querySelectorAll('[data-button="browser:${op}"]')].find(b => { const g = b.closest('.table-group'); return !g || getComputedStyle(g).display !== 'none'; });
+    const d = b.closest('details'); if (d) d.open = true; b.click(); })()`;
   await key('ArrowUp'); /* row 498 */
   await cdp.eval(buttonOf('first'));
   await until('!s.busy', 'First');
@@ -760,15 +792,29 @@ async function dataTable(want, dir) {
     await until(`!s.busy && s.table.page.start === 0 && s.table.page.end === ${want.length}`, 'restore')
     && (await cdp.eval(`__xpp.sentFrom(${sliceSent})`)).some(c => c.cmd === 'browser.restore_full_slice'), JSON.stringify(await S('[s.table.page.start, s.table.page.end]')));
 
-  /* CSV export: the core writes data.csv itself (browser.export, target: table,
-     format: csv; core/browse_data.cpp save_data_file), then the page
-     offers it as a download (docs/roadmap.md W66) */
+  /* W648: one Export data menu in the panel's header, an entry per format of browser.export's `format` choice (the registry's), the
+     last used first and marked; the page's own Export CSV button is gone. CSV: the core writes data.csv itself (browser.export,
+     target: table, format: csv; core/browse_data.cpp save_data_file), then the page offers it as a download (docs/roadmap.md W66) */
+  const exportEntries = () => cdp.eval(`[...document.querySelectorAll('[data-sets-menu="table-export"] [data-export-format]')].map(b => [b.dataset.exportFormat, b.textContent])`);
+  const exportFormats = await cdp.eval(`__xpp.state().hello.commands.find(c => c.cmd === 'browser.export').arguments.find(a => a.name === 'format').choices`);
+  check('W648: the Export data menu lists the registry\'s formats, none marked before one is used',
+    JSON.stringify((await exportEntries()).map(e => e[0])) === JSON.stringify(exportFormats) && exportFormats.length === 4 && (await exportEntries()).every(e => !e[1].startsWith('✓')), JSON.stringify(await exportEntries()));
+  check('W648: no page-made Export CSV button is left in the header',
+    await cdp.eval(`[...document.querySelectorAll('.table-panel .panel-header > button, .table-panel .table-title > button, .table-panel .table-actions > button')].map(b => b.textContent.trim()).join('|')`) === 'Back to Values|×|?|Load data',
+    await cdp.eval(`[...document.querySelectorAll('.table-panel .panel-header > button, .table-panel .table-title > button, .table-panel .table-actions > button')].map(b => b.textContent.trim()).join('|')`));
+  const head = await cdp.eval(`(() => { const r = q => document.querySelector(q).getBoundingClientRect(), p = r('#table-panel'), t = r('.table-title'), l = r('[data-button="browser:load"]'), e = r('[data-sets-menu="table-export"] > summary'), b = r('.table-back');
+    return {sameRow: Math.abs(l.top - e.top) < 1, exportAfterLoad: e.left >= l.right, secondRow: l.top > t.bottom - 1, backRight: Math.abs(p.right - b.right) < 20, backFirstRow: b.top < t.bottom, titleLeft: t.left - p.left < 20}; })()`);
+  check('W648: the header has the title and ? left, Back to Values far right, Load data and Export data on one row under the title when narrow', Object.values(head).every(Boolean), JSON.stringify(head));
   const dataCsvName = await S('s.hello.output_names.csv');
   const dataCsvPath = path.join(dir, dataCsvName);
   fs.rmSync(dataCsvPath, {force: true});
-  await cdp.eval(`document.querySelector('.table-panel .panel-header .small').click()`);
-  check('Export CSV offers data.csv, written by the core',
-    await until("s.files.offered && s.files.offered.name === s.hello.output_names.csv && !s.busy", 'csv offered'));
+  const exportSent = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(EXPORT_AS('csv'));
+  check('Export data as CSV offers data.csv, written by the core, and sends browser.export with that format',
+    await until("s.files.offered && s.files.offered.name === s.hello.output_names.csv && !s.busy", 'csv offered')
+    && (await cdp.eval(`__xpp.sentFrom(${exportSent})`)).some(c => c.cmd === 'browser.export' && c.target === 'table' && c.format === 'csv'));
+  const entriesAfter = await exportEntries();
+  check('W648: the format used last is listed first and marked', entriesAfter[0][0] === 'csv' && entriesAfter[0][1].startsWith('✓') && entriesAfter.slice(1).every(e => !e[1].startsWith('✓')), JSON.stringify(entriesAfter));
   await waitFile(dataCsvPath);
   let csv = fs.existsSync(dataCsvPath) ? fs.readFileSync(dataCsvPath, 'utf8').trim().split('\n') : [];
   if (csv[0]?.startsWith('# seed ')) csv = csv.slice(1); /* the run's seed, when it used one (docs/protocol.md) */
@@ -776,6 +822,15 @@ async function dataTable(want, dir) {
   check('the exported CSV has the header and all 601 rows, row 500 as in output.dat',
     csv.length === 602 && r500.length >= 3 && r500.every((v, k) => Math.abs(v - want[500][k]) <= 1e-7 * Math.abs(want[500][k]) + 1e-30),
     `${csv.length} lines, row 500: ${csv[501]} vs ${want[500]}`);
+  /* another format: its entry sends browser.export with it and the file carries its extension */
+  const npzName = dataCsvName.replace(/\.csv$/, '.npz');
+  fs.rmSync(path.join(dir, npzName), {force: true});
+  const npzSent = await cdp.eval('__xpp.sentCount()');
+  await cdp.eval(EXPORT_AS('npz'));
+  check('W648: Export data as NPZ offers the .npz file and sends browser.export with format npz',
+    await until(`s.files.offered && s.files.offered.name === ${JSON.stringify(npzName)} && !s.busy`, 'npz offered')
+    && (await cdp.eval(`__xpp.sentFrom(${npzSent})`)).some(c => c.cmd === 'browser.export' && c.format === 'npz' && c.file === npzName));
+  await waitFile(path.join(dir, npzName));
 
   /* the plot's own CSV export (PlotView.tsx), the same core write with
      what: plot instead of table (docs/protocol.md "Saving data") */
@@ -804,13 +859,38 @@ async function dataTable(want, dir) {
     if (t) labels.add(t);
     await key('Tab');
   }
-  const expect = ['Back', 'Export CSV', ...await labelsOf(['browser.find', 'ic.from_data_row', 'browser.replace_column', 'browser.undo_replace', 'browser.tabulate_column',
-    'browser.load', 'browser.export', 'browser.set_slice_start', 'browser.set_slice_end', 'browser.restore_full_slice', 'browser.add_column', 'browser.delete_column'])];
-  check('every button in the table panel is reachable by Tab', expect.every(l => labels.has(l)), JSON.stringify([...labels]));
+  const expect = ['Back to Values', ...await labelsOf(['browser.load']), ...(await labelsOf(['browser.export'])).map(l => l + ' ▾'), ...await labelsOf(['browser.find']),
+    'Rows ▾', 'Columns ▾', ...[...labels].filter(l => /^Use row \d+ as initial conditions$/.test(l))];
+  check('every control of the table panel (the menus, and the row button) is reachable by Tab', expect.length === 7 && expect.every(l => labels.has(l)), JSON.stringify([[...labels], expect]));
 
-  /* leave it closed for the phone session */
+  /* W648: the toolbar is Find | Rows | Columns; where the panel is narrow (a container query on its width, as the dock always is) Rows
+     and Columns are menus holding the registry's labels, and Edit table is not here (it is in Analysis > Tables) */
+  const menuLabels = name => cdp.eval(`[...document.querySelectorAll('[data-sets-menu="table-${name}"] [role=menuitem]')].map(b => b.textContent)`);
+  const form = () => cdp.eval(`({wide: getComputedStyle(document.querySelector('.table-wide')).display, narrow: getComputedStyle(document.querySelector('.table-narrow')).display})`);
+  check('W648: a narrow panel shows Rows and Columns as menus', (await form()).wide === 'none' && (await form()).narrow !== 'none', JSON.stringify(await form()));
+  check('W648: Rows is First row, Last row, All rows; Columns is Add, Replace, Delete, then Unreplace, Tabulate and Transpose (the registry\'s labels)',
+    JSON.stringify(await menuLabels('Rows')) === JSON.stringify(await labelsOf(['browser.set_slice_start', 'browser.set_slice_end', 'browser.restore_full_slice']))
+    && JSON.stringify(await menuLabels('Columns')) === JSON.stringify(await labelsOf(['browser.add_column', 'browser.replace_column', 'browser.delete_column', 'browser.undo_replace', 'browser.tabulate_column', 'browser.transpose'])),
+    JSON.stringify([await menuLabels('Rows'), await menuLabels('Columns')]));
+  check('W648: Edit table left the table toolbar and is reachable in Analysis > Tables',
+    !await cdp.eval(`!!document.querySelector('.table-tools [data-command="table.edit"]')`)
+    && await cdp.eval(`__xpp.state().hello.commands.find(c => c.cmd === 'table.edit').menu_path`) === 'Analysis/Tables'
+    && await cdp.eval(`!![...document.querySelectorAll('.app-menu [data-command="table.edit"]')].length`));
+  /* a wide panel (widened here by its column's variable) shows the groups as buttons, More holding the rest */
+  await cdp.eval(`document.querySelector('.shell').style.setProperty('--values-col', '52rem')`);
+  const wideForm = await until(`getComputedStyle(document.querySelector('.table-wide')).display !== 'none'`, 'wide toolbar');
+  const wideLabels = await cdp.eval(`[...document.querySelectorAll('.table-wide')].map(g => [g.getAttribute('aria-label'), [...g.querySelectorAll(':scope > button')].map(b => b.textContent), [...g.querySelectorAll('[role=menuitem]')].map(b => b.textContent)])`);
+  check('W648: a wide panel shows Rows and Columns as groups of buttons, Columns with its More menu',
+    wideForm && JSON.stringify(wideLabels) === JSON.stringify([['Rows', await labelsOf(['browser.set_slice_start', 'browser.set_slice_end', 'browser.restore_full_slice']), []],
+      ['Columns', await labelsOf(['browser.add_column', 'browser.replace_column', 'browser.delete_column']), await labelsOf(['browser.undo_replace', 'browser.tabulate_column', 'browser.transpose'])]]),
+    JSON.stringify(wideLabels));
+  await cdp.eval(`document.querySelector('.shell').style.removeProperty('--values-col')`);
+  await until(`getComputedStyle(document.querySelector('.table-wide')).display === 'none'`, 'narrow again');
+
+  /* leave it closed for the phone session: Back to Values returns the Values panel as it was */
   await cdp.eval(`document.querySelector('.table-back').click()`);
-  check('Back closes the table panel', await until('!s.table.open', 'close table'));
+  check('Back to Values closes the table panel and Values is in its place again',
+    await until('!s.table.open', 'close table') && await cdp.eval(`getComputedStyle(document.querySelector('#values-panel')).display !== 'none' && getComputedStyle(document.querySelector('#table-panel')).display === 'none'`));
 }
 
 /* text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`,
@@ -1508,6 +1588,43 @@ async function phone() {
   await clickRegistry('tool.command_palette');
   check('W517: palette is usable on a narrow page', await until('s.drawerOpen && !!document.querySelector("#command-search")', 'narrow palette'));
   await key('Escape');
+  /* W648: on a phone the table is a full-screen sheet with a x on top (Back to Values is the dock's); from 48rem it is the dock, at 768 too */
+  await clickRegistry('tool.browser');
+  await until('s.table.open', 'phone table');
+  const fits = async () => { await rendered(); return cdp.eval(`(() => { const p = document.querySelector('#table-panel'), g = document.querySelector('.table-grid-wrap'), h = document.querySelector('.table-panel .panel-header');
+    const [l, e] = ['[data-button="browser:load"]', '[data-sets-menu="table-export"] > summary'].map(q => document.querySelector(q).getBoundingClientRect());
+    const inside = [...p.querySelectorAll('.table-tools button, .table-tools summary, .table-info button, .panel-header button, .panel-header summary')].filter(b => b.offsetParent && b.getBoundingClientRect().right > p.getBoundingClientRect().right + 0.5).map(b => b.textContent + ' ' + Math.round(b.getBoundingClientRect().right) + '>' + Math.round(p.getBoundingClientRect().right));
+    return {panel: p.scrollWidth <= p.clientWidth, page: document.documentElement.scrollWidth <= innerWidth, gridScrolls: g.scrollWidth > g.clientWidth, inside: inside.length === 0 || inside, sameSize: Math.abs(l.height - e.height) < 1, header: (() => { const r = q => document.querySelector(q).getBoundingClientRect(), t = r('.table-title'), pr = p.getBoundingClientRect(), back = r('.table-back'), close = r('.table-close');
+      const rightBtn = back.width ? back : null; return {loadExportOneRow: Math.abs(l.top - e.top) < 1, titleTogether: document.querySelector('.table-title h2').getBoundingClientRect().top === document.querySelector('.table-title > button').getBoundingClientRect().top || Math.abs(document.querySelector('.table-title h2').getBoundingClientRect().top - document.querySelector('.table-title > button').getBoundingClientRect().top) < 12,
+        backRight: rightBtn ? Math.abs(pr.right - rightBtn.right) < 20 : close.left < t.left, actionsLeftAligned: l.left >= pr.left}; })(), rowWidth: document.querySelector('.table-body .table-row').getBoundingClientRect().width >= g.clientWidth}; })()`);}
+  const sheet = await cdp.eval(`(() => { const t = document.querySelector('#table-panel').getBoundingClientRect(), vis = n => getComputedStyle(document.querySelector(n)).display !== 'none';
+    return {w: t.width, h: t.height, left: t.left, top: t.top, vw: innerWidth, vh: innerHeight, close: vis('.table-close'), back: vis('.table-back'), over: document.elementFromPoint(t.left + 20, t.top + t.height / 2)?.closest('#table-panel') !== null}; })()`);
+  check('W648: on a phone the table is a full-screen sheet with a x on top and no Back to Values',
+    sheet.w === sheet.vw && sheet.h === sheet.vh && sheet.left === 0 && sheet.top === 0 && sheet.close && !sheet.back && sheet.over, JSON.stringify(sheet));
+  const fit390 = await fits();
+  check('W648: at 390 nothing sticks out of the panel or the page, the grid scrolls sideways in its own box, Load and Export are one size',
+    fit390.panel && fit390.page && fit390.gridScrolls && fit390.inside && fit390.sameSize && Object.values(fit390.header).every(Boolean), JSON.stringify(fit390));
+  await cdp.eval(`document.querySelector('.table-close').click()`);
+  check('W648: the x closes the table sheet', await until('!s.table.open', 'phone table closed'));
+  await metrics({width: 768, height: 1024, deviceScaleFactor: 1, mobile: false});
+  await clickRegistry('tool.browser');
+  await until('s.table.open', 'tablet table');
+  const tablet = await cdp.eval(`(() => { const t = document.querySelector('#table-panel').getBoundingClientRect(), m = document.querySelector('#main').getBoundingClientRect();
+    return {tl: t.left, mr: m.right, vw: innerWidth, back: getComputedStyle(document.querySelector('.table-back')).display !== 'none'}; })()`);
+  check('W648: at 768 the table is the dock beside the plot, with Back to Values', tablet.tl >= tablet.mr - 1 && tablet.tl > 0 && tablet.back, JSON.stringify(tablet));
+  const fit768 = await fits();
+  check('W648: at 768 nothing sticks out of the panel or the page, the grid scrolls sideways in its own box, Load and Export are one size',
+    fit768.panel && fit768.page && fit768.gridScrolls && fit768.inside && fit768.sameSize && Object.values(fit768.header).every(Boolean), JSON.stringify(fit768));
+  /* W648: while columns are hidden past an edge, that edge fades (a cut column is not read as a value) */
+  const fade = () => cdp.eval(`(() => { const g = document.querySelector('.table-grid-wrap'), m = getComputedStyle(g).maskImage; return {l: g.dataset.fadeLeft, r: g.dataset.fadeRight, mask: m !== 'none' && getComputedStyle(g).getPropertyValue('--fade-right').trim()}; })()`);
+  const f0 = await fade();
+  await cdp.eval(`(() => { const g = document.querySelector('.table-grid-wrap'); g.scrollLeft = g.scrollWidth; })()`);
+  await until(`document.querySelector('.table-grid-wrap').dataset.fadeRight === 'false'`, 'scrolled to the end');
+  const f1 = await fade();
+  check('W648: at 768 the right edge fades while CUR is hidden, the left edge not; at the end the right fades no more and the left does',
+    f0.r === 'true' && f0.l === 'false' && f0.mask === '2rem' && f1.r === 'false' && f1.l === 'true' && f1.mask === '0rem', JSON.stringify([f0, f1]));
+  await cdp.eval(`document.querySelector('.table-back').click()`);
+  await until('!s.table.open', 'tablet table closed');
   await desktopMetrics();
 }
 
@@ -3203,6 +3320,38 @@ async function settingsShots() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
+/* The Table's pictures for the UI review (W648; with --only shots and XPP_SHOTS=folder): the dock open, a row selected, the Export data menu open */
+async function tableShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  check('W648 shots: integrate for the table', await integrate(601, 30000));
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['1024-light', 1024, 768, 'light'], ['1280-dark', 1280, 860, 'dark'], ['768', 768, 1024, 'light'], ['768-dark', 768, 1024, 'dark'], ['390', 390, 844, 'light']];
+  for (const [size, width, height, scheme] of sizes) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    await rendered();
+    await clickRegistry('tool.browser');
+    await until('s.table.open && s.table.page && s.table.page.data.length > 10', 'table rows');
+    await cdp.eval(`document.getElementById('table-row-5').click()`);
+    await until('s.table.selected === 5', 'row 5');
+    await rendered();
+    const shoot = async name => fs.writeFileSync(path.join(dir, `table-${name}-${size}.png`), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+    await shoot('opened');
+    /* one export first, so the menu shows the format used last, marked and first */
+    await cdp.eval(EXPORT_AS('csv'));
+    await until("s.files.offered && !s.busy", 'exported');
+    await cdp.eval(`document.querySelector('[data-sets-menu="table-export"]').open = true`);
+    await rendered();
+    await shoot('export-menu');
+    await cdp.eval(`document.querySelector('[data-sets-menu="table-export"]').open = false`);
+    await cdp.eval(`(document.querySelector('.table-back') && getComputedStyle(document.querySelector('.table-back')).display !== 'none' ? document.querySelector('.table-back') : document.querySelector('.table-close')).click()`);
+    await until('!s.table.open', 'table closed');
+  }
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
 async function navigationCheck() {
   await desktopMetrics();
   const rows = await S('s.hello.commands.filter(c => c.arguments !== undefined)');
@@ -4859,7 +5008,7 @@ async function nativeFiles(dir) {
     /* A JS stub cannot grant an external path: servercheck covers that
        rejection; a real OS picker grant remains a manual desktop check. */
     check('W177: integrate for the desktop CSV exports', await integrate(601, 30000));
-    for (const [call, name] of [["document.querySelector('.table-panel .panel-header .small').click()", 'native-table.csv'],
+    for (const [call, name] of [[EXPORT_AS('csv'), 'native-table.csv'],
         ["document.querySelector('[title=\"Export the plotted numbers as a CSV file\"]').click()", 'native-plot.csv']]) {
       if (name === 'native-table.csv') {
         await cdp.eval(`document.querySelector('.table-toggle').click()`);
@@ -6209,7 +6358,8 @@ async function main() {
     if (run('navigation')) await session(ODE, navigationCheck);
     if (run('navigation')) await session(ODE, menusByTaskCheck);
     if (run('options')) await session(ODE, optionsCheck);
-    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots);
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);
     if (run('steady')) await session(ODE, steadyCheck);

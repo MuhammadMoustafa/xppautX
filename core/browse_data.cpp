@@ -783,17 +783,6 @@ void data_write(const xpp::Session &s, std::optional<DataTarget> target, std::st
  ok_or_show(save_data_file(s,target,format,name));
 }
 
-Result<std::size_t> write_plot_data(const xpp::Session &s, std::string_view format, std::string_view name)
-{
- xpp::DataTable t=plot_curves_table(s);
- if(t.rows()==0)return fail("save data","The plot shows no data to save",command_place());
- const xpp::DataFormat *f=format.empty()?xpp::data_format_of_file(name):xpp::data_format_named(format);
- if(!f)return fail("save data",format.empty()?xpp::format("Give a data format: {} has no extension of one",name):xpp::format("No data format {}",format),command_place());
- const Result<bool> written=write_table(s,t,*f,name,{});
- if(!written)return std::unexpected<Error>(written.error());
- return *written?t.rows():0;
-}
-
 void fit_browser_block(xpp::Session &s)
 {
  const BROWSER &b=s.browser.view;

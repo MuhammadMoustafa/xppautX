@@ -197,16 +197,6 @@ Result<std::string> export_svg(Session &s, const Command &command, const Argumen
     return export_picture(s, command, args, place, IMAGE_FORMAT_SVG);
 }
 
-Result<std::string> export_data(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    ON_GRAPH(graph);
-    const std::string &file = args.get<std::string>("file");
-    const Result<std::size_t> rows = write_plot_data(s, args.optional<std::string>("format").value_or(std::string{}), file);
-    if (!rows) return std::unexpected<Error>(rows.error());
-    if (*rows == 0) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
-    return ResultObject().text("file", file).integer("rows_written", static_cast<long long>(*rows)).done();
-}
-
 Result<std::string> set_axes_origin_command(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     ON_GRAPH(graph);
@@ -377,7 +367,6 @@ constexpr std::array LEGEND_GROUPS = {Group{GroupRule::together, LEGEND_POSITION
 constexpr std::array IMPORT_ARGUMENTS = {WINDOW, FILE};
 constexpr std::array ENABLED_ARGUMENTS = {ENABLED};
 constexpr std::array PICTURE_ARGUMENTS = {WINDOW, FILE, set_by(Argument{"color", Type::boolean, false}, "color"), set_by(AXES_FONT, "font_size")};
-constexpr std::array DATA_ARGUMENTS = {WINDOW, FILE, Argument{"format", Type::text, false}};
 constexpr std::array ORIGIN_ARGUMENTS = {WINDOW, Argument{"x_origin", Type::real, false}, Argument{"y_origin", Type::real, false},
                                          Argument{"z_origin", Type::real, false}, Argument{"x_origin_shown", Type::boolean, false},
                                          Argument{"y_origin_shown", Type::boolean, false}, Argument{"z_origin_shown", Type::boolean, false}, AXES_FONT};
@@ -414,7 +403,6 @@ constexpr std::array LEGEND_RESULTS = {ResultField{"legend_visible", "boolean"}}
 constexpr std::array IMPORT_RESULTS = {ResultField{"file", "file"}, ResultField{"curves_imported", "integer"}};
 constexpr std::array AUTOX_FREEZE_RESULTS = {ResultField{"autox_freeze", "boolean"}};
 constexpr std::array PICTURE_RESULTS = {ResultField{"file", "file"}, ResultField{"bytes_written", "integer"}};
-constexpr std::array DATA_RESULTS = {ResultField{"file", "file"}, ResultField{"rows_written", "integer"}};
 constexpr std::array ORIGIN_RESULTS = {ResultField{"origin_updated", "boolean"}};
 constexpr std::array COLORMAP_RESULTS = {ResultField{"colormap", "choice"}};
 constexpr std::array AXES_2D_RESULTS = {ResultField{"axes", "choice"}, ResultField{"x", "name"}, ResultField{"y", "name"}};
@@ -436,9 +424,6 @@ constexpr std::array ROWS = {
     Command{"plot.export_svg", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export graph SVG", "File/Export",
             "Write the graph as an SVG picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay.",
             PICTURE_RESULTS, STATE_EVENTS, true, export_svg, {}, {}, "write", "*", "export"},
-    Command{"plot.export_data", DATA_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export graph data", "File/Export",
-            "Write what the graph shows (its curves and frozen curves, as the columns curve, x, y and z in 3D) into a file of the model's folder, in the data format named by format (dat, csv, csv.gz, npz) or by the file's extension.",
-            DATA_RESULTS, STATE_EVENTS, true, export_data, {}, {}, "write", "*"},
     Command{"plot.set_variables", VARIABLES_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set variables", "Plot",
             "Plot states of the model: time_series (each against time), phase_plane (two or three, the first on the x axis) or array_plot (from the first of two to the later).",
             VARIABLES_RESULTS, PLOT_EVENTS, true, set_variables},

@@ -197,7 +197,7 @@ constexpr std::array ROWS = {
     Command{"browser.set_slice_end", SLICE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Last row", "",
             "Keep the data up to and including a row for saving and tabulating, and select that row.", END_RESULTS, BROWSER_EVENTS, true,
             set_slice_end, {}, {}},
-    Command{"browser.restore_full_slice", {}, XPP_KIND_DATA, CommandCategory::Tools, "Restore rows", "",
+    Command{"browser.restore_full_slice", {}, XPP_KIND_DATA, CommandCategory::Tools, "All rows", "",
             "Keep all the data again, from the first row to the last, and replot it in the selected graph.", RESTORE_RESULTS, BROWSER_EVENTS,
             true, restore_full_slice, {}, {}},
     Command{"browser.add_column", ADD_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Add column", "",

@@ -33,8 +33,8 @@ import {fieldKey, valueCommands, type ValueSet} from './store/values';
 import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from './store/autoxSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
-export type BrowserOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
-  | 'restore' | 'addcol' | 'delcol';
+export type BrowserOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'first' | 'last'
+  | 'restore' | 'addcol' | 'delcol' | 'transpose';
 
 /** the autoX window's buttons (toolbarCommand names the registry command of each); Close is session.closeAutox */
 export type AutoxOp = 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw';
@@ -1010,13 +1010,14 @@ export class Session {
   }
 
   /** Save data (docs/protocol.md "Saving data"): the core itself writes
-      `what` (`table` or `plot`) as `format` into `name` in the model's
-      folder (browse_data.cpp data_write, skipping the format/name asks
+      `what` (`table` or `plot`) as `format` (a data format's id is its extension, data_formats.h) into `name`
+      (the model's own name with that extension) in the model's folder (browse_data.cpp data_write, skipping the format/name asks
       since both are given), then, at the command's done, the page offers
       it as a download -- the same `pendingSave`/`deliver` path a `file`
       ask's Write uses (W66: the page itself builds no file). */
   writeDataFile(what: 'table' | 'plot', format: string, name?: string): void {
-    name ??= this.store.getState().hello?.output_names[what === 'plot' ? 'curves' : 'csv'];
+    const base = this.store.getState().hello?.output_names[what === 'plot' ? 'curves' : 'csv'];
+    name ??= base && `${base.replace(/\.csv$/, '')}.${format}`;
     if (!name) return;
     const target = what === 'plot' ? 'plot_curves' : 'table';
     if (nativeFileDialog()) this.send({cmd: 'browser.export', target, format});

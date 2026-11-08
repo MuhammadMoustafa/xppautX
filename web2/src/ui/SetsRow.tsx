@@ -46,11 +46,11 @@ function SetsMore({children}: {children: ComponentChildren}) {
 }
 
 /** a drop-down of buttons: it closes when one is picked or a click lands outside it */
-function Menu({id, label, children}: {id: string; label: string; children: ComponentChildren}) {
+export function DropDownMenu({id, label, normal, children}: {id: string; label: string; normal?: boolean; children: ComponentChildren}) {
   const box = useDropDown();
   return (
     <details class="sets-menu" ref={box} data-sets-menu={id}>
-      <summary class="small">{label} ▾</summary>
+      <summary class={normal ? undefined : 'small'}>{label} ▾</summary>
       <ul role="menu" onClick={() => {if (box.current) box.current.open = false;}}>{children}</ul>
     </details>
   );
@@ -97,19 +97,19 @@ export function SetsRow({scope, window}: {scope: string; window?: string}) {
   const fold = useDropDown();
   const row = (
     <div class="sets-row" role="group" aria-label={`Sets of ${what}`} data-sets-row={scope}>
-      <Menu id="sets" label={folded ? 'Apply' : 'Sets'}>
+      <DropDownMenu id="sets" label={folded ? 'Apply' : 'Sets'}>
         {sets.length === 0 ? <li class="value-hint">No set holds {what}</li>
           : sets.map(set => item('set.apply', set.file ? `${set.name} (from ${set.file})` : set.name,
             () => session.send({cmd: 'set.apply', name: set.name, scope, ...target}), `Apply only the ${what} of the set ${set.name}`))}
-      </Menu>
-      <Menu id="save" label="Save">
+      </DropDownMenu>
+      <DropDownMenu id="save" label="Save">
         {item('set.save_new', null, () => ask('set.save_new'), `Write the current ${what} into the model file as a new set`)}
         {own.length === 0 ? <li class="value-hint">No set of the model file to replace in</li>
           : own.map(set => item('set.save_into', `Replace ${what} in set ${set.name}…`, () => ask('set.save_into', {name: set.name}),
             `Replace the ${what} of the set ${set.name} by the current values; its other parts stay`))}
         {item('set.save_defaults', null, () => ask('set.save_defaults'), `Write the current ${what} as the model's own`)}
         {item('set.export', null, () => ask('set.export'), `Write the current ${what} as a set of another .odex file`)}
-      </Menu>
+      </DropDownMenu>
       <SetsMore>
         <LoadFromFile scope={scope} what={what} />
         <button class="small" data-command="set.restore_defaults" disabled={off('set.restore_defaults')}

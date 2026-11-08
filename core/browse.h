@@ -83,10 +83,6 @@ Result<DataSaved> save_data_file(const Session &s, std::optional<DataTarget> tar
                                  std::string_view name);
 /* Save data for a key's menu: its error shown */
 void data_write(const Session &s, std::optional<DataTarget> target, std::string_view format, std::string_view name);
-/* What the current plot window shows written to the file `name` in data format `format` (an id of
-   data_formats.h; the format of the file's extension when empty), the replace question asked as a save
-   asks it: the rows written, 0 when the user declined to replace the file */
-Result<std::size_t> write_plot_data(const Session &s, std::string_view format, std::string_view name);
 /* the browser's Load: name (asked for when empty) read as format (by its
    extension when empty, else .dat) into s's stored columns, in order; the file and rows loaded (no file when the
    user cancelled the file's question), or why not */

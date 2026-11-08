@@ -141,7 +141,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
-.player-speed, .slider-card-track {
+.player-speed, .slider-card-track, .table-group {
   display: flex;
   align-items: center;
   gap: var(--space-1);

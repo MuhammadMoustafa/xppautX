@@ -74,9 +74,9 @@ function Banner() {
 const track = (size: PanelSize, px: number) => `min(${px}px, ${PANEL_LIMITS[size].share * 100}vw)`;
 
 /** the grid tracks the user's collapsing and dragging override (css/layout.css gives the defaults) */
-function panelStyle(p: Panels): Record<string, string> {
+function panelStyle(p: Panels, collapsed: boolean): Record<string, string> {
   const style: Record<string, string> = {};
-  if (p.valuesCollapsed) {
+  if (collapsed) {
     style['--values-col'] = '0px';
   } else if (p.valuesWidth !== null) style['--values-col'] = track('valuesWidth', p.valuesWidth);
   return style;
@@ -88,10 +88,13 @@ function Shell() {
   const playerOpen = useStore(s => s.player.open);
   const dark = useDark(theme);
   const panels = useStore(s => s.panels);
+  const tableOpen = useStore(s => s.table.open);
   useEffect(() => savePanels(panels), [panels]);
+  /* the table docks in the right column (W648), so the column is there even where the user collapsed it */
+  const collapsed = panels.valuesCollapsed && !tableOpen;
   return (
-    <div class="shell" style={panelStyle(panels)}
-      data-values={panels.valuesCollapsed ? 'collapsed' : 'open'}>
+    <div class="shell" style={panelStyle(panels, collapsed)}
+      data-values={collapsed ? 'collapsed' : 'open'} data-dock={tableOpen ? 'table' : undefined}>
       <a class="skip-link" href="#main">Skip to the plot</a>
       <TitleBar />
       <MenuBar />

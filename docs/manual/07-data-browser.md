@@ -7,16 +7,24 @@ look at the data.
 
 **In web2** the DB is the **Table** (`ui/TableView.tsx`): a virtualized
 table, so there is no window to iconify, resize or "shake" to make the
-data show up (all known bugs of the X11 DB window). Across the top is a
-menu of commands and then there follows a list of titles for the
+data show up (all known bugs of the X11 DB window). It opens from the header's **Table**
+button in the right column, in the place of the Values panel, under the header:
+the plot stays whole beside it, so a selected row and its point can be seen together.
+**Back to Values** returns the Values panel as it was; on a phone the table is a full-screen sheet
+with a **×** on top. The header holds **Load data** and one **Export data** menu (below).
+Then come the toolbar, **Find**, **Rows** (First row, Last row, All rows) and **Columns**
+(Add column, Replace, Delete column, and More: Unreplace, Tabulate column, Transpose data), which
+are two menus where the panel is narrow, as the right column always is; **Edit table** (the
+model's lookup tables) is in Analysis > Tables, not here. A line below says how many rows there
+are and which one is selected ("601 rows · row 5 (t = 0.25) selected"), with a button
+**Use row 5 as initial conditions** (the Get below). Then follows a list of titles for the
 variables, time and the auxiliary functions. Using the arrow keys, the
 page keys or clicking on the appropriate commands allows you to scroll
 through the data; every button and its keyboard shortcut also reaches the
-table's focus in reading order. Clicking on Left shifts the data columns
-to the left and Right moves them to the right. The time column always
-stays fixed. If you do parametric or range calculations, the range
-variable is kept in the time column. Home takes you to the top of the
-data and End to the last row. The remaining commands are described
+table's focus in reading order. Home takes you to the top of the
+data and End to the last row. A value is shown whole, as the program stores it, where its column
+has room for it; where it has not, it is cut with a dotted underline and its whole value is in
+the tip (click to copy). The remaining commands are described
 separately below; the keyboard shortcut to invoke each is in parentheses.
 
 **In xppautX these are also commands** (W526): `browser.find`, `browser.replace_column`, `browser.undo_replace`, `browser.tabulate_column`, `browser.set_slice_start` (First), `browser.set_slice_end` (Last), `browser.restore_full_slice`, `browser.add_column`, `browser.delete_column`, `browser.load`, `browser.export` (Write), `browser.transpose` (File, Transpose), `browser.postprocess` and `browser.page` (the block of the table the page shows). Getting a row as the initial conditions is `ic.from_data_row`. A command is given the column or the formula as arguments and ends with a `done` result; the buttons' forms call the same functions.
@@ -27,7 +35,7 @@ This pops up a window and asks for a variable and a value. It then looks through
 
 ### (G)et
 
-This makes the top row of data the initial conditions for a new run.
+This makes the selected row of data the initial conditions for a new run (in web2, the button "Use row N as initial conditions" on the status line, or Enter on the grid).
 
 ### Re(p)lace
 
@@ -51,7 +59,7 @@ This marks the selected row as the last row kept, itself included (nothing is sh
 
 This lets you save data in a tabulated format that can then be used by XPP as a function or inputs. You must use the ` First` and `Last` keys to mark the desired data you want to save. You are then prompted for the column name, the minimum and maximum you want your independent variable to range and the file name. The result is a table file of the format shown in the section on tables.
 
-### (R)estore
+### (R)estore: All rows
 
 keeps all the data again, from the first row to the last, and replots it in the selected graph.
 

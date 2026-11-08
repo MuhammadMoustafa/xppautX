@@ -49,7 +49,7 @@ h1, h2 { margin: 0; }
   .splitter:hover, .splitter:focus-visible { background: var(--accent); opacity: 0.5; }
   .splitter-values { grid-area: values; align-self: stretch; width: 0.5rem; margin: 0 0 0 -0.25rem; justify-self: start; cursor: col-resize; }
 
-  .shell[data-values="collapsed"] .values-panel, .shell[data-values="collapsed"] .splitter-values { display: none; }
+  .shell[data-values="collapsed"] .values-panel, .shell[data-values="collapsed"] .splitter-values, .shell[data-dock="table"] .values-panel { display: none; }
 }
 
 .workspace {
