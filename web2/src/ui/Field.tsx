@@ -39,6 +39,7 @@ import {
   fieldAcceptsEdit, fieldCharMessage, fieldError, fieldIncomplete, fieldIncompleteReason, fieldInputMode, fieldMessage,
   fieldPasteMessage, fieldPasteOffender, type FieldSpec,
 } from '../store/fieldKinds';
+import {steppedText} from '../store/values';
 
 type InputAttrs = Omit<InputHTMLAttributes<HTMLInputElement>,
   'value' | 'onInput' | 'onChange' | 'type' | 'step' | 'inputMode' | 'list' | 'onBlur' | 'onFocus'>;
@@ -70,12 +71,6 @@ export interface FieldProps extends InputAttrs {
   type?: 'text' | 'search';
   onFocus?: (e: FocusEvent) => void;
   onBlur?: (e: FocusEvent) => void;
-}
-
-/** `v` rounded to the decimals of `step`, so 0.1 + 0.2 shows as 0.3 */
-function stepped(v: number, step: number): string {
-  const decimals = Math.max(0, -Math.floor(Math.log10(Math.abs(step))) + 1);
-  return String(Number(v.toFixed(Math.min(decimals, 15))));
 }
 
 export function Field(props: FieldProps) {
@@ -195,7 +190,7 @@ export function Field(props: FieldProps) {
     const lo = el.min !== '' ? Number(el.min) : NaN, hi = el.max !== '' ? Number(el.max) : NaN;
     if (Number.isFinite(lo)) next = Math.max(lo, next);
     if (Number.isFinite(hi)) next = Math.min(hi, next);
-    change(stepped(next, step));
+    change(steppedText(next, step));
     return true;
   };
 

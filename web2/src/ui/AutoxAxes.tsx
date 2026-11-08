@@ -9,7 +9,8 @@
    Not modal: Escape or Close closes it, the focus goes back to the axis
    name. */
 import {useEffect, useRef, useState} from 'preact/hooks';
-import {axesNames, boundText, PROJECTIONS, spinStep, typedRange, yNeeds} from '../plot/axisDialog';
+import {exactText} from '../store/values';
+import {axesNames, PROJECTIONS, spinStep, typedRange, yNeeds} from '../plot/axisDialog';
 import {HELP} from '../help/links';
 import {pendingFields, shownSettings} from '../store/autoxSettings';
 import type {Range, Viewport} from '../store/plots';
@@ -38,8 +39,8 @@ export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: nu
   const box = useRef<HTMLDivElement>(null);
   const shown = (): Range | null => viewport[axis]
     ?? (axes ? (axis === 'x' ? {min: axes.xmin, max: axes.xmax} : {min: axes.ymin, max: axes.ymax}) : null);
-  const [minText, setMin] = useState(() => (shown() ? boundText(shown()!.min) : ''));
-  const [maxText, setMax] = useState(() => (shown() ? boundText(shown()!.max) : ''));
+  const [minText, setMin] = useState(() => (shown() ? exactText(shown()!.min) : ''));
+  const [maxText, setMax] = useState(() => (shown() ? exactText(shown()!.max) : ''));
   /* the texts as typed, for two edits in one tick (the state is only read at the next render) */
   const typed = useRef({min: minText, max: maxText});
   const setMinText = (t: string) => { typed.current.min = t; setMin(t); };
@@ -49,8 +50,8 @@ export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: nu
   useEffect(() => {
     const r = shown();
     if (!r || box.current?.contains(document.activeElement) && document.activeElement?.tagName === 'INPUT') return;
-    setMinText(boundText(r.min));
-    setMaxText(boundText(r.max));
+    setMinText(exactText(r.min));
+    setMaxText(exactText(r.max));
   }, [viewport, axes]);
 
   useEffect(() => {

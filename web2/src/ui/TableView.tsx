@@ -17,6 +17,7 @@
 import {openPanel} from './hotkeys';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
+import {ShownNumber} from './CutText';
 import {HELP} from '../help/links';
 import type {BrowserOp} from '../session';
 import {rowAt} from '../store/table';
@@ -30,10 +31,9 @@ import {FOCUSABLE} from './dialogFocus';
 /** the buttons' ops, in order; each button is the row navigation.ts toolbarCommand names (its label and description) */
 const BUTTONS: (BrowserOp | 'get')[] = ['find', 'get', 'replace', 'unreplace', 'table', 'load', 'write', 'first', 'last', 'restore', 'addcol', 'delcol'];
 
-/** a stored value as the core sent it (docs/protocol.md `browser`), full
-    precision (A14): whatever digits it was sent with, no rounding here */
-function fmt(v: number | null | undefined): string {
-  return v === null ? 'NaN' : v === undefined ? '' : String(v);
+/** a stored value (docs/protocol.md `browser`): six digits and the full value in the tip (A14, ShownNumber) */
+function Cell({v}: {v: number | null | undefined}) {
+  return v === undefined ? null : <ShownNumber value={v === null ? NaN : v} />;
 }
 
 /** the row height the layout actually uses (var(--target): 2rem with a
@@ -193,7 +193,7 @@ export function TableView() {
             <div key={row} id={`table-row-${row}`} class={'table-row' + (row === selected ? ' selected' : '')}
               role="row" aria-rowindex={row + 2} aria-selected={row === selected}
               style={{top: `${row * rowHeight}px`}} onClick={() => move(row)}>
-              {cols.map((_, i) => <span class="table-cell" role="gridcell" key={i}>{fmt(values?.[i])}</span>)}
+              {cols.map((_, i) => <span class="table-cell" role="gridcell" key={i}><Cell v={values?.[i]} /></span>)}
             </div>
           ))}
         </div>

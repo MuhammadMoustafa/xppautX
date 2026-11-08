@@ -18,7 +18,7 @@ import {openPanel} from './hotkeys';
 import {useEffect, useRef} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {Session} from '../session';
-import {sixSig} from '../store/values';
+import {ShownNumber} from './CutText';
 import type {SourceLine, TextTab} from '../store/text';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
@@ -117,7 +117,7 @@ function EquilibriumView() {
             <thead><tr><th scope="col">Name</th><th scope="col">Value</th></tr></thead>
             <tbody>
               {eq.values.map(([name, v]) => (
-                <tr key={name}><td>{name}</td><td title={String(v)}>{sixSig(v)}</td></tr>
+                <tr key={name}><td>{name}</td><td><ShownNumber value={v} /></td></tr>
               ))}
             </tbody>
           </table>
@@ -126,7 +126,7 @@ function EquilibriumView() {
             <thead><tr><th scope="col">Real</th><th scope="col">Imaginary</th></tr></thead>
             <tbody>
               {eq.eigenvalues?.length ? eq.eigenvalues.map(([re, im], i) => (
-                <tr key={i}><td title={String(re)}>{sixSig(re)}</td><td title={String(im)}>{sixSig(im)}</td></tr>
+                <tr key={i}><td><ShownNumber value={re} /></td><td><ShownNumber value={im} /></td></tr>
               )) : (
                 <tr><td colSpan={2} class="text-hint">Not known for this equilibrium (a delay equation).</td></tr>
               )}

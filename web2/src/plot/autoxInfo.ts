@@ -3,18 +3,21 @@
    words, and the circle's points placed and classified. Pure: no DOM. */
 import type {AutoxInfo, AutoxStab, DiagramAxes} from '../store/diagram';
 import {axesNames} from './axisDialog';
-import {fmt} from './diagramModel';
+import {sixSig} from '../store/values';
 import {pointLabel, pointMark} from '../store/pointTypes';
 
-/** the strip's fields as [name, value] rows (A14: six significant digits), in order of importance:
+/** a strip row's value: words, or a number the page shows through ui/CutText.tsx (A14: six significant digits) */
+export type InfoValue = string | number;
+
+/** the strip's fields as [name, value] rows, in order of importance:
     branch, point, type, label; what the diagram's axes show (the x axis's quantity, the main
     parameter, then the y axis's: the plotted variable, Norm, the period, or the second parameter of
     a two-parameter diagram, read from `axes` rather than guessed from names); then Norm, the plotted
     variable and the period (periodic orbits) that were not already shown as an axis; then the
     remaining parameters, so a second parameter not on an axis comes last */
-export function infoRows(info: AutoxInfo, axes: DiagramAxes | null): [string, string][] {
-  const n = (v: number | null) => (v === null ? 'NaN' : fmt(v));
-  const rows: [string, string][] = [
+export function infoRows(info: AutoxInfo, axes: DiagramAxes | null): [string, InfoValue][] {
+  const n = (v: number | null) => v ?? NaN;
+  const rows: [string, InfoValue][] = [
     ['Branch', String(info.br)],
     ['Point', String(info.pt)],
     ['Type', `${info.stable ? 'Stable' : 'Unstable'} ${info.periodic ? 'periodic orbit' : 'steady state'}`],
@@ -27,10 +30,10 @@ export function infoRows(info: AutoxInfo, axes: DiagramAxes | null): [string, st
   const {par1, yvar, par2} = axesNames(axes);
   const xPar = info.par.find(p => p.name === par1) ?? info.par[0];
   const yPar = par2 ? info.par.find(p => p.name === par2) : undefined;
-  const parRow = (p: {name: string; value: number | null}): [string, string] => [p.name, n(p.value)];
-  const varRow: [string, string] = [info.var, n(info.u)];
-  const normRow: [string, string] = ['Norm', n(info.norm)];
-  const periodRow: [string, string] | null = info.periodic ? ['Period', n(info.per)] : null;
+  const parRow = (p: {name: string; value: number | null}): [string, InfoValue] => [p.name, n(p.value)];
+  const varRow: [string, InfoValue] = [info.var, n(info.u)];
+  const normRow: [string, InfoValue] = ['Norm', n(info.norm)];
+  const periodRow: [string, InfoValue] | null = info.periodic ? ['Period', n(info.per)] : null;
 
   /* the y axis's quantity: the plotted variable, the second parameter, Norm or the period */
   const plot = axes?.plot;
@@ -47,8 +50,8 @@ export function infoRows(info: AutoxInfo, axes: DiagramAxes | null): [string, st
 /** a complex number in words: `a`, `a + bi`, `a − bi` */
 export function complexText(re: number | null, im: number | null): string {
   if (re === null || im === null) return 'none (below the smallest number)';
-  if (im === 0) return fmt(re);
-  return `${fmt(re)} ${im < 0 ? '−' : '+'} ${fmt(Math.abs(im))}i`;
+  if (im === 0) return sixSig(re);
+  return `${sixSig(re)} ${im < 0 ? '−' : '+'} ${sixSig(Math.abs(im))}i`;
 }
 
 export interface CirclePoint {

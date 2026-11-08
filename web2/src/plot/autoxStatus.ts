@@ -8,6 +8,7 @@
    first on. Pure. */
 import type {AutoxJobs, AutoxRun, AutoxStop, DiagramLabel, DiagramPoints} from '../store/diagram';
 import {pointLabel} from '../store/pointTypes';
+import {fixedText} from '../store/values';
 
 export interface RunStatus {
   /** 'idle' | 'starting' | 'running' | 'stopping' | 'done' | 'stopped' */
@@ -54,7 +55,7 @@ export function kindOfPoint(periodic: boolean, f2: number): string {
 /** "0.4 s", "12 s", "2:05" */
 export function formatElapsed(ms: number): string {
   const s = Math.max(0, ms) / 1000;
-  if (s < 10) return `${s.toFixed(1)} s`;
+  if (s < 10) return `${fixedText(s, 1)} s`;
   if (s < 60) return `${Math.floor(s)} s`;
   const m = Math.floor(s / 60);
   return `${m}:${String(Math.floor(s - 60 * m)).padStart(2, '0')}`;

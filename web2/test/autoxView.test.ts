@@ -3,7 +3,8 @@
    pure part, the label placement, the menu columns and where keys go. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {axesNames, boundText, spinStep, typedRange, yNeeds} from '../src/plot/axisDialog';
+import {exactText} from '../src/store/values';
+import {axesNames, spinStep, typedRange, yNeeds} from '../src/plot/axisDialog';
 import {formatElapsed, kindOfPoint, runStatus, stopPoint} from '../src/plot/autoxStatus';
 import {setPointTypes} from '../src/store/pointTypes';
 import {POINT_TYPES} from './hello';
@@ -159,8 +160,8 @@ test('the axis dialog: the names shown, the spinner step, the range typed', () =
   assert.deepEqual(typedRange('-1', '2'), {min: -1, max: 2});
   assert.equal(typedRange('2', '1'), null);
   assert.equal(typedRange('', '1'), null);
-  assert.equal(boundText(0.1 + 0.2), '0.30000000000000004');
-  assert.equal(boundText(-0.4416610002), '-0.4416610002');
+  assert.equal(exactText(0.1 + 0.2), '0.30000000000000004');
+  assert.equal(exactText(-0.4416610002), '-0.4416610002');
 });
 
 test('two names at one spot are written a line apart', () => {

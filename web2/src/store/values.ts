@@ -208,21 +208,73 @@ export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): Value
   return result;
 }
 
-/** display precision (A14): six significant digits */
-export function sixSig(n: number): string {
-  return significant(n, 6);
+/* ---- number text: the one owner of how the page writes a number (W640) ----
+   Every read-only number goes through shownNumber (six significant digits, A14; an exponent outside
+   EXPONENT_FROM_BELOW..EXPONENT_FROM; a flag saying digits were dropped, which ui/CutText.tsx marks with a muted
+   … and answers with the full value in a tip). Nothing else in web2/src calls toPrecision, toExponential or
+   toFixed (tools/sourcecheck.sh's numbercheck). */
+
+/** a read-only number's significant digits (A14) */
+export const SHOWN_DIGITS = 6;
+/** a number whose size is below this, or from EXPONENT_FROM up, is written with an exponent: 0.0001 is the smallest plain number */
+export const EXPONENT_BELOW = 1e-4;
+/** ... and 1000000 the first one written with an exponent */
+export const EXPONENT_FROM = 1e6;
+
+/** a number as the page shows it: `head` and `tail` make the short text (the tail is the exponent, "e+8", else ""),
+    `cut` says digits were dropped, `full` is the exact value as the shortest text that reads back as the number */
+export interface ShownNumber {
+  head: string;
+  tail: string;
+  cut: boolean;
+  full: string;
 }
 
-/** Inspection uses ten significant digits; editing retains the full double. */
-export function inspectNumber(n: number): string {
-  if (Number.isFinite(n) && n !== 0 && (Math.abs(n) >= 1e9 || Math.abs(n) < 1e-4)) {
+export function shownNumber(n: number): ShownNumber {
+  const full = String(n);
+  if (!Number.isFinite(n)) return {head: full, tail: '', cut: false, full};
+  const a = Math.abs(n);
+  if (n !== 0 && (a < EXPONENT_BELOW || a >= EXPONENT_FROM)) {
+    const [mantissa, exponent] = n.toExponential(SHOWN_DIGITS - 1).split('e');
+    const head = mantissa.includes('.') ? mantissa.replace(/\.?0+$/, '') : mantissa, tail = `e${exponent}`;
+    return {head, tail, cut: Number(head + tail) !== n, full};
+  }
+  const head = String(Number(n.toPrecision(SHOWN_DIGITS)));
+  return {head, tail: '', cut: Number(head) !== n, full};
+}
+
+/** the short text of `n` in one string (a title, an aria label, a sentence), without the cut mark */
+export function sixSig(n: number): string {
+  const {head, tail} = shownNumber(n);
+  return head + tail;
+}
+
+/** the text an input box shows while it is not being edited: ten significant digits (editing keeps the full double) */
+export function inputText(n: number): string {
+  if (Number.isFinite(n) && n !== 0 && (Math.abs(n) >= 1e9 || Math.abs(n) < EXPONENT_BELOW)) {
     return n.toExponential(9).replace(/\.?0+(?=e)/, '');
   }
-  return significant(n, 10);
+  return String(Number(n.toPrecision(10)));
 }
 
-function significant(n: number, digits: number): string {
-  return Number.isFinite(n) ? String(Number(n.toPrecision(digits))) : String(n);
+/** `n` as a field takes it back: the fewest digits from six on that read back as exactly `n` */
+export function exactText(n: number): string {
+  for (let p = SHOWN_DIGITS; p <= 17; p++) {
+    const t = String(Number(n.toPrecision(p)));
+    if (Number(t) === n) return t;
+  }
+  return String(n);
+}
+
+/** `v` rounded to the decimals of `step`, so 0.1 + 0.2 shows as 0.3 */
+export function steppedText(v: number, step: number): string {
+  const decimals = Math.max(0, -Math.floor(Math.log10(Math.abs(step))) + 1);
+  return String(Number(v.toFixed(Math.min(decimals, 15))));
+}
+
+/** `n` with exactly `decimals` decimals (a duration's tenth of a second) */
+export function fixedText(n: number, decimals: number): string {
+  return n.toFixed(decimals);
 }
 
 /* the Values panel's folding (W99): a section that starts folded (the model's boundary

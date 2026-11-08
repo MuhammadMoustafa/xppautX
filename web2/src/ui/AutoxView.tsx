@@ -53,13 +53,15 @@ import {WindowName} from './WindowName';
    click on a two-parameter diagram stores the point (`autox point`), marked
    on it. The info strip and the stability circle are ui/AutoxInfo.tsx. */
 import {TraceDialog} from './TraceDialog';
+import {ShownName, ShownNumber} from './CutText';
+import {sixSig} from '../store/values';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {DiagramChart, setDiagramChart} from '../plot/diagramChart';
 import {pointLabel, pointMark} from '../store/pointTypes';
 import {cssColor} from '../plot/colors';
 import {stopPoint} from '../plot/autoxStatus';
 import {
-  buildDiagramModel, carryAppearance, describePoint, fmt, grabStep, labelShape, LABEL_GLYPH, labelTypes, legendEntries, stepLabel,
+  buildDiagramModel, carryAppearance, describePoint, grabStep, labelShape, LABEL_GLYPH, labelTypes, legendEntries, stepLabel,
   symbolHelp, vertexOf, type DiagramModel,
 } from '../plot/diagramModel';
 import {attachGestures, type PickSink} from '../plot/interactions';
@@ -472,7 +474,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
                 onMouseEnter={() => chart.current?.highlight(e.curves)} onMouseLeave={() => chart.current?.highlight(null)}
                 onClick={() => setAppearance(p => ({...p, [e.key]: {...p[e.key], visible: off}}))}
                 onDblClick={() => setEditing({key: e.key, label: a?.label ?? e.name, color})}>
-                <span class="swatch" style={{background: color}} aria-hidden="true" />{a?.label ?? e.name}
+                <span class="swatch" style={{background: color}} aria-hidden="true" /><ShownName name={a?.label ?? e.name} copy={false} />
               </button>
             );
           })}
@@ -506,7 +508,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
         {cursor && <span class="autox-cursor" aria-hidden="true" style={{left: `${cursor.left}px`, top: `${cursor.top}px`}} />}
         {storedAt && (
           <span class="autox-cursor autox-stored" style={{left: `${storedAt.left}px`, top: `${storedAt.top}px`}}
-            title={`Stored point: ${fmt(stored!.x)}, ${fmt(stored!.y)}`} />
+            title={`Stored point: ${sixSig(stored!.x)}, ${sixSig(stored!.y)}`} />
         )}
         {pick && chart.current && <PickOverlay pick={pick} chart={chart.current} />}
         {area && axes && axisButton('x', axes.xlabel)}
@@ -539,7 +541,7 @@ function Readout() {
         <span>
           <b>{said.head}</b> · {said.kind}
           {said.label && <> · <b class="autox-label">{said.label}</b></>}
-          {said.values.map(v => <span key={v}> · {v}</span>)}
+          {said.values.map(v => <span key={v.name}> · {v.name} = <ShownNumber value={v.value} /></span>)}
         </span>
       ) : (
         <span class="muted">
@@ -613,7 +615,7 @@ function AutoxPanel({dark}: {dark: boolean}) {
       <AutoxInfo />
       <AutoxOutput />
       {stored && (
-        <p class="autox-stored-text muted">Stored point for File/sElect 2par pt: {fmt(stored.x)}, {fmt(stored.y)}</p>
+        <p class="autox-stored-text muted">Stored point for File/sElect 2par pt: <ShownNumber value={stored.x} />, <ShownNumber value={stored.y} /></p>
       )}
       {/* at the bottom, as the main window's status bar (T24) */}
       <AutoxStatus />

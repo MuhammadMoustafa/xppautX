@@ -11,6 +11,7 @@ import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {Plot3DView} from './Plot3DView';
 import {PlotView} from './PlotView';
 import {WindowName} from './WindowName';
+import {ShownName} from './CutText';
 import {choiceLabel} from '../store/fieldKinds';
 
 /** the Kinescope's own controls (docs/ui-v2.md T15): the core's menu
@@ -107,7 +108,7 @@ export function Plots({dark}: {dark: boolean}) {
                 disabled={tabOff && w.win !== active}
                 title={tabOff && w.win !== active ? BUSY_TITLE : undefined}
                 onClick={() => session.selectWindow(w.win)}>
-                                <span class="plot-tab-title">{w.win}</span>
+                                <span class="plot-tab-title"><ShownName name={w.win} copy={false} /></span>
               </button>
             ))}
           </div>

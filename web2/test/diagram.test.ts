@@ -230,10 +230,10 @@ test('stepping from label to label, and the readout of a point', () => {
   const e = describePoint(d.points, d.labels, d.axes, 0, {point: 0, text: 'parameter iapp reached Par Max (0.45)'});
   assert.equal(e.label, 'End of branch label 1 (parameter iapp reached Par Max (0.45))');
   assert.equal(describePoint(d.points, d.labels, d.axes, 4, {point: 0, text: 'x'}).label, 'Andronov\u2013Hopf label 2');
-  assert.deepEqual(r.values, ['iapp = 0.26', 'V = -0.2']);
+  assert.deepEqual(r.values, [{name: 'iapp', value: 0.26}, {name: 'V', value: -0.2}]);
   const q = describePoint(d.points, d.labels, d.axes, 10);
   assert.equal(q.kind, 'unstable periodic orbit');
-  assert.deepEqual(q.values, ['iapp = 0.259', 'V max = -0.17', 'V min = -0.23']);
+  assert.deepEqual(q.values, [{name: 'iapp', value: 0.259}, {name: 'V max', value: -0.17}, {name: 'V min', value: -0.23}]);
   assert.equal(initialDiagram.open, false);
 });
 
@@ -310,12 +310,12 @@ test('the strip in words and the circle: inside is stable, the eigenvalues liste
   const rows = infoRows(hbInfo as never, axes);
   assert.deepEqual(rows.slice(0, 4), [['Branch', '1'], ['Point', '5'], ['Type', 'Unstable steady state'],
     ['Label', 'AH 2 (Andronov\u2013Hopf)']]);
-  assert.deepEqual(rows.slice(4, -1), [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['phi', '0.2']],
+  assert.deepEqual(rows.slice(4, -1), [['iapp', 0.26], ['V', -0.2], ['Norm', 0.29], ['phi', 0.2]],
     'the axes (iapp, V), then Norm (no period for a steady state), then the second parameter, last');
   assert.deepEqual(rows.at(-1), ['Jacobian', 'difference'], 'and the Jacobian its run was computed with');
   assert.deepEqual(infoRows({...hbInfo, jac: 'exact'} as never, axes).at(-1), ['Jacobian', 'exact']);
   const pts = circlePoints(hbStab as never);
-  assert.deepEqual(pts.map(p => [p.inside, p.text]), [[true, '0.00006 + 0.435i'], [true, '0.00006 − 0.435i']]);
+  assert.deepEqual(pts.map(p => [p.inside, p.text]), [[true, '6e-5 + 0.435i'], [true, '6e-5 − 0.435i']]);
   const mult = circlePoints({periodic: 1, circle: [[1, 0], [2.5, 0], [0.1, -3]]} as never);
   assert.deepEqual(mult.map(p => [p.x, p.y, p.inside, p.text, p.trivial]), [[1, 0, true, '1', true], [1.95, 0, false, '2.5', false],
     [0.1, -1.95, false, '0.1 − 3i', false]]);
@@ -341,19 +341,19 @@ test('a cycle\'s trivial multiplier is the one nearest 1: marked, not counted; a
 test('infoRows orders the axes first, then Norm and the period, then the remaining parameters', () => {
   /* a one-parameter diagram, Iapp against V (maximum_and_minimum: the y axis is the variable) */
   assert.deepEqual(infoRows(hbInfo as never, axes).slice(4, -1),
-    [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['phi', '0.2']]);
+    [['iapp', 0.26], ['V', -0.2], ['Norm', 0.29], ['phi', 0.2]]);
   /* a periodic orbit: the period is not an axis either, so it comes before the remaining parameter */
   assert.deepEqual(infoRows({...hbInfo, type: 4, periodic: true} as never, axes).slice(4, -1),
-    [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['Period', '14.4'], ['phi', '0.2']]);
+    [['iapp', 0.26], ['V', -0.2], ['Norm', 0.29], ['Period', 14.4], ['phi', 0.2]]);
   /* a Norm y axis (norm): Norm is the axis, the variable falls back with the remaining parameter */
   assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 'norm'}).slice(4, -1),
-    [['iapp', '0.26'], ['Norm', '0.29'], ['V', '-0.2'], ['phi', '0.2']]);
+    [['iapp', 0.26], ['Norm', 0.29], ['V', -0.2], ['phi', 0.2]]);
   /* a two-parameter diagram (two_parameter): both parameters in axis order, nothing left over for them */
   assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 'two_parameter', ylabel: 'phi'}).slice(4, -1),
-    [['iapp', '0.26'], ['phi', '0.2'], ['Norm', '0.29'], ['V', '-0.2']]);
+    [['iapp', 0.26], ['phi', 0.2], ['Norm', 0.29], ['V', -0.2]]);
   /* no axes data at all: still nothing dropped, the main parameter first */
   assert.deepEqual(infoRows(hbInfo as never, null).slice(4, -1),
-    [['iapp', '0.26'], ['Norm', '0.29'], ['V', '-0.2'], ['phi', '0.2']]);
+    [['iapp', 0.26], ['Norm', 0.29], ['V', -0.2], ['phi', 0.2]]);
 });
 
 test("a first point's circle, all zeros, is not computed: no points, no zeros listed as eigenvalues (T25)", () => {

@@ -3,7 +3,7 @@
    browser (npm test). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {fieldKey, initialValues, inspectNumber, isFolded, showsBcSection, reduceValues, sentText, sixSig, type ValueSet, type ValuesState} from '../src/store/values';
+import {fieldKey, initialValues, inputText, shownNumber, isFolded, showsBcSection, reduceValues, sentText, sixSig, type ValueSet, type ValuesState} from '../src/store/values';
 
 const edit = (e: Partial<ValueSet> & Pick<ValueSet, 'kind' | 'text'>): ValueSet =>
   ({name: undefined, index: undefined, ...e});
@@ -68,17 +68,36 @@ test('a new connection waits for nothing sent before', () => {
 test('sixSig shows six significant digits', () => {
   assert.equal(sixSig(0.144), '0.144');
   assert.equal(sixSig(1 / 3), '0.333333');
-  assert.equal(sixSig(123456789), '123457000');
+  assert.equal(sixSig(123456789), '1.23457e+8');
   assert.equal(sixSig(NaN), 'NaN');
 });
 
+test('shownNumber: six digits, an exponent outside 1e-4..1e6, and a flag for dropped digits (W640)', () => {
+  const at = (n: number) => { const r = shownNumber(n); return [r.head, r.tail, r.cut, r.full]; };
+  assert.deepEqual(at(0.144), ['0.144', '', false, '0.144']);
+  assert.deepEqual(at(-0.3825256290227896), ['-0.382526', '', true, '-0.3825256290227896']);
+  assert.deepEqual(at(1e-4), ['0.0001', '', false, '0.0001'], '1e-4 is the smallest plain number');
+  assert.deepEqual(at(9.99999e-5), ['9.99999', 'e-5', false, String(9.99999e-5)]);
+  assert.deepEqual(at(999999), ['999999', '', false, '999999']);
+  assert.deepEqual(at(1e6), ['1', 'e+6', false, '1000000'], '1e6 is the first written with an exponent');
+  assert.deepEqual(at(123456789.25), ['1.23457', 'e+8', true, '123456789.25']);
+  assert.deepEqual(at(-123456789.25), ['-1.23457', 'e+8', true, '-123456789.25']);
+  assert.deepEqual(at(3.2e-9), ['3.2', 'e-9', false, '3.2e-9']);
+  assert.deepEqual(at(0), ['0', '', false, '0']);
+  assert.deepEqual(at(-0), ['0', '', false, '0']);
+  assert.deepEqual(at(NaN), ['NaN', '', false, 'NaN']);
+  assert.deepEqual(at(Infinity), ['Infinity', '', false, 'Infinity']);
+  assert.deepEqual(at(-Infinity), ['-Infinity', '', false, '-Infinity']);
+  assert.deepEqual(at(1 / 3), ['0.333333', '', true, String(1 / 3)]);
+});
+
 test('inspection retains ten significant digits and uses compact scientific notation at extremes', () => {
-  assert.equal(inspectNumber(-0.3825256290227896), '-0.382525629');
-  assert.equal(inspectNumber(1 / 3), '0.3333333333');
-  assert.equal(inspectNumber(1.234567891234e15), '1.234567891e+15');
-  assert.equal(inspectNumber(1e-12), '1e-12');
-  assert.equal(inspectNumber(0), '0');
-  assert.equal(inspectNumber(NaN), 'NaN');
+  assert.equal(inputText(-0.3825256290227896), '-0.382525629');
+  assert.equal(inputText(1 / 3), '0.3333333333');
+  assert.equal(inputText(1.234567891234e15), '1.234567891e+15');
+  assert.equal(inputText(1e-12), '1e-12');
+  assert.equal(inputText(0), '0');
+  assert.equal(inputText(NaN), 'NaN');
 });
 
 test('the boundary-conditions section is absent without model BCs, present and folded with them (W99)', () => {

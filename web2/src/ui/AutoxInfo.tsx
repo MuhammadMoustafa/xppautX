@@ -8,6 +8,7 @@
    autoX computes them from a run's second point on: a first point's
    circle (unless the run restarts from a label of the same kind) says so
    instead of listing zeros. */
+import {ShownNumber} from './CutText';
 import {circlePoints, infoRows, stabComputed, stabilitySummary} from '../plot/autoxInfo';
 import {activeView} from '../store/diagram';
 import {useStore} from './context';
@@ -61,7 +62,7 @@ export function AutoxInfo() {
       {info ? (
         <dl class="autox-info-rows">
           {infoRows(info, axes).map(([k, v]) => (
-            <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
+            <div key={k}><dt>{k}</dt><dd>{typeof v === 'number' ? <ShownNumber value={v} /> : v}</dd></div>
           ))}
         </dl>
       ) : <p class="muted autox-info-rows">Grab shows a point's branch, label and values here.</p>}

@@ -414,9 +414,6 @@ const SYMBOL_HELP: Record<string, string> = {
   branch_closed: 'Branch closed: the branch came back to its own start; the run stopped here',
 };
 
-export function fmt(v: number): string {
-  return Number.isFinite(v) ? Number(v.toPrecision(6)).toString() : 'NaN';
-}
 
 /** what a point is, in words: its kind */
 export function pointKind(p: DiagramPoints, i: number): string {
@@ -466,7 +463,7 @@ export function labelTypes(labels: {sym: string}[]): string[] {
   return Object.keys(SYMBOL_HELP).filter(k => has.has(k));
 }
 
-/** the readout's parts for point `i` (A14: six significant digits); `stop`,
+/** the readout's parts for point `i` (its `values` are numbers: ui/AutoxView.tsx shows them through ui/CutText.tsx); `stop`,
     the point where the last run's branch ended and why (T23), adds the reason
     to its label: "EP label 3 (End point: parameter iapp reached parameter_max (0.45))" */
 export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: DiagramAxes | null, i: number,
@@ -475,9 +472,8 @@ export function describePoint(p: DiagramPoints, labels: DiagramLabel[], axes: Di
   const why = stop && stop.point === i ? stop.text : '';
   const xName = axes?.xlabel || 'x', yName = axes?.ylabel || 'y';
   const two = p.y2[i] !== p.y[i];
-  const values = [`${xName} = ${fmt(p.x[i])}`,
-    two ? `${yName} max = ${fmt(p.y[i])}` : `${yName} = ${fmt(p.y[i])}`];
-  if (two) values.push(`${yName} min = ${fmt(p.y2[i])}`);
+  const values = [{name: xName, value: p.x[i]}, {name: two ? `${yName} max` : yName, value: p.y[i]}];
+  if (two) values.push({name: `${yName} min`, value: p.y2[i]});
   return {
     head: `Branch ${p.br[i]}, point ${p.pt[i]}`,
     kind: pointKind(p, i),

@@ -21,6 +21,7 @@ import {TraceDialog} from './TraceDialog';
 import {nearest3d} from '../plot/render3d';
 import {FitButton} from './PlotView';
 import {SetsRow} from './SetsRow';
+import {ShownName} from './CutText';
 
 interface Props {
   win: string;
@@ -156,7 +157,7 @@ export function Plot3DView({win, dark, shown, tabbed, windowRow}: Props) {
               onClick={() => setAppearance(a => ({...a, [traceKeys[i]]: {...a[traceKeys[i]], visible: c.visible === false}}))}
               onDblClick={() => setEditing(i)}>
               <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color, dark)}} aria-hidden="true" />
-              {c.label}
+              <ShownName name={c.label} copy={false} />
             </button>
           ))}
         </div>

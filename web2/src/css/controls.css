@@ -194,3 +194,17 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   margin-top: var(--space-2);
   font-size: var(--text-xs);
 }
+
+/* cut text (ui/CutText.tsx): a muted … and a dotted underline when digits or letters were dropped; the full text in a
+   one-line tip in the top layer; a click copies, the confirmation a green tint and a green tick */
+.cut-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cut-text.cut { cursor: help; text-decoration: underline dotted var(--fg-muted); text-underline-offset: 0.2em; }
+.cut-text.cut[role="button"] { cursor: copy; }
+.cut-more { color: var(--fg-muted); }
+.cut-text.copied { background: color-mix(in srgb, var(--ok) 18%, transparent); border-radius: 0.25rem; outline: 1px solid color-mix(in srgb, var(--ok) 55%, transparent); }
+.cut-tip { position: fixed; inset: auto; margin: 0; padding: var(--space-1) var(--space-2); max-width: min(90vw, 40rem); color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: 0.4rem; box-shadow: var(--shadow); font: var(--text-xs) var(--mono); text-decoration: none; cursor: copy; }
+.cut-tip:popover-open { display: flex; align-items: center; gap: var(--space-2); }
+.cut-tip-text { overflow-wrap: anywhere; }
+.cut-tip .cut-icon { flex: none; color: var(--fg-muted); }
+.cut-tip .cut-tick { flex: none; color: var(--ok); }
+.cut-tip.copied { border-color: color-mix(in srgb, var(--ok) 55%, var(--border)); }

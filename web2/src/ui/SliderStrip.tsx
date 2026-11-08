@@ -15,6 +15,7 @@ import {fromPosition, RANGE_STEPS, sliderRange, sliderStep, toPosition, type Sli
 import {NUMBER} from '../store/fieldKinds';
 import {fieldKey, sentText, sixSig} from '../store/values';
 import {Field} from './Field';
+import {ShownName, ShownNumber} from './CutText';
 import {SliderDialog} from './SliderDialog';
 import {useSession, useStore} from './context';
 
@@ -61,7 +62,7 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
   return (
     <div class="slider-card" data-slider={def.id}>
       <div class="slider-card-head">
-        <span class="slider-card-name" title={label}>{label}</span>
+        <span class="slider-card-name"><ShownName name={label} /></span>
         <label class="visually-hidden" htmlFor={id('val')}>{label}: value</label>
         <Field id={id('val')} class="slider-card-value" spec={NUMBER} disabled={!match}
           step={step ?? null} min={range ? Math.min(range.lo, range.hi) : undefined}
@@ -76,7 +77,7 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
           onClick={() => session.removeSlider(def.id)}>&#10005;</button>
       </div>
       <div class="slider-card-track">
-        <span class="slider-card-lim muted">{range ? sixSig(Math.min(range.lo, range.hi)) : ''}</span>
+        <span class="slider-card-lim muted">{range ? <ShownNumber value={Math.min(range.lo, range.hi)} /> : ''}</span>
         <label class="visually-hidden" htmlFor={id('range')}>{label}: drag to change the value</label>
         <input type="range" id={id('range')} class="slider-card-range" min={0} max={RANGE_STEPS} step={1}
           value={value !== undefined && range ? toPosition(value, range) : RANGE_STEPS / 2} disabled={!match || !range}
@@ -89,7 +90,7 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
             if (match && range) slideTo(fromPosition(Number((e.target as HTMLInputElement).value), range));
           }}
         />
-        <span class="slider-card-lim muted">{range ? sixSig(Math.max(range.lo, range.hi)) : ''}</span>
+        <span class="slider-card-lim muted">{range ? <ShownNumber value={Math.max(range.lo, range.hi)} /> : ''}</span>
       </div>
     </div>
   );

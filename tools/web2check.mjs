@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets] [-v]
+     [--only desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -3353,7 +3353,7 @@ const fieldState = (sec, name) => cdp.eval(`(() => { const f = ${fieldOf(sec, na
     focused: document.activeElement === i}; })()`);
 const icsOf = 'JSON.stringify(s.core.ics.map(p => p[1]))';
 const icFields = () => cdp.eval(`JSON.stringify([...document.querySelectorAll('[data-section="ic"] .value-field input')].map(i => i.value))`);
-const nowCells = () => cdp.eval(`JSON.stringify([...document.querySelectorAll('.value-now')].map(o => o.textContent))`);
+const nowCells = () => cdp.eval(`JSON.stringify([...document.querySelectorAll('.value-now')].map(o => o.textContent.replace('\\u2026', '')))`);
 const close6 = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
 
 /* lecar.odex: runs accumulate, Erase, Redraw, Last and "Use current state", reset, save and load, sliders */
@@ -3806,7 +3806,7 @@ async function valuesLive() {
     (function tick() { const s = __xpp.state();
       if (s.busy) __icSeen.push(JSON.stringify(s.core.ics.map(p => p[1])) + [...document.querySelectorAll('[data-section="ic"] .value-field input')].map(i => i.value).join());
       if (window.__sampling) requestAnimationFrame(tick); })();
-    const nowText = () => [...document.querySelectorAll('.value-now')].map(o => o.textContent).join();
+    const nowText = () => [...document.querySelectorAll('.value-now')].map(o => o.textContent.replace('\\u2026', '')).join();
     window.__nowObserver = new MutationObserver(() => { if (window.__sampling && __xpp.state().busy) __nowSeen.push(nowText()); });
     __nowObserver.observe(document.body,
       {subtree: true, childList: true, characterData: true});
@@ -5346,6 +5346,52 @@ async function sessionAttempts(ode, fn, expected, attempts) {
   }
 }
 
+/* ---- cut text (W640, #712): a number cut to six digits and a name cut by its box say so, show the whole text in a
+   tip in the top layer, and a click copies it with a green tick ---- */
+async function cutCheck() {
+  await desktopMetrics();
+  check('cut: the page connects', await until('s.hello && !s.busy', 'hello'));
+  check('cut: a run stores rows', await integrate(601, 30000) || await until('s.seriesCount > 0 && !s.busy', 'rows'));
+  await until('s.core.now', 'now');
+  /* the clipboard is stubbed: what the page writes is read back, never the system's */
+  await cdp.eval(`Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {writeText: async t => { window.__clip = t; }}}); window.__clip = null; true`);
+  const full = String(await S('s.core.now[0]'));
+  check('cut: Current V is cut to six digits: a … before nothing, and marked cut',
+    await cdp.eval(`(() => { const e = document.querySelector('[data-section="ic"] .value-now .cut-text'); return !!e && e.classList.contains('cut') && e.textContent.replace('\u2026', '').length < ${full.length}
+      && !!e.querySelector('.cut-more') && getComputedStyle(e).textDecorationStyle === 'dotted'; })()`));
+  check('cut: no tip until it is pointed at or focused', await cdp.eval(`!document.querySelector('.cut-tip')`));
+  const at = await center('[data-section="ic"] .value-now .cut-text');
+  await mouse('mouseMoved', at.x, at.y);
+  check('cut: pointing at it opens the tip, a popover in the top layer, with the whole value and a clipboard icon',
+    await until(`(() => { const t = document.querySelector('.cut-tip'); return !!t && t.matches(':popover-open') && t.textContent === ${JSON.stringify(full)} && !!t.querySelector('.cut-icon'); })()`, 'tip open'));
+  check('cut: ... and nothing clips it: the tip is the element at its own centre',
+    await cdp.eval(`(() => { const r = document.querySelector('.cut-tip').getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.cut-tip') !== null; })()`));
+  await mouse('mouseMoved', 5, 5);
+  check('cut: leaving it closes the tip', await until(`!document.querySelector('.cut-tip')`, 'tip closed'));
+  await click(at.x, at.y);
+  check('cut: a click copies the whole value', await until(`window.__clip === ${JSON.stringify(full)}`, 'copied'));
+  check('cut: ... the number is tinted green and the icon is a green tick, with no word',
+    await until(`(() => { const e = document.querySelector('[data-section="ic"] .value-now .cut-text'), t = document.querySelector('.cut-tip');
+      return e.classList.contains('copied') && !!t && !!t.querySelector('.cut-tick') && !t.querySelector('.cut-icon') && t.textContent === ${JSON.stringify(full)}; })()`, 'copied state'));
+  check('cut: ... and it goes back after a moment (a condition, not a wait: the tick leaves)',
+    await until(`!document.querySelector('[data-section="ic"] .value-now .cut-text').classList.contains('copied')`, 'copied gone', 10000));
+  /* a keyboard user: focus opens the tip, Enter copies */
+  await cdp.eval(`window.__clip = null; document.querySelector('[data-section="ic"] .value-now .cut-text').focus()`);
+  check('cut: focus opens the tip', await until(`!!document.querySelector('.cut-tip')`, 'tip on focus'));
+  await key('Enter');
+  check('cut: Enter copies', await until(`window.__clip === ${JSON.stringify(full)}`, 'copied by key'));
+  await cdp.eval(`document.activeElement.blur()`);
+  /* a name cut by its box: narrowed here, then measured by the page (a ResizeObserver) */
+  await cdp.eval(`(() => { const s = document.createElement('style'); s.id = 'cutcheck'; s.textContent = '.value-name { max-width: 1rem; }'; document.head.append(s); })()`);
+  check('cut: a name wider than its box is cut, marked, and never wraps',
+    await until(`(() => { const e = document.querySelector('.values-panel .value-name .cut-name.cut'); return !!e && getComputedStyle(e).whiteSpace === 'nowrap' && getComputedStyle(e).textOverflow === 'ellipsis'; })()`, 'name cut'));
+  const name = await cdp.eval(`document.querySelector('.values-panel .value-name .cut-name.cut').textContent`);
+  await cdp.eval(`document.querySelector('.values-panel .value-name .cut-name.cut').focus()`);
+  check('cut: a cut name has the same tip, with its whole name',
+    await until(`document.querySelector('.cut-tip')?.textContent === ${JSON.stringify(name)}`, 'name tip'));
+  await cdp.eval(`document.activeElement.blur(); document.getElementById('cutcheck').remove()`);
+}
+
 /* ---- layout (W98, #147): the plot at every window width, Show autoX clear of the messages,
    and the main plot after a session with an autoX diagram is opened and Back is pressed (W102, #151) ---- */
 
@@ -5749,6 +5795,7 @@ async function main() {
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
     if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:3:1: uses random numbers')]);
     if (run('values')) await session(ODE, equilibriumSettings);
+    if (run('cut')) await session(ODE, cutCheck);
     if (run('sets')) await session(ODE, setsRows, ['command:1: The run stored 0 row(s): nothing to analyse (at least 1 are needed)']);
     if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('Argument "values.gca" must be a finite number')]);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));

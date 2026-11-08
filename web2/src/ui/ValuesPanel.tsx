@@ -22,7 +22,7 @@ import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
 import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, choiceLabel, fieldMessage, type FieldSpec} from '../store/fieldKinds';
-import {fieldKey, foldKey, inspectNumber, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
+import {fieldKey, foldKey, inputText, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
 import type {NumericsField} from '../protocol/types';
 import {NUM_METHOD, numericsField} from '../store/steady';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
@@ -30,6 +30,7 @@ import {CommandLabel, useCommandLabel} from './CommandButton';
 import {SetsRow} from './SetsRow';
 import {SliderStrip} from './SliderStrip';
 import {Field} from './Field';
+import {ShownName, ShownNumber} from './CutText';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 import {readPref, writePref} from '../store/prefs';
@@ -113,7 +114,7 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
   const title = def !== null ? `${hint}; default: ${sixSig(def)}` : hint;
   return (
     <div class={'value-field' + (changed ? ' changed' : '')}>
-      <label htmlFor={id} class="value-name" title={label}>{label}</label>
+      <label htmlFor={id} class="value-name"><ShownName name={label} /></label>
       <Field id={id} spec={spec} value={sent ?? display} editValue={sent ?? full} onCommit={commit} error={error ?? null}
         settling={settling} onDropError={() => session.store.dispatch({type: 'values', action: {type: 'clearError', field}})}
         title={title} />
@@ -129,7 +130,7 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
 
 function fieldProps(value: string | number) {
   return {
-    display: typeof value === 'number' ? inspectNumber(value) : value,
+    display: typeof value === 'number' ? inputText(value) : value,
     full: typeof value === 'number' ? String(value) : value,
   };
 }
@@ -207,12 +208,12 @@ function StateSection() {
             {...fieldProps(value)}
             extra={(
               <><output class={'value-now' + (now[i] === null ? ' none' : '')} data-name={name}
-                aria-label={`${name} now`} title={now[i] === null ? 'No run yet' : `Now: ${now[i]}`}>
-                {now[i] === null ? '–' : inspectNumber(now[i]!)}
+                aria-label={`${name} now`} title={now[i] === null ? 'No run yet' : undefined}>
+                {now[i] === null ? '–' : <ShownNumber value={now[i]!} />}
               </output>
               <output class="value-rate muted" aria-label={`${name} sampled tail rate`}
                 title={`Maximum |Δ${name}/Δt| over up to the last ${intervals} stored intervals; sampled float32 trajectory data, not a solver derivative.`}>
-                {rate === null ? '–' : rate.toExponential(2)}
+                {rate === null ? '–' : <ShownNumber value={rate} />}
               </output></>
             )} />
         );})}
@@ -253,7 +254,7 @@ function NumericField({f}: {f: NumericsField}) {
   if (f.boolean) {
     return (
       <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
-        <label htmlFor={id} class="value-name" title={title}>{f.label}</label>
+        <label htmlFor={id} class="value-name" title={f.unused ? title : undefined}><ShownName name={f.label} /></label>
         <input id={id} type="checkbox" checked={(sent ?? String(f.value)) === 'true'} title={title}
           aria-invalid={error ? true : undefined}
           onChange={e => session.setNumeric(f.key, String((e.target as HTMLInputElement).checked))} />
@@ -265,7 +266,7 @@ function NumericField({f}: {f: NumericsField}) {
     const value = sent ?? String(f.value);
     return (
       <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
-        <label htmlFor={id} class="value-name" title={title}>{f.label}</label>
+        <label htmlFor={id} class="value-name" title={f.unused ? title : undefined}><ShownName name={f.label} /></label>
         <select id={id} value={value} title={title} aria-invalid={error ? true : undefined}
           onChange={e => session.setNumeric(f.key, (e.target as HTMLSelectElement).value)}>
           {f.choices.map(c => <option key={c} value={c} disabled={!!f.unavailable?.[c]}
@@ -281,7 +282,7 @@ function NumericField({f}: {f: NumericsField}) {
   const spec: FieldSpec = f.integer ? {kind: 'integer'} : NUMBER;
   return (
     <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
-      <label htmlFor={id} class="value-name" title={title}>{f.label}</label>
+      <label htmlFor={id} class="value-name" title={f.unused ? title : undefined}><ShownName name={f.label} /></label>
       <Field id={id} spec={spec} value={sent ?? (typeof f.value === 'number' ? sixSig(f.value) : '')} editValue={sent ?? shown}
         onCommit={text => session.setNumeric(f.key, text)} error={error ?? null} settling={sent !== null}
         onDropError={() => session.store.dispatch({type: 'values', action: {type: 'clearError', field}})}

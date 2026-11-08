@@ -78,7 +78,8 @@
   border-bottom: 1px solid var(--border);
 }
 .legend { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1 1 20rem; min-width: 0; max-height: 4.5rem; overflow-y: auto; }
-.legend-item { border: none; background: none; padding: 0 var(--space-2); }
+.legend-item { max-width: 16rem; min-width: 0; border: none; background: none; padding: 0 var(--space-2); }
+.window-name { max-width: 10rem; min-width: 0; }
 .legend-item[aria-pressed='false'] { opacity: 0.45; text-decoration: line-through; }
 .swatch { width: 0.9rem; height: 0.2rem; border-radius: 0.125rem; }
 /* the phase plane's layers (T7): nullclines thicker than a curve, the field an arrow */

@@ -12,6 +12,7 @@
 #     allows: files go through xpp_files.h (tools/filecheck.sh)
 #   - no string literal cast to char * (tools/literalcheck.sh)
 #   - no delay outside condition polling or named lower bounds (tools/sleepcheck.sh, W166)
+#   - number text only in web2/src/store/values.ts (tools/numbercheck.sh, W640)
 #   - no direct exp, log, pow, sin, ... of the C library: xpp::math's, the same
 #     bits on every CPU (tools/mathcheck.sh, W159)
 #   - no more errors reported with no place (file, line) than
@@ -131,6 +132,10 @@ if ! sh tools/sleepcheck.sh; then
 fi
 if ! sh tools/mathcheck.sh; then
   echo "MATH CHECK FAILED"
+  exit 1
+fi
+if ! sh tools/numbercheck.sh; then
+  echo "NUMBER CHECK FAILED"
   exit 1
 fi
 if ! sh tools/externcheck.sh; then

@@ -34,11 +34,3 @@ export function typedRange(minText: string, maxText: string): {min: number; max:
   return Number.isFinite(min) && Number.isFinite(max) && min < max ? {min, max} : null;
 }
 
-/** a bound as a field shows it: short, but read back as the same number */
-export function boundText(v: number): string {
-  for (let p = 6; p <= 17; p++) {
-    const t = String(Number(v.toPrecision(p)));
-    if (Number(t) === v) return t;
-  }
-  return String(v);
-}

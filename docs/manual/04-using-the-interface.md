@@ -97,6 +97,15 @@ remembered by this browser. Below 48 rem (a phone) the title bar is one row: the
 behind its **Menu** button (Escape, a click outside it, or a choice closes it; Search commands is at its top),
 Data, Model and Help are in Tools, and Values is a sheet opened by its button.
 
+**Cut text.** A read-only number is shown with six significant digits, and with an exponent
+below 0.0001 and from 1000000 (`1.23457e+8`); a name that does not fit its place is cut with an ellipsis and never wraps. Text that
+was cut says so: a muted **…** (in a number, before the exponent) and a dotted underline. Point at it, or move the focus to it, and a
+one-line tip shows the whole value or name beside a clipboard icon; a click or tap (or Enter) copies it,
+and the number turns green and the icon a green tick. This is one display for the Values panel, the Data table, a plot's
+hover readout, autoX's info strip and readout, the array plot, the equilibrium tables, the sliders, and for names in Values,
+legends and window names (a legend entry or a window tab keeps its click for its own job, so it has the tip only).
+Input boxes are never shortened.
+
 ## Tabs instead of windows
 
 The plot, autoX, the animation, an array plot, the data browser, the

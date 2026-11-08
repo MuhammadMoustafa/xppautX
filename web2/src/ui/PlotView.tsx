@@ -28,6 +28,7 @@ import {TraceDialog} from './TraceDialog';
 import type {PlotSeries} from '../store/series';
 import {HOME, windowOf} from '../store/plots';
 import {SetsRow, useDropDown} from './SetsRow';
+import {ShownName, ShownNumber} from './CutText';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 
 /** the plot's ⋯: a pop-up holding the tools the plot's header has no room for (a pick, or a click outside, closes it) */
@@ -50,10 +51,6 @@ function coreView(info: PlotWindowInfo | null, view: View | undefined, win: stri
   if (!a || a.three) return null;
   if (!(a.xlo < a.xhi && a.ylo < a.yhi)) return null;
   return {x: {min: a.xlo, max: a.xhi}, y: {min: a.ylo, max: a.yhi}};
-}
-
-function fmt(v: number): string {
-  return Number.isFinite(v) ? Number(v.toPrecision(6)).toString() : String(v);
 }
 
 /** the store's hover for point `index` of curve `curve`, or none */
@@ -403,7 +400,7 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
       onClick={() => setAppearance(a => ({...a, [key]: {...a[key], visible: c.visible === false}}))}
       onDblClick={() => setEditing({key, label: c.label, color: c.cssColor ?? cssColor(c.color, dark)})}>
       <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color, dark)}} aria-hidden="true" />
-      {c.label}{run >= 0 && <small> · run {keys[run].slice(4)}</small>}
+      <ShownName name={c.label} copy={false} />{run >= 0 && <small> · run {keys[run].slice(4)}</small>}
     </button>
   );
   const hovered = trace && (trace.run < 0 ? model : runs[trace.run])?.curves[trace.curve];
@@ -497,8 +494,8 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
           <span>
             <b>{model.curves[hover.curve]?.label}</b>
             {' '}row {hover.row}
-            {hover.t !== null && <> · T = {fmt(hover.t)}</>}
-            {' '}· {model.curves[hover.curve]?.xName} = {fmt(hover.x)} · {model.curves[hover.curve]?.yName} = {fmt(hover.y)}
+            {hover.t !== null && <> · T = <ShownNumber value={hover.t} /></>}
+            {' '}· {model.curves[hover.curve]?.xName} = <ShownNumber value={hover.x} /> · {model.curves[hover.curve]?.yName} = <ShownNumber value={hover.y} />
           </span>
         ) : (
           <span class="muted">

@@ -1,7 +1,8 @@
 /* Direct run actions and inline settings; no mandatory intermediate dialog. */
 import {useEffect} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
-import {fieldKey, inspectNumber, sentText} from '../store/values';
+import {fieldKey, sentText} from '../store/values';
+import {ShownNumber} from './CutText';
 import {continuePlan, NUM_TOTAL, numericsField, runInterval, steadyRun} from '../store/steady';
 import {NUMBER} from '../store/fieldKinds';
 import {CommandLabel} from './CommandButton';
@@ -76,7 +77,7 @@ export function RunToolbar() {
         <option value="extra">For another</option><option value="until">Until time</option>
       </select><Field aria-label="Continuation time" data-continue-time="" spec={NUMBER} value={plan.text ?? ''}
         onInput={text => setContinue({...continueInput, text})} error={plan.problem} />
-        {plan.end !== undefined && <span class="continue-end" data-continue-end="">will end at t={inspectNumber(plan.end)}</span>}</label>
+        {plan.end !== undefined && <span class="continue-end" data-continue-end="">will end at t={<ShownNumber value={plan.end} />}</span>}</label>
     </div>
     {steady && hello && <details class="steady-settings">
       <summary>Steady: {steady.decimals} decimal places · hold {steady.hold} · limit {steady.maximum}</summary>
@@ -89,8 +90,8 @@ export function RunToolbar() {
           onInput={text => editSteady({...steadyEdit, maximum: text})} /></label>
       </div>
       {steadyProblem && <p class="field-error" role="alert">{steadyProblem}</p>}
-      <p>Starts from Initial. Compares every Dt interval ({inspectNumber(interval)}) using core values; stores every interval for this run. Adaptive solvers may take internal substeps. Matching digits depend on Dt and do not prove equilibrium stability.</p>
+      <p>Starts from Initial. Compares every Dt interval ({<ShownNumber value={interval} />}) using core values; stores every interval for this run. Adaptive solvers may take internal substeps. Matching digits depend on Dt and do not prove equilibrium stability.</p>
     </details>}
-    {!busy && resultText && <p class="steady-result" role="status">{resultText} t = {inspectNumber(result!.time)}</p>}
+    {!busy && resultText && <p class="steady-result" role="status">{resultText} t = <ShownNumber value={result!.time} /></p>}
   </section>;
 }

@@ -19,6 +19,8 @@
 import {openPanel} from './hotkeys';
 import {useEffect, useRef} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
+import {ShownNumber} from './CutText';
+import {sixSig} from '../store/values';
 import {cellColor, legendStops} from '../plot/aplotColors';
 import {dragScroll, wheelScroll} from '../plot/aplotScroll';
 import {aplotColumnName, timeAt, valueAt} from '../store/aplot';
@@ -31,13 +33,6 @@ import {toolbarRow} from './navigation';
 
 /** the buttons' ops, in order; each button is the row navigation.ts toolbarCommand names */
 const BUTTONS: AplotOp[] = ['redraw', 'edit', 'fit', 'range', 'print', 'gif'];
-
-/** A14: six significant digits in a readout */
-function fmt6(v: number): string {
-  if (!Number.isFinite(v)) return 'NaN';
-  const s = v.toPrecision(6);
-  return s.includes('e') ? s : s.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
-}
 
 export function AplotView() {
   const session = useSession();
@@ -169,17 +164,17 @@ export function AplotView() {
       <p class="aplot-info" role="status">
         {!windowOpen ? 'No array plot yet: use the Window/zoom menu (Axes, Array) to define one.'
           : !nx || !ny || !ev ? 'Nothing to show: use Edit, or integrate first.'
-            : `${fmt6(ev.tlo)} < t < ${fmt6(ev.thi)}. ${nx} columns, ${ny} rows.`}
+            : <><ShownNumber value={ev.tlo} /> &lt; t &lt; <ShownNumber value={ev.thi} />. {nx} columns, {ny} rows.</>}
       </p>
       <div class="aplot-body">
-        <div class="aplot-scale" aria-hidden="true">
-          <span>{ev ? fmt6(ev.zmax) : ''}</span>
+        <div class="aplot-scale">
+          <span>{ev ? <ShownNumber value={ev.zmax} /> : ''}</span>
           <div class="aplot-bar" style={{backgroundImage: `linear-gradient(to top, ${stops.join(',')})`}} />
-          <span>{ev ? fmt6(ev.zmin) : ''}</span>
+          <span>{ev ? <ShownNumber value={ev.zmin} /> : ''}</span>
         </div>
         <div class="aplot-grid-wrap" ref={wrap} tabIndex={0} role="img"
           aria-label={ev && nx && ny
-            ? `Array plot, ${nx} columns by ${ny} rows, coloured from ${fmt6(ev.zmin)} to ${fmt6(ev.zmax)}`
+            ? `Array plot, ${nx} columns by ${ny} rows, coloured from ${sixSig(ev.zmin)} to ${sixSig(ev.zmax)}`
             : 'Array plot, nothing to show'}
           onWheel={onWheel} onKeyDown={onKeyDown}
           onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag}
@@ -188,7 +183,7 @@ export function AplotView() {
         </div>
       </div>
       <p class="aplot-hover" role="status">
-        {hover ? `${label || `Column ${hover.col}`}, row ${hover.row}: t ${fmt6(hover.t)}, value ${fmt6(hover.value)}.` : ''}
+        {hover ? <>{label || `Column ${hover.col}`}, row {hover.row}: t <ShownNumber value={hover.t} />, value <ShownNumber value={hover.value} />.</> : ''}
       </p>
     </section>
   );
