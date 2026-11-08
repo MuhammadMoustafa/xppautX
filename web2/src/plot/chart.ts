@@ -1,6 +1,7 @@
 import {annotationRows} from '../store/marks';
 import {ANNOTATION_HIT_PX, ANNOTATION_SELECTION_PX} from './marks';
 import {cssVar} from './css';
+import {plotAxis} from './axisTitle';
 /* The plot widget: a uPlot chart for a PlotModel. It draws, maps between
    data and screen, and finds the point under a position; the gestures that
    change the view are in interactions.ts. It owns no application state: the
@@ -277,12 +278,7 @@ export class Chart {
     this.u?.destroy();
     this.traces = [];
     this.vertices = m.curves.map(() => null);
-    /* the theme's colours when drawn: a theme switch sets the variables after the chart is made
-       (useDark's effect runs after this view's), so values read now would be the old theme's */
-    const fg = () => cssVar('--fg-muted'), grid = () => cssVar('--grid'), font = cssVar('--plot-font');
-    const axis = (label: string): uPlot.Axis => ({
-      label, stroke: fg, font, labelFont: font, grid: {stroke: grid, width: 1}, ticks: {stroke: grid, width: 1},
-    });
+    /* the theme's colours are read when drawn (plotAxis), a theme switch's variables being set after the chart is made */
     const series: uPlot.Series[] = m.curves.map((c, i) => {
       const color = c.cssColor ?? cssColor(c.color, this.dark);
       const s: uPlot.Series = {label: c.label, stroke: color, width: c.style.width, dash: dashPattern(c.style), show: this.visible[i],
@@ -302,7 +298,7 @@ export class Chart {
          pads it and rounds it to "nice" values (the model's -110..60 read as
          -130..80 until the run's rows came, W85) */
       scales: {x: {time: false, auto: false, range: asGiven}, y: {auto: false, range: asGiven}},
-      axes: [axis(m.xLabel), axis(m.yLabel)],
+      axes: [plotAxis(m.xLabel), plotAxis(m.yLabel)],
       series: [{}, ...series],
       cursor: {
         drag: {x: true, y: true, uni: 20, setScale: true},

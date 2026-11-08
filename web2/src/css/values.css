@@ -56,6 +56,24 @@
   grid-column: 1 / -1;
   align-items: center;
 }
+/* a list of name/box/reset fields (Parameters and Numerics: the `value-fill` class, fillStyle in ValuesPanel.tsx) fills
+   across: as many fields to a row as the column holds, in model order. A field is its own grid, so its name column is
+   the list's: --name-chars (its longest name plus the changed mark) in the list's font, at most --value-name-max. A
+   field's own error or hint takes a row of its own, under it. */
+.value-fill {
+  --value-name-w: min(calc(var(--name-chars) * 1ch), var(--value-name-max));
+  --value-field-w: calc(var(--value-name-w) + var(--value-box) + var(--target) + 2 * var(--space-2));
+  grid-template-columns: repeat(auto-fill, var(--value-field-w));
+  column-gap: var(--space-4);
+  font: var(--text-sm) var(--mono);
+}
+.value-fill > .value-field {
+  grid-template-columns: var(--value-name-w) var(--value-box) var(--target);
+  grid-column: auto;
+  column-gap: var(--space-2);
+}
+.value-fill > .value-field > .value-hint { grid-column: 1 / -1; }
+.value-fill .value-hint, .value-fill .field-error { font-family: var(--font); }
 .value-reset {
   min-width: var(--target);
   min-height: var(--target);

@@ -108,6 +108,7 @@ const bin = path.resolve(top, opt.bin);
 const versioned = text => `version 4\n${text}`;
 const ODE = path.join(top, 'examples/ode/lecar.odex');
 const LIVE = path.join(top, 'tools/models/live.odex');
+const LONG = path.join(top, 'tools/models/longnames.odex');
 /* a live command's error as the page shows it (errorText), its place first: a protocol line
    is the one-line source `command:1` (ui_json.cpp handle_line), and a refused `set` carries it (W347) */
 const commandError = what => `command:1: ${what}`;
@@ -5392,6 +5393,119 @@ async function cutCheck() {
   await cdp.eval(`document.activeElement.blur(); document.getElementById('cutcheck').remove()`);
 }
 
+/* W646: Values' name/box/reset lists fill across, as many fields to a row as the column holds, in model order;
+   every name column is as wide as the list's longest name (at most 8 rem), the gap between two fields side by side
+   is --space-4 and inside a field --space-2; a narrow column keeps one to a row */
+async function valuesFill() {
+  check('values fill: the page connects', await until('s.hello && !s.busy', 'hello'));
+  const rowsOf = () => cdp.eval(`(() => {
+    const fields = [...document.querySelectorAll('[data-section="par"] .value-fill > .value-field')];
+    const top = f => Math.round(f.getBoundingClientRect().top);
+    const rows = [];
+    for (const f of fields) { const r = rows[rows.length - 1]; if (r && r[0] === top(f)) r[1].push(f); else rows.push([top(f), [f]]); }
+    return {names: fields.map(f => f.querySelector('.value-name').textContent), rows: rows.map(r => r[1].length)}; })()`);
+  await metrics({width: 1280, height: 800, deviceScaleFactor: 1, mobile: false});
+  await rendered();
+  const wide = await rowsOf();
+  check('values fill: at 1280 wide Parameters has two fields in its first row, and the rows are full across',
+    wide.rows[0] === 2 && wide.rows.every((n, i) => i === wide.rows.length - 1 || n === 2), JSON.stringify(wide.rows));
+  check('values fill: the fields go across in model order',
+    JSON.stringify(wide.names) === JSON.stringify(await S('s.core.pars.map(p => p[0])')), JSON.stringify(wide.names));
+  const geo = await cdp.eval(`(() => {
+    const fs = [...document.querySelectorAll('[data-section="par"] .value-fill > .value-field')];
+    if (fs.length < 2) return {bad: ['fewer than two fields in a list'], between: NaN, inside: NaN, sameName: false};
+    const f0 = fs[0], f1 = fs[1], l0 = f0.querySelector('.value-name'), l1 = f1.querySelector('.value-name');
+    const box0 = f0.querySelector('input').getBoundingClientRect();
+    const lists = [...document.querySelectorAll('.value-fill')];
+    const bad = [];
+    for (const list of lists) {
+      const labels = [...list.querySelectorAll('.value-name')];
+      const widths = new Set(labels.map(l => Math.round(l.getBoundingClientRect().width)));
+      if (widths.size > 1) bad.push('names of one list differ in width: ' + [...widths].join(' '));
+      const cap = parseFloat(getComputedStyle(document.documentElement).fontSize) * 8;
+      for (const l of labels) {
+        if (l.querySelector('.cut') && l.getBoundingClientRect().width < cap - 1) bad.push('a name is cut above the cap');
+        if (!l.querySelector('.cut') && l.scrollWidth > l.clientWidth + 1) bad.push('a name is clipped without a mark');
+      }
+    }
+    return {bad, between: f1.getBoundingClientRect().left - f0.getBoundingClientRect().right,
+      inside: box0.left - l0.getBoundingClientRect().right, sameName: l0.getBoundingClientRect().width === l1.getBoundingClientRect().width}; })()`);
+  check('values fill: the gap between two fields is --space-4 (16 px) and inside a field --space-2 (8 px)',
+    Math.abs(geo.between - 16) < 0.5 && Math.abs(geo.inside - 8) < 0.5, JSON.stringify(geo));
+  check('values fill: every field of a list has one name column, no name is clipped, a cut name is cut only at the cap',
+    geo.sameName && geo.bad.length === 0, JSON.stringify(geo.bad));
+  await metrics({width: 768, height: 1024, deviceScaleFactor: 1, mobile: false});
+  await rendered();
+  if (!(await cdp.eval(`!!document.querySelector('[data-section="par"] .value-fill')?.getBoundingClientRect().width`))) {
+    await cdp.eval(`document.querySelector('.values-toggle').click()`);
+    await until(`!!document.querySelector('[data-section="par"] .value-fill')?.getBoundingClientRect().width`, 'values sheet shown');
+  }
+  const narrow = await rowsOf();
+  check('values fill: at 768 x 1024 Parameters keeps one field to a row',
+    narrow.rows.length === narrow.names.length && narrow.rows.every(n => n === 1), JSON.stringify(narrow.rows));
+  await desktopMetrics();
+}
+
+/* W646: an axis title too long for its side is cut with … on the canvas, and the transparent button over it shows
+   the whole title in the tip on hover or focus and is marked cut (the dotted underline); a click opens the axis
+   dialog, with the keyboard too, and copies nothing. A short title is not marked. */
+async function axisTitleCut() {
+  await desktopMetrics();
+  check('axis cut: the page connects', await until('s.hello && !s.busy', 'hello'));
+  check('axis cut: a run stores rows', await integrate(601, 30000) || await until('s.seriesCount > 0 && !s.busy', 'rows'));
+  await cdp.eval(`Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {writeText: async t => { window.__clip = t; }}}); window.__clip = null; true`);
+  const full = await cdp.eval(`__xpp.plot().xLabel`);
+  check('axis cut: the x title is the 200-character name', full.length >= 200, String(full.length));
+  const btn = '.plot-view:not([hidden]) [data-plot-axis=x]';
+  check('axis cut: the overlay of the long x title is marked cut, underlined dotted',
+    await until(`(() => { const e = document.querySelector('${btn} .cut-text'); return !!e && e.classList.contains('cut') && getComputedStyle(e).textDecorationStyle === 'dotted'; })()`, 'cut overlay'));
+  const at = await center(btn);
+  await mouse('mouseMoved', at.x, at.y);
+  check('axis cut: pointing at the title opens the tip with the whole title',
+    await until(`(() => { const t = document.querySelector('.cut-tip'); return !!t && t.matches(':popover-open') && t.textContent === ${JSON.stringify(full)}; })()`, 'axis tip'));
+  await mouse('mouseMoved', 5, 5);
+  check('axis cut: leaving it closes the tip', await until(`!document.querySelector('.cut-tip')`, 'axis tip closed'));
+  await cdp.eval(`document.querySelector('${btn}').focus()`);
+  check('axis cut: focusing the title opens the same tip',
+    await until(`(() => { const t = document.querySelector('.cut-tip'); return !!t && t.textContent === ${JSON.stringify(full)}; })()`, 'axis tip on focus'));
+  await cdp.eval(`document.activeElement.blur()`);
+  await click(at.x, at.y);
+  check('axis cut: a click opens the axis dialog and copies nothing',
+    await until(`s.commandForm?.id === 'plot.set_2d'`, 'axis dialog') && await cdp.eval('window.__clip === null'));
+  await key('Escape');
+  await until(`!s.commandForm`, 'axis dialog closed');
+  await cdp.eval(`document.querySelector('${btn}').focus()`);
+  /* Enter with its text, as a keyboard sends it: a button is clicked by it (a bare rawKeyDown is not) */
+  await cdp.send('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r'});
+  await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13});
+  check('axis cut: Enter on the focused title opens the axis dialog too',
+    await until(`s.commandForm?.id === 'plot.set_2d'`, 'axis dialog by key'));
+  await key('Escape');
+  await until(`!s.commandForm`, 'axis dialog closed again');
+  await cdp.eval(`document.activeElement.blur()`);
+  /* the y title is drawn up the side (writing-mode): cut along the height, and its tip and underline work the same */
+  const longY = 'y'.repeat(200);
+  await menuRun('plot.set_2d', {y_label: longY});
+  await requireUntil('!s.busy', 'y title set');
+  const yBtn = '.plot-view:not([hidden]) [data-plot-axis=y]';
+  check('axis cut: a long y title is marked cut too, in vertical writing',
+    await until(`(() => { const e = document.querySelector('${yBtn} .cut-text'); return !!e && e.classList.contains('cut') && getComputedStyle(e).writingMode.startsWith('vertical'); })()`, 'cut y overlay'));
+  const yAt = await center(yBtn);
+  await mouse('mouseMoved', yAt.x, yAt.y);
+  check('axis cut: pointing at the y title opens its whole text in the tip',
+    await until(`document.querySelector('.cut-tip')?.textContent === ${JSON.stringify(longY)}`, 'y tip'));
+  await mouse('mouseMoved', 5, 5);
+}
+
+/* W646: a title that fits is drawn whole and its overlay is not marked cut */
+async function axisTitleShort() {
+  await desktopMetrics();
+  check('axis short: the page connects', await until('s.hello && !s.busy', 'hello'));
+  check('axis short: a run stores rows', await integrate(601, 30000) || await until('s.seriesCount > 0 && !s.busy', 'rows'));
+  check('axis short: a short x title is not marked cut',
+    await cdp.eval(`(() => { const e = document.querySelector('.plot-view:not([hidden]) [data-plot-axis=x] .cut-text'); return !!e && !e.classList.contains('cut'); })()`));
+}
+
 /* ---- layout (W98, #147): the plot at every window width, Show autoX clear of the messages,
    and the main plot after a session with an autoX diagram is opened and Back is pressed (W102, #151) ---- */
 
@@ -5795,7 +5909,10 @@ async function main() {
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
     if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:3:1: uses random numbers')]);
     if (run('values')) await session(ODE, equilibriumSettings);
+    if (run('values')) await session(ODE, valuesFill);
     if (run('cut')) await session(ODE, cutCheck);
+    if (run('cut')) await session(LONG, axisTitleCut);
+    if (run('cut')) await session(ODE, axisTitleShort);
     if (run('sets')) await session(ODE, setsRows, ['command:1: The run stored 0 row(s): nothing to analyse (at least 1 are needed)']);
     if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('Argument "values.gca" must be a finite number')]);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));

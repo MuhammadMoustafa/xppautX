@@ -168,19 +168,23 @@
   border-radius: 0.375rem;
   padding: var(--space-1) var(--space-2);
 }
+/* the axis title's overlay (W646, AxisTitle in PlotView.tsx): as long as its side of the plotting area (its inline
+   style), in the canvas's own title font and without padding, so its text is cut where the canvas's is. Transparent:
+   the canvas title shows through, and a cut title's dotted underline and tip (controls.css) are what the overlay shows */
 .autox-axis-name {
   position: absolute;
   z-index: var(--z-plot-control);
   background: transparent;
   color: transparent;
   border: 1px dashed transparent;
-  padding: 0 var(--space-2);
-  transform: translateX(-50%);
+  box-sizing: content-box;
+  padding: 0;
+  font: var(--plot-font);
+  overflow: hidden;
 }
 .autox-axis-name.autox-axis-y {
   writing-mode: vertical-rl;
-  transform: translateY(-50%) rotate(180deg);
-  padding: var(--space-2) 0;
+  transform: rotate(180deg);
 }
 .autox-axis-name:hover, .autox-axis-name:focus-visible, .autox-axis-name[aria-expanded="true"] {
   border-color: var(--accent);

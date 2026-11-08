@@ -82,7 +82,7 @@ import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {toolbarRow} from './navigation';
 import {SetsRow} from './SetsRow';
-import {FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
+import {AxisTitle, FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
 
 /** the ops (the registry command, its label and description, are navigation.ts toolbarCommand's), in the X11 window's order; no
     reDraw (T21): the diagram is always the current one */
@@ -409,16 +409,12 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
   const nEarlier = earlier ? branchesBefore(points, earlier) : 0;
 
   const area = chart.current?.areaBox() ?? null;
-  const axisButton = (which: AxisName, text: string) => (
-    <button class={`autox-axis-name autox-axis-${which}`} aria-haspopup="dialog" aria-expanded={axisOpen === which}
+  const axisButton = (which: AxisName, text: string, box: NonNullable<typeof area>) => (
+    <AxisTitle which={which} area={box} text={text || (which === 'x' ? 'x axis' : 'y axis')}
+      aria-haspopup="dialog" aria-expanded={axisOpen === which}
       data-axis={which} title={`Change the ${which === 'x' ? 'horizontal' : 'vertical'} axis: what it plots and its range`}
       onKeyDown={e => e.stopPropagation()}
-      onClick={() => setAxisOpen(axisOpen === which ? null : which)}
-      style={which === 'x'
-        ? {left: `${area!.left + area!.width / 2}px`, bottom: '0px'}
-        : {left: '0px', top: `${area!.top + area!.height / 2}px`}}>
-      {text || (which === 'x' ? 'x axis' : 'y axis')}
-    </button>
+      onClick={() => setAxisOpen(axisOpen === which ? null : which)} />
   );
   const closeAxis = () => {
     const which = axisOpen;
@@ -511,8 +507,8 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
             title={`Stored point: ${sixSig(stored!.x)}, ${sixSig(stored!.y)}`} />
         )}
         {pick && chart.current && <PickOverlay pick={pick} chart={chart.current} />}
-        {area && axes && axisButton('x', axes.xlabel)}
-        {area && axes && axisButton('y', axes.ylabel)}
+        {area && axes && axisButton('x', axes.xlabel, area)}
+        {area && axes && axisButton('y', axes.ylabel, area)}
         {empty && (
           <div class="plot-empty autox-empty">
             <p>{busy ? 'autoX is running…' : 'No branches yet: Run starts a continuation from the current point.'}</p>

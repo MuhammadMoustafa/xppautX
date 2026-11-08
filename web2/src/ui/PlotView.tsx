@@ -10,7 +10,7 @@ import {annotationRows} from '../store/marks';
    in data coordinates. Its nullclines, direction field and flows (T7) and
    its marks (T8: equilibria, text, arrows, markers, frozen curves) are
    drawn by the chart too, and listed in the legend after the curves. */
-import type {ComponentChildren} from 'preact';
+import type {ComponentChildren, JSX} from 'preact';
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart, padded} from '../plot/chart';
 import {cssColor} from '../plot/colors';
@@ -150,6 +150,24 @@ export function FitButton({onClick, title, disabled = false}: {onClick: () => vo
         <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
       </svg>
       Fit
+    </button>
+  );
+}
+
+/** the transparent button over an axis title (W646, the phase plot's and the autoX diagram's): as long as the side
+    of the plotting area it names, its text the canvas's own title, so a cut title is marked and its whole text is in
+    the tip on hover or focus (ShownName, copy off: the click opens the axis dialog); the caller gives the click */
+export function AxisTitle({which, area, text, ...button}: {
+  which: 'x' | 'y'; area: {left: number; top: number; width: number; height: number}; text: string;
+} & JSX.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const [tipped, setTipped] = useState(false);
+  const place = which === 'x' ? {left: `${area.left}px`, width: `${area.width}px`, bottom: '0px'}
+    : {left: '0px', top: `${area.top}px`, height: `${area.height}px`};
+  return (
+    <button {...button} class={`autox-axis-name autox-axis-${which}`} style={place}
+      onPointerEnter={() => setTipped(true)} onPointerLeave={() => setTipped(false)}
+      onFocus={() => setTipped(true)} onBlur={() => setTipped(false)}>
+      <ShownName name={text} copy={false} tipped={tipped} />
     </button>
   );
 }
@@ -368,14 +386,11 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
   const zoomed = viewport.x !== null || viewport.y !== null;
   const noCurves = !model || model.curves.every(c => c.xs.length === 0);
   const area = chart.current?.areaBox();
-  const axisButton = (which: 'x' | 'y') => <button class={`autox-axis-name autox-axis-${which}`}
+  const axisButton = (which: 'x' | 'y', box: NonNullable<typeof area>) => <AxisTitle which={which} area={box}
+    text={which === 'x' ? model?.xLabel || 'Horizontal axis' : model?.yLabel || 'Vertical axis'}
     data-plot-axis={which} aria-haspopup="dialog" disabled={!mayMain('plot.set_2d')}
     aria-label={`Edit ${which === 'x' ? 'horizontal' : 'vertical'} axis variables and limits`}
-    title="Change axis variables and limits" onClick={() => session.editPlotAxes(win, !!(info?.three ?? view?.three))}
-    style={which === 'x' ? {left: `${area!.left + area!.width / 2}px`, bottom: '0px'}
-      : {left: '0px', top: `${area!.top + area!.height / 2}px`}}>
-    {which === 'x' ? model?.xLabel || 'Horizontal axis' : model?.yLabel || 'Vertical axis'}
-  </button>;
+    title="Change axis variables and limits" onClick={() => session.editPlotAxes(win, !!(info?.three ?? view?.three))} />;
   const empty = noCurves && !layers.length && !(runs.length && runsShown);
   const texts = marks?.text.length ? `; text: ${marks.text.map(t => t.plain).join('; ')}` : '';
   const withLayers = layers.length ? `; ${layers.map(l => l.label).join(', ')}${texts}` : '';
@@ -475,8 +490,8 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
         onKeyDown={onKeyDown}>
         {!noCurves && <FitButton onClick={fit} disabled={windowOff}
           title="Fit the window's axes to the data (Window/Fit)" />}
-        {area && axisButton('x')}
-        {area && axisButton('y')}
+        {area && axisButton('x', area)}
+        {area && axisButton('y', area)}
         {picking && chart.current && <PickOverlay pick={picking} chart={chart.current} />}
         {hovered && <span class="trace-tooltip" role="tooltip">{hovered.label}{trace!.run >= 0 ? ` · ${keys[trace!.run]}` : ''}</span>}
         {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}

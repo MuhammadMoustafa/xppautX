@@ -104,6 +104,7 @@ one-line tip shows the whole value or name beside a clipboard icon; a click or t
 and the number turns green and the icon a green tick. This is one display for the Values panel, the Data table, a plot's
 hover readout, autoX's info strip and readout, the array plot, the equilibrium tables, the sliders, and for names in Values,
 legends and window names (a legend entry or a window tab keeps its click for its own job, so it has the tip only).
+An axis title too long for its side of the plot is cut the same way on the plot, and its whole text is in the tip when you point at it or focus it; a click still opens the axis dialog.
 Input boxes are never shortened.
 
 ## Tabs instead of windows
@@ -138,6 +139,7 @@ beside the plot (a sheet on a phone):
   action: it copies Now into Initial and runs. **Continue** (Alt+Enter) extends the
   existing trajectory by a duration or to a chosen end time instead. There is no
   copy-without-running action.
+- Parameters and Numerics list their fields across the column, as many to a row as fit, in the model's order; a name column is as wide as the longest name in its list (up to 8 rem), and a narrow column keeps one field to a row.
 - A value is set when you leave the field (Tab, Enter or a click
   elsewhere): the field shows it, and the next computation uses it. The
   values are *settings*: you can edit them while a computation runs too,

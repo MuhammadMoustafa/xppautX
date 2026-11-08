@@ -1,4 +1,5 @@
 import {cssVar} from './css';
+import {plotAxis} from './axisTitle';
 /* The autoX diagram's chart: a uPlot chart in xy mode for a DiagramModel
    (docs/ui-v2.md T11a). Branches are its series (lines, the unstable ones
    dashed), the labelled points are drawn in its draw hook (a cross at the
@@ -175,11 +176,6 @@ export class DiagramChart {
   private create(): void {
     const m = this.model!;
     this.u?.destroy();
-    /* the theme's colours when drawn: a new theme's variables are set after this chart is made */
-    const fg = () => cssVar('--fg-muted'), grid = () => cssVar('--grid'), font = cssVar('--plot-font');
-    const axis = (label: string): uPlot.Axis => ({
-      label, stroke: fg, font, labelFont: font, grid: {stroke: grid, width: 1}, ticks: {stroke: grid, width: 1},
-    });
     const facets: uPlot.Series.Facet[] = [{scale: 'x', auto: false}, {scale: 'y', auto: false}];
     const series: uPlot.Series[] = m.curves.map(c => ({
       label: `Branch ${c.branch}`,
@@ -197,7 +193,7 @@ export class DiagramChart {
       width, height,
       legend: {show: false},
       scales: {x: {time: false, auto: false}, y: {auto: false}},
-      axes: [axis(m.xLabel), axis(m.yLabel)],
+      axes: [plotAxis(m.xLabel), plotAxis(m.yLabel)],
       series: [{}, ...series],
       cursor: {
         drag: {x: true, y: true, uni: 20, setScale: true},

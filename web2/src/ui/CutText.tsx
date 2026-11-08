@@ -47,22 +47,28 @@ interface Props {
   cut?: boolean;
   /** false where the click has another job (a legend entry toggles its curve): the tip only */
   copy?: boolean;
+  /** the tip's open state when its owner tracks the pointer and focus itself (the axis title's button, W646):
+      the text's own pointer and focus then do not open it */
+  tipped?: boolean;
   class?: string;
   children: ComponentChildren;
 }
 
-export function CutText({full, cut, copy = true, class: className, children}: Props) {
+export function CutText({full, cut, copy = true, tipped: owned, class: className, children}: Props) {
   const session = useSession();
   const host = useRef<HTMLSpanElement>(null);
   const [measured, setMeasured] = useState(false);
-  const [tipped, setTipped] = useState(false);
+  const [ownTip, setTip] = useState(false);
+  const tipped = owned ?? ownTip;
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   useEffect(() => {
     const el = host.current;
     if (cut !== undefined || !el) return;
-    const look = () => setMeasured(el.scrollWidth > el.clientWidth);
+    /* a vertical title (writing-mode, the y axis) is cut along its block's height */
+    const vertical = getComputedStyle(el).writingMode.startsWith('vertical');
+    const look = () => setMeasured(vertical ? el.scrollHeight > el.clientHeight : el.scrollWidth > el.clientWidth);
     const watch = new ResizeObserver(look);
     watch.observe(el);
     look();
@@ -86,8 +92,8 @@ export function CutText({full, cut, copy = true, class: className, children}: Pr
   return (
     <span class={base + ' cut' + (copied ? ' copied' : '')} ref={host} tabIndex={copy ? 0 : undefined} role={copy ? 'button' : undefined}
       aria-label={copy ? `${full}, click to copy` : full}
-      onPointerEnter={() => setTipped(true)} onPointerLeave={() => setTipped(false)}
-      onFocus={() => setTipped(true)} onBlur={() => setTipped(false)}
+      onPointerEnter={() => setTip(true)} onPointerLeave={() => setTip(false)}
+      onFocus={() => setTip(true)} onBlur={() => setTip(false)}
       onClick={copy ? doCopy : undefined}
       onKeyDown={copy ? e => { if (e.key === 'Enter' || e.key === ' ') void doCopy(e); } : undefined}>
       {children}
@@ -108,6 +114,6 @@ export function ShownNumber({value, class: className}: {value: number; class?: s
 }
 
 /** a name that never wraps: cut with … where its box ends, the whole name in the tip */
-export function ShownName({name, copy, class: className}: {name: string; copy?: boolean; class?: string}) {
-  return <CutText full={name} copy={copy} class={'cut-name' + (className ? ' ' + className : '')}>{name}</CutText>;
+export function ShownName({name, copy, tipped, class: className}: {name: string; copy?: boolean; tipped?: boolean; class?: string}) {
+  return <CutText full={name} copy={copy} tipped={tipped} class={'cut-name' + (className ? ' ' + className : '')}>{name}</CutText>;
 }
