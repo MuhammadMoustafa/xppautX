@@ -305,6 +305,8 @@ export class Session {
     else if (id === 'tool.keyboard_shortcuts') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
     else if (id === 'session.get_source') {this.openText();}
     else if (id === 'tool.manual') this.store.dispatch({type: 'help', action: {type: 'open'}});
+    else if (id === 'array_plot.open') this.openAplot();
+    else if (id === 'animation.open') this.openAni();
     else if (id === 'annotation.list') {
       this.store.dispatch({type: 'annotations', open: true});
       this.send({cmd:'window.select', window:this.store.getState().plots.active});

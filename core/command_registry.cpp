@@ -26,13 +26,15 @@ constexpr std::array HELP_ARGUMENTS = {Argument{"name", Type::text, false}};
 constexpr std::array HELP_RESULTS = {ResultField{"commands", "list[command]"}, ResultField{"events", "list[event]"}};
 constexpr std::array HELP_EVENTS = {events::SESSION_STATE, events::DONE};
 constexpr std::array HELP_ROWS = {
-    Command{HELP_COMMAND.data(), HELP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Command reference", "Help",
+    Command{HELP_COMMAND.data(), HELP_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Command reference", "",
             "Describe registered commands, or the command named by name; `help events` describes every event and its fields.", HELP_RESULTS, HELP_EVENTS, false, describe}};
 std::span<const Command> help_commands() { return HELP_ROWS; }
 
-/* every resource's table, in the order help lists them */
-constexpr std::array TABLES = {help_commands, window_commands, annotation_commands, run_commands, ic_commands, bvp_commands, autox_commands, plot_commands,
-                              equilibrium_commands, nullcline_commands, dirfield_commands, analysis_commands, table_commands, browser_commands, set_commands, value_commands, kinescope_commands, animation_commands, array_plot_commands, session_commands, recording_commands, keymap_commands, events_commands, tool_commands};
+/* every resource's table, in the order `help` lists them; a menu's entries follow it, the rows of one table in their order */
+constexpr std::array TABLES = {keymap_commands, session_commands, ic_commands, recording_commands, equilibrium_commands, nullcline_commands,
+                              annotation_commands, run_commands, dirfield_commands, plot_commands, analysis_commands, kinescope_commands,
+                              table_commands, browser_commands, help_commands, tool_commands, window_commands, autox_commands, animation_commands,
+                              array_plot_commands, set_commands, bvp_commands, value_commands, events_commands};
 
 template <class Visit> void each_command(Visit visit)
 {

@@ -1111,8 +1111,8 @@ async function aplotView() {
     JSON.stringify(await S('s.core.rows')));
 
   check('no array plot window yet', !(await S('s.aplot.windowOpen')));
-  await cdp.eval(`document.querySelector('.aplot-toggle').click()`);
-  check('the Array button opens the panel and the core\'s array plot window',
+  await clickRegistry('array_plot.open');
+  check('the Windows menu\'s Open array plot opens the panel and the core\'s array plot window',
     await until('s.aplot.open && s.aplot.windowOpen', 'aplot window'));
   check('Array plot opens its registry argument form', await until(`s.commandForm?.id === 'array_plot.configure'`, 'array configuration'));
   await formValues({first_column:'U0', columns:20, first_row:0, rows:10, row_skip:1, auto_redraw:false, column_skip:1});
@@ -1184,7 +1184,7 @@ async function aplotView() {
     await until('!s.aplot.open && s.aplot.windowOpen', 'close panel'));
 
   /* 390x844: a full-screen sheet, no sideways scroll, 44px targets (SCOPE) */
-  await cdp.eval(`document.querySelector('.aplot-toggle').click()`);
+  await clickRegistry('array_plot.open');
   check('reopening it (the window already exists) shows the panel again, no Edit form',
     await until('s.aplot.open && !s.ask', 'reopen'));
   await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
@@ -2610,7 +2610,7 @@ async function busyKeys() {
       newWindow: tool(${JSON.stringify(newGraphLabel)}).disabled,
       load: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Load').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
-      viewItems: ['window.fit','window.redraw','plot.set_2d'].every(id => !item(id).disabled),
+      viewItems: !item('plot.set_2d').disabled,
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
@@ -2747,12 +2747,11 @@ async function statusBarLayout() {
 async function recordCheck(dir) {
   await desktopMetrics();
   check('record: no recording bar before one starts, Record in the title bar',
-    !(await cdp.eval(`!!document.querySelector('.recbar')`)) && await cdp.eval(`!!document.querySelector('.title-bar .record-toggle')`));
-  await cdp.eval(`document.querySelector('.title-bar .record-toggle').click()`);
-  check('record: Record starts one: the red bar with its dot and 0 steps, Record gone from the title bar',
+    !(await cdp.eval(`!!document.querySelector('.recbar')`)) && await cdp.eval(`!!document.querySelector('.app-menu [data-command="recording.start"]')`));
+  await clickRegistry('recording.start');
+  check('record: Record starts one: the red bar with its dot and 0 steps',
     await until(`s.core.recording && s.core.recording.steps === 0 && !s.busy`, 'recording')
-    && await cdp.eval(`!!document.querySelector('.recbar .rec-dot') && document.querySelector('.recbar .rec-count').textContent.trim() === '0 steps'
-      && !document.querySelector('.title-bar .record-toggle')`));
+    && await cdp.eval(`!!document.querySelector('.recbar .rec-dot') && document.querySelector('.recbar .rec-count').textContent.trim() === '0 steps'`));
   await cdp.eval(`(() => { const t = document.querySelector('.recbar textarea'); t.focus(); })()`);
   await key('g');
   check('record: a letter typed into the note box stays there (no hotkey)',
@@ -2810,7 +2809,7 @@ async function recordCheck(dir) {
 async function playerCheck(dir) {
   await desktopMetrics();
   check('W121b: player uses the core speed range', await S('s.hello.player_speed.min === 0.25 && s.hello.player_speed.max === 8'));
-  await cdp.eval(`document.querySelector('.title-bar .record-toggle').click()`);
+  await clickRegistry('recording.start');
   await until(`s.core.recording && !s.busy`, 'recording');
   await cdp.eval(`(() => { const t = document.querySelector('.recbar textarea');
     t.value = 'The cell fires once.'; t.dispatchEvent(new Event('input', {bubbles: true})); t.dispatchEvent(new FocusEvent('blur')); })()`);
@@ -2823,11 +2822,15 @@ async function playerCheck(dir) {
   await until(`s.ask && s.ask.kind === 'file'`, 'file ask');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'play'})`);
   await until(`!s.core.recording && !s.busy`, 'stopped');
-  check('player: the title bar offers Play a recording', await cdp.eval(`!!document.querySelector('.title-bar .play-open')`));
-  await cdp.eval(`document.querySelector('.title-bar .play-open').click()`);
-  check('player: Play a recording asks for the .recx', await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx'`, 'recx ask'),
-    JSON.stringify(await S('s.ask')));
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'play.recx'})`);
+  check('player: the File menu offers Play recording', await cdp.eval(`!!document.querySelector('.app-menu [data-command="recording.open"]')`));
+  await clickRegistry('recording.open');
+  check('player: Play recording opens its form, the .recx named in its file field', await until(`s.commandForm?.id === 'recording.open'`, 'play form'),
+    JSON.stringify(await S('s.commandForm')));
+  /* the form's file is picked (its Choose file and run… asks the picker's name, as the title bar's Play did) */
+  await formValues({play: true});
+  await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…').click()`);
+  await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx'`, 'recx ask');
+  await answerAsk({file: 'play.recx'});
   await until(`s.ask && s.ask.kind === 'choice'`, 'save first?');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
   check('player: the recording opens: its steps with their notes, playing automatically, intact',
@@ -2995,6 +2998,8 @@ const exists = selector => cdp.eval(`!!document.querySelector(${JSON.stringify(s
     built from hello, so the item is waited for (a page just loaded may not have it yet). */
 async function clickRegistry(id) {
   const selector = `.app-menu [data-command=${JSON.stringify(id)}]`;
+  /* W637: a command with no menu place (a view's own control, the palette's) is run from the command palette */
+  if (!(await exists(selector)) && id !== 'tool.command_palette') return paletteRegistry(id);
   await requireUntil(`document.querySelector(${JSON.stringify(selector)})`, 'menu item ' + id);
   await cdp.eval(`(() => {
     const item = [...document.querySelectorAll('.app-menu [data-command]')].find(b => b.dataset.command === ${JSON.stringify(id)});
@@ -3044,6 +3049,13 @@ async function submitCommand() {
   await cdp.eval(`(() => { const b = document.querySelector('.registry-form button[type=submit]'); if (!b || b.disabled) throw new Error('Command form is invalid: ' + document.querySelector('.registry-form')?.textContent); b.click(); })()`);
   await rendered();
 }
+/** W637: a command with no menu place, run from the command palette (Help > Command palette) */
+async function paletteRegistry(id) {
+  await clickRegistry('tool.command_palette');
+  await until('s.drawerOpen', 'command palette open');
+  await cdp.eval(`document.querySelector(${JSON.stringify(`.command-palette [data-command="${id}"]`)}).click()`);
+  await rendered();
+}
 async function menuRun(id, values = {}) {
   await clickRegistry(id);
   if (await S('!!s.commandForm')) { await formValues(values); await submitCommand(); }
@@ -3054,7 +3066,8 @@ async function navigationCheck() {
   const rows = await S('s.hello.commands.filter(c => c.arguments !== undefined)');
   check('W517: eight page menus in the specified order', await cdp.eval(`JSON.stringify([...document.querySelectorAll('.app-menu > details > summary')].map(n => n.textContent)) === JSON.stringify(['File','Run','Analysis','Plot','Data','autoX','Windows','Help'])`));
   const ids = await cdp.eval(`[...document.querySelectorAll('.app-menu [data-command]')].map(b => b.dataset.command).sort()`);
-  check('W517: one menu item per registry row, including every formerly panel-only operation', JSON.stringify(ids) === JSON.stringify(rows.map(c => c.cmd).sort()), JSON.stringify(ids));
+  check('W517: one menu item per registry row with a menu place (W637: the rest are a view\'s controls and the palette\'s)',
+    JSON.stringify(ids) === JSON.stringify(rows.filter(c => c.menu_path).map(c => c.cmd).sort()), JSON.stringify(ids));
   check('W517: Commands panel retired', !await exists('.menu-panel'));
   // Every command with arguments renders the same form, using every declared argument.
   for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list')) {
@@ -3086,6 +3099,86 @@ async function navigationCheck() {
 /* W634: one top menu open at a time; pointing at another title opens it while one is open; Left and
    Right move between the top menus, Up and Down through the open one's entries; Escape closes it and
    returns the focus to its title; a window's submenu closes its sibling and not Windows. */
+/* W637 (#709): the menus by task. From 48rem a submenu flies out beside its title (a › at its right, one open at a
+   time), on a phone it unfolds inside the drawer; a line separates a level's commands from its submenus; the header
+   has no Tools menu; Right opens a submenu from its title and Left goes back to it. State and the DOM, never pixels. */
+async function menusByTaskCheck() {
+  await desktopMetrics();
+  check('W637: the header has no Tools menu', await cdp.eval(`!document.querySelector('.workspace-tools')
+    && ![...document.querySelectorAll('.title-bar summary')].some(n => n.textContent.trim() === 'Tools')`));
+  /* a level's entries in order: a line between a command and a submenu wherever one kind follows the other */
+  const rules = await cdp.eval(`(() => {
+    const bad = [];
+    for (const top of document.querySelectorAll('.app-menu > details > ul')) {
+      const seq = [...top.children].map(li => li.classList.contains('menu-rule') ? 'rule' : li.querySelector(':scope > details') ? 'menu' : 'command');
+      let last = null, rule = false;
+      for (const kind of seq) {
+        if (kind === 'rule') { rule = true; continue; }
+        if (last && last !== kind && !rule) bad.push(top.parentElement.dataset.topMenu);
+        last = kind; rule = false;
+      }
+    }
+    return [...new Set(bad)];
+  })()`);
+  check('W637: a line separates a menu\'s commands from its submenus wherever one follows the other', JSON.stringify(rules) === '[]', JSON.stringify(rules));
+  check('W637: File has a line between its commands and its submenus', await cdp.eval(`!!document.querySelector('[data-top-menu=File] > ul > li.menu-rule')`));
+  await cdp.eval(`document.querySelector('[data-top-menu=File] > summary').click()`);
+  await rendered();
+  const exportTitle = `[...document.querySelectorAll('[data-top-menu=File] details > summary')].find(n => n.textContent.trim() === 'Export')`;
+  await cdp.eval(`${exportTitle}.click()`);
+  await rendered();
+  const beside = await cdp.eval(`(() => {
+    const title = ${exportTitle}, sub = title.parentElement.querySelector(':scope > ul');
+    const r = title.getBoundingClientRect(), u = sub.getBoundingClientRect();
+    return {beside: u.left >= r.right - 2 && Math.abs(u.top - r.top) < 40, arrow: getComputedStyle(title, '::after').content.includes('›'),
+      ul: getComputedStyle(document.querySelector('[data-top-menu=File] > ul')).maxHeight, closedInside: u.width > 0};
+  })()`);
+  check('W637: at 1280 px a submenu flies out beside its title', beside.beside && beside.closedInside, JSON.stringify(beside));
+  check('W637: a submenu\'s title has a › at its right', beside.arrow, JSON.stringify(beside));
+  check('W637: a top menu keeps its own height (no max-height)', beside.ul === 'none', beside.ul);
+  /* Left and Right: Right opens the submenu from its title and moves in, Left goes back to the title */
+  await cdp.eval(`${exportTitle}.click()`); await rendered();
+  await cdp.eval(`${exportTitle}.focus()`);
+  await key('ArrowRight');
+  check('W637: Right on a submenu\'s title opens it and moves the focus into it',
+    await cdp.eval(`${exportTitle}.parentElement.open && ${exportTitle}.parentElement.contains(document.activeElement) && document.activeElement !== ${exportTitle}`));
+  await key('ArrowLeft');
+  check('W637: Left inside a submenu closes it and goes back to its title',
+    await cdp.eval(`!${exportTitle}.parentElement.open && document.activeElement === ${exportTitle}`));
+  await cdp.eval(`document.querySelector('[data-top-menu=File] > summary').click()`); await rendered();
+  /* a phone: the drawer unfolds the submenu inside itself */
+  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await cdp.eval(`document.querySelector('.menu-toggle').click()`);
+  await until('s.menuOpen', 'drawer open');
+  await cdp.eval(`document.querySelector('[data-top-menu=File] > summary').click()`); await rendered();
+  await cdp.eval(`${exportTitle}.click()`); await rendered();
+  const inside = await cdp.eval(`(() => {
+    const title = ${exportTitle}, sub = title.parentElement.querySelector(':scope > ul');
+    const r = title.getBoundingClientRect(), u = sub.getBoundingClientRect();
+    return {below: u.top >= r.bottom - 2, within: u.left >= 0 && u.right <= innerWidth + 1};
+  })()`);
+  check('W637: at 390 px the drawer unfolds a submenu inside itself', inside.below && inside.within, JSON.stringify(inside));
+  await desktopMetrics();
+  await cdp.eval(`document.querySelector('.plot-host')?.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))`);
+  await rendered();
+}
+
+/* W637: a control in its view (`view`, its selector) runs its command: clicked, the command runs at once, or its form
+   (submitted) or its file ask (answered) comes first; true when the command was sent */
+async function controlRuns(id, file = 'frames.gif', values = {}, view = '') {
+  const mark = await S('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector(${JSON.stringify(`${view}[data-command="${id}"]`)}).click()`);
+  await rendered();
+  if (await S('!!s.commandForm')) {
+    if (await cdp.eval(`!!document.querySelector('.registry-form [data-argument=file]')`)) {
+      await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…').click()`);
+      await until(`s.ask && s.ask.kind === 'file'`, 'file ask');
+      await answerAsk({file});
+    } else { await formValues(values); await submitCommand(); }
+  }
+  return until(`__xpp.sent().slice(${mark}).some(c => c.cmd === ${JSON.stringify(id)})`, `${id} sent`);
+}
+
 async function menuBarCheck() {
   const topOpen = () => cdp.eval(`[...document.querySelectorAll('.app-menu > details[open]')].map(d => d.dataset.topMenu)`);
   const center = sel => cdp.eval(`(() => {const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2};})()`);
@@ -4275,8 +4368,12 @@ async function setsRows() {
 
   /* File > Sets: the scope is asked there, and the old Copy parameter set line is gone */
   const items = await cdp.eval(`[...document.querySelectorAll('.app-menu [data-top-menu=File] [data-command^="set."], .app-menu [data-top-menu=File] [data-command="session.import_xppaut_state"]')].map(b => b.dataset.command)`);
-  check('sets: File > Sets holds Apply, Load, Save, Replace, Export, Rename, Delete, Restore and Import XPPAUT session state',
-    ['set.apply', 'set.file_contents', 'set.save_new', 'set.save_into', 'set.save_defaults', 'set.export', 'set.rename', 'set.delete', 'set.restore_defaults', 'session.import_xppaut_state'].every(c => items.includes(c)), JSON.stringify(items));
+  check('sets: File > Sets holds Rename, Delete, Load a named part of a file and Import XPPAUT session state (W637: the others are the Values panel\'s sets rows)',
+    ['set.rename', 'set.delete', 'set.load_file', 'session.import_xppaut_state'].every(c => items.includes(c))
+    && ['set.apply', 'set.file_contents', 'set.save_new', 'set.save_into', 'set.save_defaults', 'set.export', 'set.restore_defaults'].every(c => !items.includes(c))
+    && items.length === 4, JSON.stringify(items));
+  check('sets: the Values panel\'s sets rows hold Save, Save as defaults, Export and Restore defaults', await cdp.eval(`['set.save_new', 'set.save_defaults', 'set.export', 'set.restore_defaults']
+    .every(c => !!document.querySelector('[data-sets-row] [data-command="' + c + '"]'))`));
   check('sets: no Copy set line anywhere in the menus', await cdp.eval(`!/copy.*set line/i.test(document.querySelector('.app-menu').textContent)`));
   await clickRegistry('set.apply');
   check('sets: File > Sets > Apply set asks the scope, all by default, and the set', JSON.stringify(await formArguments()) === JSON.stringify(['name', 'scope', 'window']) && await cdp.eval(`!!document.querySelector('.registry-form [data-argument=scope] select')`), JSON.stringify(await formArguments()));
@@ -4639,11 +4736,15 @@ async function animation() {
   check('ani: integrate first (601 rows)', await integrate(601, 30000));
 
   /* the title bar's Animation button: Viewaxes/Toon opens the core's window, the panel shows */
-  if (!(await S('s.ani.open'))) await cdp.eval(`document.querySelector('.ani-toggle').click()`);
+  if (!(await S('s.ani.open'))) await clickRegistry('animation.open');
   check('ani: the Animation button opens the core\'s animation window and the panel',
     await until(`s.ani.open && s.ani.exists && !s.busy`, 'ani window')
     && await cdp.eval(`getComputedStyle(document.querySelector('.ani-panel')).visibility === 'visible'`));
   check('ani: the picture has the focus', await until(`document.activeElement.classList.contains('ani-stage')`, 'stage focus'));
+  /* W637: the controls the view holds for its menu items (Windows > Animation) */
+  for (const [id, values] of [['animation.faster', {}], ['animation.slower', {}], ['animation.set_frame_skip', {skip: 1}],
+    ['animation.set_live_draw', {enabled: false}], ['animation.reset', {}]])
+    check(`W637: the Animation view's ${id} control runs its command`, await controlRuns(id, undefined, values, '.ani-panel '));
 
   /* Load: the file ask for reading, answered by an upload of tools/gui_test.ani */
   await cdp.eval('window.showOpenFilePicker = undefined; true');
@@ -4746,9 +4847,9 @@ async function animation() {
   check('ani 390x844: the picture fits the width at its aspect', await until(`__xpp.ani().width <= 390
     && Math.abs(__xpp.ani().box.w / __xpp.ani().box.h - ${aspect}) < 1e-6`, 'phone drawn'), JSON.stringify(await cdp.eval('__xpp.ani()')));
   await cdp.eval(`document.querySelector('.ani-back').click()`);
-  /* the Animation button sits in the Tools menu, which closed on its choice: the focus goes to the menu's button */
-  check('ani: Back closes the sheet, the focus back on the Tools button that holds the Animation button',
-    await until('!s.ani.open', 'close ani') && await until(`document.activeElement.matches('.workspace-tools > summary')`, 'ani focus back'),
+  /* the Animation item sits in the Windows menu, which closed on its choice: the focus goes to the menu's title */
+  check('ani: Back closes the sheet, the focus back on the Windows menu\'s title that holds Open animation (on a phone, the Menu button)',
+    await until('!s.ani.open', 'close ani') && await until(`document.activeElement.matches('[data-top-menu=Windows] > summary, .menu-toggle')`, 'ani focus back'),
     await cdp.eval(`document.activeElement.outerHTML.slice(0, 120)`));
   await desktopMetrics();
 }
@@ -4827,6 +4928,11 @@ async function kinescope(dir) {
     return JSON.stringify(col(f[0])) !== JSON.stringify(col(f[1]));
   })()`);
   check('kinescope: the two captured frames hold different data', differ);
+  /* W637: the bar's own controls for the Kinescope menu items */
+  check('W637: the Kinescope bar offers Autoplay kinescope and Save kinescope frames',
+    await cdp.eval(`!!document.querySelector('.kinescope-bar [data-command="kinescope.autoplay"]') && !!document.querySelector('.kinescope-bar [data-command="kinescope.export_frames"]')`));
+  check('W637: the Kinescope bar\'s Autoplay kinescope runs its command', await controlRuns('kinescope.autoplay', undefined, {}, '.kinescope-bar '));
+  check('W637: the Kinescope bar\'s Save kinescope frames runs its command', await controlRuns('kinescope.export_frames', 'kinescope_frames.gif', {}, '.kinescope-bar '));
 
   /* Export GIF (Plots.tsx): the page's own button for Kinescope's Make
      Anigif (k, m), which core/json_windows.cpp's j_movie_make_anigif
@@ -5928,6 +6034,7 @@ async function main() {
     if (run('autox')) await session(AB_ODE, autoxLiveJobs);
     if (run('autoxviews')) await session(ODE, autoxViews);
     if (run('navigation')) await session(ODE, navigationCheck);
+    if (run('navigation')) await session(ODE, menusByTaskCheck);
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);
     if (run('steady')) await session(ODE, steadyCheck);

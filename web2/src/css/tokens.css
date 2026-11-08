@@ -80,7 +80,7 @@
   --z-values-sheet: 150; /* the Values sheet on a phone, under the other sheets */
   --z-autox: 155; /* the autoX view, over the Values sheet */
   --z-panel: 160; /* the data table, array plot, text, animation and Help: over the page, the menu bar too */
-  --z-menu: 165; /* a <details> drop-down (the menu bar's, Tools), over the panels */
+  --z-menu: 165; /* a <details> drop-down (the menu bar's, the ⋯ and Messages pop-ups), over the panels */
   --z-player-dock: 170; /* the player's bar over the views it plays in */
   --z-modal: 180; /* the recording's replayed ask, over the panels and the player's bar */
   --z-toast: 200; /* a notification, over the page (a modal dialog's backdrop is over it) */

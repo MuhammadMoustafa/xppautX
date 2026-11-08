@@ -32,14 +32,14 @@ try {
   };
   await cdp.send('Emulation.setDeviceMetricsOverride', {width:1280,height:860,deviceScaleFactor:1,mobile:false});
   await navigatePage(cdp, server.url); await ready();
-  await cdp.eval("document.querySelector('.workspace-tools summary').click(); true");
-  await until('document.querySelector(".workspace-tools").open', 'Tools dropdown open');
+  await cdp.eval("document.querySelector('[data-top-menu=\"File\"] > summary').click(); true");
+  await until('document.querySelector(\'[data-top-menu="File"]\').open', 'File menu open');
   await cdp.eval("document.querySelector('.plot-host').dispatchEvent(new PointerEvent('pointerdown', {bubbles:true})); true");
-  await until('!document.querySelector(".workspace-tools").open', 'outside dismisses dropdown');
+  await until('!document.querySelector(\'[data-top-menu="File"]\').open', 'outside dismisses the menu');
   await cdp.eval("document.querySelector('[data-plot-axis=x]').click(); true");
   await until('__xpp.state().commandForm?.id === "plot.set_2d"', 'axis opens the registry form for its variables and limits');
   await closeForm();
-  console.log('PASS shortcuts, menu/dropdown dismissal and axis editor');
+  console.log('PASS shortcuts, menu dismissal and axis editor');
   await run(); await run();
   assert.equal(await state('w.history.runs.length'), 1, 'Freeze retains prior run');
   assert.equal(await cdp.eval('document.querySelectorAll("[data-trace-key]").length'), 2, 'each run has a legend');

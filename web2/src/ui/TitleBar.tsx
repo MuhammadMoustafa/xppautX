@@ -1,12 +1,10 @@
-/* The top bar: the menu drawer's button (phones), model, theme, workspace tools and panels; on a phone
-   it is one row, Data, Model and Help moving into Tools. Common run actions belong to RunToolbar. */
+/* The top bar: the menu drawer's button (phones), model, theme, the Values panel's button and the Data, Model and
+   Help buttons (on a phone the last three are in the menu bar: Windows and Help). Common run actions belong to RunToolbar. */
 import type {Theme} from '../store/state';
-import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {useSession, useStore} from './context';
 import {CommandLabel} from './CommandButton';
 import {saveTheme} from './theme';
 import {baseName} from '../store/files';
-import {useEffect, useRef} from 'preact/hooks';
-import {closeTools} from './hotkeys';
 import {MenuButton} from './MenuBar';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
@@ -45,15 +43,6 @@ function PanelToggle({collapsed}: {collapsed: boolean}) {
 }
 
 export function TitleBar() {
-  const tools = useRef<HTMLDetailsElement>(null);
-  /* a click outside closes the menu (Escape is hotkeys.ts's, the one handler) */
-  useEffect(() => {
-    const outside = (e: PointerEvent) => {
-      if (tools.current?.open && !tools.current.contains(e.target as Node)) closeTools(tools.current, tools.current.contains(document.activeElement));
-    };
-    document.addEventListener('pointerdown', outside, true);
-    return () => document.removeEventListener('pointerdown', outside, true);
-  }, []);
   const session = useSession();
   const title = useStore(s => s.title);
   const file = useStore(s => s.hello?.file ?? '');
@@ -62,27 +51,21 @@ export function TitleBar() {
   const valuesOpen = useStore(s => s.valuesOpen);
   const tableOpen = useStore(s => s.table.open);
   const textOpen = useStore(s => s.text.open);
-  const aplotOpen = useStore(s => s.aplot.open);
   const panels = useStore(s => s.panels);
-  const aniOpen = useStore(s => s.ani.open);
   const helpOpen = useStore(s => s.help.open);
-  const may = useMay();
-  const recording = useStore(s => !!s.core?.recording);
-  const mayRecord = may({cmd: 'recording.start'});
-  const mayPlay = may({cmd: 'recording.open'});
   const setTheme = () => {
     const t = NEXT_THEME[theme];
     saveTheme(t);
     session.store.dispatch({type: 'theme', theme: t});
   };
-  /* Data, Model and Help: buttons of the bar, and again as Tools' entries on a phone (css/layout.css .title-only, .phone-only) */
-  const panelButtons = (where: 'title-only' | 'phone-only') => [
-    <button key="table" class={`table-toggle ${where}`} aria-controls="table-panel" aria-expanded={tableOpen}
+  /* Data, Model and Help: the title bar's buttons (css/layout.css .title-only: hidden on a phone, where the menu bar has them) */
+  const panelButtons = [
+    <button key="table" class="table-toggle title-only" aria-controls="table-panel" aria-expanded={tableOpen}
       onClick={() => (tableOpen ? session.closeTable() : session.openTable())}><CommandLabel command="tool.browser" /></button>,
-    <button key="text" class={`text-toggle ${where}`} aria-controls="text-panel" aria-expanded={textOpen}
+    <button key="text" class="text-toggle title-only" aria-controls="text-panel" aria-expanded={textOpen}
       onClick={() => (textOpen ? session.closeText() : session.openText())}
       title="Equations, source and the last equilibrium">Model</button>,
-    <button key="help" class={`help-toggle ${where}`} aria-controls="help-panel" aria-expanded={helpOpen}
+    <button key="help" class="help-toggle title-only" aria-controls="help-panel" aria-expanded={helpOpen}
       onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}
       title="The manual">Help</button>,
   ];
@@ -94,22 +77,6 @@ export function TitleBar() {
       {changed && <span class="unsaved" role="img" aria-label="Unsaved changes" title="Changed since the session was loaded or saved (Ctrl+S saves)">&#9679;</span>}
       <span class="muted file">{title}</span>
       <span class="spacer" />
-      <details class="workspace-tools" ref={tools}><summary aria-haspopup="true">Tools</summary>
-      <div class="workspace-tools-menu" onClick={e => { if ((e.target as Element).closest('button') && tools.current) closeTools(tools.current, false); }}>
-      {!recording && (
-        <button class="play-open" aria-disabled={!mayPlay} onClick={() => { if (mayPlay) session.playOpen(); }}
-          title={mayPlay ? 'Play a recording (.recx): its model, then its steps ' : BUSY_TITLE}><CommandLabel command="recording.open" /></button>
-      )}
-      <button class="aplot-toggle" aria-controls="aplot-panel" aria-expanded={aplotOpen}
-        onClick={() => (aplotOpen ? session.closeAplot() : session.openAplot())}>Array plot</button>
-      <button class="ani-toggle" aria-controls="ani-panel" aria-expanded={aniOpen}
-        onClick={() => (aniOpen ? session.closeAni() : session.openAni())}>Animation</button>
-      {!recording && (
-        <button class="record-toggle" aria-disabled={!mayRecord} onClick={() => { if (mayRecord) session.startRecording(); }}
-          title={mayRecord ? 'Record the steps you take to a .recx file ' : BUSY_TITLE}><CommandLabel command="recording.start" /></button>
-      )}
-      {panelButtons('phone-only')}
-      </div></details>
       <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
         aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
         <ThemeIcon theme={theme} />
@@ -117,7 +84,7 @@ export function TitleBar() {
       <PanelToggle collapsed={panels.valuesCollapsed} />
       <button class="values-toggle" aria-controls="values-panel" aria-expanded={valuesOpen}
         onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}><CommandLabel command="tool.values" /></button>
-      {panelButtons('title-only')}
+      {panelButtons}
     </header>
   );
 }

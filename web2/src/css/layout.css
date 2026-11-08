@@ -38,14 +38,10 @@ h1, h2 { margin: 0; }
 .start-recent li { display: flex; flex-direction: column; align-items: flex-start; }
 .start-path { font-size: var(--text-xs); overflow-wrap: anywhere; }
 .start-missing { color: var(--danger); }
-.workspace-tools { position: relative; }
-.workspace-tools > summary { min-height: var(--target); padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
-.workspace-tools-menu { position: absolute; z-index: var(--z-menu); top: 100%; right: 0; min-width: 14rem; padding: var(--space-2); display: grid; gap: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-.workspace-tools:not([open]) .workspace-tools-menu { display: none; }
 #command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
 .unused-settings { margin-top: var(--space-3); }
 .spacer { flex: 1; }
-.menu-toggle, .values-toggle, .app-menu .menu-search, .phone-only, .menu-scrim { display: none; }
+.menu-toggle, .values-toggle, .app-menu .menu-search, .menu-scrim { display: none; }
 /* the wide layouts' collapse buttons and splitters (W226): not on a phone, where the drawers do this */
 .splitter { display: none; }
 @media (min-width: 48rem) {
@@ -109,9 +105,21 @@ h1, h2 { margin: 0; }
 
 .app-menu ul{ list-style: none; margin: 0; padding: .35rem; }
 
-.app-menu > details > ul{ position: absolute; z-index: var(--z-menu); min-width: 15rem; max-height: 70vh; overflow: auto; background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+.app-menu > details > ul{ position: absolute; z-index: var(--z-menu); min-width: 15rem; background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
 
 .app-menu button{ width: 100%; text-align: left; display: flex; justify-content: space-between; gap: 1rem; }
+
+/* a line between a menu's commands and its submenus, where one kind follows the other (MenuBar.tsx withRules) */
+.app-menu .menu-rule{ list-style: none; height: 0; margin: .3rem 0; border-top: 1px solid var(--border); }
+
+/* from 48rem a submenu flies out beside its title, one open at a time (the menu bar's exclusive toggle), with a › at its right */
+@media (min-width: 48rem) {
+  .app-menu details details{ position: relative; }
+  .app-menu details details > summary{ list-style: none; display: flex; justify-content: space-between; gap: 1rem; }
+  .app-menu details details > summary::-webkit-details-marker{ display: none; }
+  .app-menu details details > summary::after{ content: '\203A'; }
+  .app-menu details details > ul{ position: absolute; top: -.35rem; left: 100%; min-width: 15rem; z-index: var(--z-menu); background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+}
 
 /* from 48rem the values panel is a right column (R3, R6), the plot first beside it; wider, the column is wider */
 @media (min-width: 48rem) {
@@ -122,13 +130,12 @@ h1, h2 { margin: 0; }
 }
 /* phones (below 48rem): the menu bar is a drawer behind the title bar's Menu button, the title bar one row, the values panel a sheet */
 @media (max-width: 47.99rem) {
-  .menu-toggle, .values-toggle, .workspace-tools-menu .phone-only { display: inline-flex; }
+  .menu-toggle, .values-toggle { display: inline-flex; }
   .app-menu .menu-search { display: flex; }
   .icon-button.panel-toggle, .title-only { display: none; }
   .title-bar { flex-wrap: nowrap; padding: var(--space-2); }
   .title-bar > * { flex: none; }
   .title-bar h1 { flex: 0 1 auto; min-width: 0; }
-  .workspace-tools > summary { white-space: nowrap; }
   .title-bar .file, .title-bar .wide-only { display: none; }
   .app-menu { position: fixed; z-index: var(--z-menu); inset: 0 auto 0 0; width: min(20rem, 85vw); flex-direction: column; flex-wrap: nowrap; align-items: stretch; overflow: auto; padding: var(--space-3); box-shadow: var(--shadow);
     transform: translateX(-100%); visibility: hidden; transition: transform 0.2s ease, visibility 0s 0.2s; }

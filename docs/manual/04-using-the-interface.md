@@ -58,7 +58,7 @@ checks rather than interactive use:
 
 ## The page layout
 
-The page has a title bar (the model's name, Tools, the theme, Data, Model and Help), the **menu bar** below it (File, Run, Analysis, Plot, Data,
+The page has a title bar (the model's name, the theme, Values, Data, Model and Help), the **menu bar** below it (File, Run, Analysis, Plot, Data,
 autoX, Windows and Help; "Commands", in the next chapter), the plot, the **Values** panel beside it, and
 a **status bar** along the bottom that shows "Working…" with a progress
 bar and one **Stop** control whenever a command is running (in any view;
@@ -95,7 +95,7 @@ options and Capture. From 48 rem (768 px) the Values panel is a right column bes
 with the title bar's button and resized at its edge, including with the keyboard, and its size and visibility are
 remembered by this browser. Below 48 rem (a phone) the title bar is one row: the menu bar is a **drawer**
 behind its **Menu** button (Escape, a click outside it, or a choice closes it; Search commands is at its top),
-Data, Model and Help are in Tools, and Values is a sheet opened by its button.
+Data, Model and Help are in the menu bar (Windows and Help), and Values is a sheet opened by its button.
 
 **Cut text.** A read-only number is shown with six significant digits, and with an exponent
 below 0.0001 and from 1000000 (`1.23457e+8`); a name that does not fit its place is cut with an ellipsis and never wraps. Text that
@@ -318,7 +318,7 @@ panel. Nothing is silently changed back. The core's own asks say what
 each field wants (the protocol's `kinds`); a field they do not describe
 takes any text, as before.
 
-**Escape, in order.** Each press does one thing, the innermost first: it closes an open menu (the menu bar's, then the Tools menu's), then the command drawer; then it cancels a pick or a grab; then a question the program asks is answered as cancelled (a dialog keeps its own Escape: it closes the dialog, and only that); then it closes the topmost open panel, the last one opened (Data, Text, Help, Array plot, Values, Animation, and autoX when nothing runs); and only when none of these is open does it stop a running command. So during a run the first Escape closes a panel and the next one stops the run; in the autoX view, where a continuation is watched, Escape stops it at once. A field with an edit to drop keeps its Escape for the drop (above).
+**Escape, in order.** Each press does one thing, the innermost first: it closes an open menu (the menu bar's, then the plot's ⋯ or the Messages list), then the command drawer; then it cancels a pick or a grab; then a question the program asks is answered as cancelled (a dialog keeps its own Escape: it closes the dialog, and only that); then it closes the topmost open panel, the last one opened (Data, Text, Help, Array plot, Values, Animation, and autoX when nothing runs); and only when none of these is open does it stop a running command. So during a run the first Escape closes a panel and the next one stops the run; in the autoX view, where a continuation is watched, Escape stops it at once. A field with an edit to drop keeps its Escape for the drop (above).
 
 ## Long-running commands
 

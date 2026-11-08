@@ -195,7 +195,7 @@ ordinary files: renamed to `.zip`, its `model/` folder holds the model's
 files, its `model.setx` holds the values and numerics (the settings syntax of a model's `options` block) and its
 `data.npz` reads in NumPy (`numpy.load`). XPPAUT's `.set` file is no longer a
 file xppautX saves: the session holds what it held, and
-File > Sets > Import XPPAUT session state applies a `.set` XPPAUT wrote, whole and all or nothing; values from our own files (an `.odex` and its sets) or from XPPAUT's `.par`, `.ic` and `.set` come in by scope with Load values from file. File > autoX > Save diagram and Open diagram save and open the session too.
+File > Sets > Import XPPAUT session state applies a `.set` XPPAUT wrote, whole and all or nothing; values from our own files (an `.odex` and its sets) or from XPPAUT's `.par`, `.ic` and `.set` come in by scope with Load values from file. autoX > File > Save diagram and Open diagram save and open the session too.
 Import diagram reads a foreign XPPAUT `.auto` into the model open.
 
 The recording player offers speeds from 0.25× to 8×. These bounds come from

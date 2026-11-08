@@ -36,31 +36,31 @@ constexpr std::array PLAYER_EVENTS = {xpp::events::RECORDING_PLAYER, xpp::events
 constexpr std::array DONE_EVENTS = {xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"recording.start", {}, XPP_KIND_DATA, CommandCategory::Panels, "Start recording", "File",
+    Command{"recording.start", {}, XPP_KIND_DATA, CommandCategory::Panels, "Start recording", "File/Recording",
             "Start recording the session's steps, from the session as it is now.", START_RESULTS, STATE_EVENTS, false, front_end},
-    Command{"recording.stop", STOP_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Stop recording", "File",
+    Command{"recording.stop", STOP_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Stop recording", "File/Recording",
             "Stop recording and save the recording (.recx added); left out, the file is asked for; confirm true replaces an existing file without asking.",
             STOP_RESULTS, STATE_EVENTS, false, front_end, {}, {}, "write", "*.recx"},
-    Command{"recording.add_note", NOTE_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Add note", "File/Recording",
-            "Put a note on the next recorded step.", NOTE_RESULTS, DONE_EVENTS, false, front_end},
-    Command{"recording.open", OPEN_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Play recording", "File",
+    Command{"recording.open", OPEN_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Play recording", "File/Recording",
             "Open a recording (.recx; its path, which only --server's own input may give) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once.", OPEN_RESULTS, PLAYER_EVENTS, false,
             front_end, {}, {}, "read", "*.recx"},
-    Command{"recording.play", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Play", "File/Recording", "Play the open recording from where it is.", PLAY_RESULTS,
+    Command{"recording.play", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Play", "", "Play the open recording from where it is.", PLAY_RESULTS,
             DONE_EVENTS, false, front_end},
-    Command{"recording.pause", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Pause", "File/Recording", "Pause the playing recording.", PAUSE_RESULTS, DONE_EVENTS,
+    Command{"recording.pause", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Pause", "", "Pause the playing recording.", PAUSE_RESULTS, DONE_EVENTS,
             false, front_end},
-    Command{"recording.step", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Step", "File/Recording", "Play the next step of the open recording.", STEP_RESULTS,
+    Command{"recording.step", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Step", "", "Play the next step of the open recording.", STEP_RESULTS,
             DONE_EVENTS, false, front_end},
-    Command{"recording.set_speed", SPEED_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Set speed", "File/Recording",
-            "Set the speed the recording's paces are divided by (hello.player_speed gives the bounds).", SPEED_RESULTS, DONE_EVENTS, false, front_end},
-    Command{"recording.seek", SEEK_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Seek", "File/Recording",
+    Command{"recording.seek", SEEK_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Seek", "",
             "Jump to a step: the steps before it run at once, then the recording plays when play is true (left out: when the step is not the first).",
             SEEK_RESULTS, PLAYER_EVENTS, false, front_end},
-    Command{"recording.close", {}, XPP_KIND_DATA, CommandCategory::Panels, "Close recording", "File/Recording", "Leave the player; the model stays.", CLOSE_RESULTS,
+    Command{"recording.close", {}, XPP_KIND_DATA, CommandCategory::Panels, "Close recording", "", "Leave the player; the model stays.", CLOSE_RESULTS,
             STATE_EVENTS, false, front_end},
-    Command{"recording.set_step_note", STEP_NOTE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Set step note", "File/Recording",
-            "Write a note into a step of the open recording's file; confirm true replaces the file without asking.", SEEK_RESULTS, PLAYER_EVENTS, false, front_end}};
+    Command{"recording.set_step_note", STEP_NOTE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Set step note", "",
+            "Write a note into a step of the open recording's file; confirm true replaces the file without asking.", SEEK_RESULTS, PLAYER_EVENTS, false, front_end},
+    Command{"recording.add_note", NOTE_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Add note", "",
+            "Put a note on the next recorded step.", NOTE_RESULTS, DONE_EVENTS, false, front_end},
+    Command{"recording.set_speed", SPEED_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Set speed", "",
+            "Set the speed the recording's paces are divided by (hello.player_speed gives the bounds).", SPEED_RESULTS, DONE_EVENTS, false, front_end},};
 
 } // namespace
 

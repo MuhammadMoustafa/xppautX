@@ -7,16 +7,17 @@ import {initialState} from '../src/store/state';
 import type {RegistryArgument} from '../src/protocol/kinds';
 
 const rows = registryRows(REGISTRY_HELLO);
-test('W517: every registry command appears exactly once in the tree with its declared path', () => {
+test('W517: every registry command with a menu place appears exactly once in the tree with its declared path (W637: the others are a view\'s)', () => {
   const found: string[] = [];
   const walk = (nodes: ReturnType<typeof menuTree>, path: string[]) => nodes.forEach(n => {
     if (n.row) {found.push(n.row.id); assert.equal(path.join('/'), n.row.menu_path); assert.equal(n.name, n.row.label);}
     walk(n.children, [...path, n.name]);
   });
   walk(menuTree(rows), []);
-  assert.deepEqual(found.sort(), rows.map(r => r.id).sort());
-  assert.ok(rows.length > 150);
-  assert.ok(rows.every(r => ['File','Run','Analysis','Plot','Data','autoX','Windows','Help'].includes(r.menu_path!.split('/')[0])));
+  const placed = rows.filter(r => r.menu_path);
+  assert.deepEqual(found.sort(), placed.map(r => r.id).sort());
+  assert.ok(placed.length > 150);
+  assert.ok(placed.every(r => ['File','Run','Analysis','Plot','Data','autoX','Windows','Help'].includes(r.menu_path!.split('/')[0])));
 });
 test('W636: a row with no menu place has a label but no place in the tree, and a row is shown by its label', () => {
   const bare = {...rows[0], id: 'x.bare', menu_path: '', label: 'Bare'};
@@ -25,7 +26,7 @@ test('W636: a row with no menu place has a label but no place in the tree, and a
 });
 test('W517: palette matches each word in names, menu places and descriptions', () => {
   assert.ok(paletteRows(rows, 'session save').some(r => r.id === 'session.save'));
-  assert.ok(paletteRows(rows, 'plot annotation').some(r => r.id === 'annotation.move'));
+  assert.ok(paletteRows(rows, 'annotation move').some(r => r.id === 'annotation.move'));
   assert.equal(paletteRows(rows, 'not-a-command').length, 0);
 });
 const arg = (type: string): RegistryArgument => ({name: 'value', type, required: true, choices: ['last_state','initial_state'], min: 0, max: 3});

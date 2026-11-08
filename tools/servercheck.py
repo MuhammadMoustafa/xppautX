@@ -2975,8 +2975,9 @@ CATEGORIES = ['run', 'files', 'analysis', 'plot', 'tools', 'panels']
 
 
 def check_registry_menu(table):
-    bad = [r['cmd'] for r in table if r['menu_path'].split('/')[0] not in MENUS or not r['description'].strip() or r['category'] not in CATEGORIES]
-    check('W517: every registry command has a menu path in File, Run, Analysis, Plot, Data, autoX, Windows or Help, a description and a known category',
+    # W637: a command with no menu place (its home is a view, or the palette only) has an empty path
+    bad = [r['cmd'] for r in table if (r['menu_path'] and r['menu_path'].split('/')[0] not in MENUS) or not r['description'].strip() or r['category'] not in CATEGORIES]
+    check('W517: every registry command has a menu path in File, Run, Analysis, Plot, Data, autoX, Windows or Help (or none, W637), a description and a known category',
           not bad, str(bad))
     paths = [r['menu_path'] for r in table if r['menu_path'].split('/')[0] not in ('Help',)]
     check('W517: every one of the bar\'s menus has commands', all(any(p.split('/')[0] == m for p in paths) for m in MENUS[:-1]), str(sorted(set(p.split('/')[0] for p in paths))))
@@ -2989,6 +2990,25 @@ def check_registry_menu(table):
 
 
 check_registry_menu([c for c in hello.get('commands', []) if 'arguments' in c])
+
+
+# W637 (#709): no level of the menu bar holds more than MENU_LEVEL_ROWS entries (a command or a submenu), so each
+# menu fits its drop-down without a scroll (12: the most a drop-down shows at 1024 px beside the graph, docs/studies/w637-menus.md)
+MENU_LEVEL_ROWS = 12
+
+
+def check_menu_levels(table):
+    levels = {}
+    for r in table:
+        parts = [part for part in r['menu_path'].split('/') if part]
+        for i in range(len(parts)):
+            levels.setdefault('/'.join(parts[:i]), set()).add('/'.join(parts[:i + 1]))
+        if parts: levels.setdefault('/'.join(parts), set()).add(r['label'])
+    too_long = sorted((len(entries), place) for place, entries in levels.items() if len(entries) > MENU_LEVEL_ROWS)
+    check('W637: no menu level holds more than %d rows' % MENU_LEVEL_ROWS, not too_long, str(too_long))
+
+
+check_menu_levels([c for c in hello.get('commands', []) if 'arguments' in c])
 
 
 # W636 (#708): a row's label is its one name, the same text in every place that shows the command
@@ -3046,7 +3066,7 @@ def check_names_from_rows(table):
     for r in table:
         parts = r['menu_path'].split('/')
         groups.update('/'.join(parts[:i]) for i in range(1, len(parts) + 1))
-        places.add(r['menu_path'] + '/' + r['label'])
+        places.add('/'.join(part for part in (r['menu_path'], r['label']) if part))
     menus = 'File|Run|Analysis|Plot|Data|autoX|Windows|Help'
     path_in_text = re.compile(r'(?<![\w/.\-])(?:%s)(?:(?: (?:>|\u2192) |/)[A-Za-z0-9][^>\u2192/\n()]*)+' % menus)
     unknown = []

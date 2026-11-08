@@ -40,6 +40,8 @@ function KinescopeBar() {
           </button>
           <button class="small" disabled={busy} onClick={() => session.kinescopeReset()}
             title="Clear the captured frames"><CommandLabel command="kinescope.reset" /></button>
+          <CommandButton command="kinescope.export_frames" />
+          <CommandButton command="kinescope.autoplay" />
         </>
       )}
     </div>

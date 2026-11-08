@@ -20,7 +20,7 @@ import {drawAniFrame, frameBox} from '../ani/render';
 import {HELP} from '../help/links';
 import {sixSig} from '../store/values';
 import {useMay, useMayMain, useMayKey, useSession, useStore} from './context';
-import {CommandLabel} from './CommandButton';
+import {CommandButton, CommandLabel} from './CommandButton';
 import {HelpButton} from './HelpButton';
 import {useDark} from './theme';
 
@@ -58,7 +58,7 @@ export function AniView() {
   const close = () => session.closeAni();
 
   /* focus to the picture on open, back to the toggle on close; Escape closes it (hotkeys.ts's one owner, openPanel) */
-  useFocusBackOnClose(open, panel, '.ani-toggle');
+  useFocusBackOnClose(open, panel, '[data-top-menu=Windows] > summary, .menu-toggle');
   useEffect(() => {
     if (!open) return;
     stage.current?.focus();
@@ -179,6 +179,11 @@ export function AniView() {
         </label>
         <button data-button="ani:grab" onClick={() => session.aniGrab()} disabled={!canStep || !mayKey('ani', 'grab')} aria-pressed={grab}
           title="Drag the animation's grab points with the pointer"><CommandLabel command="animation.grab_point" /></button>
+        <CommandButton command="animation.faster" />
+        <CommandButton command="animation.slower" />
+        <CommandButton command="animation.set_frame_skip" />
+        <CommandButton command="animation.set_live_draw" />
+        <CommandButton command="animation.reset" />
       </div>
     </section>
   );

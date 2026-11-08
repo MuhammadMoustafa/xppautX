@@ -16,9 +16,8 @@ import {BUSY_TITLE} from './context';
 /** the work areas F6 cycles, in reading order: the command search, the plot, then the panels. A pane
     that is hidden, or in a drawer that is closed, is skipped (focusPane) */
 const PANE_SELECTORS = [ '.plot-host', '#values-panel', '#table-panel', '#text-panel'];
-/** the pop-ups Escape closes after the menu bar's: the workspace Tools menu (TitleBar.tsx), the plot's ⋯ (PlotView.tsx)
-    and the status bar's Messages (Messages.tsx) */
-const TOOLS_MENU = ':is(.workspace-tools, .plot-more, .status-bar .messages)';
+/** the pop-ups Escape closes after the menu bar's: the plot's ⋯ (PlotView.tsx) and the status bar's Messages (Messages.tsx) */
+const POPUPS = ':is(.plot-more, .status-bar .messages)';
 
 /** Pane navigation is presentation, rather than a command binding. */
 export const FIXED_KEYS: readonly {key: string; does: string}[] = [
@@ -94,9 +93,8 @@ export function shortcutLabel(row: CommandRow, keymap: KeymapInfo | null): strin
   return effectiveKeys(keymap, row).join(' / ');
 }
 
-/** Close the Tools menu; `focus` returns the focus to its summary (Escape, a click outside) and not
-    after a choice, whose command has its own place for it. */
-export function closeTools(details: HTMLDetailsElement, focus: boolean): void {
+/** Close a pop-up `details`; `focus` returns the focus to its summary (Escape) and not after a choice. */
+export function closePopup(details: HTMLDetailsElement, focus: boolean): void {
   details.open = false;
   if (focus) details.querySelector('summary')?.focus();
 }
@@ -130,14 +128,14 @@ export function openPanel(close: () => void): () => void {
 const PICK_ASKS = new Set(['mouse', 'rubber', 'drag', 'grab']);
 
 /** Escape, the one owner of the key (W633). A press does one thing, the innermost first: an open menu (the
-    menu bar, then the Tools, ⋯ and Messages pop-ups), the command drawer, a pick or a grab, a question the page asks (answered as
+    menu bar, then the ⋯ and Messages pop-ups), the command drawer, a pick or a grab, a question the page asks (answered as
     cancelled; a dialog keeps its own Escape and never reaches here), the topmost open panel, and last the stop of a
     running command. A panel's field that holds an edit to drop keeps its Escape (data-own-escape). True when taken. */
 function escape(session: Session, target: Element | null): boolean {
   const {busy, ask, pick, drawerOpen} = session.store.getState();
   if (closeMenuBar(true)) return true;
-  const tools = document.querySelector<HTMLDetailsElement>(`${TOOLS_MENU}[open]`);
-  if (tools) { closeTools(tools, true); return true; }
+  const popup = document.querySelector<HTMLDetailsElement>(`${POPUPS}[open]`);
+  if (popup) { closePopup(popup, true); return true; }
   if (drawerOpen && !ask) { session.store.dispatch({type: 'drawer', open: false}); return true; }
   if (pick || (ask && PICK_ASKS.has(ask.kind))) { session.cancelPick(); return true; }
   if (ask) {

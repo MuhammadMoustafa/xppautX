@@ -4,11 +4,19 @@
 
 The menu bar has **File**, **Run**, **Analysis**, **Plot**, **Data**, **autoX**,
 **Windows** and **Help**. File holds models, sessions, recordings, sets and
-exports; Run holds integration, initial conditions and boundary values;
-Analysis holds equilibria, nullclines, direction fields, spectra, fits,
-Poincaré maps and tables. Plot holds curves, axes, styles and annotations.
-Data opens the browser and values. Every command is listed from the core's
-command registry, with the same description and keys wherever it appears.
+exports (Export is a submenu); Run holds integration, initial conditions, the
+Poincaré map and boundary values; Analysis holds equilibria, nullclines,
+direction fields, statistics, spectra, stochastic runs, adjoints and tables.
+Plot holds curves, axes, styles and annotations. Data opens the browser and
+values. autoX holds its run controls, File, Export, Branch and View. Windows
+opens the new graph, the new autoX view, the animation and the array plot, and
+lists every window. A submenu opens beside its title from 48 rem (a › marks
+it; the menu keeps its own height), and inside the drawer on a phone; a line
+separates a menu's commands from its submenus. Controls that belong to one
+view, such as a graph's row, the Kinescope bar, the Table view and the
+Animation view, are in that view and not in the menus; each stays in
+**Search commands**. Every command is listed from the core's command registry,
+with the same description and keys wherever it appears.
 
 A command without arguments runs immediately. Other commands open the same
 form: choices are selects, yes/no values are checkboxes, windows are picked
@@ -64,7 +72,7 @@ A tick means the window is shown. Each named window offers **Bring to front**,
 annotations or frozen curves asks before discarding them. The main graph and
 browser cannot be destroyed. Window references always use their exact names.
 
-**Plot > Annotations** opens the active graph's annotation list. Each row shows
+**List annotations** (in Search commands) and a click on an annotation on the plot open the active graph's annotation list. Each row shows
 its kind, text, position and colour. Select a row to highlight it on the plot;
 click an annotation on the plot to select its row. **Edit** opens the common
 annotation form, **Delete** removes that annotation, and dragging one on the
@@ -446,7 +454,7 @@ See the [generated command reference](../protocol.md#typed-command-registry-w353
 ### (T)ext, etc
 
 allows you to write text to the display in a variety of sizes and in two different fonts. You can also add other symbols to your graph.
-- **Text**: In xppautX you first click where the text goes, then one dialog asks for the text, its size, its style (normal, bold, italic, bold italic) and its colour (any colour, with its alpha: the picker, the opacity slider and the text box give the colour as `#rrggbb` or `#rrggbbaa`, and a PDF or SVG draws it too). Double-click a text on the plot to change its text, size, style or colour (the same form as **Edit** in **Plot > Annotations**); move it by dragging it, and delete it from **Plot > Annotations**. Style and colour are drawn by the page; the PostScript and SVG output draw the text as XPPAUT's did. A session file saves the texts with their size, style and colour. There are five sizes (0-4): 0-8pt, 1-12pt, 2-14pt, 3-18pt, 4-24pt. Text also has several escape sequences:
+- **Text**: In xppautX you first click where the text goes, then one dialog asks for the text, its size, its style (normal, bold, italic, bold italic) and its colour (any colour, with its alpha: the picker, the opacity slider and the text box give the colour as `#rrggbb` or `#rrggbbaa`, and a PDF or SVG draws it too). Double-click a text on the plot to change its text, size, style or colour (the same form as **Edit** in the annotation list); move it by dragging it, and delete it from the annotation list. Style and colour are drawn by the page; the PostScript and SVG output draw the text as XPPAUT's did. A session file saves the texts with their size, style and colour. There are five sizes (0-4): 0-8pt, 1-12pt, 2-14pt, 3-18pt, 4-24pt. Text also has several escape sequences:
   - $`\backslash`$<!-- -->1 – switches to Greek font
   - $`\backslash`$<!-- -->0 – switches to Roman font
   - $`\backslash`$s – subscript
@@ -531,6 +539,12 @@ The Kinescope menu, the Animation window's buttons and the Array plot window's b
 (a file, a form), then run typed commands; through the protocol each takes its values as arguments,
 and an argument left out keeps the current setting. A command that cannot do its work says why: playing an empty kinescope, an animation with no
 stored data, or a picture of an array plot that shows no columns yet.
+
+The Kinescope bar holds Capture, Play, Stop, Make kinescope GIF, Reset, and,
+once frames are captured, Save kinescope frames and Autoplay kinescope. The
+Animation view holds its player (Play, Step, Seek, Delay, Grab point), Speed up
+animation, Slow down animation, Set frame skip, Draw animation live and Reset
+animation. The recording player's Speed buttons set the recording's speed.
 
 - `kinescope.capture`, `kinescope.reset`, `kinescope.play`, `kinescope.autoplay` (`cycles`, `frame_ms`),
   `kinescope.export_frames` and `kinescope.export_gif` (`file`, a name in the model's folder).

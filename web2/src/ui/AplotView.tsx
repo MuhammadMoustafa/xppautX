@@ -53,7 +53,7 @@ export function AplotView() {
   const close = () => session.closeAplot();
 
   /* focus in on open, back to the toggle on close; Escape closes it (hotkeys.ts's one owner, openPanel) */
-  useFocusBackOnClose(open, panel, '.aplot-toggle');
+  useFocusBackOnClose(open, panel, '[data-top-menu=Windows] > summary, .menu-toggle');
   useEffect(() => {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();

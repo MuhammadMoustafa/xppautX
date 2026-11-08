@@ -1,4 +1,5 @@
 import {useEffect, useRef} from 'preact/hooks';
+import type {ComponentChildren} from 'preact';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {CommandLabel} from './CommandButton';
 import {commandRow, menuTree, registryRows, type MenuNode} from './navigation';
@@ -11,6 +12,16 @@ export function MenuButton() {
   const session = useSession(), open = useStore(s => s.menuOpen);
   return <button class="menu-toggle" aria-controls="app-menu" aria-expanded={open}
     onClick={() => session.store.dispatch({type: 'menu', open: !open})}>Menu</button>;
+}
+
+/** one entry of a level: a command's item, or a submenu (`menu`: its title and the level under it) */
+interface Entry {menu: boolean; el: ComponentChildren}
+
+/** a level's entries, with a line where one kind follows the other (a command after a submenu, or the reverse). The
+    kind is the tree's own (a node with a row is a command), never a field of the rows. */
+function withRules(entries: Entry[]): ComponentChildren[] {
+  return entries.flatMap((entry, i) => i > 0 && entries[i - 1].menu !== entry.menu
+    ? [<li key={`rule-${i}`} class="menu-rule" role="separator" aria-hidden="true" />, entry.el] : [entry.el]);
 }
 
 export function MenuBar() {
@@ -79,24 +90,53 @@ export function MenuBar() {
     if (pointed.current === d && d.open) e.preventDefault();
     pointed.current = null;
   };
-  const item = (node: MenuNode) => node.row ? <li key={node.row.id}><button role="menuitem" data-command={node.row.id} title={may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE}
+  const entry = (node: MenuNode): Entry => node.row ? {menu: false, el: <li key={node.row.id}><button role="menuitem" data-command={node.row.id} title={may({cmd: node.row.id}) ? node.row.description : BUSY_TITLE}
     disabled={!may({cmd: node.row.id})} onClick={() => {close(); session.registryAction(node.row!.id);}}>
-    {node.name} <kbd>{effectiveKeys(info, node.row).join(' / ')}</kbd></button></li>
-    : <li key={node.name}><details><summary>{node.name}</summary><ul role="menu">{node.children.map(item)}</ul></details></li>;
+    {node.name} <kbd>{effectiveKeys(info, node.row).join(' / ')}</kbd></button></li>}
+    : {menu: true, el: <li key={node.name}><details><summary>{node.name}</summary><ul role="menu">{withRules(node.children.map(entry))}</ul></details></li>};
   const tree = menuTree(registryRows(hello));
   const order = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'autoX', 'Windows', 'Help'];
   const windowNodes = tree.find(node => node.name === 'Windows')?.children ?? [];
   const newWindows = windowNodes.filter(node => node.row?.id === 'window.create' || node.row?.id === 'autox.new_view')
     .sort((a,b) => Number(b.row?.id === 'window.create') - Number(a.row?.id === 'window.create'));
   const windowTools = windowNodes.filter(node => !newWindows.includes(node));
+  /* Windows: the new items, then each kind of window's list (its own submenus), then the tools */
+  const windowLevel: Entry[] = [...newWindows.map(entry),
+    ...['Graphs', 'autoX views', 'Others'].map((group, i) => ({menu: true, el: <li key={group}><strong>{group}</strong><ul>
+      {windows.filter(w => i === 0 ? w.kind === 'graph' : i === 1 ? w.kind === 'diagram' : !['graph','diagram'].includes(w.kind)).map(w => <li key={w.name}>
+        <details data-window-menu={w.name}><summary>{w.shown ? '✓ ' : ''}{w.name}</summary><ul>
+          {['window.select', 'window.rename', w.shown ? 'window.hide' : 'window.show', 'window.destroy'].map(id => <li key={id}>
+            <button data-window-action={id} disabled={id === 'window.rename' && !['graph','diagram'].includes(w.kind) || id === 'window.destroy' && w.kind === 'browser'}
+              title={id === 'window.rename' && !['graph','diagram'].includes(w.kind) ? 'This tool window keeps its role name' : id === 'window.destroy' && w.kind === 'browser' ? 'The data browser stays open; Hide keeps it out of view' : undefined} onClick={() => {close(); if (id === 'window.rename') session.registryAction(id, {window: w.name});
+              else {if (id === 'window.select') session.send({cmd: 'window.show', window: w.name}); session.send({cmd: id, window: w.name});}}}>{commandRow(hello, id)?.label}</button>
+          </li>)}
+        </ul></details>
+      </li>)}
+    </ul></li>}))]
+    .concat(windowTools.map(entry));
+  const levelOf = (name: string): Entry[] => name === 'Windows' ? windowLevel : (tree.find(node => node.name === name)?.children ?? []).map(entry);
   return <><div class={'menu-scrim' + (drawer ? ' open' : '')} onClick={closeDrawer} aria-hidden="true" />
   <nav class={'app-menu' + (drawer ? ' open' : '')} id="app-menu" aria-label="Menu bar" ref={bar} onKeyDown={e => {
     const active = document.activeElement as HTMLElement | null;
     const top = active?.closest<HTMLDetailsElement>('details[data-top-menu]');
     if (!top) return;
+    const own = active?.closest<HTMLDetailsElement>('details');
+    if (own && own !== top && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      /* a submenu (beside its title from 48rem): Right opens it from its title and moves in, Left closes it and goes back to its title */
+      e.preventDefault();
+      const title = own.querySelector<HTMLElement>(':scope > summary');
+      if (e.key === 'ArrowRight') {
+        if (active === title) { own.open = true; own.querySelector<HTMLElement>(':scope > ul > li > :is(button, summary)')?.focus(); }
+      } else {
+        const parent = own.parentElement?.closest<HTMLDetailsElement>('details');
+        own.open = false;
+        (active === title && parent ? parent.querySelector<HTMLElement>(':scope > summary') : title)?.focus();
+      }
+      return;
+    }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       /* from the title or an entry of this top menu, not from a submenu inside it */
-      if (active?.closest('details') !== top) return;
+      if (own !== top) return;
       const tops = [...e.currentTarget.querySelectorAll<HTMLDetailsElement>(':scope > details[data-top-menu]')];
       const next = tops[(tops.indexOf(top) + (e.key === 'ArrowRight' ? 1 : -1) + tops.length) % tops.length];
       const wasOpen = top.open;
@@ -115,18 +155,6 @@ export function MenuBar() {
   }}><button class="menu-search" onClick={() => {close(false); session.store.dispatch({type: 'drawer', open: true});}}
     title="Search every command by name"><CommandLabel command="tool.command_palette" /></button>
   {order.map(name => <details key={name} data-top-menu={name} onPointerEnter={hover} onPointerLeave={unhover}><summary onClick={title}>{name}</summary><ul role="menu">
-    {(name === 'Windows' ? newWindows : tree.find(node => node.name === name)?.children ?? []).map(item)}
-    {name === 'Windows' && ['Graphs', 'autoX views', 'Others'].map((group, i) => <li key={group}><strong>{group}</strong><ul>
-      {windows.filter(w => i === 0 ? w.kind === 'graph' : i === 1 ? w.kind === 'diagram' : !['graph','diagram'].includes(w.kind)).map(w => <li key={w.name}>
-        <details data-window-menu={w.name}><summary>{w.shown ? '✓ ' : ''}{w.name}</summary><ul>
-          {['window.select', 'window.rename', w.shown ? 'window.hide' : 'window.show', 'window.destroy'].map(id => <li key={id}>
-            <button data-window-action={id} disabled={id === 'window.rename' && !['graph','diagram'].includes(w.kind) || id === 'window.destroy' && w.kind === 'browser'}
-              title={id === 'window.rename' && !['graph','diagram'].includes(w.kind) ? 'This tool window keeps its role name' : id === 'window.destroy' && w.kind === 'browser' ? 'The data browser stays open; Hide keeps it out of view' : undefined} onClick={() => {close(); if (id === 'window.rename') session.registryAction(id, {window: w.name});
-              else {if (id === 'window.select') session.send({cmd: 'window.show', window: w.name}); session.send({cmd: id, window: w.name});}}}>{commandRow(hello, id)?.label}</button>
-          </li>)}
-        </ul></details>
-      </li>)}
-    </ul></li>)}
-    {name === 'Windows' && windowTools.map(item)}
+    {withRules(levelOf(name))}
   </ul></details>)}</nav></>;
 }

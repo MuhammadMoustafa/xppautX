@@ -1,6 +1,7 @@
 /* The focus of a panel that opens over the page (a sheet, the drawer):
    back to the button that opened it when it closes, if the focus was
-   inside it (for a button in a menu that has closed, the menu's summary).
+   inside it (for a button in a menu that has closed, the menu's summary:
+   the Windows menu's title for Open animation and Open array plot).
 
    A layout effect, run in the same task as the render that drops the
    panel's `open` class, before the browser's next style update. A plain
@@ -16,11 +17,13 @@ import {useLayoutEffect} from 'preact/hooks';
 export function useFocusBackOnClose(open: boolean, panel: RefObject<HTMLElement>, toggle: string): void {
   useLayoutEffect(() => {
     if (open || !panel.current?.contains(document.activeElement)) return;
-    /* the one the user can see: a phone's title bar hides Data, Model and Help and Tools lists them */
+    /* the one the user can see: a phone's title bar hides Data, Model and Help, and the menu bar has them; a closed
+       drawer is hidden by its visibility, which keeps its layout (its items still have boxes) */
     const buttons = [...document.querySelectorAll<HTMLElement>(toggle)];
-    const button = buttons.find(b => b.getClientRects().length) ?? buttons[0];
-    /* a button inside the Tools menu is hidden once the menu closed on its choice: the focus goes
-       to the menu's own button, the nearest thing the user can see (a hidden element takes none) */
+    const seen = (b: HTMLElement) => b.getClientRects().length > 0 && getComputedStyle(b).visibility !== 'hidden';
+    const button = buttons.find(seen) ?? buttons[0];
+    /* a button inside a menu is hidden once the menu closed on its choice: the focus goes to the menu's
+       own title, the nearest thing the user can see (a hidden element takes none) */
     const menu = button?.closest('details');
     (menu && !menu.open ? menu.querySelector<HTMLElement>('summary') : button)?.focus();
   }, [open]);
