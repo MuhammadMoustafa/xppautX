@@ -10,22 +10,12 @@
    (the event's `rules`, `pairs` and `step`); the settings file is the
    core's too (autoX's File menu, W118). Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
-import {choiceLabel, fieldError, type FieldSpec} from './fieldKinds';
 import type {AutoxProjection} from './diagram';
 
-/** the Numerics fields in the core's order (core/autox_settings.cpp num_fields): named for what they set,
-    autoX's own names (NTST, DS, MXBF ...) are a hover note only */
-export const NUM_KEYS = ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points', 'step_size', 'min_step_size',
-  'max_step_size', 'parameter_min', 'parameter_max', 'norm_min', 'norm_max', 'parameter_tolerance', 'state_tolerance',
-  'special_point_tolerance', 'mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail',
-  'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points', 'follow_all_branches'] as const;
-export type NumKey = typeof NUM_KEYS[number];
-/** the fields that are true or false, and the one that is one of named levels */
-export type BooleanKey = 'switch_one_direction' | 'suppress_branch_points' | 'follow_all_branches';
-export type ChoiceKey = 'output_detail';
-type NumericKey = Exclude<NumKey, BooleanKey | ChoiceKey>;
+/** a Numerics field's key: its row's key in the continuation group (`hello.options`), the core's `autox_numeric` one; the page names none */
+export type NumKey = string;
 
-/** what a Numerics value takes (the event's `rules`: core/autox_settings.cpp num_fields), and the
+/** what a Numerics value takes (the event's `rules`: core/autox_settings.cpp field), and the
     message the core refuses another with; each flag only when it holds */
 export interface NumRule {
   /** the core's form label */
@@ -43,116 +33,19 @@ export interface NumRule {
 
 /** two values that must be in order: lo below hi (strict) or at most hi */
 export interface NumPair {
-  lo: NumericKey;
-  hi: NumericKey;
+  lo: NumKey;
+  hi: NumKey;
   strict: boolean;
   message: string;
 }
 
 /** the first step `key` within the step sizes `lo` to `hi`, whichever its sign */
 export interface NumStep {
-  key: NumericKey;
-  lo: NumericKey;
-  hi: NumericKey;
+  key: NumKey;
+  lo: NumKey;
+  hi: NumKey;
   message: string;
 }
-
-export interface NumField {
-  key: NumKey;
-  /** autoX's own name for it: shown in the hover, a search word, never typed; none for a setting autoX has not */
-  auto?: string;
-  /** its tooltip: what it does, its valid values and what each option means (autoX's manual) */
-  help: string;
-}
-
-/** the field's name in the page: its key, underscores as spaces and a capital first letter (W381) */
-export const fieldName = (f: NumField): string => choiceLabel(f.key);
-
-/** the Numerics form's fields in its order (core/autox_settings.cpp num_fields) */
-export const NUM_FIELDS: NumField[] = [
-  {key: 'mesh_intervals', auto: 'NTST',
-    help: 'The mesh intervals a periodic orbit (or a boundary value solution) is split into. More follow a sharp orbit '
-      + 'better but take longer: raise it when a periodic branch looks wrong or does not converge. Following a period '
-      + 'doubling doubles it, so set it back after. A whole number, at least 1.'},
-  {key: 'max_steps', auto: 'NMX',
-    help: 'The most steps a branch may take: it ends (EP, "reached max_steps") when it has this many points. '
-      + 'A whole number, at least 1.'},
-  {key: 'output_every', auto: 'NPR',
-    help: 'Besides the special points, label and save the whole solution every this many points along a branch, so it can be '
-      + 'grabbed. A whole number, at least 1.'},
-  {key: 'collocation_points', auto: 'NCOL',
-    help: 'The collocation points in each mesh interval of a periodic orbit or boundary value solution. '
-      + 'A whole number from 2 to 7; 4 is usual.'},
-  {key: 'step_size', auto: 'DS',
-    help: 'The first step along the branch. Its sign is the direction: positive makes the main parameter go up, '
-      + 'negative down. The step adapts after it, so it is a suggestion. A number other than 0, from the min to the max '
-      + 'step size in size.'},
-  {key: 'min_step_size', auto: 'DSMIN',
-    help: 'The smallest step. When a point does not converge the step is halved and tried again; below this the '
-      + 'branch ends with MX (no convergence). A number above 0, at most the max step size.'},
-  {key: 'max_step_size', auto: 'DSMAX',
-    help: 'The largest step. Too large a step can jump over folds and Hopf points; too small a one makes a long run. '
-      + 'A number above 0, at least the min step size.'},
-  {key: 'parameter_min', auto: 'RL0',
-    help: 'The lowest value of the main parameter: a branch that goes below it ends (EP, "reached parameter_min"). '
-      + 'A number below the parameter max.'},
-  {key: 'parameter_max', auto: 'RL1',
-    help: 'The highest value of the main parameter: a branch that goes above it ends (EP, "reached parameter_max"). '
-      + 'A number above the parameter min.'},
-  {key: 'norm_min', auto: 'A0',
-    help: 'The lowest norm of the solution (its L2 norm, what the Norm axes plot): a branch whose norm goes below it '
-      + 'ends (EP). A number below the norm max.'},
-  {key: 'norm_max', auto: 'A1',
-    help: 'The highest norm of the solution: a branch whose norm goes above it ends (EP). A number above the norm min.'},
-  {key: 'parameter_tolerance', auto: 'EPSL',
-    help: "Newton's convergence tolerance for the parameters, relative. Smaller is more accurate and fails sooner. "
-      + 'A number above 0, often 1e-4 to 1e-7.'},
-  {key: 'state_tolerance', auto: 'EPSU',
-    help: "Newton's convergence tolerance for the solution, relative. Smaller is more accurate and fails sooner. "
-      + 'A number above 0, often 1e-4 to 1e-7.'},
-  {key: 'special_point_tolerance', auto: 'EPSS',
-    help: 'How closely special points (folds, Hopf and branch points, period doublings, tori) are located, relative '
-      + 'to the step; usually 100 to 1000 times the parameter and state tolerances. A number above 0.'},
-  {key: 'mesh_adapt_every', auto: 'IAD',
-    help: 'Adapt the mesh of a periodic orbit to its shape every this many steps; 0 keeps the mesh fixed. 3 is usual. '
-      + 'A whole number, 0 or more.'},
-  {key: 'max_branch_switches', auto: 'MXBF',
-    help: 'For steady states: at how many branch points autoX follows the other branch by itself; 0: none. '
-      + 'A whole number, 0 or more.'},
-  {key: 'switch_one_direction', auto: 'MXBF below 0',
-    help: 'When checked, the branches autoX switches to by itself are followed in one direction only; unchecked: in both.'},
-  {key: 'output_detail', auto: 'IID',
-    help: 'How much autoX writes to its diagnostics (the .d file): none, little, normal (the usual), start jacobian '
-      + '(also the Jacobian and residuals of the start), extensive, debugging.'},
-  {key: 'max_location_iterations', auto: 'ITMX',
-    help: 'The most iterations spent locating a special point (a fold, a Hopf or branch point ...). '
-      + 'A whole number, at least 1.'},
-  {key: 'max_newton_iterations', auto: 'ITNW',
-    help: 'The most Newton iterations for a point. When they do not converge the step is halved (with step adapt every '
-      + 'above 0) or the branch ends with MX. A whole number, at least 1.'},
-  {key: 'full_newton_after', auto: 'NWTN',
-    help: 'After this many Newton iterations the Jacobian is kept (the chord method), which is cheaper. '
-      + 'A whole number, at least 1.'},
-  {key: 'step_adapt_every', auto: 'IADS',
-    help: 'Adapt the step size every this many steps. 0 keeps it at the first step, and then a point that does not '
-      + 'converge ends the branch with MX. 1 is usual. A whole number, 0 or more.'},
-  {key: 'suppress_branch_points', auto: 'SuppBP',
-    help: 'When checked, do not look for branch points (faster, and no false ones); for periodic orbits there are then no '
-      + 'Floquet multipliers, period doublings or tori either. Unchecked: look for them.'},
-  {key: 'follow_all_branches',
-    help: 'When checked, a run from the current state continues in both directions, +step size and -step size, and follows '
-      + 'every branch it finds (branch points, Hopf points), all at once, and shows the diagram when all have ended. '
-      + 'Unchecked: only the direction the sign of step size gives.'},
-];
-
-/** the Numerics dialog's groups, as the core's form has its columns */
-export const NUM_GROUPS: {title: string; keys: NumKey[]}[] = [
-  {title: 'Mesh and steps', keys: ['mesh_intervals', 'max_steps', 'output_every', 'collocation_points', 'step_size', 'min_step_size', 'max_step_size']},
-  {title: 'Limits and tolerances', keys: ['parameter_min', 'parameter_max', 'norm_min', 'norm_max', 'parameter_tolerance', 'state_tolerance', 'special_point_tolerance']},
-  {title: 'Solver', keys: ['mesh_adapt_every', 'max_branch_switches', 'switch_one_direction', 'output_detail', 'max_location_iterations', 'max_newton_iterations', 'full_newton_after', 'step_adapt_every', 'suppress_branch_points', 'follow_all_branches']},
-];
-
-export const fieldOf = (key: NumKey): NumField => NUM_FIELDS.find(f => f.key === key)!;
 
 export interface AutoxAxesSettings {
   plot: AutoxProjection;
@@ -171,7 +64,7 @@ export const allCodim = (on: boolean) => Object.fromEntries(CODIM_KINDS.map(k =>
 
 export interface AutoxSettings {
   special_points: Record<CodimKind, boolean>;
-  numerics: Record<NumericKey, number> & Record<BooleanKey, boolean> & Record<ChoiceKey, string>;
+  numerics: Record<NumKey, number | boolean | string>;
   axes: AutoxAxesSettings;
   marks: [string, number][];
   /** the thread count of autoX and sweeps, a program preference (W267, W434): "auto" or the count */
@@ -245,7 +138,7 @@ function apply(base: AutoxSettings, p: AutoxSettingsPatch | null): AutoxSettings
   return {
     ...base,
     special_points: {...base.special_points, ...p.special_points},
-    numerics: {...base.numerics, ...p.numerics},
+    numerics: {...base.numerics, ...p.numerics} as AutoxSettings['numerics'],
     axes: {...base.axes, ...axes},
     marks: p.marks ?? base.marks,
     threads: p.threads ?? base.threads,
@@ -291,39 +184,10 @@ export function autoxSettingsCommands(p: AutoxSettingsPatch): {command: Command;
     out.push({command: {cmd: 'autox.configure_marks', parameters: p.marks.map(m => m[0]), values: p.marks.map(m => m[1])}, patch: {marks: p.marks}});
   }
   if (p.threads !== undefined) {
-    out.push({command: {cmd: 'session.set_threads', ...(p.threads === 'auto' ? {automatic: true} : {threads: p.threads})}, patch: {threads: p.threads}});
+    out.push({command: {cmd: 'preferences.configure', ...(p.threads === 'auto' ? {automatic: true} : {threads: p.threads})}, patch: {threads: p.threads}});
   }
   return out;
 }
-
-/** what a Numerics field takes (store/fieldKinds.ts): a whole number or a number, and its rule */
-export function numSpec(r: NumRule): FieldSpec {
-  if (r.boolean) return {kind: 'boolean'};
-  if (r.choices) return {kind: 'choice', choices: r.choices};
-  if (r.integer) return {kind: 'integer', min: r.min, max: r.max};
-  return {kind: 'number', min: r.min, max: r.max, positive: !!r.positive, nonzero: !!r.nonzero};
-}
-
-/** the error a Numerics field's text has: the core's message for its rule, or null */
-export function numError(r: NumRule, text: string): string | null {
-  return fieldError(numSpec(r), text) ? r.message : null;
-}
-
-/** the values that must agree with each other, as the core checks them, by the field whose message it is */
-export function pairErrors(s: Pick<AutoxSettings, 'pairs' | 'step'>, v: Record<NumKey, number | boolean | string>): Partial<Record<NumKey, string>> {
-  const out: Partial<Record<NumKey, string>> = {};
-  const n = (k: NumericKey): number => Number(v[k]);
-  for (const p of s.pairs) if (!(p.strict ? n(p.lo) < n(p.hi) : n(p.lo) <= n(p.hi))) out[p.lo] = p.message;
-  const {key, lo, hi, message} = s.step;
-  if (!out[lo] && !out[hi] && !(Math.abs(n(key)) >= n(lo) && Math.abs(n(key)) <= n(hi))) out[key] = message;
-  return out;
-}
-
-/** the first of pairErrors, or null */
-export function pairError(s: Pick<AutoxSettings, 'pairs' | 'step'>, v: Record<NumKey, number | boolean | string>): string | null {
-  return Object.values(pairErrors(s, v))[0] ?? null;
-}
-
 
 /** Track settings from the common command form and specialised plot gestures alike. */
 export function commandSettings(command: Command): AutoxSettingsPatch | null {
@@ -337,6 +201,6 @@ export function commandSettings(command: Command): AutoxSettingsPatch | null {
     return {axes: Object.fromEntries(Object.entries(values).filter(([key]) => key in names).map(([key,value]) => [names[key],value]))};
   }
   if (cmd === 'autox.configure_marks') return {marks: (command.parameters as string[] ?? []).map((name,i) => [name, (command.values as number[])[i]])};
-  if (cmd === 'session.set_threads') return {threads: command.automatic === true ? 'auto' : command.threads as number};
+  if (cmd === 'preferences.configure') return {threads: command.automatic === true ? 'auto' : command.threads as number};
   return null;
 }

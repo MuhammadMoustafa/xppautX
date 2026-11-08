@@ -50,3 +50,11 @@ export function toolbarCommand(window: string, id: string): string {
   };
   return commands[window]?.[id] ?? '';
 }
+
+/** where a command's `panel` points (core Command::panel): the option group, the sections of it the command uses (none listed: all of it), and whether the
+    command's own arguments that no row sets stay in its form beside the rows ("plot+") */
+export function panelSpec(panel: string | undefined): {group: string; sections: string[] | null; own: boolean} | null {
+  if (!panel) return null;
+  const own = panel.endsWith('+'), [group, sections] = panel.replace(/\+$/, '').split(':');
+  return {group, sections: sections ? sections.split(',') : null, own};
+}

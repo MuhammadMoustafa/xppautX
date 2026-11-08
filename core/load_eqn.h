@@ -202,6 +202,14 @@ std::vector<SetItem> scoped_items(const Session &s, std::span<const SetItem> ite
    apply_named_set and Load values from a file are this. */
 Result<> apply_values(Session &s, std::span<const SetItem> items, const Place &where, std::string_view scope, std::optional<int> graph,
                       std::string_view command);
+/* the settings of option group now as their text (unquoted), each with its row, in the table's order: those with a member that the
+   method and model use; the plot settings are those of graph (the active one when none) */
+Result<std::vector<std::pair<const OptionRow *, std::string>>> option_group_values(Session &s, std::string_view group, std::optional<int> graph,
+                                                                                    std::string_view command);
+/* items (the group's settings, by name) applied as a patch, all or nothing, one undo step: apply_values for a group a set holds, the same
+   check and write for a group of the session as a whole (diagram, export, interface, output) */
+Result<> apply_option_group(Session &s, std::string_view group, std::span<const SetItem> items, const Place &where, std::optional<int> graph,
+                            std::string_view command);
 /* why scope is none of them (naming them), "" when it is */
 std::string set_scope_problem(std::string_view scope);
 /* the index of the model's set called name (the spelling it was written in),

@@ -21,10 +21,14 @@ import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren, JSX} from 'preact';
 import {HELP} from '../help/links';
-import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, choiceLabel, fieldMessage, type FieldSpec} from '../store/fieldKinds';
+import {EXPRESSION, FORMULA, FORMULA_HINT, fieldMessage, type FieldSpec} from '../store/fieldKinds';
 import {fieldKey, foldKey, inputText, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
-import type {NumericsField} from '../protocol/types';
-import {NUM_METHOD, numericsField} from '../store/steady';
+import {useOpenOptions, useOptionRows} from './OptionsPanel';
+import {panelSpec} from './navigation';
+import type {OptionGroup} from '../protocol/types';
+
+/** the command whose panel is the main numerics' group */
+const NUM_COMMAND = 'run.configure';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {CommandLabel, useCommandLabel} from './CommandButton';
 import {SetsRow} from './SetsRow';
@@ -250,76 +254,27 @@ function IndexedSection({id, title, kind, entries, hint, startFolded}: {
   );
 }
 
-/** a numerics field (W106): a number box, or its choices (the method's,
-    the Jacobian's), one the model cannot have disabled with the reason as
-    its hint (W260); the core checks the value and its error shows on the
-    field */
-function NumericField({f}: {f: NumericsField}) {
-  const session = useSession();
-  const field = fieldKey('num', f.key);
-  const error = useStore(s => s.values.errors[field]);
-  const sent = useStore(s => sentText(s.values.inflight, field));
-  const id = `value-${field}`.replace(/[^\w-]/g, '_');
-  const title = f.unused ? `${f.label}: not used by this method` : f.label;
-  if (f.boolean) {
-    return (
-      <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
-        <label htmlFor={id} class="value-name" title={f.unused ? title : undefined}><ShownName name={f.label} /></label>
-        <input id={id} type="checkbox" checked={(sent ?? String(f.value)) === 'true'} title={title}
-          aria-invalid={error ? true : undefined}
-          onChange={e => session.setNumeric(f.key, String((e.target as HTMLInputElement).checked))} />
-        {error && <span class="field-error" role="alert">{error}</span>}
-      </div>
-    );
-  }
-  if (f.choices) {
-    const value = sent ?? String(f.value);
-    return (
-      <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
-        <label htmlFor={id} class="value-name" title={f.unused ? title : undefined}><ShownName name={f.label} /></label>
-        <select id={id} value={value} title={title} aria-invalid={error ? true : undefined}
-          onChange={e => session.setNumeric(f.key, (e.target as HTMLSelectElement).value)}>
-          {f.choices.map(c => <option key={c} value={c} disabled={!!f.unavailable?.[c]}
-            title={f.unavailable?.[c]}>{choiceLabel(c)}</option>)}
-        </select>
-        {error && <span class="field-error" role="alert">{error}</span>}
-        {f.unavailable && Object.entries(f.unavailable).map(([c, why]) =>
-          <span key={c} class="value-hint" data-unavailable={c}>No {choiceLabel(c)} {f.label}: {why}</span>)}
-      </div>
-    );
-  }
-  const shown = f.value === null ? '' : String(f.value);
-  const spec: FieldSpec = f.integer ? {kind: 'integer'} : NUMBER;
-  return (
-    <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
-      <label htmlFor={id} class="value-name" title={f.unused ? title : undefined}><ShownName name={f.label} /></label>
-      <Field id={id} spec={spec} value={sent ?? (typeof f.value === 'number' ? sixSig(f.value) : '')} editValue={sent ?? shown}
-        onCommit={text => session.setNumeric(f.key, text)} error={error ?? null} settling={sent !== null}
-        onDropError={() => session.store.dispatch({type: 'values', action: {type: 'clearError', field}})}
-        title={title} />
-    </div>
-  );
+/** the main numerics (W106, docs/protocol.md "The numerics as data"): the integration group's rows, the same fields as Run > Run settings, each change
+    sent at once like a parameter's; edits during a run apply to the next run, never the one in progress. A row the method or model does not
+    use is in the closed list below, a choice the model cannot have says why. */
+function NumericsSection() {
+  const group = useStore(s => s.hello?.options.find(g => g.group === panelSpec(s.hello?.commands.find(c => c.cmd === NUM_COMMAND)?.panel)?.group));
+  const numerics = useStore(s => s.numerics);
+  return group && numerics?.length ? <NumericsRows group={group} /> : null;
 }
 
-/** the main numerics (W106, docs/protocol.md "The numerics as data"): the
-    Numerics menu's values, editable during a run like the parameters */
-function NumericsSection() {
-  const fields = useStore(s => s.numerics);
-  if (!fields?.length) return null;
-  const method = numericsField(fields, NUM_METHOD);
-  const methodName = method ? choiceLabel(String(method.value)) : 'the selected solver';
-  const unused = fields.filter(f => f.unused);
+function NumericsRows({group}: {group: OptionGroup}) {
+  /* the values are asked for once when the numerics arrive, and again only when what the numerics event says changed (an edit made elsewhere) */
+  useOpenOptions(group.group, useStore(s => JSON.stringify(s.numerics)));
+  const {fields, unusedFields, unused} = useOptionRows(group, null, true);
   return (
     <Section id="num" title="Numerics" startFolded hint="Changes apply to the next run: a run in progress keeps its own."
       tools={<SetsRow scope="integration" />}>
-      <p class="value-hint">Solver: <strong>{methodName}</strong>. Unused solver controls are separated below.</p>
-      <div class="value-list value-fill" style={fillStyle(fields.filter(f => !f.unused).map(f => f.label), false)}>
-        {fields.filter(f => !f.unused).map(f => <NumericField key={f.key} f={f} />)}
-      </div>
-      {unused.length > 0 && <details class="unused-settings">
-        <summary>Settings not used by {methodName}</summary>
-        <p class="value-hint">These values are kept for other solvers. Editing them does not change {methodName}'s results.</p>
-        <div class="value-list value-fill" style={fillStyle(unused.map(f => f.label), false)}>{unused.map(f => <NumericField key={f.key} f={f} />)}</div>
+      <div class="value-options">{fields}</div>
+      {unused > 0 && <details class="unused-settings">
+        <summary>Settings not used by this method or model</summary>
+        <p class="value-hint">These values are kept for other solvers. Editing them does not change this method's results.</p>
+        <div class="value-options">{unusedFields}</div>
       </details>}
     </Section>
   );

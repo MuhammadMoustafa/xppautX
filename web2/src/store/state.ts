@@ -88,6 +88,12 @@ export interface ValuesPart {from: 'defaults' | 'set' | 'file'; name: string; pr
 /** the file asked about, for which scope, what kind of file it is and its parts that hold that scope's kind */
 export interface ValuesFileOffer {file: string; scope: string; format: string; parts: ValuesPart[]}
 
+/** one group's settings as the core last gave them (`options.get`): each row's text the session's method and model use, and the choices the model cannot have */
+export interface OptionValues {
+  values: Record<string, string>;
+  unavailable: Record<string, Record<string, string>>;
+}
+
 export interface AppState {
   connected: boolean;
   exited: number | null;
@@ -137,6 +143,10 @@ export interface AppState {
   menuOpen: boolean;
   /** a command's form: the values it starts with, and the arguments the place it was opened from settles (a section's scope), which it leaves out */
   commandForm: {id: string; values: Record<string, unknown>; fixed?: string[]} | null;
+  /** the settings panel open as a dialog (ui/OptionsPanel.tsx): the option group it shows */
+  optionsPanel: {group: string} | null;
+  /** each group's values as the core last gave them, for every place that edits the group's rows (a panel, a command's form, Values' Numerics) */
+  optionValues: Record<string, OptionValues>;
   /** the parts of a file of values that hold a section's kind, as `set.file_contents` listed them, offered to pick
       one to load with `set.load_file` (W321) */
   valuesFile: ValuesFileOffer | null;
@@ -201,6 +211,8 @@ export type Action =
   | {type: 'dismiss'; id: number}
   | {type: 'commandForm'; form: AppState['commandForm']}
   | {type: 'valuesFile'; offer: ValuesFileOffer | null}
+  | {type: 'optionsPanel'; panel: AppState['optionsPanel']}
+  | {type: 'optionValues'; group: string; values: OptionValues}
   | {type: 'annotations'; open: boolean; selected?: number | null}
   | {type: 'drawer'; open: boolean}
   | {type: 'menu'; open: boolean}
@@ -254,7 +266,7 @@ export const initialState: AppState = {
   nextToast: 1,
   theme: 'system',
   panels: defaultPanels,
-  drawerOpen: false, menuOpen: false, commandForm: null, valuesFile: null, annotationsOpen: false, selectedAnnotation: null,
+  drawerOpen: false, menuOpen: false, commandForm: null, optionsPanel: null, optionValues: {}, valuesFile: null, annotationsOpen: false, selectedAnnotation: null,
   continueInput: CONTINUE_INPUT_DEFAULT,
   steadyEdit: {},
   controlDone: 0,
@@ -398,7 +410,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const values = reduceValues({...state.values, defaults: null}, {type: 'settled'});
       /* a set sent before gets no done now */
       setPointTypes(ev.point_types);
-      return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, valuesFile: null, windows: [],
+      return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, optionsPanel: null, optionValues: {}, valuesFile: null, windows: [],
         autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'reset'}),
         keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};
     }
@@ -669,6 +681,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return action.input.mode === state.continueInput.mode && action.input.text === state.continueInput.text ? state : {...state, continueInput: action.input};
     case 'commandForm': return {...state, commandForm: action.form};
     case 'valuesFile': return {...state, valuesFile: action.offer};
+    case 'optionsPanel': return {...state, optionsPanel: action.panel};
+    case 'optionValues': return {...state, optionValues: {...state.optionValues, [action.group]: action.values}};
     case 'annotations': return {...state, annotationsOpen: action.open, selectedAnnotation: action.selected === undefined ? state.selectedAnnotation : action.selected};
     case 'drawer':
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};

@@ -737,7 +737,7 @@ def jobs_session(model, start, env=None, threads=None, record=None):
     s = Server(args.server, autoxcompare.ROOT / model, env=env)
     autoxcompare.completed(s)
     if threads is not None:
-        autoxcompare.completed(s, dict(cmd='session.set_threads', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
+        autoxcompare.completed(s, dict(cmd='preferences.configure', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
     autoxcompare.set_values(s, start)
     if record:
         autoxcompare.completed(s, dict(cmd='recording.start'))
@@ -1135,10 +1135,10 @@ def check_autox_registry():
               and done['result']['points_written'] > 5 and (glob.glob(os.path.join(folder, 'w516*.csv')) or glob.glob(os.path.join(s.run, 'w516*.csv'))), str(done))
         _, done = call(cmd='autox.export_csv', file='../w516.csv')
         check('autox.export_csv: a file name is a base name', done['status'] == 'error', str(done))
-        _, done = call(cmd='session.set_threads', threads=1)
-        check('session.set_threads: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
-        _, done = call(cmd='session.set_threads', threads=1, automatic=True)
-        check('session.set_threads: a count and automatic are refused together', done['status'] == 'error', str(done))
+        _, done = call(cmd='preferences.configure', threads=1)
+        check('preferences.configure: a count', done['status'] == 'ok' and done['result']['threads'] == 1 and done['result']['automatic'] is False, str(done))
+        _, done = call(cmd='preferences.configure', threads=1, automatic=True)
+        check('preferences.configure: a count and automatic are refused together', done['status'] == 'error', str(done))
         for old in ({'cmd': 'autox', 'op': 'grab', 'label': 1}, {'cmd': 'autox', 'op': 'set', 'numerics': {}}, {'cmd': 'autox', 'op': 'restart', 'label': 1}):
             s.send(**old)
             evs, _ = s.collect(stops_done)
@@ -2762,7 +2762,92 @@ def check_atomic_commands():
 
 
 
-INDEPENDENT_SECTIONS = {'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+def check_options_panels():
+    """W616: the settings panels' data. hello carries the option table (every group, its rows with key, section, label, kind, help,
+    default and limits); options.get gives a group's values as text and options.configure sets some of them, all or nothing, by their
+    option keys; output.configure is the same for the output group, its path picked in the file dialog; preferences.configure keeps the
+    log's level and file in the preferences."""
+    is_done = lambda e: e.get('ev') == 'done'  # this section also runs alone (--only), before the module's helper below is defined
+    proc, run, send, collect, _ = launch_server()
+    try:
+        events, _ = collect(is_done)
+        hello = next(e for e in events if e.get('ev') == 'hello')
+        groups = {g['group']: g for g in hello['options']}
+        check('W616: hello carries the table: every group a panel has, titled by its name as words',
+              list(groups) == ['integration', 'poincare', 'equilibria', 'sweep', 'continuation', 'diagram', 'plot', 'analysis', 'export', 'output']
+              and groups['integration']['label'] == 'Integration' and all(g['rows'] for g in groups.values()), str(list(groups)))
+        step_min = next((r for r in groups['integration']['rows'] if r['key'] == 'step.min'), {})
+        check('W616: a row has its key, section, label, kind, help, default and limit',
+              step_min.get('section') == 'step' and step_min.get('label') == 'Min' and step_min.get('kind') == 'number'
+              and step_min.get('help') and step_min.get('default') == '1e-12' and step_min.get('exclusiveMinimum') == 0, str(step_min))
+        method = next(r for r in groups['integration']['rows'] if r['key'] == 'method')
+        check('W616: a choice row lists its named choices, a yes/no is a boolean row',
+              'runge_kutta' in method['choices'] and next(r for r in groups['integration']['rows'] if r['key'] == 'stop_at_limit').get('boolean') is True, str(method))
+        check('W616: no key twice in a group', all(len({r['key'] for r in g['rows']}) == len(g['rows']) for g in groups.values()))
+
+        def call(**command):
+            send(**command)
+            return collect(is_done)[1]
+
+        done = call(cmd='options.get', group='equilibria')
+        values = done.get('result', {}).get('values', {})
+        check('W616: options.get gives each row of a group its value as text, in the table\'s keys',
+              done.get('status') == 'ok' and list(values) == [r['key'] for r in groups['equilibria']['rows']]
+              and values['max_iterations'] == groups['equilibria']['rows'][0]['default'], str(done)[:400])
+        done = call(cmd='options.configure', group='equilibria', values={'max_iterations': '77', 'print_eigenvalues': 'true'})
+        check('W616: options.configure sets the rows it names', done.get('status') == 'ok' and done['result']['applied'] == ['max_iterations', 'print_eigenvalues'], str(done))
+        values = call(cmd='options.get', group='equilibria')['result']['values']
+        check('W616: and the group holds them', values['max_iterations'] == '77' and values['print_eigenvalues'] == 'true' and values['search_limit'] == '100', str(values))
+        before = call(cmd='options.get', group='integration')['result']['values']
+        done = call(cmd='options.configure', group='integration', values={'dt': '0.25', 'step.min': '-1'})
+        after = call(cmd='options.get', group='integration')['result']['values']
+        check('W616: one bad value refuses the whole set, and nothing changes', done.get('status') == 'error' and 'min_step' in done.get('error', '') and after == before, str(done))
+        done = call(cmd='options.configure', group='integration', values={'nonesuch': '1'})
+        check('W616: a key the group does not have is refused by name', done.get('status') == 'error' and 'nonesuch is no setting of integration' in done.get('error', ''), str(done))
+        done = call(cmd='options.configure', group='integration', values={'dt': '0.25', 'step.max': '0.5'})
+        check('W616: a group the sets hold changes by its keys, with its numerics applied',
+              done.get('status') == 'ok' and call(cmd='options.get', group='integration')['result']['values']['dt'] == '0.25')
+        done = call(cmd='options.get', group='plot')
+        check('W616: the plot group is a graph\'s: its curves and ranges as text', done.get('status') == 'ok' and 'axes.x_low' in done['result']['values'] and 'colormap' in done['result']['values'], str(done)[:300])
+        rows = {r['key'] for r in groups['integration']['rows']}
+        check('W616: the delay guesses and grid are rows of the delay section', {'delay.real_guess', 'delay.imaginary_guess', 'delay.grid'} <= rows
+              and 'autoeval' not in rows and any(r['key'] == 'special_points' for r in groups['continuation']['rows']))
+        done = call(cmd='options.configure', group='continuation', values={'special_points': 'zero_hopf, cusp'})
+        values = call(cmd='options.get', group='continuation')['result']['values']
+        check('W616: special_points is a row: the names of the codimension-two points detected', done.get('status') == 'ok' and values['special_points'] == 'cusp,zero_hopf', str(done) + str(values.get('special_points')))
+        check('W616: a point that is no codimension-two point is refused', call(cmd='options.configure', group='continuation', values={'special_points': 'nonesuch'}).get('status') == 'error')
+        done = call(cmd='options.configure', group='diagram', values={'x_min': '-0.1', 'x_max': '0.3', 'colors.stable_equilibrium': '#123456'})
+        values = call(cmd='options.get', group='diagram')['result']['values']
+        check('W616: the diagram group reads and sets the open view\'s axes', done.get('status') == 'ok' and values['x_min'] == '-0.1' and values['x_max'] == '0.3' and values['colors.stable_equilibrium'] == '#123456', str(done) + str(values))
+        check('W616: run.configure no longer takes autoeval', call(cmd='run.configure', autoeval=False).get('status') == 'error')
+        done = call(cmd='output.configure', values={'data_file': 'panel.dat', 'after_run': 'histogram'})
+        values = call(cmd='options.get', group='output')['result']['values']
+        check('W616: output.configure sets the output group (the data file and what a batch run makes of its data)',
+              done.get('status') == 'ok' and values['data_file'].endswith('panel.dat') and values['after_run'] == 'histogram', str(done) + str(values))
+        send(cmd='output.configure', setting='data_file', file_picker=True)
+        events, _ = collect(is_ask)
+        ask = next(e for e in events if e.get('ev') == 'ask')
+        check('W616: a path is picked in the core\'s file dialog (a write ask)', ask.get('kind') == 'file' and ask.get('mode') == 'write', str(ask))
+        send(cmd='answer', id=ask['id'], file='picked.dat')
+        _, done = collect(is_done)
+        values = call(cmd='options.get', group='output')['result']['values']
+        check('W616: the picked file is the path\'s value', done.get('status') == 'ok' and values['data_file'].endswith('picked.dat'), str(done) + str(values))
+        done = call(cmd='output.configure', setting='dt', file='x.dat')
+        check('W616: only an output path takes a picked file', done.get('status') == 'error' and 'no path setting of output' in done.get('error', ''), str(done))
+        done = call(cmd='output.configure', setting='data_file')
+        check('W616: a setting and its file go together', done.get('status') == 'error', str(done))
+        done = call(cmd='preferences.configure', log_level='info', log_file='')
+        check('W616: preferences.configure keeps the log level in the preferences beside the threads', done.get('status') == 'ok' and done['result']['log_level'] == 'info', str(done))
+        done = call(cmd='preferences.get')
+        check('W616: preferences.get gives the threads, whether automatic, the log level and file', done.get('status') == 'ok' and done['result']['log_level'] == 'info' and 'automatic' in done['result'] and 'log_file' in done['result'], str(done))
+        check('W616: a log level is one of the words', call(cmd='preferences.configure', log_level='loud').get('status') == 'error')
+        call(cmd='preferences.configure', log_level='warn')  # the preferences file is shared by every server this check starts: back to the default
+    finally:
+        stop_server(proc, run, send)
+
+
+
+INDEPENDENT_SECTIONS = {'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -4146,6 +4231,9 @@ def check_import_only_options():
 
 
 check_import_only_options()
+
+
+check_options_panels()
 
 
 # The values panel and the run history of web2 (GitHub #18, #117): hello's
@@ -6041,7 +6129,7 @@ def check_autoxsettings():
             if 'pars' in c:
                 commands.append(dict(cmd='autox.configure_plot', pars=c['pars']))
             if 'threads' in c:
-                commands.append(dict(cmd='session.set_threads', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
+                commands.append(dict(cmd='preferences.configure', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
             evs = []
             for command in commands:
                 snda(**command)
@@ -10633,20 +10721,20 @@ def check_threads():
             most = st['threads_max']
             check('W267: the event gives threads "auto" at first, what automatic gives (1 to 4) and the most (the logical processors)',
                   st['threads'] == 'auto' and 1 <= st['threads_auto'] <= min(4, most) and most >= 1, str(st)[-200:])
-            snd(cmd='session.set_threads', threads=most)
+            snd(cmd='preferences.configure', threads=most)
             evs, _ = col(is_done)
             st = settings_of(evs)
             check('W267: set threads (the most) shows in the event and is saved in preferences.setx',
                   not errors(evs) and st and st['threads'] == most and 'threads: %d' % most in text(), str(evs)[-300:])
             before = text()
             for bad in (0, most + 1, -1, 1.5, 'many', 'autoX', [2]):
-                snd(cmd='session.set_threads', threads=bad)
+                snd(cmd='preferences.configure', threads=bad)
                 evs, _ = col(is_done)
                 err = errors(evs)
                 check('W267: set threads %r is refused naming the rule, the file is as it was' % (bad,),
                       len(err) == 1 and 'threads' in err[0] and text() == before, str(evs)[-300:])
             check('W267: and the shown count is the one before', threads_of(snd, col)['threads'] == most)
-            snd(cmd='session.set_threads', threads=1)
+            snd(cmd='preferences.configure', threads=1)
             check('W267: set threads 1', col(is_done) and 'threads: 1' in text())
         finally:
             stop_server(p, r, snd)
@@ -10655,7 +10743,7 @@ def check_threads():
         try:
             col(is_done)
             check('W267: a later server starts with the saved count', threads_of(snd, col)['threads'] == 1)
-            snd(cmd='session.set_threads', automatic=True)
+            snd(cmd='preferences.configure', automatic=True)
             evs, _ = col(is_done)
             check('W267: set threads "auto" is saved as the word and shown', not errors(evs) and 'threads: auto' in text()
                   and settings_of(evs)['threads'] == 'auto', str(evs)[-300:])
@@ -10668,7 +10756,7 @@ def check_threads():
         p, r, snd, col, _ = launch_server(extra_env=env)
         try:
             evs, _ = col(is_done)
-            snd(cmd='session.set_threads', threads=2)
+            snd(cmd='preferences.configure', threads=2)
             evs2, _ = col(is_done)
             err = errors(evs2)
             check('W267: a bad count in the file is refused with its file and line, the set is refused with it and the file is left as it is',
@@ -10896,7 +10984,7 @@ def check_sweep_threads():
         s = Server(args.server, odex, run=folder, env=env, extra_args=('--verbose',))
         try:
             s.collect(is_done)
-            s.send(cmd='session.set_threads', threads=threads)
+            s.send(cmd='preferences.configure', threads=threads)
             s.collect(is_done)
             if set_sig:
                 s.send(cmd='value.set_parameters', values={'sig': .05})
@@ -10955,7 +11043,7 @@ def check_sweep_threads():
         s = Server(args.server, model, run=folder, env=env)
         try:
             s.collect(is_done)
-            s.send(cmd='session.set_threads', threads=many)
+            s.send(cmd='preferences.configure', threads=many)
             s.collect(is_done)
             s.send(cmd='run.configure', total_time=1e7, store_every=100000)
             s.collect(is_done)
@@ -11715,9 +11803,9 @@ def check_numerics_extras():
 
     p, r, snd, call = session('voltex1.odex')
     try:
-        done = call(cmd='run.configure', vmaxpts=5000, autoeval=False)
-        check('W521: run.configure sets the Volterra points and auto-evaluation',
-              done.get('status') == 'ok' and done['result']['settings'] == {'vmaxpts': 5000, 'autoeval': False}, str(done))
+        done = call(cmd='run.configure', vmaxpts=5000)
+        check('W521: run.configure sets the Volterra points',
+              done.get('status') == 'ok' and done['result']['settings'] == {'vmaxpts': 5000}, str(done))
         done = call(cmd='run.configure', delay_grid=10)
         check('W521: a delay grid is refused for a model with no delays',
               done.get('status') == 'error' and 'delay_grid' in done.get('error', ''), str(done))

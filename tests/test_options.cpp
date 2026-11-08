@@ -87,6 +87,7 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
     if (r.index) return xpp::format("{}", r.index.read(s));
     if (r.color) return xpp::print_color(r.color(s));
     if (r.text) return r.text(s);
+    if (r.show) return r.show(s);
     return "";
 }
 
@@ -127,13 +128,13 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"POINCARE_VARIABLE", {"y", "2"}},
         {"AXES", {"3", "5"}},            /* 3D */
         {"LT", {"-1", "-1"}},
-        {"PLOTFMT", {"svg", ""}},
+        {"PLOTFMT", {"svg", "1"}},
         {"POINCARE_SIGN", {"-1", "0"}},         /* negative */
-        {"LINE.DRAW", {"line", ""}}, {"LINE.DASH", {"solid", ""}}, {"LINE.WIDTH", {"1", ""}}, {"LINE.MARKER", {"circle", ""}},
-        {"LINE.MARKER_SIZE", {"3", ""}},
+        {"LINE.DRAW", {"points", "1"}}, {"LINE.DASH", {"dotted", "2"}}, {"LINE.WIDTH", {"2", "2"}}, {"LINE.MARKER", {"square", "1"}},
+        {"LINE.MARKER_SIZE", {"4", "4"}},
         {"XNC", {"3", "#ffa500"}}, {"YNC", {"4", "#ffcd00"}}, {"SMC", {"1", "#ff0000"}}, {"UMC", {"0", "foreground"}},
         {"SEC", {"22", "#ffa500"}}, {"UEC", {"0", "foreground"}}, {"SPC", {"26", "#00e100"}}, {"UPC", {"28", "#0000ff"}},
-        {"NULLCLINES.FILE", {"nc.dat", "build/nc.dat"}}, {"AFTER_RUN_FILE", {"after.dat", ""}},
+        {"NULLCLINES.FILE", {"nc.dat", "build/nc.dat"}}, {"AFTER_RUN_FILE", {"after.dat", "build/after.dat"}}, {"OUTPUT", {"out.dat", "build/out.dat"}}, {"SPECIAL_POINTS", {"cusp", "cusp"}},
         {"RANGERESET", {"n", "false"}},
         {"RANGEOLDIC", {"n", "false"}},
         {"AUTOVAR", {"y", "1"}},         /* autoX counts from x */

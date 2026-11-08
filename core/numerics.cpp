@@ -52,9 +52,9 @@ Result<> check_numerics_extras(const xpp::Session &s, const NumericsExtras &extr
     if(applies)return {};
     return xpp::fail("numerics",xpp::format("{} applies {}",setting,when),command_place());
   };
-  const bool volterra=extras.max_points||extras.auto_evaluate,band=extras.banded||extras.band_lower||extras.band_upper;
+  const bool volterra=bool(extras.max_points),band=extras.banded||extras.band_lower||extras.band_upper;
   const bool delay=extras.delay_real_guess||extras.delay_imaginary_guess||extras.delay_grid;
-  if(volterra)if(auto r=needs(traits.integral_history,"vmaxpts and autoeval","to the Volterra method");!r)return r;
+  if(volterra)if(auto r=needs(traits.integral_history,"vmaxpts","to the Volterra method");!r)return r;
   if(band)if(auto r=needs(traits.banded,"banded, bandlo and bandup","to a method that can be banded (CVODE)");!r)return r;
   if(delay)if(auto r=needs(s.model().ndelays>0,"delay_real_guess, delay_imaginary_guess and delay_grid","to a model with delays");!r)return r;
   if(extras.max_points&&(*extras.max_points<1||*extras.max_points>option_limit::history_points))
@@ -71,7 +71,6 @@ Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
   if (auto checked = check_numerics_extras(s, extras, s.numerics.method); !checked) return checked;
   const bool delay=extras.delay_real_guess||extras.delay_imaginary_guess||extras.delay_grid;
   /* checked whole: now applied */
-  if(extras.auto_evaluate)s.numerics.auto_evaluate=*extras.auto_evaluate;
   if(extras.max_points)allocate_volterra(s,*extras.max_points,1);
   if(extras.banded)s.numerics.cv_bandflag=*extras.banded;
   if(extras.band_lower){s.numerics.cv_bandlower=*extras.band_lower;if(!extras.banded)s.numerics.cv_bandflag=true;}
@@ -136,10 +135,7 @@ static void ask_configured_numerics(xpp::Session &s, char ch)
 			 if(traits.integral_history){
 			   int tmp=s.numerics.max_points;
 			   new_int("MaxPoints:",&tmp);
-			   int auto_evaluate=s.numerics.auto_evaluate;
-			   new_int("AutoEval(1=yes) :",&auto_evaluate);
 			   extras.max_points=tmp;
-			   extras.auto_evaluate=auto_evaluate!=0;
 			 }
 			 if(traits.banded){
 			   int banded=s.numerics.cv_bandflag;

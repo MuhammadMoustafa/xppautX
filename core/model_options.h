@@ -210,6 +210,8 @@ struct OptionRow {
   ChoiceMember index; /* a choice row's enum */
   Member<Color> color; /* a colour row's colour */
   Member<std::string> text;
+  /* a row whose value is no one member's (a list of choices, special_points): its text as it is shown and written; `parse` sets it */
+  std::string (*show)(const Session &) = nullptr;
   /* the value when it is not just the member's: nullptr when taken, else
      why not (logged, the option left unset) */
   const char *(*parse)(Session &, const OptionValue &) = nullptr;
@@ -349,6 +351,9 @@ std::string option_choice(const OptionRow &row, std::string_view value);
    `xppautX --options-schema` prints and docs/odex-options.schema.json holds
    (tools/optionschema.sh checks they agree) */
 std::string option_schema();
+/* the members of a row's JSON Schema that bound its value, each led by a comma (`, "minimum": 1`): what its rule, its maximum and
+   autoX's own rule say; the schema's and the panels' one source of a limit */
+std::string option_limit_members(const OptionRow &row);
 /* one row's value as a JSON Schema: what its kind and rule say (the options
    block's and a .setx's, setx_file.h) */
 std::string option_value_schema(const OptionRow &row);

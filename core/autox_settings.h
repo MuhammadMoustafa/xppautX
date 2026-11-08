@@ -25,6 +25,7 @@
 namespace xpp {
 
 struct Session; /* session.h */
+struct OptionRow; /* model_options.h */
 
 /* 10000 intervals far exceed shipped meshes while bounding autoX's mesh-sized matrices. */
 inline constexpr int autox_max_mesh_intervals = 10000;
@@ -54,24 +55,13 @@ inline constexpr std::array<const char *, 6> autox_output_detail_names = {
    (stored in the settings' numbers as the index, 0 or 1 for a boolean) */
 enum class AutoxFieldShape { whole, real, boolean, choice };
 
-/* the Numerics fields' keys and shapes, by AUTOX_NUM_* (the one list: the event, `set`, the files and the registry's
-   autox.configure_numerics all name them so) */
-inline constexpr std::array<const char *, AUTOX_NUM_N> autox_num_keys = {
-    "mesh_intervals", "max_steps", "output_every", "collocation_points", "step_size", "min_step_size", "max_step_size",
-    "parameter_min", "parameter_max", "norm_min", "norm_max", "parameter_tolerance", "state_tolerance",
-    "special_point_tolerance", "mesh_adapt_every", "max_branch_switches", "switch_one_direction", "output_detail",
-    "max_location_iterations", "max_newton_iterations", "full_newton_after", "step_adapt_every", "suppress_branch_points",
-    "follow_all_branches"};
-inline constexpr std::array<AutoxFieldShape, AUTOX_NUM_N> autox_num_shapes = {
-    AutoxFieldShape::whole, AutoxFieldShape::whole, AutoxFieldShape::whole, AutoxFieldShape::whole, AutoxFieldShape::real,
-    AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real,
-    AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::real, AutoxFieldShape::whole,
-    AutoxFieldShape::whole, AutoxFieldShape::boolean, AutoxFieldShape::choice, AutoxFieldShape::whole, AutoxFieldShape::whole,
-    AutoxFieldShape::whole, AutoxFieldShape::whole, AutoxFieldShape::boolean, AutoxFieldShape::boolean};
-
+/* a Numerics field's key and shape are its row's in the option table (the continuation group, `autox_numeric` its index here): the one
+   source, which the event, `set`, the files and the registry's autox.configure_numerics all read */
 /* the key of Numerics field i in the event, the command and the files
    ("mesh_intervals", ...); NULL or empty out of range */
 const char *autox_settings_num_key(int i);
+/* the shape of field i: its row's kind (a boolean row, the choice, a whole number or a real) */
+AutoxFieldShape autox_settings_num_shape(int i);
 /* field i's value as the files and forms write it: the number, `true` or
    `false`, or the choice's name */
 std::string autox_settings_num_text(int i, double v);
@@ -162,5 +152,13 @@ int autox_settings_apply(Session &s, const AutoxSettingsSet &set, std::string &w
    "var", "par1", "xmax", "mark2", ...; "view"; "" for the whole set), for
    a file of autoX's settings to name its line (xpp_session_autox_io.cpp) */
 Result<> autox_settings_check(const Session &s, const AutoxSettingsSet &set, int views);
+
+/* the diagram group's rows that are the active view's own (its variable and axes; the colours are the session's) and whose values the
+   panel reads and sets there (W616): the model's values are only what a new view starts with */
+bool autox_view_row(const OptionRow &row);
+/* a view row's value in the active view, as text */
+std::string autox_view_text(const Session &s, const OptionRow &row);
+/* the view rows given (each with its text) applied to the active view, all or nothing; check only: nothing applied */
+Result<> autox_view_apply(Session &s, std::span<const std::pair<const OptionRow *, std::string>> items, bool check_only);
 
 } // namespace xpp

@@ -34,6 +34,7 @@ dialogs straight to the sections below.
 12. [Some comments on the numerical methods](12-numerical-methods-notes.md)
 13. [Colours](13-colors.md) — the curve colour indices and their web2 palette
 14. [The options file](14-options-file.md) — dropped; use `@` lines
+15. [The settings panels](15-settings-panels.md) — one panel for each group of settings, generated from the option table: Integration, Poincare, Equilibria, Sweep, Continuation, Diagram, Plot, Analysis, Export, Output
 16. [Quick reference](16-quick-reference.md) — ODE file format cheat sheet, built-in functions, the full options list, command line arguments
 
 ## Menus and dialogs → sections

@@ -376,7 +376,7 @@ constexpr std::array LEGEND_POSITION = {"x", "y"};
 constexpr std::array LEGEND_GROUPS = {Group{GroupRule::together, LEGEND_POSITION}};
 constexpr std::array IMPORT_ARGUMENTS = {WINDOW, FILE};
 constexpr std::array ENABLED_ARGUMENTS = {ENABLED};
-constexpr std::array PICTURE_ARGUMENTS = {WINDOW, FILE, Argument{"color", Type::boolean, false}, AXES_FONT};
+constexpr std::array PICTURE_ARGUMENTS = {WINDOW, FILE, set_by(Argument{"color", Type::boolean, false}, "color"), set_by(AXES_FONT, "font_size")};
 constexpr std::array DATA_ARGUMENTS = {WINDOW, FILE, Argument{"format", Type::text, false}};
 constexpr std::array ORIGIN_ARGUMENTS = {WINDOW, Argument{"x_origin", Type::real, false}, Argument{"y_origin", Type::real, false},
                                          Argument{"z_origin", Type::real, false}, Argument{"x_origin_shown", Type::boolean, false},
@@ -432,10 +432,10 @@ constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DO
 constexpr std::array ROWS = {
     Command{"plot.export_pdf", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export graph PDF", "File/Export",
             "Write the graph as a PDF picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay.",
-            PICTURE_RESULTS, STATE_EVENTS, true, export_pdf, {}, {}, "write", "*"},
+            PICTURE_RESULTS, STATE_EVENTS, true, export_pdf, {}, {}, "write", "*", "export"},
     Command{"plot.export_svg", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export graph SVG", "File/Export",
             "Write the graph as an SVG picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay.",
-            PICTURE_RESULTS, STATE_EVENTS, true, export_svg, {}, {}, "write", "*"},
+            PICTURE_RESULTS, STATE_EVENTS, true, export_svg, {}, {}, "write", "*", "export"},
     Command{"plot.export_data", DATA_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export graph data", "File/Export",
             "Write what the graph shows (its curves and frozen curves, as the columns curve, x, y and z in 3D) into a file of the model's folder, in the data format named by format (dat, csv, csv.gz, npz) or by the file's extension.",
             DATA_RESULTS, STATE_EVENTS, true, export_data, {}, {}, "write", "*"},
@@ -462,7 +462,7 @@ constexpr std::array ROWS = {
             VIEW_3D_RESULTS, PLOT_EVENTS, true, set_3d_view},
     Command{"plot.set_axes_origin", ORIGIN_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Axes options", "Plot/Axes",
             "Set where the graph's axes cross, whether each axis is drawn there, and the font size of the axes' text; what is left out stays.",
-            ORIGIN_RESULTS, PLOT_EVENTS, true, set_axes_origin_command},
+            ORIGIN_RESULTS, PLOT_EVENTS, true, set_axes_origin_command, {}, {}, "read", "*", "plot+"},
     Command{"plot.set_shifted_axes", SHIFT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Ruelle plot", "Plot/Axes",
             "Plot each axis of the graph that many rows behind (a Ruelle-Takens plot of delayed values); what is left out stays.", SHIFT_RESULTS,
             PLOT_EVENTS, true, set_shifted_axes},

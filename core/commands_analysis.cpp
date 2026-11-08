@@ -297,21 +297,23 @@ constexpr Argument HIGH = {"high", Type::real, false};
 
 constexpr std::array SEED_ARGUMENTS = {Argument{"seed", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(static_cast<double>(INT_MOST))}};
 constexpr std::array TRIALS_ARGUMENTS = {Argument{"trials", Type::integer, false, MAX_TEXT_BYTES, {}, constant(2), constant(static_cast<double>(INT_MOST))}};
-constexpr std::array HISTOGRAM_ARGUMENTS = {COLUMN, BINS, LOW, HIGH, Argument{"condition", Type::text, false}};
+constexpr std::array HISTOGRAM_ARGUMENTS = {set_by(COLUMN, "histogram.column"), set_by(BINS, "histogram.bins"), set_by(LOW, "histogram.low"),
+                                            set_by(HIGH, "histogram.high"), Argument{"condition", Type::text, false}};
 constexpr std::array HISTOGRAM_2D_ARGUMENTS = {
-    COLUMN1, COLUMN2,
-    Argument{"bins1", Type::integer, false, MAX_TEXT_BYTES, {}, constant(2), constant(option_limit::histogram_bins)},
-    Argument{"bins2", Type::integer, false, MAX_TEXT_BYTES, {}, constant(2), constant(option_limit::histogram_bins)},
-    Argument{"low1", Type::real, false}, Argument{"high1", Type::real, false}, Argument{"low2", Type::real, false}, Argument{"high2", Type::real, false}};
+    set_by(COLUMN1, "histogram.column"), set_by(COLUMN2, "histogram2.column"),
+    set_by(Argument{"bins1", Type::integer, false, MAX_TEXT_BYTES, {}, constant(2), constant(option_limit::histogram_bins)}, "histogram.bins"),
+    set_by(Argument{"bins2", Type::integer, false, MAX_TEXT_BYTES, {}, constant(2), constant(option_limit::histogram_bins)}, "histogram2.bins"),
+    set_by(Argument{"low1", Type::real, false}, "histogram.low"), set_by(Argument{"high1", Type::real, false}, "histogram.high"),
+    set_by(Argument{"low2", Type::real, false}, "histogram2.low"), set_by(Argument{"high2", Type::real, false}, "histogram2.high")};
 constexpr std::array COLUMN_ARGUMENTS = {COLUMN};
 constexpr std::array AUTOCORRELATION_ARGUMENTS = {COLUMN, BINS, LOW, HIGH};
 constexpr std::array CROSS_ARGUMENTS = {
     COLUMN1, COLUMN2, Argument{"lags", Type::integer, false, MAX_TEXT_BYTES, {}, constant(2), constant(option_limit::histogram_bins)},
     Argument{"method", Type::choice, false, MAX_TEXT_BYTES, CORRELATION_METHODS}};
 constexpr std::array SPECTRAL_ARGUMENTS = {
-    Argument{"type", Type::choice, false, MAX_TEXT_BYTES, SPECTRUM_TYPES}, COLUMN, COLUMN2,
-    Argument{"window_length", Type::integer, false, MAX_TEXT_BYTES, {}, constant(2), constant(static_cast<double>(INT_MOST))},
-    Argument{"window", Type::choice, false, MAX_TEXT_BYTES, SPECTRUM_WINDOWS}};
+    Argument{"type", Type::choice, false, MAX_TEXT_BYTES, SPECTRUM_TYPES}, set_by(COLUMN, "spectrum.column"), set_by(COLUMN2, "spectrum.column2"),
+    set_by(Argument{"window_length", Type::integer, false, MAX_TEXT_BYTES, {}, constant(2), constant(static_cast<double>(INT_MOST))}, "spectrum.width"),
+    set_by(Argument{"window", Type::choice, false, MAX_TEXT_BYTES, SPECTRUM_WINDOWS}, "spectrum.window")};
 constexpr std::array FIT_ARGUMENTS = {
     Argument{"variables", Type::list, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::variable, Type::model_name},
     Argument{"parameters", Type::list, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::either, Type::model_name},
@@ -377,12 +379,12 @@ constexpr std::array DONE_EVENTS = {xpp::events::DONE};
 constexpr std::array ROWS = {
     Command{"analysis.poincare_map", POINCARE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Poincare map", "Run",
             "Set the Poincare map the runs store: none, the crossings of a section, the maxima and minima of a variable, or its period.",
-            POINCARE_RESULTS, STATE_EVENTS, true, poincare_handler},
+            POINCARE_RESULTS, STATE_EVENTS, true, poincare_handler, {}, {}, "read", "*", "poincare"},
     Command{"analysis.histogram", HISTOGRAM_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Histogram", "Analysis/Statistics",
             "Make the histogram of a column of the stored data, counting the rows where the condition holds.", HISTOGRAM_RESULTS, SHOWN_EVENTS, true,
-            histogram_handler},
+            histogram_handler, {}, {}, "read", "*", "analysis:histogram"},
     Command{"analysis.histogram_2d", HISTOGRAM_2D_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "2D histogram", "Analysis/Statistics",
-            "Make the two-dimensional histogram of two columns of the stored data.", HISTOGRAM_2D_RESULTS, SHOWN_EVENTS, true, histogram_2d_handler},
+            "Make the two-dimensional histogram of two columns of the stored data.", HISTOGRAM_2D_RESULTS, SHOWN_EVENTS, true, histogram_2d_handler, {}, {}, "read", "*", "analysis:histogram,histogram2"},
     Command{"analysis.reload_histogram", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show last histogram", "Analysis/Statistics",
             "Show the last histogram in the data browser again.", RELOADED_RESULTS, SHOWN_EVENTS, true, done_with<reload_histogram, RELOADED>},
     Command{"analysis.statistics", COLUMN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Column statistics", "Analysis/Statistics",
@@ -400,7 +402,7 @@ constexpr std::array ROWS = {
             transform_handler<compute_power, FREQUENCIES>},
     Command{"analysis.spectral_density", SPECTRAL_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Spectral density", "Analysis/Spectra",
             "Make the power spectral density of a column, the cross spectrum of two or their coherence, averaged over windows of the stored data.",
-            POINTS_RESULTS, SHOWN_EVENTS, true, spectral_density_handler},
+            POINTS_RESULTS, SHOWN_EVENTS, true, spectral_density_handler, {}, {}, "read", "*", "analysis:spectrum"},
     Command{"analysis.autocorrelation", AUTOCORRELATION_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Autocorrelation", "Analysis/Spectra",
             "Make the histogram of the differences of a column of the stored data with itself.", LAGS_RESULTS, SHOWN_EVENTS, true,
             autocorrelation_handler},

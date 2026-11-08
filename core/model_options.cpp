@@ -372,6 +372,12 @@ constexpr OptionRow rows[] = {
    .key = "delay", .label = "Maximal delay", .rule = OptionRule::nonnegative, .use = OptionUse::delays, .saved = true, .applied = chk_delay},
   {.group = option_group::integration, .kind = OptionKind::whole, .name = "VMAXPTS", .odex = "delay.history_points", .help = "How many past points of the history a delay model keeps.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.max_points; }), .rule = OptionRule::whole_positive, .maximum = option_limit::history_points, .use = OptionUse::integral_history, .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "DELAY_REAL_GUESS", .odex = "delay.real_guess", .help = "The largest real part the search for a delay equilibrium's eigenvalues looks for.", .once = true,
+   .real = member([](auto &s) -> auto & { return s.delay.alpha_max; }), .use = OptionUse::delays},
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "DELAY_IMAGINARY_GUESS", .odex = "delay.imaginary_guess", .help = "The largest imaginary part the search for a delay equilibrium's eigenvalues looks for.", .once = true,
+   .real = member([](auto &s) -> auto & { return s.delay.omega_max; }), .use = OptionUse::delays},
+  {.group = option_group::integration, .kind = OptionKind::whole, .name = "DELAY_GRID", .odex = "delay.grid", .help = "How many points a side the grid of a delay equilibrium's eigenvalue search has.", .once = true,
+   .whole = member([](auto &s) -> auto & { return s.delay.grid; }), .rule = OptionRule::whole_positive, .use = OptionUse::delays},
   {.group = option_group::integration, .kind = OptionKind::number, .name = "EULER_TOLERANCE", .odex = "euler.tolerance", .help = "The Newton tolerance of the implicit Euler method.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.eul_tol; }),
    /* XPPAUT's */
@@ -510,73 +516,96 @@ constexpr OptionRow rows[] = {
    .boolean = member([](auto &s) -> auto & { return s.integrator.range.write_files; }),
    .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   /* ---- autoX ---- */
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MESH_INTERVALS", .odex = autox_num_keys[AUTOX_NUM_MESH_INTERVALS], .help = "How many mesh intervals a periodic orbit or boundary value solution has.",
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MESH_INTERVALS", .odex = "mesh_intervals", .help = "How many mesh intervals a periodic orbit or boundary value solution has.",
    .xppaut_names = {"NTST"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.options.ntst; }), .autox_numeric = AUTOX_NUM_MESH_INTERVALS},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MAX_STEPS", .odex = autox_num_keys[AUTOX_NUM_MAX_STEPS], .help = "The most continuation steps a run takes before it stops.",
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MAX_STEPS", .odex = "max_steps", .help = "The most continuation steps a run takes before it stops.",
    .xppaut_names = {"NMAX"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.options.nmx; }), .autox_numeric = AUTOX_NUM_MAX_STEPS},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "OUTPUT_EVERY", .odex = autox_num_keys[AUTOX_NUM_OUTPUT_EVERY], .help = "A diagram point is kept every this many steps.",
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "OUTPUT_EVERY", .odex = "output_every", .help = "A diagram point is kept every this many steps.",
    .xppaut_names = {"NPR"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.options.npr; }), .autox_numeric = AUTOX_NUM_OUTPUT_EVERY},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "COLLOCATION_POINTS", .odex = autox_num_keys[AUTOX_NUM_COLLOCATION_POINTS], .help = "The collocation points in each mesh interval.",
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "COLLOCATION_POINTS", .odex = "collocation_points", .help = "The collocation points in each mesh interval.",
    .xppaut_names = {"NCOL"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.options.ncol; }), .autox_numeric = AUTOX_NUM_COLLOCATION_POINTS},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "MIN_STEP_SIZE", .odex = autox_num_keys[AUTOX_NUM_MIN_STEP_SIZE], .help = "The smallest continuation step.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "MIN_STEP_SIZE", .odex = "min_step_size", .help = "The smallest continuation step.",
    .xppaut_names = {"DSMIN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.dsmin; }), .autox_numeric = AUTOX_NUM_MIN_STEP_SIZE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "MAX_STEP_SIZE", .odex = autox_num_keys[AUTOX_NUM_MAX_STEP_SIZE], .help = "The largest continuation step.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "MAX_STEP_SIZE", .odex = "max_step_size", .help = "The largest continuation step.",
    .xppaut_names = {"DSMAX"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.dsmax; }), .autox_numeric = AUTOX_NUM_MAX_STEP_SIZE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "STEP_SIZE", .odex = autox_num_keys[AUTOX_NUM_STEP_SIZE], .help = "The first continuation step.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "STEP_SIZE", .odex = "step_size", .help = "The first continuation step.",
    .xppaut_names = {"DS"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.ds; }), .autox_numeric = AUTOX_NUM_STEP_SIZE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARAMETER_MIN", .odex = autox_num_keys[AUTOX_NUM_PARAMETER_MIN], .help = "A continuation run stops when the parameter falls below this.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARAMETER_MIN", .odex = "parameter_min", .help = "A continuation run stops when the parameter falls below this.",
    .xppaut_names = {"PARMIN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.rl0; }), .autox_numeric = AUTOX_NUM_PARAMETER_MIN},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARAMETER_MAX", .odex = autox_num_keys[AUTOX_NUM_PARAMETER_MAX], .help = "A continuation run stops when the parameter rises above this.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARAMETER_MAX", .odex = "parameter_max", .help = "A continuation run stops when the parameter rises above this.",
    .xppaut_names = {"PARMAX"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.rl1; }), .autox_numeric = AUTOX_NUM_PARAMETER_MAX},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "NORM_MIN", .odex = autox_num_keys[AUTOX_NUM_NORM_MIN], .help = "A continuation run stops when the solution's norm falls below this.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "NORM_MIN", .odex = "norm_min", .help = "A continuation run stops when the solution's norm falls below this.",
    .xppaut_names = {"NORMMIN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.a0; }), .autox_numeric = AUTOX_NUM_NORM_MIN},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "NORM_MAX", .odex = autox_num_keys[AUTOX_NUM_NORM_MAX], .help = "A continuation run stops when the solution's norm rises above this.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "NORM_MAX", .odex = "norm_max", .help = "A continuation run stops when the solution's norm rises above this.",
    .xppaut_names = {"NORMMAX"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.a1; }), .autox_numeric = AUTOX_NUM_NORM_MAX},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARAMETER_TOLERANCE", .odex = autox_num_keys[AUTOX_NUM_PARAMETER_TOLERANCE], .help = "The tolerance the parameter converges to in the Newton iteration.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "PARAMETER_TOLERANCE", .odex = "parameter_tolerance", .help = "The tolerance the parameter converges to in the Newton iteration.",
    .xppaut_names = {"EPSL"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.epsl; }), .autox_numeric = AUTOX_NUM_PARAMETER_TOLERANCE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "STATE_TOLERANCE", .odex = autox_num_keys[AUTOX_NUM_STATE_TOLERANCE], .help = "The tolerance the state converges to in the Newton iteration.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "STATE_TOLERANCE", .odex = "state_tolerance", .help = "The tolerance the state converges to in the Newton iteration.",
    .xppaut_names = {"EPSU"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.epsu; }), .autox_numeric = AUTOX_NUM_STATE_TOLERANCE},
-  {.group = option_group::continuation, .kind = OptionKind::number, .name = "SPECIAL_POINT_TOLERANCE", .odex = autox_num_keys[AUTOX_NUM_SPECIAL_POINT_TOLERANCE], .help = "The tolerance the special points of a branch are located to.",
+  {.group = option_group::continuation, .kind = OptionKind::number, .name = "SPECIAL_POINT_TOLERANCE", .odex = "special_point_tolerance", .help = "The tolerance the special points of a branch are located to.",
    .xppaut_names = {"EPSS"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.epss; }), .autox_numeric = AUTOX_NUM_SPECIAL_POINT_TOLERANCE},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MESH_ADAPT_EVERY", .odex = autox_num_keys[AUTOX_NUM_MESH_ADAPT_EVERY], .help = "The mesh is adapted every this many steps; 0 keeps it as it is.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MESH_ADAPT_EVERY", .odex = "mesh_adapt_every", .help = "The mesh is adapted every this many steps; 0 keeps it as it is.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.advanced.iad; }), .autox_numeric = AUTOX_NUM_MESH_ADAPT_EVERY},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MAX_BRANCH_SWITCHES", .odex = autox_num_keys[AUTOX_NUM_MAX_BRANCH_SWITCHES], .help = "The most times a run switches to another branch.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MAX_BRANCH_SWITCHES", .odex = "max_branch_switches", .help = "The most times a run switches to another branch.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.advanced.max_branch_switches; }), .autox_numeric = AUTOX_NUM_MAX_BRANCH_SWITCHES},
-  {.group = option_group::continuation, .kind = OptionKind::choice, .name = "SWITCH_ONE_DIRECTION", .odex = autox_num_keys[AUTOX_NUM_SWITCH_ONE_DIRECTION], .help = "Whether a branch switch continues in one direction only.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::choice, .name = "SWITCH_ONE_DIRECTION", .odex = "switch_one_direction", .help = "Whether a branch switch continues in one direction only.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.autox_state.advanced.switch_one_direction; }),
    .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_SWITCH_ONE_DIRECTION, .choices = boolean_names},
-  {.group = option_group::continuation, .kind = OptionKind::choice, .name = "OUTPUT_DETAIL", .odex = autox_num_keys[AUTOX_NUM_OUTPUT_DETAIL], .help = "How much of each point the run writes to the Output.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::choice, .name = "OUTPUT_DETAIL", .odex = "output_detail", .help = "How much of each point the run writes to the Output.", .once = true,
    .index = choice_member([](auto &s) -> auto & { return s.autox_state.advanced.iid; }),
    .foreign = [](std::string_view v) { return numbered_word(autox_output_detail_words, v); },
    .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_OUTPUT_DETAIL, .choices = autox_output_detail_words},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MAX_LOCATION_ITERATIONS", .odex = autox_num_keys[AUTOX_NUM_MAX_LOCATION_ITERATIONS], .help = "The most iterations that locate a special point.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MAX_LOCATION_ITERATIONS", .odex = "max_location_iterations", .help = "The most iterations that locate a special point.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.advanced.itmx; }), .autox_numeric = AUTOX_NUM_MAX_LOCATION_ITERATIONS},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MAX_NEWTON_ITERATIONS", .odex = autox_num_keys[AUTOX_NUM_MAX_NEWTON_ITERATIONS], .help = "The most Newton iterations in one continuation step.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "MAX_NEWTON_ITERATIONS", .odex = "max_newton_iterations", .help = "The most Newton iterations in one continuation step.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.advanced.itnw; }), .autox_numeric = AUTOX_NUM_MAX_NEWTON_ITERATIONS},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "FULL_NEWTON_AFTER", .odex = autox_num_keys[AUTOX_NUM_FULL_NEWTON_AFTER], .help = "A full Newton iteration is taken after this many steps; before it the Jacobian is kept.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "FULL_NEWTON_AFTER", .odex = "full_newton_after", .help = "A full Newton iteration is taken after this many steps; before it the Jacobian is kept.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.advanced.nwtn; }), .autox_numeric = AUTOX_NUM_FULL_NEWTON_AFTER},
-  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "STEP_ADAPT_EVERY", .odex = autox_num_keys[AUTOX_NUM_STEP_ADAPT_EVERY], .help = "The step size is adapted every this many steps.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::whole, .name = "STEP_ADAPT_EVERY", .odex = "step_adapt_every", .help = "The step size is adapted every this many steps.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.advanced.iads; }), .autox_numeric = AUTOX_NUM_STEP_ADAPT_EVERY},
-  {.group = option_group::continuation, .kind = OptionKind::choice, .name = "SUPPRESS_BRANCH_POINTS", .odex = autox_num_keys[AUTOX_NUM_SUPPRESS_BRANCH_POINTS], .help = "Whether branch points are left out of the diagram.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::choice, .name = "SUPPRESS_BRANCH_POINTS", .odex = "suppress_branch_points", .help = "Whether branch points are left out of the diagram.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.autox_state.suppress_bp; }),
    .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_SUPPRESS_BRANCH_POINTS, .choices = boolean_names},
-  {.group = option_group::continuation, .kind = OptionKind::choice, .name = "FOLLOW_ALL_BRANCHES", .odex = autox_num_keys[AUTOX_NUM_FOLLOW_ALL_BRANCHES], .help = "Whether a run follows every branch it finds, not only the one it started on.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::choice, .name = "FOLLOW_ALL_BRANCHES", .odex = "follow_all_branches", .help = "Whether a run follows every branch it finds, not only the one it started on.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.autox_state.follow_all_branches; }),
    .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_FOLLOW_ALL_BRANCHES, .choices = boolean_names},
+  {.group = option_group::continuation, .kind = OptionKind::text, .name = "SPECIAL_POINTS", .odex = "special_points", .help = "The codimension-two points a run detects: a comma-separated list of their names, empty for none.", .once = true,
+   .show = [](const Session &s) {
+     std::string names;
+     for (std::size_t i = 0; i < autox_codim_kinds.size(); ++i)
+       if (s.autox_state.special_points[i]) names += (names.empty() ? "" : ",") + std::string(autox_codim_keys[i]);
+     return names;
+   },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     std::array<bool, autox_codim_kinds.size()> on{};
+     std::string_view rest = v.text;
+     while (!rest.empty()) {
+       const std::size_t comma = rest.find(',');
+       std::string_view word = rest.substr(0, comma);
+       rest = comma == std::string_view::npos ? std::string_view() : rest.substr(comma + 1);
+       while (word.starts_with(' ')) word.remove_prefix(1);
+       while (word.ends_with(' ')) word.remove_suffix(1);
+       const auto at = std::ranges::find(autox_codim_keys, word);
+       if (at == autox_codim_keys.end()) return "not a list of codimension-two point names";
+       on[static_cast<std::size_t>(at - autox_codim_keys.begin())] = true;
+     }
+     if (v.apply) s.autox_state.special_points = on;
+     return nullptr;
+   }},
   {.group = option_group::diagram, .kind = OptionKind::name, .name = "AUTOVAR", .odex = "variable", .help = "The variable the continuation diagram plots up.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.options.var; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -699,6 +728,7 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.drawing.theta0; })},
   /* the line every new curve starts with */
   {.group = option_group::plot, .kind = OptionKind::choice, .name = "LINE.DRAW", .odex = "line.draw", .help = "Whether a new curve is drawn as a line, as points or as both.", .once = true,
+   .index = choice_member([](auto &s) -> auto & { return s.plot_settings.start_line_style.draw; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const std::optional<LineDraw> draw = parse_line_draw(v.text);
      if (!draw) return "not line, points or both";
@@ -708,6 +738,7 @@ constexpr OptionRow rows[] = {
    },
    .rule = OptionRule::choice, .choices = line_draw_names},
   {.group = option_group::plot, .kind = OptionKind::choice, .name = "LINE.DASH", .odex = "line.dash", .help = "The dash pattern of a new curve's line.", .once = true,
+   .index = choice_member([](auto &s) -> auto & { return s.plot_settings.start_line_style.dash; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const std::optional<LineDash> dash = parse_line_dash(v.text);
      if (!dash) return "not solid, dashed, dotted or dash_dot";
@@ -717,6 +748,7 @@ constexpr OptionRow rows[] = {
    },
    .rule = OptionRule::choice, .choices = line_dash_names},
   {.group = option_group::plot, .kind = OptionKind::number, .name = "LINE.WIDTH", .odex = "line.width", .help = "The width of a new curve's line.", .once = true,
+   .real = member([](auto &s) -> auto & { return s.plot_settings.start_line_style.width; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const std::optional<double> width = parse_line_size(v.text, false);
      if (!width) return "not a number above 0";
@@ -725,6 +757,7 @@ constexpr OptionRow rows[] = {
      return start_line_style_into(s, style, v);
    }},
   {.group = option_group::plot, .kind = OptionKind::choice, .name = "LINE.MARKER", .odex = "line.marker", .help = "The marker drawn at the points of a new curve.", .once = true,
+   .index = choice_member([](auto &s) -> auto & { return s.plot_settings.start_line_style.marker; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const std::optional<LineMarker> marker = parse_line_marker(v.text);
      if (!marker) return "not circle, square, triangle, diamond, cross, plus or star";
@@ -734,6 +767,7 @@ constexpr OptionRow rows[] = {
    },
    .rule = OptionRule::choice, .choices = line_marker_names},
   {.group = option_group::plot, .kind = OptionKind::number, .name = "LINE.MARKER_SIZE", .odex = "line.marker_size", .help = "The size of the markers of a new curve.", .once = true,
+   .real = member([](auto &s) -> auto & { return s.plot_settings.start_line_style.marker_size; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const std::optional<double> size = parse_line_size(v.text, true);
      if (!size) return "not a number of at least 0";
@@ -813,6 +847,9 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_win; })},
   /* the picture files a batch run writes: PDF or SVG (XPPAUT's ps imports as pdf: PostScript went with W479, #542) */
   {.group = option_group::export_, .kind = OptionKind::choice, .name = "PLOTFMT", .odex = "format", .help = "The vector format a picture is exported in.", .once = true,
+   /* the format is kept as its word */
+   .index = {[](const Session &s) { return choice_index(picture_format_names, s.plot_export.format); },
+             [](Session &s, int i) { s.plot_export.format = std::string(picture_format_names[static_cast<std::size_t>(i)]); }},
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (v.apply) s.plot_export.format = v.text;
      return nullptr;
@@ -842,6 +879,7 @@ constexpr OptionRow rows[] = {
      return nullptr;
    }, .wide = true, .top_level = true},
   {.group = option_group::output, .kind = OptionKind::path, .name = "OUTPUT", .odex = "data_file", .help = "The file a run writes its data to, named from the model's folder.", .once = true,
+   .text = member([](auto &s) -> auto & { return s.batch_out_file; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      /* the batch data file, named from the model's folder */
      std::string path;
@@ -867,6 +905,7 @@ constexpr OptionRow rows[] = {
    .foreign = [](std::string_view v) { return numbered_word(xppaut_postprocess_words, v); },
    .rule = OptionRule::choice, .choices = after_run_names},
   {.group = option_group::output, .kind = OptionKind::path, .name = "AFTER_RUN_FILE", .odex = "after_run_file", .help = "The file the after_run analysis is written to, so the data file keeps the trajectory.", .once = true,
+   .text = member([](auto &s) -> auto & { return s.after_run_file; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      /* named like data_file, from the model's folder */
      return data_file_into(s, v, s.after_run_file);

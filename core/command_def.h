@@ -94,7 +94,16 @@ struct Argument {
     std::size_t max_items = MAX_ITEMS;
     /* a text that may hold line breaks and tabs (a recording's note); any other control character is refused */
     bool multiline = false;
+    /* the .odex key, inside the command's `panel` group, of the option row this argument sets (W616): the page shows the row in the
+       group's panel and leaves the argument out of the form; the argument stays for scripts, which may still give it */
+    const char *option = "";
 };
+/* the argument set by the option row with `key` */
+constexpr Argument set_by(Argument arg, const char *key)
+{
+    arg.option = key;
+    return arg;
+}
 /* Arguments that go together: exactly one of them, at most one, or all or
    none. A grouped argument is not `required`. */
 enum class GroupRule { exactly_one, at_most_one, together };
@@ -212,6 +221,9 @@ struct Command {
     /* File dialogs are presentation of the row; write dialogs use the existing single-use native save grant. */
     const char *file_mode = "read";
     const char *file_wild = "*";
+    /* the option group whose generated panel (options_panels.h) the page opens in place of this command's own form: the command stays
+       the one scripts and recordings send; "" for a command with a form of its own */
+    const char *panel = "";
 };
 
 /* The one file picked for a command; optional paths (Open model) have their own startup picker. */
@@ -280,6 +292,7 @@ std::span<const Command> value_commands();
 std::span<const Command> session_commands();
 std::span<const Command> recording_commands();
 std::span<const Command> keymap_commands();
+std::span<const Command> options_commands();
 std::span<const Command> events_commands();
 std::span<const Command> tool_commands();
 

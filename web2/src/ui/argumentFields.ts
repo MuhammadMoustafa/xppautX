@@ -34,14 +34,14 @@ export function currentArguments(row: CommandRow, state: AppState): Record<strin
       if (arg.name === 'parameters') out[arg.name] = auto.marks.map(mark => mark[0]);
       if (arg.name === 'values') out[arg.name] = auto.marks.map(mark => mark[1]);
     }
-    if (auto && row.id === 'session.set_threads' && arg.name === 'automatic' && auto.threads === 'auto') out[arg.name] = true;
+    if (auto && row.id === 'preferences.configure' && arg.name === 'automatic' && auto.threads === 'auto') out[arg.name] = true;
 
     if (auto && row.id === 'autox.configure_numerics' && arg.name in auto.numerics) out[arg.name] = auto.numerics[arg.name as keyof typeof auto.numerics];
     if (auto) {
       const command = autoxSettingsCommands({axes: auto.axes}).find(c => c.command.cmd === row.id)?.command;
       if (command && arg.name in command) out[arg.name] = command[arg.name];
     }
-    if (auto && row.id === 'session.set_threads' && auto.threads !== 'auto') out[arg.name] = auto.threads;
+    if (auto && row.id === 'preferences.configure' && arg.name === 'threads' && auto.threads !== 'auto') out[arg.name] = auto.threads;
     if (arg.type === 'window') {
       const name = row.id.startsWith('autox.') ? autoxWindow(state) : state.plots.active;
       if (state.windows.some(window => window.name === name)) out[arg.name] = name;

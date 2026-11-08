@@ -17,6 +17,7 @@
 #include "model.h"
 #include "session.h"
 #include "autox_settings.h"
+#include "model_options.h"
 #include "xpp_session_autox.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
@@ -43,6 +44,7 @@ constexpr int PARAM_BOX = 1; /* find_user_name's parameters */
 enum class Rule { any, positive, nonzero, range };
 
 struct NumField {
+    int index; /* AUTOX_NUM_* */
     const char *key;
     AutoxFieldShape shape;
     Rule rule;
@@ -83,15 +85,27 @@ constexpr std::array<NumRule, AUTOX_NUM_N> num_rules = {{
     {Rule::range, 0, 1},                             /* follow_all_branches */
 }};
 
-constexpr std::array<NumField, AUTOX_NUM_N> make_fields()
+/* the option table's row of Numerics field i */
+const OptionRow &numeric_row(int i)
 {
-    std::array<NumField, AUTOX_NUM_N> fields{};
-    for (std::size_t i = 0; i < fields.size(); ++i)
-        fields[i] = NumField{autox_num_keys[i], autox_num_shapes[i], num_rules[i].rule, num_rules[i].lo, num_rules[i].hi};
-    return fields;
+    const auto rows = option_rows();
+    return *std::ranges::find_if(rows, [i](const OptionRow &r) { return r.autox_numeric == i; });
 }
-/* the Numerics form's fields and what autoX accepts for each */
-constexpr std::array<NumField, AUTOX_NUM_N> num_fields = make_fields();
+
+AutoxFieldShape shape_of(const OptionRow &row)
+{
+    if (row.boolean) return AutoxFieldShape::boolean;
+    if (row.kind == OptionKind::choice) return AutoxFieldShape::choice;
+    return row.kind == OptionKind::whole ? AutoxFieldShape::whole : AutoxFieldShape::real;
+}
+
+/* Numerics field i: its row's key and shape, and what autoX accepts for it */
+NumField field(int i)
+{
+    const OptionRow &row = numeric_row(i);
+    const NumRule &rule = num_rules[static_cast<std::size_t>(i)];
+    return NumField{i, row.odex.data(), shape_of(row), rule.rule, rule.lo, rule.hi};
+}
 
 /* the names a choice field takes */
 std::span<const char *const> choices_of(int i)
@@ -112,8 +126,8 @@ constexpr NumPair num_pairs[] = {
 /* the first step within the step sizes autoX may take (T23), whichever its sign */
 std::string step_rule()
 {
-    return xpp::format("The size of {} must be from {} to {} (its sign is the direction)", name_label(num_fields[AUTOX_NUM_STEP_SIZE].key),
-                       name_label(num_fields[AUTOX_NUM_MIN_STEP_SIZE].key), name_label(num_fields[AUTOX_NUM_MAX_STEP_SIZE].key));
+    return xpp::format("The size of {} must be from {} to {} (its sign is the direction)", name_label(field(AUTOX_NUM_STEP_SIZE).key),
+                       name_label(field(AUTOX_NUM_MIN_STEP_SIZE).key), name_label(field(AUTOX_NUM_MAX_STEP_SIZE).key));
 }
 
 /* what a field takes, as the refusal of a value it does not take says it
@@ -124,7 +138,7 @@ std::string rule_message(const NumField &f)
     if (f.shape == AutoxFieldShape::boolean) return xpp::format("{} must be true or false", label);
     if (f.shape == AutoxFieldShape::choice) {
         std::string words;
-        for (const char *name : choices_of(static_cast<int>(&f - num_fields.data()))) words += xpp::format("{}{}", words.empty() ? "" : ", ", name);
+        for (const char *name : choices_of(f.index)) words += xpp::format("{}{}", words.empty() ? "" : ", ", name);
         return xpp::format("{} must be one of {}", label, words);
     }
     const std::string whole = f.shape == AutoxFieldShape::whole ? "a whole number" : "a number";
@@ -145,7 +159,7 @@ std::string rule_message(const NumField &f)
 
 std::string pair_message(const NumPair &p)
 {
-    return xpp::format("{} must be {} {}", name_label(num_fields[p.lo].key), p.strict ? "below" : "at most", name_label(num_fields[p.hi].key));
+    return xpp::format("{} must be {} {}", name_label(field(p.lo).key), p.strict ? "below" : "at most", name_label(field(p.hi).key));
 }
 
 /* ---- the settings now ---- */
@@ -240,9 +254,9 @@ std::string event_text(const xpp::Session &s)
     const AutoxSettingsSet set = settings_now(s);
     std::string o = xpp::events::open(xpp::events::AUTOX_SETTINGS) + ",\"numerics\":{";
     for (int i = 0; i < AUTOX_NUM_N; i++) {
-        o += xpp::format("{}\"{}\":", i ? "," : "", num_fields[i].key);
-        if (num_fields[i].shape == AutoxFieldShape::boolean) o += set.num[i] != 0 ? "true" : "false";
-        else if (num_fields[i].shape == AutoxFieldShape::choice) xpp::json_append_string(o, autox_settings_num_text(i, set.num[i]).c_str());
+        o += xpp::format("{}\"{}\":", i ? "," : "", field(i).key);
+        if (field(i).shape == AutoxFieldShape::boolean) o += set.num[i] != 0 ? "true" : "false";
+        else if (field(i).shape == AutoxFieldShape::choice) xpp::json_append_string(o, autox_settings_num_text(i, set.num[i]).c_str());
         else add_num(o, set.num[i]);
     }
     o += xpp::format("}},\"axes\":{{\"plot\":\"{}\",\"var\":", autox_projection_name(*set.plot));
@@ -277,7 +291,7 @@ std::string event_text(const xpp::Session &s)
     o += xpp::format(",\"threads_auto\":{},\"threads_max\":{}", AutoxParallel::automatic_threads(), cpu::logical_processors());
     o += ",\"rules\":{";
     for (int i = 0; i < AUTOX_NUM_N; i++) {
-        const NumField &f = num_fields[i];
+        const NumField f = field(i);
         o += xpp::format("{}\"{}\":{{\"label\":", i ? "," : "", f.key);
         xpp::json_append_string(o, name_label(f.key));
         if (f.shape == AutoxFieldShape::boolean) o += ",\"boolean\":true";
@@ -303,12 +317,12 @@ std::string event_text(const xpp::Session &s)
     o += "},\"pairs\":[";
     for (const NumPair &p : num_pairs) {
         o += xpp::format("{}{{\"lo\":\"{}\",\"hi\":\"{}\",\"strict\":{},\"message\":", &p == num_pairs ? "" : ",",
-                         num_fields[p.lo].key, num_fields[p.hi].key, p.strict);
+                         field(p.lo).key, field(p.hi).key, p.strict);
         xpp::json_append_string(o, pair_message(p).c_str());
         o += '}';
     }
-    o += xpp::format("],\"step\":{{\"key\":\"{}\",\"lo\":\"{}\",\"hi\":\"{}\",\"message\":", num_fields[AUTOX_NUM_STEP_SIZE].key,
-                     num_fields[AUTOX_NUM_MIN_STEP_SIZE].key, num_fields[AUTOX_NUM_MAX_STEP_SIZE].key);
+    o += xpp::format("],\"step\":{{\"key\":\"{}\",\"lo\":\"{}\",\"hi\":\"{}\",\"message\":", field(AUTOX_NUM_STEP_SIZE).key,
+                     field(AUTOX_NUM_MIN_STEP_SIZE).key, field(AUTOX_NUM_MAX_STEP_SIZE).key);
     xpp::json_append_string(o, step_rule());
     o += "}}";
     return o;
@@ -323,7 +337,7 @@ bool num_ok(int i, double v, std::string &why)
         why = "no such autoX setting";
         return false;
     }
-    const NumField &f = num_fields[i];
+    const NumField f = field(i);
     bool ok = std::isfinite(v) && !(is_whole(f) && (v != std::floor(v) || v < INT_MIN || v > INT_MAX));
     if (ok && f.rule == Rule::positive) ok = v > 0;
     if (ok && f.rule == Rule::nonzero) ok = v != 0;
@@ -503,13 +517,15 @@ bool apply(xpp::Session &s, const AutoxSettingsSet *set, std::string &why)
 /* the event, none for a model with no settings */
 std::string autox_settings_event_line(const xpp::Session &s) { return have_settings(s) ? event_text(s) : std::string(); }
 
-const char *autox_settings_num_key(int i) { return i >= 0 && i < AUTOX_NUM_N ? num_fields[i].key : nullptr; }
+const char *autox_settings_num_key(int i) { return i >= 0 && i < AUTOX_NUM_N ? field(i).key : nullptr; }
+
+AutoxFieldShape autox_settings_num_shape(int i) { return field(i).shape; }
 
 
 
 std::string autox_settings_num_text(int i, double v)
 {
-    switch (num_fields[i].shape) {
+    switch (field(i).shape) {
     case AutoxFieldShape::boolean: return v != 0 ? "true" : "false";
     case AutoxFieldShape::choice: return std::string(choices_of(i)[static_cast<std::size_t>(v)]);
     case AutoxFieldShape::whole:
@@ -520,7 +536,7 @@ std::string autox_settings_num_text(int i, double v)
 
 Result<double> autox_settings_num_parse(int i, std::string_view text)
 {
-    const NumField &f = num_fields[i];
+    const NumField f = field(i);
     double v = 0;
     switch (f.shape) {
     case AutoxFieldShape::boolean: {
@@ -614,23 +630,23 @@ Result<> autox_settings_numbers_check(std::span<const double, AUTOX_NUM_N> num,
 {
     for (int i = 0; i < AUTOX_NUM_N; ++i) {
         std::string why;
-        if (supplied[i] && !num_ok(i, num[i], why)) return std::unexpected(refused(why, num_fields[i].key));
+        if (supplied[i] && !num_ok(i, num[i], why)) return std::unexpected(refused(why, field(i).key));
     }
     for (const NumPair &p : num_pairs) {
         if (!supplied[p.lo] && !supplied[p.hi]) continue;
         if (p.strict ? num[p.lo] < num[p.hi] : num[p.lo] <= num[p.hi]) continue;
-        return std::unexpected(refused(xpp::format("{} ({}={}, {}={})", pair_message(p), num_fields[p.lo].key, num[p.lo], num_fields[p.hi].key, num[p.hi]), num_fields[supplied[p.hi] ? p.hi : p.lo].key));
+        return std::unexpected(refused(xpp::format("{} ({}={}, {}={})", pair_message(p), field(p.lo).key, num[p.lo], field(p.hi).key, num[p.hi]), field(supplied[p.hi] ? p.hi : p.lo).key));
     }
     if ((supplied[AUTOX_NUM_STEP_SIZE] || supplied[AUTOX_NUM_MIN_STEP_SIZE] || supplied[AUTOX_NUM_MAX_STEP_SIZE])
         && !(std::fabs(num[AUTOX_NUM_STEP_SIZE]) >= num[AUTOX_NUM_MIN_STEP_SIZE] && std::fabs(num[AUTOX_NUM_STEP_SIZE]) <= num[AUTOX_NUM_MAX_STEP_SIZE])) {
-        return std::unexpected(refused(xpp::format("{} ({}={}, {}={}, {}={})", step_rule(), num_fields[AUTOX_NUM_STEP_SIZE].key, num[AUTOX_NUM_STEP_SIZE], num_fields[AUTOX_NUM_MIN_STEP_SIZE].key, num[AUTOX_NUM_MIN_STEP_SIZE], num_fields[AUTOX_NUM_MAX_STEP_SIZE].key, num[AUTOX_NUM_MAX_STEP_SIZE]), num_fields[supplied[AUTOX_NUM_STEP_SIZE] ? AUTOX_NUM_STEP_SIZE : supplied[AUTOX_NUM_MIN_STEP_SIZE] ? AUTOX_NUM_MIN_STEP_SIZE : AUTOX_NUM_MAX_STEP_SIZE].key));
+        return std::unexpected(refused(xpp::format("{} ({}={}, {}={}, {}={})", step_rule(), field(AUTOX_NUM_STEP_SIZE).key, num[AUTOX_NUM_STEP_SIZE], field(AUTOX_NUM_MIN_STEP_SIZE).key, num[AUTOX_NUM_MIN_STEP_SIZE], field(AUTOX_NUM_MAX_STEP_SIZE).key, num[AUTOX_NUM_MAX_STEP_SIZE]), field(supplied[AUTOX_NUM_STEP_SIZE] ? AUTOX_NUM_STEP_SIZE : supplied[AUTOX_NUM_MIN_STEP_SIZE] ? AUTOX_NUM_MIN_STEP_SIZE : AUTOX_NUM_MAX_STEP_SIZE).key));
     }
     return {};
 }
 
 std::string autox_settings_num_schema(int i)
 {
-    const NumField &f = num_fields[i];
+    const NumField f = field(i);
     switch (f.rule) {
     case Rule::positive: return ", \"exclusiveMinimum\": 0";
     case Rule::range: {
@@ -678,6 +694,46 @@ int autox_settings_apply(xpp::Session &s, const AutoxSettingsSet &set, std::stri
         }
     }
     return -1;
+}
+
+namespace {
+/* the view rows by option name: the variable, then the four edges in AUTOAX's order (xmin, xmax, ymin, ymax) */
+constexpr std::string_view view_variable = "AUTOVAR";
+constexpr std::array<std::string_view, 4> view_edges = {"AUTOXMIN", "AUTOXMAX", "AUTOYMIN", "AUTOYMAX"};
+} // namespace
+
+bool autox_view_row(const OptionRow &row)
+{
+    return row.name == view_variable || std::ranges::find(view_edges, row.name) != view_edges.end();
+}
+
+std::string autox_view_text(const Session &s, const OptionRow &row)
+{
+    const AUTOAX &a = s.autox_state.axes();
+    if (row.name == view_variable) return a.var >= 0 && a.var < s.model().node ? s.model().uvar_names[a.var] : std::string();
+    const double edges[4] = {a.xmin, a.xmax, a.ymin, a.ymax};
+    return xpp::number(edges[std::ranges::find(view_edges, row.name) - view_edges.begin()]);
+}
+
+Result<> autox_view_apply(Session &s, std::span<const std::pair<const OptionRow *, std::string>> items, bool check_only)
+{
+    AutoxSettingsSet set;
+    for (const auto &[row, text] : items) {
+        if (row->name == view_variable) {
+            set.var = text;
+            continue;
+        }
+        const std::size_t i = static_cast<std::size_t>(std::ranges::find(view_edges, row->name) - view_edges.begin());
+        double value = 0;
+        if (!parse_number(text, value)) return fail("diagram", xpp::format("{}={}: not a number", row->odex, text), command_place());
+        set.range[i] = value;
+        set.has_range[i] = 1;
+    }
+    if (Result<> checked = autox_settings_check(s, set, -1); !checked) return checked;
+    if (check_only) return {};
+    std::string why;
+    if (autox_settings_apply(s, set, why) != 0) return fail("diagram", why, command_place());
+    return {};
 }
 
 } // namespace xpp

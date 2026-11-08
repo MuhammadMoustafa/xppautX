@@ -71,6 +71,8 @@ export interface HelloEvent {
   /** Initial surface names; plots and diagram views subsequently carry their exact names. */
   window_names: {main: string; autox: string; ani: string; aplot: string; browser: string};
   lists: string[][];
+  /** every settings panel, built from the option table (core/options_panels.h): one per group, its rows in the table's order */
+  options: OptionGroup[];
   model_names: string[];
   /** every point type: its name (the only input), its label and its mark (core/autox_codes.h's one table) */
   point_types: PointType[];
@@ -79,6 +81,35 @@ export interface HelloEvent {
   colormaps: string[];
   /** the model file's own values, in the order of `state`'s pars and ics (what `default` restores) */
   defaults: {pars: number[]; ics: number[]};
+}
+
+/** one row of the option table as a panel field (core/options_panels.cpp): the page writes none of it */
+export interface OptionRow {
+  /** its .odex key inside the group ("step.min") */
+  key: string;
+  /** the key's part before its last dot: the titled section of the panel it is in ("" for none) */
+  section: string;
+  /** the section's title in the panel */
+  section_label: string;
+  label: string;
+  kind: 'number' | 'whole' | 'name' | 'choice' | 'path' | 'text' | 'color';
+  help: string;
+  /** the value a fresh session of the model holds, as text */
+  default: string;
+  boolean?: boolean;
+  choices?: string[];
+  nonzero?: boolean;
+  minimum?: number;
+  maximum?: number;
+  /** the number must be above this */
+  exclusiveMinimum?: number;
+}
+
+/** one panel: an option group, titled by its label */
+export interface OptionGroup {
+  group: string;
+  label: string;
+  rows: OptionRow[];
 }
 
 /** one model of recent_models in preferences.setx: `missing` when its file is no longer there (listed, never dropped) */

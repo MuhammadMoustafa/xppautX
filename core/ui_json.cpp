@@ -14,6 +14,7 @@
 #include "model.h"
 #include <cmath>
 #include "session.h"
+#include "options_panels.h"
 #include "grobs.h"
 #include "ui_json.h"
 #include "json_files.h"
@@ -1215,6 +1216,8 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b,",\"autox\":");buf_str(b,xpp::window_name(s,WIN_AUTOX));
     BUF_LIT(b,",\"ani\":");buf_str(b,xpp::window_name(s,WIN_ANI));
     BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,",\"browser\":");buf_str(b,std::string(xpp::BROWSER_WINDOW));BUF_LIT(b,"}");
+    BUF_LIT(b, ",\"options\":");
+    b += xpp::options_table_json(s);
     buf_commands(b);
     buf_point_types(b);
     BUF_LIT(b, ",\"autox_run\":");

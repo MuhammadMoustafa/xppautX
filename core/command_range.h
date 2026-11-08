@@ -10,15 +10,15 @@
 namespace xpp::command {
 
 inline constexpr std::array RUN_RANGE_ARGUMENTS = {
-    Argument{"variable", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::either},
-    Argument{"start", Type::real, false},
-    Argument{"end", Type::real, false},
-    Argument{"steps", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)},
-    Argument{"reset_storage", Type::boolean, false},
-    Argument{"use_old_ic", Type::boolean, false},
+    set_by(Argument{"variable", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::either}, "variable"),
+    set_by(Argument{"start", Type::real, false}, "low"),
+    set_by(Argument{"end", Type::real, false}, "high"),
+    set_by(Argument{"steps", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)}, "steps"),
+    set_by(Argument{"reset_storage", Type::boolean, false}, "reset"),
+    set_by(Argument{"use_old_ic", Type::boolean, false}, "old_ic"),
     Argument{"cycle_color", Type::boolean, false},
     Argument{"movie", Type::boolean, false},
-    Argument{"write_each_run_to_file", Type::boolean, false}};
+    set_by(Argument{"write_each_run_to_file", Type::boolean, false}, "write_files")};
 
 /* the single-parameter Range settings the arguments given set (and the sweep's type: one value) */
 void set_range_settings(RangeVars &range, const Arguments &args);

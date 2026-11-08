@@ -169,7 +169,7 @@ constexpr std::array ROWS = {
             SAVE_RESULTS, SAVE_EVENTS, true, save_as, {}, KEY_2, "write", "*.snapx"},
     Command{"session.save_copy", SAVE_AS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Save a copy of the session", "File",
             "Save a copy of the session, leaving the file it is saved to as it was.", COPY_RESULTS, DONE_EVENTS, true, save_copy, {}, {}, "write", "*.snapx"},
-    Command{"session.export_info", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Export simulation information", "File",
+    Command{"session.export_info", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Export simulation information", "File/Export",
             "Write the equations, numerics, initial conditions and parameters to a file.", EXPORT_RESULTS, DONE_EVENTS, true, export_info, {}, {}, "write", "*.txt"},
     Command{"session.import_xppaut_state", IMPORT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Import XPPAUT session state", "File/Sets",
             "Apply a whole set file XPPAUT wrote (its parameters, initial conditions, numerics, delays, boundary conditions, active graph and run position), all or nothing; the result names what it changed. Nothing is written beside it.",

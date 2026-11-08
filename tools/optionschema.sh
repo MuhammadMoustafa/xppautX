@@ -8,7 +8,7 @@
 # same table by `xppautX --setx-schema`, so the VS Code extension and linters
 # read what the program accepts.
 #   tools/optionschema.sh --check [--bin PATH]   fail when a committed file differs from the program
-#   tools/optionschema.sh --update [--bin PATH]  rewrite the committed files
+#   tools/optionschema.sh --update [--bin PATH]  rewrite the committed files (and docs/manual/15-settings-panels.md, tools/optionsmanual.py)
 # --bin PATH is the program (default ./xppautX, or ./xppautX.exe); sourcecheck
 # runs --check with build/lto/xppautX, which its ltocheck has just linked.
 cd "$(dirname "$0")/.." || exit 1
@@ -43,4 +43,7 @@ for pair in "--options-schema docs/odex-options.schema.json" "--setx-schema docs
     status=1
   fi
 done
+# the manual's settings pages, from the same table (W616)
+"$bin" --options-schema > "$tmp" || { echo "optionschema: $bin --options-schema failed"; exit 1; }
+uv run --locked python tools/optionsmanual.py "$mode" "$tmp" || status=1
 exit $status

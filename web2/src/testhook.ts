@@ -105,6 +105,8 @@ export function installTestHook(session: Session): void {
     kinescopeShown: () => kinescopeShown.slice(),
     /** the player's press events received, oldest first: {step, what, index} */
     presses: () => presses.slice(),
+    /** a settings panel opened as a menu item does (File > Settings has a group picker; the groups' own menu items open theirs) */
+    openOptions: (group: string) => session.openOptions(group),
     /** Stop: a client-only action, nothing to send (session.ts kinescopeStop) */
     kinescopeStop: () => session.kinescopeStop(),
   };

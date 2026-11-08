@@ -205,3 +205,7 @@
 @media (max-width: 47.99rem) {
   .form-grid label { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
 }
+
+.options-section{ border: 0; border-top: 1px solid var(--border); margin: .75rem 0; padding: .25rem 0; }
+
+.options-section > legend{ font-weight: 600; padding: 0 .4rem 0 0; }

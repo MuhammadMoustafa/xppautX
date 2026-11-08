@@ -165,7 +165,7 @@ Result<std::string> run_abort(Session &s, const Command &, const Arguments &, co
 namespace {
 
 /* the numerics settings with no key in the main table: the method's own (numerics.h's NumericsExtras) */
-constexpr std::array EXTRA_NAMES = {"vmaxpts", "autoeval", "bandlo", "bandup", "delay_real_guess", "delay_imaginary_guess", "delay_grid"};
+constexpr std::array EXTRA_NAMES = {"vmaxpts", "bandlo", "bandup", "delay_real_guess", "delay_imaginary_guess", "delay_grid"};
 
 bool is_numerics_extra(std::string_view name)
 {
@@ -176,7 +176,6 @@ NumericsExtras numerics_extras(const Arguments &args)
 {
     NumericsExtras extras;
     if (auto v = args.optional<long long>("vmaxpts")) extras.max_points = static_cast<int>(*v);
-    extras.auto_evaluate = args.optional<bool>("autoeval");
     if (auto v = args.optional<long long>("bandlo")) extras.band_lower = static_cast<int>(*v);
     if (auto v = args.optional<long long>("bandup")) extras.band_upper = static_cast<int>(*v);
     extras.delay_real_guess = args.optional<double>("delay_real_guess");
@@ -187,7 +186,7 @@ NumericsExtras numerics_extras(const Arguments &args)
 
 bool has_numerics_extras(const NumericsExtras &e)
 {
-    return e.max_points || e.auto_evaluate || e.band_lower || e.band_upper || e.delay_real_guess || e.delay_imaginary_guess ||
+    return e.max_points || e.band_lower || e.band_upper || e.delay_real_guess || e.delay_imaginary_guess ||
            e.delay_grid;
 }
 
@@ -202,7 +201,6 @@ std::string extras_json(const Session &s, const Arguments &args)
         members += ':' + value;
     };
     add("vmaxpts", std::to_string(s.numerics.max_points));
-    add("autoeval", s.numerics.auto_evaluate ? "true" : "false");
     add("bandlo", std::to_string(s.numerics.cv_bandlower));
     add("bandup", std::to_string(s.numerics.cv_bandupper));
     add("delay_real_guess", xpp::number(s.delay.alpha_max));
@@ -304,7 +302,6 @@ constexpr std::array CONFIGURE_ARGUMENTS = {
     Argument{"eul_tol", Type::real, false},
     Argument{"eul_iter", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)},
     Argument{"vmaxpts", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(option_limit::history_points)},
-    Argument{"autoeval", Type::boolean, false},
     Argument{"bandlo", Type::integer, false, MAX_TEXT_BYTES, {}, constant(0), constant(option_limit::bandwidth)},
     Argument{"bandup", Type::integer, false, MAX_TEXT_BYTES, {}, constant(0), constant(option_limit::bandwidth)},
     Argument{"delay_real_guess", Type::real, false},
@@ -348,14 +345,14 @@ constexpr std::array ROWS = {
             run_abort, {}, KEY_1},
     Command{"run.configure", CONFIGURE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Run settings", "Run",
             "Set the integration's numerics (run length, step, method, tolerances, bounds, delay); the settings are checked together.",
-            CONFIGURE_RESULTS, STATE_EVENTS, true, run_configure},
+            CONFIGURE_RESULTS, STATE_EVENTS, true, run_configure, {}, {}, "read", "*", "integration"},
     Command{"run.dae_guess", DAE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "DAE guess", "Run/Initial conditions",
             "Set the initial guesses of the algebraic variables; none given keeps them.", DAE_RESULTS, GUESS_EVENTS, true,
             run_dae_guess},
     Command{"run.shoot", MANIFOLD_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Shoot", "Run/Initial conditions",
             "Run from a manifold the equilibria's shooting found.", RUN_RESULTS, RUN_EVENTS, true, run_shoot},
     Command{"run.range", RUN_RANGE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run over a range", "Run/Over a range",
-            "Run once for each value of a parameter or variable between two values.", RANGE_RESULTS, RUN_EVENTS, true, run_range_handler},
+            "Run once for each value of a parameter or variable between two values.", RANGE_RESULTS, RUN_EVENTS, true, run_range_handler, {}, {}, "read", "*", "sweep"},
     Command{"run.double_range", DOUBLE_RANGE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run over two parameters", "Run/Over a range",
             "Run once for each pair of values of two parameters or variables.", DOUBLE_RANGE_RESULTS, RUN_EVENTS, true,
             run_double_range_handler},

@@ -21,6 +21,7 @@
    color       `foreground`, `#rrggbb` or `#rrggbbaa` (ui/ColorField.tsx)
    text        anything */
 import {CORE_COLOR} from '../plot/colors';
+import type {OptionRow} from '../protocol/types';
 import {safeName} from './files';
 
 export type FieldSpec =
@@ -288,6 +289,19 @@ export function specOfKind(kind: string, lists: readonly (readonly string[])[] =
   const names = m ? lists[Number(m[1])] : undefined;
   if (!m || !names) throw new Error(`a field kind this page does not know: ${kind}`);
   return names.length ? {kind: 'name', names, what: NAME_LIST_WHAT[Number(m[1])]} : {kind: 'text'};
+}
+
+/** an option row of the table as an input's spec: its kind and the limits the table gives it; a name is one of `names` (the model's variables
+    and parameters, when it has any) */
+export function specOfOption(row: OptionRow, names: readonly string[]): FieldSpec {
+  switch (row.kind) {
+    case 'number': return {kind: 'number', nonzero: row.nonzero, positive: row.exclusiveMinimum === 0, min: row.minimum, max: row.maximum};
+    case 'whole': return {kind: 'integer', min: row.minimum, max: row.maximum};
+    case 'name': return names.length ? {kind: 'name', names} : {kind: 'text'};
+    case 'choice': return row.boolean ? {kind: 'boolean'} : {kind: 'choice', choices: row.choices ?? []};
+    case 'color': return {kind: 'color'};
+    case 'path': case 'text': return {kind: 'text'};
+  }
 }
 
 /** what a name from each of hello.lists is (docs/protocol.md "Asks", `form`) */

@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only options,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -1711,18 +1711,19 @@ async function autoxView(dir) {
     JSON.stringify(await S('s.autoxSettings.core')).slice(0, 300));
   const sentNum = await cdp.eval('__xpp.sentCount()');
   await clickRegistry('autox.configure_numerics');
-  await requireUntil(`s.commandForm?.id === 'autox.configure_numerics' && document.activeElement.closest('.registry-form')`, 'Numerics form focus');
-  check('W517: Numerics uses the common form, current values and named choices without a core ask',
+  await requireUntil(`s.optionsPanel?.group === 'continuation' && s.optionValues.continuation && document.activeElement.closest('.registry-form')`, 'Numerics panel focus');
+  await rendered();
+  check('W616: autoX > Numerics is the continuation panel: current values from the core\'s rows, named choices, no core ask',
     await S(`!s.ask && String(s.autoxSettings.core.numerics.max_steps) === document.querySelector('[data-argument=max_steps] input:not([type=checkbox])').value`)
-      && (await cdp.eval('__xpp.sentCount()')) === sentNum);
-  check('W517: Numerics boolean and choice controls come from registry argument types',
+      && (await cdp.eval('__xpp.sentCount()')) - sentNum === 1);
+  check('W616: its boolean and choice rows are checkboxes and selects',
     await cdp.eval(`document.querySelector('[data-argument=suppress_branch_points] input[type=checkbox]') && document.querySelector('[data-argument=output_detail] select')`));
   await formValues({max_steps:''});
-  check('W517: an empty supplied integer prevents submission', await cdp.eval(`document.querySelector('.registry-form button[type=submit]').disabled`));
+  check('W616: an empty whole number prevents Apply', await cdp.eval(`document.querySelector('.registry-form button[type=submit]').disabled`));
   await key('Escape');
-  await clickRegistry('session.set_threads'); await cdp.eval(`document.querySelector('[data-argument=automatic] input[type=checkbox]').click()`); await formValues({threads:1}); await submitCommand();
+  await clickRegistry('preferences.configure'); await cdp.eval(`document.querySelector('[data-argument=automatic] input[type=checkbox]').click()`); await formValues({threads:1}); await submitCommand();
   check('W267: the common thread form selects one thread', await until(`!s.busy && s.autoxSettings.core.threads === 1`, 'one thread'));
-  await clickRegistry('session.set_threads');
+  await clickRegistry('preferences.configure');
   await cdp.eval(`document.querySelector('[data-argument=threads] input[type=checkbox]').click()`);
   await formValues({automatic:true}); await submitCommand();
   check('W267: the named automatic choice restores automatic threads', await until(`!s.busy && s.autoxSettings.core.threads === 'auto'`, 'automatic threads'));
@@ -2150,7 +2151,7 @@ async function autoxStopRace() {
 
   /* T22, W106: an edit made mid-run is a setting: sent at once, the core applies it once the run ends */
   const sentPre = await cdp.eval('__xpp.sentCount()');
-  await menuRun('autox.configure_numerics', {max_steps:15});
+  await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', max_steps: 15})`); /* a panel's values come when the running command ends (W616); the setting itself is still sent at once */
   const setsSent = () => cdp.eval(`__xpp.sentFrom(${sentPre}).filter(c => c.cmd === 'autox.configure_numerics')`);
   check('W106: Numerics during a run: Nmax 15 is sent at once (one set), shown, the core\'s still 2000 (the run keeps it)',
     going && await S(`s.busy && s.autoxSettings.inflight.length === 1 && s.autoxSettings.inflight[0].patch.numerics.max_steps === 15
@@ -2213,7 +2214,7 @@ async function autoxLiveJobs() {
   await menuRun('autox.open');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   const send = cmd => cdp.eval(`__xpp.send(${JSON.stringify(cmd)})`);
-  await send({cmd: 'session.set_threads', threads: 2});
+  await send({cmd: 'preferences.configure', threads: 2});
   await send({cmd: 'value.set_parameters', values: {p0: 0.05}});
   await send({cmd: 'ic.set', values: {U1: 0.06282240276322631, U2: 0.2931712128950587}});
   await until('!s.busy', 'values set');
@@ -3007,6 +3008,8 @@ async function clickRegistry(id) {
     for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
     item.click();
   })()`);
+  /* File > Preferences opens on the current preferences, which the core gives first */
+  if (id === 'preferences.configure') await requireUntil(`s.commandForm?.id === 'preferences.configure'`, 'the Preferences form');
   await rendered();
 }
 async function formValues(values) {
@@ -3058,7 +3061,146 @@ async function paletteRegistry(id) {
 }
 async function menuRun(id, values = {}) {
   await clickRegistry(id);
-  if (await S('!!s.commandForm')) { await formValues(values); await submitCommand(); }
+  if (await S('!!s.optionsPanel')) {
+    /* a command whose form is its group's generated panel (W616): its fields are the group's rows, named by their keys */
+    await requireUntil('!!s.optionsPanel && !!s.optionValues[s.optionsPanel.group]', 'the panel\'s values');
+    await rendered();
+    await formValues(values);
+    await submitCommand();
+  } else if (await S('!!s.commandForm')) {
+    /* a form with a group's rows in it: they are editable once the core has given their values (an earlier answer would clear what was typed) */
+    if (await cdp.eval(`!!document.querySelector('.registry-form [data-options-rows]')`)) await requireUntil(`!!document.querySelector('.registry-form [data-options-rows] [data-argument] :is(input,select):not(:disabled)')`, 'the form\'s rows');
+    await formValues(values); await submitCommand();
+  }
+}
+
+/* W616: every settings panel is built from the option table hello carries: for each group, its panel's title, sections, fields in order,
+   labels, choices and defaults are the table's, and what it shows is what the core holds; the Output panel opens from File > Output and picks
+   its paths with the file dialog. Nothing here knows one setting: the table is the only list. */
+async function optionsCheck() {
+  await until('s.hello && !s.busy', 'hello');
+  const groups = await S('s.hello.options ?? []');
+  check('W616: hello carries the option table, one entry per group with a title and its rows', groups.length >= 8 && groups.every(g => g.group && g.label && g.rows.length),
+    JSON.stringify(groups.map(g => g.group)));
+  /* where each panel opens from (the maintainer's decision, #686): its task's menu entry */
+  const opensFrom = {'run.configure': 'integration', 'analysis.poincare_map': 'poincare', 'run.range': 'sweep', 'equilibrium.configure': 'equilibria',
+    'analysis.histogram': 'analysis:histogram', 'analysis.histogram_2d': 'analysis:histogram,histogram2', 'analysis.spectral_density': 'analysis:spectrum',
+    'autox.configure_numerics': 'continuation', 'autox.configure_plot': 'diagram+', 'plot.set_axes_origin': 'plot+', 'plot.export_pdf': 'export', 'plot.export_svg': 'export',
+    'output.configure': 'output'};
+  check('W616: each panel opens from its task\'s menu entry, and only from there',
+    JSON.stringify(Object.entries(await S(`Object.fromEntries(s.hello.commands.filter(c => c.panel).map(c => [c.cmd, c.panel]))`)).sort()) === JSON.stringify(Object.entries(opensFrom).sort()), JSON.stringify(await S(`s.hello.commands.filter(c => c.panel).map(c => c.cmd)`)));
+  check('W616: the threads and the log are one File > Preferences entry', await S(`s.hello.commands.find(c => c.cmd === 'preferences.configure').menu_path === 'File' && !s.hello.commands.some(c => c.cmd === 'preferences.set_log')`));
+  const label = name => name.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
+  for (const g of groups) {
+    await cdp.eval(`__xpp.openOptions(${JSON.stringify(g.group)})`);
+    await requireUntil(`s.optionsPanel?.group === ${JSON.stringify(g.group)} && s.optionValues[${JSON.stringify(g.group)}]`, `the ${g.group} panel's values`);
+    await rendered();
+    const shown = await cdp.eval(`(() => {
+      const panel = document.querySelector('[data-options-panel=${JSON.stringify(g.group)}]');
+      if (!panel) return null;
+      const rows = [...panel.querySelectorAll('[data-argument]')];
+      return {title: panel.querySelector('h2').textContent,
+        sections: [...panel.querySelectorAll('fieldset')].map(f => f.dataset.section),
+        legends: [...panel.querySelectorAll('fieldset > legend')].map(l => l.textContent),
+        keys: rows.map(r => r.dataset.argument), labels: rows.map(r => r.querySelector('label > span').textContent),
+        defaults: rows.map(r => /Default: (.*?)\.( Not used|$)/.exec(r.querySelector('small').textContent)?.[1]),
+        helps: rows.map(r => r.querySelector('small').textContent),
+        choices: rows.map(r => [...r.querySelectorAll('select option')].map(o => o.value)),
+        checkbox: rows.map(r => !!r.querySelector('label > input[type=checkbox]')),
+        color: rows.map(r => !!r.querySelector('[data-color-field]')),
+        values: rows.map(r => r.querySelector('select')?.value ?? (r.querySelector('label > input[type=checkbox]') ? String(r.querySelector('label > input[type=checkbox]').checked)
+          : r.querySelector('[data-color-text]')?.value ?? r.querySelector('input:not([type=checkbox])')?.value))};
+    })()`);
+    check(`W616: ${g.group}: the panel is open`, shown !== null);
+    if (!shown) continue;
+    /* the rows the method and model use come first, in the table's order; the others follow in a closed list, in the table's order too */
+    const held = await S('s.optionValues[' + JSON.stringify(g.group) + '].values');
+    const ordered = [...g.rows.filter(r => r.key in held), ...g.rows.filter(r => !(r.key in held))];
+    const names = await S('[...new Set([...(s.hello.lists[0] ?? []), ...(s.hello.lists[3] ?? [])])]');
+    const inSections = rows => rows.map(r => r.section).filter((x, i, all) => x !== all[i - 1]);
+    const want = {
+      title: g.label, keys: ordered.map(r => r.key), labels: ordered.map(r => r.label),
+      sections: [...inSections(g.rows.filter(r => r.key in held)), ...inSections(g.rows.filter(r => !(r.key in held)))],
+      legends: [],
+      defaults: ordered.map(r => r.kind === 'choice' && !r.boolean ? label(r.default) : r.default),
+      choices: ordered.map(r => r.kind === 'choice' && !r.boolean ? r.choices : r.kind === 'name' ? (!held[r.key] || names.includes(held[r.key]) ? names : [held[r.key], ...names]) : []),
+      checkbox: ordered.map(r => !!r.boolean), color: ordered.map(r => r.kind === 'color'),
+    };
+    const legendsOf = rows => rows.filter((r, i, all) => r.section !== all[i - 1]?.section && r.section).map(r => r.section_label);
+    want.legends = [...legendsOf(g.rows.filter(r => r.key in held)), ...legendsOf(g.rows.filter(r => !(r.key in held)))];
+    for (const part of Object.keys(want))
+      check(`W616: ${g.group}: the panel's ${part} are the table's`, JSON.stringify(shown[part]) === JSON.stringify(want[part]), JSON.stringify([shown[part], want[part]]));
+    check(`W616: ${g.group}: each row's help line is the table's`, ordered.every((r, i) => shown.helps[i]?.startsWith(r.help)));
+    const values = held;
+    check(`W616: ${g.group}: a field shows the core's value for its key`, ordered.every((r, i) => !(r.key in values) || shown.values[i] === values[r.key]),
+      JSON.stringify(ordered.filter((r, i) => r.key in values && shown.values[i] !== values[r.key]).map(r => [r.key, values[r.key]])));
+    await key('Escape');
+    await until('!s.optionsPanel', 'panel closed');
+  }
+  /* File > Output opens the output group's panel */
+  await clickRegistry('output.configure');
+  await requireUntil(`s.optionsPanel?.group === 'output' && s.optionValues.output`, 'the Output panel');
+  check('W616: File > Output opens the output group\'s panel', await S(`s.hello.commands.find(c => c.cmd === 'output.configure').menu_path === 'File'`));
+  check('W616: no panel has a group picker: each opens from its task\'s menu entry', await S(`!document.querySelector('.options-group')`));
+  await key('Escape');
+  await clickRegistry('output.configure');
+  await requireUntil(`s.optionsPanel?.group === 'output' && s.optionValues.output`, 'the Output panel again');
+  await rendered();
+  /* every path has a file picker: the core's own file ask, never a second dialog */
+  const paths = await S(`s.hello.options.find(g => g.group === 'output').rows.filter(r => r.kind === 'path').map(r => r.key)`);
+  check('W616: each path of the Output panel has a Choose file button', paths.length > 0 && await cdp.eval(`${JSON.stringify(paths)}.every(k => [...document.querySelector('[data-argument=' + JSON.stringify(k) + ']').querySelectorAll('button')].some(b => b.textContent === 'Choose file…'))`));
+  const mark = await S('__xpp.sentCount()');
+  await cdp.eval(`[...document.querySelector('[data-argument=' + JSON.stringify(${JSON.stringify(paths[0])}) + ']').querySelectorAll('button')].find(b => b.textContent === 'Choose file…').click()`);
+  check('W616: Choose file asks the core for its file dialog', await until(`s.ask?.kind === 'file'`, 'file ask')
+    && await S(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'output.configure' && c.setting === ${JSON.stringify(paths[0])} && c.file_picker === true)`));
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'picked.dat'})`);
+  check('W616: the picked file is the path\'s new value, shown by the panel', await until(`!s.busy && s.optionValues.output?.values?.[${JSON.stringify(paths[0])}]?.endsWith('picked.dat')`, 'picked'),
+    JSON.stringify(await S('s.optionValues.output')));
+  await key('Escape');
+  /* File > Preferences opens on the preferences as they stand, with no error before anything is typed */
+  await clickRegistry('preferences.configure');
+  check('W616: the Preferences form shows the current threads (or automatic), log level and log file, and no error',
+    await S(`s.commandForm.id === 'preferences.configure' && s.commandForm.values.log_level === 'warn' && (s.commandForm.values.automatic === true || s.commandForm.values.threads > 0)`)
+    && await cdp.eval(`!document.querySelector('.registry-form .field-error, .registry-form [aria-invalid=true]')`), JSON.stringify(await S('s.commandForm.values')));
+  await key('Escape');
+  /* a panel opened from a menu item that had a form of its own sets the group's rows, checked all together */
+  await menuRun('equilibrium.configure', {max_iterations: 77});
+  check('W616: the Equilibrium settings panel applies what was typed, by the row\'s key', await until(`!s.busy && !s.optionsPanel`, 'applied'));
+  await cdp.eval(`__xpp.openOptions('equilibria')`);
+  await requireUntil(`s.optionsPanel?.group === 'equilibria' && s.optionValues.equilibria`, 'the equilibria panel again');
+  check('W616: and the core holds it', await S(`s.optionValues.equilibria.values.max_iterations === '77'`), JSON.stringify(await S('s.optionValues.equilibria')));
+  await key('Escape');
+}
+
+/* The settings panels' pictures for the UI review (W616; run with --only shots and XPP_SHOTS=folder): every panel, as its menu entry opens it,
+   at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
+async function settingsShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  const panels = [['integration', 'run.configure'], ['poincare', 'analysis.poincare_map'], ['sweep', 'run.range'], ['equilibria', 'equilibrium.configure'],
+    ['analysis-histogram', 'analysis.histogram'], ['analysis-spectrum', 'analysis.spectral_density'], ['continuation', 'autox.configure_numerics'],
+    ['diagram', 'autox.configure_plot'], ['plot', 'plot.set_axes_origin'], ['export', 'plot.export_pdf'], ['output', 'output.configure'],
+    ['preferences', 'preferences.configure']];
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
+  for (const [size, width, height, scheme] of sizes) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    await rendered();
+    for (const [name, id] of panels) {
+      await cdp.eval(`__xpp.send({cmd: 'window.select', window: __xpp.state().plots.active})`);
+      await cdp.eval(`(() => { const item = [...document.querySelectorAll('[data-command]')].find(b => b.dataset.command === ${JSON.stringify(id)}); if (item) { for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true; item.click(); } else __xpp.state(); })()`);
+      await until(`!!s.commandForm || !!s.optionsPanel`, 'form ' + id).catch(() => {});
+      await until(`!s.optionsPanel || Object.keys(s.optionValues).length > 0`, 'values ' + id).catch(() => {});
+      await rendered();
+      const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
+      fs.writeFileSync(path.join(dir, `${name}-${size}.png`), Buffer.from(shot.data, 'base64'));
+      await key('Escape');
+      await until(`!s.commandForm && !s.optionsPanel`, 'closed').catch(() => {});
+    }
+  }
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
 async function navigationCheck() {
@@ -3072,6 +3214,17 @@ async function navigationCheck() {
   // Every command with arguments renders the same form, using every declared argument.
   for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list')) {
     await clickRegistry(row.cmd);
+    if (row.panel) {
+      /* W616: a group's generated panel in place of its form, or inside it when the command has more than settings (the options section checks the fields against the table) */
+      const inForm = row.panel.endsWith('+') || row.arguments.some(a => a.option);
+      check(`W616: ${row.cmd} shows its group's panel ${inForm ? 'inside its form' : 'in place of its form'}`,
+        await until(inForm ? `!!s.commandForm && !!document.querySelector('.registry-form [data-options-rows] [data-argument]')`
+          : `!!s.optionsPanel && !s.commandForm && !!document.querySelector('[data-options-panel]')`, 'panel'));
+      const own = await cdp.eval(`[...document.querySelectorAll('.registry-form > form > .registry-argument')].map(e => e.dataset.argument)`);
+      if (inForm) check(`W616: ${row.cmd}'s form keeps only the arguments no row sets`, JSON.stringify(own) === JSON.stringify(row.arguments.filter(a => !a.option).map(a => a.name)), JSON.stringify(own));
+      await key('Escape');
+      continue;
+    }
     const fields = await cdp.eval(`[...document.querySelectorAll('.registry-form [data-argument]')].map(e => e.dataset.argument)`);
     check(`W517: ${row.cmd} form is its registry arguments`, JSON.stringify(fields) === JSON.stringify(row.arguments.map(a => a.name)), JSON.stringify(fields));
     await key('Escape');
@@ -3830,7 +3983,7 @@ async function valuesBusy() {
 /* W260: the Numerics section's Jacobian, a choice of difference and exact;
    a model with no exact Jacobian shows exact disabled, with the reason. */
 async function valuesJacobian(dir) {
-  const select = `document.querySelector('[data-section="num"] [data-num="jacobian"] select')`;
+  const select = `document.querySelector('[data-section="num"] [data-num="jacobian.kind"] select')`;
   const options = () => cdp.eval(`(() => { const s = ${select}; return s ? [...s.options].map(o => [o.textContent, o.disabled]) : null; })()`);
   await cdp.eval(`(() => { const t = document.querySelector('[data-section="num"] .value-fold[aria-expanded="false"]'); if (t) t.click(); })()`);
   await until(`!!${select}`, 'the Jacobian select');
@@ -3839,10 +3992,10 @@ async function valuesJacobian(dir) {
     && await cdp.eval(`${select}.value === 'difference'`), JSON.stringify(await options()));
   const sent = await S('__xpp.sentCount()');
   await cdp.eval(`(() => { const s = ${select}; s.value = 'exact'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  check('W260: choosing exact sends set num jacobian exact, and the core takes it',
+  check('W260: choosing exact sends options.configure jacobian.kind exact, and the core takes it',
     await until(`!s.busy && s.numerics.find(f => f.key === 'jacobian')?.value === 'exact'`, 'exact taken')
-    && JSON.stringify((await S(`__xpp.sentFrom(${sent})`)).filter(c => c.cmd === 'set'))
-      === JSON.stringify([{cmd: 'set', kind: 'num', name: 'jacobian', text: 'exact'}]),
+    && JSON.stringify((await S(`__xpp.sentFrom(${sent})`)).filter(c => c.cmd === 'options.configure'))
+      === JSON.stringify([{cmd: 'options.configure', group: 'integration', values: {'jacobian.kind': 'exact'}}]),
     JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
   /* W433: the Subsystem split, a choice of equations and run (its label derived from its name) */
   const split = `document.querySelector('[data-section="num"] [data-num="subsystem_split"] select')`;
@@ -3855,8 +4008,8 @@ async function valuesJacobian(dir) {
   await cdp.eval(`(() => { const s = ${split}; s.value = 'run'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
   check('W433: choosing run sends set num subsystem_split run, and the core takes it',
     await until(`!s.busy && s.numerics.find(f => f.key === 'subsystem_split')?.value === 'run'`, 'run taken')
-    && JSON.stringify((await S(`__xpp.sentFrom(${splitSent})`)).filter(c => c.cmd === 'set'))
-      === JSON.stringify([{cmd: 'set', kind: 'num', name: 'subsystem_split', text: 'run'}]),
+    && JSON.stringify((await S(`__xpp.sentFrom(${splitSent})`)).filter(c => c.cmd === 'options.configure'))
+      === JSON.stringify([{cmd: 'options.configure', group: 'integration', values: {'subsystem_split': 'run'}}]),
     JSON.stringify(await S(`__xpp.sentFrom(${splitSent})`)));
   /* W613: Storage precision, a choice of Single and Double, which the data table follows */
   const precision = `document.querySelector('[data-section="num"] [data-num="storage_precision"] select')`;
@@ -3881,8 +4034,8 @@ async function valuesJacobian(dir) {
   await cdp.eval(`(() => { const s = ${precision}; s.value = 'double'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
   check('W613: choosing Double sends set num storage_precision double, and the core takes it',
     await until(`!s.busy && s.numerics.find(f => f.key === 'storage_precision')?.value === 'double'`, 'double taken')
-    && JSON.stringify((await S(`__xpp.sentFrom(${precisionSent})`)).filter(c => c.cmd === 'set'))
-      === JSON.stringify([{cmd: 'set', kind: 'num', name: 'storage_precision', text: 'double'}]),
+    && JSON.stringify((await S(`__xpp.sentFrom(${precisionSent})`)).filter(c => c.cmd === 'options.configure'))
+      === JSON.stringify([{cmd: 'options.configure', group: 'integration', values: {'storage_precision': 'double'}}]),
     JSON.stringify(await S(`__xpp.sentFrom(${precisionSent})`)));
   const converted = await firstRows();
   check('W613: the rows stored under Single are kept as the floats they were when the precision changes',
@@ -3898,7 +4051,7 @@ async function valuesJacobian(dir) {
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
   await until(`!s.busy && !s.ask && s.hello.file === 'w260noise.odex' && !!${select}`, 'the noisy model opened');
-  const hint = `document.querySelector('[data-section="num"] [data-num="jacobian"] [data-unavailable="exact"]')`;
+  const hint = `document.querySelector('[data-section="num"] [data-num="jacobian.kind"] [data-unavailable="exact"]')`;
   check('W260: a model with random numbers offers exact until it is chosen',
     JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', false]]) && !await cdp.eval(`!!${hint}`),
     JSON.stringify(await options()));
@@ -3906,7 +4059,7 @@ async function valuesJacobian(dir) {
   await until(`!s.busy && !!s.numerics.find(f => f.key === 'jacobian')?.unavailable`, 'the refusal');
   check('W260: choosing exact there is refused, then shows exact disabled, and why, at its line',
     JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', true]])
-    && await cdp.eval(`${hint}?.textContent`) === 'No Exact Jacobian: w260noise.odex:3:1: uses random numbers',
+    && await cdp.eval(`${hint}?.textContent`) === 'Exact is not available: w260noise.odex:3:1: uses random numbers',
     JSON.stringify([await options(), await cdp.eval(`${hint}?.textContent`)]));
   fs.writeFileSync(path.join(dir, 'w379wiener.odex'), versioned("wiener w\nx' = w\n"));
   await openFile('w379wiener.odex');
@@ -3921,7 +4074,7 @@ async function valuesJacobian(dir) {
   const eulerEntry = methOptions.find(o => o[0] === 'Euler');
   check('W379: Wiener model disables adaptive methods in numerics menu with reason',
     dopriEntry && dopriEntry[1] === true && eulerEntry && eulerEntry[1] === false
-    && (await cdp.eval(`${methHint}?.textContent`)) === 'No Dopri5 Method: a model with Wiener noise requires a method that draws it each step',
+    && (await cdp.eval(`${methHint}?.textContent`)) === 'Dopri5 is not available: a model with Wiener noise requires a method that draws it each step',
     JSON.stringify([dopriEntry, eulerEntry, await cdp.eval(`${methHint}?.textContent`)]));
 }
 
@@ -6036,6 +6189,8 @@ async function main() {
     if (run('autoxviews')) await session(ODE, autoxViews);
     if (run('navigation')) await session(ODE, navigationCheck);
     if (run('navigation')) await session(ODE, menusByTaskCheck);
+    if (run('options')) await session(ODE, optionsCheck);
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);
     if (run('steady')) await session(ODE, steadyCheck);
@@ -6065,7 +6220,7 @@ async function main() {
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (typed_values.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
-    if (run('values')) await session(ODE, valuesJacobian, [commandError('Numerics: Jacobian: exact is not available: w260noise.odex:3:1: uses random numbers')]);
+    if (run('values')) await session(ODE, valuesJacobian, ['command:1: jacobian=exact: w260noise.odex:3:1: uses random numbers']);
     if (run('values')) await session(ODE, equilibriumSettings);
     if (run('values')) await session(ODE, valuesFill);
     if (run('cut')) await session(ODE, cutCheck);

@@ -71,6 +71,10 @@ int numerics_settings_check(Session &s, std::string_view key, std::string_view t
    is thrown. A menu supplies the command place saved before asking. */
 int numerics_settings_set(Session &s, std::string_view key, std::string_view text, std::string &why, const Place *place = nullptr);
 
+/* the choices of choice row f (the method, the Jacobian) that s's model cannot have, as a JSON object of each one's name and why:
+   what the "numerics" event's and the panels' `unavailable` say; "" when the model can have them all */
+std::string unavailable_choices_json(const Session &s, const OptionRow &f);
+
 /* ---- the settings a .setx holds (W284, setx.h) ----
    The option table's rows marked `saved`, by the group of the file they
    are in ("numerics", which also takes the keyed rows with no group, or

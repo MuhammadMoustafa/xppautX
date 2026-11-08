@@ -31,7 +31,7 @@ def timed(binary, model, command, configure, threads, folder, config):
     s = Server(binary, model, run=folder, env={'XPP_CONFIG_DIR': config})
     try:
         s.collect(is_done)
-        s.send(cmd='session.set_threads', threads=threads)
+        s.send(cmd='preferences.configure', threads=threads)
         s.collect(is_done)
         if configure:
             s.send(cmd='run.configure', **configure)

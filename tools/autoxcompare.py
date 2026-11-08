@@ -423,7 +423,7 @@ def compute(binary, d, threads, *, env=None, run=None, diagram_data=True, jacobi
         completed(s)
         if jacobian is not None:
             completed(s, dict(cmd='set', kind='num', name='jacobian', text=jacobian))
-        completed(s, dict(cmd='session.set_threads', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
+        completed(s, dict(cmd='preferences.configure', **({'automatic': True} if threads == 'auto' else {'threads': threads})))
         # Subscription returns the current settings even when a repeated
         # threads=1 assignment changed nothing and emitted no change event.
         events = completed(s, dict(cmd='events.subscribe', events=['autox.info', 'autox.settings'], diagram=diagram_data))

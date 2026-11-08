@@ -6,7 +6,6 @@ import {test} from 'node:test';
 import {buildDiagramModel} from '../src/plot/diagramModel';
 import {jobsText, runStatus} from '../src/plot/autoxStatus';
 import {activeView, type DiagramRun} from '../src/store/diagram';
-import {NUM_GROUPS, NUM_KEYS} from '../src/store/autoxSettings';
 import {reduce, type AppState} from '../src/store/state';
 import {READY} from './hello';
 
@@ -90,7 +89,3 @@ test('the status of a live run counts its points and leaves the label number out
   assert.doesNotMatch(st.label ?? '', /\b0\b/);
 });
 
-test("follow_all_branches is one of autoX's boolean settings, in the Solver group", () => {
-  assert.ok(NUM_KEYS.includes('follow_all_branches'));
-  assert.ok(NUM_GROUPS.find(g => g.title === 'Solver')!.keys.includes('follow_all_branches'));
-});

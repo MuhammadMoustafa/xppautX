@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  fieldName, NUM_FIELDS, numError, pairError, pairErrors, pendingFields, autoxSettingsCommands, shownSettings, type AutoxSettings,
+  pendingFields, autoxSettingsCommands, shownSettings, type AutoxSettings,
   type NumKey, type NumRule,
 } from '../src/store/autoxSettings';
 import {reduce, type AppState} from '../src/store/state';
@@ -103,33 +103,3 @@ test("a refused set: the core's error is the forms', until the next edit", () =>
   assert.equal(s.autoxSettings.error, null);
 });
 
-test("the core's rules, in the page, with its messages", () => {
-  assert.equal(NUM_FIELDS.length, 24);
-  assert.deepEqual(NUM_FIELDS.map(f => f.key).sort(), Object.keys(rules).sort());
-  assert.equal(numError(rules.collocation_points, '8'), 'Collocation points must be a whole number from 2 to 7');
-  assert.equal(numError(rules.mesh_intervals, '2.5'), 'Mesh intervals must be a whole number of at least 1');
-  assert.equal(numError(rules.max_steps, '1e2'), 'Max steps must be a whole number of at least 1', 'digits only (T31)');
-  assert.equal(numError(rules.mesh_intervals, '0'), 'Mesh intervals must be a whole number of at least 1');
-  assert.equal(numError(rules.step_size, '0'), 'Step size must be a number other than 0');
-  assert.equal(numError(rules.min_step_size, '-1'), 'Min step size must be a number above 0');
-  assert.equal(numError(rules.parameter_min, 'x'), 'Parameter min must be a number');
-  assert.deepEqual([numError(rules.step_size, '-0.01'), numError(rules.max_branch_switches, '3'), numError(rules.suppress_branch_points, 'true'),
-    numError(rules.output_detail, 'extensive')], [null, null, null, null]);
-  assert.equal(numError(rules.max_branch_switches, '-3'), 'Max branch switches must be a whole number of at least 0');
-  assert.equal(numError(rules.output_detail, '3'), `Output detail must be one of ${levels.join(', ')}`);
-  assert.equal(pairError(settings, {...settings.numerics, parameter_min: 3}), 'Parameter min must be below Parameter max');
-  assert.equal(pairError(settings, {...settings.numerics, min_step_size: 1}), 'Min step size must be at most Max step size');
-  assert.equal(pairError(settings, settings.numerics), null);
-  /* T23: min step size <= |step size| <= max step size, whatever the direction; each message by its field */
-  const n = settings.numerics, step = settings.step.message;
-  assert.deepEqual(pairErrors(settings, {...n, step_size: -n.max_step_size}), {});
-  assert.deepEqual(pairErrors(settings, {...n, step_size: -2 * n.max_step_size}), {step_size: step});
-  assert.deepEqual(pairErrors(settings, {...n, step_size: n.min_step_size / 2, norm_min: 5, norm_max: 1}), {step_size: step, norm_min: 'Norm min must be below Norm max'});
-  /* every field is named by its key, labelled from it, with autoX's own name for a hover, and explained */
-  for (const f of NUM_FIELDS) {
-    assert.ok(f.auto === undefined || f.auto.length >= 2, f.key); /* xppautX's own setting has no autoX name */
-    assert.ok(f.help.length > 40, f.key);
-    assert.equal(fieldName(f), rules[f.key].label, f.key);
-  }
-  assert.equal(NUM_FIELDS.find(f => f.key === 'max_steps')!.auto, 'NMX');
-});

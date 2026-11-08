@@ -111,7 +111,7 @@ def auto_case(a, check):
     try:
         step(s)
         step(s, cmd='events.subscribe', events=[], diagram=True)
-        step(s, cmd='session.set_threads', threads=1)
+        step(s, cmd='preferences.configure', threads=1)
         open_auto(s)
         numerics(s, max_steps=AUTO_POINTS)
         _, _, _, points = hopf_xppautx.run(s, 's', limit=LIMIT)

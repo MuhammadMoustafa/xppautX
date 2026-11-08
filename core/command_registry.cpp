@@ -34,7 +34,7 @@ std::span<const Command> help_commands() { return HELP_ROWS; }
 constexpr std::array TABLES = {keymap_commands, session_commands, ic_commands, recording_commands, equilibrium_commands, nullcline_commands,
                               annotation_commands, run_commands, dirfield_commands, plot_commands, analysis_commands, kinescope_commands,
                               table_commands, browser_commands, help_commands, tool_commands, window_commands, autox_commands, animation_commands,
-                              array_plot_commands, set_commands, bvp_commands, value_commands, events_commands};
+                              array_plot_commands, set_commands, bvp_commands, value_commands, options_commands, events_commands};
 
 template <class Visit> void each_command(Visit visit)
 {
@@ -98,6 +98,10 @@ void append_argument(std::string &out, const Argument &arg)
     }
     out += ']';
     if (arg.multiline) out += ",\"multiline\":true";
+    if (*arg.option) {
+        out += ",\"option\":";
+        json_append_string(out, arg.option);
+    }
     append_bound(out, "min", arg.min);
     append_bound(out, "max", arg.max);
     if (arg.names != NameSet::none) {
@@ -162,6 +166,10 @@ void append_command(std::string &out, const Command &command)
         json_append_string(out, command.file_mode);
         out += ",\"file_wild\":";
         json_append_string(out, command.file_wild);
+    }
+    if (*command.panel) {
+        out += ",\"panel\":";
+        json_append_string(out, command.panel);
     }
     out += ",\"arguments\":[";
     for (std::size_t i = 0; i < command.arguments.size(); ++i) {

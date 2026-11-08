@@ -472,6 +472,14 @@ Result<int> graph_of_command(Session &s, const Command &command, const Arguments
     return target->index;
 }
 
+Result<std::optional<int>> optional_graph_of_command(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    if (!args.has("window")) return std::optional<int>{};
+    const Result<int> index = graph_of_command(s, command, args, place);
+    if (!index) return std::unexpected<Error>(index.error());
+    return std::optional<int>{*index};
+}
+
 std::span<const Command> window_commands() { return ROWS; }
 
 Result<> window_button(Session &s, int button, const Place &place)

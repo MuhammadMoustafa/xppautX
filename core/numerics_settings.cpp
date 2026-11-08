@@ -107,6 +107,30 @@ void append_value(std::string &o, const xpp::Session &s, const OptionRow &f)
     }
 }
 
+} // namespace
+
+std::string unavailable_choices_json(const xpp::Session &s, const OptionRow &f)
+{
+    std::string unavailable;
+    const auto add = [&](std::string_view word, std::string_view why) {
+        unavailable += unavailable.empty() ? "{" : ",";
+        xpp::json_append_string(unavailable, word);
+        unavailable += ':';
+        xpp::json_append_string(unavailable, why);
+    };
+    if (f.rule == OptionRule::method) {
+        for (const xpp::SolverInfo &m : xpp::solvers())
+            if (const auto res = xpp::check_method(s.model(), m.id, {}); !res) add(m.key, res.error().what);
+    } else {
+        for (std::size_t i = 0; i < f.choices.size(); ++i)
+            if (const std::string_view why = f.unavailable ? f.unavailable(s.model(), static_cast<int>(i)) : std::string_view(); !why.empty())
+                add(f.choices[i], why);
+    }
+    return unavailable.empty() ? unavailable : unavailable + '}';
+}
+
+namespace {
+
 std::string event_text(const xpp::Session &s)
 {
     std::string o = xpp::events::open(xpp::events::RUN_NUMERICS) + ",\"fields\":[";
@@ -121,40 +145,16 @@ std::string event_text(const xpp::Session &s)
         if (f.boolean) o += ",\"boolean\":true";
         else if (f.rule != OptionRule::method && f.rule != OptionRule::choice && f.whole) o += ",\"integer\":true";
         if (!used(s, f)) o += ",\"unused\":true";
-        if (f.rule == OptionRule::method) {
+        if (f.rule == OptionRule::method || (f.rule == OptionRule::choice && !f.boolean)) {
             o += ",\"choices\":[";
-            bool c1 = true;
-            std::string unavailable;
-            for (const xpp::SolverInfo &m : xpp::solvers()) {
-                if (!c1) o += ',';
-                c1 = false;
-                xpp::json_append_string(o, m.key);
-                const auto res = xpp::check_method(s.model(), m.id, {});
-                if (!res) {
-                    unavailable += unavailable.empty() ? "{" : ",";
-                    xpp::json_append_string(unavailable, m.key);
-                    unavailable += ':';
-                    xpp::json_append_string(unavailable, res.error().what);
-                }
+            bool first_word = true;
+            for (const std::string &word : option_choices(f)) {
+                if (!first_word) o += ',';
+                first_word = false;
+                xpp::json_append_string(o, word);
             }
             o += ']';
-            if (!unavailable.empty()) o += ",\"unavailable\":" + unavailable + "}";
-        }
-        if (f.rule == OptionRule::choice && !f.boolean) {
-            o += ",\"choices\":[";
-            std::string unavailable;
-            for (std::size_t i = 0; i < f.choices.size(); ++i) {
-                o += i ? "," : "";
-                xpp::json_append_string(o, f.choices[i]);
-                const std::string_view why = f.unavailable ? f.unavailable(s.model(), static_cast<int>(i)) : std::string_view();
-                if (why.empty()) continue;
-                unavailable += unavailable.empty() ? "{" : ",";
-                xpp::json_append_string(unavailable, f.choices[i]);
-                unavailable += ':';
-                xpp::json_append_string(unavailable, why);
-            }
-            o += ']';
-            if (!unavailable.empty()) o += ",\"unavailable\":" + unavailable + "}";
+            if (const std::string unavailable = unavailable_choices_json(s, f); !unavailable.empty()) o += ",\"unavailable\":" + unavailable;
         }
         o += '}';
     }
@@ -344,6 +344,7 @@ std::string setting_text(const xpp::Session &s, const OptionRow &row)
     if (row.kind == OptionKind::choice) return option_choices(row)[static_cast<std::size_t>(index_of(s, row))];
     if (row.kind == OptionKind::name && row.whole) return xpp::ind_to_sym(s, row.whole(s));
     if (row.text) return row.text(s);
+    if (row.show) return row.show(s);
     if (row.color) return print_color(row.color(s));
     return xpp::number(value_of(s, row));
 }

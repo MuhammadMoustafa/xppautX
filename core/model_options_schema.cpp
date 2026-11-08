@@ -34,6 +34,24 @@ bool all_digits(const std::string &w)
 
 } // namespace
 
+std::string option_limit_members(const OptionRow &row)
+{
+  std::string out;
+  switch (row.rule) {
+  case OptionRule::positive: out += ", \"exclusiveMinimum\": 0"; break;
+  case OptionRule::nonnegative: out += ", \"minimum\": 0"; break;
+  case OptionRule::whole_positive: out += ", \"minimum\": 1"; break;
+  case OptionRule::whole_at_least_two: out += ", \"minimum\": 2"; break;
+  case OptionRule::nonzero:
+  case OptionRule::any:
+  case OptionRule::method:
+  case OptionRule::choice: break;
+  }
+  if (row.maximum) out += ", \"maximum\": " + std::to_string(row.maximum);
+  if (row.autox_numeric >= 0) out += autox_settings_num_schema(row.autox_numeric);
+  return out;
+}
+
 std::string option_value_schema(const OptionRow &row)
 {
   std::string out = "{";
@@ -70,18 +88,7 @@ std::string option_value_schema(const OptionRow &row)
   }
   }
   if (row.zero_or_one) out += ", \"enum\": [0, 1]";
-  switch (row.rule) {
-  case OptionRule::positive: out += ", \"exclusiveMinimum\": 0"; break;
-  case OptionRule::nonnegative: out += ", \"minimum\": 0"; break;
-  case OptionRule::whole_positive: out += ", \"minimum\": 1"; break;
-  case OptionRule::whole_at_least_two: out += ", \"minimum\": 2"; break;
-  case OptionRule::nonzero:
-  case OptionRule::any:
-  case OptionRule::method:
-  case OptionRule::choice: break;
-  }
-  if (row.maximum) out += ", \"maximum\": " + std::to_string(row.maximum);
-  if (row.autox_numeric >= 0) out += autox_settings_num_schema(row.autox_numeric);
+  out += option_limit_members(row);
   if (!row.odex.empty()) out += ", \"title\": " + quoted(option_label(row)) + ", \"description\": " + quoted(row.help);
   if (row.repeatable) out += ", \"x-repeatable\": true";
   return out + "}";

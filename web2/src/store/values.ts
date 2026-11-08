@@ -171,8 +171,9 @@ function parameterValue(text: string): number | string {
   return trimmed !== '' && Number.isFinite(Number(trimmed)) ? Number(trimmed) : text;
 }
 
-/** the equilibrium.configure arguments the Numerics sIng pt settings are (a numerics key to its argument) */
-const EQUILIBRIUM_ARGUMENTS: Record<string, string> = {max_iterations: 'max_iterates', newton_tolerance: 'newton_tolerance', jacobian_step: 'jacobian_epsilon', search_limit: 'search_limit'};
+/** the keys of the equilibria group's rows (the settings panel's, hello.options): the numerics the Sing pt settings are */
+const EQUILIBRIA_GROUP = 'equilibria';
+const equilibriaKeys = (hello: HelloEvent | null): string[] => (hello?.options ?? []).find(g => g.group === EQUILIBRIA_GROUP)?.rows.map(r => r.key) ?? [];
 
 /** The commands that send these edits (docs/protocol.md): parameters in `value.set_parameters` (a number) or
     `value.set_by_formula` (a %formula, one each); boundary conditions, delays and the numerics no registry
@@ -180,7 +181,7 @@ const EQUILIBRIUM_ARGUMENTS: Record<string, string> = {max_iterations: 'max_iter
     `ic.formula` (a %formula, one each); the run's and the shooting's numerics in `run.configure` and
     `bvp.configure`; the nullcline mesh and the equilibria's settings in their own. */
 export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): ValueCommand[] {
-  const run = argumentTypes(hello, 'run.configure'), bvp = argumentTypes(hello, 'bvp.configure');
+  const run = argumentTypes(hello, 'run.configure'), bvp = argumentTypes(hello, 'bvp.configure'), equilibriumKeys = equilibriaKeys(hello);
   const BVP = 'bvp_';
   const meshes: ValueSet[] = [], equilibria: ValueSet[] = [], plain: ValueSet[] = [], pars: ValueSet[] = [], par_formulas: ValueSet[] = [],
     ics: ValueSet[] = [], formulas: ValueSet[] = [], runs: ValueSet[] = [], bvps: ValueSet[] = [];
@@ -190,7 +191,7 @@ export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): Value
     else if (s.kind === 'num' && s.name !== undefined && s.name in run) runs.push(s);
     else if (s.kind === 'num' && s.name?.startsWith(BVP) && s.name.slice(BVP.length) in bvp) bvps.push(s);
     else if (s.kind === 'num' && s.name === 'nullcline_mesh') meshes.push(s);
-    else if (s.kind === 'num' && s.name !== undefined && s.name in EQUILIBRIUM_ARGUMENTS) equilibria.push(s);
+    else if (s.kind === 'num' && s.name !== undefined && equilibriumKeys.includes(s.name)) equilibria.push(s);
     else plain.push(s);
   }
   const result: ValueCommand[] = [];
@@ -202,7 +203,7 @@ export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): Value
   for (const s of formulas)
     result.push({command: {cmd: 'ic.formula', variable: s.name!, formula: s.text.trim().slice(1)}, sets: [s]});
   for (const s of meshes) result.push({command: {cmd: 'nullcline.set_mesh', mesh: Number(s.text)}, sets: [s]});
-  if (equilibria.length) result.push({command: {cmd: 'equilibrium.configure', ...Object.fromEntries(equilibria.map(s => [EQUILIBRIUM_ARGUMENTS[s.name!], Number(s.text)]))}, sets: equilibria});
+  if (equilibria.length) result.push({command: {cmd: 'options.configure', group: EQUILIBRIA_GROUP, values: Object.fromEntries(equilibria.map(s => [s.name!, s.text.trim()]))}, sets: equilibria});
   if (runs.length) result.push({command: {cmd: 'run.configure', ...Object.fromEntries(runs.map(s => [s.name!, argumentValue(run[s.name!], s.text)]))}, sets: runs});
   if (bvps.length) result.push({command: {cmd: 'bvp.configure', ...Object.fromEntries(bvps.map(s => [s.name!.slice(BVP.length), argumentValue(bvp[s.name!.slice(BVP.length)], s.text)]))}, sets: bvps});
   return result;

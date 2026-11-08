@@ -11,6 +11,8 @@ export interface RegistryArgument {
   name: string; type: string; required: boolean; choices: string[];
   names?: string; element?: string; max_items?: number; max_length?: number;
   min?: number; max?: number; multiline?: boolean;
+  /** the key of the option row (in the command's panel group) that sets it: its panel shows it, the form leaves it out */
+  option?: string;
 }
 
 /** control (Abort, Quit, an answer): always; view (only changes what is
@@ -35,6 +37,8 @@ export interface CommandKind {
   file_wild?: string;
   label?: string;
   menu_path?: string;
+  /** the option group whose generated panel opens in place of this command's own form (core Command::panel) */
+  panel?: string;
   description?: string;
   category?: string;
   default_keys?: string[];
@@ -52,6 +56,8 @@ export interface CommandRow {
   file_wild?: string;
   /** the groups above the label in the menu bar (`File/Sets`), none for a row with no menu place */
   menu_path?: string;
+  /** the option group whose panel opens in place of a form */
+  panel?: string;
   /** stable: the command's name */
   id: string;
   label: string;

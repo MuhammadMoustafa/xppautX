@@ -336,6 +336,9 @@ void apply_set_items(xpp::Session &s, std::span<const SetItem> items)
   for(const SetItem &item : items){
     if(item.setting){
       set_option(s,item.name,item.value,1,NULL);
+      /* what a change of the setting needs besides its member (the step's recount, the stored rows' precision, the delay's storage) */
+      int index=0;
+      if(const OptionRow *row=find_option(xpp::upper_case(item.name),index,false);row&&row->applied)row->applied(s);
       xpp::do_meth(s);
     }
     else do_intern_set(s,item.name,item.value);
@@ -449,6 +452,23 @@ void restore_row(xpp::Session &s, const OptionRow &row, const BuiltIns &built_in
 
 /* a row has a built-in value of its own: a reset, or a member */
 bool has_built_in(const OptionRow &row) { return row.reset||row.real||row.whole||row.boolean||row.index||row.color||row.text; }
+
+/* a row with a member of its own holds a value to read; the others (numbered curves, ...) are set by their text only */
+bool has_member(const OptionRow &row) { return row.real||row.whole||row.boolean||row.index||row.color||row.text||row.show; }
+
+/* the settings of group now, as their text: a row of the group with a member that the session's method and model use, a path left out
+   (empty) of a set none; held: only what a set holds (a set holds no `wide` row) */
+std::vector<std::pair<const OptionRow *,std::string>> group_settings(xpp::Session &s, std::string_view group, bool held)
+{
+  std::vector<std::pair<const OptionRow *,std::string>> out;
+  for(const OptionRow &row : option_rows()){
+    if(row.group!=group||(held&&!set_holds(row))||!has_member(row)||!setting_applies(s,row,s.numerics.method))continue;
+    std::string text=setting_text(s,row);
+    if(row.kind==OptionKind::path&&text.empty()&&held)continue; /* a path left out: none */
+    out.emplace_back(&row,std::move(text));
+  }
+  return out;
+}
 
 } // namespace
 
@@ -625,16 +645,45 @@ xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scop
   for(const std::string_view group : set_groups){
     if(!all&&scope!=group)continue;
     values.groups.emplace_back(group);
-    for(const OptionRow &row : option_rows()){
-      /* a row with a member of its own holds a value to read; the others (numbered curves, ...) are set by their text only */
-      if(row.group!=group||!set_holds(row)||!(row.real||row.whole||row.boolean||row.index||row.color||row.text)||!setting_applies(s,row,s.numerics.method))continue;
-      const std::string text=setting_text(s,row);
-      if(row.kind==OptionKind::path&&text.empty())continue; /* a path left out: none */
-      const bool quoted=option_written_quoted(row);
-      values.settings.push_back({std::string(group),odex_key(row,0),quoted?odex::quote_string(text):text});
+    for(const auto &[row,text] : group_settings(s,group,true)){
+      const bool quoted=option_written_quoted(*row);
+      values.settings.push_back({std::string(group),odex_key(*row,0),quoted?odex::quote_string(text):text});
     }
   }
   return values;
+}
+
+xpp::Result<std::vector<std::pair<const OptionRow *,std::string>>> option_group_values(xpp::Session &s, std::string_view group, std::optional<int> graph, std::string_view command)
+{
+  const xpp::Result<int> target=target_graph(s,graph,command);
+  if(!target)return std::unexpected(target.error());
+  const GraphTarget on(s,*target,group==option_group::plot);
+  auto values=group_settings(s,group,false);
+  /* the diagram's variable and axes are the open view's (the model's values only start a new one) */
+  for(auto &[row,text] : values)if(autox_view_row(*row))text=autox_view_text(s,*row);
+  return values;
+}
+
+xpp::Result<> apply_option_group(xpp::Session &s, std::string_view group, std::span<const SetItem> items, const xpp::Place &where, std::optional<int> graph, std::string_view command)
+{
+  if(std::ranges::find(set_groups,group)!=set_groups.end())return apply_values(s,items,where,group,graph,command);
+  if(graph)return std::unexpected(xpp::Error{std::string(command),xpp::format("the {} settings belong to no graph",group),xpp::command_place()});
+  /* a group of the session as a whole: the same check of every item, then the same write; the diagram's variable and axes go to
+     the open view, the rest of its rows as any */
+  std::vector<SetItem> own;
+  std::vector<std::pair<const OptionRow *,std::string>> view;
+  for(const SetItem &item : items){
+    int index=0;
+    const OptionRow *row=group==option_group::diagram?find_option(xpp::upper_case(item.name),index,false):nullptr;
+    if(row&&autox_view_row(*row))view.emplace_back(row,item.value);
+    else own.push_back(item);
+  }
+  if(xpp::Result<> r=check_set_items(s,own,where,false,command);!r)return r;
+  if(xpp::Result<> r=autox_view_apply(s,view,true);!r)return r;
+  xpp::push_value_undo(s);
+  apply_set_items(s,own);
+  if(!view.empty())return autox_view_apply(s,view,false);
+  return {};
 }
 
 xpp::Result<> check_intern_sets(xpp::Session &s)

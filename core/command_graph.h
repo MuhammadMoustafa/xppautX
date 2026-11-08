@@ -13,4 +13,7 @@ namespace xpp::command {
    that is no graph */
 Result<int> graph_of_command(Session &s, const Command &command, const Arguments &args, const Place &place);
 
+/* the same for a command whose `window` is optional: none (the active graph) when it names none */
+Result<std::optional<int>> optional_graph_of_command(Session &s, const Command &command, const Arguments &args, const Place &place);
+
 } // namespace xpp::command

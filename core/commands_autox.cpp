@@ -16,6 +16,7 @@
 #include "xpp_cpu.h"
 #include "xpp_io.h"
 #include "xpp_prefs.h"
+#include "xpp_log.h"
 #include "xpp_session.h"
 #include "xpp_ui.h"
 #include <algorithm>
@@ -74,9 +75,9 @@ Error as_command_error(const Command &command, Error error, const Place &place)
 Result<> read_numerics(const Command &command, const Arguments &args, const Place &place, AutoxSettingsSet &set)
 {
     for (int i = 0; i < AUTOX_NUM_N; ++i) {
-        const char *key = autox_num_keys[static_cast<std::size_t>(i)];
+        const char *key = autox_settings_num_key(i);
         if (!args.has(key)) continue;
-        switch (autox_num_shapes[static_cast<std::size_t>(i)]) {
+        switch (autox_settings_num_shape(i)) {
         case AutoxFieldShape::whole: set.num[static_cast<std::size_t>(i)] = static_cast<double>(args.get<long long>(key)); break;
         case AutoxFieldShape::real: set.num[static_cast<std::size_t>(i)] = args.get<double>(key); break;
         case AutoxFieldShape::boolean: set.num[static_cast<std::size_t>(i)] = args.get<bool>(key) ? 1 : 0; break;
@@ -150,15 +151,39 @@ Result<std::string> configure_marks(Session &s, const Command &command, const Ar
     return xpp::format("{{\"marks_count\":{}}}", set.mark_name.size());
 }
 
-Result<std::string> set_threads(Session &s, const Command &command, const Arguments &args, const Place &place)
+/* the preferences as they stand: the thread count (and whether it is automatic), what the log shows and the file it goes to */
+Result<std::string> preferences_now(const Session &s)
 {
-    AutoxSettingsSet set;
-    if (const auto count = args.optional<long long>("threads")) set.threads = static_cast<unsigned>(*count);
-    else if (args.get<bool>("automatic")) set.threads = prefs::THREADS_AUTO;
-    else return fail(command.name, "automatic is true; give threads for a count", place);
-    if (const Result<> done = apply_settings(s, command, set, place); !done) return std::unexpected<Error>(done.error());
+    const Result<prefs::Preferences> kept = prefs::load_prefs();
     const bool automatic = s.threads == prefs::THREADS_AUTO;
-    return xpp::format("{{\"threads\":{},\"automatic\":{}}}", automatic ? AutoxParallel::automatic_threads() : s.threads, automatic);
+    return ResultObject().integer("threads", automatic ? AutoxParallel::automatic_threads() : s.threads).boolean("automatic", automatic)
+        .text("log_level", log_level_names[static_cast<std::size_t>(kept ? kept->log_level : XPP_LOG_WARN)]).text("log_file", kept ? kept->log_file : std::string()).done();
+}
+
+Result<std::string> get_preferences(Session &s, const Command &, const Arguments &, const Place &) { return preferences_now(s); }
+
+/* the program's preferences: the thread count autoX and sweeps use, and what the log shows and the file it goes to (kept in
+   preferences.setx; the log applies from the next start, and --verbose, --debug, --quiet and --logfile win over it) */
+Result<std::string> configure_preferences(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const bool threads = args.has("threads") || args.has("automatic"), log = args.has("log_level") || args.has("log_file");
+    if (!threads && !log) return fail(command.name, "Give the thread count, the log level or the log file", place);
+    if (log && files::serving_reads()) return fail(command.name, "a recording's replay leaves the user's preferences alone", place);
+    if (threads) {
+        AutoxSettingsSet set;
+        if (const auto count = args.optional<long long>("threads")) set.threads = static_cast<unsigned>(*count);
+        else if (args.get<bool>("automatic")) set.threads = prefs::THREADS_AUTO;
+        else return fail(command.name, "automatic is true; give threads for a count", place);
+        if (const Result<> done = apply_settings(s, command, set, place); !done) return std::unexpected<Error>(done.error());
+    }
+    if (log) {
+        const Result<> saved = prefs::update_prefs([&](prefs::Preferences &p) {
+            if (const auto level = args.optional<std::string>("log_level")) p.log_level = static_cast<XppLogLevel>(choice_index(log_level_names, *level));
+            if (const auto file = args.optional<std::string>("log_file")) p.log_file = *file;
+        });
+        if (!saved) return std::unexpected<Error>(saved.error());
+    }
+    return preferences_now(s);
 }
 
 /* ---- running autoX ---- */
@@ -591,30 +616,32 @@ constexpr Type numerics_type(AutoxFieldShape shape)
 
 constexpr std::size_t NUMERICS_COUNT = static_cast<std::size_t>(AUTOX_NUM_N);
 
-constexpr std::array<Argument, NUMERICS_COUNT> numerics_arguments()
+/* made when the program starts, from the option table's continuation rows */
+std::array<Argument, NUMERICS_COUNT> numerics_arguments()
 {
     std::array<Argument, NUMERICS_COUNT> arguments{};
     for (std::size_t i = 0; i < arguments.size(); ++i) {
-        arguments[i] = Argument{autox_num_keys[i], numerics_type(autox_num_shapes[i]), false};
-        if (autox_num_shapes[i] == AutoxFieldShape::choice) arguments[i].choices = autox_output_detail_names;
+        const int field = static_cast<int>(i);
+        arguments[i] = Argument{autox_settings_num_key(field), numerics_type(autox_settings_num_shape(field)), false};
+        if (autox_settings_num_shape(field) == AutoxFieldShape::choice) arguments[i].choices = autox_output_detail_names;
     }
     return arguments;
 }
-constexpr std::array<Argument, NUMERICS_COUNT> NUMERICS_ARGUMENTS = numerics_arguments();
+const std::array<Argument, NUMERICS_COUNT> NUMERICS_ARGUMENTS = numerics_arguments();
 
 /* autox.configure_numerics: the Numerics, and the codimension-two switches */
-constexpr std::array<Argument, NUMERICS_COUNT + 1> configure_numerics_arguments()
+std::array<Argument, NUMERICS_COUNT + 1> configure_numerics_arguments()
 {
     std::array<Argument, NUMERICS_COUNT + 1> arguments{};
     for (std::size_t i = 0; i < NUMERICS_COUNT; ++i) arguments[i] = NUMERICS_ARGUMENTS[i];
     arguments[NUMERICS_COUNT] = Argument{"special_points", Type::map, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::boolean};
     return arguments;
 }
-constexpr std::array<Argument, NUMERICS_COUNT + 1> CONFIGURE_NUMERICS_ARGUMENTS = configure_numerics_arguments();
+const std::array<Argument, NUMERICS_COUNT + 1> CONFIGURE_NUMERICS_ARGUMENTS = configure_numerics_arguments();
 
 /* autox.run: its kind, its start and the settings of this run only (the Numerics, by their names) */
 constexpr std::size_t RUN_OWN = 13;
-constexpr std::array<Argument, RUN_OWN + NUMERICS_COUNT> run_arguments()
+std::array<Argument, RUN_OWN + NUMERICS_COUNT> run_arguments()
 {
     std::array<Argument, RUN_OWN + NUMERICS_COUNT> arguments{};
     arguments[0] = Argument{"kind", Type::choice, true, MAX_TEXT_BYTES, autox_run_kind_names};
@@ -633,7 +660,7 @@ constexpr std::array<Argument, RUN_OWN + NUMERICS_COUNT> run_arguments()
     for (std::size_t i = 0; i < NUMERICS_COUNT; ++i) arguments[RUN_OWN + i] = NUMERICS_ARGUMENTS[i];
     return arguments;
 }
-constexpr std::array<Argument, RUN_OWN + NUMERICS_COUNT> RUN_ARGUMENTS = run_arguments();
+const std::array<Argument, RUN_OWN + NUMERICS_COUNT> RUN_ARGUMENTS = run_arguments();
 constexpr std::array<const char *, 3> RUN_START_ONE = {LABEL_KEY, "type", "decimals"};
 constexpr std::array<const char *, 2> RUN_START_TYPE = {"type", "index"};
 constexpr std::array<const char *, 3> RUN_START_SETTLE = {"decimals", "hold", "maximum"};
@@ -648,17 +675,20 @@ constexpr std::array<Group, 2> GRAB_GROUPS = {Group{GroupRule::at_most_one, GRAB
 
 constexpr std::array PLOT_ARGUMENTS = {
     Argument{"plot_type", Type::choice, false, MAX_TEXT_BYTES, PROJECTION_CHOICES},
-    Argument{"variable", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::variable},
+    set_by(Argument{"variable", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::variable}, "variable"),
     Argument{"parameter1", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::parameter},
     Argument{"parameter2", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::parameter},
-    Argument{"x_min", Type::real, false}, Argument{"x_max", Type::real, false}, Argument{"y_min", Type::real, false}, Argument{"y_max", Type::real, false},
+    set_by(Argument{"x_min", Type::real, false}, "x_min"), set_by(Argument{"x_max", Type::real, false}, "x_max"),
+    set_by(Argument{"y_min", Type::real, false}, "y_min"), set_by(Argument{"y_max", Type::real, false}, "y_max"),
     Argument{VIEW_KEY, Type::window, false}, Argument{"fit", Type::boolean, false}};
 constexpr std::array MARKS_ARGUMENTS = {Argument{"parameters", Type::list, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::text},
                                         Argument{"values", Type::list, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::real}};
 constexpr std::array<const char *, 2> THREADS_ONE = {"threads", "automatic"};
+constexpr auto LOG_LEVELS = c_names(log_level_names);
 constexpr std::array THREADS_ARGUMENTS = {Argument{"threads", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), session_quantity("threads_max", threads_maximum)},
-                                          Argument{"automatic", Type::boolean, false}};
-constexpr std::array<Group, 1> THREADS_GROUPS = {Group{GroupRule::exactly_one, THREADS_ONE}};
+                                          Argument{"automatic", Type::boolean, false},
+                                          Argument{"log_level", Type::choice, false, MAX_TEXT_BYTES, LOG_LEVELS}, Argument{"log_file", Type::text, false}};
+constexpr std::array<Group, 1> THREADS_GROUPS = {Group{GroupRule::at_most_one, THREADS_ONE}};
 constexpr std::array VIEW_ARGUMENTS = {Argument{VIEW_KEY, Type::window, false}};
 constexpr std::array PICK_ARGUMENTS = {Argument{"x", Type::real, true}, Argument{"y", Type::real, true}, Argument{VIEW_KEY, Type::window, false}};
 constexpr std::array DISPLAY_ARGUMENTS = {Argument{VIEW_KEY, Type::window, false},
@@ -688,7 +718,7 @@ constexpr std::array RESULT_GRAB = {ResultField{"grabbed", "boolean"}, ResultFie
 constexpr std::array RESULT_SETTINGS = {ResultField{"settings_updated", "boolean"}};
 constexpr std::array RESULT_PLOT = {ResultField{"plot_configured", "boolean"}};
 constexpr std::array RESULT_MARKS = {ResultField{"marks_count", "integer"}};
-constexpr std::array RESULT_THREADS = {ResultField{"threads", "integer"}, ResultField{"automatic", "boolean"}};
+constexpr std::array RESULT_THREADS = {ResultField{"threads", "integer"}, ResultField{"automatic", "boolean"}, ResultField{"log_level", "choice"}, ResultField{"log_file", "text"}};
 constexpr std::array RESULT_HIDDEN = {ResultField{"hidden_points", "integer"}};
 constexpr std::array RESULT_REDRAWN = {ResultField{"redrawn", "boolean"}};
 constexpr std::array RESULT_PICK = {ResultField{"x", "real"}, ResultField{"y", "real"}};
@@ -718,7 +748,7 @@ constexpr std::array EVENTS_DIAGRAM = {xpp::events::AUTOX_DIAGRAM, xpp::events::
 constexpr std::array EVENTS_INFO = {xpp::events::AUTOX_INFO, xpp::events::AUTOX_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_BROWSER = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
-constexpr std::array ROWS = {
+const std::array ROWS = {
     Command{"autox.open", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "Open autoX", "autoX",
             "Open the autoX window, the bifurcation package.", RESULT_OPEN, EVENTS_OPEN, true, open_autox},
     Command{"autox.run", RUN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run", "autoX",
@@ -728,14 +758,16 @@ constexpr std::array ROWS = {
             "Grab a stored point by label or type and index; omit both to pick it on the diagram.", RESULT_GRAB, EVENTS_GRAB, true, grab_point, GRAB_GROUPS, {}},
     Command{"autox.configure_numerics", CONFIGURE_NUMERICS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Numerics", "autoX",
             "Set autoX's Numerics by their names (mesh_intervals, step_size, ...) and the codimension-two points it detects (special_points), all or nothing.",
-            RESULT_SETTINGS, EVENTS_SETTINGS, true, configure_numerics, {}, {}},
+            RESULT_SETTINGS, EVENTS_SETTINGS, true, configure_numerics, {}, {}, "read", "*", "continuation"},
     Command{"autox.configure_plot", PLOT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Axes", "autoX",
             "Set what a view of the diagram plots: the plot type, the variable, the two parameters and the ranges, optionally fitted afterwards.",
-            RESULT_PLOT, EVENTS_SETTINGS, true, configure_plot, {}, {}},
+            RESULT_PLOT, EVENTS_SETTINGS, true, configure_plot, {}, {}, "read", "*", "diagram+"},
     Command{"autox.configure_marks", MARKS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Mark values", "autoX",
             "Set the Mark values: the parameters (or T, the period) and the values at which autoX labels a point.", RESULT_MARKS, EVENTS_SETTINGS, true, configure_marks, {}, {}},
-    Command{"session.set_threads", THREADS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Threads", "autoX",
-            "Set the thread count of autoX and of sweeps, a preference of the program: a count, or automatic.", RESULT_THREADS, EVENTS_SETTINGS, true, set_threads, THREADS_GROUPS, {}},
+    Command{"preferences.get", {}, XPP_KIND_CONTROL, CommandCategory::Analysis, "Get preferences", "",
+            "The program's preferences as they stand: the thread count and whether it is automatic, the log level and the log file.", RESULT_THREADS, EVENTS_BROWSER, false, get_preferences, {}, {}},
+    Command{"preferences.configure", THREADS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Preferences", "File",
+            "Set the program's preferences, kept in its preferences file: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal); the log applies from the next start.", RESULT_THREADS, EVENTS_SETTINGS, true, configure_preferences, THREADS_GROUPS, {}},
     Command{"autox.save_session", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Save diagram", "autoX/File",
             "Save the session, with its diagram and autoX's settings (.snapx).", RESULT_SAVED, EVENTS_BROWSER, true, save_session, {}, {}, "write", "*.snapx"},
     Command{"autox.open_session", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "Open diagram", "autoX/File",

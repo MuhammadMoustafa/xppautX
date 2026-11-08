@@ -1,4 +1,4 @@
-import {toolbarCommand} from './ui/navigation';
+import {panelSpec, toolbarCommand} from './ui/navigation';
 import {registryRows} from './ui/navigation';
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
@@ -222,6 +222,18 @@ export class Session {
       const parts = ev.status === 'ok' ? ev.result?.parts : null;
       if (Array.isArray(parts))
         this.store.dispatch({type: 'valuesFile', offer: {file: String(ev.result?.file), scope: String(ev.result?.scope), format: String(ev.result?.format), parts: parts as ValuesPart[]}});
+      /* `preferences.get` answered for File > Preferences: its form, with the current values in it */
+      if (this.preferencesFormAsked && ev.status === 'ok' && typeof ev.result?.log_level === 'string') {
+        this.preferencesFormAsked = false;
+        const {threads, automatic, log_level, log_file} = ev.result as {threads: number; automatic: boolean; log_level: string; log_file: string};
+        this.store.dispatch({type: 'commandForm', form: {id: 'preferences.configure', values: {...(automatic ? {automatic: true} : {threads}), log_level, log_file}, fixed: []}});
+      }
+      /* `options.get` answered: the group's values for every editor of its rows; a group's settings applied: its values again, as the core holds them */
+      if (ev.status === 'ok' && typeof ev.result?.group === 'string') {
+        if (ev.result.values) this.store.dispatch({type: 'optionValues', group: ev.result.group, values: {values: ev.result.values as Record<string, string>,
+          unavailable: ev.result.unavailable as Record<string, Record<string, string>>}});
+        else if (ev.result.applied) this.fetchOptions(ev.result.group);
+      }
       if (this.donesOwed > 0) this.donesOwed--;
       this.afterAutox();
       this.dragQueue = [];
@@ -311,8 +323,27 @@ export class Session {
       this.store.dispatch({type: 'annotations', open: true});
       this.send({cmd:'window.select', window:this.store.getState().plots.active});
       this.send({cmd: id, window:this.store.getState().plots.active});
-    } else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
+    } else if (id === 'preferences.configure' && !fixed.length && !Object.keys(values).length) {
+      /* the form opens on the preferences as they stand: asked for first, the form opens when they arrive (the done below) */
+      this.preferencesFormAsked = true;
+      this.send({cmd: 'preferences.get'});
+    } else if (row.panel && !row.arguments?.some(a => a.option) && !row.panel.endsWith('+')) this.openOptions(panelSpec(row.panel)!.group);
+    else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
     else this.send({cmd: id});
+  }
+
+  /** File > Preferences was chosen and its values are on the way */
+  private preferencesFormAsked = false;
+
+  /** the settings panel of an option group (ui/OptionsPanel.tsx): open at once, its values asked for (`options.get`) */
+  openOptions(group: string): void {
+    this.store.dispatch({type: 'optionsPanel', panel: {group}});
+    this.fetchOptions(group);
+  }
+
+  /** a group's values from the core (`options.get`); the answer is stored for every editor of the group's rows */
+  fetchOptions(group: string): void {
+    this.send({cmd: 'options.get', group});
   }
 
   /** Run to steady state with the settings the toolbar holds (the user's edits over the defaults) */

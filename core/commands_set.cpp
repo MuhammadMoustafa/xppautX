@@ -35,19 +35,10 @@ constexpr std::array STATE_CHOICES = {STATE_INITIAL.data(), STATE_LAST.data()};
 /* the part of a file of values loaded: its defaults, one of its sets, or the whole of an XPPAUT file */
 constexpr std::array FROM_CHOICES = {values_origin_names[0].data(), values_origin_names[1].data(), values_origin_names[2].data()};
 
-/* the plot settings' graph: the one `window` names, none (the active one) when it is left out */
-Result<std::optional<int>> graph_of(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    if (!args.has(WINDOW_KEY)) return std::optional<int>{};
-    const Result<int> index = graph_of_command(s, command, args, place);
-    if (!index) return std::unexpected<Error>(index.error());
-    return std::optional<int>{*index};
-}
-
 bool last_state_of(const Arguments &args) { return args.optional<std::string>(STATE_KEY).value_or(std::string(STATE_INITIAL)) == STATE_LAST; }
 
 #define GRAPH_OF(name)                                                                  \
-    const Result<std::optional<int>> name = graph_of(s, command, args, place);          \
+    const Result<std::optional<int>> name = optional_graph_of_command(s, command, args, place);          \
     if (!name) return std::unexpected<Error>(name.error())
 
 Result<std::string> set_apply(Session &s, const Command &command, const Arguments &args, const Place &place)

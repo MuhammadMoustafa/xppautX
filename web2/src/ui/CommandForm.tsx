@@ -2,7 +2,8 @@ import {choiceLabel} from '../store/fieldKinds';
 import {useRef, useState} from 'preact/hooks';
 import type {RegistryArgument} from '../protocol/kinds';
 import {useSession, useStore} from './context';
-import {registryRows} from './navigation';
+import {panelSpec, registryRows} from './navigation';
+import {useOpenOptions, useOptionRows} from './OptionsPanel';
 import {argumentNames, argumentProblem, argumentSpec, argumentValue, currentArguments, formValues, groupProblems, argumentControl, blankArgument} from './argumentFields';
 import {Field} from './Field';
 import {ColorField} from './ColorField';
@@ -23,7 +24,19 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
   useDialogFocus(box, []);
   const close = () => session.store.dispatch({type: 'commandForm', form: null});
   const set = (name: string, value: unknown) => setValues(old => ({...old, [name]: value}));
-  const args = row.arguments ?? [];
+  const spec = panelSpec(row.panel);
+  const group = useStore(s => s.hello?.options.find(g => g.group === spec?.group));
+  /* a command with a panel keeps in its form what no row sets: its own arguments, and the group's rows, which are the panel's (W616) */
+  const args = (row.arguments ?? []).filter(a => !spec || !a.option);
+  useOpenOptions(group?.group);
+  const options = useOptionRows(group ?? {group: '', label: '', rows: []}, spec?.sections ?? null);
+  /* the settings go first, then the command: a setting that does not apply is the error and the command still runs on what the session holds */
+  const send = (command: {cmd: string; [k: string]: unknown}) => {
+    const settings = options.settings();
+    if (settings) session.send(settings);
+    const given = Object.keys(command).filter(k => k !== 'cmd' && k !== 'window' && k !== 'file_picker');
+    return row.kind === 's' || row.kind === 'v' ? (given.length || !settings ? session.send(command) : true) : session.send(command);
+  };
   const problems = [...args.map(arg => argumentProblem(arg, values[arg.name])), ...groupProblems(row, values)];
   const control = (arg: RegistryArgument, value: unknown, change: (value: unknown) => void) => {
     const text = value === undefined ? '' : String(value);
@@ -55,16 +68,18 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
         const name = await session.uploadArgument(file); if (name) change(name);
       }} />}<button type="button" disabled={[...args.filter(a => a !== arg).map(a => argumentProblem(a, values[a.name])), ...groupProblems(row, {...values, [arg.name]: 'selected_file'})].some(Boolean)} onClick={() => {
         const command = formValues(args, values); delete command[arg.name];
-        if (session.send({cmd: id, ...command, file_picker: true})) close();
+        if (send({cmd: id, ...command, file_picker: true})) close();
       }}>Choose file and run…</button></span>;
     if (kind === 'path' && !arg.required) return <button type="button" onClick={() => {close(); session.send({cmd: id});}}>Choose file…</button>;
-    return <Field spec={argumentSpec(arg)} value={text} onInput={text => change(argumentValue(arg, text))} />;
+    /* an optional argument not set shows no error: nothing was typed in it */
+    return <Field spec={argumentSpec(arg)} value={text} check={value === undefined && !arg.required ? () => null : undefined} onInput={text => change(argumentValue(arg, text))} />;
   };
   return <Modal><div class="dialog registry-form" ref={box} role="dialog" aria-modal="true" aria-label={row.label} data-command-form={id}
     onKeyDown={e => {cycleDialogFocus(e, box.current);if (e.key === 'Escape') {e.stopPropagation(); close();}}}>
     <h2>{row.label}</h2><p>{row.description}</p>
     {SETS_OF_FORM[id] && <SetsRow scope={SETS_OF_FORM[id]} />}
-    <form onSubmit={e => {e.preventDefault(); if (problems.some(Boolean)) return; if (session.send({cmd: id, ...formValues(args, values)})) close();}}>
+    <form onSubmit={e => {e.preventDefault(); if (problems.some(Boolean) || options.invalid) return; if (send({cmd: id, ...formValues(args, values)})) close();}}>
+      {group && <div data-options-rows>{options.fields}{options.unused > 0 && <details class="unused-settings"><summary>Settings not used by this method or model</summary>{options.unusedFields}</details>}</div>}
       {args.map((arg, i) => fixed.includes(arg.name) ? null : <div class="registry-argument" data-argument={arg.name} key={arg.name}>
         <label><span>{choiceLabel(arg.name)}{arg.required ? ' *' : ''}</span>
           {!arg.required && arg.type !== 'path' && <input type="checkbox" aria-label={`Set ${choiceLabel(arg.name)}`} checked={values[arg.name] !== undefined}
@@ -73,7 +88,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
         </label>{problems[i] && <span class="field-error">{problems[i]}</span>}
       </div>)}
       {groupProblems(row, values).map(problem => <p class="field-error">{problem}</p>)}
-      <div class="dialog-actions"><button type="button" onClick={close}>Cancel</button><button type="submit" disabled={problems.some(Boolean)}>Run</button></div>
+      <div class="dialog-actions"><button type="button" onClick={close}>Cancel</button><button type="submit" disabled={problems.some(Boolean) || options.invalid}>Run</button></div>
     </form>
   </div></Modal>;
 }
