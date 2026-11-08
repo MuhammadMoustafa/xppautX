@@ -3181,6 +3181,8 @@ def check_hello_shared():
           hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
           and hello.get('window_names') == {'main':'graph_1','autox':'diagram_1','ani':'animation','aplot':'array_plot_1','browser':'browser'},
           str(hello.get('limits')) + str(hello.get('window_names')))
+    check('W653: hello names every file format as written, lowercase (the data formats, then the pictures)',
+          hello.get('file_formats') == ['dat', 'csv', 'csv.gz', 'npz', 'pdf', 'svg', 'gif', 'ppm'], str(hello.get('file_formats')))
     check('W121b: hello gives the core player speed range', hello.get('player_speed') == {'min': 0.25, 'max': 8} and hello.get('upload_error') == 'larger than 64 MB', str(hello.get('player_speed')))
     steps = {(c['cmd'], c.get('op')): c.get('step') for c in hello.get('commands', [])}
     check('W118: every command says whether it is a step: set and an export are, state, data, an answer, '

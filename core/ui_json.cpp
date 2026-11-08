@@ -28,6 +28,8 @@
 #include "autox_run.h"
 #include "autox_evd.h"
 #include "picture.h"
+#include "data_formats.h"
+#include "image_format.h"
 #include "json_error.h"
 #include "xpp_log.h"
 #include "xpp_http.h"
@@ -761,6 +763,17 @@ void buf_point_types(std::string &b)
     BUF_LIT(b, "]");
 }
 
+/* hello's "file_formats": every format's name as written, the data formats then the picture formats: a choice that is a
+   format is labelled by its name, lowercase (csv, csv.gz, pdf), so the page shows what a file or a command says */
+void buf_file_formats(std::string &b)
+{
+    std::vector<std::string> names;
+    for (const xpp::DataFormat &f : xpp::data_formats()) names.emplace_back(f.id);
+    for (int i = 0; i < xpp::n_image_formats; ++i) names.emplace_back(xpp::image_formats[i].extension);
+    BUF_LIT(b, ",\"file_formats\":");
+    buf_str_array(b, names);
+}
+
 void buf_commands(std::string &b)
 {
     BUF_LIT(b, ",\"commands\":[");
@@ -1220,6 +1233,7 @@ void send_hello(xpp::Session &s)
     b += xpp::options_table_json(s);
     buf_commands(b);
     buf_point_types(b);
+    buf_file_formats(b);
     BUF_LIT(b, ",\"autox_run\":");
     b += xpp::autox_run_table_json();
     /* The names accepted by a registry model_name of NameSet::any. */

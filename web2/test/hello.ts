@@ -55,6 +55,12 @@ function registrySource(): string {
 
 const RESERVED = [...readFileSync('../core/xpp_keymap.h', 'utf8').match(/RESERVED_KEYS = \{([^}]*)\}/)![1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
 
+/** every file format's name as hello gives it: the data formats (core/data_formats.h) then the picture formats' extensions (core/image_format.cpp) */
+const FILE_FORMATS = [
+  ...readFileSync('../core/data_formats.h', 'utf8').match(/data_format_ids = \{([^}]*)\}/)![1].matchAll(/"([^"]+)"/g),
+  ...readFileSync('../core/image_format.cpp', 'utf8').matchAll(/\.extension = "(\w+)"/g),
+].map(m => m[1]);
+
 /** autoX's point types as hello gives them (core/autox_codes.h's table) */
 export const POINT_TYPES: PointType[] = [
   {name: 'regular', label: 'Regular', mark: ''},
@@ -91,6 +97,7 @@ export const POINT_TYPES: PointType[] = [
 export const HELLO: HelloEvent = {
   ev: 'hello',
   point_types: POINT_TYPES,
+  file_formats: FILE_FORMATS,
   autox_run: {kinds: ['equilibrium', 'periodic'], current: ['equilibrium'], rows: []},
   state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: [],
   output_names: {csv: 'lecar.csv', curves: 'lecar-curves.csv'},

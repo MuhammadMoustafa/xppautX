@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
   choiceLabel, EXPRESSION, FILE, FORMULA, fieldAcceptsEdit, fieldCharMessage, fieldError, fieldIncomplete, fieldIncompleteReason,
-  fieldInputMode, fieldMessage, fieldPasteMessage, fieldPasteOffender, fieldsValid, NUMBER, specOfKind, TEXT,
+  fieldInputMode, fieldMessage, fieldPasteMessage, fieldPasteOffender, fieldsValid, NUMBER, setFileFormats, specOfKind, TEXT,
   type FieldSpec,
 } from '../src/store/fieldKinds';
 
@@ -184,4 +184,14 @@ test('a boolean takes true or false; a choice one of its names exactly; a real i
 test('a choice\'s label is its name, underscores as spaces, a capital first letter (W485)', () => {
   assert.equal(choiceLabel('both'), 'Both');
   assert.equal(choiceLabel('maximum_and_minimum'), 'Maximum and minimum');
+});
+
+test('a file format is labelled by its name as written, lowercase, without the dot (W653); a choice that is not one is not', () => {
+  setFileFormats(['dat', 'csv', 'csv.gz', 'npz', 'pdf', 'svg', 'gif']);
+  assert.equal(choiceLabel('csv'), 'csv');
+  assert.equal(choiceLabel('csv.gz'), 'csv.gz');
+  assert.equal(choiceLabel('pdf'), 'pdf');
+  assert.equal(choiceLabel('both'), 'Both');
+  setFileFormats([]);
+  assert.equal(choiceLabel('csv'), 'Csv', 'without hello\'s list a choice is capitalised as before');
 });

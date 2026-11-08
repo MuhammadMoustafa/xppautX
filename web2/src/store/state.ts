@@ -3,6 +3,7 @@
    viewports, the tab shown, hover, notifications, the menu drawer) as their
    own actions. Pure: no DOM, no I/O, no clock. */
 import {setPointTypes} from './pointTypes';
+import {setFileFormats} from './fieldKinds';
 import {computationLabel} from '../protocol/kinds';
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, WindowListEntry, XppEvent} from '../protocol/types';
@@ -410,6 +411,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const values = reduceValues({...state.values, defaults: null}, {type: 'settled'});
       /* a set sent before gets no done now */
       setPointTypes(ev.point_types);
+      setFileFormats(ev.file_formats);
       return {...state, hello: ev, title: ev.title, values, numerics: null, selectedAnnotation: null, commandForm: null, optionsPanel: null, optionValues: {}, valuesFile: null, windows: [],
         autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'reset'}),
         keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};

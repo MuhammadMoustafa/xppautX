@@ -76,6 +76,8 @@ export interface HelloEvent {
   model_names: string[];
   /** every point type: its name (the only input), its label and its mark (core/autox_codes.h's one table) */
   point_types: PointType[];
+  /** every file format's name as written, lowercase (csv, csv.gz, pdf): a choice that is one is labelled by it */
+  file_formats: string[];
   userbuttons: string[];
   /** the colour scales the core has, by name (the array plot's choice) */
   colormaps: string[];

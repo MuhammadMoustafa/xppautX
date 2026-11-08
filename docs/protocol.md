@@ -450,7 +450,8 @@ common overwrite question applies. They return a placed error if the output coul
    every command's kind and
    whether it is a step (`commands`): see "Action kinds"; the limits the
    core keeps to (`limits`) and the initial window names (`window_names`): see
-   "Shared limits and ids"; the user's keymap (`keymap`: "Keymap").
+   "Shared limits and ids"; every file format's name as written, lowercase and without the dot (`file_formats`: `dat`, `csv`, `csv.gz`,
+   `npz`, `pdf`, `svg`, `gif`, `ppm`; a choice that is one of them is shown by its name, every other choice capitalised); the user's keymap (`keymap`: "Keymap").
 2. `window` `create` for the named main graph.
 3. `session.state`, then `done` (the answer to `session.get_state`, which the program runs first).
 

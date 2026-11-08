@@ -803,6 +803,9 @@ async function dataTable(want, dir) {
   const exportFormats = await cdp.eval(`__xpp.state().hello.commands.find(c => c.cmd === 'browser.export').arguments.find(a => a.name === 'format').choices`);
   check('W648: the Export data menu lists the registry\'s formats, none marked before one is used',
     JSON.stringify((await exportEntries()).map(e => e[0])) === JSON.stringify(exportFormats) && exportFormats.length === 4 && (await exportEntries()).every(e => !e[1].startsWith('✓')), JSON.stringify(await exportEntries()));
+  /* W653: a file format's entry reads its name as written, lowercase (dat, csv, csv.gz, npz), as the file carries it */
+  check('W653: the Export data entries read the formats as written (dat, csv, csv.gz, npz)',
+    JSON.stringify((await exportEntries()).map(e => e[1])) === JSON.stringify(['dat', 'csv', 'csv.gz', 'npz']), JSON.stringify(await exportEntries()));
   check('W648: no page-made Export CSV button is left in the header',
     await cdp.eval(`[...document.querySelectorAll('.table-panel .panel-header > button, .table-panel .table-title > button, .table-panel .table-actions > button')].map(b => b.textContent.trim()).join('|')`) === 'Back to Values|×|?|Load data',
     await cdp.eval(`[...document.querySelectorAll('.table-panel .panel-header > button, .table-panel .table-title > button, .table-panel .table-actions > button')].map(b => b.textContent.trim()).join('|')`));

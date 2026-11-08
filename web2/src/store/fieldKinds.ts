@@ -138,9 +138,19 @@ const KINDS: {[K in FieldKind]: KindEntry<K>} = {
   },
 };
 
+/* the file formats' names as hello gives them (core/ui_json.cpp buf_file_formats) */
+let fileFormats = new Set<string>();
+
+/** keeps hello's file formats; a (re)connection sends them again */
+export function setFileFormats(names: readonly string[]): void {
+  fileFormats = new Set(names);
+}
+
 /** a choice's label: its name with the underscores as spaces and a capital first letter, derived,
-    never written apart ("extra_large" is "Extra large") */
+    never written apart ("extra_large" is "Extra large"). A file format is the one exception: its name
+    as written, lowercase, without the dot ("csv", "csv.gz", "pdf"), so the menu shows what a file says */
 export function choiceLabel(name: string): string {
+  if (fileFormats.has(name)) return name;
   const spaced = name.replace(/_/g, ' ');
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
