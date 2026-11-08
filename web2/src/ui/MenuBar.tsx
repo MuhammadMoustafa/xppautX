@@ -17,10 +17,11 @@ export function MenuButton() {
 /** one entry of a level: a command's item, or a submenu (`menu`: its title and the level under it) */
 interface Entry {menu: boolean; el: ComponentChildren}
 
-/** a level's entries, with a line where one kind follows the other (a command after a submenu, or the reverse). The
-    kind is the tree's own (a node with a row is a command), never a field of the rows. */
+/** a level's entries, its commands first and then its submenus (each kind in its own order), with a line between the
+    two kinds. The kind is the tree's own (a node with a row is a command), never a field of the rows. */
 function withRules(entries: Entry[]): ComponentChildren[] {
-  return entries.flatMap((entry, i) => i > 0 && entries[i - 1].menu !== entry.menu
+  const ordered = [...entries.filter(entry => !entry.menu), ...entries.filter(entry => entry.menu)];
+  return ordered.flatMap((entry, i) => i > 0 && ordered[i - 1].menu !== entry.menu
     ? [<li key={`rule-${i}`} class="menu-rule" role="separator" aria-hidden="true" />, entry.el] : [entry.el]);
 }
 

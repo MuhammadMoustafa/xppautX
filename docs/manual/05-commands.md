@@ -6,7 +6,8 @@ The menu bar has **File**, **Run**, **Analysis**, **Plot**, **Data**, **autoX**,
 **Windows** and **Help**. File holds models, sessions, recordings, sets and
 exports (Export is a submenu); Run holds integration, initial conditions, the
 Poincaré map and boundary values; Analysis holds equilibria, nullclines,
-direction fields, statistics, spectra, stochastic runs, adjoints and tables.
+direction fields, a Statistics submenu (**Column statistics** gives a column's
+mean, variance and standard deviation), spectra, stochastic runs, adjoints and tables.
 Plot holds curves, axes, styles and annotations. Data opens the browser and
 values. autoX holds its run controls, File, Export, Branch and View. Windows
 opens the new graph, the new autoX view, the animation and the array plot, and

@@ -385,7 +385,7 @@ constexpr std::array ROWS = {
             "Make the two-dimensional histogram of two columns of the stored data.", HISTOGRAM_2D_RESULTS, SHOWN_EVENTS, true, histogram_2d_handler},
     Command{"analysis.reload_histogram", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show last histogram", "Analysis/Statistics",
             "Show the last histogram in the data browser again.", RELOADED_RESULTS, SHOWN_EVENTS, true, done_with<reload_histogram, RELOADED>},
-    Command{"analysis.statistics", COLUMN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Statistics", "Analysis/Statistics",
+    Command{"analysis.statistics", COLUMN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Column statistics", "Analysis/Statistics",
             "The mean, variance and standard deviation of a column of the stored data.", STATISTICS_RESULTS, DONE_EVENTS, true, statistics_handler},
     Command{"analysis.fit_curve", FIT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Fit data", "Analysis/Statistics",
             "Fit parameters and initial values so that variables of the model follow columns of a data file of the model's folder (Levenberg-Marquardt).",

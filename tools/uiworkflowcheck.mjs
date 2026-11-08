@@ -89,7 +89,7 @@ try {
   await run(); await until('__xpp.state().table.page.rows > 0 && !__xpp.state().busy', 'derived column recomputed');
   assert.ok(await state('s.table.page.data.every(r => Math.abs(r.at(-1) - r[2]*3) < 1e-5)'), 'remaining derived column recomputes correctly');
   console.log('PASS Delete column shifts values safely and remaining formulas recompute');
-  await cdp.eval("[...document.querySelectorAll('button')].find(b => b.textContent === 'New window').click(); true");
+  await cdp.eval("[...document.querySelectorAll('button')].find(b => b.textContent === 'New graph').click(); true");
   await until('__xpp.state().plots.windows.length === 2 && !__xpp.state().busy', 'additional plot');
   const active = await state('s.plots.active');
   await cdp.eval("document.querySelector('.plot-view:not([hidden]) [data-plot-axis=y]').click(); true");
