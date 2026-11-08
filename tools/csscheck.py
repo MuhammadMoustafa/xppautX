@@ -22,14 +22,11 @@ def strip_comments(text):
 
 def parse(text, path):
     """(path, line, media, selectors, declarations) per style rule."""
-    rules, stack, i, n = [], [], 0, len(text)
-    line = 1
-    cur_start = 0
+    rules, stack, i, n, line, cur_start = [], [], 0, len(text), 1, 0
     while i < n:
         c = text[i]
         if c == "{":
             head = text[cur_start:i].strip()
-            hline = line - text[cur_start:i].lstrip().count("\n") if False else line
             if head.startswith("@"):
                 stack.append(("at", head))
             else:
@@ -71,7 +68,7 @@ def check(paths):
             m = re.match(r"z-index\s*:\s*(.*)$", d)
             if m and not re.fullmatch(r"var\(--z-[a-z0-9-]+\)", m.group(1)):
                 bad.append(f"{where}: z-index {m.group(1)} is not a named layer (var(--z-...), tokens.css)")
-        for m in re.finditer(r"\((min|max)-width:\s*([^)\s]+)\s*\)", media if media.startswith("@media") or "@media" in media else ""):
+        for m in re.finditer(r"\((min|max)-width:\s*([^)\s]+)\s*\)", media if "@media" in media else ""):
             if m.group(2) not in BREAKPOINTS[m.group(1) + "-width"]:
                 bad.append(f"{where}: breakpoint {m.group(1)}-width: {m.group(2)} is not on docs/ui-v2.md's list "
                            f"({', '.join(sorted(BREAKPOINTS[m.group(1) + '-width']))})")
