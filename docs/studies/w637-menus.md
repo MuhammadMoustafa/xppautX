@@ -1,12 +1,19 @@
 # W637: the menus grouped by task
 
-Decided 2026-11-08 by the maintainer from mockups of the real page (each menu today and proposed, submenus opened; dark at 1440 px, phone at 390 px): "Ok", accepting the proposal as shown. Issue #709.
+Decided 2026-11-08 by the maintainer from two rounds of mockups of the real page (each menu today and proposed, every submenu open; 1024 and 1280 px light, 1440 px dark, the phone drawer at 390 px). Round 1 was too long in places ("Don't you think some menus are too long?") and kept the header's Tools menu, a second menu beside the menu bar ("are we duplicating ourselves here?"); round 2: "Accepted". Issue #709.
 
-The menu bar (the side drawer on a phone is the same menus) holds a command only where the user looks for its task. A command whose home is a view (the graph's row, the Table view, the Array plot, Animation and player bars, the autoX window, slider cards, each window's submenu in Windows, the shortcuts editor) leaves the menu bar; every command stays in Search commands.
+## Rules
+
+- One menu: the menu bar, shown as a drawer on a phone. The header's Tools menu goes: everything in it is in File › Recording or Windows. The header's Values, Data table, Model and Help buttons stay until W644 makes those panels the dock's tabs.
+- A command whose home is a view (the graph's row and Kinescope bar, the Table view, the Array plot, Animation and player bars, the autoX window, Values' Sets rows, slider cards, each window's submenu in Windows, the shortcuts editor) leaves the menu bar. Every command stays in Search commands.
+- No level holds more than 12 rows.
+- Submenus fly out to the side at 48rem and wider, one open at a time, a › at the right of the title; the menu keeps its own height (no max-height or scroll is needed any more). The phone's drawer keeps unfolding them inside.
+- A line separates a menu's commands from its submenus, wherever one follows the other; it is derived from the tree, not stored in the rows.
+- A home marked NEW below has no control for the command in its view today: W637 adds one there.
 
 ## Menu places, in display order
 
-| Command | Label | Today | Proposed |
+| Command | Label | Today | Decided |
 |---|---|---|---|
 | `session.open_model` | Open model | File | File |
 | `session.reload_model` | Reload model | File | File |
@@ -15,16 +22,9 @@ The menu bar (the side drawer on a phone is the same menus) holds a command only
 | `session.save_as` | Save session as | File | File |
 | `session.save_copy` | Save a copy of the session | File | File |
 | `session.export_info` | Export simulation information | File | File |
-| `set.apply` | Apply set | File/Sets | File/Sets |
-| `set.save_new` | Save as new set | File/Sets | File/Sets |
-| `set.save_into` | Replace in set | File/Sets | File/Sets |
-| `set.save_defaults` | Save as defaults | File/Sets | File/Sets |
-| `set.restore_defaults` | Restore defaults | File/Sets | File/Sets |
 | `set.rename` | Rename set | File/Sets | File/Sets |
 | `set.delete` | Delete set | File/Sets | File/Sets |
-| `set.file_contents` | Load from file | File/Sets | File/Sets |
 | `set.load_file` | Load a named part of a file | File/Sets | File/Sets |
-| `set.export` | Export set | File/Sets | File/Sets |
 | `session.import_xppaut_state` | Import XPPAUT session state | File/Sets | File/Sets |
 | `recording.start` | Start recording | File | File/Recording |
 | `recording.stop` | Stop recording | File | File/Recording |
@@ -86,12 +86,12 @@ The menu bar (the side drawer on a phone is the same menus) holds a command only
 | `analysis.reload_histogram` | Show last histogram | Analysis/Numerics/Stochastic | Analysis/Statistics |
 | `analysis.statistics` | Statistics | Analysis/Numerics/Stochastic | Analysis/Statistics |
 | `analysis.fit_curve` | Fit data | Analysis/Numerics/Stochastic | Analysis/Statistics |
-| `analysis.fourier_series` | Fourier series | Analysis/Numerics/Stochastic | Analysis/Statistics |
-| `analysis.power_spectrum` | Power spectrum | Analysis/Numerics/Stochastic | Analysis/Statistics |
-| `analysis.spectral_density` | Spectral density | Analysis/Numerics/Stochastic | Analysis/Statistics |
-| `analysis.autocorrelation` | Autocorrelation | Analysis/Numerics/Stochastic | Analysis/Statistics |
-| `analysis.cross_correlation` | Cross-correlation | Analysis/Numerics/Stochastic | Analysis/Statistics |
 | `analysis.lyapunov_exponent` | Lyapunov exponent | Analysis/Numerics/Stochastic | Analysis/Statistics |
+| `analysis.fourier_series` | Fourier series | Analysis/Numerics/Stochastic | Analysis/Spectra |
+| `analysis.power_spectrum` | Power spectrum | Analysis/Numerics/Stochastic | Analysis/Spectra |
+| `analysis.spectral_density` | Spectral density | Analysis/Numerics/Stochastic | Analysis/Spectra |
+| `analysis.autocorrelation` | Autocorrelation | Analysis/Numerics/Stochastic | Analysis/Spectra |
+| `analysis.cross_correlation` | Cross-correlation | Analysis/Numerics/Stochastic | Analysis/Spectra |
 | `analysis.stochastic_integrate` | Compute stochastic runs | Analysis/Numerics/Stochastic | Analysis/Stochastic |
 | `analysis.load_stochastic_run` | Show last run data | Analysis/Numerics/Stochastic | Analysis/Stochastic |
 | `analysis.load_stochastic_mean` | Show mean | Analysis/Numerics/Stochastic | Analysis/Stochastic |
@@ -109,14 +109,16 @@ The menu bar (the side drawer on a phone is the same menus) holds a command only
 | `analysis.phase_space_torus` | Phase space torus | Analysis/Phase space | Analysis |
 | `tool.calculator` | Calculator | Analysis | Analysis |
 | `plot.set_variables` | Set variables | Plot | Plot |
+| `plot.add_data_markers` | Add data markers | Plot/Annotations | Plot |
+| `annotation.delete_all` | Delete all annotations | Plot/Annotations | Plot |
 | `plot.variable_vs_time` | Variable vs time | Plot | Plot |
-| `plot.set_2d` | Set 2D plot | Plot/Axes | Plot |
-| `plot.set_3d` | Set 3D plot | Plot/Axes | Plot |
-| `plot.set_3d_view` | Set 3D view | Plot | Plot |
-| `plot.set_axes_origin` | Axes options | Plot/Curves | Plot |
-| `plot.set_shifted_axes` | Ruelle plot | Plot/Numerics | Plot |
 | `plot.set_colormap` | Colormap | Plot/Curves | Plot |
 | `analysis.color_coding` | Color by value | Analysis/Numerics | Plot |
+| `plot.set_2d` | Set 2D plot | Plot/Axes | Plot/Axes |
+| `plot.set_3d` | Set 3D plot | Plot/Axes | Plot/Axes |
+| `plot.set_3d_view` | Set 3D view | Plot | Plot/Axes |
+| `plot.set_axes_origin` | Axes options | Plot/Curves | Plot/Axes |
+| `plot.set_shifted_axes` | Ruelle plot | Plot/Numerics | Plot/Axes |
 | `plot.add_curve` | Add curve | Plot/Curves | Plot/Curves |
 | `plot.edit_curve` | Edit curve | Plot/Curves | Plot/Curves |
 | `plot.delete_curve` | Delete last curve | Plot/Curves | Plot/Curves |
@@ -129,8 +131,6 @@ The menu bar (the side drawer on a phone is the same menus) holds a command only
 | `plot.set_autox_freeze` | Freeze after every run | Plot/Freeze | Plot/Freeze |
 | `plot.import_bifurcation` | Import bifurcation diagram | Plot/Freeze | Plot/Freeze |
 | `plot.clear_bifurcation` | Clear bifurcation diagram | Plot/Freeze | Plot/Freeze |
-| `plot.add_data_markers` | Add data markers | Plot/Annotations | Plot |
-| `annotation.delete_all` | Delete all annotations | Plot/Annotations | Plot |
 | `window.set_bounds` | Set view bounds | Plot/View | Plot/View |
 | `window.reset_default` | Default view | Plot/View | Plot/View |
 | `window.zoom` | Zoom in | Plot/View | Plot/View |
@@ -153,12 +153,12 @@ The menu bar (the side drawer on a phone is the same menus) holds a command only
 | `autox.open_session` | Open diagram | File/autoX | autoX/File |
 | `autox.import_diagram` | Import XPPAUT diagram | autoX/File | autoX/File |
 | `autox.reset_all` | Reset diagram | autoX/File | autoX/File |
-| `autox.export_pdf` | Export diagram PDF | File/autoX | autoX/File |
-| `autox.export_svg` | Export diagram SVG | File/autoX | autoX/File |
-| `autox.export_csv` | Export CSV | File/autoX | autoX/File |
-| `autox.export_points` | Write points | File/autoX | autoX/File |
-| `autox.export_all_info` | Write all info | File/autoX | autoX/File |
-| `autox.export_initial_data` | Write initial data | File/autoX | autoX/File |
+| `autox.export_pdf` | Export diagram PDF | File/autoX | autoX/Export |
+| `autox.export_svg` | Export diagram SVG | File/autoX | autoX/Export |
+| `autox.export_csv` | Export CSV | File/autoX | autoX/Export |
+| `autox.export_points` | Write points | File/autoX | autoX/Export |
+| `autox.export_all_info` | Write all info | File/autoX | autoX/Export |
+| `autox.export_initial_data` | Write initial data | File/autoX | autoX/Export |
 | `autox.load_orbit_into_browser` | Load orbit into browser | autoX/File | autoX/Branch |
 | `autox.load_branch_into_browser` | Load branch into browser | autoX/File | autoX/Branch |
 | `autox.range_branch` | Range over a branch | autoX/File | autoX/Branch |
@@ -183,8 +183,6 @@ The menu bar (the side drawer on a phone is the same menus) holds a command only
 | `tool.manual` | Manual | Help | Help |
 
 ## Leaving the menu bar, by their home
-
-A home marked NEW has no control for the command in its view today: W637 adds one there.
 
 | Home | Command | Label | Today |
 |---|---|---|---|
@@ -253,6 +251,13 @@ A home marked NEW has no control for the command in its view today: W637 adds on
 | autoX window (toolbar, click on the diagram) | `autox.pick` | Pick point | autoX |
 | autoX window (toolbar, click on the diagram) | `autox.set_display` | Set diagram display | autoX/View |
 | autoX window (toolbar, click on the diagram) | `autox.fit` | Fit diagram | autoX/View |
+| Values panel (each group's Sets row) | `set.apply` | Apply set | File/Sets |
+| Values panel (each group's Sets row) | `set.save_new` | Save as new set | File/Sets |
+| Values panel (each group's Sets row) | `set.save_into` | Replace in set | File/Sets |
+| Values panel (each group's Sets row) | `set.save_defaults` | Save as defaults | File/Sets |
+| Values panel (each group's Sets row) | `set.restore_defaults` | Restore defaults | File/Sets |
+| Values panel (each group's Sets row) | `set.file_contents` | Load from file | File/Sets |
+| Values panel (each group's Sets row) | `set.export` | Export set | File/Sets |
 | slider card under the plot | `value.slide` | Slide value | Data/Sliders |
 | slider card under the plot | `value.configure_slider` | Configure slider | Data/Sliders |
 | slider card under the plot | `value.remove_slider` | Remove slider | Data/Sliders |
