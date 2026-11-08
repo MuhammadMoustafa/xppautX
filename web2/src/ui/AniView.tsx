@@ -11,6 +11,7 @@
    (Shift: ten), PageUp/PageDown ten, Home/End go to the first and last
    frame, Escape closes the panel. Nothing plays by itself (A6): Go is only
    ever the user's. */
+import {openPanel} from './hotkeys';
 import {cssVar} from '../plot/css';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
@@ -55,20 +56,12 @@ export function AniView() {
 
   const close = () => session.closeAni();
 
-  /* focus to the picture on open, back to the toggle on close; Escape inside closes */
+  /* focus to the picture on open, back to the toggle on close; Escape closes it (hotkeys.ts's one owner, openPanel) */
   useFocusBackOnClose(open, panel, '.ani-toggle');
   useEffect(() => {
     if (!open) return;
     stage.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || session.store.getState().ask) return;
-      if (!panel.current?.contains(document.activeElement)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return openPanel(close);
   }, [open]);
 
   useEffect(() => {

@@ -30,7 +30,7 @@ import {TEXT} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {FOCUSABLE} from './dialogFocus';
-import {FIXED_KEYS, shortcutLabel} from './hotkeys';
+import {FIXED_KEYS, shortcutLabel, openPanel} from './hotkeys';
 
 /** F1's own exclusion (narrower than hotkeys.ts's TYPING: a dialog or menu
     being open must not block Help -- only a field that might have its own
@@ -119,20 +119,12 @@ export function HelpView() {
     return () => window.removeEventListener('keydown', onKey);
   }, [session]);
 
-  /* focus in on open, back to the toggle on close; Escape closes it,
-     wherever the focus is inside (narrow only: CSS keeps it open elsewhere) */
+  /* focus in on open, back to the toggle on close; Escape closes it (hotkeys.ts's one owner, openPanel) */
   useFocusBackOnClose(help.open, panel, '.help-toggle');
   useEffect(() => {
     if (!help.open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || session.store.getState().ask) return;
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return openPanel(close);
   }, [help.open]);
 
   /* the anchor a "?" link, a chapter link or a search result asked for

@@ -14,6 +14,7 @@
    file ask (a Cancel-only placeholder until T5). Export CSV is the client's
    own: the rows fetched so far (docs/ui-v2.md T10, "CSV export done in the
    client from fetched data"). */
+import {openPanel} from './hotkeys';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import {HELP} from '../help/links';
@@ -90,20 +91,12 @@ export function TableView() {
 
   const close = () => session.closeTable();
 
-  /* focus in on open, back to the toggle on close; Escape closes it,
-     wherever the focus is inside (narrow only: CSS keeps it open elsewhere) */
+  /* focus in on open, back to the toggle on close; Escape closes it (hotkeys.ts's one owner, openPanel) */
   useFocusBackOnClose(open, panel, '.table-toggle');
   useEffect(() => {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || session.store.getState().ask) return;
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return openPanel(close);
   }, [open]);
 
   /* the visible window: only it (plus a small buffer) is ever fetched or rendered */

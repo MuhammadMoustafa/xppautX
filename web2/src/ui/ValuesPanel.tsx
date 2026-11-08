@@ -17,6 +17,7 @@
    (its title names it) and is marked when it differs; there is no undo
    (GitHub #110): Reset is the way back. Each section folds (remembered
    per viewer), and Parameters, States and Numerics each have a sets row (SetsRow.tsx, W323). */
+import {openPanel} from './hotkeys';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren} from 'preact';
@@ -342,18 +343,9 @@ export function ValuesPanel() {
   useEffect(() => {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
-    /* Escape closes the sheet wherever the focus is inside it (narrow only: CSS keeps it open
-       elsewhere), before the page's hotkeys see it -- except in a box with an edit to drop
-       (Field's data-own-escape, UX-001): there Escape drops the edit, and a second one closes. */
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || session.store.getState().ask) return;
-      if ((e.target as Element | null)?.closest?.('[data-own-escape]')) return;
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    /* Escape closes the sheet through hotkeys.ts's one owner (openPanel); a box with an edit to drop
+       keeps its Escape (Field's data-own-escape, UX-001) */
+    return openPanel(close);
   }, [open]);
 
   return (

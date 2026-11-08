@@ -3208,6 +3208,44 @@ async function keysCheck() {
   check('W517: Tab stays in the common form', await cdp.eval(`!!document.activeElement.closest('.registry-form')`));
   await key('Escape');
   check('W517: Escape cancels the form without sending', await S('!s.commandForm && !s.ask'));
+  await escapeOwnerCheck();
+}
+
+/* W633: one owner for Escape (hotkeys.ts), innermost first: an open menu, then a dialog, a pick or grab, the
+   topmost open panel (the last opened), and last a running command's stop. One press does one of these. */
+async function escapeOwnerCheck() {
+  const panelOpen = id => cdp.eval(`document.getElementById(${JSON.stringify(id)}).classList.contains('open')`);
+  const dataButton = () => cdp.eval(`document.querySelector('.table-toggle').click()`);
+  await dataButton();
+  check('W633: the Data panel opens from the Tools menu', await until(`document.getElementById('table-panel').classList.contains('open')`, 'data panel'));
+  await cdp.eval(`document.querySelector('[data-top-menu=File] > summary').click()`);
+  await rendered();
+  await key('Escape');
+  check('W633: a menu open over a panel: Escape closes the menu only',
+    await cdp.eval(`!document.querySelector('.app-menu details[open]')`) && await panelOpen('table-panel'));
+  await key('F1');
+  check('W633: F1 opens Help over the Data panel', await until(`document.getElementById('help-panel').classList.contains('open')`, 'help open'));
+  await key('Escape');
+  check('W633: two panels open: one Escape closes the topmost (Help) only',
+    await until(`!document.getElementById('help-panel').classList.contains('open')`, 'help closed') && await panelOpen('table-panel'));
+  await key('Escape');
+  check('W633: the next Escape closes the Data panel', await until(`!document.getElementById('table-panel').classList.contains('open')`, 'data closed'));
+  await dataButton();
+  await until(`document.getElementById('table-panel').classList.contains('open')`, 'data panel again');
+  await clickRegistry('window.rename');
+  check('W633: a form opens over the panel', await until('!!s.commandForm', 'form'));
+  await key('Escape');
+  check('W633: a dialog over a panel: Escape closes the dialog only',
+    await until('!s.commandForm', 'form closed') && await panelOpen('table-panel'));
+  await menuRun('run.configure', {total_time: 1e6});
+  await requireUntil('!s.busy', 'Total applied');
+  await menuRun('run.initial');
+  check('W633: a run under way', await until('s.busy && !s.ask && w.series && w.series.rows > 0', 'the run under way', 30000));
+  await key('Escape');
+  check('W633: during a run, Escape closes the panel first and the run goes on',
+    await until(`!document.getElementById('table-panel').classList.contains('open')`, 'panel closed') && await S('s.busy'));
+  await key('Escape');
+  check('W633: the next Escape stops the run', await until('!s.busy', 'run stopped', 30000));
 }
 
 

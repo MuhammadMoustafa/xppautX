@@ -14,6 +14,7 @@
    `equilibrium`): its type, eigenvalue counts, and values, six significant
    digits (A14) with the full value on hover/title; Import
    (the equilibrium window's key `i`, docs/protocol.md) makes it the initial conditions. */
+import {openPanel} from './hotkeys';
 import {useEffect, useRef} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {Session} from '../session';
@@ -150,15 +151,8 @@ export function TextViews() {
   useEffect(() => {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
-    /* Escape closes the sheet wherever the focus is inside it (narrow only: CSS keeps it open elsewhere) */
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || session.store.getState().ask) return;
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    /* Escape closes the sheet through hotkeys.ts's one owner (openPanel) */
+    return openPanel(close);
   }, [open]);
 
   return (

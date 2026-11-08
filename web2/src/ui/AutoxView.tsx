@@ -1,3 +1,4 @@
+import {openPanel} from './hotkeys';
 import {WindowName} from './WindowName';
 /* The autoX view (docs/ui-v2.md T11a): the bifurcation diagram drawn from
    the `diagram` data (store/diagram.ts, plot/diagramModel.ts), with the autoX
@@ -153,16 +154,6 @@ const GRAB_HELP = 'Arrow keys or square brackets step to the next or previous po
 function GrabBar() {
   const session = useSession();
   const waiting = useStore(s => s.ask?.kind !== 'grab');
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return;
-      e.preventDefault();
-      e.stopPropagation();
-      session.cancelPick();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [session]);
   const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   return (
     <div class="pick-bar" data-pick="grab">
@@ -580,22 +571,11 @@ function AutoxPanel({dark}: {dark: boolean}) {
 
   const panel = useRef<HTMLElement>(null);
 
-  /* keys anywhere in the panel: autoX's hotkeys (not from a control), Escape hides it */
-  const onPanelKey = (e: KeyboardEvent) => {
-    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
-    const {ask, busy: running} = session.store.getState();
-    if (ask) return;
-    if (e.key === 'Escape' && !running) {
-      e.preventDefault();
-      e.stopPropagation();
-      session.showAutox(false);
-      return;
-    }
-
-  };
+  /* Escape hides the panel, through hotkeys.ts's one owner (openPanel), as the other panels */
+  useEffect(() => openPanel(() => session.showAutox(false)), [session]);
 
   return (
-    <section id="autox-panel" ref={panel} class="autox-panel" aria-label="autoX" onKeyDown={onPanelKey}>
+    <section id="autox-panel" ref={panel} class="autox-panel" aria-label="autoX">
       <div class="autox-header">
         <button class="autox-back" onClick={() => session.showAutox(false)}
           title="autoX stays open, with its diagram and a running continuation; Show autoX brings it back">Hide autoX</button>

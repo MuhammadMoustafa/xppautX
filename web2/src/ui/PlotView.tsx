@@ -149,16 +149,6 @@ export function FitButton({onClick, title, disabled = false}: {onClick: () => vo
 export function PickBar({pick}: {pick: PickState}) {
   const session = useSession();
   const hint = useStore(s => s.box);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return;
-      e.preventDefault();
-      e.stopPropagation();
-      session.cancelPick();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [session]);
   const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
   return (
     <div class="pick-bar" data-pick={pick.mode}>

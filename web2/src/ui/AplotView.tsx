@@ -16,6 +16,7 @@
    (plot/aplotScroll.ts). Hover (mouse or a finger held) names the cell
    under the pointer: its variable (from the title, store/aplot.ts
    aplotColumnName), its row's approximate time and its value. */
+import {openPanel} from './hotkeys';
 import {useEffect, useRef} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import {cellColor, legendStops} from '../plot/aplotColors';
@@ -60,19 +61,12 @@ export function AplotView() {
 
   const close = () => session.closeAplot();
 
-  /* focus in on open, back to the toggle on close; Escape closes it */
+  /* focus in on open, back to the toggle on close; Escape closes it (hotkeys.ts's one owner, openPanel) */
   useFocusBackOnClose(open, panel, '.aplot-toggle');
   useEffect(() => {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || session.store.getState().ask) return;
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    return openPanel(close);
   }, [open]);
 
   /* the canvas tracks its box's actual pixel size (R1/R5: no fixed px layout) */

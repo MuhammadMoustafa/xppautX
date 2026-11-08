@@ -100,16 +100,54 @@ export function closeTools(details: HTMLDetailsElement, focus: boolean): void {
   if (focus) details.querySelector('summary')?.focus();
 }
 
-/** Escape closes what the page opened over its work, the innermost first (the Tools menu, then
-    the command drawer); true when it closed one. The one place that does, so no component holds a
-    document-wide Escape listener that could take the key from the Player or a dialog. */
-function closeTransient(session: Session): boolean {
+/** Close the menu bar's open menus (the one place that does): `focus` returns the focus to the title of the
+    menu the focus was in (Escape, an entry's choice); a click outside leaves it where it is. True when a menu was open. */
+export function closeMenuBar(focus: boolean): boolean {
+  const bar = document.querySelector<HTMLElement>('.app-menu');
+  const open = bar?.querySelectorAll('details[open]');
+  if (!bar || !open?.length) return false;
+  const title = document.activeElement?.closest('[data-top-menu]')?.querySelector<HTMLElement>(':scope > summary');
+  open.forEach(d => d.removeAttribute('open'));
+  if (focus) title?.focus();
+  return true;
+}
+
+/** the open panels, the last opened on top: Escape closes the topmost (escape) */
+const panels: {close: () => void}[] = [];
+
+/** A panel that is open registers how it closes; the returned function removes it again (an effect's cleanup). */
+export function openPanel(close: () => void): () => void {
+  const entry = {close};
+  panels.push(entry);
+  return () => {
+    const at = panels.indexOf(entry);
+    if (at >= 0) panels.splice(at, 1);
+  };
+}
+
+/** the questions a pick or a grab asks: Escape cancels them (PickBar, GrabBar's cancelPick) */
+const PICK_ASKS = new Set(['mouse', 'rubber', 'drag', 'grab']);
+
+/** Escape, the one owner of the key (W633). A press does one thing, the innermost first: an open menu (the
+    menu bar, then the Tools menu), the command drawer, a pick or a grab, a question the page asks (answered as
+    cancelled; a dialog keeps its own Escape and never reaches here), the topmost open panel, and last the stop of a
+    running command. A panel's field that holds an edit to drop keeps its Escape (data-own-escape). True when taken. */
+function escape(session: Session, target: Element | null): boolean {
+  const {busy, ask, pick, drawerOpen} = session.store.getState();
+  if (closeMenuBar(true)) return true;
   const tools = document.querySelector<HTMLDetailsElement>(`${TOOLS_MENU}[open]`);
   if (tools) { closeTools(tools, true); return true; }
-  const {drawerOpen, ask} = session.store.getState();
-  if (!drawerOpen || ask) return false;
-  session.store.dispatch({type: 'drawer', open: false});
-  return true;
+  if (drawerOpen && !ask) { session.store.dispatch({type: 'drawer', open: false}); return true; }
+  if (pick || (ask && PICK_ASKS.has(ask.kind))) { session.cancelPick(); return true; }
+  if (ask) {
+    if (!isHotkeyTarget(target, 'Escape')) return false;
+    session.typeKey('Escape');
+    return true;
+  }
+  const top = panels[panels.length - 1];
+  if (top && !target?.closest?.('[data-own-escape]')) { top.close(); return true; }
+  if (busy) { session.abort(); return true; }
+  return false;
 }
 
 /** Run the command a key names, through the action a click on it takes; while a run forbids
@@ -127,11 +165,10 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
   if (target?.closest?.(DIALOGS)) return;
   const name = keyName(e);
   if (!name) return;
-  const {hello, keymap, busy, ask} = session.store.getState();
+  const {hello, keymap, ask} = session.store.getState();
   /* the keys the system and the browser keep (the core's list: hello.keymap.reserved) are never taken */
   if (keymap.info?.reserved.includes(name)) return;
-  if (name === 'Escape' && busy) { e.preventDefault(); session.abort(); return; }
-  if (name === 'Escape' && closeTransient(session)) {
+  if (name === 'Escape' && escape(session, target)) {
     e.preventDefault();
     return;
   }
@@ -140,9 +177,9 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
     focusPane(e.shiftKey);
     return;
   }
-  /* an open menu or prompt, or one on its way, takes the key; Escape stops a running command */
+  /* an open prompt, or one on its way, takes the key */
   const typed = hotkey(e);
-  if (ask || (name === 'Escape' && busy)) {
+  if (ask) {
     if (typed && isHotkeyTarget(target, typed)) {
       e.preventDefault();
       session.typeKey(typed);

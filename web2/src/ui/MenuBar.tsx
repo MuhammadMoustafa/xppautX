@@ -2,17 +2,14 @@ import {useEffect, useRef} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {menuTree, registryRows, type MenuNode} from './navigation';
 import {effectiveKeys} from '../store/keymap';
+import {closeMenuBar} from './hotkeys';
 
 export function MenuBar() {
   const session = useSession(), hello = useStore(s => s.hello), info = useStore(s => s.keymap.info);
   const may = useMay();
   const windows = useStore(s => s.windows);
   const bar = useRef<HTMLElement>(null);
-  const close = (focus = true) => {
-    const summary = document.activeElement?.closest('[data-top-menu]')?.querySelector<HTMLElement>(':scope > summary');
-    bar.current?.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open'));
-    if (focus) summary?.focus();
-  };
+  const close = (focus = true) => {closeMenuBar(focus);};
   useEffect(() => {
     const element = bar.current;
     if (!element) return;
@@ -72,7 +69,6 @@ export function MenuBar() {
     .sort((a,b) => Number(b.row?.id === 'window.create') - Number(a.row?.id === 'window.create'));
   const windowTools = windowNodes.filter(node => !newWindows.includes(node));
   return <nav class="app-menu" aria-label="Menu bar" ref={bar} onKeyDown={e => {
-    if (e.key === 'Escape') {e.preventDefault(); e.stopPropagation(); close(); return;}
     const active = document.activeElement as HTMLElement | null;
     const top = active?.closest<HTMLDetailsElement>('details[data-top-menu]');
     if (!top) return;
