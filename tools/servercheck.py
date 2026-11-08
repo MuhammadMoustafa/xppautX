@@ -2783,6 +2783,10 @@ def check_options_panels():
         method = next(r for r in groups['integration']['rows'] if r['key'] == 'method')
         check('W616: a choice row lists its named choices, a yes/no is a boolean row',
               'runge_kutta' in method['choices'] and next(r for r in groups['integration']['rows'] if r['key'] == 'stop_at_limit').get('boolean') is True, str(method))
+        commands = {c['cmd']: c for c in hello['commands'] if 'arguments' in c}
+        check('W641: every command row has the text of its action, never OK or Run, and a setting\'s is Apply', all(c.get('action') for c in commands.values())
+              and not any(c['action'] in ('OK', 'Run') for c in commands.values()) and commands['run.configure']['action'] == 'Apply', str([c['cmd'] for c in commands.values() if not c.get('action')]))
+        check('W641: an argument has its description where the row gives one', next(a for a in commands['preferences.configure']['arguments'] if a['name'] == 'log_file').get('description'))
         check('W616: no key twice in a group', all(len({r['key'] for r in g['rows']}) == len(g['rows']) for g in groups.values()))
 
         def call(**command):
@@ -3117,7 +3121,6 @@ check_registry_labels([c for c in hello.get('commands', []) if 'arguments' in c]
 # few that are the same words for another thing are named here, each with its reason), and no menu path the manual
 # names (`File > Sets`, `File/Save session`) is one that no row has. A name on the page comes from the row.
 LABEL_WORDS_OF_OTHER_THINGS = {
-    ('ui/CommandForm.tsx', 'Run'): "the submit button of any command's form",
     ('ui/MenuBar.tsx', 'Run'): "the top menu's title, a group",
     ('ui/Plots.tsx', 'Stop'): "the Kinescope player's own Stop: the core keeps no play position",
     ('ui/KeymapEditor.tsx', 'Replace'): "the answer that replaces a key's other command",

@@ -13,6 +13,8 @@ export interface RegistryArgument {
   min?: number; max?: number; multiline?: boolean;
   /** the key of the option row (in the command's panel group) that sets it: its panel shows it, the form leaves it out */
   option?: string;
+  /** what the argument is, under its field in a form (the row's argument description) */
+  description?: string;
 }
 
 /** control (Abort, Quit, an answer): always; view (only changes what is
@@ -39,6 +41,7 @@ export interface CommandKind {
   menu_path?: string;
   /** the option group whose generated panel opens in place of this command's own form (core Command::panel) */
   panel?: string;
+  action?: string;
   description?: string;
   category?: string;
   default_keys?: string[];
@@ -58,6 +61,8 @@ export interface CommandRow {
   menu_path?: string;
   /** the option group whose panel opens in place of a form */
   panel?: string;
+  /** the action's text in a form's footer, named for what it does (the row's own, never Run or OK) */
+  action?: string;
   /** stable: the command's name */
   id: string;
   label: string;

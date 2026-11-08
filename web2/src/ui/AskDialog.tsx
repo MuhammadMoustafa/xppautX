@@ -8,24 +8,41 @@
    rubber and drag asks are plot modes (PlotView.tsx); other kinds say they
    are not offered yet and offer Cancel (A13, docs/ui-v2.md). */
 import type {ComponentChildren} from 'preact';
-import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks';
+import {useEffect, useLayoutEffect, useState} from 'preact/hooks';
 import {answerFill, litAskKey} from '../store/player';
 import {LEAVE_ASK} from '../store/state';
 import {askHelp} from '../help/links';
 import {fieldSpec, selectOptions} from '../protocol/lists';
-import {choiceLabel, fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
-import type {AskEvent, TextStyle} from '../protocol/types';
-import {ColorField} from './ColorField';
-import {Field} from './Field';
+import {choiceLabel, ruleMessage, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
+import type {AskEvent, HelloEvent, TextStyle} from '../protocol/types';
 import {FileAsk} from './FileDialog';
 import {nativeFileDialog} from '../pickers';
-import {HelpButton} from './HelpButton';
-import {TextForm} from './TextForm';
+import {textPx} from '../plot/marks';
+import {Dialog} from './Dialog';
+import {Control, FormRow, focusFirstError, useFeedback} from './FormFields';
 import {useSession, useStore} from './context';
-import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
 import {useDark} from './theme';
-import {Modal} from './Modal';
 
+/** the action's text of an ask: the core's own when it names what the action does, else the kind's ("Apply"; never OK) */
+export function askAction(ask: AskEvent, fallback: string): string {
+  const named = (ask.ok as string | undefined) ?? '';
+  return named && named !== 'OK' ? named : fallback;
+}
+
+/** an ask's dialog: the one shell, titled by the ask, its ? the manual's section for it, its × and a click outside cancelling it (the core waits
+    for the answer, so Escape is the ask's own cancel) */
+export function AskShell({ask, action, onSubmit, extra, problems, children, width, onClose}: {
+  ask: AskEvent; action?: {label: string; onClick?: () => void; attrs?: Record<string, string>}; onSubmit?: (e: Event) => void; extra?: ComponentChildren; problems?: number;
+  children: ComponentChildren; width?: 'form' | 'list'; onClose?: () => void;
+}) {
+  const session = useSession();
+  const table = useStore(s => s.table);
+  const title = ask.title || ask.name || 'XPP';
+  return <Dialog title={title} name={title} description={ask.question as string | undefined} help={askHelp({table}, ask.kind)} width={width} focusKey={ask.id}
+    onClose={onClose ?? (() => session.cancel(ask))} action={action} extra={extra} onSubmit={onSubmit} problems={problems} attrs={{'data-ask': ask.kind}}>
+    {children}
+  </Dialog>;
+}
 
 function ChoiceAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
@@ -45,10 +62,8 @@ function ChoiceAsk({ask}: {ask: AskEvent}) {
   }, [ask]);
   const items = ask.choices ?? [];
   return (
-    <>
-      {ask.question && <p>{ask.question}</p>}
-      <ul class="menu-list" role="menu"
-        aria-label={ask.title || ask.name || 'Choices'}>
+    <AskShell ask={ask}>
+      <ul class="menu-list" role="menu" aria-label={ask.title || ask.name || 'Choices'}>
         {items.map((item, i) => (
           <li key={i} role="none">
             <button role="menuitem" class="menu-item" title={ask.hints?.[i]}
@@ -59,14 +74,21 @@ function ChoiceAsk({ask}: {ask: AskEvent}) {
           </li>
         ))}
       </ul>
-    </>
+    </AskShell>
   );
+}
+
+/** why a typed ask field is wrong once it was left: every field of an ask is needed, so an empty one is "Required" */
+function askMessage(spec: FieldSpec, text: string): string | null {
+  if (spec.kind === 'boolean' || spec.kind === 'color') return ruleMessage(spec, text);
+  return text.trim() === '' && spec.kind !== 'text' ? 'Required' : ruleMessage(spec, text);
 }
 
 function FormAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
   const lists = useStore(s => s.hello?.lists);
   const dark = useDark(useStore(s => s.theme));
+  const feedback = useFeedback();
   const isString = ask.kind === 'string';
   const names = isString ? [ask.name ?? ''] : ask.names ?? [];
   const [values, setValues] = useState<string[]>(isString ? [ask.value ?? ''] : [...(ask.values ?? [])]);
@@ -74,83 +96,49 @@ function FormAsk({ask}: {ask: AskEvent}) {
   const specs = names.map((n, i): FieldSpec =>
     (!isString && fieldSpec(n).list !== null ? TEXT
       : specOfKind(ask.kinds![i], lists, {options: ask.options?.[i], range: ask.ranges?.[i]})));
-  const valid = fieldsValid(specs, values);
+  const messages = specs.map((spec, i) => askMessage(spec, values[i] ?? ''));
+  const shownCount = messages.filter((m, i) => m && feedback.shows(String(i))).length;
   const submit = (e: Event) => {
     e.preventDefault();
-    if (!valid) return;
-    session.answer(ask, isString ? {ok: 1, value: values[0]} : {ok: 1, values});
-  };
-  /* Enter submits from any field, a select included (A3) */
-  const onKeyDown = (e: KeyboardEvent) => {
-    const tag = (e.target as HTMLElement).tagName;
-    if (e.key === 'Enter' && (tag === 'SELECT' || tag === 'INPUT')) {
-      e.preventDefault();
-      (e.currentTarget as HTMLFormElement).requestSubmit();
+    if (messages.some(Boolean)) {
+      feedback.attempt();
+      queueMicrotask(() => focusFirstError(document.querySelector('[data-ask]')));
+      return;
     }
+    session.answer(ask, isString ? {ok: 1, value: values[0]} : {ok: 1, values});
   };
   /* a grid ask (`columns` and `rows`, the axes dialog): its first columns x rows fields are the table's
      cells, row by row; the others are plain fields under it */
   const columns = isString ? [] : ask.columns ?? [];
   const rowLabels = ask.rows ?? [];
   const gridCells = columns.length * rowLabels.length;
-  /* the field i: a select for a list, else a Field; in the table a cell, named by its column and row */
-  const control = (i: number, cell: boolean, cellLabel: string) => {
+  const set = (i: number, text: string) => setValues(prev => prev.map((v, j) => (j === i ? text : v)));
+  /* a table cell: named by its column and row */
+  const cell = (i: number, cellLabel: string) => {
+    const typed = specs[i];
+    return <Control spec={typed} value={values[i] ?? ''} label={cellLabel} dark={dark} invalid={!!messages[i] && feedback.shows(String(i))}
+      onBlur={() => feedback.touch(String(i))} onChange={t => set(i, t)} />;
+  };
+  /* the field i: a select for a list (the X11 scroll list of variables, parameters, colours, markers or methods), else the typed control */
+  const field = (i: number) => {
     const n = names[i];
     const spec = isString ? {label: n, list: null} : fieldSpec(n);
     const items = spec.list !== null ? lists?.[spec.list] : undefined;
-    const set = (text: string) => setValues(prev => prev.map((v, j) => (j === i ? text : v)));
-    const caption = cell ? <span class="visually-hidden">{cellLabel}</span> : <span>{spec.label}</span>;
+    const error = feedback.shows(String(i)) ? messages[i] : null;
     if (items) {
-      /* the X11 scroll list of variables, parameters, colours, markers or methods */
       const {options, selected} = selectOptions(items, values[i] ?? '');
-      return (
-        <label key={i}>
-          {caption}
-          <select value={selected} data-list={spec.list} data-autofocus={i === 0 ? '' : undefined}
-            onChange={(e: Event) => set((e.target as HTMLSelectElement).value)}>
-            {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </label>
-      );
+      return <FormRow key={i} name={n} label={spec.label} error={error}>
+        <select value={selected} data-list={spec.list} aria-label={spec.label} onChange={(e: Event) => set(i, (e.target as HTMLSelectElement).value)}>
+          {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select></FormRow>;
     }
-    const typed = specs[i];
-    if (typed.kind === 'boolean') {
-      return (
-        <label key={i} class="form-check">
-          <input type="checkbox" checked={values[i] === 'true'} data-autofocus={i === 0 ? '' : undefined}
-            onChange={(e: Event) => set((e.target as HTMLInputElement).checked ? 'true' : 'false')} />
-          {caption}
-        </label>
-      );
-    }
-    if (typed.kind === 'color') {
-      return (
-        <label key={i}>
-          {caption}
-          <ColorField value={values[i] ?? ''} dark={dark} label={spec.label} onChange={set} />
-        </label>
-      );
-    }
-    if (typed.kind === 'choice') {
-      return (
-        <label key={i}>
-          {caption}
-          <select value={values[i]} data-choice data-autofocus={i === 0 ? '' : undefined}
-            onChange={(e: Event) => set((e.target as HTMLSelectElement).value)}>
-            {typed.choices.map(c => <option key={c} value={c}>{choiceLabel(c)}</option>)}
-          </select>
-        </label>
-      );
-    }
-    return (
-      <label key={i}>
-        {caption}
-        <Field spec={specs[i]} value={values[i] ?? ''} data-autofocus={i === 0 ? '' : undefined} onInput={set} />
-      </label>
-    );
+    return <FormRow key={i} name={n} label={spec.label} error={error}>
+      <Control spec={specs[i]} value={values[i] ?? ''} label={spec.label} dark={dark} invalid={!!error} verbatim
+        onBlur={() => feedback.touch(String(i))} onChange={t => set(i, t)} />
+    </FormRow>;
   };
   return (
-    <form onSubmit={submit} onKeyDown={onKeyDown}>
+    <AskShell ask={ask} onSubmit={submit} action={{label: askAction(ask, 'Apply')}} problems={shownCount} width={columns.length > 2 ? 'list' : 'form'}>
       {columns.length > 0 && (
         <table class="form-columns" data-form-columns>
           <thead>
@@ -160,21 +148,14 @@ function FormAsk({ask}: {ask: AskEvent}) {
             {rowLabels.map((r, row) => (
               <tr key={r}>
                 <th scope="row">{r}</th>
-                {columns.map((c, col) => (
-                  <td key={c}>{control(row * columns.length + col, true, `${c} ${r.toLowerCase()}`)}</td>
-                ))}
+                {columns.map((c, col) => <td key={c}>{cell(row * columns.length + col, `${c} ${r.toLowerCase()}`)}</td>)}
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      <div class="form-grid">
-        {names.map((_, i) => (i < gridCells ? null : control(i, false, '')))}
-      </div>
-      <div class="dialog-actions">
-        <button type="submit" class="primary" disabled={!valid}>{(ask.ok as string) || 'OK'}</button>
-      </div>
-    </form>
+      {names.map((_, i) => (i < gridCells ? null : field(i)))}
+    </AskShell>
   );
 }
 
@@ -188,36 +169,65 @@ function ChecklistAsk({ask}: {ask: AskEvent}) {
     session.answer(ask, {ok: 1, flags});
   };
   return (
-    <form onSubmit={submit}>
+    <AskShell ask={ask} onSubmit={submit} action={{label: askAction(ask, 'Apply')}}
+      extra={<><button type="button" onClick={() => all(1)}>All</button><button type="button" onClick={() => all(0)}>None</button></>}>
       <fieldset class="checklist">
         <legend class="visually-hidden">{ask.title || 'Choose'}</legend>
         {names.map((n, i) => (
-          <label key={i}>
-            <input type="checkbox" checked={!!flags[i]} data-autofocus={i === 0 ? '' : undefined}
+          <label key={i} class="switch-row">
+            <span class="switch"><input type="checkbox" role="switch" checked={!!flags[i]} data-autofocus={i === 0 ? '' : undefined}
               onChange={e => {
                 const f = flags.slice();
                 f[i] = (e.target as HTMLInputElement).checked ? 1 : 0;
                 setFlags(f);
-              }} />
+              }} /><i aria-hidden="true" /></span>
             <span>{n}</span>
           </label>
         ))}
       </fieldset>
-      <div class="dialog-actions">
-        <button type="button" onClick={() => all(1)}>All</button>
-        <button type="button" onClick={() => all(0)}>None</button>
-        <button type="submit" class="primary">OK</button>
-      </div>
-    </form>
+    </AskShell>
   );
 }
 
-/* Text,etc/Text: the text, size, style and colour of the text just placed */
+/* Text,etc/Text: the text, size, style and colour of the text just placed; the colour is any colour with its alpha (ui/ColorField.tsx), which the
+   core keeps and its PDF and SVG draw. A text already there is edited through annotation.edit's command form. */
 function TextAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
-  return <TextForm initial={{text: ask.value ?? '', size: Number(ask.size), style: ask.style as TextStyle, color: String(ask.color)}}
-    submit={(ask.ok as string) || 'OK'}
-    onSubmit={v => session.answer(ask, {ok: 1, value: v.text, size: v.size, style: v.style, color: v.color})} />;
+  const limits = useStore(s => s.hello?.text) as HelloEvent['text'];
+  const styles = useStore(s => s.hello?.text_styles) as HelloEvent['text_styles'];
+  const dark = useDark(useStore(s => s.theme));
+  const feedback = useFeedback();
+  const [text, setText] = useState(String(ask.value ?? ''));
+  const [size, setSize] = useState(Number(ask.size)), [style, setStyle] = useState(ask.style as TextStyle), [color, setColor] = useState(String(ask.color));
+  const messages = [text === '' ? 'Required' : null, ruleMessage({kind: 'color'}, color)];
+  const submit = (e: Event) => {
+    e.preventDefault();
+    if (messages.some(Boolean)) {
+      feedback.attempt();
+      queueMicrotask(() => focusFirstError(document.querySelector('[data-ask]')));
+      return;
+    }
+    session.answer(ask, {ok: 1, value: text, size, style, color});
+  };
+  return <AskShell ask={ask} onSubmit={submit} action={{label: askAction(ask, 'Place text')}} problems={messages.filter((m, i) => m && feedback.shows(String(i))).length}>
+    <FormRow name="text" label="Text" required error={feedback.shows('0') ? messages[0] : null}>
+      <span class="input-box"><input data-text-input data-autofocus value={text} maxLength={limits.max_length} aria-label="Text" onBlur={() => feedback.touch('0')}
+        onInput={e => setText(e.currentTarget.value)} /></span>
+    </FormRow>
+    <FormRow name="size" label="Size">
+      <select data-text-size value={size} aria-label="Size" onChange={e => setSize(Number(e.currentTarget.value))}>
+        {Array.from({length: limits.size_max + 1}, (_, i) => <option key={i} value={i}>{i} ({textPx(i)} px)</option>)}
+      </select>
+    </FormRow>
+    <FormRow name="style" label="Style">
+      <select data-text-style value={style} aria-label="Style" onChange={e => setStyle(e.currentTarget.value as TextStyle)}>
+        {styles.map(name => <option key={name} value={name}>{choiceLabel(name)}</option>)}
+      </select>
+    </FormRow>
+    <FormRow name="colour" label="Colour" error={feedback.shows('1') ? messages[1] : null}>
+      <Control spec={{kind: 'color'}} value={color} label="Text" dark={dark} onChange={setColor} onBlur={() => feedback.touch('1')} />
+    </FormRow>
+  </AskShell>;
 }
 
 /* what an ask this interface does not offer yet wants, in words (A13) */
@@ -231,47 +241,9 @@ const PENDING: Record<string, string> = {
 function PendingAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
   return (
-    <>
-      <p>
-        XPP asks for {PENDING[ask.kind] ?? <b>{ask.kind}</b>}, which this interface does not offer yet. Cancel
-        it here.
-      </p>
-      <div class="dialog-actions">
-        <button class="primary" onClick={() => session.cancel(ask)}>Cancel</button>
-      </div>
-    </>
-  );
-}
-
-/* focus in on open (the first field, else the first control), trapped while
-   open, back to where it was on close; Escape cancels */
-function AskModal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
-  const session = useSession();
-  const table = useStore(s => s.table);
-  const box = useRef<HTMLDivElement>(null);
-  useDialogFocus(box, [ask.id]);
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      session.cancel(ask);
-    } else if (e.key === 'Tab') {
-      cycleDialogFocus(e, box.current);
-    }
-  };
-  const title = ask.title || ask.name || 'XPP';
-  return (
-    <Modal onBackdrop={e => { e.preventDefault(); session.cancel(ask); }}>
-      <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="ask-title" data-ask={ask.kind}
-        onKeyDown={onKeyDown}>
-        <div class="dialog-title-row">
-          <h2 id="ask-title">{title}</h2>
-          <HelpButton target={askHelp({table}, ask.kind)} label={title} />
-          <button class="dialog-close" aria-label={`Close ${title}`} title="Close (Esc)" onClick={() => session.cancel(ask)}>×</button>
-        </div>
-        {children}
-      </div>
-    </Modal>
+    <AskShell ask={ask} action={{label: 'Dismiss', onClick: () => session.cancel(ask)}}>
+      <p>XPP asks for {PENDING[ask.kind] ?? <b>{ask.kind}</b>}, which this interface does not offer yet. Dismiss it here.</p>
+    </AskShell>
   );
 }
 
@@ -324,9 +296,9 @@ function PlayedAsk({ask}: {ask: AskEvent}) {
   const names = ask.kind === 'string' ? [ask.name ?? ''] : ask.kind === 'form' ? ask.names ?? [] : ask.kind === 'file' ? ['File'] : [];
   const shownValues = ask.kind === 'string' ? [ask.value ?? ''] : ask.kind === 'form' ? ask.values ?? [] : [''];
   return (
-    <div class="dialog played-ask" role="dialog" aria-label={`${title} (answered by the recording)`} data-ask={ask.kind}>
-      <div class="dialog-title-row"><h2>{title}</h2></div>
-      {ask.question && <p>{ask.question}</p>}
+    <Dialog title={title} name={`${title} (answered by the recording)`} description={ask.question as string | undefined} closable={false} focusKey={ask.id}
+      onClose={() => undefined} className="played-ask" attrs={{'data-ask': ask.kind}}
+      action={{label: askAction(ask, 'Apply'), attrs: {class: 'played-ok' + (done ? ' lit' : ''), disabled: 'true'}}}>
       {items.length > 0 && (
         <ul class="menu-list" role="menu">
           {items.map((item, i) => (
@@ -338,21 +310,13 @@ function PlayedAsk({ask}: {ask: AskEvent}) {
           ))}
         </ul>
       )}
-      {names.length > 0 && (
-        <div class="form-grid">
-          {names.map((n, i) => (
-            <label key={i}>
-              <span>{n}</span>
-              <span class={'played-value' + (fill && !done ? ' typing' : '')}>{fill ? typed[i] ?? '' : shownValues[i] ?? ''}</span>
-            </label>
-          ))}
-        </div>
-      )}
+      {names.map((n, i) => (
+        <FormRow key={i} name={n} label={n}>
+          <span class={'played-value' + (fill && !done ? ' typing' : '')}>{fill ? typed[i] ?? '' : shownValues[i] ?? ''}</span>
+        </FormRow>
+      ))}
       {!items.length && !names.length && <p class="muted">Answered from the recording.</p>}
-      <div class="dialog-actions">
-        <span class={'played-ok' + (done ? ' lit' : '')}>{(ask.ok as string) || 'OK'}</span>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -365,11 +329,10 @@ export function AskDialog() {
   if (ask && played && ask.id !== LEAVE_ASK && ask.kind !== 'pixels')
     return <PlayedAsk key={ask.id} ask={ask} />;
   if (!ask || !askIsModal(ask, pick, auto)) return null;
-  const body = ask.kind === 'choice' ? <ChoiceAsk ask={ask} />
-    : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />
-      : ask.kind === 'checklist' ? <ChecklistAsk ask={ask} />
-        : ask.kind === 'file' ? <FileAsk ask={ask} />
-          : ask.kind === 'text' ? <TextAsk ask={ask} />
-            : <PendingAsk ask={ask} />;
-  return <AskModal key={ask.id} ask={ask}>{body}</AskModal>;
+  return ask.kind === 'choice' ? <ChoiceAsk key={ask.id} ask={ask} />
+    : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk key={ask.id} ask={ask} />
+      : ask.kind === 'checklist' ? <ChecklistAsk key={ask.id} ask={ask} />
+        : ask.kind === 'file' ? <FileAsk key={ask.id} ask={ask} />
+          : ask.kind === 'text' ? <TextAsk key={ask.id} ask={ask} />
+            : <PendingAsk key={ask.id} ask={ask} />;
 }

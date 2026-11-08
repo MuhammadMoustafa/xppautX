@@ -2,11 +2,10 @@
    parameters and variables (each with its current value), and Min, Max and
    Step number spinners. Picking a candidate fills Min/Max/Step with the
    T19 defaults (defaultRange, defaultStep) unless it is the slider's own
-   current one (editing keeps what it already has). OK is disabled until a
-   candidate is picked and the fields validate (validateSliderFields);
-   errors show inline. Follows the app's dialog pattern (AskDialog.tsx,
-   css/dialogs.css .dialog) but is local state, not a core ask. */
-import {useMemo, useRef, useState} from 'preact/hooks';
+   current one (editing keeps what it already has). The action is Add slider (Save slider
+   when editing); a field's error shows once it was left or the action pressed
+   (validateSliderFields). The one dialog shell (Dialog.tsx); local state, not a core ask. */
+import {useMemo, useState} from 'preact/hooks';
 import {HELP} from '../help/links';
 import {
   defaultRange, defaultStep, filterCandidates, validateSliderFields, type SliderCandidate, type SliderDef,
@@ -15,9 +14,9 @@ import {NUMBER, TEXT, type FieldSpec} from '../store/fieldKinds';
 import {sixSig} from '../store/values';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
-import {HelpButton} from './HelpButton';
-import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
-import {Modal} from './Modal';
+import {Dialog} from './Dialog';
+import {Control, FormRow, useFeedback} from './FormFields';
+import {useDark} from './theme';
 
 const STEP: FieldSpec = {kind: 'number', positive: true};
 
@@ -66,11 +65,17 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
   const errors = validateSliderFields(lo, hi, step);
   const valid = !!picked && !errors.lo && !errors.hi && !errors.step;
 
-  const box = useRef<HTMLDivElement>(null);
-  useDialogFocus(box, []);
+  const feedback = useFeedback();
+  const dark = useDark(useStore(s => s.theme));
+  const pickError = !picked ? 'Pick a parameter or variable' : null;
+  const problems = [pickError, errors.lo, errors.hi, errors.step].filter((m, i) => m && (i === 0 ? feedback.attempted : feedback.shows(['pick', 'lo', 'hi', 'step'][i]))).length;
 
-  const submit = () => {
-    if (!valid || !picked) return;
+  const submit = (e?: Event) => {
+    e?.preventDefault();
+    if (!valid || !picked) {
+      feedback.attempt();
+      return;
+    }
     const def: Omit<SliderDef, 'id'> = {name: picked.name, lo, hi, step};
     session.setSlider(editing ? target.id : session.store.getState().values.nextSlider, def);
     onClose();
@@ -88,64 +93,40 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
     }
   };
 
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      onClose();
-    } else if (e.key === 'Tab') {
-      cycleDialogFocus(e, box.current);
-    }
-  };
-
   const title = editing ? `Edit slider ${target.name}` : 'Add slider';
   return (
-    <Modal onBackdrop={onClose}>
-      <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="slider-dialog-title" onKeyDown={onKeyDown}>
-        <div class="dialog-title-row">
-          <h2 id="slider-dialog-title">{title}</h2>
-          <HelpButton target={HELP.valuesPanel} label={title} />
-          <button class="dialog-close" aria-label={`Close ${title}`} onClick={onClose}>×</button>
-        </div>
-        <label class="slider-picker-search">
-          <span class="visually-hidden">Search parameters and variables</span>
-          <Field spec={TEXT} placeholder="Search parameters and variables" value={query} data-autofocus=""
-            onInput={t => { setQuery(t); setActive(0); }} onKeyDown={onListKeyDown} />
-        </label>
-        <ul class="slider-picker-list" role="listbox" aria-label="Parameters and variables" tabIndex={-1}
-          onKeyDown={onListKeyDown}>
-          {filtered.length === 0 && <li class="slider-picker-empty muted">No match</li>}
-          {filtered.map((c, i) => {
-            const key = candidateKey(c);
-            const isPicked = picked && candidateKey(picked) === key;
-            return (
-              <li key={key} role="option" aria-selected={!!isPicked} class={'slider-picker-item' + (i === active ? ' active' : '') + (isPicked ? ' picked' : '')}
-                onMouseEnter={() => setActive(i)} onClick={() => pick(c)}>
-                <span class="slider-picker-name">{c.name}</span>
-                <span class="slider-picker-value muted">{sixSig(c.value)}</span>
-              </li>
-            );
-          })}
-        </ul>
-        {picked && <p class="slider-picker-picked">Picked: <b>{picked.name}</b> (currently {sixSig(picked.value)})</p>}
-        <div class="form-grid slider-dialog-fields">
-          <label>
-            <span>Min</span>
-            <Field id="slider-lo" spec={NUMBER} value={lo} error={errors.lo} onInput={setLo} />
-          </label>
-          <label>
-            <span>Max</span>
-            <Field id="slider-hi" spec={NUMBER} value={hi} error={errors.hi} onInput={setHi} />
-          </label>
-          <label>
-            <span>Step</span>
-            <Field id="slider-step" spec={STEP} value={step} error={errors.step} onInput={setStep} />
-          </label>
-        </div>
-        <div class="dialog-actions">
-          <button type="button" class="primary" disabled={!valid} onClick={submit}>OK</button>
-        </div>
+    <Dialog title={title} name={title} help={HELP.valuesPanel} onClose={onClose} onSubmit={submit} problems={problems}
+      action={{label: editing ? 'Save slider' : 'Add slider'}} width="list" attrs={{'data-slider-dialog': ''}}>
+      <label class="slider-picker-search">
+        <span class="visually-hidden">Search parameters and variables</span>
+        <Field spec={TEXT} placeholder="Search parameters and variables" value={query} data-autofocus="" check={() => null}
+          onInput={t => { setQuery(t); setActive(0); }} onKeyDown={onListKeyDown} />
+      </label>
+      <ul class="slider-picker-list" role="listbox" aria-label="Parameters and variables" tabIndex={-1}
+        onKeyDown={onListKeyDown}>
+        {filtered.length === 0 && <li class="slider-picker-empty muted">No match</li>}
+        {filtered.map((c, i) => {
+          const key = candidateKey(c);
+          const isPicked = picked && candidateKey(picked) === key;
+          return (
+            <li key={key} role="option" aria-selected={!!isPicked} class={'slider-picker-item' + (i === active ? ' active' : '') + (isPicked ? ' picked' : '')}
+              onMouseEnter={() => setActive(i)} onClick={() => pick(c)}>
+              <span class="slider-picker-name">{c.name}</span>
+              <span class="slider-picker-value muted">{sixSig(c.value)}</span>
+            </li>
+          );
+        })}
+      </ul>
+      {picked ? <p class="slider-picker-picked">Picked: <b>{picked.name}</b> (currently {sixSig(picked.value)})</p>
+        : feedback.attempted && <p class="field-error">{pickError}</p>}
+      <div class="slider-dialog-fields">
+        <FormRow name="lo" label="Min" required id="slider-lo" error={feedback.shows('lo') ? errors.lo : null}>
+          <Control id="slider-lo" spec={NUMBER} value={lo} label="Min" dark={dark} onBlur={() => feedback.touch('lo')} onChange={setLo} /></FormRow>
+        <FormRow name="hi" label="Max" required id="slider-hi" error={feedback.shows('hi') ? errors.hi : null}>
+          <Control id="slider-hi" spec={NUMBER} value={hi} label="Max" dark={dark} onBlur={() => feedback.touch('hi')} onChange={setHi} /></FormRow>
+        <FormRow name="step" label="Step" required id="slider-step" error={feedback.shows('step') ? errors.step : null}>
+          <Control id="slider-step" spec={STEP} value={step} label="Step" dark={dark} onBlur={() => feedback.touch('step')} onChange={setStep} /></FormRow>
       </div>
-    </Modal>
+    </Dialog>
   );
 }

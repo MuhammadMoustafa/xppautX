@@ -269,6 +269,16 @@ See [Creating Animations](10-animations.md#the-animation-view).
 
 ## Dialogs and prompts
 
+Every dialog and every question the core asks is one shell (W641): a title with the description under it, a ? that opens the manual's section,
+and a × (Escape and a click outside do the same, so there is no Cancel button); the footer holds the one action, named for what it does
+("Apply", "Save", "Add slider"; never Run or OK) beside a count of the fields left to fix. A form is about 36 rem wide, a list or a table 52
+rem; below 48 rem a dialog is a full-screen sheet with the title and × on top and the action at the bottom. A field's label is left of it in a
+wide dialog and above it in a narrow one. Every field shows its current value and a settings form sends only the fields you changed. The control
+comes from the kind of the value: a number box with its range beside it, a segmented control for up to three short choices and a dropdown for
+more, a switch for a yes/no, a picker (that also takes a dropped file) for a file, a swatch with its field for a colour, monospace text for a
+formula. An error shows once you leave the field or press the action, says the rule and the value ("Must be a number above 0; got -0.05"),
+and the action is never disabled: pressed with errors it moves the focus to the first. A required field is marked with an asterisk.
+
 Every X11 pop-up menu, string box, form, yes/no and file selector is now
 a dialog: `role=dialog`, focus moves to its first field, Tab cycles
 inside it, Escape cancels, and focus returns to where it was. A form

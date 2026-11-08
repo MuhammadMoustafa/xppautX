@@ -3,13 +3,30 @@ import {autoxWindow} from '../store/diagram';
 import {annotationRows} from '../store/marks';
 import type {RegistryArgument, CommandRow} from '../protocol/kinds';
 import type {AppState} from '../store/state';
-import {specOfKind, TEXT, fieldError, type FieldSpec} from '../store/fieldKinds';
+import {specOfKind, TEXT, fieldError, ruleMessage, type FieldSpec} from '../store/fieldKinds';
 
 /** Registry names use the same vocabulary as choices, files and the protocol. */
 
 export function argumentSpec(arg: RegistryArgument): FieldSpec {
   return ['text', 'integer', 'real', 'boolean', 'choice', 'expression', 'file', 'color'].includes(arg.type)
     ? specOfKind(arg.type, [], {options: arg.choices, range: {min: arg.min, max: arg.max}}) : TEXT;
+}
+/** the spec a form's field has: the kind's, and for a name of the model or a window the names to choose from (the one place a form's control is decided from the argument, with controlOf) */
+export function argumentFieldSpec(arg: RegistryArgument, state: AppState): FieldSpec {
+  if (['name', 'window', 'model_name'].includes(arg.type)) {
+    const names = argumentNames(arg, state);
+    return names.length ? {kind: 'name', names, what: arg.type === 'window' ? 'a window' : undefined} : TEXT;
+  }
+  return argumentSpec(arg);
+}
+/** why a form's value for `arg` is wrong, shown once the field was left or the action pressed: "Required", the rule and the value
+    ("Must be a number above 0; got -0.05"), or the list's own; null when it is fine or an optional field left empty */
+export function argumentMessage(arg: RegistryArgument, value: unknown, spec: FieldSpec): string | null {
+  const empty = value === undefined || value === '' || (Array.isArray(value) && !value.length && arg.type !== 'list');
+  if (empty) return arg.required && arg.type !== 'boolean' ? 'Required' : null;
+  if (['list', 'map', 'list[real, 2]', 'list[text]'].includes(arg.type) || ['name', 'window', 'new_name'].includes(arg.type)) return argumentProblem(arg, value);
+  if (typeof value === 'string' && new TextEncoder().encode(value).length > (arg.max_length ?? Infinity)) return 'Too long';
+  return ruleMessage(spec, String(value));
 }
 export function argumentNames(arg: RegistryArgument, state: AppState): string[] {
   if (arg.type === 'window') return state.windows.map(w => w.name);

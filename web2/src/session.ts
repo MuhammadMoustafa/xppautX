@@ -338,6 +338,8 @@ export class Session {
 
   /** the settings panel of an option group (ui/OptionsPanel.tsx): open at once, its values asked for (`options.get`) */
   openOptions(group: string): void {
+    /* the values shown are the core's current ones: those of an earlier look are dropped, the fields wait for the answer */
+    this.store.dispatch({type: 'optionValues', group, values: null});
     this.store.dispatch({type: 'optionsPanel', panel: {group}});
     this.fetchOptions(group);
   }

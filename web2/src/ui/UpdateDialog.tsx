@@ -3,16 +3,13 @@ import {checkUpdates, openRelease, UpdateError, type UpdateResult} from '../help
 import {placeWords, type ErrorPlace} from '../protocol/errors';
 import {ErrorSource} from './ErrorSource';
 import {useSession} from './context';
-import {useDialogFocus} from './dialogFocus';
-import {Modal} from './Modal';
+import {Dialog} from './Dialog';
 
 export function UpdateDialog() {
   const session = useSession();
   const [result, setResult] = useState<UpdateResult | null>(null);
   const [place, setPlace] = useState<ErrorPlace>();
   const controller = useRef<AbortController>();
-  const box = useRef<HTMLDivElement>(null);
-  useDialogFocus(box, [!!result]);
   const cancel = () => {
     controller.current?.abort();
     controller.current = undefined;
@@ -44,26 +41,11 @@ export function UpdateDialog() {
   }, [session]);
   if (!result) return null;
   const close = () => { cancel(); setResult(null); setPlace(undefined); };
-  return <Modal onBackdrop={close}>
-    <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="update-title" data-update-dialog
-      onKeyDown={e => {
-        if (e.key === 'Escape') { e.stopPropagation(); close(); }
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          const buttons = [...box.current!.querySelectorAll<HTMLButtonElement>('button')];
-          buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length].focus();
-        }
-      }}>
-      <div class="dialog-title-row"><h2 id="update-title">Check for updates</h2>
-        <button class="dialog-close" aria-label="Close update check" onClick={close}>×</button></div>
-      <p>{result.text}</p>
-      {place && <><p data-error-place>{placeWords(place)}</p><ErrorSource p={place}/></>}
-      <div class="dialog-actions">
-        {result.url && <button onClick={() => {
-          void openRelease(result.url!).catch(e => setResult({text: `Opening the release page failed: ${String(e)}`}));
-        }}>Open the release page</button>}
-        <button onClick={close}>Close</button>
-      </div>
-    </div>
-  </Modal>;
+  return <Dialog title="Check for updates" name="update check" onClose={close} attrs={{'data-update-dialog': ''}}
+    action={result.url ? {label: 'Open the release page', onClick: () => {
+      void openRelease(result.url!).catch(e => setResult({text: `Opening the release page failed: ${String(e)}`}));
+    }} : undefined}>
+    <p>{result.text}</p>
+    {place && <><p data-error-place>{placeWords(place)}</p><ErrorSource p={place}/></>}
+  </Dialog>;
 }

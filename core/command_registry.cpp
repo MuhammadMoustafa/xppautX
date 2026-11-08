@@ -98,6 +98,10 @@ void append_argument(std::string &out, const Argument &arg)
     }
     out += ']';
     if (arg.multiline) out += ",\"multiline\":true";
+    if (*arg.description) {
+        out += ",\"description\":";
+        json_append_string(out, arg.description);
+    }
     if (*arg.option) {
         out += ",\"option\":";
         json_append_string(out, arg.option);
@@ -167,6 +171,8 @@ void append_command(std::string &out, const Command &command)
         out += ",\"file_wild\":";
         json_append_string(out, command.file_wild);
     }
+    out += ",\"action\":";
+    json_append_string(out, *command.action ? command.action : command.kind == XPP_KIND_SETTING ? "Apply" : command.label);
     if (*command.panel) {
         out += ",\"panel\":";
         json_append_string(out, command.panel);

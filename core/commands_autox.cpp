@@ -685,9 +685,12 @@ constexpr std::array MARKS_ARGUMENTS = {Argument{"parameters", Type::list, true,
                                         Argument{"values", Type::list, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::real}};
 constexpr std::array<const char *, 2> THREADS_ONE = {"threads", "automatic"};
 constexpr auto LOG_LEVELS = c_names(log_level_names);
-constexpr std::array THREADS_ARGUMENTS = {Argument{"threads", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), session_quantity("threads_max", threads_maximum)},
-                                          Argument{"automatic", Type::boolean, false},
-                                          Argument{"log_level", Type::choice, false, MAX_TEXT_BYTES, LOG_LEVELS}, Argument{"log_file", Type::text, false}};
+constexpr std::array THREADS_ARGUMENTS = {
+    Argument{"threads", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), session_quantity("threads_max", threads_maximum), NameSet::none, Type::text, MAX_ITEMS, false, "",
+             "How many threads autoX and a sweep's runs use, at most the computer's logical processors."},
+    Argument{"automatic", Type::boolean, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::text, MAX_ITEMS, false, "", "Let the program choose: all the physical cores."},
+    Argument{"log_level", Type::choice, false, MAX_TEXT_BYTES, LOG_LEVELS, {}, {}, NameSet::none, Type::text, MAX_ITEMS, false, "", "What the log shows; it applies from the next start."},
+    Argument{"log_file", Type::text, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::none, Type::text, MAX_ITEMS, false, "", "The file the log goes to, an absolute path; empty is the terminal."}};
 constexpr std::array<Group, 1> THREADS_GROUPS = {Group{GroupRule::at_most_one, THREADS_ONE}};
 constexpr std::array VIEW_ARGUMENTS = {Argument{VIEW_KEY, Type::window, false}};
 constexpr std::array PICK_ARGUMENTS = {Argument{"x", Type::real, true}, Argument{"y", Type::real, true}, Argument{VIEW_KEY, Type::window, false}};
@@ -753,7 +756,7 @@ const std::array ROWS = {
             "Open the autoX window, the bifurcation package.", RESULT_OPEN, EVENTS_OPEN, true, open_autox},
     Command{"autox.run", RUN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run", "autoX",
             "Run autoX from the current state or a stored point: its kind (what is computed), switch for a branch switch, its start (a label, a point type and index, or the current state, optionally settled first), the settings of this run only (ds's sign is the direction) and the equilibria of a homoclinic start. The start point's type decides which kinds fit it: hello's autox_run table, and autoxinfo's start.",
-            RESULT_RUN, EVENTS_RUN, true, run_autox, RUN_GROUPS, {}},
+            RESULT_RUN, EVENTS_RUN, true, run_autox, RUN_GROUPS, {}, "read", "*", "", "Start run"},
     Command{"autox.grab", GRAB_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Grab", "autoX",
             "Grab a stored point by label or type and index; omit both to pick it on the diagram.", RESULT_GRAB, EVENTS_GRAB, true, grab_point, GRAB_GROUPS, {}},
     Command{"autox.configure_numerics", CONFIGURE_NUMERICS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Numerics", "autoX",

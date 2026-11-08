@@ -110,7 +110,7 @@ export function AutoxAxisDialog({axis, view, onClose}: {axis: AxisName; view: nu
   return (
     <div class="autox-axis-dialog" ref={box} role="dialog" aria-modal="false" aria-label={title} data-axis={axis}
       onKeyDown={onKeyDown}>
-      <div class="dialog-title-row">
+      <div class="autox-axis-head">
         <h3>{title}</h3>
         <HelpButton target={HELP.autoxAxes} label={title} />
         <button class="dialog-close" aria-label={`Close ${title}`} onClick={onClose}>×</button>

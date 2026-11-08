@@ -42,7 +42,9 @@ shown and referenced exactly as written. Names are nonempty, have no
 leading or trailing space or control character, and take at most 1024
 UTF-8 bytes. A closed name may be reused. An unknown name is an error.
 
-`hello.commands` includes the registry's argument types and required flags,
+`hello.commands` includes the registry's argument types and required flags (and, for each argument, its `description` where the row has one: the help under its
+field in a form; and `option`, the key of the option row that sets it), each command's `action` (the text of its form's footer button, named for what it does: the
+row's own, else "Apply" for a setting and the label for the rest, never Run or OK),
 choice values, kind, category, menu and XPPAUT reference paths, descriptions,
 result fields and events. Each registry row has `completion: "done"`.
 `help` returns the complete registry in `result.commands`; `help window.rename`

@@ -208,7 +208,7 @@ const steadyP = P;
 /* File > Open model as the page sends it: the menu's key asks for the file, which the answer names (session.open_model's path is --server's own input) */
 async function openFile(file) {
   await clickRegistry('session.open_model');
-  await cdp.eval(`document.querySelector('[data-argument=file] button').click()`);
+  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
   await requireUntil(`s.ask?.kind === 'file' && document.activeElement.closest('[role=dialog]')`, 'Open model picker focus');
   await answerAsk({file});
 }
@@ -535,8 +535,12 @@ async function values() {
      (defaultRange/defaultStep), and OK is enabled once it validates */
   await cdp.eval(`document.querySelector('.slider-add').click()`);
   await until(`document.querySelector('.slider-picker-search input')`, 'slider dialog open');
-  const okBtn = () => `[...document.querySelectorAll('.dialog-actions button')].find(b => b.textContent === 'OK')`;
-  check('OK starts disabled: nothing is picked yet', await cdp.eval(`${okBtn()}.disabled`));
+  const okBtn = () => `document.querySelector('[data-slider-dialog] [data-dialog-action]')`;
+  const slidersBefore = await S('s.values.sliders.length');
+  check('the action is Add slider and is never disabled; pressed with nothing picked it adds nothing and says what is missing',
+    await cdp.eval(`${okBtn()}.textContent === 'Add slider' && !${okBtn()}.disabled`)
+    && (await cdp.eval(`${okBtn()}.click(), true`), await until(`!!document.querySelector('[data-slider-dialog] .field-error')`, 'the missing pick'))
+    && (await S('s.values.sliders.length')) === slidersBefore, await cdp.eval(`document.querySelector('[data-slider-dialog]')?.textContent.slice(0, 200)`));
   await cdp.eval(`(() => { const el = document.querySelector('.slider-picker-search input');
     el.value = 'iapp'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await until(`document.querySelectorAll('.slider-picker-item').length === 1
@@ -546,7 +550,7 @@ async function values() {
     await until(`document.querySelector('.slider-picker-picked')?.textContent.includes('0.05')
       && document.querySelector('.slider-dialog-fields input')?.value === '0'`, 'picked slider and its fields'),
     await cdp.eval(`document.querySelector('.slider-picker-picked')?.textContent`));
-  check('OK is enabled once a valid range and step are picked', !(await cdp.eval(`${okBtn()}.disabled`)));
+  check('once a valid range and step are picked there is nothing left to fix', !(await cdp.eval(`${okBtn()}.disabled || !!document.querySelector('[data-slider-dialog] .form-row.bad')`)));
   await setSliderDialogFields({Min: '0', Max: '0.5', Step: '0.01'});
   const n0 = await S('s.seriesCount');
   await cdp.eval(`${okBtn()}.click()`);
@@ -618,7 +622,7 @@ async function values() {
   await until(`!s.values.sliders.some(d => ${JSON.stringify(gridIds)}.includes(d.id))`, 'grid sliders removed');
 
   /* T20: the dialog is keyboard-only reachable too: type to filter, Enter
-     picks the highlighted candidate, Tab to OK, Enter activates it */
+     picks the highlighted candidate, Tab to Add slider, Enter activates it */
   await cdp.eval(`document.querySelector('.slider-add').click()`);
   await until(`document.querySelector('.slider-picker-search input') === document.activeElement`, 'search has the focus');
   await cdp.eval(`(() => { const el = document.querySelector('.slider-picker-search input');
@@ -631,9 +635,9 @@ async function values() {
   while (tabs < 10 && !atOk) {
     await key('Tab');
     tabs++;
-    atOk = await cdp.eval(`document.activeElement.textContent === 'OK'`);
+    atOk = await cdp.eval(`document.activeElement.textContent === 'Add slider'`);
   }
-  check(`Tab from the search field reaches OK (${tabs} presses)`, atOk);
+  check(`Tab from the search field reaches Add slider (${tabs} presses)`, atOk);
   const beforeKb = await S('s.values.sliders.length');
   /* activate the focused OK button (a plain click stands in for Enter/Space
      here: CDP's synthetic key events do not trigger a browser's native
@@ -1669,7 +1673,7 @@ async function prompts() {
   check('W517: maps show rows with the session current values', await cdp.eval(`document.querySelectorAll('.registry-form .argument-row').length === __xpp.state().core.pars.length`));
   await key('Escape');
   await clickRegistry('session.save_as');
-  check('W517: file arguments offer a file field and picker', await cdp.eval(`[...document.querySelectorAll('.registry-form button')].some(b => b.textContent === 'Choose file and run…') && !!document.querySelector('.registry-form [data-argument=file] input')`));
+  check('W517: file arguments offer a file field and picker', await cdp.eval(`!!document.querySelector('.registry-form [data-argument=file] .file-box') && !!document.querySelector('.registry-form [data-argument=file] input')`));
   await key('Escape');
   await menuRun('annotation.add_marker',{shape:'circle',x:0,y:0,color:'#ff0000'});
   check('W517: colour and choices submit their named typed values', await until(`!s.busy && w.marks.markers.some(m => m.shape === 'circle' && m.color === '#ff0000')`, 'marker form'));
@@ -1836,12 +1840,15 @@ async function autoxView(dir) {
   check('W616: its boolean and choice rows are checkboxes and selects',
     await cdp.eval(`document.querySelector('[data-argument=suppress_branch_points] input[type=checkbox]') && document.querySelector('[data-argument=output_detail] select')`));
   await formValues({max_steps:''});
-  check('W616: an empty whole number prevents Apply', await cdp.eval(`document.querySelector('.registry-form button[type=submit]').disabled`));
+  const sentApply = await S('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
+  check('W641: Apply with an empty whole number sends nothing, marks the field with its rule, counts it in the footer and is never disabled',
+    await until(`!!document.querySelector('[data-argument=max_steps].bad .field-error') && document.querySelector('[data-problems]')?.textContent === '1 field to fix'`, 'error shown')
+    && (await S('__xpp.sentCount()')) === sentApply && !(await cdp.eval(`document.querySelector('[data-dialog-action]').disabled`)));
   await key('Escape');
-  await clickRegistry('preferences.configure'); await cdp.eval(`document.querySelector('[data-argument=automatic] input[type=checkbox]').click()`); await formValues({threads:1}); await submitCommand();
+  await clickRegistry('preferences.configure'); await formValues({threads:1}); await submitCommand();
   check('W267: the common thread form selects one thread', await until(`!s.busy && s.autoxSettings.core.threads === 1`, 'one thread'));
   await clickRegistry('preferences.configure');
-  await cdp.eval(`document.querySelector('[data-argument=threads] input[type=checkbox]').click()`);
   await formValues({automatic:true}); await submitCommand();
   check('W267: the named automatic choice restores automatic threads', await until(`!s.busy && s.autoxSettings.core.threads === 'auto'`, 'automatic threads'));
   await autoxRun('equilibrium');
@@ -2759,7 +2766,7 @@ async function busyKeys() {
     && !document.querySelector('[data-slider="${sid}"]').classList.contains('queued') && !document.querySelector('.values-queued')`);
   /* W106: a parameter field and a Numerics field are settings too: editable during the run, sent at once */
   await editField('par', 'phi', '0.4');
-  await editField('num', 'Nullcline mesh', '50');
+  await editNumericsRow('store_every', '3');
   const edited = await cdp.eval(`__xpp.sent().slice(${sent0 + dragged.length})`);
   const stillBusy = await S('s.busy');
   check('busy keys: computation keys typed during a run (Ctrl+R) send nothing',
@@ -2768,16 +2775,16 @@ async function busyKeys() {
     + 'shown as the values, with no pending mark',
     dragged.length >= 1 && dragged.every(c => c.cmd === 'value.set_parameters' && 'iapp' in c.values) && shownDrag
     && JSON.stringify(edited) === JSON.stringify([{cmd: 'value.set_parameters', values: {phi: 0.4}},
-      {cmd: 'nullcline.set_mesh', mesh: 50}])
+      {cmd: 'options.configure', group: 'integration', values: {store_every: '3'}}])
     && await cdp.eval(`${fieldOf('par', 'phi')}.querySelector('input').value === '0.4'
-      && ${fieldOf('num', 'Nullcline mesh')}.querySelector('input').value === '50'`) && stillBusy,
+      && document.querySelector('[data-section="num"] [data-num="store_every"] input').value === '3'`) && stillBusy,
     JSON.stringify({dragged, edited, shownDrag, stillBusy}));
   const runPars = await S('JSON.stringify(s.core.pars)');
   await focusPlot();
   await cdp.eval(`document.querySelector('.status-bar button.danger').click()`);
   const stopped = await until(`__xpp.actions().slice(${n0}).some(e => e === 'event:done') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
-  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'value.set_parameters' && c !== 'nullcline.set_mesh')`);
+  const out = await cdp.eval(`__xpp.sentFrom(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set' && c !== 'value.set_parameters' && c !== 'options.configure' && c !== 'options.get')`);
   const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:job.stopped')`);
   check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the run kept its values (the state '
     + 'during it had the parameters it started with)',
@@ -2785,7 +2792,7 @@ async function busyKeys() {
     JSON.stringify({stopped, cancelled, out, runPars}));
   check('W106: after the run the core has the edits made during it (state and numerics)',
     await until(`!s.busy && !s.values.inflight.length && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9
-      && s.core.pars.find(p => p[0] === "phi")[1] === 0.4 && s.numerics.find(f => f.key === 'nullcline_mesh').value === 50`,
+      && s.core.pars.find(p => p[0] === "phi")[1] === 0.4 && s.numerics.find(f => f.key === 'store_every').value === 3`,
     'settings applied after the run', 10000),
     JSON.stringify(await S('[s.busy, s.values.inflight, s.core.pars, s.numerics]')));
   /* The window.create sent during the run has now completed. */
@@ -2797,7 +2804,7 @@ async function busyKeys() {
   /* the wedge case: keys work after the run (Total back to 20: 401 rows), and the next
      run uses the slider's edit */
   await focusPlot();
-  await menuRun('run.configure', {total_time:20});
+  await menuRun('run.configure', {total_time:20, store_every:50});
   await requireUntil('!s.busy', 'Total applied');
   const n1 = await S('s.seriesCount');
   await focusPlot();
@@ -2944,9 +2951,9 @@ async function playerCheck(dir) {
   await clickRegistry('recording.open');
   check('player: Play recording opens its form, the .recx named in its file field', await until(`s.commandForm?.id === 'recording.open'`, 'play form'),
     JSON.stringify(await S('s.commandForm')));
-  /* the form's file is picked (its Choose file and run… asks the picker's name, as the title bar's Play did) */
+  /* the form's file is picked (its action, with the file left empty, asks the picker's name, as the title bar's Play did) */
   await formValues({play: true});
-  await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…').click()`);
+  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
   await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx'`, 'recx ask');
   await answerAsk({file: 'play.recx'});
   await until(`s.ask && s.ask.kind === 'choice'`, 'save first?');
@@ -3155,6 +3162,8 @@ async function formValues(values) {
       await cdp.eval(`(() => {
         const box = document.querySelector(${JSON.stringify(argument)});
         if (!box) throw new Error('No argument ' + ${JSON.stringify(name)});
+        const segment = box.querySelector('[role=radiogroup]');
+        if (segment && typeof ${JSON.stringify(value)} === 'string') {segment.querySelector('[data-choice=' + JSON.stringify(${JSON.stringify(value)}) + ']').click(); return;}
         const field = typeof ${JSON.stringify(value)} === 'boolean' ? [...box.querySelectorAll('input[type=checkbox]')].at(-1) : box.querySelector('select, input:not([type=checkbox]):not([type=file])');
         if (!field) throw new Error('No scalar control ' + ${JSON.stringify(name)});
         if (field.type === 'checkbox') {field.checked = ${JSON.stringify(value)}; field.dispatchEvent(new Event('change', {bubbles:true}));}
@@ -3216,16 +3225,17 @@ async function optionsCheck() {
       const panel = document.querySelector('[data-options-panel=${JSON.stringify(g.group)}]');
       if (!panel) return null;
       const rows = [...panel.querySelectorAll('[data-argument]')];
+      const radios = r => [...r.querySelectorAll('[role=radio]')];
       return {title: panel.querySelector('h2').textContent,
         sections: [...panel.querySelectorAll('fieldset')].map(f => f.dataset.section),
         legends: [...panel.querySelectorAll('fieldset > legend')].map(l => l.textContent),
-        keys: rows.map(r => r.dataset.argument), labels: rows.map(r => r.querySelector('label > span').textContent),
-        defaults: rows.map(r => /Default: (.*?)\.( Not used|$)/.exec(r.querySelector('small').textContent)?.[1]),
-        helps: rows.map(r => r.querySelector('small').textContent),
-        choices: rows.map(r => [...r.querySelectorAll('select option')].map(o => o.value)),
-        checkbox: rows.map(r => !!r.querySelector('label > input[type=checkbox]')),
+        keys: rows.map(r => r.dataset.argument), labels: rows.map(r => r.querySelector('.form-label').textContent.replace(/ \\*$/, '')),
+        defaults: rows.map(r => /Default: (.*?)\\.( |$)/.exec(r.querySelector('.form-help').textContent)?.[1]),
+        helps: rows.map(r => r.querySelector('.form-help').textContent),
+        choices: rows.map(r => radios(r).length ? radios(r).map(o => o.dataset.choice) : [...r.querySelectorAll('select option')].map(o => o.value).filter(Boolean)),
+        checkbox: rows.map(r => !!r.querySelector('.switch input[type=checkbox]')),
         color: rows.map(r => !!r.querySelector('[data-color-field]')),
-        values: rows.map(r => r.querySelector('select')?.value ?? (r.querySelector('label > input[type=checkbox]') ? String(r.querySelector('label > input[type=checkbox]').checked)
+        values: rows.map(r => radios(r).length ? radios(r).find(o => o.getAttribute('aria-checked') === 'true')?.dataset.choice : r.querySelector('select')?.value ?? (r.querySelector('.switch input') ? String(r.querySelector('.switch input').checked)
           : r.querySelector('[data-color-text]')?.value ?? r.querySelector('input:not([type=checkbox])')?.value))};
     })()`);
     check(`W616: ${g.group}: the panel is open`, shown !== null);
@@ -3239,7 +3249,7 @@ async function optionsCheck() {
       title: g.label, keys: ordered.map(r => r.key), labels: ordered.map(r => r.label),
       sections: [...inSections(g.rows.filter(r => r.key in held)), ...inSections(g.rows.filter(r => !(r.key in held)))],
       legends: [],
-      defaults: ordered.map(r => r.kind === 'choice' && !r.boolean ? label(r.default) : r.default),
+      defaults: ordered.map(r => { const d = r.boolean ? (r.default === 'true' ? 'on' : 'off') : r.kind === 'choice' ? label(r.default) : r.default; return d || undefined; }),
       choices: ordered.map(r => r.kind === 'choice' && !r.boolean ? r.choices : r.kind === 'name' ? (!held[r.key] || names.includes(held[r.key]) ? names : [held[r.key], ...names]) : []),
       checkbox: ordered.map(r => !!r.boolean), color: ordered.map(r => r.kind === 'color'),
     };
@@ -3263,17 +3273,16 @@ async function optionsCheck() {
   await clickRegistry('output.configure');
   await requireUntil(`s.optionsPanel?.group === 'output' && s.optionValues.output`, 'the Output panel again');
   await rendered();
-  /* every path has a file picker: the core's own file ask, never a second dialog */
+  /* a path row is a name in the model's folder: the one file control, typed or dropped, applied on Apply like every other row */
   const paths = await S(`s.hello.options.find(g => g.group === 'output').rows.filter(r => r.kind === 'path').map(r => r.key)`);
-  check('W616: each path of the Output panel has a Choose file button', paths.length > 0 && await cdp.eval(`${JSON.stringify(paths)}.every(k => [...document.querySelector('[data-argument=' + JSON.stringify(k) + ']').querySelectorAll('button')].some(b => b.textContent === 'Choose file…'))`));
+  check('W641: each path of the Output panel is the one file control and has no button of its own', paths.length > 0 && await cdp.eval(`${JSON.stringify(paths)}.every(k => { const row = document.querySelector('[data-argument=' + JSON.stringify(k) + ']'); return row.querySelectorAll('.file-box').length === 1 && row.querySelectorAll('button').length === 0; })`));
   const mark = await S('__xpp.sentCount()');
-  await cdp.eval(`[...document.querySelector('[data-argument=' + JSON.stringify(${JSON.stringify(paths[0])}) + ']').querySelectorAll('button')].find(b => b.textContent === 'Choose file…').click()`);
-  check('W616: Choose file asks the core for its file dialog', await until(`s.ask?.kind === 'file'`, 'file ask')
-    && await S(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'output.configure' && c.setting === ${JSON.stringify(paths[0])} && c.file_picker === true)`));
-  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'picked.dat'})`);
-  check('W616: the picked file is the path\'s new value, shown by the panel', await until(`!s.busy && s.optionValues.output?.values?.[${JSON.stringify(paths[0])}]?.endsWith('picked.dat')`, 'picked'),
-    JSON.stringify(await S('s.optionValues.output')));
-  await key('Escape');
+  await cdp.eval(`(() => { const el = document.querySelector('[data-argument=' + JSON.stringify(${JSON.stringify(paths[0])}) + '] .file-box input'); el.value = 'typed.dat'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await rendered();
+  check('W641: typing a file name applies nothing until Apply', (await S('__xpp.sentCount()')) === mark);
+  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
+  check('W641: Apply sets the path by its key', await until(`!s.busy && !s.optionsPanel`, 'applied')
+    && await S(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'output.configure' && c.values?.[${JSON.stringify(paths[0])}] === 'typed.dat')`));
   /* File > Preferences opens on the preferences as they stand, with no error before anything is typed */
   await clickRegistry('preferences.configure');
   check('W616: the Preferences form shows the current threads (or automatic), log level and log file, and no error',
@@ -3289,32 +3298,40 @@ async function optionsCheck() {
   await key('Escape');
 }
 
-/* The settings panels' pictures for the UI review (W616; run with --only shots and XPP_SHOTS=folder): every panel, as its menu entry opens it,
-   at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
+/* The dialogs' pictures for the UI review (W616, W641; run with --only shots and XPP_SHOTS=folder): every settings panel as its menu entry opens it
+   and the other dialogs, at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
 async function settingsShots() {
   const dir = process.env.XPP_SHOTS;
   if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
   fs.mkdirSync(dir, {recursive: true});
   await until('s.hello && !s.busy', 'hello');
+  const menu = id => () => clickRegistry(id);
   const panels = [['integration', 'run.configure'], ['poincare', 'analysis.poincare_map'], ['sweep', 'run.range'], ['equilibria', 'equilibrium.configure'],
     ['analysis-histogram', 'analysis.histogram'], ['analysis-spectrum', 'analysis.spectral_density'], ['continuation', 'autox.configure_numerics'],
     ['diagram', 'autox.configure_plot'], ['plot', 'plot.set_axes_origin'], ['export', 'plot.export_pdf'], ['output', 'output.configure'],
-    ['preferences', 'preferences.configure']];
+    ['preferences', 'preferences.configure'], ['command-form', 'plot.set_2d']].map(([name, id]) => [name, menu(id)]);
+  const others = [
+    ['ask-file', () => registryFile('session.save_as', 'write')],
+    ['error', async () => { await cdp.eval(`__xpp.send({cmd: 'run.configure', total_time: -1})`); await until(`!!document.querySelector('[data-error-dialog]')`, 'error'); }],
+    ['slider', async () => { await cdp.eval(`document.querySelector('.slider-add').click()`); await until(`!!document.querySelector('[data-slider-dialog]')`, 'slider'); }],
+    ['palette', async () => { await clickRegistry('tool.command_palette'); await until('s.drawerOpen', 'palette'); }],
+    ['keymap', async () => { await clickRegistry('tool.keyboard_shortcuts'); await until('!!document.querySelector("[data-keymap-editor]")', 'keymap'); }],
+  ];
   const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
   for (const [size, width, height, scheme] of sizes) {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
     await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
     await rendered();
-    for (const [name, id] of panels) {
-      await cdp.eval(`__xpp.send({cmd: 'window.select', window: __xpp.state().plots.active})`);
-      await cdp.eval(`(() => { const item = [...document.querySelectorAll('[data-command]')].find(b => b.dataset.command === ${JSON.stringify(id)}); if (item) { for (let p = item.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true; item.click(); } else __xpp.state(); })()`);
-      await until(`!!s.commandForm || !!s.optionsPanel`, 'form ' + id).catch(() => {});
-      await until(`!s.optionsPanel || Object.keys(s.optionValues).length > 0`, 'values ' + id).catch(() => {});
+    for (const [name, open] of [...panels, ...others]) {
+      await open();
+      await until(`!!document.querySelector('[data-dialog]')`, 'dialog ' + name).catch(() => {});
+      await until(`!s.optionsPanel || Object.keys(s.optionValues).length > 0`, 'values ' + name).catch(() => {});
       await rendered();
       const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
       fs.writeFileSync(path.join(dir, `${name}-${size}.png`), Buffer.from(shot.data, 'base64'));
       await key('Escape');
-      await until(`!s.commandForm && !s.optionsPanel`, 'closed').catch(() => {});
+      await until(`!document.querySelector('[data-dialog]')`, 'closed').catch(() => {});
+      await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask?.id, key: 'd'})`).catch(() => {});
     }
   }
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
@@ -3350,6 +3367,184 @@ async function tableShots() {
     await until('!s.table.open', 'table closed');
   }
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
+/* W641: one dialog shell and one form system. Every dialog is read by its data: one shell (head, title, the ×, the footer's one action named for
+   what it does, never OK, Run, Cancel or Close), a field shows its current value with no error before anything was typed, and a bad value is an
+   error naming the rule and the value once the field was left or the action pressed, counted in the footer, the action never disabled. */
+async function dialogsCheck() {
+  await until('s.hello && !s.busy', 'hello');
+  const shell = () => cdp.eval(`(() => {
+    const all = [...document.querySelectorAll('[data-dialog]')];
+    const d = all[0]; if (!d) return null;
+    const buttons = [...d.querySelectorAll('.dialog-actions button')].map(b => b.textContent.trim());
+    return {count: all.length, title: d.querySelector('.dialog-head h2')?.textContent.trim(), close: !!d.querySelector('.dialog-head .dialog-close'),
+      action: d.querySelector('[data-dialog-action]')?.textContent.trim(), actionDisabled: d.querySelector('[data-dialog-action]')?.disabled,
+      buttons, errors: d.querySelectorAll('.field-error').length, width: d.dataset.width};
+  })()`);
+  const banned = ['OK', 'Run', 'Cancel', 'Close'];
+  const sound = (name, d) => check(`W641: ${name}: one shell with a title and a ×, no ${banned.join('/')} button, the action never disabled`,
+    !!d && d.count === 1 && !!d.title && d.close && !d.buttons.some(b => banned.includes(b)) && d.actionDisabled !== true, JSON.stringify(d));
+  /* a settings group's form */
+  await clickRegistry('run.configure');
+  await requireUntil(`!!document.querySelector('[data-options-panel=integration] [data-argument=dt] input') && !!s.optionValues.integration`, 'the run settings form');
+  let d = await shell();
+  sound('Run settings', d);
+  check('W641: Run settings: the action is the row\'s own text (Apply), and nothing is wrong before anything is typed', d.action === 'Apply' && d.errors === 0 && d.width === 'form', JSON.stringify(d));
+  check('W641: every field shows its current value (Dt is the core\'s)', await cdp.eval(`document.querySelector('[data-options-panel=integration] [data-argument=dt] input').value`) === await S(`String(s.numerics.find(f => f.key === 'dt').value)`));
+  const dt = `document.querySelector('[data-options-panel=integration] [data-argument=dt] input')`;
+  await cdp.eval(`(() => { const el = ${dt}; el.focus(); el.value = '0'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await rendered();
+  check('W641: a bad value shows no error while it is typed', await cdp.eval(`!document.querySelector('[data-argument=dt] .field-error')`));
+  await cdp.eval(`${dt}.blur()`);
+  await rendered();
+  check('W641: once the field is left the error names the rule and the value, and the footer counts it',
+    await until(`document.querySelector('[data-argument=dt] .field-error')?.textContent === 'Must be a number other than 0; got 0' && document.querySelector('[data-problems]')?.textContent === '1 field to fix'`, 'the error'),
+    await cdp.eval(`document.querySelector('[data-argument=dt] .field-error')?.textContent`));
+  const sentBad = await S('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
+  await rendered();
+  check('W641: Apply with an error sends nothing, is not disabled and moves the focus to the first field to fix',
+    (await S('__xpp.sentCount()')) === sentBad && await cdp.eval(`document.activeElement === ${dt}`));
+  await key('Escape');
+  await until('!s.optionsPanel', 'closed by Escape');
+  /* a dropdown is a text field: the same height, type, fill, border and radius, in light and in dark */
+  await clickRegistry('run.configure');
+  await requireUntil(`!!document.querySelector('[data-options-panel=integration] [data-argument=method] select') && !!s.optionValues.integration`, 'the run settings form again');
+  for (const scheme of ['light', 'dark']) {
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    await rendered();
+    const look = await cdp.eval(`(() => {
+      const of = el => { const c = getComputedStyle(el); return [c.height, c.backgroundColor, c.fontSize, c.borderTopColor, c.borderTopLeftRadius].join(' | '); };
+      const text = document.querySelector('[data-options-panel=integration] [data-argument=dt] .input-box');
+      const textInput = text.querySelector('input'), select = document.querySelector('[data-options-panel=integration] [data-argument=method] select');
+      return {text: of(text), select: of(select), textFont: getComputedStyle(textInput).fontSize, selectFont: getComputedStyle(select).fontSize};
+    })()`);
+    check(`W641: ${scheme}: a dropdown has a text field's height, fill, border and radius, and its type size`, look.text === look.select && look.textFont === look.selectFont, JSON.stringify(look));
+  }
+  await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: 'light'}]});
+  await key('Escape');
+  await until('!s.optionsPanel', 'run settings closed');
+  /* every file control, in Output and in Export, is the one component: the same class, its picker inside it, no separate Choose button */
+  await cdp.eval(`__xpp.openOptions('output')`);
+  await requireUntil(`s.optionsPanel?.group === 'output' && !!s.optionValues.output`, 'the Output form');
+  await rendered();
+  const outputFiles = await cdp.eval(`(() => { const d = document.querySelector('[data-dialog]');
+    const rows = [...d.querySelectorAll('[data-argument]')].filter(r => r.querySelector('.file-box'));
+    return {count: rows.length, same: rows.every(r => r.querySelectorAll('.file-box').length === 1 && r.querySelectorAll('button').length === r.querySelectorAll('.file-box button').length),
+      looseButtons: [...d.querySelectorAll('.dialog-body button')].filter(b => !b.closest('.file-box')).map(b => b.textContent.trim()), inBox: d.querySelectorAll('.file-box button').length}; })()`);
+  check('W641: every file row of the Output form is the one file control (the same class, no file button of any kind)',
+    outputFiles.count >= 3 && outputFiles.same && !outputFiles.looseButtons.some(b => /Choose|Browse/.test(b)) && outputFiles.inBox === 0, JSON.stringify(outputFiles));
+  await key('Escape');
+  await until('!s.optionsPanel', 'output closed');
+  await clickRegistry('plot.export_pdf');
+  await requireUntil(`!!s.commandForm`, 'the export form for its file control');
+  const exportFile = await cdp.eval(`(() => { const row = document.querySelector('[data-dialog] [data-argument=file]'); return {box: row.querySelectorAll('.file-box').length, loose: [...row.querySelectorAll('button')].filter(b => !b.closest('.file-box')).length}; })()`);
+  check('W641: the Export form\'s File is the same file control as Output\'s, with no button beside it', exportFile.box === 1 && exportFile.loose === 0, JSON.stringify(exportFile));
+  await key('Escape');
+  await until('!s.commandForm', 'export closed');
+  /* a hint fits inside its box, on a phone too */
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 1, mobile: true});
+  await rendered();
+  await clickRegistry('analysis.spectral_density');
+  await requireUntil(`!!s.commandForm && !!document.querySelector('[data-dialog] [data-argument="spectrum.width"] .input-box .unit, [data-dialog] .input-box .unit')`, 'a form with a range hint');
+  const hints = await cdp.eval(`[...document.querySelectorAll('[data-dialog] .input-box')].filter(b => b.querySelector('.unit')).map(b => { const u = b.querySelector('.unit').getBoundingClientRect(), r = b.getBoundingClientRect(), body = b.closest('.dialog-body').getBoundingClientRect(); return {right: u.right, box: r.right, body: body.right, text: b.querySelector('.unit').textContent}; })`);
+  check('W641: at 390 a range hint\'s right edge is inside its box', hints.length > 0 && hints.every(h => h.right <= h.box + 0.5 && h.box <= h.body + 0.5), JSON.stringify(hints));
+  await key('Escape');
+  await until('!s.commandForm', 'spectrum closed');
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await rendered();
+  /* the colour field is one row: the swatch, the text box in the field style, the opacity and Foreground */
+  await cdp.eval(`__xpp.openOptions('diagram')`);
+  await requireUntil(`s.optionsPanel?.group === 'diagram' && !!s.optionValues.diagram`, 'the Diagram form');
+  await rendered();
+  const colour = await cdp.eval(`(() => { const f = document.querySelector('[data-dialog] [data-color-field]'); const centres = [...f.children].map(c => { const r = c.getBoundingClientRect(); return r.top + r.height / 2; });
+    return {oneRow: Math.max(...centres) - Math.min(...centres) < 3, centres, textInBox: !!f.querySelector('.input-box [data-color-text]')}; })()`);
+  check('W641: a colour row is one line (swatch, text box in the field style, opacity, Foreground) at 1280', colour.oneRow && colour.textInBox, JSON.stringify(colour));
+  await key('Escape');
+  await until('!s.optionsPanel', 'diagram closed');
+  /* a file: one control, which also takes a dropped file; the footer's action is the only one */
+  await clickRegistry('plot.export_pdf');
+  await requireUntil(`!!s.commandForm`, 'the export form');
+  const exportForm = await cdp.eval(`(() => {
+    const d = document.querySelector('[data-dialog]');
+    const row = d.querySelector('[data-argument=file]');
+    return {fileControls: row.querySelectorAll('.file-box input, input[type=file]').length, buttonsInRow: row.querySelectorAll('button').length, buttonsInFileBox: row.querySelectorAll('.file-box button').length,
+      labelX: [...d.querySelectorAll('.form-label')].map(l => Math.round(l.getBoundingClientRect().left)),
+      actions: [...d.querySelectorAll('.dialog-actions button')].map(b => b.textContent.trim()), buttonsInBody: [...d.querySelectorAll('.dialog-body button')].map(b => b.textContent.trim())};
+  })()`);
+  check('W641: the export form has one file control and no second action (the footer\'s is the only one)',
+    exportForm.fileControls === 1 && exportForm.buttonsInRow === 0 && exportForm.actions.length === 1 && !exportForm.buttonsInBody.some(b => /Choose file/.test(b)), JSON.stringify(exportForm));
+  check('W641: in the Export form every row\'s label starts at the same x (the box of the command\'s own arguments and the settings box share one label column)',
+    exportForm.labelX.length >= 4 && new Set(exportForm.labelX).size === 1, JSON.stringify(exportForm.labelX));
+  check('W641: Export\'s File is not marked required, and no form has a separate file button',
+    await cdp.eval(`(() => { const row = document.querySelector('[data-dialog] [data-argument=file]'); return !row.querySelector('.required') && !document.querySelector('[data-dialog] .file-pick'); })()`));
+  const sentExport = await S('__xpp.sentCount()');
+  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
+  check('W641: Export with File empty sends plot.export_pdf with file_picker (the core\'s file ask chooses the place)',
+    await until(`s.ask?.kind === 'file'`, 'the file ask')
+    && await S(`__xpp.sentFrom(${sentExport}).some(c => c.cmd === 'plot.export_pdf' && c.file_picker === true && !('file' in c))`));
+  await cdp.eval(`document.querySelector('[data-dialog] .dialog-close').click()`);
+  await until('!s.ask && !s.busy', 'export ask cancelled');
+  await clickRegistry('plot.export_pdf');
+  await requireUntil(`!!s.commandForm`, 'the export form again');
+  await key('Escape');
+  await until('!s.commandForm', 'export form closed');
+  /* the phone's sheet: the action sits at the bottom, inside the screen */
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 1, mobile: true});
+  await rendered();
+  await registryFile('session.save_as', 'write');
+  const sheet = await cdp.eval(`(() => { const a = document.querySelector('[data-dialog-action]').getBoundingClientRect(), d = document.querySelector('[data-dialog]').getBoundingClientRect();
+    const hit = document.elementFromPoint(a.left + a.width / 2, a.bottom - 3);
+    return {actionBottom: a.bottom, dialogBottom: d.bottom, height: window.innerHeight, reachable: !!hit?.closest('[data-dialog-action]')}; })()`);
+  check('W641: on a phone the sheet\'s action is inside the viewport, at its bottom', sheet.reachable && sheet.actionBottom <= sheet.dialogBottom && sheet.actionBottom <= sheet.height && sheet.actionBottom >= sheet.height - 80 && sheet.dialogBottom <= sheet.height, JSON.stringify(sheet));
+  await cdp.eval(`document.querySelector('[data-dialog] .dialog-close').click()`);
+  await until('!s.ask && !s.busy', 'ask cancelled');
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await rendered();
+  /* a command form */
+  await clickRegistry('plot.set_2d');
+  await requireUntil(`!!s.commandForm`, 'the 2D axes form');
+  d = await shell();
+  sound('Set 2D plot', d);
+  check('W641: a command form shows its description under its title, and no error before input', await cdp.eval(`!!document.querySelector('[data-dialog] .dialog-desc')`) && d.errors === 0, JSON.stringify(d));
+  await cdp.eval(`document.querySelector('[data-dialog] .dialog-close').click()`);
+  await until('!s.commandForm', 'closed by the ×');
+  /* Preferences opens on the current values */
+  await clickRegistry('preferences.configure');
+  d = await shell();
+  sound('Preferences', d);
+  check('W641: Preferences: no error before input, one switch for Automatic', d.errors === 0 && await cdp.eval(`document.querySelectorAll('[data-dialog] [data-argument=automatic] input[type=checkbox]').length === 1`), JSON.stringify(d));
+  await key('Escape');
+  await until('!s.commandForm', 'closed');
+  /* a core ask: the same shell, named for what it does */
+  await registryFile('session.save_as', 'write');
+  d = await shell();
+  sound('a file ask', d);
+  check('W641: the file ask\'s action is Save, not OK', /^Save/.test(d.action ?? ''), JSON.stringify(d));
+  await cdp.eval(`document.querySelector('[data-dialog] .dialog-close').click()`);
+  await until('!s.ask && !s.busy', 'ask cancelled by the ×');
+  /* the error dialog */
+  await cdp.eval(`__xpp.send({cmd: 'run.configure', total_time: -1})`);
+  await until(`!!document.querySelector('[data-error-dialog]')`, 'the error dialog');
+  d = await shell();
+  sound('the error dialog', d);
+  await key('Escape');
+  await until(`!document.querySelector('[data-error-dialog]')`, 'error dismissed');
+  /* the Add slider dialog */
+  await cdp.eval(`document.querySelector('.slider-add').click()`);
+  await until(`!!document.querySelector('[data-slider-dialog]')`, 'slider dialog');
+  d = await shell();
+  sound('Add slider', d);
+  check('W641: Add slider: the action says what it does and the list dialog is the wide one', d.action === 'Add slider' && d.width === 'list', JSON.stringify(d));
+  await key('Escape');
+  await until(`!document.querySelector('[data-slider-dialog]')`, 'slider closed');
+  /* the command palette is the same shell */
+  await clickRegistry('tool.command_palette');
+  await until('s.drawerOpen', 'palette');
+  d = await shell();
+  sound('the command palette', d);
+  await key('Escape');
 }
 
 async function navigationCheck() {
@@ -3388,13 +3583,13 @@ async function navigationCheck() {
       check(`W616: ${row.cmd} shows its group's panel ${inForm ? 'inside its form' : 'in place of its form'}`,
         await until(inForm ? `!!s.commandForm && !!document.querySelector('.registry-form [data-options-rows] [data-argument]')`
           : `!!s.optionsPanel && !s.commandForm && !!document.querySelector('[data-options-panel]')`, 'panel'));
-      const own = await cdp.eval(`[...document.querySelectorAll('.registry-form > form > .registry-argument')].map(e => e.dataset.argument)`);
-      if (inForm) check(`W616: ${row.cmd}'s form keeps only the arguments no row sets`, JSON.stringify(own) === JSON.stringify(row.arguments.filter(a => !a.option).map(a => a.name)), JSON.stringify(own));
+      const own = await cdp.eval(`[...document.querySelectorAll('.registry-form .dialog-body .form-row')].filter(e => !e.closest('[data-options-rows]')).map(e => e.dataset.argument)`);
+      if (inForm) check(`W616: ${row.cmd}'s form keeps only the arguments no row sets`, JSON.stringify([...own].sort()) === JSON.stringify(row.arguments.filter(a => !a.option).map(a => a.name).sort()), JSON.stringify(own));
       await key('Escape');
       continue;
     }
     const fields = await cdp.eval(`[...document.querySelectorAll('.registry-form [data-argument]')].map(e => e.dataset.argument)`);
-    check(`W517: ${row.cmd} form is its registry arguments`, JSON.stringify(fields) === JSON.stringify(row.arguments.map(a => a.name)), JSON.stringify(fields));
+    check(`W517: ${row.cmd} form is its registry arguments (a group's together)`, JSON.stringify([...fields].sort()) === JSON.stringify(row.arguments.filter(a => a.type !== 'path').map(a => a.name).sort()), JSON.stringify(fields));
     await key('Escape');
   }
   await clickRegistry('tool.command_palette');
@@ -3492,7 +3687,7 @@ async function controlRuns(id, file = 'frames.gif', values = {}, view = '') {
   await rendered();
   if (await S('!!s.commandForm')) {
     if (await cdp.eval(`!!document.querySelector('.registry-form [data-argument=file]')`)) {
-      await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…').click()`);
+      await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
       await until(`s.ask && s.ask.kind === 'file'`, 'file ask');
       await answerAsk({file});
     } else { await formValues(values); await submitCommand(); }
@@ -3718,11 +3913,9 @@ async function addSlider(name, edit = null) {
     el.value = ${JSON.stringify(name)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await until(`document.querySelector('.slider-picker-item')`, 'slider candidates filtered');
   await cdp.eval(`document.querySelector('.slider-picker-item').click()`);
-  await until(`!![...document.querySelectorAll('.dialog-actions button')].find(b => b.textContent === 'OK')`, 'slider fields shown');
+  await until(`!!document.querySelector('[data-slider-dialog] .slider-dialog-fields input')?.value`, 'slider fields shown');
   if (edit) await setSliderDialogFields(edit);
-  await until(
-    `!([...document.querySelectorAll('.dialog-actions button')].find(b => b.textContent === 'OK')?.disabled)`, 'OK enabled');
-  await cdp.eval(`[...document.querySelectorAll('.dialog-actions button')].find(b => b.textContent === 'OK').click()`);
+  await cdp.eval(`document.querySelector('[data-slider-dialog] [data-dialog-action]').click()`);
   await until(`s.values.sliders.length > ${before}`, 'slider added');
   return S('s.values.sliders[s.values.sliders.length - 1].id');
 }
@@ -3730,8 +3923,8 @@ async function addSlider(name, edit = null) {
 /** fills the open slider dialog's Min/Max/Step fields (whichever keys are given) */
 async function setSliderDialogFields(fields) {
   for (const [label, text] of Object.entries(fields)) {
-    await cdp.eval(`(() => { const l = [...document.querySelectorAll('.slider-dialog-fields label')]
-      .find(l => l.querySelector('span').textContent === ${JSON.stringify(label)});
+    await cdp.eval(`(() => { const l = [...document.querySelectorAll('.slider-dialog-fields .form-row')]
+      .find(l => l.querySelector('.form-label').textContent.replace(/ \\*$/, '') === ${JSON.stringify(label)});
       const el = l.querySelector('input'); el.value = ${JSON.stringify(text)};
       el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   }
@@ -3741,6 +3934,18 @@ async function setSliderDialogFields(fields) {
 /** the input of field `name` in the values panel's section `sec` (par or ic) */
 const fieldOf = (sec, name) => `[...document.querySelectorAll('[data-section="${sec}"] .value-field')]
   .find(f => f.querySelector('.value-name').textContent.toLowerCase() === ${JSON.stringify(name.toLowerCase())})`;
+/** type `text` into a row of Values' Numerics (the integration group's row `key`) and leave it: sent at once */
+async function editNumericsRow(key, text) {
+  await cdp.eval(`(() => { const toggle = document.querySelector('[data-section="num"] .value-fold[aria-expanded="false"]'); if (toggle) toggle.click(); })()`);
+  await rendered();
+  const input = `document.querySelector('[data-section="num"] [data-num="${key}"] input')`;
+  await cdp.eval(`(() => { const el = ${input}; el.scrollIntoView({block: 'nearest'}); el.focus(); })()`);
+  await requireUntil(`document.activeElement === ${input}`, `the ${key} row has the focus`);
+  await cdp.eval(`(() => { const el = ${input}; el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await rendered();
+  await cdp.eval(`${input}.blur()`);
+  await rendered();
+}
 /** type `text` into a field and leave it (two round trips: Preact renders the draft before the blur reads it) */
 async function editField(sec, name, text) {
   await cdp.eval(`(() => { const group = ${fieldOf(sec, name)}.closest('.value-group');
@@ -4151,40 +4356,40 @@ async function valuesBusy() {
 /* W260: the Numerics section's Jacobian, a choice of difference and exact;
    a model with no exact Jacobian shows exact disabled, with the reason. */
 async function valuesJacobian(dir) {
-  const select = `document.querySelector('[data-section="num"] [data-num="jacobian.kind"] select')`;
-  const options = () => cdp.eval(`(() => { const s = ${select}; return s ? [...s.options].map(o => [o.textContent, o.disabled]) : null; })()`);
+  const select = `document.querySelector('[data-section="num"] [data-num="jacobian.kind"] [role=radiogroup]')`;
+  const options = () => cdp.eval(`(() => { const s = ${select}; return s ? [...s.querySelectorAll('[role=radio]')].map(o => [o.textContent, o.disabled]) : null; })()`);
   await cdp.eval(`(() => { const t = document.querySelector('[data-section="num"] .value-fold[aria-expanded="false"]'); if (t) t.click(); })()`);
   await until(`!!${select}`, 'the Jacobian select');
   check('W260: Numerics shows Jacobian as a choice of difference and exact, difference selected, both available',
     JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', false]])
-    && await cdp.eval(`${select}.value === 'difference'`), JSON.stringify(await options()));
+    && await cdp.eval(`${select}.querySelector('[aria-checked=true]')?.dataset.choice === 'difference'`), JSON.stringify(await options()));
   const sent = await S('__xpp.sentCount()');
-  await cdp.eval(`(() => { const s = ${select}; s.value = 'exact'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await cdp.eval(`(() => { ${select}.querySelector('[data-choice=exact]').click(); })()`);
   check('W260: choosing exact sends options.configure jacobian.kind exact, and the core takes it',
     await until(`!s.busy && s.numerics.find(f => f.key === 'jacobian')?.value === 'exact'`, 'exact taken')
     && JSON.stringify((await S(`__xpp.sentFrom(${sent})`)).filter(c => c.cmd === 'options.configure'))
       === JSON.stringify([{cmd: 'options.configure', group: 'integration', values: {'jacobian.kind': 'exact'}}]),
     JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
   /* W433: the Subsystem split, a choice of equations and run (its label derived from its name) */
-  const split = `document.querySelector('[data-section="num"] [data-num="subsystem_split"] select')`;
+  const split = `document.querySelector('[data-section="num"] [data-num="subsystem_split"] [role=radiogroup]')`;
   await until(`!!${split}`, 'the Subsystem split select');
-  const splitOptions = await cdp.eval(`[...${split}.options].map(o => [o.textContent, o.disabled])`);
+  const splitOptions = await cdp.eval(`[...${split}.querySelectorAll('[role=radio]')].map(o => [o.textContent, o.disabled])`);
   check('W433: Numerics shows Subsystem split as a choice of Equations and Run, Equations selected',
-    JSON.stringify(splitOptions) === JSON.stringify([['Equations', false], ['Run', false]]) && await cdp.eval(`${split}.value === 'equations'`),
+    JSON.stringify(splitOptions) === JSON.stringify([['Equations', false], ['Run', false]]) && await cdp.eval(`${split}.querySelector('[aria-checked=true]')?.dataset.choice === 'equations'`),
     JSON.stringify(splitOptions));
   const splitSent = await S('__xpp.sentCount()');
-  await cdp.eval(`(() => { const s = ${split}; s.value = 'run'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await cdp.eval(`(() => { ${split}.querySelector('[data-choice=run]').click(); })()`);
   check('W433: choosing run sends set num subsystem_split run, and the core takes it',
     await until(`!s.busy && s.numerics.find(f => f.key === 'subsystem_split')?.value === 'run'`, 'run taken')
     && JSON.stringify((await S(`__xpp.sentFrom(${splitSent})`)).filter(c => c.cmd === 'options.configure'))
       === JSON.stringify([{cmd: 'options.configure', group: 'integration', values: {'subsystem_split': 'run'}}]),
     JSON.stringify(await S(`__xpp.sentFrom(${splitSent})`)));
   /* W613: Storage precision, a choice of Single and Double, which the data table follows */
-  const precision = `document.querySelector('[data-section="num"] [data-num="storage_precision"] select')`;
+  const precision = `document.querySelector('[data-section="num"] [data-num="storage_precision"] [role=radiogroup]')`;
   await until(`!!${precision}`, 'the Storage precision select');
-  const precisionOptions = await cdp.eval(`[...${precision}.options].map(o => [o.textContent, o.disabled])`);
+  const precisionOptions = await cdp.eval(`[...${precision}.querySelectorAll('[role=radio]')].map(o => [o.textContent, o.disabled])`);
   check('W613: Numerics shows Storage precision as a choice of Single and Double, Single selected',
-    JSON.stringify(precisionOptions) === JSON.stringify([['Single', false], ['Double', false]]) && await cdp.eval(`${precision}.value === 'single'`),
+    JSON.stringify(precisionOptions) === JSON.stringify([['Single', false], ['Double', false]]) && await cdp.eval(`${precision}.querySelector('[aria-checked=true]')?.dataset.choice === 'single'`),
     JSON.stringify(precisionOptions));
   const firstRows = async () => {
     /* browser.page ends with no done: wait for a page newer than the one the store holds */
@@ -4199,7 +4404,7 @@ async function valuesJacobian(dir) {
   check('W613: under Single every value the table shows is a float in its shortest text (at most 9 digits)',
     asFloats.length > 10 && asFloats.every(v => digits(v) <= 9), JSON.stringify(asFloats.slice(0, 5)));
   const precisionSent = await S('__xpp.sentCount()');
-  await cdp.eval(`(() => { const s = ${precision}; s.value = 'double'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  await cdp.eval(`(() => { ${precision}.querySelector('[data-choice=double]').click(); })()`);
   check('W613: choosing Double sends set num storage_precision double, and the core takes it',
     await until(`!s.busy && s.numerics.find(f => f.key === 'storage_precision')?.value === 'double'`, 'double taken')
     && JSON.stringify((await S(`__xpp.sentFrom(${precisionSent})`)).filter(c => c.cmd === 'options.configure'))
@@ -4218,12 +4423,12 @@ async function valuesJacobian(dir) {
   await openFile('w260noise.odex');
   await until("s.ask?.kind === 'choice'", 'save before Open');
   await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
-  await until(`!s.busy && !s.ask && s.hello.file === 'w260noise.odex' && !!${select}`, 'the noisy model opened');
+  await until(`!s.busy && !s.ask && s.hello.file === 'w260noise.odex' && !!s.optionValues.integration && !!${select}`, 'the noisy model opened');
   const hint = `document.querySelector('[data-section="num"] [data-num="jacobian.kind"] [data-unavailable="exact"]')`;
   check('W260: a model with random numbers offers exact until it is chosen',
     JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', false]]) && !await cdp.eval(`!!${hint}`),
-    JSON.stringify(await options()));
-  await cdp.eval(`(() => { const s = ${select}; s.value = 'exact'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+    JSON.stringify([await options(), await cdp.eval(`${hint}?.textContent`), await S("JSON.stringify(s.optionValues.integration?.unavailable)")]));
+  await cdp.eval(`(() => { ${select}.querySelector('[data-choice=exact]').click(); })()`);
   await until(`!s.busy && !!s.numerics.find(f => f.key === 'jacobian')?.unavailable`, 'the refusal');
   check('W260: choosing exact there is refused, then shows exact disabled, and why, at its line',
     JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', true]])
@@ -4708,7 +4913,7 @@ async function registryFile(id, mode, values = {}) {
   await clickRegistry(id);
   if (await S('!!s.commandForm')) {
     await formValues(values);
-    await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…' || b.textContent === 'Choose file…').click()`);
+    await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
   }
   return until(`s.ask?.kind === 'file' && s.ask.mode === '${mode}' && document.querySelector('.file-ask')`, 'file picker');
 }
@@ -4760,9 +4965,9 @@ async function files(dir) {
     await cdp.eval("window.showSaveFilePicker = async () => ({name: 'CON.snapx'}); true");
     await registryFile('session.save_as', 'write');
     const badPickerStart = await cdp.eval('__xpp.sentCount()');
-    await cdp.eval("document.querySelector('.file-ask button[type=submit]').click()");
+    await cdp.eval("document.querySelector('[data-ask=file] [data-dialog-action]').click()");
     check('W130: an unsafe picker name is shown whole with a field error', await until(`(() => {
-      const el = document.querySelector('[data-file-name]');
+      const el = document.querySelector('#file-name');
       return el?.value === 'CON.snapx' && el.getAttribute('aria-invalid') === 'true'
         && document.querySelector('.file-ask .field-error')?.textContent && s.ask?.kind === 'file';
     })()`, 'bad picked name'));
@@ -4776,7 +4981,7 @@ async function files(dir) {
     /* File/saVe session: the core writes into the model's folder, the page offers it */
     check('File/saVe session opens a save dialog (the ask says it writes)', await registryFile('session.save_as', 'write'),
       JSON.stringify(await S('s.ask')));
-    await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.snapx';
+    await cdp.eval(`(() => { const i = document.querySelector('#file-name'); i.value = 't5.snapx';
       i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
     await rendered();
     await key('Enter');
@@ -4800,9 +5005,9 @@ async function files(dir) {
     acceptSave = false;
     try {
       await registryFile('session.save_as', 'write');
-      await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.snapx';
+      await cdp.eval(`(() => { const i = document.querySelector('#file-name'); i.value = 't5.snapx';
         i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
-      await until("document.querySelector('[data-file-name]').value === 't5.snapx'", 'repeat name');
+      await until("document.querySelector('#file-name').value === 't5.snapx'", 'repeat name');
       await key('Enter');
       check('W129 browser mode: the existing model copy asks once',
         await until("s.ask && s.ask.kind === 'choice' && s.ask.keys === 'yn' && s.ask.question === 't5.snapx exists. Replace it?'", 'save permission'));
@@ -4849,11 +5054,11 @@ async function files(dir) {
     await setPar('iapp', 0.3);
     await registryFile('session.import_xppaut_state', 'read');
     await pickFiles('[data-file-input=open]', [other]);
-    check('a same-name upload with other content asks: Replace, Keep both, Cancel',
+    check('a same-name upload with other content asks: Replace, Keep both (the × cancels)',
       await until(`s.files.confirm && s.files.confirm.name === 't5up.set' && s.files.confirm.keepBoth === 't5up-2.set'
-        && document.querySelectorAll('[data-confirm] [data-choice]').length === 3`, 'confirm'),
+        && document.querySelectorAll('[data-ask=file] [data-choice]').length === 2 && !!document.querySelector('[data-confirm]')`, 'confirm'),
       JSON.stringify(await S('s.files.confirm')));
-    await cdp.eval(`document.querySelector('[data-choice=cancel]').click()`);
+    await cdp.eval(`document.querySelector('[data-ask=file] .dialog-close').click()`);
     check('Cancel copies nothing and leaves the prompt open',
       await until(`!s.files.confirm && s.ask && s.ask.kind === 'file'`, 'cancel')
       && fs.readFileSync(path.join(dir, 't5up.set')).equals(setBytes) && !fs.existsSync(path.join(dir, 't5up-2.set')));
@@ -4893,11 +5098,11 @@ async function files(dir) {
     fs.writeFileSync(parPicked, parThere.toString().replace(/\n[^\n]*  iapp\r?\n/, '\n0.0777  iapp\n'));
     const sentLoad = await cdp.eval('__xpp.sentCount()');
     await pickFiles('#values-load-par', [parPicked]);
-    check('W134: Values > Load over a different file of the same name asks: Replace, Keep both, Cancel',
+    check('W134: Values > Load over a different file of the same name asks: Replace, Keep both (the × cancels)',
       await until(`s.files.confirm && s.files.confirm.ask === null && s.files.confirm.name === 'w134.par'
-        && document.querySelectorAll('[data-replace-dialog] [data-choice]').length === 3`, 'load confirm'),
+        && document.querySelectorAll('[data-replace-dialog] [data-choice]').length === 2`, 'load confirm'),
       JSON.stringify(await S('s.files.confirm')));
-    await cdp.eval(`document.querySelector('[data-replace-dialog] [data-choice=cancel]').click()`);
+    await cdp.eval(`document.querySelector('[data-replace-dialog] .dialog-close').click()`);
     check('W134: ... Cancel leaves the folder\'s file untouched and reads nothing',
       await until('!s.files.confirm && !document.querySelector("[data-replace-dialog]")', 'load cancel')
       && fs.readFileSync(path.join(dir, 'w134.par')).equals(parThere)
@@ -4935,8 +5140,8 @@ async function files(dir) {
     await registryFile('session.import_xppaut_state', 'read');
     check('a read ask has no tabs and no listing, one Choose file… button, focused',
       await cdp.eval(`!document.querySelector('.file-tabs, .file-list, [data-folder-file]')
-        && document.querySelector('.file-ask button.primary')?.textContent === 'Choose file…'
-        && document.activeElement === document.querySelector('.file-ask button.primary')`));
+        && document.querySelector('[data-ask=file] [data-dialog-action]')?.textContent === 'Choose file…'
+        && document.activeElement === document.querySelector('[data-ask=file] [data-dialog-action]')`));
     check('the hidden input filters by the pattern of the ask',
       await cdp.eval(`(() => { const w = __xpp.state().ask.wild, i = document.querySelector('[data-file-input=open]');
         return !w || w === '*' ? !i.accept : i.accept === w.split(' ').map(x => x.split('*').join('')).join(',') })()`), JSON.stringify(await S('s.ask')));
@@ -4991,7 +5196,7 @@ async function nativeFiles(dir) {
   const fileCommand = async (id, reply) => {
     await cdp.eval(`window.__nativeReply = ${JSON.stringify(reply)}; true`);
     await clickRegistry(id);
-    await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…').click()`);
+    await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
     return until('!s.busy && !s.ask', 'native picker answered');
   };
   const asked = () => cdp.eval('window.__nativeAsked.slice(-1)[0]');
@@ -5230,7 +5435,7 @@ async function kinescope(dir) {
     await clickRegistry(id);
     if (await S('!!s.commandForm')) {
       const hasFile = await cdp.eval(`!!document.querySelector('.registry-form [data-argument=file]')`);
-      if (hasFile) await cdp.eval(`[...document.querySelectorAll('.registry-form button')].find(b => b.textContent === 'Choose file and run…').click()`);
+      if (hasFile) await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
       else await submitCommand();
     }
     return true;
@@ -5448,7 +5653,7 @@ async function jacobianOfferCheck(dir) {
   check('W260: the button sends the core\'s commands, closes the error, and the run ends at t=4 with differences',
     await until(`!s.busy && !document.querySelector('[data-error-dialog]') && Math.abs(s.core.time - 4) < 1e-9
       && s.numerics.find(f => f.key === 'jacobian')?.value === 'difference'`, 'the run continued', 20000)
-    && JSON.stringify(await S(`__xpp.sentFrom(${sent})`)) === JSON.stringify([
+    && JSON.stringify((await S(`__xpp.sentFrom(${sent})`)).filter(c => c.cmd !== 'options.get')) === JSON.stringify([
       {cmd: 'set', kind: 'num', name: 'jacobian', text: 'difference'}, {cmd: 'run.continue', until: 4}]),
     JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
 
@@ -5471,7 +5676,7 @@ async function jacobianOfferCheck(dir) {
     JSON.stringify(await S('s.toasts')));
   const autoxSent = await S('__xpp.sentCount()');
   await cdp.eval(`${offer}.click()`);
-  const autoxCommands = await S(`__xpp.sentFrom(${autoxSent})`);
+  const autoxCommands = (await S(`__xpp.sentFrom(${autoxSent})`)).filter(c => c.cmd !== 'options.get'); /* the Values section's refetch is the page's own */
   check('W275: the button sends set num jacobian difference, then autox.run from an end point label, and the branch goes on past a = 0.4',
     await until(`!s.busy && !document.querySelector('[data-error-dialog]') && Math.min(...dv.points.x) < 0.4`, 'the run continued', 60000)
     && autoxCommands.length === 2 && autoxCommands[0].cmd === 'set' && autoxCommands[1].cmd === 'autox.run'
@@ -5569,7 +5774,7 @@ async function updatesCheck() {
       finally { window.__xppOpenRelease = binding; }
     })()`));
   }
-  const close = () => cdp.eval("document.querySelector('[data-update-dialog] .dialog-actions button:last-child').click()");
+  const close = () => cdp.eval("document.querySelector('[data-update-dialog] .dialog-close').click()");
   const run = async (answer, text) => {
     await cdp.eval(`window.__updateAnswer = ${JSON.stringify(answer)}; window.__xppCheckUpdates(); true`);
     check(text, await until(`document.querySelector('[data-update-dialog]')?.textContent.includes(${JSON.stringify(text)})`, text));
@@ -5601,19 +5806,19 @@ async function updatesCheck() {
   check('xppautX 999.0.0 is available', await until("document.querySelector('[data-update-dialog]')?.textContent.includes('999.0.0 is available')", 'replacement update finished'));
   check('updates: closing a pending check permits a new request and ignores the old result',
     await cdp.eval(`window.__pendingAborted && window.__updateRequests === ${requests} && document.querySelector('[data-update-dialog]').textContent.includes('999.0.0 is available')`));
-  check('updates: newer offers release page and Close', await cdp.eval("document.querySelector('[data-update-dialog]').textContent.includes('Open the release page')"));
+  check('updates: newer offers the release page (the × closes)', await cdp.eval("document.querySelector('[data-update-dialog]').textContent.includes('Open the release page')"));
   await cdp.eval(opt.webview2
-    ? "window.__openedRelease = null; window.__xppOpenRelease = async url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] .dialog-actions button:first-child').click()"
-    : "window.__openedRelease = null; window.open = url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] .dialog-actions button:first-child').click()");
+    ? "window.__openedRelease = null; window.__xppOpenRelease = async url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] [data-dialog-action]').click()"
+    : "window.__openedRelease = null; window.open = url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] [data-dialog-action]').click()");
   check('updates: opens only on choice', await cdp.eval("window.__openedRelease === 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0'"));
   await close();
   /* a pre-release build (v0.1.0-beta.1) is older than the release of its own numbers; a release build is not */
   if (/^xppautX v\d+\.\d+\.\d+-[A-Za-z]/.test(about)) {
     await run(release(local), `xppautX ${local.slice(1)} is available`);
-    check('updates: a pre-release build is offered the release of its numbers', await cdp.eval("document.querySelectorAll('[data-update-dialog] .dialog-actions button').length === 2"));
+    check('updates: a pre-release build is offered the release of its numbers', await cdp.eval("document.querySelectorAll('[data-update-dialog] [data-dialog-action]').length === 1"));
   } else {
     await run(release(local), `xppautX ${local.slice(1)} is the latest`);
-    check('updates: same has no release action', await cdp.eval("document.querySelectorAll('[data-update-dialog] .dialog-actions button').length === 1"));
+    check('updates: same has no release action', await cdp.eval("document.querySelectorAll('[data-update-dialog] [data-dialog-action]').length === 0"));
   }
   await close();
   await run(release('v0.0.0'), 'is the latest'); await close();
@@ -5626,7 +5831,7 @@ async function updatesCheck() {
     const own = about.slice('xppautX '.length).replace(/-\d+-g[0-9a-f]+$/, '');
     const num = Number(/-beta\.(\d+)$/.exec(own)?.[1] ?? 0);
     await run([release(own), withBeta(num + 1)], `xppautX ${local.slice(1)}-beta.${num + 1} is available`);
-    check('updates: a newer beta is offered with its release page', await cdp.eval(`document.querySelectorAll('[data-update-dialog] .dialog-actions button').length === 2`)); await close();
+    check('updates: a newer beta is offered with its release page', await cdp.eval(`document.querySelectorAll('[data-update-dialog] [data-dialog-action]').length === 1`)); await close();
     await run([release(own), withBeta(num > 1 ? num - 1 : 0)], 'is the latest'); await close();
     await run([release(own)], `xppautX ${own.slice(1)} is the latest`); await close();
     await run([], 'Check for updates failed: GitHub returned no releases'); await close();
@@ -6358,7 +6563,8 @@ async function main() {
     if (run('navigation')) await session(ODE, navigationCheck);
     if (run('navigation')) await session(ODE, menusByTaskCheck);
     if (run('options')) await session(ODE, optionsCheck);
-    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots);
+    if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);

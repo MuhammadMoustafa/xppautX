@@ -7,53 +7,34 @@
    opens the picker, Esc cancels). Saving lets XPP write into the folder and
    hands the file to the location picked (showSaveFilePicker) or to the
    browser as a download. */
-import {useEffect, useRef, useState} from 'preact/hooks';
+import {useRef, useState} from 'preact/hooks';
 import {canPickOpen, canPickSave, pickOpen, pickSave, wildExtensions} from '../pickers';
 import type {AskEvent} from '../protocol/types';
 import {baseName, safeName} from '../store/files';
-import {FILE} from '../store/fieldKinds';
+import {FILE, ruleMessage} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
-import {useDialogFocus} from './dialogFocus';
-import {Field} from './Field';
-import {Modal} from './Modal';
+import {Dialog} from './Dialog';
+import {AskShell} from './AskDialog';
+import {Control, FormRow, focusFirstError, useFeedback} from './FormFields';
+import {useDark} from './theme';
 
-/* Enter in a field submits its form (A3), as in AskDialog's forms */
-function enterSubmits(e: KeyboardEvent) {
-  if (e.key !== 'Enter' || (e.target as HTMLElement).tagName !== 'INPUT') return;
-  e.preventDefault();
-  (e.currentTarget as HTMLFormElement).requestSubmit();
+/** the replace confirm's text: the name is taken by other content */
+function ReplaceText() {
+  const confirm = useStore(s => s.files.confirm)!;
+  return (
+    <p id="file-confirm-text" data-confirm="replace" class="file-confirm">
+      The model's folder already has a <b>{confirm.name}</b> with other content.{' '}
+      {confirm.keepBoth ? <>Replace it, or keep both and copy yours as <b>{confirm.keepBoth}</b>?</> : 'Replace it?'}
+    </p>
+  );
 }
 
-function ReplaceConfirm() {
-  const session = useSession();
-  const confirm = useStore(s => s.files.confirm)!;
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => box.current?.querySelector<HTMLElement>(confirm.keepBoth ? '[data-choice=keep]' : '[data-choice=cancel]')?.focus(),
-    [confirm.name]);
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape') return;
-    e.preventDefault();
-    e.stopPropagation(); /* cancels the copy, not the whole prompt */
-    session.resolveReplace('cancel');
+/** the footer of the replace confirm: Replace is the action, Keep both beside it, the × cancels the copy */
+function replaceFooter(session: ReturnType<typeof useSession>, keepBoth: string | null) {
+  return {
+    action: {label: 'Replace file', onClick: () => session.resolveReplace('replace'), attrs: {'data-choice': 'replace'}},
+    extra: keepBoth ? <button type="button" data-choice="keep" onClick={() => session.resolveReplace('keep')}>Keep both</button> : null,
   };
-  return (
-    <div class="file-confirm" role="group" aria-labelledby="file-confirm-text" data-confirm="replace" ref={box}
-      onKeyDown={onKeyDown}>
-      <p id="file-confirm-text">
-        The model's folder already has a <b>{confirm.name}</b> with other content.{' '}
-        {confirm.keepBoth ? <>Replace it, or keep both and copy yours as <b>{confirm.keepBoth}</b>?</> : 'Replace it?'}
-      </p>
-      <div class="dialog-actions">
-        <button type="button" data-choice="cancel" onClick={() => session.resolveReplace('cancel')}>Cancel</button>
-        {confirm.keepBoth && (
-          <button type="button" data-choice="keep" onClick={() => session.resolveReplace('keep')}>Keep both</button>
-        )}
-        <button type="button" data-choice="replace" class="danger" onClick={() => session.resolveReplace('replace')}>
-          Replace
-        </button>
-      </div>
-    </div>
-  );
 }
 
 /** the replace confirm of an upload no `file` ask is open for (Values >
@@ -61,18 +42,13 @@ function ReplaceConfirm() {
 export function ReplaceDialog() {
   const session = useSession();
   const confirm = useStore(s => s.files.confirm);
-  const box = useRef<HTMLDivElement>(null);
-  const shown = confirm !== null && confirm.ask === null;
-  useDialogFocus(box, [shown]);
-  if (!shown) return null;
+  if (!confirm || confirm.ask !== null) return null;
+  const {action, extra} = replaceFooter(session, confirm.keepBoth);
   return (
-    <Modal onBackdrop={() => session.resolveReplace('cancel')}>
-      <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="replace-title" data-replace-dialog="">
-        <div class="dialog-title-row"><h2 id="replace-title">Copy into the model's folder</h2>
-          <button class="dialog-close" aria-label="Close replacement prompt" onClick={() => session.resolveReplace('cancel')}>×</button></div>
-        <ReplaceConfirm />
-      </div>
-    </Modal>
+    <Dialog title="Copy into the model's folder" name="replacement prompt" onClose={() => session.resolveReplace('cancel')} action={action} extra={extra}
+      focusKey={confirm.name} attrs={{'data-replace-dialog': ''}}>
+      <ReplaceText />
+    </Dialog>
   );
 }
 
@@ -100,39 +76,44 @@ function OpenFromComputer({ask}: {ask: AskEvent}) {
       input.current!.click(); /* a picker that failed: the plain input still works */
     }
   };
+  const confirming = !!confirm && confirm.ask === ask.id;
+  const footer = confirming ? replaceFooter(session, confirm!.keepBoth) : {action: {label: copying ? 'Copying…' : 'Choose file…', onClick: () => void choose()}, extra: null};
   return (
-    <>
-      <p>
-        Pick the file to open{ask.wild && ask.wild !== '*' ? <> ({ask.wild})</> : null}. XPP reads it from the model's
-        folder, so it is copied there first. Pick the files it refers to at the same time (tables, included files)
-        to copy them too{wildExtensions(ask.wild).length ? <> (All files in the dialog's type list shows them)</> : null}.
-      </p>
-      <input ref={input} type="file" multiple accept={wildExtensions(ask.wild).join(',') || undefined} class="visually-hidden" tabIndex={-1} aria-hidden="true"
-        data-file-input="open" onChange={e => {
-          const el = e.target as HTMLInputElement, files = [...(el.files ?? [])];
-          el.value = ''; /* the same file can be picked again (after Cancel at the confirm) */
-          open(files);
-        }} />
-      {confirm && confirm.ask === ask.id ? <ReplaceConfirm /> : (
-        <div class="dialog-actions">
-          <button type="button" class="primary" data-autofocus="" disabled={copying} onClick={() => void choose()}>
-            {copying ? 'Copying…' : 'Choose file…'}
-          </button>
-        </div>
-      )}
-    </>
+    <AskShell ask={ask} action={footer.action} extra={footer.extra} onClose={confirming ? () => session.resolveReplace('cancel') : undefined}>
+      <div class="file-ask" data-mode="read"
+        onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); open([...(e.dataTransfer?.files ?? [])]); }}>
+        <p>
+          Pick the file to open{ask.wild && ask.wild !== '*' ? <> ({ask.wild})</> : null}, or drop it here. XPP reads it from the model's
+          folder, so it is copied there first. Pick the files it refers to at the same time (tables, included files)
+          to copy them too{wildExtensions(ask.wild).length ? <> (All files in the dialog's type list shows them)</> : null}.
+        </p>
+        <input ref={input} type="file" multiple accept={wildExtensions(ask.wild).join(',') || undefined} class="visually-hidden" tabIndex={-1} aria-hidden="true"
+          data-file-input="open" onChange={e => {
+            const el = e.target as HTMLInputElement, files = [...(el.files ?? [])];
+            el.value = ''; /* the same file can be picked again (after Cancel at the confirm) */
+            open(files);
+          }} />
+        {confirming && <ReplaceText />}
+      </div>
+    </AskShell>
   );
 }
 
 /* a file ask for writing: a name, then the core writes and the page copies */
 function SaveToComputer({ask}: {ask: AskEvent}) {
   const session = useSession();
+  const dark = useDark(useStore(s => s.theme));
+  const feedback = useFeedback();
   const [name, setName] = useState(baseName(ask.file ?? ''));
-  const ok = safeName(name);
+  const message = name.trim() === '' ? 'Required' : ruleMessage(FILE, name);
   const picker = canPickSave();
   const save = async (e: Event) => {
     e.preventDefault();
-    if (!ok) return;
+    if (!safeName(name)) {
+      feedback.attempt();
+      queueMicrotask(() => focusFirstError(document.querySelector('[data-ask]')));
+      return;
+    }
     if (!picker) {
       session.saveFile(ask, name, null);
       return;
@@ -140,32 +121,25 @@ function SaveToComputer({ask}: {ask: AskEvent}) {
     const handle = await pickSave(name, ask.wild).catch(() => null);
     if (!handle) return;
     setName(handle.name);
-    if (!safeName(handle.name)) return; /* show the picked name's field error */
+    if (!safeName(handle.name)) { feedback.attempt(); return; } /* show the picked name's field error */
     session.saveFile(ask, handle.name, handle);
   };
   return (
-    <form onSubmit={e => void save(e)} onKeyDown={enterSubmits}>
-      <p>
-        XPP writes the file into the model's folder,{' '}
-        {picker ? 'then it is copied to where you choose.' : 'then your browser downloads it.'}
-      </p>
-      <div class="form-grid">
-        <label>
-          <span>File name</span>
-          <Field id="file-name" spec={FILE} value={name} data-autofocus="" data-file-name="" onInput={setName} />
-        </label>
+    <AskShell ask={ask} onSubmit={e => void save(e)} action={{label: picker ? 'Save…' : 'Save'}} problems={message && feedback.shows('name') ? 1 : 0}>
+      <div class="file-ask" data-mode="write">
+        <p>
+          XPP writes the file into the model's folder,{' '}
+          {picker ? 'then it is copied to where you choose.' : 'then your browser downloads it.'}
+        </p>
+        <FormRow name="file-name" label="File name" required id="file-name" error={feedback.shows('name') ? message : null}>
+          <Control spec={FILE} value={name} label="File name" id="file-name" dark={dark} invalid={!!message && feedback.shows('name')}
+            onBlur={() => feedback.touch('name')} onChange={setName} />
+        </FormRow>
       </div>
-      <div class="dialog-actions">
-        <button type="submit" class="primary" disabled={!ok}>{picker ? 'Save…' : 'Save'}</button>
-      </div>
-    </form>
+    </AskShell>
   );
 }
 
 export function FileAsk({ask}: {ask: AskEvent}) {
-  return (
-    <div class="file-ask" data-mode={ask.mode ?? 'read'}>
-      {ask.mode === 'write' ? <SaveToComputer ask={ask} /> : <OpenFromComputer ask={ask} />}
-    </div>
-  );
+  return ask.mode === 'write' ? <SaveToComputer ask={ask} /> : <OpenFromComputer ask={ask} />;
 }

@@ -10,11 +10,10 @@ import {
   editorRows, effectiveKeys, recordKey, replaceKey, sourceLabel, togglePinned, withKey, withoutBinding, withoutKey,
   withPinned, userKeymap, type KeymapAction,
 } from '../store/keymap';
-import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
+import {Dialog} from './Dialog';
 import {useSession, useStore} from './context';
 import {CommandLabel} from './CommandButton';
 import {keyName} from './hotkeys';
-import {Modal} from './Modal';
 
 export function KeymapEditor() {
   const open = useStore(s => s.keymap.editor.open);
@@ -26,15 +25,14 @@ function Editor() {
   const hello = useStore(s => s.hello);
   const info = useStore(s => s.keymap.info);
   const editor = useStore(s => s.keymap.editor);
-  const box = useRef<HTMLDivElement>(null);
+  const dialogBox = () => document.querySelector<HTMLElement>('[data-keymap-editor]');
   const searchKeys = useRef(false);
   const ui = (action: KeymapAction) => session.store.dispatch({type: 'keymapUi', action});
   const rows = registryRows(hello);
-  useDialogFocus(box, []);
   /* a conflict is announced and its answer is a key away; after any change the focus stays in the dialog
      (the button that had it may be gone: Replace, a key removed), where the keys it records are heard */
   useLayoutEffect(() => {
-    const dialog = box.current;
+    const dialog = dialogBox();
     if (!dialog) return;
     const rec = editor.recording;
     if (editor.conflict) dialog.querySelector<HTMLElement>('[data-conflict-replace]')?.focus();
@@ -46,23 +44,22 @@ function Editor() {
   const rowOf = (id: string): CommandRow | undefined => rows.find(r => r.id === id);
 
   /* a key pressed while a key (or the search) is being recorded is the recording's, not the page's */
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (!editor.recording && !searchKeys.current) cycleDialogFocus(e, box.current);
+  const onKeyDown = (e: KeyboardEvent): boolean => {
     const rec = editor.recording;
     const name = keyName(e);
     if (rec || searchKeys.current) {
-      if (!name) return;
+      if (!name) return true;
       if (name === 'Tab' || name === 'Shift+Tab') {
         searchKeys.current = false;
         ui({type: 'record', recording: null});
-        return;
+        return true;
       }
       e.preventDefault();
       e.stopPropagation();
       if (!rec) {
         searchKeys.current = false;
         if (name !== 'Escape') ui({type: 'query', query: name});
-        return;
+        return true;
       }
       const result = recordKey(info, rows, rec, name);
       const row = rowOf(rec.id);
@@ -71,14 +68,16 @@ function Editor() {
       else if (result.kind === 'refused') ui({type: 'refuse', text: result.text});
       else if (result.kind === 'conflict') ui({type: 'conflict', conflict: result.conflict});
       else session.setKeymap(withKey(info, row, rec.index, result.key));
-      return;
+      return true;
     }
-    if (e.key === 'Escape') {
+    /* Escape answers a conflict first; the shell's own Escape closes the editor */
+    if (e.key === 'Escape' && editor.conflict) {
       e.preventDefault();
       e.stopPropagation();
-      if (editor.conflict) ui({type: 'conflict', conflict: null});
-      else close();
+      ui({type: 'conflict', conflict: null});
+      return true;
     }
+    return false;
   };
 
   const conflict = editor.conflict;
@@ -86,18 +85,15 @@ function Editor() {
   const otherRow = conflict ? rowOf(conflict.other) : undefined;
   const recordingRow = editor.recording ? rowOf(editor.recording.id) : undefined;
   const shown = editorRows(info, rows, editor.query);
-  return <Modal onBackdrop={close}>
-    <div class="dialog keymap-dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="keymap-title" data-keymap-editor
-      onKeyDownCapture={onKeyDown}>
-      <div class="dialog-title-row"><h2 id="keymap-title"><CommandLabel command="tool.keyboard_shortcuts" /></h2>
-        <button class="dialog-close" aria-label="Close keyboard shortcuts" onClick={close}>×</button></div>
+  return <Dialog title={<CommandLabel command="tool.keyboard_shortcuts" />} name="keyboard shortcuts" width="list" onClose={close} onKeyDown={onKeyDown}
+    attrs={{'data-keymap-editor': ''}} className="keymap-dialog">
       {!info.ok && <p class="field-error" role="alert" data-keymap-error>
         The keymap file could not be loaded ({info.file}{info.line ? `:${info.line}` : ''}): {info.error}. The default keys are shown; changing a key replaces the file.</p>}
       <div class="keymap-tools">
-        <label>Search <input type="search" data-autofocus data-keymap-search value={editor.query} placeholder="Name, id or keys"
-          onInput={e => ui({type: 'query', query: e.currentTarget.value})} /></label>
+        <label class="search-field"><span>Search</span><span class="input-box"><input type="search" data-autofocus data-keymap-search value={editor.query} placeholder="Name, id or keys"
+          onInput={e => ui({type: 'query', query: e.currentTarget.value})} /></span></label>
         <button type="button" data-keymap-search-keys title="Press a key combination to find the commands on it"
-          onClick={() => { searchKeys.current = true; box.current?.querySelector<HTMLElement>('[data-keymap-search]')?.focus(); }}>Record keys</button>
+          onClick={() => { searchKeys.current = true; dialogBox()?.querySelector<HTMLElement>('[data-keymap-search]')?.focus(); }}>Record keys</button>
         <button type="button" data-keymap-default onClick={() => session.setKeymap({...userKeymap(info), bindings: {}})}>Reset to defaults</button>
         {editor.confirmingReset
           ? <span class="keymap-confirm" role="group" aria-label="Reset all keys and pins">Reset every key and pin?{' '}
@@ -152,6 +148,5 @@ function Editor() {
         </table>
         {!shown.length && <p role="status">No command matches.</p>}
       </div>
-    </div>
-  </Modal>;
+  </Dialog>;
 }

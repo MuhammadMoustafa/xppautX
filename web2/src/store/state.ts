@@ -212,7 +212,7 @@ export type Action =
   | {type: 'commandForm'; form: AppState['commandForm']}
   | {type: 'valuesFile'; offer: ValuesFileOffer | null}
   | {type: 'optionsPanel'; panel: AppState['optionsPanel']}
-  | {type: 'optionValues'; group: string; values: OptionValues}
+  | {type: 'optionValues'; group: string; values: OptionValues | null}
   | {type: 'annotations'; open: boolean; selected?: number | null}
   | {type: 'drawer'; open: boolean}
   | {type: 'menu'; open: boolean}
@@ -682,7 +682,10 @@ export function reduce(state: AppState, action: Action): AppState {
     case 'commandForm': return {...state, commandForm: action.form};
     case 'valuesFile': return {...state, valuesFile: action.offer};
     case 'optionsPanel': return {...state, optionsPanel: action.panel};
-    case 'optionValues': return {...state, optionValues: {...state.optionValues, [action.group]: action.values}};
+    case 'optionValues': {
+      const {[action.group]: _old, ...rest} = state.optionValues;
+      return {...state, optionValues: action.values ? {...rest, [action.group]: action.values} : rest};
+    }
     case 'annotations': return {...state, annotationsOpen: action.open, selectedAnnotation: action.selected === undefined ? state.selectedAnnotation : action.selected};
     case 'drawer':
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};

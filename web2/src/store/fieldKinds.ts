@@ -304,6 +304,45 @@ export function specOfOption(row: OptionRow, names: readonly string[]): FieldSpe
   }
 }
 
+/** which control draws a kind of field (W641: one place decides it): a number or integer a number box, a choice of up to
+    SEGMENT_MOST short names a segmented control and more a dropdown, a yes/no a switch, a name of the model a dropdown of
+    them, a formula or an expression monospace text, a file a picker, a colour a swatch with its field, the rest text */
+export type ControlKind = 'switch' | 'segmented' | 'select' | 'number' | 'mono' | 'file' | 'color' | 'text';
+export const SEGMENT_MOST = 3;
+/** a choice's longest name that still fits a segmented control beside the others */
+export const SEGMENT_WORD = 12;
+
+export function controlOf(spec: FieldSpec): ControlKind {
+  switch (spec.kind) {
+    case 'boolean': return 'switch';
+    case 'choice': return spec.choices.length <= SEGMENT_MOST && spec.choices.every(c => c.length <= SEGMENT_WORD) ? 'segmented' : 'select';
+    case 'name': return 'select';
+    case 'integer': return 'number';
+    case 'number': return spec.formula ? 'mono' : 'number';
+    case 'expression': return 'mono';
+    case 'file': return 'file';
+    case 'color': return 'color';
+    case 'text': return 'text';
+  }
+}
+
+/** a number's range as the small note beside its box ("at least 1", "from 2 to 7"), "" when it has none */
+export function rangeNote(spec: FieldSpec): string {
+  if (spec.kind !== 'integer' && spec.kind !== 'number') return '';
+  if (spec.kind === 'number' && spec.positive) return spec.max === undefined ? 'above 0' : `above 0, at most ${spec.max}`;
+  if (spec.min !== undefined && spec.max !== undefined) return `from ${spec.min} to ${spec.max}`;
+  if (spec.min !== undefined) return `at least ${spec.min}`;
+  return spec.max !== undefined ? `at most ${spec.max}` : '';
+}
+
+/** the message for a text a field of kind `spec` does not take, with its rule and the value ("Must be a number above 0; got -0.05"), or null.
+    An empty text is not checked here: it is a required field's "Required" and an optional field's not being set. */
+export function ruleMessage(spec: FieldSpec, text: string): string | null {
+  if (!text.trim()) return null;
+  const phrase = fieldError(spec, text);
+  return phrase ? `Must be ${phrase}; got ${shorten(text.trim())}` : null;
+}
+
 /** what a name from each of hello.lists is (docs/protocol.md "Asks", `form`) */
 const NAME_LIST_WHAT: Record<number, string> = {
   0: 'T or a variable of the model',

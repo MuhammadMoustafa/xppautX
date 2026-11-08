@@ -62,7 +62,7 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
-.player-buttons { display: flex; gap: var(--space-1); }
+.player-buttons, .argument-row { display: flex; gap: var(--space-1); }
 .player-progress { flex: 1; min-width: 10rem; display: flex; flex-direction: column; gap: var(--space-1); }
 .player-segs { display: flex; gap: 3px; }
 .player-segs i { flex: 1; height: 0.5rem; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--border); position: relative; overflow: hidden; }

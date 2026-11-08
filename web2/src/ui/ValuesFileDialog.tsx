@@ -1,9 +1,7 @@
-import {useRef} from 'preact/hooks';
 import {choiceLabel} from '../store/fieldKinds';
 import type {ValuesFileOffer, ValuesPart} from '../store/state';
 import {useSession, useStore} from './context';
-import {cycleDialogFocus, useDialogFocus} from './dialogFocus';
-import {Modal} from './Modal';
+import {Dialog} from './Dialog';
 
 /** what a part of a file of values is called: the file's defaults, one of its sets, or the whole XPPAUT file */
 function partLabel(part: ValuesPart, format: string): string {
@@ -20,15 +18,13 @@ export function ValuesFileDialog() {
 }
 
 function Offer({offer}: {offer: ValuesFileOffer}) {
-  const session = useSession(), box = useRef<HTMLDivElement>(null);
-  useDialogFocus(box, []);
+  const session = useSession();
   const close = () => session.store.dispatch({type: 'valuesFile', offer: null});
   const what = choiceLabel(offer.scope);
+  const title = `Load ${what.toLowerCase()} from ${offer.file}`;
   return (
-    <Modal><div class="dialog registry-form" ref={box} role="dialog" aria-modal="true" aria-label={`Load ${what} from a file`}
-      data-values-file-dialog={offer.scope}
-      onKeyDown={e => {cycleDialogFocus(e, box.current); if (e.key === 'Escape') {e.stopPropagation(); close();}}}>
-      <h2>Load {what.toLowerCase()} from {offer.file}</h2>
+    <Dialog title={title} name={`Load ${what} from a file`} description="Choose the part of the file to load; it replaces the current values it holds." onClose={close}
+      attrs={{'data-values-file-dialog': offer.scope}}>
       {offer.parts.length === 0
         ? <p>The file has nothing of this kind to load.</p>
         : <ul class="values-parts">{offer.parts.map(part => (
@@ -37,7 +33,6 @@ function Offer({offer}: {offer: ValuesFileOffer}) {
               onClick={() => session.loadValuesPart(offer, part)}>{partLabel(part, offer.format)}</button>
             {part.problem && <span class="field-error">{part.problem}</span>}
           </li>))}</ul>}
-      <div class="dialog-actions"><button type="button" onClick={close}>Cancel</button></div>
-    </div></Modal>
+    </Dialog>
   );
 }

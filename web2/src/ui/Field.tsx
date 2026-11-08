@@ -199,7 +199,7 @@ export function Field(props: FieldProps) {
       <input {...rest} ref={inputRef} id={baseId} type={type} value={text} step={step ?? undefined} inputMode={fieldInputMode(spec)}
         list={listId} spellcheck={spec.kind === 'text' ? undefined : false}
         autocomplete={spec.kind === 'text' || spec.kind === 'file' ? undefined : 'off'}
-        aria-invalid={message ? 'true' : undefined}
+        aria-invalid={message ? 'true' : (rest as {'aria-invalid'?: boolean})['aria-invalid']}
         aria-describedby={message || hint ? msgId : undefined} data-kind={spec.kind}
         data-own-escape={edited ? '1' : undefined}
         onFocus={e => {

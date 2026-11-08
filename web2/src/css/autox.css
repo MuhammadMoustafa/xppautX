@@ -221,3 +221,5 @@
 .autox-mark-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; }
 .autox-mark-add { justify-self: start; }
 .autox-tools button.autox-pending { border-style: dashed; }
+.autox-axis-head { display: flex; align-items: flex-start; gap: var(--space-2); }
+.autox-axis-head .dialog-close { margin-left: auto; }

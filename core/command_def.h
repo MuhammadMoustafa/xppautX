@@ -97,6 +97,8 @@ struct Argument {
     /* the .odex key, inside the command's `panel` group, of the option row this argument sets (W616): the page shows the row in the
        group's panel and leaves the argument out of the form; the argument stays for scripts, which may still give it */
     const char *option = "";
+    /* what the argument is, in one line: the help under its field in a form; "" for none */
+    const char *description = "";
 };
 /* the argument set by the option row with `key` */
 constexpr Argument set_by(Argument arg, const char *key)
@@ -224,6 +226,9 @@ struct Command {
     /* the option group whose generated panel (options_panels.h) the page opens in place of this command's own form: the command stays
        the one scripts and recordings send; "" for a command with a form of its own */
     const char *panel = "";
+    /* the text of the action in the command's form (a footer button named for what it does: "Save set"); "" takes the default, "Apply" for
+       a setting and the label for the rest (command_registry.cpp), never Run or OK */
+    const char *action = "";
 };
 
 /* The one file picked for a command; optional paths (Open model) have their own startup picker. */

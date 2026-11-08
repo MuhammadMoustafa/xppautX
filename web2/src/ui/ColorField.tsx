@@ -11,10 +11,10 @@ export function ColorField({value, onChange, dark, label}: {
   return <span class="color-field" data-color-field>
     <input type="color" value={hex} aria-label={`${label}: colour`} data-color-hex
       onInput={e => onChange(joinColor(e.currentTarget.value, alpha))} />
+    <span class="input-box"><input type="text" value={value} spellcheck={false} autocomplete="off" aria-label={`${label}: colour text`} data-color-text
+      aria-invalid={valid ? undefined : 'true'} onInput={e => onChange(e.currentTarget.value)} /></span>
     <input type="range" min={0} max={255} value={alpha} aria-label={`${label}: opacity`} data-color-alpha
       onInput={e => onChange(joinColor(hex, Number(e.currentTarget.value)))} />
-    <input type="text" value={value} spellcheck={false} autocomplete="off" aria-label={`${label}: colour text`} data-color-text
-      aria-invalid={valid ? undefined : 'true'} onInput={e => onChange(e.currentTarget.value)} />
     <button type="button" data-color-foreground disabled={value === 'foreground'} onClick={() => onChange('foreground')}>Foreground</button>
   </span>;
 }
