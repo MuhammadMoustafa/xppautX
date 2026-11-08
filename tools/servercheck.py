@@ -989,8 +989,10 @@ def check_recorded_jobs_refused(text):
     and why, nothing played: over what a run holds (XPP_DIAGRAM_POINTS_LIMIT=1 makes that 6 jobs), a key longer than that, a
     negative key element, an unknown state, a stopped job without its point, an empty list, a list that is not one"""
     job = lambda key, state='finished', point='': '{"key":[%s],"state":"%s"%s}' % (key, state, point)
-    listed = '"jobs":[%s,%s]' % (job('0', 'stopped', ',"point":2'), job('1', 'stopped', ',"point":2'))
-    assert listed in text, 'the recording lists its two stopped jobs'
+    # where each job stopped is the race the Stop ran (W58: no check on machine speed), so its point is any number
+    found = re.search(r'"jobs":\[\{"key":\[0\],"state":"stopped","point":\d+\},\{"key":\[1\],"state":"stopped","point":\d+\}\]', text)
+    assert found, 'the recording lists its two stopped jobs'
+    listed = found.group(0)
     cases = [
         ('over what a run holds', {'XPP_DIAGRAM_POINTS_LIMIT': '1'}, '"jobs":[%s]' % ','.join(job(str(i)) for i in range(7)),
          r'it lists more jobs than a run of branch jobs makes \(6 at most\)'),
