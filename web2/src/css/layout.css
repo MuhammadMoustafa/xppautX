@@ -31,12 +31,12 @@ h1, h2 { margin: 0; }
 .title-bar .file { font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 /* ---- the start screen: no model is open (W232) ---- */
 .start-shell .workspace { flex: 1; overflow: auto; padding: var(--space-4); }
-.start-screen { max-width: 40rem; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.start-screen { max-width: 40rem; overflow-wrap: anywhere; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .start-screen h2 { margin: 0; }
 .start-screen h3 { margin: var(--space-4) 0 0; }
 .start-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
 .start-recent li { display: flex; flex-direction: column; align-items: flex-start; }
-.start-path { font-size: var(--text-xs); overflow-wrap: anywhere; }
+.start-path { font-size: var(--text-xs); }
 .start-missing { color: var(--danger); }
 #command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
 .unused-settings { margin-top: var(--space-3); }
