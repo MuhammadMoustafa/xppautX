@@ -20,7 +20,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Store every** (`store_every`): Keep one step of every this many in the data table.
 - **Store from** (`store_from`): Keep no data before this time; the run before it is a transient.
 - **Storage precision** (`storage_precision`): What the data table keeps each value as: a single-precision float as XPPAUT does, or the integrator's double.
-- **State limit** (`state_limit`): A state beyond plus or minus this value stops the run. XPPAUT's BOUND sets this and the equilibria search limit.
+- **State limit** (`state_limit`): A state beyond plus or minus this value stops the run.
 - **Stop at limit** (`stop_at_limit`): Whether a state beyond the state limit stops the run, or only marks it.
 - **Method** (`method`): The integration method.
 - **Subsystem split** (`subsystem_split`): What splits the model into independent subsystems: its equations alone, or also the run (a Poincare section or stop).
@@ -76,7 +76,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Max iterations** (`max_iterations`): The most Newton iterations the search for an equilibrium makes.
 - **Newton tolerance** (`newton_tolerance`): The tolerance the search for an equilibrium stops at.
 - **Jacobian step** (`jacobian_step`): The step that differences the Jacobian of the equilibrium search.
-- **Search limit** (`search_limit`): A state beyond plus or minus this value ends the equilibrium search. XPPAUT's BOUND sets this and the state limit.
+- **Search limit** (`search_limit`): A state beyond plus or minus this value ends the equilibrium search.
 - **Print eigenvalues** (`print_eigenvalues`): Whether the eigenvalues of an equilibrium are printed.
 - **Draw invariant sets** (`draw_invariant_sets`): Whether the stable and unstable sets of a saddle are drawn.
 - **Draw strong sets** (`draw_strong_sets`): Whether the strong stable and unstable sets are drawn.
