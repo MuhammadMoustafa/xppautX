@@ -5583,10 +5583,13 @@ async function startScreenCheck() {
         && start.examples.names.length === 0, JSON.stringify(start.examples));
 
     const opens = () => S(`__xpp.sent().filter(c => c.cmd === 'session.open_model' && c.file === undefined && c.recent === undefined).length`);
-    check('start screen: nothing was sent by the page yet (the core asked by itself)', (await opens()) === 0);
+    check('start screen: nothing was sent by the page yet', (await opens()) === 0);
     await cdp.eval(`document.querySelector('[data-start-open]').click(); true`);
     check('start screen: Open model sends File > Open model and Cancel leaves the start screen',
       await until(`__xpp.sent().filter(c => c.cmd === 'session.open_model' && c.file === undefined && c.recent === undefined).length === 1 && !s.ask && !s.busy && s.hello.start && s.exited === null`, 'open cancelled'));
+    /* the page's connection came before the click, so anything the core did for it has ended by now */
+    check('start screen: no error shown: a page that connects with no window asks for no redraw',
+      await S('s.log.counts.error === 0'), JSON.stringify(await S('s.log.chunks')).slice(0, 300));
     await clickRecent(gone);
     check('start screen: a missing recent model sends nothing', (await opens()) === 1);
     check('start screen: a command that needs a model is refused with a shown error, not a state',

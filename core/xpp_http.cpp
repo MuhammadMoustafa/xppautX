@@ -516,8 +516,10 @@ void open_events(sock_t s)
         alone_since = 0;
         leave_at = 0; /* a page is back: a reload, not a close */
         srv.clients[srv.nclients++] = s;
-        /* the page draws from scratch; a redraw would wait behind an open prompt */
-        if (!srv.sticky_hello.empty() && srv.sticky_ask.empty() && srv.exit_event.empty()) {
+        /* the page draws its windows from scratch; a redraw would wait behind an open prompt, and with no
+           window (the start screen: no model) there is nothing to redraw */
+        const bool windows = std::any_of(std::begin(srv.windows), std::end(srv.windows), [](const auto &w) { return !w.line.empty(); });
+        if (windows && srv.sticky_ask.empty() && srv.exit_event.empty()) {
             std::string unsent; /* a redraw the full queue refuses is not worth telling: the page has all it needs */
             push_command("{\"cmd\":\"window.redraw\"}", unsent);
         }
