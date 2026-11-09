@@ -18,6 +18,7 @@
    boolean     `true` or `false` (a checkbox in a form)
    choice      one of a given set of names, exactly (a select in a form; its label is
                the name, choiceLabel)
+   selection   any of a given set of names, a name a line of the text (a check list; "" is none)
    color       `foreground`, `#rrggbb` or `#rrggbbaa` (ui/ColorField.tsx)
    text        anything */
 import {CORE_COLOR} from '../plot/colors';
@@ -32,6 +33,7 @@ export type FieldSpec =
   | {kind: 'file'}
   | {kind: 'boolean'}
   | {kind: 'choice'; choices: readonly string[]}
+  | {kind: 'selection'; choices: readonly string[]}
   | {kind: 'color'}
   | {kind: 'text'};
 
@@ -126,6 +128,13 @@ const KINDS: {[K in FieldKind]: KindEntry<K>} = {
   },
   choice: {
     check: (text, spec) => (spec.choices.includes(text) ? null : `one of ${spec.choices.join(', ')}`),
+    inputMode: () => 'text',
+  },
+  selection: {
+    check: (text, spec) => {
+      const wrong = text.split('\n').find(name => name !== '' && !spec.choices.includes(name));
+      return wrong === undefined ? null : `names of the model's sets, not "${wrong}"`;
+    },
     inputMode: () => 'text',
   },
   color: {
@@ -302,21 +311,22 @@ export function specOfKind(kind: string, lists: readonly (readonly string[])[] =
 }
 
 /** an option row of the table as an input's spec: its kind and the limits the table gives it; a name is one of `names` (the model's variables
-    and parameters, when it has any) */
-export function specOfOption(row: OptionRow, names: readonly string[]): FieldSpec {
+    and parameters, when it has any), a `sets` row's choices are `sets`, the model's sets in the core's order */
+export function specOfOption(row: OptionRow, names: readonly string[], sets: readonly string[]): FieldSpec {
   switch (row.kind) {
     case 'number': return {kind: 'number', nonzero: row.nonzero, positive: row.exclusiveMinimum === 0, min: row.minimum, max: row.maximum};
     case 'whole': return {kind: 'integer', min: row.minimum, max: row.maximum};
     case 'name': return names.length ? {kind: 'name', names} : {kind: 'text'};
     case 'choice': return row.boolean ? {kind: 'boolean'} : {kind: 'choice', choices: row.choices ?? []};
+    case 'sets': return {kind: 'selection', choices: sets};
     case 'path': case 'text': return {kind: 'text'};
   }
 }
 
 /** which control draws a kind of field (W641: one place decides it): a number or integer a number box, a choice of up to
-    SEGMENT_MOST short names a segmented control and more a dropdown, a yes/no a switch, a name of the model a dropdown of
+    SEGMENT_MOST short names a segmented control and more a dropdown, a yes/no a switch, any of some names a check list, a name of the model a dropdown of
     them, a formula or an expression monospace text, a file a picker, a color a swatch with its field, the rest text */
-export type ControlKind = 'switch' | 'segmented' | 'select' | 'number' | 'mono' | 'file' | 'color' | 'text';
+export type ControlKind = 'switch' | 'segmented' | 'select' | 'number' | 'mono' | 'file' | 'color' | 'checklist' | 'text';
 export const SEGMENT_MOST = 3;
 /** a choice's longest name that still fits a segmented control beside the others */
 export const SEGMENT_WORD = 12;
@@ -330,6 +340,7 @@ export function controlOf(spec: FieldSpec): ControlKind {
     case 'number': return spec.formula ? 'mono' : 'number';
     case 'expression': return 'mono';
     case 'file': return 'file';
+    case 'selection': return 'checklist';
     case 'color': return 'color';
     case 'text': return 'text';
   }

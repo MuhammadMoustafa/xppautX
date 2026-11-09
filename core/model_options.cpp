@@ -4,6 +4,7 @@
 #include <cctype>
 #include <climits>
 #include <cmath>
+#include <ranges>
 #include <string>
 #include <string_view>
 
@@ -801,12 +802,16 @@ constexpr OptionRow rows[] = {
    },
    /* XPPAUT's plotfmt names a format, not a file: the picture is the model's name with that extension (ps is pdf: PostScript went with W479, #542) */
    .foreign = [](std::string_view v) { return v == "ps" ? std::string("pdf") : std::ranges::contains(picture_format_names, v) ? std::string(v) : std::string(); }},
-  {.group = option_group::output, .kind = OptionKind::text, .odex = "run_set", .help = "A set a batch run runs, by its name; repeat the option for each set. With none, the model runs once with no set.",
+  {.group = option_group::output, .kind = OptionKind::text, .odex = "run_set", .help = "The sets a batch run runs, one run each in the model's order; with none, one run with no set.",
+   .show = [](const Session &s) { return std::ranges::to<std::string>(s.run_sets | std::views::join_with('\n')); },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
+     /* one set's name: a .odex line, or one of the panel's checked names (apply_option_group splits the list); a load checks it once the sets are read (xpp_batch.cpp) */
+     if (!Load::running() && !model_has_set(s.model(), v.text)) return "is not one of the model's sets";
      if (v.apply) s.run_sets.emplace_back(v.text);
      return nullptr;
    },
-   .repeatable = true},
+   .reset = [](Session &s) { s.run_sets.clear(); },
+   .repeatable = true, .names_sets = true},
   {.group = option_group::output, .kind = OptionKind::path, .odex = "nullclines_file", .help = "The file the nullclines are saved to after a run.", .once = true,
    .text = member([](auto &s) -> auto & { return s.nullclines.file; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -1159,6 +1164,11 @@ std::string odex_key(const OptionRow &row, int index)
   return std::string(row.odex) + digit_of(row, index);
 }
 
+bool model_has_set(const Model &m, std::string_view name)
+{
+  return std::ranges::any_of(m.intern_sets, [&](const Model::InternalSet &set) { return set.name == name; });
+}
+
 std::string option_setting_name(const OptionRow &row, int index)
 {
   return option_name(row) + digit_of(row, index);
@@ -1443,7 +1453,8 @@ void set_option(Session &s, std::string_view name, std::string_view value, bool 
 void set_option_defaults(Session &s)
 {
   for (const OptionRow &row : rows) {
-    if (!row.reset || (row.once && s.options_set.has(row))) continue;
+    /* a repeatable row's reset empties its list for a new one (apply_option_group): a load's defaults come after its lines and must not */
+    if (!row.reset || row.repeatable || (row.once && s.options_set.has(row))) continue;
     row.reset(s);
     if (row.once) s.options_set.mark(row);
   }

@@ -226,6 +226,12 @@ case "$refused" in
   *'run_set "nope" is not one of the model'"'"'s sets'*) pass "an unknown run_set names its options block" ;;
   *) bad "unknown run_set: $(echo "$refused" | head -c 200)" ;;
 esac
+sed 's/^options {$/options {\n  output: { run_set: "" },/' "$tmp/lecar.odex" > "$tmp/emptyset.odex"
+refused=$(cd "$tmp" && "$BIN" emptyset.odex --silent 2>&1)
+case "$refused" in
+  *emptyset.odex:*'run_set has an empty string'*) pass "an empty run_set is an error at its line" ;;
+  *) bad "empty run_set: $(echo "$refused" | head -c 200)" ;;
+esac
 # W670: the set "vvst" plots v against t, which has no nullclines: the run writes its data, says the nullclines are not
 # drawn, and exits 0; it used to abort in fnull (an out-of-range write of the state)
 sed 's/^options {$/options {\n  output: { run_set: "vvst" },/' "$tmp/lecar.odex" > "$tmp/vvst.odex"

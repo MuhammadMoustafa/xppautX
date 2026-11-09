@@ -2881,6 +2881,19 @@ def check_options_panels():
         call(cmd='preferences.configure', x_nullcline_color=kept['x_nullcline_color'], unstable_manifold_color=kept['unstable_manifold_color'])  # the preferences file is shared by the later servers: back to what it held
         check('W616: a log level is one of the words', call(cmd='preferences.configure', log_level='loud').get('status') == 'error')
         call(cmd='preferences.configure', log_level='warn')  # the preferences file is shared by every server this check starts: back to the default
+        # W672: run_set is a sets row: its value is the checked names a line, a value given replaces the list, nothing else takes a line break
+        done = call(cmd='options.configure', group='output', values={'run_set': 'pp\nvvst'})
+        check('W672: run_set takes the checked sets a line each', done.get('status') == 'ok', str(done))
+        check('W672: and options.get gives them back as the list', call(cmd='options.get', group='output')['result']['values']['run_set'] == 'pp\nvvst')
+        call(cmd='options.configure', group='output', values={'run_set': 'pp'})
+        check('W672: a list given replaces the one before', call(cmd='options.get', group='output')['result']['values']['run_set'] == 'pp')
+        done = call(cmd='options.configure', group='output', values={'run_set': 'vvst\nnope'})
+        check('W672: a name that is no set of the model is refused, naming it, and nothing is applied',
+              done.get('status') == 'error' and 'nope' in str(done) and call(cmd='options.get', group='output')['result']['values']['run_set'] == 'pp', str(done))
+        done = call(cmd='options.configure', group='output', values={'data_file': 'a\nb.dat'})
+        check('W672: a line break in any other row\'s value is refused, naming the key', done.get('status') == 'error' and 'data_file' in str(done), str(done))
+        done = call(cmd='output.configure', values={'run_set': ''})
+        check('W672: an empty list is no run_set', done.get('status') == 'ok' and call(cmd='options.get', group='output')['result']['values']['run_set'] == '', str(done))
     finally:
         stop_server(proc, run, send)
 

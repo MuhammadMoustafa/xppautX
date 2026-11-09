@@ -3251,7 +3251,8 @@ async function optionsCheck() {
         choices: rows.map(r => radios(r).length ? radios(r).map(o => o.dataset.choice) : [...r.querySelectorAll('select option')].map(o => o.value).filter(Boolean)),
         checkbox: rows.map(r => !!r.querySelector('.switch input[type=checkbox]')),
         color: rows.map(r => !!r.querySelector('[data-color-field]')),
-        values: rows.map(r => radios(r).length ? radios(r).find(o => o.getAttribute('aria-checked') === 'true')?.dataset.choice : r.querySelector('select')?.value ?? (r.querySelector('.switch input') ? String(r.querySelector('.switch input').checked)
+        values: rows.map(r => r.querySelector('.check-list') ? [...r.querySelectorAll('.check-list input:checked')].map(i => i.dataset.choice).join('\\n')
+          : radios(r).length ? radios(r).find(o => o.getAttribute('aria-checked') === 'true')?.dataset.choice : r.querySelector('select')?.value ?? (r.querySelector('.switch input') ? String(r.querySelector('.switch input').checked)
           : r.querySelector('[data-color-text]')?.value ?? r.querySelector('input:not([type=checkbox])')?.value))};
     })()`);
     check(`W616: ${g.group}: the panel is open`, shown !== null);
@@ -3299,6 +3300,34 @@ async function optionsCheck() {
   await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
   check('W641: Apply sets the path by its key', await until(`!s.busy && !s.optionsPanel`, 'applied')
     && await S(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'output.configure' && c.values?.[${JSON.stringify(paths[0])}] === 'typed.dat')`));
+  /* W672: run_set is a check list of the model's sets in the Output panel; checking two sets and applying makes the model's run_set values, in the model's order of sets */
+  await cdp.eval(`__xpp.openOptions('output')`);
+  await requireUntil(`s.optionsPanel?.group === 'output' && s.optionValues.output`, 'the Output panel for run_set');
+  await rendered();
+  const sets = await S('s.core.sets.map(x => x.name)');
+  check('W672: the run_set row lists the model\'s sets, each with a checkbox, none checked', sets.length >= 2
+    && JSON.stringify(await cdp.eval(`[...document.querySelectorAll('[data-argument="run_set"] .check-list input')].map(i => [i.dataset.choice, i.checked])`)) === JSON.stringify(sets.map(n => [n, false])));
+  const setMark = await S('__xpp.sentCount()');
+  for (const name of [...sets].reverse()) {
+    await cdp.eval(`document.querySelector('[data-argument="run_set"] .check-list input[data-choice=' + JSON.stringify(${JSON.stringify(name)}) + ']').click()`);
+    await rendered();
+  }
+  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
+  await until(`!s.busy && !s.optionsPanel`, 'run_set applied');
+  check('W672: Apply sends the checked sets as the run_set value, in the model\'s order', await S(`__xpp.sentFrom(${setMark}).some(c => c.cmd === 'output.configure' && c.values?.run_set === ${JSON.stringify(sets.join('\n'))})`));
+  await cdp.eval(`__xpp.openOptions('output')`);
+  await requireUntil(`s.optionsPanel?.group === 'output' && s.optionValues.output`, 'the Output panel again for run_set');
+  check('W672: and the core holds exactly those run_set values', await S(`s.optionValues.output.values.run_set === ${JSON.stringify(sets.join('\n'))}`), JSON.stringify(await S('s.optionValues.output.values.run_set')));
+  for (const name of sets) {
+    await cdp.eval(`document.querySelector('[data-argument="run_set"] .check-list input[data-choice=' + JSON.stringify(${JSON.stringify(name)}) + ']').click()`);
+    await rendered();
+  }
+  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
+  await until(`!s.busy && !s.optionsPanel`, 'run_set cleared');
+  await cdp.eval(`__xpp.openOptions('output')`);
+  await requireUntil(`s.optionsPanel?.group === 'output' && s.optionValues.output`, 'the Output panel once more for run_set');
+  check('W672: unchecking every set leaves no run_set', await S(`s.optionValues.output.values.run_set === ''`), JSON.stringify(await S('s.optionValues.output.values.run_set')));
+  await key('Escape');
   /* File > Preferences opens on the preferences as they stand, with no error before anything is typed */
   await clickRegistry('preferences.configure');
   check('W616: the Preferences form shows the current threads (or automatic), log level and log file, and no error',

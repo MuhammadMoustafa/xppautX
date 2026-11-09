@@ -42,12 +42,13 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
   useEffect(() => setDrafts({}), [values]);
   const unavailable = stored?.unavailable ?? {};
   const names = [...new Set([...(lists[0] ?? []), ...(lists[3] ?? [])])];
+  const sets = useStore(s => s.core?.sets ?? []).map(set => set.name);
   const rows = sections ? group.rows.filter(row => sections.includes(row.section)) : group.rows;
   const shown = (row: OptionRow) => drafts[row.key] ?? values?.[row.key] ?? '';
   const used = (row: OptionRow) => values !== null && row.key in values;
   const changed = rows.filter(row => row.key in drafts && drafts[row.key] !== values?.[row.key]);
   /* an empty box is wrong for every row but a text or a path, which may be empty (nothing: the default) */
-  const message = (row: OptionRow) => shown(row).trim() === '' ? (row.kind === 'text' || row.kind === 'path' ? null : 'Required') : ruleMessage(specOfOption(row, names), shown(row));
+  const message = (row: OptionRow) => shown(row).trim() === '' ? (row.kind === 'text' || row.kind === 'path' || row.kind === 'sets' ? null : 'Required') : ruleMessage(specOfOption(row, names, sets), shown(row));
   const invalid = changed.some(message);
   const shownProblems = changed.filter(row => feedback.shows(row.key) && message(row)).length;
   const command = (keys: OptionRow[], texts: Record<string, string>) => ({cmd: configureCommand(group.group), ...(group.group === OUTPUT_GROUP ? {} : {group: group.group}),
@@ -55,7 +56,7 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
   /** the command that sets the rows changed, none when nothing was */
   const settings = (): {cmd: string; [k: string]: unknown} | null => changed.length ? command(changed, drafts) : null;
   const rowBox = (row: OptionRow) => {
-    const spec = specOfOption(row, names), value = shown(row), disabled = values === null || !used(row);
+    const spec = specOfOption(row, names, sets), value = shown(row), disabled = values === null || !used(row);
     /* live: the text stays shown as sent until the core's values come (a setting made during a run applies after it) */
     const set = (text: string) => {
       setDrafts(old => ({...old, [row.key]: text}));

@@ -94,7 +94,7 @@ export interface OptionRow {
   /** the section's title in the panel */
   section_label: string;
   label: string;
-  kind: 'number' | 'whole' | 'name' | 'choice' | 'path' | 'text';
+  kind: 'number' | 'whole' | 'name' | 'choice' | 'path' | 'text' | 'sets';
   help: string;
   /** the value a fresh session of the model holds, as text */
   default: string;

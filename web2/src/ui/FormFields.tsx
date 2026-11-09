@@ -81,6 +81,15 @@ export function Control({spec, value, onChange, onBlur, label, id, disabled, dar
       {listed.map(name => <option key={name} value={name} disabled={!!unavailable[name]} title={unavailable[name]}>{spec.kind === 'choice' && !verbatim ? choiceLabel(name) : name}</option>)}
     </select>;
   }
+  if (kind === 'checklist' && spec.kind === 'selection') {
+    /* the checked names are the text, a name a line, in the order of the choices (the model's sets) */
+    const checked = value.split('\n');
+    if (!spec.choices.length) return <span class="value-hint" id={id}>The model has no sets.</span>;
+    return <div class="check-list" role="group" aria-label={label} id={id}>
+      {spec.choices.map(name => <label key={name} class="check-item"><input type="checkbox" checked={checked.includes(name)} disabled={disabled} data-choice={name}
+        onChange={e => onChange(spec.choices.filter(n => n === name ? e.currentTarget.checked : checked.includes(n)).join('\n'))} /><span>{name}</span></label>)}
+    </div>;
+  }
   if (kind === 'color') return <ColorField value={value} dark={dark} label={label} onChange={onChange} />;
   if (kind === 'file') {
     /* the one file control (every file argument and every file option row): a name in the model's folder, typed or filled by a dropped file */

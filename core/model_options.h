@@ -246,7 +246,9 @@ struct OptionRow {
      (the exact Jacobian, on its first need) */
   void (*prepare)(Session &, int) = nullptr;
   /* a .odex block may name it more than once (fold, but: each names one) */
-  bool repeatable = false;
+  bool repeatable = false; /* its `reset` (if any) empties the list a panel replaces, never a load's default */
+  /* each value names one of the model's sets: the panel shows the sets as a list to check (hello's kind "sets"); its panel value is the checked names, one per line */
+  bool names_sets = false;
   /* a session file holds its value (W284): in its options block, by the row's group and key. A choice row's value is the index of its
      word in `choices` (or, for the method, the solver's number). */
   bool saved = false;
@@ -313,6 +315,9 @@ std::string odex_key(const OptionRow &row, int index);
 
 /* the name a row goes by inside (a set's item, an @ line applied, set_option's name): option_name, a
    numbered row's digit after it; the .odex key is the file's own word for it (odex_key) */
+/* whether the model has a set of that name (run_set names one) */
+bool model_has_set(const Model &m, std::string_view name);
+
 std::string option_setting_name(const OptionRow &row, int index);
 
 /* the setting name of the row a .odex key names in group, "" when none does */

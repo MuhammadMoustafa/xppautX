@@ -73,8 +73,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     if (const Result<> sets = check_intern_sets(s); !sets) model_failed(sets.error());
     /* run_set names one of the model's sets (W666): checked here, where the sets are read */
     for (const std::string &name : s.run_sets)
-        if (std::none_of(s.model().intern_sets.begin(), s.model().intern_sets.end(),
-                         [&](const Model::InternalSet &set) { return set.name == name; }))
+        if (!model_has_set(s.model(), name))
             model_failed(Error{"options", xpp::format("run_set \"{}\" is not one of the model's sets", name),
                                model_place(s.model(), odex::Statement::Kind::Options, 0)});
     xpp::init_alloc_info(s);

@@ -16,16 +16,17 @@
 namespace xpp::command {
 namespace {
 
+/* the values are text, multiline so that a sets row's (model_options.h names_sets: a name a line) reaches configure_group, which refuses a line break in any other row's */
 constexpr const char *GROUP_KEY = "group", *VALUES_KEY = "values", *WINDOW_KEY = "window";
 
 constexpr auto GROUP_CHOICES = c_names(option_groups);
 constexpr std::array GET_ARGUMENTS = {Argument{GROUP_KEY, Type::choice, true, MAX_TEXT_BYTES, GROUP_CHOICES}, Argument{WINDOW_KEY, Type::window, false}};
 constexpr std::array CONFIGURE_ARGUMENTS = {Argument{GROUP_KEY, Type::choice, true, MAX_TEXT_BYTES, GROUP_CHOICES},
-                                            Argument{VALUES_KEY, Type::map, true, MAX_COMMAND_BYTES, {}, {}, {}, NameSet::none, Type::text},
+                                            Argument{VALUES_KEY, Type::map, true, MAX_COMMAND_BYTES, {}, {}, {}, NameSet::none, Type::text, MAX_ITEMS, true},
                                             Argument{WINDOW_KEY, Type::window, false}};
 /* the output group's paths are picked in the file dialog (the picker argument `file`, given with file_picker), for the path setting `setting` names */
 constexpr const char *SETTING_KEY = "setting", *FILE_KEY = "file";
-constexpr std::array OUTPUT_ARGUMENTS = {Argument{VALUES_KEY, Type::map, false, MAX_COMMAND_BYTES, {}, {}, {}, NameSet::none, Type::text},
+constexpr std::array OUTPUT_ARGUMENTS = {Argument{VALUES_KEY, Type::map, false, MAX_COMMAND_BYTES, {}, {}, {}, NameSet::none, Type::text, MAX_ITEMS, true},
                                          Argument{SETTING_KEY, Type::text, false}, Argument{FILE_KEY, Type::file, false}};
 constexpr std::array PICKED = {SETTING_KEY, FILE_KEY};
 constexpr std::array OUTPUT_GROUPS = {Group{GroupRule::together, PICKED}};
@@ -72,6 +73,8 @@ Result<std::string> configure_group(Session &s, const Command &command, const Ar
         int index = 0;
         const OptionRow *row = find_odex_option(group, key, index);
         if (!row || !option_in_panel(*row)) return fail(command.name, xpp::format("{} is no setting of {}", key, group), place);
+        if (text.find_first_of(row->names_sets ? "\r\t" : "\n\r\t") != std::string::npos)
+            return fail(command.name, xpp::format("{}: the value holds a {}", key, row->names_sets ? "tab or carriage return" : "line break or tab"), place);
         items.push_back({option_setting_name(*row, index), text, true, place});
         if (applied.size() > 1) applied += ',';
         json_append_string(applied, key);

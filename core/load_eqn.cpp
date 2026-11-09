@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <ranges>
 #include <array>
 #include <cctype>
 #include <cstdio>
@@ -664,15 +665,26 @@ xpp::Result<> apply_option_group(xpp::Session &s, std::string_view group, std::s
      the open view, the rest of its rows as any */
   std::vector<SetItem> own;
   std::vector<std::pair<const OptionRow *,std::string>> view;
+  std::vector<const OptionRow *> lists;
   for(const SetItem &item : items){
     int index=0;
-    const OptionRow *row=group==option_group::diagram?find_option(item.name,index,false):nullptr;
+    const OptionRow *row=find_option(item.name,index,false);
+    /* a sets row's value is the list of names, a line each: one item a name, as a .odex line is, so each is checked as one */
+    if(row&&row->names_sets){
+      lists.push_back(row);
+      if(!item.value.empty())for(const auto name : std::string_view(item.value)|std::views::split('\n'))
+        own.push_back({item.name,std::string(name.begin(),name.end()),item.setting,item.at});
+      continue;
+    }
+    if(row&&group!=option_group::diagram)row=nullptr;
     if(row&&autox_view_row(*row))view.emplace_back(row,item.value);
     else own.push_back(item);
   }
   if(xpp::Result<> r=check_set_items(s,own,where,false,command);!r)return r;
   if(xpp::Result<> r=autox_view_apply(s,view,true);!r)return r;
   xpp::push_value_undo(s);
+  /* the sets row's list was split into one item a name above: what the session held goes first, even when the list is empty */
+  for(const OptionRow *row : lists)row->reset(s);
   apply_set_items(s,own);
   if(!view.empty())return autox_view_apply(s,view,false);
   return {};

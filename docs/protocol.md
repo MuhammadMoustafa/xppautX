@@ -2080,8 +2080,10 @@ order; a group with only lists, `interface`, has no panel), each `{group, label,
 settings in the table's order, each `{key, section, label, kind, help, default}` with, as the row has them, `choices` (a choice row's
 names), `boolean` (a yes/no), `nonzero`, `minimum`, `maximum` and `exclusiveMinimum` (the limits the JSON Schema of the options block gives it).
 `key` is the row's `.odex` key inside its group (`step.min`), `section` the key's part before its last dot (the titled section of the
-panel, `""` for none), `label` its last part as words, `kind` one of `number`, `whole`, `name`, `choice`, `path`, `text` and `color`, and
-`default` the value a fresh session of the model holds, as text. A page writes none of these.
+panel, `""` for none), `label` its last part as words, `kind` one of `number`, `whole`, `name`, `choice`, `path`, `text`, `sets` and `color`, and
+`default` the value a fresh session of the model holds, as text. A page writes none of these. A `sets` row (the output group's `run_set`) names some of
+the model's sets: its value, in `options.get` and `options.configure`, is the checked names, one per line in the model's order, `""` for none, and a
+value given replaces the whole list (the `.odex` repeats the key, one name each); the page shows the model's sets as a check list.
 
 **`options.get`** (`group`, and `window` for the plot group's graph) answers `{group, values, unavailable}`: each row of the group the
 session's method and model use, its value as text (a boolean `true` or `false`, a choice its name, a color as the core writes it), and
