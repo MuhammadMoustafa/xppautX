@@ -3469,15 +3469,14 @@ async function dialogsCheck() {
   await until('!s.commandForm', 'spectrum closed');
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
-  /* the colour field is one row: the swatch, the text box in the field style, the opacity and Foreground */
-  await cdp.eval(`__xpp.openOptions('diagram')`);
-  await requireUntil(`s.optionsPanel?.group === 'diagram' && !!s.optionValues.diagram`, 'the Diagram form');
+  /* the colour field (File > Preferences' since W655) is one row: the swatch, the text box in the field style, the opacity and Foreground */
+  await clickRegistry('preferences.configure');
   await rendered();
   const colour = await cdp.eval(`(() => { const f = document.querySelector('[data-dialog] [data-color-field]'); const centres = [...f.children].map(c => { const r = c.getBoundingClientRect(); return r.top + r.height / 2; });
     return {oneRow: Math.max(...centres) - Math.min(...centres) < 3, centres, textInBox: !!f.querySelector('.input-box [data-color-text]')}; })()`);
   check('W641: a colour row is one line (swatch, text box in the field style, opacity, Foreground) at 1280', colour.oneRow && colour.textInBox, JSON.stringify(colour));
   await key('Escape');
-  await until('!s.optionsPanel', 'diagram closed');
+  await until('!s.commandForm', 'Preferences closed');
   /* a file: one control, which also takes a dropped file; the footer's action is the only one */
   await clickRegistry('plot.export_pdf');
   await requireUntil(`!!s.commandForm`, 'the export form');
