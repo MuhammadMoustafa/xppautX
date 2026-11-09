@@ -128,7 +128,6 @@ static std::string usage_tail()
     "  --dfdraw 1-5 / --ncdraw 1|2   post-run fields / nullclines\n"
     "  --readset FILE / --with TEXT   internal-set settings\n"
     "  --equil 0|1      batch equilibria (1 also writes manifolds)\n"
-    "  --auto           answer terminal questions: suggested names; replace files\n"
     "  -h / --help      help; --version prints the version\n"
     "Word options require two dashes. X11 options are removed.\n", xpp::http::DEFAULT_PORT);
 }
