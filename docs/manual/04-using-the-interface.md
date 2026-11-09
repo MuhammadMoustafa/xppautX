@@ -486,8 +486,8 @@ Defaults use the model's base: `lecar.csv`, `lecar.pdf`, `lecar.svg`,
 `lecar.gif`, `lecar.dat`, `lecar.csv`, `lecar.snapx`. Another output of the
 same type adds its purpose, such as `lecar-curves.csv`, `lecar-array.pdf`
 or `lecar-eigen1-stable.dat`. Kinescope and animation PPM sequences ask
-once, then derive `-frame1`, `-frame2`, etc.; an existing derived file
-still needs its own replacement decision (W177, #229). Kinescope
+once, then number the frames `_0000`, `_0001`, etc. before its extension (the
+run file rule, W673); an existing file still needs its own replacement decision (W177, #229). Kinescope
 Make Anigif saves all captured frames into one GIF. The browser delivers
 every committed output, capturing its bytes before answering the next
 export prompt even when both picker destinations use the same basename

@@ -286,8 +286,7 @@ xpp::Result<int> j_movie_save(xpp::Session &s, std::string_view basename, int fm
     const xpp::ImageFormat &format = xpp::image_formats[fmat];
     std::vector<xpp::Writer> outputs;
     for (int i = 0; i < s.kinescope.frames; i++) {
-        const std::string file = i == 0 ? std::string(basename)
-            : xpp::files::frame_name(basename, xpp::format(".{}", format.extension), i);
+        const std::string file = xpp::files::run_file_name(basename, i);
         if (i > 0)
             if (const auto decided = reset_save_decision(); !decided) return std::unexpected(decided.error());
         xpp::Result<> opened;
@@ -465,7 +464,7 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
     const std::string shown(tag); /* send_aplot's tag: NUL-terminated, or none */
     send_aplot(s, s.array_plot.tag ? shown.c_str() : nullptr);
     if(!s.array_plot.save_cancelled){
-        std::string file=xpp::files::frame_name(s.array_plot.range_stem,".gif",s.array_plot.still?s.array_plot.range_count:0);
+        std::string file=xpp::files::run_file_name(s.array_plot.range_stem,s.array_plot.still?s.array_plot.range_count:0);
         if(s.array_plot.still && s.array_plot.range_count>0) /* asked once, for the first */
             s.array_plot.save_cancelled=!xpp::ok_or_show(reset_save_decision());
         if(!s.array_plot.save_cancelled){

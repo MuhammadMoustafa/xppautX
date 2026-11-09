@@ -196,9 +196,17 @@ int main()
     CHECK(xpp::files::output_name(std::string(100,'a')+".ode",".ps")==std::string(100,'a')+".ps");
     CHECK(xpp::files::output_name("folder/model",".dat")=="model.dat");
 
-    CHECK(xpp::files::frame_name("lecar.gif",".gif",0)=="lecar.gif");
-    CHECK(xpp::files::frame_name("lecar.gif",".gif",1)=="lecar-frame1.gif");
-    CHECK(xpp::files::frame_name("long.model.gif",".gif",2)=="long.model-frame2.gif");
+
+    /* W673: a run's file (a sweep's data, a batch run's picture) numbers its base name before the extension, the picture's rule */
+    CHECK(xpp::files::run_file_name("output.dat",7)=="output_0007.dat");
+    CHECK(xpp::files::run_file_name("out.svg",12345)=="out_12345.svg");
+    CHECK(xpp::files::run_file_name("out",0)=="out_0000");
+    CHECK(xpp::files::run_file_name("long.model.pdf",1)=="long.model_0001.pdf");
+    {
+        const std::string r = xpp::files::run_file_name("dir.x/out.pdf",3); /* a dot in a folder is no extension */
+        CHECK(xpp::files::split_path(r).second=="out_0003.pdf");
+        CHECK(xpp::files::split_path(r).first.find("dir.x")!=std::string::npos);
+    }
 
     /* names: base names only */
     CHECK(xpp::files::name_ok("lecar.set"));

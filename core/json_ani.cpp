@@ -102,7 +102,7 @@ xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
             }
             if (out.kind == xpp::AniExportKind::ppm) {
                 const xpp::ImageFormat &format=xpp::image_formats[xpp::IMAGE_FORMAT_PPM];
-                const std::string file=xpp::files::frame_name(out.file,".ppm",frame);
+                const std::string file=xpp::files::run_file_name(out.file,frame);
                 if (frame > 0) outcome = reset_save_decision();
                 if (outcome) {
                     const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);

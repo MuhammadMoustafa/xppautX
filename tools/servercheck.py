@@ -2387,12 +2387,12 @@ def check_kinescope_animation_array_plot():
                         {'cmd': 'kinescope.capture', 'file': 'x'}]:
             req(refused, False)
         result, evs, _ = req({'cmd': 'kinescope.export_frames', 'file': 'w527_kin.gif'})
-        check('W527: kinescope.export_frames asks the pictures and writes the GIFs, the second named from the first',
-              result == {'file': 'w527_kin.gif', 'frames_saved': 2} and exists('w527_kin.gif', 'w527_kin-frame1.gif')
-              and head('w527_kin.gif', 6) [:4] == b'GIF8', str(result))
-        os.mkdir(os.path.join(run_dir, 'atomic-frame1.gif'))
+        check('W527: kinescope.export_frames asks the pictures and writes the GIFs, numbered from 0',
+              result == {'file': 'w527_kin.gif', 'frames_saved': 2} and exists('w527_kin_0000.gif', 'w527_kin_0001.gif')
+              and not exists('w527_kin.gif') and head('w527_kin_0000.gif', 6) [:4] == b'GIF8', str(result))
+        os.mkdir(os.path.join(run_dir, 'atomic_0001.gif'))
         req({'cmd': 'kinescope.export_frames', 'file': 'atomic.gif'}, False)
-        check('W534: refusing the last frame file writes no earlier frame', not exists('atomic.gif'))
+        check('W534: refusing the last frame file writes no earlier frame', not exists('atomic_0000.gif'))
         result, evs, _ = req({'cmd': 'kinescope.export_gif', 'file': 'w527_movie.gif'})
         check('W527: kinescope.export_gif writes one animated GIF', result.get('file') == 'w527_movie.gif' and exists('w527_movie.gif')
               and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_movie.gif')) > 20, str(result))
@@ -2457,8 +2457,9 @@ def check_kinescope_animation_array_plot():
         check('W527: animation.export_frames writes one animated GIF of the frames', result == {'frames_saved': 7} and exists('w527_an.gif')
               and head('w527_an.gif', 6) [:4] == b'GIF8', str(result))
         result, evs, _ = req({'cmd': 'animation.export_frames', 'ppm': True, 'file': 'w527_an.ppm'})
-        check('W527: animation.export_frames writes PPM files, the later ones named from the first', result == {'frames_saved': 7}
-              and exists('w527_an.ppm', 'w527_an-frame1.ppm', 'w527_an-frame6.ppm') and head('w527_an.ppm', 2) == b'P6', str(result))
+        check('W527: animation.export_frames writes PPM files, numbered from 0', result == {'frames_saved': 7}
+              and exists('w527_an_0000.ppm', 'w527_an_0001.ppm', 'w527_an_0006.ppm') and not exists('w527_an.ppm')
+              and head('w527_an_0000.ppm', 2) == b'P6', str(result))
         for refused in [{'cmd': 'animation.export_frames', 'file': 'w527_x.ppm'}, {'cmd': 'animation.export_frames', 'ppm': True, 'animated_gif': True, 'file': 'w527_x.gif'},
                         {'cmd': 'animation.export_frames', 'ppm': True}, {'cmd': 'animation.export_frames', 'ppm': True, 'file': '../x.ppm'}]:
             req(refused, False)
@@ -2527,12 +2528,12 @@ def check_kinescope_animation_array_plot():
             req(refused, False)
         check('W527: a refused range leaves the next run alone', not exists('r.gif'), str(os.listdir(run_dir)))
         result, evs, _ = req({'cmd': 'array_plot.range', 'still': True, 'tag': True, 'file': 'w527_ar.gif', 'variable': 'iapp', 'start': 0, 'end': 0.1, 'steps': 1})
-        check('W527: array_plot.range saves a GIF per run, tagged with the value, the later ones named from the first',
-              result == {'steps_completed': 2} and exists('w527_ar.gif', 'w527_ar-frame1.gif')
+        check('W527: array_plot.range saves a GIF per run, tagged with the value, numbered from 0',
+              result == {'steps_completed': 2} and exists('w527_ar_0000.gif', 'w527_ar_0001.gif') and not exists('w527_ar.gif')
               and any(e.get('tag') for e in aplots(evs)), str((result, os.listdir(run_dir))))
         result, evs, _ = req({'cmd': 'array_plot.range', 'still': False, 'file': 'w527_arm.gif', 'steps': 1})
-        check('W527: array_plot.range with still false writes one movie', result == {'steps_completed': 2} and exists('w527_arm.gif')
-              and not exists('w527_arm-frame1.gif'), str((result, os.listdir(run_dir))))
+        check('W527: array_plot.range with still false writes one movie', result == {'steps_completed': 2} and exists('w527_arm_0000.gif')
+              and not exists('w527_arm_0001.gif'), str((result, os.listdir(run_dir))))
         # the old forms are gone
         for obsolete in [{'cmd': 'ani', 'op': 'pause'}, {'cmd': 'ani', 'op': 'speed', 'ms': 5}, {'cmd': 'ani', 'op': 'step', 'n': 1}, {'cmd': 'ani', 'op': 'seek', 'pos': 1},
                          {'cmd': 'ani', 'op': 'mouse', 'what': 'down', 'u': 0.5, 'v': 0.5}, {'cmd': 'aplot', 'op': 'scroll', 'dy': 1}]:
@@ -3743,8 +3744,8 @@ for _ in range(2):
 check('Kinescope/Capture sends film captures', evs and evs[-1].get('count') == 2, str(evs[-1:]))
 send(cmd='kinescope.export_frames',file='kin_0.gif')
 evs, e = answer_asks(is_done, {'pixels':pixels})
-check('Kinescope/Save asks for the pixels and writes GIFs, the second named from the first',
-      all(os.path.exists(os.path.join(run, n)) for n in ('kin_0.gif', 'kin_0-frame1.gif')), str(os.listdir(run)))
+check('Kinescope/Save asks for the pixels and writes GIFs, numbered from 0',
+      all(os.path.exists(os.path.join(run, n)) for n in ('kin_0_0000.gif', 'kin_0_0001.gif')), str(os.listdir(run)))
 send(cmd='animation.open')
 evs, _ = collect(is_done)
 check('the animation window opens', any(e.get('ev') == 'animation.state' and e.get('open') == 1 for e in evs) or any(e.get('ev') == 'window.created' and e.get('win') == 'animation' for e in evs), str([e for e in evs if e.get('ev') == 'window.created']))
@@ -5789,8 +5790,8 @@ def check_ani_data():
             else:
                 send6(cmd='answer', id=ask['id'], key='y')
         check('W177: 601 animation PPM frames need no further destination picker',
-              file_asks == 0 and len(saved) == 601 and saved[0]['file'] == 'sequence.ppm'
-              and saved[-1]['file'] == 'sequence-frame600.ppm', str((file_asks, len(saved), saved[-1:])))
+              file_asks == 0 and len(saved) == 601 and saved[0]['file'] == 'sequence_0000.ppm'
+              and saved[-1]['file'] == 'sequence_0600.ppm', str((file_asks, len(saved), saved[-1:])))
 
         # grab: the grab point's cross (the last two black lines), hit in unit coordinates
         evs = ani('grab')
@@ -6756,7 +6757,7 @@ def check_output_names():
             saved += [x for x in evs if x.get('ev') == 'session.saved']
             if not e or not is_ask(e): break
             snd(cmd='answer', id=e['id'], **pixels(e))
-        names=['lecar.gif','lecar-frame1.gif','lecar-frame2.gif']
+        names=['lecar_0000.gif','lecar_0001.gif','lecar_0002.gif']
         check('W130: three captured frames save through the registry', [x.get('file') for x in saved] == names and all(os.path.isfile(os.path.join(r,n)) for n in names), str(saved))
         # W177: a live JSON reply cannot grant native-picker authorization.
         victim = os.path.join(os.path.dirname(r), os.path.basename(r) + '-victim.csv')
@@ -8266,7 +8267,7 @@ def check_outcomes_once():
             dict(cmd='array_plot.range',still=False,tag=False,file='movie.gif',variable='a',steps=2,start=1,end=3,reset_storage=False,use_old_ic=True,cycle_color=False,movie=False,write_each_run_to_file=False),
             {'cmd': 'answer', **pixels(None)},
             {'cmd': 'run.stop', 'at': {'what': 'integrate', 'rows': STOP_MOVIE_ROWS, 't': 0}}]
-        movie_path = os.path.join(d, 'movie.gif')
+        movie_path = os.path.join(d, 'movie_0000.gif')  # a range movie's one file, numbered from 0 (W673)
         for old in [None, b'previous complete movie']:
             if old is not None:
                 with open(movie_path, 'wb') as f:
@@ -11082,8 +11083,8 @@ def check_sweep_threads():
     common = dict(reset_storage=True, use_old_ic=True, cycle_color=False, movie=False, write_each_run_to_file=True)
 
     def files(folder, base):
-        names = glob.glob(os.path.join(folder, base + '.dat.*'))
-        names.sort(key=lambda n: int(n.rsplit('.', 1)[1]))
+        names = glob.glob(os.path.join(folder, base + '_*.dat'))
+        names.sort(key=lambda n: int(n[len(folder) + len(base) + 2:-4]))
         got = []
         for n in names:
             with open(n, 'rb') as f:
@@ -11266,7 +11267,7 @@ def check_range_files():
                     s.send(cmd='run.range', variable='a', steps=2, start=1, end=3, reset_storage=reset == 'Y', use_old_ic=True,
                            cycle_color=False, movie=False, write_each_run_to_file=enabled == 'Y')
                     s.collect(is_done)
-                    paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
+                    paths = sorted(glob.glob(os.path.join(run, 'range_*.dat')))
                     rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
                     check('W349: server reset=%s files=%s writes %d runs' % (reset, enabled, expected),
                           len(paths) == expected and (not expected or all(len(r) == 3 and
@@ -11277,7 +11278,7 @@ def check_range_files():
                 s.send(cmd='run.double_range', variable1='a', start1=1, end1=3, variable2='x', start2=0, end2=2, steps1=1, steps2=1,
                        reset_storage=True, use_old_ic=True, cycle_color=False, movie=False, vary='independently', write_each_run_to_file=True)
                 s.collect(is_done)
-                paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
+                paths = sorted(glob.glob(os.path.join(run, 'range_*.dat')))
                 rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
                 check('W349: double range gives every run a separate file', len(rows) == 4
                       and all(len(r) == 3 and abs(r[-1][1] - expected) < 1e-6
@@ -11288,7 +11289,7 @@ def check_range_files():
                 s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}})
                 s.send(cmd='run.range')
                 s.collect(is_done)
-                paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
+                paths = sorted(glob.glob(os.path.join(run, 'range_*.dat')))
                 check('W349: session load restores rangefiles: a range with no arguments writes its runs', len(paths) == 3, str(paths))
                 for path in paths:
                     os.remove(path)
@@ -11312,7 +11313,7 @@ def check_range_files():
                 rec = make_recording(args.server, model, lines, run)
                 result = subprocess.run([os.path.abspath(args.server), rec, '--silent', '--yes'],
                                         cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
-                paths = sorted(glob.glob(os.path.join(run, 'range.dat.*')))
+                paths = sorted(glob.glob(os.path.join(run, 'range_*.dat')))
                 rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
                 check('W349: silent recording files=' + enabled,
                       result.returncode == 0 and len(paths) == (3 if enabled == 'Y' else 0)
@@ -11330,11 +11331,21 @@ def check_range_files():
               imported.returncode == 0 and 'write_files: true' in text and 'range: 1' not in text, imported.stderr + text)
         result = subprocess.run([os.path.abspath(args.server), converted, '--silent', '--outfile', 'out.dat'],
                                 cwd=folder, capture_output=True, text=True, timeout=60 * SLOW)
-        paths = sorted(glob.glob(os.path.join(folder, 'out.dat.*')))
+        paths = sorted(glob.glob(os.path.join(folder, 'out_*.dat')))
         rows = [[list(map(float, line.split())) for line in open(path)] for path in paths]
         check('W349: built-in silent range honours its output filename and each run',
               result.returncode == 0 and len(rows) == 3 and all(len(r) == 3
               and abs(r[-1][1] - .2 * (i + 1)) < 1e-6 for i, r in enumerate(rows)), result.stderr + str(rows))
+        # W673: a run's picture is numbered as its data file is (out_0000.dat beside out_0000.svg), one per run
+        pictured = os.path.join(folder, 'pictured.odex')
+        with open(pictured, 'w') as f:
+            f.write(text.replace('options {', 'options {\n  output: { picture_file: "pic.svg" },', 1))
+        result = subprocess.run([os.path.abspath(args.server), pictured, '--silent', '--outfile', 'out.dat'],
+                                cwd=folder, capture_output=True, text=True, timeout=60 * SLOW)
+        pictures = sorted(glob.glob(os.path.join(folder, 'pic_*.svg')))
+        check('W673: a sweep writes its picture per run, numbered like its data',
+              result.returncode == 0 and len(pictures) == 3 and all('<svg' in open(p).read(200) for p in pictures)
+              and len(glob.glob(os.path.join(folder, 'out_*.dat'))) == 3, result.stderr + str(pictures))
         for group, key, value in (('sweep', 'rangefiles', '1'), ('sweep', 'rangefiles', 'maybe'), ('output', 'range', '1')):
             bad = os.path.join(folder, 'bad.odex')
             with open(bad, 'w') as f:

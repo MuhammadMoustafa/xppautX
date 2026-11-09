@@ -202,9 +202,6 @@ int get_frz_index(Session &s, XppWinId w);
    point, as the columns curve, x, y and, in 3D, z */
 DataTable plot_curves_table(const Session &s);
 
-/* run i's picture of a batch run that writes a file per run (dump_ps): output.picture_file, its name numbered
-   before the extension (out_0007.pdf) */
-std::string batch_plot_name(const Session &s, int i);
 /* frozen curve slot i as a session file restores it (xpp_session.cpp,
    W57): in window w, of grtype type (z's points only when type>0: 3D),
    its color, key and name; false when the slot is in use or the points'

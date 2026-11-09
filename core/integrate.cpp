@@ -1161,7 +1161,7 @@ void find_equilib_com(Session &s,int com)
 int write_this_run(xpp::Session &s, const char *file, int i)
 {
   if(!s.integrator.suppress_out){
-  std::string outfile=xpp::format("{}.{}",file,i);
+  std::string outfile=xpp::files::run_file_name(file,i);
   if(!save_ready(s.data.view.iend>s.data.view.istart))return -1;
   xpp::Writer w=xpp::open_writer_asking(outfile.c_str(),false,nullptr,false,s.output_place);
   if(!w)return -1;

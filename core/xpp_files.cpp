@@ -423,12 +423,12 @@ std::string output_name(std::string_view model_file, std::string_view ext, std::
     return base + std::string(ext);
 }
 
-std::string frame_name(std::string_view first, std::string_view ext, int frame)
+std::string run_file_name(std::string_view path, int i)
 {
-    if(frame==0)return std::string(first);
-    const auto [folder,base]=split_path(first);
-    const std::string name=output_name(base,ext,xpp::format("frame{}",frame));
-    return folder.empty()?name:absolute(name,folder);
+    const auto [folder, base] = split_path(path);
+    const std::size_t dot = std::min(base.size(), base.rfind('.'));
+    const std::string name = xpp::format("{}_{:04d}{}", base.substr(0, dot), i, base.substr(dot));
+    return folder.empty() ? name : absolute(name, folder);
 }
 
 const char *ask_mode(std::string_view title)

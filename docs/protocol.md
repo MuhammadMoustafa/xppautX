@@ -899,8 +899,8 @@ error with its place, and a stop (`run.stop`, Escape) as `job.stopped`.
   it does nothing. A recorded interruption belongs to a recording step's
   `run.stop`, whose position the player arms before the computation.
 
-A run's files (a range's one file for each run, `--ncdraw` and `--dfdraw`'s)
-ask before replacing one that is there, as any save does: a registry command
+A run's files (a range's one file for each run, named `<name>_0000.dat`, `_0001.dat`, ...,
+and `--ncdraw` and `--dfdraw`'s) ask before replacing one that is there, as any save does: a registry command
 takes no `replace` field, the client answers the question.
 
 `state.time` is the full-precision current core time, independent of stored
@@ -1120,7 +1120,7 @@ panel no longer saves: nothing of ours writes XPPAUT's `.par` and `.ic`, W321). 
 on reconnect or model change; they do not derive names from `hello.file`.
 
 Kinescope Save asks for its first GIF as a `file` ask; later frames each
-ask for their own file (default `<first-base>-frameN.gif`). Make Anigif asks
+ask for their own file (the frames are numbered `<base>_0000.gif`, `<base>_0001.gif`, ... from the first). Make Anigif asks
 for `<model>.gif`. Array print, table export, array range and animation
 frame settings contain no filename field; names are separate `file` asks.
 Fit's input file is also a separate read ask. Periodic-orbit, adjoint,

@@ -51,8 +51,10 @@ inline constexpr size_t NAME_MAX_BYTES = 255; /* Common filesystem basename limi
 std::string output_name(std::string_view model_file, std::string_view ext,
                         std::string_view what = {});
 
-/* First is an actual picked destination; later frames add their sequence number. */
-std::string frame_name(std::string_view first, std::string_view ext, int frame);
+/* the file of run i of a run that writes a file per run (a sweep's data, a batch run's picture): the path's
+   base name with the run's number before its extension, out.dat -> out_0007.dat (4 digits, more when i needs
+   them); the dot is searched in the base name only, so a dot in a folder's name is not an extension */
+std::string run_file_name(std::string_view path, int i);
 /* Case-insensitive suffix on the basename; an extension alone is not a filename. */
 bool has_extension(std::string_view path, std::string_view ext);
 bool name_ok(std::string_view name, bool allow_hidden = false);

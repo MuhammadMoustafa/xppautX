@@ -4,6 +4,7 @@
 #include <tuple>
 #include "xpp_util.h"
 #include "xpp_ui.h"
+#include "xpp_files.h"
 #include "graphics.h"
 #include "graf_par.h"
 #include "grobs.h"
@@ -285,17 +286,10 @@ void check_val(double *x1, double *x2, double *xb, double *xd)
 
 }
 
-std::string batch_plot_name(const xpp::Session &s, int i)
-{
-  const std::string &file=s.picture_file;
-  const std::string::size_type dot=file.rfind('.');
-  return xpp::format("{}_{:04d}{}",file.substr(0,dot),i,file.substr(dot));
-}
-
 void dump_ps(xpp::Session &s, int i)
 {
   const xpp::ImageFormat *fmt=xpp::picture_format_of_file(s.picture_file);
-  if(xpp::ok_or_show(xpp::begin_picture(s,*fmt,batch_plot_name(s,i))) && s.plot_file.writer)
+  if(xpp::ok_or_show(xpp::begin_picture(s,*fmt,xpp::files::run_file_name(s.picture_file,i))) && s.plot_file.writer)
     xpp::ok_or_show(vector_restore(s));
 }
 

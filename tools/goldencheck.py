@@ -160,7 +160,7 @@ def run_lecar(home):
             s.collect(is_done)
         s.send(cmd='kinescope.export_frames', file='kin.gif')
         s.answer_asks(is_done, {'pixels': pixels})
-        for name in ('kin.gif', 'kin-frame1.gif'):
+        for name in ('kin_0000.gif', 'kin_0001.gif'):
             check_file(name, read(s.run, name))
     finally:
         s.close()
