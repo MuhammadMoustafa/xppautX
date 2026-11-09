@@ -1,4 +1,4 @@
-/* preferences.setx: see xpp_prefs.h. */
+/* preferences.odex: see xpp_prefs.h. */
 #include "xpp_prefs.h"
 
 #include <algorithm>
@@ -7,7 +7,8 @@
 #include <utility>
 
 #include "model_options.h" /* choice_index */
-#include "odex_block.h"
+#include "odex.h"
+#include "odex_write.h"
 #include "xpp_files.h"
 #include "xpp_cpu.h"
 #include "xpp_io.h"
@@ -193,22 +194,30 @@ Result<Preferences> parse_prefs(std::string_view text, std::string file)
 {
     if (text.size() > MAX_FILE_BYTES)
         return fail_reading(std::string(WHERE), xpp::format("the file is longer than {} bytes", MAX_FILE_BYTES), std::move(file));
-    return odex::read_block(std::string(WHERE), std::move(file), text, false, [](odex::Block &block) {
-        block.require_version("preferences files");
+    Result<odex::StateFile> parsed = odex::read_state_file(odex::FileKind::preferences, std::string(WHERE), std::move(file), std::string(text));
+    if (!parsed) return std::unexpected(parsed.error());
+    try {
+        odex::Block block = parsed->block(false, "the preferences");
         Preferences p;
         Take take(block);
         describe(take, p);
+        block.done();
         return p;
-    });
+    } catch (ReadFailed &e) {
+        return std::unexpected(std::move(e.error));
+    }
 }
 
 Result<std::string> serialize_prefs(const Preferences &p)
 {
     Put put;
-    put.out.whole(version_word, format_version);
+    put.out.begin_statement("preferences");
     describe(put, p);
+    put.out.end_statement();
     if (put.bad_) return fail(std::string(WHERE), "cannot be saved: " + *put.bad_, Place{prefs_path()});
-    return put.out.result(std::string(WHERE));
+    Result<std::string> body = put.out.result(std::string(WHERE));
+    if (!body) return std::unexpected(body.error());
+    return odex::version_statement() + "\n" + *body;
 }
 
 std::string prefs_path() { return files::config_path(FILE_NAME); }

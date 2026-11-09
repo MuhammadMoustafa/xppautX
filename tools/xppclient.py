@@ -12,7 +12,7 @@ import glob
 import atexit, base64, copy, hashlib, json, os, queue, re, shutil, struct, subprocess, tempfile, threading, time
 
 # No check touches the user's own per-user settings (keymap.json, W211;
-# preferences.setx, W232): every xppautX a check script that imports this starts
+# preferences.odex, W232): every xppautX a check script that imports this starts
 # reads and writes a folder of its own (XPP_CONFIG_DIR, core/xpp_files.h),
 # removed at exit
 CONFIG_ROOT = tempfile.mkdtemp(prefix='xppconfig')

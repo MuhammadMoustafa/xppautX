@@ -163,7 +163,7 @@ Result<std::string> preferences_now(const Session &s)
 Result<std::string> get_preferences(Session &s, const Command &, const Arguments &, const Place &) { return preferences_now(s); }
 
 /* the program's preferences: the thread count autoX and sweeps use, and what the log shows and the file it goes to (kept in
-   preferences.setx; the log applies from the next start, and --verbose, --debug, --quiet and --logfile win over it) */
+   preferences.odex; the log applies from the next start, and --verbose, --debug, --quiet and --logfile win over it) */
 Result<std::string> configure_preferences(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const bool threads = args.has("threads") || args.has("automatic"), log = args.has("log_level") || args.has("log_file");

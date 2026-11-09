@@ -1,7 +1,8 @@
 #pragma once
 /* The program's preferences (W287): what xppautX keeps for the user across
    runs, in one file of the per-user config folder (files::config_dir),
-   preferences.setx, in the settings syntax (setx.h, docs/odex.md ".setx").
+   preferences.odex, in .odex syntax: `version` and one `preferences { ... }` statement, accepted in this file
+   alone (odex.h's read_state_file, docs/odex.md "Preferences").
    It is not a model's setting: a run's results never depend on what it
    holds (the recent models are shown, a later group is a convenience).
 
@@ -29,7 +30,7 @@
 
 namespace xpp::prefs {
 
-inline constexpr std::string_view FILE_NAME = "preferences.setx";
+inline constexpr std::string_view FILE_NAME = "preferences.odex";
 
 /* what a file may hold: every list at its longest with room for quoting and
    the groups still to come; the reader refuses a longer one before reading it */
@@ -89,7 +90,7 @@ Result<Preferences> parse_prefs(std::string_view text, std::string file);
    the error for a value that cannot be written */
 Result<std::string> serialize_prefs(const Preferences &p);
 
-/* the config folder's preferences.setx ("" when there is no config folder) */
+/* the config folder's preferences.odex ("" when there is no config folder) */
 std::string prefs_path();
 /* the file's preferences: the defaults when it is not there, the error when
    it is bad or there is no config folder */

@@ -574,7 +574,7 @@ int main()
         std::FILE *keep = std::fopen((outside + "/keep.txt").c_str(), "w");
         CHECK(keep != nullptr);
         if (keep) std::fclose(keep);
-        std::FILE *inner = std::fopen((whole + "/config/preferences.setx").c_str(), "w");
+        std::FILE *inner = std::fopen((whole + "/config/preferences.odex").c_str(), "w");
         if (inner) std::fclose(inner);
         CHECK(symlink(outside.c_str(), (whole + "/config/link").c_str()) == 0);
         CHECK(symlink(outside.c_str(), (whole + "/dirlink").c_str()) == 0);

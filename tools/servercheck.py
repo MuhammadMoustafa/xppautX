@@ -10405,7 +10405,7 @@ def check_question_policy():
                 if case == 'recording replacement':
                     ok = ok and open(saved, 'rb').read() == (b'new' if mode in ('stdin', 'yes') else b'keep')
                 if case == 'outside path':
-                    prefs = os.path.join(env['XPP_CONFIG_DIR'], 'preferences.setx')
+                    prefs = os.path.join(env['XPP_CONFIG_DIR'], 'preferences.odex')
                     ok = ok and (not os.path.exists(prefs) or table not in open(prefs, encoding='utf-8').read().replace('\\', '/'))
                 check('W304: %s / %s' % (case, mode), ok, detail)
         # The converter's write-only replacement has terminal policies; there is no server command for it.
@@ -10447,7 +10447,7 @@ def check_keymap():
         check('W211: hello gives the reserved keys and the limits the editor keeps to',
               'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'key_bytes': 64},
               str(km['limits']))
-        # W232: the start made the folder for preferences.setx (the model it was started with); reading the keymap made no file
+        # W232: the start made the folder for preferences.odex (the model it was started with); reading the keymap made no file
         check('W211: reading the keymap makes no keymap.json', not os.path.exists(path))
         snd(cmd='keymap.get')
         evs, _ = col(is_done)
@@ -10470,7 +10470,7 @@ def check_keymap():
         written = open(path, 'rb').read()
         check('W211: the file holds only the differences, one binding to a line, and no other file is left beside it',
               b'"session.reload_model": ["Ctrl+B", "Ctrl+K"]' in written and b'session.open_model' not in written
-              and sorted(os.listdir(folder)) == ['keymap.json', 'preferences.setx'], repr(written[:200]))
+              and sorted(os.listdir(folder)) == ['keymap.json', 'preferences.odex'], repr(written[:200]))
 
         for what, bad, line, value in [
                 ('a reserved key', {'bindings': {'session.reload_model': ['Ctrl+W']}}, 1, 'Ctrl+W'),
@@ -10560,11 +10560,11 @@ def check_keymap():
 check_keymap()
 
 def recent_text(models):
-    """W287: a preferences.setx holding these recent models (a quoted string is JSON's)"""
-    return 'version: 4,\nrecent_models: [%s],\n' % ', '.join(json.dumps(m) for m in models)
+    """W287: a preferences.odex holding these recent models (a quoted string is JSON's)"""
+    return 'version 4\npreferences {\n  recent_models: [%s],\n}\n' % ', '.join(json.dumps(m) for m in models)
 
 def recent_models(path):
-    """W287: the recent_models of a preferences.setx the program wrote"""
+    """W287: the recent_models of a preferences.odex the program wrote"""
     m = re.search(r'recent_models: (\[.*?\]),\n', open(path, encoding='utf-8').read(), re.S)
     return json.loads(m.group(1)) if m else []
 
@@ -10574,10 +10574,10 @@ def check_start_screen():
     state; Open model asks at once, the same ask File > Open model makes (the filter takes .ode, .odex,
     .snapx and .recx); Cancel leaves the start screen (no error, no exit); a command that needs a model is
     refused; Open model of a file, from the screen, is a normal open (new hello with no `start`, the model
-    in preferences.setx); a bad preferences.setx is an error with its file and line, no entries listed, and is not
+    in preferences.odex); a bad preferences.odex is an error with its file and line, no entries listed, and is not
     overwritten by an open; a hostile file is refused whole."""
     folder = os.path.join(CONFIG_ROOT, 'start', 'xppautX')
-    path = os.path.join(folder, 'preferences.setx')
+    path = os.path.join(folder, 'preferences.odex')
     env = {'XPP_CONFIG_DIR': folder}
     errors = lambda evs: [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
     model = os.path.abspath(args.ode)
@@ -10622,7 +10622,7 @@ def check_start_screen():
         hello = next((e for e in evs if e.get('ev') == 'hello'), {})
         check('W232: Open model of a file loads it: a hello with no start screen, its state, no question, no error',
               hello and 'start' not in hello and last_state(evs) and not [e for e in evs if e.get('ev') == 'ask'] and not errors(evs), str(evs)[-300:])
-        check('W232: the opened model is the first of recent_models in preferences.setx, an absolute path',
+        check('W232: the opened model is the first of recent_models in preferences.odex, an absolute path',
               same(recent_models(path)[0], model), '')
     finally:
         stop_server(p, r, snd)
@@ -10648,15 +10648,15 @@ def check_start_screen():
     finally:
         stop_server(p, r, snd)
 
-    # a bad preferences.setx: an error at its line, nothing listed, never overwritten
-    bad = 'version: 4,\nrecent_models: [%s,\n  "relative.odex"],\n' % json.dumps(model)
+    # a bad preferences.odex: an error at its line, nothing listed, never overwritten
+    bad = 'version 4\npreferences {\n  recent_models: [%s,\n    "relative.odex"],\n}\n' % json.dumps(model)
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(bad)
     p, r, snd, col, evs, ask = start_up()
     try:
         start = next(e for e in evs if e.get('ev') == 'hello')['start']
-        check('W232: a bad preferences.setx is an error with its file, line and value, and nothing is listed',
-              start['recent'] == [] and same(start['file'], path) and start['line'] == 3
+        check('W232: a bad preferences.odex is an error with its file, line and value, and nothing is listed',
+              start['recent'] == [] and same(start['file'], path) and start['line'] == 4
               and 'relative.odex' in start['error'] and 'relative.odex' in start['source'], str(start))
         snd(cmd='answer', id=ask['id'], ok=0)
         col(is_done)
@@ -10743,7 +10743,7 @@ def check_start_examples():
                 same_bytes = a.read() == b.read()
             check('W233: opening an example copies it into the config folder and opens the copy: a hello with no start, a state, no error, no question',
                   hello and 'start' not in hello and last_state(evs) and not errors(evs) and not [e for e in evs if e.get('ev') == 'ask']
-                  and same_bytes and same(recent_models(os.path.join(config, 'preferences.setx'))[0], copied),
+                  and same_bytes and same(recent_models(os.path.join(config, 'preferences.odex'))[0], copied),
                   str(evs)[-300:])
             check('W233: and says where the copy is', any(same(e['bottom'].split(' is copied to ')[1].split(';')[0], copied) for e in evs if e.get('ev') in ('session.message', 'done') and ' is copied to ' in e.get('bottom', '')), str(evs)[-300:])
             # a changed copy is asked about before it is replaced; No keeps it as it is
@@ -10777,12 +10777,12 @@ check_start_examples()
 def check_threads():
     """W267, docs/protocol.md "autoX's settings as data": the thread count is a program preference: the
     autoxsettings event carries it ("auto" or the count, what automatic gives, the most), `auto` `set`
-    `threads` saves it in preferences.setx (in a config folder of its own) and a server started later reads
+    `threads` saves it in preferences.odex (in a config folder of its own) and a server started later reads
     it; a count outside 1 to threads_max, or a word that is not "auto", is refused whole, nothing saved."""
     root = tempfile.mkdtemp(prefix='xppthreads')
     config = os.path.join(root, 'config')
     env = {'XPP_CONFIG_DIR': config}
-    prefs = os.path.join(config, 'preferences.setx')
+    prefs = os.path.join(config, 'preferences.odex')
     errors = lambda evs: [e['error'] for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
 
     def threads_of(snd, col):
@@ -10803,7 +10803,7 @@ def check_threads():
             snd(cmd='preferences.configure', threads=most)
             evs, _ = col(is_done)
             st = settings_of(evs)
-            check('W267: set threads (the most) shows in the event and is saved in preferences.setx',
+            check('W267: set threads (the most) shows in the event and is saved in preferences.odex',
                   not errors(evs) and st and st['threads'] == most and 'threads: %d' % most in text(), str(evs)[-300:])
             before = text()
             for bad in (0, most + 1, -1, 1.5, 'many', 'autoX', [2]):
@@ -10829,7 +10829,7 @@ def check_threads():
         finally:
             stop_server(p, r, snd)
         # a file with a bad count is an error at its line on start and is never overwritten
-        bad_text = 'version: 4,\nrecent_models: [],\nthreads: 0,\n'
+        bad_text = 'version 4\npreferences {\n  recent_models: [],\n  threads: 0,\n}\n'
         with open(prefs, 'w') as f:
             f.write(bad_text)
         p, r, snd, col, _ = launch_server(extra_env=env)
@@ -10839,7 +10839,7 @@ def check_threads():
             evs2, _ = col(is_done)
             err = errors(evs2)
             check('W267: a bad count in the file is refused with its file and line, the set is refused with it and the file is left as it is',
-                  len(err) == 1 and 'preferences.setx:3' in err[0] and text() == bad_text, str(err) + str(evs)[-200:])
+                  len(err) == 1 and 'preferences.odex:4' in err[0] and text() == bad_text, str(err) + str(evs)[-200:])
         finally:
             stop_server(p, r, snd)
     finally:
@@ -10856,7 +10856,7 @@ def check_outside_paths():
     root = os.path.realpath(tempfile.mkdtemp(prefix='xppoutside'))
     config = os.path.join(root, 'config')
     env = {'XPP_CONFIG_DIR': config}
-    prefs = os.path.join(config, 'preferences.setx')
+    prefs = os.path.join(config, 'preferences.odex')
     table = os.path.join(root, 'w.tab').replace(os.sep, '/')
     table2 = os.path.join(root, 'w2.tab').replace(os.sep, '/')
     for t in (table, table2):
@@ -10938,7 +10938,7 @@ def check_outside_paths():
             return subprocess.run([binary, 'tab.odex', '--silent'] + flags, cwd=proj, input=answer,
                                   capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW, env=dict(os.environ, **env))
         with open(prefs, 'w', encoding='utf-8') as f:
-            f.write('version: 4,\n')
+            f.write('version 4\n')
         result = silent([])
         check('W286: --silent with no answer refuses and quits with the error at the model\'s line',
               result.returncode == 1 and '(60 s)' in result.stderr and 'tab.odex:2' in result.stderr and 'refused' in result.stderr, result.stderr)
@@ -10975,7 +10975,7 @@ def check_outside_paths():
             finally:
                 s.close()
         with open(prefs, 'w', encoding='utf-8') as f:
-            f.write('version: 4,\n')
+            f.write('version 4\n')
         result = subprocess.run([binary, ode, '--silent', '--yes'], cwd=proj, input='',
                                 capture_output=True, text=True, timeout=60 * SLOW, env=dict(os.environ, **env))
         check('W297: --silent --yes .ode prints exactly one outside approval',

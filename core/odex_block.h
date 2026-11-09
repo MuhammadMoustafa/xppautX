@@ -156,10 +156,6 @@ public:
        not a setting of this group") */
     void done() const;
 
-    /* the group's `version` key (format_version.h), read: absent, or another number than this program's, is an error
-       naming both versions; `kind` is what the file holds ("settings files") */
-    void require_version(std::string_view kind);
-
 private:
     const Member *find(std::string_view key) const;
     /* the member key, marked read; null when absent (an error in complete mode) */

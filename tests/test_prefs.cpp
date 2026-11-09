@@ -18,10 +18,10 @@
 
 namespace {
 
-constexpr const char *FILE_LABEL = "p.setx";
+constexpr const char *FILE_LABEL = "p.odex";
 
-/* a preferences file's text with the format version as its first line, which every position is one line below */
-std::string versioned_prefs(const std::string &text) { return "version: " + std::to_string(xpp::format_version) + ",\n" + text; }
+/* a preferences file's text: the format version, then the statement holding text, which every position is two lines below */
+std::string versioned_prefs(const std::string &text) { return "version " + std::to_string(xpp::format_version) + "\npreferences {\n" + text + "}\n"; }
 xpp::Result<xpp::prefs::Preferences> parse(const std::string &text) { return xpp::prefs::parse_prefs(versioned_prefs(text), FILE_LABEL); }
 
 std::string quoted(const std::string &path) { return "\"" + path + "\""; }
@@ -53,14 +53,14 @@ void check_bad_files()
         const auto r = parse(t.text);
         CHECK(!r);
         if (r) continue;
-        if (r.error().place.file != FILE_LABEL || r.error().place.line != t.line + 1 || r.error().what.find(t.value) == std::string::npos) {
+        if (r.error().place.file != FILE_LABEL || r.error().place.line != t.line + 2 || r.error().what.find(t.value) == std::string::npos) {
             printf("bad file %s: %s\n", t.what, r.error().text().c_str());
             CHECK(false);
         }
     }
     /* the version: none, or another, is refused naming both versions */
-    for (const auto &[text, wanted] : {std::pair<std::string, std::string>{"recent_models: [],\n", "this program reads preferences files of version 4"},
-                                       {"version: 3,\n", "version 3: this program reads preferences files of version 4"}}) {
+    for (const auto &[text, wanted] : {std::pair<std::string, std::string>{"preferences {}\n", "this program reads preferences files of version 4"},
+                                       {"version 3\npreferences {}\n", "version 3: this program reads preferences files of version 4"}}) {
         const auto refused = xpp::prefs::parse_prefs(text, FILE_LABEL);
         CHECK(!refused && refused.error().what.find(wanted) != std::string::npos);
     }
@@ -92,7 +92,7 @@ void check_outside_paths()
         const auto r = parse(t.text);
         CHECK(!r);
         if (r) continue;
-        if (r.error().place.line != t.line + 1 || r.error().what.find(t.value) == std::string::npos) {
+        if (r.error().place.line != t.line + 2 || r.error().what.find(t.value) == std::string::npos) {
             printf("bad outside_paths %s: %s\n", t.what, r.error().text().c_str());
             CHECK(false);
         }
@@ -179,7 +179,7 @@ void check_threads()
         const auto r = parse(t.text);
         CHECK(!r);
         if (r) continue;
-        if ((r.error().place.file != FILE_LABEL || r.error().place.line != t.line + 1 || r.error().what.find(t.value) == std::string::npos)) {
+        if ((r.error().place.file != FILE_LABEL || r.error().place.line != t.line + 2 || r.error().what.find(t.value) == std::string::npos)) {
             printf("bad threads %s: %s\n", t.what, r.error().text().c_str());
             CHECK(false);
         }
@@ -214,7 +214,7 @@ void check_log()
         const auto r = parse(t.text);
         CHECK(!r);
         if (r) continue;
-        if (r.error().place.file != FILE_LABEL || r.error().place.line != t.line + 1 || r.error().what.find(t.value) == std::string::npos) {
+        if (r.error().place.file != FILE_LABEL || r.error().place.line != t.line + 2 || r.error().what.find(t.value) == std::string::npos) {
             printf("bad log %s: %s\n", t.what, r.error().text().c_str());
             CHECK(false);
         }
@@ -248,7 +248,7 @@ void check_file()
     const std::string badtext = versioned_prefs("recent_models: [\"relative.odex\"],\n");
     CHECK(w && w.write(badtext) && w.commit().has_value());
     const auto r = xpp::prefs::load_prefs();
-    CHECK(!r && r.error().place.file == file && r.error().place.line == 2);
+    CHECK(!r && r.error().place.file == file && r.error().place.line == 3);
     bool called = false;
     CHECK(!xpp::prefs::update_prefs([&](xpp::prefs::Preferences &) { called = true; }));
     CHECK(!called);

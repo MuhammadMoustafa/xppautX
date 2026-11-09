@@ -114,7 +114,7 @@ export interface OptionGroup {
   rows: OptionRow[];
 }
 
-/** one model of recent_models in preferences.setx: `missing` when its file is no longer there (listed, never dropped) */
+/** one model of recent_models in preferences.odex: `missing` when its file is no longer there (listed, never dropped) */
 export interface RecentModel {
   path: string;
   missing: boolean;
@@ -129,7 +129,7 @@ export interface StartExamples {
 }
 
 /** hello.start: the models opened lately, newest first, `limit` the most kept; `error` (and the
-    `error` event's other fields) when preferences.setx could not be read, with no models listed */
+    `error` event's other fields) when preferences.odex could not be read, with no models listed */
 export interface StartInfo {
   path: string;
   limit: number;
