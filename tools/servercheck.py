@@ -836,17 +836,27 @@ def check_autox_live_jobs():
             for _, r in live_runs:
                 per_job[r['live']] = per_job.get(r['live'], 0) + len(r['x'])
             events = [e for e in evs if e.get('ev') == 'autox.jobs']
-            seen = {}
-            ordered = True
-            for e in events:
+            # each event is read against the live points sent before it (W627, #699): a count is the points drawn, never ahead of the
+            # client's; a job is listed (with its key) before its first live point, but a job that ends between two events may only ever
+            # be listed with 0, so no count above 0 is asked of each
+            sent, seen, ordered, listed_late = {}, {}, True, []
+            for e in evs:
+                if e.get('ev') == 'autox.diagram' and e.get('view') == 'diagram_1' and e['op'] == 'add':
+                    for r in e['runs']:
+                        if 'live' in r:
+                            sent[r['live']] = sent.get(r['live'], 0) + len(r['x'])
+                            if r['live'] not in seen:
+                                listed_late.append(r['live'])
+                if e.get('ev') != 'autox.jobs':
+                    continue
                 keys = [j['key'] for j in e['jobs']]
                 ordered = ordered and len(keys) == e['running'] and keys == sorted(keys, key=lambda k: (len(k), k))
                 for j in e['jobs']:
-                    seen[j['live']] = max(seen.get(j['live'], 0), j['points'])
-                    ordered = ordered and j['points'] <= per_job.get(j['live'], 0) and all(isinstance(n, int) for n in j['key'])
+                    ordered = ordered and j['points'] >= seen.get(j['live'], 0) and j['points'] <= sent.get(j['live'], 0) and all(isinstance(n, int) for n in j['key'])
+                    seen[j['live']] = j['points']
             check('W620: autox.jobs lists the running jobs in the join order, each with its key and its points so far, which the points drawn live account for (%s)' % what,
-                  ordered and sorted(seen) == [1, 3, 4, 5, 6] and all(seen[i] > 0 for i in seen) and events[-1]['jobs'] == []
-                  and events[-1]['running'] == 0 and sum(per_job.values()) >= 390, '%s %s' % (seen, per_job))
+                  ordered and not listed_late and sorted(seen) == [1, 3, 4, 5, 6] and events[-1]['jobs'] == []
+                  and events[-1]['running'] == 0 and sum(per_job.values()) >= 390, '%s %s late %s' % (seen, per_job, listed_late))
             stabs = [e for e in evs if e.get('ev') == 'autox.info' and e.get('stab')]
             check('W620: the stability circle is sent while the jobs run, before the join (%s)' % what,
                   stabs and stabs[0]['_t'] < next(e['_t'] for e in evs if e.get('ev') == 'autox.diagram' and e.get('op') == 'reset'),

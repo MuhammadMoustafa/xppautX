@@ -1964,7 +1964,8 @@ the rest; the `notes` then say "autoX stopped: F of M jobs finished, S stopped, 
 `{"ev":"autox.jobs","running":R,"queued":Q,"done":D,"jobs":[{"live":3,"key":[0,5],"points":55},...]}` comes whenever those counts change
 while the jobs run (a job ended early counts as done), the last one at the run's end (`running` 0, `jobs` empty); `jobs` are the
 running jobs in the join's order, each with its `live` id, its `key` in the queue (the integers of the recorded stop's `jobs` below: a
-root's index, then the point each job was found at and its direction, level by level) and the points it has stored so far, sent
+root's index, then the point each job was found at and its direction, level by level) and the points it has drawn live so far (W627, [#699](https://github.com/MuhammadMoustafa/xppautX/issues/699): the live
+points sent before the event, never more; a job that ends between two events may be listed only with 0), sent
 again as they grow no more often than ten times a second; the diagram's points carry `job` (the run field above).
 
 `{"ev":"autox.joined","jobs":[{"key":[0,5],"branch":3},...]}` (W631, [#703](https://github.com/MuhammadMoustafa/xppautX/issues/703)) comes once,

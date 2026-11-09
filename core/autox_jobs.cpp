@@ -214,7 +214,7 @@ struct QueuedJob {
   std::optional<Error> failed;
   std::string table,warnings; /* its table lines and its warnings, kept while it runs, for the join to write */
   std::vector<AutoxBufferedPoint> unseen; /* its points stored since the main thread last drew them: the thread records, only the main thread draws (q.mutex) */
-  std::size_t stored=0; /* its points so far (q.mutex) */
+  std::size_t drawn=0; /* its points drawn live so far, which autox.jobs announces: never ahead of what the client was sent (the main thread) */
   std::optional<DIAGRAM> latest; /* the last point drawn of it: what the circle shows while it is the earliest running (the main thread) */
   std::vector<AutoxJobStart> made; /* once done: what it made besides its start (autox_end_claims) */
   bool closed=false; /* once done: its branch ended back at its start */
@@ -418,7 +418,7 @@ void announce_counts(Queue &q)
       else counts.queued++;
     }
     std::sort(running.begin(),running.end(),[](const QueuedJob *a,const QueuedJob *b){return autox_job_before(a->key,b->key);});
-    for(const QueuedJob *job:running)counts.each.push_back({job->id,job->key.path,static_cast<int>(job->stored)});
+    for(const QueuedJob *job:running)counts.each.push_back({job->id,job->key.path,static_cast<int>(job->drawn)});
   }
   const bool same=counts.running==q.shown_counts.running&&counts.queued==q.shown_counts.queued&&counts.done==q.shown_counts.done;
   if(same&&(counts.each==q.shown_counts.each||!xpp::every(q.counts_last,xpp::PROGRESS_SECONDS)))return;
@@ -444,6 +444,7 @@ void show_live(Queue &q)
   }
   for(auto &[job,points]:fresh){
     for(const AutoxBufferedPoint &held:points)autox_show_live_point(q.s,held.point,job->id,held.new_segment);
+    job->drawn+=points.size();
     job->latest=std::move(points.back().point);
   }
   {
@@ -488,7 +489,6 @@ void begin(Queue &q, QueuedJob &job, std::vector<std::thread> &threads)
   run.point_stored=[&q,&job](std::size_t points){
     {
       const std::lock_guard lock(q.mutex);
-      job.stored=points;
       job.unseen.push_back(job.run->points.back());
     }
     if(autox_diagram_full(q.diagram_base+q.points_held.fetch_add(1))){ /* more points than the diagram holds: the run is over */
