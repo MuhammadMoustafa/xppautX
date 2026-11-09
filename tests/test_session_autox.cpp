@@ -11,6 +11,7 @@
    and its autoX members restore exactly what was imported. */
 #include "xpptest.h"
 #include "xpp_session_autox.h"
+#include "autox_text.h"
 #include "snapx.h"
 #include "session.h"
 #include "model.h"
@@ -139,6 +140,35 @@ std::deque<xpp::DIAGRAM> points_of(int k, int n)
     return pts;
 }
 
+/* the 1-based line of text that starts, after its blanks, with prefix */
+int line_of(const std::string &text, std::string_view prefix)
+{
+    int n = 0;
+    for (std::string_view line : xpp::split_lines(text)) {
+        n++;
+        line.remove_prefix(std::min(line.find_first_not_of(' '), line.size()));
+        if (line.starts_with(prefix)) return n;
+    }
+    return 0;
+}
+/* text with its line that starts with prefix replaced by line, at the same indentation */
+std::string with_line(const std::string &text, std::string_view prefix, std::string_view line)
+{
+    std::string out;
+    const int at = line_of(text, prefix);
+    int n = 0;
+    for (std::string_view l : xpp::split_lines(text)) out += (++n == at ? std::string(l.find_first_not_of(' '), ' ') + std::string(line) : std::string(l)) + "\n";
+    return out;
+}
+std::string without_line(const std::string &text, std::string_view prefix)
+{
+    std::string out;
+    const int at = line_of(text, prefix);
+    int n = 0;
+    for (std::string_view l : xpp::split_lines(text)) if (++n != at) out += std::string(l) + "\n";
+    return out;
+}
+
 void check_settings_text()
 {
     xpp::AutoxSettingsSet s;
@@ -156,7 +186,7 @@ void check_settings_text()
     s.nmarks = 2;
     s.mark_name = {"T", "phi"};
     s.mark_value = {awk(4), awk(5)};
-    const xpp::Result<xpp::snapx::autox_members::SettingsRead> read = xpp::snapx::autox_members::parse_settings(xpp::snapx::autox_members::settings_text(s), "settings.txt");
+    const xpp::Result<xpp::snapx::autox_members::SettingsRead> read = autox_text::parse_settings(autox_text::settings_text(s), "settings.odex");
     CHECK(read.has_value());
     if (!read) return;
     const xpp::AutoxSettingsSet *r = &read->set;
@@ -170,32 +200,37 @@ void check_settings_text()
     CHECK(range);
     CHECK(r->nmarks == 2 && r->mark_name[0] == "T" && r->mark_name[1] == "phi" && same_bits(r->mark_value[0], s.mark_value[0]) &&
           same_bits(r->mark_value[1], s.mark_value[1]));
-    std::string excessive;
-    for(int i=0;i<=xpp::autox_file_marks_limit;i++)excessive+="mark T 1\n";
-    const auto bounded=xpp::snapx::autox_members::parse_settings(excessive,"sent.snapx/autox/settings.txt");
-    CHECK(!bounded && bounded.error().place.line==xpp::autox_file_marks_limit+1);
-    CHECK(!bounded && bounded.error().place.source=="mark T 1");
     /* each refusal at its line, the line as written (W125) */
-    const auto error = [](const std::string &text) {
-        const xpp::Result<xpp::snapx::autox_members::SettingsRead> e = xpp::snapx::autox_members::parse_settings(text, "a.snapx/autox/settings.txt");
-        return e ? std::string() : e.error().text() + " [" + e.error().place.source + "]";
+    const std::string text = autox_text::settings_text(s);
+    const auto error = [](const std::string &bad) {
+        const xpp::Result<xpp::snapx::autox_members::SettingsRead> e = autox_text::parse_settings(bad, "a.snapx/session.odex");
+        return e ? xpp::Error{} : e.error();
     };
-    CHECK(error("step_size not-a-number\n") == "a.snapx/autox/settings.txt:1: Step size must be a number [step_size not-a-number]");
-    CHECK(error("plot 1\n") == "a.snapx/autox/settings.txt:1: \"1\" is not a projection (maximum, norm, maximum_and_minimum, period, two_parameter, frequency, average) [plot 1]");
+    const auto after_key = [&](const std::string &key) { return line_of(text, key + ":"); };
+    xpp::Error e = error(with_line(text, "step_size:", "step_size: not-a-number,"));
+    CHECK(e.what == "Step size must be a number" && e.place.file == "a.snapx/session.odex" && e.place.line == after_key("step_size") &&
+          e.place.source == "  step_size: not-a-number,");
+    e = error(with_line(text, "plot:", "plot: 1,"));
+    CHECK(e.place.line == after_key("plot") && e.what.starts_with("\"1\" is not a projection (maximum, norm, maximum_and_minimum"));
     /* every key there once, none it does not have */
-    const std::string text = xpp::snapx::autox_members::settings_text(s);
-    const int lines = static_cast<int>(xpp::split_lines(text).size());
-    CHECK(error("bogdanov_takens 1\n")=="a.snapx/autox/settings.txt:1: bogdanov_takens must be true or false, got 1 [bogdanov_takens 1]");
-    CHECK(!xpp::snapx::autox_members::parse_settings(text+"bogdanov_takens true\n","duplicate.txt"));
-    auto missing=text; missing.erase(missing.find("bogdanov_takens true\n"),22);
-    CHECK(!xpp::snapx::autox_members::parse_settings(missing,"missing.txt"));
-    CHECK(error(text + "later 1\n") == xpp::format("a.snapx/autox/settings.txt:{}: later is not one of autoX's settings [later 1]", lines + 1));
-    CHECK(error(text + "mesh_intervals 3\n") == xpp::format("a.snapx/autox/settings.txt:{}: mesh_intervals given twice [mesh_intervals 3]", lines + 1));
-    CHECK(error(text.substr(text.find('\n') + 1)) == xpp::format("a.snapx/autox/settings.txt:{}: the file ends here, without its mesh_intervals line []", lines));
-    CHECK(read->lines.at("mesh_intervals") == 1 && read->lines.at("mark1") == lines);
+    e = error(with_line(text, "bogdanov_takens:", "bogdanov_takens: 1,"));
+    CHECK(e.place.line == after_key("bogdanov_takens") && e.what == "`bogdanov_takens`: `1` is not true or false");
+    e = error(with_line(text, "marks:", "bogdanov_takens: true,\n  marks: ["));
+    CHECK(e.what.find("`bogdanov_takens` is given twice") != std::string::npos);
+    e = error(without_line(text, "bogdanov_takens:"));
+    CHECK(e.what == "settings has no `bogdanov_takens`");
+    e = error(with_line(text, "marks:", "later: 1,\n  marks: ["));
+    CHECK(e.what == "`later` is not a setting of settings" && e.place.line == after_key("marks"));
+    std::string excessive = text.substr(0, text.find("  marks: ["));
+    excessive += "  marks: [\n";
+    for (int i = 0; i <= xpp::autox_file_marks_limit; i++) excessive += "    { name: T, value: 1 },\n";
+    excessive += "  ],\n},\n";
+    e = error(excessive);
+    CHECK(e.place.line == after_key("marks") && e.what.find("at most") != std::string::npos);
+    CHECK(read->places.at("mesh_intervals").first == after_key("mesh_intervals") && read->places.at("mark1").first == line_of(text, "name: phi") - 1);
 }
 
-/* views.txt (W50): the views read back bit for bit, a degenerate range
+/* the views (W50): the views read back bit for bit, a degenerate range
    (a Fit of a flat quantity) and no zoom included; a file of another
    shape is refused */
 void check_views_text()
@@ -209,17 +244,24 @@ void check_views_text()
     v.views[1].hidden=true;
     v.views[1].name="diagram_2";
     v.active = 1;
-    const std::string text = xpp::snapx::autox_members::views_text(v);
-    const xpp::Result<xpp::snapx::autox_members::ViewsRead> r = xpp::snapx::autox_members::parse_views(text, "views.txt");
-    CHECK(r && r->views == v && r->lines == std::vector<int>({1, 2}));
-    CHECK(text.ends_with("active \"diagram_2\"\n") && text.contains("\"diagram_2\" hidden period"));
-    CHECK(!xpp::snapx::autox_members::parse_views("view \"diagram_1\" visible maximum_and_minimum v iapp phi 0 1 0 1 - -\nactive \"diagram_1\"\n", "views.txt")); /* shown or hidden */
-    CHECK(!xpp::snapx::autox_members::parse_views("view \"diagram_1\" shown maximum_and_minimum v iapp phi 0 1 0 1 - -\n", "views.txt"));                /* no active line */
-    CHECK(!xpp::snapx::autox_members::parse_views("active \"diagram_1\"\n", "views.txt"));                                     /* no view */
-    CHECK(!xpp::snapx::autox_members::parse_views("view \"diagram_1\" shown maximum_and_minimum v iapp phi 0 1 0 1 - -\nactive \"missing\"\n", "views.txt"));     /* no view 1 */
-    CHECK(!xpp::snapx::autox_members::parse_views("view \"diagram_1\" shown maximum_and_minimum v iapp phi 0 1 0 1 1:0 -\nactive \"diagram_1\"\n", "views.txt"));   /* a zoom low above high */
-    CHECK(!xpp::snapx::autox_members::parse_views("view \"diagram_1\" shown maximum_and_minimum v iapp phi 0 1 0 -\nactive \"diagram_1\"\n", "views.txt"));        /* a field short */
-    CHECK(!xpp::snapx::autox_members::parse_views("view \"diagram_1\" shown 2 v iapp phi 0 1 0 1 - -\nactive \"diagram_1\"\n", "views.txt"));   /* a projection is its name */
+    const std::string text = autox_text::views_text(v);
+    const xpp::Result<xpp::snapx::autox_members::ViewsRead> r = autox_text::parse_views(text, "views.odex");
+    CHECK(r && r->views == v && r->places.size() == 2 && r->places[0].first == 2 && r->places[1].first == line_of(text, "name: \"diagram_2\"") - 1);
+    CHECK(text.ends_with("active: \"diagram_2\",\n") && text.contains("name: \"diagram_2\",\n    hidden: true,\n    plot: period"));
+    const auto bad = [&](const std::string &changed) { return !autox_text::parse_views(changed, "views.odex"); };
+    CHECK(bad(with_line(text, "hidden: true", "hidden: visible,")));                                        /* true or false */
+    CHECK(bad(without_line(text, "active:")));                                                              /* no active line */
+    CHECK(bad("views: [],\nactive: \"diagram_1\",\n"));                                                       /* no view */
+    CHECK(bad(with_line(text, "active:", "active: \"missing\",")));                                         /* no such view */
+    CHECK(bad(without_line(text, "ymax:")));                                                                /* a field short */
+    CHECK(bad(with_line(text, "plot: period", "plot: 2,")));                                                /* a projection is its name */
+    CHECK(bad(with_line(text, "name: \"diagram_2\"", "name: \"diagram_1\",")));                              /* a name twice */
+    std::string swapped = text; /* a zoom low above its high */
+    const std::size_t low = swapped.find("low:", swapped.find("set: true,\n"));
+    swapped.replace(low, swapped.find('\n', low) - low, "low: 1,");
+    const std::size_t high = swapped.find("high:", low);
+    swapped.replace(high, swapped.find('\n', high) - high, "high: -1,");
+    CHECK(bad(swapped));
 }
 
 void check_solutions()
@@ -249,7 +291,12 @@ void check_solutions()
 
 void check_untrusted_zoom()
 {
-    CHECK(!xpp::snapx::autox_members::parse_views("view \"diagram_1\" shown maximum_and_minimum v iapp phi 0 1 0 1 -inf:inf -\nactive \"diagram_1\"\n", "sent.snapx/autox/views.txt"));
+    xpp::snapx::autox_members::SavedViews v;
+    v.views.push_back({xpp::AutoxProjection::maximum_and_minimum, "v", "iapp", "phi", {0, 1, 0, 1}, {}, "diagram_1"});
+    const std::string text = autox_text::views_text(v);
+    const std::string infinite = text.substr(0, text.find("zoom:")) + "zoom: { x: { set: true, low: -inf, high: inf, }, y: { set: false, low: 0, high: 0, }, },\n  },\n],\nactive: \"diagram_1\",\n";
+    CHECK(!autox_text::parse_views(infinite, "sent.snapx/session.odex"));
+    CHECK(autox_text::parse_views(text, "sent.snapx/session.odex"));
 }
 
 void check_diagram_csv()
@@ -741,9 +788,9 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     if (!bytes) return;
     const std::optional<std::vector<xpp::zip::Entry>> entries = xpp::zip::read_zip(*bytes);
     const std::string model_member = "model/" + xpp::client_session().model().this_file;
-    CHECK(entries && (*entries)[0].name == "session.setx" && (*entries)[1].name == model_member);
+    CHECK(entries && (*entries)[0].name == xpp::snapx::state_member && (*entries)[1].name == model_member);
     const xpp::Result<xpp::snapx::Manifest> man =
-        xpp::snapx::parse_manifest("a/session.setx", entries ? (*entries)[0].bytes : std::string());
+        xpp::snapx::parse_manifest("a/session.odex", entries ? (*entries)[0].bytes : std::string());
     CHECK(entries && man && man->model_name == xpp::client_session().model().this_file);
     CHECK(entries && (*entries)[1].bytes == file_text(xpp::client_session().model().this_file));
 
@@ -767,7 +814,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(file_text(xpp::autox_solutions_file(xpp::client_session())) == solutions);
     CHECK(same_bits(s.autox_state.bifur.ds, 0.1 + 0.2) && same_bits(s.autox_state.bifur.rl1, 1.0 / 3.0));
     const xpp::AutoxSettingsSet after = xpp::autox_settings_now(xpp::client_session());
-    CHECK(xpp::snapx::autox_members::settings_text(after) == xpp::snapx::autox_members::settings_text(before));
+    CHECK(autox_text::settings_text(after) == autox_text::settings_text(before));
     CHECK(s.autox_state.views.size() == 2 && s.autox_state.active_view == 0 && s.autox_state.views[1].axes.plot == xpp::AutoxProjection::norm &&
           s.autox_state.views[1].axes.ymax == 5 && (s.autox_state.views[1].zoom.y == xpp::AxisRange{true, 0.5, 1.5}) &&
           !s.autox_state.views[1].zoom.x.set && s.autox_state.views[0].axes.plot == s.autox_state.axes().plot);
@@ -806,7 +853,7 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     CHECK(file_text(xpp::autox_solutions_file(xpp::client_session())).size() > 100); /* the .s part */
     CHECK(s.autox_state.bifur.marks.empty());
     /* Sent foreign files must preserve every autoX member after any late failure. */
-    const auto before_settings = xpp::snapx::autox_members::settings_text(xpp::autox_settings_now(s));
+    const auto before_settings = autox_text::settings_text(xpp::autox_settings_now(s));
     const auto before_diagram = xpp::snapx::autox_members::diagram_csv(s.diagram.points, s.model().nupar,
         std::span<const std::string>(s.model().uvar_names.data(), s.model().node));
     const auto before_solutions = file_text(xpp::autox_solutions_file(s));
@@ -824,7 +871,7 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
             CHECK(result.error().place.file == path && result.error().place.line == line);
             CHECK(result.error().place.source == std::string(xpp::line_place(path, bad, line).source));
         }
-        CHECK(xpp::snapx::autox_members::settings_text(xpp::autox_settings_now(s)) == before_settings);
+        CHECK(autox_text::settings_text(xpp::autox_settings_now(s)) == before_settings);
         CHECK(xpp::snapx::autox_members::diagram_csv(s.diagram.points, s.model().nupar,
             std::span<const std::string>(s.model().uvar_names.data(), s.model().node)) == before_diagram);
         CHECK(file_text(xpp::autox_solutions_file(s)) == before_solutions);
@@ -860,37 +907,28 @@ void check_import(const std::string &autox_text, const xpp::TempDir &tmp)
     CHECK(xpp::snapx::autox_members::add_members(xpp::client_session(), entries, "autox/"));
     std::map<std::string, std::string> members;
     for (xpp::zip::Entry &e : entries) members[e.name] = std::move(e.bytes);
-    CHECK(members.size() == 4 && members.contains("autox/diagram.csv") && members.contains("autox/views.txt"));
+    CHECK(members.size() == 2 && members.contains("autox/diagram.csv") && members.contains("autox/solutions.s"));
+    const std::string state = autox_text::state_text(xpp::client_session());
     start_diagram(xpp::client_session(), xpp::client_session().model().node);
-    xpp::Result<xpp::snapx::autox_members::Members> read = xpp::snapx::autox_members::members_read(xpp::client_session(), members, "autox/", "lecar.snapx");
+    xpp::Result<xpp::snapx::autox_members::Members> read = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", state, "lecar.snapx/session.odex");
     CHECK(read && xpp::snapx::autox_members::restore_members(xpp::client_session(), std::move(*read)));
     /* one missing: named */
     std::map<std::string, std::string> cut = members;
     cut.erase("autox/solutions.s");
-    const xpp::Result<xpp::snapx::autox_members::Members> none = xpp::snapx::autox_members::members_read(xpp::client_session(), cut, "autox/", "lecar.snapx");
+    const xpp::Result<xpp::snapx::autox_members::Members> none = autox_text::read_members(xpp::client_session(), cut, "autox/", "lecar.snapx", state, "lecar.snapx/session.odex");
     CHECK(!none && none.error().text() == "lecar.snapx: its autox/solutions.s is missing");
-    /* all or nothing (W125): a value on settings.txt's last line that does
-       not read, or a value autoX refuses, is the error at its line, before
+    /* all or nothing (W125): a value that does not read, or a value autoX refuses, is the error at its line, before
        anything is restored */
-    const std::string settings = members["autox/settings.txt"];
-    /* text with the line of key given value instead */
-    const auto keyed = [](std::string text, const std::string &key, const std::string &value) {
-        const std::size_t at = text.find(key + " ");
-        return text.replace(at, text.find('\n', at) - at, key + " " + value);
-    };
-    const std::string last_bad = settings.substr(0, settings.rfind("ymax ")) + "ymax nope\n";
-    cut = members;
-    cut["autox/settings.txt"] = last_bad;
-    const xpp::Result<xpp::snapx::autox_members::Members> bad = xpp::snapx::autox_members::members_read(xpp::client_session(), cut, "autox/", "lecar.snapx");
-    CHECK(!bad && bad.error().place.file == "lecar.snapx/autox/settings.txt" &&
-          bad.error().place.line == static_cast<int>(xpp::split_lines(last_bad).size()) && bad.error().place.source == "ymax nope");
-    cut["autox/settings.txt"] = keyed(settings, "collocation_points", "9");
-    const xpp::Result<xpp::snapx::autox_members::Members> refused = xpp::snapx::autox_members::members_read(xpp::client_session(), cut, "autox/", "lecar.snapx");
-    CHECK(!refused && refused.error().place.line == xpp::AUTOX_NUM_COLLOCATION_POINTS + 1 && refused.error().place.source == "collocation_points 9");
-    cut["autox/settings.txt"] = keyed(settings, "mesh_intervals", std::to_string(xpp::autox_max_mesh_intervals + 1));
-    const auto mesh_refused = xpp::snapx::autox_members::members_read(xpp::client_session(), cut, "autox/", "lecar.snapx");
+    const std::string settings = state;
+    const auto keyed = [&](const std::string &key, const std::string &value) { return with_line(settings, key + ":", key + ": " + value + ","); };
+    const std::string last_bad = keyed("ymax", "nope");
+    const xpp::Result<xpp::snapx::autox_members::Members> bad = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", last_bad, "lecar.snapx/session.odex");
+    CHECK(!bad && bad.error().place.file == "lecar.snapx/session.odex" && bad.error().place.line == line_of(settings, "ymax:") && bad.error().place.source == "    ymax: nope,");
+    const xpp::Result<xpp::snapx::autox_members::Members> refused = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", keyed("collocation_points", "9"), "lecar.snapx/session.odex");
+    CHECK(!refused && refused.error().place.line == line_of(settings, "collocation_points:") && refused.error().place.source == "    collocation_points: 9,");
+    const auto mesh_refused = autox_text::read_members(xpp::client_session(), members, "autox/", "lecar.snapx", keyed("mesh_intervals", std::to_string(xpp::autox_max_mesh_intervals + 1)), "lecar.snapx/session.odex");
     CHECK(!mesh_refused);
-    if (!mesh_refused) CHECK(mesh_refused.error().place.file == "lecar.snapx/autox/settings.txt" && mesh_refused.error().place.line == 1);
+    if (!mesh_refused) CHECK(mesh_refused.error().place.file == "lecar.snapx/session.odex" && mesh_refused.error().place.line == line_of(settings, "mesh_intervals:"));
     CHECK(same_diagram(s.diagram.points, imported));
     CHECK(file_text(xpp::autox_solutions_file(xpp::client_session())) == solutions);
 
@@ -1213,20 +1251,19 @@ int main(int argc,char **argv)
     {
         xpp::Session &s = xpp::client_session();
         s.autox_state.bifur.nmx = 37;
-        const auto before = xpp::snapx::autox_members::settings_text(xpp::autox_settings_now(s));
+        const auto before = autox_text::settings_text(xpp::autox_settings_now(s));
         const auto bytes = xpp_session_snapshot(s);
         CHECK(bytes.has_value());
         const auto f = bytes ? xpp_saved_parse(tmp.file("settings.snapx"), "settings.snapx", *bytes, SavedKind::snapshot) : std::nullopt;
         s.autox_state.bifur.nmx = 38;
         CHECK(f && xpp_saved_restore(s, *f));
-        CHECK(xpp::snapx::autox_members::settings_text(xpp::autox_settings_now(s)) == before);
+        CHECK(autox_text::settings_text(xpp::autox_settings_now(s)) == before);
         CHECK(diagram_count(s.diagram) <= 1 && !s.autox_state.bifur.exist);
         if (f) {
             SavedFile missing = *f;
-            missing.members.erase("autox/settings.txt");
-            missing.members.erase("autox/views.txt");
+            missing.members.erase(xpp::snapx::state_member);
             CHECK(xpp_saved_check(s, missing).has_value());
-            CHECK(xpp::snapx::autox_members::settings_text(xpp::autox_settings_now(s)) == before);
+            CHECK(autox_text::settings_text(xpp::autox_settings_now(s)) == before);
         }
     }
     check_orbit_growth(tmp);

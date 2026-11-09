@@ -961,8 +961,8 @@ def section_session():
     check('session save reports the session file', sess == {'file': 's1.snapx'}, str(sess))
     snap_path = os.path.join(s.run, 's1.snapx')
     members = zipfile.ZipFile(snap_path).namelist() if os.path.exists(snap_path) else []
-    check('session save writes s1.snapx with the model, the .setx and autoX\'s files in it',
-          'model/lecar.odex' in members and 'model.setx' in members and 'autox/diagram.csv' in members, str(members))
+    check('session save writes s1.snapx with the model, the state file and autoX\'s files in it',
+          'model/lecar.odex' in members and 'session.odex' in members and 'autox/diagram.csv' in members, str(members))
     pars1 = dict(saved['pars']) if saved else {}
 
     # a NEW server, in a new directory, with only the session file copied in
@@ -1104,21 +1104,24 @@ def section_sessiondiagram():
     # an old name asked for: the .snapx beside it
     got = save_diagram(s, 'd1', 'd1.snapx')
     check('sessiondiagram: Save diagram writes d1.snapx, a zip of the files listed, the model and its animation in it',
-          list(got) == ['session.setx', 'model/lecar.odex', 'model/ml.anix', 'model.setx', 'autox/settings.txt', 'autox/views.txt', 'autox/diagram.csv', 'autox/solutions.s', 'windows.setx', 'marks.setx', 'random.txt', 'sliders.setx', 'nullclines.setx'], str(list(got)))
-    check('sessiondiagram: session.setx is the manifest of lecar.odex, which is in it byte for byte',
-          got.get('session.setx', '') == 'session: {\n  version: 4,\n  model: "lecar.odex",\n  animation: "ml.anix",\n  data: false,\n},\n'
-          and got.get('model/lecar.odex') == open(LECAR).read(), got.get('session.setx', '')[:300])
-    check('sessiondiagram: settings.txt has the numerics, the parameters and the axes',
-          all(re.search(r'(^|\n)%s ' % k, got.get('autox/settings.txt', '')) for k in ('mesh_intervals', 'step_size', 'plot', 'xmin')),
-          got.get('autox/settings.txt', '')[:300])
+          list(got) == ['session.odex', 'model/lecar.odex', 'model/ml.anix', 'autox/diagram.csv', 'autox/solutions.s'], str(list(got)))
+    state = got.get('session.odex', '')
+    check('sessiondiagram: session.odex names lecar.odex and its animation, and lecar.odex is in the file byte for byte',
+          '\nsession {\n  model: "lecar.odex",\n  animation: "ml.anix",\n  data: false,\n' in state
+          and got.get('model/lecar.odex') == open(LECAR).read(), state[:300])
+    check('sessiondiagram: session.odex has the numerics, the parameters and the axes of autoX',
+          all(re.search(r'(^|\n)\s+%s: ' % k, state) for k in ('mesh_intervals', 'step_size', 'plot', 'xmin')) and state.startswith('version 4\npar '),
+          state[:300])
     rows = diagram_rows(got.get('autox/diagram.csv', '').encode('utf-8'))
     check("sessiondiagram: diagram.csv has branch records and the diagram's points", len(rows) == len(dg1) > 50
           and got['autox/diagram.csv'].startswith('branch,0,'),
           '%d rows' % len(rows))
     check('sessiondiagram: solutions.s holds the orbits', len(got.get('autox/solutions.s', '')) > 1000, str(len(got.get('autox/solutions.s', ''))))
-    check('sessiondiagram: views.txt holds the two views of the diagram, the first active',
-          re.fullmatch(r'view "diagram_1" shown maximum_and_minimum V iapp \S+( \S+){6}\nview "diagram_2" shown period V iapp \S+( \S+){6}\nactive "diagram_1"\n', got.get('autox/views.txt', '')) is not None,
-          got.get('autox/views.txt', '')[:300])
+    views = state[state.index('    views: ['):] if '    views: [' in state else ''
+    check('sessiondiagram: the autox group holds the two views of the diagram, the first active',
+          re.search(r'name: "diagram_1",\n\s+hidden: false,\n\s+plot: maximum_and_minimum,\n\s+var: V,\n\s+par1: iapp,', views) is not None
+          and re.search(r'name: "diagram_2",\n\s+hidden: false,\n\s+plot: period,\n\s+var: V,\n\s+par1: iapp,', views) is not None
+          and '    active: "diagram_1",' in views, views[:300])
     d1 = os.path.join(scratch, 'd1.snapx')
     if os.path.exists(os.path.join(s.run, 'd1.snapx')):
         shutil.copy(os.path.join(s.run, 'd1.snapx'), d1)
@@ -1295,23 +1298,29 @@ def section_sessiondiagram():
     # kept: an error names it, and the model open stays (no hello)
     members = {n: z.read(n) for n in z.namelist()}
     rows_csv = members['autox/diagram.csv'].decode().split('\n')
+    state = members['session.odex'].decode()
+    state_rows = state.split('\n')
+    line_of = lambda prefix, start=0: next(k + 1 for k in range(start, len(state_rows)) if state_rows[k].lstrip().startswith(prefix))
+    set_state = lambda m, text: m.__setitem__('session.odex', text.encode())
+    settings_line = line_of('settings: {')
+    views_line = line_of('views: [')
     for name, change, expect in (
             ('nosolutions.snapx', lambda m: m.pop('autox/solutions.s'), 'its autox/solutions.s is missing'),
-            ('noautoxsettings.snapx', lambda m: (m.pop('autox/settings.txt'), m.pop('autox/views.txt'), m.pop('autox/diagram.csv'), m.pop('autox/solutions.s')),
-             'its autox/settings.txt is missing'),
+            ('noautoxsettings.snapx', lambda m: set_state(m, re.sub(r'\n  autox: \{.*?\n  \},', '', state, count=1, flags=re.S)),
+             'noautoxsettings.snapx/session.odex:%d:9: the session has no `autox`' % line_of('session {')),
             ('badsolution.snapx', lambda m: m.__setitem__('autox/solutions.s', b'1 1 4 1 2 0 1 9999 2 0 0 2\n0 1 2\n0 0\n'),
              'badsolution.snapx/autox/solutions.s:1: '),
             ('cutdiagram.snapx', lambda m: m.__setitem__('autox/diagram.csv', '\n'.join(rows_csv[:5])[:-7].encode()),
              'cutdiagram.snapx/autox/diagram.csv:5: '),
-            ('latersettings.snapx', lambda m: m.__setitem__('autox/settings.txt', m['autox/settings.txt'] + b'later 1\n'),
-             'latersettings.snapx/autox/settings.txt:%d: later is not one of autoX\'s settings' % (members['autox/settings.txt'].count(b'\n') + 1)),
-            # W125: a value autoX refuses (Ncol 9), at its line; a bad value on views.txt's last line
-            ('badncol.snapx', lambda m: m.__setitem__('autox/settings.txt', re.sub(rb'(?m)^collocation_points .*$', b'collocation_points 9', m['autox/settings.txt'])),
-             'badncol.snapx/autox/settings.txt:4: Collocation points must be'),
-            ('lastviews.snapx', lambda m: m.__setitem__('autox/views.txt', m['autox/views.txt'].rstrip(b'\n').rsplit(b'\n', 1)[0] + b'\nactive x\n'),
-             'lastviews.snapx/autox/views.txt:%d: invalid quoted window name' % (members['autox/views.txt'].rstrip(b'\n').count(b'\n') + 1)),
-            ('latermanifest.snapx', lambda m: m.__setitem__('session.setx', m['session.setx'] + b'later: 1,\n'),
-             'latermanifest.snapx/session.setx:%d:1: ' % (members['session.setx'].count(b'\n') + 1))):
+            ('latersettings.snapx', lambda m: set_state(m, state.replace('\n      marks: [', '\n      later: 1,\n      marks: [', 1)),
+             'latersettings.snapx/session.odex:%d:7: `later` is not a setting of settings' % line_of('marks: [', settings_line)),
+            # W125: a value autoX refuses (Ncol 9), at its line; a bad value on the last view's line
+            ('badncol.snapx', lambda m: set_state(m, re.sub(r'(?m)^(\s+)collocation_points: .*$', r'\1collocation_points: 9,', state, count=1)),
+             'badncol.snapx/session.odex:%d:27: collocation_points=9: Collocation points must be' % line_of('collocation_points:')),
+            ('lastviews.snapx', lambda m: set_state(m, re.sub(r'(?m)^(\s+)active: "[^"]*",$', r'\1active: "x",', state, count=1)),
+             'lastviews.snapx/session.odex:%d:5: Unknown window "x"' % line_of('active:', views_line)),
+            ('latermanifest.snapx', lambda m: set_state(m, state.replace('\nsession {\n', '\nsession {\n  later: 1,\n', 1)),
+             'latermanifest.snapx/session.odex:%d:3: `later` is not a setting' % (line_of('session {') + 1))):
         damaged = dict(members)
         change(damaged)
         with zipfile.ZipFile(os.path.join(s.run, name), 'w') as out:
@@ -1324,10 +1333,11 @@ def section_sessiondiagram():
               (expected_place + separator) in errors and expected_detail in errors and hello_title(evs) is None and s.alive(), errors[:300])
     # W155: malformed autoX settings on the last line leave the session whole.
     damaged = dict(members)
-    settings = damaged['autox/settings.txt'].decode()
-    lines = settings.replace('nmx 2000', 'nmx 43').rstrip('\n').split('\n')
-    lines[-1] = 'ymax 1e999'
-    damaged['autox/settings.txt'] = ('\n'.join(lines) + '\n').encode()
+    settings = damaged['session.odex'].decode()
+    lines = settings.replace('max_steps: 2000,', 'max_steps: 43,').split('\n')
+    ymax_line = next(k for k in range(len(lines)) if lines[k].lstrip().startswith('ymax:'))
+    lines[ymax_line] = '      ymax: 1e999,'
+    damaged['session.odex'] = '\n'.join(lines).encode()
     with zipfile.ZipFile(os.path.join(s.run, 'lastsettings.snapx'), 'w') as out:
         for n, b in damaged.items(): out.writestr(n, b)
     s.send(cmd='events.subscribe', events=['autox.settings'])
@@ -1339,7 +1349,7 @@ def section_sessiondiagram():
     after = s.collect(is_done)[0]
     after_settings = next(e for e in after if e.get('ev') == 'autox.settings')
     check('W155: bad last autoX settings line refuses the entire session, keeping the previous settings',
-          errs and errs[0].get('line') == len(lines) and errs[0].get('source') == lines[-1]
+          errs and errs[0].get('line') == ymax_line + 1 and errs[0].get('source') == lines[ymax_line]
           and hello_title(evs) is None
           and all(before_settings[k] == after_settings[k] for k in ('numerics', 'axes', 'marks')), str(errs)[:300])
 
@@ -1349,7 +1359,7 @@ def section_sessiondiagram():
         warnings.simplefilter('ignore', UserWarning)
         with zipfile.ZipFile(os.path.join(s.run, 'duplicate.snapx'), 'w') as out:
             for n, b in members.items(): out.writestr(n, b)
-            out.writestr('session.setx', members['session.setx'])
+            out.writestr('session.odex', members['session.odex'])
     evs = open_file(s, 'duplicate.snapx')
     check('W155: duplicate archive members are refused without replacing the session',
           'archive size and member limits' in messages(evs) and hello_title(evs) is None and s.alive())
@@ -1720,7 +1730,7 @@ def section_names():
     s.send(cmd='session.save_as', file='ln')
     s.collect(is_done, timeout=20 * SLOW)
     snap_path = os.path.join(s.run, 'ln.snapx')
-    text = zipfile.ZipFile(snap_path).read('model.setx').decode() if os.path.exists(snap_path) else ''
+    text = zipfile.ZipFile(snap_path).read('session.odex').decode() if os.path.exists(snap_path) else ''
     check('names: the settings name the long parameter whole', LONG_B in text)
     s2 = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
     s2.collect(is_done)

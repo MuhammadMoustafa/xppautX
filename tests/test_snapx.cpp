@@ -26,6 +26,7 @@
 #include "browse.h"
 #include "data_formats.h"
 #include "session_settings.h"
+#include "settings_text.h"
 #include <array>
 #include <limits>
 
@@ -54,15 +55,15 @@ bool load(const std::string &file, const xpp::SavedModel *saved = nullptr)
 void check_manifest()
 {
     using namespace xpp::snapx;
-    const std::string file = "s/session.setx";
-    const auto foreign = parse_manifest(file, "session: { version: 4, model: \"x.ode\", data: false }\n");
-    CHECK(!foreign && foreign.error().place.line == 1 && foreign.error().what.find(".ode is refused") != std::string::npos);
+    const std::string file = "s/session.odex";
+    const auto foreign = parse_manifest(file, "version 4\nsession { model: \"x.ode\", data: false }\n");
+    CHECK(!foreign && foreign.error().place.line == 2 && foreign.error().what.find(".ode is refused") != std::string::npos);
     Manifest m;
     m.model_name = "my models/lecar.odex";
     m.anifile = "lecar.anix";
     m.data = true;
     const std::string text = *manifest_text(m);
-    CHECK(text.starts_with("session: {\n"));
+    CHECK(text.starts_with("version 4\nsession {\n"));
     CHECK(text.find("  model: \"my models/lecar.odex\",\n") != std::string::npos);
     const auto back = parse_manifest(file, text);
     CHECK(back.has_value() && *back == m);
@@ -78,27 +79,28 @@ void check_manifest()
     const auto eb = parse_manifest(file, crlf);
     CHECK(eb.has_value() && *eb == e && eb->anifile.empty() && !eb->data);
 
-    /* a key it does not have, another version or an older layout is refused,
-       saying what is wrong and where */
-    const auto later = parse_manifest(file, "session: { version: 4, model: \"a.odex\", data: false, future: 1 }\n");
-    CHECK(!later && later.error().place.file == file && later.error().place.line == 1 && later.error().what.find("`future` is not a setting") != std::string::npos);
-    CHECK(!parse_manifest(file, "session: { version: 4, model: \"x.odex\", data: 2 }\n").has_value()); /* data is 0 or 1 */
-    CHECK(!parse_manifest(file, "session: { version: 4, data: false }\n").has_value());                    /* no model */
-    CHECK(!parse_manifest(file, "session: { version: 4, model: \"a.odex\", model: \"b.odex\", data: false }\n").has_value()); /* a key twice */
-    CHECK(!parse_manifest(file, "xppautX session 1\nname x.odex\ndata 0\n").has_value());              /* the older layout */
+    /* a model that is none, another version or an older layout is refused, saying what is wrong and where */
+    const auto bad_data = parse_manifest(file, "version 4\nsession { model: \"x.odex\", data: 2 }\n"); /* data is true or false */
+    CHECK(!bad_data && bad_data.error().place.file == file && bad_data.error().place.line == 2);
+    CHECK(!parse_manifest(file, "version 4\nsession { data: false }\n").has_value());                    /* no model */
+    CHECK(!parse_manifest(file, "version 4\nsession { model: \"a.odex\", model: \"b.odex\", data: false }\n").has_value()); /* a key twice */
+    CHECK(!parse_manifest(file, "session: { version: 4, model: \"a.odex\", data: false }\n").has_value());         /* an older layout */
+    CHECK(!parse_manifest(file, "xppautX session 1\nname x.odex\ndata 0\n").has_value());
     CHECK(!parse_manifest(file, "").has_value());
-    CHECK(!parse_manifest(file, "session: { version: 3, model: \"m.odex\", data: false }\n").has_value()); /* another version */
+    CHECK(!parse_manifest(file, "version 3\nsession { model: \"m.odex\", data: false }\n").has_value()); /* another version */
+    const auto in_model = parse_manifest(file, "version 4\nx' = -x\nsession { model: \"m.odex\", data: false }\n"); /* a statement a session file has not */
+    CHECK(!in_model && in_model.error().place.line == 2 && in_model.error().what.find("holds `par`, `init`, `options") != std::string::npos);
 
     /* the model's members: model/<name>, in order; the model's own needed */
-    std::vector<xpp::zip::Entry> entries{{"session.setx", text}};
+    std::vector<xpp::zip::Entry> entries{{"session.odex", text}};
     const std::vector<xpp::ModelFile> files{{"a.odex", "x'=-x\n"}, {"../t/w.tab", "2 0 1 0 1\n"}};
     add_model_members(entries, files);
-    entries.push_back({"model.setx", "numerics: {},\n"});
+    entries.push_back({"frozen.npz", "bytes"});
     CHECK(entries.size() == 4 && entries[1].name == "model/a.odex" && entries[2].name == "model/../t/w.tab");
     const std::optional<std::vector<xpp::ModelFile>> got = model_members(entries, "a.odex");
     CHECK(got && *got == files);
     CHECK(!model_members(entries, "b.odex"));
-    CHECK(!model_members({{"session.setx", text}}, "a.odex"));
+    CHECK(!model_members({{"session.odex", text}}, "a.odex"));
 
     CHECK(is_session_file("a/b.snapx") && is_session_file("B.SNAPX") && !is_session_file("b.snapx.zip"));
     CHECK_STR(session_file_name("run1").c_str(), "run1.snapx");
@@ -116,7 +118,7 @@ void check_nullclines()
         "current: { x_axis: 1, y_axis: 2, x_segments: [0, 1, 2, 3], y_segments: [] },\n"
         "frozen: [ { x_axis: 1, y_axis: 2, x_segments: [], y_segments: [-1, -2, -3, -4] } ],\n";
     const auto read = [&](std::string_view bytes) {
-        return xpp::odex::read_block("session", "s.snapx/nullclines.setx", bytes, true,
+        return xpp::odex::read_block("session", "s.snapx/session.odex", bytes, true,
             [&](xpp::odex::Block &file) { return xpp::read_nullclines(*model, file); });
     };
     const auto got = read(text);
@@ -124,7 +126,7 @@ void check_nullclines()
     CHECK(got && got->x_null == std::vector<float>({0, 1, 2, 3}));
     CHECK(got && got->frozen_started && got->frozen.size() == 1 && got->frozen[0].yn == std::vector<float>({-1, -2, -3, -4}));
     const auto cut = read(text.substr(0, text.find("frozen")));
-    CHECK(!cut && cut.error().place.file == "s.snapx/nullclines.setx" && cut.error().what.find("`frozen`") != std::string::npos);
+    CHECK(!cut && cut.error().place.file == "s.snapx/session.odex" && cut.error().what.find("`frozen`") != std::string::npos);
     const auto extra = read(text + "extra: 1,\n");
     CHECK(!extra && extra.error().place.line == 3);
     const auto short_segment = read("current: { x_axis: 1, y_axis: 2, x_segments: [1, 2, 3], y_segments: [] }, frozen: [],\n");
@@ -145,7 +147,8 @@ void check_saved_animation(const xpp::TempDir &tmp)
     CHECK(load("animated.odex"));
     CHECK(xpp::client_session().animation.ncom == 1);
     CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().animation.commands.front().x1.data()) == 1);
-    auto entries = xpp_saved_entries(xpp::client_session(), xpp::snapx::Manifest{});
+    xpp::snapx::Manifest manifest;
+    auto entries = xpp_saved_entries(xpp::client_session(), manifest);
     CHECK(entries.has_value());
     if (!entries) return;
     const std::string path = tmp.file("animation.snapx");
@@ -182,7 +185,8 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(xpp::client_session().model().saved_in.empty() && xpp::client_session().model().nupar == 1);
 
     /* written as a session file's first members, read back whole */
-    xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::client_session(), xpp::snapx::Manifest{});
+    xpp::snapx::Manifest manifest;
+    xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::client_session(), manifest);
     CHECK(entries.has_value());
     if (!entries) return;
     const std::string path = tmp.file("s.snapx");
@@ -236,13 +240,13 @@ void check_list_memory()
         const std::size_t before = used;
         std::vector<xpp::odex::Block> staged;
         bool applied = false;
-        const auto read = xpp::odex::read_block("session", "memory.setx", text, true, [&](xpp::odex::Block &b) {
+        const auto read = xpp::odex::read_block("session", "memory.odex", text, true, [&](xpp::odex::Block &b) {
             xpp::snapx::memory_groups(b, key, staged, record_bytes, used);
             return true;
         });
         if (read) applied = *read;
         CHECK(!read && read.error().what == "too many " + std::string(key) + " for the session memory limit");
-        CHECK(!read && read.error().place.file == "memory.setx" && read.error().place.line == 2);
+        CHECK(!read && read.error().place.file == "memory.odex" && read.error().place.line == 2);
         CHECK(!read && read.error().place.source == std::string(key) + ": [{}, {}]");
         CHECK(!applied && staged.empty() && used == before);
     }
@@ -296,8 +300,8 @@ void check_plot_limits(const xpp::TempDir &tmp)
     CHECK(file.has_value());
     if(!file)return;
     CHECK(!xpp_saved_check(s,*file));
-    CHECK(file->members.at("windows.setx").find("name: \"graph_8\",") == std::string::npos);
-    CHECK(file->members.at("marks.setx").find("slot: 5,") == std::string::npos);
+    CHECK(file->members.at("session.odex").find("name: \"graph_8\",") == std::string::npos);
+    CHECK(file->members.at("session.odex").find("slot: 5,") == std::string::npos);
     /* A scalar posing as a list, sparse hostile indices, and dishonest point
        counts fail at their member line, without changing any current state. */
     const auto bad=[&](const char *member,const char *old,const char *replacement){
@@ -312,35 +316,35 @@ void check_plot_limits(const xpp::TempDir &tmp)
         CHECK(s.plot_windows.active==windows-1 && s.plot_windows.count==windows-1);
         CHECK(s.frozen_curves.curve.size()==frozen && !s.frozen_curves.curve[5].use);
     };
-    bad("windows.setx","name: \"graph_1\"","name: \"\"");
-    bad("windows.setx","active: \"graph_107\"","active: \"graph_8\"");
-    const std::string &window_text=file->members.at("windows.setx");
+    bad("session.odex","name: \"graph_1\"","name: \"\"");
+    bad("session.odex","active: \"graph_107\"","active: \"graph_8\"");
+    const std::string &window_text=file->members.at("session.odex");
     const auto curve_begin=window_text.find("curves: [");
     const auto curve_end=window_text.find(']',curve_begin);
     const std::string curve_list=window_text.substr(curve_begin,curve_end-curve_begin+1);
-    bad("windows.setx",curve_list.c_str(),"curves: 2147483647");
-    bad("marks.setx","slot: 0","slot: 2147483647");
-    bad("marks.setx","points: 3","points: -1");
-    bad("marks.setx","points: 3","points: 2147483647");
-    bad("marks.setx","points: 3","points: 2");
+    bad("session.odex",curve_list.c_str(),"curves: 2147483647");
+    bad("session.odex","slot: 0","slot: 2147483647");
+    bad("session.odex","points: 3","points: -1");
+    bad("session.odex","points: 3","points: 2147483647");
+    bad("session.odex","points: 3","points: 2");
     /* The real curve reader shares the budget with preceding window lists.
        A rejected oversized list leaves both the graph and live session intact. */
     GRAPH graph = *s.plot_windows.current;
     const auto old_y = graph.yv;
     std::size_t used = xpp::zip::archive_bytes_limit - 1;
-    const auto rejected = xpp::odex::read_block("session", "limits.snapx/windows.setx", "\ncurves: [{}, {}]", true,
+    const auto rejected = xpp::odex::read_block("session", "limits.snapx/session.odex", "\ncurves: [{}, {}]", true,
         [&](xpp::odex::Block &b) {
             xpp::read_curves(b, s, graph, {}, used);
             return true;
         });
     CHECK(!rejected && rejected.error().what == "too many curves for the session memory limit");
-    CHECK(!rejected && rejected.error().place.line == 2 && rejected.error().place.file == "limits.snapx/windows.setx");
+    CHECK(!rejected && rejected.error().place.line == 2 && rejected.error().place.file == "limits.snapx/session.odex");
     CHECK(graph.yv == old_y && graph.nvars == curves && s.plot_windows.current->nvars == curves);
-    /* .setx uses the same curve reader, independently of the archive. */
+    /* a file of the settings alone uses the same curve reader, independently of the archive. */
     const auto settings=xpp::settings_text(s,xpp::capture_settings(s,xpp::SettingsUse::session));
     CHECK(settings.has_value());
     if(settings){
-        const auto read=xpp::read_settings(s,"limits.setx",*settings);
+        const auto read=settings_text::read(s,"limits.odex",*settings);
         CHECK(read && read->graph.nvars==curves && read->graph.yv.back()==curves);
     }
     CHECK(write_file(tmp.file("limits.snapx"),*bytes));
@@ -360,7 +364,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
     if(!again)return;
     const auto back=xpp_saved_parse(tmp.file("again.snapx"),"again.snapx",*again,SavedKind::snapshot);
     CHECK(back.has_value());
-    if(back)for(const char *member:{"windows.setx","marks.setx","frozen.npz"})
+    if(back)for(const char *member:{"session.odex","frozen.npz"})
         CHECK(back->members.at(member)==file->members.at(member));
 }
 

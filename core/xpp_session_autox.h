@@ -1,8 +1,8 @@
 #pragma once
-/* The session's autox/ members: settings, views, full-precision diagram
-   and autoX's restart orbits. The pure serializers are xpp_session_autox.cpp;
-   xpp_session_autox_io.cpp gathers and restores the session's state. The
-   only archive reader/writer is xpp_session.cpp (.snapx). */
+/* The session's autoX state: its settings and views, which the state file's session statement holds as the group
+   `autox` (xpp_session_autox.cpp writes and reads them, xpp_session_autox_io.cpp gathers and restores the
+   session's), and the members autox/diagram.csv and autox/solutions.s. The only archive reader/writer is
+   xpp_session.cpp (.snapx). */
 #include <deque>
 #include <expected>
 #include <map>
@@ -15,6 +15,7 @@
 #include "autox_settings.h"
 #include "diagram.h"
 #include "display_state.h"
+#include "odex_block.h"
 #include "xpp_error.h"
 #include "xpp_zip.h"
 
@@ -25,29 +26,23 @@ class Lines;
 
 namespace xpp::snapx::autox_members {
 
-inline constexpr const char *settings_member = "settings.txt"; /* settings_text below */
 inline constexpr const char *diagram_member = "diagram.csv";   /* diagram_csv below */
 inline constexpr const char *solutions_member = "solutions.s"; /* autoX's solution file (fort.8), as autoX wrote it */
-inline constexpr const char *views_member = "views.txt";       /* views_text below */
 
-/* settings.txt: one "key value" line each, the keys of the `autox` `set`
-   command (docs/protocol.md "autoX's settings as data"): each Numerics key
-   and its number, "plot", "var",
-   "par1", "par2", "xmin", "xmax", "ymin", "ymax", then one "mark NAME
-   VALUE" per Mark value. A name there is none of is "-". Numbers are the
-   shortest text that reads back as the same double. */
-std::string settings_text(const AutoxSettingsSet &s);
-/* settings.txt read: the settings, and the line each key is on ("ntst",
-   "var", "xmax", "mark0", ...), for a check against a session
-   (autox_settings_check) to name the line of the value it refuses */
+/* the group `settings` of the autox group, being written: each Numerics key (the continuation options' keys) and
+   its value, the special points, `plot`, `var`, `par1`, `par2` (a name there is none of is ""), `xmin`, `xmax`,
+   `ymin`, `ymax`, then the `marks` list of groups of `name` and `value`. Numbers are the shortest text that reads
+   back as the same double. */
+void write_autox_settings(odex::Out &out, const AutoxSettingsSet &s);
+/* the settings group read, and where each key is ("mesh_intervals", "var", "xmax", "mark0", ...), as a line and a
+   column, for a check against a session (autox_settings_check) to name the place of the value it refuses */
 struct SettingsRead {
     AutoxSettingsSet set;
-    std::map<std::string, int, std::less<>> lines;
+    std::map<std::string, std::pair<int, int>, std::less<>> places;
 };
-/* text's settings (the file named file, for its errors), every one of
-   them given once; the error at the line that is not one of these, gives
-   a key twice or a value that does not read, or a key that is missing */
-Result<SettingsRead> parse_settings(std::string_view text, std::string file);
+/* the settings, every one of them given once; ReadFailed at a key that is missing or not a setting, given twice or
+   a value that does not read */
+SettingsRead read_autox_settings(odex::Block &settings);
 
 /* one of the autoX window's views of the diagram (W50): its axes as the
    `autox` `set` command's keys name them (plot, var, par1, par2 and the
@@ -74,18 +69,18 @@ inline constexpr std::size_t saved_parameters_limit = zip::archive_bytes_limit /
 inline constexpr std::size_t saved_views_limit = 4096;
 inline constexpr std::size_t saved_points_limit = 1000000;
 
-/* views.txt: one line per view in order, "view "NAME" shown|hidden PLOT VAR PAR1 PAR2 XMIN
-   XMAX YMIN YMAX ZOOMX ZOOMY" (names and numbers as settings_text's, a
-   zoom LO:HI or "-" for none), then "active K" */
-std::string views_text(const SavedViews &v);
-/* views.txt read: the views, and the line each one is on */
+/* the `views` list and the `active` view's name of the autox group, being written: per view its quoted name,
+   `hidden`, `plot`, `var`, `par1`, `par2`, `xmin`, `xmax`, `ymin`, `ymax` and `zoom` (names and numbers as
+   write_autox_settings') */
+void write_views(odex::Out &out, const SavedViews &v);
+/* the views read, and where each one is (its line and column) */
 struct ViewsRead {
     SavedViews views;
-    std::vector<int> lines;
+    std::vector<std::pair<int, int>> places;
 };
-/* text's views (the file named file); the error at the line that is not
-   one, or when there is no view or the active one is not one of them */
-Result<ViewsRead> parse_views(std::string_view text, std::string file);
+/* the views of the autox group: at least one, each named once with a name a window can have, the active one
+   among them; ReadFailed at the value that is wrong */
+ViewsRead read_views(odex::Block &autox);
 
 /* diagram.csv: branch records of all model parameters once, a header row, then one row per point in the
    order stored, every field of DIAGRAM: calc, ibr, ntot, itp, lab, nfpar,
@@ -108,14 +103,14 @@ std::deque<DIAGRAM> read_foreign_diagram(Lines &lines, int n,
 
 /* ---- this session's (xpp_session_autox_io.cpp) ---- */
 
-/* autoX's members (settings, diagram, solutions, views) of the session s
-   after entries', each named prefix and its name (a session file's
-   "autox/"); the error when autoX's solution file
-   cannot be read (the orbits a grab restarts from) */
+/* autoX's diagram and solution members of the session s after entries', each named prefix and its name (a session
+   file's "autox/"), when it has a diagram; the error when autoX's solution file cannot be read (the orbits a grab
+   restarts from) */
 Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix);
+/* the group `autox` of the session statement being written: autoX's settings, views and active view as they are in s */
+void write_state(odex::Out &out, const Session &s);
 
-/* autoX's members of a file as members_read reads them, for
-   restore_members: the solution file's bytes are the members' own */
+/* autoX's state of a file as members_read reads it, for restore_members: the solution file's bytes are the members' own */
 struct Members {
     AutoxSettingsSet settings;
     std::deque<DIAGRAM> points;
@@ -123,13 +118,12 @@ struct Members {
     std::string_view solutions;
 };
 
-/* autoX's members of the file named name (prefix as add_members') read
-   for the session s, whose model the file's is, each checked whole (the
-   settings and views against what autoX accepts for this model): the error
-   at the member's line ("name/autox/settings.txt", its line) when one is
-   missing, does not read or holds a value autoX refuses */
-Result<Members> members_read(const Session &s, const std::map<std::string, std::string> &members, std::string_view prefix,
-                             const std::string &name);
+/* autoX's state of the file named name read for the session s, whose model the file's is: the group autox of the
+   session statement and the members of the file (prefix as add_members'), each checked whole (the settings and
+   views against what autoX accepts for this model); ReadFailed at the key or value of the group, or at the member's
+   line ("name/autox/diagram.csv", its line), that is missing, does not read or holds a value autoX refuses */
+Members members_read(const Session &s, const std::map<std::string, std::string> &members, std::string_view prefix,
+                     const std::string &name, odex::Block &session);
 
 /* m, as members_read or the foreign import checked it, restored into s: autoX's
    settings, the diagram, its solution file and the views of it, with the

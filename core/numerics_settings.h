@@ -75,14 +75,14 @@ int numerics_settings_set(Session &s, std::string_view key, std::string_view tex
    what the "numerics" event's and the panels' `unavailable` say; "" when the model can have them all */
 std::string unavailable_choices_json(const Session &s, const OptionRow &f);
 
-/* ---- the settings a .setx holds (W284, setx.h) ----
-   The option table's rows marked `saved`, by the group of the file they
-   are in ("numerics", which also takes the keyed rows with no group, or
-   "range"); each is read and written as text by its key. */
+/* ---- the settings a session holds (session_settings.h) ----
+   The option table's rows marked `saved`: those of the sweep group
+   (option_group::sweep) or, for any other name, all the others, the
+   numerics; each is read and written as text under its .odex key. */
 std::vector<const OptionRow *> saved_settings(std::string_view group);
-/* the saved row whose .setx key is key, nullptr when none is */
+/* the saved row whose numerics key is key, nullptr when none is */
 const OptionRow *saved_setting(std::string_view key);
-/* the key a .setx gives row: its numerics key, else its name in lower case */
+/* the numerics key of row, else its name in lower case */
 std::string setting_key(const OptionRow &row);
 /* whether s's model, run by method, has the setting (the delay of a model
    with delays, the Volterra points of an integral-equation method); one it

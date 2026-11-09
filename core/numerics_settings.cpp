@@ -317,7 +317,7 @@ std::vector<const OptionRow *> saved_settings(std::string_view group)
 {
     std::vector<const OptionRow *> rows;
     for (const OptionRow &r : option_rows())
-        if (r.saved && (group == "numerics" ? r.group != option_group::sweep : r.group == option_group::sweep)) rows.push_back(&r);
+        if (r.saved && (r.group == option_group::sweep) == (group == option_group::sweep)) rows.push_back(&r);
     return rows;
 }
 

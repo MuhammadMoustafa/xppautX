@@ -2905,7 +2905,7 @@ async function recordCheck(dir) {
   const at = lines.indexOf('@steps');
   const initialLabel = await labelOf('run.initial');
   check('record: web.recx holds the model and the step, its note above it, the button named',
-    lines[0] === 'recording: {' && lines.includes('@file lecar.odex') && at > 0
+    lines[0] === 'version 4' && lines[1] === 'session {' && lines.includes('@file lecar.odex') && at > 0
     && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
     && (() => { const step = JSON.parse(lines[at + 3]); return step.step === initialLabel && step.cmd.cmd === 'run.initial'; })(), JSON.stringify(lines.slice(at, at + 5)));
   check('record: the recording begins with the session\'s state (a @snapshot section before the files, W59d)',

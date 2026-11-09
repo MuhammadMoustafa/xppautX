@@ -1,23 +1,21 @@
 #pragma once
-/* The settings syntax (W284, docs/odex.md ".setx"): .odex's options
-   syntax, `key: value` entries separated by commas, groups `{ ... }`
+/* The .odex reader's value tree and typed block reading (W284, docs/odex.md "Settings syntax"): the options
+   block's syntax, `key: value` entries separated by commas, groups `{ ... }`
    nested, a trailing comma allowed, a bare one-token value or a value in
-   double quotes, plus lists `[ a, b ]`. A file of it is the entries of an
-   unbraced top-level group. It is the one syntax of every file of ours
-   that holds settings: a .setx (parameters, initial values, numerics,
-   delays, boundary conditions, graphics), the members of a session file
-   (.snapx: model.setx, windows.setx, marks.setx, sliders.setx,
-   nullclines.setx, session.setx) and a recording's header (.recx). It is
-   read by the .odex reader's own tokenizer and block grammar
-   (odex_parse.cpp): there is one reader, not two.
+   double quotes, plus lists `[ a, b ]`. It is the one syntax of the groups
+   a file of ours holds beside its formulas: the options block, the `session { ... }`
+   statement of a session file (.snapx's session.odex, a recording's header,
+   odex.h's read_state_file) and the preferences file's `preferences { ... }`,
+   the animation's fields. They are read by the .odex reader's own tokenizer and
+   statement grammar (odex_parse.cpp): there is one reader, not two.
 
    Reading is all or nothing (W125): parse() reads the whole text into a
    Value tree, a Block reads typed values out of it, every error at the
    file, line and column of the value with the line as written, and
    nothing is applied before the whole file has read. A Block in complete
-   mode needs every key it is asked for (a session's members: nothing is
+   mode needs every key it is asked for (a session's state: nothing is
    guessed, no fallback); in partial mode a key that is absent leaves its
-   target as it is (a .setx sets what it names). Either way a key nothing
+   target as it is (a partial read sets what it names). Either way a key nothing
    asks for is an error (done()). Lists are sized from their parsed entries,
    never a declared count; callers can impose a format's own maximum. The
    tokenizer's file budget and max_depth bound allocation and recursion. C++ only. */
@@ -146,6 +144,8 @@ public:
        to another checker */
     const Member *member(std::string_view key);
 
+    /* the error at line:col of the file (a place kept from an earlier read) */
+    [[noreturn]] void fail_at(int line, int col, std::string what) const { doc_->fail(line, col, std::move(what)); }
     /* the error at member m / at this group */
     [[noreturn]] void fail(const Member &m, std::string what) const { doc_->fail(m, std::move(what)); }
     /* the error at a value (an entry of a list) */
@@ -223,13 +223,14 @@ public:
     void words(std::string_view key, std::span<const std::string> v);
     void begin(std::string_view key);
     void end();
+    /* a statement of the file, `keyword {`, its entries nested and `}` (session, preferences) */
+    void begin_statement(std::string_view keyword);
+    void end_statement();
     /* a list of groups: begin_list, then each as begin_item ... end_item */
     void begin_list(std::string_view key);
     void end_list();
     void begin_item();
     void end_item();
-    /* a line of comment at the current depth */
-    void comment(std::string_view text);
     /* the text, or the error found while writing it */
     Result<std::string> result(std::string where) const;
 

@@ -18,6 +18,7 @@
 #include "model_options.h"
 #include "lunch-new.h"
 #include "session_settings.h"
+#include "settings_text.h"
 #include "model_text.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
@@ -40,7 +41,7 @@ namespace {
 
 const char plain_ode[] = "build/test_options_plain.ode";
 const char options_ode[] = "build/test_options_set.ode";
-const char set_file[] = "build/test_options.setx";
+const char set_file[] = "build/test_options.odex";
 
 /* a model with three variables and no options */
 const char model_text[] = "x'=-x\ny'=x\nz'=y\npar a=1,b=2\n";
@@ -170,8 +171,8 @@ bool left_out(const xpp::OptionRow &r)
            || r.curve_field != xpp::CurveField::none || !r.dropped.empty() || r.in_statement;
 }
 
-/* whether a .setx holds the option: the table's rows marked saved, and the
-   torus' period (its torus group) */
+/* whether a session file holds the option: the table's rows marked saved, and the
+   torus period (its torus group) */
 bool in_set_file(const xpp::OptionRow &r) { return r.saved || r.name == "TORUS_PERIOD"; }
 
 std::string_view id(const xpp::OptionRow &r) { return r.name.empty() ? r.key : r.name; }
@@ -490,7 +491,7 @@ int main(void)
     CHECK(s->sliders.size() == 3 && s->sliders[0].var == "x" && s->sliders[2].var == "z");
     CHECK(s->sliders[0].lo == -1 && s->sliders[2].hi == 2);
 
-    /* a .setx file brings back what it holds */
+    /* a session state brings back what it holds */
     init_browser(*s);
     init_all_graph(*s);
     for (std::size_t k = 0; k < rows.size(); k++) {
@@ -498,12 +499,12 @@ int main(void)
         if (r.name.empty() && r.key.empty()) continue;
         const bool held = in_set_file(r);
         CHECK(!held || in_session(*s, r));
-        if (!r.key.empty()) CHECK(held); /* every numerics setting the menu edits is in a .setx */
+        if (!r.key.empty()) CHECK(held); /* every numerics setting the menu edits is in a session file */
     }
     const xpp::Result<std::string> own = xpp::settings_text(*s, xpp::capture_settings(*s, xpp::SettingsUse::session));
     CHECK(own.has_value());
     if (!own) TEST_REPORT("options");
-    CHECK(xpp::read_settings(*s, set_file, *own).has_value());
+    CHECK(settings_text::read(*s, set_file, *own).has_value());
     std::vector<std::string> written;
     for (const xpp::OptionRow &r : rows) {
         written.push_back(value_of(*s, r));
@@ -518,7 +519,7 @@ int main(void)
     }
     std::vector<std::string> changed;
     for (const xpp::OptionRow &r : rows) changed.push_back(value_of(*s, r));
-    const xpp::Result<xpp::Settings> back = xpp::read_settings(*s, set_file, *own);
+    const xpp::Result<xpp::Settings> back = settings_text::read(*s, set_file, *own);
     CHECK(back.has_value());
     if (back) xpp::apply_settings(*s, *back, false);
     for (std::size_t k = 0; k < rows.size(); k++) {

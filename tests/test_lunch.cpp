@@ -1,4 +1,4 @@
-/* The settings file (.setx, setx_file.h, the session's model.setx) and XPPAUT's set file, the import
+/* The session's settings (session_settings.h: par and init lines, options, the session statement's groups) and XPPAUT's set file, the import
    (lunch-new.h). XPPAUT's own examples/ode/lecar.ode.set is imported (File >
    Import XPPAUT session state, --setfile): read and applied whole, nothing written
    beside it, and the session then holds every value the set file named.
@@ -18,6 +18,7 @@
 #include "solver.h"
 #include "lunch-new.h"
 #include "session_settings.h"
+#include "settings_text.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
@@ -45,7 +46,7 @@ void put(const char *path, const std::string &text)
     CHECK(w && w.write(text) && w.commit());
 }
 
-/* the settings of the session now, as a .setx's text */
+/* the settings of the session now, as the text of a file of its own */
 std::string snapshot(const xpp::Session &s)
 {
     const xpp::Result<std::string> t = xpp::settings_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
@@ -61,6 +62,25 @@ std::string with_line(const std::string &text, int n, const std::string &line)
     return text.substr(0, at) + line + text.substr(text.find('\n', at));
 }
 
+/* text with the first `from` replaced by `to` (the line number stays) */
+std::string with_text(std::string text, const std::string &from, const std::string &to)
+{
+    const std::size_t at = text.find(from);
+    CHECK(at != std::string::npos);
+    return at == std::string::npos ? text : text.replace(at, from.size(), to);
+}
+
+/* the number (from 1) of the last line of text that contains what */
+int last_line_with(const std::string &text, const std::string &what)
+{
+    int n = 0, last = 0;
+    for (const std::string_view line : xpp::split_lines(text)) {
+        n++;
+        if (line.find(what) != std::string_view::npos) last = n;
+    }
+    return last;
+}
+
 /* the number (from 1) of the first line of text, after line `after`, that contains what */
 int line_with(const std::string &text, const std::string &what, int after = 0)
 {
@@ -72,21 +92,21 @@ int line_with(const std::string &text, const std::string &what, int after = 0)
     return 0;
 }
 
-/* the settings file at path read and applied (a session file's model.setx is read the same way) */
-xpp::Result<> apply_setx(xpp::Session &s, const char *path)
+/* the settings file at path read and applied (a session file's state is read the same way) */
+xpp::Result<> apply_state(xpp::Session &s, const char *path)
 {
     const std::string text = bytes_of(path);
-    const xpp::Result<xpp::Settings> f = xpp::read_settings(s, path, text);
+    const xpp::Result<xpp::Settings> f = settings_text::read(s, path, text);
     if (!f) return std::unexpected(f.error());
     xpp::apply_settings(s, *f, false);
     return {};
 }
 
 /* the error of path (text put there) as a settings file, "" when it loads */
-std::string setx_error(xpp::Session &s, const char *path, const std::string &text)
+std::string state_error(xpp::Session &s, const char *path, const std::string &text)
 {
     put(path, text);
-    const xpp::Result<> r = apply_setx(s, path);
+    const xpp::Result<> r = apply_state(s, path);
     return r ? std::string() : r.error().text(); /* "path:line:col: what" */
 }
 
@@ -107,7 +127,7 @@ int main(void)
     xpp::set_ui(&test_ui); /* these writes target this test's scratch files */
     char arg0[] = "test_lunch", arg1[] = "examples/ode/lecar.odex";
     char *argv[] = {arg0, arg1, NULL};
-    const char *xs = "build/test_lunch_a.set", *xsx = "build/test_lunch_a.setx", *own = "build/test_lunch_own.setx";
+    const char *xs = "build/test_lunch_a.set", *xsx = "build/test_lunch_a.odex", *own = "build/test_lunch_own.odex";
     double x;
 
     CHECK(load_args(2, argv, 1).has_value());
@@ -124,7 +144,7 @@ int main(void)
     const auto imported = xpp::import_xppaut_state(s, xs, false);
     CHECK(imported.has_value());
     if (!imported) printf("  %s\n", imported.error().text().c_str());
-    CHECK(!xpp::files::exists(xsx));
+    CHECK(!xpp::files::exists(xsx)); /* nothing written beside the set file */
     CHECK(imported && !imported->empty()); /* it names what it changed */
     CHECK(s.numerics.total_time == 500 && s.numerics.delta_t == 0.05 && s.numerics.store_from == 200);
     CHECK(s.numerics.method == xpp::method::RK4);
@@ -143,21 +163,21 @@ int main(void)
     CHECK(xpp::import_xppaut_state(s,xs,false).has_value());
     CHECK(s.numerics.total_time==500);
 
-    /* the .setx written again, read, applied and written once more: the same */
+    /* the settings written again, read, applied and written once more: the same */
     const std::string first = snapshot(s);
     CHECK(first.size() > 500);
     put(own, first);
-    CHECK(apply_setx(s, own).has_value());
+    CHECK(apply_state(s, own).has_value());
     CHECK(snapshot(s) == first);
     /* every part the file names is there, by name */
-    CHECK(first.find("  total_time: 500,\n") != std::string::npos && first.find("  jacobian: difference,\n") != std::string::npos);
-    CHECK(first.find("  poincare_map: period,\n") != std::string::npos && first.find("  iapp: 0.09,\n") != std::string::npos);
+    CHECK(first.find(" total_time: 500,") != std::string::npos && first.find(" jacobian.kind: difference,") != std::string::npos);
+    CHECK(first.find(" map: period,") != std::string::npos && first.find("\npar iapp = 0.09\n") != std::string::npos);
 
     /* Our settings refuse a negative Total without applying any values. */
     for(const char *total : {"-5","-0.5"}){
-        const int line=line_with(first,"  total_time:");
-        const std::string bad=with_line(first,line,"  total_time: "+std::string(total)+",");
-        CHECK(setx_error(s,own,bad).starts_with(xpp::format("{}:{}:",own,line)));
+        const int line=line_with(first," total_time:");
+        const std::string bad=with_text(first,"total_time: 500,","total_time: "+std::string(total)+",");
+        CHECK(state_error(s,own,bad).starts_with(xpp::format("{}:{}:",own,line)));
         CHECK(snapshot(s)==first);
     }
 
@@ -168,22 +188,22 @@ int main(void)
         for (const char *key : {"columns", "rows"}) {
             if (!session_text) break;
             const int in_group = line_with(*session_text, xpp::format("{}: {{", group));
-            const int line = line_with(*session_text, xpp::format("  {}:", key), in_group);
+            const int line = line_with(*session_text, xpp::format("    {}:", key), in_group);
             CHECK(in_group > 0 && line > in_group);
-            const auto r = xpp::read_settings(s, "sent.setx", with_line(*session_text, line, xpp::format("  {}: {},", key, xpp::settings_dimension_limit + 1)));
+            const auto r = settings_text::read(s, "sent.odex", with_line(*session_text, line, xpp::format("    {}: {},", key, xpp::settings_dimension_limit + 1)));
             CHECK(!r);
             if (!r) {
-                CHECK(r.error().place.file == "sent.setx" && r.error().place.line == line);
+                CHECK(r.error().place.file == "sent.odex" && r.error().place.line == line);
                 CHECK(r.error().what.find("4097") != std::string::npos);
             }
         }
     }
     if (session_text) {
-        const int line = line_with(*session_text, "nullcline_mesh:");
-        const auto mesh = xpp::read_settings(s, "session.snapx/model.setx",
-            with_line(*session_text, line, "  nullcline_mesh: 4097,"));
+        const int line = line_with(*session_text, "nullclines.mesh:");
+        const auto mesh = settings_text::read(s, "session.snapx/session.odex",
+            with_line(*session_text, line, "  plot: { nullclines.mesh: 4097 },"));
         CHECK(!mesh);
-        if (!mesh) CHECK(mesh.error().place.file == "session.snapx/model.setx" && mesh.error().place.line == line);
+        if (!mesh) CHECK(mesh.error().place.file == "session.snapx/session.odex" && mesh.error().place.line == line);
     }
     const int mesh_line = line_with(set, "nullcline mesh");
     const std::string bad_mesh = with_line(set, mesh_line, "4097 nullcline mesh");
@@ -205,32 +225,43 @@ int main(void)
     xpp::set_val(s, "iapp", 0.25);
     s.numerics.total_time = 11;
     const std::string before = snapshot(s);
-    const int last_line = line_with(first, "high:");
+    const int last_line = last_line_with(first, "high:");
     CHECK(last_line > 50);
-    const std::string last_bad = with_line(first, last_line, "  high: 1e999,");
-    const std::string last_error = setx_error(s, own, last_bad);
+    const std::string last_bad = with_line(first, last_line, "    high: 1e999,");
+    const std::string last_error = state_error(s, own, last_bad);
     CHECK(last_error.starts_with(xpp::format("{}:{}:", own, last_line)) && last_error.find("1e999") != std::string::npos);
     CHECK(snapshot(s) == before);
     /* a value a numerics rule refuses, a key the model has not, a group
        twice, an unknown key: each at its line, nothing applied */
-    for (const auto &[line, value, why] : {std::tuple{"  dt: ", "  dt: 0,", "Dt must be a number other than 0"},
-                                           std::tuple{"  store_every: ", "  store_every: 0,", "Store every N steps must be a whole number of at least 1"},
-                                           std::tuple{"  state_limit: ", "  state_limit: -1,", "State limit must be a number above 0"},
-                                           std::tuple{"  method: ", "  method: nosuch,", "nosuch"},
-                                           std::tuple{"  iapp: ", "  nosuchpar: 1,", "`nosuchpar` is not one of the model's parameters"},
-                                           std::tuple{"  iapp: ", "  Iapp: 1,", "`Iapp` is not one of the model's parameters"},
-                                            std::tuple{"  iapp: ", "  iapp: abc,", "`iapp`: `abc` is not a number"}}) {
-        const int n = line_with(first, line);
+    for (const auto &[from, to, why] : {std::tuple{"dt: 0.05,", "dt: 0,", "Dt must be a number other than 0"},
+                                        std::tuple{"store_every: 1,", "store_every: 0,", "Store every N steps must be a whole number of at least 1"},
+                                        std::tuple{"state_limit: 100,", "state_limit: -1,", "State limit must be a number above 0"},
+                                        std::tuple{"method: runge_kutta,", "method: nosuch,", "nosuch"}}) {
+        const int n = line_with(first, from);
         CHECK(n > 0);
-        const std::string e = setx_error(s, own, with_line(first, n, value));
+        const std::string e = state_error(s, own, with_text(first, from, to));
         CHECK(e.starts_with(xpp::format("{}:{}:", own, n)) && e.find(why) != std::string::npos);
         if (e.find(why) == std::string::npos) printf("  %s\n", e.c_str());
         CHECK(snapshot(s) == before);
     }
-    CHECK(setx_error(s, own, first + "numerics: {},\n").find("`numerics` is given twice") != std::string::npos);
-    CHECK(setx_error(s, own, first + "nosuch: {},\n").find("`nosuch` is not a setting") != std::string::npos);
-    CHECK(!setx_error(s, own, "total_time: 5,\n").empty()); /* outside its group */
-    CHECK(setx_error(s, own, "numerics: { total_time: 5 \n").find("expected") != std::string::npos);
+    for (const auto &[to, why] : {std::tuple{"par nosuchpar = 1", "`nosuchpar` is not one of the model's parameters"},
+                                  std::tuple{"par Iapp = 1", "`Iapp` is not one of the model's parameters"},
+                                  std::tuple{"par iapp = abc", "`iapp` is not given a number"},
+                                  std::tuple{"par iapp = 1\npar iapp = 2", "`iapp` is given twice"}}) {
+        const int n = line_with(first, "par iapp");
+        CHECK(n > 0);
+        const std::string e = state_error(s, own, with_line(first, n, to));
+        CHECK(e.starts_with(xpp::format("{}:{}:", own, n)) || e.starts_with(xpp::format("{}:{}:", own, n + 1)));
+        CHECK(e.find(why) != std::string::npos);
+        if (e.find(why) == std::string::npos) printf("  %s\n", e.c_str());
+        CHECK(snapshot(s) == before);
+    }
+    CHECK(state_error(s, own, first + "session {}\n").find("is written once in a file") != std::string::npos);
+    CHECK(state_error(s, own, first + "nosuch: {},\n").find("holds `par`, `init`, `options") != std::string::npos);
+    CHECK(state_error(s, own, first + "import \"x.odex\"\n").find("holds `par`, `init`, `options") != std::string::npos); /* an import reads no file */
+    CHECK(state_error(s, own, with_text(first, "\nsession {", "\nsession { stray: 1,")).find("`stray` is not a setting of the session") != std::string::npos);
+    CHECK(!state_error(s, own, "total_time: 5,\n").empty()); /* no version first */
+    CHECK(state_error(s, own, "version 4\nsession { run: { current_time: 5 \n").find("expected") != std::string::npos);
     CHECK(snapshot(s) == before);
 
     /* XPPAUT's set file: cut short, a value that is no number, a name that

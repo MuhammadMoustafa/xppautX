@@ -73,12 +73,15 @@ void add_binding(const Model &m, ValuesPart &part, const Parsed &file, const ode
         const char *what = wants == Wants::parameter ? "parameter" : wants == Wants::state ? "state" : "parameter or state";
         return keep_problem(part, file, b.pos, xpp::format("the model has no {} \"{}\"", what, b.name));
     }
-    if (s.range || b.index)
+    std::string number;
+    switch (odex::whole_number(s, b, number)) {
+    case odex::WholeNumber::element:
         return keep_problem(part, file, b.pos, xpp::format("\"{}\" is an array's element: only a whole name's value is loaded", b.name));
-    const std::optional<std::string> number = odex::literal_number_text(b.value);
-    if (!number)
+    case odex::WholeNumber::formula:
         return keep_problem(part, file, b.value.pos, xpp::format("\"{}\" is not given a number: only numbers are loaded from a file", b.name));
-    part.items.push_back({b.name, *number, false, file.at(b.pos)});
+    case odex::WholeNumber::number: break;
+    }
+    part.items.push_back({b.name, number, false, file.at(b.pos)});
 }
 
 /* the settings entries as items of part. A set holds settings of some groups only (set_holds): in a set another is the

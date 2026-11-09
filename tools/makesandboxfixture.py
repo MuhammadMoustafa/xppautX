@@ -93,7 +93,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
             assert played[key] == final[key], (key, played[key], final[key])
     with zipfile.ZipFile(snap) as archive:
         autox_saved = {name: archive.read(name) for name in
-            ('autox/diagram.csv', 'autox/solutions.s', 'autox/settings.txt', 'autox/views.txt')}
+            ('autox/diagram.csv', 'autox/solutions.s')}
     # the branch lines (`branch,N,parameters...`) come before the points' header
     points = list(csv.DictReader(line for line in autox_saved['autox/diagram.csv'].decode().splitlines()
                                  if not line.startswith('branch,')))

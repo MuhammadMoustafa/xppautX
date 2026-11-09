@@ -1,4 +1,4 @@
-/* The settings syntax's typed reader and writer: see setx.h. The grammar
+/* The settings syntax's typed reader and writer: see odex_block.h. The grammar
    itself is the .odex reader's (odex_parse.cpp). */
 #include "odex_block.h"
 
@@ -16,6 +16,28 @@ void Document::fail(int line, int col, std::string what) const
     Place place = line_place(file_, text_, line);
     place.col = col;
     throw ReadFailed{Error{where_, std::move(what), std::move(place)}};
+}
+
+Result<StateFile> read_state_file(FileKind kind, std::string where, std::string file, std::string text)
+{
+    Result<Parsed> parsed = read_state(kind, text, file);
+    if (!parsed) {
+        Error e = std::move(parsed.error());
+        e.where = where;
+        if (e.place.line > 0 && e.place.source.empty()) {
+            Place place = line_place(file, text, e.place.line);
+            place.col = e.place.col;
+            e.place = std::move(place);
+        }
+        return std::unexpected(std::move(e));
+    }
+    const Statement::Kind own = kind == FileKind::session ? Statement::Kind::Session : Statement::Kind::Preferences;
+    Value group;
+    group.kind = Value::Kind::group;
+    group.line = group.col = 1;
+    for (Statement &s : parsed->statements)
+        if (s.kind == own) group = std::move(*s.more_mut().block); /* the statement's copy is not read again */
+    return StateFile{std::move(*parsed), Document(std::move(where), std::move(file), std::move(text)), std::move(group)};
 }
 
 /* ---- Block ---- */
@@ -427,6 +449,20 @@ void Out::end()
     put("},\n");
 }
 
+void Out::begin_statement(std::string_view keyword)
+{
+    if (!odex::is_name(keyword) && !bad_) bad_ = xpp::format("`{}` cannot be the name of a statement", keyword);
+    put(keyword);
+    put(" {\n");
+    depth_++;
+}
+
+void Out::end_statement()
+{
+    depth_--;
+    put("}\n");
+}
+
 void Out::begin_list(std::string_view key)
 {
     entry(key);
@@ -449,14 +485,6 @@ void Out::begin_item()
 }
 
 void Out::end_item() { end(); }
-
-void Out::comment(std::string_view text_)
-{
-    out_.append(static_cast<std::size_t>(depth_) * 2, ' ');
-    put("# ");
-    put(text_);
-    put("\n");
-}
 
 Result<std::string> Out::result(std::string where) const
 {

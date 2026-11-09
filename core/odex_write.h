@@ -27,6 +27,9 @@ namespace xpp::odex {
 
 /* ---- the layout ---- */
 
+/* the `version N` statement a file of ours starts with, without its line end */
+std::string version_statement();
+
 /* items as { a, b, c }, on lines of their own when they would run past a
    line (indent: the column the line starts at) */
 std::string braced(const std::vector<std::string> &items, std::size_t indent);

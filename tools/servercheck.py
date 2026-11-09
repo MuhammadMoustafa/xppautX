@@ -2153,7 +2153,7 @@ def check_data_value_set():
                     {'cmd': 'saveset', 'set': 's', 'mode': 'new', 'scope': 'all'}, {'cmd': 'savedefaults', 'scope': 'all'},
                     {'cmd': 'exportset', 'set': 's', 'scope': 'all', 'file': 'x.odex'}, {'cmd': 'renameset', 'set': 'a', 'to': 'b'},
                     {'cmd': 'deleteset', 'set': 'a'}, {'cmd': 'restoredefaults', 'scope': 'all'},
-                    {'cmd': 'value.save_file', 'kind': 'parameters', 'file': 'x.par'}, {'cmd': 'session.import_settings', 'file': 'x.setx'},
+                    {'cmd': 'value.save_file', 'kind': 'parameters', 'file': 'x.par'}, {'cmd': 'session.import_settings', 'file': 'x.set'},
                     {'cmd': 'slide', 'name': 'iapp', 'value': 1}, {'cmd': 'slider', 'slot': 0, 'name': 'iapp', 'lo': 0, 'hi': 1, 'step': 0.1}):
             snd(**old)
             evs, _ = col(is_done)
@@ -3493,7 +3493,7 @@ def check_import_xppaut_state():
         check('W321: Import XPPAUT session state names what it changed and writes nothing beside the file',
               done.get('result', {}).get('applied') is True and 'the parameters' in done.get('result', {}).get('changes', [])
               and 'the delays' not in done.get('result', {}).get('changes', [])
-              and not os.path.exists(os.path.join(r, 'w88-selected.setx')), str(done))
+              and not os.path.exists(os.path.join(r, 'w88-selected.odex')), str(done))
         # by scope: only the parameters of a set file (set.load_file from file), the numerics as they were
         snd(cmd='value.set_parameters', values={'iapp': 0.5})
         col(is_done)
@@ -4150,6 +4150,42 @@ def check_model_plot_windows():
               and series_matches_output_dat(series[0], model) is None, str([s['win'] for s in series]))
     finally:
         stop_server(proc, run, send)
+    # W322: a session reopens exactly the graphs it saved, three or one, with their curves
+    keep = tempfile.mkdtemp(prefix='xppgraphs')
+    try:
+        for count in (3, 1):
+            proc, run, send, collect, _ = launch_server(ode=model)
+            try:
+                collect(is_done)
+                for _ in range(count - 1):
+                    send(cmd='window.create')
+                    collect(is_done)
+                send(cmd='session.save_as', file='graphs%d' % count, data=False)
+                collect(is_done)
+                shutil.copy(os.path.join(run, 'graphs%d.snapx' % count), keep)
+            finally:
+                stop_server(proc, run, send)
+            proc, run, send, collect, _ = launch_server(ode=model)
+            try:
+                collect(is_done)
+                shutil.copy(os.path.join(keep, 'graphs%d.snapx' % count), run)
+                send(cmd='session.open_model', file='graphs%d.snapx' % count)
+                while True:
+                    _, e = collect(lambda e: e.get('ev') in ('ask', 'done'), timeout=20 * SLOW)
+                    if e is None or e['ev'] == 'done':
+                        break
+                    send(cmd='answer', id=e['id'], key='d' if e.get('keys') == 'sd' else 'g')
+                send(cmd='events.subscribe', events=['plot.shown'])
+                events, _ = collect(is_done)
+                plots = next((e for e in reversed(events) if e.get('ev') == 'plot.shown'), {})
+                windows = plots.get('windows', [])
+                check('W322: a session that saved %d graph%s reopens exactly %d, each with its three curves' % (count, 's' * (count > 1), count),
+                      [w['win'] for w in windows] == ['graph_%d' % (k + 1) for k in range(count)] and all(len(w['curves']) == 3 for w in windows),
+                      str(plots)[:400])
+            finally:
+                stop_server(proc, run, send)
+    finally:
+        shutil.rmtree(keep, ignore_errors=True)
     with tempfile.TemporaryDirectory(prefix='xppmultiwin') as run:
         body = "x'=-x\ny'=-2*y\ninit x=1,y=2\n@ total=1,dt=.1,meth=rk4%s\ndone\n"
         several = ',multiwin=1,simplot=1,nplot=3,xp=x,yp=y,xp2=y,yp2=x,xlo2=-2,xhi2=3,ylo2=-4,yhi2=5,xp3=t,yp3=y,xlo3=0,xhi3=1'
@@ -4611,12 +4647,12 @@ def check_load_all_or_nothing():
     written = []
 
     def set_file():
-        """the settings the session saves now (its model.setx); CR LF read
-        as LF"""
+        """the settings the session saves now (the par, init and options statements and the session statement
+        up to its sliders: the values, the numerics, the run position, the delays, the boundary conditions); CR LF read as LF"""
         written.append('now%d' % len(written))
         answered((), cmd='session.save_as', file=written[-1], data=False)
         with zipfile.ZipFile(os.path.join(r, written[-1] + '.snapx')) as z:
-            return 'version: 4,\n' + z.read('model.setx').decode().replace('\r\n', '\n')  # as a settings file of its own
+            return z.read('session.odex').decode().replace('\r\n', '\n').split('\n  sliders: [')[0]
 
     def load_set(name, from_='set', part=None, scope='all'):
         """Load values from file name: its set `part`, or its defaults (from_ defaults)"""
@@ -7091,7 +7127,7 @@ def check_jacobian_setting():
             snd(cmd='session.save_as', file='jac', data=False)
             col(is_done)
             with zipfile.ZipFile(os.path.join(r, 'jac.snapx')) as z:
-                check('W274: model.setx holds the Jacobian setting by its word', b'\n  jacobian: exact,\n' in z.read('model.setx'))
+                check('W274: session.odex holds the Jacobian setting by its word', b' jacobian.kind: exact,' in z.read('session.odex'))
             snd(cmd='set', kind='num', name='jacobian', text='difference')
             col(is_done)
             snd(cmd='session.open_model', file='jac.snapx')
@@ -8341,7 +8377,7 @@ check_dae_fold()
 
 
 def check_session_random():
-    """W123: a session file holds the random generator's state (random.txt):
+    """W123: a session file holds the random generator's state (the random group of session.odex):
     Go on a stochastic model, save, open in a new server and Continue gives
     the rows Continue gives without the save; a file without the member or
     with one that is no generator state is refused naming it; a recording's
@@ -8388,14 +8424,14 @@ def check_session_random():
         text = open(os.path.join(r, 'rr.recx'), encoding='utf-8').read()
         shutil.copy(os.path.join(r, 'rr.recx'), keep)
         snap = recx_snapshot(text) or {}
-        check('random: a recording snapshot holds random.txt', 'random.txt' in snap, str(sorted(snap)))
+        check('random: a recording snapshot holds the random group', b'\n  random: {\n' in snap.get('session.odex', b''), str(sorted(snap)))
         run(cmd='run.initial')
         run(cmd='session.save_as', file='r1')
         run(cmd='run.continue')
         write(run, 'a.dat')
         a = read(r, 'a.dat')
         z = zipfile.ZipFile(os.path.join(r, 'r1.snapx'))
-        check('random: a session file lists random.txt', 'random.txt' in z.namelist(), str(z.namelist()))
+        check('random: a session file holds the random group', b'\n  random: {\n' in z.read('session.odex'), str(z.namelist()))
         members = {n: z.read(n) for n in z.namelist()}
         shutil.copy(os.path.join(r, 'r1.snapx'), keep)
     finally:
@@ -8410,11 +8446,16 @@ def check_session_random():
         b = read(r, 'b.dat')
         check('random: save, open, Continue gives the rows of Continue without the save',
               a is not None and a == b, '%s vs %s bytes' % (len(a or b''), len(b or b'')))
-        for name, change, expect in (('norandom', lambda m: m.pop('random.txt'), 'its random.txt is missing'),
-                                     ('noseed', lambda m: m.__setitem__('random.txt', m['random.txt'].split(b'\n', 1)[1]),
-                                      ('noseed.snapx/random.txt:1:', 'not "seed <number>"')),
-                                     ('badrandom', lambda m: m.__setitem__('random.txt', b'seed 5\nwiener 0\nou\nnot a state'),
-                                      ('badrandom.snapx/random.txt:4:', 'not a random generator'))):
+        state = members['session.odex'].decode()
+        random_line = state.split('\n').index('  random: {') + 1
+        no_random = re.sub(r'\n  random: \{\n.*?\n  \},', '', state, count=1, flags=re.S)
+        no_seed = re.sub(r'\n    seed: [^\n]*', '', state, count=1)
+        bad_generator = re.sub(r'generator: "[^"]*"', 'generator: "not a state"', state, count=1)
+        for name, change, expect in (('norandom', lambda m: m.__setitem__('session.odex', no_random.encode()), 'the session has no `random`'),
+                                     ('noseed', lambda m: m.__setitem__('session.odex', no_seed.encode()),
+                                      ('noseed.snapx/session.odex:%d:' % random_line, 'random has no `seed`')),
+                                     ('badrandom', lambda m: m.__setitem__('session.odex', bad_generator.encode()),
+                                      ('badrandom.snapx/session.odex:%d:' % (random_line + 4), 'not a random generator'))):
             damaged = dict(members)
             change(damaged)
             with zipfile.ZipFile(os.path.join(r, name + '.snapx'), 'w') as out:
@@ -8660,7 +8701,9 @@ def check_plot_limits():
             if not os.path.exists(snap):
                 return
             with zipfile.ZipFile(snap) as z:
-                saved = {k: z.read(k) for k in ('windows.setx', 'marks.setx', 'frozen.npz')}
+                # the windows and the marks (the end of the session statement) and the frozen curves' points
+                plots_of = lambda zf: (zf.read('session.odex')[zf.read('session.odex').index(b'\n  windows: ['):], zf.read('frozen.npz'))
+                saved = plots_of(z)
             for win in ('missing graph', 1.5, -1, 2147483647):
                 s.send(cmd='window.select', window=win)
                 invalid, _ = s.collect(is_done)
@@ -8679,8 +8722,7 @@ def check_plot_limits():
                   str(frozen[-1:])[:150])
             command(cmd='session.save_as', file='again', data=True)
             with zipfile.ZipFile(os.path.join(s.run, 'again.snapx')) as z:
-                check('W376: plot and frozen archive members round-trip exactly',
-                      all(z.read(k) == v for k, v in saved.items()))
+                check('W376: plot and frozen archive members round-trip exactly', plots_of(z) == saved)
             # --silent restores sessions through a recording snapshot, not a .snapx argument.
             command(cmd='recording.start')
             command(cmd='run.initial')
@@ -8692,8 +8734,7 @@ def check_plot_limits():
                   replay.returncode == 0 and os.path.exists(os.path.join(s.run, 'silent.snapx')),
                   str((replay.returncode, replay.stderr[-200:])))
             with zipfile.ZipFile(os.path.join(s.run, 'silent.snapx')) as z:
-                check('W376: recording replay preserves every window, curve and frozen curve',
-                      all(z.read(k) == v for k, v in saved.items()))
+                check('W376: recording replay preserves every window, curve and frozen curve', plots_of(z) == saved)
         finally:
             s.close()
 
@@ -8770,20 +8811,21 @@ def check_session_file():
         snap = os.path.join(r, 's1.snapx')
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed, the model in it',
-              sorted(names) == sorted(['session.setx', 'model/lecar.odex', 'model/ml.anix', 'model.setx', 'autox/settings.txt', 'autox/diagram.csv',
-                        'autox/solutions.s', 'autox/views.txt', 'windows.setx', 'marks.setx', 'frozen.npz', 'data.npz', 'random.txt', 'sliders.setx', 'nullclines.setx']),
+              sorted(names) == sorted(['session.odex', 'model/lecar.odex', 'model/ml.anix', 'autox/diagram.csv', 'autox/solutions.s', 'frozen.npz', 'data.npz']),
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
-            check('session save: model.setx holds the settings of lecar, session.setx names it',
-                  b'\nnumerics: {\n' in z.read('model.setx') and b'\n  total_time: ' in z.read('model.setx')
-                  and b'\n  model: "lecar.odex",\n' in z.read('session.setx'), str(z.read('session.setx')[:200]))
+            check('session save: session.odex holds the settings of lecar and names it',
+                  b'\nversion 4\n' in b'\n' + z.read('session.odex') and b'\noptions {\n' in z.read('session.odex') and b' total_time: ' in z.read('session.odex')
+                  and b'\n  model: "lecar.odex",\n' in z.read('session.odex'), str(z.read('session.odex')[:200]))
             with open(os.path.join(r, 'lecar.odex'), 'rb') as f:
                 check('session save: model/lecar.odex is the model, byte for byte', z.read('model/lecar.odex') == f.read())
-            vt = z.read('autox/views.txt').decode().splitlines()
-            check('session save: autox/views.txt holds both views, the first active',
-                  len(vt) == 3 and vt[0].startswith('view "diagram_1" shown maximum_and_minimum V iapp ') and vt[1].startswith('view "diagram_2" shown norm V iapp ')
-                  and vt[1].endswith(' - 0:0.5') and vt[2] == 'active "diagram_1"', str(vt))
+            vt = z.read('session.odex').decode()
+            views = vt[vt.index('    views: ['):vt.index('    active: ')]
+            check('session save: the autox group of session.odex holds both views, the first active',
+                  views.count('name: "diagram_') == 2 and 'name: "diagram_1",\n        hidden: false,\n        plot: maximum_and_minimum,\n        var: V,\n        par1: iapp,' in views
+                  and 'name: "diagram_2",\n        hidden: false,\n        plot: norm,\n        var: V,\n        par1: iapp,' in views
+                  and re.search(r'y: \{\n\s+set: true,\n\s+low: 0,\n\s+high: 0.5,', views) and '    active: "diagram_1",' in vt, views[:600])
             shutil.copy(snap, keep)
         answered(snd, col, (), cmd='session.save_as', file='s2.snapx', data=False)
         s2 = os.path.join(r, 's2.snapx')
@@ -8887,148 +8929,180 @@ def check_session_file():
         msgs = ' '.join(str(e.get('bottom', '')) + str(e.get('error', '')) for e in allev if e.get('ev') in ('session.message', 'done'))
         check('a session file without its model is refused, an error says the model is missing',
               'model is missing' in msgs and not last('hello') and not any(e.get('ev') == 'ask' for e in allev), msgs[:300])
-        # W50: a session file without the views of its diagram: an error names the member (no older files)
+        # W50: a session file without the active view of its diagram: an error names the group (no older files)
         with zipfile.ZipFile(os.path.join(r, 'noviews.snapx'), 'w') as out:
             for n in z.namelist():
-                if n != 'autox/views.txt':
-                    out.writestr(n, z.read(n))
+                out.writestr(n, z.read(n).decode().replace('    active: "diagram_1",\n', '').encode() if n == 'session.odex' else z.read(n))
         del allev[:]
         answered(snd, col, ('d',), cmd='session.open_model', file='noviews.snapx')
         msgs = ' '.join(str(e.get('error', '')) for e in allev if e.get('ev') in ('session.message', 'done'))
-        check('a session file without the views of its diagram: an error names autox/views.txt, the session before stays',
-              'its autox/views.txt is missing' in msgs and not last('hello'), msgs[:300])
+        check('a session file without the active view of its diagram: an error names it, the session before stays',
+              'autox has no `active`' in msgs and not last('hello'), msgs[:300])
         # W116: a member missing, cut short or with a line that does not
         # read fails the open before its model is kept: the error names the
         # member and the line, and the session before stays (no hello)
         members = {n: z.read(n) for n in z.namelist()}
 
-        def text_lines(member, k, line):
-            """member's text with its line k (from 1) set to line"""
-            rows = members[member].decode().split('\n')
+        state_text = members['session.odex'].decode()
+        state_rows = state_text.split('\n')
+
+        def line_starting(key, start=0, last=False, depth=None):
+            """the line (from 1) of session.odex that starts, after its blanks, with key, from line start on (at depth, the
+            session statement's own keys being at 1: two blanks a level); the last one with last"""
+            starts = (lambda row: row.startswith('  ' * depth + key)) if depth else (lambda row: row.lstrip().startswith(key))
+            hits = [k + 1 for k in range(max(start - 1, 0), len(state_rows)) if starts(state_rows[k])]
+            return hits[-1] if last else hits[0]
+
+        def line_with(text):
+            """the line (from 1) of session.odex that holds text (an option, several to a line)"""
+            return next(k + 1 for k, row in enumerate(state_rows) if text in row)
+
+        def edited(change):
+            """a damage: session.odex with change(text) in it"""
+            return lambda m: m.__setitem__('session.odex', change(state_text).encode())
+
+        def with_line(k, line):
+            """session.odex's text with its line k (from 1) set to line"""
+            rows = list(state_rows)
             rows[k - 1] = line
-            return '\n'.join(rows).encode()
+            return '\n'.join(rows)
 
-        win_text = members['windows.setx'].decode()
-        win_rows = win_text.split('\n')
-        set_rows = members['model.setx'].decode().split('\n')
-        random_rows = members['random.txt'].decode().split('\n')
-        # the line (from 1) of a member's rows that starts with key, the last one with last
-        line_starting = lambda rows, key, last=False: (next(k + 1 for k in reversed(range(len(rows))) if rows[k].lstrip().startswith(key))
-                                                       if last else next(k + 1 for k in range(len(rows)) if rows[k].lstrip().startswith(key)))
-        # the line of model.setx's last value (the BVP range's high end)
-        set_high = line_starting(set_rows, 'high:', True)
-        set_store_every, set_dt = line_starting(set_rows, 'store_every:'), line_starting(set_rows, 'dt:')
-        set_total = line_starting(set_rows, 'total_time:')
-        win_curve_x = line_starting(win_rows, 'x:')
-        # windows.setx ends with its added columns
-        win_added = line_starting(win_rows, 'added_columns:')
-        generator = random_rows[-1].split(' ')
-        manifest_lines = len(members['session.setx'].decode().rstrip('\n').split('\n'))
+        def with_text(old, new):
+            """session.odex's text with its first `old` replaced by `new`"""
+            assert old in state_text, old
+            return state_text.replace(old, new, 1)
 
-        def with_line(member, k, line):
-            """member's text with its line k (from 1) set to line"""
-            return text_lines(member, k, line)
+        def with_value(key, value, start=0):
+            """session.odex's text with the first `key: ...` entry from line start on, which is on its own line, set to `key: value,`"""
+            k = line_starting(key + ':', start)
+            return with_line(k, state_rows[k - 1][:len(state_rows[k - 1]) - len(state_rows[k - 1].lstrip())] + '%s: %s,' % (key, value))
 
-        def label_marks(label_line=None, **over):
-            """marks.setx with one label (its fields over the defaults); the label's
-            lines are 5 (window) to 12 (text)"""
+        def with_list(key, value, start=0):
+            """session.odex's text with the list `key: [...]` (first from line start on; it may run over lines) set to `key: [value]`"""
+            k = line_starting(key + ':', start)
+            before = '\n'.join(state_rows[:k - 1])
+            rest = '\n'.join(state_rows[k - 1:])
+            indent = state_rows[k - 1][:len(state_rows[k - 1]) - len(state_rows[k - 1].lstrip())]
+            return before + '\n' + indent + '%s: [%s]' % (key, value) + rest[rest.index(']') + 1:]
+
+        def with_block(key, new_rows, indent='  '):
+            """session.odex's text with the group or list `key` (at the session's depth) replaced by new_rows (lines)"""
+            k = line_starting(key + ':', depth=1)
+            end = next(n for n in range(k, len(state_rows) + 1) if state_rows[n].rstrip() in (indent + '},', indent + '],'))
+            return '\n'.join(state_rows[:k - 1] + [indent + r for r in new_rows] + state_rows[end + 1:])
+
+        marks_line = line_starting('marks:', depth=1)
+        sliders_line = line_starting('sliders:', depth=1)
+        nullclines_line = line_starting('nullclines:', depth=1)
+        added_line = line_starting('added_columns:', depth=1)
+        session_line = line_starting('session {')
+        generator_line = line_starting('generator:', depth=2)
+        generator = state_rows[generator_line - 1].split('"')[1].split(' ')
+
+        def label_marks(**over):
+            """the marks group with one label (its fields over the defaults); the label's lines are 5 (window) to 12 (text) below marks:"""
             f = dict(id='0', window='"graph_1"', x='0.5', y='0.5', size='2', font='0', style='normal', color='"foreground"', text='"hi"')
             f.update(over)
-            rows = ['next_annotation_id: 1,', 'labels: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in ('id', 'window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
-            rows += ['  },', '],', 'arrows_and_markers: [],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
-            return '\n'.join(rows).encode()
+            rows = ['marks: {', '  next_annotation_id: 1,', '  labels: [', '    {'] + ['      %s: %s,' % (k, f[k]) for k in ('id', 'window', 'x', 'y', 'size', 'font', 'style', 'color', 'text')]
+            rows += ['    },', '  ],', '  arrows_and_markers: [],', '  freeze_each_run: 0,', '  frozen_curves: [],', '},']
+            return rows
 
         def mark_marks(**over):
-            """marks.setx with one arrow or marker; its lines are 6 (window) to 13"""
+            """the marks group with one arrow or marker; its lines are 6 (window) to 13 below marks:"""
             f = dict(id='0', window='"graph_1"', type='0', color='"foreground"', size='1', x_start='0', y_start='0', x_end='1', y_end='1')
             f.update(over)
-            rows = ['next_annotation_id: 1,', 'labels: [],', 'arrows_and_markers: [', '  {'] + ['    %s: %s,' % (k, f[k]) for k in
+            rows = ['marks: {', '  next_annotation_id: 1,', '  labels: [],', '  arrows_and_markers: [', '    {'] + ['      %s: %s,' % (k, f[k]) for k in
                                                                        ('id', 'window', 'type', 'color', 'size', 'x_start', 'y_start', 'x_end', 'y_end')]
-            rows += ['  },', '],', 'freeze_each_run: 0,', 'frozen_curves: [],', '']
-            return '\n'.join(rows).encode()
+            rows += ['    },', '  ],', '  freeze_each_run: 0,', '  frozen_curves: [],', '},']
+            return rows
+
+        def marks_with(rows):
+            return edited(lambda text: with_block('marks', rows[:]))
 
         def added_columns(items):
-            """windows.setx with its added columns replaced by items (name, formula)"""
+            """the added columns replaced by items (name, formula)"""
             rows = ['added_columns: [']
             for name, formula in items:
                 rows += ['  {', '    name: "%s",' % name, '    formula: "%s",' % formula, '  },']
-            rows += ['],', '']
-            return ('\n'.join(win_rows[:win_added - 1]) + '\n' + '\n'.join(rows)).encode()
+            rows += ['],']
+            return edited(lambda text: with_block('added_columns', rows))
 
-        def nullclines(x_segments):
-            return ('current: { x_axis: 1, y_axis: 2, x_segments: [%s], y_segments: [] },\nfrozen: [],\n' % x_segments).encode()
+        def generator_with(tokens):
+            return edited(lambda text: with_line(generator_line, '    generator: "%s",' % ' '.join(tokens)))
 
+        curve_x = line_starting('x:', line_starting('windows:'))
+        high_line = line_starting('high:', line_starting('bvp_range:'))
         damages = [
-            ('badslider', lambda m: m.__setitem__('sliders.setx', text_lines('sliders.setx', 3, '    name: nonsense,')),
-             ('badslider.snapx/sliders.setx:3:', 'nonsense')),
-            ('badsliderrange', lambda m: m.__setitem__('sliders.setx', text_lines('sliders.setx', 5, '    high: -2,')),
-             ('badsliderrange.snapx/sliders.setx:5:', 'slider range -1 -2')),
-            ('nannullcline', lambda m: m.__setitem__('nullclines.setx', nullclines('nan, 0, 0, 0')),
-             ('nannullcline.snapx/nullclines.setx:1:', 'nan')),
-            ('badnullcline', lambda m: m.__setitem__('nullclines.setx', nullclines('0, 0, 0, 0, 0')),
-             ('badnullcline.snapx/nullclines.setx:1:', 'four for each segment')),
-
-            ('nowindows', lambda m: m.pop('windows.setx'), 'its windows.setx is missing'),
-            ('cutwindows', lambda m: m.__setitem__('windows.setx', '\n'.join(win_rows[:10]).encode() + b'\n'),
-             ('cutwindows.snapx/windows.setx:', 'missing `}`')),
-            ('badset', lambda m: m.__setitem__('model.setx', text_lines('model.setx', set_total, '  total_time: x,')),
-             ('badset.snapx/model.setx:%d:' % set_total, 'found `x`')),
-            ('badname', lambda m: m.__setitem__('windows.setx', text_lines('windows.setx', win_curve_x, '      x: nosuch,')),
-             ('badname.snapx/windows.setx:%d:' % win_curve_x, 'the model has no variable "nosuch"')),
-            # W125: a bad value on a member's last line: refused at it, nothing applied
-            ('lastmarks', lambda m: m.__setitem__('marks.setx', m['marks.setx'].rstrip(b'\n') + b'\nmore: 1,\n'),
-             ('lastmarks.snapx/marks.setx:%d:' % (len(members['marks.setx'].decode().rstrip('\n').split('\n')) + 1), '`more` is not a setting')),
-            ('lastset', lambda m: m.__setitem__('model.setx', text_lines('model.setx', set_high, '  high: 1e999,')),
-             ('lastset.snapx/model.setx:%d:' % set_high, '`1e999` is not a number')),
-            ('latermanifest', lambda m: m.__setitem__('session.setx', m['session.setx'] + b'later: 1,\n'),
-             ('latermanifest.snapx/session.setx:%d:' % (manifest_lines + 1), '`later` is not a setting')),
+            ('badslider', edited(lambda text: with_value('name', 'nonsense', sliders_line)),
+             ('badslider.snapx/session.odex:%d:' % (sliders_line + 2), 'nonsense')),
+            ('badsliderrange', edited(lambda text: with_value('high', '-2', sliders_line)),
+             ('badsliderrange.snapx/session.odex:%d:' % (sliders_line + 4), 'slider range -1 -2')),
+            ('nannullcline', edited(lambda text: with_list('x_segments', 'nan, 0, 0, 0', nullclines_line)),
+             ('nannullcline.snapx/session.odex:%d:' % line_starting('x_segments:', nullclines_line), 'nan')),
+            ('badnullcline', edited(lambda text: with_list('x_segments', '0, 0, 0, 0, 0', nullclines_line)),
+             ('badnullcline.snapx/session.odex:%d:' % line_starting('x_segments:', nullclines_line), 'four for each segment')),
+            ('nostate', lambda m: m.pop('session.odex'), 'its session.odex is missing'),
+            ('nowindows', edited(lambda text: with_block('windows', [])),
+             ('nowindows.snapx/session.odex:%d:' % session_line, 'the session has no `windows`')),
+            ('cutwindows', edited(lambda text: '\n'.join(state_rows[:line_starting('windows:') + 3]) + '\n'),
+             ('cutwindows.snapx/session.odex:', 'missing `}`')),
+            ('badset', edited(lambda text: with_text('total_time: 30,', 'total_time: x,')),
+             ('badset.snapx/session.odex:%d:' % line_with(' total_time: 30,'), "the option total_time's value `x` is not a number")),
+            ('badname', edited(lambda text: with_line(curve_x, '          x: nosuch,')),
+             ('badname.snapx/session.odex:%d:' % curve_x, 'the model has no variable "nosuch"')),
+            # W125: a bad value on the last line of the session: refused at it, nothing applied
+            ('lastmarks', edited(lambda text: '\n'.join(state_rows[:marks_line] + ['    more: 1,'] + state_rows[marks_line:])),
+             ('lastmarks.snapx/session.odex:%d:' % (marks_line + 1), '`more` is not a setting')),
+            ('lastset', edited(lambda text: with_value('high', '1e999', line_starting('bvp_range:'))),
+             ('lastset.snapx/session.odex:%d:' % high_line, '`1e999` is not a number')),
+            ('latermanifest', edited(lambda text: '\n'.join(state_rows[:session_line] + ['  later: 1,'] + state_rows[session_line:])),
+             ('latermanifest.snapx/session.odex:%d:' % (session_line + 1), '`later` is not a setting')),
             # W145: every value checked by the rule that checks it anywhere else, before anything is applied
-            ('zerostore_every', lambda m: m.__setitem__('model.setx', text_lines('model.setx', set_store_every, '  store_every: 0,')),
-             ('zerostore_every.snapx/model.setx:%d:' % set_store_every, 'Store every N steps must be a whole number of at least 1')),
-            ('zerodt', lambda m: m.__setitem__('model.setx', text_lines('model.setx', set_dt, '  dt: 0,')),
-             ('zerodt.snapx/model.setx:%d:' % set_dt, 'Dt must be a number other than 0')),
-            # W285: a session of the older layout (XPPAUT's set lines) is refused as any text that is no settings is
-            ('oldset', lambda m: m.__setitem__('model.setx', b'## Set file for lecar.odex\n4   Number of equations and auxiliaries\n'),
-             ('oldset.snapx/model.setx:2:1:', 'expected a key')),
-            ('manycolumns', lambda m: m.__setitem__('windows.setx', added_columns([('X%d' % k, 'v*w') for k in range(5001)])),
-             ('manycolumns.snapx/windows.setx:%d:' % win_added, 'entries: at most')),
-            ('badformula', lambda m: m.__setitem__('windows.setx', added_columns([('VW', 'unknown_symbol+')])),
-             ('badformula.snapx/windows.setx:%d:' % (win_added + 3), 'the formula of the added column VW does not compile')),
-            ('spareflag', lambda m: m.__setitem__('random.txt', text_lines('random.txt', len(random_rows),
-                                                                           ' '.join(generator[:-2] + ['9', generator[-1]]))),
-             ('spareflag.snapx/random.txt:%d:' % len(random_rows), "not a random generator's state")),
-            ('aftergenerator', lambda m: m.__setitem__('random.txt', m['random.txt'] + b'\nnot_generator_state\n'),
-             ('aftergenerator.snapx/random.txt:%d:' % (len(random_rows) + 1), '"not_generator_state" after the end')),
+            ('zerostore_every', edited(lambda text: with_text('store_every: 1,', 'store_every: 0,')),
+             ('zerostore_every.snapx/session.odex:%d:' % line_with(' store_every: 1,'), 'Store every N steps must be a whole number of at least 1')),
+            ('zerodt', edited(lambda text: with_text('dt: 0.05,', 'dt: 0,')),
+             ('zerodt.snapx/session.odex:%d:' % line_with(' dt: 0.05,'), 'Dt must be a number other than 0')),
+            # W285: a session of the older layout (XPPAUT's set lines) is refused as any text that is no session file
+            ('oldset', lambda m: m.__setitem__('session.odex', b'## Set file for lecar.odex\n4   Number of equations and auxiliaries\n'),
+             ('oldset.snapx/session.odex:2:1:', 'starts with `version 4`')),
+            ('manycolumns', added_columns([('X%d' % k, 'v*w') for k in range(5001)]),
+             ('manycolumns.snapx/session.odex:%d:' % added_line, 'entries: at most')),
+            ('badformula', added_columns([('VW', 'unknown_symbol+')]),
+             ('badformula.snapx/session.odex:%d:' % (added_line + 3), 'the formula of the added column VW does not compile')),
+            ('spareflag', generator_with(generator[:-2] + ['9', generator[-1]]),
+             ('spareflag.snapx/session.odex:%d:' % generator_line, "not a random generator's state")),
+            ('aftergenerator', generator_with(generator + ['not_generator_state']),
+             ('aftergenerator.snapx/session.odex:%d:' % generator_line, "not a random generator's state")),
             # W227: a label's every value is checked at its line (window, x, y, size, font, style, colour, text)
-            ('labelsize', lambda m: m.__setitem__('marks.setx', label_marks(size='9')),
-             ('labelsize.snapx/marks.setx:8:', '9 is not a text size (0 to 4)')),
-            ('labelfont', lambda m: m.__setitem__('marks.setx', label_marks(font='5')),
-             ('labelfont.snapx/marks.setx:9:', '5 is not a text font (0 to 1)')),
-            ('labelstyle', lambda m: m.__setitem__('marks.setx', label_marks(style='oblique')),
-             ('labelstyle.snapx/marks.setx:10:', '`style`: `oblique` is not one of normal, bold, italic, bold_italic')),
-            ('labelcolor', lambda m: m.__setitem__('marks.setx', label_marks(color='"99"')),
-             ('labelcolor.snapx/marks.setx:11:', '`99` is not a colour')),
-            ('labelempty', lambda m: m.__setitem__('marks.setx', label_marks(text='""')),
-             ('labelempty.snapx/marks.setx:12:', 'a text is not empty')),
-            ('labellong', lambda m: m.__setitem__('marks.setx', label_marks(text='"' + 'x' * 1001 + '"')),
-             ('labellong.snapx/marks.setx:12:', 'at most 1000')),
+            ('labelsize', marks_with(label_marks(size='9')),
+             ('labelsize.snapx/session.odex:%d:' % (marks_line + 8), '9 is not a text size (0 to 4)')),
+            ('labelfont', marks_with(label_marks(font='5')),
+             ('labelfont.snapx/session.odex:%d:' % (marks_line + 9), '5 is not a text font (0 to 1)')),
+            ('labelstyle', marks_with(label_marks(style='oblique')),
+             ('labelstyle.snapx/session.odex:%d:' % (marks_line + 10), '`style`: `oblique` is not one of normal, bold, italic, bold_italic')),
+            ('labelcolor', marks_with(label_marks(color='"99"')),
+             ('labelcolor.snapx/session.odex:%d:' % (marks_line + 11), '`99` is not a colour')),
+            ('labelempty', marks_with(label_marks(text='""')),
+             ('labelempty.snapx/session.odex:%d:' % (marks_line + 12), 'a text is not empty')),
+            ('labellong', marks_with(label_marks(text='"' + 'x' * 1001 + '"')),
+             ('labellong.snapx/session.odex:%d:' % (marks_line + 12), 'at most 1000')),
             # W513: ids are checked at their line: below next_annotation_id, each above the one before, none shared by two kinds
-            ('labelid', lambda m: m.__setitem__('marks.setx', label_marks(id='1')),
-             ('labelid.snapx/marks.setx:4:', '1 is not an id below next_annotation_id 1')),
-            ('labelnegid', lambda m: m.__setitem__('marks.setx', label_marks(id='-1')),
-             ('labelnegid.snapx/marks.setx:4:', '-1 is not an id below next_annotation_id 1')),
-            ('markid', lambda m: m.__setitem__('marks.setx', mark_marks(id='5')),
-             ('markid.snapx/marks.setx:5:', '5 is not an id below next_annotation_id 1')),
-            ('sharedid', lambda m: m.__setitem__('marks.setx', mark_marks().replace(b'labels: [],', label_marks().split(b'arrows_and_markers')[0].split(b'\n', 1)[1].rstrip(b'\n') + b'')),
-             ('sharedid.snapx/marks.setx:', 'belongs to a text and an arrow, pointer or marker')),
-            ('labelnan', lambda m: m.__setitem__('marks.setx', label_marks(x='nan')),
-             ('labelnan.snapx/marks.setx:6:', 'is not a finite number')),
-            ('marktype', lambda m: m.__setitem__('marks.setx', mark_marks(type='999')),
-             ('marktype.snapx/marks.setx:7:', "999 is not an object's type (0 to 7)")),
-            ('markcolor', lambda m: m.__setitem__('marks.setx', mark_marks(color='"999"')),
-             ('markcolor.snapx/marks.setx:8:', '`999` is not a colour')),
-            ('twonames', lambda m: m.__setitem__('session.setx', m['session.setx'].replace(b'session: {', b'session: { model: "lecar.odex",', 1)),
-             ('twonames.snapx/session.setx:3:', 'is given twice')),
+            ('labelid', marks_with(label_marks(id='1')),
+             ('labelid.snapx/session.odex:%d:' % (marks_line + 4), '1 is not an id below next_annotation_id 1')),
+            ('labelnegid', marks_with(label_marks(id='-1')),
+             ('labelnegid.snapx/session.odex:%d:' % (marks_line + 4), '-1 is not an id below next_annotation_id 1')),
+            ('markid', marks_with(mark_marks(id='5')),
+             ('markid.snapx/session.odex:%d:' % (marks_line + 5), '5 is not an id below next_annotation_id 1')),
+            ('sharedid', marks_with(mark_marks()[:2] + label_marks()[2:15] + mark_marks()[3:]),
+             ('sharedid.snapx/session.odex:', 'belongs to a text and an arrow, pointer or marker')),
+            ('labelnan', marks_with(label_marks(x='nan')),
+             ('labelnan.snapx/session.odex:%d:' % (marks_line + 6), 'is not a finite number')),
+            ('marktype', marks_with(mark_marks(type='999')),
+             ('marktype.snapx/session.odex:%d:' % (marks_line + 7), "999 is not an object's type (0 to 7)")),
+            ('markcolor', marks_with(mark_marks(color='"999"')),
+             ('markcolor.snapx/session.odex:%d:' % (marks_line + 8), '`999` is not a colour')),
+            ('twonames', edited(lambda text: '\n'.join(state_rows[:session_line] + ['  model: "lecar.odex",'] + state_rows[session_line:])),
+             ('twonames.snapx/session.odex:%d:' % (session_line + 2), 'is given twice')),
         ]
         if 'data.npz' in members:
             damages.append(('nodata', lambda m: m.pop('data.npz'), 'its data.npz is missing'))
@@ -9371,7 +9445,7 @@ def check_quit():
         text = open(rec, encoding='utf-8').read() if os.path.exists(rec) else ''
         _, _, steps, written, got = read_recx(text)
         check('quit: Save session (s) saves the session and the recording, then exits',
-              ok and os.path.exists(snap) and 'session.setx' in zipfile.ZipFile(snap).namelist()
+              ok and os.path.exists(snap) and 'session.odex' in zipfile.ZipFile(snap).namelist()
               and [x.get('cmd') for x, _ in steps] == [{'cmd': 'run.initial'}] and written == got, str(sorted(os.listdir(r))))
     finally:
         done(p, r, snd)
@@ -9428,7 +9502,7 @@ def check_quit():
         _, ok = ended(p, col)
         snap = os.path.join(r, 'kept.snapx')
         check('quit with save: the session saved, then the exit (bye, status 0)',
-              ok and os.path.exists(snap) and 'session.setx' in zipfile.ZipFile(snap).namelist(), str(sorted(os.listdir(r))))
+              ok and os.path.exists(snap) and 'session.odex' in zipfile.ZipFile(snap).namelist(), str(sorted(os.listdir(r))))
     finally:
         done(p, r, snd)
 
@@ -9514,7 +9588,7 @@ def check_recording():
         header, files, steps, written, got = read_recx(text)
         ode = os.path.basename(args.ode)
         check('record: the header names the format, program, model and date',
-              header[0] == 'recording: {' and header[1] == '  version: 4,' and header[2].startswith('  program: "xppautX ')
+              header[0] == 'version 4' and header[1] == 'session {' and header[2].startswith('  program: "xppautX ')
               and header[3] == '  model: "%s",' % ode and re.match(r'  recorded: "\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ",$', header[4]),
               str(header))
         want = open(os.path.join(r, ode), encoding='utf-8').read().splitlines()
@@ -9653,7 +9727,7 @@ def check_player():
               '%d steps, %s' % (len(steps), stopped))
         snap = recx_snapshot(text) or {}
         check('record: the recording begins with the session as it was (@snapshot: a .snapx without the data table)',
-              'session.setx' in snap and 'model/lecar.odex' in snap and 'model.setx' in snap and 'data.npz' not in snap,
+              'session.odex' in snap and 'model/lecar.odex' in snap and 'data.npz' not in snap,
               str(sorted(snap)))
         # no fallback: a recording without its snapshot is refused
         lines = text.split('\n')
@@ -11154,8 +11228,8 @@ def check_range_files():
                 s.send(cmd='session.save_as', file='before', data=False)
                 s.collect(is_done)
                 with zipfile.ZipFile(os.path.join(run, 'before.snapx')) as z:
-                    settings = z.read('model.setx').decode()
-                check('W349: session saves rangefiles by name', 'rangefiles: true' in settings, settings[-600:])
+                    settings = z.read('session.odex').decode()
+                check('W349: session saves rangefiles by name', 'write_files: true' in settings, settings[-600:])
                 for enabled, reset, expected in (('Y', 'Y', 3), ('N', 'Y', 0), ('Y', 'N', 0)):
                     s.send(cmd='run.range', variable='a', steps=2, start=1, end=3, reset_storage=reset == 'Y', use_old_ic=True,
                            cycle_color=False, movie=False, write_each_run_to_file=enabled == 'Y')
@@ -11195,8 +11269,8 @@ def check_range_files():
                 s.send(cmd='session.save_as', file='odex-roundtrip', data=False)
                 s.collect(is_done)
                 with zipfile.ZipFile(os.path.join(run, 'odex-roundtrip.snapx')) as z:
-                    text = z.read('model.setx').decode()
-                check('W349: saved .odex reloads rangefiles', 'rangefiles: true' in text, text[-600:])
+                    text = z.read('session.odex').decode()
+                check('W349: saved .odex reloads rangefiles', 'write_files: true' in text, text[-600:])
             finally:
                 s.close()
         for enabled in ('Y', 'N'):
@@ -11245,8 +11319,8 @@ def check_range_files():
                 s.send(cmd='session.save_as', file='roundtrip', data=False)
                 s.collect(is_done)
                 with zipfile.ZipFile(os.path.join(run, 'roundtrip.snapx')) as z:
-                    text = z.read('model.setx').decode()
-                check('W349: converted .odex loads the named setting', 'rangefiles: true' in text, text[-600:])
+                    text = z.read('session.odex').decode()
+                check('W349: converted .odex loads the named setting', 'write_files: true' in text, text[-600:])
             finally:
                 s.close()
 

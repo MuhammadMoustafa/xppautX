@@ -1,15 +1,12 @@
 #pragma once
-/* The settings of a session, in the settings syntax (setx.h, docs/odex.md ".setx"): a session file's model.setx
-   (W285, snapx.h), every key named, complete and without the graphics, which windows.setx holds for every window.
-   No user file of ours is a .setx (W321: a user's values are .odex sets, set_load.h; XPPAUT's .set is imported,
-   lunch-new.h): the same Settings also carry an imported .set, graphics included.
+/* The settings of a session, in .odex syntax (docs/odex.md "Session files"): a session file's parameter values
+   are its `par` lines, the initial values its `init` lines, the numerics and the sweep's the rows of its `options`
+   block (the option table's rows marked `saved`, model_options.h, under their .odex keys); the others (the run
+   position, the delays, the boundary conditions, ...) are groups of its `session { ... }` statement, named here, once,
+   for reading and writing alike. Every key is named and complete, without the graphics, which the session's windows
+   hold for every window. The same Settings also carry an imported XPPAUT .set (lunch-new.h), graphics included.
 
-   The numerics and the range keys are the option table's rows marked
-   `saved` (model_options.h, numerics_settings.h), under the key the table
-   gives them; the others (the values, the delays, the graphics, ...) are
-   named here, once, for reading and writing alike.
-
-   A settings file is read whole and checked (read_settings), then
+   A session file is read whole and checked (read_settings), then
    applied in one step (apply_settings): a file with a bad value
    changes nothing (W125). XPPAUT's own .set is read by lunch-new.cpp
    into the same Settings, which is applied as it is (File > Import XPPAUT
@@ -24,8 +21,10 @@
 #include "adj2.h"      /* AdjointState's transpose */
 #include "arrayplot.h" /* APLOT */
 #include "browse.h"    /* AddedColumn */
+#include "display_state.h" /* Zoom */
 #include "integrate.h" /* RangeVars, EquilibriumRange */
 #include "pp_shoot.h"  /* ShootRange */
+#include "odex.h" /* StateFile */
 #include "odex_block.h"
 #include "struct.h"    /* GRAPH */
 #include "xpp_error.h"
@@ -66,7 +65,7 @@ struct Settings {
     EquilibriumRange eq_range;
     ShootRange shoot_range;
     /* the file holds the active window's graphics (a settings file does, a
-       session's model.setx does not: windows.setx holds every window's) */
+       session's does not: its windows hold every window's) */
     bool graphics = true;
     /* the value of the table's row (the numerics' or the range's by its
        group) set to text */
@@ -74,18 +73,23 @@ struct Settings {
 };
 
 /* which settings: those with the active window's graphics (what an XPPAUT .set holds, compared and applied by
-   lunch-new.cpp) or a session's model.setx (complete: every key must be there; no graphics) */
+   lunch-new.cpp) or a session's (complete: every key must be there; no graphics) */
 enum class SettingsUse { file, session };
 
 /* s's settings now */
 Settings capture_settings(const Session &s, SettingsUse use);
 
-/* settings as a .setx's text; the error when a text cannot be written */
+/* f's `version`, par and init lines and options block, the start of a session file */
+Result<std::string> settings_statements(const Session &s, const Settings &f);
+/* f's groups of a session statement's keys, written into out (the caller opens and closes the statement) */
+void write_settings(odex::Out &out, const Session &s, const Settings &f);
+/* f as the text of a file of its own: `version`, the par and init lines, the options block and a session statement
+   with these groups; the error when a text cannot be written */
 Result<std::string> settings_text(const Session &s, const Settings &f);
 
-/* text, the session's .setx named file, read for s (its model's names): every key and value checked, or the
-   error at the one that is wrong. Nothing of s changes. */
-Result<Settings> read_settings(Session &s, std::string file, std::string_view text);
+/* file's par and init lines, options block and the settings of its session group read for s (its model's
+   names): every key and value checked, ReadFailed at the one that is wrong. Nothing of s changes. */
+Settings read_settings(Session &s, const odex::StateFile &file, odex::Block &session);
 
 /* f's storage precision put in s, its stored data converted: before a session's data table is put in place, so the
    table is kept at the precision the session was saved with */
@@ -97,20 +101,24 @@ void apply_settings(Session &s, const Settings &f, bool redraw);
 /* the value of parameter i of s's model */
 double parameter_value(const Session &s, int i);
 
-/* ---- the plot window's settings, shared with windows.setx ---- */
+/* ---- the plot window's settings, shared by the session's windows and the graphics of an XPPAUT .set ---- */
 
-/* a window's curves as .setx names them: the variables by name (the time,
+/* a window's curves as a session names them: the variables by name (the time,
    a variable, a column the browser added), the line and the colour */
 void write_curves(odex::Out &out, const Session &s, const GRAPH &g);
 /* the window's curves into g (nvars, xv, yv, zv, line, color); the
    variables are looked up as find_variable does, then in added (the
-   columns a session's windows.setx adds, not yet in s) */
+   columns a session's windows add, not yet in s) */
 void read_curves(odex::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes);
-/* a plot window as a group holds it (windows.setx, the graphics of a .setx):
+/* a plot window as a group holds it (a session's windows, the graphics of the settings):
    its curves, then its other settings (the rotation, the scales, the box, ...);
    added: as read_curves' */
 void write_window(odex::Out &out, const Session &s, const GRAPH &g);
 void read_window(odex::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes);
+/* a zoom, the part of the axes shown, as a group `zoom` of the owner's: x and y, each with `set`, `low` and `high`;
+   a set one has low below high */
+void write_zoom(odex::Out &out, const Zoom &z);
+Zoom read_zoom(odex::Block &owner);
 /* from's curves (their number, variables, lines and colours) given to to */
 void copy_curves(const GRAPH &from, GRAPH &to);
 /* those settings of from given to to, its other fields kept (a restored

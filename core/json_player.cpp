@@ -29,6 +29,7 @@
 #include "browse.h"
 #include "model_files.h"
 #include "model_switch.h"
+#include "odex_write.h"
 #include "recx.h"
 #include "xpp_http.h"
 #include "session.h"
@@ -703,7 +704,7 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
     /* the model of its snapshot, which the player loads (W59d) */
     std::optional<SavedFile> snapshot = xpp::json::snapshot_of(xpp::files::absolute(path), got->rec);
     if (!snapshot) return std::nullopt; /* the error said why */
-    json::session.reading = xpp::Place{xpp::files::absolute(path), 1, 0, std::string(recx::header_group)};
+    json::session.reading = xpp::Place{xpp::files::absolute(path), 1, 0, odex::version_statement()};
     json::close_player();
     json::player.work = std::make_unique<xpp::TempDir>();
     if (json::player.work->path().empty()) {

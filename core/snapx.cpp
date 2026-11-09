@@ -3,16 +3,9 @@
 #include "xpp_io.h"
 
 #include "xpp_files.h"
-#include "odex_block.h"
+#include "odex_write.h"
 
 namespace xpp::snapx {
-
-namespace {
-
-/* the manifest's group, as session.setx names it */
-constexpr std::string_view manifest_group = "session";
-
-} // namespace
 
 bool account_memory(std::size_t &used, std::size_t count, std::size_t bytes_each)
 {
@@ -30,34 +23,47 @@ bool memory_groups(odex::Block &block, std::string_view key, std::vector<odex::B
     return block.groups(key, out, zip::archive_bytes_limit / bytes_each);
 }
 
-Result<std::string> manifest_text(const Manifest &m)
+void write_manifest(odex::Out &out, const Manifest &m)
 {
-    odex::Out out;
-    out.begin(manifest_group);
-    out.whole(version_word, format_version);
     out.text("model", m.model_name);
     if (!m.anifile.empty()) out.text("animation", m.anifile);
     out.flag("data", m.data);
-    out.end();
-    return out.result("session");
+}
+
+Manifest read_manifest(odex::Block &session)
+{
+    Manifest m;
+    session.text("model", m.model_name);
+    if (!odex::is_odex(m.model_name)) session.fail(*session.member("model"), "a session stores an .odex model only; .ode is refused");
+    if (session.has("animation")) {
+        session.text("animation", m.anifile);
+        if (!files::has_extension(m.anifile, ".anix")) session.fail(*session.member("animation"), "a session stores an .anix animation only");
+    }
+    session.flag("data", m.data);
+    return m;
+}
+
+Result<std::string> manifest_text(const Manifest &m)
+{
+    odex::Out out;
+    out.begin_statement("session");
+    write_manifest(out, m);
+    out.end_statement();
+    Result<std::string> body = out.result("session");
+    if (!body) return std::unexpected(body.error());
+    return odex::version_statement() + "\n" + *body;
 }
 
 xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text)
 {
-    return odex::read_block("session", std::move(file), text, true, [](odex::Block &file_block) {
-        Manifest m;
-        odex::Block g = *file_block.group(manifest_group);
-        g.require_version("session files");
-        g.text("model", m.model_name);
-        if (!odex::is_odex(m.model_name)) g.fail(*g.member("model"), "a session stores an .odex model only; .ode is refused");
-        if (g.has("animation")) {
-            g.text("animation", m.anifile);
-            if (!files::has_extension(m.anifile, ".anix")) g.fail(*g.member("animation"), "a session stores an .anix animation only");
-        }
-        g.flag("data", m.data);
-        g.done();
-        return m;
-    });
+    Result<odex::StateFile> parsed = odex::read_state_file(odex::FileKind::session, "session", std::move(file), std::string(text));
+    if (!parsed) return std::unexpected(parsed.error());
+    try {
+        odex::Block session = parsed->block(true, "the session");
+        return read_manifest(session);
+    } catch (ReadFailed &e) {
+        return std::unexpected(std::move(e.error));
+    }
 }
 
 void add_model_members(std::vector<zip::Entry> &entries, std::span<const ModelFile> files)

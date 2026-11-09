@@ -13,11 +13,13 @@
 #include "model_files.h"
 #include "model_options.h"
 #include "load_eqn.h"
+#include "model.h"
 #include "odex_block.h"
 
 #include <algorithm>
 #include <array>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -257,8 +259,8 @@ std::string describe(const Token &t)
 
 class Parser {
 public:
-  Parser(xpp::Model *model, Parsed &out, int file, std::string_view src, int depth)
-      : model_(model), out_(out), file_(file), src_(src), depth_(depth)
+  Parser(xpp::Model *model, Parsed &out, int file, std::string_view src, int depth, FileKind kind = FileKind::model)
+      : model_(model), out_(out), file_(file), src_(src), depth_(depth), kind_(kind)
   {
     toks_ = Lexer(src, file, out.files[file]).run();
   }
@@ -271,22 +273,30 @@ public:
     while (!at_end()) statement();
   }
 
+  /* what the file is called in a message, as one file or as many */
+  std::string file_kind_name(bool plural) const
+  {
+    if (kind_ == FileKind::preferences) return plural ? "preferences files" : "the preferences file";
+    if (kind_ == FileKind::session) return plural ? "session files" : "a session file";
+    return plural ? "model files" : "a model file";
+  }
+
   void version()
   {
     const Token &t = peek();
     if (t.kind != Token::Kind::Name || t.text != xpp::version_word || t.primed || peek(1).kind != Token::Kind::Number)
-      fail(t.pos, xpp::format("a model file starts with `{} {}`, found {}: this program reads model files of version {}", xpp::version_word,
-                              xpp::format_version, describe(t), xpp::format_version));
+      fail(t.pos, xpp::format("{} starts with `{} {}`, found {}: this program reads {} of version {}", file_kind_name(false), xpp::version_word,
+                              xpp::format_version, describe(t), file_kind_name(true), xpp::format_version));
     take();
     const Token &found = take();
     if (found.text.find_first_not_of("0123456789") != std::string::npos || found.text.size() > 9)
       fail(found.pos, xpp::format("the version is a whole number, found {}", found.text));
     if (const int number = std::atoi(found.text.c_str()); number != xpp::format_version)
-      fail(found.pos, xpp::wrong_version(number, "model files"));
+      fail(found.pos, xpp::wrong_version(number, file_kind_name(true)));
     end_of_list("the version");
   }
 
-  /* a settings file (setx.h): the entries of an unbraced group to the end
+  /* a text of settings (odex_block.h): the entries of an unbraced group to the end
      of the text, read with the block grammar the options use */
   Value settings_file()
   {
@@ -477,6 +487,7 @@ private:
     Statement s;
     s.pos = t.pos;
     s.begin = t.begin;
+    if (kind_ != FileKind::model) only_state_statement(t);
     if (t.kind == Token::Kind::String) {
       s.kind = Statement::Kind::Comment;
       s.text = take().text;
@@ -521,6 +532,8 @@ private:
     } else if (word == "options") {
       take();
       options(s);
+    } else if ((word == "session" || word == "preferences") && at_punct("{", 1)) {
+      block_statement(s);
     } else if (word == "set") {
       take();
       set_block(s);
@@ -598,6 +611,33 @@ private:
       s.expr = expr();
       push(std::move(s));
     }
+  }
+
+  /* a session file holds par, init, options and session; the preferences file preferences (an import, a formula or
+     any other statement reads no file and is refused at its line) */
+  void only_state_statement(const Token &t) const
+  {
+    const bool session = kind_ == FileKind::session;
+    const bool ok = t.kind == Token::Kind::Name && !t.primed &&
+                    (session ? t.text == "par" || t.text == "init" || t.text == "options" || t.text == "session" : t.text == "preferences");
+    if (!ok)
+      fail(t.pos, xpp::format("{} holds {} only, found {}", file_kind_name(false),
+                              session ? "`par`, `init`, `options { ... }` and `session { ... }`" : "`preferences { ... }`", describe(t)));
+  }
+
+  /* session { ... } or preferences { ... }: the group of settings, in a file of that kind only */
+  void block_statement(Statement &s)
+  {
+    const Token &word = take();
+    const bool session = word.text == "session";
+    s.kind = session ? Statement::Kind::Session : Statement::Kind::Preferences;
+    if (kind_ != (session ? FileKind::session : FileKind::preferences))
+      fail(s.pos, xpp::format("`{} {{ ... }}` is accepted only in {}, not in {}", word.text,
+                              session ? "a session file" : "the preferences file", kind_ == FileKind::model ? "a model" : file_kind_name(false)));
+    if (block_at_) fail(s.pos, xpp::format("`{}` is written once in a file (the first is at line {})", word.text, block_at_));
+    block_at_ = s.pos.line;
+    s.more_mut().block = setting_value(0);
+    push(std::move(s));
   }
 
   /* s, its range with it when one follows */
@@ -1502,11 +1542,14 @@ private:
   int file_;
   std::string_view src_;
   int depth_;
+  FileKind kind_;
   std::vector<Token> toks_;
   size_t i_ = 0;
   int last_line_ = 0;
   /* the line of this file's options block, 0 before it */
   int options_at_ = 0;
+  /* the line of the session or preferences statement, 0 before it */
+  int block_at_ = 0;
   int expression_depth_ = 0;
 };
 
@@ -1539,6 +1582,21 @@ Parsed parse(xpp::Model &m, std::string_view text, const std::string &file)
   out.importing.push_back(file);
   Parser(&m, out, 0, text, 0).model();
   return out;
+}
+
+Result<Parsed> read_state(FileKind kind, std::string_view text, const std::string &file)
+{
+  try {
+    Parsed out;
+    out.files.push_back(file);
+    out.importing.push_back(file);
+    /* no import is read in these files; the parser only wants a model to name */
+    const auto model = std::make_unique<xpp::Model>();
+    Parser(model.get(), out, 0, text, 0, kind).model();
+    return out;
+  } catch (Error &e) {
+    return std::unexpected(std::move(e));
+  }
 }
 
 std::vector<AnimationStatement> parse_animation(std::string_view text, const std::string &file)

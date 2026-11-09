@@ -3,12 +3,12 @@
    text file, openable and editable in any editor, that holds what a
    session did and nothing it computed (a replay computes it again):
 
-     recording: {
-       version: 2,
+     version 4
+     session {
        program: "xppautX <version>",
        model: "<the model's file, as it names it>",
        recorded: "<when the recording began, UTC>",
-     },
+     }
 
      @snapshot
      <the session file's bytes (.snapx) in base64, 76 digits a line>
@@ -30,9 +30,8 @@
 
      fingerprint: <SHA-256 of the files and the steps, never the notes>
 
-   The header, up to the first line that starts with "@", is the settings
-   syntax (setx.h, W285): one `recording` group, every key named, in any
-   order, comments allowed. A line of a file that is "@end" or starts with "@@" is written with one
+   The header, up to the first line that starts with "@", is .odex syntax (docs/odex.md "Session files"):
+   `version` and one `session` statement, every key named, in any order, comments allowed. A line of a file that is "@end" or starts with "@@" is written with one
    more "@" in front (a reader takes it off). The @snapshot section (W59d)
    is the session as it was when Record was pressed: what Save session
    writes (xpp_session.h), without the data table, which the replay
@@ -62,7 +61,6 @@ inline constexpr std::string_view extension = ".recx";
 /* the speeds a replay may be paced at (recording.set_speed, hello's player_speed) */
 inline constexpr double player_speed_min = 0.25;
 inline constexpr double player_speed_max = 8;
-inline constexpr std::string_view header_group = "recording"; /* the header's one group */
 
 /* a step: its note (its lines separated by "\n", "" for none) and the
    step itself, one JSON object on one line */

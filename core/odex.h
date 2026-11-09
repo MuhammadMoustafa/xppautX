@@ -221,7 +221,9 @@ struct Statement {
     Dae,      /* 0 = expr */
     Only,     /* only names */
     Group,    /* .ode's group (its lines skipped) */
-    Comment   /* "text": a comment the model shows (text) */
+    Comment,  /* "text": a comment the model shows (text) */
+    Session,  /* session { ... }: a session file's state (block), only in a session file */
+    Preferences /* preferences { ... }: the preferences' (block), only in the preferences file */
   };
   Kind kind = Kind::Fixed;
   Pos pos;
@@ -266,6 +268,8 @@ struct Statement {
     bool has_body = false;
     std::vector<BlockStmt> body;
     std::vector<Option> options;
+    /* a session's or the preferences' group */
+    std::optional<Value> block;
     /* an event's sign, a Markov variable's number of states, a formula
        table's number of points */
     int count = 0;
@@ -334,6 +338,28 @@ std::vector<Statement> import_statements(std::vector<Statement> file, const Impo
 /* text, the contents of file, parsed; an include is read relative to
    file's folder, as one of m's files (model_files.h). Throws Error. */
 Parsed parse(xpp::Model &m, std::string_view text, const std::string &file);
+
+/* the files that hold the statement of their own kind besides a model's: a session file (a .snapx's session.odex and a
+   .recx's header: `version`, then par and init lines, `options { ... }` and one `session { ... }`) and the preferences file
+   (`version` and one `preferences { ... }`). A model has neither statement. */
+enum class FileKind { model, session, preferences };
+
+/* text, the contents of file, of the kind (not a model) read whole by the same tokenizer and statements as a model:
+   no other statement than its kind's is accepted (no import, no formula), so no file is read from it. Errors at the
+   line and column that are wrong. */
+Result<Parsed> read_state(FileKind kind, std::string_view text, const std::string &file);
+
+/* a file of one of those kinds read whole: its statements, the text its errors show their lines from, and the group of
+   its `session` or `preferences` statement (empty when it has none). The Blocks made of it read the group; it outlives
+   them and is not moved while they exist. where names the reader in an error ("session", "preferences"). */
+struct StateFile {
+  Parsed parsed;
+  Document doc;
+  Value group;
+  /* the group as a Block: complete, every key it is asked for must be there; name is what a message calls it */
+  Block block(bool complete, std::string name) const { return Block(doc, group, complete, std::move(name)); }
+};
+Result<StateFile> read_state_file(FileKind kind, std::string where, std::string file, std::string text);
 
 /* Animation statements share this parser's tokens, expressions, keyed blocks and ranges.
    Expressions are bindings; literal/style fields use the settings value tree. */
@@ -435,6 +461,11 @@ std::string print_number(double v);
 /* e as the number it is written as, a number or a signed one (a set's value, a
    file of values'), print_number's text; none for any other expression */
 std::optional<std::string> literal_number_text(const Expr &e);
+
+/* whether binding b of statement s (a par or init line) gives a whole name a number: its text, or why not (the name is
+   an array's element or a range's copy, or the value is a formula) */
+enum class WholeNumber { number, element, formula };
+WholeNumber whole_number(const Statement &s, const Binding &b, std::string &text);
 /* text as an .odex string, in double quotes, a " and a \ escaped: the
    only escapes a string has (a path, a narration) */
 std::string quote_string(std::string_view text);

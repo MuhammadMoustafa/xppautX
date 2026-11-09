@@ -3,9 +3,9 @@
    a zip (xpp_zip.h) of ordinary files, what continuing where the user
    stopped needs, the model included (W103: its every file, model/<name>).
    This header is its pure part (snapx.cpp, no I/O, unit tested by
-   tests/test_snapx.cpp): the members' names, the manifest (session.setx:
-   the model's first file, the animation it was loaded with, whether the
-   data is in) and the model's members. Reading and writing a whole file
+   tests/test_snapx.cpp): the members' names, the manifest (the first keys of
+   the state file's session statement: the model's first file, the animation it was
+   loaded with, whether the data is in) and the model's members. Reading and writing a whole file
    is xpp_session.cpp's; autoX's members belong to the session too
    (xpp_session_autox.h). C++ only. */
 #include <expected>
@@ -20,7 +20,7 @@
 #include "xpp_error.h"
 #include "xpp_zip.h"
 
-namespace xpp::odex { class Block; }
+namespace xpp::odex { class Block; class Out; }
 
 namespace xpp::snapx {
 
@@ -34,24 +34,18 @@ bool account_memory(std::size_t &used, std::size_t count, std::size_t bytes_each
 bool memory_groups(odex::Block &block, std::string_view key, std::vector<odex::Block> &out,
                    std::size_t bytes_each, std::size_t &used);
 
-/* the members, in the order a session file holds them: the manifest,
+/* the members, in the order a session file holds them: the state file,
    the model's (model_folder below), then these */
-inline constexpr const char *manifest_member = "session.setx"; /* Manifest below */
-inline constexpr const char *set_member = "model.setx";       /* the session's settings (setx_file.h), complete, without graphics */
-inline constexpr std::string_view autox_folder = "autox/";       /* autoX's members, settings, views and optional diagram/orbits (xpp_session_autox.h) */
-inline constexpr const char *windows_member = "windows.setx"; /* the plot windows and what they display */
-inline constexpr const char *marks_member = "marks.setx";     /* labels, arrows and markers, frozen curves */
-inline constexpr const char *frozen_member = "frozen.npz";    /* the frozen curves' points */
-inline constexpr const char *data_member = "data.npz";        /* the data table */
-inline constexpr const char *sliders_member = "sliders.setx"; /* every slider slot, including empty ones */
-inline constexpr const char *nullclines_member = "nullclines.setx"; /* current and frozen segments with their axes */
-inline constexpr const char *random_member = "random.txt";    /* "seed N" (the next Go's), "wiener v..." (their current values), then the generator's state (xpp::Random::save's text) */
+inline constexpr const char *state_member = "session.odex"; /* the state: `version`, par and init lines, options and one session statement (xpp_session.cpp; docs/protocol.md) */
+inline constexpr std::string_view autox_folder = "autox/";  /* autoX's diagram and solution members (xpp_session_autox.h) */
+inline constexpr const char *frozen_member = "frozen.npz";  /* the frozen curves' points */
+inline constexpr const char *data_member = "data.npz";      /* the data table */
 
 /* the folder of the model's members: model/<name> is its file name, as
    the model names it (model_files.h), the model's own first */
 inline constexpr std::string_view model_folder = "model/";
 
-/* session.setx: a `session` group of version (format_version.h), model, anifile and data (setx.h) */
+/* the manifest, the first keys of the state file's session statement: `model`, `animation` and `data` */
 struct Manifest {
     std::string model_name; /* the model's own file, as it names it: the member model/<model_name> */
     std::string anifile;    /* --anifile's animation the model was loaded with, one of its files ("": none) */
@@ -59,12 +53,15 @@ struct Manifest {
     bool operator==(const Manifest &) const = default;
 };
 
-/* The session manifest: version, model, animation and data. */
+/* m's keys written into the session statement being written */
+void write_manifest(odex::Out &out, const Manifest &m);
+/* the manifest keys of session, the session statement's group of a state file read whole: not a session of this
+   version, a model that is no .odex, an animation that is no .anix: ReadFailed at the value */
+Manifest read_manifest(odex::Block &session);
+/* m as a state file of its own, the manifest alone (a model-only archive's first member) */
 Result<std::string> manifest_text(const Manifest &m);
-/* text, the manifest member file (its errors' place), read whole: not
-   a session manifest (another version, an older session's layout), a key
-   manifest_text does not write or one given twice, a data other than
-   0 or 1, no model: the error at its line and column */
+/* text, the state member file (its errors' place), read whole for its manifest alone: not a session file (another
+   version, a missing key, a model that is no .odex): the error at its line and column */
 xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text);
 
 /* files as members of the folder model_folder, in their order, after entries' */

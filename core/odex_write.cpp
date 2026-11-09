@@ -238,6 +238,8 @@ int LineMap::map(int line) const
   return line + delta;
 }
 
+std::string version_statement() { return xpp::format("{} {}", xpp::version_word, xpp::format_version); }
+
 std::string braced(const std::vector<std::string> &items, std::size_t indent)
 {
   std::string line = "{ ";
@@ -306,7 +308,7 @@ Result<std::vector<std::pair<std::string, Pos>>> local_sets(Model &m, std::strin
 
 std::string export_header(std::string_view file, std::string_view time)
 {
-  return xpp::format("# Saved from {} at {}\n{} {}\n", file, time, xpp::version_word, xpp::format_version);
+  return xpp::format("# Saved from {} at {}\n", file, time) + version_statement() + "\n";
 }
 
 Result<Edited> add_set(Model &m, std::string_view text, const std::string &file, std::string_view name, const Values &values, bool partial)

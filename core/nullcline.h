@@ -70,13 +70,12 @@ struct NullclineState {
 
 /* The nullclines and the direction field of the session s's active plot
    window: its commands, and redrawn with it */
-/* The current nullclines and the frozen ones as nullclines.setx's text (a
-   session file's member): per pair, the variables on its axes and its x and
-   y segments, four finite coordinates each. Saved segments are read whole
-   (setx.h's Block, every number checked, at most a cell of the largest mesh a segment)
-   before the session applies any member. */
-Result<std::string> nullclines_text(const Session &s);
-NullclineState read_nullclines(const Model &m, odex::Block &file);
+/* The current nullclines and the frozen ones as the group `nullclines` of a session statement being written: per
+   pair, the variables on its axes and its x and y segments, four finite coordinates each. Saved segments are read
+   whole (odex_block.h's Block over that group, every number checked, at most a cell of the largest mesh a segment)
+   before the session applies any of it. */
+void write_nullclines(odex::Out &out, const Session &s);
+NullclineState read_nullclines(const Model &m, odex::Block &nullclines);
 void create_new_cline(Session &s);
 void freeze_nullclines(Session &s);
 void clear_frozen_nullclines(Session &s);

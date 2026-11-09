@@ -1,4 +1,4 @@
-/* A recording's file (recx.h, W59a, W285): the header in the settings
+/* A recording's file (recx.h, W59a, W285): the header in .odex
    syntax, each file as a section (a line that would end it written with one
    more "@"), the steps with their notes as # lines, and a fingerprint of the
    files and the steps that a note does not change and a step does. */
@@ -48,7 +48,7 @@ int main()
     CHECK(r.files.size() == 1);
     const std::string hashed = "@snapshot\nUEsFBg==\n@end\n@file lecar.odex\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n"
                                "{\"step\":\"Run → Initial\",\"cmd\":{\"cmd\":\"run.initial\"}}\n{\"step\":\"Erase\",\"cmd\":{\"cmd\":\"window.redraw\"}}\n";
-    const std::string want = "recording: {\n  version: 4,\n  program: \"xppautX dev\",\n  model: \"lecar.odex\",\n  recorded: \"2026-09-30T10:14:02Z\",\n},\n\n"
+    const std::string want = "version 4\nsession {\n  program: \"xppautX dev\",\n  model: \"lecar.odex\",\n  recorded: \"2026-09-30T10:14:02Z\",\n}\n\n"
                              "@snapshot\nUEsFBg==\n@end\n\n@file lecar.odex\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n\n@steps\n"
                              "# First run.\n#\n# It settles.\n{\"step\":\"Run → Initial\",\"cmd\":{\"cmd\":\"run.initial\"}}\n"
                              "{\"step\":\"Erase\",\"cmd\":{\"cmd\":\"window.redraw\"}}\n\nfingerprint: "
@@ -95,20 +95,20 @@ int main()
         const xpp::Result<xpp::recx::Read> e = xpp::recx::read(text, "");
         return e ? std::string() : e.error().text();
     };
-    const std::string head = "recording: {\n  version: 4,\n  program: \"xppautX\",\n  model: \"a.odex\",\n  recorded: \"now\",\n},\n\n";
-    CHECK(error("recording: {\n  version: 4,\n  program: \"x\",\n  model: \"a.ode\",\n  recorded: \"now\",\n},\n@steps\n") ==
+    const std::string head = "version 4\nsession {\n  program: \"xppautX\",\n  model: \"a.odex\",\n  recorded: \"now\",\n}\n\n";
+    CHECK(error("version 4\nsession {\n  program: \"x\",\n  model: \"a.ode\",\n  recorded: \"now\",\n}\n@steps\n") ==
           "line 4:3: a recording stores an .odex model only; .ode is refused");
     CHECK(error(head + "@snapshot\nUEsFBg==\n@end\n@file a.odex\nx'=1\n") == "line 11: the section of a.odex has no @end");
     /* no fallback: a file without the session it began from is not a recording */
     CHECK(error(head + "@file a.odex\nx'=1\n@end\n@steps\n") == "line 8: no @snapshot section before the files: a recording begins with the session's state");
     CHECK(error(head + "@steps\n") == "line 8: no @snapshot section: a recording begins with the session's state");
-    CHECK(error("not one\n").starts_with("line 1:5: not a recording: expected `:`"));
+    CHECK(error("not one\n").starts_with("line 1:1: not a recording: a session file starts with `version 4`"));
     CHECK(error("xppautx-recording 1\nprogram: x\nmodel: a.odex\nrecorded: now\n\n@steps\n").starts_with("line 1:"));
     /* the header: each key once, none other, this version */
-    CHECK(error("recording: { version: 4, program: \"x\", model: \"a.odex\" },\n@steps\n") == "line 1:12: recording has no `recorded`");
-    CHECK(error("recording: { version: 4, program: \"x\", model: \"a.odex\", model: \"b.odex\" },\n@steps\n").find("`model` is given twice") != std::string::npos);
-    CHECK(error("recording: { version: 4, author: \"me\" },\n@steps\n").find("recording has no `program`") != std::string::npos);
-    CHECK(error("recording: { version: 1, program: \"x\", model: \"a.odex\", recorded: \"now\" },\n@steps\n").find("version 1: this program reads recordings of version 4") != std::string::npos);
+    CHECK(error("version 4\nsession { program: \"x\", model: \"a.odex\" }\n@steps\n") == "line 2:9: the header has no `recorded`");
+    CHECK(error("version 4\nsession { program: \"x\", model: \"a.odex\", model: \"b.odex\" }\n@steps\n").find("`model` is given twice") != std::string::npos);
+    CHECK(error("version 4\nsession { author: \"me\" }\n@steps\n").find("the header has no `program`") != std::string::npos);
+    CHECK(error("version 1\nsession { program: \"x\", model: \"a.odex\", recorded: \"now\" }\n@steps\n").find("version 1: this program reads session files of version 4") != std::string::npos);
     /* the fingerprint ends it: missing, or a line after it */
     const std::string steps = head + "@snapshot\nUEsFBg==\n@end\n@steps\n{\"cmd\":{\"cmd\":\"run.initial\"}}\n";
     CHECK(error(steps) == "line 13: the file ends here, before its fingerprint");

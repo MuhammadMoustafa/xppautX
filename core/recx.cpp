@@ -1,8 +1,8 @@
 /* A recording's file, name.recx: see recx.h. */
 #include "recx.h"
 #include "model_files.h"
-#include "odex_block.h"
-#include "snapx.h"
+#include "odex.h"
+#include "odex_write.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_sha256.h"
@@ -86,15 +86,14 @@ Result<std::string> text(const Recording &r)
         out += '\n';
     };
     odex::Out header;
-    header.begin(header_group);
-    header.whole(version_word, format_version);
+    header.begin_statement("session");
     header.text("program", r.program);
     header.text("model", r.model);
     header.text("recorded", r.recorded);
-    header.end();
+    header.end_statement();
     Result<std::string> head = header.result("recording");
     if (!head) return std::unexpected(head.error());
-    out += *head;
+    out += odex::version_statement() + "\n" + *head;
     add("");
     hashed.emplace_back(snapshot_line);
     base64_lines(r.snapshot, hashed);
@@ -124,7 +123,7 @@ Result<Read> read(std::string_view text, std::string file)
         Read got;
         Recording &r = got.rec;
         std::vector<std::string> hashed;
-        /* the header: the lines before the first section's, in the settings syntax */
+        /* the header: the lines before the first section's, in .odex syntax: `version` and a session statement */
         std::string header;
         std::string_view first_section;
         while (!l.at_end()) {
@@ -136,22 +135,18 @@ Result<Read> read(std::string_view text, std::string file)
             header += line;
             header += '\n';
         }
-        /* text that is no settings at all is not a recording: said so (a header that parses and is wrong is told what is) */
-        if (Result<odex::Value> syntax = odex::read_tree("recording", l.file(), header); !syntax) {
-            syntax.error().what = xpp::format("not a recording: {}", syntax.error().what);
-            throw ReadFailed{syntax.error()};
+        /* text that is no session file at all is not a recording: said so (a header that parses and is wrong is told what is) */
+        Result<odex::StateFile> head = odex::read_state_file(odex::FileKind::session, "recording", l.file(), header);
+        if (!head) {
+            head.error().what = xpp::format("not a recording: {}", head.error().what);
+            throw ReadFailed{head.error()};
         }
-        Result<int> parsed = odex::read_block("recording", l.file(), header, true, [&r](odex::Block &file) {
-            odex::Block g = *file.group(header_group);
-            g.require_version("recordings");
-            g.text("program", r.program);
-            g.text("model", r.model);
-            if (!odex::is_odex(r.model)) g.fail(*g.member("model"), "a recording stores an .odex model only; .ode is refused");
-            g.text("recorded", r.recorded);
-            g.done();
-            return 0;
-        });
-        if (!parsed) throw ReadFailed{parsed.error()};
+        odex::Block g = head->block(true, "the header");
+        g.text("program", r.program);
+        g.text("model", r.model);
+        if (!odex::is_odex(r.model)) g.fail(*g.member("model"), "a recording stores an .odex model only; .ode is refused");
+        g.text("recorded", r.recorded);
+        g.done();
         if (first_section.empty()) l.fail("no @snapshot section: a recording begins with the session's state");
         bool snapshot = false;
         for (std::string_view h = first_section; h != steps_line; h = l.next(steps_line)) {

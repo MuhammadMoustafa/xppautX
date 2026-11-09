@@ -1,12 +1,16 @@
-/* A session's settings (.setx) read, written and applied: see setx_file.h.
-   Every group of it is described once, by `describe`, which is given a
+/* A session's settings read, written and applied: see session_settings.h.
+   Every group of the session statement's settings is described once, by `describe`, which is given a
    writer (Put) or a reader (Take) and says "this key, this member"; the
-   same description writes and reads, so a key is never named twice. */
+   same description writes and reads, so a key is never named twice. The values and
+   the numerics are the file's par and init lines and options block (values_text,
+   read_values, options_items, read_options). */
 #include "session_settings.h"
+#include "odex_write.h"
 #include "snapx.h"
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <string>
 
 #include "delay_handle.h"
@@ -30,10 +34,9 @@ namespace {
 
 /* the groups of a settings file, as it names them */
 namespace group {
-constexpr std::string_view numerics = "numerics", run = "run", initial = "initial", ending = "ending",
-                           parameters = "parameters", delays = "delays", boundary = "boundary",
+constexpr std::string_view session = "session", numerics = "numerics", run = "run", ending = "ending", delays = "delays", boundary = "boundary",
                            graphics = "graphics", transpose = "transpose", coupling = "coupling",
-                           array_plot = "array_plot", torus = "torus", range = "range",
+                           array_plot = "array_plot", torus = "torus", sweep = "sweep",
                            equilibrium_range = "equilibrium_range", bvp_range = "bvp_range";
 } // namespace group
 
@@ -54,7 +57,7 @@ std::size_t bc_room(const Session &s, int i)
 
 /* ---- the writer and the reader of a description ---- */
 
-/* the values of the model's names in one group: the ones the file names
+/* the values of the model's variables (equations) in one group: the ones the file names
    (complete: every one, and none the model does not have) */
 template <class V, class Read>
 void read_named(const Model &model, odex::Block &g, std::span<const std::string> names, std::vector<V> &values, Read read)
@@ -62,9 +65,9 @@ void read_named(const Model &model, odex::Block &g, std::span<const std::string>
     std::size_t matched = 0;
     for (const odex::Member *m : g.members()) {
         const Model::Name *entry = model.name(m->key);
-        const int index = entry ? (g.name() == group::parameters ? entry->parameter : entry->column) : -1;
+        const int index = entry ? entry->column : -1;
         if (index < 0 || static_cast<std::size_t>(index) >= names.size() || names[static_cast<std::size_t>(index)] != m->key)
-            g.fail(*m, xpp::format("`{}` is not one of the model's {}", m->key, g.name()));
+            g.fail(*m, xpp::format("`{}` is not one of the model's variables", m->key));
         read(static_cast<std::size_t>(index), values[static_cast<std::size_t>(index)], *m);
         matched++;
     }
@@ -91,11 +94,6 @@ public:
         out_.begin(key);
         fn(*this);
         out_.end();
-    }
-    /* the option table's rows of group the file holds */
-    void table(std::string_view which, const Settings &f)
-    {
-        for (const auto &[row, text] : which == group::numerics ? f.numerics : f.range) out_.word(setting_key(*row), text);
     }
     void named(std::string_view key, std::span<const std::string> names, const std::vector<double> &values)
     {
@@ -157,40 +155,6 @@ public:
         Take nested(*g, s_);
         fn(nested);
         g->done();
-    }
-    /* the option table's rows of group, each checked as the Numerics menu
-       and the @ lines check them; the file's method decides whether the
-       Volterra points belong */
-    void table(std::string_view which, Settings &fill)
-    {
-        int method = s_->numerics.method;
-        for (const OptionRow *row : saved_settings(which)) {
-            const std::string key = setting_key(*row);
-            if (!setting_applies(*s_, *row, method)) {
-                if (block_.has(key)) block_.fail(*block_.member(key), xpp::format("`{}` is not a setting of this model", key));
-                continue;
-            }
-            const odex::Member *m = block_.member(key);
-            if (!m) continue;
-            const std::string text = block_.word_of(*m);
-            if (const std::optional<std::string> why = setting_problem(*s_, *row, text))
-                block_.fail(*m, xpp::format("`{}`: {} (found `{}`)", key, *why, text));
-            if (row->rule == OptionRule::method) method = method_by_key(s_->model(), text, command_place()).value();
-            fill.set_setting(row, text);
-        }
-        /* the settings the file holds keep the orders the options keep */
-        const auto held = [&](const OptionRow &r) -> std::optional<double> {
-            for (const auto &[row, text] : fill.numerics) {
-                double v = 0;
-                if (row == &r && parse_number(text, v)) return v;
-            }
-            return r.real ? r.real(*s_) : r.whole(*s_);
-        };
-        if (const auto bad = option_pairs_problem(held)) {
-            const odex::Member *at = block_.member(setting_key(once_option(bad->hi)));
-            if (!at) at = block_.member(setting_key(once_option(bad->lo)));
-            if (at) block_.fail(*at, bad->text);
-        }
     }
     void named(std::string_view key, std::span<const std::string> names, std::vector<double> &values)
     {
@@ -299,7 +263,7 @@ private:
 };
 
 /* the column name names: the time, a variable, or one of the columns
-   added (a session's windows.setx adds them before the browser has them);
+   added (a session's windows add them before the browser has them);
    nothing when the model has none of that name */
 std::optional<int> column_named(const Session &s, std::span<const AddedColumn> added, std::string_view name)
 {
@@ -313,8 +277,8 @@ std::optional<int> column_named(const Session &s, std::span<const AddedColumn> a
 
 /* ---- the whole description ---- */
 
-/* the names a settings file's groups are keyed by (the model's), and the room
-   each boundary condition has; none for the schema, which keys them by pattern */
+/* the names a session's groups are keyed by (the model's), and the room
+   each boundary condition has */
 struct Names {
     std::vector<std::string> variables, equations, all, parameters;
     std::vector<std::size_t> bc_room;
@@ -329,21 +293,19 @@ Names names_of(const Session &s)
     return n;
 }
 
-/* what a settings file holds, given to io: f is the Settings written from
-   or read into (or, for the schema, any) */
+/* what the session statement holds of the settings, given to io: f is the Settings written from
+   or read into. The parameters, the initial values and the numerics are the file's par and init
+   lines and options block. */
 template <class IO, class S> void describe(IO &io, S &f, const Names &n)
 {
-    io.group(group::numerics, [&](IO &g) { g.table(group::numerics, f); });
     io.group(group::run, [&](IO &r) {
         r("current_time", f.current_time);
         r("last_time", f.last_time);
         r("my_start", f.my_start);
         r.flag("inflag", f.inflag);
         r.flag("delay_flag", f.delay_flag);
+        r.named(group::ending, n.variables, f.current);
     });
-    io.named(group::initial, n.variables, f.last_ic);
-    io.named(group::ending, n.variables, f.current);
-    io.named(group::parameters, n.parameters, f.params);
     io.named(group::delays, n.equations, f.delays);
     io.named(group::boundary, n.equations, f.bcs, n.bc_room);
     if (f.graphics)
@@ -374,8 +336,7 @@ template <class IO, class S> void describe(IO &io, S &f, const Names &n)
         t("period", f.torus_period);
         t.flagged("fold", n.all, f.itor);
     });
-    io.group(group::range, [&](IO &r) {
-        r.table(group::range, f);
+    io.group(group::sweep, [&](IO &r) {
         r.word("rangeover2", f.range_item2);
         r("rangelow2", f.range_low2);
         r("rangehigh2", f.range_high2);
@@ -448,6 +409,37 @@ void read_window(odex::Block &window, const Session &s, GRAPH &g, std::span<cons
     graph_fields(io, g);
 }
 
+void write_zoom(odex::Out &out, const Zoom &z)
+{
+    out.begin("zoom");
+    for (const auto &[key, r] : {std::pair<std::string_view, const AxisRange &>{"x", z.x}, {"y", z.y}}) {
+        out.begin(key);
+        out.flag("set", r.set);
+        out.real("low", r.lo);
+        out.real("high", r.hi);
+        out.end();
+    }
+    out.end();
+}
+
+Zoom read_zoom(odex::Block &owner)
+{
+    Zoom z;
+    std::optional<odex::Block> g = owner.group("zoom");
+    if (!g) return z;
+    for (const auto &[key, r] : {std::pair<std::string_view, AxisRange &>{"x", z.x}, {"y", z.y}}) {
+        std::optional<odex::Block> a = g->group(key);
+        if (!a) continue;
+        a->flag("set", r.set);
+        a->real("low", r.lo);
+        a->real("high", r.hi);
+        if (r.set && !(r.lo < r.hi)) a->fail(*a->member("low"), xpp::format("a zoom's low {} is not below its high {}", r.lo, r.hi));
+        a->done();
+    }
+    g->done();
+    return z;
+}
+
 void write_curves(odex::Out &out, const Session &s, const GRAPH &g)
 {
     out.begin_list("curves");
@@ -500,7 +492,7 @@ Settings capture_settings(const Session &s, SettingsUse use)
     f.graphics = use == SettingsUse::file;
     for (const OptionRow *row : saved_settings(group::numerics))
         if (setting_applies(s, *row, s.numerics.method)) f.numerics.emplace_back(row, setting_text(s, *row));
-    for (const OptionRow *row : saved_settings(group::range)) f.range.emplace_back(row, setting_text(s, *row));
+    for (const OptionRow *row : saved_settings(option_group::sweep)) f.range.emplace_back(row, setting_text(s, *row));
     f.current_time = s.data_store.current_time;
     f.last_time = s.integrator.last_time;
     f.my_start = s.integrator.my_start;
@@ -531,24 +523,156 @@ Settings capture_settings(const Session &s, SettingsUse use)
     return f;
 }
 
-Result<std::string> settings_text(const Session &s, const Settings &f)
+namespace {
+
+/* the par and init lines of f: one statement for each value, the name as the model has it */
+Result<std::string> values_text(const Settings &f, const Names &n)
 {
-    odex::Out out;
-    out.comment("xppautX settings (docs/odex.md, \".setx\")");
-    if (f.graphics) out.whole(version_word, format_version); /* the file's own (the session's members have the manifest's) */
-    Put io(out, &s);
-    describe(io, f, names_of(s));
-    return out.result("settings");
+    std::string out;
+    const auto put = [&](std::string_view keyword, std::span<const std::string> names, const std::vector<double> &values) -> Result<> {
+        for (std::size_t i = 0; i < names.size(); i++) {
+            if (!odex::is_name(names[i]))
+                return fail("session", xpp::format("`{}` cannot be written as a name of a {} line", names[i], keyword), Place{snapx::state_member});
+            if (std::isnan(values[i]))
+                return fail("session", xpp::format("the value of `{}` is not a number: it cannot be written", names[i]), Place{snapx::state_member});
+            out += xpp::format("{} {} = {}\n", keyword, names[i], odex::print_number(values[i]));
+        }
+        return {};
+    };
+    if (Result<> done = put("par", n.parameters, f.params); !done) return std::unexpected(done.error());
+    if (Result<> done = put("init", n.variables, f.last_ic); !done) return std::unexpected(done.error());
+    return out;
 }
 
-Result<Settings> read_settings(Session &s, std::string file, std::string_view text)
+/* the options block of f: each row under its group and key, a path or a text in quotes */
+std::string options_text(const Settings &f)
 {
-    return odex::read_block("session", std::move(file), text, true, [&](odex::Block &block) {
-        Settings f = capture_settings(s, SettingsUse::session);
-        Take io(block, &s);
-        describe(io, f, names_of(s));
-        return f;
-    });
+    std::vector<odex::GroupItem> items;
+    for (const auto *rows : {&f.numerics, &f.range})
+        for (const auto &[row, text] : *rows)
+            items.push_back({row->group, odex_key(*row, 0) + ": " + (option_written_quoted(*row) ? odex::quote_string(text) : text)});
+    return odex::options_block(items);
+}
+
+/* the file's par or init lines (kind) read into values: each name of the model's, once, a number each */
+void read_values(const odex::StateFile &file, const Model &m, odex::Statement::Kind kind, std::span<const std::string> names, std::vector<double> &values)
+{
+    const bool parameters = kind == odex::Statement::Kind::Par;
+    std::vector<bool> seen(names.size(), false);
+    for (const odex::Statement &st : file.parsed.statements) {
+        if (st.kind != kind) continue;
+        for (const odex::Binding &b : st.bindings) {
+            const Model::Name *entry = m.name(b.name);
+            const int index = entry ? (parameters ? entry->parameter : entry->column) : -1;
+            if (index < 0 || static_cast<std::size_t>(index) >= names.size() || names[static_cast<std::size_t>(index)] != b.name)
+                file.doc.fail(b.pos.line, b.pos.col, xpp::format("`{}` is not one of the model's {}", b.name, parameters ? "parameters" : "variables"));
+            std::string number;
+            double v = 0;
+            switch (odex::whole_number(st, b, number)) {
+            case odex::WholeNumber::element:
+                file.doc.fail(b.pos.line, b.pos.col, xpp::format("`{}` is an array's element: a session holds each name whole", b.name));
+            case odex::WholeNumber::formula:
+                file.doc.fail(b.value.pos.line, b.value.pos.col, xpp::format("`{}` is not given a number", b.name));
+            case odex::WholeNumber::number: break;
+            }
+            if (!parse_number(number, v)) file.doc.fail(b.value.pos.line, b.value.pos.col, xpp::format("`{}` is not given a number", b.name));
+            if (seen[static_cast<std::size_t>(index)])
+                file.doc.fail(b.pos.line, b.pos.col, xpp::format("`{}` is given twice", b.name));
+            seen[static_cast<std::size_t>(index)] = true;
+            values[static_cast<std::size_t>(index)] = v;
+        }
+    }
+    for (std::size_t i = 0; i < names.size(); i++)
+        if (!seen[i]) file.doc.fail(file.group.line, file.group.col, xpp::format("the file has no `{} {}` line", parameters ? "par" : "init", names[i]));
+}
+
+/* the options block read into f's numerics and sweep rows, each checked as the Numerics menu and the @ lines check
+   them (every one the model has, once; the file's method decides whether the Volterra points belong) */
+void read_options(Session &s, const odex::StateFile &file, Settings &f)
+{
+    std::map<const OptionRow *, const odex::Option *> given;
+    for (const odex::Statement &st : file.parsed.statements) {
+        if (st.kind != odex::Statement::Kind::Options) continue;
+        for (const odex::Option &o : st.more().options) {
+            int index = 0;
+            const OptionRow *row = find_odex_option(o.group, o.name, index);
+            if (!row || !row->saved)
+                file.doc.fail(o.pos.line, o.pos.col, xpp::format("`{}` is not a setting a session holds", o.name));
+            given[row] = &o;
+        }
+    }
+    for (const std::string_view which : {group::numerics, option_group::sweep}) {
+        int method = s.numerics.method;
+        for (const OptionRow *row : saved_settings(which)) {
+            const std::string key = odex_key(*row, 0);
+            const auto at = given.find(row);
+            const odex::Option *o = at == given.end() ? nullptr : at->second;
+            if (!setting_applies(s, *row, method)) {
+                if (o) file.doc.fail(o->pos.line, o->pos.col, xpp::format("`{}` is not a setting of this model", key));
+                continue;
+            }
+            if (!o) file.doc.fail(file.group.line, file.group.col, xpp::format("the options have no `{}`", key));
+            if (const std::optional<std::string> why = setting_problem(s, *row, o->value))
+                file.doc.fail(o->value_pos.line, o->value_pos.col, xpp::format("`{}`: {} (found `{}`)", key, *why, o->value));
+            if (row->rule == OptionRule::method) method = method_by_key(s.model(), o->value, command_place()).value();
+            f.set_setting(row, o->value);
+        }
+    }
+    /* the settings the file holds keep the orders the options keep */
+    const auto held = [&](const OptionRow &r) -> std::optional<double> {
+        for (const auto *rows : {&f.numerics, &f.range})
+            for (const auto &[row, text] : *rows) {
+                double v = 0;
+                if (row == &r && parse_number(text, v)) return v;
+            }
+        return r.real ? r.real(s) : r.whole(s);
+    };
+    if (const auto bad = option_pairs_problem(held)) {
+        const auto at = [&](const OptionRow &r) { const auto g = given.find(&r); return g == given.end() ? nullptr : g->second; };
+        const odex::Option *o = at(once_option(bad->hi));
+        if (!o) o = at(once_option(bad->lo));
+        if (o) file.doc.fail(o->pos.line, o->pos.col, bad->text);
+    }
+}
+
+} // namespace
+
+Result<std::string> settings_statements(const Session &s, const Settings &f)
+{
+    Result<std::string> values = values_text(f, names_of(s));
+    if (!values) return std::unexpected(values.error());
+    return odex::version_statement() + "\n" + *values + options_text(f);
+}
+
+Result<std::string> settings_text(const Session &s, const Settings &f)
+{
+    Result<std::string> head = settings_statements(s, f);
+    if (!head) return std::unexpected(head.error());
+    odex::Out out;
+    out.begin_statement(group::session);
+    write_settings(out, s, f);
+    out.end_statement();
+    Result<std::string> body = out.result("session");
+    if (!body) return std::unexpected(body.error());
+    return *head + *body;
+}
+
+void write_settings(odex::Out &out, const Session &s, const Settings &f)
+{
+    Put io(out, &s);
+    describe(io, f, names_of(s));
+}
+
+Settings read_settings(Session &s, const odex::StateFile &file, odex::Block &session)
+{
+    Settings f = capture_settings(s, SettingsUse::session);
+    const Names n = names_of(s);
+    read_values(file, s.model(), odex::Statement::Kind::Par, n.parameters, f.params);
+    read_values(file, s.model(), odex::Statement::Kind::Init, n.variables, f.last_ic);
+    read_options(s, file, f);
+    Take io(session, &s);
+    describe(io, f, n);
+    return f;
 }
 
 void apply_storage_precision(Session &s, const Settings &f)

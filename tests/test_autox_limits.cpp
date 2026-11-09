@@ -10,6 +10,7 @@
 #include "autox_run.h"
 #include "diagram.h"
 #include "xpp_session_autox.h"
+#include "autox_text.h"
 #include "xpp_ui.h"
 #include "xpp_log.h"
 #include <cmath>
@@ -86,8 +87,8 @@ int main()
     CHECK(xpp::autox_settings_apply(s,many,why)==0);
     const auto marks=s.autox_state.bifur.marks;
     CHECK(marks.size()==128 && marks.back().value==227);
-    const auto marks_text=xpp::snapx::autox_members::settings_text(xpp::autox_settings_now(s));
-    const auto marks_read=xpp::snapx::autox_members::parse_settings(marks_text,"marks.snapx/autox/settings.txt");
+    const auto marks_text=autox_text::settings_text(xpp::autox_settings_now(s));
+    const auto marks_read=autox_text::parse_settings(marks_text,"marks.snapx/session.odex");
     CHECK(marks_read && marks_read->set.nmarks==128);
     s.autox_state.bifur.marks.clear();
     CHECK(marks_read && xpp::autox_settings_apply(s,marks_read->set,why)==0);

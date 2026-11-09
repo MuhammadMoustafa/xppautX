@@ -686,16 +686,16 @@ static std::vector<double> segment_numbers(const std::vector<float> &v,int count
   return std::vector<double>(v.begin(),v.begin()+4*static_cast<std::ptrdiff_t>(count));
 }
 
-Result<std::string> nullclines_text(const Session &s)
+void write_nullclines(odex::Out &out, const Session &s)
 {
   const NullclineState &n=s.nullcline_state;
-  odex::Out out;
   const auto pair=[&](int ix,int iy,const std::vector<float> &x,int nx,const std::vector<float> &y,int ny){
     out.whole("x_axis",ix);
     out.whole("y_axis",iy);
     out.reals("x_segments",segment_numbers(x,nx));
     out.reals("y_segments",segment_numbers(y,ny));
   };
+  out.begin("nullclines");
   out.begin("current");
   pair(n.null_ix,n.null_iy,n.x_null,n.num_x_n,n.y_null,n.num_y_n);
   out.end();
@@ -706,7 +706,7 @@ Result<std::string> nullclines_text(const Session &s)
     out.end_item();
   }
   out.end_list();
-  return out.result("session");
+  out.end();
 }
 
 NullclineState read_nullclines(const Model &m, odex::Block &file)
@@ -746,6 +746,7 @@ NullclineState read_nullclines(const Model &m, odex::Block &file)
     g.done();
     n.frozen.push_back(std::move(f));
   }
+  file.done();
   n.frozen_started=!n.frozen.empty();
   return n;
 }

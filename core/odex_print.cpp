@@ -278,6 +278,15 @@ std::optional<std::string> literal_number_text(const Expr &e)
   return std::nullopt;
 }
 
+WholeNumber whole_number(const Statement &s, const Binding &b, std::string &text)
+{
+  if (s.range || b.index) return WholeNumber::element;
+  const std::optional<std::string> number = literal_number_text(b.value);
+  if (!number) return WholeNumber::formula;
+  text = *number;
+  return WholeNumber::number;
+}
+
 std::string quote_string(std::string_view text)
 {
   std::string out = "\"";

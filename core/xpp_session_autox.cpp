@@ -1,10 +1,10 @@
-/* The session's autoX-member serializers: see xpp_session_autox.h. */
+/* The session's autoX state: its settings and views written and read, its diagram's members: see xpp_session_autox.h. */
 #include "xpp_session_autox.h"
 #include "xpp_io.h"
 #include "snapx.h"
 #include "jacobian.h"
 #include "autox_state.h"
-#include "json_reader.h"
+#include "session_settings.h"
 #include "many_pops.h"
 
 #include <algorithm>
@@ -18,31 +18,7 @@ namespace xpp::snapx::autox_members {
 
 namespace {
 
-/* a name there is none of */
-constexpr std::string_view no_name = "-";
-
-std::string name_text(const std::string &name) { return name.empty() ? std::string(no_name) : name; }
-std::string name_of(std::string_view text) { return text == no_name ? std::string() : std::string(text); }
-
-/* a view's second word: whether the window is shown */
-constexpr std::string_view shown_word = "shown", hidden_word = "hidden";
-
 constexpr std::array<const char *, 4> range_keys = {"xmin", "xmax", "ymin", "ymax"};
-
-/* a view's zoom of one axis: LO:HI, or "-" when it shows the whole axis */
-std::string range_text(const xpp::AxisRange &r)
-{
-    return r.set ? xpp::number(r.lo) + ':' + xpp::number(r.hi) : std::string(no_name);
-}
-bool parse_range(std::string_view text, xpp::AxisRange &r)
-{
-    r = xpp::AxisRange();
-    if (text == no_name) return true;
-    const std::size_t c = text.find(':');
-    if (c == std::string_view::npos) return false;
-    r.set = true;
-    return xpp::parse_number(text.substr(0, c), r.lo) && xpp::parse_number(text.substr(c + 1), r.hi) && std::isfinite(r.lo) && std::isfinite(r.hi) && r.lo < r.hi;
-}
 
 /* diagram.csv's columns before the parameters: n_ints whole numbers, then
    three numbers */
@@ -53,162 +29,134 @@ constexpr int n_ints = 13;
 
 } // namespace
 
-std::string settings_text(const AutoxSettingsSet &s)
+void write_autox_settings(odex::Out &out, const AutoxSettingsSet &s)
 {
-    std::string o;
-    for (int i = 0; i < AUTOX_NUM_N; i++) o += xpp::format("{} {}\n", autox_settings_num_key(i), autox_settings_num_text(i, s.num[i]));
-    for (std::size_t i=0;i<autox_codim_kinds.size();++i)
-        o += xpp::format("{} {}\n",autox_codim_keys[i],*s.special_points[i] ? "true" : "false");
-    o += xpp::format("plot {}\nvar {}\npar1 {}\npar2 {}\n", autox_projection_name(*s.plot), name_text(s.var), name_text(s.par1), name_text(s.par2));
-    for (std::size_t i = 0; i < range_keys.size(); i++) o += xpp::format("{} {}\n", range_keys[i], xpp::number(s.range[i]));
-    for (int i = 0; i < s.nmarks.value_or(0); i++) o += xpp::format("mark {} {}\n", name_text(s.mark_name[i]), xpp::number(s.mark_value[i]));
-    return o;
-}
-
-Result<SettingsRead> parse_settings(std::string_view text, std::string file)
-{
-    return read_lines("autoX's settings", std::move(file), text, [](Lines &l) {
-        SettingsRead r;
-        AutoxSettingsSet &s = r.set;
-        s.nmarks = 0;
-        /* key's line, once */
-        const auto at = [&](std::string key) {
-            if (!r.lines.emplace(key, l.line()).second) l.fail(xpp::format("{} given twice", key));
-        };
-        const auto number = [&](std::string_view t, double &v) {
-            if (!xpp::parse_number(t, v) || !std::isfinite(v)) l.fail(xpp::format("\"{}\" is not a number", t));
-        };
-        while (!l.at_end()) {
-            const std::string_view line = l.next();
-            if (line.empty()) continue;
-            const std::vector<std::string_view> w = split_fields(line, ' ');
-            const std::string_view key = w[0];
-            if (key == "mark") {
-                if (*s.nmarks >= autox_file_marks_limit) l.fail(xpp::format("more than {} Mark values", autox_file_marks_limit));
-                if (w.size() != 3) l.fail("not \"mark NAME VALUE\"");
-                at(xpp::format("mark{}", *s.nmarks));
-                s.mark_name.push_back(name_of(w[1]));
-                s.mark_value.emplace_back();
-                number(w[2], s.mark_value.back());
-                (*s.nmarks)++;
-                continue;
-            }
-            if (w.size() != 2) l.fail(xpp::format("not \"{} VALUE\"", key));
-            const std::string_view value = w[1];
-            if (key == "plot") {
-                at("plot");
-                s.plot = autox_projection_from_name(value);
-                if (!s.plot) l.fail(autox_projection_unknown(value));
-            } else if (key == "var" || key == "par1" || key == "par2") {
-                at(std::string(key));
-                (key == "var" ? s.var : key == "par1" ? s.par1 : s.par2) = name_of(value);
-            } else {
-                bool known = false;
-                for (std::size_t i = 0; i < range_keys.size(); i++)
-                    if (key == range_keys[i]) {
-                        at(range_keys[i]);
-                        number(value, s.range[i]);
-                        s.has_range[i] = 1;
-                        known = true;
-                    }
-                for (int i = 0; i < AUTOX_NUM_N; i++)
-                    if (key == autox_settings_num_key(i)) {
-                        at(autox_settings_num_key(i));
-                        const Result<double> parsed = autox_settings_num_parse(i, value);
-                        if (!parsed) l.fail(parsed.error().what);
-                        s.num[i] = *parsed;
-                        s.has_num[i] = 1;
-                        known = true;
-                    }
-                for (std::size_t i=0;i<autox_codim_kinds.size();++i)
-                    if (key==autox_codim_keys[i]) {
-                        at(std::string(autox_codim_keys[i]));
-                        bool enabled;
-                        if (!parse_bool(value,enabled)) l.fail(xpp::format("{} must be true or false, got {}",key,value));
-                        s.special_points[i]=enabled; known=true;
-                    }
-                if (!known) l.fail(xpp::format("{} is not one of autoX's settings", key));
-            }
-        }
-        /* every key but the marks, which may be none, in settings_text's order */
-        std::vector<std::string> keys;
-        for (int i = 0; i < AUTOX_NUM_N; i++) keys.emplace_back(autox_settings_num_key(i));
-        for (std::string_view key : autox_codim_keys) keys.emplace_back(key);
-        keys.insert(keys.end(), {"plot", "var", "par1", "par2"});
-        for (const char *k : range_keys) keys.emplace_back(k);
-        for (const std::string &k : keys)
-            if (!r.lines.contains(k)) l.fail(l.line() + 1, xpp::format("the file ends here, without its {} line", k));
-        return r;
-    });
-}
-
-std::string views_text(const SavedViews &v)
-{
-    std::string o;
-    for (const SavedView &w : v.views) {
-        o += "view ";xpp::json_append_string(o,w.name);o+=' ';
-        o += xpp::format("{} {} {} {} {}", w.hidden ? hidden_word : shown_word, autox_projection_name(w.plot), name_text(w.var), name_text(w.par1), name_text(w.par2));
-        for (double r : w.range) o += ' ' + xpp::number(r);
-        o += ' ' + range_text(w.zoom.x) + ' ' + range_text(w.zoom.y) + '\n';
+    out.begin("settings");
+    for (int i = 0; i < AUTOX_NUM_N; i++) out.word(autox_settings_num_key(i), autox_settings_num_text(i, s.num[i]));
+    for (std::size_t i = 0; i < autox_codim_kinds.size(); ++i) out.flag(autox_codim_keys[i], *s.special_points[i]);
+    out.word("plot", autox_projection_name(*s.plot));
+    out.name("var", s.var);
+    out.name("par1", s.par1);
+    out.name("par2", s.par2);
+    for (std::size_t i = 0; i < range_keys.size(); i++) out.real(range_keys[i], s.range[i]);
+    out.begin_list("marks");
+    for (int i = 0; i < s.nmarks.value_or(0); i++) {
+        out.begin_item();
+        out.name("name", s.mark_name[i]);
+        out.real("value", s.mark_value[i]);
+        out.end_item();
     }
-    o+="active ";xpp::json_append_string(o,v.views[v.active].name);o+='\n';
-    return o;
+    out.end_list();
+    out.end();
 }
 
-Result<ViewsRead> parse_views(std::string_view text, std::string file)
+SettingsRead read_autox_settings(odex::Block &g)
 {
-    return read_lines("autoX's views", std::move(file), text, [](Lines &l) {
-        ViewsRead r;
-        SavedViews &v = r.views;
-        int active_line = 0;
-        std::string active_name;
-        while (!l.at_end()) {
-            const std::string_view line = l.next();
-            if (line.empty()) continue;
-            const bool active=line.starts_with("active ");
-            if(!active && !line.starts_with("view "))l.fail("expected a view or active line");
-            const std::string tail(line.substr(active?7:5));
-            const char *quoted=json::skip_ws(tail.c_str()),*end=json::skip_value(quoted);
-            std::string name;
-            if(!xpp::json_decode_string(quoted,name,std::string::npos,true) || !json::js_valid(std::string(quoted,end).c_str()) || !xpp::window_name_problem(name).empty())
-                l.fail("invalid quoted window name");
-            std::vector<std::string_view> w=split_fields(xpp::trim_blanks(end), ' ');
-            if(w.size()==1 && w[0].empty())w.clear();
-            w.insert(w.begin(),active?"active":"view");
-            if (active && w.size() == 1) {
-                if (active_line) l.fail("a second active line");
-                active_name=name;
-                active_line = l.line();
-                continue;
-            }
-            if (w[0] != "view" || w.size() != 12)
-                l.fail("not view \"NAME\" shown|hidden PLOT VAR PAR1 PAR2 XMIN XMAX YMIN YMAX ZOOMX ZOOMY nor active \"NAME\"");
-            if (w[1] != shown_word && w[1] != hidden_word) l.fail(xpp::format("\"{}\" is neither {} nor {}", w[1], shown_word, hidden_word));
-            if (v.views.size() >= saved_views_limit) l.fail("too many autoX views");
-            for(const auto &view:v.views)if(view.name==name)l.fail("duplicate window name");
-            SavedView &s = v.views.emplace_back();
-            s.name=name;
-            r.lines.push_back(l.line());
-            s.hidden = w[1] == hidden_word;
-            const std::optional<AutoxProjection> plot = autox_projection_from_name(w[2]);
-            if (!plot) l.fail(autox_projection_unknown(w[2]));
-            s.plot = *plot;
-            s.var = name_of(w[3]);
-            s.par1 = name_of(w[4]);
-            s.par2 = name_of(w[5]);
-            for (std::size_t i = 0; i < s.range.size(); i++)
-                if (!xpp::parse_number(w[6 + i], s.range[i]) || !std::isfinite(s.range[i])) l.fail(xpp::format("\"{}\" is not a number", w[6 + i]));
-            for (std::size_t i = 0; i < 2; i++)
-                if (!parse_range(w[10 + i], i == 0 ? s.zoom.x : s.zoom.y))
-                    l.fail(xpp::format("\"{}\" is not a zoom (LO:HI, LO below HI, or -)", w[10 + i]));
-        }
-        if (v.views.empty()) l.fail(l.line() + 1, "the file ends here, without a view");
-        if (!active_line) l.fail(l.line() + 1, "the file ends here, without its active line");
-        const auto selected=std::ranges::find(v.views,active_name,&SavedView::name);
-        if(selected==v.views.end())l.fail(active_line,xpp::format("Unknown window \"{}\"",active_name));
-        v.active=static_cast<int>(selected-v.views.begin());
-        return r;
-    });
+    SettingsRead r;
+    AutoxSettingsSet &s = r.set;
+    const auto at = [&](std::string_view key) {
+        const odex::Member &m = *g.member(key);
+        r.places[std::string(key)] = {m.value.line, m.value.col};
+        return &m;
+    };
+    for (int i = 0; i < AUTOX_NUM_N; i++) {
+        const std::string key = autox_settings_num_key(i);
+        const odex::Member &m = *at(key);
+        const Result<double> parsed = autox_settings_num_parse(i, g.word_of(m));
+        if (!parsed) g.fail(m.value, parsed.error().what);
+        s.num[i] = *parsed;
+        s.has_num[i] = 1;
+    }
+    for (std::size_t i = 0; i < autox_codim_kinds.size(); ++i) {
+        bool enabled = false;
+        at(autox_codim_keys[i]);
+        g.flag(autox_codim_keys[i], enabled);
+        s.special_points[i] = enabled;
+    }
+    {
+        const odex::Member &m = *at("plot");
+        s.plot = autox_projection_from_name(g.word_of(m));
+        if (!s.plot) g.fail(m.value, autox_projection_unknown(g.word_of(m)));
+    }
+    for (const std::string_view key : {"var", "par1", "par2"}) {
+        std::string &name = key == "var" ? s.var : key == "par1" ? s.par1 : s.par2;
+        name = g.name_of(*at(key));
+    }
+    for (std::size_t i = 0; i < range_keys.size(); i++) {
+        at(range_keys[i]);
+        g.real(range_keys[i], s.range[i]);
+        s.has_range[i] = 1;
+    }
+    std::vector<odex::Block> marks;
+    g.groups("marks", marks, autox_file_marks_limit);
+    const odex::Member &list = *g.member("marks");
+    s.nmarks = 0;
+    for (std::size_t i = 0; i < marks.size(); i++) {
+        odex::Block &m = marks[i];
+        r.places[xpp::format("mark{}", i)] = {list.value.items[i].line, list.value.items[i].col};
+        s.mark_name.push_back(m.name_of(*m.member("name")));
+        s.mark_value.emplace_back();
+        m.real("value", s.mark_value.back());
+        m.done();
+        (*s.nmarks)++;
+    }
+    g.done();
+    return r;
+}
+
+void write_views(odex::Out &out, const SavedViews &v)
+{
+    out.begin_list("views");
+    for (const SavedView &w : v.views) {
+        out.begin_item();
+        out.text("name", w.name);
+        out.flag("hidden", w.hidden);
+        out.word("plot", autox_projection_name(w.plot));
+        out.name("var", w.var);
+        out.name("par1", w.par1);
+        out.name("par2", w.par2);
+        for (std::size_t i = 0; i < range_keys.size(); i++) out.real(range_keys[i], w.range[i]);
+        write_zoom(out, w.zoom);
+        out.end_item();
+    }
+    out.end_list();
+    out.text("active", v.views[static_cast<std::size_t>(v.active)].name);
+}
+
+ViewsRead read_views(odex::Block &autox)
+{
+    ViewsRead r;
+    SavedViews &v = r.views;
+    std::vector<odex::Block> list;
+    autox.groups("views", list, saved_views_limit);
+    const odex::Member &member = *autox.member("views");
+    if (list.empty()) autox.fail(member, "an autoX session has at least one view");
+    for (std::size_t k = 0; k < list.size(); k++) {
+        odex::Block &g = list[k];
+        SavedView &s = v.views.emplace_back();
+        r.places.emplace_back(member.value.items[k].line, member.value.items[k].col);
+        g.text("name", s.name);
+        if (const std::string problem = window_name_problem(s.name); !problem.empty()) g.fail(*g.member("name"), problem);
+        for (std::size_t j = 0; j < k; j++)
+            if (v.views[j].name == s.name) g.fail(*g.member("name"), "a view name is listed twice");
+        g.flag("hidden", s.hidden);
+        const odex::Member &plot = *g.member("plot");
+        const std::optional<AutoxProjection> projection = autox_projection_from_name(g.word_of(plot));
+        if (!projection) g.fail(plot.value, autox_projection_unknown(g.word_of(plot)));
+        s.plot = *projection;
+        s.var = g.name_of(*g.member("var"));
+        s.par1 = g.name_of(*g.member("par1"));
+        s.par2 = g.name_of(*g.member("par2"));
+        for (std::size_t i = 0; i < range_keys.size(); i++) g.real(range_keys[i], s.range[i]);
+        s.zoom = read_zoom(g);
+        g.done();
+    }
+    std::string active;
+    autox.text("active", active);
+    const auto selected = std::ranges::find(v.views, active, &SavedView::name);
+    if (selected == v.views.end()) autox.fail(*autox.member("active"), xpp::format("Unknown window \"{}\"", active));
+    v.active = static_cast<int>(selected - v.views.begin());
+    return r;
 }
 
 std::string diagram_csv(const std::deque<DIAGRAM> &points, int model_parameters, std::span<const std::string> vars)
