@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "model_options.h" /* choice_index */
-#include "setx.h"
+#include "odex_block.h"
 #include "xpp_files.h"
 #include "xpp_cpu.h"
 #include "xpp_io.h"
@@ -61,22 +61,22 @@ using Problem = std::optional<std::string> (*)(std::span<const std::string>, std
    member when the file names it, and left as it is when not */
 class Take {
 public:
-    explicit Take(setx::Block &block) : block_(block) {}
+    explicit Take(odex::Block &block) : block_(block) {}
     void paths(std::string_view key, std::vector<std::string> &out, std::size_t max, Problem problem)
     {
         std::vector<std::string> got;
         if (!block_.texts(key, got, max)) return;
-        const setx::Member *m = block_.member(key);
+        const odex::Member *m = block_.member(key);
         for (std::size_t i = 0; i < got.size(); i++)
             if (const auto why = problem(std::span(got).first(i), got[i])) block_.fail(m->value.items[i], *why);
         out = std::move(got);
     }
     void approvals(std::string_view key, std::vector<OutsideApproval> &out, std::size_t max)
     {
-        std::vector<setx::Block> groups;
+        std::vector<odex::Block> groups;
         if (!block_.groups(key, groups, max)) return;
         std::vector<OutsideApproval> got;
-        for (setx::Block &g : groups) {
+        for (odex::Block &g : groups) {
             OutsideApproval a;
             if (!g.text("model", a.model) || !g.text("path", a.path)) g.fail("an entry needs a `model` and a `path`");
             std::string_view which;
@@ -114,7 +114,7 @@ public:
             out = 0;
             return;
         }
-        const setx::Member *m = block_.member(key);
+        const odex::Member *m = block_.member(key);
         int n = 0;
         if (!xpp::parse_int(text, n)) block_.fail(m->value, xpp::format("`{}`: `{}` is not \"{}\" or a whole number", key, text, automatic));
         if (const auto why = problem(n)) block_.fail(m->value, *why);
@@ -122,7 +122,7 @@ public:
     }
 
 private:
-    setx::Block &block_;
+    odex::Block &block_;
 };
 
 /* the writer of the same description */
@@ -165,7 +165,7 @@ public:
         }
         out.end_list();
     }
-    setx::Out out;
+    odex::Out out;
     std::optional<std::string> bad_;
 };
 
@@ -193,7 +193,7 @@ Result<Preferences> parse_prefs(std::string_view text, std::string file)
 {
     if (text.size() > MAX_FILE_BYTES)
         return fail_reading(std::string(WHERE), xpp::format("the file is longer than {} bytes", MAX_FILE_BYTES), std::move(file));
-    return setx::read_block(std::string(WHERE), std::move(file), text, false, [](setx::Block &block) {
+    return odex::read_block(std::string(WHERE), std::move(file), text, false, [](odex::Block &block) {
         block.require_version("preferences files");
         Preferences p;
         Take take(block);

@@ -15,7 +15,7 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "nullcline.h"
-#include "setx.h"
+#include "odex_block.h"
 #include "expr.h"
 #include "xpp_session.h"
 #include "xpp_zip.h"
@@ -25,7 +25,7 @@
 #include "graf_par.h"
 #include "browse.h"
 #include "data_formats.h"
-#include "setx_file.h"
+#include "session_settings.h"
 #include <array>
 #include <limits>
 
@@ -116,8 +116,8 @@ void check_nullclines()
         "current: { x_axis: 1, y_axis: 2, x_segments: [0, 1, 2, 3], y_segments: [] },\n"
         "frozen: [ { x_axis: 1, y_axis: 2, x_segments: [], y_segments: [-1, -2, -3, -4] } ],\n";
     const auto read = [&](std::string_view bytes) {
-        return xpp::setx::read_block("session", "s.snapx/nullclines.setx", bytes, true,
-            [&](xpp::setx::Block &file) { return xpp::read_nullclines(*model, file); });
+        return xpp::odex::read_block("session", "s.snapx/nullclines.setx", bytes, true,
+            [&](xpp::odex::Block &file) { return xpp::read_nullclines(*model, file); });
     };
     const auto got = read(text);
     CHECK(got && got->num_x_n == 1 && got->num_y_n == 0 && got->null_ix == 1 && got->null_iy == 2);
@@ -234,9 +234,9 @@ void check_list_memory()
         const std::string text = "\n" + std::string(key) + ": [{}, {}]\n";
         std::size_t used = xpp::zip::archive_bytes_limit - record_bytes;
         const std::size_t before = used;
-        std::vector<xpp::setx::Block> staged;
+        std::vector<xpp::odex::Block> staged;
         bool applied = false;
-        const auto read = xpp::setx::read_block("session", "memory.setx", text, true, [&](xpp::setx::Block &b) {
+        const auto read = xpp::odex::read_block("session", "memory.setx", text, true, [&](xpp::odex::Block &b) {
             xpp::snapx::memory_groups(b, key, staged, record_bytes, used);
             return true;
         });
@@ -328,8 +328,8 @@ void check_plot_limits(const xpp::TempDir &tmp)
     GRAPH graph = *s.plot_windows.current;
     const auto old_y = graph.yv;
     std::size_t used = xpp::zip::archive_bytes_limit - 1;
-    const auto rejected = xpp::setx::read_block("session", "limits.snapx/windows.setx", "\ncurves: [{}, {}]", true,
-        [&](xpp::setx::Block &b) {
+    const auto rejected = xpp::odex::read_block("session", "limits.snapx/windows.setx", "\ncurves: [{}, {}]", true,
+        [&](xpp::odex::Block &b) {
             xpp::read_curves(b, s, graph, {}, used);
             return true;
         });
@@ -337,7 +337,7 @@ void check_plot_limits(const xpp::TempDir &tmp)
     CHECK(!rejected && rejected.error().place.line == 2 && rejected.error().place.file == "limits.snapx/windows.setx");
     CHECK(graph.yv == old_y && graph.nvars == curves && s.plot_windows.current->nvars == curves);
     /* .setx uses the same curve reader, independently of the archive. */
-    const auto settings=xpp::setx_text(s,xpp::capture_settings(s,xpp::SettingsUse::session));
+    const auto settings=xpp::settings_text(s,xpp::capture_settings(s,xpp::SettingsUse::session));
     CHECK(settings.has_value());
     if(settings){
         const auto read=xpp::read_settings(s,"limits.setx",*settings);

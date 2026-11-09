@@ -6,7 +6,7 @@
    nothing asked for are refused (nothing allocated from a count, no
    recursion past the bound: the file may be one a user was sent). */
 #include "xpptest.h"
-#include "setx.h"
+#include "odex_block.h"
 #include "odex.h"
 
 #include <cmath>
@@ -18,7 +18,7 @@ namespace {
 /* the error of text read as a complete file through read(Block &), "" when it reads */
 template <class F> std::string error_of(std::string_view text, F read, bool complete = true)
 {
-    const auto r = xpp::setx::read_block("test", "t.setx", text, complete, read);
+    const auto r = xpp::odex::read_block("test", "t.setx", text, complete, read);
     return r ? std::string() : r.error().text();
 }
 
@@ -26,7 +26,7 @@ template <class F> std::string error_of(std::string_view text, F read, bool comp
 
 int main()
 {
-    using namespace xpp::setx;
+    using namespace xpp::odex;
 
     /* A 4 MiB punctuation-only file is refused before the token vector can grow without bound. */
     const std::string punctuation(4u * 1024 * 1024, ',');

@@ -22,8 +22,8 @@
 #include "xpp_zip.h"
 #include "xpp_util.h"
 #include "many_pops.h"
-#include "setx_file.h"
-#include "setx.h"
+#include "session_settings.h"
+#include "odex_block.h"
 #include "nullcline.h"
 #include "diagram.h" /* redraw_diagram; pulls in autox_nox.h */
 #include "xpp_session_autox.h"
@@ -67,7 +67,7 @@ bool name_or_ask(const xpp::Model &m, const char *title, std::string_view wild, 
 
 /* ---- windows.setx: the plot windows, autoX's view, the added columns ---- */
 
-void write_range(xpp::setx::Out &out, const xpp::AxisRange &r, std::string_view key)
+void write_range(xpp::odex::Out &out, const xpp::AxisRange &r, std::string_view key)
 {
     out.begin(key);
     out.flag("set", r.set);
@@ -76,10 +76,10 @@ void write_range(xpp::setx::Out &out, const xpp::AxisRange &r, std::string_view 
     out.end();
 }
 
-xpp::AxisRange read_range(xpp::setx::Block &zoom, std::string_view key)
+xpp::AxisRange read_range(xpp::odex::Block &zoom, std::string_view key)
 {
     xpp::AxisRange r;
-    std::optional<xpp::setx::Block> g = zoom.group(key);
+    std::optional<xpp::odex::Block> g = zoom.group(key);
     if (!g) return r;
     g->flag("set", r.set);
     g->real("low", r.lo);
@@ -90,7 +90,7 @@ xpp::AxisRange read_range(xpp::setx::Block &zoom, std::string_view key)
 
 xpp::Result<std::string> windows_text(const xpp::Session &s)
 {
-    xpp::setx::Out out;
+    xpp::odex::Out out;
     out.begin_list("windows");
     for (int i = 0; i < static_cast<int>(s.plot_windows.graph.size()); i++) {
         const GRAPH &g = s.plot_windows.graph[i];
@@ -150,13 +150,13 @@ struct WindowsRead {
 /* windows.setx read for s (its model's names; an added column's formula
    compiled in it, nothing of it changed); ReadFailed at a key or value
    that does not read or names what the model does not have */
-WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &expanded_bytes)
+WindowsRead read_windows(xpp::Session &s, xpp::odex::Block &file, std::size_t &expanded_bytes)
 {
     WindowsRead r;
     /* the added columns first: a window's curves may name them */
-    std::vector<xpp::setx::Block> added;
+    std::vector<xpp::odex::Block> added;
     file.groups("added_columns", added, xpp::DataStore::ADDED_COLUMNS);
-    for (xpp::setx::Block &g : added) {
+    for (xpp::odex::Block &g : added) {
         xpp::AddedColumn c;
         g.text("name", c.name);
         if (c.name.empty()) g.fail(*g.member("name"), "an added column without a name");
@@ -166,12 +166,12 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &e
         g.done();
         r.added.push_back(std::move(c));
     }
-    std::vector<xpp::setx::Block> windows;
-    xpp::snapx::memory_groups(file, "windows", windows, sizeof(SavedWindow) + sizeof(xpp::setx::Block), expanded_bytes);
+    std::vector<xpp::odex::Block> windows;
+    xpp::snapx::memory_groups(file, "windows", windows, sizeof(SavedWindow) + sizeof(xpp::odex::Block), expanded_bytes);
     if (windows.empty()) file.fail(*file.member("windows"), "a session has at least one window");
     r.windows.reserve(windows.size());
     std::size_t slots = 0;
-    for (xpp::setx::Block &w : windows) {
+    for (xpp::odex::Block &w : windows) {
         SavedWindow &sw = r.windows.emplace_back();
         w.text("name",sw.graph.name);
         if(const std::string problem=xpp::window_name_problem(sw.graph.name);!problem.empty())w.fail(*w.member("name"),problem);
@@ -191,7 +191,7 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &e
         w.text("xlabel", sw.xlabel);
         w.text("ylabel", sw.ylabel);
         w.text("zlabel", sw.zlabel);
-        if (std::optional<xpp::setx::Block> z = w.group("zoom")) {
+        if (std::optional<xpp::odex::Block> z = w.group("zoom")) {
             sw.zoom.x = read_range(*z, "x");
             sw.zoom.y = read_range(*z, "y");
             z->done();
@@ -205,7 +205,7 @@ WindowsRead read_windows(xpp::Session &s, xpp::setx::Block &file, std::size_t &e
     if(current==r.windows.end())file.fail(*file.member("active"),xpp::format("Unknown window \"{}\"",active));
     r.active=static_cast<int>(current-r.windows.begin());
     file.flag("browser_hidden", r.browser_hidden);
-    if (std::optional<xpp::setx::Block> v = file.group("autox_view")) {
+    if (std::optional<xpp::odex::Block> v = file.group("autox_view")) {
         v->whole("earlier", r.autox_view.earlier);
         v->flag("show_earlier", r.autox_view.show_earlier);
         v->done();
@@ -252,7 +252,7 @@ void apply_windows(xpp::Session &s, const WindowsRead &r)
 
 xpp::Result<std::string> marks_text(const xpp::Session &s)
 {
-    xpp::setx::Out out;
+    xpp::odex::Out out;
     out.whole("next_annotation_id", s.next_annotation_id);
     out.begin_list("labels");
     for (const LABEL &l : s.labels) {
@@ -364,7 +364,7 @@ struct MarksRead {
 };
 
 /* a window number of marks.setx: one windows.setx lists */
-int window_in(xpp::setx::Block &g, const WindowsRead &w)
+int window_in(xpp::odex::Block &g, const WindowsRead &w)
 {
     std::string name;g.text("window",name);
     const auto window=std::ranges::find(w.windows,name,[](const SavedWindow &v){return v.graph.name;});
@@ -373,7 +373,7 @@ int window_in(xpp::setx::Block &g, const WindowsRead &w)
 }
 
 /* a colour of marks.setx (colormap.h) */
-xpp::Color color_in(xpp::setx::Block &g)
+xpp::Color color_in(xpp::odex::Block &g)
 {
     xpp::Color color;
     g.color("color", color);
@@ -382,7 +382,7 @@ xpp::Color color_in(xpp::setx::Block &g)
 
 /* the id of the label or object in g: not used before (in `taken`, the ids of both lists) and above the
    list's last (the lists are kept in id order), and below next */
-int annotation_id_in(xpp::setx::Block &g, int next, int last, std::set<int> &taken)
+int annotation_id_in(xpp::odex::Block &g, int next, int last, std::set<int> &taken)
 {
     int id = 0;
     g.whole("id", id);
@@ -393,7 +393,7 @@ int annotation_id_in(xpp::setx::Block &g, int next, int last, std::set<int> &tak
 }
 
 /* a position of a label or a mark: a finite number */
-double position_in(xpp::setx::Block &g, std::string_view key)
+double position_in(xpp::odex::Block &g, std::string_view key)
 {
     double v = 0;
     g.real(key, v);
@@ -404,7 +404,7 @@ double position_in(xpp::setx::Block &g, std::string_view key)
    frozen curves' points from frozen (frozen.npz's); ReadFailed at a key or
    value that does not read, names a window windows.setx does not have or a
    frozen curve frozen.npz holds no points of */
-MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const xpp::DataTable &frozen, std::size_t &expanded_bytes)
+MarksRead read_marks(xpp::odex::Block &file, const WindowsRead &windows, const xpp::DataTable &frozen, std::size_t &expanded_bytes)
 {
     MarksRead r;
     file.whole("next_annotation_id", r.next_annotation_id);
@@ -412,9 +412,9 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
         file.fail(*file.member("next_annotation_id"),
                   xpp::format("next_annotation_id {} is not from 0 to {}", r.next_annotation_id, xpp::ANNOTATION_ID_MAX));
     std::set<int> taken;
-    std::vector<xpp::setx::Block> labels;
+    std::vector<xpp::odex::Block> labels;
     file.groups("labels", labels, xpp::ANNOTATION_LIST_MAX);
-    for (xpp::setx::Block &g : labels) {
+    for (xpp::odex::Block &g : labels) {
         SavedLabel &m = r.labels.emplace_back();
         m.id = annotation_id_in(g, r.next_annotation_id, r.labels.size() > 1 ? r.labels[r.labels.size() - 2].id : -1, taken);
         m.window = window_in(g, windows);
@@ -431,9 +431,9 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
         if (const std::string p = xpp::label_text_problem(m.look.text); !p.empty()) g.fail(*g.member("text"), p);
         g.done();
     }
-    std::vector<xpp::setx::Block> grobs;
+    std::vector<xpp::odex::Block> grobs;
     file.groups("arrows_and_markers", grobs, xpp::ANNOTATION_LIST_MAX);
-    for (xpp::setx::Block &g : grobs) {
+    for (xpp::odex::Block &g : grobs) {
         SavedGrob &o = r.grobs.emplace_back();
         o.id = annotation_id_in(g, r.next_annotation_id, r.grobs.size() > 1 ? r.grobs[r.grobs.size() - 2].id : -1, taken);
         o.window = window_in(g, windows);
@@ -449,11 +449,11 @@ MarksRead read_marks(xpp::setx::Block &file, const WindowsRead &windows, const x
         g.done();
     }
     file.whole("freeze_each_run", r.autox_freeze);
-    std::vector<xpp::setx::Block> curves;
-    xpp::snapx::memory_groups(file, "frozen_curves", curves, sizeof(SavedCurve) + sizeof(xpp::setx::Block), expanded_bytes);
+    std::vector<xpp::odex::Block> curves;
+    xpp::snapx::memory_groups(file, "frozen_curves", curves, sizeof(SavedCurve) + sizeof(xpp::odex::Block), expanded_bytes);
     r.curves.reserve(curves.size());
     std::size_t slots = 0;
-    for (xpp::setx::Block &g : curves) {
+    for (xpp::odex::Block &g : curves) {
         SavedCurve &c = r.curves.emplace_back();
         g.whole("slot", c.slot);
         if (c.slot < 0 || static_cast<std::size_t>(c.slot) < slots)
@@ -590,7 +590,7 @@ std::optional<std::string> data_wrong(const xpp::Session &s, const xpp::DataTabl
 
 xpp::Result<std::string> sliders_text(const xpp::Session &s)
 {
-    xpp::setx::Out out;
+    xpp::odex::Out out;
     out.begin_list("sliders");
     for (const xpp::XppSlider &slider : s.sliders) {
         out.begin_item();
@@ -633,16 +633,16 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
         return xpp::read_lines("session", xpp::format("{}/{}", f.name, name), it->second, parse);
     };
     /* the same for a member in the settings syntax: every key it needs there, none it does not know */
-    const auto settings_member = [&](const char *name, auto parse) -> xpp::Result<std::invoke_result_t<decltype(parse) &, xpp::setx::Block &>> {
+    const auto settings_member = [&](const char *name, auto parse) -> xpp::Result<std::invoke_result_t<decltype(parse) &, xpp::odex::Block &>> {
         const auto it = mem.find(name);
         if (it == mem.end()) return missing(name);
-        return xpp::setx::read_block("session", xpp::format("{}/{}", f.name, name), it->second, true, parse);
+        return xpp::odex::read_block("session", xpp::format("{}/{}", f.name, name), it->second, true, parse);
     };
     SessionRead r;
-    auto sliders = settings_member(xpp::snapx::sliders_member, [&](xpp::setx::Block &b) { return xpp::read_sliders(s.model(), b); });
+    auto sliders = settings_member(xpp::snapx::sliders_member, [&](xpp::odex::Block &b) { return xpp::read_sliders(s.model(), b); });
     if (!sliders) return std::unexpected(sliders.error());
     r.sliders = std::move(*sliders);
-    auto nullclines = settings_member(xpp::snapx::nullclines_member, [&](xpp::setx::Block &b) { return xpp::read_nullclines(s.model(), b); });
+    auto nullclines = settings_member(xpp::snapx::nullclines_member, [&](xpp::odex::Block &b) { return xpp::read_nullclines(s.model(), b); });
     if (!nullclines) return std::unexpected(nullclines.error());
     r.nullclines = std::move(*nullclines);
 
@@ -664,7 +664,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
 
     /* One expansion budget for all plot lists, including sparse runtime slots. */
     std::size_t expanded_bytes = 0;
-    xpp::Result<WindowsRead> windows = settings_member(xpp::snapx::windows_member, [&](xpp::setx::Block &b) { return read_windows(s, b, expanded_bytes); });
+    xpp::Result<WindowsRead> windows = settings_member(xpp::snapx::windows_member, [&](xpp::odex::Block &b) { return read_windows(s, b, expanded_bytes); });
     if (!windows) return std::unexpected(windows.error());
     r.windows = std::move(*windows);
     if(!r.diagram->points.empty())for(const auto &view:r.diagram->views.views)
@@ -694,7 +694,7 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
     if (const auto fz = mem.find(xpp::snapx::frozen_member); fz != mem.end() && !xpp::npz_table(fz->second, frozen))
         return wrong(xpp::format("its {} is not an NPZ file", xpp::snapx::frozen_member));
     xpp::Result<MarksRead> marks =
-        settings_member(xpp::snapx::marks_member, [&](xpp::setx::Block &b) { return read_marks(b, r.windows, frozen, expanded_bytes); });
+        settings_member(xpp::snapx::marks_member, [&](xpp::odex::Block &b) { return read_marks(b, r.windows, frozen, expanded_bytes); });
     if (!marks) return std::unexpected(marks.error());
     r.marks = std::move(*marks);
     return r;
@@ -782,7 +782,7 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
         entries->push_back({name, std::move(*text)});
         return {};
     };
-    if (const xpp::Result<> done = member(xpp::snapx::set_member, xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::session))); !done)
+    if (const xpp::Result<> done = member(xpp::snapx::set_member, xpp::settings_text(s, xpp::capture_settings(s, xpp::SettingsUse::session))); !done)
         return std::unexpected(done.error());
     /* a diagram exists: without its orbits, the save is refused */
     {

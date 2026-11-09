@@ -21,7 +21,7 @@
 
    The expression tree is .odex's own: an operator is the word or symbol
    .odex spells it with ("and", "mod", "!=", ...). */
-#include "setx.h"
+#include "odex_block.h"
 #include "xpp_mem.h"
 #include "xpp_error.h"
 
@@ -174,7 +174,7 @@ struct ArrayCopy {
 struct Option {
   std::string group, name, value;
   Pos pos, value_pos;
-  std::optional<setx::Value> tree;
+  std::optional<Value> tree;
   /* the entry's text in its file (odex_write.h): from its key to the end of
      its value */
   std::size_t begin = 0, end = 0;
@@ -335,16 +335,11 @@ std::vector<Statement> import_statements(std::vector<Statement> file, const Impo
    file's folder, as one of m's files (model_files.h). Throws Error. */
 Parsed parse(xpp::Model &m, std::string_view text, const std::string &file);
 
-/* text, a settings file named file (setx.h's syntax), read whole into its
-   top-level group by the tokenizer and block grammar the options block
-   uses; the error, named where, at the token that is wrong */
-Result<setx::Value> read_settings_tree(const std::string &where, const std::string &file, std::string_view text);
-
 /* Animation statements share this parser's tokens, expressions, keyed blocks and ranges.
    Expressions are bindings; literal/style fields use the settings value tree. */
 struct AnimationStatement {
   Statement expressions;
-  setx::Value fields;
+  Value fields;
   bool permanent = false;
 };
 std::vector<AnimationStatement> parse_animation(std::string_view text, const std::string &file);

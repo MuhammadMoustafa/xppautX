@@ -16,7 +16,7 @@
 #include "lunch-new.h"
 #include "expr.h"
 #include "browse.h"
-#include "setx_file.h"
+#include "session_settings.h"
 #include "numerics_settings.h"
 #include "odex.h"
 #include "xpp_files.h"
@@ -521,12 +521,12 @@ constexpr std::array<SetPart,12> set_parts={{
 std::vector<std::string> differing_parts(const xpp::Session &s, const Settings &f)
 {
   const Settings now=capture_settings(s,SettingsUse::file);
-  const Result<std::string> before=setx_text(s,now);
+  const Result<std::string> before=settings_text(s,now);
   std::vector<std::string> changes;
   for(const SetPart &part : set_parts){
     Settings with=now;
     part.copy(with,f);
-    const Result<std::string> after=setx_text(s,with);
+    const Result<std::string> after=settings_text(s,with);
     if(!before||!after||*before!=*after)changes.push_back(part.name);
   }
   return changes;

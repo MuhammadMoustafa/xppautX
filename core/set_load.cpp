@@ -7,7 +7,7 @@
 #include "model_options.h"
 #include "odex_write.h"
 #include "session.h"
-#include "setx_file.h"
+#include "session_settings.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"

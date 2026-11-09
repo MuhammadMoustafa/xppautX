@@ -52,7 +52,7 @@
 #include "load_eqn.h"
 #include "recx.h"
 #include "snapx.h"
-#include "setx_file.h"
+#include "session_settings.h"
 #include "menudrive.h"
 #include "xpp_http.h"
 #include "xpp_util.h"
@@ -107,7 +107,6 @@ static std::string usage_tail()
     "                   --convert model.odex --anifile drawing.ani names another model\n"
     "  --check          validate a model or .anix in memory; JSON diagnostics, no files or window\n"
     "  --options-schema print the JSON Schema of a .odex's options block\n"
-    "  --setx-schema    print the JSON Schema of a .setx settings file\n"
     "  --no-compile     run the equations in the interpreter, not as compiled code\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
     "A session file (name.snapx, File/Save session or autoX's Save diagram)\n"
@@ -272,11 +271,6 @@ int main(int argc, char **argv)
     if (cl.options_schema) {
         /* the JSON Schema of a .odex's options block, from the option table (docs/odex.md) */
         printf("%s", xpp::option_schema().c_str());
-        return 0;
-    }
-    if (cl.setx_schema) {
-        /* the JSON Schema of a .setx (docs/odex.md), from the description the reader and writer share */
-        printf("%s", xpp::setx_schema().c_str());
         return 0;
     }
     if (cl.help) {

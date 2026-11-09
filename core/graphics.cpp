@@ -1,5 +1,5 @@
 #include "graphics.h"
-#include "setx_file.h"
+#include "session_settings.h"
 #include "session.h"
 #include "colormap.h"
 #include "xpp_util.h"

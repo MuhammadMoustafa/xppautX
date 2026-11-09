@@ -1,7 +1,7 @@
 #pragma once
 #include "colormap.h"
 
-#include "setx.h"
+#include "odex_block.h"
 #include "xpp_error.h"
 #include <string>
 #include <string_view>
@@ -76,7 +76,7 @@ struct NullclineState {
    (setx.h's Block, every number checked, at most a cell of the largest mesh a segment)
    before the session applies any member. */
 Result<std::string> nullclines_text(const Session &s);
-NullclineState read_nullclines(const Model &m, setx::Block &file);
+NullclineState read_nullclines(const Model &m, odex::Block &file);
 void create_new_cline(Session &s);
 void freeze_nullclines(Session &s);
 void clear_frozen_nullclines(Session &s);

@@ -2,7 +2,7 @@
    Every group of it is described once, by `describe`, which is given a
    writer (Put) or a reader (Take) and says "this key, this member"; the
    same description writes and reads, so a key is never named twice. */
-#include "setx_file.h"
+#include "session_settings.h"
 #include "snapx.h"
 
 #include <algorithm>
@@ -57,10 +57,10 @@ std::size_t bc_room(const Session &s, int i)
 /* the values of the model's names in one group: the ones the file names
    (complete: every one, and none the model does not have) */
 template <class V, class Read>
-void read_named(const Model &model, setx::Block &g, std::span<const std::string> names, std::vector<V> &values, Read read)
+void read_named(const Model &model, odex::Block &g, std::span<const std::string> names, std::vector<V> &values, Read read)
 {
     std::size_t matched = 0;
-    for (const setx::Member *m : g.members()) {
+    for (const odex::Member *m : g.members()) {
         const Model::Name *entry = model.name(m->key);
         const int index = entry ? (g.name() == group::parameters ? entry->parameter : entry->column) : -1;
         if (index < 0 || static_cast<std::size_t>(index) >= names.size() || names[static_cast<std::size_t>(index)] != m->key)
@@ -77,7 +77,7 @@ void read_named(const Model &model, setx::Block &g, std::span<const std::string>
 class Put {
 public:
     /* s: the session whose model names the keys; none for a window's settings alone */
-    Put(setx::Out &out, const Session *s) : out_(out), s_(s) {}
+    Put(odex::Out &out, const Session *s) : out_(out), s_(s) {}
     void operator()(std::string_view key, double v) { out_.real(key, v); }
     void operator()(std::string_view key, int v) { out_.whole(key, v); }
     void dimension(std::string_view key, int v) { (*this)(key, v); }
@@ -121,7 +121,7 @@ public:
     void curves(const GRAPH &g) { write_curves(out_, *s_, g); }
 
 private:
-    setx::Out &out_;
+    odex::Out &out_;
     const Session *s_;
 };
 
@@ -129,7 +129,7 @@ private:
 class Take {
 public:
     /* s: the session whose model names the keys; none for a window's settings alone */
-    Take(setx::Block &block, Session *s) : block_(block), s_(s) {}
+    Take(odex::Block &block, Session *s) : block_(block), s_(s) {}
     void operator()(std::string_view key, double &v) { block_.number(key, v); }
     void operator()(std::string_view key, int &v) { block_.whole(key, v); }
     void dimension(std::string_view key, int &v)
@@ -146,13 +146,13 @@ public:
     }
     void word(std::string_view key, std::string &v)
     {
-        if (const setx::Member *m = block_.member(key)) v = block_.name_of(*m);
+        if (const odex::Member *m = block_.member(key)) v = block_.name_of(*m);
     }
     void text(std::string_view key, std::string &v) { block_.text(key, v); }
     void numbers(std::string_view key, std::span<double> v) { block_.reals(key, v); }
     template <class F> void group(std::string_view key, F fn)
     {
-        std::optional<setx::Block> g = block_.group(key);
+        std::optional<odex::Block> g = block_.group(key);
         if (!g) return;
         Take nested(*g, s_);
         fn(nested);
@@ -170,7 +170,7 @@ public:
                 if (block_.has(key)) block_.fail(*block_.member(key), xpp::format("`{}` is not a setting of this model", key));
                 continue;
             }
-            const setx::Member *m = block_.member(key);
+            const odex::Member *m = block_.member(key);
             if (!m) continue;
             const std::string text = block_.word_of(*m);
             if (const std::optional<std::string> why = setting_problem(*s_, *row, text))
@@ -187,23 +187,23 @@ public:
             return r.real ? r.real(*s_) : r.whole(*s_);
         };
         if (const auto bad = option_pairs_problem(held)) {
-            const setx::Member *at = block_.member(setting_key(once_option(bad->hi)));
+            const odex::Member *at = block_.member(setting_key(once_option(bad->hi)));
             if (!at) at = block_.member(setting_key(once_option(bad->lo)));
             if (at) block_.fail(*at, bad->text);
         }
     }
     void named(std::string_view key, std::span<const std::string> names, std::vector<double> &values)
     {
-        std::optional<setx::Block> g = block_.group(key);
+        std::optional<odex::Block> g = block_.group(key);
         if (!g) return;
-        read_named(s_->model(), *g, names, values, [&](std::size_t, double &v, const setx::Member &m) { v = g->number_of(m); });
+        read_named(s_->model(), *g, names, values, [&](std::size_t, double &v, const odex::Member &m) { v = g->number_of(m); });
     }
     void named(std::string_view key, std::span<const std::string> names, std::vector<std::string> &values,
                std::span<const std::size_t> longest = {})
     {
-        std::optional<setx::Block> g = block_.group(key);
+        std::optional<odex::Block> g = block_.group(key);
         if (!g) return;
-        read_named(s_->model(), *g, names, values, [&](std::size_t i, std::string &v, const setx::Member &m) {
+        read_named(s_->model(), *g, names, values, [&](std::size_t i, std::string &v, const odex::Member &m) {
             v = g->text_of(m);
             if (!longest.empty() && v.size() > longest[i])
                 g->fail(m, xpp::format("`{}` is {} characters: at most {}", m.key, v.size(), longest[i]));
@@ -212,7 +212,7 @@ public:
     void flagged(std::string_view key, std::span<const std::string> names, std::vector<int> &flags)
     {
         std::vector<std::string> on;
-        const setx::Member *m = block_.member(key);
+        const odex::Member *m = block_.member(key);
         if (!block_.words(key, on, names.size())) return;
         std::ranges::fill(flags, 0);
         for (const std::string &n : on) {
@@ -229,7 +229,7 @@ public:
     }
 
 private:
-    setx::Block &block_;
+    odex::Block &block_;
     Session *s_;
 };
 
@@ -399,71 +399,6 @@ template <class IO, class S> void describe(IO &io, S &f, const Names &n)
     });
 }
 
-/* describes what a description names as a JSON Schema's properties (the
-   schema of a .setx: setx_schema) */
-class Shape {
-public:
-    void operator()(std::string_view key, double) { prop(key, "{\"type\": \"number\"}"); }
-    void operator()(std::string_view key, int) { prop(key, "{\"type\": \"integer\"}"); }
-    void dimension(std::string_view key, int)
-    {
-        prop(key, option_value_schema(OptionRow{.kind = OptionKind::whole, .rule = OptionRule::whole_positive, .maximum = settings_dimension_limit}));
-    }
-    void flag(std::string_view key, int) { prop(key, "{\"type\": \"boolean\"}"); }
-    void word(std::string_view key, const std::string &) { prop(key, "{\"type\": \"string\"}"); }
-    void text(std::string_view key, const std::string &) { prop(key, "{\"type\": \"string\"}"); }
-    void numbers(std::string_view key, std::span<const double> v)
-    {
-        prop(key, xpp::format("{{\"type\": \"array\", \"items\": {{\"type\": \"number\"}}, \"minItems\": {0}, \"maxItems\": {0}}}", v.size()));
-    }
-    template <class F> void group(std::string_view key, F fn)
-    {
-        Shape inner(indent_ + "  ");
-        fn(inner);
-        prop(key, "{\"type\": \"object\", \"additionalProperties\": false, \"properties\": {\n" + inner.props + "\n" + indent_ + "}}");
-    }
-    void table(std::string_view which, const Settings &)
-    {
-        for (const OptionRow *row : saved_settings(which)) prop(setting_key(*row), option_value_schema(*row));
-    }
-    void named(std::string_view key, std::span<const std::string>, const std::vector<double> &)
-    {
-        prop(key, "{\"type\": \"object\", \"additionalProperties\": {\"type\": \"number\"}}");
-    }
-    void named(std::string_view key, std::span<const std::string>, const std::vector<std::string> &, std::span<const std::size_t> = {})
-    {
-        prop(key, "{\"type\": \"object\", \"additionalProperties\": {\"type\": \"string\"}}");
-    }
-    void flagged(std::string_view key, std::span<const std::string>, const std::vector<int> &)
-    {
-        prop(key, "{\"type\": \"array\", \"items\": {\"type\": \"string\"}}");
-    }
-    void curves(const GRAPH &)
-    {
-        const auto words = [](auto names) {
-            std::string list;
-            for (const std::string_view n : names) list += (list.empty() ? "\"" : ", \"") + std::string(n) + "\"";
-            return "{\"enum\": [" + list + "]}";
-        };
-        prop("curves", "{\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"additionalProperties\": false, "
-                       "\"properties\": {\"x\": {\"type\": \"string\"}, \"y\": {\"type\": \"string\"}, \"z\": {\"type\": \"string\"}, "
-                       "\"color\": {\"type\": \"string\"}, \"draw\": " + words(line_draw_names) + ", \"dash\": " + words(line_dash_names)
-                       + ", \"width\": {\"type\": \"number\", \"exclusiveMinimum\": 0}, \"marker\": " + words(line_marker_names)
-                       + ", \"marker_size\": {\"type\": \"number\", \"minimum\": 0}}}}");
-    }
-    explicit Shape(std::string indent = "    ") : indent_(std::move(indent)) {}
-    std::string props;
-
-private:
-    void prop(std::string_view key, const std::string &schema)
-    {
-        std::string quoted;
-        json_append_string(quoted, key);
-        props += (props.empty() ? "" : ",\n") + indent_ + quoted + ": " + schema;
-    }
-    std::string indent_;
-};
-
 } // namespace
 
 void Settings::set_setting(const OptionRow *row, std::string text)
@@ -499,21 +434,21 @@ void copy_curves(const GRAPH &from, GRAPH &to)
     to.color = from.color;
 }
 
-void write_window(setx::Out &out, const Session &s, const GRAPH &g)
+void write_window(odex::Out &out, const Session &s, const GRAPH &g)
 {
     write_curves(out, s, g);
     Put io(out, &s);
     graph_fields(io, g);
 }
 
-void read_window(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes)
+void read_window(odex::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes)
 {
     read_curves(window, s, g, added, expanded_bytes);
     Take io(window, nullptr);
     graph_fields(io, g);
 }
 
-void write_curves(setx::Out &out, const Session &s, const GRAPH &g)
+void write_curves(odex::Out &out, const Session &s, const GRAPH &g)
 {
     out.begin_list("curves");
     for (int j = 0; j < g.nvars; j++) {
@@ -529,20 +464,20 @@ void write_curves(setx::Out &out, const Session &s, const GRAPH &g)
     out.end_list();
 }
 
-void read_curves(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes)
+void read_curves(odex::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes)
 {
-    std::vector<setx::Block> curves;
+    std::vector<odex::Block> curves;
     /* Five integer columns in the staged/runtime graphs and two display
        identities; six float scratch columns in both graphs, plus phase flow. */
-    constexpr std::size_t curve_bytes = sizeof(setx::Block) + 4 * 5 * sizeof(int)
+    constexpr std::size_t curve_bytes = sizeof(odex::Block) + 4 * 5 * sizeof(int)
         + 2 * 2 * plot_axes * sizeof(float) + sizeof(PhaseShown::FlowCurve);
     if (!snapx::memory_groups(window, "curves", curves, curve_bytes, expanded_bytes)) return;
     if (curves.empty()) window.fail(*window.member("curves"), "a window has at least one curve");
     g.resize_curves(static_cast<int>(curves.size()));
     for (std::size_t j = 0; j < curves.size(); j++) {
-        setx::Block &c = curves[j];
+        odex::Block &c = curves[j];
         const auto column = [&](std::string_view key) {
-            const setx::Member *m = c.member(key);
+            const odex::Member *m = c.member(key);
             if (!m) return 0;
             const std::string name = c.name_of(*m);
             const std::optional<int> col = column_named(s, added, name);
@@ -596,9 +531,9 @@ Settings capture_settings(const Session &s, SettingsUse use)
     return f;
 }
 
-Result<std::string> setx_text(const Session &s, const Settings &f)
+Result<std::string> settings_text(const Session &s, const Settings &f)
 {
-    setx::Out out;
+    odex::Out out;
     out.comment("xppautX settings (docs/odex.md, \".setx\")");
     if (f.graphics) out.whole(version_word, format_version); /* the file's own (the session's members have the manifest's) */
     Put io(out, &s);
@@ -608,7 +543,7 @@ Result<std::string> setx_text(const Session &s, const Settings &f)
 
 Result<Settings> read_settings(Session &s, std::string file, std::string_view text)
 {
-    return setx::read_block("session", std::move(file), text, true, [&](setx::Block &block) {
+    return odex::read_block("session", std::move(file), text, true, [&](odex::Block &block) {
         Settings f = capture_settings(s, SettingsUse::session);
         Take io(block, &s);
         describe(io, f, names_of(s));
@@ -679,31 +614,6 @@ void apply_settings(Session &s, const Settings &f, bool redraw)
         redraw_params();
         ui.redraw_graph(s);
     }
-}
-
-namespace {
-
-/* the schema's start, up to the properties of the file's groups */
-constexpr std::string_view setx_schema_head =
-    "{\n"
-    "  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n"
-    "  \"title\": \"xppautX .setx settings\",\n"
-    "  \"description\": \"A settings file of a model: the numerics (the option table's keys), the values, the delays, "
-    "the boundary conditions and the active window's graphics, in the options syntax. Generated from core/setx_file.cpp "
-    "and core/model_options.cpp by xppautX --setx-schema. The groups named by the model's variables or parameters hold "
-    "one entry for each name.\",\n"
-    "  \"type\": \"object\",\n"
-    "  \"additionalProperties\": false,\n"
-    "  \"properties\": {\n";
-
-} // namespace
-
-std::string setx_schema()
-{
-    Shape shape;
-    Settings any;
-    describe(shape, any, Names{});
-    return std::string(setx_schema_head) + shape.props + "\n  }\n}\n";
 }
 
 } // namespace xpp

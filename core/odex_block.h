@@ -39,7 +39,7 @@
 #include "xpp_error.h"
 #include "xpp_io.h" /* ReadFailed */
 
-namespace xpp::setx {
+namespace xpp::odex {
 
 struct Member;
 
@@ -67,7 +67,7 @@ inline constexpr int max_depth = 8;
 /* text, the contents of file, read whole: the unbraced group of its
    entries (a root at line 1), or the error at the token that is wrong.
    where names the reader in the error ("settings", "session", ...). */
-Result<Value> read_tree(std::string where, std::string file, std::string_view text);
+Result<Value> read_tree(const std::string &where, const std::string &file, std::string_view text);
 
 /* the text a file holds, kept for the errors' lines as written */
 class Document {
@@ -184,7 +184,7 @@ template <class F>
 auto read_block(std::string where, std::string file, std::string_view text, bool complete, F &&parse)
     -> Result<std::invoke_result_t<F &, Block &>>
 {
-    Result<Value> root = setx::read_tree(where, file, text);
+    Result<Value> root = read_tree(where, file, text);
     if (!root) return std::unexpected(std::move(root.error()));
     const Document doc(where, std::move(file), std::string(text));
     try {
@@ -245,5 +245,5 @@ private:
 /* text is a bare word of the syntax: it reads back as the word */
 bool is_bare_word(std::string_view text);
 
-} // namespace xpp::setx
+} // namespace xpp::odex
 

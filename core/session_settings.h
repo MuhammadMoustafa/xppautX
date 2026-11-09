@@ -26,7 +26,7 @@
 #include "browse.h"    /* AddedColumn */
 #include "integrate.h" /* RangeVars, EquilibriumRange */
 #include "pp_shoot.h"  /* ShootRange */
-#include "setx.h"
+#include "odex_block.h"
 #include "struct.h"    /* GRAPH */
 #include "xpp_error.h"
 
@@ -81,7 +81,7 @@ enum class SettingsUse { file, session };
 Settings capture_settings(const Session &s, SettingsUse use);
 
 /* settings as a .setx's text; the error when a text cannot be written */
-Result<std::string> setx_text(const Session &s, const Settings &f);
+Result<std::string> settings_text(const Session &s, const Settings &f);
 
 /* text, the session's .setx named file, read for s (its model's names): every key and value checked, or the
    error at the one that is wrong. Nothing of s changes. */
@@ -94,11 +94,6 @@ void apply_storage_precision(Session &s, const Settings &f);
 /* f put in s, in one step (the front end shown it when redraw) */
 void apply_settings(Session &s, const Settings &f, bool redraw);
 
-/* the JSON Schema of a .setx, from the description the reader and the writer
-   share and the option table: what `xppautX --setx-schema` prints and
-   docs/setx.schema.json holds (tools/optionschema.sh checks they agree) */
-std::string setx_schema();
-
 /* the value of parameter i of s's model */
 double parameter_value(const Session &s, int i);
 
@@ -106,16 +101,16 @@ double parameter_value(const Session &s, int i);
 
 /* a window's curves as .setx names them: the variables by name (the time,
    a variable, a column the browser added), the line and the colour */
-void write_curves(setx::Out &out, const Session &s, const GRAPH &g);
+void write_curves(odex::Out &out, const Session &s, const GRAPH &g);
 /* the window's curves into g (nvars, xv, yv, zv, line, color); the
    variables are looked up as find_variable does, then in added (the
    columns a session's windows.setx adds, not yet in s) */
-void read_curves(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes);
+void read_curves(odex::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes);
 /* a plot window as a group holds it (windows.setx, the graphics of a .setx):
    its curves, then its other settings (the rotation, the scales, the box, ...);
    added: as read_curves' */
-void write_window(setx::Out &out, const Session &s, const GRAPH &g);
-void read_window(setx::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes);
+void write_window(odex::Out &out, const Session &s, const GRAPH &g);
+void read_window(odex::Block &window, const Session &s, GRAPH &g, std::span<const AddedColumn> added, std::size_t &expanded_bytes);
 /* from's curves (their number, variables, lines and colours) given to to */
 void copy_curves(const GRAPH &from, GRAPH &to);
 /* those settings of from given to to, its other fields kept (a restored

@@ -1,7 +1,7 @@
 /* A recording's file, name.recx: see recx.h. */
 #include "recx.h"
 #include "model_files.h"
-#include "setx.h"
+#include "odex_block.h"
 #include "snapx.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
@@ -85,7 +85,7 @@ Result<std::string> text(const Recording &r)
         out += line;
         out += '\n';
     };
-    setx::Out header;
+    odex::Out header;
     header.begin(header_group);
     header.whole(version_word, format_version);
     header.text("program", r.program);
@@ -137,12 +137,12 @@ Result<Read> read(std::string_view text, std::string file)
             header += '\n';
         }
         /* text that is no settings at all is not a recording: said so (a header that parses and is wrong is told what is) */
-        if (Result<setx::Value> syntax = setx::read_tree("recording", l.file(), header); !syntax) {
+        if (Result<odex::Value> syntax = odex::read_tree("recording", l.file(), header); !syntax) {
             syntax.error().what = xpp::format("not a recording: {}", syntax.error().what);
             throw ReadFailed{syntax.error()};
         }
-        Result<int> parsed = setx::read_block("recording", l.file(), header, true, [&r](setx::Block &file) {
-            setx::Block g = *file.group(header_group);
+        Result<int> parsed = odex::read_block("recording", l.file(), header, true, [&r](odex::Block &file) {
+            odex::Block g = *file.group(header_group);
             g.require_version("recordings");
             g.text("program", r.program);
             g.text("model", r.model);

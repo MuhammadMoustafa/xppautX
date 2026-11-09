@@ -1055,7 +1055,7 @@ void draw_grab_points(xpp::Session &s)
 
 namespace {
 
-std::string animation_model_name(setx::Block &block)
+std::string animation_model_name(odex::Block &block)
 {
     std::string model;
     block.text("model", model);
@@ -1067,10 +1067,10 @@ std::string animation_model_name(setx::Block &block)
    leave an unknown key behind. The settings reader supplies all typed literals. */
 class AnimationFields {
 public:
-    AnimationFields(Session &s, const odex::Statement &st, const setx::Value &fields,
-                    const setx::Document &doc)
+    AnimationFields(Session &s, const odex::Statement &st, const odex::Value &fields,
+                    const odex::Document &doc)
         : s_(s), st_(st), doc_(doc), fields_(doc, fields, false, st.name), used_(st.bindings.size(), false) {}
-    setx::Block &literals() { return fields_; }
+    odex::Block &literals() { return fields_; }
     const odex::Expr *expression(std::string_view key, bool required = true)
     {
         for (std::size_t i = 0; i < st_.bindings.size(); ++i)
@@ -1115,13 +1115,13 @@ public:
 private:
     Session &s_;
     const odex::Statement &st_;
-    const setx::Document &doc_;
-    setx::Block fields_;
+    const odex::Document &doc_;
+    odex::Block fields_;
     std::vector<bool> used_;
 };
 
 void native_shape(Session &s, AnimationState &animation, const odex::Statement &st,
-                  const odex::AnimationStatement &written, const setx::Document &doc)
+                  const odex::AnimationStatement &written, const odex::Document &doc)
 {
     AnimationFields f(s, st, written.fields, doc);
     auto &l = f.literals();
@@ -1247,7 +1247,7 @@ Result<AnimationState> read_animation(Session &s, std::string_view text, const s
         return load_ani_file(s, lines, file.c_str());
     }
     if (!files::has_extension(file, ".anix")) return fail_reading("animation", "expected an .anix animation", file);
-    const setx::Document doc("animation", file, std::string(text));
+    const odex::Document doc("animation", file, std::string(text));
     try {
         AnimationState animation = s.animation;
         init_ani_stuff(animation);
@@ -1262,7 +1262,7 @@ Result<AnimationState> read_animation(Session &s, std::string_view text, const s
                 doc.fail(st.pos.line, st.pos.col, xpp::format("an animation starts with `{}: {}`, found `{}`: this program reads animations of version {}",
                                                               version_word, format_version, st.name, format_version));
             if (st.name == version_word || st.name == "model" || st.name == "options") {
-                setx::Block block(doc, written.fields, false, st.name);
+                odex::Block block(doc, written.fields, false, st.name);
                 if (written.permanent) block.fail("version, model and options belong outside permanent");
                 if (st.name == version_word) {
                     if (version_seen) block.fail("version is written once");
@@ -1325,13 +1325,13 @@ Result<std::string> animation_model(const std::string &file)
     std::string text;
     UniqueFile input(files::open_read_within(file, files::split_path(file).first, {}));
     if (!input || !read_bytes(input.get(), text, zip::archive_bytes_limit)) return std::unexpected(files::open_error("animation", file));
-    const setx::Document doc("animation", file, text);
+    const odex::Document doc("animation", file, text);
     try {
         std::string model;
         for (const auto &st : odex::parse_animation(text, file)) {
             if (st.expressions.name != "model") continue;
             if (!model.empty()) doc.fail(st.fields, "model is written once");
-            setx::Block block(doc, st.fields, true, "model");
+            odex::Block block(doc, st.fields, true, "model");
             model = animation_model_name(block);
             block.done();
         }

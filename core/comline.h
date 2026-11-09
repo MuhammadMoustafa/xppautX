@@ -29,7 +29,7 @@ struct CommandLine {
   std::string model_file;
   std::size_t load_options = 0;                /* options a load takes (all but the program's own switches) */
   /* the program's own switches */
-  bool help = false, version = false, options_schema = false, setx_schema = false;
+  bool help = false, version = false, options_schema = false;
   bool convert = false, check = false, yes = false, no_open = false;
   std::optional<Interface> interface;          /* --browser/--web, --server: the last one given, never two different */
   std::optional<int> port;                     /* --port: 0 for any free port */

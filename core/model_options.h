@@ -27,10 +27,10 @@ struct Model;   /* model.h */
 struct OptionRow;
 struct XppSlider;
 struct PlotCurve; /* load_eqn.h */
-namespace setx { class Block; }
+namespace odex { class Block; }
 /* Shared preset/session reader. Before model compilation, check_names is false;
    the .odex loader checks names against declarations instead. */
-std::vector<XppSlider> read_sliders(const Model &m, setx::Block &file, bool check_names = true);
+std::vector<XppSlider> read_sliders(const Model &m, odex::Block &file, bool check_names = true);
 
 namespace option_limit {
 /* Ten million history samples allow large histories without int-sized requests. */
@@ -326,7 +326,7 @@ bool set_holds(const OptionRow &row);
 
 /* the curves of a model's `curves` list (a window's are setx_file.h's read_curves, with their colours and lines); the groups (x, y, z: a variable's name each); with a Session the names are
    checked and read as columns, without one only the shape of the list */
-std::vector<PlotCurve> read_starting_curves(const Session *s, setx::Block &file);
+std::vector<PlotCurve> read_starting_curves(const Session *s, odex::Block &file);
 
 /* the starting graph's `curves` row */
 const OptionRow &curves_option();

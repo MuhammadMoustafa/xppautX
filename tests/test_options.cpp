@@ -17,7 +17,7 @@
 #include "numerics_settings.h"
 #include "model_options.h"
 #include "lunch-new.h"
-#include "setx_file.h"
+#include "session_settings.h"
 #include "model_text.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
@@ -500,7 +500,7 @@ int main(void)
         CHECK(!held || in_session(*s, r));
         if (!r.key.empty()) CHECK(held); /* every numerics setting the menu edits is in a .setx */
     }
-    const xpp::Result<std::string> own = xpp::setx_text(*s, xpp::capture_settings(*s, xpp::SettingsUse::session));
+    const xpp::Result<std::string> own = xpp::settings_text(*s, xpp::capture_settings(*s, xpp::SettingsUse::session));
     CHECK(own.has_value());
     if (!own) TEST_REPORT("options");
     CHECK(xpp::read_settings(*s, set_file, *own).has_value());

@@ -689,7 +689,7 @@ static std::vector<double> segment_numbers(const std::vector<float> &v,int count
 Result<std::string> nullclines_text(const Session &s)
 {
   const NullclineState &n=s.nullcline_state;
-  setx::Out out;
+  odex::Out out;
   const auto pair=[&](int ix,int iy,const std::vector<float> &x,int nx,const std::vector<float> &y,int ny){
     out.whole("x_axis",ix);
     out.whole("y_axis",iy);
@@ -709,10 +709,10 @@ Result<std::string> nullclines_text(const Session &s)
   return out.result("session");
 }
 
-NullclineState read_nullclines(const Model &m, setx::Block &file)
+NullclineState read_nullclines(const Model &m, odex::Block &file)
 {
   NullclineState n;
-  const auto pair=[&](setx::Block &g,int &ix,int &iy,std::vector<float> &x,int &nx,std::vector<float> &y,int &ny){
+  const auto pair=[&](odex::Block &g,int &ix,int &iy,std::vector<float> &x,int &nx,std::vector<float> &y,int &ny){
     const auto axis=[&](std::string_view key,int &v){
       g.whole(key,v);
       if(v<0||v>m.node)g.fail(*g.member(key),xpp::format("{} {}: 0 to {} required",key,v,m.node));
@@ -734,13 +734,13 @@ NullclineState read_nullclines(const Model &m, setx::Block &file)
     segments("y_segments",y,ny);
     if((nx||ny)&&(ix==0||iy==0||ix==iy))g.fail("nonempty nullclines require distinct state variable axes");
   };
-  if(std::optional<setx::Block> current=file.group("current")){
+  if(std::optional<odex::Block> current=file.group("current")){
     pair(*current,n.null_ix,n.null_iy,n.x_null,n.num_x_n,n.y_null,n.num_y_n);
     current->done();
   }
-  std::vector<setx::Block> frozen;
+  std::vector<odex::Block> frozen;
   file.groups("frozen",frozen,max_frozen_clines);
-  for(setx::Block &g:frozen){
+  for(odex::Block &g:frozen){
     FrozenCline f;
     pair(g,f.n_ix,f.n_iy,f.xn,f.nmx,f.yn,f.nmy);
     g.done();

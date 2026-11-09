@@ -26,7 +26,7 @@ enum class Opt { silent, no_compile, newseed, setfile, parfile, outfile, icfile,
                  qsets, qpars, qics, quiet, logfile, anifile, mkplot, plotfmt, noout, dfdraw, ncdraw, readset, with,
                  equil, verbose, debug,
                  /* the program's own (xppautx_main.cpp) */
-                 help, version, options_schema, setx_schema, convert, check, yes, no_open, browser, server, port };
+                 help, version, options_schema, convert, check, yes, no_open, browser, server, port };
 
 struct CommandOption {
   std::string_view name;
@@ -68,7 +68,6 @@ constexpr CommandOption my_cmd[] = {
   {"-h", Opt::help, false, true, true},
   {"--version", Opt::version, false, true, true},
   {"--options-schema", Opt::options_schema, false, true, true},
-  {"--setx-schema", Opt::setx_schema, false, true, true},
   {"--convert", Opt::convert, false, true, true},
   {"--check", Opt::check, false, true, true},
   {"--yes", Opt::yes, false, true, true},
@@ -152,7 +151,6 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     case Opt::help: cl.help = true; break;
     case Opt::version: cl.version = true; break;
     case Opt::options_schema: cl.options_schema = true; break;
-    case Opt::setx_schema: cl.setx_schema = true; break;
     case Opt::convert: cl.convert = true; break;
     case Opt::check: cl.check = true; break;
     case Opt::yes: cl.yes = true; break;

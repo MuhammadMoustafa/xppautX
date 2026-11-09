@@ -3,7 +3,7 @@
 #include "xpp_io.h"
 
 #include "xpp_files.h"
-#include "setx.h"
+#include "odex_block.h"
 
 namespace xpp::snapx {
 
@@ -21,18 +21,18 @@ bool account_memory(std::size_t &used, std::size_t count, std::size_t bytes_each
     return true;
 }
 
-bool memory_groups(setx::Block &block, std::string_view key, std::vector<setx::Block> &out,
+bool memory_groups(odex::Block &block, std::string_view key, std::vector<odex::Block> &out,
                    std::size_t bytes_each, std::size_t &used)
 {
-    const setx::Member *m = block.member(key);
-    if (m && m->value.kind == setx::Value::Kind::list && !account_memory(used, m->value.items.size(), bytes_each))
+    const odex::Member *m = block.member(key);
+    if (m && m->value.kind == odex::Value::Kind::list && !account_memory(used, m->value.items.size(), bytes_each))
         block.fail(*m, xpp::format("too many {} for the session memory limit", key));
     return block.groups(key, out, zip::archive_bytes_limit / bytes_each);
 }
 
 Result<std::string> manifest_text(const Manifest &m)
 {
-    setx::Out out;
+    odex::Out out;
     out.begin(manifest_group);
     out.whole(version_word, format_version);
     out.text("model", m.model_name);
@@ -44,9 +44,9 @@ Result<std::string> manifest_text(const Manifest &m)
 
 xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text)
 {
-    return setx::read_block("session", std::move(file), text, true, [](setx::Block &file_block) {
+    return odex::read_block("session", std::move(file), text, true, [](odex::Block &file_block) {
         Manifest m;
-        setx::Block g = *file_block.group(manifest_group);
+        odex::Block g = *file_block.group(manifest_group);
         g.require_version("session files");
         g.text("model", m.model_name);
         if (!odex::is_odex(m.model_name)) g.fail(*g.member("model"), "a session stores an .odex model only; .ode is refused");

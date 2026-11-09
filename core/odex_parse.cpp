@@ -13,7 +13,7 @@
 #include "model_files.h"
 #include "model_options.h"
 #include "load_eqn.h"
-#include "setx.h"
+#include "odex_block.h"
 
 #include <algorithm>
 #include <array>
@@ -288,10 +288,10 @@ public:
 
   /* a settings file (setx.h): the entries of an unbraced group to the end
      of the text, read with the block grammar the options use */
-  setx::Value settings_file()
+  Value settings_file()
   {
-    setx::Value root;
-    root.kind = setx::Value::Kind::group;
+    Value root;
+    root.kind = Value::Kind::group;
     root.line = root.col = 1;
     std::map<std::string, int> keys;
     while (!at_end()) {
@@ -321,7 +321,7 @@ public:
       s.expressions.kind = Statement::Kind::Aux;
       s.expressions.name = name.text;
       s.expressions.pos = name.pos;
-      s.fields.kind = setx::Value::Kind::group;
+      s.fields.kind = Value::Kind::group;
       s.fields.line = name.pos.line;
       s.fields.col = name.pos.col;
       s.permanent = permanent;
@@ -726,11 +726,11 @@ private:
   }
 
   /* the entry of group whose key and colon were read: its value */
-  void setting_entry(setx::Value &group, std::map<std::string, int> &keys, int depth, const Token &key)
+  void setting_entry(Value &group, std::map<std::string, int> &keys, int depth, const Token &key)
   {
     const auto [first, fresh] = keys.emplace(key.text, key.pos.line);
     if (!fresh) fail(key.pos, xpp::format("`{}` is given twice (the first is at line {})", key.text, first->second));
-    setx::Member m;
+    Member m;
     m.key = key.text;
     m.line = key.pos.line;
     m.col = key.pos.col;
@@ -740,22 +740,22 @@ private:
 
   /* a settings value: a string, a { group }, a [ list ] or a bare word;
      depth the groups and lists around it */
-  setx::Value setting_value(int depth)
+  Value setting_value(int depth)
   {
-    setx::Value v;
+    Value v;
     v.line = peek().pos.line;
     v.col = peek().pos.col;
-    if (depth >= setx::max_depth)
-      fail(peek().pos, xpp::format("groups and lists are nested at most {} deep", setx::max_depth));
+    if (depth >= max_depth)
+      fail(peek().pos, xpp::format("groups and lists are nested at most {} deep", max_depth));
     if (peek().kind == Token::Kind::String) {
-      v.kind = setx::Value::Kind::string;
+      v.kind = Value::Kind::string;
       v.text = take().text;
     } else if (at_punct("{")) {
-      v.kind = setx::Value::Kind::group;
+      v.kind = Value::Kind::group;
       std::map<std::string, int> keys;
       entries("a group", [&](const Token &key) { setting_entry(v, keys, depth + 1, key); });
     } else if (at_punct("[")) {
-      v.kind = setx::Value::Kind::list;
+      v.kind = Value::Kind::list;
       const Pos open = take().pos;
       while (!at_punct("]")) {
         if (at_end()) fail(peek().pos, xpp::format("missing `]` for the list opened at {}:{}", open.line, open.col));
@@ -848,14 +848,14 @@ private:
       const bool curves = row->kind == OptionKind::curves;
       o.value_pos = peek().pos;
       const std::size_t begin = peek().begin;
-      const setx::Value value = setting_value(0);
-      if (value.kind != setx::Value::Kind::list) fail(o.value_pos, curves ? "curves takes a list of curves" : "sliders takes a list of presets");
+      const Value value = setting_value(0);
+      if (value.kind != Value::Kind::list) fail(o.value_pos, curves ? "curves takes a list of curves" : "sliders takes a list of presets");
       o.value = std::string(src_.substr(begin, toks_[i_ - 1].end - begin));
-      setx::Value root;
-      root.kind = setx::Value::Kind::group;
+      Value root;
+      root.kind = Value::Kind::group;
       root.members.push_back({curves ? "curves" : "sliders", key.pos.line, key.pos.col, value});
-      const setx::Document doc("options", out_.files[file_], std::string(src_));
-      setx::Block block(doc, root, false, curves ? "plot" : "interface");
+      const Document doc("options", out_.files[file_], std::string(src_));
+      Block block(doc, root, false, curves ? "plot" : "interface");
       try { /* validates the list */
         if (curves) static_cast<void>(read_starting_curves(nullptr, block));
         else static_cast<void>(read_sliders(*model_, block, false));
@@ -1548,7 +1548,7 @@ std::vector<AnimationStatement> parse_animation(std::string_view text, const std
   return Parser(nullptr, out, 0, text, 0).animation();
 }
 
-Result<setx::Value> read_settings_tree(const std::string &where, const std::string &file, std::string_view text)
+Result<Value> read_tree(const std::string &where, const std::string &file, std::string_view text)
 {
   try {
     Parsed out;

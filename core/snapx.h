@@ -20,7 +20,7 @@
 #include "xpp_error.h"
 #include "xpp_zip.h"
 
-namespace xpp::setx { class Block; }
+namespace xpp::odex { class Block; }
 
 namespace xpp::snapx {
 
@@ -31,7 +31,7 @@ inline constexpr std::string_view extension = ".snapx";
 bool account_memory(std::size_t &used, std::size_t count, std::size_t bytes_each);
 /* A settings list's staged records, checked before making its Blocks. Runtime
    slots and point storage are charged separately to the same byte estimate. */
-bool memory_groups(setx::Block &block, std::string_view key, std::vector<setx::Block> &out,
+bool memory_groups(odex::Block &block, std::string_view key, std::vector<odex::Block> &out,
                    std::size_t bytes_each, std::size_t &used);
 
 /* the members, in the order a session file holds them: the manifest,

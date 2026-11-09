@@ -9,7 +9,7 @@
 
 #include "model_options.h"
 #include "image_format.h"
-#include "setx.h"
+#include "odex_block.h"
 #include "odex.h"
 #include "xpp_util.h"
 #include "autox_settings.h"
@@ -1391,14 +1391,14 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
       if (const auto why = option_value(s, key, value, force, mask, apply, false)) return why;
   }
   else if (row->kind == OptionKind::curves) {
-    const auto curves = setx::read_block("options", s.model().this_file, "curves: " + text, false,
-      [&](setx::Block &block) { return read_starting_curves(&s, block); });
+    const auto curves = odex::read_block("options", s.model().this_file, "curves: " + text, false,
+      [&](odex::Block &block) { return read_starting_curves(&s, block); });
     if (!curves) return curves.error().what;
     if (apply) s.plot_settings.curves = *curves;
   }
   else if (row->kind == OptionKind::sliders) {
-    const auto sliders = setx::read_block("options", s.model().this_file, "sliders: " + text, false,
-      [&](setx::Block &block) { return read_sliders(s.model(), block); });
+    const auto sliders = odex::read_block("options", s.model().this_file, "sliders: " + text, false,
+      [&](odex::Block &block) { return read_sliders(s.model(), block); });
     if (!sliders) return sliders.error().what;
     if (apply) s.sliders = *sliders;
   }
@@ -1426,12 +1426,12 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
 
 } // namespace
 
-std::vector<XppSlider> read_sliders(const Model &m, xpp::setx::Block &file, bool check_names)
+std::vector<XppSlider> read_sliders(const Model &m, xpp::odex::Block &file, bool check_names)
 {
-    std::vector<xpp::setx::Block> items;
+    std::vector<xpp::odex::Block> items;
     file.groups("sliders", items, odex::max_file_tokens);
     std::vector<XppSlider> sliders;
-    for (xpp::setx::Block &g : items) {
+    for (xpp::odex::Block &g : items) {
         xpp::XppSlider slider;
         for (std::string_view key : {"name", "low", "high"})
             if (!g.has(key)) g.fail(xpp::format("slider preset requires {}", key));
@@ -1449,18 +1449,18 @@ std::vector<XppSlider> read_sliders(const Model &m, xpp::setx::Block &file, bool
 }
 
 
-std::vector<PlotCurve> read_starting_curves(const Session *s, xpp::setx::Block &file)
+std::vector<PlotCurve> read_starting_curves(const Session *s, xpp::odex::Block &file)
 {
-    std::vector<xpp::setx::Block> items;
+    std::vector<xpp::odex::Block> items;
     file.groups("curves", items, static_cast<std::size_t>(max_plot_curves));
     if (items.empty()) file.fail("curves holds at least one curve");
     std::vector<PlotCurve> curves;
-    for (xpp::setx::Block &g : items) {
+    for (xpp::odex::Block &g : items) {
         PlotCurve curve;
         const std::array<std::pair<std::string_view, int PlotCurve::*>, 3> axes{{{"x", &PlotCurve::x}, {"y", &PlotCurve::y}, {"z", &PlotCurve::z}}};
         for (const auto &[key, member] : axes) {
             if (!g.has(key)) continue;
-            const xpp::setx::Member &m = *g.member(key);
+            const xpp::odex::Member &m = *g.member(key);
             if (!s) continue; /* the names are the model's: checked when the options are applied */
             int column = -1;
             find_variable(*s, g.name_of(m), &column);

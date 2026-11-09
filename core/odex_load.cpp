@@ -756,8 +756,8 @@ private:
       if (s.more().options.empty()) return false;
       for (const Option &o : s.more().options) {
         if (!o.tree) continue;
-        for (const setx::Value &preset : o.tree->items)
-          for (const setx::Member &entry : preset.members) {
+        for (const Value &preset : o.tree->items)
+          for (const Member &entry : preset.members) {
             if (entry.key != "name") continue;
             const Model::Name *d = find(entry.value.text);
             if (!d || !(d->kind == Model::NameKind::Param || d->kind == Model::NameKind::Variable || d->kind == Model::NameKind::Markov))

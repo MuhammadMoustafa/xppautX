@@ -17,7 +17,7 @@
 #include "session.h"
 #include "solver.h"
 #include "lunch-new.h"
-#include "setx_file.h"
+#include "session_settings.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
@@ -48,7 +48,7 @@ void put(const char *path, const std::string &text)
 /* the settings of the session now, as a .setx's text */
 std::string snapshot(const xpp::Session &s)
 {
-    const xpp::Result<std::string> t = xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
+    const xpp::Result<std::string> t = xpp::settings_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
     CHECK(t.has_value());
     return t ? *t : std::string();
 }
@@ -162,7 +162,7 @@ int main(void)
     }
 
     /* Saved dimensions and numerics are refused with their member's place. */
-    const auto session_text = xpp::setx_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
+    const auto session_text = xpp::settings_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
     CHECK(session_text);
     for (const char *group : {"array_plot", "transpose"}) {
         for (const char *key : {"columns", "rows"}) {

@@ -1,6 +1,6 @@
 /* The settings syntax's typed reader and writer: see setx.h. The grammar
    itself is the .odex reader's (odex_parse.cpp). */
-#include "setx.h"
+#include "odex_block.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,12 +9,7 @@
 #include "odex.h"
 #include "xpp_io.h"
 
-namespace xpp::setx {
-
-Result<Value> read_tree(std::string where, std::string file, std::string_view text)
-{
-    return odex::read_settings_tree(where, file, text);
-}
+namespace xpp::odex {
 
 void Document::fail(int line, int col, std::string what) const
 {
@@ -469,4 +464,4 @@ Result<std::string> Out::result(std::string where) const
     return out_;
 }
 
-} // namespace xpp::setx
+} // namespace xpp::odex
