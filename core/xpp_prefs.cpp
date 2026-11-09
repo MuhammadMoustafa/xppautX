@@ -97,6 +97,8 @@ public:
         if (i < 0) block_.fail(block_.member(key)->value, xpp::format("`{}`: `{}` is none of error, warn, info or debug", key, text));
         out = static_cast<XppLogLevel>(i);
     }
+    /* a colour, when the file names one */
+    void color(std::string_view key, Color &out) { block_.color(key, out); }
     /* an absolute path, when the file names one */
     void path(std::string_view key, std::string &out)
     {
@@ -137,6 +139,7 @@ public:
         out.texts(key, list);
     }
     void level(std::string_view key, const XppLogLevel &value) { out.word(key, log_level_names[static_cast<std::size_t>(value)]); }
+    void color(std::string_view key, const Color &value) { out.color(key, value); }
     void path(std::string_view key, const std::string &value)
     {
         if (value.empty()) return;
@@ -178,6 +181,7 @@ template <class IO, class P> void describe(IO &io, P &p)
     io.count("threads", p.threads, THREADS_AUTO_WORD, threads_problem);
     io.level("log_level", p.log_level);
     io.path("log_file", p.log_file);
+    for (const ColorKey &c : COLOR_KEYS) io.color(c.key, p.colors.*c.member);
     io.approvals("outside_paths", p.outside_paths, MAX_OUTSIDE_APPROVALS);
 }
 

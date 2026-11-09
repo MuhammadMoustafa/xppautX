@@ -340,7 +340,6 @@ std::string setting_text(const xpp::Session &s, const OptionRow &row)
     if (row.kind == OptionKind::name && row.whole) return xpp::ind_to_sym(s, row.whole(s));
     if (row.text) return row.text(s);
     if (row.show) return row.show(s);
-    if (row.color) return print_color(row.color(s));
     return xpp::number(value_of(s, row));
 }
 

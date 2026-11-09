@@ -200,7 +200,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   keep, W615): `integration`, `poincare`, `equilibria`, `sweep`, `continuation`, `diagram`,
   `plot`, `analysis`, `interface`, `output`. A key is the option's one name in
   snake case; in a large group a dotted word is a section (`step.min`, `jacobian.kind`,
-  `axes.x_min`, `histogram.bins`, `colors.stable_equilibrium`), and a section's keys come
+  `axes.x_min`, `histogram.bins`, `line.marker_size`), and a section's keys come
   together. What each group holds:
 
   | group | keys |
@@ -210,8 +210,8 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535) |
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |
   | `continuation` | autoX run settings by their names: `mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance` (W531) and the ten that were Numerics-form settings only: `mesh_adapt_every`, `max_branch_switches`, `switch_one_direction`, `output_detail`, `max_location_iterations`, `max_newton_iterations`, `full_newton_after`, `step_adapt_every`, `suppress_branch_points`, `follow_all_branches` (each the autox.configure_numerics argument of its name); autoX's own names (`ntst`, `nmax`, `parmin`, ...) are XPPAUT's, read on `.ode` import only |
-  | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max`; `colors.stable_equilibrium`, `colors.unstable_equilibrium`, `colors.stable_periodic`, `colors.unstable_periodic` |
-  | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max` (the one pair of limits: a 2D plot's window, a 3D plot's box), `axes.z_min`, `axes.z_max` (the 3D box), `axes.phi`, `axes.theta` (the 3D view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`, `nullclines.x_color`, `nullclines.y_color`; `direction_field.grid`, `direction_field.draw`; `manifolds.stable_color`, `manifolds.unstable_color`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
+  | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max` |
+  | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max` (the one pair of limits: a 2D plot's window, a 3D plot's box), `axes.z_min`, `axes.z_max` (the 3D box), `axes.phi`, `axes.theta` (the 3D view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`; `direction_field.grid`, `direction_field.draw`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
   | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
   | `interface` | `sliders`, `buttons` (and `animation`, written directly in `options`, outside any group) |
   | `output` | `data_file`, `picture_file`, `nullclines_file`, `after_run`, `after_run_file` (`picture_file` is the picture a batch run writes of the graph, its extension, `.pdf` or `.svg`, picking the format, empty for none: an unknown extension is an error at its line, and a run per set names it after the set like `data_file`, `<set>.svg`; a path is named from the model's folder, a path outside it is a question, and its extension picks the data format; with `after_run_file` the analysis `after_run` names is written there and `data_file` keeps the trajectory, without it the analysis replaces the table `data_file` is written from, as XPPAUT's batch run does) |
@@ -245,7 +245,7 @@ you wrote (`1/30`) alone while the value is unchanged.
 
   A value is one bare word or number (letters, digits, `_ . + -`), no
   quotes, except a **path**, a **text** or a **colour**, which is a double-quoted string
-  (`data_file: "out/run 1.dat"`, `nullclines_file: "données.dat"`, `nullclines.x_color: "#ffa500"`; a colour is
+  (`data_file: "out/run 1.dat"`, `nullclines_file: "données.dat"`; a colour, which only the preferences file and the protocol hold, is
   `"foreground"`, a quoted CSS colour name or `"#rrggbb"` (`#rrggbbaa` with alpha, drawn by the page,
   SVG and PDF), and every colour is double quoted, including names; a name is read and written back as hex): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
@@ -450,6 +450,11 @@ offending key's file and line.
 The program's preferences (W287) are one file in the per-user configuration folder, `preferences.odex`: `version 4` and one
 `preferences { recent_models: [...], threads: auto, log_level: warn, ... }` statement, accepted only in that file. It is
 read by the same reader, all or nothing, and written whole, temp-then-rename. No older file is read.
+It holds the eight colours of the diagram's stability kinds (`stable_equilibrium_color`, `unstable_equilibrium_color`,
+`stable_periodic_color`, `unstable_periodic_color`), the nullclines (`x_nullcline_color`, `y_nullcline_color`) and the saddles'
+manifolds (`stable_manifold_color`, `unstable_manifold_color`), each a double-quoted colour (W655): they were the options
+`colors.*` of the `diagram` group, `nullclines.x_color`, `nullclines.y_color`, `manifolds.stable_color` and
+`manifolds.unstable_color` of `plot`, which a model's `options` no longer takes (an error at its line).
 
 XPPAUT's `.set` (positional lines, a value and then its label, read by their
 order) is import only: File > Import XPPAUT session state reads it and applies all of it (W321), writing nothing beside it, and

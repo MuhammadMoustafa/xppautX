@@ -2832,9 +2832,9 @@ def check_options_panels():
         values = call(cmd='options.get', group='continuation')['result']['values']
         check('W616: special_points is a row: the names of the codimension-two points detected', done.get('status') == 'ok' and values['special_points'] == 'cusp,zero_hopf', str(done) + str(values.get('special_points')))
         check('W616: a point that is no codimension-two point is refused', call(cmd='options.configure', group='continuation', values={'special_points': 'nonesuch'}).get('status') == 'error')
-        done = call(cmd='options.configure', group='diagram', values={'x_min': '-0.1', 'x_max': '0.3', 'colors.stable_equilibrium': '#123456'})
+        done = call(cmd='options.configure', group='diagram', values={'x_min': '-0.1', 'x_max': '0.3'})
         values = call(cmd='options.get', group='diagram')['result']['values']
-        check('W616: the diagram group reads and sets the open view\'s axes', done.get('status') == 'ok' and values['x_min'] == '-0.1' and values['x_max'] == '0.3' and values['colors.stable_equilibrium'] == '#123456', str(done) + str(values))
+        check('W616: the diagram group reads and sets the open view\'s axes', done.get('status') == 'ok' and values['x_min'] == '-0.1' and values['x_max'] == '0.3' and 'colors.stable_equilibrium' not in values, str(done) + str(values))
         check('W616: run.configure no longer takes autoeval', call(cmd='run.configure', autoeval=False).get('status') == 'error')
         done = call(cmd='output.configure', values={'data_file': 'panel.dat', 'after_run': 'histogram'})
         values = call(cmd='options.get', group='output')['result']['values']
@@ -2865,6 +2865,17 @@ def check_options_panels():
         check('W616: preferences.configure keeps the log level in the preferences beside the threads', done.get('status') == 'ok' and done['result']['log_level'] == 'info', str(done))
         done = call(cmd='preferences.get')
         check('W616: preferences.get gives the threads, whether automatic, the log level and file', done.get('status') == 'ok' and done['result']['log_level'] == 'info' and 'automatic' in done['result'] and 'log_file' in done['result'], str(done))
+        # W655: the eight colours are preferences: set, read back, kept in the file, refused in a model's options
+        kept = call(cmd='preferences.get')['result']
+        done = call(cmd='preferences.configure', x_nullcline_color='#123456', unstable_manifold_color='red')
+        check('W655: preferences.configure sets colours and answers with them', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
+              and done['result']['unstable_manifold_color'] == '#ff0000', str(done))
+        done = call(cmd='preferences.get')
+        check('W655: preferences.get lists the eight colours', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
+              and sum(k.endswith('_color') for k in done['result']) == 8, str(done))
+        check('W655: a colour is a colour', call(cmd='preferences.configure', y_nullcline_color='notacolour').get('status') == 'error')
+        check('W655: the diagram group has no colour rows', 'colors.stable_equilibrium' not in call(cmd='options.get', group='diagram')['result']['values'])
+        call(cmd='preferences.configure', x_nullcline_color=kept['x_nullcline_color'], unstable_manifold_color=kept['unstable_manifold_color'])  # the preferences file is shared by the later servers: back to what it held
         check('W616: a log level is one of the words', call(cmd='preferences.configure', log_level='loud').get('status') == 'error')
         call(cmd='preferences.configure', log_level='warn')  # the preferences file is shared by every server this check starts: back to the default
     finally:
@@ -2960,10 +2971,10 @@ def check_load_error():
 
         # a value an option refuses (W119): the load stops at the option's line
         for name, text, line, src, needle in (
-                ('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", 4, '@ ync=12', 'ync=12'),
+                ('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ nmesh=0\ndone\n", 4, '@ nmesh=0', 'nmesh=0'),
                 ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", 4, '@ dt=2*3', 'dt=2*3'),
-                ('badopt.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5 },\n  plot: { nullclines.y_color: 12 },\n}\n",
-                 6, '  plot: { nullclines.y_color: 12 },', 'double quotes'),
+                ('badopt.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5 },\n  plot: { nullclines.mesh: 0 },\n}\n",
+                 6, '  plot: { nullclines.mesh: 0 },', 'nullclines.mesh'),
                 # W206: XPPAUT's name for store_every is a .ode's; a .odex refuses it
                 ('oldname.odex', "par a = 1\nx' = -x\noptions {\n  integration: { total_time: 5, nout: 2 },\n}\n",
                  5, '  integration: { total_time: 5, nout: 2 },', 'nout')):
@@ -7720,7 +7731,7 @@ def check_open_reload():
         with open(os.path.join(r, 'broken.ode'), 'w') as f:
             f.write('par a=1\nx\'=-a*y+\ndone\n')
         with open(os.path.join(r, 'badoption.ode'), 'w') as f:
-            f.write('par a=1\nx\'=-a*x\n@ ync=12\ndone\n')
+            f.write('par a=1\nx\'=-a*x\n@ nmesh=0\ndone\n')
 
         def rows_of(name):
             """the stored data as written by the browser (csv), comments dropped"""
@@ -7846,7 +7857,7 @@ def check_open_reload():
         evs = open_model('badoption.ode')
         errs = [e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e]
         check('a refused option value: an error naming the file, line and value, the model before kept (W119)',
-              errs and errs[-1].get('file') == 'badoption.ode' and 'ync=12' in errs[-1]['error']
+              errs and errs[-1].get('file') == 'badoption.ode' and 'nmesh=0' in errs[-1]['error']
               and not [e for e in evs if e.get('ev') == 'hello']
               and last_state(evs)['pars'] == [['a', 1], ['b', 7]], str(errs)[:300])
         evs = open_model('missing.ode')
@@ -9951,6 +9962,8 @@ def check_parser_group():
                 ('integration: { total_time: .02, dt: .01, step.min: 1, step.max: 0.5 }', 2, 'integration.step.min (1) must be at most integration.step.max (0.5)'),
                 ('plot: { axes.x_min: 3, axes.x_max: 1 }', 2, 'plot.axes.x_min (3) must be below plot.axes.x_max (1)'),
                 ('plot: { axes.x_low: 3, axes.x_high: 5 }', 2, '`axes.x_low` is not an option'),
+                ('plot: { nullclines.x_color: "#ff0000" }', 2, '`nullclines.x_color` is not an option'),
+                ('diagram: { colors.stable_equilibrium: "#ff0000" }', 2, '`colors.stable_equilibrium` is not an option'),
                 ('analysis: { histogram.low: 2, histogram.high: 2 }', 2, 'analysis.histogram.low (2) must be below analysis.histogram.high (2)'),
                 ('analysis: { histogram.bins: 1 }', 2, 'must be a whole number of at least 2'),
                 ('plot: { curves: [ {}, {}, {}, {}, {}, {}, {}, {}, {} ] }', 2, '`curves` has 9 entries: at most 8'),

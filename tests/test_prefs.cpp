@@ -191,6 +191,26 @@ void check_threads()
     CHECK(xpp::prefs::threads_problem(0) && xpp::prefs::threads_problem(most + 1));
 }
 
+/* the colours (W655): each by its key, a quoted colour; none is XPPAUT's defaults, a bad one is refused at its line */
+void check_colors()
+{
+    const xpp::prefs::Preferences none = parse("").value();
+    CHECK(none.colors.stable_equilibrium == xpp::xppaut_color(1) && none.colors.unstable_manifold == xpp::xppaut_color(5));
+    xpp::prefs::Preferences p;
+    for (const xpp::prefs::ColorKey &c : xpp::prefs::COLOR_KEYS) p.colors.*c.member = xpp::xppaut_color(3);
+    p.colors.y_nullcline = xpp::Color{1, 2, 3, 128, false};
+    const auto text = xpp::prefs::serialize_prefs(p);
+    CHECK(text.has_value());
+    const auto back = xpp::prefs::parse_prefs(*text, FILE_LABEL);
+    CHECK(back && back->colors.x_nullcline == xpp::xppaut_color(3) && back->colors.y_nullcline == p.colors.y_nullcline);
+    for (const char *bad : {"x_nullcline_color: red,\n", "x_nullcline_color: \"nosuch\",\n"}) {
+        const auto r = parse(bad);
+        CHECK(!r && r.error().place.line == 3);
+        if (r) printf("colour accepted: %s\n", bad);
+        else if (r.error().place.line != 3) printf("bad colour: %s\n", r.error().text().c_str());
+    }
+}
+
 /* the log (W619): its level by name and the file it goes to, an absolute path; none is the defaults */
 void check_log()
 {
@@ -265,6 +285,7 @@ int main(void)
     check_good_files();
     check_threads();
     check_log();
+    check_colors();
 
     xpp::TempDir temp;
     CHECK(!temp.path().empty());

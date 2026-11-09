@@ -3293,6 +3293,16 @@ async function optionsCheck() {
   check('W616: the Preferences form shows the current threads (or automatic), log level and log file, and no error',
     await S(`s.commandForm.id === 'preferences.configure' && s.commandForm.values.log_level === 'warn' && (s.commandForm.values.automatic === true || s.commandForm.values.threads > 0)`)
     && await cdp.eval(`!document.querySelector('.registry-form .field-error, .registry-form [aria-invalid=true]')`), JSON.stringify(await S('s.commandForm.values')));
+  /* W655: the eight colours are in the form, in the option table's order, as the preferences hold them; a change sent reaches the page's form */
+  check('W655: the Preferences form lists the eight colours in order',
+    await S(`JSON.stringify(Object.keys(s.commandForm.values).filter(k => k.endsWith('_color'))) === JSON.stringify(['stable_equilibrium_color', 'unstable_equilibrium_color', 'stable_periodic_color', 'unstable_periodic_color', 'x_nullcline_color', 'y_nullcline_color', 'stable_manifold_color', 'unstable_manifold_color'])`));
+  await key('Escape');
+  await cdp.eval(`__xpp.send({cmd:'preferences.configure', x_nullcline_color:'#123456'})`);
+  await until('!s.busy', 'preferences sent');
+  await clickRegistry('preferences.configure');
+  check('W655: a colour set reaches the form the page opens next', await S(`s.commandForm.values.x_nullcline_color === '#123456'`), JSON.stringify(await S('s.commandForm.values')));
+  await cdp.eval(`__xpp.send({cmd:'preferences.configure', x_nullcline_color:'#f06400'})`);
+  await until('!s.busy', 'preferences back');
   await key('Escape');
   /* a panel opened from a menu item that had a form of its own sets the group's rows, checked all together */
   await menuRun('equilibrium.configure', {max_iterations: 77});

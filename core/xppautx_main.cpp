@@ -218,7 +218,7 @@ static void run_session(void)
     if (!silent) {
         const xpp::Model &m = (**loaded).model();
         const auto noted = xpp::recent::note(opened.empty() ? xpp::files::absolute(m.this_file, m.load_dir) : opened);
-        /* a preferences file that cannot be read was said once already, with what it costs (threads_load) */
+        /* a preferences file that cannot be read was said once already, with what it costs (preferences_load) */
         if (!noted && xpp::prefs::load_prefs()) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
     }
     /* the session the load made, the program's until the redraw (a protocol
@@ -250,7 +250,7 @@ int main(int argc, char **argv)
     startup = std::move(*parsed);
     const xpp::CommandLine &cl = startup;
     {
-        /* what the log shows and where it goes: the command line's, else the preferences' (a bad file is said by the load, threads_load) */
+        /* what the log shows and where it goes: the command line's, else the preferences' (a bad file is said by the load, preferences_load) */
         const xpp::Result<xpp::prefs::Preferences> kept = xpp::prefs::load_prefs();
         xpp::log_set_threshold(cl.log_threshold.value_or(kept ? kept->log_level : XPP_LOG_WARN));
         if (kept && !kept->log_file.empty() && !xpp::log_open_file(kept->log_file))

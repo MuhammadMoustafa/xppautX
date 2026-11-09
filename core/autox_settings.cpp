@@ -558,14 +558,17 @@ Result<double> autox_settings_num_parse(int i, std::string_view text)
     return v;
 }
 
-void threads_load(Session &s)
+void preferences_load(Session &s)
 {
     if (files::serving_reads()) return;
     const Result<prefs::Preferences> p = prefs::load_prefs();
-    if (p) s.threads = p->threads;
-    /* the count stays automatic until the file is fixed (a `set` of it refuses until then); said in the
+    if (p) {
+        s.threads = p->threads;
+        s.colors = p->colors;
+    }
+    /* the count stays automatic and the colours the defaults until the file is fixed (a `set` of the count refuses until then); said in the
        log, as --silent shows no recent models' note to carry the file's error */
-    else xpp::log(XPP_LOG_WARN, "{}: the thread count stays automatic\n", p.error().text());
+    else xpp::log(XPP_LOG_WARN, "{}: the thread count stays automatic and the colours the defaults\n", p.error().text());
 }
 
 AutoxSettingsSet autox_settings_now(const xpp::Session &s)

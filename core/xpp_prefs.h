@@ -17,6 +17,7 @@
    A group is added by a member of Preferences and a line in `describe`
    (xpp_prefs.cpp), which serves the reader and the writer alike: neither
    changes. */
+#include <array>
 #include <cstddef>
 #include <functional>
 #include <optional>
@@ -25,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "colormap.h"
 #include "xpp_error.h"
 #include "xpp_log.h"
 
@@ -67,6 +69,35 @@ struct OutsideApproval {
     bool operator==(const OutsideApproval &) const = default;
 };
 
+/* the colours the program draws with (W655): the user's, not a model's, one list for every model and every view. Each is
+   read when something is drawn with it: a diagram point's by its kind when it is stored, a nullcline's and a manifold's
+   when it is computed. The defaults are XPPAUT's. The names are the keys of the file and the arguments of
+   preferences.configure; their order is the option table's order of the settings they were (the diagram's, the nullclines',
+   the manifolds'). */
+struct Colors {
+    Color stable_equilibrium = xppaut_color(1), unstable_equilibrium = xppaut_color(0);
+    Color stable_periodic = xppaut_color(7), unstable_periodic = xppaut_color(9);
+    Color x_nullcline = xppaut_color(2), y_nullcline = xppaut_color(7);
+    Color stable_manifold = xppaut_color(8), unstable_manifold = xppaut_color(5);
+};
+
+/* one colour's key (the file's, preferences.configure's argument and result field) and what it is: the one list the
+   file, the command and the dialog read */
+struct ColorKey {
+    std::string_view key;
+    Color Colors::*member;
+    std::string_view description;
+};
+inline constexpr std::array COLOR_KEYS = {
+    ColorKey{"stable_equilibrium_color", &Colors::stable_equilibrium, "The colour of the stable equilibria in the continuation diagram."},
+    ColorKey{"unstable_equilibrium_color", &Colors::unstable_equilibrium, "The colour of the unstable equilibria in the continuation diagram."},
+    ColorKey{"stable_periodic_color", &Colors::stable_periodic, "The colour of the stable periodic orbits in the continuation diagram."},
+    ColorKey{"unstable_periodic_color", &Colors::unstable_periodic, "The colour of the unstable periodic orbits in the continuation diagram."},
+    ColorKey{"x_nullcline_color", &Colors::x_nullcline, "The colour of the x nullcline."},
+    ColorKey{"y_nullcline_color", &Colors::y_nullcline, "The colour of the y nullcline."},
+    ColorKey{"stable_manifold_color", &Colors::stable_manifold, "The colour of the stable manifold of a saddle."},
+    ColorKey{"unstable_manifold_color", &Colors::unstable_manifold, "The colour of the unstable manifold of a saddle."}};
+
 struct Preferences {
     /* absolute paths of the models opened lately, newest first, none twice */
     std::vector<std::string> recent_models;
@@ -76,6 +107,7 @@ struct Preferences {
        model's (W619); --verbose and --debug win over them */
     XppLogLevel log_level = XPP_LOG_WARN;
     std::string log_file;
+    Colors colors;
     /* newest first, none twice */
     std::vector<OutsideApproval> outside_paths;
 };

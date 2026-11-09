@@ -128,13 +128,6 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Y min** (`y_min`): The bottom edge of the continuation diagram.
 - **Y max** (`y_max`): The top edge of the continuation diagram.
 
-### Colours
-
-- **Stable equilibrium** (`colors.stable_equilibrium`): The colour of the stable equilibria in the diagram.
-- **Unstable equilibrium** (`colors.unstable_equilibrium`): The colour of the unstable equilibria in the diagram.
-- **Stable periodic** (`colors.stable_periodic`): The colour of the stable periodic orbits in the diagram.
-- **Unstable periodic** (`colors.unstable_periodic`): The colour of the unstable periodic orbits in the diagram.
-
 ## Plot
 
 - **Colourmap** (`colormap`): The colours a colour-coded curve or an array plot runs through.
@@ -164,18 +157,11 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 
 - **Mesh** (`nullclines.mesh`): How many points a side the nullclines are found on.
 - **Draw** (`nullclines.draw`): Whether the nullclines are drawn after a run.
-- **X colour** (`nullclines.x_color`): The colour of the x nullcline.
-- **Y colour** (`nullclines.y_color`): The colour of the y nullcline.
 
 ### Direction field
 
 - **Grid** (`direction_field.grid`): How many arrows a side the direction field has.
 - **Draw** (`direction_field.draw`): What a run draws of the direction field, and whether it also saves it.
-
-### Manifolds
-
-- **Stable colour** (`manifolds.stable_color`): The colour of the stable manifold of a saddle.
-- **Unstable colour** (`manifolds.unstable_color`): The colour of the unstable manifold of a saddle.
 
 ### Colour by
 

@@ -148,7 +148,7 @@ inline constexpr std::array<std::string_view, 7> set_groups{
    bare word (a variable's, a parameter's, a name), one of the row's
    choices (option_choices), a path or a text, both in double quotes, a colour
    (always in double quotes) */
-enum class OptionKind { number, whole, name, choice, path, text, color, sliders, curves };
+enum class OptionKind { number, whole, name, choice, path, text, sliders, curves };
 
 /* which of a curve's options an XPPAUT row (xp, yp, zp, nplot and their numbered ones) is: the converter writes them as the `curves` list */
 enum class CurveField { none, x, y, z, count };
@@ -206,7 +206,6 @@ struct OptionRow {
   Member<int> whole;
   Member<bool> boolean;
   ChoiceMember index; /* a choice row's enum */
-  Member<Color> color; /* a colour row's colour */
   Member<std::string> text;
   /* a row whose value is no one member's (a list of choices, special_points): its text as it is shown and written; `parse` sets it */
   std::string (*show)(const Session &) = nullptr;

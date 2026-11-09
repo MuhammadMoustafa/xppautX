@@ -73,7 +73,6 @@ std::string option_value_schema(const OptionRow &row)
            "\"properties\": {\"x\": {\"type\": \"string\"}, \"y\": {\"type\": \"string\"}, \"z\": {\"type\": \"string\"}}}";
     break;
   case OptionKind::text: out += "\"type\": \"string\""; break;
-  case OptionKind::color: out += "\"type\": \"string\", \"x-kind\": \"color\""; break;
   case OptionKind::choice: {
     if (row.boolean) {
       out += "\"type\": \"boolean\"";

@@ -225,8 +225,8 @@ export class Session {
       /* `preferences.get` answered for File > Preferences: its form, with the current values in it */
       if (this.preferencesFormAsked && ev.status === 'ok' && typeof ev.result?.log_level === 'string') {
         this.preferencesFormAsked = false;
-        const {threads, automatic, log_level, log_file} = ev.result as {threads: number; automatic: boolean; log_level: string; log_file: string};
-        this.store.dispatch({type: 'commandForm', form: {id: 'preferences.configure', values: {...(automatic ? {automatic: true} : {threads}), log_level, log_file}, fixed: []}});
+        const {threads, automatic, ...rest} = ev.result as {threads: number; automatic: boolean} & Record<string, string>; /* the log's and the colours' */
+        this.store.dispatch({type: 'commandForm', form: {id: 'preferences.configure', values: {...(automatic ? {automatic: true} : {threads}), ...rest}, fixed: []}});
       }
       /* `options.get` answered: the group's values for every editor of its rows; a group's settings applied: its values again, as the core holds them */
       if (ev.status === 'ok' && typeof ev.result?.group === 'string') {

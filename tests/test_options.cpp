@@ -86,7 +86,6 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
     if (r.whole) return xpp::format("{}", r.whole(s));
     if (r.boolean) return r.boolean(s) ? "true" : "false";
     if (r.index) return xpp::format("{}", r.index.read(s));
-    if (r.color) return xpp::print_color(r.color(s));
     if (r.text) return r.text(s);
     if (r.show) return r.show(s);
     return "";
@@ -97,8 +96,7 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
 bool in_session(xpp::Session &s, const xpp::OptionRow &r)
 {
     if (r.index) return true;
-    const void *p = r.color ? static_cast<void *>(&r.color(s))
-                  : r.real ? static_cast<void *>(&r.real(s))
+    const void *p = r.real ? static_cast<void *>(&r.real(s))
                   : r.whole ? static_cast<void *>(&r.whole(s))
                   : r.boolean ? static_cast<void *>(&r.boolean(s))
                   : r.text ? static_cast<void *>(&r.text(s)) : nullptr;
@@ -133,8 +131,6 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"poincare.sign", {"-1", "0"}},         /* negative */
         {"plot.line.draw", {"points", "1"}}, {"plot.line.dash", {"dotted", "2"}}, {"plot.line.width", {"2", "2"}}, {"plot.line.marker", {"square", "1"}},
         {"plot.line.marker_size", {"4", "4"}},
-        {"plot.nullclines.x_color", {"3", "#ffa500"}}, {"plot.nullclines.y_color", {"4", "#ffcd00"}}, {"plot.manifolds.stable_color", {"1", "#ff0000"}}, {"plot.manifolds.unstable_color", {"0", "foreground"}},
-        {"diagram.colors.stable_equilibrium", {"22", "#ffa500"}}, {"diagram.colors.unstable_equilibrium", {"0", "foreground"}}, {"diagram.colors.stable_periodic", {"26", "#00e100"}}, {"diagram.colors.unstable_periodic", {"28", "#0000ff"}},
         {"output.nullclines_file", {"nc.dat", "build/nc.dat"}}, {"output.after_run_file", {"after.dat", "build/after.dat"}}, {"output.data_file", {"out.dat", "build/out.dat"}}, {"continuation.special_points", {"cusp", "cusp"}},
         {"sweep.reset", {"n", "false"}},
         {"sweep.old_ic", {"n", "false"}},
@@ -526,7 +522,6 @@ int main(void)
         else if (r.whole) r.whole(*s) += 1;
         else if (r.boolean) r.boolean(*s) = !r.boolean(*s);
         else if (r.index) r.index.write(*s, (r.index.read(*s) + 1) % static_cast<int>(xpp::option_choices(r).size()));
-        else if (r.color) r.color(*s) = xpp::xppaut_color(5);
         else if (r.text) r.text(*s) = "xyz";
     }
     std::vector<std::string> changed;
@@ -561,7 +556,7 @@ int main(void)
        named; the model before stays */
     const char bad_ode[] = "build/test_options_bad.ode";
     const char bad_odex[] = "build/test_options_bad.odex";
-    for (const char *bad : {"dt=abc", "ync=12", "xp=nosuch", "meth=k", "nout=2.5", "rangereset=maybe",
+    for (const char *bad : {"dt=abc", "xp=nosuch", "meth=k", "nout=2.5", "rangereset=maybe",
                             "axes=4", "seed=-1", "lt=3", "histcol=nosuch", "xlo2=1e",
                             /* a number the setting's rule refuses (OptionRule) */
                             "nout=0", "njmp=0", "dt=0", "nmesh=0", "bound=-1", "delay=-1", "tol=0"}) {
@@ -616,21 +611,6 @@ int main(void)
             CHECK(refused.error().what.find("maximum 100000") != std::string::npos);
         }
     }
-    CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\noptions { plot: { nullclines.y_color: 12 } }\n"));
-    {
-        char arg0[] = "test_options";
-        char file[] = "build/test_options_bad.odex";
-        char *argv[] = {arg0, file, nullptr};
-        const xpp::Loaded l = load_args(2, argv, 1);
-        CHECK(!l.has_value());
-        CHECK(&xpp::client_session() == s);
-        if (!l) {
-            CHECK(l.error().place.file == bad_odex);
-            CHECK(l.error().place.line == 4);
-            CHECK(l.error().what.find("double quotes") != std::string::npos);
-            if (l.error().place.line != 4) printf("  odex: %s\n", l.error().text().c_str());
-        }
-    }
     /* Continuation rules are shared with the form and session reader; a bad
        complete model leaves the previous client session untouched. */
     for (const std::string setting : {"dsmin: -0.001", "dsmax: 0", "ds: 0", "epsl: 0", "epsu: -1", "epss: 0",
@@ -643,13 +623,16 @@ int main(void)
         CHECK(&xpp::client_session() == s);
         if (!loaded) CHECK(loaded.error().place.file == bad_odex && loaded.error().place.line == 3);
     }
-    for (const std::string color : {"foreground", "red"}) {
-        CHECK(write_file(bad_odex, "x' = -x\noptions { plot: { nullclines.x_color: " + color + " } }\n"));
+    /* W655: the eight colours are the user's preferences, so a .odex naming one is refused at its line */
+    for (const std::string key : {"plot: { nullclines.x_color", "plot: { nullclines.y_color", "plot: { manifolds.stable_color", "plot: { manifolds.unstable_color",
+                                  "diagram: { colors.stable_equilibrium", "diagram: { colors.unstable_equilibrium", "diagram: { colors.stable_periodic",
+                                  "diagram: { colors.unstable_periodic"}) {
+        CHECK(write_file(bad_odex, "x' = -x\noptions { " + key + ": \"#ff0000\" } }\n"));
         char arg0[] = "test_options", file[] = "build/test_options_bad.odex";
         char *argv[] = {arg0, file, nullptr};
         const xpp::Loaded loaded = load_args(2, argv, 1);
         CHECK(!loaded);
-        if (!loaded) CHECK(loaded.error().place.line == 3);
+        if (!loaded) CHECK(loaded.error().place.line == 3 && loaded.error().what.find("is not an option") != std::string::npos);
     }
     /* XPPAUT's numeric findext type is an import spelling, never native text. */
     for (const std::string type : {"-1", "0", "1", "sideways"}) {

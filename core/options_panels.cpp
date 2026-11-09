@@ -28,7 +28,6 @@ std::string_view kind_word(OptionKind kind)
     case OptionKind::choice: return "choice";
     case OptionKind::path: return "path";
     case OptionKind::text: return "text";
-    case OptionKind::color: return "color";
     case OptionKind::sliders: return "sliders";
     case OptionKind::curves: return "curves";
     }
@@ -93,7 +92,7 @@ std::string row_json(const Session &fresh, bool model_loaded, const OptionRow &r
 
 bool option_in_panel(const OptionRow &row)
 {
-    const bool has_member = row.real || row.whole || row.boolean || row.index || row.color || row.text || row.show;
+    const bool has_member = row.real || row.whole || row.boolean || row.index || row.text || row.show;
     return !row.odex.empty() && has_member && row.kind != OptionKind::sliders && row.kind != OptionKind::curves;
 }
 

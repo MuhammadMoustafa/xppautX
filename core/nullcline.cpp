@@ -162,7 +162,7 @@ void restor_null(xpp::Session &s, const float *v, int n, int d)  /* d=1 for x an
 
 bool redraw_froz_cline(xpp::Session &s, int flag)
 {
-  const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
+  const xpp::Color col1=s.colors.x_nullcline,col2=s.colors.y_nullcline;
   if(!s.nullcline_state.frozen_started)return false;
   bool drawn=false;
   phase_data_frozen_begin(s);
@@ -311,7 +311,7 @@ void range_nullclines(xpp::Session &s)
   if(!phase_plane_states(s,*s.plot_windows.current))return;
   const Computation computing;
   s.nullcline_state.frozen_started=true;
-  const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
+  const xpp::Color col1=s.colors.x_nullcline,col2=s.colors.y_nullcline;
   const int course=s.numerics.nullcline_mesh;
   if(s.nullcline_state.range.nstep<=0)return;
   const double dz=(s.nullcline_state.range.xhi-s.nullcline_state.range.xlo)/static_cast<double>(s.nullcline_state.range.nstep);
@@ -760,7 +760,7 @@ NullclineState read_nullclines(const Model &m, odex::Block &file)
 
 bool restore_nullclines(xpp::Session &s)
 {
-  const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
+  const xpp::Color col1=s.colors.x_nullcline,col2=s.colors.y_nullcline;
   if(!s.numerics.null_here)return false;
   bool drawn=false;
   if(s.plot_windows.current->xv[0]==s.nullcline_state.null_ix&&s.plot_windows.current->yv[0]==s.nullcline_state.null_iy&&s.plot_windows.current->ThreeDFlag==0){
@@ -784,7 +784,7 @@ void create_new_cline(xpp::Session &s)
 void compute_nullclines(xpp::Session &s)
 {
   const int course=s.numerics.nullcline_mesh;
-  const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
+  const xpp::Color col1=s.colors.x_nullcline,col2=s.colors.y_nullcline;
 
   if(!phase_plane_states(s,*s.plot_windows.current))return;
   const Computation computing;

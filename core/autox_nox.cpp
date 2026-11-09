@@ -800,7 +800,7 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
       line_style.width=1;
       line_style.dash=xpp::LineDash::dashed;
     }
-    xpp::set_pen(s,color_of(type1==STABLE_EQ?s.autox_state.stable_eq_color:s.autox_state.unstable_eq_color),line_style);
+    xpp::set_pen(s,color_of(type1==STABLE_EQ?s.colors.stable_equilibrium:s.colors.unstable_equilibrium),line_style);
     line_abs(s,static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.autox_state.bifur.lastx),static_cast<float>(s.autox_state.bifur.lasty));
     break;
   case UNSTABLE_PERIODIC:
@@ -808,7 +808,7 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
     if(!icp1.is_parameter(s.autox_state.axes().icp1))break;
     if(flag2!=no_calculation&&!icp2.is_parameter(s.autox_state.axes().icp2))break;
     /* a stable periodic orbit's extremes are filled circles, an unstable one's open */
-    xpp::set_pen(s,type1==STABLE_PERIODIC?s.autox_state.stable_po_color:s.autox_state.unstable_po_color,dots);
+    xpp::set_pen(s,type1==STABLE_PERIODIC?s.colors.stable_periodic:s.colors.unstable_periodic,dots);
     s.plot_file.pen.hollow=type1==UNSTABLE_PERIODIC;
     point_abs(s,static_cast<float>(x),static_cast<float>(y1));
     point_abs(s,static_cast<float>(x),static_cast<float>(y2));
@@ -838,10 +838,10 @@ static xpp::Color autox_point_color(xpp::Session &s, DiagramPointType type,Autox
 {
   if(flag2!=no_calculation)return two_parameter_color(flag2);
   switch(type){
-  case STABLE_EQ: return s.autox_state.stable_eq_color;
-  case UNSTABLE_EQ: return s.autox_state.unstable_eq_color;
-  case STABLE_PERIODIC: return s.autox_state.stable_po_color;
-  case UNSTABLE_PERIODIC: return s.autox_state.unstable_po_color;
+  case STABLE_EQ: return s.colors.stable_equilibrium;
+  case UNSTABLE_EQ: return s.colors.unstable_equilibrium;
+  case STABLE_PERIODIC: return s.colors.stable_periodic;
+  case UNSTABLE_PERIODIC: return s.colors.unstable_periodic;
   }
   return xpp::foreground_color;
 }

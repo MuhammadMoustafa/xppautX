@@ -1647,14 +1647,6 @@ private:
       if (row.kind == OptionKind::path) std::ranges::replace(text, '\\', '/');
       return quote_string(text);
     }
-    case OptionKind::color: {
-      /* XPPAUT's colour number (its own way for each option) as the colour it is, written as a colour is */
-      std::optional<xpp::Color> c = xpp::parse_color(value);
-      if (!c && row.foreign) c = xpp::parse_color(row.foreign(value));
-      if (!c) refuse(xpp::format("{}={} is not a colour of XPPAUT's ({})", key, value, xpp::odex_key(row, 0)));
-      const std::string text = xpp::print_color(*c);
-      return xpp::option_written_quoted(row) ? quote_string(text) : text;
-    }
     case OptionKind::choice: {
       if (row.rule == OptionRule::method) return method_key(value);
       const std::string word = xpp::option_choice(row, value);

@@ -640,6 +640,8 @@ A `.odex` (what a `.ode` is converted to) spells these options in full words, th
 
 - YNC={0,...,10} sets the Y-nullcline colour
 
+  In xppautX these colours (SMC, UMC, XNC, YNC, and SEC, UEC, SPC, UPC of autoX's diagram) are the user's preferences, in File > Preferences, not a model's: a `.ode` that sets one is converted without it, with no note.
+
 - BUT=s1:s2 defines a user button. You can use this many times in the same ODE file. The first string is the name of the button.The second is the set of key stroke short cuts. For example: ` BUT=mouse:im` will put a button on the main window labeled `mouse` and when you press it, it will act as though you had clicked ` InitConds Mouse`.
 
 The remaining options can be set from within the program. They are
@@ -695,6 +697,8 @@ The remaining options can be set from within the program. They are
 - PHI=value,THETA=value set the angles for the three-dimensional plots.
 
 - XLO=value,YLO=value,XHI=value,YHI=value set the limits for two-dimensional plots (defaults are 0,-2,20,2 respectively.) Note that for three-dimensional plots, the plot is scaled to a cube with vertices that are $`\pm1`$ and this cube is rotated and projected onto the plane so setting these to $`\pm2`$ works well for 3D plots.
+
+  In xppautX XLO, XHI, YLO and YHI are the limits `axes.x_min` to `axes.y_max` of a 2D plot (winning over XMIN to YMAX), and are dropped for a 3D plot, whose picture fits its box (W654).
 
 - XMAX=value, XMIN=value, YMAX=value, YMIN=value, ZMAX=value, ZMIN=value set the scaling for three-d plots.
 

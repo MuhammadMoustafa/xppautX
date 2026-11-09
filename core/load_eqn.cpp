@@ -439,16 +439,15 @@ void restore_row(xpp::Session &s, const OptionRow &row, const BuiltIns &built_in
   else if(row.whole)row.whole(s)=row.whole(built_in.session());
   else if(row.boolean)row.boolean(s)=row.boolean(built_in.session());
   else if(row.index)row.index.write(s,row.index.read(built_in.session()));
-  else if(row.color)row.color(s)=row.color(built_in.session());
   else if(row.text)row.text(s)=row.text(built_in.session());
   if(row.applied)row.applied(s);
 }
 
 /* a row has a built-in value of its own: a reset, or a member */
-bool has_built_in(const OptionRow &row) { return row.reset||row.real||row.whole||row.boolean||row.index||row.color||row.text; }
+bool has_built_in(const OptionRow &row) { return row.reset||row.real||row.whole||row.boolean||row.index||row.text; }
 
 /* a row with a member of its own holds a value to read; the others (numbered curves, ...) are set by their text only */
-bool has_member(const OptionRow &row) { return row.real||row.whole||row.boolean||row.index||row.color||row.text||row.show; }
+bool has_member(const OptionRow &row) { return row.real||row.whole||row.boolean||row.index||row.text||row.show; }
 
 /* the settings of group now, as their text: a row of the group with a member that the session's method and model use, a path left out
    (empty) of a set none; held: only what a set holds (a set holds no `wide` row) */

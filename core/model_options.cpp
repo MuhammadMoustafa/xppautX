@@ -110,36 +110,6 @@ int variable_of(const Session &s, const OptionValue &v)
   return i;
 }
 
-/* a colour option's value: our own colour words, or on import XPPAUT's number in the row's own way (foreign);
-   refused (why, kept alive in the caller) when it is none */
-const char *color_into(Color &member, const OptionRow &row, const OptionValue &v, bool foreign, std::string &why)
-{
-  std::optional<Color> c = parse_color(v.text);
-  if (!c && foreign && row.foreign) c = parse_color(row.foreign(v.text));
-  if (!c) {
-    why = "not a colour: `#rrggbb`, `#rrggbbaa`, a CSS colour name or foreground";
-    return why.c_str();
-  }
-  if (v.apply) member = *c;
-  return nullptr;
-}
-
-/* XPPAUT's colour number as our colour's word: 0..10 */
-std::string foreign_plot_color(std::string_view value)
-{
-  int i = 0;
-  if (!parse_int(value, i) || i < 0 || i > LAST_PLOT_COLOR) return {};
-  return print_color(xppaut_color(i));
-}
-
-/* XPPAUT's AUTO colour number as our colour's word: 0 or the slots 20 to 29 of its named colours */
-std::string foreign_autox_color(std::string_view value)
-{
-  int i = 0;
-  if (!parse_int(value, i) || (i != 0 && (i < 20 || i > 19 + LAST_PLOT_COLOR))) return {};
-  return print_color(xppaut_color(i == 0 ? 0 : i - 19));
-}
-
 const char *variable_into(const Session &s, int &member, const OptionValue &v)
 {
   const int i = variable_of(s, v);
@@ -628,14 +598,6 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.autox_state.options.ymin; })},
   {.group = option_group::diagram, .kind = OptionKind::number, .odex = "y_max", .help = "The top edge of the continuation diagram.", .xppaut_names = {"AUTOYMAX"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.ymax; })},
-  {.group = option_group::diagram, .kind = OptionKind::color, .odex = "colors.stable_equilibrium", .help = "The colour of the stable equilibria in the diagram.", .xppaut_names = {"SEC"}, .once = true,
-   .color = member([](auto &s) -> auto & { return s.autox_state.stable_eq_color; }), .foreign = foreign_autox_color},
-  {.group = option_group::diagram, .kind = OptionKind::color, .odex = "colors.unstable_equilibrium", .help = "The colour of the unstable equilibria in the diagram.", .xppaut_names = {"UEC"}, .once = true,
-   .color = member([](auto &s) -> auto & { return s.autox_state.unstable_eq_color; }), .foreign = foreign_autox_color},
-  {.group = option_group::diagram, .kind = OptionKind::color, .odex = "colors.stable_periodic", .help = "The colour of the stable periodic orbits in the diagram.", .xppaut_names = {"SPC"}, .once = true,
-   .color = member([](auto &s) -> auto & { return s.autox_state.stable_po_color; }), .foreign = foreign_autox_color},
-  {.group = option_group::diagram, .kind = OptionKind::color, .odex = "colors.unstable_periodic", .help = "The colour of the unstable periodic orbits in the diagram.", .xppaut_names = {"UPC"}, .once = true,
-   .color = member([](auto &s) -> auto & { return s.autox_state.unstable_po_color; }), .foreign = foreign_autox_color},
   {.group = option_group::plot, .kind = OptionKind::choice, .odex = "colormap", .help = "The colours a colour-coded curve or an array plot runs through.", .xppaut_names = {"COLORMAP"}, .once = true,
    .index = choice_member([](auto &s) -> auto & { return s.colormap; }),
    .foreign = [](std::string_view v) { return numbered_word(colormap_names, v); }, .imported_default = "jet",
@@ -739,10 +701,6 @@ constexpr OptionRow rows[] = {
   {.group = option_group::plot, .kind = OptionKind::choice, .odex = "nullclines.draw", .help = "Whether the nullclines are drawn after a run.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.nullclines.draw; }),
    .rule = OptionRule::choice, .choices = boolean_names},
-  {.group = option_group::plot, .kind = OptionKind::color, .odex = "nullclines.x_color", .help = "The colour of the x nullcline.", .xppaut_names = {"XNC"}, .once = true,
-   .color = member([](auto &s) -> auto & { return s.nullclines.x_null_color; }), .foreign = foreign_plot_color},
-  {.group = option_group::plot, .kind = OptionKind::color, .odex = "nullclines.y_color", .help = "The colour of the y nullcline.", .xppaut_names = {"YNC"}, .once = true,
-   .color = member([](auto &s) -> auto & { return s.nullclines.y_null_color; }), .foreign = foreign_plot_color},
   {.group = option_group::plot, .kind = OptionKind::whole, .odex = "direction_field.grid", .help = "How many arrows a side the direction field has.", .xppaut_names = {"DFGRID"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.nullclines.df_grid; }),
    .rule = OptionRule::whole_at_least_two, .maximum = option_limit::mesh},
@@ -751,10 +709,6 @@ constexpr OptionRow rows[] = {
    .reset = [](Session &s) { s.nullclines.df_batch = 0; },
    .foreign = [](std::string_view v) { return numbered_word(direction_field_draw_names, v); },
    .rule = OptionRule::choice, .choices = direction_field_draw_names},
-  {.group = option_group::plot, .kind = OptionKind::color, .odex = "manifolds.stable_color", .help = "The colour of the stable manifold of a saddle.", .xppaut_names = {"SMC"}, .once = true,
-   .color = member([](auto &s) -> auto & { return s.manifolds.stable_color; }), .foreign = foreign_plot_color},
-  {.group = option_group::plot, .kind = OptionKind::color, .odex = "manifolds.unstable_color", .help = "The colour of the unstable manifold of a saddle.", .xppaut_names = {"UMC"}, .once = true,
-   .color = member([](auto &s) -> auto & { return s.manifolds.unstable_color; }), .foreign = foreign_plot_color},
   {.group = option_group::plot, .kind = OptionKind::choice, .odex = "color_by.enabled", .help = "Whether a curve is coloured by a quantity along it.", .xppaut_names = {"COLORIZE"}, .once = true,
    .boolean = member([](auto &s) -> auto & { return s.nullclines.colorize_flag; }),
    .reset = [](Session &s) { s.nullclines.colorize_flag = false; },
@@ -954,6 +908,16 @@ constexpr OptionRow rows[] = {
   {.name = "XHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.x_max", std::string(v)}}, nullptr}; }, .flat_only = true},
   {.name = "YLO", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_min", std::string(v)}}, nullptr}; }, .flat_only = true},
   {.name = "YHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_max", std::string(v)}}, nullptr}; }, .flat_only = true},
+  /* XPPAUT's colours of the diagram's stability kinds, the nullclines and the manifolds (import only): the user's preferences
+     (xpp_prefs.h Colors), never a model's; no demo sets one, so they are dropped without a note */
+  {.name = "SEC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
+  {.name = "UEC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
+  {.name = "SPC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
+  {.name = "UPC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
+  {.name = "XNC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
+  {.name = "YNC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
+  {.name = "SMC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
+  {.name = "UMC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
   /* XPPAUT slider slots are import-only. */
   {.kind = OptionKind::name, .name = "S1", .once = true,
    .parse = slider_var<0>},
@@ -1271,7 +1235,7 @@ bool xppaut_slider_option(const OptionRow &row)
 
 bool option_written_quoted(const OptionRow &row)
 {
-  return row.kind == OptionKind::path || row.kind == OptionKind::text || row.kind == OptionKind::color;
+  return row.kind == OptionKind::path || row.kind == OptionKind::text;
 }
 
 std::vector<std::string> option_choices(const OptionRow &row)
@@ -1338,7 +1302,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   const OptionSource source{force, mask};
   const OptionValue v{text.c_str(), index, source, apply};
   const char *why = nullptr;
-  std::string choice_why, color_why; /* why, when it is a choice's or a colour's */
+  std::string choice_why; /* why, when it is a choice's */
   /* Check the row's shared numeric bounds before its parser can apply a value. */
   double x = 0;
   const char *refused = parse_number(text, x) ? rule_problem(row->rule, x, row->maximum) : nullptr;
@@ -1377,7 +1341,6 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   else if (row->parse) {
     why = row->parse(s, v);
   }
-  else if (row->color) why = color_into(row->color(s), *row, v, importing || xppaut_names, color_why);
   else if (row->boolean || row->index) {
     /* XPPAUT's spellings (y, 1, s, ...) belong to a foreign file, never to our own */
     const std::string word = importing || xppaut_names ? option_choice(*row, text) : text;

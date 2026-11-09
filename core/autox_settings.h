@@ -112,11 +112,11 @@ struct AutoxSettingsSet {
     std::optional<unsigned> threads;
 };
 
-/* the thread count the preferences file holds into s (a recording's replay
+/* the thread count and the colours the preferences file holds into s (a recording's replay
    keeps the user's preferences out of it, and reads none); a bad file leaves
-   the automatic count (the file's error is shown by the recent models' note,
+   the automatic count and the default colours (the file's error is shown by the recent models' note,
    once). Called by the load. */
-void threads_load(Session &s);
+void preferences_load(Session &s);
 
 /* the settings now, whole: every Numerics field, the
    axes and the Mark values, names empty where there is none (the event's

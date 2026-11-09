@@ -169,10 +169,6 @@ struct AutoxState {
   xpp::AutoxCalculation type_of_calc=xpp::no_calculation;
   /* the torus period a two-parameter torus run starts from */
   xpp::ROTCHK blrtn{};
-  /* the colours of stable and unstable equilibria and periodic orbits
-     (@ sec=, uec=, spc=, upc=) */
-  xpp::Color stable_eq_color=xpp::xppaut_color(1),unstable_eq_color=xpp::xppaut_color(0);
-  xpp::Color stable_po_color=xpp::xppaut_color(7),unstable_po_color=xpp::xppaut_color(9);
   /* the model's @ options for autoX */
   AutoxOptions options;
   /* the equilibria of the homoclinic start a run copies (autox_evd.cpp init_autox) */

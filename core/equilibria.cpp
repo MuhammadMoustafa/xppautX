@@ -251,7 +251,7 @@ if(!s.numerics.par_fol)
      const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose]);
      if(evec)
      {
-     change_current_color(s,s.manifolds.unstable_color,&oldcol);
+     change_current_color(s,s.colors.unstable_manifold,&oldcol);
      pr_evec(s,x,b,n,pr,eval[2*pose],1);
       s.numerics.delta_t=fabs(s.numerics.delta_t);
       failure.keep(shoot(s,bp,x,b,1));
@@ -268,7 +268,7 @@ if(!s.numerics.par_fol)
      const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege]);
      if(evec)
      {
-        change_current_color(s,s.manifolds.stable_color,&oldcol);
+        change_current_color(s,s.colors.stable_manifold,&oldcol);
 	pr_evec(s,x,b,n,pr,eval[2*nege],-1);
       s.numerics.delta_t=-fabs(s.numerics.delta_t);
       failure.keep(shoot(s,bp,x,b,1));
@@ -302,7 +302,7 @@ if(!s.numerics.par_fol)
 	   const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,bigpos);
      if(evec)
 	     {
-	       change_current_color(s,s.manifolds.unstable_color,&oldcol);
+	       change_current_color(s,s.colors.unstable_manifold,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigpos,1);
 	       s.numerics.delta_t=fabs(s.numerics.delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
@@ -320,7 +320,7 @@ if(!s.numerics.par_fol)
 	   const xpp::Result<> evec=get_evec(s,work,oldwork,b,bp,n,maxit,err,ipivot,bigneg);
      if(evec)
 	     {
-	       change_current_color(s,s.manifolds.stable_color,&oldcol);
+	       change_current_color(s,s.colors.stable_manifold,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigneg,-1);
 	       s.numerics.delta_t=-fabs(s.numerics.delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
@@ -386,13 +386,13 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
     
     type=s.manifolds.type[k];
     if(type>0){
-       change_current_color(s,s.manifolds.unstable_color,&oldcol);
+       change_current_color(s,s.colors.unstable_manifold,&oldcol);
        s.numerics.delta_t=fabs(s.numerics.delta_t);
        failure.keep(shoot_easy(s,x.data()));
        change_current_color(s,oldcol,&dummy);
     }
     if(type<0){
-      change_current_color(s,s.manifolds.stable_color,&oldcol);
+      change_current_color(s,s.colors.stable_manifold,&oldcol);
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
        failure.keep(shoot_easy(s,x.data()));
        change_current_color(s,oldcol,&dummy);

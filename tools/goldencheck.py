@@ -201,6 +201,9 @@ def run_pictures(home):
     colours and styles, the array plot in the plasma scale"""
     s = Server(binary, 'tools/models/pictures.odex', env={'HOME': home}, verbose=args.v)
     try:
+        # the nullclines' colours are the user's preferences (W655), set in this run's own home
+        s.send(cmd='preferences.configure', x_nullcline_color='#e8590c80', y_nullcline_color='#2b9348')
+        s.collect(is_done)
         run_and_go(s)
         s.send(cmd='nullcline.compute')
         s.collect(is_done)

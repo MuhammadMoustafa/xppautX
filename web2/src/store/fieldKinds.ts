@@ -309,7 +309,6 @@ export function specOfOption(row: OptionRow, names: readonly string[]): FieldSpe
     case 'whole': return {kind: 'integer', min: row.minimum, max: row.maximum};
     case 'name': return names.length ? {kind: 'name', names} : {kind: 'text'};
     case 'choice': return row.boolean ? {kind: 'boolean'} : {kind: 'choice', choices: row.choices ?? []};
-    case 'color': return {kind: 'color'};
     case 'path': case 'text': return {kind: 'text'};
   }
 }

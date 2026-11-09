@@ -160,6 +160,8 @@ struct Session {
   /* the thread count of autoX's collocation and of a sweep's runs (W267, W434), a program preference
      (xpp_prefs.h) kept here for the run: prefs::THREADS_AUTO, or the count */
   unsigned threads = prefs::THREADS_AUTO;
+  /* the colours the diagram, the nullclines and the manifolds are drawn in, a program preference like the thread count */
+  prefs::Colors colors;
   /* the threads a set of jobs or runs shares: the count, or all the physical cores when automatic */
   unsigned thread_budget() const { return threads != prefs::THREADS_AUTO ? threads : cpu::physical_threads(); }
 

@@ -460,6 +460,11 @@ address; with `--verbose` or `--debug`, or the preferences' `log_file`, everythi
 core never prints to stdout or stderr directly, so nothing bypasses
 Messages.
 
+**File > Preferences** also holds the eight colours the program draws with: the continuation diagram's stable and unstable
+equilibria and periodic orbits, the x and y nullclines, and the stable and unstable manifolds of a saddle. They are the user's, one
+list for every model, kept in `preferences.odex`, and apply to what is drawn or computed after they are changed (a diagram point keeps
+the colour of its kind when it was stored).
+
 ## Formulas as values
 
 You can enter a formula instead of a plain number in the values panel and

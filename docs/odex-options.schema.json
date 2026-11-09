@@ -119,11 +119,7 @@
         "x_min": {"type": "number", "title": "X min", "description": "The left edge of the continuation diagram."},
         "x_max": {"type": "number", "title": "X max", "description": "The right edge of the continuation diagram."},
         "y_min": {"type": "number", "title": "Y min", "description": "The bottom edge of the continuation diagram."},
-        "y_max": {"type": "number", "title": "Y max", "description": "The top edge of the continuation diagram."},
-        "colors.stable_equilibrium": {"type": "string", "x-kind": "color", "title": "Colors stable equilibrium", "description": "The colour of the stable equilibria in the diagram."},
-        "colors.unstable_equilibrium": {"type": "string", "x-kind": "color", "title": "Colors unstable equilibrium", "description": "The colour of the unstable equilibria in the diagram."},
-        "colors.stable_periodic": {"type": "string", "x-kind": "color", "title": "Colors stable periodic", "description": "The colour of the stable periodic orbits in the diagram."},
-        "colors.unstable_periodic": {"type": "string", "x-kind": "color", "title": "Colors unstable periodic", "description": "The colour of the unstable periodic orbits in the diagram."}
+        "y_max": {"type": "number", "title": "Y max", "description": "The top edge of the continuation diagram."}
       }
     },
     "plot": {
@@ -148,12 +144,8 @@
         "line.marker_size": {"type": "number", "title": "Line marker size", "description": "The size of the markers of a new curve."},
         "nullclines.mesh": {"type": "integer", "minimum": 1, "maximum": 4096, "title": "Nullcline mesh", "description": "How many points a side the nullclines are found on."},
         "nullclines.draw": {"type": "boolean", "title": "Nullclines draw", "description": "Whether the nullclines are drawn after a run."},
-        "nullclines.x_color": {"type": "string", "x-kind": "color", "title": "Nullclines x color", "description": "The colour of the x nullcline."},
-        "nullclines.y_color": {"type": "string", "x-kind": "color", "title": "Nullclines y color", "description": "The colour of the y nullcline."},
         "direction_field.grid": {"type": "integer", "minimum": 2, "maximum": 4096, "title": "Direction field grid", "description": "How many arrows a side the direction field has."},
         "direction_field.draw": {"type": "string", "enum": ["none", "arrows", "scaled_arrows", "flow", "arrows_and_save", "scaled_arrows_and_save"], "title": "Direction field draw", "description": "What a run draws of the direction field, and whether it also saves it."},
-        "manifolds.stable_color": {"type": "string", "x-kind": "color", "title": "Manifolds stable color", "description": "The colour of the stable manifold of a saddle."},
-        "manifolds.unstable_color": {"type": "string", "x-kind": "color", "title": "Manifolds unstable color", "description": "The colour of the unstable manifold of a saddle."},
         "color_by.enabled": {"type": "boolean", "title": "Color by enabled", "description": "Whether a curve is coloured by a quantity along it."},
         "color_by.via": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$", "title": "Color by via", "description": "The variable a colour-coded curve takes its colour from."},
         "color_by.low": {"type": "number", "title": "Color by low", "description": "The value of the colouring variable that gets the first colour."},

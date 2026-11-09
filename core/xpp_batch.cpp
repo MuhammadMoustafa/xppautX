@@ -88,7 +88,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     xpp::set_init_guess(s);
     update_all_ffts(s);
     init_autox_win(s);
-    threads_load(s);
+    preferences_load(s);
     if (disc(m)) {
         const auto picked = pick_method(m, "Discrete", Load::place());
         if (!picked) model_failed(picked.error());

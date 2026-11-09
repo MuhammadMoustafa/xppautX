@@ -905,7 +905,7 @@ private:
       o.tree = value;
       return o;
     }
-    const bool quoted = row->kind == OptionKind::path || row->kind == OptionKind::text || row->kind == OptionKind::color;
+    const bool quoted = row->kind == OptionKind::path || row->kind == OptionKind::text;
     o.value_pos = peek().pos;
     if (peek().kind == Token::Kind::String) {
       if (!quoted) fail(o.value_pos, xpp::format("the option {} takes a bare word or number, not a string", o.name));
@@ -915,7 +915,7 @@ private:
     }
     if (quoted)
       fail(o.value_pos, xpp::format("the option {} takes {} in double quotes, found {}", o.name,
-                                    row->kind == OptionKind::path ? "a path" : row->kind == OptionKind::color ? "a colour" : "a text", describe(peek())));
+                                    row->kind == OptionKind::path ? "a path" : "a text", describe(peek())));
     o.value = raw_word(o.value_pos);
     check_bare_value(o, *row);
     return o;
