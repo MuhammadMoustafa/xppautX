@@ -438,8 +438,8 @@ constexpr std::array ROWS = {
             "Set the adjoint's maximum iterations and error tolerance.", UPDATED_RESULTS, STATE_EVENTS, true, adjoint_configure},
     Command{"plot.set_torus", TORUS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Phase space torus", "Analysis",
             "Fold all, none or chosen variables of the phase space into a torus of the given period.", TORUS_RESULTS, STATE_EVENTS, true, torus_handler},
-    Command{"plot.set_color_coding", COLOR_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Colour by value", "Plot",
-            "Colour a graph's orbit by its velocity or by a column, between given limits or those of the stored data.", COLOR_RESULTS, PLOT_EVENTS, true,
+    Command{"plot.set_color_coding", COLOR_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Color by value", "Plot",
+            "Color a graph's orbit by its velocity or by a column, between given limits or those of the stored data.", COLOR_RESULTS, PLOT_EVENTS, true,
             color_coding_handler, COLOR_GROUPS},};
 
 } // namespace

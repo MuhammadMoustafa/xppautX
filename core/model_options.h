@@ -146,7 +146,7 @@ inline constexpr std::array<std::string_view, 7> set_groups{
 
 /* what a .odex writes as an option's value: a number, a whole number, a
    bare word (a variable's, a parameter's, a name), one of the row's
-   choices (option_choices), a path or a text, both in double quotes, a colour
+   choices (option_choices), a path or a text, both in double quotes, a color
    (always in double quotes) */
 enum class OptionKind { number, whole, name, choice, path, text, sliders, curves };
 
@@ -327,7 +327,7 @@ const OptionRow *find_odex_option_anywhere(std::string_view key, int &index);
 /* a set may hold the row: its group is one of set_groups and it is no `wide` row */
 bool set_holds(const OptionRow &row);
 
-/* the curves of a model's `curves` list (a window's are session_settings.h's read_curves, with their colours and lines); the groups (x, y, z: a variable's name each); with a Session the names are
+/* the curves of a model's `curves` list (a window's are session_settings.h's read_curves, with their colors and lines); the groups (x, y, z: a variable's name each); with a Session the names are
    checked and read as columns, without one only the shape of the list */
 std::vector<PlotCurve> read_starting_curves(const Session *s, odex::Block &file);
 
@@ -339,7 +339,7 @@ const OptionRow &slider_presets_option();
    no .odex option, but an .ode's, which the converter turns into presets */
 bool xppaut_slider_option(const OptionRow &row);
 
-/* whether a .odex writes row's value text in double quotes: a path, a text or a colour */
+/* whether a .odex writes row's value text in double quotes: a path, a text or a color */
 bool option_written_quoted(const OptionRow &row);
 
 /* the words a choice row takes, in a .odex (the registry's keys for the

@@ -97,7 +97,7 @@ public:
         if (i < 0) block_.fail(block_.member(key)->value, xpp::format("`{}`: `{}` is none of error, warn, info or debug", key, text));
         out = static_cast<XppLogLevel>(i);
     }
-    /* a colour, when the file names one */
+    /* a color, when the file names one */
     void color(std::string_view key, Color &out) { block_.color(key, out); }
     /* an absolute path, when the file names one */
     void path(std::string_view key, std::string &out)

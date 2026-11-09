@@ -82,7 +82,7 @@ void check_bad_files()
         {"too deep", deep.c_str(), 1, "nested too deeply"},
         {"too long", too_long.c_str(), 1, "longer than"},
         {"NUL", nul.c_str(), 1, "NUL"},
-        {"unknown setting", "{\n  \"pinned\": [],\n  \"colour\": 1\n}", 3, "colour"},
+        {"unknown setting", "{\n  \"pinned\": [],\n  \"color\": 1\n}", 3, "color"},
         {"setting twice", "{\n\"pinned\": [],\n\"pinned\": []}", 3, "pinned"},
         {"a preset", "{\n\"preset\": \"xppaut\"}", 2, "preset"},
         {"the default preset", "{\"pinned\": [],\n\"preset\": \"default\"}", 2, "preset"},

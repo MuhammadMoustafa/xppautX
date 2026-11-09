@@ -104,7 +104,7 @@ double parameter_value(const Session &s, int i);
 /* ---- the plot window's settings, shared by the session's windows and the graphics of an XPPAUT .set ---- */
 
 /* a window's curves as a session names them: the variables by name (the time,
-   a variable, a column the browser added), the line and the colour */
+   a variable, a column the browser added), the line and the color */
 void write_curves(odex::Out &out, const Session &s, const GRAPH &g);
 /* the window's curves into g (nvars, xv, yv, zv, line, color); the
    variables are looked up as find_variable does, then in added (the
@@ -119,7 +119,7 @@ void read_window(odex::Block &window, const Session &s, GRAPH &g, std::span<cons
    a set one has low below high */
 void write_zoom(odex::Out &out, const Zoom &z);
 Zoom read_zoom(odex::Block &owner);
-/* from's curves (their number, variables, lines and colours) given to to */
+/* from's curves (their number, variables, lines and colors) given to to */
 void copy_curves(const GRAPH &from, GRAPH &to);
 /* those settings of from given to to, its other fields kept (a restored
    window, as made, takes the saved one's) */

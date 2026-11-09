@@ -1,5 +1,5 @@
 /* W520: retained .ani imports compile to native grammar and reproduce their
-   frame data at several states, including trail history and random colours. */
+   frame data at several states, including trail history and random colors. */
 #include "xpptest.h"
 #include "aniparse.h"
 #include "ani_data.h"

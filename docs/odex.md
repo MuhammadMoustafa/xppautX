@@ -244,10 +244,10 @@ you wrote (`1/30`) alone while the value is unchanged.
   its line.
 
   A value is one bare word or number (letters, digits, `_ . + -`), no
-  quotes, except a **path**, a **text** or a **colour**, which is a double-quoted string
-  (`data_file: "out/run 1.dat"`, `nullclines_file: "données.dat"`; a colour, which only the preferences file and the protocol hold, is
-  `"foreground"`, a quoted CSS colour name or `"#rrggbb"` (`#rrggbbaa` with alpha, drawn by the page,
-  SVG and PDF), and every colour is double quoted, including names; a name is read and written back as hex): `\"` and `\\`
+  quotes, except a **path**, a **text** or a **color**, which is a double-quoted string
+  (`data_file: "out/run 1.dat"`, `nullclines_file: "données.dat"`; a color, which only the preferences file and the protocol hold, is
+  `"foreground"`, a quoted CSS color name or `"#rrggbb"` (`#rrggbbaa` with alpha, drawn by the page,
+  SVG and PDF), and every color is double quoted, including names; a name is read and written back as hex): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
   path outside the model's folder is a question the user answers (W175, W286). Only `data_file`, `picture_file`, `nullclines_file`, `after_run_file` are paths, and `buttons` (a button, `buttons: "quit:fq"`) a text. Every
   writer of options (the converter, Save values) writes them so.
@@ -274,8 +274,8 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `rangereset=y...`, `rangeoldic=n...`, `poistop=1` | `true`, `false` (a yes or no is always `true` or `false`) |
   | `poimap=s...`, `m...`, `p...` | `poincare: { map: section/max/period }` |
   | `poisgn=-1`, `0`, `1` | `negative`, `both`, `positive` |
-  | `colormap=0`..`6` | `jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix` (XPPAUT's seven; ours also has `viridis`, `plasma`, `inferno`, `magma`, `cividis`, `coolwarm`, `rdbu`, `seismic`, `twilight`, `hsv`, `turbo`, `greys`, `blues`, `reds`, `greens`, `oranges` and `purples`: 256 colours each, third_party/colormaps/README.md says where each is from; a model of ours without `colormap` has `viridis`, a `.ode` without one is converted with `colormap: jet`, its own) |
-  | `xnc`, `ync`, `smc`, `umc` `=0`..`10`; `sec`, `uec`, `spc`, `upc` `=0`, `20`..`29` | the colour in XPPAUT's own table: `"foreground"` for 0, else `"#rrggbb"` |
+  | `colormap=0`..`6` | `jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix` (XPPAUT's seven; ours also has `viridis`, `plasma`, `inferno`, `magma`, `cividis`, `coolwarm`, `rdbu`, `seismic`, `twilight`, `hsv`, `turbo`, `greys`, `blues`, `reds`, `greens`, `oranges` and `purples`: 256 colors each, third_party/colormaps/README.md says where each is from; a model of ours without `colormap` has `viridis`, a `.ode` without one is converted with `colormap: jet`, its own) |
+  | `xnc`, `ync`, `smc`, `umc` `=0`..`10`; `sec`, `uec`, `spc`, `upc` `=0`, `20`..`29` | the color in XPPAUT's own table: `"foreground"` for 0, else `"#rrggbb"` |
   | `lt=1`, `0`, `-n` | `plot: { line.draw: line }`, `line.draw: points`, `line.draw: points, line.marker: circle, line.marker_size: n` (the style every new curve starts with: `line.draw` is `line`, `points` or `both`, `line.dash` `solid`, `dashed`, `dotted` or `dash_dot`, `line.width`, `line.marker` `circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`, `line.marker_size`) |
   | `plotfmt=ps`, `svg` | `output: { picture_file: "<model>.pdf" }` (W664: the file's extension picks the format; `ps` is `pdf`, PostScript is gone; the converter writes the model's name with the format) |
   | `ps_color=0`, `1`; `ps_fsize=n` | dropped (W656: a picture is the panel as shown) |
@@ -450,9 +450,9 @@ offending key's file and line.
 The program's preferences (W287) are one file in the per-user configuration folder, `preferences.odex`: `version 4` and one
 `preferences { recent_models: [...], threads: auto, log_level: warn, ... }` statement, accepted only in that file. It is
 read by the same reader, all or nothing, and written whole, temp-then-rename. No older file is read.
-It holds the eight colours of the diagram's stability kinds (`stable_equilibrium_color`, `unstable_equilibrium_color`,
+It holds the eight colors of the diagram's stability kinds (`stable_equilibrium_color`, `unstable_equilibrium_color`,
 `stable_periodic_color`, `unstable_periodic_color`), the nullclines (`x_nullcline_color`, `y_nullcline_color`) and the saddles'
-manifolds (`stable_manifold_color`, `unstable_manifold_color`), each a double-quoted colour (W655): they were the options
+manifolds (`stable_manifold_color`, `unstable_manifold_color`), each a double-quoted color (W655): they were the options
 `colors.*` of the `diagram` group, `nullclines.x_color`, `nullclines.y_color`, `manifolds.stable_color` and
 `manifolds.unstable_color` of `plot`, which a model's `options` no longer takes (an error at its line).
 

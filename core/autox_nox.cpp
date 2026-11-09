@@ -72,7 +72,7 @@ namespace xpp {
 
 
 
-/*  two parameter curves' colours by their kind (XPPAUT's)  */
+/*  two parameter curves' colors by their kind (XPPAUT's)  */
 
 constexpr xpp::Color LPP_color=xpp::xppaut_color(0);  /* the foreground */
 constexpr xpp::Color LPE_color=xpp::xppaut_color(1);  /* red */
@@ -117,7 +117,7 @@ void autox_restore_finite_pars(xpp::Session &s, const double *before)
 
 
 
-/* the colour of the two-parameter curve of kind flag2 */
+/* the color of the two-parameter curve of kind flag2 */
 static xpp::Color two_parameter_color(AutoxCalculation flag2)
 {
   switch(flag2){
@@ -783,7 +783,7 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
 
   if((flag2!=no_calculation)&&(s.autox_state.axes().plot==AutoxProjection::two_parameter))
    type1=STABLE_EQ;
-  /* a stable equilibrium is drawn thick, an unstable one dashed, in the options' colours, a two-parameter curve in its kind's */
+  /* a stable equilibrium is drawn thick, an unstable one dashed, in the options' colors, a two-parameter curve in its kind's */
   const auto color_of=[&](const xpp::Color &option){return flag2!=no_calculation?two_parameter_color(flag2):option;};
   xpp::LineStyle line_style;
   line_style.width=2;
@@ -833,7 +833,7 @@ static void show_stab(xpp::Session &s, std::span<const double> evr,std::span<con
   autox_data_stab(s,evr,evi,periodic);
 }
 
-/* the colour a point is drawn in: its kind of two-parameter curve's, or its stability's */
+/* the color a point is drawn in: its kind of two-parameter curve's, or its stability's */
 static xpp::Color autox_point_color(xpp::Session &s, DiagramPointType type,AutoxCalculation flag2)
 {
   if(flag2!=no_calculation)return two_parameter_color(flag2);

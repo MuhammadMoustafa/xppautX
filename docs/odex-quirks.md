@@ -35,10 +35,10 @@ solution is taken to blow up, the limit its equilibria search gives up at, and
 writes `state_limit` and `search_limit`, both the `bound` value, and the DAE
 cap follows `state_limit`. XPPAUT's choices spelled by
 number or letter (`poisgn=-1`, `poimap=s`, `colormap=3`, `lt=-2`, `sec=22`,
-`rangereset=y`, colours 0 to 10) convert to the words of the `.odex`
+`rangereset=y`, colors 0 to 10) convert to the words of the `.odex`
 (`poincare: { sign: negative, map: section }`, `colormap: cool`,
 `line.draw: points, line.marker: circle, line.marker_size: 2`,
-`colors.stable_equilibrium: "#ffa500"`, `sweep: { reset: true }`); a number no choice has (a colour 11,
+`colors.stable_equilibrium: "#ffa500"`, `sweep: { reset: true }`); a number no choice has (a color 11,
 `lt=3`) stops the conversion at its line.
 
 ## Diagnostic ids (W75)
@@ -375,10 +375,10 @@ XPPAUT animation commands match their first two letters, ignore case, and
 expand `[first..last]` with its `j` substitutions. Import keeps the parsed
 commands and writes their compiled formulas through the model converter's
 expression writer; the resulting grouping preserves XPPAUT precedence.
-`settext` and colours inherited from preceding shapes become fields of each
+`settext` and colors inherited from preceding shapes become fields of each
 text. `rline` uses `relative: true`; filled shapes use `fill`; a comet's
 negative thickness becomes `draw: points` and a positive `radius_pixels`.
-The legacy circle reader consumes the colour but not a following width;
+The legacy circle reader consumes the color but not a following width;
 the converter preserves the width the reader actually used. `$BLACK` maps
 to XPPAUT's foreground, not a fixed black. An absent or nonpositive grab
 tolerance imports as the legacy .02 default. Compact arrays share the
@@ -393,10 +393,10 @@ rather than interpreting those strings as formulas. The importer continues
 to refuse these invalid numeric fields. [Findings 92 and 93](xppaut-findings.md#92-animation-grab-tolerances-discard-text-and-formula-suffixes)
 record the tolerance and ignored-circle-width evidence in XPPAUT itself.
 
-A deliberate correction: `permanent` now evaluates colour formulas once
-along with coordinates ([finding 94](xppaut-findings.md#94-permanent-animation-shapes-change-colour-every-frame)).
-XPPAUT reevaluated colours every frame while freezing the coordinates.
-The retained import fixtures use fixed permanent colours and still match
+A deliberate correction: `permanent` now evaluates color formulas once
+along with coordinates ([finding 94](xppaut-findings.md#94-permanent-animation-shapes-change-color-every-frame)).
+XPPAUT reevaluated colors every frame while freezing the coordinates.
+The retained import fixtures use fixed permanent colors and still match
 frame for frame. Recorded `.ani` imports are converted in memory while
 replaying their embedded input; replay does not create a new disk companion.
 

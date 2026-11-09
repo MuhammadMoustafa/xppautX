@@ -28,8 +28,8 @@ struct DrawingState {
 
 /* the world coordinates of the session s's drawing */
 void set_scale(Session &s, double x1, double y1, double x2, double y2);
-/* the colour of the window's first curve is newcolor, the one it had given back in *old (the equilibria's
-   manifolds are drawn in their own colours with the curve's pen) */
+/* the color of the window's first curve is newcolor, the one it had given back in *old (the equilibria's
+   manifolds are drawn in their own colors with the curve's pen) */
 void change_current_color(Session &s, const Color &newcolor, Color *old);
 void eq_symb(Session &s, double *x, int type);
 

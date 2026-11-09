@@ -587,7 +587,7 @@ int main(void)
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=x)\n"), "error 2:27 near's tol= is not a positive number or a parameter"));
   /* the model-wide near_tolerance setting is gone (W623): an ordinary unknown key, at its line */
   CHECK(starts(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 } }\n"), "error 2:"));
-  /* W656: an export is the panel as shown, so its colour and font size are no settings, and the picture-print button is gone */
+  /* W656: an export is the panel as shown, so its color and font size are no settings, and the picture-print button is gone */
   CHECK(starts(lowered("x' = 1\noptions { export: { color: false } }\n"), "error 2:"));
   CHECK(starts(lowered("x' = 1\noptions { export: { font_size: 14 } }\n"), "error 2:"));
 

@@ -620,9 +620,9 @@ The format for changing the options is:
 
     @ name1=value1, name2=value2, ...
 
-where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case). A value the option cannot take (a word where a number goes, a colour outside 0 to 10, a variable the model does not have, ...) stops the load with an error at its line, and the model loaded before stays. The first four options *can only be set outside the program.* They are:
+where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case). A value the option cannot take (a word where a number goes, a color outside 0 to 10, a variable the model does not have, ...) stops the load with an error at its line, and the model loaded before stays. The first four options *can only be set outside the program.* They are:
 
-A `.odex` (what a `.ode` is converted to) spells these options in full words, the same as the Numerics menu and the values panel: TOTAL is `total_time`, T0 `start_time`, TRANS `store_from`, NMESH `nullclines.mesh`, NEWT_ITER `max_iterations`, NEWT_TOL `newton_tolerance`, JAC_EPS `jacobian_step`, METH `method`, TOL `step.relative_tolerance`, DTMIN `step.min`, DTMAX `step.max`, ATOL `step.absolute_tolerance`, BVP_MAXIT `boundary_value.max_iterates`, BVP_TOL `boundary_value.tolerance`, BVP_EPS `boundary_value.epsilon`, TOR_PER `torus.period`, POIMAP `map`, POIVAR `variable`, POISGN `sign`, POISTOP `stop`, POIPLN `plane` (the last five in the `poincare` group) (and NOUT/NJMP `store_every`). BOUND is `state_limit` and `search_limit` (both read from it; `stop_at_limit` is `true` unless the model says otherwise), NCDRAW `nullclines.draw` and `output: { nullclines_file }`, COLORMAP a name (`jet` for 0, up to `cubehelix` for 6), a yes or no `true` or `false`, a colour `foreground` or `"#rrggbb"`, a choice its word (`poincare: { sign: positive }`), never a number. A `.ode` keeps XPPAUT's words, and so do `.xpprc` and the command line; a `.odex` refuses them at their line.
+A `.odex` (what a `.ode` is converted to) spells these options in full words, the same as the Numerics menu and the values panel: TOTAL is `total_time`, T0 `start_time`, TRANS `store_from`, NMESH `nullclines.mesh`, NEWT_ITER `max_iterations`, NEWT_TOL `newton_tolerance`, JAC_EPS `jacobian_step`, METH `method`, TOL `step.relative_tolerance`, DTMIN `step.min`, DTMAX `step.max`, ATOL `step.absolute_tolerance`, BVP_MAXIT `boundary_value.max_iterates`, BVP_TOL `boundary_value.tolerance`, BVP_EPS `boundary_value.epsilon`, TOR_PER `torus.period`, POIMAP `map`, POIVAR `variable`, POISGN `sign`, POISTOP `stop`, POIPLN `plane` (the last five in the `poincare` group) (and NOUT/NJMP `store_every`). BOUND is `state_limit` and `search_limit` (both read from it; `stop_at_limit` is `true` unless the model says otherwise), NCDRAW `nullclines.draw` and `output: { nullclines_file }`, COLORMAP a name (`jet` for 0, up to `cubehelix` for 6), a yes or no `true` or `false`, a color `foreground` or `"#rrggbb"`, a choice its word (`poincare: { sign: positive }`), never a number. A `.ode` keeps XPPAUT's words, and so do `.xpprc` and the command line; a `.odex` refuses them at their line.
 
 - MAXSTOR=`integer` sets the total number of time steps that will be kept in memory. The default is 5000. In xppautX the store starts with 5000 steps and grows as the run needs, so MAXSTOR is ignored.
 
@@ -632,15 +632,15 @@ A `.odex` (what a `.ode` is converted to) spells these options in full words, th
 
 - BIG=`fontname` sets the font for all the menus and popups.
 
-- SMC={0,...,10} sets the stable manifold colour
+- SMC={0,...,10} sets the stable manifold color
 
-- UMC={0,...,10} sets the unstable manifold colour
+- UMC={0,...,10} sets the unstable manifold color
 
-- XNC={0,...,10} sets the X-nullcline colour
+- XNC={0,...,10} sets the X-nullcline color
 
-- YNC={0,...,10} sets the Y-nullcline colour
+- YNC={0,...,10} sets the Y-nullcline color
 
-  In xppautX these colours (SMC, UMC, XNC, YNC, and SEC, UEC, SPC, UPC of autoX's diagram) are the user's preferences, in File > Preferences, not a model's: a `.ode` that sets one is converted without it, with no note.
+  In xppautX these colors (SMC, UMC, XNC, YNC, and SEC, UEC, SPC, UPC of autoX's diagram) are the user's preferences, in File > Preferences, not a model's: a `.ode` that sets one is converted without it, with no note.
 
 - BUT=s1:s2 defines a user button. You can use this many times in the same ODE file. The first string is the name of the button.The second is the set of key stroke short cuts. For example: ` BUT=mouse:im` will put a button on the main window labeled `mouse` and when you press it, it will act as though you had clicked ` InitConds Mouse`.
 
@@ -658,7 +658,7 @@ The remaining options can be set from within the program. They are
 
 - NPLOT=`int` tells XPP how many plots will be in the opening screen. xppautX writes NPLOT, XP, YP, ZP and the numbered ones as the `curves` list of a `.odex` (`curves: [ { x: v, y: w }, { x: t, y: w } ]`); MULTIWIN, SIMPLOT and XLO2 to YHI8 (several opening graphs) are dropped with a warning, since a model opens one graph and the session opens more.
 
-- XP2=name,YP2=name,ZP2=name tells XPP the variables on the axes of the second curve; XP8 etc are for the 8th plot. Up to 8 total plots can be specified on opening. They will be given different colours.
+- XP2=name,YP2=name,ZP2=name tells XPP the variables on the axes of the second curve; XP8 etc are for the 8th plot. Up to 8 total plots can be specified on opening. They will be given different colors.
 
 - AXES=`{2,3}` determine whether a 2D or 3D plot will be displayed.
 
@@ -726,7 +726,7 @@ The remaining options can be set from within the program. They are
 
 - AUTOEVAL=`{0,1}` tells XPP whether or not to automatically re-evaluate tables everytime a parameter is changed. The default is to do this. However for random tables, you may want this off. Each table can be flagged individually within XPP.
 
-- Picture options. `PS_COLOR` and `PS_FSIZE` are dropped: a picture is the graph as the panel shows it, in colour at the panel's size; `PS_FONT` and `PS_LW` are read and ignored (a picture's font is Helvetica, and each curve has its own width). `PLOTFMT` is imported as `output: { picture_file }`, the model's name with the format (`ps` is `pdf`).
+- Picture options. `PS_COLOR` and `PS_FSIZE` are dropped: a picture is the graph as the panel shows it, in color at the panel's size; `PS_FONT` and `PS_LW` are read and ignored (a picture's font is Helvetica, and each curve has its own width). `PLOTFMT` is imported as `output: { picture_file }`, the model's name with the format (`ps` is `pdf`).
 
 - autoX-stuff. The following autoX-specific variables can also be set: `NTST, NMAX, NPR, EPSU, EPSS, EPSL, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within autoX. In a `.odex` file the continuation settings have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
 

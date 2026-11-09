@@ -287,7 +287,7 @@ xppautX still reads a few environment variables, all optional:
 Set them the usual way for your shell (`export XPPSTART=...` in
 `.bashrc` or a Windows Environment Variables
 dialog). Nothing else — no `DISPLAY`, no X resources, no font or window
-colour settings — is needed or read any more.
+color settings — is needed or read any more.
 
 ## License
 

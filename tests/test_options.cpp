@@ -623,7 +623,7 @@ int main(void)
         CHECK(&xpp::client_session() == s);
         if (!loaded) CHECK(loaded.error().place.file == bad_odex && loaded.error().place.line == 3);
     }
-    /* W655: the eight colours are the user's preferences, so a .odex naming one is refused at its line */
+    /* W655: the eight colors are the user's preferences, so a .odex naming one is refused at its line */
     for (const std::string key : {"plot: { nullclines.x_color", "plot: { nullclines.y_color", "plot: { manifolds.stable_color", "plot: { manifolds.unstable_color",
                                   "diagram: { colors.stable_equilibrium", "diagram: { colors.unstable_equilibrium", "diagram: { colors.stable_periodic",
                                   "diagram: { colors.unstable_periodic"}) {

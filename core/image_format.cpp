@@ -21,7 +21,7 @@ namespace {
 
 void gif_pixels(Writer &w, std::span<const unsigned char> rgb, int width, int height, int frame)
 {
-  // A six-level RGB cube fits GIF's 256-colour palette, as before W137.
+  // A six-level RGB cube fits GIF's 256-color palette, as before W137.
   constexpr int color_step = 51;
   std::vector<unsigned char> palette_rgb(rgb.begin(), rgb.end());
   for (unsigned char &c : palette_rgb) c = static_cast<unsigned char>(((c + color_step / 2) / color_step) * color_step);

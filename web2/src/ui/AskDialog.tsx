@@ -119,7 +119,7 @@ function FormAsk({ask}: {ask: AskEvent}) {
     return <Control spec={typed} value={values[i] ?? ''} label={cellLabel} dark={dark} invalid={!!messages[i] && feedback.shows(String(i))}
       onBlur={() => feedback.touch(String(i))} onChange={t => set(i, t)} />;
   };
-  /* the field i: a select for a list (the X11 scroll list of variables, parameters, colours, markers or methods), else the typed control */
+  /* the field i: a select for a list (the X11 scroll list of variables, parameters, colors, markers or methods), else the typed control */
   const field = (i: number) => {
     const n = names[i];
     const spec = isString ? {label: n, list: null} : fieldSpec(n);
@@ -189,7 +189,7 @@ function ChecklistAsk({ask}: {ask: AskEvent}) {
   );
 }
 
-/* Text,etc/Text: the text, size, style and colour of the text just placed; the colour is any colour with its alpha (ui/ColorField.tsx), which the
+/* Text,etc/Text: the text, size, style and color of the text just placed; the color is any color with its alpha (ui/ColorField.tsx), which the
    core keeps and its PDF and SVG draw. A text already there is edited through annotation.edit's command form. */
 function TextAsk({ask}: {ask: AskEvent}) {
   const session = useSession();
@@ -224,7 +224,7 @@ function TextAsk({ask}: {ask: AskEvent}) {
         {styles.map(name => <option key={name} value={name}>{choiceLabel(name)}</option>)}
       </select>
     </FormRow>
-    <FormRow name="colour" label="Colour" error={feedback.shows('1') ? messages[1] : null}>
+    <FormRow name="color" label="Color" error={feedback.shows('1') ? messages[1] : null}>
       <Control spec={{kind: 'color'}} value={color} label="Text" dark={dark} onChange={setColor} onBlur={() => feedback.touch('1')} />
     </FormRow>
   </AskShell>;

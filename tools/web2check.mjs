@@ -1183,7 +1183,7 @@ async function marks() {
    the title bar's Array button (the classic key path underneath it,
    Window/zoom's Axes submenu, Array: `v` `a`, which also pops the Edit
    form the first time -- both already generic, AskDialog's menu and form).
-   Its cells come from `values` and the session's ramp of 256 colours (the core's:
+   Its cells come from `values` and the session's ramp of 256 colors (the core's:
    its pictures use it too); the core's own buttons (Fit, Redraw,
    Close) and time scroll (wheel, keyboard) still go through the protocol.
    examples/ode/wcring.odex (a ring of 20 coupled neurons, u0..u19) is a real
@@ -1223,13 +1223,13 @@ async function aplotView() {
   check('... zmax > zmin, and the range changed from the core\'s default',
     after[1] > after[0] && JSON.stringify(after) !== JSON.stringify(before), JSON.stringify({before, after}));
 
-  /* the colour scale is the core's: the event carries its name and its 256 colours, and the select asks the core to change it */
-  check('the event carries the session\'s colour scale: its name and 256 colours',
+  /* the color scale is the core's: the event carries its name and its 256 colors, and the select asks the core to change it */
+  check('the event carries the session\'s color scale: its name and 256 colors',
     await S("s.aplot.event.colormap === 'viridis' && s.aplot.event.ramp.length === 256 && s.aplot.event.ramp[0] === '#440154'"));
   const sentBefore = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`(() => { const s = document.querySelector('.aplot-map select');
     s.value = 'plasma'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  check('the colour map switch asks the core, and the next event carries the other ramp',
+  check('the color map switch asks the core, and the next event carries the other ramp',
     await until("s.aplot.event.colormap === 'plasma' && s.aplot.event.ramp[0] === '#0d0887'", 'plasma')
     && await cdp.eval('__xpp.sentCount()') === sentBefore + 1
     && await cdp.eval(`__xpp.sent().at(-1).cmd === 'plot.set_colormap'`));
@@ -1679,7 +1679,7 @@ async function prompts() {
   check('W517: file arguments offer a file field and picker', await cdp.eval(`!!document.querySelector('.registry-form [data-argument=file] .file-box') && !!document.querySelector('.registry-form [data-argument=file] input')`));
   await key('Escape');
   await menuRun('annotation.add_marker',{shape:'circle',x:0,y:0,color:'#ff0000'});
-  check('W517: colour and choices submit their named typed values', await until(`!s.busy && w.marks.markers.some(m => m.shape === 'circle' && m.color === '#ff0000')`, 'marker form'));
+  check('W517: color and choices submit their named typed values', await until(`!s.busy && w.marks.markers.some(m => m.shape === 'circle' && m.color === '#ff0000')`, 'marker form'));
 }
 
 
@@ -1954,7 +1954,7 @@ async function autoxView(dir) {
   const want = rebuildDiagram(await cdp.eval('__xpp.diagramEvents()'));
   const got = await DS('Object.fromEntries(Object.keys(d.points).filter(k => k !== "buffers").map(k => [k, Array.from(d.points[k])]))');
   const palette = await DS('d.points.palette');
-  got.c = got.c.map(i => palette[i]); /* the store keeps a colour as an index into its palette */
+  got.c = got.c.map(i => palette[i]); /* the store keeps a color as an index into its palette */
   let bad = want.pts.length === got.x.length ? null : `${got.x.length} points held, ${want.pts.length} sent`;
   const same = (a, b) => (a === null ? b === null : a === b); /* NaN arrives as null through JSON */
   for (let i = 0; i < want.pts.length && !bad; i++) {
@@ -3293,14 +3293,14 @@ async function optionsCheck() {
   check('W616: the Preferences form shows the current threads (or automatic), log level and log file, and no error',
     await S(`s.commandForm.id === 'preferences.configure' && s.commandForm.values.log_level === 'warn' && (s.commandForm.values.automatic === true || s.commandForm.values.threads > 0)`)
     && await cdp.eval(`!document.querySelector('.registry-form .field-error, .registry-form [aria-invalid=true]')`), JSON.stringify(await S('s.commandForm.values')));
-  /* W655: the eight colours are in the form, in the option table's order, as the preferences hold them; a change sent reaches the page's form */
-  check('W655: the Preferences form lists the eight colours in order',
+  /* W655: the eight colors are in the form, in the option table's order, as the preferences hold them; a change sent reaches the page's form */
+  check('W655: the Preferences form lists the eight colors in order',
     await S(`JSON.stringify(Object.keys(s.commandForm.values).filter(k => k.endsWith('_color'))) === JSON.stringify(['stable_equilibrium_color', 'unstable_equilibrium_color', 'stable_periodic_color', 'unstable_periodic_color', 'x_nullcline_color', 'y_nullcline_color', 'stable_manifold_color', 'unstable_manifold_color'])`));
   await key('Escape');
   await cdp.eval(`__xpp.send({cmd:'preferences.configure', x_nullcline_color:'#123456'})`);
   await until('!s.busy', 'preferences sent');
   await clickRegistry('preferences.configure');
-  check('W655: a colour set reaches the form the page opens next', await S(`s.commandForm.values.x_nullcline_color === '#123456'`), JSON.stringify(await S('s.commandForm.values')));
+  check('W655: a color set reaches the form the page opens next', await S(`s.commandForm.values.x_nullcline_color === '#123456'`), JSON.stringify(await S('s.commandForm.values')));
   await cdp.eval(`__xpp.send({cmd:'preferences.configure', x_nullcline_color:'#f06400'})`);
   await until('!s.busy', 'preferences back');
   await key('Escape');
@@ -3469,12 +3469,12 @@ async function dialogsCheck() {
   await until('!s.commandForm', 'spectrum closed');
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
-  /* the colour field (File > Preferences' since W655) is one row: the swatch, the text box in the field style, the opacity and Foreground */
+  /* the color field (File > Preferences' since W655) is one row: the swatch, the text box in the field style, the opacity and Foreground */
   await clickRegistry('preferences.configure');
   await rendered();
-  const colour = await cdp.eval(`(() => { const f = document.querySelector('[data-dialog] [data-color-field]'); const centres = [...f.children].map(c => { const r = c.getBoundingClientRect(); return r.top + r.height / 2; });
+  const color = await cdp.eval(`(() => { const f = document.querySelector('[data-dialog] [data-color-field]'); const centres = [...f.children].map(c => { const r = c.getBoundingClientRect(); return r.top + r.height / 2; });
     return {oneRow: Math.max(...centres) - Math.min(...centres) < 3, centres, textInBox: !!f.querySelector('.input-box [data-color-text]')}; })()`);
-  check('W641: a colour row is one line (swatch, text box in the field style, opacity, Foreground) at 1280', colour.oneRow && colour.textInBox, JSON.stringify(colour));
+  check('W641: a color row is one line (swatch, text box in the field style, opacity, Foreground) at 1280', color.oneRow && color.textInBox, JSON.stringify(color));
   await key('Escape');
   await until('!s.commandForm', 'Preferences closed');
   /* a file: one control, which also takes a dropped file; the footer's action is the only one */

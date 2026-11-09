@@ -71,7 +71,7 @@ DifferenceGroups make_difference_groups(const Model &m, int n)
   g.rows.resize(static_cast<size_t>(n));
   for (int j = 0; j < n; j++)
     for (const int i : reads[static_cast<size_t>(j)]) g.rows[static_cast<size_t>(i)].push_back(j);
-  /* greedy colouring: a state joins the first group none of whose states
+  /* greedy coloring: a state joins the first group none of whose states
      an equation reading it also reads */
   std::vector<int> group(static_cast<size_t>(n), -1);
   std::vector<char> taken;

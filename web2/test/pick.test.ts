@@ -31,9 +31,9 @@ test('the select starts at the field\'s value, and keeps one the list does not h
   const vars = ['T', 'V', 'W'];
   assert.equal(selectOptions(vars, 'W').selected, 'W');
   assert.equal(selectOptions(vars, 'w').selected, 'W', 'without regard to case');
-  const colours = ['0 Black/White', '1 Red', '2 RedOrange'];
-  assert.equal(selectOptions(colours, '1').selected, '1');
-  assert.equal(selectOptions(colours, ' 2 ').selected, '2');
+  const colors = ['0 Black/White', '1 Red', '2 RedOrange'];
+  assert.equal(selectOptions(colors, '1').selected, '1');
+  assert.equal(selectOptions(colors, ' 2 ').selected, '2');
   const odd = selectOptions(vars, 'X1');
   assert.equal(odd.selected, 'X1');
   assert.deepEqual(odd.options[0], {value: 'X1', label: 'X1'});

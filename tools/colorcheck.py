@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""One spelling in user text (W642, maintainer 2026-11-07: "colour", the
-British form the docs use). Fails the American "color", "colors" and
-"colored" where a user reads them:
+"""One spelling in user text (W669, maintainer 2026-11-09: "color", the
+convention). Fails the British "colour", "colours" and "coloured" where a
+user reads them:
   - web2/src/**/*.tsx: a JSX text node, and a string literal of a title,
     aria-label, placeholder or label attribute (its value, or a string inside
     its {expression}); a `${...}` in a template is code and is not checked;
@@ -10,15 +10,15 @@ British form the docs use). Fails the American "color", "colors" and
 Identifiers, CSS properties, option keys, protocol fields and file keywords
 are code and are never checked, so they need no allowlist. A label derived
 from a key is listed by the report, not checked (the maintainer decides keys).
-Usage: tools/colourcheck.py [--check] [FILE-OR-DIR...]   (exit 1 on a finding
+Usage: tools/colorcheck.py [--check] [FILE-OR-DIR...]   (exit 1 on a finding
 with --check; default paths web2/src and docs/manual)"""
 import re, sys, glob, os
 
-AMERICAN = re.compile(r"\bcolor(s|ed)?\b", re.I)
+BRITISH = re.compile(r"\bcolour(s|ed|ing)?\b", re.I)
 RENDER_ATTRS = r"(?:title|aria-label|placeholder|label)"
 
-def american(text):
-    return [m.group(0) for m in AMERICAN.finditer(text)]
+def british(text):
+    return [m.group(0) for m in BRITISH.finditer(text)]
 
 def strip_block_comments(text):
     return re.sub(r"/\*.*?\*/", lambda m: re.sub(r"[^\n]", " ", m.group(0)), text, flags=re.S)
@@ -52,7 +52,7 @@ def check_tsx(path, text):
     text = "\n".join(" " * len(l) if l.lstrip().startswith("//") else l for l in text.split("\n"))
     # a tag's closing >, after an attribute or a name, then its text up to the next tag (not => or />, not code)
     for m in re.finditer(r"(?<=[\w\"'}\]])>([^<>{}=;]+)<", text):
-        for word in american(m.group(1)):
+        for word in british(m.group(1)):
             bad.append(f"{path}:{line_of(text, m.start(1))}: JSX text has {word!r}")
     for m in re.finditer(r"\b(" + RENDER_ATTRS + r")\s*=\s*", text):
         at = m.end()
@@ -67,7 +67,7 @@ def check_tsx(path, text):
         else:
             continue
         for part in parts:
-            for word in american(part):
+            for word in british(part):
                 bad.append(f"{path}:{line_of(text, m.start())}: {m.group(1)} has {word!r}")
     return bad
 
@@ -95,7 +95,7 @@ def prose_lines(text):
 def check_md(path, text):
     bad = []
     for n, line in prose_lines(text):
-        for word in american(line):
+        for word in british(line):
             bad.append(f"{path}:{n}: prose has {word!r}")
     return bad
 
@@ -116,7 +116,7 @@ def main():
         bad += check_tsx(f, text) if f.endswith(".tsx") else check_md(f, text) if f.endswith(".md") else []
     for b in bad:
         print(b)
-    print(f"colourcheck: {len(files)} files, {len(bad)} findings")
+    print(f"colorcheck: {len(files)} files, {len(bad)} findings")
     return 1 if bad and "--check" in sys.argv else 0
 
 if __name__ == "__main__":

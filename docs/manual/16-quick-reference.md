@@ -204,13 +204,13 @@ where `name` is one of the following and `value` is either an integer, floating 
 
 - MAXSTOR=`integer` sets the total number of time steps that will be kept in memory. The default is 5000. If you want to perform very long integrations change this to some large number.
 
-- FORECOLOR=`rrggbb` sets the hexidecimal frame colour, and text menu colour.
+- FORECOLOR=`rrggbb` sets the hexidecimal frame color, and text menu color.
 
-- BACKCOLOR=`rrggbb` sets the background colour on the menus, sliders, dialogs, and buttons
+- BACKCOLOR=`rrggbb` sets the background color on the menus, sliders, dialogs, and buttons
 
-- MWCOLOR=`rrggbb` sets the background colour for the main frame in the popups.
+- MWCOLOR=`rrggbb` sets the background color for the main frame in the popups.
 
-- DWCOLOR=`rrggbb` sets the colour of the drawing window and the browser numerical displays
+- DWCOLOR=`rrggbb` sets the color of the drawing window and the browser numerical displays
 
 - BACKIMAGE=`file.xbm` sets the back image. The format is the not generally readily found X11-bitmap format. On the mac, you can use some unix tools like gimp, xv, or ImageMagick.
 
@@ -218,15 +218,15 @@ where `name` is one of the following and `value` is either an integer, floating 
 
 - BIGFONT=`fontname` sets the font for all the menus and popups.
 
-- SMC={0,...,10} sets the stable manifold colour. These colours correspond to the colours available when plotting in XPP and are roughly, `“black”,red,redorange,orange,yelloworange,yello,yellowgreen,green,bluegreen,blue,purple` Here “black” means the FORECOLOR.
+- SMC={0,...,10} sets the stable manifold color. These colors correspond to the colors available when plotting in XPP and are roughly, `“black”,red,redorange,orange,yelloworange,yello,yellowgreen,green,bluegreen,blue,purple` Here “black” means the FORECOLOR.
 
-- UMC={0,...,10} sets the unstable manifold colour
+- UMC={0,...,10} sets the unstable manifold color
 
-- XNC={0,...,10} sets the X-nullcline colour
+- XNC={0,...,10} sets the X-nullcline color
 
-- YNC={0,...,10} sets the Y-nullcline colour
+- YNC={0,...,10} sets the Y-nullcline color
 
-- SEC,UEC,SPC,UPC=colour set the colours for the screen on autoX for stable eq, unstable eq, stable per, unstable per.
+- SEC,UEC,SPC,UPC=color set the colors for the screen on autoX for stable eq, unstable eq, stable per, unstable per.
 
 - OUTPUT=filename sets the filename to which you want to write for “silent” integration. The default is “output.dat”.
 
@@ -252,7 +252,7 @@ The remaining options can be set from within the program. They are
 
 - NPLOT=`int` tells XPP how many plots will be in the opening screen.
 
-- XP2=name,YP2=name,ZP2=name tells XPP the variables on the axes of the second curve; XP8 etc are for the 8th plot. Up to 8 total plots can be specified on opening. They will be given different colours.
+- XP2=name,YP2=name,ZP2=name tells XPP the variables on the axes of the second curve; XP8 etc are for the 8th plot. Up to 8 total plots can be specified on opening. They will be given different colors.
 
 - MULTIWIN=`0,1`, puts multiple windows up and one each of the NPLOT curves in them.
 
@@ -340,7 +340,7 @@ The remaining options can be set from within the program. They are
 
 - NCDRAW=`1` computes nullclines after each run in every mode, for display and PS/SVG export. `NCDRAW=2` also writes `nullclines.dat`, a row for each segment (`nullcline` 1 for the X-nullcline and 2 for the Y, then `x1`, `y1`, `x2`, `y2`), as `nullclines.file` in a `.odex` does in the data format its extension names. Automatic data files go to the current working folder, including in the window, through the ordinary overwrite and atomic-writer rules.
 
-0-Foreground colour; 1-Red; 2-Red Orange; 3-Orange; 4-Yellow Orange; 5-Yellow; 6-Yellow Green; 7-Green; 8-Blue Green; 9-Blue; 10-Purple.
+0-Foreground color; 1-Red; 2-Red Orange; 3-Orange; 4-Yellow Orange; 5-Yellow; 6-Yellow Green; 7-Green; 8-Blue Green; 9-Blue; 10-Purple.
 
 You should be aware of the following keywords that should not be used in your ODE files for anything other than their meaning here.
 

@@ -43,7 +43,7 @@
   --target: 2rem;
 
 
-  /* colours: text on --bg and --surface is at least 4.5:1, --fg-muted too */
+  /* colors: text on --bg and --surface is at least 4.5:1, --fg-muted too */
   --bg: #f6f7f9;
   --surface: #ffffff;
   --surface-2: #eef0f3;

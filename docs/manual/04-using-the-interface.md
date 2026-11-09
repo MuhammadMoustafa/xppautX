@@ -246,7 +246,7 @@ their box the same way.
 There is no fixed count limit on curves in one graph, frozen curves, or
 plot windows: they grow as you add them, within available memory. The ICs
 **xvst** button plots every checked variable; **pp** takes two or three
-axes and reports an error for a larger selection. Curve colours repeat
+axes and reports an error for a larger selection. Curve colors repeat
 through the plot palette. Session files and recording snapshots preserve
 these counts and deleted slots. Closing a plot removes its frozen curves
 along with its labels and markers (W376, #438).
@@ -276,7 +276,7 @@ and a × (Escape and a click outside do the same, so there is no Cancel button);
 rem; below 48 rem a dialog is a full-screen sheet with the title and × on top and the action at the bottom. A field's label is left of it in a
 wide dialog and above it in a narrow one. Every field shows its current value and a settings form sends only the fields you changed. The control
 comes from the kind of the value: a number box with its range beside it, a segmented control for up to three short choices and a dropdown for
-more, a switch for a yes/no, a picker (that also takes a dropped file) for a file, a swatch with its field for a colour, monospace text for a
+more, a switch for a yes/no, a picker (that also takes a dropped file) for a file, a swatch with its field for a color, monospace text for a
 formula. An error shows once you leave the field or press the action, says the rule and the value ("Must be a number above 0; got -0.05"),
 and the action is never disabled: pressed with errors it moves the focus to the first. A required field is marked with an asterisk.
 
@@ -435,8 +435,8 @@ Two differences from X11 worth knowing:
 
 - Pictures saved as GIF or PPM (kinescope, animation frames, array plots)
   are written by xppautX itself, but from pixels the browser drew, not a
-  copy of an X11 pixmap, and their colours are rounded to 216 shades (the
-  GIF format takes 256 colours, and a browser smooths its lines).
+  copy of an X11 pixmap, and their colors are rounded to 216 shades (the
+  GIF format takes 256 colors, and a browser smooths its lines).
 - Kinescope frames live in the page as data (not bitmaps): reloading the
   page loses them.
 
@@ -460,10 +460,10 @@ address; with `--verbose` or `--debug`, or the preferences' `log_file`, everythi
 core never prints to stdout or stderr directly, so nothing bypasses
 Messages.
 
-**File > Preferences** also holds the eight colours the program draws with: the continuation diagram's stable and unstable
+**File > Preferences** also holds the eight colors the program draws with: the continuation diagram's stable and unstable
 equilibria and periodic orbits, the x and y nullclines, and the stable and unstable manifolds of a saddle. They are the user's, one
 list for every model, kept in `preferences.odex`, and apply to what is drawn or computed after they are changed (a diagram point keeps
-the colour of its kind when it was stored).
+the color of its kind when it was stored).
 
 ## Formulas as values
 

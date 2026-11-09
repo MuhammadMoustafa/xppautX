@@ -249,7 +249,7 @@ export class Chart {
   }
 
   /** the markers of every curve that draws points (draw `points` or `both`), over the lines: in the curve's
-      colour, a point for each pixel it reaches (decimate.ts) */
+      color, a point for each pixel it reaches (decimate.ts) */
   private drawCurveMarkers(u: uPlot): void {
     const m = this.model;
     if (!m) return;
@@ -278,7 +278,7 @@ export class Chart {
     this.u?.destroy();
     this.traces = [];
     this.vertices = m.curves.map(() => null);
-    /* the theme's colours are read when drawn (plotAxis), a theme switch's variables being set after the chart is made */
+    /* the theme's colors are read when drawn (plotAxis), a theme switch's variables being set after the chart is made */
     const series: uPlot.Series[] = m.curves.map((c, i) => {
       const color = c.cssColor ?? cssColor(c.color, this.dark);
       const s: uPlot.Series = {label: c.label, stroke: color, width: c.style.width, dash: dashPattern(c.style), show: this.visible[i],
@@ -436,7 +436,7 @@ export class Chart {
         });
     }
     if (nc) {
-      /* frozen ones dashed, so they are told apart without their colour (A7) */
+      /* frozen ones dashed, so they are told apart without their color (A7) */
       for (const z of nc.frozen) {
         stroke('xnull', nc.xColor, 1.25, [5, 3], p => traceSegments(z.x, f, p));
         stroke('ynull', nc.yColor, 1.25, [5, 3], p => traceSegments(z.y, f, p));
@@ -477,7 +477,7 @@ export class Chart {
     }
   }
 
-  /** earlier runs: under everything else, in their curves' colours, lighter */
+  /** earlier runs: under everything else, in their curves' colors, lighter */
   private drawRuns(u: uPlot): void {
     this.runsDrawn = 0;
     if (!this.runs.length || !this.showRuns) return;

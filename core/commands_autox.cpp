@@ -151,7 +151,7 @@ Result<std::string> configure_marks(Session &s, const Command &command, const Ar
     return xpp::format("{{\"marks_count\":{}}}", set.mark_name.size());
 }
 
-/* the preferences as they stand: the thread count (and whether it is automatic), what the log shows and the file it goes to, and the colours */
+/* the preferences as they stand: the thread count (and whether it is automatic), what the log shows and the file it goes to, and the colors */
 Result<std::string> preferences_now(const Session &s)
 {
     const Result<prefs::Preferences> kept = prefs::load_prefs();
@@ -166,12 +166,12 @@ Result<std::string> preferences_now(const Session &s)
 Result<std::string> get_preferences(Session &s, const Command &, const Arguments &, const Place &) { return preferences_now(s); }
 
 /* the program's preferences: the thread count autoX and sweeps use, and what the log shows and the file it goes to (kept in
-   preferences.odex; the log applies from the next start, and --verbose and --debug win over it; a colour applies to what is drawn or computed after it) */
+   preferences.odex; the log applies from the next start, and --verbose and --debug win over it; a color applies to what is drawn or computed after it) */
 Result<std::string> configure_preferences(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     const bool threads = args.has("threads") || args.has("automatic"), log = args.has("log_level") || args.has("log_file");
     const bool colors = std::ranges::any_of(prefs::COLOR_KEYS, [&](const prefs::ColorKey &c) { return args.has(std::string(c.key)); });
-    if (!threads && !log && !colors) return fail(command.name, "Give the thread count, the log level, the log file or a colour", place);
+    if (!threads && !log && !colors) return fail(command.name, "Give the thread count, the log level, the log file or a color", place);
     if ((log || colors) && files::serving_reads()) return fail(command.name, "a recording's replay leaves the user's preferences alone", place);
     if (threads) {
         AutoxSettingsSet set;
@@ -767,7 +767,7 @@ const std::array ROWS = {
     Command{"preferences.get", {}, XPP_KIND_CONTROL, CommandCategory::Analysis, "Get preferences", "",
             "The program's preferences as they stand: the thread count and whether it is automatic, the log level and the log file.", RESULT_THREADS, EVENTS_BROWSER, false, get_preferences, {}, {}},
     Command{"preferences.configure", THREADS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Preferences", "File",
-            "Set the program's preferences, kept in its preferences file: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal), and the colours the diagram, the nullclines and the manifolds are drawn with; the log applies from the next start.", RESULT_THREADS, EVENTS_SETTINGS, true, configure_preferences, THREADS_GROUPS, {}},
+            "Set the program's preferences, kept in its preferences file: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal), and the colors the diagram, the nullclines and the manifolds are drawn with; the log applies from the next start.", RESULT_THREADS, EVENTS_SETTINGS, true, configure_preferences, THREADS_GROUPS, {}},
     Command{"autox.import_diagram", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "Import XPPAUT diagram", "autoX/File",
             "Import an XPPAUT diagram (.auto) into the open model.", RESULT_IMPORTED, EVENTS_RUN, true, import_diagram, {}, {}},
     Command{"autox.reset_diagram", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Reset diagram", "autoX/File",

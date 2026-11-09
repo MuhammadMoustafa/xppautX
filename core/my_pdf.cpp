@@ -1,6 +1,6 @@
 /* The PDF writer (W479, #542): a Picture as a one-page PDF, 640 x 400 points. Lines, polygons and dots
    only; the text in Helvetica and Symbol, two of the standard 14 fonts, which every reader has, so
-   nothing is embedded; a colour's alpha through one ExtGState per alpha. The file has no date and no
+   nothing is embedded; a color's alpha through one ExtGState per alpha. The file has no date and no
    identifier: the same picture is the same bytes (tools/goldencheck.py). */
 #include "my_pdf.h"
 
@@ -60,7 +60,7 @@ double advance(const TextRun &run)
     return width * run.size / 1000;
 }
 
-/* a number as short as it can be at 1/100 of a point (a colour's part at 1/1000: it reads back as the same 8 bits) */
+/* a number as short as it can be at 1/100 of a point (a color's part at 1/1000: it reads back as the same 8 bits) */
 std::string num(double v, int digits = 2)
 {
     std::string s = xpp::format("{:.{}f}", v, digits);
@@ -87,7 +87,7 @@ std::string rgb(const char *op, const Color &c)
     return xpp::format("{} {} {} {}\n", num(c.r / 255.0, part_digits), num(c.g / 255.0, part_digits), num(c.b / 255.0, part_digits), op);
 }
 
-/* the colour as its three 8 bit parts (its alpha is the ExtGState's) */
+/* the color as its three 8 bit parts (its alpha is the ExtGState's) */
 using Parts = std::array<std::uint8_t, 3>;
 Parts parts(const Color &c) { return {c.r, c.g, c.b}; }
 
@@ -97,7 +97,7 @@ public:
     std::string text;
     std::map<std::uint8_t, int> alphas; /* the alphas used, each the number of its ExtGState */
 
-    /* the graphics state is written when it changes only: the fill colour (`rg`) or the stroke colour (`RG`) */
+    /* the graphics state is written when it changes only: the fill color (`rg`) or the stroke color (`RG`) */
     void set_color(bool fill, const Color &c)
     {
         Parts &now = fill ? fill_ : stroke_;
@@ -180,7 +180,7 @@ public:
 
 private:
     std::uint8_t current_ = 255;
-    /* the colours the page starts with: black, so a black item writes none */
+    /* the colors the page starts with: black, so a black item writes none */
     Parts fill_{0, 0, 0}, stroke_{0, 0, 0};
     double width_ = 1; /* the PDF default line width */
     std::string dash_ = "[]"; /* and dash (a solid line) */

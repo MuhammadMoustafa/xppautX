@@ -7,7 +7,7 @@ import {setLineGeometry, type LineGeometry} from '../src/plot/linestyle';
 import {setAnnotationGlyphs, type AnnotationGlyphs} from '../src/plot/marks';
 import type {CoreColor, LineStyle} from '../src/protocol/types';
 
-/** XPPAUT's colour 0..10 as the core says it (core/colormap.h xppaut_color) */
+/** XPPAUT's color 0..10 as the core says it (core/colormap.h xppaut_color) */
 export const xppColor = (i: number): CoreColor =>
   ['foreground', '#ff0000', '#f06400', '#ffa500', '#ffcd00', '#c8c800', '#c8eb4b', '#00e100', '#00c8c8', '#0000ff', '#a020f0'][i];
 

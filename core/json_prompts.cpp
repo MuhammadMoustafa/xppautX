@@ -245,7 +245,7 @@ int j_text_dialog(xpp::LabelLook &look)
         return 0;
     }
     if (!color) {
-        j_command_error("text", "the colour of a text is #rrggbb, #rrggbbaa, a CSS colour name or foreground");
+        j_command_error("text", "the color of a text is #rrggbb, #rrggbbaa, a CSS color name or foreground");
         return 0;
     }
     look.style = *style;

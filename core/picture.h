@@ -1,7 +1,7 @@
 #pragma once
 /* The picture an export writes (W479, #542): what graphics.cpp's primitives record while the plot is
    redrawn into a PDF or SVG file, and what the array plot builds the same way. Everything the two
-   formats share is decided here once: a colour with its alpha, a line's dash
+   formats share is decided here once: a color with its alpha, a line's dash
    pattern, a marker's shape, a text's runs (the sub- and superscripts, the symbol font), the axis
    label's place. The writers (my_pdf.cpp, my_svg.cpp) only emit syntax for the items. */
 
@@ -88,7 +88,7 @@ struct PlotFileState {
 };
 
 
-/* the colour the picture draws c in: the foreground is black */
+/* the color the picture draws c in: the foreground is black */
 Color ink(const Color &c);
 
 /* the dash pattern of a line (on, off, on, off ... lengths in points; none: solid) */
@@ -131,12 +131,12 @@ void picture_y_label(Session &s, std::string_view text);
 /* the items until the end are one group (a curve, the direction field's arrows); nothing when no picture is begun */
 void picture_group(Session &s, bool begin);
 void set_pen(Session &s, const Color &color, const LineStyle &style);
-/* the pen's colour or style alone */
+/* the pen's color or style alone */
 void set_pen_color(Session &s, const Color &color);
 void set_pen_style(Session &s, const LineStyle &style);
 /* the pens of the box around the plot and of the zero axes */
 void set_border_pen(Session &s);
 void set_zero_axes_pen(Session &s);
-/* the colour of the text recorded next (a label's colour; the foreground for the axes) */
+/* the color of the text recorded next (a label's color; the foreground for the axes) */
 void set_text_color(Session &s, const Color &color);
 } // namespace xpp

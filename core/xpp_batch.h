@@ -27,7 +27,7 @@ struct Session; /* session.h */
 [[noreturn]] void model_failed(std::string_view what);
 
 /* After a load with no interface (--silent, a unit test): s's browser,
-   graphs and colours set up. What --silent then runs is its built-in
+   graphs and colors set up. What --silent then runs is its built-in
    script (json_silent.cpp). */
 void batch_start(Session &s);
 

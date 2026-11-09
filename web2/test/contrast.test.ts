@@ -1,4 +1,4 @@
-/* docs/ui-v2.md A1: the theme's colours meet WCAG 2.2 AA contrast. Reads
+/* docs/ui-v2.md A1: the theme's colors meet WCAG 2.2 AA contrast. Reads
    the tokens from src/css/tokens.css, so a change there is checked here. */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -43,7 +43,7 @@ for (const theme of ['light', 'dark'] as const) {
       assert.ok(r >= min, `${fg} ${t[fg]} on ${bg} ${t[bg]}: ${r.toFixed(2)} < ${min}`);
     }
   });
-  test(`${theme} theme: the foreground colour of curves and text 3:1 against the plot`, () => {
+  test(`${theme} theme: the foreground color of curves and text 3:1 against the plot`, () => {
     const surface = tokens()[theme]['--surface'], c = cssColor('foreground', theme === 'dark');
     assert.ok(contrast(c, surface) >= 3, `${c} on ${surface}: ${contrast(c, surface).toFixed(2)}`);
   });

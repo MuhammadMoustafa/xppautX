@@ -25,7 +25,7 @@ export function fitTitle(title: string, max: number, width: (text: string) => nu
     draw, so it follows the plotting area's size, and the canvas keeps the cut title (the frame, GIF and kinescope
     captures take its pixels) */
 export function plotAxis(title: string): uPlot.Axis {
-  /* the theme's colours when drawn: a theme switch sets the variables after the chart is made */
+  /* the theme's colors when drawn: a theme switch sets the variables after the chart is made */
   const fg = () => cssVar('--fg-muted'), grid = () => cssVar('--grid'), font = cssVar('--plot-font');
   return {
     label: (self, axisIdx) => {

@@ -54,7 +54,7 @@ try {
     const c = document.querySelector('[data-trace-dialog] [data-color-hex]'); c.value='#123456'; c.dispatchEvent(new Event('input',{bubbles:true})); })()`);
   await until('document.querySelector("[data-trace-name]").value === "My trajectory"', 'legend draft');
   await cdp.eval("document.querySelector('[data-trace-dialog] form').requestSubmit(); true");
-  await until('__xpp.plot().curves[0].label === "My trajectory" && __xpp.plot().curves[0].color === "#123456"', 'name and colour applied');
+  await until('__xpp.plot().curves[0].label === "My trajectory" && __xpp.plot().curves[0].color === "#123456"', 'name and color applied');
   const point = await state(`(() => {
     const p = __xpp.plot(), r = document.querySelector('.plot-view:not([hidden]) .u-over').getBoundingClientRect();
     const c = w.series.curves[0], x = w.series.columns.get(c.x)[100], y = w.series.columns.get(c.y)[100];
@@ -73,7 +73,7 @@ try {
   await cdp.eval("document.querySelector('[data-run=continue]').click(); true");
   await until(`!__xpp.state().busy && __xpp.state().core.rows > ${rows}`, 'Continue appends');
   assert.equal(await state('w.history.runs.length'), 0, 'Continue extends current run without creating an older run');
-  console.log('PASS Freeze, Fit, per-trace visibility and legend name/colour editing');
+  console.log('PASS Freeze, Fit, per-trace visibility and legend name/color editing');
   await cdp.eval("document.querySelector('.table-toggle').click(); true");
   await until('__xpp.state().table.page?.rows > 0', 'data table');
   const send = async cmd => { await cdp.eval(`__xpp.send(${JSON.stringify(cmd)}); true`); await ready(); };

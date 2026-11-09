@@ -1,7 +1,7 @@
 version 4
 # pictures.odex: the picture exports' golden model (tools/goldencheck.py, W492): the Morris-Lecar
-# equations with colours that carry alpha, a dashed curve with diamond markers, nullclines in
-# their own colours and the plasma colour scale
+# equations with colors that carry alpha, a dashed curve with diamond markers, nullclines in
+# their own colors and the plasma color scale
 par iapp = 0.05, phi = 0.333
 par v1 = -0.01, v2 = 0.15, v3 = 0.1, v4 = 0.145, gca = 1
 par vk = -0.7, vl = -0.5, gk = 2, gl = 0.5

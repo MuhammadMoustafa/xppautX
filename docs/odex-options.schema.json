@@ -126,7 +126,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "colormap": {"type": "string", "enum": ["jet", "periodic", "hot", "cool", "blue_red", "gray", "cubehelix", "viridis", "plasma", "inferno", "magma", "cividis", "coolwarm", "rdbu", "seismic", "twilight", "hsv", "turbo", "greys", "blues", "reds", "greens", "oranges", "purples"], "title": "Colormap", "description": "The colours a colour-coded curve or an array plot runs through."},
+        "colormap": {"type": "string", "enum": ["jet", "periodic", "hot", "cool", "blue_red", "gray", "cubehelix", "viridis", "plasma", "inferno", "magma", "cividis", "coolwarm", "rdbu", "seismic", "twilight", "hsv", "turbo", "greys", "blues", "reds", "greens", "oranges", "purples"], "title": "Colormap", "description": "The colors a color-coded curve or an array plot runs through."},
         "curves": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "properties": {"x": {"type": "string"}, "y": {"type": "string"}, "z": {"type": "string"}}}, "maximum": 8, "title": "Curves", "description": "The curves of the starting graph, each with the variables on its axes; the first holds the axes' variables."},
         "axes.kind": {"type": "integer", "enum": [2, 3], "title": "Axes kind", "description": "A two- or three-dimensional plot."},
         "axes.x_min": {"type": "number", "title": "Axes x min", "description": "The low end of x: the window's left edge in a two-dimensional plot, the box's in a three-dimensional one."},
@@ -146,10 +146,10 @@
         "nullclines.draw": {"type": "boolean", "title": "Nullclines draw", "description": "Whether the nullclines are drawn after a run."},
         "direction_field.grid": {"type": "integer", "minimum": 2, "maximum": 4096, "title": "Direction field grid", "description": "How many arrows a side the direction field has."},
         "direction_field.draw": {"type": "string", "enum": ["none", "arrows", "scaled_arrows", "flow", "arrows_and_save", "scaled_arrows_and_save"], "title": "Direction field draw", "description": "What a run draws of the direction field, and whether it also saves it."},
-        "color_by.enabled": {"type": "boolean", "title": "Color by enabled", "description": "Whether a curve is coloured by a quantity along it."},
-        "color_by.via": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$", "title": "Color by via", "description": "The variable a colour-coded curve takes its colour from."},
-        "color_by.low": {"type": "number", "title": "Color by low", "description": "The value of the colouring variable that gets the first colour."},
-        "color_by.high": {"type": "number", "title": "Color by high", "description": "The value of the colouring variable that gets the last colour."}
+        "color_by.enabled": {"type": "boolean", "title": "Color by enabled", "description": "Whether a curve is colored by a quantity along it."},
+        "color_by.via": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$", "title": "Color by via", "description": "The variable a color-coded curve takes its color from."},
+        "color_by.low": {"type": "number", "title": "Color by low", "description": "The value of the coloring variable that gets the first color."},
+        "color_by.high": {"type": "number", "title": "Color by high", "description": "The value of the coloring variable that gets the last color."}
       }
     },
     "analysis": {

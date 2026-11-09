@@ -166,7 +166,7 @@ function GrabBar() {
   );
 }
 
-/** the kinds of curve the diagram has, for its key (colour is not the only carrier, A7) */
+/** the kinds of curve the diagram has, for its key (color is not the only carrier, A7) */
 function legendOf(m: DiagramModel): {text: string; color: string; dashed: boolean}[] {
   const seen = new Map<string, {text: string; color: string; dashed: boolean}>();
   for (const c of m.curves) {
@@ -466,7 +466,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
             return (
               <button key={e.key} data-auto-trace={e.key}
                 class={'legend-item' + (off ? ' off' : '')} aria-pressed={!off}
-                title="Click to show or hide; double click to edit name and colour"
+                title="Click to show or hide; double click to edit name and color"
                 onMouseEnter={() => chart.current?.highlight(e.curves)} onMouseLeave={() => chart.current?.highlight(null)}
                 onClick={() => setAppearance(p => ({...p, [e.key]: {...p[e.key], visible: off}}))}
                 onDblClick={() => setEditing({key: e.key, label: a?.label ?? e.name, color})}>

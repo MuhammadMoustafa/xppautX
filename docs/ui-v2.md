@@ -151,17 +151,17 @@ bundle is ~95 KB of JS (Preact 4 KB, uPlot 50 KB), 11 KB of CSS, 48 KB of font.
 
 | # | Event | For | Contents | Core work |
 |---|---|---|---|---|
-| 1 | `series` (**done**) | main plot | the active window's curves: storage columns (T always), colour, line or points, lag shifts, axis labels | done |
+| 1 | `series` (**done**) | main plot | the active window's curves: storage columns (T always), color, line or points, lag shifts, axis labels | done |
 | 2 | `series` `op:"append"` | live plot | `from`, the new rows of the same columns, during an integration; the final `series` at the end | yes: from the integrator's plot hook (`plot_the_graphs`), throttled |
 | 3 | `plots` (**done**) | plot windows as tabs | per window: `win`, title, 2D/3D, axes ranges (`xlo..yhi`), labels, the 3D box and angles (`theta`, `phi`, `persp`), and its curves; `series` is sent per window (each with its `win`), appends for the active one | done (`core/plot_data.cpp`) |
-| 4 | `nullclines` (**done**) | phase plane | per window: the x and y nullclines as flat segment lists `[x1,y1,x2,y2,...]` in plot coordinates, colours, plus the frozen nullclines | `core/phase_data.cpp`, recorded where `nullcline.cpp` draws them |
+| 4 | `nullclines` (**done**) | phase plane | per window: the x and y nullclines as flat segment lists `[x1,y1,x2,y2,...]` in plot coordinates, colors, plus the frozen nullclines | `core/phase_data.cpp`, recorded where `nullcline.cpp` draws them |
 | 5 | `dfield` (**done**) | phase plane | direction field: grid of `[x,y,ux,uy]` (unit direction in plot units) and each arrow's speed, scaled by the client; flow: the trajectories as `x`, `y` point lists per curve, NaN between two | `core/phase_data.cpp`, from `redraw_dfield`/`direct_field_com` and the integrator's `plot_one_graph` |
 | 6 | `marks` (**done**) | plot | equilibria found by Sing pts (x, y, stability type), labels, arrows and markers of Text,etc, frozen curves (Graphic stuff/Freeze) as series | `core/marks_data.cpp`, recorded where `eq_symb` (graphics.cpp), `draw_label` (grobs.cpp) and `draw_freeze`/`create_crv` (graf_par.cpp) draw them |
 | 7 | `diagram` + `autoxinfo` (**done**) | autoX view | the diagram's points (and `from`, the label a branch started from); the info strip as fields (branch, point, type, label, parameters, norm, the plotted variable, period) and the stability circle (e^λ or Floquet multipliers `[[re,im],...]`, and a steady state's eigenvalues); T23: `stop`, why the last branch ended | `core/autox_data.cpp`, reported by `autox_nox.c` where it draws the strip and the circle; `core/autox_stop.cpp`, told by autox_lib1.c where it ends a branch |
 | 7b | `autoxsettings` (**done**, T22) | autoX view's forms | autoX's Numerics (22 fields by autoX's names), its parameters (Par1..Par8), the axes (plot type, variable, main and second parameter, ranges) and the Mark values; set with `auto` `set`, checked, all or nothing | `core/autox_settings.cpp`: the same fields the autoX window's forms write |
 | 8 | `browser` (exists) | data table | rows and columns on request: already data | none |
-| 9 | `aplot` (exists) | array plot | cells as colour indices; add `values` (the numbers) so the client picks its colour map | small |
-| 10 | `ani` `frame` (**done**) | animation | the frame's primitives (line, rect, circle, ellipse, comet dot, text) in unit coordinates of the `.ani`'s `dimension` box (y up, not clamped), their colours (XPP index or `#rrggbb` of the colour map), widths and fonts; the frame's row, time, box and the classic window's size; thinned to 25 a second while Go plays | `core/aniparse.cpp` computes a frame in the `.ani`'s coordinates and gives each primitive to the pixel ops and to `core/ani_data.cpp` (docs/protocol.md "The animation as data") |
+| 9 | `aplot` (exists) | array plot | cells as color indices; add `values` (the numbers) so the client picks its color map | small |
+| 10 | `ani` `frame` (**done**) | animation | the frame's primitives (line, rect, circle, ellipse, comet dot, text) in unit coordinates of the `.ani`'s `dimension` box (y up, not clamped), their colors (XPP index or `#rrggbb` of the color map), widths and fonts; the frame's row, time, box and the classic window's size; thinned to 25 a second while Go plays | `core/aniparse.cpp` computes a frame in the `.ani`'s coordinates and gives each primitive to the pixel ops and to `core/ani_data.cpp` (docs/protocol.md "The animation as data") |
 | 11 | kinescope | kinescope | nothing new: the client keeps data snapshots (series + marks + viewport) as frames and renders or exports them itself | none (the `pixels` ask stays: web2 renders the picture from its data) |
 
 Equilibrium, equations, source, message, progress and state events are
@@ -366,7 +366,7 @@ ani/        frame.ts (a frame's primitives decoded, the box at the
             dimension's aspect, unit <-> canvas, pixel sizes, pure),
             render.ts (canvas drawing, __xpp.ani())
 css/        the page's styles, one file per owner (tools/csscheck.py: one rule
-            per thing): tokens (the scales and colours), layout (shell, title,
+            per thing): tokens (the scales and colors), layout (shell, title,
             status), controls (buttons, shared shapes), values (the Values
             panel and sliders), panels (the data table, array plot, text
             views, animation and Help), plot (the run toolbar and the plot),
@@ -429,7 +429,7 @@ Rules:
   draws XPP's symbol-font labels, which the page turns into Unicode Greek
   (`plot/richtext.ts`, T8).
 - **Tokens** on `:root` (`web2/src/css/tokens.css`): a type scale
-  (0.75/0.875/1/1.125 rem), a spacing scale (0.25..1.5 rem), colours for
+  (0.75/0.875/1/1.125 rem), a spacing scale (0.25..1.5 rem), colors for
   light and `[data-theme=dark]`, the minimum target size.
 - **Layers**: every `z-index` is a named `--z-*` token of tokens.css, each
   with its reason (csscheck fails any other). A modal dialog and a popup menu
@@ -442,7 +442,7 @@ Rules:
 - **Light, dark or system**: the title bar's Theme button cycles
   autoX → Light → Dark; the choice is remembered in the browser; autoX follows
   `prefers-color-scheme`.
-- **Curve colours**: XPP's eleven colour indices (0 the foreground, then
+- **Curve colors**: XPP's eleven color indices (0 the foreground, then
   red .. purple) map to a palette per theme (`plot/colors.ts`), keeping the
   hue XPP names.
 
@@ -501,7 +501,7 @@ Target: WCAG 2.2 AA. Rules:
 - **A1 Contrast**: text at least 4.5:1 against its background (the tokens:
   `--fg-muted` #525c6b is 6.8:1 on white, dark #a3adbb 7.6:1 on #171b21;
   white on the accent 5.5:1); the focus ring (6.5:1, dark 8.9:1), field
-  edges (`--field-border`, 3.5:1 and 4:1) and every curve colour at least
+  edges (`--field-border`, 3.5:1 and 4:1) and every curve color at least
   3:1 against the plot. Buttons are identified by their text, so their
   decorative border may be lighter.
 - **A2 Visible focus**: `:focus-visible` draws a 2 px ring in `--focus` on
@@ -523,8 +523,8 @@ Target: WCAG 2.2 AA. Rules:
   `aria-pressed`; the menu button with `aria-expanded`/`aria-controls`.
 - **A6 Motion**: `prefers-reduced-motion` removes transitions; nothing
   flashes or moves by itself.
-- **A7 Colour scheme**: follows `prefers-color-scheme` unless the user
-  chose; colour is never the only carrier (curves are named in the legend
+- **A7 Color scheme**: follows `prefers-color-scheme` unless the user
+  chose; color is never the only carrier (curves are named in the legend
   and the readout; hidden curves are struck through as well as faded).
 - **A8 Targets**: 32 px with a mouse, 44 px on touch.
 - **A9 Consistency**: one spacing and one type scale; buttons, fields and
@@ -663,8 +663,8 @@ Target: WCAG 2.2 AA. Rules:
   `name-2.set`); "Add file…" after a file the core could not open.
 - **Animation** (T13): `tools/servercheck.py`: with tools/gui_test.ani
   (one of every command) on lecar, every primitive of a frame is the
-  classic pixel op divided by the window's size within a pixel, colour for
-  colour, in [0,1] except where the `.ani` leaves its box (and there the
+  classic pixel op divided by the window's size within a pixel, color for
+  color, in [0,1] except where the `.ani` leaves its box (and there the
   pixel op is clamped to the edge); load, step, seek and the end of Go send
   the frame they draw; Go sends fewer frames than it draws, in order, and
   its last; `speed`; a grab by unit coordinates; nothing without `events.subscribe`.
@@ -699,7 +699,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T10 (**done**) | Data table: virtualized browser table on `browser`, its buttons, CSV export, keyboard navigation | T3 | no | web2check: scroll to row 500, Get sets the ICs, keyboard reaches every button |
 | T11a (**done**) | autoX view from `diagram`: branches by stability, labels, zoom, pan, readout; buttons (no Abort: the status bar's Stop, A10) | T4 | no | web2check: after an autoX run the store's diagram equals the `diagram` events; readout names a labelled point |
 | T11b (**done**) | autoX grab by point, `autoxinfo`, stability circle as data | T11a | yes | servercheck: grab by index then run; web2check: grab from the keyboard |
-| T12 (**done**) | Array plot view from `aplot` (with `values`), colour maps, scroll | T6 | small | web2check: cells equal the event's; scroll in time |
+| T12 (**done**) | Array plot view from `aplot` (with `values`), color maps, scroll | T6 | small | web2check: cells equal the event's; scroll in time |
 | T13 (**done**) | Animation: frames in unit coordinates, player controls, scaling to any size | T6 | yes | servercheck: frame primitives in [0,1]; web2check: play, pause, step, seek update the frame index |
 | T14 (**done**) | 3D plots: projection and rotation in the client, angles synced with 3d-params (`3`; W60 removed `rotate`) | T6 | small | web2check: rotate by drag and keys; `state.view.three` agrees |
 | T15 (**done**) | Kinescope and exports from data: capture snapshots, play, GIF written by the core (Kinescope/Make Anigif), offered as a download (W66: PNG dropped, no rasteriser in the core) | T7, T8 | small | web2check: capture two frames, play them; GIF export has two frames |
@@ -716,7 +716,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T26 (**done**) | From hands-on testing: autoX takes the whole window while it is shown, in place of R6's floating panel over the page: the main menu, plot and status bar hidden behind a plain background (Hide autoX returns to them), its own status strip (T24) also carrying the core's last message and, when it is not simply connected, the connection state | T24 | no | web2check auto: the panel covers the viewport; the main menu and status bar are not visible, and are again after Hide autoX; the core's message shows in the autoX strip |
 | T27 (**done**) | From hands-on testing (bug): in the desktop window (Windows, sandbox/PY_S1Bf.ode, Numerics' Npr=50) autoX's Output panel stays at "Output (0)" during a long periodic run: find where autoX's table (xpp_log_autox, autox_echo on in window mode) is lost on its way to the page (the log capture in xpp_http.cpp under the GUI subsystem, the log event, web2's classification of autoX lines) and fix | none | maybe | servercheck/web2check auto: a run with Npr prints its table lines into the Output panel, in browser mode and in the window's mode |
 | T28 (**done**) | From hands-on testing: autoX's info strip in order of importance: branch, point, type, label, then what the diagram's axes show (the x axis's quantity, then the y axis's: e.g. Iapp then V, or both parameters of a two-parameter diagram), then Norm and the period, then the remaining parameters (a second parameter last) | none | no | web2 unit test of the order for one- and two-parameter diagrams; web2check auto |
-| T29 (**done**) | From hands-on testing: autoX's labelled points each with a shape of their type instead of one × for all: HB filled circle, LP triangle, BP diamond, PD square, TR star, UZ inverted triangle, MX a bold ×, EP a small bar; the plain numbered points (Npr's regular output labels) a small tick, so a long run is not a row of crosses; the key shows each shape beside its code and name (A7: shape and text, not colour alone) | none | no | web2 unit test of type -> shape; web2check auto: the key's shapes match the drawn ones |
+| T29 (**done**) | From hands-on testing: autoX's labelled points each with a shape of their type instead of one × for all: HB filled circle, LP triangle, BP diamond, PD square, TR star, UZ inverted triangle, MX a bold ×, EP a small bar; the plain numbered points (Npr's regular output labels) a small tick, so a long run is not a row of crosses; the key shows each shape beside its code and name (A7: shape and text, not color alone) | none | no | web2 unit test of type -> shape; web2check auto: the key's shapes match the drawn ones |
 | T30 (**done**) | From hands-on testing: Fit always at hand, on both plots. The user uses it all the time to find the picture again after a scroll or zoom in a wrong place: a Fit button in the plot's own corner (over the chart, always visible, with an icon and the word), on the main plots (Window/Fit, as the toolbar's Fit today) and on the autoX diagram (which has none: fit its view to all its points, client-side); the toolbar's Fit stays | none | no | web2check: the corner Fit is visible on a plot and on the diagram; after a zoom far off, it brings every curve/point into view |
 | T31 (**done**) | From hands-on testing: every input box through one `Field` component with validators registered by kind (integer, number with XPP's %formula where allowed, name of the model's variables/parameters with suggestions, expression, file name, text): a wrong entry is marked while typed and cannot be committed (today a value box takes any letters and silently reverts them on leaving); the core's asks and forms send each field's kind from their call sites (new_int, new_float, new_string, the forms' fields) | none | yes (the ask/form field kind) | web2 unit tests per validator; servercheck: form fields carry their kind; web2check: letters in a number box are refused with a message, an integer box refuses 2.5, a %formula is accepted |
 | T32 (**done**) | The rest of T31: the core's forms that still send every field as text (Range and Range over equilibria, nullclines, the array plot, Graphic stuff/grobs, Numerics, Viewaxes/Window, Initial data range, Transpose, Fit, Stochastic, ...) send each field's kind from their call sites, so every box in the program is checked by its kind | T31 | yes (field kinds) | servercheck: each annotated form's fields carry their kinds |

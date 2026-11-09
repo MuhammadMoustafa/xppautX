@@ -2,7 +2,7 @@
    value ...` into the one JSON object the validator reads, so a command has
    one set of rules whichever way it was typed. A value is written as its
    type is: text of every kind (text, expression, name, file, path, window,
-   colour, and a map's keys) is double-quoted with JSON escapes; a number,
+   color, and a map's keys) is double-quoted with JSON escapes; a number,
    true/false and a choice are bare words; a list is its items between [ and ]
    and a map is `"key" value` pairs between { and }, items and pairs
    separated by blanks, each item written as a single value is. Lists and

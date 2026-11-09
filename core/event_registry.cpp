@@ -50,7 +50,7 @@ constexpr std::array EVENTS = {
     Event{AUTOX_JOINED, "jobs", "A run of branch jobs (follow_all_branches) was joined: each job that kept its points, with its key and the branch its joined points carry."},
     Event{AUTOX_SETTINGS, "numerics, pars, axes, marks", "autoX's settings as data.", AUTOX_SETTINGS},
     Event{AUTOX_VIEW, "earlier, show, active, views", "autoX's hidden branches, the active view and each view's zoom."},
-    Event{ARRAY_PLOT_SHOWN, "title, nx, ny, values, enc, colormap, ramp, zmin, zmax, tlo, thi, first_row, tag", "The array plot's cells and colours."},
+    Event{ARRAY_PLOT_SHOWN, "title, nx, ny, values, enc, colormap, ramp, zmin, zmax, tlo, thi, first_row, tag", "The array plot's cells and colors."},
     Event{ANIMATION_STATE, "pos, rows, fly, grab, skip, speed, loaded, open", "The animation's state for its slider and toggles."},
     Event{ANIMATION_FRAME, "pos, rows, t, speed, skip, dim, w, h, prims", "A frame of the animation as data.", ANIMATION_FRAME},
     Event{KINESCOPE_FILM, "op, count, win, cycles, delay", "The kinescope: capture, reset, play or autoplay."},

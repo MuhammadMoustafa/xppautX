@@ -67,7 +67,7 @@ test('marks decoded: stability, text runs, arrows, markers, frozen curves from J
   assert.equal(m.frozen[1].label, 'crvb', 'no key: the name');
   assert.equal(m.frozen[0].style.draw, 'line');
   assert.deepEqual(m.frozen[1].style, {draw: 'points', dash: 'solid', width: 1, marker: 'square', marker_size: 2});
-  assert.equal(m.frozen[1].color, '#f06400b0', 'a colour with its alpha is kept');
+  assert.equal(m.frozen[1].color, '#f06400b0', 'a color with its alpha is kept');
   assert.ok(Number.isNaN(m.frozen[0].ys[2]));
   const b = marksFromEvent({...MARKS, enc: 'f32', frozen: [{...MARKS.frozen[0], x: f32([0, 0.5, 1]), y: f32([0, 1, NaN])}]});
   assert.deepEqual(Array.from(b.frozen[0].xs), Array.from(m.frozen[0].xs));

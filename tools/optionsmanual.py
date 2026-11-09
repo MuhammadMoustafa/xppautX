@@ -28,8 +28,8 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 
 
 def label(name):
-    """core/options_panels.cpp words_of: the key as words, colour spelt as the page spells it"""
-    spaced = name.replace('_', ' ').replace('olor', 'olour')
+    """core/options_panels.cpp words_of: the key as words"""
+    spaced = name.replace('_', ' ')
     return spaced[:1].upper() + spaced[1:]
 
 

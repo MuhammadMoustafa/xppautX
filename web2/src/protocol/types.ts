@@ -79,7 +79,7 @@ export interface HelloEvent {
   /** every file format's name as written, lowercase (csv, csv.gz, pdf): a choice that is one is labelled by it */
   file_formats: string[];
   userbuttons: string[];
-  /** the colour scales the core has, by name (the array plot's choice) */
+  /** the color scales the core has, by name (the array plot's choice) */
   colormaps: string[];
   /** the model file's own values, in the order of `state`'s pars and ics (what `default` restores) */
   defaults: {pars: number[]; ics: number[]};
@@ -263,8 +263,8 @@ export interface PressEvent {
   ms: number;
 }
 
-/** A colour as the core says it: `#rrggbb`, `#rrggbbaa` (alpha only when not opaque) or `foreground`,
-    the colour the page draws dark on a light theme and light on a dark one */
+/** A color as the core says it: `#rrggbb`, `#rrggbbaa` (alpha only when not opaque) or `foreground`,
+    the color the page draws dark on a light theme and light on a dark one */
 export type CoreColor = string;
 
 /** how a curve (or a frozen curve) is drawn: line, points or both, the line's dash and width,
@@ -277,7 +277,7 @@ export interface LineStyle {
   marker_size: number;
 }
 
-/** One curve of the active plot window: storage columns (0 is T), its colour and style. */
+/** One curve of the active plot window: storage columns (0 is T), its color and style. */
 export interface Curve extends LineStyle {
   x: number;
   y: number;
@@ -419,12 +419,12 @@ export interface NullclinesEvent {
   /** the variables whose derivative is 0 along the x- and y-nullcline */
   xname: string;
   yname: string;
-  /** colours, as a curve's */
+  /** colors, as a curve's */
   xcolor: CoreColor;
   ycolor: CoreColor;
   x: SeriesData;
   y: SeriesData;
-  /** Nullcline/Freeze: earlier sets, drawn in the same colours */
+  /** Nullcline/Freeze: earlier sets, drawn in the same colors */
   frozen: {x: SeriesData; y: SeriesData}[];
 }
 
@@ -461,7 +461,7 @@ export interface MarksEvent {
   equilibria: {x: number; y: number; type: 'stable' | 'unstable' | 'saddle'; symbol: string}[];
   /** XPP's text: backslash escapes switch the font (\1 symbol: Greek, \0 roman), \s \S \n
       subscript, superscript, normal; size 0-4; `source` is the text as written (its \{expr}s unfilled); `id` names the text for the `annotation` command; style normal, bold,
-      italic or bold_italic; color its colour */
+      italic or bold_italic; color its color */
   text: {id: number; x: number; y: number; text: string; source: string; size: number; font: number; style: TextStyle; color: CoreColor}[];
   /** from (x1, y1), where the head's tip is, towards (x2, y2); a pointer has a shaft, an arrow only the head */
   arrows: {id: number; kind: 'arrow' | 'pointer'; x1: number; y1: number; x2: number; y2: number; size: number; color: CoreColor}[];
@@ -606,7 +606,7 @@ export interface EquilibriumEvent {
 
 /** the array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`, window 105):
     `ny` rows of `nx` cells, row-major. `values` is the cells' stored numbers
-    (float32, null/NaN off the stored rows or columns); a cell's colour is the
+    (float32, null/NaN off the stored rows or columns); a cell's color is the
     ramp's at the fraction of zmin to zmax its value is (the core's rule,
     colormap.h's ramp_color); `enc` "f32" (the client's last `data` `enc`)
     sends it as base64 like a series column. */
@@ -619,7 +619,7 @@ export interface AplotEvent {
   first_row?: number;
   values: SeriesData;
   enc?: 'f32';
-  /** the session's colour scale: its name and its 256 colours from the low end to the high one */
+  /** the session's color scale: its name and its 256 colors from the low end to the high one */
   colormap: string;
   ramp: CoreColor[];
   zmin: number;
@@ -647,7 +647,7 @@ export interface AniStateEvent {
   open?: number;
 }
 
-/** a primitive's colour, as the core says it */
+/** a primitive's color, as the core says it */
 export type AniColor = CoreColor;
 
 /** a frame's primitive as sent (docs/protocol.md "The animation as data"):

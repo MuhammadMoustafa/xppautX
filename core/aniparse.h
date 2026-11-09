@@ -32,7 +32,7 @@ struct VCR {
    Session's (session.h): the number of commands of the loaded animation
    (ncom), its speed and grab state, its options, window and frame
    saving */
-/* a comet's last n positions, in the animation's coordinates, and their colours */
+/* a comet's last n positions, in the animation's coordinates, and their colors */
 struct Comet {
     int n = 0;
     std::vector<double> x, y;
@@ -49,8 +49,8 @@ struct AniCom {
     LineDash dash = LineDash::solid;
     std::optional<double> null_width; /* absent preserves the imported nullcline pen width */
     bool own_text_style = false;
-    /* the colour of the command: fixed (a named colour, or none: the foreground), or the colour of
-       the colour map at the value of the compiled expression (col_expr, empty when fixed) */
+    /* the color of the command: fixed (a named color, or none: the foreground), or the color of
+       the color map at the value of the compiled expression (col_expr, empty when fixed) */
     Color color = foreground_color;
     std::vector<int> col_expr;
     std::vector<int> x1, y1, x2, y2, who;
@@ -117,7 +117,7 @@ struct AnimationState {
   AniMotionInfo motion{};
   /* TRANSIENT or PERMANENT: the kind the next command parsed is */
   int aniflag = 0;
-  /* the colour eval_ani_color found last: a comet's next point's */
+  /* the color eval_ani_color found last: a comet's next point's */
   Color last_color = foreground_color;
   /* the `dimension` box, and where the last line ended (rline) */
   double xlo = 0, xhi = 1, ylo = 0, yhi = 1;

@@ -1664,7 +1664,7 @@ def check_registry():
         svg = open(os.path.join(folder, 'plot.svg')).read()
         check('plot.export_svg writes the picture into the model folder', result['file'] == 'plot.svg' and result['bytes_written'] > 100 and
               svg.lstrip().startswith(('<?xml', '<svg')), str(result))
-        # W656: the panel as shown, its axes text at the page's 12 px and its curves in their colours
+        # W656: the panel as shown, its axes text at the page's 12 px and its curves in their colors
         check('W656: plot.export_svg draws the axes text at the panel\'s size', 'font-size="12"' in svg, svg[:400])
         result, _ = request({'cmd': 'plot.export_pdf', 'file': 'plot.pdf'})
         check('plot.export_pdf writes the picture into the model folder', result['file'] == 'plot.pdf' and result['bytes_written'] > 100 and
@@ -2865,16 +2865,16 @@ def check_options_panels():
         check('W616: preferences.configure keeps the log level in the preferences beside the threads', done.get('status') == 'ok' and done['result']['log_level'] == 'info', str(done))
         done = call(cmd='preferences.get')
         check('W616: preferences.get gives the threads, whether automatic, the log level and file', done.get('status') == 'ok' and done['result']['log_level'] == 'info' and 'automatic' in done['result'] and 'log_file' in done['result'], str(done))
-        # W655: the eight colours are preferences: set, read back, kept in the file, refused in a model's options
+        # W655: the eight colors are preferences: set, read back, kept in the file, refused in a model's options
         kept = call(cmd='preferences.get')['result']
         done = call(cmd='preferences.configure', x_nullcline_color='#123456', unstable_manifold_color='red')
-        check('W655: preferences.configure sets colours and answers with them', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
+        check('W655: preferences.configure sets colors and answers with them', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
               and done['result']['unstable_manifold_color'] == '#ff0000', str(done))
         done = call(cmd='preferences.get')
-        check('W655: preferences.get lists the eight colours', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
+        check('W655: preferences.get lists the eight colors', done.get('status') == 'ok' and done['result']['x_nullcline_color'] == '#123456'
               and sum(k.endswith('_color') for k in done['result']) == 8, str(done))
-        check('W655: a colour is a colour', call(cmd='preferences.configure', y_nullcline_color='notacolour').get('status') == 'error')
-        check('W655: the diagram group has no colour rows', 'colors.stable_equilibrium' not in call(cmd='options.get', group='diagram')['result']['values'])
+        check('W655: a color is a color', call(cmd='preferences.configure', y_nullcline_color='notacolor').get('status') == 'error')
+        check('W655: the diagram group has no color rows', 'colors.stable_equilibrium' not in call(cmd='options.get', group='diagram')['result']['values'])
         call(cmd='preferences.configure', x_nullcline_color=kept['x_nullcline_color'], unstable_manifold_color=kept['unstable_manifold_color'])  # the preferences file is shared by the later servers: back to what it held
         check('W616: a log level is one of the words', call(cmd='preferences.configure', log_level='loud').get('status') == 'error')
         call(cmd='preferences.configure', log_level='warn')  # the preferences file is shared by every server this check starts: back to the default
@@ -3765,12 +3765,12 @@ check('the animation window closes', any(e.get('ev') == 'window.destroyed' for e
 send(cmd='plot.set_variables', how='array_plot', names=['V', 'W'])
 evs, _ = collect(is_done)
 ap = [e for e in evs if e.get('ev') == 'array_plot.shown']
-check('the IC arry button opens an array plot, its colour scale a ramp of 256 colours (W492)',
+check('the IC arry button opens an array plot, its color scale a ramp of 256 colors (W492)',
       ap and ap[-1]['nx'] == 2 and 'cells' not in ap[-1] and ap[-1]['colormap'] == 'jet' and len(ap[-1]['ramp']) == 256
       and ap[-1]['ramp'][0] == '#000081' and ap[-1]['ramp'][255] == '#fe2600', str(ap[-1]['ramp'][-3:]))
 
 # docs/ui-v2.md T12: `values`, the cells' numbers before XPP maps them to a
-# colour, equal the browser's own numbers for the same rows and columns.
+# color, equal the browser's own numbers for the same rows and columns.
 # optimize_aplot (core/graf_par.cpp) always starts at row 0 with ColSkip 1 and
 # picks RowSkip so `ny` rows span the run (ndown = min(201, nrows), nskip =
 # nrows // ndown, both integer division as the core computes them); the
@@ -5208,7 +5208,7 @@ def check_phase_data():
         evs = after({'cmd': 'nullcline.compute'})
         nc, v = of(evs, 'nullcline.curves'), last_state(evs)['view']
         n0 = nc[0] if nc else {}
-        check('Nullcline/New: the event names V and W, colours #f06400 and #00e100 (XPPAUT\'s 2 and 7)',
+        check('Nullcline/New: the event names V and W, colors #f06400 and #00e100 (XPPAUT\'s 2 and 7)',
               len(nc) == 1 and n0['xname'] == 'V' and n0['yname'] == 'W' and n0['xcolor'] == '#f06400' and n0['ycolor'] == '#00e100',
               str(nc)[:300])
         why = (segments_ok(n0.get('x', []), v) or segments_ok(n0.get('y', []), v)) if n0 else 'no event'
@@ -5219,7 +5219,7 @@ def check_phase_data():
         evs = after({'cmd': 'direction_field.compute', 'grid': 16, 'scaled': True})
         df, v = of(evs, 'direction_field.field'), last_state(evs)['view']
         d0 = df[0] if df else {}
-        check('Dir.field/Scaled: dfield has a 17 x 17 grid, scaled, in the curve\'s colour',
+        check('Dir.field/Scaled: dfield has a 17 x 17 grid, scaled, in the curve\'s color',
               len(df) == 1 and d0['n'] == 17 and d0['scaled'] == 1 and d0['color'] == 'foreground'
               and len(d0['grid']) == 4 * 289 and len(d0['speed']) == 289, str(df)[:300])
         why = grid_ok(d0.get('grid', []), 17, v) if d0 else 'no event'
@@ -5430,7 +5430,7 @@ def check_marks():
         evs = after(dict(cmd='annotation.add_text', x=-.3, y=.5, text=typed, text_size=3, style='bold', color='#ffcd00'))
         m = marks_of(evs)
         t = m['text'] if m else []
-        check('Text,etc/Text: a text mark with its text (\\{expr} filled in), size, style, colour and position',
+        check('Text,etc/Text: a text mark with its text (\\{expr} filled in), size, style, color and position',
               len(t) == 1 and t[0]['text'] == r'\1a\0-point 6' and t[0]['source'] == typed and t[0]['size'] == 3
               and t[0]['font'] == 0 and t[0]['style'] == 'bold' and t[0]['color'] == '#ffcd00'
               and near(t[0]['x'], -0.3, px) and near(t[0]['y'], 0.5, py), str(m)[:300])
@@ -5453,21 +5453,21 @@ def check_marks():
             return evs, marks_of(evs), [e.get('error', '') for e in of(evs, 'done') if e.get('status') == 'error']
         _, m, errs = ann(op='edit', id=tid, color='#0000ff')
         t = m['text'] if m else []
-        check('W227: annotation edit of a text with only a colour changes only the colour',
+        check('W227: annotation edit of a text with only a color changes only the color',
               len(t) == 1 and t[0]['color'] == '#0000ff' and t[0]['style'] == 'bold' and t[0]['size'] == 3 and t[0]['source'] == typed
               and not errs, str((m, errs))[:300])
         ann(op='edit', id=tid, text='moved', text_size=0, style='bold_italic', color='foreground')
         _, m, errs = ann(op='move', id=tid, new_x=0.25, new_y=0.75)
         t = m['text'] if m else []
-        check('W227: annotation edit changes the text, size, style, colour and move its position',
+        check('W227: annotation edit changes the text, size, style, color and move its position',
               len(t) == 1 and t[0]['text'] == 'moved' and t[0]['source'] == 'moved' and t[0]['size'] == 0
               and t[0]['style'] == 'bold_italic' and t[0]['color'] == 'foreground' and t[0]['id'] == tid and near(t[0]['x'], 0.25, 1e-6)
               and near(t[0]['y'], 0.75, 1e-6) and not errs, str((m, errs))[:300])
         for what, fields, want in [
                 ('a size above 4', dict(op='edit', id=tid, text_size=9), 'must be at most 4'),
                 ('a style that is no name', dict(op='edit', id=tid, style='4'), 'Invalid choice'),
-                ('a colour that is none', dict(op='edit', id=tid, color='banana'), 'must be a CSS colour name'),
-                ('a colour that is a number', dict(op='edit', id=tid, color=3), 'must be text'),
+                ('a color that is none', dict(op='edit', id=tid, color='banana'), 'must be a CSS color name'),
+                ('a color that is a number', dict(op='edit', id=tid, color=3), 'must be text'),
                 ('a size that is not whole', dict(op='edit', id=tid, text_size=1.5), 'a whole number'),
                 ('an empty text', dict(op='edit', id=tid, text=''), 'not empty'),
                 ('a text of 1001 characters', dict(op='edit', id=tid, text='x' * 1001), 'at most 1000'),
@@ -5502,7 +5502,7 @@ def check_marks():
         evs = after(dict(cmd='annotation.add_pointer', tip_x=.1, tip_y=.2, tail_x=.6, tail_y=.8, size=.2, color='#c8c800'))
         m = marks_of(evs)
         a = m['arrows'] if m else []
-        check('Text,etc/Pointer: an arrow mark from the first point to the second, its size and colour',
+        check('Text,etc/Pointer: an arrow mark from the first point to the second, its size and color',
               len(a) == 1 and a[0]['kind'] == 'pointer' and a[0]['size'] == 0.2 and a[0]['color'] == '#c8c800'
               and near(a[0]['x1'], 0.1, px) and near(a[0]['y1'], 0.2, py) and near(a[0]['x2'], 0.6, px)
               and near(a[0]['y2'], 0.8, py) and len(m['text']) == 1, str(m)[:300])
@@ -5510,7 +5510,7 @@ def check_marks():
         evs = after(dict(cmd='annotation.add_marker', x=.9, y=.1, shape='diamond', color='#00e100', size=2))
         m = marks_of(evs)
         k = m['markers'] if m else []
-        check('Text,etc/Marker: a marker mark with its shape, size, colour and position',
+        check('Text,etc/Marker: a marker mark with its shape, size, color and position',
               len(k) == 1 and k[0]['shape'] == 'diamond' and k[0]['size'] == 2 and k[0]['color'] == '#00e100'
               and near(k[0]['x'], 0.9, px) and near(k[0]['y'], 0.1, py), str(m)[:300])
 
@@ -5531,12 +5531,12 @@ def check_marks():
               and near(ar.get('y2'), 1.0, 2e-3) and not errs, str((m, errs))[:300])
         _, m, errs = ann(op='edit', id=pid, size=0.5, color='#ff0000')
         ar = m['arrows'][0] if m else {}
-        check('W513: edit of a pointer by id changes its size and colour',
+        check('W513: edit of a pointer by id changes its size and color',
               ar.get('size') == 0.5 and ar.get('color') == '#ff0000' and ar.get('id') == pid and not errs, str((m, errs))[:300])
         _, m, errs = ann(op='move', id=kid, new_x=0.6, new_y=0.2)
         _, m, errs = ann(op='edit', id=kid, shape='plus', size=3, color='#0000ff')
         mk = m['markers'][0] if m else {}
-        check('W513: move and edit of a marker by id change its position, shape, size and colour',
+        check('W513: move and edit of a marker by id change its position, shape, size and color',
               mk.get('shape') == 'plus' and mk.get('size') == 3 and mk.get('color') == '#0000ff' and mk.get('id') == kid
               and near(mk.get('x'), 0.6, 1e-6) and near(mk.get('y'), 0.2, 1e-6) and not errs, str((m, errs))[:300])
         for what, fields, want in [('a shape it has not', dict(op='edit', id=kid, shape='star'), 'Invalid choice'),
@@ -5587,7 +5587,7 @@ def check_marks():
         evs = after(dict(cmd='plot.freeze_curve', color='#ffcd00', draw='line', dash='solid', width=1, marker='circle', marker_size=3, key='first run', name='frz1'))
         m = marks_of(evs)
         f = m['frozen'] if m else []
-        check('Graphic stuff/Freeze: a frozen curve equal to the series at freeze time, its key and colour',
+        check('Graphic stuff/Freeze: a frozen curve equal to the series at freeze time, its key and color',
               len(f) == 1 and f[0]['key'] == 'first run' and f[0]['name'] == 'frz1' and f[0]['color'] == '#ffcd00'
               and f[0]['draw'] == 'line' and f[0]['dash'] == 'solid' and f[0]['width'] == 1 and values({'data': f[0]['x']}, None) == cols.get(curve['x']) and values({'data': f[0]['y']}, None) == cols.get(curve['y'])
               and len(f[0]['x']) > 2, str(m)[:300])
@@ -5653,7 +5653,7 @@ def check_ani_data():
     """The animation as data (docs/protocol.md "The animation as data",
     docs/ui-v2.md T13): tools/gui_test.ani (one of every command) on lecar.
     Each frame event's primitives are in unit coordinates of the dimension
-    box, colours as #rrggbb or foreground; the player's step, seek and Go
+    box, colors as #rrggbb or foreground; the player's step, seek and Go
     send the frames they show, Go at most 25 a second and always its last
     one."""
     proc6, run6, send6, collect6, _ = launch_server()
@@ -5684,12 +5684,12 @@ def check_ani_data():
 
     named = {'foreground', '#ff0000', '#f06400', '#ffa500', '#ffcd00', '#c8c800', '#c8eb4b', '#00e100', '#00c8c8', '#0000ff', '#a020f0'}
 
-    def colours_ok(f):
-        """'' when every primitive's colour is `foreground` or a #rrggbb, else why"""
+    def colors_ok(f):
+        """'' when every primitive's color is `foreground` or a #rrggbb, else why"""
         for p in f['prims']:
             c = p[4] if p[0] in ('dot', 'text') else p[5]
             if not (c == 'foreground' or (isinstance(c, str) and len(c) == 7 and c[0] == '#')):
-                return 'colour %r of %s' % (c, p)
+                return 'color %r of %s' % (c, p)
         return ''
 
     def in_unit(f):
@@ -5742,17 +5742,17 @@ def check_ani_data():
         kinds = sorted({p[0] for p in f0['prims']})
         check('ani data: every kind of primitive (line, rect, circle, ellipse, dot, text)',
               kinds == ['circle', 'dot', 'ellipse', 'line', 'rect', 'text'], str(kinds))
-        check('ani data: frame 0 has a primitive per drawing command of the .ani, colours as #rrggbb or foreground',
-              len(f0['prims']) == 13 and not colours_ok(f0), '%d primitives %s' % (len(f0['prims']), colours_ok(f0)))
+        check('ani data: frame 0 has a primitive per drawing command of the .ani, colors as #rrggbb or foreground',
+              len(f0['prims']) == 13 and not colors_ok(f0), '%d primitives %s' % (len(f0['prims']), colors_ok(f0)))
         check('ani data: its coordinates are in [0,1] (only a line may leave the box)',
               in_unit(f0) is None, str(in_unit(f0)))
         spectral = [p for p in f0['prims'] if p[0] == 'circle' and p[5] not in named]
-        check('ani data: a colour of the colour map is #rrggbb (fcircle ...;w)', len(spectral) == 1, str(spectral))
+        check('ani data: a color of the color map is #rrggbb (fcircle ...;w)', len(spectral) == 1, str(spectral))
 
         evs = ani('step', n=1)
         fr = frames(evs)
         check('ani data: step sends the next frame, moved on from frame 0', len(fr) == 1 and fr[0]['pos'] == 1
-              and fr[0]['t'] > 0 and fr[0]['prims'] != f0['prims'] and not colours_ok(fr[0]), str(fr)[:300])
+              and fr[0]['t'] > 0 and fr[0]['prims'] != f0['prims'] and not colors_ok(fr[0]), str(fr)[:300])
         evs = ani('seek', pos=300)
         fr = frames(evs)
         bad = in_unit(fr[-1]) if fr else 'no frame'
@@ -5767,10 +5767,10 @@ def check_ani_data():
         check('ani data: Go sends frames as it plays, at most 25 a second, and its last one',
               3 <= len(fr) < 300 and fr[-1]['pos'] == 600 and all(a['pos'] < b['pos'] for a, b in zip(fr, fr[1:])),
               '%d frames, last %s' % (len(fr), fr and fr[-1]['pos']))
-        check('ani data: the last frame of Go is whole: in unit coordinates, its colours, the comets grown',
-              bool(fr) and in_unit(fr[-1]) is None and not colours_ok(fr[-1])
+        check('ani data: the last frame of Go is whole: in unit coordinates, its colors, the comets grown',
+              bool(fr) and in_unit(fr[-1]) is None and not colors_ok(fr[-1])
               and len(fr[-1]['prims']) > len(f0['prims']),
-              str(fr and (in_unit(fr[-1]), colours_ok(fr[-1]), len(fr[-1]['prims']))))
+              str(fr and (in_unit(fr[-1]), colors_ok(fr[-1]), len(fr[-1]['prims']))))
 
         # W177: one sequence choice, then derived PPM names, even across 601 rows.
         ani('reset')
@@ -8086,7 +8086,7 @@ def check_export_elements():
     go = [{'cmd': 'run.initial'}]
 
     def elements(data, fmt):
-        """the picture's items as (kind, colour, text): a path or a dot (a marker) in its colour, a text in its colour"""
+        """the picture's items as (kind, color, text): a path or a dot (a marker) in its color, a text in its color"""
         text = data.decode('utf-8')
         if fmt == 'svg':
             result = []
@@ -8164,8 +8164,8 @@ def check_export_elements():
                   result.returncode == 0 and bool(actual) and actual == expected,
                   str((len(expected), len(actual), next(((a, b) for a, b in zip(expected, actual) if a != b), None)))
                   + result.stderr[-300:])
-            counts = Counter((kind, colour) for kind, colour, _ in actual)
-            check('W346: ' + fmt + ' holds both nullclines (XPPAUT\'s colours 2 and 7) and label text',
+            counts = Counter((kind, color) for kind, color, _ in actual)
+            check('W346: ' + fmt + ' holds both nullclines (XPPAUT\'s colors 2 and 7) and label text',
                   counts['path', '#f06400'] > 0 and counts['path', '#00e100'] > 0
                   and any(kind == 'text' for kind, _, _ in actual), str(counts))
             # each arrow is a path with a dot at its head
@@ -9106,7 +9106,7 @@ def check_session_file():
              ('spareflag.snapx/session.odex:%d:' % generator_line, "not a random generator's state")),
             ('aftergenerator', generator_with(generator + ['not_generator_state']),
              ('aftergenerator.snapx/session.odex:%d:' % generator_line, "not a random generator's state")),
-            # W227: a label's every value is checked at its line (window, x, y, size, font, style, colour, text)
+            # W227: a label's every value is checked at its line (window, x, y, size, font, style, color, text)
             ('labelsize', marks_with(label_marks(size='9')),
              ('labelsize.snapx/session.odex:%d:' % (marks_line + 8), '9 is not a text size (0 to 4)')),
             ('labelfont', marks_with(label_marks(font='5')),
@@ -9114,7 +9114,7 @@ def check_session_file():
             ('labelstyle', marks_with(label_marks(style='oblique')),
              ('labelstyle.snapx/session.odex:%d:' % (marks_line + 10), '`style`: `oblique` is not one of normal, bold, italic, bold_italic')),
             ('labelcolor', marks_with(label_marks(color='"99"')),
-             ('labelcolor.snapx/session.odex:%d:' % (marks_line + 11), '`99` is not a colour')),
+             ('labelcolor.snapx/session.odex:%d:' % (marks_line + 11), '`99` is not a color')),
             ('labelempty', marks_with(label_marks(text='""')),
              ('labelempty.snapx/session.odex:%d:' % (marks_line + 12), 'a text is not empty')),
             ('labellong', marks_with(label_marks(text='"' + 'x' * 1001 + '"')),
@@ -9133,7 +9133,7 @@ def check_session_file():
             ('marktype', marks_with(mark_marks(type='999')),
              ('marktype.snapx/session.odex:%d:' % (marks_line + 7), "999 is not an object's type (0 to 7)")),
             ('markcolor', marks_with(mark_marks(color='"999"')),
-             ('markcolor.snapx/session.odex:%d:' % (marks_line + 8), '`999` is not a colour')),
+             ('markcolor.snapx/session.odex:%d:' % (marks_line + 8), '`999` is not a color')),
             ('twonames', edited(lambda text: '\n'.join(state_rows[:session_line] + ['  model: "lecar.odex",'] + state_rows[session_line:])),
              ('twonames.snapx/session.odex:%d:' % (session_line + 2), 'is given twice')),
         ]
@@ -10524,9 +10524,9 @@ def check_keymap():
             check('W211: set refuses %s at its place with its value, and neither answers nor writes' % what,
                   len(err) == 1 and err[0]['file'] == 'the keymap sent' and err[0]['line'] >= 1 and value in err[0]['error']
                   and not keymap_events(evs) and open(path, 'rb').read() == written, str(evs)[-300:])
-        snd(cmd='keymap.set', colour=1)
+        snd(cmd='keymap.set', color=1)
         evs, _ = col(is_done)
-        check('W211: set refuses a setting the keymap does not have, shown once', len(errors(evs)) == 1 and 'colour' in errors(evs)[0]['error'] and not keymap_events(evs), str(evs)[-200:])
+        check('W211: set refuses a setting the keymap does not have, shown once', len(errors(evs)) == 1 and 'color' in errors(evs)[0]['error'] and not keymap_events(evs), str(evs)[-200:])
         snd(cmd='keymap.set', bindings=[1])
         evs, _ = col(is_done)
         check('W211: set needs an object of bindings, shown once', len(errors(evs)) == 1 and not keymap_events(evs), str(evs)[-200:])

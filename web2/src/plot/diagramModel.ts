@@ -4,7 +4,7 @@
    XPP's convention, kept: a steady state is a line (stable solid and thick,
    unstable thin), a periodic branch is marked at its maximum and minimum
    (the hi and lo values), a two-parameter curve is a line in its kind's
-   colour. Here every kind is a line (unstable ones dashed), the periodic
+   color. Here every kind is a line (unstable ones dashed), the periodic
    branches as two lines, max and min, so a branch reads as a curve at any
    zoom. A curve is one run of points that share branch, kind and style and
    follow on (no `new` between them), the way the core drew them: a line
@@ -37,7 +37,7 @@ export interface DiagramCurve {
   stable: boolean;
   /** the values it draws: y (the maximum for hi and lo) or y2 (the minimum) */
   which: 'y' | 'y2';
-  /** the colour of the run as the core says it */
+  /** the color of the run as the core says it */
   color: CoreColor;
   cssColor?: string;
   visible?: boolean;
@@ -191,13 +191,13 @@ export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes
 /* ---- the legend (W630): one entry per branch, stability and kind ---- */
 
 export interface LegendEntry {
-  /** what its name, colour and visibility are keyed by: `job:0.5:unstable:periodic` for a running job's curves, `branch:3:stable:steady` otherwise */
+  /** what its name, color and visibility are keyed by: `job:0.5:unstable:periodic` for a running job's curves, `branch:3:stable:steady` otherwise */
   key: string;
   /** what it is called: "Job 0.5 · unstable periodic", "Branch 3 · stable steady" */
   name: string;
   /** the model's curves it stands for: the segments a stability change splits, a periodic branch's maximum and minimum */
   curves: number[];
-  /** the colour of its first curve, as the run says it */
+  /** the color of its first curve, as the run says it */
   color: CoreColor;
 }
 
@@ -232,7 +232,7 @@ export function legendEntries(curves: DiagramCurve[], jobKeys: Record<number, nu
   return {entries, of};
 }
 
-/** the legend's settings (name, colour, visibility; keyed by entry, see LegendEntry.key) after a join (W631): each job that
+/** the legend's settings (name, color, visibility; keyed by entry, see LegendEntry.key) after a join (W631): each job that
     kept its points moves its entries from `job:<key>:...` to `branch:<its branch>:...`, replacing what that key held; a job the
     join dropped (a repeat) and a `live:` entry are gone with their curves. Pure. */
 export function carryAppearance<T>(appearance: Record<string, T>, joined: {key: number[]; branch: number}[]): Record<string, T> {

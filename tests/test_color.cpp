@@ -1,5 +1,5 @@
-/* The value types of settings (W484, #548): the colour (core/colormap.h), the line style
-   (core/line_style.h) and the colour scales' names. make test runs this from the top of the tree. */
+/* The value types of settings (W484, #548): the color (core/colormap.h), the line style
+   (core/line_style.h) and the color scales' names. make test runs this from the top of the tree. */
 #include "xpptest.h"
 #include "colormap.h"
 #include "line_style.h"
@@ -8,7 +8,7 @@
 #include <string>
 
 namespace {
-/* a colour of its parts (not the foreground) */
+/* a color of its parts (not the foreground) */
 xpp::Color rgba(int r, int g, int b, int a = 255)
 {
     return xpp::Color{static_cast<std::uint8_t>(r), static_cast<std::uint8_t>(g), static_cast<std::uint8_t>(b), static_cast<std::uint8_t>(a), false};
@@ -17,7 +17,7 @@ xpp::Color rgba(int r, int g, int b, int a = 255)
 
 int main(void)
 {
-    /* a colour is written #rrggbb (#rrggbbaa when not opaque) or foreground, read also by a CSS name in any case */
+    /* a color is written #rrggbb (#rrggbbaa when not opaque) or foreground, read also by a CSS name in any case */
     CHECK(xpp::parse_color("#d62839") == rgba(0xd6, 0x28, 0x39));
     CHECK(xpp::parse_color("#D62839AA") == rgba(0xd6, 0x28, 0x39, 0xaa));
     CHECK(xpp::parse_color("foreground") == xpp::foreground_color);
@@ -39,14 +39,14 @@ int main(void)
     for (int i = 0; i <= xpp::LAST_PLOT_COLOR; i++) CHECK(xpp::parse_color(xpp::print_color(xpp::xppaut_color(i))) == xpp::xppaut_color(i));
     CHECK(xpp::quoted_color(rgba(1, 2, 3, 4)) == "\"#01020304\"" && xpp::quoted_color(xpp::foreground_color) == "\"foreground\"");
 
-    /* the colour scales: XPPAUT's seven first, by number 0..6 in the order of their words, then the 17 more */
+    /* the color scales: XPPAUT's seven first, by number 0..6 in the order of their words, then the 17 more */
     CHECK(xpp::colormap_names.size() == 24 && xpp::xppaut_colormap_count == 7);
     CHECK(xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::jet)] == "jet"
           && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::cubehelix)] == "cubehelix"
           && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::blue_red)] == "blue_red"
           && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::viridis)] == "viridis"
           && xpp::colormap_names[static_cast<std::size_t>(xpp::Colormap::purples)] == "purples");
-    /* every scale is 256 opaque colours, and no two scales are alike */
+    /* every scale is 256 opaque colors, and no two scales are alike */
     for (std::size_t m = 0; m < xpp::colormap_names.size(); m++) {
         const xpp::Ramp ramp = xpp::make_ramp(static_cast<xpp::Colormap>(m));
         CHECK(ramp.size() == 256);
@@ -56,7 +56,7 @@ int main(void)
     const xpp::Ramp viridis = xpp::make_ramp(xpp::Colormap::viridis), gray = xpp::make_ramp(xpp::Colormap::gray);
     CHECK(viridis.front() == rgba(68, 1, 84) && viridis.back() == rgba(253, 231, 37)); /* matplotlib's table's ends */
     CHECK(gray.front() == rgba(0, 0, 0) && gray.back() == rgba(254, 254, 254));
-    /* a fraction picks a colour of the ramp: 0 the first, 1 the last, outside 0..1 the nearest end, NaN the first */
+    /* a fraction picks a color of the ramp: 0 the first, 1 the last, outside 0..1 the nearest end, NaN the first */
     CHECK(xpp::ramp_color(viridis, 0) == viridis.front() && xpp::ramp_color(viridis, 1) == viridis.back() && xpp::ramp_color(viridis, 2) == viridis.back()
           && xpp::ramp_color(viridis, -1) == viridis.front() && xpp::ramp_color(viridis, std::nan("")) == viridis.front()
           && xpp::ramp_color(viridis, .5) == viridis[128]);
@@ -76,5 +76,5 @@ int main(void)
     for (int lt = -5; lt <= 1; lt++) CHECK(xpp::line_style_of_xppaut(lt).has_value());
     CHECK(xpp::line_style_json(xpp::LineStyle{}) == "\"draw\":\"line\",\"dash\":\"solid\",\"width\":1,\"marker\":\"circle\",\"marker_size\":3");
 
-    TEST_REPORT("colours and line styles");
+    TEST_REPORT("colors and line styles");
 }

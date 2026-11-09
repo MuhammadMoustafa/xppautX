@@ -129,7 +129,7 @@ const KINDS: {[K in FieldKind]: KindEntry<K>} = {
     inputMode: () => 'text',
   },
   color: {
-    check: text => (CORE_COLOR.test(text.trim()) ? null : 'a colour: #rrggbb, #rrggbbaa or foreground'),
+    check: text => (CORE_COLOR.test(text.trim()) ? null : 'a color: #rrggbb, #rrggbbaa or foreground'),
     inputMode: () => 'text',
   },
   text: {
@@ -315,7 +315,7 @@ export function specOfOption(row: OptionRow, names: readonly string[]): FieldSpe
 
 /** which control draws a kind of field (W641: one place decides it): a number or integer a number box, a choice of up to
     SEGMENT_MOST short names a segmented control and more a dropdown, a yes/no a switch, a name of the model a dropdown of
-    them, a formula or an expression monospace text, a file a picker, a colour a swatch with its field, the rest text */
+    them, a formula or an expression monospace text, a file a picker, a color a swatch with its field, the rest text */
 export type ControlKind = 'switch' | 'segmented' | 'select' | 'number' | 'mono' | 'file' | 'color' | 'text';
 export const SEGMENT_MOST = 3;
 /** a choice's longest name that still fits a segmented control beside the others */

@@ -2,7 +2,7 @@
    sheet at every width, over the main menu, the plot and the main status
    bar (a plain background, no page showing through); its own status strip
    (ui/AutoxStatus.tsx) is then the only status line on screen and carries
-   the Stop, the one way to stop a run (A10). Sizes and colours are
+   the Stop, the one way to stop a run (A10). Sizes and colors are
    tokens.css's tokens. */
 .autox-panel {
   position: fixed;

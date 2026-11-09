@@ -112,9 +112,9 @@ struct AutoxSettingsSet {
     std::optional<unsigned> threads;
 };
 
-/* the thread count and the colours the preferences file holds into s (a recording's replay
+/* the thread count and the colors the preferences file holds into s (a recording's replay
    keeps the user's preferences out of it, and reads none); a bad file leaves
-   the automatic count and the default colours (the file's error is shown by the recent models' note,
+   the automatic count and the default colors (the file's error is shown by the recent models' note,
    once). Called by the load. */
 void preferences_load(Session &s);
 
@@ -153,7 +153,7 @@ int autox_settings_apply(Session &s, const AutoxSettingsSet &set, std::string &w
    a file of autoX's settings to name its line (xpp_session_autox_io.cpp) */
 Result<> autox_settings_check(const Session &s, const AutoxSettingsSet &set, int views);
 
-/* the diagram group's rows that are the active view's own (its variable and axes; the colours are the session's) and whose values the
+/* the diagram group's rows that are the active view's own (its variable and axes; the colors are the session's) and whose values the
    panel reads and sets there (W616): the model's values are only what a new view starts with */
 bool autox_view_row(const OptionRow &row);
 /* a view row's value in the active view, as text */

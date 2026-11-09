@@ -1,4 +1,4 @@
-/* The SVG writer (W479, #542): a Picture as an SVG, 640 x 400. Every item carries its own colour (#rrggbb with
+/* The SVG writer (W479, #542): a Picture as an SVG, 640 x 400. Every item carries its own color (#rrggbb with
    stroke-opacity or fill-opacity when it is not opaque), dash and width as attributes; nothing else is needed
    to draw it. The same picture is the same bytes (tools/goldencheck.py). */
 #include "my_svg.h"
@@ -36,7 +36,7 @@ std::string escaped(std::string_view text)
 
 std::string hex(const Color &c) { return print_color(Color{c.r, c.g, c.b, 255, false}); }
 
-/* the colour as a paint attribute (`stroke` or `fill`) and its opacity when not opaque */
+/* the color as a paint attribute (`stroke` or `fill`) and its opacity when not opaque */
 std::string paint(const char *attribute, const Color &c)
 {
     std::string s = xpp::format(" {}=\"{}\"", attribute, hex(c));

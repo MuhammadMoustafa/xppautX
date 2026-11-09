@@ -152,7 +152,7 @@ export function Plot3DView({win, dark, shown, tabbed, windowRow}: Props) {
         <div class="legend" role="group" aria-label="Curves">
           {model?.curves.map((c, i) => (
             <button key={traceKeys[i]} data-trace-key={traceKeys[i]} class={'legend-item' + (c.visible === false ? ' off' : '')} aria-pressed={c.visible !== false}
-              title="Click to show or hide; double click to edit name and colour"
+              title="Click to show or hide; double click to edit name and color"
               onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}
               onClick={() => setAppearance(a => ({...a, [traceKeys[i]]: {...a[traceKeys[i]], visible: c.visible === false}}))}
               onDblClick={() => setEditing(i)}>

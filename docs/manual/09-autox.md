@@ -56,11 +56,11 @@ back). It has:
   and minimum, are one entry (`Branch 3 · unstable periodic`). While branch
   jobs run (see "Following all the branches"), each job's curves are named
   by its key as the status strip names it (`Job 0.5 · unstable periodic`),
-  and become branch entries when the jobs are joined: a job's name, colour
+  and become branch entries when the jobs are joined: a job's name, color
   and visibility move to the branch its points carry, and the entries of a
   job the join dropped as a repeat go with their curves. A click shows or hides
   all of an entry's curves, a double click renames it and changes its
-  colour, and hovering over it highlights all of them;
+  color, and hovering over it highlights all of them;
 - a **stability circle** (`ui/AutoxInfo.tsx`) below it, and a **status
   strip** (`ui/AutoxStatus.tsx`) along the window's bottom edge, in place of
   the small square and info windows of the X11 autoX window, from the
@@ -243,7 +243,7 @@ there are two or more, a × that closes it (the last one always stays;
 closing a view never touches the diagram).
 
 A click in a view makes it the **active** one, framed in the accent
-colour: Axes and its zoom, Fit and Scroll change the active view, the
+color: Axes and its zoom, Fit and Scroll change the active view, the
 exports (PDF, SVG, Write pts, All info) draw it, the info strip
 names its variable, and Run continues in its parameters (Main Parm, and
 2nd Parm for a two-parameter run). Every view gets the points of a run as

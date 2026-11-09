@@ -16,8 +16,8 @@ int get_nullcline_floats(Session &s, float **v, int *n, int who, int type);
 
 /* nullcline.cpp's settings, a Session's (session.h): a run's requested
    nullclines (nullclines.draw, nullclines.file) and direction field (@ dfdraw=), the nullclines'
-   colours, the direction field's grid and kind (df_flag), set while it
-   is drawn (for the SVG classes), and what colours an orbit
+   colors, the direction field's grid and kind (df_flag), set while it
+   is drawn (for the SVG classes), and what colors an orbit
    (@ colorvia=, colorlo=, colorhi=, colorize=) */
 struct NullclineSettings {
   bool draw = false;     /* compute them after a run */
@@ -91,7 +91,7 @@ void do_batch_dfield(Session &s);
    and the arrow's end), in PostScript's frame (--silent's dirfields.dat,
    the protocol's `dfield` `write`); an error message when it shows none */
 Result<> write_dfield(Session &s, std::string_view name, bool confirm = false);
-/* the orbits' colouring (@ colorize=, colorvia=) of s in use */
+/* the orbits' coloring (@ colorize=, colorvia=) of s in use */
 void set_colorization_stuff(Session &s);
 
 } // namespace xpp

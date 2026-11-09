@@ -1,7 +1,7 @@
 # Creating animations
 
 An animation describes a model's motion with shapes whose coordinates and
-colours are formulas of time, variables, fixed quantities and parameters.
+colors are formulas of time, variables, fixed quantities and parameters.
 Save it as an `.anix` file beside its `.odex` model. Both use the
 [model grammar](../odex.md): comments start with `#` or use `/* ... */`,
 formulas use ordinary precedence, and strings use double quotes.
@@ -40,7 +40,7 @@ saved member, without reading another copy from disk.
 
 Each shape is a statement with `key: value` fields inside braces. Parentheses
 are function calls. Coordinates and radii are expressions. User text and
-fixed colours are quoted; choices such as `solid`, `roman` and `true` are bare.
+fixed colors are quoted; choices such as `solid`, `roman` and `true` are bare.
 
 | Statement | Required fields | Other fields |
 |---|---|---|
@@ -54,10 +54,10 @@ fixed colours are quoted; choices such as `solid`, `roman` and `true` are bare.
 | `nullcline` | `variable: "..."`, `x1`, `y1`, `x2`, `y2` | `source: current`, or `source: frozen` with `frame` |
 
 Drawing shapes take `color`, `width` in pixels, and `dash` (`solid`,
-`dashed`, `dotted`, `dash_dot`), the plot's style names. A colour is a
-quoted CSS colour, `"foreground"`, `"#rrggbb"` or `"#rrggbbaa"`, or an
-expression giving a value on the session's colour scale. A filled shape
-uses `fill` for that colour instead of `color`. Width defaults to a thin
+`dashed`, `dotted`, `dash_dot`), the plot's style names. A color is a
+quoted CSS color, `"foreground"`, `"#rrggbb"` or `"#rrggbbaa"`, or an
+expression giving a value on the session's color scale. A filled shape
+uses `fill` for that color instead of `color`. Width defaults to a thin
 line (0 means one pixel). Text defaults to size 0, font `roman`, and
 `"foreground"`; sizes are 0 through 4 and fonts are `roman` and `symbol`.
 Each text owns its style. A trail retains 1 through 10000 points; points
@@ -116,7 +116,7 @@ answer, as model conversion does. The command line can convert explicitly:
 
 The first form uses `pend.odex` beside the animation; the second names its
 model explicitly. Conversion reads XPPAUT's abbreviations, semicolon
-arguments, `$` colours, array commands, `settext` and grab task lines.
+arguments, `$` colors, array commands, `settext` and grab task lines.
 It writes whole shape names and explicit text styles; filled shapes,
 relative lines and comet dots become fields. Import uses the same 100000
 expansion limit as native ranges. The retained `.ani` files under

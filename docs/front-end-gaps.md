@@ -45,8 +45,8 @@ Nothing. Fixes from hands-on use are tracked in docs/ui-v2.md (T19).
 - Keys go to the tab that is shown, not to the window under the pointer.
   autoX's hotkeys are the exception: they work while the pointer or the
   focus is on the autoX window, as X11 does.
-- Saved frames and GIFs come from the canvas the client drew, with colours
-  rounded to the 216 web-safe ones (the GIF writer takes 256 colours and a
+- Saved frames and GIFs come from the canvas the client drew, with colors
+  rounded to the 216 web-safe ones (the GIF writer takes 256 colors and a
   canvas smooths lines). The X11 files are pixel copies of the window.
 - Kinescope frames live in the client: reloading the page loses them.
 - Names (of any length, W76) are shown in full, clipped with a tooltip

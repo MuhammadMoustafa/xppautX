@@ -566,9 +566,9 @@ void preferences_load(Session &s)
         s.threads = p->threads;
         s.colors = p->colors;
     }
-    /* the count stays automatic and the colours the defaults until the file is fixed (a `set` of the count refuses until then); said in the
+    /* the count stays automatic and the colors the defaults until the file is fixed (a `set` of the count refuses until then); said in the
        log, as --silent shows no recent models' note to carry the file's error */
-    else xpp::log(XPP_LOG_WARN, "{}: the thread count stays automatic and the colours the defaults\n", p.error().text());
+    else xpp::log(XPP_LOG_WARN, "{}: the thread count stays automatic and the colors the defaults\n", p.error().text());
 }
 
 AutoxSettingsSet autox_settings_now(const xpp::Session &s)

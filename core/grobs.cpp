@@ -247,14 +247,14 @@ int select_marker_type(int *type)
 
 namespace {
 
-/* the colour the user types at the prompt (offered c), false when none was given or it is not one: the error is shown */
+/* the color the user types at the prompt (offered c), false when none was given or it is not one: the error is shown */
 bool ask_color(std::string_view prompt, xpp::Color &c)
 {
     std::string text = xpp::print_color(c);
     if (!new_string_of(prompt, text, xpp::XPP_FIELD_COLOR)) return false;
     const std::optional<xpp::Color> parsed = xpp::parse_color(text);
     if (!parsed) {
-        command_error(prompt, xpp::format("\"{}\" is not a colour: write #rrggbb, #rrggbbaa, a CSS colour name or foreground", text));
+        command_error(prompt, xpp::format("\"{}\" is not a color: write #rrggbb, #rrggbbaa, a CSS color name or foreground", text));
         return false;
     }
     c = *parsed;
@@ -266,13 +266,13 @@ void too_many_objects()
     command_error("Text,etc", xpp::format("a session has at most {} arrows, pointers and markers", ANNOTATION_LIST_MAX));
 }
 
-/* the fields of the marker dialogs: type, colour and size */
+/* the fields of the marker dialogs: type, color and size */
 std::vector<xpp::FormField> marker_fields(const MarkInfo &m)
 {
     std::vector<std::string> shapes;
     for (const auto name : marker_shape_names) shapes.emplace_back(name);
     return {xpp::FormField::choice("Type", shapes, static_cast<std::size_t>(m.type - MARKER)),
-            xpp::FormField::color_field("Colour", m.color), xpp::FormField::real_number("Size", m.size)};
+            xpp::FormField::color_field("Color", m.color), xpp::FormField::real_number("Size", m.size)};
 }
 
 /* ask_form has checked every field before any marker setting is applied. */
@@ -364,7 +364,7 @@ void add_pntarr(xpp::Session &s, int type)
     xpp::Color color;
     float xe, ye, xs, ys;
     if (new_float(s,"Size: ", &size)) return;
-    if (!ask_color("Colour: ", color)) return;
+    if (!ask_color("Color: ", color)) return;
     MessageBox("Choose start/end");
     const int flag = rubber_band(s,&i1, &j1, &i2, &j2, 1);
     KillMessageBox();
@@ -436,7 +436,7 @@ void edit_object_com(xpp::Session &s, int com)
             GrobLook look{near_grob->type, near_grob->size, near_grob->color};
             if (look.type >= MARKER) select_marker_type(&look.type);
             new_float(s, "Size ", &look.size);
-            ask_color("Colour: ", look.color);
+            ask_color("Color: ", look.color);
             edit_grob(s, id, look);
         }
         break;

@@ -46,7 +46,7 @@ namespace xpp {
     VTic Htic are the actual sizes of the tics in device pixels
     VChar HChar are the height and width used for character spacing
  
-    the pen (picture.h's set_pen) says each line's colour, dash and width
+    the pen (picture.h's set_pen) says each line's color, dash and width
 
 */
 
@@ -225,7 +225,7 @@ void set_extra_graphs(xpp::Session &s)
     s.plot_windows.current->xv[i]=curves[i].x;
     s.plot_windows.current->yv[i]=curves[i].y;
     s.plot_windows.current->zv[i]=curves[i].z;
-    s.plot_windows.current->color[i]=xpp::xppaut_color(static_cast<int>(i)%(LAST_PLOT_COLOR+1)); /* XPPAUT cycles its eleven colours */
+    s.plot_windows.current->color[i]=xpp::xppaut_color(static_cast<int>(i)%(LAST_PLOT_COLOR+1)); /* XPPAUT cycles its eleven colors */
   }
 }
 

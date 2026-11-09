@@ -41,7 +41,7 @@ std::string_view section_of(const OptionRow &row)
     return dot == std::string_view::npos ? std::string_view() : row.odex.substr(0, dot);
 }
 
-/* a key's words as the panel shows them: name_label, in the page's one spelling of colour (W642); the keys keep `color` */
+/* a key's words as the panel shows them: name_label, in the page's one spelling of color (W642); the keys keep `color` */
 std::string words_of(std::string_view key)
 {
     std::string label = name_label(key);

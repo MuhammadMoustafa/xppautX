@@ -96,7 +96,7 @@ export function circlePoints(stab: AutoxStab): CirclePoint[] {
   });
 }
 
-/** the circle in a sentence, for its label and the strip's summary line (A7: not only its colours and
+/** the circle in a sentence, for its label and the strip's summary line (A7: not only its colors and
     shapes): how many lie inside and outside the circle, and a cycle's trivial multiplier apart */
 export function stabilitySummary(stab: AutoxStab): string {
   const pts = circlePoints(stab);

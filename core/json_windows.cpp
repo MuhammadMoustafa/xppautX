@@ -339,8 +339,8 @@ xpp::Result<> j_movie_make_anigif(xpp::Session &s, std::string_view file)
    The array plot as data (docs/ui-v2.md T12): `values` is the cells' numbers (encoded like a series
    column, series_enc.h: base64 float32 when the client last asked for that, data_command's "enc":"f32",
    reused here via plot_data_want_f32 since aplot is not itself in the "data" subscription list: it is sent
-   whenever the window is alive and dirtied), with zmin, zmax, the range of time shown and the colour scale
-   the session has, as its name and its 256 colours: the page colours a cell by ramp_color's rule, a fraction
+   whenever the window is alive and dirtied), with zmin, zmax, the range of time shown and the color scale
+   the session has, as its name and its 256 colors: the page colors a cell by ramp_color's rule, a fraction
    of zmin to zmax into the ramp, and the print file does the same. */
 
 namespace {

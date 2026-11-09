@@ -225,7 +225,7 @@ export class Session {
       /* `preferences.get` answered for File > Preferences: its form, with the current values in it */
       if (this.preferencesFormAsked && ev.status === 'ok' && typeof ev.result?.log_level === 'string') {
         this.preferencesFormAsked = false;
-        const {threads, automatic, ...rest} = ev.result as {threads: number; automatic: boolean} & Record<string, string>; /* the log's and the colours' */
+        const {threads, automatic, ...rest} = ev.result as {threads: number; automatic: boolean} & Record<string, string>; /* the log's and the colors' */
         this.store.dispatch({type: 'commandForm', form: {id: 'preferences.configure', values: {...(automatic ? {automatic: true} : {threads}), ...rest}, fixed: []}});
       }
       /* `options.get` answered: the group's values for every editor of its rows; a group's settings applied: its values again, as the core holds them */
@@ -1461,7 +1461,7 @@ export class Session {
     return true;
   }
 
-  /** the session's colour scale, by name: the core's, so the pictures it writes use it too */
+  /** the session's color scale, by name: the core's, so the pictures it writes use it too */
   setColormap(name: string): void {
     this.send({cmd: 'plot.set_colormap', colormap: name});
   }

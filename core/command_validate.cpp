@@ -151,7 +151,7 @@ Result<Scalar> read_text(const Check &c, const Argument &arg, Type type, const c
         break;
     case Type::color:
         if (const auto color = parse_color(text)) return Scalar{*color};
-        return bad(xpp::format("Argument \"{}\" must be a CSS colour name, \"#rrggbb\", \"#rrggbbaa\" or \"foreground\"", label));
+        return bad(xpp::format("Argument \"{}\" must be a CSS color name, \"#rrggbb\", \"#rrggbbaa\" or \"foreground\"", label));
     default:
         break;
     }

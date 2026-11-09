@@ -36,8 +36,8 @@ struct GIFCOL {
   unsigned char r,g,b;
 };
 
-/* a frame's colour map: its colours, then white */
-struct ColourMap {
+/* a frame's color map: its colors, then white */
+struct ColorMap {
   std::array<GIFCOL,256> col;
 };
 
@@ -60,7 +60,7 @@ struct Lzw {
 void ClearTree(Lzw &z, int cc, GifTree *root);
 unsigned char *AddCodeToBuffer(Lzw &z, int code, short n, unsigned char *buf);
 
-int ppmtopix(ColourMap &m, unsigned char r,unsigned char g, unsigned char b,int *n)
+int ppmtopix(ColorMap &m, unsigned char r,unsigned char g, unsigned char b,int *n)
 {
   std::array<GIFCOL,256> &gifcol=m.col;
   int i,nc=*n;
@@ -68,7 +68,7 @@ int ppmtopix(ColourMap &m, unsigned char r,unsigned char g, unsigned char b,int 
     if(r==gifcol[i].r&&g==gifcol[i].g&&b==gifcol[i].b)
       return i;
   if(nc>255){
-    xpp::log(XPP_LOG_WARN, "Too many colours \n");
+    xpp::log(XPP_LOG_WARN, "Too many colors \n");
     return -1;
   }
   gifcol[nc].r=r;
@@ -79,7 +79,7 @@ int ppmtopix(ColourMap &m, unsigned char r,unsigned char g, unsigned char b,int 
   return nc-1;
 }
 
-int make_local_map(ColourMap &m, unsigned char *pixels,const unsigned char *ppm,int h, int w)
+int make_local_map(ColorMap &m, unsigned char *pixels,const unsigned char *ppm,int h, int w)
 {
   std::array<GIFCOL,256> &gifcol=m.col;
   int k=0,l=0;
@@ -94,7 +94,7 @@ int make_local_map(ColourMap &m, unsigned char *pixels,const unsigned char *ppm,
       l++;
     }
   }
-  xpp::log(XPP_LOG_INFO, "Got {} colours\n",ncol);
+  xpp::log(XPP_LOG_INFO, "Got {} colors\n",ncol);
   for(int i=ncol;i<256;i++){
     gifcol[i].r=255;
     gifcol[i].g=255;
@@ -103,8 +103,8 @@ int make_local_map(ColourMap &m, unsigned char *pixels,const unsigned char *ppm,
   return ncol;
 }
 
-/* the logical screen: its size and the colour map (256 colours) */
-void put_screen(const ColourMap &m, std::vector<unsigned char> &out, int cols, int rows, unsigned char flags)
+/* the logical screen: its size and the color map (256 colors) */
+void put_screen(const ColorMap &m, std::vector<unsigned char> &out, int cols, int rows, unsigned char flags)
 {
   const std::array<GIFCOL,256> &gifcol=m.col;
   const std::array<unsigned char,7> head={
@@ -134,7 +134,7 @@ void GifLoop(FILE *fout, unsigned int repeats)
   fputc(0x00, fout); /* terminator */
 }
 
-void write_global_header(const ColourMap &m, int cols,int rows, FILE *dst)
+void write_global_header(const ColorMap &m, int cols,int rows, FILE *dst)
 {
   std::vector<unsigned char> out={'G','I','F','8','9','a'};
   put_screen(m,out,cols,rows,0x87);
@@ -142,7 +142,7 @@ void write_global_header(const ColourMap &m, int cols,int rows, FILE *dst)
   GifLoop(dst,GifFrameLoop);
 }
 
-void write_local_header(const ColourMap &m, int cols,int rows, FILE *fout,int colflag,int delay)
+void write_local_header(const ColorMap &m, int cols,int rows, FILE *fout,int colflag,int delay)
 {
   const std::array<GIFCOL,256> &gifcol=m.col;
   fputc(0x21, fout);
@@ -373,7 +373,7 @@ unsigned char *AddCodeToBuffer(Lzw &z, int code, short n, unsigned char *buf)
   return buf;
 }
 
-void make_gif(const ColourMap &m, unsigned char *pixels,int cols,int rows,FILE *dst)
+void make_gif(const ColorMap &m, unsigned char *pixels,int cols,int rows,FILE *dst)
 {
   const int depth=8;
   std::vector<unsigned char> out={'G','I','F','8','7','a'};
@@ -400,12 +400,12 @@ void end_ani_gif(FILE *fp)
 }
 
 /* encode the w x h RGB image ppm for task (scrngif.h): one GIF, the global
-   colour map, or the first/next frame of an animated GIF */
+   color map, or the first/next frame of an animated GIF */
 void gif_stuff_ppm(unsigned char *ppm,int w,int h,FILE *fp,int task)
 {
  std::vector<unsigned char> pix(static_cast<size_t>(h)*w);
  unsigned char *pixels=pix.data();
- ColourMap m;
+ ColorMap m;
  switch(task){
  case MAKE_ONE_GIF:
    make_local_map(m,pixels,ppm,h,w);

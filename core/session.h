@@ -160,7 +160,7 @@ struct Session {
   /* the thread count of autoX's collocation and of a sweep's runs (W267, W434), a program preference
      (xpp_prefs.h) kept here for the run: prefs::THREADS_AUTO, or the count */
   unsigned threads = prefs::THREADS_AUTO;
-  /* the colours the diagram, the nullclines and the manifolds are drawn in, a program preference like the thread count */
+  /* the colors the diagram, the nullclines and the manifolds are drawn in, a program preference like the thread count */
   prefs::Colors colors;
   /* the threads a set of jobs or runs shares: the count, or all the physical cores when automatic */
   unsigned thread_budget() const { return threads != prefs::THREADS_AUTO ? threads : cpu::physical_threads(); }
@@ -200,9 +200,9 @@ struct Session {
   bool equilibrium_append=false, equilibrium_shoot=false;
   /* the command line named a model file */
   int got_file=0;
-  /* the colour scale: its name (@ colormap, the Colormap menu; viridis the
+  /* the color scale: its name (@ colormap, the Colormap menu; viridis the
      default of a model of ours, jet the one an XPPAUT .ode without @ colormap
-     is converted with) and its 256 colours (colormap.h's make_ramp: made once for each name it has) */
+     is converted with) and its 256 colors (colormap.h's make_ramp: made once for each name it has) */
   Colormap colormap=Colormap::viridis;
   const Ramp &ramp() const
   {
@@ -245,7 +245,7 @@ struct Session {
      poisson() and Monte Carlo draw from (xpp_math.h); a .snapx's
      the random group of a .snapx's session.odex saves and restores it */
   Random random;
-  /* the nullclines', direction field's and orbit colouring's settings
+  /* the nullclines', direction field's and orbit coloring's settings
      (nullcline.cpp) */
   NullclineSettings nullclines;
   /* the columns a batch run writes, the "only" statement's or

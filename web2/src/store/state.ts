@@ -176,7 +176,7 @@ export interface AppState {
   autoxSettings: AutoxSettingsState;
   /** the main numerics (the `numerics` event, W106), shown in the values panel */
   numerics: NumericsField[] | null;
-  /** the array plot (T12): its latest event, colour map and panel state, see store/aplot.ts */
+  /** the array plot (T12): its latest event, color map and panel state, see store/aplot.ts */
   aplot: AplotState;
   /** the animation (T13): its window, player state and last frame, see store/ani.ts */
   ani: AniState;

@@ -152,8 +152,8 @@ double get_current_time(void)
    Every primitive of a frame is given here in the animation's own
    coordinates (the `dimension` box, y up) and goes to ani_data.h in unit
    coordinates, unclamped: u = 0 at xlo and 1 at xhi, v = 0 at ylo and 1 at
-   yhi. The s.animation.pen (colour, line width, text font) is the one kept
-   between primitives, as an X11 graphics context was: the colour starts
+   yhi. The s.animation.pen (color, line width, text font) is the one kept
+   between primitives, as an X11 graphics context was: the color starts
    black each frame, the width and font carry over. */
 
 namespace {
@@ -254,11 +254,11 @@ bool compile_expr(xpp::Session &s, const char *x, std::vector<int> &c)
     return true;
 }
 
-/* a named colour of a .ani file ($RED ...) is XPPAUT's colour of that name (a foreign format: read on import only) */
+/* a named color of a .ani file ($RED ...) is XPPAUT's color of that name (a foreign format: read on import only) */
 constexpr std::array<std::string_view, 12> ani_color_names{"WHITE", "RED", "REDORANGE", "ORANGE", "YELLOWORANGE", "YELLOW",
                                                            "YELLOWGREEN", "GREEN", "BLUEGREEN", "BLUE", "PURPLE", "BLACK"};
 
-/* a named colour ($RED ...) or none given (the foreground): true with its colour (s is left de-spaced and upper
+/* a named color ($RED ...) or none given (the foreground): true with its color (s is left de-spaced and upper
    case, as the expression compiled from it) */
 bool named_ani_color(std::string &s, xpp::Color &color)
 {
@@ -278,8 +278,8 @@ bool named_ani_color(std::string &s, xpp::Color &color)
     return false;
 }
 
-/* the colour argument of a drawing command: a named colour ($RED) is kept, anything else is compiled as an
-   expression whose value (0..1) picks a colour of the colour map */
+/* the color argument of a drawing command: a named color ($RED) is kept, anything else is compiled as an
+   expression whose value (0..1) picks a color of the color map */
 int add_ani_color(xpp::Session &s, AniCom &a, std::string &col)
 {
     if (named_ani_color(col, a.color)) {
@@ -299,7 +299,7 @@ int ani_thickness(xpp::TypedFields &f, const std::string &thick)
 
 int add_ani_rline(xpp::Session &s, xpp::TypedFields &f, AniCom &a, const std::string &x1, const std::string &y1, std::string &col, const std::string &thick)
 {
-    /* a named colour is -index like every other command's (it was +index,
+    /* a named color is -index like every other command's (it was +index,
        which read the index as a compiled expression) */
     if (add_ani_color(s, a, col) < 0) return -1;
     a.zthick = ani_thickness(f, thick);
@@ -308,7 +308,7 @@ int add_ani_rline(xpp::Session &s, xpp::TypedFields &f, AniCom &a, const std::st
     return 0;
 }
 
-/* the comet's newest position (in the animation's coordinates) and colour */
+/* the comet's newest position (in the animation's coordinates) and color */
 void roll_comet(AniCom &a, double xn, double yn, const xpp::Color &col)
 {
     Comet &c = a.c;
@@ -935,7 +935,7 @@ void set_ani_col(xpp::Session &s, int j)
 }
 
 /* the comet keeps its last n positions (in the animation's coordinates)
-   with their colours: filled circles of -thickness pixels, or lines */
+   with their colors: filled circles of -thickness pixels, or lines */
 void draw_ani_comet(xpp::Session &s, int j)
 {
     AniCom &a = s.animation.commands[j];
@@ -1090,7 +1090,7 @@ public:
         if (fields_.has(key)) { fields_.color(key, a.color); return; }
         if (const auto *e = expression(key, false)) {
             const std::string text = odex::engine_text(*e);
-            if (!compile_expr(s_, text.c_str(), a.col_expr)) fail(e->pos, "cannot compile the colour expression");
+            if (!compile_expr(s_, text.c_str(), a.col_expr)) fail(e->pos, "cannot compile the color expression");
         }
     }
     bool has(std::string_view key) const
@@ -1228,7 +1228,7 @@ void native_shape(Session &s, AnimationState &animation, const odex::Statement &
     }
     if (name == "circle" || name == "rectangle" || name == "ellipse") {
         if (f.has("fill")) {
-            if (f.has("color")) l.fail("a filled shape takes its colour from fill; omit color");
+            if (f.has("color")) l.fail("a filled shape takes its color from fill; omit color");
             f.color("fill", a);
             a.type = name == "circle" ? FCIRC : name == "rectangle" ? FRECT : FELLIP;
         }

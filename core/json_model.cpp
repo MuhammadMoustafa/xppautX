@@ -51,7 +51,7 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
 {
     xpp::window::set_model(xpp::model_title(s.model()).c_str());
     program.interactive = 1;
-    color_table.enabled = 1;                    /* init_X on a colour display */
+    color_table.enabled = 1;                    /* init_X on a color display */
     init_main_graph(s);
     init_data(s);
     ani_zero(s);

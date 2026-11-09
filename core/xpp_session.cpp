@@ -344,7 +344,7 @@ int window_in(xpp::odex::Block &g, const WindowsRead &w)
     return static_cast<int>(window-w.windows.begin());
 }
 
-/* a colour of the marks (colormap.h) */
+/* a color of the marks (colormap.h) */
 xpp::Color color_in(xpp::odex::Block &g)
 {
     xpp::Color color;

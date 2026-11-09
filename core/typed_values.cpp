@@ -180,7 +180,7 @@ Color TypedFields::color(std::string_view field, const std::string &text)
 {
   if(error_)return foreground_color;
   if(const auto c=parse_color(trim_blanks(text)))return *c;
-  fail(field,xpp::format("\"{}\" is not a colour: write #rrggbb, #rrggbbaa, a CSS colour name or foreground",text));
+  fail(field,xpp::format("\"{}\" is not a color: write #rrggbb, #rrggbbaa, a CSS color name or foreground",text));
   return foreground_color;
 }
 

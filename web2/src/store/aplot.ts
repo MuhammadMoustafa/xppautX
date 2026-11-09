@@ -1,7 +1,7 @@
 /* The array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`): a grid of
    cells the core computes from a range of stored columns and rows --
-   `values`, the numbers, and the session's colour scale as a ramp of 256
-   colours (the core's own, which its pictures use too). This slice keeps the
+   `values`, the numbers, and the session's color scale as a ramp of 256
+   colors (the core's own, which its pictures use too). This slice keeps the
    latest event decoded once, whether the core's array plot window
    (105) exists, the panel's own open state (R6: a section under the plot
    from 48rem, a full-screen sheet under that, like store/table.ts) and the

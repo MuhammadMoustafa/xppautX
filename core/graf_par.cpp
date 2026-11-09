@@ -41,7 +41,7 @@ namespace xpp {
 
 /*Default is now color*/
 
-/* the colours of an imported diagram's curves by their kind (XPPAUT's own line types for them: 0, 1, 8 and 9) */
+/* the colors of an imported diagram's curves by their kind (XPPAUT's own line types for them: 0, 1, 8 and 9) */
 constexpr xpp::Color bd_stable_eq=xpp::xppaut_color(0),bd_unstable_eq=xpp::xppaut_color(1),
   bd_stable_periodic=xpp::xppaut_color(8),bd_unstable_periodic=xpp::xppaut_color(9);
 
@@ -702,11 +702,11 @@ template <std::size_t N> std::vector<std::string> words(const std::array<std::st
  return std::vector<std::string>(names.begin(),names.end());
 }
 
-/* the form fields of a colour and a line style (the curve dialogs'): their count and what they say */
+/* the form fields of a color and a line style (the curve dialogs'): their count and what they say */
 constexpr std::size_t style_field_count=6;
 std::array<xpp::FormField,style_field_count> style_fields(const xpp::Color &color, const xpp::LineStyle &style)
 {
- return {xpp::FormField::color_field("Colour",color),
+ return {xpp::FormField::color_field("Color",color),
          xpp::FormField::choice("Draw",words(xpp::line_draw_names),static_cast<std::size_t>(style.draw)),
          xpp::FormField::choice("Dash",words(xpp::line_dash_names),static_cast<std::size_t>(style.dash)),
          xpp::FormField::real_number("Width",style.width,0.0),
@@ -714,7 +714,7 @@ std::array<xpp::FormField,style_field_count> style_fields(const xpp::Color &colo
          xpp::FormField::real_number("Marker size",style.marker_size,0.0)};
 }
 
-/* the colour and style the fields (an answered ask_form's) say */
+/* the color and style the fields (an answered ask_form's) say */
 void read_style_fields(std::span<const xpp::FormField> fields, xpp::Color &color, xpp::LineStyle &style)
 {
  color=fields[0].color;
@@ -848,7 +848,7 @@ Result<bool> write_plot_picture(xpp::Session &s, int fmt, std::string_view filen
 void set_colormap(xpp::Session &s, Colormap colormap)
 {
   s.colormap=colormap;
-  xpp::ui.aplot_redraw(s); /* the array plot shows the new colours */
+  xpp::ui.aplot_redraw(s); /* the array plot shows the new colors */
   redraw_dfield(s);
 }
 

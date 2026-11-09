@@ -3,7 +3,7 @@
    unit circle with the eigenvalues (as e^λ) or Floquet multipliers of the
    point autoX last drew. A point inside the circle is a filled dot, one
    outside a cross, a cycle's trivial multiplier an open diamond (A7: not
-   colour alone); each mark's value is its tooltip, and a summary line
+   color alone); each mark's value is its tooltip, and a summary line
    beside the circle counts them.
    autoX computes them from a run's second point on: a first point's
    circle (unless the run restarts from a label of the same kind) says so

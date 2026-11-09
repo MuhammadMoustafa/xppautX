@@ -13,8 +13,8 @@ two kinescope frames saved as GIF), examples/ode/vanderpol.odex (run,
 switched to the x-xp phase plane with a fixed view, Nullcline/New and
 Dir.field-Flow/(D)irect Field computed, then a PDF export, so a
 plot with a nullcline and a direction field is covered too) and
-tools/models/pictures.odex (W492: colours with alpha, dashed curves with
-markers, a label and a frozen curve in their own colours and styles, PDF and SVG).
+tools/models/pictures.odex (W492: colors with alpha, dashed curves with
+markers, a label and a frozen curve in their own colors and styles, PDF and SVG).
 
 Nothing here embeds a date, a host path or the program's version: the
 PDF has no date or identifier (core/my_pdf.cpp), and neither writer reads
@@ -197,11 +197,11 @@ def run_vanderpol(home):
 
 
 def run_pictures(home):
-    """W492: colours with alpha, a dashed curve with diamond markers, a label and a frozen curve in their own
-    colours and styles, the array plot in the plasma scale"""
+    """W492: colors with alpha, a dashed curve with diamond markers, a label and a frozen curve in their own
+    colors and styles, the array plot in the plasma scale"""
     s = Server(binary, 'tools/models/pictures.odex', env={'HOME': home}, verbose=args.v)
     try:
-        # the nullclines' colours are the user's preferences (W655), set in this run's own home
+        # the nullclines' colors are the user's preferences (W655), set in this run's own home
         s.send(cmd='preferences.configure', x_nullcline_color='#e8590c80', y_nullcline_color='#2b9348')
         s.collect(is_done)
         run_and_go(s)
@@ -209,7 +209,7 @@ def run_pictures(home):
         s.collect(is_done)
         s.send(cmd='annotation.add_text', window='graph_1', x=0.1, y=0.9, text='\\1a\\0 label', text_size=3, color='#1c7ed6cc')
         s.collect(is_done)
-        # Graphic stuff/Freeze/Freeze, its form: colour, how it is drawn, dash, width, marker and its size, key and name
+        # Graphic stuff/Freeze/Freeze, its form: color, how it is drawn, dash, width, marker and its size, key and name
         s.send(cmd='plot.freeze_curve', color='#7048e8b0', draw='both', dash='dotted', width=2, marker='cross', marker_size=3, key='first run', name='frz1')
         s.collect(is_done)
         s.send(cmd='run.initial')

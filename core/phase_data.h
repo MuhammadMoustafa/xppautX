@@ -13,7 +13,7 @@ struct Session; /* session.h */
    events 4 and 5):
 
    - "nullclines": a window's x- and y-nullclines as segment lists
-     [x1,y1,x2,y2,...] in plot coordinates, their colours, and the frozen
+     [x1,y1,x2,y2,...] in plot coordinates, their colors, and the frozen
      nullclines drawn with them;
    - "dfield": a window's direction field as a grid of [x,y,ux,uy] (the unit
      direction in plot coordinates) with each arrow's speed, and the
@@ -103,7 +103,7 @@ void phase_data_update(Session &s);
    plot window of s, the one drawn in. */
 
 /* that window now shows these nullclines (nx and ny segments of 4 floats,
-   of the variables ix and iy, 1-based) in these colours */
+   of the variables ix and iy, 1-based) in these colors */
 void phase_data_nullclines(Session &s, const float *xn, int nx, const float *yn, int ny, int ix, int iy,
                            const Color &xcolor, const Color &ycolor);
 
@@ -120,7 +120,7 @@ void phase_data_arrow(Session &s, double x, double y, double fx, double fy);
 
 /* between flow_start and flow_stop, each segment of Flow the integrator
    draws (a no-op otherwise): ncurves segments from (ox[i], oy[i]) to
-   (x[i], y[i]) in colour color[i] */
+   (x[i], y[i]) in color color[i] */
 void phase_data_flow_step(Session &s, int ncurves, const float *ox, const float *oy, const float *x,
                           const float *y, const Color *color);
 

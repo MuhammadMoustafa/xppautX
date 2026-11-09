@@ -1,13 +1,13 @@
-/* The array plot's colour rule (docs/ui-v2.md T12, plot/aplotColors.ts: core/colormap.h's ramp_color), without a
+/* The array plot's color rule (docs/ui-v2.md T12, plot/aplotColors.ts: core/colormap.h's ramp_color), without a
    browser (npm test). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {BLANK_COLOR, cellColor, legendStops, rampColor} from '../src/plot/aplotColors';
 
-/** a ramp of 256 colours: the grays, so a colour says its own index */
+/** a ramp of 256 colors: the grays, so a color says its own index */
 const ramp = Array.from({length: 256}, (_, i) => '#' + i.toString(16).padStart(2, '0').repeat(3));
 
-test('rampColor picks the colour at floor(fraction * 256), clamped to the ends', () => {
+test('rampColor picks the color at floor(fraction * 256), clamped to the ends', () => {
   assert.equal(rampColor(ramp, 0), '#000000');
   assert.equal(rampColor(ramp, 0.5), '#808080');
   assert.equal(rampColor(ramp, 1), '#ffffff');

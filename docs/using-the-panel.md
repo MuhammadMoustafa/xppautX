@@ -77,8 +77,8 @@ downloads anything.
 Two differences:
 
 - Pictures saved as GIF or PPM (kinescope, animation frames, array plots)
-  come from what the browser drew, and their colours are rounded to 216
-  shades. The GIF format takes 256 colours, and a browser smooths its lines.
+  come from what the browser drew, and their colors are rounded to 216
+  shades. The GIF format takes 256 colors, and a browser smooths its lines.
 - Kinescope frames live in the page. Reloading the page loses them.
 
 ## No compiler needed

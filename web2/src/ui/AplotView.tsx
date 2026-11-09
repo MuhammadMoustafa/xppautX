@@ -1,10 +1,10 @@
 /* The array plot (docs/ui-v2.md T12, docs/protocol.md `aplot`): XPP's grid
-   of cells over a range of stored columns and rows, each cell coloured by
-   its value between the core's zmin and zmax, from the session's colour
+   of cells over a range of stored columns and rows, each cell colored by
+   its value between the core's zmin and zmax, from the session's color
    scale (the `ramp` of the event, the core's own: its Print and its other
-   pictures use it, and the Colour map choice here changes it there,
+   pictures use it, and the Color map choice here changes it there,
    session.setColormap) -- store/aplot.ts is the truth, `plot/aplotColors.ts`
-   the pure colour rule. A
+   the pure color rule. A
    floating panel like the data table (R6): a section under the plot from
    48rem, a full-screen sheet under that, opened from the title bar's Array
    button and closed by Back or Escape, focus moving in and back like
@@ -148,7 +148,7 @@ export function AplotView() {
         <button class="aplot-back" onClick={close}>Back</button>
         <h2>Array plot</h2>
         <label class="aplot-map">
-          Colour map
+          Color map
           <select value={ev?.colormap ?? ''} disabled={!ev} onChange={e => session.setColormap((e.target as HTMLSelectElement).value)}>
             {colormaps.map(c => <option key={c} value={c}>{choiceLabel(c)}</option>)}
           </select>
@@ -174,7 +174,7 @@ export function AplotView() {
         </div>
         <div class="aplot-grid-wrap" ref={wrap} tabIndex={0} role="img"
           aria-label={ev && nx && ny
-            ? `Array plot, ${nx} columns by ${ny} rows, coloured from ${sixSig(ev.zmin)} to ${sixSig(ev.zmax)}`
+            ? `Array plot, ${nx} columns by ${ny} rows, colored from ${sixSig(ev.zmin)} to ${sixSig(ev.zmax)}`
             : 'Array plot, nothing to show'}
           onWheel={onWheel} onKeyDown={onKeyDown}
           onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag}

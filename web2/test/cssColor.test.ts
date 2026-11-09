@@ -19,7 +19,7 @@ test('cssToHex never answers black for what it cannot read', () => {
   assert.equal(cssToHex('rgb(1, 2)'), null);
   assert.equal(cssToHex('rgb(a, b, c)'), null);
   assert.equal(cssToHex(''), null);
-  /* a named colour goes through the page's own conversion */
+  /* a named color goes through the page's own conversion */
   assert.equal(cssToHex('red', c => c === 'red' ? '#ff0000' : null), '#ff0000');
   assert.equal(cssToHex('nonsense', () => null), null);
   assert.equal(cssToHex('looping', c => c), null);

@@ -149,7 +149,7 @@ int main()
         CHECK(a && a->get<xpp::Color>("color") == (xpp::Color{255, 0, 0, 128, false}));
         CHECK(check(&s, cmd("\"color\":\"red\"")).has_value());
         CHECK(check(&s, cmd("\"color\":\"foreground\"")).has_value());
-        CHECK(refused(&s, cmd("\"color\":\"reddish\""), "\"color\" must be a CSS colour name"));
+        CHECK(refused(&s, cmd("\"color\":\"reddish\""), "\"color\" must be a CSS color name"));
         CHECK(refused(&s, cmd("\"color\":3"), "\"color\" must be text"));
     }
     /* list: bounded, one level, each item typed and ranged */

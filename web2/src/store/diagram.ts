@@ -114,9 +114,9 @@ export interface DiagramPoints {
   pe: Float64Array;
   /** 0 not drawn (the next line starts there), 1 a line back, 2 filled circles, 3 open circles */
   d: Float64Array;
-  /** the colour as an index into `palette` */
+  /** the color as an index into `palette` */
   c: Float64Array;
-  /** the colours the points have, as the core says them (`foreground`, `#rrggbb`); a run's colour is added once */
+  /** the colors the points have, as the core says them (`foreground`, `#rrggbb`); a run's color is added once */
   palette: string[];
   lw: Float64Array;
   /** two-parameter curve kind, 0 for one parameter */

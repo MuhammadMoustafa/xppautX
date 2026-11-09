@@ -106,7 +106,7 @@ public:
        string in double quotes, even one word; a word names a choice, a
        number or a name of the model and is never in quotes */
     bool text(std::string_view key, std::string &v);
-    /* a colour (colormap.h: #rrggbb, #rrggbbaa, a CSS name or foreground) */
+    /* a color (colormap.h: #rrggbb, #rrggbbaa, a CSS name or foreground) */
     bool color(std::string_view key, Color &v);
     /* a line style (line_style.h): its keys draw, dash, width, marker and marker_size, each read as
        the others are (all of them in complete mode) */
@@ -207,7 +207,7 @@ public:
        quotes; text the user wrote: always in double quotes, even one word */
     void word(std::string_view key, std::string_view text);
     void text(std::string_view key, std::string_view text);
-    /* a colour written as the colour type's text (always double quoted) */
+    /* a color written as the color type's text (always double quoted) */
     void color(std::string_view key, const Color &c) { text(key, print_color(c)); }
     /* a line style's five keys */
     void line_style(const LineStyle &v);

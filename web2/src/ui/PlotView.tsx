@@ -412,7 +412,7 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
       class={'legend-item' + (c.visible === false || (run >= 0 && !runsShown) ? ' off' : '')
         + (trace?.run === run && trace?.curve === curve ? ' highlighted' : '')}
       aria-pressed={c.visible !== false && (run < 0 || runsShown)}
-      title="Click to show or hide; double click to edit the name and colour"
+      title="Click to show or hide; double click to edit the name and color"
       onMouseEnter={() => chart.current?.highlight({run, curve})}
       onMouseLeave={() => chart.current?.highlight(null)}
       onClick={() => setAppearance(a => ({...a, [key]: {...a[key], visible: c.visible === false}}))}

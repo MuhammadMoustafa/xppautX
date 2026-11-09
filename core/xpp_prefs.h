@@ -69,7 +69,7 @@ struct OutsideApproval {
     bool operator==(const OutsideApproval &) const = default;
 };
 
-/* the colours the program draws with (W655): the user's, not a model's, one list for every model and every view. Each is
+/* the colors the program draws with (W655): the user's, not a model's, one list for every model and every view. Each is
    read when something is drawn with it: a diagram point's by its kind when it is stored, a nullcline's and a manifold's
    when it is computed. The defaults are XPPAUT's. The names are the keys of the file and the arguments of
    preferences.configure; their order is the option table's order of the settings they were (the diagram's, the nullclines',
@@ -81,7 +81,7 @@ struct Colors {
     Color stable_manifold = xppaut_color(8), unstable_manifold = xppaut_color(5);
 };
 
-/* one colour's key (the file's, preferences.configure's argument and result field) and what it is: the one list the
+/* one color's key (the file's, preferences.configure's argument and result field) and what it is: the one list the
    file, the command and the dialog read */
 struct ColorKey {
     std::string_view key;
@@ -89,14 +89,14 @@ struct ColorKey {
     std::string_view description;
 };
 inline constexpr std::array COLOR_KEYS = {
-    ColorKey{"stable_equilibrium_color", &Colors::stable_equilibrium, "The colour of the stable equilibria in the continuation diagram."},
-    ColorKey{"unstable_equilibrium_color", &Colors::unstable_equilibrium, "The colour of the unstable equilibria in the continuation diagram."},
-    ColorKey{"stable_periodic_color", &Colors::stable_periodic, "The colour of the stable periodic orbits in the continuation diagram."},
-    ColorKey{"unstable_periodic_color", &Colors::unstable_periodic, "The colour of the unstable periodic orbits in the continuation diagram."},
-    ColorKey{"x_nullcline_color", &Colors::x_nullcline, "The colour of the x nullcline."},
-    ColorKey{"y_nullcline_color", &Colors::y_nullcline, "The colour of the y nullcline."},
-    ColorKey{"stable_manifold_color", &Colors::stable_manifold, "The colour of the stable manifold of a saddle."},
-    ColorKey{"unstable_manifold_color", &Colors::unstable_manifold, "The colour of the unstable manifold of a saddle."}};
+    ColorKey{"stable_equilibrium_color", &Colors::stable_equilibrium, "The color of the stable equilibria in the continuation diagram."},
+    ColorKey{"unstable_equilibrium_color", &Colors::unstable_equilibrium, "The color of the unstable equilibria in the continuation diagram."},
+    ColorKey{"stable_periodic_color", &Colors::stable_periodic, "The color of the stable periodic orbits in the continuation diagram."},
+    ColorKey{"unstable_periodic_color", &Colors::unstable_periodic, "The color of the unstable periodic orbits in the continuation diagram."},
+    ColorKey{"x_nullcline_color", &Colors::x_nullcline, "The color of the x nullcline."},
+    ColorKey{"y_nullcline_color", &Colors::y_nullcline, "The color of the y nullcline."},
+    ColorKey{"stable_manifold_color", &Colors::stable_manifold, "The color of the stable manifold of a saddle."},
+    ColorKey{"unstable_manifold_color", &Colors::unstable_manifold, "The color of the unstable manifold of a saddle."}};
 
 struct Preferences {
     /* absolute paths of the models opened lately, newest first, none twice */

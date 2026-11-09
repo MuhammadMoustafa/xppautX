@@ -29,7 +29,7 @@ const frameEv = (over: Partial<AniFrameEvent> = {}): AniFrameEvent => ({
   ...over,
 });
 
-test('decodePrims reads every kind, in order, with its colour and style', () => {
+test('decodePrims reads every kind, in order, with its color and style', () => {
   const p = decodePrims(frameEv().prims);
   assert.deepEqual(p.map(x => x.kind), ['text', 'line', 'circle', 'circle', 'rect', 'ellipse', 'dot']);
   assert.deepEqual(p[1], {kind: 'line', u1: 0.456, v1: 0.142857, u2: 0.456, v2: 0.185714, color: '#ff0000', width: 3, dash: 'solid'});

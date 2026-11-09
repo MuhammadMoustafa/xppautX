@@ -58,7 +58,7 @@ enum {
     XPP_FIELD_BOOLEAN,    /* `true` or `false` (FormField) */
     XPP_FIELD_CHOICE,     /* one of a FormField's named choices */
     XPP_FIELD_REAL,       /* a plain real number, within a range where given (FormField) */
-    XPP_FIELD_COLOR,      /* a colour: `#rrggbb`, `#rrggbbaa`, a CSS name or `foreground` (FormField) */
+    XPP_FIELD_COLOR,      /* a color: `#rrggbb`, `#rrggbbaa`, a CSS name or `foreground` (FormField) */
     XPP_FIELD_NAME = 16   /* + n: a name from the hello event's lists[n] */
 };
 
@@ -109,7 +109,7 @@ typedef struct XppDiagPoint {
                       back to the previous point, 2 filled circles at y1 and
                       y2, 3 open circles */
     int newseg;    /* the previous point is this one: no line back */
-    Color color;   /* the colour its line or marker is drawn in */
+    Color color;   /* the color its line or marker is drawn in */
     int lw;        /* its line's width in pixels */
     int node;      /* its entry in autoX's diagram list (DIAGRAM.index) */
     int from;      /* the label the run that computed it started from, on

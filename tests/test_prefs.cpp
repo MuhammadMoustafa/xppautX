@@ -191,7 +191,7 @@ void check_threads()
     CHECK(xpp::prefs::threads_problem(0) && xpp::prefs::threads_problem(most + 1));
 }
 
-/* the colours (W655): each by its key, a quoted colour; none is XPPAUT's defaults, a bad one is refused at its line */
+/* the colors (W655): each by its key, a quoted color; none is XPPAUT's defaults, a bad one is refused at its line */
 void check_colors()
 {
     const xpp::prefs::Preferences none = parse("").value();
@@ -206,8 +206,8 @@ void check_colors()
     for (const char *bad : {"x_nullcline_color: red,\n", "x_nullcline_color: \"nosuch\",\n"}) {
         const auto r = parse(bad);
         CHECK(!r && r.error().place.line == 3);
-        if (r) printf("colour accepted: %s\n", bad);
-        else if (r.error().place.line != 3) printf("bad colour: %s\n", r.error().text().c_str());
+        if (r) printf("color accepted: %s\n", bad);
+        else if (r.error().place.line != 3) printf("bad color: %s\n", r.error().text().c_str());
     }
 }
 

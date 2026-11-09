@@ -38,7 +38,7 @@ constexpr int MARKER_SHAPE_COUNT = 6;
 inline constexpr std::array<std::string_view, MARKER_SHAPE_COUNT> marker_shape_names{"box", "diamond", "triangle", "plus", "cross", "circle"};
 
 /* Text,etc's marker settings: the last ones the Marker and Markers
-   dialogs gave (type, colour, size; the Markers' number, first row and
+   dialogs gave (type, color, size; the Markers' number, first row and
    skip) */
 constexpr double MARKER_SIZE_DEFAULT = 1.0, ARROW_SIZE_DEFAULT = .1; /* XPPAUT's dialogs offered these */
 struct MarkInfo {
@@ -82,8 +82,8 @@ int get_marker_info(Session &s);
 int get_markers_info(Session &s);
 
 /* What a text label looks like: its text and size (fancy_text_abs's 0 to
-   LABEL_SIZE_MAX), its style (text_style.h) and its colour. The page draws style and
-   colour; the PDF and SVG output draw the size and colour (not the style). */
+   LABEL_SIZE_MAX), its style (text_style.h) and its color. The page draws style and
+   color; the PDF and SVG output draw the size and color (not the style). */
 constexpr int LABEL_SIZE_MAX = 4;
 constexpr int LABEL_SIZE_DEFAULT = 2; /* XPPAUT's Text dialog offered 2 */
 constexpr int LABEL_FONT_COUNT = 2; /* LABEL::font: 0 the text font, 1 the symbol font */
@@ -110,7 +110,7 @@ int add_label(Session &s, LabelLook look, XppWinId w, float x, float y);
 /* a graphic object in plot window w (type POINTER, ARROW or MARKER plus a
    shape; a marker has no end); its id, -1 when the list is full */
 int add_grob(Session &s, XppWinId w, double xs, double ys, double xe, double ye, double size, int type, const Color &color);
-/* what Edit/Change gives a graphic object: its size and colour, and for a
+/* what Edit/Change gives a graphic object: its size and color, and for a
    marker its shape */
 struct GrobLook {
     int type;
@@ -135,7 +135,7 @@ void draw_label(Session &s, XppWinId w);
 void add_marker(Session &s);
 void add_markers(Session &s);
 /* the markers of Add Markers on the active graph's data (the first curve's rows, `number` of them from row
-   `start`, `skip` apart), shape `type`, colour and size: how many were added */
+   `start`, `skip` apart), shape `type`, color and size: how many were added */
 Result<int> add_data_markers(Session &s, const MarkInfo &markers);
 void add_pntarr(Session &s, int type);
 void edit_object_com(Session &s, int com);

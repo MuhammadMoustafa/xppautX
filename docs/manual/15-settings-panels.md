@@ -130,7 +130,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 
 ## Plot
 
-- **Colourmap** (`colormap`): The colours a colour-coded curve or an array plot runs through.
+- **Colormap** (`colormap`): The colors a color-coded curve or an array plot runs through.
 - **Curves** (`curves`): The curves of the starting graph, each with the variables on its axes; the first holds the axes' variables.
 
 ### Axes
@@ -163,12 +163,12 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Grid** (`direction_field.grid`): How many arrows a side the direction field has.
 - **Draw** (`direction_field.draw`): What a run draws of the direction field, and whether it also saves it.
 
-### Colour by
+### Color by
 
-- **Enabled** (`color_by.enabled`): Whether a curve is coloured by a quantity along it.
-- **Via** (`color_by.via`): The variable a colour-coded curve takes its colour from.
-- **Low** (`color_by.low`): The value of the colouring variable that gets the first colour.
-- **High** (`color_by.high`): The value of the colouring variable that gets the last colour.
+- **Enabled** (`color_by.enabled`): Whether a curve is colored by a quantity along it.
+- **Via** (`color_by.via`): The variable a color-coded curve takes its color from.
+- **Low** (`color_by.low`): The value of the coloring variable that gets the first color.
+- **High** (`color_by.high`): The value of the coloring variable that gets the last color.
 
 ## Analysis
 

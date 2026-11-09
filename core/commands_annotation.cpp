@@ -194,7 +194,7 @@ constexpr std::array ROWS = {
     Command{"annotation.add_marker", ADD_MARKER_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Add marker", "", "Add a marker at a point of a graph.",
             ID_RESULT, MARKS_EVENTS, true, add_marker_command},
     Command{"annotation.edit", EDIT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Edit annotation", "",
-            "Change a text (its text, size, style, colour) or an object (its size, colour, a marker's shape).", UPDATED_RESULTS, MARKS_EVENTS, true, edit},
+            "Change a text (its text, size, style, color) or an object (its size, color, a marker's shape).", UPDATED_RESULTS, MARKS_EVENTS, true, edit},
     Command{"annotation.move", MOVE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Move annotation", "",
             "Move an annotation so that its position (an object's start, its end following) is the point.", MOVED_RESULTS, MARKS_EVENTS, true, move},
     Command{"annotation.delete", ID_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Delete annotation", "", "Delete an annotation.",

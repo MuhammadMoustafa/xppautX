@@ -3,7 +3,7 @@
    autoX's console table and notes (also `log`, but classified apart by
    store/state.ts's classifyLogText -- the protocol does not tag them, so
    this is a best-effort text match, cheap and good enough to filter by) are
-   shown with their own label and colour (A7: never colour alone) and can be
+   shown with their own label and color (A7: never color alone) and can be
    filtered by kind and searched, both kept as local UI state since neither
    needs to be read by a test or survive a reload. It is the status bar's pop-up (ui/StatusBar.tsx) once a model is open. */
 import {useMemo, useState} from 'preact/hooks';

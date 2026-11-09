@@ -15,8 +15,8 @@ struct Session; /* session.h */
    aniparse.cpp reports every primitive of the frame it draws, in unit
    coordinates of the animation's `dimension` box (u 0 at xlo, 1 at xhi; v
    0 at ylo, 1 at yhi: y up, as the .ani language has it), not clamped: a
-   primitive the .ani puts outside the box lies outside [0,1]. Colours are
-   colours (colormap.h), said in the event as the colour type's text.
+   primitive the .ani puts outside the box lies outside [0,1]. Colors are
+   colors (colormap.h), said in the event as the color type's text.
    Line widths and a comet's dots are in pixels.
 
    The finished frame goes to a client that subscribed at once, or when

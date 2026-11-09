@@ -55,7 +55,7 @@ struct Mov3d {
 
 void check_val(double *x1, double *x2, double *xb, double *xd);
 void pretty(double *x1, double *x2);
-/* the session's colour scale: the array plot and the direction field show it at once */
+/* the session's color scale: the array plot and the direction field show it at once */
 void set_colormap(Session &s, Colormap colormap);
 
 void dump_ps(Session &s, int i);
@@ -168,7 +168,7 @@ void draw_freeze_key(Session &s);
 void key_frz_com(Session &s, int c);
 void delete_frz_crv(Session &s, int i);
 void kill_frz(Session &s);
-/* a frozen curve's colour, line style, legend text and name (the Edit Freeze form's), and the most bytes the
+/* a frozen curve's color, line style, legend text and name (the Edit Freeze form's), and the most bytes the
    legend text and the name hold (Edit Freeze's field widths in XPPAUT) */
 struct FrozenSettings {
   Color color;
@@ -207,7 +207,7 @@ DataTable plot_curves_table(const Session &s);
 std::string batch_plot_name(const Session &s, int i);
 /* frozen curve slot i as a session file restores it (xpp_session.cpp,
    W57): in window w, of grtype type (z's points only when type>0: 3D),
-   its colour, key and name; false when the slot is in use or the points'
+   its color, key and name; false when the slot is in use or the points'
    counts differ */
 bool restore_frozen_curve(Session &s, int i, XppWinId w, int type, const Color &color, const LineStyle &style, std::string key, std::string name,
                           std::vector<float> x, std::vector<float> y, std::vector<float> z);

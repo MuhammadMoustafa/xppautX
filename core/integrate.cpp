@@ -2295,7 +2295,7 @@ void send_output(xpp::Session &s, double *y,double t)
   }
 }
 
-  /* the segment or the point of curve ip, in the pen its colour and style make */
+  /* the segment or the point of curve ip, in the pen its color and style make */
 static void draw_curve_step(xpp::Session &s, int ip, float oldx, float oldy, float oldz, float x, float y, float z)
 {
   const xpp::LineStyle &style=s.plot_windows.current->style[ip];

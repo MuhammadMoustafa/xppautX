@@ -1,4 +1,4 @@
-/* The array plot's registry rows (W527): its window, its settings (the columns, the rows and the colour scale's
+/* The array plot's registry rows (W527): its window, its settings (the columns, the rows and the color scale's
    ends), its time scroll, the range of runs it saves as GIFs and its pictures. Each handler calls the core
    function the array plot window's keys call too (arrayplot.h): one behaviour, whichever front end asks. */
 #include "arrayplot.h"
@@ -177,10 +177,10 @@ constexpr std::array ROWS = {
     Command{"array_plot.redraw", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Redraw array plot", "",
             "Draw the array plot again from the stored data.", REDRAW_RESULTS, APLOT_EVENTS, true, redraw, {}, {}},
     Command{"array_plot.configure", CONFIGURE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Array plot settings", "",
-            "Set the columns and rows the array plot shows and the ends of its colour scale (z_min below z_max); what is left out stays.",
+            "Set the columns and rows the array plot shows and the ends of its color scale (z_min below z_max); what is left out stays.",
             CONFIGURE_RESULTS, APLOT_EVENTS, true, configure, {}, {}},
     Command{"array_plot.fit", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Fit array plot", "",
-            "Set the colour scale's ends to the smallest and largest value shown.", FIT_RESULTS, APLOT_EVENTS, true, fit, {}, {}},
+            "Set the color scale's ends to the smallest and largest value shown.", FIT_RESULTS, APLOT_EVENTS, true, fit, {}, {}},
     Command{"array_plot.range", RANGE_ALL_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Plot, "Array plot range", "",
             "Run once for each value of a parameter or variable as run.range does, saving the array plot as GIF files of the model's folder: one movie, or with still one picture per run; tag writes the swept value on each.",
             RANGE_RESULTS, RANGE_EVENTS, true, range, {}, {}},

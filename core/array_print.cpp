@@ -1,7 +1,7 @@
 #include "browse.h"
-/* Print arrayplot: the array plot as a picture of coloured cells with its colour scale, labels and
-   ranges (W479, #542). It is a Picture like a plot window's, so colour, text and the file are
-   picture.h's and the PDF writer's; the colours are the session's ramp, the one the page shows. */
+/* Print arrayplot: the array plot as a picture of colored cells with its color scale, labels and
+   ranges (W479, #542). It is a Picture like a plot window's, so color, text and the file are
+   picture.h's and the PDF writer's; the colors are the session's ramp, the one the page shows. */
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -18,11 +18,11 @@ namespace xpp {
 
 namespace {
 
-/* the plot's box in the picture's points, and the colour scale's bar beside it */
+/* the plot's box in the picture's points, and the color scale's bar beside it */
 constexpr double box_left = 100, box_right = 460, box_top = 50, box_bottom = 340;
 constexpr double scale_left = 500, scale_width = 20, scale_top = 80, scale_height = 200;
-constexpr int scale_steps = 64; /* the bar's bands, each a colour of the ramp */
-constexpr double seam = .5;     /* a cell or band overlaps the next by this much: no hairline of the page's colour between two */
+constexpr int scale_steps = 64; /* the bar's bands, each a color of the ramp */
+constexpr double seam = .5;     /* a cell or band overlaps the next by this much: no hairline of the page's color between two */
 constexpr double label_size = 12, number_gap = 6; /* points */
 
 void add_rect(Picture &p, double x, double y, double w, double h, const Color &color)

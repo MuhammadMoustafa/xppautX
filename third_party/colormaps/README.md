@@ -1,6 +1,6 @@
 # colormaps
 
-The 17 colour maps xppautX adds to XPPAUT's seven (W492, #556), each a 256-entry table of 8 bit sRGB in
+The 17 color maps xppautX adds to XPPAUT's seven (W492, #556), each a 256-entry table of 8 bit sRGB in
 `colormaps.h`, sampled from matplotlib 3.11.2's data (`matplotlib/_cm_listed.py`, `_cm.py`) on 2026-10-24 by
 rounding `cmap(i/255)` to 8 bit, except `seismic` and `hsv`, which are formulas. Licences checked
 the same day against each source:
@@ -11,7 +11,7 @@ the same day against each source:
 | `cividis` | Jamie R. Nunez, Christopher R. Anderton, Ryan S. Renslow, [pnnl/cmaputil](https://github.com/pnnl/cmaputil) | Battelle's BSD-style licence, below |
 | `twilight` | Bastian Bechtold, [bastibe/twilight](https://github.com/bastibe/twilight), merged into matplotlib | no licence text in its own repository; used as distributed with matplotlib (matplotlib's licence, below) |
 | `turbo` | Anton Mikhailov, Google | Apache License 2.0 (`Copyright 2019 Google LLC.`, `SPDX-License-Identifier: Apache-2.0`, gist ee72ba4191942acecc03fe6da94fc73f) |
-| `greys`, `blues`, `reds`, `greens`, `oranges`, `purples`, `rdbu` | Cynthia Brewer, Mark Harrower and The Pennsylvania State University, [ColorBrewer](https://colorbrewer2.org/) (Greys, Blues, Reds, Greens, Oranges, Purples, RdBu), their anchor colours interpolated linearly as matplotlib does | Apache License 2.0 ("Apache-Style Software License for ColorBrewer"), below |
+| `greys`, `blues`, `reds`, `greens`, `oranges`, `purples`, `rdbu` | Cynthia Brewer, Mark Harrower and The Pennsylvania State University, [ColorBrewer](https://colorbrewer2.org/) (Greys, Blues, Reds, Greens, Oranges, Purples, RdBu), their anchor colors interpolated linearly as matplotlib does | Apache License 2.0 ("Apache-Style Software License for ColorBrewer"), below |
 | `coolwarm` | Kenneth Moreland, "Diverging Color Maps for Scientific Visualization" (CoolWarmFloat33.csv, [kennethmoreland.com/color-maps](http://www.kennethmoreland.com/color-maps/)), interpolated by matplotlib | published by its author for free use; no licence text |
 | `seismic` | blue (0, 0, 0.3) to blue, white, red, dark red (0.5, 0, 0), linear in between: a formula of ours | none needed |
 | `hsv` | hue from 0 to 1 at full saturation and value (Python's `colorsys`): a formula of ours | none needed |

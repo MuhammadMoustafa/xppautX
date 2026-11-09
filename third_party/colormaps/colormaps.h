@@ -1,6 +1,6 @@
 #pragma once
-/* The colour maps xppautX adds to XPPAUT's seven (W492, #556; W381 decision 11):
-   17 tables of 256 colours, 8 bit sRGB each, from the low end of the scale to the
+/* The color maps xppautX adds to XPPAUT's seven (W492, #556; W381 decision 11):
+   17 tables of 256 colors, 8 bit sRGB each, from the low end of the scale to the
    high one. Where each comes from and under which licence is README.md's. */
 namespace xpp::colormaps {
 

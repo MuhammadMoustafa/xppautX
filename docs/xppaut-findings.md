@@ -124,7 +124,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [91](#91-a-refused-animation-file-discards-the-working-animation) | Animation | frees the old commands before reading a replacement, so a bad file loses the working animation | [W507](https://github.com/MuhammadMoustafa/xppautX/issues/571) |
 | [92](#92-animation-grab-tolerances-discard-text-and-formula-suffixes) | Animation | grab tolerance uses a numeric prefix or .02, so shipped expressions are never evaluated | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
 | [93](#93-animation-circles-ignore-the-written-width) | Animation | the circle reader never consumes its documented width argument | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
-| [94](#94-permanent-animation-shapes-change-colour-every-frame) | Animation | permanent coordinates are cached, but colour formulas run each frame | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
+| [94](#94-permanent-animation-shapes-change-color-every-frame) | Animation | permanent coordinates are cached, but color formulas run each frame | [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584) |
 | [95](#95-auto-evaluates-the-equations-at-t--0-without-a-word) | AUTO | AUTO calls the right-hand side with t fixed at 0, so an equation that uses t is continued with t = 0 and no word says so | [W516 / #580](https://github.com/MuhammadMoustafa/xppautX/issues/580) |
 | [96](#96-markers-on-the-data-read-rows-past-the-stored-data) | Plots | Add markers' Number, Row1 and Skip are never checked against the stored rows, so its markers read past the data | [W524](https://github.com/MuhammadMoustafa/xppautX/issues/588) |
 | [97](#97-a-saddles-manifold-export-starts-each-branch-where-the-last-one-ended) | Equilibria | a saddle's batch manifold export runs every branch from the time the previous one ended, and with a transient drops each branch's start near the saddle | [W533](https://github.com/MuhammadMoustafa/xppautX/issues/598) |
@@ -1443,7 +1443,7 @@ XPPAUT 8.0 defines 10 curves per graph (`MAXPERPLOT`), 26 frozen curves
 [struct.h:11](../reference/xppaut-8.0/struct.h#L11),
 [struct.h:12](../reference/xppaut-8.0/struct.h#L12) and
 [struct.h:13](../reference/xppaut-8.0/struct.h#L13).
-Its graph's axis, line and colour arrays use that curve bound
+Its graph's axis, line and color arrays use that curve bound
 ([struct.h:61](../reference/xppaut-8.0/struct.h#L61)). These are storage
 limits, independent of the number of model variables or available memory.
 
@@ -2035,7 +2035,7 @@ the repair. Card [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584).
 
 ## 93. Animation circles ignore the written width
 
-The `CIRC` / `FCIRC` branch reads x, y, radius and colour, then leaves
+The `CIRC` / `FCIRC` branch reads x, y, radius and color, then leaves
 without reading a width ([aniparse.c:1409–1425](../reference/xppaut-8.0/aniparse.c#L1409),
 [master](../reference/xppaut-master/aniparse.c#L1409)). Thus `circle
 v;w;.03;$PURPLE;2` draws with width 0 (one pixel), despite its documented
@@ -2045,19 +2045,19 @@ Native `.anix` circle statements read their keyed width, and unknown
 fields fail at their line instead of being ignored. Card
 [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584).
 
-## 94. Permanent animation shapes change colour every frame
+## 94. Permanent animation shapes change color every frame
 
-XPPAUT evaluates every drawing command's colour before checking its
+XPPAUT evaluates every drawing command's color before checking its
 permanent/transient flag ([aniparse.c:1988–1995](../reference/xppaut-8.0/aniparse.c#L1988),
 [master](../reference/xppaut-master/aniparse.c#L1988)); coordinates are
 evaluated only for transient commands, with permanent values cached by
 `set_ani_perm` ([aniparse.c:2080–2088](../reference/xppaut-8.0/aniparse.c#L2080),
 [master](../reference/xppaut-master/aniparse.c#L2080)). A permanent line
-whose colour is `t` therefore changes colour although its coordinates
+whose color is `t` therefore changes color although its coordinates
 stay fixed. xppautX evaluates every permanent field once, as the native
 `permanent` block promises. `tests/test_animation.cpp` changes time after
 initializing such a line and checks identical primitive data. This is an
-intentional difference for imported permanent shapes with changing colour
+intentional difference for imported permanent shapes with changing color
 formulas; the retained examples' frame comparisons are unchanged. Card
 [W520](https://github.com/MuhammadMoustafa/xppautX/issues/584).
 ## 95. AUTO evaluates the equations at t = 0 without a word

@@ -34,7 +34,7 @@
 #     in one media condition, no breakpoint off docs/ui-v2.md's list, no bare
 #     z-index (tools/csscheck.sh, W638)
 #   - one spelling in user text: no American "color" in web2's rendered text or
-#     docs/manual's prose (tools/colourcheck.sh, W642)
+#     docs/manual's prose (tools/colorcheck.sh, W642)
 #   - no dead declaration: an unused macro, type or field, a declaration
 #     with no definition or repeated in a second header, #if 0, commented-
 #     out code, a header nothing includes (tools/deadcheck.py)
@@ -197,12 +197,12 @@ if ! sh tools/csscheck.sh --check web2/src > build/csscheck.out 2>&1; then
   exit 1
 fi
 tail -1 build/csscheck.out
-if ! sh tools/colourcheck.sh --check > build/colourcheck.out 2>&1; then
-  tail -40 build/colourcheck.out
-  echo "COLOUR CHECK FAILED"
+if ! sh tools/colorcheck.sh --check > build/colorcheck.out 2>&1; then
+  tail -40 build/colorcheck.out
+  echo "COLOR CHECK FAILED"
   exit 1
 fi
-tail -1 build/colourcheck.out
+tail -1 build/colorcheck.out
 if ! uv run --locked python tools/deadcheck.py --check > build/deadcheck.out 2>&1; then
   tail -40 build/deadcheck.out
   echo "DEAD DECLARATION CHECK FAILED"

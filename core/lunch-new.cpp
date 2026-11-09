@@ -305,10 +305,10 @@ void read_graph(const xpp::Session &s, Lines &l, GRAPH &g)
     for(std::size_t c=0;c<columns.size();c++)
       if(columns[c]<0||columns[c]>s.model().neq)
         l.fail(base+1+static_cast<int>(c),xpp::format("{} is not a variable's number (0 to {})",columns[c],s.model().neq));
-    /* XPPAUT's line type and colour number, read on import only */
+    /* XPPAUT's line type and color number, read on import only */
     const std::optional<xpp::LineStyle> style=xpp::line_style_of_xppaut(line_types[k]);
     if(!style)l.fail(base+4,xpp::format("{} is not a line type (-5 to 1)",line_types[k]));
-    if(colors[k]<0||colors[k]>xpp::LAST_PLOT_COLOR)l.fail(base+5,xpp::format("{} is not a colour (0 to {})",colors[k],xpp::LAST_PLOT_COLOR));
+    if(colors[k]<0||colors[k]>xpp::LAST_PLOT_COLOR)l.fail(base+5,xpp::format("{} is not a color (0 to {})",colors[k],xpp::LAST_PLOT_COLOR));
     g.style[k]=*style;
     g.color[k]=xpp::xppaut_color(colors[k]);
   }

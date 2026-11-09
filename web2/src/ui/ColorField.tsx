@@ -1,6 +1,6 @@
-/* A colour picker that gives the core's colour (core/colormap.h): `#rrggbb`, `#rrggbbaa` when the alpha is not
-   full, or `foreground`. The native colour input picks the red, green and blue, the slider the alpha, the box
-   shows (and takes) the text the core reads; the foreground button gives the theme's own colour back. */
+/* A color picker that gives the core's color (core/colormap.h): `#rrggbb`, `#rrggbbaa` when the alpha is not
+   full, or `foreground`. The native color input picks the red, green and blue, the slider the alpha, the box
+   shows (and takes) the text the core reads; the foreground button gives the theme's own color back. */
 import {CORE_COLOR, joinColor, splitColor} from '../plot/colors';
 
 export function ColorField({value, onChange, dark, label}: {
@@ -9,9 +9,9 @@ export function ColorField({value, onChange, dark, label}: {
   const valid = CORE_COLOR.test(value);
   const {hex, alpha} = splitColor(valid ? value : 'foreground', dark);
   return <span class="color-field" data-color-field>
-    <input type="color" value={hex} aria-label={`${label}: colour`} data-color-hex
+    <input type="color" value={hex} aria-label={`${label}: color`} data-color-hex
       onInput={e => onChange(joinColor(e.currentTarget.value, alpha))} />
-    <span class="input-box"><input type="text" value={value} spellcheck={false} autocomplete="off" aria-label={`${label}: colour text`} data-color-text
+    <span class="input-box"><input type="text" value={value} spellcheck={false} autocomplete="off" aria-label={`${label}: color text`} data-color-text
       aria-invalid={valid ? undefined : 'true'} onInput={e => onChange(e.currentTarget.value)} /></span>
     <input type="range" min={0} max={255} value={alpha} aria-label={`${label}: opacity`} data-color-alpha
       onInput={e => onChange(joinColor(hex, Number(e.currentTarget.value)))} />

@@ -1,5 +1,5 @@
-/* Colours: the colour type's text, XPPAUT's eleven, and the colour scales (XPPAUT's seven by its
-   formulas, the others the tables of third_party/colormaps), each as a ramp of 256 colours. */
+/* Colors: the color type's text, XPPAUT's eleven, and the color scales (XPPAUT's seven by its
+   formulas, the others the tables of third_party/colormaps), each as a ramp of 256 colors. */
 #include "colormap.h"
 #include "xpp_math.h"
 #include "../third_party/colormaps/colormaps.h"
@@ -9,7 +9,7 @@
 
 namespace xpp {
 
-/* the CSS colour names (CSS Color Module Level 4), with their RGB: sorted, so a name is found by search */
+/* the CSS color names (CSS Color Module Level 4), with their RGB: sorted, so a name is found by search */
 struct CssColor {
     std::string_view name;
     std::uint32_t rgb;
@@ -49,7 +49,7 @@ constexpr std::array<CssColor, 148> css_colors{{
     {"yellow", 0xffff00}, {"yellowgreen", 0x9acd32}}};
 
 static_assert(std::ranges::is_sorted(css_colors, {}, &CssColor::name) && css_colors.back().name == "yellowgreen",
-              "the CSS colours are sorted and all 148 are there");
+              "the CSS colors are sorted and all 148 are there");
 
 XppColorTable color_table;
 
@@ -83,7 +83,7 @@ Color rgb8(int r, int g, int b)
 
 Color rgb_of(const unsigned char (&c)[3]) { return Color{c[0], c[1], c[2], 255, false}; }
 
-/* a fraction 0 to 1 of the scale's cubehelix colour (Green's: start, rotations, hue, gamma as XPPAUT's) */
+/* a fraction 0 to 1 of the scale's cubehelix color (Green's: start, rotations, hue, gamma as XPPAUT's) */
 Color cubehelix_color(double x)
 {
     constexpr double pii = 3.1415926, start = .5, rots = -1.5, hue = 1.2, gamma = 1.;

@@ -84,7 +84,7 @@ test('the protocol kinds as specs; an unknown or missing kind is text', () => {
   assert.deepEqual(specOfKind('expression'), {kind: 'expression'});
   assert.deepEqual(specOfKind('file'), {kind: 'file'});
   assert.deepEqual(specOfKind('text'), {kind: 'text'});
-  assert.throws(() => specOfKind('colour'), /does not know/);
+  assert.throws(() => specOfKind('shade'), /does not know/);
   const par = specOfKind('name:2', lists);
   assert.equal(par.kind, 'name');
   ok(par, 'iapp', 'PHI');

@@ -48,7 +48,7 @@ constexpr const char *nullclines_dump_file = "nullclines.dat";
 constexpr int max_plot_curves = 8;
 /* what a .ode's quiet and logfile become: a warning each */
 constexpr std::string_view log_level_is_the_users = "what the log shows is the user's, not a model's (the preferences' log_level, --verbose), so the option is dropped";
-constexpr std::string_view picture_as_shown = "an exported picture is the graph as the panel shows it, so its colour and font size are not settings and the option is dropped";
+constexpr std::string_view picture_as_shown = "an exported picture is the graph as the panel shows it, so its color and font size are not settings and the option is dropped";
 constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the preferences' log_file), so the option is dropped";
 /* what a .ode's several starting graphs (multiwin, simplot, xlo2 to yhi8) become: one warning */
 constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join graph_1 and the options of several starting graphs are dropped: several graphs are a session's (window.new)";
@@ -598,7 +598,7 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.autox_state.options.ymin; })},
   {.group = option_group::diagram, .kind = OptionKind::number, .odex = "y_max", .help = "The top edge of the continuation diagram.", .xppaut_names = {"AUTOYMAX"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.autox_state.options.ymax; })},
-  {.group = option_group::plot, .kind = OptionKind::choice, .odex = "colormap", .help = "The colours a colour-coded curve or an array plot runs through.", .xppaut_names = {"COLORMAP"}, .once = true,
+  {.group = option_group::plot, .kind = OptionKind::choice, .odex = "colormap", .help = "The colors a color-coded curve or an array plot runs through.", .xppaut_names = {"COLORMAP"}, .once = true,
    .index = choice_member([](auto &s) -> auto & { return s.colormap; }),
    .foreign = [](std::string_view v) { return numbered_word(colormap_names, v); }, .imported_default = "jet",
    .rule = OptionRule::choice, .choices = colormap_names, .wide = true},
@@ -709,15 +709,15 @@ constexpr OptionRow rows[] = {
    .reset = [](Session &s) { s.nullclines.df_batch = 0; },
    .foreign = [](std::string_view v) { return numbered_word(direction_field_draw_names, v); },
    .rule = OptionRule::choice, .choices = direction_field_draw_names},
-  {.group = option_group::plot, .kind = OptionKind::choice, .odex = "color_by.enabled", .help = "Whether a curve is coloured by a quantity along it.", .xppaut_names = {"COLORIZE"}, .once = true,
+  {.group = option_group::plot, .kind = OptionKind::choice, .odex = "color_by.enabled", .help = "Whether a curve is colored by a quantity along it.", .xppaut_names = {"COLORIZE"}, .once = true,
    .boolean = member([](auto &s) -> auto & { return s.nullclines.colorize_flag; }),
    .reset = [](Session &s) { s.nullclines.colorize_flag = false; },
    .rule = OptionRule::choice, .choices = boolean_names},
-  {.group = option_group::plot, .kind = OptionKind::name, .odex = "color_by.via", .help = "The variable a colour-coded curve takes its colour from.", .xppaut_names = {"COLORVIA"}, .once = true,
+  {.group = option_group::plot, .kind = OptionKind::name, .odex = "color_by.via", .help = "The variable a color-coded curve takes its color from.", .xppaut_names = {"COLORVIA"}, .once = true,
    .text = member([](auto &s) -> auto & { return s.nullclines.color_via; })},
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "color_by.low", .help = "The value of the colouring variable that gets the first colour.", .xppaut_names = {"COLORLO"}, .once = true,
+  {.group = option_group::plot, .kind = OptionKind::number, .odex = "color_by.low", .help = "The value of the coloring variable that gets the first color.", .xppaut_names = {"COLORLO"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.nullclines.color_via_lo; })},
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "color_by.high", .help = "The value of the colouring variable that gets the last colour.", .xppaut_names = {"COLORHI"}, .once = true,
+  {.group = option_group::plot, .kind = OptionKind::number, .odex = "color_by.high", .help = "The value of the coloring variable that gets the last color.", .xppaut_names = {"COLORHI"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.nullclines.color_via_hi; })},
   {.group = option_group::analysis, .kind = OptionKind::number, .odex = "histogram.low", .help = "The low end of the histogram's range.", .xppaut_names = {"HISTLO"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.histogram.info.xlo; })},
@@ -755,7 +755,7 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_wid; }), .rule = OptionRule::whole_positive, .maximum = option_limit::spectrum_samples},
   {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "spectrum.window", .help = "The window the spectrum's segments are weighted with.", .xppaut_names = {"SPECWIN"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_win; })},
-  /* XPPAUT's picture colour and font size (import only): an export is the panel as shown, in colour at the page's size */
+  /* XPPAUT's picture color and font size (import only): an export is the panel as shown, in color at the page's size */
   {.name = "PS_COLOR", .dropped = picture_as_shown},
   {.name = "PS_FSIZE", .dropped = picture_as_shown},
   {.group = option_group::interface, .kind = OptionKind::sliders, .odex = "sliders", .help = "The sliders the window offers: a parameter or variable each, with its range.", .once = true},
@@ -908,7 +908,7 @@ constexpr OptionRow rows[] = {
   {.name = "XHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.x_max", std::string(v)}}, nullptr}; }, .flat_only = true},
   {.name = "YLO", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_min", std::string(v)}}, nullptr}; }, .flat_only = true},
   {.name = "YHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_max", std::string(v)}}, nullptr}; }, .flat_only = true},
-  /* XPPAUT's colours of the diagram's stability kinds, the nullclines and the manifolds (import only): the user's preferences
+  /* XPPAUT's colors of the diagram's stability kinds, the nullclines and the manifolds (import only): the user's preferences
      (xpp_prefs.h Colors), never a model's; no demo sets one, so they are dropped without a note */
   {.name = "SEC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
   {.name = "UEC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
@@ -937,7 +937,7 @@ constexpr OptionRow rows[] = {
    .parse = slider_end<1, &XppSlider::hi>},
   {.kind = OptionKind::number, .name = "SHI3", .once = true,
    .parse = slider_end<2, &XppSlider::hi>},
-  /* the X11 window's bell, fonts, colours, image, size and paper: still
+  /* the X11 window's bell, fonts, colors, image, size and paper: still
      accepted (old .ode and .xpprc files set them), no longer kept */
   {.name = "BELL", .zero_or_one = true},
   {.name = "TUTORIAL", .zero_or_one = true}, /* the tutorial went with W229 */

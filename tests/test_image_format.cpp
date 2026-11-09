@@ -76,7 +76,7 @@ int main(void)
     CHECK(xpp::picture_format_of_file("out.gif") == nullptr && xpp::picture_format_of_file("pdf") == nullptr);
     CHECK(xpp::picture_format_names.size() == 2 && xpp::picture_format_names[0] == "pdf" && xpp::picture_format_names[1] == "svg");
 
-    /* one picture, both writers: the colour with its alpha, the dash, a marker and a text each as the format says it */
+    /* one picture, both writers: the color with its alpha, the dash, a marker and a text each as the format says it */
     xpp::Picture p;
     xpp::Pen pen;
     pen.color = rgba(255, 0, 0, 128);
@@ -94,7 +94,7 @@ int main(void)
     CHECK(pdf.starts_with("%PDF-1.4") && has(pdf, "/BaseFont /Helvetica") && has(pdf, "/CA 0.502") && has(pdf, "[12 6] 0 d") && has(pdf, "1 0 0 RG"));
     CHECK(pdf == written(xpp::write_pdf, p, "build/test_picture.pdf")); /* the same picture, the same bytes */
 
-    /* always in colour: the foreground is black, any other colour as it is, its alpha kept */
+    /* always in color: the foreground is black, any other color as it is, its alpha kept */
     CHECK(xpp::ink(rgba(255, 0, 0, 128)) == rgba(255, 0, 0, 128));
     CHECK(xpp::ink(xpp::foreground_color) == rgba(0, 0, 0));
 
