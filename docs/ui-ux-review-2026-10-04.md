@@ -2,7 +2,7 @@
 
 ## Assessment
 
-The tested workflows work, and the visual foundation is good: restrained dark colors, consistent fields, a prominent Integrate action, readable plots, responsive panels, inline validation and contextual help. The interface nevertheless feels like two generations of application combined. Native desktop navigation and the embedded command sidebar overlap; legacy abbreviations and unusual capitalization obscure the purpose of commands; routine workflows compete with specialized tools for attention.
+The tested workflows work, and the visual foundation is good: restrained dark colours, consistent fields, a prominent Integrate action, readable plots, responsive panels, inline validation and contextual help. The interface nevertheless feels like two generations of application combined. Native desktop navigation and the embedded command sidebar overlap; legacy abbreviations and unusual capitalization obscure the purpose of commands; routine workflows compete with specialized tools for attention.
 
 **Native file dialogs have been implemented. The File menu experience is only partly modernized.** Improving navigation and terminology would produce more benefit than replacing the visual theme.
 

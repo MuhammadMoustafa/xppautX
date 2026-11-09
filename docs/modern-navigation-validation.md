@@ -318,7 +318,7 @@ select controls keep their native dismissal behaviour; time/model columns stay
 protected from deletion. Freeze defaults on again after reopening a session and
 existing history storage limits are unchanged.
 
-Legend names, chosen hex colors and individual visibility are local view
+Legend names, chosen hex colours and individual visibility are local view
 presentation: they are not model variable renames and are not serialized or
 included in core-generated exports. Freeze defaults on again after reopening
 a session. Existing history storage limits remain unchanged. Native OS picker
@@ -330,8 +330,8 @@ Owners searched and reused: `protocol/kinds.ts` and `session.typeKey`,
 `browse_data`/`storage`, `plot_data` history, `graf_par.fit_window`,
 `model`/`nearest`/`render3d`, `Chart`/`DiagramChart`, and the shared CDP driver.
 Deletion uses the existing column lookup and recomputation; no numerical
-integration code changes. Legend names are rendered as text, not HTML; color
-input uses the browser's hex color picker. No new external file path handling
+integration code changes. Legend names are rendered as text, not HTML; colour
+input uses the browser's hex colour picker. No new external file path handling
 is introduced by the trace controls.
 
 Validation:
@@ -351,7 +351,7 @@ Validation:
 - `node tools/uiworkflowcheck.mjs build/xppautX-ui-fixed.exe`: real-model
   uppercase F/I, Caps Lock status, outside dismissal, Tools dropdown,
   main/additional axis editor, Freeze, Continue, retained-run Fit, individual
-  visibility, hover, legend text/color, deleting a middle derived column
+  visibility, hover, legend text/colour, deleting a middle derived column
   and recomputation, retained 3D rendering/Fit/visibility all passed.
 - `node tools/startupcheck.mjs build/xppautX-ui-fixed.exe`: browser startup
   select/cancel/close passed. The `--webview2` case passed real native
