@@ -276,7 +276,7 @@ constexpr OptionRow rows[] = {
    /* single: XPPAUT's float, half the memory */
    .reset = [](Session &s) { s.numerics.storage_precision = StoragePrecision::single; },
    .key = "storage_precision", .label = "Storage precision", .rule = OptionRule::choice, .choices = storage_precision_names, .saved = true, .applied = storage_precision_changed},
-  {.group = option_group::integration, .kind = OptionKind::number, .name = "STATE_LIMIT", .odex = "state_limit", .help = "A state beyond plus or minus this value stops the run.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .name = "STATE_LIMIT", .odex = "state_limit", .help = "A state beyond plus or minus this value stops the run. XPPAUT's BOUND sets this and the equilibria search limit.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.state_limit; }),
    /* XPPAUT's: past it a solution is taken to blow up */
    .reset = [](Session &s) { s.numerics.state_limit = 100; },
@@ -464,7 +464,7 @@ constexpr OptionRow rows[] = {
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.equilibria.jacobian_step = .001; },
    .key = "jacobian_step", .label = "Equilibria: Jacobian step", .rule = OptionRule::positive, .saved = true},
-  {.group = option_group::equilibria, .kind = OptionKind::number, .name = "SEARCH_LIMIT", .odex = "search_limit", .help = "A state beyond plus or minus this value ends the equilibrium search.", .once = true,
+  {.group = option_group::equilibria, .kind = OptionKind::number, .name = "SEARCH_LIMIT", .odex = "search_limit", .help = "A state beyond plus or minus this value ends the equilibrium search. XPPAUT's BOUND sets this and the state limit.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.equilibria.search_limit; }),
    /* XPPAUT's bound: the search gives up where a variable passes it */
    .reset = [](Session &s) { s.numerics.equilibria.search_limit = 100; },
