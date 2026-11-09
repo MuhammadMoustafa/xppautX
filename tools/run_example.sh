@@ -3,7 +3,12 @@
 # its own holding a copy of the model's folder. tools/examples_check.sh
 # runs this once per model, several at once through xargs -P (W16, W17).
 #
-# Usage: tools/run_example.sh <model.ode> <xppautX-binary> [timeout-seconds] [result-dir]
+# Usage: tools/run_example.sh <model.ode> <xppautX-binary> [timeout-seconds] [result-dir] [interpreted]
+#
+# With a 5th argument (interpreted: tools/examples_check.sh --interpreted) the
+# run is the interpreter's: a copy of the model whose options say compile
+# false (tools/interpreted_copy.py; a .ode is converted to a .odex first), so
+# no switch and no edit of the model is needed (W661, #734).
 #
 # Exit status: 0 if the model produced its recorded numerical output
 # (exit 0, or exit 1 after a reported runtime error), or did not load
@@ -34,7 +39,7 @@ f=$1
 bin=$2
 timeout_s=${3:-300}
 result=${4:-}
-no_compile=${5:-}
+interpreted=${5:-}
 
 md5() {
   if command -v md5sum >/dev/null 2>&1; then md5sum | cut -d' ' -f1; else md5 -q; fi
@@ -43,6 +48,21 @@ md5() {
 run=$(mktemp -d)
 cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
 rm -f "$run/output.dat"
+model=$(basename "$f")
+copy_failed=
+if [ -n "$interpreted" ]; then
+  # the copy of the model with compile false (tools/interpreted_copy.py); a .ode converts first. A model whose
+  # copy cannot be made is not run: its record is noload, which the baseline matches only for a model that
+  # does not load at all (a .ode that does not convert), so any other model shows as a difference
+  helper=$(cd "$(dirname "$0")" && pwd)/interpreted_copy.py
+  case "$model" in *.ode) copy_model=${model%.ode}.odex ;; *) copy_model=$model ;; esac
+  if uv run --locked python "$helper" --convert "$bin" "$run/$model" "$run/$copy_model" > "$run/copy.log" 2>&1; then
+    model=$copy_model
+  else
+    copy_failed=1
+    cat "$run/copy.log" >> "$run/run.log"
+  fi
+fi
 st=0
 timed_out=0
 tmo=
@@ -51,15 +71,17 @@ if timeout --version >/dev/null 2>&1; then tmo=timeout
 elif gtimeout --version >/dev/null 2>&1; then tmo=gtimeout
 fi
 if [ -n "$tmo" ]; then
-  ( cd "$run" && exec "$tmo" "$timeout_s" "$bin" "$(basename "$f")" --silent ${no_compile:+"$no_compile"} >run.log 2>&1 ) || st=$?
+  [ -n "$copy_failed" ] || ( cd "$run" && exec "$tmo" "$timeout_s" "$bin" "$model" --silent >run.log 2>&1 ) || st=$?
   [ "$st" -eq 124 ] && timed_out=1
 else
-  ( cd "$run" && exec uv run --locked python "$TIMEOUT_RUNNER" "$timeout_s" "$bin" "$(basename "$f")" --silent ${no_compile:+"$no_compile"} >run.log 2>&1 ) || st=$?
+  [ -n "$copy_failed" ] || ( cd "$run" && exec uv run --locked python "$TIMEOUT_RUNNER" "$timeout_s" "$bin" "$model" --silent >run.log 2>&1 ) || st=$?
   [ "$st" -eq 124 ] && timed_out=1
 fi
 if [ $timed_out -eq 1 ]; then
   sum=timeout
   st=timeout
+elif [ -n "$copy_failed" ]; then
+  sum=noload
 elif [ "$st" -eq 1 ]; then
   # W133: --silent also exits 1 after a runtime error. The numerical
   # gate still compares the data it wrote; only no output means noload.

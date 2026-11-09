@@ -205,7 +205,7 @@ you wrote (`1/30`) alone while the value is unchanged.
 
   | group | keys |
   |---|---|
-  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `storage_precision`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `bvp.max_iterates`, `bvp.tolerance`, `bvp.epsilon`; `torus.period`, `torus.fold` |
+  | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `storage_precision`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `compile` (`false` runs the interpreter; read when the model loads), `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `bvp.max_iterates`, `bvp.tolerance`, `bvp.epsilon`; `torus.period`, `torus.fold` |
   | `poincare` | `map`, `variable`, `sign`, `plane`, `stop` |
   | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535), `near_tolerance` |
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |

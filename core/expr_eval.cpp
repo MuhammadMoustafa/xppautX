@@ -253,7 +253,7 @@ double eval_rpn(const int *equat, xpp::Session &s)
             }
             st.ufun_depth++;
             const Program &function=s.model().ufun_programs[in];
-            temx=program.compile && function.native
+            temx=function.native
                 ? function.native(p.constants.data(),p.variables.data(),&s,function.rpn.data())
                 : eval_rpn(function.rpn.data(),s);
             st.ufun_depth--;
@@ -283,7 +283,7 @@ double evaluate(xpp::Session &s, const int *program)
 
 double evaluate(Session &s, const Program &code)
 {
-  if (program.compile && code.native)
+  if (code.native)
     return code.native(s.parser.constants.data(),s.parser.variables.data(),&s,code.rpn.data());
   return evaluate(s,code.rpn.data());
 }

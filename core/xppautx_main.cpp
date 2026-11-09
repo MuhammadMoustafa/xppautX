@@ -106,7 +106,6 @@ static std::string usage_tail()
     "                   --convert model.odex --anifile drawing.ani names another model\n"
     "  --check          validate a model or .anix in memory; JSON diagnostics, no files or window\n"
     "  --options-schema print the JSON Schema of a .odex's options block\n"
-    "  --no-compile     run the equations in the interpreter, not as compiled code\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
     "A session file (name.snapx, File/Save session or autoX's Save diagram)\n"
     "opens its saved model and whole session. A recording (name.recx)\n"

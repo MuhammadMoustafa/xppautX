@@ -227,8 +227,9 @@ interpreter's own functions for these, so values and random sequences are the
 same. The expressions of events, boundary conditions, derived parameters,
 Markov chains, DAEs and integral-equation kernels stay interpreted. A model
 with a recursive user function runs entirely in the interpreter; a warning
-identifies the equation. `--no-compile` selects the interpreter explicitly. Compilation happens once per
-load and can speed up integration and autoX; the gain depends on the model.
+identifies the equation. The model's `compile` option (an `integration` setting, `compile: false` in its
+`options`) runs every equation in the interpreter instead; a change applies when the model next loads.
+Compilation happens once per load and can speed up integration and autoX; the gain depends on the model.
 
 Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. `--setfile` remains an import of XPPAUT `.set` files (W156, #208).
 
@@ -241,7 +242,6 @@ follow in any order. The options below control the model and its run.
 | Option | Does |
 |---|---|
 | `--silent` | Batch run: no interface, integrates and exits |
-| `--no-compile` | Run equations in the interpreter, for comparison with compiled execution |
 | `--outfile FILE` | Write batch output to FILE instead of `output.dat` |
 | `--noout` | Suppress writing rows to the output file |
 | `--parfile FILE` | Load parameter values from FILE before starting |

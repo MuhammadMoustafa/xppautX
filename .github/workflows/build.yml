@@ -142,7 +142,7 @@ jobs:
           tools/verify.sh --no-source-checks
       - name: Every example with the interpreter (same baseline)
         if: ${{ !cancelled() }}
-        run: tools/examples_check.sh --no-compile
+        run: tools/examples_check.sh --interpreted
       # a golden output that differs, for reading beside tests/golden (W159)
       - name: Upload the differing golden outputs
         if: ${{ !cancelled() && hashFiles('build/golden-differ/**') != '' }}

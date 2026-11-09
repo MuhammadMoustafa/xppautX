@@ -118,7 +118,7 @@ user's own preference is never read) and offering an exact Jacobian
 which then runs with JAC 1). Engines (`bench.py --engines`):
 
 - `xppaut`: XPPAUT 8.0 (W246's driver, Xvfb display `:93`).
-- `xppautx-interp-1t`: xppautX `--no-compile`, one thread, finite differences.
+- `xppautx-interp-1t`: xppautX the interpreter (compile false), one thread, finite differences.
 - `xppautx-fd-Nt`, `xppautx-exact-Nt`: xppautX compiled, N = 1, 2, 4 threads,
   finite-difference or exact Jacobian; pinned to CPUs 2..2+N-1.
 - `auto07p-Nt`: AUTO-07p 0.9.3, JAC 0 (W246's). `auto07p-jac-Nt`: JAC 1 with

@@ -15,7 +15,7 @@ section 1's table still describes W269's own conditions.
 ## 1. What W269 measured, and what could move it
 
 W269 (#326, 2026-10-11, xppautX `0643234f`, XPPAUT 8.0 `c021b511`, AUTO-07p 0.9.3; H 7f) repeated, with three
-engines (XPPAUT, xppautX compiled, xppautX `--no-compile`), on WSL ext4 under `~/w269`, `heavy.sh --alone` (W269's conditions; stage 2 runs on the Ubuntu machine),
+engines (XPPAUT, xppautX compiled, xppautX the interpreter (compile false)), on WSL ext4 under `~/w269`, `heavy.sh --alone` (W269's conditions; stage 2 runs on the Ubuntu machine),
 CPU 2, fresh HOME, LC_ALL=C, one excluded warm-up and five measured fresh processes, engine order rotating,
 sample SD:
 

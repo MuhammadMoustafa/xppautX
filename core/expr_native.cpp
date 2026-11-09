@@ -777,7 +777,7 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
     m.native_rhs=nullptr;
     m.native_equations=false;
     m.native_program.reset();
-    if (!::program.compile || entries.empty()) return {};
+    if (!s.numerics.compile || entries.empty()) return {};
     Generator g{s};
     std::vector<Error> warnings;
     if (m.nfun<0 || static_cast<size_t>(m.nfun)>m.ufun_programs.size()) return g.refuse("an out-of-range function count");
@@ -902,8 +902,8 @@ Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelP
 ExactJacobian compile_jacobian(Session &s, const std::vector<ModelProgram> &entries)
 {
     ExactJacobian j;
-    if (!::program.compile) {
-        j.unavailable = "the model is interpreted (--no-compile)";
+    if (!s.numerics.compile) {
+        j.unavailable = "the model is interpreted (option compile is false)";
         return j;
     }
     auto derived = expr::differentiate_model(s, entries);

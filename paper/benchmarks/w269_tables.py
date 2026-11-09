@@ -11,7 +11,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DATE = '2026-10-11'
 ENGINES = ('legacy', 'modern', 'interp')
-LABEL = {'legacy': 'XPPAUT 8.0', 'modern': 'xppautX compiled', 'interp': 'xppautX --no-compile'}
+LABEL = {'legacy': 'XPPAUT 8.0', 'modern': 'xppautX compiled', 'interp': 'xppautX interpreted'}
 
 
 def agreement(comparisons, model, left, right):
@@ -33,8 +33,8 @@ def integration_table(folder):
     comparisons = json.loads((folder / 'comparison.json').read_text())['comparisons']
     by = {(s['model'], s['engine']): s for s in summary}
     models = list(dict.fromkeys(s['model'] for s in summary))
-    rows = ['| Model | XPPAUT 8.0 | xppautX compiled | xppautX --no-compile | XPPAUT / compiled | --no-compile / compiled |'
-            ' compiled vs XPPAUT | compiled vs --no-compile |', '|---|---:|---:|---:|---:|---:|---|---|']
+    rows = ['| Model | XPPAUT 8.0 | xppautX compiled | xppautX interpreted | XPPAUT / compiled | interpreted / compiled |'
+            ' compiled vs XPPAUT | compiled vs interpreted |', '|---|---:|---:|---:|---:|---:|---|---|']
     for m in models:
         cell = {e: by.get((m, e)) for e in ENGINES}
         fmt = {e: (f"{c['wall_seconds_mean']:.3f} +/- {c['wall_seconds_sample_sd']:.3f}" if c and c['wall_seconds_mean'] else 'n/a')
@@ -59,8 +59,8 @@ def weighted(values):
 
 def scaling_table(platform):
     rows = json.loads((HERE / 'size-scaling' / 'results' / f'w269-{platform}-{DATE}' / 'summary.json').read_text())
-    out = ['| Family | Size | States | XPPAUT / compiled | --no-compile / compiled | XPPAUT / --no-compile |'
-           ' one-step run ms (XPPAUT, compiled, --no-compile) | outputs |', '|---|---:|---:|---:|---:|---:|---|---|']
+    out = ['| Family | Size | States | XPPAUT / compiled | interpreted / compiled | XPPAUT / interpreted |'
+           ' one-step run ms (XPPAUT, compiled, interpreted) | outputs |', '|---|---:|---:|---:|---:|---:|---|---|']
     for r in rows:
         f = lambda s: (f"{r['integration_ratio' + s]:.2f} +/- {r['integration_ratio_se' + s]:.2f}"
                        if 'integration_ratio' + s in r else 'n/a')
@@ -68,7 +68,7 @@ def scaling_table(platform):
         outs = r.get('outputs_2T', '') or ''
         out.append(f"| {r['family']} | {r['size']} | {r['states']} | {f('')} | {f('_interp_modern')} | "
                    f"{f('_legacy_interp')} | {ms} | {outs or r.get('outputs_2T_interp_modern', '')} |")
-    out += ['', '| Family | XPPAUT / compiled | --no-compile / compiled | XPPAUT / --no-compile |', '|---|---:|---:|---:|']
+    out += ['', '| Family | XPPAUT / compiled | interpreted / compiled | XPPAUT / interpreted |', '|---|---:|---:|---:|']
     for fam in dict.fromkeys(r['family'] for r in rows):
         # the sizes XPPAUT runs, then (xppautX alone) those past its MAXODE
         for label, part in ((fam, [r for r in rows if r['family'] == fam and 'integration_ratio' in r]),

@@ -65,9 +65,10 @@ void same_both_ways(xpp::Session &s,const xpp::Program &code)
     s.parser.variables=variables;
     s.parser.constants=constants;
     CHECK(s.random.load(random));
-    program.compile=false;
-    const double interpreted=xpp::evaluate(s,code);
-    program.compile=true;
+    /* interpreted: the same program without its native function */
+    xpp::Program interpreted_code=code;
+    interpreted_code.native=nullptr;
+    const double interpreted=xpp::evaluate(s,interpreted_code);
     CHECK(bits(native)==bits(interpreted));
     CHECK(same(native_variables,s.parser.variables));
     CHECK(same(native_constants,s.parser.constants));
@@ -106,9 +107,11 @@ void same_rhs(xpp::Session &s)
         const auto native_variables=s.parser.variables;
         const auto native_constants=s.parser.constants;
         const std::string native_random=s.random.save();
-        program.compile=false;
+        s.numerics.compile=false;
+        CHECK(xpp::compile_model(s).has_value());
         run(ydot);
-        program.compile=true;
+        s.numerics.compile=true;
+        CHECK(xpp::compile_model(s).has_value());
         CHECK(same(native_variables,s.parser.variables));
         CHECK(same(native_constants,s.parser.constants));
         CHECK(native_random==s.random.save());
@@ -293,12 +296,13 @@ int main()
     CHECK(m.ufun_programs[1].native==nullptr); /* g calls f */
     CHECK(m.ufun_programs[2].native!=nullptr);
     m.ufun_programs[0].rpn=function;
-    program.compile=false;
+    s.numerics.compile=false;
     m.programs[0].rpn=number(0.1);
     CHECK(xpp::compile_model(s).has_value());
     CHECK(!m.native_program);
     CHECK(xpp::evaluate(s,m.programs[0])==0.1);
-    program.compile=true;
+    s.numerics.compile=true;
+    CHECK(xpp::compile_model(s).has_value());
     /* z0 to z3 as fixed variables and x' after them, compiled as one function (W468,
        W469): a math call is made once across them, except across what changes its argument (a fixed variable
        written, read by name, by a user function or by a shift; a set; a draw) or what may
@@ -353,7 +357,7 @@ int main()
                 if (entry.user_index<0) same_both_ways(t,*entry.code);
                 else {
                     /* A raw caller exercises the native function's argument-stack
-                       bridge, then --no-compile exercises the same call interpreted. */
+                       bridge, then the interpreter exercises the same call. */
                     xpp::Program caller;
                     for (int a=0;a<t.model().narg_fun[entry.user_index];++a) {
                         const auto arg=number(0.25+static_cast<double>(a));

@@ -11,6 +11,7 @@
    and its autoX members restore exactly what was imported. */
 #include "xpptest.h"
 #include "xpp_session_autox.h"
+#include "expr_native.h"
 #include "autox_text.h"
 #include "snapx.h"
 #include "session.h"
@@ -951,9 +952,13 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
         "y'=frequency*x+mu*y-y*r\ninit x=0,y=0\n"
         +xpp::format("@ ntst={},ncol=4,nmax=60,npr=10,ds=0.02,dsmax=0.05,dsmin=0.0001\n",mesh)+
         "@ parmin=-1,parmax=1,epsl=1e-8,epsu=1e-8,epss=1e-8\n"+std::string(exact?"@ integration.jacobian.kind=exact\n":"")+"done\n"));
-    program.compile=compiled;
     CHECK(load(file));
     xpp::Session &s=xpp::client_session();
+    /* the equations compile at load; an interpreted run recompiles them so */
+    if (!compiled) {
+        s.numerics.compile=false;
+        CHECK(xpp::compile_model(s).has_value());
+    }
     CHECK(s.model().rhs_impurity.empty()==(compiled && !impure));
     s.autox_state.dir=tmp.path();
     xpp::init_autox_win(s);
@@ -985,7 +990,6 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
 void check_collocation_purity()
 {
     xpp::TempDir tmp;
-    program.compile=true;
     struct Case { const char *source; bool pure; };
     const Case cases[]={
         {"par a=1\nx'=a*x\ninit x=1\ndone\n",true},
@@ -1037,7 +1041,6 @@ void check_collocation()
     CHECK(!same_diagram(large,large_exact));
     for (unsigned threads:{2u,4u})
         CHECK(same_diagram(large_exact,collocation_run(threads,true,false,{},true,worker_mesh)));
-    program.compile=true;
 
     // Failures are values observed after every worker has finished. A failed
     // dispatch must leave the persistent pool usable for the next call.

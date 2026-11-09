@@ -81,7 +81,7 @@ sample SD; timing is never a pass/fail.
 the whole process timed (start-up, load, integration, output), outputs
 compared with the five-model screen's `compare`.
 
-| Model | XPPAUT 8.0 | xppautX compiled | xppautX --no-compile | XPPAUT / compiled | --no-compile / compiled | compiled vs XPPAUT | compiled vs --no-compile |
+| Model | XPPAUT 8.0 | xppautX compiled | xppautX interpreted | XPPAUT / compiled | interpreted / compiled | compiled vs XPPAUT | compiled vs interpreted |
 |---|---:|---:|---:|---:|---:|---|---|
 | rest | 10.629 +/- 0.039 | 2.820 +/- 0.012 | 8.840 +/- 0.092 | 3.77x | 3.14x | exact | exact |
 | fire | 20.683 +/- 0.371 | 5.277 +/- 0.053 | 17.267 +/- 0.449 | 3.92x | 3.27x | exact | exact |
@@ -101,7 +101,7 @@ Wall seconds, mean +/- sample SD of five measured runs. Valid runs 30/30; every 
 ## AUTO (`auto_bench.py`, `results/auto-wsl-2026-10-11/`)
 
 Engines: `xppaut` (XPPAUT 8.0, Xvfb `:93`), `xppautx-interp-1t`
-(`--no-compile`), `xppautx-fd-Nt` / `xppautx-exact-Nt` (compiled; N = 1, 2,
+(the interpreter (compile false)), `xppautx-fd-Nt` / `xppautx-exact-Nt` (compiled; N = 1, 2,
 4 threads, the `auto_threads` preference set per run in a fresh
 `XPP_CONFIG_DIR`; the Numerics' Jacobian set before AUTO opens), and
 `auto07p-Nt` (AUTO-07p, finite differences, OMP_NUM_THREADS = N). AUTO-07p

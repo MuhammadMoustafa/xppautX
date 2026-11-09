@@ -93,8 +93,8 @@ inverse-variance mean over each family's sizes:
 ## W269 (#326, 2026-10-11): the compiled build, three engines, past MAXODE
 
 The same study after xppautX began compiling each model at load (W258/W259/
-W266, TinyCC; `--no-compile` interprets) and lost its MAXODE (W243). Engines:
-XPPAUT 8.0, xppautX compiled (`modern`), xppautX `--no-compile` (`interp`),
+W266, TinyCC; the interpreter (compile false) interprets) and lost its MAXODE (W243). Engines:
+XPPAUT 8.0, xppautX compiled (`modern`), xppautX the interpreter (compile false) (`interp`),
 the order rotating each repetition (`scaling.py run --engines
 legacy,modern,interp`; two engines keep W241's alternation).
 
@@ -127,7 +127,7 @@ identical at every size, on both platforms (`outputs` below: each pair exact).
 Integration speed, WSL (per-time cost ratio, > 1: the second engine faster;
 one-step run = start-up, load and output set-up):
 
-| Family | Size | States | XPPAUT / compiled | --no-compile / compiled | XPPAUT / --no-compile | one-step run ms (XPPAUT, compiled, --no-compile) | outputs |
+| Family | Size | States | XPPAUT / compiled | interpreted / compiled | XPPAUT / interpreted | one-step run ms (XPPAUT, compiled, interpreted) | outputs |
 |---|---:|---:|---:|---:|---:|---|---|
 | kuramoto | 10 | 10 | 2.30 +/- 0.07 | 2.10 +/- 0.06 | 1.10 +/- 0.01 | 6, 23, 21 | exact |
 | kuramoto | 25 | 25 | 2.40 +/- 0.02 | 2.16 +/- 0.02 | 1.11 +/- 0.01 | 6, 24, 23 | exact |
@@ -154,7 +154,7 @@ one-step run = start-up, load and output set-up):
 | amari | 3200 | 3200 | n/a | 0.88 +/- 0.01 | n/a | -, 240, 192 | exact |
 | amari | 6400 | 6400 | n/a | 0.87 +/- 0.01 | n/a | -, 497, 391 | exact |
 
-| Family | XPPAUT / compiled | --no-compile / compiled | XPPAUT / --no-compile |
+| Family | XPPAUT / compiled | interpreted / compiled | XPPAUT / interpreted |
 |---|---:|---:|---:|
 | kuramoto (10-400 states) | 2.301 +/- 0.008 | 2.135 +/- 0.010 | 1.099 +/- 0.004 |
 | lecdiff (50-4800 states) | 3.628 +/- 0.010 | 3.336 +/- 0.011 | 1.094 +/- 0.003 |
@@ -164,7 +164,7 @@ one-step run = start-up, load and output set-up):
 
 Windows, the family means (the per-size table: `../w269_tables.py scaling`):
 
-| Family | XPPAUT / compiled | --no-compile / compiled | XPPAUT / --no-compile |
+| Family | XPPAUT / compiled | interpreted / compiled | XPPAUT / interpreted |
 |---|---:|---:|---:|
 | kuramoto (10-400 states) | 2.037 +/- 0.026 | 2.176 +/- 0.026 | 0.956 +/- 0.008 |
 | lecdiff (50-4800 states) | 3.335 +/- 0.041 | 3.373 +/- 0.036 | 1.002 +/- 0.009 |
@@ -186,7 +186,7 @@ Windows, the family means (the per-size table: `../w269_tables.py scaling`):
   than XPPAUT's (WSL); from about 1600 states on it is shorter (lecdiff 4800
   states: 284 ms compiled against XPPAUT's 595 ms on WSL, 341 against 739 on
   Windows), the reverse of W241 (817 vs 627 ms): W245's work. Compiling at load
-  costs up to about 100 ms more than `--no-compile` (lecdiff 12800 states: 762 vs 658
+  costs up to about 100 ms more than the interpreter (compile false) (lecdiff 12800 states: 762 vs 658
   ms).
 - Windows had one-off stalls (lecdiff100 T compiled and legacy, lecdiff200 T
   compiled: one run 1-1.4 s longer than its five siblings), kept as measured:

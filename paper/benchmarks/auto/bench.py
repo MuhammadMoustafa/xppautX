@@ -75,14 +75,23 @@ def xppautx_run(measure, binary, tmp, threads, jacobian, extra_args=()):
         shutil.rmtree(home)
 
 
-def xppautx_engines(measure, binary, tmp):
+def interpreted_model(binary, model, tmp):
+    """W661: the model's copy with compile false (tools/interpreted_copy.py), for the interpreter engine"""
+    out = Path(tmp) / 'interpreted' / (Path(model).stem + '.odex')
+    out.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(['uv', 'run', '--locked', 'python', str(HERE.parents[2] / 'tools' / 'interpreted_copy.py'),
+                    '--convert', binary, str(model), str(out)], check=True)
+    return out
+
+
+def xppautx_engines(measure, interpreted_measure, binary, tmp):
     """W269: xppautX's engines: finite-difference and exact Jacobians on THREADS threads, and
-    the interpreter (--no-compile, which has no exact Jacobian) on one"""
+    the interpreter (its model's copy with compile false, which has no exact Jacobian) on one"""
     engines = {}
     for n in THREADS:
         for jac, label in (('difference', 'fd'), ('exact', 'exact')):
             engines[f'xppautx-{label}-{n}t'] = lambda n=n, jac=jac: xppautx_run(measure, binary, tmp, n, jac)
-    engines['xppautx-interp-1t'] = lambda: xppautx_run(measure, binary, tmp, 1, 'difference', ['--no-compile'])
+    engines['xppautx-interp-1t'] = lambda: xppautx_run(interpreted_measure, binary, tmp, 1, 'difference')
     return engines
 
 
@@ -152,7 +161,9 @@ def main():
     tmp = Path(tempfile.mkdtemp(prefix='w246-pin-'))
     engines = {'xppaut': lambda: hopf_xppaut.measure(pinned(a.xppaut, CPU, tmp)),
                'xppautx': lambda: hopf_xppautx.measure(pinned(a.xppautx, CPU, tmp), a.model),
-               **xppautx_engines(functools.partial(hopf_xppautx.measure, model=a.model), a.xppautx, tmp)}
+               **xppautx_engines(functools.partial(hopf_xppautx.measure, model=a.model),
+                                 functools.partial(hopf_xppautx.measure, model=interpreted_model(a.xppautx, a.model, tmp)),
+                                 a.xppautx, tmp)}
     for n in THREADS:
         engines[f'auto07p-{n}t'] = lambda n=n: auto07p(a.auto07p_src, n)
         engines[f'auto07p-jac-{n}t'] = lambda n=n: auto07p(a.auto07p_src, n, jac=1)

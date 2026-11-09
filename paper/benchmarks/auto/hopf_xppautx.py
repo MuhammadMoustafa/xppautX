@@ -65,7 +65,8 @@ def measure(binary, model=str(HERE / 'models' / 'PY_S1Bf_bench.ode'), threads=No
     """{run: {wall, cpu, labels: [(pt, type, Iapp)]}} for the steady-state and periodic runs.
     W269 (#326): threads (AUTO's thread count, W247/W267: a preference, so env should name a
     fresh XPP_CONFIG_DIR), jacobian ('difference' or 'exact', W260/W275: set before AUTO opens,
-    which reads it), extra_args (--no-compile); the defaults are W246's run.
+    which reads it), extra_args (none is needed for the interpreter: its model is a compile-false copy, W661);
+    the defaults are W246's run.
     W248: run_dir (the folder the model is run in, shared by concurrent runs), a start barrier
     (ready/go files), out (the caller's dict, kept when the run fails)."""
     out = {} if out is None else out

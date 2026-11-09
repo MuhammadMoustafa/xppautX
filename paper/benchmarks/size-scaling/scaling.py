@@ -15,7 +15,7 @@ one pinned CPU.
   extend     W269: sizes past MAXODE (--sizes FAMILY:N,...), sized on --probe-engine
 
 Linux (WSL) and Windows (W242, #298); Windows runs the models WSL calibrated.
-W269 (#326) adds --engines legacy,modern,interp: 'interp' is xppautX with --no-compile.
+W269 (#326) adds --engines legacy,modern,interp: 'interp' is xppautX on a compile-false copy of the model (W661).
 """
 import argparse, csv, ctypes, gzip, hashlib, itertools, json, os, platform, shutil, statistics
 import subprocess, sys, tempfile, threading, time
@@ -134,7 +134,7 @@ def engine_args(engine, binary, model):
 
 
 def engine_binaries(args):
-    """W269: the engines a run times, each with its program ('interp' is --modern with --no-compile)"""
+    """W269: the engines a run times, each with its program ('interp' is --modern on a compile-false copy)"""
     engines = args.engines.split(',')
     if any(e not in ENGINE_ARGS for e in engines) or len(set(engines)) != len(engines):
         raise ValueError('--engines: distinct names of ' + ','.join(ENGINE_ARGS))
@@ -146,6 +146,10 @@ def run_once(case, duration, engine, rep, binary, models, work, timeout):
     run = work / f"{model}-{engine}-{rep}"
     run.mkdir()
     shutil.copy2(models / (model + ('.ode' if engine == 'legacy' else '.odex')), run)
+    if engine == 'interp':  # W661: the copy's options set compile false (tools/interpreted_copy.py)
+        subprocess.run(['uv', 'run', '--locked', 'python', str(HERE.parents[2] / 'tools' / 'interpreted_copy.py'),
+                        str(run / (model + '.odex')), str(run / 'interp.odex')], check=True)
+        (run / 'interp.odex').replace(run / (model + '.odex'))
     home = run / 'home'
     home.mkdir()
     env = dict(os.environ, HOME=str(home), XDG_CONFIG_HOME=str(home / 'config'), LC_ALL='C',
@@ -453,7 +457,7 @@ def main():
     ap.add_argument('--cpu', type=int, default=CPU)
     ap.add_argument('--timeout', type=float, default=TIMEOUT)
     # W269 (#326): three engines, the restaged models and the sizes past MAXODE
-    ap.add_argument('--engines', default='legacy,modern', help="comma-separated: legacy, modern (xppautX), interp (xppautX --no-compile)")
+    ap.add_argument('--engines', default='legacy,modern', help="comma-separated: legacy, modern (xppautX), interp (xppautX on compile-false copies)")
     ap.add_argument('--cases-file', default='cases.json', help='the cases a run times (restage/extend write it)')
     ap.add_argument('--models-dir', default='models', help='the models a run reads (restage/extend write it)')
     ap.add_argument('--sizes', nargs='+', default=[], help='extend: FAMILY:N[,N...]')

@@ -29,9 +29,11 @@ EXTRA_CASES = [
     dict(name='PY_S1Bf', source='PY_S1Bf_bench.ode', states=8, aux=2, total=2000, dt=.01, method='stiff',
          replace={'par Iapp=20000': 'par Iapp=2000'}, controls='@ maxstor=200010'),
 ]
-# W269: an engine is a program and its extra arguments; 'interp' is xppautX run with
-# --no-compile (the interpreter), 'modern' xppautX as it starts by default (compiled).
-ENGINE_ARGS = {'legacy': [], 'modern': [], 'interp': ['--no-compile']}
+# W269: an engine is a program and its extra arguments; 'interp' is xppautX run on a copy of the
+# model whose options say compile false (the interpreter, W661: tools/interpreted_copy.py), 'modern'
+# xppautX as it starts by default (compiled).
+ENGINE_ARGS = {'legacy': [], 'modern': [], 'interp': []}
+INTERPRETED_COPY = Path(__file__).resolve().parents[2] / 'tools' / 'interpreted_copy.py'
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -171,6 +173,9 @@ def run_one(c,engine,repetition,binary,work,models,results,cpu,timeout):
     ext='ode' if engine=='legacy' else 'odex'
     args=['taskset','-c',str(cpu),str(binary),f"{c['name']}.{ext}",'-silent','-internset','0']
     if engine!='legacy':args=[a.replace('-silent','--silent').replace('-internset','--internset') for a in args]+ENGINE_ARGS[engine]
+    if engine=='interp':  # W661: the copy's options set compile false
+        subprocess.run(['uv','run','--locked','python',str(INTERPRETED_COPY),str(run/f"{c['name']}.odex"),str(run/'interp.odex')],check=True)
+        (run/'interp.odex').replace(run/f"{c['name']}.odex")
     if 'setfile' in c:args += ['-setfile' if engine=='legacy' else '--setfile',c['setfile']]
     home=run/'home';home.mkdir()
     env=dict(os.environ,HOME=str(home),XDG_CONFIG_HOME=str(home/'config'),LC_ALL='C',OMP_NUM_THREADS='1',OPENBLAS_NUM_THREADS='1')
@@ -252,7 +257,7 @@ def main():
     ap.add_argument('--prepare-only',action='store_true');ap.add_argument('--pilot-only',action='store_true')
     ap.add_argument('--result-name')
     ap.add_argument('--models',nargs='+',choices=[c['name'] for c in CASES+EXTRA_CASES])
-    ap.add_argument('--engines',default='legacy,modern',help="W269: comma-separated from "+','.join(ENGINE_ARGS)+"; 'interp' runs --modern with --no-compile")
+    ap.add_argument('--engines',default='legacy,modern',help="W269: comma-separated from "+','.join(ENGINE_ARGS)+"; 'interp' runs --modern on a compile-false copy")
     a=ap.parse_args();cases=[c for c in CASES+EXTRA_CASES if c['name'] in a.models] if a.models else CASES;bundle=a.bundle.resolve()
     engines=a.engines.split(',')
     if not engines or any(e not in ENGINE_ARGS for e in engines) or len(set(engines))!=len(engines):raise ValueError('--engines: distinct names of '+','.join(ENGINE_ARGS))

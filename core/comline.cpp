@@ -22,7 +22,7 @@ namespace {
 constexpr int MAX_PORT = 65535;
 
 /* the options' ids (named, never numbers) */
-enum class Opt { silent, no_compile, newseed, setfile, parfile, outfile, icfile, internset, uset, rset, include,
+enum class Opt { silent, newseed, setfile, parfile, outfile, icfile, internset, uset, rset, include,
                  qsets, qpars, qics, quiet, logfile, anifile, mkplot, plotfmt, noout, dfdraw, ncdraw, readset, with,
                  equil, verbose, debug,
                  /* the program's own (xppautx_main.cpp) */
@@ -38,7 +38,6 @@ struct CommandOption {
 
 constexpr CommandOption my_cmd[] = {
   {"--silent", Opt::silent, false, true, false},
-  {"--no-compile", Opt::no_compile, false, true, false},
   {"--newseed", Opt::newseed, false, true, false},
   {"--setfile", Opt::setfile, true, false, false},
   {"--parfile", Opt::parfile, true, false, false},
@@ -172,7 +171,6 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
       break;
     }
     case Opt::silent: cl.silent = true; break;
-    case Opt::no_compile: cl.no_compile = true; break;
     case Opt::newseed: cl.new_seed = true; break;
     case Opt::mkplot: cl.make_plot = true; break;
     case Opt::noout: cl.no_output = true; break;
@@ -242,7 +240,6 @@ void apply_command_line(Session &s, CommandLine cl)
   if (cl.new_seed) xpp::log(XPP_LOG_INFO, "Random number seed changed\n");
   if (cl.silent) batch_options.enabled = 1;
   if (cl.make_plot) s.integrator.make_plot_flag = 1;
-  if (cl.no_compile) program.compile = false;
   if (cl.no_output) s.integrator.suppress_out = 1;
   if (cl.out_file) {
     s.batch_out_file = *cl.out_file;

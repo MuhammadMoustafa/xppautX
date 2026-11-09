@@ -5,11 +5,13 @@ and intl, on models/6cModel/rest.odex), open AUTO,
 Run/Steady state in ampPar with the model's own opt.inc settings, grab the rightmost of the
 branch's Hopf points, set Ds negative (-PERIODIC_DS) and Run/Periodic.
 
-    uv run --locked python auto_xppautx.py XPPAUTX [THREADS JACOBIAN [--no-compile]]
+    uv run --locked python auto_xppautx.py XPPAUTX [THREADS JACOBIAN [interpreted]]
+
+"interpreted" runs the model's copy with compile false (tools/interpreted_copy.py, W661).
 
 measure() returns {integrate, steady, periodic: {wall, cpu, labels, digest, points}}.
 """
-import hashlib, json, shutil, sys, tempfile, time
+import hashlib, json, os, shutil, subprocess, sys, tempfile, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -38,11 +40,18 @@ def rightmost_hb(labels):
     return k + 1, hbs[k]
 
 
-def measure(binary, threads=None, jacobian=None, extra_args=(), env=None, limit=LIMIT):
+def measure(binary, threads=None, jacobian=None, env=None, limit=LIMIT, interpreted=False):
     with tempfile.TemporaryDirectory(prefix='w269-mdb-') as tmp:
         work = Path(tmp) / 'model'
         shutil.copytree(MODEL_DIR, work)
-        s = Server(binary, str(work / MODEL), run=str(work), env=env, extra_args=extra_args)
+        model = work / MODEL
+        if interpreted:  # W661: the model's copy with compile false, beside the model's own files
+            out = work / 'interpreted' / (Path(MODEL).stem + '.odex')
+            out.parent.mkdir()
+            subprocess.run(['uv', 'run', '--locked', 'python', str(HERE.parents[2] / 'tools' / 'interpreted_copy.py'),
+                            '--convert', os.path.abspath(binary), str(model), str(out)], check=True)
+            model = out
+        s = Server(binary, str(model), run=str(work), env=env)
         try:
             return _measure(s, threads, jacobian, limit)
         finally:
@@ -85,7 +94,7 @@ def main():
     binary = sys.argv[1]
     threads = int(sys.argv[2]) if len(sys.argv) > 2 else None
     jacobian = sys.argv[3] if len(sys.argv) > 3 else None
-    r = measure(binary, threads, jacobian, sys.argv[4:])
+    r = measure(binary, threads, jacobian, interpreted=sys.argv[4:5] == ['interpreted'])
     for name in ('integrate', 'steady', 'periodic'):
         print(f"{name}: {r[name]['wall']:.2f} s wall, {r[name]['cpu']:.2f} s CPU")
         for lab in r[name].get('labels', []):

@@ -20,6 +20,7 @@
         "stop_at_limit": {"type": "boolean", "title": "Stop at the limit", "description": "Whether a state beyond the state limit stops the run, or only marks it."},
         "method": {"type": "string", "enum": ["discrete", "euler", "modified_euler", "runge_kutta", "adams", "gear", "volterra", "backward_euler", "qualrk", "stiff", "cvode", "dopri5", "dopri8", "rosenbrock", "symplectic"], "title": "Method", "description": "The integration method."},
         "subsystem_split": {"type": "string", "enum": ["equations", "run"], "title": "Subsystem split", "description": "What splits the model into independent subsystems: its equations alone, or also the run (a Poincare section or stop)."},
+        "compile": {"type": "boolean", "title": "Compile", "description": "Whether the equations run as compiled code or in the interpreter; a change applies when the model next loads."},
         "seed": {"type": "integer", "title": "Seed", "description": "The seed of the random numbers a run draws; the same seed gives the same run."},
         "step.relative_tolerance": {"type": "number", "exclusiveMinimum": 0, "title": "Relative tolerance", "description": "The relative error an adaptive method accepts in one step."},
         "step.absolute_tolerance": {"type": "number", "exclusiveMinimum": 0, "title": "Absolute tolerance", "description": "The absolute error an adaptive method accepts in one step."},

@@ -24,6 +24,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Stop at limit** (`stop_at_limit`): Whether a state beyond the state limit stops the run, or only marks it.
 - **Method** (`method`): The integration method.
 - **Subsystem split** (`subsystem_split`): What splits the model into independent subsystems: its equations alone, or also the run (a Poincare section or stop).
+- **Compile** (`compile`): Whether the equations run as compiled code or in the interpreter; a change applies when the model next loads.
 - **Seed** (`seed`): The seed of the random numbers a run draws; the same seed gives the same run.
 
 ### Step

@@ -186,11 +186,11 @@ void check_operations()
     /* random numbers have no derivative; the model then says why */
     CHECK(!fx.compile({x, RANDUNI}));
     CHECK(fx.model->jacobian.unavailable.find("uses random numbers") != std::string::npos);
-    /* --no-compile: none */
-    program.compile = false;
+    /* compile false (the option): none */
+    fx.session->numerics.compile = false;
     CHECK(!fx.compile({x}));
-    CHECK(fx.model->jacobian.unavailable == "the model is interpreted (--no-compile)");
-    program.compile = true;
+    CHECK(fx.model->jacobian.unavailable == "the model is interpreted (option compile is false)");
+    fx.session->numerics.compile = true;
 }
 
 /* the model file's exact Jacobian at its initial point against central

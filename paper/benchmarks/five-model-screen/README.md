@@ -78,9 +78,9 @@ For the complete research status, artifact map, safe rerun instructions and rema
 ## W269 (#326, 2026-10-11): the compiled build, three engines
 
 Since this screen, xppautX compiles every program a model holds with TinyCC
-when it loads (W258/W259/W266); `--no-compile` runs the interpreter. W269
+when it loads (W258/W259/W266); the interpreter (compile false) runs the interpreter. W269
 reran the screen with three engines: XPPAUT 8.0, xppautX compiled (its
-default) and xppautX `--no-compile`, plus the sandbox model.
+default) and xppautX the interpreter (compile false), plus the sandbox model.
 
 - Builds: XPPAUT 8.0 c021b511 with W238's exact build command; xppautX at
   `0643234f` (the W269 worktree's HEAD, pushed master) with W238's command
@@ -106,7 +106,7 @@ Results: `results-w269-2026-10-11/` (runs, timings, summary, comparison,
 every output, `models/` as converted by the W269 build, `cases.json`,
 `compile-counts.json`, `provenance.json`). Tables: `../w269_tables.py screen`.
 
-| Model | XPPAUT 8.0 | xppautX compiled | xppautX --no-compile | XPPAUT / compiled | --no-compile / compiled | compiled vs XPPAUT | compiled vs --no-compile |
+| Model | XPPAUT 8.0 | xppautX compiled | xppautX interpreted | XPPAUT / compiled | interpreted / compiled | compiled vs XPPAUT | compiled vs interpreted |
 |---|---:|---:|---:|---:|---:|---|---|
 | episodic | 2.947 +/- 0.077 | 1.445 +/- 0.025 | 3.261 +/- 0.015 | 2.04x | 2.26x | differs (max 3.12, 17369 outside) | exact |
 | lecdiff200 | 0.232 +/- 0.002 | 0.198 +/- 0.015 | 0.300 +/- 0.019 | 1.17x | 1.52x | exact | exact |
@@ -118,7 +118,7 @@ every output, `models/` as converted by the W269 build, `cases.json`,
 Wall seconds, mean +/- sample SD of five measured runs. Valid runs 90/90; every engine repeats its own output in all five runs: True.
 
 - 90/90 runs valid; each engine repeats its own output in all five runs.
-- Compiling changes no number: compiled and `--no-compile` give identical
+- Compiling changes no number: compiled and the interpreter (compile false) give identical
   exported values on all six models, and on the five W238 models the
   compiled outputs have the same hashes as W238's xppautX (88e09741) and the
   XPPAUT outputs the same hashes as W238's XPPAUT.

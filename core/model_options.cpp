@@ -298,6 +298,11 @@ constexpr OptionRow rows[] = {
    /* the equations alone: a Poincare section or stop does not join the states */
    .reset = [](Session &s) { s.numerics.subsystem_split = SubsystemSplit::equations; },
    .key = "subsystem_split", .label = "Subsystem split", .rule = OptionRule::choice, .choices = subsystem_split_names, .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "compile", .help = "Whether the equations run as compiled code or in the interpreter; a change applies when the model next loads.", .once = true,
+   .boolean = member([](auto &s) -> auto & { return s.numerics.compile; }),
+   /* XPPAUT interprets; compiled code is xppautX's (W258) */
+   .reset = [](Session &s) { s.numerics.compile = true; },
+   .rule = OptionRule::choice, .choices = boolean_names},
   {.group = option_group::integration, .kind = OptionKind::whole, .odex = "seed", .help = "The seed of the random numbers a run draws; the same seed gives the same run.", .xppaut_names = {"SEED"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.rand_seed; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {

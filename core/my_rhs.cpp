@@ -25,7 +25,7 @@ void state_values(const xpp::Model &m, double t, const double *y, int node, int 
 template <class Set, class Evaluate>
 void fixed_values(const xpp::Model &m, int node, double *c, double *v, xpp::Session *s, Set &&set, Evaluate &&evaluate)
 {
-  if (node==m.node && program.compile && m.native_rhs) {
+  if (node==m.node && m.native_rhs) {
     m.native_rhs(c,v,s,nullptr);
     return;
   }
@@ -46,7 +46,7 @@ void rhs_order(const xpp::Model &m, double t, const double *y, double *ydot, dou
   /* the fixed variables and the equations in one native call (W469): a
      model with native_equations has no network or DAE, so between reads
      and writes nothing they do (do_daes only records that no DAE failed) */
-  if (program.compile && m.native_equations) {
+  if (m.native_equations) {
     between();
     m.native_rhs(c,v,s,ydot);
     return;
