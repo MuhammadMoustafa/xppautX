@@ -47,8 +47,8 @@ constexpr const char *nullclines_dump_file = "nullclines.dat";
 /* XPPAUT's most curves in one window (xp2 to xp8 and the first) */
 constexpr int max_plot_curves = 8;
 /* what a .ode's quiet and logfile become: a warning each */
-constexpr std::string_view log_level_is_the_users = "what the log shows is the user's, not a model's (the preferences' log_level, --verbose and --quiet), so the option is dropped";
-constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the preferences' log_file and --logfile), so the option is dropped";
+constexpr std::string_view log_level_is_the_users = "what the log shows is the user's, not a model's (the preferences' log_level, --verbose), so the option is dropped";
+constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the preferences' log_file), so the option is dropped";
 /* what a .ode's several starting graphs (multiwin, simplot, xlo2 to yhi8) become: one warning */
 constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join graph_1 and the options of several starting graphs are dropped: several graphs are a session's (window.create)";
 
@@ -877,7 +877,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::interface, .kind = OptionKind::path, .odex = "animation", .help = "The animation file the window plays beside a run.", .once = true,
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (!files::name_ok(v.text) || !files::has_extension(v.text, ".anix")) return "must be an .anix base name";
-     if (v.apply && !s.model().command_line.ani_file) {
+     if (v.apply) {
        s.animation.options.file = include_path(s.model().this_file, v.text);
        s.animation.options.use_file = 1;
      }

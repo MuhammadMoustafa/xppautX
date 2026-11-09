@@ -2,7 +2,7 @@
 # The core never prints to stdout or stderr directly (issue: W11): in
 # --server mode stdout carries the JSON protocol, so a stray printf
 # corrupts it, and every message belongs in xpp_log (core/xpp_log.h) so
-# --verbose/--debug and --logfile control it and browser mode can show it
+# --verbose/--debug and the preferences' log_file control it and browser mode can show it
 # in the page's log panel. tools/verify.sh runs this right after
 # utf8check. Usage: tools/stdoutcheck.sh
 cd "$(dirname "$0")/.." || exit 1

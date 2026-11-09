@@ -969,7 +969,7 @@ int main(void)
     CHECK(starts(model_error("options { output: { runnow: 1 } }\nx'=0\n"), "1:21 `runnow` is not an option"));
     put("build/test_odex_model.ode", "x'=0\n@ runnow=1\ndone\n");
     std::vector<xpp::odex::Diagnostic> notes;
-    const auto converted = xpp::odex::convert_text("build/test_odex_model.ode", {}, &notes);
+    const auto converted = xpp::odex::convert_text("build/test_odex_model.ode", &notes);
     CHECK(converted && converted->find("batch:") == std::string::npos);
     CHECK(converted && converted->find("# @ runnow=1") != std::string::npos);
     CHECK(std::ranges::any_of(notes, [](const auto &n) { return n.id == "runnow-removed" && n.place.line == 2; }));

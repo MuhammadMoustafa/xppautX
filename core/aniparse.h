@@ -13,10 +13,10 @@ int run_now_grab(const Session &s);
 
 void reset_comets(Session &s);
 
-/* The animator's options: the --anifile to load at the start, and whether
+/* The animator's options: the animation (the model's animation option or a .anix's own) to load at the start, and whether
    the animation follows an integration as it runs */
 struct XppAniOptions {
-    int use_file = 0;   /* --anifile was given */
+    int use_file = 0;   /* an animation is named */
     std::string file;   /* the .ani file it named */
     int on_the_fly = 0; /* animate while integrating */
 };

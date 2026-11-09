@@ -903,34 +903,6 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
      next_line(old);
    }
    else {
-        if(!src.model->command_line.include.empty())
-	{
-		/* only once */
-		const std::vector<std::string> includes=std::move(src.model->command_line.include);
-		src.model->command_line.include.clear();
-		for (const std::string &inc : includes)
-		{
-			const xpp::Result<> allowed = xpp::approve_model_path(*src.model, inc, xpp::Place{});
-			xpp::UniqueFile fnew = allowed ? xpp::open_model_file(*src.model,inc) : xpp::UniqueFile();
-      			if(!fnew){
-			  /* a file that could not be read or was refused: no line */
-			  auto error = allowed ? xpp::files::open_error("model",inc) : allowed.error();
-			  error.place = xpp::Place{inc};
-              error.what += " (named by the --include flag)";
-              model_failed(std::move(error));
-       			}
-      			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
-			p.included++;
-			LineSource inc_src;
-			inc_src.fp=fnew.get();
-			inc_src.model=src.model;
-			inc_src.file=inc;
-			inc_src.index=static_cast<int>(p.files.size());
-			p.files.push_back(inc);
-       			do_new_parser(inc_src,inc,1,false,p);
-		}
-	}
-
      old=first; /* pass the first line ....  */
      start=1;
    }

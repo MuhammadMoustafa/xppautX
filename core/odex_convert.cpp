@@ -1849,7 +1849,7 @@ int check_file(const std::string &file)
     const Result<> loaded = line ? inspect_model(*line, load_eqn, compiled) : std::unexpected(line.error());
     if (!loaded) error = loaded.error();
   } else {
-    const Result<std::string> converted = convert_text(file, {}, &diagnostics, nullptr, DeclinedRename::report);
+    const Result<std::string> converted = convert_text(file, &diagnostics, nullptr, DeclinedRename::report);
     if (!converted) error = converted.error();
   }
   capture.clear();
@@ -1888,13 +1888,11 @@ void show_diagnostics(const std::vector<Diagnostic> &diagnostics)
   }
 }
 
-Result<std::string> convert_text(const std::string &ode,
-                               const std::vector<std::string> &includes, std::vector<Diagnostic> *diagnostics,
+Result<std::string> convert_text(const std::string &ode, std::vector<Diagnostic> *diagnostics,
                                std::vector<std::string> *outside_paths, DeclinedRename declined)
 {
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
   std::vector<std::string> args{"xppautX", ode};
-  for (const std::string &include : includes) args.insert(args.end(), {"--include", include});
   const Result<CommandLine> line = parse_command_line(std::move(args));
   if (!line) return std::unexpected(line.error());
   std::string text;
@@ -2005,10 +2003,10 @@ Result<bool> write_converted(const std::string &source, const std::string &out, 
   return true;
 }
 
-Result<bool> open_ode(const std::string &ode, const std::vector<std::string> &includes,
-                      std::vector<Diagnostic> &diagnostics, std::vector<std::string> &outside_paths)
+Result<bool> open_ode(const std::string &ode, std::vector<Diagnostic> &diagnostics,
+                      std::vector<std::string> &outside_paths)
 {
-  Result<std::string> text = convert_text(ode, includes, &diagnostics, &outside_paths);
+  Result<std::string> text = convert_text(ode, &diagnostics, &outside_paths);
   if (!text) return std::unexpected(text.error());
   return write_converted(ode, odex_name(ode), *text);
 }
@@ -2016,7 +2014,7 @@ Result<bool> open_ode(const std::string &ode, const std::vector<std::string> &in
 int convert_file(const std::string &ode)
 {
   std::vector<Diagnostic> diagnostics;
-  Result<std::string> text = convert_text(ode, {}, &diagnostics);
+  Result<std::string> text = convert_text(ode, &diagnostics);
   show_diagnostics(diagnostics);
   const std::string out = odex_name(ode);
   Result<> written;

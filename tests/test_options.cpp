@@ -257,7 +257,7 @@ int main(void)
         xpp::apply_command_line(session, std::move(*silent_line));
         CHECK(xpp::batch_options.enabled == 1);
         xpp::batch_options.enabled = 0;
-        for (const char *name : {"silent", "setfile", "parfile", "icfile", "logfile", "include", "anifile", "outfile", "newseed", "version", "internset", "uset", "rset", "qsets", "qpars", "qics", "quiet", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "readset", "with", "equil", "verbose", "debug"}) {
+        for (const char *name : {"silent", "setfile", "parfile", "icfile", "anifile", "outfile", "newseed", "version", "internset", "uset", "rset", "qsets", "qpars", "qics", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "equil", "verbose", "debug"}) {
             std::string word = "-" + std::string(name);
             argv[1] = word.data();
             const xpp::Result<> r = check_args(2, argv);
@@ -296,8 +296,12 @@ int main(void)
             CHECK(fault({"--internset", "yes"}) == "--internset needs a whole number, not \"yes\"");
             CHECK(fault({"--parfile", "a", "--parfile", "b"}) == "--parfile given twice");
             CHECK(fault({"--setfile", "a", "--setfile", "b"}) == "--setfile given twice");
-            CHECK(fault({"--readset", "a", "--with", "b"}) == "--with given with --readset: one of --readset and --with");
-            CHECK(fault({"--uset", "a", "--uset", "b", "--include", "c", "--include", "d"}).empty());
+            /* W667: the removed switches are unknown options, and --anifile is --convert's operand only */
+            for (const char *removed : {"--readset", "--with", "--include", "--quiet", "--logfile"})
+                CHECK(fault({removed, "a"}) == std::string("no such option ") + removed);
+            CHECK(fault({"--anifile", "a.ani"}) == "--anifile needs --convert (it is the .ani that --convert writes into a .anix)");
+            CHECK(fault({"--convert", "--anifile", "a.ani", "model.odex"}).empty());
+            CHECK(fault({"--uset", "a", "--uset", "b"}).empty());
             CHECK(fault({"--equil", "1", "--internset", "0", "model.ode"}).empty());
             CHECK(fault({"--equil"}) == "--equil needs an argument");
         }
@@ -715,7 +719,7 @@ int main(void)
     }
 
     /* an include file that cannot be read stops the load: the #include
-       line's own (the model's file and line), and the --include flag's */
+       line's own (the model's file and line) */
     {
         const xpp::Session *before = &xpp::client_session();
         CHECK(write_file(bad_ode, std::string(model_text) + "#include nosuch.inc\ndone\n"));
@@ -730,17 +734,6 @@ int main(void)
             CHECK(l.error().place.line == 5);
             CHECK(l.error().what.find("nosuch.inc") != std::string::npos);
             if (l.error().place.line != 5) printf("  include: %s\n", l.error().text().c_str());
-        }
-        CHECK(write_file(bad_ode, std::string(model_text) + "done\n"));
-        char flag[] = "--include";
-        char missing[] = "nosuch.inc";
-        char *argv2[] = {arg0, file, flag, missing, nullptr};
-        const xpp::Loaded f = load_args(4, argv2, 1);
-        CHECK(!f.has_value());
-        CHECK(&xpp::client_session() == before);
-        if (!f) {
-            CHECK(f.error().place.file == "nosuch.inc");
-            CHECK(f.error().what.find("--include") != std::string::npos);
         }
     }
 

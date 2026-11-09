@@ -455,7 +455,7 @@ view) — goes to **Messages** at the bottom of the page, quiet by default
 (warnings and errors); `--verbose`/`--debug` raise the level (core/xpp_log.h).
 The terminal that started it gets only what the page cannot show: the
 warnings and errors, since the page may be closed, and the browser's
-address; with `--verbose` or `--debug`, or `--logfile`'s file, everything
+address; with `--verbose` or `--debug`, or the preferences' `log_file`, everything
 (the file gets all of it either way). The
 core never prints to stdout or stderr directly, so nothing bypasses
 Messages.

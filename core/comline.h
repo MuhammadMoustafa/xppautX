@@ -15,8 +15,6 @@ struct Session; /* session.h */
 
 /* what the program shows its session in */
 enum class Interface { window, browser, server };
-/* --readset FILE or --with TEXT: a set of values read after the load */
-enum class ExternalOptions { none, file, text };
 
 /* the whole command line, read once by parse_command_line: the program's own
    switches (what interface, the port, --convert) and what a load takes (the
@@ -37,16 +35,13 @@ struct CommandLine {
   bool silent = false, new_seed = false, make_plot = false, no_output = false;
   bool query_sets = false, query_pars = false, query_ics = false;
   bool dry_run() const { return query_sets || query_pars || query_ics; } /* --qsets/--qpars/--qics: nothing is run */
-  std::optional<std::string> log_file;        /* --logfile: the log goes there (over the preferences' log_file) */
   std::optional<XppLogLevel> log_threshold;    /* --verbose, --debug: the last one given */
   std::optional<bool> use_all_sets;            /* --internset 1 / 0 */
   std::optional<int> equilibria;               /* --equil N */
   std::optional<std::string> set_file, par_file, ic_file, out_file, ani_file; /* given or not */
   std::string out_place;                       /* --outfile as written, for an error's place */
-  ExternalOptions external = ExternalOptions::none;
-  std::string external_value;                  /* --readset's file or --with's text */
-  std::vector<std::string> include, use_sets, skip_sets; /* --include, --uset, --rset in order */
-  std::vector<std::pair<std::string_view, std::string>> options; /* --quiet ... through set_option, in order */
+  std::vector<std::string> use_sets, skip_sets; /* --uset, --rset in order */
+  std::vector<std::pair<std::string_view, std::string>> options; /* --plotfmt, --dfdraw, --ncdraw through set_option, in order */
 
 };
 
@@ -61,7 +56,7 @@ void apply_command_line(Session &s, CommandLine cl);
    --rset) into batch_options */
 int if_needed_select_sets(const Model &m);
 /* after a load, in every mode: the files the command line names
-   (--setfile, --parfile, --icfile) and its --readset/--with options, into s */
+   (--setfile, --parfile, --icfile) into s */
 void load_command_line_values(Session &s);
 
 } // namespace xpp

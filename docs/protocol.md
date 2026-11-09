@@ -1616,7 +1616,7 @@ in every mode, before exports: `nullclines_file` (`ncdraw=2`: `nullclines.dat`) 
 `direction_field.draw` `arrows_and_save`/`scaled_arrows_and_save` (`dfdraw=4`/`5`) dirfields.dat through the normal writer rules in the current
 working folder (W346). These are no longer extra script commands.
 After every run the script sends `--equil 0`/`1` as `equilibrium.export` with `file` `"equil.dat"` (`shoot` true for `--equil 1`, `confirm` true to replace the batch output). The files the command line names
-(`--setfile`, `--parfile`, `--icfile`, `--readset`, `--with`) are read by the
+(`--setfile`, `--parfile`, `--icfile`) are read by the
 model's start in every mode, before the script.
 
 ## Events (server to client)

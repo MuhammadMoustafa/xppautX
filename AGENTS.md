@@ -964,7 +964,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `xpp::log(level, fmt, args...)` with ERROR/WARN/INFO/DEBUG, threshold
   WARN, raised by `--verbose`/`--debug`. The caller writes the newline;
   output goes to
-  `--logfile`'s file if given, else stderr, which browser mode shows in the
+  the preferences' log_file if set, else stderr, which browser mode shows in the
   page's log. With a page, the terminal gets WARN and ERROR too, and every
   message at `--verbose`/`--debug` (`xpp::log_set_terminal`, W501): what the
   page cannot show, a closed page included. The other modes write once, to the

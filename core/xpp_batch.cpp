@@ -127,15 +127,12 @@ namespace {
 Result<CommandLine> animation_command_line(CommandLine cl)
 {
     if (files::has_extension(cl.model_file, ".anix")) {
+        /* a .anix opens its animation with the model it names: the animation is the load's own (ani_file) */
         const std::string animation = cl.model_file;
         auto model = animation_model(animation);
         if (!model) return std::unexpected(model.error());
-        auto args = cl.arguments;
-        args[cl.model_argument] = *model;
-        args.insert(args.end(), {"--anifile", animation});
-        auto reread = parse_command_line(std::move(args));
-        if (!reread) return std::unexpected(reread.error());
-        return reread;
+        cl.model_file = *model;
+        cl.ani_file = animation;
     }
     return cl;
 }
@@ -210,12 +207,10 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
     cl = std::move(*resolved);
     std::string file, converted;
     bool existing = false;
-    std::vector<std::string> included;
     std::vector<odex::Diagnostic> diagnostics;
     std::vector<std::string> outside_paths;
     Loaded prepared = in_model([&](Session &s) {
         apply_command_line(s, cl);
-        included = cl.include;
         if (batch) batch_options.enabled = 1;
         choose_model_file(s);
         file = s.model().this_file;
@@ -230,21 +225,14 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
     Loaded loaded = prepared;
     if (prepared) {
         if (xpp::files::has_extension(file, ".ode")) {
-            Result<bool> opened = odex::open_ode(file, included, diagnostics, outside_paths);
+            Result<bool> opened = odex::open_ode(file, diagnostics, outside_paths);
             if (!opened) loaded = std::unexpected(opened.error());
             else {
                 converted = odex::odex_name(file);
                 existing = !*opened;
-                /* The converter has folded these foreign includes into
-                   the .odex; Reload uses that file from now on. */
-                std::vector<std::string> args;
-                for (size_t i = 0; i < cl.arguments.size(); ++i) {
-                    if (cl.arguments[i] == "--include" && i + 1 < cl.arguments.size()) ++i;
-                    else args.push_back(static_cast<int>(i) == cl.model_argument ? converted : cl.arguments[i]);
-                }
-                Result<CommandLine> converted_line = parse_command_line(std::move(args));
-                if (converted_line) cl = std::move(*converted_line);
-                else loaded = std::unexpected(converted_line.error());
+                /* Reload uses the .odex the converter wrote from now on */
+                cl.arguments[static_cast<std::size_t>(cl.model_argument)] = converted;
+                cl.model_file = converted;
             }
         }
         if (loaded) loaded = load_in(cl, batch, saved, check, load_eqn, true, outside_paths);

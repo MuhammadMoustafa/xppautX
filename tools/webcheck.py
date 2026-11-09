@@ -18,13 +18,12 @@ args = ap.parse_args()
 
 run = tempfile.mkdtemp(prefix='xppweb')
 xppclient.copy_model(args.ode, run)
-# W121a: an external-options line with no assignments changes no values.
-# --debug logs the line read from disk, exercising UTF-8 independently of
-# the platform's command-line encoding.
+# W121a: --debug logs the model's file name, so the copy is named with a UTF-8 marker:
+# the log carries it independently of the platform's command-line encoding.
 log_marker = 'café 😀'
-with open(os.path.join(run, 'log-text.set'), 'w', encoding='utf-8') as f:
-    f.write('# ' + log_marker + '\n')
-proc = subprocess.Popen([os.path.abspath(args.bin), '--browser', '--no-open', '--port', '0', '--debug', os.path.basename(args.ode), '--readset', 'log-text.set'],
+model_name = log_marker + os.path.splitext(args.ode)[1]
+os.replace(os.path.join(run, os.path.basename(args.ode)), os.path.join(run, model_name))
+proc = subprocess.Popen([os.path.abspath(args.bin), '--browser', '--no-open', '--port', '0', '--debug', model_name],
                         cwd=run, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
 
 
@@ -347,7 +346,7 @@ listing = json.loads(body).get('files', []) if st == 200 else []
 entry = [f for f in listing if f['name'] == 'bytes.bin']
 check('GET /files lists name, size, mtime and SHA-256',
       entry and entry[0]['size'] == len(blob) and entry[0]['sha256'] == hashlib.sha256(blob).hexdigest()
-      and entry[0]['mtime'] > 0 and any(f['name'] == os.path.basename(args.ode) for f in listing), str(listing)[:300])
+      and entry[0]['mtime'] > 0 and any(f['name'] == model_name for f in listing), str(listing)[:300])
 st, _ = req('PUT', '/files/bytes.bin' + tok, b'replaced')
 st2, body = req('GET', '/files/bytes.bin' + tok)
 check('PUT replaces a file', st == 200 and body == b'replaced', '%s %s' % (st, body[:40]))

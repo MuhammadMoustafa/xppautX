@@ -196,7 +196,7 @@ ModelRequest saved_request(const Session &s, std::string dir, SavedFile f)
   req.dir=std::move(dir);
   req.file=f.manifest.model_name;
   req.command_line={program_name(s.model())};
-  for(std::string &a : xpp_saved_args(f))req.command_line.push_back(std::move(a));
+  req.command_line.push_back(f.manifest.model_name);
   req.saved=f.model;
   req.restore=std::move(f);
   return req;

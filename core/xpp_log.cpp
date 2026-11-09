@@ -19,7 +19,7 @@ thread_local xpp::LogCapture *capture = nullptr;
 thread_local std::string *autox_held = nullptr;
 thread_local std::string *autox_held_warnings = nullptr;
 
-/* where messages go: --logfile's file when one was given, else stderr
+/* where messages go: the preferences' log_file when one is set, else stderr
    (stdout is the protocol's in --server mode; the file's default is stdout) */
 FILE *sink()
 {

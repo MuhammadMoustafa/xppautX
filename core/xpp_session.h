@@ -98,9 +98,6 @@ enum class SavedKind { session, snapshot };
    where it is (absolute; for a snapshot the recording's), name what an
    error message calls it */
 std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::string &name, std::string_view bytes, SavedKind kind);
-/* the command line's arguments that load f's model: its file, and
-   --anifile's animation when it was loaded with one */
-std::vector<std::string> xpp_saved_args(const SavedFile &f);
 /* The first members of the session archive carrying the model of s: the state file with the manifest alone
    (Save session writes the whole state there) and the model's files; man (its data as given) is filled with the
    model's name and animation; the error when the model was not read from files (a model typed in) */

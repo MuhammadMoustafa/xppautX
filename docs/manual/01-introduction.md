@@ -209,11 +209,9 @@ and stops playback with exit 1. `--yes` replaces them without asking.
 
 `--verbose` and `--debug` raise how much xppautX logs (parser stats, the
 startup banner, autoX's table, solver chatter); by default it logs only
-warnings and errors. Without `--logfile`, that log goes to the page's
-Messages panel, live; the terminal gets the warnings and errors (a page
-may be closed), and everything with `--verbose` or `--debug`. `--logfile FILE`
-sends it to FILE instead, so a run started that way has nothing in Messages
-and the terminal shows only its warnings and errors. What the log shows and where it goes are yours, not a model's: the preferences file (`preferences.odex`) holds `log_level` (`error`, `warn`, `info` or `debug`) and `log_file` (an absolute path), and `--verbose`, `--debug`, `--quiet` and `--logfile` win over them; XPPAUT's `@ quiet=` and `@ logfile=` of a `.ode` are dropped with a warning. See
+warnings and errors. That log goes to the page's Messages panel, live; the
+terminal gets the warnings and errors (a page may be closed), and everything
+with `--verbose` or `--debug`. What the log shows and where it goes are yours, not a model's: the preferences file (`preferences.odex`) holds `log_level` (`error`, `warn`, `info` or `debug`) and `log_file` (an absolute path, which sends the log to that file instead), and `--verbose` and `--debug` win over `log_level`; XPPAUT's `@ quiet=` and `@ logfile=` of a `.ode` are dropped with a warning. See
 [Using the interface: the log](04-using-the-interface.md#the-log).
 
 ### Command-line options
@@ -247,12 +245,9 @@ follow in any order. The options below control the model and its run.
 | `--parfile FILE` | Load parameter values from FILE before starting |
 | `--icfile FILE` | Load initial conditions from FILE before starting |
 | `--setfile FILE` | Import a set file XPPAUT wrote before starting |
-| `--readset FILE` | Load a set file the way an internal set is loaded |
-| `--with "STRING"` | Apply STRING as if it were an internal set |
 | `--internset <0\|1>` | Run (1) or skip (0) the model's internal sets in batch |
 | `--uset NAME` | Include the named internal set in a batch run |
 | `--rset NAME` | Exclude the named internal set from a batch run |
-| `--include FILE` | Include FILE, as the ODE file's `#include` would |
 | `--qsets` / `--qpars` / `--qics` | Query internal sets, parameters or initial conditions to the output file, then exit |
 | `--equil <0\|1>` | Write equilibria to `equil.dat`, and with `1` the invariant manifolds too |
 | `--mkplot` | Produce a plot in batch mode |
@@ -262,9 +257,7 @@ follow in any order. The options below control the model and its run.
 | `--convert` | Convert `.ode` to `.odex`; terminal name questions have a 60-second deadline |
 | `--check` | Validate `.ode` or `.odex` in memory; JSON diagnostics, no window or written files; exit 0 clean/info, 1 warnings, 2 error |
 | `-y`, `--yes` | Answer every terminal question yes (suggested conversion names, replacing files) and print each answer taken |
-| `--anifile FILE` | Load an animation script (`.ani`) at startup |
-| `--quiet <0\|1>` | `1` logs only warnings and errors (the default level, the one `--verbose` and `--debug` raise) |
-| `--logfile FILE` | Send console output to FILE |
+| `--anifile FILE` | With `--convert`: the `.ani` that `--convert model.odex` writes into a `.anix` (a model's animation is its own file, named by its `animation` option) |
 | `--verbose` / `--debug` | Raise the log level (`xppautX`'s `--verbose`/`--debug` do the same) |
 | `--version` | Print the version and exit |
 

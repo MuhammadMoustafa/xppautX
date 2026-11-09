@@ -117,14 +117,11 @@ static std::string usage_tail()
     "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n"
     "  --setfile FILE   import an XPPAUT set; --parfile FILE / --icfile FILE load values\n"
     "  --outfile FILE   batch output; --noout suppresses rows\n"
-    "  --include FILE   include text; --anifile FILE loads animation code\n"
-    "  --logfile FILE   console log; --quiet 0|1 controls INFO logging\n"
     "  --newseed        randomize seed\n"
     "  --internset 0|1 / --uset NAME / --rset NAME   select internal sets\n"
     "  --qsets / --qpars / --qics   query sets / parameters / initial conditions\n"
     "  --mkplot / --plotfmt svg|ps   batch plot and format\n"
     "  --dfdraw 1-5 / --ncdraw 1|2   post-run fields / nullclines\n"
-    "  --readset FILE / --with TEXT   internal-set settings\n"
     "  --equil 0|1      batch equilibria (1 also writes manifolds)\n"
     "  -h / --help      help; --version prints the version\n"
     "Word options require two dashes. X11 options are removed.\n", xpp::http::DEFAULT_PORT);
@@ -184,7 +181,7 @@ static void run_session(void)
             if (!saved) exit(1); /* the error message said why, at the file */
             opened = xpp::files::absolute(model_file);
             xpp::files::change_dir(xpp::files::split_path(saved->path).first.c_str());
-            const std::vector<std::string> model = xpp_saved_args(*saved);
+            const std::vector<std::string> model{saved->manifest.model_name};
             args.erase(args.begin() + static_cast<std::ptrdiff_t>(i));
             args.insert(args.begin() + static_cast<std::ptrdiff_t>(i), model.begin(), model.end());
             changed = true;
@@ -257,7 +254,7 @@ int main(int argc, char **argv)
         /* what the log shows and where it goes: the command line's, else the preferences' (a bad file is said by the load, threads_load) */
         const xpp::Result<xpp::prefs::Preferences> kept = xpp::prefs::load_prefs();
         xpp::log_set_threshold(cl.log_threshold.value_or(kept ? kept->log_level : XPP_LOG_WARN));
-        if (!cl.log_file && kept && !kept->log_file.empty() && !xpp::log_open_file(kept->log_file))
+        if (kept && !kept->log_file.empty() && !xpp::log_open_file(kept->log_file))
             xpp::log(XPP_LOG_WARN, "{}\n", xpp::files::write_error("log_file", kept->log_file).text());
     }
     if (cl.version) {
@@ -285,7 +282,7 @@ int main(int argc, char **argv)
     xpp::batch_options.yes = cl.yes;
     /* --convert [--yes] model.ode: model.odex beside it (odex.h) */
     if (cl.convert) {
-        if (cl.model_file.empty() || cl.load_options != (cl.ani_file ? 1U : 0U)) {
+        if (cl.model_file.empty() || cl.load_options != 0) {
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }

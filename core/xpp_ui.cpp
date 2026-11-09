@@ -62,7 +62,7 @@ static std::optional<std::string> ask_terminal(const std::string &question, cons
 
 void report_automatic(std::string_view question, std::string_view answer)
 {
-    /* Immediate like the terminal question: a load may reopen --logfile,
+    /* Immediate like the terminal question: a load may reopen the log file,
        which must not erase the answer or hide it in captured diagnostics. */
     print(stderr, "{} -> {} (answered automatically)\n", question, answer);
     fflush(stderr);

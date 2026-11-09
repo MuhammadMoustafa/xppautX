@@ -11000,7 +11000,7 @@ def check_outside_paths():
         finally:
             s.close()
 
-        # The log is the user's, not a model's: --logfile as typed refuses a link and names it.
+        # The log is the user's, not a model's: the preferences' log_file refuses a link and names it.
         log = os.path.join(root, 'swapped.log').replace(os.sep, '/')
         target = os.path.join(root, 'target.txt')
         with open(target, 'w') as f:
@@ -11012,9 +11012,14 @@ def check_outside_paths():
                 raise
             print('SKIP W297 Windows log symlink: ' + str(error))
         else:
-            result = subprocess.run([binary, 'tab.odex', '--silent', '--logfile', log], cwd=proj, input='',
-                                    capture_output=True, text=True, timeout=60 * SLOW, env=dict(os.environ, **env))
-            check('W297: command-line logfile refuses link and names file',
+            log_config = os.path.join(root, 'log-config')
+            os.makedirs(log_config)
+            with open(os.path.join(log_config, 'preferences.odex'), 'w', encoding='utf-8') as f:
+                f.write('version 4\npreferences {\n  log_file: "%s",\n}\n' % log)
+            result = subprocess.run([binary, 'tab.odex', '--silent'], cwd=proj, input='',
+                                    capture_output=True, text=True, timeout=60 * SLOW,
+                                    env=dict(os.environ, XPP_CONFIG_DIR=log_config))
+            check('W297: the preferences log file refuses a link and names file',
                   result.returncode != 0 and 'swapped.log' in result.stderr and open(target).read() == 'keep target', result.stderr)
 
     finally:
@@ -11152,7 +11157,7 @@ def check_create_folders():
         model = os.path.join(root, 'model.odex')
         copy_model(args.ode, model)
         env = {'XPP_CONFIG_DIR': os.path.join(root, 'config')}
-        for option in ('--outfile', '--logfile'):
+        for option in ('--outfile',):
             for mode, flags, answer in [('yes', ['--yes'], ''), ('terminal', [], 'y\n'), ('eof', [], '')]:
                 folder = os.path.join(root, option[2:] + '-' + mode)
                 destination = os.path.join(folder, 'result.dat')
@@ -11160,8 +11165,6 @@ def check_create_folders():
                                         cwd=root, env=dict(os.environ, **env), input=answer,
                                         capture_output=True, text=True, encoding='utf-8', timeout=90 * SLOW)
                 transcript = result.stderr
-                if option == '--logfile' and os.path.isfile(destination):
-                    with open(destination, encoding='utf-8') as log: transcript += log.read()
                 expected = mode in ('yes', 'terminal')
                 check('W303: %s / %s' % (option, mode),
                       os.path.isfile(destination) == expected and os.path.isdir(folder) == expected

@@ -194,7 +194,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     std::optional<SavedFile> f = xpp_saved_read(path);
     CHECK(f && f->manifest.model_name == "main.odex" && f->model.files == files && f->model.in == path);
     if (!f) return;
-    CHECK(xpp_saved_args(*f) == std::vector<std::string>{"main.odex"});
+    CHECK(f->manifest.model_name == "main.odex" && f->manifest.anifile.empty());
 
     /* the files on the disk gone: the saved model loads from the file */
     for (const char *name : {"main.odex", "inc.odex", "w.tab"}) CHECK(xpp::files::remove(name) == 0);

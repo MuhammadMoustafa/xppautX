@@ -73,7 +73,7 @@ struct Preferences {
     /* THREADS_AUTO, or the number of threads autoX's collocation and a sweep's runs use */
     unsigned threads = THREADS_AUTO;
     /* what the log shows (xpp::log_level_names) and the file it goes to ("" is stderr, an absolute path): the user's, not a
-       model's (W619); --verbose, --debug, --quiet and --logfile win over them */
+       model's (W619); --verbose and --debug win over them */
     XppLogLevel log_level = XPP_LOG_WARN;
     std::string log_file;
     /* newest first, none twice */

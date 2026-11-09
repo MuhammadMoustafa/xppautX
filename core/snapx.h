@@ -48,7 +48,7 @@ inline constexpr std::string_view model_folder = "model/";
 /* the manifest, the first keys of the state file's session statement: `model`, `animation` and `data` */
 struct Manifest {
     std::string model_name; /* the model's own file, as it names it: the member model/<model_name> */
-    std::string anifile;    /* --anifile's animation the model was loaded with, one of its files ("": none) */
+    std::string anifile;    /* the animation the model was loaded with, one of its files ("": none) */
     bool data = false;      /* data.npz holds the data table (a session file's alone) */
     bool operator==(const Manifest &) const = default;
 };

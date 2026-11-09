@@ -467,11 +467,8 @@ run or the files, not the X11 windows:
 - **--internset *B***: run (`1`) or not (`0`) internal sets during a batch run.
 - **--uset *setname***: names an internal set to run during a batch run (repeatable).
 - **--rset *setname***: names an internal set *not* to run during a batch run (repeatable).
-- **--include *filename***: names a file to include along with the selected file (the `#include` directive, from the command line).
 - **--qsets / --qpars / --qics**: query the names of internal sets, the parameters, or the initial conditions and save the results to `--outfile`; lets an external program or script inspect an ODE model.
-- **--quiet *B***: verbose log messages will (`B=0`) or will not (`B=1`) be written; xppautX's own `--verbose`/`--debug` raise the level further (core/xpp_log.h).
-- **--logfile *filename***: the file to which log messages are written (also xppautX's `--logfile`).
-- **--anifile *filename***: loads an animation (`.ani`) from the named file at start-up; useful for teaching demonstrations.
+- **--anifile *filename***: with `--convert`, the `.ani` that `--convert model.odex` writes into a `.anix`.
 - **--mkplot**: with `--silent`, writes a plot named after the ODE file (or numbered, for several); PDF or SVG (`--plotfmt`).
 - **--noout**: does not write an output data file in batch mode; combine with `--mkplot` to suppress the data.
 - **--plotfmt *pdf\|svg***: sets the plot format for `--mkplot` (`ps` is read as `pdf`).
@@ -486,8 +483,6 @@ run or the files, not the X11 windows:
   xppautX lecar.ode --noout --silent --ncdraw 1 --dfdraw 1 --mkplot
   ```
 - **--dfdraw *k***: draws direction fields the same way: `k=1,2,3` unscaled, scaled or colorized on the plot; `k=4,5` also dumps the unscaled/scaled coordinates to `dirfields.dat` in every mode.
-- **--readset *filename***: loads anything an internal set file can hold (options, parameters, initial conditions) from one line (up to 1024 characters), e.g. a file `tst.opt` containing `iapp=0.1;phi=.05;total=500`, run as `xppautX lecar.ode --readset tst.opt` (works with `--silent` and `--mkplot` too).
-- **--with *string***: the same as `--readset`, with the options inline in a quoted string (no spaces), e.g. `xppautX lecar.ode --with "iapp=0.1;phi=0.05;total=1000" --silent`.
 
 The only other thing on the command line should be the file name. Thus,
 

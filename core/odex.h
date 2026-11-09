@@ -424,7 +424,6 @@ struct Diagnostic {
    diagnostic). */
 enum class DeclinedRename { refuse, report };
 xpp::Result<std::string> convert_text(const std::string &ode,
-                                     const std::vector<std::string> &includes = {},
                                      std::vector<Diagnostic> *diagnostics = nullptr,
                                      std::vector<std::string> *outside_paths = nullptr,
                                      DeclinedRename declined = DeclinedRename::refuse);
@@ -441,8 +440,8 @@ int convert_file(const std::string &ode);
    (true), or the existing .odex opened as it is (false: the same text, or
    the user chose it); an error when cancelled or not written. outside_paths
    carries only exact approved paths; the native loader rechecks their kinds. */
-xpp::Result<bool> open_ode(const std::string &ode, const std::vector<std::string> &includes,
-                         std::vector<Diagnostic> &diagnostics, std::vector<std::string> &outside_paths);
+xpp::Result<bool> open_ode(const std::string &ode, std::vector<Diagnostic> &diagnostics,
+                         std::vector<std::string> &outside_paths);
 /* The conversion text of the foreign file source written as out, beside
    it: true when written; false when out already holds this text, or the
    user chose to keep the file that is there (a question through xpp_ui

@@ -29,6 +29,7 @@
 #include "diagram.h" /* redraw_diagram; pulls in autox_nox.h */
 #include "xpp_session_autox.h"
 #include "data_formats.h"
+#include "aniparse.h"
 #include "browse.h"
 #include "graf_par.h"
 #include "xpp_math.h"
@@ -922,13 +923,6 @@ std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::str
     return f;
 }
 
-std::vector<std::string> xpp_saved_args(const SavedFile &f)
-{
-    std::vector<std::string> args{f.manifest.model_name};
-    if (!f.manifest.anifile.empty()) args.insert(args.end(), {"--anifile", f.manifest.anifile});
-    return args;
-}
-
 xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &s, xpp::snapx::Manifest &man)
 {
     const xpp::Model &m = s.model();
@@ -969,5 +963,14 @@ bool xpp_saved_restore(xpp::Session &s, const SavedFile &f)
     xpp::Result<SessionRead> r = read_session(s, f);
     xpp::Result<> done = r ? apply_session(s, std::move(*r), f) : xpp::Result<>(std::unexpected(r.error()));
     if (!done) xpp::show_error(done.error());
+    /* the animation the session was saved with: a file of the model, loaded after it as a .anix's is */
+    if (done && !f.manifest.anifile.empty()) {
+        s.animation.options.file = f.manifest.anifile;
+        s.animation.options.use_file = 1;
+        if (const auto loaded = xpp::load_animation(s, s.animation.options.file); !loaded) {
+            xpp::log(XPP_LOG_WARN, "{}\n", loaded.error().text());
+            s.animation.options.use_file = false;
+        }
+    }
     return done.has_value();
 }
