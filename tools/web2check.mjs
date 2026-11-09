@@ -3219,7 +3219,9 @@ async function optionsCheck() {
   check('W616: each panel opens from its task\'s menu entry, and only from there',
     JSON.stringify(Object.entries(await S(`Object.fromEntries(s.hello.commands.filter(c => c.panel).map(c => [c.cmd, c.panel]))`)).sort()) === JSON.stringify(Object.entries(opensFrom).sort()), JSON.stringify(await S(`s.hello.commands.filter(c => c.panel).map(c => c.cmd)`)));
   check('W616: the threads and the log are one File > Preferences entry', await S(`s.hello.commands.find(c => c.cmd === 'preferences.configure').menu_path === 'File' && !s.hello.commands.some(c => c.cmd === 'preferences.set_log')`));
-  const label = name => name.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
+  /* a choice's label: a file format as written (W653), any other capitalised */
+  const formats = await S('s.hello.file_formats');
+  const label = name => formats.includes(name) ? name : name.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
   for (const g of groups) {
     await cdp.eval(`__xpp.openOptions(${JSON.stringify(g.group)})`);
     await requireUntil(`s.optionsPanel?.group === ${JSON.stringify(g.group)} && s.optionValues[${JSON.stringify(g.group)}]`, `the ${g.group} panel's values`);
