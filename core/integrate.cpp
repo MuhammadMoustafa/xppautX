@@ -1168,7 +1168,7 @@ int write_this_run(xpp::Session &s, const char *file, int i)
   write_mybrowser_data(s,w);
   xpp::ok_or_show(xpp::commit_save(w));
   }
-   if(s.integrator.make_plot_flag)dump_ps(s,i);
+   if(!program.interactive&&!s.picture_file.empty())dump_ps(s,i);
   return(1);
 }
   

@@ -212,10 +212,6 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Width** (`spectrum.width`): How many points the spectrum's windows are long.
 - **Window** (`spectrum.window`): The window the spectrum's segments are weighted with.
 
-## Export
-
-- **Format** (`format`): The vector format a picture is exported in.
-
 ## Interface
 
 - **Sliders** (`sliders`): The sliders the window offers: a parameter or variable each, with its range.
@@ -224,6 +220,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 ## Output
 
 - **Data file** (`data_file`): The file a run writes its data to, named from the model's folder.
+- **Picture file** (`picture_file`): The picture a batch run writes of the graph (PDF or SVG by its extension); empty for none.
 - **Run set** (`run_set`): A set a batch run runs, by its name; repeat the option for each set. With none, the model runs once with no set.
 - **Nullclines file** (`nullclines_file`): The file the nullclines are saved to after a run.
 - **After run** (`after_run`): What a batch run makes of its data once it has run: an analysis, or the mean or variance of its runs.

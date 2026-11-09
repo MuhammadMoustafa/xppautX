@@ -182,13 +182,6 @@
         "spectrum.window": {"type": "integer", "title": "Spectrum window", "description": "The window the spectrum's segments are weighted with."}
       }
     },
-    "export": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "format": {"type": "string", "enum": ["pdf", "svg"], "title": "Format", "description": "The vector format a picture is exported in."}
-      }
-    },
     "interface": {
       "type": "object",
       "additionalProperties": false,
@@ -202,6 +195,7 @@
       "additionalProperties": false,
       "properties": {
         "data_file": {"type": "string", "x-kind": "path", "title": "Data file", "description": "The file a run writes its data to, named from the model's folder."},
+        "picture_file": {"type": "string", "x-kind": "path", "title": "Picture file", "description": "The picture a batch run writes of the graph (PDF or SVG by its extension); empty for none."},
         "run_set": {"type": "string", "title": "Run set", "description": "A set a batch run runs, by its name; repeat the option for each set. With none, the model runs once with no set.", "x-repeatable": true},
         "nullclines_file": {"type": "string", "x-kind": "path", "title": "Nullclines file", "description": "The file the nullclines are saved to after a run."},
         "after_run": {"type": "string", "enum": ["none", "histogram", "histogram_2d", "fourier_series", "power_spectrum", "spectral_density", "cross_spectral_density", "coherence", "mean_of_runs", "variance_of_runs"], "title": "After run", "description": "What a batch run makes of its data once it has run: an analysis, or the mean or variance of its runs."},

@@ -130,18 +130,17 @@ inline constexpr std::string_view continuation = "continuation";
 inline constexpr std::string_view diagram = "diagram";
 inline constexpr std::string_view plot = "plot";
 inline constexpr std::string_view analysis = "analysis";
-inline constexpr std::string_view export_ = "export";
 inline constexpr std::string_view interface = "interface";
 inline constexpr std::string_view output = "output";
 } // namespace option_group
 /* Groups in workflow order: run, analyse the run, continue, draw, write (W614, W615). The option
    table's rows, a .odex's options block and every panel keep it. */
-inline constexpr std::array<std::string_view, 11> option_groups{
-    option_group::integration, option_group::poincare, option_group::equilibria, option_group::sweep, option_group::continuation, option_group::diagram, option_group::plot, option_group::analysis, option_group::export_, option_group::interface, option_group::output};
+inline constexpr std::array<std::string_view, 10> option_groups{
+    option_group::integration, option_group::poincare, option_group::equilibria, option_group::sweep, option_group::continuation, option_group::diagram, option_group::plot, option_group::analysis, option_group::interface, option_group::output};
 
 /* The groups a `set`'s `options:` may hold: each is one graph's or one run's
    own configuration. The rest are the model's or the session's as a whole
-   (diagram's axes name a view, export and output write files, interface holds
+   (diagram's axes name a view, output writes files, interface holds
    the buttons and sliders). */
 inline constexpr std::array<std::string_view, 7> set_groups{
     option_group::integration, option_group::poincare, option_group::equilibria, option_group::continuation,
@@ -377,6 +376,10 @@ std::string option_error_text(std::string_view name, std::string_view value, std
 /* option name set to value (force: even when another source set it; mask:
    the options this source may set again) */
 void set_option(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask);
+
+/* XPPAUT's value of a path option that names no file (plotfmt: a format): the model's name with that format's
+   extension; value as given when row.foreign names none */
+std::string foreign_path_option(const OptionRow &row, std::string_view model_file, std::string_view value);
 
 /* why value is not one option name takes ("not an option", "not a
    number", ...), empty when it is: the checks set_option makes, nothing

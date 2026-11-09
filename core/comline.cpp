@@ -22,7 +22,7 @@ namespace {
 constexpr int MAX_PORT = 65535;
 
 /* the options' ids (named, never numbers) */
-enum class Opt { silent, newseed, outfile, anifile, statefile, mkplot, plotfmt, noout, dfdraw, ncdraw,
+enum class Opt { silent, newseed, outfile, anifile, statefile, noout, dfdraw, ncdraw,
                  equil, verbose, debug,
                  /* the program's own (xppautx_main.cpp) */
                  help, version, options_schema, convert, check, yes, no_open, browser, server, port };
@@ -31,7 +31,7 @@ struct CommandOption {
   std::string_view name;
   Opt id;
   bool argument;
-  bool repeatable; /* given again adds (--mkplot, --noout, ...); otherwise a second one is an error */
+  bool repeatable; /* given again adds (--silent, --noout, ...); otherwise a second one is an error */
   bool program;    /* one of the program's own switches, not a load's */
 };
 
@@ -41,8 +41,6 @@ constexpr CommandOption my_cmd[] = {
   {"--outfile", Opt::outfile, true, false, false},
   {"--anifile", Opt::anifile, true, false, true}, /* --convert's second operand: the program's own, with --convert only */
   {"--statefile", Opt::statefile, true, false, true}, /* --convert's other second operand: an XPPAUT state file */
-  {"--mkplot", Opt::mkplot, false, true, false},
-  {"--plotfmt", Opt::plotfmt, true, false, false},
   {"--noout", Opt::noout, false, true, false},
   {"--dfdraw", Opt::dfdraw, true, false, false},
   {"--ncdraw", Opt::ncdraw, true, false, false},
@@ -150,7 +148,6 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     }
     case Opt::silent: cl.silent = true; break;
     case Opt::newseed: cl.new_seed = true; break;
-    case Opt::mkplot: cl.make_plot = true; break;
     case Opt::noout: cl.no_output = true; break;
     case Opt::verbose: cl.log_threshold = XPP_LOG_INFO; break;
     case Opt::debug: cl.log_threshold = XPP_LOG_DEBUG; break;
@@ -166,7 +163,6 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
       cl.equilibria = n;
       break;
     }
-    case Opt::plotfmt: cl.options.emplace_back("PLOTFMT", value); break;
     case Opt::dfdraw: cl.options.emplace_back("DFDRAW", value); break;
     case Opt::ncdraw: cl.options.emplace_back("NCDRAW", value); break;
     }
@@ -191,7 +187,6 @@ void apply_command_line(Session &s, CommandLine cl)
   }
   if (cl.new_seed) xpp::log(XPP_LOG_INFO, "Random number seed changed\n");
   if (cl.silent) batch_options.enabled = 1;
-  if (cl.make_plot) s.integrator.make_plot_flag = 1;
   if (cl.no_output) s.integrator.suppress_out = 1;
   if (cl.out_file) {
     s.batch_out_file = *cl.out_file;
@@ -206,7 +201,7 @@ void apply_command_line(Session &s, CommandLine cl)
     batch_options.equilibria = *cl.equilibria;
     xpp::log(XPP_LOG_INFO, " Batch equilibria {:d} \n", batch_options.equilibria);
   }
-  /* --plotfmt, --dfdraw and --ncdraw win over .xpprc and the model's @ lines */
+  /* --dfdraw and --ncdraw win over .xpprc and the model's @ lines */
   for (const auto &[name, value] : cl.options) set_option(s, name, value, 1, NULL);
   s.model().command_line = std::move(cl);
 }

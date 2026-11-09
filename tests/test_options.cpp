@@ -129,7 +129,7 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"poincare.variable", {"y", "2"}},
         {"plot.axes.kind", {"3", "5"}},            /* 3D */
         {"LT", {"-1", "-1"}},
-        {"export.format", {"svg", "1"}},
+        {"output.picture_file", {"svg", "build/test_options_set.svg"}}, /* XPPAUT's plotfmt: the model's name with the format */
         {"poincare.sign", {"-1", "0"}},         /* negative */
         {"plot.line.draw", {"points", "1"}}, {"plot.line.dash", {"dotted", "2"}}, {"plot.line.width", {"2", "2"}}, {"plot.line.marker", {"square", "1"}},
         {"plot.line.marker_size", {"4", "4"}},
@@ -258,7 +258,7 @@ int main(void)
         xpp::apply_command_line(session, std::move(*silent_line));
         CHECK(xpp::batch_options.enabled == 1);
         xpp::batch_options.enabled = 0;
-        for (const char *name : {"silent", "anifile", "statefile", "outfile", "newseed", "version", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "equil", "verbose", "debug"}) {
+        for (const char *name : {"silent", "anifile", "statefile", "outfile", "newseed", "version", "noout", "dfdraw", "ncdraw", "equil", "verbose", "debug"}) {
             std::string word = "-" + std::string(name);
             argv[1] = word.data();
             const xpp::Result<> r = check_args(2, argv);

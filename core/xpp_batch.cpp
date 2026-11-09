@@ -62,7 +62,6 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
 {
     xpp::Model &m = s.model();
     program.interactive = 0;
-    s.plot_export.format = "pdf";
     apply_command_line(s, cl);
     if (batch) batch_options.enabled = 1; /* headless: always batch, even without --silent */
 

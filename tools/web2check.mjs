@@ -3214,7 +3214,7 @@ async function optionsCheck() {
   /* where each panel opens from (the maintainer's decision, #686): its task's menu entry */
   const opensFrom = {'run.configure': 'integration', 'poincare_map.set': 'poincare', 'run.range': 'sweep', 'equilibrium.configure': 'equilibria',
     'histogram.compute': 'analysis:histogram', 'histogram.compute_2d': 'analysis:histogram,histogram2', 'spectrum.density': 'analysis:spectrum',
-    'autox.configure_numerics': 'continuation', 'autox.configure_axes': 'diagram+', 'plot.set_axes_origin': 'plot+', 'plot.export_pdf': 'export', 'plot.export_svg': 'export',
+    'autox.configure_numerics': 'continuation', 'autox.configure_axes': 'diagram+', 'plot.set_axes_origin': 'plot+',
     'output.configure': 'output'};
   check('W616: each panel opens from its task\'s menu entry, and only from there',
     JSON.stringify(Object.entries(await S(`Object.fromEntries(s.hello.commands.filter(c => c.panel).map(c => [c.cmd, c.panel]))`)).sort()) === JSON.stringify(Object.entries(opensFrom).sort()), JSON.stringify(await S(`s.hello.commands.filter(c => c.panel).map(c => c.cmd)`)));
@@ -3313,7 +3313,7 @@ async function settingsShots() {
   const menu = id => () => clickRegistry(id);
   const panels = [['integration', 'run.configure'], ['poincare', 'poincare_map.set'], ['sweep', 'run.range'], ['equilibria', 'equilibrium.configure'],
     ['analysis-histogram', 'histogram.compute'], ['analysis-spectrum', 'spectrum.density'], ['continuation', 'autox.configure_numerics'],
-    ['diagram', 'autox.configure_axes'], ['plot', 'plot.set_axes_origin'], ['export', 'plot.export_pdf'], ['output', 'output.configure'],
+    ['diagram', 'autox.configure_axes'], ['plot', 'plot.set_axes_origin'], ['output', 'output.configure'],
     ['preferences', 'preferences.configure'], ['command-form', 'plot.set_2d']].map(([name, id]) => [name, menu(id)]);
   const others = [
     ['ask-file', () => registryFile('session.save_as', 'write')],
@@ -3480,8 +3480,8 @@ async function dialogsCheck() {
   })()`);
   check('W641: the export form has one file control and no second action (the footer\'s is the only one)',
     exportForm.fileControls === 1 && exportForm.buttonsInRow === 0 && exportForm.actions.length === 1 && !exportForm.buttonsInBody.some(b => /Choose file/.test(b)), JSON.stringify(exportForm));
-  check('W641: in the Export form every row\'s label starts at the same x (the box of the command\'s own arguments and the settings box share one label column)',
-    exportForm.labelX.length >= 4 && new Set(exportForm.labelX).size === 1, JSON.stringify(exportForm.labelX));
+  check('W641: in the Export form every row\'s label starts at the same x (the form is the command\'s own arguments only since W656: no settings box)',
+    exportForm.labelX.length >= 2 && new Set(exportForm.labelX).size === 1, JSON.stringify(exportForm.labelX));
   check('W641: Export\'s File is not marked required, and no form has a separate file button',
     await cdp.eval(`(() => { const row = document.querySelector('[data-dialog] [data-argument=file]'); return !row.querySelector('.required') && !document.querySelector('[data-dialog] .file-pick'); })()`));
   const sentExport = await S('__xpp.sentCount()');

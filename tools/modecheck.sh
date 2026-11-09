@@ -227,6 +227,29 @@ case "$refused" in
   *) bad "unknown run_set: $(echo "$refused" | head -c 200)" ;;
 esac
 
+# W664: output.picture_file is the one row for a batch picture: its extension picks the format, a run per set
+# names it after the set (data_file's rule), an unknown extension is an error at its line; --mkplot and --plotfmt are gone
+for flag in --mkplot --plotfmt; do
+  refused=$(cd "$tmp" && "$BIN" "$flag" svg lecar.odex 2>&1)
+  status=$?
+  case "$status:$refused" in
+    2:*"no such option $flag"*) pass "$flag is an unknown option" ;;
+    *) bad "$flag: $status $(echo "$refused" | head -c 200)" ;;
+  esac
+done
+sed 's/^options {$/options {\n  output: { picture_file: "pic.svg" },/' "$tmp/lecar.odex" > "$tmp/picture.odex"
+sed 's/^options {$/options {\n  output: { picture_file: "pic.svg", run_set: "pp" },/' "$tmp/lecar.odex" > "$tmp/pictureset.odex"
+sed 's/^options {$/options {\n  output: { picture_file: "pic.png" },/' "$tmp/lecar.odex" > "$tmp/badpicture.odex"
+(cd "$tmp" && "$BIN" picture.odex --silent >/dev/null 2>&1)
+if head -c 4 "$tmp/pic.svg" 2>/dev/null | grep -q '<svg'; then pass "picture_file \"pic.svg\" writes an SVG"; else bad "picture_file pic.svg wrote no SVG"; fi
+(cd "$tmp" && "$BIN" pictureset.odex --silent >/dev/null 2>&1)
+if head -c 4 "$tmp/pp.svg" 2>/dev/null | grep -q '<svg' && [ -s "$tmp/pp.dat" ]; then pass "a run per set names the picture like the data file: pp.svg beside pp.dat"; else bad "picture_file with run_set: no pp.svg"; fi
+refused=$(cd "$tmp" && "$BIN" badpicture.odex --silent 2>&1)
+case "$refused" in
+  *badpicture.odex:*'must end in the extension of a picture format (.pdf, .svg)'*) pass "an unknown picture extension is an error at its line" ;;
+  *) bad "unknown picture extension: $(echo "$refused" | head -c 200)" ;;
+esac
+
 if [ $linux_window -eq 1 ]; then
   # the window's library cannot load: the WARN names what to install, and
   # the browser opens instead (the stand-in opener)

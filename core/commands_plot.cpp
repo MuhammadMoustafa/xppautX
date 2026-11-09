@@ -415,10 +415,10 @@ constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DO
 constexpr std::array ROWS = {
     Command{"plot.export_pdf", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export graph PDF", "File/Export",
             "Write the graph as a PDF picture into a file of the model's folder, as the panel shows it.",
-            PICTURE_RESULTS, STATE_EVENTS, true, export_pdf, {}, {}, "write", "*", "export"},
+            PICTURE_RESULTS, STATE_EVENTS, true, export_pdf, {}, {}, "write", "*"},
     Command{"plot.export_svg", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export graph SVG", "File/Export",
             "Write the graph as an SVG picture into a file of the model's folder, as the panel shows it.",
-            PICTURE_RESULTS, STATE_EVENTS, true, export_svg, {}, {}, "write", "*", "export"},
+            PICTURE_RESULTS, STATE_EVENTS, true, export_svg, {}, {}, "write", "*"},
     Command{"plot.set_variables", VARIABLES_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set variables", "Plot",
             "Plot states of the model: time_series (each against time), phase_plane (two or three, the first on the x axis) or array_plot (from the first of two to the later).",
             VARIABLES_RESULTS, PLOT_EVENTS, true, set_variables},

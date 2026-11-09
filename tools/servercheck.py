@@ -2786,7 +2786,7 @@ def check_options_panels():
         hello = next(e for e in events if e.get('ev') == 'hello')
         groups = {g['group']: g for g in hello['options']}
         check('W616: hello carries the table: every group a panel has, titled by its name as words',
-              list(groups) == ['integration', 'poincare', 'equilibria', 'sweep', 'continuation', 'diagram', 'plot', 'analysis', 'export', 'output']
+              list(groups) == ['integration', 'poincare', 'equilibria', 'sweep', 'continuation', 'diagram', 'plot', 'analysis', 'output']
               and groups['integration']['label'] == 'Integration' and all(g['rows'] for g in groups.values()), str(list(groups)))
         step_min = next((r for r in groups['integration']['rows'] if r['key'] == 'step.min'), {})
         check('W616: a row has its key, section, label, kind, help, default and limit',
@@ -2840,6 +2840,15 @@ def check_options_panels():
         values = call(cmd='options.get', group='output')['result']['values']
         check('W616: output.configure sets the output group (the data file and what a batch run makes of its data)',
               done.get('status') == 'ok' and values['data_file'].endswith('panel.dat') and values['after_run'] == 'histogram', str(done) + str(values))
+        # W664: the picture a batch run writes is a path row of this panel, its extension the format, empty for none
+        done = call(cmd='output.configure', values={'picture_file': 'panel.svg'})
+        values = call(cmd='options.get', group='output')['result']['values']
+        check('W664: output.configure sets picture_file', done.get('status') == 'ok' and values['picture_file'].endswith('panel.svg'), str(done) + str(values))
+        done = call(cmd='output.configure', values={'picture_file': 'panel.png'})
+        check('W664: a picture_file of no picture format is refused', done.get('status') == 'error' and 'picture format' in done.get('error', ''), str(done))
+        done = call(cmd='output.configure', values={'picture_file': ''})
+        values = call(cmd='options.get', group='output')['result']['values']
+        check('W664: an empty picture_file is no picture', done.get('status') == 'ok' and values['picture_file'] == '', str(done) + str(values))
         send(cmd='output.configure', setting='data_file', file_picker=True)
         events, _ = collect(is_ask)
         ask = next(e for e in events if e.get('ev') == 'ask')
@@ -8127,11 +8136,19 @@ def check_export_elements():
             server.close()
         for fmt in ('pdf', 'svg'):
             expected = expected_files[fmt]
-            result = subprocess.run([binary, os.path.basename(model), '--silent', '--yes', '--mkplot', '--plotfmt', fmt],
+            # W664: XPPAUT's @ plotfmt names a format, imported as the model's name with it as the picture file
+            variant = os.path.join(root, 'export-elements-' + fmt + '.ode')
+            with open(model) as f:
+                lines = f.read().rstrip('\n').split('\n')
+            with open(variant, 'w') as f:
+                f.write('\n'.join(lines[:-1] + ['@ plotfmt=' + fmt, lines[-1]]) + '\n')
+            result = subprocess.run([binary, os.path.basename(variant), '--silent', '--yes'],
                                     cwd=root, capture_output=True, text=True, timeout=60 * SLOW)
-            # batch_plot_name uses the loaded (converted) model's basename.
-            pictures = glob.glob(os.path.join(root, 'export-elements*.' + fmt))
+            pictures = glob.glob(os.path.join(root, 'export-elements-' + fmt + '.' + fmt))
             actual = elements(open(pictures[0], 'rb').read(), fmt) if pictures else []
+            for leftover in [variant, os.path.splitext(variant)[0] + '.odex'] + pictures:
+                if os.path.exists(leftover):
+                    os.remove(leftover)  # the recording below plays with the folder's models
             check('W346: silent/server ' + fmt + ' element lists agree',
                   result.returncode == 0 and bool(actual) and actual == expected,
                   str((len(expected), len(actual), next(((a, b) for a, b in zip(expected, actual) if a != b), None)))

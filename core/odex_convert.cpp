@@ -1625,6 +1625,11 @@ private:
     case OptionKind::path:
     case OptionKind::text: {
       std::string text = value;
+      if (row.foreign) {
+        /* a format with no file (XPPAUT's plotfmt) */
+        text = xpp::foreign_path_option(row, m_.this_file, value);
+        if (text == value) refuse(xpp::format("{}={} is none of the picture formats", key, value));
+      }
       if (row.kind == OptionKind::path) std::ranges::replace(text, '\\', '/');
       return quote_string(text);
     }

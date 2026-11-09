@@ -120,7 +120,6 @@ static std::string usage_tail()
     "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n"
     "  --outfile FILE   batch output; --noout suppresses rows\n"
     "  --newseed        randomize seed\n"
-    "  --mkplot / --plotfmt svg|ps   batch plot and format\n"
     "  --dfdraw 1-5 / --ncdraw 1|2   post-run fields / nullclines\n"
     "  --equil 0|1      batch equilibria (1 also writes manifolds)\n"
     "  -h / --help      help; --version prints the version\n"

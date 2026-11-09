@@ -847,17 +847,6 @@ constexpr OptionRow rows[] = {
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_wid; }), .rule = OptionRule::whole_positive, .maximum = option_limit::spectrum_samples},
   {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "spectrum.window", .help = "The window the spectrum's segments are weighted with.", .xppaut_names = {"SPECWIN"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_win; })},
-  /* the picture files a batch run writes: PDF or SVG (XPPAUT's ps imports as pdf: PostScript went with W479, #542) */
-  {.group = option_group::export_, .kind = OptionKind::choice, .odex = "format", .help = "The vector format a picture is exported in.", .xppaut_names = {"PLOTFMT"}, .once = true,
-   /* the format is kept as its word */
-   .index = {[](const Session &s) { return choice_index(picture_format_names, s.plot_export.format); },
-             [](Session &s, int i) { s.plot_export.format = std::string(picture_format_names[static_cast<std::size_t>(i)]); }},
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (v.apply) s.plot_export.format = v.text;
-     return nullptr;
-   },
-   .foreign = [](std::string_view v) { return v == "ps" ? std::string("pdf") : std::string(); },
-   .rule = OptionRule::choice, .choices = picture_format_names},
   /* XPPAUT's picture colour and font size (import only): an export is the panel as shown, in colour at the page's size */
   {.name = "PS_COLOR", .dropped = picture_as_shown},
   {.name = "PS_FSIZE", .dropped = picture_as_shown},
@@ -890,6 +879,20 @@ constexpr OptionRow rows[] = {
      }
      return nullptr;
    }},
+  {.group = option_group::output, .kind = OptionKind::path, .odex = "picture_file", .help = "The picture a batch run writes of the graph (PDF or SVG by its extension); empty for none.", .xppaut_names = {"PLOTFMT"}, .once = true,
+   .text = member([](auto &s) -> auto & { return s.picture_file; }),
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     /* named like data_file; its extension picks the format */
+     std::string path;
+     if (v.text[0] != '\0') {
+       if (const char *why = own_file(s, v, path)) return why;
+       if (!picture_format_of_file(path)) return "must end in the extension of a picture format (.pdf, .svg)";
+     }
+     if (v.apply) s.picture_file = path;
+     return nullptr;
+   },
+   /* XPPAUT's plotfmt names a format, not a file: the picture is the model's name with that extension (ps is pdf: PostScript went with W479, #542) */
+   .foreign = [](std::string_view v) { return v == "ps" ? std::string("pdf") : std::ranges::contains(picture_format_names, v) ? std::string(v) : std::string(); }},
   {.group = option_group::output, .kind = OptionKind::text, .odex = "run_set", .help = "A set a batch run runs, by its name; repeat the option for each set. With none, the model runs once with no set.",
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      if (v.apply) s.run_sets.emplace_back(v.text);
@@ -1377,7 +1380,9 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   const bool importing = Load::running() && files::has_extension(Load::place().file, ".ode");
   const std::optional<double> total = importing ? imported_total(*row, value) : std::nullopt;
   /* the value as a NUL-ended text */
-  const std::string text = total ? number(*total) : std::string(value);
+  const std::string text = total ? number(*total)
+                           : (importing || xppaut_names) && row->kind == OptionKind::path && row->foreign ? foreign_path_option(*row, s.model().this_file, value)
+                                                                                                          : std::string(value);
   const OptionSource source{force, mask};
   const OptionValue v{text.c_str(), index, source, apply};
   const char *why = nullptr;
@@ -1488,6 +1493,12 @@ std::vector<PlotCurve> read_starting_curves(const Session *s, xpp::odex::Block &
 std::string option_error_text(std::string_view name, std::string_view value, std::string_view why)
 {
   return xpp::format("the option `{}={}`: {}", name, value, why);
+}
+
+std::string foreign_path_option(const OptionRow &row, std::string_view model_file, std::string_view value)
+{
+  const std::string extension = row.foreign(value);
+  return extension.empty() ? std::string(value) : files::output_name(model_file, "." + extension);
 }
 
 std::optional<std::string> option_problem(Session &s, std::string_view name, std::string_view value, bool xppaut_names)

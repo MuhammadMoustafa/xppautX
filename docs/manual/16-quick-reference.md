@@ -322,7 +322,7 @@ The remaining options can be set from within the program. They are
 
 - FOLD=name, tells XPP that the variable \<name\> is to be considered modulo the period. You can repeat this for many variables.
 
-- PS_FSIZE and PS_COLOR are dropped (a picture is the graph as the panel shows it); PS_Font and PS_LW are read and ignored. PLOTFMT=`pdf`,`svg` (`ps` is read as `pdf`) is the format `--mkplot` writes.
+- PS_FSIZE and PS_COLOR are dropped (a picture is the graph as the panel shows it); PS_Font and PS_LW are read and ignored. PLOTFMT=`pdf`,`svg` (`ps` is read as `pdf`) is imported as the picture a batch run writes, `output: { picture_file }`, the model's name with that extension; `--mkplot` and `--plotfmt` are gone.
 
 - S1=`name`, SLO1=`number`,SHI1=`number` sets the variables, parameters associated with a slider and their low and high values. Use S2,S3 for the other sliders (This is different for the iPad/iPhone.)
 
@@ -447,18 +447,16 @@ run or the files, not the X11 windows:
   | ⋮ | ⋮ | ⋮ |
 - **--anifile *filename***: with `--convert`, the `.ani` that `--convert model.odex` writes into a `.anix`.
 - **--statefile *filename***: with `--convert`, an XPPAUT `.set`, `.par` or `.ic` file written into the converted `.odex` as its default values and numerics (`xppautX --convert model.ode --statefile model.ode.set`): the file is checked value by value and applied whole, or nothing is written; a model that is already an `.odex` is used as it is. XPPAUT's `-setfile`, `-parfile` and `-icfile` are not options of a run here.
-- **--mkplot**: with `--silent`, writes a plot named after the ODE file (or numbered, for several); PDF or SVG (`--plotfmt`).
-- **--noout**: does not write an output data file in batch mode; combine with `--mkplot` to suppress the data.
-- **--plotfmt *pdf\|svg***: sets the plot format for `--mkplot` (`ps` is read as `pdf`).
+- **--noout**: does not write an output data file in batch mode; with `output: { picture_file }` in the model it writes only the picture.
 - **--version**: prints xpp's version (`xppautX --version` prints this fork's).
 - **--ncdraw *k***: after a run in any mode: `k=1` computes nullclines for the plot and exports; `k=2` also dumps them to `nullclines.dat`, a row for each segment (`nullcline` 1 or 2, `x1`, `y1`, `x2`, `y2`). For example, to compute the nullclines, dump them to a file and not save the run's output:
 
   ```
   xppautX lecar.ode --noout --silent --ncdraw 2
   ```
-  or to make a plot:
+  or to make a plot too, the model names `output: { picture_file: "lecar.svg" }`:
   ```
-  xppautX lecar.ode --noout --silent --ncdraw 1 --dfdraw 1 --mkplot
+  xppautX lecar.odex --noout --silent --ncdraw 1 --dfdraw 1
   ```
 - **--dfdraw *k***: draws direction fields the same way: `k=1,2,3` unscaled, scaled or colorized on the plot; `k=4,5` also dumps the unscaled/scaled coordinates to `dirfields.dat` in every mode.
 

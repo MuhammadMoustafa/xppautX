@@ -551,7 +551,6 @@ xpp::Result<> apply_named_set(xpp::Session &s, std::string_view name, std::strin
   if(j<0)return std::unexpected(xpp::Error{"apply set",xpp::format("the model has no set {}",name),xpp::command_place()});
   const xpp::Model::InternalSet &set=s.model().intern_sets[static_cast<std::size_t>(j)];
   if(xpp::Result<> r=apply_values(s,set_items(set),set.place,scope,graph,"apply set");!r)return r;
-  s.this_internset="_"+set.name;
   return {};
 }
 

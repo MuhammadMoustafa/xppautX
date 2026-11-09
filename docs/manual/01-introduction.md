@@ -243,8 +243,6 @@ follow in any order. The options below control the model and its run.
 | `--outfile FILE` | Write batch output to FILE instead of `output.dat` |
 | `--noout` | Suppress writing rows to the output file |
 | `--equil <0\|1>` | Write equilibria to `equil.dat`, and with `1` the invariant manifolds too |
-| `--mkplot` | Produce a plot in batch mode |
-| `--plotfmt <pdf\|svg>` | Batch plot format (`ps` is read as `pdf`) |
 | `--dfdraw N` / `--ncdraw N` | Compute the direction field / nullclines after runs in every mode, to screen or file |
 | `--newseed` | Randomize the random number generator's seed |
 | `--convert` | Convert `.ode` to `.odex`; terminal name questions have a 60-second deadline |

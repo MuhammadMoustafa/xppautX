@@ -198,7 +198,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   Groups, in the order a run, its analysis, the continuation, the pictures and the files
   come in (the order the table, the schema, the files the program writes and the panels
   keep, W615): `integration`, `poincare`, `equilibria`, `sweep`, `continuation`, `diagram`,
-  `plot`, `analysis`, `export`, `interface`, `output`. A key is the option's one name in
+  `plot`, `analysis`, `interface`, `output`. A key is the option's one name in
   snake case; in a large group a dotted word is a section (`step.min`, `jacobian.kind`,
   `axes.x_low`, `histogram.bins`, `colors.stable_equilibrium`), and a section's keys come
   together. What each group holds:
@@ -213,9 +213,8 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max`; `colors.stable_equilibrium`, `colors.unstable_equilibrium`, `colors.stable_periodic`, `colors.unstable_periodic` |
   | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_low`, `axes.x_high`, `axes.y_low`, `axes.y_high` (the 2D window), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `axes.phi`, `axes.theta` (the 3D box and view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`, `nullclines.x_color`, `nullclines.y_color`; `direction_field.grid`, `direction_field.draw`; `manifolds.stable_color`, `manifolds.unstable_color`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
   | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
-  | `export` | `format` (`pdf` or `svg`) |
   | `interface` | `sliders`, `buttons` (and `animation`, written directly in `options`, outside any group) |
-  | `output` | `data_file`, `nullclines_file`, `after_run`, `after_run_file` (a path is named from the model's folder, a path outside it is a question, and its extension picks the data format; with `after_run_file` the analysis `after_run` names is written there and `data_file` keeps the trajectory, without it the analysis replaces the table `data_file` is written from, as XPPAUT's batch run does) |
+  | `output` | `data_file`, `picture_file`, `nullclines_file`, `after_run`, `after_run_file` (`picture_file` is the picture a batch run writes of the graph, its extension, `.pdf` or `.svg`, picking the format, empty for none: an unknown extension is an error at its line, and a run per set names it after the set like `data_file`, `<set>.svg`; a path is named from the model's folder, a path outside it is a question, and its extension picks the data format; with `after_run_file` the analysis `after_run` names is written there and `data_file` keeps the trajectory, without it the analysis replaces the table `data_file` is written from, as XPPAUT's batch run does) |
 
   Older group names and older keys are errors, as is a key of another group. A key
   twice (but for `fold` and `buttons`, which name one thing each) is an error at
@@ -250,7 +249,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   `"foreground"`, a quoted CSS colour name or `"#rrggbb"` (`#rrggbbaa` with alpha, drawn by the page,
   SVG and PDF), and every colour is double quoted, including names; a name is read and written back as hex): `\"` and `\\`
   are its only escapes, a path is written with `/` on every system, and a
-  path outside the model's folder is a question the user answers (W175, W286). Only `data_file`, `nullclines_file`, `after_run_file` are paths, and `buttons` (a button, `buttons: "quit:fq"`) a text. Every
+  path outside the model's folder is a question the user answers (W175, W286). Only `data_file`, `picture_file`, `nullclines_file`, `after_run_file` are paths, and `buttons` (a button, `buttons: "quit:fq"`) a text. Every
   writer of options (the converter, Save values) writes them so.
   Continuation numbers use the same ranges as the autoX form, protocol and session reader:
   `min_step_size`, `max_step_size`, `parameter_tolerance`, `state_tolerance` and `special_point_tolerance` are positive; `min_step_size <= max_step_size`,
@@ -278,7 +277,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `colormap=0`..`6` | `jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix` (XPPAUT's seven; ours also has `viridis`, `plasma`, `inferno`, `magma`, `cividis`, `coolwarm`, `rdbu`, `seismic`, `twilight`, `hsv`, `turbo`, `greys`, `blues`, `reds`, `greens`, `oranges` and `purples`: 256 colours each, third_party/colormaps/README.md says where each is from; a model of ours without `colormap` has `viridis`, a `.ode` without one is converted with `colormap: jet`, its own) |
   | `xnc`, `ync`, `smc`, `umc` `=0`..`10`; `sec`, `uec`, `spc`, `upc` `=0`, `20`..`29` | the colour in XPPAUT's own table: `"foreground"` for 0, else `"#rrggbb"` |
   | `lt=1`, `0`, `-n` | `plot: { line.draw: line }`, `line.draw: points`, `line.draw: points, line.marker: circle, line.marker_size: n` (the style every new curve starts with: `line.draw` is `line`, `points` or `both`, `line.dash` `solid`, `dashed`, `dotted` or `dash_dot`, `line.width`, `line.marker` `circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`, `line.marker_size`) |
-  | `plotfmt=ps`, `svg` | `export: { format: pdf/svg }` (PostScript is gone) |
+  | `plotfmt=ps`, `svg` | `output: { picture_file: "<model>.pdf" }` (W664: the file's extension picks the format; `ps` is `pdf`, PostScript is gone; the converter writes the model's name with the format) |
   | `ps_color=0`, `1`; `ps_fsize=n` | dropped (W656: a picture is the panel as shown) |
   | `ps_font`, `ps_lw` | none: a picture's font is Helvetica, and each curve has its own width |
   | `axes=3d` | `3` |
@@ -298,7 +297,7 @@ you wrote (`1/30`) alone while the value is unchanged.
 - `set "NAME" { key: value, ..., options: { group: { key: value } } }` — a named set. Its name is the user's text, so it is in double quotes even without spaces (`set "hopf" { ... }`; letters, digits and `_`, starting with a letter); a bare name is an error at its line. Its top-level keys are
   parameters and states only (`g: 9.81`, `v: -0.3`), each a number. Settings go only under `options:`, in the options
   block's shape and from the groups a set may hold: `integration`, `poincare`, `equilibria`, `continuation`, `plot`,
-  `sweep` and `analysis` (each a graph's or a run's own configuration; `diagram`, `export`, `interface` and `output`
+  `sweep` and `analysis` (each a graph's or a run's own configuration; `diagram`, `interface` and `output`
   are the model's or the session's as a whole, and so are `simplot`, `multiwin` and `colormap`). A setting at the top
   level, an unknown key or group, or a group or key a set does not hold is an error at its line and column, naming it;
   the whole set is checked when the model loads (values included), so a bad one stops the load. A parameter named like a

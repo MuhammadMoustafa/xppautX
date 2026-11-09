@@ -27,10 +27,9 @@ struct ImageFormat {
     bool binary = false;   /* its file is bytes, not text */
     void (*pixels)(Writer &w, std::span<const unsigned char> rgb, int width, int height, int frame) = nullptr;
     void (*finish_movie)(Writer &w) = nullptr;
-    const char *plot_title = nullptr; /* the file selector's title, a vector picture's */
 };
 
-/* the vector picture formats' names, as @ plotfmt takes them */
+/* the vector picture formats' names: the extensions output.picture_file takes */
 inline constexpr std::array<std::string_view, 2> picture_format_names{"pdf", "svg"};
 
 extern const ImageFormat image_formats[];
@@ -53,8 +52,7 @@ Result<> end_picture(Session &s);
 
 Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height);
 
-/* the format whose extension is `extension` (a Session's plot_export.format's
-   own values, "pdf"/"svg": many_pops.cpp's dump_ps), or nullptr */
-const ImageFormat *find_image_format_by_extension(std::string_view extension);
+/* the vector picture format a file's extension names (output.picture_file: .pdf or .svg), or nullptr */
+const ImageFormat *picture_format_of_file(std::string_view path);
 
 } // namespace xpp

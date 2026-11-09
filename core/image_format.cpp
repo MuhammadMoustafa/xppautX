@@ -39,8 +39,8 @@ void ppm_pixels(Writer &w, std::span<const unsigned char> rgb, int width, int he
 } // namespace
 
 const ImageFormat image_formats[n_image_formats] = {
-  {.name = "PDF", .extension = "pdf", .write = write_pdf, .binary = true, .plot_title = "Print pdf"},
-  {.name = "SVG", .extension = "svg", .write = write_svg, .plot_title = "Print svg"},
+  {.name = "PDF", .extension = "pdf", .write = write_pdf, .binary = true},
+  {.name = "SVG", .extension = "svg", .write = write_svg},
   {.name = "GIF", .extension = "gif", .pixels = gif_pixels, .finish_movie = gif_finish},
   {.name = "PPM", .extension = "ppm", .pixels = ppm_pixels},
 };
@@ -83,10 +83,10 @@ Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::s
   return true;
 }
 
-const ImageFormat *find_image_format_by_extension(std::string_view extension)
+const ImageFormat *picture_format_of_file(std::string_view path)
 {
   for (const ImageFormat &f : image_formats)
-    if (extension == f.extension) return &f;
+    if (f.write && files::has_extension(path, xpp::format(".{}", f.extension))) return &f;
   return nullptr;
 }
 

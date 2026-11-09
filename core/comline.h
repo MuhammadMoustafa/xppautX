@@ -32,12 +32,12 @@ struct CommandLine {
   std::optional<Interface> interface;          /* --browser, --server: the one given, never two different */
   std::optional<int> port;                     /* --port: 0 for any free port */
   /* what a load takes */
-  bool silent = false, new_seed = false, make_plot = false, no_output = false;
+  bool silent = false, new_seed = false, no_output = false;
   std::optional<XppLogLevel> log_threshold;    /* --verbose, --debug: the last one given */
   std::optional<int> equilibria;               /* --equil N */
   std::optional<std::string> out_file, ani_file, state_file; /* given or not */
   std::string out_place;                       /* --outfile as written, for an error's place */
-  std::vector<std::pair<std::string_view, std::string>> options; /* --plotfmt, --dfdraw, --ncdraw through set_option, in order */
+  std::vector<std::pair<std::string_view, std::string>> options; /* --dfdraw, --ncdraw through set_option, in order */
 
 };
 

@@ -281,8 +281,6 @@ struct IntegratorState {
   /* a step's delay (stop_integration) or DAE solve (do_daes) failed:
      why; integrate() ends and returns it */
   std::optional<Error> step_error;
-  /* -makeplot: a batch run writes its plot too */
-  int make_plot_flag = 0;
   /* where the last integration stopped */
   double last_time = 0;
   /* the adjoint is computed over a range (adj2.cpp) */

@@ -69,11 +69,11 @@ int main(void)
     CHECK(std::strcmp(xpp::image_formats[xpp::IMAGE_FORMAT_SVG].extension, "svg") == 0);
     CHECK(std::strcmp(xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension, "gif") == 0);
 
-    /* find_image_format_by_extension (xpp_util.cpp's dump_ps) looks up by the same extension field */
-    CHECK(xpp::find_image_format_by_extension("pdf") == &xpp::image_formats[xpp::IMAGE_FORMAT_PDF]);
-    CHECK(xpp::find_image_format_by_extension("svg") == &xpp::image_formats[xpp::IMAGE_FORMAT_SVG]);
-    CHECK(xpp::find_image_format_by_extension("ps") == nullptr);
-    CHECK(xpp::find_image_format_by_extension("png") == nullptr);
+    /* picture_format_of_file looks a format up by the extension of the file output.picture_file names */
+    CHECK(xpp::picture_format_of_file("a/out.pdf") == &xpp::image_formats[xpp::IMAGE_FORMAT_PDF]);
+    CHECK(xpp::picture_format_of_file("OUT.SVG") == &xpp::image_formats[xpp::IMAGE_FORMAT_SVG]);
+    CHECK(xpp::picture_format_of_file("out.ps") == nullptr);
+    CHECK(xpp::picture_format_of_file("out.gif") == nullptr && xpp::picture_format_of_file("pdf") == nullptr);
     CHECK(xpp::picture_format_names.size() == 2 && xpp::picture_format_names[0] == "pdf" && xpp::picture_format_names[1] == "svg");
 
     /* one picture, both writers: the colour with its alpha, the dash, a marker and a text each as the format says it */

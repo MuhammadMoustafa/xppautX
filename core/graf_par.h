@@ -12,7 +12,6 @@
 
 namespace xpp {
 struct Session; /* session.h */
-struct XppPlotExport;
 
 #define RUBBOX 0
 
@@ -203,9 +202,8 @@ int get_frz_index(Session &s, XppWinId w);
    point, as the columns curve, x, y and, in 3D, z */
 DataTable plot_curves_table(const Session &s);
 
-/* the plot file of a batch run (dump_ps): the model's file name, the
-   internal set's (_name), then the run's number i (_0007) unless i < 0,
-   and the plot format's extension (@ plotfmt=) */
+/* run i's picture of a batch run that writes a file per run (dump_ps): output.picture_file, its name numbered
+   before the extension (out_0007.pdf) */
 std::string batch_plot_name(const Session &s, int i);
 /* frozen curve slot i as a session file restores it (xpp_session.cpp,
    W57): in window w, of grtype type (z's points only when type>0: 3D),
@@ -213,10 +211,5 @@ std::string batch_plot_name(const Session &s, int i);
    counts differ */
 bool restore_frozen_curve(Session &s, int i, XppWinId w, int type, const Color &color, const LineStyle &style, std::string key, std::string name,
                           std::vector<float> x, std::vector<float> y, std::vector<float> z);
-
-/* How plots are written to files (PDF, SVG) */
-struct XppPlotExport {
-    std::string format = "pdf"; /* a batch run's plot files: "pdf" or "svg" (@ plotfmt=) */
-};
 
 } // namespace xpp

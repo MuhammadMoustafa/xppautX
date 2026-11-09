@@ -2189,8 +2189,8 @@ draws them from `hello.line_styles`, and the PDF and SVG writers from the same t
 
 **Pictures.** `Graphic stuff` writes a PDF (one page, 640 by 400 points; Helvetica and Symbol, two of the
 standard 14 fonts, nothing embedded; no date and no identifier, so the same plot is the same bytes) or an SVG, with
-no form: the graph as the panel shows it (W656); `@ plotfmt=` picks
-`pdf` or `svg` for `--mkplot` (a `.ode`'s `ps` imports as `pdf`). PostScript is gone.
+no form: the graph as the panel shows it (W656); a batch run's picture is `output: { picture_file }`, its extension picking
+`pdf` or `svg` (a `.ode`'s `@ plotfmt=ps` imports as `<model>.pdf`). PostScript is gone.
 
 ### The plot as data
 

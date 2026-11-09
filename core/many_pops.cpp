@@ -287,22 +287,16 @@ void check_val(double *x1, double *x2, double *xb, double *xd)
 
 std::string batch_plot_name(const xpp::Session &s, int i)
 {
-  const std::string &file=s.model().this_file,&set=s.this_internset;
-  const std::string &format=s.plot_export.format;
-  return i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
-            :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
+  const std::string &file=s.picture_file;
+  const std::string::size_type dot=file.rfind('.');
+  return xpp::format("{}_{:04d}{}",file.substr(0,dot),i,file.substr(dot));
 }
 
 void dump_ps(xpp::Session &s, int i)
 {
-  const std::string filename=batch_plot_name(s,i);
-   const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(s.plot_export.format);
-   if (!fmt || !fmt->write) {
-     xpp::command_error("mkplot",xpp::format("Unsupported batch picture format {}",s.plot_export.format));
-     return;
-   }
-   if(xpp::ok_or_show(xpp::begin_picture(s,*fmt,filename)) && s.plot_file.writer)
-     xpp::ok_or_show(vector_restore(s));
+  const xpp::ImageFormat *fmt=xpp::picture_format_of_file(s.picture_file);
+  if(xpp::ok_or_show(xpp::begin_picture(s,*fmt,batch_plot_name(s,i))) && s.plot_file.writer)
+    xpp::ok_or_show(vector_restore(s));
 }
 
 void   redo_stuff(xpp::Session &s)

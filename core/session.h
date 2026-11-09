@@ -117,7 +117,6 @@ struct Session {
   /* autoX's hidden branches and zoom */
   AutoxView autox_view;
   /* how plots are written to files (graf_par.cpp) */
-  XppPlotExport plot_export;
 
   /* where a file dialog starts (json_prompts.cpp, W151): the folder of the
      file of its kind (its wild pattern) last opened or saved, else `home`,
@@ -134,6 +133,9 @@ struct Session {
      internal set). The Session's, so a load that fails or another model
      opened later never inherits them. */
   std::string batch_out_file = "output.dat";
+  /* the picture a batch run writes (output.picture_file): "" for none, else a path whose extension picks the
+     format (image_format.h's picture_format_of_file); json_silent.cpp names it after the set, like batch_out_file */
+  std::string picture_file;
   /* the run_set options: the sets a batch run runs, by name (none: every set) */
   std::vector<std::string> run_sets;
   /* the file a batch run writes what its after_run analysis made to (the histogram, the spectrum), so batch_out_file
@@ -228,10 +230,6 @@ struct Session {
      the end of a load, then changed by a `set` or a .set
      (set_bc_formula) and compiled when a shooting starts (pp_shoot.cpp) */
   std::vector<xpp::Model::BoundaryCondition> bcs;
-
-  /* "_<name>" of the internal set applied last (use_intern_set), "" when
-     none: a batch run's plot files are named after it (batch_plot_name) */
-  std::string this_internset;
 
   /* the delay equations' state (delay_handle.cpp) */
   DelayState delay;

@@ -1,9 +1,8 @@
 /* --silent's built-in script (W56): xppautX model.ode --silent is the
    protocol's own commands, the ones a page sends,
    played through this front end (ui_json.cpp json_ui_silent) with its
-   events going nowhere. The command line (--outfile, --equil, --noout,
-   --mkplot, ...), the model's run_set options (which sets run) and the model's @ options (output=,
-   range=, stoch=, postprocess=, ncdraw=, dfdraw=, plotfmt=) say which.
+   events going nowhere. The command line (--outfile, --equil, --noout, ...), the model's run_set options (which sets run) and the model's @ options (output=,
+   range=, stoch=, postprocess=, ncdraw=, dfdraw=, picture_file=) say which.
 
    Each step makes its lines when its turn comes, after the lines before
    it have run: an internal set may change any option, so what a step
@@ -22,7 +21,7 @@
                              stochastic.show_mean or _variance
      then, unless each run of a range wrote its own file:
      output.dat              the output columns' data file, replacing it (save_data_file)
-     --mkplot                 plot.export_pdf or plot.export_svg, by the plot format
+     picture_file            plot.export_pdf or plot.export_svg, by the extension of output.picture_file
    The core computes requested nullclines and direction fields after a run.
    After every run: --equil 0/1 (equilibrium write equil.dat). */
 #include "ui_json_internal.h"
@@ -111,15 +110,18 @@ void SilentScript::apply_set(std::string_view name)
     lines.push_back(std::move(b));
 }
 
+/* the file a set's run writes: the set's name and the extension of the kind of file (data_file's and picture_file's one rule) */
+static std::string set_file(std::string_view set, std::string_view extension) { return xpp::format("{}.{}", set, extension); }
+
 /* the steps of one run: of internal set `set`, or of none (-1) */
 void SilentScript::add_run(int set)
 {
     steps.push_back([this, set] {
         if (set < 0) return;
-        /* its data file is named after it without --outfile (its plots
-           always are: batch_plot_name) */
+        /* its data file is named after it without --outfile, its picture always is (set_file) */
         const std::string &name = session.model().intern_sets[static_cast<std::size_t>(set)].name;
-        session.batch_out_file = batch_options.user_out_file.empty() ? name + ".dat" : batch_options.user_out_file;
+        session.batch_out_file = batch_options.user_out_file.empty() ? set_file(name, "dat") : batch_options.user_out_file;
+        if (const xpp::ImageFormat *format = xpp::picture_format_of_file(session.picture_file)) session.picture_file = set_file(name, format->extension);
         xpp::log(XPP_LOG_INFO, "out={}\n", session.batch_out_file);
         apply_set(name);
     });
@@ -142,14 +144,9 @@ void SilentScript::add_run(int set)
         const xpp::Session &s = session;
         if (writes_output()) {
             if (!trajectory_saved) save_output();
-            if (s.integrator.make_plot_flag) {
-                const xpp::ImageFormat *format=xpp::find_image_format_by_extension(s.plot_export.format);
-                if (!format || !format->write) {
-                    xpp::command_error("mkplot",xpp::format("Unsupported batch picture format {}",s.plot_export.format));
-                    return;
-                }
+            if (const xpp::ImageFormat *format = xpp::picture_format_of_file(s.picture_file)) {
                 std::string line = xpp::format("{{\"cmd\":\"plot.export_{}\",\"file\":", format->extension);
-                buf_str(line, batch_plot_name(s, -1));
+                buf_str(line, s.picture_file);
                 line += '}';
                 lines.push_back(std::move(line));
             }
