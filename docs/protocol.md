@@ -469,19 +469,19 @@ File > Open model key that the page's button sends, so the Open model dialog
 once; answering it with a file loads that model (a new `hello`), and
 cancelling it leaves the start screen: no error, the program keeps running.
 
-`start`: `{"path": the preferences.setx file ("" when there is no config folder),
+`start`: `{"path": the preferences.odex file ("" when there is no config folder),
 "limit": how many models are kept, "recent": [{"path": absolute path,
 "missing": the file is no longer there}, ...], "examples": {"folder": ...,
 "names": [...], "reason": ...}}`, newest first. A recent model
 that is missing is listed as missing, never dropped; opening it is an
-ordinary `session.open_model` that fails with the file named. When `preferences.setx` cannot be
+ordinary `session.open_model` that fails with the file named. When `preferences.odex` cannot be
 read (a relative or repeated path, a control character, a path or a file
 longer than the limits, more entries than `limit`, any other bad value), `recent` is `[]` and
 `start` carries the common error fields (`error`, `file`, `line`, `col`,
 `source`, `field`: "Errors"); nothing of the file is used and the next Open
 model leaves it as it is (it is shown once more, as an error, and the model
 still opens). The file is the program's, in the per-user config folder
-beside `keymap.json`, `preferences.setx` ("Preferences", below): its
+beside `keymap.json`, `preferences.odex` ("Preferences", below): its
 `recent_models`, absolute paths newest first; a model is
 put first when it is opened from Open model (the dialog, a path, a recent
 entry), from the command line or by the OS (a `.ode` is listed by the `.odex`
@@ -642,7 +642,7 @@ part. A file that cannot be read at all is the error with line 0 (above).
 
 **One format version** (W529, Discussion #415 decision 9): the protocol (`hello.protocol`) and every file of ours
 carry one number, 4 (core/format_version.h), and each reader takes exactly that version. A model (`.odex`, an imported
-file too) starts with the statement `version 4`; an animation (`.anix`) with `version: 4`; `preferences.setx` and a session's `session.setx` have the key `version: 4`; `keymap.json` the member `"version": 4`;
+file too) starts with the statement `version 4`; an animation (`.anix`) with `version: 4`; `preferences.odex` and a session's `session.odex` (and a recording's header) start with the statement `version 4`; `keymap.json` the member `"version": 4`;
 a recording (`.recx`) has it in its header. A file with no version, or with another one, is refused as any bad file is,
 at its first line, naming both versions (`version 3: this program reads model files of version 4`): there is no
 upgrader and no older reading. The repository's own files were migrated once by tools/migrate_w529_version.py; the
@@ -682,10 +682,10 @@ the open windows, a name a pick of the model's names, a file the picker, a colou
 
 ## Preferences
 
-`preferences.setx` (W287, [#342](https://github.com/MuhammadMoustafa/xppautX/issues/342),
+`preferences.odex` (W287, [#342](https://github.com/MuhammadMoustafa/xppautX/issues/342),
 core/xpp_prefs.h) is the program's own file for what it keeps for the user
 across runs, in the per-user config folder (`XPP_CONFIG_DIR` overrides it)
-beside `keymap.json`, in the `.setx` syntax (docs/odex.md ".setx"). It is not
+beside `keymap.json`, in `.odex` syntax (docs/odex.md "Preferences"): `version 4` and one `preferences { ... }` statement. It is not
 a model's setting: nothing a run computes depends on it. A missing file is the
 defaults; a bad one (a key that is not a preference, a value of the wrong
 kind, a list or path past its limit, a file past 256 KiB) is an error at its
@@ -1403,12 +1403,12 @@ format is core/recx.h); File/recorD again or `recording.stop` writes it,
 `name.recx`, one plain text file that any editor opens:
 
 ```
-recording: {
-  version: 4,
+version 4
+session {
   program: "xppautX 8.1",
   model: "lecar.odex",
   recorded: "2026-09-30T10:14:02Z",
-},
+}
 
 @snapshot
 UEsDBBQAAAAAA...(the session file, base64)
@@ -1429,12 +1429,12 @@ par iapp=0.1
 fingerprint: 5f0c...(64 hex digits)
 ```
 
-- The header (W285), everything before the first line that starts with
-  `@`, is the settings syntax (docs/odex.md ".setx"): one `recording` group
-  with its `version` (2; another is refused), the `program` (`--version`'s),
+- The header (W285, W322), everything before the first line that starts with
+  `@`, is `.odex` syntax (docs/odex.md "Session files"): the statement `version 4` (another is
+  refused) and one `session` statement with the `program` (`--version`'s),
   the `model`'s file as it names itself and `recorded`, when the recording
   began (UTC), every key named and in any order. A text that is no such
-  group, a key twice, one missing or one it does not know is refused at its
+  statement, a key twice, one missing or one it does not know is refused at its
   line and column. The steps stay JSON protocol lines.
 - `@snapshot` ... `@end` (W59d): the session as it was when the
   recording began, what Save session writes to a `.snapx` ("Session
@@ -2011,7 +2011,7 @@ sends no `live` run.
 | `axes.xmin` .. `ymax` | the diagram's axes |
 | `axes` | all of it the active view's (see "Views of the diagram") |
 | `marks` | Mark values: `[name, value]` per user point, where the parameter `name` (any model parameter) or the period `T` reaches `value` autoX labels the point (UZ) |
-| `threads` | the thread count of autoX and sweeps, a program preference (W267) and not a setting of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.setx` (`threads`) when a model is loaded |
+| `threads` | the thread count of autoX and sweeps, a program preference (W267) and not a setting of the model or the session: `"auto"` or a whole number from 1 to `threads_max`; the same for every model, read from `preferences.odex` (`threads`) when a model is loaded |
 | `threads_auto` | the count `"auto"` gives autoX's collocation on this computer: its physical cores (the performance cores where the system says which), at most 4; a sweep's runs and autoX's two directions use all the physical cores for `"auto"` |
 | `threads_max` | the most `threads` may be: the computer's logical processors |
 | `rules` | what each `numerics` value takes, by key (W118): `label` (the form's, derived from the key: underscores as spaces and a capital first letter), `boolean`, `choices`, `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/autox_settings.cpp num_fields) |
@@ -2054,20 +2054,20 @@ says what the core would.
 
 `threads` (`"auto"` or a whole number from 1 to `threads_max`) is the thread
 count (W267). It is checked with the rest, and saved by `prefs::update_prefs`
-into the per-user `preferences.setx` (`threads: auto` or
+into the per-user `preferences.odex` (`threads: auto` or
 `threads: 4`; `$XPP_CONFIG_DIR` names the folder) before anything of the
 set is applied: a count outside the range, a word other than `"auto"`, or a
-`preferences.setx` that cannot be read or written (it is never overwritten
+`preferences.odex` that cannot be read or written (it is never overwritten
 while it is bad) refuses the whole set (`the thread count must be
 "auto" or a whole number from 1 to 16 (this computer's logical processors)`).
 A pool already running keeps its count until the next run. The results never
 depend on it (W247, W434). The same count is the number of threads `run.range`, `run.double_range`,
 `analysis.stochastic_integrate`, `analysis.lyapunov_exponent` over a range and `array_plot.range` compute their
-runs on, side by side, when `use_old_ic` is on and the model is compiled with a pure right-hand side (W434, "Sweeps on threads" below). It is not in `autox/settings.txt` or a session file, and a
+runs on, side by side, when `use_old_ic` is on and the model is compiled with a pure right-hand side (W434, "Sweeps on threads" below). It is not in a session file, and a
 recording's replay changes the session's count only, never the file.
 
-autoX's settings are saved in the session's `autox/settings.txt`
-(core/xpp_session_autox.cpp, settings_text); Reload keeps them in memory.
+autoX's settings are saved in the `autox` group of the session's `session.odex`
+(core/xpp_session_autox.cpp, write_autox_settings); Reload keeps them in memory.
 The forms and `set` change the same fields and show what the other wrote.
 
 `set` is a setting (W106): sent while autoX (or anything) computes, the
@@ -2418,7 +2418,7 @@ W82).
 
 Import XPPAUT session state (File/Import XPPAUT session state, key `r` of the File
 menu, `session.import_xppaut_state`; `--setfile`) takes an XPPAUT `.set` and nothing else
-(W321; a `.setx` is no longer imported: our own values are `.odex` sets, `set.load_file`).
+(W321; our own values are `.odex` sets, `set.load_file`).
 The file (positional lines, a value and its label, ending with its model's equations,
 `RHS etc ...`) is read whole, every named value checked against the model at its line (the delays, boundary conditions and couplings must be expressions of the model, the transpose's and the array plot's first columns columns of it),
 and only then applied in one step: the parameters, initial conditions, numerics, delays,
@@ -2453,17 +2453,11 @@ is a zip of ordinary files, in this order:
 
 | Member | What it holds |
 |---|---|
-| `session.setx` | the manifest (W285): a `session` group of `version` (2), `model` (the model's own file, as the model names it), `anifile` (the animation `--anifile` loaded, one of the model's files; only when there is one) and `data` (1 when `data.npz` is there); the settings syntax |
-| `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
-| `model.setx` | the session's settings (docs/odex.md ".setx"): the numerics (the Jacobian included) under the option table's keys, the run's position, the initial and ending values, the parameters, the delays, the boundary conditions, Transpose, the coupling, the array plot, the torus and the ranges; every key in it (a session loads nothing it does not hold), without the graphics, which `windows.setx` holds for every window |
-| `autox/settings.txt`, `autox/diagram.csv`, `autox/solutions.s`, `autox/views.txt` | autoX's settings and views (a line `view "NAME" shown|hidden PLOT ...` per view: whether `window.hide` hid it); full-precision diagram and restart orbits when a diagram exists (xpp_session_autox.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
-| `windows.setx` | a `window.list` list, every open plot slot as a group in index order (its quoted `name` and its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`, and `hidden`, whether `window.hide` hid it), `active` (the quoted window name), `browser_hidden` (whether the data browser is hidden), an `autox_view` group (autoX's hidden branches: `earlier`, `show_earlier`) and the browser's `added_columns` (name and formula) |
-| `marks.setx` | the `labels` list (window, x, y, size, font, style, color, text; each value checked, a text 1 to 1000 characters, at most 50), the `arrows_and_markers` list, `freeze_each_run` and the `frozen_curves` list of used slots in slot order (zero-based slot, boolean used, window, type, color, the style keys of a curve, points, key, name), per window |
+| `session.odex` | the state (W322): one file in `.odex` syntax (docs/odex.md "Session files"): `version 4`, a `par` line for every parameter and an `init` line for every variable of the model, an `options` block with the numerics (the Jacobian included) and the sweep's settings under the option table's groups and keys, and one `session { ... }` statement: the manifest keys `model` (the model's own file, as the model names it), `animation` (the animation `--anifile` loaded, one of the model's files; only when there is one) and `data` (true when `data.npz` is there); `run` (the run's position and, in `ending`, the values the last run ended at), `delays`, `boundary`, `coupling`, `transpose`, `array_plot`, `torus`, `sweep`, `equilibrium_range` and `bvp_range`; `sliders`, a list (at least the three model-option slots, at most 256) of groups of `name` (empty clears it), `low`, `high` and `step`; `random` (`seed`, the next Go's; `wiener` and `ou`, the Wiener parameters' and the Ornstein-Uhlenbeck processes' current values; `generator`, the generator's state as one quoted text); `nullclines` (a `current` group and a `frozen` list of groups, at most 10000, each pair with its `x_axis` and `y_axis` (variable numbers) and its `x_segments` and `y_segments`, four finite float coordinates per segment, at most 10000 segments a curve); `autox` (`settings`, the keys of the `autox` `set` command: each Numerics key, the special points, `plot`, `var`, `par1`, `par2`, `xmin`, `xmax`, `ymin`, `ymax` and the `marks` list; `views`, one group per view with its quoted `name`, `hidden` (whether `window.hide` hid it), the axes and the `zoom`; `active`, the active view's name); `windows`, every open plot slot as a group in order (its quoted `name`, its `curves` by variable name with colour and style (`color`, `draw`, `dash`, `width`, `marker`, `marker_size`), the labels, the rotation, scales and box (`rm`, `xlo`, ...), the `zoom` and the earlier-runs toggle `previous_runs`), `active` (the active window's name), `browser_hidden`, `autox_view` and `added_columns`; and `marks` (the `labels` list: window, x, y, size, font, style, color, text, each value checked, a text 1 to 1000 characters, at most 50; the `arrows_and_markers` list; `freeze_each_run`; the `frozen_curves` list of used slots in slot order: zero-based slot, boolean used, window, type, color, the style keys of a curve, the point count, key and name). Every key is there; the numerics and the values are checked as `set` `num` and the `@` lines check them |
+| `model/<name>` | the model (W103): its `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
+| `autox/diagram.csv`, `autox/solutions.s` | full-precision diagram and restart orbits when a diagram exists (xpp_session_autox.h); each diagram point's `jacobian` column is 0 (difference) or 1 (exact), the setting of the run that computed it, required: a `diagram.csv` without it is refused with its file and line (W278) |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
-| `sliders.setx` | mandatory; a `sliders` list (at least the three model-option slots, at most 256), each slot a group of `name` (empty clears it), `low`, `high` and `step`; all names and ranges are checked before anything applies |
-| `nullclines.setx` | mandatory; a `current` group and a `frozen` list of groups (at most 10000): each pair has its `x_axis` and `y_axis` (variable numbers) and its `x_segments` and `y_segments`, lists of four finite float coordinates per segment (at most 10000 segments a curve); axis indices and the segment limit are checked |
-| `random.txt` | the random numbers' state as text: a `seed N` line (the seed the next Go uses), a `wiener` line (the Wiener parameters' current values), an `ou` line (the Ornstein-Uhlenbeck processes' current values), then the generator's state on one line, the last (the Mersenne Twister's, and whether it holds a normal deviate over, 0 or 1, and that deviate); opening restores it, so a stochastic model goes on from the same numbers |
 
 W376 (#438): saves omit closed windows and unused frozen slots. The saved
 numbers preserve gaps and recording IDs; they must increase, with window
@@ -2484,7 +2478,7 @@ unsigned 64-bit MT19937-64 state words in array order, the next-word index
 value written with 17 significant decimal digits in the classic locale.
 The recurrence and initialization are MT19937-64's standard parameters.
 Already saved libstdc++ states have this layout; a different library's
-layout is rejected at `random.txt`'s line, without conversion or fallback.
+layout is rejected at the `generator` value's line, without conversion or fallback.
 Recording scratch roots and their parent folders are compared by real
 path, allowing linked temp-folder ancestors such as macOS's `/var`;
 links inside scratch and writes through subfolders remain refused.
@@ -2493,34 +2487,34 @@ Opening one (`session.open_model`, `session.open`, the command line) loads the m
 saved in it, from those saved files alone: an edit to the `.ode` since,
 or its absence, makes no difference, and a file the model reads that is
 not saved in it is a file that is not there. Then it restores the
-members: `session.state`, `plot.shown`, `plot.marks` (but Sing pts' equilibrium symbols),
+state: `session.state`, `plot.shown`, `plot.marks` (but Sing pts' equilibrium symbols),
 `autox.view` and the diagram in each of its views are as they were at the
 save, the diagram exactly (every digit). The earlier runs a window keeps until Erase are
 not saved. A file without its model (`model/<name>` missing, as in every
-session file saved before W103), or without its manifest, is refused (a
+session file saved before W103), or without its state file `session.odex`, is refused (a
 `session.message` `error` says what is missing) and nothing changes. So is one
-whose manifest has a key it does not write, or a key twice (`s1.snapx/session.setx:5:3:
-not a session file (.snapx) of this version: `later` is not a setting of the file`), and a session of the
-older layout (W285: `session.txt` and XPPAUT's set lines, no `session.setx`): the ordinary error, with no logic to explain
-it; and (W116) one with a member it always
-writes missing (`model.setx`, `windows.setx`, `marks.setx`, `sliders.setx`, `nullclines.setx`, `random.txt`, which must also load as a generator state; `data.npz` when
-`data` is 1, and only then; autoX's four when one is there; the points of
-every frozen curve `marks.setx` lists) or one whose member does not read: a
+whose session statement has a key it does not write, or a key twice (`s1.snapx/session.odex:5:3:
+`later` is not a setting of the session`), and a session of an
+older layout (W322: the state in several members, one for each part): the ordinary error, with no logic to explain
+it; and (W116) one with a part it always
+writes missing (a `par` or `init` line, a group of the `session` statement, the `generator`, which must also load as a generator state; `data.npz` when
+`data` is true, and only then; autoX's two when one is there; the points of
+every frozen curve `marks` lists) or one whose state does not read: a
 key missing or a value that is not a number, a value out of range, a key it
 does not know, a variable, a window or a slot it does not have, a value
 of autoX's it does not take; and (W145) a numerical setting its rule
 refuses, as `set` `num` and an `@` line refuse it (0 `store_every`, 0 `DeltaT`),
 more added columns than the model has room for or one whose formula does
 not compile, an arrow's or marker's type out of range, a colour that is none, a
-manifest line given twice. Every member is read whole and checked
+manifest key given twice. The state is read whole and checked
 against the model's load before it is kept, and only then applied (W125):
 the session before stays exactly as it was, its model included; the
-error's place is the member's line and column, the member named inside its file
-(`file` `s1.snapx/windows.setx`, `line` 11, `col` 7, `source` the line as written):
-`s1.snapx/windows.setx:11:7: s1.snapx could not be loaded (the model has no
+error's place is the line and column of the state file, named inside its archive
+(`file` `s1.snapx/session.odex`, `line` 11, `col` 7, `source` the line as written):
+`s1.snapx/session.odex:11:7: s1.snapx could not be loaded (the model has no
 variable "nosuch"); lecar.odex is still loaded` (at the start, the
 command line's file, the `error` event, then exit 1). A member missing
-is named on the file itself (`s1.snapx: its random.txt is missing`). The command
+is named on the file itself (`s1.snapx: its session.odex is missing`). The command
 line opens one too, `xppautX name.snapx` (every mode but `--silent`),
 from its own folder.
 
@@ -2887,7 +2881,7 @@ asked while the model loads, before anything is applied: an `ask` of kind
 names the model file, the model's line (and the line as written) and the
 path with the text it resolves to, `choices` `["Allow always","Allow once","Refuse"]`
 and `keys` `aor`. `a` keeps the pair of the model file's absolute path and the
-resolved path in the preferences (`outside_paths` of `preferences.setx`, at
+resolved path in the preferences (`outside_paths` of `preferences.odex`, at
 most 24, newest first, the oldest dropped), so that model and that exact
 path are not asked again; a changed path or another model asks again. `o`
 allows it for this load, including the conversion and native load of a `.ode`.

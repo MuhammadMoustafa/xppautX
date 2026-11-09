@@ -322,8 +322,8 @@ you wrote (`1/30`) alone while the value is unchanged.
   the line of the `ou`); `init` is a number. A run starts it at `init`, or at a
   draw from the stationary N(0, sigma^2 tau/2). Methods that draw no noise each
   step are refused, as for `wiener`; a negative `dt` advances it by |dt| (the
-  stationary process is the same backwards). Its value is in `random.txt` (an
-  `ou` line). It takes no range, and a name clash, a bad number or an unknown
+  stationary process is the same backwards). Its value is in the `random` group of a
+  session file (`ou`). It takes no range, and a name clash, a bad number or an unknown
   item is a load error at its line.
 - `markov`, `wiener` kept; `event` (`.ode`'s `global`), `boundary`
   (`bdry`), `network` (`special`) renamed, same meaning, `.odex`-spelled
@@ -353,7 +353,7 @@ The allocation-sized whole options have inclusive maxima (W296,
 | `continuation.collocation_points` | 2 | 7 | autoX's settings reader requires supported collocation orders 2 through 7 |
 
 Settings that must keep an order are refused when it is broken, wherever they
-come from (an `options` block, a `.setx` or session file, `set num`, the
+come from (an `options` block, a session file, `set num`, the
 Numerics menu, the Window and histogram dialogs), with both names and values:
 `min_step` at most `max_step`, `xlo` below `xhi`, `ylo` below `yhi`, `xmin` below `xmax`, `ymin` below `ymax`, `zmin` below `zmax`, `histlo` below `histhi`,
 `histlo2` below `histhi2`, `autoxmin` below `autoxmax` and `autoymin` below `autoymax` (the settings' internal names, which the message names; the keys are `step.min`, `step.max`, `axes.x_low`, `axes.x_high`, `axes.y_low`, `axes.y_high`, `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `histogram.low`, `histogram.high`, `histogram2.low`, `histogram2.high`, `x_min`, `x_max`, `y_min` and `y_max` of the diagram) (the continuation's pairs are autoX's own). `torus.period` is above 0 and
@@ -366,7 +366,7 @@ remain whole numbers in their existing ranges; they do not size an allocation.
 The JSON schemas publish the maxima from the same option rows. Exceeding one
 is a load error at the file's offending line, before applying anything.
 
-The shared `.odex`/`.setx` lexer accepts at most 1,048,576 tokens per file,
+The shared `.odex` lexer (a session file's and the preferences file's too) accepts at most 1,048,576 tokens per file,
 including the end token: at most 80 MiB of token objects on 64-bit builds,
 plus token text bounded by the input's length. A punctuation-only file
 exceeding that cap is refused at the next token's file, line and column.
@@ -374,15 +374,13 @@ Both `.ode` and `.odex` ranges may expand to at most 100000 elements per
 statement; the length is checked before any copies are made. These caps
 allow large models while bounding compact hostile input's expansion.
 
-## Settings syntax (.setx)
+## Settings syntax, session files and preferences
 
-The `.setx` syntax is the session's own and the program preferences' (a session file's `model.setx`, `windows.setx`
-and the other members, `preferences.setx`, a recording's header; W284, [#344](https://github.com/MuhammadMoustafa/xppautX/issues/344);
-design in [Discussion #341](https://github.com/MuhammadMoustafa/xppautX/discussions/341)). It is not a file a user
-keeps or imports (W321): a user's values are `.odex` sets, loaded by scope (Load values from file), and XPPAUT's `.set`
-is imported whole (Import XPPAUT session state). A session's `model.setx` holds what XPPAUT's `.set` held (the parameters, the initial values, the
-numerics, the delays, the boundary conditions, the active window's graphics),
-in the options block's syntax: `key: value` entries separated by commas,
+The settings syntax is the options block's, and the session statement's and the preferences statement's with it (W284,
+[#344](https://github.com/MuhammadMoustafa/xppautX/issues/344), design in
+[Discussion #341](https://github.com/MuhammadMoustafa/xppautX/discussions/341); W322,
+[#382](https://github.com/MuhammadMoustafa/xppautX/issues/382), design in
+[Discussion #682](https://github.com/MuhammadMoustafa/xppautX/discussions/682)): `key: value` entries separated by commas,
 groups `{ ... }` nested, a trailing comma allowed, a bare one-token value
 or a value in double quotes (`\"` and `\` the only escapes), `#` and `/* */`
 comments. **User text is quoted, a choice never** (W490): whatever the user
@@ -394,51 +392,73 @@ a choice, a number, `true` or `false` and a name of the model's own
 refused too (`` `method` takes a word, never in quotes ``). A reference to a
 column a user named with more than letters and digits is the one place a
 name may be either. The one addition is a list, `[ a, b, c ]`, of values or of groups
-(a window's curves). The file is the entries of one unbraced top-level group,
-in any order; it is read by the `.odex` reader's own tokenizer and block
-grammar (core/odex_parse.cpp), not a second parser, and loaded all or
-nothing: every key and value is checked, an error names the file, the line
-and the column with the line as written, and nothing is applied before the
-whole file has read. A key no group has, a key twice, a group nested deeper
+(a window's curves). There is one reader, the `.odex` reader's own tokenizer and block grammar
+(core/odex_parse.cpp, typed values read by core/odex_block.cpp): every key and value is checked, an error names the file,
+the line and the column with the line as written, and nothing is applied before the
+whole file has read (all or nothing, W125). A key no group has, a key twice, a group nested deeper
 than 8 and a list longer than the reader allows are errors (a session file may
 be one you were sent).
 
-        numerics: { total_time: 100, dt: 0.05, method: stiff, jacobian: exact, },
-        parameters: { iapp: 0.09, gca: 1, },
-        initial: { v: -0.5, w: 0.1, },
-        graphics: {
-          curves: [ { x: t, y: v, z: t, color: "#ff0000", draw: line, dash: solid, width: 1, marker: circle, marker_size: 3 } ],
-          xlo: 0, xhi: 100,
-        },
+### Session files
 
-A session's `model.setx` names every key (a missing one is an error). The groups are `numerics`, `run` (the integrator's
-position), `initial`, `ending` (the values the last run ended at),
-`parameters`, `delays`, `boundary`, `graphics` (the active window: its
-curves by variable name and its rotation, scales and box), `transpose`,
-`coupling`, `array_plot`, `torus`, `range`, `equilibrium_range` and
-`bvp_range`. The keys of `numerics` and of the table-held part of `range`
-are the option table's (core/model_options.cpp, the rows marked `saved`): a
-numerics setting is written under the key the Numerics menu and `set num`
-use (`total_time`, `dt`, `method`, `jacobian`, `relative_tolerance`, ...), a choice
-by its word (`jacobian.kind: exact`, `poincare: { map: section }`) and a yes or no as `true` or `false` (`sweep: { reset: false }`), a bare number never standing for either,
-so a setting added to the table is a key of the file with no other change.
-The `columns` and `rows` of `array_plot` and `transpose` are whole numbers
-from 1 through 4096, limiting their rectangle to about 16 million cells.
-The same checks apply in a session's `model.setx` and `windows.setx` and to
-an imported XPPAUT `.set`, with the offending member's file and line.
+A session's state (a `.snapx`'s member `session.odex`, and a recording's header) is one file in `.odex` syntax, beside
+the model's own files. Its values and settings are ordinary `.odex` statements with the same names as a model's: the
+parameters are `par` lines, the initial values `init` lines (one for each name of the model), the numerics and the
+sweep's settings the rows of an `options` block, under the groups and keys the option table gives them (the rows marked
+`saved`, core/model_options.cpp: `integration: { total_time: 30, dt: 0.05, method: runge_kutta, ... }`,
+`sweep: { ... }`). Everything else that describes the sitting is one new statement, `session { ... }`, accepted only in a
+session file (a model with one is an error at its line, as is a statement a session file does not have: an import, a
+formula, a second `session`):
 
-The JSON Schema generated from the file's description and the table is
-[setx.schema.json](setx.schema.json) (`xppautX --setx-schema` prints it;
-`tools/optionschema.sh --check` fails when it differs).
+        version 4
+        par iapp = 0.05
+        par phi = 0.333
+        init V = -0.144
+        init W = 0.03
+        options {
+          integration: { total_time: 30, dt: 0.05, method: runge_kutta, ... },
+          sweep: { variable: V, steps: 20, low: 0, high: 1, ... },
+        }
+        session {
+          model: "lecar.odex",
+          data: false,
+          run: { current_time: 0, last_time: 0, my_start: 0, inflag: false, delay_flag: false,
+                 ending: { V: 0, W: 0 } },
+          delays: { V: "0.0", W: "0.0" },
+          boundary: { V: "0", W: "0" },
+          sliders: [ { name: iapp, low: -1, high: 2, step: 0.01 } ],
+          random: { seed: 12345678, wiener: [], ou: [], generator: "..." },
+          autox: { settings: { ... }, views: [ { name: "diagram_1", ... } ], active: "diagram_1" },
+          windows: [ { name: "graph_1", curves: [ { x: V, y: W, ... } ], ... } ],
+          active: "graph_1",
+          marks: { ... },
+        }
+
+A session names every key (a missing one is an error). The `session` statement holds the manifest (`model`, the
+model's own file as it names itself, `animation` when the model was loaded with one, and `data`, whether `data.npz` is in
+the file), `run` (the integrator's position and, in `ending`, the values the last run ended at), `delays`, `boundary`,
+`coupling`, `transpose`, `array_plot`, `torus`, `sweep` (the second sweep parameter), `equilibrium_range` and `bvp_range`
+(the settings those commands keep), the `sliders`, `random` (the next Go's seed, the Wiener and
+Ornstein-Uhlenbeck values and the generator's state), `nullclines`, `autox` (autoX's settings, views and the active view), every
+open graph in `windows` (name, curves by variable name, axes, 3D view, zoom, previous runs) with the `active` one and the
+browser's and added columns' state, and `marks` (labels, arrows and markers, frozen curves). A session reopens exactly the
+graphs it saved. The `columns` and `rows` of `array_plot` and `transpose` are whole numbers from 1 through 4096,
+limiting their rectangle to about 16 million cells. A session is applied the same way in the window, `--server` and
+`--silent`. The checks of the numerics and of every value are the ones the Numerics menu and `set num` make, with the
+offending key's file and line.
+
+### Preferences
+
+The program's preferences (W287) are one file in the per-user configuration folder, `preferences.odex`: `version 4` and one
+`preferences { recent_models: [...], threads: auto, log_level: warn, ... }` statement, accepted only in that file. It is
+read by the same reader, all or nothing, and written whole, temp-then-rename. No older file is read.
 
 XPPAUT's `.set` (positional lines, a value and then its label, read by their
 order) is import only: File > Import XPPAUT session state and `--setfile` of one
 read it and apply all of it (W321), writing nothing beside it; Load values from
 file takes a scope's part of it (its parameters, initial conditions and the numerics
-a set may hold). A `.setx` is no longer imported by either. Session files (`.snapx`) keep their
-settings in the same syntax, one member each (`model.setx`, `windows.setx`,
-`marks.setx`, `sliders.setx`, `nullclines.setx`, the manifest `session.setx`),
-and a recording's (`.recx`) header is a `recording` group of it: see
+a set may hold). A user's own values are `.odex` sets, loaded by scope (Load values from file).
+Recordings (`.recx`) keep their header as a `session { program, model, recorded }` statement: see
 docs/protocol.md "Session files" and "Recordings".
 
 A `.odex` with no state equations can be imported but cannot be opened as

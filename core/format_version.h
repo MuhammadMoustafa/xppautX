@@ -1,8 +1,8 @@
 #pragma once
 
 /* The one format number (W529, Discussion #415 decision 9): the protocol (hello's `protocol`) and every file of ours
-   carry it, and each reader accepts exactly this version: .odex (its first statement, `version 4`), .anix, .setx,
-   .snapx, .recx, keymap.json and preferences.setx (a `version` key). Another version is an error naming both versions;
+   carry it, and each reader accepts exactly this version: .odex, a session's session.odex, a recording's header and preferences.odex (their first statement, `version 4`), .anix,
+   .snapx, .recx, keymap.json (a `version` key). Another version is an error naming both versions;
    there is no upgrader and no fallback. 4 is the command migration's; it is reset to 1 once everything settles. A macro
    so the protocol's hello and About can print it at compile time. */
 #include "xpp_io.h"

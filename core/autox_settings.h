@@ -120,7 +120,7 @@ void threads_load(Session &s);
 
 /* the settings now, whole: every Numerics field, the
    axes and the Mark values, names empty where there is none (the event's
-   null). What the event sends and a .snapx's settings.txt saves (xpp_session_autox.h);
+   null). What the event sends and a .snapx's session.odex saves in its autox group (xpp_session_autox.h);
    applied with autox_settings_apply, it gives the settings back. */
 AutoxSettingsSet autox_settings_now(const Session &s);
 /* Reload carries settings already in memory; missing model names keep the
@@ -147,7 +147,7 @@ Result<> autox_settings_numbers_check(std::span<const double, AUTOX_NUM_N> num,
    window is open, as the AutoxPlot form does. Nothing is thrown. */
 int autox_settings_apply(Session &s, const AutoxSettingsSet &set, std::string &why);
 /* the same checks, nothing applied, as the diagram will be when it has
-   views views (-1: the views s has; a file's views.txt restores them): the
+   views views (-1: the views s has; a file's autox views restore them): the
    Error says why, its field the key of the value that is wrong ("ntst",
    "var", "par1", "xmax", "mark2", ...; "view"; "" for the whole set), for
    a file of autoX's settings to name its line (xpp_session_autox_io.cpp) */

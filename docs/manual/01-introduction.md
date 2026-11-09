@@ -127,9 +127,9 @@ launcher with no model named, xppautX opens the Open model dialog at once
 (the same one File > Open model… shows: it takes `.ode`, `.odex`, a `.snapx`
 session or a `.recx` recording). Cancel it and the **start screen** stays: an
 **Open model…** button and the models you opened lately, newest first (up to
-ten, kept in `preferences.setx` beside `keymap.json`). Click one to open it; one
+ten, kept in `preferences.odex` beside `keymap.json`). Click one to open it; one
 whose file is gone is listed as missing and cannot be opened (move or restore
-the file, or open another). If `preferences.setx` cannot be read, the screen says
+the file, or open another). If `preferences.odex` cannot be read, the screen says
 which line is wrong and lists none; the file is left as it is for you to fix or
 delete. Under **Examples** are the `.odex` models of the release's `examples/`
 folder, beside the program (in `xppautX.app`, `Contents/Resources/examples`).
@@ -176,7 +176,7 @@ whether to save the session open, since it takes its place. A session file witho
 its model (one saved before this version) is refused with an error, and so
 is one with a part missing or damaged (a member cut short, a line that is
 not a number, a variable the model does not have): the error names the
-part and its line (`s1.snapx/windows.setx:12:7: ...`), and the
+part and its line (`s1.snapx/session.odex:12:7: ...`), and the
 session open stays exactly as it was, nothing of the file taken. Every
 file of xppautX's loads this way, all or nothing: a set, parameter or
 initial-conditions file, an autoX file or autoX settings file and a
@@ -188,7 +188,7 @@ not saved (the data table is the last run's), nor are Sing pts'
 equilibrium symbols. A data table above 50 MB makes Save session ask
 whether to leave it out (Go computes it again). A `.snapx` is a zip of
 ordinary files: renamed to `.zip`, its `model/` folder holds the model's
-files, its `model.setx` holds the values and numerics (the settings syntax of a model's `options` block) and its
+files, its `session.odex` holds the values, the numerics and everything else a sitting keeps, in the syntax of a model (par and init lines, an `options` block and a `session` statement), and its
 `data.npz` reads in NumPy (`numpy.load`). XPPAUT's `.set` file is no longer a
 file xppautX saves: the session holds what it held, and
 File > Sets > Import XPPAUT session state applies a `.set` XPPAUT wrote, whole and all or nothing; values from our own files (an `.odex` and its sets) or from XPPAUT's `.par`, `.ic` and `.set` come in by scope with Load values from file. autoX > File > Save diagram and Open diagram save and open the session too.
@@ -214,7 +214,7 @@ warnings and errors. Without `--logfile`, that log goes to the page's
 Messages panel, live; the terminal gets the warnings and errors (a page
 may be closed), and everything with `--verbose` or `--debug`. `--logfile FILE`
 sends it to FILE instead, so a run started that way has nothing in Messages
-and the terminal shows only its warnings and errors. What the log shows and where it goes are yours, not a model's: the preferences file (`preferences.setx`) holds `log_level` (`error`, `warn`, `info` or `debug`) and `log_file` (an absolute path), and `--verbose`, `--debug`, `--quiet` and `--logfile` win over them; XPPAUT's `@ quiet=` and `@ logfile=` of a `.ode` are dropped with a warning. See
+and the terminal shows only its warnings and errors. What the log shows and where it goes are yours, not a model's: the preferences file (`preferences.odex`) holds `log_level` (`error`, `warn`, `info` or `debug`) and `log_file` (an absolute path), and `--verbose`, `--debug`, `--quiet` and `--logfile` win over them; XPPAUT's `@ quiet=` and `@ logfile=` of a `.ode` are dropped with a warning. See
 [Using the interface: the log](04-using-the-interface.md#the-log).
 
 ### Command-line options

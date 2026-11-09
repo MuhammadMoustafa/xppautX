@@ -576,7 +576,7 @@ private:
     std::unique_ptr<State, Free> state_;
 };
 
-/* ---- A per-user settings file (keymap.json, preferences.setx) ----------------
+/* ---- A per-user settings file (keymap.json, preferences.odex) ----------------
    The file `name` in the config folder (files::config_dir), the one way
    the settings files are read and written. `where` is the Error's
    `where`. No config folder (no HOME or APPDATA, or an XPP_CONFIG_DIR that
@@ -609,24 +609,21 @@ Result<T> load_config_file(std::string_view where, std::string_view name, std::s
    first half, the one way such a file is read. Every load of one of our
    files goes through it:
      - XPPAUT's set file (.set: File > Import settings, --setfile; an import
-       only, converted to a .setx) and a parameter file (.par: --parfile,
+       only, read into session_settings.h's Settings) and a parameter file (.par: --parfile,
        the values panel's Load): lunch-new.cpp's read_set and
        read_parameter_file;
-     - a settings file (.setx: the same commands, a session's model.setx,
-       windows.setx, marks.setx, sliders.setx, nullclines.setx and
-       session.setx, a recording's header): setx.h's read_block over the
-       .odex reader's own grammar (setx_file.cpp's read_settings, xpp_session.cpp's
-       read_windows, read_marks, read_sliders, nullcline.cpp's read_nullclines);
+     - a session's state (a session.odex of a .snapx, a recording's header) and the preferences
+       file: odex.h's read_state_file over the .odex reader's own grammar
+       (session_settings.cpp's read_settings, xpp_session.cpp's read_windows, read_marks,
+       read_random, read_sliders, nullcline.cpp's read_nullclines, xpp_session_autox.cpp's
+       read_settings and read_views, xpp_prefs.cpp's parse_prefs);
      - an initial-conditions file (.ic: --icfile, Initialconds/File, the
        values panel's Load): lunch-new.cpp's read_ic_file;
-     - a session's random.txt (.snapx: Open session, a recording's
-       snapshot): xpp_session.cpp's read_random, read and checked together
-       with the settings members (read_session) before any is applied
-       (apply_session); data.npz and frozen.npz are NPZ, checked whole
+     - a session's state read with the rest of its members (read_session) before any is applied
+       (apply_session): data.npz and frozen.npz are NPZ, checked whole
        (data_formats.cpp) the same way;
-     - autoX's session members autox/settings.txt, autox/diagram.csv and
-       autox/views.txt: xpp_session_autox.cpp's parse_settings, parse_diagram_csv,
-       parse_views;
+     - autoX's session members autox/diagram.csv and autox/solutions.s:
+       xpp_session_autox.cpp's parse_diagram_csv;
      - a recording (.recx: Play recording, Open model of one, the command
        line): recx.cpp's read.
    (An internal set, File > Named sets, is a model's line, not a file:

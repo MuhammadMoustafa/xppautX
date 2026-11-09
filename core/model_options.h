@@ -247,8 +247,7 @@ struct OptionRow {
   void (*prepare)(Session &, int) = nullptr;
   /* a .odex block may name it more than once (fold, but: each names one) */
   bool repeatable = false;
-  /* a .setx holds its value (W284): the numerics group, or the range
-     group, by the row's key. A choice row's value is the index of its
+  /* a session file holds its value (W284): in its options block, by the row's group and key. A choice row's value is the index of its
      word in `choices` (or, for the method, the solver's number). */
   bool saved = false;
   /* what a change of the numerics setting needs, after its member is
@@ -324,7 +323,7 @@ const OptionRow *find_odex_option_anywhere(std::string_view key, int &index);
 /* a set may hold the row: its group is one of set_groups and it is no `wide` row */
 bool set_holds(const OptionRow &row);
 
-/* the curves of a model's `curves` list (a window's are setx_file.h's read_curves, with their colours and lines); the groups (x, y, z: a variable's name each); with a Session the names are
+/* the curves of a model's `curves` list (a window's are session_settings.h's read_curves, with their colours and lines); the groups (x, y, z: a variable's name each); with a Session the names are
    checked and read as columns, without one only the shape of the list */
 std::vector<PlotCurve> read_starting_curves(const Session *s, odex::Block &file);
 
@@ -355,7 +354,7 @@ std::string option_schema();
    autoX's own rule say; the schema's and the panels' one source of a limit */
 std::string option_limit_members(const OptionRow &row);
 /* one row's value as a JSON Schema: what its kind and rule say (the options
-   block's and a .setx's, setx_file.h) */
+   block's and a session's, session_settings.h) */
 std::string option_value_schema(const OptionRow &row);
 
 /* the row with `once` named name (upper case): for an option whose parser
@@ -366,7 +365,7 @@ const OptionRow &once_option(std::string_view name);
 const OptionRow *numerics_option(std::string_view key);
 
 /* what an option's error says, in no file's syntax (the option may come
-   from a .ode, a .odex's options block, a .setx or the command line); the
+   from a .ode, a .odex's options block, a session file or the command line); the
    error carries the file and line it was read from */
 std::string option_error_text(std::string_view name, std::string_view value, std::string_view why);
 

@@ -23,7 +23,7 @@ struct Model;   /* model.h */
    xpp_io.h's Lines (whole(), real(), next(), heading()), the one way a
    file is read (W125). */
 
-struct Settings; /* setx_file.h */
+struct Settings; /* session_settings.h */
 
 /* XPPAUT's set file at path read whole for s's model: every value and label
    checked, or the error at the line that is wrong; its model's equations

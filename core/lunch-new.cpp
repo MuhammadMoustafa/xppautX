@@ -82,7 +82,7 @@ void put_parameters(const xpp::Session &s, FILE *fp, const char *prefix)
 /* ---- XPPAUT's set file, read (an import only) ----
    Positional lines, a value and then its label, read by their order: the
    layout XPPAUT writes and nothing of ours writes. It is read into
-   setx_file.h's Settings, every value checked and every label compared. */
+   session_settings.h's Settings, every value checked and every label compared. */
 
 /* the Poincare map's names, as a set file labels its number with them */
 constexpr std::array<const char *, 4> poincare_names = {"Poincare None", "Poincare Section", "Poincare Max", "Period"};

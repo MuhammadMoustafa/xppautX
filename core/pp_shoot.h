@@ -9,7 +9,7 @@
 
 namespace xpp {
 
-/* which end of the interval Range shoot stores the solution's values at (ShootRange::side; a .setx keeps the number) */
+/* which end of the interval Range shoot stores the solution's values at (ShootRange::side; a session keeps the number) */
 inline constexpr int SHOOT_SIDE_START = 0, SHOOT_SIDE_END = 1;
 inline constexpr std::array<const char *, 2> SHOOT_SIDE_NAMES = {"start", "end"};
 /* BVP's Range settings (pp_shoot.cpp) */

@@ -241,7 +241,7 @@ struct Session {
   StochasticState stochastic;
   /* the random generator its runs, the parser's ran(), normal() and
      poisson() and Monte Carlo draw from (xpp_math.h); a .snapx's
-     random.txt saves and restores it */
+     the random group of a .snapx's session.odex saves and restores it */
   Random random;
   /* the nullclines', direction field's and orbit colouring's settings
      (nullcline.cpp) */
