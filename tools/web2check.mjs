@@ -4365,6 +4365,8 @@ async function valuesJacobian(dir) {
   const options = () => cdp.eval(`(() => { const s = ${select}; return s ? [...s.querySelectorAll('[role=radio]')].map(o => [o.textContent, o.disabled]) : null; })()`);
   await cdp.eval(`(() => { const t = document.querySelector('[data-section="num"] .value-fold[aria-expanded="false"]'); if (t) t.click(); })()`);
   await until(`!!${select}`, 'the Jacobian select');
+  /* a row is disabled until the core's values for its group arrive (OptionsPanel's values === null) */
+  await until('!!s.optionValues.integration', 'the numerics values');
   check('W260: Numerics shows Jacobian as a choice of difference and exact, difference selected, both available',
     JSON.stringify(await options()) === JSON.stringify([['Difference', false], ['Exact', false]])
     && await cdp.eval(`${select}.querySelector('[aria-checked=true]')?.dataset.choice === 'difference'`), JSON.stringify(await options()));
