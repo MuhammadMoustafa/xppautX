@@ -138,6 +138,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [105](#105-the-fold-test-of-a-switched-branch-starts-at-its-third-point) | AUTO | the second point of a branch started by a switch (MXBF) is not tested: a fold between the second and third points is never labelled | [W569 / #634](https://github.com/MuhammadMoustafa/xppautX/issues/634) |
 | [106](#106-the-tests-of-a-branchs-first-steps-are-not-made) | AUTO | the tests start at 0 and the first value is the third point's (cycles: the second's): a zero between a branch's start and its third point is never labelled, and the second point of an equilibrium branch is not stored | [W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637) |
 | [107](#107-rosenbrock-scales-and-refactors-its-already-factored-matrix-after-a-failed-step) | Integrators | after a failed step `rosen` scales `dfdy`, which `sgefa` (or `bandfac`) has overwritten with its LU factors, again by -h*d and factors that: the retried step is solved with a meaningless matrix (the Jacobian is made again only for the next step) | [W433 / #495](https://github.com/MuhammadMoustafa/xppautX/issues/495) |
+| [108](#108-a-nullcline-of-a-plot-against-time-writes-before-its-state-array) | Nullclines | `fnull` writes the plot's axes into the state at index `xv[0]`, which is 0 (time) for a plot of t against v, so `y1[-1]` is written; the guard tests `TimeFlag`, which a window whose axes change without `check_flags` keeps 0 | [W670 / #745](https://github.com/MuhammadMoustafa/xppautX/issues/745) |
 
 ## 1. Model options
 
@@ -2287,3 +2288,10 @@ and goes round again with `dfdy` now holding the LU factors, which are scaled (b
 nor its factors (the next step makes the Jacobian again). The same in [master](../reference/xppaut-master/odesol2.c). Evidence: from the source; W433's block-by-block
 factorization had to put its factors back into `dfdy` to reproduce a run of 40 independent van der Pol pairs with a rejected step.
 **xppautX** (W433 / [#495](https://github.com/MuhammadMoustafa/xppautX/issues/495)): not fixed, since a fix changes every Rosenbrock run that rejects a step; the numbers stay XPPAUT's.
+
+## 108. A nullcline of a plot against time writes before its state array
+
+`fnull` writes the variables of the plot window's axes into its state, `y1[null_ix-1]=x` and `y1[null_iy-1]=y` ([nullcline.c:955-956](../reference/xppaut-8.0/nullcline.c#L955)), where `y1` holds `MAXODE` values and `null_ix` is the window's `xv[0]` ([nullcline.c:885](../reference/xppaut-8.0/nullcline.c#L885)). Index 0 is time, so a plot of t against v writes `y1[-1]`. The guard that should stop it, `ThreeDFlag||TimeFlag||xv[0]==yv[0]` ([nullcline.c:857](../reference/xppaut-8.0/nullcline.c#L857)), depends on `TimeFlag`, which is only kept in step where the window's flags are checked ([graf_par.c:135-136](../reference/xppaut-8.0/graf_par.c#L135)); a window whose axes change without that check keeps `TimeFlag` 0 and passes the guard.
+
+Evidence: from the source and from xppautX, where the same write is the crash of the set `vvst` in examples/ode/lecar.odex (AddressSanitizer: heap-buffer-overflow in `fnull`, the index -1, with `TimeFlag` 0 and `xv[0]` 0). XPPAUT itself was not run: its window needs an X server, so whether its interface reaches such a window is not checked.
+**xppautX** (W670 / [#745](https://github.com/MuhammadMoustafa/xppautX/issues/745)): fixed: the phase-plane test checks the indices too, and a batch run whose plot is not two model variables writes no nullclines and says so in one INFO line naming the window and its axes.

@@ -308,6 +308,7 @@ void new_nullcline(xpp::Session &s, int course, float xlo, float ylo, float xhi,
 
 void range_nullclines(xpp::Session &s)
 {
+  if(!phase_plane_states(s,*s.plot_windows.current))return;
   const Computation computing;
   s.nullcline_state.frozen_started=true;
   const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
@@ -510,7 +511,13 @@ int get_nullcline_floats(xpp::Session &s, float **v,int *n,int who,int type) /* 
 void do_batch_nclines(xpp::Session &s)
 {
   if(!s.nullclines.draw && s.nullclines.file.empty())return;
-  if(!phase_plane(*s.plot_windows.current))return;
+  const GRAPH &g=*s.plot_windows.current;
+  if(!phase_plane_states(s,g)){
+    /* a time plot has no nullclines in any mode: say so once per run, not an error */
+    const auto axis=[&s](int ix){return ix>0?s.model().uvar_names[ix-1]:std::string("t");};
+    xpp::log(XPP_LOG_INFO,"nullclines not drawn: {} plots {} against {}\n",g.name,axis(g.xv[0]),axis(g.yv[0]));
+    return;
+  }
   compute_nullclines(s);
   if(!s.nullclines.file.empty()){
     const auto saved=export_nullclines(s,s.nullclines.file,"",false);
@@ -779,7 +786,7 @@ void compute_nullclines(xpp::Session &s)
   const int course=s.numerics.nullcline_mesh;
   const xpp::Color col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
 
-  if(!phase_plane(*s.plot_windows.current))return;
+  if(!phase_plane_states(s,*s.plot_windows.current))return;
   const Computation computing;
 
   for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)setvar(s,i+1+s.model().fix_var,s.last_ic[i]);

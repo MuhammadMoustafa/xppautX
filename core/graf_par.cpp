@@ -70,9 +70,11 @@ void change_view_com(xpp::Session &s, int com)
   axes_dialog(s,CurrentCurve,com==1);
 }
 
+/* index 0 is time: TimeFlag is kept in step by check_flags, but a set that changes the curves does not run it, so
+   the indices are tested too (a time axis must never reach the nullclines' state indices, W670) */
 bool phase_plane(const GRAPH &g)
 {
-  return !(g.ThreeDFlag || g.TimeFlag || g.xv[0]==g.yv[0]);
+  return !(g.ThreeDFlag || g.TimeFlag || g.xv[0]<=0 || g.yv[0]<=0 || g.xv[0]==g.yv[0]);
 }
 
 bool phase_plane_states(const Session &s, const GRAPH &g)
