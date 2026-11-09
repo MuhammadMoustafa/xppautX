@@ -35,7 +35,7 @@ bad() { echo "FAIL $1"; fail=1; }
 
 help=$("$BIN" --help)
 missing=
-for flag in --browser --web --no-open --server --port --verbose --debug --version --silent; do
+for flag in --browser --no-open --server --port --verbose --debug --version --silent; do
   case "$help" in *" $flag"*) ;; *) missing="$missing $flag" ;; esac
 done
 if [ -z "$missing" ]; then pass "--help lists the modes and options"; else bad "--help lists$missing"; fi
@@ -161,14 +161,30 @@ else
   stop
 fi
 
-start --no-open --port 0
+start --browser --no-open --port 0
 # Startup printed XPP after the mode had decided whether to invoke an opener.
 case "$url" in
-  http://127.0.0.1:*/?t=*) pass "--no-open prints the address" ;;
-  *) bad "--no-open prints the address" ;;
+  http://127.0.0.1:*/?t=*) pass "--browser --no-open prints the address" ;;
+  *) bad "--browser --no-open prints the address" ;;
 esac
-if [ -e "$tmp/opened" ]; then bad "--no-open opens nothing"; else pass "--no-open opens nothing"; fi
+if [ -e "$tmp/opened" ]; then bad "--browser --no-open opens nothing"; else pass "--browser --no-open opens nothing"; fi
 stop
+
+# --no-open is only a way of --browser: alone, or with another mode, it is a usage error naming it
+for args in "--no-open" "--no-open --server" "--no-open --silent" "--no-open --check"; do
+  # shellcheck disable=SC2086 # the words are the test's own, split on purpose
+  refused=$(cd "$tmp" && "$BIN" $args lecar.odex 2>&1)
+  status=$?
+  case "$status:$refused" in
+    2:*"--no-open needs --browser"*) pass "$args alone is a usage error" ;;
+    *) bad "$args: $status $(echo "$refused" | head -c 200)" ;;
+  esac
+done
+removed=$("$BIN" --web lecar.odex 2>&1) ; status=$?
+case "$status:$removed" in
+  2:*"no such option --web"*) pass "--web is an unknown option" ;;
+  *) bad "--web: $status $(echo "$removed" | head -c 200)" ;;
+esac
 
 if [ $linux_window -eq 1 ]; then
   # the window's library cannot load: the WARN names what to install, and

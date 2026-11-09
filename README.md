@@ -81,7 +81,7 @@ its own behavioural regression test (`tools/web2check.mjs`).
       `--server` is the same program
       with the page compiled in and a small HTTP server (`core/xpp_http.cpp`,
       127.0.0.1 only, a random token in the address) instead of Node;
-      options `--port N`, `--no-open` and `--version`; since W13a it shows
+      options `--port N`, `--browser --no-open` and `--version`; since W13a it shows
       that page in a desktop window of its own by default (`--browser` for
       a browser tab). The XPP-ODE extension
       frames that page in a panel with **Open in XPP Interactive**

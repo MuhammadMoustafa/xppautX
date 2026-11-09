@@ -72,12 +72,12 @@ The other modes:
 
 ```bash
 ./xppautX --browser model.ode         # web2 in your default browser; prints its address
-./xppautX --no-open model.ode         # the same, printing the address without opening it
+./xppautX --browser --no-open model.ode  # the same, printing the address without opening it
 ./xppautX model.ode --silent           # batch run, writes output.dat, no interface
 ./xppautX --server model.ode          # the JSON protocol on stdin/stdout
 ```
 
-`--browser` (or `--web`) is the way to reach the page from somewhere
+`--browser` is the way to reach the page from somewhere
 else (a remote machine through an SSH tunnel, the VS Code extension, a
 test): it prints `XPP: http://127.0.0.1:PORT/?t=TOKEN`, the address with
 the session's token, and opens it. The window never shows that address.
@@ -232,8 +232,8 @@ load and can speed up integration and autoX; the gain depends on the model.
 
 Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. `--setfile` remains an import of XPPAUT `.set` files (W156, #208).
 
-xppautX's own options (`--browser`, `--web`, `--server`,
-`--port`, `--no-open`, `--version`, `--help`, `--verbose`, `--debug`)
+xppautX's own options (`--browser`, `--server`,
+`--port`, `--no-open` with `--browser`, `--version`, `--help`, `--verbose`, `--debug`)
 must come first; every
 supported model option (`core/comline.cpp`) uses two dashes and can
 follow in any order. The options below control the model and its run.

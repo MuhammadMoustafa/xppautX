@@ -8,8 +8,8 @@
                                     (Linux without WebKitGTK), or a system
                                     where it cannot open, uses the browser
      xppautX --browser model.ode    the same page in the default browser,
-                                    with its address printed (--web is the
-                                    same; --no-open prints it only)
+                                    with its address printed (--no-open with
+                                    it prints the address only)
      xppautX --server model.ode     the same session over the line-delimited
                                     JSON protocol of ui_json.cpp on stdin and
                                     stdout, for a front end that embeds it
@@ -26,7 +26,7 @@
                                     the model saved in it, loaded from its
                                     saved files, then the session as it was saved
 
-   usage: xppautX [--browser|--server] [--port N] [--no-open]
+   usage: xppautX [--browser [--no-open]|--server] [--port N]
                   [--verbose|--debug] file.ode [xppaut options]
           xppautX --version | --help
    Supported model options use GNU spelling; ours have to come first. --verbose
@@ -87,7 +87,7 @@ static void start_autox_dir(void)
 
 /* --help: the modes, then the options that go with them */
 static const char *const usage_head =
-    "usage: xppautX [MODE] [--port N] [--no-open] [--verbose|--debug] file.ode [xppaut options]\n"
+    "usage: xppautX [MODE] [--port N] [--verbose|--debug] file.ode [xppaut options]\n"
     "       xppautX --version | --help\n"
     "Our options come first; the supported model options follow GNU spelling after them.\n"
     "Modes:\n"
@@ -98,8 +98,7 @@ static std::string usage_tail()
 {
     return xpp::format(
     "  --browser        the page in the default browser; prints its address (XPP: http://...)\n"
-    "  --web            the same as --browser\n"
-    "  --no-open        browser mode, printing the address without opening a browser\n"
+    "  --no-open        with --browser: print the address without opening a browser\n"
     "  --server         the JSON protocol on stdin and stdout (docs/protocol.md)\n"
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--yes takes the suggested names)\n"
@@ -310,10 +309,9 @@ int main(int argc, char **argv)
         }
         return xpp::json_ui_silent(startup);
     }
-    /* --no-open is browser mode (the VS Code extension, tools/cdp.mjs), and
-       so is a build without a window */
+    /* a build without a window is browser mode (--no-open needs --browser: comline.cpp) */
     xpp::Interface interface = cl.interface.value_or(xpp::Interface::window);
-    if (interface == xpp::Interface::window && (cl.no_open || !xpp::window::supported())) interface = xpp::Interface::browser;
+    if (interface == xpp::Interface::window && !xpp::window::supported()) interface = xpp::Interface::browser;
     start_autox_dir();
     if (recording_batch) interface = xpp::Interface::server;
     if (interface != xpp::Interface::server) {

@@ -31,7 +31,7 @@ struct CommandLine {
   /* the program's own switches */
   bool help = false, version = false, options_schema = false;
   bool convert = false, check = false, yes = false, no_open = false;
-  std::optional<Interface> interface;          /* --browser/--web, --server: the last one given, never two different */
+  std::optional<Interface> interface;          /* --browser, --server: the one given, never two different */
   std::optional<int> port;                     /* --port: 0 for any free port */
   /* what a load takes */
   bool silent = false, new_seed = false, make_plot = false, no_compile = false, no_output = false;

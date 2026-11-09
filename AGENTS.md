@@ -849,8 +849,8 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   `resource.event` name, declared in core/event_registry.cpp with its fields
   (`help events`); `hello`, `done`, `ask` and `exit` stay bare.
 - `xppautX` (`make xppautx`) is one program: `core/xppautx_main.cpp` picks
-  the desktop window (the default), browser mode (`--browser`/`--web`, or
-  `--no-open`), `--server` (the protocol on stdin/stdout) or `--silent`
+  the desktop window (the default), browser mode (`--browser`, with
+  `--no-open` to print the address only), `--server` (the protocol on stdin/stdout) or `--silent`
   (no interface at all: json_ui_silent plays json_silent.cpp's built-in
   script of protocol commands, W56). The window (W13a) is
   `core/xpp_window.cpp` (xpp_window.h, namespace `xpp::window`) over the vendored

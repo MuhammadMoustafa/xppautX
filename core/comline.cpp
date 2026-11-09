@@ -74,7 +74,6 @@ constexpr CommandOption my_cmd[] = {
   {"-y", Opt::yes, false, true, true},
   {"--no-open", Opt::no_open, false, true, true},
   {"--browser", Opt::browser, false, true, true},
-  {"--web", Opt::browser, false, true, true},
   {"--server", Opt::server, false, true, true},
   {"--port", Opt::port, true, false, true},
 };
@@ -107,6 +106,7 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
   cl.arguments = std::move(arguments);
   std::vector<const CommandOption *> seen;
   std::optional<std::string_view> interface_word; /* the option that chose cl.interface */
+  std::optional<Place> no_open_place;             /* --no-open's place: it needs --browser, checked after the pass */
   const int count = static_cast<int>(cl.arguments.size());
   for (int i = 1; i < count; ++i) {
     const std::string_view word(cl.arguments[static_cast<std::size_t>(i)]);
@@ -154,7 +154,7 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     case Opt::convert: cl.convert = true; break;
     case Opt::check: cl.check = true; break;
     case Opt::yes: cl.yes = true; break;
-    case Opt::no_open: cl.no_open = true; break;
+    case Opt::no_open: cl.no_open = true; no_open_place = place; break;
     case Opt::browser:
     case Opt::server: {
       const Interface wanted = option->id == Opt::server ? Interface::server : Interface::browser;
@@ -227,6 +227,8 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     }
     }
   }
+  if (no_open_place && cl.interface != Interface::browser)
+    return fail("options", "--no-open needs --browser (it prints the address, which only browser mode shows)", *no_open_place);
   return cl;
 }
 

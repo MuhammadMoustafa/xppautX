@@ -77,8 +77,8 @@ One program, and like xppaut it takes what to do from the command line:
                                program that embeds it
 
 Try:  ./xppautX examples/lecar.odex
-Options: --port N (default 8765, 0 for any free port), --no-open (browser mode,
-printing the address only). xppautX --version prints this release's tag,
+Options: --port N (default 8765, 0 for any free port), --browser --no-open
+(printing the address only). xppautX --version prints this release's tag,
 xppautX --help the modes.
 Only this machine can reach it, and the address carries a one-time token.
 Every xppaut option still works; xppautX's own options have to come first.

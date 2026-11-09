@@ -409,7 +409,7 @@ Add a `.xpprc` file to set your favorite options, e.g
 xppautX adds its own front-end flags ahead of xpp's original ones (see
 [Using the interface](04-using-the-interface.md#starting-xppautx)):
 
-    xppautX [--browser|--server] [--port N] [--no-open]
+    xppautX [--browser [--no-open]|--server] [--port N]
             [--verbose|--debug] [--version|--help] file.ode [xpp options]
     xppautX run.recx --silent
 

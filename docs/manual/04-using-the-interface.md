@@ -17,7 +17,7 @@ it says so plainly instead of describing the old window.
     xppautX examples/ode/lecar.ode      # the page in a window of its own
     xppautX --browser model.ode         # in your browser: prints http://127.0.0.1:8765/?t=... and opens it
     xppautX --port 9000 model.ode       # another port
-    xppautX --no-open model.ode         # print the address, open it yourself
+    xppautX --browser --no-open model.ode  # print the address, open it yourself
     xppautX --verbose | --debug model.ode  # raise the log level (see "The log", below)
     xppautX --version                   # which release this is
 
@@ -53,8 +53,9 @@ checks rather than interactive use:
   the terminal for confirmation within 60 seconds; EOF or timeout stops
   playback with exit 1. `--yes` replaces them without asking.
 
-`--web` (browser mode, opening the page) is the default when none of
-`--server` or `--silent` is given.
+The window (browser mode, opening the page) is the default when none of
+`--browser`, `--server` or `--silent` is given. `--no-open` is only a way
+of `--browser`: alone, it is a usage error.
 
 ## The page layout
 
