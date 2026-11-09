@@ -209,7 +209,7 @@ STOPS_CASES = [
     dict(id='section_crossing', model='section', command=STOPS_RUN, at=None, bottom=True,
          says=[r'Stopped at the section crossing t = (0\.99|1)', r'poincare_stop = true']),
     dict(id='section_no_crossing', model='section_no_crossing', command=STOPS_RUN, at=None, bottom=True,
-         says=[r'No crossing found', r'poincare_variable', r'poincare_plane = 10', r'0, 2', r'integrate longer']),
+         says=[r'No crossing found', r'poincare\.variable', r'poincare\.plane = 10', r'0, 2', r'integrate longer']),
     dict(id='monte_carlo', model='monte_carlo', command=dict(cmd='equilibrium.search', guesses=4, tolerance=0.001, append=False, shoot=False, bounds={'x': [-1, 1]}), replies=[], at=None, bottom=True,
          says=[r'Monte Carlo: 0 of 4 guesses converged to 0 distinct equilibria', r'max_iterations', r'newton_tolerance']),
     dict(id='monte_carlo_manifold', model='manifold', command=dict(cmd='equilibrium.search', guesses=4, tolerance=0.001, append=False, shoot=False, bounds={'x': [0, 0], 'y': [0, 0]}), replies=[], at='newton_tolerance: 1e-200', bottom=True,
@@ -227,10 +227,10 @@ STOPS_CASES = [
          says=[r'\b[Dd]t\b', r'0\.01', r'min_step', r'0\.1'],
          silent=dict(says=[r'min_step'], forbids=[r'will write anyway'])),
     dict(id='gear', model='blowup_gear', command=STOPS_RUN, at="x' = a*x^2",
-         says=[r'\bGear\b', r'min_step', r't ?= ?0\.9'],
-         silent=dict(says=[r'\bGear\b', r'min_step', r't ?= ?0\.9'], forbids=[r'will write anyway'])),
+         says=[r'\bGear\b', r'integration\.step\.min', r't ?= ?0\.9'],
+         silent=dict(says=[r'\bGear\b', r'integration\.step\.min', r't ?= ?0\.9'], forbids=[r'will write anyway'])),
     dict(id='backward_euler', model='blowup_backward_euler', command=STOPS_RUN, at="x' = a*x^2",
-         says=[r'Backward Euler', r'eul_iter ?= ?10\b', r'eul_tol', r't ?= ?0\.(9|89)']),
+         says=[r'Backward Euler', r'integration\.euler\.iterations ?= ?10\b', r'integration\.euler\.tolerance', r't ?= ?0\.(9|89)']),
     dict(id='cvode', model='blowup_cvode', command=STOPS_RUN, at="x' = a*x^2",
          says=[r'CVode', r't ?= ?0\.9', r'tolerance'], forbids=[r'oh well', r'\?\?\?', r'Hmmm']),
     dict(id='rosenbrock', model='blowup_rosenbrock', command=STOPS_RUN, at="x' = a*x^2",
@@ -238,11 +238,11 @@ STOPS_CASES = [
     dict(id='delay', model='delay', command=STOPS_RUN, at="x' = -delay",
          says=[r'tau ?= ?2\b', r'\bdelay\b', r't ?= ?']),
     dict(id='qualrk_min_step', model='unbounded_qualrk', command=STOPS_RUN, at="x' = a*x^2",
-         says=[r'QualRK', r'min_step ?= ?1e-12', r't ?= ?1\.0']),
+         says=[r'QualRK', r'integration\.step\.min ?= ?1e-12', r't ?= ?1\.0']),
     dict(id='stiff_min_step', model='unbounded_stiff', command=STOPS_RUN, at="x' = a*x^2",
-         says=[r'\bStiff\b', r'min_step ?= ?1e-12', r't ?= ?(0\.9|1\.0)']),
+         says=[r'\bStiff\b', r'integration\.step\.min ?= ?1e-12', r't ?= ?(0\.9|1\.0)']),
     dict(id='stiff_singular', model='stiff_singular', command=STOPS_RUN, at="x' = 2*x",
-         says=[r'\bStiff\b', r'singular', r't ?= ?0\b', r'dt ?= ?1\b', r'jacobian ?= ?exact'],
+         says=[r'\bStiff\b', r'singular', r't ?= ?0\b', r'dt ?= ?1\b', r'integration\.jacobian\.kind ?= ?exact'],
          silent=dict(says=[r'\bStiff\b', r'singular', r't ?= ?0\b'], forbids=[])),
     dict(id='dopri5_rounding', model='unbounded_dopri5', command=STOPS_RUN, at=None,
          says=[r'DoPri5', r'rounding limit', r't ?= ?(0\.9|1\.0)', r'relative_tolerance'],
@@ -259,7 +259,7 @@ STOPS_CASES = [
          says=[r'X ?= ?0\.5', r'max_iterations ?= ?100\b', r'newton_tolerance', r'iterations']),
     dict(id='bvp_max_iterates', model='bvp_max_iterates', command={'cmd': 'bvp.solve', 'show': False}, at=None,
          first=[{'cmd': 'bvp.configure', 'max_iterates': 1, 'tolerance': 1e-12}],
-         says=[r'Shoot', r'bvp_max_iterates ?= ?1\b', r'bvp_tolerance ?= ?1e-12', r'residual']),
+         says=[r'Shoot', r'integration\.bvp\.max_iterates ?= ?1\b', r'integration\.bvp\.tolerance ?= ?1e-12', r'residual']),
     dict(id='nullcline_delay', model='nullcline_delay', command=dict(cmd='nullcline.compute'), replies=[], at="x' = -delay",
          says=[r'tau ?= ?2\b', r'X ?= ?-?\d', r'Y ?= ?-?\d']),
     dict(id='postprocess_one_variable', model='fourier_one_variable', command=STOPS_RUN, at=None,
@@ -269,7 +269,7 @@ STOPS_CASES = [
     dict(id='range_gear', model='blowup_gear', command=STOPS_RANGE_A, at=None,
          says=[r'Range stopped at a ?= ?1 \(run 1 of 3\)', r'\bGear\b', r't ?= ?0\.9']),
     dict(id='range_backward_euler', model='blowup_backward_euler', command=STOPS_RANGE_A, at=None,
-         says=[r'Range stopped at a ?= ?1 \(run 1 of 3\)', r'Backward Euler', r'eul_iter']),
+         says=[r'Range stopped at a ?= ?1 \(run 1 of 3\)', r'Backward Euler', r'integration\.euler\.iterations']),
     dict(id='range_bound', model='bound_rk4', command=STOPS_RANGE_A, at=None, bottom=True,
          says=[r'3 of 3 runs ended early', r'a ?= ?1: X out of bounds at t ?= ?(0\.9|1\.0)', r'state_limit ?= ?100\b']),
 ]
@@ -2815,7 +2815,7 @@ def check_options_panels():
         before = call(cmd='options.get', group='integration')['result']['values']
         done = call(cmd='options.configure', group='integration', values={'dt': '0.25', 'step.min': '-1'})
         after = call(cmd='options.get', group='integration')['result']['values']
-        check('W616: one bad value refuses the whole set, and nothing changes', done.get('status') == 'error' and 'min_step' in done.get('error', '') and after == before, str(done))
+        check('W616: one bad value refuses the whole set, and nothing changes', done.get('status') == 'error' and 'integration.step.min' in done.get('error', '') and after == before, str(done))
         done = call(cmd='options.configure', group='integration', values={'nonesuch': '1'})
         check('W616: a key the group does not have is refused by name', done.get('status') == 'error' and 'nonesuch is no setting of integration' in done.get('error', ''), str(done))
         done = call(cmd='options.configure', group='integration', values={'dt': '0.25', 'step.max': '0.5'})
@@ -4423,7 +4423,7 @@ def check_values_protocol():
         check('value.set_parameters of a name the model does not have: refused naming the parameter',
               len(errs(evs)) == 1 and 'nosuch' in errs(evs)[0]['error'], str(errs(evs)))
         # W494: a range or an order broken by `set num` is refused with the setting, its value and the rule
-        for name, text, words in (('min_step', '1e9', 'min_step (1e+09) must be at most max_step'),
+        for name, text, words in (('min_step', '1e9', 'integration.step.min (1e+09) must be at most integration.step.max'),
                                   ('relative_tolerance', '0', 'must be a number above 0'),
                                   ('max_iterations', '0', 'must be at least 1')):
             evs = (after(cmd='equilibrium.configure', max_iterates=int(text)) if name == 'max_iterations'
@@ -7082,7 +7082,7 @@ def check_method_refusal():
         f.write(versioned("wiener w\nx'=w\noptions { integration: { method: dopri5 } }\n"))
     run_silent = subprocess.run([os.path.abspath(args.server), bad_wiener, '--silent'], capture_output=True, text=True, cwd=model_dir, timeout=60 * SLOW)
     check('W379: --silent refuses DoPri5 with Wiener noise at the line',
-          run_silent.returncode == 1 and 'bad_w.odex:4:26: the option `method=dopri5`: ' + reason in run_silent.stderr, run_silent.stderr)
+          run_silent.returncode == 1 and 'bad_w.odex:4:26: the option `integration.method=dopri5`: ' + reason in run_silent.stderr, run_silent.stderr)
 
     bad_ode = os.path.join(model_dir, 'bad_w.ode')
     with open(bad_ode, 'w') as f:
@@ -7179,7 +7179,7 @@ def check_jacobian_setting():
         run = subprocess.run([os.path.abspath(args.server), 'noisy.odex', '--silent'], capture_output=True, text=True, cwd=model_dir,
                              timeout=60 * SLOW)
         check('W260: @ jacobian=exact in a model with none fails the load at the @ line, with the reason',
-              run.returncode == 1 and 'noisy.odex:4:26: the option `jacobian=exact`: the model has no exact Jacobian: '
+              run.returncode == 1 and 'noisy.odex:4:26: the option `integration.jacobian.kind=exact`: the model has no exact Jacobian: '
               'noisy.odex:3:1: uses random numbers' in run.stderr, run.stderr[-400:])
         smooth = os.path.join(model_dir, 'smooth.odex')
         with open(smooth, 'w') as f:
@@ -7194,7 +7194,7 @@ def check_jacobian_setting():
               'Compiled ' in log and 'Compiled the exact Jacobian' not in log, log[-300:])
         with open(smooth, 'a') as f:
             f.write('options { integration: { jacobian.kind: exact } }\n')
-        check('W260: its own @ jacobian=exact compiles it at load', 'Compiled the exact Jacobian' in load_log())
+        check('W260: its own jacobian.kind: exact compiles it at load', 'Compiled the exact Jacobian' in load_log())
         # Reload keeps the setting; a model with no exact Jacobian says so and takes difference
         lines = []
         p, r, snd, col, _ = launch_server(ode=smooth, log=lines)
@@ -9936,9 +9936,9 @@ def check_parser_group():
                 check('W317: %s refuses old group %s at its source line' % (mode, group), rejected, p.stderr + p.stdout)
         # W494: a value outside its range, or two that break an order, is refused at its line in every mode
         for body, line, words in (
-                ('integration: { total_time: .02, dt: .01, step.min: 1, step.max: 0.5 }', 2, 'min_step (1) must be at most max_step (0.5)'),
-                ('plot: { axes.x_low: 3, axes.x_high: 1 }', 2, 'xlo (3) must be below xhi (1)'),
-                ('analysis: { histogram.low: 2, histogram.high: 2 }', 2, 'histlo (2) must be below histhi (2)'),
+                ('integration: { total_time: .02, dt: .01, step.min: 1, step.max: 0.5 }', 2, 'integration.step.min (1) must be at most integration.step.max (0.5)'),
+                ('plot: { axes.x_low: 3, axes.x_high: 1 }', 2, 'plot.axes.x_low (3) must be below plot.axes.x_high (1)'),
+                ('analysis: { histogram.low: 2, histogram.high: 2 }', 2, 'analysis.histogram.low (2) must be below analysis.histogram.high (2)'),
                 ('analysis: { histogram.bins: 1 }', 2, 'must be a whole number of at least 2'),
                 ('plot: { curves: [ {}, {}, {}, {}, {}, {}, {}, {}, {} ] }', 2, '`curves` has 9 entries: at most 8'),
                 ('plot: { direction_field.grid: 1 }', 2, 'must be a whole number of at least 2'),
@@ -11585,7 +11585,7 @@ def check_run_registry():
         refused('run.configure with nothing to set', {'cmd': 'run.configure'}, 'at least one')
         refused('run.configure with a total time that is not a number', {'cmd': 'run.configure', 'total_time': 'long'}, 'total_time')
         refused('run.configure with an unknown method', {'cmd': 'run.configure', 'method': 'nosuch'}, 'nosuch')
-        refused('run.configure with a minimum step above the maximum', {'cmd': 'run.configure', 'min_step': 1e9}, 'max_step')
+        refused('run.configure with a minimum step above the maximum', {'cmd': 'run.configure', 'min_step': 1e9}, 'integration.step.max')
         refused('ic.set with a name that is no variable', {'cmd': 'ic.set', 'values': {'nosuch': 1}}, 'nosuch')
         refused('ic.set with no values', {'cmd': 'ic.set', 'values': {}}, 'at least one')
         refused('ic.formula that does not parse', {'cmd': 'ic.formula', 'variable': 'v', 'formula': '2*('}, '2*(')

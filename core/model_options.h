@@ -167,16 +167,17 @@ struct ForeignOptions {
 /* the longest help line of a row */
 inline constexpr std::size_t OPTION_HELP_MOST = 120;
 
-/* One option. Its names match as prefixes of the name given, upper case,
-   the longest winning (so "method" and "methodx" are one, and "dt" is not
-   "dtminimum"); a numbered one (xp2..xp8) is its name and one digit. */
+/* One option. Its name (option_name) matches as a prefix of the name given, ignoring case,
+   the longest winning (so "integration.method" and "integration.methodx" are one, and
+   "integration.dt" is not "integration.dtminimum"); a numbered one (xp2..xp8) is its name and one digit. */
 struct OptionRow {
   /* the .odex options block's group and the kind of value it takes ("" and
      number for a row that is no .odex option); first, so a row names them
      before its name */
   std::string_view group;
   OptionKind kind = OptionKind::number;
-  std::string_view name;          /* "" for a numerics setting the model cannot set */
+  /* an import-only row's name (XPPAUT's, its only one): a grouped row has none, its name is option_name */
+  std::string_view name;
   /* the key a .odex writes in the row's group (W615): snake_case, with a dotted section
      ("step.min", "axes.x_low") where the group is large; "" for a row that is no .odex option.
      The rows run in the order of option_groups, then their sections (a section's rows together,
@@ -288,11 +289,15 @@ int choice_index(std::span<const std::string_view> choices, std::string_view tex
 /* the table, the numerics settings first, in the Numerics menu's order */
 std::span<const OptionRow> option_rows();
 
-/* the row whose name the option name (upper case) starts with, the longest
-   such, and the digit after a numbered one; nullptr when none. xppaut_names:
+/* the row whose name (option_name, or its XPPAUT name) the name given starts with, ignoring case, the
+   longest such, and the digit after a numbered one; nullptr when none. xppaut_names:
    XPPAUT's own names for a row count too (a .ode, .xpprc or command line),
    as a .odex does not take them */
-const OptionRow *find_option(std::string_view upper_name, int &index, bool xppaut_names);
+const OptionRow *find_option(std::string_view name, int &index, bool xppaut_names);
+
+/* a row's name: its group and .odex key joined with a dot ("integration.total_time", "plot.axes.x_low"),
+   or an import-only row's own name; the one name a set, a protocol word for a row and the pairs use */
+std::string option_name(const OptionRow &row);
 
 /* the option key as a .odex writes it: the key of the row a name matches
    (XPPAUT's names and the longer spellings a prefix match takes too:
@@ -307,7 +312,7 @@ std::string option_label(const OptionRow &row);
    index after it) */
 std::string odex_key(const OptionRow &row, int index);
 
-/* the name a row goes by inside (a set's item, an @ line applied, set_option's name): its name in lower case, a
+/* the name a row goes by inside (a set's item, an @ line applied, set_option's name): option_name, a
    numbered row's digit after it; the .odex key is the file's own word for it (odex_key) */
 std::string option_setting_name(const OptionRow &row, int index);
 
@@ -357,7 +362,7 @@ std::string option_limit_members(const OptionRow &row);
    block's and a session's, session_settings.h) */
 std::string option_value_schema(const OptionRow &row);
 
-/* the row with `once` named name (upper case): for an option whose parser
+/* the row with `once` named name (option_name): for an option whose parser
    sets or claims another's */
 const OptionRow &once_option(std::string_view name);
 

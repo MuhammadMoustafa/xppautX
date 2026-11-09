@@ -393,7 +393,7 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
  std::vector<double> jac_v(static_cast<size_t>(ntot)*ntot);
  std::vector<double> f_v(ntot), fdev_v(ntot), y0_v(ntot), y1_v(ntot);
  double *jac=jac_v.data(), *f=f_v.data(), *fdev=fdev_v.data(), *y0=y0_v.data(), *y1=y1_v.data();
- const auto limits_place=[&]{return settings_place(s.model(),{"bvp_max_iterates","bvp_tolerance"});};
+ const auto limits_place=[&]{return settings_place(s.model(),{"integration.bvp.max_iterates","integration.bvp.tolerance"});};
  /* the integration failed: its own error, at the iterate (and Jacobian column) it failed in */
  const auto integration_failed=[&](xpp::Error e,std::string_view where){
    e.what=xpp::format("Shoot: the integration failed at iterate {}{}: {}",niter,where,e.what);
@@ -439,7 +439,7 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
  niter++;
  if(niter>maxit) /* Too many iterates   */
    return xpp::fail("bvp",xpp::format("Shoot: no convergence after {} iterations: the residual of the boundary conditions {} is not below {}",
-                    named_settings(s,{"bvp_max_iterates"}),xpp::number(error),named_settings(s,{"bvp_tolerance"})),limits_place());
+                    named_settings(s,{"integration.bvp.max_iterates"}),xpp::number(error),named_settings(s,{"integration.bvp.tolerance"})),limits_place());
 
  /*   create the Jacobian matrix ...   */
  

@@ -139,47 +139,47 @@ void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
   if(!picked)l.fail(picked.error().what);
   method=*picked;
   l.check_name(xpp::solver_info(method).set_label);
-  f.set_setting(saved_setting("method"),std::string(xpp::solver_info(method).key));
+  f.set_setting(saved_setting("integration.method"),std::string(xpp::solver_info(method).key));
   const auto early=[&](int line, std::string_view key, int v){
     const OptionRow *row=saved_setting(key);
     if(const char *no=rule_problem(row->rule,v,row->maximum))l.fail(line,xpp::format("{} {}",row->label,no));
     f.set_setting(row,xpp::number(v));
   };
-  early(store_every_line,"store_every",store_every);
-  early(mesh_line,"nullcline_mesh",mesh);
-  keep_setting(s,l,f,method,"total_time",std::abs(l.real("total",true)));
-  keep_real(s,l,f,method,"dt","DeltaT");
-  keep_real(s,l,f,method,"start_time","T0");
-  keep_real(s,l,f,method,"store_from","Transient");
+  early(store_every_line,"integration.store_every",store_every);
+  early(mesh_line,"plot.nullclines.mesh",mesh);
+  keep_setting(s,l,f,method,"integration.total_time",std::abs(l.real("total",true)));
+  keep_real(s,l,f,method,"integration.dt","DeltaT");
+  keep_real(s,l,f,method,"integration.start_time","T0");
+  keep_real(s,l,f,method,"integration.store_from","Transient");
   /* XPPAUT's one bound is both limits */
   const double bound=l.real("Bound",true);
-  keep_setting(s,l,f,method,"state_limit",bound);
-  keep_setting(s,l,f,method,"search_limit",bound);
-  keep_real(s,l,f,method,"min_step","DtMin");
-  keep_real(s,l,f,method,"max_step","DtMax");
-  keep_real(s,l,f,method,"relative_tolerance","Tolerance");
-  keep_real(s,l,f,method,"absolute_tolerance","Abs. Tolerance");
-  keep_real(s,l,f,method,"delay","Max Delay");
-  keep_whole(s,l,f,method,"max_iterations","Eigenvector iterates");
-  keep_real(s,l,f,method,"newton_tolerance","Eigenvector tolerance");
+  keep_setting(s,l,f,method,"integration.state_limit",bound);
+  keep_setting(s,l,f,method,"equilibria.search_limit",bound);
+  keep_real(s,l,f,method,"integration.step.min","DtMin");
+  keep_real(s,l,f,method,"integration.step.max","DtMax");
+  keep_real(s,l,f,method,"integration.step.relative_tolerance","Tolerance");
+  keep_real(s,l,f,method,"integration.step.absolute_tolerance","Abs. Tolerance");
+  keep_real(s,l,f,method,"integration.delay.max_delay","Max Delay");
+  keep_whole(s,l,f,method,"equilibria.max_iterations","Eigenvector iterates");
+  keep_real(s,l,f,method,"equilibria.newton_tolerance","Eigenvector tolerance");
   /* XPPAUT's set file labels the Jacobian's epsilon with Newton's name */
-  keep_real(s,l,f,method,"jacobian_step","Newton tolerance");
-  keep_real(s,l,f,method,"poincare_plane","Poincare plane");
-  keep_real(s,l,f,method,"bvp_tolerance","Boundary value tolerance");
-  keep_real(s,l,f,method,"bvp_epsilon","Boundary value epsilon");
-  keep_whole(s,l,f,method,"bvp_max_iterates","Boundary value iterates");
+  keep_real(s,l,f,method,"equilibria.jacobian_step","Newton tolerance");
+  keep_real(s,l,f,method,"poincare.plane","Poincare plane");
+  keep_real(s,l,f,method,"integration.bvp.tolerance","Boundary value tolerance");
+  keep_real(s,l,f,method,"integration.bvp.epsilon","Boundary value epsilon");
+  keep_whole(s,l,f,method,"integration.bvp.max_iterates","Boundary value iterates");
   const int map=l.whole("the Poincare map");
   if(map<0||map>=static_cast<int>(poincare_names.size()))
     l.fail(xpp::format("{} is not a Poincare map's number (0 to {})",map,poincare_names.size()-1));
   l.check_name(poincare_names[static_cast<std::size_t>(map)]);
-  const OptionRow *map_row=saved_setting("poincare_map");
+  const OptionRow *map_row=saved_setting("poincare.map");
   f.set_setting(map_row,std::string(map_row->choices[static_cast<std::size_t>(map)]));
   const int variable=l.whole("Poincare variable",true);
   if(variable<0||variable>s.model().neq)
     l.fail(xpp::format("{} is not a variable's number (0 to {})",variable,s.model().neq));
-  f.set_setting(saved_setting("poincare_variable"),xpp::ind_to_sym(s,variable));
-  keep_choice(s,l,f,method,"poincare_sign","Poincare sign");
-  keep_choice(s,l,f,method,"poincare_stop","Stop on Section");
+  f.set_setting(saved_setting("poincare.variable"),xpp::ind_to_sym(s,variable));
+  keep_choice(s,l,f,method,"poincare.sign","Poincare sign");
+  keep_choice(s,l,f,method,"poincare.stop","Stop on Section");
   f.delay_flag=l.whole("Delay flag",true);
   f.current_time=l.real("Current time",true);
   f.last_time=l.real("Last Time",true);
@@ -189,7 +189,7 @@ void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
   if(xpp::solver_info(method).traits.integral_history){
     const int points=l.whole("Max points for volterra",true);
     if(points<1)l.fail(xpp::format("{} points for Volterra: at least 1",points));
-    f.set_setting(saved_setting("vmaxpts"),xpp::number(points));
+    f.set_setting(saved_setting("integration.delay.history_points"),xpp::number(points));
   }
 }
 
@@ -368,9 +368,9 @@ void read_more(xpp::Session &s, Lines &l, Settings &f)
   e.steps=l.whole("eq-range steps",true);
   e.plow=l.real("eq_range low",true);
   e.phigh=l.real("eq_range high",true);
-  f.set_setting(saved_setting("rangeover"),std::string(l.next("the range's parameter")));
+  f.set_setting(saved_setting("sweep.variable"),std::string(l.next("the range's parameter")));
   f.range_item2=l.next("the range's second parameter");
-  f.set_setting(saved_setting("rangestep"),xpp::number(l.whole("Range steps",true)));
+  f.set_setting(saved_setting("sweep.steps"),xpp::number(l.whole("Range steps",true)));
   f.range_cycle=l.whole("Cycle color 1=on",true);
   const auto yes_no=[&](std::string_view key, std::string_view label){
     const int v=l.whole(label,true);
@@ -378,11 +378,11 @@ void read_more(xpp::Session &s, Lines &l, Settings &f)
     if(v<0||v>=static_cast<int>(row->choices.size()))l.fail(xpp::format("{} {}: 0 or 1",label,v));
     f.set_setting(row,std::string(row->choices[static_cast<std::size_t>(v)]));
   };
-  yes_no("rangereset","Reset data 1=on");
-  yes_no("rangeoldic","Use old I.C.s 1=yes");
-  f.set_setting(saved_setting("rangelow"),xpp::number(l.real("Par1 low",true)));
+  yes_no("sweep.reset","Reset data 1=on");
+  yes_no("sweep.old_ic","Use old I.C.s 1=yes");
+  f.set_setting(saved_setting("sweep.low"),xpp::number(l.real("Par1 low",true)));
   f.range_low2=l.real("Par2 low",true);
-  f.set_setting(saved_setting("rangehigh"),xpp::number(l.real("Par1 high",true)));
+  f.set_setting(saved_setting("sweep.high"),xpp::number(l.real("Par1 high",true)));
   f.range_high2=l.real("Par2 high",true);
   ShootRange &h=f.shoot_range;
   h.item=l.next("the BVP range's parameter");
@@ -579,12 +579,12 @@ void do_info(const xpp::Session &s, FILE *fp)
   xpp::print(fp,"BVP_EPSILON={:g},BVP_TOLERANCE={:g},BVP_MAX_ITERATES={} \n",
 	 s.numerics.bvp_epsilon,s.numerics.bvp_tolerance,s.numerics.bvp_max_iterates);
   xpp::print(fp,"DT={:g} START_TIME={:g} STORE_FROM={:g} TOTAL_TIME={:g} STATE_LIMIT={:g} STOP_AT_LIMIT={} DELAY={:g} MaxPts={}\n",
-	 s.numerics.delta_t,s.numerics.start_time,s.numerics.store_from,s.numerics.total_time,s.numerics.state_limit,word("stop_at_limit"),s.numerics.delay,s.numerics.max_points);
+	 s.numerics.delta_t,s.numerics.start_time,s.numerics.store_from,s.numerics.total_time,s.numerics.state_limit,word("integration.stop_at_limit"),s.numerics.delay,s.numerics.max_points);
   xpp::print(fp,"NEWTON_TOLERANCE={:g}, JACOBIAN_STEP={:g} SEARCH_LIMIT={:g} MIN_STEP={:g} MAX_STEP={:g} RELATIVE_TOLERANCE={:g} \n",
 	 s.numerics.equilibria.newton_tolerance,s.numerics.equilibria.jacobian_step,s.numerics.equilibria.search_limit,s.numerics.min_step,s.numerics.max_step,s.numerics.relative_tolerance);
   const std::string &poincare_variable=ind_to_sym(s,s.numerics.poincare_variable);
   xpp::print(fp,"POINCARE_MAP={} POINCARE_VARIABLE={} POINCARE_PLANE={:g} POINCARE_SIGN={} \n",
-        word("poincare_map"),poincare_variable,s.numerics.poincare_plane,word("poincare_sign"));
+        word("poincare.map"),poincare_variable,s.numerics.poincare_plane,word("poincare.sign"));
 
   xpp::print(fp,"\n\n Delay strings ...\n");
   for(int i=0;i<s.model().node;i++)xpp::print(fp,"{}\n",s.delay_string[i]);

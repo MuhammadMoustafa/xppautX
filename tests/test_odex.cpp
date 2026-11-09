@@ -540,7 +540,7 @@ int main(void)
   CHECK(starts(lowered("x' = 1\nset \"s\" { options: { plot: { dt: 1 } } }\n"), "error 2:30 `dt` is in the group integration, not plot"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { x: 1 }\nset \"s\" { x: 2 }\n"), "error 3:1 the set `s` is defined twice: at m.odex:3:1 and at m.odex:4:1"));
   CHECK(starts(lowered("x' = 1\nset \"s\" { x: a }\n"), "error 2:14 a set's value for `x` is a number, not `a`"));
-  CHECK_STR(lowered("x' = 1\noptions { integration: { total_time: 20, method: stiff } }\n").c_str(), "x'=1|@ total_time=20,method=stiff");
+  CHECK_STR(lowered("x' = 1\noptions { integration: { total_time: 20, method: stiff } }\n").c_str(), "x'=1|@ integration.total_time=20,integration.method=stiff");
   CHECK_STR(lowered("markov m 2 {0} {a} {1} {0}\npar a=1\n").c_str(), "markov m 2|{0} {a} |{1} {0} |par a=1");
   CHECK_STR(lowered("x' = 1\n\"{a=1} a comment\"\n").c_str(), "x'=1|\" {a=1} a comment");
 
@@ -555,8 +555,8 @@ int main(void)
     CHECK_STR(lowered("x' = 1\naux flag = near(x, 1, tol=1e-6)\n").c_str(),
               ("x'=1|aux flag=(abs((x)-(1))<=(" + t6 + ")*max(1,max(abs(x),abs(1))))").c_str());
     CHECK_STR(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 } }\naux flag = near(x, 1)\n").c_str(),
-              ("x'=1|@ neartol=1e-6|aux flag=(abs((x)-(1))<=(" + t6 + ")*max(1,max(abs(x),abs(1))))").c_str());
-    CHECK_STR(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 }, integration: { dt: .1 } }\n").c_str(), "x'=1|@ neartol=1e-6,dt=.1");
+              ("x'=1|@ equilibria.near_tolerance=1e-6|aux flag=(abs((x)-(1))<=(" + t6 + ")*max(1,max(abs(x),abs(1))))").c_str());
+    CHECK_STR(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 }, integration: { dt: .1 } }\n").c_str(), "x'=1|@ equilibria.near_tolerance=1e-6,integration.dt=.1");
     CHECK_STR(lowered("x' = 1\nevent 1 near(x, 1) - 1, x = 0\n").c_str(),
               ("x'=1|global 1 {(abs((x)-(1))<=(" + t9 + ")*max(1,max(abs(x),abs(1))))-1} {x=0}").c_str());
   }

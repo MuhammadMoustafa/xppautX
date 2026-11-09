@@ -142,7 +142,7 @@ xpp::Error dae_failure(const xpp::Session &s, int status)
   switch(status){
   case DAE_SINGULAR: why="their Jacobian is singular"; break;
   case DAE_NO_CONVERGENCE:
-    why=xpp::format("Newton's method did not converge ({})",xpp::named_settings(s,{"max_iterations","newton_tolerance"}));
+    why=xpp::format("Newton's method did not converge ({})",xpp::named_settings(s,{"equilibria.max_iterations","equilibria.newton_tolerance"}));
     break;
   case DAE_OUT_OF_BOUNDS: why="the Newton update went out of bounds"; break;
   case DAE_FOLD: why="their Jacobian changed sign, a fold where this branch of solutions ends"; break;

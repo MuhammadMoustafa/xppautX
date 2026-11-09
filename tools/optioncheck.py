@@ -45,6 +45,8 @@ def table_words():
     names |= set(m.lower() for m in re.findall(r'\.alias = "([A-Za-z_0-9]+)"', t))
     for group in re.findall(r'\.xppaut_names = \{([^}]*)\}', t):
         names |= set(m.lower() for m in re.findall(r'"([A-Za-z_0-9]+)"', group))
+    # a grouped row's name is its group and .odex key (option_name)
+    names |= set(f"{g}.{k}" for g, k in re.findall(r'\.group = option_group::(\w+),[^{}]*?\.odex = "([^"]*)"', t))
     keys = set(re.findall(r'\.key = "([a-z_0-9]+)"', t))
     return names | keys, keys
 
@@ -66,7 +68,7 @@ def sites():
             continue
         for number, line in enumerate(cstrip.strip_comments(read(rel)).split("\n"), 1):
             for call in CALL.finditer(line):
-                for m in re.finditer(r'"([A-Za-z_0-9]+)"', call.group(1)):
+                for m in re.finditer(r'"([A-Za-z_0-9.]+)"', call.group(1)):
                     if m.group(1).lower() in words:
                         found.setdefault(rel, []).append((number, m.group(1)))
     return found
@@ -134,9 +136,8 @@ def key_problems():
         if not group:
             continue
         head = row.split("\n")[0]
-        name = re.search(r'\.name = "([A-Za-z_0-9.]+)"', head)
         key = re.search(r'\.odex = "([^"]*)"', head)
-        label = name.group(1) if name else head[:40]
+        label = key.group(1) if key else head[:40]
         if not key or not key.group(1):
             bad.append(f"{TABLE}: the grouped row {label} has no .odex key")
             continue

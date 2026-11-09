@@ -80,10 +80,8 @@ std::string unavailable_choices_json(const Session &s, const OptionRow &f);
    (option_group::sweep) or, for any other name, all the others, the
    numerics; each is read and written as text under its .odex key. */
 std::vector<const OptionRow *> saved_settings(std::string_view group);
-/* the saved row whose numerics key is key, nullptr when none is */
-const OptionRow *saved_setting(std::string_view key);
-/* the numerics key of row, else its name in lower case */
-std::string setting_key(const OptionRow &row);
+/* the saved row whose name (option_name) is name, nullptr when none is */
+const OptionRow *saved_setting(std::string_view name);
 /* whether s's model, run by method, has the setting (the delay of a model
    with delays, the Volterra points of an integral-equation method); one it
    has not is not written and not accepted */

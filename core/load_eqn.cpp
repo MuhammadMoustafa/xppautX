@@ -298,7 +298,7 @@ std::string_view item_scope(const xpp::Session &s, const SetItem &item)
     if(kind==ModelValue::parameter)return set_scope::parameters;
   }
   int index=0;
-  const OptionRow *row=find_option(xpp::upper_case(item.name),index,false);
+  const OptionRow *row=find_option(item.name,index,false);
   return row?row->group:std::string_view();
 }
 
@@ -338,7 +338,7 @@ void apply_set_items(xpp::Session &s, std::span<const SetItem> items)
       set_option(s,item.name,item.value,1,NULL);
       /* what a change of the setting needs besides its member (the step's recount, the stored rows' precision, the delay's storage) */
       int index=0;
-      if(const OptionRow *row=find_option(xpp::upper_case(item.name),index,false);row&&row->applied)row->applied(s);
+      if(const OptionRow *row=find_option(item.name,index,false);row&&row->applied)row->applied(s);
       xpp::do_meth(s);
     }
     else do_intern_set(s,item.name,item.value);
@@ -421,7 +421,7 @@ void replay_model_options(xpp::Session &s, std::span<const OptionRow *const> res
   for(const xpp::Model::OptionLine &line : s.model().options)
     for(const auto &[name,value] : line.items){
       int index=0;
-      const OptionRow *row=find_option(xpp::upper_case(name),index,true);
+      const OptionRow *row=find_option(name,index,true);
       if(row&&std::ranges::find(restored,row)!=restored.end())set_option(s,name,value,1,NULL);
     }
 }
@@ -674,7 +674,7 @@ xpp::Result<> apply_option_group(xpp::Session &s, std::string_view group, std::s
   std::vector<std::pair<const OptionRow *,std::string>> view;
   for(const SetItem &item : items){
     int index=0;
-    const OptionRow *row=group==option_group::diagram?find_option(xpp::upper_case(item.name),index,false):nullptr;
+    const OptionRow *row=group==option_group::diagram?find_option(item.name,index,false):nullptr;
     if(row&&autox_view_row(*row))view.emplace_back(row,item.value);
     else own.push_back(item);
   }
@@ -755,7 +755,7 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
       return r.autox_numeric >= 0 && valid.error().field == xpp::autox_settings_num_key(r.autox_numeric);
     });
     xpp::Error error = valid.error();
-    error.place = xpp::model_place(s.model(), row->name);
+    error.place = xpp::model_place(s.model(), option_name(*row));
     error.place.source = xpp::model_source_line(s.model(), error.place.file, error.place.line);
     xpp::model_failed(error);
   }

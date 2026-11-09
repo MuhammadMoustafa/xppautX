@@ -117,43 +117,43 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
 {
     /* options whose value is not just a number or a word */
     static const std::map<std::string_view, Sample> special = {
-        {"SLIDERS", {"[]", ""}},
-        {"ANIMATION", {"test_options.anix", ""}},
+        {"interface.sliders", {"[]", ""}},
+        {"interface.animation", {"test_options.anix", ""}},
         {"S1", {"x", ""}}, {"S2", {"y", ""}}, {"S3", {"z", ""}},
         {"SLO1", {"-1", ""}}, {"SLO2", {"-1", ""}}, {"SLO3", {"-1", ""}},
         {"SHI1", {"2", ""}}, {"SHI2", {"2", ""}}, {"SHI3", {"2", ""}},
-        {"AUTOXMIN", {"-0.5", "-0.5"}}, {"AUTOYMIN", {"-0.5", "-0.5"}}, /* below their maxima, which come first in the table */
-        {"MIN_STEP_SIZE", {"0.001", "0.001"}}, {"STEP_SIZE", {"0.02", "0.02"}}, {"MAX_STEP_SIZE", {"0.5", "0.5"}},
-        {"METHOD", {"e", "1"}},            /* the Euler method */
-        {"POINCARE_MAP", {"m", "2"}},          /* max */
-        {"POINCARE_VARIABLE", {"y", "2"}},
-        {"AXES", {"3", "5"}},            /* 3D */
+        {"diagram.x_min", {"-0.5", "-0.5"}}, {"diagram.y_min", {"-0.5", "-0.5"}}, /* below their maxima, which come first in the table */
+        {"continuation.min_step_size", {"0.001", "0.001"}}, {"continuation.step_size", {"0.02", "0.02"}}, {"continuation.max_step_size", {"0.5", "0.5"}},
+        {"integration.method", {"e", "1"}},            /* the Euler method */
+        {"poincare.map", {"m", "2"}},          /* max */
+        {"poincare.variable", {"y", "2"}},
+        {"plot.axes.kind", {"3", "5"}},            /* 3D */
         {"LT", {"-1", "-1"}},
-        {"PLOTFMT", {"svg", "1"}},
-        {"POINCARE_SIGN", {"-1", "0"}},         /* negative */
-        {"LINE.DRAW", {"points", "1"}}, {"LINE.DASH", {"dotted", "2"}}, {"LINE.WIDTH", {"2", "2"}}, {"LINE.MARKER", {"square", "1"}},
-        {"LINE.MARKER_SIZE", {"4", "4"}},
-        {"XNC", {"3", "#ffa500"}}, {"YNC", {"4", "#ffcd00"}}, {"SMC", {"1", "#ff0000"}}, {"UMC", {"0", "foreground"}},
-        {"SEC", {"22", "#ffa500"}}, {"UEC", {"0", "foreground"}}, {"SPC", {"26", "#00e100"}}, {"UPC", {"28", "#0000ff"}},
-        {"NULLCLINES.FILE", {"nc.dat", "build/nc.dat"}}, {"AFTER_RUN_FILE", {"after.dat", "build/after.dat"}}, {"OUTPUT", {"out.dat", "build/out.dat"}}, {"SPECIAL_POINTS", {"cusp", "cusp"}},
-        {"RANGERESET", {"n", "false"}},
-        {"RANGEOLDIC", {"n", "false"}},
-        {"AUTOVAR", {"y", "1"}},         /* autoX counts from x */
-        {"HISTCOL", {"y", "2"}},
-        {"HISTCOL2", {"z", "3"}},
-        {"SPECCOL", {"y", "2"}},
-        {"SPECCOL2", {"z", "3"}},
+        {"export.format", {"svg", "1"}},
+        {"poincare.sign", {"-1", "0"}},         /* negative */
+        {"plot.line.draw", {"points", "1"}}, {"plot.line.dash", {"dotted", "2"}}, {"plot.line.width", {"2", "2"}}, {"plot.line.marker", {"square", "1"}},
+        {"plot.line.marker_size", {"4", "4"}},
+        {"plot.nullclines.x_color", {"3", "#ffa500"}}, {"plot.nullclines.y_color", {"4", "#ffcd00"}}, {"plot.manifolds.stable_color", {"1", "#ff0000"}}, {"plot.manifolds.unstable_color", {"0", "foreground"}},
+        {"diagram.colors.stable_equilibrium", {"22", "#ffa500"}}, {"diagram.colors.unstable_equilibrium", {"0", "foreground"}}, {"diagram.colors.stable_periodic", {"26", "#00e100"}}, {"diagram.colors.unstable_periodic", {"28", "#0000ff"}},
+        {"output.nullclines_file", {"nc.dat", "build/nc.dat"}}, {"output.after_run_file", {"after.dat", "build/after.dat"}}, {"output.data_file", {"out.dat", "build/out.dat"}}, {"continuation.special_points", {"cusp", "cusp"}},
+        {"sweep.reset", {"n", "false"}},
+        {"sweep.old_ic", {"n", "false"}},
+        {"diagram.variable", {"y", "1"}},         /* autoX counts from x */
+        {"analysis.histogram.column", {"y", "2"}},
+        {"analysis.histogram2.column", {"z", "3"}},
+        {"analysis.spectrum.column", {"y", "2"}},
+        {"analysis.spectrum.column2", {"z", "3"}},
         {"BELL", {"1", ""}},
         {"TUTORIAL", {"1", ""}},
         {"GRADS", {"1", ""}},
-        {"FOLD", {"x", ""}},
+        {"integration.torus.fold", {"x", ""}},
         {"AUTOEVAL", {"1", ""}},
-        {"JACOBIAN", {"exact", "1"}},
-        {"SUBSYSTEM_SPLIT", {"run", "1"}},
-        {"STORAGE_PRECISION", {"double", "1"}},
+        {"integration.jacobian.kind", {"exact", "1"}},
+        {"integration.subsystem_split", {"run", "1"}},
+        {"integration.storage_precision", {"double", "1"}},
     };
     if (r.first_digit) return {r.name.ends_with('P') ? "y" : "1", ""}; /* xp2=y, xlo2=1 */
-    if (const auto it = special.find(r.name); it != special.end()) return it->second;
+    if (const auto it = special.find(xpp::option_name(r)); it != special.end()) return it->second;
     if (r.real) {
         const double v = 0.25 + static_cast<double>(k) / 64;
         return {xpp::number(v), xpp::number(v)};
@@ -167,15 +167,15 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
 /* what the option model leaves out: a log file, a button, a list, and what an XPPAUT file says that no member of ours holds */
 bool left_out(const xpp::OptionRow &r)
 {
-    return r.name.empty() || r.name == "BUT" || r.kind == xpp::OptionKind::sliders || r.kind == xpp::OptionKind::curves || r.expand
+    return xpp::option_name(r) == "interface.buttons" || r.kind == xpp::OptionKind::sliders || r.kind == xpp::OptionKind::curves || r.expand
            || r.curve_field != xpp::CurveField::none || !r.dropped.empty() || r.in_statement;
 }
 
 /* whether a session file holds the option: the table's rows marked saved, and the
    torus period (its torus group) */
-bool in_set_file(const xpp::OptionRow &r) { return r.saved || r.name == "TORUS_PERIOD"; }
+bool in_set_file(const xpp::OptionRow &r) { return r.saved || xpp::option_name(r) == "integration.torus.period"; }
 
-std::string_view id(const xpp::OptionRow &r) { return r.name.empty() ? r.key : r.name; }
+std::string id(const xpp::OptionRow &r) { return xpp::option_name(r); }
 
 } // namespace
 
@@ -383,7 +383,8 @@ int main(void)
 
     /* each name finds its row */
     for (const xpp::OptionRow &r : rows) {
-        for (std::string_view n : {r.name, r.xppaut_names[0], r.xppaut_names[1]}) {
+        const std::string own = xpp::option_name(r);
+        for (std::string_view n : {std::string_view(own), r.xppaut_names[0], r.xppaut_names[1]}) {
             if (n.empty()) continue;
             int index = -1;
             std::string name(n);
@@ -396,9 +397,9 @@ int main(void)
         if (!r.key.empty()) CHECK(xpp::numerics_option(r.key) == &r);
         /* a numbered row is its name and a digit; a once row is the only one of its name (once_option finds it) */
         if (r.once) {
-            CHECK(&xpp::once_option(r.name) == &r);
+            CHECK(&xpp::once_option(own) == &r);
             for (const xpp::OptionRow &o : rows)
-                CHECK(&o == &r || !o.once || o.name != r.name);
+                CHECK(&o == &r || !o.once || xpp::option_name(o) != own);
         }
     }
     /* orders and the new ranges: one rule for every source */
@@ -412,13 +413,13 @@ int main(void)
     /* the longest name wins: histlo2 is not histlo, dtmin not dt */
     {
         int index = 0;
-        CHECK(xpp::find_option("HISTLO2", index, true)->name == "HISTLO2");
-        CHECK(xpp::find_option("DTMINIMUM", index, true)->name == "MIN_STEP");
-        CHECK(xpp::find_option("METHOD", index, true)->name == "METHOD" && xpp::find_option("METH", index, true)->name == "METHOD");
+        CHECK(xpp::option_name(*xpp::find_option("HISTLO2", index, true)) == "analysis.histogram2.low");
+        CHECK(xpp::option_name(*xpp::find_option("DTMINIMUM", index, true)) == "integration.step.min");
+        CHECK(xpp::option_name(*xpp::find_option("METHOD", index, true)) == "integration.method" && xpp::option_name(*xpp::find_option("METH", index, true)) == "integration.method");
         CHECK(xpp::find_option("XP9", index, true)->name == "XP");
         CHECK(xpp::find_option("XP3", index, true)->first_digit == '2' && index == 3);
         CHECK(xpp::find_option("NOSUCH", index, true) == nullptr);
-        CHECK(xpp::find_option("NOUT", index, true)->name == "STORE_EVERY" && xpp::find_option("NJMP", index, true) == xpp::find_option("NOUT", index, true));
+        CHECK(xpp::option_name(*xpp::find_option("NOUT", index, true)) == "integration.store_every" && xpp::find_option("NJMP", index, true) == xpp::find_option("NOUT", index, true));
         CHECK(xpp::find_option("NOUT", index, false) == nullptr && xpp::odex_option_key("NJMP") == "store_every" && xpp::odex_option_key("dt") == "dt"
                && xpp::odex_option_key("DTMIN") == "step.min" && xpp::odex_option_key("meth") == "method" && xpp::odex_option_key("method") == "method");
         /* XPPAUT's plotted variables are the `curves` list's on import only: no key of theirs, nor a name no group has */
@@ -431,7 +432,7 @@ int main(void)
                && xpp::find_option("STOCH", index, true)->expand && xpp::find_option("MAXSTOR", index, true)->odex.empty()
                && !xpp::find_option("MULTIWIN", index, true)->dropped.empty() && !xpp::find_option("XLO3", index, true)->dropped.empty());
         /* a key is its group's: the same word in another group is another row, a top-level row has no group */
-        CHECK(xpp::find_odex_option("poincare", "variable", index)->name == "POINCARE_VARIABLE" && xpp::find_odex_option("sweep", "variable", index)->name == "RANGEOVER"
+        CHECK(xpp::option_name(*xpp::find_odex_option("poincare", "variable", index)) == "poincare.variable" && xpp::option_name(*xpp::find_odex_option("sweep", "variable", index)) == "sweep.variable"
                && !xpp::find_odex_option("plot", "variable", index) && xpp::find_odex_option("", "animation", index) && !xpp::find_odex_option("interface", "animation", index));
     }
 
@@ -443,21 +444,21 @@ int main(void)
     if (s) {
         CHECK(xpp::option_problem(*s, "total", "5", false).has_value());
         CHECK(!xpp::option_problem(*s, "total", "5", true).has_value());
-        CHECK(!xpp::option_problem(*s, "total_time", "5", false).has_value());
-        CHECK(xpp::option_problem(*s, "meth", "e", false).has_value() && !xpp::option_problem(*s, "method", "euler", false).has_value());
-        CHECK(!xpp::option_problem(*s, "method", "euler", false).has_value());
+        CHECK(!xpp::option_problem(*s, "integration.total_time", "5", false).has_value() && xpp::option_problem(*s, "total_time", "5", false).has_value());
+        CHECK(xpp::option_problem(*s, "meth", "e", false).has_value() && !xpp::option_problem(*s, "integration.method", "euler", false).has_value());
+        CHECK(!xpp::option_problem(*s, "integration.method", "euler", false).has_value());
         /* an XPPAUT choice's letter, number or yes/no is a foreign file's, never our own */
-        CHECK(!xpp::option_problem(*s, "meth", "e", true).has_value() && xpp::option_problem(*s, "method", "1", false).has_value());
-        CHECK(xpp::option_problem(*s, "poincare_sign", "1", false).has_value() && !xpp::option_problem(*s, "poincare_sign", "positive", false).has_value());
+        CHECK(!xpp::option_problem(*s, "meth", "e", true).has_value() && xpp::option_problem(*s, "integration.method", "1", false).has_value());
+        CHECK(xpp::option_problem(*s, "poincare.sign", "1", false).has_value() && !xpp::option_problem(*s, "poincare.sign", "positive", false).has_value());
         CHECK(!xpp::option_problem(*s, "poisgn", "1", true).has_value() && !xpp::option_problem(*s, "poistop", "1", true).has_value());
-        CHECK(xpp::option_problem(*s, "poincare_stop", "1", false).has_value() && xpp::option_problem(*s, "rangereset", "yes", false).has_value());
-        CHECK(!xpp::option_problem(*s, "rangereset", "true", false).has_value() && !xpp::option_problem(*s, "rangereset", "y", true).has_value());
+        CHECK(xpp::option_problem(*s, "poincare.stop", "1", false).has_value() && xpp::option_problem(*s, "sweep.reset", "yes", false).has_value());
+        CHECK(!xpp::option_problem(*s, "sweep.reset", "true", false).has_value() && !xpp::option_problem(*s, "rangereset", "y", true).has_value());
     }
     if (!s) TEST_REPORT("options");
     std::vector<std::string> defaults;
     for (const xpp::OptionRow &r : rows) defaults.push_back(value_of(*s, r));
     for (const xpp::OptionRow &r : rows)
-        if (r.once && !r.reset && r.name != "COLORMAP") CHECK(!s->options_set.has(r)); /* an .ode's conversion sets its colormap, jet */
+        if (r.once && !r.reset && xpp::option_name(r) != "plot.colormap") CHECK(!s->options_set.has(r)); /* an .ode's conversion sets its colormap, jet */
 
     /* every option set from @ lines, the last row's first (xmin sets the
        2D window's xlo too; xlo's own line after it wins) */
@@ -466,7 +467,7 @@ int main(void)
     for (std::size_t k = rows.size(); k-- > 0;) {
         const xpp::OptionRow &r = rows[k];
         if (left_out(r)) continue;
-        std::string name(r.name);
+        std::string name = xpp::option_name(r);
         if (r.first_digit) name += r.first_digit;
         text += xpp::format("@ {}={}\n", name, sample(k, r).text);
     }
@@ -496,7 +497,7 @@ int main(void)
     init_all_graph(*s);
     for (std::size_t k = 0; k < rows.size(); k++) {
         const xpp::OptionRow &r = rows[k];
-        if (r.name.empty() && r.key.empty()) continue;
+        if (xpp::option_name(r).empty() && r.key.empty()) continue;
         const bool held = in_set_file(r);
         CHECK(!held || in_session(*s, r));
         if (!r.key.empty()) CHECK(held); /* every numerics setting the menu edits is in a session file */
@@ -549,10 +550,10 @@ int main(void)
        named; the model before stays */
     const char bad_ode[] = "build/test_options_bad.ode";
     const char bad_odex[] = "build/test_options_bad.odex";
-    for (const char *bad : {"dt=abc", "ync=12", "xp=nosuch", "meth=k", "store_every=2.5", "nout=2.5", "rangereset=maybe",
+    for (const char *bad : {"dt=abc", "ync=12", "xp=nosuch", "meth=k", "nout=2.5", "rangereset=maybe",
                             "axes=4", "seed=-1", "lt=3", "histcol=nosuch", "xlo2=1e",
                             /* a number the setting's rule refuses (OptionRule) */
-                            "store_every=0", "njmp=0", "dt=0", "nmesh=0", "bound=-1", "delay=-1", "tol=0"}) {
+                            "nout=0", "njmp=0", "dt=0", "nmesh=0", "bound=-1", "delay=-1", "tol=0"}) {
         CHECK(write_file(bad_ode, std::string(model_text) + "@ total=5\n@ " + bad + "\ndone\n"));
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.ode";
@@ -571,13 +572,13 @@ int main(void)
     /* Each allocation limit is checked at the original model line, before allocation. */
     for (const xpp::OptionRow &row : xpp::option_rows()) {
         if (!row.maximum || row.kind == xpp::OptionKind::curves) continue; /* a list's length is checked where it is read (curves) */
-        CHECK(!xpp::option_problem(*s, row.name, std::to_string(row.maximum), false));
+        CHECK(!xpp::option_problem(*s, xpp::option_name(row), std::to_string(row.maximum), false));
         const std::string value = std::to_string(row.maximum + 1);
         for (bool native : {false, true}) {
             if (native && row.odex.empty()) continue; /* an XPPAUT option has no key of ours */
             const char *path = native ? bad_odex : bad_ode;
             const std::string text = native ? "x' = -x\noptions { " + std::string(row.group) + ": { " + xpp::odex_key(row, 0) + ": " + value + " } }\n"
-                                            : "x'=-x\n@ " + std::string(row.name) + "=" + value + "\ndone\n";
+                                            : "x'=-x\n@ " + xpp::option_name(row) + "=" + value + "\ndone\n";
             CHECK(write_file(path, text));
             char arg0[] = "test_options";
             std::string file(path);

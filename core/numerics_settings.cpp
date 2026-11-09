@@ -321,16 +321,11 @@ std::vector<const OptionRow *> saved_settings(std::string_view group)
     return rows;
 }
 
-const OptionRow *saved_setting(std::string_view key)
+const OptionRow *saved_setting(std::string_view name)
 {
     for (const OptionRow &r : option_rows())
-        if (r.saved && setting_key(r) == key) return &r;
+        if (r.saved && option_name(r) == name) return &r;
     return nullptr;
-}
-
-std::string setting_key(const OptionRow &row)
-{
-    return row.key.empty() ? lower_case(std::string(row.name)) : std::string(row.key);
 }
 
 bool setting_applies(const xpp::Session &s, const OptionRow &row, int method)
@@ -349,27 +344,27 @@ std::string setting_text(const xpp::Session &s, const OptionRow &row)
     return xpp::number(value_of(s, row));
 }
 
-std::string named_settings(const xpp::Session &s, std::initializer_list<std::string_view> keys)
+std::string named_settings(const xpp::Session &s, std::initializer_list<std::string_view> names)
 {
     std::string text;
-    for (const std::string_view key : keys) {
-        const OptionRow *row = saved_setting(key);
+    for (const std::string_view name : names) {
+        const OptionRow *row = saved_setting(name);
         assert(row != nullptr);
-        text += xpp::format("{}{} = {}", text.empty() ? "" : ", ", key, setting_text(s, *row));
+        text += xpp::format("{}{} = {}", text.empty() ? "" : ", ", name, setting_text(s, *row));
     }
     return text;
 }
 
 Place settings_place(const Model &m, std::initializer_list<std::string_view> settings)
 {
-    for (const std::string_view key : settings)
-        if (Place place = model_place(m, key); place.line > 0) return place;
+    for (const std::string_view name : settings)
+        if (Place place = model_place(m, name); place.line > 0) return place;
     return command_place();
 }
 
 /* whether row is checked and written as an @ line is: it has no numerics key, or a model is loading (the exact
    Jacobian is checked once the model is compiled: the option's parser defers it, as the @ line does) */
-static bool by_option(const OptionRow &row) { return row.key.empty() || (!row.name.empty() && Load::running()); }
+static bool by_option(const OptionRow &row) { return row.key.empty() || Load::running(); }
 
 std::optional<std::string> setting_problem(xpp::Session &s, const OptionRow &row, std::string_view text)
 {
@@ -378,7 +373,7 @@ std::optional<std::string> setting_problem(xpp::Session &s, const OptionRow &row
         double v = 0;
         if (!row.label.empty() && xpp::parse_number(text, v))
             if (const char *no = rule_problem(row.rule, v, row.maximum)) return xpp::format("{} {}", row.label, no);
-        return option_problem(s, row.name, text, false);
+        return option_problem(s, option_name(row), text, false);
     }
     double v = 0;
     std::string why;
@@ -388,7 +383,7 @@ std::optional<std::string> setting_problem(xpp::Session &s, const OptionRow &row
 
 void setting_write(xpp::Session &s, const OptionRow &row, std::string_view text)
 {
-    if (by_option(row)) return set_option(s, row.name, text, true, nullptr);
+    if (by_option(row)) return set_option(s, option_name(row), text, true, nullptr);
     double v = 0;
     std::string why;
     if (check(s, row, text, v, why, command_place())) write_field(s, row, v);

@@ -950,7 +950,7 @@ std::deque<xpp::DIAGRAM> collocation_run(unsigned threads, bool compiled, bool i
         "x'=mu*x-frequency*y-x*r"+std::string(impure?"+0*shift(x,0)":"")+"\n"
         "y'=frequency*x+mu*y-y*r\ninit x=0,y=0\n"
         +xpp::format("@ ntst={},ncol=4,nmax=60,npr=10,ds=0.02,dsmax=0.05,dsmin=0.0001\n",mesh)+
-        "@ parmin=-1,parmax=1,epsl=1e-8,epsu=1e-8,epss=1e-8\n"+std::string(exact?"@ jacobian=exact\n":"")+"done\n"));
+        "@ parmin=-1,parmax=1,epsl=1e-8,epsu=1e-8,epss=1e-8\n"+std::string(exact?"@ integration.jacobian.kind=exact\n":"")+"done\n"));
     program.compile=compiled;
     CHECK(load(file));
     xpp::Session &s=xpp::client_session();

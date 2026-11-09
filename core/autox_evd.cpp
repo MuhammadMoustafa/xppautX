@@ -115,7 +115,7 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
     const std::string &name=s.model().uvar_names[worst];
     const std::string why=xpp::newton_cause(s,newton,static_cast<std::size_t>(n)).why;
     autox_fail(Error{"autox",xpp::format("The initial conditions are not a steady state, and Newton's method from them did not converge ({}); equation \"{}\" has the largest residual |f(x,p)| = {}, above state_tolerance = {}. Newton settings: {}. Use Sing pts or integrate to a steady state before starting autoX",
-        why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s,{"newton_tolerance","jacobian_step","search_limit","max_iterations"})),model_place(s.model(),name)});
+        why,name,xpp::number(start_value),xpp::number(rap.epsu),xpp::named_settings(s,{"equilibria.newton_tolerance","equilibria.jacobian_step", "equilibria.search_limit","equilibria.max_iterations"})),model_place(s.model(),name)});
   }
 
   func(*iap.run,iap.ndm,u,icp,iap.nfpr,par,0,residual.data(),nullptr,nullptr);

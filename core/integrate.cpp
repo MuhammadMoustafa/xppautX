@@ -492,7 +492,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
   }
   bottom_msg(0,xpp::format("Monte Carlo: {} of {} guesses converged to {} distinct equilibria ({} requested; {}); {}",
       converged,attempted,s.integrator.fixptlist.n,n,
-      xpp::named_settings(s,{"max_iterations","newton_tolerance","search_limit"}),
+      xpp::named_settings(s,{"equilibria.max_iterations","equilibria.newton_tolerance", "equilibria.search_limit"}),
       xpp::job::cancelled()?"stopped by the user":attempted<n?"stopped early":"search finished"));
   return failure.result();
 }
@@ -2269,7 +2269,7 @@ out:
        if(s.numerics.poincare_map!=PoincareMap::none && !section_crossed &&
           s.integrator.stop_note.empty() && !xpp::job::cancelled()){
          s.integrator.stop_note=xpp::format("No crossing found ({}) in [{}, {}]; change the section or integrate longer",
-             xpp::named_settings(s,{"poincare_map","poincare_variable","poincare_plane"}),section_start,*t);
+             xpp::named_settings(s,{"poincare.map","poincare.variable", "poincare.plane"}),section_start,*t);
        }
        return(rval);
   }

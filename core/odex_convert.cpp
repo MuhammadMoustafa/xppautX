@@ -1488,7 +1488,7 @@ private:
         }
       prefix = noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f", "discrete-map", "info");
       int index = 0;
-      const OptionRow &method = *xpp::find_option("METHOD", index, false);
+      const OptionRow &method = *xpp::find_option("integration.method", index, false);
       entries.push_back({xpp::odex_key(method, 0), "discrete", &method});
     }
     std::vector<std::string> presets;
@@ -1527,7 +1527,7 @@ private:
     std::vector<std::string> ignored;
     for (const auto &[key, value] : option_items(line.text, false, &ignored)) {
       int index = 0;
-      const OptionRow *row = xpp::find_option(xpp::upper_case(key), index, true);
+      const OptionRow *row = xpp::find_option(key, index, true);
       if (xpp::upper_case(key) == "RUNNOW") {
         option_note(xpp::format("@ {}={} in the .ode: startup running is removed, dropped; use Run or --silent", key, value), "runnow-removed");
         continue;
@@ -1590,7 +1590,7 @@ private:
     if (ours.why) refuse(xpp::format("{}={} is {}", key, value, ours.why));
     for (const auto &[ours_name, ours_value] : ours.items) {
       int index = 0;
-      const OptionRow *own = xpp::find_option(xpp::upper_case(ours_name), index, false);
+      const OptionRow *own = xpp::find_option(ours_name, index, false);
       if (in_set && !xpp::set_holds(*own)) refuse(xpp::format("{}={}: a set does not hold {}", key, value, ours_name));
       const std::string ours_key = xpp::odex_key(*own, index);
       const std::string text = option_text(*own, ours_name, ours_value, in_set ? "set-value" : "option-value");

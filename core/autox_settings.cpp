@@ -698,32 +698,35 @@ int autox_settings_apply(xpp::Session &s, const AutoxSettingsSet &set, std::stri
 
 namespace {
 /* the view rows by option name: the variable, then the four edges in AUTOAX's order (xmin, xmax, ymin, ymax) */
-constexpr std::string_view view_variable = "AUTOVAR";
-constexpr std::array<std::string_view, 4> view_edges = {"AUTOXMIN", "AUTOXMAX", "AUTOYMIN", "AUTOYMAX"};
+constexpr std::string_view view_variable = "diagram.variable";
+constexpr std::array<std::string_view, 4> view_edges = {"diagram.x_min", "diagram.x_max", "diagram.y_min", "diagram.y_max"};
 } // namespace
 
 bool autox_view_row(const OptionRow &row)
 {
-    return row.name == view_variable || std::ranges::find(view_edges, row.name) != view_edges.end();
+    const std::string name = option_name(row);
+    return name == view_variable || std::ranges::find(view_edges, name) != view_edges.end();
 }
 
 std::string autox_view_text(const Session &s, const OptionRow &row)
 {
     const AUTOAX &a = s.autox_state.axes();
-    if (row.name == view_variable) return a.var >= 0 && a.var < s.model().node ? s.model().uvar_names[a.var] : std::string();
+    const std::string name = option_name(row);
+    if (name == view_variable) return a.var >= 0 && a.var < s.model().node ? s.model().uvar_names[a.var] : std::string();
     const double edges[4] = {a.xmin, a.xmax, a.ymin, a.ymax};
-    return xpp::number(edges[std::ranges::find(view_edges, row.name) - view_edges.begin()]);
+    return xpp::number(edges[std::ranges::find(view_edges, name) - view_edges.begin()]);
 }
 
 Result<> autox_view_apply(Session &s, std::span<const std::pair<const OptionRow *, std::string>> items, bool check_only)
 {
     AutoxSettingsSet set;
     for (const auto &[row, text] : items) {
-        if (row->name == view_variable) {
+        const std::string name = option_name(*row);
+        if (name == view_variable) {
             set.var = text;
             continue;
         }
-        const std::size_t i = static_cast<std::size_t>(std::ranges::find(view_edges, row->name) - view_edges.begin());
+        const std::size_t i = static_cast<std::size_t>(std::ranges::find(view_edges, name) - view_edges.begin());
         double value = 0;
         if (!parse_number(text, value)) return fail("diagram", xpp::format("{}={}: not a number", row->odex, text), command_place());
         set.range[i] = value;

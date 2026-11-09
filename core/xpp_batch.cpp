@@ -117,7 +117,7 @@ Result<std::vector<Error>> compile_loaded(Session &s)
        (W260): none is an error at the @ line, not a quiet difference */
     const Model &m=s.model();
     if (s.numerics.jacobian==JACOBIAN_EXACT && !m.jacobian.available())
-        return std::unexpected(Error{"options",option_error_text("jacobian","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
+        return std::unexpected(Error{"options",option_error_text("integration.jacobian.kind","exact","the model has no exact Jacobian: "+m.jacobian.unavailable),
                                      m.jacobian.requested});
     return compiled;
 }

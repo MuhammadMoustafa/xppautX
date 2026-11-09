@@ -142,7 +142,7 @@ double get_delay(xpp::Session &s, int in, double tau)
  if(tau<0.0||tau>s.numerics.delay){
 			const std::string &name=s.model().uvar_names[static_cast<std::size_t>(in)];
 			stop_integration(s,{"delay",xpp::format("delay of {}: tau = {} is outside 0 to the delay setting at t = {} ({})",
-			                                        name,tau,getvar(s,0),named_settings(s,{"delay"})),
+			                                        name,tau,getvar(s,0),named_settings(s,{"integration.delay.max_delay"})),
 			                    model_place(s.model(),name)});
 			return(0.0);
   			}

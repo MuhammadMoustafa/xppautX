@@ -68,7 +68,7 @@ public:
     case NEWTON_SINGULAR: return stopped("the Newton iteration's matrix is singular",*s.t,stop.variable,{});
     case NEWTON_NO_CONVERGENCE:
       return stopped(xpp::format("the Newton iteration did not converge in {} iterations",stop.iterations),*s.t,stop.variable,
-                     {"eul_iter","eul_tol"});
+                     {"integration.euler.iterations","integration.euler.tolerance"});
     default: break;
     }
     return {};
@@ -92,11 +92,11 @@ public:
     /* on a failure, the variable whose error estimate is the largest */
     const int worst=kflag<0?largest_magnitude(error_.data(),s.neq):-1;
     switch(kflag){
-    case -1: return stopped("the error test failed with the step at min_step",*s.t,worst,{"min_step","relative_tolerance"});
+    case -1: return stopped("the error test failed with the step at integration.step.min",*s.t,worst,{"integration.step.min","integration.step.relative_tolerance"});
     case -2: return stopped("the method's order would exceed its highest, 6",*s.t,-1,{});
-    case -3: return stopped("the corrector did not converge with the step at min_step",*s.t,worst,{"min_step","relative_tolerance"});
+    case -3: return stopped("the corrector did not converge with the step at integration.step.min",*s.t,worst,{"integration.step.min","integration.step.relative_tolerance"});
     case -4: return stopped("the error test failed repeatedly at order 1: the tolerance is too small for the rounding",*s.t,worst,
-                            {"relative_tolerance"});
+                            {"integration.step.relative_tolerance"});
     default: break;
     }
     return {};
@@ -120,15 +120,15 @@ public:
     const SolverWork::Stop &stop=session_.solver_work.stop;
     switch(kflag){
     case ADAPTIVE_SINGULAR:
-      return stopped("the step matrix is singular",stop.t,stop.variable,{"dt","jacobian"});
-    case ADAPTIVE_STEP_UNDERFLOW: return stopped("the step size became too small to change t",stop.t,stop.variable,{"relative_tolerance"});
+      return stopped("the step matrix is singular",stop.t,stop.variable,{"integration.dt","integration.jacobian.kind"});
+    case ADAPTIVE_STEP_UNDERFLOW: return stopped("the step size became too small to change t",stop.t,stop.variable,{"integration.step.relative_tolerance"});
     case ADAPTIVE_BELOW_MIN_STEP:
-      return stopped(xpp::format("the step size {} fell below min_step",stop.h),stop.t,stop.variable,{"min_step","relative_tolerance"});
+      return stopped(xpp::format("the step size {} fell below integration.step.min",stop.h),stop.t,stop.variable,{"integration.step.min","integration.step.relative_tolerance"});
     case ADAPTIVE_TOO_MANY_STEPS:
-      return stopped(xpp::format("more than {} steps between two output times",ADAPTIVE_MAX_STEPS),stop.t,-1,{"dt","relative_tolerance"});
+      return stopped(xpp::format("more than {} steps between two output times",ADAPTIVE_MAX_STEPS),stop.t,-1,{"integration.dt","integration.step.relative_tolerance"});
     case ADAPTIVE_TOO_MANY_TRIES:
       return stopped(xpp::format("the error test failed {} times with ever smaller steps",ADAPTIVE_MAX_TRIES),stop.t,stop.variable,
-                     {"relative_tolerance"});
+                     {"integration.step.relative_tolerance"});
     default: return {};
     }
   }
@@ -148,7 +148,7 @@ public:
       /* the reason, then CVODE's own words; at the equation of the variable
          CVODE's error test or corrector failed at, if it names one */
       return stopped(cvode_error_text(session_,run_,kflag),*s.t,static_cast<int>(run_.error_var),
-                     {"relative_tolerance","absolute_tolerance"},run_.error);
+                     {"integration.step.relative_tolerance","integration.step.absolute_tolerance"},run_.error);
     return {};
   }
   void finish() override { end_cv(run_); }
@@ -169,7 +169,7 @@ public:
     const SolverWork::Stop &stop=session_.solver_work.stop;
     if(kflag<0)
       return stopped(xpp::format("the step size fell to the rounding limit {} with the error still above the tolerance",stop.h),
-                     stop.t,stop.variable,{"relative_tolerance","absolute_tolerance"});
+                     stop.t,stop.variable,{"integration.step.relative_tolerance","integration.step.absolute_tolerance"});
     return {};
   }
 private:
@@ -299,9 +299,9 @@ Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, 
     return fail(info.name,xpp::format("{}: {} ({})",info.name,what,named_settings(s,settings)),settings_place(s.model(),settings));
   };
   if(std::fabs(dt)<min_step)
-    return refuse(xpp::format("Dt = {} is below min_step, so no step fits between two output times",dt),{"min_step"});
+    return refuse(xpp::format("Dt = {} is below integration.step.min, so no step fits between two output times",dt),{"integration.step.min"});
   if(std::fabs(length)<min_step)
-    return refuse(xpp::format("the run's length {} is shorter than min_step",length),{"min_step"});
+    return refuse(xpp::format("the run's length {} is shorter than integration.step.min",length),{"integration.step.min"});
   return {};
 }
 
@@ -315,7 +315,7 @@ Result<> check_store_from(const Session &s, double start, double dt, double leng
     for(int e=0;e<flag.nevents;++e)
       if(flag.type[e]==xpp::Model::EventTarget::output)return {};
   return fail("store_from",xpp::format("store_from is beyond the end of the run: it starts at t = {} and ends at t = {}, so no row would be stored ({})",
-                                      start,end,named_settings(s,{"store_from"})),settings_place(s.model(),{"store_from"}));
+                                      start,end,named_settings(s,{"integration.store_from"})),settings_place(s.model(),{"integration.store_from"}));
 }
 
 const SolverInfo &solver_info(int m)

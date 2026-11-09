@@ -803,10 +803,10 @@ private:
            below the rounding limit (-3) */
         if(status==-2)
           return stopped(xpp::format("more than {} step attempts (accepted and rejected) in the run",DOPRI_RUN_ATTEMPTS),run_.xout,-1,
-                         {"relative_tolerance","absolute_tolerance"});
+                         {"integration.step.relative_tolerance","integration.step.absolute_tolerance"});
         if(status<0)
           return stopped(xpp::format("the step size {} fell below the rounding limit",run_.failed_h),run_.xout,-1,
-                         {"relative_tolerance","absolute_tolerance"});
+                         {"integration.step.relative_tolerance","integration.step.absolute_tolerance"});
         internal_time_=run_.xout;
         valid_=true;
         events_checked_=false;
