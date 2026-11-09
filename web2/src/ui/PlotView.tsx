@@ -36,7 +36,7 @@ function PlotMore({children}: {children: ComponentChildren}) {
   const box = useDropDown();
   return (
     <details class="plot-more" ref={box}>
-      <summary aria-label="More plot tools" title="Reset view, use this view, CSV and sets">⋯</summary>
+      <summary aria-label="More plot tools" title="Reset zoom, use this view, CSV and sets">⋯</summary>
       <div class="plot-more-menu" onClick={e => { if ((e.target as Element).closest('button') && box.current) box.current.open = false; }}>{children}</div>
     </details>
   );
@@ -220,7 +220,7 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
   const may = useMay();
   const mayMain = useMayMain();
   const windowOff = !mayMain('window.set_bounds'); /* Window/zoom: a view (W95) */
-  const csvOff = !may({cmd: 'browser.export'});
+  const csvOff = !may({cmd: 'data.export'});
   const pick = useStore(s => (s.pick?.win === win ? s.pick : null));
   const picking = pick && !pick.waiting ? pick : null;
   const host = useRef<HTMLDivElement>(null);
@@ -469,7 +469,7 @@ export function PlotView({win, dark, shown, tabbed, windowRow}: Props) {
             title="Fit the window's axes to the data (Window/Fit)">Fit</button>
           <PlotMore>
             <button disabled={!zoomed} onClick={() => chart.current!.reset()}
-              title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
+              title="Back to the window's axes (double click, or 0 on the plot)">Reset zoom</button>
             <button disabled={!zoomed || windowOff} onClick={() => session.useThisView(win, chart.current!.ranges())}
               title="Make this zoom the window's own axes (Window/Window), for PostScript/SVG export and Restore">
               Use this view

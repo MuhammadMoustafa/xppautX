@@ -32,7 +32,7 @@ Result<> set_torus(Session &s, TorusMode mode, std::optional<double> period, std
 
 void do_torus_com(Session &s, int c)
 {
- /* the Phase space items of an imported button sequence (kbs.h): the questions the registry's analysis.phase_space_torus takes as arguments are asked here, then the command's own function runs */
+ /* the Phase space items of an imported button sequence (kbs.h): the questions the registry's plot.set_torus takes as arguments are asked here, then the command's own function runs */
  const TorusMode mode=c==0?TorusMode::all:c==1?TorusMode::none:TorusMode::choose;
  if(mode==TorusMode::none){
    xpp::ok_or_show(set_torus(s,mode,{},{}));

@@ -67,7 +67,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
             'step_size': 1, 'max_step_size': 50, 'parameter_min': -500, 'parameter_max': 17500, 'norm_min': -200, 'norm_max': 200,
             'max_branch_switches': 5})
         command(server, cmd='recording.add_note', note='Show voltage V versus applied current Iapp, with fixed readable axes.')
-        command(server, cmd='autox.configure_plot', **{'plot_type': 'maximum', 'variable': 'V', 'parameter1': 'Iapp',
+        command(server, cmd='autox.configure_axes', **{'plot_type': 'maximum', 'variable': 'V', 'parameter1': 'Iapp',
             'x_min': -20, 'x_max': 200, 'y_min': -90, 'y_max': -35})
         command(server, cmd='recording.add_note', note='Run steady-state continuation; autoX marks stability changes and labelled special points.')
         server.send(cmd='autox.run', kind='equilibrium')

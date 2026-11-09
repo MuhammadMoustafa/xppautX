@@ -138,12 +138,12 @@ struct AddedColumn {
   std::string name;
   std::string formula;
 };
-/* the most rows and columns one block of the table holds (browser.page): a page of it, bounded so one event stays
+/* the most rows and columns one block of the table holds (data.page): a page of it, bounded so one event stays
    small; hello.limits tells the page */
 inline constexpr int BROWSER_MAX_ROWS = 2000;
 inline constexpr int BROWSER_MAX_COLS = 500;
 /* the block of the table a client shows: its first row, rows (0: none, no block is sent), first column and
-   columns after T, which is always the first value of a row (browser.page sets it, the `browser` event sends it) */
+   columns after T, which is always the first value of a row (data.page sets it, the `browser` event sends it) */
 struct BrowserBlock {
   int from = 0, count = 0, col = 1, ncol = 1;
 };
@@ -174,7 +174,7 @@ std::string browser_block_rows(const Session &s);
 
 /* The browser's operations on the session s (docs/protocol.md "The data browser"): each returns its error as a
    value; the browser window's keys ask what they need (the data_* functions below) and call the same, as the
-   registry's browser.* commands call them with their arguments. */
+   registry's data.* commands call them with their arguments. */
 Column get_data_col(const Session &s, int c);
 /* the browser shows the stored data, not a derived set (the adjoint, a histogram, ...) */
 Result<> require_stored_data(const Session &s);

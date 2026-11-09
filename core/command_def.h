@@ -285,13 +285,13 @@ inline Result<std::string> found(const Result<int> &value, const char *name)
 std::span<const Command> window_commands();
 std::span<const Command> annotation_commands();
 std::span<const Command> run_commands();
-std::span<const Command> ic_commands();
-std::span<const Command> bvp_commands();
+std::span<const Command> initial_conditions_commands();
+std::span<const Command> boundary_value_commands();
 std::span<const Command> autox_commands();
 std::span<const Command> plot_commands();
 std::span<const Command> analysis_commands();
 std::span<const Command> table_commands();
-std::span<const Command> browser_commands();
+std::span<const Command> data_commands();
 std::span<const Command> set_commands();
 std::span<const Command> value_commands();
 std::span<const Command> session_commands();
@@ -306,18 +306,18 @@ Result<std::string> front_end(Session &s, const Command &command, const Argument
 /* what session.open_model answers once the model it asked for is loaded: the model, its variables and its parameters */
 std::string opened_model_result(const Session &s);
 
-/* A command whose arguments are numerics settings (run.configure, bvp.configure): every argument given is the
+/* A command whose arguments are numerics settings (run.configure, boundary_value.configure): every argument given is the
    setting `key_prefix` + its name, all checked together and set all or nothing; the result holds each one's
    value now. */
 Result<std::string> configure_numerics(Session &s, const Command &command, const Arguments &args, const Place &place,
                                        std::string_view key_prefix);
-/* bvp.configure's arguments are the settings' keys without this prefix */
+/* boundary_value.configure's arguments are the settings' keys without this prefix */
 inline constexpr std::string_view BVP_KEY_PREFIX = "bvp_";
 /* the registry command that sets the numerics setting `key`, "" when none does (`set` takes the others) */
 std::string_view numerics_command(std::string_view key);
 std::span<const Command> equilibrium_commands();
 std::span<const Command> nullcline_commands();
-std::span<const Command> dirfield_commands();
+std::span<const Command> direction_field_commands();
 std::span<const Command> kinescope_commands();
 std::span<const Command> animation_commands();
 std::span<const Command> array_plot_commands();

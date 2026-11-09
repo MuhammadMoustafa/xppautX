@@ -335,7 +335,7 @@ everything the menu does: `session.open_model`, `session.reload_model`,
 `session.quit --save false` to leave at once); `recording.start`,
 `recording.stop` and the player's `recording.open`, `recording.play`,
 `recording.pause`, `recording.step`, `recording.set_speed`,
-`recording.seek` and `recording.close`; the calculator as `tool.calculator`;
+`recording.seek` and `recording.close`; the calculator as `calculator.evaluate`;
 and the keyboard shortcuts as `keymap.get`, `keymap.set` and `keymap.reset`.
 Each menu item keeps its key and asks what it needs as before, then does the
 same thing as its command.

@@ -149,7 +149,7 @@ def run_lecar(home):
         s.send(cmd='array_plot.export_pdf', file='lecar_array.pdf')
         s.collect(is_done)
         check_file('lecar_array.pdf', read(s.run, 'lecar_array.pdf'))
-        s.send(cmd='window.destroy', window='array_plot_1')
+        s.send(cmd='window.close', window='array_plot_1')
         s.collect(is_done)
 
         # Kinescope: capture window 1 twice, then Save writes a GIF per
@@ -186,7 +186,7 @@ def run_vanderpol(home):
         s.send(cmd='nullcline.compute')
         s.collect(is_done)
         # Direct Field then asks a "Grid:" string, its own default (16)
-        s.send(cmd='dirfield.compute', grid=16, scaled=False)
+        s.send(cmd='direction_field.compute', grid=16, scaled=False)
         s.collect(is_done)
 
         s.send(cmd='plot.export_pdf', file='vanderpol.pdf')
@@ -222,7 +222,7 @@ def run_pictures(home):
         s.send(cmd='array_plot.export_pdf', file='pictures_array.pdf', top_label='top', side_label='side', bottom_label='bottom')
         s.collect(is_done)
         check_file('pictures_array.pdf', read(s.run, 'pictures_array.pdf'))
-        s.send(cmd='window.destroy', window='array_plot_1')
+        s.send(cmd='window.close', window='array_plot_1')
         s.collect(is_done)
     finally:
         s.close()

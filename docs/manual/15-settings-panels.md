@@ -53,11 +53,11 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Tolerance** (`euler.tolerance`): The Newton tolerance of the implicit Euler method.
 - **Iterations** (`euler.iterations`): The most Newton iterations the implicit Euler method makes in a step.
 
-### Bvp
+### Boundary value
 
-- **Max iterates** (`bvp.max_iterates`): The most Newton iterates a boundary value solve makes.
-- **Tolerance** (`bvp.tolerance`): The tolerance a boundary value solve stops at.
-- **Epsilon** (`bvp.epsilon`): The step that differences the boundary value problem's Jacobian.
+- **Max iterates** (`boundary_value.max_iterates`): The most Newton iterates a boundary value solve makes.
+- **Tolerance** (`boundary_value.tolerance`): The tolerance a boundary value solve stops at.
+- **Epsilon** (`boundary_value.epsilon`): The step that differences the boundary value problem's Jacobian.
 
 ### Torus
 

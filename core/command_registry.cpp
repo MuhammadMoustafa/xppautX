@@ -31,10 +31,10 @@ constexpr std::array HELP_ROWS = {
 std::span<const Command> help_commands() { return HELP_ROWS; }
 
 /* every resource's table, in the order `help` lists them; a menu's entries follow it, the rows of one table in their order */
-constexpr std::array TABLES = {keymap_commands, session_commands, ic_commands, recording_commands, equilibrium_commands, nullcline_commands,
-                              annotation_commands, run_commands, dirfield_commands, plot_commands, analysis_commands, kinescope_commands,
-                              table_commands, browser_commands, help_commands, tool_commands, window_commands, autox_commands, animation_commands,
-                              array_plot_commands, set_commands, bvp_commands, value_commands, options_commands, events_commands};
+constexpr std::array TABLES = {keymap_commands, session_commands, initial_conditions_commands, recording_commands, equilibrium_commands, nullcline_commands,
+                              annotation_commands, run_commands, direction_field_commands, plot_commands, analysis_commands, kinescope_commands,
+                              table_commands, data_commands, help_commands, tool_commands, window_commands, autox_commands, animation_commands,
+                              array_plot_commands, set_commands, boundary_value_commands, value_commands, options_commands, events_commands};
 
 template <class Visit> void each_command(Visit visit)
 {
@@ -301,7 +301,7 @@ const Command *find(std::string_view name)
 
 std::string_view numerics_command(std::string_view key)
 {
-    for (const auto &[command_name, prefix] : {std::pair<std::string_view, std::string_view>{"run.configure", {}}, {"bvp.configure", BVP_KEY_PREFIX}}) {
+    for (const auto &[command_name, prefix] : {std::pair<std::string_view, std::string_view>{"run.configure", {}}, {"boundary_value.configure", BVP_KEY_PREFIX}}) {
         const Command *command = find(command_name);
         if (command && std::ranges::any_of(command->arguments, [&](const Argument &arg) { return std::string(prefix) + arg.name == key; }))
             return command_name;

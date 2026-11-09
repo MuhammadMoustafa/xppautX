@@ -176,7 +176,7 @@ export function autoxSettingsCommands(p: AutoxSettingsPatch): {command: Command;
     const {plot, var: variable, par1, par2, xmin, xmax, ymin, ymax, fit, view} = p.axes;
     const given = {plot_type: plot, variable, parameter1: par1, parameter2: par2, x_min: xmin, x_max: xmax, y_min: ymin, y_max: ymax, fit, view};
     out.push({
-      command: {cmd: 'autox.configure_plot', ...Object.fromEntries(Object.entries(given).filter(([, v]) => v !== undefined && v !== null))},
+      command: {cmd: 'autox.configure_axes', ...Object.fromEntries(Object.entries(given).filter(([, v]) => v !== undefined && v !== null))},
       patch: {axes: p.axes},
     });
   }
@@ -196,7 +196,7 @@ export function commandSettings(command: Command): AutoxSettingsPatch | null {
     const {special_points, ...numerics} = values;
     return {numerics: numerics as AutoxSettingsPatch['numerics'], special_points: special_points as AutoxSettingsPatch['special_points']};
   }
-  if (cmd === 'autox.configure_plot') {
+  if (cmd === 'autox.configure_axes') {
     const names: Record<string,string> = {plot_type:'plot', variable:'var', parameter1:'par1', parameter2:'par2', x_min:'xmin', x_max:'xmax', y_min:'ymin', y_max:'ymax', fit:'fit', view:'view'};
     return {axes: Object.fromEntries(Object.entries(values).filter(([key]) => key in names).map(([key,value]) => [names[key],value]))};
   }

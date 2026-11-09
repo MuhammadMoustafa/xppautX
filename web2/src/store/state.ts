@@ -83,7 +83,7 @@ export interface Toast {
   offer?: ErrorAction;
 }
 
-/** a part of a file of values (docs/protocol.md `set.file_contents`): where it comes from, its set's name, and why it
+/** a part of a file of values (docs/protocol.md `set.list_file_contents`): where it comes from, its set's name, and why it
     cannot be loaded when it cannot */
 export interface ValuesPart {from: 'defaults' | 'set' | 'file'; name: string; problem?: string}
 /** the file asked about, for which scope, what kind of file it is and its parts that hold that scope's kind */
@@ -148,7 +148,7 @@ export interface AppState {
   optionsPanel: {group: string} | null;
   /** each group's values as the core last gave them, for every place that edits the group's rows (a panel, a command's form, Values' Numerics) */
   optionValues: Record<string, OptionValues>;
-  /** the parts of a file of values that hold a section's kind, as `set.file_contents` listed them, offered to pick
+  /** the parts of a file of values that hold a section's kind, as `set.list_file_contents` listed them, offered to pick
       one to load with `set.load_file` (W321) */
   valuesFile: ValuesFileOffer | null;
   annotationsOpen: boolean;
@@ -318,13 +318,13 @@ function addToast(state: AppState, kind: Toast['kind'], text: string, action?: T
   return {...state, toasts, nextToast: state.nextToast + 1};
 }
 
-/* commands with no done of their own (run.abort) or none at all (the plain
-   quit; one that asks or saves is a command of its own); `browser.page`
+/* commands with no done of their own (run.stop) or none at all (the plain
+   quit; one that asks or saves is a command of its own); `data.page`
    is answered at once too (docs/protocol.md: "answered at once, even
    during a computation"), so the table's
    paging (store/table.ts planRequest) never leaves the status bar stuck
    showing Working */
-const NO_DONE = new Set(['run.abort', 'browser.page']);
+const NO_DONE = new Set(['run.stop', 'data.page']);
 /** the commands the core answers at once at any moment, a done each, even in the middle of a computation: the
     player's controls and the state; the page's busy never waits on them (their done is counted, state.controlDone) */
 const CONTROL_DONE = new Set(['recording.play', 'recording.pause', 'recording.step', 'recording.set_speed', 'session.get_state']);
@@ -478,7 +478,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return withPlots(state, onWindowRuns(state.plots, ev));
     case 'nullcline.curves':
       return withPlots(state, onNullclines(state.plots, ev));
-    case 'dirfield.field':
+    case 'direction_field.field':
       return withPlots(state, onDfield(state.plots, ev));
     case 'plot.marks':
       return withPlots(state, onMarks(state.plots, ev));
@@ -594,7 +594,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return state;
     case 'array_plot.shown':
       return {...state, aplot: reduceAplot(state.aplot, {type: 'event', ev})};
-    case 'browser.updated':
+    case 'data.updated':
       return {...state, table: reduceTable(state.table, {type: 'event', ev})};
     case 'session.equations':
       return {...state, text: reduceText(state.text, {type: 'equations', ev})};

@@ -1,7 +1,7 @@
 /* The animation's registry rows (W527): its window, the file it plays, Go (play, pause, faster, slower, the
    speed), the frame shown (reset, step, seek, the skip), live drawing, grabbing a point and writing the frames.
    Each handler calls the core function the animation window's keys call too (aniparse.h): one behaviour,
-   whichever front end asks. The window itself is closed with window.destroy or window.hide. */
+   whichever front end asks. The window itself is closed with window.close or window.hide. */
 #include "aniparse.h"
 #include "command_def.h"
 #include "session.h"

@@ -13,7 +13,7 @@ the plot stays whole beside it, so a selected row and its point can be seen toge
 **Back to Values** returns the Values panel as it was; on a phone the table is a full-screen sheet
 with a **×** on top. The header holds **Load data** and one **Export data** menu (below).
 Then come the toolbar, **Find**, **Rows** (First row, Last row, All rows) and **Columns**
-(Add column, Replace, Delete column, and More: Unreplace, Tabulate column, Transpose data), which
+(Add column, Replace, Delete column, and More: Undo replace, Tabulate column, Transpose data), which
 are two menus where the panel is narrow, as the right column always is; **Edit table** (the
 model's lookup tables) is in Analysis > Tables, not here. A line below says how many rows there
 are and which one is selected ("601 rows · row 5 (t = 0.25) selected"), with a button
@@ -27,7 +27,7 @@ has room for it; where it has not, it is cut with a dotted underline and its who
 the tip (click to copy). The remaining commands are described
 separately below; the keyboard shortcut to invoke each is in parentheses.
 
-**In xppautX these are also commands** (W526): `browser.find`, `browser.replace_column`, `browser.undo_replace`, `browser.tabulate_column`, `browser.set_slice_start` (First), `browser.set_slice_end` (Last), `browser.restore_full_slice`, `browser.add_column`, `browser.delete_column`, `browser.load`, `browser.export` (Write), `browser.transpose` (File, Transpose), `browser.postprocess` and `browser.page` (the block of the table the page shows). Getting a row as the initial conditions is `ic.from_data_row`. A command is given the column or the formula as arguments and ends with a `done` result; the buttons' forms call the same functions.
+**In xppautX these are also commands** (W526): `data.find`, `data.replace_column`, `data.undo_replace`, `data.tabulate_column`, `data.set_slice_start` (First), `data.set_slice_end` (Last), `data.restore_full_slice`, `data.add_column`, `data.delete_column`, `data.load`, `data.export` (Write), `data.transpose` (File, Transpose), `browser.postprocess` and `data.page` (the block of the table the page shows). Getting a row as the initial conditions is `initial_conditions.set_from_data_row`. A command is given the column or the formula as arguments and ends with a `done` result; the buttons' forms call the same functions.
 
 ### (F)ind
 

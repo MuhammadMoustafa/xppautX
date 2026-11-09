@@ -38,7 +38,7 @@ inline constexpr char PLOT_CLEARED[] = "plot.cleared";
 inline constexpr char PLOT_REDRAWN[] = "plot.redrawn";
 inline constexpr char PLOT_MARKS[] = "plot.marks";
 inline constexpr char NULLCLINE_CURVES[] = "nullcline.curves";
-inline constexpr char DIRFIELD_FIELD[] = "dirfield.field";
+inline constexpr char DIRECTION_FIELD_FIELD[] = "direction_field.field";
 inline constexpr char EQUILIBRIUM_FOUND[] = "equilibrium.found";
 inline constexpr char WINDOW_CREATED[] = "window.created";
 inline constexpr char WINDOW_SELECTED[] = "window.selected";
@@ -55,7 +55,7 @@ inline constexpr char ARRAY_PLOT_SHOWN[] = "array_plot.shown";
 inline constexpr char ANIMATION_STATE[] = "animation.state";
 inline constexpr char ANIMATION_FRAME[] = "animation.frame";
 inline constexpr char KINESCOPE_FILM[] = "kinescope.film";
-inline constexpr char BROWSER_UPDATED[] = "browser.updated";
+inline constexpr char DATA_UPDATED[] = "data.updated";
 inline constexpr char RUN_NUMERICS[] = "run.numerics";
 inline constexpr char RECORDING_PLAYER[] = "recording.player";
 inline constexpr char RECORDING_PRESS[] = "recording.press";
@@ -85,7 +85,7 @@ inline std::string open(std::string_view name)
 }
 
 /* the heavy data events a client may subscribe to (events.subscribe), in hello's `features` order */
-inline constexpr std::array<std::string_view, 11> STREAMS = {PLOT_SERIES, PLOT_SHOWN, NULLCLINE_CURVES, DIRFIELD_FIELD, PLOT_MARKS, ANIMATION_FRAME,
+inline constexpr std::array<std::string_view, 11> STREAMS = {PLOT_SERIES, PLOT_SHOWN, NULLCLINE_CURVES, DIRECTION_FIELD_FIELD, PLOT_MARKS, ANIMATION_FRAME,
                                                              AUTOX_INFO, AUTOX_SETTINGS, RUN_NUMERICS, WINDOW_LIST, RECORDING_PLAYER};
 
 } // namespace xpp::events

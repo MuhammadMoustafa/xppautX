@@ -46,8 +46,8 @@ export function paletteRows(rows: CommandRow[], query: string): CommandRow[] {
 /** the registry command of each toolbar button; a button's text is the row's label, never written again */
 export function toolbarCommand(window: string, id: string): string {
   const commands: Record<string, Record<string, string>> = {
-    autox: {axes: 'autox.configure_plot', numerics: 'autox.configure_numerics', run: 'autox.run', grab: 'autox.grab', usr: 'autox.configure_marks', clear: 'autox.hide_earlier', redraw: 'autox.redraw'},
-    browser: {find: 'browser.find', replace: 'browser.replace_column', unreplace: 'browser.undo_replace', table: 'browser.tabulate_column', load: 'browser.load', first: 'browser.set_slice_start', last: 'browser.set_slice_end', restore: 'browser.restore_full_slice', addcol: 'browser.add_column', delcol: 'browser.delete_column', transpose: 'browser.transpose'},
+    autox: {axes: 'autox.configure_axes', numerics: 'autox.configure_numerics', run: 'autox.run', grab: 'autox.grab', usr: 'autox.configure_marks', clear: 'autox.hide_earlier', redraw: 'autox.redraw'},
+    browser: {find: 'data.find', replace: 'data.replace_column', unreplace: 'data.undo_replace', table: 'data.tabulate_column', load: 'data.load', first: 'data.set_slice_start', last: 'data.set_slice_end', restore: 'data.restore_full_slice', addcol: 'data.add_column', delcol: 'data.delete_column', transpose: 'data.transpose'},
     ani: {file: 'animation.load', grab: 'animation.grab_point'},
     aplot: {redraw: 'array_plot.redraw', edit: 'array_plot.configure', fit: 'array_plot.fit', range: 'array_plot.range', print: 'array_plot.export_pdf', gif: 'array_plot.export_gif'},
   };

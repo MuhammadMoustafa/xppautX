@@ -60,7 +60,7 @@ struct HistogramState {
   AfterRun post_process=AfterRun::none;
 };
 
-/* The analyses of the stored data (histogram.cpp), each the one core function the registry's analysis.*
+/* The analyses of the stored data (histogram.cpp), each the one core function the registry's analysis commands
    commands and the Stochastic menu's items call; the settings they work from are s.histogram's (the commands
    set the ones they are given, the menu asks for them with the ask_* functions, which show their own refusals
    and say false when cancelled). Each returns what it made, or why it could not. */

@@ -11,7 +11,7 @@ function partLabel(part: ValuesPart, format: string): string {
 }
 
 /** Load values from a file by scope (W321): the parts of the picked file that hold the section's kind, as the core's
-    `set.file_contents` listed them, one to load with `set.load_file`; a part that cannot be loaded says why */
+    `set.list_file_contents` listed them, one to load with `set.load_file`; a part that cannot be loaded says why */
 export function ValuesFileDialog() {
   const offer = useStore(s => s.valuesFile);
   return offer ? <Offer offer={offer} /> : null;

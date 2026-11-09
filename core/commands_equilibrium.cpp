@@ -182,7 +182,7 @@ constexpr std::array ROWS={
     Command{"equilibrium.guess",GUESS,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Equilibrium from a guess", "Analysis/Equilibria","Find an equilibrium from a guess in plot coordinates.",FOUND,EVENTS,true,guess},
     Command{"equilibrium.range",RANGE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Equilibria over a range", "Analysis/Equilibria","Find equilibria over a parameter range.",POINTS,EVENTS,true,range},
     Command{"equilibrium.search",SEARCH,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Monte Carlo search", "Analysis/Equilibria","Search for equilibria within variable bounds.",SEARCHED,EVENTS,true,search},
-    Command{"equilibrium.import_as_ic",{},XPP_KIND_SETTING,CommandCategory::Analysis,"Import as initial conditions", "Analysis/Equilibria","Import the last equilibrium as initial conditions.",APPLIED,EVENTS,true,import_as_ic},
+    Command{"initial_conditions.set_from_equilibrium",{},XPP_KIND_SETTING,CommandCategory::Analysis,"Set as initial conditions", "Analysis/Equilibria","Import the last equilibrium as initial conditions.",APPLIED,EVENTS,true,import_as_ic},
     Command{"equilibrium.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"Export equilibria", "Analysis/Equilibria","Write the equilibrium and its eigenvalues.",EXPORTED,DONE,true,export_file,{}, {}, "write", "*.dat"},
     Command{"equilibrium.configure",CONFIG,XPP_KIND_SETTING,CommandCategory::Analysis,"Equilibrium settings", "Analysis/Equilibria","Configure the equilibrium search: Newton's method and what a found point prints and draws.",SETTINGS,EVENTS,true,configure,{},{},"read","*","equilibria"}};
 }

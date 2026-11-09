@@ -1,4 +1,4 @@
-/* W526 (#590): the core functions behind the browser.* commands, which the data browser window's keys call too
+/* W526 (#590): the core functions behind the data.* commands, which the data browser window's keys call too
    after their forms: find a value, the rows First..Last kept, the columns added, replaced (by a formula, a sequence,
    an integral, a derivative) and deleted, the data transposed, and the block of the table a client shows, each
    accepted and refused. A refusal changes nothing. The commands' own arguments are servercheck's data section. */

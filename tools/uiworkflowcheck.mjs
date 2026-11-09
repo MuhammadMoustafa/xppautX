@@ -78,11 +78,11 @@ try {
   await until('__xpp.state().table.page?.rows > 0', 'data table');
   const send = async cmd => { await cdp.eval(`__xpp.send(${JSON.stringify(cmd)}); true`); await ready(); };
   for (const [name, formula] of [['EXTRAA', 'V*2'], ['EXTRAB', 'W*3']]) {
-    await send({cmd: 'browser.add_column', name, formula});
+    await send({cmd: 'data.add_column', name, formula});
     await until(`__xpp.state().table.page.cols.includes(${JSON.stringify(name)})`, 'column added');
   }
   const before = await state('s.table.page.data.map(r => r.slice())');
-  await send({cmd: 'browser.delete_column', name: 'EXTRAA'});
+  await send({cmd: 'data.delete_column', name: 'EXTRAA'});
   await until('!__xpp.state().table.page.cols.includes("EXTRAA") && __xpp.state().table.page.cols.includes("EXTRAB")', 'middle added column deleted');
   const after = await state('s.table.page.data');
   assert.deepEqual(after.map(r => r.at(-1)), before.map(r => r.at(-1)), 'shifted column retains its values');

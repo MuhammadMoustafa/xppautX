@@ -99,7 +99,7 @@ export function computationLabel(hello: HelloEvent | null, cmd: Command): string
 
 /** The page resolves physical keys through the keymap before sending registry commands. */
 export function kindOf(hello: HelloEvent | null, cmd: Command): Kind | null {
-  if (!hello) return cmd.cmd === 'answer' || cmd.cmd === 'run.abort' || cmd.cmd === 'session.quit' ? 'control' : null;
+  if (!hello) return cmd.cmd === 'answer' || cmd.cmd === 'run.stop' || cmd.cmd === 'session.quit' ? 'control' : null;
   const entry = commandOf(hello, cmd);
   return entry ? OF_LETTER[entry.kind] ?? null : null;
 }

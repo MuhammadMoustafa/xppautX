@@ -1,6 +1,6 @@
 /* The autoX diagram's axis dialog (docs/ui-v2.md T21): a click on an axis
    name opens it beside the diagram. Its minimum and maximum change the view
-   at once, in the page only (a zoom: Reset view or Fit take it back), so
+   at once, in the page only (a zoom: Reset zoom or Fit take it back), so
    they work while autoX runs. What the axis plots (the parameter,
    the y axis's plot type and its variable or second parameter) is autoX's
    Axes setting (T22: the `autoxsettings` data): a change goes to the core as

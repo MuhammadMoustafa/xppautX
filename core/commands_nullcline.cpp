@@ -97,12 +97,12 @@ constexpr std::array EVENTS={xpp::events::NULLCLINE_CURVES, xpp::events::SESSION
 constexpr std::array DONE={xpp::events::DONE};
 constexpr std::array ROWS={
     Command{"nullcline.compute",{},XPP_KIND_COMPUTE,CommandCategory::Analysis,"Compute nullclines", "Analysis/Nullclines","Compute the phase plane's nullclines.",COMPUTED,EVENTS,true,compute},
-    Command{"nullcline.redraw",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Restore nullclines", "Analysis/Nullclines","Draw stored nullclines again.",DRAWN,EVENTS,true,redraw},
-    Command{"nullcline.auto_mode",ENABLED,XPP_KIND_VIEW,CommandCategory::Analysis,"Nullcline redraw mode", "Analysis/Nullclines","Set automatic nullcline redrawing.",AUTO,EVENTS,true,auto_mode},
+    Command{"nullcline.redraw",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Redraw nullclines", "Analysis/Nullclines","Draw stored nullclines again.",DRAWN,EVENTS,true,redraw},
+    Command{"nullcline.set_redraw_mode",ENABLED,XPP_KIND_VIEW,CommandCategory::Analysis,"Nullcline redraw mode", "Analysis/Nullclines","Set automatic nullcline redrawing.",AUTO,EVENTS,true,auto_mode},
     Command{"nullcline.set_mesh",MESH,XPP_KIND_SETTING,CommandCategory::Analysis,"Nullcline mesh", "Analysis/Nullclines","Set the nullcline mesh.",MESH_RESULT,EVENTS,true,set_mesh},
     Command{"nullcline.export",FILE,XPP_KIND_DATA,CommandCategory::Analysis,"Export nullclines", "Analysis/Nullclines","Write the current nullcline segments.",EXPORTED,DONE,true,export_file,{}, {}, "write", "*.dat"},
     Command{"nullcline.freeze",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Freeze nullclines", "Analysis/Nullclines/Freeze","Freeze the current nullclines.",FROZEN,EVENTS,true,freeze},
-    Command{"nullcline.clear_frozen",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Delete frozen nullclines", "Analysis/Nullclines/Freeze","Clear frozen nullclines.",CLEARED,EVENTS,true,clear_frozen},
+    Command{"nullcline.delete_frozen",{},XPP_KIND_VIEW,CommandCategory::Analysis,"Delete frozen nullclines", "Analysis/Nullclines/Freeze","Clear frozen nullclines.",CLEARED,EVENTS,true,clear_frozen},
     Command{"nullcline.range_freeze",RANGE,XPP_KIND_COMPUTE,CommandCategory::Analysis,"Freeze nullclines over a range", "Analysis/Nullclines/Freeze","Freeze nullclines over a parameter range.",STEPS,EVENTS,true,range_freeze},
     Command{"nullcline.animate",DELAY,XPP_KIND_VIEW,CommandCategory::Analysis,"Animate frozen nullclines", "Analysis/Nullclines/Freeze","Replay frozen nullclines.",ANIMATED,DONE,true,animate},};
 }
@@ -112,8 +112,8 @@ std::span<const Command> nullcline_commands(){return ROWS;}
 namespace xpp::command {
 Result<> nullcline_button(Session &s,int button,const Place &place)
 {
-    constexpr std::array names={"nullcline.compute","nullcline.redraw","nullcline.auto_mode","nullcline.auto_mode",
-        "nullcline.export","nullcline.freeze","nullcline.clear_frozen","nullcline.range_freeze","nullcline.animate"};
+    constexpr std::array names={"nullcline.compute","nullcline.redraw","nullcline.set_redraw_mode","nullcline.set_redraw_mode",
+        "nullcline.export","nullcline.freeze","nullcline.delete_frozen","nullcline.range_freeze","nullcline.animate"};
     if(button<0||static_cast<std::size_t>(button)>=names.size())return fail("nullcline button","Unknown imported nullcline button",place);
     std::string line="{\"cmd\":";json_append_string(line,names[button]);
     if(button==2||button==3)line+=xpp::format(",\"enabled\":{}",button==2);

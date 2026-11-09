@@ -477,7 +477,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
         </div>
         <div class="plot-tools">
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
-            title="Back to autoX's axes (double click, or 0 on the diagram)">Reset view</button>
+            title="Back to autoX's axes (double click, or 0 on the diagram)">Reset zoom</button>
           <button disabled={empty} onClick={() => chart.current!.fit()}
             title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)">
             Fit

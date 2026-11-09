@@ -115,7 +115,7 @@ Result<std::string> configure_numerics(Session &s, const Command &command, const
     return "{\"settings_updated\":true}";
 }
 
-Result<std::string> configure_plot(Session &s, const Command &command, const Arguments &args, const Place &place)
+Result<std::string> configure_axes(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     AutoxSettingsSet set;
     if (const auto plot = args.optional<std::string>("plot_type")) set.plot = autox_projection_from_name(*plot);
@@ -500,27 +500,7 @@ Result<std::string> import_diagram(Session &s, const Command &command, const Arg
     return file_result(file, "points_imported", diagram_count(s.diagram));
 }
 
-Result<std::string> save_session(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    if (const Result<std::string> open = need_open(s, command, place); !open) return open;
-    if (diagram_count(s.diagram) < 2) return fail(command.name, "The diagram has no points to save", place);
-    const std::optional<std::string> file = args.optional<std::string>(FILE_KEY);
-    const bool saved = xpp_session_save(s, file ? file->c_str() : nullptr, -1) != 0;
-    return xpp::format("{{\"file\":{},\"saved\":{}}}", [&] { std::string name; json_append_string(name, s.saved_session.file); return name; }(), saved);
-}
-
-Result<std::string> open_session(Session &s, const Command &command, const Arguments &args, const Place &place)
-{
-    if (const Result<std::string> open = need_open(s, command, place); !open) return open;
-    const std::string &file = args.get<std::string>(FILE_KEY);
-    const bool loaded = xpp_session_load(s, file.c_str()) != 0;
-    if (loaded) redraw_diagram(s);
-    std::string out = "{\"file\":";
-    json_append_string(out, file);
-    return out + xpp::format(",\"loaded\":{}}}", loaded);
-}
-
-Result<std::string> reset_all(Session &s, const Command &command, const Arguments &, const Place &place)
+Result<std::string> reset_diagram(Session &s, const Command &command, const Arguments &, const Place &place)
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     const bool reset = yes_reset_autox(s) != 0;
@@ -731,8 +711,6 @@ constexpr std::array RESULT_VIEW = {ResultField{WINDOW_KEY, "window"}, ResultFie
 constexpr std::array RESULT_PLOT_CHOICE = {ResultField{"plot", "choice"}};
 constexpr std::array RESULT_CLEARED = {ResultField{"cleared", "boolean"}};
 constexpr std::array RESULT_ORBIT = {ResultField{"orbit_loaded", "boolean"}, ResultField{"rows", "integer"}};
-constexpr std::array RESULT_SAVED = {ResultField{FILE_KEY, "file"}, ResultField{"saved", "boolean"}};
-constexpr std::array RESULT_LOADED = {ResultField{FILE_KEY, "file"}, ResultField{"loaded", "boolean"}};
 constexpr std::array RESULT_FILE = {ResultField{FILE_KEY, "file"}};
 constexpr std::array RESULT_POINTS_FILE = {ResultField{FILE_KEY, "file"}, ResultField{"points_written", "integer"}};
 constexpr std::array RESULT_WRITTEN_FILE = {ResultField{FILE_KEY, "file"}, ResultField{"written", "integer"}};
@@ -763,38 +741,34 @@ const std::array ROWS = {
     Command{"autox.configure_numerics", CONFIGURE_NUMERICS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Numerics", "autoX",
             "Set autoX's Numerics by their names (mesh_intervals, step_size, ...) and the codimension-two points it detects (special_points), all or nothing.",
             RESULT_SETTINGS, EVENTS_SETTINGS, true, configure_numerics, {}, {}, "read", "*", "continuation"},
-    Command{"autox.configure_plot", PLOT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Axes", "autoX",
+    Command{"autox.configure_axes", PLOT_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Axes", "autoX",
             "Set what a view of the diagram plots: the plot type, the variable, the two parameters and the ranges, optionally fitted afterwards.",
-            RESULT_PLOT, EVENTS_SETTINGS, true, configure_plot, {}, {}, "read", "*", "diagram+"},
+            RESULT_PLOT, EVENTS_SETTINGS, true, configure_axes, {}, {}, "read", "*", "diagram+"},
     Command{"autox.configure_marks", MARKS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Mark values", "autoX",
             "Set the Mark values: the parameters (or T, the period) and the values at which autoX labels a point.", RESULT_MARKS, EVENTS_SETTINGS, true, configure_marks, {}, {}},
     Command{"preferences.get", {}, XPP_KIND_CONTROL, CommandCategory::Analysis, "Get preferences", "",
             "The program's preferences as they stand: the thread count and whether it is automatic, the log level and the log file.", RESULT_THREADS, EVENTS_BROWSER, false, get_preferences, {}, {}},
     Command{"preferences.configure", THREADS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Preferences", "File",
             "Set the program's preferences, kept in its preferences file: the thread count of autoX and of sweeps (a count, or automatic) and what the log shows and the file it goes to (empty: the terminal); the log applies from the next start.", RESULT_THREADS, EVENTS_SETTINGS, true, configure_preferences, THREADS_GROUPS, {}},
-    Command{"autox.save_session", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Save diagram", "autoX/File",
-            "Save the session, with its diagram and autoX's settings (.snapx).", RESULT_SAVED, EVENTS_BROWSER, true, save_session, {}, {}, "write", "*.snapx"},
-    Command{"autox.open_session", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "Open diagram", "autoX/File",
-            "Open a saved session (.snapx), with its autoX diagram.", RESULT_LOADED, EVENTS_RUN, true, open_session, {}, {}},
     Command{"autox.import_diagram", FILE_REQUIRED, XPP_KIND_DATA, CommandCategory::Analysis, "Import XPPAUT diagram", "autoX/File",
             "Import an XPPAUT diagram (.auto) into the open model.", RESULT_IMPORTED, EVENTS_RUN, true, import_diagram, {}, {}},
-    Command{"autox.reset_all", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Reset diagram", "autoX/File",
-            "Destroy the diagram and autoX's files.", RESULT_RESET, EVENTS_DIAGRAM, true, reset_all, {}, {}},
+    Command{"autox.reset_diagram", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Reset diagram", "autoX/File",
+            "Destroy the diagram and autoX's files.", RESULT_RESET, EVENTS_DIAGRAM, true, reset_diagram, {}, {}},
     Command{"autox.export_pdf", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Export diagram PDF", "autoX/Export",
             "Write a view of the diagram as a PDF picture.", RESULT_FILE, EVENTS_BROWSER, true, export_pdf, {}, {}, "write", "*"},
     Command{"autox.export_svg", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Export diagram SVG", "autoX/Export",
             "Write a view of the diagram as an SVG picture.", RESULT_FILE, EVENTS_BROWSER, true, export_svg, {}, {}, "write", "*"},
     Command{"autox.export_csv", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Export CSV", "autoX/Export",
             "Write the diagram and its eigenvalues as two CSV files.", RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_csv, {}, {}, "write", "*"},
-    Command{"autox.export_points", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Write points", "autoX/Export",
+    Command{"autox.export_points", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Export points", "autoX/Export",
             "Write the diagram's points as the view plots them.", RESULT_POINTS_FILE, EVENTS_BROWSER, true, export_points, {}, {}, "write", "*"},
-    Command{"autox.export_all_info", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Write all info", "autoX/Export",
+    Command{"autox.export_all_info", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Export all info", "autoX/Export",
             "Write every point with its parameters, extremes and eigenvalues.", RESULT_WRITTEN_FILE, EVENTS_BROWSER, true, export_all_info, {}, {}, "write", "*"},
-    Command{"autox.export_initial_data", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Write initial data", "autoX/Export",
+    Command{"autox.export_initial_data", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Export initial data", "autoX/Export",
             "Write every point's main parameter and solution as initial data.", RESULT_WRITTEN_FILE, EVENTS_BROWSER, true, export_initial_data, {}, {}, "write", "*"},
-    Command{"autox.load_orbit_into_browser", LABEL_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Load orbit into browser", "autoX/Branch",
+    Command{"autox.show_orbit", LABEL_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Show orbit in table", "autoX/Branch",
             "Load the stored orbit of a labelled point (the grabbed one without label) into the data browser.", RESULT_ORBIT, EVENTS_BROWSER, true, load_orbit_into_browser, {}, {}},
-    Command{"autox.load_branch_into_browser", STRETCH_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Load branch into browser", "autoX/Branch",
+    Command{"autox.show_branch", STRETCH_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Show branch in table", "autoX/Branch",
             "Load a stretch of a branch (its points first_point to last_point) into the data browser.", RESULT_BRANCH_ROWS, EVENTS_BROWSER, true, load_branch_into_browser, {}, {}},
     Command{"autox.range_branch", STRETCH_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Range over a branch", "autoX/Branch",
             "Run the sweep over a stretch of a branch (its points first_point to last_point), once for each.", RESULT_RANGE, EVENTS_BROWSER, true, range_branch, {}, {}},
@@ -806,11 +780,11 @@ const std::array ROWS = {
             "Forget the grabbed point: a following run starts from the current state.", RESULT_CLEARED, EVENTS_GRAB, true, clear_grab, {}, {}},
     Command{"autox.set_auto_redraw", REDRAW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "Automatic diagram redraw", "autoX/View",
             "Redraw the diagram automatically when enabled.", RESULT_REDRAW_MODE, EVENTS_BROWSER, true, set_auto_redraw, {}, {}},
-    Command{"autox.use_last_plot", LAST_PLOT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "Use last plot", "autoX/View",
+    Command{"autox.restore_plot", LAST_PLOT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "Restore last plot", "autoX/View",
             "Go back to the last one-parameter or two-parameter plot's axes.", RESULT_PLOT_CHOICE, EVENTS_DIAGRAM, true, use_last_plot, {}, {}},
-    Command{"autox.default_view", VIEW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "Default diagram view", "autoX/View",
+    Command{"autox.reset_view", VIEW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "Reset diagram view", "autoX/View",
             "Give the view the model's own diagram ranges.", RESULT_VIEW, EVENTS_DIAGRAM, true, default_view, {}, {}},
-    Command{"autox.zoom", BOX_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "Zoom diagram in", "autoX/View",
+    Command{"autox.zoom_in", BOX_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "Zoom diagram in", "autoX/View",
             "Zoom the view in to a box of its plotted quantities.", RESULT_VIEW, EVENTS_DIAGRAM, true, zoom_in, {}, {}},
     Command{"autox.zoom_out", BOX_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Analysis, "Zoom diagram out", "autoX/View",
             "Zoom the view out so that what it shows now fills a box of its plotted quantities.", RESULT_VIEW, EVENTS_DIAGRAM, true, zoom_out, {}, {}},
@@ -818,7 +792,7 @@ const std::array ROWS = {
             "Move the view's visible ranges by dx and dy, in the plotted quantities.", RESULT_VIEW, EVENTS_DIAGRAM, true, scroll_view, {}, {}},
     Command{"autox.new_view", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "New autoX view", "Windows",
             "Add a view of the diagram, with the axes of the active one; it becomes the active view.", RESULT_VIEW, EVENTS_DIAGRAM, true, new_view, {}, {}},
-    Command{"autox.hide_earlier", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "Clear", "",
+    Command{"autox.hide_earlier", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "Hide earlier branches", "",
             "Hide the branches so far: new runs draw alone until set_display shows them again.", RESULT_HIDDEN, EVENTS_DIAGRAM, true, hide_earlier, {}, {}},
     Command{"autox.redraw", {}, XPP_KIND_VIEW, CommandCategory::Analysis, "Redraw diagram", "",
             "Draw the diagram again.", RESULT_REDRAWN, EVENTS_DIAGRAM, true, redraw, {}, {}},

@@ -1,4 +1,4 @@
-/* W525 (#589): the core functions behind the analysis.* and table.* commands, which the Stochastic, Poincare
+/* W525 (#589): the core functions behind the analysis commands (histogram.*, spectrum.*, stochastic.*, adjoint.*, ...) and table.*, which the Stochastic, Poincare
    map, Phase space, Color code and Tables menus call too: each accepted and refused, a refusal changing nothing.
    The commands' own arguments are servercheck's registry section. */
 #include "load_args.h"

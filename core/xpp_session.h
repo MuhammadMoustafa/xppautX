@@ -33,10 +33,6 @@ struct Session; /* session.h */
    50 MB, when the user is asked whether to leave it out (Go computes it
    again).
 
-   xpp_session_load(name) opens name.snapx (name when it ends so) as File >
-   Open model opens it (xpp_model_open, model_switch.h): its saved model,
-   then everything as it was saved. NULL or empty asks for one.
-
    Return 1 on success, 0 on failure or a cancel (err_msg names a
    problem). The session file last saved or opened is the Session's
    saved_session (below): core/json_state.cpp reports it as the state
@@ -62,7 +58,6 @@ bool xpp_session_changed(const xpp::Session &s);
 /* the session's values as they are now are the saved ones: a save, an
    open of a session file and the end of every load call it */
 void xpp_session_mark_clean(xpp::Session &s);
-int xpp_session_load(xpp::Session &s, const char *name);
 /* the session file of s as it would be saved without the data table, as
    its bytes: a recording's snapshot (W59d, recx.h), made asking nothing;
    nothing, with an error message, when it cannot be made (a model not

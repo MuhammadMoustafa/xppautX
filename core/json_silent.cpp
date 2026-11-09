@@ -16,10 +16,10 @@
      select the set          set.apply, scope all (the set by its name)
      run                     run.initial, run.range (the settings
                              the sweep options made) for a sweep that writes files, or
-                             analysis.stochastic_integrate (the sweep's settings) for
+                             stochastic.compute (the sweep's settings) for
                              an after_run of mean_of_runs or variance_of_runs
-     after_run               the analysis it names (analysis.histogram, ...), or
-                             analysis.load_stochastic_mean or _variance
+     after_run               the analysis it names (histogram.compute, ...), or
+                             stochastic.show_mean or _variance
      then, unless each run of a range wrote its own file:
      output.dat              the output columns' data file, replacing it (save_data_file)
      --mkplot                 plot.export_pdf or plot.export_svg, by the plot format
@@ -79,16 +79,16 @@ void SilentScript::post_process()
     using xpp::AfterRun;
     const AfterRun kind = session.histogram.post_process;
     if (kind == AfterRun::none) return;
-    if (kind == AfterRun::mean_of_runs) return registry("analysis.load_stochastic_mean");
-    if (kind == AfterRun::variance_of_runs) return registry("analysis.load_stochastic_variance");
+    if (kind == AfterRun::mean_of_runs) return registry("stochastic.show_mean");
+    if (kind == AfterRun::variance_of_runs) return registry("stochastic.show_variance");
     session.plot_list.assign({0, 1});
     switch (kind) {
-    case AfterRun::histogram: registry("analysis.histogram"); break;
-    case AfterRun::histogram_2d: registry("analysis.histogram_2d"); break;
-    case AfterRun::fourier_series: registry("analysis.fourier_series"); break;
-    case AfterRun::power_spectrum: registry("analysis.power_spectrum"); break;
+    case AfterRun::histogram: registry("histogram.compute"); break;
+    case AfterRun::histogram_2d: registry("histogram.compute_2d"); break;
+    case AfterRun::fourier_series: registry("spectrum.fourier_series"); break;
+    case AfterRun::power_spectrum: registry("spectrum.power"); break;
     default:
-        lines.push_back(xpp::format("{{\"cmd\":\"analysis.spectral_density\",\"type\":\"{}\"}}", xpp::after_run_names[static_cast<std::size_t>(kind)]));
+        lines.push_back(xpp::format("{{\"cmd\":\"spectrum.density\",\"type\":\"{}\"}}", xpp::after_run_names[static_cast<std::size_t>(kind)]));
     }
 }
 
@@ -125,7 +125,7 @@ void SilentScript::add_run(int set)
     });
     steps.push_back([this] {
         const xpp::AfterRun after = session.histogram.post_process;
-        if (after == xpp::AfterRun::mean_of_runs || after == xpp::AfterRun::variance_of_runs) registry("analysis.stochastic_integrate");
+        if (after == xpp::AfterRun::mean_of_runs || after == xpp::AfterRun::variance_of_runs) registry("stochastic.compute");
         else registry(session.integrator.range.write_files ? "run.range" : "run.initial");
     });
     /* with after_run_file the trajectory is written first, so the analysis does not replace it */

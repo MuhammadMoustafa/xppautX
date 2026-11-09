@@ -85,7 +85,7 @@ function KeyTable() {
   const rows = registryRows(hello).filter(row => shortcutLabel(row, keymap) !== '');
   return (
     <details class="help-keys">
-      <summary><CommandLabel command="tool.keyboard_shortcuts" /></summary>
+      <summary><CommandLabel command="keymap.edit" /></summary>
       <p><button type="button" onClick={() => session.store.dispatch({type: 'keymapUi', action: {type: 'open'}})}>Change shortcuts…</button></p>
       <table>
         <tbody>

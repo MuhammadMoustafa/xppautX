@@ -118,7 +118,7 @@ def is_done(e):
 
 
 # every heavy data event a client subscribes to (hello's `features`)
-ALL_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'dirfield.field', 'plot.marks', 'animation.frame', 'autox.info', 'autox.settings', 'run.numerics', 'window.list', 'recording.player']
+ALL_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'direction_field.field', 'plot.marks', 'animation.frame', 'autox.info', 'autox.settings', 'run.numerics', 'window.list', 'recording.player']
 
 
 def save_permission(cmd):
@@ -126,7 +126,7 @@ def save_permission(cmd):
     confirm=False exercises the core's question instead. Answers never
     change policy."""
     kind, op = cmd.get('cmd'), cmd.get('op')
-    if kind in ('equilibrium.export', 'nullcline.export', 'dirfield.export', 'session.save_as', 'session.save_copy',
+    if kind in ('equilibrium.export', 'nullcline.export', 'direction_field.export', 'session.save_as', 'session.save_copy',
                 'session.export_info', 'recording.stop', 'recording.set_step_note'):
         cmd.setdefault('confirm', True)
         return cmd
@@ -454,7 +454,7 @@ def recording_steps(lines):
         c = save_permission(dict(original))
         if 'rgb' in c:
             continue  # pixels come from the interface, never the recording
-        if c['cmd'] == 'run.abort':
+        if c['cmd'] == 'run.stop':
             if steps and 'at' in c:
                 steps[-1]['abort'] = c['at']
         elif c['cmd'] == 'answer' and steps:

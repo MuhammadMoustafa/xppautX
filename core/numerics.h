@@ -36,7 +36,7 @@ void compute_one_period(Session &s, double period,double *x, const char *name);
    direction and whether the run stops on it, a setting left out as it is; or why the settings are not ones it takes */
 Result<> set_poincare_map(Session &s, PoincareMap map, std::optional<int> variable, std::optional<double> section,
                           std::optional<SectionSign> direction, std::optional<bool> stop_on_section);
-/* the Poincare map items of an imported button sequence's, asking for what analysis.poincare_map takes */
+/* the Poincare map items of an imported button sequence's, asking for what poincare_map.set takes */
 void get_pmap_pars_com(Session &s, int l);
 /* the method picked from the Method menu (the one in use when none) */
 int chosen_method(const Session &s);
@@ -46,7 +46,7 @@ enum class ColorBy { none, velocity, variable };
 /* the active graph colored by `by` (`variable`, a column, for ColorBy::variable) between the given limits, or between the
    least and the greatest the stored data reach; or why it cannot be */
 Result<> set_color_coding(Session &s, ColorBy by, int variable, std::optional<std::pair<double, double>> limits);
-/* the Color code items of an imported button sequence's, asking for what analysis.color_coding takes */
+/* the Color code items of an imported button sequence's, asking for what plot.set_color_coding takes */
 void set_col_par_com(Session &s, int i);
 /* applies the checked numerics.method: its
    settings, then a fresh solver (xpp::start_solver) */

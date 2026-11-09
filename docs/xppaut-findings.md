@@ -2117,7 +2117,7 @@ clamp made of the columns
 therefore write past the end of `my_hist[2]`. Evidence: 4096 bins by 4096 bins
 on a 601-row run (the dialog takes any count) is 16777216 values into a column
 of `MAXSTOR - 1`. xppautX refuses the histogram naming the bins it would need and
-the room the data table has; `analysis.histogram_2d` and the Stochastic menu's
+the room the data table has; `histogram.compute_2d` and the Stochastic menu's
 2D-hist item alike (`tools/servercheck.py` checks it). Card
 [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589).
 
@@ -2134,7 +2134,7 @@ stops the program with a floating-point exception; a window of 0 or less
 allocates `win` floats before anything checks it, and one of more than the
 data holds is only found after the histogram's columns were made. xppautX
 refuses a window under 2 points, or longer than the stored rows, naming the
-rows and the window, before it allocates anything; `analysis.spectral_density` and
+rows and the window, before it allocates anything; `spectrum.density` and
 the Stochastic menu's spEc.dns item alike. Card
 [W525](https://github.com/MuhammadMoustafa/xppautX/issues/589).
 
@@ -2149,7 +2149,7 @@ those of the storage's unused row, whatever it holds, with no word said. The
 number of rows asked is cut to the model's `NEQ-1` the same way, silently
 ([adj2.c:135](../reference/xppaut-8.0/adj2.c#L135),
 [master](../reference/xppaut-master/adj2.c#L135)). Evidence:
-`browser.transpose` with `first_row` 1, `rows` 2 and `row_skip` 600 on a run of
+`data.transpose` with `first_row` 1, `rows` 2 and `row_skip` 600 on a run of
 601 rows is refused by xppautX naming the row it would reach and the rows
 there are, as is one with more rows than the model has columns less one;
 `tools/servercheck.py` (section `data`) and `tests/test_browser.cpp` check

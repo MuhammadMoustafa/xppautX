@@ -33,7 +33,7 @@ Result<> compile_bvp(Session &s);
    command). ystart and yend hold the model's states, room for neq each. */
 Result<int> do_sh_range(Session &s, double *ystart, double *yend);
 int set_up_periodic(Session &s, int *ipar, int *ivar, double *sect, int *ishow);
-/* the boundary-value commands (docs/protocol.md "bvp"), the one core each front end calls: solve from the
+/* the boundary-value commands (docs/protocol.md "boundary_value"), the one core each front end calls: solve from the
    initial data (show: every Newton step drawn, else only the solution) and make the solution the initial
    data; solve with the period as an unknown (the parameter `ipar`, 0-based, the variable `ivar` held at
    `sect` as the section), the period found; Range shoot over s.shoot_range. All store the solution's orbit. */

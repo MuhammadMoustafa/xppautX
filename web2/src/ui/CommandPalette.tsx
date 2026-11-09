@@ -13,7 +13,7 @@ function Palette() {
   const may = useMay();
   const session = useSession(), hello = useStore(s => s.hello), info = useStore(s => s.keymap.info);
   const [query, setQuery] = useState('');
-  const title = useCommandLabel('tool.command_palette');
+  const title = useCommandLabel('command_palette.open');
   const close = () => session.store.dispatch({type: 'drawer', open: false});
   const rows = paletteRows(registryRows(hello), query);
   const arrows = (e: KeyboardEvent): boolean => {
@@ -24,7 +24,7 @@ function Palette() {
     e.preventDefault(); buttons[index]?.focus();
     return true;
   };
-  return <Dialog title={<CommandLabel command="tool.command_palette" />} name={title} width="list" onClose={close} onKeyDown={arrows} className="command-palette"
+  return <Dialog title={<CommandLabel command="command_palette.open" />} name={title} width="list" onClose={close} onKeyDown={arrows} className="command-palette"
     attrs={{id: 'command-palette'}}>
     <span class="input-box"><input id="command-search" type="search" data-autofocus value={query} aria-label={title} placeholder={title} onInput={e => setQuery(e.currentTarget.value)} /></span>
     <ul>{rows.map(row => <li key={row.id}>

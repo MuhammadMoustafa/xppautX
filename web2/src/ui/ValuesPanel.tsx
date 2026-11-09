@@ -150,13 +150,13 @@ function fieldProps(value: string | number) {
 }
 
 /** Load of a section's XPPAUT .par/.ic, an import through the core (session.ts loadValues,
-    docs/protocol.md "value.load_file", W66 review); nothing of ours writes these files (W321) */
+    docs/protocol.md "value.import_file", W66 review); nothing of ours writes these files (W321) */
 function FileTools({kind}: {kind: 'par' | 'ic'}) {
   const session = useSession();
   const input = useRef<HTMLInputElement>(null);
   const what = kind === 'par' ? 'parameters' : 'initial conditions';
   /* a file read: a setting, not while a computation runs (W95) */
-  const loadOff = !useMay()({cmd: 'value.load_file'});
+  const loadOff = !useMay()({cmd: 'value.import_file'});
   return (
     <>
       <button class="small" onClick={() => input.current?.click()} disabled={loadOff}
@@ -282,7 +282,7 @@ function NumericsRows({group}: {group: OptionGroup}) {
 
 function UserButtonsBlock() {
   const session = useSession();
-  const busy = !useMay()({cmd: 'tool.run_user_button'});
+  const busy = !useMay()({cmd: 'button.run'});
   const names = useStore(s => s.hello?.userbuttons ?? []);
   if (!names.length) return null;
   return (
@@ -300,7 +300,7 @@ function UserButtonsBlock() {
 /* ---- the panel: a column, a section, or a sheet, depending on the width (R6) ---- */
 
 export function ValuesPanel() {
-  const valuesLabel = useCommandLabel('tool.values');
+  const valuesLabel = useCommandLabel('values.open');
   const session = useSession();
   const open = useStore(s => s.valuesOpen);
   const bcs = useStore(s => s.core?.bcs ?? []);
@@ -322,7 +322,7 @@ export function ValuesPanel() {
     <section id="values-panel" ref={panel} class={'values-panel' + (open ? ' open' : '')} aria-label={valuesLabel}>
       <div class="panel-header">
         <button class="values-back" onClick={close}>Back</button>
-        <h2><CommandLabel command="tool.values" /></h2>
+        <h2><CommandLabel command="values.open" /></h2>
       </div>
       <div class="values-body">
         <StateSection />

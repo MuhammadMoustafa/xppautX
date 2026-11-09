@@ -412,29 +412,29 @@ constexpr std::array RENAME_EVENTS = {xpp::events::WINDOW_RENAMED, xpp::events::
 constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 /* XPPAUT's imported button sequences MC, MK, MD, MB, MA, MM, MS, by button number */
-constexpr std::array BUTTON_COMMANDS = {"window.create", "window.destroy_all", "window.destroy", "window.send_to_bottom",
+constexpr std::array BUTTON_COMMANDS = {"window.new", "window.close_extra", "window.close", "window.send_to_bottom",
                                         "window.set_redraw_mode", "window.set_redraw_mode", "window.set_simultaneous_plot"};
 constexpr int BUTTON_REDRAW_AUTO = 4, BUTTON_REDRAW_MANUAL = 5, BUTTON_SIMULTANEOUS = 6;
 
 constexpr std::array ROWS = {
     Command{"window.set_bounds", BOUNDS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set view bounds", "Plot/View",
             "Set the view's bounds; a bound left out keeps the view's.", BOUNDS_RESULTS, PLOT_EVENTS, true, set_bounds},
-    Command{"window.reset_default", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Default view", "Plot/View",
+    Command{"window.reset_view", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Reset view", "Plot/View",
             "Give the view its default bounds.", BOUNDS_RESULTS, PLOT_EVENTS, true, reset_default},
-    Command{"window.zoom", ZOOM_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Zoom in", "Plot/View",
+    Command{"window.zoom_in", ZOOM_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Zoom in", "Plot/View",
             "Zoom in: the view becomes the box.", BOUNDS_RESULTS, PLOT_EVENTS, true, zoom, BOX_GROUPS},
     Command{"window.zoom_out", ZOOM_OUT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Zoom out", "Plot/View",
             "Zoom out: the view grows by factor about a center (the view's own), or fills the box.", BOUNDS_RESULTS, PLOT_EVENTS, true,
             zoom_out_window, ZOOM_OUT_GROUPS},
     Command{"window.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Scroll view", "Plot/View",
             "Move the view by dx and dy, in plot coordinates.", SCROLL_RESULTS, PLOT_EVENTS, true, scroll},
-    Command{"window.create", CREATE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "New graph", "Windows",
+    Command{"window.new", CREATE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "New graph", "Windows",
             "Create a graph copied from the active graph.", WINDOW_RESULTS, WINDOW_EVENTS, true, create_window},
     Command{"window.redraw", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Redraw plot", "",
             "Draw a graph again from the stored data (and its nullclines, texts and frozen curves), or send an autoX view's diagram again.", REDRAWN_RESULTS, PLOT_EVENTS, false, redraw},
     Command{"window.clear", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Clear plot", "",
             "Clear a graph: its picture and earlier runs go until the next run.", CLEARED_RESULTS, PLOT_EVENTS, true, clear},
-    Command{"window.destroy_all", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Close extra graphs", "",
+    Command{"window.close_extra", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Close extra graphs", "",
             "Close every extra graph.", CLOSE_ALL_RESULTS, WINDOW_EVENTS, true, destroy_all},
     Command{"window.send_to_bottom", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Send to bottom", "",
             "Send a graph to the bottom.", WINDOW_RESULTS, STATE_EVENTS, true, send_to_bottom},
@@ -455,7 +455,7 @@ constexpr std::array ROWS = {
             "Hide a window: it keeps everything it holds and comes back with window.show.", SHOWN_RESULTS, STATE_EVENTS, true, hide_window},
     Command{"window.show", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Show window", "",
             "Show a hidden window exactly as it was.", SHOWN_RESULTS, STATE_EVENTS, true, show_window},
-    Command{"window.destroy", DESTROY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Destroy window", "",
+    Command{"window.close", DESTROY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Close window", "",
             "Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data browser stay; destroying an autoX view keeps the diagram.",
             CLOSE_RESULTS, WINDOW_EVENTS, true, destroy_window},
     Command{"window.list", {}, XPP_KIND_VIEW, CommandCategory::Plot, "List windows", "",

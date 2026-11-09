@@ -213,7 +213,7 @@ async function openFile(file) {
   await answerAsk({file});
 }
 
-/* File > Play recording as the page sends it: the key asks for the file, which the answer names (recording.open's path is --server's own input) */
+/* File > Open recording as the page sends it: the key asks for the file, which the answer names (recording.open's path is --server's own input) */
 async function openRecording(file) {
   await registryFile('recording.open', 'read', {play:false});
   await answerAsk({file});
@@ -755,16 +755,16 @@ async function dataTable(want, dir) {
   check('W648: a value of seven digits or more is shown whole in a column with room for it',
     cells.some(c => !c.cut && c.full.replace(/[-.e+]/g, '').length >= 7), JSON.stringify(cells.slice(0, 6)));
 
-  /* W648: a selected row says so, with its time, and offers its own button: the row becomes the initial conditions (ic.from_data_row) */
+  /* W648: a selected row says so, with its time, and offers its own button: the row becomes the initial conditions (initial_conditions.set_from_data_row) */
   const info = await cdp.eval(`document.querySelector('.table-info').textContent`);
   check('W648: the status line reads "601 rows · row 500 (t = ...) selected" and offers "Use row 500 as initial conditions"',
     info.startsWith(`${want.length} rows · row 500 (t = ${want[500][0]}) selected`) && info.endsWith('Use row 500 as initial conditions'), info);
   check('W648: the toolbar has no Initial conditions button any more', !await cdp.eval(`[...document.querySelectorAll('.table-tools button')].some(b => /Initial conditions/.test(b.textContent))`));
   const getFrom = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`document.querySelector('[data-button="ic.from_data_row"]').click()`);
-  check("the row button sets the ICs from the selected row (ic.from_data_row, row 500): the next state has them", await until(
+  await cdp.eval(`document.querySelector('[data-button="initial_conditions.set_from_data_row"]').click()`);
+  check("the row button sets the ICs from the selected row (initial_conditions.set_from_data_row, row 500): the next state has them", await until(
     `(() => { const ics = s.core.ics.map(p => p[1]); return Math.abs(ics[0] - ${want[500][1]}) < 1e-6 && !s.busy; })()`,
-    'Get') && (await cdp.eval(`__xpp.sentFrom(${getFrom})`)).some(c => c.cmd === 'ic.from_data_row' && c.row === 500), JSON.stringify(await S('s.core.ics')));
+    'Get') && (await cdp.eval(`__xpp.sentFrom(${getFrom})`)).some(c => c.cmd === 'initial_conditions.set_from_data_row' && c.row === 500), JSON.stringify(await S('s.core.ics')));
 
   /* Enter is Get too, on whatever row is selected (a step away, so the check is meaningful) */
   await cdp.eval(`document.querySelector('.table-grid-wrap').focus()`);
@@ -774,8 +774,8 @@ async function dataTable(want, dir) {
     `(() => { const ics = s.core.ics.map(p => p[1]); return Math.abs(ics[0] - ${want[499][1]}) < 1e-6 && !s.busy; })()`,
     'Enter=Get'), JSON.stringify(await S('s.core.ics')));
 
-  /* W526: First, Last and Restore are the registry's browser.set_slice_start, browser.set_slice_end and
-     browser.restore_full_slice on the selected row; the browser block tells the rows kept */
+  /* W526: First, Last and Restore are the registry's data.set_slice_start, data.set_slice_end and
+     data.restore_full_slice on the selected row; the browser block tells the rows kept */
   const sliceSent = await cdp.eval('__xpp.sentCount()');
   /* the button of the toolbar's form that shows (menus where the dock is narrow), its menu opened first */
   const buttonOf = op => `(() => { const b = [...document.querySelectorAll('[data-button="browser:${op}"]')].find(b => { const g = b.closest('.table-group'); return !g || getComputedStyle(g).display !== 'none'; });
@@ -786,21 +786,21 @@ async function dataTable(want, dir) {
   await key('ArrowDown');
   await key('ArrowDown'); /* row 500 */
   await cdp.eval(buttonOf('last'));
-  check('First and Last send browser.set_slice_start and browser.set_slice_end with the selected row, and the table says the rows kept',
+  check('First and Last send data.set_slice_start and data.set_slice_end with the selected row, and the table says the rows kept',
     await until('!s.busy && s.table.page && s.table.page.start === 498 && s.table.page.end === 501', 'slice')
-    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${sliceSent})`)).filter(c => c.cmd.startsWith('browser.set_slice')))
-      === JSON.stringify([{cmd: 'browser.set_slice_start', row: 498}, {cmd: 'browser.set_slice_end', row: 500}]),
+    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${sliceSent})`)).filter(c => c.cmd.startsWith('data.set_slice')))
+      === JSON.stringify([{cmd: 'data.set_slice_start', row: 498}, {cmd: 'data.set_slice_end', row: 500}]),
     JSON.stringify([await S('s.table.page && [s.table.page.start, s.table.page.end]'), await cdp.eval(`__xpp.sentFrom(${sliceSent})`)]));
   await cdp.eval(buttonOf('restore'));
-  check('Restore sends browser.restore_full_slice and keeps every row again',
+  check('Restore sends data.restore_full_slice and keeps every row again',
     await until(`!s.busy && s.table.page.start === 0 && s.table.page.end === ${want.length}`, 'restore')
-    && (await cdp.eval(`__xpp.sentFrom(${sliceSent})`)).some(c => c.cmd === 'browser.restore_full_slice'), JSON.stringify(await S('[s.table.page.start, s.table.page.end]')));
+    && (await cdp.eval(`__xpp.sentFrom(${sliceSent})`)).some(c => c.cmd === 'data.restore_full_slice'), JSON.stringify(await S('[s.table.page.start, s.table.page.end]')));
 
-  /* W648: one Export data menu in the panel's header, an entry per format of browser.export's `format` choice (the registry's), the
-     last used first and marked; the page's own Export CSV button is gone. CSV: the core writes data.csv itself (browser.export,
+  /* W648: one Export data menu in the panel's header, an entry per format of data.export's `format` choice (the registry's), the
+     last used first and marked; the page's own Export CSV button is gone. CSV: the core writes data.csv itself (data.export,
      target: table, format: csv; core/browse_data.cpp save_data_file), then the page offers it as a download (docs/roadmap.md W66) */
   const exportEntries = () => cdp.eval(`[...document.querySelectorAll('[data-sets-menu="table-export"] [data-export-format]')].map(b => [b.dataset.exportFormat, b.textContent])`);
-  const exportFormats = await cdp.eval(`__xpp.state().hello.commands.find(c => c.cmd === 'browser.export').arguments.find(a => a.name === 'format').choices`);
+  const exportFormats = await cdp.eval(`__xpp.state().hello.commands.find(c => c.cmd === 'data.export').arguments.find(a => a.name === 'format').choices`);
   check('W648: the Export data menu lists the registry\'s formats, none marked before one is used',
     JSON.stringify((await exportEntries()).map(e => e[0])) === JSON.stringify(exportFormats) && exportFormats.length === 4 && (await exportEntries()).every(e => !e[1].startsWith('✓')), JSON.stringify(await exportEntries()));
   /* W653: a file format's entry reads its name as written, lowercase (dat, csv, csv.gz, npz), as the file carries it */
@@ -817,9 +817,9 @@ async function dataTable(want, dir) {
   fs.rmSync(dataCsvPath, {force: true});
   const exportSent = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(EXPORT_AS('csv'));
-  check('Export data as CSV offers data.csv, written by the core, and sends browser.export with that format',
+  check('Export data as CSV offers data.csv, written by the core, and sends data.export with that format',
     await until("s.files.offered && s.files.offered.name === s.hello.output_names.csv && !s.busy", 'csv offered')
-    && (await cdp.eval(`__xpp.sentFrom(${exportSent})`)).some(c => c.cmd === 'browser.export' && c.target === 'table' && c.format === 'csv'));
+    && (await cdp.eval(`__xpp.sentFrom(${exportSent})`)).some(c => c.cmd === 'data.export' && c.target === 'table' && c.format === 'csv'));
   const entriesAfter = await exportEntries();
   check('W648: the format used last is listed first and marked', entriesAfter[0][0] === 'csv' && entriesAfter[0][1].startsWith('✓') && entriesAfter.slice(1).every(e => !e[1].startsWith('✓')), JSON.stringify(entriesAfter));
   await waitFile(dataCsvPath);
@@ -829,14 +829,14 @@ async function dataTable(want, dir) {
   check('the exported CSV has the header and all 601 rows, row 500 as in output.dat',
     csv.length === 602 && r500.length >= 3 && r500.every((v, k) => Math.abs(v - want[500][k]) <= 1e-7 * Math.abs(want[500][k]) + 1e-30),
     `${csv.length} lines, row 500: ${csv[501]} vs ${want[500]}`);
-  /* another format: its entry sends browser.export with it and the file carries its extension */
+  /* another format: its entry sends data.export with it and the file carries its extension */
   const npzName = dataCsvName.replace(/\.csv$/, '.npz');
   fs.rmSync(path.join(dir, npzName), {force: true});
   const npzSent = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(EXPORT_AS('npz'));
-  check('W648: Export data as NPZ offers the .npz file and sends browser.export with format npz',
+  check('W648: Export data as NPZ offers the .npz file and sends data.export with format npz',
     await until(`s.files.offered && s.files.offered.name === ${JSON.stringify(npzName)} && !s.busy`, 'npz offered')
-    && (await cdp.eval(`__xpp.sentFrom(${npzSent})`)).some(c => c.cmd === 'browser.export' && c.format === 'npz' && c.file === npzName));
+    && (await cdp.eval(`__xpp.sentFrom(${npzSent})`)).some(c => c.cmd === 'data.export' && c.format === 'npz' && c.file === npzName));
   await waitFile(path.join(dir, npzName));
 
   /* the plot's own CSV export (PlotView.tsx), the same core write with
@@ -866,7 +866,7 @@ async function dataTable(want, dir) {
     if (t) labels.add(t);
     await key('Tab');
   }
-  const expect = ['Back to Values', ...await labelsOf(['browser.load']), ...(await labelsOf(['browser.export'])).map(l => l + ' ▾'), ...await labelsOf(['browser.find']),
+  const expect = ['Back to Values', ...await labelsOf(['data.load']), ...(await labelsOf(['data.export'])).map(l => l + ' ▾'), ...await labelsOf(['data.find']),
     'Rows ▾', 'Columns ▾', ...[...labels].filter(l => /^Use row \d+ as initial conditions$/.test(l))];
   check('every control of the table panel (the menus, and the row button) is reachable by Tab', expect.length === 7 && expect.every(l => labels.has(l)), JSON.stringify([[...labels], expect]));
 
@@ -875,9 +875,9 @@ async function dataTable(want, dir) {
   const menuLabels = name => cdp.eval(`[...document.querySelectorAll('[data-sets-menu="table-${name}"] [role=menuitem]')].map(b => b.textContent)`);
   const form = () => cdp.eval(`({wide: getComputedStyle(document.querySelector('.table-wide')).display, narrow: getComputedStyle(document.querySelector('.table-narrow')).display})`);
   check('W648: a narrow panel shows Rows and Columns as menus', (await form()).wide === 'none' && (await form()).narrow !== 'none', JSON.stringify(await form()));
-  check('W648: Rows is First row, Last row, All rows; Columns is Add, Replace, Delete, then Unreplace, Tabulate and Transpose (the registry\'s labels)',
-    JSON.stringify(await menuLabels('Rows')) === JSON.stringify(await labelsOf(['browser.set_slice_start', 'browser.set_slice_end', 'browser.restore_full_slice']))
-    && JSON.stringify(await menuLabels('Columns')) === JSON.stringify(await labelsOf(['browser.add_column', 'browser.replace_column', 'browser.delete_column', 'browser.undo_replace', 'browser.tabulate_column', 'browser.transpose'])),
+  check('W648: Rows is First row, Last row, All rows; Columns is Add, Replace, Delete, then Undo replace, Tabulate and Transpose (the registry\'s labels)',
+    JSON.stringify(await menuLabels('Rows')) === JSON.stringify(await labelsOf(['data.set_slice_start', 'data.set_slice_end', 'data.restore_full_slice']))
+    && JSON.stringify(await menuLabels('Columns')) === JSON.stringify(await labelsOf(['data.add_column', 'data.replace_column', 'data.delete_column', 'data.undo_replace', 'data.tabulate_column', 'data.transpose'])),
     JSON.stringify([await menuLabels('Rows'), await menuLabels('Columns')]));
   check('W648: Edit table left the table toolbar and is reachable in Analysis > Tables',
     !await cdp.eval(`!!document.querySelector('.table-tools [data-command="table.edit"]')`)
@@ -888,8 +888,8 @@ async function dataTable(want, dir) {
   const wideForm = await until(`getComputedStyle(document.querySelector('.table-wide')).display !== 'none'`, 'wide toolbar');
   const wideLabels = await cdp.eval(`[...document.querySelectorAll('.table-wide')].map(g => [g.getAttribute('aria-label'), [...g.querySelectorAll(':scope > button')].map(b => b.textContent), [...g.querySelectorAll('[role=menuitem]')].map(b => b.textContent)])`);
   check('W648: a wide panel shows Rows and Columns as groups of buttons, Columns with its More menu',
-    wideForm && JSON.stringify(wideLabels) === JSON.stringify([['Rows', await labelsOf(['browser.set_slice_start', 'browser.set_slice_end', 'browser.restore_full_slice']), []],
-      ['Columns', await labelsOf(['browser.add_column', 'browser.replace_column', 'browser.delete_column']), await labelsOf(['browser.undo_replace', 'browser.tabulate_column', 'browser.transpose'])]]),
+    wideForm && JSON.stringify(wideLabels) === JSON.stringify([['Rows', await labelsOf(['data.set_slice_start', 'data.set_slice_end', 'data.restore_full_slice']), []],
+      ['Columns', await labelsOf(['data.add_column', 'data.replace_column', 'data.delete_column']), await labelsOf(['data.undo_replace', 'data.tabulate_column', 'data.transpose'])]]),
     JSON.stringify(wideLabels));
   await cdp.eval(`document.querySelector('.shell').style.removeProperty('--values-col')`);
   await until(`getComputedStyle(document.querySelector('.table-wide')).display === 'none'`, 'narrow again');
@@ -1082,7 +1082,7 @@ async function keyboardOnly() {
    shows and hides each, and Erase clears them */
 async function phasePlane() {
   check('T7: the page connects and asks for nullclines and dfield', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'events.subscribe' && c.events.includes('nullcline.curves') && c.events.includes('dirfield.field'))`));
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'events.subscribe' && c.events.includes('nullcline.curves') && c.events.includes('direction_field.field'))`));
   const layer = key => cdp.eval(`(__xpp.plot().layers.find(l => l.key === '${key}') || null)`);
   const legend = label => cdp.eval(`(() => { const b = [...document.querySelectorAll('.plot-view:not([hidden]) .legend-item.layer')]
     .find(b => b.textContent.trim() === ${JSON.stringify(label)}); if (b) b.click(); return b ? b.getAttribute('aria-pressed') : null; })()`);
@@ -1105,7 +1105,7 @@ async function phasePlane() {
     && v.visible && await cdp.eval(`[...document.querySelectorAll('.legend-item.layer')].map(b => b.textContent.trim()).join()`) === 'V-nullcline,W-nullcline,Direction field',
     JSON.stringify({v, wv, segs}));
 
-  await menuRun('dirfield.compute', {grid:16, scaled:true}); /* Dir.field/flow, Scaled Dir.Fld */
+  await menuRun('direction_field.compute', {grid:16, scaled:true}); /* Dir.field/flow, Scaled Dir.Fld */
   check('Dir.field/Scaled: the store holds a 17 x 17 grid of unit directions',
     await until('!s.busy && w.dfield && w.dfield.n === 17 && w.dfield.grid.length === 4 * 289', 'dfield')
     && await S('w.dfield.scaled && w.dfield.speed.length === 289'), JSON.stringify(await S('w.dfield && [w.dfield.n, w.dfield.grid.length]')));
@@ -1128,7 +1128,7 @@ async function phasePlane() {
     v.visible && v.drawn === 289 && !x.visible && x.drawn === 0 && (await layer('ynull')).drawn === segs[1], JSON.stringify({v, x}));
   await legend('V-nullcline');
 
-  await menuRun('dirfield.flow', {grid:5}); /* Dir.field/flow, Flow */
+  await menuRun('direction_field.flow', {grid:5}); /* Dir.field/flow, Flow */
   check('Dir.field/Flow: the store holds the trajectories (72 of them, NaN between two)',
     await until('!s.busy && w.dfield && w.dfield.flows.length === 1 && w.dfield.flows[0].xs.length > 72', 'flow', 30000)
     && await S('Array.from(w.dfield.flows[0].xs).filter(v => v !== v).length === 71'),
@@ -1174,7 +1174,7 @@ async function marks() {
   check('W517: plot selection selects its row and dragging uses plot coordinates', await until(`!s.busy && s.selectedAnnotation === ${marker.id} && Math.abs(w.marks.markers[0].x - ${marker.x+(plot.x.max-plot.x.min)/10}) < 1e-5`, 'dragged annotation'));
   await cdp.eval(`document.querySelector('[data-annotation-delete="${textId}"]').click()`);
   check('W517: Delete removes exactly the selected id', await until(`!s.busy && w.marks.text.length === 0 && w.marks.markers.length === 1 && w.marks.arrows.length === 1`, 'deleted'));
-  await menuRun('window.create',{name:'Other graph'});
+  await menuRun('window.new',{name:'Other graph'});
   check('W517: annotation panel follows the active graph', await until(`!s.busy && s.plots.active === 'Other graph' && document.querySelector('[data-annotations-panel]').textContent.includes('Other graph')`, 'active annotations'));
 }
 
@@ -1295,7 +1295,7 @@ async function aplotView() {
    active window follows the tab, destroy removes it */
 async function windows() {
   await desktopMetrics();
-  await menuRun('window.create',{name:'Graph with spaces'});
+  await menuRun('window.new',{name:'Graph with spaces'});
   check('W517: New graph creates an exactly named window', await until(`!s.busy && s.windows.some(w => w.name === 'Graph with spaces' && w.shown)`, 'new graph'));
   const act = async id => {await cdp.eval(`(() => {const d = [...document.querySelectorAll('[data-window-menu]')].find(d => d.dataset.windowMenu === 'Graph with spaces'); d.querySelector('[data-window-action="'+${JSON.stringify(id)}+'"]').click();})()`); await rendered();};
   await act('window.hide');
@@ -1304,12 +1304,12 @@ async function windows() {
   check('W517: Show restores the same window', await until(`!s.busy && s.windows.some(w => w.name === 'Graph with spaces' && w.shown)`, 'show'));
   await act('window.rename'); await formValues({name:'Renamed graph'}); await submitCommand();
   check('W517: Rename uses the common form', await until(`!s.busy && s.windows.some(w => w.name === 'Renamed graph') && !s.windows.some(w => w.name === 'Graph with spaces')`, 'rename'));
-  await menuRun('window.destroy',{window:'Renamed graph'});
+  await menuRun('window.close',{window:'Renamed graph'});
   check('W517: Destroy removes the named graph', await until(`!s.busy && !s.windows.some(w => w.name === 'Renamed graph')`, 'destroy'));
   await menuRun('autox.open'); await until('!s.busy && s.diagram.open', 'autoX');
   await menuRun('autox.new_view');
   check('W517: New autoX view creates a second named view', await until(`!s.busy && s.windows.filter(w => w.kind === 'diagram').length === 2`, 'autoX view'));
-  check('W517: New graph and New autoX view precede window groups', await cdp.eval(`(() => {const d=document.querySelector('[data-top-menu=Windows]'); return [...d.querySelectorAll(':scope > ul > li > button')].slice(0,2).map(b=>b.dataset.command).join() === 'window.create,autox.new_view' && d.textContent.includes('Graphs') && d.textContent.includes('autoX views') && d.textContent.includes('Others');})()`));
+  check('W517: New graph and New autoX view precede window groups', await cdp.eval(`(() => {const d=document.querySelector('[data-top-menu=Windows]'); return [...d.querySelectorAll(':scope > ul > li > button')].slice(0,2).map(b=>b.dataset.command).join() === 'window.new,autox.new_view' && d.textContent.includes('Graphs') && d.textContent.includes('autoX views') && d.textContent.includes('Others');})()`));
   await menuRun('autox.new_view');
   check('W517: New autoX view opens autoX when none exists',await until('s.diagram.open && s.diagram.shown && !s.busy','new autoX view'));
   await cdp.eval(`(() => {const d=[...document.querySelectorAll('[data-window-menu]')].find(d=>d.dataset.windowMenu==='graph_1'); d.querySelector('[data-window-action="window.select"]').click();})()`);
@@ -1592,11 +1592,11 @@ async function touch(type, points) {
 async function phone() {
   await metrics({width:390,height:844,deviceScaleFactor:2,mobile:true});
   check('W517: menu bar wraps without sideways overflow', await cdp.eval(`document.documentElement.scrollWidth <= innerWidth && document.querySelectorAll('.app-menu > details').length === 8`));
-  await clickRegistry('tool.command_palette');
+  await clickRegistry('command_palette.open');
   check('W517: palette is usable on a narrow page', await until('s.drawerOpen && !!document.querySelector("#command-search")', 'narrow palette'));
   await key('Escape');
   /* W648: on a phone the table is a full-screen sheet with a x on top (Back to Values is the dock's); from 48rem it is the dock, at 768 too */
-  await clickRegistry('tool.browser');
+  await clickRegistry('data.open');
   await until('s.table.open', 'phone table');
   const fits = async () => { await rendered(); return cdp.eval(`(() => { const p = document.querySelector('#table-panel'), g = document.querySelector('.table-grid-wrap'), h = document.querySelector('.table-panel .panel-header');
     const [l, e] = ['[data-button="browser:load"]', '[data-sets-menu="table-export"] > summary'].map(q => document.querySelector(q).getBoundingClientRect());
@@ -1614,7 +1614,7 @@ async function phone() {
   await cdp.eval(`document.querySelector('.table-close').click()`);
   check('W648: the x closes the table sheet', await until('!s.table.open', 'phone table closed'));
   await metrics({width: 768, height: 1024, deviceScaleFactor: 1, mobile: false});
-  await clickRegistry('tool.browser');
+  await clickRegistry('data.open');
   await until('s.table.open', 'tablet table');
   const tablet = await cdp.eval(`(() => { const t = document.querySelector('#table-panel').getBoundingClientRect(), m = document.querySelector('#main').getBoundingClientRect();
     return {tl: t.left, mr: m.right, vw: innerWidth, back: getComputedStyle(document.querySelector('.table-back')).display !== 'none'}; })()`);
@@ -1741,7 +1741,7 @@ const okRunDialog = async kind => {
 };
 const runPeriodicFromDialog = () => okRunDialog('periodic');
 const autoxRun = async kind => { await clickRegistry('autox.run'); await okRunDialog(kind); };
-const autoxButton = k => (['C','D','G'].includes(k) ? menuRun : clickRegistry)(({A:'autox.configure_plot',N:'autox.configure_numerics',R:'autox.run',G:'autox.grab',U:'autox.configure_marks',C:'autox.hide_earlier',D:'autox.redraw'})[k]);
+const autoxButton = k => (['C','D','G'].includes(k) ? menuRun : clickRegistry)(({A:'autox.configure_axes',N:'autox.configure_numerics',R:'autox.run',G:'autox.grab',U:'autox.configure_marks',C:'autox.hide_earlier',D:'autox.redraw'})[k]);
 /* the diagram's plotting area and the screen position of (x, y) in it */
 const rawAutoArea = () => cdp.eval(`(() => { const r = document.querySelector('.autox-panel .u-over').getBoundingClientRect();
   return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
@@ -1793,7 +1793,7 @@ async function autoxView(dir) {
   check("the diagram has the focus, so autoX's keys work", await until(`document.activeElement.closest('.autox-host')`, 'auto focus'));
   const words = await cdp.eval(`[...document.querySelectorAll('.autox-panel button')].map(b => b.textContent.trim())`);
   check('the view has the autoX buttons, no reDraw (the diagram is always current) and no Stop while idle (A10, T21)',
-    [...await labelsOf(['autox.configure_plot', 'autox.configure_numerics', 'autox.run', 'autox.grab', 'autox.configure_marks', 'autox.hide_earlier']), 'Close']
+    [...await labelsOf(['autox.configure_axes', 'autox.configure_numerics', 'autox.run', 'autox.grab', 'autox.configure_marks', 'autox.hide_earlier']), 'Close']
       .every(w => words.includes(w)) && !words.includes('Parameter') && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
   check('the status strip says autoX is idle', /^Idle/.test(await autoxStatus()), await autoxStatus());
   check("T24: the status strip is the autoX window's bottom line, as the main window's status bar",
@@ -2012,7 +2012,7 @@ async function autoxView(dir) {
   await key('Enter');
   check('T21: grabbing a labelled periodic point imports its orbit: the main plot shows the limit cycle',
     grabbed && grabbed.type >= 3 && await until(`!s.busy && s.core.rows > 10 && w.series && w.series.rows === s.core.rows`, 'orbit', 20000)
-    && (await cdp.eval(`__xpp.sentFrom(${sentGrab}).filter(c => c.cmd === 'autox.load_orbit_into_browser').length`)) === 1,
+    && (await cdp.eval(`__xpp.sentFrom(${sentGrab}).filter(c => c.cmd === 'autox.show_orbit').length`)) === 1,
     JSON.stringify([grabbed && [grabbed.br, grabbed.pt, grabbed.type, grabbed.lab], await S('[s.core.rows, w.series && w.series.rows]'),
       await cdp.eval(`__xpp.sentFrom(${sentGrab})`)]));
 
@@ -2116,7 +2116,7 @@ async function autoxView(dir) {
   check('Escape cancels a grab', await until('!s.busy && !s.diagram.grabbing', 'grab cancelled')
     && (await lastAnswer())?.ok === 0 && (await DS('d.shown')), JSON.stringify(await lastAnswer()));
 
-  await menuRun('autox.configure_plot', {plot_type:'norm', variable:'V', parameter1:'iapp'});
+  await menuRun('autox.configure_axes', {plot_type:'norm', variable:'V', parameter1:'iapp'});
   await requireUntil(`!s.busy && dv.axes.plot === 'norm'`, 'norm projection');
   check('W517: Axes projection is chosen in the common form', await DS(`d.axes.plot === 'norm'`));
 
@@ -2139,7 +2139,7 @@ async function autoxView(dir) {
   check('W517: common list rows set autoX marks', await until(`!s.busy && s.autoxSettings.core.marks.length === 1`, 'one mark'));
   await menuRun('autox.configure_marks', {parameters:[], values:[]});
   check('W517: empty list rows remove autoX marks', await until(`!s.busy && s.autoxSettings.core.marks.length === 0`, 'marks removed'));
-  await menuRun('autox.configure_plot', {plot_type:'maximum_and_minimum', variable:'V', parameter1:'iapp', fit:true});
+  await menuRun('autox.configure_axes', {plot_type:'maximum_and_minimum', variable:'V', parameter1:'iapp', fit:true});
   await requireUntil('!s.busy', 'hilo restored');
 
   /* on a phone: a sheet with Back, 44 px targets, no sideways scroll */
@@ -2343,7 +2343,7 @@ async function autoxLiveJobs() {
   const send = cmd => cdp.eval(`__xpp.send(${JSON.stringify(cmd)})`);
   await send({cmd: 'preferences.configure', threads: 2});
   await send({cmd: 'value.set_parameters', values: {p0: 0.05}});
-  await send({cmd: 'ic.set', values: {U1: 0.06282240276322631, U2: 0.2931712128950587}});
+  await send({cmd: 'initial_conditions.set', values: {U1: 0.06282240276322631, U2: 0.2931712128950587}});
   await until('!s.busy', 'values set');
   await send({cmd: 'autox.run', kind: 'equilibrium', replace_diagram: false, follow_all_branches: true, max_steps: 1000000,
     output_every: 1000, parameter_min: 0, parameter_max: 1.5, step_size: 1e-6, min_step_size: 1e-7, max_step_size: 1e-6});
@@ -2437,7 +2437,7 @@ async function autoxViews(dir) {
       && s.diagram.views[0].axes.plot === 'maximum_and_minimum' && s.diagram.views[0].axes.ylabel === 'V'
       && s.diagram.views.every(v => v.points.x.length === ${n})
       && s.diagram.views[0].points.br.every((b, i) => b === s.diagram.views[1].points.br[i])`, 'norm view', 20000)
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'autox.configure_plot' && c.view === 'diagram_2' && c.plot_type === 'norm')`)
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'autox.configure_axes' && c.view === 'diagram_2' && c.plot_type === 'norm')`)
     && await cdp.eval(`[...document.querySelectorAll('.autox-pane-title')].map(t => t.textContent).join('|') === 'V against iapp|Norm against iapp'`),
     JSON.stringify(await S('s.diagram.views.map(v => v.axes)')));
   check('autoX views: each view draws its own chart', (await cdp.eval('__xpp.diagram(0).curves.length')) > 0
@@ -2493,7 +2493,7 @@ async function openAutoxAtFixedPoint() {
   await requireUntil('!s.busy && !s.commandForm', 'hopf set');
   await menuRun('equilibrium.find');
   await requireUntil('!s.busy && !s.ask', 'fixed point');
-  await menuRun('equilibrium.import_as_ic');
+  await menuRun('initial_conditions.set_from_equilibrium');
   await requireUntil('!s.busy', 'imported fixed point');
   await openAutoxPanel();
 }
@@ -2631,8 +2631,8 @@ async function lostF() {
   await clickRegistry('autox.run');
   await runPeriodicFromDialog();
   await requireUntil('!s.busy', 'periodic run ended', 120000);
-  await clickRegistry('autox.load_orbit_into_browser');
-  check('W517: the orbit command opens its registry form', await until(`s.commandForm?.id === 'autox.load_orbit_into_browser'`, 'orbit form'));
+  await clickRegistry('autox.show_orbit');
+  check('W517: the orbit command opens its registry form', await until(`s.commandForm?.id === 'autox.show_orbit'`, 'orbit form'));
   await key('Escape');
   check('lostF: cancelling the form leaves no core question', await S('!s.commandForm && !s.ask'));
 
@@ -2724,7 +2724,7 @@ async function busyKeys() {
   await menuRun('run.initial');
   const running = await until('s.busy && !s.ask && w.series && w.series.rows > 0', 'the run under way', 30000);
   /* W95: what is disabled during a computation is decided by each action's kind, from hello */
-  const newGraphLabel = await labelOf('window.create');
+  const newGraphLabel = await labelOf('window.new');
   const ui = await cdp.eval(`(() => {
     const item = id => document.querySelector('.app-menu [data-command="' + id + '"]');
     const tool = t => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === t);
@@ -2744,16 +2744,16 @@ async function busyKeys() {
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
     + 'and data (Initialconds, Sing pts...) are disabled, Parameters and Load (settings, W106) are not',
     running && ui.status === `Running ${await labelOf('run.initial')}… Esc stops` && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.load
-    && ['run.initial', 'equilibrium.find', 'bvp.solve', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
+    && ['run.initial', 'equilibrium.find', 'boundary_value.solve', 'session.save'].every(id => ui.off.includes(id)) && !ui.off.includes('value.set_parameters') && !ui.off.includes('run.configure'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
-  /* A window.create sent during the run is queued by the core and creates
+  /* A window.new sent during the run is queued by the core and creates
      the graph once the run has stopped. */
   const sentView = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`[...document.querySelectorAll('.plot-window-tools button')].find(b => b.textContent === ${JSON.stringify(newGraphLabel)}).click()`);
   const viewSent = await cdp.eval(`__xpp.sentFrom(${sentView})`);
-  check('W95: a view button clicked during the run goes out (window.create)',
-    JSON.stringify(viewSent) === JSON.stringify([{cmd:'window.create'}]) && await S('s.busy'), JSON.stringify(viewSent));
+  check('W95: a view button clicked during the run goes out (window.new)',
+    JSON.stringify(viewSent) === JSON.stringify([{cmd:'window.new'}]) && await S('s.busy'), JSON.stringify(viewSent));
   const sent0 = await cdp.eval('__xpp.sentCount()');
   await focusPlot();
   await key('r', 2);
@@ -2798,7 +2798,7 @@ async function busyKeys() {
       && s.core.pars.find(p => p[0] === "phi")[1] === 0.4 && s.numerics.find(f => f.key === 'store_every').value === 3`,
     'settings applied after the run', 10000),
     JSON.stringify(await S('[s.busy, s.values.inflight, s.core.pars, s.numerics]')));
-  /* The window.create sent during the run has now completed. */
+  /* The window.new sent during the run has now completed. */
   check('W95: the view clicked during the run ran after it: window 2 exists',
     await until('!s.busy && !s.ask && s.plots.windows.length === 2', 'new window after the run', 10000),
     JSON.stringify(await S('[s.busy, s.ask, s.plots.windows.length]')));
@@ -2950,9 +2950,9 @@ async function playerCheck(dir) {
   await until(`s.ask && s.ask.kind === 'file'`, 'file ask');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'play'})`);
   await until(`!s.core.recording && !s.busy`, 'stopped');
-  check('player: the File menu offers Play recording', await cdp.eval(`!!document.querySelector('.app-menu [data-command="recording.open"]')`));
+  check('player: the File menu offers Open recording', await cdp.eval(`!!document.querySelector('.app-menu [data-command="recording.open"]')`));
   await clickRegistry('recording.open');
-  check('player: Play recording opens its form, the .recx named in its file field', await until(`s.commandForm?.id === 'recording.open'`, 'play form'),
+  check('player: Open recording opens its form, the .recx named in its file field', await until(`s.commandForm?.id === 'recording.open'`, 'play form'),
     JSON.stringify(await S('s.commandForm')));
   /* the form's file is picked (its action, with the file left empty, asks the picker's name, as the title bar's Play did) */
   await formValues({play: true});
@@ -3020,7 +3020,7 @@ async function playerCheck(dir) {
   await cdp.eval(`document.querySelector('.autox-close').click()`);
   check('player: with autoX closed the player is back around the plots (no dock)',
     await until(`!s.diagram.open && !document.querySelector('.player-dock') && !!document.querySelector('.player-stage .plots') && !!document.querySelector('.player-controls') && !s.busy`, 'dock gone', 20000));
-  /* the opened recording plays on its own (the File menu's Play recording): let it end, then close */
+  /* the opened recording plays on its own (the File menu's Open recording): let it end, then close */
   await until('s.player.running < 0 && s.core.player && s.core.player.step >= s.player.steps.length && !s.busy', 'the recording played to its end', 30000);
   await cdp.eval(`document.querySelector('.player-close').click()`);
   check('player: Close leaves the player; the plot stays', await until(`!s.player.open && !document.querySelector('.player') && !!document.querySelector('.plots') && !s.busy`, 'closed'));
@@ -3127,7 +3127,7 @@ const exists = selector => cdp.eval(`!!document.querySelector(${JSON.stringify(s
 async function clickRegistry(id) {
   const selector = `.app-menu [data-command=${JSON.stringify(id)}]`;
   /* W637: a command with no menu place (a view's own control, the palette's) is run from the command palette */
-  if (!(await exists(selector)) && id !== 'tool.command_palette') return paletteRegistry(id);
+  if (!(await exists(selector)) && id !== 'command_palette.open') return paletteRegistry(id);
   await requireUntil(`document.querySelector(${JSON.stringify(selector)})`, 'menu item ' + id);
   await cdp.eval(`(() => {
     const item = [...document.querySelectorAll('.app-menu [data-command]')].find(b => b.dataset.command === ${JSON.stringify(id)});
@@ -3183,7 +3183,7 @@ async function submitCommand() {
 }
 /** W637: a command with no menu place, run from the command palette (Help > Command palette) */
 async function paletteRegistry(id) {
-  await clickRegistry('tool.command_palette');
+  await clickRegistry('command_palette.open');
   await until('s.drawerOpen', 'command palette open');
   await cdp.eval(`document.querySelector(${JSON.stringify(`.command-palette [data-command="${id}"]`)}).click()`);
   await rendered();
@@ -3212,9 +3212,9 @@ async function optionsCheck() {
   check('W616: hello carries the option table, one entry per group with a title and its rows', groups.length >= 8 && groups.every(g => g.group && g.label && g.rows.length),
     JSON.stringify(groups.map(g => g.group)));
   /* where each panel opens from (the maintainer's decision, #686): its task's menu entry */
-  const opensFrom = {'run.configure': 'integration', 'analysis.poincare_map': 'poincare', 'run.range': 'sweep', 'equilibrium.configure': 'equilibria',
-    'analysis.histogram': 'analysis:histogram', 'analysis.histogram_2d': 'analysis:histogram,histogram2', 'analysis.spectral_density': 'analysis:spectrum',
-    'autox.configure_numerics': 'continuation', 'autox.configure_plot': 'diagram+', 'plot.set_axes_origin': 'plot+', 'plot.export_pdf': 'export', 'plot.export_svg': 'export',
+  const opensFrom = {'run.configure': 'integration', 'poincare_map.set': 'poincare', 'run.range': 'sweep', 'equilibrium.configure': 'equilibria',
+    'histogram.compute': 'analysis:histogram', 'histogram.compute_2d': 'analysis:histogram,histogram2', 'spectrum.density': 'analysis:spectrum',
+    'autox.configure_numerics': 'continuation', 'autox.configure_axes': 'diagram+', 'plot.set_axes_origin': 'plot+', 'plot.export_pdf': 'export', 'plot.export_svg': 'export',
     'output.configure': 'output'};
   check('W616: each panel opens from its task\'s menu entry, and only from there',
     JSON.stringify(Object.entries(await S(`Object.fromEntries(s.hello.commands.filter(c => c.panel).map(c => [c.cmd, c.panel]))`)).sort()) === JSON.stringify(Object.entries(opensFrom).sort()), JSON.stringify(await S(`s.hello.commands.filter(c => c.panel).map(c => c.cmd)`)));
@@ -3311,16 +3311,16 @@ async function settingsShots() {
   fs.mkdirSync(dir, {recursive: true});
   await until('s.hello && !s.busy', 'hello');
   const menu = id => () => clickRegistry(id);
-  const panels = [['integration', 'run.configure'], ['poincare', 'analysis.poincare_map'], ['sweep', 'run.range'], ['equilibria', 'equilibrium.configure'],
-    ['analysis-histogram', 'analysis.histogram'], ['analysis-spectrum', 'analysis.spectral_density'], ['continuation', 'autox.configure_numerics'],
-    ['diagram', 'autox.configure_plot'], ['plot', 'plot.set_axes_origin'], ['export', 'plot.export_pdf'], ['output', 'output.configure'],
+  const panels = [['integration', 'run.configure'], ['poincare', 'poincare_map.set'], ['sweep', 'run.range'], ['equilibria', 'equilibrium.configure'],
+    ['analysis-histogram', 'histogram.compute'], ['analysis-spectrum', 'spectrum.density'], ['continuation', 'autox.configure_numerics'],
+    ['diagram', 'autox.configure_axes'], ['plot', 'plot.set_axes_origin'], ['export', 'plot.export_pdf'], ['output', 'output.configure'],
     ['preferences', 'preferences.configure'], ['command-form', 'plot.set_2d']].map(([name, id]) => [name, menu(id)]);
   const others = [
     ['ask-file', () => registryFile('session.save_as', 'write')],
     ['error', async () => { await cdp.eval(`__xpp.send({cmd: 'run.configure', total_time: -1})`); await until(`!!document.querySelector('[data-error-dialog]')`, 'error'); }],
     ['slider', async () => { await cdp.eval(`document.querySelector('.slider-add').click()`); await until(`!!document.querySelector('[data-slider-dialog]')`, 'slider'); }],
-    ['palette', async () => { await clickRegistry('tool.command_palette'); await until('s.drawerOpen', 'palette'); }],
-    ['keymap', async () => { await clickRegistry('tool.keyboard_shortcuts'); await until('!!document.querySelector("[data-keymap-editor]")', 'keymap'); }],
+    ['palette', async () => { await clickRegistry('command_palette.open'); await until('s.drawerOpen', 'palette'); }],
+    ['keymap', async () => { await clickRegistry('keymap.edit'); await until('!!document.querySelector("[data-keymap-editor]")', 'keymap'); }],
   ];
   const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
   for (const [size, width, height, scheme] of sizes) {
@@ -3354,7 +3354,7 @@ async function tableShots() {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
     await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
     await rendered();
-    await clickRegistry('tool.browser');
+    await clickRegistry('data.open');
     await until('s.table.open && s.table.page && s.table.page.data.length > 10', 'table rows');
     await cdp.eval(`document.getElementById('table-row-5').click()`);
     await until('s.table.selected === 5', 'row 5');
@@ -3451,7 +3451,7 @@ async function dialogsCheck() {
   /* a hint fits inside its box, on a phone too */
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 1, mobile: true});
   await rendered();
-  await clickRegistry('analysis.spectral_density');
+  await clickRegistry('spectrum.density');
   await requireUntil(`!!s.commandForm && !!document.querySelector('[data-dialog] [data-argument="spectrum.width"] .input-box .unit, [data-dialog] .input-box .unit')`, 'a form with a range hint');
   const hints = await cdp.eval(`[...document.querySelectorAll('[data-dialog] .input-box')].filter(b => b.querySelector('.unit')).map(b => { const u = b.querySelector('.unit').getBoundingClientRect(), r = b.getBoundingClientRect(), body = b.closest('.dialog-body').getBoundingClientRect(); return {right: u.right, box: r.right, body: body.right, text: b.querySelector('.unit').textContent}; })`);
   check('W641: at 390 a range hint\'s right edge is inside its box', hints.length > 0 && hints.every(h => h.right <= h.box + 0.5 && h.box <= h.body + 0.5), JSON.stringify(hints));
@@ -3545,7 +3545,7 @@ async function dialogsCheck() {
   await key('Escape');
   await until(`!document.querySelector('[data-slider-dialog]')`, 'slider closed');
   /* the command palette is the same shell */
-  await clickRegistry('tool.command_palette');
+  await clickRegistry('command_palette.open');
   await until('s.drawerOpen', 'palette');
   d = await shell();
   sound('the command palette', d);
@@ -3564,16 +3564,16 @@ async function navigationCheck() {
   check('W647: in a browser File > Quit is in the menu bar', await exists('.app-menu [data-command="session.quit"]'));
   const {identifier: bound} = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: 'window.__xppCloseWindow = async () => {};'});
   await reloadPage();
-  await clickRegistry('tool.command_palette');
+  await clickRegistry('command_palette.open');
   check('W647: with __xppCloseWindow bound, neither the menu bar nor Search commands has Quit, and the rest are there',
     await until(`s.drawerOpen && !document.querySelector('[data-command="session.quit"]')
-      && !!document.querySelector('.command-palette [data-command="session.save"]') && !!document.querySelector('.app-menu [data-command="tool.about"]')`, 'quit hidden'));
+      && !!document.querySelector('.command-palette [data-command="session.save"]') && !!document.querySelector('.app-menu [data-command="about.open"]')`, 'quit hidden'));
   await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier: bound});
   await reloadPage();
-  await clickRegistry('tool.command_palette');
+  await clickRegistry('command_palette.open');
   await key('Escape');
   /* W647: Help > About xppautX shows hello.about's version line in the page, in every mode */
-  await menuRun('tool.about');
+  await menuRun('about.open');
   check('W647: Help > About xppautX opens the About text with the version line',
     await until(`s.help.open && s.help.about && document.querySelector('.help-about p')?.textContent === s.hello.about[0].map(p => p.text).join('') && /^xppautX /.test(document.querySelector('.help-about p').textContent)`, 'about command'),
     JSON.stringify(await S('s.help')));
@@ -3597,9 +3597,9 @@ async function navigationCheck() {
     check(`W517: ${row.cmd} form is its registry arguments (a group's together)`, JSON.stringify([...fields].sort()) === JSON.stringify(row.arguments.filter(a => a.type !== 'path').map(a => a.name).sort()), JSON.stringify(fields));
     await key('Escape');
   }
-  await clickRegistry('tool.command_palette');
+  await clickRegistry('command_palette.open');
   check('W642: the menu bar entry, the dialog and its Help item say Search commands',
-    await cdp.eval(`document.querySelector('.menu-search').textContent.trim() === 'Search commands' && document.querySelector('.command-palette h2').textContent.trim() === 'Search commands' && document.querySelector('.command-palette [data-command="tool.command_palette"]').textContent.includes('Search commands')`));
+    await cdp.eval(`document.querySelector('.menu-search').textContent.trim() === 'Search commands' && document.querySelector('.command-palette h2').textContent.trim() === 'Search commands' && document.querySelector('.command-palette [data-command="command_palette.open"]').textContent.includes('Search commands')`));
   check('W517: palette contains every registry command', await until(`s.drawerOpen && document.querySelectorAll('.command-palette [data-command]').length === ${rows.length}`, 'palette'));
   await cdp.eval(`(() => {const q = document.querySelector('#command-search'); q.value = 'session save'; q.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await rendered();
@@ -3729,7 +3729,7 @@ async function menuBarCheck() {
     JSON.stringify(await topOpen()) === '[]' && await cdp.eval(`document.activeElement === document.querySelector('[data-top-menu=Plot] > summary')`));
   await key('ArrowRight');
   check('W634: Right with no menu open only moves the focus to the next title', JSON.stringify(await topOpen()) === '[]' && await cdp.eval(`document.activeElement === document.querySelector('[data-top-menu=Data] > summary')`));
-  await menuRun('window.create', {name: 'Second graph'});
+  await menuRun('window.new', {name: 'Second graph'});
   check('W634: a second graph gives two window submenus', await until(`!s.busy && s.windows.some(w => w.name === 'Second graph')`, 'second graph'));
   await press('[data-top-menu=Windows] > summary');
   await press('[data-window-menu="graph_1"] > summary');
@@ -3798,7 +3798,7 @@ async function keymapCheck() {
    run's own (cdp.mjs), and the section ends by removing what it wrote. */
 async function keymapEditorCheck() {
   await desktopMetrics();
-  await clickRegistry('tool.keyboard_shortcuts');
+  await clickRegistry('keymap.edit');
   check('W517: editor lists the registry', await until(`s.keymap.editor.open && document.querySelectorAll('[data-keymap-row]').length === s.hello.commands.filter(c => c.arguments !== undefined).length`, 'editor'));
   check('W536: the editor has no XPPAUT key preset', !await exists('[data-keymap-xppaut]') && await S('!("preset" in s.keymap.info)'));
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
@@ -3827,7 +3827,7 @@ async function keysCheck() {
   await focusPlot();
   await key('r',2);
   check('W517: logical run key does not open a menu ask', await until('s.core.rows === 601 && !s.busy && !s.ask', 'run'));
-  await clickRegistry('tool.command_palette');
+  await clickRegistry('command_palette.open');
   await key('Escape');
   check('W517: Escape closes palette without stopping the core', await until('!s.drawerOpen && !s.ask', 'closed palette'));
   await clickRegistry('window.rename');
@@ -4062,7 +4062,7 @@ async function runsCheck(dir) {
 
   /* Load of XPPAUT's .par/.ic (W66 review, #114; an import since W321, nothing of ours writes these files): it goes
      through the core (docs/protocol.md "values"): the picked file is uploaded with the files API (session.ts
-     loadValues, the same PUT any other upload uses) and the core reads it with `value.load_file` -- applied at
+     loadValues, the same PUT any other upload uses) and the core reads it with `value.import_file` -- applied at
      once, so no Go is needed. */
   /* W95 (#143): a click while the page is busy with a command of its own (a redraw here, as its
      catch-up after an idle is) goes out and runs in its turn: Restore defaults is sent right behind it */
@@ -4399,8 +4399,8 @@ async function valuesJacobian(dir) {
     JSON.stringify(precisionOptions) === JSON.stringify([['Single', false], ['Double', false]]) && await cdp.eval(`${precision}.querySelector('[aria-checked=true]')?.dataset.choice === 'single'`),
     JSON.stringify(precisionOptions));
   const firstRows = async () => {
-    /* browser.page ends with no done: wait for a page newer than the one the store holds */
-    await cdp.eval(`window.__w613Page = __xpp.state().table.page; __xpp.send({cmd: 'browser.page', from_row: 0, count: 50, first_column: 1, columns: 1})`);
+    /* data.page ends with no done: wait for a page newer than the one the store holds */
+    await cdp.eval(`window.__w613Page = __xpp.state().table.page; __xpp.send({cmd: 'data.page', from_row: 0, count: 50, first_column: 1, columns: 1})`);
     await until('s.table.page !== window.__w613Page && s.table.page.from === 0 && s.table.page.data.length > 10', 'the table rows');
     return cdp.eval(`__xpp.state().table.page.data.map(r => r[1])`);
   };
@@ -4894,8 +4894,8 @@ async function setsRows() {
   await clickRegistry('run.range');
   check('sets: the Range dialog has the sweep row', await until(`!!document.querySelector('[data-command-form="run.range"] ${row('sweep')}')`, 'range row'));
   await key('Escape');
-  await clickRegistry('analysis.histogram');
-  check('sets: the Histogram dialog has the analysis row', await until(`!!document.querySelector('[data-command-form="analysis.histogram"] ${row('analysis')}')`, 'histogram row'));
+  await clickRegistry('histogram.compute');
+  check('sets: the Histogram dialog has the analysis row', await until(`!!document.querySelector('[data-command-form="histogram.compute"] ${row('analysis')}')`, 'histogram row'));
   await key('Escape');
   await openAutoxPanel();
   check('sets: autoX\'s panel has the continuation row', await exists(row('continuation')));
@@ -4904,7 +4904,7 @@ async function setsRows() {
   const items = await cdp.eval(`[...document.querySelectorAll('.app-menu [data-top-menu=File] [data-command^="set."], .app-menu [data-top-menu=File] [data-command="session.import_xppaut_state"]')].map(b => b.dataset.command)`);
   check('sets: File > Sets holds Rename, Delete, Load a named part of a file and Import XPPAUT session state (W637: the others are the Values panel\'s sets rows)',
     ['set.rename', 'set.delete', 'set.load_file', 'session.import_xppaut_state'].every(c => items.includes(c))
-    && ['set.apply', 'set.file_contents', 'set.save_new', 'set.save_into', 'set.save_defaults', 'set.export', 'set.restore_defaults'].every(c => !items.includes(c))
+    && ['set.apply', 'set.list_file_contents', 'set.save_new', 'set.save_into', 'set.save_defaults', 'set.export', 'set.restore_defaults'].every(c => !items.includes(c))
     && items.length === 4, JSON.stringify(items));
   check('sets: the Values panel\'s sets rows hold Save, Save as defaults, Export and Restore defaults', await cdp.eval(`['set.save_new', 'set.save_defaults', 'set.export', 'set.restore_defaults']
     .every(c => !!document.querySelector('[data-sets-row] [data-command="' + c + '"]'))`));
@@ -5113,7 +5113,7 @@ async function files(dir) {
     check('W134: ... Cancel leaves the folder\'s file untouched and reads nothing',
       await until('!s.files.confirm && !document.querySelector("[data-replace-dialog]")', 'load cancel')
       && fs.readFileSync(path.join(dir, 'w134.par')).equals(parThere)
-      && !(await cdp.eval(`__xpp.sentFrom(${sentLoad}).some(c => c.cmd === 'value.load_file')`)),
+      && !(await cdp.eval(`__xpp.sentFrom(${sentLoad}).some(c => c.cmd === 'value.import_file')`)),
       JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentLoad})`)));
     await pickFiles('#values-load-par', [parPicked]);
     await until('s.files.confirm', 'load confirm again');
@@ -5123,7 +5123,7 @@ async function files(dir) {
       && fs.readFileSync(path.join(dir, 'w134.par')).equals(fs.readFileSync(parPicked)), String(await par('iapp')));
 
     /* W321: Load values from a file by scope, through the page: the Parameters section's button picks a file, the core
-       lists the parts of it that hold parameters (set.file_contents), the dialog offers them, a part that cannot be
+       lists the parts of it that hold parameters (set.list_file_contents), the dialog offers them, a part that cannot be
        loaded says why, and the one chosen is loaded (set.load_file) over the current values */
     fs.writeFileSync(path.join(up, 'w321.odex'), 'version 4\nset "w321" { iapp: 0.321 }\nset "broken" {\n  iapp: 0.5,\n  nosuch: 1\n}\n');
     await setPar('iapp', 0.2);
@@ -5132,7 +5132,7 @@ async function files(dir) {
     check('W321: the page asks the core what the file offers, and the dialog lists its parts for parameters',
       await until(`s.valuesFile && s.valuesFile.scope === 'parameters' && s.valuesFile.parts.length === 2
         && document.querySelector('[data-values-file-dialog=parameters] [data-values-part="set:w321"]')`, 'offer')
-      && (await cdp.eval(`__xpp.sentFrom(${sentOffer}).some(c => c.cmd === 'set.file_contents' && c.scope === 'parameters' && c.file === 'w321.odex')`)),
+      && (await cdp.eval(`__xpp.sentFrom(${sentOffer}).some(c => c.cmd === 'set.list_file_contents' && c.scope === 'parameters' && c.file === 'w321.odex')`)),
       JSON.stringify(await S('s.valuesFile')));
     check('W321: a part that cannot be loaded is shown with why and cannot be chosen',
       await cdp.eval(`(() => { const b = document.querySelector('[data-values-part="set:broken"]');
@@ -5463,10 +5463,10 @@ async function kinescope(dir) {
   })()`);
   check('kinescope: the two captured frames hold different data', differ);
   /* W637: the bar's own controls for the Kinescope menu items */
-  check('W637: the Kinescope bar offers Autoplay kinescope and Save kinescope frames',
+  check('W637: the Kinescope bar offers Autoplay kinescope and Export kinescope frames',
     await cdp.eval(`!!document.querySelector('.kinescope-bar [data-command="kinescope.autoplay"]') && !!document.querySelector('.kinescope-bar [data-command="kinescope.export_frames"]')`));
   check('W637: the Kinescope bar\'s Autoplay kinescope runs its command', await controlRuns('kinescope.autoplay', undefined, {}, '.kinescope-bar '));
-  check('W637: the Kinescope bar\'s Save kinescope frames runs its command', await controlRuns('kinescope.export_frames', 'kinescope_frames.gif', {}, '.kinescope-bar '));
+  check('W637: the Kinescope bar\'s Export kinescope frames runs its command', await controlRuns('kinescope.export_frames', 'kinescope_frames.gif', {}, '.kinescope-bar '));
 
   /* Export GIF (Plots.tsx): the page's own button for Kinescope's Make
      Anigif (k, m), which core/json_windows.cpp's j_movie_make_anigif
@@ -5678,7 +5678,7 @@ async function jacobianOfferCheck(dir) {
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   await cdp.eval(`__xpp.send({cmd: 'autox.configure_numerics', step_size: -0.1, max_step_size: 0.1, parameter_min: -0.5, parameter_max: 2, max_steps: 100})`);
   await until('!s.busy', 'autoX numerics');
-  await cdp.eval(`__xpp.send({cmd: 'autox.configure_plot', plot_type: 'norm', variable: 'x', parameter1: 'a'})`);
+  await cdp.eval(`__xpp.send({cmd: 'autox.configure_axes', plot_type: 'norm', variable: 'x', parameter1: 'a'})`);
   await until('!s.busy', 'autoX axes');
   await menuRun('autox.run', {kind:'equilibrium', follow_all_branches:false});
   check('W275: the error of a failed exact Jacobian in an autoX run offers Switch to differences and continue',
@@ -5721,7 +5721,7 @@ async function errorDialogCheck(dir) {
 
   /* W140: an error the core places shows its file and line, and the line as written */
   fs.writeFileSync(path.join(dir, 'w140bad.par'), '3   Number params' + String.fromCharCode(10) + '1' + String.fromCharCode(10));
-  await cdp.eval(`__xpp.send({cmd: 'value.load_file', kind: 'parameters', file: 'w140bad.par'})`);
+  await cdp.eval(`__xpp.send({cmd: 'value.import_file', kind: 'parameters', file: 'w140bad.par'})`);
   await until(`document.querySelector('.error-dialog [data-error-place]')`, 'a placed error');
   const placed = await S(`s.toasts.filter(t => t.kind === 'error').pop()`);
   check('error dialog: a placed error keeps its file, line and line as written (W140)',
@@ -6262,7 +6262,7 @@ async function dialogOverEverything(opener, view, what) {
   await until(`!document.querySelector('[data-trace-dialog]')`, `${what}: trace dialog closed`);
 }
 async function quickMenuOnTop() {
-  await clickRegistry('tool.keyboard_shortcuts');
+  await clickRegistry('keymap.edit');
   await until('s.keymap.editor.open', 'editor');
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
   await until(`s.keymap.info.pinned.includes('run.initial')`, 'pinned');
@@ -6282,7 +6282,7 @@ async function quickMenuOnTop() {
       return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === b; })()`));
   await key('Escape');
   await until(`!document.querySelector('.quick-menu')`, 'quick menu closed');
-  await clickRegistry('tool.keyboard_shortcuts');
+  await clickRegistry('keymap.edit');
   await until('s.keymap.editor.open', 'editor');
   await cdp.eval(`document.querySelector('[data-key-pin="run.initial"]').click()`);
   await until(`!s.keymap.info.pinned.includes('run.initial')`, 'unpinned');
@@ -6458,9 +6458,9 @@ const near = (a, b, tol = 2) => Math.abs(a - b) <= tol;
 async function panelsCheck() {
   await desktopMetrics();
   check('W517: no obsolete Commands panel splitter', !await exists('.splitter-menu'));
-  await clickRegistry('tool.values');
+  await clickRegistry('values.open');
   check('W517: Values remains reachable from Data', await until('s.valuesOpen', 'values'));
-  await clickRegistry('tool.browser');
+  await clickRegistry('data.open');
   check('W517: browser remains reachable from Data', await until('s.table.open', 'browser'));
   await cdp.eval(`document.querySelector('.table-back').click()`);
   await until('!s.table.open', 'table closed');
@@ -6605,7 +6605,7 @@ async function main() {
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (typed_values.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
-    if (run('values')) await session(ODE, valuesJacobian, ['command:1: jacobian=exact: w260noise.odex:3:1: uses random numbers']);
+    if (run('values')) await session(ODE, valuesJacobian, ['command:1: integration.jacobian.kind=exact: w260noise.odex:3:1: uses random numbers']);
     if (run('values')) await session(ODE, equilibriumSettings);
     if (run('values')) await session(ODE, valuesFill);
     if (run('cut')) await session(ODE, cutCheck);

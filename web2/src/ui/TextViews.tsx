@@ -53,7 +53,7 @@ function SourceLineRow({line, session, busy}: {line: SourceLine; session: Sessio
 
 function SourceView() {
   const session = useSession();
-  const busy = !useMay()({cmd: 'tool.run_source_action'}); /* an action sets values: data (W95) */
+  const busy = !useMay()({cmd: 'source.run_action'}); /* an action sets values: data (W95) */
   const source = useStore(s => s.text.source);
   if (!source) return <p class="text-empty">No source yet.</p>;
   const actionCount = source.comments.filter(c => c.hasAction).length;
@@ -94,7 +94,7 @@ function EquilibriumView() {
           title={busy ? BUSY_TITLE : 'Sing pts / Go: find the equilibrium closest to the current initial conditions'}>
           Find equilibrium
         </button>
-        <button data-button="equilibrium:import" onClick={() => session.importEquilibrium()} disabled={!eq || !may({cmd: 'equilibrium.import_as_ic'})}
+        <button data-button="equilibrium:import" onClick={() => session.importEquilibrium()} disabled={!eq || !may({cmd: 'initial_conditions.set_from_equilibrium'})}
           title="Make this equilibrium the initial conditions">
           Import
         </button>

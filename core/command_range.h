@@ -1,7 +1,7 @@
 #pragma once
 
 /* What the registry commands that run the Range sweep share (commands_run.cpp's run.range,
-   commands_analysis.cpp's analysis.lyapunov_exponent): the sweep's arguments, and the Range settings they set.
+   commands_analysis.cpp's lyapunov_exponent.compute): the sweep's arguments, and the Range settings they set.
    An argument left out keeps the setting the session has. */
 #include "command_def.h"
 #include "integrate.h"

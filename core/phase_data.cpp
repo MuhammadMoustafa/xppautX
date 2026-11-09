@@ -237,7 +237,7 @@ void send_nullclines(const xpp::Session &s, int pop, const PhaseShown::Nullcline
 void send_dfield(const GRAPH &g, const PhaseShown::Field &f)
 {
     std::string o;
-    begin_event(o, xpp::events::DIRFIELD_FIELD, g);
+    begin_event(o, xpp::events::DIRECTION_FIELD_FIELD, g);
     o += ",\"scaled\":";
     add_int(o, f.scaled);
     o += ",\"color\":";

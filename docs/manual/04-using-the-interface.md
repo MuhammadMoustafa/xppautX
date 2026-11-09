@@ -91,7 +91,7 @@ Correct the line and start XPP again.
 
 **Making room for the plot.** The plot comes first on every screen. Above it are the run controls (one or two
 rows; the status bar says Ready, Running and has the one Stop) and, in the plot's own header, its legend, **Freeze**,
-**Fit**, a **⋯** (Reset view, use this view, CSV and sets) and the window row: the graph's name, New window, Window
+**Fit**, a **⋯** (Reset zoom, use this view, CSV and sets) and the window row: the graph's name, New window, Window
 options and Capture. From 48 rem (768 px) the Values panel is a right column beside the plot; it can be hidden
 with the title bar's button and resized at its edge, including with the keyboard, and its size and visibility are
 remembered by this browser. Below 48 rem (a phone) the title bar is one row: the menu bar is a **drawer**
@@ -231,7 +231,7 @@ the earlier runs (drawn lighter until Erase, with a legend toggle) are
 held by the core's window and sent as data, so a saved session
 (File > Save session) keeps the zoom and the toggle; the earlier runs
 themselves are not saved. There is no zoom
-history: "Reset view" and the **Fit** button
+history: "Reset zoom" and the **Fit** button
 below are the way back. "Use this view" makes the client's current zoom
 the window's axes, so PDF/SVG export and Restore agree with
 what's on screen.

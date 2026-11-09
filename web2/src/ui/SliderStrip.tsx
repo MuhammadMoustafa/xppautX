@@ -73,7 +73,7 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
           onFocus={() => { focusValue.current = core !== undefined ? String(core) : null; }} />
         <button class="icon slider-card-edit" aria-label={`Edit slider ${label}`}
           title="Change the parameter or variable, min, max or step" onClick={onEdit}>&#9998;</button>
-        <button class="icon slider-card-remove" aria-label={`Remove slider ${label}`} title="Remove this slider"
+        <button class="icon slider-card-remove" aria-label={`Delete slider ${label}`} title="Delete this slider"
           onClick={() => session.removeSlider(def.id)}>&#10005;</button>
       </div>
       <div class="slider-card-track">

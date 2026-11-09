@@ -20,7 +20,7 @@ const NC: NullclinesEvent = {
 };
 
 const DF: DfieldEvent = {
-  ev: 'dirfield.field', win: 'graph_1', scaled: 1, color: 'foreground', n: 2, du: 1, dv: 1,
+  ev: 'direction_field.field', win: 'graph_1', scaled: 1, color: 'foreground', n: 2, du: 1, dv: 1,
   grid: [0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, -1, 0], speed: [2, 1, 0, 4],
   flows: [{color: '#ffa500', x: [0, 1, null, 2, 3, 4], y: [0, 1, null, 2, 3, 4]}],
 };

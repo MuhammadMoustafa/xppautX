@@ -1,7 +1,7 @@
 import {CommandButton, CommandLabel, useCommandLabel} from './CommandButton';
 /* The plot windows as tabs (docs/ui-v2.md T6): one tab per core window, the
    active one selected, each tab its own PlotView with its own zoom. The tabs
-   follow the core: window.create adds one, close and destroy_all remove
+   follow the core: window.new adds one, close and destroy_all remove
    them (the `plots` event), and picking a tab selects that named window, so keys and menus act on the window shown.
    Keyboard: the WAI-ARIA tabs pattern, automatic activation (arrow keys,
    Home, End move and select; Tab leaves the tab list). */
@@ -62,7 +62,7 @@ export function Plots({dark}: {dark: boolean}) {
   const redrawModeLabel = useCommandLabel('window.set_redraw_mode');
   /* a tab pick is a view: it works during a run too, only an open question waits (W95) */
   const tabOff = !may({cmd:'window.select',window:active});
-  const windowOff = !may({cmd:'window.create'}); /* Makewindow */
+  const windowOff = !may({cmd:'window.new'}); /* Makewindow */
   const tabs = useRef<HTMLDivElement>(null);
   /* the tab a key picked: a pick while the core is busy is held for its done
      (session.selectWindow); the tab the key picked gets the focus once it is
@@ -118,10 +118,10 @@ export function Plots({dark}: {dark: boolean}) {
         <div class="plot-window-tools">
           <WindowName name={active} disabled={windowOff} />
           <button class="small" disabled={windowOff} onClick={() => session.newWindow()}
-            title="Create a graph copied from the active graph"><CommandLabel command="window.create" /></button>
+            title="Create a graph copied from the active graph"><CommandLabel command="window.new" /></button>
           {tabbed && (
             <button class="small" disabled={windowOff || active === windows[0]?.win} onClick={() => session.closeWindow()}
-              title="Close this graph; the main graph stays open"><CommandLabel command="window.destroy" /></button>
+              title="Close this graph; the main graph stays open"><CommandLabel command="window.close" /></button>
           )}
           <details class="plot-window-options">
             <summary>Window options</summary>
@@ -129,7 +129,7 @@ export function Plots({dark}: {dark: boolean}) {
                 <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.redraw',window:active})}><CommandLabel command="window.redraw" /></button>
                 <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.clear',window:active})}><CommandLabel command="window.clear" /></button>
                 {['annotation.add_text','annotation.add_arrow','annotation.add_pointer','annotation.add_marker'].map(command => <CommandButton command={command} />)}
-                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.destroy_all'})}><CommandLabel command="window.destroy_all" /></button>
+                <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.close_extra'})}><CommandLabel command="window.close_extra" /></button>
                 <button class="small" disabled={windowOff} onClick={()=>session.send({cmd:'window.send_to_bottom',window:active})}><CommandLabel command="window.send_to_bottom" /></button>
                 <select aria-label={redrawModeLabel} disabled={windowOff} value={current?.info?.redraw_mode} onChange={e=>session.send({cmd:'window.set_redraw_mode',window:active,mode:e.currentTarget.value})}>
                   {modes.map(mode=><option value={mode}>{choiceLabel(mode)}</option>)}

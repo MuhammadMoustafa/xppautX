@@ -85,7 +85,7 @@ function Editor() {
   const otherRow = conflict ? rowOf(conflict.other) : undefined;
   const recordingRow = editor.recording ? rowOf(editor.recording.id) : undefined;
   const shown = editorRows(info, rows, editor.query);
-  return <Dialog title={<CommandLabel command="tool.keyboard_shortcuts" />} name="keyboard shortcuts" width="list" onClose={close} onKeyDown={onKeyDown}
+  return <Dialog title={<CommandLabel command="keymap.edit" />} name="keyboard shortcuts" width="list" onClose={close} onKeyDown={onKeyDown}
     attrs={{'data-keymap-editor': ''}} className="keymap-dialog">
       {!info.ok && <p class="field-error" role="alert" data-keymap-error>
         The keymap file could not be loaded ({info.file}{info.line ? `:${info.line}` : ''}): {info.error}. The default keys are shown; changing a key replaces the file.</p>}

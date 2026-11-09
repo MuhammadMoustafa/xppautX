@@ -21,7 +21,7 @@ const PLAYER: PlayerEvent = {
     {note: '', step: 'Run → Initial', cmd: {cmd: 'run.initial'}},
     {note: '', step: 'Zoom window 1', cmd: {cmd: 'window.set_bounds'}, view: true},
     {note: '', step: 'autoX → Run', cmd: {cmd: 'autox.run'}, answers: [{key: 'y'}]},
-    {note: '', step: 'File → Import XPPAUT set', cmd: {cmd: 'value.load_file'}, answers: [{file: 'x.set'}, null, ['a', 'b']]},
+    {note: '', step: 'File → Import XPPAUT set', cmd: {cmd: 'value.import_file'}, answers: [{file: 'x.set'}, null, ['a', 'b']]},
   ],
 };
 

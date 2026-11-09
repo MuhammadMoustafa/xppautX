@@ -24,7 +24,7 @@ namespace xpp {
 
 struct Session; /* session.h */
 
-/* the most parts (and bytes of their text) set.file_contents lists in one reply: a file of many sets is chosen by name */
+/* the most parts (and bytes of their text) set.list_file_contents lists in one reply: a file of many sets is chosen by name */
 inline constexpr std::size_t offered_parts_limit = 1000, offered_bytes_limit = 1024 * 1024;
 
 /* which part of a file: its defaults, one of its sets, or the whole of an XPPAUT file */

@@ -589,7 +589,7 @@ void redraw_dfield(xpp::Session &s)
 
 Result<> write_dfield(xpp::Session &s, std::string_view name, bool confirm)
 {
-  if(!dfield_shown(s))return fail("dirfield.export","No direction field is shown",command_place());
+  if(!dfield_shown(s))return fail("direction_field.export","No direction field is shown",command_place());
   /* in XPPAUT's PostScript page, whatever the window's, as --silent always
      wrote it: the arrows' lengths do not depend on the window's size */
   const DrawingState drawn=s.drawing;
@@ -597,7 +597,7 @@ Result<> write_dfield(xpp::Session &s, std::string_view name, bool confirm)
   Result<> opened;
   Writer w=confirm?open_writer_replacing(name,false,&opened):open_writer_asking(name,false,&opened);
   if(!opened){s.drawing=drawn;return opened;}
-  if(!w){s.drawing=drawn;return fail("dirfield.export","Output was not opened",command_place());}
+  if(!w){s.drawing=drawn;return fail("direction_field.export","Output was not opened",command_place());}
   dfield_of_window(s,&w);
   s.drawing=drawn;
   if(s.integrator.step_error){abort_save(w);return take_step_error(s);}
@@ -610,11 +610,11 @@ Result<> draw_direction_field(xpp::Session &s, int c, int grid)
   const int iny=s.plot_windows.current->yv[0]-1;
   const double dtold=s.numerics.delta_t;
   const double oldtrans=s.numerics.store_from;
-  if(!phase_plane(*s.plot_windows.current))return fail("dirfield","Not in a usable 2D plane",command_place());
+  if(!phase_plane(*s.plot_windows.current))return fail("direction_field","Not in a usable 2D plane",command_place());
   if(c==0)s.nullcline_state.dfield_type=1;
   if(c==4)s.nullcline_state.dfield_type=0;
   if(const char *no=xpp::rule_problem(xpp::OptionRule::whole_at_least_two,grid,xpp::option_limit::mesh)){
-    return fail("dirfield",xpp::format("Grid ({}) {}",grid,no),command_place());
+    return fail("direction_field",xpp::format("Grid ({}) {}",grid,no),command_place());
   }
   s.nullclines.df_grid=grid;
   double du=(s.plot_windows.current->xhi-s.plot_windows.current->xlo)/static_cast<double>(grid);

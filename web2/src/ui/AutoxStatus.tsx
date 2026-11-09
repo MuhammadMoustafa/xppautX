@@ -62,7 +62,7 @@ export function AutoxStatus() {
       {busy && (
         <button class="small danger autox-stop" disabled={stopping} onClick={() => session.abort()}
           title="Stop the running command (autoX keeps the points computed so far)">
-          {stopping ? 'Stopping…' : <CommandLabel command="run.abort" />}
+          {stopping ? 'Stopping…' : <CommandLabel command="run.stop" />}
         </button>
       )}
     </div>

@@ -856,14 +856,6 @@ std::optional<std::string> xpp_session_snapshot(xpp::Session &s)
     return std::move(*bytes);
 }
 
-int xpp_session_load(xpp::Session &s, const char *name_arg)
-{
-    std::string name;
-    if (!name_or_ask(s.model(), "Open session", "*" + std::string(xpp::snapx::extension), name_arg, name)) return 0;
-    xpp::ok_or_show(xpp_model_open(s, xpp::snapx::session_file_name(name).c_str()));
-    return 1;
-}
-
 bool xpp_saved_file_name(std::string_view path)
 {
     return xpp::snapx::is_session_file(path);

@@ -78,7 +78,7 @@ export function currentArguments(row: CommandRow, state: AppState): Record<strin
     }
     if (arg.type === 'map' && arg.name === 'values') {
       if (row.id === 'value.set_parameters') out[arg.name] = Object.fromEntries(state.core?.pars ?? []);
-      if (row.id === 'ic.set') out[arg.name] = Object.fromEntries(state.core?.ics ?? []);
+      if (row.id === 'initial_conditions.set') out[arg.name] = Object.fromEntries(state.core?.ics ?? []);
     }
   }
   return out;

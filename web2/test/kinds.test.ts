@@ -12,28 +12,28 @@ const may = (cmd: Command, computing: boolean, asking = false) =>
 
 test('W95: each action has the kind hello gives it', () => {
   assert.equal(kindOf(HELLO, {cmd: 'run.initial'}), 'computation');
-  assert.equal(kindOf(HELLO, {cmd:'window.create'}), 'view');
+  assert.equal(kindOf(HELLO, {cmd:'window.new'}), 'view');
   assert.equal(kindOf(HELLO, {cmd:'autox.run'}), 'computation');
   assert.equal(kindOf(HELLO, {cmd:'key',key:'g'}), null);
-  assert.equal(kindOf(HELLO, {cmd: 'browser.export', file: 'x'}), 'data');
-  assert.equal(kindOf(HELLO, {cmd: 'browser.page', from_row: 0, count: 10}), 'view');
-  assert.equal(kindOf(HELLO, {cmd: 'tool.run_user_button', index: 0}), 'computation');
+  assert.equal(kindOf(HELLO, {cmd: 'data.export', file: 'x'}), 'data');
+  assert.equal(kindOf(HELLO, {cmd: 'data.page', from_row: 0, count: 10}), 'view');
+  assert.equal(kindOf(HELLO, {cmd: 'button.run', index: 0}), 'computation');
   assert.equal(kindOf(HELLO, {cmd: 'nothing'}), null);
   assert.equal(kindOf(null, {cmd: 'display'}), null);
 });
 
 test('startup prompts accept answers and cancellation before hello', () => {
-  for (const cmd of [{cmd: 'answer', id: 1, file: 'lecar.odex'}, {cmd: 'run.abort'}, {cmd: 'session.quit'}])
+  for (const cmd of [{cmd: 'answer', id: 1, file: 'lecar.odex'}, {cmd: 'run.stop'}, {cmd: 'session.quit'}])
     assert.ok(mayStart(kindOf(null, cmd), false, true), JSON.stringify(cmd));
   assert.ok(!mayStart(kindOf(null, {cmd: 'run.steady'}), false, true));
 });
 
 test('W95: controls, views and settings run during a computation; questions allow controls and settings', () => {
-  for (const cmd of ['run.abort','window.create','run.configure','autox.configure_numerics']) assert.ok(may({cmd},true));
-  for (const cmd of ['run.initial','browser.export','autox.run','unknown']) assert.ok(!may({cmd},true));
+  for (const cmd of ['run.stop','window.new','run.configure','autox.configure_numerics']) assert.ok(may({cmd},true));
+  for (const cmd of ['run.initial','data.export','autox.run','unknown']) assert.ok(!may({cmd},true));
   assert.ok(may({cmd:'run.configure'},true,true));
   assert.ok(may({cmd:'answer',id:1},false,true));
-  assert.ok(!may({cmd:'window.create'},false,true));
+  assert.ok(!may({cmd:'window.new'},false,true));
   assert.ok(!may({cmd:'run.initial'},false,true));
 });
 

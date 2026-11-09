@@ -27,7 +27,7 @@ test('W647: the window (its __xppCloseWindow bound) has no Quit; a browser has i
     assert.ok(!registryRows(REGISTRY_HELLO).some(r => r.id === 'session.quit'));
     assert.ok(registryRows(REGISTRY_HELLO).length > 150);
   } finally { delete w.__xppCloseWindow; }
-  const about = rows.find(r => r.id === 'tool.about');
+  const about = rows.find(r => r.id === 'about.open');
   assert.equal(about?.label, 'About xppautX');
   assert.equal(about?.menu_path, 'Help');
 });

@@ -22,11 +22,11 @@ const bound = (id: string, keys: string[]): KeymapInfo =>
 
 test('the table has the frequent commands on the default keys, the rest on none', () => {
   assert.deepEqual(effectiveKeys(info, row('run.initial')), ['Ctrl+R']);
-  assert.deepEqual(effectiveKeys(info, row('run.abort')), ['Escape']);
-  assert.deepEqual(effectiveKeys(info, row('tool.command_palette')), ['Ctrl+Shift+P']);
+  assert.deepEqual(effectiveKeys(info, row('run.stop')), ['Escape']);
+  assert.deepEqual(effectiveKeys(info, row('command_palette.open')), ['Ctrl+Shift+P']);
   assert.deepEqual(effectiveKeys(info, row('run.steady')), []);
-  assert.deepEqual(effectiveKeys(info, row('tool.keyboard_shortcuts')), []);
-  assert.ok(row('tool.keyboard_shortcuts'));
+  assert.deepEqual(effectiveKeys(info, row('keymap.edit')), []);
+  assert.ok(row('keymap.edit'));
 });
 
 test('a recorded key: Esc cancels, Backspace clears, a reserved key is refused, a taken key is a conflict', () => {
@@ -62,24 +62,24 @@ test('an edit is the user\'s differences with that change: set, add, remove, res
   assert.deepEqual(withKey(info, row('session.open_model'), 0, 'Ctrl+B'), {pinned: [], bindings: {'session.open_model': ['Ctrl+B']}});
   /* a second binding keeps the first; a command with no keys gets one */
   assert.deepEqual(withKey(info, row('session.open_model'), 1, 'F9').bindings, {'session.open_model': ['Ctrl+O', 'F9']});
-  assert.deepEqual(withKey(info, row('tool.keyboard_shortcuts'), 0, 'F9').bindings, {'tool.keyboard_shortcuts': ['F9']});
+  assert.deepEqual(withKey(info, row('keymap.edit'), 0, 'F9').bindings, {'keymap.edit': ['F9']});
   /* removing the last key is a binding of [] (no key), not the default again */
   assert.deepEqual(withoutKey(info, row('session.open_model'), 0).bindings, {'session.open_model': []});
   const changed = bound('session.open_model', ['Ctrl+B']);
   assert.deepEqual(withoutBinding(changed, 'session.open_model').bindings, {});
   /* the other commands' bindings, the pins are carried */
-  const mixed: KeymapInfo = {...bound('tool.calculator', ['F9']), pinned: ['tool.calculator']};
+  const mixed: KeymapInfo = {...bound('calculator.evaluate', ['F9']), pinned: ['calculator.evaluate']};
   assert.deepEqual(withKey(mixed, row('session.open_model'), 0, 'Ctrl+B'),
-    {pinned: ['tool.calculator'], bindings: {'tool.calculator': ['F9'], 'session.open_model': ['Ctrl+B']}});
+    {pinned: ['calculator.evaluate'], bindings: {'calculator.evaluate': ['F9'], 'session.open_model': ['Ctrl+B']}});
   /* Replace gives the key to the command and takes it from the one that had it */
   assert.deepEqual(replaceKey(info, rows, row('session.open_model'), 0, 'Ctrl+S').bindings, {'session.open_model': ['Ctrl+S'], 'session.save': []});
-  assert.deepEqual(withPinned(info, ['tool.calculator']).pinned, ['tool.calculator']);
+  assert.deepEqual(withPinned(info, ['calculator.evaluate']).pinned, ['calculator.evaluate']);
 });
 
 test('where a command\'s keys come from: default, changed (instead of the table\'s) or user (it had none)', () => {
   assert.equal(sourceLabel(info, row('session.open_model')), 'default');
   assert.equal(sourceLabel(bound('session.open_model', ['Ctrl+B']), row('session.open_model')), 'changed');
-  assert.equal(sourceLabel(bound('tool.keyboard_shortcuts', ['F9']), row('tool.keyboard_shortcuts')), 'user');
+  assert.equal(sourceLabel(bound('keymap.edit', ['F9']), row('keymap.edit')), 'user');
   assert.deepEqual(userKeymap(bound('session.open_model', [])).bindings, {'session.open_model': []});
 });
 
@@ -87,20 +87,20 @@ test('the editor\'s search matches label, description, id and the keys pressed',
   const ids = (query: string, from: KeymapInfo = info) => editorRows(from, rows, query).map(r => r.id);
   assert.ok(ids('session.open_model').includes('session.open_model'));
   assert.ok(ids('Ctrl+R').includes('run.initial'));
-  assert.deepEqual(ids('ctrl+shift+p'), ['tool.command_palette']);
-  assert.deepEqual(ids('escape'), ['run.abort']);
+  assert.deepEqual(ids('ctrl+shift+p'), ['command_palette.open']);
+  assert.deepEqual(ids('escape'), ['run.stop']);
   assert.ok(ids('initial').includes('run.initial'));
   /* the user's keys are searched, not the table's */
-  assert.deepEqual(ids('f9', bound('tool.calculator', ['F9'])), ['tool.calculator']);
+  assert.deepEqual(ids('f9', bound('calculator.evaluate', ['F9'])), ['calculator.evaluate']);
   assert.deepEqual(ids('f9'), []);
   assert.equal(editorRows(info, rows, '').length, rows.length);
 });
 
 test('pins: the pinned commands that may be pinned, in order; toggled, moved', () => {
-  const pinned: KeymapInfo = {...info, pinned: ['tool.calculator', 'session.open_model', 'run.steady']};
-  assert.deepEqual(pinnedRows(pinned, rows).map(r => r.id), ['tool.calculator', 'session.open_model', 'run.steady']);
+  const pinned: KeymapInfo = {...info, pinned: ['calculator.evaluate', 'session.open_model', 'run.steady']};
+  assert.deepEqual(pinnedRows(pinned, rows).map(r => r.id), ['calculator.evaluate', 'session.open_model', 'run.steady']);
   assert.deepEqual(pinnedRows(null, rows), []);
-  assert.deepEqual(pinnedRows({...info, pinned: ['nosuch', 'tool.calculator']}, rows).map(r => r.id), ['tool.calculator']);
+  assert.deepEqual(pinnedRows({...info, pinned: ['nosuch', 'calculator.evaluate']}, rows).map(r => r.id), ['calculator.evaluate']);
   assert.deepEqual(togglePinned(['a', 'b'], 'c'), ['a', 'b', 'c']);
   assert.deepEqual(togglePinned(['a', 'b'], 'a'), ['b']);
   assert.deepEqual(movePinned(['a', 'b', 'c'], 'c', 0), ['c', 'a', 'b']);

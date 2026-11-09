@@ -48,7 +48,7 @@ export function StatusBar() {
         <button class={`small danger${busy ? ' shown' : ''}`} disabled={!busy || stopping}
           tabIndex={busy ? 0 : -1} onClick={() => session.abort()}
           title="Stop the running command (Escape does the same)">
-          {stopping ? 'Stopping…' : <CommandLabel command="run.abort" />}
+          {stopping ? 'Stopping…' : <CommandLabel command="run.stop" />}
         </button>
       </span>
     </footer>

@@ -237,14 +237,14 @@ def ensure_completed(events, end):
 
 
 def set_values(s, values):
-    """Parameters and initial conditions as their commands: `value.set_parameters` for the parameters, `ic.set` for the states"""
+    """Parameters and initial conditions as their commands: `value.set_parameters` for the parameters, `initial_conditions.set` for the states"""
     # to 16 significant digits, as the baselines were made (the old `set` took a value's text that way)
     parameters = {v['name']: float('%.16g' % v['value']) for v in values if v['kind'] == 'par'}
     states = {v['name']: float('%.16g' % v['value']) for v in values if v['kind'] == 'ic'}
     if parameters:
         completed(s, dict(cmd='value.set_parameters', values=parameters))
     if states:
-        completed(s, dict(cmd='ic.set', values=states))
+        completed(s, dict(cmd='initial_conditions.set', values=states))
 
 
 def restore_start(s, r, values, ranges):
@@ -295,7 +295,7 @@ def execute_run(s, r, diagram, ranges, diagram_data=True):
     completed(s, dict(cmd='autox.configure_numerics', **{'follow_all_branches': False, **r['autox']}))
     marks = r.get('marks', [])
     completed(s, dict(cmd='autox.configure_marks', parameters=[m[0] for m in marks], values=[m[1] for m in marks]))
-    diagram.apply(completed(s, dict(cmd='autox.configure_plot', parameter1=pars[0],
+    diagram.apply(completed(s, dict(cmd='autox.configure_axes', parameter1=pars[0],
                                    **({'parameter2': pars[1], 'plot_type': 'two_parameter'} if len(pars) == 2 else {}))))
     if r.get('switch'):
         run['switch'] = True

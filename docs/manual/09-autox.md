@@ -14,7 +14,7 @@ closes autoX; File autoX opens it again (the diagram stays the session's).
 **Hide autoX** hides every view and **Show autoX** brings them back with their
 axes and zoom: they are `window.hide` and `window.show` of each view, so a
 script does the same. Scripts use `window.rename`, `window.select` and
-`window.destroy` with the same quoted name (W353).
+`window.close` with the same quoted name (W353).
 
 Before a run, autoX checks the start. Initial conditions for a steady-state
 run whose largest equation residual is above `state_tolerance` are first refined by
@@ -45,10 +45,10 @@ back). It has:
   type (below), and the segment from a Hopf point to the first point of
   the periodic branch it started (`from`, which XPP itself leaves blank);
   it zooms (wheel) and pans (Shift+drag or the middle button) in the
-  page, the core holding the zoom shown (`autoxview`), with no history (Reset view goes back to autoX's own axes), and
+  page, the core holding the zoom shown (`autoxview`), with no history (Reset zoom goes back to autoX's own axes), and
   a tooltip or the readout names the point under the mouse or cursor; a
   **Fit** button in the diagram's own top-right corner (also in the tools
-  row, alongside Reset view) fits the view to the branches currently
+  row, alongside Reset zoom) fits the view to the branches currently
   shown, client-side — earlier branches stay out of it unless "Earlier
   branches" is on;
 - the diagram's **legend**, one entry per branch, stability and kind: a

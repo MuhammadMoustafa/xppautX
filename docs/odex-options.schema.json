@@ -36,9 +36,9 @@
         "delay.grid": {"type": "integer", "minimum": 1, "title": "Delay grid", "description": "How many points a side the grid of a delay equilibrium's eigenvalue search has."},
         "euler.tolerance": {"type": "number", "exclusiveMinimum": 0, "title": "Newton tolerance", "description": "The Newton tolerance of the implicit Euler method."},
         "euler.iterations": {"type": "integer", "minimum": 1, "title": "Newton iterations", "description": "The most Newton iterations the implicit Euler method makes in a step."},
-        "bvp.max_iterates": {"type": "integer", "minimum": 1, "title": "BVP maximum iterates", "description": "The most Newton iterates a boundary value solve makes."},
-        "bvp.tolerance": {"type": "number", "exclusiveMinimum": 0, "title": "BVP tolerance", "description": "The tolerance a boundary value solve stops at."},
-        "bvp.epsilon": {"type": "number", "exclusiveMinimum": 0, "title": "BVP epsilon", "description": "The step that differences the boundary value problem's Jacobian."},
+        "boundary_value.max_iterates": {"type": "integer", "minimum": 1, "title": "BVP maximum iterates", "description": "The most Newton iterates a boundary value solve makes."},
+        "boundary_value.tolerance": {"type": "number", "exclusiveMinimum": 0, "title": "BVP tolerance", "description": "The tolerance a boundary value solve stops at."},
+        "boundary_value.epsilon": {"type": "number", "exclusiveMinimum": 0, "title": "BVP epsilon", "description": "The step that differences the boundary value problem's Jacobian."},
         "torus.period": {"type": "number", "exclusiveMinimum": 0, "title": "Torus period", "description": "The period of the variables that live on a circle or torus."},
         "torus.fold": {"type": "string", "pattern": "^[A-Za-z0-9_.+-]+$", "title": "Torus fold", "description": "A variable that is taken modulo the torus period; each names one.", "x-repeatable": true}
       }

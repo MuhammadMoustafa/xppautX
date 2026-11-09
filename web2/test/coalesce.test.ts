@@ -6,9 +6,9 @@ import {initialValues, reduceValues, valueCommands} from '../src/store/values';
 
 const HELLO = {commands: [
   {cmd: 'run.configure', arguments: [{name: 'total_time', type: 'real'}, {name: 'method', type: 'text'}, {name: 'stop_at_limit', type: 'boolean'}]},
-  {cmd: 'bvp.configure', arguments: [{name: 'max_iterates', type: 'integer'}]}]} as never;
+  {cmd: 'boundary_value.configure', arguments: [{name: 'max_iterates', type: 'integer'}]}]} as never;
 
-test('values go out as the commands that take them: parameters in value.set_parameters, states in ic.set, numerics in their own', () => {
+test('values go out as the commands that take them: parameters in value.set_parameters, states in initial_conditions.set, numerics in their own', () => {
   assert.deepEqual(valueCommands(HELLO, []), []);
   assert.deepEqual(valueCommands(HELLO, [{kind: 'par', name: 'iapp', text: '0.1'}]).map(c => c.command),
     [{cmd: 'value.set_parameters', values: {iapp: 0.1}}]);
@@ -22,11 +22,11 @@ test('values go out as the commands that take them: parameters in value.set_para
     {kind: 'ic', name: 'v', text: '-0.2'}, {kind: 'ic', name: 'w', text: '%2*0.1'}, {kind: 'num', name: 'total_time', text: '30'},
     {kind: 'num', name: 'method', text: 'euler'}, {kind: 'num', name: 'stop_at_limit', text: 'true'}, {kind: 'num', name: 'bvp_max_iterates', text: '5'},
     {kind: 'num', name: 'nullcline_mesh', text: '40'}]).map(c => c.command), [
-    {cmd: 'ic.set', values: {v: -0.2}},
-    {cmd: 'ic.formula', variable: 'w', formula: '2*0.1'},
+    {cmd: 'initial_conditions.set', values: {v: -0.2}},
+    {cmd: 'initial_conditions.set_by_formula', variable: 'w', formula: '2*0.1'},
     {cmd: 'nullcline.set_mesh', mesh: 40},
     {cmd: 'run.configure', total_time: 30, method: 'euler', stop_at_limit: true},
-    {cmd: 'bvp.configure', max_iterates: 5},
+    {cmd: 'boundary_value.configure', max_iterates: 5},
   ]);
 });
 

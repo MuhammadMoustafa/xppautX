@@ -51,7 +51,7 @@ interface DisplayPatch {
 /** the display key of view k of the autoX diagram: 0, -1, -2 ... (the plot windows are 1 up) */
 /** the scope of the core's `set.restore_defaults` for a values section (docs/protocol.md) */
 const RESTORE_SCOPE = {par: 'parameters', ic: 'initial'} as const;
-/** the kind of file the core's `value.load_file` takes for a values section */
+/** the kind of file the core's `value.import_file` takes for a values section */
 const VALUE_FILE = {par: 'parameters', ic: 'initial_conditions'} as const;
 
 
@@ -218,7 +218,7 @@ export class Session {
       }
       this.nativeSave = null;
     } else if (ev.ev === 'done') {
-      /* `set.file_contents` (a section's Load from file, or File > Sets > Load from file): its done lists the parts to offer */
+      /* `set.list_file_contents` (a section's Load from file, or File > Sets > Load from file): its done lists the parts to offer */
       const parts = ev.status === 'ok' ? ev.result?.parts : null;
       if (Array.isArray(parts))
         this.store.dispatch({type: 'valuesFile', offer: {file: String(ev.result?.file), scope: String(ev.result?.scope), format: String(ev.result?.format), parts: parts as ValuesPart[]}});
@@ -311,13 +311,13 @@ export class Session {
   registryAction(id: string, values: Record<string, unknown> = {}, fixed: string[] = []): void {
     const row = registryRows(this.store.getState().hello).find(row => row.id === id);
     if (!row) { this.failed(`Unknown command ${id}`); return; }
-    if (id === 'tool.values') this.store.dispatch({type: 'valuesPanel', open: true});
-    else if (id === 'tool.browser') this.openTable();
-    else if (id === 'tool.command_palette') this.store.dispatch({type: 'drawer', open: true});
-    else if (id === 'tool.keyboard_shortcuts') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
+    if (id === 'values.open') this.store.dispatch({type: 'valuesPanel', open: true});
+    else if (id === 'data.open') this.openTable();
+    else if (id === 'command_palette.open') this.store.dispatch({type: 'drawer', open: true});
+    else if (id === 'keymap.edit') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
     else if (id === 'session.get_source') {this.openText();}
-    else if (id === 'tool.manual') this.store.dispatch({type: 'help', action: {type: 'open'}});
-    else if (id === 'tool.about') this.store.dispatch({type: 'help', action: {type: 'about'}});
+    else if (id === 'manual.open') this.store.dispatch({type: 'help', action: {type: 'open'}});
+    else if (id === 'about.open') this.store.dispatch({type: 'help', action: {type: 'about'}});
     else if (id === 'array_plot.open') this.openAplot();
     else if (id === 'animation.open') this.openAni();
     else if (id === 'annotation.list') {
@@ -533,12 +533,12 @@ export class Session {
 
   /** Makewindow/Create: a copy of the active window, which becomes active */
   newWindow(): void {
-    this.send({cmd:'window.create'});
+    this.send({cmd:'window.new'});
   }
 
   /** Makewindow/Destroy: the active window (never window 1) */
   closeWindow(): void {
-    this.send({cmd:'window.destroy',window:this.store.getState().plots.active});
+    this.send({cmd:'window.close',window:this.store.getState().plots.active});
   }
 
   /* ---- the display state (W65) ---- */
@@ -577,7 +577,7 @@ export class Session {
     this.displayDones = this.donesOwed;
   }
 
-  /** window `win`'s zoom changed (a wheel, a drag, a typed range, Reset view) */
+  /** window `win`'s zoom changed (a wheel, a drag, a typed range, Reset zoom) */
   setViewport(win: string, viewport: Viewport): void {
     this.store.dispatch({type: 'viewport', viewport, win});
     this.display(win, rangesOf(viewport));
@@ -600,7 +600,7 @@ export class Session {
 
   /** a view of the autoX diagram closed (the last one stays: the core refuses it) */
   closeView(view: number): void {
-    this.send({cmd:'window.destroy',window:this.store.getState().diagram.views[view].name});
+    this.send({cmd:'window.close',window:this.store.getState().diagram.views[view].name});
   }
 
   /** the legend's "previous runs" toggle of window `win` */
@@ -691,7 +691,7 @@ export class Session {
   /** stops the running command; it still ends with its done */
   abort(): void {
     this.store.dispatch({type: 'aborting'});
-    this.transport.send({cmd: 'run.abort'});
+    this.transport.send({cmd: 'run.stop'});
   }
 
   /* ---- the autoX view (docs/ui-v2.md T11a, docs/protocol.md `auto`) ---- */
@@ -732,7 +732,7 @@ export class Session {
         + 'labelled point of the periodic branch (Tab steps through them) to plot its limit cycle.'});
       return;
     }
-    this.send({cmd: 'autox.load_orbit_into_browser'});
+    this.send({cmd: 'autox.show_orbit'});
   }
 
   /** autoX's settings edited in the page's forms (T22, store/autoxSettings.ts):
@@ -747,7 +747,7 @@ export class Session {
       behind the run. */
   closeAutox(): void {
     const {busy, stopping, diagram} = this.store.getState();
-    const commands = diagram.views.map(v => ({cmd: 'window.destroy', window: v.name}));
+    const commands = diagram.views.map(v => ({cmd: 'window.close', window: v.name}));
     if (!busy) {
       for (const command of commands) this.send(command);
       return;
@@ -823,7 +823,7 @@ export class Session {
   }
 
   removeSlider(id: number): void {
-    this.send({cmd: 'value.remove_slider', slot: id - 1});
+    this.send({cmd: 'value.delete_slider', slot: id - 1});
   }
 
   /** a slider moved: sent like any other edit (W106) */
@@ -856,13 +856,13 @@ export class Session {
     this.edit({kind: 'num', name: key, text});
   }
 
-  /** Load values from a file by scope (W321, docs/protocol.md `set.file_contents`): the picked file goes into the model's
+  /** Load values from a file by scope (W321, docs/protocol.md `set.list_file_contents`): the picked file goes into the model's
       folder as every upload does, the core reads it whole and lists the parts that hold `scope`'s kind, and the page
       offers them (ui/ValuesFileDialog.tsx); the part chosen is loaded by loadValuesPart. */
   async offerValuesFile(scope: string, file: File): Promise<void> {
     const uploads = await this.upload([{file, name: file.name}], null, true);
     if (!uploads) return;
-    this.send({cmd: 'set.file_contents', file: uploads[0].name, scope});
+    this.send({cmd: 'set.list_file_contents', file: uploads[0].name, scope});
   }
 
   /** the offered part chosen: `set.load_file` applies it limited to the scope, and the offer closes */
@@ -874,14 +874,14 @@ export class Session {
   /** Load of a section's XPPAUT .par/.ic (W66 review; an import, nothing of ours writes these files, W321): the
       picked file goes into the model's folder through `upload`, as every
       upload does (the same name with other content asks first: Replace,
-      Keep both, Cancel; W134), then the core reads it with `value.load_file`
+      Keep both, Cancel; W134), then the core reads it with `value.import_file`
       -- at once, not staged as a pending edit (the values panel has nothing
       left to parse). A bad file's `message` `error` (core/lunch-new.cpp,
       e.g. "Expected N initial conditions...") becomes a notification the
       same way any other command's does. */
   async loadValues(kind: 'par' | 'ic', file: File): Promise<void> {
     const uploads = await this.upload([{file, name: file.name}], null, true);
-    if (uploads) this.send({cmd: 'value.load_file', kind: VALUE_FILE[kind], file: uploads[0].name});
+    if (uploads) this.send({cmd: 'value.import_file', kind: VALUE_FILE[kind], file: uploads[0].name});
   }
 
   /* ---- recording (W59a, docs/protocol.md "Recordings") ---- */
@@ -959,7 +959,7 @@ export class Session {
 
   /** an `@ button` of the ODE file */
   userButton(index: number): void {
-    this.send({cmd: 'tool.run_user_button', index});
+    this.send({cmd: 'button.run', index});
   }
 
   /* ---- data table (docs/ui-v2.md T10, docs/protocol.md `browser`) ---- */
@@ -971,7 +971,7 @@ export class Session {
   /** stops the core sending further blocks (docs/protocol.md: `count` 0 stops the updates) */
   closeTable(): void {
     this.store.dispatch({type: 'table', action: {type: 'open', open: false}});
-    this.send({cmd: 'browser.page', from_row: 0, count: 0});
+    this.send({cmd: 'data.page', from_row: 0, count: 0});
   }
 
   /** the row the arrow keys, a click, Home/End move to */
@@ -993,7 +993,7 @@ export class Session {
     const key = JSON.stringify(req);
     if (key === pendingKey) return;
     this.store.dispatch({type: 'table', action: {type: 'requested', req}});
-    this.send({cmd: 'browser.page', from_row: req.from, count: req.count, first_column: req.col, columns: req.ncol});
+    this.send({cmd: 'data.page', from_row: req.from, count: req.count, first_column: req.col, columns: req.ncol});
   }
 
   /** one of the browser's buttons, on the selected row (docs/protocol.md
@@ -1008,7 +1008,7 @@ export class Session {
 
   /** Get: the selected row becomes the initial conditions (the next `state` has them) */
   getRow(): void {
-    this.send({cmd: 'ic.from_data_row', row: this.store.getState().table.selected});
+    this.send({cmd: 'initial_conditions.set_from_data_row', row: this.store.getState().table.selected});
   }
 
   /** Save data (docs/protocol.md "Saving data"): the core itself writes
@@ -1022,10 +1022,10 @@ export class Session {
     name ??= base && `${base.replace(/\.csv$/, '')}.${format}`;
     if (!name) return;
     const target = what === 'plot' ? 'plot_curves' : 'table';
-    if (nativeFileDialog()) this.send({cmd: 'browser.export', target, format});
+    if (nativeFileDialog()) this.send({cmd: 'data.export', target, format});
     else {
       this.pendingSave = {name, handle: null, ahead: this.donesOwed};
-      this.send({cmd: 'browser.export', target, format, file: name});
+      this.send({cmd: 'data.export', target, format, file: name});
     }
   }
 
@@ -1227,7 +1227,7 @@ export class Session {
       (docs/protocol.md `action`): a comment with a `{par=value,...}` block,
       shown as a button on its line (ui/TextViews.tsx) */
   runAction(index: number): void {
-    this.send({cmd: 'tool.run_source_action', index});
+    this.send({cmd: 'source.run_action', index});
   }
 
   /** Find the equilibrium from the current initial conditions. */
@@ -1238,7 +1238,7 @@ export class Session {
   /** the equilibrium window's Import: the last equilibrium becomes the
       initial conditions (the next `state` has them) */
   importEquilibrium(): void {
-    this.send({cmd: 'equilibrium.import_as_ic'});
+    this.send({cmd: 'initial_conditions.set_from_equilibrium'});
   }
 
   /* ---- files (docs/ui-v2.md section 4, T5): the model's folder is the workspace ---- */

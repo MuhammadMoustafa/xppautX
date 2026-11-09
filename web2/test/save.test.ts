@@ -95,7 +95,7 @@ test('W177: desktop CSV buttons ask the core for a picker destination', () => {
     const {s, sent} = saving();
     for (const [what, target] of [['table', 'table'], ['plot', 'plot_curves']] as const) {
       s.writeDataFile(what, 'csv');
-      assert.deepEqual(sent.at(-1), {cmd: 'browser.export', target, format: 'csv'});
+      assert.deepEqual(sent.at(-1), {cmd: 'data.export', target, format: 'csv'});
     }
   } finally {
     if (original) Object.defineProperty(globalThis, 'window', original);
@@ -154,7 +154,7 @@ test('W303: a denied native save retries only after idle, in the writable model 
     emit({ev: 'session.message', error: 'cannot open data.csv: Permission denied: the folder /protected needs administrator rights; choose another place'});
     assert.equal(sent.length, before);
     emit({ev: 'done', status: 'ok'});
-    assert.deepEqual(sent.at(-1), {cmd: 'browser.export', target: 'table', format: 'csv'});
+    assert.deepEqual(sent.at(-1), {cmd: 'data.export', target: 'table', format: 'csv'});
     const retry = {...ask, id: 8};
     s.store.dispatch({type: 'event', ev: retry});
     await s.nativeFile(retry);

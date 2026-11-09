@@ -182,7 +182,7 @@ void h_back(xpp::Session &s)
 */
 void make_adj_com(xpp::Session &s, int com)
 {
-/* the Adjoint items of an imported button sequence (kbs.h): the questions the registry's analysis.adjoint_* commands take as arguments are asked here, then the command's own function runs */
+/* the Adjoint items of an imported button sequence (kbs.h): the questions the registry's adjoint.*  commands take as arguments are asked here, then the command's own function runs */
 static const char *const key="nmaohpr";
  switch(key[com]){
  case 'n': 

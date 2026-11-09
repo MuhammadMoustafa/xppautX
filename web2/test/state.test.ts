@@ -51,7 +51,7 @@ test('busy from a command to its done; an answer closes the ask', () => {
   assert.equal(s.busy, true);
   s = ev(s, {ev: 'done', status: 'ok'});
   assert.equal(s.busy, false);
-  assert.equal(reduce(s, {type: 'sent', cmd: {cmd: 'run.abort'}}), s, 'abort has no done');
+  assert.equal(reduce(s, {type: 'sent', cmd: {cmd: 'run.stop'}}), s, 'abort has no done');
 });
 
 test('a phase plane is an xy plot, a time plot an aligned one', () => {

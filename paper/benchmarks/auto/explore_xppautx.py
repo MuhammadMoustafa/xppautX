@@ -45,7 +45,7 @@ def main():
         step(s, cmd='run.initial', timeout=600)
         step(s, cmd='equilibrium.configure', print_eigenvalues=False, draw_strong_sets=False)
         step(s, cmd='equilibrium.find')
-        step(s, cmd='equilibrium.import_as_ic')
+        step(s, cmd='initial_conditions.set_from_equilibrium')
         open_auto(s)
         print(numerics(s, parameter_max=float(parmax), parameter_min=float(parmin), norm_min=-200,
                        norm_max=200, max_step_size=float(dsmax), max_steps=int(nmax)))

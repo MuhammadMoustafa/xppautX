@@ -165,9 +165,9 @@ void read_numerics(const xpp::Session &s, Lines &l, Settings &f)
   /* XPPAUT's set file labels the Jacobian's epsilon with Newton's name */
   keep_real(s,l,f,method,"equilibria.jacobian_step","Newton tolerance");
   keep_real(s,l,f,method,"poincare.plane","Poincare plane");
-  keep_real(s,l,f,method,"integration.bvp.tolerance","Boundary value tolerance");
-  keep_real(s,l,f,method,"integration.bvp.epsilon","Boundary value epsilon");
-  keep_whole(s,l,f,method,"integration.bvp.max_iterates","Boundary value iterates");
+  keep_real(s,l,f,method,"integration.boundary_value.tolerance","Boundary value tolerance");
+  keep_real(s,l,f,method,"integration.boundary_value.epsilon","Boundary value epsilon");
+  keep_whole(s,l,f,method,"integration.boundary_value.max_iterates","Boundary value iterates");
   const int map=l.whole("the Poincare map");
   if(map<0||map>=static_cast<int>(poincare_names.size()))
     l.fail(xpp::format("{} is not a Poincare map's number (0 to {})",map,poincare_names.size()-1));

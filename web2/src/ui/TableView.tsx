@@ -14,9 +14,9 @@
    on the selected row, grouped as Find, Rows, Columns (and More): where the
    panel is narrow (a container query, css/panels.css) Rows and Columns are
    two menus. Find and Replace prompt through the ordinary `ask`. Load data
-   and one Export data menu, one entry per format of browser.export's
+   and one Export data menu, one entry per format of data.export's
    `format` choice (the last used first, marked), are in the header; Export
-   sends browser.export through the session's one export path. */
+   sends data.export through the session's one export path. */
 import {openPanel} from './hotkeys';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
@@ -192,8 +192,8 @@ export function TableView() {
     </>
   );
 
-  /* Export data: one entry per format of browser.export's `format` choice, the last used first and marked */
-  const formats = commandRow(hello, 'browser.export')?.arguments?.find(a => a.name === 'format')?.choices ?? [];
+  /* Export data: one entry per format of data.export's `format` choice, the last used first and marked */
+  const formats = commandRow(hello, 'data.export')?.arguments?.find(a => a.name === 'format')?.choices ?? [];
   const [lastFormat, setLastFormat] = useState(() => readPref(FORMAT_KEY, v => (typeof v === 'string' ? v : null), ''));
   const ordered = [...formats].sort((a, b) => Number(b === lastFormat) - Number(a === lastFormat));
   const exportAs = (format: string) => {
@@ -201,22 +201,22 @@ export function TableView() {
     writePref(FORMAT_KEY, format);
     session.writeDataFile('table', format);
   };
-  const exportOff = !page?.data.length || !may({cmd: 'browser.export'});
+  const exportOff = !page?.data.length || !may({cmd: 'data.export'});
   const selectedT = rowAt(page, selected)?.[0];
   const sliced = page && (page.start > 0 || page.end < rows);
 
   return (
-    <section id="table-panel" ref={panel} class={'table-panel panel-sheet' + (open ? ' open' : '')} aria-label={useCommandLabel('tool.browser')}>
+    <section id="table-panel" ref={panel} class={'table-panel panel-sheet' + (open ? ' open' : '')} aria-label={useCommandLabel('data.open')}>
       <div class="panel-header">
         <button class="table-back" onClick={close}>Back to Values</button>
         <button class="table-close" onClick={close} aria-label="Close" title="Close">×</button>
         <div class="table-title">
-          <h2><CommandLabel command="tool.browser" /></h2>
+          <h2><CommandLabel command="data.open" /></h2>
           <HelpButton target={HELP.dataTab} label="the Data tab" />
         </div>
         <div class="table-actions">
         {button('load', false)}
-        <DropDownMenu normal id="table-export" label={commandRow(hello, 'browser.export')?.label ?? ''}>
+        <DropDownMenu normal id="table-export" label={commandRow(hello, 'data.export')?.label ?? ''}>
           {ordered.map(format => (
             <li key={format}>
               <button role="menuitem" data-export-format={format} disabled={exportOff}
@@ -236,8 +236,8 @@ export function TableView() {
         {!rows ? 'No data yet: integrate first.' : <>
           {`${rows} rows`}{sliced && ` · rows ${page.start}..${Math.max(page.start, page.end - 1)} kept`}
           {` · row ${selected}`}{selectedT !== undefined && selectedT !== null && ` (t = ${selectedT})`}{' selected'}
-          {' '}<button class="small" data-button="ic.from_data_row" disabled={!may({cmd: 'ic.from_data_row', row: 0})}
-            title={commandRow(hello, 'ic.from_data_row')?.description} onClick={() => session.getRow()}>Use row {selected} as initial conditions</button>
+          {' '}<button class="small" data-button="initial_conditions.set_from_data_row" disabled={!may({cmd: 'initial_conditions.set_from_data_row', row: 0})}
+            title={commandRow(hello, 'initial_conditions.set_from_data_row')?.description} onClick={() => session.getRow()}>Use row {selected} as initial conditions</button>
         </>}
       </p>
       <div class="table-grid-wrap" ref={scroller} role="grid" aria-label="Stored data" style={{'--table-cols': cols.length}} aria-rowcount={rows + 1}

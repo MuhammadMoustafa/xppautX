@@ -392,7 +392,7 @@ Result<> set_random_seed(xpp::Session &s, int seed)
 void do_stochast_com(xpp::Session &s, int i)
 {
   static const char *const key="ncdmvhofpislaxe2";
-  /* the Stochastic items of an imported button sequence (kbs.h): the questions the registry's analysis.* commands take as arguments are asked here, then the command's own function runs */
+  /* the Stochastic items of an imported button sequence (kbs.h): the questions the registry's analysis commands (histogram.*, spectrum.*, stochastic.*, ...) take as arguments are asked here, then the command's own function runs */
   switch(key[i]){
   case 'n': {
     int seed=s.numerics.rand_seed;

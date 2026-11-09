@@ -176,7 +176,7 @@
 .plot-tools label { display: inline-flex; align-items: center; gap: .3rem; }
 
 
-/* the plot's ⋯: Reset view, Use this view, CSV and Sets in a pop-up (ui/PlotView.tsx) */
+/* the plot's ⋯: Reset zoom, Use this view, CSV and Sets in a pop-up (ui/PlotView.tsx) */
 .plot-more { position: relative; }
 .plot-more > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; min-width: var(--target); min-height: var(--target); border: 1px solid var(--border); border-radius: 0.375rem; background: var(--surface); }
 .plot-more-menu { position: absolute; z-index: var(--z-inline-menu); right: 0; min-width: 12rem; display: grid; gap: var(--space-1); padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }

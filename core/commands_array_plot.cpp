@@ -176,7 +176,7 @@ constexpr std::array ROWS = {
             "Open the array plot window.", OPEN_RESULTS, WINDOW_EVENTS, true, open},
     Command{"array_plot.redraw", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Redraw array plot", "",
             "Draw the array plot again from the stored data.", REDRAW_RESULTS, APLOT_EVENTS, true, redraw, {}, {}},
-    Command{"array_plot.configure", CONFIGURE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Edit array plot", "",
+    Command{"array_plot.configure", CONFIGURE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Array plot settings", "",
             "Set the columns and rows the array plot shows and the ends of its colour scale (z_min below z_max); what is left out stays.",
             CONFIGURE_RESULTS, APLOT_EVENTS, true, configure, {}, {}},
     Command{"array_plot.fit", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Fit array plot", "",

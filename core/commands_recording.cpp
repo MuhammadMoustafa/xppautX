@@ -41,7 +41,7 @@ constexpr std::array ROWS = {
     Command{"recording.stop", STOP_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Stop recording", "File/Recording",
             "Stop recording and save the recording (.recx added); left out, the file is asked for; confirm true replaces an existing file without asking.",
             STOP_RESULTS, STATE_EVENTS, false, front_end, {}, {}, "write", "*.recx"},
-    Command{"recording.open", OPEN_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Play recording", "File/Recording",
+    Command{"recording.open", OPEN_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Open recording", "File/Recording",
             "Open a recording (.recx; its path, which only --server's own input may give) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once.", OPEN_RESULTS, PLAYER_EVENTS, false,
             front_end, {}, {}, "read", "*.recx"},
     Command{"recording.play", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Play", "", "Play the open recording from where it is.", PLAY_RESULTS,

@@ -46,12 +46,12 @@ Result<std::vector<double>> read_ic_file(const Model &m, std::string_view path);
 enum class ValueFile { parameters, initial_conditions };
 inline constexpr std::array<std::string_view, 2> value_file_names = {"parameters", "initial_conditions"};
 /* the parameters or the initial conditions of s read whole from the file fn as XPPAUT wrote it (--parfile, --icfile,
-   ic.load, the values panel's Load) and applied as Load values from a file by scope applies a part (set_load.cpp,
+   initial_conditions.import, the values panel's Load) and applied as Load values from a file by scope applies a part (set_load.cpp,
    load_eqn.h's apply_values), or the error and nothing applied. An .ic holds the values alone, one per
    differential-equation variable in the model's order, exactly `node` of them, as XPPAUT's own io_ic_file always read
    (the Markov chains are not in this file, in XPPAUT or here: docs/manual 16-quick-reference.md). */
 Result<> load_xppaut_values(Session &s, ValueFile kind, std::string_view fn);
-/* Load of s's .par and .ic (docs/protocol.md "value.load_file"): file empty asks for one like Save data does,
+/* Load of s's .par and .ic (docs/protocol.md "value.import_file"): file empty asks for one like Save data does,
    given skips the ask; gives the file read ("" when the user cancelled the question), as one undo step, all or
    nothing. */
 Result<std::string> load_value_file(Session &s, ValueFile kind, std::string file);

@@ -71,7 +71,7 @@ Result<Plane> clicked_plane(Session &s, const Command &command, const Arguments 
     return window_plane(s, target->index);
 }
 
-/* the click's coordinates keyed by the plane's two states, as ic.at takes them */
+/* the click's coordinates keyed by the plane's two states, as run.from_point takes them */
 Result<std::pair<double, double>> clicked_point(const Session &s, const Command &command, const Arguments &args, Plane plane, const Place &place)
 {
     std::optional<double> horizontal, vertical;
@@ -175,29 +175,29 @@ constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DO
 constexpr std::array RUN_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JOB_PROGRESS, xpp::events::PLOT_SERIES, xpp::events::JOB_STOPPED, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"ic.set", SET_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set initial conditions", "Run/Initial conditions",
+    Command{"initial_conditions.set", SET_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set initial conditions", "Run/Initial conditions",
             "Set the initial values of some states; the others keep theirs.", SET_RESULTS, STATE_EVENTS, true, ic_set},
-    Command{"ic.formula", FORMULA_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Initial value by formula", "Run/Initial conditions",
+    Command{"initial_conditions.set_by_formula", FORMULA_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set initial value by formula", "Run/Initial conditions",
             "Set a state's initial value to a formula, or an array range u[1..5] to a formula reading [j] as the element's number.",
             FORMULA_RESULTS, STATE_EVENTS, true, ic_formula},
-    Command{"ic.array", ARRAY_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Initial values by array formula", "Run/Initial conditions",
+    Command{"initial_conditions.set_by_array_formula", ARRAY_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set initial values by array formula", "Run/Initial conditions",
             "Set size states from a state on to a formula of t, the element's offset from the first.", ARRAY_RESULTS, STATE_EVENTS, true,
             ic_array},
-    Command{"ic.load", LOAD_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Load initial conditions", "Run/Initial conditions",
+    Command{"initial_conditions.import", LOAD_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Import initial conditions", "Run/Initial conditions",
             "Read the initial values from a file of the model's folder, one number per differential equation.", LOAD_RESULTS, STATE_EVENTS,
             true, ic_load},
-    Command{"ic.from_data_row", ROW_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Initial conditions from data row", "Run/Initial conditions",
+    Command{"initial_conditions.set_from_data_row", ROW_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set initial conditions from data row", "Run/Initial conditions",
             "Make a row of the stored data (the first is 0) the initial values.", ROW_RESULTS, STATE_EVENTS, true, ic_from_data_row,
             {}, {}},
-    Command{"ic.at", AT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run from a point", "Run/Initial conditions",
+    Command{"run.from_point", AT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run from a point", "Run/Initial conditions",
             "Run from a point of a graph: the two states it plots take the coordinates, the others their initial values.", SET_RESULTS,
             RUN_EVENTS, true, ic_at},
-    Command{"ic.mouse_stream", STREAM_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run from every point", "Run/Initial conditions",
+    Command{"run.from_every_point", STREAM_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run from every point", "Run/Initial conditions",
             "Run from each point of a graph in turn, x and y the coordinates of the two states it plots; the runs add up on the graph.",
             STREAM_RESULTS, RUN_EVENTS, true, ic_mouse_stream},};
 
 } // namespace
 
-std::span<const Command> ic_commands() { return ROWS; }
+std::span<const Command> initial_conditions_commands() { return ROWS; }
 
 } // namespace xpp::command

@@ -61,11 +61,11 @@ export function DropDownMenu({id, label, normal, children}: {id: string; label: 
 function LoadFromFile({scope, what}: {scope: string; what: string}) {
   const session = useSession();
   const input = useRef<HTMLInputElement>(null);
-  const off = !useMay()({cmd: 'set.file_contents'});
+  const off = !useMay()({cmd: 'set.list_file_contents'});
   return (
     <>
       <button class="small" onClick={() => input.current?.click()} disabled={off} data-values-file={scope}
-        title={off ? BUSY_TITLE : `Load ${what} from a file: an .odex's defaults or one of its sets, or an XPPAUT file`}><CommandLabel command="set.file_contents" /></button>
+        title={off ? BUSY_TITLE : `Load ${what} from a file: an .odex's defaults or one of its sets, or an XPPAUT file`}><CommandLabel command="set.list_file_contents" /></button>
       <input ref={input} id={`values-file-${scope}`} type="file" hidden accept=".odex,.par,.ic,.set"
         onChange={async e => {
           const el = e.target as HTMLInputElement, file = el.files?.[0];
@@ -122,4 +122,4 @@ export function SetsRow({scope, window}: {scope: string; window?: string}) {
 }
 
 /** the dialogs that hold a settings group of their own (range, histogram), by command: their form carries the group's sets row */
-export const SETS_OF_FORM: Record<string, string> = {'run.range': 'sweep', 'analysis.histogram': 'analysis', 'analysis.histogram_2d': 'analysis'};
+export const SETS_OF_FORM: Record<string, string> = {'run.range': 'sweep', 'histogram.compute': 'analysis', 'histogram.compute_2d': 'analysis'};

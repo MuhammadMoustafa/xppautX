@@ -82,7 +82,7 @@ Result<> set_numerics_extras(xpp::Session &s, const NumericsExtras &extras)
   return {};
 }
 
-/* The Numerics items run.configure and bvp.configure also take as arguments (Total, Start time, Transient,
+/* The Numerics items run.configure and boundary_value.configure also take as arguments (Total, Start time, Transient,
    Dt, Method, Store every, Bounds, Delay, bndVal): the keys ask for them, then set them as the commands do
    (numerics_settings_set_all's owner) */
 static void ask_configured_numerics(xpp::Session &s, char ch)
@@ -313,7 +313,7 @@ Result<> set_poincare_map(xpp::Session &s, PoincareMap map, std::optional<int> v
 
 void get_pmap_pars_com(xpp::Session &s, int l)
 {
- /* the Poincare map items of an imported button sequence (kbs.h): the questions the registry's analysis.poincare_map takes as arguments are asked here, then the command's own function runs */
+ /* the Poincare map items of an imported button sequence (kbs.h): the questions the registry's poincare_map.set takes as arguments are asked here, then the command's own function runs */
  static const char *const mkey="nsmp";
  char ch;
  int i1=s.numerics.poincare_variable;
@@ -437,7 +437,7 @@ Result<> set_color_coding(xpp::Session &s, ColorBy by, int variable, std::option
 
 void set_col_par_com(xpp::Session &s, int i)
 {
-  /* the Color code items of an imported button sequence (kbs.h): the questions the registry's analysis.color_coding takes as arguments are asked here, then the command's own function runs */
+  /* the Color code items of an imported button sequence (kbs.h): the questions the registry's plot.set_color_coding takes as arguments are asked here, then the command's own function runs */
   const GRAPH &graph=*s.plot_windows.current;
   const ColorBy by=static_cast<ColorBy>(i);
   int variable=graph.ColorValue;

@@ -126,7 +126,7 @@ void silent_fail(const char *what, const char *line, const char *ask)
 }
 
 /* the command that stops the running computation: the reader thread acts on it the moment it arrives, in JSON or in server text */
-constexpr std::string_view ABORT_COMMAND = "run.abort";
+constexpr std::string_view ABORT_COMMAND = "run.stop";
 bool is_abort(const char *line) { return xpp::command::name(line) == ABORT_COMMAND; }
 
 /* the parameters' edit: acted on at once under a job that computes nothing (a prompt open, the animation playing),
@@ -135,11 +135,11 @@ constexpr std::string_view PARAMETERS_COMMAND = "value.set_parameters";
 bool is_parameter_edit(const char *line) { return xpp::command::name(line) == PARAMETERS_COMMAND; }
 
 /* the table's paging, answered at once, even during a computation or a prompt: it only reads (and steers the view) */
-constexpr std::string_view PAGE_COMMAND = "browser.page";
+constexpr std::string_view PAGE_COMMAND = "data.page";
 bool is_page(const char *line) { return xpp::command::name(line) == PAGE_COMMAND; }
 
-/* browser.page taken as a control line (a computation or a prompt is running), run now on the core's thread: the
-   block's event only, as run.abort has no done of its own while another command's is due; a refusal is said
+/* data.page taken as a control line (a computation or a prompt is running), run now on the core's thread: the
+   block's event only, as run.stop has no done of its own while another command's is due; a refusal is said
    by its done, the one thing the client must not miss */
 void answer_page(xpp::Session &s, const char *line)
 {
@@ -1273,7 +1273,7 @@ void send_hello(xpp::Session &s)
         buf_str(b, xpp::format("{} {}", static_cast<int>(solver.id), solver.name).c_str());
     }
     BUF_LIT(b, "]]");
-    /* @ button name:keys lines of the ODE file (tool.run_user_button, by index) */
+    /* @ button name:keys lines of the ODE file (button.run, by index) */
     BUF_LIT(b, ",\"userbuttons\":[");
     for (i = 0; i < s.nuserbut; i++) {
         if (i) BUF_LIT(b, ",");

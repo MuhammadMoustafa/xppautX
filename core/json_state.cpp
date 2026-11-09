@@ -264,7 +264,7 @@ void send_browser(xpp::Session &s)
     xpp::fit_browser_block(s);
     const xpp::BrowserBlock &block = s.browser.block;
     buf_format(b, "{},\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
-               xpp::events::open(xpp::events::BROWSER_UPDATED), s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
+               xpp::events::open(xpp::events::DATA_UPDATED), s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
     for (int j = 1; j < maxcol; j++) {
         BUF_LIT(b, ",");
         buf_str(b, browse_column_name(s,j));
@@ -306,7 +306,7 @@ void apply_subscriptions(xpp::Session &s)
     const auto on = [](std::string_view name) { return session.subscribed[stream_index(name)]; };
     const bool f32 = session.subscribed_f32;
     plot_data_subscribe(on(xpp::events::PLOT_SERIES), on(xpp::events::PLOT_SHOWN), f32);
-    phase_data_subscribe(on(xpp::events::NULLCLINE_CURVES), on(xpp::events::DIRFIELD_FIELD), f32);
+    phase_data_subscribe(on(xpp::events::NULLCLINE_CURVES), on(xpp::events::DIRECTION_FIELD_FIELD), f32);
     marks_data_subscribe(on(xpp::events::PLOT_MARKS), f32);
     ani_data_subscribe(s, on(xpp::events::ANIMATION_FRAME));
     autox_data_subscribe(on(xpp::events::AUTOX_INFO));
@@ -431,7 +431,7 @@ std::string field_key(const std::string &kind, const std::string &name, int inde
    or "text":...}. Text is what the user would type in the value's box: an
    expression for BCs and delays; for the numerics (num, W106) a number, or a
    method's name, the field named by its key (numerics_settings.h; the run's
-   and the boundary value problem's are run.configure's and bvp.configure's;
+   and the boundary value problem's are run.configure's and boundary_value.configure's;
    the parameters' are value.set_parameters'). Checks it all and changes
    nothing: the value, or the error (naming the field) of a kind or name the
    model does not have, no value (a number) or text, or a numerics value
@@ -453,7 +453,7 @@ xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
     if (v.kind == "par") return refuse(field, "set no longer takes parameters: send value.set_parameters (a formula: value.set_by_formula)");
     else if (v.kind == "delay") v.type = 3; /* DELAYBOX */
     else if (v.kind == "bc") v.type = 4;    /* BCBOX */
-    else if (v.kind == "ic") return refuse(field, "set no longer takes initial conditions: send ic.set (a formula: ic.formula)");
+    else if (v.kind == "ic") return refuse(field, "set no longer takes initial conditions: send initial_conditions.set (a formula: initial_conditions.set_by_formula)");
     else if (v.kind != "num") return refuse("", xpp::format("set takes kind delay, bc or num, not \"{}\"", v.kind));
     else if (const std::string_view command = xpp::command::numerics_command(v.name); !command.empty())
         return refuse(field, xpp::format("set no longer takes the numerics setting {}: send {}", v.name, command));
@@ -616,7 +616,7 @@ void j_make_txtview(xpp::Session &s)
     b += xpp::events::open(xpp::events::SESSION_SOURCE);
     BUF_LIT(b, ",\"lines\":");
     buf_str_array(b, m.source);
-    /* comments; one with an action runs it when picked (tool.run_source_action) */
+    /* comments; one with an action runs it when picked (source.run_action) */
     BUF_LIT(b, ",\"comments\":[");
     for (std::size_t i = 0; i < m.comments.size(); i++) {
         if (i) BUF_LIT(b, ",");

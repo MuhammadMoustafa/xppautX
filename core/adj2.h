@@ -63,7 +63,7 @@ Result<> transpose_data(Session &s, std::string_view first_column, int columns, 
 void do_transpose(Session &s);
 void alloc_h_stuff(Session &s);
 void data_back(Session &s);
-/* the Adjoint menu's items (an imported button sequence's), asking for what the analysis.adjoint_* commands take as arguments */
+/* the Adjoint menu's items (an imported button sequence's), asking for what the adjoint.*  commands take as arguments */
 void make_adj_com(Session &s, int com);
 /* the adjoint of the stored orbit; the H function for the couplings of s.adjoint.coup_string, compiled first when
    `compile` (else the formulas of the last time are used again, as a range of adjoints does) */

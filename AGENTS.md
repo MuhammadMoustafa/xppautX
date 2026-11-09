@@ -924,7 +924,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   its filter is web2's `wildExtensions`; browser mode keeps the browser's
   picker, W90); Help > Manual and Keyboard shortcuts (web2's
   `window.__xppOpenHelp`, web2/src/desktop.ts, through webview_eval),
-  and About xppautX (`tool.about`, a page command: hello's `about` lines, its links opened through the bound `__xppOpenAboutLink`). The icon is `assets/icon.svg`, made into
+  and About xppautX (`about.open`, a page command: hello's `about` lines, its links opened through the bound `__xppOpenAboutLink`). The icon is `assets/icon.svg`, made into
   `assets/icon.ico` by `tools/make_icons.py`, compiled into the Windows
   exe by `assets/xppautx.rc`. `tools/modecheck.sh` (verify.sh) checks
   `--help`, `--browser` and `--no-open`, and on Linux with the window
@@ -1015,7 +1015,7 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   data-level front end: the core sends numbers, e.g. the `plot.series` and
   `plot.shown` events
   after `{"cmd":"events.subscribe","events":["plot.series","plot.shown"]}`, built in
-  `core/plot_data.cpp`, and the page draws them; `nullcline.curves` and `dirfield.field`
+  `core/plot_data.cpp`, and the page draws them; `nullcline.curves` and `direction_field.field`
   come from `core/phase_data.cpp`, which records per window what
   nullcline.c and the integrator (Flow) draw and forgets it when json_windows.cpp
   blanks the window; `plot.marks` likewise from `core/marks_data.cpp`: Sing pts'

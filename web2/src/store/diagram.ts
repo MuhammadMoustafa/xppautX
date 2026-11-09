@@ -3,7 +3,7 @@
    built from the `diagram` events exactly (a `reset` drops the points after
    `keep`, an `add` puts points `from`.. in place), the core's axes, and the
    view's own state: whether window 101 is open, whether its panel is shown,
-   the user's zoom (no history: Reset view/Fit take it back) and the point
+   the user's zoom (no history: Reset zoom/Fit take it back) and the point
    read out. The window follows the
    core: `window` create/destroy for 101, and `state.autox`, which is there
    exactly while autoX is open (a page that connects later learns it so).

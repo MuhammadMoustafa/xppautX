@@ -430,7 +430,7 @@ export interface NullclinesEvent {
 
 /** a plot window's direction field and Flow trajectories */
 export interface DfieldEvent {
-  ev: 'dirfield.field';
+  ev: 'direction_field.field';
   win: string;
   enc?: 'f32';
   /** 1: arrows of one length (Scaled Dir.Fld); 0: lengths follow the speed (Direct field) */
@@ -553,7 +553,7 @@ export interface MessageEvent extends Partial<ErrorFields> {
     for a `browser` `from` request and again, with the same range, after any
     command that changed the data while the client showed the browser. */
 export interface BrowserEvent {
-  ev: 'browser.updated';
+  ev: 'data.updated';
   /** rows stored (my_browser.maxrow); 0 before any integration */
   rows: number;
   /** column names, T first, in storage order */

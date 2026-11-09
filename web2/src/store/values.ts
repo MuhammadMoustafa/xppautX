@@ -13,7 +13,7 @@
    and the sliders under the plot (store/sliders.ts).
    Load of a section's XPPAUT .par/.ic goes through the core (W66, then
    the W66 review, an import since W321: nothing of ours writes these
-   files): the `value.load_file` command (session.ts loadValues), applying at
+   files): the `value.import_file` command (session.ts loadValues), applying at
    once, like File/Import XPPAUT session state -- not staged here as a pending
    edit, since the page no longer parses the file itself. No undo (GitHub #110):
    Reset (one field, or every field of a section) is the way back,
@@ -177,11 +177,11 @@ const equilibriaKeys = (hello: HelloEvent | null): string[] => (hello?.options ?
 
 /** The commands that send these edits (docs/protocol.md): parameters in `value.set_parameters` (a number) or
     `value.set_by_formula` (a %formula, one each); boundary conditions, delays and the numerics no registry
-    command takes go in one `set` (one value, or `values`); initial conditions in `ic.set` (a number) or
-    `ic.formula` (a %formula, one each); the run's and the shooting's numerics in `run.configure` and
-    `bvp.configure`; the nullcline mesh and the equilibria's settings in their own. */
+    command takes go in one `set` (one value, or `values`); initial conditions in `initial_conditions.set` (a number) or
+    `initial_conditions.set_by_formula` (a %formula, one each); the run's and the shooting's numerics in `run.configure` and
+    `boundary_value.configure`; the nullcline mesh and the equilibria's settings in their own. */
 export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): ValueCommand[] {
-  const run = argumentTypes(hello, 'run.configure'), bvp = argumentTypes(hello, 'bvp.configure'), equilibriumKeys = equilibriaKeys(hello);
+  const run = argumentTypes(hello, 'run.configure'), bvp = argumentTypes(hello, 'boundary_value.configure'), equilibriumKeys = equilibriaKeys(hello);
   const BVP = 'bvp_';
   const meshes: ValueSet[] = [], equilibria: ValueSet[] = [], plain: ValueSet[] = [], pars: ValueSet[] = [], par_formulas: ValueSet[] = [],
     ics: ValueSet[] = [], formulas: ValueSet[] = [], runs: ValueSet[] = [], bvps: ValueSet[] = [];
@@ -199,13 +199,13 @@ export function valueCommands(hello: HelloEvent | null, sets: ValueSet[]): Value
   if (pars.length) result.push({command: {cmd: 'value.set_parameters', values: Object.fromEntries(pars.map(s => [s.name!, parameterValue(s.text)]))}, sets: pars});
   for (const s of par_formulas)
     result.push({command: {cmd: 'value.set_by_formula', name: s.name!, formula: s.text.trim().slice(1)}, sets: [s]});
-  if (ics.length) result.push({command: {cmd: 'ic.set', values: Object.fromEntries(ics.map(s => [s.name!, Number(s.text)]))}, sets: ics});
+  if (ics.length) result.push({command: {cmd: 'initial_conditions.set', values: Object.fromEntries(ics.map(s => [s.name!, Number(s.text)]))}, sets: ics});
   for (const s of formulas)
-    result.push({command: {cmd: 'ic.formula', variable: s.name!, formula: s.text.trim().slice(1)}, sets: [s]});
+    result.push({command: {cmd: 'initial_conditions.set_by_formula', variable: s.name!, formula: s.text.trim().slice(1)}, sets: [s]});
   for (const s of meshes) result.push({command: {cmd: 'nullcline.set_mesh', mesh: Number(s.text)}, sets: [s]});
   if (equilibria.length) result.push({command: {cmd: 'options.configure', group: EQUILIBRIA_GROUP, values: Object.fromEntries(equilibria.map(s => [s.name!, s.text.trim()]))}, sets: equilibria});
   if (runs.length) result.push({command: {cmd: 'run.configure', ...Object.fromEntries(runs.map(s => [s.name!, argumentValue(run[s.name!], s.text)]))}, sets: runs});
-  if (bvps.length) result.push({command: {cmd: 'bvp.configure', ...Object.fromEntries(bvps.map(s => [s.name!.slice(BVP.length), argumentValue(bvp[s.name!.slice(BVP.length)], s.text)]))}, sets: bvps});
+  if (bvps.length) result.push({command: {cmd: 'boundary_value.configure', ...Object.fromEntries(bvps.map(s => [s.name!.slice(BVP.length), argumentValue(bvp[s.name!.slice(BVP.length)], s.text)]))}, sets: bvps});
   return result;
 }
 

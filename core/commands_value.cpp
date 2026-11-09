@@ -159,7 +159,7 @@ constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DO
 constexpr std::array UNDO_KEYS = {"Ctrl+Z"};
 constexpr std::array REDO_KEYS = {"Ctrl+Shift+Z"};
 constexpr std::array ROWS = {
-    Command{"value.load_file", FILE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Load values file", "Data",
+    Command{"value.import_file", FILE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Import values file", "Data",
             "Import the parameters (.par) or the initial conditions (.ic) from a file XPPAUT wrote, in the model's folder, all or nothing; with no file, ask for one (the result's file is empty when that question was cancelled). Nothing of ours writes these files.",
             FILE_RESULTS, STATE_EVENTS, true, load_file},
     Command{"value.set_parameters", PARAMETERS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set parameters", "Data",
@@ -179,7 +179,7 @@ constexpr std::array ROWS = {
     Command{"value.configure_slider", SLIDER_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Configure slider", "",
             "Define a slider: its slot (an existing one, or the next), the parameter or state it moves, its range, and its step (0: the page picks one; left out: the slot's own).",
             SLIDER_RESULTS, STATE_EVENTS, true, configure_slider},
-    Command{"value.remove_slider", REMOVE_SLIDER_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Remove slider", "",
+    Command{"value.delete_slider", REMOVE_SLIDER_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Delete slider", "",
             "Empty a slider's slot.", REMOVE_SLIDER_RESULTS, STATE_EVENTS, true, remove_slider},};
 
 } // namespace

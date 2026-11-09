@@ -61,7 +61,7 @@ export function TitleBar() {
   /* Data, Model and Help: the title bar's buttons (css/layout.css .title-only: hidden on a phone, where the menu bar has them) */
   const panelButtons = [
     <button key="table" class="table-toggle title-only" aria-controls="table-panel" aria-expanded={tableOpen}
-      onClick={() => (tableOpen ? session.closeTable() : session.openTable())}><CommandLabel command="tool.browser" /></button>,
+      onClick={() => (tableOpen ? session.closeTable() : session.openTable())}><CommandLabel command="data.open" /></button>,
     <button key="text" class="text-toggle title-only" aria-controls="text-panel" aria-expanded={textOpen}
       onClick={() => (textOpen ? session.closeText() : session.openText())}
       title="Equations, source and the last equilibrium">Model</button>,
@@ -83,7 +83,7 @@ export function TitleBar() {
       </button>
       <PanelToggle collapsed={panels.valuesCollapsed} />
       <button class="values-toggle" aria-controls="values-panel" aria-expanded={valuesOpen}
-        onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}><CommandLabel command="tool.values" /></button>
+        onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}><CommandLabel command="values.open" /></button>
       {panelButtons}
     </header>
   );

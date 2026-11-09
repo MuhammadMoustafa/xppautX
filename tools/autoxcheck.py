@@ -228,7 +228,7 @@ def section_diagram():
     # same values, a steady branch's max and min being one, so only the
     # axes go out); a Fit after that only sends the new axes
     n = len(dg.pts)
-    s.send(cmd='autox.configure_plot', plot_type='maximum_and_minimum')
+    s.send(cmd='autox.configure_axes', plot_type='maximum_and_minimum')
     evs,_ = s.collect(is_done)
     dg.apply(evs)
     check('Axes/hI-lo draws the diagram again at once: every point, the new plot type',
@@ -441,7 +441,7 @@ def section_abort():
     s.send(cmd='events.subscribe', events=['autox.info', 'autox.settings'])
     # periodic_run already observed two diagram points: the run is computing.
     # Abort now, without guessing the duration of a Newton step.
-    t = s.send(cmd='run.abort')
+    t = s.send(cmd='run.stop')
     evs, e = s.collect(is_done, timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort stops a periodic run (reaches done)', e is not None,
@@ -477,15 +477,15 @@ def section_abort():
             break
         n += 1
     check('a run from the end point of the aborted run computes new points', n == 2, '%d points' % n)
-    s.send(cmd='run.abort')
+    s.send(cmd='run.stop')
     s.collect(is_done, timeout=120 * SLOW)
     check('the server is still alive after the second run', s.alive())
 
     # Close during a run: the autoX window goes within a second
     run_periodic(s)
     s.collect(is_point, timeout=60 * SLOW)
-    t = s.send(cmd='run.abort')
-    s.send(cmd='window.destroy', window='diagram_1')
+    t = s.send(cmd='run.stop')
+    s.send(cmd='window.close', window='diagram_1')
     evs, e = s.collect(lambda e: e.get('ev') == 'window.destroyed' and e.get('win') == 'diagram_1',
                        timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
@@ -513,10 +513,10 @@ def section_abort():
 # ---- files: the saved diagram of lecar is what it always was --------------
 
 def save_diagram(s, name, written=None):
-    """File/Save diagram, answering name; the members of the .snapx it
+    """File > Save session as of name; the members of the .snapx it
     wrote, written (name when not given), by name ({} if not written)"""
     import zipfile
-    s.send(cmd='autox.save_session', file=name)
+    s.send(cmd='session.save_as', file=name, confirm=True)
     s.answer_asks(is_done, {'choice':lambda e:{'key':'y'}})
     path = os.path.join(s.run, written or name)
     if not os.path.exists(path) or not zipfile.is_zipfile(path):
@@ -533,9 +533,9 @@ def in_model_folder(s, path):
 
 
 def load_diagram(s, path):
-    """File/Load diagram of path (answering a reset's question yes, a model
+    """File > Open session of path (answering a reset's question yes, a model
     switch's "save first?" don't): the events"""
-    s.send(cmd='autox.open_session', file=in_model_folder(s, path))
+    s.send(cmd='session.open', file=in_model_folder(s, path))
     return s.answer_asks(is_done, {'choice':lambda e:{'key':'d' if e.get('keys') == 'sd' else 'y'}})[0]
 
 
@@ -786,7 +786,7 @@ def hopf_steady(s):
     """lecar's "hopf" parameter set, its fixed point as the IC (as
     examples/recordings/lecar_autox.recx does), autoX; returns the events"""
     evs = []
-    for c in ({'cmd': 'set.apply', 'name': 'hopf', 'scope': 'all'}, {'cmd': 'equilibrium.find'}, {'cmd': 'equilibrium.import_as_ic'},
+    for c in ({'cmd': 'set.apply', 'name': 'hopf', 'scope': 'all'}, {'cmd': 'equilibrium.find'}, {'cmd': 'initial_conditions.set_from_equilibrium'},
               {'cmd': 'autox.open'}):
         evs += step(s, **c)[0]
     return evs
@@ -1059,7 +1059,7 @@ def section_session():
     evs = open_session(s5, 'tab')
     s5.send(cmd='run.initial')
     s5.collect(is_done, timeout=30 * SLOW)
-    s5.send(cmd='browser.export', target='table', format='csv', file='tab.csv')
+    s5.send(cmd='data.export', target='table', format='csv', file='tab.csv')
     s5.collect(is_done)
     csv_path = os.path.join(s5.run, 'tab.csv')
     rows = [l.strip() for l in open(csv_path) if l.strip() and not l.startswith('#')] if os.path.exists(csv_path) else []
@@ -1096,7 +1096,7 @@ def section_sessiondiagram():
     # W50: a second view of the diagram, the period, the first active again: an .snapx keeps its views
     s.send(cmd='autox.new_view')
     evs += s.collect(is_done)[0]
-    s.send(cmd='autox.configure_plot', **{'view': 'diagram_2', 'plot_type': 'period', 'fit': True})
+    s.send(cmd='autox.configure_axes', **{'view': 'diagram_2', 'plot_type': 'period', 'fit': True})
     evs += s.collect(is_done)[0]
     s.send(cmd='window.select', window='diagram_1')
     evs += s.collect(is_done)[0]
@@ -1421,7 +1421,7 @@ def section_control():
     # an Abort sent right behind the run's command, before the engine has taken it
     arm_run(s)
     s.proc.stdin.write(json.dumps({'cmd': 'run.initial'}) + '\n'
-                       + json.dumps({'cmd': 'run.abort'}) + '\n')
+                       + json.dumps({'cmd': 'run.stop'}) + '\n')
     s.proc.stdin.flush()
     t = time.monotonic()
     evs, e = s.collect(is_done, timeout=60 * SLOW)
@@ -1447,8 +1447,8 @@ def section_control():
     open_autox(s)
     run_now(s)
     s.collect(lambda e: e.get('ev') == 'job.progress', timeout=30 * SLOW)
-    s.send(cmd='window.destroy', window='diagram_1')
-    t = s.send(cmd='run.abort')
+    s.send(cmd='window.close', window='diagram_1')
+    t = s.send(cmd='run.stop')
     evs, e = s.collect(is_done, timeout=60 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t
     check('Abort stops an integration', e is not None and (rows(evs) or 0) < 40001, 'rows %s' % rows(evs))
@@ -1648,7 +1648,7 @@ def section_names():
 
     s.send(cmd='value.set_parameters', values={LONG_B: 0.9})
     s.collect(is_done)
-    s.send(cmd='ic.set', values={'slow_recovery_variable_w': -0.25})
+    s.send(cmd='initial_conditions.set', values={'slow_recovery_variable_w': -0.25})
     evs, _ = s.collect(is_done)
     st = last_state(evs)
     check('names: set a parameter by its 200-character name', st is not None and dict(st['pars']).get(LONG_B) == 0.9,
@@ -1682,42 +1682,42 @@ def section_names():
     au = autoxsettings(evs)
     check("names: autoX's parameters are the long names", au is not None
           and 'pars' not in au and au['axes']['par1'].upper()==LONG_PAR.upper(), str(au)[:300])
-    s.send(cmd='autox.configure_plot', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_B})
+    s.send(cmd='autox.configure_axes', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_B})
     evs, _ = s.collect(is_done)
     au = autoxsettings(evs)
     errs = [e for e in evs if e.get('ev') == 'session.message' or (e.get('ev') == 'done' and e.get('error'))]
     check('names: auto set takes 200-character names for the parameters and the axes', not errs and au is not None
           and au['axes']['par1'].upper() == LONG_B.upper() and au['axes']['var'].upper() == LONG_V,
           '%s %s' % (errs, str(au)[:300]))
-    s.send(cmd='autox.configure_plot', **{'parameter2':LONG_PAR})
+    s.send(cmd='autox.configure_axes', **{'parameter2':LONG_PAR})
     evs,_=s.collect(is_done)
     au=autoxsettings(evs)
     check('W339: both axes accept complete long model parameter names', au is not None
           and au['axes']['par1'].upper()==LONG_B.upper() and au['axes']['par2'].upper()==LONG_PAR.upper())
-    s.send(cmd='autox.configure_plot', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_PAR})
+    s.send(cmd='autox.configure_axes', **{'plot_type': 'norm', 'variable': LONG_V, 'parameter1': LONG_PAR})
     s.collect(is_done)
 
     s.send(cmd='run.initial')
     s.collect(is_done, timeout=30 * SLOW)
-    s.send(cmd='browser.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 3})
-    evs, br = s.collect(lambda e: e.get('ev') == 'browser.updated')
+    s.send(cmd='data.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 3})
+    evs, br = s.collect(lambda e: e.get('ev') == 'data.updated')
     s.collect(is_done)
     cols = ['T', LONG_V, 'SLOW_RECOVERY_VARIABLE_W', LONG_AUX]
     check('names: the data browser heads its columns with the long names', br is not None and br['cols'] == cols,
           str(br and br['cols'])[:300])
     # a column added under a 200-character name, from a formula over 200
     added = long_name('added_column_of_the_product')
-    s.send(cmd='browser.add_column', name=added, formula=LONG_V.lower() + '*slow_recovery_variable_w')
+    s.send(cmd='data.add_column', name=added, formula=LONG_V.lower() + '*slow_recovery_variable_w')
     evs,_ = s.collect(is_done)
     errs = [e for e in evs if e.get('ev') == 'session.message' or (e.get('ev') == 'done' and e.get('error'))]
-    s.send(cmd='browser.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 4})
-    evs, br = s.collect(lambda e: e.get('ev') == 'browser.updated')
+    s.send(cmd='data.page', **{'from_row': 0, 'count': 1, 'first_column': 1, 'columns': 4})
+    evs, br = s.collect(lambda e: e.get('ev') == 'data.updated')
     s.collect(is_done)
     row = br['data'][0] if br and br.get('data') else []
     check('names: Add column takes a 200-character name and a long formula', not errs and br is not None
           and br['cols'] == cols + [added.upper()] and len(row) == 5 and abs(row[4] - row[1] * row[2]) < 1e-5,
           '%s %s' % (errs, str(br)[:300]))
-    s.send(cmd='browser.export', target='table', format='csv', file='ln.csv')
+    s.send(cmd='data.export', target='table', format='csv', file='ln.csv')
     s.collect(is_done)
     csv_path = os.path.join(s.run, 'ln.csv')
     lines = [l.strip() for l in open(csv_path)] if os.path.exists(csv_path) else []
@@ -1911,8 +1911,8 @@ def section_replay():
     target = max(total_rows // 2, 1)
     code, out, run = run_recording(lines=[
         {'cmd':'run.initial'},
-        {'cmd':'run.abort','at':{'what':'integrate','rows':target,'t':0}},
-        {'cmd':'browser.export','target':'table','format':'dat'}, {'cmd':'answer','file':'run.dat'},
+        {'cmd':'run.stop','at':{'what':'integrate','rows':target,'t':0}},
+        {'cmd':'data.export','target':'table','format':'dat'}, {'cmd':'answer','file':'run.dat'},
         {'cmd':'run.initial'}])
     at = (stopped_events(out) or [None])[0]
     check('replay: an interrupted integration stops exactly at the armed row', code == 0 and at is not None
@@ -1949,7 +1949,7 @@ def section_replay():
         shutil.rmtree(run, ignore_errors=True)
 
     code, out, run = run_recording(lines=[{'cmd':'run.initial'},
-        {'cmd':'run.abort','at':{'what':'integrate','rows':100000,'t':5000}},
+        {'cmd':'run.stop','at':{'what':'integrate','rows':100000,'t':5000}},
         {'cmd':'run.initial'}])
     check('replay: an interruption never reached exits 1, naming its step once', code == 1
           and 'run.recx:%d:' % run_recording.places[0][0] in run_recording.stderr
@@ -1958,8 +1958,8 @@ def section_replay():
     check('replay: and plays nothing after it', out.count('"ev":"job.computing"') == 1,
           '%d computations' % out.count('"ev":"job.computing"'))
     shutil.rmtree(run, ignore_errors=True)
-    code, out, run = run_recording(lines=[{'cmd':'run.abort'}, {'cmd':'run.initial'},
-        {'cmd':'run.abort','at':{'what':'other'}}, {'cmd':'run.abort'}])
+    code, out, run = run_recording(lines=[{'cmd':'run.stop'}, {'cmd':'run.initial'},
+        {'cmd':'run.stop','at':{'what':'other'}}, {'cmd':'run.stop'}])
     check('replay: interruptions that cannot be placed do not stall the player',
           code == 0 and last_rows(out) == 601 and not stopped_events(out),
           'exit %d, rows %s, %s' % (code, last_rows(out), run_recording.stderr[-300:]))
@@ -2173,17 +2173,17 @@ def integrate(s):
 
 def numerics_menu(s, key, item, replies=None):
     """Registry operation used by the old numerical-menu fixture."""
-    operation = {('a','n'):'analysis.adjoint_compute',('a','m'):'analysis.adjoint_interaction',
-        ('a','a'):'analysis.adjoint_load',('a','h'):'analysis.adjoint_load_interaction',
-        ('h','o'):'analysis.reload_histogram',('h','d'):'analysis.load_stochastic_run'}[(key,item)]
-    s.send(cmd=operation, **({'couplings':{'x':'0','y':'0'}} if operation == 'analysis.adjoint_interaction' else {}))
+    operation = {('a','n'):'adjoint.compute',('a','m'):'adjoint.compute_h_function',
+        ('a','a'):'adjoint.show',('a','h'):'adjoint.show_h_function',
+        ('h','o'):'histogram.show_last',('h','d'):'stochastic.show_run'}[(key,item)]
+    s.send(cmd=operation, **({'couplings':{'x':'0','y':'0'}} if operation == 'adjoint.compute_h_function' else {}))
     return s.collect(is_done)[0]
 
 
 def browser_block(s, rows):
     """the data browser's first rows, every column"""
-    s.send(cmd='browser.page', **{'from_row': 0, 'count': rows, 'first_column': 1, 'columns': 500})
-    evs, br = s.collect(lambda e: e.get('ev') == 'browser.updated')
+    s.send(cmd='data.page', **{'from_row': 0, 'count': rows, 'first_column': 1, 'columns': 500})
+    evs, br = s.collect(lambda e: e.get('ev') == 'data.updated')
     s.collect(is_done)
     return br
 
@@ -2219,11 +2219,11 @@ def section_memory():
     check('memory: the adjoint of the limit cycle is computed', not errors_of(evs), str(errors_of(evs)))
     evs = numerics_menu(s, 'a', 'm', {'string': lambda e: {'ok': 1, 'value': '0'}})  # Make H
     check('memory: its H function is computed', not errors_of(evs), str(errors_of(evs)))
-    s.send(cmd='analysis.histogram')  # the model's histogram
+    s.send(cmd='histogram.compute')  # the model's histogram
     s.collect(is_done)
     # another orbit, from elsewhere, long enough to grow the store
     # (the store starts with 5000 rows) once
-    s.send(cmd='ic.set', values={'x': 0.5})
+    s.send(cmd='initial_conditions.set', values={'x': 0.5})
     s.collect(is_done)
     s.send(cmd='run.configure', total_time=60)
     s.collect(is_done)
@@ -2267,7 +2267,7 @@ def series_of(evs, win='graph_1'):
     return full[-1] if full else None
 
 
-PAGE_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'dirfield.field', 'plot.marks', 'animation.frame', 'autox.info', 'autox.settings']  # web2's subscription
+PAGE_EVENTS = ['plot.series', 'plot.shown', 'nullcline.curves', 'direction_field.field', 'plot.marks', 'animation.frame', 'autox.info', 'autox.settings']  # web2's subscription
 
 
 def section_sessiondata():
@@ -2374,7 +2374,7 @@ def section_play():
     s.send(cmd='run.range')
     _, e = s.collect(lambda e: e.get('ev') == 'job.computing', timeout=30 * SLOW)
     s.collect(lambda e: e.get('ev') == 'job.progress' and e.get('n', 0) >= 200, timeout=60 * SLOW)
-    s.send(cmd='run.abort')
+    s.send(cmd='run.stop')
     s.collect(is_done, timeout=120 * SLOW)
     s.send(cmd='recording.stop', file='range')
     s.collect(is_done)
@@ -2427,7 +2427,7 @@ def section_limits():
               and len((last_state(startup) or {}).get('pars', [])) == 40)
         open_autox(s)
         completed(s, dict(cmd='autox.configure_numerics', max_steps=4, output_every=1, suppress_branch_points=True))
-        s.send(cmd='autox.configure_plot', parameter1='P39', variable='X400')
+        s.send(cmd='autox.configure_axes', parameter1='P39', variable='X400')
         evs, _ = s.collect(is_done)
         check('limits: the fortieth model parameter is available without selection', not errors_of(evs), str(errors_of(evs)))
         dg = Diagram().apply(run_any(s, 's'))

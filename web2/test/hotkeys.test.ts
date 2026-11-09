@@ -31,8 +31,8 @@ test('W536: a plain letter runs nothing: there are no letter sequences', () => {
 test('W536: a key bound by the user runs its command, and the table\'s key of another stays', () => {
   const on = session();
   const info = on.state().keymap.info!;
-  const bound = {...info, commands: info.commands.map(c => c.id === 'tool.calculator' ? {...c, keys: ['F9'], source: 'user' as const} : c)};
-  assert.equal(commandOnKey(HELLO, bound, 'F9')?.id, 'tool.calculator');
+  const bound = {...info, commands: info.commands.map(c => c.id === 'calculator.evaluate' ? {...c, keys: ['F9'], source: 'user' as const} : c)};
+  assert.equal(commandOnKey(HELLO, bound, 'F9')?.id, 'calculator.evaluate');
   assert.equal(commandOnKey(HELLO, bound, 'Ctrl+O')?.id, 'session.open_model');
   assert.equal(commandOnKey(HELLO, bound, 'Ctrl+K Ctrl+S'), null);
 });
@@ -44,7 +44,7 @@ test('W517: all reserved keys remain the browser/system keys', () => {
   assert.deepEqual(on.calls,[]);
 });
 test('W517: palette is a customizable registry key, and no default uses a reserved key', () => {
-  assert.equal(commandOnKey(HELLO,HELLO.keymap,'Ctrl+Shift+P')?.id,'tool.command_palette');
+  assert.equal(commandOnKey(HELLO,HELLO.keymap,'Ctrl+Shift+P')?.id,'command_palette.open');
   const keys = registryRows(HELLO).flatMap(r => r.default_keys);
   assert.equal(new Set(keys).size, keys.length);
   assert.ok(keys.every(k => !HELLO.keymap.reserved.includes(k)));

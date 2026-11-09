@@ -113,9 +113,9 @@ export const HELLO: HelloEvent = {
   commands: [
     {cmd: 'run.configure', kind: 's', step: true, arguments: [{name: 'total_time', type: 'real', required: false, choices: []}, {name: 'dt', type: 'real', required: false, choices: []},
       {name: 'method', type: 'text', required: false, choices: []}, {name: 'store_every', type: 'integer', required: false, choices: []}]},
-    {cmd: 'bvp.configure', kind: 's', step: true, arguments: [{name: 'max_iterates', type: 'integer', required: false, choices: []}]},
+    {cmd: 'boundary_value.configure', kind: 's', step: true, arguments: [{name: 'max_iterates', type: 'integer', required: false, choices: []}]},
     {cmd: 'key', kind: '', step: true},
-    {cmd: 'answer', kind: 'c', step: false}, {cmd: 'run.abort', kind: 'c', step: false},
+    {cmd: 'answer', kind: 'c', step: false}, {cmd: 'run.stop', kind: 'c', step: false},
     {cmd: 'display', kind: 'v', step: true},
     ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?XPP_KIND_(\w+),\s*CommandCategory::\w+,\s*"([^"]*)",[\s\S]*?,\s*(true|false),/g)]
       .map(m => ({cmd: m[1], kind: ({VIEW: 'v', COMPUTE: 'x', SETTING: 's', CONTROL: 'c', DATA: 'd'} as Record<string, string>)[m[2]], label: m[3], step: m[4] === 'true'})),

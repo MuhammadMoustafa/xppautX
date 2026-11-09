@@ -101,17 +101,17 @@ export function MenuBar() {
   const tree = menuTree(registryRows(hello));
   const order = ['File', 'Run', 'Analysis', 'Plot', 'Data', 'autoX', 'Windows', 'Help'];
   const windowNodes = tree.find(node => node.name === 'Windows')?.children ?? [];
-  const newWindows = windowNodes.filter(node => node.row?.id === 'window.create' || node.row?.id === 'autox.new_view')
-    .sort((a,b) => Number(b.row?.id === 'window.create') - Number(a.row?.id === 'window.create'));
+  const newWindows = windowNodes.filter(node => node.row?.id === 'window.new' || node.row?.id === 'autox.new_view')
+    .sort((a,b) => Number(b.row?.id === 'window.new') - Number(a.row?.id === 'window.new'));
   const windowTools = windowNodes.filter(node => !newWindows.includes(node));
   /* Windows: the new items, then each kind of window's list (its own submenus), then the tools */
   const windowLevel: Entry[] = [...newWindows.map(entry),
     ...['Graphs', 'autoX views', 'Others'].map((group, i) => ({menu: true, el: <li key={group}><strong>{group}</strong><ul>
       {windows.filter(w => i === 0 ? w.kind === 'graph' : i === 1 ? w.kind === 'diagram' : !['graph','diagram'].includes(w.kind)).map(w => <li key={w.name}>
         <details data-window-menu={w.name}><summary>{w.shown ? '✓ ' : ''}{w.name}</summary><ul>
-          {['window.select', 'window.rename', w.shown ? 'window.hide' : 'window.show', 'window.destroy'].map(id => <li key={id}>
-            <button data-window-action={id} disabled={id === 'window.rename' && !['graph','diagram'].includes(w.kind) || id === 'window.destroy' && w.kind === 'browser'}
-              title={id === 'window.rename' && !['graph','diagram'].includes(w.kind) ? 'This tool window keeps its role name' : id === 'window.destroy' && w.kind === 'browser' ? 'The data browser stays open; Hide keeps it out of view' : undefined} onClick={() => {close(); if (id === 'window.rename') session.registryAction(id, {window: w.name});
+          {['window.select', 'window.rename', w.shown ? 'window.hide' : 'window.show', 'window.close'].map(id => <li key={id}>
+            <button data-window-action={id} disabled={id === 'window.rename' && !['graph','diagram'].includes(w.kind) || id === 'window.close' && w.kind === 'browser'}
+              title={id === 'window.rename' && !['graph','diagram'].includes(w.kind) ? 'This tool window keeps its role name' : id === 'window.close' && w.kind === 'browser' ? 'The data browser stays open; Hide keeps it out of view' : undefined} onClick={() => {close(); if (id === 'window.rename') session.registryAction(id, {window: w.name});
               else {if (id === 'window.select') session.send({cmd: 'window.show', window: w.name}); session.send({cmd: id, window: w.name});}}}>{commandRow(hello, id)?.label}</button>
           </li>)}
         </ul></details>
@@ -157,7 +157,7 @@ export function MenuBar() {
       entries[at < 0 ? (down ? 0 : entries.length - 1) : (at + (down ? 1 : -1) + entries.length) % entries.length]?.focus();
     }
   }}><button class="menu-search" onClick={() => {close(false); session.store.dispatch({type: 'drawer', open: true});}}
-    title="Search every command by name"><CommandLabel command="tool.command_palette" /></button>
+    title="Search every command by name"><CommandLabel command="command_palette.open" /></button>
   {order.map(name => <details key={name} data-top-menu={name} onPointerEnter={hover} onPointerLeave={unhover}><summary onClick={title}>{name}</summary><ul role="menu">
     {withRules(levelOf(name))}
   </ul></details>)}</nav></>;

@@ -171,14 +171,14 @@ int set_up_periodic(xpp::Session &s, int *ipar, int *ivar, double *sect, int *is
 	       if(i>-1)
 		 *ipar=i;
 	       else {
-		 command_error("bvp", "No such parameter");
+		 command_error("boundary_value", "No such parameter");
 		 return(0);
 	       }
 	       i=find_user_name(s.model(),IC,values[1].c_str());
 	       if(i>-1)
 		 *ivar=i;
 	       else {
-		 command_error("bvp", "No such variable");
+		 command_error("boundary_value", "No such variable");
 		 return(0);
 	       }
 	       *sect=atof(values[2].c_str());
@@ -197,12 +197,12 @@ namespace {
 xpp::Result<> begin_shoot(xpp::Session &s)
 {
  if(s.model().nmarkov>0||s.model().nkernel>0)
-   return xpp::fail("bvp","Can't do BVP with integral or markov eqns",xpp::command_place());
+   return xpp::fail("boundary_value","Can't do BVP with integral or markov eqns",xpp::command_place());
 
  if(s.numerics.fft||s.numerics.hist)
-   return xpp::fail("bvp","The data table shows a Fourier or histogram result: choose Stochastic, Data to see the trajectory again before solving",xpp::command_place());
+   return xpp::fail("boundary_value","The data table shows a Fourier or histogram result: choose Stochastic, Data to see the trajectory again before solving",xpp::command_place());
  if(s.delay.flag)
-   return xpp::fail("bvp","Boundary value problems cannot be solved for a model with delays",xpp::command_place());
+   return xpp::fail("boundary_value","Boundary value problems cannot be solved for a model with delays",xpp::command_place());
  if(auto compiled=compile_bvp(s);!compiled)return compiled;
  wipe_rep(s.browser);
  data_back(s);
@@ -264,7 +264,7 @@ xpp::Result<> bvp_solve(xpp::Session &s, bool show)
 xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, double sect, bool show)
 {
  if(s.model().nupar==0)
-   return xpp::fail("bvp","The model has no parameter to be the frequency",xpp::command_place());
+   return xpp::fail("boundary_value","The model has no parameter to be the frequency",xpp::command_place());
  if(auto begun=begin_shoot(s);!begun)return std::unexpected(begun.error());
  const ShootStoreFrom store_from(s);
  std::vector<double> ystart(s.model().neq),yend(s.model().neq);
@@ -282,7 +282,7 @@ xpp::Result<double> bvp_solve_periodic(xpp::Session &s, int ipar, int ivar, doub
 xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given)
 {
  const ShootRange &range=given?*given:s.shoot_range;
- if(find_user_name(s.model(),PARAMBOX,range.item)<0)return fail("bvp",xpp::format("No such parameter {}",range.item),command_place());
+ if(find_user_name(s.model(),PARAMBOX,range.item)<0)return fail("boundary_value",xpp::format("No such parameter {}",range.item),command_place());
  if(auto begun=begin_shoot(s);!begun)return std::unexpected(begun.error());
  if(given)s.shoot_range=*given;
  const ShootStoreFrom store_from(s);
@@ -293,7 +293,7 @@ xpp::Result<int> bvp_solve_range(xpp::Session &s, const ShootRange *given)
 
 void find_bvp_com(xpp::Session &s, int com)
 {
- /* the Boundary value items of an imported button sequence (kbs.h): the questions the registry's bvp.* commands take as arguments are asked here */
+ /* the Boundary value items of an imported button sequence (kbs.h): the questions the registry's boundary_value.* commands take as arguments are asked here */
  switch(com){
  case 0:
    if(set_up_sh_range(s)!=0)xpp::ok_or_show(bvp_solve_range(s));
@@ -353,7 +353,7 @@ static const char *const n[]={"*2Range over","Steps","Start","End",
    s.shoot_range.item=values[0];
    i=find_user_name(s.model(),PARAM,s.shoot_range.item);
    if(i<0){
-        command_error("bvp", "No such parameter");
+        command_error("boundary_value", "No such parameter");
        return(0);
      }
    
@@ -393,7 +393,7 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
  std::vector<double> jac_v(static_cast<size_t>(ntot)*ntot);
  std::vector<double> f_v(ntot), fdev_v(ntot), y0_v(ntot), y1_v(ntot);
  double *jac=jac_v.data(), *f=f_v.data(), *fdev=fdev_v.data(), *y0=y0_v.data(), *y1=y1_v.data();
- const auto limits_place=[&]{return settings_place(s.model(),{"integration.bvp.max_iterates","integration.bvp.tolerance"});};
+ const auto limits_place=[&]{return settings_place(s.model(),{"integration.boundary_value.max_iterates","integration.boundary_value.tolerance"});};
  /* the integration failed: its own error, at the iterate (and Jacobian column) it failed in */
  const auto integration_failed=[&](xpp::Error e,std::string_view where){
    e.what=xpp::format("Shoot: the integration failed at iterate {}{}: {}",niter,where,e.what);
@@ -438,8 +438,8 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
  }
  niter++;
  if(niter>maxit) /* Too many iterates   */
-   return xpp::fail("bvp",xpp::format("Shoot: no convergence after {} iterations: the residual of the boundary conditions {} is not below {}",
-                    named_settings(s,{"integration.bvp.max_iterates"}),xpp::number(error),named_settings(s,{"integration.bvp.tolerance"})),limits_place());
+   return xpp::fail("boundary_value",xpp::format("Shoot: no convergence after {} iterations: the residual of the boundary conditions {} is not below {}",
+                    named_settings(s,{"integration.boundary_value.max_iterates"}),xpp::number(error),named_settings(s,{"integration.boundary_value.tolerance"})),limits_place());
 
  /*   create the Jacobian matrix ...   */
  
@@ -468,7 +468,7 @@ xpp::Result<Shot> bvshoot(xpp::Session &s, double *y, double *yend, double err, 
 
   xpp::sgefa(jac,ntot,ntot,ipvt,&info);
   if(info!=-1)
-    return xpp::fail("bvp",xpp::format("Shoot: the Jacobian of the boundary conditions is singular at iterate {} (residual {})",niter,xpp::number(error)),
+    return xpp::fail("boundary_value",xpp::format("Shoot: the Jacobian of the boundary conditions is singular at iterate {} (residual {})",niter,xpp::number(error)),
                      limits_place());
   for(i=0;i<ntot;i++)fdev[i]=f[i];
   xpp::sgesl(jac,ntot,ntot,ipvt,fdev);

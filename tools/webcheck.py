@@ -275,10 +275,10 @@ for name, valid in [('help', True), ('unknown', False)]:
                           done.get('file') == 'command' and done.get('line') == 1 and 'unknown' in done.get('source', '')))
 # The page's named graph lifecycle shares the stdin/recording command path.
 for command, expected in [
-    ({'cmd':'window.create','name':'HTTP phase plane'}, {'window':'HTTP phase plane'}),
+    ({'cmd':'window.new','name':'HTTP phase plane'}, {'window':'HTTP phase plane'}),
     ({'cmd':'window.rename','window':'HTTP phase plane','name':'Phase "plane"'}, {'window':'HTTP phase plane','new_name':'Phase "plane"'}),
     ({'cmd':'window.select','window':'graph_1'}, {'window':'graph_1'}),
-    ({'cmd':'window.destroy','window':'Phase "plane"'}, {'window':'Phase "plane"','closed':True}),
+    ({'cmd':'window.close','window':'Phase "plane"'}, {'window':'Phase "plane"','closed':True}),
 ]:
     check('named window HTTP request accepted', post(dict(command,id='named HTTP')) == 204)
     got, done = collect(lambda e:e['ev']== 'done')
@@ -659,7 +659,7 @@ if sess:
     _, again = read_events(c2, lambda e: e['ev'] == 'job.computing', 30)
     check('W529: a page that reconnects after the control command\'s done is told the run computes',
           again is not None and again.get('job') == comp.get('job'), str(again))
-    post_cmd(pt, tk, {'cmd': 'run.abort'})
+    post_cmd(pt, tk, {'cmd': 'run.stop'})
     _, ended = read_events(c, lambda e: e['ev'] == 'done' and e.get('job') == comp.get('job'), 30)
     check('W529: the run ends with a done that carries its job', ended is not None and ended.get('status') == 'stopped', str(ended))
     post_cmd(pt, tk, {'cmd': 'session.open_model'})
@@ -713,7 +713,7 @@ if sess:
     check('W134: PUT /files/NAME during a run is refused (409, "Not while a computation runs")',
           comp is not None and st == 409 and 'Not while a computation runs' in body, '%s %s %s' % (comp, st, body))
     post_cmd(pt, tk, {'cmd': 'file', 'op': 'put', 'name': 'guard.par', 'data': 'bmV3'})  # "new"
-    post_cmd(pt, tk, {'cmd': 'run.abort'})
+    post_cmd(pt, tk, {'cmd': 'run.stop'})
     evs, _ = read_events(c, lambda e: e['ev'] == 'done', 30)  # the run's done, stopped
     evs, _ = read_events(c, lambda e: e['ev'] == 'done', 30)  # the refused file put's
     refused = [e.get('error', '') for e in evs if e['ev'] == 'done' and e.get('error')]

@@ -50,7 +50,7 @@ constexpr int max_plot_curves = 8;
 constexpr std::string_view log_level_is_the_users = "what the log shows is the user's, not a model's (the preferences' log_level, --verbose), so the option is dropped";
 constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the preferences' log_file), so the option is dropped";
 /* what a .ode's several starting graphs (multiwin, simplot, xlo2 to yhi8) become: one warning */
-constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join graph_1 and the options of several starting graphs are dropped: several graphs are a session's (window.create)";
+constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join graph_1 and the options of several starting graphs are dropped: several graphs are a session's (window.new)";
 
 /* a 3D box side's default: wide enough for most models' variables */
 constexpr double box_side = 12;
@@ -393,17 +393,17 @@ constexpr OptionRow rows[] = {
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.max_eul_iter = 10; },
    .key = "eul_iter", .label = "Newton iterations", .rule = OptionRule::whole_positive, .use = OptionUse::newton, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "bvp.max_iterates", .help = "The most Newton iterates a boundary value solve makes.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "boundary_value.max_iterates", .help = "The most Newton iterates a boundary value solve makes.", .once = true,
    .whole = member([](auto &s) -> auto & { return s.numerics.bvp_max_iterates; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_max_iterates = 20; },
    .key = "bvp_max_iterates", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "bvp.tolerance", .help = "The tolerance a boundary value solve stops at.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.tolerance", .help = "The tolerance a boundary value solve stops at.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.bvp_tolerance; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_tolerance = 1e-5; },
    .key = "bvp_tolerance", .label = "BVP tolerance", .rule = OptionRule::positive, .saved = true},
-  {.group = option_group::integration, .kind = OptionKind::number, .odex = "bvp.epsilon", .help = "The step that differences the boundary value problem's Jacobian.", .once = true,
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.epsilon", .help = "The step that differences the boundary value problem's Jacobian.", .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.bvp_epsilon; }),
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_epsilon = 1e-5; },

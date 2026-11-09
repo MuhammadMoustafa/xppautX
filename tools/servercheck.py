@@ -163,7 +163,7 @@ def check_diagram_subscription():
         autoxcompare.completed(s)
         autoxcompare.open_autox(s)
         autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info'], diagram=False))
-        autoxcompare.completed(s, dict(cmd='ic.set', values=dict(d.get('initial_conditions', {}))))
+        autoxcompare.completed(s, dict(cmd='initial_conditions.set', values=dict(d.get('initial_conditions', {}))))
         events = autoxcompare.execute_run(s, d['runs'][0], autoxcompare.Diagram(), {}, diagram_data=False)
         check('data.diagram: opt-out emits no diagram events', not any(e.get('ev') == 'autox.diagram' for e in events))
         before = autoxcompare.session_diagram(s)
@@ -257,13 +257,13 @@ STOPS_CASES = [
          says=[r'store_from ?= ?-20\b', r'starts at t ?= ?0\b', r'ends at t ?= ?-10\b']),
     dict(id='sing_pts', model='sing_pts', command=dict(cmd='equilibrium.find'), replies=[], at="x' = x^2+1",
          says=[r'X ?= ?0\.5', r'max_iterations ?= ?100\b', r'newton_tolerance', r'iterations']),
-    dict(id='bvp_max_iterates', model='bvp_max_iterates', command={'cmd': 'bvp.solve', 'show': False}, at=None,
-         first=[{'cmd': 'bvp.configure', 'max_iterates': 1, 'tolerance': 1e-12}],
-         says=[r'Shoot', r'integration\.bvp\.max_iterates ?= ?1\b', r'integration\.bvp\.tolerance ?= ?1e-12', r'residual']),
+    dict(id='bvp_max_iterates', model='bvp_max_iterates', command={'cmd': 'boundary_value.solve', 'show': False}, at=None,
+         first=[{'cmd': 'boundary_value.configure', 'max_iterates': 1, 'tolerance': 1e-12}],
+         says=[r'Shoot', r'integration\.boundary_value\.max_iterates ?= ?1\b', r'integration\.boundary_value\.tolerance ?= ?1e-12', r'residual']),
     dict(id='nullcline_delay', model='nullcline_delay', command=dict(cmd='nullcline.compute'), replies=[], at="x' = -delay",
          says=[r'tau ?= ?2\b', r'X ?= ?-?\d', r'Y ?= ?-?\d']),
     dict(id='postprocess_one_variable', model='fourier_one_variable', command=STOPS_RUN, at=None,
-         then=[{'cmd': 'analysis.fourier_series'}], says=[r'1 variable', r'at least 2']),
+         then=[{'cmd': 'spectrum.fourier_series'}], says=[r'1 variable', r'at least 2']),
     dict(id='eq_range', model='eq_range', command=dict(cmd='equilibrium.range', parameter='a', steps=5, start=-1, end=1), replies=[], at=None, bottom=True,
          says=[r'\d of 6 values have no equilibrium', r'a ?= ?0\.2\d*: no equilibrium found']),
     dict(id='range_gear', model='blowup_gear', command=STOPS_RANGE_A, at=None,
@@ -527,7 +527,7 @@ def check_autox_starts():
             autoxcompare.completed(s)
             autoxcompare.open_autox(s)
             if values.get('ics'):
-                autoxcompare.completed(s, dict(cmd='ic.set', values=values['ics']))
+                autoxcompare.completed(s, dict(cmd='initial_conditions.set', values=values['ics']))
             if values.get('pars'):
                 autoxcompare.completed(s, dict(cmd='value.set_parameters', values=dict(values['pars'])))
             autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'parameter_min': -2, 'parameter_max': 2, **limits}))
@@ -547,7 +547,7 @@ def check_autox_starts():
     try:
         autoxcompare.completed(s)
         autoxcompare.open_autox(s)
-        autoxcompare.completed(s, dict(cmd='ic.set', values={'X': 1}))
+        autoxcompare.completed(s, dict(cmd='initial_conditions.set', values={'X': 1}))
         autoxcompare.completed(s, dict(cmd='autox.configure_numerics', parameter_min=-2, parameter_max=2))
         evs = autoxcompare.run_any(s, 's')
         errors = [e for e in evs if e.get('error')]
@@ -565,21 +565,21 @@ def check_autox_two_parameter_starts():
         diagram = autoxcompare.Diagram().apply(autoxcompare.open_autox(s))
         autoxcompare.execute_run(s, d['runs'][0], diagram, {})
         autoxcompare.completed(s, dict(cmd='autox.grab', type='fold', index=1))
-        autoxcompare.completed(s, dict(cmd='autox.configure_plot', **{'parameter1': 'p0', 'parameter2': 'p1'}))
+        autoxcompare.completed(s, dict(cmd='autox.configure_axes', **{'parameter1': 'p0', 'parameter2': 'p1'}))
         evs = autoxcompare.run_any(s, 't')
         errors = [e for e in evs if e.get('error')]
         # W495: autoX bounds only the principal parameter (ae.f90 tests U(NDIM+1)), so p1 = 14 starts the run
         check('stops autoX second parameter is not bounded: p1 = 14 outside [Par Min, Par Max] starts the run',
               not errors and any(e.get('ev') == 'autox.diagram' and e.get('op') == 'add' for e in evs), str(errors))
         autoxcompare.completed(s, dict(cmd='autox.grab', type='fold', index=1))
-        autoxcompare.completed(s, dict(cmd='autox.configure_plot', **{'parameter2': 'p0'}))
+        autoxcompare.completed(s, dict(cmd='autox.configure_axes', **{'parameter2': 'p0'}))
         evs = autoxcompare.run_any(s, 't')
         errors = [e for e in evs if e.get('error')]
         check('stops autoX duplicate parameters', len(errors) == 1
               and 'same parameter "p0"' in errors[0]['error']
               and 'two different parameters' in errors[0]['error'], str(errors))
         # Restart uses the last run's two-parameter formulation but this label is a plain EP.
-        evs = autoxcompare.completed(s, dict(cmd='autox.configure_plot', **{'parameter2': 'p1'}))
+        evs = autoxcompare.completed(s, dict(cmd='autox.configure_axes', **{'parameter2': 'p1'}))
         s.send(cmd='autox.run', kind='two_parameter', label=1)
         evs, _ = s.collect(stops_done)
         errors = [e for e in evs if e.get('error')]
@@ -646,7 +646,7 @@ def check_autox_directions():
         autoxcompare.completed(s, dict(cmd='autox.configure_numerics', max_steps=1000000, output_every=1000, parameter_min=0, parameter_max=1.5,
                                        step_size=1e-6, min_step_size=1e-7, max_step_size=1e-6))
         s.send(cmd='autox.run', kind='equilibrium', replace_diagram=False, follow_all_branches=True)
-        s.send(cmd='run.abort')
+        s.send(cmd='run.stop')
         evs, end = s.collect(is_done, timeout=60 * SLOW)
         done = next((e for e in reversed(evs) if e.get('ev') == 'done' and e.get('job')), {})
         check('W596: an Abort sent with the run ends it cleanly (no job started, nothing stored, no error); a run stopped while its jobs compute is checked in tests/test_session_autox.cpp',
@@ -672,7 +672,7 @@ def orbit_directions(model, parameter, values, orbit, numerics, settle=None):
                 autoxcompare.settle(s, settle, orbit)
             else:
                 autoxcompare.integrate(s, orbit)
-            autoxcompare.completed(s, dict(cmd='autox.configure_plot', parameter1=parameter))
+            autoxcompare.completed(s, dict(cmd='autox.configure_axes', parameter1=parameter))
             step = numerics.pop('step_size') if 'step_size' in numerics else 0.01
             for sign in ((1,) if follow else (1, -1)):
                 autoxcompare.completed(s, dict(cmd='autox.configure_numerics', step_size=sign * step, follow_all_branches=follow, **numerics))
@@ -744,7 +744,7 @@ def jobs_session(model, start, env=None, threads=None, record=None):
     autoxcompare.completed(s, dict(cmd='events.subscribe', events=['autox.info']))
     autoxcompare.completed(s, dict(cmd='autox.open'))
     if model == LORENZ:
-        autoxcompare.completed(s, dict(cmd='autox.configure_plot', parameter1='r'))
+        autoxcompare.completed(s, dict(cmd='autox.configure_axes', parameter1='r'))
     return s
 
 
@@ -785,7 +785,7 @@ def stop_when_running(s, running, run):
         evs.append(e)
         if e.get('ev') == 'autox.jobs' and e['running'] == running:
             break
-    s.send(cmd='run.abort')
+    s.send(cmd='run.stop')
     more, end = s.collect(jobs_done, timeout=120 * SLOW)
     return evs + more, end or {}
 
@@ -1042,7 +1042,7 @@ def check_autox_branch_recordings():
         try:  # the recorded commands run live
             live = []
             for step, _ in steps:
-                if step['cmd']['cmd'] in ('autox.open', 'autox.configure_plot'):
+                if step['cmd']['cmd'] in ('autox.open', 'autox.configure_axes'):
                     continue
                 s.send(**step['cmd'])
                 got, end = s.collect(jobs_done, timeout=300 * SLOW)
@@ -1120,18 +1120,18 @@ def check_autox_registry():
         _, done = call(cmd='autox.fit')
         check('autox.fit: the view ranges are the result', done['status'] == 'ok' and done['result']['window'] == 'diagram_1'
               and done['result']['x_range'][0] < done['result']['x_range'][1], str(done))
-        _, done = call(cmd='autox.zoom', x_min=0, x_max=0.05, y_min=-0.5, y_max=0)
-        check('autox.zoom: the box is the view', done['result']['x_range'] == [0, 0.05] and done['result']['y_range'] == [-0.5, 0], str(done))
-        _, done = call(cmd='autox.zoom', x_min=1, x_max=0, y_min=-0.5, y_max=0)
-        check('autox.zoom: an unordered box is refused', done['status'] == 'error' and 'x_min' in done['error'], str(done))
+        _, done = call(cmd='autox.zoom_in', x_min=0, x_max=0.05, y_min=-0.5, y_max=0)
+        check('autox.zoom_in: the box is the view', done['result']['x_range'] == [0, 0.05] and done['result']['y_range'] == [-0.5, 0], str(done))
+        _, done = call(cmd='autox.zoom_in', x_min=1, x_max=0, y_min=-0.5, y_max=0)
+        check('autox.zoom_in: an unordered box is refused', done['status'] == 'error' and 'x_min' in done['error'], str(done))
         _, done = call(cmd='autox.scroll', dx=0.01, dy=0.1)
         check('autox.scroll: the ranges move', abs(done['result']['x_range'][0] - 0.01) < 1e-12 and abs(done['result']['x_range'][1] - 0.06) < 1e-12, str(done))
         _, done = call(cmd='autox.set_display', x_range=[0.02, 0.04], y_range=[])
         check('autox.set_display: a zoom for x, the whole range for y', done['result']['x_range'] == [0.02, 0.04] and done['result']['y_range'] == [], str(done))
         _, done = call(cmd='autox.set_display', x_range=[3, 3])
         check('autox.set_display: a bad range is refused', done['status'] == 'error', str(done))
-        _, done = call(cmd='autox.configure_plot', plot_type='norm', x_min=1, x_max=0)
-        check('autox.configure_plot: ranges in order', done['status'] == 'error' and 'x_min' in done['error'].lower().replace('xmin', 'x_min'), str(done))
+        _, done = call(cmd='autox.configure_axes', plot_type='norm', x_min=1, x_max=0)
+        check('autox.configure_axes: ranges in order', done['status'] == 'error' and 'x_min' in done['error'].lower().replace('xmin', 'x_min'), str(done))
         _, done = call(cmd='autox.configure_marks', parameters=['iapp', 'T'], values=[0.02])
         check('autox.configure_marks: parameters and values of one length', done['status'] == 'error' and '2 parameters but 1 values' in done['error'], str(done))
         _, done = call(cmd='autox.configure_marks', parameters=['iapp', 'T'], values=[0.02, 30])
@@ -1201,7 +1201,7 @@ def check_fit_stops():
             autoxcompare.completed(s)
             with open(os.path.join(s.run, 'fit.dat'), 'w') as f:
                 f.write(''.join('%d %.17g\n' % (i, math.exp(0.5*i)) for i in range(6)))
-            s.send(cmd='analysis.fit_curve',variables=['x'],parameters=parameters.split(','),tolerance=1e-12,points=6,columns=2,data_columns=[2],epsilon=1e-6,max_iterations=maxiter,file='fit.dat')
+            s.send(cmd='fit.parameters',variables=['x'],parameters=parameters.split(','),tolerance=1e-12,points=6,columns=2,data_columns=[2],epsilon=1e-6,max_iterations=maxiter,file='fit.dat')
             evs,end=s.collect(stops_done)
             msgs = [e for e in evs if e.get('ev') in ('session.message', 'done')]
             text = ' | '.join(str(e) for e in msgs)
@@ -1361,34 +1361,34 @@ def check_registry():
             {'cmd': 'help', 'id': 3}, {'cmd': 'help', 'id': True}, {'cmd': 'help', 'id': None},
             {'cmd': 'help', 'id': 'x' * 1025}, {'cmd': 'help', 'extra': True},
             {'cmd': 'window.rename'}, {'cmd': 'window.select'},
-            {'cmd': 'window.create', 'name': ''}, {'cmd': 'window.create', 'name': ' leading'},
-            {'cmd': 'window.create', 'name': 'trailing '}, {'cmd': 'window.create', 'name': 'x' * 1025},
-            {'cmd': 'window.create', 'name': 'graph_1'}, {'cmd': 'window.create', 'name': None},
+            {'cmd': 'window.new', 'name': ''}, {'cmd': 'window.new', 'name': ' leading'},
+            {'cmd': 'window.new', 'name': 'trailing '}, {'cmd': 'window.new', 'name': 'x' * 1025},
+            {'cmd': 'window.new', 'name': 'graph_1'}, {'cmd': 'window.new', 'name': None},
             {'cmd': 'window.select', 'window': 1}, {'cmd': 'window.select', 'window': 'Graph_1'},
             {'cmd': 'window.select', 'window': 'missing'},
             {'cmd':'window.rename','window':'missing','name':'new'},
             {'cmd':'window.rename','window':'graph_1'},
-            {'cmd':'window.destroy','window':'missing'},
+            {'cmd':'window.close','window':'missing'},
             {'cmd':'window.send_to_bottom','window':'missing'},
             {'cmd':'window.set_redraw_mode','window':'missing','mode':'auto'},
-            {'cmd':'window.destroy_all','extra':True},
-            {'cmd':'window.set_simultaneous_plot'}, {'cmd': 'window.destroy', 'window': 'graph_1'},
+            {'cmd':'window.close_extra','extra':True},
+            {'cmd':'window.set_simultaneous_plot'}, {'cmd': 'window.close', 'window': 'graph_1'},
             {'cmd': 'window.rename', 'window': 'graph_1', 'name': 'bad\nname'},
             {'cmd': 'window.set_redraw_mode', 'mode': 1}, {'cmd': 'window.set_redraw_mode', 'mode': 'invalid'},
             {'cmd': 'window.set_simultaneous_plot', 'enabled': 1},
             {'cmd': 'window.set_simultaneous_plot', 'enabled': 'true'},
             'window.set_redraw_mode --mode \"auto\"',
             'window.set_simultaneous_plot --enabled \"true\"',
-            'window.create --name unquoted', 'window.create --name "unterminated',
-            'window.create --name "a" --name "b"', 'window.create --name',
-            'window.create --name "a"tail', 'window.create --name "bad\\q"',
-            'window.create --name "' + 'x' * 16384 + '"',
-            '{"cmd":"window.create","name":' + '[' * 65 + '0' + ']' * 65 + '}',
+            'window.new --name unquoted', 'window.new --name "unterminated',
+            'window.new --name "a" --name "b"', 'window.new --name',
+            'window.new --name "a"tail', 'window.new --name "bad\\q"',
+            'window.new --name "' + 'x' * 16384 + '"',
+            '{"cmd":"window.new","name":' + '[' * 65 + '0' + ']' * 65 + '}',
         ]:
             request(bad, False)
-        result, _ = request({'cmd': 'window.create'})
+        result, _ = request({'cmd': 'window.new'})
         check('registry: next default graph name', result == {'window': 'graph_2'})
-        result, _ = request({'cmd': 'window.create', 'name': 'phase plane'})
+        result, _ = request({'cmd': 'window.new', 'name': 'phase plane'})
         check('registry: create preserves user text', result == {'window': 'phase plane'})
         request({'cmd': 'window.rename', 'window': 'phase plane', 'name': 'graph_1'}, False)
         result, evs = request({'cmd': 'window.rename', 'window': 'phase plane', 'name': 'Phase "plane"'})
@@ -1422,23 +1422,23 @@ def check_registry():
         result, _ = request('window.set_simultaneous_plot --enabled true --id "boolean"', client_id='boolean')
         check('registry: boolean is typed once', result == {'simultaneous_plot': True})
         request({'cmd': 'window.send_to_bottom'})
-        result, _ = request({'cmd': 'window.destroy'})
+        result, _ = request({'cmd': 'window.close'})
         check('registry: omitted target is the selected named graph', result == {'window': 'Phase "plane"', 'closed': True})
-        result, _ = request({'cmd': 'window.destroy_all'})
+        result, _ = request({'cmd': 'window.close_extra'})
         check('registry: close all reports count', result == {'closed_count': 1})
         request({'cmd': 'window.select', 'window': 'graph_2'}, False)
         snd(cmd='autox.open')
         col(lambda e: e.get('ev') == 'done')
-        request({'cmd':'window.create','name':'diagram_1'},False)
+        request({'cmd':'window.new','name':'diagram_1'},False)
         request({'cmd':'window.rename','window':'diagram_1','name':'graph_1'},False)
         request({'cmd':'window.send_to_bottom','window':'diagram_1'},False)
         request({'cmd':'window.set_redraw_mode','window':'diagram_1','mode':'manual'},False)
         request({'cmd': 'window.rename', 'window': 'diagram_1', 'name': 'Bifurcation diagram'})
         request({'cmd': 'window.select', 'window': 'Bifurcation diagram'})
-        request({'cmd': 'window.destroy'})
+        request({'cmd': 'window.close'})
         # W515: hide, show, list and destroy, one way for every window
         snd(cmd='events.subscribe', events=['window.list']); col(lambda e: e.get('ev') == 'done')
-        request({'cmd': 'window.create', 'name': 'kept'})
+        request({'cmd': 'window.new', 'name': 'kept'})
         snd(cmd='annotation.add_text', window='kept', text='note', x=0, y=0); col(lambda e: e.get('ev') == 'done')
         result, evs = request({'cmd': 'window.hide', 'window': 'kept'})
         check('window.hide: the window stays and is not shown', result == {'window': 'kept', 'shown': False})
@@ -1458,36 +1458,36 @@ def check_registry():
         check('a model\'s animation (lecar names ml.anix) is offered: its window is listed, hidden',
               {'name': 'animation', 'kind': 'animation', 'shown': False} in result.get('windows', []), str(result))
         for refused in [{'cmd': 'window.show', 'window': 'array_plot_1'},
-                        {'cmd': 'window.hide', 'window': 'nothing'}, {'cmd': 'window.destroy', 'window': 'browser'},
+                        {'cmd': 'window.hide', 'window': 'nothing'}, {'cmd': 'window.close', 'window': 'browser'},
                         {'cmd': 'window.rename', 'window': 'browser', 'name': 'data'}, 
-                        {'cmd': 'window.create', 'name': 'browser'}, {'cmd': 'window.hide', 'confirm': True},
-                        {'cmd': 'window.list', 'window': 'kept'}, {'cmd': 'window.destroy', 'window': 'kept', 'confirm': 1}]:
+                        {'cmd': 'window.new', 'name': 'browser'}, {'cmd': 'window.hide', 'confirm': True},
+                        {'cmd': 'window.list', 'window': 'kept'}, {'cmd': 'window.close', 'window': 'kept', 'confirm': 1}]:
             request(refused, False)
         result, _ = request({'cmd': 'window.hide', 'window': 'browser'})
         result, _ = request({'cmd': 'window.show', 'window': 'browser'})
         check('window.hide and show take the data browser', result == {'window': 'browser', 'shown': True})
         # a graph that holds a text asks before it is destroyed: the answer decides
         counter += 1
-        snd(cmd='window.destroy', window='kept', id='declined')
+        snd(cmd='window.close', window='kept', id='declined')
         _, ask = col(lambda e: e.get('ev') == 'ask')
-        check('window.destroy of a graph holding a text asks first', ask is not None and ask.get('kind') == 'choice' and 'kept' in json.dumps(ask), str(ask))
+        check('window.close of a graph holding a text asks first', ask is not None and ask.get('kind') == 'choice' and 'kept' in json.dumps(ask), str(ask))
         snd(cmd='answer', id=ask['id'], key='n')
         _, done = col(lambda e: e.get('ev') == 'done'); col(lambda e: e.get('ev') == 'done')
-        check('window.destroy declined: an error that says what was not confirmed, the window kept',
+        check('window.close declined: an error that says what was not confirmed, the window kept',
               done is not None and done.get('status') == 'error' and 'not confirmed' in done.get('error', ''), str(done))
-        result, _ = request({'cmd': 'window.destroy', 'window': 'kept', 'confirm': True})
-        check('window.destroy with confirm true needs no question', result == {'window': 'kept', 'closed': True})
-        request({'cmd': 'window.create', 'name': 'empty'})
-        result, _ = request({'cmd': 'window.destroy', 'window': 'empty'})
-        check('window.destroy of a graph that holds nothing asks nothing', result == {'window': 'empty', 'closed': True})
+        result, _ = request({'cmd': 'window.close', 'window': 'kept', 'confirm': True})
+        check('window.close with confirm true needs no question', result == {'window': 'kept', 'closed': True})
+        request({'cmd': 'window.new', 'name': 'empty'})
+        result, _ = request({'cmd': 'window.close', 'window': 'empty'})
+        check('window.close of a graph that holds nothing asks nothing', result == {'window': 'empty', 'closed': True})
         # W523: the view's operations, in plot coordinates
         bounds = lambda x0, x1, y0, y1: {'x_min': x0, 'x_max': x1, 'y_min': y0, 'y_max': y1}
         result, _ = request({'cmd': 'window.set_bounds', 'window': 'graph_1', 'x_min': 0, 'x_max': 10, 'y_min': -1, 'y_max': 1})
         check('window.set_bounds sets the view and reports it', result == bounds(0, 10, -1, 1), str(result))
         result, _ = request({'cmd': 'window.set_bounds', 'x_max': 20})
         check('window.set_bounds keeps a bound left out', result == bounds(0, 20, -1, 1), str(result))
-        result, _ = request({'cmd': 'window.zoom', 'x_min': 5, 'x_max': 10, 'y_min': 0, 'y_max': 1})
-        check('window.zoom makes the box the view', result == bounds(5, 10, 0, 1), str(result))
+        result, _ = request({'cmd': 'window.zoom_in', 'x_min': 5, 'x_max': 10, 'y_min': 0, 'y_max': 1})
+        check('window.zoom_in makes the box the view', result == bounds(5, 10, 0, 1), str(result))
         result, _ = request({'cmd': 'window.zoom_out', 'factor': 2})
         check('window.zoom_out by a factor grows the view about its center', result == bounds(2.5, 12.5, -0.5, 1.5), str(result))
         result, _ = request({'cmd': 'window.zoom_out', 'factor': 2, 'center_x': 0, 'center_y': 0})
@@ -1496,18 +1496,18 @@ def check_registry():
         check('window.scroll moves the view and reports its center', result == {'new_center': [1, -1]}, str(result))
         result, _ = request({'cmd': 'window.zoom_out', 'x_min': 0, 'x_max': 10, 'y_min': 0, 'y_max': 1})
         check('window.zoom_out into a box makes the view fill the box', set(result) == set(bounds(0, 0, 0, 0)), str(result))
-        for refused in [{'cmd': 'window.set_bounds', 'x_min': 5, 'x_max': 5}, {'cmd': 'window.zoom', 'x_min': 0, 'x_max': 1},
-                        {'cmd': 'window.zoom', 'x_min': 1, 'x_max': 0, 'y_min': 0, 'y_max': 1}, {'cmd': 'window.zoom_out'},
+        for refused in [{'cmd': 'window.set_bounds', 'x_min': 5, 'x_max': 5}, {'cmd': 'window.zoom_in', 'x_min': 0, 'x_max': 1},
+                        {'cmd': 'window.zoom_in', 'x_min': 1, 'x_max': 0, 'y_min': 0, 'y_max': 1}, {'cmd': 'window.zoom_out'},
                         {'cmd': 'window.zoom_out', 'factor': 2, 'x_min': 0, 'x_max': 1, 'y_min': 0, 'y_max': 1},
                         {'cmd': 'window.zoom_out', 'factor': 0.5}, {'cmd': 'window.zoom_out', 'factor': 2, 'center_x': 1},
                         {'cmd': 'window.scroll', 'dx': 1}, {'cmd': 'window.fit', 'window': 'browser'},
-                        {'cmd': 'window.reset_default', 'window': 'nothing'}, {'cmd': 'window.clear', 'window': 'browser'},
+                        {'cmd': 'window.reset_view', 'window': 'nothing'}, {'cmd': 'window.clear', 'window': 'browser'},
                         {'cmd': 'window.redraw', 'window': 'browser'}, {'cmd': 'window.set_display', 'x_range': [3, 1]},
                         {'cmd': 'window.set_display', 'x_range': [1]}, {'cmd': 'window.set_display', 'x_range': [1, 2, 3]},
                         {'cmd': 'window.set_display', 'show_earlier_runs': 1}]:
             request(refused, False)
-        result, _ = request({'cmd': 'window.reset_default'})
-        check('window.reset_default gives the default bounds', set(result) == set(bounds(0, 0, 0, 0)) and result['x_min'] < result['x_max'], str(result))
+        result, _ = request({'cmd': 'window.reset_view'})
+        check('window.reset_view gives the default bounds', set(result) == set(bounds(0, 0, 0, 0)) and result['x_min'] < result['x_max'], str(result))
         result, _ = request({'cmd': 'window.fit'})
         check('window.fit reports the view', set(result) == set(bounds(0, 0, 0, 0)), str(result))
         result, _ = request({'cmd': 'window.set_display', 'x_range': [0, 5], 'show_earlier_runs': False, 'keep_replaced_run': False})
@@ -1591,21 +1591,21 @@ def check_registry():
                         {'cmd': 'plot.freeze_curve', 'width': -1}, {'cmd': 'plot.set_frozen_legend'},
                         {'cmd': 'plot.set_frozen_legend', 'visible': True, 'x': 1}, {'cmd': 'plot.set_autox_freeze'}]:
             request(refused, False)
-        result, _ = request({'cmd': 'plot.clear_bifurcation'})
-        check('plot.clear_bifurcation reports', result == {'cleared': True}, str(result))
+        result, _ = request({'cmd': 'plot.delete_bifurcation'})
+        check('plot.delete_bifurcation reports', result == {'cleared': True}, str(result))
         with open(os.path.join(folder, 'diagram.dat'), 'w') as f:
             f.write('0 0 0 1 1 0\n1 1 1 1 1 0\n2 3 3 2 1 0\n3 4 4 2 1 0\n')
-        result, _ = request({'cmd': 'plot.import_bifurcation', 'file': 'diagram.dat'})
-        check('plot.import_bifurcation reports the curves made', result == {'file': 'diagram.dat', 'curves_imported': 2}, str(result))
+        result, _ = request({'cmd': 'plot.load_bifurcation', 'file': 'diagram.dat'})
+        check('plot.load_bifurcation reports the curves made', result == {'file': 'diagram.dat', 'curves_imported': 2}, str(result))
         with open(os.path.join(folder, 'bad.dat'), 'w') as f:
             f.write('0 0 0\n')
         for name, line in (('bad.dat', 1), ('missing.dat', 0)):  # a file's own error names that file and its line
-            snd(cmd='plot.import_bifurcation', file=name)
+            snd(cmd='plot.load_bifurcation', file=name)
             _, refused = col(lambda e: e.get('ev') == 'done')
             col(lambda e: e.get('ev') == 'done')
-            check('plot.import_bifurcation of %s is an error at its file and line' % name,
+            check('plot.load_bifurcation of %s is an error at its file and line' % name,
                   refused and refused.get('status') == 'error' and refused.get('file') == name and refused.get('line') == line, str(refused))
-        request({'cmd': 'plot.import_bifurcation', 'file': '../diagram.dat'}, False)
+        request({'cmd': 'plot.load_bifurcation', 'file': '../diagram.dat'}, False)
         # the axes
         result, evs = request({'cmd': 'plot.set_2d', 'x': 't', 'y': 'v', 'x_min': 0, 'x_max': 10, 'y_label': 'volts'})
         check('plot.set_2d sets the columns, limits and label', result == {'axes': '2d', 'x': 'T', 'y': 'V'} and main_plot(evs)['xlo'] == 0
@@ -1667,14 +1667,14 @@ def check_registry():
         result, _ = request({'cmd': 'plot.export_pdf', 'file': 'plot.pdf'})
         check('plot.export_pdf writes the picture into the model folder', result['file'] == 'plot.pdf' and result['bytes_written'] > 100 and
               open(os.path.join(folder, 'plot.pdf'), 'rb').read(4) == b'%PDF', str(result))
-        result, _ = request({'cmd': 'browser.export', 'target': 'plot_curves', 'file': 'plot.csv'})
-        check('browser.export of plot_curves writes what the plot shows in the format of the extension', result['file'] == 'plot.csv' and result['rows_written'] > 0 and
+        result, _ = request({'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.csv'})
+        check('data.export of plot_curves writes what the plot shows in the format of the extension', result['file'] == 'plot.csv' and result['rows_written'] > 0 and
               'curve,x,y' in open(os.path.join(folder, 'plot.csv')).read().splitlines()[:2], str(result))
-        result, _ = request({'cmd': 'browser.export', 'target': 'plot_curves', 'file': 'plot.out', 'format': 'dat'})
-        check('browser.export of plot_curves takes the format by name', result['rows_written'] > 0, str(result))
+        result, _ = request({'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.out', 'format': 'dat'})
+        check('data.export of plot_curves takes the format by name', result['rows_written'] > 0, str(result))
         for refused in [{'cmd': 'plot.export_svg'}, {'cmd': 'plot.export_svg', 'file': '../plot.svg'}, {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'axes_font_size': 0},
                         {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'color': 'yes'},
-                        {'cmd': 'browser.export', 'target': 'plot_curves', 'file': 'plot.zip', 'format': 'zip'}]:
+                        {'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.zip', 'format': 'zip'}]:
             request(refused, False)
         # the old forms are gone
         for obsolete in [{'cmd': 'plotvars', 'how': 0, 'names': ['v']}, {'cmd': 'colormap', 'name': 'jet'}]:
@@ -1709,7 +1709,7 @@ def check_registry():
         bounds = {name: [value, value] for name, value in result.get('equilibrium', {}).items()}
         calls = [
             ({'cmd': 'equilibrium.guess', 'coordinates': {'V': -0.5, 'W': 0.1}}, 'converged'),
-            ({'cmd': 'equilibrium.import_as_ic'}, 'applied'),
+            ({'cmd': 'initial_conditions.set_from_equilibrium'}, 'applied'),
             ({'cmd': 'equilibrium.export', 'file': 'w522-equilibrium.dat'}, 'written'),
             ({'cmd': 'equilibrium.configure', 'max_iterates': 100}, 'settings'),
             ({'cmd': 'equilibrium.search', 'guesses': 2, 'tolerance': 0.001, 'bounds': bounds}, 'found'),
@@ -1717,17 +1717,17 @@ def check_registry():
             ({'cmd': 'nullcline.set_mesh', 'mesh': 20}, 'nullcline_mesh'),
             ({'cmd': 'nullcline.compute'}, 'curves_computed'),
             ({'cmd': 'nullcline.redraw'}, 'drawn'),
-            ({'cmd': 'nullcline.auto_mode', 'enabled': True}, 'auto_redraw'),
+            ({'cmd': 'nullcline.set_redraw_mode', 'enabled': True}, 'auto_redraw'),
             ({'cmd': 'nullcline.freeze'}, 'frozen_curves_count'),
             ({'cmd': 'nullcline.range_freeze', 'parameter': 'iapp', 'start': 0, 'end': 0.1, 'steps': 1}, 'steps_frozen'),
             ({'cmd': 'nullcline.animate', 'delay_ms': 0}, 'animated'),
             ({'cmd': 'nullcline.export', 'file': 'w522-nullclines.csv', 'format': 'csv'}, 'points_written'),
-            ({'cmd': 'nullcline.clear_frozen'}, 'cleared'),
-            ({'cmd': 'dirfield.compute', 'grid': 2, 'scaled': True}, 'vectors_drawn'),
-            ({'cmd': 'dirfield.export', 'file': 'w522-dirfield.dat'}, 'written'),
-            ({'cmd': 'dirfield.flow', 'grid': 2}, 'trajectories_run'),
-            ({'cmd': 'dirfield.colorize', 'grid': 2}, 'cells_colored'),
-            ({'cmd': 'dirfield.clear'}, 'cleared')]
+            ({'cmd': 'nullcline.delete_frozen'}, 'cleared'),
+            ({'cmd': 'direction_field.compute', 'grid': 2, 'scaled': True}, 'vectors_drawn'),
+            ({'cmd': 'direction_field.export', 'file': 'w522-dirfield.dat'}, 'written'),
+            ({'cmd': 'direction_field.flow', 'grid': 2}, 'trajectories_run'),
+            ({'cmd': 'direction_field.colorize', 'grid': 2}, 'cells_colored'),
+            ({'cmd': 'direction_field.clear'}, 'cleared')]
         for command, field in calls:
             result, _ = request(command)
             check('W522: ' + command['cmd'] + ' declares and returns ' + field, field in result, str(result))
@@ -1753,15 +1753,15 @@ def check_registry():
               len([e for e in evs if e.get('error')]) == 1 and 'Unknown command key' in str(evs[-1].get('error')) and not any(e.get('ev') in ('ask', 'job.computing') for e in evs), str(evs)[-500:])
         # These are real recorded steps, whose JSON commands retain names.
         snd(cmd='recording.start'); col(lambda e: e.get('ev') == 'done')
-        request({'cmd': 'window.create', 'name': 'Recorded graph'})
+        request({'cmd': 'window.new', 'name': 'Recorded graph'})
         request({'cmd': 'window.rename', 'window': 'Recorded graph', 'name': 'Recorded phase plane'})
         request({'cmd': 'window.select', 'window': 'graph_1'})
-        request({'cmd': 'window.destroy', 'window': 'Recorded phase plane'})
+        request({'cmd': 'window.close', 'window': 'Recorded phase plane'})
         snd(cmd='recording.stop', file='named.recx'); col(lambda e: e.get('ev') == 'done')
         with open(os.path.join(folder, 'named.recx'), encoding='utf-8') as f: text = f.read()
         _, _, steps, written, computed = read_recx(text)
         check('registry: recording keeps dotted commands and quoted window names', written == computed and
-              [step['cmd']['cmd'] for step, _ in steps] == ['window.create', 'window.rename', 'window.select', 'window.destroy'] and
+              [step['cmd']['cmd'] for step, _ in steps] == ['window.new', 'window.rename', 'window.select', 'window.close'] and
               steps[1][0]['cmd']['window'] == 'Recorded graph' and 'win' not in steps[1][0]['cmd'])
         replay_dir = tempfile.mkdtemp(prefix='xppnamed-replay')
         try:
@@ -1906,17 +1906,17 @@ def check_session_commands():
             check('W528: the old command %s is unknown' % old,
                   any('Unknown command %s' % old in e.get('error', '') for e in evs), str(evs)[-300:])
         # the tools
-        done, _ = call(cmd='tool.calculator', expression='2*3+1')
-        check('W528: tool.calculator works a formula out', done.get('status') == 'ok' and done['result'] == {'expression': '2*3+1', 'value': 7}, str(done))
-        done, _ = call(cmd='tool.calculator', expression='2*')
-        check('W528: tool.calculator refuses a formula that does not compile', 'expression' in error_of(done), str(done))
-        done, _ = call(cmd='tool.run_user_button', index=5)
-        check('W528: tool.run_user_button refuses a button the model lacks', 'no button 5' in error_of(done), str(done))
-        done, evs = call(cmd='tool.run_user_button', index=0)
+        done, _ = call(cmd='calculator.evaluate', expression='2*3+1')
+        check('W528: calculator.evaluate works a formula out', done.get('status') == 'ok' and done['result'] == {'expression': '2*3+1', 'value': 7}, str(done))
+        done, _ = call(cmd='calculator.evaluate', expression='2*')
+        check('W528: calculator.evaluate refuses a formula that does not compile', 'expression' in error_of(done), str(done))
+        done, _ = call(cmd='button.run', index=5)
+        check('W528: button.run refuses a button the model lacks', 'no button 5' in error_of(done), str(done))
+        done, evs = call(cmd='button.run', index=0)
         st = last_state(evs)
-        check('W528: tool.run_user_button presses the model\'s button: Go ran', done.get('result') == {'ran': True} and st and st['rows'] > 1, str(done))
-        done, _ = call(cmd='tool.run_source_action', index=0)
-        check('W528: tool.run_source_action refuses a comment with no action', 'no action' in error_of(done), str(done))
+        check('W528: button.run presses the model\'s button: Go ran', done.get('result') == {'ran': True} and st and st['rows'] > 1, str(done))
+        done, _ = call(cmd='source.run_action', index=0)
+        check('W528: source.run_action refuses a comment with no action', 'no action' in error_of(done), str(done))
         # the state and the source
         done, evs = call(cmd='session.get_state')
         check('W528: session.get_state answers the state\'s members and sends the state event too',
@@ -1944,10 +1944,10 @@ def check_session_commands():
         done, evs = call(cmd='keymap.get')
         check('W528: keymap.get answers the user\'s own differences, and sends the keymap event',
               done['result'] == {'bindings': {}, 'pinned': []} and any(e.get('ev') == 'keymap.changed' and e['op'] == 'get' for e in evs), str(done))
-        done, evs = call(cmd='keymap.set', bindings={'session.reload_model': ['Ctrl+B']}, pinned=['tool.calculator'])
+        done, evs = call(cmd='keymap.set', bindings={'session.reload_model': ['Ctrl+B']}, pinned=['calculator.evaluate'])
         km = next((e['keymap'] for e in evs if e.get('ev') == 'keymap.changed'), {})
         check('W528: keymap.set writes the parts given and sends the effective keymap',
-              done['result'] == {'saved': True} and 'preset' not in km and km.get('pinned') == ['tool.calculator']
+              done['result'] == {'saved': True} and 'preset' not in km and km.get('pinned') == ['calculator.evaluate']
               and os.path.exists(os.path.join(config, 'keymap.json')), str(done) + str(km)[:200])
         done, _ = call(cmd='keymap.set', pinned=['session.reload_model'])
         done2, _ = call(cmd='keymap.get')
@@ -1955,7 +1955,7 @@ def check_session_commands():
               done2['result'] == {'bindings': {'session.reload_model': ['Ctrl+B']}, 'pinned': ['session.reload_model']}, str(done2))
         for bad, text in ((dict(bindings={'session.reload_model': 'Ctrl+B'}), 'bindings'), (dict(bindings={'nosuch': ['Ctrl+B']}), 'nosuch'),
                           (dict(bindings={'session.reload_model': ['ctrl+b']}), 'ctrl+b'), (dict(bindings={'session.reload_model': ['Ctrl+W']}), 'Ctrl+W'),
-                          (dict(bindings={'session.reload_model': ['Ctrl+B'], 'tool.calculator': ['Ctrl+B']}), 'Ctrl+B'), (dict(pinned=['quit']), 'quit'),
+                          (dict(bindings={'session.reload_model': ['Ctrl+B'], 'calculator.evaluate': ['Ctrl+B']}), 'Ctrl+B'), (dict(pinned=['quit']), 'quit'),
                           (dict(preset='default'), 'preset'),
                           (dict(bindings={'session.reload_model': ['Ctrl+K S']}), 'never a sequence'),
                           (dict(bindings={'session.reload_model': ['Ctrl+K Ctrl+S']}), 'Ctrl+K Ctrl+S'),
@@ -2139,7 +2139,7 @@ def check_data_value_set():
         def request(**command):
             snd(**command)
             evs, done = col(is_done, timeout=60 * SLOW)
-            return evs, (done if done and done.get('ev') == 'done' else {}), [e for e in evs if e.get('ev') == 'browser.updated']
+            return evs, (done if done and done.get('ev') == 'done' else {}), [e for e in evs if e.get('ev') == 'data.updated']
         return request
 
     def good(request, what, expect, **command):
@@ -2199,85 +2199,85 @@ def check_data_value_set():
         check('W526: ... the step stayed', last_state(request(cmd='session.get_state')[0])['sliders'][0]['step'] == 0.01)
         refused(request, 'value.configure_slider', 'Slot 9', cmd='value.configure_slider', slot=9, name='iapp', low=0, high=1)
         refused(request, 'value.configure_slider', 'finite low < high', cmd='value.configure_slider', slot=0, name='iapp', low=1, high=0)
-        good(request, 'value.remove_slider empties the slot', {'slot': 0, 'removed': True}, cmd='value.remove_slider', slot=0)
-        refused(request, 'value.remove_slider', 'Slot 5', cmd='value.remove_slider', slot=5)
+        good(request, 'value.delete_slider empties the slot', {'slot': 0, 'removed': True}, cmd='value.delete_slider', slot=0)
+        refused(request, 'value.delete_slider', 'Slot 5', cmd='value.delete_slider', slot=5)
         state = last_state(request(cmd='session.get_state')[0])
         with open(os.path.join(r, 'w526.par'), 'w') as f:
             f.write(xppaut_par(state['pars']))
         request(cmd='value.set_parameters', values={'iapp': 0.5})
-        good(request, 'value.load_file reads the parameters back', {'file': 'w526.par', 'kind': 'parameters'},
-             cmd='value.load_file', kind='parameters', file='w526.par')
+        good(request, 'value.import_file reads the parameters back', {'file': 'w526.par', 'kind': 'parameters'},
+             cmd='value.import_file', kind='parameters', file='w526.par')
         check('W526: ... iapp is what was saved', dict(last_state(request(cmd='session.get_state')[0])['pars'])['iapp'] == 0.07)
-        refused(request, 'value.load_file of a file that is not there', 'w526gone.par', cmd='value.load_file', kind='parameters', file='w526gone.par')
-        refused(request, 'value.load_file with a path', 'not a plain file name', cmd='value.load_file', kind='parameters', file='../x.par')
+        refused(request, 'value.import_file of a file that is not there', 'w526gone.par', cmd='value.import_file', kind='parameters', file='w526gone.par')
+        refused(request, 'value.import_file with a path', 'not a plain file name', cmd='value.import_file', kind='parameters', file='../x.par')
         # ---- browser ----
         request(cmd='run.initial')
-        result = good(request, 'browser.page gives the block asked for',
+        result = good(request, 'data.page gives the block asked for',
                       lambda v: v['first_row'] == 10 and v['total_rows'] == 601 and len(v['rows']) == 3 and len(v['rows'][0]) == 2,
-                      cmd='browser.page', from_row=10, count=3, first_column=2, columns=1)
-        evs, done, blocks = request(cmd='browser.page', from_row=10, count=3, first_column=2, columns=1)
+                      cmd='data.page', from_row=10, count=3, first_column=2, columns=1)
+        evs, done, blocks = request(cmd='data.page', from_row=10, count=3, first_column=2, columns=1)
         check('W526: ... the browser event carries the same rows', blocks and blocks[-1]['data'] == result['rows'] and blocks[-1]['from'] == 10
               and blocks[-1]['cols'][:3] == ['T', 'V', 'W'], str(blocks)[:300])
         for words, command in (('at least 0', dict(from_row=-1, count=1)), ('at most 2000', dict(from_row=0, count=2001)),
                                ('at most 500', dict(from_row=0, count=1, columns=501)), ('at least 1', dict(from_row=0, count=1, first_column=0)),
                                ('Missing argument "count"', dict(from_row=0))):
-            refused(request, 'browser.page', words, cmd='browser.page', **command)
-        row100 = request(cmd='browser.page', from_row=100, count=1, first_column=1, columns=2)[1]['result']['rows'][0]
-        good(request, 'browser.find selects the row nearest a value', {'row_found': 100}, cmd='browser.find', column='v', value=row100[1])
-        refused(request, 'browser.find of a column the data has not', 'no column named "nosuch"', cmd='browser.find', column='nosuch', value=1)
-        refused(request, 'browser.find of a value that is no number', 'finite number', cmd='browser.find', column='v', value='x')
-        good(request, 'browser.set_slice_start keeps the data from a row on', {'first_row': 10}, cmd='browser.set_slice_start', row=10)
-        refused(request, 'browser.set_slice_end before the first row kept', 'must not come before the first row kept, 10', cmd='browser.set_slice_end', row=5)
-        good(request, 'browser.set_slice_end keeps the data up to a row', {'last_row': 50}, cmd='browser.set_slice_end', row=50)
-        evs, done, blocks = request(cmd='browser.page', from_row=0, count=1)
+            refused(request, 'data.page', words, cmd='data.page', **command)
+        row100 = request(cmd='data.page', from_row=100, count=1, first_column=1, columns=2)[1]['result']['rows'][0]
+        good(request, 'data.find selects the row nearest a value', {'row_found': 100}, cmd='data.find', column='v', value=row100[1])
+        refused(request, 'data.find of a column the data has not', 'no column named "nosuch"', cmd='data.find', column='nosuch', value=1)
+        refused(request, 'data.find of a value that is no number', 'finite number', cmd='data.find', column='v', value='x')
+        good(request, 'data.set_slice_start keeps the data from a row on', {'first_row': 10}, cmd='data.set_slice_start', row=10)
+        refused(request, 'data.set_slice_end before the first row kept', 'must not come before the first row kept, 10', cmd='data.set_slice_end', row=5)
+        good(request, 'data.set_slice_end keeps the data up to a row', {'last_row': 50}, cmd='data.set_slice_end', row=50)
+        evs, done, blocks = request(cmd='data.page', from_row=0, count=1)
         check('W526: ... the block says the rows kept', blocks and blocks[-1]['start'] == 10 and blocks[-1]['end'] == 51, str(blocks)[:200])
-        refused(request, 'browser.set_slice_start past the data', 'not in the data', cmd='browser.set_slice_start', row=601)
-        good(request, 'browser.tabulate_column writes the rows kept as a lookup table', {'file': 'w526.tab', 'rows_written': 41},
-             cmd='browser.tabulate_column', variable='v', x_low=0, x_high=1, file='w526.tab')
+        refused(request, 'data.set_slice_start past the data', 'not in the data', cmd='data.set_slice_start', row=601)
+        good(request, 'data.tabulate_column writes the rows kept as a lookup table', {'file': 'w526.tab', 'rows_written': 41},
+             cmd='data.tabulate_column', variable='v', x_low=0, x_high=1, file='w526.tab')
         check('W526: ... its first line is the count', open(os.path.join(r, 'w526.tab')).readline().strip() == '41')
-        refused(request, 'browser.tabulate_column of a reversed range', 'low end below its high end', cmd='browser.tabulate_column', variable='v', x_low=1, x_high=0, file='x.tab')
-        refused(request, 'browser.tabulate_column of an unknown column', 'no column named "nosuch"', cmd='browser.tabulate_column', variable='nosuch', x_low=0, x_high=1, file='x.tab')
-        refused(request, 'browser.tabulate_column to a path', 'not a plain file name', cmd='browser.tabulate_column', variable='v', x_low=0, x_high=1, file='a/b.tab')
-        good(request, 'browser.restore_full_slice keeps all the data again', {'first_row': 0, 'last_row': 600}, cmd='browser.restore_full_slice')
-        evs, done, blocks = request(cmd='browser.page', from_row=0, count=1)
+        refused(request, 'data.tabulate_column of a reversed range', 'low end below its high end', cmd='data.tabulate_column', variable='v', x_low=1, x_high=0, file='x.tab')
+        refused(request, 'data.tabulate_column of an unknown column', 'no column named "nosuch"', cmd='data.tabulate_column', variable='nosuch', x_low=0, x_high=1, file='x.tab')
+        refused(request, 'data.tabulate_column to a path', 'not a plain file name', cmd='data.tabulate_column', variable='v', x_low=0, x_high=1, file='a/b.tab')
+        good(request, 'data.restore_full_slice keeps all the data again', {'first_row': 0, 'last_row': 600}, cmd='data.restore_full_slice')
+        evs, done, blocks = request(cmd='data.page', from_row=0, count=1)
         check('W526: ... the block says all the rows', blocks and blocks[-1]['start'] == 0 and blocks[-1]['end'] == 601, str(blocks)[:200])
-        good(request, 'browser.add_column adds a column computed from the others', {'column': 'VW', 'added': True},
-             cmd='browser.add_column', name='vw', formula='v*w')
-        evs, done, blocks = request(cmd='browser.page', from_row=0, count=2, first_column=1, columns=500)
+        good(request, 'data.add_column adds a column computed from the others', {'column': 'VW', 'added': True},
+             cmd='data.add_column', name='vw', formula='v*w')
+        evs, done, blocks = request(cmd='data.page', from_row=0, count=2, first_column=1, columns=500)
         check('W526: ... the block has it, computed', blocks and blocks[-1]['cols'][-1] == 'VW'
               and abs(blocks[-1]['data'][1][-1] - blocks[-1]['data'][1][1] * blocks[-1]['data'][1][2]) < 1e-5, str(blocks)[:300])
-        refused(request, 'browser.add_column of a name the data has', 'already has a column named "VW"', cmd='browser.add_column', name='VW', formula='v')
-        refused(request, 'browser.add_column with a formula that does not compile', 'Argument "formula"', cmd='browser.add_column', name='zz', formula='v*')
-        good(request, 'browser.replace_column replaces a column by a sequence', {'column': 'vw', 'replaced': True},
-             cmd='browser.replace_column', column='vw', formula='1:601')
-        evs, done, blocks = request(cmd='browser.page', from_row=0, count=3, first_column=1, columns=500)
+        refused(request, 'data.add_column of a name the data has', 'already has a column named "VW"', cmd='data.add_column', name='VW', formula='v')
+        refused(request, 'data.add_column with a formula that does not compile', 'Argument "formula"', cmd='data.add_column', name='zz', formula='v*')
+        good(request, 'data.replace_column replaces a column by a sequence', {'column': 'vw', 'replaced': True},
+             cmd='data.replace_column', column='vw', formula='1:601')
+        evs, done, blocks = request(cmd='data.page', from_row=0, count=3, first_column=1, columns=500)
         check('W526: ... its values are the sequence', blocks and [row[-1] for row in blocks[-1]['data']] == [1, 2, 3], str(blocks)[:300])
-        good(request, 'browser.undo_replace puts the column back', {'undone': True}, cmd='browser.undo_replace')
-        refused(request, 'browser.undo_replace with nothing replaced', 'No replacement to undo', cmd='browser.undo_replace')
-        refused(request, 'browser.replace_column with a bad formula', 'Illegal formula', cmd='browser.replace_column', column='vw', formula='v*')
-        refused(request, 'browser.replace_column of a variable that is not there', 'No such variable', cmd='browser.replace_column', column='vw', formula='@nosuch')
-        refused(request, 'browser.delete_column of a model column', 'Choose an added column', cmd='browser.delete_column', name='v')
-        good(request, 'browser.export writes the table in a format', {'file': 'w526.csv', 'rows_written': 601},
-             cmd='browser.export', target='table', format='csv', file='w526.csv')
-        refused(request, 'browser.export with a format it has not', 'Invalid choice "xls"', cmd='browser.export', target='table', format='xls', file='x.xls')
-        refused(request, 'browser.export with a target it has not', 'Invalid choice "all"', cmd='browser.export', target='all', format='csv', file='x.csv')
-        good(request, 'browser.export writes what the plot shows', {'file': 'w526c.csv', 'rows_written': 601},
-             cmd='browser.export', target='plot_curves', format='csv', file='w526c.csv')
-        good(request, 'browser.load reads a data file into the table', {'file': 'w526.csv', 'rows_loaded': 601}, cmd='browser.load', file='w526.csv')
-        refused(request, 'browser.load of a file that is not there', 'w526gone.csv', cmd='browser.load', file='w526gone.csv')
-        good(request, 'browser.delete_column deletes an added column', {'deleted': True}, cmd='browser.delete_column', name='vw')
-        refused(request, 'browser.delete_column with none left', 'no column named "vw"', cmd='browser.delete_column', name='vw')
-        good(request, 'browser.transpose shows the data transposed', {'transposed_rows': 2, 'transposed_cols': 1},
-             cmd='browser.transpose', first_column='v', columns=2, column_skip=1, first_row=0, rows=1, row_skip=1)
+        good(request, 'data.undo_replace puts the column back', {'undone': True}, cmd='data.undo_replace')
+        refused(request, 'data.undo_replace with nothing replaced', 'No replacement to undo', cmd='data.undo_replace')
+        refused(request, 'data.replace_column with a bad formula', 'Illegal formula', cmd='data.replace_column', column='vw', formula='v*')
+        refused(request, 'data.replace_column of a variable that is not there', 'No such variable', cmd='data.replace_column', column='vw', formula='@nosuch')
+        refused(request, 'data.delete_column of a model column', 'Choose an added column', cmd='data.delete_column', name='v')
+        good(request, 'data.export writes the table in a format', {'file': 'w526.csv', 'rows_written': 601},
+             cmd='data.export', target='table', format='csv', file='w526.csv')
+        refused(request, 'data.export with a format it has not', 'Invalid choice "xls"', cmd='data.export', target='table', format='xls', file='x.xls')
+        refused(request, 'data.export with a target it has not', 'Invalid choice "all"', cmd='data.export', target='all', format='csv', file='x.csv')
+        good(request, 'data.export writes what the plot shows', {'file': 'w526c.csv', 'rows_written': 601},
+             cmd='data.export', target='plot_curves', format='csv', file='w526c.csv')
+        good(request, 'data.load reads a data file into the table', {'file': 'w526.csv', 'rows_loaded': 601}, cmd='data.load', file='w526.csv')
+        refused(request, 'data.load of a file that is not there', 'w526gone.csv', cmd='data.load', file='w526gone.csv')
+        good(request, 'data.delete_column deletes an added column', {'deleted': True}, cmd='data.delete_column', name='vw')
+        refused(request, 'data.delete_column with none left', 'no column named "vw"', cmd='data.delete_column', name='vw')
+        good(request, 'data.transpose shows the data transposed', {'transposed_rows': 2, 'transposed_cols': 1},
+             cmd='data.transpose', first_column='v', columns=2, column_skip=1, first_row=0, rows=1, row_skip=1)
         for words, command in (('reach column 7', dict(columns=7)), ('at most 5 columns', dict(rows=6)), ('reach row 601', dict(first_row=1, rows=2, row_skip=600)),
                                ('at least 1', dict(columns=0)), ('no column named "nosuch"', dict(first_column='nosuch'))):
-            refused(request, 'browser.transpose', words, cmd='browser.transpose', **command)
+            refused(request, 'data.transpose', words, cmd='data.transpose', **command)
         # ---- the model's @ postprocess ----
         pp, rp, sp, cp, _ = start(post_model)
         post = requester(sp, cp)
         post(cmd='run.initial')
-        post(cmd='analysis.histogram')
-        evs, _, blocks = post(cmd='browser.page', from_row=0, count=1)
+        post(cmd='histogram.compute')
+        evs, _, blocks = post(cmd='data.page', from_row=0, count=1)
         check('W526: the data browser shows the histogram of the model\'s @ postprocess', blocks and blocks[-1]['rows'] == 21, str(blocks)[:200])
         # ---- W615: after_run_file, the analysis in a file of its own while output.dat keeps the trajectory ----
         for named in (False, True):
@@ -2629,7 +2629,7 @@ def check_atomic_commands():
             after = saved() if archive else None
             changed = [name for name in set(before or {}) | set(after or {}) if (before or {}).get(name) != (after or {}).get(name)]
             # A rejection may publish an unchanged state, but no event claiming a value, plot or file changed.
-            claims = [e for e in events if e.get('ev') in ('window.created', 'plot.marks', 'plot.shown', 'browser.updated', 'plot.series', 'array_plot.shown') or (e.get('ev') == 'session.saved' and e.get('saved'))]
+            claims = [e for e in events if e.get('ev') in ('window.created', 'plot.marks', 'plot.shown', 'data.updated', 'plot.series', 'array_plot.shown') or (e.get('ev') == 'session.saved' and e.get('saved'))]
             check('W534: %s refuses the last value without changing the session' % command['cmd'],
                   done.get('status') == 'error' and before_state == after_state and not changed and not claims,
                   {'done': done, 'changed': changed, 'state': (before_state, after_state) if before_state != after_state else 'unchanged', 'claims': claims})
@@ -2676,41 +2676,41 @@ def check_atomic_commands():
         # Handler/owner checks go beyond the schema's individual types. These cases reached apply-then-check
         # paths before W534; the saved members expose settings that session.get_state does not list.
         refused(dict(cmd='value.set_parameters', values={'iapp': 17, 'absent': 2}))
-        refused(dict(cmd='ic.set', values={'v': 17, 'absent': 2}))
+        refused(dict(cmd='initial_conditions.set', values={'v': 17, 'absent': 2}))
         refused(dict(cmd='equilibrium.configure', max_iterates=17, newton_tolerance=-1))
         refused(dict(cmd='run.configure', total_time=17, delay_grid=3))
         refused(dict(cmd='run.configure', total_time=17, min_step=10, max_step=1))
-        refused(dict(cmd='bvp.configure', max_iterates=17, tolerance=-1))
+        refused(dict(cmd='boundary_value.configure', max_iterates=17, tolerance=-1))
         call(cmd='run.initial')
         analyses = [
-            (dict(cmd='analysis.histogram', bins=10, low=-1, high=1, condition=''),
-             dict(cmd='analysis.histogram', bins=17, low=0, high=-1)),
-            (dict(cmd='analysis.histogram', bins=10, low=-1, high=1, condition=''),
-             dict(cmd='analysis.histogram', bins=17, condition='(')),
-            (dict(cmd='analysis.histogram_2d', bins1=3, bins2=4, low1=-1, high1=1, low2=-1, high2=1),
-             dict(cmd='analysis.histogram_2d', bins1=17, low1=0, high1=1, low2=0, high2=-1)),
-            (dict(cmd='analysis.autocorrelation', bins=10, low=-1, high=1),
-             dict(cmd='analysis.autocorrelation', bins=17, low=0, high=-1)),
-            (dict(cmd='analysis.cross_correlation', column1='v', column2='w', lags=10),
-             dict(cmd='analysis.cross_correlation', column1='w', lags=1000)),
-            (dict(cmd='analysis.spectral_density', column='v', window_length=32),
-             dict(cmd='analysis.spectral_density', column='w', window_length=100000)),
+            (dict(cmd='histogram.compute', bins=10, low=-1, high=1, condition=''),
+             dict(cmd='histogram.compute', bins=17, low=0, high=-1)),
+            (dict(cmd='histogram.compute', bins=10, low=-1, high=1, condition=''),
+             dict(cmd='histogram.compute', bins=17, condition='(')),
+            (dict(cmd='histogram.compute_2d', bins1=3, bins2=4, low1=-1, high1=1, low2=-1, high2=1),
+             dict(cmd='histogram.compute_2d', bins1=17, low1=0, high1=1, low2=0, high2=-1)),
+            (dict(cmd='spectrum.autocorrelation', bins=10, low=-1, high=1),
+             dict(cmd='spectrum.autocorrelation', bins=17, low=0, high=-1)),
+            (dict(cmd='spectrum.cross_correlation', column1='v', column2='w', lags=10),
+             dict(cmd='spectrum.cross_correlation', column1='w', lags=1000)),
+            (dict(cmd='spectrum.density', column='v', window_length=32),
+             dict(cmd='spectrum.density', column='w', window_length=100000)),
         ]
         for setup, command in analyses:
-            call(cmd='analysis.load_stochastic_run')
+            call(cmd='stochastic.show_run')
             expected, _ = call(**setup)
-            call(cmd='analysis.load_stochastic_run')
+            call(cmd='stochastic.show_run')
             refused(command)
             got, _ = call(cmd=setup['cmd'])
             check('W534: %s keeps its earlier settings for the next call' % command['cmd'],
                   got.get('status') == 'ok' and got.get('result') == expected.get('result'), got)
-        call(cmd='analysis.load_stochastic_run')
-        fit_probe = dict(cmd='analysis.fit_curve', variables=['v'], parameters=['iapp'])
+        call(cmd='stochastic.show_run')
+        fit_probe = dict(cmd='fit.parameters', variables=['v'], parameters=['iapp'])
         expected, _ = call(**fit_probe)
-        refused(dict(cmd='analysis.fit_curve', variables=['v'], parameters=['iapp'], data_columns=[2], points=17, columns=3, file='absent.dat'))
+        refused(dict(cmd='fit.parameters', variables=['v'], parameters=['iapp'], data_columns=[2], points=17, columns=3, file='absent.dat'))
         got, _ = call(**fit_probe)
         check('W534: a refused fit keeps its earlier lists and file settings', got.get('error') == expected.get('error'), got)
-        refused(dict(cmd='analysis.adjoint_interaction', couplings={'v': 'v', 'w': 'w'}))
+        refused(dict(cmd='adjoint.compute_h_function', couplings={'v': 'v', 'w': 'w'}))
         call(cmd='array_plot.open')
         call(cmd='array_plot.configure', first_column='v', columns=2, rows=10, z_min=-1, z_max=1)
         os.mkdir(os.path.join(folder, 'blocked.pdf'))
@@ -2737,7 +2737,7 @@ def check_atomic_commands():
         call(cmd='window.select', window='diagram_2')
         refused(dict(cmd='autox.export_svg', window='diagram_1', file='blocked.svg'))
         refused(dict(cmd='autox.run', kind='equilibrium', decimals=4, hold=1, maximum=1, parameter_min=10, parameter_max=1))
-        call(cmd='window.create', name='second graph')
+        call(cmd='window.new', name='second graph')
         call(cmd='window.select', window='diagram_2')
         refused(dict(cmd='plot.set_2d', window='graph_1', x_min=0, x_max=1, y_min=1, y_max=0))
         selection, _ = call(cmd='window.set_redraw_mode', mode='auto')
@@ -2766,7 +2766,7 @@ def check_atomic_commands():
             _, events = call(cmd='session.get_source')
             comments = next(e['comments'] for e in events if e.get('ev') == 'session.source')
             index = next(i for i, comment in enumerate(comments) if comment[1])
-            refused(dict(cmd='tool.run_source_action', index=index))
+            refused(dict(cmd='source.run_action', index=index))
         finally:
             stop_server(p, folder, send)
 
@@ -3056,9 +3056,9 @@ def check_hello_kinds():
     missing = sorted(d for d in documented if not any(c == d for c, _ in kinds))
     check('W95: hello gives every documented command a kind', not missing and cmds
           and all(k in 'cvsdx' for k in kinds.values()), str(missing))
-    want = {('window.set_display', None): 'v', ('set', None): 's', ('value.set_parameters', None): 's', ('set.load_file', None): 's', ('set.file_contents', None): 'v',
-            ('run.abort', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('ic.set', None): 's', ('browser.export', None): 'd', ('browser.page', None): 'v', ('autox.configure_numerics', None): 's',
-            ('autox.grab', None): 'd', ('autox.run', None): 'x', ('tool.run_user_button', None): 'x',
+    want = {('window.set_display', None): 'v', ('set', None): 's', ('value.set_parameters', None): 's', ('set.load_file', None): 's', ('set.list_file_contents', None): 'v',
+            ('run.stop', None): 'c', ('run.initial', None): 'x', ('run.configure', None): 's', ('initial_conditions.set', None): 's', ('data.export', None): 'd', ('data.page', None): 'v', ('autox.configure_numerics', None): 's',
+            ('autox.grab', None): 'd', ('autox.run', None): 'x', ('button.run', None): 'x',
             ('equilibrium.find', None): 'x', ('session.save', None): 'd', ('session.quit', None): 'c'}
     check('W95, W106: kinds as decided: display a view, set/value.set_parameters/auto.configure_numerics settings, Save data and autox.grab data, autox.run a computation, '
           'abort control, a user button a computation',
@@ -3082,9 +3082,9 @@ def check_registry_menu(table):
     check('W517: every one of the bar\'s menus has commands', all(any(p.split('/')[0] == m for p in paths) for m in MENUS[:-1]), str(sorted(set(p.split('/')[0] for p in paths))))
     chords = {r['cmd']: r['default_keys'] for r in table if r['default_keys']}
     check('W517: only the frequent commands have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
-          chords == {'run.initial': ['Ctrl+R'], 'run.abort': ['Escape'], 'value.undo': ['Ctrl+Z'], 'value.redo': ['Ctrl+Shift+Z'],
+          chords == {'run.initial': ['Ctrl+R'], 'run.stop': ['Escape'], 'value.undo': ['Ctrl+Z'], 'value.redo': ['Ctrl+Shift+Z'],
                      'session.open_model': ['Ctrl+O'], 'session.save': ['Ctrl+S'], 'session.save_as': ['Ctrl+Shift+S'],
-                     'tool.command_palette': ['Ctrl+Shift+P'], 'tool.manual': ['F1']}, str(chords))
+                     'command_palette.open': ['Ctrl+Shift+P'], 'manual.open': ['F1']}, str(chords))
     check('W536: a command row carries no XPPAUT letters', not any('legacy_keys' in r or 'legacy_context' in r for r in table), str(table[:1]))
 
 
@@ -3198,8 +3198,8 @@ def check_hello_shared():
     check('W118: every command says whether it is a step: set and an export are, state, data, an answer, '
           'the browser\'s paging and the recording\'s own are not',
           all(isinstance(v, bool) for v in steps.values())
-          and steps.get(('set', None)) is True and steps.get(('browser.export', None)) is True
-          and not any(steps.get(k) for k in (('session.get_state', None), ('events.subscribe', None), ('answer', None), ('browser.page', None),
+          and steps.get(('set', None)) is True and steps.get(('data.export', None)) is True
+          and not any(steps.get(k) for k in (('session.get_state', None), ('events.subscribe', None), ('answer', None), ('data.page', None),
                                              ('recording.start', None), ('recording.play', None))), str(steps))
 
 
@@ -3310,42 +3310,42 @@ check('values: the .ic of this model holds the values alone, one per line, in th
 # change both, away from what the files hold
 send(cmd='value.set_parameters', values={'iapp': 0.09})
 collect(is_done)
-send(cmd='ic.set', values={'V': -0.4})
+send(cmd='initial_conditions.set', values={'V': -0.4})
 evs, _ = collect(is_done)
 st = last_state(evs)
 check('values round trip: the values changed before reading back',
       st is not None and dict(st['pars'])['iapp'] == 0.09 and dict(st['ics'])['V'] == -0.4,
       str(st and (st['pars'], st['ics'])))
 
-send(cmd='value.load_file', kind='parameters', file='t_values.par')
+send(cmd='value.import_file', kind='parameters', file='t_values.par')
 evs, _ = collect(is_done)
 st = last_state(evs)
 check('values read par restores the value in the file exactly',
       st is not None and dict(st['pars'])['iapp'] == 0.05, str(st and st['pars']))
 
-send(cmd='value.load_file', kind='initial_conditions', file='t_values.ic')
+send(cmd='value.import_file', kind='initial_conditions', file='t_values.ic')
 evs, _ = collect(is_done)
 st = last_state(evs)
 check('values read ic restores the values in the file exactly',
       st is not None and dict(st['ics'])['V'] == -0.144 and dict(st['ics'])['W'] == 0.03,
       str(st and st['ics']))
 
-send(cmd='value.load_file', kind='xyz', file='t_values.bad')
+send(cmd='value.import_file', kind='xyz', file='t_values.bad')
 evs, msg = collect(lambda e: e.get('ev') in ('session.message', 'done') and 'error' in e)
-check('value.load_file with a kind other than parameters/initial_conditions is refused', msg is not None, str(msg))
+check('value.import_file with a kind other than parameters/initial_conditions is refused', msg is not None, str(msg))
 collect(is_done)
 
-send(cmd='browser.page', **{'from_row': 10, 'count': 3, 'first_column': 2, 'columns': 1})
-evs, br = collect(lambda e: e.get('ev') == 'browser.updated')
+send(cmd='data.page', **{'from_row': 10, 'count': 3, 'first_column': 2, 'columns': 1})
+evs, br = collect(lambda e: e.get('ev') == 'data.updated')
 collect(is_done)
 check('browser sends the rows asked for', br is not None and br['rows'] == 601 and br['from'] == 10
       and len(br['data']) == 3 and len(br['data'][0]) == 2 and br['cols'][:3] == ['T', 'V', 'W'], str(br)[:200])
-send(cmd='ic.from_data_row', row=10)
+send(cmd='initial_conditions.set_from_data_row', row=10)
 evs, _ = collect(is_done)
 st = last_state(evs)
-check('ic.from_data_row sets the initial conditions from a row',
+check('initial_conditions.set_from_data_row sets the initial conditions from a row',
       st is not None and abs(dict(st['ics'])['W'] - br['data'][0][1]) < 1e-6, str(st and st['ics']))
-send(cmd='browser.page', **{'from_row': 0, 'count': 0})
+send(cmd='data.page', **{'from_row': 0, 'count': 0})
 collect(is_done)
 
 # W77: the data browser's Add column is the Session's, not the Model's
@@ -3356,8 +3356,8 @@ collect(is_done)
 # dropped) after every run, and find_variable resolves it by name so it
 # can be plotted.
 def fetch_browser(nrows):
-    send(cmd='browser.page', **{'from_row': 0, 'count': nrows, 'first_column': 1, 'columns': 500})
-    evs, br = collect(lambda e: e.get('ev') == 'browser.updated')
+    send(cmd='data.page', **{'from_row': 0, 'count': nrows, 'first_column': 1, 'columns': 500})
+    evs, br = collect(lambda e: e.get('ev') == 'data.updated')
     collect(is_done)
     return br
 
@@ -3370,7 +3370,7 @@ def near(a, b, tol=1e-5):
     return len(a) == len(b) and all(abs(x - y) < tol for x, y in zip(a, b))
 
 
-send(cmd='browser.add_column', name='VW', formula='v*w')
+send(cmd='data.add_column', name='VW', formula='v*w')
 evs, _ = collect(is_done)
 st = last_state(evs)
 check("addcol does not grow the model (still 2 ICs: V, W)", st is not None and len(st['ics']) == 2,
@@ -3382,7 +3382,7 @@ orig_cols = br['cols'][:-1]
 check('the browser shows the added column, computed from the others, for every row',
       br['cols'][-1] == 'VW' and near([row[vwi] for row in br['data']],
                                        [row[vi] * row[wi] for row in br['data']]), str(br)[:200])
-send(cmd='browser.export', target='table', format='csv', file='added_col.csv')
+send(cmd='data.export', target='table', format='csv', file='added_col.csv')
 collect(is_done)
 with open(os.path.join(run, 'added_col.csv')) as f:
     csv_lines = [l.strip() for l in f if l.strip() and not l.startswith('#')]
@@ -3447,7 +3447,7 @@ collect(is_done)
 acts = [i for i, c in enumerate(src['comments']) if c[1]] if src else []
 check('source lists the comments with actions', len(acts) >= 5, str(src and src['comments'][:3]))
 if acts:
-    send(cmd='tool.run_source_action', index=acts[1])  # {gk=0}
+    send(cmd='source.run_action', index=acts[1])  # {gk=0}
     evs, _ = collect(is_done)
     st = last_state(evs)
     check('a comment action sets its parameters', st is not None and dict(st['pars'])['gk'] == 0, str(st and st['pars']))
@@ -3534,7 +3534,7 @@ def check_import_xppaut_state():
 
 
 check_import_xppaut_state()
-transpose=next(c for c in hello['commands'] if c['cmd']=='browser.transpose')
+transpose=next(c for c in hello['commands'] if c['cmd']=='data.transpose')
 check('T32: Transpose arguments retain their name and integer types',
       [a['type'] for a in transpose['arguments']] == ['name','integer','integer','integer','integer','integer'],str(transpose['arguments']))
 
@@ -3608,7 +3608,7 @@ check('file get of the UTF-8 name gives its bytes back', ev.get('ok') == 1 and b
 
 send(cmd='run.configure',total_time=40)
 collect(is_done)
-poincare=next(c for c in hello['commands'] if c['cmd']=='analysis.poincare_map')
+poincare=next(c for c in hello['commands'] if c['cmd']=='poincare_map.set')
 check('W485: Poincare arguments declare a real section, named direction and boolean stop',
       {a['name']:a['type'] for a in poincare['arguments']} == {'type':'choice','variable':'name','section':'real','direction':'choice','stop_on_section':'boolean'}, str(poincare['arguments']))
 send(cmd='plot.set_2d',x_max=40)
@@ -3659,7 +3659,7 @@ STOP_ROWS = 400  # well inside total 40's 801 rows
 code, out, err = run_replay([
     {'cmd': 'run.configure', 'total_time': 40},
     {'cmd': 'run.initial'},
-    {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': STOP_ROWS, 't': 0}},
+    {'cmd': 'run.stop', 'at': {'what': 'integrate', 'rows': STOP_ROWS, 't': 0}},
     {'cmd': 'run.initial'},
 ])
 check('xppautX .recx --silent plays the armed interruption', code == 0, 'exit %d, %s' % (code, err[-300:]))
@@ -3695,7 +3695,7 @@ check('with its eigenvalues, one [re, im] per variable, as its counts say',
       len(ev) == len(eq['values']) and sum(1 for r, i in ev if r < 0) == eq['cminus'] + eq['rminus'], str(ev))
 collect(is_done)
 
-send(cmd='window.create')
+send(cmd='window.new')
 evs, _ = collect(lambda e: e.get('ev') == 'window.created', timeout=5 * SLOW)
 check('Makewindow/Create opens window 2', any(e.get('ev') == 'window.created' and e.get('win') == 'graph_2' for e in evs))
 collect(is_done)
@@ -3736,7 +3736,7 @@ check('window.list shows the hidden animation', any({'name': 'animation', 'kind'
       for e in evs if e.get('ev') == 'done'), str(evs[-3:]))
 send(cmd='window.show', window='animation')
 collect(is_done)
-send(cmd='window.destroy', window='animation')
+send(cmd='window.close', window='animation')
 evs, _ = collect(is_done)
 check('the animation window closes', any(e.get('ev') == 'window.destroyed' for e in evs))
 
@@ -3757,8 +3757,8 @@ send(cmd='session.get_state')
 evs, st = collect(is_state)
 collect(is_done)
 nrows = st['rows']
-send(cmd='browser.page', **{'from_row': 0, 'count': nrows, 'first_column': 1, 'columns': 500})
-evs, br = collect(lambda e: e.get('ev') == 'browser.updated')
+send(cmd='data.page', **{'from_row': 0, 'count': nrows, 'first_column': 1, 'columns': 500})
+evs, br = collect(lambda e: e.get('ev') == 'data.updated')
 collect(is_done)
 iv, iw = br['cols'].index('V'), br['cols'].index('W')
 nskip = max(1, nrows // ap[-1]['ny'])
@@ -3788,7 +3788,7 @@ collect(is_done)
 array_range=next(c for c in hello['commands'] if c['cmd']=='array_plot.range')
 check('T32: array range arguments retain named booleans and tags',any(a['name']=='tag' and a['type']=='boolean' for a in array_range['arguments']),str(array_range['arguments']))
 
-send(cmd='window.destroy', window='array_plot_1')
+send(cmd='window.close', window='array_plot_1')
 collect(is_done)
 send(cmd='window.select', window='graph_1')
 evs, _ = collect(is_done)
@@ -4036,17 +4036,17 @@ def check_data_coordinates():
               and abs(max(got['xlo'], got['xhi']) - max(want['xd'], want['xd2'])) <= px
               and abs(min(got['ylo'], got['yhi']) - min(want['yd'], want['yd2'])) <= py
               and abs(max(got['ylo'], got['yhi']) - max(want['yd'], want['yd2'])) <= py, '%s vs %s' % (got, want))
-        # ic.at in data coordinates: the ICs are that point
+        # run.from_point in data coordinates: the ICs are that point
         if by_data:
             v = by_data
             xd, yd = v['xlo'] + 0.3 * (v['xhi'] - v['xlo']), v['ylo'] + 0.6 * (v['yhi'] - v['ylo'])
-            snd(cmd='ic.at', coordinates={'V': xd, 'W': yd})
+            snd(cmd='run.from_point', coordinates={'V': xd, 'W': yd})
             evs, _ = col(is_done, timeout=30 * SLOW)
             st = last_state(evs)
             ics = dict(st['ics']) if st else {}
             pxm = abs(v['xhi'] - v['xlo']) / (v['right'] - v['left'])
             pym = abs(v['yhi'] - v['ylo']) / (v['bottom'] - v['top'])
-            check('ic.at in data coordinates starts from that point, within a pixel',
+            check('run.from_point in data coordinates starts from that point, within a pixel',
                   abs(ics.get('V', 1e9) - xd) <= pxm
                   and abs(ics.get('W', 1e9) - yd) <= pym, '%s vs %s' % (ics, (xd, yd)))
     finally:
@@ -4085,7 +4085,7 @@ def check_plot_windows():
               str(pl)[:400])
         check('plots comes before the series', evs.index(pl[0]) < [e.get('ev') for e in evs].index('plot.series') if pl and full(evs) else False)
         after({'cmd': 'run.initial'})
-        evs = after({'cmd':'window.create'})
+        evs = after({'cmd':'window.new'})
         pl, ser = plots(evs), full(evs)
         check('Makewindow/Create: plots has windows 1 and 2, 2 active',
               len(pl) == 1 and wins(pl[0]) == ['graph_1', 'graph_2'] and pl[0]['active'] == 'graph_2', str(pl)[:300])
@@ -4112,18 +4112,18 @@ def check_plot_windows():
               [e['win'] for e in full(evs)] == ['graph_1', 'graph_2'] and all(e['rows'] == 20001 for e in full(evs)),
               str([(e['win'], e['rows']) for e in full(evs)]))
         after({'cmd': 'window.select', 'window': 'graph_2'})
-        evs = after({'cmd':'window.destroy'})
+        evs = after({'cmd':'window.close'})
         pl = plots(evs)
         check('Makewindow/Destroy of window 2: plots has window 1 only, active',
               len(pl) == 1 and wins(pl[0]) == ['graph_1'] and pl[0]['active'] == 'graph_1' and not full(evs), str(pl)[:300])
-        after({'cmd':'window.create'})
-        evs = after({'cmd':'window.create'})
+        after({'cmd':'window.new'})
+        evs = after({'cmd':'window.new'})
         check('two more windows', plots(evs) and wins(plots(evs)[0]) == ['graph_1', 'graph_2', 'graph_3'], str(plots(evs))[:200])
-        evs = after({'cmd':'window.destroy_all'})
+        evs = after({'cmd':'window.close_extra'})
         pl = plots(evs)
         check('Makewindow/Kill all leaves window 1', len(pl) == 1 and wins(pl[0]) == ['graph_1'] and pl[0]['active'] == 'graph_1',
               str(pl)[:300])
-        evs = after({'cmd':'window.create'})
+        evs = after({'cmd':'window.new'})
         check('a window made again gets its series again', [e['win'] for e in full(evs)] == ['graph_2'],
               str([(e['win'], e['rows']) for e in full(evs)]))
         evs = after({'cmd': 'window.redraw'})
@@ -4168,7 +4168,7 @@ def check_model_plot_windows():
             try:
                 collect(is_done)
                 for _ in range(count - 1):
-                    send(cmd='window.create')
+                    send(cmd='window.new')
                     collect(is_done)
                 send(cmd='session.save_as', file='graphs%d' % count, data=False)
                 collect(is_done)
@@ -4378,9 +4378,9 @@ def check_values_protocol():
         # the values panel holds edits pending and sends them
         # right before the next command that computes.
         evs = after(cmd='value.set_parameters', values={'iapp': 0.1})
-        evs += after(cmd='ic.set', values={'v': -0.2})
+        evs += after(cmd='initial_conditions.set', values={'v': -0.2})
         st = last_state(evs)
-        check('value.set_parameters and ic.set: both set, no run (W69)',
+        check('value.set_parameters and initial_conditions.set: both set, no run (W69)',
               st and abs(par(st, 'iapp') - 0.1) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12 and not full(evs),
               str(st and st['pars'][:3]))
         check('value.set_parameters sends no erase event', not pics(evs), str(pics(evs)))
@@ -4435,22 +4435,22 @@ def check_values_protocol():
         check('run.configure with a total time that is not a number is refused, naming the argument',
               len(errs(evs)) == 1 and 'total_time' in errs(evs)[0]['error'], str(errs(evs)))
         evs = after(cmd='value.set_parameters', values={'iapp': 0.31, 'gca': 1.2})
-        evs += after(cmd='ic.set', values={'v': -0.2})
+        evs += after(cmd='initial_conditions.set', values={'v': -0.2})
         st = last_state(evs)
-        check('a good value.set_parameters of two and ic.set apply, no error', not errs(evs) and st
+        check('a good value.set_parameters of two and initial_conditions.set apply, no error', not errs(evs) and st
               and abs(par(st, 'iapp') - 0.31) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12, str(errs(evs)) + str(st and st['pars'][:3]))
         evs = after(cmd='set.restore_defaults', scope='parameters')
         st = last_state(evs)
         check('default par after edits: every parameter back to the model file value, no error',
               not errs(evs) and st and [v for _, v in st['pars']] == d['pars'], str(errs(evs)) + str(st and st['pars'][:3]))
-        after(cmd='ic.set', values={'v': -0.2})
+        after(cmd='initial_conditions.set', values={'v': -0.2})
         before = last_state(after(cmd='session.get_state'))
         evs = after(cmd='set', kind='ic', name='v', value=-0.5)
         st = last_state(evs)
-        check('set no longer takes initial conditions (ic.set does): refused naming ic.set, the ICs stay, no run',
-              len(errs(evs)) == 1 and 'ic.set' in errs(evs)[0]['error'] and errs(evs)[0].get('field') == 'ic:v'
+        check('set no longer takes initial conditions (initial_conditions.set does): refused naming initial_conditions.set, the ICs stay, no run',
+              len(errs(evs)) == 1 and 'initial_conditions.set' in errs(evs)[0]['error'] and errs(evs)[0].get('field') == 'ic:v'
               and st and st['ics'] == before['ics'] and not full(evs), str(errs(evs)) + str(st and st['ics']))
-        after(cmd='ic.set', values={'v': -0.3})
+        after(cmd='initial_conditions.set', values={'v': -0.3})
         prev_now = last_state(after(cmd='session.get_state'))['now']
         evs = after(cmd='run.last')
         states = [i for i, e in enumerate(evs) if is_state(e)]
@@ -4512,9 +4512,9 @@ def check_ic_file_markov():
         with open(os.path.join(rm, 'kepler_markov.ic'), 'w') as f:
             f.write(xppaut_ic([('x1', 0.0001), ('x2', 0.0001)]))
 
-        sndm(cmd='ic.set', values={'x1': 0.5})
+        sndm(cmd='initial_conditions.set', values={'x1': 0.5})
         colm(is_done)
-        sndm(cmd='value.load_file', kind='initial_conditions', file='kepler_markov.ic')
+        sndm(cmd='value.import_file', kind='initial_conditions', file='kepler_markov.ic')
         evs, _ = colm(is_done)
         st = last_state(evs)
         check('values read ic on a markov model restores the 2 node values (z untouched)',
@@ -4537,13 +4537,13 @@ def check_error_places():
         cole(is_done)
         with open(os.path.join(re_, 'w140bad.par'), 'w') as f:
             f.write('3   Number params\n1\n2\n3\n')
-        snde(cmd='value.load_file', kind='parameters', file='w140bad.par')
+        snde(cmd='value.import_file', kind='parameters', file='w140bad.par')
         evs, _ = cole(is_done, timeout=30 * SLOW)
         m = next((e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e), {})
         check('an error event: a values file at its line names the file, the line and the line as written (W140)',
               os.path.basename(m.get('file', '')) == 'w140bad.par' and m.get('line') == 1 and m.get('col') == 0
               and m.get('source') == '3   Number params' and 'parameters' in m.get('error', ''), str(m))
-        snde(cmd='value.load_file', kind='parameters', file='w140gone.par')
+        snde(cmd='value.import_file', kind='parameters', file='w140gone.par')
         evs, _ = cole(is_done, timeout=30 * SLOW)
         m = next((e for e in evs if e.get('ev') in ('session.message', 'done') and 'error' in e), {})
         check('an error event: a file that cannot be read is named with line 0 (W140)',
@@ -4625,7 +4625,7 @@ check_error_places_of_each_kind()
 
 def check_load_all_or_nothing():
     """W125, W321: loading values from a file is all or nothing. A file of sets (`set.load_file`), an XPPAUT
-    parameter file and an initial-conditions file (`value.load_file`) whose last value is bad are refused at that
+    parameter file and an initial-conditions file (`value.import_file`) whose last value is bad are refused at that
     line, naming the file and the line as written, and the session is exactly as it was (its state, and the
     settings it writes). A model's internal set is checked whole when the model loads (W318), so none can fail
     here."""
@@ -4674,7 +4674,7 @@ def check_load_all_or_nothing():
     try:
         col(is_done)
         answered((), cmd='value.set_parameters', values={'a': 1.5})
-        answered((), cmd='ic.set', values={'x': 0.25})
+        answered((), cmd='initial_conditions.set', values={'x': 0.25})
         st0, set0 = state(), set_file()
         # a file of sets whose last set names what the model has not is refused at that line, nothing applied
         bad_text = versioned('set "fine" { a: 5 }\nset "worse" {\n  a: 6,\n  nosuch: 1\n}\n')
@@ -4688,8 +4688,8 @@ def check_load_all_or_nothing():
             f.write('9\nnan?\n')
         for what, cmd, file, line, source in (
                 ('a file of sets', dict(cmd='set.load_file', file='bad.odex', scope='all', **{'from': 'set'}, name='worse'), 'bad.odex', high, '  nosuch: 1'),
-                ('a parameter file', dict(cmd='value.load_file', kind='parameters', file='bad.par'), 'bad.par', 3, 'oops  b'),
-                ('an initial-conditions file', dict(cmd='value.load_file', kind='initial_conditions', file='bad.ic'), 'bad.ic', 2, 'nan?')):
+                ('a parameter file', dict(cmd='value.import_file', kind='parameters', file='bad.par'), 'bad.par', 3, 'oops  b'),
+                ('an initial-conditions file', dict(cmd='value.import_file', kind='initial_conditions', file='bad.ic'), 'bad.ic', 2, 'nan?')):
             errs = errors(answered((), **cmd))
             e = errs[0] if len(errs) == 1 else {}
             check('W125: %s whose last value is bad is refused at that line (%s:%d)' % (what, file, line),
@@ -4701,7 +4701,7 @@ def check_load_all_or_nothing():
         # W310: foreign .par names determine the destination; rejection is atomic.
         with open(os.path.join(r, 'reordered.par'), 'w') as f:
             f.write('2   Number params\n4  b\n3  a\n\nFile:w125.odex\nWed Jun 30 21:49:08 1993\n')
-        evs = answered((), cmd='value.load_file', kind='parameters', file='reordered.par')
+        evs = answered((), cmd='value.import_file', kind='parameters', file='reordered.par')
         reordered = state()
         check('W310: reordered parameters load by name, with the XPPAUT trailer accepted',
               not errors(evs) and dict(reordered['pars']) == {'a': 3, 'b': 4}, str(reordered['pars']))
@@ -4716,7 +4716,7 @@ def check_load_all_or_nothing():
                 ('oversize.ic', 'ic', ' ' * (4 * 1024 * 1024 + 1), 0, None)):
             with open(os.path.join(r, file), 'w') as f:
                 f.write(text)
-            errs = errors(answered((), cmd='value.load_file', kind={'par': 'parameters', 'ic': 'initial_conditions'}[kind], file=file))
+            errs = errors(answered((), cmd='value.import_file', kind={'par': 'parameters', 'ic': 'initial_conditions'}[kind], file=file))
             e = errs[0] if len(errs) == 1 else {}
             source = text.splitlines()[line - 1] if 0 < line <= len(text.splitlines()) else ''
             check('W310: %s refused with its file, line, source and name' % file,
@@ -4749,11 +4749,11 @@ def check_load_all_or_nothing():
         check('W321: a file that is none of the files of values is refused', len(errs) == 1 and 'values.txt' in errs[0].get('error', ''), str(errs))
         check('W321: refused files apply nothing', state() == st0 and set_file() == set0)
         # what a file offers: its parts that hold the scope's kind
-        done = answered((), cmd='set.file_contents', file='mix.odex', scope='parameters')
+        done = answered((), cmd='set.list_file_contents', file='mix.odex', scope='parameters')
         contents = next(e for e in done if e.get('ev') == 'done').get('result', {})
-        check('W321: set.file_contents lists the defaults and the set that hold parameters',
+        check('W321: set.list_file_contents lists the defaults and the set that hold parameters',
               contents.get('format') == 'odex' and contents.get('parts') == [{'from': 'defaults', 'name': ''}, {'from': 'set', 'name': 'mix'}], str(contents))
-        done = answered((), cmd='set.file_contents', file='mix.odex', scope='poincare')
+        done = answered((), cmd='set.list_file_contents', file='mix.odex', scope='poincare')
         check('W321: ... and none for a kind it does not hold',
               next(e for e in done if e.get('ev') == 'done').get('result', {}).get('parts') == [], str(done)[-300:])
         # a set loads only the scope's part; a part that holds none of it is refused, not skipped
@@ -4790,8 +4790,8 @@ def check_load_all_or_nothing():
         # a file of many sets is offered within a cap
         with open(os.path.join(r, 'many.odex'), 'w') as f:
             f.write(versioned(''.join('set "s%d" { a: 1 }\n' % k for k in range(1200))))
-        errs = errors(answered((), cmd='set.file_contents', file='many.odex', scope='parameters'))
-        check('W321: set.file_contents says why it will not list more than its cap of parts',
+        errs = errors(answered((), cmd='set.list_file_contents', file='many.odex', scope='parameters'))
+        check('W321: set.list_file_contents says why it will not list more than its cap of parts',
               len(errs) == 1 and 'more than' in errs[0].get('error', ''), str(errs))
         errs = errors(load_set('mix.odex', part='mix', scope='parameters'))
         st = state()
@@ -4808,7 +4808,7 @@ def check_load_all_or_nothing():
         check('W321: a default that is a formula is refused at its line',
               len(errs) == 1 and os.path.basename(errs[0].get('file', '')) == 'formula.odex' and errs[0].get('line') == 3, str(errs))
         answered((), cmd='value.set_parameters', values={'a': 8})
-        answered((), cmd='ic.set', values={'x': 7})
+        answered((), cmd='initial_conditions.set', values={'x': 7})
         st0 = state()
         errs = errors(answered((), cmd='set.apply', name='good', scope='all'))
         st = state()
@@ -4903,7 +4903,7 @@ def check_apply_restore():
             check('W319: %s is refused (%s), nothing changed' % (json.dumps(bad), text),
                   len(es) == 1 and text in es[0] and view() == before, str(es))
         # a target graph: window 2 is active, the set goes to window 1
-        snd(cmd='window.create')
+        snd(cmd='window.new')
         col(is_done)
         v = view()
         check('W319: Makewindow/Create made window 2 active', v[5] == 'graph_2' and sorted(v[4]) == ['graph_1', 'graph_2'], str(v))
@@ -4999,7 +4999,7 @@ def check_save_values():
         check("W323: a set saved is in the state's list at once, holding the parameters",
               any(x['name'] == 's1' and x['scopes'] == ['parameters'] for x in last_state(run(cmd='session.get_state'))['sets']), '')
         # a part of a set replaced, its other parts as they were
-        run(cmd='ic.set', values={'x': 0.1, 'y': 0.2})
+        run(cmd='initial_conditions.set', values={'x': 0.1, 'y': 0.2})
         old = text()
         evs = run(cmd='set.save_into', name='mix', scope='initial')
         new = text()
@@ -5008,7 +5008,7 @@ def check_save_values():
               not errs(evs) and mix and 'a: 5' in mix[0] and 'x: 0.1' in mix[0] and 'y: 0.2' in mix[0] and 'x: 0.9' not in mix[0]
               and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: { axes.x_low: -3, axes.x_high: 3 }' in mix[0], str(mix) + str(errs(evs)))
         check('W320: the rest of the file is byte for byte as it was', new[:old.index('set "mix"')] == old[:old.index('set "mix"')], '')
-        run(cmd='ic.set', values={'x': 3})
+        run(cmd='initial_conditions.set', values={'x': 3})
         run(cmd='set.apply', name='mix', scope='initial')
         check('W320: the live model uses the replaced part', view()[1]['x'] == 0.1)
         evs = run(cmd='set.save_into', name='mix', scope='plot')
@@ -5176,9 +5176,9 @@ def check_phase_data():
         evs, _ = collect5(is_done)
         hello5 = next((e for e in evs if e.get('ev') == 'hello'), {})
         check('hello lists the nullclines and dfield features',
-              {'nullcline.curves', 'dirfield.field'} <= set(hello5.get('features', [])), str(hello5.get('features')))
-        evs = after({'cmd': 'events.subscribe', 'events': ['nullcline.curves', 'dirfield.field']})
-        nc, df = of(evs, 'nullcline.curves'), of(evs, 'dirfield.field')
+              {'nullcline.curves', 'direction_field.field'} <= set(hello5.get('features', [])), str(hello5.get('features')))
+        evs = after({'cmd': 'events.subscribe', 'events': ['nullcline.curves', 'direction_field.field']})
+        nc, df = of(evs, 'nullcline.curves'), of(evs, 'direction_field.field')
         check('data sends both at once, empty, for window 1',
               len(nc) == 1 and len(df) == 1 and nc[0]['win'] == 'graph_1' and nc[0]['x'] == [] and nc[0]['frozen'] == []
               and df[0]['grid'] == [] and df[0]['flows'] == [] and not of(evs, 'plot.series'), str(evs)[:300])
@@ -5192,10 +5192,10 @@ def check_phase_data():
         why = (segments_ok(n0.get('x', []), v) or segments_ok(n0.get('y', []), v)) if n0 else 'no event'
         check('... its x- and y-nullclines are whole segments inside the view', not why, why)
         evs = after({'cmd': 'window.redraw'})
-        check('a redraw draws them again and sends nothing', not of(evs, 'nullcline.curves') and not of(evs, 'dirfield.field'))
+        check('a redraw draws them again and sends nothing', not of(evs, 'nullcline.curves') and not of(evs, 'direction_field.field'))
 
-        evs = after({'cmd': 'dirfield.compute', 'grid': 16, 'scaled': True})
-        df, v = of(evs, 'dirfield.field'), last_state(evs)['view']
+        evs = after({'cmd': 'direction_field.compute', 'grid': 16, 'scaled': True})
+        df, v = of(evs, 'direction_field.field'), last_state(evs)['view']
         d0 = df[0] if df else {}
         check('Dir.field/Scaled: dfield has a 17 x 17 grid, scaled, in the curve\'s colour',
               len(df) == 1 and d0['n'] == 17 and d0['scaled'] == 1 and d0['color'] == 'foreground'
@@ -5213,17 +5213,17 @@ def check_phase_data():
               and nc[0]['frozen'][0]['y'] == nc[0]['y'], str(nc)[:300])
 
         evs = after({'cmd': 'window.clear'})
-        nc, df = of(evs, 'nullcline.curves'), of(evs, 'dirfield.field')
+        nc, df = of(evs, 'nullcline.curves'), of(evs, 'direction_field.field')
         check('Erase clears them: both events empty',
               len(nc) == 1 and nc[0]['x'] == [] and nc[0]['frozen'] == [] and len(df) == 1 and df[0]['grid'] == [],
               str(evs)[:300])
         evs = after({'cmd': 'window.redraw'})
-        nc, df = of(evs, 'nullcline.curves'), of(evs, 'dirfield.field')
+        nc, df = of(evs, 'nullcline.curves'), of(evs, 'direction_field.field')
         check('a redraw draws the nullclines again (not the field Erase turned off)',
               len(nc) == 1 and len(nc[0]['x']) > 0 and len(nc[0]['frozen']) == 1 and not df, str(evs)[:300])
 
-        evs = after({'cmd': 'dirfield.flow', 'grid': 5})
-        df = of(evs, 'dirfield.field')
+        evs = after({'cmd': 'direction_field.flow', 'grid': 5})
+        df = of(evs, 'direction_field.field')
         fl = df[0]['flows'] if df else []
         xs = fl[0]['x'] if fl else []
         starts = [0] + [i + 1 for i, a in enumerate(xs) if a is None]
@@ -5235,17 +5235,17 @@ def check_phase_data():
               bool(fl) and all(abs((xs[s] + 0.6) / 0.36 - round((xs[s] + 0.6) / 0.36)) < 1e-4 for s in starts),
               str([xs[s] for s in starts][:8]))
 
-        evs = after({'cmd': 'events.subscribe', 'events': ['nullcline.curves', 'dirfield.field'], 'encoding': 'f32'})
-        nc, df = of(evs, 'nullcline.curves'), of(evs, 'dirfield.field')
+        evs = after({'cmd': 'events.subscribe', 'events': ['nullcline.curves', 'direction_field.field'], 'encoding': 'f32'})
+        nc, df = of(evs, 'nullcline.curves'), of(evs, 'direction_field.field')
         same = False
         if nc and df and fl:
             same = (nc[0].get('enc') == 'f32' and df[0].get('enc') == 'f32'
                     and same_floats(values({'data': nc[0]['x']}, 'f32'), values({'data': ncx}, None))
                     and same_floats(values({'data': df[0]['flows'][0]['x']}, 'f32'), values({'data': xs}, None)))
         check('enc f32: the same values as base64 float32', same, str(evs)[:200])
-        after({'cmd': 'events.unsubscribe', 'events': ['nullcline.curves', 'dirfield.field']})
+        after({'cmd': 'events.unsubscribe', 'events': ['nullcline.curves', 'direction_field.field']})
         evs = after({'cmd': 'events.subscribe', 'events': ['plot.series']})
-        check('not asked for: neither is sent', not of(evs, 'nullcline.curves') and not of(evs, 'dirfield.field'))
+        check('not asked for: neither is sent', not of(evs, 'nullcline.curves') and not of(evs, 'direction_field.field'))
     finally:
         stop_server(proc5, run5, send5)
 
@@ -5925,7 +5925,7 @@ def lecar_to_autox(snd, col):
     result=[]
     for command in [dict(cmd='set.apply',name='hopf',scope='all'),
                     dict(cmd='equilibrium.find'),
-                    dict(cmd='equilibrium.import_as_ic'),dict(cmd='autox.open'),dict(cmd='autox.run',kind='equilibrium')]:
+                    dict(cmd='initial_conditions.set_from_equilibrium'),dict(cmd='autox.open'),dict(cmd='autox.run',kind='equilibrium')]:
         snd(**command)
         evs,_=col(is_done,timeout=60*SLOW)
         result.extend(evs)
@@ -6068,7 +6068,7 @@ def check_autoxinfo():
         evs, _ = cola(is_done)
         hint = [e.get('autox') for e in evs if e.get('ev') in ('session.message', 'done') and 'autox' in e]
         check('auto point in data coordinates shows exactly those', hint and hint[-1] == 'x=0.125,y=-0.25', str(hint))
-        snda(cmd='window.destroy', window='diagram_1')
+        snda(cmd='window.close', window='diagram_1')
         evs, _ = cola(is_done)
         got = infos(evs)
         check('autoxinfo: closing autoX empties it', got and got[-1]['info'] is None and got[-1]['stab'] is None, str(got))
@@ -6176,9 +6176,9 @@ def check_autoxsettings():
                 commands.append(dict(cmd='autox.configure_numerics', **numerics))
             if 'axes' in c:
                 rename = {'plot': 'plot_type', 'var': 'variable', 'par1': 'parameter1', 'par2': 'parameter2', 'xmin': 'x_min', 'xmax': 'x_max', 'ymin': 'y_min', 'ymax': 'y_max'}
-                commands.append(dict(cmd='autox.configure_plot', **{rename.get(k, k): v for k, v in c['axes'].items()}))
+                commands.append(dict(cmd='autox.configure_axes', **{rename.get(k, k): v for k, v in c['axes'].items()}))
             if 'pars' in c:
-                commands.append(dict(cmd='autox.configure_plot', pars=c['pars']))
+                commands.append(dict(cmd='autox.configure_axes', pars=c['pars']))
             if 'threads' in c:
                 commands.append(dict(cmd='preferences.configure', **({'automatic': True} if c['threads'] == 'auto' else {'threads': c['threads']})))
             evs = []
@@ -6319,7 +6319,7 @@ def autox_stop_run(numerics, abort=False):
         evs = []
         if abort:
             evs, _ = col(lambda e: e.get('ev') == 'autox.diagram' and e.get('op') == 'add', timeout=30 * SLOW)
-            snd(cmd='run.abort')
+            snd(cmd='run.stop')
         more, _ = col(is_done, timeout=60 * SLOW)
         evs += more
         got = infos(evs)
@@ -6481,7 +6481,7 @@ def check_data_formats():
         col(is_done)
         live_run(snd, col)
         for fmt, name in [('dat', 'd.dat'), ('csv', 'd.csv'), ('csv.gz', 'd.csv.gz'), ('npz', 'd.npz')]:
-            _, e = browser('browser.export', target='table', format=fmt, file=name)
+            _, e = browser('data.export', target='table', format=fmt, file=name)
             check('Save data writes the table as %s without asking' % fmt,
                   e is not None and is_done(e) and os.path.exists(os.path.join(r, name)), str(e))
         silent = tempfile.mkdtemp(prefix='xppsilent')
@@ -6535,14 +6535,14 @@ def check_data_formats():
                   and list(z['V']) == [f32(x[1]) for x in vals], str(z.files))
 
         # what the plot shows: the curve V against W, one row per point
-        browser('browser.export', target='plot_curves', format='csv', file='p.csv')
+        browser('data.export', target='plot_curves', format='csv', file='p.csv')
         pc = read(r, 'p.csv').decode().splitlines() or ['']
         if pc and pc[0].startswith('# seed '):
             pc = pc[1:]
         check('Save data writes what the plot shows: curve,x,y, a row per point',
               pc[0] == 'curve,x,y' and len(pc) == 602 and pc[1].split(',')[0] == '1'
               and [float(x) for x in pc[1].split(',')[1:]] == vals[0][1:3], str(pc[:2]))
-        browser('browser.export', target='plot_curves', format='npz', file='p.npz')
+        browser('data.export', target='plot_curves', format='npz', file='p.npz')
         try:
             arrays = npz_arrays(os.path.join(r, 'p.npz'))
             arrays.pop('seed', None)
@@ -6551,23 +6551,23 @@ def check_data_formats():
             ok, detail = False, repr(ex)
         check('what the plot shows as NPZ: one (points, 2) array per curve', ok, detail)
 
-        evs, _ = browser('browser.export', target='plot_curves', format='csv.gz', file='asked.csv.gz')
+        evs, _ = browser('data.export', target='plot_curves', format='csv.gz', file='asked.csv.gz')
         check('Save data exposes every format through its registry choices and writes gzip',
               gzip.decompress(read(r, 'asked.csv.gz')) == read(r, 'p.csv'))
 
-        evs, _ = browser('browser.export', target='plot_curves', format='csv', file='export.csv')
+        evs, _ = browser('data.export', target='plot_curves', format='csv', file='export.csv')
         check('Plot export writes what the graph shows', read(r, 'export.csv') == read(r, 'p.csv'))
 
         # Load reads each format back into the table, picked by its extension
         for name in ['d.csv', 'd.csv.gz', 'd.npz', 'd.dat']:
-            snd(cmd='browser.set_slice_start', row=300)
+            snd(cmd='data.set_slice_start', row=300)
             col(is_done)
-            browser('browser.export', target='table', format='dat', file='cut.dat')  # rows 300.. only
-            browser('browser.load', file='cut.dat')
-            evs, _ = browser('browser.load', file=name)
-            snd(cmd='browser.set_slice_start', row=0)
+            browser('data.export', target='table', format='dat', file='cut.dat')  # rows 300.. only
+            browser('data.load', file='cut.dat')
+            evs, _ = browser('data.load', file=name)
+            snd(cmd='data.set_slice_start', row=0)
             col(is_done)
-            browser('browser.export', target='table', format='dat', file='back.dat')
+            browser('data.export', target='table', format='dat', file='back.dat')
             check('Load reads %s back into the table (rows and values)' % name,
                   read(r, 'back.dat').replace(b'\r', b'') == want and last_state(evs).get('rows') == 601,
                   str(last_state(evs).get('rows')))
@@ -6593,7 +6593,7 @@ def check_data_formats():
                           ('evil_seed.npz', 'seed.npy: its seed is not a whole number'),
                           ('bomb.csv.gz', 'expands to more than 536870912 bytes'),
                           ('evil_seed.csv', 'its seed is not a whole number')]:
-            evs, _ = browser('browser.load', file=name)
+            evs, _ = browser('data.load', file=name)
             refused = [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
             check('Load refuses %s with its name and why' % name,
                   len(refused) == 1 and name in refused[0]['error'] and why in refused[0]['error'],
@@ -6613,14 +6613,14 @@ def check_save_owner():
     results = lambda evs: [e for e in evs if e.get('ev') == 'session.saved']
     try:
         col(is_done)
-        snd(cmd='browser.export', target='table', format='csv')
+        snd(cmd='data.export', target='table', format='csv')
         evs, end = col(lambda e: is_done(e) or is_ask(e))
         check('W129: nothing to save reports once before asking for a name',
               end is not None and is_done(end) and len(errors(evs)) == 1
               and errors(evs)[0]['error'] == 'Nothing to save'
               and results(evs) == [{'ev': 'session.saved', 'saved': False, 'file': ''}], str(evs)[-400:])
         live_run(snd, col)
-        snd(cmd='browser.export', target='table', format='csv', file='same.csv')
+        snd(cmd='data.export', target='table', format='csv', file='same.csv')
         evs, end = col(lambda e: is_done(e) or is_ask(e))
         check('W129: a new file saves without a question or a command decision',
               end is not None and is_done(end)
@@ -6630,7 +6630,7 @@ def check_save_owner():
         snd(cmd='value.set_parameters', values={'iapp': 0.11})
         col(is_done)
         live_run(snd, col)
-        snd(cmd='browser.export', target='table', format='csv', file='same.csv')
+        snd(cmd='data.export', target='table', format='csv', file='same.csv')
         _, ask = col(is_ask)
         check('W129: an existing target without a decision asks once',
               ask is not None and ask.get('question') == 'same.csv exists. Replace it?'
@@ -6641,7 +6641,7 @@ def check_save_owner():
               before == open(os.path.join(r, 'same.csv'), 'rb').read()
               and results(evs) == [{'ev': 'session.saved', 'saved': False, 'file': 'same.csv'}]
               and len(errors(evs)) == 1 and 'declined' in errors(evs)[0]['error'], str(evs)[-300:])
-        snd(cmd='browser.export', target='table', format='csv', file='same.csv')
+        snd(cmd='data.export', target='table', format='csv', file='same.csv')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='y')
         evs, end = col(lambda e: is_done(e) or is_ask(e))
@@ -6649,7 +6649,7 @@ def check_save_owner():
               end is not None and is_done(end) and not errors(evs)
               and results(evs) == [{'ev': 'session.saved', 'saved': True, 'file': 'same.csv'}]
               and before != open(os.path.join(r, 'same.csv'), 'rb').read(), str(evs)[-300:])
-        snd(cmd='browser.export', target='table', format='csv', file='same.csv', replace=1)
+        snd(cmd='data.export', target='table', format='csv', file='same.csv', replace=1)
         evs, end = col(lambda e: is_done(e) or is_ask(e))
         check('W526: a registry command carries no replace decision: it asks, or is refused naming the argument',
               end is not None and is_done(end) and any('Unknown argument "replace"' in e.get('error', '') for e in evs), str(evs)[-300:])
@@ -6659,7 +6659,7 @@ def check_save_owner():
         # The temp can be created beside this directory, but rename cannot
         # replace it: a deterministic commit failure, including on Windows.
         for name in ['blocked.csv']:
-            snd(cmd='browser.export', target='table', format='csv', file=name)
+            snd(cmd='data.export', target='table', format='csv', file=name)
             evs, end = col(lambda e: is_done(e) or is_ask(e))
             if end and is_ask(end):
                 snd(cmd='answer', id=end['id'], key='y')
@@ -6676,7 +6676,7 @@ def check_save_owner():
     d = tempfile.mkdtemp(prefix='w129script')
     try:
         copy_model(args.ode, d)
-        commands = [{'cmd': 'run.initial'}, {'cmd': 'browser.export', 'target': 'table', 'format': 'csv', 'file': 'repeat.csv'}]
+        commands = [{'cmd': 'run.initial'}, {'cmd': 'data.export', 'target': 'table', 'format': 'csv', 'file': 'repeat.csv'}]
         folders = [d, tempfile.mkdtemp(prefix='w129script')]
         copy_model(args.ode, folders[1])
         runs = [run_commands(args.server, args.ode, commands, folder) for folder in folders]
@@ -6715,7 +6715,7 @@ def check_output_names():
         live_run(snd, col)
         # Every file-taking registry command can explicitly ask for the existing picker.
         for command in [dict(cmd='plot.export_pdf'), dict(cmd='plot.export_svg'),
-                        dict(cmd='browser.tabulate_column', variable='V', x_low=0, x_high=30)]:
+                        dict(cmd='data.tabulate_column', variable='V', x_low=0, x_high=30)]:
             snd(**command, file_picker=True)
             _, ask = col(lambda e: is_ask(e) or is_done(e))
             check('W517: '+command['cmd']+' requests a write picker', ask and ask.get('kind') == 'file' and ask.get('mode') == 'write', str(ask))
@@ -6741,7 +6741,7 @@ def check_output_names():
         with open(victim, 'wb') as f: f.write(b'keep victim')
         try:
             for path in (victim, os.path.relpath(victim, r)):
-                snd(cmd='browser.export', target='table', format='csv')
+                snd(cmd='data.export', target='table', format='csv')
                 _, ask = col(is_ask)
                 snd(cmd='answer', id=ask['id'], file=path, replace=1)
                 evs, _ = col(is_done)
@@ -6763,18 +6763,18 @@ def check_output_names():
         row=next(c for c in h['commands'] if c['cmd'] == 'array_plot.export_pdf')
         check('W492: array PDF labels are registry text fields, with no render type',
               [a['name'] for a in row['arguments'] if a['type'] == 'text'] == ['top_label','side_label','bottom_label'] and not any(a['name'] == 'render' for a in row['arguments']))
-        snd(cmd='window.destroy', window='array_plot_1')
+        snd(cmd='window.close', window='array_plot_1')
         col(is_done)
         # A long valid name is retained, while traversal/device names report an error.
         long = 'save-' + 'a' * 80 + '.csv'
-        snd(cmd='browser.export', target='table', format='csv')
+        snd(cmd='data.export', target='table', format='csv')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], file=long)
         evs, _ = col(is_done)
         check('W130: a filename over 24 characters is written whole',
               os.path.isfile(os.path.join(r, long)) and any(e.get('file') == long and e.get('saved') for e in evs), str(evs)[-300:])
         for bad in ('../escape.csv', 'CON.csv', '.hidden.csv'):
-            snd(cmd='browser.export', target='table', format='csv')
+            snd(cmd='data.export', target='table', format='csv')
             _, ask = col(is_ask)
             snd(cmd='answer', id=ask['id'], file=bad)
             evs, _ = col(is_done)
@@ -6826,7 +6826,7 @@ def check_seed_per_run():
         check('two Go presses give different data', data1 is not None and data1 != data2, '')
 
         # Numerics > stocHast > New seed: set run 2's own seed for the next Go
-        after(cmd='analysis.seed_random',seed=seed2)
+        after(cmd='stochastic.set_seed',seed=seed2)
 
         evs4 = after(cmd='run.initial')
         st4, ser4 = last_state(evs4), full(evs4)
@@ -6923,10 +6923,10 @@ def check_refused_during_run():
         snd(cmd='equilibrium.find')  # a computation
         snd(cmd='run.continue')  # Continue: a computation
         snd(cmd='window.set_display', window='graph_1', x_range=[0, 50])  # a view: kept for after the run
-        snd(cmd='browser.page', **{'from_row': 0, 'count': 1})  # only reads: answered during the run
-        evs, rows = col(lambda e: e.get('ev') == 'browser.updated')
+        snd(cmd='data.page', **{'from_row': 0, 'count': 1})  # only reads: answered during the run
+        evs, rows = col(lambda e: e.get('ev') == 'data.updated')
         during = [e for e in evs if e.get('ev') in ('ask', 'session.message')]
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, e = col(is_done, timeout=30 * SLOW)
         stopped = any(x.get('ev') == 'job.stopped' for x in evs)
         check('W68: during a run, a browser request is answered at once and the run goes on until the Abort (stopped)',
@@ -6986,7 +6986,7 @@ def check_busy_flood():
               last is not None and ids == list(range(MAX_PENDING_LINES, flood))
               and all('display' in e['error'] and e.get('source', '').startswith('{') for e in busy),
               str(ids[:3]) + ' ... %d refused' % len(ids))
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, e = col(is_done, timeout=30 * SLOW)
         check('W389: an Abort sent after the flood is read and stops the run (stopped)',
               any(x.get('ev') == 'job.stopped' for x in evs), str([x.get('ev') for x in evs])[-200:])
@@ -7253,7 +7253,7 @@ def check_storage_precision():
     p, r, snd, col, _ = launch_server(ode=model)
 
     def export(fmt, name):
-        snd(cmd='browser.export', target='table', format=fmt, file=name)
+        snd(cmd='data.export', target='table', format=fmt, file=name)
         evs, e = col(lambda e: e.get('ev') == 'ask' or is_done(e), timeout=20 * SLOW)
         while e is not None and e.get('ev') == 'ask':
             snd(cmd='answer', id=e['id'], key='y')
@@ -7300,7 +7300,7 @@ def check_storage_precision():
         except Exception as ex:
             ok, detail = False, repr(ex)
         check('W613: the NPZ holds the same doubles', ok, detail)
-        snd(cmd='ic.from_data_row', row=60)
+        snd(cmd='initial_conditions.set_from_data_row', row=60)
         evs, _ = col(is_done)
         got = next((e['result']['values']['X'] for e in evs if e.get('ev') == 'done' and 'result' in e), None)
         check('W613: a stored row taken as the initial conditions is the stored double', got == iterates[60], '%r vs %r' % (got, iterates[60]))
@@ -7470,7 +7470,7 @@ def check_autox_jacobian_failure():
             col(is_done)
             snd(cmd='autox.configure_numerics', step_size=-0.1, max_step_size=0.1, parameter_min=-0.5, parameter_max=2, max_steps=100)
             col(is_done)
-            snd(cmd='autox.configure_plot', plot_type='norm', variable='x', parameter1='a')
+            snd(cmd='autox.configure_axes', plot_type='norm', variable='x', parameter1='a')
             col(is_done)
             snd(cmd='autox.run', kind='equilibrium')
             evs, _ = col(is_done, timeout=60 * SLOW)
@@ -7581,11 +7581,11 @@ def check_settings_during_run():
                 (dict(cmd='value.set_parameters', values={'iapp': '0.2'}), 'Argument "values.iapp" must be a finite number'),
                 (dict(cmd='set', kind='parm', name='iapp', value=0.2), 'set takes kind delay, bc or num, not "parm"'),
                 (dict(cmd='value.set_parameters', values={'nosuch': 0.2}), 'Argument "values": no parameter named "nosuch" in the model'),
-                (dict(cmd='ic.set', values={'nosuch': 0.2}), 'Argument "values": no variable named "nosuch" in the model'),
+                (dict(cmd='initial_conditions.set', values={'nosuch': 0.2}), 'Argument "values": no variable named "nosuch" in the model'),
                 (dict(cmd='value.slide', name='nosuch', value=0.2), 'Argument "name": no parameter or variable named "nosuch" in the model'),
                 (dict(cmd='value.slide', name='iapp'), 'Missing argument "value"'),
                 (dict(cmd='set.restore_defaults', scope='pars'), 'Invalid choice "pars" for scope')):
-            snd(cmd='ic.set', values={'v': 0.25})
+            snd(cmd='initial_conditions.set', values={'v': 0.25})
             evs, _ = col(is_done)
             iapp0 = iapp(evs)
             snd(**bad)
@@ -7596,7 +7596,7 @@ def check_settings_during_run():
             check('W116: %s is refused (%s), iapp and V as they were' % (json.dumps(bad), expect),
                   errs == [expect] and st and dict(st['pars']).get('iapp') == iapp0 and dict(st['ics']).get('V') == 0.25,
                   '%s; %s' % (errs, st and (dict(st['pars']).get('iapp'), dict(st['ics']).get('V'))))
-        snd(cmd='ic.set', values={'v': v_before})  # the ICs the checks after expect
+        snd(cmd='initial_conditions.set', values={'v': v_before})  # the ICs the checks after expect
         col(is_done)
         snd(cmd='run.configure', method='cvode')
         evs, _ = col(is_done)
@@ -7616,14 +7616,14 @@ def check_settings_during_run():
         snd(cmd='run.configure', total_time=50)
         snd(cmd='run.configure', store_every=0)  # bad: its error comes after the run
         snd(cmd='session.get_state')
-        snd(cmd='browser.page', **{'from_row': 0, 'count': 1})  # control, behind the sets: they were taken
-        evs, _ = col(lambda e: e.get('ev') == 'browser.updated')
+        snd(cmd='data.page', **{'from_row': 0, 'count': 1})  # control, behind the sets: they were taken
+        evs, _ = col(lambda e: e.get('ev') == 'data.updated')
         during = [e for e in evs if e.get('ev') == 'session.message']
         dones = [e for e in evs if e.get('ev') == 'done']  # the state's own, answered at once (session.get_state)
         check('W106: settings sent during a run get no done or error while it runs; state still shows the '
               'values it runs with', prog is not None and not during and len(dones) == 1 and dones[0].get('status') == 'ok'
               and iapp(evs) == 0.05, str([e.get('ev') for e in evs]))
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         stopped = [e for e in evs if e.get('ev') == 'job.stopped']
         rows = next((e['rows'] for e in reversed(evs) if is_state(e)), 0)
@@ -7637,32 +7637,32 @@ def check_settings_during_run():
         check('W106: then each setting is a command of its own, in order: the bad one an error after the run',
               iapp(after[0]) == 0.3 and (num(after[1]) or {}).get('total_time') == 50
               and errs == [[], [], ['Argument "store_every" must be at least 1']], str(errs))
-        snd(cmd='browser.page', **{'from_row': rows - 1, 'count': 1})
-        evs, br = col(lambda e: e.get('ev') == 'browser.updated')
+        snd(cmd='data.page', **{'from_row': rows - 1, 'count': 1})
+        evs, br = col(lambda e: e.get('ev') == 'data.updated')
         col(is_done)
         live = br and br['data']
         code, out, err = run_replay([
             {'cmd': 'run.configure', 'total_time': 1e7},
             {'cmd': 'run.configure', 'method': 'runge_kutta'},
             {'cmd': 'run.initial'},
-            {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
-            {'cmd': 'browser.page', 'from_row': rows - 1, 'count': 1}])
-        ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser.updated'), None)
+            {'cmd': 'run.stop', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
+            {'cmd': 'data.page', 'from_row': rows - 1, 'count': 1}])
+        ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'data.updated'), None)
         check('W106: the rows the run stored are those of a run with the old values (the settings did not '
               'reach it)', code == 0 and live and live == ref, '%s vs %s (%s)' % (live, ref, err[-200:]))
         snd(cmd='run.initial')
         evs, _ = col(is_done, timeout=60 * SLOW)
         rows2 = next((e['rows'] for e in reversed(evs) if is_state(e)), 0)
-        snd(cmd='browser.page', **{'from_row': rows2 - 1, 'count': 1})
-        evs, br = col(lambda e: e.get('ev') == 'browser.updated')
+        snd(cmd='data.page', **{'from_row': rows2 - 1, 'count': 1})
+        evs, br = col(lambda e: e.get('ev') == 'data.updated')
         col(is_done)
         code, out, err = run_replay([
             {'cmd': 'value.set_parameters', 'values': {'iapp': 0.3}},
             {'cmd': 'run.configure', 'total_time': 50},
             {'cmd': 'run.configure', 'method': 'runge_kutta'},
             {'cmd': 'run.initial'},
-            {'cmd': 'browser.page', 'from_row': 1000, 'count': 1}])
-        ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser.updated'), None)
+            {'cmd': 'data.page', 'from_row': 1000, 'count': 1}])
+        ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'data.updated'), None)
         check('W106: the next run uses them (Total 50: 1001 rows, iapp 0.3: the rows of a run set so)',
               rows2 == 1001 and br and br['data'] == ref, '%d rows, %s vs %s' % (rows2, br and br['data'], ref))
     finally:
@@ -7713,7 +7713,7 @@ def check_open_reload():
 
         def rows_of(name):
             """the stored data as written by the browser (csv), comments dropped"""
-            snd(cmd='browser.export', target='table', format='csv', file=name)
+            snd(cmd='data.export', target='table', format='csv', file=name)
             col(is_done)
             with open(os.path.join(r, name)) as f:
                 return [l.strip() for l in f if l.strip() and not l.startswith('#')]
@@ -7788,7 +7788,7 @@ def check_open_reload():
         # Reload after editing: a's value set in the session stays, the new b comes with its file value
         snd(cmd='value.set_parameters', values={'a': 3})
         col(is_done)
-        snd(cmd='ic.set', values={'X': 2})
+        snd(cmd='initial_conditions.set', values={'X': 2})
         col(is_done)
         with open(os.path.splitext(other)[0] + '.odex', 'w') as f:
             f.write(versioned('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\noptions { integration: { total_time: 5, dt: 0.05 } }\n'))
@@ -7821,7 +7821,7 @@ def check_open_reload():
         # a model that cannot be loaded: the one before stays, integrating to the same data
         snd(cmd='value.set_parameters', values={'a': 1})
         col(is_done)
-        snd(cmd='ic.set', values={'X': 0.5})
+        snd(cmd='initial_conditions.set', values={'X': 0.5})
         col(is_done)
         integrate()
         before = rows_of('other2.csv')
@@ -7957,7 +7957,7 @@ def check_display_state():
         snd(cmd='autox.set_display', x_range=[3, 3])
         evs, _ = col(is_done)
         check('autoxview: a bad range is refused', any(e.get('ev') in ('session.message', 'done') and 'error' in e for e in evs), str(evs)[:200])
-        snd(cmd='window.destroy', window='diagram_1')
+        snd(cmd='window.close', window='diagram_1')
         evs, _ = col(is_done)
         check('autoxview: closing autoX resets it', av(evs) and av(evs)[-1]['earlier'] == 0
               and av(evs)[-1]['views'] == [{'name':'diagram_1','zoom': {'x': None, 'y': None}}], str(av(evs)))
@@ -7967,7 +7967,7 @@ def check_display_state():
 
 def check_silent_commands():
     """W56: --silent is a built-in script of the protocol's own commands.
-    Each command it uses where the interface had none (browser.export of
+    Each command it uses where the interface had none (data.export of
     the output columns with replace,
     file, dfield write, equilibrium write) writes, through --server, the very
     file the --silent run writes; its .recx also plays silently with the
@@ -8006,13 +8006,13 @@ def check_silent_commands():
         check('--silent writes nothing on stdout', r.returncode == 0 and r.stdout == '', r.stdout[:300])
         stale = lambda d: open(os.path.join(d, 'output.dat'), 'w').write('stale\n')
         c, rc = script(args.ode, go + [
-            {'cmd': 'browser.export', 'target': 'output', 'format': 'dat', 'file': 'output.dat'},
+            {'cmd': 'data.export', 'target': 'output', 'format': 'dat', 'file': 'output.dat'},
             {'cmd': 'equilibrium.export', 'file': 'equil.dat'},
-            {'cmd': 'dirfield.compute', 'grid': 16, 'scaled': False},
-            {'cmd': 'dirfield.export', 'file': 'dirfields.dat'}])
+            {'cmd': 'direction_field.compute', 'grid': 16, 'scaled': False},
+            {'cmd': 'direction_field.export', 'file': 'dirfields.dat'}])
         dirs.append(c)
         check('the script with --silent\'s commands runs through', rc.returncode == 0, rc.stderr[-300:])
-        check('browser.export of the output columns: --silent\'s output.dat',
+        check('data.export of the output columns: --silent\'s output.dat',
               read(c, 'output.dat') is not None and read(c, 'output.dat') == read(s, 'output.dat'))
         # --silent replaces the file that is there, unasked
         over, ro = silent(args.ode)
@@ -8028,7 +8028,7 @@ def check_silent_commands():
         check('dfield write: the direction field shown, one arrow a line (17 x 17), in --silent --dfdraw 4\'s form',
               len(df.splitlines()) == 17 * 17 and df == read(s, 'dirfields.dat'),
               '%d lines' % len(df.splitlines()))
-        bad, rb = script(args.ode, [{'cmd': 'dirfield.export', 'file': 'none.dat'}])
+        bad, rb = script(args.ode, [{'cmd': 'direction_field.export', 'file': 'none.dat'}])
         dirs.append(bad)
         check('dfield write with no field shown is an error, and writes nothing',
               rb.returncode == 1 and rb.outcome == 1 and '"error"' in rb.stdout and read(bad, 'none.dat') is None, rb.stdout[-300:])
@@ -8039,12 +8039,12 @@ def check_silent_commands():
             f.write(versioned("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { histogram.column: x, histogram.low: -1, histogram.high: 1, histogram.bins: 20 }, output: { after_run: histogram } }\n"))
         s, r = silent(post)
         dirs.append(s)
-        c, rc = script(post, go + [{'cmd': 'analysis.histogram'},
-                                   {'cmd': 'browser.export', 'target': 'output', 'format': 'dat',
+        c, rc = script(post, go + [{'cmd': 'histogram.compute'},
+                                   {'cmd': 'data.export', 'target': 'output', 'format': 'dat',
                                     'file': 'output.dat'}])
         dirs.append(c)
         hist = read(c, 'output.dat') or b''
-        check('analysis.histogram: the model\'s @ postprocess histogram (20 bins), as --silent writes it',
+        check('histogram.compute: the model\'s @ postprocess histogram (20 bins), as --silent writes it',
               len(hist.splitlines()) == 21 and hist == read(s, 'output.dat'), '%d lines' % len(hist.splitlines()))
     finally:
         for d in dirs:
@@ -8101,11 +8101,11 @@ def check_export_elements():
         server = Server(binary, model, run=root)
         try:
             server.collect(is_done)
-            server.send(cmd='events.subscribe', events=['nullcline.curves', 'dirfield.field'])
+            server.send(cmd='events.subscribe', events=['nullcline.curves', 'direction_field.field'])
             server.collect(is_done)
             server.send(**go[0]); events, _ = server.collect(is_done)
             nc = next((e for e in events if e.get('ev') == 'nullcline.curves' and e.get('x') and e.get('y')), None)
-            df = next((e for e in events if e.get('ev') == 'dirfield.field' and e.get('grid')), None)
+            df = next((e for e in events if e.get('ev') == 'direction_field.field' and e.get('grid')), None)
             check('W346: a run publishes requested nullclines and field without a separate command',
                   nc is not None and df is not None, str(events[-3:])[:300])
             expected_files = {}
@@ -8192,7 +8192,7 @@ def check_outcomes_once():
         with open(os.path.join(d, 'fit.dat'), 'w') as f:
             f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
         def run(lines, *flags):
-            if any((c.get('cmd') == 'run.abort' and 'at' in c) or c.get('cmd') == 'kinescope.capture' for c in lines):
+            if any((c.get('cmd') == 'run.stop' and 'at' in c) or c.get('cmd') == 'kinescope.capture' for c in lines):
                 path = make_recording(args.server, os.path.join(d, 'linear.odex'), lines, d)
                 with open(path, encoding='utf-8') as f:
                     run.places = [(i, l.rstrip()) for i, l in enumerate(f, 1) if l.startswith('{')]
@@ -8208,7 +8208,7 @@ def check_outcomes_once():
                     r.quiet_stdout = quiet.stdout
             return r, [json.loads(line) for line in r.stdout.splitlines() if line.startswith('{')]
         def fit(name):
-            return [dict(cmd='analysis.fit_curve',variables=['x'],parameters=['a'],tolerance=1e-6,points=6,columns=2,data_columns=[2],epsilon=1e-5,max_iterations=50,file=name)]
+            return [dict(cmd='fit.parameters',variables=['x'],parameters=['a'],tolerance=1e-6,points=6,columns=2,data_columns=[2],epsilon=1e-5,max_iterations=50,file=name)]
         r, evs = run(fit('fit.dat'))
         results = [e.get('bottom', '').strip() for e in evs if e.get('ev') in ('session.message', 'done')]
         errors = [e for e in evs if e.get('error')]
@@ -8217,7 +8217,7 @@ def check_outcomes_once():
         saved_csv = [
             {'cmd': 'value.set_parameters', 'values': {'a': 2}},
             {'cmd': 'run.initial'},
-            {'cmd': 'browser.export', 'target': 'table', 'format': 'csv', 'file': 'saved.csv'},
+            {'cmd': 'data.export', 'target': 'table', 'format': 'csv', 'file': 'saved.csv'},
             {'cmd': 'value.set_parameters', 'values': {'a': 1}}]
         r, evs = run(saved_csv + fit('saved.csv'))
         results = [e.get('bottom', '').strip() for e in evs if e.get('ev') in ('session.message', 'done')]
@@ -8235,7 +8235,7 @@ def check_outcomes_once():
             {'cmd': 'plot.set_variables', 'how': 'array_plot', 'names': ['x', 'y']},
             dict(cmd='array_plot.range',still=False,tag=False,file='movie.gif',variable='a',steps=2,start=1,end=3,reset_storage=False,use_old_ic=True,cycle_color=False,movie=False,write_each_run_to_file=False),
             {'cmd': 'answer', **pixels(None)},
-            {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': STOP_MOVIE_ROWS, 't': 0}}]
+            {'cmd': 'run.stop', 'at': {'what': 'integrate', 'rows': STOP_MOVIE_ROWS, 't': 0}}]
         movie_path = os.path.join(d, 'movie.gif')
         for old in [None, b'previous complete movie']:
             if old is not None:
@@ -8406,7 +8406,7 @@ def check_session_random():
         return p, r, snd, col, run
 
     def write(run, name):
-        run(cmd='browser.export', target='output', format='dat', file=name)
+        run(cmd='data.export', target='output', format='dat', file=name)
 
     def read(r, name):
         path = os.path.join(r, name)
@@ -8541,7 +8541,7 @@ def check_save_session():
         check('W209: the second Save session asks nothing, replaces sv1.snapx and clears changed',
               not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and before != after
               and state(evs).get('changed') is False and state(evs).get('session') == {'file': 'sv1.snapx'}, str(asks(evs))[:200])
-        for what, command in (('an initial condition', dict(cmd='ic.set', values={'V': -0.3})),
+        for what, command in (('an initial condition', dict(cmd='initial_conditions.set', values={'V': -0.3})),
                               ('the time span', dict(cmd='run.configure', total_time=77))):
             evs = run(**command)
             check('W209: %s sets changed' % what, state(evs).get('changed') is True, str(state(evs).get('changed')) + str(evs[-4:])[:200])
@@ -8696,7 +8696,7 @@ def check_plot_limits():
             for i in range(32):
                 command(cmd='plot.freeze_curve', color='#ffcd00', draw='line', dash='solid', width=1, marker='circle', marker_size=3, key='frozen%d'%i, name='f%d'%i)
             for i in range(26):
-                command(cmd='window.create')
+                command(cmd='window.new')
             command(cmd='events.subscribe', events=['plot.shown', 'plot.series', 'plot.marks'])
             command(cmd='session.save_as', file='limits', data=True)
             snap = os.path.join(s.run, 'limits.snapx')
@@ -8776,22 +8776,22 @@ def check_session_file():
         answered(snd, col, (), **SUBSCRIBE)
         allev.extend(lecar_to_autox(snd, col))
         answered(snd, col, (), cmd='value.set_parameters', values={'phi': 0.4})
-        answered(snd, col, (), cmd='ic.set', values={'V': -0.3})
+        answered(snd, col, (), cmd='initial_conditions.set', values={'V': -0.3})
         answered(snd, col, (), cmd='run.initial')
         answered(snd, col, (), cmd='window.set_display', window='graph_1', x_range=[0, 50], y_range=[-0.5, 0.3], show_earlier_runs=False)
         answered(snd, col, (), cmd='autox.set_display', x_range=[0.05, 0.3])
         # W50: a second view of the diagram, the norm, with a zoom of its own; the first active again
         answered(snd, col, (), cmd='autox.new_view')
-        answered(snd, col, (), cmd='autox.configure_plot', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
+        answered(snd, col, (), cmd='autox.configure_axes', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
         answered(snd, col, (), cmd='autox.set_display', view='diagram_2', y_range=[0, 0.5])
         answered(snd, col, (), cmd='window.select', window='diagram_1')
         answered(snd, col, (), cmd='annotation.add_text', window='graph_1', x=10, y=.1, text='here', text_size=2, style='italic', color='#ffcd00')
         answered(snd, col, (), cmd='plot.freeze_curve', window='graph_1', color='#ffcd00', draw='line', dash='dashed', width=2, marker='square', marker_size=4, key='first', name='frz1')
-        answered(snd, col, (), cmd='window.create')
+        answered(snd, col, (), cmd='window.new')
         # W145: an added browser column is saved with the session and comes back computed
-        answered(snd, col, (), cmd='browser.add_column', name='VW', formula='v*w')
-        browser1 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser.page', **{'from_row': 0, 'count': 2}))
-                         if e.get('ev') == 'browser.updated'), None)
+        answered(snd, col, (), cmd='data.add_column', name='VW', formula='v*w')
+        browser1 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='data.page', **{'from_row': 0, 'count': 2}))
+                         if e.get('ev') == 'data.updated'), None)
         check('W145: the added column VW is in the browser before the save',
               browser1 is not None and browser1.get('cols', [])[-1:] == ['VW'], str(browser1)[:200])
         # W135: definitions and computed/frozen nullclines are Session members.
@@ -8884,8 +8884,8 @@ def check_session_file():
         check('open session of the model open: asks once whether to save this session first',
               len(asks) == 1 and asks[0].get('kind') == 'choice' and asks[0].get('keys') == 'sd', str(asks[:2]))
         diagram2 = restored_as_saved('open session')
-        browser2 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser.page', **{'from_row': 0, 'count': 2}))
-                         if e.get('ev') == 'browser.updated'), None)
+        browser2 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='data.page', **{'from_row': 0, 'count': 2}))
+                         if e.get('ev') == 'data.updated'), None)
         check('W145: open session: the added column VW is back, computed as before the save',
               browser1 is not None and browser2 == browser1, '%s\n    %s' % (str(browser1)[:200], str(browser2)[:200]))
         m2 = [no_t(last('plot.marks', win=w)) for w in ('graph_1', 'graph_2')]
@@ -9162,7 +9162,7 @@ def check_autox_views():
         check('views: the new view is the active one, with a zoom of its own',
               av(evs) and av(evs)[-1]['active'] == 'diagram_2' and len(av(evs)[-1]['views']) == 2, str(av(evs)))
 
-        evs = after(cmd='autox.configure_plot', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
+        evs = after(cmd='autox.configure_axes', **{'view': 'diagram_2', 'plot_type': 'norm', 'fit': True})
         a0, a1 = last_axes(0), last_axes(1)
         check("views: a view's axes are its own: view 1 plots the norm, view 0 still hI-lo",
               a1 and a1['plot'] == 'norm' and a1['ylabel'] == 'Norm' and a0 and a0['plot'] == 'maximum_and_minimum'
@@ -9202,15 +9202,15 @@ def check_autox_views():
         snd(cmd='answer', id=ask['id'], key='Escape')
         col(is_done, timeout=60 * SLOW)
 
-        evs = after(cmd='window.destroy', window='diagram_1')
+        evs = after(cmd='window.close', window='diagram_1')
         check('views: closing view 0 leaves two, the others move down, the active one stays active (now view 0)',
               views_n(evs) == [2] and av(evs) and av(evs)[-1]['active'] == 'diagram_2' and len(av(evs)[-1]['views']) == 2
               and rebuild_diagram(allev, [], 0) == lists[1] and rebuild_diagram(allev, [], 1) == lists[2],
               '%s %s' % (views_n(evs), av(evs)))
-        evs = after(cmd='window.destroy', window='diagram_8')
+        evs = after(cmd='window.close', window='diagram_8')
         check('views: closing a view there is not is refused', any(e.get('ev') == 'done' and e.get('status') == 'error' for e in evs), '')
-        after(cmd='window.destroy', window='diagram_3')
-        evs = after(cmd='window.destroy', window='diagram_2')
+        after(cmd='window.close', window='diagram_3')
+        evs = after(cmd='window.close', window='diagram_2')
         check('views: closing the last diagram closes autoX', any(e.get('ev') == 'window.destroyed' for e in evs), str(evs)[:200])
         check('the process is alive after it all', p.poll() is None, '')
     finally:
@@ -9295,8 +9295,8 @@ def check_save_recording():
         snd(cmd='answer', id=ask['id'], file='dialog-save.snapx')
         col(is_done)
         run(cmd='run.initial')
-        fresh = run(cmd='browser.export', target='table', format='csv', file='browser-new.csv')
-        snd(cmd='browser.export', target='table', format='csv', file='browser-no.csv')
+        fresh = run(cmd='data.export', target='table', format='csv', file='browser-new.csv')
+        snd(cmd='data.export', target='table', format='csv', file='browser-no.csv')
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='n')
         declined, _ = col(is_done)
@@ -9318,7 +9318,7 @@ def check_save_recording():
         prepared = run(cmd='session.save_as', file='dialog-save.snapx', confirm=True)
         check('W129: the replay folder already contains the native dialog destination',
               any(e.get('ev') == 'session.saved' and e.get('saved') and e.get('file') == 'dialog-save.snapx' for e in prepared), str(prepared)[-200:])
-        snd(cmd='browser.export', target='table', format='csv', file='browser-new.csv')
+        snd(cmd='data.export', target='table', format='csv', file='browser-new.csv')
         evs, end = col(lambda e: is_ask(e) or is_done(e))
         if end and is_ask(end):
             snd(cmd='answer', id=end['id'], key='y')
@@ -9577,7 +9577,7 @@ def check_recording():
         run(cmd='run.configure', total_time=1e7)
         snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'job.progress', timeout=30 * SLOW)
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         stopped = [e['at'] for e in evs if e.get('ev') == 'job.stopped']
         run(cmd='window.set_display', window='graph_1', x_range=[0, 50])
@@ -9624,7 +9624,7 @@ def check_recording():
         with open(os.path.join(r, 'saved.par'), 'w') as f:
             f.write(xppaut_par(last_state(run(cmd='session.get_state'))['pars']))
         run(cmd='recording.start')
-        run(cmd='value.load_file', kind='parameters', file='saved.par')
+        run(cmd='value.import_file', kind='parameters', file='saved.par')
         run(cmd='window.clear')
         snd(cmd='recording.stop')
         evs, ask = col(lambda e: is_ask(e) or is_done(e))
@@ -9635,7 +9635,7 @@ def check_recording():
         _, files, steps, written, got = read_recx(open(os.path.join(r, 'menu.recx'), encoding='utf-8').read()
                                                   if os.path.exists(os.path.join(r, 'menu.recx')) else '')
         check('File/recorD: the steps between (the file a step read named by its section), and not the File menu opened to stop',
-              [x for x, _ in steps] == [{'step': 'Load values file', 'cmd': {'cmd': 'value.load_file', 'kind': 'parameters', 'file': 'saved.par'},
+              [x for x, _ in steps] == [{'step': 'Import values file', 'cmd': {'cmd': 'value.import_file', 'kind': 'parameters', 'file': 'saved.par'},
                                          'files': [2]},
                                         {'step': 'Clear plot', 'cmd': {'cmd': 'window.clear'}, 'view': True}] and written == got, str(steps))
         par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()
@@ -9667,7 +9667,7 @@ def check_player():
         return col(is_ask)[1]
 
     def write(name):
-        run(cmd='browser.export', target='output', format='dat', file=name)
+        run(cmd='data.export', target='output', format='dat', file=name)
 
     def open_player(name):
         """play open, answering the question about this model's session"""
@@ -9715,7 +9715,7 @@ def check_player():
         run(cmd='run.configure', total_time=1e7)
         snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'job.progress', timeout=30 * SLOW)
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         stopped = [e['at'] for e in evs if e.get('ev') == 'job.stopped']
         write('run3.dat')
@@ -9851,7 +9851,7 @@ def check_ani_grab_job():
             {'cmd': 'recording.start'},
             {'cmd':'animation.grab_point'},
             {'cmd': 'animation.grab_point', 'x': 0.0, 'y': 0.0},
-            {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': grab_rows, 't': 0}},
+            {'cmd': 'run.stop', 'at': {'what': 'integrate', 'rows': grab_rows, 't': 0}},
             {'cmd': 'animation.pause'},
             dict(cmd='animation.load',file='view.ani'),
             {'cmd':'animation.grab_point'},
@@ -10012,7 +10012,7 @@ def check_player_ani():
         run(cmd='animation.set_speed', ms=20)
         snd(cmd='animation.play')
         went, _ = col(lambda e: e.get('ev') == 'animation.frame' and e['pos'] >= 40, timeout=30 * SLOW)
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         escape_last = frames(went + evs)[-1:]
         run(cmd='animation.reset')
@@ -10458,7 +10458,7 @@ def check_keymap():
               [e.get('op') for e in keymap_events(evs)] == ['get'] and keymap_events(evs)[0]['keymap'] == km
               and not errors(evs), str(evs)[-300:])
 
-        good = {'pinned': ['session.reload_model', 'tool.calculator'],
+        good = {'pinned': ['session.reload_model', 'calculator.evaluate'],
                 'bindings': {'session.reload_model': ['Ctrl+B', 'Ctrl+K'], 'session.save': [], 'run.continue': ['Alt+I']}}
         snd(cmd='keymap.set', **good)
         evs, _ = col(is_done)
@@ -10466,7 +10466,7 @@ def check_keymap():
         cmds = by_id(ev[0]['keymap']) if ev else {}
         check('W211: set checks the map, makes the folder, writes the file and answers the effective keymap',
               len(ev) == 1 and ev[0]['op'] == 'set' and ev[0]['keymap']['ok'] is True and not errors(evs)
-              and 'preset' not in ev[0]['keymap'] and ev[0]['keymap']['pinned'] == ['session.reload_model', 'tool.calculator']
+              and 'preset' not in ev[0]['keymap'] and ev[0]['keymap']['pinned'] == ['session.reload_model', 'calculator.evaluate']
               and cmds['session.reload_model'] == {'id': 'session.reload_model', 'keys': ['Ctrl+B', 'Ctrl+K'], 'source': 'user'}
               and cmds['session.save'] == {'id': 'session.save', 'keys': [], 'source': 'user'}
               and cmds['session.open_model']['source'] == 'default' and os.path.isfile(path), str(evs)[-300:])
@@ -10477,8 +10477,8 @@ def check_keymap():
 
         for what, bad, line, value in [
                 ('a reserved key', {'bindings': {'session.reload_model': ['Ctrl+W']}}, 1, 'Ctrl+W'),
-                ('a key two commands would share', {'bindings': {'tool.calculator': ['Ctrl+O']}}, 1, 'session.open_model'),
-                ('a sequence of keys', {'bindings': {'tool.calculator': ['F S']}}, 1, 'F S'),
+                ('a key two commands would share', {'bindings': {'calculator.evaluate': ['Ctrl+O']}}, 1, 'session.open_model'),
+                ('a sequence of keys', {'bindings': {'calculator.evaluate': ['F S']}}, 1, 'F S'),
                 ('an unknown command', {'pinned': ['nosuch']}, 1, 'nosuch'),
                 ('a removed command pinned', {'pinned': ['retired_help']}, 1, 'retired_help'),
                 ('a removed command bound', {'bindings': {'tutorial': ['Ctrl+T']}}, 1, 'tutorial'),
@@ -10509,7 +10509,7 @@ def check_keymap():
         evs, _ = col(is_done)
         km = next(e for e in evs if e.get('ev') == 'hello')['keymap']
         check('W211: another server reads the same file: window and browser never disagree',
-              km['ok'] is True and by_id(km)['session.reload_model']['keys'] == ['Ctrl+B', 'Ctrl+K'] and km['pinned'] == ['session.reload_model', 'tool.calculator'], str(km)[:200])
+              km['ok'] is True and by_id(km)['session.reload_model']['keys'] == ['Ctrl+B', 'Ctrl+K'] and km['pinned'] == ['session.reload_model', 'calculator.evaluate'], str(km)[:200])
 
         # a bad file, written by hand: shown as an error at its line, the defaults marked, nothing applied
         with open(path, 'w', newline='\n') as f:
@@ -10523,7 +10523,7 @@ def check_keymap():
               and 'Ctrl+Q' in km['source'] and km['pinned'] == [] and 'preset' not in km
               and by_id(km)['session.reload_model']['keys'] == [] and not errors(evs), str(evs)[-400:])
         for what, text, line, value in [('a preset', '{"version": 4,\n  "preset": "xppaut"\n}\n', 2, 'preset'),
-                                        ('a chord', '{"version": 4,\n  "bindings": {\n    "tool.calculator": ["F S"]\n  }\n}\n', 3, 'F S')]:
+                                        ('a chord', '{"version": 4,\n  "bindings": {\n    "calculator.evaluate": ["F S"]\n  }\n}\n', 3, 'F S')]:
             with open(path, 'w', newline='\n') as f:
                 f.write(text)
             snd(cmd='keymap.get')
@@ -10532,12 +10532,12 @@ def check_keymap():
             km = ev[0]['keymap'] if ev else {}
             check('W536: a file with %s is refused with its file, line and value, nothing applied' % what,
                   len(ev) == 1 and km.get('ok') is False and same(km['file'], path) and km['line'] == line and value in km['error']
-                  and by_id(km)['tool.calculator']['keys'] == [], str(evs)[-400:])
-        snd(cmd='keymap.set', pinned=['tool.calculator'])
+                  and by_id(km)['calculator.evaluate']['keys'] == [], str(evs)[-400:])
+        snd(cmd='keymap.set', pinned=['calculator.evaluate'])
         evs, _ = col(is_done)
         ev = keymap_events(evs)
         check('W211: set replaces a bad file whole', len(ev) == 1 and ev[0]['keymap']['ok'] is True
-              and ev[0]['keymap']['pinned'] == ['tool.calculator'], str(evs)[-300:])
+              and ev[0]['keymap']['pinned'] == ['calculator.evaluate'], str(evs)[-300:])
 
         # a file too large is refused as it is read
         with open(path, 'w') as f:
@@ -11129,7 +11129,7 @@ def check_sweep_threads():
             s.collect(is_done)
             s.send(cmd='run.range', variable='i', start=-.2, end=.5, steps=7, reset_storage=True, use_old_ic=True)
             s.collect(lambda e: e.get('ev') == 'job.computing', timeout=30 * SLOW)
-            s.send(cmd='run.abort')
+            s.send(cmd='run.stop')
             evs, done = s.collect(is_done, timeout=60 * SLOW)
             check('W434: Stop ends a sweep whose runs each take 2e8 steps, on %d threads' % many,
                   done is not None and any(e.get('ev') == 'job.stopped' for e in evs), str([e.get('ev') for e in evs])[-300:])
@@ -11437,7 +11437,7 @@ def check_stop_checks():
         col(is_done)
         snd(cmd='run.initial')
         col(lambda e: e.get('ev') == 'job.progress', timeout=30 * SLOW)
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         stopped = any(e.get('ev') == 'job.stopped' for e in evs)
         check('W388: fixed-step chunk with large store_every stops on abort', stopped, str([e.get('ev') for e in evs]))
@@ -11449,10 +11449,10 @@ def check_stop_checks():
         col(is_done)
 
         # 2. Flow grid cancellation (core/nullcline.cpp)
-        snd(cmd='dirfield.flow', grid=W388_GRID)
+        snd(cmd='direction_field.flow', grid=W388_GRID)
         _, started = col(lambda e: e.get('ev') == 'job.computing' or is_done(e))
         flow_started = started is not None and started.get('ev') == 'job.computing'
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         check('W388: direction field flow loop stops on abort', flow_started and stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
@@ -11463,7 +11463,7 @@ def check_stop_checks():
         snd(cmd='nullcline.range_freeze', parameter='iapp', steps=null_steps, start=0, end=1)
         _, started = col(lambda e: e.get('ev') == 'job.computing' or is_done(e))
         null_started = started is not None and started.get('ev') == 'job.computing'
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         check('W388: range nullclines sweep stops on abort', null_started and stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
         snd(cmd='nullcline.set_mesh', mesh=old_mesh)
@@ -11473,7 +11473,7 @@ def check_stop_checks():
         snd(cmd='equilibrium.range', parameter='iapp', steps=W388_STEPS, start=-0.5, end=0.5)
         _, started = col(lambda e: e.get('ev') == 'job.computing' or is_done(e))
         eq_started = started is not None and started.get('ev') == 'job.computing'
-        snd(cmd='run.abort')
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         check('W388: range equilibria sweep stops on abort', eq_started and stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
 
@@ -11483,8 +11483,8 @@ def check_stop_checks():
         col(is_done)
         snd(cmd='run.initial')
         col(is_done)
-        snd(cmd='analysis.autocorrelation', column='V', bins=10, low=0, high=10)
-        snd(cmd='run.abort')
+        snd(cmd='spectrum.autocorrelation', column='V', bins=10, low=0, high=10)
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         check('W388: pairwise histogram O(N^2) loop stops on abort', stopped_in(evs), str([e.get('ev') for e in evs][-8:]))
         snd(cmd='run.configure', total_time=20)
@@ -11496,8 +11496,8 @@ def check_stop_checks():
         with open(fit_path, 'w') as f:
             for i in range(20):
                 f.write(f'{i * 0.5} {-0.5 + i * 0.05}\n')
-        snd(cmd='analysis.fit_curve', variables=['V'], parameters=['iapp'], tolerance=1e-9, points=20, columns=2, data_columns=[2], epsilon=1e-4, max_iterations=1000, file='fit_data.dat')
-        snd(cmd='run.abort')
+        snd(cmd='fit.parameters', variables=['V'], parameters=['iapp'], tolerance=1e-9, points=20, columns=2, data_columns=[2], epsilon=1e-4, max_iterations=1000, file='fit_data.dat')
+        snd(cmd='run.stop')
         evs, _ = col(is_done, timeout=30 * SLOW)
         msgs = [e.get('bottom') for e in evs if e.get('ev') in ('session.message', 'done') and 'bottom' in e]
         check('W388: fitting Levenberg-Marquardt loop stops on abort', ' Stopped ' in msgs, str(msgs))
@@ -11510,7 +11510,7 @@ def check_stop_checks():
         {'cmd': 'run.configure', 'method': 'euler'},
         {'cmd': 'run.configure', 'total_time': 10000000},
         {'cmd': 'run.initial'},
-        {'cmd': 'run.abort', 'at': {'what': 'integrate', 'rows': 2, 't': 0}},
+        {'cmd': 'run.stop', 'at': {'what': 'integrate', 'rows': 2, 't': 0}},
     ])
     check('W388: --silent plays armed stop on fixed-step integration', code == 0, 'exit %d, %s' % (code, err[-300:]))
 
@@ -11544,7 +11544,7 @@ def check_run_registry():
     try:
         col(is_done)
         got = ok('run.initial runs and says rows and time', {'cmd': 'run.initial'}, {'status': 'completed', 'steps': 601, 'time': None})
-        ok('ic.from_data_row makes a stored row the initial values', {'cmd': 'ic.from_data_row', 'row': 2}, {'row': 2, 'values': None})
+        ok('initial_conditions.set_from_data_row makes a stored row the initial values', {'cmd': 'initial_conditions.set_from_data_row', 'row': 2}, {'row': 2, 'values': None})
         call(cmd='run.configure', total_time=0.5)
         ok('run.backward runs backward', {'cmd': 'run.backward'}, {'status': 'completed', 'steps': 11, 'time': None})
         call(cmd='run.configure', total_time=30)
@@ -11563,13 +11563,13 @@ def check_run_registry():
         ok('run.double_range runs the grid',
            {'cmd': 'run.double_range', 'variable1': 'iapp', 'start1': 0, 'end1': 0.1, 'variable2': 'phi', 'start2': 0.3, 'end2': 0.4,
             'steps1': 1, 'steps2': 1, 'vary': 'independently'}, {'grid_points': 4, 'total_steps': None})
-        ok('ic.set sets some initial values', {'cmd': 'ic.set', 'values': {'v': -0.1}}, {'applied': None})
-        ok('ic.formula sets an initial value from a formula', {'cmd': 'ic.formula', 'variable': 'w', 'formula': '2*0.25'},
+        ok('initial_conditions.set sets some initial values', {'cmd': 'initial_conditions.set', 'values': {'v': -0.1}}, {'applied': None})
+        ok('initial_conditions.set_by_formula sets an initial value from a formula', {'cmd': 'initial_conditions.set_by_formula', 'variable': 'w', 'formula': '2*0.25'},
            {'variable': 'w', 'formula': '2*0.25'})
-        ok('ic.array sets states from a formula of t', {'cmd': 'ic.array', 'name': 'v', 'size': 2, 'formula': 't+1'}, {'name': 'v', 'size': 2})
-        ok('ic.at runs from a point of the graph', {'cmd': 'ic.at', 'coordinates': {'v': 0.1, 'w': 0.2}}, {'applied': None})
-        ok('ic.mouse_stream runs from each point', {'cmd': 'ic.mouse_stream', 'x': [0.1, 0.2], 'y': [0.1, 0.2]}, {'trajectories_run': 2})
-        refused('run.dae_guess of a model with no algebraic variable', {'cmd': 'run.dae_guess'}, 'no algebraic variables')
+        ok('initial_conditions.set_by_array_formula sets states from a formula of t', {'cmd': 'initial_conditions.set_by_array_formula', 'name': 'v', 'size': 2, 'formula': 't+1'}, {'name': 'v', 'size': 2})
+        ok('run.from_point runs from a point of the graph', {'cmd': 'run.from_point', 'coordinates': {'v': 0.1, 'w': 0.2}}, {'applied': None})
+        ok('run.from_every_point runs from each point', {'cmd': 'run.from_every_point', 'x': [0.1, 0.2], 'y': [0.1, 0.2]}, {'trajectories_run': 2})
+        refused('initial_conditions.set_dae_guess of a model with no algebraic variable', {'cmd': 'initial_conditions.set_dae_guess'}, 'no algebraic variables')
         refused('run.shoot with no shooting data', {'cmd': 'run.shoot', 'manifold_index': 1}, 'No shooting data')
         refused('run.continue with both extra and until', {'cmd': 'run.continue', 'extra': 1, 'until': 50}, 'At most one')
         refused('run.continue with a text duration', {'cmd': 'run.continue', 'extra': '1'}, 'extra')
@@ -11582,28 +11582,28 @@ def check_run_registry():
         refused('run.configure with a total time that is not a number', {'cmd': 'run.configure', 'total_time': 'long'}, 'total_time')
         refused('run.configure with an unknown method', {'cmd': 'run.configure', 'method': 'nosuch'}, 'nosuch')
         refused('run.configure with a minimum step above the maximum', {'cmd': 'run.configure', 'min_step': 1e9}, 'integration.step.max')
-        refused('ic.set with a name that is no variable', {'cmd': 'ic.set', 'values': {'nosuch': 1}}, 'nosuch')
-        refused('ic.set with no values', {'cmd': 'ic.set', 'values': {}}, 'at least one')
-        refused('ic.formula that does not parse', {'cmd': 'ic.formula', 'variable': 'v', 'formula': '2*('}, '2*(')
-        refused('ic.array past the last state', {'cmd': 'ic.array', 'name': 'w', 'size': 5, 'formula': '1'}, 'do not fit')
-        refused('ic.from_data_row past the data', {'cmd': 'ic.from_data_row', 'row': 100000}, 'past the data')
-        refused('ic.load of a file that is not there', {'cmd': 'ic.load', 'file': 'nosuch.ic'}, 'nosuch.ic')
-        refused('ic.load of a path', {'cmd': 'ic.load', 'file': '../x.ic'}, 'file')
-        refused('ic.at with a state the graph does not plot', {'cmd': 'ic.at', 'coordinates': {'v': 0.1, 'iapp': 1}}, 'iapp')
-        refused('ic.at with one coordinate', {'cmd': 'ic.at', 'coordinates': {'v': 0.1}}, 'Give both')
-        refused('ic.mouse_stream with unequal lists', {'cmd': 'ic.mouse_stream', 'x': [1, 2], 'y': [1]}, 'one pair')
-        refused('ic.at in a window that is not open', {'cmd': 'ic.at', 'coordinates': {'v': 0, 'w': 0}, 'window': 'nowhere'}, 'nowhere')
+        refused('initial_conditions.set with a name that is no variable', {'cmd': 'initial_conditions.set', 'values': {'nosuch': 1}}, 'nosuch')
+        refused('initial_conditions.set with no values', {'cmd': 'initial_conditions.set', 'values': {}}, 'at least one')
+        refused('initial_conditions.set_by_formula that does not parse', {'cmd': 'initial_conditions.set_by_formula', 'variable': 'v', 'formula': '2*('}, '2*(')
+        refused('initial_conditions.set_by_array_formula past the last state', {'cmd': 'initial_conditions.set_by_array_formula', 'name': 'w', 'size': 5, 'formula': '1'}, 'do not fit')
+        refused('initial_conditions.set_from_data_row past the data', {'cmd': 'initial_conditions.set_from_data_row', 'row': 100000}, 'past the data')
+        refused('initial_conditions.import of a file that is not there', {'cmd': 'initial_conditions.import', 'file': 'nosuch.ic'}, 'nosuch.ic')
+        refused('initial_conditions.import of a path', {'cmd': 'initial_conditions.import', 'file': '../x.ic'}, 'file')
+        refused('run.from_point with a state the graph does not plot', {'cmd': 'run.from_point', 'coordinates': {'v': 0.1, 'iapp': 1}}, 'iapp')
+        refused('run.from_point with one coordinate', {'cmd': 'run.from_point', 'coordinates': {'v': 0.1}}, 'Give both')
+        refused('run.from_every_point with unequal lists', {'cmd': 'run.from_every_point', 'x': [1, 2], 'y': [1]}, 'one pair')
+        refused('run.from_point in a window that is not open', {'cmd': 'run.from_point', 'coordinates': {'v': 0, 'w': 0}, 'window': 'nowhere'}, 'nowhere')
         with open(os.path.join(r, 'start.ic'), 'w') as f:
             f.write('-0.2\n0.1\n')
-        got = ok('ic.load reads the file of the model folder', {'cmd': 'ic.load', 'file': 'start.ic'}, {'file': 'start.ic', 'applied': None})
-        check('W521: ic.load applied the values', got.get('applied', {}).get('V') == -0.2 and got['applied'].get('W') == 0.1, str(got))
-        done, _ = call(cmd='bvp.configure', max_iterates=7, tolerance=1e-7, epsilon=1e-5)
-        check('W521: bvp.configure sets the shooting numerics together',
+        got = ok('initial_conditions.import reads the file of the model folder', {'cmd': 'initial_conditions.import', 'file': 'start.ic'}, {'file': 'start.ic', 'applied': None})
+        check('W521: initial_conditions.import applied the values', got.get('applied', {}).get('V') == -0.2 and got['applied'].get('W') == 0.1, str(got))
+        done, _ = call(cmd='boundary_value.configure', max_iterates=7, tolerance=1e-7, epsilon=1e-5)
+        check('W521: boundary_value.configure sets the shooting numerics together',
               done.get('result', {}).get('settings') == {'bvp_max_iterates': 7, 'bvp_tolerance': 1e-7, 'bvp_epsilon': 1e-5}, str(done))
-        refused('bvp.configure with no iterations', {'cmd': 'bvp.configure', 'max_iterates': 0}, 'max_iterates')
-        refused('bvp.solve without show', {'cmd': 'bvp.solve'}, 'show')
-        refused('bvp.solve_periodic with a name that is no parameter', {'cmd': 'bvp.solve_periodic', 'frequency_parameter': 'v', 'section_variable': 'v', 'section': 0, 'show': False}, 'parameter')
-        refused('bvp.solve_range with an unknown side', {'cmd': 'bvp.solve_range', 'side': 'middle'}, 'middle')
+        refused('boundary_value.configure with no iterations', {'cmd': 'boundary_value.configure', 'max_iterates': 0}, 'max_iterates')
+        refused('boundary_value.solve without show', {'cmd': 'boundary_value.solve'}, 'show')
+        refused('boundary_value.solve_periodic with a name that is no parameter', {'cmd': 'boundary_value.solve_periodic', 'frequency_parameter': 'v', 'section_variable': 'v', 'section': 0, 'show': False}, 'parameter')
+        refused('boundary_value.solve_range with an unknown side', {'cmd': 'boundary_value.solve_range', 'side': 'middle'}, 'middle')
         for old in ({'cmd': 'continue'}, {'cmd': 'steady', 'decimals': 3, 'hold': 1, 'maximum': 5}, {'cmd': 'abort'}):
             snd(**old)
             evs, _ = col(is_done)
@@ -11654,119 +11654,119 @@ def check_analysis_registry():
     p, r, snd, col, call, ok, refused = session()
 
     def browser_rows():
-        snd(cmd='browser.page', **{'from_row': 0, 'count': 12, 'first_column': 1, 'columns': 2})
-        _, rows = col(lambda e: e.get('ev') == 'browser.updated')
+        snd(cmd='data.page', **{'from_row': 0, 'count': 12, 'first_column': 1, 'columns': 2})
+        _, rows = col(lambda e: e.get('ev') == 'data.updated')
         col(is_done)
         return (rows or {}).get('data')
 
     try:
-        ok('analysis.seed_random seeds the next run', {'cmd': 'analysis.seed_random', 'seed': 42}, {'seed': 42})
-        refused('analysis.seed_random with a negative seed', {'cmd': 'analysis.seed_random', 'seed': -1}, 'seed')
-        refused('analysis.seed_random with no seed', {'cmd': 'analysis.seed_random'}, 'seed')
-        refused('analysis.load_stochastic_mean before any stochastic run', {'cmd': 'analysis.load_stochastic_mean'}, 'No stochastic runs')
-        refused('analysis.load_stochastic_variance before any stochastic run', {'cmd': 'analysis.load_stochastic_variance'}, 'No stochastic runs')
-        refused('analysis.histogram with no stored data', {'cmd': 'analysis.histogram', 'column': 'v', 'bins': 10, 'low': -1, 'high': 1}, 'nothing to analyse')
+        ok('stochastic.set_seed seeds the next run', {'cmd': 'stochastic.set_seed', 'seed': 42}, {'seed': 42})
+        refused('stochastic.set_seed with a negative seed', {'cmd': 'stochastic.set_seed', 'seed': -1}, 'seed')
+        refused('stochastic.set_seed with no seed', {'cmd': 'stochastic.set_seed'}, 'seed')
+        refused('stochastic.show_mean before any stochastic run', {'cmd': 'stochastic.show_mean'}, 'No stochastic runs')
+        refused('stochastic.show_variance before any stochastic run', {'cmd': 'stochastic.show_variance'}, 'No stochastic runs')
+        refused('histogram.compute with no stored data', {'cmd': 'histogram.compute', 'column': 'v', 'bins': 10, 'low': -1, 'high': 1}, 'nothing to analyse')
         ok('run.initial stores the orbit the analyses read', {'cmd': 'run.initial'}, {'status': 'completed', 'steps': 601, 'time': None})
-        got = ok('analysis.statistics gives the mean, variance and standard deviation', {'cmd': 'analysis.statistics', 'column': 'v'},
+        got = ok('statistics.compute gives the mean, variance and standard deviation', {'cmd': 'statistics.compute', 'column': 'v'},
                  {'mean': None, 'variance': None, 'std_dev': None})
         check('W525: the standard deviation is the variance\'s root', abs(got['std_dev'] ** 2 - got['variance']) < 1e-9 * max(1, got['variance']), str(got))
-        ok('analysis.histogram counts every row in its bins', {'cmd': 'analysis.histogram', 'column': 'v', 'bins': 10, 'low': -100, 'high': 100, 'condition': ''},
+        ok('histogram.compute counts every row in its bins', {'cmd': 'histogram.compute', 'column': 'v', 'bins': 10, 'low': -100, 'high': 100, 'condition': ''},
            {'bins': 10, 'total_samples': 601})
-        ok('analysis.histogram with a condition counts the rows where it holds', {'cmd': 'analysis.histogram', 'condition': 't<1'}, {'bins': 10})
-        ok('analysis.reload_histogram shows it again', {'cmd': 'analysis.reload_histogram'}, {'reloaded': True})
-        ok('analysis.load_stochastic_run puts the run\'s data back', {'cmd': 'analysis.load_stochastic_run'}, {'loaded': True})
+        ok('histogram.compute with a condition counts the rows where it holds', {'cmd': 'histogram.compute', 'condition': 't<1'}, {'bins': 10})
+        ok('histogram.show_last shows it again', {'cmd': 'histogram.show_last'}, {'reloaded': True})
+        ok('stochastic.show_run puts the run\'s data back', {'cmd': 'stochastic.show_run'}, {'loaded': True})
         ok('run.initial again', {'cmd': 'run.initial'}, {'status': 'completed'})
-        refused('analysis.histogram with one bin', {'cmd': 'analysis.histogram', 'column': 'v', 'bins': 1}, 'bins')
-        refused('analysis.histogram with its low above its high', {'cmd': 'analysis.histogram', 'column': 'v', 'bins': 10, 'low': 1, 'high': -1}, 'Low')
-        refused('analysis.histogram of a column the model does not have', {'cmd': 'analysis.histogram', 'column': 'nosuch'}, 'nosuch')
-        refused('analysis.histogram with a condition that does not parse', {'cmd': 'analysis.histogram', 'bins': 10, 'low': -1, 'high': 1, 'condition': '2*('}, 'condition')
-        ok('analysis.histogram_2d counts the pairs', {'cmd': 'analysis.histogram_2d', 'column1': 'v', 'column2': 'w', 'bins1': 5, 'bins2': 4,
+        refused('histogram.compute with one bin', {'cmd': 'histogram.compute', 'column': 'v', 'bins': 1}, 'bins')
+        refused('histogram.compute with its low above its high', {'cmd': 'histogram.compute', 'column': 'v', 'bins': 10, 'low': 1, 'high': -1}, 'Low')
+        refused('histogram.compute of a column the model does not have', {'cmd': 'histogram.compute', 'column': 'nosuch'}, 'nosuch')
+        refused('histogram.compute with a condition that does not parse', {'cmd': 'histogram.compute', 'bins': 10, 'low': -1, 'high': 1, 'condition': '2*('}, 'condition')
+        ok('histogram.compute_2d counts the pairs', {'cmd': 'histogram.compute_2d', 'column1': 'v', 'column2': 'w', 'bins1': 5, 'bins2': 4,
                                                       'low1': -100, 'high1': 100, 'low2': -100, 'high2': 100}, {'bins_x': 5, 'bins_y': 4})
-        refused('analysis.histogram_2d with more bins than the data table has rows',
-                {'cmd': 'analysis.histogram_2d', 'column1': 'v', 'column2': 'w', 'bins1': 4096, 'bins2': 4096, 'low1': -1, 'high1': 1, 'low2': -1, 'high2': 1}, 'room for')
-        call(cmd='analysis.load_stochastic_run')
-        ok('analysis.fourier_series gives the harmonics', {'cmd': 'analysis.fourier_series', 'column': 'v'}, {'harmonics': 299})
-        call(cmd='analysis.load_stochastic_run')
-        ok('analysis.power_spectrum gives the frequencies', {'cmd': 'analysis.power_spectrum', 'column': 'v'}, {'frequencies': 299})
-        call(cmd='analysis.load_stochastic_run')
-        ok('analysis.autocorrelation gives its bins', {'cmd': 'analysis.autocorrelation', 'column': 'v', 'bins': 20, 'low': -5, 'high': 5}, {'lags_computed': 21})
-        call(cmd='analysis.load_stochastic_run')
-        ok('analysis.cross_correlation directly', {'cmd': 'analysis.cross_correlation', 'column1': 'v', 'column2': 'w', 'lags': 10, 'method': 'direct'},
+        refused('histogram.compute_2d with more bins than the data table has rows',
+                {'cmd': 'histogram.compute_2d', 'column1': 'v', 'column2': 'w', 'bins1': 4096, 'bins2': 4096, 'low1': -1, 'high1': 1, 'low2': -1, 'high2': 1}, 'room for')
+        call(cmd='stochastic.show_run')
+        ok('spectrum.fourier_series gives the harmonics', {'cmd': 'spectrum.fourier_series', 'column': 'v'}, {'harmonics': 299})
+        call(cmd='stochastic.show_run')
+        ok('spectrum.power gives the frequencies', {'cmd': 'spectrum.power', 'column': 'v'}, {'frequencies': 299})
+        call(cmd='stochastic.show_run')
+        ok('spectrum.autocorrelation gives its bins', {'cmd': 'spectrum.autocorrelation', 'column': 'v', 'bins': 20, 'low': -5, 'high': 5}, {'lags_computed': 21})
+        call(cmd='stochastic.show_run')
+        ok('spectrum.cross_correlation directly', {'cmd': 'spectrum.cross_correlation', 'column1': 'v', 'column2': 'w', 'lags': 10, 'method': 'direct'},
            {'lags_computed': None})
-        call(cmd='analysis.load_stochastic_run')
-        ok('analysis.cross_correlation by the FFT', {'cmd': 'analysis.cross_correlation', 'column1': 'v', 'column2': 'w', 'lags': 10, 'method': 'fft'},
+        call(cmd='stochastic.show_run')
+        ok('spectrum.cross_correlation by the FFT', {'cmd': 'spectrum.cross_correlation', 'column1': 'v', 'column2': 'w', 'lags': 10, 'method': 'fft'},
            {'lags_computed': None})
-        refused('analysis.cross_correlation with more lags than half the data allows', {'cmd': 'analysis.cross_correlation', 'lags': 4000}, 'lags')
-        refused('analysis.cross_correlation by a method that is not one', {'cmd': 'analysis.cross_correlation', 'method': 'slow'}, 'slow')
-        call(cmd='analysis.load_stochastic_run')
-        ok('analysis.spectral_density of one column', {'cmd': 'analysis.spectral_density', 'type': 'spectral_density', 'column': 'v', 'window_length': 64, 'window': 'hann'},
+        refused('spectrum.cross_correlation with more lags than half the data allows', {'cmd': 'spectrum.cross_correlation', 'lags': 4000}, 'lags')
+        refused('spectrum.cross_correlation by a method that is not one', {'cmd': 'spectrum.cross_correlation', 'method': 'slow'}, 'slow')
+        call(cmd='stochastic.show_run')
+        ok('spectrum.density of one column', {'cmd': 'spectrum.density', 'type': 'spectral_density', 'column': 'v', 'window_length': 64, 'window': 'hann'},
            {'points': 32})
-        call(cmd='analysis.load_stochastic_run')
-        ok('analysis.spectral_density of two (their coherence)', {'cmd': 'analysis.spectral_density', 'type': 'coherence', 'column': 'v', 'column2': 'w',
+        call(cmd='stochastic.show_run')
+        ok('spectrum.density of two (their coherence)', {'cmd': 'spectrum.density', 'type': 'coherence', 'column': 'v', 'column2': 'w',
                                                                   'window_length': 64, 'window': 'square'}, {'points': 32})
-        refused('analysis.spectral_density with a window of one point', {'cmd': 'analysis.spectral_density', 'window_length': 1}, 'window_length')
-        refused('analysis.spectral_density with a window longer than the data', {'cmd': 'analysis.spectral_density', 'window_length': 100000}, 'No window of')
-        refused('analysis.spectral_density of a type that is not one', {'cmd': 'analysis.spectral_density', 'type': 'psd_z'}, 'psd_z')
-        refused('analysis.spectral_density with a window that is not one', {'cmd': 'analysis.spectral_density', 'window': 'hat'}, 'hat')
-        call(cmd='analysis.load_stochastic_run')
-        got = ok('analysis.lyapunov_exponent of the stored orbit', {'cmd': 'analysis.lyapunov_exponent'}, {'max_lyapunov_exponent': None, 'runs_completed': 1})
-        got = ok('analysis.lyapunov_exponent over a range gives the runs of the sweep',
-                 {'cmd': 'analysis.lyapunov_exponent', 'range_over_parameters': True, 'variable': 'iapp', 'start': 0, 'end': 0.1, 'steps': 2},
+        refused('spectrum.density with a window of one point', {'cmd': 'spectrum.density', 'window_length': 1}, 'window_length')
+        refused('spectrum.density with a window longer than the data', {'cmd': 'spectrum.density', 'window_length': 100000}, 'No window of')
+        refused('spectrum.density of a type that is not one', {'cmd': 'spectrum.density', 'type': 'psd_z'}, 'psd_z')
+        refused('spectrum.density with a window that is not one', {'cmd': 'spectrum.density', 'window': 'hat'}, 'hat')
+        call(cmd='stochastic.show_run')
+        got = ok('lyapunov_exponent.compute of the stored orbit', {'cmd': 'lyapunov_exponent.compute'}, {'max_lyapunov_exponent': None, 'runs_completed': 1})
+        got = ok('lyapunov_exponent.compute over a range gives the runs of the sweep',
+                 {'cmd': 'lyapunov_exponent.compute', 'range_over_parameters': True, 'variable': 'iapp', 'start': 0, 'end': 0.1, 'steps': 2},
                  {'max_lyapunov_exponent': None, 'runs_completed': 3})
-        refused('analysis.lyapunov_exponent with the sweep\'s settings and no range', {'cmd': 'analysis.lyapunov_exponent', 'steps': 3}, 'range_over_parameters')
-        refused('analysis.lyapunov_exponent over a range of a name the model does not have',
-                {'cmd': 'analysis.lyapunov_exponent', 'range_over_parameters': True, 'variable': 'nosuch'}, 'nosuch')
-        ok('analysis.poincare_map sets a section', {'cmd': 'analysis.poincare_map', 'type': 'section', 'variable': 'v', 'section': 0.1, 'direction': 'positive',
+        refused('lyapunov_exponent.compute with the sweep\'s settings and no range', {'cmd': 'lyapunov_exponent.compute', 'steps': 3}, 'range_over_parameters')
+        refused('lyapunov_exponent.compute over a range of a name the model does not have',
+                {'cmd': 'lyapunov_exponent.compute', 'range_over_parameters': True, 'variable': 'nosuch'}, 'nosuch')
+        ok('poincare_map.set sets a section', {'cmd': 'poincare_map.set', 'type': 'section', 'variable': 'v', 'section': 0.1, 'direction': 'positive',
                                                     'stop_on_section': False}, {'poincare_configured': True})
-        ok('analysis.poincare_map of the maxima and minima', {'cmd': 'analysis.poincare_map', 'type': 'max_min'}, {'poincare_configured': True})
-        ok('analysis.poincare_map none', {'cmd': 'analysis.poincare_map', 'type': 'none'}, {'poincare_configured': False})
-        refused('analysis.poincare_map of a type that is not one', {'cmd': 'analysis.poincare_map', 'type': 'max'}, 'max')
-        refused('analysis.poincare_map with no type', {'cmd': 'analysis.poincare_map'}, 'type')
-        refused('analysis.poincare_map with a direction that is not one', {'cmd': 'analysis.poincare_map', 'type': 'section', 'direction': 'up'}, 'up')
-        refused('analysis.poincare_map of a variable the model does not have', {'cmd': 'analysis.poincare_map', 'type': 'section', 'variable': 'nosuch'}, 'nosuch')
-        ok('analysis.phase_space_torus folds all variables', {'cmd': 'analysis.phase_space_torus', 'mode': 'all', 'period': 6.28}, {'torus_variables': None})
-        got = ok('analysis.phase_space_torus folds the chosen variables', {'cmd': 'analysis.phase_space_torus', 'mode': 'choose', 'variables': ['v']}, {'torus_variables': None})
+        ok('poincare_map.set of the maxima and minima', {'cmd': 'poincare_map.set', 'type': 'max_min'}, {'poincare_configured': True})
+        ok('poincare_map.set none', {'cmd': 'poincare_map.set', 'type': 'none'}, {'poincare_configured': False})
+        refused('poincare_map.set of a type that is not one', {'cmd': 'poincare_map.set', 'type': 'max'}, 'max')
+        refused('poincare_map.set with no type', {'cmd': 'poincare_map.set'}, 'type')
+        refused('poincare_map.set with a direction that is not one', {'cmd': 'poincare_map.set', 'type': 'section', 'direction': 'up'}, 'up')
+        refused('poincare_map.set of a variable the model does not have', {'cmd': 'poincare_map.set', 'type': 'section', 'variable': 'nosuch'}, 'nosuch')
+        ok('plot.set_torus folds all variables', {'cmd': 'plot.set_torus', 'mode': 'all', 'period': 6.28}, {'torus_variables': None})
+        got = ok('plot.set_torus folds the chosen variables', {'cmd': 'plot.set_torus', 'mode': 'choose', 'variables': ['v']}, {'torus_variables': None})
         check('W525: only the chosen variable is folded', len(got.get('torus_variables', [])) == 1, str(got))
-        ok('analysis.phase_space_torus none', {'cmd': 'analysis.phase_space_torus', 'mode': 'none'}, {'torus_variables': []})
-        refused('analysis.phase_space_torus with a period of 0', {'cmd': 'analysis.phase_space_torus', 'mode': 'all', 'period': 0}, 'period')
-        refused('analysis.phase_space_torus with a mode that is not one', {'cmd': 'analysis.phase_space_torus', 'mode': 'some'}, 'some')
-        refused('analysis.phase_space_torus choosing a name that is no variable', {'cmd': 'analysis.phase_space_torus', 'mode': 'choose', 'variables': ['iapp']}, 'iapp')
-        ok('analysis.color_coding by velocity, its range from the stored data', {'cmd': 'analysis.color_coding', 'mode': 'velocity'}, {'color_coding': 'velocity'})
-        ok('analysis.color_coding by a column between limits', {'cmd': 'analysis.color_coding', 'mode': 'variable', 'variable': 'w', 'low': 0, 'high': 1},
+        ok('plot.set_torus none', {'cmd': 'plot.set_torus', 'mode': 'none'}, {'torus_variables': []})
+        refused('plot.set_torus with a period of 0', {'cmd': 'plot.set_torus', 'mode': 'all', 'period': 0}, 'period')
+        refused('plot.set_torus with a mode that is not one', {'cmd': 'plot.set_torus', 'mode': 'some'}, 'some')
+        refused('plot.set_torus choosing a name that is no variable', {'cmd': 'plot.set_torus', 'mode': 'choose', 'variables': ['iapp']}, 'iapp')
+        ok('plot.set_color_coding by velocity, its range from the stored data', {'cmd': 'plot.set_color_coding', 'mode': 'velocity'}, {'color_coding': 'velocity'})
+        ok('plot.set_color_coding by a column between limits', {'cmd': 'plot.set_color_coding', 'mode': 'variable', 'variable': 'w', 'low': 0, 'high': 1},
            {'color_coding': 'variable'})
-        ok('analysis.color_coding by a column, its range from the stored data', {'cmd': 'analysis.color_coding', 'mode': 'variable', 'variable': 'w'},
+        ok('plot.set_color_coding by a column, its range from the stored data', {'cmd': 'plot.set_color_coding', 'mode': 'variable', 'variable': 'w'},
            {'color_coding': 'variable'})
-        ok('analysis.color_coding none', {'cmd': 'analysis.color_coding', 'mode': 'none'}, {'color_coding': 'none'})
-        refused('analysis.color_coding with one limit', {'cmd': 'analysis.color_coding', 'mode': 'velocity', 'low': 0}, 'low')
-        refused('analysis.color_coding with its limits in the wrong order', {'cmd': 'analysis.color_coding', 'mode': 'variable', 'low': 1, 'high': 0}, 'empty')
-        refused('analysis.color_coding by a negative low velocity', {'cmd': 'analysis.color_coding', 'mode': 'velocity', 'low': -1, 'high': 1}, 'below 0')
-        refused('analysis.color_coding by a mode that is not one', {'cmd': 'analysis.color_coding', 'mode': 'rainbow'}, 'rainbow')
-        refused('analysis.color_coding in a window that is not open', {'cmd': 'analysis.color_coding', 'mode': 'none', 'window': 'nowhere'}, 'nowhere')
+        ok('plot.set_color_coding none', {'cmd': 'plot.set_color_coding', 'mode': 'none'}, {'color_coding': 'none'})
+        refused('plot.set_color_coding with one limit', {'cmd': 'plot.set_color_coding', 'mode': 'velocity', 'low': 0}, 'low')
+        refused('plot.set_color_coding with its limits in the wrong order', {'cmd': 'plot.set_color_coding', 'mode': 'variable', 'low': 1, 'high': 0}, 'empty')
+        refused('plot.set_color_coding by a negative low velocity', {'cmd': 'plot.set_color_coding', 'mode': 'velocity', 'low': -1, 'high': 1}, 'below 0')
+        refused('plot.set_color_coding by a mode that is not one', {'cmd': 'plot.set_color_coding', 'mode': 'rainbow'}, 'rainbow')
+        refused('plot.set_color_coding in a window that is not open', {'cmd': 'plot.set_color_coding', 'mode': 'none', 'window': 'nowhere'}, 'nowhere')
         with open(os.path.join(r, 'fit.dat'), 'w') as f:
             for i in range(20):
                 f.write(f'{i * 0.5} {-0.5 + i * 0.05}\n')
-        got = ok('analysis.fit_curve says if it converged and the parameters it found',
-                 {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [2], 'columns': 2, 'points': 20, 'tolerance': 1e-9,
+        got = ok('fit.parameters says if it converged and the parameters it found',
+                 {'cmd': 'fit.parameters', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [2], 'columns': 2, 'points': 20, 'tolerance': 1e-9,
                   'epsilon': 1e-4, 'max_iterations': 3, 'file': 'fit.dat'}, {'converged': None, 'parameters': None})
         check('W525: the fit names its parameter', list(got.get('parameters', {})) == ['iapp'] and isinstance(got['converged'], bool), str(got))
-        refused('analysis.fit_curve of a file that is not there', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'file': 'nosuch.dat'}, 'nosuch.dat')
-        refused('analysis.fit_curve of a path', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'file': '../fit.dat'}, 'file')
-        refused('analysis.fit_curve with a variable the model does not have', {'cmd': 'analysis.fit_curve', 'variables': ['nosuch'], 'parameters': ['iapp']}, 'nosuch')
-        refused('analysis.fit_curve with no variables', {'cmd': 'analysis.fit_curve', 'parameters': ['iapp']}, 'variables')
-        refused('analysis.fit_curve with a data column below 2', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [1]}, 'data_columns')
-        refused('analysis.fit_curve with more columns than the file has', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [2],
+        refused('fit.parameters of a file that is not there', {'cmd': 'fit.parameters', 'variables': ['v'], 'parameters': ['iapp'], 'file': 'nosuch.dat'}, 'nosuch.dat')
+        refused('fit.parameters of a path', {'cmd': 'fit.parameters', 'variables': ['v'], 'parameters': ['iapp'], 'file': '../fit.dat'}, 'file')
+        refused('fit.parameters with a variable the model does not have', {'cmd': 'fit.parameters', 'variables': ['nosuch'], 'parameters': ['iapp']}, 'nosuch')
+        refused('fit.parameters with no variables', {'cmd': 'fit.parameters', 'parameters': ['iapp']}, 'variables')
+        refused('fit.parameters with a data column below 2', {'cmd': 'fit.parameters', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [1]}, 'data_columns')
+        refused('fit.parameters with more columns than the file has', {'cmd': 'fit.parameters', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [2],
                                                                            'columns': 5, 'points': 20, 'file': 'fit.dat'}, 'needs')
-        refused('analysis.fit_curve with more points than the file has', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [2],
+        refused('fit.parameters with more points than the file has', {'cmd': 'fit.parameters', 'variables': ['v'], 'parameters': ['iapp'], 'data_columns': [2],
                                                                           'columns': 2, 'points': 900000, 'file': 'fit.dat'}, 'needs')
-        refused('analysis.fit_curve with a tolerance of 0', {'cmd': 'analysis.fit_curve', 'variables': ['v'], 'parameters': ['iapp'], 'tolerance': 0}, 'tolerance')
-        refused('analysis.adjoint_load before the adjoint is computed', {'cmd': 'analysis.adjoint_load'}, 'No adjoint')
+        refused('fit.parameters with a tolerance of 0', {'cmd': 'fit.parameters', 'variables': ['v'], 'parameters': ['iapp'], 'tolerance': 0}, 'tolerance')
+        refused('adjoint.show before the adjoint is computed', {'cmd': 'adjoint.show'}, 'No adjoint')
         # many runs: the mean and variance of the runs are kept for the data browser
-        call(cmd='analysis.load_stochastic_run')
+        call(cmd='stochastic.show_run')
         call(cmd='run.range', variable='iapp', start=0, end=0.1, steps=2)
-        ok('analysis.stochastic_integrate runs the trials', {'cmd': 'analysis.stochastic_integrate', 'trials': 4}, {'trials_completed': 4})
-        ok('analysis.load_stochastic_mean shows the mean of the runs', {'cmd': 'analysis.load_stochastic_mean'}, {'loaded': True})
-        ok('analysis.load_stochastic_variance shows their variance', {'cmd': 'analysis.load_stochastic_variance'}, {'loaded': True})
-        refused('analysis.stochastic_integrate with one trial', {'cmd': 'analysis.stochastic_integrate', 'trials': 1}, 'trials')
+        ok('stochastic.compute runs the trials', {'cmd': 'stochastic.compute', 'trials': 4}, {'trials_completed': 4})
+        ok('stochastic.show_mean shows the mean of the runs', {'cmd': 'stochastic.show_mean'}, {'loaded': True})
+        ok('stochastic.show_variance shows their variance', {'cmd': 'stochastic.show_variance'}, {'loaded': True})
+        refused('stochastic.compute with one trial', {'cmd': 'stochastic.compute', 'trials': 1}, 'trials')
         # the old forms are gone
         for old, words in (({'cmd': 'browser', 'op': 'postprocess'}, 'Unknown command browser'), ({'cmd': 'browser', 'op': 'postprocess', 'kind': 'hist'}, 'Unknown command browser'),
                            ({'cmd': 'set', 'kind': 'options', 'name': 'seed', 'value': 3}, 'set takes kind')):
@@ -11780,27 +11780,27 @@ def check_analysis_registry():
     # the adjoint of a limit cycle (borrowed.ode: a stable cycle of period 2*pi) and its H function
     p, r, snd, col, call, ok, refused = session(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'borrowed.ode'))
     try:
-        refused('analysis.adjoint_compute with no orbit', {'cmd': 'analysis.adjoint_compute'}, 'Compute a periodic orbit first')
-        refused('analysis.adjoint_interaction before the adjoint', {'cmd': 'analysis.adjoint_interaction'}, 'Must compute adjoint first')
-        refused('analysis.adjoint_load before the adjoint', {'cmd': 'analysis.adjoint_load'}, 'No adjoint')
-        refused('analysis.adjoint_load_interaction before the H function', {'cmd': 'analysis.adjoint_load_interaction'}, 'No H function')
+        refused('adjoint.compute with no orbit', {'cmd': 'adjoint.compute'}, 'Compute a periodic orbit first')
+        refused('adjoint.compute_h_function before the adjoint', {'cmd': 'adjoint.compute_h_function'}, 'Must compute adjoint first')
+        refused('adjoint.show before the adjoint', {'cmd': 'adjoint.show'}, 'No adjoint')
+        refused('adjoint.show_h_function before the H function', {'cmd': 'adjoint.show_h_function'}, 'No H function')
         ok('the orbit', {'cmd': 'run.initial'}, {'status': 'completed'})
-        ok('analysis.adjoint_configure sets the adjoint\'s iterations and tolerance', {'cmd': 'analysis.adjoint_configure', 'max_iterates': 50, 'tolerance': 1e-5},
+        ok('adjoint.configure sets the adjoint\'s iterations and tolerance', {'cmd': 'adjoint.configure', 'max_iterates': 50, 'tolerance': 1e-5},
            {'updated': True})
-        refused('analysis.adjoint_configure with a tolerance of 0', {'cmd': 'analysis.adjoint_configure', 'tolerance': 0}, 'tolerance')
-        refused('analysis.adjoint_configure with no iterations', {'cmd': 'analysis.adjoint_configure', 'max_iterates': 0}, 'max_iterates')
-        ok('analysis.adjoint_compute', {'cmd': 'analysis.adjoint_compute'}, {'computed': True})
-        ok('analysis.adjoint_load shows it', {'cmd': 'analysis.adjoint_load'}, {'loaded': True})
-        ok('analysis.adjoint_interaction with the coupling of one equation', {'cmd': 'analysis.adjoint_interaction', 'couplings': {'x': 'x-y'}}, {'computed': True})
-        ok('analysis.adjoint_load_interaction shows the H function', {'cmd': 'analysis.adjoint_load_interaction'}, {'loaded': True})
-        ok('analysis.adjoint_load_orbit shows the orbit', {'cmd': 'analysis.adjoint_load_orbit'}, {'loaded': True})
-        refused('analysis.adjoint_interaction with a coupling that does not parse', {'cmd': 'analysis.adjoint_interaction', 'couplings': {'y': '2*('}}, 'couplings')
-        refused('analysis.adjoint_interaction for a name that is no differential equation', {'cmd': 'analysis.adjoint_interaction', 'couplings': {'r': '1'}}, 'r')
-        ok('analysis.adjoint_range is off at first', {'cmd': 'analysis.adjoint_range'}, {'adjoint_range': False})
-        ok('analysis.adjoint_range on', {'cmd': 'analysis.adjoint_range', 'enabled': True}, {'adjoint_range': True})
-        ok('analysis.adjoint_range off', {'cmd': 'analysis.adjoint_range', 'enabled': False}, {'adjoint_range': False})
-        refused('analysis.adjoint_range with a number for its boolean', {'cmd': 'analysis.adjoint_range', 'enabled': 1}, 'enabled')
-        got = ok('analysis.histogram of the model\'s own settings (@ histbins, histcol, histlo, histhi)', {'cmd': 'analysis.histogram'}, {'bins': 20, 'total_samples': None})
+        refused('adjoint.configure with a tolerance of 0', {'cmd': 'adjoint.configure', 'tolerance': 0}, 'tolerance')
+        refused('adjoint.configure with no iterations', {'cmd': 'adjoint.configure', 'max_iterates': 0}, 'max_iterates')
+        ok('adjoint.compute', {'cmd': 'adjoint.compute'}, {'computed': True})
+        ok('adjoint.show shows it', {'cmd': 'adjoint.show'}, {'loaded': True})
+        ok('adjoint.compute_h_function with the coupling of one equation', {'cmd': 'adjoint.compute_h_function', 'couplings': {'x': 'x-y'}}, {'computed': True})
+        ok('adjoint.show_h_function shows the H function', {'cmd': 'adjoint.show_h_function'}, {'loaded': True})
+        ok('adjoint.show_orbit shows the orbit', {'cmd': 'adjoint.show_orbit'}, {'loaded': True})
+        refused('adjoint.compute_h_function with a coupling that does not parse', {'cmd': 'adjoint.compute_h_function', 'couplings': {'y': '2*('}}, 'couplings')
+        refused('adjoint.compute_h_function for a name that is no differential equation', {'cmd': 'adjoint.compute_h_function', 'couplings': {'r': '1'}}, 'r')
+        ok('adjoint.range is off at first', {'cmd': 'adjoint.range'}, {'adjoint_range': False})
+        ok('adjoint.range on', {'cmd': 'adjoint.range', 'enabled': True}, {'adjoint_range': True})
+        ok('adjoint.range off', {'cmd': 'adjoint.range', 'enabled': False}, {'adjoint_range': False})
+        refused('adjoint.range with a number for its boolean', {'cmd': 'adjoint.range', 'enabled': 1}, 'enabled')
+        got = ok('histogram.compute of the model\'s own settings (@ histbins, histcol, histlo, histhi)', {'cmd': 'histogram.compute'}, {'bins': 20, 'total_samples': None})
         check('W525: that histogram counted the orbit', got.get('total_samples', 0) > 100, str(got))
     finally:
         stop_server(p, r, snd)
@@ -11825,7 +11825,7 @@ def check_analysis_registry():
             ok('table.edit leaves out what stays', {'cmd': 'table.edit', 'name': 'FN', 'points': 17}, {'table': 'FN', 'points_evaluated': 17})
             ok('table.edit of a file table reads its file again', {'cmd': 'table.edit', 'name': 'ft'}, {'table': 'FT', 'points_evaluated': 5})
             ok('table.edit of a file table reads another file', {'cmd': 'table.edit', 'name': 'ft', 'file': 'ft2.tab'}, {'table': 'FT', 'points_evaluated': 3})
-            got = ok('table.view_in_browser shows the points', {'cmd': 'table.view_in_browser', 'name': 'fn'}, {'table': 'FN', 'shown_in_browser': True})
+            got = ok('table.show shows the points', {'cmd': 'table.show', 'name': 'fn'}, {'table': 'FN', 'shown_in_browser': True})
             refused('table.edit of a name that is no table', {'cmd': 'table.edit', 'name': 'x'}, 'no table named')
             refused('table.edit of a name the model does not have', {'cmd': 'table.edit', 'name': 'nosuch'}, 'nosuch')
             refused('table.edit of a formula table with a file', {'cmd': 'table.edit', 'name': 'fn', 'file': 'ft.tab'}, 'not a file')
@@ -11836,7 +11836,7 @@ def check_analysis_registry():
             refused('table.edit with its range the wrong way round', {'cmd': 'table.edit', 'name': 'fn', 'x_min': 5, 'x_max': 1}, 'low end')
             refused('table.edit with a table of a million and one points', {'cmd': 'table.edit', 'name': 'fn', 'points': 1000001}, 'points')
             refused('table.edit with no name', {'cmd': 'table.edit', 'points': 5}, 'name')
-            refused('table.view_in_browser of a name that is no table', {'cmd': 'table.view_in_browser', 'name': 'x'}, 'no table named')
+            refused('table.show of a name that is no table', {'cmd': 'table.show', 'name': 'x'}, 'no table named')
         finally:
             s.close()
     finally:
@@ -11976,7 +11976,7 @@ def check_recursive_user_functions():
         s = Server(args.server, field)
         try:
             s.collect(is_done)
-            s.send(cmd='dirfield.compute', grid=10)
+            s.send(cmd='direction_field.compute', grid=10)
             evs, _ = s.collect(is_done)
             errors = [e for e in evs if e.get('error')]
             check('W387: a direction field nested too deep shows one placed error when the command ends',

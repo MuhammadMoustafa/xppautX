@@ -253,8 +253,8 @@ int main()
         CHECK(picked && picked->get<std::string>("file") == PICKER_FILE);
         CHECK(!validate(&s, save, R"({"cmd":"session.save_as","file_picker":false})", PLACE, false));
         CHECK(!validate(&s, save, R"({"cmd":"session.save_as","file_picker":true,"confirm":"yes"})", PLACE, false));
-        CHECK(!validate(&s, *find("window.create"), R"({"cmd":"window.create","file_picker":true})", PLACE, false));
-        CHECK(!validate(&s, *find("browser.tabulate_column"), R"({"cmd":"browser.tabulate_column","file_picker":true})", PLACE, false));
+        CHECK(!validate(&s, *find("window.new"), R"({"cmd":"window.new","file_picker":true})", PLACE, false));
+        CHECK(!validate(&s, *find("data.tabulate_column"), R"({"cmd":"data.tabulate_column","file_picker":true})", PLACE, false));
     }
     /* W522: a map's fixed pair is bounded, finite and has exactly two scalars, in both wire forms. */
     {
@@ -314,14 +314,14 @@ int main()
     }
     /* the tools: the calculator works a formula of the model out, and a comment or a button the model lacks is refused */
     {
-        const auto worked = run(s, "{\"cmd\":\"tool.calculator\",\"expression\":\"2*3+1\"}", PLACE, false);
+        const auto worked = run(s, "{\"cmd\":\"calculator.evaluate\",\"expression\":\"2*3+1\"}", PLACE, false);
         CHECK(worked && worked->find("\"value\":7") != std::string::npos);
-        const auto at_phi = run(s, "{\"cmd\":\"tool.calculator\",\"expression\":\"phi*3\"}", PLACE, false);
+        const auto at_phi = run(s, "{\"cmd\":\"calculator.evaluate\",\"expression\":\"phi*3\"}", PLACE, false);
         CHECK(at_phi && at_phi->find("\"value\":0.999") != std::string::npos);
-        CHECK(!run(s, "{\"cmd\":\"tool.calculator\",\"expression\":\"2*\"}", PLACE, false));
-        CHECK(!run(s, "{\"cmd\":\"tool.run_user_button\",\"index\":0}", PLACE, false));
-        CHECK(!run(s, "{\"cmd\":\"tool.run_source_action\",\"index\":0}", PLACE, false));
-        CHECK(!run(s, "{\"cmd\":\"tool.run_source_action\",\"index\":-1}", PLACE, false));
+        CHECK(!run(s, "{\"cmd\":\"calculator.evaluate\",\"expression\":\"2*\"}", PLACE, false));
+        CHECK(!run(s, "{\"cmd\":\"button.run\",\"index\":0}", PLACE, false));
+        CHECK(!run(s, "{\"cmd\":\"source.run_action\",\"index\":0}", PLACE, false));
+        CHECK(!run(s, "{\"cmd\":\"source.run_action\",\"index\":-1}", PLACE, false));
     }
     /* every event a row lists is declared once, with its fields, and what a client may subscribe to is declared as such (W529) */
     {
@@ -338,6 +338,6 @@ int main()
         }
     }
     /* the registry joins the resources' tables */
-    CHECK(find("help") && find("window.destroy") && !find("window.nope"));
+    CHECK(find("help") && find("window.close") && !find("window.nope"));
     TEST_REPORT("command registry");
 }

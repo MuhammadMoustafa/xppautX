@@ -43,7 +43,7 @@ async function settle(ok: () => boolean): Promise<boolean> {
   return ok();
 }
 
-const reads = (sent: Command[]) => sent.filter(c => c.cmd === 'value.load_file');
+const reads = (sent: Command[]) => sent.filter(c => c.cmd === 'value.import_file');
 
 test('W134: Values > Load over a different file of the same name asks; Cancel copies and reads nothing', async () => {
   const folder = new Map([['lecar.par', 'old']]);
