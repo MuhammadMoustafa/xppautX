@@ -79,6 +79,12 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     set_all_vals(s);
     /* a set is checked whole at the load (a bad one stops it) */
     if (const Result<> sets = check_intern_sets(s); !sets) model_failed(sets.error());
+    /* run_set names one of the model's sets (W666): checked here, where the sets are read */
+    for (const std::string &name : s.run_sets)
+        if (std::none_of(s.model().intern_sets.begin(), s.model().intern_sets.end(),
+                         [&](const Model::InternalSet &set) { return set.name == name; }))
+            model_failed(Error{"options", xpp::format("run_set \"{}\" is not one of the model's sets", name),
+                               model_place(s.model(), odex::Statement::Kind::Options, 0)});
     xpp::init_alloc_info(s);
     xpp::set_init_guess(s);
     update_all_ffts(s);
@@ -286,7 +292,6 @@ void batch_start(xpp::Session &s)
 {
     init_browser(s);
     init_all_graph(s);
-    if_needed_select_sets(s.model());
     load_command_line_values(s);
     set_extra_graphs(s);
     set_colorization_stuff(s);

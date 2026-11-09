@@ -167,7 +167,8 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
 /* what the option model leaves out: a log file, a button, a list, and what an XPPAUT file says that no member of ours holds */
 bool left_out(const xpp::OptionRow &r)
 {
-    return xpp::option_name(r) == "interface.buttons" || r.kind == xpp::OptionKind::sliders || r.kind == xpp::OptionKind::curves || r.expand
+    /* run_set names a set of the model: a generated value never is one (W666), its own check is modecheck's */
+    return xpp::option_name(r) == "interface.buttons" || xpp::option_name(r) == "output.run_set" || r.kind == xpp::OptionKind::sliders || r.kind == xpp::OptionKind::curves || r.expand
            || r.curve_field != xpp::CurveField::none || !r.dropped.empty() || r.in_statement;
 }
 
@@ -257,7 +258,7 @@ int main(void)
         xpp::apply_command_line(session, std::move(*silent_line));
         CHECK(xpp::batch_options.enabled == 1);
         xpp::batch_options.enabled = 0;
-        for (const char *name : {"silent", "setfile", "parfile", "icfile", "anifile", "outfile", "newseed", "version", "internset", "uset", "rset", "qsets", "qpars", "qics", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "equil", "verbose", "debug"}) {
+        for (const char *name : {"silent", "setfile", "parfile", "icfile", "anifile", "outfile", "newseed", "version", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "equil", "verbose", "debug"}) {
             std::string word = "-" + std::string(name);
             argv[1] = word.data();
             const xpp::Result<> r = check_args(2, argv);
@@ -292,8 +293,9 @@ int main(void)
                 return r ? std::string() : r.error().what;
             };
             CHECK(fault({"--equil", "x"}) == "--equil needs a whole number, not \"x\"");
-            CHECK(fault({"--internset", "2"}) == "--internset must be 0 or 1, not 2");
-            CHECK(fault({"--internset", "yes"}) == "--internset needs a whole number, not \"yes\"");
+            /* W666: the set and query switches are unknown options */
+            for (const char *removed : {"--internset", "--uset", "--rset", "--qsets", "--qpars", "--qics"})
+                CHECK(fault({removed, "a"}) == std::string("no such option ") + removed);
             CHECK(fault({"--parfile", "a", "--parfile", "b"}) == "--parfile given twice");
             CHECK(fault({"--setfile", "a", "--setfile", "b"}) == "--setfile given twice");
             /* W667: the removed switches are unknown options, and --anifile is --convert's operand only */
@@ -301,8 +303,7 @@ int main(void)
                 CHECK(fault({removed, "a"}) == std::string("no such option ") + removed);
             CHECK(fault({"--anifile", "a.ani"}) == "--anifile needs --convert (it is the .ani that --convert writes into a .anix)");
             CHECK(fault({"--convert", "--anifile", "a.ani", "model.odex"}).empty());
-            CHECK(fault({"--uset", "a", "--uset", "b"}).empty());
-            CHECK(fault({"--equil", "1", "--internset", "0", "model.ode"}).empty());
+            CHECK(fault({"--equil", "1", "model.ode"}).empty());
             CHECK(fault({"--equil"}) == "--equil needs an argument");
         }
         for (const char *word : {"--silently", "--nosuch", "--runnow", "--setfile"}) {

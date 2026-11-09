@@ -118,8 +118,6 @@ static std::string usage_tail()
     "  --setfile FILE   import an XPPAUT set; --parfile FILE / --icfile FILE load values\n"
     "  --outfile FILE   batch output; --noout suppresses rows\n"
     "  --newseed        randomize seed\n"
-    "  --internset 0|1 / --uset NAME / --rset NAME   select internal sets\n"
-    "  --qsets / --qpars / --qics   query sets / parameters / initial conditions\n"
     "  --mkplot / --plotfmt svg|ps   batch plot and format\n"
     "  --dfdraw 1-5 / --ncdraw 1|2   post-run fields / nullclines\n"
     "  --equil 0|1      batch equilibria (1 also writes manifolds)\n"

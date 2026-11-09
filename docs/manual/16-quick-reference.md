@@ -464,10 +464,6 @@ run or the files, not the X11 windows:
   | 0.1 | -0.3715646 | 0.083690271 |
   | ⋮ | ⋮ | ⋮ |
 - **--icfile *filename***: loads initial conditions from the named file, one value per line, one per variable with a differential equation, in order (Markov states are not in the file, as in XPPAUT), e.g. (`lecar.ic`, for `V`, `W`): `-0.3606` then `0.0911`.
-- **--internset *B***: run (`1`) or not (`0`) internal sets during a batch run.
-- **--uset *setname***: names an internal set to run during a batch run (repeatable).
-- **--rset *setname***: names an internal set *not* to run during a batch run (repeatable).
-- **--qsets / --qpars / --qics**: query the names of internal sets, the parameters, or the initial conditions and save the results to `--outfile`; lets an external program or script inspect an ODE model.
 - **--anifile *filename***: with `--convert`, the `.ani` that `--convert model.odex` writes into a `.anix`.
 - **--mkplot**: with `--silent`, writes a plot named after the ODE file (or numbered, for several); PDF or SVG (`--plotfmt`).
 - **--noout**: does not write an output data file in batch mode; combine with `--mkplot` to suppress the data.

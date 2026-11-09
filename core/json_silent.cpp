@@ -1,8 +1,8 @@
 /* --silent's built-in script (W56): xppautX model.ode --silent is the
    protocol's own commands, the ones a page sends,
    played through this front end (ui_json.cpp json_ui_silent) with its
-   events going nowhere. The command line (--outfile, --internset, --qsets,
-   --equil, --noout, --mkplot, ...) and the model's @ options (output=,
+   events going nowhere. The command line (--outfile, --equil, --noout,
+   --mkplot, ...), the model's run_set options (which sets run) and the model's @ options (output=,
    range=, stoch=, postprocess=, ncdraw=, dfdraw=, plotfmt=) say which.
 
    Each step makes its lines when its turn comes, after the lines before
@@ -14,7 +14,6 @@
 
    For one run (no internal sets, or each set in turn):
      select the set          set.apply, scope all (the set by its name)
-     --qsets/--qpars/--qics     write_values_query (-dryrun: nothing is run)
      run                     run.initial, run.range (the settings
                              the sweep options made) for a sweep that writes files, or
                              analysis.stochastic_integrate (the sweep's settings) for
@@ -38,6 +37,7 @@
 #include "xpp_batch.h"
 #include "load_eqn.h"
 #include "xpp_log.h"
+#include <algorithm>
 #include <deque>
 #include <memory>
 #include <span>
@@ -56,7 +56,6 @@ private:
     xpp::Session &session; /* the session --silent runs (no other is ever loaded) */
     std::deque<std::string> lines;               /* the step's lines not yet given */
     std::deque<std::function<void()>> steps;     /* the steps still to make */
-    bool ran = false;                            /* the current run integrates */
 
     void add_run(int set);
     void registry(std::string_view cmd) { lines.push_back(xpp::format("{{\"cmd\":\"{}\"}}", cmd)); }
@@ -79,7 +78,7 @@ void SilentScript::post_process()
 {
     using xpp::AfterRun;
     const AfterRun kind = session.histogram.post_process;
-    if (!ran || kind == AfterRun::none) return;
+    if (kind == AfterRun::none) return;
     if (kind == AfterRun::mean_of_runs) return registry("analysis.load_stochastic_mean");
     if (kind == AfterRun::variance_of_runs) return registry("analysis.load_stochastic_variance");
     session.plot_list.assign({0, 1});
@@ -116,7 +115,6 @@ void SilentScript::apply_set(std::string_view name)
 void SilentScript::add_run(int set)
 {
     steps.push_back([this, set] {
-        ran = !session.model().command_line.dry_run() && (set < 0 || batch_options.uses_intern_set(static_cast<std::size_t>(set)));
         if (set < 0) return;
         /* its data file is named after it without --outfile (its plots
            always are: batch_plot_name) */
@@ -126,29 +124,21 @@ void SilentScript::add_run(int set)
         apply_set(name);
     });
     steps.push_back([this] {
-        const CommandLine &cl = session.model().command_line;
-        if (!cl.dry_run()) return;
-        replace_files();
-        xpp::write_values_query(session, session.batch_out_file, cl.query_sets, cl.query_pars, cl.query_ics);
-    });
-    steps.push_back([this] {
-        if (!ran) return;
         const xpp::AfterRun after = session.histogram.post_process;
         if (after == xpp::AfterRun::mean_of_runs || after == xpp::AfterRun::variance_of_runs) registry("analysis.stochastic_integrate");
         else registry(session.integrator.range.write_files ? "run.range" : "run.initial");
     });
     /* with after_run_file the trajectory is written first, so the analysis does not replace it */
     steps.push_back([this] {
-        if (ran && writes_output() && !session.after_run_file.empty() && after_run_analysed()) save_output();
+        if (writes_output() && !session.after_run_file.empty() && after_run_analysed()) save_output();
     });
     steps.push_back([this] { post_process(); });
     steps.push_back([this] {
-        if (!ran || !writes_output() || session.after_run_file.empty() || !after_run_analysed()) return;
+        if (!writes_output() || session.after_run_file.empty() || !after_run_analysed()) return;
         replace_files();
         xpp::ok_or_show(xpp::save_data_file(session, xpp::DataTarget::output, "", session.after_run_file));
     });
     steps.push_back([this] {
-        if (!ran) return;
         const xpp::Session &s = session;
         if (writes_output()) {
             if (!trajectory_saved) save_output();
@@ -169,12 +159,20 @@ void SilentScript::add_run(int set)
     });
 }
 
+/* run_set names the sets a batch run runs */
+static bool runs_set(const xpp::Session &s, const std::string &name)
+{
+    return std::find(s.run_sets.begin(), s.run_sets.end(), name) != s.run_sets.end();
+}
+
 SilentScript::SilentScript(xpp::Session &s) : session(s)
 {
     const std::size_t sets = s.model().intern_sets.size();
-    if (sets == 0 || batch_options.intern_sets_used == 0) add_run(-1);
+    /* no run_set: one run with no set, as a batch run always was; run_set: each named set in turn */
+    if (sets == 0 || s.run_sets.empty()) add_run(-1);
     else
-        for (std::size_t i = 0; i < sets; i++) add_run(static_cast<int>(i));
+        for (std::size_t i = 0; i < sets; i++)
+            if (runs_set(s, s.model().intern_sets[i].name)) add_run(static_cast<int>(i));
     steps.push_back([this] {
         if (batch_options.equilibria < 0) return;
         lines.push_back(xpp::format("{{\"cmd\":\"equilibrium.export\",\"file\":\"equil.dat\",\"confirm\":true,\"shoot\":{}}}",batch_options.equilibria==1));

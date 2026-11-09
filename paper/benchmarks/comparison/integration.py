@@ -143,7 +143,7 @@ def engine_argv(a, model, engine, setfile):
     if engine == 'python':
         argv = [sys.executable, str(PYTHON / 'integrate.py'), model.with_suffix('.odex').name]
     elif engine == 'xppautx':
-        argv = [str(a.xppautx), model.with_suffix('.odex').name, '--silent', '--internset', '0']
+        argv = [str(a.xppautx), model.with_suffix('.odex').name, '--silent']
     elif engine == 'xppaut':
         argv = [str(a.xppaut), model.name, '-silent', '-internset', '0']
     elif engine == 'reference':

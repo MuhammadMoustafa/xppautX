@@ -7968,7 +7968,7 @@ def check_display_state():
 def check_silent_commands():
     """W56: --silent is a built-in script of the protocol's own commands.
     Each command it uses where the interface had none (browser.export of
-    the output columns with replace, write_values_query's
+    the output columns with replace,
     file, dfield write, equilibrium write) writes, through --server, the very
     file the --silent run writes; its .recx also plays silently with the
     same success/error result. --silent prints nothing on stdout."""
@@ -8001,13 +8001,6 @@ def check_silent_commands():
     go = [{'cmd': 'run.initial'}]
     dirs = []
     try:
-        s, r = silent(args.ode, '--qsets', '--qpars', '--qics', '--outfile', 'q.txt')
-        dirs.append(s)
-        query = read(s, 'q.txt') or b''
-        check('--silent --qsets --qpars --qics writes the internal sets, the parameters and the initial conditions, each under its heading',
-              r.returncode == 0 and b'#Internal sets query:' in query and b'#Parameters query:' in query
-              and b'#Initial conditions query:' in query, r.stderr[-300:] + repr(query[:80]))
-
         s, r = silent(args.ode, '--dfdraw', '4', '--equil', '0')
         dirs.append(s)
         check('--silent writes nothing on stdout', r.returncode == 0 and r.stdout == '', r.stdout[:300])

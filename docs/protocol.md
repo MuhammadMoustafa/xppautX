@@ -1597,13 +1597,12 @@ message leaves the exit status 1). Each step is made when its
 turn comes, after the steps before it ran, since an internal set may
 change any option. The questions the commands ask are answered by the
 script's next lines; one it does not expect stops it (exit 1). For each
-run (once, or for each internal set in turn with `--internset`/`--uset`/`--rset`,
-each set's data then in `<set>.dat` unless `--outfile` is given):
+run (once with no set, or for each set named by the model's `run_set` options in
+turn, each set's data then in `<set>.dat` unless `--outfile` is given):
 
 | what | commands |
 |---|---|
 | the internal set | `set.apply` with its `name` and scope `all` |
-| `--qsets`/`--qpars`/`--qics`, `-dryrun` | the internal sets, parameters and initial conditions asked for, each under its `#` heading, into the output file (core/lunch-new.cpp `write_values_query`, called by the script itself); nothing is run |
 | the run | `run.initial`, `run.range` when a sweep writes each run's file, or `analysis.stochastic_integrate` (the sweep's steps plus one runs) for an `after_run` of `mean_of_runs` or `variance_of_runs` |
 | `@ postprocess=` (`output: { after_run }`) | the analysis it names (written to `after_run_file` when the model names one, `output.dat` keeping the trajectory), with the model's settings: `analysis.histogram`, `analysis.fourier_series`, `analysis.power_spectrum`, `analysis.spectral_density` (with its `type`) or `analysis.histogram_2d` |
 | `after_run` `mean_of_runs` or `variance_of_runs` | `analysis.load_stochastic_mean` or `analysis.load_stochastic_variance`, the data `output.dat` is then written from (to `after_run_file`, `output.dat` keeping the last run's trajectory, when the model names one) |

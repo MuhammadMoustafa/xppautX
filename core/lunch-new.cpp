@@ -627,28 +627,5 @@ Result<std::string> load_value_file(xpp::Session &s, ValueFile kind, std::string
   return file;
 }
 
-void write_values_query(const xpp::Session &s, std::string_view name, bool sets, bool pars, bool ics)
-{
-  const xpp::Model &m=s.model();
-  if(!save_ready((sets&&!m.intern_sets.empty())||(pars&&m.nupar>0)||(ics&&m.neq>0)))return;
-  xpp::Writer w=xpp::open_writer_asking(name);
-  if(!w)return;
-  if(sets){
-    w.print("#Internal sets query:\n");
-    for(std::size_t i=0;i<m.intern_sets.size();i++)
-      w.print("{} {} {}\n",m.intern_sets[i].name,batch_options.uses_intern_set(i),m.intern_sets[i].does);
-  }
-  if(pars){
-    w.print("#Parameters query:\n");
-    for(int i=0;i<m.nupar;i++)
-      w.print("{} {:f}\n",m.upar_names[i],m.default_val[i]);
-  }
-  if(ics){
-    w.print("#Initial conditions query:\n");
-    for(int i=0;i<m.neq;i++)
-      w.print("{} {:f}\n",m.uvar_names[i],s.last_ic[i]);
-  }
-  xpp::ok_or_show(xpp::commit_save(w));
-}
 
 } // namespace xpp

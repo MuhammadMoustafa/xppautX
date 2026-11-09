@@ -22,8 +22,7 @@ namespace {
 constexpr int MAX_PORT = 65535;
 
 /* the options' ids (named, never numbers) */
-enum class Opt { silent, newseed, setfile, parfile, outfile, icfile, internset, uset, rset,
-                 qsets, qpars, qics, anifile, mkplot, plotfmt, noout, dfdraw, ncdraw,
+enum class Opt { silent, newseed, setfile, parfile, outfile, icfile, anifile, mkplot, plotfmt, noout, dfdraw, ncdraw,
                  equil, verbose, debug,
                  /* the program's own (xppautx_main.cpp) */
                  help, version, options_schema, convert, check, yes, no_open, browser, server, port };
@@ -32,7 +31,7 @@ struct CommandOption {
   std::string_view name;
   Opt id;
   bool argument;
-  bool repeatable; /* given again adds (--uset, --rset); otherwise a second one is an error */
+  bool repeatable; /* given again adds (--mkplot, --noout, ...); otherwise a second one is an error */
   bool program;    /* one of the program's own switches, not a load's */
 };
 
@@ -43,12 +42,6 @@ constexpr CommandOption my_cmd[] = {
   {"--parfile", Opt::parfile, true, false, false},
   {"--outfile", Opt::outfile, true, false, false},
   {"--icfile", Opt::icfile, true, false, false},
-  {"--internset", Opt::internset, true, false, false},
-  {"--uset", Opt::uset, true, true, false},
-  {"--rset", Opt::rset, true, true, false},
-  {"--qsets", Opt::qsets, false, true, false},
-  {"--qpars", Opt::qpars, false, true, false},
-  {"--qics", Opt::qics, false, true, false},
   {"--anifile", Opt::anifile, true, false, true}, /* --convert's second operand: the program's own, with --convert only */
   {"--mkplot", Opt::mkplot, false, true, false},
   {"--plotfmt", Opt::plotfmt, true, false, false},
@@ -77,16 +70,6 @@ const CommandOption *command_option(std::string_view word)
   for (const CommandOption &option : my_cmd)
     if (option.name == word) return &option;
   return nullptr;
-}
-
-bool is_set_name(const std::vector<std::string> &sets, const std::string &nam)
-{
-  return std::find(sets.begin(), sets.end(), nam) != sets.end();
-}
-
-void add_set(std::vector<std::string> &sets, const std::string &nam)
-{
-  if(!is_set_name(sets,nam)) sets.push_back(nam);
 }
 
 } // namespace
@@ -170,9 +153,6 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     case Opt::newseed: cl.new_seed = true; break;
     case Opt::mkplot: cl.make_plot = true; break;
     case Opt::noout: cl.no_output = true; break;
-    case Opt::qsets: cl.silent = cl.query_sets = true; break;
-    case Opt::qpars: cl.silent = cl.query_pars = true; break;
-    case Opt::qics: cl.silent = cl.query_ics = true; break;
     case Opt::verbose: cl.log_threshold = XPP_LOG_INFO; break;
     case Opt::debug: cl.log_threshold = XPP_LOG_DEBUG; break;
     case Opt::setfile: cl.set_file = value; break;
@@ -183,21 +163,12 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
       cl.out_file = value;
       cl.out_place = xpp::format("{} {}", word, value);
       break;
-    case Opt::internset: {
-      int n = 0;
-      if (const Result<> r = whole_number(n); !r) return std::unexpected(r.error());
-      if (n != 0 && n != 1) return fail("options", xpp::format("{} must be 0 or 1, not {}", word, n), place);
-      cl.use_all_sets = n == 1;
-      break;
-    }
     case Opt::equil: {
       int n = 0;
       if (const Result<> r = whole_number(n); !r) return std::unexpected(r.error());
       cl.equilibria = n;
       break;
     }
-    case Opt::uset: add_set(cl.use_sets, value); break;
-    case Opt::rset: add_set(cl.skip_sets, value); break;
     case Opt::plotfmt: cl.options.emplace_back("PLOTFMT", value); break;
     case Opt::dfdraw: cl.options.emplace_back("DFDRAW", value); break;
     case Opt::ncdraw: cl.options.emplace_back("NCDRAW", value); break;
@@ -230,7 +201,6 @@ void apply_command_line(Session &s, CommandLine cl)
     s.animation.options.file = *cl.ani_file;
     s.animation.options.use_file = 1;
   }
-  if (cl.use_all_sets) batch_options.use_intern_sets = *cl.use_all_sets ? 1 : 0;
   if (cl.equilibria) {
     batch_options.equilibria = *cl.equilibria;
     xpp::log(XPP_LOG_INFO, " Batch equilibria {:d} \n", batch_options.equilibria);
@@ -238,36 +208,6 @@ void apply_command_line(Session &s, CommandLine cl)
   /* --plotfmt, --dfdraw and --ncdraw win over .xpprc and the model's @ lines */
   for (const auto &[name, value] : cl.options) set_option(s, name, value, 1, NULL);
   s.model().command_line = std::move(cl);
-}
-
-int if_needed_select_sets(const xpp::Model &m)
-{
-  const CommandLine &cl = m.command_line;
-  if (cl.use_sets.empty() && cl.skip_sets.empty() && !cl.use_all_sets) return 1;
-  const std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
-  std::vector<int> &use=batch_options.intern_set_use;
-  int &used=batch_options.intern_sets_used;
-  use.assign(sets.size(),1);
-  for(std::size_t j=0;j<sets.size();j++)
-  {
-    const std::string &name=sets[j].name;
-    use[j]=batch_options.use_intern_sets;
-    used+=batch_options.use_intern_sets;
-    if (is_set_name(cl.use_sets,name))
-    {
-      xpp::log(XPP_LOG_INFO, "Internal set {} was included\n",name);
-      if (use[j]==0){used++;}
-      use[j]=1;
-    }
-    if (is_set_name(cl.skip_sets,name))
-    {
-      xpp::log(XPP_LOG_INFO, "Internal set {} was excluded\n",name);
-      if (use[j]==1){used--;}
-      use[j]=0;
-    }
-  }
-  xpp::log(XPP_LOG_INFO, "A total of {:d} internal sets will be used\n",used);
-  return 1;
 }
 
 static int if_needed_load_set(xpp::Session &s)

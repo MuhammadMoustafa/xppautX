@@ -33,14 +33,10 @@ struct CommandLine {
   std::optional<int> port;                     /* --port: 0 for any free port */
   /* what a load takes */
   bool silent = false, new_seed = false, make_plot = false, no_output = false;
-  bool query_sets = false, query_pars = false, query_ics = false;
-  bool dry_run() const { return query_sets || query_pars || query_ics; } /* --qsets/--qpars/--qics: nothing is run */
   std::optional<XppLogLevel> log_threshold;    /* --verbose, --debug: the last one given */
-  std::optional<bool> use_all_sets;            /* --internset 1 / 0 */
   std::optional<int> equilibria;               /* --equil N */
   std::optional<std::string> set_file, par_file, ic_file, out_file, ani_file; /* given or not */
   std::string out_place;                       /* --outfile as written, for an error's place */
-  std::vector<std::string> use_sets, skip_sets; /* --uset, --rset in order */
   std::vector<std::pair<std::string_view, std::string>> options; /* --plotfmt, --dfdraw, --ncdraw through set_option, in order */
 
 };
@@ -52,9 +48,6 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments);
 /* the command line's switches into the loading Session s and the model's
    file into its Model's this_file; the Model keeps cl. */
 void apply_command_line(Session &s, CommandLine cl);
-/* the internal sets of m the command line picked (--internset, --uset,
-   --rset) into batch_options */
-int if_needed_select_sets(const Model &m);
 /* after a load, in every mode: the files the command line names
    (--setfile, --parfile, --icfile) into s */
 void load_command_line_values(Session &s);

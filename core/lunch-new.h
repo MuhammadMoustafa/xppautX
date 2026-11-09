@@ -55,11 +55,6 @@ Result<> load_xppaut_values(Session &s, ValueFile kind, std::string_view fn);
    given skips the ask; gives the file read ("" when the user cancelled the question), as one undo step, all or
    nothing. */
 Result<std::string> load_value_file(Session &s, ValueFile kind, std::string file);
-/* the model's internal sets (name, whether --silent runs it, what it
-   sets), its parameters' values in the file and its initial conditions,
-   those asked for, each under its # heading, into name (--silent's
-   --qsets/--qpars/--qics) */
-void write_values_query(const Session &s, std::string_view name, bool sets, bool pars, bool ics);
 
 /* File > Import XPPAUT session state (asks for the file), the session s's info file
    (File > Save info) */

@@ -245,10 +245,6 @@ follow in any order. The options below control the model and its run.
 | `--parfile FILE` | Load parameter values from FILE before starting |
 | `--icfile FILE` | Load initial conditions from FILE before starting |
 | `--setfile FILE` | Import a set file XPPAUT wrote before starting |
-| `--internset <0\|1>` | Run (1) or skip (0) the model's internal sets in batch |
-| `--uset NAME` | Include the named internal set in a batch run |
-| `--rset NAME` | Exclude the named internal set from a batch run |
-| `--qsets` / `--qpars` / `--qics` | Query internal sets, parameters or initial conditions to the output file, then exit |
 | `--equil <0\|1>` | Write equilibria to `equil.dat`, and with `1` the invariant manifolds too |
 | `--mkplot` | Produce a plot in batch mode |
 | `--plotfmt <pdf\|svg>` | Batch plot format (`ps` is read as `pdf`) |

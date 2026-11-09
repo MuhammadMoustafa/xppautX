@@ -10,11 +10,9 @@ a table snippet, one line of a bigger example) that never ends in
 "done" and is skipped by this rule, not by an allowlist of line numbers.
 
 Each block found is written to a temp .ode file and loaded with
-`xppautX --silent ... --qics` (core/comline.h's --qics: batch mode, a dry
-run -- it queries the initial conditions and writes them to --outfile
-instead of integrating, but still runs the whole parser and model
-set-up, so a bad model still fails to load). A nonzero exit is a load
-failure and fails the check, printing the file, the block's starting
+`xppautX --check` (the model is validated in memory: no window, no files, no
+run; a model with warnings exits 1, which is not a load failure). An exit
+of 2 is a load failure and fails the check, printing the file, the block's starting
 line and xppautX's stderr tail.
 
 Also checks that every "--name" command-line option the manual names
@@ -156,13 +154,13 @@ def check_models(xppbin, verbose):
                     f.write("\n".join(lines) + "\n")
                 # --yes: a snippet's names .odex reserves take the suggested ones (--silent asks, W288)
                 proc = subprocess.run(
-                    [xppbin, model_path, "--silent", "--qics", "--yes", "--outfile", out_path],
+                    [xppbin, model_path, "--check"],
                     cwd=tmpdir,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     timeout=30,
                 )
-                if proc.returncode != 0:
+                if proc.returncode not in (0, 1):
                     tail = proc.stdout.decode("utf-8", "replace").strip().splitlines()[-10:]
                     failures.append(
                         f"{relpath}:{start}: xppautX exited {proc.returncode}\n  "
@@ -187,7 +185,7 @@ BOLD_OPTION_RE = re.compile(r"^-?\s*\*\*(-{1,2}[A-Za-z][\w-]*)\*\*")
 def manual_options():
     """Every option an actual "flags" table row or bulleted definition
     names, across docs/manual/*.md. A table row's first cell may name
-    several with `/` between them (`--qsets` / `--qpars` / `--qics`)."""
+    several with `/` between them (`--outfile` / `--check`)."""
     found = {}
     for path in sorted(glob.glob(os.path.join(ROOT, "docs", "manual", "*.md"))):
         relpath = os.path.relpath(path, ROOT)

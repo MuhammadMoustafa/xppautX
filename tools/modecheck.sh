@@ -186,6 +186,25 @@ case "$status:$removed" in
   *) bad "--web: $status $(echo "$removed" | head -c 200)" ;;
 esac
 
+# W666: the set and query switches are unknown options; run_set names the sets a batch run runs
+for flag in --internset --uset --rset --qsets --qpars --qics; do
+  refused=$(cd "$tmp" && "$BIN" "$flag" 1 lecar.odex 2>&1)
+  status=$?
+  case "$status:$refused" in
+    2:*"no such option $flag"*) pass "$flag is an unknown option" ;;
+    *) bad "$flag: $status $(echo "$refused" | head -c 200)" ;;
+  esac
+done
+sed 's/^options {$/options {\n  output: { run_set: "pp" },/' "$tmp/lecar.odex" > "$tmp/runset.odex"
+sed 's/^options {$/options {\n  output: { run_set: "nope" },/' "$tmp/lecar.odex" > "$tmp/badset.odex"
+picked=$(cd "$tmp" && "$BIN" runset.odex --silent --verbose 2>&1 | grep -c "^out=")
+if [ "$picked" = 1 ] && [ -s "$tmp/pp.dat" ]; then pass "run_set \"pp\" runs only the set pp"; else bad "run_set pp: $picked runs"; fi
+refused=$(cd "$tmp" && "$BIN" badset.odex --silent 2>&1)
+case "$refused" in
+  *'run_set "nope" is not one of the model'"'"'s sets'*) pass "an unknown run_set names its options block" ;;
+  *) bad "unknown run_set: $(echo "$refused" | head -c 200)" ;;
+esac
+
 if [ $linux_window -eq 1 ]; then
   # the window's library cannot load: the WARN names what to install, and
   # the browser opens instead (the stand-in opener)

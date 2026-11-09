@@ -130,7 +130,7 @@ def child_cpu_seconds(proc):
 def engine_args(engine, binary, model):
     if engine == 'legacy':
         return [str(binary), model + '.ode', '-silent', '-internset', '0']
-    return [str(binary), model + '.odex', '--silent', '--internset', '0'] + ENGINE_ARGS[engine]
+    return [str(binary), model + '.odex', '--silent'] + ENGINE_ARGS[engine]
 
 
 def engine_binaries(args):

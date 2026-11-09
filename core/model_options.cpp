@@ -897,6 +897,12 @@ constexpr OptionRow rows[] = {
      }
      return nullptr;
    }},
+  {.group = option_group::output, .kind = OptionKind::text, .odex = "run_set", .help = "A set a batch run runs, by its name; repeat the option for each set. With none, the model runs once with no set.",
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (v.apply) s.run_sets.emplace_back(v.text);
+     return nullptr;
+   },
+   .repeatable = true},
   {.group = option_group::output, .kind = OptionKind::path, .odex = "nullclines_file", .help = "The file the nullclines are saved to after a run.", .once = true,
    .text = member([](auto &s) -> auto & { return s.nullclines.file; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
