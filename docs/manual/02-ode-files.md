@@ -266,7 +266,7 @@ Variables are the quantities you wish to integrate in time. There are two types 
     <name>'=<formula>
     <name>(t)=<formula>
 
-Here `<name>` is the name of the variable. The last version is for notational convenience only sincd the `dx/dt` notation makes no sense for discrete dynamical systems. The `<formula> ` is exactly that, the formula for the right-hand sides of the equations. These equations can appear anywhere in your file and in any order. However, the order in which they are written determines the order in which they appear in the Data Browser (see below.)
+Here `<name>` is the name of the variable. The last version is for notational convenience only sincd the `dx/dt` notation makes no sense for discrete dynamical systems. The `<formula> ` is exactly that, the formula for the right-hand sides of the equations. These equations can appear anywhere in your file and in any order. However, the order in which they are written determines the order in which they appear in the data table (see below.)
 
 The fourth way of defining a continuous variable is:
 
@@ -628,7 +628,7 @@ A `.odex` (what a `.ode` is converted to) spells these options in full words, th
 
 - BACK= `{Black,White}` sets the background to black or white.
 
-- SMALL=`fontname` where `fontname` is some font available to your X-server. This sets the “small” font which is used in the Data Browser and in some other windows.
+- SMALL=`fontname` where `fontname` is some font available to your X-server. This sets the “small” font which is used in the data table and in some other windows.
 
 - BIG=`fontname` sets the font for all the menus and popups.
 

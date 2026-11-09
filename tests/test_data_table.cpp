@@ -13,7 +13,7 @@
 
 int main()
 {
-    char name[] = "test_browser", path[] = "examples/ode/lecar.odex";
+    char name[] = "test_data_table", path[] = "examples/ode/lecar.odex";
     char *argv[] = {name, path, nullptr};
     const xpp::Loaded loaded = load_args(2, argv, 1);
     CHECK(loaded.has_value());

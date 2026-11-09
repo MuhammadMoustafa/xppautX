@@ -2152,7 +2152,7 @@ number of rows asked is cut to the model's `NEQ-1` the same way, silently
 `data.transpose` with `first_row` 1, `rows` 2 and `row_skip` 600 on a run of
 601 rows is refused by xppautX naming the row it would reach and the rows
 there are, as is one with more rows than the model has columns less one;
-`tools/servercheck.py` (section `data`) and `tests/test_browser.cpp` check
+`tools/servercheck.py` (section `data`) and `tests/test_data_table.cpp` check
 both. xppautX checks every column and row before it makes the table, for the
 form and the command alike. Card
 [W526](https://github.com/MuhammadMoustafa/xppautX/issues/590).

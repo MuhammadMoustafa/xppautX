@@ -214,7 +214,7 @@ where `name` is one of the following and `value` is either an integer, floating 
 
 - BACKIMAGE=`file.xbm` sets the back image. The format is the not generally readily found X11-bitmap format. On the mac, you can use some unix tools like gimp, xv, or ImageMagick.
 
-- SMALLFONT=`fontname` where `fontname` is some font available to your X-server. This sets the “small” font which is used in the Data Browser and in some other windows.
+- SMALLFONT=`fontname` where `fontname` is some font available to your X-server. This sets the “small” font which is used in the data table and in some other windows.
 
 - BIGFONT=`fontname` sets the font for all the menus and popups.
 
