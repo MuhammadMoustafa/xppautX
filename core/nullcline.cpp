@@ -515,7 +515,7 @@ void do_batch_nclines(xpp::Session &s)
   if(!phase_plane_states(s,g)){
     /* a time plot has no nullclines in any mode: say so once per run, not an error */
     const auto axis=[&s](int ix){return ix>0?s.model().uvar_names[ix-1]:std::string("t");};
-    xpp::log(XPP_LOG_INFO,"nullclines not drawn: {} plots {} against {}\n",g.name,axis(g.xv[0]),axis(g.yv[0]));
+    xpp::log(XPP_LOG_INFO,"nullclines not drawn: {} plots {} against {}\n",g.name,axis(g.yv[0]),axis(g.xv[0]));
     return;
   }
   compute_nullclines(s);
