@@ -1,5 +1,5 @@
 /* The start screen (W232): what the program shows when it started with no
-   model file and the Open model dialog was cancelled. Open model is the
+   model file; it asks nothing until the user opens one. Open model is the
    same operation as File > Open model (session.openModel), the recent
    models are hello.start (core/xpp_recent.h), and so are the bundled
    examples (core/xpp_examples.h, W233; one opens as a copy in the settings folder); a recent model whose file is

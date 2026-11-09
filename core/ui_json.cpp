@@ -1110,8 +1110,7 @@ void json_ui_start_screen()
     program.interactive = 1;
     send_hello(client());
     json_flush();
-    /* the one Open model: the same key the page's button and File > Open model send, which asks for the file */
-    xpp::inbox::push_own("{\"cmd\":\"session.open_model\"}");
+    /* nothing is asked: the user opens a model when they choose (maintainer, 2026-11-09) */
 }
 
 void json_ui_load_error(const xpp::Error &e)

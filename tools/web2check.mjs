@@ -5549,8 +5549,8 @@ async function loadErrorCheck() {
 }
 
 /* W232: a program started with no file. hello.start lists the recent models (a missing one marked, not
-   dropped); the Open model dialog it opens at once is Cancelled (the desktop picker stubbed to answer
-   Cancel), which leaves the start screen; its Open model button is the same open command; a missing
+   dropped); it opens no dialog by itself (maintainer, 2026-11-09; the desktop picker is stubbed to answer
+   Cancel); its Open model button is the same open command; a missing
    recent model sends nothing; a recent model that is there opens it, and the start screen goes. */
 async function startScreenCheck() {
   const clickRecent = file => cdp.eval(`[...document.querySelectorAll('[data-start-recent]')].find(b => b.dataset.startRecent === ${JSON.stringify(file)}).click(); true`);
@@ -5564,7 +5564,7 @@ async function startScreenCheck() {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     const {identifier} = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: 'window.__xppFileDialog = async () => null;'});
     await cdp.send('Page.navigate', {url: server.url});
-    check('start screen: Cancel at the start leaves hello.start, no dialog, no exit, no error',
+    check('start screen: the start shows hello.start, no dialog, no exit, no error',
       /* the store has hello.start before the page has drawn it: wait for the drawn screen too */
       await until(`!window.__left && s.hello && s.hello.start && !s.ask && !s.busy && s.exited === null && !s.loadError
         && document.querySelector('[data-start-open]')`, 'the start screen', 30000 * SLOW));

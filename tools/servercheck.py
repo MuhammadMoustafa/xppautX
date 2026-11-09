@@ -10571,8 +10571,8 @@ def recent_models(path):
 def check_start_screen():
     """W232, docs/protocol.md "Start screen": a program started with no file has a session with no model.
     hello carries `start` (the recent models, newest first, a missing file listed as missing) and no
-    state; Open model asks at once, the same ask File > Open model makes (the filter takes .ode, .odex,
-    .snapx and .recx); Cancel leaves the start screen (no error, no exit); a command that needs a model is
+    state; nothing is asked until the user opens a model (maintainer, 2026-11-09); Open model asks for the
+    file (the filter takes .ode, .odex, .snapx and .recx); Cancel leaves the start screen (no error, no exit); a command that needs a model is
     refused; Open model of a file, from the screen, is a normal open (new hello with no `start`, the model
     in preferences.odex); a bad preferences.odex is an error with its file and line, no entries listed, and is not
     overwritten by an open; a hostile file is refused whole."""
@@ -10585,36 +10585,35 @@ def check_start_screen():
 
     def start_up():
         p, r, snd, col, _ = launch_server(extra_env=env, no_model=True)
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        return p, r, snd, col, evs, ask
+        evs, _ = col(lambda e: e.get('ev') == 'hello')
+        return p, r, snd, col, evs
 
-    p, r, snd, col, evs, ask = start_up()
+    p, r, snd, col, evs = start_up()
     try:
         hello = next((e for e in evs if e.get('ev') == 'hello'), {})
         start = hello.get('start', {})
         check('W232: with no file hello carries the start screen: no recent model, the limit, the file, and no state',
               start.get('recent') == [] and start.get('limit') == 10 and same(start.get('path', ''), path)
               and 'error' not in start and not [e for e in evs if e.get('ev') in ('session.state', 'window.created')] and hello.get('file') == '', str(evs)[:300])
-        check('W232: Open model asks at once, as File > Open model does: one dialog, .ode .odex .snapx .recx',
+        # the first command's done: anything the start queued would come before it
+        snd(cmd='events.subscribe', events=['plot.series'])
+        more, _ = col(is_done)
+        check('W232: the start asks nothing: no dialog until the user opens a model, and data is accepted with nothing to send',
+              not [e for e in evs + more if e.get('ev') == 'ask'] and not errors(more), str(evs + more)[-300:])
+        snd(cmd='session.open_model')
+        evs, ask = col(lambda e: e.get('ev') == 'ask')
+        check('W232: Open model asks for the file: one dialog, .ode .odex .snapx .recx',
               ask and ask['kind'] == 'file' and ask['title'] == 'Open model' and ask['mode'] == 'read'
               and ask['wild'].split() == ['*.ode', '*.odex', '*.snapx', '*.recx', '*.anix'], str(ask))
         snd(cmd='answer', id=ask['id'], ok=0)
         evs, _ = col(is_done)
-        check('W232: Cancel at the start leaves the start screen: no error, no exit', not errors(evs) and p.poll() is None, str(evs)[-300:])
+        check('W232: Cancel leaves the start screen: no error, no exit', not errors(evs) and p.poll() is None, str(evs)[-300:])
         for cmd in ({'cmd': 'session.get_state'}, {'cmd': 'run.initial'}):
             snd(**cmd)
             evs, _ = col(is_done)
             err = errors(evs)
             check('W232: %s needs a model: refused once, ending in done' % cmd['cmd'],
                   len(err) == 1 and 'No model is open' in err[0]['error'] and not [e for e in evs if e.get('ev') == 'session.state'], str(evs)[-300:])
-        snd(cmd='events.subscribe', events=['plot.series'])
-        evs, _ = col(is_done)
-        check('W232: data is accepted with nothing to send', not errors(evs), str(evs)[-200:])
-        snd(cmd='session.open_model')
-        evs, ask = col(lambda e: e.get('ev') == 'ask')
-        check('W232: File > Open model by its id is the same ask', ask and ask['title'] == 'Open model', str(evs)[-200:])
-        snd(cmd='answer', id=ask['id'], ok=0)
-        col(is_done)
         check('W232: opening nothing wrote nothing', not os.path.exists(path), '')
         # a model opened from the screen: no question about saving, a new hello with no start
         snd(cmd='session.open_model', file=model)
@@ -10631,14 +10630,12 @@ def check_start_screen():
     gone = os.path.join(CONFIG_ROOT, 'gone.odex')
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(recent_text([model, gone]))
-    p, r, snd, col, evs, ask = start_up()
+    p, r, snd, col, evs = start_up()
     try:
         recent = next(e for e in evs if e.get('ev') == 'hello')['start']['recent']
         check('W232: the next start lists the models, a missing file as missing and kept',
               len(recent) == 2 and same(recent[0]['path'], model) and not recent[0]['missing']
               and same(recent[1]['path'], gone) and recent[1]['missing'], str(recent))
-        snd(cmd='answer', id=ask['id'], ok=0)
-        col(is_done)
         snd(cmd='session.open_model', file=gone)
         evs, _ = col(is_done)
         err = errors(evs)
@@ -10652,14 +10649,12 @@ def check_start_screen():
     bad = 'version 4\npreferences {\n  recent_models: [%s,\n    "relative.odex"],\n}\n' % json.dumps(model)
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(bad)
-    p, r, snd, col, evs, ask = start_up()
+    p, r, snd, col, evs = start_up()
     try:
         start = next(e for e in evs if e.get('ev') == 'hello')['start']
         check('W232: a bad preferences.odex is an error with its file, line and value, and nothing is listed',
               start['recent'] == [] and same(start['file'], path) and start['line'] == 4
               and 'relative.odex' in start['error'] and 'relative.odex' in start['source'], str(start))
-        snd(cmd='answer', id=ask['id'], ok=0)
-        col(is_done)
         snd(cmd='session.open_model', file=model)
         evs, _ = col(is_done)
         err = errors(evs)
@@ -10673,7 +10668,7 @@ def check_start_screen():
     for what, text in (('a file over the limit', 'x' * 300000), ('more entries than are kept', recent_text([model + str(i) for i in range(11)]))):
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(text)
-        p, r, snd, col, evs, ask = start_up()
+        p, r, snd, col, evs = start_up()
         try:
             start = next(e for e in evs if e.get('ev') == 'hello')['start']
             check('W232: %s is refused whole' % what, start['recent'] == [] and start.get('error'), str(start)[:200])
@@ -10704,7 +10699,7 @@ def check_start_examples():
         # no examples/ beside the executable: none, and the reason is there to be shown
         p, r, snd, col, _ = launch_server(extra_env=env, no_model=True)
         try:
-            evs, _ = col(lambda e: e.get('ev') == 'ask')
+            evs, _ = col(lambda e: e.get('ev') == 'hello')
             ex = next(e for e in evs if e.get('ev') == 'hello')['start'].get('examples', {})
             check('W233: with no examples folder beside the program, none are listed and the reason is given',
                   ex.get('names') == [] and ex.get('reason') and ex.get('folder', '').endswith('examples'), str(ex))
@@ -10723,12 +10718,10 @@ def check_start_examples():
         copied = os.path.join(config, 'examples', 'lecar.odex')
         p, r, snd, col, _ = launch_server(extra_env=env, no_model=True, server=exe)
         try:
-            evs, ask = col(lambda e: e.get('ev') == 'ask')
+            evs, _ = col(lambda e: e.get('ev') == 'hello')
             ex = next(e for e in evs if e.get('ev') == 'hello')['start'].get('examples', {})
             check('W233: the .odex files of examples/ beside the program are listed, sorted, no folder or other file',
                   ex.get('names') == ['lecar.odex'] and 'reason' not in ex, str(ex))
-            snd(cmd='answer', id=ask['id'], ok=0)
-            col(is_done)
             for name in ('../lecar.odex', '..', 'sub/deep.odex', os.path.join(bin_dir, 'examples', 'lecar.odex'), 'notes.txt', 'nothere.odex', ''):
                 snd(cmd='session.open_model', example=name)
                 evs, _ = col(is_done)

@@ -123,10 +123,9 @@ a later one opens in the same window as File > Open model… does, asking
 first; starting the app on its own shows the start screen below.
 
 **Starting without a file.** Started from the Start menu, the Dock or a
-launcher with no model named, xppautX opens the Open model dialog at once
-(the same one File > Open model… shows: it takes `.ode`, `.odex`, a `.snapx`
-session or a `.recx` recording). Cancel it and the **start screen** stays: an
-**Open model…** button and the models you opened lately, newest first (up to
+launcher with no model named, xppautX shows the **start screen** and asks
+nothing: an **Open model…** button (the same dialog File > Open model… shows:
+it takes `.ode`, `.odex`, a `.snapx` session or a `.recx` recording) and the models you opened lately, newest first (up to
 ten, kept in `preferences.odex` beside `keymap.json`). Click one to open it; one
 whose file is gone is listed as missing and cannot be opened (move or restore
 the file, or open another). If `preferences.odex` cannot be read, the screen says

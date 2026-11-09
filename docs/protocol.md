@@ -463,11 +463,11 @@ A program started with no file (the Start menu, the Dock, a launcher; a
 folder instead of a file too) has a session with **no model**. `hello` then
 carries `start`, and has no `window` or `session.state` after it (`done` instead);
 a `hello` of a loaded model has no `start`, so a client shows the start
-screen exactly while `hello.start` is there. The core queues the same
-File > Open model key that the page's button sends, so the Open model dialog
-(a `file` ask, title `Open model`, `wild` `*.ode *.odex *.snapx *.recx`) comes at
-once; answering it with a file loads that model (a new `hello`), and
-cancelling it leaves the start screen: no error, the program keeps running.
+screen exactly while `hello.start` is there. Nothing is asked until the
+client sends `session.open_model` (the start screen's button, File > Open model):
+its `file` ask (title `Open model`, `wild` `*.ode *.odex *.snapx *.recx`)
+answered with a file loads that model (a new `hello`), and cancelled leaves the
+start screen: no error, the program keeps running.
 
 `start`: `{"path": the preferences.odex file ("" when there is no config folder),
 "limit": how many models are kept, "recent": [{"path": absolute path,

@@ -1,4 +1,4 @@
-/* No-model startup (W232): the Open model dialog opens at once and accepts the picker answer; Cancel leaves the start screen; the window stays closable.
+/* No-model startup (W232): the start screen opens no dialog by itself (maintainer, 2026-11-09); its Open model button accepts the picker answer; Cancel leaves the start screen; the window stays closable.
    Uses the shared browser driver; picker replies are fixtures, not OS dialog coverage. */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,7 +11,7 @@ const bin = path.resolve(process.argv.slice(2).find(a => a !== '--webview2') || 
 if (native) {
   const server = await startWebView2(bin, process.cwd(), []);
   try {
-    assert.ok(await waitFor(() => server.cdp.eval('!!window.__xpp?.state().ask')));
+    assert.ok(await waitFor(() => server.cdp.eval('!!window.__xpp?.state().hello?.start')));
     await server.cdp.eval('window.__xppQuit(); true');
     assert.ok(await waitForExit(server.proc));
     assert.equal(server.proc.exitCode, 0);
@@ -31,6 +31,9 @@ try {
       const {identifier} = await browser.cdp.send('Page.addScriptToEvaluateOnNewDocument',
         {source: `window.__xppFileDialog = async () => ${reply};`});
       await navigatePage(browser.cdp, server.url);
+      /* the start screen, drawn, with no dialog: then its Open model button */
+      assert.ok(await waitFor(() => browser.cdp.eval("!!window.__xpp?.state().hello?.start && !window.__xpp.state().ask && !window.__xpp.state().busy && !!document.querySelector('[data-start-open]')")));
+      if (mode !== 'close') await browser.cdp.eval("document.querySelector('[data-start-open]').click(); true");
       if (mode === 'select') {
         assert.ok(await waitFor(() => browser.cdp.eval('!!window.__xpp?.state().hello && !window.__xpp.state().busy')));
         assert.equal(path.basename(await browser.cdp.eval('window.__xpp.state().hello.file')), 'lecar.odex');
@@ -41,7 +44,6 @@ try {
         assert.ok(await waitFor(() => browser.cdp.eval('!!window.__xpp?.state().hello?.start && !window.__xpp.state().ask && !window.__xpp.state().busy')));
         assert.equal(await browser.cdp.eval('window.__xpp.state().exited'), null);
       } else {
-        assert.ok(await waitFor(() => browser.cdp.eval('!!window.__xpp?.state().ask')));
         await browser.cdp.eval('window.__xppQuit(); true');
         assert.ok(await waitForExit(server.proc));
         assert.equal(server.proc.exitCode, 0);
