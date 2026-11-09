@@ -279,7 +279,7 @@ xpp::Result<> write_info_out(xpp::Session &s, const std::optional<std::string> &
   });
 }
 
-void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
+void load_data_with_branch(xpp::Session &s, int ibr,int pts,int pte)
 {
    int i,j,pt;
   xpp::AutoxAxis icp1;
@@ -313,7 +313,7 @@ void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
     }
  }
  s.data_store.rows=nrows;
- refresh_browser(s,nrows);
+ refresh_data(s,nrows);
 }
 xpp::Result<> write_init_data_file(xpp::Session &s, const std::optional<std::string> &file)
 {

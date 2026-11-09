@@ -1,4 +1,4 @@
-/* W526 (#590): the core functions behind the data.* commands, which the data browser window's keys call too
+/* W526 (#590): the core functions behind the data.* commands, which the data table window's keys call too
    after their forms: find a value, the rows First..Last kept, the columns added, replaced (by a formula, a sequence,
    an integral, a derivative) and deleted, the data transposed, and the block of the table a client shows, each
    accepted and refused. A refusal changes nothing. The commands' own arguments are servercheck's data section. */
@@ -17,10 +17,10 @@ int main()
     char *argv[] = {name, path, nullptr};
     const xpp::Loaded loaded = load_args(2, argv, 1);
     CHECK(loaded.has_value());
-    if (!loaded) TEST_REPORT("browser");
+    if (!loaded) TEST_REPORT("data");
     xpp::Session &s = **loaded;
     xpp::batch_start(s);
-    xpp::BROWSER &view = s.browser.view;
+    xpp::DATA_VIEW &view = s.data.view;
 
     /* no data: nothing to find or keep */
     CHECK(!xpp::find_in_column(s, "V", 0));
@@ -51,7 +51,7 @@ int main()
     /* an added column: named once, computed from the others, refused when its formula does not compile */
     const int columns = view.maxcol;
     CHECK(xpp::add_data_column(s, "vw", "v*w") && view.maxcol == columns + 1);
-    CHECK(s.browser.added_columns.back().name == "VW");
+    CHECK(s.data.added_columns.back().name == "VW");
     int vw = -1;
     xpp::find_variable(s, "vw", &vw);
     CHECK(vw == columns && static_cast<double>(s.data_store.col[vw][100]) == static_cast<double>(static_cast<float>(
@@ -72,20 +72,20 @@ int main()
 
     /* deleting: only an added column, and not one a graph plots */
     CHECK(!xpp::delete_added_column(s, "v") && !xpp::delete_added_column(s, "nosuch"));
-    CHECK(xpp::delete_added_column(s, "vw") && view.maxcol == columns && s.browser.added_columns.empty());
+    CHECK(xpp::delete_added_column(s, "vw") && view.maxcol == columns && s.data.added_columns.empty());
     CHECK(!xpp::delete_added_column(s, "vw"));
 
     /* the block of the table a client shows: fitted into the data, its rows as JSON */
-    s.browser.block = {598, 5, 1, 2};
-    xpp::fit_browser_block(s);
-    const std::string block = xpp::browser_block_rows(s);
+    s.data.block = {598, 5, 1, 2};
+    xpp::fit_data_block(s);
+    const std::string block = xpp::data_block_rows(s);
     CHECK(block.front() == '[' && block.back() == ']' && block.find("],[") != std::string::npos);
     CHECK(std::count(block.begin(), block.end(), '[') == 1 + 3); /* the three rows left: 598, 599, 600 */
-    s.browser.block = {10000, 1, 99, 1};
-    xpp::fit_browser_block(s);
-    CHECK(s.browser.block.from == rows - 1 && s.browser.block.col == columns - 1);
-    s.browser.block.count = 0;
-    CHECK(xpp::browser_block_rows(s) == "[]");
+    s.data.block = {10000, 1, 99, 1};
+    xpp::fit_data_block(s);
+    CHECK(s.data.block.from == rows - 1 && s.data.block.col == columns - 1);
+    s.data.block.count = 0;
+    CHECK(xpp::data_block_rows(s) == "[]");
 
     /* transposing: every column and row it reads is in the data, the settings are kept, nothing changed by a refusal */
     const int neq = s.model().neq;
@@ -100,5 +100,5 @@ int main()
     CHECK(view.data[0][0] == 1.0f && view.data[0][1] == 2.0f && view.data[1][0] == s.data_store.col[1][0]);
     CHECK(!xpp::delete_added_column(s, "vw")); /* a transposed table is no stored data */
 
-    TEST_REPORT("browser");
+    TEST_REPORT("data");
 }

@@ -271,7 +271,7 @@ void autox_grab(Session &s);
 void find_best_homo_shift(Session &s, int n);
 void get_start_period(Session &s, double *p);
 void get_start_orbit(Session &s, double *u, double t, double p, int n);
-/* File's Import orbit: the stored orbit of point `label` (none: the grabbed point's) into the data browser */
+/* File's Import orbit: the stored orbit of point `label` (none: the grabbed point's) into the data table */
 Result<> load_autox_orbit(Session &s, std::optional<int> label);
 /* the diagram as CSV files (csv_export.h), and a foreign XPPAUT diagram (.auto), to or from `file`, or asked for */
 Result<> export_autox_csv(Session &s, const std::optional<std::string> &file);

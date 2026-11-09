@@ -254,13 +254,13 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   s.data_store.current_time=0;
   s.numerics.total_time=period;
   s.numerics.poincare_map=PoincareMap::none;
-  reset_browser(s);
+  reset_data(s);
 
   usual_integrate_stuff(s,x);
   {
     xpp::Writer w=xpp::ask_output_writer(s,"Save orbit",".dat",xpp::format("orbit-{}",name));
     if(w){
-      write_mybrowser_data(s,w);
+      write_mytable_data(s,w);
       if (!xpp::ok_or_show(xpp::commit_save(w))) { restore(); return; }
     }
     else{
@@ -272,7 +272,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   {
     xpp::Writer w=xpp::ask_output_writer(s,"Save adjoint",".dat",xpp::format("adjoint-{}",name));
     if(w){
-      write_mybrowser_data(s,w);
+      write_mytable_data(s,w);
       const bool saved=xpp::ok_or_show(xpp::commit_save(w));
       data_back(s);
       if (!saved) { restore(); return; }
@@ -283,7 +283,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   {
     xpp::Writer w=xpp::ask_output_writer(s,"Save hfun",".dat",xpp::format("hfun-{}",name));
     if(w){
-      write_mybrowser_data(s,w);
+      write_mytable_data(s,w);
       const bool saved=xpp::ok_or_show(xpp::commit_save(w));
       data_back(s);
       if (!saved) { restore(); return; }
@@ -291,7 +291,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
     else { data_back(s); restore(); return; }
   }
 
-  reset_browser(s);
+  reset_data(s);
 
   restore();
 
@@ -411,10 +411,10 @@ Result<> set_color_coding(xpp::Session &s, ColorBy by, int variable, std::option
     if(s.data_store.rows<2)
       return fail("numerics","Coloring by velocity needs a trajectory to find its range from: run one, or give the lowest and highest velocity",command_place());
     float maxder=0.0,minder=1.e20;
-    for(int i=1;i<s.browser.view.maxrow;i++){
+    for(int i=1;i<s.data.view.maxrow;i++){
       float sum=0.0;
       for(int j=0;j<s.model().node;j++)
-        sum+=static_cast<float>(fabs(static_cast<double>(s.browser.view.data[1+j][i]-s.browser.view.data[1+j][i-1])));
+        sum+=static_cast<float>(fabs(static_cast<double>(s.data.view.data[1+j][i]-s.data.view.data[1+j][i-1])));
       if(sum<minder)minder=sum;
       if(sum>maxder)maxder=sum;
     }

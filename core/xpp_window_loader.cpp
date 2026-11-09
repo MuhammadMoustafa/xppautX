@@ -157,7 +157,7 @@ bool xpp::window::run(void (*session)())
             return false;
         }
     } catch (const std::exception &e) {
-        xpp::log(XPP_LOG_WARN, "{}", xpp::browser_message(e.what()));
+        xpp::log(XPP_LOG_WARN, "{}", xpp::data_message(e.what()));
         return false;
     }
     return api.run(session);

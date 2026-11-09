@@ -504,7 +504,7 @@ int main(void)
     CHECK(s->sliders[0].lo == -1 && s->sliders[2].hi == 2);
 
     /* a session state brings back what it holds */
-    init_browser(*s);
+    init_data(*s);
     init_all_graph(*s);
     for (std::size_t k = 0; k < rows.size(); k++) {
         const xpp::OptionRow &r = rows[k];

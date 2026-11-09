@@ -36,7 +36,7 @@ int find_par_or_var(const Model &m, std::string_view name, int *type, int *index
 /* why slider cannot be one of m's (the slider command and .snapx's
    sliders.set both ask); nullopt when it can, an empty name an empty slot */
 std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider, bool check_names = true);
-/* the least and greatest of s's browser column index, widened when equal */
+/* the least and greatest of s's data column index, widened when equal */
 void get_max(const Session &s, int index, double *vmin, double *vmax);
 /* the values behind the parameter and IC boxes and the sliders of s */
 void new_parameter(Session &s);
@@ -83,7 +83,7 @@ void de_space(std::string &s);
 int has_eq(std::string_view z, std::string &name, int *where);
 
 /* the name of plotted column ind: T (0), a model variable, or (W77) a
-   browser column data_add_col added; browse_column_name (browse.h) owns
+   data column data_add_col added; browse_column_name (browse.h) owns
    the naming, this is just its name for a plotted column */
 std::string ind_to_sym(const Session &s, int ind);
 

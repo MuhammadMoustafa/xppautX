@@ -1,18 +1,18 @@
-/* The data table (docs/ui-v2.md T10, docs/protocol.md `browser`): the core
-   keeps one browser window (rows and, since we always ask for every
+/* The data table (docs/ui-v2.md T10, docs/protocol.md "The data table"): the core
+   keeps one data window (rows and, since we always ask for every
    column, every variable and aux too) and answers a
-   {"cmd":"data.page","from_row":,"count":,"first_column":1,"columns":} request (columns: hello.limits.browser_cols)
+   {"cmd":"data.page","from_row":,"count":,"first_column":1,"columns":} request (columns: hello.limits.data_cols)
    with that block at once, even during a prompt or another command (a control line,
    never busy: state.ts's `sent` case knows not to toggle busy for it). This
    slice keeps the last block the core sent (`page`, docs/protocol.md's
-   `browser` event) and the client's own selected row, which the view's
+   `data.updated` event) and the client's own selected row, which the view's
    buttons act on and which follows the core's own `row0` when a button
    (Find, Get, First, Last, ...) moves it there. No growing buffer: a
    scroll off the cached page asks again, like the classic browser
    (web/xpp-client.js). Pure: no DOM, no I/O, no timers. */
-import type {BrowserEvent} from '../protocol/types';
+import type {DataEvent} from '../protocol/types';
 
-export interface BrowserRequest {
+export interface DataRequest {
   from: number;
   count: number;
   col: number;
@@ -27,7 +27,7 @@ export interface TableState {
       (Get, Find's row, ...) act on; follows the core's row0 when it moves it */
   selected: number;
   /** the last block the core sent, or null before the first one */
-  page: BrowserEvent | null;
+  page: DataEvent | null;
   /** the request in flight (or last sent), so the same block is not asked twice */
   pendingKey: string | null;
 }
@@ -38,8 +38,8 @@ export const initialTable: TableState =
 export type TableAction =
   | {type: 'open'; open: boolean}
   | {type: 'select'; row: number}
-  | {type: 'event'; ev: BrowserEvent}
-  | {type: 'requested'; req: BrowserRequest | null};
+  | {type: 'event'; ev: DataEvent}
+  | {type: 'requested'; req: DataRequest | null};
 
 export function reduceTable(state: TableState, action: TableAction): TableState {
   switch (action.type) {
@@ -67,8 +67,8 @@ export function reduceTable(state: TableState, action: TableAction): TableState 
 const ROW_BUFFER = 3; /* ask for 3x the visible window, like the classic browser: a small scroll needs nothing */
 /** the most rows and columns one block request gets (hello.limits: the core's caps) */
 export interface TableLimits {
-  browser_rows: number;
-  browser_cols: number;
+  data_rows: number;
+  data_cols: number;
 }
 
 /** the request to send so rows [visibleFrom, visibleFrom+visibleCount) are
@@ -76,8 +76,8 @@ export interface TableLimits {
     column the core gives at once (col 1, ncol its cap: comfortably more
     than a model has), so a table that shows "every variable and aux" (T10)
     never needs to page columns for an ordinary model. */
-export function planRequest(page: BrowserEvent | null, visibleFrom: number, visibleCount: number,
-  limits: TableLimits, rows = page?.rows): BrowserRequest | null {
+export function planRequest(page: DataEvent | null, visibleFrom: number, visibleCount: number,
+  limits: TableLimits, rows = page?.rows): DataRequest | null {
   /* W170: the viewport includes a partial row and can extend past EOF.
      A truncated last block already covers every real row: requesting the
      nonexistent remainder on each reply kept renders/effects going forever. */
@@ -88,15 +88,15 @@ export function planRequest(page: BrowserEvent | null, visibleFrom: number, visi
   if (have) return null;
   return {
     from: Math.max(0, from - Math.max(1, visibleCount)),
-    count: Math.min(limits.browser_rows, Math.max(1, visibleCount) * ROW_BUFFER),
+    count: Math.min(limits.data_rows, Math.max(1, visibleCount) * ROW_BUFFER),
     col: 1,
-    ncol: limits.browser_cols,
+    ncol: limits.data_cols,
   };
 }
 
 /** row `row`'s values as the core sent them (T then every column, `null`
     for NaN), or null when it is not in the cached page */
-export function rowAt(page: BrowserEvent | null, row: number): (number | null)[] | null {
+export function rowAt(page: DataEvent | null, row: number): (number | null)[] | null {
   if (!page || row < page.from || row >= page.from + page.data.length) return null;
   return page.data[row - page.from];
 }

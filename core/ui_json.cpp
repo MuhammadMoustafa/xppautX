@@ -147,7 +147,7 @@ void answer_page(xpp::Session &s, const char *line)
     xpp::Result<std::string> request = std::string(line);
     if (*skip_ws(line) != '{' && !session.silent && !xpp::http::active()) request = xpp::command::tokenize(line, place);
     const xpp::Result<std::string> result = request ? xpp::command::run(s, request->c_str(), place, false) : std::unexpected<xpp::Error>(request.error());
-    browser_update(s);
+    data_update(s);
     if (result) return;
     xpp::log_note_error();
     std::string event = xpp::command::done(request ? request->c_str() : "{}", result, false);
@@ -227,7 +227,7 @@ int handle_async(xpp::Session &s, const char *line)
 
    - acted on at the computation's next check (Verdict::control): abort and
      quit, the stop keys (Escape, and '/', which ends a range or a shooting
-     for good), and what only reads or steers a view: state, browser with
+     for good), and what only reads or steers a view: state, data.page with
      from, ani pause/fast/slow/speed;
    - kept for its turn (Verdict::normal): an answer (the computation's own
      questions), every other command of the view kind (W95: data, a zoom,
@@ -290,7 +290,7 @@ namespace {
    abort runs normally.
 
    Otherwise, while a job runs (a command in its prompts, or finishing),
-   key, set, state, browser with from, and ani pause/fast/slow/speed are
+   key, set, state, data.page with from, and ani pause/fast/slow/speed are
    control lines (the animation's Go acts on them between frames: Escape
    or Pause stop it, a set changes a parameter under it); a prompt takes
    control lines first, and the command loop reads both queues in
@@ -618,10 +618,10 @@ XppUi make_json_ui(void)
     u.clear_screens = j_clear_screens;
     u.clear_draw_window = [](xpp::Session &s) { clr_scrn(s); };
     u.reset_graphics = j_reset_graphics;
-    u.data_changed = j_browser_changed;
+    u.data_changed = j_data_changed;
     u.rows_stored = j_rows_stored;
     u.live_state = j_live_state;
-    u.browser_redraw = j_browser_changed;
+    u.data_redraw = j_data_changed;
     u.create_plot_window = j_create_plot_window;
     u.destroy_plot_window = j_destroy_plot_window;
     u.window_selected = j_window_selected;
@@ -705,7 +705,7 @@ void file_command(xpp::Session &, const char *line)
    command's other lines. A key's kind is its menu item's (0 here). A step
    is the user's own action, what a recording records and the page keeps as
    the command a missing file runs again (hello.commands' "step"); the rest
-   are the client's own requests (state, the data events, the browser's
+   are the client's own requests (state, the data events, the data table's
    paging, the model's folder), the answers and aborts that belong to the
    step they come in, and the recording's and player's own. */
 constexpr bool STEP = true, NOT_STEP = false;
@@ -950,7 +950,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         return *s;
     }
     aplot_update(*s);
-    browser_update(*s);
+    data_update(*s);
     plot_data_update(*s);
     phase_data_update(*s);
     marks_data_update(*s);
@@ -1204,8 +1204,8 @@ void send_hello(xpp::Session &s)
     }
     /* the limits the page keeps to and the windows' numbers in `window`
        events (plot windows are 1 to plots) */
-    buf_format(b, ",\"limits\":{{\"upload\":{},\"browser_rows\":{},\"browser_cols\":{}}}", XPP_FILES_CAP,
-               BROWSER_MAX_ROWS, BROWSER_MAX_COLS);
+    buf_format(b, ",\"limits\":{{\"upload\":{},\"data_rows\":{},\"data_cols\":{}}}", XPP_FILES_CAP,
+               DATA_MAX_ROWS, DATA_MAX_COLS);
     BUF_LIT(b, ",\"upload_error\":");
     buf_str(b, xpp::files::status_text(XPP_FILES_TOO_LARGE));
     buf_format(b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", recx::player_speed_min, recx::player_speed_max);
@@ -1227,7 +1227,7 @@ void send_hello(xpp::Session &s)
     BUF_LIT(b,",\"window_names\":{\"main\":");buf_str(b,s.plot_windows.graph[0].name);
     BUF_LIT(b,",\"autox\":");buf_str(b,xpp::window_name(s,WIN_AUTOX));
     BUF_LIT(b,",\"ani\":");buf_str(b,xpp::window_name(s,WIN_ANI));
-    BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,",\"browser\":");buf_str(b,std::string(xpp::BROWSER_WINDOW));BUF_LIT(b,"}");
+    BUF_LIT(b,",\"aplot\":");buf_str(b,xpp::window_name(s,WIN_APLOT));BUF_LIT(b,",\"data\":");buf_str(b,std::string(xpp::DATA_WINDOW));BUF_LIT(b,"}");
     BUF_LIT(b, ",\"options\":");
     b += xpp::options_table_json(s);
     buf_commands(b);

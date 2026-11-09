@@ -89,14 +89,14 @@ void write_windows(xpp::odex::Out &out, const xpp::Session &s)
     }
     out.end_list();
     out.text("active",s.plot_windows.graph[s.plot_windows.active].name);
-    out.flag("browser_hidden", s.tools_hidden.browser);
+    out.flag("data_hidden", s.tools_hidden.data);
     const xpp::AutoxView &v = s.autox_view;
     out.begin("autox_view");
     out.whole("earlier", v.earlier);
     out.flag("show_earlier", v.show_earlier);
     out.end();
     out.begin_list("added_columns");
-    for (const xpp::AddedColumn &c : s.browser.added_columns) {
+    for (const xpp::AddedColumn &c : s.data.added_columns) {
         out.begin_item();
         out.text("name", c.name);
         out.text("formula", c.formula);
@@ -118,7 +118,7 @@ struct SavedWindow {
 struct WindowsRead {
     std::vector<SavedWindow> windows;
     int active = 0;
-    bool browser_hidden = false;
+    bool data_hidden = false;
     xpp::AutoxView autox_view;
     std::vector<xpp::AddedColumn> added;
 };
@@ -176,7 +176,7 @@ WindowsRead read_windows(xpp::Session &s, xpp::odex::Block &file, std::size_t &e
     const auto current=std::ranges::find(r.windows,active,[](const SavedWindow &w){return w.graph.name;});
     if(current==r.windows.end())file.fail(*file.member("active"),xpp::format("Unknown window \"{}\"",active));
     r.active=static_cast<int>(current-r.windows.begin());
-    file.flag("browser_hidden", r.browser_hidden);
+    file.flag("data_hidden", r.data_hidden);
     if (std::optional<xpp::odex::Block> v = file.group("autox_view")) {
         v->whole("earlier", r.autox_view.earlier);
         v->flag("show_earlier", r.autox_view.show_earlier);
@@ -217,7 +217,7 @@ void apply_windows(xpp::Session &s, const WindowsRead &r)
     }
     xpp::set_active_windows(s);
     xpp::make_active(s,r.active,1);
-    s.tools_hidden.browser = r.browser_hidden;
+    s.tools_hidden.data = r.data_hidden;
 }
 
 /* ---- the session's marks and frozen.npz: labels, arrows and markers, frozen curves ---- */
@@ -668,7 +668,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
         s.autox_view.earlier = std::min(r.windows.autox_view.earlier, diagram_count(s.diagram));
         s.autox_view.show_earlier = r.windows.autox_view.show_earlier && s.autox_view.earlier > 0;
     }
-    s.browser.added_columns = std::move(r.windows.added);
+    s.data.added_columns = std::move(r.windows.added);
 
     s.numerics.rand_seed = r.random.seed;
     const xpp::Model &m = s.model();
@@ -678,7 +678,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     /* the added columns computed over the data put in place, with the
        values just restored */
     if (r.data && r.data->rows() > 0) {
-        refresh_browser(s, s.data_store.rows);
+        refresh_data(s, s.data_store.rows);
         s.numerics.storflag=true; /* a run stored these rows: Continue stores on (storing is not in the .set) */
     }
 

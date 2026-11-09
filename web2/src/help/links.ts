@@ -19,7 +19,7 @@ export const HELP = {
   files: {chapter: U, anchor: 'saving-pictures-and-files'} as HelpTarget,
   log: {chapter: U, anchor: 'the-log'} as HelpTarget,
   formulas: {chapter: U, anchor: 'formulas-as-values'} as HelpTarget,
-  dataTab: {chapter: '07-data-browser'} as HelpTarget,
+  dataTab: {chapter: '07-data-table'} as HelpTarget,
   mainMenu: {chapter: '05-commands'} as HelpTarget,
   animation: {chapter: '10-animations', anchor: 'the-animation-view'} as HelpTarget,
   autoxView: {chapter: '09-autox', anchor: 'the-autox-view'} as HelpTarget,

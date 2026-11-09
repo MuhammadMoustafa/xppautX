@@ -2,7 +2,7 @@
 
 Upstream XPPAUT's interface was a set of X11 windows: a main window with
 its own menu, and separate windows for parameters, initial data, the
-data browser, autoX, and so on, each independently resizeable and
+data table, autoX, and so on, each independently resizeable and
 iconifiable. This fork (xppautX) replaced that with **web2**, a single
 responsive page served by the program itself and opened in your browser.
 It is the same XPPAUT underneath: the same menus, the same single-letter
@@ -110,7 +110,7 @@ Input boxes are never shortened.
 
 ## Tabs instead of windows
 
-The plot, autoX, the animation, an array plot, the data browser, the
+The plot, autoX, the animation, an array plot, the data table, the
 equations and the ODE source are **tabs** above the plot area, not
 separate windows (docs/front-end-gaps.md "Different on purpose"). A tab
 comes forward by itself when its window opens in X11 terms, or when XPP
@@ -205,7 +205,7 @@ beside the plot (a sheet on a phone):
   are settings like the others: editable during a run, for the next one.
   A value the program does not take is refused on the field with its
   reason (`Dt must be a number other than 0`).
-- **Table** opens the Table ([The Data Browser](07-data-browser.md)),
+- **Table** opens the Table ([The Data Table](07-data-table.md)),
   **Equations** lists the equations (the X11 equation-listing window).
 
 Slider definitions (name, Min, Max and Step) are part of the session and
@@ -300,7 +300,7 @@ Every box checks what you type as you type it, by what it asks for:
 | a number | `1e-3`, `-0.5`, `.5` | a window's limits, slider Min, Max and Step, autoX's Step size, Mark values |
 | a number or %formula | a number, or `%` and a formula | parameters, initial conditions, nUmerics' Total, Dt, ... |
 | an expression | a formula, its brackets matched | boundary conditions, delays, a column's formula, the calculator |
-| a name | one of the model's names (it suggests them) | Xi vs t, the data browser's Replace and Tabulate |
+| a name | one of the model's names (it suggests them) | Xi vs t, the data table's Replace and Tabulate |
 | a file name | a name only: no folder, no leading dot, none of `\ / : * ? " < > \|` | Save's file name, the frames' base name |
 | text | anything | labels, search boxes |
 

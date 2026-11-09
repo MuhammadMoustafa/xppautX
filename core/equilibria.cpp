@@ -361,7 +361,7 @@ Result<> save_batch_shoot(Session &s,std::string_view file,bool confirm)
       Writer writer=confirm?open_writer_replacing(name,false,&opened):open_writer_asking(name,false,&opened);
       if(!opened)return opened;
       if(!writer)return fail("equilibrium.export",xpp::format("Manifold output {} was not opened",name),command_place());
-      write_mybrowser_data(s,writer);
+      write_mytable_data(s,writer);
       if(const auto saved=commit_save(writer);!saved)return saved;
     }
     return {};

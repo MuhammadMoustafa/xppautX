@@ -1703,7 +1703,7 @@ def section_names():
     evs, br = s.collect(lambda e: e.get('ev') == 'data.updated')
     s.collect(is_done)
     cols = ['T', LONG_V, 'SLOW_RECOVERY_VARIABLE_W', LONG_AUX]
-    check('names: the data browser heads its columns with the long names', br is not None and br['cols'] == cols,
+    check('names: the data table heads its columns with the long names', br is not None and br['cols'] == cols,
           str(br and br['cols'])[:300])
     # a column added under a 200-character name, from a formula over 200
     added = long_name('added_column_of_the_product')
@@ -2180,8 +2180,8 @@ def numerics_menu(s, key, item, replies=None):
     return s.collect(is_done)[0]
 
 
-def browser_block(s, rows):
-    """the data browser's first rows, every column"""
+def data_block(s, rows):
+    """the data table's first rows, every column"""
     s.send(cmd='data.page', **{'from_row': 0, 'count': rows, 'first_column': 1, 'columns': 500})
     evs, br = s.collect(lambda e: e.get('ev') == 'data.updated')
     s.collect(is_done)
@@ -2193,9 +2193,9 @@ def lent_columns_match(s, what, menu, item, first):
     first on beside its own: they are the store's as it is now, read back
     from the store itself (the browser's Data)"""
     numerics_menu(s, menu, item)
-    shown = browser_block(s, 2000)
+    shown = data_block(s, 2000)
     numerics_menu(s, 'h', 'd')  # stocHast/Data: the stored data back
-    stored = browser_block(s, 2000)
+    stored = data_block(s, 2000)
     n = shown['rows'] if shown else 0
     lent = [row[first:] for row in shown['data'][:n]] if shown else []
     store = [row[first:] for row in stored['data'][:n]] if stored else []
@@ -2242,7 +2242,7 @@ def section_memory():
     s.answer_asks(is_done, {'choice': lambda e: {'key': 'd'}})
     for what, item in (('adjoint', 'a'), ('H function', 'h')):
         numerics_menu(s, 'a', item)
-        br = browser_block(s, 10)
+        br = data_block(s, 10)
         check('memory: after a load, the %s menu item shows nothing of the session before' % what,
               br is not None and br['rows'] == 0, str(br and br['rows']))
     check('memory: the session is still up', s.alive())

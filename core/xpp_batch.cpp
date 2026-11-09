@@ -289,7 +289,7 @@ void model_failed(std::string_view what)
 
 void batch_start(xpp::Session &s)
 {
-    init_browser(s);
+    init_data(s);
     init_all_graph(s);
     set_extra_graphs(s);
     set_colorization_stuff(s);

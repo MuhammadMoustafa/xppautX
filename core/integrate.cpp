@@ -476,7 +476,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
     }
   }
   if(stuffbrowse) {
-    reset_browser(s);
+    reset_data(s);
     s.data_store.rows=0;
     m=s.integrator.fixptlist.n;
     for(i=0;i<m;i++){
@@ -488,7 +488,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
       for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=s.integrator.fixptlist.x[i][j];
       s.data_store.rows++;
     }
-    refresh_browser(s,s.data_store.rows);
+    refresh_data(s,s.data_store.rows);
   }
   bottom_msg(0,xpp::format("Monte Carlo: {} of {} guesses converged to {} distinct equilibria ({} requested; {}); {}",
       converged,attempted,s.integrator.fixptlist.n,n,
@@ -541,7 +541,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
  int without_root=0; /* the values the search found no equilibrium at */
  std::string first_without;
 
- wipe_rep(s.browser);
+ wipe_rep(s.data);
  data_back(s);
  parlo=s.integrator.eq_range.plow;
  parhi=s.integrator.eq_range.phigh;
@@ -556,7 +556,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
  s.numerics.par_fol=true;
  s.numerics.pauser=false;
  s.numerics.shoot=s.integrator.eq_range.shoot;
- reset_browser(s);
+ reset_data(s);
  if(mc==1){
    s.integrator.eq_range.movie=1;
    s.numerics.shoot=false;
@@ -622,7 +622,7 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
       row_stored(s);}
       if(s.numerics.endsing||xpp::job::cancelled())break;
     }
-    refresh_browser(s,s.data_store.rows);
+    refresh_data(s,s.data_store.rows);
  if(mc)s.random.seed(s.numerics.rand_seed); /* the next run's seed, as a sweep of Range ends (range_sweep) */
  s.numerics.par_fol=false;
  if(without_root>0)bottom_msg(0,xpp::format("{} of {} values have no equilibrium; the first: {}",without_root,npar+1,first_without));
@@ -975,10 +975,10 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
    }
    do_batch_nclines(s);
    do_batch_dfield(s);
-   refresh_browser(s,s.data_store.rows);
+   refresh_data(s,s.data_store.rows);
    if(s.integrator.adj_range==1){
      bob=xpp::format("{}_{:g}",plan.item,v.p);
-     data_get_mybrowser(s,s.data_store.rows-1);
+     data_get_mytable(s,s.data_store.rows-1);
      compute_one_period(s,static_cast<double>(s.data_store.col[0][s.data_store.rows-1]),s.last_ic.data(),bob.c_str());
    }
 
@@ -1162,10 +1162,10 @@ int write_this_run(xpp::Session &s, const char *file, int i)
 {
   if(!s.integrator.suppress_out){
   std::string outfile=xpp::format("{}.{}",file,i);
-  if(!save_ready(s.browser.view.iend>s.browser.view.istart))return -1;
+  if(!save_ready(s.data.view.iend>s.data.view.istart))return -1;
   xpp::Writer w=xpp::open_writer_asking(outfile.c_str(),false,nullptr,false,s.output_place);
   if(!w)return -1;
-  write_mybrowser_data(s,w);
+  write_mytable_data(s,w);
   xpp::ok_or_show(xpp::commit_save(w));
   }
    if(!program.interactive&&!s.picture_file.empty())dump_ps(s,i);
@@ -1195,12 +1195,12 @@ void reset_run_state(xpp::Session &s)
 void clear_for_run(xpp::Session &s)
 {
   data_back(s);
-  wipe_rep(s.browser);
+  wipe_rep(s.data);
   s.data_store.current_time=s.numerics.start_time;
   s.numerics.storflag=true;
   s.numerics.poiext=0;
   s.data_store.rows=0;
-  reset_browser(s);
+  reset_data(s);
 }
 
 
@@ -1429,7 +1429,7 @@ void run_now(xpp::Session &s)
   s.numerics.storflag=true;
   s.numerics.poiext=0;
   s.data_store.rows=0;
-  reset_browser(s);
+  reset_data(s);
   xpp::ok_or_show(integrate_from(s,x));
 }
 
@@ -1455,7 +1455,7 @@ xpp::Result<bool> integrate_from(xpp::Session &s, double *x)
       s.data_store.rows=1;
     }
   if(s.integrator.step_error){
-    refresh_browser(s,s.data_store.rows);
+    refresh_data(s,s.data_store.rows);
     return take_step_error(s);
   }
  
@@ -1468,7 +1468,7 @@ xpp::Result<bool> integrate_from(xpp::Session &s, double *x)
   s.numerics.inflag=true;
   do_batch_nclines(s);
   do_batch_dfield(s);
-  refresh_browser(s,s.data_store.rows);
+  refresh_data(s,s.data_store.rows);
   const bool early=r&&(*r!=0||!s.integrator.stop_note.empty());
   show_stop_note(s);
   if(program.interactive){
@@ -1816,14 +1816,14 @@ Result<bool> continue_to(Session &s, double until)
     return fail("continue","End time must be beyond the current time with a positive Dt and a step count that fits the integrator",command_place());
   /* Round up to the next grid point: never short of the end asked for. */
   const double length=std::max(std::ceil(duration/interval-CONTINUE_GRID_TOLERANCE),1.0)*interval;
-  wipe_rep(s.browser);
+  wipe_rep(s.data);
   data_back(s);
   s.integrator.my_start=1;  /*  I know it is wasteful to restart, but lets be safe.... */
   const xpp::Result<int> r=integrate(s,&s.data_store.current_time,&s.data_store.current[0],length,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
   ping();
   do_batch_nclines(s);
   do_batch_dfield(s);
-  refresh_browser(s,s.data_store.rows);
+  refresh_data(s,s.data_store.rows);
   const bool early=r&&(*r!=0||!s.integrator.stop_note.empty());
   show_stop_note(s);
   if(!r)return std::unexpected(r.error());
@@ -2370,7 +2370,7 @@ void restore(xpp::Session &s, int i1, int i2)
   std::vector<float> v1(s.model().neq+1),v2(s.model().neq+1);
   ColumnTable data;
 
-  data=get_browser_data(s);
+  data=get_table_data(s);
   XSHFT=s.plot_windows.current->xshft;
   YSHFT=s.plot_windows.current->yshft;
   ZSHFT=s.plot_windows.current->zshft;

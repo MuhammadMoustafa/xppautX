@@ -842,7 +842,7 @@ webview_t open_view()
 /* the warning when the window does not open (why, when webview said) */
 const char *no_view_message()
 {
-    if (st->error_msg.empty()) st->error_msg = xpp::browser_message();
+    if (st->error_msg.empty()) st->error_msg = xpp::data_message();
     return st->error_msg.c_str();
 }
 
@@ -920,7 +920,7 @@ bool run_window(void (*session)())
         std::atexit(on_exit);
 #endif
     } catch (const std::exception &e) {
-        host->log(XPP_LOG_WARN, "{}", xpp::browser_message(e.what()));
+        host->log(XPP_LOG_WARN, "{}", xpp::data_message(e.what()));
         return false;
     }
     session();

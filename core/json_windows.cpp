@@ -70,7 +70,7 @@ void j_blank_draw_window(xpp::Session &s) { blank_draw_window(s); }
 void j_redraw_all(xpp::Session &s)
 {
     redraw_dfield(s);
-    restore(s, 0, s.browser.view.maxrow);
+    restore(s, 0, s.data.view.maxrow);
     draw_label(s, s.plot_windows.draw_win);
     draw_freeze(s,s.plot_windows.draw_win);
 }
@@ -80,7 +80,7 @@ void redraw_graph(xpp::Session &s)
     blank_draw_window(s);
     set_normal_scale(s);
     do_axes(s);
-    restore(s, 0, s.browser.view.maxrow);
+    restore(s, 0, s.data.view.maxrow);
     draw_label(s, s.plot_windows.draw_win);
     draw_freeze(s,s.plot_windows.draw_win);
     redraw_dfield(s);
@@ -350,7 +350,7 @@ int aplot_dirty; /* the data behind an array plot changed */
 void send_aplot(xpp::Session &s, const char *tag)
 {
     std::string b;
-    int num, i, j, nx, ny, nrows = s.browser.view.maxrow;
+    int num, i, j, nx, ny, nrows = s.data.view.maxrow;
     APLOT *ap = &s.array_plot.plot;
     std::vector<float> vals;
     int f32 = plot_data_want_f32();
@@ -390,7 +390,7 @@ void send_aplot(xpp::Session &s, const char *tag)
         for (i = 0; i < nx; i++) {
             int ib = ap->index0 + i * ap->ncskip;
             float v = NAN;
-            if (ib < s.browser.view.maxcol && jb < nrows && jb >= 0) v = static_cast<float>(s.browser.view.data[ib][jb]);
+            if (ib < s.data.view.maxcol && jb < nrows && jb >= 0) v = static_cast<float>(s.data.view.data[ib][jb]);
             if (!vals.empty()) vals[j * nx + i] = v;
         }
     }

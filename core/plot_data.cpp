@@ -109,7 +109,7 @@ SeriesSig series_sig(const xpp::Session &s, int pop)
     sig.win = static_cast<unsigned long>(g.w);
     sig.name=g.name;
     sig.version = client.data_version;
-    sig.rows = s.browser.view.maxrow;
+    sig.rows = s.data.view.maxrow;
     sig.PlotCurves::operator=(curves_of(g));
     sig.xlabel = g.xlabel;
     sig.ylabel = g.ylabel;
@@ -129,7 +129,7 @@ bool same_plot(const SeriesSig &a, const SeriesSig &b)
 }
 
 /* rows [from, to) of storage column col as a JSON value */
-void add_values(std::string &o, const BROWSER &view, int col, int from, int to)
+void add_values(std::string &o, const DATA_VIEW &view, int col, int from, int to)
 {
     xpp_series_append(o, view.data[col], from, to - from, client.series_f32);
 }
@@ -311,7 +311,7 @@ void runs_on_full(xpp::Session &s, int pop, const SeriesSig &sig, const std::vec
     d.cur.cols = cols;
     d.cur.data.assign(cols.size(), xpp::OwnedColumn());
     for (std::size_t k = 0; k < cols.size(); k++)
-        d.cur.data[k].assign_copy(s.browser.view.data[cols[k]], 0, static_cast<std::size_t>(rows));
+        d.cur.data[k].assign_copy(s.data.view.data[cols[k]], 0, static_cast<std::size_t>(rows));
 }
 
 /* an append from row `from` continues window pop's current run; then the
@@ -348,7 +348,7 @@ void runs_on_append(xpp::Session &s, int pop, int from, int rows)
     d.cur.rows = rows;
     for (std::size_t k = 0; k < d.cur.cols.size(); k++) {
         d.cur.data[k].resize(static_cast<std::size_t>(from));
-        d.cur.data[k].append(s.browser.view.data[d.cur.cols[k]], static_cast<std::size_t>(from), static_cast<std::size_t>(rows));
+        d.cur.data[k].append(s.data.view.data[d.cur.cols[k]], static_cast<std::size_t>(from), static_cast<std::size_t>(rows));
     }
 }
 
@@ -358,7 +358,7 @@ void runs_forget(xpp::Session &s, int pop) { disp(s, pop) = xpp::PlotDisplay(); 
 /* window pop's whole series: rows 0..rows of the columns its curves use */
 void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
 {
-    const std::vector<int> cols = used_columns(sig, s.browser.view.maxcol);
+    const std::vector<int> cols = used_columns(sig, s.data.view.maxcol);
     runs_on_full(s, pop, sig, cols, rows, !client.sent[pop].valid);
     std::string o = xpp::events::open(xpp::events::PLOT_SERIES) + ",\"win\":";
     xpp::json_append_string(o,sig.name);
@@ -385,7 +385,7 @@ void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
         o += ",\"name\":";
         xpp::json_append_string(o, xpp::ind_to_sym(s,cols[k]));
         o += ",\"data\":";
-        add_values(o, s.browser.view, cols[k], 0, rows);
+        add_values(o, s.data.view, cols[k], 0, rows);
         o += '}';
     }
     o += "]}";
@@ -417,7 +417,7 @@ void send_append(xpp::Session &s, int pop, unsigned long win, int from, int rows
         o += "{\"col\":";
         add_int(o, w.cols[k]);
         o += ",\"data\":";
-        add_values(o, s.browser.view, w.cols[k], from, rows);
+        add_values(o, s.data.view, w.cols[k], from, rows);
         o += '}';
     }
     o += "]}";
@@ -483,7 +483,7 @@ void series_update(xpp::Session &s)
             continue;
         }
         const SeriesSig sig = series_sig(s, pop);
-        const int rows = s.browser.view.dataflag ? sig.rows : 0;
+        const int rows = s.data.view.dataflag ? sig.rows : 0;
         if (client.appended == pop && appends_continue(s, pop, sig) && rows >= client.sent[pop].held) {
             series_end(s, pop, sig, rows);
             continue;

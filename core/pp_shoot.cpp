@@ -145,7 +145,7 @@ xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend)
      if(s.shoot_range.movie==1 && film)film=ui.film_clip(s);
      ping();
    }
-  refresh_browser(s,s.data_store.rows);
+  refresh_data(s,s.data_store.rows);
   autox_freeze_it(s);     
  swap_color(s,&color,1);
  if(failure)return std::unexpected(std::move(*failure));
@@ -204,7 +204,7 @@ xpp::Result<> begin_shoot(xpp::Session &s)
  if(s.delay.flag)
    return xpp::fail("boundary_value","Boundary value problems cannot be solved for a model with delays",xpp::command_place());
  if(auto compiled=compile_bvp(s);!compiled)return compiled;
- wipe_rep(s.browser);
+ wipe_rep(s.data);
  data_back(s);
  s.numerics.storflag=false;
  s.integrator.range_flag=1;
@@ -242,7 +242,7 @@ xpp::Result<> keep_shot(xpp::Session &s, const xpp::Result<Shot> &shot, double *
    reset_graphics(s);
  problems.keep(last_shot(s,1));
  s.numerics.inflag=true;
- refresh_browser(s,s.data_store.rows);
+ refresh_data(s,s.data_store.rows);
  autox_freeze_it(s);
  ping();
  return problems.result();

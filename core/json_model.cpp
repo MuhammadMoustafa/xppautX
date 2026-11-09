@@ -53,7 +53,7 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
     program.interactive = 1;
     color_table.enabled = 1;                    /* init_X on a colour display */
     init_main_graph(s);
-    init_browser(s);
+    init_data(s);
     ani_zero(s);
     set_extra_graphs(s);
     set_colorization_stuff(s);

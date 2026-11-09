@@ -1294,7 +1294,7 @@ xpp::Result<> load_autox_orbitx(xpp::Session &s, int ibr,int flag, int lab, doub
       s.data_store.col[j+1][i]=x[j];
   }
   s.data_store.rows=nrow;
-  refresh_browser(s,nrow);
+  refresh_data(s,nrow);
   /* insert auxiliary stuff here */
   if(s.autox_state.load_all_labeled_orbits==LabeledOrbits::ClearAndDraw)clr_all_scrns(s);
   drw_all_scrns(s);

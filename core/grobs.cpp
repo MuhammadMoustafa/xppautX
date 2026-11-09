@@ -328,7 +328,7 @@ Result<int> add_data_markers(xpp::Session &s, const MarkInfo &m)
 {
     if (m.number < 1 || m.skip < 1 || m.start < 0)
         return fail("Add Markers", "Number and Skip are at least 1 and Row1 at least 0", command_place());
-    const BROWSER &data = s.browser.view;
+    const DATA_VIEW &data = s.data.view;
     const long long last_row = data.row0 + m.start + static_cast<long long>(m.number - 1) * m.skip;
     if (last_row >= data.maxrow)
         return fail("Add Markers", xpp::format("The markers reach row {}, past the data: it has {} rows", last_row - data.row0, data.maxrow - data.row0), command_place());

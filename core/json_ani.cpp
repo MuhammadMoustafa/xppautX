@@ -35,7 +35,7 @@ void send_ani_slider(const xpp::Session &s)
     std::string b;
     buf_format(b, "{},\"pos\":{:d},\"rows\":{:d},\"fly\":{:d},\"grab\":{:d},\"skip\":{:d},\"speed\":{:d},"
                "\"loaded\":{:d},\"open\":{:d}}}",
-               xpp::events::open(xpp::events::ANIMATION_STATE), s.animation.vcr.pos, s.browser.view.maxrow, s.animation.options.on_the_fly, s.animation.grab_flag, s.animation.vcr.inc, s.animation.speed, s.animation.ncom > 0,
+               xpp::events::open(xpp::events::ANIMATION_STATE), s.animation.vcr.pos, s.data.view.maxrow, s.animation.options.on_the_fly, s.animation.grab_flag, s.animation.vcr.inc, s.animation.speed, s.animation.ncom > 0,
                s.animation.vcr.iexist);
     send_buf(b);
 }
@@ -76,7 +76,7 @@ int ani_wait(xpp::Session &s, int ms)
 xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
 {
     std::vector<double> y(static_cast<std::size_t>(s.model().node + s.model().nmarkov));
-    const ColumnTable ss = s.browser.view.data;
+    const ColumnTable ss = s.data.view.data;
     xpp::Writer gif; /* chosen GIF, when the animation is written as one */
     xpp::Result<> outcome; /* ok until a frame cannot be written */
     int i, stop = 0, frame = 0, w, h;
@@ -116,7 +116,7 @@ xpp::Result<int> ani_go(xpp::Session &s, const xpp::AniExport &out)
         xpp::job::report_frame(frame);
         stop = ani_wait(s, s.animation.speed * (writing ? ani_export_pace : 1));
         s.animation.vcr.pos += s.animation.vcr.inc;
-        if (s.animation.vcr.pos >= s.browser.view.maxrow) {
+        if (s.animation.vcr.pos >= s.data.view.maxrow) {
             stop = 1;
             s.animation.vcr.pos = 0;
             reset_comets(s);

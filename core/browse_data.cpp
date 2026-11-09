@@ -1,4 +1,4 @@
-/* The data side of the browser: the one BROWSER instance, its storage
+/* The data side of the data table: the one DATA_VIEW instance, its storage
    pointer, row/column bookkeeping and the file writer. The page
    displays it. */
 #include <limits>
@@ -36,17 +36,17 @@
 
 namespace xpp {
 
-ColumnTable get_browser_data(xpp::Session &s)
+ColumnTable get_table_data(xpp::Session &s)
 {
-  return s.browser.view.data;
+  return s.data.view.data;
 }
 
-/* show another data set in the browser: its columns from new_dat[1] on,
+/* show another data set in the data table: its columns from new_dat[1] on,
    dat_len rows (the adjoint, the Fourier modes, a histogram, ...) */
 void new_browse_dat(xpp::Session &s, ColumnTable new_dat, int dat_len)
 {
-  s.browser.view.data=new_dat;
-  refresh_browser(s,dat_len);
+  s.data.view.data=new_dat;
+  refresh_data(s,dat_len);
 }
 
 Result<> show_derived(xpp::Session &s, bool exists, const std::string &command, const std::string &missing, void (*show)(xpp::Session &))
@@ -58,7 +58,7 @@ Result<> show_derived(xpp::Session &s, bool exists, const std::string &command, 
 
 Column get_data_col(const xpp::Session &s, int c)
 {
-  return s.browser.view.data[c];
+  return s.data.view.data[c];
 }
 
 void waitasec(int msec)
@@ -71,7 +71,7 @@ std::string browse_column_name(const xpp::Session &s, int j)
   if(j==0)return "T";
   const xpp::Model &m=s.model();
   if(j>0&&j<=m.neq)return m.uvar_names[j-1];
-  const std::vector<AddedColumn> &added=s.browser.added_columns;
+  const std::vector<AddedColumn> &added=s.data.added_columns;
   if(j>m.neq){
     const std::size_t k=static_cast<std::size_t>(j-m.neq-1);
     if(k<added.size())return added[k].name;
@@ -82,7 +82,7 @@ std::string browse_column_name(const xpp::Session &s, int j)
 namespace {
 
 /* the rows First..Last of b's columns cols */
-xpp::DataTable browser_table(const xpp::Session &s, const BROWSER &b, std::span<const int> cols)
+xpp::DataTable data_table(const xpp::Session &s, const DATA_VIEW &b, std::span<const int> cols)
 {
   xpp::DataTable t;
   t.stored_floats=s.data_store.precision()==StoragePrecision::single;
@@ -95,7 +95,7 @@ xpp::DataTable browser_table(const xpp::Session &s, const BROWSER &b, std::span<
 }
 
 /* every column b has */
-std::vector<int> all_columns(const BROWSER &b)
+std::vector<int> all_columns(const DATA_VIEW &b)
 {
   std::vector<int> cols(b.maxcol>0?b.maxcol:0);
   for(std::size_t j=0;j<cols.size();j++)cols[j]=static_cast<int>(j);
@@ -107,17 +107,17 @@ std::vector<int> all_columns(const BROWSER &b)
 namespace {
 
 /* the columns a batch run writes: the "only" list, else every column */
-std::vector<int> output_columns(const xpp::Session &s, const BROWSER &b)
+std::vector<int> output_columns(const xpp::Session &s, const DATA_VIEW &b)
 {
   return !s.plot_list.empty()?s.plot_list:all_columns(b);
 }
 
 } // namespace
 
-void write_mybrowser_data(xpp::Session &s, xpp::Writer &w)
+void write_mytable_data(xpp::Session &s, xpp::Writer &w)
 {
-  const BROWSER &b=s.browser.view;
-  xpp::data_format_named("dat")->write(browser_table(s,b,output_columns(s,b)),w);
+  const DATA_VIEW &b=s.data.view;
+  xpp::data_format_named("dat")->write(data_table(s,b,output_columns(s,b)),w);
 }
 
 xpp::DataTable stored_data_table(const xpp::Session &s)
@@ -150,8 +150,8 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
   s.data_store.rows=rows;
   /* the store's own columns, which may just have grown (moved): not a
      derived data set shown before, whose lent columns would be stale */
-  s.browser.view.data=s.data_store.col;
-  refresh_browser(s,rows);
+  s.data.view.data=s.data_store.col;
+  refresh_data(s,rows);
   return rows;
 }
 
@@ -167,7 +167,7 @@ void find_variable(const xpp::Session &s, std::string_view name, int *col)
     *col=*col+1;
     return;
   }
-  const std::vector<AddedColumn> &added=s.browser.added_columns;
+  const std::vector<AddedColumn> &added=s.data.added_columns;
   for(std::size_t k=0;k<added.size();k++){
     if(xpp::equal_ignoring_case(added[k].name,name)){
       *col=s.model().neq+1+static_cast<int>(k);
@@ -176,44 +176,44 @@ void find_variable(const xpp::Session &s, std::string_view name, int *col)
   }
  }
 
-void  refresh_browser(xpp::Session &s, int length)
+void  refresh_data(xpp::Session &s, int length)
 {
- s.browser.view.dataflag=1;
- s.browser.view.maxrow=length;
- s.browser.view.iend=length;
- if(s.browser.view.data==s.data_store.col){
+ s.data.view.dataflag=1;
+ s.data.view.maxrow=length;
+ s.data.view.iend=length;
+ if(s.data.view.data==s.data_store.col){
    /* a fresh run's own data, the Model's own columns unchanged: recompute
-      every added column over it (docs/manual/07-data-browser.md: it
+      every added column over it (docs/manual/07-data-table.md: it
       stays computed "as though ... another auxiliary variable") rather
       than dropping it (docs/roadmap.md W77) */
    const xpp::Model &m=s.model();
-   for(std::size_t k=0;k<s.browser.added_columns.size();k++){
+   for(std::size_t k=0;k<s.data.added_columns.size();k++){
      const int col_index=m.neq+1+static_cast<int>(k);
      s.data_store.add_column(col_index); /* fresh max_rows zeros */
-     ok_or_show(compute_added_column(s,s.browser.added_columns[k].formula,col_index,length));
+     ok_or_show(compute_added_column(s,s.data.added_columns[k].formula,col_index,length));
    }
-   s.browser.view.maxcol=m.neq+1+static_cast<int>(s.browser.added_columns.size());
+   s.data.view.maxcol=m.neq+1+static_cast<int>(s.data.added_columns.size());
  }
  ui.data_changed(length);
 }
 
-void reset_browser(xpp::Session &s)
+void reset_data(xpp::Session &s)
 {
-  s.browser.view.maxrow=0;
-  s.browser.view.dataflag=0;
+  s.data.view.maxrow=0;
+  s.data.view.dataflag=0;
 }
 
-void init_browser(xpp::Session &s)
+void init_data(xpp::Session &s)
 {
  
- s.browser.view.dataflag=0;
- s.browser.view.data=s.data_store.col;
- s.browser.view.maxcol=s.model().neq+1;
- s.browser.view.maxrow=0;
- s.browser.view.row0=0;
- s.browser.view.istart=0;
- s.browser.view.iend=0;
- s.browser.added_columns.clear();
+ s.data.view.dataflag=0;
+ s.data.view.data=s.data_store.col;
+ s.data.view.maxcol=s.model().neq+1;
+ s.data.view.maxrow=0;
+ s.data.view.row0=0;
+ s.data.view.istart=0;
+ s.data.view.iend=0;
+ s.data.added_columns.clear();
 
 }
 
@@ -314,7 +314,7 @@ int file_replace_choice(bool open_existing)
                   "File Exists! Overwrite?","yn");
 }
 
-void  wipe_rep(BrowserState &b)
+void  wipe_rep(DataState &b)
  {
     if(!b.replaced)return;
     std::vector<double>().swap(b.old_column);
@@ -340,33 +340,33 @@ void ic_of_row(xpp::Session &s, int in)
  redraw_ics();
 }
 
-void data_get_mybrowser(xpp::Session &s, int row)
+void data_get_mytable(xpp::Session &s, int row)
 {
-  s.browser.view.row0=row;
+  s.data.view.row0=row;
   ic_of_row(s,row);
 }
 
 void get_data_xyz(const xpp::Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off)
 {
-  int in=s.browser.view.row0+off;
-  *x=static_cast<float>(s.browser.view.data[i1][in]);
-  *y=static_cast<float>(s.browser.view.data[i2][in]);
-  *z=static_cast<float>(s.browser.view.data[i3][in]);
+  int in=s.data.view.row0+off;
+  *x=static_cast<float>(s.data.view.data[i1][in]);
+  *y=static_cast<float>(s.data.view.data[i2][in]);
+  *z=static_cast<float>(s.data.view.data[i3][in]);
 }
 
-/* ---- the browser's commands (were in browse.c); the widget calls them ---- */
+/* ---- the data table's commands (were in browse.c); the widget calls them ---- */
 
 Result<> require_stored_data(const xpp::Session &s)
 {
- if(s.browser.view.data!=s.data_store.col)return fail("data","Only data can be in browser",command_place());
+ if(s.data.view.data!=s.data_store.col)return fail("data","Only data can be in the data table",command_place());
  return {};
 }
 
 Result<> delete_added_column(xpp::Session &s, std::string_view name)
 {
-  BROWSER *b=&s.browser.view;
+  DATA_VIEW *b=&s.data.view;
   if(const Result<> stored=require_stored_data(s);!stored)return stored;
-  if(s.browser.added_columns.empty())
+  if(s.data.added_columns.empty())
     return fail("data","There are no added columns to delete",command_place());
   int col=-1;
   find_variable(s,name,&col);
@@ -382,7 +382,7 @@ Result<> delete_added_column(xpp::Session &s, std::string_view name)
   }
   if(const auto removed=s.data_store.remove_column(col,b->maxcol);!removed)
     return std::unexpected<Error>(removed.error());
-  s.browser.added_columns.erase(s.browser.added_columns.begin()+(col-first));
+  s.data.added_columns.erase(s.data.added_columns.begin()+(col-first));
   for(auto &g:s.plot_windows.graph){
     if(!g.Use)continue;
     for(int i=0;i<g.nvars;i++){
@@ -391,10 +391,10 @@ Result<> delete_added_column(xpp::Session &s, std::string_view name)
       if(g.zv[i]>col)--g.zv[i];
     }
   }
-  if(s.browser.replaced_col==col)wipe_rep(s.browser);
-  else if(s.browser.replaced_col>col)--s.browser.replaced_col;
+  if(s.data.replaced_col==col)wipe_rep(s.data);
+  else if(s.data.replaced_col>col)--s.data.replaced_col;
   --b->maxcol;
-  ui.browser_redraw(1);
+  ui.data_redraw(1);
   return {};
 }
 
@@ -466,14 +466,14 @@ bool added_column_compiles(xpp::Session &s, std::string_view formula)
 
 Result<> add_data_column(xpp::Session &s, std::string_view name, std::string_view formula)
 {
-  BROWSER *b=&s.browser.view;
+  DATA_VIEW *b=&s.data.view;
   if(const Result<> stored=require_stored_data(s);!stored)return stored;
   const xpp::Model &m=s.model();
   /* the added column's data_store index: right after the model's own
      columns and every column added so far (the Model stays as the load
      left it -- docs/roadmap.md W77 -- so this count never advances neq) */
-  const int col_index=m.neq+1+static_cast<int>(s.browser.added_columns.size());
-  if(static_cast<int>(s.browser.added_columns.size())>=xpp::DataStore::ADDED_COLUMNS)
+  const int col_index=m.neq+1+static_cast<int>(s.data.added_columns.size());
+  if(static_cast<int>(s.data.added_columns.size())>=xpp::DataStore::ADDED_COLUMNS)
     return fail("data","Too many columns",command_place());
   if(name.empty())return fail("data","Give the new column a name",command_place());
   int existing=-1;
@@ -483,9 +483,9 @@ Result<> add_data_column(xpp::Session &s, std::string_view name, std::string_vie
   xpp::to_upper(col_name.data());
   s.data_store.add_column(col_index); /* max_rows zeros */
   if(const Result<> computed=compute_added_column(s,std::string(formula),col_index,b->maxrow);!computed)return computed;
-  s.browser.added_columns.push_back({std::move(col_name),std::string(formula)});
-  b->maxcol=m.neq+1+static_cast<int>(s.browser.added_columns.size());
-  ui.browser_redraw(1);
+  s.data.added_columns.push_back({std::move(col_name),std::string(formula)});
+  b->maxcol=m.neq+1+static_cast<int>(s.data.added_columns.size());
+  ui.data_redraw(1);
   return {};
 }
 
@@ -508,8 +508,8 @@ Sequence chk_seq(xpp::TypedFields &f, std::string_view text, double &a1, double 
 
 Result<> replace_data_column(xpp::Session &s, std::string_view column, std::string_view formula)
 {
- const ColumnTable dat=s.browser.view.data;
- const int n=s.browser.view.maxrow;
+ const ColumnTable dat=s.data.view.data;
+ const int n=s.data.view.maxrow;
  std::string form(formula);
  std::vector<int> com;
  int i;
@@ -566,17 +566,17 @@ if(dif_var<0){
    s.parser.nsym=s.model().nsym_start;
    return fail("data",xpp::format("No such column: \"{}\"",column),here);
  }
- s.browser.replaced_col=i;
+ s.data.replaced_col=i;
 
  /* Okay the formula is cool so lets allocate and replace  */
 
- wipe_rep(s.browser);
- s.browser.old_column.assign(static_cast<std::size_t>(n),0.0);
- s.browser.replaced=1;
+ wipe_rep(s.data);
+ s.data.old_column.assign(static_cast<std::size_t>(n),0.0);
+ s.data.replaced=1;
  RowValues row(s);
  for(i=0;i<n;i++)
  {
-   s.browser.old_column[static_cast<std::size_t>(i)]=dat[s.browser.replaced_col][i];
+   s.data.old_column[static_cast<std::size_t>(i)]=dat[s.data.replaced_col][i];
    if(dif_var<0)
      {
        if(seq==Sequence::none)
@@ -585,14 +585,14 @@ if(dif_var<0){
 	   if(intflag)
 	     {
 	       sum+=xpp::evaluate(s,com.data());
-	       dat[s.browser.replaced_col][i]=sum*dt;
+	       dat[s.data.replaced_col][i]=sum*dt;
 	     }
 	   else 
-	     dat[s.browser.replaced_col][i]=xpp::evaluate(s,com.data());
+	     dat[s.data.replaced_col][i]=xpp::evaluate(s,com.data());
 	 }
        else 
 	 {
-	   dat[s.browser.replaced_col][i]=a1+i*da;
+	   dat[s.data.replaced_col][i]=a1+i*da;
 	 }
      }
    else 
@@ -601,28 +601,28 @@ if(dif_var<0){
        if(i==(n-1))derv=(dat[dif_var][i]-old)/dt;
        if(i>0&&i<(n-1))derv=(dat[dif_var][i+1]-dat[dif_var][i])/dt;
        old=dat[dif_var][i];
-       dat[s.browser.replaced_col][i]=derv;
+       dat[s.data.replaced_col][i]=derv;
      }
  }
  s.parser.ncon=s.model().ncon_start;
  s.parser.nsym=s.model().nsym_start;
- ui.browser_redraw(0);
+ ui.data_redraw(0);
  return {};
 }
 
 Result<> unreplace_column(xpp::Session &s)
 {
- int i,n=s.browser.view.maxrow;
- if(!s.browser.replaced)return fail("data","No replacement to undo",command_place());
- for(i=0;i<n;i++)s.browser.view.data[s.browser.replaced_col][i]=s.browser.old_column[static_cast<std::size_t>(i)];
- wipe_rep(s.browser);
- ui.browser_redraw(0);
+ int i,n=s.data.view.maxrow;
+ if(!s.data.replaced)return fail("data","No replacement to undo",command_place());
+ for(i=0;i<n;i++)s.data.view.data[s.data.replaced_col][i]=s.data.old_column[static_cast<std::size_t>(i)];
+ wipe_rep(s.data);
+ ui.data_redraw(0);
  return {};
 }
 
 Result<std::size_t> tabulate_column(xpp::Session &s, std::string_view column, double xlo, double xhi, std::string_view filename)
 {
-  const BROWSER &b=s.browser.view;
+  const DATA_VIEW &b=s.data.view;
   int col=-1;
   find_variable(s,column,&col);
   if(col<0)return fail("Tabulate",xpp::format("The data has no column \"{}\"",column),command_place());
@@ -649,7 +649,7 @@ Result<std::size_t> tabulate_column(xpp::Session &s, std::string_view column, do
 namespace {
 
 /* the row, from the selected one on, whose value in column col is nearest val */
-void find_value(int col, double val, int *row, const BROWSER &b)
+void find_value(int col, double val, int *row, const DATA_VIEW &b)
 {
  int n=b.maxrow;
  int i;
@@ -670,20 +670,20 @@ void find_value(int col, double val, int *row, const BROWSER &b)
 
 Result<int> find_in_column(xpp::Session &s, std::string_view column, double value)
 {
- BROWSER &b=s.browser.view;
+ DATA_VIEW &b=s.data.view;
  int col=-1,row=0;
  find_variable(s,column,&col);
  if(col<0)return fail("Find Data",xpp::format("The data has no column \"{}\"",column),command_place());
- if(b.maxrow<=0)return fail("Find Data","The data browser holds no rows",command_place());
+ if(b.maxrow<=0)return fail("Find Data","The data table holds no rows",command_place());
  find_value(col,value,&row,b);
  b.row0=row;
- ui.browser_redraw(0);
+ ui.data_redraw(0);
  return row;
 }
 
 Result<DataLoaded> load_data_file(xpp::Session &s, std::string_view format, std::string_view name)
 {
- BROWSER *b=&s.browser.view;
+ DATA_VIEW *b=&s.data.view;
  const xpp::DataFormat *f=nullptr;
  if(!format.empty()&&!(f=xpp::data_format_named(format)))
    return fail("save data",xpp::format("No data format {}",format),command_place());
@@ -706,7 +706,7 @@ Result<DataLoaded> load_data_file(xpp::Session &s, std::string_view format, std:
  if(const xpp::Result<> fitted=s.data_store.fit(s.model().neq+1,len);!fitted)return std::unexpected(fitted.error());
  for(std::size_t k=0;k<t.columns.size()&&k<static_cast<std::size_t>(b->maxcol);k++)
    b->data[k].store(0,std::span(t.columns[k]).first(static_cast<std::size_t>(len)));
- refresh_browser(s,len);
+ refresh_data(s,len);
  s.data_store.rows=len;
  return DataLoaded{fil,static_cast<std::size_t>(len)};
 }
@@ -751,7 +751,7 @@ Result<bool> write_table(const xpp::Session &s, xpp::DataTable &t, const xpp::Da
 
 Result<DataSaved> save_data_file(const xpp::Session &s, std::optional<DataTarget> target, std::string_view format, std::string_view name)
 {
- const BROWSER *b=&s.browser.view;
+ const DATA_VIEW *b=&s.data.view;
  if(!target){
    const int k=menu_choose(&menu_save_what,0);
    if(k!='t'&&k!='p')return DataSaved{};
@@ -761,7 +761,7 @@ Result<DataSaved> save_data_file(const xpp::Session &s, std::optional<DataTarget
  const xpp::DataFormat *f=nullptr;
  if(!format.empty()&&!(f=xpp::data_format_named(format)))
    return fail("save data",xpp::format("No data format {}",format),command_place());
- xpp::DataTable t=plot?plot_curves_table(s):browser_table(s,*b,*target==DataTarget::output?output_columns(s,*b):all_columns(*b));
+ xpp::DataTable t=plot?plot_curves_table(s):data_table(s,*b,*target==DataTarget::output?output_columns(s,*b):all_columns(*b));
  if(t.rows()==0){
    ui.save_result("",false);
    return fail("save data","Nothing to save",command_place());
@@ -783,20 +783,20 @@ void data_write(const xpp::Session &s, std::optional<DataTarget> target, std::st
  ok_or_show(save_data_file(s,target,format,name));
 }
 
-void fit_browser_block(xpp::Session &s)
+void fit_data_block(xpp::Session &s)
 {
- const BROWSER &b=s.browser.view;
- BrowserBlock &k=s.browser.block;
+ const DATA_VIEW &b=s.data.view;
+ DataBlock &k=s.data.block;
  if(k.from>b.maxrow-1)k.from=b.maxrow>0?b.maxrow-1:0;
  if(k.from<0)k.from=0;
  if(k.col>b.maxcol-1)k.col=b.maxcol-1;
  if(k.col<1)k.col=1;
 }
 
-std::string browser_block_rows(const xpp::Session &s)
+std::string data_block_rows(const xpp::Session &s)
 {
- const BROWSER &b=s.browser.view;
- const BrowserBlock &k=s.browser.block;
+ const DATA_VIEW &b=s.data.view;
+ const DataBlock &k=s.data.block;
  std::string rows="[";
  const int last=b.dataflag?std::min(k.from+k.count,b.maxrow):k.from;
  const bool single=s.data_store.precision()==StoragePrecision::single;
@@ -819,38 +819,38 @@ std::string browser_block_rows(const xpp::Session &s)
 
 Result<int> set_first_row(xpp::Session &s, int row)
 {
- BROWSER &b=s.browser.view;
+ DATA_VIEW &b=s.data.view;
  if(row<0||row>=b.maxrow)
    return fail("data",xpp::format("Row {} is not in the data: it has {} rows (the first is 0)",row,b.maxrow),command_place());
  if(row>=b.iend)
    return fail("data",xpp::format("The first row {} must come before the last row kept, {}",row,b.iend-1),command_place());
  b.row0=row;
  b.istart=row;
- ui.browser_redraw(0);
+ ui.data_redraw(0);
  return row;
 }
 
 Result<int> set_last_row(xpp::Session &s, int row)
 {
- BROWSER &b=s.browser.view;
+ DATA_VIEW &b=s.data.view;
  if(row<0||row>=b.maxrow)
    return fail("data",xpp::format("Row {} is not in the data: it has {} rows (the first is 0)",row,b.maxrow),command_place());
  if(row<b.istart)
    return fail("data",xpp::format("The last row {} must not come before the first row kept, {}",row,b.istart),command_place());
  b.row0=row;
  b.iend=row+1;
- ui.browser_redraw(0);
+ ui.data_redraw(0);
  return row;
 }
 
 Result<int> restore_whole_data(xpp::Session &s)
 {
- BROWSER &b=s.browser.view;
- if(b.maxrow<=0)return fail("data","The data browser holds no rows",command_place());
+ DATA_VIEW &b=s.data.view;
+ if(b.maxrow<=0)return fail("data","The data table holds no rows",command_place());
  b.istart=0;
  b.iend=b.maxrow;
  xpp::restore(s,b.istart,b.iend);
- ui.browser_redraw(0);
+ ui.data_redraw(0);
  return b.maxrow-1;
 }
 

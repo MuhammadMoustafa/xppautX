@@ -1,6 +1,6 @@
 /* The window resource's registry rows (W353, moved here at W530): create,
    rename, select, hide, show, destroy and list the windows (graphs, autoX
-   views, the data browser, the animation and the array plot: W515), the
+   views, the data table, the animation and the array plot: W515), the
    redraw mode, SimPlot.
    Each handler gets its arguments validated and typed (command_def.h). */
 #include "command_def.h"
@@ -312,8 +312,8 @@ Result<std::string> destroy_window(Session &s, const Command &command, const Arg
             s.selected_window = s.plot_windows.graph[s.plot_windows.active].name;
         } else s.selected_window = s.autox_state.views[s.autox_state.active_view].name;
         break;
-    case WindowKind::browser:
-        return fail(command.name, "The data browser stays open: it shows the session's stored data (Clear plot's Erase empties it)", place);
+    case WindowKind::data:
+        return fail(command.name, "The data table stays open: it shows the session's stored data (Clear plot's Erase empties it)", place);
     case WindowKind::animation:
         s.animation.vcr.iexist = 0;
         s.animation.grab_flag = 0;
@@ -456,7 +456,7 @@ constexpr std::array ROWS = {
     Command{"window.show", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Show window", "",
             "Show a hidden window exactly as it was.", SHOWN_RESULTS, STATE_EVENTS, true, show_window},
     Command{"window.close", DESTROY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Close window", "",
-            "Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data browser stay; destroying an autoX view keeps the diagram.",
+            "Destroy a window and what it holds (a graph that holds texts, arrows, markers or frozen curves needs confirm true, or the page's answer); the main graph and the data table stay; destroying an autoX view keeps the diagram.",
             CLOSE_RESULTS, WINDOW_EVENTS, true, destroy_window},
     Command{"window.list", {}, XPP_KIND_VIEW, CommandCategory::Plot, "List windows", "",
             "List every window with its name, kind and whether it is shown.", LIST_RESULTS, STATE_EVENTS, true, list_windows_result},};

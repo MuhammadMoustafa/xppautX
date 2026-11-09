@@ -125,7 +125,7 @@ Result<int> view_table(xpp::Session &s, int index)
     s.data_store.col[0][i]=table.xlo+i*table.dx;
     s.data_store.col[1][i]=table.y[i];
   }
-  refresh_browser(s,table.n);
+  refresh_data(s,table.n);
   return table.n;
 }
 

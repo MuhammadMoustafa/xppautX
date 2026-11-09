@@ -1,5 +1,5 @@
 /* The table resource's registry rows (W525): a model's lookup tables, edited (the formula, points and range of a table
-   of a formula, or the file a table of a file is read from again) or viewed in the data browser. Each handler calls
+   of a formula, or the file a table of a file is read from again) or viewed in the data table. Each handler calls
    the core function the Tables menu's items call after their questions (tabular.h). */
 #include "command_def.h"
 #include "session.h"
@@ -30,7 +30,7 @@ Result<std::string> table_view(Session &s, const Command &, const Arguments &arg
     const Result<int> index = find_table(s, args.get<std::string>("name"));
     if (!index) return std::unexpected<Error>(index.error());
     if (const Result<int> shown = view_table(s, *index); !shown) return std::unexpected<Error>(shown.error());
-    return ResultObject().text("table", s.tables[static_cast<std::size_t>(*index)].name).boolean("shown_in_browser", true).done();
+    return ResultObject().text("table", s.tables[static_cast<std::size_t>(*index)].name).boolean("shown_in_data", true).done();
 }
 
 constexpr Argument NAME = {"name", Type::model_name, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::any};
@@ -45,7 +45,7 @@ constexpr std::array EDIT_ARGUMENTS = {
     Argument{"file", Type::file, false}};
 
 constexpr std::array EDIT_RESULTS = {ResultField{"table", "name"}, ResultField{"points_evaluated", "integer"}};
-constexpr std::array VIEW_RESULTS = {ResultField{"table", "name"}, ResultField{"shown_in_browser", "boolean"}};
+constexpr std::array VIEW_RESULTS = {ResultField{"table", "name"}, ResultField{"shown_in_data", "boolean"}};
 constexpr std::array EDIT_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array VIEW_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::SESSION_STATE, xpp::events::DONE};
 
@@ -55,7 +55,7 @@ constexpr std::array ROWS = {
             "table of a file again from its file or another; what is left out stays.",
             EDIT_RESULTS, EDIT_EVENTS, true, table_edit},
     Command{"table.show", VIEW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "Show table", "Analysis/Tables",
-            "Show a table's points in the data browser.", VIEW_RESULTS, VIEW_EVENTS, true, table_view}};
+            "Show a table's points in the data table.", VIEW_RESULTS, VIEW_EVENTS, true, table_view}};
 
 } // namespace
 

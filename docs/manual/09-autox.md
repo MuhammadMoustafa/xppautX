@@ -808,7 +808,7 @@ message names the new state.
 
 ### lOad branch
 
-Puts the branch marked with `S` and `E` into the Data Browser, one row
+Puts the branch marked with `S` and `E` into the Data Table, one row
 per diagram point.
 
 ### Export CSV

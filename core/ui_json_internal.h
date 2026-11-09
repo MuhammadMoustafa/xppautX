@@ -6,7 +6,7 @@
                      the input classifier, script replay, install and hello
    json_io.cpp       the output lines, the input lines, the JSON reader
    json_prompts.cpp  asks (prompts, dialogs, menus, mouse), long loops
-   json_state.cpp    the state event, the data browser, parameter and IC
+   json_state.cpp    the state event, the data table, parameter and IC
                      edits, the data subscription, equations, source
    json_windows.cpp  plot windows, pixels, the kinescope, the array plot
    json_autox.cpp     the autoX window, its diagram data and settings
@@ -130,9 +130,9 @@ struct ProtocolSession {
     /* the lines a command's prompt or computation took that were meant for
        after it, in arrival order; the command loop runs them first */
     std::deque<DeferredLine> deferred;
-    /* json_state.cpp's: the state and browser events are due, and the rows a
+    /* json_state.cpp's: the state and data events are due, and the rows a
        run had stored when it reported last (a run that starts again reports fewer) */
-    int state_dirty = 0, browser_dirty = 0;
+    int state_dirty = 0, data_dirty = 0;
     int rows_seen = INT_MAX;
     double live_state_last = 0; /* Display pacing only; solver steps are unchanged. */
     /* autoX subscriptions, pacing and client view tracking */
@@ -429,8 +429,8 @@ void send_state_if_dirty(void);
 void j_state_dirty(void);
 void j_state_dirty_i(int i);
 void j_state_dirty_is(int i, const char *s);
-void browser_update(xpp::Session &s); /* at a command's end */
-void j_browser_changed(int i);
+void data_update(xpp::Session &s); /* at a command's end */
+void j_data_changed(int i);
 void j_rows_stored(xpp::Session &s, int nrows);
 void j_live_state(xpp::Session &s, const double *values, double time);
 void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);

@@ -1501,12 +1501,12 @@ void on_the_fly(xpp::Session &s, int task)
 void ani_flip1(xpp::Session &s, int n)
 {
     if (s.animation.ncom == 0) return;
-    if (s.browser.view.maxrow < 2) return;
-    const ColumnTable ss = s.browser.view.data;
+    if (s.data.view.maxrow < 2) return;
+    const ColumnTable ss = s.data.view.data;
     if (s.animation.vcr.pos == 0) set_ani_perm(s);
 
     const long long target = static_cast<long long>(s.animation.vcr.pos) + n;
-    s.animation.vcr.pos = static_cast<int>(std::clamp<long long>(target, 0, s.browser.view.maxrow - 1));
+    s.animation.vcr.pos = static_cast<int>(std::clamp<long long>(target, 0, s.data.view.maxrow - 1));
     const int row = s.animation.vcr.pos;
 
     const double t = static_cast<double>(ss[0][row]);
@@ -1541,14 +1541,14 @@ Result<> load_chosen_animation(Session &s, std::string file)
     if (const Result<> loaded = ani_new_file(s, file.c_str(), false); !loaded) return loaded;
     xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", s.animation.ncom);
     /* a new animation shows its first frame at once when there is data */
-    if (s.browser.view.maxrow >= 2) ani_reset(s);
+    if (s.data.view.maxrow >= 2) ani_reset(s);
     return {};
 }
 
 Result<> animation_ready(const Session &s, const std::string &where)
 {
     if (s.animation.ncom == 0) return fail(where, "No animation is loaded: load one first (animation.load)", command_place());
-    if (s.browser.view.maxrow < 2) return fail(where, "There is no stored data to animate: integrate first", command_place());
+    if (s.data.view.maxrow < 2) return fail(where, "There is no stored data to animate: integrate first", command_place());
     return {};
 }
 
@@ -1623,7 +1623,7 @@ void render_ani(xpp::Session &s)
     {
         AniDataFrame f;
         f.pos = s.animation.vcr.pos;
-        f.rows = s.browser.view.maxrow;
+        f.rows = s.data.view.maxrow;
         f.t = getvar(s,0);
         f.speed = s.animation.speed;
         f.skip = s.animation.vcr.inc;

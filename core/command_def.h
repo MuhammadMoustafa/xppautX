@@ -60,7 +60,7 @@ enum class Type { text, integer, real, boolean, choice, expression, model_name, 
    (any case): a parameter, a variable (one with an initial condition),
    either, or any name the model defines. `none` for a map whose keys are
    plain text. `column`: a column of the stored data (what a plot axis takes): T, a variable, an
-   auxiliary or a column the data browser added. */
+   auxiliary or a column the data table added. */
 enum class NameSet { none, parameter, variable, either, any, column };
 
 /* One end of a number's range: nothing, a constant, or a quantity of the

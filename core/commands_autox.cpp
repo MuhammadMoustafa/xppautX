@@ -539,16 +539,16 @@ Result<std::string> range_branch(Session &s, const Command &command, const Argum
     return xpp::format("{{\"runs_completed\":{}}}", std::abs(std::abs(s.autox_state.diagram_mark.end_point) - std::abs(s.autox_state.diagram_mark.start_point)) + 1);
 }
 
-Result<std::string> load_branch_into_browser(Session &s, const Command &command, const Arguments &args, const Place &place)
+Result<std::string> load_branch_into_data(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     if (const Result<> marked = mark_stretch(s, command, args, place); !marked) return std::unexpected<Error>(marked.error());
     const AutoxDiagramMark &mark = s.autox_state.diagram_mark;
-    load_browser_with_branch(s, mark.start_branch, mark.start_point, mark.end_point);
+    load_data_with_branch(s, mark.start_branch, mark.start_point, mark.end_point);
     return xpp::format("{{\"rows_loaded\":{}}}", s.data_store.rows);
 }
 
-Result<std::string> load_orbit_into_browser(Session &s, const Command &command, const Arguments &args, const Place &place)
+Result<std::string> load_orbit_into_data(Session &s, const Command &command, const Arguments &args, const Place &place)
 {
     if (const Result<std::string> open = need_open(s, command, place); !open) return open;
     const std::optional<long long> label = args.optional<long long>(LABEL_KEY);
@@ -767,9 +767,9 @@ const std::array ROWS = {
     Command{"autox.export_initial_data", FILE_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Export initial data", "autoX/Export",
             "Write every point's main parameter and solution as initial data.", RESULT_WRITTEN_FILE, EVENTS_BROWSER, true, export_initial_data, {}, {}, "write", "*"},
     Command{"autox.show_orbit", LABEL_OPTIONAL, XPP_KIND_DATA, CommandCategory::Analysis, "Show orbit in table", "autoX/Branch",
-            "Load the stored orbit of a labelled point (the grabbed one without label) into the data browser.", RESULT_ORBIT, EVENTS_BROWSER, true, load_orbit_into_browser, {}, {}},
+            "Load the stored orbit of a labelled point (the grabbed one without label) into the data table.", RESULT_ORBIT, EVENTS_BROWSER, true, load_orbit_into_data, {}, {}},
     Command{"autox.show_branch", STRETCH_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Show branch in table", "autoX/Branch",
-            "Load a stretch of a branch (its points first_point to last_point) into the data browser.", RESULT_BRANCH_ROWS, EVENTS_BROWSER, true, load_branch_into_browser, {}, {}},
+            "Load a stretch of a branch (its points first_point to last_point) into the data table.", RESULT_BRANCH_ROWS, EVENTS_BROWSER, true, load_branch_into_data, {}, {}},
     Command{"autox.range_branch", STRETCH_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Range over a branch", "autoX/Branch",
             "Run the sweep over a stretch of a branch (its points first_point to last_point), once for each.", RESULT_RANGE, EVENTS_BROWSER, true, range_branch, {}, {}},
     Command{"autox.draw_labeled_orbits", ORBIT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Draw labeled orbits", "autoX/Branch",

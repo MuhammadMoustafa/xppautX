@@ -119,7 +119,7 @@ private:
   Column *p_ = nullptr;
 };
 
-/* the memory of one column of n values that a derived data set or a data-browser column owns, zeroed, float or double */
+/* the memory of one column of n values that a derived data set or a data-table column owns, zeroed, float or double */
 class OwnedColumn {
 public:
   /* n zeros of the precision (std::bad_alloc when there is no memory) */
@@ -147,7 +147,7 @@ private:
    the time, then the variables and auxiliaries: NEQ+1 columns in use), each
    float or double by the `storage_precision` setting, read and written as
    data_store.col[column][row] (Column); and the point where the last run
-   ended. storage.cpp owns it; the data browser shows it (browse_data.cpp)
+   ended. storage.cpp owns it; the data table shows it (browse_data.cpp)
    unless another data set (a histogram, the Fourier modes, the adjoint) is
    shown in its place. The Session holds it (session.h). */
 struct DataStore {
@@ -159,8 +159,8 @@ struct DataStore {
   double current_time = 0;     /* and its time */
 
   /* Add column's room: the columns past the model's own that the data
-     browser may add. The table of columns has a fixed address (the
-     browser keeps it as col), so it is made once, with this room. */
+     data table may add. The table of columns has a fixed address (the
+     data table keeps it as col), so it is made once, with this room. */
   static constexpr int ADDED_COLUMNS = 1000;
 
   /* The rows the store starts with at a load: the length of a run of 5000 steps, enough for the usual run, and
@@ -207,7 +207,7 @@ struct DataStore {
 private:
   /* The model's columns are one block of pool_cols_ x pool_rows_ zeroed
      values (untouched until written: a short run of a large model does
-     not pay for its whole storage); a column the data browser adds is an
+     not pay for its whole storage); a column the data table adds is an
      OwnedColumn of its own, added_[c]. table_ holds their views, which col
      points at (fixed, so a pointer to it stays valid). */
   StoragePrecision precision_ = StoragePrecision::single;
@@ -222,14 +222,14 @@ private:
 
 /* The Session's stored data converted to numerics.storage_precision (the setting's `applied`): the data store's columns,
    and every derived data set made from it (a histogram, the Fourier modes, the adjoint, the transposed data, the
-   stochastic statistics), in place and with no question, so what the browser shows stays what it was. A failure for
+   stochastic statistics), in place and with no question, so what the data table shows stays what it was. A failure for
    want of memory is shown and the setting goes back to what the store holds. */
 void storage_precision_changed(Session &s);
 
 /* A derived data set's columns (a histogram, the Fourier modes, the
    adjoint, its H function, the transposed data): n columns of its own,
    at the store's precision, then the store's columns n..last lent after
-   them (lend_columns), in one table of columns the data browser shows
+   them (lend_columns), in one table of columns the data table shows
    (new_browse_dat). The table's address never changes; its own columns are
    freed by release() or the next make(). The store's columns move when it
    grows (a run that fills it), so a data set shown again takes them afresh

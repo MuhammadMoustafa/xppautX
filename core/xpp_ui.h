@@ -20,7 +20,7 @@ namespace command { struct Command; class Arguments; } /* command_def.h */
  * The seam between the numerics and whatever front end is driving them.
  *
  * Core code keeps calling the historical names (err_msg, new_int, ping,
- * refresh_browser, TwoChoice, ...). Those are thin
+ * refresh_data, TwoChoice, ...). Those are thin
  * dispatchers in xpp_ui.cpp that go through the XppUi table below. The
  * default table is headless: messages go to the log, the question policy
  * supplies terminal answers, and redraws do nothing. The browser front end installs its own
@@ -265,14 +265,14 @@ typedef struct XppUi {
     void (*clear_screens)(Session &s);
     void (*clear_draw_window)(Session &s);
     void (*reset_graphics)(Session &s);
-    void (*data_changed)(int length); /* browser storage grew/shrank */
+    void (*data_changed)(int length); /* data table grew/shrank */
     /* an integration stored row nrows-1: storage[.][0..nrows) is the run so
        far, before data_changed at its end. Called for every row: keep it
        cheap (a front end that shows the run as it grows rate-limits itself) */
     void (*rows_stored)(Session &s, int nrows);
     /* Every accepted output step, before Poincare/transient filtering. */
     void (*live_state)(Session &s, const double *values, double time);
-    void (*browser_redraw)(int full); /* my_browser: 1 columns too, 0 data */
+    void (*data_redraw)(int full); /* my_table: 1 columns too, 0 data */
 
     /* plot windows */
     void (*create_plot_window)(Session &s); /* present the already-created active graph */

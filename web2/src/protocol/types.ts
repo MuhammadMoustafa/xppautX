@@ -59,7 +59,7 @@ export interface HelloEvent {
   /** what the core takes: the largest upload (bytes), the most rows and columns of one browser block */
   upload_error: string;
   player_speed: {min: number; max: number};
-  limits: {upload: number; browser_rows: number; browser_cols: number};
+  limits: {upload: number; data_rows: number; data_cols: number};
   /** what a plot text takes (core/grobs.h LABEL_*): its most characters, largest size, the size a new text starts at */
   text: {max_length: number; size_max: number; default_size: number};
   /** the names of the text styles, in the core's order (core/text_style.h) */
@@ -69,7 +69,7 @@ export interface HelloEvent {
   /** the marker glyphs and arrow head the pictures draw for texts, arrows, pointers and markers (core/grobs.h; plot/marks.ts) */
   annotation_glyphs: AnnotationGlyphs;
   /** Initial surface names; plots and diagram views subsequently carry their exact names. */
-  window_names: {main: string; autox: string; ani: string; aplot: string; browser: string};
+  window_names: {main: string; autox: string; ani: string; aplot: string; data: string};
   lists: string[][];
   /** every settings panel, built from the option table (core/options_panels.h): one per group, its rows in the table's order */
   options: OptionGroup[];
@@ -341,7 +341,7 @@ export interface SeriesEndEvent {
 /** one window of the core as window.list and the `windows` event give it */
 export interface WindowListEntry {
   name: string;
-  kind: 'graph' | 'diagram' | 'browser' | 'animation' | 'array_plot';
+  kind: 'graph' | 'diagram' | 'data' | 'animation' | 'array_plot';
   shown: boolean;
 }
 
@@ -547,14 +547,14 @@ export interface MessageEvent extends Partial<ErrorFields> {
   calc?: string;
 }
 
-/** the data browser block the client asked for (docs/protocol.md `browser`,
+/** the data table block the client asked for (docs/protocol.md "The data table",
     docs/ui-v2.md T10): rows `from`..`from+data.length-1` of columns
     `col`..`col+data[i].length-2` (each row is [T, that column, ...]); sent
-    for a `browser` `from` request and again, with the same range, after any
+    for a `data.page` request and again, with the same range, after any
     command that changed the data while the client showed the browser. */
-export interface BrowserEvent {
+export interface DataEvent {
   ev: 'data.updated';
-  /** rows stored (my_browser.maxrow); 0 before any integration */
+  /** rows stored (my_table.maxrow); 0 before any integration */
   rows: number;
   /** column names, T first, in storage order */
   cols: string[];
@@ -715,7 +715,7 @@ export type XppEvent =
   | MarksEvent
   | AskEvent
   | MessageEvent
-  | BrowserEvent
+  | DataEvent
   | SourceEvent
   | EquationsEvent
   | EquilibriumEvent
@@ -761,7 +761,7 @@ export type XppEvent =
 /** a window made, selected or destroyed (docs/protocol.md): the event's name says which */
 export interface WindowEvent {
   ev: 'window.created' | 'window.selected' | 'window.destroyed';
-  kind: 'graph' | 'diagram' | 'animation' | 'array_plot' | 'browser';
+  kind: 'graph' | 'diagram' | 'animation' | 'array_plot' | 'data';
   win: string;
   w: number;
   h: number;

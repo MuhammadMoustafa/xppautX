@@ -258,7 +258,7 @@ An unrecognized option stops with ?no such option? and its name; `--help` prints
 
 web2 keeps every menu, sub-menu and hotkey, but the interaction is a
 browser page, not X11 widgets: dialogs, the values panel, plots, the
-data browser, animations and the autoX view all work differently in
+data table, animations and the autoX view all work differently in
 detail. [Using the interface](04-using-the-interface.md) describes the
 current front end; [docs/front-end-gaps.md](../front-end-gaps.md) is the
 row-by-row record of what changed and why.
@@ -304,7 +304,7 @@ on the project's [issue tracker](https://github.com/MuhammadMoustafa/xppautX/iss
 - [The main commands](05-commands.md) and
   [Numerical parameters](06-numerical-parameters.md) — every command and
   every numerics setting
-- [The Data Browser](07-data-browser.md),
+- [The Data Table](07-data-table.md),
   [Functional equations](08-functional-equations.md),
   [autoX interface](09-autox.md) and
   [Creating Animations](10-animations.md) — the specialized views

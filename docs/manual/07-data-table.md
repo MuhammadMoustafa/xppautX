@@ -1,8 +1,8 @@
-# The Data Browser
+# The Data Table
 
-The Data Browser (DB) lets you look at the numbers a run produced, save
+The Data Table (DB) lets you look at the numbers a run produced, save
 them to a file and otherwise manipulate them; it is a very primitive
-spread sheet. Once you have computed a trajectory, use the Data Browser to
+spread sheet. Once you have computed a trajectory, use the Data Table to
 look at the data.
 
 **In web2** the DB is the **Table** (`ui/TableView.tsx`): a virtualized
@@ -91,7 +91,7 @@ Loads a data file into the table for graphing: its columns fill T and the column
 
 ### (A)ddcol
 
-This allows you to add an additional column to the data browser. You are prompted for the name you want to give the column and for the formula. It is computed at once from the stored data, and again every time you run the model afresh, as though it were another auxiliary variable. Unlike a real auxiliary variable, though, it is not one of your model's own quantities: you cannot use its name in another formula (an Addcol's own or one of the model's), and it is lost as soon as you reload the model (revert, or open another one).
+This allows you to add an additional column to the data table. You are prompted for the name you want to give the column and for the formula. It is computed at once from the stored data, and again every time you run the model afresh, as though it were another auxiliary variable. Unlike a real auxiliary variable, though, it is not one of your model's own quantities: you cannot use its name in another formula (an Addcol's own or one of the model's), and it is lost as soon as you reload the model (revert, or open another one).
 
 ### (D)elcol
 

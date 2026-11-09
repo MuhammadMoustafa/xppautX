@@ -1,5 +1,5 @@
 /* The model's state as the client sees it: the state event (parameters,
-   ICs, BCs, delays, the view), the data browser, the edits that change
+   ICs, BCs, delays, the view), the data table, the edits that change
    them (set, default, slide), the data events a client subscribes to, and
    the equations, source and equilibrium windows. */
 #include "solver.h"
@@ -204,7 +204,7 @@ std::string build_state(xpp::Session &s)
         buf_format(b, ",\"autox\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
                    "\"ymin\":{:g},\"ymax\":{:g}}}", s.autox_state.bifur.x0, s.autox_state.bifur.y0, s.autox_state.bifur.wid, s.autox_state.bifur.hgt, s.autox_state.axes().xmin, s.autox_state.axes().xmax,
                    s.autox_state.axes().ymin, s.autox_state.axes().ymax);
-    buf_format(b,",\"rows\":{},\"win\":",s.browser.view.maxrow);buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
+    buf_format(b,",\"rows\":{},\"win\":",s.data.view.maxrow);buf_str(b,xpp::window_name(s,s.plot_windows.draw_win));
     if (s.numerics.last_seed) buf_format(b, ",\"seed\":{:d}", *s.numerics.last_seed);
     const SavedSession &saved = s.saved_session;
     if (!saved.file.empty()) {
@@ -248,47 +248,47 @@ void send_state_if_dirty(void)
     if (session.state_dirty) send_state(client());
 }
 
-/* ---- data browser ---------------------------------------------------------------
+/* ---- data table ---------------------------------------------------------------
    The client shows a scrolling table and asks for the block of rows and
-   columns it can see; my_browser.row0 is the selected row the core's
-   browser commands (Get, First, Last, Find) use. */
+   columns it can see; my_table.row0 is the selected row the core's
+   data commands (Get, First, Last, Find) use. */
 
 namespace {
 
 
-void send_browser(xpp::Session &s)
+void send_data(xpp::Session &s)
 {
     std::string b;
-    const int maxcol = s.browser.view.maxcol;
-    session.browser_dirty = 0;
-    xpp::fit_browser_block(s);
-    const xpp::BrowserBlock &block = s.browser.block;
+    const int maxcol = s.data.view.maxcol;
+    session.data_dirty = 0;
+    xpp::fit_data_block(s);
+    const xpp::DataBlock &block = s.data.block;
     buf_format(b, "{},\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
-               xpp::events::open(xpp::events::DATA_UPDATED), s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
+               xpp::events::open(xpp::events::DATA_UPDATED), s.data.view.dataflag ? s.data.view.maxrow : 0, s.data.view.row0, s.data.view.istart, s.data.view.iend);
     for (int j = 1; j < maxcol; j++) {
         BUF_LIT(b, ",");
         buf_str(b, browse_column_name(s,j));
     }
     buf_format(b, "],\"from\":{:d},\"col\":{:d},\"data\":", block.from, block.col);
-    b += xpp::browser_block_rows(s);
+    b += xpp::data_block_rows(s);
     BUF_LIT(b, "}");
     send_buf(b);
 }
 
 } // namespace
 
-void j_browser_changed(int)
+void j_data_changed(int)
 {
     plot_data_changed();
     session.state_dirty = 1;
-    session.browser_dirty = 1;
+    session.data_dirty = 1;
     aplot_changed();
 }
 
 /* the block the client sees, when the data changed */
-void browser_update(xpp::Session &s)
+void data_update(xpp::Session &s)
 {
-    if (session.browser_dirty && s.browser.block.count) send_browser(s);
+    if (session.data_dirty && s.data.block.count) send_data(s);
 }
 
 /* the data events a client subscribed to (events.subscribe) are sent at the end of each command; each is sent at
@@ -571,7 +571,7 @@ void j_rows_stored(xpp::Session &s, int nrows)
 void state_forget(void)
 {
     session.state_dirty = 1;
-    session.browser_dirty = 1;
+    session.data_dirty = 1;
 }
 
 void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)

@@ -53,7 +53,7 @@ constexpr std::array ROWS = {
     Command{"values.open", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Values", "Windows",
             "Show the parameters and initial conditions.", {}, CALCULATOR_EVENTS, false, page_tool},
     Command{"data.open", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Table", "Windows",
-            "Open the stored data browser.", {}, CALCULATOR_EVENTS, false, page_tool},
+            "Open the stored data table.", {}, CALCULATOR_EVENTS, false, page_tool},
     Command{"command_palette.open", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Search commands", "Help",
             "Search every registered command by name, menu path and description.", {}, CALCULATOR_EVENTS, false, page_tool, {}, PALETTE_KEYS},
     Command{"keymap.edit", {}, XPP_KIND_VIEW, CommandCategory::Tools, "Keyboard shortcuts", "Help",

@@ -491,7 +491,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         const front = {...state, diagram: reduceDiagram(state.diagram, {type:'show',shown:ev.kind === 'diagram'}),
           ani: reduceAni(state.ani,{type:'open',open:ev.kind === 'animation'}),
           aplot: reduceAplot(state.aplot,{type:'panel',open:ev.kind === 'array_plot'}),
-          table: {...state.table,open:ev.kind === 'browser'}};
+          table: {...state.table,open:ev.kind === 'data'}};
         if (ev.kind === 'graph') return withPlots(front,select(front.plots,ev.win));
         if (ev.kind === 'diagram') {
           const view = front.diagram.views.findIndex(v => v.name === ev.win);

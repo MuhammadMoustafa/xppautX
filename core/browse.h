@@ -19,19 +19,19 @@ typedef struct {
     int maxrow,maxcol;
     ColumnTable data;
     int istart,iend;
-} BROWSER;
+} DATA_VIEW;
 
 void waitasec(int msec);
 
-void refresh_browser(Session &s, int length);
-void reset_browser(Session &s);
+void refresh_data(Session &s, int length);
+void reset_data(Session &s);
 void new_browse_dat(Session &s, ColumnTable new_dat, int dat_len);
-/* a derived data set (a histogram, the adjoint, the H function) in the browser again with `show` when it exists, else
+/* a derived data set (a histogram, the adjoint, the H function) in the data table again with `show` when it exists, else
    `missing` as the error of `command` */
 Result<> show_derived(Session &s, bool exists, const std::string &command, const std::string &missing, void (*show)(Session &));
-ColumnTable get_browser_data(Session &s);
+ColumnTable get_table_data(Session &s);
 
-void data_get_mybrowser(Session &s, int row);
+void data_get_mytable(Session &s, int row);
 
 /* A file the user named, opened for a write that replaces it only at
    commit (Writer, binary: byte for byte), after asking whether to
@@ -63,14 +63,14 @@ int file_replace_choice(bool open_existing = false);
 /* the stored rows First..Last as XPP's .dat (data_formats.h), only the
    columns of a batch run's "only" list (plotlist) when it has one: the
    batch run's output.dat and the files written beside it */
-void write_mybrowser_data(Session &s, Writer &w);
+void write_mytable_data(Session &s, Writer &w);
 
 /* what Save data writes: the "table" (the rows First..Last of every column), the model's "output" (those rows of
    its output columns: its "only" list when it has one, as --silent's output.dat) or what the plot shows
    ("plot_curves": its curves and frozen curves as one table curve,x,y[,z]); the names are the protocol's */
 enum class DataTarget { table, output, plot_curves };
 inline constexpr std::array<std::string_view, 3> data_target_names = {"table", "output", "plot_curves"};
-/* Save data (the browser's Write, docs/protocol.md): target as above, format a data format's id (data_formats.h),
+/* Save data (the data table's Write, docs/protocol.md): target as above, format a data format's id (data_formats.h),
    name the file; whichever is missing is asked for (a menu, a menu of the formats, a file). The command's replace
    decision is used, or asked for independent of destination existence. The file and the rows written, 0 rows when
    the user cancelled or declined to replace the file; an error for nothing to save or a file that cannot be
@@ -83,7 +83,7 @@ Result<DataSaved> save_data_file(const Session &s, std::optional<DataTarget> tar
                                  std::string_view name);
 /* Save data for a key's menu: its error shown */
 void data_write(const Session &s, std::optional<DataTarget> target, std::string_view format, std::string_view name);
-/* the browser's Load: name (asked for when empty) read as format (by its
+/* the data table's Load: name (asked for when empty) read as format (by its
    extension when empty, else .dat) into s's stored columns, in order; the file and rows loaded (no file when the
    user cancelled the file's question), or why not */
 struct DataLoaded {
@@ -102,7 +102,7 @@ DataTable stored_data_table(const Session &s);
    for them */
 int put_stored_data(Session &s, const DataTable &table);
 
-/* the data column of variable s: 0 for T, i+1 for variable i, a browser
+/* the data column of variable s: 0 for T, i+1 for variable i, a data table
    column added by data_add_col (by name, case ignored, below), -1 for
    none */
 void find_variable(const Session &s, std::string_view name, int *col);
@@ -114,16 +114,16 @@ inline int variable_column(const Session &s, std::string_view name)
   return col;
 }
 
-/* column j's name as s's browser shows it: "T", a model variable's
+/* column j's name as s's data table shows it: "T", a model variable's
    (Model::uvar_names), or (j>Model::neq) an added column's
-   (BrowserState::added_columns below); "" past the last one */
+   (DataState::added_columns below); "" past the last one */
 std::string browse_column_name(const Session &s, int j);
 
 /* col_index's rows 0..nrows-1: formula compiled and evaluated fresh over
    them (add_expr's constants roll back to the Model's own end right
    after, like a histogram condition -- the column is not a symbol a
    later formula can name), into s.data_store.col[col_index].
-   data_add_col's own add, and a fresh run's recompute (refresh_browser)
+   data_add_col's own add, and a fresh run's recompute (refresh_data)
    of every added column, both go through this; the error for
    a formula that no longer compiles */
 Result<> compute_added_column(Session &s, const std::string &formula, int col_index, int nrows);
@@ -140,17 +140,17 @@ struct AddedColumn {
 };
 /* the most rows and columns one block of the table holds (data.page): a page of it, bounded so one event stays
    small; hello.limits tells the page */
-inline constexpr int BROWSER_MAX_ROWS = 2000;
-inline constexpr int BROWSER_MAX_COLS = 500;
+inline constexpr int DATA_MAX_ROWS = 2000;
+inline constexpr int DATA_MAX_COLS = 500;
 /* the block of the table a client shows: its first row, rows (0: none, no block is sent), first column and
-   columns after T, which is always the first value of a row (data.page sets it, the `browser` event sends it) */
-struct BrowserBlock {
+   columns after T, which is always the first value of a row (data.page sets it, the `data.updated` event sends it) */
+struct DataBlock {
   int from = 0, count = 0, col = 1, ncol = 1;
 };
-/* the data browser (browse_data.cpp), a Session's (session.h) */
-struct BrowserState {
+/* the data table (browse_data.cpp), a Session's (session.h) */
+struct DataState {
   /* the data set it shows: the stored data, or a derived set in its place */
-  BROWSER view{};
+  DATA_VIEW view{};
   /* Replace's column as it was, for Unreplace: whether there is one,
      its column and its values */
   int replaced=0,replaced_col=0;
@@ -160,23 +160,23 @@ struct BrowserState {
      Model's (docs/roadmap.md W77 -- the Model stays as the load left
      it). A fresh load clears this with the rest of the Session; a fresh
      run recomputes every one of them over its own rows
-     (recompute_added_columns, refresh_browser) instead of dropping
-     them, since docs/manual/07-data-browser.md promises an added
+     (recompute_added_columns, refresh_data) instead of dropping
+     them, since docs/manual/07-data-table.md promises an added
      column stays computed "as though ... another auxiliary variable". */
   std::vector<AddedColumn> added_columns;
-  BrowserBlock block;
+  DataBlock block;
 };
 /* block's first row and column brought into the data (the last row, the last column), as the data is now */
-void fit_browser_block(Session &s);
+void fit_data_block(Session &s);
 /* the rows of the (fitted) block as JSON, [[T, v, ...], ...], each value in the shortest text that reads back as exactly
    the stored value (the same digits as the data files), null for a number JSON cannot hold */
-std::string browser_block_rows(const Session &s);
+std::string data_block_rows(const Session &s);
 
-/* The browser's operations on the session s (docs/protocol.md "The data browser"): each returns its error as a
-   value; the browser window's keys ask what they need (the data_* functions below) and call the same, as the
+/* The data table's operations on the session s (docs/protocol.md "The data table"): each returns its error as a
+   value; the data table window's keys ask what they need (the data_* functions below) and call the same, as the
    registry's data.* commands call them with their arguments. */
 Column get_data_col(const Session &s, int c);
-/* the browser shows the stored data, not a derived set (the adjoint, a histogram, ...) */
+/* the data table shows the stored data, not a derived set (the adjoint, a histogram, ...) */
 Result<> require_stored_data(const Session &s);
 /* the added column `name` (a column of the stored data, computed from `formula`) deleted, or added */
 Result<> delete_added_column(Session &s, std::string_view name);
@@ -185,7 +185,7 @@ Result<> add_data_column(Session &s, std::string_view name, std::string_view for
    "@column" (its derivative) or a sequence "a:b" (from a to b) or "a;b" (from a, step b); undone by unreplace_column */
 Result<> replace_data_column(Session &s, std::string_view column, std::string_view formula);
 /* Replace's saved column dropped: nothing to Unreplace */
-void wipe_rep(BrowserState &b);
+void wipe_rep(DataState &b);
 Result<> unreplace_column(Session &s);
 /* the row of `column`, from the selected row on, whose value is nearest `value`, made the selected one */
 Result<int> find_in_column(Session &s, std::string_view column, double value);
@@ -197,8 +197,8 @@ Result<std::size_t> tabulate_column(Session &s, std::string_view column, double 
 Result<int> set_first_row(Session &s, int row);
 Result<int> set_last_row(Session &s, int row);
 Result<int> restore_whole_data(Session &s);
-/* the browser at the start of a model: s's stored data, no rows */
-void init_browser(Session &s);
+/* the data table at the start of a model: s's stored data, no rows */
+void init_data(Session &s);
 void get_data_xyz(const Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off);
 /* the stored row `row` made the initial conditions (and the values of the auxiliaries and the time the formulas read) */
 void ic_of_row(Session &s, int row);

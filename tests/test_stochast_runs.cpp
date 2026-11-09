@@ -28,7 +28,7 @@ int main(void)
     char arg0[] = "test_stochast_runs", arg1[] = "tools/models/stoch_runs.odex";
     char *argv[] = {arg0, arg1, NULL};
     CHECK(load_args(2, argv, 1).has_value());
-    init_browser(xpp::client_session());
+    init_data(xpp::client_session());
     init_all_graph(xpp::client_session());
 
     const int ntrials = 400;

@@ -1,4 +1,4 @@
-/* The browser resource's registry rows (W526): the data browser's table (the block of it a client shows), the
+/* The browser resource's registry rows (W526): the data table's table (the block of it a client shows), the
    rows First..Last kept, and what it does to the stored data: find a value, replace a column by a formula (and
    take it back), add and delete columns, tabulate a column, transpose, and load and save data files.
    A handler calls the same core function the browser window's keys do after their forms (browse.h, adj2.h):
@@ -70,7 +70,7 @@ Result<std::string> add_column(Session &s, const Command &, const Arguments &arg
 {
     const std::string &name = args.get<std::string>(NAME_KEY);
     if (const Result<> added = add_data_column(s, name, args.get<std::string>(FORMULA_KEY)); !added) return std::unexpected<Error>(added.error());
-    return ResultObject().text(COLUMN_KEY, s.browser.added_columns.back().name).boolean("added", true).done();
+    return ResultObject().text(COLUMN_KEY, s.data.added_columns.back().name).boolean("added", true).done();
 }
 
 Result<std::string> delete_column(Session &s, const Command &, const Arguments &args, const Place &)
@@ -100,17 +100,17 @@ Result<std::string> export_data(Session &s, const Command &command, const Argume
 
 Result<std::string> page(Session &s, const Command &, const Arguments &args, const Place &)
 {
-    BrowserBlock &block = s.browser.block;
+    DataBlock &block = s.data.block;
     block.from = static_cast<int>(args.get<long long>("from_row"));
     block.count = static_cast<int>(args.get<long long>("count"));
     block.col = static_cast<int>(args.optional<long long>("first_column").value_or(block.col));
     block.ncol = static_cast<int>(args.optional<long long>("columns").value_or(block.ncol));
-    fit_browser_block(s);
-    ui.browser_redraw(0);
+    fit_data_block(s);
+    ui.data_redraw(0);
     return ResultObject()
         .integer("first_row", block.from)
-        .integer("total_rows", s.browser.view.dataflag ? s.browser.view.maxrow : 0)
-        .raw("rows", browser_block_rows(s))
+        .integer("total_rows", s.data.view.dataflag ? s.data.view.maxrow : 0)
+        .raw("rows", data_block_rows(s))
         .done();
 }
 
@@ -145,9 +145,9 @@ constexpr std::array DELETE_ARGUMENTS = {Argument{NAME_KEY, Type::model_name, tr
 constexpr std::array LOAD_ARGUMENTS = {FILE_ASKED, FORMAT};
 constexpr std::array EXPORT_ARGUMENTS = {FILE_ASKED, FORMAT, Argument{TARGET_KEY, Type::choice, false, MAX_TEXT_BYTES, TARGET_CHOICES}};
 constexpr std::array PAGE_ARGUMENTS = {Argument{"from_row", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(MAX_INDEX)},
-                                       Argument{"count", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(BROWSER_MAX_ROWS)},
+                                       Argument{"count", Type::integer, true, MAX_TEXT_BYTES, {}, constant(0), constant(DATA_MAX_ROWS)},
                                        Argument{"first_column", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_INDEX)},
-                                       Argument{"columns", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(BROWSER_MAX_COLS)}};
+                                       Argument{"columns", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(DATA_MAX_COLS)}};
 constexpr std::array TRANSPOSE_ARGUMENTS = {Argument{"first_column", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::column},
                                             Argument{"columns", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_INDEX)},
                                             Argument{"column_skip", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_INDEX)},
@@ -171,7 +171,7 @@ constexpr std::array PAGE_RESULTS = {ResultField{"first_row", "integer"}, Result
 constexpr std::array TRANSPOSE_RESULTS = {ResultField{"transposed_rows", "integer"}, ResultField{"transposed_cols", "integer"}};
 
 constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
-constexpr std::array BROWSER_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DATA_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array PAGE_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::DONE};
 
 constexpr std::array ROWS = {
@@ -180,35 +180,35 @@ constexpr std::array ROWS = {
             EXPORT_RESULTS, STATE_EVENTS, true, export_data, {}, {}, "write", "*"},
     Command{"data.load", LOAD_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Load data", "Data",
             "Read a data file of the model's folder into the table (its columns fill T and the columns after it in order); with no file, ask for one (the result's file is empty when that question was cancelled).",
-            LOAD_RESULTS, BROWSER_EVENTS, true, load, {}, {}},
+            LOAD_RESULTS, DATA_EVENTS, true, load, {}, {}},
     Command{"data.find", FIND_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Find", "",
-            "Select the row, from the selected one on, whose value in a column is nearest a number.", FIND_RESULTS, BROWSER_EVENTS, true, find, {}, {}},
+            "Select the row, from the selected one on, whose value in a column is nearest a number.", FIND_RESULTS, DATA_EVENTS, true, find, {}, {}},
     Command{"data.replace_column", REPLACE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Replace", "",
             "Replace a column of the data by a formula of the columns, '&column' (its running integral), '@column' (its derivative), 'a:b' (from a to b) or 'a;b' (from a in steps of b).",
-            REPLACE_RESULTS, BROWSER_EVENTS, true, replace_column, {}, {}},
+            REPLACE_RESULTS, DATA_EVENTS, true, replace_column, {}, {}},
     Command{"data.undo_replace", {}, XPP_KIND_DATA, CommandCategory::Tools, "Undo replace", "",
-            "Put back the column the last replace overwrote.", UNDO_RESULTS, BROWSER_EVENTS, true, undo_replace, {}, {}},
+            "Put back the column the last replace overwrote.", UNDO_RESULTS, DATA_EVENTS, true, undo_replace, {}, {}},
     Command{"data.tabulate_column", TABULATE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Tabulate column", "",
             "Write the rows kept between First and Last of a column as a lookup table over x_low to x_high into a file of the model's folder.",
             TABULATE_RESULTS, STATE_EVENTS, true, tabulate, {}, {}, "write", "*.tab"},
     Command{"data.set_slice_start", SLICE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "First row", "",
-            "Keep the data from a row on (the first is 0) for saving and tabulating, and select that row.", START_RESULTS, BROWSER_EVENTS, true,
+            "Keep the data from a row on (the first is 0) for saving and tabulating, and select that row.", START_RESULTS, DATA_EVENTS, true,
             set_slice_start, {}, {}},
     Command{"data.set_slice_end", SLICE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Last row", "",
-            "Keep the data up to and including a row for saving and tabulating, and select that row.", END_RESULTS, BROWSER_EVENTS, true,
+            "Keep the data up to and including a row for saving and tabulating, and select that row.", END_RESULTS, DATA_EVENTS, true,
             set_slice_end, {}, {}},
     Command{"data.restore_full_slice", {}, XPP_KIND_DATA, CommandCategory::Tools, "All rows", "",
-            "Keep all the data again, from the first row to the last, and replot it in the selected graph.", RESTORE_RESULTS, BROWSER_EVENTS,
+            "Keep all the data again, from the first row to the last, and replot it in the selected graph.", RESTORE_RESULTS, DATA_EVENTS,
             true, restore_full_slice, {}, {}},
     Command{"data.add_column", ADD_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Add column", "",
             "Add a column computed from a formula of the others, now and after every run, as though it were another auxiliary quantity.",
-            ADD_RESULTS, BROWSER_EVENTS, true, add_column, {}, {}},
+            ADD_RESULTS, DATA_EVENTS, true, add_column, {}, {}},
     Command{"data.delete_column", DELETE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Delete column", "",
-            "Delete a column made by add_column (time and the model's columns stay; a plotted one is refused).", DELETE_RESULTS, BROWSER_EVENTS,
+            "Delete a column made by add_column (time and the model's columns stay; a plotted one is refused).", DELETE_RESULTS, DATA_EVENTS,
             true, delete_column, {}, {}},
     Command{"data.transpose", TRANSPOSE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Transpose data", "",
             "Show the stored data transposed in the table: columns columns from first_column in steps of column_skip, and rows rows from first_row in steps of row_skip, each column a row; left out, the last values.",
-            TRANSPOSE_RESULTS, BROWSER_EVENTS, true, transpose},
+            TRANSPOSE_RESULTS, DATA_EVENTS, true, transpose},
     Command{"data.page", PAGE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Browser page", "",
             "Choose the block of the table the client shows: rows from_row on (at most the limit hello gives), count rows (0 stops the block's events), the columns after T from first_column; answered at once, even during a computation.",
             PAGE_RESULTS, PAGE_EVENTS, false, page, {}, {}},};

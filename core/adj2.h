@@ -70,7 +70,7 @@ void make_adj_com(Session &s, int com);
 Result<> new_adjoint(Session &s);
 Result<> new_h_fun(Session &s, bool compile, const std::vector<std::string> *couplings = nullptr);
 Result<> make_h(Session &s, ColumnTable orb, ColumnTable adj, ColumnTable h, int nt);
-/* the adjoint, the orbit and the H function in the data browser, or why there is none */
+/* the adjoint, the orbit and the H function in the data table, or why there is none */
 Result<> load_adjoint(Session &s);
 Result<> load_interaction(Session &s);
 /* the adjoint's iterations and tolerance, or why they are not ones it takes */

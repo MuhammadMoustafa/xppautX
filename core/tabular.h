@@ -51,7 +51,7 @@ Result<> eval_fun_table(Session &s, int index, int n, double xlo, double xhi, co
 /* the session s's tables: @ autoeval= for each, View, Numerics' tables
    menu (i: 0 view, 1 edit) and which table it picks, -1 for none */
 void set_autox_eval_flags(Session &s, int f);
-/* table index's values in the data browser: the rows shown, or why they cannot be */
+/* table index's values in the data table: the rows shown, or why they cannot be */
 Result<int> view_table(Session &s, int index);
 /* the model's table of that name, or why there is none */
 Result<int> find_table(const Session &s, std::string_view name);

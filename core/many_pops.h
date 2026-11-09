@@ -19,20 +19,20 @@ struct XppPlotWindows {
 };
 
 /* The windows that are neither graphs nor autoX views have a name each, fixed
-   and reserved (window_name_problem): the data browser, the animation and
+   and reserved (window_name_problem): the data table, the animation and
    the array plot (W515). */
-inline constexpr std::string_view BROWSER_WINDOW = "browser", ANIMATION_WINDOW = "animation",
+inline constexpr std::string_view DATA_WINDOW = "data", ANIMATION_WINDOW = "animation",
                                   ARRAY_PLOT_WINDOW = "array_plot_1";
 /* whether each of them is hidden (a window hidden keeps everything it holds) */
 struct ToolWindowsHidden {
-    bool browser = false, animation = false, array_plot = false;
+    bool data = false, animation = false, array_plot = false;
 };
 
 struct Session; /* session.h */
 
 /* Names on every external boundary; numeric handles stay in drawing code. */
 inline constexpr std::size_t WINDOW_NAME_BYTES = 1024; // Bound names supplied by clients and files.
-enum class WindowKind { graph, diagram, browser, animation, array_plot };
+enum class WindowKind { graph, diagram, data, animation, array_plot };
 struct WindowTarget { WindowKind kind; int index; };
 std::optional<WindowTarget> find_window(const Session &s, std::string_view name);
 /* every open window, in the order window.list gives them */

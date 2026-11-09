@@ -32,8 +32,8 @@ import type {TextTab} from './store/text';
 import {fieldKey, valueCommands, type ValueSet} from './store/values';
 import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from './store/autoxSettings';
 
-/** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
-export type BrowserOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'first' | 'last'
+/** the data table's buttons (docs/protocol.md data.* commands; web/xpp-client.js's BROWSER_BUTTONS) */
+export type DataOp = 'find' | 'replace' | 'unreplace' | 'table' | 'load' | 'first' | 'last'
   | 'restore' | 'addcol' | 'delcol' | 'transpose';
 
 /** the autoX window's buttons (toolbarCommand names the registry command of each); Close is session.closeAutox */
@@ -962,7 +962,7 @@ export class Session {
     this.send({cmd: 'button.run', index});
   }
 
-  /* ---- data table (docs/ui-v2.md T10, docs/protocol.md `browser`) ---- */
+  /* ---- data table (docs/ui-v2.md T10, docs/protocol.md "The data table") ---- */
 
   openTable(): void {
     this.store.dispatch({type: 'table', action: {type: 'open', open: true}});
@@ -982,7 +982,7 @@ export class Session {
   /** the rows [visibleFrom, visibleFrom+visibleCount) the view can see: asks
       for a new block only when the cached one does not cover them, and
       never twice for the same block (store/table.ts planRequest). A
-      `browser` request with `from` is a control line, answered at once
+      `data.page` request is a control line, answered at once
       even during a job or a prompt (docs/protocol.md), so this never waits
       on `state.busy`. */
   fetchTableRows(visibleFrom: number, visibleCount: number): void {
@@ -997,11 +997,11 @@ export class Session {
   }
 
   /** one of the browser's buttons, on the selected row (docs/protocol.md
-      `browser` op; Find, Replace, Table, Load and Write prompt through the
+      data.* commands; Find, Replace, Table, Load and Write prompt through the
       ordinary `ask`, AskDialog already shows) */
-  browserOp(op: BrowserOp): void {
+  dataOp(op: DataOp): void {
     const row = this.store.getState().table.selected;
-    const command = toolbarCommand('browser', op);
+    const command = toolbarCommand('data', op);
     if (['first', 'last'].includes(op)) this.send({cmd:command,row});
     else this.registryAction(command);
   }

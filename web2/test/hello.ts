@@ -123,13 +123,13 @@ export const HELLO: HelloEvent = {
   ],
   upload_error: 'larger than 64 MB',
   player_speed: {min: 0.25, max: 8},
-  limits: {upload: 64 * 1024 * 1024, browser_rows: 2000, browser_cols: 500},
+  limits: {upload: 64 * 1024 * 1024, data_rows: 2000, data_cols: 500},
   text: {max_length: 1000, size_max: 4, default_size: 2},
   text_styles: ['normal', 'bold', 'italic', 'bold_italic'],
   line_styles: LINE_GEOMETRY,
   annotation_glyphs: ANNOTATION_GLYPHS,
   colormaps: ['jet', 'viridis', 'plasma'],
-  window_names: {main:'graph_1',autox:'diagram_1',ani:'animation',aplot:'array_plot_1',browser:'browser'},
+  window_names: {main:'graph_1',autox:'diagram_1',ani:'animation',aplot:'array_plot_1',data:'data'},
 };
 
 /** the state after the server's hello: every event but hello comes after one */

@@ -65,11 +65,11 @@ void  get_max(const xpp::Session &s, int index, double *vmin, double *vmax)
 {
    double x0,x1,z,temp;
    int i;
-   x0=s.browser.view.data[index][0];
+   x0=s.data.view.data[index][0];
    x1=x0;
-   for(i=0;i<s.browser.view.maxrow;i++)
+   for(i=0;i<s.data.view.maxrow;i++)
    {
-    z=s.browser.view.data[index][i];
+    z=s.data.view.data[index][i];
     if(z<x0)x0=z;
     if(z>x1)x1=z;
    }
@@ -175,7 +175,7 @@ xpp::Result<> vector_restore(xpp::Session &s)
 {
   redraw_dfield(s);
   if (s.plot_windows.current->Nullrestore) restore_nullclines(s);
-  xpp::restore(s,0,s.browser.view.maxrow);
+  xpp::restore(s,0,s.data.view.maxrow);
   do_axes(s);
   draw_label(s,s.plot_windows.draw_win);
   draw_freeze(s,s.plot_windows.draw_win);
@@ -272,7 +272,7 @@ Result<> plot_variables(xpp::Session &s,PlotHow how,std::span<const int> variabl
     break;
   case PlotHow::array_plot:
     if(list.size()!=2||list[0]>=list[1])return fail("plot","An array plot goes from one variable to a later one: give those two",command_place());
-    if(s.browser.view.maxrow<2)return fail("plot","An array plot needs stored data: run first",command_place());
+    if(s.data.view.maxrow<2)return fail("plot","An array plot needs stored data: run first",command_place());
     optimize_aplot(s,list.data());
     break;
   }

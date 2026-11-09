@@ -560,7 +560,7 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range)
     largest=std::max(largest,static_cast<double>(s.data_store.col[1][i]));
   }
   s.data_store.rows=s.adjoint.liap_i;
-  refresh_browser(s,s.data_store.rows);
+  refresh_data(s,s.data_store.rows);
   return LyapunovResult{s.adjoint.liap_i>0?static_cast<double>(largest):0.0,done.runs};
 }
 

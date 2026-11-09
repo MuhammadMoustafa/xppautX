@@ -63,7 +63,7 @@ Result<std::string> stochastic_integrate_handler(Session &s, const Command &, co
     return ResultObject().integer("trials_completed", *runs).done();
 }
 
-/* the stored data of the last run in the data browser again */
+/* the stored data of the last run in the data table again */
 Result<std::string> load_data(Session &s, const Command &, const Arguments &, const Place &)
 {
     data_back(s);
@@ -371,7 +371,7 @@ constexpr std::array ADJOINT_RANGE_RESULTS = {ResultField{"adjoint_range", "bool
 
 constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array RUN_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JOB_PROGRESS, xpp::events::PLOT_SERIES, xpp::events::JOB_STOPPED, xpp::events::SESSION_STATE, xpp::events::DONE};
-constexpr std::array BROWSER_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::SESSION_STATE, xpp::events::DONE};
+constexpr std::array DATA_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array SHOWN_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::PLOT_SHOWN, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array PLOT_EVENTS = {xpp::events::PLOT_SHOWN, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array DONE_EVENTS = {xpp::events::DONE};
@@ -386,7 +386,7 @@ constexpr std::array ROWS = {
     Command{"histogram.compute_2d", HISTOGRAM_2D_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "2D histogram", "Analysis/Statistics",
             "Make the two-dimensional histogram of two columns of the stored data.", HISTOGRAM_2D_RESULTS, SHOWN_EVENTS, true, histogram_2d_handler, {}, {}, "read", "*", "analysis:histogram,histogram2"},
     Command{"histogram.show_last", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show last histogram", "Analysis/Statistics",
-            "Show the last histogram in the data browser again.", RELOADED_RESULTS, SHOWN_EVENTS, true, done_with<reload_histogram, RELOADED>},
+            "Show the last histogram in the data table again.", RELOADED_RESULTS, SHOWN_EVENTS, true, done_with<reload_histogram, RELOADED>},
     Command{"statistics.compute", COLUMN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Column statistics", "Analysis/Statistics",
             "The mean, variance and standard deviation of a column of the stored data.", STATISTICS_RESULTS, DONE_EVENTS, true, statistics_handler},
     Command{"fit.parameters", FIT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Fit data", "Analysis/Statistics",
@@ -396,7 +396,7 @@ constexpr std::array ROWS = {
             "The maximal Liapunov exponent of the stored orbit, or with range_over_parameters one for each run of a sweep of the Range settings.",
             LYAPUNOV_RESULTS, SHOWN_EVENTS, true, lyapunov_handler},
     Command{"spectrum.fourier_series", COLUMN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Fourier series", "Analysis/Spectra",
-            "Make the Fourier series of a column of the stored data.", HARMONICS_RESULTS, BROWSER_EVENTS, true, transform_handler<compute_fourier, HARMONICS>},
+            "Make the Fourier series of a column of the stored data.", HARMONICS_RESULTS, DATA_EVENTS, true, transform_handler<compute_fourier, HARMONICS>},
     Command{"spectrum.power", COLUMN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Power spectrum", "Analysis/Spectra",
             "Make the power spectrum of a column of the stored data: each harmonic's amplitude and phase.", FREQUENCIES_RESULTS, SHOWN_EVENTS, true,
             transform_handler<compute_power, FREQUENCIES>},
@@ -413,11 +413,11 @@ constexpr std::array ROWS = {
             "Run the model as many times as trials (the Range settings' steps plus one), keeping the mean and variance of the runs.",
             TRIALS_RESULTS, RUN_EVENTS, true, stochastic_integrate_handler},
     Command{"stochastic.show_run", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show last run data", "Analysis/Stochastic",
-            "Show the data of the last run in the data browser again.", LOADED_RESULTS, BROWSER_EVENTS, true, load_data},
+            "Show the data of the last run in the data table again.", LOADED_RESULTS, DATA_EVENTS, true, load_data},
     Command{"stochastic.show_mean", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show mean", "Analysis/Stochastic",
-            "Show the mean of the stochastic runs in the data browser.", LOADED_RESULTS, BROWSER_EVENTS, true, done_with<mean_back, LOADED>},
+            "Show the mean of the stochastic runs in the data table.", LOADED_RESULTS, DATA_EVENTS, true, done_with<mean_back, LOADED>},
     Command{"stochastic.show_variance", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show variance", "Analysis/Stochastic",
-            "Show the variance of the stochastic runs in the data browser.", LOADED_RESULTS, BROWSER_EVENTS, true, done_with<variance_back, LOADED>},
+            "Show the variance of the stochastic runs in the data table.", LOADED_RESULTS, DATA_EVENTS, true, done_with<variance_back, LOADED>},
     Command{"stochastic.set_seed", SEED_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Set seed", "Analysis/Stochastic",
             "Seed the random numbers of the next run.", SEED_RESULTS, STATE_EVENTS, true, seed_random},
     Command{"adjoint.compute", {}, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Compute adjoint", "Analysis/Adjoint",
@@ -429,11 +429,11 @@ constexpr std::array ROWS = {
             "Have the next range run also compute the orbit, adjoint and H function at each step; the range itself is run.range.",
             ADJOINT_RANGE_RESULTS, STATE_EVENTS, true, adjoint_range},
     Command{"adjoint.show", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show adjoint", "Analysis/Adjoint",
-            "Show the adjoint in the data browser.", LOADED_RESULTS, BROWSER_EVENTS, true, done_with<load_adjoint, LOADED>},
+            "Show the adjoint in the data table.", LOADED_RESULTS, DATA_EVENTS, true, done_with<load_adjoint, LOADED>},
     Command{"adjoint.show_orbit", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show orbit", "Analysis/Adjoint",
-            "Show the orbit in the data browser.", LOADED_RESULTS, BROWSER_EVENTS, true, load_data},
+            "Show the orbit in the data table.", LOADED_RESULTS, DATA_EVENTS, true, load_data},
     Command{"adjoint.show_h_function", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show H function", "Analysis/Adjoint",
-            "Show the interaction (H) function in the data browser.", LOADED_RESULTS, BROWSER_EVENTS, true, done_with<load_interaction, LOADED>},
+            "Show the interaction (H) function in the data table.", LOADED_RESULTS, DATA_EVENTS, true, done_with<load_interaction, LOADED>},
     Command{"adjoint.configure", ADJOINT_CONFIGURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Adjoint settings", "Analysis/Adjoint",
             "Set the adjoint's maximum iterations and error tolerance.", UPDATED_RESULTS, STATE_EVENTS, true, adjoint_configure},
     Command{"plot.set_torus", TORUS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Phase space torus", "Analysis",

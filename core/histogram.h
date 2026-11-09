@@ -44,7 +44,7 @@ inline constexpr int spectrum_type_of(AfterRun a) { return static_cast<int>(a) -
 /* histogram.cpp's settings and results, a Session's (session.h): the
    histogram and spectrum settings, the last histogram and Fourier
    transform's columns (storage.h's LentColumns: read back by the data
-   browser and the tests),
+   data table and the tests),
    whether one exists and its length, and the spectrum's settings (the
    model's own @ options set spec_*) and a batch run's post-processing */
 struct HistogramState {

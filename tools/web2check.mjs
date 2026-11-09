@@ -778,7 +778,7 @@ async function dataTable(want, dir) {
      data.restore_full_slice on the selected row; the browser block tells the rows kept */
   const sliceSent = await cdp.eval('__xpp.sentCount()');
   /* the button of the toolbar's form that shows (menus where the dock is narrow), its menu opened first */
-  const buttonOf = op => `(() => { const b = [...document.querySelectorAll('[data-button="browser:${op}"]')].find(b => { const g = b.closest('.table-group'); return !g || getComputedStyle(g).display !== 'none'; });
+  const buttonOf = op => `(() => { const b = [...document.querySelectorAll('[data-button="data:${op}"]')].find(b => { const g = b.closest('.table-group'); return !g || getComputedStyle(g).display !== 'none'; });
     const d = b.closest('details'); if (d) d.open = true; b.click(); })()`;
   await key('ArrowUp'); /* row 498 */
   await cdp.eval(buttonOf('first'));
@@ -809,7 +809,7 @@ async function dataTable(want, dir) {
   check('W648: no page-made Export CSV button is left in the header',
     await cdp.eval(`[...document.querySelectorAll('.table-panel .panel-header > button, .table-panel .table-title > button, .table-panel .table-actions > button')].map(b => b.textContent.trim()).join('|')`) === 'Back to Values|×|?|Load data',
     await cdp.eval(`[...document.querySelectorAll('.table-panel .panel-header > button, .table-panel .table-title > button, .table-panel .table-actions > button')].map(b => b.textContent.trim()).join('|')`));
-  const head = await cdp.eval(`(() => { const r = q => document.querySelector(q).getBoundingClientRect(), p = r('#table-panel'), t = r('.table-title'), l = r('[data-button="browser:load"]'), e = r('[data-sets-menu="table-export"] > summary'), b = r('.table-back');
+  const head = await cdp.eval(`(() => { const r = q => document.querySelector(q).getBoundingClientRect(), p = r('#table-panel'), t = r('.table-title'), l = r('[data-button="data:load"]'), e = r('[data-sets-menu="table-export"] > summary'), b = r('.table-back');
     return {sameRow: Math.abs(l.top - e.top) < 1, exportAfterLoad: e.left >= l.right, secondRow: l.top > t.bottom - 1, backRight: Math.abs(p.right - b.right) < 20, backFirstRow: b.top < t.bottom, titleLeft: t.left - p.left < 20}; })()`);
   check('W648: the header has the title and ? left, Back to Values far right, Load data and Export data on one row under the title when narrow', Object.values(head).every(Boolean), JSON.stringify(head));
   const dataCsvName = await S('s.hello.output_names.csv');
@@ -1599,7 +1599,7 @@ async function phone() {
   await clickRegistry('data.open');
   await until('s.table.open', 'phone table');
   const fits = async () => { await rendered(); return cdp.eval(`(() => { const p = document.querySelector('#table-panel'), g = document.querySelector('.table-grid-wrap'), h = document.querySelector('.table-panel .panel-header');
-    const [l, e] = ['[data-button="browser:load"]', '[data-sets-menu="table-export"] > summary'].map(q => document.querySelector(q).getBoundingClientRect());
+    const [l, e] = ['[data-button="data:load"]', '[data-sets-menu="table-export"] > summary'].map(q => document.querySelector(q).getBoundingClientRect());
     const inside = [...p.querySelectorAll('.table-tools button, .table-tools summary, .table-info button, .panel-header button, .panel-header summary')].filter(b => b.offsetParent && b.getBoundingClientRect().right > p.getBoundingClientRect().right + 0.5).map(b => b.textContent + ' ' + Math.round(b.getBoundingClientRect().right) + '>' + Math.round(p.getBoundingClientRect().right));
     return {panel: p.scrollWidth <= p.clientWidth, page: document.documentElement.scrollWidth <= innerWidth, gridScrolls: g.scrollWidth > g.clientWidth, inside: inside.length === 0 || inside, sameSize: Math.abs(l.height - e.height) < 1, header: (() => { const r = q => document.querySelector(q).getBoundingClientRect(), t = r('.table-title'), pr = p.getBoundingClientRect(), back = r('.table-back'), close = r('.table-close');
       const rightBtn = back.width ? back : null; return {loadExportOneRow: Math.abs(l.top - e.top) < 1, titleTogether: document.querySelector('.table-title h2').getBoundingClientRect().top === document.querySelector('.table-title > button').getBoundingClientRect().top || Math.abs(document.querySelector('.table-title h2').getBoundingClientRect().top - document.querySelector('.table-title > button').getBoundingClientRect().top) < 12,
@@ -6461,7 +6461,7 @@ async function panelsCheck() {
   await clickRegistry('values.open');
   check('W517: Values remains reachable from Data', await until('s.valuesOpen', 'values'));
   await clickRegistry('data.open');
-  check('W517: browser remains reachable from Data', await until('s.table.open', 'browser'));
+  check('W517: browser remains reachable from Data', await until('s.table.open', 'data'));
   await cdp.eval(`document.querySelector('.table-back').click()`);
   await until('!s.table.open', 'table closed');
   await cdp.eval(`document.querySelector('.values-back').click()`);

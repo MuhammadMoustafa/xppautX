@@ -5,11 +5,11 @@
    it end to end. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import type {BrowserEvent} from '../src/protocol/types';
+import type {DataEvent} from '../src/protocol/types';
 import {initialTable, planRequest, reduceTable, rowAt} from '../src/store/table';
 import {HELLO} from './hello';
 
-const page = (over: Partial<BrowserEvent> = {}): BrowserEvent => ({
+const page = (over: Partial<DataEvent> = {}): DataEvent => ({
   ev: 'data.updated', rows: 601, cols: ['T', 'V', 'W'], row0: 0, start: 0, end: 601, from: 0, col: 1,
   data: [[0, -0.144, 0.03], [0.05, -0.1438, 0.0301]],
   ...over,
@@ -61,7 +61,7 @@ test('rowAt reads a row out of the cached page, or null off it', () => {
   assert.equal(rowAt(null, 0), null);
 });
 
-test('a browser event replaces the page and clears the pending request', () => {
+test('a data event replaces the page and clears the pending request', () => {
   let s = reduceTable(initialTable, {type: 'requested', req: {from: 0, count: 10, col: 1, ncol: 500}});
   assert.ok(s.pendingKey);
   s = reduceTable(s, {type: 'event', ev: page()});

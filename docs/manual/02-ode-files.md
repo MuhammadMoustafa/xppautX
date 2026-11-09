@@ -565,7 +565,7 @@ You can directly input tabulated functions as well to speed up computations with
 
 will produce a table of the hyperbolic tangent function from -10 to 10 consisting of 501 points.
 
-Using the data browser, you can create tabulated data from a simulation to use later in a different simulation as a function or as input or whatever.
+Using the data table, you can create tabulated data from a simulation to use later in a different simulation as a function or as input or whatever.
 
 The “global” declaration allows you to set some conditions and then if these conditions hold reset dynamic variables according to the conditions. The form of “global” declarations is:
 

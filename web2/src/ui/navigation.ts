@@ -47,7 +47,7 @@ export function paletteRows(rows: CommandRow[], query: string): CommandRow[] {
 export function toolbarCommand(window: string, id: string): string {
   const commands: Record<string, Record<string, string>> = {
     autox: {axes: 'autox.configure_axes', numerics: 'autox.configure_numerics', run: 'autox.run', grab: 'autox.grab', usr: 'autox.configure_marks', clear: 'autox.hide_earlier', redraw: 'autox.redraw'},
-    browser: {find: 'data.find', replace: 'data.replace_column', unreplace: 'data.undo_replace', table: 'data.tabulate_column', load: 'data.load', first: 'data.set_slice_start', last: 'data.set_slice_end', restore: 'data.restore_full_slice', addcol: 'data.add_column', delcol: 'data.delete_column', transpose: 'data.transpose'},
+    data: {find: 'data.find', replace: 'data.replace_column', unreplace: 'data.undo_replace', table: 'data.tabulate_column', load: 'data.load', first: 'data.set_slice_start', last: 'data.set_slice_end', restore: 'data.restore_full_slice', addcol: 'data.add_column', delcol: 'data.delete_column', transpose: 'data.transpose'},
     ani: {file: 'animation.load', grab: 'animation.grab_point'},
     aplot: {redraw: 'array_plot.redraw', edit: 'array_plot.configure', fit: 'array_plot.fit', range: 'array_plot.range', print: 'array_plot.export_pdf', gif: 'array_plot.export_gif'},
   };

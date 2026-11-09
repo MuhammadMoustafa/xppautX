@@ -384,7 +384,7 @@ bool load(const std::string &ode, const xpp::SavedModel *saved = nullptr)
     std::string arg0 = "test_session_autox", arg1 = ode;
     char *argv[] = {arg0.data(), arg1.data(), nullptr};
     if (!load_args(2, argv, 1, saved)) return false;
-    init_browser(xpp::client_session());
+    init_data(xpp::client_session());
     init_all_graph(xpp::client_session());
     xpp::client_session().plot_windows.graph[0].Use = 1;
     return true;

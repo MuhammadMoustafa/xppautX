@@ -132,7 +132,7 @@ int main(void)
 
     CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
-    init_browser(s);
+    init_data(s);
     init_all_graph(s);
 
     /* XPPAUT's set file imported whole, nothing written beside it (the 2013 file counts the model's 4 equations and

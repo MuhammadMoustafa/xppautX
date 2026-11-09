@@ -34,7 +34,7 @@ std::optional<WindowTarget> find_window(const Session &s, std::string_view name)
     if (s.autox_state.bifur.exist)
         for (int i=0;i<static_cast<int>(s.autox_state.views.size());++i)
             if (s.autox_state.views[i].name==name) return WindowTarget{WindowKind::diagram,i};
-    if (name==BROWSER_WINDOW) return WindowTarget{WindowKind::browser,0};
+    if (name==DATA_WINDOW) return WindowTarget{WindowKind::data,0};
     if (name==ANIMATION_WINDOW && s.animation.vcr.iexist) return WindowTarget{WindowKind::animation,0};
     if (name==ARRAY_PLOT_WINDOW && s.array_plot.plot.alive) return WindowTarget{WindowKind::array_plot,0};
     return std::nullopt;
@@ -45,7 +45,7 @@ std::string_view window_kind_name(WindowKind kind)
     switch (kind) {
     case WindowKind::graph: return "graph";
     case WindowKind::diagram: return "diagram";
-    case WindowKind::browser: return "browser";
+    case WindowKind::data: return "data";
     case WindowKind::animation: return "animation";
     case WindowKind::array_plot: return "array_plot";
     }
@@ -57,7 +57,7 @@ bool window_hidden(const Session &s, const WindowTarget &target)
     switch (target.kind) {
     case WindowKind::graph: return s.plot_windows.graph[target.index].hidden;
     case WindowKind::diagram: return s.autox_state.views[target.index].hidden;
-    case WindowKind::browser: return s.tools_hidden.browser;
+    case WindowKind::data: return s.tools_hidden.data;
     case WindowKind::animation: return s.tools_hidden.animation;
     case WindowKind::array_plot: return s.tools_hidden.array_plot;
     }
@@ -69,7 +69,7 @@ void set_window_hidden(Session &s, const WindowTarget &target, bool hidden)
     switch (target.kind) {
     case WindowKind::graph: s.plot_windows.graph[target.index].hidden = hidden; break;
     case WindowKind::diagram: s.autox_state.views[target.index].hidden = hidden; break;
-    case WindowKind::browser: s.tools_hidden.browser = hidden; break;
+    case WindowKind::data: s.tools_hidden.data = hidden; break;
     case WindowKind::animation: s.tools_hidden.animation = hidden; break;
     case WindowKind::array_plot: s.tools_hidden.array_plot = hidden; break;
     }
@@ -109,7 +109,7 @@ std::vector<WindowInfo> list_windows(const Session &s)
         if (s.plot_windows.graph[i].Use) add(s.plot_windows.graph[i].name, {WindowKind::graph,i});
     if (s.autox_state.bifur.exist)
         for (int i=0;i<static_cast<int>(s.autox_state.views.size());++i) add(s.autox_state.views[i].name, {WindowKind::diagram,i});
-    if (s.model().loaded()) add(std::string(BROWSER_WINDOW), {WindowKind::browser,0});
+    if (s.model().loaded()) add(std::string(DATA_WINDOW), {WindowKind::data,0});
     if (s.animation.vcr.iexist) add(std::string(ANIMATION_WINDOW), {WindowKind::animation,0});
     if (s.array_plot.plot.alive) add(std::string(ARRAY_PLOT_WINDOW), {WindowKind::array_plot,0});
     return windows;
@@ -138,7 +138,7 @@ std::string_view fixed_window_name(XppWinId handle)
 std::string window_name_problem(std::string_view name)
 {
     if (name.empty() || name.size()>WINDOW_NAME_BYTES) return xpp::format("A window name has 1 to {} UTF-8 bytes",WINDOW_NAME_BYTES);
-    if (name==BROWSER_WINDOW || name==ANIMATION_WINDOW || name==ARRAY_PLOT_WINDOW) return xpp::format("\"{}\" is the name of a window of its own",name);
+    if (name==DATA_WINDOW || name==ANIMATION_WINDOW || name==ARRAY_PLOT_WINDOW) return xpp::format("\"{}\" is the name of a window of its own",name);
     if (name.front()==' ' || name.back()==' ') return "A window name has no leading or trailing space";
     for (unsigned char ch:name) if (ch<0x20 || ch==0x7f) return "A window name has no control characters";
     return {};

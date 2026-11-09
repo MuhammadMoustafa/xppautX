@@ -66,7 +66,7 @@ int main(void)
     char *argv[] = {arg0, path.data(), NULL};
     CHECK(load_args(2, argv, 1).has_value());
     xpp::Session &s = xpp::client_session();
-    init_browser(s);
+    init_data(s);
     init_all_graph(s);
     const xpp::Model &m = s.model();
     CHECK(m.node == EQUATIONS && m.neq == EQUATIONS + 1 && m.nupar == PARAMETERS);
@@ -97,7 +97,7 @@ int main(void)
     const std::string table = temp.file("table.dat");
     {
         xpp::Writer w(table);
-        write_mybrowser_data(s, w);
+        write_mytable_data(s, w);
         CHECK(w.commit().has_value());
     }
     CHECK(lines_of(table) == rows);

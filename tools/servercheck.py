@@ -1395,7 +1395,7 @@ def check_registry():
         check('registry: rename reports exact old and new names', result == {'window': 'phase plane', 'new_name': 'Phase "plane"'} and
               any(e.get('ev') == 'window.renamed' and e.get('new_name') == 'Phase "plane"' for e in evs))
         request({'cmd':'window.hide','window':'Phase "plane"'})
-        request({'cmd':'window.hide','window':'browser'})
+        request({'cmd':'window.hide','window':'data'})
         snd(cmd='session.save_as', file='named windows.snapx', data=False)
         col(lambda e: e.get('ev') == 'done')
         request({'cmd':'window.rename','window':'Phase "plane"','name':'Temporary name'})
@@ -1411,10 +1411,10 @@ def check_registry():
                   and 'Phase "plane"' in [w['win'] for w in e['windows']] for e in restored))
         result, _ = request({'cmd': 'window.list'})
         shown = {w['name']: w['shown'] for w in result['windows']}
-        check('window.hide: the session file keeps hidden windows (a graph and the data browser)',
-              shown.get('Phase "plane"') is False and shown.get('browser') is False and shown.get('graph_1') is True, str(shown))
+        check('window.hide: the session file keeps hidden windows (a graph and the data table)',
+              shown.get('Phase "plane"') is False and shown.get('data') is False and shown.get('graph_1') is True, str(shown))
         request({'cmd': 'window.show', 'window': 'Phase "plane"'})
-        request({'cmd': 'window.show', 'window': 'browser'})
+        request({'cmd': 'window.show', 'window': 'data'})
         request({'cmd': 'window.select', 'window': 'phase plane'}, False)
         request({'cmd': 'window.select', 'window': 'Phase "plane"'})
         result, _ = request('window.set_redraw_mode --mode manual --id "mode"', client_id='mode')
@@ -1448,7 +1448,7 @@ def check_registry():
         listed = {w['name']: w for w in result['windows']}
         check('window.list: every window with its kind and whether it is shown',
               listed['kept'] == {'name': 'kept', 'kind': 'graph', 'shown': False} and listed['graph_1']['shown'] is True and
-              listed['browser'] == {'name': 'browser', 'kind': 'browser', 'shown': True}, str(result))
+              listed['data'] == {'name': 'data', 'kind': 'data', 'shown': True}, str(result))
         result, _ = request({'cmd': 'window.show', 'window': 'kept'})
         check('window.show: the window comes back', result == {'window': 'kept', 'shown': True})
         snd(cmd='annotation.list', window='kept')
@@ -1458,14 +1458,14 @@ def check_registry():
         check('a model\'s animation (lecar names ml.anix) is offered: its window is listed, hidden',
               {'name': 'animation', 'kind': 'animation', 'shown': False} in result.get('windows', []), str(result))
         for refused in [{'cmd': 'window.show', 'window': 'array_plot_1'},
-                        {'cmd': 'window.hide', 'window': 'nothing'}, {'cmd': 'window.close', 'window': 'browser'},
-                        {'cmd': 'window.rename', 'window': 'browser', 'name': 'data'}, 
-                        {'cmd': 'window.new', 'name': 'browser'}, {'cmd': 'window.hide', 'confirm': True},
+                        {'cmd': 'window.hide', 'window': 'nothing'}, {'cmd': 'window.close', 'window': 'data'},
+                        {'cmd': 'window.rename', 'window': 'data', 'name': 'table'}, 
+                        {'cmd': 'window.new', 'name': 'data'}, {'cmd': 'window.hide', 'confirm': True},
                         {'cmd': 'window.list', 'window': 'kept'}, {'cmd': 'window.close', 'window': 'kept', 'confirm': 1}]:
             request(refused, False)
-        result, _ = request({'cmd': 'window.hide', 'window': 'browser'})
-        result, _ = request({'cmd': 'window.show', 'window': 'browser'})
-        check('window.hide and show take the data browser', result == {'window': 'browser', 'shown': True})
+        result, _ = request({'cmd': 'window.hide', 'window': 'data'})
+        result, _ = request({'cmd': 'window.show', 'window': 'data'})
+        check('window.hide and show take the data table', result == {'window': 'data', 'shown': True})
         # a graph that holds a text asks before it is destroyed: the answer decides
         counter += 1
         snd(cmd='window.close', window='kept', id='declined')
@@ -1500,9 +1500,9 @@ def check_registry():
                         {'cmd': 'window.zoom_in', 'x_min': 1, 'x_max': 0, 'y_min': 0, 'y_max': 1}, {'cmd': 'window.zoom_out'},
                         {'cmd': 'window.zoom_out', 'factor': 2, 'x_min': 0, 'x_max': 1, 'y_min': 0, 'y_max': 1},
                         {'cmd': 'window.zoom_out', 'factor': 0.5}, {'cmd': 'window.zoom_out', 'factor': 2, 'center_x': 1},
-                        {'cmd': 'window.scroll', 'dx': 1}, {'cmd': 'window.fit', 'window': 'browser'},
-                        {'cmd': 'window.reset_view', 'window': 'nothing'}, {'cmd': 'window.clear', 'window': 'browser'},
-                        {'cmd': 'window.redraw', 'window': 'browser'}, {'cmd': 'window.set_display', 'x_range': [3, 1]},
+                        {'cmd': 'window.scroll', 'dx': 1}, {'cmd': 'window.fit', 'window': 'data'},
+                        {'cmd': 'window.reset_view', 'window': 'nothing'}, {'cmd': 'window.clear', 'window': 'data'},
+                        {'cmd': 'window.redraw', 'window': 'data'}, {'cmd': 'window.set_display', 'x_range': [3, 1]},
                         {'cmd': 'window.set_display', 'x_range': [1]}, {'cmd': 'window.set_display', 'x_range': [1, 2, 3]},
                         {'cmd': 'window.set_display', 'show_earlier_runs': 1}]:
             request(refused, False)
@@ -1531,7 +1531,7 @@ def check_registry():
         check('annotation.delete reports the id', result == {'id': note, 'deleted': True}, str(result))
         for refused in [{'cmd': 'annotation.delete', 'annotation_id': note}, {'cmd': 'annotation.delete', 'id': 'x'},
                         {'cmd': 'annotation.add_arrow', 'tip_x': 1, 'tip_y': 1, 'tail_x': 1, 'tail_y': 1},
-                        {'cmd': 'annotation.add_marker', 'shape': 'star', 'x': 0, 'y': 0}, {'cmd': 'annotation.list', 'window': 'browser'},
+                        {'cmd': 'annotation.add_marker', 'shape': 'star', 'x': 0, 'y': 0}, {'cmd': 'annotation.list', 'window': 'data'},
                         {'cmd': 'annotation.edit', 'annotation_id': 0, 'shape': 'box'}]:
             request(refused, False)
         request({'cmd': 'annotation.add_marker', 'shape': 'circle', 'x': 1, 'y': 1})
@@ -1562,7 +1562,7 @@ def check_registry():
         for refused in [{'cmd': 'plot.delete_curve', 'curve_index': 0}, {'cmd': 'plot.delete_curve', 'curve_index': 7},
                         {'cmd': 'plot.add_curve', 'x': 't'}, {'cmd': 'plot.add_curve', 'x': 't', 'y': 'nothing'},
                         {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'width': 0}, {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'draw': 'dots'},
-                        {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'color': 'nocolor'}, {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'window': 'browser'},
+                        {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'color': 'nocolor'}, {'cmd': 'plot.add_curve', 'x': 't', 'y': 'v', 'window': 'data'},
                         {'cmd': 'plot.edit_curve'}, {'cmd': 'plot.edit_curve', 'curve_index': 5}, {'cmd': 'plot.edit_curve', 'curve_index': 0, 'marker_size': -1}]:
             request(refused, False)
         # frozen curves
@@ -2107,7 +2107,7 @@ def check_equilibrium_exports():
 
 
 def check_data_value_set():
-    """W526: the data browser, the values and the sets as registry commands: a good call with its result, a
+    """W526: the data table, the values and the sets as registry commands: a good call with its result, a
     refused argument with its message, and the old forms refused as unknown."""
     folder = tempfile.mkdtemp(prefix='w526')
     sets_model = os.path.join(folder, 'w526sets.odex')
@@ -2280,7 +2280,7 @@ def check_data_value_set():
         post(cmd='run.initial')
         post(cmd='histogram.compute')
         evs, _, blocks = post(cmd='data.page', from_row=0, count=1)
-        check('W526: the data browser shows the histogram of the model\'s @ postprocess', blocks and blocks[-1]['rows'] == 21, str(blocks)[:200])
+        check('W526: the data table shows the histogram of the model\'s @ postprocess', blocks and blocks[-1]['rows'] == 21, str(blocks)[:200])
         # ---- W615: after_run_file, the analysis in a file of its own while output.dat keeps the trajectory ----
         for named in (False, True):
             with tempfile.TemporaryDirectory(prefix='w615after') as after:
@@ -3199,8 +3199,8 @@ check_names_from_rows([c for c in hello.get('commands', []) if 'arguments' in c]
 # W118: what core and page both know comes in hello, written once in the core
 def check_hello_shared():
     check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
-          hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
-          and hello.get('window_names') == {'main':'graph_1','autox':'diagram_1','ani':'animation','aplot':'array_plot_1','browser':'browser'},
+          hello.get('limits') == {'upload': 64 << 20, 'data_rows': 2000, 'data_cols': 500}
+          and hello.get('window_names') == {'main':'graph_1','autox':'diagram_1','ani':'animation','aplot':'array_plot_1','data':'data'},
           str(hello.get('limits')) + str(hello.get('window_names')))
     check('W653: hello names every file format as written, lowercase (the data formats, then the pictures)',
           hello.get('file_formats') == ['dat', 'csv', 'csv.gz', 'npz', 'pdf', 'svg', 'gif', 'ppm'], str(hello.get('file_formats')))
@@ -3359,14 +3359,14 @@ check('initial_conditions.set_from_data_row sets the initial conditions from a r
 send(cmd='data.page', **{'from_row': 0, 'count': 0})
 collect(is_done)
 
-# W77: the data browser's Add column is the Session's, not the Model's
+# W77: the data table's Add column is the Session's, not the Model's
 # (docs/roadmap.md W77, #125): it must not grow neq/nvar or add a
 # variable, so it stays invisible to everything that reads the model --
-# but docs/manual/07-data-browser.md promises it stays computed "as
+# but docs/manual/07-data-table.md promises it stays computed "as
 # though ... another auxiliary variable", so it is recomputed (not
 # dropped) after every run, and find_variable resolves it by name so it
 # can be plotted.
-def fetch_browser(nrows):
+def fetch_data(nrows):
     send(cmd='data.page', **{'from_row': 0, 'count': nrows, 'first_column': 1, 'columns': 500})
     evs, br = collect(lambda e: e.get('ev') == 'data.updated')
     collect(is_done)
@@ -3387,7 +3387,7 @@ st = last_state(evs)
 check("addcol does not grow the model (still 2 ICs: V, W)", st is not None and len(st['ics']) == 2,
       str(st and st['ics']))
 
-br = fetch_browser(601)
+br = fetch_data(601)
 vi, wi, vwi = br['cols'].index('V'), br['cols'].index('W'), br['cols'].index('VW')
 orig_cols = br['cols'][:-1]
 check('the browser shows the added column, computed from the others, for every row',
@@ -3423,7 +3423,7 @@ evs, _ = collect(is_done, timeout=30 * SLOW)
 st = last_state(evs)
 check('a re-run after addcol still has 601 rows and 2 ICs (the model unchanged)',
       st is not None and st['rows'] == 601 and len(st['ics']) == 2, str(st and (st['rows'], st['ics'])))
-br2 = fetch_browser(601)
+br2 = fetch_data(601)
 check("the re-run's browser columns are the model's plus VW again, recomputed",
       br2['cols'] == br['cols'] and near([row[vwi] for row in br2['data']],
                                           [row[vi] * row[wi] for row in br2['data']]), str(br2)[:200])
@@ -6437,7 +6437,7 @@ def check_autox_no_nan_par():
 check_autox_no_nan_par()
 
 
-# Save data (W52, docs/protocol.md "The data browser"): the browser's
+# Save data (W52, docs/protocol.md "The data table"): the browser's
 # write with `what`, `format` and `name` writes the data table or what the
 # plot shows in each registered format; each file is read back here, the
 # NPZ by parsing its zip and .npy headers (and by numpy.load when numpy is
@@ -6477,7 +6477,7 @@ def check_data_formats():
     f32 = lambda v: struct.unpack('<f', struct.pack('<f', float(v)))[0]
     read = lambda d, n: open(os.path.join(d, n), 'rb').read() if os.path.exists(os.path.join(d, n)) else b''
 
-    def browser(cmd, **kw):
+    def table_cmd(cmd, **kw):
         """a browser command, a File exists? Overwrite ask answered yes"""
         snd(cmd=cmd, **kw)
         got = []
@@ -6492,7 +6492,7 @@ def check_data_formats():
         col(is_done)
         live_run(snd, col)
         for fmt, name in [('dat', 'd.dat'), ('csv', 'd.csv'), ('csv.gz', 'd.csv.gz'), ('npz', 'd.npz')]:
-            _, e = browser('data.export', target='table', format=fmt, file=name)
+            _, e = table_cmd('data.export', target='table', format=fmt, file=name)
             check('Save data writes the table as %s without asking' % fmt,
                   e is not None and is_done(e) and os.path.exists(os.path.join(r, name)), str(e))
         silent = tempfile.mkdtemp(prefix='xppsilent')
@@ -6546,14 +6546,14 @@ def check_data_formats():
                   and list(z['V']) == [f32(x[1]) for x in vals], str(z.files))
 
         # what the plot shows: the curve V against W, one row per point
-        browser('data.export', target='plot_curves', format='csv', file='p.csv')
+        table_cmd('data.export', target='plot_curves', format='csv', file='p.csv')
         pc = read(r, 'p.csv').decode().splitlines() or ['']
         if pc and pc[0].startswith('# seed '):
             pc = pc[1:]
         check('Save data writes what the plot shows: curve,x,y, a row per point',
               pc[0] == 'curve,x,y' and len(pc) == 602 and pc[1].split(',')[0] == '1'
               and [float(x) for x in pc[1].split(',')[1:]] == vals[0][1:3], str(pc[:2]))
-        browser('data.export', target='plot_curves', format='npz', file='p.npz')
+        table_cmd('data.export', target='plot_curves', format='npz', file='p.npz')
         try:
             arrays = npz_arrays(os.path.join(r, 'p.npz'))
             arrays.pop('seed', None)
@@ -6562,23 +6562,23 @@ def check_data_formats():
             ok, detail = False, repr(ex)
         check('what the plot shows as NPZ: one (points, 2) array per curve', ok, detail)
 
-        evs, _ = browser('data.export', target='plot_curves', format='csv.gz', file='asked.csv.gz')
+        evs, _ = table_cmd('data.export', target='plot_curves', format='csv.gz', file='asked.csv.gz')
         check('Save data exposes every format through its registry choices and writes gzip',
               gzip.decompress(read(r, 'asked.csv.gz')) == read(r, 'p.csv'))
 
-        evs, _ = browser('data.export', target='plot_curves', format='csv', file='export.csv')
+        evs, _ = table_cmd('data.export', target='plot_curves', format='csv', file='export.csv')
         check('Plot export writes what the graph shows', read(r, 'export.csv') == read(r, 'p.csv'))
 
         # Load reads each format back into the table, picked by its extension
         for name in ['d.csv', 'd.csv.gz', 'd.npz', 'd.dat']:
             snd(cmd='data.set_slice_start', row=300)
             col(is_done)
-            browser('data.export', target='table', format='dat', file='cut.dat')  # rows 300.. only
-            browser('data.load', file='cut.dat')
-            evs, _ = browser('data.load', file=name)
+            table_cmd('data.export', target='table', format='dat', file='cut.dat')  # rows 300.. only
+            table_cmd('data.load', file='cut.dat')
+            evs, _ = table_cmd('data.load', file=name)
             snd(cmd='data.set_slice_start', row=0)
             col(is_done)
-            browser('data.export', target='table', format='dat', file='back.dat')
+            table_cmd('data.export', target='table', format='dat', file='back.dat')
             check('Load reads %s back into the table (rows and values)' % name,
                   read(r, 'back.dat').replace(b'\r', b'') == want and last_state(evs).get('rows') == 601,
                   str(last_state(evs).get('rows')))
@@ -6604,7 +6604,7 @@ def check_data_formats():
                           ('evil_seed.npz', 'seed.npy: its seed is not a whole number'),
                           ('bomb.csv.gz', 'expands to more than 536870912 bytes'),
                           ('evil_seed.csv', 'its seed is not a whole number')]:
-            evs, _ = browser('data.load', file=name)
+            evs, _ = table_cmd('data.load', file=name)
             refused = [e for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
             check('Load refuses %s with its name and why' % name,
                   len(refused) == 1 and name in refused[0]['error'] and why in refused[0]['error'],
@@ -11672,7 +11672,7 @@ def check_analysis_registry():
 
     p, r, snd, col, call, ok, refused = session()
 
-    def browser_rows():
+    def data_rows():
         snd(cmd='data.page', **{'from_row': 0, 'count': 12, 'first_column': 1, 'columns': 2})
         _, rows = col(lambda e: e.get('ev') == 'data.updated')
         col(is_done)
@@ -11779,7 +11779,7 @@ def check_analysis_registry():
                                                                           'columns': 2, 'points': 900000, 'file': 'fit.dat'}, 'needs')
         refused('fit.parameters with a tolerance of 0', {'cmd': 'fit.parameters', 'variables': ['v'], 'parameters': ['iapp'], 'tolerance': 0}, 'tolerance')
         refused('adjoint.show before the adjoint is computed', {'cmd': 'adjoint.show'}, 'No adjoint')
-        # many runs: the mean and variance of the runs are kept for the data browser
+        # many runs: the mean and variance of the runs are kept for the data table
         call(cmd='stochastic.show_run')
         call(cmd='run.range', variable='iapp', start=0, end=0.1, steps=2)
         ok('stochastic.compute runs the trials', {'cmd': 'stochastic.compute', 'trials': 4}, {'trials_completed': 4})
@@ -11844,7 +11844,7 @@ def check_analysis_registry():
             ok('table.edit leaves out what stays', {'cmd': 'table.edit', 'name': 'FN', 'points': 17}, {'table': 'FN', 'points_evaluated': 17})
             ok('table.edit of a file table reads its file again', {'cmd': 'table.edit', 'name': 'ft'}, {'table': 'FT', 'points_evaluated': 5})
             ok('table.edit of a file table reads another file', {'cmd': 'table.edit', 'name': 'ft', 'file': 'ft2.tab'}, {'table': 'FT', 'points_evaluated': 3})
-            got = ok('table.show shows the points', {'cmd': 'table.show', 'name': 'fn'}, {'table': 'FN', 'shown_in_browser': True})
+            got = ok('table.show shows the points', {'cmd': 'table.show', 'name': 'fn'}, {'table': 'FN', 'shown_in_data': True})
             refused('table.edit of a name that is no table', {'cmd': 'table.edit', 'name': 'x'}, 'no table named')
             refused('table.edit of a name the model does not have', {'cmd': 'table.edit', 'name': 'nosuch'}, 'nosuch')
             refused('table.edit of a formula table with a file', {'cmd': 'table.edit', 'name': 'fn', 'file': 'ft.tab'}, 'not a file')

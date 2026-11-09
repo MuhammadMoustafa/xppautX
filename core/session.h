@@ -7,7 +7,7 @@
    A Model (model.h) is what loading a .ode file produces and stays as the
    load left it; a Session is what a person does with it: the data a run
    stores, the plot windows and what is drawn in them, the numerics
-   settings in use, the integrator's state, autoX's, the browser's and the
+   settings in use, the integrator's state, autoX's, the data table's and the
    kinescope's. Each part's type is defined by the module that owns it
    (storage.h's DataStore, many_pops.h's XppPlotWindows, ...), and the
    Session holds one of each.
@@ -102,7 +102,7 @@ struct Session {
   /* the plot windows, the active one, Simulplot (many_pops.cpp) */
   XppPlotWindows plot_windows{};
   std::string selected_window=plot_windows.graph[0].name; // The target of an omitted window argument.
-  ToolWindowsHidden tools_hidden; // The browser, animation and array plot windows hidden (graphs and views keep their own).
+  ToolWindowsHidden tools_hidden; // The data table, animation and array plot windows hidden (graphs and views keep their own).
   /* the frozen curves of every window (graf_par.cpp) */
   XppFrozenCurves frozen_curves{};
   /* 3D Params' movie settings (graf_par.cpp) */
@@ -170,8 +170,8 @@ struct Session {
   AutoxState autox_state;
   AutoxDiagram diagram;
 
-  /* the data browser (browse_data.cpp) */
-  BrowserState browser;
+  /* the data table (browse_data.cpp) */
+  DataState data;
   /* the kinescope (commands.cpp, json_windows.cpp) */
   XppKinescope kinescope;
 

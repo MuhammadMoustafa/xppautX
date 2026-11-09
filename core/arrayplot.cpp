@@ -82,7 +82,7 @@ void optimize_aplot(xpp::Session &s, int *plist)
   int i1=plist[1]-1;
   int nr,ns;
   double zmax,zmin;
-  int nrows=s.browser.view.maxrow;
+  int nrows=s.data.view.maxrow;
   int ncol=i1+1-i0;
   if(ncol<2||nrows<2)return;
   make_my_aplot(s,"Array!");
@@ -108,19 +108,19 @@ void optimize_aplot(xpp::Session &s, int *plist)
 void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin)
 {
   int i,j,ib,jb,row0=ap->nstart,col0=ap->index0;
-  int nrows=s.browser.view.maxrow;
+  int nrows=s.data.view.maxrow;
   double z;
   ib=col0;
   jb=row0;
-  *zmax=s.browser.view.data[ib][jb];
+  *zmax=s.data.view.data[ib][jb];
   *zmin=*zmax;
   for(i=0;i<ap->nacross/ap->ncskip;i++){
       ib=col0+i*ap->ncskip;
-      if(ib<=s.browser.view.maxcol){
+      if(ib<=s.data.view.maxcol){
 	for(j=0;j<ap->ndown;j++){
 	  jb=row0+ap->nskip*j;
 	  if(jb<nrows&&jb>=0){
-	    z=s.browser.view.data[ib][jb];
+	    z=s.data.view.data[ib][jb];
 	    if(z<*zmin)*zmin=z;
 	    if(z>*zmax)*zmax=z;
 	  }
@@ -155,8 +155,8 @@ void init_my_aplot(xpp::Session &s)
 
 AplotTimes aplot_times(const xpp::Session &s, const APLOT &ap)
 {
-  const int nrows=s.browser.view.maxrow;
-  const auto time_of=[&](int row){return static_cast<double>(s.browser.view.data[0][std::clamp(row,0,nrows-1)]);};
+  const int nrows=s.data.view.maxrow;
+  const auto time_of=[&](int row){return static_cast<double>(s.data.view.data[0][std::clamp(row,0,nrows-1)]);};
   return {time_of(ap.nstart),time_of(ap.nstart+ap.nskip*(ap.ndown-1))};
 }
 
@@ -165,7 +165,7 @@ xpp::Result<> aplot_ready(const xpp::Session &s, const std::string &where, bool 
   const APLOT &ap=s.array_plot.plot;
   if(!ap.alive)return xpp::fail(where,"No array plot is open: open one first (array_plot.open)",xpp::command_place());
   if(ap.plotdef==0)return xpp::fail(where,"The array plot shows no columns yet: configure it first (array_plot.configure)",xpp::command_place());
-  if(needs_data&&(s.browser.view.maxrow<=2||ap.nacross<2||ap.ndown<2))
+  if(needs_data&&(s.data.view.maxrow<=2||ap.nacross<2||ap.ndown<2))
     return xpp::fail(where,"The array plot has nothing to show: integrate first, and show at least 2 columns and 2 rows",xpp::command_place());
   return {};
 }
@@ -181,8 +181,8 @@ xpp::Result<bool> write_aplot_pdf(xpp::Session &s, std::string_view file, const 
     .filename=ap->filename.c_str(), .xtitle=ap->xtitle.c_str(),
     .ytitle=ap->ytitle.c_str(), .bottom=ap->bottom.c_str(),
     .nacross=ap->nacross, .ndown=ap->ndown, .col0=ap->index0, .row0=ap->nstart,
-    .nskip=ap->nskip, .ncskip=ap->ncskip, .maxrow=s.browser.view.maxrow,
-    .maxcol=s.browser.view.maxcol, .data=s.browser.view.data,
+    .nskip=ap->nskip, .ncskip=ap->ncskip, .maxrow=s.data.view.maxrow,
+    .maxcol=s.data.view.maxcol, .data=s.data.view.data,
     .zmin=ap->zmin, .zmax=ap->zmax, .tlo=times.first, .thi=times.last};
   const auto written=xpp::array_print(s,picture);
   if(written&&*written)s.array_plot.plot=std::move(candidate);

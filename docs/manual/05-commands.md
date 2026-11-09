@@ -259,7 +259,7 @@ This induces a popup menu with several choices. Each choice of this menu, Axes (
   - **(C)lr. BD**: clears out the current bifurcation diagram.
   - **(O)n freeze**: Toggles a flag that automatically freezes the curves as you integrate them.
 - **a(X)es opts**: This puts up a window which allows you to tell XPP where you want the axes to be drawn, whether you want them, and what fontsize to make the axes labels of the PDF and SVG pictures.
-- **exp(O)rt**: saves what the plot shows: this is the data browser's Save data with *What the plot shows* already chosen (see [(W)rite: Save data](07-data-browser.md#write-save-data)). It asks the format (XPP's `.dat`, CSV, compressed CSV or NumPy's `.npz`) and the file, and writes the window's curves and then its frozen curves as one table with the columns `curve`, `x`, `y` (and `z` in 3D), one row per point (in `.npz`, one array per curve). It replaces XPP's old XY export (the first curve's x followed by every curve's y on each row, in `%g`): a table with a curve column holds every curve in full, frozen curves and 3D plots included.
+- **exp(O)rt**: saves what the plot shows: this is the data table's Save data with *What the plot shows* already chosen (see [(W)rite: Save data](07-data-table.md#write-save-data)). It asks the format (XPP's `.dat`, CSV, compressed CSV or NumPy's `.npz`) and the file, and writes the window's curves and then its frozen curves as one table with the columns `curve`, `x`, `y` (and `z` in 3D), one row per point (in `.npz`, one array per curve). It replaces XPP's old XY export (the first curve's x followed by every curve's y on each row, in `%g`): a table with a curve column holds every curve in full, frozen curves and 3D plots included.
 - **(C)olormap**: This lets you choose a different colour scale by its name from the list: XPPAUT's seven (`jet`, `periodic`, `hot`, `cool`, `blue_red`, `gray`, `cubehelix`) and `viridis` (the default of a model of ours; a `.ode` is converted with `jet`, its own), `plasma`, `inferno`, `magma`, `cividis`, `coolwarm`, `rdbu`, `seismic`, `twilight`, `hsv`, `turbo`, `greys`, `blues`, `reds`, `greens`, `oranges` and `purples`. Each is 256 colours (third_party/colormaps/README.md says where they come from and under which licences). The array plot, the colour-coded orbit (Numerics, Colour by value), the animation's colours and the pictures use it; the array plot's Colour map choice changes it too.
 
 ### n(U)merics
@@ -421,14 +421,14 @@ use `diagram_1`, `diagram_2`, ... and can be renamed in their headers.
 Every window can be hidden: `window.hide` takes it off the screen and keeps
 everything it holds (curves, zoom, texts, arrows, markers, a diagram) and
 `window.show` brings it back as it was. This holds for graphs, autoX views
-and the three windows with a name of their own: the data browser
-(`browser`), the animation (`animation`) and the array plot
+and the three windows with a name of their own: the data table
+(`data`), the animation (`animation`) and the array plot
 (`array_plot_1`). `window.list` lists every window with its kind and whether
 it is shown. `window.close` deletes a window and what it holds; destroying a
 graph that holds texts, arrows, markers or frozen curves asks first (the
 page's question; a script passes `confirm` true), while an autoX view, whose
 diagram the session keeps, the animation and the array plot, which can be
-made again, ask nothing. The main graph and the data browser cannot be
+made again, ask nothing. The main graph and the data table cannot be
 destroyed. A session file keeps which windows are hidden.
 
 A graph's view is set by commands in plot coordinates, never by a click:
@@ -471,7 +471,7 @@ allows you to write text to the display in a variety of sizes and in two differe
   - **Delete**: deletes the object that you select with the mouse.
 - **(D)elete All**: Deletes all the objects in the current window.
 - **No fixed number, and an id for each**: a session holds as many texts, arrows, pointers and markers as you add (up to 100000 of each; XPPAUT stopped at 50 texts and 400 arrows, pointers and markers and dropped the next without a word). Each one has an id that stays its own until it is deleted, and is saved with the session. From a script, `--server` or a recording the `annotation` command lists, adds, edits, moves and deletes any of them by id, in the plot's coordinates, with no click needed ([protocol](../protocol.md#annotations)); Edit above does the same through the same functions. The diamond marker is drawn centred on its point (XPPAUT's was drawn off to one side of it).
-- **marker(S)**: This is similar to the Marker command, but allows you to automatically mark a number of points along a computed trajectory. You use the data browser to move the desired starting point of the list to the top line of the browser. Then click on the (Text) (markerS) command and choose a size and colour. Then tell XPP how many markers and how many browser lines to jump between markers. (Thus, 10 would put a marker at every 10th data point)..
+- **marker(S)**: This is similar to the Marker command, but allows you to automatically mark a number of points along a computed trajectory. You use the data table to move the desired starting point of the list to the top line of the browser. Then click on the (Text) (markerS) command and choose a size and colour. Then tell XPP how many markers and how many browser lines to jump between markers. (Thus, 10 would put a marker at every 10th data point)..
 
 ### (S)ing pts
 

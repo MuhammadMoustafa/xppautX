@@ -1,4 +1,4 @@
-/* The data table (docs/ui-v2.md T10, docs/protocol.md `browser`): the
+/* The data table (docs/ui-v2.md T10, docs/protocol.md "The data table"): the
    stored rows -- T and every variable and aux, full precision (A14) -- as
    a virtualized grid: only the rows the viewport can show are ever in the
    DOM, fetched from the core in pages as the user scrolls or moves the
@@ -10,7 +10,7 @@
    Back or Escape, focus moving in and back like the values panel
    (ui/ValuesPanel.tsx).
 
-   The buttons are the core's own (docs/protocol.md `browser` op), acting
+   The buttons are the core's own (docs/protocol.md data.* commands), acting
    on the selected row, grouped as Find, Rows, Columns (and More): where the
    panel is narrow (a container query, css/panels.css) Rows and Columns are
    two menus. Find and Replace prompt through the ordinary `ask`. Load data
@@ -22,7 +22,7 @@ import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import {ShownName} from './CutText';
 import {HELP} from '../help/links';
-import type {BrowserOp} from '../session';
+import type {DataOp} from '../session';
 import {DropDownMenu} from './SetsRow';
 import {choiceLabel} from '../store/fieldKinds';
 import {readPref, writePref} from '../store/prefs';
@@ -35,14 +35,14 @@ import {FOCUSABLE} from './dialogFocus';
 
 
 /** the toolbar's groups: the ops of each, in order; each op is the row navigation.ts toolbarCommand names (its label and description) */
-const ROWS: BrowserOp[] = ['first', 'last', 'restore'];
-const COLUMNS: BrowserOp[] = ['addcol', 'replace', 'delcol'];
-const MORE_COLUMNS: BrowserOp[] = ['unreplace', 'table', 'transpose'];
+const ROWS: DataOp[] = ['first', 'last', 'restore'];
+const COLUMNS: DataOp[] = ['addcol', 'replace', 'delcol'];
+const MORE_COLUMNS: DataOp[] = ['unreplace', 'table', 'transpose'];
 
 /** the format last exported, remembered per viewer (it is listed first and marked) */
 const FORMAT_KEY = 'xpp.table.exportFormat';
 
-/** a stored value (docs/protocol.md `browser`) as the core sent it, the store's shortest text (W613): whole where its
+/** a stored value (docs/protocol.md "The data table") as the core sent it, the store's shortest text (W613): whole where its
     column has room, cut with a tip only where it has not (CutText measures the box) */
 function Cell({v}: {v: number | null | undefined}) {
   return v === undefined ? null : <ShownName name={v === null ? 'NaN' : String(v)} />;
@@ -173,13 +173,13 @@ export function TableView() {
   const items: {row: number; values: (number | null)[] | null}[] = [];
   for (let i = first; i < last; i++) items.push({row: i, values: rowAt(page, i)});
 
-  const button = (op: BrowserOp, inMenu: boolean) => {
-    const row = toolbarRow(hello, 'browser', op);
-    const off = !mayKey('browser', op);
-    const click = {key: op, 'data-button': `browser:${op}`, title: off ? BUSY_TITLE : row?.description, disabled: off, onClick: () => session.browserOp(op)};
+  const button = (op: DataOp, inMenu: boolean) => {
+    const row = toolbarRow(hello, 'data', op);
+    const off = !mayKey('data', op);
+    const click = {key: op, 'data-button': `data:${op}`, title: off ? BUSY_TITLE : row?.description, disabled: off, onClick: () => session.dataOp(op)};
     return inMenu ? <li key={op}><button role="menuitem" {...click}>{row?.label}</button></li> : <button {...click}>{row?.label}</button>;
   };
-  const group = (name: string, ops: BrowserOp[], more: BrowserOp[] = []) => (
+  const group = (name: string, ops: DataOp[], more: DataOp[] = []) => (
     <>
       <div class="table-group table-wide" role="group" aria-label={name}>
         <span class="table-group-label">{name}</span>

@@ -54,7 +54,7 @@ constexpr std::array EVENTS = {
     Event{ANIMATION_STATE, "pos, rows, fly, grab, skip, speed, loaded, open", "The animation's state for its slider and toggles."},
     Event{ANIMATION_FRAME, "pos, rows, t, speed, skip, dim, w, h, prims", "A frame of the animation as data.", ANIMATION_FRAME},
     Event{KINESCOPE_FILM, "op, count, win, cycles, delay", "The kinescope: capture, reset, play or autoplay."},
-    Event{DATA_UPDATED, "rows, cols, row0, start, end, from, col, data", "Rows of the data browser."},
+    Event{DATA_UPDATED, "rows, cols, row0, start, end, from, col, data", "Rows of the data table."},
     Event{RUN_NUMERICS, "fields", "The main numerics as data.", RUN_NUMERICS},
     Event{RECORDING_PLAYER, "file, model, intact, steps", "A recording opened in the player, and its steps.", RECORDING_PLAYER},
     Event{RECORDING_PRESS, "step, what, index, ms", "What the player sends next, before it sends it."},

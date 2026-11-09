@@ -18,7 +18,7 @@ row changes.
 | IC, parameter, BC and delay boxes with %formulas, Default, xvst/pp/arry | Side panel (values panel, T3) |
 | The three parameter sliders, `@ s1=...` presets | Side panel |
 | `@ button` user buttons | Side panel |
-| Data browser and all its buttons | Data tab (virtualized table, T10) |
+| Data table and all its buttons | Data tab (virtualized table, T10) |
 | Equilibrium window with Import | Text tab's Equilibrium view (T16) |
 | Equations window, source viewer with comment actions | Text tab (T16) |
 | autoX window: every button, grab, hotkeys, scroll, close, point readout | A view of its own, a full-screen sheet at every width (T11a/T11b, T26): it covers the main menu, plot and status bar while shown, Back returns to them, and its own status strip carries the Stop and what the main one says |

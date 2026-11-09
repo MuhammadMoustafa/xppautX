@@ -1006,12 +1006,12 @@ void fill_frozen_curve(xpp::Session &s, int i, std::vector<float> x, std::vector
 Result<int> freeze_curve(xpp::Session &s, int ind)
 {
   if(ind<0 || ind>=s.plot_windows.current->nvars)return fail("freeze","no such curve",command_place());
-  if(s.browser.view.maxrow<=2)return fail("freeze","No Curve to freeze",command_place());
+  if(s.data.view.maxrow<=2)return fail("freeze","No Curve to freeze",command_place());
   int i=0;
   while(i<static_cast<int>(s.frozen_curves.curve.size())&&s.frozen_curves.curve[i].use)++i;
   const GRAPH &g=*s.plot_windows.current;
-  const int n=s.browser.view.maxrow;
-  const ColumnTable d=s.browser.view.data;
+  const int n=s.data.view.maxrow;
+  const ColumnTable d=s.data.view.data;
   fill_frozen_curve(s,i,d[g.xv[ind]].as_floats(0,n),
                     d[g.yv[ind]].as_floats(0,n),
                     g.grtype>0?d[g.zv[ind]].as_floats(0,n):std::vector<float>(),
@@ -1287,7 +1287,7 @@ void export_graf_data(xpp::Session &s)
 xpp::DataTable plot_curves_table(const xpp::Session &s)
 {
   const GRAPH &g=*s.plot_windows.current;
-  const BROWSER &b=s.browser.view;
+  const DATA_VIEW &b=s.data.view;
   const bool three=g.ThreeDFlag>0;
   xpp::DataTable t;
   t.curves=true;
