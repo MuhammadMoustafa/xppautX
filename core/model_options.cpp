@@ -55,6 +55,10 @@ constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 
 
 /* a 3D box side's default: wide enough for most models' variables */
 constexpr double box_side = 12;
+/* a 2D window's default limits: the default total's span, 0 to 20, and -1 to 1 in y */
+constexpr double window_x_high = 20, window_y_half = 1;
+/* the plot is three-dimensional (axes.kind 3): its limits are a box's */
+bool three_dimensional(const Session &s) { return s.plot_settings.axes >= 5; }
 
 /* the value as a number (into x): why it is not one, nullptr when it is */
 const char *number_in(const OptionValue &v, double &x)
@@ -655,69 +659,19 @@ constexpr OptionRow rows[] = {
    /* a 2D plot */
    .reset = [](Session &s) { s.plot_settings.axes = 0; },
    .choices = axes_names},
-  /* the 2D window; each default is the 3D box's too, which then keeps it */
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.x_low", .help = "The left edge of the two-dimensional window.", .xppaut_names = {"XLO"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings.my_xlo; }),
-   /* the default total's span, 0 to 20 */
-   .reset = [](Session &s) {
-     s.plot_settings.my_xlo = s.plot_settings.x_3d[0] = 0;
-     s.options_set.mark(once_option("plot.axes.x_min"));
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.x_high", .help = "The right edge of the two-dimensional window.", .xppaut_names = {"XHI"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings.my_xhi; }),
-   .reset = [](Session &s) {
-     s.plot_settings.my_xhi = s.plot_settings.x_3d[1] = 20;
-     s.options_set.mark(once_option("plot.axes.x_max"));
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.y_low", .help = "The bottom edge of the two-dimensional window.", .xppaut_names = {"YLO"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings.my_ylo; }),
-   /* -1 to 1 */
-   .reset = [](Session &s) {
-     s.plot_settings.my_ylo = s.plot_settings.y_3d[0] = -1;
-     s.options_set.mark(once_option("plot.axes.y_min"));
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.y_high", .help = "The top edge of the two-dimensional window.", .xppaut_names = {"YHI"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_settings.my_yhi; }),
-   .reset = [](Session &s) {
-     s.plot_settings.my_yhi = s.plot_settings.y_3d[1] = 1;
-     s.options_set.mark(once_option("plot.axes.y_max"));
-   }},
-  /* the 3D box; xmin and ymin set the 2D window's low end too, unless
-     something set that */
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.x_min", .help = "The low end of the three-dimensional box in x.", .xppaut_names = {"XMIN"}, .once = true,
+  /* the one pair of limits: the window of a 2D plot, the box of a 3D one; a default is the plot kind's */
+  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.x_min", .help = "The low end of x: the window's left edge in a two-dimensional plot, the box's in a three-dimensional one.", .xppaut_names = {"XMIN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.plot_settings.x_3d[0]; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = number_into(s.plot_settings.x_3d[0], v)) return why;
-     if (v.apply && v.source.claim(s, once_option("plot.axes.x_low"))) s.plot_settings.my_xlo = s.plot_settings.x_3d[0];
-     return nullptr;
-   },
-   .reset = [](Session &s) {
-     s.plot_settings.x_3d[0] = -box_side;
-     s.options_set.mark(once_option("plot.axes.x_low"));
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.x_max", .help = "The high end of the three-dimensional box in x.", .xppaut_names = {"XMAX"}, .once = true,
+   .reset = [](Session &s) { s.plot_settings.x_3d[0] = three_dimensional(s) ? -box_side : 0; }},
+  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.x_max", .help = "The high end of x: the window's right edge in a two-dimensional plot, the box's in a three-dimensional one.", .xppaut_names = {"XMAX"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.plot_settings.x_3d[1]; }),
-   .reset = [](Session &s) {
-     s.plot_settings.x_3d[1] = box_side;
-     s.options_set.mark(once_option("plot.axes.x_high"));
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.y_min", .help = "The low end of the three-dimensional box in y.", .xppaut_names = {"YMIN"}, .once = true,
+   .reset = [](Session &s) { s.plot_settings.x_3d[1] = three_dimensional(s) ? box_side : window_x_high; }},
+  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.y_min", .help = "The low end of y: the window's bottom edge in a two-dimensional plot, the box's in a three-dimensional one.", .xppaut_names = {"YMIN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.plot_settings.y_3d[0]; }),
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = number_into(s.plot_settings.y_3d[0], v)) return why;
-     if (v.apply && v.source.claim(s, once_option("plot.axes.y_low"))) s.plot_settings.my_ylo = s.plot_settings.y_3d[0];
-     return nullptr;
-   },
-   .reset = [](Session &s) {
-     s.plot_settings.y_3d[0] = -box_side;
-     s.options_set.mark(once_option("plot.axes.y_low"));
-   }},
-  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.y_max", .help = "The high end of the three-dimensional box in y.", .xppaut_names = {"YMAX"}, .once = true,
+   .reset = [](Session &s) { s.plot_settings.y_3d[0] = three_dimensional(s) ? -box_side : -window_y_half; }},
+  {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.y_max", .help = "The high end of y: the window's top edge in a two-dimensional plot, the box's in a three-dimensional one.", .xppaut_names = {"YMAX"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.plot_settings.y_3d[1]; }),
-   .reset = [](Session &s) {
-     s.plot_settings.y_3d[1] = box_side;
-     s.options_set.mark(once_option("plot.axes.y_high"));
-   }},
+   .reset = [](Session &s) { s.plot_settings.y_3d[1] = three_dimensional(s) ? box_side : window_y_half; }},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "axes.z_min", .help = "The low end of the three-dimensional box in z.", .xppaut_names = {"ZMIN"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.plot_settings.z_3d[0]; }),
    .reset = [](Session &s) { s.plot_settings.z_3d[0] = -box_side; }},
@@ -994,6 +948,12 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &, const OptionValue &v) -> const char * { double x = 0; return number_into(x, v); }},
   {.kind = OptionKind::number, .name = "YHI", .first_digit = '2', .last_digit = '8', .dropped = several_graphs,
    .parse = [](Session &, const OptionValue &v) -> const char * { double x = 0; return number_into(x, v); }},
+  /* XPPAUT's window of a 2D plot (import only): the same limits as xmin to ymax, which XLO..YHI win over; a 3D plot's own
+     projection zoom is dropped (the picture fits its box) */
+  {.name = "XLO", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.x_min", std::string(v)}}, nullptr}; }, .flat_only = true},
+  {.name = "XHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.x_max", std::string(v)}}, nullptr}; }, .flat_only = true},
+  {.name = "YLO", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_min", std::string(v)}}, nullptr}; }, .flat_only = true},
+  {.name = "YHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_max", std::string(v)}}, nullptr}; }, .flat_only = true},
   /* XPPAUT slider slots are import-only. */
   {.kind = OptionKind::name, .name = "S1", .once = true,
    .parse = slider_var<0>},
@@ -1122,13 +1082,6 @@ bool OptionSource::may(const Session &s, const OptionRow &row) const
   return force || !s.options_set.has(row) || (mask && !mask->has(row));
 }
 
-bool OptionSource::claim(Session &s, const OptionRow &row) const
-{
-  if (!may(s, row)) return false;
-  s.options_set.mark(row);
-  return true;
-}
-
 const OptionRow &once_option(std::string_view name)
 {
   return *std::ranges::find_if(rows, [name](const OptionRow &r) { return r.once && option_name(r) == name; });
@@ -1141,7 +1094,6 @@ struct OptionPair {
 };
 constexpr OptionPair pairs[] = {
   {"integration.step.min", "integration.step.max", false},
-  {"plot.axes.x_low", "plot.axes.x_high", true}, {"plot.axes.y_low", "plot.axes.y_high", true},
   {"plot.axes.x_min", "plot.axes.x_max", true}, {"plot.axes.y_min", "plot.axes.y_max", true}, {"plot.axes.z_min", "plot.axes.z_max", true},
   {"analysis.histogram.low", "analysis.histogram.high", true}, {"analysis.histogram2.low", "analysis.histogram2.high", true},
   {"diagram.x_min", "diagram.x_max", true}, {"diagram.y_min", "diagram.y_max", true},
@@ -1399,6 +1351,9 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
     const auto picked = importing || xppaut_names ? pick_method(s.model(), text, place) : method_by_key(s.model(), text, place);
     if (!picked) return picked.error().what;
     if (apply) s.numerics.method = *picked;
+  }
+  else if (row->flat_only && three_dimensional(s)) {
+    /* a 2D plot's window: nothing of a 3D plot's */
   }
   else if (row->expand) {
     /* an XPPAUT option that is several of ours: each is set as written, by its own name */

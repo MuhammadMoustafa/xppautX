@@ -102,7 +102,7 @@ options {
     max_step_size: 0.1,
   },
   diagram: { variable: SmV, x_min: -0.1, x_max: 1.1, y_min: -90, y_max: 20 },
-  plot: { axes.x_low: 0, axes.x_high: 1000.0, axes.y_low: -90, axes.y_high: 50, curves: [ { y: SmV } ] },
+  plot: { axes.x_min: 0, axes.x_max: 1000.0, axes.y_min: -90, axes.y_max: 50, curves: [ { y: SmV } ] },
   interface: { buttons: "fit:wf", buttons: "int:ig", buttons: "intl:il", buttons: "auto:fa" },
 }
 

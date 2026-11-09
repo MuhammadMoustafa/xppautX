@@ -10,5 +10,5 @@ x' = w1+beta*sin(y-x)
 y' = w2+beta*sin(x-y)
 options {
   integration: { torus.period: 6.28318531, torus.fold: x, torus.fold: y },
-  plot: { curves: [ { x: x, y: y } ], axes.x_low: 0, axes.y_low: 0, axes.x_high: 6.3, axes.y_high: 6.3 },
+  plot: { curves: [ { x: x, y: y } ], axes.x_min: 0, axes.y_min: 0, axes.x_max: 6.3, axes.y_max: 6.3 },
 }

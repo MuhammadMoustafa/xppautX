@@ -13,7 +13,7 @@ boundary x-x'
 boundary y-y'
 options {
   integration: { dt: .01, total_time: 4 },
-  plot: { axes.x_high: 4, axes.y_low: -1.5, axes.y_high: 1.5 },
+  plot: { axes.x_max: 4, axes.y_min: -1.5, axes.y_max: 1.5 },
 }
 aux xp = (x*(1-x^2-y^2)+q*(x^2+y^2)*y)*om
 aux yp = (y*(1-x^2-y^2)-q*(x^2+y^2)*x)*om

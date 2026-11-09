@@ -11,6 +11,6 @@ options {
   integration: { dt: .025, total_time: 40 },
   plot: {
     curves: [ { x: x, y: y, z: z } ], axes.kind: 3, axes.x_min: -20, axes.x_max: 20, axes.y_min: -30, axes.y_max: 30, axes.z_min: 0, axes.z_max: 50,
-    axes.x_low: -1.5, axes.y_low: -2, axes.x_high: 1.5, axes.y_high: 2, axes.phi: 60,
+    axes.phi: 60,
   },
 }

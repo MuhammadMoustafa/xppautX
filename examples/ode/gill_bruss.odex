@@ -22,5 +22,5 @@ y2' = y2+z(2)-z(3)
 options {
   integration: { state_limit: 100000000, method: discrete, total_time: 1000000, store_every: 1000 },
   equilibria: { search_limit: 100000000 },
-  plot: { curves: [ { x: y1, y: y2 } ], axes.x_low: 0, axes.y_low: 0, axes.x_high: 10000, axes.y_high: 10000 },
+  plot: { curves: [ { x: y1, y: y2 } ], axes.x_min: 0, axes.y_min: 0, axes.x_max: 10000, axes.y_max: 10000 },
 }

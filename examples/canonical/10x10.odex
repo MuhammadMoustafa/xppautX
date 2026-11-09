@@ -44,7 +44,7 @@ options {
     torus.fold: x90, torus.fold: x91, torus.fold: x92, torus.fold: x93, torus.fold: x94, torus.fold: x95, torus.fold: x96, torus.fold: x97,
     torus.fold: x98, torus.fold: x99, total_time: 50, method: euler,
   },
-  plot: { curves: [ { x: x0, y: x21 } ], axes.x_low: 0, axes.x_high: 6.3, axes.y_low: 0, axes.y_high: 6.3, colormap: periodic },
+  plot: { curves: [ { x: x0, y: x21 } ], axes.x_min: 0, axes.x_max: 6.3, axes.y_min: 0, axes.y_max: 6.3, colormap: periodic },
 }
 # add the relative phase difference
 aux y[j] = (x[j]-x0) mod (2*pi) for j in 0..99

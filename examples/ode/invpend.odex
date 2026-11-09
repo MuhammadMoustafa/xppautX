@@ -11,5 +11,5 @@ aux mth = th mod (2*pi)
 options {
   animation: "invpend.anix",
   integration: { method: qualrk, total_time: 30 },
-  plot: { curves: [ { x: t, y: mth } ], axes.x_low: 0, axes.x_high: 30, axes.y_low: 0, axes.y_high: 6.3, line.draw: points, line.marker: circle, line.marker_size: 2 },
+  plot: { curves: [ { x: t, y: mth } ], axes.x_min: 0, axes.x_max: 30, axes.y_min: 0, axes.y_max: 6.3, line.draw: points, line.marker: circle, line.marker_size: 2 },
 }

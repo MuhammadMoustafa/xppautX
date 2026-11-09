@@ -399,3 +399,11 @@ XPPAUT reevaluated colours every frame while freezing the coordinates.
 The retained import fixtures use fixed permanent colours and still match
 frame for frame. Recorded `.ani` imports are converted in memory while
 replaying their embedded input; replay does not create a new disk companion.
+
+## W654: XLO..YHI in a 3D plot
+
+In a 3D plot XPPAUT's `XLO`, `XHI`, `YLO` and `YHI` zoom into the projected picture (XPPAUT's borcol.ode sets
+`XLO=-1.45`). xppautX has one pair of limits, `axes.x_min` to `axes.y_max`, which is the box of a 3D plot, and the
+page fits the picture to its box; the converter drops the four options of a 3D `.ode` without a warning. In a 2D plot
+they are the window, the same quantity as `XMIN`..`YMAX` (which XPPAUT sets with them, `XLO` winning), and import onto
+`axes.x_min`..`axes.y_max`.

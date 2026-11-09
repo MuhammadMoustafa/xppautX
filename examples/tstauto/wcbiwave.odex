@@ -9,7 +9,7 @@ par c = 1, k = 1, a = 15, b = 5
 fun f(x) = 1/(1+exp(-x))
 options {
   integration: { dt: .01 },
-  plot: { curves: [ { x: u, y: z } ], axes.x_low: -.1, axes.y_low: -1, axes.y_high: 1, axes.x_high: 1.2 },
+  plot: { curves: [ { x: u, y: z } ], axes.x_min: -.1, axes.y_min: -1, axes.y_max: 1, axes.x_max: 1.2 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

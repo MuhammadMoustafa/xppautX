@@ -2115,7 +2115,7 @@ def check_data_value_set():
         f.write(versioned("x'=-a*x+b\ny'=-y+c\npar a=1,b=2,c=0.5\ninit x=0.5,y=2\n"
                 "options { integration: { dt: 0.02, total_time: 9 } }\n"
                 "set \"pa\" { a: 10, b: 20 }\n"
-                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { axes.x_low: -3, axes.x_high: 3 } } }\n"))
+                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { axes.x_min: -3, axes.x_max: 3 } } }\n"))
     post_model = os.path.join(folder, 'w526post.odex')
     with open(post_model, 'w') as f:
         f.write(versioned("x'=-x+sin(t)\ninit x=0.5\noptions { integration: { total_time: 50, dt: .05 }, analysis: { histogram.column: x, histogram.low: -1, histogram.high: 1, histogram.bins: 20 }, output: { after_run: histogram } }\n"))
@@ -2824,7 +2824,7 @@ def check_options_panels():
         check('W616: a group the sets hold changes by its keys, with its numerics applied',
               done.get('status') == 'ok' and call(cmd='options.get', group='integration')['result']['values']['dt'] == '0.25')
         done = call(cmd='options.get', group='plot')
-        check('W616: the plot group is a graph\'s: its curves and ranges as text', done.get('status') == 'ok' and 'axes.x_low' in done['result']['values'] and 'colormap' in done['result']['values'], str(done)[:300])
+        check('W616: the plot group is a graph\'s: its curves and ranges as text', done.get('status') == 'ok' and 'axes.x_min' in done['result']['values'] and 'colormap' in done['result']['values'], str(done)[:300])
         rows = {r['key'] for r in groups['integration']['rows']}
         check('W616: the delay guesses and grid are rows of the delay section', {'delay.real_guess', 'delay.imaginary_guess', 'delay.grid'} <= rows
               and 'autoeval' not in rows and any(r['key'] == 'special_points' for r in groups['continuation']['rows']))
@@ -4840,7 +4840,7 @@ def check_apply_restore():
         f.write(versioned("x'=-a*x+b\ny'=-y+c\npar a=1,b=2,c=0.5\ninit x=0.5,y=2\n"
                 "options { integration: { dt: 0.02, total_time: 9 } }\n"
                 "set \"pa\" { a: 10, b: 20 }\n"
-                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { axes.x_low: -3, axes.x_high: 3 } } }\n"))
+                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { axes.x_min: -3, axes.x_max: 3 } } }\n"))
     p, r, snd, col, _ = launch_server(ode=model)
     errs = lambda evs: [e.get('error') for e in evs if e.get('ev') in ('session.message', 'done') and e.get('error')]
 
@@ -4966,7 +4966,7 @@ def check_save_values():
                 "\n"
                 "# regimes\n"
                 "set \"pa\" { a: 10, b: 20 }\n"
-                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { axes.x_low: -3, axes.x_high: 3 } } }\n")
+                "set \"mix\" { a: 5, x: 0.9, options: { integration: { dt: 0.1, total_time: 7 }, plot: { axes.x_min: -3, axes.x_max: 3 } } }\n")
     with open(model, 'w', newline='') as f:
         f.write(original)
     with open(os.path.join(folder, 'lib.odex'), 'w', newline='') as f:
@@ -5017,14 +5017,14 @@ def check_save_values():
         mix = [new[new.index('set "mix"'):]]
         check('W320: replacing the initial values of mix keeps its parameter and its options as written',
               not errs(evs) and mix and 'a: 5' in mix[0] and 'x: 0.1' in mix[0] and 'y: 0.2' in mix[0] and 'x: 0.9' not in mix[0]
-              and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: { axes.x_low: -3, axes.x_high: 3 }' in mix[0], str(mix) + str(errs(evs)))
+              and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: { axes.x_min: -3, axes.x_max: 3 }' in mix[0], str(mix) + str(errs(evs)))
         check('W320: the rest of the file is byte for byte as it was', new[:old.index('set "mix"')] == old[:old.index('set "mix"')], '')
         run(cmd='initial_conditions.set', values={'x': 3})
         run(cmd='set.apply', name='mix', scope='initial')
         check('W320: the live model uses the replaced part', view()[1]['x'] == 0.1)
         evs = run(cmd='set.save_into', name='mix', scope='plot')
         mix = [text()[text().index('set "mix"'):]]
-        check('W320: replacing the plot settings leaves the rest of the set', not errs(evs) and mix and 'axes.x_low: -3' not in mix[0]
+        check('W320: replacing the plot settings leaves the rest of the set', not errs(evs) and mix and 'axes.x_min: -3' not in mix[0]
               and 'x: 0.1' in mix[0] and 'integration: { dt: 0.1, total_time: 7 }' in mix[0] and 'plot: {' in mix[0], str(mix) + str(errs(evs)))
         # the defaults: par and init lines in place, an options group
         run(cmd='value.set_parameters', values={'a': 4})
@@ -5816,7 +5816,7 @@ def check_fit_retained_runs():
         ode = os.path.join(d, 'fit.odex')
         with open(ode, 'w') as f:
             f.write(versioned("par a=2\nx'=a*x\ny'=a*y\ninit x=1,y=1" + extra + "\noptions { integration: { total_time: 1, dt: .1 }, "
-                    "plot: { axes.x_low: 0, axes.x_high: 1, axes.y_low: 0, axes.y_high: 1" + plot + " } }\n"))
+                    "plot: { axes.x_min: 0, axes.x_max: 1, axes.y_min: 0, axes.y_max: 1" + plot + " } }\n"))
         proc, run, snd, col, _ = launch_server(ode=ode)
 
         try:
@@ -9949,7 +9949,8 @@ def check_parser_group():
         # W494: a value outside its range, or two that break an order, is refused at its line in every mode
         for body, line, words in (
                 ('integration: { total_time: .02, dt: .01, step.min: 1, step.max: 0.5 }', 2, 'integration.step.min (1) must be at most integration.step.max (0.5)'),
-                ('plot: { axes.x_low: 3, axes.x_high: 1 }', 2, 'plot.axes.x_low (3) must be below plot.axes.x_high (1)'),
+                ('plot: { axes.x_min: 3, axes.x_max: 1 }', 2, 'plot.axes.x_min (3) must be below plot.axes.x_max (1)'),
+                ('plot: { axes.x_low: 3, axes.x_high: 5 }', 2, '`axes.x_low` is not an option'),
                 ('analysis: { histogram.low: 2, histogram.high: 2 }', 2, 'analysis.histogram.low (2) must be below analysis.histogram.high (2)'),
                 ('analysis: { histogram.bins: 1 }', 2, 'must be a whole number of at least 2'),
                 ('plot: { curves: [ {}, {}, {}, {}, {}, {}, {}, {}, {} ] }', 2, '`curves` has 9 entries: at most 8'),
@@ -11991,7 +11992,7 @@ def check_recursive_user_functions():
         field = os.path.join(folder, 'field.odex')
         with open(field, 'w') as f:
             f.write(versioned("fun f(x) = f(x)+1\nx' = -f(x)\ny' = x\n"
-                    "options { plot: { curves: [ { x: x, y: y } ], axes.x_low: -1, axes.x_high: 1, axes.y_low: -1, axes.y_high: 1 } }\n"))
+                    "options { plot: { curves: [ { x: x, y: y } ], axes.x_min: -1, axes.x_max: 1, axes.y_min: -1, axes.y_max: 1 } }\n"))
         s = Server(args.server, field)
         try:
             s.collect(is_done)

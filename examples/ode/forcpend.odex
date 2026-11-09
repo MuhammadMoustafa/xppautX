@@ -6,5 +6,5 @@ y' = -sin(x)-f*y+a*cos(w*t)
 par f = 0.1, w = 1, a = 1
 options {
   integration: { total_time: 6.28, store_from: 6.275, dt: .0628 },
-  plot: { axes.x_low: -10, axes.x_high: 10, axes.y_low: -2.5, axes.y_high: 2.5, curves: [ { x: x, y: y } ] },
+  plot: { axes.x_min: -10, axes.x_max: 10, axes.y_min: -2.5, axes.y_max: 2.5, curves: [ { x: x, y: y } ] },
 }

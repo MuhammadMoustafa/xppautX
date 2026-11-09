@@ -16,7 +16,7 @@ par tauz = 50, aez = 10, tz = 7
 init u = 0.036, v = 5e-04, z = 0.0013, we = 0.0365
 options {
   integration: { dt: .002 },
-  plot: { curves: [ { x: we, y: ve } ], axes.x_low: -.05, axes.y_low: -.2, axes.x_high: .5, axes.y_high: .3 },
+  plot: { curves: [ { x: we, y: ve } ], axes.x_min: -.05, axes.y_min: -.2, axes.x_max: .5, axes.y_max: .3 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -24,6 +24,6 @@ options {
   plot: {
     curves: [ { x: x, y: y, z: z }, { x: x, y: y, z: z2 }, { x: x, y: y2, z: z }, { x: x2, y: y, z: z } ], axes.kind: 3,
     axes.x_min: -40, axes.x_max: 18, axes.y_min: -24, axes.y_max: 64, axes.z_min: -12, axes.z_max: 45,
-    axes.x_low: -1.4, axes.y_low: -1.7, axes.x_high: 1.7, axes.y_high: 1.7, axes.theta: 35,
+    axes.theta: 35,
   },
 }

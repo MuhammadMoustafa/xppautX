@@ -6,6 +6,6 @@ xp' = -x+xp*(1-x^2)
 init x = 1
 options {
   integration: { total_time: 40 },
-  plot: { curves: [ { x: t, y: x }, { x: t, y: xp } ], axes.x_low: 0, axes.x_high: 40, axes.y_low: -3, axes.y_high: 3 },
+  plot: { curves: [ { x: t, y: x }, { x: t, y: xp } ], axes.x_min: 0, axes.x_max: 40, axes.y_min: -3, axes.y_max: 3 },
 }
 init xp = 0

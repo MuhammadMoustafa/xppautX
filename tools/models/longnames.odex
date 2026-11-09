@@ -21,6 +21,6 @@ options {
   diagram: { x_min: 0, x_max: 2, y_min: -2.5, y_max: 2.5 },
   plot: {
     curves: [ { x: membrane_potential_fast_variable_of_the_model_with_a_name_two_hundred_characters_long_of_the_model_with_a_name_two_hundred_characters_long_of_the_model_with_a_name_two_hundred_characters_long_of_the_m, y: slow_recovery_variable_w } ],
-    axes.x_low: -2.5, axes.x_high: 2.5, axes.y_low: -1, axes.y_high: 2,
+    axes.x_min: -2.5, axes.x_max: 2.5, axes.y_min: -1, axes.y_max: 2,
   },
 }

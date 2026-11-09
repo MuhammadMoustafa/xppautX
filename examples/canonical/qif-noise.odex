@@ -21,5 +21,5 @@ event 1 count-maxcount, arret = 1
 options {
   integration: { method: euler, state_limit: 100000000, total_time: 8000, store_from: 50000 },
   equilibria: { search_limit: 100000000 },
-  plot: { curves: [ { x: count, y: isi } ], axes.x_low: 0, axes.x_high: 1000, axes.y_low: 0, axes.y_high: 100 },
+  plot: { curves: [ { x: count, y: isi } ], axes.x_min: 0, axes.x_max: 1000, axes.y_min: 0, axes.y_max: 100 },
 }

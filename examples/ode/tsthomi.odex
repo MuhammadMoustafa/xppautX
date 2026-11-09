@@ -23,5 +23,5 @@ par per = 8.1, a = 0
 init x = 0.1, y = 0.1
 options {
   integration: { total_time: 1.01, method: dopri8, dt: .001 },
-  plot: { axes.x_low: -.2, axes.x_high: 1.6, axes.y_low: -1, axes.y_high: 1, curves: [ { x: x, y: y } ] },
+  plot: { axes.x_min: -.2, axes.x_max: 1.6, axes.y_min: -1, axes.y_max: 1, curves: [ { x: x, y: y } ] },
 }

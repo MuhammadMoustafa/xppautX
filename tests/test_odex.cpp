@@ -792,8 +792,21 @@ int main(void)
     const auto result = xpp::odex::convert_text("build/test_odex_model.ode");
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
-    CHECK(text.find("set \"trial\" { dt: 0.1, x: 3, options: { integration: { total_time: 5 }, plot: { axes.x_low: -3 } } }") != std::string::npos);
+    CHECK(text.find("set \"trial\" { dt: 0.1, x: 3, options: { integration: { total_time: 5 }, plot: { axes.x_min: -3 } } }") != std::string::npos);
     if (result) CHECK(model_error(text.c_str()).empty());
+  }
+
+  /* W654: one pair of limits. XLO..YHI import onto axes.x_min..y_max in a 2D plot (winning over XMIN), are dropped in a 3D
+     one, and a .odex naming one of the old keys is refused at its line. */
+  {
+    CHECK(load_text("x'=-x\ny'=x\n@ xmin=-2,xlo=-3,yhi=4,total=2\ndone\n", "ode") == 1);
+    const auto flat = xpp::odex::convert_text("build/test_odex_model.ode");
+    CHECK(flat && flat->find("axes.x_min: -3") != std::string::npos && flat->find("axes.y_max: 4") != std::string::npos);
+    CHECK(load_text("x'=y\ny'=z\nz'=-x\n@ axes=3,xlo=-1.45,yhi=4,xmin=0,total=2\ndone\n", "ode") == 1);
+    const auto solid = xpp::odex::convert_text("build/test_odex_model.ode");
+    CHECK(solid && solid->find("axes.x_min: 0") != std::string::npos && solid->find("axes.y_max") == std::string::npos
+          && solid->find("-1.45") == std::string::npos);
+    CHECK(model_error("version 4\nx'=-x\ninit x=1\noptions {\n  plot: { axes.x_low: -3 },\n}\n").find("`axes.x_low` is not an option") != std::string::npos);
   }
 
   /* W167: keep ignored, spaced @ words visible in the conversion note. */

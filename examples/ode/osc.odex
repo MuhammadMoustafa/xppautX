@@ -15,7 +15,7 @@ options {
   integration: { store_every: 10, total_time: 400, method: euler },
   continuation: { parameter_min: 0, parameter_max: 6, step_size: -0.001, max_step_size: .01 },
   diagram: { variable: V },
-  plot: { curves: [ { x: V, y: X } ], axes.x_low: -3, axes.x_high: 3, axes.y_low: -3, axes.y_high: 6 },
+  plot: { curves: [ { x: V, y: X } ], axes.x_min: -3, axes.x_max: 3, axes.y_min: -3, axes.y_max: 6 },
   interface: { buttons: "AUTO:fa" },
 }
 

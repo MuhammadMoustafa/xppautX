@@ -51,7 +51,7 @@ RUNS = {
     'int_dae':        (EX / 'dae_ex1.odex', 'total_time: 10000, dt: 0.01', '', []),
     # non-solver work
     'nullclines_dfield': (EX / LECAR, 'method: runge_kutta, dt: 0.05, total_time: 3',
-                          'plot: { nullclines.mesh: 400, direction_field.grid: 100, direction_field.draw: arrows, nullclines.draw: true, axes.x_low: -.6, axes.x_high: 1.2, axes.y_low: -.25, axes.y_high: 1.2, curves: [ { x: v, y: w } ] }',
+                          'plot: { nullclines.mesh: 400, direction_field.grid: 100, direction_field.draw: arrows, nullclines.draw: true, axes.x_min: -.6, axes.x_max: 1.2, axes.y_min: -.25, axes.y_max: 1.2, curves: [ { x: v, y: w } ] }',
                           ['--dfdraw', '1', '--ncdraw', '1']),
     'fourier':        (HARMONIC, 'method: euler, dt: 0.001, total_time: 130',
                        'output: { after_run: fourier_series }', []),

@@ -8,5 +8,5 @@ f1(t) = exp(-t)-t^2/2+volterra(exp(-t), of=f1*f1)+volterra(f2)
 f2(t) = t-t^4/24+volterra(t, of=f2*f2/(1+f1*f1))
 options {
   integration: { total_time: 5 },
-  plot: { curves: [ { y: f2 } ], axes.x_high: 5, axes.y_high: 5 },
+  plot: { curves: [ { y: f2 } ], axes.x_max: 5, axes.y_max: 5 },
 }

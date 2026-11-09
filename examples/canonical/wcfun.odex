@@ -10,7 +10,7 @@ fun f(u) = 1/(1+exp(-u))
 par aee = 20, aei = 30, aii = 5, aie = 10, te = 4.5, ti = 10
 par tau = 0.75
 options {
-  plot: { curves: [ { x: u, y: v } ], axes.x_low: -.1, axes.x_high: 1.1, axes.y_low: -.1, axes.y_high: 1.1 },
+  plot: { curves: [ { x: u, y: v } ], axes.x_min: -.1, axes.x_max: 1.1, axes.y_min: -.1, axes.y_max: 1.1 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

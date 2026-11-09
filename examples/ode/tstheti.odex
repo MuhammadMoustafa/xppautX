@@ -38,5 +38,5 @@ options {
     special_point_tolerance: 1e-7, state_tolerance: 1e-7, parameter_tolerance: 1e-7,
     parameter_max: 60, max_step_size: 5, min_step_size: 1e-4, mesh_intervals: 35,
   },
-  plot: { curves: [ { x: u, y: up } ], axes.x_low: -.25, axes.x_high: 1.25, axes.y_low: -.75, axes.y_high: .25 },
+  plot: { curves: [ { x: u, y: up } ], axes.x_min: -.25, axes.x_max: 1.25, axes.y_min: -.75, axes.y_max: .25 },
 }

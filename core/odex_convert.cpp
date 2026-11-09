@@ -1462,6 +1462,12 @@ private:
   };
 
   CurveOptions curves_;
+  /* the .ode's XLO..YHI, which only a 2D plot has: applied once the whole .ode is read and its plot is known */
+  struct FlatOption {
+    const OptionRow *row;
+    std::string key, value;
+  };
+  std::vector<FlatOption> flat_;
   std::set<std::string> dropped_; /* the warnings of dropped options already said */
 
   std::string options_block()
@@ -1469,8 +1475,12 @@ private:
     const bool map = disc(m_) != 0;
     std::vector<OptionEntry> entries;
     curves_ = {};
+    flat_.clear();
     dropped_.clear();
     for (const xpp::Model::OptionLine &line : m_.options) collect_options(line, map, entries);
+    const bool three = std::ranges::any_of(entries, [](const OptionEntry &e) { return e.row == &xpp::once_option("plot.axes.kind") && e.value == "3"; });
+    if (!three)
+      for (const FlatOption &f : flat_) add_expanded(*f.row, f.key, f.value, entries, false);
     if (const std::string list = curves_.list(); !list.empty()) {
       const OptionRow &row = xpp::curves_option();
       entries.push_back({xpp::odex_key(row, 0), list, &row});
@@ -1535,6 +1545,10 @@ private:
       const OptionRow *row = xpp::find_option(key, index, true);
       if (xpp::upper_case(key) == "RUNNOW") {
         option_note(xpp::format("@ {}={} in the .ode: startup running is removed, dropped; use Run or --silent", key, value), "runnow-removed");
+        continue;
+      }
+      if (row && row->flat_only) {
+        flat_.push_back({row, key, value});
         continue;
       }
       if (row && row->expand) {

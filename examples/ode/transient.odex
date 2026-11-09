@@ -9,5 +9,5 @@ init x = 8, y = 2, z = 1
 options {
   integration: { dt: .002, total_time: 20, state_limit: 1000, method: qualrk },
   equilibria: { search_limit: 1000 },
-  plot: { curves: [ { x: x, y: z } ], axes.x_low: -125, axes.x_high: 125, axes.y_low: -125, axes.y_high: 10 },
+  plot: { curves: [ { x: x, y: z } ], axes.x_min: -125, axes.x_max: 125, axes.y_min: -125, axes.y_max: 10 },
 }

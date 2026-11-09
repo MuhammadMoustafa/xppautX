@@ -191,7 +191,7 @@ you wrote (`1/30`) alone while the value is unchanged.
 
         options {
           integration: { total_time: 100, method: stiff, jacobian.kind: exact },
-          plot:     { curves: [ { x: v, y: w } ], axes.x_low: -0.6, axes.x_high: 1.2 },
+          plot:     { curves: [ { x: v, y: w } ], axes.x_min: -0.6, axes.x_max: 1.2 },
           continuation: { mesh_intervals: 50, parameter_max: 10 },
         }
 
@@ -200,7 +200,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   keep, W615): `integration`, `poincare`, `equilibria`, `sweep`, `continuation`, `diagram`,
   `plot`, `analysis`, `interface`, `output`. A key is the option's one name in
   snake case; in a large group a dotted word is a section (`step.min`, `jacobian.kind`,
-  `axes.x_low`, `histogram.bins`, `colors.stable_equilibrium`), and a section's keys come
+  `axes.x_min`, `histogram.bins`, `colors.stable_equilibrium`), and a section's keys come
   together. What each group holds:
 
   | group | keys |
@@ -211,7 +211,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |
   | `continuation` | autoX run settings by their names: `mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance` (W531) and the ten that were Numerics-form settings only: `mesh_adapt_every`, `max_branch_switches`, `switch_one_direction`, `output_detail`, `max_location_iterations`, `max_newton_iterations`, `full_newton_after`, `step_adapt_every`, `suppress_branch_points`, `follow_all_branches` (each the autox.configure_numerics argument of its name); autoX's own names (`ntst`, `nmax`, `parmin`, ...) are XPPAUT's, read on `.ode` import only |
   | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max`; `colors.stable_equilibrium`, `colors.unstable_equilibrium`, `colors.stable_periodic`, `colors.unstable_periodic` |
-  | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_low`, `axes.x_high`, `axes.y_low`, `axes.y_high` (the 2D window), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `axes.phi`, `axes.theta` (the 3D box and view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`, `nullclines.x_color`, `nullclines.y_color`; `direction_field.grid`, `direction_field.draw`; `manifolds.stable_color`, `manifolds.unstable_color`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
+  | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max` (the one pair of limits: a 2D plot's window, a 3D plot's box), `axes.z_min`, `axes.z_max` (the 3D box), `axes.phi`, `axes.theta` (the 3D view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`, `nullclines.x_color`, `nullclines.y_color`; `direction_field.grid`, `direction_field.draw`; `manifolds.stable_color`, `manifolds.unstable_color`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
   | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
   | `interface` | `sliders`, `buttons` (and `animation`, written directly in `options`, outside any group) |
   | `output` | `data_file`, `picture_file`, `nullclines_file`, `after_run`, `after_run_file` (`picture_file` is the picture a batch run writes of the graph, its extension, `.pdf` or `.svg`, picking the format, empty for none: an unknown extension is an error at its line, and a run per set names it after the set like `data_file`, `<set>.svg`; a path is named from the model's folder, a path outside it is a question, and its extension picks the data format; with `after_run_file` the analysis `after_run` names is written there and `data_file` keeps the trajectory, without it the analysis replaces the table `data_file` is written from, as XPPAUT's batch run does) |
@@ -354,7 +354,7 @@ Settings that must keep an order are refused when it is broken, wherever they
 come from (an `options` block, a session file, `set num`, the
 Numerics menu, the Window and histogram dialogs), with both names and values:
 `min_step` at most `max_step`, `xlo` below `xhi`, `ylo` below `yhi`, `xmin` below `xmax`, `ymin` below `ymax`, `zmin` below `zmax`, `histlo` below `histhi`,
-`histlo2` below `histhi2`, `autoxmin` below `autoxmax` and `autoymin` below `autoymax` (the settings' internal names, which the message names; the keys are `step.min`, `step.max`, `axes.x_low`, `axes.x_high`, `axes.y_low`, `axes.y_high`, `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `histogram.low`, `histogram.high`, `histogram2.low`, `histogram2.high`, `x_min`, `x_max`, `y_min` and `y_max` of the diagram) (the continuation's pairs are autoX's own). `torus.period` is above 0 and
+`histlo2` below `histhi2`, `autoxmin` below `autoxmax` and `autoymin` below `autoymax` (the settings' internal names, which the message names; the keys are `step.min`, `step.max`, `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `histogram.low`, `histogram.high`, `histogram2.low`, `histogram2.high`, `x_min`, `x_max`, `y_min` and `y_max` of the diagram) (the continuation's pairs are autoX's own). `torus.period` is above 0 and
 `steps` of the sweep at least 1. The list, with each setting's range and the rule behind
 it, is [docs/studies/w494-numeric-settings.md](studies/w494-numeric-settings.md).
 

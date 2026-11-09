@@ -128,7 +128,7 @@ options {
     store_every: 1, step.relative_tolerance: .001, step.absolute_tolerance: .001, step.min: 1e-12,
     step.max: 1,
   },
-  plot: { curves: [ { x: t, y: v5 } ], axes.x_low: 0, axes.x_high: 1000, axes.y_low: -80, axes.y_high: 20. },
+  plot: { curves: [ { x: t, y: v5 } ], axes.x_min: 0, axes.x_max: 1000, axes.y_min: -80, axes.y_max: 20. },
 }
 init v1 = 0
 init v2 = 0

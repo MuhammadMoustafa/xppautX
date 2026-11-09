@@ -26,7 +26,7 @@ boundary k'
 # set it up for the user
 options {
   integration: { start_time: .01, dt: .01, total_time: .99 },
-  plot: { axes.x_high: 1 },
+  plot: { axes.x_max: 1 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -17,7 +17,7 @@ w' = lamn(v)*(ninf(v)-w)
 init v = -0.144, w = 0.03
 options {
   integration: { total_time: 1000, dt: .001, store_every: 50 },
-  plot: { axes.x_low: -.6, axes.x_high: 1.2, axes.y_low: -.25, axes.y_high: 1.2, curves: [ { x: v, y: w } ] },
+  plot: { axes.x_min: -.6, axes.x_max: 1.2, axes.y_min: -.25, axes.y_max: 1.2, curves: [ { x: v, y: w } ] },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

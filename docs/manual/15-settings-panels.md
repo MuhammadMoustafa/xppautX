@@ -143,14 +143,10 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 ### Axes
 
 - **Kind** (`axes.kind`): A two- or three-dimensional plot.
-- **X low** (`axes.x_low`): The left edge of the two-dimensional window.
-- **X high** (`axes.x_high`): The right edge of the two-dimensional window.
-- **Y low** (`axes.y_low`): The bottom edge of the two-dimensional window.
-- **Y high** (`axes.y_high`): The top edge of the two-dimensional window.
-- **X min** (`axes.x_min`): The low end of the three-dimensional box in x.
-- **X max** (`axes.x_max`): The high end of the three-dimensional box in x.
-- **Y min** (`axes.y_min`): The low end of the three-dimensional box in y.
-- **Y max** (`axes.y_max`): The high end of the three-dimensional box in y.
+- **X min** (`axes.x_min`): The low end of x: the window's left edge in a two-dimensional plot, the box's in a three-dimensional one.
+- **X max** (`axes.x_max`): The high end of x: the window's right edge in a two-dimensional plot, the box's in a three-dimensional one.
+- **Y min** (`axes.y_min`): The low end of y: the window's bottom edge in a two-dimensional plot, the box's in a three-dimensional one.
+- **Y max** (`axes.y_max`): The high end of y: the window's top edge in a two-dimensional plot, the box's in a three-dimensional one.
 - **Z min** (`axes.z_min`): The low end of the three-dimensional box in z.
 - **Z max** (`axes.z_max`): The high end of the three-dimensional box in z.
 - **Phi** (`axes.phi`): The azimuth the three-dimensional plot is viewed from, in degrees.

@@ -79,7 +79,7 @@ init vx = 1
 options {
   integration: { total_time: 80000, method: discrete, store_every: 50, store_from: 79999, state_limit: 100000 },
   equilibria: { search_limit: 100000 },
-  plot: { curves: [ { x: muu, y: nuu } ], axes.x_low: -4, axes.x_high: 0, axes.y_low: 0, axes.y_high: 2 },
+  plot: { curves: [ { x: muu, y: nuu } ], axes.x_min: -4, axes.x_max: 0, axes.y_min: 0, axes.y_max: 2 },
 }
 
 # what followed the .ode's done:

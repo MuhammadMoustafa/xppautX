@@ -125,11 +125,10 @@ struct PlotCurve {
 
 /* The main plot's settings in use (the model's `plot: { curves }` and axes options, the Viewaxes
    dialogs), a Session's (session.h): the curves the starting graph draws (the first holds the axes'
-   variables), the axes' kind, the 2D window and the 3D box */
+   variables), the axes' kind, the limits: a 2D plot's window or a 3D plot's box */
 struct PlotSettings {
   std::vector<PlotCurve> curves{PlotCurve{}};
   int axes = 0, timplot = 0, plot_3d = 0;
-  double my_xlo = 0, my_ylo = 0, my_xhi = 0, my_yhi = 0;
   std::array<double,2> x_3d{}, y_3d{}, z_3d{};
   LineStyle start_line_style; /* the style every new curve starts with (@ lt=, line.draw, ...) */
 };

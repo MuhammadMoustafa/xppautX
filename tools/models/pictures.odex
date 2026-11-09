@@ -14,7 +14,7 @@ init v = -0.144, w = 0.03
 options {
   integration: { total_time: 30, dt: .05 },
   plot: {
-    colormap: plasma, axes.x_low: -.6, axes.x_high: 1.2, axes.y_low: -.25, axes.y_high: 1.2, curves: [ { x: v, y: w } ],
+    colormap: plasma, axes.x_min: -.6, axes.x_max: 1.2, axes.y_min: -.25, axes.y_max: 1.2, curves: [ { x: v, y: w } ],
     nullclines.x_color: "#e8590c80", nullclines.y_color: "#2b9348",
     line.dash: dashed, line.width: 1.5, line.draw: both, line.marker: diamond, line.marker_size: 2,
     nullclines.draw: true,

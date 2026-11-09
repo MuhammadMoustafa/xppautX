@@ -874,7 +874,8 @@ private:
       const OptionRow *elsewhere = find_odex_option_anywhere(o.name, index);
       if (elsewhere && elsewhere->top_level) fail(key.pos, xpp::format("`{}` belongs directly in options, outside the groups", o.name));
       if (elsewhere) fail(key.pos, xpp::format("`{}` is in the group {}, not {}", o.name, elsewhere->group, group));
-      const OptionRow *xppaut = find_option(upper_case(o.name), index, true);
+      /* XPPAUT's words have no dot: a dotted key that is none of ours is a removed or misspelt one of ours, not matched by a prefix */
+      const OptionRow *xppaut = o.name.contains('.') ? nullptr : find_option(upper_case(o.name), index, true);
       fail(key.pos, xppaut && !xppaut->odex.empty()
                       ? xpp::format("`{}` is XPPAUT's word: the key is `{}`", o.name, odex_key(*xppaut, index))
                       : xpp::format("`{}` is not an option", o.name));

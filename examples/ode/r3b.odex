@@ -15,12 +15,12 @@ set "period" {
             x: 0.994, y: 0, u: 0, v: -2.001583,
             options: {
               integration: { total_time: 17.2, dt: .05, method: dopri8 },
-              plot: { axes.x_low: -2, axes.y_low: -2, axes.x_high: 2, axes.y_high: 2 },
+              plot: { axes.x_min: -2, axes.y_min: -2, axes.x_max: 2, axes.y_max: 2 },
             },
           }
 options {
   integration: { total_time: 200 },
-  plot: { curves: [ { x: x, y: y } ], axes.x_low: 0, axes.y_low: 0, axes.x_high: 1.2, axes.y_high: 1.2 },
+  plot: { curves: [ { x: x, y: y } ], axes.x_min: 0, axes.y_min: 0, axes.x_max: 1.2, axes.y_max: 1.2 },
 }
 
 fun ode_divisor(value) = if value then value else 2.23e-15

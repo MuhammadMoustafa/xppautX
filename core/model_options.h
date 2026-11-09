@@ -104,8 +104,6 @@ struct OptionSource {
   const OptionsSet *mask;    /* the options unset when this source began */
   /* row may be set from here */
   bool may(const Session &s, const OptionRow &row) const;
-  /* row may be set from here; marked set when so */
-  bool claim(Session &s, const OptionRow &row) const;
 };
 
 /* an option's value as its parser gets it */
@@ -178,7 +176,7 @@ struct OptionRow {
   /* an import-only row's name (XPPAUT's, its only one): a grouped row has none, its name is option_name */
   std::string_view name;
   /* the key a .odex writes in the row's group (W615): snake_case, with a dotted section
-     ("step.min", "axes.x_low") where the group is large; "" for a row that is no .odex option.
+     ("step.min", "axes.x_min") where the group is large; "" for a row that is no .odex option.
      The rows run in the order of option_groups, then their sections (a section's rows together,
      after the group's unsectioned ones), the order the panels show them. */
   std::string_view odex;
@@ -230,6 +228,9 @@ struct OptionRow {
   std::string_view imported_default;
   /* an XPPAUT option that is several of ours (bound, ncdraw, lt): the options it sets */
   ForeignOptions (*expand)(std::string_view) = nullptr;
+  /* an `expand` row that only a 2D plot has (XPPAUT's XLO..YHI): dropped in a 3D plot, which the converter decides once the whole
+     .ode is read */
+  bool flat_only = false;
   /* a numerics setting: its key in the "numerics" event and `set num`,
      the menu's label, what it accepts and which methods use it */
   std::string_view key, label;
@@ -294,7 +295,7 @@ std::span<const OptionRow> option_rows();
    as a .odex does not take them */
 const OptionRow *find_option(std::string_view name, int &index, bool xppaut_names);
 
-/* a row's name: its group and .odex key joined with a dot ("integration.total_time", "plot.axes.x_low"),
+/* a row's name: its group and .odex key joined with a dot ("integration.total_time", "plot.axes.x_min"),
    or an import-only row's own name; the one name a set, a protocol word for a row and the pairs use */
 std::string option_name(const OptionRow &row);
 
