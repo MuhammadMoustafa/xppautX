@@ -754,35 +754,6 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
   xpp::Load::at(s.model().this_file);
 }
 
-void set_internopts_xpprc_and_comline(xpp::Session &s, std::span<const std::string> interopt)
-{
-  if(interopt.empty())return;
-  /*We make a BOOLEAN MASK using the current OptionsSet*/
-  /*This allows options to be overwritten multiple times within .xpprc
-  but prevents overwriting across comline, .xpprc etc.
-  */
-  const OptionsSet mask = s.options_set;
-  for(const std::string &opt : interopt)
-    each_option(opt," ,"," ,\n\r",[&s,&mask](const std::string &name,const std::string &value){
-      set_option(s,name,value,0,&mask);
-    });
-
-}
-
-std::vector<std::string> check_for_xpprc()
-{
-  std::vector<std::string> interopt;
-  const char *home=getenv("HOME");
-  if(home==NULL)return interopt;
-  xpp::LineReader lr((std::string(home)+"/.xpprc").c_str());
-  if(!lr)return interopt;
-  while(std::optional<std::string_view> line=lr.next()){
-    if(!line->empty()&&(*line)[0]=='@')
-      interopt.push_back(std::string(*line));
-  }
-  return interopt;
-}
-
 int add_model_option(xpp::Model &m, std::string_view s1)
 {
   /* dll_lib= and dll_fun= named a compiled library and its function */

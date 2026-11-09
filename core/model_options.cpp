@@ -938,7 +938,7 @@ constexpr OptionRow rows[] = {
   {.kind = OptionKind::number, .name = "SHI3", .once = true,
    .parse = slider_end<2, &XppSlider::hi>},
   /* the X11 window's bell, fonts, colors, image, size and paper: still
-     accepted (old .ode and .xpprc files set them), no longer kept */
+     accepted (old .ode files set them), no longer kept */
   {.name = "BELL", .zero_or_one = true},
   {.name = "TUTORIAL", .zero_or_one = true}, /* the tutorial went with W229 */
   {.name = "BIGFONT", .xppaut_names = {"BIG"}},

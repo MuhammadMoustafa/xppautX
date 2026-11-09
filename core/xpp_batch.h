@@ -31,11 +31,6 @@ struct Session; /* session.h */
    script (json_silent.cpp). */
 void batch_start(Session &s);
 
-/* The start of a load (load_model), in the Session it builds (its
-   options_set empty: no option set yet): .xpprc's and the command line's
-   options */
-void do_vis_env(Session &s);
-
 /* what a load gives: the Session it loaded (its Model the Session's),
    or what is wrong and where */
 using Loaded = std::expected<Session *, Error>;

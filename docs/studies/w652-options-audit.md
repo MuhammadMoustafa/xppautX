@@ -215,7 +215,7 @@ Each group is a table, rows in the option table's order. "Repeats": another row 
 | 134 | `after_run_file` (After run file) | no @ option | json_silent.cpp:140-148 | rarely: ours | none | batch only | keep (batch only, Q6) |
 ## The 45 import-only rows
 
-Read from an XPPAUT `.ode`, `.xpprc` or the command line, refused in a `.odex`. All are proposed **import-only, as they are**; none is shown. Demos: how many of the 218 set it.
+Read from an XPPAUT `.ode` or the command line, refused in a `.odex`. All are proposed **import-only, as they are**; none is shown. Demos: how many of the 218 set it.
 
 | rows | what | demos | note |
 |---|---|---|---|

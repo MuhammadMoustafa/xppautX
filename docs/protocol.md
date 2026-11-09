@@ -2175,7 +2175,7 @@ applies when the run ends.
 (the alpha, 00 clear to ff opaque, written only when not opaque) or `foreground`, the color a page
 draws dark on a light theme and light on a dark one and a picture draws black. A CSS color name is read (a
 form's color field, a `text` command, a file) and written back as hex. There is no color number anywhere
-of ours; XPPAUT's 0 to 10 are read in a `.ode`, an `.xpprc` and a `.set` only, as the RGB of XPPAUT's own
+of ours; XPPAUT's 0 to 10 are read in a `.ode` and a `.set` only, as the RGB of XPPAUT's own
 table (`foreground`, then red `#ff0000`, `#f06400`, `#ffa500`, `#ffcd00`, `#c8c800`, `#c8eb4b`, `#00e100`,
 `#00c8c8`, `#0000ff` and purple `#a020f0`). The alpha is drawn by the page, in SVG (`fill-opacity`,
 `stroke-opacity`) and in PDF (an ExtGState). The color of the color scale (the array plot's cells, the

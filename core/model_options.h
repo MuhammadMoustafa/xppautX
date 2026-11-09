@@ -3,7 +3,7 @@
 /* The model's options as one table (W119): every @ option's names, the
    member it sets, its default and, for the main numerics, the label and
    check the Numerics menu and the protocol's `set num` use. What reads it:
-   set_option (an "@ name=value" of the model, .xpprc, the command line or
+   set_option (an "@ name=value" of the model, the command line or
    an internal set), the defaults a load gives what no source set
    (set_option_defaults), and numerics_settings.cpp (the "numerics" event,
    `set num` and the menu's questions). model_options.cpp. */
@@ -183,12 +183,12 @@ struct OptionRow {
   /* what the option does, in one line (a sentence, no more than OPTION_HELP_MOST characters): the schema's description and the
      panels' help; every .odex row has it (optioncheck) */
   std::string_view help;
-  /* XPPAUT's names for it, read in a .ode, an .xpprc and the command line
+  /* XPPAUT's names for it, read in a .ode and the command line
      (foreign formats) and refused in a .odex: "" when XPPAUT's name is the name */
   std::array<std::string_view, 2> xppaut_names;
   char first_digit = 0, last_digit = 0; /* numbered: the digits after name */
   /* a source sets it once: the first to set it keeps it (the command line,
-     then the model, then .xpprc; a later @ line of the same source may set
+     then the model; a later @ line of the same source may set
      it again), and a load gives the default only to one nothing set. A row
      that may be given any number of times (fold=, but=, xp2=, ...) has no
      `once`. */
@@ -218,7 +218,7 @@ struct OptionRow {
      member's own initial value */
   void (*reset)(Session &) = nullptr;
   /* a choice row's word for the value XPPAUT's files spell otherwise (a first
-     letter, a number), "" when it is none: a .ode, an .xpprc and the command
+     letter, a number), "" when it is none: a .ode and the command
      line only, never our own files; nullptr: the row's words alone (a boolean's
      are y/n and 0/1) */
   std::string (*foreign)(std::string_view) = nullptr;
@@ -290,7 +290,7 @@ std::span<const OptionRow> option_rows();
 
 /* the row whose name (option_name, or its XPPAUT name) the name given starts with, ignoring case, the
    longest such, and the digit after a numbered one; nullptr when none. xppaut_names:
-   XPPAUT's own names for a row count too (a .ode, .xpprc or command line),
+   XPPAUT's own names for a row count too (a .ode or command line),
    as a .odex does not take them */
 const OptionRow *find_option(std::string_view name, int &index, bool xppaut_names);
 
@@ -346,7 +346,7 @@ bool option_written_quoted(const OptionRow &row);
    method), empty for any other row */
 std::vector<std::string> option_choices(const OptionRow &row);
 
-/* the word of a choice row's value as the .ode, an .xpprc or the command line
+/* the word of a choice row's value as the .ode or the command line
    spell it (XPPAUT's), "" when it selects none; the method's is solver.h's pick_method */
 std::string option_choice(const OptionRow &row, std::string_view value);
 

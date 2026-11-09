@@ -201,7 +201,7 @@ void apply_command_line(Session &s, CommandLine cl)
     batch_options.equilibria = *cl.equilibria;
     xpp::log(XPP_LOG_INFO, " Batch equilibria {:d} \n", batch_options.equilibria);
   }
-  /* --dfdraw and --ncdraw win over .xpprc and the model's @ lines */
+  /* --dfdraw and --ncdraw win over the model's @ lines */
   for (const auto &[name, value] : cl.options) set_option(s, name, value, 1, NULL);
   s.model().command_line = std::move(cl);
 }

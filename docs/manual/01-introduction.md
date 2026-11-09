@@ -263,20 +263,11 @@ detail. [Using the interface](04-using-the-interface.md) describes the
 current front end; [docs/front-end-gaps.md](../front-end-gaps.md) is the
 row-by-row record of what changed and why.
 
-## The resource file and environment variables
+## Environment variables
 
-A file named `.xpprc` in your home directory (`$HOME` on Linux/macOS,
-`%USERPROFILE%` on Windows) can hold options you always want, one `@`
-line per xppautX invocation's worth of settings, for example:
-
-```
-# xpprc file
-@ but=quit:fq
-@ maxstor=50000,bell=0
-@ meth=qualrk,tol=1e-6,atol=1e-6
-```
-
-xppautX reads the file at start; edit it with any editor (no command opens it).
+xppautX does not read a per-user options file: a `.xpprc` in your home directory is ignored.
+A model's settings are its own `options` (see [ODE files](02-ode-files.md)), and File >
+Preferences holds the rest.
 
 xppautX still reads a few environment variables, all optional:
 

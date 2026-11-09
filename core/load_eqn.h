@@ -26,9 +26,6 @@ struct Session; /* session.h */
 
 /* s2 starts with s1 */
 int msc(std::string_view s1, std::string_view s2);
-/* ~/.xpprc's @ lines, each whole (none when it is not there), for
-   set_internopts_xpprc_and_comline */
-std::vector<std::string> check_for_xpprc();
 
 /* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
    likewise 2 and 3); options_set has the s1.. rows once slider n was set. */
@@ -158,10 +155,9 @@ int add_model_option(Model &m, std::string_view s1);
    past the limit of options a model may set */
 void add_model_options(Model &m, std::span<const odex::Option> entries, const std::vector<std::string> &files);
 /* the model's options not yet applied (mask: the options unset before
-   the model's, which its lines may set again), then .xpprc's and the
-   command line's, each through set_option (model_options.h) */
+   the model's, which its lines may set again), each through set_option
+   (model_options.h) */
 void set_internopts(Session &s, const OptionsSet *mask);
-void set_internopts_xpprc_and_comline(Session &s, std::span<const std::string> interopt);
 /* the torus settings read from or written to a set file (lunch-new.cpp) */
 /* the model's internal sets: one added (set name {does}), one's
    "name=value ..." settings applied to s (extract_action for any such

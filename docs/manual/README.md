@@ -21,7 +21,7 @@ dialogs straight to the sections below.
 
 ## Chapters
 
-1. [Introduction](01-introduction.md) — what XPP is, environment variables, `.xpprc`
+1. [Introduction](01-introduction.md) — what XPP is, environment variables
 2. [ODE Files](02-ode-files.md) — the model language: equations, parameters, tables, DAEs, Markov and delay variables, options
 3. [Examples](03-examples.md) — worked models (cable equations, networks, DAEs, ...)
 4. [Using the interface](04-using-the-interface.md) — **web2**: starting xppautX, the page layout, the values panel, plots, dialogs, files, the log

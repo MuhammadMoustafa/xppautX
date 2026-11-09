@@ -3004,6 +3004,43 @@ def check_load_error():
 check_load_error()
 
 
+def check_xpprc_not_read():
+    """W675 Drop .xpprc: a ~/.xpprc is not read. The model sets no total_time, so a file that were read
+    (`@ total=7`, XPPAUT's name for total_time) would set it: the run's total_time is the same as with no
+    file at all, and not 7."""
+    folder = tempfile.mkdtemp(prefix='xpprcmodel')
+    homes = [tempfile.mkdtemp(prefix='xpprchome'), tempfile.mkdtemp(prefix='xpprchome')]
+    try:
+        model = os.path.join(folder, 'free.odex')
+        with open(model, 'w') as f:
+            f.write(versioned("x'=-x\ninit x=1\n"))
+        with open(os.path.join(homes[1], '.xpprc'), 'w') as f:
+            f.write('@ total=7\n')
+
+        def total_time(home):
+            p, r, snd, col, _ = launch_server(ode=model, extra_env={'HOME': home})
+            try:
+                finished = lambda e: e.get('ev') == 'done'
+                col(finished)
+                snd(cmd='events.subscribe', events=['run.numerics'])
+                evs, _ = col(finished)
+                num = next(e for e in reversed(evs) if e.get('ev') == 'run.numerics')
+                return next(f['value'] for f in num['fields'] if f['key'] == 'total_time')
+            finally:
+                stop_server(p, r, snd)
+
+        plain, with_file = total_time(homes[0]), total_time(homes[1])
+        check("W675: a ~/.xpprc is not read (total_time %s with the file, as with none, not 7)" % with_file,
+              with_file == plain and plain != 7, '%r %r' % (plain, with_file))
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+        for home in homes:
+            shutil.rmtree(home, ignore_errors=True)
+
+
+check_xpprc_not_read()
+
+
 def is_state(e):
     return e.get('ev') == 'session.state'
 

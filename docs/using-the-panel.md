@@ -87,7 +87,7 @@ Everything in `xppautX` works without a compiler. A model that called a
 compiled C library (`export`, `dll_lib`/`dll_fun`, a network's `import`)
 no longer loads: those statements were removed.
 
-Help and "Edit .xpprc" open a browser or an editor on the machine that runs
+Help opens a browser or an editor on the machine that runs
 the program, as in X11. If you ever run the server on another machine, they
 appear there, not in front of you.
 

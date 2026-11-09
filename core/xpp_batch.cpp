@@ -49,12 +49,6 @@ namespace xpp {
 XppBatchOptions batch_options;
 
 
-void do_vis_env(xpp::Session &s)
-{
-  set_internopts_xpprc_and_comline(s, check_for_xpprc());
-  
-}
-
 /* everything both the batch run and an interactive front end do: options,
    the ODE file, numerics set-up. batch forces XPPBatch. */
 static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
@@ -74,7 +68,6 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     set_internopts(s, &mask);
 
     xpp::init_alloc_info(s);
-    do_vis_env(s);
     set_all_vals(s);
     /* a set is checked whole at the load (a bad one stops it) */
     if (const Result<> sets = check_intern_sets(s); !sets) model_failed(sets.error());

@@ -81,6 +81,5 @@ Nothing. Fixes from hands-on use are tracked in docs/ui-v2.md (T19).
 
 ## Not done
 
-- `.xpprc` editing starts an editor on the machine that runs the server, as
-  X11 does; a remote server cannot show it to the user. (File > Help no
-  longer starts a browser: it opens web2's in-page Help view, W7e.)
+- (File > Help no longer starts a browser: it opens web2's in-page Help view,
+  W7e. The `.xpprc` editor is gone with the file, W675.)

@@ -399,11 +399,6 @@ These are mainly self-explanatory. The nonobvious ones are:
 
 - **`sum(<ex1>,<ex2>)of(<ex3>)`**: is a way of summing up things. The expressions `,<ex1>` are evaluated and their integer parts are used as the lower and upper limits of the sum. The index of the sum is `i’` so that you cannot have double sums since there is only one index. is the expression to be summed and will generally involve `i’.` For example `sum(1,10)of(i’)` will be evaluated to 55. Another example combines the sum with the shift operator. `sum(0,4)of(shift(u0,i’))` will sum up `u0` and the next four variables that were defined after it.
 
-Add a `.xpprc` file to set your favorite options, e.g
-
-    @ bell=0,grads=0,dwcolor=eeddff
-    @ bigfont=lucidasanstypewriter-bold-14
-
 ## Command line arguments
 
 xppautX adds its own front-end flags ahead of xpp's original ones (see
