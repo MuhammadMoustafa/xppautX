@@ -28,6 +28,7 @@
 #include "xpp_log.h"
 #include "xpp_util.h"
 #include "typed_values.h"
+#include "userbut.h"
 #include "xpp_ui.h"
 #include "browse.h"
 
@@ -1213,6 +1214,10 @@ private:
       const OptionRow *row = xpp::find_option(upper, index, true);
       if (row && row->expand) {
         add_expanded(*row, key, value, settings, true);
+        continue;
+      }
+      if (row && row->odex == "buttons" && !xpp::is_button_sequence(value)) {
+        option_note(xpp::format("@ {}={} in the .ode: no button of xppautX runs that command sequence, dropped", key, value), "option");
         continue;
       }
       const bool slider = row && xpp::xppaut_slider_option(*row);

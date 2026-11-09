@@ -48,6 +48,7 @@ constexpr const char *nullclines_dump_file = "nullclines.dat";
 constexpr int max_plot_curves = 8;
 /* what a .ode's quiet and logfile become: a warning each */
 constexpr std::string_view log_level_is_the_users = "what the log shows is the user's, not a model's (the preferences' log_level, --verbose), so the option is dropped";
+constexpr std::string_view picture_as_shown = "an exported picture is the graph as the panel shows it, so its colour and font size are not settings and the option is dropped";
 constexpr std::string_view log_file_is_the_users = "where the log goes is the user's, not a model's (the preferences' log_file), so the option is dropped";
 /* what a .ode's several starting graphs (multiwin, simplot, xlo2 to yhi8) become: one warning */
 constexpr std::string_view several_graphs = "xppautX opens one graph, so curves 2 to N join graph_1 and the options of several starting graphs are dropped: several graphs are a session's (window.new)";
@@ -857,17 +858,13 @@ constexpr OptionRow rows[] = {
    },
    .foreign = [](std::string_view v) { return v == "ps" ? std::string("pdf") : std::string(); },
    .rule = OptionRule::choice, .choices = picture_format_names},
-  {.group = option_group::export_, .kind = OptionKind::choice, .odex = "color", .help = "Whether an exported picture is in colour.", .xppaut_names = {"PS_COLOR"}, .once = true,
-   .boolean = member([](auto &s) -> auto & { return s.plot_export.color; }),
-   .rule = OptionRule::choice, .choices = boolean_names},
-  {.group = option_group::export_, .kind = OptionKind::number, .odex = "font_size", .help = "The font size of an exported picture.", .xppaut_names = {"PS_FSIZE"}, .once = true,
-   .real = member([](auto &s) -> auto & { return s.plot_export.font_size; }),
-   .rule = OptionRule::positive},
+  /* XPPAUT's picture colour and font size (import only): an export is the panel as shown, in colour at the page's size */
+  {.name = "PS_COLOR", .dropped = picture_as_shown},
+  {.name = "PS_FSIZE", .dropped = picture_as_shown},
   {.group = option_group::interface, .kind = OptionKind::sliders, .odex = "sliders", .help = "The sliders the window offers: a parameter or variable each, with its range.", .once = true},
   {.group = option_group::interface, .kind = OptionKind::text, .odex = "buttons", .help = "The buttons of the window, each running a command or a set.",.xppaut_names = {"BUT"}, 
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (v.apply) add_user_button(s, v.text);
-     return nullptr;
+     return add_user_button(s, v.text, v.apply);
    },
    .repeatable = true},
   {.group = option_group::interface, .kind = OptionKind::path, .odex = "animation", .help = "The animation file the window plays beside a run.", .once = true,

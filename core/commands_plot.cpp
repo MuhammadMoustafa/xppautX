@@ -176,10 +176,7 @@ Result<std::string> export_picture(Session &s, const Command &command, const Arg
 {
     ON_GRAPH(graph);
     const std::string &file = args.get<std::string>("file");
-    XppPlotExport settings=s.plot_export;
-    if (const auto font_size = args.optional<double>("axes_font_size")) settings.font_size = *font_size;
-    settings.color = args.optional<bool>("color").value_or(settings.color);
-    const Result<bool> written = write_plot_picture(s, format, file, &settings);
+    const Result<bool> written = write_plot_picture(s, format, file);
     if (!written) return std::unexpected<Error>(written.error());
     if (!*written) return fail(command.name, xpp::format("\"{}\" exists and replacing it was declined: nothing was written", file), place);
     const Result<unsigned long long> size = file_size(file, command, place);
@@ -206,7 +203,6 @@ Result<std::string> set_axes_origin_command(Session &s, const Command &command, 
         axes.origin[i] = args.optional<double>(origins[i]).value_or(axes.origin[i]);
         axes.shown[i] = args.optional<bool>(shown[i]).value_or(axes.shown[i]);
     }
-    axes.font_size = args.optional<double>("axes_font_size").value_or(axes.font_size);
     if (const Result<> set = set_axes_origin(s, axes); !set) return std::unexpected<Error>(set.error());
     return ResultObject().boolean("origin_updated", true).done();
 }
@@ -348,7 +344,6 @@ constexpr Argument FILE = {"file", Type::file, true};
 constexpr Argument REAL_X_MIN = {"x_min", Type::real, false}, REAL_X_MAX = {"x_max", Type::real, false}, REAL_Y_MIN = {"y_min", Type::real, false},
                    REAL_Y_MAX = {"y_max", Type::real, false}, REAL_Z_MIN = {"z_min", Type::real, false}, REAL_Z_MAX = {"z_max", Type::real, false};
 constexpr Argument LABEL_X = {"x_label", Type::text, false}, LABEL_Y = {"y_label", Type::text, false}, LABEL_Z = {"z_label", Type::text, false};
-constexpr Argument AXES_FONT = {"axes_font_size", Type::real, false, MAX_TEXT_BYTES, {}, constant(axes_font_size_min), constant(axes_font_size_max)};
 
 constexpr std::array STYLE_ARGUMENTS = {COLOR, Argument{"draw", Type::choice, false, MAX_TEXT_BYTES, DRAW_CHOICES},
                                         Argument{"dash", Type::choice, false, MAX_TEXT_BYTES, DASH_CHOICES}, Argument{"width", Type::real, false},
@@ -366,10 +361,10 @@ constexpr std::array LEGEND_POSITION = {"x", "y"};
 constexpr std::array LEGEND_GROUPS = {Group{GroupRule::together, LEGEND_POSITION}};
 constexpr std::array IMPORT_ARGUMENTS = {WINDOW, FILE};
 constexpr std::array ENABLED_ARGUMENTS = {ENABLED};
-constexpr std::array PICTURE_ARGUMENTS = {WINDOW, FILE, set_by(Argument{"color", Type::boolean, false}, "color"), set_by(AXES_FONT, "font_size")};
+constexpr std::array PICTURE_ARGUMENTS = {WINDOW, FILE};
 constexpr std::array ORIGIN_ARGUMENTS = {WINDOW, Argument{"x_origin", Type::real, false}, Argument{"y_origin", Type::real, false},
                                          Argument{"z_origin", Type::real, false}, Argument{"x_origin_shown", Type::boolean, false},
-                                         Argument{"y_origin_shown", Type::boolean, false}, Argument{"z_origin_shown", Type::boolean, false}, AXES_FONT};
+                                         Argument{"y_origin_shown", Type::boolean, false}, Argument{"z_origin_shown", Type::boolean, false}};
 constexpr std::array COLORMAP_ARGUMENTS = {Argument{"colormap", Type::choice, true, MAX_TEXT_BYTES, COLORMAP_CHOICES}};
 constexpr std::array AXES_2D_ARGUMENTS = {WINDOW, COLUMN_X, COLUMN_Y, REAL_X_MIN, REAL_X_MAX, REAL_Y_MIN, REAL_Y_MAX, LABEL_X, LABEL_Y};
 constexpr std::array AXES_3D_ARGUMENTS = {WINDOW, COLUMN_X, COLUMN_Y, COLUMN_Z, REAL_X_MIN, REAL_X_MAX, REAL_Y_MIN, REAL_Y_MAX, REAL_Z_MIN, REAL_Z_MAX,
@@ -419,10 +414,10 @@ constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DO
 
 constexpr std::array ROWS = {
     Command{"plot.export_pdf", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export graph PDF", "File/Export",
-            "Write the graph as a PDF picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay.",
+            "Write the graph as a PDF picture into a file of the model's folder, as the panel shows it.",
             PICTURE_RESULTS, STATE_EVENTS, true, export_pdf, {}, {}, "write", "*", "export"},
     Command{"plot.export_svg", PICTURE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export graph SVG", "File/Export",
-            "Write the graph as an SVG picture into a file of the model's folder; colour and axes_font_size are the session's when left out and stay.",
+            "Write the graph as an SVG picture into a file of the model's folder, as the panel shows it.",
             PICTURE_RESULTS, STATE_EVENTS, true, export_svg, {}, {}, "write", "*", "export"},
     Command{"plot.set_variables", VARIABLES_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set variables", "Plot",
             "Plot states of the model: time_series (each against time), phase_plane (two or three, the first on the x axis) or array_plot (from the first of two to the later).",

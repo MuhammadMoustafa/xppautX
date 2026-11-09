@@ -322,7 +322,7 @@ The remaining options can be set from within the program. They are
 
 - FOLD=name, tells XPP that the variable \<name\> is to be considered modulo the period. You can repeat this for many variables.
 
-- PS_FSIZE=`fontsize`,PS_COLOR=`0,1` set up the pictures (in a `.odex`: `picture_font_size`, `picture_color`); PS_Font and PS_LW are read and ignored. PLOTFMT=`pdf`,`svg` (`ps` is read as `pdf`) is the format `--mkplot` writes.
+- PS_FSIZE and PS_COLOR are dropped (a picture is the graph as the panel shows it); PS_Font and PS_LW are read and ignored. PLOTFMT=`pdf`,`svg` (`ps` is read as `pdf`) is the format `--mkplot` writes.
 
 - S1=`name`, SLO1=`number`,SHI1=`number` sets the variables, parameters associated with a slider and their low and high values. Use S2,S3 for the other sliders (This is different for the iPad/iPhone.)
 

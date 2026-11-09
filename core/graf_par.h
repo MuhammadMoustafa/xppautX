@@ -107,15 +107,13 @@ ViewParams view_params(const Session &s);
 /* the parameters applied to the active window: set, the movie if asked, the rotation made, redrawn; a movie
    varies theta or phi, nothing else */
 Result<> set_view_params(Session &s, const ViewParams &params);
-/* where the axes cross, whether each axis is drawn through there, and the font of the axes' text (a session
-   setting, like a picture's) */
+/* where the axes cross and whether each axis is drawn through there */
 struct AxesOrigin {
   std::array<double,3> origin;
   std::array<bool,3> shown;
-  double font_size;
 };
 AxesOrigin axes_origin(const Session &s);
-/* the active window's axes as these (the font size from axes_font_size_min to _max), redrawn */
+/* the active window's axes as these, redrawn */
 Result<> set_axes_origin(Session &s, const AxesOrigin &axes);
 void axes_opts(Session &s);
 void corner_cube(Session &s, double *xlo, double *xhi, double *ylo, double *yhi);
@@ -159,7 +157,7 @@ Result<> delete_curve(Session &s, int curve);
 void delete_all_curves(Session &s);
 /* the main plot window's picture in image_format.h's IMAGE_FORMAT_PDF or IMAGE_FORMAT_SVG (W53, issue
    #101) written to `filename`: false when the user declined to replace the file */
-Result<bool> write_plot_picture(Session &s, int fmt, std::string_view filename, const XppPlotExport *given = nullptr);
+Result<bool> write_plot_picture(Session &s, int fmt, std::string_view filename);
 void default_window(Session &s);
 void add_a_curve_com(Session &s, int c);
 void export_graf_data(Session &s);
@@ -219,10 +217,6 @@ bool restore_frozen_curve(Session &s, int i, XppWinId w, int type, const Color &
 /* How plots are written to files (PDF, SVG) */
 struct XppPlotExport {
     std::string format = "pdf"; /* a batch run's plot files: "pdf" or "svg" (@ plotfmt=) */
-    bool color = true;          /* in colour or black and white */
-    double font_size = 12;      /* the axes' text, points */
 };
-/* the axes' font size, from the smallest to the largest the picture and Axes options forms and commands take */
-inline constexpr double axes_font_size_min = 1, axes_font_size_max = 100;
 
 } // namespace xpp

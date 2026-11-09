@@ -233,7 +233,7 @@ xpp::Result<> export_diagram(xpp::Session &s, const std::optional<std::string> &
   if(const xpp::Result<> points=need_points(s);!points)return points;
   const auto target=export_target(s,file,f.name,"diagram",xpp::format(".{}",f.extension).c_str());
   if(!target)return {};
-  if(const xpp::Result<> begun=xpp::begin_picture(s,f,*target,s.plot_export.color);!begun)return begun;
+  if(const xpp::Result<> begun=xpp::begin_picture(s,f,*target);!begun)return begun;
   if(!s.plot_file.writer)return {};
   if(view)autox_activate_view(s,*view);
   draw_export_axes(s);

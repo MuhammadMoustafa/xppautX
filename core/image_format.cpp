@@ -45,32 +45,13 @@ const ImageFormat image_formats[n_image_formats] = {
   {.name = "PPM", .extension = "ppm", .pixels = ppm_pixels},
 };
 
-int ask_picture_params(Session &s)
-{
-  std::array<FormField, 2> fields = {FormField::boolean("Colour", s.plot_export.color),
-                                     FormField::real_number("Axes font size", s.plot_export.font_size, axes_font_size_min, axes_font_size_max)};
-  if (!ask_form(s, "Picture parameters", fields)) return 0;
-  s.plot_export.color = fields[0].flag;
-  s.plot_export.font_size = fields[1].real;
-  return 1;
-}
-
-
-
-std::string picture_filename(const Session &s, const ImageFormat &picture_format)
-{
-  return files::output_name(s.model().this_file, xpp::format(".{}", picture_format.extension));
-}
-
-Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view filename, bool color)
+Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view filename)
 {
   Result<> opened;
   s.plot_file.writer = open_writer_asking(std::string(filename).c_str(), format.binary, &opened);
   if (!opened || !s.plot_file.writer) return opened;
   s.plot_file.format = &format;
   s.plot_file.picture = Picture{};
-  s.plot_file.picture.color = color;
-  s.plot_file.picture.font_size = s.plot_export.font_size;
   s.plot_file.pen = Pen{};
   s.plot_file.text_color = foreground_color;
   init_picture(s);

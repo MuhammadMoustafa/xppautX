@@ -44,16 +44,10 @@ constexpr int IMAGE_FORMAT_GIF = 2;
 constexpr int IMAGE_FORMAT_PPM = 3;
 constexpr int IMAGE_STILL_FRAME = -1; /* a still has no index in a movie */
 
-/* the picture parameters (in colour, the axes' font size) asked before the file selector, 0 if the user
-   cancelled, and their values as --silent answers them */
-int ask_picture_params(Session &s);
-/* the default file name of the session's picture in the format */
-std::string picture_filename(const Session &s, const ImageFormat &format);
-
 /* A vector picture begun into filename (s.plot_file.writer is empty when the user declined to replace
    it), or why it cannot be written; the plot is then drawn through graphics.cpp's primitives and the
    picture ended: written and renamed into place */
-Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view filename, bool color);
+Result<> begin_picture(Session &s, const ImageFormat &format, std::string_view filename);
 /* the picture ended: written and renamed into place, or why not */
 Result<> end_picture(Session &s);
 

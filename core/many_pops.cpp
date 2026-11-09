@@ -301,7 +301,7 @@ void dump_ps(xpp::Session &s, int i)
      xpp::command_error("mkplot",xpp::format("Unsupported batch picture format {}",s.plot_export.format));
      return;
    }
-   if(xpp::ok_or_show(xpp::begin_picture(s,*fmt,filename,s.plot_export.color)) && s.plot_file.writer)
+   if(xpp::ok_or_show(xpp::begin_picture(s,*fmt,filename)) && s.plot_file.writer)
      xpp::ok_or_show(vector_restore(s));
 }
 

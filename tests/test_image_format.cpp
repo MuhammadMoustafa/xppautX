@@ -94,13 +94,9 @@ int main(void)
     CHECK(pdf.starts_with("%PDF-1.4") && has(pdf, "/BaseFont /Helvetica") && has(pdf, "/CA 0.502") && has(pdf, "[12 6] 0 d") && has(pdf, "1 0 0 RG"));
     CHECK(pdf == written(xpp::write_pdf, p, "build/test_picture.pdf")); /* the same picture, the same bytes */
 
-    /* black and white: strokes and text black, fills gray, the alpha kept */
-    xpp::Picture bw;
-    bw.color = false;
-    CHECK(xpp::ink(bw, rgba(255, 0, 0, 128)) == rgba(0, 0, 0, 128));
-    CHECK(xpp::ink_fill(bw, rgba(255, 255, 255)) == rgba(255, 255, 255));
-    CHECK(xpp::ink(bw, xpp::foreground_color) == rgba(0, 0, 0));
-    CHECK(xpp::ink(p, xpp::foreground_color) == rgba(0, 0, 0));
+    /* always in colour: the foreground is black, any other colour as it is, its alpha kept */
+    CHECK(xpp::ink(rgba(255, 0, 0, 128)) == rgba(255, 0, 0, 128));
+    CHECK(xpp::ink(xpp::foreground_color) == rgba(0, 0, 0));
 
     /* the text's markup: runs of one font, size and rise each */
     const std::vector<xpp::TextRun> runs = xpp::text_runs("x\\s2\\nz\\1a", 10);

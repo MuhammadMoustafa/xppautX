@@ -42,27 +42,32 @@ int find_kbs(const std::string &sc)
 
 } // namespace
 
-void add_user_button(xpp::Session &s, std::string_view spec)
+bool is_button_sequence(std::string_view spec)
 {
-  if (s.nuserbut >= USERBUTMAX) return;
-  if (spec.empty()) return;
   std::string bname, sc;
   get_button_info(spec, bname, sc);
-  if (bname.empty() || sc.empty()) return;
+  return !sc.empty() && find_kbs(sc) != -1;
+}
+
+const char *add_user_button(xpp::Session &s, std::string_view spec, bool apply)
+{
+  std::string bname, sc;
+  get_button_info(spec, bname, sc);
+  if (bname.empty() || sc.empty()) return "must be a name and a command sequence, name:keys";
   int z = find_kbs(sc);
-  if (z == -1) {
-    xpp::log(XPP_LOG_WARN, "{} - not implemented\n", sc);
-    return;
-  }
+  if (z == -1) return "names a command sequence that no button runs";
+  if (s.nuserbut >= USERBUTMAX) return "is one button too many";
+  if (!apply) return nullptr;
   /* Don't add buttons with the same functionality twice. */
   for (int i = 0; i < s.nuserbut; i++) {
-    if (s.userbut[i].com == z) return;
+    if (s.userbut[i].com == z) return nullptr;
   }
   s.userbut[s.nuserbut].com = z;
   s.userbut[s.nuserbut].bname = bname;
   xpp::log(XPP_LOG_INFO, " added button({})  -- {} {}\n", s.nuserbut, s.userbut[s.nuserbut].bname,
            s.userbut[s.nuserbut].com);
   s.nuserbut++;
+  return nullptr;
 }
 
 } // namespace xpp

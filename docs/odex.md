@@ -213,7 +213,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max`; `colors.stable_equilibrium`, `colors.unstable_equilibrium`, `colors.stable_periodic`, `colors.unstable_periodic` |
   | `plot` | `colormap`; `axes.kind` (`2` or `3`), `axes.x_low`, `axes.x_high`, `axes.y_low`, `axes.y_high` (the 2D window), `axes.x_min`, `axes.x_max`, `axes.y_min`, `axes.y_max`, `axes.z_min`, `axes.z_max`, `axes.phi`, `axes.theta` (the 3D box and view); `curves` (a list of at most 8 curves, each `{ x, y, z }`, a variable's name or `t`; the first holds the axes' variables, a model opens one graph and every curve is drawn in it); `line.draw`, `line.dash`, `line.width`, `line.marker`, `line.marker_size`; `nullclines.mesh`, `nullclines.draw`, `nullclines.x_color`, `nullclines.y_color`; `direction_field.grid`, `direction_field.draw`; `manifolds.stable_color`, `manifolds.unstable_color`; `color_by.enabled`, `color_by.via`, `color_by.low`, `color_by.high` |
   | `analysis` | `histogram.low`, `histogram.high`, `histogram.bins`, `histogram.column`; `histogram2.low`, `histogram2.high`, `histogram2.bins`, `histogram2.column`; `spectrum.column`, `spectrum.column2`, `spectrum.width`, `spectrum.window` |
-  | `export` | `format` (`pdf` or `svg`), `color`, `font_size` |
+  | `export` | `format` (`pdf` or `svg`) |
   | `interface` | `sliders`, `buttons` (and `animation`, written directly in `options`, outside any group) |
   | `output` | `data_file`, `nullclines_file`, `after_run`, `after_run_file` (a path is named from the model's folder, a path outside it is a question, and its extension picks the data format; with `after_run_file` the analysis `after_run` names is written there and `data_file` keeps the trajectory, without it the analysis replaces the table `data_file` is written from, as XPPAUT's batch run does) |
 
@@ -279,7 +279,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   | `xnc`, `ync`, `smc`, `umc` `=0`..`10`; `sec`, `uec`, `spc`, `upc` `=0`, `20`..`29` | the colour in XPPAUT's own table: `"foreground"` for 0, else `"#rrggbb"` |
   | `lt=1`, `0`, `-n` | `plot: { line.draw: line }`, `line.draw: points`, `line.draw: points, line.marker: circle, line.marker_size: n` (the style every new curve starts with: `line.draw` is `line`, `points` or `both`, `line.dash` `solid`, `dashed`, `dotted` or `dash_dot`, `line.width`, `line.marker` `circle`, `square`, `triangle`, `diamond`, `cross`, `plus` or `star`, `line.marker_size`) |
   | `plotfmt=ps`, `svg` | `export: { format: pdf/svg }` (PostScript is gone) |
-  | `ps_color=0`, `1`; `ps_fsize=n` | `export: { color: false/true, font_size: n }` (points) |
+  | `ps_color=0`, `1`; `ps_fsize=n` | dropped (W656: a picture is the panel as shown) |
   | `ps_font`, `ps_lw` | none: a picture's font is Helvetica, and each curve has its own width |
   | `axes=3d` | `3` |
 

@@ -215,8 +215,6 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 ## Export
 
 - **Format** (`format`): The vector format a picture is exported in.
-- **Colour** (`color`): Whether an exported picture is in colour.
-- **Font size** (`font_size`): The font size of an exported picture.
 
 ## Interface
 

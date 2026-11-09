@@ -67,14 +67,11 @@ int main()
     CHECK(xpp::set_axis_shifts(s, 1, 2, 3) && g.xshft == 1 && g.yshft == 2 && g.zshft == 3);
     CHECK(!xpp::set_axis_shifts(s, 4, -1, 0) && g.xshft == 1 && g.yshft == 2 && g.zshft == 3);
 
-    /* the axes' font size and the limits of a 2D plot: refused whole */
+    /* the axes' origin and the limits of a 2D plot: refused whole */
     xpp::AxesOrigin axes = xpp::axes_origin(s);
-    axes.font_size = 0.5;
-    CHECK(!xpp::set_axes_origin(s, axes) && s.plot_export.font_size != 0.5);
-    axes.font_size = 14;
     axes.origin[0] = 0.25;
     axes.shown[0] = false;
-    CHECK(xpp::set_axes_origin(s, axes) && g.xorg == 0.25 && g.xorgflag == 0 && s.plot_export.font_size == 14);
+    CHECK(xpp::set_axes_origin(s, axes) && g.xorg == 0.25 && g.xorgflag == 0);
     xpp::AxesView view = xpp::axes_view(s, 0);
     const double was_low = g.xmin;
     view.lo[0] = view.hi[0] + 1;

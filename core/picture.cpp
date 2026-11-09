@@ -22,19 +22,7 @@ constexpr double sub_shift = .3, sup_shift = .6, script_size = .6; /* XPPAUT's: 
 
 } // namespace
 
-Color ink(const Picture &p, const Color &c)
-{
-    if (c.foreground || !p.color) return Color{0, 0, 0, c.foreground ? std::uint8_t{255} : c.a, false};
-    return c;
-}
-
-Color ink_fill(const Picture &p, const Color &c)
-{
-    if (c.foreground) return black;
-    if (p.color) return c;
-    const auto gray = static_cast<std::uint8_t>(std::lround(.299 * c.r + .587 * c.g + .114 * c.b));
-    return Color{gray, gray, gray, c.a, false};
-}
+Color ink(const Color &c) { return c.foreground ? black : c; }
 
 std::vector<double> dash_pattern(LineDash dash, double width)
 {
@@ -165,7 +153,7 @@ void picture_line(Session &s, int x1, int y1, int x2, int y2)
 {
     PlotFileState &f = s.plot_file;
     Pen pen = f.pen;
-    pen.color = ink(f.picture, pen.color);
+    pen.color = ink(pen.color);
     const std::array<double, 2> from{static_cast<double>(x1), static_cast<double>(y1)}, to{static_cast<double>(x2), static_cast<double>(y2)};
     /* a segment that starts where the last one in the same pen ended goes on its path */
     if (!f.picture.items.empty())
@@ -180,7 +168,7 @@ void picture_marker(Session &s, int x, int y)
 {
     PlotFileState &f = s.plot_file;
     Pen pen = f.pen;
-    pen.color = ink(f.picture, pen.color);
+    pen.color = ink(pen.color);
     f.picture.items.emplace_back(PictureMarker{static_cast<double>(x), static_cast<double>(y), pen});
 }
 
@@ -189,7 +177,7 @@ void picture_bead(Session &s, int x, int y)
     constexpr double bead_radius = 1.5; /* a direction field arrow's head, a dot */
     PlotFileState &f = s.plot_file;
     Pen pen = f.pen;
-    pen.color = ink(f.picture, pen.color);
+    pen.color = ink(pen.color);
     pen.style.draw = LineDraw::points;
     pen.style.marker = LineMarker::circle;
     pen.style.marker_size = bead_radius;
@@ -201,7 +189,7 @@ void picture_rect(Session &s, int x, int y, int w, int h)
     PlotFileState &f = s.plot_file;
     /* the corner (x, y) is the bottom left, as the plot's coordinates grow up: the picture's rectangle starts at the top */
     f.picture.items.emplace_back(PictureRect{static_cast<double>(x), static_cast<double>(y - h), static_cast<double>(w), static_cast<double>(h),
-                                             ink_fill(f.picture, f.pen.color)});
+                                             ink(f.pen.color)});
 }
 
 namespace {
@@ -211,7 +199,7 @@ constexpr double baseline_below_centre = .35; /* a text centred on y has its bas
 void put_runs(Session &s, double x, double y, TextAnchor anchor, double angle, std::vector<TextRun> runs, double size)
 {
     PlotFileState &f = s.plot_file;
-    f.picture.items.emplace_back(PictureText{x, y + baseline_below_centre * size, anchor, angle, ink(f.picture, f.text_color), std::move(runs)});
+    f.picture.items.emplace_back(PictureText{x, y + baseline_below_centre * size, anchor, angle, ink(f.text_color), std::move(runs)});
 }
 
 } // namespace

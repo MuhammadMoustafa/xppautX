@@ -1,7 +1,7 @@
 #pragma once
 /* The picture an export writes (W479, #542): what graphics.cpp's primitives record while the plot is
    redrawn into a PDF or SVG file, and what the array plot builds the same way. Everything the two
-   formats share is decided here once: a colour with its alpha (black and white too), a line's dash
+   formats share is decided here once: a colour with its alpha, a line's dash
    pattern, a marker's shape, a text's runs (the sub- and superscripts, the symbol font), the axis
    label's place. The writers (my_pdf.cpp, my_svg.cpp) only emit syntax for the items. */
 
@@ -68,9 +68,12 @@ struct PictureGroup {
 };
 using PictureItem = std::variant<PicturePath, PictureMarker, PictureRect, PictureText, PictureGroup>;
 
+/* the axes' text size of a picture, the size the page's panel draws it at: web2's --plot-font
+   (src/css/tokens.css), 12px Inter, one unit of the picture to a px */
+inline constexpr double picture_font_size = 12;
+
 struct Picture {
-    bool color = true;      /* in colour: otherwise strokes and text are black and fills gray */
-    double font_size = 12;  /* the axes' text, points */
+    double font_size = picture_font_size; /* the axes' text; array_print.cpp sets its own */
     std::vector<PictureItem> items;
 };
 
@@ -84,10 +87,9 @@ struct PlotFileState {
     Color text_color = foreground_color;
 };
 
-/* the colour the picture draws c in: the foreground black, a stroke or text black in black and white */
-Color ink(const Picture &p, const Color &c);
-/* the same for a filled area: gray by its luminance in black and white */
-Color ink_fill(const Picture &p, const Color &c);
+
+/* the colour the picture draws c in: the foreground is black */
+Color ink(const Color &c);
 
 /* the dash pattern of a line (on, off, on, off ... lengths in points; none: solid) */
 std::vector<double> dash_pattern(LineDash dash, double width);

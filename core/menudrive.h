@@ -58,8 +58,6 @@ enum MenuCommand : int {
     M_GD = 101,
     M_GR = 102,
     M_GE = 103,
-    M_GP = 104,
-    M_GV = 105,
     M_GX = 107,
     M_GO = 108,
     M_GC = 109,

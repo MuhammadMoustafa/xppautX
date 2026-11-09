@@ -455,6 +455,8 @@ int main(void)
         CHECK(!xpp::option_problem(*s, "total", "5", true).has_value());
         CHECK(!xpp::option_problem(*s, "integration.total_time", "5", false).has_value() && xpp::option_problem(*s, "total_time", "5", false).has_value());
         CHECK(xpp::option_problem(*s, "meth", "e", false).has_value() && !xpp::option_problem(*s, "integration.method", "euler", false).has_value());
+        /* W656: the picture-print userbut is gone: its sequence is no button, an error, while XPPAUT's BUT of a known one reads */
+        CHECK(xpp::option_problem(*s, "interface.buttons", "pdf:gp", false).has_value() && !xpp::option_problem(*s, "interface.buttons", "quit:fq", false).has_value());
         CHECK(!xpp::option_problem(*s, "integration.method", "euler", false).has_value());
         /* an XPPAUT choice's letter, number or yes/no is a foreign file's, never our own */
         CHECK(!xpp::option_problem(*s, "meth", "e", true).has_value() && xpp::option_problem(*s, "integration.method", "1", false).has_value());

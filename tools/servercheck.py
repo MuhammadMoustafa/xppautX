@@ -1627,10 +1627,9 @@ def check_registry():
         request({'cmd': 'plot.set_3d_view', 'theta': 1}, False)
         for refused in [{'cmd': 'plot.set_2d', 'x_min': 5, 'x_max': 1}, {'cmd': 'plot.set_2d', 'z': 'v'}, {'cmd': 'plot.set_2d', 'x': 'nothing'}]:
             request(refused, False)
-        result, _ = request({'cmd': 'plot.set_axes_origin', 'x_origin': 0.5, 'x_origin_shown': False, 'axes_font_size': 14})
+        result, _ = request({'cmd': 'plot.set_axes_origin', 'x_origin': 0.5, 'x_origin_shown': False})
         check('plot.set_axes_origin reports', result == {'origin_updated': True}, str(result))
-        for refused in [{'cmd': 'plot.set_axes_origin', 'axes_font_size': 0.5}, {'cmd': 'plot.set_axes_origin', 'axes_font_size': 101},
-                        {'cmd': 'plot.set_axes_origin', 'x_origin_shown': 1}]:
+        for refused in [{'cmd': 'plot.set_axes_origin', 'axes_font_size': 14}, {'cmd': 'plot.set_axes_origin', 'x_origin_shown': 1}]:
             request(refused, False)
         result, _ = request({'cmd': 'plot.set_shifted_axes', 'x_shift': 2, 'z_shift': 1})
         check('plot.set_shifted_axes reports every shift, a shift left out unchanged', result == {'x_shift': 2, 'y_shift': 0, 'z_shift': 1}, str(result))
@@ -1661,9 +1660,12 @@ def check_registry():
         request({'cmd': 'plot.set_colormap', 'colormap': 'nothing'}, False)
         request({'cmd': 'plot.set_colormap'}, False)
         # the exports
-        result, _ = request({'cmd': 'plot.export_svg', 'file': 'plot.svg', 'color': False, 'axes_font_size': 10})
+        result, _ = request({'cmd': 'plot.export_svg', 'file': 'plot.svg'})
+        svg = open(os.path.join(folder, 'plot.svg')).read()
         check('plot.export_svg writes the picture into the model folder', result['file'] == 'plot.svg' and result['bytes_written'] > 100 and
-              open(os.path.join(folder, 'plot.svg')).read().lstrip().startswith(('<?xml', '<svg')), str(result))
+              svg.lstrip().startswith(('<?xml', '<svg')), str(result))
+        # W656: the panel as shown, its axes text at the page's 12 px and its curves in their colours
+        check('W656: plot.export_svg draws the axes text at the panel\'s size', 'font-size="12"' in svg, svg[:400])
         result, _ = request({'cmd': 'plot.export_pdf', 'file': 'plot.pdf'})
         check('plot.export_pdf writes the picture into the model folder', result['file'] == 'plot.pdf' and result['bytes_written'] > 100 and
               open(os.path.join(folder, 'plot.pdf'), 'rb').read(4) == b'%PDF', str(result))
@@ -1672,8 +1674,8 @@ def check_registry():
               'curve,x,y' in open(os.path.join(folder, 'plot.csv')).read().splitlines()[:2], str(result))
         result, _ = request({'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.out', 'format': 'dat'})
         check('data.export of plot_curves takes the format by name', result['rows_written'] > 0, str(result))
-        for refused in [{'cmd': 'plot.export_svg'}, {'cmd': 'plot.export_svg', 'file': '../plot.svg'}, {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'axes_font_size': 0},
-                        {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'color': 'yes'},
+        for refused in [{'cmd': 'plot.export_svg'}, {'cmd': 'plot.export_svg', 'file': '../plot.svg'}, {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'axes_font_size': 12},
+                        {'cmd': 'plot.export_pdf', 'file': 'plot.pdf', 'color': True}, {'cmd': 'plot.export_svg', 'file': 'plot.svg', 'color': False},
                         {'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.zip', 'format': 'zip'}]:
             request(refused, False)
         # the old forms are gone
@@ -2716,14 +2718,14 @@ def check_atomic_commands():
         os.mkdir(os.path.join(folder, 'blocked.pdf'))
         os.mkdir(os.path.join(folder, 'blocked.svg'))
         for command in (
-            dict(cmd='plot.export_pdf', axes_font_size=27, color=False, file='blocked.pdf'),
-            dict(cmd='plot.export_svg', axes_font_size=27, color=False, file='blocked.svg'),
+            dict(cmd='plot.export_pdf', file='blocked.pdf'),
+            dict(cmd='plot.export_svg', file='blocked.svg'),
             dict(cmd='array_plot.export_pdf', top_label='must not remain', file='blocked.pdf'),
         ):
             suffix = '.svg' if command['cmd'].endswith('svg') else '.pdf'
             before_file = 'before-' + command['cmd'] + suffix
             after_file = 'after-' + command['cmd'] + suffix
-            baseline = dict(axes_font_size=12, color=True) if command['cmd'].startswith('plot.') else dict(top_label='original top', side_label='original side', bottom_label='original bottom')
+            baseline = {} if command['cmd'].startswith('plot.') else dict(top_label='original top', side_label='original side', bottom_label='original bottom')
             call(cmd=command['cmd'], file=before_file, **baseline)
             refused(command)
             call(cmd=command['cmd'], file=after_file)
@@ -5301,7 +5303,7 @@ def check_view():
         # symmetric [-100,100] range makes make_tics() choose a 20-wide
         # tic, which lands exactly on the boundary).
         psname='t9view.pdf'
-        send6(cmd='plot.export_pdf',file=psname,color=True,axes_font_size=12)
+        send6(cmd='plot.export_pdf',file=psname)
         collect6(is_done)
         pspath = os.path.join(run6, psname)
         ps = ''

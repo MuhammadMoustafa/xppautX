@@ -28,7 +28,7 @@ int main()
     CHECK(s.numerics.store_from == .5);
 
     const std::string file = "test_shoot_branch.svg";
-    CHECK(xpp::begin_picture(s, xpp::image_formats[xpp::IMAGE_FORMAT_SVG], file, true).has_value());
+    CHECK(xpp::begin_picture(s, xpp::image_formats[xpp::IMAGE_FORMAT_SVG], file).has_value());
     double x[2] = {1e-4, 0};
     CHECK(xpp::shoot_easy(s, x).has_value());
     std::size_t segments = 0;

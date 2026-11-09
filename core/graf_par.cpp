@@ -267,13 +267,11 @@ bool axes_dialog(xpp::Session &s, int ind, bool three)
 AxesOrigin axes_origin(const xpp::Session &s)
 {
   const GRAPH &g=*s.plot_windows.current;
-  return {{g.xorg,g.yorg,g.zorg},{g.xorgflag!=0,g.yorgflag!=0,g.zorgflag!=0},s.plot_export.font_size};
+  return {{g.xorg,g.yorg,g.zorg},{g.xorgflag!=0,g.yorgflag!=0,g.zorgflag!=0}};
 }
 
 Result<> set_axes_origin(xpp::Session &s, const AxesOrigin &a)
 {
-  if(!(a.font_size>=axes_font_size_min&&a.font_size<=axes_font_size_max))
-    return fail("axes options",xpp::format("Axes font size {:g} must be from {:g} to {:g}",a.font_size,axes_font_size_min,axes_font_size_max),command_place());
   GRAPH &g=*s.plot_windows.current;
   g.xorg=a.origin[0];
   g.yorg=a.origin[1];
@@ -281,7 +279,6 @@ Result<> set_axes_origin(xpp::Session &s, const AxesOrigin &a)
   g.xorgflag=a.shown[0];
   g.yorgflag=a.shown[1];
   g.zorgflag=a.shown[2];
-  s.plot_export.font_size=a.font_size;
   redraw_the_graph(s);
   return {};
 }
@@ -289,14 +286,13 @@ Result<> set_axes_origin(xpp::Session &s, const AxesOrigin &a)
 void axes_opts(xpp::Session &s)
 {
   const AxesOrigin now=axes_origin(s);
-  std::array<xpp::FormField,7> fields={
+  std::array<xpp::FormField,6> fields={
     xpp::FormField::real_number("X-origin",now.origin[0]),xpp::FormField::real_number("Y-origin",now.origin[1]),
     xpp::FormField::real_number("Z-origin",now.origin[2]),
     xpp::FormField::boolean("X origin shown",now.shown[0]),xpp::FormField::boolean("Y origin shown",now.shown[1]),
-    xpp::FormField::boolean("Z origin shown",now.shown[2]),
-    xpp::FormField::real_number("Axes font size",now.font_size,axes_font_size_min,axes_font_size_max)};
+    xpp::FormField::boolean("Z origin shown",now.shown[2])};
   if(!xpp::ask_form(s,"Axes options",fields))return;
-  xpp::ok_or_show(set_axes_origin(s,{{fields[0].real,fields[1].real,fields[2].real},{fields[3].flag,fields[4].flag,fields[5].flag},fields[6].real}));
+  xpp::ok_or_show(set_axes_origin(s,{{fields[0].real,fields[1].real,fields[2].real},{fields[3].flag,fields[4].flag,fields[5].flag}}));
 }
 
 void pretty(double *x1, double *x2)  /* this was always pretty ugly */
@@ -837,32 +833,15 @@ void new_curve(xpp::Session &s)
 
 /* the main plot window's picture export (W53, issue #101; PDF and SVG, W479): one entry point through
    image_format.h's registry: the plot drawn into the picture begun, written and renamed into place */
-Result<bool> write_plot_picture(xpp::Session &s, int fmt, std::string_view filename, const XppPlotExport *given)
+Result<bool> write_plot_picture(xpp::Session &s, int fmt, std::string_view filename)
 {
  const xpp::ImageFormat &f=xpp::image_formats[fmt];
- if(const Result<> begun=xpp::begin_picture(s,f,filename,given ? given->color : s.plot_export.color);!begun)return std::unexpected<Error>(begun.error());
+ if(const Result<> begun=xpp::begin_picture(s,f,filename);!begun)return std::unexpected<Error>(begun.error());
  if(!s.plot_file.writer)return false;
- if(given)s.plot_file.picture.font_size=given->font_size;
  if(const Result<> done=vector_restore(s);!done)return std::unexpected<Error>(done.error());
- if(given)s.plot_export=*given;
  redraw_the_graph(s); /* the window draws again where the picture was */
  return true;
 }
-
-namespace {
-
-/* the picture's parameters, the file, then the plot written into it */
-void export_plot_picture(xpp::Session &s, int fmt)
-{
- const xpp::ImageFormat &f=xpp::image_formats[fmt];
- if(!xpp::ask_picture_params(s))return;
- std::string filename=xpp::picture_filename(s,f);
- if(!file_selector(f.plot_title,filename,xpp::format("*.{}",f.extension)))return;
- const Result<bool> written=write_plot_picture(s,fmt,filename);
- if(xpp::ok_or_show(written)&&*written)ping();
-}
-
-} // namespace
 
 void set_colormap(xpp::Session &s, Colormap colormap)
 {
@@ -1352,10 +1331,6 @@ void add_a_curve_com(xpp::Session &s, int c)
  case 2:delete_all_curves(s);
    break;
  case 3: edit_curve(s);
-   break;
- case 4: export_plot_picture(s,xpp::IMAGE_FORMAT_PDF);
-   break;
- case 5: export_plot_picture(s,xpp::IMAGE_FORMAT_SVG);
    break;
  case 7: axes_opts(s);
    break;

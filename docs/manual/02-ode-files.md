@@ -722,7 +722,7 @@ The remaining options can be set from within the program. They are
 
 - AUTOEVAL=`{0,1}` tells XPP whether or not to automatically re-evaluate tables everytime a parameter is changed. The default is to do this. However for random tables, you may want this off. Each table can be flagged individually within XPP.
 
-- Picture options. `PS_COLOR,PS_FSIZE` are read as `picture_color` (`false`, `true`) and `picture_font_size` (points, default 12) of the PDF and SVG pictures; `PS_FONT` and `PS_LW` are read and ignored (a picture's font is Helvetica, and each curve has its own width). `PLOTFMT=ps` is read as `pdf`.
+- Picture options. `PS_COLOR` and `PS_FSIZE` are dropped: a picture is the graph as the panel shows it, in colour at the panel's size; `PS_FONT` and `PS_LW` are read and ignored (a picture's font is Helvetica, and each curve has its own width). `PLOTFMT=ps` is read as `pdf`.
 
 - autoX-stuff. The following autoX-specific variables can also be set: `NTST, NMAX, NPR, EPSU, EPSS, EPSL, DSMIN, DSMAX, DS, PARMIN, PARMAX, NORMMIN, NORMMAX, AUTOXMIN, AUTOXMAX, AUTOYMIN, AUTOYMAX, AUTOVAR`. The last is the variable to plot on the y-axis. The x-axis variable is always the first parameter in the ODE file unless you change it within autoX. In a `.odex` file the continuation settings have xppautX's names (`mesh_intervals`, `max_steps`, `output_every`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance`); the XPPAUT words above are read on `.ode` import only.
 

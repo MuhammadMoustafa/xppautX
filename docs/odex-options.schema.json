@@ -186,9 +186,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "format": {"type": "string", "enum": ["pdf", "svg"], "title": "Format", "description": "The vector format a picture is exported in."},
-        "color": {"type": "boolean", "title": "Color", "description": "Whether an exported picture is in colour."},
-        "font_size": {"type": "number", "exclusiveMinimum": 0, "title": "Font size", "description": "The font size of an exported picture."}
+        "format": {"type": "string", "enum": ["pdf", "svg"], "title": "Format", "description": "The vector format a picture is exported in."}
       }
     },
     "interface": {

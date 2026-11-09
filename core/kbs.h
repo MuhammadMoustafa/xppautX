@@ -65,8 +65,6 @@ static const KBS kbs[400]={
   {M_GD,"gd"},
   {M_GR,"gr"},
   {M_GE,"ge"},
-  {M_GP,"gp"},
-  {M_GV,"gv"},
   {M_GX,"gx"},
   {M_GO,"go"},
   {M_GFF,"gff"},
