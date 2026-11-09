@@ -7,8 +7,7 @@
 For each model of the integration comparison (the five-model screen, Izhikevich's 28 sets, ma23 and mu26) it runs
 xppautX (--silent, the model's file) and the Python integrator of the same method, and fails unless
   - the two outputs have the same rows, and the same time column, and
-  - every value of the Python output is within FLOAT_STEPS step of a single-precision float (and the rounding of the
-    digits printed) of xppautX's.
+  - every value of the Python output is within FLOAT_STEPS step of a single-precision float of xppautX's.
 The two programs do the same arithmetic step for step (a literal whole power from 2 to 16 is multiplied out by squaring in
 both, W471: model.py's _power_by_squaring), so what is left is the C library's functions (xppautX's are correctly rounded; Python's exp and the non-integer ** are
 the C library's) against xppautX's in the model's formulas: a rounding of a double, which gives the same single-precision
@@ -40,10 +39,9 @@ from scipy_integrate import NoSolution, run_dop853
 from xppclient import silent_rows
 
 # the agreement required of a value: this many steps of the single-precision float xppautX stores (core/storage.h) at the
-# larger of the two, and one unit of the last digit it prints (%.8g, core/data_formats.cpp: PRINT_DIGITS) for the rounding
-# of that. Doubles a last bit apart give the same float but for one either side of a rounding, and then the next float.
+# larger of the two. xppautX writes each value as the shortest text that reads back as that float (core/data_formats.cpp
+# append_stored), so the printed values of the two programs are the same floats' texts, and nothing is left to round.
 FLOAT_STEPS = 1
-PRINT_DIGITS = 8
 # subtracting two printed values has an error of about 1e-9 of a unit; the requirement is this much more than the limit
 SUBTRACTION_FUZZ = 1e-6
 # the runs of Python with perturbed derivatives that measure a model's sensitivity (their random numbers' seeds)
@@ -91,16 +89,14 @@ def run_xppautx(binary, case, method):
 
 
 def printed(rows):
-    """The values as xppautX prints them: single precision, %.8g."""
-    return np.array([[float('%.*g' % (PRINT_DIGITS, v)) for v in row] for row in rows.astype(np.float32)])
+    """The values as xppautX writes them: each a single-precision float, as the shortest text that reads back as it."""
+    return np.array([[float(str(v)) for v in row] for row in rows.astype(np.float32)])
 
 
 def limits(a, b):
-    """How much each pair of values may differ: FLOAT_STEPS steps of a single-precision float and a unit of the last digit printed."""
+    """How much each pair of values may differ: FLOAT_STEPS steps of a single-precision float at the larger of them."""
     larger = np.maximum(np.abs(a), np.abs(b))
-    with np.errstate(all='ignore'):  # a pair of zeros has no unit and no difference
-        unit = 10.0 ** (np.floor(np.log10(larger)) - (PRINT_DIGITS - 1))
-    return FLOAT_STEPS * np.spacing(larger.astype(np.float32)).astype(np.float64) + unit
+    return FLOAT_STEPS * np.spacing(larger.astype(np.float32)).astype(np.float64)
 
 
 def disagreement(a, b):
