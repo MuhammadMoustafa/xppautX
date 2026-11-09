@@ -172,7 +172,7 @@ def run_one(c,engine,repetition,binary,work,models,results,cpu,timeout):
         if p.name.startswith(c['name']+'.') or p.name in c.get('files',()):shutil.copy2(p,run/p.name)  # W269: files = a model's #include files
     ext='ode' if engine=='legacy' else 'odex'
     args=['taskset','-c',str(cpu),str(binary),f"{c['name']}.{ext}",'-silent','-internset','0']
-    if engine!='legacy':args=[a.replace('-silent','--silent') for a in args[:args.index('-internset')]]+ENGINE_ARGS[engine]  # W666: no --internset; every set runs by default
+    if engine!='legacy':args=[a.replace('-silent','--silent') for a in args[:args.index('-internset')]]+ENGINE_ARGS[engine]  # W666: no --internset; with no run_set a run uses no set, as -internset 0 did
     if engine=='interp':  # W661: the copy's options set compile false
         subprocess.run(['uv','run','--locked','python',str(INTERPRETED_COPY),str(run/f"{c['name']}.odex"),str(run/'interp.odex')],check=True)
         (run/'interp.odex').replace(run/f"{c['name']}.odex")

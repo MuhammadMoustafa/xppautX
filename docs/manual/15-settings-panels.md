@@ -227,7 +227,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 ## Output
 
 - **Data file** (`data_file`): The file a run writes its data to, named from the model's folder.
-- **Run set** (`run_set`): A set a batch run runs, by its name; repeat the option for each set. With none, every set runs.
+- **Run set** (`run_set`): A set a batch run runs, by its name; repeat the option for each set. With none, the model runs once with no set.
 - **Nullclines file** (`nullclines_file`): The file the nullclines are saved to after a run.
 - **After run** (`after_run`): What a batch run makes of its data once it has run: an analysis, or the mean or variance of its runs.
 - **After run file** (`after_run_file`): The file the after_run analysis is written to, so the data file keeps the trajectory.
