@@ -64,8 +64,7 @@
         "search_limit": {"type": "number", "exclusiveMinimum": 0, "title": "Equilibria: search limit", "description": "A state beyond plus or minus this value ends the equilibrium search."},
         "print_eigenvalues": {"type": "boolean", "title": "Equilibria: print eigenvalues", "description": "Whether the eigenvalues of an equilibrium are printed."},
         "draw_invariant_sets": {"type": "boolean", "title": "Equilibria: draw invariant sets", "description": "Whether the stable and unstable sets of a saddle are drawn."},
-        "draw_strong_sets": {"type": "boolean", "title": "Equilibria: draw strong sets", "description": "Whether the strong stable and unstable sets are drawn."},
-        "near_tolerance": {"type": "number", "exclusiveMinimum": 0, "title": "Near tolerance", "description": "How close two values must be for the model's near function to call them equal."}
+        "draw_strong_sets": {"type": "boolean", "title": "Equilibria: draw strong sets", "description": "Whether the strong stable and unstable sets are drawn."}
       }
     },
     "sweep": {

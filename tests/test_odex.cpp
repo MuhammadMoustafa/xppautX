@@ -545,8 +545,8 @@ int main(void)
   CHECK_STR(lowered("x' = 1\n\"{a=1} a comment\"\n").c_str(), "x'=1|\" {a=1} a comment");
 
   /* near(a, b[, tol=]) (docs/odex.md question 7, W78): |a-b| <=
-     tol*max(1,|a|,|b|), tol the model's neartol (default 1e-9) or the
-     call's own, always written as a literal */
+     tol*max(1,|a|,|b|), tol 1e-9 or the call's own (a number or a
+     parameter) */
   {
     const std::string t9 = xpp::odex::print_number(1e-9);
     const std::string t6 = xpp::odex::print_number(1e-6);
@@ -554,9 +554,8 @@ int main(void)
               ("x'=1|aux flag=(abs((x)-(1))<=(" + t9 + ")*max(1,max(abs(x),abs(1))))").c_str());
     CHECK_STR(lowered("x' = 1\naux flag = near(x, 1, tol=1e-6)\n").c_str(),
               ("x'=1|aux flag=(abs((x)-(1))<=(" + t6 + ")*max(1,max(abs(x),abs(1))))").c_str());
-    CHECK_STR(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 } }\naux flag = near(x, 1)\n").c_str(),
-              ("x'=1|@ equilibria.near_tolerance=1e-6|aux flag=(abs((x)-(1))<=(" + t6 + ")*max(1,max(abs(x),abs(1))))").c_str());
-    CHECK_STR(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 }, integration: { dt: .1 } }\n").c_str(), "x'=1|@ equilibria.near_tolerance=1e-6,integration.dt=.1");
+    CHECK_STR(lowered("par p = 1e-6\nx' = 1\naux flag = near(x, 1, tol=p)\n").c_str(),
+              "par p=1e-06|x'=1|aux flag=(abs((x)-(1))<=(p)*max(1,max(abs(x),abs(1))))");
     CHECK_STR(lowered("x' = 1\nevent 1 near(x, 1) - 1, x = 0\n").c_str(),
               ("x'=1|global 1 {(abs((x)-(1))<=(" + t9 + ")*max(1,max(abs(x),abs(1))))-1} {x=0}").c_str());
   }
@@ -584,10 +583,10 @@ int main(void)
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, 1, 1)\n"), "error 2:12 near takes 2 or 3 arguments, not 4"));
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, 1e-6)\n"), "error 2:23 near's third argument must be named tol="));
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, eps=1e-6)\n"), "error 2:27 near has no argument named `eps`: only tol="));
-  CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=-1)\n"), "error 2:27 near's tol= is not a positive number"));
-  CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=x)\n"), "error 2:27 near's tol= is not a positive number"));
-  CHECK(starts(lowered("x' = 1\noptions { equilibria: { near_tolerance: -1 } }\n"), "error 2:41 near_tolerance: -1 is not a positive number"));
-  CHECK(starts(lowered("x' = 1\noptions { equilibria: { near_tolerance: 0 } }\n"), "error 2:41 near_tolerance: 0 is not a positive number"));
+  CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=-1)\n"), "error 2:27 near's tol= is not a positive number or a parameter"));
+  CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=x)\n"), "error 2:27 near's tol= is not a positive number or a parameter"));
+  /* the model-wide near_tolerance setting is gone (W623): an ordinary unknown key, at its line */
+  CHECK(starts(lowered("x' = 1\noptions { equilibria: { near_tolerance: 1e-6 } }\n"), "error 2:"));
 
   /* arrays (docs/odex.md "Arrays", W80): a trailing range on a
      statement, its index named, both ends included, by a positive step */

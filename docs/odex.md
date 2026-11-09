@@ -207,7 +207,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   |---|---|
   | `integration` | `total_time`, `start_time`, `dt`, `store_every`, `store_from`, `storage_precision`, `state_limit`, `stop_at_limit`, `method`, `subsystem_split`, `compile` (`false` runs the interpreter; read when the model loads), `seed`; `step.relative_tolerance`, `step.absolute_tolerance`, `step.min`, `step.max`; `jacobian.kind` (`difference` or `exact`), `jacobian.band_upper`, `jacobian.band_lower`; `delay.max_delay`, `delay.history_points`; `euler.tolerance`, `euler.iterations`; `boundary_value.max_iterates`, `boundary_value.tolerance`, `boundary_value.epsilon`; `torus.period`, `torus.fold` |
   | `poincare` | `map`, `variable`, `sign`, `plane`, `stop` |
-  | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535), `near_tolerance` |
+  | `equilibria` | `max_iterations`, `newton_tolerance`, `jacobian_step`, `search_limit`, `print_eigenvalues`, `draw_invariant_sets`, `draw_strong_sets` (each `true` or `false`, W535) |
   | `sweep` | `variable`, `steps`, `low`, `high`, `reset`, `old_ic`, `write_files` (`true` writes each reset run to its own file in every mode, default `false`) |
   | `continuation` | autoX run settings by their names: `mesh_intervals`, `max_steps`, `output_every`, `collocation_points`, `step_size`, `min_step_size`, `max_step_size`, `parameter_min`, `parameter_max`, `norm_min`, `norm_max`, `parameter_tolerance`, `state_tolerance`, `special_point_tolerance` (W531) and the ten that were Numerics-form settings only: `mesh_adapt_every`, `max_branch_switches`, `switch_one_direction`, `output_detail`, `max_location_iterations`, `max_newton_iterations`, `full_newton_after`, `step_adapt_every`, `suppress_branch_points`, `follow_all_branches` (each the autox.configure_numerics argument of its name); autoX's own names (`ntst`, `nmax`, `parmin`, ...) are XPPAUT's, read on `.ode` import only |
   | `diagram` | `variable`, `x_min`, `x_max`, `y_min`, `y_max`; `colors.stable_equilibrium`, `colors.unstable_equilibrium`, `colors.stable_periodic`, `colors.unstable_periodic` |
@@ -294,8 +294,7 @@ you wrote (`1/30`) alone while the value is unchanged.
   [#681](https://github.com/MuhammadMoustafa/xppautX/issues/681); xppautX's own) is `single` (the default: the
   data table keeps each value as a float, XPPAUT's own) or `double` (the integrator's double, exactly); changing
   it with rows stored converts them in place. Every data file writes each stored value in the shortest text that
-  reads back as exactly it. `near_tolerance` (near's tolerance) is
-  an equilibria key.
+  reads back as exactly it.
 - `set "NAME" { key: value, ..., options: { group: { key: value } } }` — a named set. Its name is the user's text, so it is in double quotes even without spaces (`set "hopf" { ... }`; letters, digits and `_`, starting with a letter); a bare name is an error at its line. Its top-level keys are
   parameters and states only (`g: 9.81`, `v: -0.3`), each a number. Settings go only under `options:`, in the options
   block's shape and from the groups a set may hold: `integration`, `poincare`, `equilibria`, `continuation`, `plot`,
@@ -820,11 +819,11 @@ from):
 6. **Extension gap**: moot, since `.odex` does not reserve `e` (question 4).
 7. **Approximate equality** (decided, maintainer, 2026-09-28; W78): `==`
    and `!=` stay exact. `near(a, b)` is true when |a-b| <= tol ·
-   max(1, |a|, |b|), tol being `equilibria: { near_tolerance }` (default 1e-9) or
-   `near(a, b, tol=...)` for one call. Not `~=` (MATLAB, Lua and Octave's
+   max(1, |a|, |b|), tol being 1e-9, or the call's own `near(a, b, tol=...)` (a number or a
+   parameter; W623, W658 removed the model-wide `near_tolerance` setting). Not `~=` (MATLAB, Lua and Octave's
    "not equal"), not `eps` (a common parameter name) and not `atol` (the
    integrator's tolerance: the solver must never change the model's
-   logic). `near` is reserved; `near_tolerance` is an option key, not reserved.
+   logic). `near` is reserved.
 8. **Arrays** (decided, maintainer, 2026-09-28; W80): a trailing range on
    each statement, `x[j]' = -x[j] + x[j-1]  for j in 1..n by 2`; the index
    named explicitly (no implicit `[j]`), an index named like a declared

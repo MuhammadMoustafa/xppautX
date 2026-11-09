@@ -142,8 +142,8 @@ void check_nullclines()
 void check_saved_animation(const xpp::TempDir &tmp)
 {
     CHECK(xpp::files::change_dir(tmp.path().c_str()) == 0);
-    CHECK(write_file("animated.odex", "x'=-x\ninit x=1\noptions { animation: \"motion.anix\", equilibria: { near_tolerance: .1 } }\n"));
-    CHECK(write_file("motion.anix", "model: \"animated.odex\"\nline { x1: near(0,.05), y1: 0, x2: x, y2: 1 }\n"));
+    CHECK(write_file("animated.odex", "x'=-x\ninit x=1\noptions { animation: \"motion.anix\", equilibria: { max_iterations: 7 } }\n"));
+    CHECK(write_file("motion.anix", "model: \"animated.odex\"\nline { x1: near(0,.05,tol=.1), y1: 0, x2: x, y2: 1 }\n"));
     CHECK(load("animated.odex"));
     CHECK(xpp::client_session().animation.ncom == 1);
     CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().animation.commands.front().x1.data()) == 1);

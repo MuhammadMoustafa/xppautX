@@ -486,10 +486,6 @@ constexpr OptionRow rows[] = {
    .boolean = member([](auto &s) -> auto & { return s.numerics.equilibria.draw_strong_sets; }),
    .reset = [](Session &s) { s.numerics.equilibria.draw_strong_sets = false; },
    .key = "draw_strong_sets", .label = "Equilibria: draw strong sets", .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
-  /* ---- the other numerics ---- */
-  /* near()'s tolerance: the .odex reader takes it into the formulas that
-     call near (odex_load.cpp scan_neartol); nothing to set at run time */
-  {.group = option_group::equilibria, .odex = "near_tolerance", .help = "How close two values must be for the model's near function to call them equal.", .rule = OptionRule::positive},
   /* ---- the range integration and a batch run ---- */
   {.group = option_group::sweep, .kind = OptionKind::name, .odex = "variable", .help = "The parameter or variable a sweep varies.", .xppaut_names = {"RANGEOVER"}, .once = true,
    .text = member([](auto &s) -> auto & { return s.integrator.range.item; }),

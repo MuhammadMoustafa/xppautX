@@ -81,7 +81,6 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **Print eigenvalues** (`print_eigenvalues`): Whether the eigenvalues of an equilibrium are printed.
 - **Draw invariant sets** (`draw_invariant_sets`): Whether the stable and unstable sets of a saddle are drawn.
 - **Draw strong sets** (`draw_strong_sets`): Whether the strong stable and unstable sets are drawn.
-- **Near tolerance** (`near_tolerance`): How close two values must be for the model's near function to call them equal.
 
 ## Sweep
 

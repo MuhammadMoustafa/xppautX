@@ -42,8 +42,8 @@ when a parameter changes when it reads only parameters and consts, as
 `x[j]' = -x[j] + x[j-1]  for j in 2..n` (both ends included, `by 2` for
 a step; `x[3]` is the name `x3`). `/` divides as IEEE does (`1/0` is inf;
 a run stops at the first NaN or inf). `==` and `!=` are exact; `near(a, b)` is approximate
-equality, true when `|a-b| <= tol*max(1, |a|, |b|)`, `tol` the model's
-`@ neartol=` (in a `.odex`, `equilibria: { near_tolerance }`; default `1e-9`) or a call's own `near(a, b, tol=1e-6)`.
+equality, true when `|a-b| <= tol*max(1, |a|, |b|)`, `tol` is `1e-9`
+or a call's own `near(a, b, tol=1e-6)` (a number or a parameter).
 For example, a Fitzhugh-Nagumo model in `.odex`:
 
     # Forced Fitzhugh-Nagumo, fhn.odex

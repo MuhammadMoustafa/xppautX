@@ -18,6 +18,11 @@ namespace xpp::odex {
 
 namespace {
 
+/* near(a, b)'s tolerance when the call gives none: about a million times
+   double's rounding step, so values that differ by accumulated rounding are
+   near and values that differ in the ninth digit are not (docs/odex.md question 7) */
+constexpr double near_default_tolerance = 1e-9;
+
 /* the levels of docs/odex.md's precedence list, 1 (or) to 9 (a value) */
 enum Level { OR = 1, AND, NOT, CMP, ADD, MUL, NEG, POW, VALUE };
 
@@ -232,9 +237,12 @@ private:
       return;
     }
     if (e.text == "near") {
-      /* |a-b| <= tol*max(1, |a|, |b|), tol its third argument (the .odex
-         reader writes the model's own when the call gives none) */
-      const std::string tol = print_number(e.args[2].value);
+      /* |a-b| <= tol*max(1, |a|, |b|), tol its third argument: a number
+         or a parameter, near_default_tolerance when the call gives none */
+      std::string tol;
+      if (e.args.size() == 2) tol = print_number(near_default_tolerance);
+      else if (e.args[2].kind == Expr::Kind::Number) tol = print_number(e.args[2].value);
+      else put(tol, e.args[2], 0, false);
       out += "(abs((";
       put(out, e.args[0], 0, false);
       out += ")-(";

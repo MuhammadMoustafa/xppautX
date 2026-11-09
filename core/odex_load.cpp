@@ -122,7 +122,6 @@ public:
           fail(s.range->index_pos, xpp::format("the index `{}` is {}, declared at {}:{}: an index is named like "
                                               "no declared name", s.range->index, kind_name(d->kind),
                                               d->pos.line, d->pos.col));
-    scan_neartol(p_.statements);
     Parsed out;
     out.files = p_.files;
     out.ieee_division = true;
@@ -143,7 +142,6 @@ public:
 
   std::vector<Statement> animation()
   {
-    scan_neartol(m_.statements);
     for (const auto &s : p_.statements)
       if (s.range && find(s.range->index))
         fail(s.range->index_pos, "a range index must not name a declared model quantity");
@@ -440,24 +438,6 @@ private:
     return entry && entry->declared && entry->written == name ? entry : nullptr;
   }
 
-  /* the model's own near()'s tol, @ neartol= (default 1e-9, docs/odex.md
-     question 7): scanned once, whole-model (not position-sensitive: a
-     near() before the @ line that sets it still reads it), never among
-     the options the Model keeps (which would warn "not recognized") */
-  void scan_neartol(const std::vector<Statement> &statements)
-  {
-    for (const Statement &s : statements) {
-      if (s.kind != Statement::Kind::Options) continue;
-      for (const Option &o : s.more().options) {
-        if (o.name != "near_tolerance") continue;
-        double v = 0;
-        if (!xpp::parse_number(o.value, v) || !(v > 0))
-          fail(o.value_pos, xpp::format("near_tolerance: {} is not a positive number", o.value));
-        neartol_ = v;
-      }
-    }
-  }
-
   /* "`X` is not declared", with the name of another case if there is one */
   [[noreturn]] void undeclared(const Expr &e, std::string_view what) const
   {
@@ -619,7 +599,10 @@ private:
                                                                   e.arg_names[2]));
       }
       const Expr &t = e.args[2];
-      if (t.kind != Expr::Kind::Number || !(t.value > 0)) fail(t.pos, "near's tol= is not a positive number");
+      const Model::Name *d = t.kind == Expr::Kind::Name && !t.primed ? find(t.text) : nullptr;
+      const bool param = d && d->kind == Model::NameKind::Param;
+      if (!param && (t.kind != Expr::Kind::Number || !(t.value > 0)))
+        fail(t.pos, "near's tol= is not a positive number or a parameter");
     }
   }
 
@@ -688,26 +671,7 @@ private:
     return sc;
   }
 
-  /* e checked, near's tol filled in (its third argument, the model's
-     neartol when the call gives none) */
-  void formula(Expr &e, const Scope &sc) const
-  {
-    check(e, sc);
-    fill_near(e);
-  }
-
-  void fill_near(Expr &e) const
-  {
-    for (Expr &a : e.args) fill_near(a);
-    if (e.kind != Expr::Kind::Call || e.text != "near" || e.args.size() != 2) return;
-    Expr tol;
-    tol.kind = Expr::Kind::Number;
-    tol.pos = e.pos;
-    tol.value = neartol_;
-    tol.text = print_number(neartol_);
-    e.args.push_back(std::move(tol));
-    e.arg_names.push_back("tol");
-  }
+  void formula(Expr &e, const Scope &sc) const { check(e, sc); }
 
   /* a set's key: a variable (its initial value) or a parameter; a setting
      is written under `options:` */
@@ -885,8 +849,6 @@ private:
   ArrayCopy declaring_;
   /* where the import is that brought the statement being declared */
   Pos import_;
-  /* near()'s default tol, @ neartol= (docs/odex.md question 7) */
-  double neartol_ = 1e-9;
   /* the sets read so far, by name, with where each is */
   std::map<std::string, Pos> sets_;
 };
