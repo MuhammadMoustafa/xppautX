@@ -92,7 +92,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
         check('ordinary Go still uses the original duration and output stride',
               normal and abs(normal['time'] - 30.1) < 1e-8 and normal['rows'] == 87 and 'steady' not in normal, normal)
 
-    scenario(folder, 'decay', "x'=-x\ny'=-(y-2)\ninit x=1,y=0\n@ dt=.05,total=30,store_every=7,bound=100", decays)
+    scenario(folder, 'decay', "x'=-x\ny'=-(y-2)\ninit x=1,y=0\n@ dt=.05,total=30,nout=7,bound=100", decays)
 
     def periodic(server):
         got, state = command(server, cmd='run.steady', decimals=9, hold=1, maximum=5)
