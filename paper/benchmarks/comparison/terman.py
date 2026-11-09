@@ -10,7 +10,7 @@ import math
 import statistics
 
 from common import BENCH, HERE, initialize, parser, save, sha
-from integration import PYTHON, launch, setfile_patch, stage, variant
+from integration import PYTHON, convert, launch, setfile_patch, stage, variant
 from odex_model import Odex
 
 CRITERIA = HERE / 'terman-criteria.json'
@@ -146,6 +146,7 @@ def main():
                 value, name = lines[i].split(maxsplit=1)
                 lines[i] = '%.17g  %s' % (float(value) + perturb, name)
             setting.write_text('\n'.join(lines) + '\n')
+        convert(a, model)  # xppautX's .odex takes the patched SET: it is converted once, after the patches
         for engine in ('xppautx', 'xppaut'):
             folder = a.out / 'convergence' / label / engine
             process = launch(a, model, engine, folder, False)

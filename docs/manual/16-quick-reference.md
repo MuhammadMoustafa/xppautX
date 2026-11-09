@@ -436,25 +436,7 @@ run or the files, not the X11 windows:
 - **--convert**: Converts `.ode` to `.odex` beside the model; terminal name questions read a line from a console or pipe, with a 60-second deadline.
 - **--check**: Validates `.ode` or `.odex` in memory and prints JSON diagnostics; writes nothing, opens no window. Exit 0 clean/info, 1 warnings, 2 error (W75, #123).
 - **-y, --yes**: Answers every terminal question yes and prints each answer taken: accepts suggested conversion names and replaces existing files (silent recording outputs, a different `.odex`).
-- **--setfile *filename***: imports a `.set` file one XPPAUT wrote (File > Sets > Import XPPAUT session state), after loading up the ODE file: the `.set` is checked value by value and applied whole; nothing is written beside it.
 - **--newseed**: uses the machine time to re-seed the random number generator.
-- **--parfile *filename***: loads parameters from the named file. The first line gives the number of parameters, then one value per line followed by its name (each model parameter exactly once, in any order; W310, #369), e.g. (`lecar.par`):
-
-  ```
-  12 Number params
-  0.0    iapp
-  .333   phi
-  -.01   v1
-  0.15   v2
-  0.1    v3
-  0.145  v4
-  1.33   gca
-  -.7    vk
-  -.5    vl
-  2.0    gk
-  .5     gl
-  1      om
-  ```
 - **--outfile *filename***: sends output to this file (default `output.dat`). The first column is time, the rest are the ordered variables, e.g. (`lecar.out`, variables `V`, `W`):
 
   | t | V | W |
@@ -463,8 +445,8 @@ run or the files, not the X11 windows:
   | 0.050000001 | -0.36620989 | 0.087350026 |
   | 0.1 | -0.3715646 | 0.083690271 |
   | ⋮ | ⋮ | ⋮ |
-- **--icfile *filename***: loads initial conditions from the named file, one value per line, one per variable with a differential equation, in order (Markov states are not in the file, as in XPPAUT), e.g. (`lecar.ic`, for `V`, `W`): `-0.3606` then `0.0911`.
 - **--anifile *filename***: with `--convert`, the `.ani` that `--convert model.odex` writes into a `.anix`.
+- **--statefile *filename***: with `--convert`, an XPPAUT `.set`, `.par` or `.ic` file written into the converted `.odex` as its default values and numerics (`xppautX --convert model.ode --statefile model.ode.set`): the file is checked value by value and applied whole, or nothing is written; a model that is already an `.odex` is used as it is. XPPAUT's `-setfile`, `-parfile` and `-icfile` are not options of a run here.
 - **--mkplot**: with `--silent`, writes a plot named after the ODE file (or numbered, for several); PDF or SVG (`--plotfmt`).
 - **--noout**: does not write an output data file in batch mode; combine with `--mkplot` to suppress the data.
 - **--plotfmt *pdf\|svg***: sets the plot format for `--mkplot` (`ps` is read as `pdf`).

@@ -626,9 +626,8 @@ Loading one of xppautX's own files is one operation (W125, core/xpp_io.h
 into a value and every line and value checked, then the value is applied
 in one step, or, at the first line that is wrong, nothing is applied and
 the error names the file, the line and the line as written. The same for
-a file of values (`set.load_file`: an `.odex`'s defaults or one of its sets, or an XPPAUT `.par`, `.ic` or `.set`), XPPAUT's set file (`.set`: File/Import XPPAUT session state, `--setfile`), a parameter file (`.par`)
-and an initial-conditions file (`.ic`: `value.import_file`, `--parfile`,
-`--icfile`, Initialconds/File), a session file's members (`.snapx`, "Session
+a file of values (`set.load_file`: an `.odex`'s defaults or one of its sets, or an XPPAUT `.par`, `.ic` or `.set`), XPPAUT's set file (`.set`: File/Import XPPAUT session state, `--convert --statefile`), a parameter file (`.par`)
+and an initial-conditions file (`.ic`: `value.import_file`, Initialconds/File, `--convert --statefile`), a session file's members (`.snapx`, "Session
 files"; the members are settings files too), and a recording (`.recx`, "Playing a recording"); a model's
 internal set (File/Apply set, `set.apply`) checks every item before it applies one,
 a bad item an error at the `set` line. Strict: a line that is not one of
@@ -1612,10 +1611,7 @@ and `direction_field.draw` phase-plane data (a `.ode`'s `dfdraw`)
 in every mode, before exports: `nullclines_file` (`ncdraw=2`: `nullclines.dat`) also writes the nullclines (a row a segment: `nullcline` 1 or 2, `x1`, `y1`, `x2`, `y2`, in the data format its extension names) and
 `direction_field.draw` `arrows_and_save`/`scaled_arrows_and_save` (`dfdraw=4`/`5`) dirfields.dat through the normal writer rules in the current
 working folder (W346). These are no longer extra script commands.
-After every run the script sends `--equil 0`/`1` as `equilibrium.export` with `file` `"equil.dat"` (`shoot` true for `--equil 1`, `confirm` true to replace the batch output). The files the command line names
-(`--setfile`, `--parfile`, `--icfile`) are read by the
-model's start in every mode, before the script.
-
+After every run the script sends `--equil 0`/`1` as `equilibrium.export` with `file` `"equil.dat"` (`shoot` true for `--equil 1`, `confirm` true to replace the batch output). 
 ## Events (server to client)
 
 A JSON number is any finite double: every finite value up to the largest
@@ -2415,7 +2411,7 @@ draws each on its next animation frame extends the curve at every frame;
 W82).
 
 Import XPPAUT session state (File/Import XPPAUT session state, key `r` of the File
-menu, `session.import_xppaut_state`; `--setfile`) takes an XPPAUT `.set` and nothing else
+menu, `session.import_xppaut_state`; `--convert --statefile` is its headless form, written into the `.odex`) takes an XPPAUT `.set` and nothing else
 (W321; our own values are `.odex` sets, `set.load_file`).
 The file (positional lines, a value and its label, ending with its model's equations,
 `RHS etc ...`) is read whole, every named value checked against the model at its line (the delays, boundary conditions and couplings must be expressions of the model, the transpose's and the array plot's first columns columns of it),

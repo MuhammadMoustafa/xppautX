@@ -15,7 +15,7 @@ import numpy as np
 from flags import Flags, flag_loop
 from integrators import Dop853, IntegrationError, backward_euler_step, discrete_step, euler_step, qualrk_advance, rk4_step
 from model import ModelError, compile_model
-from numerics import Unreadable, apply_xppaut_set, numerics_of
+from numerics import Unreadable, numerics_of
 from odex_model import Odex, Refused
 
 # the rows stored (single precision, as xppautX stores them), their column names, the times of the rows as the run had them
@@ -29,12 +29,10 @@ METHODS = tuple(FIXED_STEP) + ADAPTIVE
 FAILURES = (Refused, Unreadable, IntegrationError, ModelError)
 
 
-def load(path, setfile=None):
-    """The compiled model and the numerics of the model in path, under an XPPAUT set file if given."""
+def load(path):
+    """The compiled model and the numerics of the model in path."""
     odex = Odex(path)
     numerics = numerics_of(odex)
-    if setfile:
-        apply_xppaut_set(odex, numerics, setfile)
     return compile_model(odex), numerics
 
 

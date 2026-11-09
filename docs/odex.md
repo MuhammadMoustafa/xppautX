@@ -454,8 +454,8 @@ The program's preferences (W287) are one file in the per-user configuration fold
 read by the same reader, all or nothing, and written whole, temp-then-rename. No older file is read.
 
 XPPAUT's `.set` (positional lines, a value and then its label, read by their
-order) is import only: File > Import XPPAUT session state and `--setfile` of one
-read it and apply all of it (W321), writing nothing beside it; Load values from
+order) is import only: File > Import XPPAUT session state reads it and applies all of it (W321), writing nothing beside it, and
+`xppautX --convert model.ode --statefile FILE` writes it into the model's `.odex` as its defaults (W665); Load values from
 file takes a scope's part of it (its parameters, initial conditions and the numerics
 a set may hold). A user's own values are `.odex` sets, loaded by scope (Load values from file).
 Recordings (`.recx`) keep their header as a `session { program, model, recorded }` statement: see

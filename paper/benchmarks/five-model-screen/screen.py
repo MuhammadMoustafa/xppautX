@@ -91,7 +91,8 @@ def prepare(bundle, binary, legacy, cases=CASES):
                 setlines[start+i]=value+'  '+name
             (models/c['setfile']).write_text('\n'.join(setlines)+'\n')
             write_json(models/'episodic.set-label-repairs.json',repairs)
-        p=subprocess.run([str(binary),*convert_args(),str(target)],capture_output=True,text=True)
+        state=['--statefile',str(models/c['setfile'])] if 'setfile' in c else []  # the XPPAUT set, converted once into the .odex
+        p=subprocess.run([str(binary),*convert_args(),str(target),*state],capture_output=True,text=True)
         (models/f'{name}.conversion.log').write_text(p.stdout+p.stderr)
         if p.returncode:raise RuntimeError(f'{name}: conversion failed ({p.returncode}): {p.stdout} {p.stderr}')
     write_json(bundle/'cases.json',cases)
@@ -176,7 +177,7 @@ def run_one(c,engine,repetition,binary,work,models,results,cpu,timeout):
     if engine=='interp':  # W661: the copy's options set compile false
         subprocess.run(['uv','run','--locked','python',str(INTERPRETED_COPY),str(run/f"{c['name']}.odex"),str(run/'interp.odex')],check=True)
         (run/'interp.odex').replace(run/f"{c['name']}.odex")
-    if 'setfile' in c:args += ['-setfile' if engine=='legacy' else '--setfile',c['setfile']]
+    if 'setfile' in c and engine=='legacy':args += ['-setfile',c['setfile']]  # XPPAUT keeps its own switch; xppautX's .odex holds the set
     home=run/'home';home.mkdir()
     env=dict(os.environ,HOME=str(home),XDG_CONFIG_HOME=str(home/'config'),LC_ALL='C',OMP_NUM_THREADS='1',OPENBLAS_NUM_THREADS='1')
     env.pop('DISPLAY',None)

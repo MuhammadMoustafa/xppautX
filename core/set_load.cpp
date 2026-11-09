@@ -5,9 +5,12 @@
 #include "model.h"
 #include "model_files.h"
 #include "model_options.h"
+#include "model_save.h"
+#include "odex.h"
 #include "odex_write.h"
 #include "session.h"
 #include "session_settings.h"
+#include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_ui.h"
@@ -243,6 +246,25 @@ Result<> load_xppaut_values(Session &s, ValueFile kind, std::string_view fn)
     if (!source) return std::unexpected(source.error());
     const ValuesPart &part = source->parts.front();
     return apply_values(s, part.items, part.where, kind == ValueFile::parameters ? set_scope::parameters : set_scope::initial, std::nullopt, LOADING);
+}
+
+int convert_state_file(const std::string &model, const std::string &state)
+{
+  /* the model first, as --convert alone writes it; an .odex is used as it is */
+  if (!odex::is_odex(model))
+    if (const int status = odex::convert_file(model); status != 0) return status;
+  const std::string odex_file = odex::is_odex(model) ? model : odex::odex_name(model);
+  const Result<CommandLine> line = parse_command_line({"xppautX", odex_file, "--convert"});
+  if (!line) { show_error(line.error()); return 1; }
+  const Loaded loaded = load_model(*line, 1);
+  if (!loaded) return 1;
+  Session &s = **loaded;
+  /* the file's values and numerics are the model's own starting ones, written as its defaults */
+  Result<> done = load_values_from_file(s, state, set_scope::all, ValuesOrigin::file, "", std::nullopt);
+  if (done) done = save_defaults(s, set_scope::all, std::nullopt, false);
+  if (!done) { show_error(done.error()); return 1; }
+  xpp::log(XPP_LOG_INFO, "wrote {}\n", odex_file);
+  return 0;
 }
 
 }

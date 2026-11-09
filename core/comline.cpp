@@ -22,7 +22,7 @@ namespace {
 constexpr int MAX_PORT = 65535;
 
 /* the options' ids (named, never numbers) */
-enum class Opt { silent, newseed, setfile, parfile, outfile, icfile, anifile, mkplot, plotfmt, noout, dfdraw, ncdraw,
+enum class Opt { silent, newseed, outfile, anifile, statefile, mkplot, plotfmt, noout, dfdraw, ncdraw,
                  equil, verbose, debug,
                  /* the program's own (xppautx_main.cpp) */
                  help, version, options_schema, convert, check, yes, no_open, browser, server, port };
@@ -38,11 +38,9 @@ struct CommandOption {
 constexpr CommandOption my_cmd[] = {
   {"--silent", Opt::silent, false, true, false},
   {"--newseed", Opt::newseed, false, true, false},
-  {"--setfile", Opt::setfile, true, false, false},
-  {"--parfile", Opt::parfile, true, false, false},
   {"--outfile", Opt::outfile, true, false, false},
-  {"--icfile", Opt::icfile, true, false, false},
   {"--anifile", Opt::anifile, true, false, true}, /* --convert's second operand: the program's own, with --convert only */
+  {"--statefile", Opt::statefile, true, false, true}, /* --convert's other second operand: an XPPAUT state file */
   {"--mkplot", Opt::mkplot, false, true, false},
   {"--plotfmt", Opt::plotfmt, true, false, false},
   {"--noout", Opt::noout, false, true, false},
@@ -85,6 +83,7 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
   std::optional<std::string_view> interface_word; /* the option that chose cl.interface */
   std::optional<Place> no_open_place;             /* --no-open's place: it needs --browser, checked after the pass */
   std::optional<Place> anifile_place;             /* --anifile's place: it needs --convert, checked after the pass */
+  std::optional<Place> statefile_place;           /* --statefile's place: the same */
   const int count = static_cast<int>(cl.arguments.size());
   for (int i = 1; i < count; ++i) {
     const std::string_view word(cl.arguments[static_cast<std::size_t>(i)]);
@@ -155,10 +154,8 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
     case Opt::noout: cl.no_output = true; break;
     case Opt::verbose: cl.log_threshold = XPP_LOG_INFO; break;
     case Opt::debug: cl.log_threshold = XPP_LOG_DEBUG; break;
-    case Opt::setfile: cl.set_file = value; break;
-    case Opt::parfile: cl.par_file = value; break;
-    case Opt::icfile: cl.ic_file = value; break;
     case Opt::anifile: cl.ani_file = value; anifile_place = place; break;
+    case Opt::statefile: cl.state_file = value; statefile_place = place; break;
     case Opt::outfile:
       cl.out_file = value;
       cl.out_place = xpp::format("{} {}", word, value);
@@ -176,6 +173,10 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments)
   }
   if (anifile_place && !cl.convert)
     return fail("options", "--anifile needs --convert (it is the .ani that --convert writes into a .anix)", *anifile_place);
+  if (statefile_place && !cl.convert)
+    return fail("options", "--statefile needs --convert (it is the XPPAUT file --convert writes into the .odex)", *statefile_place);
+  if (cl.state_file && cl.ani_file)
+    return fail("options", "--statefile and --anifile both given: --convert takes one", *statefile_place);
   if (no_open_place && cl.interface != Interface::browser)
     return fail("options", "--no-open needs --browser (it prints the address, which only browser mode shows)", *no_open_place);
   return cl;
@@ -208,32 +209,6 @@ void apply_command_line(Session &s, CommandLine cl)
   /* --plotfmt, --dfdraw and --ncdraw win over .xpprc and the model's @ lines */
   for (const auto &[name, value] : cl.options) set_option(s, name, value, 1, NULL);
   s.model().command_line = std::move(cl);
-}
-
-static int if_needed_load_set(xpp::Session &s)
-{
-  const CommandLine &cl = s.model().command_line;
-  if(!cl.set_file) return 1;
-  if(const xpp::Result<std::vector<std::string>> r=import_xppaut_state(s,*cl.set_file,true);!r)
-  {
-    xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
-    return 0;
-  }
-  return 1;
-}
-
-void load_command_line_values(xpp::Session &s)
-{
-  const CommandLine &cl = s.model().command_line;
-  if_needed_load_set(s);
-  if(cl.par_file){
-    xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",*cl.par_file);
-    xpp::ok_or_show(load_xppaut_values(s,ValueFile::parameters,*cl.par_file));
-  }
-  if(cl.ic_file){
-    xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",*cl.ic_file);
-    xpp::ok_or_show(load_xppaut_values(s,ValueFile::initial_conditions,*cl.ic_file));
-  }
 }
 
 } // namespace xpp

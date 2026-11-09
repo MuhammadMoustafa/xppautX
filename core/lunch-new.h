@@ -45,7 +45,7 @@ Result<std::vector<double>> read_ic_file(const Model &m, std::string_view path);
 /* the two files of the values panel's Load: the model's parameters (.par) or its initial conditions (.ic) */
 enum class ValueFile { parameters, initial_conditions };
 inline constexpr std::array<std::string_view, 2> value_file_names = {"parameters", "initial_conditions"};
-/* the parameters or the initial conditions of s read whole from the file fn as XPPAUT wrote it (--parfile, --icfile,
+/* the parameters or the initial conditions of s read whole from the file fn as XPPAUT wrote it (--convert --statefile,
    initial_conditions.import, the values panel's Load) and applied as Load values from a file by scope applies a part (set_load.cpp,
    load_eqn.h's apply_values), or the error and nothing applied. An .ic holds the values alone, one per
    differential-equation variable in the model's order, exactly `node` of them, as XPPAUT's own io_ic_file always read

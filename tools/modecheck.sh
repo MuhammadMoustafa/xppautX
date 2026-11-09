@@ -65,6 +65,28 @@ tmp=$(mktemp -d) || exit 1
 # the user's own settings stay untouched: every start here keeps its recent models in $tmp (W232)
 export XPP_CONFIG_DIR="$tmp/config"
 trap '[ -z "${pid:-}" ] || kill "$pid" 2>/dev/null; rm -rf "$tmp"' EXIT
+
+# W665: --setfile, --parfile and --icfile are unknown options; an XPPAUT state file is converted once into the
+# model's .odex (--convert --statefile), and a run of that .odex gives what --setfile of the file gave
+for word in --setfile --parfile --icfile; do
+  out=$("$BIN" "$word" lin.ode.set --silent 2>&1)
+  status=$?
+  case "$status:$out" in
+    2:*"no such option $word"*) pass "$word is an unknown option" ;;
+    *) bad "$word refusal: $status $out" ;;
+  esac
+done
+STATE_MD5=82d3d3be99e42e00a0ad8f4d78eab1c9 # lin.odex --silent --setfile lin.ode.set, before W665 removed the switch
+STATE_PLAIN_MD5=7eaec245aa9c # lin.odex alone, to show the state file changes the run (the first digits)
+mkdir "$tmp/state" && cp examples/ode/lin.odex examples/ode/lin.ode.set "$tmp/state/"
+# the plain run stops at the state limit (exit 1), its rows kept
+(cd "$tmp/state" && "$BIN" lin.odex --silent >/dev/null 2>&1)
+if [ "$(tr -d '\r' <"$tmp/state/output.dat" | md5sum | cut -c1-12)" = "$STATE_PLAIN_MD5" ]; then
+  if (cd "$tmp/state" && "$BIN" --convert --yes lin.odex --statefile lin.ode.set >/dev/null 2>&1 && "$BIN" lin.odex --silent >/dev/null 2>&1) &&
+     [ "$(tr -d '\r' <"$tmp/state/output.dat" | md5sum | cut -d' ' -f1)" = "$STATE_MD5" ]; then
+    pass "--convert --statefile writes the XPPAUT set into the .odex: the run is the old --setfile's"
+  else bad "--convert --statefile: the run differs from the old --setfile's"; fi
+else bad "the plain run of lin.odex changed (the state file check needs it)"; fi
 mkdir "$tmp/bin"
 for opener in xdg-open open; do
   printf '#!/bin/sh\necho "$1" >> "%s/opened"\necho "$#" >> "%s/argc"\n' "$tmp" "$tmp" > "$tmp/bin/$opener"

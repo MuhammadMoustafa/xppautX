@@ -67,4 +67,9 @@ bool offers(const Session &s, const ValuesPart &part, std::string_view scope);
 Result<> load_values_from_file(Session &s, std::string_view path, std::string_view scope, ValuesOrigin origin, std::string_view name,
                                std::optional<int> graph);
 
+/* xppautX --convert model.ode --statefile FILE: the model converted (an .odex is used as it is), then the values and
+   numerics of FILE, an XPPAUT .par, .ic or .set, written into the .odex as its defaults, through the loading above and
+   save_defaults: the one importer, written once; 0 when written, 1 (said why) when not */
+int convert_state_file(const std::string &model, const std::string &state);
+
 }

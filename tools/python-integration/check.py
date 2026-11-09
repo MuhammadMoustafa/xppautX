@@ -5,7 +5,7 @@
                                                     [--screen DIR]
 
 For each model of the integration comparison (the five-model screen, Izhikevich's 28 sets, ma23 and mu26) it runs
-xppautX (--silent, the model's file and set file) and the Python integrator of the same method, and fails unless
+xppautX (--silent, the model's file) and the Python integrator of the same method, and fails unless
   - the two outputs have the same rows, and the same time column, and
   - every value of the Python output is within FLOAT_STEPS step of a single-precision float (and the rounding of the
     digits printed) of xppautX's.
@@ -58,15 +58,15 @@ BACKWARD_EULER_MODELS = ('ma23', 'mu26')
 
 
 class Case:
-    def __init__(self, name, path, setfile=None):
-        self.name, self.path, self.setfile = name, Path(path), setfile
+    def __init__(self, name, path, fixed_method=False):
+        self.name, self.path, self.fixed_method = name, Path(path), fixed_method
 
 
 def cases(screen, extra):
     out = []
     for name in SCREEN_MODELS:
-        setfile = screen / (name + '.ode.set')
-        out.append(Case(name, screen / (name + '.odex'), setfile if setfile.exists() else None))
+        # a model with an XPPAUT set file in the screen's folder has it converted into its .odex, its method included
+        out.append(Case(name, screen / (name + '.odex'), (screen / (name + '.ode.set')).exists()))
     ode = REPO_ROOT / 'examples' / 'ode'
     out += [Case(p.stem, p) for p in sorted(ode.glob(IZHIKEVICH))]
     out += [Case(name, ode / (name + '.odex')) for name in BACKWARD_EULER_MODELS]
@@ -87,8 +87,7 @@ def with_method(text, key):
 
 def run_xppautx(binary, case, method):
     """The output.dat of xppautX on the case, with the method if given: its rows as an array."""
-    arguments = ['--setfile', str(case.setfile)] if case.setfile else []
-    return np.array(silent_rows(binary, case.path, arguments, edit=(lambda text: with_method(text, method)) if method else None), ndmin=2)
+    return np.array(silent_rows(binary, case.path, edit=(lambda text: with_method(text, method)) if method else None), ndmin=2)
 
 
 def printed(rows):
@@ -191,10 +190,10 @@ def main():
     failures = skipped = 0
     print('%-30s %-15s %6s  %-12s %s' % ('model', 'method', 'rows', 'vs xppautX', 'vs DOP853 (largest difference, spikes)'), flush=True)
     for case in todo:
-        model, numerics = load(case.path, case.setfile)
+        model, numerics = load(case.path)
         for method in methods:
             key = method or numerics.method
-            if method and ((method == 'discrete') != (numerics.method == 'discrete') or case.setfile):
+            if method and ((method == 'discrete') != (numerics.method == 'discrete') or case.fixed_method):
                 skipped += 1  # a map is not a continuous model, and a set file sets the method
                 continue
             try:

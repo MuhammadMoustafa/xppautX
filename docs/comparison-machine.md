@@ -61,15 +61,15 @@ The Python integration comparison (W427, [#489](https://github.com/MuhammadMoust
 Python is a timed program of it, with xppautX's own methods written in Python with numpy
 (`tools/python-integration/`; no SciPy in them), and SciPy's DOP853 at rtol 1e-12 is the separate,
 untimed accuracy reference. The scripts time nothing; the timing series is W354 stage 2's.
-- `uv run --locked python tools/python-integration/integrate.py MODEL.odex [--method KEY] [--setfile FILE] [--outfile FILE]`
+- `uv run --locked python tools/python-integration/integrate.py MODEL.odex [--method KEY] [--outfile FILE]`
   runs the model and writes the columns xppautX's `output.dat` has, at the same stored times. The
   method is the model's own unless `--method` names another of `euler`, `runge_kutta`, `discrete`,
   `backward_euler`, `qualrk`, `dopri8` (the keys a `.odex` writes). Each method does the operations of its
   routine in `core/` in the same order (`odesol2.cpp`, `stiff.cpp`, `dormpri.cpp`, with the events of
   `flags.cpp` and the dense events of `integrate.cpp`); the settings are the model's options over
-  xppautX's own defaults, which are read from `core/` and not written again, and `--setfile` takes an
-  XPPAUT set file as xppautX does (numerics, initial values, parameters).
-- `uv run --locked python tools/python-integration/scipy_integrate.py MODEL.odex [--method KEY] [--setfile FILE] [--outfile FILE]`
+  xppautX's own defaults, which are read from `core/` and not written again, and an XPPAUT set file is
+  converted into the `.odex` first (`xppautX --convert model.ode --statefile FILE`, W665).
+- `uv run --locked python tools/python-integration/scipy_integrate.py MODEL.odex [--method KEY] [--outfile FILE]`
   runs SciPy's DOP853 on the model (to each event, the event's assignments made, and on) and writes
   the same columns at the stored times of the run of `--method`. A map has no solution to integrate.
 - `uv run --locked python tools/python-integration/check.py --bin ./xppautX [--only NAME,...] [--method KEY,...|all] [--model FILE] [--screen DIR]`

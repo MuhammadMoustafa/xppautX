@@ -4489,7 +4489,7 @@ def check_values_protocol():
 check_values_protocol()
 
 
-# W66 review: XPPAUT's --icfile/io_ic_file reads and writes exactly `node`
+# W66 review: XPPAUT's .ic file (io_ic_file) reads and writes exactly `node`
 # values -- one per differential-equation variable, never the Markov
 # chains -- so a Markov model's .ic file stays the file XPPAUT itself
 # reads (kepler.odex: x1, x2 are node, z is a markov chain, not in the file).

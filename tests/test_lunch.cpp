@@ -1,6 +1,6 @@
 /* The session's settings (session_settings.h: par and init lines, options, the session statement's groups) and XPPAUT's set file, the import
    (lunch-new.h). XPPAUT's own examples/ode/lecar.ode.set is imported (File >
-   Import XPPAUT session state, --setfile): read and applied whole, nothing written
+   Import XPPAUT session state): read and applied whole, nothing written
    beside it, and the session then holds every value the set file named.
    The settings written again, read, applied and written once more give the
    same file. A file with a value that is wrong, a key that is not one of the

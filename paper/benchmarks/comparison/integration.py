@@ -22,7 +22,7 @@ PYTHON = TOOLS / 'python-integration'
 sys.path.insert(0, str(PYTHON))
 from odex_model import Odex
 
-from numerics import apply_xppaut_set, legacy_method_key, method_rows, numerics_of
+from numerics import legacy_method_key, method_rows, numerics_of
 
 
 def ode_option(text, line):
@@ -35,7 +35,10 @@ def ode_option(text, line):
 
 
 def convert(a, model):
-    p = subprocess.run([str(a.xppautx), '--convert', '--yes', str(model)], capture_output=True, text=True)
+    # An XPPAUT set file beside the model (model.ode.set) is converted into its .odex once, so xppautX's run needs no switch.
+    setfile = model.parent / (model.stem + '.ode.set')
+    state = ['--statefile', str(setfile)] if model.suffix == '.ode' and setfile.exists() else []
+    p = subprocess.run([str(a.xppautx), '--convert', '--yes', str(model), *state], capture_output=True, text=True)
     model.with_suffix('.conversion.log').write_text(p.stdout + p.stderr)
     if p.returncode:
         raise RuntimeError('%s: conversion failed: %s' % (model, p.stdout + p.stderr))
@@ -150,8 +153,8 @@ def engine_argv(a, model, engine, setfile):
         argv = [sys.executable, str(PYTHON / 'scipy_integrate.py'), model.with_suffix('.odex').name]
     else:
         raise ValueError('unknown engine ' + engine)
-    if setfile.exists():
-        argv += ['-setfile' if engine == 'xppaut' else '--setfile', setfile.name]
+    if engine == 'xppaut' and setfile.exists():
+        argv += ['-setfile', setfile.name]  # XPPAUT keeps its own switch; the other engines' .odex holds the set
     return argv
 
 
@@ -186,17 +189,16 @@ def python_verdict(a, model, left, right):
     # SENSITIVITY_PROBES more Python runs, made only when the two runs differ).
     import numpy as np
     from driver import load, Run
-    setfile = model.parent / (model.stem + '.ode.set')
     code = hashlib.sha256(b''.join(f.read_bytes() for f in sorted(PYTHON.glob('*.py')))).hexdigest()
     key = dict(xppautx=sha(left / 'output.dat'), python=sha(right / 'output.dat'), model=sha(model.with_suffix('.odex')),
-               setfile=sha(setfile) if setfile.exists() else None, code=code)
+               code=code)
     name = model.parent.name + '.json'
     for folder in [a.out] + ([a.reuse] if a.reuse else []):
         cached = folder / 'gates' / 'python-judge' / name
         if cached.exists() and json.loads(cached.read_text())['key'] == key:
             return json.loads(cached.read_text())['verdict']
     check = module('python_agreement', PYTHON / 'check.py')
-    m, n = load(model.with_suffix('.odex'), setfile if setfile.exists() else None)
+    m, n = load(model.with_suffix('.odex'))
     rows = np.loadtxt(right / 'output.dat', ndmin=2).astype(np.float32)
     run = Run(rows, ['t'] + m.states + m.aux_names, rows[:, 0].tolist(), None)
     verdict = list(check.judge(m, n, n.method, run, np.loadtxt(left / 'output.dat', ndmin=2)))
@@ -407,13 +409,8 @@ def stop_here(a, records, driver_failures, name, why):
 
 
 def effective_numerics(model):
-    # The numerics the programs read: the model's options, then its set file (as numerics.py reads both).
-    odex = Odex(model.with_suffix('.odex'))
-    numerics = numerics_of(odex)
-    setfile = model.parent / (model.stem + '.ode.set')
-    if setfile.exists():
-        apply_xppaut_set(odex, numerics, setfile)
-    return numerics
+    # The numerics the programs read: the model's options (its set file is converted into them).
+    return numerics_of(Odex(model.with_suffix('.odex')))
 
 
 def reaches_reference(c):
@@ -569,6 +566,7 @@ def _series(a, source, name, records, method=None, native_only=False, horizon=No
         path = variant(a, source, label, ready=ready, method=method, total=None if ready else horizon, tolerance=tolerance, full=full, step=step)
         if terman_acceptance and tolerance is None:
             setfile_patch(path.parent / 'episodic.ode.set', {'Tolerance': terman_acceptance['chosen_tolerance']})
+            convert(a, path)  # xppautX's .odex takes the patched SET
         return path
 
     model, ready = build(name, None), build(name + '-ready', None, ready=True)

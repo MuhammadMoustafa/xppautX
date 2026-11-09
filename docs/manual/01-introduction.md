@@ -229,7 +229,7 @@ identifies the equation. The model's `compile` option (an `integration` setting,
 `options`) runs every equation in the interpreter instead; a change applies when the model next loads.
 Compilation happens once per load and can speed up integration and autoX; the gain depends on the model.
 
-Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. `--setfile` remains an import of XPPAUT `.set` files (W156, #208).
+Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. XPPAUT's `--setfile`, `--parfile` and `--icfile` are not options here (W665, #738): a `.set`, `.par` or `.ic` file XPPAUT wrote is converted once, `xppautX --convert model.ode --statefile FILE`, into the model's `.odex` as its default values and numerics (File > Sets > Import XPPAUT session state does the same in a running session).
 
 xppautX's own options (`--browser`, `--server`,
 `--port`, `--no-open` with `--browser`, `--version`, `--help`, `--verbose`, `--debug`)
@@ -242,9 +242,6 @@ follow in any order. The options below control the model and its run.
 | `--silent` | Batch run: no interface, integrates and exits |
 | `--outfile FILE` | Write batch output to FILE instead of `output.dat` |
 | `--noout` | Suppress writing rows to the output file |
-| `--parfile FILE` | Load parameter values from FILE before starting |
-| `--icfile FILE` | Load initial conditions from FILE before starting |
-| `--setfile FILE` | Import a set file XPPAUT wrote before starting |
 | `--equil <0\|1>` | Write equilibria to `equil.dat`, and with `1` the invariant manifolds too |
 | `--mkplot` | Produce a plot in batch mode |
 | `--plotfmt <pdf\|svg>` | Batch plot format (`ps` is read as `pdf`) |

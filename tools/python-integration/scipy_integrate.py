@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """tools/python-integration/scipy_integrate.py: SciPy's DOP853 as the accuracy reference of a run (W427, #489).
 
-    uv run python tools/python-integration/scipy_integrate.py MODEL.odex [--method KEY] [--setfile FILE] [--outfile FILE]
+    uv run python tools/python-integration/scipy_integrate.py MODEL.odex [--method KEY] [--outfile FILE]
 
 The model's equations integrated by scipy.integrate.solve_ivp, method DOP853 at a tolerance far
 below any of the methods' own, and written as xppautX's output.dat at the stored times of the run
@@ -67,11 +67,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('model', type=Path, help='the .odex model')
     parser.add_argument('--method', help="the method whose run's stored times to use (default the model's own)")
-    parser.add_argument('--setfile', type=Path, help='an XPPAUT set file to apply (as xppautX --setfile)')
     parser.add_argument('--outfile', type=Path, default=Path('output.dat'), help='the output (default output.dat)')
     args = parser.parse_args()
     try:
-        model, numerics = load(args.model, args.setfile)
+        model, numerics = load(args.model)
         rows, _ = run_dop853(model, numerics, run_model(model, numerics, args.method).times)
     except FAILURES + (NoSolution,) as e:
         sys.exit('%s: %s' % (args.model, e))

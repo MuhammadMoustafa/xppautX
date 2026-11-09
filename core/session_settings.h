@@ -10,7 +10,7 @@
    applied in one step (apply_settings): a file with a bad value
    changes nothing (W125). XPPAUT's own .set is read by lunch-new.cpp
    into the same Settings, which is applied as it is (File > Import XPPAUT
-   session state, --setfile). C++ only. */
+   session state, --convert --statefile). C++ only. */
 #include <optional>
 #include <span>
 #include <string>

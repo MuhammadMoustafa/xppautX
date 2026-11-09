@@ -292,7 +292,6 @@ void batch_start(xpp::Session &s)
 {
     init_browser(s);
     init_all_graph(s);
-    load_command_line_values(s);
     set_extra_graphs(s);
     set_colorization_stuff(s);
 }

@@ -35,7 +35,7 @@ struct CommandLine {
   bool silent = false, new_seed = false, make_plot = false, no_output = false;
   std::optional<XppLogLevel> log_threshold;    /* --verbose, --debug: the last one given */
   std::optional<int> equilibria;               /* --equil N */
-  std::optional<std::string> set_file, par_file, ic_file, out_file, ani_file; /* given or not */
+  std::optional<std::string> out_file, ani_file, state_file; /* given or not */
   std::string out_place;                       /* --outfile as written, for an error's place */
   std::vector<std::pair<std::string_view, std::string>> options; /* --plotfmt, --dfdraw, --ncdraw through set_option, in order */
 
@@ -48,8 +48,5 @@ Result<CommandLine> parse_command_line(std::vector<std::string> arguments);
 /* the command line's switches into the loading Session s and the model's
    file into its Model's this_file; the Model keeps cl. */
 void apply_command_line(Session &s, CommandLine cl);
-/* after a load, in every mode: the files the command line names
-   (--setfile, --parfile, --icfile) into s */
-void load_command_line_values(Session &s);
 
 } // namespace xpp

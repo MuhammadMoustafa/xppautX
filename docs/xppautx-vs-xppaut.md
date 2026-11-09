@@ -343,7 +343,7 @@ changes are checked against AUTO-07p and recorded in the baseline. The window: [
 | In-program equation editor | Edit menu | removed: the model file is the source | W54 |
 | Compiled functions | `export`, Load DLL | removed (risks outweigh benefits); examples rewritten | W55 |
 | The options file | `default.opt`, `option` line | removed ([findings #4](xppaut-findings.md)) | W139 |
-| `.set` as a user file | File > Write set | removed; Import XPPAUT session state and `--setfile` check XPPAUT's names and apply a valid import whole, never writing a settings file beside it (File > Import settings is removed); a `.snapx` keeps its settings in `session.odex`, in the syntax of a model | W147, W153, W284, W285, W321 ([#381](https://github.com/MuhammadMoustafa/xppautX/issues/381)), W322 ([#382](https://github.com/MuhammadMoustafa/xppautX/issues/382)) |
+| `.set` as a user file | File > Write set | removed; Import XPPAUT session state checks XPPAUT's names and applies a valid import whole, never writing a settings file beside it (File > Import settings is removed); `-setfile`, `-parfile` and `-icfile` are not options (W665, [#738](https://github.com/MuhammadMoustafa/xppautX/issues/738)): `xppautX --convert model.ode --statefile FILE` writes a `.set`, `.par` or `.ic` file into the model's `.odex` once; a `.snapx` keeps its settings in `session.odex`, in the syntax of a model | W147, W153, W284, W285, W321 ([#381](https://github.com/MuhammadMoustafa/xppautX/issues/381)), W322 ([#382](https://github.com/MuhammadMoustafa/xppautX/issues/382)) |
 | `.auto` writing | File > Save diagram | removed; Save diagram saves `.snapx` | W92, W155 |
 | Bell, Tips | menu items | removed | W7e |
 | Font, colour and window-size options | X resources | accepted, ignored | W8 |

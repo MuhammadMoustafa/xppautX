@@ -16,7 +16,7 @@ of 2 is a load failure and fails the check, printing the file, the block's start
 line and xppautX's stderr tail.
 
 Also checks that every "--name" command-line option the manual names
-(docs/manual/*.md, backtick-quoted, e.g. `--silent`, `--parfile
+(docs/manual/*.md, backtick-quoted, e.g. `--silent`, `--outfile
 *filename*`) is one `xppautX --help` and core/comline.cpp's option table
 both know: `--help` doesn't itself list xpp's own options (only its own
 front-end flags), so this reads comline.cpp's my_cmd[] table instead of

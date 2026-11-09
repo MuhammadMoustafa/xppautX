@@ -51,6 +51,7 @@
 #include "comline.h"
 #include "load_eqn.h"
 #include "recx.h"
+#include "set_load.h"
 #include "snapx.h"
 #include "session_settings.h"
 #include "menudrive.h"
@@ -104,6 +105,8 @@ static std::string usage_tail()
     "                   names .odex reserves (--yes takes the suggested names)\n"
     "                   or write drawing.anix from drawing.ani and drawing.odex;\n"
     "                   --convert model.odex --anifile drawing.ani names another model\n"
+    "                   --convert model.ode --statefile FILE writes an XPPAUT .set, .par or\n"
+    "                   .ic file's values and numerics into model.odex as its defaults\n"
     "  --check          validate a model or .anix in memory; JSON diagnostics, no files or window\n"
     "  --options-schema print the JSON Schema of a .odex's options block\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
@@ -115,7 +118,6 @@ static std::string usage_tail()
     "                   files), printing each answer taken\n"
     "  --port N        the page's port on 127.0.0.1 (default {}; 0: any free port)\n"
     "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n"
-    "  --setfile FILE   import an XPPAUT set; --parfile FILE / --icfile FILE load values\n"
     "  --outfile FILE   batch output; --noout suppresses rows\n"
     "  --newseed        randomize seed\n"
     "  --mkplot / --plotfmt svg|ps   batch plot and format\n"
@@ -284,6 +286,7 @@ int main(int argc, char **argv)
             xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--yes] model.ode\n");
             return 2;
         }
+        if (cl.state_file) return xpp::convert_state_file(cl.model_file, *cl.state_file);
         if (cl.ani_file) return xpp::convert_animation_file(*cl.ani_file, cl.model_file);
         if (xpp::files::has_extension(cl.model_file, ".ani")) return xpp::convert_animation_file(cl.model_file);
         return xpp::odex::convert_file(cl.model_file);

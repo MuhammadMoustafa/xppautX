@@ -258,7 +258,7 @@ int main(void)
         xpp::apply_command_line(session, std::move(*silent_line));
         CHECK(xpp::batch_options.enabled == 1);
         xpp::batch_options.enabled = 0;
-        for (const char *name : {"silent", "setfile", "parfile", "icfile", "anifile", "outfile", "newseed", "version", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "equil", "verbose", "debug"}) {
+        for (const char *name : {"silent", "anifile", "statefile", "outfile", "newseed", "version", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "equil", "verbose", "debug"}) {
             std::string word = "-" + std::string(name);
             argv[1] = word.data();
             const xpp::Result<> r = check_args(2, argv);
@@ -296,8 +296,12 @@ int main(void)
             /* W666: the set and query switches are unknown options */
             for (const char *removed : {"--internset", "--uset", "--rset", "--qsets", "--qpars", "--qics"})
                 CHECK(fault({removed, "a"}) == std::string("no such option ") + removed);
-            CHECK(fault({"--parfile", "a", "--parfile", "b"}) == "--parfile given twice");
-            CHECK(fault({"--setfile", "a", "--setfile", "b"}) == "--setfile given twice");
+            /* W665: an XPPAUT state file is converted once (--convert --statefile), never a switch of a run */
+            for (const char *removed : {"--setfile", "--parfile", "--icfile"})
+                CHECK(fault({removed, "a"}) == std::string("no such option ") + removed);
+            CHECK(fault({"--statefile", "a.set"}) == "--statefile needs --convert (it is the XPPAUT file --convert writes into the .odex)");
+            CHECK(fault({"--convert", "--statefile", "a.set", "model.ode"}).empty());
+            CHECK(fault({"--convert", "--statefile", "a.set", "--anifile", "a.ani", "model.ode"}) == "--statefile and --anifile both given: --convert takes one");
             /* W667: the removed switches are unknown options, and --anifile is --convert's operand only */
             for (const char *removed : {"--readset", "--with", "--include", "--quiet", "--logfile"})
                 CHECK(fault({removed, "a"}) == std::string("no such option ") + removed);
