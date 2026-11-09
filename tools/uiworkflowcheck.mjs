@@ -20,8 +20,8 @@ try {
   const until = async (code, label) => assert.ok(await waitFor(() => cdp.eval(`!!(${code})`)), label);
   const state = code => cdp.eval(`(() => { const s = __xpp.state(); const w = s.plots.windows.find(w => w.win === s.plots.active); return ${code}; })()`);
   const ready = () => until('window.__xpp?.state().hello && !__xpp.state().busy', 'idle model');
-  const closeForm = async () => { await cdp.eval("document.querySelector('.registry-form .dialog-actions button[type=button]').click(); true");
-    await until('!__xpp.state().commandForm', 'Cancel closes the registry form'); };
+  const closeForm = async () => { await cdp.eval("document.querySelector('.registry-form .dialog-close').click(); true");
+    await until('!__xpp.state().commandForm', 'the × closes the registry form'); };
   const run = async () => {
     /* the window's first series (of rows the core already holds) arrives after hello (session.ts asks for `data`
        then): counted before it, the wait below would be met by it rather than by the run */
