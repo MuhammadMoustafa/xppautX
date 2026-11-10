@@ -15,15 +15,15 @@ extern char **environ; /* posix_spawnp passes the environment on */
 
 namespace xpp::process {
 
-namespace {
-constexpr std::string_view WHERE = "start a program";
-}
-
 #ifdef _WIN32
 
 Result<> spawn(std::span<const std::string> argv, Wait wait) { return win32::run_process(argv, wait == Wait::until_it_ends); }
 
 #else
+
+namespace {
+constexpr std::string_view WHERE = "start a program";
+}
 
 Result<> spawn(std::span<const std::string> argv, Wait wait)
 {

@@ -46,6 +46,8 @@ struct Plan {
     std::string why;
     /* the end of the name of the release file that fits ("-linux-x64.tar.gz"); "" for the release page */
     std::string asset_suffix;
+    /* the system the release file is for, whose program the archive must hold; other for the release page */
+    Os os = Os::other;
 };
 
 /* a tag as a release has it (v0.1.0, v0.1.0-beta.1), not a build from a source checkout (v0.1.0-12-gabcdef, abcdef, dev) */

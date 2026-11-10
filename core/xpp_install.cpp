@@ -88,10 +88,10 @@ std::optional<std::string> read_verified(const std::string &path, unsigned long 
     return std::nullopt;
 }
 
-/* the program in an archive: <one folder>/xppautX[.exe], the one member of that name */
-const zip::Entry *program_entry(const std::vector<zip::Entry> &entries)
+/* the program in an archive: <one folder>/xppautX[.exe] (.exe for Windows' release), the one member of that name */
+const zip::Entry *program_entry(const std::vector<zip::Entry> &entries, bool windows)
 {
-    const std::string wanted = std::string(PROGRAM_NAME) + (ON_WINDOWS ? ".exe" : "");
+    const std::string wanted = std::string(PROGRAM_NAME) + (windows ? ".exe" : "");
     const zip::Entry *found = nullptr;
     for (const zip::Entry &e : entries) {
         const std::size_t slash = e.name.find('/');
@@ -124,9 +124,11 @@ Result<> swap_program(const Plan &plan, const ReleaseFile &file, std::string_vie
         if (!read) return std::unexpected(read.error());
         entries = std::move(*read);
     }
-    const zip::Entry *program = program_entry(entries);
+    /* what the archive holds is the plan's system's program; how it replaces the running one is this system's */
+    const bool windows_release = plan.os == Os::windows_x64;
+    const zip::Entry *program = program_entry(entries, windows_release);
     if (!program) return fail(std::string(WHERE), xpp::format("the archive holds no single <folder>/{}", PROGRAM_NAME), place);
-    if (!program->bytes.starts_with(ON_WINDOWS ? EXE_MAGIC : ELF_MAGIC))
+    if (!program->bytes.starts_with(windows_release ? EXE_MAGIC : ELF_MAGIC))
         return fail(std::string(WHERE), xpp::format("\"{}\" is not a program of this system", program->name), place);
     if (running.empty()) return fail(std::string(WHERE), "the running program's path is unknown", place);
     const std::string fresh = running + std::string(NEW_SUFFIX), old = running + std::string(REPLACED_SUFFIX);
@@ -218,9 +220,9 @@ Plan plan_for(const Where &where)
     const std::string platform = win ? "-windows-x64" : "-linux-x64";
     if (where.program_folder.empty()) return page("the folder xppautX runs from cannot be told");
     if (!where.installer_folder.empty() && same_folder(where.program_folder, where.installer_folder, win))
-        return Plan{win ? Install::msi : Install::deb, {}, platform + (win ? ".msi" : ".deb")};
+        return Plan{win ? Install::msi : Install::deb, {}, platform + (win ? ".msi" : ".deb"), where.os};
     if (!where.writable) return page(xpp::format("the folder {} cannot be written", where.program_folder));
-    return Plan{Install::portable, {}, platform + (win ? ".zip" : ".tar.gz")};
+    return Plan{Install::portable, {}, platform + (win ? ".zip" : ".tar.gz"), where.os};
 }
 
 Plan running_plan()
