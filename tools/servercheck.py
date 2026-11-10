@@ -2921,6 +2921,17 @@ def check_options_panels():
         for name in ('update.restart', 'update.install'):
             done = call(cmd=name)
             check('W622: ' + name + ' is refused with no page', done.get('status') == 'error' and 'window and the browser page' in done.get('error', ''), str(done))
+        # W689: the page's answer to the leave question (save) during a computation stops the run, then the command runs in its turn: here
+        # refused with no page, after the run's own done (a page restarts; nothing here starts a program)
+        call(cmd='run.configure', total_time=1e7)
+        send(cmd='run.initial')
+        collect(lambda e: e.get('ev') == 'job.computing')
+        send(cmd='update.restart', save=False)
+        ended = collect(is_done)[1]
+        refused = collect(is_done)[1]
+        check('W689: update.restart with save during a computation stops the run (its done says stopped), then is refused with no page',
+              ended is not None and ended.get('status') == 'stopped' and refused is not None and refused.get('status') == 'error'
+              and 'window and the browser page' in refused.get('error', ''), str(ended)[:200] + str(refused)[:300])
         check('W622: no kept update at a start with none', call(cmd='update.pending')['result'] == {'pending': False})
         check('W622: discarding what is not kept is fine', call(cmd='update.discard')['result'] == {'discarded': True})
         # W672: run_set is a sets row: its value is the checked names a line, a value given replaces the list, nothing else takes a line break

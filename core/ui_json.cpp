@@ -159,6 +159,8 @@ constexpr std::string_view PAUSE_COMMAND = "animation.pause";
 /* the registry commands that run at once, at any moment, even during a computation: the state, and the player's controls */
 constexpr std::array ASYNC_COMMANDS = {"session.get_state", "recording.play", "recording.pause", "recording.step", "recording.set_speed"};
 constexpr std::string_view QUIT_COMMAND = "session.quit";
+constexpr std::string_view UPDATE_RESTART_COMMAND = "update.restart";
+constexpr std::string_view UPDATE_INSTALL_COMMAND = "update.install";
 constexpr std::string_view OPEN_MODEL_COMMAND = "session.open_model";
 
 bool is_async_command(const char *line)
@@ -189,10 +191,13 @@ std::optional<bool> quit_save(const char *line)
     return save;
 }
 
-/* a session.quit that stops the running job and then asks or saves, as a command of its own (save left out, or true) */
+/* a session.quit that stops the running job and then asks or saves, as a command of its own (save left out, or true); and an
+   update.restart or update.install given its save (the page's answer to the leave question, W689), which does the same */
 bool quit_waits(const char *line)
 {
-    return xpp::command::name(line) == QUIT_COMMAND && quit_save(line) != false;
+    const std::string_view name = xpp::command::name(line);
+    if (name == QUIT_COMMAND) return quit_save(line) != false;
+    return (name == UPDATE_RESTART_COMMAND || name == UPDATE_INSTALL_COMMAND) && quit_save(line).has_value();
 }
 
 /* a session.quit with save false: it ends the session at once */

@@ -95,14 +95,18 @@ std::string reopen_target(const Session &s)
 
 /* update.restart and update.install: the leave question Quit asks (save, don't save, cancel), then the new program or the installer is
    started and this one quits; a cancelled question changes nothing */
-Result<std::string> switch_program(Session &s, const Command &command, const Place &place, bool installer)
+Result<std::string> switch_program(Session &s, const Command &command, const Arguments &args, const Place &place, bool installer)
 {
     if (files::serving_reads()) return fail(command.name, "a recording's replay restarts nothing", place);
     if (program.page == XppProgram::Page::none) return fail(command.name, "only the window and the browser page restart xppautX", place);
     const bool recording = recording_in_progress();
     const std::string question = installer ? "Install the update and quit xppautX? Save this session first?" : "Restart xppautX to use the new version? Save this session first?";
     ResultObject result;
-    if (!xpp_session_may_leave(s, recording ? question + " (the recording in progress is saved too)" : question, recording)) return result.boolean("restarting", false).done();
+    /* save given: the page already asked the leave question (during a run, W689), so its answer goes as session.quit's does */
+    const std::optional<bool> save = args.optional<bool>("save");
+    const bool may_leave = save ? xpp_session_leave_saved(s, *save, recording)
+                                : xpp_session_may_leave(s, recording ? question + " (the recording in progress is saved too)" : question, recording);
+    if (!may_leave) return result.boolean("restarting", false).done();
     const std::string reopen = reopen_target(s);
     const update::Plan plan = update::running_plan();
     const Result<> started = installer ? update::start_installer(plan) : update::start_new_program(reopen, program.page == XppProgram::Page::browser);
@@ -111,8 +115,8 @@ Result<std::string> switch_program(Session &s, const Command &command, const Pla
     return result.boolean("restarting", true).done();
 }
 
-Result<std::string> restart(Session &s, const Command &command, const Arguments &, const Place &place) { return switch_program(s, command, place, false); }
-Result<std::string> install(Session &s, const Command &command, const Arguments &, const Place &place) { return switch_program(s, command, place, true); }
+Result<std::string> restart(Session &s, const Command &command, const Arguments &args, const Place &place) { return switch_program(s, command, args, place, false); }
+Result<std::string> install(Session &s, const Command &command, const Arguments &args, const Place &place) { return switch_program(s, command, args, place, true); }
 
 constexpr std::array FAILURE_ARGUMENTS = {Argument{.name = "reason", .type = Type::text, .required = true, .description = "Why the check failed, as the page tells it."}};
 constexpr std::array DOWNLOAD_ARGUMENTS = {
@@ -128,6 +132,10 @@ constexpr std::array RESULT_DUE = {ResultField{"due", "boolean"}};
 constexpr std::array RESULT_PENDING = {ResultField{"pending", "boolean"}, ResultField{"version", "text"}};
 constexpr std::array RESULT_DISCARDED = {ResultField{"discarded", "boolean"}};
 constexpr std::array RESULT_SWITCH = {ResultField{"restarting", "boolean"}};
+/* save as session.quit's: the page's answer to the leave question, given while a computation runs (the run stops, then this runs);
+   left out, the core asks the question itself, while idle */
+constexpr std::array SWITCH_ARGUMENTS = {Argument{.name = "save", .type = Type::boolean, .required = false,
+    .description = "The leave question's answer, given by the page while a computation runs: true saves the session (and a recording in progress) first, false leaves at once; left out, the question is asked."}};
 constexpr std::array RESULT_LOGGED = {ResultField{"logged", "boolean"}};
 constexpr std::array RESULT_DOWNLOADED = {ResultField{"downloaded", "boolean"}, ResultField{"bytes", "integer"}, ResultField{"ready", "text"}};
 constexpr std::array DOWNLOAD_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JOB_PROGRESS, xpp::events::JOB_STOPPED, xpp::events::SESSION_STATE, xpp::events::DONE};
@@ -146,10 +154,10 @@ constexpr std::array ROWS = {
             RESULT_PENDING, ANSWER_EVENTS, false, pending, {}, {}},
     Command{"update.discard", {}, XPP_KIND_CONTROL, CommandCategory::Tools, "Discard kept update", "",
             "Remove the kept installer file: the page found it is not newer than this program.", RESULT_DISCARDED, ANSWER_EVENTS, false, discard, {}, {}},
-    Command{"update.restart", {}, XPP_KIND_DATA, CommandCategory::Tools, "Restart to update", "",
+    Command{"update.restart", SWITCH_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Restart to update", "",
             "After a portable copy was updated: ask the leave question Quit asks, then start the new program, reopening the model or session saved, and quit. Only the window and the browser page restart.",
             RESULT_SWITCH, DONE_EVENTS, false, restart, {}, {}},
-    Command{"update.install", {}, XPP_KIND_DATA, CommandCategory::Tools, "Install update and quit", "",
+    Command{"update.install", SWITCH_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Tools, "Install update and quit", "",
             "After a download that kept an installer's file: ask the leave question Quit asks, hand the checked file to the system's installer (msiexec for an .msi, the software installer for a .deb: no shell, no sudo) and quit.",
             RESULT_SWITCH, DONE_EVENTS, false, install, {}, {}}};
 

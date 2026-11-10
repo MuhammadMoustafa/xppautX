@@ -47,6 +47,9 @@ xpp::Result<bool> xpp_model_open_example(xpp::Session &s, std::string_view name)
    stop asks). True when the session may go: false when the user cancels,
    or a save is cancelled or fails. */
 bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool with_recording);
+/* the leave question already answered by the page (session.quit's, update.restart's and update.install's save, W689): save true
+   saves the session (and the recording in progress when with_recording) and says it may go; false says it may go at once */
+bool xpp_session_leave_saved(xpp::Session &s, bool save, bool with_recording);
 /* before file replaces the model of s: xpp_session_may_leave, the question
    naming file */
 bool xpp_model_may_leave(xpp::Session &s, const std::string &file);

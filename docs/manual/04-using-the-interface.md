@@ -530,9 +530,10 @@ GitHub's release list, and then:
   quits so the program can be replaced;
 - a build from a source checkout, macOS and a folder xppautX cannot write only open the release page, saying why.
 
-Restart now and Install and restart ask the question Quit asks (save the session first, don't save, cancel); stop a running
-computation first. After a restart xppautX reopens the session saved or the model it had open. A current or newer installed version
-says “xppautX X.Y.Z is the latest”; an unavailable network, invalid answer
+Restart now and Install and restart ask the question Quit asks (save the session first, don't save, cancel). During a computation
+the same question comes up with the run going on: Save session stops the run, saves the session and then restarts or installs;
+Don't save stops the run and then restarts or installs at once; Cancel leaves the run alone. After a restart xppautX reopens the
+session saved or the model it had open. A current or newer installed version says “xppautX X.Y.Z is the latest”; an unavailable network, invalid answer
 or unversioned development build shows why the check failed. A pre-release build (a beta) is told of the
 highest newer version including pre-releases, by SemVer precedence (a beta
 is lower than the release of its own numbers); a release build is never

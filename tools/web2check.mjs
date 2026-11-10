@@ -6434,19 +6434,23 @@ async function openingCheck() {
 /* The update dialog's pictures for the UI review (W622; with --only updates and XPP_SHOTS=folder): each state of an update, light and dark at 1280, 768 and 390 wide.
    Never a check: it writes files only. The stages after Update (downloading, restart, install) are set in the page's state, the core's side of them being the
    unit tests' and servercheck's. */
+/* the page at each width of docs/ui-v2.md's responsive rules, light and dark, as dir/<prefix>-<name>-<width>-<scheme>.png (XPP_SHOTS) */
+async function shotSizes(dir, prefix, name) {
+  fs.mkdirSync(dir, {recursive: true});
+  const sizes = [['1280', 1280, 860], ['768', 768, 1024], ['390', 390, 844]];
+  for (const [size, width, height] of sizes) for (const scheme of ['light', 'dark']) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    await rendered();
+    const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
+    fs.writeFileSync(path.join(dir, `${prefix}-${name}-${size}-${scheme}.png`), Buffer.from(shot.data, 'base64'));
+  }
+}
+
 async function updateShots(run, close, release, installKind) {
   const dir = process.env.XPP_SHOTS;
   fs.mkdirSync(dir, {recursive: true});
-  const sizes = [['1280', 1280, 860], ['768', 768, 1024], ['390', 390, 844]];
-  const take = async name => {
-    for (const [size, width, height] of sizes) for (const scheme of ['light', 'dark']) {
-      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
-      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
-      await rendered();
-      const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
-      fs.writeFileSync(path.join(dir, `update-${name}-${size}-${scheme}.png`), Buffer.from(shot.data, 'base64'));
-    }
-  };
+  const take = name => shotSizes(dir, 'update', name);
   const stage = (stage, progress) => cdp.eval(`__xpp.state().update = {version: '999.0.0', url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0', asset: null, stage: ${JSON.stringify(stage)}, error: null};
     __xpp.state().progress = ${JSON.stringify(progress ?? null)}; window.__xppCheckUpdates(); true`);
   const was = await S('s.hello.update');
@@ -6471,6 +6475,46 @@ async function updateShots(run, close, release, installKind) {
   }
   await cdp.eval(`__xpp.state().hello.update = ${JSON.stringify(was)}; __xpp.state().update = null; __xpp.state().progress = null; true`);
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
+/* W689: Restart now and Install and restart during a computation ask Quit's question, the run going on: Cancel leaves the run alone,
+   Don't save and Save session send update.restart or update.install with save false or true. The commands are held here (the POST
+   of an update command is kept and answered 200, never sent), so no program restarts under the check: what the page asks and sends
+   is what is checked; the core's side of save is servercheck's (W689). */
+async function switchDuringRunCheck() {
+  await cdp.eval(`window.__heldUpdates = []; const real = window.fetch; window.fetch = (url, init) => {
+    if (init?.method === 'POST' && String(init.body).includes('"cmd":"update.')) { window.__heldUpdates.push(String(init.body)); return Promise.resolve(new Response('', {status: 200})); }
+    return real(url, init); }; true`);
+  const offer = stage => cdp.eval(`__xpp.state().update = {version: '999.0.0', url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0', asset: null, stage: ${JSON.stringify(stage)}, error: null};
+    window.__xppCheckUpdates(); true`);
+  await longRun();
+  const sentMark = await cdp.eval('__xpp.sentCount()');
+  const held = () => cdp.eval('window.__heldUpdates.slice()');
+  await offer('restart');
+  await until(`!!document.querySelector('[data-update-restart]')`, 'the restart offer while running');
+  await cdp.eval(`document.querySelector('[data-update-restart]').click(); true`);
+  check('updates during a run: Restart now asks Quit\'s question, the run going on, nothing sent',
+    await until(`s.ask && s.ask.id === -1 && s.ask.question === '${QUIT_Q}' && s.computing`, 'the leave question', 20000 * SLOW)
+    && (await cdp.eval('__xpp.sentCount()')) === sentMark, JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentMark})`)));
+  if (process.env.XPP_SHOTS) await shotSizes(process.env.XPP_SHOTS, 'leave-running', 'restart');
+  await key('Escape');
+  check('updates during a run: Cancel leaves the run alone, nothing held or sent',
+    await until(`!s.ask && s.computing`, 'cancelled', 20000 * SLOW) && (await held()).length === 0 && (await cdp.eval('__xpp.sentCount()')) === sentMark);
+  await cdp.eval(`document.querySelector('[data-update-restart]').click(); true`);
+  await until(`s.ask && s.ask.id === -1`, 'asked again');
+  await key('d');
+  check('updates during a run: Don\'t save sends update.restart with save false, at once',
+    await until(`window.__heldUpdates.length === 1`, 'sent') && (await held())[0] === '{"cmd":"update.restart","save":false}' && !(await S('!!s.ask')),
+    JSON.stringify(await held()));
+  await offer('install');
+  await until(`!!document.querySelector('[data-update-restart]')`, 'the install offer while running');
+  await cdp.eval(`document.querySelector('[data-update-restart]').click(); true`);
+  await until(`s.ask && s.ask.id === -1`, 'the question for install');
+  await key('s');
+  check('updates during a run: Save session sends update.install with save true (the core stops the run, saves, then installs)',
+    await until(`window.__heldUpdates.length === 2`, 'sent') && (await held())[1] === '{"cmd":"update.install","save":true}' && !(await S('!!s.ask')),
+    JSON.stringify(await held()));
+  await key('Escape');
 }
 
 async function updatesCheck() {
@@ -6620,6 +6664,7 @@ async function updatesCheck() {
   await run({tag_name: '<img src=x onerror=alert(1)>', html_url: 'file:///bad'}, 'Check for updates failed: invalid release version'); await close();
   await run({tag_name: 'v999.0.0', html_url: 'https://evil.example/'}, 'Check for updates failed: GitHub returned an invalid release page URL'); await close();
   await run({tag_name: 'v' + '9'.repeat(100), html_url: 'bad'}, 'Check for updates failed: invalid release version'); await close();
+  await switchDuringRunCheck();
 }
 
 /* an error a check made happen: given exactly, or as a pattern when part of it changes (a version) */

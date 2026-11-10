@@ -149,10 +149,15 @@ bool xpp_model_may_leave(xpp::Session &s, const std::string &file)
                                              xpp::files::split_path(file).second),false);
 }
 
+bool xpp_session_leave_saved(xpp::Session &s, bool save, bool with_recording)
+{
+  return !save||leave_as(s,'s',with_recording);
+}
+
 void xpp_quit(xpp::Session &s, bool saving)
 {
   const bool recording=xpp::recording_in_progress();
-  if(saving?leave_as(s,'s',recording):xpp_session_may_leave(s,xpp::quit_question(recording),recording))xpp::bye_bye();
+  if(saving?xpp_session_leave_saved(s,true,recording):xpp_session_may_leave(s,xpp::quit_question(recording),recording))xpp::bye_bye();
 }
 
 xpp::Result<bool> xpp_model_reload(xpp::Session &s)

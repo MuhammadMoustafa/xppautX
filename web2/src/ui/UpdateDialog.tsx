@@ -11,7 +11,6 @@ export function UpdateDialog() {
   const [place, setPlace] = useState<ErrorPlace>();
   const offer = useStore(s => s.update);
   const install = useStore(s => s.hello?.update);
-  const busy = useStore(s => s.busy);
   const progress = useStore(s => s.progress);
   const controller = useRef<AbortController>();
   const cancel = () => {
@@ -70,7 +69,6 @@ export function UpdateDialog() {
     </>}>
     <p>{active ? offerText(active) : result.text}</p>
     {why && <p data-update-why>The release page is offered because {why}.</p>}
-    {waiting && busy && <p data-update-busy>A computation is running: stop it first, then restart.</p>}
     {active?.stage === 'install' && <p>The system's installer asks for permission itself; xppautX quits so it can replace the program.</p>}
     {active?.stage === 'downloading' && <progress class="dialog-progress" max={progress?.of ?? 1} value={progress?.n ?? 0} aria-label="Download progress" data-update-progress />}
     {place && <><p data-error-place>{placeWords(place)}</p><ErrorSource p={place}/></>}

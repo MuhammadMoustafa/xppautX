@@ -447,8 +447,8 @@ common overwrite question applies. They return a placed error if the output coul
 | `update.download` | `url`: required text (max 1024 bytes), `name`: required text (max 1024 bytes), `size`: required integer [at least 1, at most 536870912], `digest`: required text (max 1024 bytes), `version`: required text (max 1024 bytes) | `x` / tools | Download update | `downloaded`: `boolean`, `bytes`: `integer`, `ready`: `text` | `job.computing`, `job.progress`, `job.stopped`, `session.state`, `done` | Download the release file the release list named for this installation, from GitHub's file hosts only, over the system's HTTPS: no more than its size, refused if its size or sha256 digest differs, into a folder the program makes and removes. Then a portable copy's program is swapped in (ready: restart) or an installer's file is kept (ready: install). Progress comes as job.progress; Stop ends it. |
 | `update.pending` | none | `c` / tools | Kept update | `pending`: `boolean`, `version`: `text` | `session.state`, `done` | Whether an update's installer file was kept by an earlier download (Later): it is checked again against its recorded size and sha256 and offered only when it still is that file; one that is not is removed and the log says why. The page asks once when it opens. |
 | `update.discard` | none | `c` / tools | Discard kept update | `discarded`: `boolean` | `session.state`, `done` | Remove the kept installer file: the page found it is not newer than this program. |
-| `update.restart` | none | `d` / tools | Restart to update | `restarting`: `boolean` | `done` | After a portable copy was updated: ask the leave question Quit asks, then start the new program, reopening the model or session saved, and quit. Only the window and the browser page restart. |
-| `update.install` | none | `d` / tools | Install update and quit | `restarting`: `boolean` | `done` | After a download that kept an installer's file: ask the leave question Quit asks, hand the checked file to the system's installer (msiexec for an .msi, the software installer for a .deb: no shell, no sudo) and quit. |
+| `update.restart` | `save`: optional boolean | `d` / tools | Restart to update | `restarting`: `boolean` | `done` | After a portable copy was updated: ask the leave question Quit asks, then start the new program, reopening the model or session saved, and quit. Only the window and the browser page restart. |
+| `update.install` | `save`: optional boolean | `d` / tools | Install update and quit | `restarting`: `boolean` | `done` | After a download that kept an installer's file: ask the leave question Quit asks, hand the checked file to the system's installer (msiexec for an .msi, the software installer for a .deb: no shell, no sudo) and quit. |
 <!-- registry:end -->
 
 ## Startup
@@ -3059,8 +3059,10 @@ removes it): `ready` is `restart`. For `msi` and `deb` the checked file moves to
 four-line record (version, name, size, sha256) and `ready` is `install`. `update.pending` answers `{"pending":true,"version":V}` when
 such a file is kept and still is its record (size and sha256 checked again; one that is not is removed and logged), and
 `update.discard` removes it (the page does when V is not newer than this program). `update.restart` and `update.install`
-are commands of the idle core (not while a computation runs): both ask the leave question Quit asks and do nothing if it is
-cancelled (`{"restarting":false}`); `update.restart` then starts the program again, with the session saved or the model open
+ask the leave question Quit asks when left out of `save` (idle), and do nothing if it is cancelled (`{"restarting":false}`). While a
+computation runs the page asks that question itself and sends the command with `save` (W689, as `session.quit` does): true saves
+the session (and a recording in progress) first, false leaves at once; the core stops the computation, then the command runs in its
+turn. `update.restart` then starts the program again, with the session saved or the model open
 as its one argument (and `--browser` in the browser), and quits; `update.install` hands the checked kept file to `msiexec /i`
 (Windows) or `xdg-open` (Linux: the system's software installer asks for the password; xppautX never runs sudo) and quits. Both
 are refused in a recording's replay and with no page (`--server`, `--silent`).

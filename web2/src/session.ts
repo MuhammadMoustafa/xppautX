@@ -86,8 +86,17 @@ const PLAYER_CONTROLS = {start: 'recording.play', pause: 'recording.pause', step
 /** the table, as a pop-out names it */
 const TABLE_VIEW: ViewKey = {kind: 'dock', name: 'table'};
 
+/** the command the page's leave question's answer goes with: Quit, or an update's restart or install (W689) */
+type LeaveThen = 'session.quit' | 'update.restart' | 'update.install';
+
+/** an update's restart or install given its save: the leave question's answer, which may go while a computation runs (the core
+    stops it, then runs the command, W689) */
+const answeredSwitch = (cmd: Command): boolean => (cmd.cmd === 'update.restart' || cmd.cmd === 'update.install') && cmd.save !== undefined;
+
 export class Session {
   readonly store: Store<AppState, Action>;
+  /** what the leave question's answer goes with (leaveQuestion) */
+  private leaveThen: LeaveThen = 'session.quit';
   /** the views in windows of their own (popout.ts) */
   readonly popouts: PopOuts;
   private otherProtocol = false;
@@ -344,6 +353,7 @@ export class Session {
   may(cmd: Command): boolean {
     const {hello, core, computing, ask, player} = this.store.getState();
     if ((cmd.cmd === 'value.undo' && core?.can_undo === false) || (cmd.cmd === 'value.redo' && core?.can_redo === false)) return false;
+    if (answeredSwitch(cmd)) return true;
     const kind = kindOf(hello, cmd);
     /* a recording's step runs: only what steers the player or a view (W59b) */
     if (player.running >= 0) return kind === 'control' || kind === 'view';
@@ -405,11 +415,14 @@ export class Session {
     this.send({cmd: 'update.download', ...offer.asset, version: offer.version});
   }
 
-  /** Restart now, or Install and restart: the core asks the leave question Quit asks, then starts the new program or the installer and quits */
+  /** Restart now, or Install and restart: the core asks the leave question Quit asks, then starts the new program or the installer and quits.
+      While a computation runs the page asks that question itself (leaveQuestion), and the answer goes with the command's save (W689) */
   switchUpdate(): void {
     const offer = this.store.getState().update;
-    if (offer?.stage === 'restart') this.send({cmd: 'update.restart'});
-    else if (offer?.stage === 'install') this.send({cmd: 'update.install'});
+    const command = offer?.stage === 'restart' ? 'update.restart' : offer?.stage === 'install' ? 'update.install' : null;
+    if (!command) return;
+    if (this.runningNow()) this.leaveQuestion(command);
+    else this.send({cmd: command});
   }
 
   /** the answers of `update.download` and `update.pending` (a stop or an error puts the offer back; the error itself is shown once, by the page's error dialog) */
@@ -535,7 +548,7 @@ export class Session {
       (`quit` with `ask`; a question of the core's open is cancelled
       first). */
   quitAsked(): void {
-    const {hello, ask, busy, computing} = this.store.getState();
+    const {hello, ask} = this.store.getState();
     if (ask?.id === LEAVE_ASK) return;
     /* There is no loaded session to save during the startup model prompt. */
     if (!hello) {
@@ -544,16 +557,37 @@ export class Session {
       this.send({cmd: 'session.quit', save: false});
       return;
     }
-    if (hello && (computing || (busy && !ask))) this.store.dispatch({type: 'leave', open: true});
+    if (this.runningNow()) this.leaveQuestion('session.quit');
     else this.send({cmd: 'session.quit'});
+  }
+
+  /** a computation runs (or a run's question is open): the page asks the leave question itself, the run going on */
+  private runningNow(): boolean {
+    const {hello, ask, busy, computing} = this.store.getState();
+    return !!hello && (computing || (busy && !ask));
+  }
+
+  /** the page's leave question, opened while a run goes on: `then` is the command its answer goes with (session.quit, or
+      update.restart / update.install, W689) */
+  private leaveQuestion(then: LeaveThen): void {
+    this.leaveThen = then;
+    this.store.dispatch({type: 'leave', open: true});
   }
 
   /* the page's leave question answered: Save session stops the run, saves
      the session (and the recording in progress) and quits, all in the core
      (`quit` with `save`); Don't save quits at once (the plain quit: the
-     window closes, docs/protocol.md "quit"); Cancel changes nothing */
+     window closes, docs/protocol.md "quit"); Cancel changes nothing. For an
+     update, the same answers go with its save: the core does the same, then
+     starts the new program or the installer (W689) */
   private leaveAnswered(fields: Record<string, unknown>): void {
+    const then = this.leaveThen;
+    this.leaveThen = 'session.quit';
     this.store.dispatch({type: 'leave', open: false});
+    if (then !== 'session.quit') {
+      if (fields.key === 's' || fields.key === 'd') this.send({cmd: then, save: fields.key === 's'});
+      return;
+    }
     if (fields.key === 's') this.send({cmd: 'session.quit', save: true});
     else if (fields.key === 'd' && !closeDesktopWindow()) this.send({cmd: 'session.quit', save: false});
   }
