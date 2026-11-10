@@ -466,16 +466,16 @@ version: 4,
 model: "ab.odex",
 diagram: "branches.csv",
 runs: [
-  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: [p0],
+  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"],
     settings: { step_size: 0.02, parameter_max: 1.5, follow_all_branches: false } },
-  { name: "cycles", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: [p0],
+  { name: "cycles", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"],
     settings: { step_size: 0.01 } },
-  { name: "cycles back", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: [p0],
+  { name: "cycles back", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"],
     settings: { step_size: -0.01 } },
 ]
 ```
 
-Each run is one Run: `kind` says what is computed (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic) and `switch: true` makes it a branch switch; `parameters` names the one or two model parameters it continues in; `settings` give the Numerics by their names for that run only, and the sign of `step_size` is the direction (going both ways is two runs). A run starts from the current state, settled first by `settle: { decimals, hold, maximum }` as Run > Steady state does, or from a point an earlier run stored: `start` names that run, a point type and the point's number among that run's points of the type (a label is given while a run goes, so a script cannot know it). A homoclinic or heteroclinic run gives `homoclinic: { unstable_dimension, stable_dimension, left_equilibrium, right_equilibrium }`. `diagram` is the file `--silent` writes.
+Each run is one Run: `kind` says what is computed (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic) and `switch: true` makes it a branch switch; `parameters` names the one or two model parameters it continues in; `settings` give the Numerics by their names for that run only, and the sign of `step_size` is the direction (going both ways is two runs). A run starts from the current state, settled first by `settle: { decimals, hold, maximum }` as Run > Run to steady state does, or from a point an earlier run stored: `start` names that run, a point type and the point's number among that run's points of the type (a label is given while a run goes, so a script cannot know it). A homoclinic or heteroclinic run gives `homoclinic: { unstable_dimension, stable_dimension, left_equilibrium, right_equilibrium }`. `diagram` is the file `--silent` writes.
 
 A script is read whole before anything is applied: a version, a run's kind, a setting's name or value, a parameter the model lacks, a start from a run that does not come before it, each is an error naming the file, the line and the value, and nothing loads.
 

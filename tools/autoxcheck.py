@@ -2984,7 +2984,7 @@ def script_text(model, d, diagram=None):
         if r['start'].get('state') != 'current':
             st = r['start']
             entries.append('start: { run: "%s", type: %s, index: %d }' % (st['run'], st['type'], st['index']))
-        entries.append('parameters: [%s]' % ', '.join(r.get('parameters', [r.get('parameter')])))
+        entries.append('parameters: [%s]' % ', '.join('"%s"' % p for p in r.get('parameters', [r.get('parameter')])))
         settings = {**r['autox'], 'follow_all_branches': False}  # a description follows one branch (W596)
         entries.append('settings: { %s }' % ', '.join('%s: %s' % (k, value(v)) for k, v in settings.items()))
         runs.append('  { %s },' % ', '.join(entries))
@@ -3058,7 +3058,7 @@ def section_script():
             'a start from a run after it': (good.replace('kind: equilibrium', 'kind: periodic, start: { run: "later", type: hopf, index: 1 }'), 'is not a run before this one'),
             'a kind that is none': (good.replace('kind: equilibrium', 'kind: wobble'), 'wobble'),
             'a setting of another type': (good.replace('step_size: 0.02', 'step_size: "wide"'), 'step_size'),
-            'a parameter the model lacks': (good.replace('parameters: [p0]', 'parameters: [nothere]'), 'nothere'),
+            'a parameter the model lacks': (good.replace('parameters: ["p0"]', 'parameters: ["nothere"]'), 'nothere'),
             'a setting that is the run\'s own key': (good.replace('settings: {', 'settings: { kind: bvp,'), 'is not a setting'),
             'another version': (good.replace('version: 4', 'version: 3'), 'version 3'),
         }

@@ -60,7 +60,7 @@ class Library(unittest.TestCase):
             script = os.path.join(folder, 'ab.autox')
             settings = ', '.join('%s: %s' % (k, str(v).lower() if isinstance(v, bool) else v) for k, v in AB_RUN.items())
             with open(script, 'w', encoding='utf-8') as f:
-                f.write('version: 4,\nmodel: "ab.odex",\nruns: [ { name: "steady", kind: equilibrium, parameters: [p0], settings: { %s } } ]\n' % settings)
+                f.write('version: 4,\nmodel: "ab.odex",\nruns: [ { name: "steady", kind: equilibrium, parameters: ["p0"], settings: { %s } } ]\n' % settings)
             with Session(script, binary=BINARY) as s:
                 self.assertEqual(s.script()['runs'], ['steady'])
                 self.assertEqual(s.script()['completed'], [])

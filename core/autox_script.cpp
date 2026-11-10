@@ -102,7 +102,7 @@ AutoxScriptRun read_run(odex::Block &r, const std::vector<AutoxScriptRun> &known
         run.replaces = on;
         run.arguments += on ? ",\"replace_diagram\":true" : ",\"replace_diagram\":false";
     }
-    if (r.words("parameters", run.parameters, 2) && run.parameters.empty())
+    if (r.texts("parameters", run.parameters, 2) && run.parameters.empty())
         r.fail(*r.member("parameters"), "parameters names the one or two parameters the run continues");
     if (std::optional<odex::Block> start = r.group("start")) {
         AutoxScriptStart from;

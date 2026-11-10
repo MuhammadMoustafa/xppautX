@@ -6,8 +6,8 @@
      model: "ab.odex",
      diagram: "branches.csv",
      runs: [
-       { name: "steady", kind: equilibrium, replace_diagram: true, parameters: [p0], settings: { step_size: 0.01, parameter_max: 4 } },
-       { name: "cycles", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: [p0], settings: { step_size: -0.01 } },
+       { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], settings: { step_size: 0.01, parameter_max: 4 } },
+       { name: "cycles", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], settings: { step_size: -0.01 } },
      ]
 
    A run is one autox.run (commands_autox.cpp): `kind` and `switch`, its start (`start`: a point of an earlier run by
