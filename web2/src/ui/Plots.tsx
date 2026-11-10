@@ -5,7 +5,6 @@ import {PLOT_KEYS_HELP} from '../plot/plotKeys';
 import {useMay, useMayMain, useSession, useStore} from './context';
 import {Plot3DView} from './Plot3DView';
 import {PlotView} from './PlotView';
-import {WindowName} from './WindowName';
 import {choiceLabel} from '../store/fieldKinds';
 
 /** the Kinescope's own controls (docs/ui-v2.md T15): the core's menu
@@ -64,7 +63,6 @@ export function Plots({dark}: {dark: boolean}) {
   const windowRow = (
       <div class="plot-windows">
         <div class="plot-window-tools">
-          <WindowName name={active} disabled={windowOff} />
           <details class="plot-window-options">
             <summary>Window options</summary>
             <div class="plot-window-options-menu">

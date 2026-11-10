@@ -7,7 +7,7 @@ The version supported in XPP is a subset of autoX but allows you to do most of t
 Click on the `File autoX` menu item to bring up autoX.
 
 Every autoX view has its own name, starting with `diagram_1`, `diagram_2`,
-and so on. Click its name to rename it; spaces and case are preserved.
+and so on. Rename it on its tab: double click the tab, or choose Rename in its right-click menu; spaces and case are preserved.
 Names are unique among the open graphs and autoX views. Each view is a tab above the plot:
 select it by clicking its tab and close it with its **×**. Closing the final view
 closes autoX; File autoX opens it again (the diagram stays the session's).

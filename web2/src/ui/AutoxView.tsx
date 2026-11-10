@@ -1,5 +1,4 @@
 import {openPanel} from './hotkeys';
-import {WindowName} from './WindowName';
 /* The autoX view (docs/ui-v2.md T11a): the bifurcation diagram drawn from
    the `diagram` data (store/diagram.ts, plot/diagramModel.ts), with the autoX
    window's buttons. It opens when the core opens window 101 (File/autoX) and
@@ -426,7 +425,6 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
       aria-label={`${session.store.getState().diagram.views[view].name}${active ? ' (active)' : ''}`} onPointerDownCapture={onPress}
       onFocusCapture={onPress}>
       <header class="plot-bar autox-pane-bar">
-        <WindowName name={session.store.getState().diagram.views[view].name}/>
         {views > 1 && (
           <h3 class="autox-pane-title" title={active ? 'The active view: autoX\'s Axes menu changes it' : 'Click to make it the active view'}>
             {what || `View ${view + 1}`}

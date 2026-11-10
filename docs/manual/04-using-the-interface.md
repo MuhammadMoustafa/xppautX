@@ -111,7 +111,7 @@ Two sets of tabs replace XPPAUT's windows (see [xppautx-vs-xppaut.md](../xppautx
 **The views** are the tabs above the plot: one for each graph and each autoX view, by its name, and a **＋** at the
 end for a new graph or a new autoX view. A graph's **×** closes it (the main graph stays); an autoX view's **×** is "done
 with it": a running continuation is stopped first, then the view closes, and closing the last view closes autoX. The title bar
-names the view in front. Choosing another tab leaves autoX open with its diagram and any run in progress. A view comes
+names the view in front. A view is renamed on its tab: double click it, or choose Rename in its right-click menu (or press F2 on the focused tab), type the name and press Enter; Escape cancels. Choosing another tab leaves autoX open with its diagram and any run in progress. A view comes
 forward by itself when XPP waits for a click or a key in it (grabbing a point in autoX, for example).
 
 **The dock** is the right column's tabs: **Values**, **Table**, **Model** (the equations, the ODE source and the last equilibrium) and **Help**,

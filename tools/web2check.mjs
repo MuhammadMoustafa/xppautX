@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only options,fieldhelp,dock,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only options,fieldhelp,dock,viewtabs,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -265,7 +265,7 @@ async function metrics(value) {
 }
 
 const NAMED = {Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35, PageUp: 33, PageDown: 34,
-  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112, F6: 117, F9: 120, Backspace: 8};
+  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112, F2: 113, F6: 117, F9: 120, Backspace: 8};
 /** select all in the focused field the way the platform's own shortcut does: CDP key events carry no
     editing command, and macOS's Ctrl+A is "line start", so the command itself is sent (not a chord) */
 async function selectAll() {
@@ -3423,6 +3423,96 @@ async function dockCheck() {
   await cdp.eval(`document.querySelector('#dock .dock-close').click()`);
   check('W644: the sheet\'s x shuts it, the page whole', await until('!s.dockOpen', 'shut') && !(await S('s.panels.dockHidden')));
   await desktopMetrics();
+}
+
+/* W685: a view is renamed on its tab. A double click, the tab's context menu's Rename and F2 on the focused tab edit its name in
+   place; Enter applies it through window.rename (the core's window list holds the new name, and the focus is back on the tab);
+   Escape, and leaving the field, cancel (the core keeps the name); the window row has no name button any more. Dock tabs have none. */
+async function viewTabsCheck() {
+  await desktopMetrics();
+  await until('s.hello && !s.busy', 'hello');
+  await menuRun('window.new', {name: 'Tab graph'});
+  await requireUntil(`!s.busy && s.windows.some(w => w.name === 'Tab graph')`, 'the second graph');
+  const tabOf = name => cdp.eval(`(() => { const t = [...document.querySelectorAll('.view-tabs [role=tab]')].find(b => b.textContent.trim() === ${JSON.stringify(name)});
+    const r = t.getBoundingClientRect(); return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()`);
+  const typed = async text => { await selectAll(); await cdp.send('Input.insertText', {text}); };
+  const doubleClick = async (x, y) => {
+    await mouse('mouseMoved', x, y);
+    for (const clickCount of [1, 2]) {
+      await mouse('mousePressed', x, y, {button: 'left', buttons: 1, clickCount});
+      await mouse('mouseReleased', x, y, {button: 'left', buttons: 0, clickCount});
+    }
+    await rendered();
+  };
+  const coreHas = name => S(`s.windows.some(w => w.name === ${JSON.stringify(name)})`);
+
+  const at = await tabOf('Tab graph');
+  await doubleClick(at.x, at.y);
+  check('W685: a double click edits the tab name in place, focused, its name selected', await until(`document.activeElement === document.querySelector('.view-tab-rename input') && document.activeElement.value === 'Tab graph'`, 'editing'));
+  check('W685: the window row has no name button (the tab is the name)', !await exists('.window-name') && !await exists('.plot-window-tools .window-name'));
+  await typed('Tab graph renamed');
+  await cdp.send('Input.dispatchKeyEvent', {type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r'});
+  await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13});
+  check('W685: Enter applies the name through window.rename: the core lists it, the tab shows it, the field is gone',
+    await until(`!s.busy && s.windows.some(w => w.name === 'Tab graph renamed') && !s.windows.some(w => w.name === 'Tab graph')`, 'renamed')
+    && await cdp.eval(`!document.querySelector('.view-tab-rename') && [...document.querySelectorAll('.view-tabs [role=tab]')].some(b => b.textContent.trim() === 'Tab graph renamed')`));
+  check('W685: after Enter the focus is back on the renamed tab', await cdp.eval(`document.activeElement.getAttribute('role') === 'tab' && document.activeElement.textContent.trim() === 'Tab graph renamed'`));
+
+  await key('F2');
+  check('W685: F2 on the focused tab edits its name', await until(`document.querySelector('.view-tab-rename input') !== null`, 'F2 edit'));
+  await typed('Tab other');
+  await key('Escape');
+  check('W685: Escape cancels: the field goes, the core keeps the name, the focus is back on the tab',
+    await until(`!document.querySelector('.view-tab-rename')`, 'escaped') && await coreHas('Tab graph renamed') && !await coreHas('Tab other')
+    && await cdp.eval(`document.activeElement.getAttribute('role') === 'tab'`));
+
+  await key('F2');
+  await typed('Tab left');
+  await cdp.eval(`document.querySelector('.view-tab-rename input').blur()`);
+  check('W685: leaving the field without Enter cancels the rename', await until(`!document.querySelector('.view-tab-rename')`, 'blurred') && await coreHas('Tab graph renamed') && !await coreHas('Tab left'));
+
+  const again = await tabOf('Tab graph renamed');
+  await cdp.eval(`(() => { const t = [...document.querySelectorAll('.view-tabs [role=tab]')].find(b => b.textContent.trim() === 'Tab graph renamed');
+    t.dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: ${again.x}, clientY: ${again.y}})); })()`);
+  await rendered();
+  check('W685: the tab\'s context menu has Rename', await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].map(b => b.textContent).join() === 'Rename'`));
+  await cdp.eval(`[...document.querySelectorAll('.quick-menu[role=menu] [role=menuitem]')].find(b => b.textContent === 'Rename').click()`);
+  check('W685: Rename in the menu edits the tab name', await until(`document.querySelector('.view-tab-rename input')?.value === 'Tab graph renamed'`, 'menu rename'));
+  await key('Escape');
+  await until(`!document.querySelector('.view-tab-rename')`, 'menu rename cancelled');
+
+  await menuRun('window.rename', {window: 'Tab graph renamed', name: 'Tab graph'});
+  check('W685: a rename by the registry command (the window row\'s form is gone) reaches the tab too', await until(`!s.busy && s.windows.some(w => w.name === 'Tab graph') && [...document.querySelectorAll('.view-tabs [role=tab]')].some(b => b.textContent.trim() === 'Tab graph')`, 'registry rename'));
+  await menuRun('window.close', {window: 'Tab graph'});
+  await until(`!s.busy && !s.windows.some(w => w.name === 'Tab graph')`, 'closed');
+  await desktopMetrics();
+}
+
+/* The renaming's pictures for the UI review (W685; with --only shots and XPP_SHOTS=folder): a view's name being edited in its tab,
+   and the window row with no name button, at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
+async function renameShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  await menuRun('window.new', {name: 'Tab graph'});
+  await requireUntil(`!s.busy && s.windows.some(w => w.name === 'Tab graph')`, 'a second graph');
+  const shot = async name => fs.writeFileSync(path.join(dir, name + '.png'), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
+  for (const [size, width, height, scheme] of sizes) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    await rendered();
+    await cdp.eval(`[...document.querySelectorAll('.view-tabs [role=tab]')].find(b => b.textContent.trim() === 'Tab graph').focus()`);
+    await key('F2');
+    await rendered();
+    await shot(`rename-editing-${size}`);
+    await key('Escape');
+    await rendered();
+    await shot(`rename-window-row-${size}`);
+  }
+  await menuRun('window.close', {window: 'Tab graph'});
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
 /* W679: a field's help is behind a "?" after its label in a settings panel, in Preferences and in a command form: hidden, opened by a click, closed by a
@@ -6895,11 +6985,13 @@ async function main() {
     if (run('options')) await session(ODE, optionsCheck);
     if (run('fieldhelp')) await session(ODE, fieldHelp);
     if (run('dock')) await session(ODE, dockCheck);
+    if (run('viewtabs')) await session(ODE, viewTabsCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, fieldHelpShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, menuShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, dockShots);
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, renameShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);

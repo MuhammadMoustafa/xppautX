@@ -8,7 +8,7 @@ import {useLayoutEffect, useRef, useState} from 'preact/hooks';
 import type {CommandRow} from '../protocol/kinds';
 import {effectiveKeys, movePinned, pinnedRows, togglePinned, visibleCount, withPinned} from '../store/keymap';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
-import {Modal} from './Modal';
+import {ContextMenu, type MenuItem} from './ContextMenu';
 
 /** the gap between the buttons of the row (css/plot.css .quick-pinned) in px, which the fit counts with */
 const GAP_PX = 4;
@@ -81,30 +81,13 @@ export function QuickAccess() {
 
 /** the context menu of one pinned command: Unpin, and Move earlier / later (the keyboard's way to reorder) */
 function PinMenu({id, x, y, pinned, close, save}: {id: string; x: number; y: number; pinned: string[]; close(): void; save(next: string[]): void}) {
-  const box = useRef<HTMLDivElement>(null);
   const at = pinned.indexOf(id);
-  useLayoutEffect(() => {
-    box.current?.querySelector<HTMLElement>('button')?.focus();
-    const away = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) close(); };
-    document.addEventListener('pointerdown', away, true);
-    return () => document.removeEventListener('pointerdown', away, true);
-  }, []);
-  const choose = (next: string[]) => { close(); save(next); };
-  const items: {label: string; off?: boolean; run(): void}[] = [
-    {label: 'Unpin', run: () => choose(togglePinned(pinned, id))},
-    {label: 'Move earlier', off: at <= 0, run: () => choose(movePinned(pinned, id, at - 1))},
-    {label: 'Move later', off: at >= pinned.length - 1, run: () => choose(movePinned(pinned, id, at + 1))}];
-  return <Modal clear><div class="quick-menu" role="menu" aria-label="Pinned command" ref={box} style={{left: `${x}px`, top: `${y}px`}}
-    onKeyDown={e => {
-      const buttons = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not([aria-disabled="true"])')];
-      const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); document.querySelector<HTMLElement>(`[data-pinned="${id}"]`)?.focus(); }
-      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        buttons[(i + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
-      }
-    }}>
-    {items.map(item => <button type="button" role="menuitem" key={item.label} aria-disabled={!!item.off}
-      onClick={() => { if (!item.off) item.run(); }}>{item.label}</button>)}
-  </div></Modal>;
+  const items: MenuItem[] = [
+    {label: 'Unpin', run: () => save(togglePinned(pinned, id))},
+    {label: 'Move earlier', off: at <= 0, run: () => save(movePinned(pinned, id, at - 1))},
+    {label: 'Move later', off: at >= pinned.length - 1, run: () => save(movePinned(pinned, id, at + 1))}];
+  return <ContextMenu x={x} y={y} label="Pinned command" items={items} close={escaped => {
+    close();
+    if (escaped) document.querySelector<HTMLElement>(`[data-pinned="${id}"]`)?.focus();
+  }} />;
 }
