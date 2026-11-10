@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only options,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only options,fieldhelp,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -3253,6 +3253,9 @@ async function optionsCheck() {
         keys: rows.map(r => r.dataset.argument), labels: rows.map(r => r.querySelector('.form-label').textContent.replace(/ \\*$/, '')),
         defaults: rows.map(r => /Default: (.*?)\\.( |$)/.exec(r.querySelector('.form-help').textContent)?.[1]),
         helps: rows.map(r => r.querySelector('.form-help').textContent),
+        /* W679: a field's help is behind its "?", closed until it is clicked */
+        closed: rows.map(r => r.querySelector('.form-help').hidden && r.querySelector('.field-help-toggle')?.getAttribute('aria-expanded') === 'false'),
+        toggleNames: rows.map(r => r.querySelector('.field-help-toggle')?.getAttribute('aria-label')),
         choices: rows.map(r => radios(r).length ? radios(r).map(o => o.dataset.choice) : [...r.querySelectorAll('select option')].map(o => o.value).filter(Boolean)),
         checkbox: rows.map(r => !!r.querySelector('.switch input[type=checkbox]')),
         color: rows.map(r => !!r.querySelector('[data-color-field]')),
@@ -3280,6 +3283,8 @@ async function optionsCheck() {
     for (const part of Object.keys(want))
       check(`W616: ${g.group}: the panel's ${part} are the table's`, JSON.stringify(shown[part]) === JSON.stringify(want[part]), JSON.stringify([shown[part], want[part]]));
     check(`W616: ${g.group}: each row's help line is the table's`, ordered.every((r, i) => shown.helps[i]?.startsWith(r.help)));
+    check(`W679: ${g.group}: every field's help starts hidden behind a "?" named for its label`,
+      shown.closed.every(Boolean) && ordered.every((r, i) => shown.toggleNames[i] === 'Help for ' + r.label), JSON.stringify([shown.closed, shown.toggleNames]));
     const values = held;
     check(`W616: ${g.group}: a field shows the core's value for its key`, ordered.every((r, i) => !(r.key in values) || shown.values[i] === values[r.key]),
       JSON.stringify(ordered.filter((r, i) => r.key in values && shown.values[i] !== values[r.key]).map(r => [r.key, values[r.key]])));
@@ -3297,7 +3302,7 @@ async function optionsCheck() {
   await rendered();
   /* a path row is a name in the model's folder: the one file control, typed or dropped, applied on Apply like every other row */
   const paths = await S(`s.hello.options.find(g => g.group === 'output').rows.filter(r => r.kind === 'path').map(r => r.key)`);
-  check('W641: each path of the Output panel is the one file control and has no button of its own', paths.length > 0 && await cdp.eval(`${JSON.stringify(paths)}.every(k => { const row = document.querySelector('[data-argument=' + JSON.stringify(k) + ']'); return row.querySelectorAll('.file-box').length === 1 && row.querySelectorAll('button').length === 0; })`));
+  check('W641: each path of the Output panel is the one file control and has no button of its own', paths.length > 0 && await cdp.eval(`${JSON.stringify(paths)}.every(k => { const row = document.querySelector('[data-argument=' + JSON.stringify(k) + ']'); return row.querySelectorAll('.file-box').length === 1 && row.querySelectorAll('button:not(.field-help-toggle)').length === 0; })`));
   const mark = await S('__xpp.sentCount()');
   await cdp.eval(`(() => { const el = document.querySelector('[data-argument=' + JSON.stringify(${JSON.stringify(paths[0])}) + '] .file-box input'); el.value = 'typed.dat'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await rendered();
@@ -3356,6 +3361,70 @@ async function optionsCheck() {
   await requireUntil(`s.optionsPanel?.group === 'equilibria' && s.optionValues.equilibria`, 'the equilibria panel again');
   check('W616: and the core holds it', await S(`s.optionValues.equilibria.values.max_iterations === '77'`), JSON.stringify(await S('s.optionValues.equilibria')));
   await key('Escape');
+}
+
+/* W679: a field's help is behind a "?" after its label in a settings panel, in Preferences and in a command form: hidden, opened by a click, closed by a
+   second, several open at once. Data only: the toggle's aria state, the help's hidden flag and the id they share. */
+async function fieldHelp() {
+  await until('s.hello && !s.busy', 'hello');
+  const rowState = (root, n) => cdp.eval(`(() => { const r = document.querySelectorAll(${JSON.stringify(root + ' .form-row')})[${n}];
+    const b = r?.querySelector('.field-help-toggle'), h = r?.querySelector('.form-help');
+    return b && h ? {expanded: b.getAttribute('aria-expanded'), hidden: h.hidden, linked: b.getAttribute('aria-controls') === h.id && !!h.id, text: h.textContent.length > 0} : null; })()`);
+  const toggle = (root, n) => cdp.eval(`document.querySelectorAll(${JSON.stringify(root + ' .form-row')})[${n}].querySelector('.field-help-toggle').click()`);
+  const tests = [
+    ['a settings panel', async () => { await cdp.eval(`__xpp.openOptions('integration')`); await requireUntil(`s.optionsPanel?.group === 'integration' && s.optionValues.integration`, 'panel'); }, '[data-options-panel]'],
+    ['Preferences', async () => { await clickRegistry('preferences.configure'); }, '[data-dialog]'],
+    ['a command form', async () => { /* a command of the registry's own arguments (no group's panel) with their descriptions */
+      const id = await S(`s.hello.commands.find(c => c.menu_path && !c.panel && !c.needs && (c.arguments ?? []).filter(a => a.description && !a.option && a.type !== 'path').length >= 2)?.cmd`);
+      await clickRegistry(id); await requireUntil('!!s.commandForm', 'form'); }, '[data-dialog]'],
+  ];
+  for (const [what, open, root] of tests) {
+    await open();
+    await rendered();
+    const rowsWithHelp = await cdp.eval(`[...document.querySelectorAll(${JSON.stringify(root + ' .form-row')})].map((r, i) => r.querySelector('.field-help-toggle') ? i : -1).filter(i => i >= 0)`);
+    check(`W679: ${what} has fields with a "?"`, rowsWithHelp.length >= 2, JSON.stringify(rowsWithHelp));
+    if (rowsWithHelp.length < 2) { await key('Escape'); continue; }
+    const [a, b] = rowsWithHelp;
+    const before = [await rowState(root, a), await rowState(root, b)];
+    check(`W679: ${what}: the helps start hidden, the "?" collapsed and linked to its help`, before.every(x => x && x.hidden && x.expanded === 'false' && x.linked && x.text), JSON.stringify(before));
+    await toggle(root, a);
+    await toggle(root, b);
+    await rendered();
+    const open2 = [await rowState(root, a), await rowState(root, b)];
+    check(`W679: ${what}: a click opens its help, and two may be open at once`, open2.every(x => !x.hidden && x.expanded === 'true'), JSON.stringify(open2));
+    await toggle(root, a);
+    await rendered();
+    check(`W679: ${what}: a second click closes it, the other stays open`, (await rowState(root, a)).hidden && (await rowState(root, b)).hidden === false);
+    await key('Escape');
+    await until(`!document.querySelector('[data-dialog]')`, 'closed').catch(() => {});
+  }
+}
+
+/* The field help's pictures for the UI review (W679; with --only shots and XPP_SHOTS=folder): a settings panel, Preferences and a command form, each with
+   its first help opened, at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
+async function fieldHelpShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  const forms = [['panel', 'run.configure'], ['preferences', 'preferences.configure'],
+    ['command-form', await S(`s.hello.commands.find(c => c.menu_path && !c.panel && !c.needs && (c.arguments ?? []).filter(a => a.description && !a.option && a.type !== 'path').length >= 2)?.cmd`)]];
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
+  for (const [size, width, height, scheme] of sizes) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    for (const [name, id] of forms) {
+      await clickRegistry(id);
+      await until(`!!document.querySelector('[data-dialog] .field-help-toggle')`, 'a help toggle').catch(() => {});
+      await cdp.eval(`[...document.querySelectorAll('[data-dialog] .field-help-toggle')].slice(0, 2).forEach(b => b.click())`);
+      await rendered();
+      const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
+      fs.writeFileSync(path.join(dir, `field-help-${name}-${size}.png`), Buffer.from(shot.data, 'base64'));
+      await key('Escape');
+      await until(`!document.querySelector('[data-dialog]')`, 'closed').catch(() => {});
+    }
+  }
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
 /* The dialogs' pictures for the UI review (W616, W641; run with --only shots and XPP_SHOTS=folder): every settings panel as its menu entry opens it
@@ -3527,8 +3596,8 @@ async function dialogsCheck() {
   await rendered();
   const outputFiles = await cdp.eval(`(() => { const d = document.querySelector('[data-dialog]');
     const rows = [...d.querySelectorAll('[data-argument]')].filter(r => r.querySelector('.file-box'));
-    return {count: rows.length, same: rows.every(r => r.querySelectorAll('.file-box').length === 1 && r.querySelectorAll('button').length === r.querySelectorAll('.file-box button').length),
-      looseButtons: [...d.querySelectorAll('.dialog-body button')].filter(b => !b.closest('.file-box')).map(b => b.textContent.trim()), inBox: d.querySelectorAll('.file-box button').length}; })()`);
+    return {count: rows.length, same: rows.every(r => r.querySelectorAll('.file-box').length === 1 && r.querySelectorAll('button:not(.field-help-toggle)').length === r.querySelectorAll('.file-box button').length),
+      looseButtons: [...d.querySelectorAll('.dialog-body button')].filter(b => !b.closest('.file-box') && !b.classList.contains('field-help-toggle')).map(b => b.textContent.trim()), inBox: d.querySelectorAll('.file-box button').length}; })()`);
   check('W641: every file row of the Output form is the one file control (the same class, no file button of any kind)',
     outputFiles.count >= 3 && outputFiles.same && !outputFiles.looseButtons.some(b => /Choose|Browse/.test(b)) && outputFiles.inBox === 0, JSON.stringify(outputFiles));
   await key('Escape');
@@ -3564,7 +3633,7 @@ async function dialogsCheck() {
   const exportForm = await cdp.eval(`(() => {
     const d = document.querySelector('[data-dialog]');
     const row = d.querySelector('[data-argument=file]');
-    return {fileControls: row.querySelectorAll('.file-box input, input[type=file]').length, buttonsInRow: row.querySelectorAll('button').length, buttonsInFileBox: row.querySelectorAll('.file-box button').length,
+    return {fileControls: row.querySelectorAll('.file-box input, input[type=file]').length, buttonsInRow: row.querySelectorAll('button:not(.field-help-toggle)').length, buttonsInFileBox: row.querySelectorAll('.file-box button').length,
       labelX: [...d.querySelectorAll('.form-label')].map(l => Math.round(l.getBoundingClientRect().left)),
       actions: [...d.querySelectorAll('.dialog-actions button')].map(b => b.textContent.trim()), buttonsInBody: [...d.querySelectorAll('.dialog-body button')].map(b => b.textContent.trim())};
   })()`);
@@ -6714,8 +6783,10 @@ async function main() {
     if (run('navigation')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), () => featuresCheck(['parameters', 'boundary_conditions'], ['formula_tables', 'delays', 'integral_terms']));
     if (run('navigation')) await session(path.join(top, 'examples/ode/clustor.odex'), () => featuresCheck(['parameters', 'formula_tables'], ['boundary_conditions', 'delays', 'integral_terms']));
     if (run('options')) await session(ODE, optionsCheck);
+    if (run('fieldhelp')) await session(ODE, fieldHelp);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, fieldHelpShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, menuShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);

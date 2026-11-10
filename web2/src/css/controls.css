@@ -89,7 +89,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   color: var(--fg-muted);
   font-weight: 650;
 }
-.help-link:hover, .messages-filters button.active, .keymap-actions button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.help-link:hover, .field-help-toggle[aria-expanded="true"], .messages-filters button.active, .keymap-actions button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 
 .checklist {
   display: grid;

@@ -2,9 +2,10 @@
    (OptionsPanel, Values' Numerics) and the core's form asks draw their fields here, so a field looks and behaves the same in every
    dialog. The control is decided from the field's kind in one place (store/fieldKinds.ts controlOf); the row puts the label left of it
    where the dialog is wide and above it where it is narrow (a container query on the dialog's body), marks a required field with an
-   asterisk only, shows the field's help under it and its error after the field was left or the action was pressed. */
+   asterisk only, hides the field's help behind a "?" after the label (a click or tap opens it under the field, another closes it; W679: no hover, so a
+   touch screen has it; several may be open) and shows its error after the field was left or the action was pressed. */
 import type {ComponentChildren} from 'preact';
-import {useState} from 'preact/hooks';
+import {useId, useState} from 'preact/hooks';
 import {choiceLabel, controlOf, rangeNote, type FieldSpec} from '../store/fieldKinds';
 import {ColorField} from './ColorField';
 import {Field} from './Field';
@@ -14,7 +15,10 @@ export interface FormRowProps {
   name: string;
   label: string;
   required?: boolean;
+  /** what the field does: hidden behind the "?" until it is opened */
   help?: ComponentChildren;
+  /** a note that is not help (a choice that cannot be made, and why): always shown under the field */
+  notes?: ComponentChildren;
   /** shown under the field: the rule it broke, once the field was left or the action pressed */
   error?: string | null;
   /** the control is wider than a line: it takes the row's whole width (a list of rows, a table) */
@@ -25,13 +29,20 @@ export interface FormRowProps {
   children: ComponentChildren;
 }
 
-export function FormRow({name, label, required, help, error, wide, id, className, children}: FormRowProps) {
+export function FormRow({name, label, required, help, notes, error, wide, id, className, children}: FormRowProps) {
+  const helpId = `${useId()}-help`;
+  const [open, setOpen] = useState(false);
   return (
     <div class={'form-row registry-argument' + (wide ? ' wide' : '') + (error ? ' bad' : '') + (className ? ` ${className}` : '')} data-argument={name} data-num={name}>
-      <label class="form-label" htmlFor={id}>{label}{required && <span class="required" title="Required" aria-hidden="true"> *</span>}</label>
+      <div class="form-head">
+        <label class="form-label" htmlFor={id}>{label}{required && <span class="required" title="Required" aria-hidden="true"> *</span>}</label>
+        {help ? <button type="button" class="help-link field-help-toggle" aria-expanded={open} aria-controls={helpId} aria-label={`Help for ${label}`}
+          onClick={() => setOpen(!open)}>?</button> : null}
+      </div>
       <div class="form-control">
         {children}
-        {help ? <small class="value-hint form-help">{help}</small> : null}
+        {help ? <small class="value-hint form-help" id={helpId} hidden={!open}>{help}</small> : null}
+        {notes ? <small class="value-hint">{notes}</small> : null}
         {error ? <span class="field-error" role="alert">{error}</span> : null}
       </div>
     </div>
@@ -122,5 +133,5 @@ export type Feedback = ReturnType<typeof useFeedback>;
 
 /** the focus to the first field that shows an error (the action pressed with errors) */
 export function focusFirstError(box: Element | null): void {
-  box?.querySelector<HTMLElement>('.form-row.bad :is(input, select, button)')?.focus();
+  box?.querySelector<HTMLElement>('.form-row.bad :is(input, select, button:not(.field-help-toggle))')?.focus();
 }

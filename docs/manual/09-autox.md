@@ -263,7 +263,7 @@ underscores as spaces and a capital first letter. autoX's own name for it
 (NTST, DS, MXBF ...) is only a search word: it is the note on a field's hover
 and in the table below, and is read on import only (an XPPAUT `.ode` file's
 `@ ntst=...`, a foreign `.auto` file), never typed anywhere else. **In web2**
-the Numerics dialog has three groups; hovering a field shows its help. The
+the Numerics dialog has three groups; the ? after a field's label shows its help. The
 page checks each value as you type (a message beside the field, OK disabled
 until all are good) and the core checks them again when they arrive. Model
 options and session files use the same continuation rules. Invalid values are

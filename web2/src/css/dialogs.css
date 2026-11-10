@@ -160,7 +160,9 @@
 
 /* a field: its label left of the control, or above it in a narrow dialog (W641) */
 .form-row { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: var(--space-1) var(--space-3); align-items: start; padding: var(--space-1) 0; }
-.form-label { padding-top: 0.5rem; font-size: var(--text-md); }
+.form-head { display: flex; align-items: center; gap: var(--space-2); padding-top: 0.25rem; min-height: 2rem; }
+.form-label { font-size: var(--text-md); }
+.field-help-toggle { flex: none; width: 1.5rem; height: 1.5rem; padding: 0; font-size: var(--text-sm); line-height: 1; background: transparent; }
 .required { color: var(--danger); }
 .form-row.wide { grid-template-columns: 1fr; }
 .form-help { color: var(--fg-muted); font-size: var(--text-sm); }
@@ -170,7 +172,8 @@
 .form-group > legend { padding: 0 var(--space-1); font-size: var(--text-xs); font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted); }
 @container (max-width: 30rem) {
   .form-row { grid-template-columns: minmax(0, 1fr); }
-  .form-label { padding-top: 0; font-weight: 550; }
+  .form-head { padding-top: 0; }
+  .form-label { font-weight: 550; }
 }
 /* the controls: one height, one radius */
 /* one rule for a text box and a dropdown: the same height, type, border, fill and focus ring in light and dark */

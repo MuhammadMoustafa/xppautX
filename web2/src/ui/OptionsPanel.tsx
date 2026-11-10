@@ -68,9 +68,9 @@ export function useOptionRows(group: OptionGroup, sections: string[] | null, liv
     const error = changed.includes(row) && feedback.shows(row.key) ? message(row) : null;
     /* the default as the control shows it (on/off for a switch, a choice's words), left out when it is empty */
     const shownDefault = row.boolean ? (row.default === 'true' ? 'on' : 'off') : row.kind === 'choice' ? choiceLabel(row.default) : row.default;
-    const help = <>{row.help}{shownDefault ? ` Default: ${shownDefault}.` : ''}{used(row) || values === null ? '' : ' Not used by this method or model.'}
-      {Object.entries(unavailable[row.key] ?? {}).map(([name, why]) => <> <span key={name} class="value-hint unavailable-note" data-unavailable={name}>{choiceLabel(name)} is not available: {why}</span></>)}</>;
-    return <FormRow key={row.key} name={row.key} label={row.label} help={help} error={error}>
+    const help = <>{row.help}{shownDefault ? ` Default: ${shownDefault}.` : ''}{used(row) || values === null ? '' : ' Not used by this method or model.'}</>;
+    const notes = Object.entries(unavailable[row.key] ?? {}).map(([name, why]) => <span key={name} class="unavailable-note" data-unavailable={name}>{choiceLabel(name)} is not available: {why}</span>);
+    return <FormRow key={row.key} name={row.key} label={row.label} help={help} notes={notes.length ? notes : null} error={error}>
       <Control spec={spec} value={value} label={row.label} dark={dark} disabled={disabled} unavailable={unavailable[row.key]} verbatim={row.kind === 'name'} invalid={!!error}
         file={row.kind === 'path'} onDropFile={row.kind === 'path' ? async f => { const name = await session.uploadArgument(f); if (name) set(name); } : undefined}
         onChange={set} onBlur={() => feedback.touch(row.key)} />
