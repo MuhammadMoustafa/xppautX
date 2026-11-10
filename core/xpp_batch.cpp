@@ -94,16 +94,7 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     strip_saveqn(m);
     create_plot_list(s);
     init_all_graph(s);
-    if (s.animation.options.use_file && !cl.convert) {
-        /* the animation is a view of the model, a file of its own: one that is
-           missing or does not fit is refused whole and said with its place,
-           and the model loads without it */
-        const auto loaded = load_animation(s, s.animation.options.file);
-        if (!loaded) {
-            xpp::log(XPP_LOG_WARN, "{}\n", loaded.error().text());
-            s.animation.options.use_file = false;
-        }
-    }
+    if (!cl.convert) load_option_animation(s);
 }
 
 Result<std::vector<Error>> compile_loaded(Session &s)

@@ -60,7 +60,6 @@ void check_manifest()
     CHECK(!foreign && foreign.error().place.line == 2 && foreign.error().what.find(".ode is refused") != std::string::npos);
     Manifest m;
     m.model_name = "my models/lecar.odex";
-    m.anifile = "lecar.anix";
     m.data = true;
     const std::string text = *manifest_text(m);
     CHECK(text.starts_with("version 4\nsession {\n"));
@@ -77,7 +76,7 @@ void check_manifest()
         crlf += c;
     }
     const auto eb = parse_manifest(file, crlf);
-    CHECK(eb.has_value() && *eb == e && eb->anifile.empty() && !eb->data);
+    CHECK(eb.has_value() && *eb == e && !eb->data);
 
     /* a model that is none, another version or an older layout is refused, saying what is wrong and where */
     const auto bad_data = parse_manifest(file, "version 4\nsession { model: \"x.odex\", data: 2 }\n"); /* data is true or false */
@@ -154,7 +153,7 @@ void check_saved_animation(const xpp::TempDir &tmp)
     const std::string path = tmp.file("animation.snapx");
     CHECK(write_file(path, xpp::zip::make_zip(*entries)));
     auto saved = xpp_saved_read(path);
-    CHECK(saved && saved->manifest.anifile == "motion.anix");
+    CHECK(saved && saved->manifest.model_name == "animated.odex");
     if (!saved) return;
     CHECK(xpp::files::remove("animated.odex") == 0 && xpp::files::remove("motion.anix") == 0);
     CHECK(load("animated.odex", &saved->model));
@@ -194,7 +193,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     std::optional<SavedFile> f = xpp_saved_read(path);
     CHECK(f && f->manifest.model_name == "main.odex" && f->model.files == files && f->model.in == path);
     if (!f) return;
-    CHECK(f->manifest.model_name == "main.odex" && f->manifest.anifile.empty());
+    CHECK(f->manifest.model_name == "main.odex");
 
     /* the files on the disk gone: the saved model loads from the file */
     for (const char *name : {"main.odex", "inc.odex", "w.tab"}) CHECK(xpp::files::remove(name) == 0);

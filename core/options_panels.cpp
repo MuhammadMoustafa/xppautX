@@ -98,7 +98,9 @@ bool option_in_panel(const OptionRow &row)
     const bool has_member = row.real || row.whole || row.boolean || row.index || row.text || row.show;
     /* a list of names of the model's sets is a check list; the other lists (the torus's folds, the H function's coupling) have no field in the page yet */
     const bool list = row.repeatable && !row.names_sets;
-    return !row.odex.empty() && has_member && !list && row.kind != OptionKind::sliders && row.kind != OptionKind::curves && row.kind != OptionKind::buttons;
+    /* a path with no member of its own is chosen in another window (the animation's File), not typed in a panel */
+    const bool chosen_elsewhere = row.kind == OptionKind::path && !row.text;
+    return !row.odex.empty() && has_member && !list && !chosen_elsewhere && row.kind != OptionKind::sliders && row.kind != OptionKind::curves && row.kind != OptionKind::buttons;
 }
 
 std::string options_table_json(Session &s)

@@ -1320,6 +1320,17 @@ Result<> load_animation(Session &s, std::string file)
     return ani_new_file(s, file.c_str(), true);
 }
 
+void load_option_animation(Session &s)
+{
+    if (!s.animation.options.use_file) return;
+    /* the animation is a view of the model, a file of its own: one that is missing or does not fit is refused whole and
+       said with its place, and the model loads without it */
+    if (const auto loaded = load_animation(s, s.animation.options.file); !loaded) {
+        xpp::log(XPP_LOG_WARN, "{}\n", loaded.error().text());
+        s.animation.options.use_file = false;
+    }
+}
+
 Result<std::string> animation_model(const std::string &file)
 {
     std::string text;

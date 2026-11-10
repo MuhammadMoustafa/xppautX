@@ -45,10 +45,9 @@ inline constexpr const char *data_member = "data.npz";      /* the data table */
    the model names it (model_files.h), the model's own first */
 inline constexpr std::string_view model_folder = "model/";
 
-/* the manifest, the first keys of the state file's session statement: `model`, `animation` and `data` */
+/* the manifest, the first keys of the state file's session statement: `model` and `data` */
 struct Manifest {
     std::string model_name; /* the model's own file, as it names it: the member model/<model_name> */
-    std::string anifile;    /* the animation the model was loaded with, one of its files ("": none) */
     bool data = false;      /* data.npz holds the data table (a session file's alone) */
     bool operator==(const Manifest &) const = default;
 };
@@ -56,7 +55,7 @@ struct Manifest {
 /* m's keys written into the session statement being written */
 void write_manifest(odex::Out &out, const Manifest &m);
 /* the manifest keys of session, the session statement's group of a state file read whole: not a session of this
-   version, a model that is no .odex, an animation that is no .anix: ReadFailed at the value */
+   version, a model that is no .odex: ReadFailed at the value */
 Manifest read_manifest(odex::Block &session);
 /* m as a state file of its own, the manifest alone (a model-only archive's first member) */
 Result<std::string> manifest_text(const Manifest &m);

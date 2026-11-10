@@ -26,7 +26,6 @@ bool memory_groups(odex::Block &block, std::string_view key, std::vector<odex::B
 void write_manifest(odex::Out &out, const Manifest &m)
 {
     out.text("model", m.model_name);
-    if (!m.anifile.empty()) out.text("animation", m.anifile);
     out.flag("data", m.data);
 }
 
@@ -35,10 +34,6 @@ Manifest read_manifest(odex::Block &session)
     Manifest m;
     session.text("model", m.model_name);
     if (!odex::is_odex(m.model_name)) session.fail(*session.member("model"), "a session stores an .odex model only; .ode is refused");
-    if (session.has("animation")) {
-        session.text("animation", m.anifile);
-        if (!files::has_extension(m.anifile, ".anix")) session.fail(*session.member("animation"), "a session stores an .anix animation only");
-    }
     session.flag("data", m.data);
     return m;
 }

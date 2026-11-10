@@ -515,7 +515,7 @@ void read_options(Session &s, const odex::StateFile &file, Settings &f)
             continue;
         }
         /* a repeatable row's list may be empty */
-        if (items.empty() && !row->repeatable) file.doc.fail(file.group.line, file.group.col, xpp::format("the options have no `{}`", key));
+        if (items.empty() && !row->repeatable && !row->optional) file.doc.fail(file.group.line, file.group.col, xpp::format("the options have no `{}`", key));
         std::string text;
         for (const odex::Option *o : items) {
             if (const std::optional<std::string> why = setting_problem(s, *row, o->value))

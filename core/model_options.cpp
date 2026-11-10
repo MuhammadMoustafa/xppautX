@@ -914,14 +914,19 @@ constexpr OptionRow rows[] = {
   /* XPPAUT's button (import only): `name:keys`, the letters of its menu keys, is a button running the command of ours that does what they did */
   {.name = "BUT", .parse = [](Session &s, const OptionValue &v) -> const char * { return add_xppaut_button(s, v.text, v.apply); }, .repeatable = true},
   {.group = option_group::interface, .kind = OptionKind::path, .odex = "animation", .help = "The animation file the window plays beside a run.", .once = true,
+   .show = [](const Session &s) { return s.animation.options.use_file ? relative_to_model(s.model().this_file, s.animation.options.file) : std::string(); },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (v.text[0] == '\0') { /* none: a session saved without one */
+       if (v.apply) s.animation.options.use_file = false;
+       return nullptr;
+     }
      if (!files::name_ok(v.text) || !files::has_extension(v.text, ".anix")) return "must be an .anix base name";
      if (v.apply) {
        s.animation.options.file = include_path(s.model().this_file, v.text);
        s.animation.options.use_file = 1;
      }
      return nullptr;
-   }, .wide = true, .top_level = true},
+   }, .saved = true, .optional = true, .wide = true, .top_level = true},
   {.group = option_group::output, .kind = OptionKind::path, .odex = "data_file", .help = "The file a run writes its data to, named from the model's folder.", .xppaut_names = {"OUTPUT"}, .once = true,
    .text = member([](auto &s) -> auto & { return s.batch_out_file; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -1429,7 +1434,7 @@ std::vector<std::string> option_item_lines(const OptionRow &row, std::string_vie
     for (const auto line : text | std::views::split('\n')) items.emplace_back(line.begin(), line.end());
     if (text.empty()) items.clear();
   }
-  else items.emplace_back(text);
+  else if (!(row.optional && text.empty())) items.emplace_back(text);
   return items;
 }
 

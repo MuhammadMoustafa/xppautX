@@ -9058,6 +9058,9 @@ def check_session_file():
             check('session save: session.odex holds the settings of lecar and names it',
                   b'\nversion 4\n' in b'\n' + z.read('session.odex') and b'\noptions {\n' in z.read('session.odex') and b' total_time: ' in z.read('session.odex')
                   and b'\n  model: "lecar.odex",\n' in z.read('session.odex'), str(z.read('session.odex')[:200]))
+            check('W663: the session names its animation once, as the animation option of its options block, never in the session statement',
+                  z.read('session.odex').count(b'animation: "ml.anix"') == 1 and b'\n  animation: "ml.anix",\n' in z.read('session.odex'),
+                  str(z.read('session.odex')[:300]))
             with open(os.path.join(r, 'lecar.odex'), 'rb') as f:
                 check('session save: model/lecar.odex is the model, byte for byte', z.read('model/lecar.odex') == f.read())
             vt = z.read('session.odex').decode()

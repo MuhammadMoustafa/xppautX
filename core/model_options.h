@@ -268,6 +268,8 @@ struct OptionRow {
   /* a session file holds its value (W284): in its options block, by the row's group and key. A choice row's value is the index of its
      word in `choices` (or, for the method, the solver's number). */
   bool saved = false;
+  /* a session file holds it only when it has a value (an empty string is no option value): its key may be missing there, meaning none */
+  bool optional = false;
   /* what a change of the numerics setting needs, after its member is
      written (the dt's steps, the delay's storage, the BVP's arrays) */
   void (*applied)(Session &) = nullptr;

@@ -913,7 +913,6 @@ xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &
                          xpp::command_place());
     }
     man.model_name = m.this_file;
-    man.anifile = s.animation.options.use_file && has(s.animation.options.file) ? s.animation.options.file : std::string();
     std::vector<xpp::zip::Entry> entries;
     const char *manifest = xpp::snapx::state_member;
     xpp::Result<std::string> manifest_text = xpp::snapx::manifest_text(man);
@@ -937,14 +936,7 @@ bool xpp_saved_restore(xpp::Session &s, const SavedFile &f)
     xpp::Result<SessionRead> r = read_session(s, f);
     xpp::Result<> done = r ? apply_session(s, std::move(*r), f) : xpp::Result<>(std::unexpected(r.error()));
     if (!done) xpp::show_error(done.error());
-    /* the animation the session was saved with: a file of the model, loaded after it as a .anix's is */
-    if (done && !f.manifest.anifile.empty()) {
-        s.animation.options.file = f.manifest.anifile;
-        s.animation.options.use_file = 1;
-        if (const auto loaded = xpp::load_animation(s, s.animation.options.file); !loaded) {
-            xpp::log(XPP_LOG_WARN, "{}\n", loaded.error().text());
-            s.animation.options.use_file = false;
-        }
-    }
+    /* the animation the session was saved with (its `animation` option), loaded after the model as a .anix's is */
+    if (done) xpp::load_option_animation(s);
     return done.has_value();
 }

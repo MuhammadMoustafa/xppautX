@@ -156,6 +156,9 @@ Result<AnimationState> read_animation(Session &s, std::string_view text, const s
 /* the model's animation file `file` loaded; `file` by value, since a caller passes the animation's own
    name, which the load replaces */
 Result<> load_animation(Session &s, std::string file);
+/* loads the animation the `animation` option set (nothing when none is), after the model; one that is missing or does not
+   fit is warned of with its place and left out, the model loading without it */
+void load_option_animation(Session &s);
 Result<std::string> animation_model(const std::string &file);
 Result<std::string> convert_animation(Session &s, std::string_view text, const std::string &file);
 int convert_animation_file(const std::string &file, const std::string &model = {});

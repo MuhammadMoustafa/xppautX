@@ -436,7 +436,7 @@ formula, a second `session`):
 
 A session names every key (a missing one is an error; a session of the older layout, whose `session` statement held `transpose`,
 `coupling`, `array_plot`, `torus`, `sweep`, `equilibrium_range` or `bvp_range`, is refused at that line). The `session` statement holds the manifest (`model`, the
-model's own file as it names itself, `animation` when the model was loaded with one, and `data`, whether `data.npz` is in
+model's own file as it names itself, and `data`, whether `data.npz` is in
 the file), `run` (the integrator's position and, in `ending`, the values the last run ended at), `delays`, `boundary`,
 the `sliders`, `random` (the next Go's seed, the Wiener and
 Ornstein-Uhlenbeck values and the generator's state), `nullclines`, `autox` (autoX's settings, views and the active view), every
@@ -1003,8 +1003,7 @@ folder. This companion key belongs directly in `options`, outside the settings g
 The value is a quoted `.anix` base name, never a path or link. An animation
 starts with `version: 4` and can name its model with `model: "pend.odex"`. Opening either loads the pair (the
 model's own animation into a hidden window, shown on request);
-a missing or bad linked animation is refused whole, its error shown with its place, and the model loads without it. A session bundles its open
-animation as a model companion member. Shapes reuse this grammar's tokens,
+a missing or bad linked animation is refused whole, its error shown with its place, and the model loads without it. A session keeps its animation as the `animation` row of its `options` block (empty for none) and bundles the `.anix` as a model companion member. Shapes reuse this grammar's tokens,
 expressions, keyed blocks and trailing `for j in lo..hi [by step]`, including
 the shared 100000 expansion limit. See [Animations](manual/10-animations.md)
 for the shapes and the `.ani` importer (W520, [#584](https://github.com/MuhammadMoustafa/xppautX/issues/584)).
