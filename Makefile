@@ -13,8 +13,10 @@ CXX     ?= g++
 CSTD    ?= -std=c99 -pedantic -D_XOPEN_SOURCE=600
 CXXSTD  ?= -std=c++23 -pedantic
 # -Wunused-macros: a .cpp's own #define nothing expands (W46a: the dead
-# code a header's are tools/deadcheck.py's)
-WARN    ?= -Wall -Wunused-macros -Wunused-but-set-parameter
+# code a header's are tools/deadcheck.py's); -Wunused-const-variable=1, gcc
+# only: a .cpp's own constant nothing reads, which clang's -Wall already
+# refuses (a dead constant broke CI's clang jobs once gcc's build passed)
+WARN    ?= -Wall -Wunused-macros -Wunused-but-set-parameter $(if $(CLANG),,-Wunused-const-variable=1)
 # gcc 14 and clang 16 turned these into errors; keep older compilers strict
 # about them too, so a build that only runs here does not break CI. All but
 # return-type are C-only names (C++ has always rejected those constructs).

@@ -51,7 +51,6 @@ void draw_bd(xpp::Session &s, XppWinId w);
 
 } // namespace
 
-constexpr int CurrentCurve=0;
 
 /* index 0 is time: TimeFlag is kept in step by check_flags, but a set that changes the curves does not run it, so
    the indices are tested too (a time axis must never reach the nullclines' state indices, W670) */
@@ -72,17 +71,6 @@ void check_flags(GRAPH &g)
   if((g.xv[0]==0)||(g.yv[0]==0)||((g.zv[0]==0)&&(g.ThreeDFlag==1)))g.TimeFlag=1;
   else g.TimeFlag=0;
 }
-
-namespace {
-
-constexpr int VIEW_PARAM_COUNT = 10;
-const char *const view_param_names[VIEW_PARAM_COUNT] = {"Persp (1=On)", "ZPlane", "ZView", "Theta", "Phi", "Movie(Y/N)",
-                                                        "Vary (theta/phi)", "Start angle", "Increment", "Number increments"};
-const int view_param_kinds[VIEW_PARAM_COUNT] = {XPP_FIELD_INTEGER, XPP_FIELD_NUMBER, XPP_FIELD_NUMBER, XPP_FIELD_NUMBER,
-                                                XPP_FIELD_NUMBER,  XPP_FIELD_TEXT,   XPP_FIELD_TEXT,   XPP_FIELD_NUMBER,
-                                                XPP_FIELD_NUMBER,  XPP_FIELD_INTEGER};
-
-} // namespace
 
 ViewParams view_params(const xpp::Session &s)
 {
@@ -114,17 +102,6 @@ Result<> set_view_params(xpp::Session &s, const ViewParams &p)
   redraw_the_graph(s);
   return {};
 }
-
-namespace {
-
-/* The axes dialog: a column per axis, a row for each of the variable, limits and label */
-constexpr int AXIS_ROW_COUNT = 4;
-const char *const axis_rows[AXIS_ROW_COUNT] = {"Variable", "Min", "Max", "Label"};
-const char *const axis_columns[3] = {"X", "Y", "Z"};
-/* the 3D view's window on the screen, after the grid */
-const char *const view_window_names[4] = {"XLo", "XHi", "YLo", "YHi"};
-
-} // namespace
 
 AxesView axes_view(const xpp::Session &s, int ind)
 {
@@ -495,8 +472,6 @@ template <std::size_t N> std::vector<std::string> words(const std::array<std::st
  return std::vector<std::string>(names.begin(),names.end());
 }
 
-/* the form fields of a color and a line style (the curve dialogs'): their count and what they say */
-constexpr std::size_t style_field_count=6;
 } // namespace
 
 Result<> check_line_style(std::string_view command, const xpp::LineStyle &style)
@@ -558,10 +533,6 @@ void delete_all_curves(xpp::Session &s)
  s.plot_windows.current->resize_curves(1);
  redraw_the_graph(s);
 }
-
-namespace {
-
-} // namespace
 
 /* the main plot window's picture export (W53, issue #101; PDF and SVG, W479): one entry point through
    image_format.h's registry: the plot drawn into the picture begun, written and renamed into place */

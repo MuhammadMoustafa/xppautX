@@ -380,7 +380,7 @@ int ask_form(Session &s, std::string_view title, std::span<FormField> fields)
         for (std::size_t i = 0; i < fields.size(); i++) fields[i].value = answered[i];
     }
     /* every answer read by its kind before any is used */
-    TypedFields read(s);
+    TypedFields read;
     for (FormField &f : fields) {
         switch (f.kind) {
         case XPP_FIELD_BOOLEAN: f.flag = read.boolean(f.name, f.value); break;

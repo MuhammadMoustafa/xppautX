@@ -538,7 +538,7 @@ Result<> replace_data_column(xpp::Session &s, std::string_view column, std::stri
  }
 
 if(dif_var<0){
-  xpp::TypedFields fields(s);
+  xpp::TypedFields fields;
   seq=chk_seq(fields,form,a1,a2);
   if(fields.error())return fail("data",*fields.error(),here);
  }

@@ -767,7 +767,7 @@ xpp::Result<AnimationState> load_ani_file(xpp::Session &s, xpp::LineReader &fp, 
         if (eof && xpp::trim_blanks(old).empty()) break;
         std::string expanded, big;
         int first, last, flag;
-        xpp::TypedFields fields(s);
+        xpp::TypedFields fields;
         if (!xpp::search_array(old.data(), expanded, &first, &last, &flag, nullptr, &fields))
             return xpp::fail("animation", "Invalid animation array range", place);
         if (fields.error()) return xpp::fail("animation", *fields.error(), place);

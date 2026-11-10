@@ -34,7 +34,7 @@ namespace {
 
 /* the groups of a settings file, as it names them */
 namespace group {
-constexpr std::string_view session = "session", numerics = "numerics", run = "run", ending = "ending", delays = "delays", boundary = "boundary",
+constexpr std::string_view session = "session", run = "run", ending = "ending", delays = "delays", boundary = "boundary",
                            graphics = "graphics";
 } // namespace group
 

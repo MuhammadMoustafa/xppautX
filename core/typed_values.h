@@ -40,7 +40,6 @@ Result<double> typed_number(Session &s, std::string_view typed, std::string_view
    there is one, and the caller applies nothing when error() is set. */
 class TypedFields {
  public:
-  explicit TypedFields(Session &s) : s_(s) {}
   /* a whole number (parse_int), within min..max where given; 0 after a fault */
   int integer(std::string_view field, const std::string &text, std::optional<double> min = std::nullopt,
               std::optional<double> max = std::nullopt);
@@ -58,7 +57,6 @@ class TypedFields {
   const std::optional<std::string> &error() const { return error_; }
 
  private:
-  Session &s_;
   std::optional<std::string> error_;
 };
 /* store the text typed for entry i of the box `type`; the refusal, shown by

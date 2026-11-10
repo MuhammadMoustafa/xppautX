@@ -1449,7 +1449,7 @@ xpp::Result<std::vector<int>> set_ic_formula(xpp::Session &s, std::string_view v
   else{
     if(j2<j1)return ic_problem(xpp::format("{} is an empty range of variables",variable));
     for(int j=j1;j<=j2;j++){
-      xpp::TypedFields fields(s);
+      xpp::TypedFields fields;
       std::string name,element;
       subsk(base,name,j,1,&fields);
       subsk(formula,element,j,1,&fields);
