@@ -2680,13 +2680,9 @@ and one WARN log line per such run.
 
 **Field kinds.** A `string` or `form` ask says what each of its fields
 takes, in `kinds`: one entry per field (a `string` ask has one), from the
-call site that knows it (core/xpp_ui.h `XPP_FIELD_*`: `new_int`,
-`new_float`, `new_string_of`, `get_dialog_of`, `do_string_box_of`).
+call site that knows it (core/xpp_ui.h `XPP_FIELD_*`).
 `integer`: a whole number, digits with a sign (the core reads it with
-`atoi`; new_int). `number`: a decimal number (`atof`). `formula`: a number,
-or `%` and a formula the core evaluates (new_float). `expression`: a
-formula of the model's quantities (a column's formula, the calculator,
-initial data from a formula). `file`: a file's base name. `name:N`: a name
+`atoi`). `number`: a decimal number (`atof`). `file`: a file's base name. `name:N`: a name
 from `hello.lists[N]` (`name:0` T or a variable). `text`: anything. Every
 field of a prompt whose call site says nothing is `text`, and a client
 reading an ask without `kinds` (an older core) treats every field as

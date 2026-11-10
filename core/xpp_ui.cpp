@@ -478,11 +478,4 @@ void play_recording(Session &s, std::string_view path) { ui.play_recording(s, pa
 bool recording_in_progress(void) { return ui.recording(); }
 bool save_recording(Session &s) { return ui.save_recording(s); }
 
-/* new_int and new_float were in ggets.c; they never touched X. plintf()
-   was a thin wrapper around xpp::log() at INFO (the banner, "All formulas
-   are valid!!", parser statistics, duplicate-name notes) and was retired
-   at W25: call xpp::log(XPP_LOG_INFO, ...)
-   directly (see xpp_log.h). A
-   real error uses err_msg()/xpp::log(..., XPP_LOG_ERROR/WARN) instead. */
-
 } // namespace xpp

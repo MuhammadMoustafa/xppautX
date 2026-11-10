@@ -1464,7 +1464,11 @@ private:
     std::string key, value;
   };
   std::vector<FlatOption> flat_;
-  std::vector<std::string> buttons_; /* the .ode's `@ but=name:keys` values, in order */
+  struct XppautButton {
+    std::string spec; /* the .ode's `@ but=name:keys` value */
+    Place where;      /* its @ line, for the note */
+  };
+  std::vector<XppautButton> buttons_; /* the .ode's `@ but=` values, in order */
   std::set<std::string> dropped_; /* the warnings of dropped options already said */
 
   std::string options_block()
@@ -1530,10 +1534,12 @@ private:
   std::string buttons_list()
   {
     std::vector<xpp::UserButton> buttons;
-    for (const std::string &spec : buttons_) {
+    for (const XppautButton &button : buttons_) {
+      const std::string &spec = button.spec;
       const std::size_t colon = spec.find(':');
       const std::string_view command = colon == std::string::npos ? std::string_view() : xpp::xppaut_button_command(std::string_view(spec).substr(colon + 1));
       if (command.empty()) {
+        place_ = button.where; /* the note names this button's line, not the last option's */
         option_note(xpp::format("@ but={} in the .ode: no command of xppautX does what those keys do, so the button is dropped", spec), "option");
         continue;
       }
@@ -1580,7 +1586,7 @@ private:
       }
       if (row && row->in_statement) continue;
       if (row && row->name == "BUT") {
-        buttons_.push_back(value);
+        buttons_.push_back({value, line.where});
         continue;
       }
       if (row && !row->dropped.empty()) {

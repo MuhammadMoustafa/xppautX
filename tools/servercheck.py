@@ -4471,6 +4471,12 @@ def check_buttons():
         check('W663: --convert turns but=name:keys into the command those keys ran, one button for a command, and says what it drops',
               converted.returncode == 0 and 'buttons: [ { label: "Go", command: run.initial }, { label: "Auto", command: autox.open } ]' in text
               and '@ but=Mouse:im' in converted.stderr and '@ but=Nokeys:zz' in converted.stderr, converted.stderr + text)
+        # W662 review: a dropped BUT is warned at its own @ line, not the last option line of the .ode (the BUT line is not last here)
+        with open(os.path.join(run, 'order.ode'), 'w', encoding='utf-8') as source:
+            source.write("x'=-x\n@ but=Mouse:im\n@ total=1,dt=.1\ndone\n")
+        ordered = subprocess.run([os.path.abspath(args.server), '--convert', 'order.ode'], cwd=run, capture_output=True, text=True, timeout=60 * SLOW)
+        check('W662 review: a dropped @ but= is warned at its own line (order.ode:2), not at the last option line',
+              ordered.returncode == 0 and 'order.ode:2: @ but=Mouse:im' in ordered.stderr and 'order.ode:3: @ but' not in ordered.stderr, ordered.stderr)
         many = ', '.join('{ label: "b%d", command: run.initial }' % k if k == 0 else '{ label: "b%d", command: run.last }' % k for k in range(1, 30))
         for name, buttons, line, why in (
                 ('nocommand', '[ { label: "A", command: nosuch.command } ]', 3, 'nosuch.command'),
@@ -9290,8 +9296,10 @@ def check_session_file():
             ('lastset', edited(lambda text: with_text('boundary_value.range_high: 1', 'boundary_value.range_high: 1e999')),
              ('lastset.snapx/session.odex:%d:' % high_line, '`1e999` is not a number')),
             # W662: a session of the older layout (its moved settings still groups of the session statement) is refused at that line
-            ('oldgroup', edited(lambda text: with_line(session_line + 1, '  bvp_range: { item: iapp },\n' + state_rows[session_line])),
-             ('oldgroup.snapx/session.odex:%d:' % (session_line + 1), '`bvp_range` is not a setting')),
+            # every group W662 moved out of the session statement is refused at its line, none skipped
+            *[('oldgroup_' + g, edited(lambda text, g=g: with_line(session_line + 1, '  %s: { item: iapp },\n' % g + state_rows[session_line])),
+               ('oldgroup_%s.snapx/session.odex:%d:' % (g, session_line + 1), '`%s` is not a setting' % g))
+              for g in ('transpose', 'coupling', 'array_plot', 'torus', 'sweep', 'equilibrium_range', 'bvp_range')],
             ('latermanifest', edited(lambda text: '\n'.join(state_rows[:session_line] + ['  later: 1,'] + state_rows[session_line:])),
              ('latermanifest.snapx/session.odex:%d:' % (session_line + 1), '`later` is not a setting')),
             # W145: every value checked by the rule that checks it anywhere else, before anything is applied

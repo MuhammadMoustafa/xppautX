@@ -24,7 +24,7 @@ constexpr KeyCommand key_commands[] = {
   {"nn", "nullcline.compute"}, {"nr", "nullcline.redraw"}, {"ns", "nullcline.export"},
   {"dd", "direction_field.compute"}, {"df", "direction_field.flow"}, {"dn", "direction_field.clear"}, {"dc", "direction_field.colorize"},
   {"ww", "window.set_bounds"}, {"wf", "window.fit"}, {"mc", "window.new"}, {"mk", "window.close_extra"}, {"md", "window.close"}, {"mb", "window.send_to_bottom"}, {"r", "window.redraw"}, {"e", "window.clear"}, {"x", "plot.variable_vs_time"},
-  {"kc", "kinescope.capture"}, {"kr", "kinescope.reset"}, {"kp", "kinescope.play"}, {"ka", "kinescope.autoplay"}, {"ks", "kinescope.export_gif"},
+  {"kc", "kinescope.capture"}, {"kr", "kinescope.reset"}, {"kp", "kinescope.play"}, {"ka", "kinescope.autoplay"}, {"ks", "kinescope.export_frames"}, {"km", "kinescope.export_gif"},
   {"ga", "plot.add_curve"}, {"gd", "plot.delete_curve"}, {"gr", "plot.delete_all_curves"}, {"ge", "plot.edit_curve"},
   {"p", "value.set_parameters"}, {"fa", "autox.open"}, {"fc", "calculator.evaluate"}, {"fs", "session.export_info"},
   {"fr", "session.import_xppaut_state"}, {"fq", "session.quit"}, {"ft", "data.transpose"}, {"fg", "set.apply"}};
@@ -70,7 +70,10 @@ const char *add_xppaut_button(Session &s, std::string_view spec, bool apply)
   const std::size_t colon = spec.find(':');
   if (colon == std::string_view::npos || colon == 0 || colon + 1 == spec.size()) return "must be a name and a command sequence, name:keys";
   const std::string_view command = xppaut_button_command(spec.substr(colon + 1));
-  if (command.empty() || std::ranges::any_of(s.user_buttons, [&](const UserButton &b) { return b.command == command; })) return nullptr;
+  /* a load's .ode keeps its unmapped BUT lines out of the buttons: the conversion warns of each at its line (odex_convert.cpp
+     buttons_list); a value set any other way is refused, the caller naming it (option_error_text) */
+  if (command.empty()) return Load::running() ? nullptr : "no command of xppautX does what these keys do";
+  if (std::ranges::any_of(s.user_buttons, [&](const UserButton &b) { return b.command == command; })) return nullptr;
   if (apply) s.user_buttons.push_back({std::string(spec.substr(0, colon)), std::string(command)});
   return nullptr;
 }

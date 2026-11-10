@@ -179,8 +179,7 @@ namespace {
 /* a field's kind as the protocol names it (docs/protocol.md "Asks", `kinds`) */
 void buf_kind(std::string &b, int kind)
 {
-    static constexpr std::array<const char *, 10> names = {"text",       "integer", "number",  "formula", "expression",
-                                                               "file",       "boolean", "choice",  "real",    "color"};
+    static constexpr std::array<const char *, 8> names = {"text", "integer", "number", "file", "boolean", "choice", "real", "color"};
     if (kind >= XPP_FIELD_NAME) buf_format(b, "\"name:{:d}\"", kind - XPP_FIELD_NAME);
     else buf_str(b, kind > 0 && kind < static_cast<int>(names.size()) ? names[kind] : "text");
 }

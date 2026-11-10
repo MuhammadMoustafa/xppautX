@@ -10,8 +10,8 @@
 
    The Fourier/power/correlation/spectral-density checks call the same
    core functions the stocHast menu calls (do_stochast_com in
-   markov.cpp), skipping only the interactive prompts: new_int/new_float/
-   new_string_of are declined by the UI owner's nobody policy, so the plain
+   markov.cpp), skipping only the interactive prompts: the headless UI
+   declines the menu's prompts, so the plain
    globals compute_fourier() & co. would have prompted for (spec_col,
    spec_wid, spec_win, ...) are simply set directly first. The signal
    lives in storage[][], filled directly per the harness style of

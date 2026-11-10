@@ -51,8 +51,6 @@ enum {
     XPP_FIELD_TEXT = 0,
     XPP_FIELD_INTEGER,    /* a whole number (read with atoi) */
     XPP_FIELD_NUMBER,     /* a number (read with atof) */
-    XPP_FIELD_FORMULA,    /* a number, or %formula (new_float) */
-    XPP_FIELD_EXPRESSION, /* a formula of the model's quantities */
     XPP_FIELD_FILE,       /* a file's base name */
     XPP_FIELD_BOOLEAN,    /* `true` or `false` (FormField) */
     XPP_FIELD_CHOICE,     /* one of a FormField's named choices */

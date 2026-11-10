@@ -411,7 +411,6 @@ constexpr std::array WINDOW_EVENTS = {xpp::events::WINDOW_CREATED, xpp::events::
 constexpr std::array RENAME_EVENTS = {xpp::events::WINDOW_RENAMED, xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
-/* XPPAUT's imported button sequences MC, MK, MD, MB, MA, MM, MS, by button number */
 constexpr std::array ROWS = {
     Command{"window.set_bounds", BOUNDS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set bounds", "Plot/View",
             "Set the view's bounds; a bound left out keeps the view's.", BOUNDS_RESULTS, PLOT_EVENTS, true, set_bounds},

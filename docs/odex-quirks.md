@@ -413,7 +413,9 @@ they are the window, the same quantity as `XMIN`..`YMAX` (which XPPAUT sets with
 XPPAUT's button runs the menu keys written after the colon (`but=AUTO:fa` is File, Auto) through its own key switch, at most 20 of them. A
 `.odex` button is `{ label: "AUTO", command: autox.open }`, a label and the registry command that does what those keys did, any number of
 them. The converter maps the key sequences that have such a command (Initialconds go, last, old, shift, range and 2 range, Continue, Sing
-pts go and range, Nullcline new, restore and save, Direction field's four, Window set and fit, Redraw, Erase, X vs t, Kinescope's five, Graphic
-add, delete, remove all and edit, new Parameter, and File's Auto, Calculator, info, XPPAUT state import, Quit, Transpose and Apply set). A sequence
-with no command of ours (a mouse click, a question XPPAUT asked in a window of its own) is dropped with a warning naming the line; two
+pts go and range, Nullcline new, restore and save, Direction field's four, Window set and fit, Redraw, Erase, X vs t, Kinescope's six (capture,
+reset, play, autoplay, Save as the frames, Make anigif as the GIF), Graphic add, delete, remove all and edit, new Parameter, and File's Auto,
+Calculator, info, XPPAUT state import, Quit, Transpose and Apply set). A sequence with no command of ours (a mouse click, a question XPPAUT asked
+in a window of its own) is dropped with a warning naming its `@ but=` line; the dropped keys are the other 120 of XPPAUT's menu keys, listed in
+docs/xppautx-vs-xppaut.md's "Model buttons" row. Two
 buttons for one command keep the first, as XPPAUT's own reader does ([W663 / #736](https://github.com/MuhammadMoustafa/xppautX/issues/736)).

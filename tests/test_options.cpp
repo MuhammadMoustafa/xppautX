@@ -499,7 +499,9 @@ int main(void)
         CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"Go\", command: nosuch.command } ]", false).has_value());
         CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"\", command: run.initial } ]", false).has_value());
         CHECK(xpp::option_problem(*s, "interface.buttons", "[ { label: \"Go\", command: run.initial }, { label: \"Go\", command: run.last } ]", false).has_value());
-        CHECK(!xpp::option_problem(*s, "but", "quit:fq", true).has_value() && !xpp::option_problem(*s, "but", "pdf:gp", true).has_value() && xpp::option_problem(*s, "but", "nokeys", true).has_value());
+        /* W662 review: a sequence no command of ours runs is refused, never accepted silently */
+        CHECK(!xpp::option_problem(*s, "but", "quit:fq", true).has_value() && xpp::option_problem(*s, "but", "pdf:gp", true).has_value());
+        CHECK(xpp::option_problem(*s, "but", "nokeys", true).has_value());
         /* every key sequence XPPAUT's buttons took (one to three letters) that has a command of ours has a registered one */
         std::size_t mapped = 0;
         std::string keys;
