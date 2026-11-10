@@ -47,6 +47,9 @@ struct SavedModel {
    #include and .odex's include; a name in the working
    folder and stays as typed. */
 std::string include_path(const std::string &including, const std::string &name);
+/* the name that include_path(including, name) turns into path: the including file's folder dropped from it; a path outside that
+   folder as it is */
+std::string relative_to_model(const std::string &including, const std::string &path);
 
 /* The answers of the question a model's path outside its folder asks
    (W286), as keys: Allow always (kept in the preferences for this model file

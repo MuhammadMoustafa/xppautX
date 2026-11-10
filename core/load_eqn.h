@@ -181,7 +181,7 @@ Result<> extract_action(Session &s, std::string_view ptr, const Place &where, bo
 namespace set_scope {
 inline constexpr std::string_view all = "all", parameters = "parameters", initial = "initial";
 }
-std::vector<std::string> set_scopes();
+std::vector<std::string> set_scopes(bool model_wide);
 /* one name=value of a set or of a file of values: a model name's (a parameter's
    or a state's) or a setting's, which no model name takes the place of; at is
    its line in its file (line 0: the set's; no file: the one the set is in) */
@@ -208,7 +208,7 @@ Result<std::vector<std::pair<const OptionRow *, std::string>>> option_group_valu
 Result<> apply_option_group(Session &s, std::string_view group, std::span<const SetItem> items, const Place &where, std::optional<int> graph,
                             std::string_view command);
 /* why scope is none of them (naming them), "" when it is */
-std::string set_scope_problem(std::string_view scope);
+std::string set_scope_problem(std::string_view scope, bool model_wide = false);
 /* the index of the model's set called name (the spelling it was written in),
    -1 when it has none */
 int intern_set_index(const Model &m, std::string_view name);
@@ -238,7 +238,7 @@ void do_intern_set(Session &s, std::string_view name1, std::string_view value);
    every setting of the groups a set holds that the scope covers, from graph (the
    active one when none) for the plot settings. The error when a scope or graph is
    none, or the last state was asked and nothing was run. */
-Result<odex::Values> captured_values(Session &s, std::string_view scope, std::optional<int> graph, bool last_state);
+Result<odex::Values> captured_values(Session &s, std::string_view scope, std::optional<int> graph, bool last_state, bool model_wide);
 /* what a key of a set is in m: a parameter, a state, or neither */
 odex::ValueKind value_kind(const Model &m, std::string_view name);
 

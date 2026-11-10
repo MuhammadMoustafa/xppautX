@@ -24,6 +24,13 @@ std::string include_path(const std::string &including, const std::string &name)
     return including.substr(0, slash + 1) + name;
 }
 
+std::string relative_to_model(const std::string &including, const std::string &path)
+{
+    const size_t slash = including.find_last_of("/\\");
+    if (slash == std::string::npos || !path.starts_with(including.substr(0, slash + 1))) return path;
+    return path.substr(slash + 1);
+}
+
 Result<> approve_model_path(Model &m, const std::string &name, const Place &at)
 {
     /* a saved model reads its own copies; nothing is read from the disk */

@@ -149,7 +149,7 @@ Result<> save(Session &s, const Edit &edit, const Adopt &changed = {}) { return 
 
 Result<> save_new_set(Session &s, std::string_view name, std::string_view scope, std::optional<int> graph, bool last_state)
 {
-    Result<odex::Values> values = captured_values(s, scope, graph, last_state);
+    Result<odex::Values> values = captured_values(s, scope, graph, last_state, false);
     if (!values) return std::unexpected(values.error());
     return save(s, [&](Model &scratch, const std::string &text, const std::string &file) {
         return odex::add_set(scratch, text, file, name, *values);
@@ -158,7 +158,7 @@ Result<> save_new_set(Session &s, std::string_view name, std::string_view scope,
 
 Result<> save_into_set(Session &s, std::string_view name, std::string_view scope, std::optional<int> graph, bool last_state)
 {
-    Result<odex::Values> values = captured_values(s, scope, graph, last_state);
+    Result<odex::Values> values = captured_values(s, scope, graph, last_state, false);
     if (!values) return std::unexpected(values.error());
     return save(s, [&](Model &scratch, const std::string &text, const std::string &file) {
         return odex::replace_in_set(scratch, text, file, name, *values, [&](std::string_view key) { return value_kind(s.model(), key); });
@@ -167,7 +167,7 @@ Result<> save_into_set(Session &s, std::string_view name, std::string_view scope
 
 Result<> save_defaults(Session &s, std::string_view scope, std::optional<int> graph, bool last_state)
 {
-    Result<odex::Values> values = captured_values(s, scope, graph, last_state);
+    Result<odex::Values> values = captured_values(s, scope, graph, last_state, true);
     if (!values) return std::unexpected(values.error());
     const Model &m = s.model();
     /* only the values that differ from the defaults are written: the lines of the others stay as they are */
@@ -216,7 +216,7 @@ Result<bool> export_values(Session &s, std::string_view name, std::string_view s
     if (files::absolute(file) == files::absolute(m.this_file))
         return std::unexpected(save_error(xpp::format("{} is the model file: Save values writes into it", file), Place{std::string(file)}));
     if (!odex::is_odex(file)) return std::unexpected(save_error(xpp::format("{} is not an .odex file", file), Place{std::string(file)}));
-    Result<odex::Values> values = captured_values(s, scope, graph, last_state);
+    Result<odex::Values> values = captured_values(s, scope, graph, last_state, false);
     if (!values) return std::unexpected(values.error());
     const std::unique_ptr<Model> scratch = scratch_model(m);
     const std::string target(file);

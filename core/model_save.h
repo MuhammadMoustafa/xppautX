@@ -29,7 +29,8 @@ Result<> save_new_set(Session &s, std::string_view name, std::string_view scope,
    read-only: saving over it is the error that asks for a name of one's own. */
 Result<> save_into_set(Session &s, std::string_view name, std::string_view scope, std::optional<int> graph, bool last_state);
 /* the current values of scope written as the model's defaults: the par and init
-   lines, the options block's groups. Restore defaults uses them at once. */
+   lines, the options block's groups (all of them, the groups no set holds and the settings a set does not hold
+   included, W680). Restore defaults uses them at once. */
 Result<> save_defaults(Session &s, std::string_view scope, std::optional<int> graph, bool last_state);
 /* the current values of scope as the set `name` of the .odex file: a new file
    (with the "Saved from <model> at <time>" header), or one that exists, where a

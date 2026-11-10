@@ -147,6 +147,10 @@ inline constexpr std::array<std::string_view, 7> set_groups{
     option_group::integration, option_group::poincare, option_group::equilibria, option_group::continuation,
     option_group::plot, option_group::sweep, option_group::analysis};
 
+/* The groups with settings a set never holds (the model's own, W680): Save as defaults writes them beside the groups a set holds.
+   interface holds lists only (sliders, buttons) and has no settings of this kind. */
+inline constexpr std::array<std::string_view, 2> model_groups{option_group::diagram, option_group::output};
+
 /* what a .odex writes as an option's value: a number, a whole number, a
    bare word (a variable's, a parameter's, a name), one of the row's
    choices (option_choices), a path or a text, both in double quotes, a color

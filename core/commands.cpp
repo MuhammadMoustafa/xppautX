@@ -112,7 +112,7 @@ static void get_intern_set(xpp::Session &s)
   for (const xpp::Model::InternalSet &set : sets) names.push_back(set.name);
   const int pick = pick_from_list("param_set", "Param set", names);
   if (pick < 0) return;
-  const std::vector<std::string> scopes = xpp::set_scopes();
+  const std::vector<std::string> scopes = xpp::set_scopes(false);
   const int scope = pick_from_list("set_scope", "Apply", scopes);
   if (scope < 0) return;
   std::optional<int> graph;

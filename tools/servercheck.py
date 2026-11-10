@@ -5208,6 +5208,14 @@ def check_save_values():
         run(cmd='run.configure', dt=0.5)
         run(cmd='set.restore_defaults', scope='integration')
         check('W320: Restore defaults gives the saved options', view()[2] == 0.05, str(view()))
+        # W680: the Output panel's settings are the model's: Save as defaults writes them (a path from the model's folder), as it does every group
+        evs = run(cmd='output.configure', values={'data_file': 'w680.dat'})
+        evs = run(cmd='set.save_defaults', scope='output')
+        new = text()
+        check('W680: Save as defaults writes the Output panel\'s settings into the model file, a path by its name',
+              not errs(evs) and 'output: {' in new and 'data_file: "w680.dat"' in new and new.count('options {') == 1, new[new.index('options'):][:300] + str(errs(evs)))
+        check('W680: and a scope no set holds is refused where a set is saved',
+              errs(run(cmd='set.save_new', name='w680', scope='output')), '')
         evs = run(cmd='set.save_defaults', scope='initial')
         new = text()
         check('W320: the initial values saved as defaults replace the init line where it stands',

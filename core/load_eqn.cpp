@@ -448,15 +448,22 @@ bool has_built_in(const OptionRow &row) { return row.reset||row.real||row.whole|
 /* a row with a member of its own holds a value to read; the others (numbered curves, ...) are set by their text only */
 bool has_member(const OptionRow &row) { return row.real||row.whole||row.boolean||row.index||row.text||row.show; }
 
-/* the settings of group now, as their text: a row of the group with a member that the session's method and model use, a path left out
-   (empty) of a set none; held: only what a set holds (a set holds no `wide` row) */
-std::vector<std::pair<const OptionRow *,std::string>> group_settings(xpp::Session &s, std::string_view group, bool held)
+/* which settings of a group are wanted: a panel's (all that have a member), a set's (what a set holds: no `wide` row, a path left out
+   none) or the model's file (all that have a member, as the file names them: a path from the model's folder, one left out none, W680) */
+enum class Rows { panel, set, model };
+
+/* the settings of group now, as their text: a row of the group with a member that the session's method and model use; the diagram's
+   variable and axes are the open view's (the model's values only start a new one) */
+std::vector<std::pair<const OptionRow *,std::string>> group_settings(xpp::Session &s, std::string_view group, Rows wanted)
 {
   std::vector<std::pair<const OptionRow *,std::string>> out;
   for(const OptionRow &row : option_rows()){
-    if(row.group!=group||(held&&!set_holds(row))||!has_member(row)||!setting_applies(s,row,s.numerics.method))continue;
-    std::string text=setting_text(s,row);
-    if(row.kind==OptionKind::path&&text.empty()&&held)continue; /* a path left out: none */
+    if(row.group!=group||(wanted==Rows::set&&!set_holds(row))||(wanted==Rows::model&&row.top_level)||!has_member(row)||!setting_applies(s,row,s.numerics.method))continue;
+    std::string text=autox_view_row(row)?autox_view_text(s,row):setting_text(s,row);
+    if(row.kind==OptionKind::path&&wanted!=Rows::panel){
+      if(text.empty())continue; /* a path left out: none */
+      if(wanted==Rows::model)text=relative_to_model(s.model().this_file,text);
+    }
     out.emplace_back(&row,std::move(text));
   }
   return out;
@@ -464,16 +471,17 @@ std::vector<std::pair<const OptionRow *,std::string>> group_settings(xpp::Sessio
 
 } // namespace
 
-std::vector<std::string> set_scopes()
+std::vector<std::string> set_scopes(bool model_wide)
 {
   std::vector<std::string> scopes{std::string(set_scope::all),std::string(set_scope::parameters),std::string(set_scope::initial)};
   for(std::string_view group : set_groups)scopes.emplace_back(group);
+  if(model_wide)for(std::string_view group : model_groups)scopes.emplace_back(group);
   return scopes;
 }
 
-std::string set_scope_problem(std::string_view scope)
+std::string set_scope_problem(std::string_view scope, bool model_wide)
 {
-  const std::vector<std::string> scopes=set_scopes();
+  const std::vector<std::string> scopes=set_scopes(model_wide);
   if(std::ranges::find(scopes,scope)!=scopes.end())return "";
   std::string all;
   for(const std::string &name : scopes)all+=(all.empty()?"":", ")+name;
@@ -604,11 +612,11 @@ odex::ValueKind value_kind(const xpp::Model &m, std::string_view name)
   return odex::ValueKind::other;
 }
 
-xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scope, std::optional<int> graph, bool last_state)
+xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scope, std::optional<int> graph, bool last_state, bool model_wide)
 {
   const xpp::Place at=xpp::command_place();
   const auto fail=[&at](std::string what){ return std::unexpected(xpp::Error{"save values",std::move(what),at}); };
-  if(const std::string why=set_scope_problem(scope);!why.empty())return fail(why);
+  if(const std::string why=set_scope_problem(scope,model_wide);!why.empty())return fail(why);
   if(xpp::Result<> r=graph_fits_scope(graph,scope,"save values");!r)return std::unexpected(r.error());
   const xpp::Result<int> target=target_graph(s,graph,"save values");
   if(!target)return std::unexpected(target.error());
@@ -633,10 +641,11 @@ xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scop
     }
   }
   const GraphTarget on(s,*target,all||scope==option_group::plot);
-  for(const std::string_view group : set_groups){
-    if(!all&&scope!=group)continue;
+  for(const std::string_view group : option_groups){
+    const bool held=std::ranges::find(set_groups,group)!=set_groups.end(),own=model_wide&&std::ranges::find(model_groups,group)!=model_groups.end();
+    if((!held&&!own)||(!all&&scope!=group))continue;
     values.groups.emplace_back(group);
-    for(const auto &[row,text] : group_settings(s,group,true)){
+    for(const auto &[row,text] : group_settings(s,group,model_wide?Rows::model:Rows::set)){
       for(std::string &value : option_values(*row,text))values.settings.push_back({std::string(group),odex_key(*row,0),std::move(value)});
     }
   }
@@ -648,10 +657,7 @@ xpp::Result<std::vector<std::pair<const OptionRow *,std::string>>> option_group_
   const xpp::Result<int> target=target_graph(s,graph,command);
   if(!target)return std::unexpected(target.error());
   const GraphTarget on(s,*target,group==option_group::plot);
-  auto values=group_settings(s,group,false);
-  /* the diagram's variable and axes are the open view's (the model's values only start a new one) */
-  for(auto &[row,text] : values)if(autox_view_row(*row))text=autox_view_text(s,*row);
-  return values;
+  return group_settings(s,group,Rows::panel);
 }
 
 xpp::Result<> apply_option_group(xpp::Session &s, std::string_view group, std::span<const SetItem> items, const xpp::Place &where, std::optional<int> graph, std::string_view command)

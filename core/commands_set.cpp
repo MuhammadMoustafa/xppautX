@@ -29,6 +29,15 @@ constexpr std::array<const char *, 3 + set_groups.size()> scope_choices()
     return out;
 }
 constexpr auto SCOPE_CHOICES = scope_choices();
+/* Save as defaults also takes the model's own groups (model_groups: diagram, output), which no set holds (set_scopes(true) lists the same) */
+constexpr std::array<const char *, SCOPE_CHOICES.size() + model_groups.size()> defaults_scope_choices()
+{
+    std::array<const char *, SCOPE_CHOICES.size() + model_groups.size()> out{};
+    for (std::size_t i = 0; i < SCOPE_CHOICES.size(); ++i) out[i] = SCOPE_CHOICES[i];
+    for (std::size_t i = 0; i < model_groups.size(); ++i) out[SCOPE_CHOICES.size() + i] = model_groups[i].data();
+    return out;
+}
+constexpr auto DEFAULTS_SCOPE_CHOICES = defaults_scope_choices();
 /* the values a save writes: the initial ones, or the state the last run reached */
 constexpr std::string_view STATE_INITIAL = "initial", STATE_LAST = "last";
 constexpr std::array STATE_CHOICES = {STATE_INITIAL.data(), STATE_LAST.data()};
@@ -151,6 +160,7 @@ Result<std::string> set_restore_defaults(Session &s, const Command &command, con
 
 constexpr Argument SET_NAME = {NAME_KEY, Type::text, true};
 constexpr Argument SCOPE = {SCOPE_KEY, Type::choice, true, MAX_TEXT_BYTES, SCOPE_CHOICES};
+constexpr Argument DEFAULTS_SCOPE = {SCOPE_KEY, Type::choice, true, MAX_TEXT_BYTES, DEFAULTS_SCOPE_CHOICES};
 constexpr Argument WINDOW = {WINDOW_KEY, Type::window, false};
 constexpr Argument STATE = {STATE_KEY, Type::choice, false, MAX_TEXT_BYTES, STATE_CHOICES};
 constexpr Argument VALUES_FILE = {FILE_KEY, Type::file, true};
@@ -160,7 +170,7 @@ constexpr std::array APPLY_ARGUMENTS = {SET_NAME, SCOPE, WINDOW};
 constexpr std::array CONTENTS_ARGUMENTS = {VALUES_FILE, SCOPE};
 constexpr std::array LOAD_ARGUMENTS = {VALUES_FILE, SCOPE, FROM, Argument{NAME_KEY, Type::text, false}, WINDOW};
 constexpr std::array SAVE_ARGUMENTS = {SET_NAME, SCOPE, WINDOW, STATE};
-constexpr std::array DEFAULTS_ARGUMENTS = {SCOPE, WINDOW, STATE};
+constexpr std::array DEFAULTS_ARGUMENTS = {DEFAULTS_SCOPE, WINDOW, STATE};
 constexpr std::array EXPORT_ARGUMENTS = {Argument{FILE_KEY, Type::file, true}, SET_NAME, SCOPE, WINDOW, STATE};
 constexpr std::array RENAME_ARGUMENTS = {Argument{"from", Type::text, true}, Argument{"to", Type::text, true}};
 constexpr std::array DELETE_ARGUMENTS = {SET_NAME};
@@ -199,7 +209,7 @@ constexpr std::array ROWS = {
             "Replace the scope's part of one of the model file's own sets by the current values; the set's other parts stay.",
             SAVE_INTO_RESULTS, STATE_EVENTS, true, set_save_into},
     Command{"set.save_defaults", DEFAULTS_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Save as defaults", "",
-            "Write the current values (all of them, or one scope) as the model's own: its par and init lines and options groups.",
+            "Write the current values (all of them, or one scope) as the model's own: its par and init lines and options groups, the diagram's and the output's settings too.",
             DEFAULTS_RESULTS, STATE_EVENTS, true, set_save_defaults},
     Command{"set.restore_defaults", RESTORE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Restore defaults", "",
             "Put the model's own values back: everything, or one scope (the parameters, the initial values, one group of settings), or with field only that parameter, state or setting.",
