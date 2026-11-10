@@ -529,3 +529,12 @@ test('a join with no kept job keeps the branch settings and nothing else', () =>
   assert.deepEqual(carryAppearance({'branch:4:stable:steady': {visible: true}}, []), {'branch:4:stable:steady': {visible: true}});
   assert.deepEqual(carryAppearance({}, [{key: [1], branch: 2}]), {});
 });
+
+test('W676: while jobs run, each job\'s points are one polyline however the two jobs\' points were interleaved on arrival', () => {
+  const point = (live: number, x: number, first = 0): DiagramRun => ({br: 1, pt: 1, ty: 1, stable: true, periodic: false, d: 1, c: 'foreground', lw: 1,
+    jac: 'difference', new: first, x: [x], y: [x], live});
+  const s = ev(opened(), add(0, [point(2, 0.1, 1), point(1, 0.2, 1), point(2, 0.3), point(1, 0.4), point(2, 0.5)]));
+  const v = activeView(s.diagram);
+  const m = buildDiagramModel(v.points, v.labels, v.axes);
+  assert.deepEqual(m.curves.map(c => [c.live, [...c.idx]]), [[1, [1, 3]], [2, [0, 2, 4]]]);
+});

@@ -74,6 +74,9 @@ const rangesOf = (v: Viewport): DisplayPatch => ({
 /** the array plot window's buttons (toolbarCommand names the registry command of each) */
 export type AplotOp = 'redraw' | 'edit' | 'fit' | 'range' | 'print' | 'gif';
 
+/** how long the diagram's live points wait for more to arrive before one draw shows them all: five draws a second keep a live diagram moving */
+const DIAGRAM_HOLD_MS = 200;
+
 /** the commands of the player's Play, Pause and Step buttons */
 const PLAYER_CONTROLS = {start: 'recording.play', pause: 'recording.pause', step: 'recording.step'} as const;
 
@@ -138,6 +141,13 @@ export class Session {
       says a play started; stepping the frames shown is this session's job) */
   private filmTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /** the autoX diagram's live points and the jobs' progress wait here and go in as one batch, DIAGRAM_HOLD_MS after the first
+      (W676): a run sends them at 140 000 points a second, drawing a diagram of 500 000 points takes a second, and the browser
+      draws a frame between any two events, so a draw per event left the page minutes behind the core, Stop's join queued
+      behind it. Any other event goes in after them, so the order stays the core's. */
+  private diagramHeld: XppEvent[] = [];
+  private diagramTimer: ReturnType<typeof setTimeout> | null = null;
+
   /** files: the model's folder over HTTP (none in unit tests) */
   constructor(private readonly transport: Transport, private readonly files: FilesApi | null = null) {
     this.store = createStore(reduce, initialState);
@@ -148,6 +158,18 @@ export class Session {
        as the core's own are (Messages, the error dialog): never lost (W116) */
     this.transport.open(ev => this.receive(ev), open => this.store.dispatch({type: 'connection', open}),
       error => this.store.dispatch({type: 'event', ev: {ev: 'session.message', error}}));
+  }
+
+  private holdDiagram(ev: XppEvent): void {
+    this.diagramHeld.push(ev);
+    this.diagramTimer ??= setTimeout(() => this.flushDiagram(), DIAGRAM_HOLD_MS);
+  }
+
+  private flushDiagram(): void {
+    if (this.diagramTimer !== null) clearTimeout(this.diagramTimer);
+    this.diagramTimer = null;
+    const held = this.diagramHeld.splice(0);
+    if (held.length) this.store.batch(() => held.forEach(ev => this.store.dispatch({type: 'event', ev: this.unguarded(ev)})));
   }
 
   private receive(ev: XppEvent): void {
@@ -164,6 +186,11 @@ export class Session {
       setLineGeometry(ev.line_styles); /* before any plot is built */
       setAnnotationGlyphs(ev.annotation_glyphs);
     }
+    if (ev.ev === 'autox.jobs' || (ev.ev === 'autox.diagram' && ev.op === 'add')) {
+      this.holdDiagram(ev);
+      return;
+    }
+    this.flushDiagram(); /* what came before goes in first: the order is the core's */
     this.store.dispatch({type: 'event', ev: this.unguarded(ev)});
     if (ev.ev === 'hello') {
       this.displayHeld.clear();

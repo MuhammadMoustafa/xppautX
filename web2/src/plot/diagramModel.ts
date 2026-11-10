@@ -137,10 +137,25 @@ function curve(p: DiagramPoints, s: number, verts: number[], which: 'y' | 'y2', 
 }
 
 /** the points in drawing order while jobs run (W620): the diagram's own, then each running job's in the order they arrived (a
-    stable sort by job), so a job's polyline never runs into another's whatever order the points came in; null when no point is a job's */
+    stable sort by job, a counting sort: a draw per frame of a million points cannot afford a comparison sort), so a job's
+    polyline never runs into another's whatever order the points came in; null when no point is a job's */
 function jobOrder(p: DiagramPoints): Int32Array | null {
   if (!hasLivePoints(p)) return null;
-  return Int32Array.from(p.lv.keys()).sort((a, b) => p.lv[a] - p.lv[b] || a - b);
+  const counts = new Map<number, number>();
+  for (let i = 0; i < p.lv.length; i++) counts.set(p.lv[i], (counts.get(p.lv[i]) ?? 0) + 1);
+  const next = new Map<number, number>();
+  let at = 0;
+  for (const job of [...counts.keys()].sort((a, b) => a - b)) {
+    next.set(job, at);
+    at += counts.get(job)!;
+  }
+  const order = new Int32Array(p.lv.length);
+  for (let i = 0; i < p.lv.length; i++) {
+    const k = next.get(p.lv[i])!;
+    order[k] = i;
+    next.set(p.lv[i], k + 1);
+  }
+  return order;
 }
 
 export function buildDiagramModel(p: DiagramPoints, labels: DiagramLabel[], axes: DiagramAxes | null,

@@ -8,19 +8,35 @@ export type Listener = () => void;
 export interface Store<S, A> {
   getState(): S;
   dispatch(action: A): void;
+  /** runs `actions`, one dispatch each, and tells the subscribers once, at the end */
+  batch(actions: () => void): void;
   subscribe(listener: Listener): () => void;
 }
 
 export function createStore<S, A>(reducer: Reducer<S, A>, initial: S): Store<S, A> {
   let state = initial;
   const listeners = new Set<Listener>();
+  let batching = 0, changed = false;
+  const notify = () => {
+    changed = false;
+    for (const l of [...listeners]) l();
+  };
   return {
     getState: () => state,
     dispatch(action) {
       const next = reducer(state, action);
       if (next === state) return;
       state = next;
-      for (const l of [...listeners]) l();
+      if (batching) changed = true;
+      else notify();
+    },
+    batch(actions) {
+      batching++;
+      try {
+        actions();
+      } finally {
+        if (--batching === 0 && changed) notify();
+      }
     },
     subscribe(listener) {
       listeners.add(listener);

@@ -2336,6 +2336,7 @@ async function autoxStopRace() {
 /* Two jobs run at once (follow_all_branches, two threads) and cannot end on their own: each one's points are in the diagram as they
    are stored, typed and unnumbered, and the progress line says how many points each running job has; Stop ends them, and the
    join's points (each with its branch and labels, none live) replace the live ones. */
+const STOP_AT_POINTS = 400000; /* the page's lag (W676) was worst from about 300 000 live points */
 async function autoxLiveJobs() {
   await until('!s.busy && !s.ask', 'the model loaded');
   await menuRun('autox.open');
@@ -2376,11 +2377,21 @@ async function autoxLiveJobs() {
     i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await cdp.eval(`document.querySelector('[data-trace-dialog] button[type=submit]').click()`);
   await until(`!document.querySelector('[data-trace-dialog]')`, 'trace dialog closed');
+  /* W676: Stop is clicked when a counted number of points has arrived, never after a time: the page once fell behind the core
+     (a draw per event) and the join took up to a minute at about 400 000 points. The core's run, held up by the page's reading,
+     cannot reach the diagram's 1 000 000 points before this. */
+  const reached = await until(`dv.points.x.length >= ${STOP_AT_POINTS}`, `${STOP_AT_POINTS} live points`, 120000 * SLOW);
+  const adds = await cdp.eval(`__xpp.diagramEvents().filter(e => e.op === 'add').length`), draws = await cdp.eval('__xpp.diagram().draws');
+  const stoppedAt = Date.now();
   await cdp.eval(`document.querySelector('.autox-status .autox-stop').click()`);
+  const joined = await until(`!s.busy && dv.points.x.length >= 2 && [...dv.points.lv].every(v => v === 0) && s.diagram.jobs && s.diagram.jobs.running === 0
+      && !document.querySelector('[data-testid=autox-jobs]')`, 'joined', 60000 * SLOW); /* a safety ceiling for a hang: the join's time is a perf: line */
+  if (joined) perf('W676 Stop to the join', ms(Date.now() - stoppedAt));
   check('W620: Stop ends the jobs; the join\'s points replace the live ones: none is a job\'s any more, each has its branch, and no progress line is left',
-    await until(`!s.busy && dv.points.x.length >= 2 && [...dv.points.lv].every(v => v === 0) && s.diagram.jobs && s.diagram.jobs.running === 0
-      && !document.querySelector('[data-testid=autox-jobs]')`, 'joined', 60000 * SLOW),
-    JSON.stringify(await DS('({n: d.points.x.length, live: [...d.points.lv].filter(v => v).length, jobs: d.jobs})')));
+    reached && joined, JSON.stringify(await DS('({n: d.points.x.length, live: [...d.points.lv].filter(v => v).length, jobs: d.jobs})')));
+  check('W676: the live points were drawn in batches (fewer draws than point events), and the join\'s diagram is drawn whole: every point is a vertex of a curve',
+    draws < adds && await until(`__xpp.diagram().curves.reduce((n, c) => n + c.points, 0) >= dv.points.x.length`, 'every point drawn'),
+    JSON.stringify({adds, draws, drawn: await cdp.eval('__xpp.diagram().curves.reduce((n, c) => n + c.points, 0)'), n: await DS('d.points.x.length')}));
   /* W630: after the join no two entries share a name, and none is named for a job */
   const joinedNames = await cdp.eval(`[...document.querySelectorAll('.autox-pane .legend-item')].map(b => b.textContent.trim())`);
   check('W630: after the join no two legend entries share a name, and none is named for a job',
