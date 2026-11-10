@@ -3856,8 +3856,16 @@ with tempfile.TemporaryDirectory(prefix='xppw678') as long_folder:
         evs, _ = col(lambda e: e.get('ev') == 'done', timeout=60 * SLOW)
         errs = [e.get('error', '') for e in evs if e.get('error')]
         check('W682: a sweep of 2500100001 runs (past 2^31) is refused before it starts, naming its steps and the most runs',
-              any('2500100001' in x and '2147483647' in x and 'steps = 50000' in x and 'steps2 = 50000' in x for x in errs)
+              any('2500100001' in x and '16777216' in x and 'steps = 50000' in x and 'steps2 = 50000' in x for x in errs)
               and not any(e.get('ev') == 'job.stopped' for e in evs), str(errs)[:300])
+        # W683: a sweep's seeds are held before its first run (a worker reads them out of order), so a sweep of
+        # 50051001 runs, well inside an int but past what that costs, is refused too, and not started
+        snd(cmd='run.double_range', variable1='a', start1=0, end1=1, variable2='b', start2=0, end2=1,
+            steps1=50000, steps2=1000, vary='independently')
+        evs, _ = col(lambda e: e.get('ev') == 'done', timeout=60 * SLOW)
+        errs = [e.get('error', '') for e in evs if e.get('error')]
+        check('W683: a sweep of 50051001 runs is refused before it starts, naming the most runs a sweep takes',
+              any('50051001' in x and '16777216' in x for x in errs) and not any(e.get('ev') == 'job.stopped' for e in evs), str(errs)[:300])
     finally:
         stop_server(p, r, snd)
 

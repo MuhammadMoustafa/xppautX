@@ -459,30 +459,23 @@ Result<LyapunovResult> lyapunov_exponent(xpp::Session &s, bool over_range)
   if(auto swept=run_range(s,0,&done);!swept)return std::unexpected(swept.error());
   /* done the range */
   double largest=-std::numeric_limits<double>::infinity();
-  for(int i=0;i<s.adjoint.liap_i;i++){
+  const std::size_t points=s.adjoint.liap[0].size();
+  for(std::size_t i=0;i<points;i++){
     s.data_store.col[0][i]=s.adjoint.liap[0][i];
     s.data_store.col[1][i]=s.adjoint.liap[1][i];
     largest=std::max(largest,static_cast<double>(s.data_store.col[1][i]));
   }
-  s.data_store.rows=s.adjoint.liap_i;
+  s.data_store.rows=static_cast<int>(points);
   refresh_data(s,s.data_store.rows);
-  return LyapunovResult{s.adjoint.liap_i>0?static_cast<double>(largest):0.0,done.runs};
+  return LyapunovResult{points>0?static_cast<double>(largest):0.0,done.runs};
 }
 
-void alloc_liap(xpp::Session &s, int n)
-{
-  if(s.adjoint.liap_flag==0)return;
-  for(auto &c : s.adjoint.liap)c.assign(n+1,0.0);
-  s.adjoint.liap_i=0;
-}
-
-void do_this_liaprun(xpp::Session &s, int i,double p)
+void do_this_liaprun(xpp::Session &s, double p)
 {
  if(s.adjoint.liap_flag==0)return;
- s.adjoint.liap[0][i]=p;
+ s.adjoint.liap[0].push_back(p);
  /* a sweep's step that fails is not shown: its point is 0 */
- s.adjoint.liap[1][i]=hrw_liapunov(s,s.numerics.equilibria.jacobian_step).value_or(0.0);
- s.adjoint.liap_i++;
+ s.adjoint.liap[1].push_back(hrw_liapunov(s,s.numerics.equilibria.jacobian_step).value_or(0.0));
 }
 
 void norm_vec(std::span<double> v, double &mu)

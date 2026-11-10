@@ -199,11 +199,12 @@ struct RangeVars {
   int rtype;
 };
 
-/* The most steps one axis of a sweep takes (Range, Range Equilibria and Range Shoot alike): steps+1 runs fit an int.
-   The most runs a sweep makes: a run's number, its indices and its seed are int, so a sweep's runs (steps+1 times steps2+1)
-   must fit one (W682: the product overflowed int at 2^31). */
+/* The most steps one axis of a sweep takes (Range, Range Equilibria and Range Shoot alike): steps+1 runs fit an int. */
 inline constexpr int MAX_RANGE_STEPS = std::numeric_limits<int>::max() - 1;
-inline constexpr std::int64_t MAX_RANGE_RUNS = std::numeric_limits<int>::max();
+/* The most runs a Range sweep makes: it holds one int seed per run before the first run, since runs on worker threads
+   read them out of order (W683; 2^24 runs are 64 MB of seeds, where the int range's 2^31 were 8 GB). Past the int range
+   a run's number and indices would overflow too (W682). */
+inline constexpr std::int64_t MAX_RANGE_RUNS = std::int64_t{1} << 24;
 /* A sweep's run count for steps and steps2 (steps2 0 for a single range), refused before the sweep starts when it is past
    MAX_RANGE_RUNS, naming the steps and the setting they came from (W682). */
 Result<std::int64_t> sweep_run_count(const Session &s, int steps, int steps2);

@@ -41,12 +41,11 @@ struct AdjointState {
     std::string firstcol;
   } transpose;
   /* the maximal Liapunov exponent over a range: the parameter, the
-     exponent (liap_i points, while liap_flag) */
+     exponent (a point per run, while liap_flag) */
   std::array<std::vector<double>, 2> liap;
-  int liap_flag = 0, liap_i = 0;
+  int liap_flag = 0;
 };
 
-void alloc_liap(Session &s, int n);
 /* v scaled to unit length (unless it is 0), and its length mu */
 void norm_vec(std::span<double> v, double &mu);
 
@@ -77,7 +76,7 @@ struct LyapunovResult {
   int runs;
 };
 Result<LyapunovResult> lyapunov_exponent(Session &s, bool over_range);
-void do_this_liaprun(Session &s, int i, double p);
+void do_this_liaprun(Session &s, double p);
 
 /* adjoints and the maximal Liapunov exponent return why they failed; the
    command (new_adjoint, do_liapunov) shows it */

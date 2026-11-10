@@ -503,8 +503,8 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
     adds to the list of equilibria found and draws the manifolds it finds into the windows, in order */
  xpp::say_sweep_serial(s,"Range Equilibria",npar+1,mc?"each step adds to the equilibria found and draws their manifolds in order":"each search starts from the equilibrium before it");
  /* a Monte Carlo step has a seed of its own, the sweep's seed stream's, as a run of Range has (range_sweep) */
- const std::vector<int> seeds=mc?xpp::seed_stream(s.numerics.rand_seed,static_cast<std::size_t>(npar)+1):std::vector<int>();
- if(mc)s.numerics.rand_seed=xpp::next_seed(seeds.back());
+ int steps_seeded=0;
+ int step_seed=s.numerics.rand_seed; /* step i's seed is the i-th of the stream (xpp::next_seed), made as the steps go: no list of them */
  for(i=0;i<=npar;i++)
    {
      if(xpp::job::cancelled())break;
@@ -520,8 +520,10 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
         evaluate_derived(s);
         /*  I think  */ failure.keep(redo_all_fun_tables(s));
         if(mc) {
-	  s.random.seed(seeds[static_cast<std::size_t>(i)]);
-	  s.numerics.last_seed=seeds[static_cast<std::size_t>(i)];
+	  s.random.seed(step_seed);
+	  s.numerics.last_seed=step_seed;
+	  step_seed=xpp::next_seed(step_seed);
+	  ++steps_seeded;
 	  failure.keep(do_monte_carlo_search(s,0,0,1));
           points_found+=s.integrator.fixptlist.n;
         }
@@ -560,7 +562,11 @@ xpp::Result<int> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &tak
       if(s.numerics.endsing||xpp::job::cancelled())break;
     }
     refresh_data(s,s.data_store.rows);
- if(mc)s.random.seed(s.numerics.rand_seed); /* the next run's seed, as a sweep of Range ends (range_sweep) */
+ if(mc){ /* the next run's seed is the one after the last step's, as a sweep of Range ends (range_sweep), however early this one did */
+   for(;steps_seeded<=npar;++steps_seeded)step_seed=xpp::next_seed(step_seed);
+   s.numerics.rand_seed=step_seed;
+   s.random.seed(s.numerics.rand_seed);
+ }
  s.numerics.par_fol=false;
  if(without_root>0)bottom_msg(0,xpp::format("{} of {} values have no equilibrium; the first: {}",without_root,npar+1,first_without));
  if(const auto result=failure.result();!result)return std::unexpected(result.error());
@@ -772,7 +778,6 @@ if(s.integrator.range.rtype==RANGE_INDEPENDENT)nit2=s.integrator.range.steps2;
  s.numerics.storflag=true;
  s.numerics.pauser=false;
 if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
- alloc_liap(s,nit); /* make space */
  if(s.integrator.range.rtype!=RANGE_SINGLE){
  itype2=s.integrator.range.type2;
  ivar2=s.integrator.range.index2;
@@ -922,7 +927,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
      compute_one_period(s,static_cast<double>(s.data_store.col[0][s.data_store.rows-1]),s.last_ic.data(),bob.c_str());
    }
 
-   do_this_liaprun(s,i,v.p);  /* sends parameter and index back */
+   do_this_liaprun(s,v.p);  /* sends parameter and index back */
    if(s.data_store.rows>2)autox_freeze_it(s);
    if(s.array_plot.range==1)
      draw_one_array_plot(s,bob);
