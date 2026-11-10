@@ -596,7 +596,7 @@ int j_check_abort(void)
 
 int j_progress_begin(void) { return 100; }
 
-void j_progress(int nit, int icount, int)
+void j_progress(std::int64_t nit, std::int64_t icount, int)
 {
     static double last;
     std::string b;

@@ -3748,6 +3748,42 @@ check('state at the interrupted run\'s done agrees with the armed row count',
 check('the next run is whole again', len(rows_at_done) >= 1 and rows_at_done[-1] == 801 and len(stopped) == 1,
       str(rows_at_done[-1:]))
 
+# W678: a run of more steps than an int counts (total_time/dt past 2^31) is counted in 64 bits: it runs
+# (the count used to overflow, and the run ended after its first step), and an armed stop at row 20000
+# ends it there, with those rows and the last time t = 19999 (dt 1, so row k is at t = k).
+LONG_RUN_ROWS = 20000
+with tempfile.TemporaryDirectory(prefix='xppw678') as long_folder:
+    long_model = os.path.join(long_folder, 'long.odex')
+    with open(long_model, 'w') as f:
+        f.write(versioned("x'=-x\ninit x=1\noptions { integration: { method: euler, dt: 1, total_time: 3000000000 } }\n"))
+    code, out, err = run_replay([
+        {'cmd': 'run.initial'},
+        {'cmd': 'run.stop', 'at': {'what': 'integrate', 'rows': LONG_RUN_ROWS, 't': 0}},
+    ], ode=long_model)
+    long_evs = [json.loads(l) for l in out.splitlines() if l.strip().startswith('{')]
+    long_stopped = [e for e in long_evs if e.get('ev') == 'job.stopped']
+    long_at = long_stopped[0].get('at', {}) if long_stopped else {}
+    check('W678: a run of 3e9 steps (past 2^31) plays, its armed stop reached (exit %s)' % code,
+          code == 0 and len(long_stopped) == 1, '%s %s' % (err[-300:], str(long_evs[-3:])))
+    check('W678: the stop keeps the armed rows, the last t being %d (row k at t = k)' % (LONG_RUN_ROWS - 1),
+          long_at.get('what') == 'integrate' and long_at.get('rows') == LONG_RUN_ROWS
+          and isinstance(long_at.get('t'), (int, float)) and abs(long_at['t'] - (LONG_RUN_ROWS - 1)) < 1e-6, str(long_at))
+    # a run past any step count is refused before it starts, with the settings and their values (every stop says why)
+    huge_model = os.path.join(long_folder, 'huge.odex')
+    with open(huge_model, 'w') as f:
+        f.write(versioned("x'=-x\ninit x=1\noptions { integration: { method: euler, dt: 1, total_time: 1e30 } }\n"))
+    p, r, snd, col, _ = launch_server(ode=huge_model)
+    try:
+        col(lambda e: e.get('ev') == 'done')
+        snd(cmd='run.initial')
+        evs, _ = col(lambda e: e.get('ev') == 'done', timeout=60 * SLOW)
+        errs = [e.get('error', '') for e in evs if e.get('error')]
+        check('W678: a run past any step count is refused before it starts, naming its settings and values',
+              any('more than a step count holds' in x and 'integration.total_time = 1e+30' in x and 'integration.dt = 1' in x for x in errs)
+              and not any(e.get('ev') == 'job.stopped' for e in evs), str(errs)[:300])
+    finally:
+        stop_server(p, r, snd)
+
 send(cmd='equilibrium.find')
 evs, _ = collect(is_done)
 eq = next((e for e in evs if e.get('ev') == 'equilibrium.found'), None)

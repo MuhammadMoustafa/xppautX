@@ -7,6 +7,7 @@
    own kflag dialect. C++ only.
    autoX's own integrators are not here. */
 
+#include <cstdint>
 #include <initializer_list>
 #include <memory>
 #include <span>
@@ -164,6 +165,20 @@ const SolverInfo &solver_info(int method);
    W480 I1): for a method that reads min_step, min_step above max_step (when
    it reads that too), above |dt| or above the run's |length|. */
 Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, double length);
+
+/* The most steps a run may count (a 64-bit count with room for the rounding by store_every;
+   W678: the counts were int, which a run of 2^31 steps overflowed). */
+inline constexpr double MAX_RUN_STEPS = 4.0e18;
+/* The steps of a run of length at dt, as a count: a discrete map takes one per unit of length, a
+   flow length/|dt| plus a tenth of a step. */
+Result<std::int64_t> step_count(const Session &s, const SolverInfo &info, double dt, double length);
+/* A step count computed by a caller: refused when it is not a count (NaN, infinite, past
+   MAX_RUN_STEPS), with the settings named that give it. */
+Result<std::int64_t> count_steps(const Session &s, const SolverInfo &info, double steps,
+                                 std::initializer_list<std::string_view> settings);
+/* A count of steps as a fixed-step method's one advance takes it: the method's loop counts in an
+   int, so a count past one is refused, naming the settings given (W678). */
+Result<int> steps_per_advance(const Session &s, const SolverInfo &info, std::int64_t steps);
 
 /* A run from start over length (both in the direction of dt) that stores
    rows, refused before it starts when store_from lies beyond its end in

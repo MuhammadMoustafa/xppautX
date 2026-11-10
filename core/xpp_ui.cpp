@@ -142,7 +142,7 @@ static int hl_file_selector(std::string_view, std::string &, std::string_view)
 
 static int hl_get_mouse_xy(Session &, int *, int *) { return 0; }
 static int hl_check_abort(void) { return KEY_NONE; }
-static void hl_progress(int, int, int) {}
+static void hl_progress(std::int64_t, std::int64_t, int) {}
 static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
 {
     /* whatever the graph last had, else a sensible canvas */
@@ -496,7 +496,7 @@ int my_abort(void)
     return ch;
 }
 int get_command_width(void) { return ui.progress_begin(); }
-void plot_command(int nit, int icount, int cwidth) { ui.progress(nit, icount, cwidth); }
+void plot_command(std::int64_t nit, std::int64_t icount, int cwidth) { ui.progress(nit, icount, cwidth); }
 void rows_stored(Session &s, int nrows) { ui.rows_stored(s, nrows); }
 void FlushDisplay(void) { ui.flush(); }
 void redraw_params(void) { ui.redraw_params(); }

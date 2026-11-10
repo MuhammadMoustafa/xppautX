@@ -1715,26 +1715,30 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
 {
  xpp::Solver &solver=*s.integrator.solver;
  int nodes=s.solver_work.xpv.node+s.solver_work.xpv.nvec;
- int nit,store_every=s.numerics.store_every;
+ int store_every=s.numerics.store_every;
  double tend=s.numerics.total_time;
  double dt=s.numerics.delta_t;
-  if(solver.traits().discrete){
- nit=tend;
- dt=dt/fabs(dt);
- }
- else nit=(tend+.1*fabs(dt))/fabs(dt);
+ const auto steps=xpp::step_count(s,solver.info(),dt,tend);
+ if(!steps)return std::unexpected(steps.error());
+ if(solver.traits().discrete) dt=dt/fabs(dt);
  if(ishow==1){
  /* shown as it runs: a failure only ends the integration, the shooting
     goes on from where it stopped (the error is the caller's to show) */
  return integrate(s,t,y,tend,dt,1,store_every,istart).transform([](int){});
 }
+ int per_advance=0; /* a fixed-step method's steps in one advance */
+ if(solver.traits().fixed_step){
+   const auto counted=xpp::steps_per_advance(s,solver.info(),*steps);
+   if(!counted)return std::unexpected(counted.error());
+   per_advance=*counted;
+ }
  mswtch(s,s.solver_work.xpv.x,y);
- evaluate_derived(s); 
+ evaluate_derived(s);
  solver.begin(istart);
  xpp::SolverStep step{.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=istart};
  if(solver.traits().fixed_step){
    step.dt=dt;
-   step.steps=nit;
+   step.steps=per_advance;
  }
  else{
    step.tout=*t+tend*dt/fabs(dt);
@@ -1916,6 +1920,8 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
   xpp::Solver &solver=*s.integrator.solver;
   if(auto limits=xpp::check_step_limits(s,solver.info(),dt,tend);!limits)return std::unexpected(limits.error());
   if(auto from=xpp::check_store_from(s,*t,dt,tend);!from)return std::unexpected(from.error());
+  const auto steps=xpp::step_count(s,solver.info(),dt,tend);
+  if(!steps)return std::unexpected(steps.error());
 
  /* an added column (add_stor_col) plotted live has index above neq and no live value: it reads 0 */
  const std::size_t neq_size=static_cast<std::size_t>(s.model().neq);
@@ -1944,8 +1950,8 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
  
  char esc;
  int ieqn,i,pflag=0;
- int icount=0;
- int nit;
+ std::int64_t icount=0; /* output steps taken: a run may take more than an int counts (W678) */
+ std::int64_t nit;
  /* a steady-state run needs only the last values, so it is never bounded by
     storage: when the store fills it keeps every second row and stores every
     second event from then on */
@@ -1962,13 +1968,8 @@ if(program.interactive&&front_end) cwidth=get_command_width();
  if(s.integrator.step_error)return take_step_error(s);
 
  solver.begin(start);
- if(solver.traits().discrete){
- nit=tend;
- dt=dt/fabs(dt);
- }
- else nit=(tend+fabs(dt)*.1)/fabs(dt);
- /* else nit=tend/fabs(dt); */
- nit=(nit+store_every-1)/store_every;
+ if(solver.traits().discrete) dt=dt/fabs(dt);
+ nit=(*steps+store_every-1)/store_every;
  if(nit==0)return(rval);
  one_flag_step(s,s.solver_work.xpv.x,s.solver_work.xpv.x,&iflagstart,*t,&tnew,nodes,&sss);
  mswtch(s,x,s.solver_work.xpv.x);
@@ -2502,8 +2503,10 @@ void stop_integration(xpp::Session &s, xpp::Error why)
 
 xpp::Result<> stor_full(xpp::Session &s)
 {
- if(s.data_store.max_rows>INT_MAX/2)
-   return xpp::fail("storage","Cannot allocate sufficient storage",command_place());
+ if(s.data_store.max_rows>xpp::DataStore::max_rows_kept)
+   return xpp::fail("storage",xpp::format("Cannot allocate sufficient storage: the run has stored {} rows, the most the data store keeps is {} ({})",
+                                          s.data_store.rows,xpp::DataStore::max_rows_kept,xpp::named_settings(s,{"integration.total_time","integration.store_every"})),
+                    command_place());
  return s.data_store.fit(s.model().neq+1,2*s.data_store.max_rows);
 }
 

@@ -26,9 +26,6 @@ struct RangeVars;
 inline constexpr int MAX_STEADY_DECIMALS = std::numeric_limits<double>::digits10;
 inline constexpr int DEFAULT_STEADY_DECIMALS = 9; /* User's requested initial precision. */
 inline constexpr double DEFAULT_STEADY_HOLD = 1; /* One model-time unit of unchanged digits. */
-/* The integrator's iteration counters are int; a run of more steps than
-   this (less one for its rounding) cannot be counted. */
-inline constexpr double MAX_RUN_STEPS = std::numeric_limits<int>::max() - 1;
 /* How far above a whole number of Dt a direct `continue until` may lie, as
    a fraction of Dt, and still count as on the grid (the rounding noise of
    subtracting two times); any more rounds up to the next grid point. */

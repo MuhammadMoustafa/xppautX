@@ -139,6 +139,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [106](#106-the-tests-of-a-branchs-first-steps-are-not-made) | AUTO | the tests start at 0 and the first value is the third point's (cycles: the second's): a zero between a branch's start and its third point is never labelled, and the second point of an equilibrium branch is not stored | [W572 / #637](https://github.com/MuhammadMoustafa/xppautX/issues/637) |
 | [107](#107-rosenbrock-scales-and-refactors-its-already-factored-matrix-after-a-failed-step) | Integrators | after a failed step `rosen` scales `dfdy`, which `sgefa` (or `bandfac`) has overwritten with its LU factors, again by -h*d and factors that: the retried step is solved with a meaningless matrix (the Jacobian is made again only for the next step) | [W433 / #495](https://github.com/MuhammadMoustafa/xppautX/issues/495) |
 | [108](#108-a-nullcline-of-a-plot-against-time-writes-before-its-state-array) | Nullclines | `fnull` writes the plot's axes into the state at index `xv[0]`, which is 0 (time) for a plot of t against v, so `y1[-1]` is written; the guard tests `TimeFlag`, which a window whose axes change without `check_flags` keeps 0 | [W670 / #745](https://github.com/MuhammadMoustafa/xppautX/issues/745) |
+| [109](#109-a-run-longer-than-an-int-can-count-overflows-its-step-count) | Integration | `integrate` counts a run's steps in an `int`: a run of more than 2^31 steps (a total of 3e9 at dt 1) gets a negative count and stops after its first step, with no word | [W678](https://github.com/MuhammadMoustafa/xppautX/issues/753) |
 
 ## 1. Model options
 
@@ -2295,3 +2296,10 @@ factorization had to put its factors back into `dfdy` to reproduce a run of 40 i
 
 Evidence: from the source and from xppautX, where the same write is the crash of the set `vvst` in examples/ode/lecar.odex (AddressSanitizer: heap-buffer-overflow in `fnull`, the index -1, with `TimeFlag` 0 and `xv[0]` 0). XPPAUT itself was not run: its window needs an X server, so whether its interface reaches such a window is not checked.
 **xppautX** (W670 / [#745](https://github.com/MuhammadMoustafa/xppautX/issues/745)): fixed: the phase-plane test checks the indices too, and a batch run whose plot is not two model variables writes no nullclines and says so in one INFO line naming the window and its axes.
+
+## 109. A run longer than an int can count overflows its step count
+
+`integrate` counts a run's output steps in an `int`: `nit` is declared `int` ([integrate.c:1893](../reference/xppaut-8.0/integrate.c#L1893)) and takes `(tend+fabs(dt)*.1)/fabs(dt)` ([integrate.c:1912](../reference/xppaut-8.0/integrate.c#L1912)), and the loop ends at `icount>=nit` ([integrate.c:2401](../reference/xppaut-8.0/integrate.c#L2401)) with `icount` an `int` too ([integrate.c:1892](../reference/xppaut-8.0/integrate.c#L1892)). The same in [master](../reference/xppaut-master/integrate.c#L1884) (the division there, the declaration at [1865](../reference/xppaut-master/integrate.c#L1865)). A run of more than 2^31 steps, such as a total of 3e9 at dt 1, or the live model's total of 1e6 at dt .0002 (5e9 steps), converts a value out of an int's range, which C leaves undefined and x86 turns into INT_MIN: the count is negative and the loop stops after its first step, without a word.
+
+Evidence: from the source; XPPAUT itself was not run on such a model.
+**xppautX** (W678 / [#753](https://github.com/MuhammadMoustafa/xppautX/issues/753)): fixed: the counts are 64-bit (`MAX_RUN_STEPS` in core/solver.h), a count past that limit is refused before the run with its settings and values, and a run that stores more rows than the data store keeps stops with an error naming the store.

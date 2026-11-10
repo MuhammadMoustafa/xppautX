@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <span>
 #include <vector>
 #include "numerics_settings.h"
@@ -167,6 +168,9 @@ struct DataStore {
      the store grows from there when a run or the data loaded is longer. A steady run (run.steady) keeps at most
      this many, thinning when it reaches them, so its memory does not grow with its length. */
   static constexpr int start_rows = 5000;
+  /* The most rows a run keeps: the store doubles its rows when it fills (stor_full), and twice this is still an int
+     (W678: a run that stores more stops with an error that names the store, its rows kept). */
+  static constexpr int max_rows_kept = std::numeric_limits<int>::max() / 2;
 
   /* ncol columns of nrow rows at the precision, empty (rows = 0); nrow becomes max_rows; the table has room for
      ADDED_COLUMNS more */

@@ -174,13 +174,17 @@ xpp::Result<> one_step_int(xpp::Session &s, double *y, double t0, double t1, int
     stor_delay(s,y);
     return {};
   }
+  /* the steps between the two times, counted as a run's are (W678): a count the method's one advance cannot take is refused */
+  const auto counted=solver.traits().discrete?xpp::count_steps(s,solver.info(),fabs(t0-t1),{}):
+                                              xpp::count_steps(s,solver.info(),(t1-t0)/dt,{"integration.dt"});
+  if(!counted)return std::unexpected(counted.error());
+  const auto nit=xpp::steps_per_advance(s,solver.info(),*counted);
+  if(!nit)return std::unexpected(nit.error());
   if(solver.traits().discrete){
-    int nit=fabs(t0-t1);
     dt=dt/fabs(dt);
-    return solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
+    return solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=*nit});
   }
-  int nit=static_cast<int>((t1-t0)/dt);
-  r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
+  r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=*nit});
   if(!r)return r;
   if((dt<0&&t>t1)||(dt>0&&t<t1)){    
     dt=t1-t;

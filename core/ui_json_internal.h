@@ -410,7 +410,7 @@ int j_get_mouse_xy(xpp::Session &s, int *x, int *y);
 int j_rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 int j_check_abort(void);
 int j_progress_begin(void);
-void j_progress(int nit, int icount, int cwidth);
+void j_progress(std::int64_t nit, std::int64_t icount, int cwidth);
 void j_q_calc(xpp::Session &s);
 
 /* XppUi.front_end_command (json_registry.cpp): the registry commands this front end answers itself */

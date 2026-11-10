@@ -9,6 +9,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <limits>
 #include "xpp_io.h"
 #include <new>
 #include <string>
@@ -303,6 +304,31 @@ Result<> check_step_limits(const Session &s, const SolverInfo &info, double dt, 
   if(std::fabs(length)<min_step)
     return refuse(xpp::format("the run's length {} is shorter than integration.step.min",length),{"integration.step.min"});
   return {};
+}
+
+Result<std::int64_t> count_steps(const Session &s, const SolverInfo &info, double steps,
+                                 std::initializer_list<std::string_view> settings)
+{
+  if(std::isfinite(steps)&&std::fabs(steps)<MAX_RUN_STEPS)return static_cast<std::int64_t>(steps);
+  std::string named=named_settings(s,settings);
+  return fail(info.name,xpp::format("{}: the run takes {} steps, more than a step count holds ({:g})",info.name,steps,MAX_RUN_STEPS)+
+              (named.empty()?"":xpp::format(" ({})",named)),settings_place(s.model(),settings));
+}
+
+Result<std::int64_t> step_count(const Session &s, const SolverInfo &info, double dt, double length)
+{
+  /* a discrete map takes one step per unit of length; a flow takes length/|dt| and a tenth of a step more, so its last output
+     point is reached (integrate's rounding of the count to store_every groups comes after) */
+  const double steps=info.traits.discrete?length:(length+.1*std::fabs(dt))/std::fabs(dt);
+  return count_steps(s,info,steps,{"integration.total_time","integration.dt"});
+}
+
+Result<int> steps_per_advance(const Session &s, const SolverInfo &info, std::int64_t steps)
+{
+  if(steps<=std::numeric_limits<int>::max())return static_cast<int>(steps);
+  return fail(info.name,xpp::format("{}: the run takes {} steps in one advance, more than the method's loop counts ({})",
+                                    info.name,steps,std::numeric_limits<int>::max()),
+              settings_place(s.model(),{"integration.total_time","integration.dt"}));
 }
 
 Result<> check_store_from(const Session &s, double start, double dt, double length)

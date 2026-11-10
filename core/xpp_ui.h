@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <stdio.h>
 #include <span>
 #include <string>
@@ -179,7 +180,7 @@ int menu_choose(const struct XppMenu *m, int def);
 int pick_from_list(std::string_view id, std::string_view title, std::span<const std::string> names);
 int my_abort(void);
 int get_command_width(void);
-void plot_command(int nit, int icount, int cwidth);
+void plot_command(std::int64_t nit, std::int64_t icount, int cwidth);
 void FlushDisplay(void);
 void redraw_params(void);
 void redraw_ics(void);
@@ -245,7 +246,7 @@ typedef struct XppUi {
     /* long-running loops poll these */
     int (*check_abort)(void);
     int (*progress_begin)(void);                     /* returns bar width */
-    void (*progress)(int nit, int icount, int cwidth);
+    void (*progress)(std::int64_t nit, std::int64_t icount, int cwidth);
     void (*flush)(void);
 
     /* things changed, please redraw */
