@@ -31,6 +31,7 @@ import {initialKeymap, reduceKeymap, type KeymapAction, type KeymapState} from '
 import type {SteadyInput} from './steady';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 import {defaultPanels, type Panels} from './panels';
+import {initialAutoxScript, type AutoxScript} from './autoxScript';
 import {
   initialAutoxSettings, reduceAutoxSettings, type AutoxSettings, type AutoxSettingsAction, type AutoxSettingsState,
 } from './autoxSettings';
@@ -175,6 +176,8 @@ export interface AppState {
   diagram: DiagramState;
   /** autoX's Numerics, parameters, axes and Mark values (T22), see store/autoxSettings.ts */
   autoxSettings: AutoxSettingsState;
+  /** the open .autox script's runs (W684), see store/autoxScript.ts */
+  autoxScript: AutoxScript;
   /** the main numerics (the `numerics` event, W106), shown in the values panel */
   numerics: NumericsField[] | null;
   /** the array plot (T12): its latest event, color map and panel state, see store/aplot.ts */
@@ -280,6 +283,7 @@ export const initialState: AppState = {
   windows: [],
   diagram: initialDiagram,
   autoxSettings: initialAutoxSettings,
+  autoxScript: initialAutoxScript,
   numerics: null,
   aplot: initialAplot,
   ani: initialAni,
@@ -566,6 +570,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'joined', ev: ev as unknown as AutoxJoined})};
     case 'autox.settings':
       return {...state, autoxSettings: reduceAutoxSettings(state.autoxSettings, {type: 'event', ev: ev as unknown as AutoxSettings})};
+    case 'autox.script_runs':
+      return {...state, autoxScript: ev as unknown as AutoxScript};
     case 'run.numerics':
       return {...state, numerics: ev.fields};
     case 'job.progress':

@@ -3022,6 +3022,10 @@ def section_script():
             result = next(e for e in listed if e.get('ev') == 'done')['result']
             check('script %s: it lists its runs, none done: nothing computes on open' % name,
                   result['runs'] == [r['name'] for r in d['runs']] and result['completed'] == [] and result['model'] == os.path.basename(model), str(result))
+            held = [e for e in completed(s, dict(cmd='events.subscribe', events=['autox.script_runs'])) if e.get('ev') == 'autox.script_runs']
+            check('script %s: autox.script_runs lists the same runs, none done, the start of each (W684)' % name,
+                  held and held[-1]['open'] and [r['name'] for r in held[-1]['runs']] == result['runs'] and not any(r['done'] for r in held[-1]['runs']),
+                  str(held)[:300])
             if len(d['runs']) > 1:
                 last = d['runs'][-1]['name']
                 s.send(cmd='autox.run_script', run=last)
@@ -3033,6 +3037,9 @@ def section_script():
             evs, end = s.collect(is_done, timeout=300 * SLOW)
             check('script %s: Run all completes every run' % name, end is not None and end.get('status') == 'ok' and end['result']['runs_completed'] == len(d['runs']),
                   placed(end) if end else 'no done')
+            held = [e for e in evs if e.get('ev') == 'autox.script_runs']
+            check('script %s: the runs end with autox.script_runs listing every run done (W684)' % name,
+                  held and all(r['done'] for r in held[-1]['runs']) and [r['name'] for r in held[-1]['runs']] == [r['name'] for r in d['runs']], str(held)[-300:])
             baseline = (BASE / (name + '.diagram.csv')).read_bytes().replace(b'\r\n', b'\n')
             check('script %s: its diagram is the committed baseline, byte for byte (the runs as W299 describes them)' % name, session_diagram(s) == baseline)
             listed = completed(s, dict(cmd='autox.script'))

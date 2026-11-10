@@ -946,6 +946,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     autox_view_update(*s);
     session.windows.update(*s);
     autox_settings_update(*s);
+    autox_script_update(*s);
     numerics_settings_update(*s);
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
@@ -1053,6 +1054,7 @@ void install(bool silent)
     session.autoxinfo.init(data_emit);
     session.autoxsettings.init(data_emit);
     session.autoxview.init(data_emit);
+    session.autoxscript.init(data_emit);
     session.windows.init(data_emit);
     xpp::numerics_settings_init(data_emit);
     xpp::inbox::set_hooks(classify, busy);

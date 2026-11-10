@@ -767,6 +767,8 @@ export type XppEvent =
   | {ev: 'autox.joined'; [k: string]: unknown}
   /* autoX's settings (store/autoxSettings.ts AutoxSettings) */
   | {ev: 'autox.settings'; [k: string]: unknown}
+  /* the open .autox script's runs (store/autoxScript.ts AutoxScript) */
+  | {ev: 'autox.script_runs'; [k: string]: unknown}
   /** the main numerics (docs/protocol.md "The numerics as data") */
   | {ev: 'run.numerics'; fields: NumericsField[]};
 

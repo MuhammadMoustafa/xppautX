@@ -311,6 +311,7 @@ void apply_subscriptions(xpp::Session &s)
     autox_data_subscribe(on(xpp::events::AUTOX_INFO));
     autox_view_subscribe(on(xpp::events::AUTOX_INFO));
     autox_settings_subscribe(s, on(xpp::events::AUTOX_SETTINGS));
+    autox_script_subscribe(on(xpp::events::AUTOX_SCRIPT_RUNS));
     numerics_settings_subscribe(s, on(xpp::events::RUN_NUMERICS));
     session.windows.subscribe(on(xpp::events::WINDOW_LIST), s);
     if (on(xpp::events::RECORDING_PLAYER)) player_data();

@@ -282,9 +282,6 @@ Result<const AutoxScript *> need_script(const Session &s, const Command &command
     return &*s.autox_state.script.script;
 }
 
-/* the run i has run, and its points are still the diagram's */
-bool script_run_done(const AutoxScriptState &state, std::size_t i) { return i < state.points.size() && state.points[i].has_value(); }
-
 /* the open script's file and model, each run's name and which of them have run (the runs' points are in the diagram) */
 Result<std::string> script_runs(Session &s, const Command &command, const Arguments &, const Place &place)
 {
@@ -295,7 +292,7 @@ Result<std::string> script_runs(Session &s, const Command &command, const Argume
     for (std::size_t i = 0; i < (*script)->runs.size(); ++i) {
         json_append_string(runs, (*script)->runs[i].name);
         runs += ',';
-        if (script_run_done(state, i)) {
+        if (autox_script_run_done(state, i)) {
             json_append_string(completed, (*script)->runs[i].name);
             completed += ',';
         }
@@ -313,7 +310,7 @@ Result<std::pair<std::string, int>> script_start(const Session &s, const AutoxSc
     const AutoxScriptStart &from = *run.from;
     const std::size_t source = static_cast<std::size_t>(std::ranges::find(script.runs, from.run, &AutoxScriptRun::name) - script.runs.begin());
     const AutoxScriptState &state = s.autox_state.script;
-    if (!script_run_done(state, source))
+    if (!autox_script_run_done(state, source))
         return fail(command.name, xpp::format("run \"{}\" starts from run \"{}\", which has not run (or whose points a new diagram dropped): run it first", run.name, from.run), run.place);
     const AutoxScriptPoints &points = *state.points[source];
     const int number = autox_type_number(s, *autox_point_kind_from_name(from.type), points.first, points.last, from.index);
@@ -843,6 +840,9 @@ constexpr std::array RESULT_ORBITS_DRAWN = {ResultField{"orbits_drawn", "choice"
 
 constexpr std::array EVENTS_OPEN = {xpp::events::WINDOW_CREATED, xpp::events::WINDOW_SELECTED, xpp::events::WINDOW_DESTROYED, xpp::events::AUTOX_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_RUN = {xpp::events::AUTOX_JOBS, xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_INFO, xpp::events::AUTOX_SETTINGS, xpp::events::SESSION_STATE, xpp::events::DONE};
+/* a script's runs also send the list the autoX window's Script panel holds (W684) */
+constexpr std::array EVENTS_SCRIPT_RUN = {xpp::events::AUTOX_JOBS, xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_INFO, xpp::events::AUTOX_SETTINGS,
+                                          xpp::events::AUTOX_SCRIPT_RUNS, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_GRAB = {xpp::events::AUTOX_INFO, xpp::events::AUTOX_DIAGRAM, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_SETTINGS = {xpp::events::AUTOX_SETTINGS, xpp::events::SESSION_STATE, xpp::events::DONE};
 constexpr std::array EVENTS_DIAGRAM = {xpp::events::AUTOX_DIAGRAM, xpp::events::AUTOX_VIEW, xpp::events::SESSION_STATE, xpp::events::DONE};
@@ -857,7 +857,7 @@ const std::array ROWS = {
             RESULT_RUN, EVENTS_RUN, true, run_autox, RUN_GROUPS, {}, "read", "*", "", "Start run"},
     Command{"autox.run_script", RUN_SCRIPT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run all", "autoX/Script",
             "Run the runs of the open .autox script in order, or only the named one (its start from an earlier run's point needs that run done), each as the autox.run its entry says; nothing runs on opening a script.",
-            RESULT_SCRIPT_RUN, EVENTS_RUN, true, run_script},
+            RESULT_SCRIPT_RUN, EVENTS_SCRIPT_RUN, true, run_script},
     Command{"autox.script", {}, XPP_KIND_DATA, CommandCategory::Analysis, "List runs", "autoX/Script",
             "The open .autox script: its file, its model, its runs' names in order and which of them have run.",
             RESULT_SCRIPT, EVENTS_BROWSER, true, script_runs},

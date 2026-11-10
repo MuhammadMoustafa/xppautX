@@ -93,6 +93,8 @@ struct DeferredLine {
 };
 
 std::string autox_view_event_line(const xpp::Session &s);
+/* the `autoxscript` event: the open .autox script's runs, for a client that subscribed to autox.script_runs (W684) */
+std::string autox_script_event_line(const xpp::Session &s);
 /* the `windows` event: every open window with its kind and whether it is shown (window.list's
    result), sent again when it changed; for a client that asked for it with {"cmd":"data"} */
 std::string windows_event_line(const xpp::Session &s);
@@ -140,6 +142,7 @@ struct ProtocolSession {
     double autoxinfo_last = 0;
     xpp::ChangedEvent<xpp::Session> autoxsettings{xpp::autox_settings_event_line, "sending autoX's settings"};
     xpp::ChangedEvent<xpp::Session> autoxview{autox_view_event_line, "sending autoX's view"};
+    xpp::ChangedEvent<xpp::Session> autoxscript{autox_script_event_line, "sending autoX's script runs"};
     xpp::ChangedEvent<xpp::Session> windows{windows_event_line, "sending the windows"};
     std::vector<ClientDiagramView> client_diagram{1}; /* the lists the client holds, one per view */
     bool diagram_subscribed = true; /* diagrams are sent until a client explicitly opts out */
@@ -463,6 +466,8 @@ int diag_point_of_node(const xpp::Session &s, int node); /* the index in the dia
 /* the `autoxview` event (hidden branches and zoom), for a client that asked for autoxinfo */
 void autox_view_subscribe(int on);
 void autox_view_update(xpp::Session &s);
+void autox_script_subscribe(int on);
+void autox_script_update(xpp::Session &s);
 void auto_redraw_for_client(xpp::Session &s);
 void j_autox_make_window(xpp::Session &s, std::string_view wname, std::string_view iname);
 int j_autox_check_abort(int *iflag);

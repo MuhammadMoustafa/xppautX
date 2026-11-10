@@ -152,8 +152,16 @@
 .autox-status-text { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
 /* T26: the core's last message, as StatusBar.tsx's own .status-message */
 .autox-message { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.autox-output { border-top: 1px solid var(--border); padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
-.autox-output summary { cursor: pointer; min-height: var(--target); display: flex; align-items: center; }
+/* the script panel under the info strip (W684, ui/AutoxScript.tsx): each run in order with its start, Done and Run */
+.autox-script-runs { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); }
+.autox-script-run { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-height: var(--target); }
+.autox-script-number { color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.autox-script-name { flex: 0 1 9rem; min-width: 0; overflow-wrap: anywhere; }
+.autox-script-from { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
+.autox-script-state { color: var(--ok); font-weight: 600; }
+.autox-script-tools { margin-top: var(--space-1); }
+.autox-output, .autox-script { border-top: 1px solid var(--border); padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+.autox-output summary, .autox-script summary { cursor: pointer; min-height: var(--target); display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
 .autox-output-text {
   margin: 0;
   max-height: 12rem;

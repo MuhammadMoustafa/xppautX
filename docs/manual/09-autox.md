@@ -479,7 +479,7 @@ Each run is one Run: `kind` says what is computed (equilibrium, periodic, two_pa
 
 A script is read whole before anything is applied: a version, a run's kind, a setting's name or value, a parameter the model lacks, a start from a run that does not come before it, each is an error naming the file, the line and the value, and nothing loads.
 
-Open the script like a model (File > Open model, or `xppautX ab.autox`): the model it names loads and the runs are listed under autoX > Script > List runs; nothing is computed. autoX > Script > Run all runs them in order, or one run by its name (its start needs the run it names to be done). `xppautX ab.autox --silent` runs them all and writes the diagram as two CSV files (the points, and their eigenvalues). From Python, `tools/xppautx.py` opens a model or a script, sets values, integrates, runs autoX and returns the diagram and the data as arrays.
+Open the script like a model (File > Open model, or `xppautX ab.autox`): the model it names loads and the runs are listed under autoX > Script > List runs; nothing is computed. autoX > Script > Run all runs them in order, or one run by its name (its start needs the run it names to be done). The autoX window's **Script** panel lists the runs in the same order, each with what it starts from and a **Done** mark once it has run, and a **Run** on each row; a run whose start has not run waits. The panel is there while a script is open. `xppautX ab.autox --silent` runs them all and writes the diagram as two CSV files (the points, and their eigenvalues). From Python, `tools/xppautx.py` opens a model or a script, sets values, integrates, runs autoX and returns the diagram and the data as arrays.
 
 ### Equations that use t
 

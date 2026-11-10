@@ -14,6 +14,7 @@
 #include "autox_data.h"
 #include "autox_settings.h"
 #include "autox_run.h"
+#include "autox_script.h"
 #include "xpp_prefs.h"
 #include "json_number.h"
 #include <array>
@@ -85,6 +86,7 @@ void diag_forget(void)
     session.autoxinfo.want(session.autoxinfo.subscribed());
     session.autoxsettings.want(session.autoxsettings.subscribed());
     session.autoxview.want(session.autoxview.subscribed());
+    session.autoxscript.want(session.autoxscript.subscribed());
 }
 
 namespace {
@@ -446,6 +448,46 @@ void autox_view_update(xpp::Session &s)
         w.zoom_axes = axes;
     }
     session.autoxview.update(s);
+}
+
+void autox_script_subscribe(int on)
+{
+    session.autoxscript.want(on != 0);
+}
+
+std::string autox_script_event_line(const xpp::Session &s)
+{
+    const xpp::AutoxScriptState &state = s.autox_state.script;
+    std::string o = xpp::events::open(xpp::events::AUTOX_SCRIPT_RUNS);
+    if (!state.script) return o + ",\"open\":false}";
+    const xpp::AutoxScript &script = *state.script;
+    o += ",\"open\":true,\"file\":";
+    xpp::json_append_string(o, script.file);
+    o += ",\"model\":";
+    xpp::json_append_string(o, script.model);
+    o += ",\"runs\":[";
+    for (std::size_t i = 0; i < script.runs.size(); ++i) {
+        const xpp::AutoxScriptRun &run = script.runs[i];
+        if (i) o += ',';
+        o += "{\"name\":";
+        xpp::json_append_string(o, run.name);
+        o += ",\"from\":";
+        if (run.from) {
+            o += "{\"run\":";
+            xpp::json_append_string(o, run.from->run);
+            o += ",\"type\":";
+            xpp::json_append_string(o, run.from->type);
+            o += ",\"index\":" + std::to_string(run.from->index) + "}";
+        } else o += "null";
+        o += xpp::autox_script_run_done(state, i) ? ",\"done\":true}" : ",\"done\":false}";
+    }
+    o += "]}";
+    return o;
+}
+
+void autox_script_update(xpp::Session &s)
+{
+    session.autoxscript.update(s);
 }
 
 /* a reconnected client has a blank diagram, and no data: all of it again,

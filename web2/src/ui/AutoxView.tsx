@@ -75,6 +75,7 @@ import type {AppState} from '../store/state';
 import {AutoxAxisDialog, type AxisName} from './AutoxAxes';
 type AutoxSettingsDialogKind = 'numerics' | 'marks';
 import {AutoxInfo} from './AutoxInfo';
+import {AutoxScript} from './AutoxScript';
 import {AutoxOutput, AutoxStatus} from './AutoxStatus';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
@@ -600,6 +601,7 @@ function AutoxPanel({dark}: {dark: boolean}) {
         <Readout />
       </div>
       <AutoxInfo />
+      <AutoxScript />
       <AutoxOutput />
       {stored && (
         <p class="autox-stored-text muted">Stored point for File/sElect 2par pt: <ShownNumber value={stored.x} />, <ShownNumber value={stored.y} /></p>

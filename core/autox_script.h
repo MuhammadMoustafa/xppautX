@@ -71,6 +71,9 @@ struct AutoxScriptState {
     std::vector<std::optional<AutoxScriptPoints>> points;
 };
 
+/* run i has run, and its points are still the diagram's: what autox.script and autox.script_runs say alike */
+inline bool autox_script_run_done(const AutoxScriptState &state, std::size_t i) { return i < state.points.size() && state.points[i].has_value(); }
+
 struct Session; /* session.h */
 
 /* the text of a script file read whole: the script, or the error at the line and value that is wrong */

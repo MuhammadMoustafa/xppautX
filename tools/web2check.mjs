@@ -3425,6 +3425,80 @@ async function dockCheck() {
   await desktopMetrics();
 }
 
+/* W684: an open .autox script's runs are listed in the autoX window's Script panel, in order, each with what it starts from. A
+   run's Run computes it and marks it Done; a run whose start has not run waits (its Run off); Run all runs the rest; with no script
+   open there is no panel. The script is written beside a copy of examples/tstauto/ab.odex (the session's folder). */
+const AB_SCRIPT = `version: 4,
+model: "ab.odex",
+runs: [
+  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["p0"], settings: { step_size: 0.05, parameter_max: 1.5, follow_all_branches: false } },
+  { name: "back", kind: equilibrium, start: { run: "steady", type: hopf, index: 1 }, parameters: ["p0"], settings: { step_size: -0.05, parameter_min: 0, follow_all_branches: false } },
+]
+`;
+async function autoxScriptCheck(dir) {
+  await desktopMetrics();
+  await until('s.hello && !s.busy', 'hello');
+  check('W684: with no script open the store says so, and there is no Script panel', await S('!s.autoxScript.open') && !await exists('[data-script-run]'));
+  fs.writeFileSync(path.join(dir, 'ab_runs.autox'), AB_SCRIPT);
+  await openFile('ab_runs.autox');
+  await until("s.ask && s.ask.kind === 'choice'", 'save first?');
+  await answerAsk({key: 'd'});
+  await requireUntil(`!s.busy && s.autoxScript.open && s.autoxScript.runs.length === 2`, 'the script open');
+  check('W684: the script lists its runs in order, none done, the second from the first\'s hopf point',
+    await S(`JSON.stringify(s.autoxScript.runs.map(r => [r.name, r.done, r.from && r.from.run])) === '[["steady",false,null],["back",false,"steady"]]'`));
+  await openAutoxPanel();
+  await requireUntil(`document.querySelectorAll('[data-script-run]').length === 2`, 'the Script panel');
+  const row = name => `document.querySelector('[data-script-run="${name}"]')`;
+  check('W684: the panel lists the runs in order, each with its start in words',
+    await cdp.eval(`[...document.querySelectorAll('[data-script-run]')].map(r => r.dataset.scriptRun).join() === 'steady,back'
+      && ${row('steady')}.textContent.includes('starts from the current state') && ${row('back')}.textContent.includes('starts at hopf 1 of "steady"')`));
+  check('W684: a run whose start has not run waits: its Run is off, the others on',
+    await cdp.eval(`document.querySelector('[data-script-run-button="back"]').disabled && !document.querySelector('[data-script-run-button="steady"]').disabled`));
+  await cdp.eval(`document.querySelector('[data-script-run-button="steady"]').click()`);
+  check('W684: a run\'s Run computes it and marks it Done when the run has ended',
+    await until(`!s.busy && s.autoxScript.runs[0].done && !s.autoxScript.runs[1].done`, 'steady done'));
+  check('W684: the panel marks the run Done (in its text, not only its colour) and frees the run that waits',
+    await cdp.eval(`${row('steady')}.dataset.done === 'true' && ${row('steady')}.textContent.includes('Done') && ${row('back')}.dataset.done === 'false'
+      && !document.querySelector('[data-script-run-button="back"]').disabled`));
+  /* the first run starts from the current state, so Run all begins where the model's p0 = 0 starts (the first run moved it) */
+  await cdp.eval(`__xpp.send({cmd: 'value.set_parameters', values: {p0: 0}}), document.querySelector('[data-script-run-all]').click()`);
+  check('W684: Run all runs the rest, and every row is Done',
+    await until(`!s.busy && s.autoxScript.runs.every(r => r.done)`, 'all done')
+    && await cdp.eval(`[...document.querySelectorAll('[data-script-run]')].every(r => r.dataset.done === 'true')`));
+}
+
+/* The script panel's pictures for the UI review (W684; with --only shots and XPP_SHOTS=folder): the panel with the script's runs
+   none done, then with the first run done, at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
+async function autoxScriptShots(dir) {
+  const out = process.env.XPP_SHOTS;
+  if (!out) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(out, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  fs.writeFileSync(path.join(dir, 'ab_runs.autox'), AB_SCRIPT);
+  await openFile('ab_runs.autox');
+  await until("s.ask && s.ask.kind === 'choice'", 'save first?');
+  await answerAsk({key: 'd'});
+  await requireUntil(`!s.busy && s.autoxScript.open`, 'the script open');
+  await openAutoxPanel();
+  await requireUntil(`document.querySelectorAll('[data-script-run]').length === 2`, 'the Script panel');
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
+  const frames = async (prefix) => {
+    for (const [size, width, height, scheme] of sizes) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await rendered();
+      await cdp.eval(`document.querySelector('.autox-script').scrollIntoView({block: 'center'})`);
+      await rendered();
+      fs.writeFileSync(path.join(out, `${prefix}-${size}.png`), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+    }
+  };
+  await frames('autox-script');
+  await cdp.eval(`document.querySelector('[data-script-run-button="steady"]').click()`);
+  await requireUntil(`!s.busy && s.autoxScript.runs[0].done`, 'steady done');
+  await frames('autox-script-done');
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
 /* W685: a view is renamed on its tab. A double click, the tab's context menu's Rename and F2 on the focused tab edit its name in
    place; Enter applies it through window.rename (the core's window list holds the new name, and the focus is back on the tab);
    Escape, and leaving the field, cancel (the core keeps the name); the window row has no name button any more. Dock tabs have none. */
@@ -6986,12 +7060,14 @@ async function main() {
     if (run('fieldhelp')) await session(ODE, fieldHelp);
     if (run('dock')) await session(ODE, dockCheck);
     if (run('viewtabs')) await session(ODE, viewTabsCheck);
+    if (run('autox')) await session(AB_ODE, autoxScriptCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, fieldHelpShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, menuShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, dockShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, renameShots);
+    if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);
