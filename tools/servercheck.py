@@ -2390,6 +2390,8 @@ def check_kinescope_animation_array_plot():
         check('W527: kinescope.export_frames asks the pictures and writes the GIFs, numbered from 0',
               result == {'file': 'w527_kin.gif', 'frames_saved': 2} and exists('w527_kin_0000.gif', 'w527_kin_0001.gif')
               and not exists('w527_kin.gif') and head('w527_kin_0000.gif', 6) [:4] == b'GIF8', str(result))
+        req({'cmd': 'kinescope.export_frames', 'file': 'w673_kin'}, False)
+        check('W673: frames named without the format\'s extension are refused, and none is written', not exists('w673_kin_0000') and not exists('w673_kin_0000.gif'))
         os.mkdir(os.path.join(run_dir, 'atomic_0001.gif'))
         req({'cmd': 'kinescope.export_frames', 'file': 'atomic.gif'}, False)
         check('W534: refusing the last frame file writes no earlier frame', not exists('atomic_0000.gif'))

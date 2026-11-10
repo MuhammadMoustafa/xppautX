@@ -5,6 +5,7 @@
 #include "image_format.h"
 #include "kinescope.h"
 #include "session.h"
+#include "xpp_files.h"
 #include "xpp_ui.h"
 #include <array>
 #include <limits>
@@ -50,6 +51,8 @@ Result<std::string> export_frames(Session &s, const Command &command, const Argu
 {
     if (const Result<> ready = need_frames(s, command, place); !ready) return std::unexpected<Error>(ready.error());
     const std::string &file = args.get<std::string>("file");
+    /* the frames are named from the file, its extension last (W673): it must be the format's */
+    if (!files::has_extension(file, ".gif")) return fail(command.name, xpp::format("{}: the kinescope's frames are GIF files, so the file ends in .gif", file), place);
     const Result<int> saved = ui.movie_save(s, file, IMAGE_FORMAT_GIF);
     if (!saved) return std::unexpected<Error>(saved.error());
     return ResultObject().text("file", file).integer("frames_saved", *saved).done();

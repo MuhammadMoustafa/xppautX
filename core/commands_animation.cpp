@@ -5,6 +5,7 @@
 #include "aniparse.h"
 #include "command_def.h"
 #include "session.h"
+#include "xpp_files.h"
 #include "xpp_ui.h"
 #include <array>
 #include <limits>
@@ -56,7 +57,11 @@ Result<std::string> export_frames(Session &s, const Command &command, const Argu
 {
     const bool ppm = args.optional<bool>("ppm").value_or(false), gif = args.optional<bool>("animated_gif").value_or(false);
     if (ppm == gif) return fail(command.name, "Choose PPM frames or an animated GIF: exactly one of ppm and animated_gif is true", place);
-    const Result<int> written = play_animation(s, {gif ? AniExportKind::gif : AniExportKind::ppm, args.get<std::string>("file")});
+    const std::string &file = args.get<std::string>("file");
+    /* the file is named as written, a frame's number before its extension (W673): it must be the format's */
+    if (const std::string_view ext = gif ? ".gif" : ".ppm"; !files::has_extension(file, ext))
+        return fail(command.name, xpp::format("{}: {} end in {}", file, gif ? "an animated GIF's file must" : "PPM frames' files must", ext), place);
+    const Result<int> written = play_animation(s, {gif ? AniExportKind::gif : AniExportKind::ppm, file});
     if (!written) return std::unexpected<Error>(written.error());
     return ResultObject().integer("frames_saved", *written).done();
 }
