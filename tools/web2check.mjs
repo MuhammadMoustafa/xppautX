@@ -6596,7 +6596,9 @@ async function main() {
       /* about:blank has no app yet: this is protocol setup before the first navigation. */
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
-    const run = name => !opt.only || opt.only.split(',').includes(name);
+    /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
+    const asked = new Set(['shots']);
+    const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
       /* before values(): its edits and slider change the values, and a
@@ -6688,6 +6690,8 @@ async function main() {
           await S(`!document.querySelector('.error-dialog') && !s.loadError`));
       });
     }
+    const unknown = (opt.only ? opt.only.split(',') : []).filter(name => !asked.has(name));
+    check('--only names sections that exist', !unknown.length, `no section ${unknown.join(', ')}; the sections are ${[...asked].join(', ')}`);
   } finally {
     b?.proc.kill();
     if (b) await b.waitForExit();
