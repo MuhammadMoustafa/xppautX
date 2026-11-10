@@ -208,7 +208,7 @@ struct QueuedJob {
   int id=0; /* what its live points and the autox.jobs event call it: its place among the jobs made, from 1 */
   AutoxJobStart start; /* what it continues: the problem, the direction and, for a found start, the point */
   QueuedJob *parent=nullptr; /* the job that found its start */
-  QueuedJob *twin=nullptr; /* the job of the other direction from the same start, which comes before it */
+  QueuedJob *twin=nullptr; /* a root's: the root of the other direction, which comes before it (a found start's other direction is autox_start_reversed's) */
   QueuedJob *hopf_before=nullptr; /* the Hopf point before its own on the branch that found both (the pair rule) */
   std::unique_ptr<AutoxRun> run=std::make_unique<AutoxRun>();
   std::optional<Error> failed;
@@ -222,6 +222,7 @@ struct QueuedJob {
   bool skipped=false; /* never run: its direction leaves the parameter window at the start, or an earlier job made it */
   bool started=false,done=false,expanded=false;
   bool left_out=false; /* the join dropped it: it repeats an earlier job's */
+  std::optional<bool> kept; /* once it and every job before it are settled (settled): whether it is one the join keeps (repeats) */
   bool announced=false; /* once done: its early end, if it had one, was shown */
   xpp::job::BranchJob ended; /* once the jobs ended: how it did (ended_as) */
   bool ended_early=false; /* once the jobs ended: it ended with an error of its own (early_end), which the others did not share */
@@ -270,18 +271,41 @@ const xpp::job::BranchJob *planned(const Queue &q, const AutoxJobKey &key)
   return at==q.plan_of.end()?nullptr:at->second;
 }
 
-/* whether a job with this key and start is already made by one before it (autox_queue.h): its twin's loop closed, or
-   another's start or end made the start. The mutex is held when the jobs are running. */
-bool repeats(const std::deque<QueuedJob> &jobs, const AutoxJobKey &key, const AutoxJobStart &start, const QueuedJob *twin, double epss)
+/* a job whose fate is final: it ended (or never started) and what it found is queued, so a job after it in the join's order
+   does not wait on it. The mutex is held. */
+bool settled(const QueuedJob &job) { return job.never||(job.done&&job.expanded); }
+
+/* whether one of the jobs the join keeps (in their order) already made a job's start: its twin's loop closed, or a loop closed
+   at the point the job starts from in the other direction, or the start or an end of one made it (autox_queue.h) */
+bool made_by(const std::vector<const QueuedJob *> &kept, const AutoxJobStart &start, const QueuedJob *twin, double epss)
 {
-  if(twin&&twin->closed&&!unmade(*twin))return true;
-  for(const QueuedJob &other:jobs){
-    if(!autox_job_before(other.key,key)||unmade(other))continue;
-    if(autox_start_made(other.start,start,epss))return true;
-    for(const AutoxJobStart &claim:other.made)
+  for(const QueuedJob *other:kept){
+    if(other->closed&&(other==twin||autox_start_reversed(other->start,start,epss)))return true;
+    if(autox_start_made(other->start,start,epss))return true;
+    for(const AutoxJobStart &claim:other->made)
       if(autox_start_made(claim,start,epss))return true;
   }
   return false;
+}
+
+/* whether a job with this key and start is already made by a job the join keeps before it (autox_queue.h). The join's rule is
+   a function of the jobs before a job, so a job before the first one not yet settled counts and a later one does not: what it
+   would make is not known, and a job another has dropped makes nothing. The answer is the same whatever the order the jobs
+   finish in (a job that says no may still be dropped at the join, once the jobs before it are settled; one that says yes is
+   dropped by it). The mutex is held when the jobs are running. */
+bool repeats(std::deque<QueuedJob> &jobs, const AutoxJobKey &key, const AutoxJobStart &start, const QueuedJob *twin, double epss)
+{
+  std::vector<QueuedJob *> before;
+  for(QueuedJob &other:jobs)
+    if(autox_job_before(other.key,key))before.push_back(&other);
+  std::sort(before.begin(),before.end(),[](const QueuedJob *a,const QueuedJob *b){return autox_job_before(a->key,b->key);});
+  std::vector<const QueuedJob *> kept;
+  for(QueuedJob *other:before){
+    if(!settled(*other))break;
+    if(!other->kept)other->kept=!unmade(*other)&&(!other->parent||other->parent->kept.value_or(false))&&!made_by(kept,other->start,other->twin,epss);
+    if(*other->kept)kept.push_back(other);
+  }
+  return made_by(kept,start,twin,epss);
 }
 
 /* a direction that leaves the parameter window at the start is not run (it says so, once, in the job's own output) */
@@ -527,10 +551,9 @@ void begin(Queue &q, QueuedJob &job, std::vector<std::thread> &threads)
   }
 }
 
-/* a job that ended: the jobs its points and end start (autox_found_starts), those not already made by the jobs before them */
-void expand(Queue &q, QueuedJob &job)
+/* the jobs a job that ended starts (autox_found_starts), those not already made by the jobs before them */
+void make_found_jobs(Queue &q, QueuedJob &job)
 {
-  job.expanded=true;
   /* a run over (stopped, or fatal: a point at the diagram's limit sets it before its job can end) makes no more jobs, so the
      jobs made never exceed autox_recorded_jobs_limit, whatever the threads stored after it */
   if(xpp::job::cancelled()||q.fatal||job.run->dropped)return;
@@ -542,13 +565,10 @@ void expand(Queue &q, QueuedJob &job)
     const xpp::job::BranchJob *entry=q.plan.empty()?nullptr:planned(q,key);
     if(!q.plan.empty()&&!entry)continue; /* the recorded run never made it */
     const std::lock_guard lock(q.mutex);
-    QueuedJob *twin=negative?&q.jobs.back():nullptr; /* the +DS run of the same point, just made, when it was */
-    if(twin&&(twin->parent!=&job||twin->start.point!=start.point))twin=nullptr;
-    if(repeats(q.jobs,key,start,twin,q.epss))continue;
+    if(repeats(q.jobs,key,start,nullptr,q.epss))continue;
     QueuedJob &child=make_job(q);
     child.key=key;
     child.parent=&job;
-    child.twin=twin;
     const double parameter=start.id->parameters[0];
     child.start=std::move(start);
     child.run->params.ds=child.start.sign.value_or(1)*q.ds;
@@ -562,6 +582,14 @@ void expand(Queue &q, QueuedJob &job)
       child.done=child.expanded=true;
     }
   }
+}
+
+/* a job that ended: its jobs are made, and the jobs after it in the join's order no longer wait on it (settled) */
+void expand(Queue &q, QueuedJob &job)
+{
+  make_found_jobs(q,job);
+  const std::lock_guard lock(q.mutex);
+  job.expanded=true;
 }
 
 /* the queued job with the least key, none once the run was stopped */

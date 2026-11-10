@@ -105,15 +105,19 @@ int main()
     const auto from_branch = xpp::autox_found_starts(AutoxProblem::SteadyState, branch, nothing);
     const xpp::AutoxJobStart &bp_plus = from_branch[0], &bp_minus = from_branch[1], &hopf_cycles = from_branch[2];
     CHECK(xpp::autox_start_made(bp_plus, bp_plus, epss) && !xpp::autox_start_made(bp_plus, bp_minus, epss));
+    /* the other way round: the same point in the opposite direction, both directions given */
+    CHECK(xpp::autox_start_reversed(bp_plus, bp_minus, epss) && xpp::autox_start_reversed(bp_minus, bp_plus, epss));
+    CHECK(!xpp::autox_start_reversed(bp_plus, bp_plus, epss));
     xpp::AutoxJobStart either = bp_plus;
     either.sign.reset();
     CHECK(xpp::autox_start_made(either, bp_minus, epss) && xpp::autox_start_made(bp_minus, either, epss));
+    CHECK(!xpp::autox_start_reversed(either, bp_minus, epss) && !xpp::autox_start_reversed(bp_minus, either, epss)); /* no direction, no reverse */
     xpp::AutoxJobStart other_switch = bp_plus;
     other_switch.isw = 1;
     CHECK(!xpp::autox_start_made(other_switch, bp_plus, epss)); /* the run through a point is not the branch switched at it */
     xpp::AutoxJobStart elsewhere = bp_plus;
     elsewhere.id->parameters = {1.0 + 1e-2};
-    CHECK(!xpp::autox_start_made(elsewhere, bp_plus, epss));
+    CHECK(!xpp::autox_start_made(elsewhere, bp_plus, epss) && !xpp::autox_start_reversed(elsewhere, bp_minus, epss));
     xpp::AutoxJobStart root; /* a root has no point: nothing makes it, it makes nothing */
     CHECK(!xpp::autox_start_made(root, bp_plus, epss) && !xpp::autox_start_made(bp_plus, root, epss));
     /* the Hopf point found on an equilibrium branch has made the equilibria through its end at it, which a cycle branch that

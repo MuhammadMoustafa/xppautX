@@ -426,7 +426,9 @@ a Hopf point or a fold found on a branch has made the equilibria through it. Two
 whose cycles grow towards each other (the two ends of one family, as Hodgkin and Huxley's equations have) are held: the
 later job waits until the earlier has ended, and goes on only if the earlier did not make it. A direction of a branch
 that closes on itself (an isola of equilibria, a closed family of cycles) ends where it started, and the other direction
-from the same start, which would go round it again, is not started.
+from the same start (or from the same point, reached along another branch), which would go round it again, is not
+started. Which jobs run never changes the diagram: a job counts for the later ones only once every job before it has
+ended and found its jobs, so the diagram is the same at every thread count.
 
 The jobs are joined in the order a queue served one after another would run them: the two directions of the start (+
 first), then the jobs the first found, in the order of their points (a point's +`step_size` before its -`step_size`),

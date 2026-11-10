@@ -53,6 +53,12 @@ void equilibria_through(std::vector<AutoxJobStart> &found, const DIAGRAM &p, std
     }
 }
 
+/* the same problem, branch switch and point, whatever the direction */
+bool same_start(const AutoxJobStart &a, const AutoxJobStart &b, double epss)
+{
+    return a.id && b.id && a.ips == b.ips && a.isw == b.isw && autox_same_point(*a.id, *b.id, epss);
+}
+
 } // namespace
 
 std::vector<AutoxJobStart> autox_found_starts(AutoxProblem ips, std::span<const AutoxBufferedPoint> points, const AutoxStop &stop)
@@ -100,9 +106,12 @@ std::vector<AutoxJobStart> autox_end_claims(AutoxProblem ips, std::span<const Au
 
 bool autox_start_made(const AutoxJobStart &made, const AutoxJobStart &wanted, double epss)
 {
-    if (!made.id || !wanted.id) return false;
-    return made.ips == wanted.ips && made.isw == wanted.isw && (!made.sign || !wanted.sign || *made.sign == *wanted.sign) &&
-           autox_same_point(*made.id, *wanted.id, epss);
+    return same_start(made, wanted, epss) && (!made.sign || !wanted.sign || *made.sign == *wanted.sign);
+}
+
+bool autox_start_reversed(const AutoxJobStart &made, const AutoxJobStart &wanted, double epss)
+{
+    return made.sign && wanted.sign && *made.sign != *wanted.sign && same_start(made, wanted, epss);
 }
 
 } // namespace xpp

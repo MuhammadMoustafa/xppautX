@@ -17,8 +17,10 @@
    A start is taken when a job earlier in that order already made it: its own start (the same problem, direction
    and point by the same-point rule of autox_ends.h) or what it ended with (a cycle branch that ended at a Hopf point
    has made that Hopf point's cycles, an equilibrium branch through a Hopf point or a fold has made the equilibria
-   through it). Only earlier jobs count, so the jobs the join keeps never depend on which ran first; what runs
-   in vain is dropped at the join by the same rule.
+   through it, and a loop that closed at the point, in the other direction, has made it too). Only the earlier jobs the join
+   keeps count, and one counts only once every job before it has ended and made its jobs (autox_jobs.cpp's repeats), so the
+   jobs the join keeps never depend on which ran first, nor on how many threads ran them; what runs in vain is dropped at
+   the join by the same rule.
 
    autox_queue.cpp. */
 
@@ -70,5 +72,10 @@ std::vector<AutoxJobStart> autox_end_claims(AutoxProblem ips, std::span<const Au
 /* whether `made` is the start `wanted` is: the same problem and branch switch, a direction that is the same or either's
    none, and the same point by the rule of autox_ends.h at special_point_tolerance epss */
 bool autox_start_made(const AutoxJobStart &made, const AutoxJobStart &wanted, double epss);
+
+/* whether `wanted` runs the branch of `made` the other way round: the same problem, branch switch and point (as
+   autox_start_made) in the opposite direction, both directions given. When made's branch closed on itself, wanted's
+   is the same loop, so it is made too (a point that two branches found, each from its own, is one point) */
+bool autox_start_reversed(const AutoxJobStart &made, const AutoxJobStart &wanted, double epss);
 
 } // namespace xpp
