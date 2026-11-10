@@ -23,7 +23,7 @@ import {
 } from './store/files';
 import {createStore, type Store} from './store/store';
 import {initialState, LEAVE_ASK, noDone, reduce, type Action, type AppState, type ValuesFileOffer, type ValuesPart} from './store/state';
-import {checkUpdates} from './help/updates';
+import {checkUpdates, newerThanRunning, RELEASE_PREFIX, type UpdateResult} from './help/updates';
 import {closeDesktopWindow} from './desktop';
 import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
@@ -214,6 +214,8 @@ export class Session {
       this.send({cmd: 'events.subscribe', events: ev.features, encoding: 'f32'});
       /* W622: the opening's check for a newer release, when the core says one is due (preference on, none today) */
       this.send({cmd: 'update.due'});
+      /* and an installer's file an earlier download kept (Later) is offered again until it is installed */
+      this.send({cmd: 'update.pending'});
     } else if (ev.ev === 'kinescope.film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {
@@ -268,6 +270,7 @@ export class Session {
       }
       /* `update.due` answered: when it is due the check runs; a newer release is a quiet notice, a failure only a log line */
       if (ev.status === 'ok' && ev.result?.due === true) void this.automaticUpdateCheck();
+      this.updateAnswered(ev);
       /* `options.get` answered: the group's values for every editor of its rows; a group's settings applied: its values again, as the core holds them */
       if (ev.status === 'ok' && typeof ev.result?.group === 'string') {
         if (ev.result.values) this.store.dispatch({type: 'optionValues', group: ev.result.group, values: {values: ev.result.values as Record<string, string>,
@@ -375,11 +378,52 @@ export class Session {
 
   /** the opening's check (W622): never a dialog; an answer that fails is told to the core's log at INFO and shown nowhere */
   private async automaticUpdateCheck(): Promise<void> {
-    try {
-      const found = await checkUpdates(this.store.getState().hello?.about ?? []);
-      if (found.version) this.store.dispatch({type: 'updateNotice', text: `xppautX ${found.version} is available`});
-    } catch (e) {
+    try { this.offerUpdate(await this.checkForUpdate()); }
+    catch (e) {
       this.send({cmd: 'update.report_failure', reason: e instanceof Error ? e.message : String(e)});
+    }
+  }
+
+  /** asks GitHub's release list for a newer release than this program, taking the file that fits how it was installed */
+  checkForUpdate(signal?: AbortSignal): Promise<UpdateResult> {
+    const {hello} = this.store.getState();
+    return checkUpdates(hello?.about ?? [], hello?.update.asset_suffix ?? '', signal);
+  }
+
+  /** a newer release was found: it becomes the offer, unless one already is further along (downloading, or ready) */
+  offerUpdate(found: UpdateResult): void {
+    const now = this.store.getState().update;
+    if (!found.version || !found.url || (now && now.stage !== 'available')) return;
+    this.store.dispatch({type: 'update', offer: {version: found.version, url: found.url, asset: found.asset ?? null, stage: 'available'}});
+  }
+
+  /** Update: the offered file is downloaded and prepared in the core (`update.download`, docs/protocol.md); its done moves the offer on */
+  downloadUpdate(): void {
+    const offer = this.store.getState().update;
+    if (!offer?.asset || offer.stage !== 'available') return;
+    this.store.dispatch({type: 'updateStage', stage: 'downloading'});
+    this.send({cmd: 'update.download', ...offer.asset, version: offer.version});
+  }
+
+  /** Restart now, or Install and restart: the core asks the leave question Quit asks, then starts the new program or the installer and quits */
+  switchUpdate(): void {
+    const offer = this.store.getState().update;
+    if (offer?.stage === 'restart') this.send({cmd: 'update.restart'});
+    else if (offer?.stage === 'install') this.send({cmd: 'update.install'});
+  }
+
+  /** the answers of `update.download` and `update.pending` (a stop or an error puts the offer back; the error itself is shown once, by the page's error dialog) */
+  private updateAnswered(ev: Extract<XppEvent, {ev: 'done'}>): void {
+    const offer = this.store.getState().update;
+    if (offer?.stage === 'downloading') {
+      if (ev.status === 'ok' && (ev.result?.ready === 'restart' || ev.result?.ready === 'install'))
+        this.store.dispatch({type: 'updateStage', stage: ev.result.ready});
+      else this.store.dispatch({type: 'updateStage', stage: 'available'});
+    } else if (ev.status === 'ok' && ev.result?.pending === true && typeof ev.result.version === 'string') {
+      const version = ev.result.version;
+      if (newerThanRunning(this.store.getState().hello?.about ?? [], version))
+        this.store.dispatch({type: 'update', offer: {version, url: `${RELEASE_PREFIX}tag/v${version}`, asset: null, stage: 'install'}});
+      else this.send({cmd: 'update.discard'});
     }
   }
 

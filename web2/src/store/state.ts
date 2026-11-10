@@ -3,6 +3,7 @@
    viewports, the tab shown, hover, notifications, the menu drawer) as their
    own actions. Pure: no DOM, no I/O, no clock. */
 import {withDock} from './dock';
+import type {UpdateOffer} from '../help/updates';
 import {setPointTypes} from './pointTypes';
 import {setFileFormats} from './fieldKinds';
 import {computationName} from '../protocol/kinds';
@@ -120,8 +121,9 @@ export interface AppState {
   box: string;
   progress: {n: number; of: number} | null;
   bottom: string;
-  /** the newer release the opening's check found (W622), shown as a quiet notice in the status bar; null until one is found */
-  updateNotice: string | null;
+  /** the newer release the opening's check found (W622) and how far it has got: a quiet notice in the status bar, the update dialog's body;
+      null until one is found */
+  update: UpdateOffer | null;
   bottomHelp: {chapter: string; anchor: string} | null;
   title: string;
   /** the plot windows, each with its series and zoom, and the active one (store/plots.ts) */
@@ -231,7 +233,8 @@ export type Action =
   | {type: 'keymapUi'; action: KeymapAction}
   /** the page's own line in the status bar (a key that cannot act now says why) */
   | {type: 'bottom'; text: string}
-  | {type: 'updateNotice'; text: string | null}
+  | {type: 'update'; offer: UpdateOffer | null}
+  | {type: 'updateStage'; stage: UpdateOffer['stage']}
   | {type: 'theme'; theme: Theme}
   | {type: 'panels'; panels: Partial<Panels>}
   | {type: 'values'; action: ValuesAction}
@@ -265,7 +268,7 @@ export const initialState: AppState = {
   box: '',
   progress: null,
   bottom: '',
-  updateNotice: null,
+  update: null,
   bottomHelp: null,
   title: '',
   plots: initialPlots,
@@ -692,8 +695,10 @@ function reduceAction(state: AppState, action: Action): AppState {
       return {...state, toasts: state.toasts.filter(t => t.id !== action.id)};
     case 'bottom':
       return {...state, bottom: action.text, bottomHelp: null};
-    case 'updateNotice':
-      return {...state, updateNotice: action.text};
+    case 'update':
+      return {...state, update: action.offer};
+    case 'updateStage':
+      return state.update ? {...state, update: {...state.update, stage: action.stage}} : state;
     case 'steadyEdit':
       return {...state, steadyEdit: action.edit};
     case 'keymapUi': {

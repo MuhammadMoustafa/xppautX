@@ -517,9 +517,21 @@ that fails shows nothing and is told in the log at INFO. `--silent` and `--serve
 
 Help > Check for updates (in the window's Help menu or the page's Help view)
 asks GitHub for the latest xppautX release whenever you choose it. A newer release shows its version and
-**Open the release page** / **Close**. The release page opens in your system
-browser (a new tab in browser mode), where you choose whether to download.
-xppautX downloads and installs nothing. A current or newer installed version
+**Update** (or **Open the release page** where xppautX cannot install it, with the reason) and **Close**. The release page
+opens in your system browser (a new tab in browser mode). Nothing downloads by itself: **Update** downloads the file that
+fits how xppautX was installed, with the status bar's progress and **Stop**, checks it against the size and sha256 digest of
+GitHub's release list, and then:
+
+- a portable copy (the Linux .tar.gz, the Windows .zip, in a folder xppautX can write) has its program swapped in from the
+  archive; the notice becomes "Restart to use version X" with **Restart now** and **Later** (Later: the next start runs it);
+- an .msi (Windows) or a .deb (Linux) is kept beside the preferences and offered as "Install X and restart" with **Install and
+  restart** and **Later**; it is checked again before it is offered at the next start and before the installer starts. The
+  installer asks for permission itself (Windows' installer, the system's software installer); xppautX never uses sudo and
+  quits so the program can be replaced;
+- a build from a source checkout, macOS and a folder xppautX cannot write only open the release page, saying why.
+
+Restart now and Install and restart ask the question Quit asks (save the session first, don't save, cancel); stop a running
+computation first. After a restart xppautX reopens the session saved or the model it had open. A current or newer installed version
 says “xppautX X.Y.Z is the latest”; an unavailable network, invalid answer
 or unversioned development build shows why the check failed. A pre-release build (a beta) is told of the
 highest newer version including pre-releases, by SemVer precedence (a beta

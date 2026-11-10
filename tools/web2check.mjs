@@ -6431,6 +6431,48 @@ async function openingCheck() {
   await cdp.eval(`sessionStorage.removeItem('__updateAnswer'); true`);
 }
 
+/* The update dialog's pictures for the UI review (W622; with --only updates and XPP_SHOTS=folder): each state of an update, light and dark at 1280, 768 and 390 wide.
+   Never a check: it writes files only. The stages after Update (downloading, restart, install) are set in the page's state, the core's side of them being the
+   unit tests' and servercheck's. */
+async function updateShots(run, close, release, installKind) {
+  const dir = process.env.XPP_SHOTS;
+  fs.mkdirSync(dir, {recursive: true});
+  const sizes = [['1280', 1280, 860], ['768', 768, 1024], ['390', 390, 844]];
+  const take = async name => {
+    for (const [size, width, height] of sizes) for (const scheme of ['light', 'dark']) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await rendered();
+      const shot = await cdp.send('Page.captureScreenshot', {format: 'png'});
+      fs.writeFileSync(path.join(dir, `update-${name}-${size}-${scheme}.png`), Buffer.from(shot.data, 'base64'));
+    }
+  };
+  const stage = (stage, progress) => cdp.eval(`__xpp.state().update = {version: '999.0.0', url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0', asset: null, stage: ${JSON.stringify(stage)}, error: null};
+    __xpp.state().progress = ${JSON.stringify(progress ?? null)}; window.__xppCheckUpdates(); true`);
+  const was = await S('s.hello.update');
+  await cdp.eval(`__xpp.state().hello.update = ${JSON.stringify(installKind)}; true`);
+  await run(release, '999.0.0 is available');
+  await take('release-page');
+  await close();
+  await cdp.eval(`__xpp.state().hello.update = {install: 'portable', asset_suffix: '-linux-x64.tar.gz', why: ''}; true`);
+  await run(release, '999.0.0 is available');
+  await take('available');
+  await cdp.eval(`document.querySelector('[data-update-download]').click(); true`);
+  await until(`document.querySelector('[data-error-dialog]') !== null`, 'the refusal');
+  await take('refused');
+  await cdp.eval(`document.querySelector('[data-error-dialog] [data-dialog-action]').click(); true`);
+  await close();
+  for (const [name, st, progress] of [['downloading', 'downloading', {n: 4200000, of: 12000000}], ['restart', 'restart'], ['install', 'install']]) {
+    await stage(st, progress);
+    await until(`document.querySelector('[data-update-dialog]')?.textContent.includes('999.0.0')`, name);
+    await take(name);
+    await close();
+    await take(name + '-notice');
+  }
+  await cdp.eval(`__xpp.state().hello.update = ${JSON.stringify(was)}; __xpp.state().update = null; __xpp.state().progress = null; true`);
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
 async function updatesCheck() {
   check('updates: no startup request while the preference is off', await cdp.eval('window.__updateRequests === 0'));
   if (opt.webview2) {
@@ -6508,6 +6550,38 @@ async function updatesCheck() {
   }
   await close();
   await run(release('v0.0.0'), 'is the latest'); await close();
+  /* W622: the dialog's Update follows how xppautX was installed (hello.update) and what the release list holds for it */
+  const digest = 'sha256:' + '0'.repeat(64);
+  const files = ['-linux-x64.tar.gz', '-linux-x64.deb', '-windows-x64.zip', '-windows-x64.msi'].map(end => ({
+    name: `xppautX-v999.0.0${end}`, browser_download_url: `https://github.com/MuhammadMoustafa/xppautX/releases/download/v999.0.0/xppautX-v999.0.0${end}`, size: 1000, digest}));
+  const withFiles = {...release('v999.0.0'), assets: files};
+  const installKind = await S('s.hello.update');
+  const sourceBuild = installKind.install === 'release_page';
+  if (sourceBuild) {
+    check('updates: a build from a source checkout says why it is updated from the release page', installKind.why.includes('source checkout') && installKind.asset_suffix === '');
+    await run(withFiles, '999.0.0 is available');
+    check('updates: with no install for this build the dialog offers the release page and the reason, never Update',
+      await cdp.eval(`!document.querySelector('[data-update-download]') && document.querySelector('[data-update-why]')?.textContent.includes('source checkout')
+        && document.querySelector('[data-update-dialog] [data-dialog-action]').textContent.includes('Open the release page')`));
+    await close();
+    /* the page told it is a portable copy: Update is offered with the file that fits, and the core, which tells it by its own rule, refuses a download here */
+    await cdp.eval(`__xpp.state().hello.update = {install: 'portable', asset_suffix: '-linux-x64.tar.gz', why: ''}; true`);
+    await run(withFiles, '999.0.0 is available');
+    check('updates: a release file fits the install: Update, the release page beside it',
+      await cdp.eval(`document.querySelector('[data-update-download]')?.textContent === 'Update' && [...document.querySelectorAll('[data-update-dialog] button')].some(b => b.textContent === 'Open the release page')`));
+    await cdp.eval(`document.querySelector('[data-update-download]').click(); true`);
+    check('updates: the core refuses a download its install rule does not allow, saying why once in the error dialog, and Update is offered again',
+      await until(`document.querySelector('[data-error-dialog]')?.textContent.includes('updated from the release page') && !!document.querySelector('[data-update-download]') && s.update?.stage === 'available' && !s.busy`, 'the refusal')
+      && (await cdp.eval(`__xpp.sent().some(c => c.cmd === 'update.download' && c.name === 'xppautX-v999.0.0-linux-x64.tar.gz' && c.version === '999.0.0')`)));
+    await close();
+    await run({...release('v999.0.0'), assets: []}, '999.0.0 is available');
+    check('updates: no file for this install in the release list: the release page, saying so',
+      await cdp.eval(`!document.querySelector('[data-update-download]') && document.querySelector('[data-update-why]')?.textContent.includes('no file for this installation')`));
+    await close();
+    await cdp.eval(`__xpp.state().hello.update = ${JSON.stringify(installKind)}; true`);
+    if (process.env.XPP_SHOTS) await updateShots(run, close, withFiles, installKind);
+    await cdp.eval(`__xpp.state().hello.update = ${JSON.stringify(installKind)}; __xpp.state().update = null; true`);
+  }
   /* W234: which endpoint a build asks, and what it is told of betas */
   const preBuild = /^xppautX v\d+\.\d+\.\d+-[A-Za-z]/.test(about);
   check('updates: a pre-release build asks the list, a release build releases/latest',
@@ -6547,6 +6621,9 @@ async function updatesCheck() {
   await run({tag_name: 'v999.0.0', html_url: 'https://evil.example/'}, 'Check for updates failed: GitHub returned an invalid release page URL'); await close();
   await run({tag_name: 'v' + '9'.repeat(100), html_url: 'bad'}, 'Check for updates failed: invalid release version'); await close();
 }
+
+/* an error a check made happen: given exactly, or as a pattern when part of it changes (a version) */
+const isExpected = (expected, text) => expected.some(x => (x instanceof RegExp ? x.test(text) : x === text));
 
 async function sessionAttempt(ode, fn, expected, attempts) {
   const rec = record = [];
@@ -6598,7 +6675,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
     await cdp.send('Page.navigate', {url: server.url});
     await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
     await fn(dir);
-    const errors = (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
+    const errors = (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)')).filter(e => !isExpected(expected, e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));
   } catch (e) {
     if (e && typeof e === 'object') e.recorded = rec; /* what ran before it threw (thrown()) */
@@ -6645,7 +6722,7 @@ const LOST_COMMAND = /^The command \S+ (did not reach xppautX|was refused)/;
 async function lostCommands(expected) {
   try {
     return (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)'))
-      .filter(e => LOST_COMMAND.test(e) && !expected.includes(e));
+      .filter(e => LOST_COMMAND.test(e) && !isExpected(expected, e));
   } catch {
     return []; /* no page to ask (it crashed): the attempt's own failure says so */
   }
@@ -7315,7 +7392,7 @@ async function main() {
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));
     if (run('help')) await session(ODE, helpCheck);
-    if (run('updates')) await session(ODE, updatesCheck);
+    if (run('updates')) await session(ODE, updatesCheck, [/this installation is updated from the release page: this program was built from a source checkout/]);
     if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', BAD_IAPP,
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();

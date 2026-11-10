@@ -30,6 +30,7 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
   ev({ev: 'session.state', sliders: [], pars: [['iapp', 0.05]], ics: [], bcs: []});
   ev({ev: 'done', status: 'ok'}); /* the subscription's */
   ev({ev: 'done', status: 'ok', result: {due: false}}); /* W622: the opening's update question's */
+  ev({ev: 'done', status: 'ok', result: {pending: false}}); /* and the kept update's */
   s.send({cmd: 'run.initial'});
   ev({ev: 'job.computing'});
   sent.length = 0;
@@ -70,7 +71,7 @@ test('W106: an autoX settings edit during a run is sent at once, shown until its
 test('W622: the opening asks whether an update check is due; a due one that fails tells the core, shows nothing', async () => {
   const {sent, ev, s} = session();
   ev({...HELLO, about: [[{text: 'xppautX v0.1.0'}]]});
-  assert.deepEqual(sent.map(c => c.cmd), ['events.subscribe', 'update.due'], 'the question follows the subscription');
+  assert.deepEqual(sent.map(c => c.cmd), ['events.subscribe', 'update.due', 'update.pending'], 'the questions follow the subscription');
   const fetched: string[] = [];
   const original = globalThis.fetch;
   globalThis.fetch = (async (url: string) => { fetched.push(url); return new Response('unavailable', {status: 503}); }) as typeof fetch;
@@ -83,6 +84,49 @@ test('W622: the opening asks whether an update check is due; a due one that fail
   } finally { globalThis.fetch = original; }
   assert.equal(fetched.length, 1);
   assert.ok(sent.some(c => c.cmd === 'update.report_failure' && String(c.reason).includes('HTTP 503')), 'the core is told why at INFO');
-  assert.equal(s.store.getState().updateNotice, null);
+  assert.equal(s.store.getState().update, null);
   assert.equal(s.store.getState().toasts.length, 0, 'nothing is shown');
+});
+
+test('W622: an update is offered, downloaded and prepared in the core, then switched to through the leave question', () => {
+  const {sent, ev, s} = session();
+  const suffix = '-linux-x64.tar.gz';
+  ev({...HELLO, about: [[{text: 'xppautX v0.1.0'}]], update: {install: 'portable', asset_suffix: suffix, why: ''}});
+  const asset = {url: 'https://github.com/MuhammadMoustafa/xppautX/releases/download/v0.2.0/xppautX-v0.2.0-linux-x64.tar.gz', name: 'xppautX-v0.2.0-linux-x64.tar.gz', size: 1234, digest: 'sha256:' + '0'.repeat(64)};
+  s.offerUpdate({text: '', version: '0.2.0', url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v0.2.0', asset});
+  const stage = () => s.store.getState().update?.stage;
+  assert.equal(stage(), 'available');
+  sent.length = 0;
+  s.downloadUpdate();
+  assert.deepEqual(sent, [{cmd: 'update.download', ...asset, version: '0.2.0'}]);
+  assert.equal(stage(), 'downloading');
+  /* a stop or an error puts the offer back, the error kept */
+  ev({ev: 'done', status: 'stopped', result: {downloaded: false, bytes: 5}});
+  assert.equal(stage(), 'available');
+  s.downloadUpdate();
+  ev({ev: 'done', status: 'error', error: 'the file is 5 bytes, the release list says 1234'});
+  assert.equal(stage(), 'available');
+  s.downloadUpdate();
+  ev({ev: 'done', status: 'ok', result: {downloaded: true, bytes: 1234, ready: 'restart'}});
+  assert.equal(stage(), 'restart');
+  /* a later check does not take the offer back to the start */
+  s.offerUpdate({text: '', version: '0.2.0', url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v0.2.0', asset});
+  assert.equal(stage(), 'restart');
+  sent.length = 0;
+  s.switchUpdate();
+  assert.deepEqual(sent, [{cmd: 'update.restart'}]);
+});
+
+test('W622: a kept installer file is offered at the next start only while it is newer than this program', () => {
+  const {sent, ev, s} = session();
+  ev({...HELLO, about: [[{text: 'xppautX v0.1.0'}]], update: {install: 'deb', asset_suffix: '-linux-x64.deb', why: ''}});
+  sent.length = 0;
+  ev({ev: 'done', status: 'ok', result: {pending: true, version: '0.1.0'}});
+  assert.deepEqual(sent, [{cmd: 'update.discard'}], 'the version running already: the kept file is removed');
+  assert.equal(s.store.getState().update, null);
+  ev({ev: 'done', status: 'ok', result: {pending: true, version: '0.2.0'}});
+  assert.equal(s.store.getState().update?.stage, 'install');
+  sent.length = 0;
+  s.switchUpdate();
+  assert.deepEqual(sent, [{cmd: 'update.install'}]);
 });

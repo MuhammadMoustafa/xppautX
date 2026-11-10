@@ -46,6 +46,10 @@ export interface HelloEvent {
   /** Help > About's lines (core/xpp_about.h), the desktop window's own box too: each a list of parts,
       plain text or a link (`url`) */
   about: AboutLine[];
+  /** how a newer release is installed over this program (core/xpp_install.h): `portable` (a swapped-in archive), `msi` or `deb` (the
+      system's installer), or `release_page` (a source build, macOS, a folder xppautX cannot write: `why`); `asset_suffix` ends the
+      name of the release file that fits ("" for the release page) */
+  update: {install: 'portable' | 'msi' | 'deb' | 'release_page'; asset_suffix: string; why: string};
   /** File > Quit's question as the core asks it (W59d), for the page's own while a computation runs
       (W110, store/state.ts LEAVE_ASK): the question, the one naming the recording in progress, the
       answers and their keys */

@@ -10,24 +10,24 @@ test('updates compare numeric semver components and validate untrusted fields', 
   };
   try {
     answer('v0.10.0');
-    assert.ok((await checkUpdates(about('xppautX v0.9.0'))).url);
+    assert.ok((await checkUpdates(about('xppautX v0.9.0'), '')).url);
     answer('v0.9.0');
-    assert.equal((await checkUpdates(about('xppautX v0.10.0-12-gabcdef'))).text, 'xppautX 0.10.0 is the latest');
+    assert.equal((await checkUpdates(about('xppautX v0.10.0-12-gabcdef'), '')).text, 'xppautX 0.10.0 is the latest');
     /* a pre-release build asks the list (see the next test); a release build is not offered a beta */
     answer('v0.1.0');
-    assert.equal((await checkUpdates(about('xppautX v0.1.0'))).text, 'xppautX 0.1.0 is the latest');
+    assert.equal((await checkUpdates(about('xppautX v0.1.0'), '')).text, 'xppautX 0.1.0 is the latest');
     answer('v01.0.0');
-    await assert.rejects(checkUpdates(about('xppautX v0.1.0')), /invalid release version/);
+    await assert.rejects(checkUpdates(about('xppautX v0.1.0'), ''), /invalid release version/);
     answer('v1.0.0', 'https://evil.example/');
-    await assert.rejects(checkUpdates(about('xppautX v0.1.0')), /invalid release page/);
+    await assert.rejects(checkUpdates(about('xppautX v0.1.0'), ''), /invalid release page/);
     answer('v1.0.0');
-    await assert.rejects(checkUpdates(about('xppautX dev')), /invalid release version/);
+    await assert.rejects(checkUpdates(about('xppautX dev'), ''), /invalid release version/);
     globalThis.fetch = async () => new Response('unavailable', {status: 503});
-    await assert.rejects(checkUpdates(about('xppautX v0.1.0')), /HTTP 503/);
+    await assert.rejects(checkUpdates(about('xppautX v0.1.0'), ''), /HTTP 503/);
     globalThis.fetch = async () => new Response('{');
-    await assert.rejects(checkUpdates(about('xppautX v0.1.0')), UpdateError);
+    await assert.rejects(checkUpdates(about('xppautX v0.1.0'), ''), UpdateError);
     globalThis.fetch = async () => new Response('x'.repeat(1024 * 1024 + 1));
-    await assert.rejects(checkUpdates(about('xppautX v0.1.0')), /answer is too large/);
+    await assert.rejects(checkUpdates(about('xppautX v0.1.0'), ''), /answer is too large/);
   } finally { globalThis.fetch = original; }
 });
 
@@ -40,7 +40,7 @@ test('a pre-release build asks the list and takes the highest version by SemVer 
       return new Response(JSON.stringify(tags.map(t => typeof t === 'string' ? {tag_name: t, html_url: `${RELEASE_PREFIX}tag/${t}`} : t)));
     };
   };
-  const check = async (local: string, ...tags: unknown[]) => { list(...tags); return checkUpdates(about(`xppautX ${local}`)); };
+  const check = async (local: string, ...tags: unknown[]) => { list(...tags); return checkUpdates(about(`xppautX ${local}`), ''); };
   try {
     let r = await check('v0.1.0-beta.1', 'v0.1.0-beta.1', 'v0.1.0-beta.2');
     assert.equal(asked, RELEASES_API);
@@ -59,7 +59,7 @@ test('a pre-release build asks the list and takes the highest version by SemVer 
     /* shown errors */
     for (const bad of [[], 'x', {}, null]) {
       globalThis.fetch = async () => new Response(JSON.stringify(bad));
-      await assert.rejects(checkUpdates(about('xppautX v0.1.0-beta.1')), UpdateError);
+      await assert.rejects(checkUpdates(about('xppautX v0.1.0-beta.1'), ''), UpdateError);
     }
     await assert.rejects(check('v0.1.0-beta.1', 'v0.1.0-beta.2', 5), /bad release entry/);
     await assert.rejects(check('v0.1.0-beta.1', 'v0.1.0-beta.01'), /invalid release version/);
@@ -74,7 +74,7 @@ test('a pre-release build asks the list and takes the highest version by SemVer 
       asked = String(url);
       return new Response(JSON.stringify({tag_name: 'v0.2.0-beta.1', html_url: `${RELEASE_PREFIX}tag/v0.2.0-beta.1`}));
     };
-    await assert.rejects(checkUpdates(about('xppautX v0.1.0')), /invalid release version/);
+    await assert.rejects(checkUpdates(about('xppautX v0.1.0'), ''), /invalid release version/);
     assert.equal(asked, RELEASE_API);
   } finally { globalThis.fetch = original; }
 });
@@ -84,19 +84,19 @@ test('update errors preserve local and multiline answer places', async () => {
   let requests = 0;
   try {
     globalThis.fetch = async () => { requests++; return new Response('{\n"tag_name": "v1.0.0",\n"html_url": !\n}'); };
-    await assert.rejects(checkUpdates(about('xppautX dev')), (e: UpdateError) => {
+    await assert.rejects(checkUpdates(about('xppautX dev'), ''), (e: UpdateError) => {
       assert.deepEqual(e.place, {file: 'hello.about', line: 1, col: 1, source: 'xppautX dev'});
       return true;
     });
     assert.equal(requests, 0);
-    await assert.rejects(checkUpdates(about('xppautX v0.1.0')), (e: UpdateError) => {
+    await assert.rejects(checkUpdates(about('xppautX v0.1.0'), ''), (e: UpdateError) => {
       assert.equal(e.place.file, RELEASE_API);
       assert.equal(e.place.line, 3);
       assert.equal(e.place.source, '"html_url": !');
       return true;
     });
     globalThis.fetch = async () => { throw new Error('offline'); };
-    await assert.rejects(checkUpdates(about('xppautX v0.1.0')), (e: UpdateError) => {
+    await assert.rejects(checkUpdates(about('xppautX v0.1.0'), ''), (e: UpdateError) => {
       assert.deepEqual(e.place, {file: RELEASE_API, line: 0, col: 0, source: ''});
       return true;
     });
@@ -115,7 +115,7 @@ test('update field places refer to the last root key, including escaped keys', a
       '"html_url": "https://evil.example/"',
       '}',
     ].join('\n'));
-    await assert.rejects(checkUpdates(about('xppautX v0.1.0')), (e: UpdateError) => {
+    await assert.rejects(checkUpdates(about('xppautX v0.1.0'), ''), (e: UpdateError) => {
       assert.equal(e.place.line, 4);
       assert.equal(e.place.source, '"tag\\u005fname": "dev",');
       return true;
@@ -132,9 +132,31 @@ test('a caller can abort a pending update fetch', async () => {
       signal = options!.signal!;
       signal.addEventListener('abort', () => reject(signal!.reason), {once: true});
     });
-    const pending = checkUpdates(about('xppautX v0.1.0'), controller.signal);
+    const pending = checkUpdates(about('xppautX v0.1.0'), '', controller.signal);
     controller.abort();
     assert.equal(signal?.aborted, true);
     await assert.rejects(pending, UpdateError);
+  } finally { globalThis.fetch = original; }
+});
+
+test('W622: the release file that fits the installation is taken from the newest release, in the shape the core takes', async () => {
+  const original = globalThis.fetch;
+  const digest = 'sha256:' + 'a'.repeat(64);
+  const file = (name: string, extra: object = {}) => ({name, browser_download_url: `${RELEASE_PREFIX}download/v0.2.0/${name}`, size: 99, digest, ...extra});
+  const answer = (...assets: object[]) => {
+    globalThis.fetch = async () => new Response(JSON.stringify({tag_name: 'v0.2.0', html_url: `${RELEASE_PREFIX}tag/v0.2.0`, assets}));
+  };
+  try {
+    answer(file('xppautX-v0.2.0-linux-x64.deb'), file('xppautX-v0.2.0-linux-x64.tar.gz'), file('xppautX-v0.2.0-windows-x64.zip'));
+    assert.equal((await checkUpdates(about('xppautX v0.1.0'), '-linux-x64.tar.gz')).asset?.name, 'xppautX-v0.2.0-linux-x64.tar.gz');
+    assert.equal((await checkUpdates(about('xppautX v0.1.0'), '-linux-x64.deb')).asset?.size, 99);
+    assert.equal((await checkUpdates(about('xppautX v0.1.0'), '')).asset, undefined, 'no suffix: the release page');
+    assert.equal((await checkUpdates(about('xppautX v0.1.0'), '-windows-x64.msi')).asset, undefined, 'no such file');
+    for (const bad of [{digest: 'md5:abc'}, {digest: 'sha256:' + 'A'.repeat(64)}, {size: 0}, {size: 1.5}, {size: '99'}, {browser_download_url: 7}]) {
+      answer(file('xppautX-v0.2.0-linux-x64.tar.gz', bad));
+      assert.equal((await checkUpdates(about('xppautX v0.1.0'), '-linux-x64.tar.gz')).asset, undefined, JSON.stringify(bad));
+    }
+    answer(file('other-v0.2.0-linux-x64.tar.gz'));
+    assert.equal((await checkUpdates(about('xppautX v0.1.0'), '-linux-x64.tar.gz')).asset, undefined, 'a name that is not ours');
   } finally { globalThis.fetch = original; }
 });

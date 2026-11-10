@@ -86,7 +86,7 @@ async function releaseAnswer(response: Response, file: string): Promise<{answer:
 type Version = {core: number[]; pre: string[]; text: string};
 
 /* vX.Y.Z or vX.Y.Z-identifiers (SemVer: dot-separated [0-9A-Za-z-], numeric ones without a leading zero) */
-function version(tag: unknown, preRelease = true): Version {
+function parseVersion(tag: unknown, preRelease = true): Version {
   const m = typeof tag === 'string' && tag.length <= TAG_LIMIT
     ? /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?$/.exec(tag) : null;
   const pre = m?.[4] === undefined ? [] : m[4].split('.');
@@ -113,18 +113,64 @@ function compare(a: Version, b: Version): number {
   return Math.sign(a.pre.length - b.pre.length);
 }
 
-export type UpdateResult = {text: string; url?: string; version?: string};
+/* a release file as the release list gives it (core/xpp_update.h ReleaseFile): the core checks every field again */
+export type UpdateAsset = {url: string; name: string; size: number; digest: string};
+export type UpdateResult = {text: string; url?: string; version?: string; asset?: UpdateAsset};
 
-export async function checkUpdates(about: AboutLine[], signal?: AbortSignal): Promise<UpdateResult> {
-  // hello.about's first line is the version (core/xpp_about.cpp): a release tag (v0.1.0), a pre-release tag
-  // (v0.1.0-beta.1) or a git-describe build (v0.1.0-12-gabcdef, or v0.1.0-beta.1-12-gabcdef).
+/* how far a newer release has got (W622): found; downloading; swapped in and waiting for a restart (portable) or its installer's
+   file kept and waiting (msi, deb) */
+export type UpdateOffer = {version: string; url: string; asset: UpdateAsset | null; stage: 'available' | 'downloading' | 'restart' | 'install'};
+
+/* the status bar's quiet notice, and the dialog's first line */
+export function offerText(offer: UpdateOffer): string {
+  switch (offer.stage) {
+    case 'downloading': return `Downloading xppautX ${offer.version}`;
+    case 'restart': return `Restart to use version ${offer.version}`;
+    case 'install': return `Install xppautX ${offer.version} and restart`;
+    default: return `xppautX ${offer.version} is available`;
+  }
+}
+
+const ASSET_PREFIX = 'xppautX-'; // the name every release file starts with (tools/package_release.sh)
+const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
+
+/* the release file that fits this installation (hello.update.asset_suffix), if the entry lists one in the shape the core takes */
+function fittingAsset(entry: object, suffix: string): UpdateAsset | undefined {
+  const {assets} = entry as {assets?: unknown};
+  if (!suffix || !Array.isArray(assets)) return undefined;
+  for (const item of assets as unknown[]) {
+    if (!item || typeof item !== 'object') continue;
+    const {name, browser_download_url: url, size, digest} = item as {name?: unknown; browser_download_url?: unknown; size?: unknown; digest?: unknown};
+    if (typeof name === 'string' && name.startsWith(ASSET_PREFIX) && name.endsWith(suffix) && typeof url === 'string' && url.length <= URL_LIMIT * 4
+        && typeof size === 'number' && Number.isSafeInteger(size) && size > 0 && typeof digest === 'string' && DIGEST_PATTERN.test(digest))
+      return {url, name, size, digest};
+  }
+  return undefined;
+}
+
+/* hello.about's first line is the version (core/xpp_about.cpp): a release tag (v0.1.0), a pre-release tag (v0.1.0-beta.1) or a
+   git-describe build (v0.1.0-12-gabcdef, or v0.1.0-beta.1-12-gabcdef); found[1] is the numbers, found[2] a pre-release suffix */
+function runningVersion(about: AboutLine[]): {first: string; found: RegExpExecArray | null} {
   const first = aboutVersionLine(about);
-  const found = /^xppautX (v\d+\.\d+\.\d+)(-[0-9A-Za-z.]+?)?(?:-\d+-g[0-9a-f]+)?$/.exec(first);
+  return {first, found: /^xppautX (v\d+\.\d+\.\d+)(-[0-9A-Za-z.]+?)?(?:-\d+-g[0-9a-f]+)?$/.exec(first)};
+}
+
+/* whether version (a tag without its v) is newer than the running program's, by the same SemVer precedence the check uses */
+export function newerThanRunning(about: AboutLine[], version: string): boolean {
+  const {found} = runningVersion(about);
+  if (!found) return false;
+  try { return compare(parseVersion(`v${version}`), parseVersion(found[1] + (found[2] ?? ''))) > 0; }
+  catch { return false; }
+}
+
+/* suffix: hello.update.asset_suffix, the end of the name of the release file that fits this installation ("": none does) */
+export async function checkUpdates(about: AboutLine[], suffix: string, signal?: AbortSignal): Promise<UpdateResult> {
+  const {first, found} = runningVersion(about);
   /* a pre-release build is told of the newest release including pre-releases, a stable one only of stable ones */
   const preRelease = !!found?.[2];
   const api = preRelease ? RELEASES_API : RELEASE_API;
   let current: Version;
-  try { current = version(found ? found[1] + (found[2] ?? '') : undefined); }
+  try { current = parseVersion(found ? found[1] + (found[2] ?? '') : undefined); }
   catch (e) { throw located(e, 'hello.about', first, 0); }
   try {
     const timeout = AbortSignal.timeout(CHECK_TIMEOUT_MS);
@@ -134,20 +180,20 @@ export async function checkUpdates(about: AboutLine[], signal?: AbortSignal): Pr
     const entries = preRelease ? answer : [answer];
     if (preRelease && (!Array.isArray(answer) || answer.length === 0)) throw new Error('GitHub returned no releases');
     if (!preRelease && (!answer || typeof answer !== 'object')) throw new Error('GitHub returned no release');
-    let latest: Version | undefined, latestUrl = '';
+    let latest: Version | undefined, latestUrl = '', latestAsset: UpdateAsset | undefined;
     for (const entry of entries as unknown[]) {
       if (!entry || typeof entry !== 'object') throw located(new Error('GitHub returned a bad release entry'), api, text);
       const {tag_name: tag, html_url: url} = entry as {tag_name?: unknown; html_url?: unknown};
       let v: Version;
-      try { v = version(tag, preRelease); }
+      try { v = parseVersion(tag, preRelease); }
       catch (e) { throw located(e, api, text, preRelease ? undefined : fieldOffset(text, 'tag_name')); }
       /* the tag is checked before any URL is built from it; the page URL must be exactly its release page */
       if (typeof url !== 'string' || url.length > URL_LIMIT || url !== `${RELEASE_PREFIX}tag/${tag}`)
         throw located(new Error('GitHub returned an invalid release page URL'), api, text, preRelease ? undefined : fieldOffset(text, 'html_url'));
-      if (!latest || compare(v, latest) > 0) { latest = v; latestUrl = url; }
+      if (!latest || compare(v, latest) > 0) { latest = v; latestUrl = url; latestAsset = fittingAsset(entry, suffix); }
     }
     return compare(latest!, current) > 0
-      ? {text: `xppautX ${latest!.text} is available. Nothing is downloaded or installed by xppautX.`, url: latestUrl, version: latest!.text}
+      ? {text: `xppautX ${latest!.text} is available.`, url: latestUrl, version: latest!.text, asset: latestAsset}
       : {text: `xppautX ${current.text} is the latest`};
   } catch (e) { throw e instanceof UpdateError ? e : located(e, api); }
 }

@@ -1640,7 +1640,7 @@ sections below.
 <!-- events:start -->
 | Event | Fields | Sent with | Meaning |
 |---|---|---|---|
-| `hello` | `protocol`, `features`, `title`, `file`, `output_names`, `commands`, `lists`, `userbuttons`, `keymap`, `about`, `update`, `quit`, `window_names` | always | The first event, and again after Open model or Reload loaded a model in its place. |
+| `hello` | `protocol`, `features`, `title`, `file`, `output_names`, `commands`, `lists`, `userbuttons`, `keymap`, `about`, `quit`, `window_names` | always | The first event, and again after Open model or Reload loaded a model in its place. |
 | `done` | `job`, `id`, `status`, `result`, `error`, `file`, `line`, `col`, `source`, `field` | always | A command's end: every command sends one, with its result when status is ok. |
 | `ask` | `job`, `id`, `kind` | always | A question the running command asks; answer it with its `answer`. |
 | `exit` | `code` | always | The process ended (said by the host in browser mode). |
