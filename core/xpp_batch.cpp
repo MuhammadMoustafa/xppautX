@@ -41,6 +41,7 @@
 #include "graf_par.h"
 #include "odex.h"
 #include "snapx.h"
+#include "autox_script.h"
 #include "aniparse.h"
 #include "xpp_ui.h"
 
@@ -79,6 +80,8 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, int batch,
     xpp::init_alloc_info(s);
     xpp::set_init_guess(s);
     update_all_ffts(s);
+    if (s.autox_state.script.script)
+        if (const Result<> checked = autox_script_check(s, *s.autox_state.script.script); !checked) model_failed(checked.error());
     init_autox_win(s);
     preferences_load(s);
     if (disc(m)) {
@@ -111,6 +114,17 @@ Result<std::vector<Error>> compile_loaded(Session &s)
 }
 
 namespace {
+
+/* an .autox script opens with the model it names, its runs listed in the session (nothing computes) */
+Result<CommandLine> script_command_line(CommandLine cl)
+{
+    if (!files::has_extension(cl.model_file, autox_script_extension)) return cl;
+    auto script = autox_script_load(cl.model_file);
+    if (!script) return std::unexpected(script.error());
+    cl.model_file = include_path(cl.model_file, script->model);
+    cl.autox_script = std::move(*script);
+    return cl;
+}
 
 Result<CommandLine> animation_command_line(CommandLine cl)
 {
@@ -191,7 +205,12 @@ Loaded load_model(CommandLine cl, int batch, const SavedModel *saved,
                   const std::function<std::optional<Error>(Session &)> &check)
 {
     auto resolved = animation_command_line(std::move(cl));
-    if (!resolved) return std::unexpected(resolved.error());
+    if (resolved) resolved = script_command_line(std::move(*resolved));
+    if (!resolved) {
+        /* a file that names the model is the load's own: its fault is written once, as the model's own are (below) */
+        if (batch) xpp::log(XPP_LOG_ERROR, "{}\n", resolved.error().text());
+        return std::unexpected(resolved.error());
+    }
     cl = std::move(*resolved);
     std::string file, converted;
     bool existing = false;

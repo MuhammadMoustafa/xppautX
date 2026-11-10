@@ -24,6 +24,7 @@
 #include "autox_stability.h"
 #include "autox_codim.h"
 #include "autox_parallel.h"
+#include "autox_script.h"
 #include "display_state.h"
 #include "xAutox.h"
 #include "xpp_io.h"
@@ -171,6 +172,8 @@ struct AutoxState {
   xpp::ROTCHK blrtn{};
   /* the model's @ options for autoX */
   AutoxOptions options;
+  /* the .autox script the model was opened with, and how far it has run (W306) */
+  xpp::AutoxScriptState script;
   /* the equilibria of the homoclinic start a run copies (autox_evd.cpp init_autox) */
   HomoclinicEquilibria homo_equilibria;
   /* false until addbif (autox_evd.cpp) fills the diagram's first point

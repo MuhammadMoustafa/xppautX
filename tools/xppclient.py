@@ -265,9 +265,10 @@ def copy_model(source, destination):
 
 class Server:
     def __init__(self, binary, ode, env=None, verbose=False, stdin=subprocess.PIPE, run=None, extra_args=(),
-                 parse_float=float, parse_int=int):
+                 parse_float=float, parse_int=int, follow_one_branch=True):
         self.verbose = verbose
-        self.follow = FollowOneBranch()
+        # the checks follow the one branch they ask for (FollowOneBranch); xppautx.py, for scripts, leaves the program's own choice
+        self.follow = FollowOneBranch() if follow_one_branch else None
         self.parse_float = parse_float
         self.parse_int = parse_int
         self.owns_run = run is None
@@ -312,7 +313,8 @@ class Server:
         self.events.put({'ev': 'eof', '_t': time.monotonic()})
 
     def send(self, **cmd):
-        self.follow.apply(cmd)
+        if self.follow:
+            self.follow.apply(cmd)
         save_permission(cmd)
         if self.verbose:
             print('  >', json.dumps(cmd))

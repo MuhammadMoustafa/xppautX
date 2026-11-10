@@ -99,6 +99,9 @@ struct AutoxRunRequest {
 
 /* Prospective diagram grab and run checks, without changing values or the selected point. */
 const DIAGRAM *autox_point_by_type(const Session &s, AutoxPointKind type, int index);
+/* the number autox.run's `index` takes (autox_point_by_type's) of the `index`-th point of `type` among the diagram's points
+   [first, last): a script's start from the points one of its runs stored; 0 when there is none */
+int autox_type_number(const Session &s, AutoxPointKind type, int first, int last, int index);
 GRABPT autox_point_data(const DIAGRAM &point);
 Result<> autox_run_check(const Session &s, const AutoxRunRequest &request, const GRABPT *point = nullptr, bool settling = false);
 

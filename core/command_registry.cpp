@@ -361,13 +361,13 @@ void append_commands(std::string &out)
     });
 }
 
-Result<> check_shape(const char *line, const Place &place)
+Result<> check_shape(const char *line, const Place &place, Session *session)
 {
     if (std::strlen(line) > MAX_COMMAND_BYTES) return fail("command", "Command exceeds the input limit", place);
     const Command *command = find(name(line));
     if (!command) return fail("command", "Unknown registry command", place);
     /* a recording's step may name a path (Open model of a file it holds): the player serves it from the recording, and run() decides again when it plays */
-    const Result<Arguments> checked = validate(nullptr, *command, line, place, true);
+    const Result<Arguments> checked = validate(session, *command, line, place, true);
     if (!checked) return std::unexpected<Error>(checked.error());
     return {};
 }

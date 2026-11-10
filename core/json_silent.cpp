@@ -12,6 +12,7 @@
    script does not expect stops it (exit 1, silent_fail).
 
    For one run (no internal sets, or each set in turn):
+     (an .autox script instead runs its runs, autox.run_script, and writes the diagram, autox.export_csv)
      select the set          set.apply, scope all (the set by its name)
      run                     run.initial, run.range (the settings
                              the sweep options made) for a sweep that writes files, or
@@ -164,6 +165,21 @@ static bool runs_set(const xpp::Session &s, const std::string &name)
 
 SilentScript::SilentScript(xpp::Session &s) : session(s)
 {
+    /* an .autox script: its runs, then the diagram (the script's own file, else autoX's default name); the integration is the runs' own */
+    if (const auto &script = s.autox_state.script.script) {
+        registry("autox.open");
+        registry("autox.run_script");
+        steps.push_back([this, file = script->diagram_file] {
+            replace_files();
+            std::string line = "{\"cmd\":\"autox.export_csv\"";
+            if (!file.empty()) {
+                line += ",\"file\":";
+                buf_str(line, file);
+            }
+            lines.push_back(line + '}');
+        });
+        return;
+    }
     const std::size_t sets = s.model().intern_sets.size();
     /* no run_set: one run with no set, as a batch run always was; run_set: each named set in turn */
     if (sets == 0 || s.run_sets.empty()) add_run(-1);

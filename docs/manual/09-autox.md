@@ -457,6 +457,30 @@ and a client shows how many jobs run, wait and have ended (the `autox.jobs` even
 
 In web2 the Run button opens a dialog: the kind of continuation the point takes (the core's own table: which kinds a Hopf point, a fold, a periodic point or the current state starts), and, where the point has branches to switch to, a Switch branches box. It sends `autox.run`, which a script sends directly (docs/protocol.md): `{"cmd":"autox.run","kind":"periodic","type":"hopf","index":1}` continues from the first Hopf point, `{"cmd":"autox.run","kind":"equilibrium","replace_diagram":true}` begins from the current state, and the Numerics may be given by their names for that run only (`"max_steps": 500`, `"step_size": -0.02`: the sign is the direction). A kind the start point does not take is an error naming the kind and the point's type. A start that is not a steady state is refined by Newton's method, and the log names the equation of the largest residual.
 
+### Scripts
+
+A script, a file ending in `.autox`, lists the runs of one analysis of one model, named and in order, so the whole branch diagram can be made again without the window, as AUTO-07p's Python interface does with `run(...)`. It is written in the model's own syntax:
+
+```
+version: 4,
+model: "ab.odex",
+diagram: "branches.csv",
+runs: [
+  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: [p0],
+    settings: { step_size: 0.02, parameter_max: 1.5, follow_all_branches: false } },
+  { name: "cycles", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: [p0],
+    settings: { step_size: 0.01 } },
+  { name: "cycles back", kind: periodic, start: { run: "steady", type: hopf, index: 1 }, parameters: [p0],
+    settings: { step_size: -0.01 } },
+]
+```
+
+Each run is one Run: `kind` says what is computed (equilibrium, periodic, two_parameter, fixed_period, bvp, homoclinic, heteroclinic) and `switch: true` makes it a branch switch; `parameters` names the one or two model parameters it continues in; `settings` give the Numerics by their names for that run only, and the sign of `step_size` is the direction (going both ways is two runs). A run starts from the current state, settled first by `settle: { decimals, hold, maximum }` as Run > Steady state does, or from a point an earlier run stored: `start` names that run, a point type and the point's number among that run's points of the type (a label is given while a run goes, so a script cannot know it). A homoclinic or heteroclinic run gives `homoclinic: { unstable_dimension, stable_dimension, left_equilibrium, right_equilibrium }`. `diagram` is the file `--silent` writes.
+
+A script is read whole before anything is applied: a version, a run's kind, a setting's name or value, a parameter the model lacks, a start from a run that does not come before it, each is an error naming the file, the line and the value, and nothing loads.
+
+Open the script like a model (File > Open model, or `xppautX ab.autox`): the model it names loads and the runs are listed under autoX > Script > List runs; nothing is computed. autoX > Script > Run all runs them in order, or one run by its name (its start needs the run it names to be done). `xppautX ab.autox --silent` runs them all and writes the diagram as two CSV files (the points, and their eigenvalues). From Python, `tools/xppautx.py` opens a model or a script, sets values, integrates, runs autoX and returns the diagram and the data as arrays.
+
 ### Equations that use t
 
 autoX evaluates the equations at a fixed t = 0, so a model whose equations use `t` is refused (each equation's file and line named); give `t` a state of its own, as `examples/tstauto/frcp.odex` does with an oscillator, and autoX continues it as an ordinary autonomous system.

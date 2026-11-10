@@ -117,6 +117,7 @@ void diagram_restore(xpp::Session &s, std::deque<xpp::DIAGRAM> points)
     return;
   }
   s.diagram.points=std::move(points);
+  s.autox_state.script.points.clear();
   int index=0;
   for(xpp::DIAGRAM &p:s.diagram.points)p.index=index++;
   s.autox_state.diag_flag=true;
@@ -125,6 +126,7 @@ void diagram_restore(xpp::Session &s, std::deque<xpp::DIAGRAM> points)
 void start_diagram(xpp::Session &s, int n)
 {
   s.diagram.points.clear();
+  s.autox_state.script.points.clear(); /* the points a script's runs stored are gone */
   new_point(s.diagram,static_cast<std::size_t>(n));
   s.autox_state.diag_flag=false;
 }

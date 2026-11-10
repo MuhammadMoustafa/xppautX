@@ -1117,6 +1117,9 @@ def check_autox_registry():
         check('autox.grab: an unknown label is refused', done['status'] == 'error' and 'no point labelled 999999' in done['error'], str(done))
         _, done = call(cmd='autox.grab', label=1, type='hopf', index=1)
         check('autox.grab: a label and a type are refused', done['status'] == 'error' and 'At most one of' in done['error'], str(done))
+        for script_cmd in ('autox.script', 'autox.run_script'):
+            _, done = call(cmd=script_cmd)
+            check('W306 %s: a session opened with no .autox script says so' % script_cmd, done['status'] == 'error' and 'no autoX script is open' in done['error'], str(done))
         _, done = call(cmd='autox.fit')
         check('autox.fit: the view ranges are the result', done['status'] == 'ok' and done['result']['window'] == 'diagram_1'
               and done['result']['x_range'][0] < done['result']['x_range'][1], str(done))
@@ -10861,9 +10864,9 @@ def check_start_screen():
               not [e for e in evs + more if e.get('ev') == 'ask'] and not errors(more), str(evs + more)[-300:])
         snd(cmd='session.open_model')
         evs, ask = col(lambda e: e.get('ev') == 'ask')
-        check('W232: Open model asks for the file: one dialog, .ode .odex .snapx .recx',
+        check('W232: Open model asks for the file: one dialog, .ode .odex .snapx .recx .anix .autox',
               ask and ask['kind'] == 'file' and ask['title'] == 'Open model' and ask['mode'] == 'read'
-              and ask['wild'].split() == ['*.ode', '*.odex', '*.snapx', '*.recx', '*.anix'], str(ask))
+              and ask['wild'].split() == ['*.ode', '*.odex', '*.snapx', '*.recx', '*.anix', '*.autox'], str(ask))
         snd(cmd='answer', id=ask['id'], ok=0)
         evs, _ = col(is_done)
         check('W232: Cancel leaves the start screen: no error, no exit', not errors(evs) and p.poll() is None, str(evs)[-300:])

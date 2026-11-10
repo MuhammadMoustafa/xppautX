@@ -1955,6 +1955,9 @@ int autox_grab_label(xpp::Session &s, int lab)
   return grab_and_finish(s, diagram_of_label(s,lab));
 }
 
+/* a stored point autox_point_by_type counts: a labelled one of the type */
+static bool counts_as(const DIAGRAM &d,AutoxPointKind type){ return d.lab!=0 && d.itp.kind==type; }
+
 /* grabs the index'th (1-based) stored point of the point type `type` (its name,
    autox_point_kind_name), in stored order: "the 2nd hopf".
    Returns 0 and changes nothing when there is no such point. */
@@ -1963,8 +1966,22 @@ const DIAGRAM *autox_point_by_type(const Session &s, AutoxPointKind type, int in
   int count=0;
   if(index<1 || diagram_count(s.diagram)<2)return nullptr;
   for(const DIAGRAM &d:s.diagram.points)
-    if(d.lab!=0 && d.itp.kind==type && ++count==index)return &d;
+    if(counts_as(d,type) && ++count==index)return &d;
   return nullptr;
+}
+
+int autox_type_number(const Session &s, AutoxPointKind type, int first, int last, int index)
+{
+  int overall=0,within=0,at=0;
+  if(index<1 || diagram_count(s.diagram)<2)return 0;
+  for(const DIAGRAM &d:s.diagram.points){
+    if(counts_as(d,type)){
+      ++overall;
+      if(at>=first && at<last && ++within==index)return overall;
+    }
+    ++at;
+  }
+  return 0;
 }
 
 int autox_grab_type_index(Session &s, AutoxPointKind type, int index)

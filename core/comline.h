@@ -1,5 +1,6 @@
 #pragma once
 
+#include "autox_script.h"
 #include "xpp_error.h"
 #include "xpp_log.h"
 #include <optional>
@@ -38,6 +39,7 @@ struct CommandLine {
   std::optional<std::string> out_file, ani_file, state_file; /* given or not */
   std::string out_place;                       /* --outfile as written, for an error's place */
   std::vector<std::pair<std::string_view, std::string>> options; /* --dfdraw, --ncdraw through set_option, in order */
+  std::optional<AutoxScript> autox_script;     /* the .autox script the model file names (load_model), read whole */
 
 };
 

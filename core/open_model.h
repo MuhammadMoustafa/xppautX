@@ -11,13 +11,14 @@
 #include "recx.h"
 #include "snapx.h"
 #include "odex.h"
+#include "autox_script.h"
 
 namespace xpp {
 
 inline constexpr std::string_view OPEN_MODEL_TITLE = "Open model";
 
-inline constexpr std::array<std::string_view, 5> OPEN_MODEL_EXTENSIONS = {".ode", odex::extension, snapx::extension,
-                                                                           recx::extension, ".anix"};
+inline constexpr std::array<std::string_view, 6> OPEN_MODEL_EXTENSIONS = {".ode", odex::extension, snapx::extension,
+                                                                           recx::extension, ".anix", autox_script_extension};
 
 /* the file selector's pattern: "*.ode *.odex *.snapx *.recx" */
 inline std::string open_model_wild()

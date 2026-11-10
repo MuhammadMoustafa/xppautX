@@ -60,7 +60,7 @@ ap.add_argument('--list', action='store_true', help='print the selected sections
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'subscriptions', 'jacobian',
-                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced', 'codim', 'switch', 'first_steps', 'orbit_start'])
+                                                'memory', 'threads', 'limits', 'nagumo', 'hopf_reduced', 'codim', 'switch', 'first_steps', 'orbit_start', 'script'])
 args = ap.parse_args()
 if args.shard:
     try:
@@ -1372,8 +1372,9 @@ def section_sessiondiagram():
           'archive size and member limits' in messages(evs) and hello_title(evs) is None and s.alive())
     shutil.copy(d1, os.path.join(s.run, 'obsolete.autox'))
     evs = open_file(s, 'obsolete.autox')
-    check('W155: an .autox is refused by the .odex-only loader, never opened as an archive',
-          'loader reads .odex only' in messages(evs) and hello_title(evs) is None and s.alive())
+    # since W306 an .autox is a script (a text file); an old session archive with that name is no script, read as text and refused with the file and line
+    check('W155: an archive named .autox is refused by the script reader, never opened as an archive',
+          'obsolete.autox could not be loaded' in messages(evs) and hello_title(evs) is None and s.alive(), messages(evs)[:200])
     # a binary file opened as a model: refused, its bytes never shown
     with open(os.path.join(s.run, 'bin.odex'), 'wb') as out:
         out.write(b'x\'=-x\n\x00\x01\x02\xff\n')
@@ -2965,6 +2966,113 @@ def section_first_steps():
     check('first steps forced predator-prey cycles: the period doubling between the first and second point is labelled once, at the monodromy matrix\'s multiplier -1 and the published eps sqrt(m) = 0.3050914',
           len(found) == 1 and found[0][0] == 1 and abs(float(found[0][1]['continued_parameter']) - m_pd) < 1e-5 and abs(m_pd - published) < 2e-6,
           str((m_pd, published, [(i, r['continued_parameter']) for i, r in found])))
+
+
+# ---- W306 (#365): an .autox script ----
+SCRIPT_DESCRIPTIONS = ('tstauto_ab', 'bautin_near_hopf')  # no settling and no marks: what a script names is all they use
+
+
+def script_text(model, d, diagram=None):
+    """A W299 description as the .autox that names the same runs (docs/manual/09-autox.md "Scripts")"""
+    def value(v):
+        return ('true' if v else 'false') if isinstance(v, bool) else repr(v)
+    runs = []
+    for r in d['runs']:
+        entries = ['name: "%s"' % r['name'], 'kind: %s' % r['kind']]
+        if r.get('switch'):
+            entries.append('switch: true')
+        if r['start'].get('state') != 'current':
+            st = r['start']
+            entries.append('start: { run: "%s", type: %s, index: %d }' % (st['run'], st['type'], st['index']))
+        entries.append('parameters: [%s]' % ', '.join(r.get('parameters', [r.get('parameter')])))
+        settings = {**r['autox'], 'follow_all_branches': False}  # a description follows one branch (W596)
+        entries.append('settings: { %s }' % ', '.join('%s: %s' % (k, value(v)) for k, v in settings.items()))
+        runs.append('  { %s },' % ', '.join(entries))
+    return 'version: 4,\nmodel: "%s",\n%sruns: [\n%s\n]\n' % (os.path.basename(model), 'diagram: "%s",\n' % diagram if diagram else '', '\n'.join(runs))
+
+
+def script_error(binary, folder, name, text):
+    """The error `--server` gives for a script that does not load: its event"""
+    with open(os.path.join(folder, name), 'w', encoding='utf-8') as f:
+        f.write(text)
+    s = Server(binary, os.path.join(folder, name), run=folder, verbose=args.v)
+    evs, _ = s.collect(lambda e: e.get('ev') in ('session.error', 'eof') or is_done(e))
+    s.close()
+    return next((e for e in evs if e.get('ev') == 'session.error'), None)
+
+
+def section_script():
+    # one scratch folder holds the models and the scripts
+    folder = tempfile.mkdtemp(prefix='xppscript')
+    try:
+        for name in SCRIPT_DESCRIPTIONS:
+            d = json.loads((BASE / (name + '.json')).read_text(encoding='utf-8'))
+            model = os.path.join(os.path.dirname(here), d['model'])
+            shutil.copy(model, folder)
+            script = os.path.join(folder, name + '.autox')
+            with open(script, 'w', encoding='utf-8') as f:
+                f.write(script_text(model, d))
+            s = Server(args.server, script, run=folder, verbose=args.v)
+            evs, _ = s.collect(is_done)
+            errors = [e for e in evs if e.get('error') or e.get('ev') == 'session.error']
+            check('script %s: opening the .autox loads the model it names' % name, not errors and any(e.get('ev') == 'hello' for e in evs), str(errors)[:300])
+            if d.get('parameters'):
+                completed(s, dict(cmd='value.set_parameters', values=d['parameters']))
+            listed = completed(s, dict(cmd='autox.script'))
+            result = next(e for e in listed if e.get('ev') == 'done')['result']
+            check('script %s: it lists its runs, none done: nothing computes on open' % name,
+                  result['runs'] == [r['name'] for r in d['runs']] and result['completed'] == [] and result['model'] == os.path.basename(model), str(result))
+            if len(d['runs']) > 1:
+                last = d['runs'][-1]['name']
+                s.send(cmd='autox.run_script', run=last)
+                evs, end = s.collect(is_done, timeout=60 * SLOW)
+                refused = placed(end) if end else ''
+                check('script %s: a run that starts from a run not yet done is refused, naming both' % name,
+                      end is not None and ('"%s"' % d['runs'][-1]['start']['run']) in refused and ('"%s"' % last) in refused and '.autox:' in refused, refused)
+            s.send(cmd='autox.run_script')
+            evs, end = s.collect(is_done, timeout=300 * SLOW)
+            check('script %s: Run all completes every run' % name, end is not None and end.get('status') == 'ok' and end['result']['runs_completed'] == len(d['runs']),
+                  placed(end) if end else 'no done')
+            baseline = (BASE / (name + '.diagram.csv')).read_bytes().replace(b'\r\n', b'\n')
+            check('script %s: its diagram is the committed baseline, byte for byte (the runs as W299 describes them)' % name, session_diagram(s) == baseline)
+            listed = completed(s, dict(cmd='autox.script'))
+            check('script %s: and every run is listed done' % name,
+                  next(e for e in listed if e.get('ev') == 'done')['result']['completed'] == [r['name'] for r in d['runs']])
+            s.close()
+        # --silent runs them all and writes the diagram (its own file here)
+        name = 'tstauto_ab'
+        d = json.loads((BASE / (name + '.json')).read_text(encoding='utf-8'))
+        silent = os.path.join(folder, 'silent')
+        os.mkdir(silent)
+        shutil.copy(os.path.join(folder, os.path.basename(d['model'])), silent)
+        with open(os.path.join(silent, name + '.autox'), 'w', encoding='utf-8') as f:
+            f.write(script_text(d['model'], d, diagram='ab_branch.csv'))
+        proc = subprocess.run([os.path.abspath(args.server), name + '.autox', '--silent'], cwd=silent, capture_output=True, text=True, timeout=300 * SLOW)
+        csv_file = os.path.join(silent, 'ab_branch.csv')
+        rows = list(csv.DictReader(open(csv_file, encoding='utf-8'))) if os.path.exists(csv_file) else []
+        check('script: --silent runs the script and writes the diagram it names', proc.returncode == 0 and len(rows) == 100 and os.path.exists(csv_file[:-4] + '_eig.csv'),
+              '%s %d %s' % (proc.returncode, len(rows), proc.stderr[:300]))
+        # a script that does not read loads nothing, naming the file, line and value
+        good = script_text(d['model'], d)
+        bad = {
+            'a start from a run after it': (good.replace('kind: equilibrium', 'kind: periodic, start: { run: "later", type: hopf, index: 1 }'), 'is not a run before this one'),
+            'a kind that is none': (good.replace('kind: equilibrium', 'kind: wobble'), 'wobble'),
+            'a setting of another type': (good.replace('step_size: 0.02', 'step_size: "wide"'), 'step_size'),
+            'a parameter the model lacks': (good.replace('parameters: [p0]', 'parameters: [nothere]'), 'nothere'),
+            'a setting that is the run\'s own key': (good.replace('settings: {', 'settings: { kind: bvp,'), 'is not a setting'),
+            'another version': (good.replace('version: 4', 'version: 3'), 'version 3'),
+        }
+        for what, (text, word) in bad.items():
+            e = script_error(args.server, silent, 'bad.autox', text)
+            check('script: %s is refused with its file and line, nothing loaded' % what, e is not None and e.get('file', '').endswith('bad.autox') and e.get('line', 0) >= 1 and word in e['error'], str(e)[:300])
+        p = subprocess.run([os.path.abspath(args.server), 'bad.autox', '--silent'], cwd=silent, capture_output=True, text=True, timeout=60 * SLOW)
+        check('script: --silent says why a script does not load and exits 1', p.returncode == 1 and 'bad.autox:' in p.stderr, '%s %s' % (p.returncode, p.stderr[:200]))
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+    # the Python library (tools/xppautx.py): its own tests, over this binary
+    env = dict(os.environ, XPPAUTX_BIN=os.path.abspath(args.server))
+    p = subprocess.run([sys.executable, os.path.join(here, 'test_xppautx.py')], capture_output=True, text=True, env=env, timeout=600 * SLOW)
+    check('script: the Python library passes its tests (tools/test_xppautx.py)', p.returncode == 0, (p.stdout + p.stderr)[-400:])
 
 
 for name in args.sections:

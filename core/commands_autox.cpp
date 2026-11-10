@@ -15,6 +15,7 @@
 #include "session.h"
 #include "xpp_cpu.h"
 #include "xpp_io.h"
+#include "xpp_job.h"
 #include "xpp_prefs.h"
 #include "xpp_log.h"
 #include "xpp_session.h"
@@ -271,6 +272,102 @@ Result<std::string> run_autox(Session &s, const Command &command, const Argument
         if (std::find(branches.begin(), branches.end(), branch) == branches.end()) branches.push_back(branch);
     }
     return xpp::format("{{\"points_computed\":{},\"branches_tracked\":{}}}", std::max(0, after_points - first), branches.size());
+}
+
+/* ---- an .autox script's runs (W306) ---- */
+
+Result<const AutoxScript *> need_script(const Session &s, const Command &command, const Place &place)
+{
+    if (!s.autox_state.script.script) return fail(command.name, "no autoX script is open: open an .autox file (File > Open model, or on the command line)", place);
+    return &*s.autox_state.script.script;
+}
+
+/* the run i has run, and its points are still the diagram's */
+bool script_run_done(const AutoxScriptState &state, std::size_t i) { return i < state.points.size() && state.points[i].has_value(); }
+
+/* the open script's file and model, each run's name and which of them have run (the runs' points are in the diagram) */
+Result<std::string> script_runs(Session &s, const Command &command, const Arguments &, const Place &place)
+{
+    const Result<const AutoxScript *> script = need_script(s, command, place);
+    if (!script) return std::unexpected<Error>(script.error());
+    const AutoxScriptState &state = s.autox_state.script;
+    std::string runs = "[", completed = "[";
+    for (std::size_t i = 0; i < (*script)->runs.size(); ++i) {
+        json_append_string(runs, (*script)->runs[i].name);
+        runs += ',';
+        if (script_run_done(state, i)) {
+            json_append_string(completed, (*script)->runs[i].name);
+            completed += ',';
+        }
+    }
+    for (std::string *list : {&runs, &completed}) {
+        if (list->back() == ',') list->pop_back();
+        *list += ']';
+    }
+    return ResultObject().text("file", (*script)->file).text("model", (*script)->model).raw("runs", runs).raw("completed", completed).done();
+}
+
+/* the type and diagram-wide index autox.run takes for run `run`'s start, or why the start is not there */
+Result<std::pair<std::string, int>> script_start(const Session &s, const AutoxScript &script, const AutoxScriptRun &run, const Command &command)
+{
+    const AutoxScriptStart &from = *run.from;
+    const std::size_t source = static_cast<std::size_t>(std::ranges::find(script.runs, from.run, &AutoxScriptRun::name) - script.runs.begin());
+    const AutoxScriptState &state = s.autox_state.script;
+    if (!script_run_done(state, source))
+        return fail(command.name, xpp::format("run \"{}\" starts from run \"{}\", which has not run (or whose points a new diagram dropped): run it first", run.name, from.run), run.place);
+    const AutoxScriptPoints &points = *state.points[source];
+    const int number = autox_type_number(s, *autox_point_kind_from_name(from.type), points.first, points.last, from.index);
+    if (number == 0)
+        return fail(command.name, xpp::format("run \"{}\" starts from point {} of type {} of run \"{}\", which stored none", run.name, from.index, from.type, from.run), run.place);
+    return std::pair<std::string, int>{from.type, number};
+}
+
+/* the script's runs in order, or the one named, each as the autox.run its line says */
+Result<std::string> run_script(Session &s, const Command &command, const Arguments &args, const Place &place)
+{
+    const Result<const AutoxScript *> loaded = need_script(s, command, place);
+    if (!loaded) return std::unexpected<Error>(loaded.error());
+    const AutoxScript &script = **loaded;
+    std::size_t first = 0, last = script.runs.size();
+    if (const auto name = args.optional<std::string>("run")) {
+        const auto at = std::ranges::find(script.runs, *name, &AutoxScriptRun::name);
+        if (at == script.runs.end()) return fail(command.name, xpp::format("{} has no run named \"{}\"", script.file, *name), place);
+        first = static_cast<std::size_t>(at - script.runs.begin());
+        last = first + 1;
+    }
+    if (!s.autox_state.bifur.exist) do_autox_win(s);
+    long long computed = 0;
+    std::size_t completed = 0;
+    for (std::size_t i = first; i < last; ++i) {
+        const AutoxScriptRun &run = script.runs[i];
+        if (xpp::job::cancelled()) return fail(command.name, xpp::format("stopped before run \"{}\" ({} of {} done)", run.name, completed, last - first), run.place);
+        std::pair<std::string, int> start;
+        if (run.from) {
+            const auto resolved = script_start(s, script, run, command);
+            if (!resolved) return std::unexpected<Error>(resolved.error());
+            start = *resolved;
+        }
+        /* the run's own error, named by the run and the script */
+        const auto go = [&](const std::string &line) -> Result<> {
+            const Result<std::string> ran = xpp::command::run(s, line.c_str(), run.place, false);
+            if (ran) return {};
+            Error error = ran.error();
+            error.what = xpp::format("run \"{}\" of {}: {}", run.name, script.file, error.what);
+            return std::unexpected<Error>(std::move(error));
+        };
+        if (const std::string axes = autox_script_axes_command(run); !axes.empty())
+            if (const Result<> set = go(axes); !set) return std::unexpected<Error>(set.error());
+        const int before = s.autox_state.diag_flag ? diagram_count(s.diagram) : 0;
+        if (const Result<> ran = go(autox_script_command(run, start.first, start.second)); !ran) return std::unexpected<Error>(ran.error());
+        const int after = s.autox_state.diag_flag ? diagram_count(s.diagram) : 0;
+        /* a new diagram (start_diagram) dropped every earlier run's points: points is sized again, none done but this run */
+        const int begins = run.replaces && !run.from ? 0 : before;
+        s.autox_state.script.points.resize(script.runs.size());
+        s.autox_state.script.points[i] = AutoxScriptPoints{begins, after};
+        computed += std::max(0, after - begins);
+        ++completed;
+    }
+    return ResultObject().integer("runs_completed", static_cast<long long>(completed)).integer("points_computed", computed).done();
 }
 
 Result<std::string> grab_point(Session &s, const Command &command, const Arguments &args, const Place &place)
@@ -658,6 +755,8 @@ constexpr std::array<const char *, 3> RUN_START_SETTLE = {"decimals", "hold", "m
 constexpr std::array<Group, 3> RUN_GROUPS = {Group{GroupRule::at_most_one, RUN_START_ONE}, Group{GroupRule::together, RUN_START_TYPE},
                                              Group{GroupRule::together, RUN_START_SETTLE}};
 
+constexpr std::array RUN_SCRIPT_ARGUMENTS = {Argument{"run", Type::text, false, MAX_TEXT_BYTES}};
+
 constexpr std::array GRAB_ARGUMENTS = {Argument{LABEL_KEY, Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)}, Argument{"type", Type::text, false},
                                        Argument{"index", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)}};
 constexpr std::array<const char *, 2> GRAB_BY = {LABEL_KEY, "type"};
@@ -712,6 +811,8 @@ constexpr std::array ORBIT_ARGUMENTS = {Argument{"mode", Type::choice, true, MAX
 
 constexpr std::array RESULT_OPEN = {ResultField{"open", "boolean"}};
 constexpr std::array RESULT_RUN = {ResultField{"points_computed", "integer"}, ResultField{"branches_tracked", "integer"}};
+constexpr std::array RESULT_SCRIPT_RUN = {ResultField{"runs_completed", "integer"}, ResultField{"points_computed", "integer"}};
+constexpr std::array RESULT_SCRIPT = {ResultField{FILE_KEY, "file"}, ResultField{"model", "text"}, ResultField{"runs", "list"}, ResultField{"completed", "list"}};
 constexpr std::array RESULT_GRAB = {ResultField{"grabbed", "boolean"}, ResultField{LABEL_KEY, "integer"}, ResultField{"type", "text"},
                                     ResultField{"branch", "integer"}, ResultField{"point", "integer"}};
 constexpr std::array RESULT_SETTINGS = {ResultField{"settings_updated", "boolean"}};
@@ -754,6 +855,12 @@ const std::array ROWS = {
     Command{"autox.run", RUN_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run", "autoX",
             "Run autoX from the current state or a stored point: its kind (what is computed), switch for a branch switch, its start (a label, a point type and index, or the current state, optionally settled first), the settings of this run only (ds's sign is the direction) and the equilibria of a homoclinic start. The start point's type decides which kinds fit it: hello's autox_run table, and autoxinfo's start.",
             RESULT_RUN, EVENTS_RUN, true, run_autox, RUN_GROUPS, {}, "read", "*", "", "Start run"},
+    Command{"autox.run_script", RUN_SCRIPT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Run all", "autoX/Script",
+            "Run the runs of the open .autox script in order, or only the named one (its start from an earlier run's point needs that run done), each as the autox.run its entry says; nothing runs on opening a script.",
+            RESULT_SCRIPT_RUN, EVENTS_RUN, true, run_script},
+    Command{"autox.script", {}, XPP_KIND_DATA, CommandCategory::Analysis, "List runs", "autoX/Script",
+            "The open .autox script: its file, its model, its runs' names in order and which of them have run.",
+            RESULT_SCRIPT, EVENTS_BROWSER, true, script_runs},
     Command{"autox.grab", GRAB_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Analysis, "Grab", "autoX",
             "Grab a stored point by label or type and index; omit both to pick it on the diagram.", RESULT_GRAB, EVENTS_GRAB, true, grab_point, GRAB_GROUPS, {}},
     Command{"autox.configure_numerics", CONFIGURE_NUMERICS_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Numerics", "autoX",

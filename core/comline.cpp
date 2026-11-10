@@ -193,6 +193,7 @@ void apply_command_line(Session &s, CommandLine cl)
     batch_options.user_out_file = *cl.out_file;
     s.output_place = Place{"", 0, 0, cl.out_place};
   }
+  if (cl.autox_script) s.autox_state.script.script = std::move(cl.autox_script);
   if (cl.ani_file) {
     s.animation.options.file = *cl.ani_file;
     s.animation.options.use_file = 1;

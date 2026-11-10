@@ -26,7 +26,8 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
 bool is_step(const char *line);
 /* a command line run as a button of the model runs it (button.run) */
 Result<> run_button(Session &s,const std::string &line,const Place &place);
-Result<> check_shape(const char *line,const Place &place);
+/* with a session, the model's names it holds are checked too (a parameter that is none is refused) */
+Result<> check_shape(const char *line,const Place &place,Session *s=nullptr);
 /* One terminal event, using the common error renderer. Invalid ids are
    never echoed as nested data. */
 /* job: the number of the job this done ends (xpp::job::number()), 0 for a command that is no job's own, such as a control
