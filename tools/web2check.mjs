@@ -3457,7 +3457,7 @@ async function autoxScriptCheck(dir) {
   await cdp.eval(`document.querySelector('[data-script-run-button="steady"]').click()`);
   check('W684: a run\'s Run computes it and marks it Done when the run has ended',
     await until(`!s.busy && s.autoxScript.runs[0].done && !s.autoxScript.runs[1].done`, 'steady done'));
-  check('W684: the panel marks the run Done (in its text, not only its colour) and frees the run that waits',
+  check('W684: the panel marks the run Done (in its text, not only its color) and frees the run that waits',
     await cdp.eval(`${row('steady')}.dataset.done === 'true' && ${row('steady')}.textContent.includes('Done') && ${row('back')}.dataset.done === 'false'
       && !document.querySelector('[data-script-run-button="back"]').disabled`));
   /* the first run starts from the current state, so Run all begins where the model's p0 = 0 starts (the first run moved it) */
