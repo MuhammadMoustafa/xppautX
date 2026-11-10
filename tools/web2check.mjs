@@ -4652,14 +4652,16 @@ async function live(want) {
   const done = await integrate(20001, 60000);
   const seen = await stopSampling(), idleAt = await cdp.eval('performance.now()');
   check('live: I, G integrates 20 001 rows', done, JSON.stringify(await S('w.series && w.series.rows')));
+  /* W677: counted, never sampled by frame: every append event the store took is in `seriesAppends`, however long the page stalled
+     (a stall of 400 ms hid the whole 0.35 s run from the frame samples these checks were first made of). The run ends with its
+     whole series in one `end` event, not an append, so the appends are the rows that came before the idle; the core sends them
+     at most sixty a second, so a run of 0.35 s or more brings far more than three. */
   const appends = (await S('s.seriesAppends')) - a0;
-  const busy = seen.filter(([, , b]) => b);
-  const rows = busy.map(([r]) => r).filter(r => r > 0 && r < 20001);
-  const points = busy.map(([, p]) => p).filter(p => p > 0 && p < 20001);
-  const grows = a => a.every((v, i) => i === 0 || v >= a[i - 1]) && new Set(a).size >= 3;
-  check(`live: the store grows over several appends before the idle (${appends} appends)`,
-    appends >= 3 && grows(rows), JSON.stringify({appends, rows: rows.slice(0, 20)}));
-  check('live: and so does the plot', grows(points), JSON.stringify(points.slice(0, 20)));
+  check(`live: the store grows over several appends before the idle (${appends} appends)`, appends >= 3 && done,
+    JSON.stringify({appends, rows: await S('w.series && w.series.rows')}));
+  check('live: and the plot draws every row of the run, 20 001 points, once the page has rendered them',
+    await until('__xpp.plot() && __xpp.plot().curves[0] && __xpp.plot().curves[0].points === 20001', 'the plot holds every row'),
+    JSON.stringify(await cdp.eval('__xpp.plot() && __xpp.plot().curves.map(c => c.points)')));
   const cols = await cdp.eval(`(() => { const s = __xpp.state(), m = (${ACTIVE}).series; const o = {};
     for (const [k, v] of m.columns) o[k] = Array.from(v); return o; })()`);
   let bad = null;
