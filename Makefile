@@ -60,13 +60,16 @@ endif
 CSTD     = -std=gnu99
 CXXSTD   = -std=gnu++23
 EXE      = .exe
-DLLIB    =
+# the system libraries core/ itself calls, linked into every program the core
+# library is (xppautX and each unit test): WinHTTP, for xpp_win32.cpp's update
+# check (W622)
+CORE_SYSLIBS = -lwinhttp
 LDSTATIC = -static
 # -mwindows: a GUI-subsystem exe, so Explorer and a file association start
 # it with no console window (xpp_win32.cpp's xpp::win32::attach_console()
 # reattaches to a real one for the command-line modes; --server's pipes are
 # untouched, W13b)
-NETLIBS  = -lpthread -lws2_32 -lwinhttp -mwindows
+NETLIBS  = -lpthread -lws2_32 -mwindows
 WINDRES ?= windres
 # the core's thread is the main one: the 8 MB stack Linux and macOS give it
 # (a PE gets 2 MB), so a file's expression nested to the parser's limit
@@ -75,8 +78,9 @@ WINDRES ?= windres
 MAINSTACK = -Wl,--stack,8388608
 else
 EXE      =
-# dlopen, for xpp_window_loader.cpp (the Linux window's library)
-DLLIB    = -ldl
+# dlopen, for xpp_window_loader.cpp (the Linux window's library) and
+# xpp_https.cpp (libcurl)
+CORE_SYSLIBS = -ldl
 LDSTATIC =
 NETLIBS  = -lpthread
 MAINSTACK =
@@ -369,7 +373,7 @@ $(BUILDDIR)/xpp_math_eispack.o: CXXFLAGS += -Drg=eispack_rg -Dqzhes=eispack_qzhe
 LINALG_LIBS = -lgfortran
 # the measuring tool of the comparison (tools/autox-profile/eig_accuracy.py): both libraries on dumped matrices
 $(BUILDDIR)/eigcompare$(EXE): tools/lapack-adapter/eigcompare.cpp $(BUILDDIR)/libxppcore.a
-	$(CXX) $(call NOLTO,$(CXXFLAGS)) $< $(BUILDDIR)/libxppcore.a -o $@ -lgfortran -lm $(DLLIB) $(NETLIBS)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) $< $(BUILDDIR)/libxppcore.a -o $@ -lgfortran -lm $(CORE_SYSLIBS) $(NETLIBS)
 else ifneq ($(LINALG),eispack)
 $(error LINALG must be eispack or lapack)
 endif
@@ -396,7 +400,7 @@ print-objects:
 ltocheck:
 	@$(MAKE) -s BUILDDIR=build/lto OPT="-O1 -flto=auto -ffat-lto-objects" lto-link
 lto-link: $(CORE_OBJECTS) $(SERVER_OBJECTS)
-	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
+	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(CORE_SYSLIBS) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
 	@if grep -A4 'lto-type-mismatch' $(BUILDDIR)/lto.log; then echo "ltocheck: types differ across files"; exit 1; fi
 # AddressSanitizer + UndefinedBehaviorSanitizer (and LeakSanitizer, part of
 # ASan on Linux, off on macOS: tools/asancheck.sh --no-leaks, CI's
@@ -436,7 +440,7 @@ endif
 vg:
 	@$(MAKE) BUILDDIR=build/vg VALGRIND=1 asan-link
 $(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(SANITIZE) $(MAINSTACK) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
+	$(LINK_X) $(SANITIZE) $(MAINSTACK) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
 
 # the one X11-free program: browser front end, --server protocol and --silent batch;
 # a comparison build (LIBM, LINALG) links it in its own BUILDDIR, never over ./xppautX,
@@ -458,7 +462,7 @@ $(BUILDDIR)/corelib.stamp: FORCE | $(BUILDDIR)
 	@echo '$(CORE_OBJECTS)' > $@.tmp; if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(LDSTATIC) $(MAINSTACK) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
+	$(LINK_X) $(LDSTATIC) $(MAINSTACK) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(CORE_SYSLIBS) $(NETLIBS) $(WINDOW_LIBS) $(LINALG_LIBS)
 
 # macOS: xppautX.app, a bundle Finder and LaunchServices know as the .ode
 # opener (tools/associate/Info.plist.in's CFBundleDocumentTypes), from the
@@ -497,7 +501,7 @@ test: $(TEST_BINS)
 # valgrind build keeps it: their reports name source lines.
 TEST_LDDEBUG ?= $(if $(or $(SANITIZE),$(VALGRIND)),,-Wl,-S)
 $(TEST_BINS): %$(EXE): %.o $(CORELIB)
-	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) $(MAINSTACK) $(TEST_LDDEBUG) -o $@ $< $(CORELIB) -lm $(DLLIB)
+	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) $(MAINSTACK) $(TEST_LDDEBUG) -o $@ $< $(CORELIB) -lm $(CORE_SYSLIBS)
 
 # Code nothing reaches (tools/deadcode.sh reads what this leaves; Linux):
 # every function and datum in a section of its own, at -O0 (no inlining),
@@ -511,8 +515,8 @@ deadcode:
 	@$(MAKE) -s BUILDDIR=build/deadcode DEADCODE=1 OPT="-O0 -ffunction-sections -fdata-sections" deadcode-link
 deadcode-link: $(CORE_OBJECTS) $(SERVER_OBJECTS) $(TEST_OBJECTS) $(CORELIB) $(WINDOW_LIB_OBJECTS)
 	@rm -f $(BUILDDIR)/gc-*.log
-	@$(LINK_X) $(DEADCODE_GC) -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/gc-xppautX.log || { cat $(BUILDDIR)/gc-xppautX.log; exit 1; }
-	@for t in $(TEST_OBJECTS); do $(LINK_TESTS) -Wl,--gc-sections -o $${t%.o}$(EXE) $$t $(CORELIB) -lm $(DLLIB) || exit 1; done
+	@$(LINK_X) $(DEADCODE_GC) -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(CORE_SYSLIBS) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/gc-xppautX.log || { cat $(BUILDDIR)/gc-xppautX.log; exit 1; }
+	@for t in $(TEST_OBJECTS); do $(LINK_TESTS) -Wl,--gc-sections -o $${t%.o}$(EXE) $$t $(CORELIB) -lm $(CORE_SYSLIBS) || exit 1; done
 ifeq ($(WINDOW_EMBED),1)
 	@$(CXX) -shared -Wl,-z,defs -Wl,--version-script=$(WINDOW_LIB_DIR)/exports.map $(DEADCODE_GC) -o $(WINDOW_LIB_DIR)/libxppwindow-gc.so $(WINDOW_LIB_OBJECTS) $(WINDOW_LIB_LIBS) -lpthread 2> $(BUILDDIR)/gc-window.log || { cat $(BUILDDIR)/gc-window.log; exit 1; }
 endif

@@ -149,10 +149,10 @@ void check_plan()
 
 /* the swap: a fake "running program", an archive built here, the release list's size and digest */
 struct Swap {
-    std::filesystem::path dir = std::filesystem::path(xpp::files::temp_base()) / ("xpptest-install-" + std::to_string(::getpid()));
+    xpp::TempDir scratch;
+    std::filesystem::path dir = scratch.path();
     std::string running = (dir / "running").string(), archive = (dir / "a.tar.gz").string();
-    Swap() { std::filesystem::create_directories(dir); xpp::Writer w = xpp::Writer::binary(running); w.write("\x7f" "ELF old"); (void)w.commit(); }
-    ~Swap() { std::filesystem::remove_all(dir); }
+    Swap() { xpp::Writer w = xpp::Writer::binary(running); w.write("\x7f" "ELF old"); (void)w.commit(); }
     xpp::update::ReleaseFile put(const std::string &tar_gz)
     {
         xpp::Writer w = xpp::Writer::binary(archive);
@@ -226,8 +226,8 @@ void check_swap()
 
 void check_kept()
 {
-    const std::filesystem::path config = std::filesystem::path(xpp::files::temp_base()) / ("xpptest-config-" + std::to_string(::getpid()));
-    std::filesystem::create_directories(config);
+    const xpp::TempDir scratch;
+    const std::filesystem::path config = scratch.path();
     test_setenv(xpp::files::CONFIG_DIR_ENV, config.string().c_str());
     const xpp::update::Plan deb = xpp::update::plan_for(where("v0.2.0", xpp::update::Os::linux_x64, "/usr/bin", "/usr/bin", false));
     const std::string body = "!<arch>\ndebian-binary a package of some length";
@@ -274,7 +274,6 @@ void check_kept()
     xpp::update::discard_pending();
     CHECK(std::filesystem::is_empty(xpp::update::kept_folder()));
     test_setenv(xpp::files::CONFIG_DIR_ENV, nullptr);
-    std::filesystem::remove_all(config);
 }
 
 } // namespace

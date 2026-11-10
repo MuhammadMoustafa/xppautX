@@ -35,7 +35,8 @@ try {
       assert.ok(await waitFor(() => browser.cdp.eval("!!window.__xpp?.state().hello?.start && !window.__xpp.state().ask && !window.__xpp.state().busy && !!document.querySelector('[data-start-open]')")));
       if (mode !== 'close') await browser.cdp.eval("document.querySelector('[data-start-open]').click(); true");
       if (mode === 'select') {
-        assert.ok(await waitFor(() => browser.cdp.eval('!!window.__xpp?.state().hello && !window.__xpp.state().busy')));
+        /* the model's hello, not the start screen's, which is there (and idle) before the open lands */
+        assert.ok(await waitFor(() => browser.cdp.eval('!!window.__xpp?.state().hello?.file && !window.__xpp.state().busy')));
         assert.equal(path.basename(await browser.cdp.eval('window.__xpp.state().hello.file')), 'lecar.odex');
         await browser.cdp.eval("document.querySelector('.run-toolbar button.primary').click(); true");
         assert.ok(await waitFor(() => browser.cdp.eval('window.__xpp.state().core.rows > 0 && !window.__xpp.state().busy')));

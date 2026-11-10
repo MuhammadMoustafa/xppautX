@@ -17,7 +17,9 @@ namespace xpp::https {
 
 namespace {
 
+#ifndef _WIN32 // Windows' errors are xpp_win32.cpp's
 constexpr std::string_view WHERE = "https";
+#endif
 
 #ifdef __linux__
 
