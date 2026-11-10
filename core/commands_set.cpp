@@ -182,9 +182,9 @@ constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DO
 constexpr std::array DONE_EVENTS = {xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"set.rename", RENAME_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Rename set", "File/Sets",
+    Command{"set.rename", RENAME_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Rename", "File/Sets",
             "Rename one of the model file's own sets.", RENAME_RESULTS, STATE_EVENTS, true, set_rename},
-    Command{"set.delete", DELETE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Delete set", "File/Sets",
+    Command{"set.delete", DELETE_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Delete", "File/Sets",
             "Delete one of the model file's own sets from the file.", DELETE_RESULTS, STATE_EVENTS, true, set_delete},
     Command{"set.load_file", LOAD_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Files, "Load a named part of a file", "File/Sets",
             "Load values from a file by scope: the file's defaults (from defaults), one of its sets (from set, name) or an XPPAUT .par, .ic or .set (from file), limited to the scope, over the current values; the plot settings go to the graph window names. The whole file is checked against this model first and an unknown name refuses it; nothing runs and the model file is not changed.",

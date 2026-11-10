@@ -11,11 +11,11 @@ data show up (all known bugs of the X11 DB window). It opens from the header's *
 button in the right column, in the place of the Values panel, under the header:
 the plot stays whole beside it, so a selected row and its point can be seen together.
 **Back to Values** returns the Values panel as it was; on a phone the table is a full-screen sheet
-with a **×** on top. The header holds **Load data** and one **Export data** menu (below).
+with a **×** on top. The header holds **Load data** and one **Export** menu (below).
 Then come the toolbar, **Find**, **Rows** (First row, Last row, All rows) and **Columns**
 (Add column, Replace, Delete column, and More: Undo replace, Tabulate column, Transpose data), which
-are two menus where the panel is narrow, as the right column always is; **Edit table** (the
-model's lookup tables) is in Analysis > Tables, not here. A line below says how many rows there
+are two menus where the panel is narrow, as the right column always is; **Edit** (Analysis > Tables; the
+model's lookup tables) is not in this panel. A line below says how many rows there
 are and which one is selected ("601 rows · row 5 (t = 0.25) selected"), with a button
 **Use row 5 as initial conditions** (the Get below). Then follows a list of titles for the
 variables, time and the auxiliary functions. Using the arrow keys, the

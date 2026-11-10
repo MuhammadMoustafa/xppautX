@@ -134,6 +134,17 @@ const Argument *picker_argument(const Command &command)
     return file;
 }
 
+std::string full_name(const Command &command)
+{
+    std::string name;
+    for (const char *c = command.menu_path; *c; ++c) {
+        if (*c == '/') name += MENU_SEPARATOR;
+        else name += *c;
+    }
+    if (!name.empty()) name += MENU_SEPARATOR;
+    return name + command.label;
+}
+
 std::vector<const Command *> rows()
 {
     std::vector<const Command *> result;
@@ -155,6 +166,8 @@ void append_command(std::string &out, const Command &command)
     json_append_string(out, category_id(command.category));
     out += ",\"label\":";
     json_append_string(out, command.label);
+    out += ",\"name\":";
+    json_append_string(out, full_name(command));
     out += ",\"menu_path\":";
     json_append_string(out, command.menu_path);
     out += ",\"default_keys\":[";
@@ -371,7 +384,7 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
             file = wild.starts_with("*.") && wild.find(' ') == std::string_view::npos
                 ? files::output_name(s.model().this_file, wild.substr(1)) : std::string{};
         }
-        if (!file_selector(command->label, file, command->file_wild)) return std::string("{\"cancelled\":true}");
+        if (!file_selector(full_name(*command), file, command->file_wild, command->file_mode)) return std::string("{\"cancelled\":true}");
         args->add(file_arg->name, Scalar{std::move(file)});
     }
     Result<std::string> result = command->execute(s, *command, *args, place);

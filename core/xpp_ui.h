@@ -240,7 +240,7 @@ typedef struct XppUi {
        fields are its cells, row by row; the rest are plain fields below it */
     int (*grid_box)(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
                     const char *const *names, std::span<std::string> values, const int *kinds);
-    int (*file_selector)(std::string_view title, std::string &file, std::string_view wild);
+    int (*file_selector)(std::string_view title, std::string &file, std::string_view wild, const char *mode);
     int (*get_mouse_xy)(Session &s, int *x, int *y);
 
     /* long-running loops poll these */
@@ -441,8 +441,9 @@ int ask_form(Session &s, std::string_view title, std::span<FormField> fields);
 int do_grid_box_of(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
                    const char *const *names, std::span<std::string> values, const int *kinds);
 /* a file name (base name or path, what the user picked) matching wild;
-   0 on cancel or an empty name */
-int file_selector(std::string_view title, std::string &file, std::string_view wild);
+   0 on cancel or an empty name. mode ("read" or "write") is a registry command's own file_mode; null takes it from the title's first word
+   (xpp::files::ask_mode), for the dialogs no row owns */
+int file_selector(std::string_view title, std::string &file, std::string_view wild, const char *mode = nullptr);
 
 /* the one way an error is shown (xpp_error.h): what a computation the
    command ran returned, or what the command found wrong itself, with its

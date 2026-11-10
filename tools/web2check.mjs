@@ -932,7 +932,7 @@ async function textViews() {
   await cdp.eval(`[...document.querySelectorAll('.text-tab')].find(b => b.textContent === 'Equilibrium').click()`);
   check('no equilibrium yet', await until(`document.querySelector('.text-equilibrium .text-empty') !== null`,
     'empty equilibrium rendered'));
-  await cdp.eval(`[...document.querySelectorAll('.text-tools button')].find(b => b.textContent === 'Find equilibrium').click()`);
+  await cdp.eval(`[...document.querySelectorAll('.text-tools button')].find(b => b.textContent === '${await labelOf('equilibrium.find')}').click()`);
   check('Find equilibrium (Sing pts/Go) computes one: type, counts and values from the equilibrium event',
     await until(`s.text.equilibrium && /STABLE|UNSTABLE|NEUTRAL/.test(s.text.equilibrium.type)
       && s.text.equilibrium.values.length === 2 && !s.busy`, 'equilibrium', 20000),
@@ -3392,6 +3392,35 @@ async function settingsShots() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
+/* The menus' pictures for the UI review (W650; with --only shots and XPP_SHOTS=folder): each top menu open, and two submenus open, at 1280 wide light, 1440
+   dark, 768 and 390 (the drawer). Never a check: it writes files only. */
+async function menuShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
+  const shots = [...['File', 'Run', 'Analysis', 'Plot', 'Data', 'autoX', 'Windows', 'Help'].map(top => [top.toLowerCase(), top, null]),
+    ['file-export', 'File', 'Export'], ['analysis-nullclines', 'Analysis', 'Nullclines'], ['plot-freeze', 'Plot', 'Freeze']];
+  for (const [size, width, height, scheme] of sizes) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    await rendered();
+    for (const [name, top, sub] of shots) {
+      await cdp.eval(`(() => { if (getComputedStyle(document.querySelector('.menu-toggle')).display !== 'none' && !document.querySelector('.app-menu.open')) document.querySelector('.menu-toggle').click(); })()`);
+      await cdp.eval(`(() => {
+        for (const d of document.querySelectorAll('.app-menu details')) d.open = false;
+        const menu = document.querySelector('.app-menu [data-top-menu="${top}"]'); menu.open = true;
+        if (${JSON.stringify(sub)}) [...menu.querySelectorAll('details > summary')].find(n => n.textContent.trim().startsWith(${JSON.stringify(sub)})).parentElement.open = true;
+      })()`);
+      await rendered();
+      fs.writeFileSync(path.join(dir, `menu-${name}-${size}.png`), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+    }
+    await cdp.eval(`(() => { for (const d of document.querySelectorAll('.app-menu details')) d.open = false; if (document.querySelector('.app-menu.open')) document.querySelector('.menu-toggle').click(); })()`);
+  }
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
 /* The Table's pictures for the UI review (W648; with --only shots and XPP_SHOTS=folder): the dock open, a row selected, the Export data menu open */
 async function tableShots() {
   const dir = process.env.XPP_SHOTS;
@@ -3650,6 +3679,13 @@ async function navigationCheck() {
   check('W642: the menu bar entry, the dialog and its Help item say Search commands',
     await cdp.eval(`document.querySelector('.menu-search').textContent.trim() === 'Search commands' && document.querySelector('.command-palette h2').textContent.trim() === 'Search commands' && document.querySelector('.command-palette [data-command="command_palette.open"]').textContent.includes('Search commands')`));
   check('W517: palette contains every registry command', await until(`s.drawerOpen && document.querySelectorAll('.command-palette [data-command]').length === ${rows.length}`, 'palette'));
+  /* W650: inside its menu a command is its short label, outside it (Search commands) its full name, both from hello's row */
+  const exportPdf = await S(`s.hello.commands.find(c => c.cmd === 'plot.export_pdf')`);
+  check('W650: the row has a short label and a full name made of its menu path and label',
+    exportPdf.label === 'Graph PDF' && exportPdf.name === 'File \u203a Export \u203a Graph PDF', JSON.stringify(exportPdf));
+  check('W650: the menu entry shows the label and Search commands the full name',
+    await cdp.eval(`document.querySelector('.app-menu [data-command="plot.export_pdf"]').textContent.trim() === 'Graph PDF'
+      && document.querySelector('.command-palette [data-command="plot.export_pdf"]').textContent.trim().startsWith('File \u203a Export \u203a Graph PDF')`));
   await cdp.eval(`(() => {const q = document.querySelector('#command-search'); q.value = 'session save'; q.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await rendered();
   check('W517: palette matches the registry name and menu path', await cdp.eval(`!!document.querySelector('.command-palette [data-command="session.save"]') && !document.querySelector('.command-palette [data-command="run.initial"]')`));
@@ -6631,6 +6667,7 @@ async function main() {
     if (run('options')) await session(ODE, optionsCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, menuShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);

@@ -90,7 +90,7 @@ function KeyTable() {
       <table>
         <tbody>
           {FIXED_KEYS.map(k => <tr key={k.key}><th scope="row"><kbd>{k.key}</kbd></th><td>{k.does}</td></tr>)}
-          {rows.map(row => <tr key={row.id}><th scope="row"><kbd>{shortcutLabel(row, keymap)}</kbd></th><td>{row.label}</td></tr>)}
+          {rows.map(row => <tr key={row.id}><th scope="row"><kbd>{shortcutLabel(row, keymap)}</kbd></th><td>{row.name}</td></tr>)}
         </tbody>
       </table>
     </details>

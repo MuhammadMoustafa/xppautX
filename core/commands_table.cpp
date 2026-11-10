@@ -50,11 +50,11 @@ constexpr std::array EDIT_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DON
 constexpr std::array VIEW_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"table.edit", EDIT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Edit table", "Analysis/Tables",
+    Command{"table.edit", EDIT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Edit", "Analysis/Tables",
             "Change a table of a formula (its formula, points, range, and whether it is evaluated again when a parameter changes) or read a "
             "table of a file again from its file or another; what is left out stays.",
             EDIT_RESULTS, EDIT_EVENTS, true, table_edit},
-    Command{"table.show", VIEW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "Show table", "Analysis/Tables",
+    Command{"table.show", VIEW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "Show", "Analysis/Tables",
             "Show a table's points in the data table.", VIEW_RESULTS, VIEW_EVENTS, true, table_view}};
 
 } // namespace

@@ -78,7 +78,7 @@ constexpr std::array SOLVE_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JO
 constexpr std::array CONFIGURE_EVENTS = {xpp::events::RUN_NUMERICS, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"boundary_value.solve", SOLVE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Solve boundary values", "Run/Boundary values",
+    Command{"boundary_value.solve", SOLVE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Solve", "Run/Boundary values",
             "Solve the boundary value problem from the initial values by shooting and make the solution the initial values; show draws every step.",
             SOLVE_RESULTS, SOLVE_EVENTS, true, bvp_solve_handler},
     Command{"boundary_value.solve_periodic", PERIODIC_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Solve periodic orbit", "Run/Boundary values",
@@ -87,7 +87,7 @@ constexpr std::array ROWS = {
     Command{"boundary_value.solve_range", RANGE_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Solve over a range", "Run/Boundary values",
             "Solve the boundary value problem for each value of a parameter between two values, storing a solution's start or end for each.",
             RANGE_RESULTS, SOLVE_EVENTS, true, bvp_range_handler},
-    Command{"boundary_value.configure", CONFIGURE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Boundary value settings", "Run/Boundary values",
+    Command{"boundary_value.configure", CONFIGURE_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Analysis, "Settings", "Run/Boundary values",
             "Set the shooting's iteration limit, tolerance and finite-difference step; the settings are checked together.",
             CONFIGURE_RESULTS, CONFIGURE_EVENTS, true, bvp_configure}};
 

@@ -404,9 +404,10 @@ int j_grid_box(std::string_view title, std::span<const char *const> columns, std
    cd of the page changes only the folder listed. "mode" says whether the
    command reads the file or writes it, so a client can show an open or a
    save dialog (docs/ui-v2.md section 4). */
-int j_file_selector(std::string_view title, std::string &file, std::string_view wild)
+int j_file_selector(std::string_view title, std::string &file, std::string_view wild, const char *mode)
 {
     xpp::Session &s = client();
+    if (!mode) mode = xpp::files::ask_mode(title);
     std::string pattern(wild), cd;
     const auto last = s.file_dialogs.last.find(pattern);
     std::string dir = last != s.file_dialogs.last.end() ? last->second
@@ -420,7 +421,7 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
         BUF_LIT(b, ",\"title\":");
         buf_str(b, title);
         BUF_LIT(b, ",\"mode\":");
-        buf_str(b, xpp::files::ask_mode(title));
+        buf_str(b, mode);
         BUF_LIT(b, ",\"file\":");
         buf_str(b, file.c_str());
         BUF_LIT(b, ",\"wild\":");
@@ -449,12 +450,12 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
         if (!js_find(answer.c_str(), "file")) continue; /* a new pattern alone lists again */
         get_string(answer.c_str(), "file", file); /* a name in the folder or a full path, whole (W88) */
         if (file.empty()) return 0;
-        if (strcmp(xpp::files::ask_mode(title), "write") == 0 &&
+        if (strcmp(mode, "write") == 0 &&
             !xpp::ok_or_show(read_save_replace(answer.c_str(), session.save_replace))) return 0;
         /* Only the native picker's single-use path grant permits a disk path.
            Typed browser/server names stay in the model folder; replay also
            passes the file owner's write_path_ok guard. */
-        if (strcmp(xpp::files::ask_mode(title), "write") == 0 &&
+        if (strcmp(mode, "write") == 0 &&
             !xpp::inbox::consume_save(id, file) && (entered || !xpp::files::name_ok(file))) {
             j_command_error("save",xpp::format("{} is not a plain base name in the model folder",file));
             return 0;

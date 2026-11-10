@@ -1,7 +1,7 @@
 import {useState} from 'preact/hooks';
 import {useMay, useSession, useStore} from './context';
 import {CommandLabel, useCommandLabel} from './CommandButton';
-import {menuPlace, paletteRows, registryRows} from './navigation';
+import {paletteRows, registryRows} from './navigation';
 import {effectiveKeys, togglePinned, withPinned} from '../store/keymap';
 import {Dialog} from './Dialog';
 
@@ -29,7 +29,7 @@ function Palette() {
     <span class="input-box"><input id="command-search" type="search" data-autofocus value={query} aria-label={title} placeholder={title} onInput={e => setQuery(e.currentTarget.value)} /></span>
     <ul>{rows.map(row => <li key={row.id}>
       <button class="menu-item" data-command={row.id} disabled={!may({cmd: row.id})} title={row.description}
-        onClick={() => {close(); session.registryAction(row.id);}}>{menuPlace(row)} <kbd>{effectiveKeys(info, row).join(' / ')}</kbd></button>
+        onClick={() => {close(); session.registryAction(row.id);}}>{row.name} <kbd>{effectiveKeys(info, row).join(' / ')}</kbd></button>
       {info && <button data-pin={row.id} aria-pressed={info.pinned.includes(row.id)} onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.id)))}>{info.pinned.includes(row.id) ? 'Unpin' : 'Pin'}</button>}
     </li>)}</ul>
   </Dialog>;

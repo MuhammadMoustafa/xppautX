@@ -417,16 +417,16 @@ constexpr std::array BUTTON_COMMANDS = {"window.new", "window.close_extra", "win
 constexpr int BUTTON_REDRAW_AUTO = 4, BUTTON_REDRAW_MANUAL = 5, BUTTON_SIMULTANEOUS = 6;
 
 constexpr std::array ROWS = {
-    Command{"window.set_bounds", BOUNDS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set view bounds", "Plot/View",
+    Command{"window.set_bounds", BOUNDS_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Set bounds", "Plot/View",
             "Set the view's bounds; a bound left out keeps the view's.", BOUNDS_RESULTS, PLOT_EVENTS, true, set_bounds},
-    Command{"window.reset_view", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Reset view", "Plot/View",
+    Command{"window.reset_view", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Reset", "Plot/View",
             "Give the view its default bounds.", BOUNDS_RESULTS, PLOT_EVENTS, true, reset_default},
     Command{"window.zoom_in", ZOOM_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Zoom in", "Plot/View",
             "Zoom in: the view becomes the box.", BOUNDS_RESULTS, PLOT_EVENTS, true, zoom, BOX_GROUPS},
     Command{"window.zoom_out", ZOOM_OUT_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Zoom out", "Plot/View",
             "Zoom out: the view grows by factor about a center (the view's own), or fills the box.", BOUNDS_RESULTS, PLOT_EVENTS, true,
             zoom_out_window, ZOOM_OUT_GROUPS},
-    Command{"window.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Scroll view", "Plot/View",
+    Command{"window.scroll", SCROLL_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Scroll", "Plot/View",
             "Move the view by dx and dy, in plot coordinates.", SCROLL_RESULTS, PLOT_EVENTS, true, scroll},
     Command{"window.new", CREATE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "New graph", "Windows",
             "Create a graph copied from the active graph.", WINDOW_RESULTS, WINDOW_EVENTS, true, create_window},

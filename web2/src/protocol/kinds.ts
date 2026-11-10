@@ -37,7 +37,10 @@ export interface CommandKind {
   groups?: RegistryGroup[];
   file_mode?: string;
   file_wild?: string;
+  /** its name inside its menu (short) */
   label?: string;
+  /** its full name everywhere else: the menu path and the label, derived by the core */
+  name?: string;
   menu_path?: string;
   /** the option group whose generated panel opens in place of this command's own form (core Command::panel) */
   panel?: string;
@@ -65,7 +68,10 @@ export interface CommandRow {
   action?: string;
   /** stable: the command's name */
   id: string;
+  /** the name inside the command's menu: the menu bar's entry */
   label: string;
+  /** the full name, shown everywhere but in the menu itself (the palette, the keymap editor, the status line, buttons) */
+  name: string;
   description: string;
   /** one kind letter (OF_LETTER) */
   kind: string;
@@ -91,10 +97,10 @@ export function noValueEdit(core: StateEvent | null, id: string): boolean {
   return !!core && (id === 'value.undo' && !core.can_undo || id === 'value.redo' && !core.can_redo);
 }
 
-/** the row's label of a computation (what the status line says is running), null for any other command */
-export function computationLabel(hello: HelloEvent | null, cmd: Command): string | null {
+/** the full name of a computation (what the status line says is running), null for any other command */
+export function computationName(hello: HelloEvent | null, cmd: Command): string | null {
   const entry = hello && commandOf(hello, cmd);
-  return entry && OF_LETTER[entry.kind] === 'computation' ? entry.label ?? null : null;
+  return entry && OF_LETTER[entry.kind] === 'computation' ? entry.name ?? null : null;
 }
 
 /** The page resolves physical keys through the keymap before sending registry commands. */

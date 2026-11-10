@@ -160,7 +160,7 @@ export function keyProblem(info: KeymapInfo, row: CommandRow, index: number, key
   if (info.reserved.includes(key))
     return `${key} is kept by the system or the browser; choose another key.`;
   if (index >= effectiveKeys(info, row).length && effectiveKeys(info, row).length >= info.limits.keys)
-    return `${row.label} has the most keys it may (${info.limits.keys}); remove one first.`;
+    return `${row.name} has the most keys it may (${info.limits.keys}); remove one first.`;
   return null;
 }
 
@@ -190,7 +190,7 @@ export function recordKey(info: KeymapInfo, rows: readonly CommandRow[], rec: Re
 export function editorRows(info: KeymapInfo | null, rows: readonly CommandRow[], query: string): CommandRow[] {
   const words = query.toLocaleLowerCase().split(/[\s+]+/).filter(Boolean);
   return rows.filter(row => words.every(word =>
-    `${row.label} ${row.description} ${row.category} ${row.id} ${effectiveKeys(info, row).join(' ')}`.toLocaleLowerCase().replace(/\+/g, ' ').includes(word)));
+    `${row.name} ${row.description} ${row.category} ${row.id} ${effectiveKeys(info, row).join(' ')}`.toLocaleLowerCase().replace(/\+/g, ' ').includes(word)));
 }
 
 /** the quick-access toolbar: the pinned commands that exist and may be pinned, in order. The ids of

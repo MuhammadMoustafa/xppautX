@@ -206,10 +206,11 @@ struct Command {
     std::span<const Argument> arguments;
     char kind;
     CommandCategory category;
-    /* the command's one name, in plain words (sentence case, no mnemonic letters, no listed choices), unique among the rows: every
-       menu, button, tooltip, palette entry, status line and the manual read it from here */
+    /* the command's name inside its menu, in plain words (sentence case, no mnemonic letters, no listed choices), unique within its menu_path and
+       short: what is clear under the menu's own words (`Graph PDF` under File › Export). A row with no menu_path has no menu: its label is its name.
+       Everywhere else a command is shown by full_name(), derived */
     const char *label;
-    /* the menu groups above the label, slash-separated (`File/Sets`), its first one a menu of the bar; the label is not repeated in it */
+    /* the menu groups above the label, slash-separated (`File/Sets`), its first one a menu of the bar; the label does not repeat them */
     const char *menu_path;
     const char *description;
     std::span<const ResultField> results;
@@ -233,6 +234,11 @@ struct Command {
 
 /* The one file picked for a command; optional paths (Open model) have their own startup picker. */
 const Argument *picker_argument(const Command &command);
+/* The command's name outside its menu (palette, status line, keymap, recordings, file dialogs): the menu path and the label, `File › Export › Graph PDF`;
+   a row with no menu is its label. Derived here only, never written apart: the label is what is clear inside the menu. */
+std::string full_name(const Command &command);
+/* between a menu path's groups and its label in a full name; the page's menu paths (the manual's, the palette's) read the same */
+inline constexpr std::string_view MENU_SEPARATOR = " \u203a ";
 
 /* A command's result object, built member by member in the order its row
    declares them: `ResultObject().integer("rows", 3).text("status", "ok").done()`. */

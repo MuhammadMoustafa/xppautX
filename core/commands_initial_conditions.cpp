@@ -175,18 +175,18 @@ constexpr std::array STATE_EVENTS = {xpp::events::SESSION_STATE, xpp::events::DO
 constexpr std::array RUN_EVENTS = {xpp::events::JOB_COMPUTING, xpp::events::JOB_PROGRESS, xpp::events::PLOT_SERIES, xpp::events::JOB_STOPPED, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"initial_conditions.set", SET_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set initial conditions", "Run/Initial conditions",
+    Command{"initial_conditions.set", SET_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set", "Run/Initial conditions",
             "Set the initial values of some states; the others keep theirs.", SET_RESULTS, STATE_EVENTS, true, ic_set},
-    Command{"initial_conditions.set_by_formula", FORMULA_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set initial value by formula", "Run/Initial conditions",
+    Command{"initial_conditions.set_by_formula", FORMULA_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set by formula", "Run/Initial conditions",
             "Set a state's initial value to a formula, or an array range u[1..5] to a formula reading [j] as the element's number.",
             FORMULA_RESULTS, STATE_EVENTS, true, ic_formula},
-    Command{"initial_conditions.set_by_array_formula", ARRAY_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set initial values by array formula", "Run/Initial conditions",
+    Command{"initial_conditions.set_by_array_formula", ARRAY_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set by array formula", "Run/Initial conditions",
             "Set size states from a state on to a formula of t, the element's offset from the first.", ARRAY_RESULTS, STATE_EVENTS, true,
             ic_array},
-    Command{"initial_conditions.import", LOAD_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Import initial conditions", "Run/Initial conditions",
+    Command{"initial_conditions.import", LOAD_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Import", "Run/Initial conditions",
             "Read the initial values from a file of the model's folder, one number per differential equation.", LOAD_RESULTS, STATE_EVENTS,
             true, ic_load},
-    Command{"initial_conditions.set_from_data_row", ROW_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set initial conditions from data row", "Run/Initial conditions",
+    Command{"initial_conditions.set_from_data_row", ROW_ARGUMENTS, XPP_KIND_SETTING, CommandCategory::Run, "Set from data row", "Run/Initial conditions",
             "Make a row of the stored data (the first is 0) the initial values.", ROW_RESULTS, STATE_EVENTS, true, ic_from_data_row,
             {}, {}},
     Command{"run.from_point", AT_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Run, "Run from a point", "Run/Initial conditions",

@@ -97,8 +97,8 @@ std::string command_label(const char *line)
     if (c == "set.export") return xpp::format("Export {} values as set {}", get_string(line, "scope", v) ? v : "", get_string(line, "name", name) ? name : "");
     if (c == "set.rename") return xpp::format("Rename set {} to {}", get_string(line, "from", name) ? name : "", get_string(line, "to", v) ? v : "");
     if (c == "set.delete") return xpp::format("Delete set {}", get_string(line, "name", name) ? name : "");
-    /* a registry command's step is named by its row's label */
-    if (const xpp::command::Command *registered = xpp::command::find(xpp::command::name(line))) return registered->label;
+    /* a registry command's step is named by its row's full name */
+    if (const xpp::command::Command *registered = xpp::command::find(xpp::command::name(line))) return xpp::command::full_name(*registered);
     std::string label = c;
     if (!label.empty()) label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
     return o.empty() ? label : label + " " + o;

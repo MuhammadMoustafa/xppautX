@@ -117,8 +117,8 @@ export const HELLO: HelloEvent = {
     {cmd: 'key', kind: '', step: true},
     {cmd: 'answer', kind: 'c', step: false}, {cmd: 'run.stop', kind: 'c', step: false},
     {cmd: 'display', kind: 'v', step: true},
-    ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?XPP_KIND_(\w+),\s*CommandCategory::\w+,\s*"([^"]*)",[\s\S]*?,\s*(true|false),/g)]
-      .map(m => ({cmd: m[1], kind: ({VIEW: 'v', COMPUTE: 'x', SETTING: 's', CONTROL: 'c', DATA: 'd'} as Record<string, string>)[m[2]], label: m[3], step: m[4] === 'true'})),
+    ...[...registrySource().matchAll(/Command\{"([^"]+)",[\s\S]*?XPP_KIND_(\w+),\s*CommandCategory::\w+,\s*"([^"]*)",\s*"([^"]*)",[\s\S]*?,\s*(true|false),/g)]
+      .map(m => ({cmd: m[1], kind: ({VIEW: 'v', COMPUTE: 'x', SETTING: 's', CONTROL: 'c', DATA: 'd'} as Record<string, string>)[m[2]], label: m[3], name: [...m[4].split('/').filter(Boolean), m[3]].join(' \u203a '), step: m[5] === 'true'})),
     {cmd: 'set', kind: 's', step: true},
   ],
   upload_error: 'larger than 64 MB',
@@ -145,7 +145,7 @@ for (const file of readdirSync('../core').filter(f => /^commands_.*\.cpp$/.test(
     const keyName = /, (\w+)\s*$/.exec(body)?.[1];
     const keys = keyName ? new RegExp('constexpr std::array ' + keyName + ' = \\{([^}]*)\\}').exec(source)?.[1] : '';
     REGISTRY_HELLO.commands.push({cmd: match[1], arguments: [], kind: ({VIEW:'v', COMPUTE:'x', SETTING:'s', CONTROL:'c', DATA:'d'} as Record<string,string>)[metadata[1]], step: true,
-      label: metadata[2], menu_path: metadata[3], default_keys: [...(keys ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]), description: match[1]});
+      label: metadata[2], name: [...metadata[3].split('/').filter(Boolean), metadata[2]].join(' \u203a '), menu_path: metadata[3], default_keys: [...(keys ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]), description: match[1]});
   }
 }
 REGISTRY_HELLO.keymap = {...HELLO.keymap, commands: REGISTRY_HELLO.commands.map(c => ({id: c.cmd, keys: c.default_keys ?? [], source: 'default'}))};

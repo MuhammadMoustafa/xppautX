@@ -192,7 +192,7 @@ export function TableView() {
     </>
   );
 
-  /* Export data: one entry per format of data.export's `format` choice, the last used first and marked */
+  /* Export (the row's menu group): one entry per format of data.export's `format` choice, the last used first and marked */
   const formats = commandRow(hello, 'data.export')?.arguments?.find(a => a.name === 'format')?.choices ?? [];
   const [lastFormat, setLastFormat] = useState(() => readPref(FORMAT_KEY, v => (typeof v === 'string' ? v : null), ''));
   const ordered = [...formats].sort((a, b) => Number(b === lastFormat) - Number(a === lastFormat));
@@ -216,7 +216,7 @@ export function TableView() {
         </div>
         <div class="table-actions">
         {button('load', false)}
-        <DropDownMenu normal id="table-export" label={commandRow(hello, 'data.export')?.label ?? ''}>
+        <DropDownMenu normal id="table-export" label={commandRow(hello, 'data.export')?.menu_path?.split('/').pop() ?? ''}>
           {ordered.map(format => (
             <li key={format}>
               <button role="menuitem" data-export-format={format} disabled={exportOff}

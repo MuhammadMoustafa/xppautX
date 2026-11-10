@@ -135,7 +135,7 @@ static int hl_grid_box(std::string_view, std::span<const char *const>, std::span
 {
     return 0;
 }
-static int hl_file_selector(std::string_view, std::string &, std::string_view)
+static int hl_file_selector(std::string_view, std::string &, std::string_view, const char *)
 {
     return 0;
 }
@@ -446,10 +446,10 @@ int do_grid_box_of(std::string_view title, std::span<const char *const> columns,
 {
     return question_fields(names, values, kinds, [&] { return ui.grid_box(title, columns, rows, names, values, kinds); });
 }
-int file_selector(std::string_view title, std::string &file, std::string_view wild)
+int file_selector(std::string_view title, std::string &file, std::string_view wild, const char *mode)
 {
     const auto policy = ui.question_policy(false);
-    if (policy == QuestionPolicy::User) return ui.file_selector(title, file, wild);
+    if (policy == QuestionPolicy::User) return ui.file_selector(title, file, wild, mode);
     return question_string(title, file, XPP_FIELD_FILE);
 }
 int GetMouseXY(Session &s, int *x, int *y) { return ui.get_mouse_xy(s, x, y); }

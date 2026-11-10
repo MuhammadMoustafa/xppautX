@@ -102,9 +102,9 @@ function Editor() {
           : <button type="button" data-keymap-reset-all onClick={() => ui({type: 'confirmReset', on: true})}>Reset all</button>}
       </div>
       <p class="keymap-live" role="status" aria-live="polite" data-keymap-status>
-        {[editor.refusal, recordingRow && `Press the new key for ${recordingRow.label}. Esc cancels, Backspace removes the key.`].filter(Boolean).join(' ')}</p>
+        {[editor.refusal, recordingRow && `Press the new key for ${recordingRow.name}. Esc cancels, Backspace removes the key.`].filter(Boolean).join(' ')}</p>
       {conflict && conflictRow && otherRow && <p class="keymap-conflict" role="alert" data-keymap-conflict>
-        <kbd>{conflict.key}</kbd> is {otherRow.label}.{' '}
+        <kbd>{conflict.key}</kbd> is {otherRow.name}.{' '}
         <button type="button" class="primary" data-conflict-replace
           onClick={() => session.setKeymap(replaceKey(info, rows, conflictRow, conflict.index, conflict.key))}>Replace</button>{' '}
         <button type="button" data-conflict-cancel onClick={() => ui({type: 'conflict', conflict: null})}>Cancel</button></p>}
@@ -118,29 +118,29 @@ function Editor() {
             const recording = editor.recording?.id === row.id ? editor.recording.index : -1;
             const record = (index: number) => ui({type: 'record', recording: {id: row.id, index}});
             return <tr key={row.id} data-keymap-row={row.id}>
-              <th scope="row" title={row.description}>{row.label}</th>
+              <th scope="row" title={row.description}>{row.name}</th>
               <td>{row.category}</td>
               <td class="keymap-keys">{[...keys, ...(recording === keys.length ? [''] : [])].map((key, i) =>
                 <span class="keymap-key" key={i}>
-                  <button type="button" data-key-cell={row.id} data-index={i} aria-label={`${row.label}: ${key || 'new key'}. Press Enter to change it`}
+                  <button type="button" data-key-cell={row.id} data-index={i} aria-label={`${row.name}: ${key || 'new key'}. Press Enter to change it`}
                     onClick={e => { e.currentTarget.focus(); record(i); }}
                     onBlur={() => { if (editor.recording?.id === row.id && editor.recording.index === i) ui({type: 'record', recording: null}); }}>
                     {recording === i ? <em>Press keys…</em> : <kbd>{key}</kbd>}</button>
-                  {key && <button type="button" class="keymap-remove" data-key-remove={row.id} aria-label={`Remove ${key} from ${row.label}`}
+                  {key && <button type="button" class="keymap-remove" data-key-remove={row.id} aria-label={`Remove ${key} from ${row.name}`}
                     onClick={() => session.setKeymap(withoutKey(info, row, i))}>×</button>}
                 </span>)}
                 {keys.length === 0 && recording !== 0 && <button type="button" data-key-cell={row.id} data-index={0}
-                  aria-label={`${row.label}: no key. Press Enter to set one`} onClick={e => { e.currentTarget.focus(); record(0); }}>None</button>}
+                  aria-label={`${row.name}: no key. Press Enter to set one`} onClick={e => { e.currentTarget.focus(); record(0); }}>None</button>}
                 {keys.length > 0 && keys.length < info.limits.keys && recording < 0 &&
-                  <button type="button" data-key-add={row.id} aria-label={`Add a second key to ${row.label}`}
+                  <button type="button" data-key-add={row.id} aria-label={`Add a second key to ${row.name}`}
                     onClick={e => { e.currentTarget.focus(); record(keys.length); }}>+</button>}
               </td>
               <td data-source={source}>{source}</td>
               <td class="keymap-actions">
-                {source !== 'default' && <button type="button" data-key-reset={row.id} aria-label={`Reset the keys of ${row.label}`}
+                {source !== 'default' && <button type="button" data-key-reset={row.id} aria-label={`Reset the keys of ${row.name}`}
                   onClick={() => session.setKeymap(withoutBinding(info, row.id))}>Reset</button>}
                 {row.pinnable && <button type="button" data-key-pin={row.id} aria-pressed={pinned}
-                  aria-label={`${pinned ? 'Unpin' : 'Pin'} ${row.label} ${pinned ? 'from' : 'to'} the toolbar`}
+                  aria-label={`${pinned ? 'Unpin' : 'Pin'} ${row.name} ${pinned ? 'from' : 'to'} the toolbar`}
                   onClick={() => session.setKeymap(withPinned(info, togglePinned(info.pinned, row.id)))}>{pinned ? 'Unpin' : 'Pin'}</button>}
               </td>
             </tr>;

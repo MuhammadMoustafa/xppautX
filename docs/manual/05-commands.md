@@ -97,7 +97,7 @@ where an **Until time** really ends. It never asks a question.
 **Stop** stops a running command or cancels its prompt. The toolbar shows
 Idle/Running/Awaiting input and the last stored time in the active plot;
 stored time has sampled trajectory precision. Parameter edits apply to
-the next run. **Run > Run settings** opens the integration's numerics.
+the next run. **Run > Settings** opens the integration's numerics.
 Parameters and Numerics have their main home in Values; command search
 still reaches their legacy actions.
 
@@ -495,7 +495,7 @@ This selects one of different types of graphs: a 2D box or a 3D Box; brings up a
 - The `Style` button does nothing yet. The `Edit` button lets you change ranges and arrays to plot. The `Redraw` button is obvious.
 - Since the animation option requires learning lots of new stuff, see [Creating Animations](10-animations.md) for a description of the animation language and what you can do with it.
 
-The plot's Graphic stuff > Freeze > Import diagram reads a six-column `.dat` or `.csv` table: x, low, high, type, branch and two-parameter flag. A CSV header is skipped. The richer autoX Export CSV has a different layout.
+The plot's Graphic stuff > Freeze > Import diagram reads a six-column `.dat` or `.csv` table: x, low, high, type, branch and two-parameter flag. A CSV header is skipped. The richer autoX Export > CSV has a different layout.
 
 ### (X)i vs t
 

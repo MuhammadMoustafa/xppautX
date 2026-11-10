@@ -4,7 +4,7 @@
    own actions. Pure: no DOM, no I/O, no clock. */
 import {setPointTypes} from './pointTypes';
 import {setFileFormats} from './fieldKinds';
-import {computationLabel} from '../protocol/kinds';
+import {computationName} from '../protocol/kinds';
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, WindowListEntry, XppEvent} from '../protocol/types';
 import {errorPlace, errorText, unreadFile, type ErrorPlace} from '../protocol/errors';
@@ -360,7 +360,7 @@ export function busyText(running: string | null, asking: boolean): string {
 /* the name of what an answer or a command starts, for the status line
    (null: not known, or not a new run) */
 function runningName(hello: HelloEvent | null, cmd: Command, ask: AskEvent | null): string | null {
-  const label = computationLabel(hello, cmd);
+  const label = computationName(hello, cmd);
   if (label) return label;
   if (cmd.cmd !== 'answer' || !ask || ask.kind !== 'choice' || typeof cmd.key !== 'string')
     return null;

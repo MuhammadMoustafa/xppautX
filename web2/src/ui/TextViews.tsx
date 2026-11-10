@@ -21,6 +21,7 @@ import type {Session} from '../session';
 import {ShownNumber} from './CutText';
 import type {SourceLine, TextTab} from '../store/text';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {CommandLabel, useCommandName} from './CommandButton';
 import {FOCUSABLE} from './dialogFocus';
 
 
@@ -87,12 +88,13 @@ function EquilibriumView() {
   const may = useMay();
   const busy = !may({cmd: 'equilibrium.find'}); /* Sing pts: a computation (W95) */
   const eq = useStore(s => s.text.equilibrium);
+  const findName = useCommandName('equilibrium.find');
   return (
     <div class="text-equilibrium">
       <div class="text-tools">
         <button onClick={() => session.findEquilibrium()} disabled={busy}
           title={busy ? BUSY_TITLE : 'Sing pts / Go: find the equilibrium closest to the current initial conditions'}>
-          Find equilibrium
+          <CommandLabel command="equilibrium.find" />
         </button>
         <button data-button="equilibrium:import" onClick={() => session.importEquilibrium()} disabled={!eq || !may({cmd: 'initial_conditions.set_from_equilibrium'})}
           title="Make this equilibrium the initial conditions">
@@ -100,7 +102,7 @@ function EquilibriumView() {
         </button>
       </div>
       {!eq ? (
-        <p class="text-empty">No equilibrium yet: choose Find equilibrium, or Sing pts from the menu.</p>
+        <p class="text-empty">No equilibrium yet: choose {findName}.</p>
       ) : (
         <>
           <p class={'eq-type ' + stabilityClass(eq.type)} role="status">{eq.type}</p>

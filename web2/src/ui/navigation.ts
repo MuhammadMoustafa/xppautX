@@ -6,7 +6,7 @@ export function registryRows(hello: HelloEvent | null): CommandRow[] {
   /* the window leaves by its close box: Quit is the browser's command (W647) */
   const desktop = inDesktopWindow();
   return (hello?.commands ?? []).filter(row => row.arguments !== undefined && !(desktop && row.cmd === 'session.quit')).map(row => ({
-    ...row, id: row.cmd, label: row.label!,
+    ...row, id: row.cmd, label: row.label!, name: row.name!,
     description: row.description ?? '', category: row.category ?? '', pinnable: true,
     default_keys: row.default_keys ?? [],
   }));
@@ -14,10 +14,6 @@ export function registryRows(hello: HelloEvent | null): CommandRow[] {
 /** the registry row of command `id`: its label, description and menu place are what every control for it shows */
 export function commandRow(hello: HelloEvent | null, id: string): CommandRow | undefined {
   return registryRows(hello).find(row => row.id === id);
-}
-/** where a row sits in the menu bar, label last (`File/Sets/Apply set`) */
-export function menuPlace(row: CommandRow): string {
-  return [row.menu_path, row.label].filter(Boolean).join('/');
 }
 /** the row of a toolbar button: its label and description are the button's text and tooltip */
 export function toolbarRow(hello: HelloEvent | null, window: string, id: string): CommandRow | undefined {
@@ -40,7 +36,7 @@ export function menuTree(rows: CommandRow[]): MenuNode[] {
 }
 export function paletteRows(rows: CommandRow[], query: string): CommandRow[] {
   const words = query.toLowerCase().trim().split(/\s+/);
-  return rows.filter(row => words.every(word => `${row.id} ${menuPlace(row)} ${row.description}`.toLowerCase().includes(word)));
+  return rows.filter(row => words.every(word => `${row.id} ${row.name} ${row.description}`.toLowerCase().includes(word)));
 }
 
 /** the registry command of each toolbar button; a button's text is the row's label, never written again */

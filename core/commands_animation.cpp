@@ -165,9 +165,9 @@ constexpr std::array ANI_EVENTS = {xpp::events::ANIMATION_STATE, xpp::events::SE
 constexpr std::array GRAB_EVENTS = {xpp::events::ANIMATION_STATE, xpp::events::PLOT_SERIES, xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"animation.export_frames", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Export animation frames", "File/Export",
+    Command{"animation.export_frames", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Animation frames", "File/Export",
             "Play the animation writing every frame, as numbered PPM files from file (ppm) or as one animated GIF file (animated_gif), one of the two, into the model's folder.",
-            EXPORT_RESULTS, ANI_EVENTS, true, export_frames, {}, {}, "write", "*"},
+            EXPORT_RESULTS, ANI_EVENTS, true, export_frames, {}, {}, "write", "*", "", "Export"},
     Command{"animation.open", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Open animation", "Windows",
             "Open the animation window.", OPEN_RESULTS, WINDOW_EVENTS, true, open},
     Command{"animation.load", FILE_ARGUMENT, XPP_KIND_VIEW, CommandCategory::Plot, "Load animation", "",

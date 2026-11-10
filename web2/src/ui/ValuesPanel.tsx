@@ -254,7 +254,7 @@ function IndexedSection({id, title, kind, entries, hint, startFolded}: {
   );
 }
 
-/** the main numerics (W106, docs/protocol.md "The numerics as data"): the integration group's rows, the same fields as Run > Run settings, each change
+/** the main numerics (W106, docs/protocol.md "The numerics as data"): the integration group's rows, the same fields as Run > Settings, each change
     sent at once like a parameter's; edits during a run apply to the next run, never the one in progress. A row the method or model does not
     use is in the closed list below, a choice the model cannot have says why. */
 function NumericsSection() {

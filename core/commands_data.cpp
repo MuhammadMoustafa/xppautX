@@ -175,9 +175,9 @@ constexpr std::array DATA_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::SESS
 constexpr std::array PAGE_EVENTS = {xpp::events::DATA_UPDATED, xpp::events::DONE};
 
 constexpr std::array ROWS = {
-    Command{"data.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Export data", "File/Export",
+    Command{"data.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Data", "File/Export",
             "Save the data table (the rows kept between First and Last), the model's output columns or what the plot shows as a data file in the model's folder; left out, format follows the file's extension and file and target are asked for (the result's file is empty when a question was cancelled).",
-            EXPORT_RESULTS, STATE_EVENTS, true, export_data, {}, {}, "write", "*"},
+            EXPORT_RESULTS, STATE_EVENTS, true, export_data, {}, {}, "write", "*", "", "Export"},
     Command{"data.load", LOAD_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Load data", "Data",
             "Read a data file of the model's folder into the table (its columns fill T and the columns after it in order); with no file, ask for one (the result's file is empty when that question was cancelled).",
             LOAD_RESULTS, DATA_EVENTS, true, load, {}, {}},

@@ -3185,11 +3185,18 @@ def check_menu_levels(table):
 check_menu_levels([c for c in hello.get('commands', []) if 'arguments' in c])
 
 
-# W636 (#708): a row's label is its one name, the same text in every place that shows the command
+# W636 (#708), W650 (#723): a row's label is its name inside its menu (short), its full name the one name everywhere else, derived
+# from the menu path and the label by the core and sent in hello
 def check_registry_labels(table):
     labels = [r['label'] for r in table]
-    repeated = sorted({label for label in labels if labels.count(label) > 1})
-    check('W636: every registry row has a label, unique among the rows', all(labels) and not repeated, str(repeated))
+    in_menu = [(r['menu_path'], r['label']) for r in table]
+    repeated_in_menu = sorted({place for place in in_menu if in_menu.count(place) > 1})
+    check('W650: every registry row has a label, unique within its menu', all(labels) and not repeated_in_menu, str(repeated_in_menu))
+    names = [r.get('name') for r in table]
+    repeated = sorted({name for name in names if names.count(name) > 1})
+    check('W650: every registry row has a full name, unique among the rows', all(names) and not repeated, str(repeated))
+    wrong = [r['cmd'] for r in table if r.get('name') != ' \u203a '.join([*filter(None, r['menu_path'].split('/')), r['label']])]
+    check('W650: a full name is its menu path and its label, groups separated by \u203a', not wrong, str(wrong))
     # a mnemonic capital inside a word (sHoot, formUla), a listed choice (No show, Show) or a path's slash
     bad = [r['label'] for r in table
            if not re.fullmatch(r"[A-Z0-9][^,/]*", r['label']) or re.search(r'[a-z][A-Z]', r['label'].replace('autoX', '').replace('xppautX', ''))
@@ -3206,14 +3213,8 @@ check_registry_labels([c for c in hello.get('commands', []) if 'arguments' in c]
 # few that are the same words for another thing are named here, each with its reason), and no menu path the manual
 # names (`File > Sets`, `File/Save session`) is one that no row has. A name on the page comes from the row.
 LABEL_WORDS_OF_OTHER_THINGS = {
-    ('ui/MenuBar.tsx', 'Run'): "the top menu's title, a group",
-    ('ui/Plots.tsx', 'Stop'): "the Kinescope player's own Stop: the core keeps no play position",
     ('ui/KeymapEditor.tsx', 'Replace'): "the answer that replaces a key's other command",
-    ('ui/RunToolbar.tsx', 'Continue'): "the caption of the continuation time's fields, the plan's, not the command's button",
     ('ui/SliderDialog.tsx', 'Step'): "a slider's step size",
-    ('ui/TextViews.tsx', 'Values'): "the caption of the table of values in the Model view",
-    ('ui/ValuesPanel.tsx', 'Numerics'): "the name of the panel's numerics section",
-    ('plot/phase.ts', 'Flow'): "the name of a layer of the plot",
 }
 # the window's own native menu, which no row describes
 NATIVE_MENU_ITEMS = {'Help/About', 'Help/Check for updates'}
@@ -3221,7 +3222,7 @@ NATIVE_MENU_ITEMS = {'Help/About', 'Help/Check for updates'}
 
 def check_names_from_rows(table):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    labels = {r['label'] for r in table}
+    labels = {r['name'] for r in table}
     found = set()
     literal = re.compile(r"\'((?:[^\'\\\n]|\\.)*)\'|\"((?:[^\"\\\n]|\\.)*)\"|`((?:[^`\\]|\\.)*)`|>([^<>{}\n]+)<")
     for path in glob.glob(os.path.join(root, 'web2', 'src', '**', '*.ts*'), recursive=True):
@@ -9735,13 +9736,13 @@ def check_recording():
         check('record: the model is embedded whole, and nothing else was read',
               list(files) == [ode, 'ml.anix'] and files[ode] == want, str(list(files)))
         s = [x for x, _ in steps]
-        check('record: run.initial is one step, its label from its row, its note above it',
-              s and s[0] == {'step': 'Run from initial', 'cmd': {'cmd': 'run.initial'}} and steps[0][1] == 'First run.\nThe cell settles.',
+        check('record: run.initial is one step, its full name from its row, its note above it',
+              s and s[0] == {'step': 'Run \u203a Run from initial', 'cmd': {'cmd': 'run.initial'}} and steps[0][1] == 'First run.\nThe cell settles.',
               str(steps[:1]))
         check('record: a cancelled menu is a step (keys g, Escape)',
               len(s) > 1 and s[1] == {'step': 'Clear plot', 'cmd': {'cmd':'window.clear'}, 'view': True} and steps[1][1] == '', str(s[1:2]))
         check('record: run.configure is a step with its arguments',
-              s[2:3] == [{'step': 'Run settings', 'cmd': {'cmd': 'run.configure', 'total_time': 1e7}}], str(s[2:3]))
+              s[2:3] == [{'step': 'Run \u203a Settings', 'cmd': {'cmd': 'run.configure', 'total_time': 1e7}}], str(s[2:3]))
         check('record: an Abort belongs to its step, where it stopped as the stopped event said',
               len(s) > 3 and s[3].get('cmd') == {'cmd': 'run.initial'} and stopped and s[3].get('abort') == stopped[0]
               and stopped[0]['what'] == 'integrate', str(s[3:4]) + str(stopped))
@@ -9772,7 +9773,7 @@ def check_recording():
         _, files, steps, written, got = read_recx(open(os.path.join(r, 'menu.recx'), encoding='utf-8').read()
                                                   if os.path.exists(os.path.join(r, 'menu.recx')) else '')
         check('File/recorD: the steps between (the file a step read named by its section), and not the File menu opened to stop',
-              [x for x, _ in steps] == [{'step': 'Import values file', 'cmd': {'cmd': 'value.import_file', 'kind': 'parameters', 'file': 'saved.par'},
+              [x for x, _ in steps] == [{'step': 'Data \u203a Import values file', 'cmd': {'cmd': 'value.import_file', 'kind': 'parameters', 'file': 'saved.par'},
                                          'files': [2]},
                                         {'step': 'Clear plot', 'cmd': {'cmd': 'window.clear'}, 'view': True}] and written == got, str(steps))
         par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()

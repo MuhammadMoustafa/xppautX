@@ -153,7 +153,7 @@ function escape(session: Session, target: Element | null): boolean {
     it (its kind, protocol/kinds.ts) the status bar says why. */
 function runCommand(session: Session, row: CommandRow): void {
   if (session.may({cmd: row.id})) session.registryAction(row.id);
-  else session.store.dispatch({type: 'bottom', text: `${row.label}: ${noValueEdit(session.store.getState().core, row.id) ? `nothing to ${row.id}` : BUSY_TITLE}`});
+  else session.store.dispatch({type: 'bottom', text: `${row.name}: ${noValueEdit(session.store.getState().core, row.id) ? `nothing to ${row.id}` : BUSY_TITLE}`});
 }
 
 /** One key typed on the page. The browser's default is prevented only for a key the page acts on: a

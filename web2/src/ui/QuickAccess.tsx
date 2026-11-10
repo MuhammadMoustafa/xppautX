@@ -60,7 +60,7 @@ export function QuickAccess() {
       onClick={() => { if (!off) run(row); }}
       onContextMenu={e => { e.preventDefault(); setMenu({id: row.id, x: e.clientX, y: e.clientY}); }}
       onDragStart={() => { dragged.current = row.id; }} onDragOver={e => e.preventDefault()}
-      onDrop={e => { e.preventDefault(); dropOn(row.id); }}>{row.label}</button>;
+      onDrop={e => { e.preventDefault(); dropOn(row.id); }}>{row.name}</button>;
   };
   const overflow = rows.slice(shown);
   return <div class="quick-access" role="toolbar" aria-label="Pinned commands" ref={box}>
@@ -73,7 +73,7 @@ export function QuickAccess() {
             (e.currentTarget.closest('details') as HTMLDetailsElement).open = false;
             if (may({cmd: row.id})) run(row);
           }}
-          onContextMenu={e => { e.preventDefault(); setMenu({id: row.id, x: e.clientX, y: e.clientY}); }}>{row.label}</button></li>)}</ul>
+          onContextMenu={e => { e.preventDefault(); setMenu({id: row.id, x: e.clientX, y: e.clientY}); }}>{row.name}</button></li>)}</ul>
     </details>}
     {menu && <PinMenu id={menu.id} x={menu.x} y={menu.y} pinned={pinned} close={() => setMenu(null)} save={save} />}
   </div>;

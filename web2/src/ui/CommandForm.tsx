@@ -131,7 +131,7 @@ function Form({id, initial, fixed}: {id: string; initial: Record<string, unknown
     if (!members.length) return null;
     return <fieldset class="form-group" key={`group-${arg.name}`}><legend>{GROUP_WORDS[g.rule]}</legend>{members.map(field)}</fieldset>;
   });
-  return <Dialog title={row.label} name={row.label} description={row.description} onClose={close} onSubmit={submit} problems={fixes}
+  return <Dialog title={row.name} name={row.name} description={row.description} onClose={close} onSubmit={submit} problems={fixes}
     action={{label: row.action || row.label}} className="registry-form" attrs={{'data-command-form': id}}>
     {SETS_OF_FORM[id] && <SetsRow scope={SETS_OF_FORM[id]} />}
     {group && <div data-options-rows>{options.fields}{options.unused > 0 && <details class="unused-settings"><summary>Settings not used by this method or model</summary>{options.unusedFields}</details>}</div>}
