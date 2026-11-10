@@ -72,7 +72,7 @@ std::string row_json(const Session &fresh, bool model_loaded, const OptionRow &r
     add_string(out, "section_label", words_of(section_of(row)));
     add_string(out, "label", panel_label(row));
     add_string(out, "kind", row.names_sets ? "sets" : kind_word(row.kind));
-    add_string(out, "help", row.help);
+    add_string(out, "help", option_help(row));
     if (row.needs != Feature::none) add_string(out, "needs", feature_info(row.needs).name);
     add_string(out, "default", model_loaded ? setting_text(fresh, row) : std::string());
     if (row.boolean) out += ",\"boolean\":true";

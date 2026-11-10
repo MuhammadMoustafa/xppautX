@@ -88,7 +88,7 @@ std::string option_value_schema(const OptionRow &row)
   }
   if (row.zero_or_one) out += ", \"enum\": [0, 1]";
   out += option_limit_members(row);
-  if (!row.odex.empty()) out += ", \"title\": " + quoted(option_label(row)) + ", \"description\": " + quoted(row.help);
+  if (!row.odex.empty()) out += ", \"title\": " + quoted(option_label(row)) + ", \"description\": " + quoted(option_help(row));
   if (row.repeatable) out += ", \"x-repeatable\": true";
   return out + "}";
 }

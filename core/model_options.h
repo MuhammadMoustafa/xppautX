@@ -237,6 +237,11 @@ struct OptionRow {
   /* an `expand` row that only a 2D plot has (XPPAUT's XLO..YHI): dropped in a 3D plot, which the converter decides once the whole
      .ode is read */
   bool flat_only = false;
+  /* an `expand` row's targets (their option_name) and, where its value is not one to one onto them, how it maps (a phrase): option_help
+     tells each target row where its value comes from in a .ode; a test checks the targets against what `expand` returns, so the list
+     cannot drift */
+  std::span<const std::string_view> sets;
+  std::string_view mapping;
   /* a numerics setting: its key in the "numerics" event and `set num`,
      the menu's label, what it accepts and which methods use it */
   std::string_view key, label;
@@ -313,6 +318,10 @@ std::string option_name(const OptionRow &row);
    (XPPAUT's names and the longer spellings a prefix match takes too:
    NOUT is store_every, xplot is xp), "" when no row of a group does */
 std::string odex_option_key(std::string_view key);
+
+/* a row's help as every place shows it (the panels, hello, the schema, the manual): what its row does, then, for a row a .ode can set,
+   where its value comes from on import: its XPPAUT names and the expanding rows (BOUND, LT, ...) that set it, derived from the table */
+std::string option_help(const OptionRow &row);
 
 /* a row's label, as the panels and the schema show it: the numerics menu's own, else the key in words (underscores and dots
    as spaces, a capital first letter: "step.min" is "Step min") */

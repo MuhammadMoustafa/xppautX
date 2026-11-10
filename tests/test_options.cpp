@@ -446,6 +446,41 @@ int main(void)
                && !xpp::find_odex_option("plot", "variable", index) && xpp::find_odex_option("", "animation", index) && !xpp::find_odex_option("interface", "animation", index));
     }
 
+    /* W660: an expanding row declares the rows it sets, and that list is what its expansion sets; each target's help says where its value
+       comes from in a .ode, derived from the table, and a row no .ode can set says nothing about it */
+    {
+        const std::map<std::string_view, std::vector<std::string_view>> samples = {{"STOCH", {"0", "1", "2"}}, {"BOUND", {"5"}}, {"LT", {"1", "0", "-2"}}, {"NCDRAW", {"0", "1", "2"}}};
+        const auto row_named = [&](std::string_view name) -> const xpp::OptionRow * {
+            for (const xpp::OptionRow &r : rows)
+                if (!r.odex.empty() && xpp::option_name(r) == name) return &r;
+            return nullptr;
+        };
+        for (const xpp::OptionRow &r : rows) {
+            if (!r.expand) continue;
+            const auto given = samples.find(r.name);
+            std::set<std::string> got, declared;
+            for (const std::string_view value : given == samples.end() ? std::vector<std::string_view>{"1"} : given->second) {
+                const xpp::ForeignOptions ours = r.expand(value);
+                CHECK(!ours.why);
+                for (const auto &item : ours.items) got.insert(item.first);
+            }
+            for (const std::string_view target : r.sets) declared.insert(std::string(target));
+            CHECK(got == declared);
+            if (got != declared) printf("  %s: sets %zu rows, expands to %zu\n", std::string(r.name).c_str(), declared.size(), got.size());
+            for (const std::string_view target : r.sets) {
+                const xpp::OptionRow *row = row_named(target);
+                CHECK(row && xpp::option_help(*row).find("From an XPPAUT .ode: ") != std::string::npos && xpp::option_help(*row).find(r.name) != std::string::npos);
+            }
+        }
+        const xpp::OptionRow *limit = row_named("integration.state_limit"), *total = row_named("integration.total_time"), *on = row_named("integration.torus.on");
+        CHECK(limit && total && on);
+        if (limit && total && on) {
+            CHECK(xpp::option_help(*limit) == std::string(limit->help) + " From an XPPAUT .ode: BOUND (which also sets equilibria.search_limit): the one value is both limits.");
+            CHECK(xpp::option_help(*total) == std::string(total->help) + " From an XPPAUT .ode: TOTAL.");
+            CHECK(xpp::option_help(*on) == on->help);
+        }
+    }
+
     /* the defaults a model with no options gets */
     CHECK(write_file(plain_ode, std::string(model_text) + "done\n"));
     xpp::Session *s = load(plain_ode);

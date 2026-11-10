@@ -247,6 +247,13 @@ constexpr std::array slider_slot_parsers{
   slider_end<0, &XppSlider::lo>, slider_end<1, &XppSlider::lo>, slider_end<2, &XppSlider::lo>,
   slider_end<0, &XppSlider::hi>, slider_end<1, &XppSlider::hi>, slider_end<2, &XppSlider::hi>};
 
+/* the rows an expanding import row sets (OptionRow::sets) */
+constexpr std::array<std::string_view, 1> stoch_sets{"output.after_run"};
+constexpr std::array<std::string_view, 2> bound_sets{"integration.state_limit", "equilibria.search_limit"};
+constexpr std::array<std::string_view, 3> lt_sets{"plot.line.draw", "plot.line.marker", "plot.line.marker_size"};
+constexpr std::array<std::string_view, 2> ncdraw_sets{"plot.nullclines.draw", "output.nullclines_file"};
+constexpr std::array<std::string_view, 1> xlo_sets{"plot.axes.x_min"}, xhi_sets{"plot.axes.x_max"}, ylo_sets{"plot.axes.y_min"}, yhi_sets{"plot.axes.y_max"};
+
 constexpr OptionRow rows[] = {
   /* ---- the numerics the Numerics menu and `set num` edit, in the menu's
      order ---- */
@@ -965,7 +972,7 @@ constexpr OptionRow rows[] = {
    .reset = [](Session &s) { s.histogram.post_process = AfterRun::none; },
    .foreign = [](std::string_view v) { return numbered_word(xppaut_postprocess_words, v); },
    .rule = OptionRule::choice, .choices = after_run_names},
-  {.group = option_group::output, .kind = OptionKind::path, .odex = "after_run_file", .help = "The file the after_run analysis is written to, so the data file keeps the trajectory.", .once = true,
+  {.group = option_group::output, .kind = OptionKind::path, .odex = "after_run_file", .help = "The file a batch run writes its after-run analysis to.", .once = true,
    .text = member([](auto &s) -> auto & { return s.after_run_file; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      /* named like data_file, from the model's folder */
@@ -991,7 +998,7 @@ constexpr OptionRow rows[] = {
      if (value == "2") return {{{"output.after_run", "variance_of_runs"}}, nullptr};
      if (value == "0") return {};
      return {{}, "not 0, 1 or 2"};
-   }},
+   }, .sets = stoch_sets, .mapping = "1 is mean_of_runs, 2 variance_of_runs, 0 none"},
   /* a .ode's bound (import only) is both the state limit and the search limit */
   {.name = "BOUND", .once = true,
    .expand = [](std::string_view value) -> ForeignOptions {
@@ -999,7 +1006,7 @@ constexpr OptionRow rows[] = {
      if (!parse_number(value, x)) return {{}, "not a number"};
      if (const char *why = rule_problem(OptionRule::positive, x)) return {{}, why};
      return {{{"integration.state_limit", std::string(value)}, {"equilibria.search_limit", std::string(value)}}, nullptr};
-   }},
+   }, .sets = bound_sets, .mapping = "the one value is both limits"},
   /* XPPAUT's lt (import only): 1 a solid line, 0 a dot at each point, -n a circle of radius n at each point */
   {.name = "LT", .once = true,
    .expand = [](std::string_view value) -> ForeignOptions {
@@ -1008,7 +1015,7 @@ constexpr OptionRow rows[] = {
      if (!style) return {{}, "not a line type from -5 to 1"};
      if (style->draw == LineDraw::line) return {{{"plot.line.draw", "line"}}, nullptr};
      return {{{"plot.line.draw", "points"}, {"plot.line.marker", "circle"}, {"plot.line.marker_size", number(style->marker_size)}}, nullptr};
-   }},
+   }, .sets = lt_sets, .mapping = "1 draws a line; 0 or -n draws points marked with a circle (n its size)"},
   /* XPPAUT's PostScript font and line width (import only): a PDF has Helvetica, and each curve has its own width */
   {.name = "PS_FONT", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
   {.name = "PS_LW", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
@@ -1019,7 +1026,7 @@ constexpr OptionRow rows[] = {
      if (value == "1") return {{{"plot.nullclines.draw", "true"}}, nullptr};
      if (value == "2") return {{{"plot.nullclines.draw", "false"}, {"output.nullclines_file", nullclines_dump_file}}, nullptr};
      return {{}, "not 0, 1 or 2"};
-   }},
+   }, .sets = ncdraw_sets, .mapping = "0 is false, 1 true; 2 is false and also saves the nullclines to nullclines.dat"},
   /* XPPAUT's plotted variables (import only): xp, yp and zp are the first curve of `curves`, nplot says how many there are and
      xp2 to zp8 are the others (the converter writes the list: odex_convert.cpp); with no window of ours opened by a model, they
      only name the variables */
@@ -1050,10 +1057,10 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &, const OptionValue &v) -> const char * { double x = 0; return number_into(x, v); }},
   /* XPPAUT's window of a 2D plot (import only): the same limits as xmin to ymax, which XLO..YHI win over; a 3D plot's own
      projection zoom is dropped (the picture fits its box) */
-  {.name = "XLO", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.x_min", std::string(v)}}, nullptr}; }, .flat_only = true},
-  {.name = "XHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.x_max", std::string(v)}}, nullptr}; }, .flat_only = true},
-  {.name = "YLO", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_min", std::string(v)}}, nullptr}; }, .flat_only = true},
-  {.name = "YHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_max", std::string(v)}}, nullptr}; }, .flat_only = true},
+  {.name = "XLO", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.x_min", std::string(v)}}, nullptr}; }, .flat_only = true, .sets = xlo_sets, .mapping = "wins over the key\'s other name when both are given; a 2D plot only"},
+  {.name = "XHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.x_max", std::string(v)}}, nullptr}; }, .flat_only = true, .sets = xhi_sets, .mapping = "wins over the key\'s other name when both are given; a 2D plot only"},
+  {.name = "YLO", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_min", std::string(v)}}, nullptr}; }, .flat_only = true, .sets = ylo_sets, .mapping = "wins over the key\'s other name when both are given; a 2D plot only"},
+  {.name = "YHI", .once = true, .expand = [](std::string_view v) -> ForeignOptions { return {{{"plot.axes.y_max", std::string(v)}}, nullptr}; }, .flat_only = true, .sets = yhi_sets, .mapping = "wins over the key\'s other name when both are given; a 2D plot only"},
   /* XPPAUT's colors of the diagram's stability kinds, the nullclines and the manifolds (import only): the user's preferences
      (xpp_prefs.h Colors), never a model's; no demo sets one, so they are dropped without a note */
   {.name = "SEC", .once = true, .expand = [](std::string_view) -> ForeignOptions { return {}; }},
@@ -1298,6 +1305,27 @@ std::string option_label(const OptionRow &row)
   std::ranges::replace(label, '.', ' ');
   if (!label.empty()) label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
   return label;
+}
+
+std::string option_help(const OptionRow &row)
+{
+  std::string help(row.help);
+  if (row.odex.empty()) return help;
+  std::string sources;
+  const auto add = [&sources](const std::string &source) { sources += (sources.empty() ? "" : ", ") + source; };
+  for (const std::string_view name : row.xppaut_names)
+    if (!name.empty()) add(std::string(name));
+  const std::string own = option_name(row);
+  for (const OptionRow &other : rows) {
+    if (!other.expand || !std::ranges::contains(other.sets, std::string_view(own))) continue;
+    std::string source(other.name), also;
+    for (const std::string_view target : other.sets)
+      if (target != own) also += (also.empty() ? "" : ", ") + std::string(target);
+    if (!also.empty()) source += " (which also sets " + also + ")";
+    if (!other.mapping.empty()) source += ": " + std::string(other.mapping);
+    add(source);
+  }
+  return sources.empty() ? help : help + " From an XPPAUT .ode: " + sources + ".";
 }
 
 std::string odex_key(const OptionRow &row, int index)
