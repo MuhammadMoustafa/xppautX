@@ -72,7 +72,7 @@ export function UpdateDialog() {
     {why && <p data-update-why>The release page is offered because {why}.</p>}
     {waiting && busy && <p data-update-busy>A computation is running: stop it first, then restart.</p>}
     {active?.stage === 'install' && <p>The system's installer asks for permission itself; xppautX quits so it can replace the program.</p>}
-    {active?.stage === 'downloading' && <progress max={progress?.of ?? 1} value={progress?.n ?? 0} aria-label="Download progress" data-update-progress />}
+    {active?.stage === 'downloading' && <progress class="dialog-progress" max={progress?.of ?? 1} value={progress?.n ?? 0} aria-label="Download progress" data-update-progress />}
     {place && <><p data-error-place>{placeWords(place)}</p><ErrorSource p={place}/></>}
   </Dialog>;
 }
