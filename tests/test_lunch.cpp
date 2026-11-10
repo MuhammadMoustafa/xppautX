@@ -184,18 +184,16 @@ int main(void)
     /* Saved dimensions and numerics are refused with their member's place. */
     const auto session_text = xpp::settings_text(s, xpp::capture_settings(s, xpp::SettingsUse::session));
     CHECK(session_text);
-    for (const char *group : {"array_plot", "transpose"}) {
-        for (const char *key : {"columns", "rows"}) {
-            if (!session_text) break;
-            const int in_group = line_with(*session_text, xpp::format("{}: {{", group));
-            const int line = line_with(*session_text, xpp::format("    {}:", key), in_group);
-            CHECK(in_group > 0 && line > in_group);
-            const auto r = settings_text::read(s, "sent.odex", with_line(*session_text, line, xpp::format("    {}: {},", key, xpp::settings_dimension_limit + 1)));
-            CHECK(!r);
-            if (!r) {
-                CHECK(r.error().place.file == "sent.odex" && r.error().place.line == line);
-                CHECK(r.error().what.find("4097") != std::string::npos);
-            }
+    for (const auto &[key, value] : {std::pair<const char *, const char *>{"transpose.columns", "2"}, {"transpose.rows", "1"}, {"array_plot.columns", "1"}, {"array_plot.rows", "50"}}) {
+        if (!session_text) break;
+        const int line = line_with(*session_text, xpp::format("{}: {},", key, value));
+        CHECK(line > 0);
+        const auto r = settings_text::read(s, "sent.odex",
+                                           with_text(*session_text, xpp::format("{}: {},", key, value), xpp::format("{}: {},", key, xpp::option_limit::matrix_side + 1)));
+        CHECK(!r);
+        if (!r) {
+            CHECK(r.error().place.file == "sent.odex" && r.error().place.line == line);
+            CHECK(r.error().what.find("4097") != std::string::npos);
         }
     }
     if (session_text) {
@@ -213,7 +211,7 @@ int main(void)
     if (!imported_mesh) CHECK(imported_mesh.error().place.file == xs && imported_mesh.error().place.line == mesh_line);
     for (const char *label : {"n columns", "n rows", "NCols", "NRows"}) {
         const int line = line_with(set, label);
-        put(xs, with_line(set, line, xpp::format("{} {}", xpp::settings_dimension_limit + 1, label)));
+        put(xs, with_line(set, line, xpp::format("{} {}", xpp::option_limit::matrix_side + 1, label)));
         const auto r = xpp::import_xppaut_state(s, xs, false);
         CHECK(!r);
         if (!r) CHECK(r.error().place.file == xs && r.error().place.line == line);
@@ -225,9 +223,9 @@ int main(void)
     xpp::set_val(s, "iapp", 0.25);
     s.numerics.total_time = 11;
     const std::string before = snapshot(s);
-    const int last_line = last_line_with(first, "high:");
-    CHECK(last_line > 50);
-    const std::string last_bad = with_line(first, last_line, "    high: 1e999,");
+    const int last_line = last_line_with(first, "transpose.row_skip:");
+    CHECK(last_line > 20);
+    const std::string last_bad = with_text(first, "transpose.row_skip: 1", "transpose.row_skip: 1e999");
     const std::string last_error = state_error(s, own, last_bad);
     CHECK(last_error.starts_with(xpp::format("{}:{}:", own, last_line)) && last_error.find("1e999") != std::string::npos);
     CHECK(snapshot(s) == before);

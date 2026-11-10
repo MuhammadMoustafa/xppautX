@@ -142,7 +142,12 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"BELL", {"1", ""}},
         {"TUTORIAL", {"1", ""}},
         {"GRADS", {"1", ""}},
-        {"integration.torus.fold", {"x", ""}},
+        {"integration.torus.fold", {"x", "X"}},
+        {"analysis.coupling", {"y=x", "X = 0\nY = x\nZ = 0"}},
+        {"analysis.transpose.first_column", {"y", "y"}}, {"plot.array_plot.first_column", {"z", "z"}},
+        {"integration.boundary_value.range_parameter", {"b", "b"}}, {"equilibria.range_parameter", {"b", "b"}},
+        {"sweep.second_variable", {"z", "z"}}, {"integration.boundary_value.range_side", {"end", "1"}},
+        {"sweep.cycle_color", {"true", "1"}}, {"equilibria.range_shoot", {"true", "1"}}, {"integration.boundary_value.range_cycle_color", {"true", "1"}},
         {"AUTOEVAL", {"1", ""}},
         {"integration.jacobian.kind", {"exact", "1"}},
         {"integration.subsystem_split", {"run", "1"}},
@@ -506,7 +511,7 @@ int main(void)
         const xpp::OptionRow &r = rows[k];
         if (xpp::option_name(r).empty() && r.key.empty()) continue;
         const bool held = in_set_file(r);
-        CHECK(!held || in_session(*s, r));
+        CHECK(!held || r.show || in_session(*s, r)); /* a list row has no member, its text is its value */
         if (!r.key.empty()) CHECK(held); /* every numerics setting the menu edits is in a session file */
     }
     const xpp::Result<std::string> own = xpp::settings_text(*s, xpp::capture_settings(*s, xpp::SettingsUse::session));

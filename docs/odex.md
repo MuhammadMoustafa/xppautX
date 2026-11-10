@@ -401,10 +401,12 @@ be one you were sent).
 
 A session's state (a `.snapx`'s member `session.odex`, and a recording's header) is one file in `.odex` syntax, beside
 the model's own files. Its values and settings are ordinary `.odex` statements with the same names as a model's: the
-parameters are `par` lines, the initial values `init` lines (one for each name of the model), the numerics and the
-sweep's settings the rows of an `options` block, under the groups and keys the option table gives them (the rows marked
+parameters are `par` lines, the initial values `init` lines (one for each name of the model), and every setting (the
+numerics, the sweep, the equilibria's and the BVP's ranges, Transpose, the array plot, the torus, the H function's
+coupling) the rows of an `options` block, under the groups and keys the option table gives them (the rows marked
 `saved`, core/model_options.cpp: `integration: { total_time: 30, dt: 0.05, method: runge_kutta, ... }`,
-`sweep: { ... }`). Everything else that describes the sitting is one new statement, `session { ... }`, accepted only in a
+`sweep: { ... }`; a repeatable row such as `torus.fold` or `coupling` is written once for each item, and none when it is
+empty; a `coupling` item is `"variable = formula"`). Everything else that describes the sitting is one new statement, `session { ... }`, accepted only in a
 session file (a model with one is an error at its line, as is a statement a session file does not have: an import, a
 formula, a second `session`):
 
@@ -432,15 +434,15 @@ formula, a second `session`):
           marks: { ... },
         }
 
-A session names every key (a missing one is an error). The `session` statement holds the manifest (`model`, the
+A session names every key (a missing one is an error; a session of the older layout, whose `session` statement held `transpose`,
+`coupling`, `array_plot`, `torus`, `sweep`, `equilibrium_range` or `bvp_range`, is refused at that line). The `session` statement holds the manifest (`model`, the
 model's own file as it names itself, `animation` when the model was loaded with one, and `data`, whether `data.npz` is in
 the file), `run` (the integrator's position and, in `ending`, the values the last run ended at), `delays`, `boundary`,
-`coupling`, `transpose`, `array_plot`, `torus`, `sweep` (the second sweep parameter), `equilibrium_range` and `bvp_range`
-(the settings those commands keep), the `sliders`, `random` (the next Go's seed, the Wiener and
+the `sliders`, `random` (the next Go's seed, the Wiener and
 Ornstein-Uhlenbeck values and the generator's state), `nullclines`, `autox` (autoX's settings, views and the active view), every
 open graph in `windows` (name, curves by variable name, axes, 3D view, zoom, previous runs) with the `active` one and the
 browser's and added columns' state, and `marks` (labels, arrows and markers, frozen curves). A session reopens exactly the
-graphs it saved. The `columns` and `rows` of `array_plot` and `transpose` are whole numbers from 1 through 4096,
+graphs it saved. The `array_plot.columns`, `array_plot.rows`, `transpose.columns` and `transpose.rows` are whole numbers from 1 through 4096,
 limiting their rectangle to about 16 million cells. A session is applied the same way in the window, `--server` and
 `--silent`. The checks of the numerics and of every value are the ones the Numerics menu and `set num` make, with the
 offending key's file and line.

@@ -12,7 +12,7 @@ namespace xpp {
 struct Session; /* session.h */
 
 /* none first: a row that needs no feature */
-enum class Feature { none, delays, boundary_conditions, integral_terms, formula_tables };
+enum class Feature { none, parameters, delays, boundary_conditions, integral_terms, formula_tables };
 
 struct FeatureInfo {
     Feature feature;
@@ -21,6 +21,7 @@ struct FeatureInfo {
 };
 
 inline constexpr std::array FEATURES = {
+    FeatureInfo{Feature::parameters, "parameters", "needs a model with parameters"},
     FeatureInfo{Feature::delays, "delays", "needs a model with delays"},
     FeatureInfo{Feature::boundary_conditions, "boundary_conditions", "needs a model with boundary conditions"},
     FeatureInfo{Feature::integral_terms, "integral_terms", "needs a model with integral equations"},

@@ -95,7 +95,9 @@ std::string row_json(const Session &fresh, bool model_loaded, const OptionRow &r
 bool option_in_panel(const OptionRow &row)
 {
     const bool has_member = row.real || row.whole || row.boolean || row.index || row.text || row.show;
-    return !row.odex.empty() && has_member && row.kind != OptionKind::sliders && row.kind != OptionKind::curves;
+    /* a list of names of the model's sets is a check list; the other lists (the torus's folds, the H function's coupling) have no field in the page yet */
+    const bool list = row.repeatable && !row.names_sets;
+    return !row.odex.empty() && has_member && !list && row.kind != OptionKind::sliders && row.kind != OptionKind::curves;
 }
 
 std::string options_table_json(Session &s)

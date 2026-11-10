@@ -9217,7 +9217,7 @@ def check_session_file():
             return edited(lambda text: with_line(generator_line, '    generator: "%s",' % ' '.join(tokens)))
 
         curve_x = line_starting('x:', line_starting('windows:'))
-        high_line = line_starting('high:', line_starting('bvp_range:'))
+        high_line = line_with('boundary_value.range_high:')
         damages = [
             ('badslider', edited(lambda text: with_value('name', 'nonsense', sliders_line)),
              ('badslider.snapx/session.odex:%d:' % (sliders_line + 2), 'nonsense')),
@@ -9239,8 +9239,11 @@ def check_session_file():
             # W125: a bad value on the last line of the session: refused at it, nothing applied
             ('lastmarks', edited(lambda text: '\n'.join(state_rows[:marks_line] + ['    more: 1,'] + state_rows[marks_line:])),
              ('lastmarks.snapx/session.odex:%d:' % (marks_line + 1), '`more` is not a setting')),
-            ('lastset', edited(lambda text: with_value('high', '1e999', line_starting('bvp_range:'))),
-             ('lastset.snapx/session.odex:%d:' % high_line, '`1e999` is not a number')),
+            ('lastset', edited(lambda text: with_text('boundary_value.range_high: 1', 'boundary_value.range_high: 1e999')),
+             ('lastset.snapx/session.odex:%d:' % high_line, 'found `1e999`')),
+            # W662: a session of the older layout (its moved settings still groups of the session statement) is refused at that line
+            ('oldgroup', edited(lambda text: with_line(session_line + 1, '  bvp_range: { item: iapp },\n' + state_rows[session_line])),
+             ('oldgroup.snapx/session.odex:%d:' % (session_line + 1), '`bvp_range` is not a setting')),
             ('latermanifest', edited(lambda text: '\n'.join(state_rows[:session_line] + ['  later: 1,'] + state_rows[session_line:])),
              ('latermanifest.snapx/session.odex:%d:' % (session_line + 1), '`later` is not a setting')),
             # W145: every value checked by the rule that checks it anywhere else, before anything is applied

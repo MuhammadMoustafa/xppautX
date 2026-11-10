@@ -35,9 +35,7 @@ namespace {
 /* the groups of a settings file, as it names them */
 namespace group {
 constexpr std::string_view session = "session", numerics = "numerics", run = "run", ending = "ending", delays = "delays", boundary = "boundary",
-                           graphics = "graphics", transpose = "transpose", coupling = "coupling",
-                           array_plot = "array_plot", torus = "torus", sweep = "sweep",
-                           equilibrium_range = "equilibrium_range", bvp_range = "bvp_range";
+                           graphics = "graphics";
 } // namespace group
 
 
@@ -83,10 +81,8 @@ public:
     Put(odex::Out &out, const Session *s) : out_(out), s_(s) {}
     void operator()(std::string_view key, double v) { out_.real(key, v); }
     void operator()(std::string_view key, int v) { out_.whole(key, v); }
-    void dimension(std::string_view key, int v) { (*this)(key, v); }
     void flag(std::string_view key, int v) { out_.flag(key, v != 0); }
-    /* a name of the model (bare, "" for none: quoted) / a formula or any other text (quoted) */
-    void word(std::string_view key, const std::string &v) { out_.name(key, v); }
+    /* a formula or any other text (quoted) */
     void text(std::string_view key, const std::string &v) { out_.text(key, v); }
     void numbers(std::string_view key, std::span<const double> v) { out_.reals(key, v); }
     template <class F> void group(std::string_view key, F fn)
@@ -108,14 +104,6 @@ public:
             for (std::size_t i = 0; i < names.size(); i++) p.text(names[i], values[i]);
         });
     }
-    /* the names whose flag is set */
-    void flagged(std::string_view key, std::span<const std::string> names, const std::vector<int> &flags)
-    {
-        std::vector<std::string> on;
-        for (std::size_t i = 0; i < names.size(); i++)
-            if (flags[i]) on.push_back(names[i]);
-        out_.words(key, on);
-    }
     void curves(const GRAPH &g) { write_curves(out_, *s_, g); }
 
 private:
@@ -130,21 +118,11 @@ public:
     Take(odex::Block &block, Session *s) : block_(block), s_(s) {}
     void operator()(std::string_view key, double &v) { block_.number(key, v); }
     void operator()(std::string_view key, int &v) { block_.whole(key, v); }
-    void dimension(std::string_view key, int &v)
-    {
-        if (!block_.whole(key, v)) return;
-        if (const char *why = rule_problem(OptionRule::whole_positive, v, settings_dimension_limit))
-            block_.fail(*block_.member(key), xpp::format("`{}={}`: {} (maximum {})", key, v, why, settings_dimension_limit));
-    }
     void flag(std::string_view key, int &v)
     {
         bool on = v != 0;
         block_.flag(key, on);
         v = on ? 1 : 0;
-    }
-    void word(std::string_view key, std::string &v)
-    {
-        if (const odex::Member *m = block_.member(key)) v = block_.name_of(*m);
     }
     void text(std::string_view key, std::string &v) { block_.text(key, v); }
     void numbers(std::string_view key, std::span<double> v) { block_.reals(key, v); }
@@ -172,20 +150,6 @@ public:
             if (!longest.empty() && v.size() > longest[i])
                 g->fail(m, xpp::format("`{}` is {} characters: at most {}", m.key, v.size(), longest[i]));
         });
-    }
-    void flagged(std::string_view key, std::span<const std::string> names, std::vector<int> &flags)
-    {
-        std::vector<std::string> on;
-        const odex::Member *m = block_.member(key);
-        if (!block_.words(key, on, names.size())) return;
-        std::ranges::fill(flags, 0);
-        for (const std::string &n : on) {
-            const Model::Name *entry = s_->model().name(n);
-            const int index = entry ? entry->column : -1;
-            if (index < 0 || static_cast<std::size_t>(index) >= names.size() || names[static_cast<std::size_t>(index)] != n)
-                block_.fail(*m, xpp::format("`{}` is not one of the model's variables", n));
-            flags[static_cast<std::size_t>(index)] = 1;
-        }
     }
     void curves(GRAPH &g) {
         std::size_t expanded_bytes = 0;
@@ -280,14 +244,14 @@ std::optional<int> column_named(const Session &s, std::span<const AddedColumn> a
 /* the names a session's groups are keyed by (the model's), and the room
    each boundary condition has */
 struct Names {
-    std::vector<std::string> variables, equations, all, parameters;
+    std::vector<std::string> variables, equations, parameters;
     std::vector<std::size_t> bc_room;
 };
 
 Names names_of(const Session &s)
 {
     const Model &m = s.model();
-    Names n{variable_names(m, m.node + m.nmarkov), variable_names(m, m.node), variable_names(m, m.neq),
+    Names n{variable_names(m, m.node + m.nmarkov), variable_names(m, m.node),
             std::vector<std::string>(m.upar_names.begin(), m.upar_names.begin() + m.nupar), {}};
     for (int i = 0; i < m.node; i++) n.bc_room.push_back(bc_room(s, i));
     return n;
@@ -313,61 +277,15 @@ template <class IO, class S> void describe(IO &io, S &f, const Names &n)
             g.curves(f.graph);
             graph_fields(g, f.graph);
         });
-    io.group(group::transpose, [&](IO &t) {
-        t.text("first_column", f.transpose.firstcol);
-        t.dimension("columns", f.transpose.ncol);
-        t.dimension("rows", f.transpose.nrow);
-        t("row_skip", f.transpose.rowskip);
-        t("col_skip", f.transpose.colskip);
-        t("row0", f.transpose.row0);
-    });
-    io.named(group::coupling, n.equations, f.coupling);
-    io.group(group::array_plot, [&](IO &a) {
-        a.text("first_column", f.aplot.name);
-        a.dimension("columns", f.aplot.nacross);
-        a("first_row", f.aplot.nstart);
-        a.dimension("rows", f.aplot.ndown);
-        a("row_skip", f.aplot.nskip);
-        a("zmin", f.aplot.zmin);
-        a("zmax", f.aplot.zmax);
-    });
-    io.group(group::torus, [&](IO &t) {
-        t.flag("on", f.torus);
-        t("period", f.torus_period);
-        t.flagged("fold", n.all, f.itor);
-    });
-    io.group(group::sweep, [&](IO &r) {
-        r.word("rangeover2", f.range_item2);
-        r("rangelow2", f.range_low2);
-        r("rangehigh2", f.range_high2);
-        r("rangecycle", f.range_cycle);
-    });
-    io.group(group::equilibrium_range, [&](IO &e) {
-        e.word("item", f.eq_range.item);
-        e("stab_col", f.eq_range.col);
-        e("shoot", f.eq_range.shoot);
-        e("steps", f.eq_range.steps);
-        e("low", f.eq_range.plow);
-        e("high", f.eq_range.phigh);
-    });
-    io.group(group::bvp_range, [&](IO &b) {
-        b.word("item", f.shoot_range.item);
-        b("side", f.shoot_range.side);
-        b("cycle", f.shoot_range.cycle);
-        b("steps", f.shoot_range.steps);
-        b("low", f.shoot_range.plow);
-        b("high", f.shoot_range.phigh);
-    });
 }
 
 } // namespace
 
 void Settings::set_setting(const OptionRow *row, std::string text)
 {
-    std::vector<Setting> &rows = row->group == option_group::sweep ? range : numerics;
-    const auto at = std::ranges::find_if(rows, [row](const Setting &r) { return r.first == row; });
-    if (at != rows.end()) at->second = std::move(text);
-    else rows.emplace_back(row, std::move(text));
+    const auto at = std::ranges::find_if(options, [row](const Setting &r) { return r.first == row; });
+    if (at != options.end()) at->second = std::move(text);
+    else options.emplace_back(row, std::move(text));
 }
 
 double parameter_value(const Session &s, int i)
@@ -490,9 +408,8 @@ Settings capture_settings(const Session &s, SettingsUse use)
     const Model &m = s.model();
     Settings f;
     f.graphics = use == SettingsUse::file;
-    for (const OptionRow *row : saved_settings(group::numerics))
-        if (setting_applies(s, *row, s.numerics.method)) f.numerics.emplace_back(row, setting_text(s, *row));
-    for (const OptionRow *row : saved_settings(option_group::sweep)) f.range.emplace_back(row, setting_text(s, *row));
+    for (const OptionRow *row : saved_settings())
+        if (setting_applies(s, *row, s.numerics.method)) f.options.emplace_back(row, setting_text(s, *row));
     f.current_time = s.data_store.current_time;
     f.last_time = s.integrator.last_time;
     f.my_start = s.integrator.my_start;
@@ -501,7 +418,6 @@ Settings capture_settings(const Session &s, SettingsUse use)
     for (int i = 0; i < m.node; i++) {
         f.delays.push_back(s.delay_string[static_cast<std::size_t>(i)]);
         f.bcs.emplace_back(s.bcs[static_cast<std::size_t>(i)].string.data());
-        f.coupling.push_back(s.adjoint.coup_string[static_cast<std::size_t>(i)]);
     }
     for (int i = 0; i < m.node + m.nmarkov; i++) {
         f.last_ic.push_back(s.last_ic[static_cast<std::size_t>(i)]);
@@ -509,17 +425,6 @@ Settings capture_settings(const Session &s, SettingsUse use)
     }
     for (int i = 0; i < m.nupar; i++) f.params.push_back(parameter_value(s, i));
     f.graph = s.plot_windows.current ? *s.plot_windows.current : s.plot_windows.graph[0];
-    f.transpose = s.adjoint.transpose;
-    f.aplot = s.array_plot.plot;
-    f.torus = s.numerics.torus;
-    f.torus_period = s.numerics.torus_period;
-    for (int i = 0; i < m.neq; i++) f.itor.push_back(s.itor[static_cast<std::size_t>(i)]);
-    f.range_item2 = s.integrator.range.item2;
-    f.range_low2 = s.integrator.range.plow2;
-    f.range_high2 = s.integrator.range.phigh2;
-    f.range_cycle = s.integrator.range.cycle;
-    f.eq_range = s.integrator.eq_range;
-    f.shoot_range = s.shoot_range;
     return f;
 }
 
@@ -548,9 +453,8 @@ Result<std::string> values_text(const Settings &f, const Names &n)
 std::string options_text(const Settings &f)
 {
     std::vector<odex::GroupItem> items;
-    for (const auto *rows : {&f.numerics, &f.range})
-        for (const auto &[row, text] : *rows)
-            items.push_back({row->group, odex_key(*row, 0) + ": " + (option_written_quoted(*row) ? odex::quote_string(text) : text)});
+    for (const auto &[row, text] : f.options)
+        for (const std::string &value : option_values(*row, text)) items.push_back({row->top_level ? std::string_view() : row->group, odex_key(*row, 0) + ": " + value});
     return odex::options_block(items);
 }
 
@@ -590,7 +494,7 @@ void read_values(const odex::StateFile &file, const Model &m, odex::Statement::K
    them (every one the model has, once; the file's method decides whether the Volterra points belong) */
 void read_options(Session &s, const odex::StateFile &file, Settings &f)
 {
-    std::map<const OptionRow *, const odex::Option *> given;
+    std::map<const OptionRow *, std::vector<const odex::Option *>> given;
     for (const odex::Statement &st : file.parsed.statements) {
         if (st.kind != odex::Statement::Kind::Options) continue;
         for (const odex::Option &o : st.more().options) {
@@ -598,37 +502,39 @@ void read_options(Session &s, const odex::StateFile &file, Settings &f)
             const OptionRow *row = find_odex_option(o.group, o.name, index);
             if (!row || !row->saved)
                 file.doc.fail(o.pos.line, o.pos.col, xpp::format("`{}` is not a setting a session holds", o.name));
-            given[row] = &o;
+            given[row].push_back(&o);
         }
     }
-    for (const std::string_view which : {group::numerics, option_group::sweep}) {
-        int method = s.numerics.method;
-        for (const OptionRow *row : saved_settings(which)) {
-            const std::string key = odex_key(*row, 0);
-            const auto at = given.find(row);
-            const odex::Option *o = at == given.end() ? nullptr : at->second;
-            if (!setting_applies(s, *row, method)) {
-                if (o) file.doc.fail(o->pos.line, o->pos.col, xpp::format("`{}` is not a setting of this model", key));
-                continue;
-            }
-            if (!o) file.doc.fail(file.group.line, file.group.col, xpp::format("the options have no `{}`", key));
+    int method = s.numerics.method;
+    for (const OptionRow *row : saved_settings()) {
+        const std::string key = odex_key(*row, 0);
+        const auto at = given.find(row);
+        const std::vector<const odex::Option *> none, &items = at == given.end() ? none : at->second;
+        if (!setting_applies(s, *row, method)) {
+            if (!items.empty()) file.doc.fail(items[0]->pos.line, items[0]->pos.col, xpp::format("`{}` is not a setting of this model", key));
+            continue;
+        }
+        /* a repeatable row's list may be empty */
+        if (items.empty() && !row->repeatable) file.doc.fail(file.group.line, file.group.col, xpp::format("the options have no `{}`", key));
+        std::string text;
+        for (const odex::Option *o : items) {
             if (const std::optional<std::string> why = setting_problem(s, *row, o->value))
                 file.doc.fail(o->value_pos.line, o->value_pos.col, xpp::format("`{}`: {} (found `{}`)", key, *why, o->value));
-            if (row->rule == OptionRule::method) method = method_by_key(s.model(), o->value, command_place()).value();
-            f.set_setting(row, o->value);
+            text += (text.empty() ? "" : "\n") + o->value;
         }
+        if (row->rule == OptionRule::method) method = method_by_key(s.model(), text, command_place()).value();
+        f.set_setting(row, text);
     }
     /* the settings the file holds keep the orders the options keep */
     const auto held = [&](const OptionRow &r) -> std::optional<double> {
-        for (const auto *rows : {&f.numerics, &f.range})
-            for (const auto &[row, text] : *rows) {
-                double v = 0;
-                if (row == &r && parse_number(text, v)) return v;
-            }
+        for (const auto &[row, text] : f.options) {
+            double v = 0;
+            if (row == &r && parse_number(text, v)) return v;
+        }
         return r.real ? r.real(s) : r.whole(s);
     };
     if (const auto bad = option_pairs_problem(held)) {
-        const auto at = [&](const OptionRow &r) { const auto g = given.find(&r); return g == given.end() ? nullptr : g->second; };
+        const auto at = [&](const OptionRow &r) { const auto g = given.find(&r); return g == given.end() ? nullptr : g->second.front(); };
         const odex::Option *o = at(once_option(bad->hi));
         if (!o) o = at(once_option(bad->lo));
         if (o) file.doc.fail(o->pos.line, o->pos.col, bad->text);
@@ -677,7 +583,7 @@ Settings read_settings(Session &s, const odex::StateFile &file, odex::Block &ses
 
 void apply_storage_precision(Session &s, const Settings &f)
 {
-    for (const auto &[row, text] : f.numerics)
+    for (const auto &[row, text] : f.options)
         if (row->applied == storage_precision_changed) setting_write(s, *row, text);
     storage_precision_changed(s);
 }
@@ -686,7 +592,7 @@ void apply_settings(Session &s, const Settings &f, bool redraw)
 {
     const Model &m = s.model();
     NumericsSettings &n = s.numerics;
-    for (const auto &[row, text] : f.numerics) {
+    for (const auto &[row, text] : f.options) {
         setting_write(s, *row, text);
         if (row->rule == OptionRule::method) do_meth(s);
     }
@@ -705,7 +611,6 @@ void apply_settings(Session &s, const Settings &f, bool redraw)
         const auto k = static_cast<std::size_t>(i);
         s.delay_string[k] = f.delays[k];
         set_bc_formula(s, i, f.bcs[k]);
-        s.adjoint.coup_string[k] = f.coupling[k];
     }
     for (int i = 0; i < m.node + m.nmarkov; i++) {
         const auto k = static_cast<std::size_t>(i);
@@ -717,20 +622,7 @@ void apply_settings(Session &s, const Settings &f, bool redraw)
         copy_graph_settings(f.graph, *s.plot_windows.current);
         copy_curves(f.graph, *s.plot_windows.current);
     }
-    s.adjoint.transpose = f.transpose;
-    s.array_plot.plot = f.aplot;
-    n.torus = f.torus;
-    n.torus_period = f.torus_period;
-    for (std::size_t i = 0; i < f.itor.size(); i++) s.itor[i] = f.itor[i];
-    for (const auto &[row, text] : f.range) setting_write(s, *row, text);
-    RangeVars &r = s.integrator.range;
-    r.item2 = f.range_item2;
-    r.plow2 = f.range_low2;
-    r.phigh2 = f.range_high2;
-    r.cycle = f.range_cycle;
-    r.steps2 = r.steps;
-    s.integrator.eq_range = f.eq_range;
-    s.shoot_range = f.shoot_range;
+    s.integrator.range.steps2 = s.integrator.range.steps;
     if (redraw && program.interactive) {
         ui.redraw_bcs();
         redraw_ics();

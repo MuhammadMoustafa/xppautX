@@ -16,6 +16,7 @@ bool has_feature(const Session &s, Feature f)
     const Model &m = s.model();
     switch (f) {
     case Feature::none: return true;
+    case Feature::parameters: return m.nupar > 0;
     case Feature::delays: return m.ndelays > 0;
     case Feature::boundary_conditions: return m.bc_defined > 0;
     case Feature::integral_terms: return m.nkernel > 0;

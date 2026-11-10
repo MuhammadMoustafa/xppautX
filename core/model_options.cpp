@@ -29,6 +29,7 @@
 #include "session.h"
 #include "solver.h"
 #include "tabular.h"
+#include "typed_values.h"
 #include "userbut.h"
 #include "xpp_batch.h"
 #include "xpp_error.h"
@@ -119,6 +120,31 @@ const char *variable_into(const Session &s, int &member, const OptionValue &v)
   return nullptr;
 }
 
+/* a data column v names (the time, a variable, a column the data table added), into member */
+const char *column_name_into(const Session &s, std::string &member, const OptionValue &v)
+{
+  if (variable_column(s, v.text) < 0) return "no such column";
+  if (v.apply) member = v.text;
+  return nullptr;
+}
+
+/* the parameter v names, or with variables a variable too (what a sweep varies), into member */
+const char *range_item_into(const Session &s, std::string &member, const OptionValue &v, bool variables)
+{
+  if (find_user_name(s.model(), PARAMBOX, v.text) < 0 && !(variables && find_user_name(s.model(), ICBOX, v.text) >= 0))
+    return variables ? "not a parameter or variable" : "no such parameter";
+  if (v.apply) member = v.text;
+  return nullptr;
+}
+
+/* the index of the differential equation of the variable name, none for any other name */
+std::optional<std::size_t> equation_of(const Session &s, std::string_view name)
+{
+  const int i = find_user_name(s.model(), ICBOX, name);
+  if (i < 0 || i >= s.model().node) return std::nullopt;
+  return static_cast<std::size_t>(i);
+}
+
 /* the file a path option names, from the model's folder, into path: inside
    it, or outside it when the user allows (approve_model_path, which asks
    once); else why not. A stored bad preferences file stops the load. */
@@ -146,6 +172,8 @@ const char *data_file_into(Session &s, const OptionValue &v, std::string &target
    Jacobian's are jacobian.h's, the method's the registry's */
 constexpr std::array<std::string_view, 2> boolean_names{"false", "true"};
 constexpr std::array<std::string_view, 2> axes_names{"2", "3"};
+/* which end of the interval Range shoot stores (pp_shoot.h's SHOOT_SIDE_NAMES, as the words a row takes) */
+constexpr std::array<std::string_view, 2> shoot_side_names{SHOOT_SIDE_NAMES[0], SHOOT_SIDE_NAMES[1]};
 /* autoX's output detail levels, as the words the row takes (autox_settings.h's names) */
 constexpr std::array<std::string_view, autox_output_detail_names.size()> autox_output_detail_words = [] {
   std::array<std::string_view, autox_output_detail_names.size()> words;
@@ -384,6 +412,23 @@ constexpr OptionRow rows[] = {
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.bvp_epsilon = 1e-5; },
    .key = "bvp_epsilon", .label = "BVP epsilon", .rule = OptionRule::positive, .needs = Feature::boundary_conditions, .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::name, .odex = "boundary_value.range_parameter", .help = "The parameter Range shoot varies.", .once = true,
+   .text = member([](auto &s) -> auto & { return s.shoot_range.item; }),
+   .parse = [](Session &s, const OptionValue &v) -> const char * { return range_item_into(s, s.shoot_range.item, v, false); },
+   /* the first parameter */
+   .reset = [](Session &s) { s.shoot_range.item = s.model().upar_names[0]; }, .needs = Feature::parameters, .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::whole, .odex = "boundary_value.range_steps", .help = "How many steps Range shoot makes between its ends.",
+   .whole = member([](auto &s) -> auto & { return s.shoot_range.steps; }), .rule = OptionRule::whole_positive, .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.range_low", .help = "The value Range shoot starts at.",
+   .real = member([](auto &s) -> auto & { return s.shoot_range.plow; }), .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::number, .odex = "boundary_value.range_high", .help = "The value Range shoot ends at.",
+   .real = member([](auto &s) -> auto & { return s.shoot_range.phigh; }), .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "boundary_value.range_side", .help = "Which end of the interval Range shoot stores the solution's values at.",
+   .index = choice_member([](auto &s) -> auto & { return s.shoot_range.side; }),
+   .rule = OptionRule::choice, .choices = shoot_side_names, .saved = true},
+  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "boundary_value.range_cycle_color", .help = "Whether each solution of Range shoot is drawn in the next color.",
+   .index = choice_member([](auto &s) -> auto & { return s.shoot_range.cycle; }),
+   .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::number, .odex = "torus.period", .help = "The period of the variables that live on a circle or torus.", .xppaut_names = {"TOR_PER"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.numerics.torus_period; }),
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -391,8 +436,14 @@ constexpr OptionRow rows[] = {
      if (v.apply) s.numerics.torus=true;
      return nullptr;
    },
-   .rule = OptionRule::positive},
+   .rule = OptionRule::positive, .saved = true},
   {.group = option_group::integration, .kind = OptionKind::name, .odex = "torus.fold", .help = "A variable that is taken modulo the torus period; each names one.",.xppaut_names = {"FOLD"}, 
+   .show = [](const Session &s) {
+     std::string names;
+     for (std::size_t i = 0; i < s.itor.size(); ++i)
+       if (s.itor[i] == 1) names += (names.empty() ? "" : "\n") + s.model().uvar_names[i];
+     return names;
+   },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const int i = variable_of(s, v);
      if (i < 1) return "no such variable";
@@ -401,7 +452,13 @@ constexpr OptionRow rows[] = {
      s.numerics.torus=true;
      return nullptr;
    },
-   .repeatable = true},
+   /* none is folded */
+   .reset = [](Session &s) { std::ranges::fill(s.itor, 0); },
+   .repeatable = true, .saved = true},
+  /* after period and fold, which turn it on: a session applies the rows in this order */
+  {.group = option_group::integration, .kind = OptionKind::choice, .odex = "torus.on", .help = "Whether the variables folded onto the torus are taken modulo its period.",
+   .boolean = member([](auto &s) -> auto & { return s.numerics.torus; }),
+   .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   {.group = option_group::poincare, .kind = OptionKind::choice, .odex = "map", .help = "What a run records at a Poincare section: nothing, the section, the maxima or the period.", .xppaut_names = {"POIMAP"}, .once = true,
    .index = choice_member([](auto &s) -> auto & { return s.numerics.poincare_map; }),
    /* no Poincare map */
@@ -463,6 +520,22 @@ constexpr OptionRow rows[] = {
    .reset = [](Session &s) { s.numerics.equilibria.draw_strong_sets = false; },
    .key = "draw_strong_sets", .label = "Equilibria: draw strong sets", .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   /* ---- the range integration and a batch run ---- */
+  {.group = option_group::equilibria, .kind = OptionKind::name, .odex = "range_parameter", .help = "The parameter Range equilibria varies.", .once = true,
+   .text = member([](auto &s) -> auto & { return s.integrator.eq_range.item; }),
+   .parse = [](Session &s, const OptionValue &v) -> const char * { return range_item_into(s, s.integrator.eq_range.item, v, false); },
+   /* the first parameter */
+   .reset = [](Session &s) { s.integrator.eq_range.item = s.model().upar_names[0]; }, .needs = Feature::parameters, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::whole, .odex = "range_steps", .help = "How many steps Range equilibria makes between its ends.",
+   .whole = member([](auto &s) -> auto & { return s.integrator.eq_range.steps; }), .rule = OptionRule::whole_positive, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "range_low", .help = "The value Range equilibria starts at.",
+   .real = member([](auto &s) -> auto & { return s.integrator.eq_range.plow; }), .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::number, .odex = "range_high", .help = "The value Range equilibria ends at.",
+   .real = member([](auto &s) -> auto & { return s.integrator.eq_range.phigh; }), .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::choice, .odex = "range_shoot", .help = "Whether Range equilibria finds each equilibrium by shooting from the last one.",
+   .index = choice_member([](auto &s) -> auto & { return s.integrator.eq_range.shoot; }),
+   .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
+  {.group = option_group::equilibria, .kind = OptionKind::whole, .odex = "range_stability_column", .help = "The data column Range equilibria stores each equilibrium's stability in.",
+   .whole = member([](auto &s) -> auto & { return s.integrator.eq_range.col; }), .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::name, .odex = "variable", .help = "The parameter or variable a sweep varies.", .xppaut_names = {"RANGEOVER"}, .once = true,
    .text = member([](auto &s) -> auto & { return s.integrator.range.item; }),
    /* the first variable */
@@ -474,10 +547,10 @@ constexpr OptionRow rows[] = {
   {.group = option_group::sweep, .kind = OptionKind::number, .odex = "low", .help = "The value the sweep starts at.", .xppaut_names = {"RANGELOW"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.integrator.range.plow; }),
    /* 0 to 1 */
-   .reset = [](Session &s) { s.integrator.range.plow = s.integrator.range.plow2 = 0; }, .saved = true},
+   .reset = [](Session &s) { s.integrator.range.plow = 0; }, .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::number, .odex = "high", .help = "The value the sweep ends at.", .xppaut_names = {"RANGEHIGH"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.integrator.range.phigh; }),
-   .reset = [](Session &s) { s.integrator.range.phigh = s.integrator.range.phigh2 = 1; }, .saved = true},
+   .reset = [](Session &s) { s.integrator.range.phigh = 1; }, .saved = true},
   {.group = option_group::sweep, .kind = OptionKind::choice, .odex = "reset", .help = "Whether each run of the sweep starts from the initial conditions.", .xppaut_names = {"RANGERESET"}, .once = true,
    .boolean = member([](auto &s) -> auto & { return s.integrator.range.reset; }),
    /* each run starts from the initial data */
@@ -493,6 +566,18 @@ constexpr OptionRow rows[] = {
    .boolean = member([](auto &s) -> auto & { return s.integrator.range.write_files; }),
    .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   /* ---- autoX ---- */
+  {.group = option_group::sweep, .kind = OptionKind::name, .odex = "second_variable", .help = "The parameter or variable the second sweep of a two-variable range varies.", .once = true,
+   .text = member([](auto &s) -> auto & { return s.integrator.range.item2; }),
+   .parse = [](Session &s, const OptionValue &v) -> const char * { return range_item_into(s, s.integrator.range.item2, v, true); },
+   /* the first variable */
+   .reset = [](Session &s) { s.integrator.range.item2 = s.model().uvar_names[0]; }, .saved = true},
+  {.group = option_group::sweep, .kind = OptionKind::number, .odex = "second_low", .help = "The value the second sweep starts at.",
+   .real = member([](auto &s) -> auto & { return s.integrator.range.plow2; }), .saved = true},
+  {.group = option_group::sweep, .kind = OptionKind::number, .odex = "second_high", .help = "The value the second sweep ends at.",
+   .real = member([](auto &s) -> auto & { return s.integrator.range.phigh2; }), .saved = true},
+  {.group = option_group::sweep, .kind = OptionKind::choice, .odex = "cycle_color", .help = "Whether each run of the sweep is drawn in the next color.",
+   .index = choice_member([](auto &s) -> auto & { return s.integrator.range.cycle; }),
+   .rule = OptionRule::choice, .choices = boolean_names, .saved = true},
   {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "mesh_intervals", .help = "How many mesh intervals a periodic orbit or boundary value solution has.",
    .xppaut_names = {"NTST"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state.options.ntst; }), .autox_numeric = AUTOX_NUM_MESH_INTERVALS},
@@ -720,6 +805,47 @@ constexpr OptionRow rows[] = {
    .real = member([](auto &s) -> auto & { return s.nullclines.color_via_lo; })},
   {.group = option_group::plot, .kind = OptionKind::number, .odex = "color_by.high", .help = "The value of the coloring variable that gets the last color.", .xppaut_names = {"COLORHI"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.nullclines.color_via_hi; })},
+  {.group = option_group::plot, .kind = OptionKind::name, .odex = "array_plot.first_column", .help = "The first data column the array plot shows.", .once = true,
+   .text = member([](auto &s) -> auto & { return s.array_plot.plot.name; }),
+   .parse = [](Session &s, const OptionValue &v) -> const char * { return column_name_into(s, s.array_plot.plot.name, v); },
+   /* the first variable */
+   .reset = [](Session &s) { s.array_plot.plot.name = s.model().uvar_names[0]; }, .saved = true, .wide = true},
+  {.group = option_group::plot, .kind = OptionKind::whole, .odex = "array_plot.columns", .help = "How many columns the array plot shows.",
+   .whole = member([](auto &s) -> auto & { return s.array_plot.plot.nacross; }), .rule = OptionRule::whole_positive, .maximum = option_limit::matrix_side, .saved = true, .wide = true},
+  {.group = option_group::plot, .kind = OptionKind::whole, .odex = "array_plot.first_row", .help = "The stored row the array plot starts at, counted from 0.",
+   .whole = member([](auto &s) -> auto & { return s.array_plot.plot.nstart; }), .saved = true, .wide = true},
+  {.group = option_group::plot, .kind = OptionKind::whole, .odex = "array_plot.rows", .help = "How many rows the array plot shows.",
+   .whole = member([](auto &s) -> auto & { return s.array_plot.plot.ndown; }), .rule = OptionRule::whole_positive, .maximum = option_limit::matrix_side, .saved = true, .wide = true},
+  {.group = option_group::plot, .kind = OptionKind::whole, .odex = "array_plot.row_skip", .help = "The array plot shows every this many rows of the stored data.",
+   .whole = member([](auto &s) -> auto & { return s.array_plot.plot.nskip; }), .saved = true, .wide = true},
+  {.group = option_group::plot, .kind = OptionKind::number, .odex = "array_plot.z_min", .help = "The value the array plot gives the first color.",
+   .real = member([](auto &s) -> auto & { return s.array_plot.plot.zmin; }), .saved = true, .wide = true},
+  {.group = option_group::plot, .kind = OptionKind::number, .odex = "array_plot.z_max", .help = "The value the array plot gives the last color.",
+   .real = member([](auto &s) -> auto & { return s.array_plot.plot.zmax; }), .saved = true, .wide = true},
+  {.group = option_group::analysis, .kind = OptionKind::text, .odex = "coupling", .help = "The coupling of the H function, one `variable = formula` for each differential equation.",
+   .show = [](const Session &s) {
+     std::string lines;
+     for (std::size_t i = 0; i < s.adjoint.coup_string.size(); ++i)
+       lines += (lines.empty() ? "" : "\n") + s.model().uvar_names[i] + " = " + s.adjoint.coup_string[i];
+     return lines;
+   },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     const std::string_view line = v.text;
+     const std::size_t equals = line.find('=');
+     if (equals == std::string_view::npos) return "must be `variable = formula`";
+     const std::optional<std::size_t> equation = equation_of(s, trim_blanks(line.substr(0, equals)));
+     if (!equation) return "does not start with the name of a differential equation's variable";
+     const std::string_view formula = trim_blanks(line.substr(equals + 1));
+     if (formula.empty()) return "has no formula";
+     if (v.apply) {
+       s.adjoint.coup_string.resize(static_cast<std::size_t>(s.model().node), "0"); /* the load makes the list after its options */
+       s.adjoint.coup_string[*equation] = formula;
+     }
+     return nullptr;
+   },
+   /* no coupling: 0 for each equation */
+   .reset = [](Session &s) { s.adjoint.coup_string.assign(static_cast<std::size_t>(s.model().node), "0"); },
+   .repeatable = true, .saved = true, .wide = true},
   {.group = option_group::analysis, .kind = OptionKind::number, .odex = "histogram.low", .help = "The low end of the histogram's range.", .xppaut_names = {"HISTLO"}, .once = true,
    .real = member([](auto &s) -> auto & { return s.histogram.info.xlo; })},
   {.group = option_group::analysis, .kind = OptionKind::number, .odex = "histogram.high", .help = "The high end of the histogram's range.", .xppaut_names = {"HISTHI"}, .once = true,
@@ -757,6 +883,21 @@ constexpr OptionRow rows[] = {
   {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "spectrum.window", .help = "The window the spectrum's segments are weighted with.", .xppaut_names = {"SPECWIN"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.histogram.spec_win; })},
   /* XPPAUT's picture color and font size (import only): an export is the panel as shown, in color at the page's size */
+  {.group = option_group::analysis, .kind = OptionKind::name, .odex = "transpose.first_column", .help = "The first data column Transpose takes.", .once = true,
+   .text = member([](auto &s) -> auto & { return s.adjoint.transpose.firstcol; }),
+   .parse = [](Session &s, const OptionValue &v) -> const char * { return column_name_into(s, s.adjoint.transpose.firstcol, v); },
+   /* the first variable */
+   .reset = [](Session &s) { s.adjoint.transpose.firstcol = s.model().uvar_names[0]; }, .saved = true, .wide = true},
+  {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "transpose.columns", .help = "How many data columns Transpose takes.",
+   .whole = member([](auto &s) -> auto & { return s.adjoint.transpose.ncol; }), .rule = OptionRule::whole_positive, .maximum = option_limit::matrix_side, .saved = true, .wide = true},
+  {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "transpose.column_skip", .help = "Transpose takes every this many columns of the stored data.",
+   .whole = member([](auto &s) -> auto & { return s.adjoint.transpose.colskip; }), .saved = true, .wide = true},
+  {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "transpose.first_row", .help = "The stored row Transpose starts at, counted from 0.",
+   .whole = member([](auto &s) -> auto & { return s.adjoint.transpose.row0; }), .saved = true, .wide = true},
+  {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "transpose.rows", .help = "How many stored rows Transpose takes.",
+   .whole = member([](auto &s) -> auto & { return s.adjoint.transpose.nrow; }), .rule = OptionRule::whole_positive, .maximum = option_limit::matrix_side, .saved = true, .wide = true},
+  {.group = option_group::analysis, .kind = OptionKind::whole, .odex = "transpose.row_skip", .help = "Transpose takes every this many rows of the stored data.",
+   .whole = member([](auto &s) -> auto & { return s.adjoint.transpose.rowskip; }), .saved = true, .wide = true},
   {.name = "PS_COLOR", .dropped = picture_as_shown},
   {.name = "PS_FSIZE", .dropped = picture_as_shown},
   {.group = option_group::interface, .kind = OptionKind::sliders, .odex = "sliders", .help = "The sliders the window offers: a parameter or variable each, with its range.", .once = true},
@@ -1246,6 +1387,25 @@ bool xppaut_slider_option(const OptionRow &row)
 bool option_written_quoted(const OptionRow &row)
 {
   return row.kind == OptionKind::path || row.kind == OptionKind::text;
+}
+
+std::vector<std::string> option_items(const OptionRow &row, std::string_view text)
+{
+  std::vector<std::string> items;
+  if (row.repeatable) {
+    for (const auto line : text | std::views::split('\n')) items.emplace_back(line.begin(), line.end());
+    if (text.empty()) items.clear();
+  }
+  else items.emplace_back(text);
+  return items;
+}
+
+std::vector<std::string> option_values(const OptionRow &row, std::string_view text)
+{
+  std::vector<std::string> values = option_items(row, text);
+  if (option_written_quoted(row))
+    for (std::string &value : values) value = odex::quote_string(value);
+  return values;
 }
 
 std::vector<std::string> option_choices(const OptionRow &row)

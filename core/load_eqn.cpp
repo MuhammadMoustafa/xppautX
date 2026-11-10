@@ -152,8 +152,6 @@ void set_all_vals(xpp::Session &s)
  }
 
  xpp::init_range(s);
- xpp::init_trans(s);
- init_my_aplot(s);
  init_txtview();
 
 
@@ -639,8 +637,7 @@ xpp::Result<odex::Values> captured_values(xpp::Session &s, std::string_view scop
     if(!all&&scope!=group)continue;
     values.groups.emplace_back(group);
     for(const auto &[row,text] : group_settings(s,group,true)){
-      const bool quoted=option_written_quoted(*row);
-      values.settings.push_back({std::string(group),odex_key(*row,0),quoted?odex::quote_string(text):text});
+      for(std::string &value : option_values(*row,text))values.settings.push_back({std::string(group),odex_key(*row,0),std::move(value)});
     }
   }
   return values;

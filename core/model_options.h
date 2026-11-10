@@ -38,6 +38,8 @@ namespace option_limit {
 inline constexpr int history_points = 10000000;
 /* A 4096-side mesh or histogram bounds quadratic work/storage to about 16 million cells. */
 inline constexpr int mesh = 4096, histogram_bins = 4096;
+/* 4096 sides bound a transposed or array plotted rectangle of the stored data to about 16 million cells. */
+inline constexpr int matrix_side = 4096;
 /* A hundred thousand diagonals allow large banded models without int-sized bandwidths. */
 inline constexpr int bandwidth = 100000;
 /* One million spectral samples bound FFT workspaces while permitting long windows. */
@@ -349,6 +351,11 @@ bool xppaut_slider_option(const OptionRow &row);
 
 /* whether a .odex writes row's value text in double quotes: a path, a text or a color */
 bool option_written_quoted(const OptionRow &row);
+/* the items of row's value text: it as one, or for a repeatable row each line of its list (none for an empty one) */
+std::vector<std::string> option_items(const OptionRow &row, std::string_view text);
+/* the values a .odex writes for row's value text, each as the options block holds it (quoted as the row's kind says): one, or for
+   a repeatable row one for each line of its list (none for an empty one), each written under the row's key */
+std::vector<std::string> option_values(const OptionRow &row, std::string_view text);
 
 /* the words a choice row takes, in a .odex (the registry's keys for the
    method), empty for any other row */

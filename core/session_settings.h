@@ -18,12 +18,8 @@
 #include <utility>
 #include <vector>
 
-#include "adj2.h"      /* AdjointState's transpose */
-#include "arrayplot.h" /* APLOT */
 #include "browse.h"    /* AddedColumn */
 #include "display_state.h" /* Zoom */
-#include "integrate.h" /* RangeVars, EquilibriumRange */
-#include "pp_shoot.h"  /* ShootRange */
 #include "odex.h" /* StateFile */
 #include "odex_block.h"
 #include "struct.h"    /* GRAPH */
@@ -34,8 +30,6 @@ namespace xpp {
 struct Session;   /* session.h */
 struct OptionRow; /* model_options.h */
 
-/* 4096 sides bound a saved array/transpose rectangle to 16 million cells. */
-inline constexpr int settings_dimension_limit = 4096;
 /* Four MiB is far above ordinary settings; the shared lexer separately caps token storage. */
 inline constexpr std::size_t settings_bytes_limit = 4u * 1024 * 1024;
 
@@ -43,32 +37,19 @@ inline constexpr std::size_t settings_bytes_limit = 4u * 1024 * 1024;
    (capture_settings) and a file overrides what it names, so a file that
    names little leaves the rest as it was. */
 struct Settings {
-    /* the option table's rows a file holds, as text, in the table's order */
+    /* the option table's rows a file holds (the ones marked `saved`), as text, in the table's order */
     using Setting = std::pair<const OptionRow *, std::string>;
-    std::vector<Setting> numerics, range;
+    std::vector<Setting> options;
     double current_time = 0, last_time = 0;
     int my_start = 0, inflag = 0, delay_flag = 0;
     std::vector<std::string> delays, bcs;
     std::vector<double> last_ic, current, params;
     /* the active window's settings, its curves' variables by number */
     GRAPH graph{};
-    decltype(AdjointState::transpose) transpose;
-    std::vector<std::string> coupling;
-    APLOT aplot{};
-    int torus = 0;
-    double torus_period = 0;
-    std::vector<int> itor;
-    /* the range's own settings that the table has no row for */
-    std::string range_item2;
-    double range_low2 = 0, range_high2 = 0;
-    int range_cycle = 0;
-    EquilibriumRange eq_range;
-    ShootRange shoot_range;
     /* the file holds the active window's graphics (a settings file does, a
        session's does not: its windows hold every window's) */
     bool graphics = true;
-    /* the value of the table's row (the numerics' or the range's by its
-       group) set to text */
+    /* the value of the table's row set to text */
     void set_setting(const OptionRow *row, std::string text);
 };
 

@@ -46,18 +46,6 @@ constexpr double ADJ_EPS=1.e-8;
 
 /* extern Window main_win; */
 
-void init_trans(xpp::Session &s)
-{
-  s.adjoint.transpose.firstcol=s.model().uvar_names[0];
-  s.adjoint.transpose.ncol=2;
-  s.adjoint.transpose.nrow=1;
-  s.adjoint.transpose.rowskip=1;
-  s.adjoint.transpose.colskip=1;
-  s.adjoint.transpose.row0=1;
-  s.adjoint.transpose.col0=2;
-}
-
-
 namespace {
 
 /* the transposed data from the settings in s.adjoint.transpose, shown in the browser: every value it reads lies in
@@ -143,7 +131,7 @@ void do_transpose(xpp::Session &s)
 void alloc_h_stuff(xpp::Session &s)
 {
  s.adjoint.coup_fun.assign(s.model().node,{});
- s.adjoint.coup_string.assign(s.model().node,"0");
+ s.adjoint.coup_string.resize(static_cast<std::size_t>(s.model().node),"0"); /* what the model's options gave stays */
 }
 
 void data_back(xpp::Session &s)

@@ -80,18 +80,6 @@ xpp::Result<> compile_bvp(xpp::Session &s)
 }
 
 
-void init_shoot_range(xpp::Session &s, std::string_view item)
-{
- s.shoot_range.item=item;
- s.shoot_range.phigh=1.0;
- s.shoot_range.plow=0.0;
- s.shoot_range.side=0;
- s.shoot_range.cycle=0;
- s.shoot_range.steps=10;
- s.shoot_range.movie=0;
-}
-  
-
 xpp::Result<int> do_sh_range(xpp::Session &s, double *ystart, double *yend)
 {
  double parlo,parhi,dpar,temp;

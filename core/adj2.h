@@ -36,8 +36,8 @@ struct AdjointState {
   /* Transpose's settings: the first column and its name, how many and
      the skip; the first row, how many and the skip */
   struct {
-    int col0 = 0, ncol = 0, colskip = 0;
-    int row0 = 0, nrow = 0, rowskip = 0;
+    int col0 = 2, ncol = 2, colskip = 1;
+    int row0 = 1, nrow = 1, rowskip = 1;
     std::string firstcol;
   } transpose;
   /* the maximal Liapunov exponent over a range: the parameter, the
@@ -53,7 +53,6 @@ void norm_vec(std::span<double> v, double &mu);
 void adj_back(Session &s);
 void h_back(Session &s);
 
-void init_trans(Session &s);
 /* Transpose data (File/Transpose): the stored data's `columns` columns from `first_column` in steps of
    `column_skip`, and `rows` rows from row `first_row` in steps of `row_skip` (the first is 0), shown in the browser
    as rows of the table: each column becomes a row. Every one is in the data, else the error; the settings are kept

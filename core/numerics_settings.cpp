@@ -313,11 +313,11 @@ bool numerics_settings_ask(xpp::Session &s, std::string_view key)
     return false;
 }
 
-std::vector<const OptionRow *> saved_settings(std::string_view group)
+std::vector<const OptionRow *> saved_settings()
 {
     std::vector<const OptionRow *> rows;
     for (const OptionRow &r : option_rows())
-        if (r.saved && (r.group == option_group::sweep) == (group == option_group::sweep)) rows.push_back(&r);
+        if (r.saved) rows.push_back(&r);
     return rows;
 }
 
@@ -367,7 +367,10 @@ Place settings_place(const Model &m, std::initializer_list<std::string_view> set
    Jacobian is checked once the model is compiled: the option's parser defers it, as the @ line does) */
 static bool by_option(const OptionRow &row) { return row.key.empty() || Load::running(); }
 
-std::optional<std::string> setting_problem(xpp::Session &s, const OptionRow &row, std::string_view text)
+namespace {
+
+/* why text, one value of row, is not one */
+std::optional<std::string> value_problem(xpp::Session &s, const OptionRow &row, std::string_view text)
 {
     if (by_option(row)) {
         /* the rule's words, with the setting's label before them, as the Numerics menu says them */
@@ -382,8 +385,24 @@ std::optional<std::string> setting_problem(xpp::Session &s, const OptionRow &row
     return why;
 }
 
+} // namespace
+
+std::optional<std::string> setting_problem(xpp::Session &s, const OptionRow &row, std::string_view text)
+{
+    if (!row.repeatable) return value_problem(s, row, text);
+    for (const std::string &item : option_items(row, text))
+        if (const auto why = value_problem(s, row, item)) return why;
+    return std::nullopt;
+}
+
 void setting_write(xpp::Session &s, const OptionRow &row, std::string_view text)
 {
+    if (row.repeatable) {
+        assert(row.reset != nullptr);
+        row.reset(s);
+        for (const std::string &item : option_items(row, text)) set_option(s, option_name(row), item, true, nullptr);
+        return;
+    }
     if (by_option(row)) return set_option(s, option_name(row), text, true, nullptr);
     double v = 0;
     std::string why;

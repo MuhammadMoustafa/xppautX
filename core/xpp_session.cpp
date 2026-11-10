@@ -760,7 +760,7 @@ std::uint64_t values_fingerprint(const xpp::Session &s)
     for (int i = 0; i < m.nupar; i++) f.value(s.parser.constants[m.upar_con[i]]);
     for (int i = 0; i < m.node + m.nmarkov; i++) f.value(s.last_ic[i]);
     /* the numerics the session file keeps, whatever the table holds */
-    for (const xpp::OptionRow *row : xpp::saved_settings("numerics")) {
+    for (const xpp::OptionRow *row : xpp::saved_settings()) {
         if (row->real) f.value(row->real(s));
         else if (row->whole) f.value(row->whole(s));
         else if (row->boolean) f.value(row->boolean(s) ? 1 : 0);

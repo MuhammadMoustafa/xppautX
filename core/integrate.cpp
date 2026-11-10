@@ -196,22 +196,11 @@ constexpr int OnTheFly=1;
     
 void init_range(xpp::Session &s)
 {
- s.integrator.eq_range.col=-1;
- s.integrator.eq_range.mc=0;
- s.integrator.eq_range.shoot=0;
- s.integrator.eq_range.steps=10;
- s.integrator.eq_range.plow=0.0;
- s.integrator.eq_range.phigh=1.0;
- s.integrator.eq_range.movie=0;
- s.integrator.eq_range.item=s.model().upar_names[0];
  s.integrator.range.type=0;
  s.integrator.range.rtype=RANGE_SINGLE;
  s.integrator.range.index=s.integrator.range.index2=0;
  s.integrator.range.steps2=20;
- s.integrator.range.cycle=0;
  s.integrator.range.movie=0;
- s.integrator.range.item2=s.model().uvar_names[0];
- init_shoot_range(s,s.model().upar_names[0]); 
  init_monte_carlo(s);
 }
 

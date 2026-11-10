@@ -10,12 +10,12 @@
 
 /* the array plot's settings */
 struct APLOT {
-  int index0,alive,nacross,ndown,plotdef;
-  int height,width,ploth,plotw;
-  int nstart,nskip,ncskip;
+  int index0 = 1, alive = 0, nacross = 1, ndown = 50, plotdef = 0;
+  int height = 400, width = 400, ploth = 0, plotw = 0;
+  int nstart = 0, nskip = 8, ncskip = 1;
   std::string name; /* its first column */
-  double zmin,zmax;
-  std::string xtitle,ytitle,filename,bottom; /* Print's */
+  double zmin = 0.0, zmax = 1.0;
+  std::string xtitle = "index", ytitle = "time", filename, bottom; /* Print's */
 };
 
 namespace xpp {
@@ -28,9 +28,6 @@ struct ArrayPicture {
 };
 struct Session; /* session.h */
 }
-
-/* the array plot of the loading Session s at its defaults (a load) */
-void init_my_aplot(xpp::Session &s);
 
 /* The array plot of the session s: its range saving's movie closed,
    Plotvars' columns shown, Array range saving's settings, Fit, the range

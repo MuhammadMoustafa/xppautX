@@ -202,8 +202,8 @@ struct RangeVars {
   bool write_files = false; // Opt in: reset runs otherwise keep no separate files.
   int steps = 20, steps2 = 10; /* the option's default; a double range's second steps, 10 as XPPAUT's dialog fell back to */
   bool reset, oldic; /* each run starts from the initial data / from the same initial data */
-  int index, index2, cycle, type, type2, movie;
-  double plow, phigh, plow2, phigh2;
+  int index, index2, cycle = 0, type, type2, movie;
+  double plow, phigh, plow2 = 0, phigh2 = 1;
   int rtype;
 };
 
@@ -247,8 +247,8 @@ struct FixedPointGuess {
 /* Sing pts' Range settings */
 struct EquilibriumRange {
   std::string item;
-  int steps = 10, shoot = 0, col = 0, movie = 0, mc = 0; /* Steps starts at 10, what the dialog's empty value fell back to */
-  double plow = 0, phigh = 0;
+  int steps = 10, shoot = 0, col = -1, movie = 0, mc = 0; /* Steps starts at 10, what the dialog's empty value fell back to */
+  double plow = 0, phigh = 1;
 };
 
 /* each global flag's state during a run (xpp::Model has its definition):

@@ -76,10 +76,9 @@ int numerics_settings_set(Session &s, std::string_view key, std::string_view tex
 std::string unavailable_choices_json(const Session &s, const OptionRow &f);
 
 /* ---- the settings a session holds (session_settings.h) ----
-   The option table's rows marked `saved`: those of the sweep group
-   (option_group::sweep) or, for any other name, all the others, the
-   numerics; each is read and written as text under its .odex key. */
-std::vector<const OptionRow *> saved_settings(std::string_view group);
+   The option table's rows marked `saved`, in the table's order; each is read and written as text under its
+   group and .odex key. A repeatable row's text is its items, one a line. */
+std::vector<const OptionRow *> saved_settings();
 /* the saved row whose name (option_name) is name, nullptr when none is */
 const OptionRow *saved_setting(std::string_view name);
 /* whether s's model, run by method, has the setting (the delay of a model
@@ -95,11 +94,12 @@ std::string named_settings(const Session &s, std::initializer_list<std::string_v
 /* where an error about settings is: the line the model sets the first of them on, else the
    command that ran the computation */
 Place settings_place(const Model &m, std::initializer_list<std::string_view> settings);
-/* why text is not a value of row for s's model (the rule the Numerics menu,
-   `set num` and the @ lines check), nothing when it is; changes nothing */
+/* why text is not a value of row for s's model (the rule the Numerics menu, `set num` and the @ lines check; the first
+   bad line of a repeatable row's list), nothing when it is; changes nothing */
 std::optional<std::string> setting_problem(Session &s, const OptionRow &row, std::string_view text);
 /* row set to text, already checked by setting_problem: the member only
-   (the caller applies the numerics as a whole: do_meth, the delays) */
+   (the caller applies the numerics as a whole: do_meth, the delays); a repeatable row is emptied (its reset), then
+   given each line of text */
 void setting_write(Session &s, const OptionRow &row, std::string_view text);
 
 /* one value of numerics_settings_set_all: the field's key and the text a user would type */

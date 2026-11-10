@@ -15,8 +15,8 @@ inline constexpr std::array<const char *, 2> SHOOT_SIDE_NAMES = {"start", "end"}
 /* BVP's Range settings (pp_shoot.cpp) */
 struct ShootRange {
   std::string item;
-  int steps = 0, side = SHOOT_SIDE_START, cycle = 0, movie = 0;
-  double plow = 0, phigh = 0;
+  int steps = 10, side = SHOOT_SIDE_START, cycle = 0, movie = 0;
+  double plow = 0, phigh = 1;
 };
 
 struct Session; /* session.h */
@@ -61,6 +61,5 @@ struct Shot {
 Result<Shot> bvshoot(Session &s, double *y, double *yend, double err, double eps, int maxit, int n, int ishow, int iper, int ipar, int ivar, double sect);
 
 /* Range shoot's settings, over parameter s */
-void init_shoot_range(Session &s, std::string_view item);
 
 } // namespace xpp

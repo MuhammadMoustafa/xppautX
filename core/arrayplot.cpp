@@ -132,27 +132,6 @@ void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin)
  
 }
 
-void init_my_aplot(xpp::Session &s)
-{
- APLOT *ap=&s.array_plot.plot;
- ap->height=400;
- ap->width=400;
- ap->zmin=0.0;
- ap->zmax=1.0;
- ap->alive=0;
- ap->plotdef=0;
- ap->index0=1;
- ap->nacross=1;
- ap->ndown=50;
- ap->nstart=0;
- ap->nskip=8;
- ap->ncskip=1;
- ap->filename.clear();
- ap->xtitle="index";
- ap->ytitle="time";
- ap->bottom="";
-}
-
 AplotTimes aplot_times(const xpp::Session &s, const APLOT &ap)
 {
   const int nrows=s.data.view.maxrow;

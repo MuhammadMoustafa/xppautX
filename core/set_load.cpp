@@ -195,9 +195,9 @@ Result<ValuesSource> read_set_source(Session &s, std::string_view path)
         part.items.push_back({m.upar_names[static_cast<std::size_t>(i)], odex::print_number(f->params[static_cast<std::size_t>(i)]), false, {}});
     for (int i = 0; i < m.node + m.nmarkov; i++)
         part.items.push_back({m.uvar_names[static_cast<std::size_t>(i)], odex::print_number(f->last_ic[static_cast<std::size_t>(i)]), false, {}});
-    for (const auto *rows : {&f->numerics, &f->range})
-        for (const auto &[row, text] : *rows)
-            if (set_holds(*row)) part.items.push_back({option_setting_name(*row, 0), text, true, {}});
+    for (const auto &[row, text] : f->options)
+        if (set_holds(*row))
+            for (std::string &item : option_items(*row, text)) part.items.push_back({option_setting_name(*row, 0), std::move(item), true, {}});
     return ValuesSource{FORMAT_SET, {}, {std::move(part)}};
 }
 

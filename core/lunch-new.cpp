@@ -318,79 +318,97 @@ void read_graph(const xpp::Session &s, Lines &l, GRAPH &g)
 int read_dimension(Lines &l, std::string_view label)
 {
   const int v=l.whole(label,true);
-  if(const char *why=rule_problem(OptionRule::whole_positive,v,settings_dimension_limit))
-    l.fail(xpp::format("{}={}: {} (maximum {})",label,v,why,settings_dimension_limit));
+  if(const char *why=rule_problem(OptionRule::whole_positive,v,option_limit::matrix_side))
+    l.fail(xpp::format("{}={}: {} (maximum {})",label,v,why,option_limit::matrix_side));
   return v;
 }
 
 void read_more(xpp::Session &s, Lines &l, Settings &f)
 {
-  auto &t=f.transpose;
-  l.heading("# Transpose variables etc");
-  t.firstcol=l.next("Transpose's first column");
-  check_column(s,l,"Transpose's first column",t.firstcol);
-  t.ncol=read_dimension(l,"n columns");
-  t.nrow=read_dimension(l,"n rows");
-  t.rowskip=l.whole("row skip",true);
-  t.colskip=l.whole("col skip",true);
-  t.row0=l.whole("row 0",true);
-
-  l.heading("# Coupling stuff for H funs");
-  for(int i=0;i<s.model().node;i++){
-    std::string &coupling=f.coupling[static_cast<std::size_t>(i)];
-    coupling=l.next(xpp::format("the coupling of {}",s.model().uvar_names[static_cast<std::size_t>(i)]));
-    check_expression(s,l,xpp::format("the coupling of {}",s.model().uvar_names[static_cast<std::size_t>(i)]),coupling);
-  }
-
-  APLOT &a=f.aplot;
-  l.heading("# Array plot stuff");
-  a.name=l.next("the array plot's first column");
-  if(!a.name.empty())check_column(s,l,"the array plot's first column",a.name); /* a set file of a model with no array plot has none */
-  a.nacross=read_dimension(l,"NCols");
-  a.nstart=l.whole("Row 1",true);
-  a.ndown=read_dimension(l,"NRows");
-  a.nskip=l.whole("RowSkip",true);
-  a.zmin=l.real("Zmin",true);
-  a.zmax=l.real("Zmax",true);
-
-  l.heading("# Torus information");
-  f.torus=l.whole("Torus flag 1=ON",true);
-  if(f.torus!=0&&f.torus!=1)l.fail(xpp::format("the torus flag {}: 0 or 1",f.torus));
-  f.torus_period=l.real("Torus period",true);
-  if(f.torus)
-    for(int i=0;i<s.model().neq;i++)f.itor[static_cast<std::size_t>(i)]=l.whole(s.model().uvar_names[static_cast<std::size_t>(i)],true);
-
-  EquilibriumRange &e=f.eq_range;
-  l.heading("# Range information");
-  e.item=l.next("the equilibrium range's parameter");
-  e.col=l.whole("eq-range stab col",true);
-  e.shoot=l.whole("shoot flag 1=on",true);
-  e.steps=l.whole("eq-range steps",true);
-  e.plow=l.real("eq_range low",true);
-  e.phigh=l.real("eq_range high",true);
-  f.set_setting(saved_setting("sweep.variable"),std::string(l.next("the range's parameter")));
-  f.range_item2=l.next("the range's second parameter");
-  f.set_setting(saved_setting("sweep.steps"),xpp::number(l.whole("Range steps",true)));
-  f.range_cycle=l.whole("Cycle color 1=on",true);
+  /* the value of the row key as text */
+  const auto put=[&](std::string_view key,std::string text){
+    const OptionRow *row=saved_setting(key);
+    if(const std::optional<std::string> why=setting_problem(s,*row,text))l.fail(xpp::format("{}: {}",key,*why));
+    f.set_setting(row,std::move(text));
+  };
+  const auto whole=[&](std::string_view key,int v){ put(key,xpp::number(v)); };
+  const auto real=[&](std::string_view key,double v){ put(key,xpp::number(v)); };
   const auto yes_no=[&](std::string_view key, std::string_view label){
     const int v=l.whole(label,true);
     const OptionRow *row=saved_setting(key);
     if(v<0||v>=static_cast<int>(row->choices.size()))l.fail(xpp::format("{} {}: 0 or 1",label,v));
     f.set_setting(row,std::string(row->choices[static_cast<std::size_t>(v)]));
   };
+  l.heading("# Transpose variables etc");
+  const std::string_view first_column=l.next("Transpose's first column");
+  check_column(s,l,"Transpose's first column",first_column);
+  put("analysis.transpose.first_column",std::string(first_column));
+  whole("analysis.transpose.columns",read_dimension(l,"n columns"));
+  whole("analysis.transpose.rows",read_dimension(l,"n rows"));
+  whole("analysis.transpose.row_skip",l.whole("row skip",true));
+  whole("analysis.transpose.column_skip",l.whole("col skip",true));
+  whole("analysis.transpose.first_row",l.whole("row 0",true));
+
+  l.heading("# Coupling stuff for H funs");
+  std::string coupling;
+  for(int i=0;i<s.model().node;i++){
+    const std::string &name=s.model().uvar_names[static_cast<std::size_t>(i)];
+    const std::string_view formula=l.next(xpp::format("the coupling of {}",name));
+    check_expression(s,l,xpp::format("the coupling of {}",name),formula);
+    coupling+=(coupling.empty()?"":"\n")+name+" = "+std::string(formula);
+  }
+  put("analysis.coupling",coupling);
+
+  l.heading("# Array plot stuff");
+  const std::string_view plot_column=l.next("the array plot's first column");
+  if(!plot_column.empty()){
+    check_column(s,l,"the array plot's first column",plot_column); /* a set file of a model with no array plot has none */
+    put("plot.array_plot.first_column",std::string(plot_column));
+  }
+  whole("plot.array_plot.columns",read_dimension(l,"NCols"));
+  whole("plot.array_plot.first_row",l.whole("Row 1",true));
+  whole("plot.array_plot.rows",read_dimension(l,"NRows"));
+  whole("plot.array_plot.row_skip",l.whole("RowSkip",true));
+  real("plot.array_plot.z_min",l.real("Zmin",true));
+  real("plot.array_plot.z_max",l.real("Zmax",true));
+
+  l.heading("# Torus information");
+  const int torus=l.whole("Torus flag 1=ON",true);
+  if(torus!=0&&torus!=1)l.fail(xpp::format("the torus flag {}: 0 or 1",torus));
+  put("integration.torus.on",torus?"true":"false");
+  real("integration.torus.period",l.real("Torus period",true));
+  if(torus){
+    std::string folded;
+    for(int i=0;i<s.model().neq;i++)
+      if(l.whole(s.model().uvar_names[static_cast<std::size_t>(i)],true)==1)folded+=(folded.empty()?"":"\n")+s.model().uvar_names[static_cast<std::size_t>(i)];
+    put("integration.torus.fold",folded);
+  }
+
+  l.heading("# Range information");
+  put("equilibria.range_parameter",std::string(l.next("the equilibrium range's parameter")));
+  whole("equilibria.range_stability_column",l.whole("eq-range stab col",true));
+  yes_no("equilibria.range_shoot","shoot flag 1=on");
+  whole("equilibria.range_steps",l.whole("eq-range steps",true));
+  real("equilibria.range_low",l.real("eq_range low",true));
+  real("equilibria.range_high",l.real("eq_range high",true));
+  put("sweep.variable",std::string(l.next("the range's parameter")));
+  put("sweep.second_variable",std::string(l.next("the range's second parameter")));
+  whole("sweep.steps",l.whole("Range steps",true));
+  yes_no("sweep.cycle_color","Cycle color 1=on");
   yes_no("sweep.reset","Reset data 1=on");
   yes_no("sweep.old_ic","Use old I.C.s 1=yes");
-  f.set_setting(saved_setting("sweep.low"),xpp::number(l.real("Par1 low",true)));
-  f.range_low2=l.real("Par2 low",true);
-  f.set_setting(saved_setting("sweep.high"),xpp::number(l.real("Par1 high",true)));
-  f.range_high2=l.real("Par2 high",true);
-  ShootRange &h=f.shoot_range;
-  h.item=l.next("the BVP range's parameter");
-  h.side=l.whole("BVP side",true);
-  h.cycle=l.whole("color cycle flag 1=on",true);
-  h.steps=l.whole("BVP range steps",true);
-  h.plow=l.real("BVP range low",true);
-  h.phigh=l.real("BVP range high",true);
+  real("sweep.low",l.real("Par1 low",true));
+  real("sweep.second_low",l.real("Par2 low",true));
+  real("sweep.high",l.real("Par1 high",true));
+  real("sweep.second_high",l.real("Par2 high",true));
+  put("integration.boundary_value.range_parameter",std::string(l.next("the BVP range's parameter")));
+  const int side=l.whole("BVP side",true);
+  if(side<0||side>=static_cast<int>(SHOOT_SIDE_NAMES.size()))l.fail(xpp::format("BVP side {}: 0 or 1",side));
+  put("integration.boundary_value.range_side",SHOOT_SIDE_NAMES[static_cast<std::size_t>(side)]);
+  yes_no("integration.boundary_value.range_cycle_color","color cycle flag 1=on");
+  whole("integration.boundary_value.range_steps",l.whole("BVP range steps",true));
+  real("integration.boundary_value.range_low",l.real("BVP range low",true));
+  real("integration.boundary_value.range_high",l.real("BVP range high",true));
 }
 
 /* XPPAUT's set file whose lines are l, for s; ReadFailed at a line that is
@@ -493,27 +511,54 @@ Result<Settings> read_xppaut_set(xpp::Session &s, std::string_view path)
 
 namespace {
 
-/* a part of the settings a set file holds: what it is called, and the members of Settings it sets */
+/* the option rows (by the start of their names) the parts of a set file hold; the numerics and sweep part holds every other */
+constexpr std::array<std::string_view,1> transpose_rows={"analysis.transpose."};
+constexpr std::array<std::string_view,1> coupling_rows={"analysis.coupling"};
+constexpr std::array<std::string_view,1> array_plot_rows={"plot.array_plot."};
+constexpr std::array<std::string_view,1> torus_rows={"integration.torus."};
+constexpr std::array<std::string_view,4> range_rows={"equilibria.range_","sweep.second_","sweep.cycle_color","integration.boundary_value.range_"};
+
+bool in_rows(const OptionRow &row,std::span<const std::string_view> prefixes)
+{
+  const std::string name=option_name(row);
+  return std::ranges::any_of(prefixes,[&](std::string_view prefix){ return name.starts_with(prefix); });
+}
+
+bool in_a_part(const OptionRow &row)
+{
+  return in_rows(row,transpose_rows)||in_rows(row,coupling_rows)||in_rows(row,array_plot_rows)||in_rows(row,torus_rows)||in_rows(row,range_rows);
+}
+
+/* a part of the settings a set file holds: what it is called and the members of Settings it sets (`copy`), or the
+   option rows it sets (`rows`, the rows of no part when empty: the numerics and sweep settings) */
 struct SetPart {
   const char *name;
   void (*copy)(Settings &to, const Settings &from);
+  std::span<const std::string_view> rows;
+  bool numerics;
 };
 
+/* the option rows of from that part holds, set in to */
+void copy_rows(Settings &to,const Settings &from,const SetPart &part)
+{
+  for(const auto &[row,text] : from.options)
+    if(part.numerics?!in_a_part(*row):in_rows(*row,part.rows))to.set_setting(row,text);
+}
+
 constexpr std::array<SetPart,12> set_parts={{
-  {"the parameters",[](Settings &t,const Settings &f){ t.params=f.params; }},
-  {"the initial conditions",[](Settings &t,const Settings &f){ t.last_ic=f.last_ic; }},
-  {"the numerics and sweep settings",[](Settings &t,const Settings &f){ t.numerics=f.numerics; t.range=f.range; }},
-  {"the delays",[](Settings &t,const Settings &f){ t.delays=f.delays; }},
-  {"the boundary conditions",[](Settings &t,const Settings &f){ t.bcs=f.bcs; }},
-  {"the coupling",[](Settings &t,const Settings &f){ t.coupling=f.coupling; }},
+  {"the parameters",[](Settings &t,const Settings &f){ t.params=f.params; },{},false},
+  {"the initial conditions",[](Settings &t,const Settings &f){ t.last_ic=f.last_ic; },{},false},
+  {"the numerics and sweep settings",nullptr,{},true},
+  {"the delays",[](Settings &t,const Settings &f){ t.delays=f.delays; },{},false},
+  {"the boundary conditions",[](Settings &t,const Settings &f){ t.bcs=f.bcs; },{},false},
+  {"the coupling",nullptr,coupling_rows,false},
   {"the run position",[](Settings &t,const Settings &f){
-    t.current_time=f.current_time; t.last_time=f.last_time; t.my_start=f.my_start; t.inflag=f.inflag; t.delay_flag=f.delay_flag; t.current=f.current; }},
-  {"the active graph",[](Settings &t,const Settings &f){ t.graph=f.graph; }},
-  {"the transpose settings",[](Settings &t,const Settings &f){ t.transpose=f.transpose; }},
-  {"the array plot",[](Settings &t,const Settings &f){ t.aplot=f.aplot; }},
-  {"the torus settings",[](Settings &t,const Settings &f){ t.torus=f.torus; t.torus_period=f.torus_period; t.itor=f.itor; }},
-  {"the range settings",[](Settings &t,const Settings &f){
-    t.range_item2=f.range_item2; t.range_low2=f.range_low2; t.range_high2=f.range_high2; t.range_cycle=f.range_cycle; t.eq_range=f.eq_range; t.shoot_range=f.shoot_range; }},
+    t.current_time=f.current_time; t.last_time=f.last_time; t.my_start=f.my_start; t.inflag=f.inflag; t.delay_flag=f.delay_flag; t.current=f.current; },{},false},
+  {"the active graph",[](Settings &t,const Settings &f){ t.graph=f.graph; },{},false},
+  {"the transpose settings",nullptr,transpose_rows,false},
+  {"the array plot",nullptr,array_plot_rows,false},
+  {"the torus settings",nullptr,torus_rows,false},
+  {"the range settings",nullptr,range_rows,false},
 }};
 
 /* the parts of f that differ from what s holds now: a part differs when the settings written with it taken from f are
@@ -525,7 +570,8 @@ std::vector<std::string> differing_parts(const xpp::Session &s, const Settings &
   std::vector<std::string> changes;
   for(const SetPart &part : set_parts){
     Settings with=now;
-    part.copy(with,f);
+    if(part.copy)part.copy(with,f);
+    else copy_rows(with,f,part);
     const Result<std::string> after=settings_text(s,with);
     if(!before||!after||*before!=*after)changes.push_back(part.name);
   }
