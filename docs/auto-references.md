@@ -2895,6 +2895,12 @@ a repeat that only costs time.
 - *The join's order is the queue's.* A job's key is its generation and the path of the points it was found at (each with its direction): the two directions of
   the start, then the children of the first in the order of their points, then those of the second, then their children, which is the order a queue served one
   after another would run them. A closed branch's second direction (W604) is never started when the first closed before it began, and dropped when it did not.
+- *A cycle branch closes on its own cycle (W687, #762).* The closing test's unit for a cycle's states is at most the start's own size (its largest range, a state's
+  maximum less its minimum), where the same-point rule's is EPSS * (1 + |state|): a cycle of 0.05 of a state at -49 (the cycles at ode_motoneuron6c's branch points of
+  cycles) is within the rule's 8 units of a cycle of a quarter of its size at the same parameter, though the two are different cycles (periods 24.1938 and 24.1908 at one
+  parameter, from the model's own equations: docs/studies/w687-closure.md). The queue's use of the rule (the start of a job is made by an earlier start) keeps the
+  unit: the three branch points of cycles of that model are one cycle located at three parameters 1e-8 apart on a family that is nearly vertical there, and differ by
+  2% of its size.
 - *A job numbers from the diagram's, never from its finder's.* A job's branch is the next free number, which for a Hopf point's cycles is not the point's label
   (a run from a label has the label, AUTO-07p's newlab); its `fort.3` holds only the point it restarts from, numbered by the finding job, so it is not read for the
   numbers; the first point's `from` label is the finder's, renumbered by the finder's join. A job whose start leaves the parameter window says so and is not run.

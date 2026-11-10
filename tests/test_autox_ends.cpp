@@ -91,6 +91,14 @@ int main()
     CHECK(!xpp::autox_same_point(hopf, point(xpp::AutoxPointKind::Hopf, {10.0, 1.0}, {100.0, -2.0}, 2.0), epss));
     CHECK(!xpp::autox_same_point(hopf, point(xpp::AutoxPointKind::Hopf, {10.0}, {100.0}, 2.0), epss));
     CHECK(std::isinf(xpp::autox_point_gap(hopf, point(xpp::AutoxPointKind::Fold, {10.0}, {100.0, -2.0}, 2.0), epss)));
+    /* the closing test's unit is at most the cycle's own size (W687): a state off by 4 units of 1 + |a| = 51, EPSS 1e-4, is the same
+       point, but off by 4000 units of a cycle of range 0.05 it is not (ode_motoneuron6c's -7, -49.340 against -49.360) */
+    const auto cycle = point(xpp::AutoxPointKind::Regular, {0.19427}, {-49.340, -49.392}, std::nullopt);
+    const auto other = point(xpp::AutoxPointKind::Regular, {0.19427}, {-49.360, -49.372}, std::nullopt);
+    CHECK(xpp::autox_same_point(cycle, other, epss));
+    CHECK(xpp::autox_point_gap(cycle, other, epss, 0.052) > 1000 * xpp::autox_same_point_factor / 8);
+    CHECK(xpp::autox_point_gap(cycle, other, epss, INFINITY) == xpp::autox_point_gap(cycle, other, epss));
+    CHECK(xpp::autox_point_gap(cycle, cycle, epss, 0.052) == 0);
 
     TEST_REPORT("autox_ends");
 }

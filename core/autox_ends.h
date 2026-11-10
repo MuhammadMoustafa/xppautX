@@ -121,8 +121,9 @@ AutoxPointId autox_point_id(const DIAGRAM &point);
 bool autox_same_kind(AutoxPointKind a, AutoxPointKind b);
 
 /* How far apart two points are in units of the rule's tolerance EPSS * (1 + |a|): the largest ratio over their
-   parameters, states and (where both have one) frequencies; infinite when they differ in kind or in size */
-double autox_point_gap(const AutoxPointId &a, const AutoxPointId &b, double epss);
+   parameters, states and (where both have one) frequencies; infinite when they differ in kind or in size. A state's unit
+   is at most state_cap (the closing test's: a cycle's own size, autox_branch_stored) */
+double autox_point_gap(const AutoxPointId &a, const AutoxPointId &b, double epss, double state_cap = INFINITY);
 
 /* the rule: the same kind and a gap of at most autox_same_point_factor */
 bool autox_same_point(const AutoxPointId &a, const AutoxPointId &b, double epss);
@@ -130,19 +131,27 @@ bool autox_same_point(const AutoxPointId &a, const AutoxPointId &b, double epss)
 /* A branch's first point, and whether the branch has been away from it (AutoxRun::branch_start): a cycle branch
    from a Hopf point starts at a cycle of no size, and the first cycles beyond it are still within the rule's
    tolerance of it, and cross its parameter value if the parameter first turns the wrong way (ode_motoneuron6c's):
-   a crossing is the branch coming back only after a point of the branch was further from the start than that */
+   a crossing is the branch coming back only after a point of the branch was further from the start than that.
+   The closing test measures a cycle's states in units of at most its own size, orbit_size (W687, #762): the largest
+   range of a state over the start's orbit. A cycle near a Hopf point is smaller than the unit EPSS * (1 + |state|)
+   (ode_motoneuron6c's at -49: 0.052 of a unit of 0.005 times the rule's 8), so two different cycles of it are
+   within the rule, and a located point of the branch that was no return counted as one; the cycles it is told
+   apart by are the same cycle only when they agree to a small fraction of the cycle's own size. A steady state has no size
+   (infinite: the unit is as before) */
 struct AutoxBranchStart {
     AutoxPointId point;
     bool left = false;
+    double orbit_size = INFINITY;
 };
 
 /* The branch's point just stored (ntot its number on the branch): its continuation parameters (par at icp, iap.nfpr
-   of them) and its states. The first is the start; each later one says whether the branch has left it */
+   of them) and its states (a cycle's: orbit, each variable's maximum then minimum). The first is the start; each later
+   one says whether the branch has left it, by the closing test's gap */
 void autox_branch_stored(iap_type &iap, std::ptrdiff_t ntot, double epss, const double *par, const std::ptrdiff_t *icp,
-                         std::span<const double> states);
+                         std::span<const double> states, bool orbit);
 
 /* Whether the point just computed is the branch's start by the rule (the hidden test's accept): the branch has left
-   the start and is back within the rule's tolerance of epss of it (autox_same_point). When it is, the gap is kept in the run's stop
+   the start and is back within the rule's factor of the start's closing units of it (AutoxBranchStart). When it is, the gap is kept in the run's stop
    (AutoxStop::closure_gap) and stplae/stplbv end the branch */
 bool autox_branch_closes(iap_type &iap, double epss, const double *par, const std::ptrdiff_t *icp, std::span<const double> states);
 

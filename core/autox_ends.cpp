@@ -120,12 +120,12 @@ bool autox_same_kind(AutoxPointKind a, AutoxPointKind b)
 
 namespace {
 
-/* the largest ratio of |a - b| to epss * (1 + |a|) over two lists; infinite when they differ in size */
-double list_gap(std::span<const double> a, std::span<const double> b, double epss)
+/* the largest ratio of |a - b| to epss * min(1 + |a|, cap) over two lists; infinite when they differ in size */
+double list_gap(std::span<const double> a, std::span<const double> b, double epss, double cap = INFINITY)
 {
     if (a.size() != b.size()) return INFINITY;
     double gap = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) gap = std::max(gap, std::abs(a[i] - b[i]) / (epss * (1 + std::abs(a[i]))));
+    for (std::size_t i = 0; i < a.size(); ++i) gap = std::max(gap, std::abs(a[i] - b[i]) / (epss * std::min(1 + std::abs(a[i]), cap)));
     return gap;
 }
 
@@ -152,10 +152,10 @@ AutoxPointId autox_point_id(const DIAGRAM &point)
     return id;
 }
 
-double autox_point_gap(const AutoxPointId &a, const AutoxPointId &b, double epss)
+double autox_point_gap(const AutoxPointId &a, const AutoxPointId &b, double epss, double state_cap)
 {
     if (!autox_same_kind(a.kind, b.kind)) return INFINITY;
-    double gap = std::max(list_gap(a.parameters, b.parameters, epss), list_gap(a.states, b.states, epss));
+    double gap = std::max(list_gap(a.parameters, b.parameters, epss), list_gap(a.states, b.states, epss, state_cap));
     if (a.frequency && b.frequency) {
         const double f[] = {*a.frequency}, h[] = {*b.frequency};
         gap = std::max(gap, list_gap(f, h, epss));
@@ -168,28 +168,45 @@ bool autox_same_point(const AutoxPointId &a, const AutoxPointId &b, double epss)
     return autox_point_gap(a, b, epss) <= autox_same_point_factor;
 }
 
+namespace {
+
+/* the gap of a point from the branch's start, in the closing test's units: a cycle's states in units of at most its own size */
+double gap_from_start(const AutoxBranchStart &start, const AutoxPointId &here, double epss)
+{
+    return autox_point_gap(start.point, here, epss, start.orbit_size);
+}
+
+} // namespace
+
 void autox_branch_stored(iap_type &iap, std::ptrdiff_t ntot, double epss, const double *par, const std::ptrdiff_t *icp,
-                         std::span<const double> states)
+                         std::span<const double> states, bool orbit)
 {
     AutoxPointId id = branch_point_id(iap, par, icp, states);
-    if (ntot == 1) iap.run->branch_start = AutoxBranchStart{std::move(id), false};
-    else if (iap.run->branch_start && !autox_same_point(iap.run->branch_start->point, id, epss))
+    if (ntot == 1) {
+        iap.run->branch_start = AutoxBranchStart{std::move(id), false};
+        if (orbit) { /* the states are the maxima then the minima of the cycle's variables */
+            const std::size_t n = states.size() / 2;
+            double size = 0;
+            for (std::size_t i = 0; i < n; ++i) size = std::max(size, states[i] - states[n + i]);
+            iap.run->branch_start->orbit_size = size;
+        }
+    } else if (iap.run->branch_start && gap_from_start(*iap.run->branch_start, id, epss) > autox_same_point_factor)
         iap.run->branch_start->left = true;
 }
 
 bool autox_branch_closes(iap_type &iap, double epss, const double *par, const std::ptrdiff_t *icp, std::span<const double> states)
 {
     if (!iap.run->branch_start || !iap.run->branch_start->left) return false;
-    const AutoxPointId here = branch_point_id(iap, par, icp, states);
-    if (!autox_same_point(iap.run->branch_start->point, here, epss)) return false;
-    iap.run->stop.closure_gap = autox_point_gap(iap.run->branch_start->point, here, epss);
+    const double gap = gap_from_start(*iap.run->branch_start, branch_point_id(iap, par, icp, states), epss);
+    if (gap > autox_same_point_factor) return false;
+    iap.run->stop.closure_gap = gap;
     iap.run->stop.closure_epss = epss;
     return true;
 }
 
 std::string autox_closure_text(double gap, double epss)
 {
-    return xpp::format("the branch closed on itself: back at its start, every parameter and state within {} times special_point_tolerance = {} times (1 + the start's value) of the start's, the largest difference {} of that: point type {} ({})",
+    return xpp::format("the branch closed on itself: back at its start, every parameter and state within {} times special_point_tolerance = {} times (1 + the start's value, a cycle's at most its own size) of the start's, the largest difference {} of that: point type {} ({})",
                        autox_number_text(autox_same_point_factor), autox_number_text(epss), autox_number_text(gap),
                        autox_point_kind_name(AutoxPointKind::BranchClosed), autox_point_kind_mark(AutoxPointKind::BranchClosed));
 }

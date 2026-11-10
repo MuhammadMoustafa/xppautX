@@ -3130,7 +3130,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   iap->ntot = ntot;
 
   pvlsae(iap, rap, u, par);
-  xpp::autox_branch_stored(*iap, ntot, rap->epss, par, icp, std::span<const doublereal>(u, static_cast<std::size_t>(iap->ndim)));
+  xpp::autox_branch_stored(*iap, ntot, rap->epss, par, icp, std::span<const doublereal>(u, static_cast<std::size_t>(iap->ndim)), false);
 
 /* ITP is set to 4 every NPR steps along a branch, and the entire */
 /* solution is written on unit 8. */
@@ -6373,7 +6373,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     u_0[k]=ups[static_cast<integer>(k)*(*ndxloc)];
     u_bar[k]=rintg(iap, ndxloc, itmp, ups, dtm);
   }
-  xpp::autox_branch_stored(*iap, ntot, rap->epss, par, icp, extremes); /* W604: what the branch closes on */
+  xpp::autox_branch_stored(*iap, ntot, rap->epss, par, icp, extremes, true); /* W604: what the branch closes on */
 
   /* xppautX (W518): a cycle branch whose period grows without bound while
      its orbit lingers at an equilibrium ends at a SNIC, a homoclinic orbit
