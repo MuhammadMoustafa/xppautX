@@ -207,7 +207,7 @@ struct RangeVars {
   int rtype;
 };
 
-/* The most steps one axis of a sweep takes: steps+1 runs fit an int, the largest a single range (and a steps argument) takes.
+/* The most steps one axis of a sweep takes (Range, Range Equilibria and Range Shoot alike): steps+1 runs fit an int.
    The most runs a sweep makes: a run's number, its indices and its seed are int, so a sweep's runs (steps+1 times steps2+1)
    must fit one (W682: the product overflowed int at 2^31). */
 inline constexpr int MAX_RANGE_STEPS = std::numeric_limits<int>::max() - 1;

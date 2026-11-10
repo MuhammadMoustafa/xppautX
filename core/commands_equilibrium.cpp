@@ -159,7 +159,7 @@ Result<std::string> configure(Session &s,const Command &c,const Arguments &a,con
 }
 constexpr std::array GUESS={Argument{"coordinates",Type::map,true,MAX_COMMAND_BYTES,{},{},{},NameSet::variable,Type::real},Argument{"window",Type::window,false}};
 constexpr std::array RANGE={Argument{"parameter",Type::model_name,true,MAX_COMMAND_BYTES,{},{},{},NameSet::parameter},Argument{"start",Type::real,true},Argument{"end",Type::real,true},
-    Argument{"steps",Type::integer,true,MAX_TEXT_BYTES,{},constant(1),constant(std::numeric_limits<int>::max()-1)},Argument{"shoot",Type::boolean,false},
+    Argument{"steps",Type::integer,true,MAX_TEXT_BYTES,{},constant(1),constant(MAX_RANGE_STEPS)},Argument{"shoot",Type::boolean,false},
     Argument{"stability_column",Type::integer,false,MAX_TEXT_BYTES,{},constant(0),session_quantity("columns",[](const Session &s){return static_cast<double>(s.model().neq+1);})},
     Argument{"movie",Type::boolean,false},Argument{"monte_carlo",Type::boolean,false}};
 constexpr std::array SEARCH={Argument{"append",Type::boolean,false},Argument{"guesses",Type::integer,true,MAX_TEXT_BYTES,{},constant(1),constant(std::numeric_limits<int>::max())},

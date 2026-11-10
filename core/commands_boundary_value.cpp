@@ -59,7 +59,7 @@ constexpr std::array RANGE_ARGUMENTS = {
     Argument{"parameter", Type::model_name, false, MAX_TEXT_BYTES, {}, {}, {}, NameSet::parameter},
     Argument{"start", Type::real, false},
     Argument{"end", Type::real, false},
-    Argument{"steps", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1)},
+    Argument{"steps", Type::integer, false, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_RANGE_STEPS)},
     Argument{"cycle_color", Type::boolean, false},
     Argument{"side", Type::choice, false, MAX_TEXT_BYTES, SHOOT_SIDE_NAMES},
     Argument{"movie", Type::boolean, false}};
