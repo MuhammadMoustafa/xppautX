@@ -124,7 +124,7 @@ h1, h2 { margin: 0; }
   .app-menu details details > summary:hover, .app-menu details details[open] > summary{ background: var(--surface-2); }
   .app-menu details details > summary::-webkit-details-marker{ display: none; }
   .app-menu details details > summary::after{ content: '\203A'; }
-  .app-menu details details > ul{ position: absolute; top: calc(-.35rem - 1px); left: calc(100% + .35rem + 1px); /* past the menu's padding and border: beside the menu, its first row level with its title */ min-width: 15rem; z-index: var(--z-menu); background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: 0 .3rem 1rem #0003; }
+  .app-menu details details > ul{ position: absolute; top: calc(-.35rem - 1px); left: calc(100% + .35rem); /* past the menu's padding, its border on the menu's (one line, no seam), its first row level with its title */ min-width: 15rem; z-index: var(--z-menu); background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: .4rem .4rem .8rem -.4rem #0003; /* right and below only: none on the menu it opens from, which read as a gap */ }
 }
 
 /* from 48rem the values panel is a right column (R3, R6), the plot first beside it; wider, the column is wider */
