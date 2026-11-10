@@ -99,6 +99,10 @@ Result<std::string> switch_program(Session &s, const Command &command, const Arg
 {
     if (files::serving_reads()) return fail(command.name, "a recording's replay restarts nothing", place);
     if (program.page == XppProgram::Page::none) return fail(command.name, "only the window and the browser page restart xppautX", place);
+    /* checked before the question: a restart is a portable copy's, an install an installer's (start_installer checks which) */
+    const update::Plan plan = update::running_plan();
+    if (!installer && plan.install != update::Install::portable)
+        return fail(command.name, xpp::format("only a portable copy restarts into an update; this one is updated {}", plan.install == update::Install::release_page ? "from the release page: " + plan.why : "by its installer (update.install)"), place);
     const bool recording = recording_in_progress();
     const std::string question = installer ? "Install the update and quit xppautX? Save this session first?" : "Restart xppautX to use the new version? Save this session first?";
     ResultObject result;
@@ -108,7 +112,6 @@ Result<std::string> switch_program(Session &s, const Command &command, const Arg
                                 : xpp_session_may_leave(s, recording ? question + " (the recording in progress is saved too)" : question, recording);
     if (!may_leave) return result.boolean("restarting", false).done();
     const std::string reopen = reopen_target(s);
-    const update::Plan plan = update::running_plan();
     const Result<> started = installer ? update::start_installer(plan) : update::start_new_program(reopen, program.page == XppProgram::Page::browser);
     if (!started) return fail(command.name, started.error().what, started.error().place.file.empty() ? place : started.error().place);
     bye_bye();

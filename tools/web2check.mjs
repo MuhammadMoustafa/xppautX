@@ -6519,6 +6519,14 @@ async function switchDuringRunCheck() {
 
 async function updatesCheck() {
   check('updates: no startup request while the preference is off', await cdp.eval('window.__updateRequests === 0'));
+  /* a restart is a portable copy's: this program, built from a checkout, is updated from the release page, so the core refuses
+     update.restart before it asks anything or starts a program (review of W689) */
+  await S(`__xpp.send({cmd: 'update.restart'})`);
+  check('W689: update.restart is refused for an installation that is not a portable copy, before any question',
+    await until(`!!document.querySelector('[data-error]') && document.querySelector('[data-error]').textContent.includes('only a portable copy restarts')`, 'the refusal', 30000 * SLOW)
+    && !(await S('!!s.ask')), await cdp.eval(`document.querySelector('[data-error]')?.textContent ?? ''`));
+  await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
+  await until(`!document.querySelector('dialog.dialog-backdrop:modal')`, 'the error dialog closed');
   if (opt.webview2) {
     const refusal = `async () => {
       if (typeof window.__xppOpenRelease !== 'function') return false;
