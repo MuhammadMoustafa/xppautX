@@ -152,7 +152,7 @@
 .dialog-head { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3) var(--space-4) var(--space-2); border-bottom: 1px solid var(--border); }
 .dialog h2 { font-size: var(--text-md); margin: 0; overflow-wrap: anywhere; }
 .dialog-desc { margin: var(--space-1) 0 0; color: var(--fg-muted); font-size: var(--text-sm); line-height: 1.4; }
-.dialog-close { flex: none; font-size: 1.4rem; min-width: 2rem; line-height: 1; }
+.dialog-close, .dock-close { flex: none; font-size: 1.4rem; min-width: 2rem; line-height: 1; }
 .dialog-form { display: contents; }
 .dialog-body { overflow: auto; padding: var(--space-2) var(--space-4) var(--space-3); container-type: inline-size; min-height: 0; }
 .dialog-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); }

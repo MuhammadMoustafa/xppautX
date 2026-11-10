@@ -1,25 +1,22 @@
-/* The autoX view (ui/AutoxView.tsx, docs/ui-v2.md T11a, T26): a full-screen
-   sheet at every width, over the main menu, the plot and the main status
-   bar (a plain background, no page showing through); its own status strip
-   (ui/AutoxStatus.tsx) is then the only status line on screen and carries
-   the Stop, the one way to stop a run (A10). Sizes and colors are
+/* The autoX view (ui/AutoxView.tsx, docs/ui-v2.md T11a, T26): the work area's
+   own while its tab is shown (a plain background, no plot showing through);
+   its own status strip (ui/AutoxStatus.tsx) is then the only status line on
+   screen (layout.css hides the main one) and carries the Stop, the one way to stop a run (A10). Sizes and colors are
    tokens.css's tokens. */
 .autox-panel {
-  position: fixed;
-  inset: var(--menu-bottom, 0px) 0 0;
-  z-index: var(--z-autox);
+  grid-area: work;
+  overflow-y: auto; /* beside the dock the view can be short: it scrolls, its status strip (below) stays in sight */
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   background: var(--surface);
-  box-shadow: var(--shadow);
 }
 .autox-header h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .autox-what { font-weight: 400; font-size: var(--text-sm); margin-left: var(--space-1); }
 .autox-view {
   container-type: inline-size;
-  flex: 1;
+  flex: 1 0 22rem;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -81,9 +78,6 @@
 .autox-label-mark { display: inline-block; width: 1em; font-weight: 600; text-align: center; }
 .autox-label-mark-star, .autox-label-mark-diamond { font-size: 1.1em; }
 .autox-label { color: var(--accent); }
-/* in the workspace's flow above the plot, and stuck to its top when the workspace
-   scrolls (a focus scroll on a phone must not hide the way back into autoX) */
-.autox-show { flex: none; align-self: flex-start; position: sticky; top: 0; z-index: var(--z-show-autox); font-weight: 600; }
 @container (max-width: 34rem) {
   .autox-view .plot-tools { width: 100%; }
   .autox-view .plot-tools button { flex: 1; }
@@ -149,6 +143,9 @@
   padding: var(--space-1) var(--space-3);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
   font-size: var(--text-xs);
   min-width: 0;
 }

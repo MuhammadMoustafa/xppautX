@@ -87,11 +87,12 @@ Correct the line and start XPP again.
 **Making room for the plot.** The plot comes first on every screen. Above it are the run controls (one or two
 rows; the status bar says Ready, Running and has the one Stop) and, in the plot's own header, its legend, **Freeze**,
 **Fit**, a **⋯** (Reset zoom, use this view, CSV and sets) and the window row: the graph's name, New window, Window
-options and Capture. From 48 rem (768 px) the Values panel is a right column beside the plot; it can be hidden
-with the title bar's button and resized at its edge, including with the keyboard, and its size and visibility are
-remembered by this browser. Below 48 rem (a phone) the title bar is one row: the menu bar is a **drawer**
+options and Capture. From 48 rem (768 px) the **dock** is a right column below the header, beside the tabs and the plot;
+it can be hidden with its **×** or the title bar's button and resized at its edge, including with the keyboard, and its
+size and visibility are remembered by this browser. Below 48 rem (a phone) the title bar is one row: the menu bar is a **drawer**
 behind its **Menu** button (Escape, a click outside it, or a choice closes it; Search commands is at its top),
-Data, Model and Help are in the menu bar (Windows and Help), and Values is a sheet opened by its button.
+Data, Model and Help are in the menu bar (Windows and Help), and the dock is a full-screen sheet with the same tabs and the same ×,
+opened by the title bar's Values button or by Data, Model or Help.
 
 **Cut text.** A read-only number is shown with six significant digits, and with an exponent
 below 0.0001 and from 1000000 (`1.23457e+8`); a name that does not fit its place is cut with an ellipsis and never wraps. Text that
@@ -105,12 +106,19 @@ Input boxes are never shortened.
 
 ## Tabs instead of windows
 
-The plot, autoX, the animation, an array plot, the data table, the
-equations and the ODE source are **tabs** above the plot area, not
-separate windows (see [xppautx-vs-xppaut.md](../xppautx-vs-xppaut.md)). A tab
-comes forward by itself when it opens, or when XPP
-waits for a click or a key in it (grabbing a point in autoX, for example).
-Keys go to the tab you are looking at: with the autoX tab in front, `a`,
+Two sets of tabs replace XPPAUT's windows (see [xppautx-vs-xppaut.md](../xppautx-vs-xppaut.md)).
+
+**The views** are the tabs above the plot: one for each graph and each autoX view, by its name, and a **＋** at the
+end for a new graph or a new autoX view. A graph's **×** closes it (the main graph stays); an autoX view's **×** is "done
+with it": a running continuation is stopped first, then the view closes, and closing the last view closes autoX. The title bar
+names the view in front. Choosing another tab leaves autoX open with its diagram and any run in progress. A view comes
+forward by itself when XPP waits for a click or a key in it (grabbing a point in autoX, for example).
+
+**The dock** is the right column's tabs: **Values**, **Table**, **Model** (the equations, the ODE source and the last equilibrium) and **Help**,
+one open at a time under the header, so the plot and the menu bar stay whole beside it. Its **×** hides it; the header's Table, Model and Help
+buttons (and the matching menu entries) show it on their tab. The animation and the array plot open as panels over the page.
+
+Keys go to the view you are looking at: with the autoX tab in front, `a`,
 `n`, `r`, `g`, `d`, `c`, `u`, `p` and `f` are autoX's own keys, as they are
 in XPPAUT's autoX window. `Window/Bottom` (raise a plot window) does
 nothing: tabs replace stacking, and there is nothing to iconify or
@@ -125,7 +133,7 @@ conditions it can import into (`Initial conds` `shoot`, see
 
 In place of the separate parameter, initial-data, delay and boundary
 value windows, one **values panel** holds them all, always visible
-beside the plot (a sheet on a phone):
+in the dock's first tab (a sheet on a phone):
 
 - **Parameters** and **State** are always visible. State has two
   columns: **Initial**, the initial conditions you edit, and **Now**, the

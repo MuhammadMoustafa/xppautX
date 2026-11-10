@@ -62,8 +62,9 @@ zoom history any more (GitHub #110): Reset view and the corner Fit button
 (T30) are the way back.
 
 The autoX view (T11a) opens when the core opens autoX's window (File/autoX)
-and closes when the core destroys it: a full-screen sheet at every width
-(T26), over the main menu, the plot and the main status bar, whose own
+and closes when the core destroys it: a tab among the views above the plot
+(T26, W644), which takes the work area while it is in front, under the header,
+the menu bar and the tabs, in place of the plot and the main status bar, whose own
 status strip is then the only status line on screen and carries the Stop
 (A10) and the core's last message. It draws the diagram from the
 `diagram` events (store/diagram.ts holds them exactly, full and `add`
@@ -478,12 +479,19 @@ section checks R1 and R3 at 390x844, 768x1024 and 1024x700):
   plot takes one-finger pan, two-finger pinch zoom (about the fingers'
   midpoint) and tap to read a point; `touch-action: none` on the plot area
   only, so the page still scrolls elsewhere.
-- **R6** Panels (the data table, the text views, the array plot, the animation, Help)
-  are side panels on wide screens and full-screen sheets with a Back button
-  on phones; a panel closes with its ×. (W644 turns them into a dock; their
-  own behaviour is its card's.) autoX (T11a) is a view, a full-screen
-  sheet at every width (T26): it is its own working view, not something to
-  keep the main plot or menu in view beside.
+- **R6** The dock and the views (W644, maintainer 2026-11-07, from mockups of the real page, docs/studies/ui-review-2026-11-07/panels_*.jpg):
+  - **The dock.** Values, Table, Model and Help are the tabs of one right column, below the header and the menu bar (never over
+    them), one open at a time, one width (the splitter's, kept per viewer), one **×** that hides it; the header's Table, Model and Help
+    buttons (and the menu entries and Values' own command) select their tab and show the dock when it is hidden.
+    Opening any panel from anywhere (a menu, F1, the core selecting the data window) selects its tab (`store/dock.ts`).
+    Below 48 rem the dock is a full-screen sheet with the same tabs and the same ×; there is no Back anywhere.
+  - **The views.** Each graph window and each autoX view is a tab above the plot, by its name (windows are named), with **＋**
+    for a new graph or autoX view. A graph's tab has a × (the main graph has none); an autoX tab's × is "done with it": it
+    stops a running continuation first and closes the view (A10), the last view closing autoX. "Hide autoX" is choosing another tab.
+    The title bar names the view in front. The array plot and the animation stay panels over the page (a sheet under 48 rem,
+    a side panel from there).
+  - **autoX in front** (T26): it takes the work area under the tabs (the main status bar gives way to its own strip); beside it
+    the dock is there only for Table, Model and Help, never for Values, since autoX needs the width.
 - **R7** Dialogs fit the viewport (`max-height: 100%`, scroll inside), with
   a 1 rem margin.
 - **R8** What sits above the plot is small: the run controls are one or two
@@ -713,7 +721,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T23 (**done**) | autoX in plain words: a stop reason code set where autox_lib1.c/autox_lib2 end a branch (Par Min/Max, Norm Min/Max, Npts reached, Stop, a stopping Mark value, no convergence at Dsmin: fort.9's NOTE) and sent to the page, shown in the status strip ("Stopped: parameter reached Par Max (20)") and written as a line in the autoX view's Output messages; label types spelled out on hover (EP End point, MX No convergence, LP Fold, HB Hopf, BP Branch point, PD Period doubling, TR Torus, UZ Marked value); every Numerics field named plainly with autoX's short name kept (e.g. "Max points (NMX)"), a tooltip (what it does, valid values, what each option means), integer or float validation and ranges (Dsmin <= |Ds| <= Dsmax), also checked in the core; docs/manual/09-autox.md updated | T22 | yes | servercheck: each stop reason on a model built to hit it (Par Max, Norm Max, Npts, Stop, MX); saved .b/.d and verify.sh unchanged; web2check: status names the reason, a float in an integer field is refused with a message |
 | T24 (**done**) | From hands-on testing: autoX's status line at the bottom of its window, where the main window has its status bar | T21 | no | web2check autox: the status line is the panel's last visible row |
 | T25 (**done**) | From hands-on testing (bug): autoX's Stop showed Stopping… and the run went on; reproduce (sandbox/PY_S1Bf.ode, the user's model: steady and periodic runs, Stop from the autoX strip and the status bar, browser and desktop window) and fix; in the same session, check that a first steady-state run stopping at point 1 on its Norm Max (the model's normmax=60) is autoX's own rule, and why the info strip listed all 8 eigenvalues as "none (below the smallest number)" | none | maybe | autoxcheck/web2check: Stop during an autoX run ends it within 1 s with an EP label |
-| T26 (**done**) | From hands-on testing: autoX takes the whole window while it is shown, in place of R6's floating panel over the page: the main menu, plot and status bar hidden behind a plain background (Hide autoX returns to them), its own status strip (T24) also carrying the core's last message and, when it is not simply connected, the connection state | T24 | no | web2check auto: the panel covers the viewport; the main menu and status bar are not visible, and are again after Hide autoX; the core's message shows in the autoX strip |
+| T26 (**done**; W644 moved it from a full-screen sheet to a view tab) | autoX takes the work area while its tab is in front: the plot and the main status bar give way to it (choosing a graph tab returns them), its own status strip (T24) also carrying the core's last message and, when it is not simply connected, the connection state | T24 | no | web2check auto: the panel fills the work area under the view tabs, the menu bar and tabs stay visible, the main status bar gives way, and is back after a graph tab; the core's message shows in the autoX strip |
 | T27 (**done**) | From hands-on testing (bug): in the desktop window (Windows, sandbox/PY_S1Bf.ode, Numerics' Npr=50) autoX's Output panel stays at "Output (0)" during a long periodic run: find where autoX's table (xpp_log_autox, autox_echo on in window mode) is lost on its way to the page (the log capture in xpp_http.cpp under the GUI subsystem, the log event, web2's classification of autoX lines) and fix | none | maybe | servercheck/web2check auto: a run with Npr prints its table lines into the Output panel, in browser mode and in the window's mode |
 | T28 (**done**) | From hands-on testing: autoX's info strip in order of importance: branch, point, type, label, then what the diagram's axes show (the x axis's quantity, then the y axis's: e.g. Iapp then V, or both parameters of a two-parameter diagram), then Norm and the period, then the remaining parameters (a second parameter last) | none | no | web2 unit test of the order for one- and two-parameter diagrams; web2check auto |
 | T29 (**done**) | From hands-on testing: autoX's labelled points each with a shape of their type instead of one × for all: HB filled circle, LP triangle, BP diamond, PD square, TR star, UZ inverted triangle, MX a bold ×, EP a small bar; the plain numbered points (Npr's regular output labels) a small tick, so a long run is not a row of crosses; the key shows each shape beside its code and name (A7: shape and text, not color alone) | none | no | web2 unit test of type -> shape; web2check auto: the key's shapes match the drawn ones |

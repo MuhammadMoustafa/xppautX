@@ -7,11 +7,10 @@ look at the data.
 
 **In web2** the DB is the **Table**: a virtualized
 table, so there is no window to iconify, resize or "shake" to make the
-data show up (all known problems of XPPAUT's data window). It opens from the header's **Table**
-button in the right column, in the place of the Values panel, under the header:
-the plot stays whole beside it, so a selected row and its point can be seen together.
-**Back to Values** returns the Values panel as it was; on a phone the table is a full-screen sheet
-with a **×** on top. The header holds **Load data** and one **Export** menu (below).
+data show up (all known problems of XPPAUT's data window). It is the **Table** tab of the dock, in the right column under the header (the header's
+**Table** button opens it): the plot stays whole beside it, so a selected row and its point can be seen together.
+The **Values** tab returns the Values panel as it was; on a phone the dock is a full-screen sheet
+with the same tabs and a **×** on top. The panel's header holds **Load data** and one **Export** menu (below).
 Then come the toolbar, **Find**, **Rows** (First row, Last row, All rows) and **Columns**
 (Add column, Replace, Delete column, and More: Undo replace, Tabulate column, Transpose data), which
 are two menus where the panel is narrow, as the right column always is; **Edit** (Analysis > Tables; the

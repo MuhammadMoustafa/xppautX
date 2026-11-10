@@ -7,13 +7,13 @@ import type {Session} from '../session';
 import {AplotView} from './AplotView';
 import {AniView} from './AniView';
 import {AskDialog} from './AskDialog';
-import {AutoxShow, AutoxView} from './AutoxView';
+import {AutoxView} from './AutoxView';
 import {useEffect} from 'preact/hooks';
+import {dockIsShown, dockTab} from '../store/dock';
 import {PANEL_LIMITS, savePanels, type PanelSize, type Panels} from '../store/panels';
 import {SessionContext, useSession, useStore} from './context';
 import {Splitter} from './Splitter';
 import {UpdateDialog} from './UpdateDialog';
-import {HelpView} from './Help';
 import {useHotkeys} from './hotkeys';
 import {MenuBar, MenuButton} from './MenuBar';
 import {CommandPalette} from './CommandPalette';
@@ -25,8 +25,6 @@ import {Messages} from './Messages';
 import {PlayerStage} from './Player';
 import {RecordBar} from './RecordBar';
 import {StatusBar} from './StatusBar';
-import {TableView} from './TableView';
-import {TextViews} from './TextViews';
 import {useDark} from './theme';
 import {TitleBar} from './TitleBar';
 import {ErrorDialog} from './ErrorDialog';
@@ -34,7 +32,8 @@ import {KeymapEditor} from './KeymapEditor';
 import {ReplaceDialog} from './FileDialog';
 import {ErrorSource} from './ErrorSource';
 import {Toasts} from './Toasts';
-import {ValuesPanel} from './ValuesPanel';
+import {Dock, HelpDock} from './Dock';
+import {ViewTabs} from './ViewTabs';
 import {RunToolbar} from './RunToolbar';
 import {StartScreen} from './StartScreen';
 
@@ -74,11 +73,11 @@ function Banner() {
 const track = (size: PanelSize, px: number) => `min(${px}px, ${PANEL_LIMITS[size].share * 100}vw)`;
 
 /** the grid tracks the user's collapsing and dragging override (css/layout.css gives the defaults) */
-function panelStyle(p: Panels, collapsed: boolean): Record<string, string> {
+function panelStyle(p: Panels, dockShown: boolean): Record<string, string> {
   const style: Record<string, string> = {};
-  if (collapsed) {
-    style['--values-col'] = '0px';
-  } else if (p.valuesWidth !== null) style['--values-col'] = track('valuesWidth', p.valuesWidth);
+  if (!dockShown) {
+    style['--dock-col'] = '0px';
+  } else if (p.dockWidth !== null) style['--dock-col'] = track('dockWidth', p.dockWidth);
   return style;
 }
 
@@ -88,16 +87,18 @@ function Shell() {
   const playerOpen = useStore(s => s.player.open);
   const dark = useDark(theme);
   const panels = useStore(s => s.panels);
-  const tableOpen = useStore(s => s.table.open);
+  const autoxShown = useStore(s => s.diagram.open && s.diagram.shown);
+  const tab = useStore(dockTab);
   useEffect(() => savePanels(panels), [panels]);
-  /* the table docks in the right column (W648), so the column is there even where the user collapsed it */
-  const collapsed = panels.valuesCollapsed && !tableOpen;
+  /* the autoX view takes the whole width (its info and views wrap when narrow), so beside it the dock is there only for the
+     panels the user opened (Table, Model, Help), not for Values, which are on the graph's tab */
+  const dockShown = dockIsShown(panels.dockHidden, autoxShown, tab);
   return (
-    <div class="shell" style={panelStyle(panels, collapsed)}
-      data-values={collapsed ? 'collapsed' : 'open'} data-dock={tableOpen ? 'table' : undefined}>
+    <div class="shell" style={panelStyle(panels, dockShown)} data-dock={dockShown ? 'open' : 'hidden'} data-view={autoxShown ? 'autox' : 'graph'}>
       <a class="skip-link" href="#main">Skip to the plot</a>
       <TitleBar />
       <MenuBar />
+      <ViewTabs />
       <CommandPalette />
       <CommandForm />
       <OptionsPanel />
@@ -108,17 +109,13 @@ function Shell() {
         <Banner />
         {playerOpen ? null : <RunToolbar key={modelFile} />}
         <RecordBar />
-        <AutoxShow />
         <PlayerStage dark={dark} />
       </main>
-      <ValuesPanel />
-      <Splitter controls="values-panel" size="valuesWidth" className="splitter-values" growth={-1} />
-      <TableView />
-      <TextViews />
+      <Dock />
+      <Splitter controls="dock" size="dockWidth" className="splitter-dock" growth={-1} />
       <AutoxView dark={dark} />
       <AplotView />
       <AniView />
-      <HelpView />
       <UpdateDialog />
       <StatusBar />
       <Toasts />
@@ -149,7 +146,7 @@ function StartShell() {
         <StartScreen />
         <Messages />
       </main>
-      <HelpView />
+      <HelpDock />
       <UpdateDialog />
       <Toasts />
       <AskDialog />

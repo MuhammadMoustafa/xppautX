@@ -6,6 +6,8 @@ import {CommandLabel} from './CommandButton';
 import {saveTheme} from './theme';
 import {baseName} from '../store/files';
 import {MenuButton} from './MenuBar';
+import {dockIsShown, dockTab} from '../store/dock';
+import {useViewTabs} from './ViewTabs';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
 /* the theme is an icon, not a word: "autoX" beside the feature buttons read as autoX (T21) */
@@ -32,26 +34,30 @@ function ThemeIcon({theme}: {theme: Theme}) {
   );
 }
 
-/** The Values panel can still be collapsed independently of the menu bar. */
-function PanelToggle({collapsed}: {collapsed: boolean}) {
+/** The dock's own show and hide, apart from its tabs and its ×. */
+function PanelToggle({collapsed, unavailable}: {collapsed: boolean; unavailable: boolean}) {
   const session = useSession();
-  return <button class="panel-toggle icon-button values-collapse" aria-controls="values-panel"
-    aria-expanded={!collapsed} aria-label="Values panel" title={`${collapsed ? 'Show' : 'Hide'} the values panel`}
-    onClick={() => session.store.dispatch({type:'panels', panels:{valuesCollapsed:!collapsed}})}>
+  return <button class="panel-toggle icon-button dock-collapse" aria-controls="dock" disabled={unavailable}
+    aria-expanded={!collapsed} aria-label="Dock"
+    title={unavailable ? 'Beside autoX the dock shows Table, Model and Help; Values are on the graph tab' : `${collapsed ? 'Show' : 'Hide'} the dock`}
+    onClick={() => collapsed ? session.store.dispatch({type: 'panels', panels: {dockHidden: false}}) : session.hideDock()}>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
   </button>;
 }
 
 export function TitleBar() {
   const session = useSession();
-  const title = useStore(s => s.title);
+  const {active: viewName} = useViewTabs();
   const file = useStore(s => s.hello?.file ?? '');
   const changed = useStore(s => !!s.core?.changed);
   const theme = useStore(s => s.theme);
-  const valuesOpen = useStore(s => s.valuesOpen);
+  const dockOpen = useStore(s => s.dockOpen);
   const tableOpen = useStore(s => s.table.open);
   const textOpen = useStore(s => s.text.open);
   const panels = useStore(s => s.panels);
+  const autoxShown = useStore(s => s.diagram.open && s.diagram.shown);
+  const tab = useStore(dockTab);
+  const shown = dockIsShown(panels.dockHidden, autoxShown, tab);
   const helpOpen = useStore(s => s.help.open);
   const setTheme = () => {
     const t = NEXT_THEME[theme];
@@ -60,13 +66,13 @@ export function TitleBar() {
   };
   /* Data, Model and Help: the title bar's buttons (css/layout.css .title-only: hidden on a phone, where the menu bar has them) */
   const panelButtons = [
-    <button key="table" class="table-toggle title-only" aria-controls="table-panel" aria-expanded={tableOpen}
-      onClick={() => (tableOpen ? session.closeTable() : session.openTable())}><CommandLabel command="data.open" /></button>,
-    <button key="text" class="text-toggle title-only" aria-controls="text-panel" aria-expanded={textOpen}
-      onClick={() => (textOpen ? session.closeText() : session.openText())}
+    <button key="table" class="table-toggle title-only" aria-controls="dock" aria-expanded={tableOpen}
+      onClick={() => session.selectDockTab('table')}><CommandLabel command="data.open" /></button>,
+    <button key="text" class="text-toggle title-only" aria-controls="dock" aria-expanded={textOpen}
+      onClick={() => session.selectDockTab('text')}
       title="Equations, source and the last equilibrium">Model</button>,
-    <button key="help" class="help-toggle title-only" aria-controls="help-panel" aria-expanded={helpOpen}
-      onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}
+    <button key="help" class="help-toggle title-only" aria-controls="dock" aria-expanded={helpOpen}
+      onClick={() => session.selectDockTab('help')}
       title="The manual">Help</button>,
   ];
   return (
@@ -75,15 +81,15 @@ export function TitleBar() {
       <MenuButton />
       <h1 title={file}>{baseName(file) || 'xppautX'}</h1>
       {changed && <span class="unsaved" role="img" aria-label="Unsaved changes" title="Changed since the session was loaded or saved (Ctrl+S saves)">&#9679;</span>}
-      <span class="muted file">{title}</span>
+      <span class="muted file" title="The view shown">{viewName}</span>
       <span class="spacer" />
       <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
         aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
         <ThemeIcon theme={theme} />
       </button>
-      <PanelToggle collapsed={panels.valuesCollapsed} />
-      <button class="values-toggle" aria-controls="values-panel" aria-expanded={valuesOpen}
-        onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}><CommandLabel command="values.open" /></button>
+      <PanelToggle collapsed={!shown} unavailable={autoxShown && tab === 'values'} />
+      <button class="values-toggle" aria-controls="dock" aria-expanded={dockOpen}
+        onClick={() => session.selectDockTab('values')}><CommandLabel command="values.open" /></button>
       {panelButtons}
     </header>
   );

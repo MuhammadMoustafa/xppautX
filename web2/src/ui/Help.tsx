@@ -156,10 +156,8 @@ export function HelpView() {
   };
 
   return (
-    <section id="help-panel" ref={panel} class={'help-panel panel-sheet' + (help.open ? ' open' : '')} aria-label="Help">
+    <section id="help-panel" ref={panel} class="help-panel" aria-label="Help">
       <div class="panel-header">
-        <button class="help-back" onClick={close}>Back</button>
-        <h2>Help</h2>
         <button onClick={requestUpdateCheck}>Check for updates</button>
         <button type="button" class="help-about-toggle" aria-pressed={help.about}
           onClick={() => session.store.dispatch({type: 'help', action: {type: 'about'}})}>About</button>

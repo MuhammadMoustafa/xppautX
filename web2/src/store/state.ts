@@ -2,6 +2,7 @@
    {type:'event'}; the UI's own facts (connection, commands sent, the plots'
    viewports, the tab shown, hover, notifications, the menu drawer) as their
    own actions. Pure: no DOM, no I/O, no clock. */
+import {withDock} from './dock';
 import {setPointTypes} from './pointTypes';
 import {setFileFormats} from './fieldKinds';
 import {computationName} from '../protocol/kinds';
@@ -163,7 +164,7 @@ export interface AppState {
   /** parameters, ICs, BCs, delays, sliders (T3): pending edits and errors, see store/values.ts */
   values: ValuesState;
   /** the values panel, a full-screen sheet on narrow screens */
-  valuesOpen: boolean;
+  dockOpen: boolean;
   /** the data table (T10): the cached page, selection and CSV export, see store/table.ts */
   table: TableState;
   /** text views (T16): equations, source, equilibrium, and their panel's open/tab state */
@@ -226,7 +227,7 @@ export type Action =
   | {type: 'theme'; theme: Theme}
   | {type: 'panels'; panels: Partial<Panels>}
   | {type: 'values'; action: ValuesAction}
-  | {type: 'valuesPanel'; open: boolean}
+  | {type: 'dockPanel'; open: boolean}
   | {type: 'table'; action: TableAction}
   | {type: 'text'; action: TextAction}
   | {type: 'files'; action: FilesAction}
@@ -272,7 +273,7 @@ export const initialState: AppState = {
   steadyEdit: {},
   controlDone: 0,
   values: initialValues,
-  valuesOpen: false,
+  dockOpen: false,
   table: initialTable,
   text: initialText,
   files: initialFiles,
@@ -625,6 +626,10 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
 }
 
 export function reduce(state: AppState, action: Action): AppState {
+  return withDock(state, reduceAction(state, action));
+}
+
+function reduceAction(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'event':
       return onEvent(state, action.ev);
@@ -699,8 +704,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, panels: {...state.panels, ...action.panels}};
     case 'values':
       return {...state, values: reduceValues(state.values, action.action)};
-    case 'valuesPanel':
-      return action.open === state.valuesOpen ? state : {...state, valuesOpen: action.open};
+    case 'dockPanel':
+      return action.open === state.dockOpen ? state : {...state, dockOpen: action.open};
     case 'table':
       return {...state, table: reduceTable(state.table, action.action)};
     case 'text':

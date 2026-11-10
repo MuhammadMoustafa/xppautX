@@ -74,12 +74,9 @@
   --z-plot-control: 6; /* the corner Fit and autoX's axis names, over the overlay */
   --z-dropdown: 20; /* a splitter or a drop-down inside a view, over what it sits among */
   --z-toolbar: 22; /* the run toolbar, its drop-downs with it, over the plot's overlays and the splitter */
-  --z-show-autox: 23; /* the Show autoX row, stuck at the top with the toolbar, over it */
   --z-annotations: 25; /* the annotations panel, over the toolbar */
   --z-inline-menu: 40; /* a Sets drop-down, over the view it opens in */
-  --z-values-sheet: 150; /* the Values sheet on a phone, under the other sheets */
-  --z-autox: 155; /* the autoX view, over the Values sheet */
-  --z-panel: 160; /* the data table, array plot, text, animation and Help: over the page, the menu bar too */
+  --z-panel: 160; /* the dock on a phone, the array plot and the animation: over the page, the menu bar too */
   --z-menu: 165; /* a <details> drop-down (the menu bar's, the ⋯ and Messages pop-ups), over the panels */
   --z-player-dock: 170; /* the player's bar over the views it plays in */
   --z-modal: 180; /* the recording's replayed ask, over the panels and the player's bar */

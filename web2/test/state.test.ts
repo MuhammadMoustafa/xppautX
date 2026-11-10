@@ -161,11 +161,11 @@ test('the numerics event is the store (W106); a new hello forgets it', () => {
 });
 
 test('the values panel is a sheet the store tracks for narrow screens', () => {
-  let s = reduce(READY, {type: 'valuesPanel', open: true});
-  assert.equal(s.valuesOpen, true);
-  assert.equal(reduce(s, {type: 'valuesPanel', open: true}), s);
-  s = reduce(s, {type: 'valuesPanel', open: false});
-  assert.equal(s.valuesOpen, false);
+  let s = reduce(READY, {type: 'dockPanel', open: true});
+  assert.equal(s.dockOpen, true);
+  assert.equal(reduce(s, {type: 'dockPanel', open: true}), s);
+  s = reduce(s, {type: 'dockPanel', open: false});
+  assert.equal(s.dockOpen, false);
 });
 
 test('a text/source/equilibrium event lands in the text slice (T16)', () => {

@@ -12,8 +12,8 @@ body {
 #app { height: 100%; }
 h1, h2 { margin: 0; }
 
-/* ---- shell: title / menu bar / work / values / status; the values panel is a right column from 48rem, a sheet below ---- */
-.shell { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(10rem, 1fr) auto auto; grid-template-areas: 'title' 'menus' 'work' 'values' 'status'; }
+/* ---- shell: title / menu bar / view tabs / work / dock / status; the dock is a right column from 48rem, a sheet below (css/panels.css) ---- */
+.shell { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto minmax(10rem, 1fr) auto; grid-template-areas: 'title' 'menus' 'tabs' 'work' 'status'; }
 .start-shell { display: flex; flex-direction: column; height: 100%; grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title' 'menus' 'work' 'status'; }
 .title-bar {
   grid-area: title;
@@ -29,7 +29,9 @@ h1, h2 { margin: 0; }
 .title-bar h1 { font-size: var(--text-md); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .title-bar .unsaved { color: var(--accent); font-size: var(--text-xs); }
 .title-bar .file { font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-/* ---- the start screen: no model is open (W232) ---- */
+/* ---- the start screen: no model is open (W232): Help is its dock's one tab, a sheet over the page ---- */
+.start-shell .dock { position: fixed; inset: 0 0 0 auto; width: min(64rem, 100vw); z-index: var(--z-panel); display: none; }
+.start-shell .dock.open { display: flex; }
 .start-shell .workspace { flex: 1; overflow: auto; padding: var(--space-4); }
 .start-screen { max-width: 40rem; overflow-wrap: anywhere; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .start-screen h2 { margin: 0; }
@@ -47,18 +49,19 @@ h1, h2 { margin: 0; }
 @media (min-width: 48rem) {
   .splitter { display: block; z-index: var(--z-dropdown); background: transparent; touch-action: none; }
   .splitter:hover, .splitter:focus-visible { background: var(--accent); opacity: 0.5; }
-  .splitter-values { grid-area: values; align-self: stretch; width: 0.5rem; margin: 0 0 0 -0.25rem; justify-self: start; cursor: col-resize; }
+  .splitter-dock { grid-area: dock; align-self: stretch; width: 0.5rem; margin: 0 0 0 -0.25rem; justify-self: start; cursor: col-resize; }
 
-  .shell[data-values="collapsed"] .values-panel, .shell[data-values="collapsed"] .splitter-values, .shell[data-dock="table"] .values-panel { display: none; }
+  .shell[data-dock="hidden"] .dock, .shell[data-dock="hidden"] .splitter-dock { display: none; }
 }
 
+.shell[data-view="autox"] .workspace, .shell[data-view="autox"] .status-bar { display: none; }
 .workspace {
   grid-area: work;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-3);
   gap: var(--space-2);
   overflow: auto;
 }
@@ -127,12 +130,12 @@ h1, h2 { margin: 0; }
   .app-menu details details > ul{ position: absolute; top: calc(-.35rem - 1px); left: calc(100% + .35rem); /* past the menu's padding, its border on the menu's (one line, no seam), its first row level with its title */ min-width: 15rem; z-index: var(--z-menu); background: var(--surface); color: var(--fg); border: 1px solid var(--border); box-shadow: .4rem .4rem .8rem -.4rem #0003; /* right and below only: none on the menu it opens from, which read as a gap */ }
 }
 
-/* from 48rem the values panel is a right column (R3, R6), the plot first beside it; wider, the column is wider */
+/* from 48rem the dock is a right column below the header, beside the tabs and the plot (R3, R6); wider, the column is wider */
 @media (min-width: 48rem) {
-  .shell { grid-template-columns: minmax(0, 1fr) var(--values-col, 20rem); grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title title' 'menus menus' 'work values' 'status status'; }
+  .shell { grid-template-columns: minmax(0, 1fr) var(--dock-col, 20rem); grid-template-rows: auto auto auto minmax(0, 1fr) auto; grid-template-areas: 'title title' 'menus menus' 'tabs dock' 'work dock' 'status status'; }
 }
 @media (min-width: 80rem) {
-  .shell { grid-template-columns: minmax(0, 1fr) var(--values-col, 30rem); }
+  .shell { grid-template-columns: minmax(0, 1fr) var(--dock-col, 30rem); }
 }
 /* phones (below 48rem): the menu bar is a drawer behind the title bar's Menu button, the title bar one row, the values panel a sheet */
 @media (max-width: 47.99rem) {
@@ -145,7 +148,7 @@ h1, h2 { margin: 0; }
   .title-bar .file, .title-bar .wide-only { display: none; }
   .app-menu { position: fixed; z-index: var(--z-menu); inset: 0 auto 0 0; width: min(20rem, 85vw); flex-direction: column; flex-wrap: nowrap; align-items: stretch; overflow: auto; padding: var(--space-3); box-shadow: var(--shadow);
     transform: translateX(-100%); visibility: hidden; transition: transform 0.2s ease, visibility 0s 0.2s; }
-  .app-menu.open, .values-panel.open { transform: none; visibility: visible; transition: transform 0.2s ease; }
+  .app-menu.open, .dock.open { transform: none; visibility: visible; transition: transform 0.2s ease; }
   .app-menu > details > ul { position: static; max-height: none; min-width: 0; border: none; box-shadow: none; }
   .menu-scrim { display: block; position: fixed; z-index: var(--z-menu); inset: 0; background: rgba(0, 0, 0, 0.45); visibility: hidden; }
   .menu-scrim.open { visibility: visible; }

@@ -1,14 +1,6 @@
-/* ---- values panel (docs/ui-v2.md T3): a right column from 48rem, a full-screen sheet under it (below) ---- */
+/* ---- values panel (docs/ui-v2.md T3): the dock's first tab (css/panels.css) ---- */
 .values-panel {
   container: values / inline-size; /* the panel's own width decides what folds (Tail rate, the sets row's extras) */
-  grid-area: values;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
 }
 .values-back { display: none; }
 .values-body {
@@ -154,9 +146,6 @@
 .slider-card-lim { flex: none; font-size: var(--text-xs); font-family: var(--mono); }
 .slider-card-range { flex: 1; min-width: 0; min-height: var(--target); }
 
-@media (min-width: 48rem) {
-  .values-panel { border-top: none; border-left: 1px solid var(--border); }
-}
 .sets-more, .sets-more-body { display: contents; }
 .sets-more-toggle { display: none; }
 
@@ -175,17 +164,6 @@
   .value-state .value-rate { grid-column: 3; grid-row: 2; }
   .value-state .value-rate::before { content: 'rate '; }
   .value-state .value-reset { grid-column: 4; grid-row: 1; }
-  /* a full-screen sheet (R6), like the other panels' */
-  .values-panel {
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-values-sheet);
-    transform: translateX(100%);
-    visibility: hidden;
-    transition: transform 0.2s ease, visibility 0s 0.2s;
-    box-shadow: var(--shadow);
-  }
-  .values-back { display: inline-flex; }
 }
 
 .values-parts { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }

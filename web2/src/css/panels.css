@@ -1,8 +1,7 @@
-/* The floating panels (docs/ui-v2.md R6): the array plot, the text views, the
-   animation and Help are each a sheet (.panel-sheet) over the page: full screen under 48rem, a
-   side panel of the width the panel names (--panel-width) from there, so the plot stays
-   visible beside it (the data table is not one from 48rem: it is the right column's dock, below). A sheet is shut (off to the right, hidden) until .open. The header of
-   every panel, these and the values panel's and autoX's, is .panel-header. */
+/* The panels (docs/ui-v2.md R6): the array plot and the animation are each a sheet (.panel-sheet) over the page: full screen
+   under 48rem, a side panel of the width the panel names (--panel-width) from there, so the plot stays
+   visible beside it. A sheet is shut (off to the right, hidden) until .open. Values, Table, Model and Help are
+   the tabs of the dock (below), not sheets. The header of every panel, these and autoX's, is .panel-header. */
 .panel-sheet {
   position: fixed;
   inset: 0;
@@ -21,9 +20,19 @@
   .panel-sheet { left: auto; width: min(var(--panel-width), 92vw); border-left: 1px solid var(--border); }
 }
 .aplot-panel { --panel-width: 56rem; }
-.text-panel { --panel-width: 48rem; }
 .ani-panel { --panel-width: 40rem; }
-.help-panel { --panel-width: 64rem; }
+
+/* the dock (W644): the right column below the header, one of its tabs' panels shown; a full-screen sheet under 48rem, shut (off to
+   the right, hidden) until .open. Its width is the shell's --dock-col (the splitter's, layout.css) */
+.dock { grid-area: dock; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); border-left: 1px solid var(--border); }
+.dock-head { flex: none; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); border-bottom: 1px solid var(--border); }
+.dock-tabs { flex: 1; display: flex; min-width: 0; overflow-x: auto; }
+.dock-body { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.dock-body > section { display: none; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.dock[data-tab="values"] .values-panel, .dock[data-tab="table"] .table-panel, .dock[data-tab="text"] .text-panel, .dock[data-tab="help"] .help-panel { display: flex; }
+@media (max-width: 47.99rem) {
+  .dock { position: fixed; inset: 0; z-index: var(--z-panel); border-left: none; box-shadow: var(--shadow); transform: translateX(100%); visibility: hidden; transition: transform 0.2s ease, visibility 0s 0.2s; }
+}
 .panel-header {
   display: flex;
   align-items: center;
@@ -37,18 +46,14 @@
 .table-tools, .aplot-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
 .aplot-info { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
 
-/* the data table (W648): from 48rem the right column's dock, in the Values panel's place (layout.css hides
-   that one while this is open); under it a full-screen sheet with a x on top, like the others. Its own width
+/* the data table (W648): the dock's Table tab. Its own width
    picks the toolbar's form: Rows and Columns are groups of buttons where there is room, two menus where not */
 .table-panel { container: table / inline-size; }
-.table-close { grid-area: close; display: none; }
 .table-narrow { display: none; }
 .table-title { grid-area: title; display: flex; align-items: center; gap: var(--space-2); }
 .table-actions { grid-area: actions; justify-self: start; display: flex; align-items: center; gap: var(--space-1); }
-.table-back { grid-area: back; }
-/* the header (W648): the title and its ? left, Load data and Export data side by side after them, Back to Values at the far right;
-   where that does not fit, the two buttons go together to a second row under the title and Back stays at the right of the first */
-.table-panel .panel-header { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: 'title actions back'; align-items: center; }
+/* the header (W648): the ? left, Load data and Export data side by side after it; where that does not fit, the two buttons go together to a second row */
+.table-panel .panel-header { display: grid; grid-template-columns: auto 1fr; grid-template-areas: 'title actions'; align-items: center; }
 /* the columns keep their width (the first 6rem, the others 8rem): the grid scrolls sideways inside its own box, rows and header as wide as the columns */
 .table-group-label { font-size: var(--text-xs); color: var(--fg-muted); margin-right: var(--space-1); }
 .table-panel .panel-header .sets-menu > ul { right: 0; }
@@ -56,20 +61,11 @@
 .table-panel .sets-menu > summary { display: inline-flex; align-items: center; min-height: var(--target); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
 .table-info { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--fg-muted); }
 @container table (max-width: 34rem) {
-  .table-panel .panel-header { grid-template-areas: 'title . back' 'actions actions actions'; }
+  .table-panel .panel-header { grid-template-areas: 'title .' 'actions actions'; }
 }
 @container table (max-width: 40rem) {
   .table-wide { display: none; }
   .table-narrow { display: flex; }
-}
-@media (max-width: 47.99rem) {
-  .table-back { display: none; }
-  .table-close { display: inline-flex; }
-  .table-panel .panel-header { grid-template-columns: auto auto 1fr; grid-template-areas: 'close title .' 'actions actions actions'; }
-}
-@media (min-width: 48rem) {
-  .table-panel { position: static; grid-area: values; width: auto; min-width: 0; overflow: hidden; transform: none; box-shadow: none; transition: none; border-left: 1px solid var(--border); }
-  .table-panel:not(.open) { display: none; }
 }
 
 .table-grid-wrap { --fade-left: 0rem; --fade-right: 0rem; position: relative; overflow: auto; flex: 1; min-height: 0;
@@ -124,9 +120,8 @@
 .aplot-hover { margin: 0; padding: var(--space-1) var(--space-3) var(--space-2); font: var(--text-xs) var(--mono); color: var(--fg-muted); min-height: 1.5em; }
 
 /* ---- text views (docs/ui-v2.md T16): equations, source, equilibrium; ---- */
-/* always a floating overlay (R6), like .table-panel -- full screen under */
-/* 48rem (the base rule below), a fixed-width panel from there */
-.text-tab { border-color: transparent; background: none; color: var(--fg-muted); }
+/* the dock's Model tab (R6) */
+.text-tab, .view-tab-close, .view-add > summary { border-color: transparent; background: none; color: var(--fg-muted); }
 .text-tab.active { color: var(--fg); background: var(--surface-2); border-color: var(--border); }
 .text-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3); }
 .text-empty { color: var(--fg-muted); }

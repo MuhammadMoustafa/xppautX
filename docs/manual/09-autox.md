@@ -8,10 +8,10 @@ Click on the `File autoX` menu item to bring up autoX.
 
 Every autoX view has its own name, starting with `diagram_1`, `diagram_2`,
 and so on. Click its name to rename it; spaces and case are preserved.
-Names are unique among the open graphs and autoX views. Select a view by
-clicking it and close it with its Close button. Closing the final view
+Names are unique among the open graphs and autoX views. Each view is a tab above the plot:
+select it by clicking its tab and close it with its **×**. Closing the final view
 closes autoX; File autoX opens it again (the diagram stays the session's).
-**Hide autoX** hides every view and **Show autoX** brings them back with their
+Choosing a graph's tab hides every autoX view and choosing an autoX tab brings them back with their
 axes and zoom: they are `window.hide` and `window.show` of each view, so a
 script does the same. Scripts use `window.rename`, `window.select` and
 `window.close` with the same quoted name.
@@ -34,10 +34,10 @@ Errors name the value and bound and how to fix the start.
 
 ## The autoX view
 
-**In web2**, autoX opens as its own view, a full-screen
-sheet at every width, over the main menu, the plot and the main status bar
-(Hide autoX, or Escape, hides it and shows the page again; "Show autoX" brings it
-back). It has:
+**In web2**, autoX opens as its own view, a tab above the plot. While it is in front it takes the whole
+work area, under the header, the menu bar and the tabs, in place of the plot and the main status bar (its own status strip is the only one);
+the dock is not beside it unless you open Table, Model or Help. Choosing a graph's tab, or Escape, shows the plot again; the autoX tab brings
+it back. It has:
 
 - the **diagram**, drawn from the `diagram` data event: a curve per branch
   and stability run (stable solid, unstable dashed, periodic branches as
@@ -134,7 +134,7 @@ back). It has:
 
 There is no Abort button in the view (A10 in docs/ui-v2.md): the status
 bar's Stop stops a running continuation, as it stops any long job; the
-view's own × or Close stops a run first, then closes.
+view's tab × stops a run first, then closes.
 
 Everything below this section (parameters, axes, numerics, points and
 labels, the algorithm itself) is autoX's own vocabulary and unchanged; only
@@ -625,7 +625,7 @@ next to the end point's label when you hover it, and as `autox.info`'s
 | parameter *p* reached parameter_min / parameter_max (*value*) | the main parameter left the range in Numerics | `parameter_min` / `parameter_max` (RL0 / RL1) |
 | the norm reached norm_min / norm_max (*value*) | the solution's norm left its range | `norm_min` / `norm_max` (A0 / A1) |
 | the branch reached max_steps (*n*) | the branch has as many points as `max_steps` allows | `max_steps` (NMX), or a larger `max_step_size` (DSMAX) |
-| by the user (Stop) | Stop (or the view's Close) during the run | Run again from the end point |
+| by the user (Stop) | Stop (or the view's tab ×) during the run | Run again from the end point |
 | the exact Jacobian is not finite (see the error) | with Numerics' Jacobian set to exact, a derivative was not finite where the right-hand side is (sqrt or log at 0, 1/x at 0); the run stopped as a Stop does, on an end point | the error offers "Switch to differences and continue": it sets the Jacobian to difference and runs again from that end point with the same settings |
 | parameter *p* reached a Mark value set to stop | a user point marked as an end (autoX's UZR endpoint) | the Mark values |
 | parameter *p* = *value*: period growing without bound ... point type snic / homoclinic / heteroclinic | a branch of cycles whose period grew over 5 points to twice its shortest while the orbit lingers near equilibria (SNIC, HOC, HEC, above); without a type: the equilibria are no fold and no saddle | a homoclinic or heteroclinic run from the end point, or nothing: this is the end of the cycles |

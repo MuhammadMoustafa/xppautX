@@ -28,6 +28,7 @@ import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
 import {continuePlan, steadyRun} from './store/steady';
+import type {DockTab} from './store/dock';
 import type {TextTab} from './store/text';
 import {fieldKey, valueCommands, type ValueSet} from './store/values';
 import {autoxSettingsCommands, commandSettings, type AutoxSettingsPatch} from './store/autoxSettings';
@@ -338,7 +339,7 @@ export class Session {
   registryAction(id: string, values: Record<string, unknown> = {}, fixed: string[] = []): void {
     const row = registryRows(this.store.getState().hello).find(row => row.id === id);
     if (!row) { this.failed(`Unknown command ${id}`); return; }
-    if (id === 'values.open') this.store.dispatch({type: 'valuesPanel', open: true});
+    if (id === 'values.open') this.selectDockTab('values');
     else if (id === 'data.open') this.openTable();
     else if (id === 'command_palette.open') this.store.dispatch({type: 'drawer', open: true});
     else if (id === 'keymap.edit') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
@@ -533,9 +534,12 @@ export class Session {
 
   /* ---- plot windows (docs/ui-v2.md T6): the core's Makewindow commands ---- */
 
-  /** a window's tab picked: it is shown at once, and becomes the core's active window */
+  /** a graph's tab picked: it is shown at once, and becomes the core's active window; the autoX view shown gives way (its views are
+      hidden in the core, as Hide autoX did, so a saved session keeps which view was shown, and a grab waiting on it is cancelled) */
   selectWindow(win: string): void {
-    const {plots, ask, busy} = this.store.getState();
+    const {plots, ask, busy, diagram} = this.store.getState();
+    const fromAutox = diagram.shown;
+    if (fromAutox) this.showAutox(false);
     /* a prompt is the shown window's until answered */
     if (ask) return;
     /* a run draws into the core's active one (W68), and the command before
@@ -546,7 +550,7 @@ export class Session {
       return;
     }
     this.windowHeld = null;
-    if (plots.active === win) return;
+    if (plots.active === win && !fromAutox) return;
     this.store.dispatch({type: 'selectWindow', win});
     this.send({cmd: 'window.select', window:win});
   }
@@ -563,9 +567,9 @@ export class Session {
     this.send({cmd:'window.new'});
   }
 
-  /** Makewindow/Destroy: the active window (never window 1) */
-  closeWindow(): void {
-    this.send({cmd:'window.close',window:this.store.getState().plots.active});
+  /** Makewindow/Destroy: the window `win` (default the active one; never window 1) */
+  closeWindow(win: string = this.store.getState().plots.active): void {
+    this.send({cmd:'window.close',window:win});
   }
 
   /* ---- the display state (W65) ---- */
@@ -769,18 +773,26 @@ export class Session {
     for (const {command} of autoxSettingsCommands(patch)) this.send(command);
   }
 
-  /** the autoX view's close: done with it (A10). A running job is stopped
-      first and the window closes at its done, instead of the close waiting
-      behind the run. */
-  closeAutox(): void {
+  /** an autoX tab's ×: done with that view (A10); the last one is autoX itself, so the window closes. A running job is
+      stopped first and the view closes at its done, instead of the close waiting behind the run. */
+  closeAutox(view: number | null = null): void {
     const {busy, stopping, diagram} = this.store.getState();
-    const commands = diagram.views.map(v => ({cmd: 'window.close', window: v.name}));
+    const closing = view === null || diagram.views.length === 1 ? diagram.views : [diagram.views[view]];
+    const commands = closing.map(v => ({cmd: 'window.close', window: v.name}));
     if (!busy) {
       for (const command of commands) this.send(command);
       return;
     }
     this.afterDone = commands;
     if (!stopping) this.abort();
+  }
+
+  /** an autoX tab picked: that view of the diagram is the active one, and shown */
+  selectAutoxView(view: number): void {
+    const {diagram} = this.store.getState();
+    if (view >= diagram.views.length) return;
+    if (!diagram.shown) this.showAutox(true);
+    this.activateView(view);
   }
 
   /** the core's grab (docs/protocol.md `grab`): the cursor to point `point`
@@ -990,10 +1002,35 @@ export class Session {
     this.store.dispatch({type: 'table', action: {type: 'open', open: true}});
   }
 
-  /** stops the core sending further blocks (docs/protocol.md: `count` 0 stops the updates) */
+  /** closes the table; ui/TableView.tsx then stops the core sending blocks, however the table came to close (docs/protocol.md: `count` 0 stops the updates) */
   closeTable(): void {
     this.store.dispatch({type: 'table', action: {type: 'open', open: false}});
-    this.send({cmd: 'data.page', from_row: 0, count: 0});
+  }
+
+  /** the right dock's tab `tab` shown, the dock too (Values closes the panel that was open) */
+  selectDockTab(tab: DockTab): void {
+    const {table, text, help} = this.store.getState();
+    if (tab === 'table') this.openTable();
+    else if (tab === 'text') this.openText();
+    else if (tab === 'help') this.store.dispatch({type: 'help', action: {type: 'open'}});
+    else {
+      if (table.open) this.closeTable();
+      if (text.open) this.closeText();
+      if (help.open) this.store.dispatch({type: 'help', action: {type: 'close'}});
+      this.store.dispatch({type: 'panels', panels: {dockHidden: false}});
+    }
+    this.store.dispatch({type: 'dockPanel', open: true});
+  }
+
+  /** the dock's ×: the panel that was open closed, and the dock hidden (the column, kept per viewer) or, `asSheet` (a phone), its sheet shut;
+      beside the autoX view only the panel closes (the dock is there for it alone) */
+  hideDock(asSheet = false): void {
+    const {table, text, help, diagram} = this.store.getState();
+    if (table.open) this.closeTable();
+    if (text.open) this.closeText();
+    if (help.open) this.store.dispatch({type: 'help', action: {type: 'close'}});
+    if (!asSheet && !diagram.shown) this.store.dispatch({type: 'panels', panels: {dockHidden: true}});
+    this.store.dispatch({type: 'dockPanel', open: false});
   }
 
   /** the row the arrow keys, a click, Home/End move to */

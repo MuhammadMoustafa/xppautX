@@ -28,7 +28,7 @@ import {choiceLabel} from '../store/fieldKinds';
 import {readPref, writePref} from '../store/prefs';
 import {rowAt} from '../store/table';
 import {BUSY_TITLE, useMay, useMayKey, useSession, useStore} from './context';
-import {CommandLabel, useCommandLabel} from './CommandButton';
+import {useCommandLabel} from './CommandButton';
 import {commandRow, toolbarRow} from './navigation';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
@@ -98,6 +98,13 @@ export function TableView() {
     if (!open) return;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     return openPanel(close);
+  }, [open]);
+
+  /* a table that closes, however it came to (its tab left, the dock hidden), stops the core sending blocks (docs/protocol.md: `count` 0) */
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) session.send({cmd: 'data.page', from_row: 0, count: 0});
+    wasOpen.current = open;
   }, [open]);
 
   /* the visible window: only it (plus a small buffer) is ever fetched or rendered */
@@ -206,12 +213,9 @@ export function TableView() {
   const sliced = page && (page.start > 0 || page.end < rows);
 
   return (
-    <section id="table-panel" ref={panel} class={'table-panel panel-sheet' + (open ? ' open' : '')} aria-label={useCommandLabel('data.open')}>
+    <section id="table-panel" ref={panel} class="table-panel" aria-label={useCommandLabel('data.open')}>
       <div class="panel-header">
-        <button class="table-back" onClick={close}>Back to Values</button>
-        <button class="table-close" onClick={close} aria-label="Close" title="Close">×</button>
         <div class="table-title">
-          <h2><CommandLabel command="data.open" /></h2>
           <HelpButton target={HELP.dataTab} label="the Data tab" />
         </div>
         <div class="table-actions">

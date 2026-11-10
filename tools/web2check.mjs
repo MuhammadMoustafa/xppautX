@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only options,fieldhelp,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only options,fieldhelp,dock,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -446,7 +446,7 @@ async function values() {
   const box = await cdp.eval(`(() => { const r = document.querySelector('.values-panel').getBoundingClientRect();
     return {left: r.left, right: r.right, top: r.top, width: r.width, winWidth: innerWidth}; })()`);
   check('at 1400px wide the values panel is a right column',
-    box.width > 200 && box.right >= box.winWidth - 2 && box.top < 100, JSON.stringify(box));
+    box.width > 200 && box.right >= box.winWidth - 2 && box.top < 160, JSON.stringify(box));
 
   /* edit a parameter: a setting (W106), sent at once as one `set` when committed */
   const field = await cdp.eval(`(() => { const l = [...document.querySelectorAll('.value-field .value-name')]
@@ -699,16 +699,16 @@ const EXPORT_AS = format => `(() => { const m = document.querySelector('[data-se
 async function dataTable(want, dir) {
   await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
   await rendered();
-  check('W642: the header button and the table panel are named Table',
-    await cdp.eval(`document.querySelector('.table-toggle').textContent.trim() === 'Table' && document.querySelector('#table-panel h2').textContent.trim() === 'Table'`));
+  check('W642: the header button and the dock tab are named Table',
+    await cdp.eval(`document.querySelector('.table-toggle').textContent.trim() === 'Table' && document.querySelector('.dock [data-dock-tab=table]').textContent.trim() === 'Table'`));
   const plotBefore = await cdp.eval(`(() => { const r = document.querySelector('#main').getBoundingClientRect(); return [r.left, r.right, r.width]; })()`);
   await cdp.eval(`document.querySelector('.table-toggle').click()`);
   check('the Table button opens the table panel', await until('s.table.open', 'table open')
     && await cdp.eval(`getComputedStyle(document.querySelector('.table-panel')).visibility === 'visible'`));
-  /* W648: the table docks in the right column, in the Values panel's place, the plot whole beside it */
+  /* W648, W644: the table is the dock's Table tab, in the right column, the plot whole beside it */
   const dock = await cdp.eval(`(() => { const t = document.querySelector('#table-panel').getBoundingClientRect(), m = document.querySelector('#main').getBoundingClientRect();
-    const h = document.querySelector('.app-menu').getBoundingClientRect(), v = getComputedStyle(document.querySelector('#values-panel')).display;
-    return {tableLeft: t.left, tableRight: t.right, tableTop: t.top, tableBottom: t.bottom, mainRight: m.right, mainWidth: m.width, menuBottom: h.bottom, values: v, viewW: innerWidth,
+    const h = document.querySelector('.app-menu').getBoundingClientRect(), v = getComputedStyle(document.querySelector('#values-panel')).display, tabs = document.querySelector('.view-tabs').getBoundingClientRect();
+    return {tableLeft: t.left, tableRight: t.right, tableTop: t.top, tableBottom: t.bottom, mainRight: m.right, mainWidth: m.width, menuBottom: h.bottom, tabsBottom: tabs.bottom, values: v, viewW: innerWidth,
       onTable: document.elementFromPoint(t.left + t.width / 2, t.top + 40)?.closest('#table-panel') !== null, onPlot: document.elementFromPoint(m.left + m.width / 2, m.top + 40)?.closest('#main') !== null}; })()`);
   check('W648: the table is the right column, beside the plot and under the header, not over the plot',
     dock.tableLeft >= dock.mainRight - 1 && Math.abs(dock.tableRight - dock.viewW) <= 1 && dock.tableTop >= dock.menuBottom - 1 && dock.onTable && dock.onPlot, JSON.stringify(dock));
@@ -809,11 +809,11 @@ async function dataTable(want, dir) {
   check('W653: the Export data entries read the formats as written (dat, csv, csv.gz, npz)',
     JSON.stringify((await exportEntries()).map(e => e[1])) === JSON.stringify(['dat', 'csv', 'csv.gz', 'npz']), JSON.stringify(await exportEntries()));
   check('W648: no page-made Export CSV button is left in the header',
-    await cdp.eval(`[...document.querySelectorAll('.table-panel .panel-header > button, .table-panel .table-title > button, .table-panel .table-actions > button')].map(b => b.textContent.trim()).join('|')`) === 'Back to Values|×|?|Load data',
+    await cdp.eval(`[...document.querySelectorAll('.table-panel .panel-header > button, .table-panel .table-title > button, .table-panel .table-actions > button')].map(b => b.textContent.trim()).join('|')`) === '?|Load data',
     await cdp.eval(`[...document.querySelectorAll('.table-panel .panel-header > button, .table-panel .table-title > button, .table-panel .table-actions > button')].map(b => b.textContent.trim()).join('|')`));
-  const head = await cdp.eval(`(() => { const r = q => document.querySelector(q).getBoundingClientRect(), p = r('#table-panel'), t = r('.table-title'), l = r('[data-button="data:load"]'), e = r('[data-sets-menu="table-export"] > summary'), b = r('.table-back');
-    return {sameRow: Math.abs(l.top - e.top) < 1, exportAfterLoad: e.left >= l.right, secondRow: l.top > t.bottom - 1, backRight: Math.abs(p.right - b.right) < 20, backFirstRow: b.top < t.bottom, titleLeft: t.left - p.left < 20}; })()`);
-  check('W648: the header has the title and ? left, Back to Values far right, Load data and Export data on one row under the title when narrow', Object.values(head).every(Boolean), JSON.stringify(head));
+  const head = await cdp.eval(`(() => { const r = q => document.querySelector(q).getBoundingClientRect(), p = r('#table-panel'), t = r('.table-title'), l = r('[data-button="data:load"]'), e = r('[data-sets-menu="table-export"] > summary');
+    return {sameRow: Math.abs(l.top - e.top) < 1, exportAfterLoad: e.left >= l.right, secondRow: l.top > t.bottom - 1, titleLeft: t.left - p.left < 20}; })()`);
+  check('W648: the header has the ? left, Load data and Export data on one row under the title when narrow', Object.values(head).every(Boolean), JSON.stringify(head));
   const dataCsvName = await S('s.hello.output_names.csv');
   const dataCsvPath = path.join(dir, dataCsvName);
   fs.rmSync(dataCsvPath, {force: true});
@@ -868,7 +868,7 @@ async function dataTable(want, dir) {
     if (t) labels.add(t);
     await key('Tab');
   }
-  const expect = ['Back to Values', ...await labelsOf(['data.load']), ...(await S(`[s.hello.commands.find(c => c.cmd === 'data.export').menu_path.split('/').pop() + ' ▾']`)), ...await labelsOf(['data.find']),
+  const expect = ['?', ...await labelsOf(['data.load']), ...(await S(`[s.hello.commands.find(c => c.cmd === 'data.export').menu_path.split('/').pop() + ' ▾']`)), ...await labelsOf(['data.find']),
     'Rows ▾', 'Columns ▾', ...[...labels].filter(l => /^Use row \d+ as initial conditions$/.test(l))];
   check('every control of the table panel (the menus, and the row button) is reachable by Tab', expect.length === 7 && expect.every(l => labels.has(l)), JSON.stringify([[...labels], expect]));
 
@@ -886,19 +886,19 @@ async function dataTable(want, dir) {
     && await cdp.eval(`__xpp.state().hello.commands.find(c => c.cmd === 'table.edit').menu_path`) === 'Analysis/Tables'
     && !await cdp.eval(`!![...document.querySelectorAll('.app-menu [data-command="table.edit"]')].length`));
   /* a wide panel (widened here by its column's variable) shows the groups as buttons, More holding the rest */
-  await cdp.eval(`document.querySelector('.shell').style.setProperty('--values-col', '52rem')`);
+  await cdp.eval(`document.querySelector('.shell').style.setProperty('--dock-col', '52rem')`);
   const wideForm = await until(`getComputedStyle(document.querySelector('.table-wide')).display !== 'none'`, 'wide toolbar');
   const wideLabels = await cdp.eval(`[...document.querySelectorAll('.table-wide')].map(g => [g.getAttribute('aria-label'), [...g.querySelectorAll(':scope > button')].map(b => b.textContent), [...g.querySelectorAll('[role=menuitem]')].map(b => b.textContent)])`);
   check('W648: a wide panel shows Rows and Columns as groups of buttons, Columns with its More menu',
     wideForm && JSON.stringify(wideLabels) === JSON.stringify([['Rows', await labelsOf(['data.set_slice_start', 'data.set_slice_end', 'data.restore_full_slice']), []],
       ['Columns', await labelsOf(['data.add_column', 'data.replace_column', 'data.delete_column']), await labelsOf(['data.undo_replace', 'data.tabulate_column', 'data.transpose'])]]),
     JSON.stringify(wideLabels));
-  await cdp.eval(`document.querySelector('.shell').style.removeProperty('--values-col')`);
+  await cdp.eval(`document.querySelector('.shell').style.removeProperty('--dock-col')`);
   await until(`getComputedStyle(document.querySelector('.table-wide')).display === 'none'`, 'narrow again');
 
-  /* leave it closed for the phone session: Back to Values returns the Values panel as it was */
-  await cdp.eval(`document.querySelector('.table-back').click()`);
-  check('Back to Values closes the table panel and Values is in its place again',
+  /* leave it closed for the phone session: the Values tab returns the Values panel as it was */
+  await cdp.eval(`document.querySelector('.dock [data-dock-tab=values]').click()`);
+  check('the Values tab closes the table panel and Values is in its place again',
     await until('!s.table.open', 'close table') && await cdp.eval(`getComputedStyle(document.querySelector('#values-panel')).display !== 'none' && getComputedStyle(document.querySelector('#table-panel')).display === 'none'`));
 }
 
@@ -913,8 +913,8 @@ async function dataTable(want, dir) {
 async function textViews() {
   await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
   await rendered();
-  check('W642: the Model button and the panel are named Model',
-    await cdp.eval(`document.querySelector('.text-toggle').textContent.trim() === 'Model' && document.querySelector('#text-panel h2').textContent.trim() === 'Model'`));
+  check('W642: the Model button and the dock tab are named Model',
+    await cdp.eval(`document.querySelector('.text-toggle').textContent.trim() === 'Model' && document.querySelector('.dock [data-dock-tab=text]').textContent.trim() === 'Model'`));
   await cdp.eval(`document.querySelector('.text-toggle').click()`);
   check('the Model button opens the panel on Equations', await until("s.text.open && s.text.tab === 'equations'", 'text open')
     && await cdp.eval(`getComputedStyle(document.querySelector('.text-panel')).visibility === 'visible'`));
@@ -988,13 +988,13 @@ async function textViews() {
     if (await cdp.eval(`document.activeElement.classList.contains('source-action')`)) sawAction = true;
     await key('Tab');
   }
-  check('Back and the three tabs are reachable by Tab',
-    ['Back', 'Equations', 'Source', 'Equilibrium'].every(l => labels.has(l)), JSON.stringify([...labels]));
+  check('the three tabs are reachable by Tab',
+    ['Equations', 'Source', 'Equilibrium'].every(l => labels.has(l)), JSON.stringify([...labels]));
   check('a comment action button is reachable by Tab too (the shown view\'s own controls)', sawAction);
 
   /* leave it closed for the phone session */
-  await cdp.eval(`document.querySelector('.text-back').click()`);
-  check('Back closes the text panel', await until('!s.text.open', 'close text'));
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
+  check('the dock x closes the text panel', await until('!s.text.open', 'close text'));
 }
 
 /* UX-001 (GitHub #76): at a narrow viewport the values panel is a full-screen sheet, and Escape
@@ -1006,7 +1006,7 @@ async function valuesNarrowEscape() {
   await metrics({width: 546, height: 900, deviceScaleFactor: 1, mobile: false});
   await rendered();
   await cdp.eval(`document.querySelector('.values-toggle').click()`);
-  await until('s.valuesOpen', 'the sheet opens (546px)');
+  await until('s.dockOpen', 'the sheet opens (546px)');
   await rendered();
   await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').focus()`);
   await typeIntoField('par', 'iapp', '1e');
@@ -1019,14 +1019,14 @@ async function valuesNarrowEscape() {
   await key('Escape');
   await rendered();
   box = await fieldState('par', 'iapp');
-  const open1 = await cdp.eval(`document.querySelector('.values-panel').classList.contains('open')`);
+  const open1 = await cdp.eval(`document.querySelector('.dock').classList.contains('open')`);
   check('UX-001: the first Escape belongs to the field: it drops the draft and the sheet stays open',
     box.invalid === null && close6(Number(box.value), 0.05) && open1, JSON.stringify({box, open1}));
   await key('Escape');
   await rendered();
-  const open2 = await cdp.eval(`document.querySelector('.values-panel').classList.contains('open')`);
+  const open2 = await cdp.eval(`document.querySelector('.dock').classList.contains('open')`);
   check('UX-001: a second Escape, with nothing left to drop, closes the sheet',
-    open2 === false && !(await S('s.valuesOpen')), JSON.stringify({open2}));
+    open2 === false && !(await S('s.dockOpen')), JSON.stringify({open2}));
   await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
 }
@@ -1603,24 +1603,22 @@ async function phone() {
   const fits = async () => { await rendered(); return cdp.eval(`(() => { const p = document.querySelector('#table-panel'), g = document.querySelector('.table-grid-wrap'), h = document.querySelector('.table-panel .panel-header');
     const [l, e] = ['[data-button="data:load"]', '[data-sets-menu="table-export"] > summary'].map(q => document.querySelector(q).getBoundingClientRect());
     const inside = [...p.querySelectorAll('.table-tools button, .table-tools summary, .table-info button, .panel-header button, .panel-header summary')].filter(b => b.offsetParent && b.getBoundingClientRect().right > p.getBoundingClientRect().right + 0.5).map(b => b.textContent + ' ' + Math.round(b.getBoundingClientRect().right) + '>' + Math.round(p.getBoundingClientRect().right));
-    return {panel: p.scrollWidth <= p.clientWidth, page: document.documentElement.scrollWidth <= innerWidth, gridScrolls: g.scrollWidth > g.clientWidth, inside: inside.length === 0 || inside, sameSize: Math.abs(l.height - e.height) < 1, header: (() => { const r = q => document.querySelector(q).getBoundingClientRect(), t = r('.table-title'), pr = p.getBoundingClientRect(), back = r('.table-back'), close = r('.table-close');
-      const rightBtn = back.width ? back : null; return {loadExportOneRow: Math.abs(l.top - e.top) < 1, titleTogether: document.querySelector('.table-title h2').getBoundingClientRect().top === document.querySelector('.table-title > button').getBoundingClientRect().top || Math.abs(document.querySelector('.table-title h2').getBoundingClientRect().top - document.querySelector('.table-title > button').getBoundingClientRect().top) < 12,
-        backRight: rightBtn ? Math.abs(pr.right - rightBtn.right) < 20 : close.left < t.left, actionsLeftAligned: l.left >= pr.left}; })(), rowWidth: document.querySelector('.table-body .table-row').getBoundingClientRect().width >= g.clientWidth}; })()`);}
-  const sheet = await cdp.eval(`(() => { const t = document.querySelector('#table-panel').getBoundingClientRect(), vis = n => getComputedStyle(document.querySelector(n)).display !== 'none';
-    return {w: t.width, h: t.height, left: t.left, top: t.top, vw: innerWidth, vh: innerHeight, close: vis('.table-close'), back: vis('.table-back'), over: document.elementFromPoint(t.left + 20, t.top + t.height / 2)?.closest('#table-panel') !== null}; })()`);
-  check('W648: on a phone the table is a full-screen sheet with a x on top and no Back to Values',
-    sheet.w === sheet.vw && sheet.h === sheet.vh && sheet.left === 0 && sheet.top === 0 && sheet.close && !sheet.back && sheet.over, JSON.stringify(sheet));
+    return {panel: p.scrollWidth <= p.clientWidth, page: document.documentElement.scrollWidth <= innerWidth, gridScrolls: g.scrollWidth > g.clientWidth, inside: inside.length === 0 || inside, sameSize: Math.abs(l.height - e.height) < 1, header: {loadExportOneRow: Math.abs(l.top - e.top) < 1, actionsLeftAligned: l.left >= p.getBoundingClientRect().left}, rowWidth: document.querySelector('.table-body .table-row').getBoundingClientRect().width >= g.clientWidth}; })()`);}
+  const sheet = await cdp.eval(`(() => { const t = document.querySelector('#dock').getBoundingClientRect(), vis = n => getComputedStyle(document.querySelector(n)).display !== 'none';
+    return {w: t.width, h: t.height, left: t.left, top: t.top, vw: innerWidth, vh: innerHeight, close: vis('.dock-close'), over: document.elementFromPoint(t.left + 20, t.top + t.height / 2)?.closest('#dock') !== null}; })()`);
+  check('W648, W644: on a phone the table is a full-screen sheet of the dock, with its tabs and its x on top',
+    sheet.w === sheet.vw && sheet.h === sheet.vh && sheet.left === 0 && sheet.top === 0 && sheet.close && sheet.over, JSON.stringify(sheet));
   const fit390 = await fits();
   check('W648: at 390 nothing sticks out of the panel or the page, the grid scrolls sideways in its own box, Load and Export are one size',
     fit390.panel && fit390.page && fit390.gridScrolls && fit390.inside && fit390.sameSize && Object.values(fit390.header).every(Boolean), JSON.stringify(fit390));
-  await cdp.eval(`document.querySelector('.table-close').click()`);
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
   check('W648: the x closes the table sheet', await until('!s.table.open', 'phone table closed'));
   await metrics({width: 768, height: 1024, deviceScaleFactor: 1, mobile: false});
   await clickRegistry('data.open');
   await until('s.table.open', 'tablet table');
   const tablet = await cdp.eval(`(() => { const t = document.querySelector('#table-panel').getBoundingClientRect(), m = document.querySelector('#main').getBoundingClientRect();
-    return {tl: t.left, mr: m.right, vw: innerWidth, back: getComputedStyle(document.querySelector('.table-back')).display !== 'none'}; })()`);
-  check('W648: at 768 the table is the dock beside the plot, with Back to Values', tablet.tl >= tablet.mr - 1 && tablet.tl > 0 && tablet.back, JSON.stringify(tablet));
+    return {tl: t.left, mr: m.right, vw: innerWidth}; })()`);
+  check('W648: at 768 the table is the dock beside the plot', tablet.tl >= tablet.mr - 1 && tablet.tl > 0, JSON.stringify(tablet));
   const fit768 = await fits();
   check('W648: at 768 nothing sticks out of the panel or the page, the grid scrolls sideways in its own box, Load and Export are one size',
     fit768.panel && fit768.page && fit768.gridScrolls && fit768.inside && fit768.sameSize && Object.values(fit768.header).every(Boolean), JSON.stringify(fit768));
@@ -1632,7 +1630,7 @@ async function phone() {
   const f1 = await fade();
   check('W648: at 768 the right edge fades while CUR is hidden, the left edge not; at the end the right fades no more and the left does',
     f0.r === 'true' && f0.l === 'false' && f0.mask === '2rem' && f1.r === 'false' && f1.l === 'true' && f1.mask === '0rem', JSON.stringify([f0, f1]));
-  await cdp.eval(`document.querySelector('.table-back').click()`);
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
   await until('!s.table.open', 'tablet table closed');
   await desktopMetrics();
 }
@@ -1795,26 +1793,27 @@ async function autoxView(dir) {
   check("the diagram has the focus, so autoX's keys work", await until(`document.activeElement.closest('.autox-host')`, 'auto focus'));
   const words = await cdp.eval(`[...document.querySelectorAll('.autox-panel button')].map(b => b.textContent.trim())`);
   check('the view has the autoX buttons, no reDraw (the diagram is always current) and no Stop while idle (A10, T21)',
-    [...await labelsOf(['autox.configure_axes', 'autox.configure_numerics', 'autox.run', 'autox.grab', 'autox.configure_marks', 'autox.hide_earlier']), 'Close']
+    [...await labelsOf(['autox.configure_axes', 'autox.configure_numerics', 'autox.run', 'autox.grab', 'autox.configure_marks', 'autox.hide_earlier'])]
       .every(w => words.includes(w)) && !words.includes('Parameter') && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
   check('the status strip says autoX is idle', /^Idle/.test(await autoxStatus()), await autoxStatus());
   check("T24: the status strip is the autoX window's bottom line, as the main window's status bar",
     await cdp.eval(`(() => { const p = document.querySelector('.autox-panel').getBoundingClientRect(),
       t = document.querySelector('.autox-status').getBoundingClientRect(); return Math.abs(p.bottom - t.bottom) < 2; })()`));
-  check('T26: at 1280px the autoX view covers the whole viewport',
+  check('T26, W644: at 1280px the autoX view is the work area: under the menu bar and the view tabs, the whole width (the dock holds Values only), down to the bottom',
     await cdp.eval(`(() => { const r = document.querySelector('.autox-panel').getBoundingClientRect();
-      return Math.abs(r.top - document.querySelector('.app-menu').getBoundingClientRect().bottom) < 1 && r.left === 0 && Math.abs(r.right - innerWidth) < 1 && Math.abs(r.bottom - innerHeight) < 1; })()`));
+      return Math.abs(r.top - document.querySelector('.view-tabs').getBoundingClientRect().bottom) < 1 && r.left === 0 && Math.abs(r.right - innerWidth) < 1 && Math.abs(r.bottom - innerHeight) < 1; })()`)
+    && await cdp.eval(`getComputedStyle(document.querySelector('#dock')).display === 'none'`));
   const behind = await cdp.eval(`(() => { const at = sel => { const r = document.querySelector(sel).getBoundingClientRect();
-    return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.autox-panel'); };
-    return {menu: at('.app-menu'), bar: at('.status-bar')}; })()`);
-  check('T26: the main menu and the main status bar are behind it, not visible', !behind.menu && behind.bar, JSON.stringify(behind));
-  await cdp.eval(`document.querySelector('.autox-back').click()`);
+    return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest(sel); };
+    return {menu: at('.app-menu'), tabs: at('.view-tabs'), bar: getComputedStyle(document.querySelector('.status-bar')).display !== 'none'}; })()`);
+  check('T26, W644: the menu bar and the view tabs stay visible, the main status bar gives way to the autoX strip', behind.menu && behind.tabs && !behind.bar, JSON.stringify(behind));
+  await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
   await until('!s.diagram.shown && s.diagram.open', 'auto back desktop');
   const front = await cdp.eval(`(() => { const at = sel => { const r = document.querySelector(sel).getBoundingClientRect();
     return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest(sel); };
     return {menu: at('.app-menu'), bar: at('.status-bar'), gone: !document.querySelector('.autox-panel')}; })()`);
-  check('T26: Back shows the main menu and the main status bar again', front.menu && front.bar && front.gone, JSON.stringify(front));
-  await cdp.eval(`document.querySelector('.autox-show').click()`);
+  check('T26, W644: a graph tab shows the main status bar again and the autoX view is gone', front.menu && front.bar && front.gone, JSON.stringify(front));
+  await cdp.eval(`document.querySelector('[data-view-kind=autox] .plot-tab').click()`);
   await until('s.diagram.shown', 'auto show desktop');
   await until(`document.activeElement.closest('.autox-host')`, 'auto focus again');
 
@@ -2152,8 +2151,8 @@ async function autoxView(dir) {
   const sheet = await cdp.eval(`(() => { const r = document.querySelector('.autox-panel').getBoundingClientRect();
     return {l: r.left, t: r.top, w: r.width, bottom: r.bottom, ih: innerHeight, iw: innerWidth,
       doc: document.documentElement.scrollWidth, body: document.body.scrollWidth}; })()`);
-  check('390x844: the autoX view is a full-screen sheet under the title bar (the menu bar is a drawer there), over the main status bar too (its own Stop stays in view), no sideways scroll',
-    sheet.l === 0 && Math.abs(sheet.t - await cdp.eval(`document.querySelector('.title-bar').getBoundingClientRect().bottom`)) <= 1 && sheet.w >= sheet.iw - 1 && Math.abs(sheet.bottom - sheet.ih) <= 1
+  check('390x844: the autoX view fills the page under the title bar and the view tabs (the menu bar is a drawer there), over the main status bar too (its own Stop stays in view), no sideways scroll',
+    sheet.l === 0 && Math.abs(sheet.t - await cdp.eval(`document.querySelector('.view-tabs').getBoundingClientRect().bottom`)) <= 1 && sheet.w >= sheet.iw - 1 && Math.abs(sheet.bottom - sheet.ih) <= 1
     && sheet.doc <= sheet.iw && sheet.body <= sheet.iw, JSON.stringify([sheet, await cdp.eval(`document.querySelector('.title-bar').getBoundingClientRect().bottom`)]));
   const small = await cdp.eval(`[...document.querySelectorAll('.autox-panel button')].filter(b => b.getClientRects().length)
     .map(b => [b.textContent.trim(), b.getBoundingClientRect().height, b.getBoundingClientRect().width])
@@ -2161,13 +2160,13 @@ async function autoxView(dir) {
   check("390x844: the sheet's targets are at least 44 px", small.length === 0, JSON.stringify(small));
   const plotW = (await autoxArea()).w;
   check("390x844: the diagram fills the sheet's width", plotW > 250 && plotW <= 390, String(plotW));
-  await touch('touchStart', [await center('.autox-back')]);
+  await touch('touchStart', [await center('#view-tab-graph-graph_1')]);
   await touch('touchEnd', []);
   check('Back hides the sheet, autoX stays open', await until('!s.diagram.shown && s.diagram.open', 'auto back')
-    && await cdp.eval(`!document.querySelector('.autox-panel') && !!document.querySelector('.autox-show')`));
-  check('T21: the focus goes back to the main plot (Show autoX is a Tab away)',
-    await until(`document.activeElement.closest('.plot-host') && !document.activeElement.closest('.autox-panel')`, 'plot focus after back'));
-  const show = await center('.autox-show');
+    && await cdp.eval(`!document.querySelector('.autox-panel') && !!document.querySelector('[data-view-kind=autox]')`));
+  check('T21, W644: the focus stays on the tab that was picked, outside the autoX view (the keys typed next are the main window\'s)',
+    await until(`document.activeElement.id === 'view-tab-graph-graph_1' && !document.activeElement.closest('.autox-panel')`, 'tab focus after the pick'));
+  const show = await center('[data-view-kind=autox] .plot-tab');
   await touch('touchStart', [show]);
   await touch('touchEnd', []);
   check('Show autoX (44 px) brings the sheet back with its diagram', show.h >= 44 && await until('s.diagram.shown', 'auto show')
@@ -2178,9 +2177,9 @@ async function autoxView(dir) {
   /* a page that connects while autoX is open gets the view and the whole diagram again */
   await reloadPage();
   check('a reloaded page opens the autoX view and asks for the diagram again',
-    await until(`s.diagram.open && s.diagram.shown && document.querySelector('.autox-close') && dv.axes && !s.busy && dv.points.x.length === ${want.pts.length}`, 'reload auto', 30000)
+    await until(`s.diagram.open && s.diagram.shown && document.querySelector('[data-view-kind=autox] .view-tab-close') && dv.axes && !s.busy && dv.points.x.length === ${want.pts.length}`, 'reload auto', 30000)
     && JSON.stringify(await DS('d.labels')) === JSON.stringify(labels),
-    JSON.stringify([await DS('[d.open, d.shown, d.points.x.length]'), await cdp.eval(`!!document.querySelector('.autox-close')`)]));
+    JSON.stringify([await DS('[d.open, d.shown, d.points.x.length]'), await cdp.eval(`!!document.querySelector('[data-view-kind=autox] .view-tab-close')`)]));
 
   /* T22/T23/T25 (Numerics edited during a run, Stop, the run after) moved
      to autoxStopRace() below, on tools/models/heavy.odex: see that
@@ -2188,9 +2187,9 @@ async function autoxView(dir) {
 
   /* Close: done with autoX */
   /* W610 (#678): clicked only once the reload check saw it; a missing Close is that check's FAIL, never a throw here */
-  await cdp.eval(`document.querySelector('.autox-close')?.click()`);
+  await cdp.eval(`document.querySelector('[data-view-kind=autox] .view-tab-close')?.click()`);
   check("Close closes autoX's window and the view", await until('!s.diagram.open && !s.busy', 'auto close')
-    && !(await cdp.eval(`!!document.querySelector('.autox-panel, .autox-show')`))
+    && !(await cdp.eval(`!!document.querySelector('.autox-panel, [data-view-kind=autox]')`))
     && (await DS('d.points.x.length')) === 0, JSON.stringify(await DS('[d.open, d.shown]')));
   check('the focus goes back to the plot', await until(`document.activeElement.closest('.plot-host')`, 'plot focus'));
 }
@@ -2328,9 +2327,9 @@ async function autoxStopRace() {
   check('T22: the run after uses it: its periodic branch stops at Nmax, 15 points',
     ran && nNew === 15, JSON.stringify([ran, nNew]));
 
-  await cdp.eval(`document.querySelector('.autox-close').click()`);
+  await cdp.eval(`document.querySelector('[data-view-kind=autox] .view-tab-close').click()`);
   check("autoX Stop race: Close closes autoX's window and the view",
-    await until('!s.diagram.open && !s.busy', 'auto close') && !(await cdp.eval(`!!document.querySelector('.autox-panel, .autox-show')`)));
+    await until('!s.diagram.open && !s.busy', 'auto close') && !(await cdp.eval(`!!document.querySelector('.autox-panel, [data-view-kind=autox]')`)));
 }
 
 /* ---- W620: the points of branch jobs drawn as they come ----------------------------------- */
@@ -2574,7 +2573,7 @@ async function reopenedSessionPlot(dir) {
       'session opened', 30000 * SLOW)
     && !(await S('__xpp.log().some(l => l.kind === "error")')),
     JSON.stringify(await S('[__xpp.log().filter(l => l.kind === "error").map(l => l.text), s.diagram.open, s.diagram.shown]')));
-  const back = await center('.autox-back');
+  const back = await center('#view-tab-graph-graph_1');
   await click(back.x, back.y);
   await until('!s.diagram.shown', 'back');
   check('W102: after Back the store holds the 601 rows',
@@ -2604,7 +2603,7 @@ async function lostF() {
   await openAutoxAtFixedPoint();
 
   /* sequence 2 first half: Back at once, F in the main window */
-  const back = await center('.autox-back'); /* a real click, as the window gets: the focus is on the button that then goes */
+  const back = await center('#view-tab-graph-graph_1'); /* a real click, as the window gets: the focus is on the button that then goes */
   await click(back.x, back.y);
   await until('!s.diagram.shown && s.diagram.open && !s.busy', 'back');
   const menuShown = () => cdp.eval(`(() => { const r = document.querySelector('.app-menu').getBoundingClientRect(); return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.app-menu'); })()`);
@@ -2613,7 +2612,7 @@ async function lostF() {
   await until(`document.activeElement.closest('.plot-host')`, 'the focus back on the plot');
 
   /* sequence 1: steady state, grab the Hopf point, Periodic */
-  await cdp.eval(`document.querySelector('.autox-show').click()`);
+  await cdp.eval(`document.querySelector('[data-view-kind=autox] .plot-tab').click()`);
   await until('s.diagram.shown', 'auto show');
   await until(`document.activeElement.closest('.autox-host')`, 'auto focus');
   await clickRegistry('autox.run');
@@ -2623,14 +2622,14 @@ async function lostF() {
   await cdp.eval(`document.querySelector('.autox-host').focus()`);
   await menuRun('autox.grab');
   await until("s.ask && s.ask.kind === 'grab'", 'grab 0');
-  const back2 = await center('.autox-back');
+  const back2 = await center('#view-tab-graph-graph_1');
   await click(back2.x, back2.y);
   await until('!s.diagram.shown', 'back during grab');
   check('lostF: Back during a grab cancels it: no ask stays open behind the main window',
     await until('!s.busy && !s.ask && !s.diagram.grabbing', 'grab cancelled'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
   /* the hidden panel's render and effects (its focus back to the plot) are done */
   await rendered();
-  await cdp.eval(`document.querySelector('.autox-show').click()`);
+  await cdp.eval(`document.querySelector('[data-view-kind=autox] .plot-tab').click()`);
   await until('s.diagram.shown', 'auto show 2');
   await until(`document.activeElement.closest('.autox-host')`, 'auto focus 2');
   await cdp.eval(`document.querySelector('.autox-host').focus()`);
@@ -2763,7 +2762,7 @@ async function busyKeys() {
   /* A window.new sent during the run is queued by the core and creates
      the graph once the run has stopped. */
   const sentView = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`[...document.querySelectorAll('.plot-window-tools button')].find(b => b.textContent === ${JSON.stringify(newGraphLabel)}).click()`);
+  await cdp.eval(`document.querySelector('.view-add > summary').click(); document.querySelector('.view-add [data-command="window.new"]').click()`);
   const viewSent = await cdp.eval(`__xpp.sentFrom(${sentView})`);
   check('W95: a view button clicked during the run goes out (window.new)',
     JSON.stringify(viewSent) === JSON.stringify([{cmd:'window.new'}]) && await S('s.busy'), JSON.stringify(viewSent));
@@ -2815,7 +2814,7 @@ async function busyKeys() {
   check('W95: the view clicked during the run ran after it: window 2 exists',
     await until('!s.busy && !s.ask && s.plots.windows.length === 2', 'new window after the run', 10000),
     JSON.stringify(await S('[s.busy, s.ask, s.plots.windows.length]')));
-  await cdp.eval(`[...document.querySelectorAll('.plot-tab')].find(b => b.id === 'plot-tab-graph_1').click()`);
+  await cdp.eval(`[...document.querySelectorAll('.plot-tab')].find(b => b.id === 'view-tab-graph-graph_1').click()`);
   await until(`!s.busy && s.plots.active === 'graph_1'`, 'window 1 again');
   /* the wedge case: keys work after the run (Total back to 20: 401 rows), and the next
      run uses the slider's edit */
@@ -3029,8 +3028,8 @@ async function playerCheck(dir) {
         && d.querySelectorAll('.player-step').length === 2 && !!d.querySelector('.player-play')
         && document.documentElement.classList.contains('player-docked')
         && getComputedStyle(d).top === '0px'
-        && parseFloat(getComputedStyle(document.querySelector('.autox-panel')).top) >= d.offsetHeight; })()`));
-  await cdp.eval(`document.querySelector('.autox-close').click()`);
+        && document.querySelector('.autox-panel').getBoundingClientRect().top >= d.offsetHeight; })()`));
+  await cdp.eval(`document.querySelector('[data-view-kind=autox] .view-tab-close').click()`);
   check('player: with autoX closed the player is back around the plots (no dock)',
     await until(`!s.diagram.open && !document.querySelector('.player-dock') && !!document.querySelector('.player-stage .plots') && !!document.querySelector('.player-controls') && !s.busy`, 'dock gone', 20000));
   /* the opened recording plays on its own (the File menu's Open recording): let it end, then close */
@@ -3363,6 +3362,69 @@ async function optionsCheck() {
   await key('Escape');
 }
 
+/* W644: the dock (Values, Table, Model, Help as the right column's tabs) and the views as tabs above the plot, by data: boxes that do not overlap,
+   one dock tab open at a time, the header's buttons selecting a tab, one x that hides the dock, the sheet below 48 rem with the same x and no Back,
+   the view tabs and their ＋ and ×, and the title bar naming the view in front. */
+async function dockCheck() {
+  await desktopMetrics();
+  await until('s.hello && !s.busy', 'hello');
+  const boxes = () => cdp.eval(`(() => { const r = q => { const e = document.querySelector(q), b = e && e.getBoundingClientRect(); return b && getComputedStyle(e).display !== 'none' ? {l: b.left, t: b.top, r: b.right, b: b.bottom} : null; };
+    return {title: r('.title-bar'), menu: r('.app-menu'), tabs: r('.view-tabs'), main: r('#main'), dock: r('#dock'), status: r('.status-bar')}; })()`);
+  const apart = (a, b) => !!a && !!b && (a.r <= b.l + 1 || b.r <= a.l + 1 || a.b <= b.t + 1 || b.b <= a.t + 1);
+  for (const [tab, open] of [['table', () => cdp.eval(`document.querySelector('.table-toggle').click()`)], ['text', () => cdp.eval(`document.querySelector('.text-toggle').click()`)],
+    ['help', () => cdp.eval(`document.querySelector('.help-toggle').click()`)]]) {
+    await open();
+    await requireUntil(`document.getElementById('dock').dataset.tab === ${JSON.stringify(tab)}`, 'the ' + tab + ' tab');
+    const b = await boxes();
+    const openFlags = await S('[s.table.open, s.text.open, s.help.open].filter(Boolean).length');
+    check(`W644: the header's button opens the ${tab} tab of the dock under the header, the plot and the tabs whole beside it, one tab open`,
+      openFlags === 1 && apart(b.dock, b.main) && apart(b.dock, b.tabs) && b.dock.t >= b.menu.b - 1 && apart(b.dock, b.title) && apart(b.dock, b.menu), JSON.stringify([b, openFlags]));
+  }
+  await cdp.eval(`document.querySelector('.dock [data-dock-tab=values]').click()`);
+  check('W644: the Values tab closes the panel that was open', await until('!s.table.open && !s.text.open && !s.help.open', 'values') && await cdp.eval(`document.getElementById('dock').dataset.tab === 'values'`));
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
+  check('W644: the dock x hides the dock; the plot takes the width', await until('s.panels.dockHidden', 'hidden') && (await boxes()).dock === null);
+  await cdp.eval(`document.querySelector('.help-toggle').click()`);
+  check('W644: a header button shows a hidden dock on its tab', await until('!s.panels.dockHidden && s.help.open', 'shown') && !!(await boxes()).dock);
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
+  await until('!s.help.open', 'help closed');
+  /* the views: tabs above the plot, named, with ＋ and × */
+  await cdp.eval(`document.querySelector('.dock-collapse').click()`);
+  check('W644: the view tabs are a row above the plot, by window name, with a ＋', await cdp.eval(`(() => { const t = [...document.querySelectorAll('.view-tabs [role=tab]')].map(e => e.textContent.trim());
+    return t.join() === 'graph_1' && !!document.querySelector('.view-add > summary') && document.querySelector('.view-tabs').getBoundingClientRect().bottom <= document.querySelector('#main').getBoundingClientRect().top + 1; })()`));
+  await cdp.eval(`document.querySelector('.view-add > summary').click(); document.querySelector('.view-add [data-command="window.new"]').click()`);
+  check('W644: ＋ makes a new graph, which is a tab in front, named in the title bar',
+    await until(`!s.busy && s.plots.windows.length === 2 && document.querySelectorAll('.view-tabs [role=tab]').length === 2`, 'second graph')
+    && await cdp.eval(`document.querySelector('.title-bar .file').textContent === __xpp.state().plots.active && document.querySelector('.view-tab.active').textContent.includes(__xpp.state().plots.active)`));
+  await cdp.eval(`document.querySelector('.view-tab:not([data-view-kind=autox]) .plot-tab[aria-selected=false]').click()`);
+  check('W644: a tab picks its window; the title bar names it', await until(`!s.busy && document.querySelector('.title-bar .file').textContent === 'graph_1'`, 'graph_1'));
+  await cdp.eval(`document.querySelector('.view-tab .view-tab-close').click()`);
+  check('W644: a graph tab\'s x closes that graph; the main graph has no x', await until('!s.busy && s.plots.windows.length === 1', 'closed') && await cdp.eval(`document.querySelectorAll('.view-tab-close').length === 0`));
+  await openAutoxPanel();
+  check('W644: autoX is a tab, in front, named in the title bar, the dock hidden beside it for Values',
+    await cdp.eval(`document.querySelector('.view-tab[data-view-kind=autox] .plot-tab').getAttribute('aria-selected') === 'true' && document.querySelector('.title-bar .file').textContent === 'diagram_1'`)
+    && (await boxes()).dock === null && (await boxes()).status === null && !!(await boxes()).tabs && !!(await boxes()).menu);
+  await cdp.eval(`document.querySelector('.table-toggle').click()`);
+  check('W644: beside autoX the dock shows Table', await until('s.table.open', 'table') && !!(await boxes()).dock);
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
+  check('W644: its x there closes the panel only (the dock stays the user\'s)', await until('!s.table.open', 'closed') && !(await S('s.panels.dockHidden')));
+  await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+  check('W644: the graph tab brings back the plot, the status bar and the dock', await until('!s.diagram.shown', 'graph') && !!(await boxes()).dock && !!(await boxes()).status);
+  /* a phone: the dock is a sheet with the same tabs and x, no Back */
+  await metrics({width: 390, height: 844, deviceScaleFactor: 1, mobile: false});
+  await rendered();
+  await cdp.eval(`document.querySelector('.values-toggle').click()`);
+  await requireUntil('s.dockOpen', 'the sheet');
+  const sheet = await cdp.eval(`(() => { const d = document.getElementById('dock').getBoundingClientRect(); return {w: d.width, h: d.height, vw: innerWidth, vh: innerHeight,
+    tabs: [...document.querySelectorAll('#dock .dock-tab')].map(b => b.textContent), close: !!document.querySelector('#dock .dock-close'),
+    back: [...document.querySelectorAll('button')].some(b => /^Back\b/.test(b.textContent.trim()) && b.getClientRects().length)}; })()`);
+  check('W644: below 48 rem the dock is a full-screen sheet with the four tabs and an x, and no Back anywhere',
+    sheet.w === sheet.vw && sheet.h === sheet.vh && sheet.tabs.join() === 'Values,Table,Model,Help' && sheet.close && !sheet.back, JSON.stringify(sheet));
+  await cdp.eval(`document.querySelector('#dock .dock-close').click()`);
+  check('W644: the sheet\'s x shuts it, the page whole', await until('!s.dockOpen', 'shut') && !(await S('s.panels.dockHidden')));
+  await desktopMetrics();
+}
+
 /* W679: a field's help is behind a "?" after its label in a settings panel, in Preferences and in a command form: hidden, opened by a click, closed by a
    second, several open at once. Data only: the toggle's aria state, the help's hidden flag and the id they share. */
 async function fieldHelp() {
@@ -3466,6 +3528,51 @@ async function settingsShots() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
+/* The dock's and the view tabs' pictures for the UI review (W644; with --only shots and XPP_SHOTS=folder): the dock with each of its tabs, then the
+   view tabs with a graph and an autoX view, at 1280 wide light, 1440 dark, 768 and 390. Never a check: it writes files only. */
+async function dockShots() {
+  const dir = process.env.XPP_SHOTS;
+  if (!dir) throw new Error('shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(dir, {recursive: true});
+  await until('s.hello && !s.busy', 'hello');
+  check('W644 shots: integrate for the table', await integrate(601, 30000));
+  await menuRun('window.new');
+  await requireUntil('!s.busy && s.plots.windows.length === 2', 'a second graph');
+  await openAutoxAtFixedPoint();
+  await requireUntil('s.diagram.open', 'autoX open');
+  const shot = async name => fs.writeFileSync(path.join(dir, name + '.png'), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
+  for (const [size, width, height, scheme] of sizes) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+    await rendered();
+    /* the graph first: the dock's tabs over it */
+    await cdp.eval(`document.querySelector('#view-tab-graph-graph_1')?.click()`);
+    await until(`!s.diagram.shown`, 'the graph shown').catch(() => {});
+    for (const tab of ['values', 'table', 'text', 'help']) {
+      if (tab === 'values') await clickRegistry('values.open');
+      else await cdp.eval(`document.querySelector('.dock [data-dock-tab=${tab}]').click()`);
+      await until(`document.querySelector('.dock').dataset.tab === ${JSON.stringify(tab)}`, 'tab ' + tab);
+      await rendered();
+      await shot(`dock-${tab}-${size}`);
+    }
+    await cdp.eval(`document.querySelector('.dock-close').click()`);
+    await rendered();
+    await shot(`views-graph-${size}`);
+    await cdp.eval(`document.querySelector('#view-tab-autox-diagram_1').click()`);
+    await until('s.diagram.shown', 'the autoX view shown');
+    await rendered();
+    await shot(`views-autox-${size}`);
+    await cdp.eval(`document.querySelector('.view-add > summary').click()`);
+    await rendered();
+    await shot(`views-add-menu-${size}`);
+    await cdp.eval(`document.querySelector('.view-add').open = false`);
+    await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+    await until('!s.diagram.shown', 'the graph shown again');
+  }
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
 /* The menus' pictures for the UI review (W650; with --only shots and XPP_SHOTS=folder): each top menu open, and two submenus open, at 1280 wide light, 1440
    dark, 768 and 390 (the drawer). Never a check: it writes files only. */
 async function menuShots() {
@@ -3528,7 +3635,7 @@ async function tableShots() {
     await rendered();
     await shoot('export-menu');
     await cdp.eval(`document.querySelector('[data-sets-menu="table-export"]').open = false`);
-    await cdp.eval(`(document.querySelector('.table-back') && getComputedStyle(document.querySelector('.table-back')).display !== 'none' ? document.querySelector('.table-back') : document.querySelector('.table-close')).click()`);
+    await cdp.eval(`document.querySelector('.dock-close').click()`);
     await until('!s.table.open', 'table closed');
   }
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
@@ -3739,7 +3846,7 @@ async function navigationCheck() {
   check('W647: Help > About xppautX opens the About text with the version line',
     await until(`s.help.open && s.help.about && document.querySelector('.help-about p')?.textContent === s.hello.about[0].map(p => p.text).join('') && /^xppautX /.test(document.querySelector('.help-about p').textContent)`, 'about command'),
     JSON.stringify(await S('s.help')));
-  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
   await until('!s.help.open', 'help closed');
   // Every command with arguments renders the same form, using every declared argument.
   for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list')) {
@@ -4041,36 +4148,35 @@ async function keysCheck() {
 /* W633: one owner for Escape (hotkeys.ts), innermost first: an open menu, then a dialog, a pick or grab, the
    topmost open panel (the last opened), and last a running command's stop. One press does one of these. */
 async function escapeOwnerCheck() {
-  const panelOpen = id => cdp.eval(`document.getElementById(${JSON.stringify(id)}).classList.contains('open')`);
+  /* W644: the panels are the dock's tabs, one open at a time: the tab shown is the one whose panel is open, else Values */
+  const tabIs = tab => cdp.eval(`document.getElementById('dock').dataset.tab === ${JSON.stringify(tab)}`);
   const dataButton = () => cdp.eval(`document.querySelector('.table-toggle').click()`);
   await dataButton();
-  check('W633: the Data panel opens from the Tools menu', await until(`document.getElementById('table-panel').classList.contains('open')`, 'data panel'));
+  check('W633: the Data panel opens from the Tools menu', await until(`s.table.open`, 'data panel') && await tabIs('table'));
   await cdp.eval(`document.querySelector('[data-top-menu=File] > summary').click()`);
   await rendered();
   await key('Escape');
   check('W633: a menu open over a panel: Escape closes the menu only',
-    await cdp.eval(`!document.querySelector('.app-menu details[open]')`) && await panelOpen('table-panel'));
+    await cdp.eval(`!document.querySelector('.app-menu details[open]')`) && await S('s.table.open'));
   await key('F1');
-  check('W633: F1 opens Help over the Data panel', await until(`document.getElementById('help-panel').classList.contains('open')`, 'help open'));
+  check('W633, W644: F1 opens Help in the dock, in place of the Data tab', await until(`s.help.open && !s.table.open`, 'help open') && await tabIs('help'));
   await key('Escape');
-  check('W633: two panels open: one Escape closes the topmost (Help) only',
-    await until(`!document.getElementById('help-panel').classList.contains('open')`, 'help closed') && await panelOpen('table-panel'));
-  await key('Escape');
-  check('W633: the next Escape closes the Data panel', await until(`!document.getElementById('table-panel').classList.contains('open')`, 'data closed'));
+  check('W633, W644: Escape closes the panel open (Help); the dock shows Values',
+    await until(`!s.help.open && !s.table.open`, 'help closed') && await tabIs('values'));
   await dataButton();
-  await until(`document.getElementById('table-panel').classList.contains('open')`, 'data panel again');
+  await until(`s.table.open`, 'data panel again');
   await clickRegistry('window.rename');
   check('W633: a form opens over the panel', await until('!!s.commandForm', 'form'));
   await key('Escape');
   check('W633: a dialog over a panel: Escape closes the dialog only',
-    await until('!s.commandForm', 'form closed') && await panelOpen('table-panel'));
+    await until('!s.commandForm', 'form closed') && await S('s.table.open'));
   await menuRun('run.configure', {total_time: 1e6});
   await requireUntil('!s.busy', 'Total applied');
   await menuRun('run.initial');
   check('W633: a run under way', await until('s.busy && !s.ask && w.series && w.series.rows > 0', 'the run under way', 30000));
   await key('Escape');
   check('W633: during a run, Escape closes the panel first and the run goes on',
-    await until(`!document.getElementById('table-panel').classList.contains('open')`, 'panel closed') && await S('s.busy'));
+    await until(`!s.table.open`, 'panel closed') && await S('s.busy'));
   await key('Escape');
   check('W633: the next Escape stops the run', await until('!s.busy', 'run stopped', 30000));
 }
@@ -4460,7 +4566,7 @@ async function helpCheck() {
   check('help: a chapter link leaves About', await until(`!s.help.about && !document.querySelector('.help-about')`, 'about left'));
 
   /* Back closes it; F1 (focus away from any field) reopens it where it was left */
-  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
   check('help: Back closes it', await until('!s.help.open', 'closed'));
   const chapterLeftAt = await S('s.help.chapter');
   await cdp.eval(`document.body.focus()`);
@@ -4473,7 +4579,7 @@ async function helpCheck() {
     f1ok = await until(`s.help.open && s.help.chapter === ${JSON.stringify(chapterLeftAt)}`, 'F1 open', 1000);
   }
   check('help: F1 opens it again, where it was left', f1ok, JSON.stringify(await S('s.help')));
-  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
   await until('!s.help.open', 'closed again');
 
   /* W13a: the desktop window's Help > Keyboard shortcuts and Help > Manual
@@ -4482,12 +4588,12 @@ async function helpCheck() {
   check('help: the desktop hook opens Help at a chapter (Help > Keyboard shortcuts)',
     await until(`s.help.open && s.help.chapter === '05-commands' && s.help.anchor === null`, 'hook open'),
     JSON.stringify(await S('s.help')));
-  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
   await until('!s.help.open', 'closed by Back');
   await cdp.eval(`window.__xppOpenHelp()`);
   check('help: the desktop hook with no chapter reopens it where it was left (Help > Manual)',
     await until(`s.help.open && s.help.chapter === '05-commands'`, 'hook reopen'), JSON.stringify(await S('s.help')));
-  await cdp.eval(`document.querySelector('.help-back').click()`);
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
   await until('!s.help.open', 'closed at the end');
 
   /* W229: File/Help (key h) is gone with the core's `help` event: the title bar's Help button and F1 open it */
@@ -5433,7 +5539,7 @@ async function nativeFiles(dir) {
       check('W177: desktop button opens a save picker and writes ' + name,
         await until(`!s.busy && !s.ask && window.__nativeAsked.length > ${before}`, 'button saved')
         && await waitFor(() => fs.existsSync(path.join(dir, name))) && (await asked())?.mode === 'write');
-      if (name === 'native-table.csv') await cdp.eval(`document.querySelector('.table-back').click()`);
+      if (name === 'native-table.csv') await cdp.eval(`document.querySelector('.dock-close').click()`);
     }
 
 
@@ -6414,7 +6520,7 @@ const layoutRects = () => cdp.eval(`(() => {
       v: getComputedStyle(e).visibility}; };
   return {vw: innerWidth, vh: innerHeight, sw: document.documentElement.scrollWidth,
     plot: r('.plot-view:not([hidden]) .plot-host'), ws: r('.workspace'), vals: r('.values-panel'), menu: r('.app-menu'),
-    menuToggle: r('.menu-toggle'), valuesToggle: r('.values-toggle'), show: r('.autox-show'), msgs: r('.messages'),
+    menuToggle: r('.menu-toggle'), valuesToggle: r('.values-toggle'), show: r('[data-view-kind=autox]'), msgs: r('.messages'),
     status: r('.status-bar'), runLabelsFit: [...document.querySelectorAll('.run-actions button')].every(b => b.scrollWidth <= b.clientWidth + 1)}; })()`);
 /** the least share of the viewport's height the plot (its drawing area) keeps at the sizes of W639's design: the plot is the page's
     main thing, so a run toolbar, a window row and a legend above it may not squeeze it (option B measured 0.39 to 0.49 at 390x844,
@@ -6527,10 +6633,10 @@ async function layoutCheck(dir) {
   await metrics({width: 600, height: 900, deviceScaleFactor: 1, mobile: false});
   await rendered();
   await cdp.eval(`document.querySelector('.values-toggle').click()`);
-  check('layout: 600 px: the Values sheet opens over the window', await until('s.valuesOpen', 'values open')
+  check('layout: 600 px: the Values sheet opens over the window', await until('s.dockOpen', 'values open')
     && (await layoutRects()).vals.h >= 800);
-  await cdp.eval(`document.querySelector('.values-back').click()`);
-  check('layout: ... and closes, the plot still there', await until('!s.valuesOpen', 'values closed')
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
+  check('layout: ... and closes, the plot still there', await until('!s.dockOpen', 'values closed')
     && layoutProblems(await layoutRects()).length === 0);
   /* W639: the plot first on every screen, at a phone, a tablet and a short laptop window */
   for (const [w, h] of [[390, 844], [768, 1024], [1024, 700]]) {
@@ -6587,9 +6693,9 @@ async function layoutCheck(dir) {
   const nPts = await DS('d.points.x.length');
   await dialogOverEverything(`document.querySelector('.autox-panel [data-auto-trace]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))`,
     '.autox-panel .u-over', 'the autoX view');
-  await cdp.eval(`document.querySelector('.autox-back').click()`);
-  check('layout: Back hides the view, Show autoX appears', await until('!s.diagram.shown && s.diagram.open', 'auto back')
-    && await cdp.eval(`!!document.querySelector('.autox-show')`));
+  await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
+  check('layout: a graph tab hides the view, the autoX tab stays', await until('!s.diagram.shown && s.diagram.open', 'auto back')
+    && await cdp.eval(`!!document.querySelector('[data-view-kind=autox]')`));
   for (const h of [900, 560]) {
     const bad = [];
     for (let w = 600; w <= 2000; w += 50) {
@@ -6597,18 +6703,17 @@ async function layoutCheck(dir) {
       await rendered();
       const L = await layoutRects();
       const p = layoutProblems(L);
-      if (!L.show) p.push('no Show autoX');
+      if (!L.show) p.push('no autoX tab');
       else {
-        const shown = rectClip(L.show, L.ws); /* the workspace scrolls: a button below its edge is clipped, not covering */
-        if (rectsCross(shown, L.msgs)) p.push('Show autoX covers the messages');
-        if (rectsCross(shown, L.status)) p.push('Show autoX covers the status bar');
-        if (rectsCross(shown, rectClip(L.plot, L.ws))) p.push('Show autoX covers the plot');
-        if (L.show.l < 0 || L.show.r > L.vw + 0.5) p.push('Show autoX outside the width');
-        if (!(await cdp.eval(`(() => { const b = document.querySelector('.autox-show'); b.scrollIntoView({block: 'nearest'}); const r = b.getBoundingClientRect(), w = document.querySelector('.workspace').getBoundingClientRect(); const ok = r.top >= w.top - 0.5 && r.bottom <= w.bottom + 0.5; document.querySelector('.workspace').scrollTop = 0; return ok; })()`))) p.push('Show autoX not reachable by scrolling');
+        const shown = L.show;
+        if (rectsCross(shown, L.msgs)) p.push('the autoX tab covers the messages');
+        if (rectsCross(shown, L.status)) p.push('the autoX tab covers the status bar');
+        if (rectsCross(shown, rectClip(L.plot, L.ws))) p.push('the autoX tab covers the plot');
+        if (L.show.l < 0 || L.show.r > L.vw + 0.5) p.push('the autoX tab outside the width');
       }
       if (p.length) bad.push(`${w}: ${p.join(', ')} ${JSON.stringify([L.plot && L.plot.t, L.ws && [L.ws.t, L.ws.b], L.vals && [L.vals.t, L.vals.b]])}`);
     }
-    check(`layout: with the autoX view hidden, at 600..2000 x ${h} Show autoX covers no message, no status bar, no plot`,
+    check(`layout: with the autoX view hidden, at 600..2000 x ${h} its tab covers no message, no status bar, no plot`,
       bad.length === 0, bad.slice(0, 6).join(' | '));
   }
   await desktopMetrics();
@@ -6631,10 +6736,10 @@ async function layoutCheck(dir) {
   check('layout: opening it keeps the autoX view hidden as it was saved (W515), with its diagram',
     await until(`s.diagram.open && !s.diagram.shown && dv.points.x.length === ${nPts} && !s.busy`, 'session opened', 30000),
     JSON.stringify(await DS('[d.open, d.shown, d.points.x.length]')));
-  await cdp.eval(`document.querySelector('.autox-show').click()`);
+  await cdp.eval(`document.querySelector('[data-view-kind=autox] .plot-tab').click()`);
   check('layout: Show autoX brings the view back with its diagram',
     await until(`s.diagram.shown && dv.points.x.length === ${nPts} && !s.busy`, 'auto show after open', 30000));
-  await cdp.eval(`document.querySelector('.autox-back').click()`);
+  await cdp.eval(`document.querySelector('#view-tab-graph-graph_1').click()`);
   await until('!s.diagram.shown && s.diagram.open', 'back after open');
   await rendered();
   const L = await layoutRects();
@@ -6655,7 +6760,7 @@ const panelRects = () => cdp.eval(`(() => {
   const host = document.querySelector('.plot-view:not([hidden]) .plot-host');
   const kids = host ? [...host.querySelectorAll('canvas,svg')].map(e => e.getBoundingClientRect().width) : [];
   return {menu: r('.app-menu'), vals: r('.values-panel'), plot: r('.plot-view:not([hidden]) .plot-host'), kids,
-    menuSep: sep('.splitter-menu'), valSep: sep('.splitter-values'), p: __xpp.state().panels,
+    menuSep: sep('.splitter-menu'), valSep: sep('.splitter-dock'), p: __xpp.state().panels,
     menuBtn: document.querySelector('.menu-collapse')?.getAttribute('aria-expanded'),
     valBtn: document.querySelector('.values-collapse')?.getAttribute('aria-expanded')}; })()`);
 const near = (a, b, tol = 2) => Math.abs(a - b) <= tol;
@@ -6664,13 +6769,18 @@ async function panelsCheck() {
   await desktopMetrics();
   check('W517: no obsolete Commands panel splitter', !await exists('.splitter-menu'));
   await clickRegistry('values.open');
-  check('W517: Values remains reachable from Data', await until('s.valuesOpen', 'values'));
+  check('W517: Values remains reachable from Data', await until('s.dockOpen', 'values'));
   await clickRegistry('data.open');
   check('W517: browser remains reachable from Data', await until('s.table.open', 'data'));
-  await cdp.eval(`document.querySelector('.table-back').click()`);
+  await cdp.eval(`document.querySelector('.dock [data-dock-tab=values]').click()`);
   await until('!s.table.open', 'table closed');
-  await cdp.eval(`document.querySelector('.values-back').click()`);
-  await until('!s.valuesOpen', 'values closed');
+  /* the dock's x hides the column; the header's button shows it again with the tab it had */
+  await cdp.eval(`document.querySelector('.dock-close').click()`);
+  check('W644: the dock x hides the dock (Values is its tab)', await until('s.panels.dockHidden && !s.dockOpen', 'dock hidden')
+    && await cdp.eval(`getComputedStyle(document.querySelector('#dock')).display === 'none'`));
+  await cdp.eval(`document.querySelector('.dock-collapse').click()`);
+  check('W644: the header button shows the dock again, on Values', await until('!s.panels.dockHidden', 'dock shown')
+    && await cdp.eval(`getComputedStyle(document.querySelector('#dock')).display !== 'none' && document.querySelector('#dock').dataset.tab === 'values'`));
 }
 
 
@@ -6784,10 +6894,12 @@ async function main() {
     if (run('navigation')) await session(path.join(top, 'examples/ode/clustor.odex'), () => featuresCheck(['parameters', 'formula_tables'], ['boundary_conditions', 'delays', 'integral_terms']));
     if (run('options')) await session(ODE, optionsCheck);
     if (run('fieldhelp')) await session(ODE, fieldHelp);
+    if (run('dock')) await session(ODE, dockCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, fieldHelpShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, menuShots);
+    if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, dockShots);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, tableShots); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */
     if (run('windows')) await session(ODE, windows);
     if (run('annotations')) await session(ODE, marks);

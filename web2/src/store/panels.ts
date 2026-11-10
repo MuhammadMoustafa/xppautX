@@ -4,19 +4,19 @@ import {readPref, writePref} from './prefs';
 
 /** sizes in CSS px; null is the stylesheet's default size */
 export interface Panels {
-  valuesCollapsed: boolean;
+  dockHidden: boolean;
   /** the Values panel as a right column */
-  valuesWidth: number | null;
+  dockWidth: number | null;
 }
 
 export const defaultPanels: Panels = {
-  valuesCollapsed: false, valuesWidth: null,
+  dockHidden: false, dockWidth: null,
 };
 
 /** the limits of each panel's size (px); a panel is also held to a share of the window by the
     stylesheet (`min(..., 40vw)`), so a narrowed window never leaves the plot without room */
 export const PANEL_LIMITS = {
-  valuesWidth: {min: 288, max: 800, share: 0.5, label: 'Values panel width'},
+  dockWidth: {min: 288, max: 800, share: 0.5, label: 'Dock width'},
 } as const;
 export type PanelSize = keyof typeof PANEL_LIMITS;
 
@@ -35,10 +35,10 @@ const isSize = (v: unknown, size: PanelSize): v is number | null =>
   v === null || (typeof v === 'number' && v >= PANEL_LIMITS[size].min && v <= PANEL_LIMITS[size].max);
 
 const parsePanels = (v: any): Panels | null =>
-  v && typeof v.valuesCollapsed === 'boolean'
-    && isSize(v.valuesWidth, 'valuesWidth')
-    ? {valuesCollapsed: v.valuesCollapsed,
-      valuesWidth: v.valuesWidth}
+  v && typeof v.dockHidden === 'boolean'
+    && isSize(v.dockWidth, 'dockWidth')
+    ? {dockHidden: v.dockHidden,
+      dockWidth: v.dockWidth}
     : null;
 
 export const savedPanels = (): Panels => readPref(KEY, parsePanels, defaultPanels);

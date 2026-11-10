@@ -36,7 +36,7 @@
 .plots { flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; min-height: 0; }
 .plot-windows { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-1) var(--space-2); min-width: 0; }
 .plot-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; }
-.plot-tab {
+.plot-tab, .dock-tab {
   max-width: 100%;
   border-color: transparent;
   border-bottom: 2px solid transparent;
@@ -44,8 +44,17 @@
   background: none;
   color: var(--fg-muted);
 }
-.plot-tab[aria-selected='true'] { color: var(--fg); border-bottom-color: var(--accent); background: var(--surface); }
+.plot-tab[aria-selected='true'], .dock-tab[aria-selected='true'] { color: var(--fg); border-bottom-color: var(--accent); background: var(--surface); }
 .plot-tab-num { font-weight: 600; }
+/* the view tabs above the plot (W644, ui/ViewTabs.tsx): the strip, each tab with its ×, and ＋ */
+.view-tabs { grid-area: tabs; display: flex; align-items: flex-end; gap: var(--space-1); min-width: 0; padding: 0 var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface); }
+.view-tabs .plot-tabs { flex: 0 1 auto; flex-wrap: nowrap; overflow-x: auto; }
+.view-tab { display: inline-flex; align-items: center; flex: none; }
+.view-tab-kind { color: var(--fg-muted); white-space: pre; }
+.view-tab .view-tab-close { min-width: 1.5rem; padding-inline: var(--space-1); }
+.view-add { position: relative; }
+.view-tabs .view-add > summary { list-style: none; cursor: pointer; min-height: var(--target); min-width: var(--target); display: inline-flex; align-items: center; justify-content: center; font-size: 1.25rem; }
+.view-add > ul { position: absolute; z-index: var(--z-menu); left: 0; margin: 0; padding: var(--space-1); list-style: none; display: grid; gap: var(--space-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .plot-tab-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .plot-window-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-left: auto; }
 /* the window row, in the plot's header */

@@ -30,7 +30,7 @@ import type {OptionGroup} from '../protocol/types';
 /** the command whose panel is the main numerics' group */
 const NUM_COMMAND = 'run.configure';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
-import {CommandLabel, useCommandLabel} from './CommandButton';
+import {useCommandLabel} from './CommandButton';
 import {SetsRow} from './SetsRow';
 import {SliderStrip} from './SliderStrip';
 import {Field} from './Field';
@@ -302,12 +302,12 @@ function UserButtonsBlock() {
 export function ValuesPanel() {
   const valuesLabel = useCommandLabel('values.open');
   const session = useSession();
-  const open = useStore(s => s.valuesOpen);
+  const open = useStore(s => s.dockOpen);
   const bcs = useStore(s => s.core?.bcs ?? []);
   const modelBcs = showsBcSection(bcs) ? bcs : [];
   const delays = useStore(s => s.core?.delays ?? []);
   const panel = useRef<HTMLElement>(null);
-  const close = () => session.store.dispatch({type: 'valuesPanel', open: false});
+  const close = () => session.store.dispatch({type: 'dockPanel', open: false});
 
   useFocusBackOnClose(open, panel, '.values-toggle');
   useEffect(() => {
@@ -319,11 +319,7 @@ export function ValuesPanel() {
   }, [open]);
 
   return (
-    <section id="values-panel" ref={panel} class={'values-panel' + (open ? ' open' : '')} aria-label={valuesLabel}>
-      <div class="panel-header">
-        <button class="values-back" onClick={close}>Back</button>
-        <h2><CommandLabel command="values.open" /></h2>
-      </div>
+    <section id="values-panel" ref={panel} class="values-panel" aria-label={valuesLabel}>
       <div class="values-body">
         <StateSection />
         <Parameters />

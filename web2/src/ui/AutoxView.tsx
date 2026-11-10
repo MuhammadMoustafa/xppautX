@@ -5,14 +5,13 @@ import {WindowName} from './WindowName';
    window's buttons. It opens when the core opens window 101 (File/autoX) and
    goes when the core destroys it.
 
-   Layout (T26): a full-screen sheet at every width. It covers the main menu, the plot and the main status bar with a plain
-   background, so its own status strip is then the only status line on
-   screen and also carries what the main one says that matters there (T21:
+   Layout (T26, W644): an autoX view is a tab among the views above the plot (ui/ViewTabs.tsx), and while it is the tab shown it takes
+   the work area, under the header, the menu bar and the tabs, with a plain background; its own status strip is then the only
+   status line on screen and also carries what the main one says that matters there (T21:
    what autoX does and has the Stop, ui/AutoxStatus.tsx; the status bar's Stop
-   is the same one, A10), and its Output panel shows autoX's table. Back (or
-   Escape) hides the panel and leaves autoX open, showing the page again;
-   "Show autoX" brings it back; Close is "done with it": it closes autoX's
-   window, stopping a running continuation first (session.closeAutox). The
+   is the same one, A10), and its Output panel shows autoX's table. Choosing another tab (or Escape) shows that view and leaves
+   autoX open, with its diagram and a running continuation; the view's tab × is "done with it": it closes the view, stopping a
+   running continuation first (session.closeAutox). The
    core's asks/prompts/messages and any dialog autoX opens stay on top of
    this view (the dialog backdrop's z-index is above every panel's).
 
@@ -575,14 +574,8 @@ function AutoxPanel({dark}: {dark: boolean}) {
   return (
     <section id="autox-panel" ref={panel} class="autox-panel" aria-label="autoX">
       <div class="panel-header autox-header">
-        <button class="autox-back" onClick={() => session.showAutox(false)}
-          title="autoX stays open, with its diagram and a running continuation; Show autoX brings it back">Hide autoX</button>
         <h2>autoX <span class="muted autox-what">{views > 1 ? `${views} views, the active one ${what}` : what}</span></h2>
         <HelpButton target={HELP.autoxView} label="autoX" />
-        <button class="autox-close" onClick={() => session.closeAutox()}
-          title="Done with autoX: close its window (a running continuation is stopped first; File/autoX opens it again)">
-          Close
-        </button>
       </div>
       <div class="autox-tools" role="toolbar" aria-label="autoX">
         {BUTTONS.map(op => {
@@ -638,17 +631,4 @@ export function AutoxView({dark}: {dark: boolean}) {
 
   if (open && shown) return <AutoxPanel dark={dark} />;
   return null;
-}
-
-/* Show autoX (the view hidden): a row at the top of the workspace, above the plot
-   (always in view, a touch target on a phone), in the flow, so it never covers the message strip (W98) */
-export function AutoxShow() {
-  const session = useSession();
-  const open = useStore(s => s.diagram.open);
-  const shown = useStore(s => s.diagram.shown);
-  if (!open || shown) return null;
-  return (
-    <button class="autox-show" aria-controls="autox-panel" aria-expanded="false"
-      onClick={() => session.showAutox(true)} title="Show the autoX view again">Show autoX</button>
-  );
 }

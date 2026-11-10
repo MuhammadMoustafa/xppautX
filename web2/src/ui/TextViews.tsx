@@ -158,11 +158,7 @@ export function TextViews() {
   }, [open]);
 
   return (
-    <section id="text-panel" ref={panel} class={'text-panel panel-sheet' + (open ? ' open' : '')} aria-label="Model">
-      <div class="panel-header">
-        <button class="text-back" onClick={close}>Back</button>
-        <h2>Model</h2>
-      </div>
+    <section id="text-panel" ref={panel} class="text-panel" aria-label="Model">
       <div class="text-tabs" role="group" aria-label="Which text view to show">
         {TABS.map(t => (
           <button key={t.id} aria-pressed={tab === t.id} class={'text-tab' + (tab === t.id ? ' active' : '')}
