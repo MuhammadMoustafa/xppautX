@@ -34,6 +34,10 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
   merge an unreviewed branch. (skill: task-review)
 - A push is asked for, or a batch of cards is finished: run the push tier,
   push, close the issues with their commits. (skill: wave-push)
+- After every push: read that push's CI run (`gh run list --branch master`, the failed
+  job's log) before the next report, say its state in the report, and fix a red job at
+  once; local gates are not CI (maintainer, 2026-11-10: master was red on macOS and
+  not noticed, "multiple times").
 - A design question is open: list the questions with the count, then settle
   them one at a time with the count remaining. (skill: settle-design)
   The outcome goes to a GitHub Discussion. (skill: design-discussions)
