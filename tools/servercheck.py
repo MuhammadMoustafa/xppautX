@@ -3211,8 +3211,8 @@ check_registry_labels([c for c in hello.get('commands', []) if 'arguments' in c]
 
 # W649 (#722): what a model has that some settings and commands need is one list, computed once in the core and sent in hello; a row
 # (an option's or a command's) names the feature it needs, and a command whose feature the model lacks is refused with the reason
-FEATURE_MODELS = {'lecar.odex': [], 'dde.odex': ['delays'], 'dumbbvp.odex': ['boundary_conditions'], 'voltex1.odex': ['integral_terms'],
-                  'clustor.odex': ['formula_tables']}
+FEATURE_MODELS = {'lecar.odex': ['parameters'], 'dde.odex': ['parameters', 'delays'], 'dumbbvp.odex': ['parameters', 'boundary_conditions'],
+                  'voltex1.odex': ['parameters', 'integral_terms'], 'clustor.odex': ['parameters', 'formula_tables']}
 
 
 def check_model_features():
@@ -3248,7 +3248,7 @@ def check_model_features():
                     'table.edit': 'formula_tables', 'table.show': 'formula_tables'}, str(needs))
     option_needs = sorted({row.get('needs') for group in hello.get('options', []) for row in group['rows'] if row.get('needs')})
     check('W649: the option rows name only features hello lists', set(option_needs) <= {f['name'] for f in hello['model_features']}
-          and option_needs == ['boundary_conditions', 'delays', 'integral_terms'], str(option_needs))
+          and option_needs == ['boundary_conditions', 'delays', 'integral_terms', 'parameters'], str(option_needs))
 
 
 check_model_features()
