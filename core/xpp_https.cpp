@@ -155,15 +155,13 @@ Result<Reply> get_with_curl(std::string_view url, const Chunk &chunk)
 
 } // namespace
 
-Result<Reply> get(std::string_view url, const Chunk &chunk)
+Result<Reply> get([[maybe_unused]] std::string_view url, [[maybe_unused]] const Chunk &chunk)
 {
 #ifdef _WIN32
     return win32::https_get(url, chunk);
 #elif defined(__linux__)
     return get_with_curl(url, chunk);
 #else
-    (void)url;
-    (void)chunk;
     return fail(std::string(WHERE), "this system has no HTTPS client for updates yet: open the release page", Place{std::string(PLACE), 1});
 #endif
 }

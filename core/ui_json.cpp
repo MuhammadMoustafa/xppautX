@@ -817,7 +817,7 @@ bool runs_without_model(const char *line)
 {
     const std::string_view name = xpp::command::name(line);
     if (name == xpp::command::HELP_COMMAND || name == OPEN_MODEL_COMMAND || name == QUIT_COMMAND || name.starts_with("keymap.")
-        || name.starts_with("events.") || is_abort(line))
+        || name.starts_with("events.") || name.starts_with("update.") || is_abort(line)) /* W622: the check at opening runs on the start screen too */
         return true;
     if (is_cmd(line, "answer")) return true;
     return false;

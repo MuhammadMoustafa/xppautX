@@ -344,9 +344,10 @@ export async function startBrowser(browser, profile) {
 function configEnv(dir) {
   const config = path.join(dir, 'xpp-config');
   /* W622: the page checks for a newer release when it opens; no check reaches the network, so the preference starts off (the
-     updates section turns it on, with fetch stubbed) */
+     updates section turns it on, with fetch stubbed); a check that wrote its own preferences keeps them (and turns the check off itself) */
   fs.mkdirSync(config, {recursive: true});
-  fs.writeFileSync(path.join(config, 'preferences.odex'), 'version 4\npreferences {\n  check_for_updates: false,\n}\n');
+  const prefs = path.join(config, 'preferences.odex');
+  if (!fs.existsSync(prefs)) fs.writeFileSync(prefs, 'version 4\npreferences {\n  check_for_updates: false,\n}\n');
   return {...process.env, XPP_CONFIG_DIR: config};
 }
 
