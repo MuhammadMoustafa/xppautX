@@ -80,7 +80,6 @@ test('the protocol kinds as specs; an unknown or missing kind is text', () => {
   const lists = [['T', 'V', 'w'], ['V', 'w'], ['iapp', 'phi']];
   assert.deepEqual(specOfKind('integer'), {kind: 'integer'});
   assert.deepEqual(specOfKind('number'), {kind: 'number'});
-  assert.deepEqual(specOfKind('formula'), {kind: 'number', formula: true});
   assert.deepEqual(specOfKind('expression'), {kind: 'expression'});
   assert.deepEqual(specOfKind('file'), {kind: 'file'});
   assert.deepEqual(specOfKind('text'), {kind: 'text'});

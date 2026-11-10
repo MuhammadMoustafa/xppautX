@@ -495,8 +495,8 @@ export interface AskEvent {
   choices?: string[];
   names?: string[];
   values?: string[];
-  /** a `string` or `form` ask: what each field takes (`integer`, `number`, `formula`, `expression`,
-      `file`, `name:N`, `text`; one per field of every `string` and `form` ask), store/fieldKinds.ts specOfKind */
+  /** a `string` or `form` ask: what each field takes (`text`, `integer`, `number`, `file`, `boolean`,
+      `choice`, `real`, `color`, `name:N`; one per field of every `string` and `form` ask), store/fieldKinds.ts specOfKind */
   kinds?: string[];
   /** a `form` ask with typed fields: per field the names of a `choice` (null for another kind) and the
       `range` of an `integer` or `real` (null when it has none) */

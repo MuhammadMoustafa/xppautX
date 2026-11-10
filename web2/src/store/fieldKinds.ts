@@ -300,7 +300,6 @@ export function specOfKind(kind: string, lists: readonly (readonly string[])[] =
     case 'text': return {kind: 'text'};
     case 'integer': return {kind: 'integer', ...field.range};
     case 'number': return {kind: 'number'};
-    case 'formula': return {kind: 'number', formula: true};
     case 'expression': return {kind: 'expression'};
     case 'file': return {kind: 'file'};
   }
